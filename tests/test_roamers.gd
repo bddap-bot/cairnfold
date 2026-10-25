@@ -9,8 +9,6 @@ const AWAY := Vector3(0, -50, 0)
 
 func _initialize() -> void:
 	seed(1)
-	Terrain.install()
-	Ground.install()
 	await process_frame
 	_each_is_one_draw_call()
 	await _a_fox_and_a_doe_stand_true_to_life()
@@ -37,7 +35,9 @@ class Glade extends GladeBase:
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
 	await g.build(self, seed)
-	g.feed = g.add_tool(FeedTool.new(g.rig, g.water))
+	g.world.terrain.install()
+	g.world.marks.install()
+	g.feed = g.add_tool(FeedTool.new(g.rig, g.water, g.world.terrain))
 	g.feed.set_process(false)
 	g.feed.rng.seed = seed
 	g.wildlife.handfuls = g.feed.handfuls
@@ -93,7 +93,7 @@ func _walk_up(g: Glade, a: Beast, speed: float, stop: float) -> bool:
 	while Vector2(head.global_position.x - a.position.x, head.global_position.z - a.position.z).length() > stop:
 		var to := Vector3(a.position.x - head.global_position.x, 0, a.position.z - head.global_position.z).normalized()
 		head.global_position += to * speed * STEP
-		head.global_position.y = Terrain.height_at(head.global_position.x, head.global_position.z) + 1.6
+		head.global_position.y = g.world.terrain.height_at(head.global_position.x, head.global_position.z) + 1.6
 		_run(g, STEP)
 		if a.state == Grazers.State.FLEE:
 			return false
@@ -123,11 +123,12 @@ func _a_fox_and_a_doe_stand_true_to_life() -> void:
 
 ## A deer facing a fright runs from it the other way: it wheels round first, so it never gallops backwards.
 func _a_deer_turns_before_it_runs() -> void:
-	var grazers := Grazers.new(null, 1)
+	var wildlife := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [])
+	var grazers := Grazers.new(wildlife, 1)
 	var a := Beast.new(Beast.Kind.DEER, 1.0, 0.0)
 	root.add_child(a)
 	await process_frame
-	a.position = Terrain.ground(0, 0)
+	a.position = wildlife.terrain.ground(0, 0)
 	Wildlife._face(a, Vector3.FORWARD, 1.0)
 	var backwards := 0.0
 	for i in int(2.0 / STEP):
@@ -140,6 +141,7 @@ func _a_deer_turns_before_it_runs() -> void:
 	check(a.position.z > 5.0, "and is off, %.1f m" % a.position.z)
 	a.free()
 	grazers.free()
+	wildlife.free()
 
 
 ## Which idle clip a deer shows comes from its own seed, so a seeded replay's deer stand as they did.
@@ -244,7 +246,7 @@ func _food_held_still_draws_one_to_eat() -> void:
 		for k in 12:
 			var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 12.0) * off
 			if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
-				at = Terrain.ground(p.x, p.z)
+				at = g.world.terrain.ground(p.x, p.z)
 				break
 		check(at != Vector3.INF, "open grass to hold food over")
 		if at == Vector3.INF:
@@ -300,10 +302,10 @@ func _a_wall_drawn_under_one_moves_it() -> void:
 	var across := Vector3(p.z, 0, -p.x).normalized()
 	var m: WallTool.Mason = g.walls.masons[0]
 	m.hand.tool = Hand.Tool.WALLS
-	g.walls.begin_stroke(m, Terrain.ground(p.x - across.x * 3.0, p.z - across.z * 3.0))
+	g.walls.begin_stroke(m, g.world.terrain.ground(p.x - across.x * 3.0, p.z - across.z * 3.0))
 	for i in 41:
 		var q := p + across * lerpf(-3.0, 3.0, i / 40.0)
-		g.walls.extend_stroke(m, Terrain.ground(q.x, q.z))
+		g.walls.extend_stroke(m, g.world.terrain.ground(q.x, q.z))
 	g.walls.end_stroke(m)
 	check(not g.wildlife.standable(deer.position), "a wall is drawn under a grazing deer")
 	_run(g, 1.0 + Wildlife.LOOK_EVERY)
@@ -341,7 +343,7 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		for k in 12:
 			var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 12.0) * 5.0
 			if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
-				at = Terrain.ground(p.x, p.z)
+				at = g.world.terrain.ground(p.x, p.z)
 				break
 		check(at != Vector3.INF, "open grass to throw seeds onto")
 		if at == Vector3.INF:

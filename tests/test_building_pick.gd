@@ -29,7 +29,7 @@ func _run() -> void:
 	var origin := Vector3(-0.3, w.layout.samples[0].y + 1.2, -4.5)
 	var dir := Vector3(-0.431934, 0.259161, 0.863868).normalized()
 	var surface: Dictionary = main.tool.pick_building(origin, dir)
-	var contact := HandStop.Near.gather(main.tool, main.flora_tool.flora, AABB(surface.point - Vector3.ONE, Vector3.ONE * 2.0))
+	var contact := HandStop.Near.gather(main.world, AABB(surface.point - Vector3.ONE, Vector3.ONE * 2.0))
 	check(contact.solid(surface.point + dir * 0.03), "touch stops on the same wall body")
 	var teleported: Dictionary = main.rig.solid_hit.call(origin, dir, 30.0)
 	check(not teleported.is_empty() and teleported.point.distance_to(surface.point) < 0.01, "teleport stops at the near wall surface")
@@ -105,7 +105,7 @@ func _foundation_and_deck(w: Wall) -> void:
 
 
 func _thatched_eave(near: Wall, far: Wall) -> void:
-	main.world.submit({"op": "reshape", "of": "walls", "id": far.id, "data": {"points": PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, 0), Terrain.ground(4, 0), 8.0))}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": far.id, "data": {"points": PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, 0), main.world.terrain.ground(4, 0), 8.0))}})
 	main.world.submit({"op": "reshape", "of": "walls", "id": near.id, "data": {"roof": {"thatch": true}}})
 	for wall: Wall in main.tool.walls:
 		wall.lay_now()

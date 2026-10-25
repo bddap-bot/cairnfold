@@ -92,10 +92,10 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	var s := world.state
 	check(s.walls.is_empty() and main.tool.walls.is_empty(), "no walls stand")
 	check(s.paths.is_empty() and s.grounds.is_empty(), "no paths or stone are laid")
-	check(Ground.laid.get_data().count(0) == Ground.laid.get_data().size(), "and the ground shows no wear from them")
+	check(main.world.marks.laid.get_data().count(0) == main.world.marks.laid.get_data().size(), "and the ground shows no wear from them")
 	check(s.groups.keys() == [0], "no planted groups are left")
 	check(s.ponds.is_empty() and main.water.ponds.is_empty(), "no ponds hold water")
-	check(not world.sculpted and Terrain.read(Terrain.ALL) == Terrain.base_heights(), "the ground lies as it first did")
+	check(not world.sculpted and main.world.terrain.read(Terrain.ALL) == Terrain.base_heights(), "the ground lies as it first did")
 	var flora: Flora = main.flora_tool.flora
 	var meadow: Array = flora.groups[0]
 	check(meadow.all(func(p: Flora.Plant) -> bool: return p.shown() == (p.pool == flora.grass)), "of the meadow's own plants only its grass stands")
@@ -115,7 +115,7 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 
 
 func _a_visitor_wipes() -> void:
-	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-8, 6)}, 1)
+	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": main.world.terrain.ground(-8, 6)}, 1)
 	var seq := world.seq
 	world._order({"op": "wipe"}, 2)
 	check(world.seq == seq + 1 and world.state.groups.keys() == [0], "the host applies a visitor's wipe")
@@ -132,5 +132,5 @@ func _a_wipe_someone_built_on_stays() -> void:
 
 
 func _wall(by: int) -> int:
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(0, -5), Terrain.ground(4, -5)]), "seed": 3})]}, by)
+	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([main.world.terrain.ground(0, -5), main.world.terrain.ground(4, -5)]), "seed": 3})]}, by)
 	return world.seq * Commands.MAX_PIECES

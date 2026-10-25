@@ -80,7 +80,7 @@ func _keys_and_a_gamepad_walk_and_look() -> void:
 	var moved := main.rig.head.global_position - eye
 	check(absf(moved.dot(ahead) - Flat.WALK) < 0.2, "W walks ahead at walking pace: %.2f m in a second" % moved.dot(ahead))
 	var feet := main.rig.head.global_position
-	check(absf(feet.y - Terrain.height_at(feet.x, feet.z) - Rig.EYE) < 0.05, "with the eyes at standing height over the ground")
+	check(absf(feet.y - main.world.terrain.height_at(feet.x, feet.z) - Rig.EYE) < 0.05, "with the eyes at standing height over the ground")
 	eye = main.rig.head.global_position
 	_axis(JOY_AXIS_LEFT_X, 1.0)
 	await frames(30)
@@ -214,7 +214,7 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	var next := main.feed_tool._next
 	await _tap(func(on: bool) -> void: _axis(JOY_AXIS_TRIGGER_RIGHT, 1.0 if on else 0.0))
 	check(main.feed_tool._next == (next + 1) % FeedTool.HANDFULS, "the trigger throws a handful from it")
-	var ground := func() -> float: return rig.right.body.global_position.y - Terrain.height_at(rig.right.body.global_position.x, rig.right.body.global_position.z)
+	var ground := func() -> float: return rig.right.body.global_position.y - main.world.terrain.height_at(rig.right.body.global_position.x, rig.right.body.global_position.z)
 	var standing: float = ground.call()
 	flat.pitch = -1.2
 	var head := rig.head.global_position.y

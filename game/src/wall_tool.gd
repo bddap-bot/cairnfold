@@ -268,7 +268,7 @@ func _handle(m: Mason) -> void:
 	if m.buttons.pressed("grab") and not busy(m.hand) and not painting.call(m.hand):
 		var from := m.hand.grip_from()
 		var on_held := _held_hit(from, dir) if held != null else {}
-		var ground: Variant = Terrain.raycast(from, dir, m.hand.grip_reach())
+		var ground: Variant = world.terrain.raycast(from, dir, m.hand.grip_reach())
 		var nearest: float = from.distance_to(ground) if ground != null else m.hand.grip_reach()
 		var hits := world.pick(from, dir, {World.Kind.PLANT: nearest, World.Kind.HELD_TARGET: nearest, World.Kind.BOULDER: nearest, World.Kind.STAIRS: nearest, World.Kind.STAND: nearest}, {}, [World.Kind.HELD_TARGET])
 		var pick: Dictionary = hits.get(World.Kind.HELD_TARGET, {})
@@ -340,7 +340,7 @@ func _flush() -> void:
 
 
 func _new_wall() -> Wall:
-	return _add_wall(Wall.new(randi(), masonry))
+	return _add_wall(Wall.new(randi(), masonry, world.terrain))
 
 
 func _add_wall(w: Wall) -> Wall:
@@ -389,12 +389,12 @@ func _plan(st: Stroke, commit := false) -> void:
 	if st.planned and not commit:
 		return
 	st.planned = true
-	var layouts := st.plan.pieces(st.points, Terrain.height_at, commit)
+	var layouts := st.plan.pieces(st.points, world.terrain.height_at, commit)
 	while st.walls.size() > layouts.size():
 		st.walls.pop_back().queue_free()
 	for i in layouts.size():
 		if i == st.walls.size():
-			st.walls.append(_add_wall(Wall.new(layouts[i].seed, masonry)))
+			st.walls.append(_add_wall(Wall.new(layouts[i].seed, masonry, world.terrain)))
 		st.walls[i].layout = layouts[i]
 		st.walls[i].on = st.on
 		_meet(st.walls[i])
@@ -454,12 +454,13 @@ func _place_input() -> void:
 			ahead.y = 0.0
 			at = rig.head.global_position + ahead.normalized() * HOUSE_REACH
 		var on := aimed.get("on", -1) as int
-		build([new_house(stance(at, angle(rig.head.global_basis.x), m.hand.tool == Hand.Tool.TOWER), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())], m.hand)
+		build([new_house(stance(world.terrain.ground(at.x, at.z), angle(rig.head.global_basis.x), m.hand.tool == Hand.Tool.TOWER), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())], m.hand)
 
 
-## A new house, or round tower under a cone, standing at `at` with its front square to `yaw`, as `house_of` reads one.
-static func stance(at: Vector3, yaw: float, round := false) -> Dictionary:
-	var out := {"center": Terrain.ground(at.x, at.z), "yaw": yaw, "size": TOWER_SIZE if round else HOUSE_SIZE, "round": round, "rise": 0.0,
+## A new house, or round tower under a cone, standing at `center` on the ground with its front square to `yaw`, as
+## `house_of` reads one.
+static func stance(center: Vector3, yaw: float, round := false) -> Dictionary:
+	var out := {"center": center, "yaw": yaw, "size": TOWER_SIZE if round else HOUSE_SIZE, "round": round, "rise": 0.0,
 		"height": TOWER_HEIGHT if round else HOUSE_HEIGHT, "curve": 0.0, "overhang": RoofLayout.OVERHANG}
 	out.pitch = pitch_for(out)
 	return out
@@ -586,7 +587,7 @@ func _hold_build() -> void:
 ## Shows the house in hand standing as `to`: moved or turned, its stones are carried as they were laid, roof, fittings
 ## and furniture with them; sized, raised or its roof reshaped, it is laid again.
 func stand_build(to: Dictionary) -> void:
-	to.center = Terrain.ground(to.center.x, to.center.z)
+	to.center = world.terrain.ground(to.center.x, to.center.z)
 	var hands := _hands_of(_holders)
 	var top: Vector3 = to.center + Vector3.UP * (to.rise + to.height)
 	var changed := func(k: String) -> bool: return to.has(k) and to[k] != held_at[k]
@@ -643,7 +644,7 @@ func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
 	for k in i:
 		laid_at.pop_front()
 	var was: Dictionary = laid_at[0]
-	var lift: float = 0.0 if not at.grounded else _lowest(outline(at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round})) + at.rise - was.rise
+	var lift: float = 0.0 if not at.grounded else _lowest(outline(at), world.terrain.shown_at) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round}), world.terrain.shown_at) + at.rise - was.rise
 	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
 	var to := Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, lift, at.center.z))
 	_place_laid(w, to * from.affine_inverse())
@@ -749,10 +750,10 @@ func _settle_builds() -> void:
 			_carry(w, s.laid_at, s.at)
 
 
-static func _lowest(points: Array[Vector3]) -> float:
+static func _lowest(points: Array[Vector3], height: Callable) -> float:
 	var low := INF
 	for c in points:
-		low = minf(low, Terrain.height_at(c.x, c.z))
+		low = minf(low, height.call(c.x, c.z))
 	return low
 
 
@@ -1151,12 +1152,12 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	s.command = func() -> Dictionary:
 		var g: Dictionary = world.state.groups.get(first.group, {})
 		var at := first.foot()
-		if g.is_empty() or Water.drowned(at):
+		if g.is_empty() or Water.drowned(world.terrain, at):
 			return {}
 		var cmd := {"op": "tree", "group": first.group, "index": first.index}
 		var was: Vector3 = placed.call()
 		if Vector2(at.x - was.x, at.z - was.z).length() >= NUDGE:
-			cmd.at = Terrain.ground(at.x, at.z)
+			cmd.at = world.terrain.ground(at.x, at.z)
 		if tree and not is_equal_approx(flora.scale_of(first), g.scale.get(first.index, 1.0)):
 			cmd.scale = flora.scale_of(first)
 		return {} if cmd.size() == 3 else cmd
@@ -1182,7 +1183,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 	var data := func() -> Dictionary:
 		var p: Transform3D = grip.pose
 		var turn := p.basis.get_rotation_quaternion().normalized()
-		return {"at": Terrain.ground(p.origin.x, p.origin.z), "turn": turn, "sink": BoulderLayout.sink(b.shape, turn, grip.scale, p.origin, Terrain.height_at), "scale": grip.scale}
+		return {"at": world.terrain.ground(p.origin.x, p.origin.z), "turn": turn, "sink": BoulderLayout.sink(b.shape, turn, grip.scale, p.origin, world.terrain.height_at), "scale": grip.scale}
 	s.scale = func() -> float: return grip.scale
 	s.limits = Vector2(BoulderLayout.LEAST, BoulderLayout.MOST)
 	s.current = standing
@@ -1233,7 +1234,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		return {} if same else {"op": "reshape", "of": "stairs", "id": grip.id, "data": shown.merged({"on": stair_supports(shown)})}
 	s.take = func() -> void: from.merge(shown, true)
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
-		shown.merge(carry_stairs(from, m.took, hand, m.gain), true)
+		shown.merge(carry_stairs(from, m.took, hand, m.gain, world.terrain.height_at), true)
 		stairs.show_reshaped(grip.id, shown)
 	s.settle = func() -> void:
 		if world.state.stairs.has(grip.id) and not in_hand.call():
@@ -1244,14 +1245,14 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 ## Where stairs held standing as `at` ({a, b, width}) stand once the hand holding them moves from pose `from` to `to`:
 ## moved with the hand, `gain` times as far, and turned about the vertical through their middle with the hand's own turn,
 ## their lower end never under the ground.
-static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
+static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gain: float, height: Callable) -> Dictionary:
 	var mid: Vector3 = (at.a + at.b) * 0.5
 	var turn := Basis(Vector3.UP, turned(from, to))
 	var move := (to.origin - from.origin) * gain
 	var a: Vector3 = mid + move + turn * (at.a - mid)
 	var b: Vector3 = mid + move + turn * (at.b - mid)
 	var low := a if a.y < b.y else b
-	var under := maxf(Terrain.height_at(low.x, low.z) - low.y, 0.0)
+	var under := maxf(height.call(low.x, low.z) - low.y, 0.0)
 	return {"a": a + Vector3.UP * under, "b": b + Vector3.UP * under, "width": at.width}
 
 
@@ -1302,7 +1303,7 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		return {"op": "reshape", "of": "easels", "id": grip.id, "data": shown.duplicate()}
 	s.take = func() -> void: from.merge(shown, true)
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
-		shown.merge(carry_easel(from, m.took, hand, m.gain), true)
+		shown.merge(carry_easel(from, m.took, hand, m.gain, world.terrain.height_at), true)
 		stands.stand(grip.id, shown.at, shown.yaw)
 	s.settle = func() -> void:
 		var now: Dictionary = world.state.easels.get(grip.id, {})
@@ -1314,9 +1315,9 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 ## Where an easel standing as `at` ({at, yaw}) stands once the hand holding it moves from pose `from` to `to`: moved
 ## across the ground with the hand, `gain` times as far, on the ground there, and turned with the hand's own turn about
 ## the vertical.
-static func carry_easel(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
+static func carry_easel(at: Dictionary, from: Transform3D, to: Transform3D, gain: float, height: Callable) -> Dictionary:
 	var move: Vector3 = at.at + (to.origin - from.origin) * gain
-	return {"at": Terrain.ground(move.x, move.z), "yaw": wrapf(at.yaw + turned(from, to), -PI, PI)}
+	return {"at": Vector3(move.x, height.call(move.x, move.z), move.z), "yaw": wrapf(at.yaw + turned(from, to), -PI, PI)}
 
 
 ## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.
@@ -1476,7 +1477,7 @@ func _relay(w: Wall, data := {}) -> void:
 	w.set_data(d)
 	w.reshaped = data
 	_meet(w)
-	w.layout.resample(Terrain.height_at, Terrain.water_at)
+	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
 	_reshaped(w)
 	_open_paths(w, d.openings)
 	w.rebuild()
@@ -1681,7 +1682,7 @@ func reground(area: Rect2, settled: bool) -> void:
 		if w.footprint().intersects(area):
 			w.rebuild(settled)
 			if settled and not _held(w) and _meets_any(w):
-				w.layout.resample(Terrain.height_at, Terrain.water_at)
+				w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
 				_reshaped(w)
 
 
@@ -1732,10 +1733,10 @@ func pick_floor(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## What a point stands on: the ground under it, a house's or tower's floor, a flat roof's deck or a wall's walk at
+## What a point stands on: the ground under it as this player sees it, a house's or tower's floor, a flat roof's deck or a wall's walk at
 ## or below it.
 func floor_under(p: Vector3) -> float:
-	var y := Terrain.height_at(p.x, p.z)
+	var y := world.terrain.shown_at(p.x, p.z)
 	for w in walls:
 		if _held(w):
 			continue
@@ -1749,7 +1750,7 @@ func floor_under(p: Vector3) -> float:
 ## the build's id or -1 for the ground; {} for neither. A pitched roof counts as its house's top: what is built
 ## there stands on the walls under it, in the roof's place.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
-	var ground: Variant = Terrain.raycast(origin, dir)
+	var ground: Variant = world.terrain.raycast(origin, dir)
 	var best := {} if ground == null else {"point": ground, "on": -1, "along": origin.distance_to(ground)}
 	for w in walls:
 		if _held(w) or w.massing == null or w.layout.fence:
@@ -1889,6 +1890,6 @@ func _relay_due() -> void:
 		if w == null or _held(w):
 			continue
 		_meet(w)
-		w.layout.resample(Terrain.height_at, Terrain.water_at)
+		w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
 		_reshaped(w)
 		w.rebuild()

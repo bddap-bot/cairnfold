@@ -198,7 +198,7 @@ func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	var at: Vector3 = _easel().at
 	var was := e.position.y
 	var cells := Terrain.cells_around(at.x, at.z, 3.0)
-	var values := Terrain.read(cells)
+	var values := world.terrain.read(cells)
 	for i in values.size():
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
@@ -255,9 +255,9 @@ func _a_grip_on_its_stand_carries_it() -> void:
 	check(lm.growing == null, "the other hand's grip on it takes nothing: two hands size no easel")
 	var to := Transform3D(Basis(Vector3.UP, 0.6), from.origin + Vector3(2.0, 0.4, -1.0))
 	m.sizing.follow.call(m, to)
-	var expect := WallTool.carry_easel(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)))
+	var expect := WallTool.carry_easel(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)), world.terrain.height_at)
 	check(e.global_position.is_equal_approx(expect.at) and is_equal_approx(expect.yaw, wrapf(was.yaw + 0.6, -PI, PI)), "the hand's move and turn carry and turn it: %s" % [expect])
-	check(is_equal_approx(expect.at.y, Terrain.height_at(expect.at.x, expect.at.z)), "it stays on the ground as the hand rises")
+	check(is_equal_approx(expect.at.y, world.terrain.height_at(expect.at.x, expect.at.z)), "it stays on the ground as the hand rises")
 	check(_easel().at == was.at, "nothing is sent while it is held")
 	tool.end_grow(m)
 	check(_easel().at.is_equal_approx(expect.at) and is_equal_approx(_easel().yaw, expect.yaw), "let go, it is set where the hand carried and turned it")
@@ -270,12 +270,12 @@ func _a_grip_on_its_stand_carries_it() -> void:
 	world.undo()
 	check(_easel().at == was.at and _easel().yaw == was.yaw and e.global_position.is_equal_approx(was.at) and _easel().strokes == strokes, "one undo puts it back where it stood")
 	var state := World.blank()
-	state.easels[1] = {"at": Terrain.ground(10, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
-	state.easels[2] = {"at": Terrain.ground(20, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
-	var move := func(data: Dictionary) -> Dictionary: return Commands.clean({"op": "reshape", "of": "easels", "id": 1, "data": data}, state, false)
-	check(not move.call({"at": Terrain.ground(14, 12), "yaw": 1.0}).is_empty(), "a reshape may move and turn an easel, as a grip does")
-	check(not move.call({"at": Terrain.ground(10.5, 10)}).is_empty(), "a little way from where it stood")
-	check(move.call({"at": Terrain.ground(20.5, 10)}).is_empty(), "but never onto another")
+	state.easels[1] = {"at": world.terrain.ground(10, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
+	state.easels[2] = {"at": world.terrain.ground(20, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
+	var move := func(data: Dictionary) -> Dictionary: return Commands.clean({"op": "reshape", "of": "easels", "id": 1, "data": data}, state, false, world.terrain)
+	check(not move.call({"at": world.terrain.ground(14, 12), "yaw": 1.0}).is_empty(), "a reshape may move and turn an easel, as a grip does")
+	check(not move.call({"at": world.terrain.ground(10.5, 10)}).is_empty(), "a little way from where it stood")
+	check(move.call({"at": world.terrain.ground(20.5, 10)}).is_empty(), "but never onto another")
 	check(move.call({"yaw": 99.0}).is_empty() and move.call({"at": Vector3(INF, 0, 0)}).is_empty(), "nor turned or set past what one may stand")
 	check(move.call({"strokes": []}).is_empty(), "and a reshape paints nothing")
 
@@ -397,6 +397,7 @@ func _no_implement_crosses_the_easel() -> void:
 ## costs its nodes and its canvas, not a bake.
 func _easels_share_their_geometry() -> void:
 	var stands := Easels.new()
+	stands.terrain = world.terrain
 	main.add_child(stands)
 	var meshes := []
 	for id in 2:
@@ -601,9 +602,9 @@ func _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it() -> void:
 	await play([{"op": "press", "button": "A"}, {"op": "press", "button": "A"}])
 	check(_easel().mix == mixed and e.mixing.bytes == mixed and _easel().strokes.size() == 1, "and redo puts both back")
 	var state := {"stairs": {}, "easels": {7: {"at": Vector3.ZERO, "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}}
-	check(not Commands.clean({"op": "mix", "easel": 7, "mix": mixed}, state, false).is_empty(), "a board as the palette holds it is a command")
-	check(Commands.clean({"op": "mix", "easel": 7, "mix": mixed.slice(4)}, state, false).is_empty(), "a board of the wrong size is not")
-	check(Commands.clean({"op": "mix", "easel": 8, "mix": mixed}, state, false).is_empty(), "nor one for an easel that is not there")
+	check(not Commands.clean({"op": "mix", "easel": 7, "mix": mixed}, state, false, world.terrain).is_empty(), "a board as the palette holds it is a command")
+	check(Commands.clean({"op": "mix", "easel": 7, "mix": mixed.slice(4)}, state, false, world.terrain).is_empty(), "a board of the wrong size is not")
+	check(Commands.clean({"op": "mix", "easel": 8, "mix": mixed}, state, false, world.terrain).is_empty(), "nor one for an easel that is not there")
 
 
 ## Mixing on the board, without the game: paint trades both ways, the amounts hold, and the colours mix as pigments.
@@ -664,15 +665,15 @@ func _the_trigger_sets_one_up_or_says_why_not() -> void:
 
 func _easels_keep_their_distance_and_number() -> void:
 	var state := World.blank()
-	var at := Terrain.ground(10, 10)
+	var at := world.terrain.ground(10, 10)
 	var cmd := {"op": "easel", "at": at, "yaw": 0.5}
-	check(not Commands.clean(cmd, state, false).is_empty(), "an easel may stand on open ground")
+	check(not Commands.clean(cmd, state, false, world.terrain).is_empty(), "an easel may stand on open ground")
 	state.easels[1] = {"at": at, "yaw": 0.0, "strokes": []}
-	check(Commands.clean(cmd, state, false).is_empty(), "but not on another")
+	check(Commands.clean(cmd, state, false, world.terrain).is_empty(), "but not on another")
 	for i in Easels.MAX - 1:
-		state.easels[i + 2] = {"at": Terrain.ground(-20 + i * 5, -20), "yaw": 0.0, "strokes": []}
-	check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0}, state, false).is_empty(), "nor one more than a garden holds")
-	check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false).is_empty(), "a player's new easel brings no painting with it")
+		state.easels[i + 2] = {"at": world.terrain.ground(-20 + i * 5, -20), "yaw": 0.0, "strokes": []}
+	check(Commands.clean({"op": "easel", "at": world.terrain.ground(20, 20), "yaw": 0.0}, state, false, world.terrain).is_empty(), "nor one more than a garden holds")
+	check(Commands.clean({"op": "easel", "at": world.terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false, world.terrain).is_empty(), "a player's new easel brings no painting with it")
 
 
 func _bad_strokes_are_dropped() -> void:
@@ -696,9 +697,9 @@ func _bad_strokes_are_dropped() -> void:
 		s.merge(bad[what], true)
 		check(Brushwork.clean(s) == null, "a stroke with %s is dropped" % what)
 	var state := {"easels": {4: {"at": Vector3.ZERO, "yaw": 0.0, "strokes": []}}}
-	check(not Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a good stroke paints a standing easel")
-	check(Commands.clean({"op": "paint", "easel": 5, "stroke": good}, state, false).is_empty(), "but no easel that is not there")
-	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": [good]}, state, false).is_empty(), "a player's fresh sheet is blank")
+	check(not Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false, world.terrain).is_empty(), "a good stroke paints a standing easel")
+	check(Commands.clean({"op": "paint", "easel": 5, "stroke": good}, state, false, world.terrain).is_empty(), "but no easel that is not there")
+	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": [good]}, state, false, world.terrain).is_empty(), "a player's fresh sheet is blank")
 	var full: Array = []
 	var each := _many(Brushwork.MAX_SAMPLES)
 	for i in Brushwork.MAX_TOTAL / Brushwork.MAX_SAMPLES:
@@ -709,7 +710,7 @@ func _bad_strokes_are_dropped() -> void:
 	rest.samples = _many(Brushwork.MAX_TOTAL % Brushwork.MAX_SAMPLES)
 	full.append(rest)
 	state.easels[4].strokes = full
-	check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a full canvas takes no more")
+	check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false, world.terrain).is_empty(), "a full canvas takes no more")
 
 
 ## Each demo script's dips name the jar or a palette's paint, so none plays a dip the driver cannot place.

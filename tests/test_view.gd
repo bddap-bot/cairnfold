@@ -6,7 +6,7 @@ func _initialize() -> void:
 	var main = load("res://src/main.gd").new()
 	main.metrics = Metrics.new("")
 	main.metrics.info.xr = true
-	main.rig = Rig.new()
+	main.rig = Rig.new(Terrain.new())
 	root.add_child(main.rig)
 	for eye in [Vector3(8, 6, 11), Vector3(8, 1.65, 13)]:
 		main.rig.place(Vector3.ZERO, 3.0)

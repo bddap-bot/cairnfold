@@ -22,7 +22,7 @@ func _run() -> void:
 
 
 func _wall(world: World, fence: bool, openings: Array) -> Wall:
-	var d := wall_data({"points": PackedVector3Array([Terrain.ground(10, -30), Terrain.ground(16, -30)]), "height": WallLayout.FENCE_HEIGHT if fence else 2.6, "seed": 3, "fence": fence, "openings": PackedVector4Array(openings)})
+	var d := wall_data({"points": PackedVector3Array([main.world.terrain.ground(10, -30), main.world.terrain.ground(16, -30)]), "height": WallLayout.FENCE_HEIGHT if fence else 2.6, "seed": 3, "fence": fence, "openings": PackedVector4Array(openings)})
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -36,7 +36,7 @@ func _ray(w: Wall, s: float, up: float, slant := 0.0, level := false) -> Array:
 	var out: Vector3 = f.tangent.cross(Vector3.UP).normalized()
 	var through: Vector3 = f.point + Vector3.UP * (WallLayout.SINK + up)
 	var beyond: Vector3 = out * 4.0 + f.tangent * slant * 4.0
-	var target := through + beyond if level else Terrain.ground(through.x + beyond.x, through.z + beyond.z)
+	var target := through + beyond if level else main.world.terrain.ground(through.x + beyond.x, through.z + beyond.z)
 	var dir := (target - through).normalized()
 	return [through - dir * 3.0 / dir.dot(out), dir, f.point, out]
 

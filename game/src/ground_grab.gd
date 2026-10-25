@@ -110,7 +110,7 @@ func _handle(g: Grab, delta: float) -> void:
 	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.tracked() or editing.call(hand):
 		return
 	var dir := -hand.global_basis.z
-	var hit: Variant = Terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
+	var hit: Variant = world.terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
 	if hit == null or Daylight.aims_at_body(dir, world.time):
 		return
 	begin(hand, hit, hand.at_controller().distance_to(hit) * RADIUS_PER_METRE)
@@ -146,7 +146,7 @@ func pull(hand: Hand, metres: float) -> void:
 	var at: Vector3 = g.at
 	g.lift = clampf(metres, -Terrain.RELIEF, Terrain.RELIEF)
 	g.radius = reach(g.base_radius, g.lift)
-	Terrain.set_hump(g.slot, at.x, at.z, g.radius, g.lift)
+	world.terrain.set_hump(g.slot, at.x, at.z, g.radius, g.lift)
 	g.moved = g.moved.merge(_span(g, g.radius))
 
 
@@ -164,7 +164,7 @@ func stroke(hand: Hand) -> Dictionary:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
 	var cells := Terrain.cells_around(at.x, at.z, g.radius)
-	return {"op": "heights", "cells": cells, "values": Terrain.raised(cells, g.slot)}
+	return {"op": "heights", "cells": cells, "values": world.terrain.raised(cells, g.slot)}
 
 
 ## Sends `hand`'s stroke to the garden as one step; a tap that barely moved leaves the ground as it was.
@@ -174,7 +174,7 @@ func end_stroke(hand: Hand) -> void:
 	g.at = null
 	g.gripped = false
 	if absf(g.lift) < 0.01:
-		Terrain.clear_hump(g.slot)
+		world.terrain.clear_hump(g.slot)
 		reshaped.emit(g.moved, true)
 		return
 	g.sent += 1
@@ -188,7 +188,7 @@ func end_stroke(hand: Hand) -> void:
 func _settled(g: Grab) -> void:
 	g.sent -= 1
 	if g.sent == 0 and g.at == null:
-		Terrain.clear_hump(g.slot)
+		world.terrain.clear_hump(g.slot)
 		_due = _due.merge(g.pending) if _due.has_area() else g.pending
 		g.pending = Rect2()
 		_settle_due.call_deferred()
@@ -202,7 +202,7 @@ func _settle_due() -> void:
 
 ## The garden's side of a ground edit, from any player.
 func restore(cells: Rect2i, values: PackedFloat32Array) -> void:
-	Terrain.write(cells, values)
+	world.terrain.write(cells, values)
 	var area := Terrain.world_rect(cells)
 	if _due.has_area():
 		area = area.merge(_due)
@@ -215,7 +215,7 @@ func drop() -> void:
 	for g in _grabs:
 		g.at = null
 		g.gripped = false
-		Terrain.clear_hump(g.slot)
+		world.terrain.clear_hump(g.slot)
 
 
 func _span(g: Grab, r: float) -> Rect2:

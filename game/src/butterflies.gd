@@ -73,7 +73,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	rng.seed = seed
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/butterfly.gdshader")
-	crowd = Crowd.new(Meshes.butterfly(), CAP, mat, true)
+	crowd = Crowd.new(wildlife.terrain, Meshes.butterfly(), CAP, mat, true)
 	add_child(crowd)
 
 
@@ -87,7 +87,7 @@ func empty_patches() -> Array:
 
 
 func centre(key: Vector2i) -> Vector3:
-	return Terrain.ground((key.x + 0.5) * PATCH, (key.y + 0.5) * PATCH)
+	return wildlife.terrain.ground((key.x + 0.5) * PATCH, (key.y + 0.5) * PATCH)
 
 
 ## A few butterflies fly in to `key` from FROM_DISTANCE away along the level direction `from`.
@@ -132,7 +132,7 @@ func _scan() -> void:
 	var end := mini(_next + SCAN_PER_FRAME, pool.size())
 	for i in range(_next, end):
 		var p := pool.anchors[i]
-		if p == Flora.Pool.GONE or FloraLayout.bloom_rank(p) >= _bloom or Ground.bare(p.x, p.z) > 0.5 or wildlife.water.pond_at(p.x, p.z) != null:
+		if p == Flora.Pool.GONE or FloraLayout.bloom_rank(p) >= _bloom or wildlife.marks.bare(p.x, p.z) > 0.5 or wildlife.water.pond_at(p.x, p.z) != null:
 			continue
 		var x := pool.plants[i].xform
 		var key := Vector2i(floori(p.x / PATCH), floori(p.z / PATCH))
@@ -161,7 +161,7 @@ func _blooming(b: Butterfly) -> bool:
 
 
 func _make_for(b: Butterfly, bloom: Vector3) -> void:
-	b.goal = Vector3(bloom.x, Terrain.height_at(bloom.x, bloom.z) + bloom.y + 0.01, bloom.z)
+	b.goal = Vector3(bloom.x, wildlife.terrain.height_at(bloom.x, bloom.z) + bloom.y + 0.01, bloom.z)
 	b.goal_stalk = bloom.y / Meshes.FLOWER_HEIGHT
 
 
@@ -225,7 +225,7 @@ func _move(b: Butterfly, delta: float) -> void:
 	b.vel = b.vel.lerp(want, 1.0 - exp(-4.0 * delta))
 	b.at += b.vel * delta
 	if d > 0.4:
-		b.at.y = maxf(b.at.y, Terrain.height_at(b.at.x, b.at.z) + CRUISE)
+		b.at.y = maxf(b.at.y, wildlife.terrain.height_at(b.at.x, b.at.z) + CRUISE)
 	if Vector2(b.vel.x, b.vel.z).length() > 0.05:
 		b.yaw = lerp_angle(b.yaw, atan2(-b.vel.x, -b.vel.z), 1.0 - exp(-6.0 * delta))
 

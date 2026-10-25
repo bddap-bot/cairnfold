@@ -22,7 +22,7 @@ func _init(garden: World, builder: WallTool) -> void:
 
 
 func sync() -> void:
-	var stamp := [world.state.decorations.duplicate(true), Terrain.revision, _shown.duplicate(true)]
+	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision, _shown.duplicate(true)]
 	for w in walls.walls:
 		stamp.append([w.id, w.layout.laid, w.paint.duplicate()])
 	if _stamp.get("value") == stamp:
@@ -61,7 +61,7 @@ func sync() -> void:
 ## and rises with the house.
 func frame(d: Dictionary) -> Variant:
 	if d.wall < 0:
-		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, Terrain.height_at(d.at.x, d.at.z), d.at.z))
+		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, world.terrain.height_at(d.at.x, d.at.z), d.at.z))
 	var w := walls.find(d.wall)
 	if w == null:
 		return null
@@ -83,7 +83,7 @@ func frame(d: Dictionary) -> Variant:
 	var f := w.layout.frame_at(d.s)
 	var normal: Vector3 = f.tangent.cross(Vector3.UP) * d.side
 	var at: Vector3 = f.point + normal * (WallLayout.THICKNESS * 0.5 + 0.02)
-	at.y = maxf(Terrain.height_at(at.x, at.z), w.layout.rest(at.x, at.z))
+	at.y = maxf(world.terrain.height_at(at.x, at.z), w.layout.rest(at.x, at.z))
 	return FittingTool._facing(at, normal)
 
 

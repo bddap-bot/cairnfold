@@ -3,12 +3,16 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of paths and wall chemistry: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_path.gd
 
 
+var terrain := Terrain.new()
+var marks := Ground.new()
+
+
 func _initialize() -> void:
 	_run.call_deferred()
 
 
 func _run() -> void:
-	Ground.install()
+	marks.install()
 	_steep_paths_lay_level_treads()
 	_a_path_across_a_wall_opens_one_arch()
 	_a_wide_or_slanted_crossing_opens_an_arcade()
@@ -160,28 +164,26 @@ func _overlapping_arches_do_not_both_open() -> void:
 
 
 func _the_mask_parts_the_path_only() -> void:
-	var paths := Paths.new()
-	root.add_child(paths)
+	var paths := _paths()
 	paths.begin(Vector3(-10, 0, 20), 0.8)
 	for i in 30:
 		paths.extend(Vector3(-10 + i * 0.3, 0, 20), 0.8)
 	var p := paths.end()
 	check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
-	Ground.settle()
-	check(Ground.bare(-5, 20) > 0.99, "the stroke centre is fully worn (%.2f)" % Ground.bare(-5, 20))
-	check(Ground.bare(-5, 20.7) > 0.5, "the stroke edge is worn (%.2f)" % Ground.bare(-5, 20.7))
-	check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
-	check(Ground.bare(10, 20) == 0.0, "the meadow past the end is untouched")
+	marks.settle()
+	check(marks.bare(-5, 20) > 0.99, "the stroke centre is fully worn (%.2f)" % marks.bare(-5, 20))
+	check(marks.bare(-5, 20.7) > 0.5, "the stroke edge is worn (%.2f)" % marks.bare(-5, 20.7))
+	check(marks.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % marks.bare(-5, 21.6))
+	check(marks.bare(10, 20) == 0.0, "the meadow past the end is untouched")
 	paths.queue_free()
 
 
 func _a_short_stroke_leaves_no_trace() -> void:
-	var paths := Paths.new()
-	root.add_child(paths)
+	var paths := _paths()
 	paths.begin(Vector3(30, 0, 30), 1.0)
 	paths.extend(Vector3(30.4, 0, 30), 1.0)
 	check(paths.end().is_empty() and paths.layouts.is_empty(), "a stroke under a metre is dropped")
-	check(Ground.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Ground.bare(30, 30))
+	check(marks.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % marks.bare(30, 30))
 	paths.queue_free()
 
 
@@ -201,17 +203,27 @@ func _chemistry_works_in_either_order() -> void:
 	_teardown(nodes)
 
 
+func _paths() -> Paths:
+	var paths := Paths.new()
+	paths.terrain = terrain
+	paths.marks = marks
+	root.add_child(paths)
+	return paths
+
+
 ## A wall tool, the paths, the garden and the rig, idle so a test drives them.
 func _setup() -> Array:
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	# Crossing fixtures exceed capacity; test_budget covers the shared limit.
 	world.bounded = false
 	root.add_child(world)
 	var paths := Paths.new()
+	paths.terrain = world.terrain
+	paths.marks = world.marks
 	root.add_child(paths)
-	var flora := Flora.new()
+	var flora := Flora.new(world.terrain, world.marks)
 	root.add_child(flora)
 	flora.keep()
 	var tool := WallTool.new(rig, world, flora, paths)
@@ -278,7 +290,7 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		t.openings.assign([w.wrap(a - 1.0)].map(WallLayout.archway))
 		t.build(Terrain.flat)
 		var nodes := _setup()
-		var tower := Wall.new(1, nodes[0].masonry)
+		var tower := Wall.new(1, nodes[0].masonry, nodes[2].terrain)
 		tower.layout = t
 		nodes[0].walls.append(tower)
 		var opened: Array[float] = nodes[0]._cut_crossings(tower, _path([[-1, 0.15], [4, 0.15]], 0.5))
@@ -380,24 +392,27 @@ func _a_path_and_a_house_make_a_door_in_either_order() -> void:
 
 ## Puts up a house 8 m by 5 m with a gable roof centred on `at`, its front facing +z.
 func _put_house(nodes: Array, at: Vector3) -> Wall:
-	var a := Terrain.ground(at.x - 4, at.z)
-	var b := Terrain.ground(at.x + 4, at.z)
-	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
-	(nodes[2] as World).submit({"op": "wall", "walls": [data]})
+	var world: World = nodes[2]
+	var a := world.terrain.ground(at.x - 4, at.z)
+	var b := world.terrain.ground(at.x + 4, at.z)
+	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": {"kind": RoofLayout.Kind.GABLE, "center": world.terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	world.submit({"op": "wall", "walls": [data]})
 	_lay_walls(nodes[0])
 	return nodes[0].walls[-1]
 
 
 func _painting_skips_a_path() -> void:
 	var nodes := _setup()
+	var world: World = nodes[2]
 	var flora: Flora = nodes[4]
 	var t := FloraTool.new(nodes[3], flora, nodes[1], nodes[2])
 	t.set_process(false)
 	_lay(nodes, Vector3(20, 0, -20), Vector3(30, 0, -20), 1.5)
+	world.marks.settle()
 	var before := flora.grass.size()
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.GRASS
-	t.paint(b, Terrain.ground(25, -20), 0.8, 1.0)
+	t.paint(b, world.terrain.ground(25, -20), 0.8, 1.0)
 	check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
 	t.end_stroke(b)
 	check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
@@ -407,13 +422,14 @@ func _painting_skips_a_path() -> void:
 
 func _a_scripted_stroke_outlasts_the_hand() -> void:
 	var nodes := _setup()
+	var world: World = nodes[2]
 	var rig: Rig = nodes[3]
 	var t := FloraTool.new(rig, nodes[4], nodes[1], nodes[2])
 	t.set_process(false)
 	var paths: Paths = nodes[1]
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.DIRT_PATH
-	t.begin_path(b, Terrain.ground(-30, 20), 0.6)
+	t.begin_path(b, world.terrain.ground(-30, 20), 0.6)
 	rig.aim_hand = b.hand
 	t._handle(b, 1.0 / 60.0)
 	rig.aim_hand = null
@@ -424,34 +440,34 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 
 
 func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
-	Ground.install()
 	var nodes := _setup()
+	var world: World = nodes[2]
+	world.marks.install()
 	var t := FloraTool.new(nodes[3], nodes[4], nodes[1], nodes[2])
 	t.set_process(false)
-	var world: World = nodes[2]
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 60), Vector3(8, 0, 60))
 	_reshape(nodes, w, {"openings": PackedVector4Array()})
 	var b := t.brushes[1]
 	b.hand.tool = kind
-	t.begin_path(b, Terrain.ground(2, 54), 0.6)
+	t.begin_path(b, world.terrain.ground(2, 54), 0.6)
 	for i in 41:
-		t.extend_path(Terrain.ground(2, 54 + i * 0.3), 0.6)
+		t.extend_path(world.terrain.ground(2, 54 + i * 0.3), 0.6)
 	t.end_path(b)
 	_lay_walls(nodes[0])
 	var paths: Paths = nodes[1]
 	check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "the path is laid and opens its arch: %s" % [w.layout.archways()])
 	world.undo()
 	_lay_walls(nodes[0])
-	check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
+	check(paths.layouts.is_empty() and world.marks.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % world.marks.bare(2, 57))
 	check(w.layout.archways().is_empty(), "undo closes the arch the path opened: %s" % [w.layout.archways()])
 	world.redo()
 	_lay_walls(nodes[0])
-	Ground.settle()
-	check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
+	world.marks.settle()
+	check(paths.layouts.size() == 1 and world.marks.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
 	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
-	var target := deleter.aim(Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
+	var target := deleter.aim(world.terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	check(target.has("laid"), "Delete selects a path away from its wall crossing")
-	deleter.press(deleter, Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
+	deleter.press(deleter, world.terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	deleter.let_go(deleter)
 	_lay_walls(nodes[0])
 	check(paths.layouts.is_empty() and w.layout.archways().is_empty(), "Delete lifts path and closes its arch")
@@ -465,10 +481,10 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 
 func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	var m: WallTool.Mason = tool.masons[0]
-	tool.begin_stroke(m, Terrain.ground(a.x, a.z))
+	tool.begin_stroke(m, tool.world.terrain.ground(a.x, a.z))
 	for i in 41:
 		var p := a.lerp(b, i / 40.0)
-		tool.extend_stroke(m, Terrain.ground(p.x, p.z))
+		tool.extend_stroke(m, tool.world.terrain.ground(p.x, p.z))
 	tool.end_stroke(m)
 	_lay_walls(tool)
 	return tool.walls[-1]
@@ -481,13 +497,14 @@ func _lay_walls(tool: WallTool) -> void:
 
 ## Draws a path and sends it to the garden, as the path tool does.
 func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
+	var world: World = nodes[2]
 	var paths: Paths = nodes[1]
-	paths.begin(Terrain.ground(a.x, a.z), half)
+	paths.begin(world.terrain.ground(a.x, a.z), half)
 	for i in 41:
 		var p := a.lerp(b, i / 40.0)
-		paths.extend(Terrain.ground(p.x, p.z), half)
+		paths.extend(world.terrain.ground(p.x, p.z), half)
 	var ghost := paths.end()
-	(nodes[2] as World).submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
 	_lay_walls(nodes[0])
 
 
@@ -501,11 +518,11 @@ func _a_path_opens_its_arch_before_release() -> void:
 	var paths: Paths = nodes[1]
 	var world: World = nodes[2]
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 0), Vector3(8, 0, 0))
-	paths.begin(Terrain.ground(3, 4), 0.6)
-	paths.extend(Terrain.ground(3, 1), 0.6)
+	paths.begin(world.terrain.ground(3, 4), 0.6)
+	paths.extend(world.terrain.ground(3, 1), 0.6)
 	paths._relay()
 	check(w.layout.openings.is_empty(), "a path approaching a wall leaves it solid")
-	paths.extend(Terrain.ground(3, -1), 0.6)
+	paths.extend(world.terrain.ground(3, -1), 0.6)
 	paths._relay()
 	check(w.layout.openings.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
 	check(world.state.paths.is_empty() and world.state.walls[w.id].openings.is_empty(), "the preview changes no saved garden data")
@@ -513,7 +530,7 @@ func _a_path_opens_its_arch_before_release() -> void:
 		await process_frame
 	check(w.layout.archways().size() == 1, "the worker renders the arch before release")
 	var laid := w.layout.laid
-	paths.extend(Terrain.ground(3, -2), 0.6)
+	paths.extend(world.terrain.ground(3, -2), 0.6)
 	paths._relay()
 	check(not w.laying() and w.layout.laid == laid, "an unchanged crossing does not rebuild the wall")
 	var ghost := paths.end()
@@ -522,18 +539,18 @@ func _a_path_opens_its_arch_before_release() -> void:
 	while w.laying():
 		await process_frame
 	check(w.layout.archways().is_empty(), "a rejected ghost closes its preview arch")
-	paths.begin(Terrain.ground(3, 4), 0.6)
-	paths.extend(Terrain.ground(3, -1), 0.6)
+	paths.begin(world.terrain.ground(3, 4), 0.6)
+	paths.extend(world.terrain.ground(3, -1), 0.6)
 	paths._relay()
 	paths.forget()
 	while w.laying():
 		await process_frame
 	check(w.layout.archways().is_empty(), "forgetting the stroke closes its preview arch")
-	paths.begin(Terrain.ground(3, 0.1), 0.6)
-	paths.extend(Terrain.ground(3, -0.1), 0.6)
+	paths.begin(world.terrain.ground(3, 0.1), 0.6)
+	paths.extend(world.terrain.ground(3, -0.1), 0.6)
 	paths._relay()
 	check(w.layout.openings.size() == 1, "a short crossing previews its opening")
-	paths.extend(Terrain.ground(3, 0.3), 0.6)
+	paths.extend(world.terrain.ground(3, 0.3), 0.6)
 	paths._relay()
 	check(w.layout.openings.is_empty(), "moving the unsettled tip back closes the crossing")
 	check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
@@ -543,41 +560,41 @@ func _a_path_opens_its_arch_before_release() -> void:
 ## A path's command wears the garden's mask before anything reads it, and the shown mask a frame later, not in the
 ## frame it lands.
 func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void:
-	Ground.install()
 	var nodes := _setup()
+	var world: World = nodes[2]
+	world.marks.install()
 	_lay(nodes, Vector3(-40, 0, 70), Vector3(-30, 0, 70), 0.8)
-	check(Ground.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % Ground.bare(-35, 70))
+	check(world.marks.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % world.marks.bare(-35, 70))
 	for i in 2:
 		await process_frame
-	check(Ground.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % Ground.bare(-35, 70))
+	check(world.marks.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % world.marks.bare(-35, 70))
 	_lay(nodes, Vector3(-40, 0, 75), Vector3(-30, 0, 75), 0.8)
-	check(Ground.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % Ground.laid_bare(-35, 75))
+	check(world.marks.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % world.marks.laid_bare(-35, 75))
 	_teardown(nodes)
 
 
 func _dirt_wears_without_stones() -> void:
-	Ground.install()
-	var paths := Paths.new()
-	root.add_child(paths)
+	marks.install()
+	var paths := _paths()
 	paths.begin(Vector3(-20, 0, -20), 0.8)
 	paths.extend(Vector3(-10, 0, -20), 0.8)
 	var ghost := paths.end()
 	check(paths.get_child_count() == 0, "dirt creates no stones or stone nodes")
-	Ground.settle()
-	check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
+	marks.settle()
+	check(marks.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
 	var soft := false
 	for i in 20:
-		var edge := Ground.bare(-15, -20 + i * 0.1)
+		var edge := marks.bare(-15, -20 + i * 0.1)
 		soft = soft or (edge > 0.0 and edge < 1.0)
 	check(soft, "dirt has partially worn texels along its edge")
-	check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
+	check(marks.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
 	var data: Dictionary = Commands._path(ghost.data)
 	paths.drop(ghost)
 	paths.put(123, data)
-	check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
+	check(marks.mark_at(-15, -20) == 123 and marks.mark_at(-15, -18) == -1, "path selection follows the stroke width")
 	paths.take(123)
 	await process_frame
-	check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
+	check(marks.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.style = "invalid"
 	check(Commands._path(data) == null, "extra path fields are rejected")
 	paths.free()

@@ -76,8 +76,9 @@ var shoulders: Array[Conure] = [null, null]
 var _torso := NAN
 var aim_ground: Variant = null
 var aim_lift := 0.0
+var terrain: Terrain
 ## What a point stands on: the top surface at or just below it, the ground or anything built on it.
-var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
+var floor_under := func(p: Vector3) -> float: return terrain.shown_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
 ## {point, side}, `side` whether it struck a side; or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
@@ -105,7 +106,8 @@ var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
 
 
-func _init() -> void:
+func _init(ground: Terrain) -> void:
+	terrain = ground
 	head = XRCamera3D.new()
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
@@ -180,8 +182,8 @@ var under := false
 
 ## The eyes' far clip: at least FAR, and the whole ground from anywhere a player can stand or float over it,
 ## however high or deep it is pulled.
-static func far() -> float:
-	return maxf(FAR, Terrain.bounds().size.length() + AIR_REACH + MAX_LIFT)
+func far() -> float:
+	return maxf(FAR, terrain.bounds().size.length() + AIR_REACH + MAX_LIFT)
 
 
 func _process(delta: float) -> void:
@@ -266,8 +268,8 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
 	var upward := dir.y > 0.0
-	var reach := Terrain.exit_along(origin, dir)
-	var hit: Variant = Terrain.raycast(origin, dir, reach)
+	var reach := terrain.exit_along(origin, dir)
+	var hit: Variant = terrain.raycast(origin, dir, reach)
 	var solid: Dictionary = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
 	if not solid.is_empty():
 		hit = solid.point
@@ -357,16 +359,16 @@ func spawn() -> Vector3:
 		var n := maxi(1, int(TAU * r / SPAWN_STEP))
 		for k in n:
 			var at := Vector2(SPAWN.x, SPAWN.y) + Vector2.from_angle(TAU * k / n) * r
-			var g := Terrain.ground(at.x, at.y)
+			var g := terrain.ground(at.x, at.y)
 			if solid_hit.call(g + Vector3.UP * SPAWN_CLEAR, Vector3.DOWN, SPAWN_CLEAR).is_empty():
 				return g
-	var top := Vector3(SPAWN.x, Terrain.height_at(SPAWN.x, SPAWN.y) + MAX_LIFT, SPAWN.y)
+	var top := Vector3(SPAWN.x, terrain.shown_at(SPAWN.x, SPAWN.y) + MAX_LIFT, SPAWN.y)
 	return Vector3(top.x, floor_under.call(top), top.z)
 
 
 func place(ground: Vector3, lift_m: float) -> void:
 	var h := head.global_position
-	_floor_y = maxf(ground.y, Terrain.height_at(ground.x, ground.z))
+	_floor_y = maxf(ground.y, terrain.shown_at(ground.x, ground.z))
 	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)
 	placed.emit()
 

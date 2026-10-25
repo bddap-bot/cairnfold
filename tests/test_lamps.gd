@@ -143,21 +143,22 @@ func _merged_rooms_share_light() -> void:
 
 
 func _a_live_hump_solves_nothing() -> void:
+	var terrain := Terrain.new()
 	var lamps := Lamps.new()
+	lamps.terrain = terrain
 	lamps.light([], PackedVector3Array([Vector3(1.0, 1.8, 0.0)]))
 	lamps.finish()
-	Terrain.set_hump(0, 1.0, 0.0, 3.0, 1.0)
+	terrain.set_hump(0, 1.0, 0.0, 3.0, 1.0)
 	lamps.update()
 	_check(lamps._task < 0, "a stroke's live hump, which the light never stands on, starts no solve")
-	Terrain.clear_hump(0)
+	terrain.clear_hump(0)
 	lamps.finish()
 	var cells := Terrain.cells_around(1.0, 0.0, 3)
-	var before := Terrain.read(cells)
+	var before := terrain.read(cells)
 	var raised := before.duplicate()
 	for i in raised.size():
 		raised[i] += 1.0
-	Terrain.write(cells, raised)
+	terrain.write(cells, raised)
 	lamps.update()
 	_check(lamps._task >= 0, "ground raised under a lantern solves its light again")
 	lamps.stop()
-	Terrain.write(cells, before)

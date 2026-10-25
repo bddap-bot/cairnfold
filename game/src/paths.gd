@@ -9,6 +9,8 @@ signal laid(path: PathLayout)
 signal taken(path: PathLayout)
 signal previewed()
 
+var terrain: Terrain
+var marks: Ground
 var masonry: Masonry
 var layouts: Array[PathLayout] = []
 ## Each laid path's build command id; `layouts` keeps id order.
@@ -19,7 +21,7 @@ var _settled_mask: Image
 var _settled_rows := 0
 var _since_rebuild := 0.0
 var _dirty := false
-## Ground.rewears when the drawing's settled mask was taken: a rewear since wiped the drawn wear.
+## `marks.rewears` when the drawing's settled mask was taken: a rewear since wiped the drawn wear.
 var _seen := -1
 
 
@@ -32,10 +34,10 @@ func begin(p: Vector3, half: float) -> void:
 	previews.append(drawing)
 	drawing.seed = randi()
 	drawing.add(p, half)
-	Ground.settle()
-	_settled_mask = Ground.image.duplicate()
+	marks.settle()
+	_settled_mask = marks.image.duplicate()
 	_settled_rows = 0
-	_seen = Ground.rewears
+	_seen = marks.rewears
 	_dirty = true
 
 
@@ -60,7 +62,7 @@ func end() -> Dictionary:
 	drawing = null
 	_settled_mask = null
 	var ghost := {"data": path.data(), "layout": path}
-	Ground.hold(path)
+	marks.hold(path)
 	if path.length() < MIN_LENGTH:
 		drop(ghost)
 		return {}
@@ -69,7 +71,7 @@ func end() -> Dictionary:
 
 ## A ghost from `end` gives way: its command landed, was turned down, or the garden was swapped.
 func drop(ghost: Dictionary) -> void:
-	Ground.release(ghost.layout)
+	marks.release(ghost.layout)
 	previews.erase(ghost.layout)
 	previewed.emit()
 
@@ -80,7 +82,7 @@ func forget() -> void:
 		previews.erase(drawing)
 		drawing = null
 		_settled_mask = null
-		Ground.rewear()
+		marks.rewear()
 		previewed.emit()
 
 
@@ -93,7 +95,7 @@ func put(id: int, data: Dictionary) -> void:
 	while i < layouts.size() and ids[layouts[i]] < id:
 		i += 1
 	layouts.insert(i, path)
-	Ground.lay(path, id)
+	marks.lay(path, id)
 	_steps(path)
 	laid.emit(path)
 
@@ -103,7 +105,7 @@ func take(id: int) -> void:
 		if ids[path] == id:
 			layouts.erase(path)
 			ids.erase(path)
-			Ground.lift(path)
+			marks.lift(path)
 			if masonry != null:
 				masonry.remove(-2000000 - id)
 			taken.emit(path)
@@ -111,7 +113,7 @@ func take(id: int) -> void:
 
 
 func _process(delta: float) -> void:
-	Ground.settle_due()
+	marks.settle_due()
 	_since_rebuild += delta
 	if _dirty and drawing != null and _since_rebuild >= WallTool.REBUILD_EVERY:
 		_relay()
@@ -119,18 +121,18 @@ func _process(delta: float) -> void:
 
 ## Keep settled wear while rebuilding the moving tip.
 func _relay() -> void:
-	Ground.settle()
-	if _seen != Ground.rewears:
-		_settled_mask = Ground.image.duplicate()
+	marks.settle()
+	if _seen != marks.rewears:
+		_settled_mask = marks.image.duplicate()
 		_settled_rows = 0
-		_seen = Ground.rewears
+		_seen = marks.rewears
 	drawing.plan()
 	var stable := drawing.rows_before(drawing.settled())
 	drawing.wear(_settled_mask, _settled_rows, stable)
 	_settled_rows = stable
-	Ground.image.copy_from(_settled_mask)
-	drawing.wear(Ground.image, stable)
-	Ground.upload()
+	marks.image.copy_from(_settled_mask)
+	drawing.wear(marks.image, stable)
+	marks.upload()
 	_dirty = false
 	_since_rebuild = 0.0
 	previewed.emit()
@@ -147,7 +149,7 @@ func _steps(path: PathLayout) -> void:
 	if masonry == null:
 		return
 	var wall := WallLayout.new()
-	wall.stones = path.steps(Terrain.held_height())
+	wall.stones = path.steps(terrain.held_height())
 	var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
 	var parts: Array[Dictionary] = []
 	for k in Wall.Part.size():

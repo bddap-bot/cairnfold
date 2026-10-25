@@ -11,6 +11,7 @@ func _initialize() -> void:
 
 func _events_follow_motion(fps: int) -> void:
 	var bird := Conure.new(0.0, 0)
+	bird.terrain = Terrain.new()
 	root.add_child(bird)
 	var events: Array[int] = []
 	bird.animation_event.connect(func(act: Cues.Act) -> void: events.append(act))

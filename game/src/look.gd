@@ -51,6 +51,7 @@ var lake_mat := ShaderMaterial.new()
 var _lake: Array[MeshInstance3D] = []
 var _plain: MeshInstance3D
 var bounce := Bounce.new()
+var terrain: Terrain
 var _lift := -1.0
 var time := -1.0
 var _sky_time := -1.0
@@ -91,8 +92,10 @@ static func cloud_noise() -> NoiseTexture2D:
 	return t
 
 
-static func build(parent: Node) -> Look:
+static func build(parent: Node, ground: Terrain) -> Look:
 	var look := Look.new()
+	look.terrain = ground
+	look.bounce.terrain = ground
 	parent.add_child(look)
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://src/sky.gdshader")
@@ -293,7 +296,7 @@ func _process(delta: float) -> void:
 		var at := eye.global_position
 		disc.global_position = at + Daylight.toward_sun(time) * DISC_DISTANCE
 		moon_disc.global_position = at + Daylight.toward_moon(time) * DISC_DISTANCE
-		lift_to(at.y - Terrain.height_at(at.x, at.z))
+		lift_to(at.y - terrain.shown_at(at.x, at.z))
 		adapt(bounce.sky_at(at), delta)
 	bounce.update()
 	_since_sky += delta

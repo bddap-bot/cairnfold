@@ -8,7 +8,6 @@ const AWAY := Vector3(0, -50, 0)
 
 
 func _initialize() -> void:
-	Terrain.install()
 	await process_frame
 	await _only_painted_flowers_draw_them()
 	await _they_settle_on_blooms_and_scatter_from_a_hand()
@@ -48,7 +47,7 @@ func _paint(g: Glade, at: Vector3, seconds: float) -> void:
 	var b := g.tool.brushes[0]
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in int(seconds / STEP):
-		g.tool.paint(b, Terrain.ground(at.x, at.z), 1.0, STEP)
+		g.tool.paint(b, g.world.terrain.ground(at.x, at.z), 1.0, STEP)
 	g.tool.end_stroke(b)
 	g.tool.flora.grow_now()
 
@@ -62,7 +61,7 @@ func _only_painted_flowers_draw_them() -> void:
 	var g := await _glade(2)
 	var rng := RandomNumberGenerator.new()
 	for i in 600:
-		g.flora.add_flower(Terrain.ground(rng.randf_range(-3, 3), rng.randf_range(-7, -1)), rng)
+		g.flora.add_flower(g.world.terrain.ground(rng.randf_range(-3, 3), rng.randf_range(-7, -1)), rng)
 	g.flora.keep()
 	g.run(120.0)
 	check(g.all().is_empty(), "the meadow's own flowers draw no butterflies")
@@ -158,7 +157,7 @@ func _they_leave_when_the_flowers_go() -> void:
 	g.palette.season = Palette.SUMMER
 	g.run(60.0)
 	check(not g.in_state(Butterflies.State.PERCH).is_empty(), "in bloom again, they come back")
-	for p in g.flora.plants_near(Terrain.ground(3, -4), 4.0).filter(func(p: Flora.Plant) -> bool: return p.group != 0):
+	for p in g.flora.plants_near(g.world.terrain.ground(3, -4), 4.0).filter(func(p: Flora.Plant) -> bool: return p.group != 0):
 		p.set_shown(false)
 	g.run(2.0)
 	check(g.wildlife.butterflies.patches.is_empty(), "a cleared patch is no longer a patch")
@@ -182,9 +181,9 @@ func _a_path_over_flowers_takes_them_away() -> void:
 	_arrived(g)
 	var b := g.tool.brushes[0]
 	b.hand.tool = Hand.Tool.DIRT_PATH
-	g.tool.begin_path(b, Terrain.ground(-6, -5), 2.5)
+	g.tool.begin_path(b, g.world.terrain.ground(-6, -5), 2.5)
 	for x in range(-6, 1):
-		g.tool.extend_path(Terrain.ground(x, -5), 2.5)
+		g.tool.extend_path(g.world.terrain.ground(x, -5), 2.5)
 	g.tool.end_path(b)
 	# The path's wear shows from the frame after it lands.
 	for i in 2:

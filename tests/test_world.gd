@@ -39,7 +39,7 @@ func _run() -> void:
 
 
 func _wall(by: int, x: float) -> int:
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "seed": 3})]}, by)
+	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([main.world.terrain.ground(x, -5), main.world.terrain.ground(x + 4, -5)]), "seed": 3})]}, by)
 	return world.seq * Commands.MAX_PIECES
 
 
@@ -67,7 +67,7 @@ func _your_later_steps_never_block_your_earlier_ones() -> void:
 
 
 func _a_step_someone_built_on_is_skipped() -> void:
-	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-8, 6)}, 1)
+	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": main.world.terrain.ground(-8, 6)}, 1)
 	var tree := world.seq
 	var a := _wall(1, 0)
 	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"height": 5.0}}, 2)
@@ -96,10 +96,10 @@ func _wall_data(points: PackedVector3Array) -> Dictionary:
 
 
 func _house_data(on: PackedInt32Array) -> Dictionary:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-40, 30), Terrain.ground(-34, 30), 4.0)))
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-40, 30), main.world.terrain.ground(-34, 30), 4.0)))
 	d.closed = true
 	d.on = on
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	return d
 
 
@@ -137,7 +137,7 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([upper]))]}, 1)
 	var later := world.seq * Commands.MAX_PIECES
 	check(world.state.walls.has(later) and world.state.walls[later].on == PackedInt32Array([upper]), "a build may stand on one standing")
-	check(Commands.clean({"op": "wall", "ids": PackedInt32Array([5]), "walls": [_with(bad, "on", PackedInt32Array([9]))], "seq": 1, "by": 1}, world.state, true).is_empty(), "never on a newer one")
+	check(Commands.clean({"op": "wall", "ids": PackedInt32Array([5]), "walls": [_with(bad, "on", PackedInt32Array([9]))], "seq": 1, "by": 1}, world.state, true, main.world.terrain).is_empty(), "never on a newer one")
 	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([123456]))]}, 1)
 	check(world.state.walls[world.seq * Commands.MAX_PIECES].on.is_empty(), "a proposal on a build since gone stands on the ground")
 	for id in world.state.walls.keys():
@@ -147,7 +147,7 @@ func _a_storey_follows_what_it_stands_on() -> void:
 
 func _bad_commands_are_dropped() -> void:
 	var a := _wall(1, 30)
-	var good := _wall_data(PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(3, 0)]))
+	var good := _wall_data(PackedVector3Array([main.world.terrain.ground(0, 0), main.world.terrain.ground(3, 0)]))
 	var cases := {
 		"unknown op": {"op": "explode"},
 		"taking a wall that is not there": {"op": "take", "of": "walls", "ids": PackedInt32Array([9999])},
@@ -169,8 +169,8 @@ func _bad_commands_are_dropped() -> void:
 		"reshape to no gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": WallLayout.GableEnd.size()}},
 		"reshape to a named gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": "steps"}},
 		"reshape keyed by a name": {"op": "reshape", "of": "walls", "id": a, "data": {&"height": NAN}},
-		"heights that put a pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "put": {Vector2i(0, 0): 1.0}},
-		"heights that drain someone's pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "drop": [Vector2i(0, 0)]},
+		"heights that put a pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": main.world.terrain.read(Rect2i(0, 0, 1, 1)), "put": {Vector2i(0, 0): 1.0}},
+		"heights that drain someone's pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": main.world.terrain.read(Rect2i(0, 0, 1, 1)), "drop": [Vector2i(0, 0)]},
 		"a pond at the world's edge, where water runs off": {"op": "ponds", "put": {Vector2i(0, 80): 50.0}},
 		"two ponds at once": {"op": "ponds", "put": {Vector2i(80, 80): 1.0, Vector2i(10, 10): 1.0}},
 		"a pond off the map": {"op": "ponds", "put": {Vector2i(-1, 0): 1.0}},
@@ -192,13 +192,13 @@ func _bad_commands_are_dropped() -> void:
 		"heights under the deepest hollow": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": PackedFloat32Array([-1e30])},
 	}
 	for what in cases:
-		check(Commands.clean(cases[what], world.state, false).is_empty(), "refused: %s" % what)
+		check(Commands.clean(cases[what], world.state, false, main.world.terrain).is_empty(), "refused: %s" % what)
 	var before := world.seq
 	for what in cases:
 		world._order(cases[what], 2)
 	check(world.seq == before, "and none of them reaches the garden")
-	check(not Commands.clean({"op": "wall", "ids": PackedInt32Array([world.seq * 8 + 40]), "walls": [good]}, world.state, false).has("ids"), "a player cannot choose a new wall's id")
-	var extra := Commands.clean({"op": "take", "of": "walls", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false)
+	check(not Commands.clean({"op": "wall", "ids": PackedInt32Array([world.seq * 8 + 40]), "walls": [good]}, world.state, false, main.world.terrain).has("ids"), "a player cannot choose a new wall's id")
+	var extra := Commands.clean({"op": "take", "of": "walls", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false, main.world.terrain)
 	check(extra.keys().map(str) == ["op", "of", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
@@ -212,12 +212,12 @@ func _gable_ends_go_through_the_host() -> void:
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent with the wall's gable end has it")
 	var unset := _house_data(PackedInt32Array())
 	unset.erase("gable_end")
-	check(Commands.clean({"op": "wall", "walls": [unset]}, world.state, false).is_empty(), "a house sent without a gable end is refused")
+	check(Commands.clean({"op": "wall", "walls": [unset]}, world.state, false, main.world.terrain).is_empty(), "a house sent without a gable end is refused")
 	var turn := {"op": "reshape", "of": "walls", "id": id, "data": {"gable_end": WallLayout.GableEnd.STEPS}}
-	var hosted := Commands.clean(turn, world.state, false)
+	var hosted := Commands.clean(turn, world.state, false, main.world.terrain)
 	hosted.seq = world.seq + 1
 	hosted.by = 2
-	var relayed := Commands.clean(hosted, world.state, true)
+	var relayed := Commands.clean(hosted, world.state, true, main.world.terrain)
 	check(relayed.get("data", {}).get("gable_end") == WallLayout.GableEnd.STEPS, "a peer takes the host's turn of a gable end: %s" % relayed)
 	world._order(turn, 2)
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.STEPS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.STEPS, "the house is laid again with crow steps")
@@ -230,7 +230,7 @@ func _gable_ends_go_through_the_host() -> void:
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "a twist of the style tool on them turns them to the next style")
 	world.restore(world.snapshot())
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.BOARDS, "a save carries them")
-	var next: Wall = main.tool.new_house(WallTool.stance(Terrain.ground(-20, 30), 0.0))
+	var next: Wall = main.tool.new_house(WallTool.stance(main.world.terrain.ground(-20, 30), 0.0))
 	check(next.layout.gable_end == WallLayout.GableEnd.BOARDS, "and the next house is laid with it")
 	var built: Array[Wall] = [next]
 	main.tool.build(built)
@@ -247,7 +247,7 @@ func _with(d: Dictionary, k: String, v: Variant) -> Dictionary:
 
 
 func _hill(at: Rect2i, lift: float) -> Dictionary:
-	var v := Terrain.read(at)
+	var v := main.world.terrain.read(at)
 	for i in v.size():
 		v[i] += lift
 	return {"op": "heights", "cells": at, "values": v}
@@ -257,20 +257,20 @@ func _hill(at: Rect2i, lift: float) -> Dictionary:
 ## largest a tool makes still goes through on a full allowance.
 func _commands_cost_by_size() -> void:
 	var small := World.cost({"op": "sky", "time": 0.5})
-	var whole := World.cost({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
+	var whole := World.cost({"op": "heights", "cells": Terrain.ALL, "values": main.world.terrain.read(Terrain.ALL)})
 	check(small >= 1.0 and small < 1.1, "a small command costs one (%.2f)" % small)
 	check(whole > 20.0 and whole <= World.BURST, "the whole ground costs as much as it carries, within a burst (%.1f)" % whole)
-	var wall := _wall_data(PackedVector3Array(range(Commands.MAX_POINTS).map(func(i: int) -> Vector3: return Terrain.ground(i * 0.1, 0))))
+	var wall := _wall_data(PackedVector3Array(range(Commands.MAX_POINTS).map(func(i: int) -> Vector3: return main.world.terrain.ground(i * 0.1, 0))))
 	var stroke := {"op": "wall", "walls": range(Commands.MAX_PIECES).map(func(_i: int) -> Dictionary: return wall)}
 	check(var_to_bytes(stroke).size() / float(World.COMMAND_BYTES) < World.BURST - 1.0, "the largest stroke fits a full allowance (%d bytes)" % var_to_bytes(stroke).size())
-	Terrain.set_hump(0, 0, 0, 9, 1e6)
-	var raised := Terrain.raised(Rect2i(80, 80, 1, 1), 0)
-	Terrain.clear_hump(0)
+	main.world.terrain.set_hump(0, 0, 0, 9, 1e6)
+	var raised := main.world.terrain.raised(Rect2i(80, 80, 1, 1), 0)
+	main.world.terrain.clear_hump(0)
 	check(raised[0] == Terrain.RELIEF, "the ground tool raises the ground no higher than the highest hill (%s)" % raised[0])
 
 
 func _ground_undo_waits_on_overlapping_ground() -> void:
-	var original := Terrain.read(Rect2i(60, 60, 12, 12))
+	var original := main.world.terrain.read(Rect2i(60, 60, 12, 12))
 	world._order(_hill(Rect2i(60, 60, 6, 6), 1.0), 21)
 	world._order(_hill(Rect2i(63, 63, 6, 6), 0.5), 22)
 	var before := world.seq
@@ -286,7 +286,7 @@ func _ground_undo_waits_on_overlapping_ground() -> void:
 
 
 func _a_mix_undo_waits_on_its_easel() -> void:
-	world._order({"op": "easel", "at": Terrain.ground(-40, -40), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}, 31)
+	world._order({"op": "easel", "at": main.world.terrain.ground(-40, -40), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}, 31)
 	var id := world.seq
 	var mix := PackedByteArray()
 	mix.resize(Mixing.SIZE.x * Mixing.SIZE.y * 4)
@@ -305,8 +305,8 @@ func _a_mix_undo_waits_on_its_easel() -> void:
 func _a_pond_undo_waits_on_the_ground_that_drained_it() -> void:
 	var cells := Terrain.cells_around(-40, 40, 2.8)
 	world._order(_hill(cells, -1.0), 33)
-	var hit := Vector3(-40, Water.brim(-40, 40, 2.8 * GroundGrab.SPREAD), 40)
-	var p: PondLayout.Pond = Water.deepest(Water.candidates(hit), hit.y)
+	var hit := Vector3(-40, Water.brim(main.world.terrain, -40, 40, 2.8 * GroundGrab.SPREAD), 40)
+	var p: PondLayout.Pond = Water.deepest(Water.candidates(main.world.terrain, hit), hit.y)
 	world._order({"op": "ponds", "put": {p.at: hit.y}, "wet": p.cells.size()}, 33)
 	check(world.state.ponds.has(p.at), "a pond fills the hollow")
 	world._order(_hill(cells, 1.0), 34)
@@ -337,7 +337,7 @@ func _undo_sounds_only_when_a_step_comes_back() -> void:
 	await _press("undo", main.rig.left)
 	check(heard.call(Cues.Act.UNDO) == undo and heard.call(Cues.Act.REFUSED) == refused + 1, "an undo with nothing to take back is refused, not played as an undo")
 	check(world._ops.is_empty(), "and leaves no command waiting")
-	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(50, -5), Terrain.ground(54, -5)]))]}, world.me())
+	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([main.world.terrain.ground(50, -5), main.world.terrain.ground(54, -5)]))]}, world.me())
 	var a := world.seq * Commands.MAX_PIECES
 	await _press("undo", main.rig.left)
 	check(not world.state.walls.has(a) and heard.call(Cues.Act.UNDO) == undo + 1, "an undo that takes a step back sounds")
@@ -361,7 +361,7 @@ func _press(action: String, hand: Hand) -> void:
 
 
 func _undo_restores_exact_values() -> void:
-	world._order({"op": "wall", "walls": [_with(_wall_data(PackedVector3Array([Terrain.ground(-30, 0), Terrain.ground(-30, 4), Terrain.ground(-26, 4), Terrain.ground(-26, 0)])), "closed", true).merged({"roof": {"kind": 0, "center": Terrain.ground(-28, 2), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 2, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}, true)]}, 1)
+	world._order({"op": "wall", "walls": [_with(_wall_data(PackedVector3Array([main.world.terrain.ground(-30, 0), main.world.terrain.ground(-30, 4), main.world.terrain.ground(-26, 4), main.world.terrain.ground(-26, 0)])), "closed", true).merged({"roof": {"kind": 0, "center": main.world.terrain.ground(-28, 2), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 2, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}, true)]}, 1)
 	var a := world.seq * Commands.MAX_PIECES
 	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"roof": {"pitch": 3.5, "curve": 0.4}}}, 1)
 	world._order({"op": "undo"}, 1)
@@ -396,7 +396,7 @@ func _ghosts_go_when_their_command_settles() -> void:
 
 func _a_seed_decides_its_plants() -> void:
 	var flora: Flora = main.flora_tool.flora
-	var dabs := [[Terrain.ground(-15, -15), 1.0, 20]]
+	var dabs := [[main.world.terrain.ground(-15, -15), 1.0, 20]]
 	world._order({"op": "plant", "kind": "grass", "seed": 1, "dabs": dabs}, 1)
 	flora.grow_now()
 	var one: Array = flora.groups[world.seq].map(func(p: Flora.Plant) -> Vector3: return p.anchor)
@@ -412,13 +412,13 @@ func _a_seed_decides_its_plants() -> void:
 func _ghost_paths_never_change_what_grows() -> void:
 	var paths: Paths = main.get_node("Builds").get_children().filter(func(n: Node) -> bool: return n is Paths)[0]
 	var flora: Flora = main.flora_tool.flora
-	var dabs := [[Terrain.ground(-25, -30), 2.0, 60]]
+	var dabs := [[main.world.terrain.ground(-25, -30), 2.0, 60]]
 	world._order({"op": "plant", "kind": "grass", "seed": 5, "dabs": dabs}, 1)
 	flora.grow_now()
 	var clear: int = flora.groups[world.seq].filter(func(p: Variant) -> bool: return p != null).size()
-	paths.begin(Terrain.ground(-28, -30), 2.5)
+	paths.begin(main.world.terrain.ground(-28, -30), 2.5)
 	for i in 20:
-		paths.extend(Terrain.ground(-28 + i * 0.4, -30), 2.5)
+		paths.extend(main.world.terrain.ground(-28 + i * 0.4, -30), 2.5)
 	paths._relay()
 	world._order({"op": "plant", "kind": "grass", "seed": 5, "dabs": dabs}, 1)
 	flora.grow_now()
@@ -437,12 +437,12 @@ func _restore_forgets_history() -> void:
 
 
 func _snapshot_rebuilds_the_garden() -> void:
-	world._order({"op": "plant", "kind": "flowers", "seed": 8, "dabs": [[Terrain.ground(5, 5), 1.0, 30], [Terrain.ground(5.5, 5), 1.0, 30]]}, 1)
+	world._order({"op": "plant", "kind": "flowers", "seed": 8, "dabs": [[main.world.terrain.ground(5, 5), 1.0, 30], [main.world.terrain.ground(5.5, 5), 1.0, 30]]}, 1)
 	var flowers := world.seq
 	var flora: Flora = main.flora_tool.flora
 	world._order({"op": "show", "plants": {flowers: PackedInt32Array([0, 1, 2]), 0: PackedInt32Array([7])}, "on": false}, 2)
 	var hill := Rect2i(82, 82, 14, 14)
-	var raised := Terrain.read(hill)
+	var raised := main.world.terrain.read(hill)
 	for i in raised.size():
 		raised[i] += 1.5
 	world._order({"op": "heights", "cells": hill, "values": raised}, 1)
@@ -452,7 +452,7 @@ func _snapshot_rebuilds_the_garden() -> void:
 	var snap := world.snapshot()
 	world.restore({"seq": 0, "cmds": []})
 	check(_picture() != picture, "restoring an empty snapshot clears the garden")
-	check(flora.groups.size() == 1 and absf(Terrain.height_at(12, 12) - Terrain.base_heights()[92 * Terrain.VERTS + 92]) < 0.01, "back to the meadow and its ground")
+	check(flora.groups.size() == 1 and absf(main.world.terrain.height_at(12, 12) - Terrain.base_heights()[92 * Terrain.VERTS + 92]) < 0.01, "back to the meadow and its ground")
 	world.restore(snap)
 	check(_picture() == picture, "the snapshot rebuilds every wall, plant and height, flowers standing where the hill rose under them")
 
@@ -475,7 +475,7 @@ func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	var b := tool.brushes[0]
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 30:
-		tool.paint(b, Terrain.ground(-20 + i * 0.1, 30), 1.0, 1.0 / 30.0)
+		tool.paint(b, main.world.terrain.ground(-20 + i * 0.1, 30), 1.0, 1.0 / 30.0)
 	var painted := b.stroke.filter(func(p: Variant) -> bool: return p != null)
 	var cmd := {"op": "plant", "kind": b.kind, "seed": b.rng.seed, "dabs": b.dabs.duplicate(true)}
 	tool.end_stroke(b)

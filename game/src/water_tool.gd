@@ -80,7 +80,7 @@ func _handle(i: int) -> void:
 		_show(i, null)
 		return
 	var t := hand.global_transform
-	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
+	var hit: Variant = world.terrain.raycast(t.origin, -t.basis.z)
 	_show(i, hit)
 	hand.point(hit, TINT if _ponds[i] != null else REFUSED)
 	if hit != null and b.pressed("tool"):
@@ -105,7 +105,7 @@ func _show(i: int, hit: Variant) -> void:
 		_asked[i] = hit
 		var box := [null]
 		_boxes[i] = box
-		var from := Water.candidates(hit)
+		var from := Water.candidates(world.terrain, hit)
 		var level: float = hit.y
 		_tasks[i] = WorkerThreadPool.add_task(func() -> void:
 			box[0] = Water.deepest(from, level)
@@ -123,7 +123,7 @@ func fill(hand: Hand, hit: Vector3) -> void:
 		_pour(hand, _at[i], _ponds[i])
 		return
 	var box := [null]
-	var from := Water.candidates(hit)
+	var from := Water.candidates(world.terrain, hit)
 	var level := hit.y
 	_fires.append([hand, hit, WorkerThreadPool.add_task(func() -> void: box[0] = Water.deepest(from, level)), box])
 

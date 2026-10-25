@@ -47,7 +47,7 @@ func _init(home: Wildlife, light: Look, seed: int) -> void:
 	quad.size = Vector2.ONE
 	mat.shader = load("res://src/firefly.gdshader")
 	mat.set_shader_parameter("fade", FADE)
-	crowd = Crowd.new(quad, CAP, mat)
+	crowd = Crowd.new(wildlife.terrain, quad, CAP, mat)
 	add_child(crowd)
 
 

@@ -151,11 +151,13 @@ class WallSite extends Site:
 ## stand on whatever ground is under the trunk now.
 class TreeSite extends Site:
 	var parts: Array[Flora.Plant] = []
+	var terrain: Terrain
 	var _crown := PackedVector3Array()
 	var _shown := -1
 
-	func _init(tree: Array) -> void:
+	func _init(tree: Array, ground: Terrain) -> void:
 		parts.assign(tree)
+		terrain = ground
 
 	func standing() -> bool:
 		return parts[0].shown()
@@ -170,7 +172,7 @@ class TreeSite extends Site:
 			_shown = shown
 			_crown = Birds._crown(parts)
 		var out := _crown.duplicate()
-		var ground := Vector3.UP * Terrain.height_at(parts[0].anchor.x, parts[0].anchor.z)
+		var ground := Vector3.UP * terrain.height_at(parts[0].anchor.x, parts[0].anchor.z)
 		for i in out.size():
 			out[i] += ground
 		return out
@@ -218,6 +220,7 @@ func arrive(to: Site = null) -> void:
 			break
 		var b := Bird.new()
 		b.node = Conure.new(rng.randf() * 10.0, rng.randi() % Conure.PLUMAGES.size())
+		b.node.terrain = wildlife.terrain
 		b.node.animation_event.connect(_animation_event.bind(b))
 		add_child(b.node)
 		b.node.position = start + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.5, 0.5), rng.randf_range(-1, 1))
@@ -245,7 +248,7 @@ func look() -> void:
 		var trunk: Flora.Plant = parts[0]
 		if parts.size() > 1 and wildlife.water.pond_at(trunk.anchor.x, trunk.anchor.z) == null:
 			var s: Site = old.get(trunk)
-			_list(trunk, s if s != null else TreeSite.new(parts))
+			_list(trunk, s if s != null else TreeSite.new(parts, wildlife.terrain))
 	for s in sites:
 		s.listed = true
 	for b in birds:
@@ -351,7 +354,7 @@ func _think(b: Bird, delta: float) -> void:
 			_flutter(b)
 		elif rng.randf() < delta * 0.4:
 			var to := b.node.position + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(0.08, 0.2)
-			to = Terrain.ground(to.x, to.z)
+			to = wildlife.terrain.ground(to.x, to.z)
 			if _peckable(to):
 				_hop(b, to, State.PECK)
 		return
@@ -635,7 +638,7 @@ func _flutter(b: Bird) -> void:
 func _swoop(b: Bird) -> void:
 	for attempt in 6:
 		var off := Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(PECK_REACH.x, PECK_REACH.y)
-		var at := Terrain.ground(b.spot.x + off.x, b.spot.z + off.z)
+		var at := wildlife.terrain.ground(b.spot.x + off.x, b.spot.z + off.z)
 		if _peckable(at):
 			_fly_to(b, null, at, State.FLY)
 			b.then = State.PECK
@@ -718,7 +721,7 @@ func _move(b: Bird, delta: float) -> void:
 				n.add_to_group(&"perched")
 			return
 		State.PECK:
-			n.position.y = Terrain.height_at(n.position.x, n.position.z)
+			n.position.y = wildlife.terrain.height_at(n.position.x, n.position.z)
 			n.blend(Conure.PECK, delta)
 			return
 	if n.is_in_group(&"perched"):

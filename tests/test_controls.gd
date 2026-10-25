@@ -124,7 +124,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	check(rig.right.tool == Hand.Tool.HOUSE, "the right ring picks the house")
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
-	var spot := Terrain.ground(14, 5)
+	var spot := main.world.terrain.ground(14, 5)
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), spot)
 	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), spot)
 	await frames(2)
@@ -181,7 +181,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _laid(w)
 	await frames(1)
 	var foot: float = (w.transform * w.layout.samples[0]).y
-	var ground := WallTool._lowest(WallTool.outline(tool.held_at))
+	var ground := WallTool._lowest(WallTool.outline(tool.held_at), main.world.terrain.height_at)
 	check(is_equal_approx(foot, ground + rise - WallLayout.SINK), "and shows it standing that high, never floating: foot %.2f over ground %.2f" % [foot, ground])
 	var left_at := Vector3(-0.2, -0.4, -0.3)
 	hold.call(&"left_hand", left_at, tool.held_at.center + Vector3.UP * (rise + 1.2) + (front - placed.center).normalized() * placed.size.y * 0.5 - Vector3.UP * 1.2)
@@ -270,7 +270,7 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	check(rig.right.tool == Hand.Tool.TOWER, "the right ring picks the tower")
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
-	var spot := Terrain.ground(-14, 5)
+	var spot := main.world.terrain.ground(-14, 5)
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), spot)
 	await frames(2)
 	var before := walls.size()
@@ -356,7 +356,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	rig.left.tool = Hand.Tool.FLOWERS
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
-	var front := Terrain.ground(12, -12) + Vector3.UP * 1.2
+	var front := main.world.terrain.ground(12, -12) + Vector3.UP * 1.2
 	var grip := func(s: StringName, on: bool) -> void:
 		trackers[s].set_input(&"grip_click", on)
 		await frames(3)
@@ -436,7 +436,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await play([{"op": "press", "button": "A"}])
 	check(is_equal_approx(at.call().size.x, 10.5), "redo stretches it again: %s" % at.call().size)
 
-	var flank := Terrain.ground(13, -12) + Vector3.UP * 1.2
+	var flank := main.world.terrain.ground(13, -12) + Vector3.UP * 1.2
 	hold.call(&"right_hand", Vector3(0.1, -0.4, -0.25), flank)
 	hold.call(&"left_hand", Vector3(0.12, -0.38, -0.55), flank)
 	await frames(2)
@@ -461,7 +461,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		{"op": "wait", "seconds": 0.3},
 	])
 	var tower := walls[-1]
-	var face := Terrain.ground(4, -13.3) + Vector3.UP * 1.5
+	var face := main.world.terrain.ground(4, -13.3) + Vector3.UP * 1.5
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), face)
 	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), face)
 	await frames(2)
@@ -518,7 +518,7 @@ func _a_loop_stays_a_wall(walls: Array[Wall]) -> void:
 	var ring: Array[Vector3] = []
 	for i in 25:
 		var a := TAU * i / 24.0
-		ring.append(Terrain.ground(-14.0 + cos(a) * 2.5, -12.0 + sin(a) * 2.5))
+		ring.append(main.world.terrain.ground(-14.0 + cos(a) * 2.5, -12.0 + sin(a) * 2.5))
 	tool.begin_stroke(m, ring[0])
 	for p in ring:
 		await frames(1)

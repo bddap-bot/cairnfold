@@ -100,6 +100,8 @@ class Appetite:
 		return full <= 0.0 and (drawn == INF or random.randf() < delta * drawn)
 
 
+var terrain: Terrain
+var marks: Ground
 var water: Water
 var flora: Flora
 var walls: WallTool
@@ -162,7 +164,9 @@ class Family:
 		return ducks[0]
 
 
-func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1, sky: Look = null) -> void:
+func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1, sky: Look = null) -> void:
+	terrain = land
+	marks = wear
 	water = ponds
 	flora = plants
 	walls = builds
@@ -308,7 +312,7 @@ func _arrive(p: PondWater) -> void:
 			f.ducks.append(_spawn(true))
 		for i in f.ducks.size():
 			var at := land + away * (reach + LENGTH * 1.5 * i)
-			f.ducks[i].position = Terrain.ground(at.x, at.z)
+			f.ducks[i].position = terrain.ground(at.x, at.z)
 			_face(f.ducks[i], -away, 1.0)
 		f.state = State.ENTER
 	else:
@@ -641,7 +645,7 @@ func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 ## WALK_AWAY further along `heading`, kept on the terrain.
 func _onward(at: Vector3, heading: Vector3) -> Vector3:
 	var to := at + heading * WALK_AWAY
-	return Terrain.ground(clampf(to.x, -EDGE, EDGE), clampf(to.z, -EDGE, EDGE))
+	return terrain.ground(clampf(to.x, -EDGE, EDGE), clampf(to.z, -EDGE, EDGE))
 
 
 ## Along an arc between `sky` and the water, steep near the sky and flattening to a glide.
@@ -691,7 +695,7 @@ func _follow(d: Duck, ahead: Duck, delta: float) -> void:
 ## Moves a duck by `velocity`, stands it on the ground or floats it, and picks its motion from where it is.
 func _step(d: Duck, velocity: Vector3, delta: float) -> void:
 	d.position += velocity * delta
-	var ground := Terrain.height_at(d.position.x, d.position.z)
+	var ground := terrain.height_at(d.position.x, d.position.z)
 	var p := water.pond_at(d.position.x, d.position.z)
 	var surface := p.surface_y() if p != null else -INF
 	d.position.y = maxf(ground, surface - SINK * d.size)
@@ -714,7 +718,7 @@ func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	var cells := p.pond.cells
 	for attempt in 12:
 		var xz := Terrain.grid_xz(cells[rng.randi() % cells.size()])
-		if p.pond.level - Terrain.height_at(xz.x, xz.y) > FLOAT_DEPTH * 2.0 and _swims_clear(from, xz):
+		if p.pond.level - terrain.height_at(xz.x, xz.y) > FLOAT_DEPTH * 2.0 and _swims_clear(from, xz):
 			return Vector3(xz.x, p.pond.level, xz.y)
 	var b := Terrain.grid_xz(p.pond.bottom) if from == Vector3.INF else Vector2(from.x, from.z)
 	return Vector3(b.x, p.pond.level, b.y)
@@ -742,7 +746,7 @@ func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 		var s := Terrain.grid_xz(p.pond.shore[rng.randi() % p.pond.shore.size()])
 		var out := (s - mid).normalized() if s != mid else Vector2.RIGHT
 		var at := s + out * rng.randf_range(BANK.x, BANK.y)
-		var ground := Terrain.ground(at.x, at.y)
+		var ground := terrain.ground(at.x, at.y)
 		if standable(ground) and clear_way(from, ground):
 			return ground
 	return Vector3.INF
@@ -753,7 +757,7 @@ func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 func standable(p: Vector3) -> bool:
 	if maxf(absf(p.x), absf(p.z)) > EDGE - 1.0:
 		return false
-	if Ground.bare(p.x, p.z) > BARE:
+	if marks.bare(p.x, p.z) > BARE:
 		return false
 	for o in [Vector2.ZERO, Vector2(SHORE, 0), Vector2(-SHORE, 0), Vector2(0, SHORE), Vector2(0, -SHORE)]:
 		if water.pond_at(p.x + o.x, p.z + o.y) != null:

@@ -433,7 +433,7 @@ func _far_pieces_reach_the_near_pieces_faces() -> void:
 func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
-	var w := Wall.new(1, glade)
+	var w := Wall.new(1, glade, Terrain.new())
 	root.add_child(w)
 	w.layout.points = [Vector3(0, 0, 0), Vector3(30, 0, 0)]
 	w.layout.height = 2.0
@@ -461,7 +461,7 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
-	var w := Wall.new(1, glade)
+	var w := Wall.new(1, glade, Terrain.new())
 	root.add_child(w)
 	w.layout.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 	w.layout.height = 2.4

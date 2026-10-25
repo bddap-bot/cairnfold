@@ -134,7 +134,7 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 		check(inside.is_empty(), "no wall stands inside the other house: %d stones" % inside.size())
 		var tiles: Array = pair[0].roof.tiles.filter(func(t: Dictionary) -> bool: return pair[1].massing.holds(t.xform.origin))
 		check(tiles.is_empty(), "no roof tile lies under the other roof: %d" % tiles.size())
-	var node := Wall.new(1, null)
+	var node := Wall.new(1, null, Terrain.new())
 	node.layout = a.wall
 	var body := node.ray_distance(Vector3(4, 1, 3), Vector3.FORWARD)
 	print("merged wall pick distance: ", body.along)

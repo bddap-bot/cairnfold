@@ -7,7 +7,7 @@ extends SceneTree
 func _init() -> void:
 	var masonry := Masonry.new(Wall.kinds())
 	root.add_child(masonry)
-	var wall := Wall.new(1, masonry)
+	var wall := Wall.new(1, masonry, Terrain.new())
 	wall.layout.points = [Vector3.ZERO, Vector3(12, 0, 0)]
 	wall.layout.height = 2.4
 	wall.finished = true

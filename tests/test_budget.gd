@@ -143,11 +143,11 @@ func _same(a: Dictionary, b: Dictionary) -> bool:
 	return true
 
 
-static func _wall(from: Vector2, to: Vector2, height: float) -> Dictionary:
+func _wall(from: Vector2, to: Vector2, height: float) -> Dictionary:
 	var points := PackedVector3Array()
 	for i in 9:
 		var p := from.lerp(to, i / 8.0)
-		points.append(Terrain.ground(p.x, p.y))
+		points.append(main.world.terrain.ground(p.x, p.y))
 	return wall_data({"points": points, "height": height, "seed": 7})
 
 

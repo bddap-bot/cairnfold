@@ -194,7 +194,7 @@ func _handle(p: Painter, delta: float) -> void:
 ## Sets an easel up where the hand points, facing the player, on the trigger.
 func _aim_ground(p: Painter) -> void:
 	var t := p.hand.global_transform
-	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
+	var hit: Variant = world.terrain.raycast(t.origin, -t.basis.z)
 	p.hand.point(hit, TINT)
 	var why := "it points at no ground" if hit == null else Easels.crowded(hit, world.state.easels)
 	if not why.is_empty():
@@ -203,7 +203,7 @@ func _aim_ground(p: Painter) -> void:
 		return
 	var yaw := Easels.facing(hit, rig.head.global_position)
 	p.ghost.visible = true
-	p.ghost.global_transform = Easels.on_ground(hit, yaw)
+	p.ghost.global_transform = easels.on_ground(hit, yaw)
 	world.preview(p.hand, {"easel": 1})
 	if p.buttons.pressed("tool"):
 		place(hit, yaw, p.hand)

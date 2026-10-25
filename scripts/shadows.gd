@@ -87,21 +87,22 @@ func _run() -> void:
 	var driver := Driver.new(main, steps)
 	main.add_child(driver)
 	await driver.finished
+	var terrain: Terrain = main.world.terrain
 	main.world.submit({"op": "plant", "kind": "tree", "seed": 7948,
-		"at": Vector3(-6, Terrain.height_at(-6, -25), -25)})
+		"at": Vector3(-6, terrain.height_at(-6, -25), -25)})
 	main.quality.pin = Quality.START
 	var settings := {"fov": main.metrics.info.get("eye_fov_deg", []), "sun": str(main.look.sun.basis), "head": str(main.rig.head.transform)}
 	print("shadows: ", JSON.stringify(settings))
 	var scene := OS.get_environment("NESTCOMBE_SHADOW_SCENE")
-	var eye := Vector3(0, Terrain.height_at(0, 20) + 2, 20)
+	var eye := Vector3(0, terrain.height_at(0, 20) + 2, 20)
 	var facing := Vector3.FORWARD
 	var yaws := [-40, -30, -20, -10, 0, 10, 20, 30, 40]
 	if scene == "hill":
-		eye = Vector3(0, Terrain.height_at(0, -40) + 2, -40)
+		eye = Vector3(0, terrain.height_at(0, -40) + 2, -40)
 		yaws = [-40, 0, 40]
 	elif scene == "tree":
-		eye = Vector3(-6, Terrain.height_at(-6, -20) + 1.4, -20)
-		facing = Vector3(-6, Terrain.height_at(-6, -25) + 4, -25) - eye
+		eye = Vector3(-6, terrain.height_at(-6, -20) + 1.4, -20)
+		facing = Vector3(-6, terrain.height_at(-6, -25) + 4, -25) - eye
 		main.quality.pin = 14
 		yaws = [-20, 0, 20]
 	var folder := OS.get_environment("NESTCOMBE_SHADOW_OUT")

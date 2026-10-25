@@ -523,6 +523,7 @@ func _appear(look: int, tint: Color) -> void:
 	for side in 4:
 		var item := HeldItem.new()
 		item.easels = painting.easels if painting != null else null
+		item.terrain = world.terrain
 		add_child(item)
 		models.append(item)
 	held[id] = models
@@ -697,7 +698,7 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if feed == null or not avatars.has(id) or _clock - _thrown.get(id, -INF) < THROW_EVERY:
 		return
-	if not (from.is_finite() and Terrain.bounds().grow(40.0).has_point(from) and velocity.is_finite() and velocity.length() < MAX_THROW):
+	if not (from.is_finite() and Terrain.ROOM.grow(40.0).has_point(from) and velocity.is_finite() and velocity.length() < MAX_THROW):
 		return
 	_thrown[id] = _clock
 	feed.toss(from, velocity, seed)
@@ -707,7 +708,7 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 @rpc("any_peer", "unreliable_ordered")
 func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3) -> void:
 	var id := multiplayer.get_remote_sender_id()
-	var room := Terrain.bounds().grow(40.0)
+	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
 		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and room.has_point(t.origin)):
 			return

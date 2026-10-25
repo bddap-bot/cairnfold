@@ -168,7 +168,7 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 			return {"easel": hit.easel, "point": hit.point}
 		World.Kind.BOULDER:
 			return {"boulder": hit.boulder, "point": hit.point}
-	if Ground.laid_bare(hit.point.x, hit.point.z) >= 0.5:
+	if world.marks.laid_bare(hit.point.x, hit.point.z) >= 0.5:
 		return {"laid": true, "point": hit.point}
 	return {"mow": FloraTool.brush_radius(origin, hit.point), "point": hit.point}
 
@@ -269,7 +269,7 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	elif target.has("stair"):
 		cut.marks[target.stair] = "stairs"
 	elif target.has("laid"):
-		var id := Ground.mark_at(target.point.x, target.point.z)
+		var id := world.marks.mark_at(target.point.x, target.point.z)
 		if id >= 0:
 			cut.marks[id] = "paths" if world.state.paths.has(id) else "grounds"
 	elif target.has("mow"):
@@ -282,7 +282,7 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 func _mow(cut: Dictionary, at: Vector3, radius: float) -> void:
 	for p in flora.plants_near(at, radius):
 		var reach := radius * (1.0 - RAGGED * float(hash(p.anchor) % 1024) / 1024.0)
-		if not cut.plants.has(p) and Vector2(p.anchor.x - at.x, p.anchor.z - at.z).length() < reach and not Flora.on_path(p.anchor):
+		if not cut.plants.has(p) and Vector2(p.anchor.x - at.x, p.anchor.z - at.z).length() < reach and not flora.on_path(p.anchor):
 			p.draw(false)
 			cut.plants[p] = true
 

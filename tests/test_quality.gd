@@ -209,7 +209,8 @@ func _a_step_up_into_every_other_refresh_is_not_retried() -> void:
 
 
 func _a_held_step_reaches_its_knobs() -> void:
-	var flora := Flora.new()
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
 	root.add_child(flora)
 	var masonry := Masonry.new(Wall.kinds())
 	root.add_child(masonry)
@@ -219,7 +220,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 		buf.resize(k.stride())
 		parts.append(Masonry.split(buf, k))
 	masonry.place(1, parts)
-	var look := Look.build(root)
+	var look := Look.build(root, terrain)
 	var sun := look.sun
 	sun.shadow_enabled = true
 	var q := Quality.new(null, flora, masonry, look)

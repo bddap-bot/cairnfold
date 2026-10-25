@@ -8,6 +8,8 @@ enum Kind { TOOL, BRUSH, PALETTE, BOOK, BIRD }
 var state: Array = []
 var model: Node3D
 var easels: Easels
+## The ground a held bird is lit over.
+var terrain: Terrain
 
 
 static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
@@ -120,6 +122,7 @@ func show_state(s: Array) -> void:
 				model = e.palettes[s[1]].duplicate() if e != null else Easels.watercolours() if s[1] == Brushwork.Medium.WATER else Easels.oils()
 			Kind.BIRD:
 				model = Conure.new(0.0, s[1])
+				model.terrain = terrain
 				if s[5] == 0:
 					model.add_child(BirdCarry.cup())
 			Kind.BOOK:

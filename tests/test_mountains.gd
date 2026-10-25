@@ -6,6 +6,8 @@ const GARDEN_CORNER := Terrain.SIZE * 0.5 * sqrt(2.0)
 ## Two eyes 64 mm apart see a point this far off within a fortieth of a degree of each other: as far as the sky.
 const STEREO_FAR := 140.0
 
+var terrain := Terrain.new()
+
 
 func _initialize() -> void:
 	_run.call_deferred()
@@ -99,7 +101,7 @@ func _slopes_shade_smoothly_and_ridges_crisply(verts: PackedVector3Array, normal
 
 
 func _the_sun_rises_and_sets_through_a_pass() -> void:
-	var eye := Vector3(0, Terrain.base_at(0, 0) + Look.STANDING, 0)
+	var eye := Vector3(0, terrain.height_at(0, 0) + Look.STANDING, 0)
 	var noises := Mountains.RANGES.map(Mountains.noise_for)
 	for rising in [true, false]:
 		var first := -1.0
@@ -127,7 +129,7 @@ func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Arr
 	var lowest := INF
 	for i in Terrain.VERTS:
 		for p in [Vector2(-half + i, -half), Vector2(-half + i, half), Vector2(-half, -half + i), Vector2(half, -half + i)]:
-			lowest = minf(lowest, Terrain.base_at(p.x, p.y))
+			lowest = minf(lowest, terrain.height_at(p.x, p.y))
 	check(Mountains.LAKE < lowest - 0.5, "the lake at %.1f m floods the meadow's edge at %.1f m" % [Mountains.LAKE, lowest])
 	var dry := 0
 	for p in verts:

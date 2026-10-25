@@ -53,6 +53,9 @@ var water: Water
 var easels: Easels
 var boulders: Boulders
 var decorations: Decorations
+## The garden's ground: its heights and ponds, and the marks paths and painted strokes wear into it.
+var terrain := Terrain.new()
+var marks := Ground.new()
 ## The garden's season; each build carries its own colours.
 var palette := Palette.new()
 ## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
@@ -301,7 +304,7 @@ func _drain(wait := false) -> void:
 		if r == null:
 			_queue.pop_front().run.call()
 			continue
-		var before := Terrain.water_levels()
+		var before := terrain.water_levels()
 		var written := water.written() if water != null else PackedInt32Array()
 		var owners := water.owners() if water != null else PackedInt32Array()
 		var shown: Array[PondLayout.Pond] = water.shown() if water != null else []
@@ -344,7 +347,7 @@ func _refill_ahead(e: Dictionary) -> Refill:
 		if typeof(g) != TYPE_VECTOR2I or not Terrain.ALL.has_point(g) or typeof(put[g]) != TYPE_FLOAT or not is_finite(put[g]):
 			return null
 		ponds[g] = put[g]
-	var heights := Terrain.read(Terrain.ALL)
+	var heights := terrain.read(Terrain.ALL)
 	var ground := Rect2i()
 	if cmd.op == "heights":
 		ground = cmd.get("cells", Rect2i())
@@ -482,7 +485,7 @@ func pick(origin: Vector3, dir: Vector3, kinds: Dictionary, skip := {}, ties: Ar
 func _unbounded(kind: Kind, origin: Vector3, dir: Vector3, reach: float, skip: Dictionary) -> Dictionary:
 	match kind:
 		Kind.GROUND:
-			var at: Variant = Terrain.raycast(origin, dir, reach)
+			var at: Variant = terrain.raycast(origin, dir, reach)
 			return {} if at == null else {"point": at, "along": origin.distance_to(at)}
 		Kind.BUILDING:
 			return wall_tool.pick_building(origin, dir)
@@ -605,7 +608,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 			_refuse(by, proposed, "nothing to %s" % kind)
 			return
 		# Every visitor checks what the host sends, and one that fails asks for the whole garden again.
-		cmd = Commands.clean(step.inverse.merged({"seq": seq + 1, "by": by}).duplicate(true), state, true)
+		cmd = Commands.clean(step.inverse.merged({"seq": seq + 1, "by": by}).duplicate(true), state, true, terrain)
 		if cmd.is_empty():
 			_refuse(by, proposed, "the garden has moved on from what it takes back")
 			return
@@ -614,7 +617,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 			_refuse(by, proposed, OVER)
 			return
 	else:
-		cmd = Commands.clean(proposed, state, false)
+		cmd = Commands.clean(proposed, state, false, terrain)
 		if cmd.is_empty():
 			_refuse(by, proposed, "no such command in this build" if not kind in Commands.OPS else "it does not fit the garden as it stands")
 			return
@@ -703,7 +706,7 @@ func _commit(sent: Dictionary) -> void:
 
 
 func _apply_sent(sent: Dictionary) -> void:
-	var cmd := {} if _awaiting else Commands.clean(sent, state, true)
+	var cmd := {} if _awaiting else Commands.clean(sent, state, true, terrain)
 	if cmd.is_empty():
 		# Our own stroke's ghost stays until the garden it is in comes back: `restore` settles it.
 		if not _awaiting:
@@ -989,12 +992,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind, cmd.get("style", 0))
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
-			Ground.lay(stroke, cmd.id)
+			marks.lay(stroke, cmd.id)
 			inverse = _built("grounds", PackedInt32Array([cmd.id]))
 		"restone":
 			inverse = {"op": "restone", "id": cmd.id, "style": state.grounds[cmd.id].style}
 			state.grounds[cmd.id].style = cmd.style
-			Ground.restyle(cmd.id, cmd.style)
+			marks.restyle(cmd.id, cmd.style)
 		"plant":
 			var g := cmd.duplicate(true)
 			for k in ["op", "seq", "by", "token", "id"]:
@@ -1046,7 +1049,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				flora.set_look(first, g.species.get(cmd.index, FloraLayout.Species.OAK), g.scale.get(cmd.index, 1.0))
 				flora.set_moss(first, g.moss.get(cmd.index, false))
 		"heights":
-			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
+			inverse = {"op": "heights", "cells": cmd.cells, "values": terrain.read(cmd.cells)}
 			var before: Dictionary = state.ponds.duplicate()
 			ground_grab.restore(cmd.cells, cmd.values)
 			sculpted = true
@@ -1141,7 +1144,7 @@ func _wet(g: Vector2i) -> int:
 func _drown() -> Dictionary:
 	var by_group := {}
 	for parts in flora.solids():
-		if Water.drowned(parts[0].anchor):
+		if Water.drowned(terrain, parts[0].anchor):
 			for p: Flora.Plant in parts:
 				by_group.get_or_add(p.group, []).append(p.index)
 	if by_group.is_empty():
@@ -1153,7 +1156,7 @@ func _drown() -> Dictionary:
 
 ## Whether `p` is part of a tree or bush whose root water covers, which may not stand.
 func _drowned(p: Flora.Plant) -> bool:
-	return p.pool in [flora.trunks, flora.foliage, flora.bushes] and Water.drowned(p.anchor)
+	return p.pool in [flora.trunks, flora.foliage, flora.bushes] and Water.drowned(terrain, p.anchor)
 
 
 ## Of group `g`'s plants at `indices`, those that may stand.
@@ -1210,7 +1213,7 @@ func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 				"paths":
 					paths.take(id)
 				"grounds":
-					Ground.lift(_strokes[id])
+					marks.lift(_strokes[id])
 					_strokes.erase(id)
 				"easels":
 					if easels != null:
@@ -1245,8 +1248,9 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 	var put: Dictionary = cmd.get("put", {})
 	state.ponds.merge(put, true)
 	var r := _ready_refill
-	if r == null or not r.matches(state.ponds, put, _fills, ground):
-		r = Refill.make(state.ponds.duplicate(), put.duplicate(), _fills.duplicate(), ground, Terrain.read(Terrain.ALL))
+	var heights := terrain.read(Terrain.ALL)
+	if r == null or not r.matches(state.ponds, put, _fills, ground, heights):
+		r = Refill.make(state.ponds.duplicate(), put.duplicate(), _fills.duplicate(), ground, heights)
 	_ready_refill = null
 	for g in r.gone:
 		state.ponds.erase(g)
@@ -1299,7 +1303,7 @@ func swap(snap: Dictionary) -> void:
 func snapshot() -> Dictionary:
 	var cmds := []
 	if sculpted:
-		cmds.append({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
+		cmds.append({"op": "heights", "cells": Terrain.ALL, "values": terrain.read(Terrain.ALL)})
 	if not state.ponds.is_empty():
 		cmds.append({"op": "ponds", "put": state.ponds.duplicate()})
 	for of: String in Commands.PUTS:
@@ -1344,7 +1348,7 @@ func _restore(snap: Dictionary) -> int:
 	var start := Time.get_ticks_usec()
 	var applied: int = _hushed(func() -> int:
 		_clear()
-		Ground.clear()
+		marks.clear()
 		flora.clear_ghosts()
 		stacks.clear()
 		touched.clear()
@@ -1361,7 +1365,7 @@ func _restore(snap: Dictionary) -> int:
 
 func _floor_mark(id: int) -> void:
 	if _floor_marks.has(id):
-		Ground.lift(_floor_marks[id])
+		marks.lift(_floor_marks[id])
 		_floor_marks.erase(id)
 	var d: Dictionary = state.walls.get(id, {})
 	if d.is_empty() or not d.closed or d.fence or not d.has("roof") or not d.on.is_empty():
@@ -1369,17 +1373,17 @@ func _floor_mark(id: int) -> void:
 	var mark := Ground.Stroke.new(Ground.Kind.EARTH)
 	mark.stamps = WallLayout.floor_stamps(d.points)
 	_floor_marks[id] = mark
-	Ground.lay(mark, id)
+	marks.lay(mark, id)
 
 
 ## Runs `change` with the walls' sounds and the ground's rewear held until it has finished; what it returns.
 func _hushed(change: Callable) -> Variant:
 	wall_tool.quiet = true
-	Ground.quiet = true
+	marks.quiet = true
 	var out: Variant = change.call()
 	wall_tool.quiet = false
-	Ground.quiet = false
-	Ground.rewear()
+	marks.quiet = false
+	marks.rewear()
 	return out
 
 
@@ -1398,10 +1402,10 @@ func _clear() -> void:
 	if water != null:
 		water.reset()
 	for id in _strokes:
-		Ground.lift(_strokes[id])
+		marks.lift(_strokes[id])
 	_strokes.clear()
 	for id in _floor_marks:
-		Ground.lift(_floor_marks[id])
+		marks.lift(_floor_marks[id])
 	_floor_marks.clear()
 	state = blank()
 	_fills.clear()
@@ -1424,7 +1428,7 @@ func _clear() -> void:
 func _rebuild(cmds: Array) -> int:
 	var applied := 0
 	for sent in cmds:
-		var cmd := Commands.clean(sent, state, true) if sent is Dictionary else {}
+		var cmd := Commands.clean(sent, state, true, terrain) if sent is Dictionary else {}
 		if cmd.is_empty():
 			push_error("world: skipped a snapshot command this garden cannot apply")
 			continue
@@ -1448,7 +1452,7 @@ func digest() -> Dictionary:
 	flora.grow_now()
 	for w: Wall in wall_tool.walls:
 		w.lay_now()
-	var heights := Array(Terrain.read(Terrain.ALL))
+	var heights := Array(terrain.read(Terrain.ALL))
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(heights), "heights": [heights.min(), heights.max()]}
 	for w: Wall in wall_tool.walls:
 		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height, "floor": w.layout.floor_y}
@@ -1470,8 +1474,8 @@ func digest() -> Dictionary:
 	out.paths = state.paths.keys()
 	out.pond_levels = state.ponds.keys().map(func(g: Vector2i) -> String: return "%s %.3f" % [g, state.ponds[g]])
 	out.grounds = state.grounds.keys()
-	Ground.settle()
-	out.mask = hash(Ground.laid.get_data())
+	marks.settle()
+	out.mask = hash(marks.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
 	out.season = palette.season
 	out.easels = {}

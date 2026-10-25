@@ -35,6 +35,7 @@ var age := 0.0
 var lasts := LASTS.x
 var flying := 0
 var _water: Water
+var _terrain: Terrain
 var _splashed := false
 var _afloat := false
 var _at := PackedVector3Array()
@@ -44,8 +45,9 @@ var _turn: Array[Basis] = []
 var _eat_next := 0.0
 
 
-func _init(water: Water) -> void:
+func _init(water: Water, terrain: Terrain) -> void:
 	_water = water
+	_terrain = terrain
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if _grain == null:
 		var st := SurfaceTool.new()
@@ -170,7 +172,7 @@ func _step(delta: float) -> void:
 			p += v * delta
 		pond = _water.pond_at(p.x, p.z)
 		surface = pond.surface_y() if pond != null else -INF
-		var ground := Terrain.height_at(p.x, p.z)
+		var ground := _terrain.height_at(p.x, p.z)
 		if was >= surface and p.y < surface:
 			var turn := TAU * i / GRAINS
 			v += Vector3(cos(turn), 0, sin(turn)) * SPREAD_UNDER

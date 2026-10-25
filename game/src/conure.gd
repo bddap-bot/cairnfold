@@ -54,6 +54,8 @@ const GAZE_EASE := 4.0
 const GAZE_TURN_EASE := 22.0
 
 var colouring := 0
+## The ground whose bounce lights it from below; its creator sets it before it enters the tree.
+var terrain: Terrain
 ## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
 var looking := Vector3.INF
 var _gaze := Vector3.ZERO
@@ -96,7 +98,7 @@ func look(delta: float) -> void:
 ## The shader and event crossings use this clock, including in fixed-step replays.
 func animate(delta: float) -> void:
 	if is_inside_tree():
-		set_instance_shader_parameter("floor_height", Terrain.height_at(global_position.x, global_position.z))
+		set_instance_shader_parameter("floor_height", terrain.height_at(global_position.x, global_position.z))
 	var before := animation_time
 	animation_time += delta
 	set_instance_shader_parameter("animation_time", animation_time)

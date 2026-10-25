@@ -97,8 +97,8 @@ func _scene() -> Dictionary:
 
 
 func _wall_data(a: Vector3, b: Vector3, depth: float, on: PackedInt32Array, pitch: float) -> Dictionary:
-	var points := WallLayout.rectangle(Terrain.ground(a.x, a.z), Terrain.ground(b.x, b.z), depth)
-	var centre := Terrain.ground((a.x + b.x) * 0.5, (a.z + b.z) * 0.5)
+	var points := WallLayout.rectangle(world.terrain.ground(a.x, a.z), world.terrain.ground(b.x, b.z), depth)
+	var centre := world.terrain.ground((a.x + b.x) * 0.5, (a.z + b.z) * 0.5)
 	return wall_data({"points": PackedVector3Array(points), "seed": 3, "closed": true, "on": on, "roof": {"kind": RoofLayout.Kind.GABLE, "center": centre, "radius": depth * 0.5, "pitch": pitch, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
 
 
@@ -130,8 +130,8 @@ func _neighbour() -> Dictionary:
 	var inside := w.massing.rect.get_center()
 	var out := {"wall": id, "decorations": [], "stairs": []}
 	out.decorations.append(_decorate(id, "floor", Vector3(inside.x, w.layout.floor_y, inside.y)))
-	out.decorations.append(_decorate(-1, "ground", Terrain.ground(4, -24), 0.0, DecorationLayout.STYLES.find({"name": "Standing torch"})))
-	out.stairs.append(_stairs(Terrain.ground(2, -26), Terrain.ground(2, -26) + Vector3(0, 2, -4)))
+	out.decorations.append(_decorate(-1, "ground", world.terrain.ground(4, -24), 0.0, DecorationLayout.STYLES.find({"name": "Standing torch"})))
+	out.stairs.append(_stairs(world.terrain.ground(2, -26), world.terrain.ground(2, -26) + Vector3(0, 2, -4)))
 	await _settle()
 	return out
 
@@ -177,7 +177,7 @@ func _house() -> Dictionary:
 	var t := main.tool.find(top)
 	var top_inside := t.massing.rect.get_center()
 	owned.decorations.append(_decorate(top, "floor", Vector3(top_inside.x, t.layout.floor_y, top_inside.y)))
-	var foot := Terrain.ground(-1.0, -24.0)
+	var foot := world.terrain.ground(-1.0, -24.0)
 	var landing := Vector3(-1.0, deck_y, -28.5)
 	owned.stairs.append(_stairs(foot, landing))
 	check(world.state.stairs[owned.stairs[0]].on == PackedInt32Array([storey]), "stairs onto the deck stand on the storey: %s" % world.state.stairs[owned.stairs[0]].on)

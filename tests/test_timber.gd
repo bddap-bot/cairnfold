@@ -2,7 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 
 func _init() -> void:
-	var wall := Wall.new(1, null)
+	var wall := Wall.new(1, null, Terrain.new())
 	wall.layout.points = WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 5.0)
 	wall.layout.closed = true
 	wall.layout.finish = WallLayout.Finish.TIMBER

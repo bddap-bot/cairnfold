@@ -2,13 +2,15 @@ extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
-	Terrain.install()
+	var terrain := Terrain.new()
+	var marks := Ground.new()
+	terrain.install()
 	await process_frame
-	var water := Water.new([])
+	var water := Water.new(terrain, [])
 	root.add_child(water)
-	var flora := Flora.new()
+	var flora := Flora.new(terrain, marks)
 	root.add_child(flora)
-	var wildlife := Wildlife.new(water, flora, null, Palette.new(), null, [], 3)
+	var wildlife := Wildlife.new(terrain, marks, water, flora, null, Palette.new(), null, [], 3)
 	root.add_child(wildlife)
 	wildlife.set_process(false)
 	var snails := wildlife.snails
@@ -22,8 +24,8 @@ func _initialize() -> void:
 		for z in 9:
 			for x in 9:
 				heights.append(0.0 if x == 0 or z == 0 or x == 8 or z == 8 else -1.0)
-		Terrain.write(area, heights)
-		ponds.append(Water.fill(centre, -0.1))
+		terrain.write(area, heights)
+		ponds.append(Water.fill(terrain, centre, -0.1))
 	water.show_ponds(ponds)
 	for p in water.ponds:
 		p._process(PondWater.FILL)
@@ -45,7 +47,7 @@ func _initialize() -> void:
 		elapsed += Time.get_ticks_usec() - start
 		moved += before.distance_to(snails.crawling[0].position)
 		for s in snails.crawling:
-			check(absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.0001, "foot stays on bed")
+			check(absf(s.position.y - terrain.height_at(s.position.x, s.position.z)) < 0.0001, "foot stays on bed")
 			check(snails._wet(s.pond, s.position), "stays submerged")
 	check(moved > 0.2 and moved < 1.0, "slow sustained crawl: %.3f m" % moved)
 	print("snail_cost: %d animals; 3600 ticks simulation only: %.3f ms/tick; %d triangles/animal; one draw; travel %.3f m" % [snails.crawling.size(), elapsed / 3600000.0, snails.crowd.multimesh.mesh.get_surface_count() * snails.crowd.multimesh.mesh.surface_get_array_len(0) / 3, moved])

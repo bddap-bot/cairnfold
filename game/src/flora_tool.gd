@@ -140,7 +140,7 @@ func _handle(b: Brush, delta: float) -> void:
 	if b.rock != null:
 		carry_boulder(b, hand)
 		return
-	var hit: Variant = Terrain.raycast(hand.origin, -hand.basis.z)
+	var hit: Variant = world.terrain.raycast(hand.origin, -hand.basis.z)
 	if held == Hand.Tool.MOSS:
 		var solid := flora.solid_hit(hand.origin, -hand.basis.z, hand.origin.distance_to(hit) if hit != null else 30.0)
 		if not solid.is_empty() and solid.plants[0].pool == flora.trunks:
@@ -149,7 +149,7 @@ func _handle(b: Brush, delta: float) -> void:
 			if b.buttons.pressed("tool"):
 				coat_tree(solid.plants[0], b.hand)
 			return
-	var drowned: bool = hit != null and PLACES.has(held) and Water.drowned(hit)
+	var drowned: bool = hit != null and PLACES.has(held) and Water.drowned(world.terrain, hit)
 	b.hand.point(hit, Hand.REFUSED if drowned else TINTS[held])
 	if hit == null:
 		end_stroke(b)
@@ -179,7 +179,7 @@ func _handle(b: Brush, delta: float) -> void:
 			extend_path(hit, radius, b.hand)
 	elif b.buttons.held("tool"):
 		if b.buttons.pressed("tool"):
-			b.meadow = paints_meadow(held, hit)
+			b.meadow = paints_meadow(held, hit, world.marks)
 		paint(b, hit, radius, delta)
 
 
@@ -187,9 +187,9 @@ static func _reach(hand: XRController3D) -> Vector3:
 	return hand.global_position if hand.tracked() else Flora.NO_HAND
 
 
-## A stone stroke begun on stone paints the ground back to meadow.
-static func paints_meadow(tool: Hand.Tool, at: Vector3) -> bool:
-	return tool == Hand.Tool.STONE and Ground.stone(at.x, at.z) > 0.5
+## A stone stroke begun on `marks`' stone paints the ground back to meadow.
+static func paints_meadow(tool: Hand.Tool, at: Vector3, marks: Ground) -> bool:
+	return tool == Hand.Tool.STONE and marks.stone(at.x, at.z) > 0.5
 
 
 static func brush_radius(hand: Vector3, hit: Variant) -> float:
@@ -252,10 +252,10 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 		b.reached = trial
 	if b.ground == null:
 		b.ground = Ground.Stroke.new(kind, Ground.style)
-		Ground.hold(b.ground)
+		world.marks.hold(b.ground)
 	b.since_stamp = 0.0
 	b.last_stamp = center
-	if b.ground.add(center.x, center.z, radius * 0.4, radius * 0.8):
+	if b.ground.add(world.marks, center.x, center.z, radius * 0.4, radius * 0.8):
 		planted.emit()
 		Cues.play(Cues.Act.STONE_PAINT, center, b.hand)
 
@@ -288,12 +288,12 @@ func _send_ground(b: Brush) -> void:
 	if stroke == null:
 		return
 	if stroke.stamps.is_empty():
-		Ground.release(stroke)
+		world.marks.release(stroke)
 		return
 	var cmd := {"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}
 	if stroke.kind == Ground.Kind.STONE:
 		cmd.style = stroke.style
-	world.submit(cmd, Ground.release.bind(stroke), b.hand)
+	world.submit(cmd, world.marks.release.bind(stroke), b.hand)
 
 
 ## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
@@ -373,7 +373,7 @@ func set_boulder(b: Brush) -> void:
 		return
 	var pose := rock.pose()
 	var turn := pose.basis.get_rotation_quaternion().normalized()
-	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, turn, rock, BoulderLayout.sink(rock.shape, turn, rock.size, pose.origin, Terrain.height_at))
+	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, turn, rock, BoulderLayout.sink(rock.shape, turn, rock.size, pose.origin, world.terrain.height_at))
 
 
 ## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`, `sink` unit metres into
@@ -393,7 +393,7 @@ func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.
 
 
 func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float, sink := 0.0) -> Dictionary:
-	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "sink": sink, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate(), "style": Ground.style}
+	return {"op": "boulder", "at": world.terrain.ground(at.x, at.z), "turn": turn, "sink": sink, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate(), "style": Ground.style}
 
 
 func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:

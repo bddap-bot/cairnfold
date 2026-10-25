@@ -43,6 +43,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	world = garden
 	world.decorations = Decorations.new(world, walls)
 	add_child(world.decorations)
+	lamps.terrain = world.terrain
 	lamps.install()
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
@@ -74,7 +75,7 @@ func _process(delta: float) -> void:
 			var placing: bool = target.get("what") == "decoration" and not target.has("fitting")
 			if placing:
 				target.seed = _draws[i]
-			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
+			var hit: Variant = target.point if not target.is_empty() else world.terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
 			if not target.is_empty():
 				var c := change(target)

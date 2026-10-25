@@ -31,9 +31,8 @@ var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
 var _rooms: Array[Room] = []
 var _shells := []
-## The ground's heights the last solve stood on, and the Terrain.revision they were read at. A stroke's live
-## hump moves the revision without them.
-var _heights := PackedFloat32Array()
+## The ground the probes follow, and its heights_revision the last solve stood on.
+var terrain: Terrain
 var _ground := -1
 var _dirty := false
 
@@ -138,18 +137,15 @@ func light(walls: Array, extra := PackedVector3Array()) -> void:
 
 
 func _next() -> Callable:
-	if _ground != Terrain.revision and (_dirty or not _flames.is_empty()):
-		_ground = Terrain.revision
-		var heights := Terrain.read(Terrain.ALL)
-		if heights != _heights:
-			_heights = heights
-			_dirty = true
+	if _ground != terrain.heights_revision:
+		_ground = terrain.heights_revision
+		_dirty = _dirty or not _flames.is_empty()
 	if not _dirty:
 		return Callable()
 	_dirty = false
 	var flames := _flames
 	var rooms := _rooms.duplicate()
-	var heights := _heights
+	var heights := terrain.read(Terrain.ALL)
 	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms)}
 
 

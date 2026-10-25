@@ -90,7 +90,7 @@ func _quit_writes_first() -> void:
 	main.metrics.play_log = PlayLog.new(sessions)
 	var path := dir.path_join("quit.save")
 	world.load_from(path)
-	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
+	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
 	root.get_node("AudioLifetime")._quitting = true
 	main.finish()
 	root.get_node("AudioLifetime")._quitting = false

@@ -2,8 +2,8 @@ class_name Commands
 extends RefCounted
 
 ## The build commands' one schema. `clean` returns a fresh command holding only the fields its op
-## defines, each checked for type and range against what a tool can make, or {} for anything else:
-## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
+## defines, each checked for type and range against what a tool can make and the garden's ground, or {} for anything
+## else: every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
 const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "decoration"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them (PUTS) and of what water drowned.
@@ -76,7 +76,7 @@ static func _unique(ids: PackedInt32Array) -> bool:
 	return seen.size() == ids.size()
 
 
-static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictionary:
+static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: Terrain) -> Dictionary:
 	var op: Variant = cmd.get("op")
 	if not op in OPS:
 		return {}
@@ -154,7 +154,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = _heights(cmd, from_host, out) and _ponds(cmd, state, from_host, out)
 		"ponds":
 			var wet: Variant = cmd.get("wet", 0)
-			ok = _ponds(cmd, state, from_host, out) and (from_host or out.has("put") and _pointed(out.put, state))
+			ok = _ponds(cmd, state, from_host, out) and (from_host or out.has("put") and _pointed(out.put, state, ground))
 			ok = ok and typeof(wet) == TYPE_INT and wet >= 0 and wet <= Terrain.ALL.get_area()
 			out.wet = wet
 		"season":
@@ -172,7 +172,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = from_host and cmds is Array and cmds.size() <= MAX_SNAPSHOT
 			out.cmds = cmds
 		"batch":
-			ok = _batch(cmd, state, from_host, out)
+			ok = _batch(cmd, state, from_host, out, ground)
 		"easel":
 			ok = _easel(cmd, state, from_host, out)
 		"paint":
@@ -303,7 +303,7 @@ static func _samples(strokes: Array) -> int:
 ## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and
 ## one batch takes at most MAX_BATCH things and, from a player, one `show`. From a player, a command that no longer
 ## applies (what it takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
-static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
+static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary, ground: Terrain) -> bool:
 	var cmds: Variant = cmd.get("cmds")
 	# The host's batches include undoing a build taken with all that stood on it, however much that was.
 	var most := MAX_SNAPSHOT if from_host else MAX_BATCH
@@ -320,7 +320,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 		if from_host:
 			one.seq = cmd.seq
 			one.by = cmd.by
-		var kept := clean(one, state, from_host)
+		var kept := clean(one, state, from_host, ground)
 		if kept.is_empty():
 			if from_host:
 				return false
@@ -339,7 +339,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 
 
 static func _finite(v: Vector3) -> bool:
-	return v.is_finite() and Terrain.bounds().has_point(v)
+	return v.is_finite() and Terrain.ROOM.has_point(v)
 
 
 static func _in(x: Variant, range: Vector2) -> bool:
@@ -644,9 +644,9 @@ static func _ponds(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 
 
 ## Whether a player's pond holds water over the ground as it stands, and the garden has room for it.
-static func _pointed(put: Dictionary, state: Dictionary) -> bool:
+static func _pointed(put: Dictionary, state: Dictionary, ground: Terrain) -> bool:
 	var g: Vector2i = put.keys()[0]
-	return (state.ponds.has(g) or state.ponds.size() < MAX_PONDS) and Water.fill(g, put[g]) != null
+	return (state.ponds.has(g) or state.ponds.size() < MAX_PONDS) and Water.fill(ground, g, put[g]) != null
 
 
 static func _stairs(d: Variant) -> Variant:

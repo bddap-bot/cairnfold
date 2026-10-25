@@ -163,7 +163,7 @@ func _walk_in(b: Band, first: Vector3, n: int, walk_from: float, gap: float, mak
 		starts.clear()
 	for at in starts:
 		var a: Node3D = make.call()
-		a.position = Terrain.ground(at.x, at.z)
+		a.position = wildlife.terrain.ground(at.x, at.z)
 		Wildlife._face(a, first - at, 1.0)
 		var spot: Variant = _spot(b, a, first, 3.5)
 		if spot == null:
@@ -193,7 +193,7 @@ func _starts_ok(first: Vector3, starts: PackedVector3Array) -> bool:
 
 
 func _think(b: Band, a: Node3D, delta: float) -> void:
-	a.position.y = Terrain.height_at(a.position.x, a.position.z)
+	a.position.y = wildlife.terrain.height_at(a.position.x, a.position.z)
 	if a.state == State.LEAVE:
 		var way := Vector3(a.goal.x - a.position.x, 0, a.goal.z - a.position.z)
 		if way.length() < 1e-3:
@@ -374,7 +374,7 @@ func _flee(b: Band, a: Node3D, from: Vector3) -> void:
 		var to: Vector3 = a.position + dir * rng.randf_range(flee_reach.x, flee_reach.y)
 		if wildlife.standable(to) and _refuge(b, to) and wildlife.clear_way(a.position, to):
 			a.state = State.FLEE
-			a.goal = Terrain.ground(to.x, to.z)
+			a.goal = wildlife.terrain.ground(to.x, to.z)
 			return
 	a.retry = RETRY
 
@@ -414,7 +414,7 @@ func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.
 		var pace: float = lerpf(minf(speed, SIDLE), speed, maxf(_forward(a).dot(to / d), 0.0)) * a.upright()
 		step = minf(d, pace * delta)
 		a.position += to / d * step
-	a.position.y = Terrain.height_at(a.position.x, a.position.z)
+	a.position.y = wildlife.terrain.height_at(a.position.x, a.position.z)
 	a.walked(motion, step, delta)
 	return step >= d
 
@@ -458,7 +458,7 @@ func _nudge(b: Band, a: Node3D, by: Vector3) -> void:
 	var to := a.position + by
 	if not wildlife.standable(to) or (a.state != State.FLEE and not _within(b, to)):
 		return
-	a.position = Terrain.ground(to.x, to.z)
+	a.position = wildlife.terrain.ground(to.x, to.z)
 	if a.state == State.GRAZE:
 		a.goal = a.position
 
@@ -476,7 +476,7 @@ func _spot(b: Band, a: Node3D, near: Variant = null, reach := 0.0, least := 0.0)
 			continue
 		if a != null and not wildlife.clear_way(a.position, p):
 			continue
-		return Terrain.ground(p.x, p.z)
+		return wildlife.terrain.ground(p.x, p.z)
 	return null
 
 

@@ -91,13 +91,13 @@ func _run() -> void:
 	check(pitched.get("what") == "chimney", "a pitched roof still takes a chimney, not furniture")
 
 	var bad: Dictionary = main.world.state.decorations[chair].merged({"op": "decoration", "wall": -1}, true)
-	check(Commands.clean(bad, main.world.state, false).is_empty(), "a floor piece refused without its house")
+	check(Commands.clean(bad, main.world.state, false, main.world.terrain).is_empty(), "a floor piece refused without its house")
 	for style in DecorationLayout.STYLES.size():
 		var any := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": style}}
-		check(not Commands.clean(any, main.world.state, false).is_empty(), "a floor piece restyles to %s" % DecorationLayout.STYLES[style].name)
+		check(not Commands.clean(any, main.world.state, false, main.world.terrain).is_empty(), "a floor piece restyles to %s" % DecorationLayout.STYLES[style].name)
 	var pitched_deck: Dictionary = main.world.state.decorations[deck].merged({"op": "decoration", "wall": house.id}, true)
-	check(Commands.clean(pitched_deck, main.world.state, false).is_empty(), "deck piece refused on a pitched roof")
-	check(not Commands.clean(main.world.state.decorations[deck].merged({"op": "decoration"}), main.world.state, false).is_empty(), "deck piece accepted on a flat roof")
+	check(Commands.clean(pitched_deck, main.world.state, false, main.world.terrain).is_empty(), "deck piece refused on a pitched roof")
+	check(not Commands.clean(main.world.state.decorations[deck].merged({"op": "decoration"}), main.world.state, false, main.world.terrain).is_empty(), "deck piece accepted on a flat roof")
 
 	n = _node(chair)
 	var r0 := house.roof.frame()

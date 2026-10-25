@@ -7,6 +7,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var item := HeldItem.new()
+	item.terrain = Terrain.new()
 	root.add_child(item)
 	for tool in Hand.Tool.values():
 		if tool in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:

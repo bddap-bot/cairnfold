@@ -8,6 +8,9 @@ extends "res://../tests/support/suite.gd"
 var world: World
 var tool: WallTool
 var flora: Flora
+var terrain: Terrain:
+	get:
+		return main.world.terrain
 
 
 func _initialize() -> void:
@@ -76,7 +79,7 @@ func _let_go() -> void:
 ## A hand inside both a tree's trunk and a lantern meets each at once: the grip takes the lantern.
 func _grip_takes_a_fitting_over_a_plant(w: Wall) -> void:
 	var at: Vector3 = _lantern(w).bounds.get_center()
-	main.flora_tool.place("tree", Terrain.ground(at.x, at.z), null, 7)
+	main.flora_tool.place("tree", terrain.ground(at.x, at.z), null, 7)
 	await frames(3)
 	var dir := Vector3.FORWARD
 	var plant := flora.solid_hit(at, dir, 1.0)
@@ -109,7 +112,7 @@ func _grip_joins_the_held_build_over_its_fitting(w: Wall) -> void:
 ## A grip from under the ground toward a lantern meets the ground first and takes nothing.
 func _ground_in_front_stops_a_grip(w: Wall) -> void:
 	var lantern: Vector3 = _lantern(w).bounds.get_center()
-	var at := Terrain.ground(lantern.x, lantern.z + 1.5) + Vector3.DOWN * 0.2
+	var at := terrain.ground(lantern.x, lantern.z + 1.5) + Vector3.DOWN * 0.2
 	var m := await _press_grip(at, (lantern - at).normalized())
 	check(m.growing == null and tool.held == null and not tool._holders.has(m), "a grip from under the ground takes nothing: %s, %s" % [m.growing, tool.held])
 	await _let_go()
@@ -118,7 +121,7 @@ func _ground_in_front_stops_a_grip(w: Wall) -> void:
 ## A delete from inside an easel standing in a lantern meets both at once and takes the lantern.
 func _delete_takes_a_fitting_over_an_easel(w: Wall) -> void:
 	var at: Vector3 = _lantern(w).bounds.get_center()
-	world.submit({"op": "easel", "at": Terrain.ground(at.x, at.z), "yaw": 0.0})
+	world.submit({"op": "easel", "at": terrain.ground(at.x, at.z), "yaw": 0.0})
 	await frames(3)
 	var dir := Vector3.FORWARD
 	var easel: Dictionary = main.easels.pick(at, dir)
@@ -166,7 +169,7 @@ func _delete_passes_what_it_took() -> void:
 func _clear_spots(n: int) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	for k in 200:
-		var p := Terrain.ground(-60.0 + (k % 10) * 20.0, -60.0 + (k / 10) * 20.0)
+		var p := terrain.ground(-60.0 + (k % 10) * 20.0, -60.0 + (k / 10) * 20.0)
 		if flora.solids_in(Rect2(p.x - 8.0, p.z - 8.0, 16.0, 16.0)).is_empty() and absf(p.z) > 30.0:
 			out.append(p)
 			if out.size() == n:
@@ -184,8 +187,8 @@ func _style_takes_a_boulder_over_painted_stone() -> void:
 	])
 	await frames(3)
 	var palette: PaletteTool = main.palette_tool
-	var top := Terrain.ground(spot.x, spot.z) + Vector3.UP * 6.0
+	var top := terrain.ground(spot.x, spot.z) + Vector3.UP * 6.0
 	var target := palette.aim_style(top, Vector3.DOWN)
 	check(target.get("of") == "boulders", "the style tool aimed at a boulder on painted stone takes the boulder: %s" % [target.get("of")])
-	target = palette.aim_style(Terrain.ground(spot.x + 2.5, spot.z) + Vector3.UP * 6.0, Vector3.DOWN)
+	target = palette.aim_style(terrain.ground(spot.x + 2.5, spot.z) + Vector3.UP * 6.0, Vector3.DOWN)
 	check(target.get("restyle") == PaletteTool.Restyle.STONE and target.has("stroke"), "and the painted stone beside it its stroke: %s" % [target])

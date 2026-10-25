@@ -57,9 +57,10 @@ static func make(levels_by_point: Dictionary, putting: Dictionary, last: Diction
 	return r
 
 
-## Whether this was worked out from the garden as it now stands, so applying it is applying the command.
-func matches(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary, changed_ground: Rect2i) -> bool:
-	return ponds == levels_by_point and put == putting and fills == last and ground == changed_ground and heights == Terrain.read(Terrain.ALL)
+## Whether this was worked out from the garden as it now stands, its heights `over`, so applying it is applying the
+## command.
+func matches(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary, changed_ground: Rect2i, over: PackedFloat32Array) -> bool:
+	return ponds == levels_by_point and put == putting and fills == last and ground == changed_ground and heights == over
 
 
 ## Fills every pond and settles which stay.

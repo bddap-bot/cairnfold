@@ -2928,6 +2928,9 @@ same hand, or one thing in both, holds a grip back:
 
 - Ground in both hands pulls two humps, one per hand; on the same ground they add, and each sets its
   own heights when let go.
+- A hump being pulled is this player's preview, not the garden: plants, walls, boulders, easels and the player
+  standing on it or touching it follow it, but every command, the animals, decorations standing on the ground, the
+  lamps' and the sun's bounced light read the ground without it until its heights land, as every other machine does.
 - A build the other hand holds, a wall, fence, house or tower: a grip on it joins in to size it, or on a roof with the
   first grip there too to shape the roof (see "Moving and sizing a house"); a grip pointed past it takes what it
   points at. One build is held at a time: a grip on another wall or house meanwhile takes nothing.

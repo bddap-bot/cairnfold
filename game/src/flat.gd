@@ -194,7 +194,7 @@ func _walk(step: Vector3) -> void:
 	for y in [rig.global_position.y + STEP_UP, head.y]:
 		if not rig.solid_hit.call(Vector3(head.x, y, head.z), step.normalized(), step.length() + BODY).is_empty():
 			return
-	var room := Terrain.bounds()
+	var room := Terrain.ROOM
 	var to := head + step
 	to.x = clampf(to.x, room.position.x, room.end.x)
 	to.z = clampf(to.z, room.position.z, room.end.z)

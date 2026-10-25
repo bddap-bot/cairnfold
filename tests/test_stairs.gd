@@ -71,7 +71,7 @@ func _run() -> void:
 	main.stair_tool.extend(main.rig.left, long.b)
 	check(is_equal_approx(main.stair_tool._strokes[main.rig.left].data.b.z, -60.0), "the tool draws a bridge past twenty-four metres")
 	main.stair_tool._cancel(main.rig.left)
-	var foot := Terrain.ground(-20, 10)
+	var foot := main.world.terrain.ground(-20, 10)
 	var clicks: int = Cues.asked.get(Cues.Act.STAIRS_LAY, 0)
 	main.stair_tool.begin(main.rig.left, foot)
 	for i in 200:
@@ -98,7 +98,7 @@ func _run() -> void:
 	var hit: Dictionary = main.stair_tool.aim(Vector3(0, 5, -1), Vector3.DOWN)
 	check(hit.get("stair", -1) == id, "tool targets a landing for a connected flight")
 	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 3, -1)), 2.0), "a point over the landing stands on it")
-	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 1, -1)), Terrain.height_at(0, -1)), "a point under the landing stands on the ground")
+	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 1, -1)), main.world.terrain.height_at(0, -1)), "a point under the landing stands on the ground")
 	main.rig.aim(Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), Vector3(0, 5, -1)))
 	check(main.rig.aim_ground != null and is_equal_approx(main.rig.aim_ground.y, 2.0), "the teleport ray lands on the landing")
 	main.rig.aim(Transform3D(Basis.looking_at(Vector3(0, -1, -1).normalized(), Vector3.UP), Vector3(0, 5, 2)), 0.9)
@@ -171,7 +171,7 @@ func _painted_and_styled(main: Node) -> void:
 	var hand: Hand = main.rig.right
 	var stone := Palette.Element.STONE
 	world.submit({"op": "wipe"})
-	var a := Terrain.ground(10, 0)
+	var a := world.terrain.ground(10, 0)
 	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys()[0]
@@ -201,10 +201,10 @@ func _painted_and_styled(main: Node) -> void:
 	check(world.state.stairs[id].rail == "wood" and wooden.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "letting go gives the stairs wooden railings")
 	check(wooden.filter(func(p: Dictionary) -> bool: return p.kind == "block").size() < blocks.size(), "the stone railings are gone")
 	check(world.stairs.rail == "wood", "stairs laid after take the railings")
-	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"rail": "gold"}}, world.state, false).is_empty(), "a railing off the wheel is refused")
-	check(not Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"a": a + Vector3(1, 0, 0)}}, world.state, false).is_empty(), "a reshape may move stairs, as a grip does")
-	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"width": StairLayout.WIDTH.y + 1.0}}, world.state, false).is_empty(), "but never wider than stairs are drawn")
-	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"paint": {stone: Palette.count(stone)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"rail": "gold"}}, world.state, false, world.terrain).is_empty(), "a railing off the wheel is refused")
+	check(not Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"a": a + Vector3(1, 0, 0)}}, world.state, false, world.terrain).is_empty(), "a reshape may move stairs, as a grip does")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"width": StairLayout.WIDTH.y + 1.0}}, world.state, false, world.terrain).is_empty(), "but never wider than stairs are drawn")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"paint": {stone: Palette.count(stone)}}}, world.state, false, world.terrain).is_empty(), "a swatch off the wheel is refused")
 	world.undo()
 	check(world.state.stairs[id].rail == "stone" and not world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "undo puts the stone railings back")
 	world.redo()
@@ -217,13 +217,13 @@ func _painted_and_styled(main: Node) -> void:
 	check(kept.get("rail") == "wood" and kept.get("paint", Palette.plain())[stone] == 3, "a garden rebuilt from its snapshot keeps the stairs' colour and railings")
 	check(world.stairs.layouts[id].stones[0].color.is_equal_approx(laid * Palette.tint(stone, 3)) and world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "and lays them so")
 	hand.tool = Hand.Tool.STAIRS
-	var b := Terrain.ground(-10, 0)
+	var b := world.terrain.ground(-10, 0)
 	main.stair_tool.begin(hand, b)
 	main.stair_tool.extend(hand, b + Vector3(0, 2, -4))
 	main.stair_tool.end(hand)
 	var fresh: Dictionary = world.state.stairs[world.state.stairs.keys().max()]
 	check(fresh.rail == "wood" and fresh.paint[stone] == 3, "new stairs take the last swatch and railings")
-	var ladder := Terrain.ground(0, 10)
+	var ladder := world.terrain.ground(0, 10)
 	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var facing := ladder + Vector3(0.6, 1.5, 3)
@@ -235,7 +235,7 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	var world: World = main.world
 	var before := world.units.duplicate()
 	var cells := Terrain.cells_around(-25, -20, 6)
-	var original := Terrain.read(cells)
+	var original := world.terrain.read(cells)
 	var flat := original.duplicate()
 	flat.fill(0.0)
 	world.submit({"op": "heights", "cells": cells, "values": flat})
@@ -263,7 +263,7 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 func _gripped(main: Node) -> void:
 	var world: World = main.world
 	var tool: WallTool = main.tool
-	var g := Terrain.ground(6, -6)
+	var g := world.terrain.ground(6, -6)
 	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys().filter(func(k: int) -> bool: return world.state.stairs[k].seed == 9)[0]
@@ -282,17 +282,17 @@ func _gripped(main: Node) -> void:
 	check(m.growing is WallTool.StairGrip and tool.busy(right), "a grip on stairs takes them")
 	var to := Transform3D(Basis(Vector3.UP, 0.5), from.origin + Vector3(1, -0.2, 0.5))
 	m.sizing.follow.call(m, to)
-	var expect := WallTool.carry_stairs(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)))
+	var expect := WallTool.carry_stairs(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)), world.terrain.height_at)
 	check(expect.a.distance_to(was.a) > 1.0 and not is_equal_approx((expect.b - expect.a).normalized().dot((was.b - was.a).normalized()), 1.0), "the hand's move and turn carry and turn them")
 	check(world.state.stairs[id].a == was.a, "nothing is sent while they are held")
 	tool.end_grow(m)
 	var now: Dictionary = world.state.stairs[id]
 	check(now.a.is_equal_approx(expect.a) and now.b.is_equal_approx(expect.b) and now.width == was.width, "let go, they are set where the hand carried and turned them: %s" % [now])
 	var low: Vector3 = now.a if now.a.y < now.b.y else now.b
-	check(low.y >= Terrain.height_at(low.x, low.z) - 0.001, "their lower end is never under the ground")
-	var deep := WallTool.carry_stairs(was, from, Transform3D(Basis(), from.origin + Vector3.DOWN * 3.0), 1.0)
+	check(low.y >= world.terrain.height_at(low.x, low.z) - 0.001, "their lower end is never under the ground")
+	var deep := WallTool.carry_stairs(was, from, Transform3D(Basis(), from.origin + Vector3.DOWN * 3.0), 1.0, world.terrain.height_at)
 	var foot: Vector3 = deep.a if deep.a.y < deep.b.y else deep.b
-	check(is_equal_approx(foot.y, Terrain.height_at(foot.x, foot.z)), "pushed down, they stop with their lower end on the ground")
+	check(is_equal_approx(foot.y, world.terrain.height_at(foot.x, foot.z)), "pushed down, they stop with their lower end on the ground")
 	var mid2: Vector3 = (now.a + now.b) * 0.5
 	var r := Transform3D(Basis(), mid2 + Vector3(0.3, 1.5, 3))
 	var l := Transform3D(Basis(), mid2 + Vector3(-0.3, 1.5, 3))

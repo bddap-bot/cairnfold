@@ -10,8 +10,6 @@ const AWAY := Vector3(0, -50, 0)
 func _initialize() -> void:
 	# Walls draw their seeds from the global generator.
 	seed(1)
-	Terrain.install()
-	Ground.install()
 	await process_frame
 	_the_sheep_is_one_small_mesh()
 	_a_lying_sheep_stands_before_it_walks()
@@ -36,6 +34,8 @@ class Glade extends GladeBase:
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
 	await g.build(self, seed)
+	g.world.terrain.install()
+	g.world.marks.install()
 	# Fence fixtures exceed capacity; this test checks the flocks they attract.
 	g.world.bounded = false
 	g.digger = g.add_tool(WaterTool.new(g.rig, g.world))
@@ -45,10 +45,10 @@ func _glade(seed: int) -> Glade:
 func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	var m: WallTool.Mason = g.walls.masons[0]
 	m.hand.tool = tool
-	g.walls.begin_stroke(m, Terrain.ground(a.x, a.z))
+	g.walls.begin_stroke(m, g.world.terrain.ground(a.x, a.z))
 	for i in 41:
 		var p := a.lerp(b, i / 40.0)
-		g.walls.extend_stroke(m, Terrain.ground(p.x, p.z))
+		g.walls.extend_stroke(m, g.world.terrain.ground(p.x, p.z))
 	g.walls.end_stroke(m)
 	return g.walls.walls[-1]
 
@@ -68,11 +68,11 @@ class Watch:
 				crossed += 1
 			last[s] = s.position
 			var pond := g.water.pond_at(s.position.x, s.position.z)
-			if pond != null and pond.pond.level - Terrain.height_at(s.position.x, s.position.z) > 0.01:
+			if pond != null and pond.pond.level - g.world.terrain.height_at(s.position.x, s.position.z) > 0.01:
 				wet += 1
 			if t._resting(s) and not g.wildlife.standable(s.position):
 				kept += 1
-			if absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) > 0.01:
+			if absf(s.position.y - g.world.terrain.height_at(s.position.x, s.position.z)) > 0.01:
 				floating += 1
 
 
@@ -92,7 +92,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	for k in 8:
 		var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 8.0) * 1.5
 		if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
-			at = Terrain.ground(p.x, p.z) + Vector3.UP * 0.45
+			at = g.world.terrain.ground(p.x, p.z) + Vector3.UP * 0.45
 			break
 	check(at != Vector3.INF, "open grass beside it to hold seeds over")
 	if at == Vector3.INF:
@@ -146,9 +146,10 @@ func _a_resting(g: Glade, but: Array = []) -> Sheep:
 
 ## A lying sheep sent walking gets to its feet first, rather than sliding off on its belly.
 func _a_lying_sheep_stands_before_it_walks() -> void:
-	var grazers := Grazers.new(null, 1)
+	var home := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [] as Array[Node3D], 1)
+	var grazers := Grazers.new(home, 1)
 	var s := Sheep.new(0.0, 1.0, Color.WHITE)
-	s.position = Terrain.ground(0, 0)
+	s.position = home.terrain.ground(0, 0)
 	s.blend(Sheep.LIE, 100.0)
 	var lying := 0.0
 	for i in int(3.0 / STEP):
@@ -160,6 +161,7 @@ func _a_lying_sheep_stands_before_it_walks() -> void:
 	check(s.position.z < -2.0, "and then runs, %.1f m" % -s.position.z)
 	s.free()
 	grazers.free()
+	home.free()
 
 
 func _the_sheep_is_one_small_mesh() -> void:
@@ -244,7 +246,7 @@ func _fences_draw_a_flock() -> void:
 				worst.crossed += 1
 			last[s] = s.position
 			var pond := g.water.pond_at(s.position.x, s.position.z)
-			if pond != null and pond.pond.level - Terrain.height_at(s.position.x, s.position.z) > 0.01:
+			if pond != null and pond.pond.level - g.world.terrain.height_at(s.position.x, s.position.z) > 0.01:
 				worst.wet += 1
 			if _resting(s):
 				var off := _off_fence(fence, s.position)
@@ -372,7 +374,7 @@ func _settled_sheep_follow_their_ground() -> void:
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
 	var pond := g.water.pond_at(some.position.x, some.position.z)
-	check(pond != null and pond.pond.level - Terrain.height_at(some.position.x, some.position.z) > 0.05, "a pond is dug under a resting sheep")
+	check(pond != null and pond.pond.level - g.world.terrain.height_at(some.position.x, some.position.z) > 0.05, "a pond is dug under a resting sheep")
 	g.run(10.0, func() -> void:
 		watch.see(self, g)
 		watch.wet = 0
@@ -403,14 +405,14 @@ func _settled_sheep_follow_their_ground() -> void:
 	var before := {}
 	for s in g.sheep():
 		before[s] = s.state
-	g.terrain.begin(g.terrain.rig.right, Terrain.ground(middle.x, middle.z), 6.0)
+	g.grab.begin(g.grab.rig.right, g.world.terrain.ground(middle.x, middle.z), 6.0)
 	for i in 30:
-		g.terrain.pull(g.terrain.rig.right, i * 0.04)
+		g.grab.pull(g.grab.rig.right, i * 0.04)
 		await process_frame
 		g.lay()
 		g.wildlife.tick(STEP)
 		watch.see(self, g)
-	g.terrain.end_stroke(g.terrain.rig.right)
+	g.grab.end_stroke(g.grab.rig.right)
 	var changed := {}
 	await g.play(60.0, func() -> void:
 		watch.see(self, g)
@@ -474,7 +476,7 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	var s: Sheep = flock.animals[0]
 	var stray := Vector3.ZERO
 	for i in 20:
-		stray = Terrain.ground(-4.0 + i * 0.4, -4.0 + flock.side * 13.0)
+		stray = g.world.terrain.ground(-4.0 + i * 0.4, -4.0 + flock.side * 13.0)
 		if g.wildlife.standable(stray):
 			break
 	s.position = stray

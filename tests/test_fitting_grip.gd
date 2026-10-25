@@ -164,7 +164,7 @@ func _run() -> void:
 
 	var before: Array = world.state.decorations.keys()
 	fit.fit(fit.aim(Hand.Tool.DECORATIONS, Vector3(0.5, 1.8, 13.0), (Vector3(1.0, 0.0, 11.8) - Vector3(0.5, 1.8, 13.0)).normalized()))
-	fit.fit({"what": "decoration", "mount": "ground", "point": Terrain.ground(4.0, -4.0), "wall": null, "s": 0.0, "side": 1.0, "turn": 0.0})
+	fit.fit({"what": "decoration", "mount": "ground", "point": main.world.terrain.ground(4.0, -4.0), "wall": null, "s": 0.0, "side": 1.0, "turn": 0.0})
 	fit.fit({"what": "decoration", "mount": "foundation", "wall": house, "s": 3.0, "side": 1.0, "point": house.layout.point_at(3.0), "turn": 0.0})
 	var added: Array = world.state.decorations.keys().filter(func(k: int) -> bool: return not k in before)
 	_lay()
@@ -211,11 +211,11 @@ func _run() -> void:
 	_lay()
 
 	var outside := {"op": "reshape", "of": "decorations", "id": chair, "data": {"at": Vector3(0.2, 0.0, -0.3), "turn": 1.0}}
-	check(not Commands.clean(outside, world.state, false).is_empty(), "a peer takes a carried decoration's place and turn")
+	check(not Commands.clean(outside, world.state, false, world.terrain).is_empty(), "a peer takes a carried decoration's place and turn")
 	for bad in [{"wall": -1}, {"side": -1.0}, {"at": Vector3(INF, 0, 0)}, {"seed": 3}]:
-		check(Commands.clean({"op": "reshape", "of": "decorations", "id": chair, "data": bad}, world.state, false).is_empty(), "a peer refuses a decoration reshape of %s" % [bad])
+		check(Commands.clean({"op": "reshape", "of": "decorations", "id": chair, "data": bad}, world.state, false, world.terrain).is_empty(), "a peer refuses a decoration reshape of %s" % [bad])
 	var flags := PackedFloat32Array([flag + 1.0])
-	check(not Commands.clean({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": flags}}, world.state, false).is_empty(), "a peer takes a carried flag")
+	check(not Commands.clean({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": flags}}, world.state, false, world.terrain).is_empty(), "a peer takes a carried flag")
 
 	await _real_grip(wall)
 	_done()

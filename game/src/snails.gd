@@ -26,7 +26,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	rng.seed = seed
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/snails.gdshader")
-	crowd = Crowd.new(body(), CAP, mat)
+	crowd = Crowd.new(wildlife.terrain, body(), CAP, mat)
 	add_child(crowd)
 
 static func body() -> ArrayMesh:
@@ -55,7 +55,7 @@ static func body() -> ArrayMesh:
 	return st.commit()
 
 func _wet(p: PondWater, at: Vector3) -> bool:
-	return wildlife.water.pond_at(at.x, at.z) == p and p.surface_y() - Terrain.height_at(at.x, at.z) >= DEPTH
+	return wildlife.water.pond_at(at.x, at.z) == p and p.surface_y() - wildlife.terrain.height_at(at.x, at.z) >= DEPTH
 
 func tick(delta: float) -> void:
 	var ponds := wildlife.water.ponds
@@ -81,7 +81,7 @@ func tick(delta: float) -> void:
 			continue
 		for attempt in 8:
 			var xz := Terrain.grid_xz(p.pond.cells[rng.randi() % p.pond.cells.size()])
-			var at := Terrain.ground(xz.x, xz.y)
+			var at := wildlife.terrain.ground(xz.x, xz.y)
 			if not _wet(p, at):
 				continue
 			var s := One.new()
@@ -103,12 +103,12 @@ func tick(delta: float) -> void:
 		s.rotation.y = lerp_angle(s.rotation.y, s.heading, minf(delta, 1.0))
 		var next := s.position - s.basis.z * SPEED * delta
 		if _wet(s.pond, next) and wildlife._swims_clear(s.position, Vector2(next.x, next.z)):
-			s.position = Terrain.ground(next.x, next.z)
+			s.position = wildlife.terrain.ground(next.x, next.z)
 		else:
 			s.heading += PI * delta
 		# Match the local bed slope; the soft foot fills the small gap between samples.
 		var at := s.position
-		var normal := Vector3(Terrain.height_at(at.x - 0.03, at.z) - Terrain.height_at(at.x + 0.03, at.z), 0.06, Terrain.height_at(at.x, at.z - 0.03) - Terrain.height_at(at.x, at.z + 0.03)).normalized()
+		var normal := Vector3(wildlife.terrain.height_at(at.x - 0.03, at.z) - wildlife.terrain.height_at(at.x + 0.03, at.z), 0.06, wildlife.terrain.height_at(at.x, at.z - 0.03) - wildlife.terrain.height_at(at.x, at.z + 0.03)).normalized()
 		var right := normal.cross(s.basis.z).normalized()
 		s.basis = Basis(right, normal, right.cross(normal))
 		s.shown = minf(s.shown + delta / 1.5, 1.0)

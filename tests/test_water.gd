@@ -191,20 +191,20 @@ func _shallow_basin_holds_no_pond() -> void:
 ## Filling the meadow's whole bowl, and a dig inside it, are worked out on another thread before they apply; what
 ## comes after waits its turn, and what they leave is what working them out on the spot leaves.
 func _a_lake_is_worked_out_off_the_main_thread() -> void:
-	Terrain.install()
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	root.add_child(world)
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
-	var water := Water.new([])
+	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	world.attach(null, null, null, terrain, water)
 	world.bounded = false
 	await process_frame
-	var at := Terrain.ground(0, -72)
-	var lake := Water.pointed(at)
+	var at := world.terrain.ground(0, -72)
+	var lake := Water.pointed(world.terrain, at)
 	check(lake != null and lake.cells.size() > 10000, "pointing high on the meadow's rim fills its bowl, %d grid points" % (lake.cells.size() if lake != null else 0))
 	if lake == null:
 		return
@@ -218,24 +218,24 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	check(water.ponds.size() == 1 and water.ponds[0].pond.cells == lake.cells and world.stacks[world.me()].undo.size() == 2, "the lake fills as pointed, one undo step")
 	_same_as_on_the_spot(world, "the lake")
 	var cells := Terrain.cells_around(0, -20, 4.0)
-	var deep := Terrain.depth_at(0, -20)
-	var dug := Terrain.read(cells)
+	var deep := world.terrain.depth_at(0, -20)
+	var dug := world.terrain.read(cells)
 	for n in dug.size():
 		dug[n] -= 0.6
 	world.submit({"op": "heights", "cells": cells, "values": dug})
 	check(world.seq == seq + 2, "a dig inside it waits for the lake to fill again")
 	world.settle()
-	check(world.seq == seq + 3 and water.ponds.size() == 1 and absf(water.ponds[0].pond.level - lake.level) < 1e-4 and Terrain.depth_at(0, -20) > deep + 0.5, "and keeps its level, %.2f m deeper there" % (Terrain.depth_at(0, -20) - deep))
+	check(world.seq == seq + 3 and water.ponds.size() == 1 and absf(water.ponds[0].pond.level - lake.level) < 1e-4 and world.terrain.depth_at(0, -20) > deep + 0.5, "and keeps its level, %.2f m deeper there" % (world.terrain.depth_at(0, -20) - deep))
 	_same_as_on_the_spot(world, "the dug lake")
 	for step in 3:
 		world.undo()
 	world.settle()
-	check(world.state.ponds.is_empty() and water.ponds.is_empty() and Terrain.depth_at(0, -20) == Terrain.DRY, "undoing both drains it")
+	check(world.state.ponds.is_empty() and water.ponds.is_empty() and world.terrain.depth_at(0, -20) == Terrain.DRY, "undoing both drains it")
 
 
 ## Whether the water `world` shows is what filling its ponds over the ground as it stands, on the spot, shows.
 func _same_as_on_the_spot(world: World, what: String) -> void:
-	var r := Refill.make(world.state.ponds.duplicate(), {}, {}, Rect2i(), Terrain.read(Terrain.ALL))
+	var r := Refill.make(world.state.ponds.duplicate(), {}, {}, Rect2i(), world.terrain.read(Terrain.ALL))
 	var dry := PackedFloat32Array()
 	dry.resize(Terrain.VERTS * Terrain.VERTS)
 	dry.fill(Terrain.NO_WATER)
@@ -243,30 +243,28 @@ func _same_as_on_the_spot(world: World, what: String) -> void:
 	none.resize(dry.size())
 	none.fill(-1)
 	r.publish(dry, PackedInt32Array(), none, [])
-	check(r.levels == Terrain.water_levels() and r.image.get_data() == Terrain._water_image.get_data(), "%s shows the levels and depths working it out on the spot shows" % what)
+	check(r.levels == world.terrain.water_levels() and r.image.get_data() == world.terrain._water_image.get_data(), "%s shows the levels and depths working it out on the spot shows" % what)
 
 
 ## Ground dug further down than NO_WATER once read as under water, so a wall over it stood at that level and laid
 ## footings hundreds of metres down to it.
 func _ground_dug_deep_stays_dry() -> void:
+	var terrain := Terrain.new()
 	var cells := Terrain.cells_around(40.0, 40.0, 6.0)
-	var before := Terrain.read(cells)
-	var dug := before.duplicate()
+	var dug := terrain.read(cells)
 	for i in dug.size():
 		dug[i] -= 500.0
-	Terrain.write(cells, dug)
-	check(Terrain.water_at(40.0, 40.0) < Terrain.height_at(40.0, 40.0), "ground dug 500 m down stands under no water")
-	Terrain.set_hump(0, 40.0, 40.0, 6.0, -300.0)
-	var held_water := Terrain.held_water()
-	var held_height := Terrain.held_height()
-	check(Terrain.water_at(40.0, 40.0) < Terrain.height_at(40.0, 40.0) and held_water.call(40.0, 40.0) < held_height.call(40.0, 40.0), "nor while a stroke digs it further")
-	Terrain.clear_hump(0)
-	Terrain.write(cells, before)
+	terrain.write(cells, dug)
+	check(terrain.water_at(40.0, 40.0) < terrain.height_at(40.0, 40.0), "ground dug 500 m down stands under no water")
+	terrain.set_hump(0, 40.0, 40.0, 6.0, -300.0)
+	var held_water := terrain.held_water(true)
+	var held_height := terrain.held_height(true)
+	check(held_water.call(40.0, 40.0) < terrain.shown_at(40.0, 40.0) and held_water.call(40.0, 40.0) < held_height.call(40.0, 40.0), "nor while a stroke digs it further")
 
 
 ## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
 func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
-	terrain.begin(terrain.rig.right, Terrain.ground(x, z), RADIUS)
+	terrain.begin(terrain.rig.right, terrain.world.terrain.ground(x, z), RADIUS)
 	terrain.pull(terrain.rig.right, -depth)
 	terrain.end_stroke(terrain.rig.right)
 	terrain.world.settle()
@@ -298,7 +296,7 @@ func _fill_in(world: World, x: float, z: float) -> void:
 func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 	var holder := Node.new()
 	root.add_child(holder)
-	var look := Look.build(holder)
+	var look := Look.build(holder, water.terrain)
 	var under := Underwater.new(water, look)
 	holder.add_child(under)
 	var effects := AudioServer.get_bus_effect_count(0)
@@ -335,15 +333,15 @@ func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 
 
 func _ponds_in_the_glade() -> void:
-	Terrain.install()
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	world.bounded = false
 	root.add_child(world)
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
-	var water := Water.new([])
+	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
@@ -352,10 +350,10 @@ func _ponds_in_the_glade() -> void:
 	var fills: int = Cues.asked.get(Cues.Act.POND_FILL, 0)
 	var hand := rig.right
 
-	var meadow := Terrain.height_at(3, -4)
+	var meadow := world.terrain.height_at(3, -4)
 	await _press(terrain, 3, -4, 1.0)
 	check(water.ponds.is_empty(), "a pressed hollow holds no water until the pond tool fills it")
-	var rim := Terrain.ground(3 + RIM, -4)
+	var rim := world.terrain.ground(3 + RIM, -4)
 	var steps: int = world.stacks[world.me()].undo.size()
 	tool.fill(hand, rim)
 	tool.settle()
@@ -371,8 +369,8 @@ func _ponds_in_the_glade() -> void:
 	check(water.pond_at(shore.x, shore.y) == null, "a shore point stands above the water")
 	await _head_under(water, rig, pond)
 
-	var lower := Terrain.ground(3 + RIM * 0.3, -4)
-	check(lower.y < brim - 0.2, "a point down the side stands below the brim, %.2f against %.2f, meadow %.2f, bottom %.2f" % [lower.y, brim, meadow, Terrain.height_at(3, -4)])
+	var lower := world.terrain.ground(3 + RIM * 0.3, -4)
+	check(lower.y < brim - 0.2, "a point down the side stands below the brim, %.2f against %.2f, meadow %.2f, bottom %.2f" % [lower.y, brim, meadow, world.terrain.height_at(3, -4)])
 	tool.fill(hand, lower)
 	tool.settle()
 	await process_frame
@@ -405,12 +403,12 @@ func _ponds_in_the_glade() -> void:
 	tool.set_process(false)
 	await _preview(tool, rim)
 	check(tool._ghosts[0].visible and absf(tool._ghosts[0].position.y - brim) < 0.05, "the tool shows the water pointing at the rim would hold")
-	var dry := Terrain.ground(3, -4) + Vector3.UP * 0.05
+	var dry := world.terrain.ground(3, -4) + Vector3.UP * 0.05
 	await _preview(tool, dry)
 	check(not tool._ghosts[0].visible and tool._ponds[0] == null, "and nothing where no hollow holds any")
 	tool.set_process(true)
 	var seq := world.seq
-	check(Water.pointed(dry) == null, "a point just over the hollow's bottom holds no water")
+	check(Water.pointed(world.terrain, dry) == null, "a point just over the hollow's bottom holds no water")
 	tool.fill(hand, dry)
 	tool.settle()
 	await process_frame
@@ -424,7 +422,7 @@ func _ponds_in_the_glade() -> void:
 	await process_frame
 
 	await _press(terrain, 12, 8, 1.0)
-	tool.fill(hand, Terrain.ground(12 + RIM * 0.3, 8))
+	tool.fill(hand, world.terrain.ground(12 + RIM * 0.3, 8))
 	tool.settle()
 	await process_frame
 	check(water.ponds.size() == 2 and world.state.ponds.size() == 2, "a hollow elsewhere holds a second pond")
@@ -461,7 +459,7 @@ func _ponds_in_the_glade() -> void:
 	var mid := Vector2(-20, 10)
 	var wide := 40.0
 	var dish := Terrain.cells_around(mid.x, mid.y, wide + 1.0)
-	var was := Terrain.read(dish)
+	var was := world.terrain.read(dish)
 	var brink := INF
 	for j in dish.size.y:
 		for i in dish.size.x:

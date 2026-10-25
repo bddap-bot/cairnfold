@@ -57,7 +57,7 @@ static func straight_wall(length: float, height: float, arches: Array[float] = [
 
 ## The data a wall sends: `with`'s fields, the rest as a fresh Wall has them.
 static func wall_data(with: Dictionary) -> Dictionary:
-	var w := Wall.new(0, null)
+	var w := Wall.new(0, null, Terrain.new())
 	var d := w.data()
 	w.free()
 	d.merge(with, true)

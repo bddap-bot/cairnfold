@@ -25,7 +25,7 @@ func _run() -> void:
 	check(main.look.sky_mat.get_shader_parameter("stars") == 0.0, "paired measurement disables stars alone")
 	driver._layer({"name": "stars", "mode": "on"})
 	check(main.look.sky_mat.get_shader_parameter("stars") == Daylight.light(0.0).stars, "paired measurement restores the time source")
-	var eye := Terrain.ground(0, 12) + Vector3.UP * 0.2
+	var eye := main.world.terrain.ground(0, 12) + Vector3.UP * 0.2
 	main.view(eye, eye + Vector3(0, 10, -0.001), false)
 	for i in 60:
 		await process_frame

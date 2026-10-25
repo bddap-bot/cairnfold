@@ -60,14 +60,14 @@ func _init() -> void:
 				for o in plaster.apertures:
 					check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.Family.ARCHWAY else o.half)), "plaster does not fill an opening")
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])
-	var wall := Wall.new(1, null)
+	var wall := Wall.new(1, null, Terrain.new())
 	wall.layout.points = [Vector3.ZERO, Vector3(8, 0, 0)]
 	wall.layout.finish = WallLayout.Finish.PLASTER
 	wall.layout.wear = 0.5
 	var data := wall.data()
 	var clean: Variant = Commands._wall(data)
 	check(clean != null and clean.finish == WallLayout.Finish.PLASTER and clean.wear == 0.5, "commands preserve plaster and its wear")
-	var restored := Wall.new(2, null)
+	var restored := Wall.new(2, null, Terrain.new())
 	restored.set_data(clean)
 	check(restored.layout.finish == WallLayout.Finish.PLASTER and restored.layout.wear == 0.5, "saved plaster restores worn")
 	data.erase("finish")

@@ -6,7 +6,7 @@ func _initialize() -> void:
 	await process_frame
 	var rig := main.rig
 	var home := main.world.snapshot()
-	var heights := Terrain.read(Terrain.ALL)
+	var heights := main.world.terrain.read(Terrain.ALL)
 	for i in heights.size():
 		heights[i] += 12.0
 	var mountain := {"seq": 1, "cmds": [{"op": "heights", "cells": Terrain.ALL, "values": heights}]}
@@ -21,7 +21,7 @@ func _initialize() -> void:
 	rig.teleport(Vector3(0, -20, 4), 0.0)
 	rig._fade_step(Rig.FADE)
 	_grounded(rig, "teleport placement resamples a stale ground target")
-	var g := Terrain.ground(0, 4)
+	var g := main.world.terrain.ground(0, 4)
 	rig.place(g, 8.0)
 	check(absf(rig.global_position.y - g.y - 8.0) < 0.01, "intentional floating is preserved")
 	rig.respawn()
@@ -35,7 +35,7 @@ func _initialize() -> void:
 
 ## A build standing at the spawn point sends the player to the nearest open ground; with nowhere open, onto its top.
 func _spawns_on_open_ground() -> void:
-	var rig := Rig.new()
+	var rig := Rig.new(main.world.terrain)
 	root.add_child(rig)
 	var house := Rect2(-3, 1, 6, 6)
 	rig.solid_hit = func(origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary:
@@ -43,12 +43,12 @@ func _spawns_on_open_ground() -> void:
 	rig.respawn()
 	var h := rig.head.global_position
 	var g := Vector2(h.x, h.z)
-	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) <= 2.0 * Rig.SPAWN_STEP + 0.01 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
+	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) <= 2.0 * Rig.SPAWN_STEP + 0.01 and absf(rig.global_position.y - main.world.terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
 	rig.solid_hit = func(origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {"point": origin, "side": false}
-	rig.floor_under = func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z) + 7.0
+	rig.floor_under = func(p: Vector3) -> float: return main.world.terrain.height_at(p.x, p.z) + 7.0
 	rig.respawn()
 	h = rig.head.global_position
-	check(Vector2(h.x, h.z).distance_to(Rig.SPAWN) < 0.01 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z) - 7.0) < 0.01, "with nowhere open the player stands on the top at the spawn")
+	check(Vector2(h.x, h.z).distance_to(Rig.SPAWN) < 0.01 and absf(rig.global_position.y - main.world.terrain.height_at(h.x, h.z) - 7.0) < 0.01, "with nowhere open the player stands on the top at the spawn")
 	rig.free()
 
 
@@ -81,4 +81,4 @@ func _a_swap_happens_in_the_dark() -> void:
 
 func _grounded(rig: Rig, what: String) -> void:
 	var h := rig.head.global_position
-	check(absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.01 and Vector2(h.x, h.z).distance_to(Vector2(0, 4)) < 0.01, what)
+	check(absf(rig.global_position.y - main.world.terrain.height_at(h.x, h.z)) < 0.01 and Vector2(h.x, h.z).distance_to(Vector2(0, 4)) < 0.01, what)

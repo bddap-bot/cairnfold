@@ -6,6 +6,10 @@ extends "res://../tests/support/suite.gd"
 ## A wall lays in under a hundred frames; seventy times that is a wall that never settles.
 const SETTLE_FRAMES := 3600
 
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+
 
 func _initialize() -> void:
 	_a_window_cuts_its_opening()
@@ -366,7 +370,7 @@ func _in_the_glade() -> void:
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
 	])
-	world.submit({"op": "wall", "walls": [_tower(Terrain.ground(-12, 8), 2.0)]})
+	world.submit({"op": "wall", "walls": [_tower(terrain.ground(-12, 8), 2.0)]})
 	await play([
 		{"op": "fence", "points": [[-6, 8], [0, 8], [5, 8]], "seconds": 0.3},
 	])
@@ -420,7 +424,7 @@ func _in_the_glade() -> void:
 	check(w_aim.get("what") == "opening", "windows pointed at a wall open a window")
 	var down := (Vector3.DOWN + normal * 0.3).normalized()
 	var ground_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, down)
-	var astray := fit.ghost_of(ground_aim, on_face + normal * 3.0, down, Terrain.raycast(on_face + normal * 3.0, down))
+	var astray := fit.ghost_of(ground_aim, on_face + normal * 3.0, down, terrain.raycast(on_face + normal * 3.0, down))
 	check(ground_aim.is_empty() and not astray.fits, "aimed at the ground, a ghost hangs there unplaced")
 	check(not _fit(fit, ground_aim), "a press at the ground places nothing and says so")
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
@@ -498,7 +502,7 @@ func _in_the_glade() -> void:
 	var flame := wall.layout.flames[0].origin
 	check(fit.lamps.at(flame.x, flame.z, 0) > 0.3, "the lantern lights the ground under it: %.2f" % fit.lamps.at(flame.x, flame.z, 0))
 	check(fit.lamps.at(flame.x + 12.0, flame.z, 0) == 0.0, "and not beyond its reach")
-	var high := Lamps.shine(PackedVector3Array([Vector3(0.5, 6.0, 0.5)]), Bounce.grounds(Terrain.read(Terrain.ALL)))
+	var high := Lamps.shine(PackedVector3Array([Vector3(0.5, 6.0, 0.5)]), Bounce.grounds(terrain.read(Terrain.ALL)))
 	var under := Bounce.column(0.5, 0.5)
 	var floor_light := high[0][under.y * Bounce.CELLS + under.x] / 255.0 * Lamps.ENCODE
 	check(floor_light > 0.05, "a lantern hung 6 m up still lights the floor: %.2f" % floor_light)
@@ -539,7 +543,7 @@ func _in_the_glade() -> void:
 
 func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
 	var stood: Array = world.state.walls.keys()
-	world.submit({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(-14, -30), Terrain.ground(-2, -30)]), "seed": 3, "ruins": PackedVector2Array([Vector2(3.0, 5.0)])})]})
+	world.submit({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([terrain.ground(-14, -30), terrain.ground(-2, -30)]), "seed": 3, "ruins": PackedVector2Array([Vector2(3.0, 5.0)])})]})
 	for f in 3:
 		await process_frame
 	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]

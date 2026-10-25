@@ -34,9 +34,8 @@ var _colors := PackedColorArray()
 var _pending := {}
 var _sun := Vector3.UP
 var _relight := false
-## The ground's heights the last solve stood on, and the Terrain.revision they were read at. A stroke's live
-## hump moves the revision without them.
-var _heights := PackedFloat32Array()
+## The ground the probes follow, and its heights_revision the last solve stood on.
+var terrain: Terrain
 var _ground := -1
 var _layers: Array[Image] = []
 var texture := ImageTexture3D.new()
@@ -75,7 +74,7 @@ func sky_at(p: Vector3) -> float:
 	var c := column(p.x, p.z)
 	if not AREA.has_point(c):
 		return 1.0
-	var layer := clampi(floori(p.y - Terrain.height_at(p.x, p.z)), 0, LAYERS - 1)
+	var layer := clampi(floori(p.y - terrain.height_at(p.x, p.z)), 0, LAYERS - 1)
 	return _layers[layer].get_pixel(c.x, c.y).a
 
 
@@ -122,15 +121,12 @@ func set_sun(toward_sun: Vector3, light: Color) -> void:
 
 
 func _next() -> Callable:
-	if _ground != Terrain.revision:
-		_ground = Terrain.revision
-		var heights := Terrain.read(Terrain.ALL)
-		if heights != _heights:
-			_heights = heights
-			_relight = true
+	if _ground != terrain.heights_revision:
+		_ground = terrain.heights_revision
+		_relight = true
 	if _pending.is_empty() and not _relight:
 		return Callable()
-	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": _heights}
+	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL)}
 	_pending = {}
 	_relight = false
 	return _work.bind(job)

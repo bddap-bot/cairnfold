@@ -153,10 +153,10 @@ func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	var grazing := wildlife.roamers.all() + wildlife.herds.all()
 	for a in grazing:
 		a.full = INF
-	var at := Terrain.ground(14.0, -14.0)
+	var at := wildlife.terrain.ground(14.0, -14.0)
 	var s := feed.throw(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
 	_run(wildlife, 1.5)
-	check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
+	check(s.landed() and absf(s.position.y - wildlife.terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
 	check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
 	_run(wildlife, s.lasts - 3.5)
 	check(wildlife.offers().has(s) and s.left() == Handful.GRAINS, "uneaten, they lie a while")
@@ -202,23 +202,25 @@ func _no_tool_places_an_animal() -> void:
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
 ## sudden move or an approach. A hand swung out, or a flat player walking up, still is one.
 func _teleport_is_no_motion() -> void:
-	Terrain.install()
-	var rig := Rig.new()
+	var terrain := Terrain.new()
+	var marks := Ground.new()
+	terrain.install()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
-	var water := Water.new([])
+	var water := Water.new(terrain, [])
 	root.add_child(water)
-	var flora := Flora.new()
+	var flora := Flora.new(terrain, marks)
 	root.add_child(flora)
 	var watched: Array[Node3D] = []
 	watched.assign(rig.hands)
-	var wildlife := Wildlife.new(water, flora, null, Palette.new(), rig.head, watched, 1)
+	var wildlife := Wildlife.new(terrain, marks, water, flora, null, Palette.new(), rig.head, watched, 1)
 	root.add_child(wildlife)
 	wildlife.set_process(false)
 	await process_frame
 	rig.right.position = Vector3(0.3, 1.2, -0.4)
 	_run(wildlife, 1.0)
 	var ahead := Vector3(0, 0, -12)
-	rig.teleport(Terrain.ground(0, -6), 0.0)
+	rig.teleport(terrain.ground(0, -6), 0.0)
 	rig._fade_step(Rig.FADE)
 	wildlife.tick(STEP)
 	rig.snap_turn(Rig.SNAP, rig.right)
@@ -250,23 +252,23 @@ func _from_shore(p: PondWater, at: Vector3) -> float:
 
 
 func _ducks_come_only_to_ponds() -> void:
-	Terrain.install()
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	root.add_child(world)
-	var terrain := GroundGrab.new(rig, world)
-	root.add_child(terrain)
-	var water := Water.new([])
+	var grab := GroundGrab.new(rig, world)
+	root.add_child(grab)
+	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
-	world.attach(null, null, null, terrain, water)
-	var flora := Flora.new()
+	world.attach(null, null, null, grab, water)
+	var flora := Flora.new(world.terrain, world.marks)
 	root.add_child(flora)
 	var no_hands: Array[Node3D] = []
 	await process_frame
-	var wildlife := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 1)
+	var wildlife := Wildlife.new(world.terrain, world.marks, water, flora, null, Palette.new(), rig.head, no_hands, 1)
 	root.add_child(wildlife)
 	wildlife.set_process(false)
 
@@ -310,7 +312,7 @@ func _ducks_come_only_to_ponds() -> void:
 	check(worst[2] == 0 and worst[0] <= Wildlife.BANK.y + 0.75, "it rests on dry grass near the water, at most %.2f m from the shore" % worst[0])
 	check(worst[1] < 0.02, "afloat, each duck sits at the waterline, off by %.3f" % worst[1])
 
-	var flier := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
+	var flier := Wildlife.new(world.terrain, world.marks, water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(flier)
 	flier.set_process(false)
 	var lone: Duck = null
@@ -338,7 +340,7 @@ func _ducks_come_only_to_ponds() -> void:
 	check(midair.state == Wildlife.State.FLY_IN, "the same seed flies in again")
 	_run(flier, 1.0)
 	var low := [midair.leader().position.y, 0.0]
-	var walker := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
+	var walker := Wildlife.new(world.terrain, world.marks, water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(walker)
 	walker.set_process(false)
 	for seed in 40:
@@ -357,7 +359,7 @@ func _ducks_come_only_to_ponds() -> void:
 	check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
 	check(entered[1], "the mother quacks as she takes to the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
-	feed = FeedTool.new(rig, water)
+	feed = FeedTool.new(rig, water, world.terrain)
 	root.add_child(feed)
 	feed.set_process(false)
 	walker.handfuls = feed.handfuls
@@ -396,9 +398,9 @@ func _ducks_come_only_to_ponds() -> void:
 ## never walks in through it, and one inside never walks out through it; all of them use the open quarter.
 func _ducks_keep_out_of_walls() -> void:
 	seed(1)
-	Terrain.install()
 	var g := GladeBase.new()
 	await g.build(self, 1)
+	g.world.terrain.install()
 	var walls := g.walls
 	var water := g.water
 	var wildlife := g.wildlife
@@ -413,7 +415,7 @@ func _ducks_keep_out_of_walls() -> void:
 	ring.layout.fence = true
 	for i in 37:
 		var a := 1.5 * PI * i / 36.0
-		ring.layout.points.append(Terrain.ground(mid.x + cos(a) * (far + 0.3), mid.y + sin(a) * (far + 0.3)))
+		ring.layout.points.append(g.world.terrain.ground(mid.x + cos(a) * (far + 0.3), mid.y + sin(a) * (far + 0.3)))
 	walls.build([ring])
 	await process_frame
 	walls.walls[-1].lay_now()
@@ -463,7 +465,7 @@ func _ducks_keep_out_of_walls() -> void:
 		var f := Wildlife.Family.new(wildlife._spawn(false))
 		f.ducks.append(wildlife._spawn(true))
 		f.pond = pond
-		f.leader().position = Terrain.ground(mid.x, mid.y)
+		f.leader().position = g.world.terrain.ground(mid.x, mid.y)
 		wildlife.families.append(f)
 		wildlife._leave(f)
 		out += int(through.call(f.leader().position, f.goal))

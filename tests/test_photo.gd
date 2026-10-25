@@ -3,9 +3,11 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of the camera tool: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_photo.gd
 ## The shot itself needs a renderer; demo/photo.json takes photos on the desktop.
 
+var terrain := Terrain.new()
+
 
 func _initialize() -> void:
-	Terrain.install()
+	terrain.install()
 	await process_frame
 	await _the_screen_shows_the_lens_while_a_hand_holds_the_camera()
 	await _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not()
@@ -27,7 +29,7 @@ func _dark(hand: Hand) -> bool:
 
 func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	check(ToolWheel.paths(Hand.TREE).has(Hand.Tool.CAMERA), "the camera is on the wheel")
-	var rig := Rig.new()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
@@ -96,7 +98,7 @@ func _the_lens_sees_as_far_as_the_eye(rig: Rig, tool: PhotoTool) -> void:
 
 
 func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
-	var rig := Rig.new()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
@@ -145,7 +147,7 @@ func _the_lens_turns_as_the_hand_turns_roll_included() -> void:
 func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	var paths := ToolWheel.paths(Hand.TREE)
 	check(paths[Hand.Tool.SELFIE].size() == 3 and paths[Hand.Tool.SELFIE].slice(0, -1) == paths[Hand.Tool.CAMERA].slice(0, -1), "the selfie camera opens from the camera's own entry on the wheel: %s, %s" % [paths[Hand.Tool.SELFIE], paths[Hand.Tool.CAMERA]])
-	var rig := Rig.new()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
@@ -188,7 +190,7 @@ func _player_data_lives_outside_the_app() -> void:
 	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Nestcombe"), "on Android, photos go to Nestcombe in the shared Pictures folder: %s" % Main.photos_folder(true))
 
 func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
-	var rig := Rig.new()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
@@ -198,7 +200,7 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Quality.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")
 	check(rig.head.cull_mask & Quality.LADDER_LAYER and not rig.head.cull_mask & Quality.FULL_LAYER, "the headset sees the ladder's cut and not the whole")
 	check(Quality.VIEW_MASK & Quality.LADDER_LAYER and not Quality.VIEW_MASK & Quality.FULL_LAYER and tool._view_viewport().msaa_3d == tool.get_viewport().msaa_3d, "a view capture is drawn as the eyes see it")
-	var flora := Flora.new()
+	var flora := Flora.new(terrain, Ground.new())
 	root.add_child(flora)
 	flora.blob_detail = Quality.ladder[-1].blob_detail
 	tool.flora = flora
@@ -211,7 +213,7 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	check(ivy.get_shader_parameter(&"full_layer") == Quality.FULL_LAYER, "and so does ivy")
 	var parent := Node3D.new()
 	root.add_child(parent)
-	var look := Look.build(parent)
+	var look := Look.build(parent, terrain)
 	var sun := look.photo_sun
 	check(look.sun.layers == Quality.LADDER_LAYER and sun.layers == Quality.FULL_LAYER, "a photo is lit by its own sun, the headset by the other")
 	check(sun.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS and sun.directional_shadow_max_distance >= Terrain.SIZE * sqrt(2.0), "a photo's shadows reach the garden's far corner in four splits: %.0f m" % sun.directional_shadow_max_distance)
@@ -245,7 +247,7 @@ func _until(done: Callable) -> void:
 
 
 func _holding_the_trigger_records_until_it_is_let_go() -> void:
-	var rig := Rig.new()
+	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	tool.folder = "user://test-videos"

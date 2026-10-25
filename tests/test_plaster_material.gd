@@ -5,7 +5,7 @@ extends "res://../tests/support/suite.gd"
 
 func _initialize() -> void:
 	if DisplayServer.get_name() == "headless":
-		var w := Wall.new(1, null)
+		var w := Wall.new(1, null, Terrain.new())
 		w.add_roof(RoofLayout.new())
 		var c := WallLayout.PLASTER
 		for part: MeshInstance3D in [w._gables, w._torching]:
@@ -19,7 +19,8 @@ func _initialize() -> void:
 
 func run() -> void:
 	root.size = Vector2i(256, 256)
-	Terrain.install()
+	var terrain := Terrain.new()
+	terrain.install()
 	var im := Image.create(2, 2, false, Image.FORMAT_RGBA8)
 	im.fill(Color(0, 0, 0, 1))
 	var vol := ImageTexture3D.new()
@@ -38,7 +39,7 @@ func run() -> void:
 	root.add_child(cam)
 	cam.position = Vector3(0, 3, 4)
 	cam.look_at(Vector3(0, 3, 0))
-	var w := Wall.new(1, null)
+	var w := Wall.new(1, null, terrain)
 	w.add_roof(RoofLayout.new())
 
 	im = Image.create(2, 2, false, Image.FORMAT_RGBA8)

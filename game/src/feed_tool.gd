@@ -28,13 +28,13 @@ var _velocity := {}
 var _next := 0
 
 
-func _init(player: Rig, water: Water) -> void:
+func _init(player: Rig, water: Water, terrain: Terrain) -> void:
 	rig = player
 	ponds = water
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 	for i in HANDFULS:
-		handfuls.append(Handful.new(ponds))
+		handfuls.append(Handful.new(ponds, terrain))
 		handfuls[i].splashed.connect(_splashed)
 		add_child(handfuls[i])
 

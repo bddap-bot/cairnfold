@@ -6,6 +6,9 @@ extends "res://../tests/support/suite.gd"
 ## in it as it was pushed, two size it, and it rides the ground as it is reshaped: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_boulder.gd
 
 var world: World
+var terrain: Terrain:
+	get:
+		return main.world.terrain
 
 
 func _initialize() -> void:
@@ -104,32 +107,32 @@ func _its_mesh_is_its_surface() -> void:
 
 func _bad_commands_are_dropped() -> void:
 	var state := World.blank()
-	var at := Terrain.ground(10, 10)
-	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": INF, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a boulder without end is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": NAN, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a boulder of no size is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "under the smallest size it is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a seed that is no whole number is dropped")
+	var at := terrain.ground(10, 10)
+	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": INF, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "a boulder without end is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": NAN, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "a boulder of no size is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "under the smallest size it is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "a seed that is no whole number is dropped")
 	var q := Quaternion.IDENTITY
-	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no depth is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": -0.1, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one sunk above the ground is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": INF, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one sunk without end is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no turn is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a turn that is no rotation is dropped")
-	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).size() == 8, "a boulder command keeps its place, turn, depth, seed, size, paint and style")
-	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "one with no depth is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": -0.1, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "one sunk above the ground is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": INF, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "one sunk without end is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "one with no turn is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "a turn that is no rotation is dropped")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).size() == 8, "a boulder command keeps its place, turn, depth, seed, size, paint and style")
+	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false, main.world.terrain).is_empty(), "sizing a boulder that is not there is dropped")
 	state.boulders[9] = {"at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
-	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
-	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house")
-	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": BoulderLayout.MOST * 1.01}}, state, false).is_empty(), "but no bigger than the biggest a hand can grow")
-	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1e30, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "nor placed bigger")
-	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false).is_empty(), "a reshape cannot swap its shape")
-	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false).is_empty(), "a reshape pushes it into the ground")
-	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false).is_empty(), "and never out over it")
+	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false, main.world.terrain).is_empty(), "a reshape moves and turns it")
+	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false, main.world.terrain).is_empty(), "a boulder sizes far past a house")
+	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": BoulderLayout.MOST * 1.01}}, state, false, main.world.terrain).is_empty(), "but no bigger than the biggest a hand can grow")
+	check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1e30, "paint": Palette.plain(), "style": 0}, state, false, main.world.terrain).is_empty(), "nor placed bigger")
+	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false, main.world.terrain).is_empty(), "a reshape cannot swap its shape")
+	check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false, main.world.terrain).is_empty(), "a reshape pushes it into the ground")
+	check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false, main.world.terrain).is_empty(), "and never out over it")
 
 
 func _a_placed_boulder_sizes_undoes_and_reloads() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	main.flora_tool.place_boulder(Terrain.ground(3, -2), null, 17, 1.0)
+	main.flora_tool.place_boulder(terrain.ground(3, -2), null, 17, 1.0)
 	await _settled()
 	check(world.state.boulders.size() == 1 and main.boulders.boulders.size() == 1, "a placed boulder stands")
 	var id: int = world.state.boulders.keys()[0]
@@ -162,13 +165,13 @@ func _a_placed_boulder_sizes_undoes_and_reloads() -> void:
 
 func _the_beam_takes_one() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	main.flora_tool.place_boulder(Terrain.ground(-6, 8), null, 23, 2.0)
+	main.flora_tool.place_boulder(terrain.ground(-6, 8), null, 23, 2.0)
 	await _settled()
-	var top := Terrain.ground(-6, 8) + Vector3.UP * 6.0
+	var top := terrain.ground(-6, 8) + Vector3.UP * 6.0
 	var aimed: Dictionary = main.delete_tool.aim(top, Vector3.DOWN)
 	check(aimed.has("boulder"), "the delete beam strikes a boulder before the ground under it")
 	var rock: Dictionary = main.boulders.pick(top, Vector3.DOWN)
-	check(not rock.is_empty() and rock.point.y > Terrain.height_at(-6, 8) + 0.3, "a ray from above meets its top")
+	check(not rock.is_empty() and rock.point.y > terrain.height_at(-6, 8) + 0.3, "a ray from above meets its top")
 	check(main.boulders.inside(rock.point + Vector3.DOWN * 0.2) != null, "just under its top is inside it")
 	var hit: Dictionary = main.rig.solid_hit.call(top, Vector3.DOWN, 10.0)
 	check(not hit.is_empty() and absf(hit.point.y - rock.point.y) < 0.01 and not hit.side, "the teleport ray lands on it")
@@ -189,7 +192,7 @@ func _sunk(b: Boulders.Boulder) -> float:
 	for p in b.shape.feet:
 		var w := b.transform.basis * p
 		var at := b.transform.origin + w
-		under = minf(under, at.y - Terrain.height_at(at.x, at.z))
+		under = minf(under, at.y - terrain.height_at(at.x, at.z))
 		depth = maxf(depth, -w.y)
 	return -under / depth
 
@@ -202,7 +205,7 @@ func _it_stands_on_the_ground_as_it_moves() -> void:
 	var was := b.transform.origin.y
 	check(absf(_sunk(b) - BoulderLayout.BURY) < 0.01, "turned on its side, it rests on the ground (%.3f)" % _sunk(b))
 	var cells := Terrain.cells_around(b.ground.x, b.ground.z, 3.0)
-	var values := Terrain.read(cells)
+	var values := terrain.read(cells)
 	for i in values.size():
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
@@ -225,7 +228,7 @@ func _it_stands_on_the_ground_as_it_moves() -> void:
 
 func _a_grip_carries_and_turns_it_onto_the_ground() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	main.flora_tool.place_boulder(Terrain.ground(4, 6), null, 31, 1.0)
+	main.flora_tool.place_boulder(terrain.ground(4, 6), null, 31, 1.0)
 	await _settled()
 	var id: int = world.state.boulders.keys()[0]
 	var b: Boulders.Boulder = main.boulders.find(id)
@@ -275,7 +278,7 @@ func _let_go_in_the_air_it_drops() -> void:
 	tool.end_grow(m)
 	await _settled()
 	check(b.transform.is_equal_approx(rest) and absf(_sunk(b) - BoulderLayout.BURY) < 0.01, "let go in the air, it drops back onto the ground (%.3f over)" % (b.position.y - rest.origin.y))
-	check(absf(world.state.boulders[b.id].at.y - Terrain.height_at(b.position.x, b.position.z)) < 1e-3, "the garden keeps it on the ground")
+	check(absf(world.state.boulders[b.id].at.y - terrain.height_at(b.position.x, b.position.z)) < 1e-3, "the garden keeps it on the ground")
 
 
 ## A held boulder whooshes while it moves, not while still nor when pebble-sized; let go, it thuds, harder from higher.
@@ -316,7 +319,7 @@ func _showing(b: Boulders.Boulder) -> float:
 	for p in b.shape.feet:
 		var w := b.transform.basis * p
 		var at := b.transform.origin + w
-		clear = maxf(clear, at.y - Terrain.height_at(at.x, at.z))
+		clear = maxf(clear, at.y - terrain.height_at(at.x, at.z))
 		low = minf(low, w.y)
 		high = maxf(high, w.y)
 	return clear / (high - low)
@@ -327,7 +330,7 @@ func _showing(b: Boulders.Boulder) -> float:
 ## above still finds it, and none finds its buried part through the ground.
 func _pushed_into_the_ground_it_stays() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	main.flora_tool.place_boulder(Terrain.ground(-3, 5), null, 43, 1.2)
+	main.flora_tool.place_boulder(terrain.ground(-3, 5), null, 43, 1.2)
 	await _settled()
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
 	var id := b.id
@@ -353,7 +356,7 @@ func _pushed_into_the_ground_it_stays() -> void:
 	check(absf(_showing(b) - BoulderLayout.KEEP) < 0.01, "pushed far down, it keeps KEEP of it above the ground (%.3f)" % _showing(b))
 	var rock: Dictionary = main.boulders.pick(b.position + Vector3.UP * 4.0, Vector3.DOWN)
 	check(not rock.is_empty() and rock.boulder == b, "a ray from above still meets it")
-	var under := Terrain.ground(b.position.x, b.position.z) + Vector3(3.0, 0.4, 0)
+	var under := terrain.ground(b.position.x, b.position.z) + Vector3(3.0, 0.4, 0)
 	var low := b.position + Vector3(0, -0.2, 0)
 	check(main.boulders.pick(under, (low - under).normalized()).is_empty(), "a ray aimed through the ground at its buried part meets nothing")
 	world.submit({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}})
@@ -375,7 +378,7 @@ func _pushed_into_the_ground_it_stays() -> void:
 	check(b.transform.is_equal_approx(buried), "undo takes back the size, still buried")
 	var was := b.position.y
 	var cells := Terrain.cells_around(b.ground.x, b.ground.z, 3.0)
-	var values := Terrain.read(cells)
+	var values := terrain.read(cells)
 	for i in values.size():
 		values[i] += 1.0
 	world.submit({"op": "heights", "cells": cells, "values": values})
@@ -435,7 +438,7 @@ func _two_hands_size_it() -> void:
 ## and saves as any other.
 func _two_hands_grow_one_far_past_a_house() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	main.flora_tool.place_boulder(Terrain.ground(10, -10), null, 29, 8.0)
+	main.flora_tool.place_boulder(terrain.ground(10, -10), null, 29, 8.0)
 	await _settled()
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
 	var id := b.id
@@ -461,7 +464,7 @@ func _two_hands_grow_one_far_past_a_house() -> void:
 	check(box.size.x > 100.0, "it is culled by its grown bounds (%.0f m across)" % box.size.x)
 	var over := Vector3(b.position.x, b.position.y + b.shape.reach() * 160.0 + 5.0, b.position.z)
 	var top: Dictionary = main.boulders.pick(over, Vector3.DOWN)
-	check(not top.is_empty() and top.point.y > Terrain.height_at(over.x, over.z) + 20.0, "a ray from above meets its top, high over the ground")
+	check(not top.is_empty() and top.point.y > terrain.height_at(over.x, over.z) + 20.0, "a ray from above meets its top, high over the ground")
 	check(absf(main.rig.floor_under.call(top.point + Vector3.UP * 0.3) - top.point.y) < 0.05, "a player over it stands on its top, not the ground inside it")
 	check(main.boulders.inside(b.position + Vector3.UP * 5.0) == b, "its inside is solid")
 	world.flush()
@@ -478,7 +481,7 @@ func _the_trigger_carries_a_new_one() -> void:
 	await _settled()
 	var tools: FloraTool = main.flora_tool
 	var brush := tools.brush(main.rig.right)
-	var spot := Terrain.ground(-5, 9)
+	var spot := terrain.ground(-5, 9)
 	main.rig.right.global_transform = Transform3D(Basis(), spot + Vector3(0, 1.2, 2.0))
 	tools.take_boulder(brush, spot, 77, 1.5)
 	check(tools.busy(main.rig.right) and world.state.boulders.is_empty(), "the trigger takes up a new boulder, not yet in the garden")
@@ -503,7 +506,7 @@ func _the_trigger_buries_a_new_one() -> void:
 	await _settled()
 	var tools: FloraTool = main.flora_tool
 	var brush := tools.brush(main.rig.right)
-	var spot := Terrain.ground(-5, 9)
+	var spot := terrain.ground(-5, 9)
 	main.rig.right.global_transform = Transform3D(Basis(), spot + Vector3(0, 1.2, 2.0))
 	tools.take_boulder(brush, spot, 77, 1.5)
 	var rest := brush.rock.position

@@ -29,10 +29,10 @@ func _run() -> void:
 
 ## A cleaned command as the host would send it on, checked again as a peer checks it.
 func _relayed(cmd: Dictionary, by: int) -> Dictionary:
-	var hosted := Commands.clean(cmd, world.state, false)
+	var hosted := Commands.clean(cmd, world.state, false, world.terrain)
 	hosted.seq = world.seq + 1
 	hosted.by = by
-	return Commands.clean(hosted, world.state, true)
+	return Commands.clean(hosted, world.state, true, world.terrain)
 
 
 func _across(p: Vector3) -> Vector2:
@@ -59,7 +59,7 @@ func _carry(first: Flora.Plant, move: Vector3) -> void:
 ## alone until let go; then the garden sets it there in one step that an undo takes back and a redo puts again, keeping
 ## its species and moss; what strikes it, what walls arch over and its shade follow it, and a snapshot keeps it there.
 func _a_planted_tree_is_carried() -> void:
-	var at := Terrain.ground(-6, 18)
+	var at := world.terrain.ground(-6, 18)
 	world._order({"op": "plant", "kind": "tree", "seed": 7, "at": at}, world.me())
 	var g := world.seq
 	world._order({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.FIR, "moss": true}, world.me())
@@ -121,7 +121,7 @@ func _meadow_plants_are_carried() -> void:
 
 ## One hand carries a planted bush; two hands on it size nothing and send nothing.
 func _bushes_are_carried_not_sized() -> void:
-	var at := Terrain.ground(4, 16)
+	var at := world.terrain.ground(4, 16)
 	world._order({"op": "plant", "kind": "bush", "seed": 3, "at": at}, world.me())
 	var g := world.seq
 	var blob: Flora.Plant = flora.groups[g][0]
@@ -148,21 +148,21 @@ func _bushes_are_carried_not_sized() -> void:
 
 ## A carry's command as a peer checks it: a place on the map for a tree or bush, a size for a tree alone.
 func _commands_are_checked() -> void:
-	world._order({"op": "plant", "kind": "tree", "seed": 5, "at": Terrain.ground(2, 12)}, world.me())
+	world._order({"op": "plant", "kind": "tree", "seed": 5, "at": world.terrain.ground(2, 12)}, world.me())
 	var tree := world.seq
-	world._order({"op": "plant", "kind": "bush", "seed": 6, "at": Terrain.ground(3, 12)}, world.me())
+	world._order({"op": "plant", "kind": "bush", "seed": 6, "at": world.terrain.ground(3, 12)}, world.me())
 	var bush := world.seq
-	var there := Terrain.ground(5, 14)
+	var there := world.terrain.ground(5, 14)
 	check(_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
 	check(_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
 	var meadow_bush: int = flora.meadow_bushes()[0]
 	check(_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
-	check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false).is_empty(), "a bush takes no size")
-	check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false).is_empty(), "nor a species")
+	check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false, world.terrain).is_empty(), "a bush takes no size")
+	check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false, world.terrain).is_empty(), "nor a species")
 	var grass := Array(flora.groups[0]).find_custom(func(p: Flora.Plant) -> bool: return p != null and p.pool == flora.grass)
-	check(Commands.clean({"op": "tree", "group": 0, "index": grass, "at": there}, world.state, false).is_empty(), "grass is not carried")
+	check(Commands.clean({"op": "tree", "group": 0, "index": grass, "at": there}, world.state, false, world.terrain).is_empty(), "grass is not carried")
 	for bad: Variant in [Vector2(5, 14), Vector3(NAN, 0, 0), Vector3(1e6, 0, 0), "here"]:
-		check(Commands.clean({"op": "tree", "group": tree, "index": 0, "at": bad}, world.state, false).is_empty(), "no place %s" % [bad])
+		check(Commands.clean({"op": "tree", "group": tree, "index": 0, "at": bad}, world.state, false, world.terrain).is_empty(), "no place %s" % [bad])
 	world._order({"op": "tree", "group": tree, "index": 0, "at": there}, 2)
 	check(_across(flora.groups[tree][0].anchor).distance_to(_across(there)) < 0.01, "a peer's carry moves it here too")
 	world.restore({"seq": 0, "cmds": []})

@@ -19,7 +19,7 @@ func _run() -> void:
 
 
 func _far_plants_follow_the_pool() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91

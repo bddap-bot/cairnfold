@@ -10,7 +10,6 @@ const AWAY := Vector3(0, -50, 0)
 func _initialize() -> void:
 	# Walls draw their seeds from the global generator.
 	seed(1)
-	Terrain.install()
 	await process_frame
 	_only_birds_make_conures()
 	_wall_tops_are_perches()
@@ -102,6 +101,7 @@ class Glade extends GladeBase:
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
 	await g.build(self, seed)
+	g.world.terrain.install()
 	return g
 
 
@@ -116,10 +116,11 @@ func _until_perched(g: Glade, seconds: float) -> void:
 
 func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	var m: WallTool.Mason = tool.masons[0]
-	tool.begin_stroke(m, Terrain.ground(a.x, a.z))
+	var terrain := tool.world.terrain
+	tool.begin_stroke(m, terrain.ground(a.x, a.z))
 	for i in 31:
 		var p := a.lerp(b, i / 30.0)
-		tool.extend_stroke(m, Terrain.ground(p.x, p.z))
+		tool.extend_stroke(m, terrain.ground(p.x, p.z))
 	tool.end_stroke(m)
 	return tool.walls[-1]
 
@@ -133,7 +134,7 @@ func _on_perch(g: Glade, at: Vector3) -> bool:
 			return true
 	for parts: Array in g.flora.placed("tree"):
 		var trunk: Flora.Plant = parts[0]
-		var ground := Terrain.height_at(trunk.anchor.x, trunk.anchor.z)
+		var ground := g.world.terrain.height_at(trunk.anchor.x, trunk.anchor.z)
 		if Vector2(at.x - trunk.anchor.x, at.z - trunk.anchor.z).length() > 4.0 or at.y < ground + 2.0:
 			continue
 		var nearest := INF
@@ -151,11 +152,11 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	g.run(300.0)
 	check(g.birds().is_empty(), "a garden without perches draws no conures")
 
-	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
+	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": g.world.terrain.ground(-2.5, -9)})
 	var wall := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
 	check(g.flora.placed("tree").size() == 1 and g.walls.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
-	check(g.rig.head.global_position.direction_to(Terrain.ground(1, -8)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at them")
+	check(g.rig.head.global_position.direction_to(g.world.terrain.ground(1, -8)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at them")
 	g.run(200.0)
 	check(g.birds().is_empty(), "no conure comes before the ducks")
 
@@ -515,7 +516,7 @@ func _with_no_room_they_leave() -> void:
 	var g := await _glade(6)
 	var birds := g.wildlife.birds
 	var one := OnePoint.new()
-	one.at = Terrain.ground(0, -6) + Vector3.UP * 2.0
+	one.at = g.world.terrain.ground(0, -6) + Vector3.UP * 2.0
 	birds.sites.assign([one])
 	birds.arrive()
 	check(g.birds().size() == 1, "a flock coming to one free point brings one bird, %d" % g.birds().size())
@@ -526,6 +527,7 @@ func _with_no_room_they_leave() -> void:
 	if b != null:
 		var lost := Birds.Bird.new()
 		lost.node = Conure.new(0.0, 0)
+		lost.node.terrain = g.world.terrain
 		birds.add_child(lost.node)
 		lost.node.position = one.at + Vector3(1, 0, 0)
 		lost.state = Birds.State.PERCH
@@ -543,14 +545,14 @@ func _with_no_room_they_leave() -> void:
 func _a_reshape_carries_them_with_their_perch() -> void:
 	var g := await _glade(3)
 	g.wildlife.ducks_came = true
-	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
+	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": g.world.terrain.ground(-2.5, -9)})
 	_draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
-	g.terrain.begin(g.terrain.rig.right, Terrain.ground(1, -8), 8.0)
-	g.terrain.pull(g.terrain.rig.right, 1.5)
-	g.terrain.end_stroke(g.terrain.rig.right)
+	g.grab.begin(g.grab.rig.right, g.world.terrain.ground(1, -8), 8.0)
+	g.grab.pull(g.grab.rig.right, 1.5)
+	g.grab.end_stroke(g.grab.rig.right)
 	g.run(1.0)
 	await g.play(4.0)
 	var off := [0, 0]
@@ -567,6 +569,7 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 func _carry() -> void:
 	var g := await _glade(24)
 	var easels := Easels.new()
+	easels.terrain = g.world.terrain
 	root.add_child(easels)
 	var painting := EaselTool.new(g.rig, easels, g.world)
 	root.add_child(painting)
@@ -580,6 +583,7 @@ func _carry() -> void:
 	h.tool = Hand.Tool.SEEDS
 	var b := Birds.Bird.new()
 	b.node = Conure.new(0, 0)
+	b.node.terrain = g.world.terrain
 	g.wildlife.birds.add_child(b.node)
 	g.wildlife.birds.birds.append(b)
 	b.node.global_position = h.global_position
@@ -662,6 +666,7 @@ func _shoulder() -> void:
 	var description := HeldItem.perched(rig, b.shoulder)
 	check(HeldItem.valid(description) and description[0] == HeldItem.Kind.BIRD and description[5] == 1, "peers get a shoulder conure as a held model")
 	var seen := HeldItem.new()
+	seen.terrain = g.world.terrain
 	root.add_child(seen)
 	seen.show_state(description)
 	var bare := Conure.new(0.0, 0)
@@ -689,6 +694,7 @@ func _shoulder() -> void:
 	check(_until_shouldered(g, b, 60.0), "it comes back once you are out of the water")
 
 	var easels := Easels.new()
+	easels.terrain = g.world.terrain
 	root.add_child(easels)
 	var painting := EaselTool.new(rig, easels, g.world)
 	root.add_child(painting)
@@ -737,14 +743,14 @@ func _off_view(rig: Rig, b: Birds.Bird) -> float:
 ## A conure comes down to peck on the lawn a ring wall curves round, but never inside a house, a bush or a tree.
 func _they_peck_on_open_ground() -> void:
 	var g := await _glade(3)
-	var lawn := Terrain.ground(8, 6)
+	var lawn := g.world.terrain.ground(8, 6)
 	var ring := g.walls._new_wall()
 	ring.layout.points.assign(WallLayout.circle(lawn, 5.0))
 	g.walls.build([ring])
-	var house := Terrain.ground(-10, 8)
+	var house := g.world.terrain.ground(-10, 8)
 	g.walls.build([g.walls.new_house(WallTool.stance(house, 0.0))])
-	var tree := Terrain.ground(-2.5, -9)
-	var bush := Terrain.ground(4, -9)
+	var tree := g.world.terrain.ground(-2.5, -9)
+	var bush := g.world.terrain.ground(4, -9)
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": tree})
 	g.world.submit({"op": "plant", "kind": "bush", "seed": 7, "at": bush})
 	await process_frame

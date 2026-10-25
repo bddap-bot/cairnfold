@@ -347,8 +347,9 @@ func opening(y: float, ring: bool, size := 1.0) -> float:
 
 
 ## `water` gives the pond surface at (x, z), below the ground where there is none; without it the ground is dry.
-func build(ground: Callable, water := Callable()) -> void:
-	resample(ground, water)
+## `revision` is the ground revision `ground` and `water` read; a fixed ground keeps 0.
+func build(ground: Callable, water := Callable(), revision := 0) -> void:
+	resample(ground, water, revision)
 	laid_points = points.duplicate()
 	laid_rise = rise
 	_laid_count += 1
@@ -2713,6 +2714,7 @@ func set_data(d: Dictionary) -> void:
 
 ## Takes what `built` laid, as if `build` had run here.
 func adopt(built: WallLayout) -> void:
+	_sampled_from = built._sampled_from
 	laid_points = built.laid_points
 	laid_rise = built.laid_rise
 	if built.samples != samples:
@@ -2928,9 +2930,10 @@ func finish_stroke() -> void:
 	points = result
 
 
-## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
-func resample(ground: Callable, water := Callable()) -> void:
-	var key := [points.duplicate(), height, rise, foundation, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
+## The ground curve, and the ruins' breaks along it, for the inputs as they stand on ground `ground` (and `water`, as
+## `build` takes them) at revision `revision`.
+func resample(ground: Callable, water := Callable(), revision := 0) -> void:
+	var key := [points.duplicate(), height, rise, foundation, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), revision, ground, water]
 	if key == _sampled_from:
 		return
 	_sampled_from = key

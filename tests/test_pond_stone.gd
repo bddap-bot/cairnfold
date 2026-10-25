@@ -4,6 +4,12 @@ extends "res://../tests/support/suite.gd"
 ## whose pillars stand on the bed: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_pond_stone.gd
 
 var world: World
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+var marks: Ground:
+	get:
+		return main.world.marks
 
 
 func _initialize() -> void:
@@ -52,19 +58,19 @@ func _stone_lines_a_pond() -> void:
 		return
 	var level := pond.pond.level
 	var cells := pond.pond.cells.size()
-	var hit: Variant = Terrain.raycast(Vector3(-29, level + 3, 33), Vector3(0, -3, -3).normalized())
+	var hit: Variant = terrain.raycast(Vector3(-29, level + 3, 33), Vector3(0, -3, -3).normalized())
 	check(hit != null and hit.y < level - 0.2, "the stone tool's ray reaches the bed through the water")
 	await play([{"op": "paint", "tool": "stone", "hand": "right", "points": [[-32, 30], [-26, 30]], "radius": 2.5, "seconds": 1.5}])
 	await _settle()
-	check(Ground.stone(-29, 30) > 0.99 and Ground.stone(-31.5, 30) > 0.99, "stone lies on the bed (%.2f)" % Ground.stone(-29, 30))
+	check(marks.stone(-29, 30) > 0.99 and marks.stone(-31.5, 30) > 0.99, "stone lies on the bed (%.2f)" % marks.stone(-29, 30))
 	check(water.pond_at(-29, 30) == pond and pond.pond.level == level and pond.pond.cells.size() == cells, "and the pond is as it was dug")
 	world.undo()
 	await process_frame
-	check(Ground.stone(-29, 30) == 0.0, "undo lifts it off the bed")
+	check(marks.stone(-29, 30) == 0.0, "undo lifts it off the bed")
 	world.redo()
 	await process_frame
-	Ground.settle()
-	check(Ground.stone(-29, 30) > 0.99, "redo lays it again")
+	marks.settle()
+	check(marks.stone(-29, 30) > 0.99, "redo lays it again")
 
 
 func _a_wall_drawn_across_a_pond_arches_over_it() -> void:
@@ -123,4 +129,4 @@ func _a_snapshot_rebuilds_the_wall_in_its_pond() -> void:
 	await _settle()
 	var again := _wall_at(-30, -30)
 	check(again != null and var_to_str(again.layout.stones) == stones, "a saved garden stands its wall in its pond again")
-	check(Ground.stone(-29, 30) > 0.99, "with the stone on the other pond's bed")
+	check(marks.stone(-29, 30) > 0.99, "with the stone on the other pond's bed")

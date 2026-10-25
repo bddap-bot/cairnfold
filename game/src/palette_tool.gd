@@ -149,7 +149,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var stair: Dictionary = hits.get(World.Kind.STAIRS, {})
 	var rock: Dictionary = hits.get(World.Kind.BOULDER, {})
 	var ground: Variant = hits[World.Kind.GROUND].point if hits.has(World.Kind.GROUND) else null
-	var stroke := Ground.mark_at(ground.x, ground.z) if ground != null and Ground.stone(ground.x, ground.z) > 0.5 else -1
+	var stroke := world.marks.mark_at(ground.x, ground.z) if ground != null and world.marks.stone(ground.x, ground.z) > 0.5 else -1
 	if world.state.grounds.has(stroke):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
 	if not rock.is_empty():
@@ -414,7 +414,7 @@ func _show(w: Wheel, pick: int) -> void:
 		walls.flora.set_look(w.tree, pick as FloraLayout.Species, walls.flora.scale_of(w.tree))
 		return
 	if w.stroke >= 0:
-		Ground.restyle(w.stroke, pick)
+		world.marks.restyle(w.stroke, pick)
 		return
 	if w.id < 0:
 		Palette.preview(pick)

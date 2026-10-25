@@ -12,14 +12,14 @@ func _run() -> void:
 	var flora: Flora = main.flora_tool.flora
 	world.bounded = false
 	var stone := Ground.Stroke.new(Ground.Kind.STONE)
-	stone.add(7, 0, 1, 2)
+	stone.add(world.marks, 7, 0, 1, 2)
 	world._order({"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": stone.stamps}, 1)
-	world._order({"op": "plant", "kind": "moss", "seed": 42, "dabs": [[Terrain.ground(7, 0), 0.8, 100]]}, 1)
+	world._order({"op": "plant", "kind": "moss", "seed": 42, "dabs": [[main.world.terrain.ground(7, 0), 0.8, 100]]}, 1)
 	var moss_id := world.seq
 	flora.grow_now()
 	check(flora.groups[moss_id].size() == 100 and world.state.groups[moss_id].skip.is_empty(), "moss paints stone instead of skipping it")
 	check(world.units.get("moss", 0) == 100, "moss consumes its build budget")
-	world._order({"op": "plant", "kind": "tree", "seed": 11, "at": Terrain.ground(7, 0)}, 1)
+	world._order({"op": "plant", "kind": "tree", "seed": 11, "at": main.world.terrain.ground(7, 0)}, 1)
 	var tree_id := world.seq
 	world._order({"op": "tree", "group": tree_id, "index": 0, "moss": true}, 1)
 	world._order({"op": "tree", "group": tree_id, "index": 0, "scale": 1.5}, 1)
@@ -39,6 +39,6 @@ func _run() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 17
 	for i in Flora.PAINTED_MOSS:
-		flora.add_moss(Terrain.ground(rng.randf_range(-2, 2), rng.randf_range(-2, 2)), rng)
+		flora.add_moss(main.world.terrain.ground(rng.randf_range(-2, 2), rng.randf_range(-2, 2)), rng)
 	print("moss cost: %d patches, %d triangles, %.3f ms to fill; Quest 2 reserved %.3f ms" % [Flora.PAINTED_MOSS, Flora.PAINTED_MOSS * 12, (Time.get_ticks_usec() - start) / 1000.0, Budget.cost_ms({"moss": Flora.PAINTED_MOSS})])
 	finish()

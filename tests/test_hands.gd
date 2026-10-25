@@ -2,6 +2,10 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of empty hands: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hands.gd
 
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+
 
 func _initialize() -> void:
 	boot_main()
@@ -16,7 +20,7 @@ func _run() -> void:
 	tracker.name = &"right_hand"
 	XRServer.add_tracker(tracker)
 	var at := rig.head.global_position + Vector3(0.2, -0.4, -0.3)
-	var spot := Terrain.ground(2, 2)
+	var spot := terrain.ground(2, 2)
 	tracker.set_pose(&"aim", rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(spot - at, Vector3.UP), at), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 	var hand := rig.right
 	check(not ToolWheel.paths(Hand.TREE).has(Hand.Tool.NONE), "the wheel holds no empty-hand slot")

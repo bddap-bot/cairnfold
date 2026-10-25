@@ -7,7 +7,6 @@ const STEP := 1.0 / 30.0
 
 
 func _initialize() -> void:
-	Terrain.install()
 	await process_frame
 	_faces_out()
 	await _they_swim_in_the_ponds()
@@ -87,8 +86,8 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	check(_in_water(fish, water), "every fish still in the water")
 	_run(wildlife, 4.0, feed)
 	check(mine.all(func(f: Fish.One) -> bool: return f.speed < Fish.CRUISE * 1.5 and f.pitch == 0.0), "and calm, swimming level")
-	var a := Handful.new(water)
-	var b := Handful.new(water)
+	var a := Handful.new(water, water.terrain)
+	var b := Handful.new(water, water.terrain)
 	root.add_child(a)
 	root.add_child(b)
 	a.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.4, 1.0, 0.2), 5)
@@ -111,34 +110,37 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 func _in_water(fish: Fish, water: Water) -> bool:
 	return fish.swimming.all(func(f: Fish.One) -> bool:
 		var p := water.pond_at(f.at.x, f.at.z)
-		return p != null and f.at.y < p.surface_y() and f.at.y > Terrain.height_at(f.at.x, f.at.z))
+		return p != null and f.at.y < p.surface_y() and f.at.y > water.terrain.height_at(f.at.x, f.at.z))
 
 
 func _they_swim_in_the_ponds() -> void:
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	root.add_child(world)
-	var terrain := GroundGrab.new(rig, world)
-	root.add_child(terrain)
-	var water := Water.new([])
+	var grab := GroundGrab.new(rig, world)
+	root.add_child(grab)
+	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
-	var flora := Flora.new()
+	var flora := Flora.new(world.terrain, world.marks)
 	root.add_child(flora)
 	var paths := Paths.new()
+	paths.terrain = world.terrain
+	paths.marks = world.marks
 	root.add_child(paths)
-	world.attach(null, flora, paths, terrain, water)
+	world.attach(null, flora, paths, grab, water)
 	var palette := Palette.new()
 	var hand := Node3D.new()
 	root.add_child(hand)
 	hand.global_position = Vector3(0, 30, 0)
 	var hands: Array[Node3D] = [hand]
 	await process_frame
-	var wildlife := Wildlife.new(water, flora, null, palette, rig.head, hands, 3)
+	var wildlife := Wildlife.new(world.terrain, world.marks, water, flora, null, palette, rig.head, hands, 3)
 	root.add_child(wildlife)
-	var feed := FeedTool.new(rig, water)
+	var feed := FeedTool.new(rig, water, world.terrain)
 	feed.set_process(false)
 	root.add_child(feed)
 	wildlife.handfuls = feed.handfuls

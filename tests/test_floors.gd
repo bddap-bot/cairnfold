@@ -204,8 +204,8 @@ func _a_house_has_one_floor_however_tall() -> void:
 	var kept: Variant = Commands._wall(d)
 	check(kept != null and not kept.has("storey_floors"), "a house asking for a floor at every storey is taken with that dropped: %s" % [kept])
 	var state := {"walls": {1: kept}}
-	check(not Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"height": 3.0}}, state, false).is_empty(), "a reshape of the house's height stands")
-	check(Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"storey_floors": true}}, state, false).is_empty(), "no reshape gives a floor a second storey")
+	check(not Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"height": 3.0}}, state, false, Terrain.new()).is_empty(), "a reshape of the house's height stands")
+	check(Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"storey_floors": true}}, state, false, Terrain.new()).is_empty(), "no reshape gives a floor a second storey")
 
 
 func _open_walls_lay_no_floor() -> void:

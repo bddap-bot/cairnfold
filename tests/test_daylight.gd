@@ -3,6 +3,10 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of time of day, seasons and the colour picker, as data and through the tools:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_daylight.gd
 
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+
 
 func _initialize() -> void:
 	_the_sun_rises_and_sets()
@@ -340,13 +344,13 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	var house_id := house.id
 	world.restore(snap)
 	check(world.palette.season == 4 and world.state.walls[first_id].paint[stone] == 2 and world.state.walls[house_id].paint[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps each build's colours")
-	check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.ROOF: Palette.count(Palette.Element.ROOF)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
-	check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.MEADOW: 1}}}, world.state, false).is_empty(), "a build takes no season")
+	check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.ROOF: Palette.count(Palette.Element.ROOF)}}}, world.state, false, main.world.terrain).is_empty(), "a swatch off the wheel is refused")
+	check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.MEADOW: 1}}}, world.state, false, main.world.terrain).is_empty(), "a build takes no season")
 	for data in [{"paint": {stone: 1}}, {"roof": {"pitch": 3.0}}]:
-		var cleaned := Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": data}, world.state, false)
+		var cleaned := Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": data}, world.state, false, main.world.terrain)
 		cleaned.seq = world.seq
 		cleaned.by = 1
-		check(not Commands.clean(cleaned, world.state, true).is_empty(), "a peer takes the %s reshape the host cleaned" % data.keys()[0])
+		check(not Commands.clean(cleaned, world.state, true, main.world.terrain).is_empty(), "a peer takes the %s reshape the host cleaned" % data.keys()[0])
 	world.submit({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {stone: 1}}})
 	world.submit({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.WOOD: 2}}})
 	var both: PackedInt32Array = world.state.walls[house_id].paint
@@ -355,7 +359,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 
 ## `p` as a driver step aims at it.
 func _above(p: Vector3) -> Array:
-	return [p.x, p.y - Terrain.height_at(p.x, p.z), p.z]
+	return [p.x, p.y - terrain.height_at(p.x, p.z), p.z]
 
 
 ## Whether each piece of `now` is the one in `was` with its stone's colour scaled by `tint`.

@@ -84,7 +84,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	for tint in ["shallow", "deep"]:
 		mat.set_shader_parameter(tint, RenderingServer.shader_get_parameter_default(water.get_rid(), tint))
 	mat.render_priority = 1
-	crowd = Crowd.new(body(), CAP, mat, true)
+	crowd = Crowd.new(wildlife.terrain, body(), CAP, mat, true)
 	add_child(crowd)
 
 
@@ -309,11 +309,11 @@ func _deep_spot(p: PondWater, from: Vector3) -> Vector2:
 
 
 func _deep(p: PondWater, xz: Vector2, under: PondWater = null) -> bool:
-	return (under if under != null else wildlife.water.pond_at(xz.x, xz.y)) == p and p.pond.level - Terrain.height_at(xz.x, xz.y) >= MIN_DEPTH
+	return (under if under != null else wildlife.water.pond_at(xz.x, xz.y)) == p and p.pond.level - wildlife.terrain.height_at(xz.x, xz.y) >= MIN_DEPTH
 
 
 func _swim_y(p: PondWater, xz: Vector2) -> float:
-	var water := p.pond.level - Terrain.height_at(xz.x, xz.y)
+	var water := p.pond.level - wildlife.terrain.height_at(xz.x, xz.y)
 	return p.pond.level - clampf(water * SWIM_AT, SWIM_DEPTH.x, SWIM_DEPTH.y)
 
 

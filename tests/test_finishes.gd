@@ -385,7 +385,7 @@ func _budget_charges_each_finish() -> void:
 ## The style tool's face wheel on an open wall offers every finish, worn plaster at each amount; on a fence rails and
 ## planks; turned, the garden takes it, walls laid after take it and an undo puts it back.
 func _the_face_wheel_turns_every_finish() -> void:
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(-30, 20), Terrain.ground(-22, 20)]), "seed": 3})]}, 1)
+	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-22, 20)]), "seed": 3})]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var picker: PaletteTool = main.palette_tool
 	var target := picker.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
@@ -401,7 +401,7 @@ func _the_face_wheel_turns_every_finish() -> void:
 	var before: Vector2 = PaletteTool.FACES[target.options[target.count - 2]]
 	check(world.state.walls[id].finish == int(before.x), "an undo puts the finish before back")
 	var walls_finish := main.tool.finish
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(-30, 26), Terrain.ground(-22, 26)]), "seed": 4, "fence": true, "height": WallLayout.FENCE_HEIGHT})]}, 1)
+	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([world.terrain.ground(-30, 26), world.terrain.ground(-22, 26)]), "seed": 4, "fence": true, "height": WallLayout.FENCE_HEIGHT})]}, 1)
 	var fence := world.seq * Commands.MAX_PIECES
 	var f: Wall = main.tool.find(fence)
 	f.lay_now()

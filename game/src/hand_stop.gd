@@ -46,10 +46,8 @@ const FENCE_HALF := 0.06
 
 ## Whether the eyes are tested too; off only for the bench to price them.
 var eyes := true
+var _world: World
 var _rig: Rig
-var _walls: WallTool
-var _flora: Flora
-var _boulders: Boulders
 ## Per hand, where its ball was last frame, in the rig's space so locomotion carries it along.
 var _held: Array[Vector3] = []
 var _feels: Array[Feel] = []
@@ -57,11 +55,9 @@ var _gathered: Array[Near] = []
 var _stamps: Array[Vector4i] = []
 
 
-func _init(player: Rig, walls: WallTool, plants: Flora, rocks: Boulders = null) -> void:
+func _init(world: World, player: Rig) -> void:
+	_world = world
 	_rig = player
-	_walls = walls
-	_flora = plants
-	_boulders = rocks
 	for h in _rig.hands:
 		_held.append(Vector3.INF)
 		_feels.append(Feel.new())
@@ -105,9 +101,10 @@ func _process(delta: float) -> void:
 ## The world round `box` for hand `i`, or the eyes after the hands: what was gathered last time while the box stays inside the region it was
 ## gathered for and nothing built or planted since, else gathered afresh for a region SPARE wider.
 func _near_for(i: int, box: AABB) -> Near:
-	var stamp := Vector4i(WallLayout._laid_count, _walls.walls.size() if _walls != null else 0, _flora.changes if _flora != null else 0, _boulders.changes if _boulders != null else 0)
+	var w := _world
+	var stamp := Vector4i(WallLayout._laid_count, w.wall_tool.walls.size() if w.wall_tool != null else 0, w.flora.changes if w.flora != null else 0, w.boulders.changes if w.boulders != null else 0)
 	if _gathered[i] == null or _stamps[i] != stamp or not _gathered[i].region.encloses(box):
-		_gathered[i] = Near.gather(_walls, _flora, box.grow(SPARE), _boulders)
+		_gathered[i] = Near.gather(w, box.grow(SPARE))
 		_stamps[i] = stamp
 	return _gathered[i]
 
@@ -213,10 +210,18 @@ class Near:
 	var animals: Array[Array] = []
 	var boulders: Array[Boulders.Boulder] = []
 	var facing := Vector3.UP
+	var terrain: Terrain
+	var marks: Ground
 
-	static func gather(on: WallTool, plants: Flora, box: AABB, rocks: Boulders = null) -> Near:
+	## What of `world`'s builds, plants and boulders reaches `box`, over its ground.
+	static func gather(world: World, box: AABB) -> Near:
 		var near := Near.new()
 		near.region = box
+		near.terrain = world.terrain
+		near.marks = world.marks
+		var on := world.wall_tool
+		var plants := world.flora
+		var rocks := world.boulders
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
 		if on != null:
 			for w in on.walls:
@@ -229,7 +234,7 @@ class Near:
 		if plants != null:
 			for parts in plants.solids_in(flat):
 				for part: Flora.Plant in parts:
-					var at := part.xform.translated(Vector3.UP * Terrain.base_at(part.anchor.x, part.anchor.z))
+					var at := part.xform.translated(Vector3.UP * near.terrain.height_at(part.anchor.x, part.anchor.z))
 					if part.pool.mesh is CylinderMesh:
 						near.trunks.append([at.affine_inverse(), part.pool.mesh, at.basis.get_scale()])
 					else:
@@ -283,10 +288,10 @@ class Near:
 
 	## What solid thing a ball at `p` is in, or NONE; `with_facing` leaves the way its surface faces in `facing`.
 	func touch(p: Vector3, with_facing := false) -> Surface:
-		if p.y - RADIUS < Terrain.height_at(p.x, p.z):
+		if p.y - RADIUS < terrain.shown_at(p.x, p.z):
 			if with_facing:
-				facing = _slope(p, Terrain.height_at)
-			return Surface.STONE if Ground.stone(p.x, p.z) > 0.5 else Surface.GROUND
+				facing = _slope(p, terrain.shown_at)
+			return Surface.STONE if marks.stone(p.x, p.z) > 0.5 else Surface.GROUND
 		for w in walls:
 			if _in_wall(p, w, with_facing):
 				var l := w.layout
@@ -329,7 +334,7 @@ class Near:
 
 	## What a ball at `p` passes through: leaves or pond water, or NONE.
 	func passing(p: Vector3) -> Surface:
-		if p.y < Terrain.water_at(p.x, p.z):
+		if p.y < terrain.water_at(p.x, p.z):
 			return Surface.WATER
 		return _in_ellipsoids(p, leaves)
 

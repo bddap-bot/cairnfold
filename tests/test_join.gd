@@ -2,6 +2,10 @@ extends "res://../tests/support/suite.gd"
 
 ## Walls drawn among standing walls and plants, through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_join.gd
 
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+
 
 func _initialize() -> void:
 	boot_main()
@@ -36,14 +40,16 @@ func _a_wall_drawn_tight_alongside_another_never_doubles_it() -> void:
 
 func _release_keeps_the_arch_over_a_bush() -> void:
 	var tool: WallTool = main.tool
-	var bush := Terrain.ground(-1.0, 20.0)
+	var bush := terrain.ground(-1.0, 20.0)
 	tool.flora.add_bush(bush, RandomNumberGenerator.new())
 	var m := tool.mason(main.rig.right)
-	var path: Array[Vector3] = [Terrain.ground(-4.0, 20.0), Terrain.ground(2.5, 20.0)]
+	var path: Array[Vector3] = [terrain.ground(-4.0, 20.0), terrain.ground(2.5, 20.0)]
+	var driver := Driver.new(main, [])
 	tool.begin_stroke(m, path[0])
 	for f in 40:
 		await process_frame
-		tool.extend_stroke(m, Driver._along(path, (f + 1) / 40.0))
+		tool.extend_stroke(m, driver._along(path, (f + 1) / 40.0))
+	driver.free()
 	tool._flush()
 	while m.stroke.walls.any(func(w: Wall) -> bool: return w.laying()):
 		await process_frame

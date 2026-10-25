@@ -36,15 +36,16 @@ func _rng(seed: int) -> RandomNumberGenerator:
 
 
 func _brush_fills_its_disc() -> void:
+	var terrain := Terrain.new()
 	var c := Vector3(3, 0, -2)
-	var pts := FloraLayout.brush(c, 1.5, 400, _rng(1), Terrain.height_at)
+	var pts := FloraLayout.brush(c, 1.5, 400, _rng(1), terrain.height_at)
 	check(pts.size() == 400, "the brush places what it is asked to")
 	var inner := 0
 	for p in pts:
 		if Vector2(p.x - c.x, p.z - c.z).length() > 1.5 + 1e-4:
 			check(false, "a plant at %s is outside the brush" % p)
 			return
-		if absf(p.y - (Terrain.height_at(p.x, p.z) - 0.02)) > 1e-4:
+		if absf(p.y - (terrain.height_at(p.x, p.z) - 0.02)) > 1e-4:
 			check(false, "a plant at %s is not set into the ground" % p)
 			return
 		if Vector2(p.x - c.x, p.z - c.z).length() < 1.5 / sqrt(2.0):
@@ -53,13 +54,15 @@ func _brush_fills_its_disc() -> void:
 
 
 func _tool() -> FloraTool:
-	var rig := Rig.new()
-	root.add_child(rig)
-	var flora := Flora.new()
-	root.add_child(flora)
 	var world := World.new()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
+	var flora := Flora.new(world.terrain, world.marks)
+	root.add_child(flora)
 	root.add_child(world)
 	var paths := Paths.new()
+	paths.terrain = world.terrain
+	paths.marks = world.marks
 	root.add_child(paths)
 	var t := FloraTool.new(rig, flora, paths, world)
 	t.process_mode = Node.PROCESS_MODE_DISABLED
@@ -73,7 +76,7 @@ func _a_stroke_grows_over_frames() -> void:
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.GRASS
 	for i in 60:
-		t.paint(b, Terrain.ground(20, 20), 3.0, 1.0 / 60.0)
+		t.paint(b, t.world.terrain.ground(20, 20), 3.0, 1.0 / 60.0)
 	var ghost := b.stroke.filter(func(p: Variant) -> bool: return p != null)
 	var before := t.flora.grass.size()
 	t.end_stroke(b)
@@ -86,7 +89,7 @@ func _a_stroke_grows_over_frames() -> void:
 	var grown := t.flora.grass.size() - before
 	check(grown > 0 and grown < ghost.size(), "a frame grows a share of its %d plants, %d" % [ghost.size(), grown])
 	check(ghost.all(func(p: Flora.Plant) -> bool: return p.shown()), "its ghost stands until it has grown")
-	t.world.submit({"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(26, 20)})
+	t.world.submit({"op": "plant", "kind": "tree", "seed": 1, "at": t.world.terrain.ground(26, 20)})
 	check(t.flora.growing(), "a tree planted meanwhile leaves it growing")
 	t.world.submit({"op": "show", "plants": {group: PackedInt32Array([0])}, "on": false})
 	check(not t.flora.growing() and t.flora.grass.size() - before == ghost.size(), "a command on its plants grows it all first, %d of %d" % [t.flora.grass.size() - before, ghost.size()])
@@ -99,7 +102,7 @@ func _a_stroke_grows_over_frames() -> void:
 
 func _painting_again_thickens() -> void:
 	var t := _tool()
-	var at := Vector3(2, Terrain.height_at(2, 2), 2)
+	var at := Vector3(2, t.world.terrain.height_at(2, 2), 2)
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 60:
@@ -129,7 +132,7 @@ func _brush_grows_with_distance() -> void:
 
 
 func _tree_stands_on_its_spot() -> void:
-	var at := Vector3(4, Terrain.height_at(4, -3), -3)
+	var at := Vector3(4, Terrain.new().height_at(4, -3), -3)
 	var tree := FloraLayout.tree(at, 3)
 	var trunk: Transform3D = tree.trunk
 	check(Vector2(trunk.origin.x - at.x, trunk.origin.z - at.z).length() < 1e-4, "the trunk stands where the hand pointed")
@@ -171,7 +174,7 @@ func _full_pools_recycle_only_painted() -> void:
 	check(own.shown(), "and put back")
 	check(boxes.size() > 4, "spread over cells the camera can cull: %d" % boxes.size())
 	for p: Vector3 in spots:
-		check(boxes.any(func(b: AABB) -> bool: return b.has_point(Vector3(p.x, Terrain.height_at(p.x, p.z) + 0.1, p.z))), "a meadow flower at %s lies in a cell's box" % p)
+		check(boxes.any(func(b: AABB) -> bool: return b.has_point(Vector3(p.x, t.world.terrain.height_at(p.x, p.z) + 0.1, p.z))), "a meadow flower at %s lies in a cell's box" % p)
 
 
 ## The grass and flower shaders grow placed plants under a pond as water plants and drown the meadow's own, told apart
@@ -207,6 +210,7 @@ func _only_placed_plants_grow_under_water() -> void:
 ## shader's own `water_form` of the pond depth under its root, read where the shader reads it.
 func _planted_flowers_take_their_water_form_by_depth() -> void:
 	var t := _tool()
+	var terrain := t.world.terrain
 	var code := (load("res://src/plant.gdshaderinc") as ShaderInclude).code
 	var pick := RegEx.create_from_string("float water_form\\(float (\\w+), float (\\w+)\\) {\\s*return ([^;]+);\\s*}").search(code)
 	var lily_depth := RegEx.create_from_string("uniform float lily_depth = ([0-9.]+);").search(code)
@@ -215,28 +219,28 @@ func _planted_flowers_take_their_water_form_by_depth() -> void:
 		return
 	var form := Expression.new()
 	check(form.parse(pick.get_string(3), [pick.get_string(1), pick.get_string(2), "lily_depth"]) == OK, "the pick parses")
-	Terrain.dry_water()
+	terrain.dry_water()
 	var spots := {Vector2i(60, 60): 0.15, Vector2i(70, 60): 0.8, Vector2i(80, 60): Terrain.DRY}
-	var levels := Terrain.water_levels()
+	var levels := terrain.water_levels()
 	var wet := PackedInt32Array()
 	for g: Vector2i in spots:
 		if spots[g] != Terrain.DRY:
 			for dz in range(-1, 2):
 				for dx in range(-1, 2):
 					var k := (g.y + dz) * Terrain.VERTS + g.x + dx
-					levels[k] = Terrain._heights[k] + spots[g]
+					levels[k] = terrain._heights[k] + spots[g]
 					wet.append(k)
-	Terrain.set_water(levels, Terrain.depth_image(levels, Terrain.read(Terrain.ALL), wet))
+	terrain.set_water(levels, Terrain.depth_image(levels, terrain.read(Terrain.ALL), wet))
 	var forms := []
 	for g: Vector2i in spots:
 		var p := Vector3(g.x * Terrain.STEP - Terrain.SIZE * 0.5, 0, g.y * Terrain.STEP - Terrain.SIZE * 0.5)
-		var plant := t.flora.add_flower(Vector3(p.x, Terrain.height_at(p.x, p.z) - 0.02, p.z), _rng(3))
+		var plant := t.flora.add_flower(Vector3(p.x, terrain.height_at(p.x, p.z) - 0.02, p.z), _rng(3))
 		var root := plant.xform.origin
-		var depth := Terrain._water_image.get_pixelv(Vector2i(roundi((root.x + Terrain.SIZE * 0.5) / Terrain.STEP), roundi((root.z + Terrain.SIZE * 0.5) / Terrain.STEP))).r
+		var depth := terrain._water_image.get_pixelv(Vector2i(roundi((root.x + Terrain.SIZE * 0.5) / Terrain.STEP), roundi((root.z + Terrain.SIZE * 0.5) / Terrain.STEP))).r
 		var planted: Variant = plant.pool._patch_of[plant.slot - plant.pool.kept].mmi.get_instance_shader_parameter(&"planted")
 		forms.append(form.execute([planted, depth, lily_depth.get_string(1).to_float()], self))
 	check(forms == [1.0, 2.0, 0.0], "a flower planted in the shallows is an iris, in deep water a lily, on land a flower: %s" % [forms])
-	Terrain.dry_water()
+	terrain.dry_water()
 
 
 func planted_water(placed: float, depth: float) -> float:
@@ -295,11 +299,11 @@ func _flowers_vary_by_patch() -> void:
 	var kinds := 0
 	for stroke in 20:
 		var colours := {}
-		for p in FloraLayout.brush(Vector3(rng.randf_range(-20, 20), 0, rng.randf_range(-20, 20)), 1.2, 150, rng, Terrain.height_at):
+		for p in FloraLayout.brush(Vector3(rng.randf_range(-20, 20), 0, rng.randf_range(-20, 20)), 1.2, 150, rng, Terrain.new().height_at):
 			colours[FloraLayout.flower_color(p)] = true
 		kinds += colours.size()
 	check(kinds >= 80, "a stroke paints a few colours, %.1f on average" % (kinds / 20.0))
-	var pts := FloraLayout.brush(Vector3(-2, 0, 3), 2.0, 600, _rng(9), Terrain.height_at)
+	var pts := FloraLayout.brush(Vector3(-2, 0, 3), 2.0, 600, _rng(9), Terrain.new().height_at)
 	var same := 0
 	var near := 0
 	for i in pts.size():
@@ -312,7 +316,7 @@ func _flowers_vary_by_patch() -> void:
 
 
 func _grass_thins_with_distance() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	var g := flora.grass
 	check(g.sparse_from < flora.grass_reach, "grass turns sparse before its reach")
@@ -355,7 +359,7 @@ func _grass_thins_with_distance() -> void:
 
 
 func _flowers_out_of_reach_are_not_drawn() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	var eye := Camera3D.new()
 	root.add_child(eye)
@@ -378,7 +382,7 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 
 
 func _blob_detail_changes_only_what_is_drawn() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	flora.add_tree(Vector3.ZERO, 9)
 	flora.keep()
@@ -400,7 +404,7 @@ func _blob_detail_changes_only_what_is_drawn() -> void:
 
 
 func _crowns_cast_one_shade_each() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	var tree := flora.add_tree(Vector3.ZERO, 9)
 	flora.add_bush(Vector3(6, 0, 0), _rng(11))
@@ -430,7 +434,7 @@ func _crowns_cast_one_shade_each() -> void:
 ## Painted grass and flowers stand in patches by the square, which the camera culls off screen and the reach takes out
 ## of view as it does the meadow's cells; recycling and moving a plant keep every other in its place.
 func _painted_plants_are_drawn_by_the_square() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	flora.keep()
 	var rng := _rng(12)
@@ -472,7 +476,7 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 
 
 func _ground_paints_far_grass() -> void:
-	var flora := Flora.new()
+	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
 	var rng := _rng(92)
 	var pool := flora.grass
@@ -508,14 +512,15 @@ func _ground_paints_far_grass() -> void:
 
 
 func _rock_holds_no_grass_or_flowers() -> void:
-	var flora := Flora.new()
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
 	root.add_child(flora)
 	var rng := _rng(93)
 	var cells := Rect2i(Terrain.grid_point(10, 10), Vector2i(8, 8))
 	var area := Terrain.world_rect(cells)
 	var at := Terrain.grid_xz(cells.get_center())
 	var spot := Vector3(at.x, 0, at.y)
-	var was := Terrain.read(cells)
+	var was := terrain.read(cells)
 	var cliff := was.duplicate()
 	for j in cells.size.y:
 		for i in cells.size.x:
@@ -524,8 +529,8 @@ func _rock_holds_no_grass_or_flowers() -> void:
 	var cover := flora.grass.cover
 	var t := Terrain.grid_point(spot.x, spot.z)
 	check(not grass.rock, "grass stands on the meadow")
-	Terrain.write(cells, cliff)
-	check(Terrain.rock_at(at.x, at.y), "ground rising 1.5 m a metre is rock, %.2f steep" % Terrain.steep_at(at.x, at.y))
+	terrain.write(cells, cliff)
+	check(terrain.rock_at(at.x, at.y), "ground rising 1.5 m a metre is rock, %.2f steep" % terrain.steep_at(at.x, at.y))
 	flora.reground(area, false)
 	check(not grass.rock, "a stroke still pulling is not read")
 	flora.reground(area, true)
@@ -534,7 +539,7 @@ func _rock_holds_no_grass_or_flowers() -> void:
 	check(cover.image.get_pixelv(t).a == 0.0, "far off too")
 	var flower := flora.add_flower(spot, rng)
 	check(flower.rock, "a flower painted on rock does not stand")
-	Terrain.write(cells, was)
+	terrain.write(cells, was)
 	flora.reground(area, true)
 	check(not grass.rock and not flower.rock, "both come back as the ground is laid gentle again")
 	cover.flush(flora.grass)

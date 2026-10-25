@@ -153,7 +153,7 @@ func _a_visited_garden_is_not_kept() -> void:
 	var client := ENetMultiplayerPeer.new()
 	client.create_client("127.0.0.1", 9)
 	main.multiplayer.multiplayer_peer = client
-	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
+	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
 	await _settled()
 	check(FileAccess.get_file_as_bytes(path) == home, "a garden we visit is not written over our own")
 	client.close()
@@ -173,7 +173,7 @@ func _an_unreadable_file_starts_the_meadow() -> void:
 
 func _a_garden_of_another_format_is_moved_aside() -> void:
 	var path := dir.path_join("old.save")
-	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
+	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
 	var bytes := var_to_bytes({"format": World.FORMAT - 1, "seq": 9, "cmds": [tree]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
 	world.restore({"seq": 0, "cmds": []})
@@ -185,7 +185,7 @@ func _a_garden_of_another_format_is_moved_aside() -> void:
 
 func _a_garden_read_in_part_is_moved_aside() -> void:
 	var path := dir.path_join("part.save")
-	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
+	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
 	var odd := {"op": "wall", "ids": PackedInt32Array([8]), "walls": [{"points": "not points"}], "seq": 0, "by": 1}
 	var bytes := var_to_bytes({"format": World.FORMAT, "seq": 9, "cmds": [tree, odd]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)

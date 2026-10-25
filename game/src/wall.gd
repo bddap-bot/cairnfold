@@ -19,6 +19,8 @@ static var _roof_wood := _wood()
 
 var layout := WallLayout.new()
 var masonry: Masonry
+## The ground it is laid on, as this player sees it: it follows a live hump while one is pulled.
+var terrain: Terrain
 ## Lantern flames and flags: few, alive, and drawn by the wall itself.
 var _fittings := Fittings.new()
 var finished := false
@@ -152,9 +154,10 @@ static func _reach(stone_near: float, ivy: float) -> void:
 	_kinds[Part.IVY].material.set_shader_parameter("reach", ivy)
 
 
-func _init(seed: int, glade: Masonry) -> void:
+func _init(seed: int, glade: Masonry, ground: Terrain) -> void:
 	layout.seed = seed
 	masonry = glade
+	terrain = ground
 	add_child(_fittings)
 	_parts.resize(Part.size())
 	_chunked.resize(Part.size())
@@ -396,7 +399,7 @@ func stand_in(preview: Wall) -> void:
 
 ## Whether lay `b` was laid from this wall's inputs as they stand, on the ground as it stands.
 func _laid_from(b: Dictionary) -> bool:
-	if b.is_empty() or b.revision != Terrain.revision or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
+	if b.is_empty() or b.revision != terrain.shown_revision or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
 		return false
 	return roof == null or b.roof.same_inputs(roof)
 
@@ -445,15 +448,16 @@ func _build_live() -> void:
 	var roof_job := roof.inputs() if roof != null else null
 	job.gable = roof_job
 	var out := {}
-	_build = {"job": job, "roof": roof_job, "revision": Terrain.revision, "out": out}
+	_build = {"job": job, "roof": roof_job, "revision": terrain.shown_revision, "out": out}
 	var ks := kinds()
 	var litter := _sweep()
-	var height := Terrain.held_height()
-	var water := Terrain.held_water()
+	var height := terrain.held_height(true)
+	var water := terrain.held_water(true)
+	var revision := terrain.shown_revision
 	var colours := paint.duplicate()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
-		job.build(height, water)
+		job.build(height, water, revision)
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks, colours)
 		out.merge(Wall.pack(job, ks, colours)))

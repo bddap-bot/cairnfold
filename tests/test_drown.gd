@@ -6,42 +6,45 @@ const AT := Vector2(3, -4)
 
 
 func _initialize() -> void:
-	Terrain.install()
 	await process_frame
 	await _a_pond_takes_out_what_it_covers()
 	finish()
 
 
 func _a_pond_takes_out_what_it_covers() -> void:
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	var ground := world.terrain
+	ground.install()
+	var rig := Rig.new(ground)
+	root.add_child(rig)
 	root.add_child(world)
-	var terrain := GroundGrab.new(rig, world)
-	root.add_child(terrain)
-	var water := Water.new([])
+	var grab := GroundGrab.new(rig, world)
+	root.add_child(grab)
+	var water := Water.new(ground, [])
 	root.add_child(water)
 	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
-	var flora := Flora.new()
+	var flora := Flora.new(ground, world.marks)
 	root.add_child(flora)
 	flora.keep()
 	var paths := Paths.new()
+	paths.terrain = ground
+	paths.marks = world.marks
 	root.add_child(paths)
 	var walls := WallTool.new(rig, world, flora, paths)
 	root.add_child(walls)
 	walls.set_process(false)
-	world.attach(walls, flora, paths, terrain, water)
+	world.attach(walls, flora, paths, grab, water)
 	await process_frame
 	var hand := rig.right
 
-	terrain.begin(hand, Terrain.ground(AT.x, AT.y), 2.8)
-	terrain.pull(hand, -1.0)
-	terrain.end_stroke(hand)
+	grab.begin(hand, ground.ground(AT.x, AT.y), 2.8)
+	grab.pull(hand, -1.0)
+	grab.end_stroke(hand)
 	await process_frame
 	var bare := world.units.duplicate()
-	world.submit({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(AT.x, AT.y)})
-	world.submit({"op": "plant", "kind": "bush", "seed": 5, "at": Terrain.ground(AT.x + 0.8, AT.y)})
+	world.submit({"op": "plant", "kind": "tree", "seed": 4, "at": ground.ground(AT.x, AT.y)})
+	world.submit({"op": "plant", "kind": "bush", "seed": 5, "at": ground.ground(AT.x + 0.8, AT.y)})
 	await process_frame
 	var tree: Array = flora.placed("tree")
 	var bush: Array = flora.placed("bush")
@@ -51,24 +54,24 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	var bush_group: int = bush[0][0].group
 	var standing := flora.solids().size()
 
-	var rim := Vector3(AT.x, Water.brim(AT.x, AT.y, 2.8 * GroundGrab.SPREAD), AT.y)
+	var rim := Vector3(AT.x, Water.brim(ground, AT.x, AT.y, 2.8 * GroundGrab.SPREAD), AT.y)
 	tool.fill(hand, rim)
 	tool.settle()
 	await process_frame
 	await process_frame
-	check(water.pond_at(AT.x, AT.y) != null and Water.drowned(tree[0][0].anchor), "the pond covers the tree's root")
+	check(water.pond_at(AT.x, AT.y) != null and Water.drowned(ground, tree[0][0].anchor), "the pond covers the tree's root")
 	check(tree[0].all(func(p: Flora.Plant) -> bool: return not p.shown()) and not bush[0][0].shown(), "the pond takes out the tree, every blob, and the bush")
 	check(flora.placed("tree").is_empty() and flora.placed("bush").is_empty() and flora.solids().size() == standing - 2, "neither stands among the solids the beam, shade and animals find")
 	check(world.units.get("tree", 0.0) == bare.get("tree", 0.0) and world.units.get("bush", 0.0) == bare.get("bush", 0.0), "the budget gives back their share, tree %.1f bush %.1f" % [world.units.get("tree", 0.0), world.units.get("bush", 0.0)])
 	check(world.state.groups[tree_group].hidden.size() == tree[0].size() and world.state.groups[bush_group].hidden.size() == 1, "the garden holds them as taken out")
 	var saved := world.snapshot()
 	check(saved.cmds.any(func(c: Dictionary) -> bool: return c.op == "show" and not c.on and c.plants.has(tree_group)), "so does its save and what a joining player is handed")
-	check(not flora.solids().any(func(parts: Array) -> bool: return Water.drowned(parts[0].anchor)), "nothing stands drowned, the meadow's own trees included")
+	check(not flora.solids().any(func(parts: Array) -> bool: return Water.drowned(ground, parts[0].anchor)), "nothing stands drowned, the meadow's own trees included")
 
 	world.submit({"op": "show", "plants": {tree_group: PackedInt32Array(range(tree[0].size()))}, "on": true})
 	await process_frame
 	check(not tree[0][0].shown() and world.units.get("tree", 0.0) == bare.get("tree", 0.0), "showing it again under the water leaves it out")
-	world.submit({"op": "plant", "kind": "tree", "seed": 6, "at": Terrain.ground(AT.x, AT.y)})
+	world.submit({"op": "plant", "kind": "tree", "seed": 6, "at": ground.ground(AT.x, AT.y)})
 	await process_frame
 	check(flora.placed("tree").is_empty() and world.units.get("tree", 0.0) == bare.get("tree", 0.0), "a tree planted in the water does not stand")
 	var trees := FloraTool.new(rig, flora, paths, world)
@@ -105,6 +108,6 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	await process_frame
 	var again: Array = flora.groups[tree_group]
 	check(not water.ponds.is_empty() and not again[0].shown() and world.units.get("tree", 0.0) == bare.get("tree", 0.0), "a garden rebuilt from its save has the pond and not the tree")
-	for n in [tool, walls, terrain, world, water, flora, paths, rig]:
+	for n in [tool, walls, grab, world, water, flora, paths, rig]:
 		n.queue_free()
 	await process_frame

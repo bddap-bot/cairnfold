@@ -12,7 +12,7 @@ var world: World
 var paths: Paths
 var flora: Flora
 var walls: WallTool
-var terrain: GroundGrab
+var grab: GroundGrab
 var water: Water
 var palette := Palette.new()
 var wildlife: Wildlife
@@ -22,24 +22,28 @@ var tools: Array[Node] = []
 
 func build(suite: SceneTree, seed: int, with_walls := true) -> void:
 	tree = suite
-	rig = _add(Rig.new())
-	world = _add(World.new())
-	paths = _add(Paths.new())
-	flora = _add(Flora.new())
-	water = Water.new([])
+	world = World.new()
+	rig = _add(Rig.new(world.terrain))
+	_add(world)
+	var p := Paths.new()
+	p.terrain = world.terrain
+	p.marks = world.marks
+	paths = _add(p)
+	flora = _add(Flora.new(world.terrain, world.marks))
+	water = Water.new(world.terrain, [])
 	if with_walls:
 		flora.keep()
 		walls = _add(WallTool.new(rig, world, flora, paths))
 		walls.set_process(false)
-		terrain = _add(GroundGrab.new(rig, world))
-		terrain.process_mode = Node.PROCESS_MODE_DISABLED
-		terrain.reshaped.connect(walls.reground)
+		grab = _add(GroundGrab.new(rig, world))
+		grab.process_mode = Node.PROCESS_MODE_DISABLED
+		grab.reshaped.connect(walls.reground)
 	_add(water)
-	world.attach(walls, flora, paths, terrain, water)
+	world.attach(walls, flora, paths, grab, water)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
 	await tree.process_frame
-	wildlife = _add(Wildlife.new(water, flora, walls, palette, rig.head, hands, seed))
+	wildlife = _add(Wildlife.new(world.terrain, world.marks, water, flora, walls, palette, rig.head, hands, seed))
 	wildlife.set_process(false)
 	for h in rig.hands:
 		h.global_position = AWAY
@@ -55,7 +59,7 @@ func teardown() -> void:
 	if walls:
 		for w in walls.walls:
 			w.free()
-	for n: Node in tools + [terrain, water, walls, flora, paths, world, rig]:
+	for n: Node in tools + [grab, water, walls, flora, paths, world, rig]:
 		if n:
 			n.queue_free()
 	await tree.process_frame
@@ -106,10 +110,10 @@ static func dig(tool: WaterTool, x: float, z: float, frames := 90) -> void:
 	var depth := GroundGrab.dig_depth(frames / 60.0)
 	var grab := tool.world.ground_grab
 	var hand := grab.rig.right
-	grab.begin(hand, Terrain.ground(x, z), 2.8)
+	grab.begin(hand, tool.world.terrain.ground(x, z), 2.8)
 	grab.pull(hand, -depth)
 	grab.end_stroke(hand)
-	tool.fill(hand, Vector3(x, Water.brim(x, z, GroundGrab.reach(2.8, depth)), z))
+	tool.fill(hand, Vector3(x, Water.brim(tool.world.terrain, x, z, GroundGrab.reach(2.8, depth)), z))
 	tool.settle()
 	await tool.get_tree().process_frame
 	await tool.get_tree().process_frame

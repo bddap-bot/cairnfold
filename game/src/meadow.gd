@@ -41,7 +41,7 @@ func _ground() -> void:
 		mat.set_shader_parameter(k, GRASS[k])
 	var mi := MeshInstance3D.new()
 	mi.mesh = Terrain.build_mesh()
-	Terrain.lift(mi, Terrain.bounds())
+	flora.terrain.lift(mi, flora.terrain.bounds())
 	mi.material_override = mat
 	# Opaque draws go in ascending render_priority: the ground draws after the plants and builds standing on it, so
 	# what they cover fails the depth test unshaded, as the book's layers do.
@@ -61,14 +61,14 @@ func _plants(rng: RandomNumberGenerator) -> void:
 	for t in TREES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(24.0, 58.0)
-		flora.add_tree(Terrain.ground(cos(ang) * r, sin(ang) * r), rng.randi())
+		flora.add_tree(flora.terrain.ground(cos(ang) * r, sin(ang) * r), rng.randi())
 	for b in BUSHES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(14.0, 40.0)
-		flora.add_bush(Terrain.ground(cos(ang) * r, sin(ang) * r), rng)
+		flora.add_bush(flora.terrain.ground(cos(ang) * r, sin(ang) * r), rng)
 	flora.keep()
 
 
 func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:
-	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, Terrain.height_at)[0]
+	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, flora.terrain.height_at)[0]
 

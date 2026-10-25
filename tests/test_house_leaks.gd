@@ -42,7 +42,7 @@ func _run() -> void:
 	var terrain := Probe.new()
 	var ground := Terrain.build_mesh().get_faces()
 	for i in ground.size():
-		ground[i].y = Terrain.height_at(ground[i].x, ground[i].z)
+		ground[i].y = main.world.terrain.height_at(ground[i].x, ground[i].z)
 	terrain.add_faces(ground, "terrain", -1)
 	ground_part = terrain.parts[0]
 	var seeds := SEEDS.duplicate()
@@ -68,7 +68,7 @@ func _contract() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(4, 4, 4)
 	probe.add_faces(box.get_faces(), "shell", 1)
-	var w := Wall.new(1, null)
+	var w := Wall.new(1, null, main.world.terrain)
 	w.id = 1
 	var room: Array[Wall] = [w]
 	for dir in Probe.directions(256):
@@ -115,7 +115,7 @@ func _commands(seed_value: int) -> Array:
 	if seed_value == 8756:
 		length = 7.75
 		depth = 4.5
-	var w := Wall.new(seed_value, null)
+	var w := Wall.new(seed_value, null, main.world.terrain)
 	w.layout.points = WallLayout.circle(center, depth * 0.5) if shape == 1 else WallLayout.rectangle(center - Vector3.RIGHT * length * 0.5, center + Vector3.RIGHT * length * 0.5, depth)
 	w.layout.height = 2.4 if seed_value == 8756 else 2.7
 	w.layout.rise = 1.2 if seed_value % 3 == 0 else 0.0
@@ -161,9 +161,9 @@ func _commands(seed_value: int) -> Array:
 		var stroke: Array[Vector3] = []
 		for i in 7:
 			stroke.append(center + Vector3(lerpf(-length, length, i / 6.0), 0, sin(i * 0.8) * depth * 0.3))
-		var layouts := plan.pieces(stroke, Terrain.height_at)
+		var layouts := plan.pieces(stroke, main.world.terrain.height_at)
 		for layout in layouts:
-			var wall := Wall.new(seed_value, null)
+			var wall := Wall.new(seed_value, null, main.world.terrain)
 			wall.layout = layout
 			commands.append({"op": "wall", "walls": [wall.data()]})
 			wall.free()

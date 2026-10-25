@@ -87,6 +87,7 @@ class Pool:
 	var anchors := PackedVector3Array()
 	var plants: Array[Plant] = []
 	var _parent: Node3D
+	var terrain: Terrain
 	var _shadows: bool
 	## Each slot's colour and custom data, and each painted slot's drawn transform: a MultiMesh does not give them
 	## back, and a patch moves its instances about.
@@ -112,7 +113,8 @@ class Pool:
 	## is gentle enough to hold soil.
 	var soil := false
 
-	func _init(parent: Node3D, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
+	func _init(parent: Flora, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
+		terrain = parent.terrain
 		mesh = m
 		drawn = m
 		cell = size
@@ -145,12 +147,12 @@ class Pool:
 			_unindex(i)
 		if cover != null and plants[i] != null:
 			cover.touch(plants[i].anchor)
-		var ground := Terrain.base_at(anchor.x, anchor.z)
+		var ground := terrain.height_at(anchor.x, anchor.z)
 		xform.origin.y -= ground
 		anchor.y -= ground
 		custom.b = anchor.x
 		custom.a = anchor.z
-		var rock := soil and Terrain.rock_at(anchor.x, anchor.z)
+		var rock := soil and terrain.rock_at(anchor.x, anchor.z)
 		_colors[i] = color
 		_customs[i] = custom
 		_xforms[i] = _drawn_as(xform, rock)
@@ -188,17 +190,17 @@ class Pool:
 		var n := p.slots.size()
 		if n == p.mm.instance_count:
 			p.mm.instance_count = n * 2
-			Terrain.lift(p.mm, p.box)
+			terrain.lift(p.mm, p.box)
 			for k in n:
 				_write(p, k, p.slots[k])
-		var ground := Terrain.bounds()
+		var ground := terrain.bounds()
 		var box := _xforms[i] * mesh.get_aabb()
 		box.position.y += ground.position.y
 		box.size.y += ground.size.y
 		box = box.grow(0.5)
 		if n == 0 or not p.box.encloses(box):
 			p.box = box if n == 0 else p.box.merge(box)
-			Terrain.lift(p.mm, p.box)
+			terrain.lift(p.mm, p.box)
 		p.slots.append(i)
 		p.mm.visible_instance_count = n + 1
 		_patch_of[j] = p
@@ -298,10 +300,10 @@ class Pool:
 			m.set_instance_custom_data(j, _customs[i])
 			box = box.merge(plants[i].xform * mesh.get_aabb())
 		# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
-		var ground := Terrain.bounds()
+		var ground := terrain.bounds()
 		box.position.y += ground.position.y
 		box.size.y += ground.size.y
-		Terrain.lift(m, box.grow(0.5))
+		terrain.lift(m, box.grow(0.5))
 		return m
 
 	## What draws the painted plants.
@@ -351,7 +353,7 @@ class Pool:
 	func repose(p: Plant, xform: Transform3D, color: Color) -> void:
 		if not p.current():
 			return
-		xform.origin.y -= Terrain.base_at(p.anchor.x, p.anchor.z)
+		xform.origin.y -= terrain.height_at(p.anchor.x, p.anchor.z)
 		p.xform = xform
 		if p.shown():
 			place(p.slot, xform)
@@ -375,7 +377,7 @@ class Pool:
 			cover.touch(p.anchor)
 		p.anchor += by
 		p.xform.origin += by
-		p.rock = soil and Terrain.rock_at(p.anchor.x, p.anchor.z)
+		p.rock = soil and terrain.rock_at(p.anchor.x, p.anchor.z)
 		if anchors[p.slot] != GONE:
 			anchors[p.slot] = p.anchor
 		if indexed:
@@ -402,7 +404,7 @@ class Pool:
 			var p := plants[slot]
 			if p == null or not area.has_point(Vector2(p.anchor.x, p.anchor.z)):
 				continue
-			var rock := Terrain.rock_at(p.anchor.x, p.anchor.z)
+			var rock := terrain.rock_at(p.anchor.x, p.anchor.z)
 			if rock != p.rock:
 				p.rock = rock
 				if p.drawn:
@@ -425,7 +427,7 @@ class Pool:
 	## Widens a kept plant's cell box to take it in as it now stands, so the camera does not cull it.
 	func _cover_cell(slot: int) -> void:
 		var cell := _cell_of[slot]
-		var ground := Terrain.bounds()
+		var ground := terrain.bounds()
 		var box := plants[slot].xform * mesh.get_aabb()
 		box.position.y += ground.position.y
 		box.size.y += ground.size.y
@@ -466,7 +468,7 @@ class Pool:
 		far = MultiMesh.new()
 		_setup(far, Flora.far_mesh(), capacity)
 		far.visible_instance_count = 0
-		Terrain.lift(far, Terrain.bounds())
+		terrain.lift(far, terrain.bounds())
 		far_live = _show(far)
 		far_live.material_override = mat
 		far_live.layers = Quality.LADDER_LAYER
@@ -551,7 +553,7 @@ class Plant:
 
 	## Where it stands on the ground as the ground now lies.
 	func foot() -> Vector3:
-		return anchor + Vector3.UP * Terrain.base_at(anchor.x, anchor.z)
+		return anchor + Vector3.UP * pool.terrain.height_at(anchor.x, anchor.z)
 
 	func shown() -> bool:
 		return current() and pool.anchors[slot] != Pool.GONE
@@ -632,9 +634,13 @@ static var _far_mesh: ArrayMesh
 var changes := 0
 ## Foliage blobs at each detail, made up front so a step changes only which one is drawn.
 var _blobs := {}
+var terrain: Terrain
+var marks: Ground
 
 
-func _init() -> void:
+func _init(ground: Terrain, laid: Ground) -> void:
+	terrain = ground
+	marks = laid
 	grass_mat.shader = load("res://src/grass.gdshader")
 	for k in Meadow.GRASS:
 		grass_mat.set_shader_parameter(k, Meadow.GRASS[k])
@@ -692,7 +698,7 @@ func _init() -> void:
 	crown_shade.use_custom_data = true
 	crown_shade.mesh = Meshes.blob(4, 1)
 	crown_shade.instance_count = Meadow.TREES + PLACED_TREES + Meadow.BUSHES + PLACED_BUSHES
-	crown_shade.custom_aabb = Terrain.bounds()
+	crown_shade.custom_aabb = terrain.bounds()
 	var shade := MultiMeshInstance3D.new()
 	shade.multimesh = crown_shade
 	shade.material_override = leaf_mat
@@ -987,16 +993,16 @@ func _name(group: int, plants: Array[Plant]) -> void:
 
 ## Whether a painted plant would land on bare ground (a path or stone) in the garden, where it would be
 ## parted to nothing yet take a slot.
-static func on_path(p: Vector3) -> bool:
-	return Ground.laid_bare(p.x, p.z) > 0.9
+func on_path(p: Vector3) -> bool:
+	return marks.laid_bare(p.x, p.z) > 0.9
 
 
 ## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground,
 ## placed by `rng` and drawn by `look`, the two streams `grow` grows its plants from.
 func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, look: RandomNumberGenerator) -> Array[Plant]:
 	var out: Array[Plant] = []
-	for p in FloraLayout.brush(center, radius, count, rng, Terrain.base_at):
-		out.append(null if kind != "moss" and Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, look, true))
+	for p in FloraLayout.brush(center, radius, count, rng, terrain.height_at):
+		out.append(null if kind != "moss" and marks.bare(p.x, p.z) > 0.9 else _paint(kind, p, look, true))
 	return out
 
 
@@ -1031,7 +1037,7 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = g.seed
 	if g.kind in PLACED:
-		var at := Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z)
+		var at := Vector3(g.at.x, terrain.height_at(g.at.x, g.at.z), g.at.z)
 		plants = add_tree(at, g.seed) if g.kind == "tree" else add_bush(at, rng)
 		_name(id, plants)
 		return plants
@@ -1044,7 +1050,7 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	for i in g.get("skip", []):
 		skip[i] = true
 	var skipped := PackedInt32Array()
-	var laid := Ground.laid_image() if record and g.kind != "moss" else null
+	var laid := marks.laid_image() if record and g.kind != "moss" else null
 	for d in g.dabs:
 		for p in FloraLayout.brush(d[0], d[1], d[2], rng, _level):
 			if skip.has(growth.spots.size()) or laid != null and Ground.bare_in(laid, p.x, p.z) > 0.9:
@@ -1099,7 +1105,7 @@ func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
 		while g.next < g.spots.size():
 			var spot: Variant = g.spots[g.next]
 			if spot != null:
-				var p := _paint(g.kind, Vector3(spot.x, Terrain.base_at(spot.x, spot.z) - FloraLayout.SINK, spot.z), g.looks, false)
+				var p := _paint(g.kind, Vector3(spot.x, terrain.height_at(spot.x, spot.z) - FloraLayout.SINK, spot.z), g.looks, false)
 				if p != null:
 					p.group = g.group
 					p.index = g.next
@@ -1183,7 +1189,7 @@ func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dicti
 		if cx * cx + cz * cz > solid.radius * solid.radius or not solid.parts[0].shown() or skip.has(solid.parts[0]):
 			continue
 		for part in solid.parts:
-			var at := part.xform.translated(Vector3.UP * Terrain.base_at(part.anchor.x, part.anchor.z))
+			var at := part.xform.translated(Vector3.UP * terrain.height_at(part.anchor.x, part.anchor.z))
 			var inv := at.affine_inverse()
 			var box := part.pool.mesh.get_aabb()
 			var local: Variant = box.intersects_ray(inv * origin, inv.basis * dir)

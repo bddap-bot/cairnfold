@@ -70,7 +70,7 @@ func _fresh() -> void:
 	Hand.injected_sticks.clear()
 	Hand.injected_joints.clear()
 	main.world.submit({"op": "wipe"})
-	main.rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+	main.rig.place(Vector3(0, main.world.terrain.height_at(0, 4), 4), 0.0)
 	main.rig.rotation = Vector3.ZERO
 	main.look.set_time(Daylight.DEFAULT)
 	main.rig.left.tool = Hand.Tool.BOOK
@@ -135,10 +135,10 @@ func _hand(side: String) -> Hand:
 func _read(page: Dictionary) -> Dictionary:
 	var rig: Rig = main.rig
 	var f := rig.head.global_transform * Lessons.frame(Lessons.pose(page, "right", 0.0)) if "right" in Lessons.hands(page) else Transform3D.IDENTITY
-	var ground: Variant = Terrain.raycast(f.origin, -f.basis.z)
+	var ground: Variant = main.world.terrain.raycast(f.origin, -f.basis.z)
 	effects = {"least_walls": main.tool.walls.size()}
 	return {"at": rig.global_position, "walls": main.tool.walls.size(), "time": main.look.time,
-		"ground": ground, "height": Terrain.height_at(ground.x, ground.z) if ground != null else 0.0,
+		"ground": ground, "height": main.world.terrain.height_at(ground.x, ground.z) if ground != null else 0.0,
 		"state": var_to_str(main.world.state.walls), "trees": main.flora_tool.flora.placed("tree").size()}
 
 
@@ -164,7 +164,7 @@ func _check_hill(_page: Dictionary, before: Dictionary) -> void:
 	check(before.ground != null, "the hill page points at the ground")
 	if before.ground == null:
 		return
-	var rise: float = Terrain.height_at(before.ground.x, before.ground.z) - before.height
+	var rise: float = main.world.terrain.height_at(before.ground.x, before.ground.z) - before.height
 	check(rise > 0.3, "the grip on the ground, the hand raised, pulls a hill: %.2f m" % rise)
 
 

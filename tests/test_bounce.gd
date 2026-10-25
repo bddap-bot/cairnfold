@@ -6,6 +6,8 @@ extends "res://../tests/support/suite.gd"
 const WEST_LOW := Vector3(-0.917, 0.4, 0)
 const EAST_LOW := Vector3(0.917, 0.4, 0)
 
+var terrain := Terrain.new()
+
 
 func _init() -> void:
 	_open_meadow_sees_the_whole_sky()
@@ -38,7 +40,7 @@ func _wall(a: Vector2, b: Vector2, height := 2.6, from := 0.2) -> Array[PackedFl
 		var y := from
 		while y < height:
 			stones.resize((n + 1) * kind.stride())
-			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, Terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
+			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
 			n += 1
 			y += 0.4
 	return [stones]
@@ -55,7 +57,7 @@ func _ring(at: Vector2, radius: float, foot: float, top: float) -> Array[PackedF
 		var y := foot + 0.2
 		while y < top:
 			stones.resize((n + 1) * kind.stride())
-			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, Terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
+			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
 			n += 1
 			y += 0.4
 	return [stones]
@@ -74,6 +76,7 @@ func _house(roofed: bool) -> Array:
 
 func _built(walls: Array, sun := EAST_LOW) -> Bounce:
 	var b := Bounce.new()
+	b.terrain = terrain
 	b.set_sun(sun, Color.WHITE)
 	for i in walls.size():
 		b.place(i + 1, walls[i], PackedInt32Array([Wall.kinds()[Wall.Part.STONE].stride()]))
@@ -115,6 +118,7 @@ func _air_under_a_tower_on_a_wall_sees_the_sky() -> void:
 func _tiles_shade_too() -> void:
 	var tiles := _wall(Vector2(0, -5), Vector2(0, 5))
 	var b := Bounce.new()
+	b.terrain = terrain
 	var stone := Wall.kinds()[Wall.Part.STONE].stride()
 	b.place(1, [PackedFloat32Array(), tiles[0]] as Array[PackedFloat32Array], PackedInt32Array([stone, stone]))
 	b.finish()
@@ -160,14 +164,14 @@ func _reshaped_ground_solves_again() -> void:
 	var b := _built([_wall(Vector2(0, -5), Vector2(0, 5))])
 	var foot := b.probe(1.5, 0, 0).a
 	var cells := Terrain.cells_around(1.5, 0, 3)
-	var before := Terrain.read(cells)
+	var before := terrain.read(cells)
 	var raised := before.duplicate()
 	for i in raised.size():
 		raised[i] += 2.0
-	Terrain.write(cells, raised)
+	terrain.write(cells, raised)
 	b.finish()
 	check(b.probe(1.5, 0, 0).a > foot, "ground raised beside a wall sees over more of it: %.2f then %.2f" % [foot, b.probe(1.5, 0, 0).a])
-	Terrain.write(cells, before)
+	terrain.write(cells, before)
 
 
 func _masonry_reports_only_what_stands_in_the_light() -> void:
@@ -205,9 +209,9 @@ func _a_roof_overhead_hides_the_sky() -> void:
 		check(b < a, "and less than without it: %.2f against %.2f" % [b, a])
 	check(roofed.probe(0.5, -1.5, 0).r == 0.0, "a roof's shaded underside throws back no sunlight")
 	check(roofed.probe(10.5, 0.5, 0).a > 0.99, "the garden away from it keeps its sky")
-	var eye := Vector3(0.5, Terrain.height_at(0.5, -1.5) + 1.6, -1.5)
+	var eye := Vector3(0.5, terrain.height_at(0.5, -1.5) + 1.6, -1.5)
 	check(roofed.sky_at(eye) < 0.1, "an eye under the roof sees almost no sky, as exposure reads it: %.2f" % roofed.sky_at(eye))
-	check(roofed.sky_at(Vector3(10.5, Terrain.height_at(10.5, 0.5) + 1.6, 0.5)) > 0.99, "an eye in the garden sees all of it")
+	check(roofed.sky_at(Vector3(10.5, terrain.height_at(10.5, 0.5) + 1.6, 0.5)) > 0.99, "an eye in the garden sees all of it")
 
 
 func _a_doorway_lets_the_sky_in() -> void:

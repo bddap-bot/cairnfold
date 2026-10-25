@@ -26,6 +26,7 @@ class Boulder:
 	extends Node3D
 	var id := 0
 	var shape: BoulderLayout.Shape
+	var terrain: Terrain
 	var ground := Vector3.ZERO
 	var turn := Quaternion.IDENTITY
 	## How far it is pushed into the ground below where it would rest, in unit metres (BoulderLayout.rest).
@@ -49,12 +50,12 @@ class Boulder:
 		for mesh: MultiMeshInstance3D in [near, far]:
 			mesh.multimesh.set_instance_color(0, c)
 			mesh.set_instance_shader_parameter("stone_style", d.style)
-		seat(d.scale)
+		seat(d.scale, terrain.height_at)
 
-	## Rests it at `scale` on the ground under it, or as deep in it as it was pushed, as the ground is now.
-	func seat(scale: float) -> void:
-		ground.y = Terrain.height_at(ground.x, ground.z)
-		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, Terrain.height_at, sink), scale)
+	## Rests it at `scale` on the ground `height` gives under it, or as deep in it as it was pushed.
+	func seat(scale: float, height: Callable) -> void:
+		ground.y = height.call(ground.x, ground.z)
+		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, height, sink), scale)
 
 	## Shows it at `pose` (unscaled) grown `scale` times, where a hand holds it; moving, it whooshes (`swing`).
 	func hold(pose: Transform3D, scale: float) -> void:
@@ -83,6 +84,7 @@ class Boulder:
 		far.visibility_range_end = FAR_TO * size
 
 
+var terrain: Terrain
 var boulders := {}
 ## Counts every put, take and resize, so what caches their shapes knows to look again.
 var changes := 0
@@ -110,6 +112,7 @@ func put(id: int, data: Dictionary) -> Boulder:
 ## A boulder as `data` has it that is no part of the garden: nothing picks it or stops at it. Its holder frees it.
 func ghost(data: Dictionary) -> Boulder:
 	var b := Boulder.new()
+	b.terrain = terrain
 	b.shape = BoulderLayout.shape(data.seed)
 	b.near = _instance(b.shape, BoulderLayout.NEAR)
 	b.far = _instance(b.shape, BoulderLayout.FAR)
@@ -194,11 +197,12 @@ func find(id: int) -> Boulder:
 	return boulders.get(id)
 
 
-## Rests the boulders reaching over `area` again on the ground as it now lies there; one a hand holds stays in hand.
+## Rests the boulders reaching over `area` again on the ground as this player now sees it there; one a hand holds stays
+## in hand.
 func reseat(area: Rect2, _settled := true) -> void:
 	for b: Boulder in boulders.values():
 		if not b.held and area.grow(b.shape.reach() * b.size).has_point(Vector2(b.ground.x, b.ground.z)):
-			b.seat(b.size)
+			b.seat(b.size, terrain.shown_at)
 			changes += 1
 
 
@@ -213,7 +217,7 @@ func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 		var t := b.shape.hit(inv * origin, local_dir / unit, minf(reach, best.get("along", INF)) * unit)
 		var point := origin + d * t / unit
 		# What it meets first under the ground is its buried part, which the ground hides from the ray.
-		if t < INF and point.y >= Terrain.height_at(point.x, point.z):
+		if t < INF and point.y >= terrain.shown_at(point.x, point.z):
 			best = {"boulder": b, "along": t / unit, "point": point}
 	return best
 

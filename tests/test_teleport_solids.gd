@@ -50,7 +50,7 @@ func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: Strin
 	var h := rig.head.global_position
 	var stand := rig.global_position.y
 	var want: float = surface.call(h)
-	check(absf(stand - want) < 0.3, "aimed %s, the player stands on it: %.2f for %.2f, ground %.2f" % [what, stand, want, Terrain.height_at(h.x, h.z)])
+	check(absf(stand - want) < 0.3, "aimed %s, the player stands on it: %.2f for %.2f, ground %.2f" % [what, stand, want, main.world.terrain.height_at(h.x, h.z)])
 	check(rig.global_basis.y.is_equal_approx(Vector3.UP), "aimed %s, the player stands upright" % what)
 
 
@@ -79,9 +79,9 @@ func _stands(at: Vector3, up: float, want: float, what: String) -> void:
 
 
 func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-40, 30), Terrain.ground(-34, 30), 4.0)))
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-40, 30), main.world.terrain.ground(-34, 30), 4.0)))
 	d.closed = true
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -91,30 +91,30 @@ func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
 	slope.y = r.height_at(slope.x, slope.z)
 	var on_roof := func(p: Vector3) -> float: return r.height_at(p.x, p.z)
 	_lands(rig, slope + Vector3(0, 9, 0) + f.across * 6.0, slope, on_roof, "from the air down onto a pitched roof")
-	_lands(rig, Terrain.ground(slope.x, slope.z) + f.across * (r.half_span() + 3.0) + Vector3.UP * 1.2, slope, on_roof, "from the ground up onto a pitched roof")
+	_lands(rig, main.world.terrain.ground(slope.x, slope.z) + f.across * (r.half_span() + 3.0) + Vector3.UP * 1.2, slope, on_roof, "from the ground up onto a pitched roof")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 func _onto_a_tree(rig: Rig, world: World) -> void:
 	var flora: Flora = main.flora_tool.flora
-	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-20, 40)}, 1)
+	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": main.world.terrain.ground(-20, 40)}, 1)
 	flora.grow_now()
 	var parts: Array = flora.placed("tree")[-1]
 	var crown: Flora.Plant = parts[-1]
-	var top: Vector3 = crown.xform.translated(Vector3.UP * Terrain.base_at(crown.anchor.x, crown.anchor.z)) * crown.pool.mesh.get_aabb().get_center()
+	var top: Vector3 = crown.xform.translated(Vector3.UP * main.world.terrain.height_at(crown.anchor.x, crown.anchor.z)) * crown.pool.mesh.get_aabb().get_center()
 	var from := top + Vector3(0, 6, 8)
 	var hit: Dictionary = flora.solid_hit(from, (top - from).normalized(), 50.0)
 	check(not hit.is_empty(), "a ray down at a tree's crown strikes it")
 	var high := func(_p: Vector3) -> float: return hit.get("point", Vector3.ZERO).y
 	_lands(rig, from, top, high, "down onto a tree")
-	check(rig.global_position.y - Terrain.height_at(top.x, top.z) > 1.0, "the landing on a tree is up in it, not on the ground under it")
+	check(rig.global_position.y - main.world.terrain.height_at(top.x, top.z) > 1.0, "the landing on a tree is up in it, not on the ground under it")
 
 
 func _onto_a_wall_top(rig: Rig, world: World) -> void:
-	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(10, -30), Terrain.ground(16, -30)]))]}, 1)
+	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([main.world.terrain.ground(10, -30), main.world.terrain.ground(16, -30)]))]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
-	var mid := Terrain.ground(13, -30)
+	var mid := main.world.terrain.ground(13, -30)
 	var top := mid + Vector3.UP * (w.layout.height + WallLayout.CAP)
 	var on_top := func(_p: Vector3) -> float: return top.y
 	_lands(rig, top + Vector3(0, 5, 6), top, on_top, "down onto a wall's top")
@@ -124,7 +124,7 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 ## A ruined wall's face is its stones', each leaning a little and some standing proud of the one above: aims at it
 ## behave as at a plain wall's, at every height and all along it.
 func _onto_a_wall_face(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))
+	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -153,7 +153,7 @@ func _onto_a_ruin_ledge(rig: Rig, world: World) -> void:
 
 
 func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
-	var d := _wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))
+	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	d.top = WallLayout.Top.CAP
 	d.seed = seed
 	d.ruins = PackedVector2Array([Vector2(5.0, 6.5)])
@@ -179,7 +179,7 @@ func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
 		var normal: Vector3 = l.frame_at(s).tangent.cross(Vector3.UP)
 		var froms: Array[Vector3] = [ledge + Vector3.UP * 2.5 + normal * 1.5, ledge + Vector3.UP * 2.5 - normal * 1.5]
 		if up < 1.2:
-			froms.append(Terrain.ground(foot.x + normal.x * 3.0, foot.z + normal.z * 3.0) + Vector3.UP * 1.6)
+			froms.append(main.world.terrain.ground(foot.x + normal.x * 3.0, foot.z + normal.z * 3.0) + Vector3.UP * 1.6)
 		for from in froms:
 			var dir := (ledge - from).normalized()
 			var struck: Dictionary = rig.solid_hit.call(from, dir, 20.0)
@@ -201,31 +201,31 @@ func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
 
 
 func _onto_a_raised_floor(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(30, 30), Terrain.ground(36, 30), 4.0)))
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(30, 30), main.world.terrain.ground(36, 30), 4.0)))
 	d.closed = true
 	d.rise = 1.5
 	d.openings = PackedVector4Array([3.0].map(WallLayout.archway))
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(33, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(33, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
 	var level := w.layout.floor_y
 	var inside := Vector3(33.5, level, 30.0)
 	var on_floor := func(_p: Vector3) -> float: return level
-	check(level > Terrain.height_at(inside.x, inside.z) + 1.0, "the raised house's floor stands over the ground: %.2f" % level)
+	check(level > main.world.terrain.height_at(inside.x, inside.z) + 1.0, "the raised house's floor stands over the ground: %.2f" % level)
 	_lands(rig, Vector3(32.5, level + 1.6, 30.3), inside, on_floor, "down onto a raised house's floor from inside")
 	check(is_equal_approx(main.tool.floor_under(inside + Vector3.UP * 0.5), level), "standing inside, the player stands on the floor, not the ground under it")
-	var middle := Terrain.ground(33.0, 30.0)
-	Ground.settle()
-	check(Ground.laid_bare(middle.x, middle.z) > 0.99, "the meadow under the floor is worn bare: %.2f" % Ground.laid_bare(middle.x, middle.z))
-	check(Ground.laid_bare(33.0, 30.0 + 2.0 + 1.0) < 0.01, "the meadow outside the walls is not")
+	var middle := main.world.terrain.ground(33.0, 30.0)
+	main.world.marks.settle()
+	check(main.world.marks.laid_bare(middle.x, middle.z) > 0.99, "the meadow under the floor is worn bare: %.2f" % main.world.marks.laid_bare(middle.x, middle.z))
+	check(main.world.marks.laid_bare(33.0, 30.0 + 2.0 + 1.0) < 0.01, "the meadow outside the walls is not")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
-	Ground.settle()
-	check(Ground.laid_bare(middle.x, middle.z) < 0.01, "taken away, the house gives the meadow back")
+	main.world.marks.settle()
+	check(main.world.marks.laid_bare(middle.x, middle.z) < 0.01, "taken away, the house gives the meadow back")
 
 
 func _on_a_wall_walk(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))
+	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	d.top = WallLayout.Top.CAP
 	d.ruins = PackedVector2Array([Vector2(8.5, 9.5)])
 	world._order({"op": "wall", "walls": [d]}, 1)
@@ -239,11 +239,11 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	_lands(rig, Vector3(mid.x - 4, top + 5, mid.z + 6), mid + Vector3.UP * (top - mid.y), on_top, "down onto a wall walk")
 	_hovers(rig, Vector3(mid.x, top, mid.z), top, "a wall walk")
 	_stands(Vector3(mid.x, top, mid.z), Flat.STEP_UP, top, "walking along a wall walk, the next step")
-	_stands(Vector3(mid.x, top, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), 0.5, Terrain.height_at(mid.x, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), "a step off the wall walk's side")
-	_stands(Vector3(mid.x, top - 1.0, mid.z), 0.0, Terrain.height_at(mid.x, mid.z), "a point inside the wall, under its walk,")
+	_stands(Vector3(mid.x, top, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), 0.5, main.world.terrain.height_at(mid.x, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), "a step off the wall walk's side")
+	_stands(Vector3(mid.x, top - 1.0, mid.z), 0.0, main.world.terrain.height_at(mid.x, mid.z), "a point inside the wall, under its walk,")
 	var gap := l.point_at(9.0)
 	check(l.standing(9.0) == 0.0, "the ruin breaks the wall to the ground at its middle")
-	_stands(gap + Vector3.UP * top, 0.0, Terrain.height_at(gap.x, gap.z), "over a ruin's gap, a point")
+	_stands(gap + Vector3.UP * top, 0.0, main.world.terrain.height_at(gap.x, gap.z), "over a ruin's gap, a point")
 	var at := 8.5
 	while at > 6.0 and not (l.standing(at) > 0.0 and l.standing(at) < l.height):
 		at -= 0.05
@@ -252,7 +252,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var step := l.point_at(at)
 	_stands(step, stepped + 0.5, step.y + stepped, "a point over a ruin's stepped end")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
-	var coped := _wall_data(PackedVector3Array([Terrain.ground(-6, -18), Terrain.ground(6, -18)]))
+	var coped := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -18), main.world.terrain.ground(6, -18)]))
 	coped.top = WallLayout.Top.COPE
 	world._order({"op": "wall", "walls": [coped]}, 1)
 	w = main.tool.walls[-1]
@@ -264,9 +264,9 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	check(absf(coping - tallest) < 0.1, "a ray lands on a coping's tall stones: %.2f for %.2f" % [coping, tallest])
 	_stands(over + Vector3.UP * (coping - over.y), 0.3, coping, "a point over a coped wall's walk")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
-	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, -6), Terrain.ground(2, -6), 4.0)))
+	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, -6), main.world.terrain.ground(2, -6), 4.0)))
 	house.closed = true
-	house.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-1, -6), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	house.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-1, -6), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [house]}, 1)
 	w = main.tool.walls[-1]
 	w.lay_now()
@@ -281,7 +281,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 ## the player lands on that floor; higher, they float at the height struck. Either way clear of the face.
 func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 	var face := mid + Vector3(0, 0, WallLayout.THICKNESS * 0.5)
-	var front := Terrain.ground(face.x, face.z + Rig.STAND_OFF)
+	var front := main.world.terrain.ground(face.x, face.z + Rig.STAND_OFF)
 	var from := Vector3(face.x, front.y + 1.6, face.z + 6.0)
 	var dir := (Vector3(face.x, front.y + up, face.z) - from).normalized()
 	var struck: Variant = rig.solid_hit.call(from, dir, 20.0).get("point")
@@ -290,7 +290,7 @@ func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 	check(struck != null and g != null, "a ray %.2f m up the wall's face strikes it and has a target" % up)
 	if struck == null or g == null:
 		return
-	var floor_y := Terrain.height_at(g.x, g.z)
+	var floor_y := main.world.terrain.height_at(g.x, g.z)
 	var high: bool = struck.y - floor_y > Rig.CLIMB
 	check(high == (up > Rig.CLIMB), "aimed %.2f m up the face, it is struck %.2f m over the floor in front" % [up, struck.y - floor_y])
 	check(absf(g.y - floor_y) < 0.05, "aimed %.2f m up the face, the target stands over the floor in front: %s" % [up, g])
@@ -306,7 +306,7 @@ func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 
 func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 	var tool: WallTool = main.tool
-	var at := Terrain.ground(-6, -26)
+	var at := main.world.terrain.ground(-6, -26)
 	var stance := WallTool.stance(at, 0.0)
 	stance.size = Vector2(8, 6)
 	stance.pitch = 0.0
@@ -334,8 +334,8 @@ func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 
 
 func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
-	var left := _wall_data(PackedVector3Array([Terrain.ground(-4, -4), Terrain.ground(-4, 3)]))
-	var right := _wall_data(PackedVector3Array([Terrain.ground(3, -4), Terrain.ground(3, 3)]))
+	var left := _wall_data(PackedVector3Array([main.world.terrain.ground(-4, -4), main.world.terrain.ground(-4, 3)]))
+	var right := _wall_data(PackedVector3Array([main.world.terrain.ground(3, -4), main.world.terrain.ground(3, 3)]))
 	left.top = WallLayout.Top.CAP
 	right.top = WallLayout.Top.CAP
 	world._order({"op": "wall", "walls": [left, right]}, 1)
@@ -349,7 +349,7 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 		tops.append(rig.solid_hit.call(on + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y)
 	var deck := maxf(tops[0], tops[1])
 	var bridge := {"a": Vector3(-4, deck, -0.5), "b": Vector3(3, deck, -0.5), "width": 1.2, "rail": "wood", "seed": 5, "paint": Palette.plain(), "on": ids}
-	var foot := Terrain.ground(-9, 1.5)
+	var foot := main.world.terrain.ground(-9, 1.5)
 	var flight := {"a": foot, "b": Vector3(-4, tops[0], 1.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array([ids[0]])}
 	world._order({"op": "stairs", "stairs": bridge}, 1)
 	world._order({"op": "stairs", "stairs": flight}, 1)
@@ -361,14 +361,14 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 	var on_bridge := func(_p: Vector3) -> float: return deck
 	_lands(rig, middle + Vector3(0, 5, 5), middle, on_bridge, "down onto a bridge between two wall walks")
 	_hovers(rig, middle, deck, "a bridge")
-	_stands(middle, -1.0, Terrain.height_at(middle.x, middle.z), "a point under the bridge")
+	_stands(middle, -1.0, main.world.terrain.height_at(middle.x, middle.z), "a point under the bridge")
 	var tread := foot.lerp(flight.b, 0.5)
 	var tread_y := steps.surface(tread + Vector3.UP)
 	check(not is_nan(tread_y), "the flight has a tread halfway up")
 	var on_tread := func(_p: Vector3) -> float: return tread_y
 	_lands(rig, Vector3(tread.x + 5, tread_y + 4, tread.z), Vector3(tread.x, tread_y, tread.z), on_tread, "down onto a flight's tread")
 	_hovers(rig, Vector3(tread.x, tread_y, tread.z), tread_y, "a flight of stairs")
-	var walk := Terrain.ground(3, 2)
+	var walk := main.world.terrain.ground(3, 2)
 	var far_top: float = rig.solid_hit.call(walk + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_hovers(rig, Vector3(walk.x, far_top, walk.z), far_top, "the far wall walk the bridge reaches")
 	world._order({"op": "take", "of": "walls", "ids": ids}, 1)

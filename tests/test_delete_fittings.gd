@@ -58,7 +58,7 @@ func _run() -> void:
 	# A peer's delete travels through host validation and the same replicated reshape.
 	var before: Dictionary = main.world.state.walls[id].duplicate(true)
 	var cmd := FittingTool.removal(main.world.state, target)
-	var accepted := Commands.clean(cmd, main.world.state, false)
+	var accepted := Commands.clean(cmd, main.world.state, false, main.world.terrain)
 	check(not accepted.is_empty(), "host accepts the single-fitting command")
 	tool.press(self, eye, -out)
 	main.world._order(cmd, 42)

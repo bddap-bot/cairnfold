@@ -1,5 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
+var terrain: Terrain:
+	get:
+		return main.world.terrain
+
 
 func _initialize() -> void:
 	boot_main()
@@ -58,14 +62,14 @@ func _run() -> void:
 		check(main.world.state.decorations.size() == 8 and main.world.state.walls.size() == 1, "single deletion preserves house and siblings")
 		main.world.undo()
 		check(main.world.state.decorations.get(item.decoration) == before, "undo restores exact style and seed")
-	var p := Vector3(30, Terrain.height_at(30, 30), 30)
+	var p := Vector3(30, terrain.height_at(30, 30), 30)
 	var aim: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, p + Vector3.UP * 3, Vector3.DOWN)
 	check(aim.get("what") == "decoration" and aim.get("wall") == null, "bare ground accepts decorations")
 	var cmd := FittingTool.decoration_command(aim)
 	check(cmd.style == DecorationLayout.PRESENT and cmd.mount == "ground", "a present by default on bare ground")
 	var bad := cmd.duplicate()
 	bad.mount = "floor"
-	check(Commands.clean(bad, main.world.state, false).is_empty(), "reject a house's mount without its house")
+	check(Commands.clean(bad, main.world.state, false, main.world.terrain).is_empty(), "reject a house's mount without its house")
 	main.world.decorations.sync()
 	var items: Array[Dictionary] = main.world.decorations.targets()
 	var post: Dictionary = items.filter(func(i): return i.value.style == 6)[0]

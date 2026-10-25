@@ -216,7 +216,7 @@ func _gesture(s: Dictionary) -> void:
 	var fwd := -head.basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	var ground := Terrain.ground(head.origin.x, head.origin.z)
+	var ground := main.world.terrain.ground(head.origin.x, head.origin.z)
 	var body := Transform3D(Basis(fwd.cross(Vector3.UP), Vector3.UP, -fwd), ground)
 	s = s.duplicate(true)
 	for k: Dictionary in s.keys:
@@ -629,7 +629,7 @@ func _arrive(s: Dictionary) -> void:
 		w.on = PackedInt32Array()
 		if w.has("roof"):
 			w.roof.center += shift
-		var cmd := Commands.clean({"op": "wall", "ids": PackedInt32Array([id]), "walls": [w], "seq": world.seq + 1, "by": 0}, world.state, true)
+		var cmd := Commands.clean({"op": "wall", "ids": PackedInt32Array([id]), "walls": [w], "seq": world.seq + 1, "by": 0}, world.state, true, world.terrain)
 		assert(not cmd.is_empty(), "arrive: the shifted wall is not a command a visitor would apply")
 		world.seq = cmd.seq
 		world._timed(cmd)
@@ -682,7 +682,7 @@ func _paint(s: Dictionary) -> void:
 		flora_tool.coat_tree(trees[int(s.tree)][0], b.hand)
 		return
 	var path := _path(s)
-	b.meadow = FloraTool.paints_meadow(b.hand.tool, _along(path, 0.0))
+	b.meadow = FloraTool.paints_meadow(b.hand.tool, _along(path, 0.0), main.world.marks)
 	var t := 0.0
 	var seconds: float = s.get("seconds", 2.0)
 	while t < seconds:
@@ -701,7 +701,7 @@ func _pave(s: Dictionary) -> void:
 	var path := _path(s)
 	var mid := path[0].lerp(path[-1], 0.5)
 	for i in path.size():
-		path[i] = Terrain.ground(lerpf(mid.x, path[i].x, _area), lerpf(mid.z, path[i].z, _area))
+		path[i] = main.world.terrain.ground(lerpf(mid.x, path[i].x, _area), lerpf(mid.z, path[i].z, _area))
 	flora_tool.begin_path(b, path[0], s.radius)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
@@ -753,7 +753,7 @@ func _dig(s: Dictionary) -> void:
 func _pond(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	if s.has("brim"):
-		at.y = Water.brim(at.x, at.z, s.brim)
+		at.y = Water.brim(main.world.terrain, at.x, at.z, s.brim)
 	var hand := _hand(s)
 	var was := hand.tool
 	main.water_tool.fill(_holding(s, Hand.Tool.POND), at)
@@ -839,7 +839,7 @@ func _erase(s: Dictionary) -> void:
 		var duration := secs * path[i].distance_to(path[i + 1]) / maxf(length, 0.001)
 		while t < duration:
 			var point := path[i].lerp(path[i + 1], t / duration)
-			point.y = Terrain.height_at(point.x, point.z)
+			point.y = main.world.terrain.height_at(point.x, point.z)
 			tool.hold(self, point + up, Vector3.DOWN)
 			await get_tree().process_frame
 			t += get_process_delta_time()
@@ -881,9 +881,9 @@ func _stress(s: Dictionary) -> void:
 		z += spacing
 	var start := Time.get_ticks_usec()
 	for row in rows:
-		tool.begin_stroke(m, Terrain.ground(row[0].x, row[0].y))
+		tool.begin_stroke(m, main.world.terrain.ground(row[0].x, row[0].y))
 		for i in range(1, row.size()):
-			tool.extend_stroke(m, Terrain.ground(row[i].x, row[i].y))
+			tool.extend_stroke(m, main.world.terrain.ground(row[i].x, row[i].y))
 		var before := tool.walls.size()
 		tool.end_stroke(m)
 		for w in tool.walls.slice(before):
@@ -1085,7 +1085,7 @@ func _village(s: Dictionary) -> void:
 				continue
 			k += 1
 			var yaw := PI * 0.5 * (k % 2)
-			var at := Terrain.ground(c.x, c.y)
+			var at := main.world.terrain.ground(c.x, c.y)
 			var on := PackedInt32Array()
 			var entry: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
 			var size := Vector2(0.7, 0.44) * step
@@ -1114,7 +1114,7 @@ func _village(s: Dictionary) -> void:
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
 				var wing := at + Vector3.RIGHT.rotated(Vector3.UP, yaw) * step * 0.2
-				wing = Terrain.ground(wing.x, wing.z)
+				wing = main.world.terrain.ground(wing.x, wing.z)
 				var wing_at := WallTool.stance(wing, yaw)
 				wing_at.size = Vector2(0.3, 0.6) * step
 				wing_at.curve = s.get("curve", 0.0)
@@ -1131,7 +1131,7 @@ func _village(s: Dictionary) -> void:
 		path.seed = n + 1
 		for i in 9:
 			var p: Vector3 = f.at + f.out * lerpf(2.2, -1.0, i / 8.0)
-			path.add(Terrain.ground(p.x, p.z), f.half)
+			path.add(main.world.terrain.ground(p.x, p.z), f.half)
 		main.world.submit({"op": "path", "path": path.data()})
 	print("village: %d buildings in %.0f ms" % [tool.walls.size() - stood, (Time.get_ticks_usec() - start) / 1000.0])
 
@@ -1175,8 +1175,8 @@ func _clear(_s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-static func _scatter(rng: RandomNumberGenerator, radius: float, centre := Vector3.ZERO) -> Vector3:
-	return FloraLayout.brush(centre, radius, 1, rng, Terrain.height_at)[0]
+func _scatter(rng: RandomNumberGenerator, radius: float, centre := Vector3.ZERO) -> Vector3:
+	return FloraLayout.brush(centre, radius, 1, rng, main.world.terrain.height_at)[0]
 
 
 ## The port of the garden a script visits: its `port`, else the --host-port launch argument.
@@ -1243,7 +1243,7 @@ func _figures(s: Dictionary) -> void:
 	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
 	for at: Array in s.spots:
 		var a := Avatar.open(scene, Color.WHITE, path)
-		var foot := Terrain.ground(at[0], at[1])
+		var foot := main.world.terrain.ground(at[0], at[1])
 		a.transform = Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)
 		main.add_child(a)
 		_stood.append(a)
@@ -1300,7 +1300,7 @@ func _digest(s: Dictionary) -> void:
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
 		var h: Vector3 = main.rig.head.global_position
-		out.ground = {"feet": main.rig.global_position.y, "terrain": Terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z, "yaw": rad_to_deg(main.rig.global_rotation.y), "held": [Hand.Tool.keys()[main.rig.left.tool], Hand.Tool.keys()[main.rig.right.tool]]}
+		out.ground = {"feet": main.rig.global_position.y, "terrain": main.world.terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z, "yaw": rad_to_deg(main.rig.global_rotation.y), "held": [Hand.Tool.keys()[main.rig.left.tool], Hand.Tool.keys()[main.rig.right.tool]]}
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.avatar_choices = main.session._looks.values().map(func(v: Array) -> int: return v[0])
@@ -1372,7 +1372,7 @@ func _toss(s: Dictionary) -> void:
 	var v := Vector3(a[0], a[1], a[2])
 	var f: Array = s.get("from", [])
 	if f.size() == 3:
-		main.feed_tool.throw(Vector3(f[0], f[1] + Terrain.height_at(f[0], f[2]), f[2]), v)
+		main.feed_tool.throw(Vector3(f[0], f[1] + main.world.terrain.height_at(f[0], f[2]), f[2]), v)
 		return
 	var hand := _holding(s, Hand.Tool.SEEDS)
 	main.feed_tool.throw(main.feed_tool.dish(hand), main.feed_tool.launch(hand, v))
@@ -1516,8 +1516,8 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 		eye = frame * eye
 		at = frame * at
 	if s.get("ground", false):
-		eye.y += Terrain.height_at(eye.x, eye.z)
-		at.y += Terrain.height_at(at.x, at.z)
+		eye.y += main.world.terrain.height_at(eye.x, eye.z)
+		at.y += main.world.terrain.height_at(at.x, at.z)
 	if s.has("toward"):
 		var found := get_tree().get_nodes_in_group(s.toward)
 		if found.is_empty():
@@ -1540,8 +1540,8 @@ func _walk(s: Dictionary) -> void:
 	while t < seconds:
 		var eye := from.lerp(to, t / seconds)
 		var at: Vector3 = eye + dir * float(s.get("ahead", 10.0))
-		at.y = float(s.get("look", 0.0)) + Terrain.height_at(at.x, at.z)
-		eye.y += Terrain.height_at(eye.x, eye.z)
+		at.y = float(s.get("look", 0.0)) + main.world.terrain.height_at(at.x, at.z)
+		eye.y += main.world.terrain.height_at(eye.x, eye.z)
 		main.view(eye, at, false)
 		await get_tree().process_frame
 		t += get_process_delta_time()
@@ -1878,14 +1878,14 @@ func _quit(_s: Dictionary) -> void:
 ## With "relative", x is metres to the head's right and z metres ahead of it, so a script works whichever way the headset faces.
 func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	if not s.get("relative", false):
-		return Terrain.ground(x, z)
+		return main.world.terrain.ground(x, z)
 	var head: Node3D = main.rig.head
 	var fwd := -head.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
 	var right := fwd.cross(Vector3.UP)
 	var p := head.global_position + right * x + fwd * z
-	return Terrain.ground(p.x, p.z)
+	return main.world.terrain.ground(p.x, p.z)
 
 
 ## What the walls tool builds on at a ground spot: with "on", what a hand pointing straight down from above it
@@ -1906,7 +1906,7 @@ func _path(s: Dictionary) -> Array[Vector3]:
 
 
 ## The ground point `fraction` of the way along `path`.
-static func _along(path: Array[Vector3], fraction: float) -> Vector3:
+func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	var d := 0.0
 	for i in path.size() - 1:
 		d += path[i].distance_to(path[i + 1])
@@ -1915,7 +1915,7 @@ static func _along(path: Array[Vector3], fraction: float) -> Vector3:
 		var seg := path[i].distance_to(path[i + 1])
 		if d <= seg:
 			var p := path[i].lerp(path[i + 1], d / seg if seg > 0.0 else 0.0)
-			p.y = Terrain.height_at(p.x, p.z)
+			p.y = main.world.terrain.height_at(p.x, p.z)
 			return p
 		d -= seg
 	return path[-1]
@@ -2021,11 +2021,11 @@ func _stairs(s: Dictionary) -> void:
 	var a := Vector3(s.a[0], s.a[1], s.a[2])
 	var b := Vector3(s.b[0], s.b[1], s.b[2])
 	if s.get("ground", false):
-		a.y += Terrain.height_at(a.x, a.z)
-		b.y += Terrain.height_at(b.x, b.z)
+		a.y += main.world.terrain.height_at(a.x, a.z)
+		b.y += main.world.terrain.height_at(b.x, b.z)
 	if s.get("on", false):
-		a = _target(s, Terrain.ground(a.x, a.z)).point
-		b = _target(s, Terrain.ground(b.x, b.z)).point
+		a = _target(s, main.world.terrain.ground(a.x, a.z)).point
+		b = _target(s, main.world.terrain.ground(b.x, b.z)).point
 	main.stair_tool.begin(hand, a)
 	var frames := maxi(1, int(s.get("seconds", 1.0) * 30.0))
 	for i in frames:
@@ -2042,7 +2042,7 @@ func _stair_field(_s: Dictionary) -> void:
 	var placed := 0
 	for row in 9:
 		for col in 9:
-			var a := Terrain.ground((col - 4) * 3.5, (row - 4) * 6.0)
+			var a := main.world.terrain.ground((col - 4) * 3.5, (row - 4) * 6.0)
 			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col, "paint": Palette.plain(), "on": PackedInt32Array()}
 			if col % 3 == 1:
 				d.b = a + Vector3(0, 3, -1)
@@ -2069,7 +2069,7 @@ func _neck_cost(s: Dictionary) -> void:
 		var dish := Dish.new()
 		add_child(dish)
 		dish.visible = true
-		var at := Terrain.ground(12.0 + i * 1.8, 0)
+		var at := main.world.terrain.ground(12.0 + i * 1.8, 0)
 		dish.position = at + Vector3(0, 0.25 if i == 3 else [0.4, 0.8, 1.05][i], 0)
 		animal.position = at
 		animal.position.z += Hand.TOP.z + animal.neck.stand_off(animal, dish)
@@ -2147,6 +2147,7 @@ func _held_cost(s: Dictionary) -> void:
 	var eye: Transform3D = main.rig.head.global_transform
 	for i in (Session.MAX_PLAYERS - 1) * 2:
 		var item := HeldItem.new()
+		item.terrain = main.world.terrain
 		add_child(item)
 		item.global_transform = eye * Transform3D(Basis(), Vector3((i % 7 - 3) * 0.2, (i / 7 - 0.5) * 0.35, -0.8))
 		items.append(item)
@@ -2293,7 +2294,7 @@ func _bird_shown(s: Dictionary) -> void:
 func _view_held(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null)
-	h.global_transform = Transform3D(Basis.IDENTITY, Terrain.ground(1.5, 2.0) + Vector3.UP * 1.4)
+	h.global_transform = Transform3D(Basis.IDENTITY, main.world.terrain.ground(1.5, 2.0) + Vector3.UP * 1.4)
 	await _frames(30)
 	var at := h.carried.global_position + Vector3.UP * 0.07
 	var hand_pose := h.global_transform

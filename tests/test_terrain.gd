@@ -3,6 +3,9 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of shaping the ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain.gd
 
 var tool: GroundGrab
+var terrain: Terrain:
+	get:
+		return main.world.terrain
 
 
 func _initialize() -> void:
@@ -31,29 +34,29 @@ func _raycast_skips_only_open_air() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var spike := Rect2i(Terrain.grid_point(30, -30), Vector2i(2, 2))
-	var before := Terrain.read(spike)
+	var before := terrain.read(spike)
 	var raised := before.duplicate()
 	for n in raised.size():
 		raised[n] += 25.0
 	for phase in ["as shaped", "after a raise", "under a hump"]:
 		if phase == "after a raise":
-			Terrain.write(spike, raised)
+			terrain.write(spike, raised)
 		if phase == "under a hump":
-			Terrain.set_hump(0, -20, 20, 12, 15)
+			terrain.set_hump(0, -20, 20, 12, 15)
 		var wrong := 0
 		for k in 200:
 			var h := Terrain.SIZE * 0.5
 			var o := Vector3(rng.randf_range(-h, h), 0, rng.randf_range(-h, h))
-			o.y = Terrain.height_at(o.x, o.z) + rng.randf_range(0.5, 40.0)
+			o.y = terrain.height_at(o.x, o.z) + rng.randf_range(0.5, 40.0)
 			var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.4, 0.05), rng.randf_range(-1, 1)).normalized()
-			var reach := Terrain.exit_along(o, dir)
-			var got: Variant = Terrain.raycast(o, dir, reach)
+			var reach := terrain.exit_along(o, dir)
+			var got: Variant = terrain.raycast(o, dir, reach)
 			var want: Variant = _sampled_raycast(o, dir, reach)
 			if (got == null) != (want == null) or (got != null and got.distance_to(want) > 0.05):
 				wrong += 1
 		check(wrong == 0, "%s, %d of 200 rays find other ground than a ray sampling all the way" % [phase, wrong])
-	Terrain.clear_hump(0)
-	Terrain.write(spike, before)
+	terrain.clear_hump(0)
+	terrain.write(spike, before)
 
 
 func _sampled_raycast(origin: Vector3, dir: Vector3, reach: float) -> Variant:
@@ -61,13 +64,13 @@ func _sampled_raycast(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 	var t := 0.0
 	while t <= reach:
 		var p := origin + dir * t
-		if p.y <= Terrain.height_at(p.x, p.z):
+		if p.y <= terrain.height_at(p.x, p.z):
 			var lo := prev
 			var hi := t
 			for i in 30:
 				var mid := (lo + hi) * 0.5
 				var q := origin + dir * mid
-				if q.y <= Terrain.height_at(q.x, q.z):
+				if q.y <= terrain.height_at(q.x, q.z):
 					hi = mid
 				else:
 					lo = mid
@@ -78,23 +81,23 @@ func _sampled_raycast(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 
 
 func _all() -> PackedFloat32Array:
-	return Terrain.read(Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS))
+	return terrain.read(Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS))
 
 
 func _pull_raises_a_smooth_hill() -> void:
 	var original := _all()
-	var c := Terrain.ground(10, 10)
-	var far := Terrain.ground(10, 30)
+	var c := terrain.ground(10, 10)
+	var far := terrain.ground(10, 30)
 	tool.begin(tool.rig.right, c, 4.0)
 	tool.pull(tool.rig.right, 3.0)
-	check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
-	check(absf(Terrain.height_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
+	check(absf(terrain.shown_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
+	check(absf(terrain.shown_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
 	tool.end_stroke(tool.rig.right)
-	check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (Terrain.height_at(10, 10) - c.y))
+	check(absf(terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (terrain.height_at(10, 10) - c.y))
 	var steepest := 0.0
 	for i in 60:
 		var x := 10.0 + i * 0.25
-		steepest = maxf(steepest, absf(Terrain.height_at(x + 0.05, 10) - Terrain.height_at(x - 0.05, 10)) / 0.1)
+		steepest = maxf(steepest, absf(terrain.height_at(x + 0.05, 10) - terrain.height_at(x - 0.05, 10)) / 0.1)
 	check(steepest < 0.8, "the hill's flank stays walkable, slope %f" % steepest)
 	var raised := _all()
 	main.world.undo()
@@ -102,31 +105,31 @@ func _pull_raises_a_smooth_hill() -> void:
 	main.world.redo()
 	check(_all() == raised, "redo puts it back exactly")
 	main.world.undo()
-	var d := Terrain.ground(-5, 3)
+	var d := terrain.ground(-5, 3)
 	tool.begin(tool.rig.right, d, 3.0)
 	tool.pull(tool.rig.right, -2.0)
 	tool.end_stroke(tool.rig.right)
-	check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
+	check(absf(terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
 	main.world.undo()
 	check(_all() == original, "undo fills the dig")
 
 
 func _baking_a_live_hump_moves_nothing() -> void:
-	tool.begin(tool.rig.right, Terrain.ground(-12.5, 7.5), 2.0)
+	tool.begin(tool.rig.right, terrain.ground(-12.5, 7.5), 2.0)
 	tool.pull(tool.rig.right, 0.6)
 	var live := PackedFloat32Array()
 	for i in 50:
-		live.append(Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013))
+		live.append(terrain.shown_at(-14.0 + i * 0.06, 7.5 + i * 0.013))
 	tool.end_stroke(tool.rig.right)
 	var worst := 0.0
 	for i in 50:
-		worst = maxf(worst, absf(live[i] - Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
+		worst = maxf(worst, absf(live[i] - terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
 	check(worst < 1e-4, "ground under a hump grabbed between grid points stays put when it bakes, worst %f" % worst)
 	main.world.undo()
 
 
 func _texture_matches_the_heights() -> void:
-	tool.begin(tool.rig.right, Terrain.ground(20, -20), 3.0)
+	tool.begin(tool.rig.right, terrain.ground(20, -20), 3.0)
 	tool.pull(tool.rig.right, 2.0)
 	tool.end_stroke(tool.rig.right)
 	var worst := 0.0
@@ -137,9 +140,9 @@ func _texture_matches_the_heights() -> void:
 		for i in range(cells.position.x, cells.end.x):
 			var x := -Terrain.SIZE * 0.5 + i * e
 			var z := -Terrain.SIZE * 0.5 + j * e
-			var t := Terrain._image.get_pixel(i, j)
-			worst = maxf(worst, absf(t.r + t.b - Terrain.height_at(x, z)))
-			var n := Vector3(Terrain.height_at(x - e, z) - Terrain.height_at(x + e, z), 2.0 * e, Terrain.height_at(x, z - e) - Terrain.height_at(x, z + e)).normalized()
+			var t := terrain._image.get_pixel(i, j)
+			worst = maxf(worst, absf(t.r + t.b - terrain.height_at(x, z)))
+			var n := Vector3(terrain.height_at(x - e, z) - terrain.height_at(x + e, z), 2.0 * e, terrain.height_at(x, z - e) - terrain.height_at(x, z + e)).normalized()
 			tilt = maxf(tilt, Vector2(t.g - n.x, t.a - n.z).length())
 	check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
 	check(tilt < 0.002, "the GPU's normals match the CPU's heights after an edit, around it too, worst %f" % tilt)
@@ -151,32 +154,32 @@ func _texture_error() -> float:
 	var worst := 0.0
 	for j in Terrain.VERTS:
 		for i in Terrain.VERTS:
-			var t := Terrain._image.get_pixel(i, j)
-			worst = maxf(worst, absf(t.r + t.b - Terrain._heights[j * Terrain.VERTS + i]))
+			var t := terrain._image.get_pixel(i, j)
+			worst = maxf(worst, absf(t.r + t.b - terrain._heights[j * Terrain.VERTS + i]))
 	return worst
 
 
 func _pulls_go_as_far_as_the_hand() -> void:
 	var original := _all()
 	var clean: Variant = bytes_to_var(var_to_bytes(main.world.snapshot()))
-	var c := Terrain.ground(-30, 25)
+	var c := terrain.ground(-30, 25)
 	var ground: Node = main.get_children().filter(func(n: Node) -> bool: return n is Meadow)[0]
 	var meadow: MeshInstance3D = ground.get_children().filter(func(n: Node) -> bool: return n is MeshInstance3D and n.mesh is ArrayMesh)[0]
 	for lift in [600.0, -900.0]:
 		tool.begin(tool.rig.right, c, 4.0)
 		tool.pull(tool.rig.right, lift)
-		check(absf(Terrain.height_at(c.x, c.z) - c.y - lift) < 0.01, "a live pull of %d m moves the grabbed point all the way, %f" % [lift, Terrain.height_at(c.x, c.z) - c.y])
-		check(meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a live pull of %d m" % lift)
+		check(absf(terrain.shown_at(c.x, c.z) - c.y - lift) < 0.01, "a live pull of %d m moves the grabbed point all the way, %f" % [lift, terrain.shown_at(c.x, c.z) - c.y])
+		check(meadow.custom_aabb.has_point(Vector3(c.x, terrain.shown_at(c.x, c.z), c.z)), "the ground's box holds a live pull of %d m" % lift)
 		tool.end_stroke(tool.rig.right)
-		var h := Terrain.height_at(c.x, c.z)
+		var h := terrain.height_at(c.x, c.z)
 		check(absf(h - c.y - lift) < 0.01, "a stroke of %d m bakes all the way, %f" % [lift, h - c.y])
 		check(_texture_error() < 0.001, "the GPU's heights match the CPU's to a millimetre %d m off, worst %f" % [lift, _texture_error()])
-		check(Terrain.bounds().has_point(Terrain.ground(c.x, c.z)) and meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a %d m stroke" % lift)
-		check(Rig.far() > Terrain.bounds().size.length(), "the eyes see the whole ground %d m off" % lift)
+		check(terrain.bounds().has_point(terrain.ground(c.x, c.z)) and meadow.custom_aabb.has_point(terrain.ground(c.x, c.z)), "the ground's box holds a %d m stroke" % lift)
+		check(main.rig.far() > terrain.bounds().size.length(), "the eyes see the whole ground %d m off" % lift)
 		var kept: Variant = bytes_to_var(var_to_bytes(main.world.snapshot()))
 		main.world.undo()
 		check(_all() == original, "undo takes a %d m stroke away exactly" % lift)
-		check(main.world.restore_whole(kept) and absf(Terrain.height_at(c.x, c.z) - h) < 1e-4, "a saved garden keeps a %d m stroke" % lift)
+		check(main.world.restore_whole(kept) and absf(terrain.height_at(c.x, c.z) - h) < 1e-4, "a saved garden keeps a %d m stroke" % lift)
 		check(main.world.restore_whole(bytes_to_var(var_to_bytes(clean))) and _all() == original, "the garden as it was comes back after a %d m stroke" % lift)
 
 
@@ -185,31 +188,31 @@ func _a_guest_may_reshape_the_whole_ground() -> void:
 	for n in values.size():
 		values[n] += 2000.0 if n % 2 else -2000.0
 	var cmd := {"op": "heights", "cells": Terrain.ALL, "values": values}
-	check(not Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke may cover the whole ground and reach 2 km either way")
+	check(not Commands.clean(cmd, main.world.state, false, main.world.terrain).is_empty(), "a guest's stroke may cover the whole ground and reach 2 km either way")
 	values[7] = NAN
-	check(Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke with no height is turned down")
+	check(Commands.clean(cmd, main.world.state, false, main.world.terrain).is_empty(), "a guest's stroke with no height is turned down")
 
 
 func _a_ray_reaches_ground_across_the_garden() -> void:
-	var from := Terrain.ground(-70, 0) + Vector3.UP * 20.0
-	var to := Terrain.ground(70, 0)
-	var hit: Variant = Terrain.raycast(from, (to - from).normalized())
+	var from := terrain.ground(-70, 0) + Vector3.UP * 20.0
+	var to := terrain.ground(70, 0)
+	var hit: Variant = terrain.raycast(from, (to - from).normalized())
 	check(hit != null and (hit as Vector3).distance_to(to) < 1.0, "a hand reaches ground across the whole garden, %s for %s" % [hit, to])
-	check(Terrain.raycast(from, Vector3(1, 0.2, 0).normalized()) == null, "a ray into the sky still meets nothing")
+	check(terrain.raycast(from, Vector3(1, 0.2, 0).normalized()) == null, "a ray into the sky still meets nothing")
 
 
 func _height_between_grid_points_is_continuous() -> void:
 	var worst := 0.0
 	for i in 400:
 		var x := -20.0 + i * 0.1
-		worst = maxf(worst, absf(Terrain.height_at(x + 0.001, 1.3) - Terrain.height_at(x, 1.3)))
+		worst = maxf(worst, absf(terrain.height_at(x + 0.001, 1.3) - terrain.height_at(x, 1.3)))
 	check(worst < 0.01, "the ground has no steps between grid points, worst %f" % worst)
 
 
 func _on_ground(w: Wall) -> float:
 	var worst := 0.0
 	for p in w.layout.samples:
-		worst = maxf(worst, absf(p.y + 0.12 - Terrain.height_at(p.x, p.z)))
+		worst = maxf(worst, absf(p.y + 0.12 - terrain.height_at(p.x, p.z)))
 	return worst
 
 
@@ -236,7 +239,7 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	var buried := 0
 	for s in w.layout.stones:
 		var o: Vector3 = s.xform.origin
-		if o.y < Terrain.height_at(o.x, o.z) - 0.6:
+		if o.y < terrain.height_at(o.x, o.z) - 0.6:
 			buried += 1
 	check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
 	await play([{"op": "press", "button": "dpad_down"}])
@@ -261,12 +264,12 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 		started.wait()
 	w.rebuild(false)
 	var cells := Terrain.cells_around(0, -2.5, 6.0)
-	var before := Terrain.read(cells)
-	var shared := Terrain.read(Terrain.ALL)
+	var before := terrain.read(cells)
+	var shared := terrain.read(Terrain.ALL)
 	var dug := before.duplicate()
 	for n in dug.size():
 		dug[n] -= 1.0
-	Terrain.write(cells, dug)
+	terrain.write(cells, dug)
 	shared = PackedFloat32Array()
 	for h in holds:
 		gate.post()
@@ -277,6 +280,6 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	for n in laid.size():
 		worst = maxf(worst, absf(w.layout.samples[n].y - laid[n].y))
 	check(w.layout.samples.size() == laid.size() and worst < 0.001, "a lay begun before a dig stands on the ground it began on, worst %f" % worst)
-	Terrain.write(cells, before)
+	terrain.write(cells, before)
 	w.rebuild()
 	w.lay_now()

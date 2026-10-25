@@ -15,6 +15,7 @@ const WADE := 0.1
 signal refilled(area: Rect2)
 
 var hands: Array[Node3D] = []
+var terrain: Terrain
 var ponds: Array[PondWater] = []
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
 var _owner := PackedInt32Array()
@@ -32,17 +33,18 @@ class Wade:
 	var since := 0.0
 
 
-func _init(touching: Array[Node3D]) -> void:
+func _init(ground: Terrain, touching: Array[Node3D]) -> void:
+	terrain = ground
 	hands = touching
 	_owner.resize(Terrain.VERTS * Terrain.VERTS)
 	_owner.fill(-1)
-	Terrain.dry_water()
+	terrain.dry_water()
 
 
-## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null; `near`
+## The pond grid point `at` fills over `ground` as it stands, with water no higher than `level`, or null; `near`
 ## as `PondLayout.fill` takes it.
-static func fill(at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
-	var heights := Terrain.read(Terrain.ALL)
+static func fill(ground: Terrain, at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
+	var heights := ground.read(Terrain.ALL)
 	for k: Array in _known:
 		if k[1] == at and k[2] == level and k[3] == near and k[0] == heights:
 			return k[4]
@@ -54,31 +56,31 @@ static func know(known: Array) -> void:
 	_known = known
 
 
-## The level a hollow pressed at (x, z) out to `radius` holds to its brim, 8 cm under the lowest point of its rim,
-## as if what spilled over ran away; -INF when it holds none. On ground lower all round, water filled higher spills
-## into the ground around and fills that too.
-static func brim(x: float, z: float, radius: float) -> float:
+## The level a hollow pressed into `ground` at (x, z) out to `radius` holds to its brim, 8 cm under the lowest point
+## of its rim, as if what spilled over ran away; -INF when it holds none. On ground lower all round, water filled
+## higher spills into the ground around and fills that too.
+static func brim(ground: Terrain, x: float, z: float, radius: float) -> float:
 	var cells := Terrain.cells_around(x, z, radius + Terrain.STEP * 2.0)
-	var p := PondLayout.fill(Terrain.read(cells), cells, Terrain.grid_point(x, z))
+	var p := PondLayout.fill(ground.read(cells), cells, Terrain.grid_point(x, z))
 	return p.level if p != null else -INF
 
 
-## The pond that filling to the height of ground point `point` makes: of the hollows the grid points around it
+## The pond that filling to the height of `ground`'s point `point` makes: of the hollows the grid points around it
 ## run down into, the one holding the most water. Null when none holds any.
-static func pointed(point: Vector3) -> PondLayout.Pond:
-	return deepest(candidates(point), point.y)
+static func pointed(ground: Terrain, point: Vector3) -> PondLayout.Pond:
+	return deepest(candidates(ground, point), point.y)
 
 
-## What `deepest` fills from for a point: per hollow the grid points around it run down into, one of those
-## points and the ground around it, as [grid point, window, heights].
-static func candidates(point: Vector3) -> Array:
+## What `deepest` fills from for a point of `ground`: per hollow the grid points around it run down into, one of
+## those points and the ground around it, as [grid point, window, heights].
+static func candidates(ground: Terrain, point: Vector3) -> Array:
 	var g := Terrain.grid_point(point.x, point.z)
-	var heights := Terrain.read(Terrain.ALL)
+	var heights := ground.read(Terrain.ALL)
 	var out := []
 	var bottoms := {}
 	for o in [Vector2i.ZERO] + PondLayout.NEIGHBOURS:
 		var at: Vector2i = (g + o).clamp(Vector2i.ZERO, Vector2i.ONE * Terrain.CELLS)
-		var bottom := Terrain.downhill(at)
+		var bottom := ground.downhill(at)
 		if not bottoms.has(bottom):
 			bottoms[bottom] = true
 			out.append([at, Terrain.ALL, heights])
@@ -129,8 +131,8 @@ func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 	if refill == null or refill.image == null:
 		refill = Refill.new()
 		refill.found = found
-		refill.heights = Terrain.read(Terrain.ALL)
-		refill.publish(Terrain.water_levels(), _written, _owner, shown())
+		refill.heights = terrain.read(Terrain.ALL)
+		refill.publish(terrain.water_levels(), _written, _owner, shown())
 	var was := ponds
 	var old := ponds.duplicate()
 	ponds = []
@@ -150,17 +152,17 @@ func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 		w.queue_free()
 	_owner = refill.owner
 	_written = refill.written
-	Terrain.set_water(refill.levels, refill.image)
+	terrain.set_water(refill.levels, refill.image)
 	if refill.changed.has_area():
 		refilled.emit(Terrain.world_rect(refill.changed.grow_individual(0, 0, 1, 1)))
 
 
-static func drowned(at: Vector3) -> bool:
-	return Terrain.depth_at(at.x, at.z) > DROWNS
+static func drowned(ground: Terrain, at: Vector3) -> bool:
+	return ground.depth_at(at.x, at.z) > DROWNS
 
 
 func floor_at(p: Vector3) -> float:
-	var ground := Terrain.height_at(p.x, p.z)
+	var ground := terrain.height_at(p.x, p.z)
 	var pond := pond_at(p.x, p.z)
 	return maxf(ground, pond.surface_y()) if pond != null else ground
 
@@ -169,7 +171,7 @@ func floor_at(p: Vector3) -> float:
 func pond_at(x: float, z: float) -> PondWater:
 	var g := Terrain.grid_point(x, z)
 	var i := _owner[g.y * Terrain.VERTS + g.x]
-	if i < 0 or Terrain.height_at(x, z) >= ponds[i].pond.level:
+	if i < 0 or terrain.height_at(x, z) >= ponds[i].pond.level:
 		return null
 	return ponds[i]
 

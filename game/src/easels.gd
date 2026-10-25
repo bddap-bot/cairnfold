@@ -71,6 +71,7 @@ const WATER := Color(0.38, 0.62, 0.86, 0.75)
 
 static var _mats := {}
 
+var terrain: Terrain
 var easels := {}
 
 
@@ -228,15 +229,15 @@ func stand(id: int, at: Vector3, yaw: float) -> void:
 		e.transform = on_ground(at, yaw)
 
 
-## Stands each easel over the ground reshaped in `area` on it again.
+## Stands each easel over the ground reshaped in `area` on it again, as this player now sees it.
 func reseat(area: Rect2, _settled := true) -> void:
 	for e: Easel in easels.values():
 		if area.grow(Terrain.STEP).has_point(Vector2(e.position.x, e.position.z)):
-			e.position.y = Terrain.height_at(e.position.x, e.position.z)
+			e.position.y = terrain.shown_at(e.position.x, e.position.z)
 
 
-static func on_ground(at: Vector3, yaw: float) -> Transform3D:
-	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, Terrain.height_at(at.x, at.z), at.z))
+func on_ground(at: Vector3, yaw: float) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, terrain.height_at(at.x, at.z), at.z))
 
 
 ## The easel whose stand, its legs or tray, a ray from `origin` along `dir` meets first within `reach`, the canvas in

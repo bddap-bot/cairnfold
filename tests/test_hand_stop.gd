@@ -33,8 +33,8 @@ func _run() -> void:
 func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 	var rig: Rig = main.rig
 	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
-	for case: Array in [["in a wall", Terrain.ground(-2, -6), 0.0], ["under a hill", Terrain.ground(0, 10), -3.0]]:
-		rig.place(Terrain.ground(0, 0), 0.0)
+	for case: Array in [["in a wall", main.world.terrain.ground(-2, -6), 0.0], ["under a hill", main.world.terrain.ground(0, 10), -3.0]]:
+		rig.place(main.world.terrain.ground(0, 0), 0.0)
 		await frames(30)
 		var clear: float = dim.call()
 		rig.place(case[1], 0.0)
@@ -43,7 +43,7 @@ func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 		await frames(30)
 		var inside: float = dim.call()
 		check(clear == 0.0 and inside >= Rig.INSIDE_DIM - 0.01 and rig.global_position == at, "an eye %s sees dark, %.2f from %.2f, unmoved" % [case[0], inside, clear])
-		rig.place(Terrain.ground(0, 0), 0.0)
+		rig.place(main.world.terrain.ground(0, 0), 0.0)
 		await frames(30)
 		check(dim.call() == 0.0, "and clear once out of it")
 
@@ -178,7 +178,7 @@ func _seen() -> Vector3:
 
 
 func _the_ground_stops_a_hand() -> void:
-	var g := Terrain.height_at(4.0, 4.0)
+	var g := main.world.terrain.height_at(4.0, 4.0)
 	await _hold(Vector3(4, g + 0.3, 4))
 	await _hold(Vector3(4, g + 0.1, 4))
 	for k in 5:
@@ -187,7 +187,7 @@ func _the_ground_stops_a_hand() -> void:
 	check(absf(rest.y - (g + HandStop.RADIUS)) < 0.02, "a hand pushed 0.4 m into the ground stays on it: %.3f over %.3f" % [rest.y, g])
 	await _hold(Vector3(4.2, g - 0.4, 4))
 	var seen := _seen()
-	var on := Terrain.height_at(seen.x, seen.z) + HandStop.RADIUS
+	var on := main.world.terrain.height_at(seen.x, seen.z) + HandStop.RADIUS
 	check(Vector2(seen.x - 4.2, seen.z - 4.0).length() < 0.04 and absf(seen.y - on) < 0.01, "pushed into the ground it slides across it, to the nearest point on it %s" % seen)
 	await _hold(Vector3(4.2, g + 0.5, 4))
 	check(_seen().is_equal_approx(Vector3(4.2, g + 0.5, 4)), "lifted clear, it is back on its controller")
@@ -253,27 +253,29 @@ func _a_trunk_is_solid_and_its_leaves_are_brushed() -> void:
 	check(trunk != null, "the meadow has a tree")
 	if trunk == null:
 		return
-	var base := Vector3(trunk.anchor.x, Terrain.base_at(trunk.anchor.x, trunk.anchor.z), trunk.anchor.z)
-	var near := HandStop.Near.gather(null, flora, AABB(base, Vector3.ZERO).grow(6.0))
+	var base := Vector3(trunk.anchor.x, main.world.terrain.height_at(trunk.anchor.x, trunk.anchor.z), trunk.anchor.z)
+	var near := HandStop.Near.gather(main.world, AABB(base, Vector3.ZERO).grow(6.0))
 	var mid := base + Vector3.UP * 0.6
 	check(near.touch(mid) == HandStop.Surface.BARK, "a trunk is solid bark")
 	check(not near.solid(mid + Vector3(1.2, 0, 0)), "beside it is not")
-	var at := leaf.xform.translated(Vector3.UP * Terrain.base_at(leaf.anchor.x, leaf.anchor.z))
+	var at := leaf.xform.translated(Vector3.UP * main.world.terrain.height_at(leaf.anchor.x, leaf.anchor.z))
 	var centre := at * leaf.pool.mesh.get_aabb().get_center()
 	check(near.passing(centre) == HandStop.Surface.LEAVES and not near.solid(centre), "leaves are brushed, not solid")
 
 
 func _surfaces_come_from_what_is_touched(wall: Wall) -> void:
 	var p := wall.layout.point_at(1.0) + Vector3.UP * (WallLayout.SINK + 1.0)
-	var near := HandStop.Near.gather(main.tool, null, AABB(p, Vector3.ZERO).grow(1.0))
+	var near := HandStop.Near.gather(main.world, AABB(p, Vector3.ZERO).grow(1.0))
 	check(near.touch(p) == HandStop.Surface.STONE, "a stone wall feels of stone")
-	var g := Terrain.ground(10.0, 10.0)
+	var g := main.world.terrain.ground(10.0, 10.0)
 	check(near.touch(g) == HandStop.Surface.GROUND, "the meadow feels of ground")
 
 
 func _animals_are_solid_in_their_coats() -> void:
-	var g := Terrain.ground(-6.0, 6.0)
-	var critters: Array[Critter] = [Sheep.new(0.0, 1.0, Color.WHITE), Duck.new(false, 0.0), Conure.new(0.0, 0)]
+	var g := main.world.terrain.ground(-6.0, 6.0)
+	var conure := Conure.new(0.0, 0)
+	conure.terrain = main.world.terrain
+	var critters: Array[Critter] = [Sheep.new(0.0, 1.0, Color.WHITE), Duck.new(false, 0.0), conure]
 	var coats := [HandStop.Surface.WOOL, HandStop.Surface.DOWN, HandStop.Surface.FEATHERS]
 	for k in critters.size():
 		var c := critters[k]
@@ -281,7 +283,7 @@ func _animals_are_solid_in_their_coats() -> void:
 		c.global_position = g + Vector3(k * 2.0, 0.5, 0.0)
 		var centre := c.global_transform * c.mesh.get_aabb().get_center()
 		var box := AABB(centre, Vector3.ZERO).grow(0.5)
-		var near := HandStop.Near.gather(null, null, box)
+		var near := HandStop.Near.gather(main.world, box)
 		near.focus(box, main.get_tree().get_nodes_in_group(HandStop.CRITTERS))
 		check(near.touch(centre) == coats[k], "a %s is solid, in its coat" % HandStop.Surface.keys()[coats[k]])
 		var above := centre + Vector3.UP * 0.6
@@ -290,8 +292,9 @@ func _animals_are_solid_in_their_coats() -> void:
 
 
 func _a_hand_does_not_stop_against_the_bird_it_carries() -> void:
-	var g := Terrain.ground(-8.0, -2.0)
+	var g := main.world.terrain.ground(-8.0, -2.0)
 	var bird := Conure.new(0.0, 0)
+	bird.terrain = main.world.terrain
 	main.add_child(bird)
 	bird.global_position = g + Vector3.UP * 1.0
 	var centre := bird.global_transform * bird.mesh.get_aabb().get_center()

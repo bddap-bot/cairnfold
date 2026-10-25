@@ -7,7 +7,6 @@ const STEP := 1.0 / 30.0
 
 
 func _initialize() -> void:
-	Terrain.install()
 	await process_frame
 	await _they_come_out_at_dusk_over_what_is_made()
 	finish()
@@ -19,29 +18,32 @@ func _run(wildlife: Wildlife, seconds: float) -> void:
 
 
 func _they_come_out_at_dusk_over_what_is_made() -> void:
-	var rig := Rig.new()
-	root.add_child(rig)
 	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
 	root.add_child(world)
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
-	var water := Water.new([])
+	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
-	var flora := Flora.new()
+	var flora := Flora.new(world.terrain, world.marks)
 	root.add_child(flora)
 	var paths := Paths.new()
+	paths.terrain = world.terrain
+	paths.marks = world.marks
 	root.add_child(paths)
 	world.attach(null, flora, paths, terrain, water)
 	var painter := FloraTool.new(rig, flora, paths, world)
 	painter.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(painter)
-	var look := Look.build(root)
+	var look := Look.build(root, world.terrain)
 	var palette := Palette.new()
 	var no_hands: Array[Node3D] = []
 	await process_frame
-	var wildlife := Wildlife.new(water, flora, null, palette, rig.head, no_hands, 3, look)
+	var wildlife := Wildlife.new(world.terrain, world.marks, water, flora, null, palette, rig.head, no_hands, 3, look)
 	root.add_child(wildlife)
 	wildlife.set_process(false)
 	var ff := wildlife.fireflies
@@ -68,7 +70,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 			var shore := INF
 			for g in pond.pond.shore:
 				shore = minf(shore, Terrain.grid_xz(g).distance_to(Vector2(s.x, s.z)))
-			var ground := maxf(Terrain.height_at(s.x, s.z), pond.surface_y())
+			var ground := maxf(world.terrain.height_at(s.x, s.z), pond.surface_y())
 			near = near and shore <= Fireflies.SHORE_SPREAD + 0.01 and s.y - ground >= Fireflies.HEIGHT.x - 0.01 and s.y - ground <= Fireflies.HEIGHT.y + 0.01
 	check(near, "they hover low by the pond's shore")
 	check(ff.dusk() > 0.9, "it is dark at the end of the day, %.2f" % ff.dusk())
@@ -96,7 +98,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	var b := painter.brushes[0]
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 90:
-		painter.paint(b, Terrain.ground(-6, 3), 1.0, STEP)
+		painter.paint(b, world.terrain.ground(-6, 3), 1.0, STEP)
 	painter.end_stroke(b)
 	painter.flora.grow_now()
 	_run(wildlife, 3.0)

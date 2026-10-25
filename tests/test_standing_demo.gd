@@ -28,7 +28,7 @@ func _tour() -> void:
 		aims += 1
 		var h := rig.head.global_position
 		var under: float = rig.floor_under.call(Vector3(h.x, rig.global_position.y + Rig.LIFTED, h.z))
-		var ground := Terrain.height_at(h.x, h.z)
+		var ground := main.world.terrain.height_at(h.x, h.z)
 		var lift := rig.global_position.y - under
 		var what := "aim %d, stick %.2f, at %s" % [aims, step.stick, h]
 		check(under > ground + 1.0, "%s: lets go over a build's top %.2f, not the ground %.2f" % [what, under, ground])
@@ -63,5 +63,5 @@ func _stress_wall_walk() -> void:
 		views += 1
 		var eye: Vector3 = main.rig.head.global_position
 		var walk: float = main.rig.floor_under.call(eye + Vector3.DOWN * (Rig.EYE - WallLayout.SINK))
-		check(walk > Terrain.height_at(eye.x, eye.z) + 4.0 and absf(eye.y - walk - Rig.EYE) < 0.15, "%s looks out from a standing player's eyes on the wall walk: eyes %.2f over %.2f" % [main.metrics.info.label, eye.y, walk])
+		check(walk > main.world.terrain.height_at(eye.x, eye.z) + 4.0 and absf(eye.y - walk - Rig.EYE) < 0.15, "%s looks out from a standing player's eyes on the wall walk: eyes %.2f over %.2f" % [main.metrics.info.label, eye.y, walk])
 	check(views == 2, "the stress scene has two standing views: %d" % views)

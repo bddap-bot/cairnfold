@@ -39,24 +39,26 @@ var _editors: Array
 func _ready() -> void:
 	args = _parse(launch_args())
 	get_viewport().use_occlusion_culling = true
-	Terrain.install()
-	Ground.install()
-	look = Look.build(self)
-	var flora := Flora.new()
+	world = World.new()
+	world.terrain.install()
+	world.marks.install()
+	look = Look.build(self, world.terrain)
+	var flora := Flora.new(world.terrain, world.marks)
 	add_child(flora)
 	add_child(Meadow.new(flora))
-	rig = Rig.new()
+	rig = Rig.new(world.terrain)
 	add_child(rig)
 	book = Book.new()
 	book.rig = rig
 	add_child(book)
-	world = World.new()
 	world.look = look
 	add_child(world)
 	var builds := Node3D.new()
 	builds.name = "Builds"
 	add_child(builds)
 	var paths := Paths.new()
+	paths.terrain = world.terrain
+	paths.marks = world.marks
 	builds.add_child(paths)
 	flora_tool = FloraTool.new(rig, flora, paths, world)
 	add_child(flora_tool)
@@ -69,14 +71,16 @@ func _ready() -> void:
 	add_child(stair_tool)
 	tool.masonry.placed.connect(look.bounce.place)
 	boulders = Boulders.new()
+	boulders.terrain = world.terrain
 	builds.add_child(boulders)
-	hand_stop = HandStop.new(rig, tool, flora, boulders)
+	hand_stop = HandStop.new(world, rig)
 	add_child(hand_stop)
 	fitting_tool = FittingTool.new(rig, tool, world)
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)
 	add_child(delete_tool)
 	easels = Easels.new()
+	easels.terrain = world.terrain
 	builds.add_child(easels)
 	easel_tool = EaselTool.new(rig, easels, world)
 	easel_tool.canvas_contact.connect(Cues.canvas_contact)
@@ -91,7 +95,7 @@ func _ready() -> void:
 	add_child(ground_grab)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
-	water = Water.new(hands)
+	water = Water.new(world.terrain, hands)
 	water.refilled.connect(tool.reground.bind(true))
 	add_child(water)
 	water_tool = WaterTool.new(rig, world)
@@ -129,9 +133,9 @@ func _ready() -> void:
 	if args.has("join"):
 		var at: PackedStringArray = str(args.join).split(":")
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
-	wildlife = Wildlife.new(water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)), look)
+	wildlife = Wildlife.new(world.terrain, world.marks, water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)), look)
 	add_child(wildlife)
-	feed_tool = FeedTool.new(rig, water)
+	feed_tool = FeedTool.new(rig, water, world.terrain)
 	add_child(feed_tool)
 	wildlife.handfuls = feed_tool.handfuls
 	wildlife.dishes = session.dishes
