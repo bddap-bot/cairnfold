@@ -220,8 +220,8 @@ building tools act. A paused player releases their local grip.
 At 30 Hz the wearer's pose packet includes world-space chain endpoints and current
 holders. Replicas interpolate those endpoints and apply rotations without another
 simulation, so release motion and collision results come from the same owner. Late
-joiners receive the next complete snapshot. Nonfinite positions, points beyond 5 m
-from the head, mismatched endpoint counts and invalid holder records are rejected.
+joiners receive the next complete snapshot. Nonfinite positions, points outside the pose
+packet's world bounds, mismatched endpoint counts and invalid holder records are rejected.
 Snapshots and grip requests are transient avatar state, separate from garden commands.
 
 `demo/avatar-springs-host.json` and `demo/avatar-springs-guest.json` drive a real

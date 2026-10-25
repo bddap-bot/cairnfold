@@ -738,15 +738,16 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
 	var avatar: Avatar = avatars[id]
-	if avatar.springs != null and springs.size() != avatar.springs.point_count:
-		return
+	if avatar.springs == null or springs.size() != avatar.springs.point_count:
+		springs = PackedVector3Array()
+		holders = {}
 	for chain in holders:
 		var holder: Variant = holders[chain]
 		if not chain is int or chain < 0 or avatar.springs == null or chain >= avatar.springs.chains.size() or not holder is Array or holder.size() != 2 or not holder[0] is int or not holder[1] is int or holder[1] < 0 or holder[1] > 1:
 			return
 	avatar.spring_holders = holders
 	for point in springs:
-		if not point.is_finite() or point.distance_to(eyes.origin) > 5.0:
+		if not point.is_finite() or not room.has_point(point):
 			return
 	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs]
 	var a: Avatar = avatars[id]
@@ -806,7 +807,7 @@ func _spring_input(delta: float) -> void:
 	for chain: int in _spring_holds.keys():
 		var holder: Array = _spring_holds[chain]
 		var hand: Variant = _spring_hand(holder[0], holder[1])
-		if hand == null or chain >= rig.body.springs.chains.size() or hand.distance_to(rig.head.global_position) > 3.0:
+		if hand == null or chain >= rig.body.springs.chains.size():
 			_spring_holds.erase(chain)
 		else:
 			rig.body.springs.targets[chain] = hand

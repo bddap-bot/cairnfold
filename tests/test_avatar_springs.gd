@@ -47,6 +47,11 @@ func _run() -> void:
 	peer.pose(eyes, grasp, grasp)
 	session._hold_spring(42, 0, 0)
 	check(session._spring_holds.is_empty(), "distant remote grab is rejected")
+	session.avatars[0] = peer
+	session._pose(eyes, grasp, grasp, Vector3.FORWARD, PackedVector3Array([Vector3.ZERO]), {})
+	check(session._targets.has(0), "head and hands continue while a different avatar's springs are loading")
+	session._targets.erase(0)
+	session.avatars.erase(0)
 	session.avatars.erase(42)
 	peer.queue_free()
 	for i in Avatar.BUILT_IN.size():

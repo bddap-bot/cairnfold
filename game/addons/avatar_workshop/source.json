@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "6681ab03eee4dbc8f1fb2346e293cd67d58ce597",
+  "commit": "68347a7715a751c703cee0b370c7242284fcd26e",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
@@ -9,11 +9,11 @@
     },
     "spring_definition.gd": {
       "source": "addons/avatar_workshop/spring_definition.gd",
-      "sha256": "82731c8f49106732f94bf5623e0565ad19dce4090c3eba831cb7611e7dd51589"
+      "sha256": "b728828485be97a079cffa91999cd6237a9e81c6507f9498080e548a103a86c4"
     },
     "spring_runtime.gd": {
       "source": "addons/avatar_workshop/spring_runtime.gd",
-      "sha256": "024b25ac30c955aaec65807f3f9286658d485431cbf2c780d82bc71a1ea1cfe3"
+      "sha256": "e9574cf3a784e14ee7e6fe24d6ae7570c82fa0053a58e5876d330a98c3b90142"
     },
     "LICENSE-godot-vrm": {
       "source": "addons/avatar_workshop/LICENSE-godot-vrm",
@@ -26,6 +26,14 @@
     "LICENSE-APACHE": {
       "source": "LICENSE-APACHE",
       "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+    },
+    "spring_definition.gd.uid": {
+      "source": "addons/avatar_workshop/spring_definition.gd.uid",
+      "sha256": "a380978c4897e694dc39ef69d2fcb78f1fc8c2829bcf4cdedf35750e16a671a0"
+    },
+    "spring_runtime.gd.uid": {
+      "source": "addons/avatar_workshop/spring_runtime.gd.uid",
+      "sha256": "7654df43dd27664e32dc965b73c05d0dedc71cc635c4f904a625164868e368ee"
     }
   }
 }

@@ -85,5 +85,9 @@
    "gpu_ms": 8.04,
    "timewarp_ms": 1.14
   }
+ },
+ "avatar_fixture": {
+  "file": "tests/avatars/crimsom-1.0.vrm",
+  "sha256": "5e3c8ed83115517662345ecbb6cc83f21a994691b022e1e7abd47d2cacd74f48"
  }
 }

@@ -158,4 +158,6 @@ func _tassel(root: Node3D) -> void:
 		parent = _bone(parent, name, Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
 		_part(parent, _cylinder(0.012, 0.016, 0.09, 5), _tint(), Vector3(0, -0.045, 0), Vector3.ONE)
 		joints.append({"node": name, "stiffness": 0.35, "gravityPower": 0.08, "gravityDir": [0, -1, 0], "dragForce": 0.25, "hitRadius": 0.015})
+	_bone(parent, "tasselTip", Vector3(0, -0.09, 0))
+	joints.append({"node": "tasselTip"})
 	root.set_meta("springs", {"specVersion": "1.0", "springs": [{"joints": joints, "colliderGroups": [0]}], "colliders": [{"node": "head", "shape": {"sphere": {"offset": [0, 0.12, 0], "radius": 0.145}}}], "colliderGroups": [{"colliders": [0]}]})
