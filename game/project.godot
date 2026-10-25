@@ -27,6 +27,11 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+water_ray={
+"type": "vec3",
+"value": Vector3(0, -1, 0)
+}
+
 view_grade={
 "type": "vec2",
 "value": Vector2(1, 1)

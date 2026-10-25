@@ -198,6 +198,7 @@ func set_time(t: float) -> void:
 	time = t
 	var l := Daylight.light(t)
 	var toward := Daylight.toward_light(t)
+	RenderingServer.global_shader_parameter_set(&"water_ray", Underwater.into_water(-toward))
 	sun.basis = Basis.looking_at(-toward)
 	for light in [sun, photo_sun]:
 		light.light_color = l.sun

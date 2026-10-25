@@ -5,11 +5,11 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, 
 // wrapped into a box about the head, fading out toward the box's edge, so none follows the head and none pops.
 uniform float level;
 uniform float reach;
-uniform vec3 ray;
+uniform float bottom;
 uniform vec3 sun;
 uniform vec3 ambient;
 
-const float SHAFT_LENGTH = 2.5;
+#include "res://src/bed_light.gdshaderinc"
 
 varying float kind;
 varying vec2 corner;
@@ -35,13 +35,14 @@ void vertex() {
 		shown = (1.0 - smoothstep(0.6, 1.0, length(off) / reach)) * smoothstep(0.5, 1.0, length(p - eye));
 		p += (INV_VIEW_MATRIX[0].xyz * corner.x + INV_VIEW_MATRIX[1].xyz * corner.y) * size;
 	} else {
-		float wide = reach;
-		vec2 off = mod(VERTEX.xz * 1.5 + TIME * vec2(0.04, 0.025) - head.xz + wide, 2.0 * wide) - wide;
-		vec3 top = vec3(head.x + off.x, level, head.z + off.y);
-		vec3 side = normalize(cross(ray, top - eye));
-		p = top + ray * along * SHAFT_LENGTH + side * corner.x * (0.12 + COLOR.b * 0.25);
-		shown = (1.0 - smoothstep(0.55, 1.0, length(off) / wide))
-			* smoothstep(0.8, 1.8, length(top + ray * SHAFT_LENGTH * 0.5 - eye)) * (0.55 + 0.45 * sin(TIME * 0.35 + phase));
+		vec2 surface_eye = head.xz - water_ray.xz * (level - head.y) / -water_ray.y;
+		vec2 cell = floor(surface_eye / DAPPLE_CELL) + VERTEX.xz;
+		vec3 top = vec3(dapple_center(cell).x, level, dapple_center(cell).y);
+		vec3 side = normalize(cross(water_ray, top - eye));
+		float span = max(0.0, level - bottom) / -water_ray.y;
+		p = top + water_ray * along * span + side * corner.x * dapple_radius(cell);
+		shown = (1.0 - smoothstep(2.0, 3.0, length(top.xz - surface_eye) / DAPPLE_CELL))
+			* smoothstep(0.8, 1.8, length(top + water_ray * span * 0.5 - eye)) * dapple_strength(cell);
 	}
 	y = p.y;
 	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * vec4(p, 1.0);
@@ -59,7 +60,7 @@ void fragment() {
 		a = smoothstep(1.0, 0.8, r) * smoothstep(0.4, 0.85, r) * 0.7 + smoothstep(0.35, 0.0, length(corner - vec2(-0.35, 0.35))) * 0.6;
 	} else {
 		c = (ambient * 5.0 + sun * 0.6) * vec3(0.85, 1.0, 0.95);
-		a = pow(1.0 - abs(corner.x), 1.5) * (1.0 - along) * smoothstep(0.0, 0.1, along) * 0.6;
+		a = pow(1.0 - abs(corner.x), 1.5) * mix(0.6, 0.25, along) * smoothstep(0.0, 0.03, along);
 	}
 	ALBEDO = c;
 	ALPHA = a * shown * smoothstep(0.0, 0.05, level - y);

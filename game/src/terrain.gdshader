@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
+#include "res://src/bed_light.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/meadow.gdshaderinc"
@@ -156,7 +157,7 @@ void fragment() {
 			mediump float pebble = texture(detail, world_xz * 2.3).r;
 			mediump float soaked = mix(1.0, 0.75, smoothstep(-0.1, 0.0, under));
 			c = mix(c, mix(bed * (0.7 + pebble * 0.6), c, paved) * soaked, shore);
-			c += caustic(detail, world_xz) * 0.35 * smoothstep(0.05, 0.3, under);
+			c += vec3(0.85, 0.95, 0.8) * bed_light(world_xz, under) * 0.35 * smoothstep(0.05, 0.3, under);
 		}
 	}
 	// Earth, sand and stone each fade out where another is laid over them, so where two paths meet they blend over the

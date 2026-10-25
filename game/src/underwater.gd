@@ -9,8 +9,8 @@ extends MeshInstance3D
 const MOTES := 320
 ## One mote in this many is a bubble, rising.
 const BUBBLE_EVERY := 8
-const SHAFTS := 30
-## Motes fill a box this many metres either way of the head; shafts stand over a box half again as wide.
+const SHAFTS := 49
+## Motes fill a box this many metres either way of the head.
 const REACH := 3.0
 const MUFFLE_HZ := 650.0
 const MUFFLE_DB := -4.0
@@ -70,7 +70,7 @@ func _process(_delta: float) -> void:
 		var l := Daylight.light(look.time)
 		var sun: Color = l.sun * l.energy
 		_mat.set_shader_parameter("level", pond.surface_y())
-		_mat.set_shader_parameter("ray", into_water(-Daylight.toward_light(look.time)))
+		_mat.set_shader_parameter("bottom", pond.pond.level - pond.pond.depth)
 		_mat.set_shader_parameter("sun", Vector3(sun.r, sun.g, sun.b))
 		_mat.set_shader_parameter("ambient", Vector3(Look.UNDER_FOG.r, Look.UNDER_FOG.g, Look.UNDER_FOG.b) * Look.under_light(l))
 
@@ -106,6 +106,9 @@ static func _kit() -> ArrayMesh:
 	for i in MOTES + SHAFTS:
 		var kind := 1.0 if i >= MOTES else (0.5 if i % BUBBLE_EVERY == 0 else 0.0)
 		var at := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * REACH
+		if i >= MOTES:
+			var shaft := i - MOTES
+			at = Vector3(shaft % 7 - 3, 0, floori(shaft / 7.0) - 3)
 		var c := Color(kind, rng.randf(), rng.randf())
 		var n := verts.size()
 		for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:

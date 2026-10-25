@@ -1,0 +1,138 @@
+[
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 10
+  },
+  {
+    "op": "sculpt",
+    "x": 0,
+    "z": -1,
+    "lift": -6,
+    "radius": 7,
+    "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "pond",
+    "x": 0,
+    "z": -1,
+    "brim": 7
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.65,
+      0
+    ],
+    "at": [
+      0,
+      0.8,
+      -4
+    ],
+    "ground": true
+  },
+  {
+    "op": "wait",
+    "seconds": 4
+  },
+  {
+    "op": "label",
+    "name": "standing"
+  },
+  {
+    "op": "wait",
+    "seconds": 25
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "standing"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      9,
+      9
+    ],
+    "at": [
+      0,
+      -1,
+      -1
+    ],
+    "ground": true
+  },
+  {
+    "op": "wait",
+    "seconds": 4
+  },
+  {
+    "op": "label",
+    "name": "air"
+  },
+  {
+    "op": "wait",
+    "seconds": 25
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "air"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.65,
+      0
+    ],
+    "at": [
+      0,
+      0.8,
+      -4
+    ],
+    "ground": true
+  },
+  {
+    "op": "wait",
+    "seconds": 4
+  },
+  {
+    "op": "label",
+    "name": "standing-repeat"
+  },
+  {
+    "op": "wait",
+    "seconds": 25
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "standing-repeat"
+  },
+  {
+    "op": "quit"
+  }
+]
