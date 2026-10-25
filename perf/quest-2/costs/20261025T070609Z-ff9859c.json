@@ -1,0 +1,983 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "meadow/aerial": {
+   "p50": 13.9420003890991,
+   "p99": 16.0939998626709,
+   "late": 3,
+   "draws": 42,
+   "prims": 124555,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 37.01,
+     "late": 2
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.78
+  },
+  "meadow/ground": {
+   "p50": 13.9530000686646,
+   "p99": 15.4409999847412,
+   "late": 0,
+   "draws": 35,
+   "prims": 129171,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.441,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.49
+  },
+  "meadow/shore": {
+   "p50": 13.951000213623,
+   "p99": 15.6890001296997,
+   "late": 1,
+   "draws": 20,
+   "prims": 101149,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.014,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.45
+  },
+  "lake/aerial": {
+   "p50": 13.960000038147,
+   "p99": 16.4039993286133,
+   "late": 4,
+   "draws": 41,
+   "prims": 124423,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 21.975,
+     "late": 1
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 3414.5,
+     "notes": [],
+     "compiled": [
+      1,
+      9
+     ]
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 7.82
+  },
+  "lake/ground": {
+   "p50": 13.9300003051758,
+   "p99": 26.6539993286133,
+   "late": 6,
+   "draws": 25,
+   "prims": 121332,
+   "landings": [
+    {
+     "frames": 33,
+     "max": 55.035,
+     "late": 1
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 55.0,
+     "notes": [],
+     "compiled": [
+      1,
+      11
+     ]
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 3.86
+  },
+  "lake/shore": {
+   "p50": 13.9650001525879,
+   "p99": 15.7299995422363,
+   "late": 0,
+   "draws": 19,
+   "prims": 101249,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.317,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 8.29
+  },
+  "lake/edit": {
+   "p50": 13.960000038147,
+   "p99": 17.9479999542236,
+   "late": 3,
+   "draws": 43,
+   "prims": 125639,
+   "step": 16,
+   "gpu_ms": 7.98
+  },
+  "base/aerial": {
+   "p50": 13.9390001296997,
+   "p99": 15.5869998931885,
+   "late": 0,
+   "draws": 40,
+   "prims": 124033,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 14.652,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.32
+  },
+  "base/ground": {
+   "p50": 13.9350004196167,
+   "p99": 15.4390001296997,
+   "late": 0,
+   "draws": 37,
+   "prims": 129732,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.085,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 4.75
+  },
+  "base/near": {
+   "p50": 13.9139995574951,
+   "p99": 15.9630002975464,
+   "late": 1,
+   "draws": 42,
+   "prims": 136842,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.3,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.17
+  },
+  "grass/aerial": {
+   "p50": 13.9259996414185,
+   "p99": 15.956000328064,
+   "late": 1,
+   "draws": 52,
+   "prims": 144824,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.344,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.6
+  },
+  "grass/ground": {
+   "p50": 13.9219999313354,
+   "p99": 16.0349998474121,
+   "late": 0,
+   "draws": 51,
+   "prims": 162732,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.174,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.53
+  },
+  "sweep/grass-dense/near": {
+   "p50": 38.9370002746582,
+   "p99": 43.3660011291504,
+   "late": 181,
+   "draws": 62,
+   "prims": 196842,
+   "landings": [
+    {
+     "frames": 16,
+     "max": 35.137,
+     "late": 15
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 30.13
+  },
+  "flowers/aerial": {
+   "p50": 13.9329996109009,
+   "p99": 16.0939998626709,
+   "late": 1,
+   "draws": 52,
+   "prims": 133417,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.62,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.56
+  },
+  "flowers/ground": {
+   "p50": 13.9099998474121,
+   "p99": 15.7180004119873,
+   "late": 2,
+   "draws": 53,
+   "prims": 203043,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 25.926,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.74
+  },
+  "sweep/flowers-dense/near": {
+   "p50": 13.9490003585815,
+   "p99": 16.1140003204346,
+   "late": 2,
+   "draws": 68,
+   "prims": 228930,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.427,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 10.89
+  },
+  "trees/aerial": {
+   "p50": 13.91100025177,
+   "p99": 15.6409997940063,
+   "late": 0,
+   "draws": 56,
+   "prims": 168603,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.358,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.72
+  },
+  "trees/ground": {
+   "p50": 13.9180002212524,
+   "p99": 15.6020002365112,
+   "late": 1,
+   "draws": 57,
+   "prims": 173764,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.489,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.15
+  },
+  "bushes/aerial": {
+   "p50": 13.9320001602173,
+   "p99": 15.6040000915527,
+   "late": 1,
+   "draws": 55,
+   "prims": 144513,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.271,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.48
+  },
+  "bushes/ground": {
+   "p50": 13.956000328064,
+   "p99": 16.1049995422363,
+   "late": 1,
+   "draws": 58,
+   "prims": 150212,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 28.027,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 4.8
+  },
+  "walls-r10/aerial": {
+   "p50": 13.9530000686646,
+   "p99": 16.0520000457764,
+   "late": 1,
+   "draws": 66,
+   "prims": 165357,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.251,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.72
+  },
+  "walls-r10/ground": {
+   "p50": 13.9390001296997,
+   "p99": 16.1219997406006,
+   "late": 1,
+   "draws": 70,
+   "prims": 186778,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.784,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 9.16
+  },
+  "lanterns/aerial": {
+   "p50": 13.9499998092651,
+   "p99": 16.0009994506836,
+   "late": 1,
+   "draws": 86,
+   "prims": 173145,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.994,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.89
+  },
+  "lanterns/ground": {
+   "p50": 13.9270000457764,
+   "p99": 16.0259990692139,
+   "late": 1,
+   "draws": 89,
+   "prims": 189494,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.969,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 9.2
+  },
+  "walls-r20/aerial": {
+   "p50": 13.9530000686646,
+   "p99": 15.706000328064,
+   "late": 2,
+   "draws": 82,
+   "prims": 207905,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 26.339,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 8.7
+  },
+  "walls-r20/ground": {
+   "p50": 13.9680004119873,
+   "p99": 16.0030002593994,
+   "late": 1,
+   "draws": 86,
+   "prims": 273442,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.965,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 8.82
+  },
+  "plaster/aerial": {
+   "p50": 13.9709997177124,
+   "p99": 15.83899974823,
+   "late": 1,
+   "draws": 83,
+   "prims": 147551,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.075,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.55
+  },
+  "plaster/ground": {
+   "p50": 13.9750003814697,
+   "p99": 15.7299995422363,
+   "late": 1,
+   "draws": 86,
+   "prims": 247318,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 14.984,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 9.29
+  },
+  "fences/aerial": {
+   "p50": 13.9300003051758,
+   "p99": 17.5550003051758,
+   "late": 1,
+   "draws": 83,
+   "prims": 136937,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.352,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.73
+  },
+  "fences/ground": {
+   "p50": 13.9589996337891,
+   "p99": 15.835000038147,
+   "late": 1,
+   "draws": 84,
+   "prims": 136207,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.113,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.89
+  },
+  "village/aerial": {
+   "p50": 13.9610004425049,
+   "p99": 16.3500003814697,
+   "late": 1,
+   "draws": 96,
+   "prims": 191535,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.084,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 8.39
+  },
+  "village/ground": {
+   "p50": 13.9659996032715,
+   "p99": 16.2019996643066,
+   "late": 1,
+   "draws": 100,
+   "prims": 271910,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.193,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 7.12
+  },
+  "thatch/aerial": {
+   "p50": 13.9589996337891,
+   "p99": 15.996000289917,
+   "late": 2,
+   "draws": 106,
+   "prims": 165295,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 27.243,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 7.25
+  },
+  "thatch/ground": {
+   "p50": 13.9610004425049,
+   "p99": 16.6389999389648,
+   "late": 1,
+   "draws": 102,
+   "prims": 180750,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.573,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.89
+  },
+  "hamlet/aerial": {
+   "p50": 13.9490003585815,
+   "p99": 16.2719993591309,
+   "late": 2,
+   "draws": 109,
+   "prims": 221183,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.134,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 9.05
+  },
+  "hamlet/ground": {
+   "p50": 14.0,
+   "p99": 16.0060005187988,
+   "late": 0,
+   "draws": 99,
+   "prims": 196082,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.419,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.92
+  },
+  "walls-r15/aerial": {
+   "p50": 13.9630002975464,
+   "p99": 16.242000579834,
+   "late": 1,
+   "draws": 97,
+   "prims": 205025,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.312,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 8.2
+  },
+  "walls-r15/ground": {
+   "p50": 13.9899997711182,
+   "p99": 15.6969995498657,
+   "late": 1,
+   "draws": 93,
+   "prims": 258410,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.383,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 9.66
+  },
+  "paths/aerial": {
+   "p50": 13.9219999313354,
+   "p99": 15.6029996871948,
+   "late": 0,
+   "draws": 95,
+   "prims": 125851,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.409,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.33
+  },
+  "paths/ground": {
+   "p50": 13.918999671936,
+   "p99": 16.8799991607666,
+   "late": 1,
+   "draws": 91,
+   "prims": 129918,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.198,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 4.76
+  },
+  "ponds/aerial": {
+   "p50": 13.8990001678467,
+   "p99": 16.2569999694824,
+   "late": 0,
+   "draws": 104,
+   "prims": 126427,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.073,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.63
+  },
+  "ponds/ground": {
+   "p50": 13.9180002212524,
+   "p99": 16.007999420166,
+   "late": 2,
+   "draws": 94,
+   "prims": 131734,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.426,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 4.97
+  },
+  "hills/aerial": {
+   "p50": 13.9420003890991,
+   "p99": 15.6309995651245,
+   "late": 1,
+   "draws": 97,
+   "prims": 126367,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.679,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.37
+  },
+  "hills/ground": {
+   "p50": 13.9469995498657,
+   "p99": 15.5640001296997,
+   "late": 1,
+   "draws": 91,
+   "prims": 129918,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.564,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.06
+  },
+  "stone/aerial": {
+   "p50": 13.9770002365112,
+   "p99": 15.7019996643066,
+   "late": 1,
+   "draws": 97,
+   "prims": 126373,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.391,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.59
+  },
+  "stone/ground": {
+   "p50": 13.9160003662109,
+   "p99": 15.5939998626709,
+   "late": 1,
+   "draws": 91,
+   "prims": 129918,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.192,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.24
+  },
+  "base/dusk": {
+   "p50": 13.9079999923706,
+   "p99": 15.5729999542236,
+   "late": 2,
+   "draws": 97,
+   "prims": 126373,
+   "step": 16,
+   "gpu_ms": 5.34
+  },
+  "flowers-wild/aerial": {
+   "p50": 13.9519996643066,
+   "p99": 16.0419998168945,
+   "late": 2,
+   "draws": 100,
+   "prims": 142045,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.253,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.83
+  },
+  "flowers-wild/ground": {
+   "p50": 13.9209995269775,
+   "p99": 16.2040004730225,
+   "late": 1,
+   "draws": 91,
+   "prims": 203790,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.468,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.75
+  },
+  "flowers-wild/dusk": {
+   "p50": 13.9860000610352,
+   "p99": 18.9559993743896,
+   "late": 1,
+   "draws": 100,
+   "prims": 142141,
+   "step": 16,
+   "gpu_ms": 5.88
+  },
+  "trees-wild/aerial": {
+   "p50": 14.0089998245239,
+   "p99": 16.4179992675781,
+   "late": 1,
+   "draws": 103,
+   "prims": 179989,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.469,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.98
+  },
+  "trees-wild/ground": {
+   "p50": 13.9379997253418,
+   "p99": 15.8140001296997,
+   "late": 0,
+   "draws": 92,
+   "prims": 175058,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.548,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.24
+  },
+  "fences-wild/aerial": {
+   "p50": 13.956000328064,
+   "p99": 16.0799999237061,
+   "late": 1,
+   "draws": 103,
+   "prims": 144131,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.614,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.88
+  },
+  "fences-wild/ground": {
+   "p50": 13.9630002975464,
+   "p99": 16.0729999542236,
+   "late": 1,
+   "draws": 95,
+   "prims": 138371,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.628,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.95
+  },
+  "ponds-wild/aerial": {
+   "p50": 13.9340000152588,
+   "p99": 15.918999671936,
+   "late": 1,
+   "draws": 114,
+   "prims": 146395,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.642,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.0
+  },
+  "ponds-wild/ground": {
+   "p50": 13.9130001068115,
+   "p99": 16.0139999389648,
+   "late": 2,
+   "draws": 101,
+   "prims": 148152,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 28.103,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.5
+  },
+  "ponds-wild/dusk": {
+   "p50": 13.9259996414185,
+   "p99": 16.3369998931885,
+   "late": 2,
+   "draws": 113,
+   "prims": 144383,
+   "step": 16,
+   "gpu_ms": 6.01
+  },
+  "easels/aerial": {
+   "p50": 13.9720001220703,
+   "p99": 16.9899997711182,
+   "late": 5,
+   "draws": 217,
+   "prims": 148709,
+   "landings": [
+    {
+     "frames": 1,
+     "max": 2854.4,
+     "late": 1
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 2854.4,
+     "notes": [],
+     "compiled": [
+      6,
+      6
+     ]
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.87
+  },
+  "easels/ground": {
+   "p50": 13.9689998626709,
+   "p99": 16.3409996032715,
+   "late": 2,
+   "draws": 210,
+   "prims": 151702,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 22.548,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 7.38
+  },
+  "boulders/aerial": {
+   "p50": 13.9849996566772,
+   "p99": 15.7729997634888,
+   "late": 1,
+   "draws": 127,
+   "prims": 142805,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.656,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 6.16
+  },
+  "boulders/ground": {
+   "p50": 13.9209995269775,
+   "p99": 15.7130002975464,
+   "late": 0,
+   "draws": 102,
+   "prims": 142805,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.343,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 5.62
+  }
+ }
+}
