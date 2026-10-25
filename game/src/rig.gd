@@ -65,7 +65,6 @@ var gaze: Gaze
 var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
-## The player's own avatar, shown only while a camera is held, or null.
 var body: Avatar
 
 ## The hand whose teleport ray is out, or null.
@@ -152,9 +151,16 @@ func wear(a: Avatar) -> void:
 		body.queue_free()
 	body = a
 	a.top_level = true
-	a.visible = false
+	a.visible = true
 	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
 		v.layers = Quality.SELF_LAYER
+	var definition: Dictionary = a._model.get_meta("springs", {"springs": []})
+	for chain: Dictionary in definition.springs:
+		for joint: Dictionary in chain.joints:
+			var name := "spring_" + str(joint.node)
+			if a._joints.has(name):
+				for v: VisualInstance3D in a._joints[name].node.find_children("*", "VisualInstance3D", true, false):
+					v.layers = 1 | Quality.SELF_LAYER
 	add_child(a)
 	_landing.wear(a)
 

@@ -5,13 +5,15 @@ extends GLTFDocumentExtension
 ## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
 ## 1.0 from nodes named after the bones (and the scene root's "eyes" metadata); import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
-## it is a skeleton's bone), "eyes", "forward" and "look". Materials, spring bones and expressions other than the
+## it is a skeleton's bone), "eyes", "forward" and "look". Materials and expressions other than the
 ## four that point the eyes are not read.
 ##
 ## "look" is how the model points its eyes (VRM lookAt): {"type": BONE or EXPRESSION, "ranges": the horizontal inner,
 ## horizontal outer, vertical down and vertical up range maps, each Vector2(largest input angle in degrees, output at
 ## it: degrees for eye bones, a weight for expressions), "shapes": for an expression model, each of LOOKS to its
 ## morph targets as [mesh node path, blend shape name, weight]}. Export writes "look"'s type and ranges.
+
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 const BONES := ["hips", "spine", "head", "leftEye", "rightEye", "leftUpperArm", "leftLowerArm", "leftHand", "rightUpperArm", "rightLowerArm", "rightHand", "leftUpperLeg", "leftLowerLeg", "leftFoot", "rightUpperLeg", "rightLowerLeg", "rightFoot"]
 const BONE := "bone"
@@ -24,7 +26,7 @@ const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
 
 func _get_supported_extensions() -> PackedStringArray:
-	return PackedStringArray(["VRMC_vrm", "VRM"])
+	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone"])
 
 
 ## Files come from other players, so every field is checked for its type before use.
@@ -76,6 +78,19 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 				var path: Variant = meshes.get(state.get_nodes()[b[0]].resource_name)
 				if path != null:
 					look.shapes.get_or_add(dir, []).append([path, morph_name(b[1]), b[2]])
+	var springs := SpringDefinition.read(state.json)
+	var spring_nodes := {}
+	for chain: Dictionary in springs.springs:
+		for joint: Dictionary in chain.joints:
+			spring_nodes[joint.node] = true
+		if chain.center >= 0:
+			spring_nodes[chain.center] = true
+	for collider: Dictionary in springs.colliders:
+		if collider.node >= 0:
+			spring_nodes[collider.node] = true
+	for index: int in spring_nodes:
+		_bind(found, "spring_" + str(index), float(index), state, root)
+	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
 	root.set_meta("eyes", eyes if eyes.is_finite() and eyes.length() < 1.0 else Vector3(0, 0.06, 0))
@@ -192,7 +207,7 @@ static func _field(d: Variant, key: String) -> Variant:
 
 
 static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFState, root: Node) -> void:
-	if not (bone in BONES and node is float and node >= 0 and node < state.get_nodes().size()):
+	if not ((bone in BONES or bone.begins_with("spring_")) and node is float and node >= 0 and node < state.get_nodes().size()):
 		return
 	var n := state.get_scene_node(int(node))
 	if n is Skeleton3D:
@@ -204,6 +219,7 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
+	state.set_additional_data(&"springs", root.get_meta("springs", {}))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
 	return OK
@@ -230,7 +246,21 @@ func _export_post(state: GLTFState) -> Error:
 		"humanoid": {"humanBones": bones},
 		"lookAt": look_at,
 	}
+	var springs: Dictionary = state.get_additional_data(&"springs")
+	if not springs.is_empty():
+		var indices := {}
+		for i in nodes.size():
+			indices[nodes[i].resource_name] = i
+		var encoded: Dictionary = springs.duplicate(true)
+		for chain: Dictionary in encoded.springs:
+			for joint: Dictionary in chain.joints:
+				joint.node = indices[joint.node]
+		for collider: Dictionary in encoded.colliders:
+			collider.node = indices[collider.node]
+		exts["VRMC_springBone"] = encoded
 	var used: Array = state.json.get_or_add("extensionsUsed", [])
+	if not springs.is_empty() and not used.has("VRMC_springBone"):
+		used.append("VRMC_springBone")
 	if not used.has("VRMC_vrm"):
 		used.append("VRMC_vrm")
 	return OK

@@ -126,3 +126,9 @@ https://vroid.booth.pm/items/5512385. Its commercial license requires attributio
 and prohibits redistributing extractable motion or alterations, so it was not
 selected for this source repository. CMU’s terms explicitly permit inclusion in
 commercially sold products and prohibit selling the data itself.
+
+Avatar Workshop's portable expression and spring components are pinned in
+`game/addons/avatar_workshop/source.json`, with a SHA256 for every vendored file.
+`LICENSE-avatar-workshop` carries its MIT and Apache-2.0 grants and the retained
+godot-vrm MIT notice for the spring solver. The packaging scripts include this
+file with the other root license notices on every target.

@@ -10,7 +10,7 @@ func _initialize() -> void:
 	terrain.install()
 	await process_frame
 	await _the_screen_shows_the_lens_while_a_hand_holds_the_camera()
-	await _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not()
+	await _the_lens_sees_the_body_and_the_wearer_sees_springs()
 	_the_lens_turns_as_the_hand_turns_roll_included()
 	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
@@ -98,15 +98,21 @@ func _the_lens_sees_as_far_as_the_eye(rig: Rig, tool: PhotoTool) -> void:
 	photo.queue_free()
 
 
-func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
+func _the_lens_sees_the_body_and_the_wearer_sees_springs() -> void:
 	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
 	rig.wear(Avatar.open(Avatar.built_in(0), Color.RED))
 	var meshes := rig.body.find_children("*", "VisualInstance3D", true, false)
-	check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v.layers == Quality.SELF_LAYER), "the player's own avatar is drawn on the camera's layer alone")
-	check(rig.head.cull_mask & Quality.SELF_LAYER == 0, "the player's eyes never see their own avatar")
+	var chain_meshes := []
+	var definition: Dictionary = rig.body._model.get_meta("springs")
+	for chain: Dictionary in definition.springs:
+		for joint: Dictionary in chain.joints:
+			chain_meshes.append_array(rig.body._joints["spring_" + str(joint.node)].node.find_children("*", "VisualInstance3D", true, false))
+	check(not chain_meshes.is_empty() and chain_meshes.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask), "the wearer sees their grabbable spring parts")
+	check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v in chain_meshes or v.layers == Quality.SELF_LAYER), "the remaining body draws on the photo layer alone")
+	check(rig.head.cull_mask & Quality.SELF_LAYER == 0, "the player's eyes exclude the body photo layer")
 	var icons := rig.right.find_children("*", "VisualInstance3D", true, false)
 	check(not icons.is_empty() and icons.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask and not v.layers & Quality.SELF_LAYER), "while they still see the tool wheel")
 	rig.head.position = Vector3(0.4, 1.6, 0.2)
@@ -127,7 +133,7 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	check(rig.body.visible and rig.find_children("*", "Avatar", false, false).size() == 1, "a newly worn avatar replaces the last")
 	rig.right.tool = Hand.Tool.WALLS
 	await process_frame
-	check(not rig.body.visible, "and goes when the camera is put away")
+	check(rig.body.visible, "spring parts remain visible when the camera is put away")
 	rig.queue_free()
 	tool.queue_free()
 

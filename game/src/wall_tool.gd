@@ -265,7 +265,7 @@ func _handle(m: Mason) -> void:
 		elif m.buttons.held("tool") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
-	if m.buttons.pressed("grab") and not busy(m.hand) and not painting.call(m.hand):
+	if m.buttons.pressed("grab") and not m.hand.taken() and not busy(m.hand) and not painting.call(m.hand):
 		var from := m.hand.grip_from()
 		var on_held := _held_hit(from, dir) if held != null else {}
 		var ground: Variant = world.terrain.raycast(from, dir, m.hand.grip_reach())

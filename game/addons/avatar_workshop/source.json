@@ -1,11 +1,23 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "14596647c2c51ea9ee925ba4c6b3d995073d3cc4",
+  "commit": "6681ab03eee4dbc8f1fb2346e293cd67d58ce597",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
       "source": "addons/avatar_workshop/expression_mixer.gd",
       "sha256": "22b2415500f9f9e31addd429d8a081ab277e2f6f5ab626907924ec419e3ad823"
+    },
+    "spring_definition.gd": {
+      "source": "addons/avatar_workshop/spring_definition.gd",
+      "sha256": "82731c8f49106732f94bf5623e0565ad19dce4090c3eba831cb7611e7dd51589"
+    },
+    "spring_runtime.gd": {
+      "source": "addons/avatar_workshop/spring_runtime.gd",
+      "sha256": "024b25ac30c955aaec65807f3f9286658d485431cbf2c780d82bc71a1ea1cfe3"
+    },
+    "LICENSE-godot-vrm": {
+      "source": "addons/avatar_workshop/LICENSE-godot-vrm",
+      "sha256": "d39666c721f8453445364e66a08d0edec6fbc5b8e30ee1d9d710e84a3094c101"
     },
     "LICENSE-MIT": {
       "source": "LICENSE-MIT",

@@ -15,6 +15,7 @@ const LOOK_REACH := 30.0
 
 func _init() -> void:
 	for a in [_pebble(), _acorn(), _hood()]:
+		_tassel(a)
 		Vrm.write(a, "res://avatars/%s.vrm" % a.name)
 		print("avatars: ", a.name)
 		a.free()
@@ -146,3 +147,15 @@ func _tint() -> StandardMaterial3D:
 	var m := _mat(Color(0.8, 0.5, 0.35))
 	m.resource_name = "tint"
 	return m
+
+
+func _tassel(root: Node3D) -> void:
+	var head: Node3D = root.find_child("head", true, false)
+	var parent := head
+	var joints := []
+	for i in 3:
+		var name := "tassel%d" % i
+		parent = _bone(parent, name, Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
+		_part(parent, _cylinder(0.012, 0.016, 0.09, 5), _tint(), Vector3(0, -0.045, 0), Vector3.ONE)
+		joints.append({"node": name, "stiffness": 0.35, "gravityPower": 0.08, "gravityDir": [0, -1, 0], "dragForce": 0.25, "hitRadius": 0.015})
+	root.set_meta("springs", {"specVersion": "1.0", "springs": [{"joints": joints, "colliderGroups": [0]}], "colliders": [{"node": "head", "shape": {"sphere": {"offset": [0, 0.12, 0], "radius": 0.145}}}], "colliderGroups": [{"colliders": [0]}]})

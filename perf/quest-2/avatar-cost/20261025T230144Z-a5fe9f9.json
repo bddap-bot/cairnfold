@@ -1,0 +1,89 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/built-in/close": {
+   "p50": 13.9440002441406,
+   "p99": 15.6190004348755,
+   "late": 0,
+   "draws": 55,
+   "prims": 285327,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.33,
+   "timewarp_ms": 1.14
+  },
+  "sweep/built-in/across": {
+   "p50": 13.9259996414185,
+   "p99": 15.6569995880127,
+   "late": 0,
+   "draws": 80,
+   "prims": 299032,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.98,
+   "timewarp_ms": 1.14
+  },
+  "sweep/built-in/away": {
+   "p50": 13.9280004501343,
+   "p99": 15.4549999237061,
+   "late": 0,
+   "draws": 60,
+   "prims": 297669,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.03,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/close": {
+   "p50": 13.9370002746582,
+   "p99": 20.7700004577637,
+   "late": 6,
+   "draws": 57,
+   "prims": 288099,
+   "stalls": [
+    {
+     "ms": 1949.4,
+     "notes": [],
+     "compiled": [
+      1,
+      9
+     ]
+    },
+    {
+     "ms": 709.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.33,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/across": {
+   "p50": 13.9250001907349,
+   "p99": 15.4549999237061,
+   "late": 0,
+   "draws": 86,
+   "prims": 303606,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.07,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/away": {
+   "p50": 13.9309997558594,
+   "p99": 15.4209995269775,
+   "late": 0,
+   "draws": 60,
+   "prims": 297421,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.04,
+   "timewarp_ms": 1.14
+  }
+ }
+}

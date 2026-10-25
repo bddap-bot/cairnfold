@@ -1,0 +1,52 @@
+[
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.65,
+      0
+    ],
+    "at": [
+      0,
+      1.65,
+      -1
+    ]
+  },
+  {
+    "op": "until",
+    "players": 2,
+    "seconds": 60
+  },
+  {
+    "op": "wait",
+    "seconds": 5
+  },
+  {
+    "op": "spring_sway",
+    "seconds": 3
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "spring_grab",
+    "move": [
+      -0.15,
+      0.12,
+      0
+    ],
+    "seconds": 3
+  },
+  {
+    "op": "spring_watch",
+    "seconds": 90
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "quit"
+  }
+]

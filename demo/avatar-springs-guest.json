@@ -1,0 +1,30 @@
+[
+  {
+    "op": "until",
+    "players": 2,
+    "seconds": 60
+  },
+  {
+    "op": "spring_view"
+  },
+  {
+    "op": "spring_ready"
+  },
+  {
+    "op": "spring_grab",
+    "remote": true,
+    "move": [
+      -0.15,
+      0.1,
+      -0.03
+    ],
+    "seconds": 3
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "quit"
+  }
+]

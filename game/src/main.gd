@@ -131,6 +131,7 @@ func _ready() -> void:
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)
 	add_child(session)
+	move_child(session, rig.get_index() + 1)
 	for hand in rig.hands:
 		hand.people = SessionWheel.new(session)
 	rig.placed.connect(func() -> void:

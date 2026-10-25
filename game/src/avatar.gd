@@ -7,6 +7,7 @@ extends Node3D
 ## same path (`read`), cut to the limits below so no avatar costs the frame more than these.
 
 const ExpressionMixer = preload("res://addons/avatar_workshop/expression_mixer.gd")
+const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
 const MAX_BYTES := 24 << 20
@@ -23,7 +24,6 @@ const MAX_PIXELS := 4 * MAX_IMAGE_SIDE * MAX_IMAGE_SIDE
 ## A built-in VRM 1.0 avatar faces +Z; a Godot camera looks down -Z.
 const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
-## The bones a pose moves; every other bone stays at rest with the nearest of these above it.
 const MOVED: Array[String] = ["hips", "head", "leftEye", "rightEye", "leftUpperArm", "leftLowerArm", "leftHand", "rightUpperArm", "rightLowerArm", "rightHand"]
 ## Where elbows point, in the body's frame (forward -Z): down, out to the side, and a little back.
 const ELBOW := Vector3(0.5, -1.0, 0.4)
@@ -70,6 +70,9 @@ var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var look := Vector3.FORWARD
 ## The body's turn about up, as `Torso.follow` keeps it.
 var torso := NAN
+var springs: SpringRuntime
+var simulate_springs := true
+var spring_holders := {}
 var _model: Node3D
 var _joints := {}
 var _facing: Basis
@@ -131,9 +134,6 @@ static func read(bytes: PackedByteArray) -> PackedScene:
 	return scene
 
 
-## Cuts each skinned mesh into rigid parts, one for each bone a pose moves (MOVED), each hung from a node standing in
-## for that bone, and drops the skeletons. Skinning runs a GPU pass over every vertex of every avatar in view each
-## frame, the largest single share of what a VRM cost the Quest 2; a part per moved bone costs nothing to pose.
 static func _rigid(state: GLTFState, model: Node3D) -> void:
 	var bones: Dictionary = model.get_meta("humanoid")
 	var look: Dictionary = model.get_meta("look")
@@ -143,11 +143,14 @@ static func _rigid(state: GLTFState, model: Node3D) -> void:
 			looked.append([b, model.get_node_or_null(b[0])])
 	for sk: Skeleton3D in model.find_children("*", "Skeleton3D", true, false):
 		var moved := {}
+		var names := {}
 		for b: String in bones.keys():
 			var path: NodePath = bones[b]
 			if path.get_subname_count() > 0 and model.get_node(NodePath(str(path).get_slice(":", 0))) == sk:
-				if b in MOVED:
-					moved[sk.find_bone(path.get_concatenated_subnames())] = b
+				if b in MOVED or b.begins_with("spring_"):
+					var index := sk.find_bone(path.get_concatenated_subnames())
+					moved[index] = true
+					names.get_or_add(index, []).append(b)
 				else:
 					bones.erase(b)
 		var group := PackedInt32Array()
@@ -171,7 +174,8 @@ static func _rigid(state: GLTFState, model: Node3D) -> void:
 			n.transform = (rest.call(up) as Transform3D).affine_inverse() * rest.call(m)
 			(nodes[up] as Node3D).add_child(n)
 			nodes[m] = n
-			bones[moved[m]] = model.get_path_to(n)
+			for alias: String in names[m]:
+				bones[alias] = model.get_path_to(n)
 		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 			if mi.skin == null or mi.get_node_or_null(mi.skeleton) != sk:
 				continue
@@ -526,6 +530,9 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 ## Finds the placed node nearest above a joint's frame, and the frame's offset from it. A pose places the
 ## joints parents first, so each one's base is already where this pose puts it.
 func _find_base(j: Joint, placed: Array[Joint]) -> void:
+	if j.node == _model:
+		j.offset = Transform3D.IDENTITY
+		return
 	var n := j.node.get_parent_node_3d()
 	var t := Transform3D.IDENTITY
 	while n != _model:
@@ -612,6 +619,18 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 		if arm.upper:
 			_arm(arm, grip.origin, turn)
 		_place(arm.hand, grip)
+
+	if springs == null and is_inside_tree():
+		var nodes := {}
+		for name: String in _joints:
+			if name.begins_with("spring_"):
+				nodes[int(name.trim_prefix("spring_"))] = _joints[name].node
+		springs = SpringRuntime.new(_model.get_meta("springs", {"springs": [], "colliders": []}), nodes)
+
+
+func _process(delta: float) -> void:
+	if springs != null and simulate_springs:
+		springs.advance(delta)
 
 
 ## Points the eyes along `look` as the model's lookAt maps it: each angle off ahead, up to its range map's largest

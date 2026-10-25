@@ -73,6 +73,9 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
+var _spring_buttons: Array[Buttons] = []
+var _spring_hands := [[], []]
+var _spring_holds := {}
 ## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them. A leaving
 ## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
 var dishes: Array[Dish] = []
@@ -161,6 +164,8 @@ func _ready() -> void:
 			break
 	me.offer(_key)
 	rig.wear(Avatar.open(Avatar.built_in(avatar), colour))
+	for hand in rig.hands:
+		_spring_buttons.append(Buttons.new(hand).watch(["grab"]))
 	host()
 
 
@@ -251,11 +256,16 @@ func _on_gone(id: int) -> void:
 	_wearing.erase(id)
 	_waiting.erase(id)
 	_thrown.erase(id)
+	for chain in _spring_holds.keys():
+		if _spring_holds[chain][0] == id:
+			_spring_holds.erase(chain)
 	_prune()
 	changed.emit()
 
 
 func _drop_avatars() -> void:
+	_spring_holds.clear()
+	_spring_hands = [[], []]
 	for a in avatars.values():
 		a.queue_free()
 	avatars.clear()
@@ -271,6 +281,9 @@ func _drop_avatars() -> void:
 func _process(delta: float) -> void:
 	if delta > 2.0:
 		print("session: a frame took %.1f s" % delta)
+	rig.pose_body()
+	rig.body.simulate_springs = false
+	_spring_input(delta)
 	_clock += delta
 	_since_beacon += delta
 	if _since_beacon >= BEACON_EVERY:
@@ -296,12 +309,19 @@ func _process(delta: float) -> void:
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look)
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
 		var t: Array = _targets[id]
 		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), Gaze.turned(a.look, t[3], k))
+		if a.springs != null and t.size() > 4:
+			var state: PackedVector3Array = a.springs.state()
+			var wanted: PackedVector3Array = t[4]
+			if state.size() == wanted.size():
+				for i in state.size():
+					state[i] = state[i].lerp(wanted[i], k)
+				a.springs.apply_state(state)
 		for s in 2:
 			var dish: Dish = _dishes[id][s]
 			dish.transform = a.hands[s]
@@ -584,6 +604,7 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 ## Gives player `id` the avatar in `scene`, in their pose.
 func _dress(id: int, scene: PackedScene, key: String) -> void:
 	var a := Avatar.open(scene, _looks[id][1], key)
+	a.simulate_springs = false
 	var old: Avatar = avatars.get(id)
 	a.visible = old != null and old.visible
 	if old != null:
@@ -650,6 +671,7 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 
 
 func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
+	_spring_holds.clear()
 	worn = bytes
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(avatar), colour, key))
 	previews.erase(worn_key)
@@ -707,7 +729,7 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 
 ## A player's head, hands and where their eyes look, in their head's frame.
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3) -> void:
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
@@ -715,7 +737,18 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 			return
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
-	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized()]
+	var avatar: Avatar = avatars[id]
+	if avatar.springs != null and springs.size() != avatar.springs.point_count:
+		return
+	for chain in holders:
+		var holder: Variant = holders[chain]
+		if not chain is int or chain < 0 or avatar.springs == null or chain >= avatar.springs.chains.size() or not holder is Array or holder.size() != 2 or not holder[0] is int or not holder[1] is int or holder[1] < 0 or holder[1] > 1:
+			return
+	avatar.spring_holders = holders
+	for point in springs:
+		if not point.is_finite() or point.distance_to(eyes.origin) > 5.0:
+			return
+	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs]
 	var a: Avatar = avatars[id]
 	if not a.visible:
 		a.visible = true
@@ -733,3 +766,79 @@ func _held(items: Array) -> void:
 			return
 	for side in 4:
 		(held[id][side] as HeldItem).show_state(items[side])
+
+
+func _spring_input(delta: float) -> void:
+	var mine := multiplayer.get_unique_id()
+	var active := not get_tree().paused
+	for side in _spring_buttons.size():
+		var buttons := _spring_buttons[side]
+		var hand := buttons.hand
+		var selected: Array = _spring_hands[side]
+		if not selected.is_empty() and (not active or not buttons.held("grab") or not hand.tracked() or hand.picking or hand.tool != Hand.Tool.NONE):
+			_spring_request(selected[0], side, -1)
+			_spring_hands[side] = []
+			selected = []
+		if active and selected.is_empty() and buttons.pressed("grab") and hand.tracked() and not hand.picking and hand.tool == Hand.Tool.NONE and not hand.taken():
+			var choices := avatars.duplicate()
+			choices[mine] = rig.body
+			var nearest := 0.12
+			for id: int in choices:
+				var avatar: Avatar = choices[id]
+				if avatar.springs == null:
+					continue
+				for chain in avatar.springs.chains.size():
+					if (_spring_holds if id == mine else avatar.spring_holders).has(chain):
+						continue
+					var distance := avatar.springs.tip(chain).distance_to(hand.global_position)
+					if distance < nearest:
+						nearest = distance
+						selected = [id, chain]
+			if not selected.is_empty():
+				_spring_hands[side] = selected
+				_spring_request(selected[0], side, selected[1])
+		if not selected.is_empty():
+			hand.hold()
+		buttons.latch()
+	if rig.body.springs == null:
+		return
+	rig.body.springs.targets.clear()
+	for chain: int in _spring_holds.keys():
+		var holder: Array = _spring_holds[chain]
+		var hand: Variant = _spring_hand(holder[0], holder[1])
+		if hand == null or chain >= rig.body.springs.chains.size() or hand.distance_to(rig.head.global_position) > 3.0:
+			_spring_holds.erase(chain)
+		else:
+			rig.body.springs.targets[chain] = hand
+	rig.body.springs.advance(delta)
+
+
+func _spring_hand(peer: int, side: int) -> Variant:
+	if peer == multiplayer.get_unique_id():
+		return rig.hands[side].global_position if rig.hands[side].tracked() else null
+	return (avatars[peer] as Avatar).hands[side].origin if avatars.has(peer) else null
+
+
+func _spring_request(owner: int, side: int, chain: int) -> void:
+	if owner == multiplayer.get_unique_id():
+		_hold_spring(owner, side, chain)
+	elif owner in multiplayer.get_peers():
+		_grab_spring.rpc_id(owner, side, chain)
+
+
+@rpc("any_peer", "reliable")
+func _grab_spring(side: int, chain: int) -> void:
+	_hold_spring(multiplayer.get_remote_sender_id(), side, chain)
+
+
+func _hold_spring(peer: int, side: int, chain: int) -> void:
+	if side < 0 or side > 1:
+		return
+	for held in _spring_holds.keys():
+		if _spring_holds[held] == [peer, side]:
+			_spring_holds.erase(held)
+	if chain < 0 or rig.body.springs == null or chain >= rig.body.springs.chains.size() or _spring_holds.has(chain):
+		return
+	var hand: Variant = _spring_hand(peer, side)
+	if hand != null and hand.distance_to(rig.body.springs.tip(chain)) < 0.2:
+		_spring_holds[chain] = [peer, side]

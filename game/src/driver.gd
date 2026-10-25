@@ -1365,7 +1365,13 @@ func _figures(s: Dictionary) -> void:
 		a.queue_free()
 	_stood.clear()
 	var path: String = s.get("file", "")
-	var scene := Avatar.read(FileAccess.get_file_as_bytes(path if path.is_absolute_path() else Main.player_path(path))) if path else Avatar.built_in(0)
+	var scene: PackedScene = Avatar.built_in(0)
+	if path:
+		var result := {}
+		main.session._read(PackedByteArray(), path if path.is_absolute_path() else Main.player_path(path), func(_hash: String, _bytes: PackedByteArray, loaded: PackedScene) -> void: result.scene = loaded)
+		while not result.has("scene"):
+			await get_tree().process_frame
+		scene = result.scene
 	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
 	for at: Array in s.spots:
 		var a := Avatar.open(scene, Color.WHITE, path)
@@ -2459,3 +2465,116 @@ func _release_bird(s: Dictionary) -> void:
 	Buttons.injected.erase("%s/%s" % [h.tracker, Controls.input("grab", h.tracker)])
 	await _frames(2)
 	assert(h.carried == null, "bird must leave the hand when grip releases")
+
+
+func _spring_grab(s: Dictionary) -> void:
+	var remote: bool = s.get("remote", false)
+	var avatar: Avatar = main.session.avatars.values()[0] if remote and not main.session.avatars.is_empty() else main.rig.body
+	var chain: int = s.get("chain", 0)
+	if avatar.springs == null or chain >= avatar.springs.chains.size():
+		push_error("spring: no chain to grab")
+		failed = true
+		return
+	await _pick({"hand": "right", "tool": "none"})
+	var hand := main.rig.right
+	hand.held_still = true
+	hand.global_position = avatar.springs.tip(chain)
+	await get_tree().create_timer(0.3).timeout
+	var key := "right_hand/" + Controls.input("grab", "right_hand")
+	Buttons.injected[key] = true
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		var holders: Dictionary = avatar.spring_holders if remote else main.session._spring_holds
+		if holders.get(chain) == [main.session.multiplayer.get_unique_id(), 1]:
+			break
+		await get_tree().process_frame
+	var holders: Dictionary = avatar.spring_holders if remote else main.session._spring_holds
+	if holders.get(chain) != [main.session.multiplayer.get_unique_id(), 1]:
+		Buttons.injected.erase(key)
+		failed = true
+		push_error("spring: owner did not accept grip")
+		return
+	var from := hand.global_position
+	var move := Vector3(s.move[0], s.move[1], s.move[2])
+	var elapsed := 0.0
+	var seconds: float = s.get("seconds", 3.0)
+	var travelled := 0.0
+	while elapsed < seconds:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		hand.global_position = from + move * sin(minf(elapsed / seconds, 1.0) * PI * 0.5)
+		travelled = maxf(travelled, from.distance_to(avatar.springs.tip(chain)))
+	Buttons.injected.erase(key)
+	await get_tree().create_timer(1.0).timeout
+	if travelled < 0.025:
+		failed = true
+		push_error("spring: grip did not move the tip")
+	print("spring: %s grip travelled %.4f m and released" % ["remote" if remote else "wearer", travelled])
+
+
+func _spring_watch(s: Dictionary) -> void:
+	var seconds: float = s.get("seconds", 60.0)
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000)
+	var held := false
+	var moved := 0.0
+	var first := Vector3.ZERO
+	while Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+		var active := main.session._spring_holds.values().any(func(holder: Array) -> bool: return holder[0] != main.session.multiplayer.get_unique_id())
+		if active:
+			var tip: Vector3 = main.rig.body.springs.tip(0)
+			if not held:
+				first = tip
+			moved = maxf(moved, tip.distance_to(first))
+			held = true
+		elif held:
+			print("spring: wearer observed remote grab, %.4f m movement, release" % moved)
+			if moved < 0.025:
+				failed = true
+			return
+	failed = true
+	push_error("spring: wearer never observed a remote grab and release")
+
+
+func _spring_sway(s: Dictionary) -> void:
+	var before: int = main.rig.body.springs.contacts
+	var eye := main.rig.head.global_position
+	var ahead := -main.rig.head.global_basis.z
+	var elapsed := 0.0
+	var seconds: float = s.get("seconds", 3.0)
+	while elapsed < seconds:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		var offset := Vector3(sin(elapsed * TAU) * 0.3, 0, 0)
+		main.view(eye + offset, eye + offset + ahead, false)
+	main.view(eye, eye + ahead, false)
+	var contacts: int = main.rig.body.springs.contacts - before
+	print("spring: sway resolved %d collider contacts" % contacts)
+	if contacts == 0:
+		failed = true
+		push_error("spring: sway never contacted the declared collider")
+
+
+func _spring_ready(_s: Dictionary) -> void:
+	var deadline := Time.get_ticks_msec() + 90000
+	var held := false
+	while Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+		if main.session.avatars.is_empty():
+			continue
+		var avatar: Avatar = main.session.avatars.values()[0]
+		if not avatar.spring_holders.is_empty():
+			held = true
+		elif held:
+			await get_tree().create_timer(1.0).timeout
+			return
+	failed = true
+	push_error("spring: peer never observed wearer grip and release")
+
+
+func _spring_view(_s: Dictionary) -> void:
+	await get_tree().create_timer(2.0).timeout
+	var avatar: Avatar = main.session.avatars.values()[0]
+	var head := avatar.eyes.origin
+	main.view(head + Vector3(-0.45, -0.05, -0.8), head + Vector3(-0.12, -0.1, 0), false)
+	await _frames(2)

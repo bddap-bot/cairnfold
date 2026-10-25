@@ -159,8 +159,6 @@ func _process(delta: float) -> void:
 		_heard.append_array(_take_sound())
 		if not held.has(_clip_hand) or _clip_hand.tool != _clip_tool or _clip.full:
 			stop()
-	if rig.body != null:
-		rig.body.visible = not held.is_empty()
 	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
 		_photo.queue_free()
 		_photo = null
