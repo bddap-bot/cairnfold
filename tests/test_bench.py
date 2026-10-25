@@ -60,10 +60,13 @@ class BenchmarkRendering(unittest.TestCase):
                     result = run()
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn(message, result.stderr)
-            (out / "logcat.txt").write_text(ran + game.format(s=25, text="driver: done"))
-            result = run()
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("paths/stroke", result.stdout)
+            for name, log in {"clean": ran + game.format(s=25, text="driver: done"),
+                              "shell after quit": ran + game.format(s=25, text="driver: done") + vrapi.format(s=27, pid=5664)}.items():
+                with self.subTest(log=name):
+                    (out / "logcat.txt").write_text(log)
+                    result = run()
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("paths/stroke", result.stdout)
 
     def test_a_phases_stalls_are_kept_in_its_record(self):
         stall = {"ms": 412.5, "tags": ["build"], "scripts_ms": 400.1, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}

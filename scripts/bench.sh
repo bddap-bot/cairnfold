@@ -282,6 +282,7 @@ elif device == "quest":
     # Only the game's process counts, the one printing as godot. Another process rendering during a phase, as the
     # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
     # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
+    # Once the script is done the game quits and the shell takes the compositor back, outside every phase.
     # A hand the headset's cameras track, someone's near it, is drawn by the game with its tool and the tool's
     # preview, so a phase it shows in measures more than its scene.
     # Each line's phase is the metrics second it falls in, by the headset's clock: logcat drops lines under load, the
@@ -312,7 +313,7 @@ elif device == "quest":
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))
-        elif m and label != "-":
+        elif m and label != "-" and not done:
             shared.setdefault(label, set()).add(pid)
     if crash or (game_pid and not done):
         sys.exit(crash or f"bench: the game died during {phase} before its script ended; see logcat.txt")
