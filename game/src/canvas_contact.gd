@@ -22,13 +22,14 @@ func reset() -> void:
 func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Dictionary:
 	var local := frame.affine_inverse() * tracked
 	stick = Brushwork.is_stick(kind)
-	var radius: float = Brushwork.STICKS[kind] if stick else 0.0
+	var radius: float = Brushwork.STICKS[kind].x if stick else 0.0
+	var length: float = Brushwork.STICKS[kind].y if stick else 0.255
 	var sheet := AABB(Vector3(-Brushwork.METRES.x * 0.5, -Brushwork.METRES.y * 0.5, -0.032), Vector3(Brushwork.METRES.x, Brushwork.METRES.y, 0.032))
 	box = sheet.grow(radius)
 	if not stick:
 		box.size.z -= BEND
 	shaft_box = sheet.grow(0.0075)
-	axis = local.basis.z * (ToolModels.CHARCOAL_LENGTH if stick else 0.255)
+	axis = local.basis.z * length
 	var target := local * ToolModels.BRUSH_TIP
 	var from := previous
 	if from == Vector3.INF:
@@ -38,7 +39,7 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	elif solid(from):
 		# A rotation into the sheet keeps the last clear orientation until translation frees it.
 		local.basis = basis
-		axis = basis.z * (ToolModels.CHARCOAL_LENGTH if stick else 0.255)
+		axis = basis.z * length
 		target = local * ToolModels.BRUSH_TIP
 	var at := HandStop.resolve(from, target, solid, normal, STEP)
 	previous = at
@@ -54,7 +55,7 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	var height := at.z + minf(axis.z, 0.0) - radius if stick else near.z
 	var on := absf(near.x) <= Brushwork.METRES.x * 0.5 and absf(near.y) <= Brushwork.METRES.y * 0.5 and height <= SKIN and height >= -BEND - SKIN
 	var bend := clampf(-near.z, 0.0, BEND) if not stick and on else 0.0
-	var pressure := clampf((radius - target.z - minf(axis.z, 0.0)) / BEND, 0.05, 1.0) if stick else clampf(bend / BEND, 0.05, 1.0)
+	var pressure := Brushwork.pressure(radius - target.z - minf(axis.z, 0.0) if stick else -target.z)
 	var across := axis if stick else local.basis.x
 	var angle := atan2(-across.y, across.x)
 	return {"pose": frame * local, "point": frame * Vector3(near.x, near.y, 0), "uv": Vector2(near.x / Brushwork.METRES.x + 0.5, 0.5 - near.y / Brushwork.METRES.y), "on": on, "pressure": pressure, "bend": bend, "hard": on and (stick or bend >= BEND - SKIN), "angle": angle, "side": side}

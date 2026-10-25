@@ -4,22 +4,21 @@ extends Node3D
 ## Painting at an easel, with nothing to pick from a menu. A hand holding the easel tool holds a brush, reaching past
 ## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
-## and at the tray one of three sticks of charcoal, thin to thick, held leaned back so its side meets the canvas. An
+## and at the tray one of three sticks of charcoal, long and thin to short and thick, held leaned back so its side meets the canvas. An
 ## easel holds one of each, and the one a hand holds is off it until that hand takes another. A grip at either palette, the watercolour box or the oil palette, takes it by its
 ## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
 ## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
 ## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
 ## palette's open board, painted onto it and picked up from it by touching it (`Mixing`); the jar wets the brush for
 ## watercolour, thinner each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in
-## presses harder, and moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
+## presses harder (`Brushwork.pressure`), and moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
 ## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas, laid on this machine's
 ## canvas as they are painted and played on everyone else's as they were.
 
 ## A grip takes what is within this of the hand.
 const REACH := 0.12
-## The tip touches within this of the canvas's face, and pushed this far past touching presses fully.
+## The tip touches the oil palette's board within this of its face.
 const CONTACT := 0.006
-const PRESS_DEPTH := 0.035
 ## A sheet pulled this far off the canvas tears away when let go.
 const PEEL := 0.3
 ## The trigger sets an easel up only with none this near the hand.
@@ -587,7 +586,7 @@ func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 		return false
 	p.board = on
 	var start := Time.get_ticks_usec()
-	var pressure := clampf((Easels.BOARD_TOP + CONTACT - local.y) / PRESS_DEPTH, 0.05, 1.0)
+	var pressure := Brushwork.pressure(Easels.BOARD_TOP - local.y)
 	var radius: float = Brushwork.radii(p.brush).y * MIX_RADIUS * (0.5 + 0.5 * pressure)
 	var oil := p.medium == Brushwork.Medium.OIL
 	var got := on.mixing.touch({"ks": Mixing.ks_of(p.colour), "load": p.load if oil else 0.0}, Vector2(local.x, local.z), radius, delta)
@@ -665,7 +664,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	if not s.last.is_empty():
 		var r: float = Brushwork.radii(p.brush).y * pressure
 		var size := Vector2(Brushwork.SIZE)
-		var moved := Brushwork.sweep(s.last[0] * size, s.last[2], uv * size, angle, maxf(side, s.last[3])).x
+		var moved := Brushwork.sweep(s.last[0] * size, s.last[2], uv * size, angle, Brushwork.side_reach(p.brush, maxf(side, s.last[3]))).x
 		if Brushwork.is_stick(p.brush) and moved < 0.01:
 			return
 		if moved < maxf(r * 0.15, 1.0) and absf(pressure - s.last[1]) < 0.05 and canvas.ticks - s.at < STILL_TICKS:

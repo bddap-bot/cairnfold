@@ -25,12 +25,12 @@ func _run() -> void:
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1)), Brushwork.Brush.STICK)
 	var stick := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -0.3)), Brushwork.Brush.STICK)
 	tip = stick.pose * ToolModels.BRUSH_TIP
-	check(tip.z >= Brushwork.STICKS[Brushwork.Brush.STICK] and tip.z < 0.007, "charcoal stops at sheet: %s" % tip)
+	check(tip.z >= Brushwork.STICKS[Brushwork.Brush.STICK].x and tip.z < 0.007, "charcoal stops at sheet: %s" % tip)
 	contact.reset()
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0.9, 0, -0.02)), Brushwork.Brush.STICK)
 	var edge := contact.move(Transform3D.IDENTITY, pose(Vector3(0.6, 0, -0.02)), Brushwork.Brush.STICK)
 	tip = edge.pose * ToolModels.BRUSH_TIP
-	check(tip.x >= Brushwork.METRES.x * 0.5 + Brushwork.STICKS[Brushwork.Brush.STICK], "charcoal stops at canvas edge: %s" % tip)
+	check(tip.x >= Brushwork.METRES.x * 0.5 + Brushwork.STICKS[Brushwork.Brush.STICK].x, "charcoal stops at canvas edge: %s" % tip)
 	contact.reset()
 	var sideways := Basis(Vector3.UP, PI * 0.5)
 	contact.move(Transform3D.IDENTITY, pose(Vector3(-0.125, 0, 0.1), sideways), Brushwork.Brush.STICK)
@@ -39,10 +39,11 @@ func _run() -> void:
 	for angle in [PI * 0.5 - 0.06, PI * 0.5 + 0.06, PI]:
 		contact.reset()
 		var rotation := Basis(Vector3.UP, angle)
-		var lift := maxf(-rotation.z.z * ToolModels.CHARCOAL_LENGTH, 0.0)
+		var lift := maxf(-rotation.z.z * Brushwork.STICKS[Brushwork.Brush.STICK].y, 0.0)
 		contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, lift + 0.1), rotation), Brushwork.Brush.STICK)
 		var tilted := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, lift - 0.03), rotation), Brushwork.Brush.STICK)
 		check(tilted.on and tilted.pressure > 0.99, "either end and shallow side contact stay pressed at angle %f" % angle)
+	_pushing_in_presses_harder()
 	contact.reset()
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1), sideways), Brushwork.Brush.BIG)
 	var flat_brush := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -0.1), sideways), Brushwork.Brush.BIG)
@@ -72,8 +73,34 @@ func _run() -> void:
 	var sample := Brushwork.unpack(packed, 0)
 	check(sample[4] == 1.0 and sample[3] == 6, "stroke command retains contact angle and tick")
 	var side_dab := Brushwork.Stroker.new(data).add(sample)
-	check(side_dab[2] > tap[2] * 10.0 and side_dab[4] < side_dab[2] * 0.1, "side footprint longer than tip with a narrow width")
+	check(side_dab[2] > tap[2] * 5.0 and side_dab[4] <= tap[2] * 1.01, "side footprint longer than tip with a narrow width: %s / %s" % [side_dab.slice(0, 5), tap.slice(0, 5)])
 	var sent := {"medium": Brushwork.Medium.CHARCOAL, "brush": Brushwork.Brush.STICK, "colour": Vector3.ZERO, "strength": 1.0, "load": 1.0, "gap": 0, "samples": packed}
 	var arrived: Variant = Brushwork.clean(bytes_to_var(var_to_bytes(sent)))
 	check(arrived != null and Brushwork.Stroker.new(arrived).add(Brushwork.unpack(arrived.samples, 0)) == side_dab, "peer replay produces identical contact footprint")
 	finish()
+
+
+## How far a tool is pushed past the canvas is how hard it presses, by one curve for the stick's tip, its side and a
+## brush: a graze presses lightly, a push of `Brushwork.PRESS_DEPTH` fully, and the stick seen in the hand stays on the
+## canvas's face however far the hand goes.
+func _pushing_in_presses_harder() -> void:
+	var lean := Basis(Vector3.RIGHT, -PI * 0.25)
+	var tools := {"tip": [Brushwork.Brush.THICK_STICK, lean], "side": [Brushwork.Brush.THIN_STICK, Basis(Vector3.UP, PI * 0.5)], "brush": [Brushwork.Brush.BIG, Basis()]}
+	for what: String in tools:
+		var kind: Brushwork.Brush = tools[what][0]
+		var basis: Basis = tools[what][1]
+		var radius: float = Brushwork.STICKS[kind].x if Brushwork.is_stick(kind) else 0.0
+		var lowest := minf(0.0, (basis.z * (Brushwork.STICKS[kind].y if Brushwork.is_stick(kind) else 0.0)).z) - radius
+		var pressures := []
+		for depth in [0.001, Brushwork.PRESS_DEPTH * 0.5, Brushwork.PRESS_DEPTH, Brushwork.PRESS_DEPTH * 3.0]:
+			var contact := CanvasContact.new()
+			contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1 - lowest), basis), kind)
+			var pushed := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -depth - lowest), basis), kind)
+			pressures.append(pushed.pressure)
+			check(pushed.on, "the %s touches pushed %.3f m in" % [what, depth])
+			if Brushwork.is_stick(kind):
+				var seen: float = (pushed.pose * ToolModels.BRUSH_TIP).z + lowest
+				check(seen > -0.0015, "the %s seen pushed %.3f m in stays on the canvas's face: %.4f" % [what, depth, seen])
+		check(pressures[0] < 0.1, "the %s grazing presses lightly: %s" % [what, pressures])
+		check(pressures[0] < pressures[1] and pressures[1] < pressures[2], "the %s presses harder the farther it is pushed: %s" % [what, pressures])
+		check(pressures[2] > 0.999 and pressures[3] > 0.999, "the %s presses fully at the press depth and past it: %s" % [what, pressures])

@@ -79,11 +79,11 @@ func _pixels(c: Canvas) -> Array:
 	return out
 
 
-func _charcoal_image(side: float, drag: bool) -> Dictionary:
+func _charcoal_image(side: float, drag: bool, pressure := 0.8) -> Dictionary:
 	var c := await _canvas()
-	var samples := Brushwork.pack(Vector2(0.5, 0.5), 0.8, 0.0, 0, side)
+	var samples := Brushwork.pack(Vector2(0.5, 0.5), pressure, 0.0, 0, side)
 	if drag:
-		samples.append_array(Brushwork.pack(Vector2(0.6, 0.5), 0.8, 0.0, 1, side))
+		samples.append_array(Brushwork.pack(Vector2(0.6, 0.5), pressure, 0.0, 1, side))
 	var stroke := {"medium": Brushwork.Medium.CHARCOAL, "brush": Brushwork.Brush.STICK, "colour": Brushwork.CHARCOAL, "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples}
 	c.rebuild([stroke])
 	var pixels := await _dried(c)
@@ -111,6 +111,12 @@ func _charcoal_contact() -> void:
 	var side := await _charcoal_image(1.0, false)
 	check(tap.total > 0.0 and tap.total < drag.total * 0.01 and tap.peak < drag.peak * 0.05, "rendered tap is faint beside drag at equal pressure: %s / %s" % [tap, drag])
 	check(side.span.x > tap.span.x * 10 and side.span.y < tap.span.y * 1.5, "rendered side footprint follows stick length and width: %s / %s" % [side, tap])
+	for lying in [0.0, 1.0]:
+		var light := await _charcoal_image(lying, true, Brushwork.pressure(0.001))
+		var firm := await _charcoal_image(lying, true, Brushwork.pressure(Brushwork.PRESS_DEPTH))
+		var how := "on its side" if lying > 0.0 else "with its tip"
+		check(light.total > 0.0 and firm.total > light.total * 3.0 and firm.peak > light.peak * 1.5, "a stick pushed in %s marks darker than one grazing the canvas: %s / %s" % [how, firm, light])
+		check(firm.span.y > light.span.y * 1.5, "and wider: %s / %s" % [firm.span, light.span])
 
 
 func _smear() -> void:

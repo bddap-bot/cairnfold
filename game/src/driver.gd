@@ -1681,14 +1681,14 @@ func _dip(s: Dictionary) -> void:
 
 
 ## A brushstroke on the oil palette's open board, wherever the palette is, through `points` [x, z, pressure] (x toward
-## the paint, z across, both -1..1 of the board's half size) over `seconds`: the tip comes down onto the first, presses
-## as hard as each point says, and lifts off the last.
+## the paint, z across, both -1..1 of the board's half size) over `seconds`: the tip comes down onto the first, pushes
+## each point's pressure's share of `Brushwork.PRESS_DEPTH` into the board, and lifts off the last.
 func _mix(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
 	var board: Transform3D = e.palettes[Brushwork.Medium.OIL].global_transform
 	var on := func(p: Array, up: float) -> Vector3:
-		var depth: float = Easels.BOARD_TOP + EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
+		var depth: float = Easels.BOARD_TOP - p[2] * Brushwork.PRESS_DEPTH
 		return board * Vector3(p[0] * Easels.PALETTE_SIZE.x * 0.5, depth + up, p[1] * Easels.PALETTE_SIZE.y * 0.5)
 	var pts: Array = s.points
 	_tip_at(hand, on.call(pts[0], 0.06), -board.basis.y, -board.basis.x)
@@ -1707,7 +1707,8 @@ func _mix(s: Dictionary) -> void:
 
 
 ## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`: the
-## tip comes in from off the canvas, presses as hard as each point says, and lifts off at the end. A flat brush is
+## tip comes in from off the canvas, pushes each point's pressure's share of `Brushwork.PRESS_DEPTH` past its face (a
+## stick's tip by its rim), and lifts off at the end. A flat brush is
 ## turned `roll` degrees.
 func _brush(s: Dictionary) -> void:
 	var hand := _hand(s)
@@ -1716,8 +1717,10 @@ func _brush(s: Dictionary) -> void:
 	var frame := e.canvas_frame()
 	var roll := deg_to_rad(s.get("roll", 0.0))
 	var direction := frame.basis * (Basis(Vector3.UP, deg_to_rad(s.get("tilt", 0.0))) * Vector3.FORWARD)
+	var kind := main.easel_tool.painter(hand).brush
+	var face: float = Brushwork.STICKS[kind].x if Brushwork.is_stick(kind) else 0.0
 	var on := func(p: Array, out: float) -> Vector3:
-		var depth: float = EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
+		var depth: float = face - p[2] * Brushwork.PRESS_DEPTH
 		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
 	var pts: Array = s.points
 	var before := frame.affine_inverse() * hand.global_position

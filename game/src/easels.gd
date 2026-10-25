@@ -462,7 +462,8 @@ static func _quad(key: String, size: Vector2) -> QuadMesh:
 ## Where charcoal stick `kind` lies on the tray, in the easel's frame.
 static func on_tray(kind: Brushwork.Brush) -> Transform3D:
 	var across := STICK_GAP * (Brushwork.STICKS.keys().find(kind) - (Brushwork.STICKS.size() - 1) * 0.5)
-	return Transform3D(Basis(), CHARCOAL + Vector3(across, Brushwork.STICKS[kind] - ToolModels.BRUSH_TIP.y, -ToolModels.BRUSH_TIP.z - ToolModels.CHARCOAL_LENGTH * 0.5))
+	var size: Vector2 = Brushwork.STICKS[kind]
+	return Transform3D(Basis(), CHARCOAL + Vector3(across, size.x - ToolModels.BRUSH_TIP.y, -ToolModels.BRUSH_TIP.z - size.y * 0.5))
 
 
 ## How a brush of `kind` stands in the pot, in the easel's frame: its handle's axis rises from the floor by the wall
@@ -481,7 +482,7 @@ static func in_pot(kind: Brushwork.Brush) -> Transform3D:
 ## stick of charcoal by its middle.
 static func grip(kind: Brushwork.Brush) -> Vector3:
 	if Brushwork.is_stick(kind):
-		return ToolModels.BRUSH_TIP * 0.5
+		return ToolModels.BRUSH_TIP + Vector3(0, 0, Brushwork.STICKS[kind].y * 0.5)
 	var t := in_pot(kind)
 	var out := (t.basis * Vector3.FORWARD).y
 	var rim := (POT_SIZE.y - POT_FLOOR) / out

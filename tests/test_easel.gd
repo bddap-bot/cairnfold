@@ -849,7 +849,7 @@ func _each_easel_holds_one_of_each_tool() -> void:
 
 
 ## The charcoal comes in three sizes laid well apart on the tray: a grip at each takes it, and a thicker stick is a
-## thicker model and lays a wider mark.
+## thicker, shorter model and lays a wider mark.
 func _sticks_come_in_sizes() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
@@ -864,6 +864,7 @@ func _sticks_come_in_sizes() -> void:
 		var thick: Brushwork.Brush = sizes[i]
 		var what := "the %s against the %s" % [Brushwork.Brush.keys()[thick], Brushwork.Brush.keys()[thin]]
 		check(_thickness(e.brushes[thick]) > _thickness(e.brushes[thin]) * 1.4, "%s: a thicker model, %.4f m to %.4f m" % [what, _thickness(e.brushes[thick]), _thickness(e.brushes[thin])])
+		check(_length(e.brushes[thick]) < _length(e.brushes[thin]) * 0.75, "%s: a shorter model, %.3f m to %.3f m" % [what, _length(e.brushes[thick]), _length(e.brushes[thin])])
 		check(marks[i] > marks[i - 1] * 1.4, "%s: a wider mark, %.1f to %.1f texels" % [what, marks[i], marks[i - 1]])
 		var gap: float = (e.brushes[thick].global_transform * Easels.grip(thick)).distance_to(e.brushes[thin].global_transform * Easels.grip(thin))
 		check(gap >= 0.09, "%s: %.3f m apart on the tray" % [what, gap])
@@ -878,6 +879,12 @@ func _sticks_come_in_sizes() -> void:
 static func _thickness(stick: Node3D) -> float:
 	var mi: MeshInstance3D = stick.get_node("tip")
 	return (mi.transform * mi.get_aabb()).size.x
+
+
+## How long a stick of charcoal's model is.
+static func _length(stick: Node3D) -> float:
+	var mi: MeshInstance3D = stick.get_node("tip")
+	return (mi.transform * mi.get_aabb()).size.z
 
 
 ## A stick of charcoal is held leaned back 45 degrees from the hand's aim, its tip dropped, and a brush along the aim.
@@ -911,7 +918,8 @@ func _a_side_stroke_turns_with_the_stick() -> void:
 	for i in STEPS + 1:
 		var d := Vector3.RIGHT.rotated(Vector3.BACK, PI * i / STEPS)
 		var b := Basis.looking_at(-d, Vector3.BACK)
-		var tip := Vector3(0, 0, Brushwork.STICKS[p.brush] - 0.004) - d * ToolModels.CHARCOAL_LENGTH * 0.5
+		var size: Vector2 = Brushwork.STICKS[p.brush]
+		var tip := Vector3(0, 0, size.x - 0.004) - d * size.y * 0.5
 		p.hand.body.global_transform = frame * Transform3D(b, tip - b * ToolModels.BRUSH_TIP) * ToolModels.hold(p.brush).affine_inverse()
 		main.easel_tool._touch(p, e, 1.0 / 60.0)
 		last_angle = atan2(-d.y, d.x)
@@ -942,7 +950,7 @@ func _a_side_stroke_turns_with_the_stick() -> void:
 	check(absf(absf(turned) - PI) < 0.1 and step < 0.1, "its dabs turn smoothly through half a turn: %.3f rad, at most %.3f a dab" % [turned, step])
 	check(angles.size() > 0 and absf(Brushwork.turn(angles[-1], last_angle)) < 0.05, "and end where the stick lies")
 	var straight := Brushwork.Stroker.new(data)
-	var sweep := Brushwork.side_reach(1.0) * PI * 0.5
+	var sweep := Brushwork.side_reach(data.brush, 1.0) * PI * 0.5
 	straight.add([Vector2(0.3, 0.5), pressure, PI * 0.5, 0, 1.0])
 	var along := 0.0
 	for k in 60:

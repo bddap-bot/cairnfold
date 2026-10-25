@@ -4503,7 +4503,8 @@ Directive (verbatim): "There's a feature that I would like. That is a big painti
 An easel (`Easels`) stands where the easel tool's trigger sets it, its canvas 1.5 by 1.125 m at standing height,
 tilted back 10°, with a tray in front holding a painter's kit for each medium: a pot of brushes; a black box of
 watercolour pans beside a glass of water; a wooden oil palette with its eight colours squeezed out round the edge; and
-three sticks of willow charcoal, thin, middling and thick, laid 10 cm apart. An easel holds one of each tool. Nothing
+three sticks of willow charcoal laid 10 cm apart, from long and thin to short and thick (24 cm by 7 mm, 15 cm by
+13 mm, 8 cm by 22 mm), so the sizes read apart at a glance. An easel holds one of each tool. Nothing
 is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a big round or a flat brush, and at the
 charcoal that stick; a grip at either palette takes it by its thumb hole, paint up
 and reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until
@@ -4517,17 +4518,22 @@ under it. Charcoal takes no paint; a stick's thickness sets its mark's width.
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
 or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
 when set down.
-A stick of charcoal is held leaned back 45° from the hand's aim, its tip dropped: aimed at the canvas it meets it at
-45°, and a wrist turned down as far lays its side flat on it.
+A stick of charcoal is held leaned back 45° from the hand's aim, its tip dropped, its back end in the hand whatever its
+length: aimed at the canvas it meets it at 45°, and a wrist turned down as far lays its side flat on it.
 The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
 
 Held brushes and charcoal use the hand's swept collision solver against the canvas
-face and edges. Bristles deform up to 12 mm, with pressure rising through that
-travel; then the visible hand and brush stop while the tracked controller can
-continue. The rigid brush shaft and charcoal also stop at the sheet. Charcoal
+face and edges. Bristles deform up to 12 mm, then the visible hand and brush stop
+while the tracked controller can continue. The rigid brush shaft and charcoal also
+stop at the sheet. Pressure is how far the tracked tool is pushed past the surface
+it paints, by one curve for every tool, the brush and the stick's tip and side on
+the canvas and a brush on the oil palette's board (`Brushwork.pressure`): a graze
+presses at 5%, easing up to full at 20 mm (`Brushwork.PRESS_DEPTH`). A firmer press
+lays a wider mark and, for charcoal, reaches deeper into the paper's tooth and
+darkens more; the stick's grain pulse in the hand grows with it. Charcoal
 leaves a faint first touch and deposits further pigment only with contact travel.
 Its footprint follows the stick's angle: narrow at the tip, long and narrow across
 its side. A stick on its side lays by how far its line sweeps, so one turned about

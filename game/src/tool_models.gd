@@ -25,11 +25,12 @@ const _SELFIE_SCREEN_X := -0.011
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
 ## A brush handle's radius at its widest, by the ferrule.
 const HANDLE_RADIUS := 0.005
-const CHARCOAL_LENGTH := 0.25
 ## A stick of charcoal is held leaned back this far from the controller's aim, its tip dropped, about where a hand
 ## grips it: aimed at the canvas it meets it at this angle, and a wrist turned down as far lays its side flat on it.
+## Whatever its length, its back end rests in the hand this far along the aim, so a short stick's tip is nearer it.
 const STICK_LEAN := deg_to_rad(45.0)
 const STICK_GRIP := Vector3(0, 0.01, -0.06)
+const STICK_BUTT := -0.02
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
@@ -403,12 +404,13 @@ static func _easel(root: Node3D) -> void:
 
 
 ## Where a held brush of `kind` lies in the controller's frame: a brush along the aim, a stick of charcoal leaned back
-## (STICK_LEAN).
+## (STICK_LEAN) with its back end in the hand (STICK_BUTT).
 static func hold(kind: Brushwork.Brush) -> Transform3D:
 	if not Brushwork.is_stick(kind):
 		return Transform3D()
 	var lean := Basis(Vector3.RIGHT, -STICK_LEAN)
-	return Transform3D(lean, STICK_GRIP - lean * STICK_GRIP)
+	var back := Vector3(0, 0, STICK_BUTT - BRUSH_TIP.z - Brushwork.STICKS[kind].y)
+	return Transform3D(lean, STICK_GRIP - lean * STICK_GRIP + lean * back)
 
 
 ## A brush of `kind` along its own -z, its tip at BRUSH_TIP; its bristles are the child named "tip", for the paint on
@@ -418,7 +420,8 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 	var along := Basis(Vector3.RIGHT, -PI * 0.5)
 	var tip_z := BRUSH_TIP.z
 	if Brushwork.is_stick(kind):
-		var stick := _piece(root, charcoal(CHARCOAL_LENGTH, Brushwork.STICKS[kind]), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
+		var size: Vector2 = Brushwork.STICKS[kind]
+		var stick := _piece(root, charcoal(size.y, size.x), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + size.y * 0.5)), charcoal_material())
 		stick.name = "tip"
 		return root
 	_piece(root, cylinder(HANDLE_RADIUS, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
