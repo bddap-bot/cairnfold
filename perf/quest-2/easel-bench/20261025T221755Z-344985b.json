@@ -1,0 +1,219 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "mix/clean-1": {
+   "p50": 13.9300003051758,
+   "p99": 15.4010000228882,
+   "late": 0,
+   "draws": 50,
+   "prims": 128257,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.2,
+   "timewarp_ms": 1.14
+  },
+  "mix/painted-1": {
+   "p50": 13.9359998703003,
+   "p99": 15.3459997177124,
+   "late": 0,
+   "draws": 50,
+   "prims": 128257,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.2,
+   "timewarp_ms": 1.14
+  },
+  "mix/clean-2": {
+   "p50": 13.9209995269775,
+   "p99": 15.539999961853,
+   "late": 0,
+   "draws": 50,
+   "prims": 128257,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.23,
+   "timewarp_ms": 1.16
+  },
+  "mix/painted-2": {
+   "p50": 13.9350004196167,
+   "p99": 15.3660001754761,
+   "late": 0,
+   "draws": 53,
+   "prims": 134297,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.31,
+   "timewarp_ms": 1.16
+  },
+  "mix/clean-3": {
+   "p50": 13.9340000152588,
+   "p99": 15.3459997177124,
+   "late": 0,
+   "draws": 52,
+   "prims": 132449,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.25,
+   "timewarp_ms": 1.14
+  },
+  "mix/painted-3": {
+   "p50": 13.9379997253418,
+   "p99": 15.4069995880127,
+   "late": 0,
+   "draws": 51,
+   "prims": 130353,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_ms": 4.25,
+   "timewarp_ms": 1.14
+  },
+  "sweep/meadow-fit": {
+   "p50": 13.9350004196167,
+   "p99": 15.9270000457764,
+   "late": 1,
+   "draws": 47,
+   "prims": 133794,
+   "step": 16,
+   "fill": 0.0,
+   "gpu_ms": 4.79,
+   "timewarp_ms": 1.15
+  },
+  "easels/four": {
+   "p50": 13.9230003356934,
+   "p99": 16.173999786377,
+   "late": 0,
+   "draws": 210,
+   "prims": 315212,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.521,
+     "late": 0
+    }
+   ],
+   "step": 13,
+   "fill": 0.749,
+   "gpu_ms": 11.1,
+   "timewarp_ms": 1.15
+  },
+  "sweep/four-fit": {
+   "p50": 13.9259996414185,
+   "p99": 15.6940002441406,
+   "late": 0,
+   "draws": 166,
+   "prims": 153910,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 8.73,
+   "timewarp_ms": 1.14
+  },
+  "paint/four-wet": {
+   "p50": 13.9090003967285,
+   "p99": 24.1909999847412,
+   "late": 2,
+   "draws": 166,
+   "prims": 153910,
+   "stalls": [
+    {
+     "ms": 99.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 9.2,
+   "timewarp_ms": 1.14
+  },
+  "paint/four-drying": {
+   "p50": 13.8999996185303,
+   "p99": 15.4359998703003,
+   "late": 0,
+   "draws": 165,
+   "prims": 153664,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 10.22,
+   "timewarp_ms": 1.14
+  },
+  "paint/watercolour": {
+   "p50": 13.9449996948242,
+   "p99": 15.9449996948242,
+   "late": 2,
+   "draws": 141,
+   "prims": 144486,
+   "stalls": [
+    {
+     "ms": 125.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 10.55,
+   "timewarp_ms": 1.14
+  },
+  "paint/drying": {
+   "p50": 13.9670000076294,
+   "p99": 15.6809997558594,
+   "late": 0,
+   "draws": 141,
+   "prims": 144306,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 10.36,
+   "timewarp_ms": 1.14
+  },
+  "paint/oil": {
+   "p50": 13.9549999237061,
+   "p99": 15.5729999542236,
+   "late": 0,
+   "draws": 141,
+   "prims": 144306,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 9.79,
+   "timewarp_ms": 1.14
+  },
+  "paint/charcoal": {
+   "p50": 13.83899974823,
+   "p99": 15.9980001449585,
+   "late": 0,
+   "draws": 139,
+   "prims": 144306,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 10.57,
+   "timewarp_ms": 1.15
+  },
+  "paint/replay": {
+   "p50": 13.9569997787476,
+   "p99": 16.0410003662109,
+   "late": 0,
+   "draws": 139,
+   "prims": 144306,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 9.32,
+   "timewarp_ms": 1.14
+  },
+  "paint/after-replay": {
+   "p50": 13.9130001068115,
+   "p99": 15.4580001831055,
+   "late": 0,
+   "draws": 109,
+   "prims": 138302,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_ms": 6.06,
+   "timewarp_ms": 1.13
+  }
+ }
+}

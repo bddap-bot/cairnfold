@@ -4657,10 +4657,26 @@ catches, picking up the colour under it as the brush empties. Charcoal catches o
 hollows as it is pressed harder.
 
 What it costs: flow runs only on 64-texel tiles a wet brush touched in the last six seconds, two steps a tick at 60
-ticks a second, held to a budget of 3 million texel-steps a frame (`Canvas.STEPS`); past it the paint dries slower
-instead of the frame running long. A dab costs a texel-step for every texel of its rectangle. The painter's own dabs
-land whatever they cost; a replay catching up charges its dabs to the same budget, so it lays a painting no faster
-than the frame holds. A dry canvas costs its drawing only.
+ticks a second. Every canvas together runs at most `Budget.PAINT_STEPS` texel-steps of flow a frame, 1 million, split
+evenly among the canvases flowing; past it the paint dries slower instead of the frame running long. A tick dearer
+than a canvas's share runs over several frames, each flow step a band of rows at a time: a step reads only the texture
+the other writes, so its rows run in any number of parts to the same result (`tests/gpu_canvas.gd` dries a painting
+run 400,000 steps a frame bit for bit to one run whole), and what comes after it on that canvas waits its turn. A dab
+costs a texel-step for every texel of its rectangle. The painter's own dabs land whatever they cost; a replay catching
+up charges its dabs against the canvas's share, so it lays a painting no faster than the frame holds. A dry canvas
+costs its drawing only. The quality governor reads the viewport's GPU timer, which leaves out the canvases' work, so
+the canvases time their own with GPU timestamps and the governor adds them (`Canvas.gpu_ms`).
+
+On the Quest 2 (`demo/easel-bench.json`), with each canvas allowed 3 million texel-steps a frame of its own, flow cost
+2.75 ns a texel-step on the paint phases: one canvas painting spent a median 2.33 million a frame and four painting at
+once 7.0 million. Watercolour read 15.30 ms of GPU time, four canvases painting 20.14 and their drying 13.39, against
+the then 12.50 ms (`perf/quest-2/measure/`, 683 late frames painting four). Sharing 1 million among them, with the
+governor counting the canvases' time, two runs held every phase under the 11.11 ms budget, the dearest four canvases
+painting 9.20 and 9.73 ms, their drying 10.22 and 10.28, watercolour 10.46 and 10.55, replay 9.32 and 9.44, and the
+four easels in view 10.84 and 11.10, 8 and 5 late frames a run in all (`perf/quest-2/easel-bench/`). A run sharing the
+budget whose governor did not count the canvases chose a dearer step and read 11.14 and 11.30 there. The paint pays:
+a stroke across four canvases at once flows and dries at about a seventh of its pace, one canvas at under half. Every
+late frame left is the CPU: a scene reset, a quality step, or one stall of about 130 ms early in watercolour painting.
 
 The flow shader reads the immutable water input and paper through integer texture fetches. Empty texels whose
 four neighbours cannot supply water write zero to the next buffer without evaluating flow or settling; every

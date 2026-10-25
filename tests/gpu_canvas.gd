@@ -21,6 +21,18 @@ func _run() -> void:
 	var strokes := Driver.painting(N + 1)
 	var kept := strokes.slice(0, N)
 
+	var steps := Canvas.steps
+	Canvas.steps = 1.0e9
+	var few := strokes.slice(0, 8)
+	var whole := await _canvas()
+	whole.rebuild(few)
+	var unsplit := await _dried(whole)
+	Canvas.steps = 200000.0
+	var slow := await _canvas()
+	slow.rebuild(few)
+	check(await _dried(slow) == unsplit, "flow run a few rows a frame dries to what it dries to run whole")
+	Canvas.steps = 1.0e9
+
 	var fresh := await _canvas()
 	fresh.rebuild(kept)
 	var want := await _dried(fresh)
@@ -43,6 +55,7 @@ func _run() -> void:
 	resumed.rebuild(kept)
 	check(resumed.catching_up() and resumed._pending == 3, "only the strokes after the checkpoint replay")
 	check(await _dried(resumed) == want, "a checkpoint and the strokes after it dry to what a fresh replay dries to")
+	Canvas.steps = steps
 
 	finish()
 
@@ -62,7 +75,7 @@ func _caught_up(c: Canvas) -> void:
 ## The canvas's wet and dry paint once it has caught up and every tile has dried.
 func _dried(c: Canvas) -> Array:
 	await _caught_up(c)
-	while c.wet():
+	while c.wet() or not c.settled():
 		await process_frame
 	return await _pixels(c)
 

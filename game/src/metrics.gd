@@ -205,6 +205,11 @@ func _process(_delta: float) -> void:
 				row.landings = _landings
 				_landings = []
 		row.prims = _prims
+		row.paint_steps = roundi(Canvas.laid / maxi(_deltas.size(), 1))
+		Canvas.laid = 0.0
+		row.paint_cpu_ms = Canvas.cpu_us / 1000.0 / maxi(_deltas.size(), 1)
+		Canvas.cpu_us = 0
+		row.paint_gpu_ms = Canvas.gpu_ms()
 		if not _eye_lo.is_empty():
 			row.eye_fov_spread_deg = spread(_eye_lo, _eye_hi)
 			_eye_lo = PackedFloat32Array()

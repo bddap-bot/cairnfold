@@ -11,9 +11,6 @@ extends Node
 ## strokes and replays only the rest, so undoing the last stroke costs a texture copy however many came before.
 ## Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
 
-## GPU work a frame may take, in texel-steps (one texel through one flow step, or under one dab). A painter's own
-## dabs land whatever they cost; a catching-up replay's are charged.
-const STEPS := 3.0e6
 ## Ticks owed beyond this are let go: past its budget the paint dries slower instead of stalling the frame.
 const MAX_OWED := 3.0
 const TILES := Vector2i(Brushwork.SIZE.x / Brushwork.TILE, Brushwork.SIZE.y / Brushwork.TILE)
@@ -33,6 +30,20 @@ const CHECKPOINTS := 6
 static var _shader: RID
 static var _sampler: RID
 static var _pipeline: RID
+## Texel-steps every canvas has laid, and the microseconds of main and render thread every canvas has taken, since
+## Metrics last took them.
+static var laid := 0.0
+static var cpu_us := 0
+## Render thread: the GPU milliseconds the canvases took in the last frame whose timestamps have come back, and the
+## process frame the canvases last ran on the GPU.
+static var _gpu_ms := 0.0
+static var _gpu_frame := -1
+static var _ran := -100
+## Budget.PAINT_STEPS, shared each frame among the canvases running flow.
+static var steps := Budget.PAINT_STEPS
+static var _frame := -1
+static var _flowing := 0
+static var _flowing_now := 0
 
 ## Ticks laid so far, and the tick the last stroke on this canvas ended at.
 var ticks := 0
@@ -66,9 +77,13 @@ var _pending := 0
 var _open := false
 ## Render thread: each slot's [wet, dry] textures, made the first time it is saved to.
 var _slots: Array = []
-## What this frame lays, in order, and the dabs it uses.
+## What this frame lays, in order, and the dabs it uses; then every batch not yet run on the GPU, in order:
+## [ops, dabs, tiles, bundle, uploaded], and the flow they hold, in texel-steps.
 var _ops: Array = []
 var _batches: Array = []
+var _bundle := 0
+var _backlog := 0.0
+var _was_flowing := false
 var _dabs := PackedFloat32Array()
 var _batch_start := 0
 var _shown: Array[Texture2DRD] = []
@@ -218,11 +233,16 @@ func wet() -> bool:
 	return not _wet_tiles.is_empty()
 
 
+## Whether the GPU has run everything laid so far.
+func settled() -> bool:
+	return _batches.is_empty() and _ops.is_empty()
+
+
 ## Lays dabs now, at the current tick: the painter's own brush, as it touches.
 func lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
 	_open = true
 	if not dabs.is_empty():
-		_lay(stroke, dabs)
+		laid += _lay(stroke, dabs)
 
 
 ## The painter's own `stroke` has ended now.
@@ -329,13 +349,19 @@ func _wait(n: int) -> void:
 
 
 func _process(delta: float) -> void:
+	var start := Time.get_ticks_usec()
+	_step(delta)
+	cpu_us += Time.get_ticks_usec() - start
+
+
+func _step(delta: float) -> void:
 	if _catching_up:
 		_owed = INF
 	elif not _queue.is_empty() or wet():
 		_owed = minf(_owed + delta * Brushwork.TICK_HZ, MAX_OWED)
 	else:
 		_owed = 0.0
-	var budget := STEPS
+	var budget := _share() - _backlog
 	while true:
 		if not _queue.is_empty() and _queue[0][0] != "wait":
 			var e: Array = _queue.pop_front()
@@ -347,16 +373,18 @@ func _process(delta: float) -> void:
 				_queue.push_front(e)
 				break
 			if not e[2].is_empty():
-				var laid := _lay(e[1], e[2])
+				var cost := _lay(e[1], e[2])
+				laid += cost
 				if _catching_up:
-					budget -= laid
+					budget -= cost
 			continue
 		if _owed < 1.0:
 			break
 		var cost := _tick_cost()
-		if cost > budget and budget < STEPS:
+		if cost > budget and _backlog > 0.0:
 			break
 		budget -= cost
+		laid += cost
 		_owed -= 1.0
 		_tick()
 		if not _queue.is_empty():
@@ -369,12 +397,23 @@ func _process(delta: float) -> void:
 			break
 	if _catching_up:
 		_replay_frames += 1
-	if _catching_up and _queue.is_empty():
+	_submit()
+	if _catching_up and _queue.is_empty() and settled():
 		_catching_up = false
 		print("canvas: %d strokes back in %.0f ms over %d frames" % [_replay_strokes, (Time.get_ticks_usec() - _replay_from) / 1000.0, _replay_frames])
 		_owed = 0.0
 		_thaw()
-	_submit()
+
+
+## This canvas's share of the frame's flow: `steps` split evenly among the canvases flowing last frame, this one
+## counted.
+func _share() -> float:
+	var f := Engine.get_process_frames()
+	if f != _frame:
+		_frame = f
+		_flowing = _flowing_now
+		_flowing_now = 0
+	return steps / maxi(_flowing + (0 if _was_flowing else 1), 1)
 
 
 func _tick_cost() -> float:
@@ -394,7 +433,9 @@ func _wet_rect(tick: int) -> Rect2i:
 func _tick() -> void:
 	var rect := _wet_rect(ticks)
 	if rect.size != Vector2i.ZERO:
-		_ops.append(["tick", ticks, rect])
+		_ops.append(["flow", ticks, rect, 0])
+		_ops.append(["flow", ticks, rect, 1])
+		_backlog += rect.get_area() * 2.0
 	ticks += 1
 	for t: int in _wet_tiles.keys():
 		if _tiles[t * 2 + 1] <= ticks:
@@ -445,29 +486,110 @@ func _wetten(rect: Rect2i) -> void:
 
 func _close_batch() -> void:
 	if not _ops.is_empty():
-		_batches.append([_ops, _dabs, _tiles.duplicate()])
+		_batches.append([_ops, _dabs, _tiles.duplicate(), _bundle, false])
+		_bundle = (_bundle + 1) % BUNDLES
 	_ops = []
 	_dabs = PackedFloat32Array()
 	_batch_start = ticks
 
 
+## Sends the GPU what is waiting, in order, up to this canvas's share of flow: a flow step past it runs as many rows as
+## the share leaves, the rest the next frame, so a tick dearer than the share spreads over frames. Each step reads
+## only the texture the other writes, so its rows run in any number of parts to the same result. A frame that has
+## run no flow yet runs at least one row of workgroups.
 func _submit() -> void:
 	_close_batch()
-	var batches := _batches
-	_batches = []
-	if _rd == null or batches.is_empty():
+	var left := _share()
+	var flowed := false
+	var out: Array = []
+	while not _batches.is_empty():
+		var b: Array = _batches[0]
+		var part: Array = []
+		var full := false
+		while not b[0].is_empty():
+			var op: Array = b[0][0]
+			if op[0] == "flow":
+				var rect: Rect2i = op[2]
+				if rect.get_area() > left:
+					var rows := mini(floori(left / rect.size.x / 8.0) * 8, rect.size.y)
+					if rows <= 0 and flowed:
+						full = true
+						break
+					rows = maxi(rows, 8)
+					var band := Rect2i(rect.position, Vector2i(rect.size.x, mini(rows, rect.size.y)))
+					part.append(["flow", op[1], band, op[3]])
+					left -= band.get_area()
+					_backlog -= band.get_area()
+					flowed = true
+					if band.size.y < rect.size.y:
+						op[2] = Rect2i(rect.position + Vector2i(0, band.size.y), rect.size - Vector2i(0, band.size.y))
+						full = true
+						break
+					b[0].pop_front()
+					continue
+				left -= rect.get_area()
+				_backlog -= rect.get_area()
+				flowed = true
+			part.append(op)
+			b[0].pop_front()
+		if not part.is_empty():
+			out.append([part, b[1], b[2], b[3], not b[4]])
+			b[4] = true
+		if full:
+			break
+		_batches.pop_front()
+	if _batches.is_empty():
+		_backlog = 0.0
+	_was_flowing = flowed or not _batches.is_empty()
+	if _was_flowing:
+		_flowing_now += 1
+	if _rd == null or out.is_empty():
 		return
-	RenderingServer.call_on_render_thread(_run.bind(batches))
+	RenderingServer.call_on_render_thread(_run.bind(out))
 
 
 func _run(batches: Array) -> void:
-	var k := 0
+	var start := Time.get_ticks_usec()
+	_read_gpu_time()
+	_rd.capture_timestamp("canvas/start")
+	_dispatch_all(batches)
+	_rd.capture_timestamp("canvas/end")
+	_ran = Engine.get_process_frames()
+	cpu_us += Time.get_ticks_usec() - start
+
+
+## The GPU time the canvases have taken a frame, in milliseconds, as their timestamps last read it; nothing once they
+## have stopped running.
+static func gpu_ms() -> float:
+	return _gpu_ms if Engine.get_process_frames() - _ran < 4 else 0.0
+
+
+## Sums the canvases' timestamp pairs in the newest frame the GPU has reported, once per such frame.
+func _read_gpu_time() -> void:
+	var frame := _rd.get_captured_timestamps_frame()
+	if frame == _gpu_frame:
+		return
+	_gpu_frame = frame
+	var ns := 0
+	var from := -1
+	for i in _rd.get_captured_timestamps_count():
+		match _rd.get_captured_timestamp_name(i):
+			"canvas/start":
+				from = _rd.get_captured_timestamp_gpu_time(i)
+			"canvas/end":
+				if from >= 0:
+					ns += _rd.get_captured_timestamp_gpu_time(i) - from
+				from = -1
+	_gpu_ms = ns / 1.0e6
+
+
+func _dispatch_all(batches: Array) -> void:
 	for b: Array in batches:
-		var bundle: Array = _bundles[k % BUNDLES]
-		k += 1
-		if not b[1].is_empty():
-			_rd.buffer_update(bundle[0], 0, b[1].size() * 4, b[1].to_byte_array())
-		_rd.buffer_update(bundle[1], 0, b[2].size() * 4, b[2].to_byte_array())
+		var bundle: Array = _bundles[b[3]]
+		if b[4]:
+			if not b[1].is_empty():
+				_rd.buffer_update(bundle[0], 0, b[1].size() * 4, b[1].to_byte_array())
+			_rd.buffer_update(bundle[1], 0, b[2].size() * 4, b[2].to_byte_array())
 		for op: Array in b[0]:
 			match op[0]:
 				"clear":
@@ -485,9 +607,8 @@ func _run(batches: Array) -> void:
 					_copy(_slots[op[1]][0], _wet[0])
 					_copy(_slots[op[1]][0], _wet[1])
 					_copy(_slots[op[1]][1], _dry)
-				"tick":
-					_dispatch(bundle[2], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], 0))
-					_dispatch(bundle[3], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], 1))
+				"flow":
+					_dispatch(bundle[2 + op[3]], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], op[3]))
 				"dabs":
 					var s: Dictionary = op[1]
 					if s.medium == Brushwork.Medium.SMEAR:

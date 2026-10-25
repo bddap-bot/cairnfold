@@ -124,6 +124,7 @@ var budget_ms := 0.0
 ## The viewport's GPU time for the last frame measured, in milliseconds, and whether this frame measured one.
 var frame_ms := 0.0
 var fresh := false
+var _viewport_ms := 0.0
 var _xr: OpenXRInterface
 var _flora: Flora
 var _masonry: Masonry
@@ -236,8 +237,10 @@ func _process(delta: float) -> void:
 	var dt := (now - _tick) / 1000000.0 if _tick > 0 else delta
 	_tick = now
 	# The timer holds its last reading while the runtime skips rendering, as with the headset off the head.
-	fresh = ms > 0.0 and ms != frame_ms
-	frame_ms = ms
+	fresh = ms > 0.0 and ms != _viewport_ms
+	_viewport_ms = ms
+	# The viewport's timer leaves out the paint the canvases run on the GPU outside it.
+	frame_ms = ms + Canvas.gpu_ms()
 	if _xr != null and fresh:
 		# The runtime may report the shell's rate for the first frames, so the budget follows it every frame.
 		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
