@@ -14,8 +14,9 @@
 #                                             session's eye tracking and passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
-# On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure, as a pricing
-# phase built past any budget a garden holds does.
+# On a Quest, exits 1 when a phase the build must hold goes over budget: one whose garden the build budget admits (World.fill
+# at most 1 every second of it). A phase past the budget, which no player can build, only measures, as do phases named
+# "sweep/...", pricing phases.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured. scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
@@ -352,6 +353,8 @@ for name, secs in phases.items():
     steps = [s["step"] for s in secs if "step" in s]
     if steps:
         summary[name]["step"] = mid(steps)
+    fill = max(s.get("fill", 0.0) for s in phases[name])
+    summary[name]["fill"] = fill
     mhz = [s["gpu_mhz"] for s in secs if "gpu_mhz" in s]
     if mhz:
         summary[name]["gpu_mhz"] = mid(mhz)
@@ -363,8 +366,8 @@ for name, secs in phases.items():
             row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
         if device == "quest":
             held = g <= budget["gpu_ms"]
-            row += " holds" if held else " OVER"
-            if not held and not name.startswith("sweep/"):
+            row += " holds" if held else f" past the build budget ({fill:.2f})" if fill > 1 else " OVER"
+            if not held and fill <= 1 and not name.startswith("sweep/"):
                 over.append(name)
     print(row)
 os.makedirs(os.path.dirname(record), exist_ok=True)

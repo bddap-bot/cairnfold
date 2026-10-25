@@ -2314,6 +2314,17 @@ func _view_held(s: Dictionary) -> void:
 	await _frames(30)
 
 
+## Brings a band of deer and the fox to the meadow's rim now where none is there, as Roamers does in its own time, and
+## waits until one of each stands in the garden, so the views of them do not hang on when they happen to come.
+func _roamers(_s: Dictionary) -> void:
+	var roamers: Roamers = main.wildlife.roamers
+	for kind: Beast.Kind in Roamers.FIRST:
+		while get_tree().get_nodes_in_group(Beast.GROUPS[kind]).is_empty():
+			if not roamers.bands.any(func(b: Grazers.Band) -> bool: return (b.animals[0] as Beast).kind == kind):
+				roamers.arrive(kind)
+			await get_tree().process_frame
+
+
 func _release_bird(s: Dictionary) -> void:
 	var h := _hand(s)
 	Buttons.injected.erase("%s/%s" % [h.tracker, Controls.input("grab", h.tracker)])

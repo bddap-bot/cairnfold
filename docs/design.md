@@ -425,9 +425,12 @@ density, and no build the player can make may bring the frame rate down.
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
   each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second, then the selfie camera held out at the player, whose own avatar it draws.
+  It plays governed, the ladder walking as it does in play, with its builds unbounded: most go past the build budget,
+  which no player can do, and price what such a garden draws.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
-  calls, primitives and GPU time; on a Quest it holds each phase to the budget and
-  fails when one goes over. A new feature adds itself to the stress scene.
+  calls, primitives and GPU time; on a Quest it holds to the budget each phase whose garden the build budget admits
+  (`World.fill` at most 1 throughout) and fails when one goes over. A phase past the build budget only measures ("The
+  stress scene on the Quest 2"). A new feature adds itself to the stress scene.
   `NESTCOMBE_PLAYERS=8 NESTCOMBE_WAVE=1` fills the session with flat-screen
   companions playing the recorded wave throughout the tour, including its final
   `avatars/wave` view.
@@ -852,6 +855,49 @@ same two figures. The earlier records, 8.2 to 8.7 ms on some builds and 5.9 to 6
 the same primitives, carried no step and match these two. Bench records now carry each phase's step
 and GPU clock (`gpu_mhz`, from the driver's cycle count), and `scripts/trend.py` compares a phase only
 with runs on its step.
+
+### The stress scene on the Quest 2
+
+What the game promises is the refresh rate for every garden a player can build. The governor walks the ladder for
+that, and the build budget keeps a garden within what the ladder's bottom step holds (`Budget.fit_step`). So the bench
+holds a phase to the line where the build budget admits its garden, with the governor free. Pinning the start step
+(6), as the stress scene did, held every garden to a step the governor leaves as soon as the frame runs over. The
+scene's other gardens are past the build budget: the wall discs, villages, hills and roof families run from 1.99 to
+8.78 times it (`World.fill`). On the Quest 2 no step of the ladder brings those within the line, so their phases
+measure what they cost and set no verdict.
+
+Measured on a Quest 2, the runtime's `App=` GPU ms a frame, the median of each phase's seconds after its first. The
+pinned run is main's last before the change (`perf/quest-2/stress/20261024T221834Z-dff34d8.json`); the governed run
+is the scene with the change, the step the median of the phase's:
+
+| Phase | Pinned at step 6 | Governed, step |
+| --- | --- | --- |
+| `meadow/aerial` | 11.26 | 9.81, 10 |
+| `flora/aerial` | 14.55 | 8.31, 13 |
+| `flora/ground` | 13.31 | 10.70, 16 |
+| `ponds/aerial` | 15.85 | 6.37, 16 |
+| `ducks/ground` | 13.72 | 9.61, 16 |
+| `fox/ground` | 16.14 | 7.13, 15 |
+| `daylight/aerial` | 16.30 | 7.94, 15 |
+| `fireflies/aerial` | 16.35 | 7.66, 15 |
+
+Pinned at step 6, 25 of the 81 phases within the build budget were over the line. Governed, none was, the dearest
+`flora/ground` at the bottom step. A run of an earlier build pinned at the ladder's top step (full swapchain, 4x MSAA,
+no foveation) read the bare meadow at 24.7 ms standing and 35.0 from the air, against 7.9 and 9.8 governed: that is
+the top step's cost, not the scene's.
+
+What a village past the budget costs on the Quest 2 when it can be seen (`demo/village-layers.json`, step 6, records
+in `perf/quest-2/village-layers/`): the stress scene's own `village/aerial` view looks through the full tree pool's
+crowns, so it read 19.9 ms. The same village from the same eye with no trees between reads 158 and 161 ms. Hiding the
+far roof tiles takes it to 83 and 89 ms; hiding all masonry, to 12.0 and 12.1. The timber village read 71 to 131 ms
+at every step tried, top to bottom. The GPU spends 78% of that time shading vertices, 117 M a second, so about 19 M
+a frame for 1.46 M primitives drawn: its 42 bins of 192 by 176 pixels re-run the vertices of every piece in them, and
+the bins over the village took 10 to 22 ms each. Reading no texture in the stones' and tiles' vertex shader
+saved nothing (160.68 against 160.96 ms), so the cost is how many piece vertices a bin runs, which a far wall or roof
+drawn as one surface would cut.
+
+The deer and the fox come and go on their own timetable, so the scene brings a band of each in (`roamers`) before
+each view of them; a view of an absent animal fails the script.
 
 ### Moving and acting at the build budget
 
