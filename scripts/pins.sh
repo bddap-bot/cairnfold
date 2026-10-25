@@ -16,6 +16,14 @@ godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/58d1d
 godot_nir_license=(https://raw.githubusercontent.com/godotengine/godot-nir-static/25.3.1-1/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
 mesa_license=(https://gitlab.freedesktop.org/mesa/mesa/-/raw/5005a50879b11b953ade113fccd13a208f706ba0/docs/license.rst 0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615)
 mingw_license=(https://raw.githubusercontent.com/mingw-w64/mingw-w64/v13.0.0/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd)
+# The Horizon Store's Platform SDK binding, only in store APKs (docs/package-notices.md, "Horizon Store package").
+meta_toolkit_version=1.0.3-stable
+meta_toolkit=("https://github.com/godot-sdk-integrations/godot-meta-toolkit/releases/download/$meta_toolkit_version/godotmetatoolkitaddon.zip" cbd23eb9c0ce6868570aa43a674688d749bafeab6b38027f5a588bb21b27d879)
+meta_toolkit_license=(https://raw.githubusercontent.com/godot-sdk-integrations/godot-meta-toolkit/7fc223fa4b9a1b43552a53bf287a720c4719ea76/LICENSE.txt aa93a6ef4789abeee26b901f70f5f1c87d01ea0833e9fe6efa63a3cf2ba3e35c)
+# Meta's uploader for Horizon Store builds (release.sh); the download page serves only the latest, so this is its binary.
+ovr_platform_util=("https://securecdn-sea5-1.oculus.com/binaries/download/?id=28342477365335702&access_token=OC%7C1196467420370658%7C" 05d9e9dc0772ac2a4949913566bfce6bda165a41646175a060bfe433b6aa6219)
+# The game's app on the Meta Horizon Store; not a secret.
+meta_app_id=1445804081943802
 # The Steam binding, only in Steam packages (docs/package-notices.md, "Steam packages"); never committed.
 godotsteam_version=4.23
 godotsteam=("https://codeberg.org/GodotSteam/GodotSteam/releases/download/v$godotsteam_version-gde/godotsteam-$godotsteam_version-gdextension-plugin-4.4.zip" c1728b4bf330da851a00eaf64dab2e99c506018b1d9f529511b25d7fe7649e97)
@@ -25,6 +33,8 @@ android_ndk_notice_sha256=faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d8379
 android_ndk_toolchain_sha256=789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/nestcombe
 mkdir -p "$cache"
+# META_APP_SECRET, the store app's secret under Development > API; release.sh uploads to the store only with it.
+meta_store=${NESTCOMBE_META_STORE:-${XDG_CONFIG_HOME:-$HOME/.config}/nestcombe/meta-store.env}
 # The certificate of the key every deployed APK carries (AGENTS.md, "Signing"); release.sh refuses any other.
 android_cert_sha256=b417fa20e582ad40db3284aefc0f5a248366d7e2ebf82c98178fe7e1a4183f61
 android_key=${NESTCOMBE_ANDROID_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/nestcombe/android-key}

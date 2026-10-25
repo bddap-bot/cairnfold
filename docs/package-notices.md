@@ -36,6 +36,14 @@ experimental features (§§1.2, 1.4, 1.6). Notices alone do not establish store
 approval or compliance with those behavioral requirements. SDK use is subject
 to the agreement's update provisions (§7.1).
 
+## Horizon Store package
+
+`scripts/android.sh quest OUT store` builds the Quest APK the Horizon Store gets, which `scripts/release.sh` uploads to
+its ALPHA channel. It adds the Godot Meta Toolkit GDExtension (MIT, its license in `notices/godot-meta-toolkit/`) and
+the Meta Platform SDK loader it carries, SDK material under the same Meta SDK agreement as the vendor addon above. The
+build fetches the toolkit's release at the version and hash pinned in `scripts/pins.sh`. The Quest APK published
+elsewhere carries neither.
+
 ## Frame Android package
 
 The Lepton APK uses the addon's Khronos flavor: its Android library carries only

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collect unchanged upstream notices using the same pins as the binaries: notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY [steam]
+# Collect unchanged upstream notices using the same pins as the binaries: notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY [steam|store]
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 . "$root/scripts/pins.sh"
@@ -19,6 +19,12 @@ if [ "${3:-}" = steam ]; then
   mkdir -p "$out/godotsteam"
   unzip -p "$(fetch "${godotsteam[@]}")" addons/godotsteam/license.md > "$out/godotsteam/license.md"
   printf 'GodotSteam %s\n%s\nSHA256 %s\n' "$godotsteam_version" "${godotsteam[@]}" >> "$out/SOURCES.txt"
+fi
+if [ "${3:-}" = store ]; then
+  mkdir -p "$out/godot-meta-toolkit"
+  cp "$(fetch "${meta_toolkit_license[@]}")" "$out/godot-meta-toolkit/LICENSE.txt"
+  printf 'Godot Meta Toolkit %s\n%s\nSHA256 %s\nLicense\n%s\nSHA256 %s\n' \
+    "$meta_toolkit_version" "${meta_toolkit[@]}" "${meta_toolkit_license[@]}" >> "$out/SOURCES.txt"
 fi
 if [ "$kind" = windows ]; then
   mkdir -p "$out/windows"

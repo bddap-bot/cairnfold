@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Builds an APK inside android.nix: android.sh quest|lepton OUT.apk [steam]
-#   quest   the Quest build, OpenXR through the vendors plugin's Meta flavor
+# Builds an APK inside android.nix: android.sh quest|lepton OUT.apk [store|steam]
+#   quest   the Quest build, OpenXR through the vendors plugin's Meta flavor; a store Quest APK, the one the Horizon Store
+#           gets, also carries the Platform SDK and the app's id, and quits for a user who does not own the game (Store)
 #   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
 # Both carry the engine scripts/android-template.sh builds from the pinned Godot source and android-template.patch.
@@ -12,8 +13,9 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 target=$1
 case $target in quest) preset=Quest ;; lepton) preset=Lepton ;; *) echo "android: target is quest or lepton" >&2; exit 1 ;; esac
 out=$(realpath -m "$2")
-steam=${3:-}
-case $target:$steam in quest:|lepton:|lepton:steam) ;; *) echo "android: steam is a lepton variant only" >&2; exit 1 ;; esac
+variant=${3:-}
+case $target:$variant in quest:|quest:store|lepton:|lepton:steam) ;; *) echo "android: store is a quest variant, steam a lepton one" >&2; exit 1 ;; esac
+steam=${variant#store}
 steam_dir=androidarm64 template=android_source.zip
 # shellcheck source=scripts/stage.sh
 . "$root/scripts/stage.sh"
@@ -32,6 +34,9 @@ cp -r "$stage/vendors/asset/addons" "$stage/game/"
 if [ "$target" = lepton ]; then
   find "$stage/game/addons/godotopenxrvendors/.bin/android" -name '*.aar' ! -name 'godotopenxr-khronos-*' -delete
 fi
+if [ "$variant" = store ]; then
+  printf '[gd_resource type="Resource" format=3]\n[resource]\nmetadata/app_id = "%s"\n' "$meta_app_id" > "$stage/game/store.tres"
+fi
 sed -i "s/^version\/code=.*/version\/code=$number/; s/^version\/name=.*/version\/name=\"$(git -C "$root" rev-parse --short HEAD)\"/" "$stage/game/export_presets.cfg"
 
 [ -f "$android_key/release.keystore" ] || { echo "android: no signing key in $android_key (AGENTS.md, \"Signing\")" >&2; exit 1; }
@@ -46,13 +51,19 @@ unzip -q "$tdir/$template" -d android/build
 cp "$("$root/scripts/android-template.sh" android/build/libs/release/godot-lib.template_release.aar)" \
   android/build/libs/release/godot-lib.template_release.aar
 printf '%s.stable\n' "$godot_version" > android/.build_version
+# The toolkit's Android library brings its own GDExtension and the Platform SDK loader. Its addon is left out: the
+# addon's editor library crashes Godot 4.6 on every cold import.
+if [ "$variant" = store ]; then
+  unzip -q -j "$(fetch "${meta_toolkit[@]}")" asset/addons/godot_meta_toolkit/.bin/android/release/godot_meta_toolkit-release.aar \
+    -d android/build/libs/release
+fi
 touch android/build/.gdignore
 # The vendors plugin declares head tracking optional; the Horizon Store requires an immersive app to require it.
 if [ "$target" = quest ]; then
   sed -i 's|^\( *\)<application|\1<uses-feature tools:node="replace" android:name="android.hardware.vr.headtracking" android:required="true" android:version="1" />\n&|' \
     android/build/src/main/AndroidManifest.xml
 fi
-"$root/scripts/notices.sh" "$target" "$stage/game/android/build/noticeAssets/notices" "$steam"
+"$root/scripts/notices.sh" "$target" "$stage/game/android/build/noticeAssets/notices" "$variant"
 cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
 printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
 rm -f "$out"
@@ -82,5 +93,7 @@ unzip -l "$out" lib/arm64-v8a/libopenxr_loader.so > /dev/null || { echo "android
 [ "$target" = lepton ] || unzip -l "$out" assets/vr_splash.png > /dev/null || { echo "android: no system splash in the Quest APK" >&2; exit 1; }
 steamed=$(unzip -Z1 "$out" | grep -c -E 'lib/arm64-v8a/lib(godotsteam|steam_api)' || true)
 [ "$steamed" -eq $((${#steam} ? 2 : 0)) ] || { echo "android: $steamed Steam libraries in a ${steam:-plain} APK" >&2; exit 1; }
+platform=$(unzip -Z1 "$out" | grep -c -E 'lib/arm64-v8a/lib(ovrplatformloader|godot_meta_toolkit)\.so' || true)
+[ "$platform" -eq "$([ "$variant" = store ] && echo 2 || echo 0)" ] || { echo "android: $platform Platform SDK libraries in a ${variant:-plain} APK" >&2; exit 1; }
 python3 "$root/scripts/notices.py" check "$out" "$stage/game/android/build/noticeAssets/notices"
 echo "android: $out ($(git -C "$root" rev-parse --short HEAD)), signature and manifest verified"

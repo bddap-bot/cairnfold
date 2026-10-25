@@ -38,6 +38,7 @@ var _editors: Array
 
 func _ready() -> void:
 	args = _parse(launch_args())
+	Store.check(get_tree())
 	get_viewport().use_occlusion_culling = true
 	world = World.new()
 	world.terrain.install()

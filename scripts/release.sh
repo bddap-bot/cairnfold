@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # release.sh                publishes HEAD as a GitHub release carrying every build: Windows and Linux (x86_64, and
 #                           arm64 for the Steam Frame) exports, the Frame's Android APK and the Quest APK. It becomes
-#                           Latest only when HEAD is origin/main's tip, so publishing an older rev never takes it.
+#                           Latest only when HEAD is origin/main's tip, so publishing an older rev never takes it. With
+#                           the store's secret in $meta_store (pins.sh), main's tip also goes to the Horizon Store's
+#                           ALPHA channel as the store Quest APK.
 # release.sh --dry-run       builds and checks every build release.sh would publish, of any rev, and publishes nothing.
 # release.sh --rollback TAG  marks the published release TAG Latest, the way back to a build; the next release of
 #                           origin/main's tip takes Latest again.
@@ -35,10 +37,12 @@ if [ -z "$dry" ]; then
 fi
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
+store=$([ -f "$meta_store" ] && [ "$latest" = true ] && echo store || true)
 # An APK signed by another key installs over no deployed copy, so every player would have to reinstall.
-for target in quest lepton; do
-  apk=$out/nestcombe-$target.apk
-  nix-shell android.nix --run "scripts/android.sh $target '$apk'"
+for build in quest lepton ${store:+quest:store}; do
+  target=${build%:*} variant=${build#"$target"}
+  apk=$out/nestcombe-$target${variant/:/-}.apk
+  nix-shell android.nix --run "scripts/android.sh $target '$apk' ${variant#:}"
   signer=$(nix-shell android.nix --run "\"\$ANDROID_HOME/build-tools/\$ANDROID_BUILD_TOOLS/apksigner\" verify --print-certs '$apk'" |
     sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p')
   [ "$signer" = "$android_cert_sha256" ] || { echo "release: $target APK signed by ${signer:-nothing}, not the deploying key $android_cert_sha256" >&2; exit 1; }
@@ -52,3 +56,13 @@ fi
 gh release create "$tag" --target "$rev" --latest="$latest" --title "$(sed -n 's/^config\/name="\(.*\)"$/\1/p' game/project.godot) $tag" \
   --notes "Built from $rev. PC VR: nestcombe-windows.zip or nestcombe-linux-x64.tar.gz, run Nestcombe.exe or nestcombe/nestcombe with an OpenXR runtime (SteamVR). Steam Frame: nestcombe-lepton.apk for an Android depot, or nestcombe-linux-arm64.tar.gz (README, \"Running\"). Quest: install nestcombe-quest.apk (README, \"Quest\")." \
   "$out/nestcombe-quest.apk" "$out/nestcombe-lepton.apk" "$out/nestcombe-linux-x64.tar.gz" "$out/nestcombe-linux-arm64.tar.gz" "$out/nestcombe-windows.zip"
+if [ -n "$store" ]; then
+  util=$(fetch "${ovr_platform_util[@]}")
+  chmod +x "$util"
+  # The uploader takes its secret only on the command line: its --config reader rejects any file, and it reads no
+  # environment.
+  # shellcheck source=/dev/null
+  (. "$meta_store"; "$util" upload-quest-build --app-id "$meta_app_id" --app-secret "$META_APP_SECRET" --channel ALPHA \
+    --age-group TEENS_AND_ADULTS --apk "$out/nestcombe-quest-store.apk" --notes "$tag, built from $rev" \
+    --disable-progress-bar --wait-for-postprocessing)
+fi
