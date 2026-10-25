@@ -35,16 +35,16 @@ func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
 	for case: Array in [["in a wall", Terrain.ground(-2, -6), 0.0], ["under a hill", Terrain.ground(0, 10), -3.0]]:
 		rig.place(Terrain.ground(0, 0), 0.0)
-		await _frames(30)
+		await frames(30)
 		var clear: float = dim.call()
 		rig.place(case[1], 0.0)
 		rig.global_position.y += case[2]
 		var at := rig.global_position
-		await _frames(30)
+		await frames(30)
 		var inside: float = dim.call()
 		check(clear == 0.0 and inside >= Rig.INSIDE_DIM - 0.01 and rig.global_position == at, "an eye %s sees dark, %.2f from %.2f, unmoved" % [case[0], inside, clear])
 		rig.place(Terrain.ground(0, 0), 0.0)
-		await _frames(30)
+		await frames(30)
 		check(dim.call() == 0.0, "and clear once out of it")
 
 
