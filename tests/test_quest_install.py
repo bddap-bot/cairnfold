@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import shlex
 import struct
 import subprocess
 import tempfile
@@ -138,6 +139,22 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('--restore', run.stderr)
         copy = next(self.saves.iterdir())
         self.assertEqual((copy / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_the_restore_a_renamed_build_names_acts_on_that_build(self):
+        package = 'io.github.bddapbot.nestbisect'
+        files = self.quest / f'sdcard/Android/data/{package}/files'
+        files.mkdir(parents=True)
+        (files / 'garden.save').write_bytes(b'the bisect garden')
+        run = self.install(package=package, FAKE_FAIL='push')
+        self.assertNotEqual(run.returncode, 0)
+        suggested = shlex.split(run.stderr.split('restore them with: ')[1])
+        (self.quest / 'adb.log').unlink()
+        run = subprocess.run(suggested, env=self.env, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        log = (self.quest / 'adb.log').read_text()
+        self.assertIn(package, log)
+        self.assertNotIn('nestcombe', log)
+        self.assertEqual((files / 'garden.save').read_bytes(), b'the bisect garden')
 
 
 if __name__ == '__main__':

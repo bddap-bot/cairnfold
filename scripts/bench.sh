@@ -118,7 +118,8 @@ same() {
 }
 if [ "${2:-}" = --android ]; then
   device=quest
-  pkg=$("$here/quest-install.sh" --package "$3")
+  apk=$3
+  pkg=$("$here/quest-install.sh" --package "$apk")
   # The game makes its own output dir: on a Quest 3 it cannot write into one the shell made.
   files=/sdcard/Android/data/$pkg/files
   dir=$files/bench
@@ -135,10 +136,10 @@ if [ "${2:-}" = --android ]; then
   saves=
   if [ "${NESTCOMBE_COLD:-0}" = 1 ]; then
     saves=$out/saves
-    "$here/quest-install.sh" --backup "$saves"
+    "$here/quest-install.sh" --backup "$saves" "$apk"
     adb shell pm clear "$pkg" > /dev/null
   fi
-  "$here/quest-install.sh" "$3"
+  "$here/quest-install.sh" "$apk"
   build=$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
   same "$build" --short HEAD
   adb shell "rm -rf $dir"
@@ -157,7 +158,7 @@ if [ "${2:-}" = --android ]; then
     adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
     for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
     adb shell am force-stop "$pkg"
-    [ -z "$saves" ] || "$here/quest-install.sh" --restore "$saves"
+    [ -z "$saves" ] || "$here/quest-install.sh" --restore "$saves" "$apk"
     stop
   }
   trap restore_headset EXIT

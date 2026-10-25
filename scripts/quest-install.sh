@@ -3,8 +3,8 @@
 #   quest-install.sh APK          installs over the app there. One adb refuses, an older version or another key, takes
 #                                 an uninstall, which erases the app's external files folder holding the garden and
 #                                 the avatars: they are copied to the host first and pushed back after the install.
-#   quest-install.sh --backup DIR   copies the saves to DIR by itself.
-#   quest-install.sh --restore DIR  pushes such a copy back by itself.
+#   quest-install.sh --backup DIR [APK]   copies the saves of APK's package (the game's without) to DIR by itself.
+#   quest-install.sh --restore DIR [APK]  pushes such a copy back by itself.
 #   quest-install.sh --package APK  prints the package APK installs as, read from its manifest: every step acts on
 #                                 that package, so a build renamed to stand beside the game never touches the game.
 # An APK whose manifest lacks the Quest's VR launcher category is refused: the Lepton APK shares the Quest build's
@@ -57,7 +57,11 @@ if [ "$1" = --package ]; then
   package "$2"
   exit 0
 fi
-case $1 in --backup | --restore) ;; *) pkg=$(package "$1" quest) ;; esac
+case $1 in
+  --backup | --restore) apk=${3:-} ;;
+  *) apk=$1 ;;
+esac
+[ -z "$apk" ] || pkg=$(package "$apk" quest)
 files=/sdcard/Android/data/$pkg/files
 
 backup() {
@@ -90,7 +94,7 @@ restore() {
     adb push "$dir/$rel" "$files/$rel" > /dev/null < /dev/null &&
       [ "$(adb shell sha256sum "'$files/$rel'" < /dev/null | cut -d' ' -f1)" = "$(sha256sum "$dir/$rel" | cut -d' ' -f1)" ] || ok=
   done < <(cd "$dir" && find . -type f | sed 's|^\./||')
-  [ -n "$ok" ] || { echo "quest-install: the saves did not go back on the device; restore them with: $0 --restore $dir" >&2; exit 1; }
+  [ -n "$ok" ] || { echo "quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})" >&2; exit 1; }
   echo "quest-install: saves restored from $dir" >&2
 }
 
