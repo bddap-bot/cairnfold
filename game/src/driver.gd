@@ -2147,7 +2147,8 @@ func _remote_holds(s: Dictionary) -> void:
 
 
 ## The maximum seven peers' fourteen held models, close enough to fill the view, through the live renderer.
-## `shown` false keeps them in place hidden, and `label` names the phase, for a pair without them.
+## `shown` false keeps them in place hidden, and `label` names the phase, for a pair without them; `capture` saves the view
+## before the phase starts.
 func _held_cost(s: Dictionary) -> void:
 	var items: Array[HeldItem] = []
 	var eye: Transform3D = main.rig.head.global_transform
@@ -2176,12 +2177,16 @@ func _held_cost(s: Dictionary) -> void:
 				for child in item.model.get_children():
 					(child as Node3D).hide()
 		await get_tree().create_timer(0.1).timeout
+		if s.has("capture"):
+			await main.capture(s.capture)
 		var name := HeldItem.label(state) + ("-without-cup" if s.get("without_cup", false) else "")
 		var label := {"op": "label", "name": s.get("label", "held/" + name.replace(" ", "-"))}
 		print("driver: ", label)
 		await _label(label)
 		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
-	await _label({"name": "-"})
+	var end := {"op": "label", "name": "-"}
+	print("driver: ", end)
+	await _label(end)
 	for item in items:
 		item.queue_free()
 

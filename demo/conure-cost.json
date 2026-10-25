@@ -1059,7 +1059,8 @@
     "birds": true,
     "shown": true,
     "label": "pair/held/14bird/1",
-    "seconds": 8
+    "seconds": 8,
+    "capture": "held"
   },
   {
     "op": "held_cost",
