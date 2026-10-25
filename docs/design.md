@@ -4855,7 +4855,10 @@ rope, the command's checks, the tool hanging one between two wall tops and layin
 along a wall's walk, the colour tool on a rope, the demo with its teleport and the stress phases. `demo/bridges.json` hangs a bridge in every railing style and a single rope between two
 walls over a pond, one from bank to bank across another, and a wall across a third arching over the water, then
 teleports onto a bridge. The stress scene's `bridges/aerial` and `bridges/ground` phases hang a bridge from bank to
-bank across every pond in the meadow's ring, the railing styles in turn.
+bank across every pond in the meadow's ring, the railing styles in turn. On the Steam Frame, governed, both hold
+72 Hz with no late frame ([record](../perf/frame/stress/20261025T165208Z-b4e2a39.json)): 3.5 ms of GPU time a frame
+from the air and on the ground, at step 16, where the ladder came down at the village and stayed. The same phases
+alone with the ladder pinned at its top step hold too, with no late frame, at 9.2 ms from the air and 9.0 on the ground.
 
 ## Standing on what you built
 

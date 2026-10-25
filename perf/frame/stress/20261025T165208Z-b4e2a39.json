@@ -1,0 +1,2160 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "held/walls": {
+   "p50": 13.9949998855591,
+   "p99": 18.0330009460449,
+   "late": 1,
+   "draws": 55,
+   "prims": 303295,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.773
+  },
+  "held/flowers": {
+   "p50": 13.9250001907349,
+   "p99": 17.4109992980957,
+   "late": 0,
+   "draws": 83,
+   "prims": 295987,
+   "step": 4,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.799
+  },
+  "held/grass": {
+   "p50": 13.8900003433228,
+   "p99": 19.8020000457764,
+   "late": 1,
+   "draws": 55,
+   "prims": 295623,
+   "step": 3,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.173
+  },
+  "held/trees": {
+   "p50": 13.9090003967285,
+   "p99": 18.2360000610352,
+   "late": 0,
+   "draws": 69,
+   "prims": 331911,
+   "step": 1,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.692
+  },
+  "held/delete": {
+   "p50": 13.9809999465942,
+   "p99": 18.7759990692139,
+   "late": 0,
+   "draws": 83,
+   "prims": 296575,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.531
+  },
+  "held/pond": {
+   "p50": 13.8800001144409,
+   "p99": 16.8020000457764,
+   "late": 0,
+   "draws": 125,
+   "prims": 303463,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.238
+  },
+  "held/fence": {
+   "p50": 13.8660001754761,
+   "p99": 16.1520004272461,
+   "late": 0,
+   "draws": 55,
+   "prims": 296575,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.123
+  },
+  "held/windows": {
+   "p50": 13.996000289917,
+   "p99": 17.2129993438721,
+   "late": 1,
+   "draws": 55,
+   "prims": 296911,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.225
+  },
+  "held/decorations": {
+   "p50": 13.9139995574951,
+   "p99": 16.4160003662109,
+   "late": 1,
+   "draws": 111,
+   "prims": 298003,
+   "stalls": [
+    {
+     "ms": 58.7,
+     "notes": [],
+     "compiled": [
+      3,
+      3
+     ]
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.372
+  },
+  "held/stone": {
+   "p50": 13.9739999771118,
+   "p99": 16.326000213623,
+   "late": 0,
+   "draws": 69,
+   "prims": 297751,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.185
+  },
+  "held/colour": {
+   "p50": 13.9630002975464,
+   "p99": 16.1410007476807,
+   "late": 0,
+   "draws": 167,
+   "prims": 308615,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.282
+  },
+  "held/camera": {
+   "p50": 13.8620004653931,
+   "p99": 16.0659999847412,
+   "late": 0,
+   "draws": 125,
+   "prims": 300299,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.33
+  },
+  "held/house": {
+   "p50": 14.378999710083,
+   "p99": 28.6429996490479,
+   "late": 24,
+   "draws": 69,
+   "prims": 435343,
+   "stalls": [
+    {
+     "ms": 244.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 1,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.099
+  },
+  "held/seeds": {
+   "p50": 14.03600025177,
+   "p99": 16.4020004272461,
+   "late": 1,
+   "draws": 69,
+   "prims": 310967,
+   "stalls": [
+    {
+     "ms": 55.3,
+     "notes": [],
+     "compiled": [
+      1,
+      2
+     ]
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.223
+  },
+  "held/path": {
+   "p50": 13.8540000915527,
+   "p99": 16.8619995117188,
+   "late": 0,
+   "draws": 97,
+   "prims": 297527,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.114
+  },
+  "held/style": {
+   "p50": 13.9460000991821,
+   "p99": 16.2810001373291,
+   "late": 0,
+   "draws": 97,
+   "prims": 297583,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.193
+  },
+  "held/stairs": {
+   "p50": 13.8990001678467,
+   "p99": 17.0179996490479,
+   "late": 0,
+   "draws": 69,
+   "prims": 297583,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.36
+  },
+  "held/tower": {
+   "p50": 13.9519996643066,
+   "p99": 16.7900009155273,
+   "late": 1,
+   "draws": 69,
+   "prims": 402079,
+   "stalls": [
+    {
+     "ms": 162.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.511
+  },
+  "held/arch": {
+   "p50": 13.7969999313354,
+   "p99": 17.5400009155273,
+   "late": 1,
+   "draws": 55,
+   "prims": 308839,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.205
+  },
+  "held/selfie": {
+   "p50": 13.9300003051758,
+   "p99": 17.3770008087158,
+   "late": 0,
+   "draws": 139,
+   "prims": 301139,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.393
+  },
+  "held/bushes": {
+   "p50": 13.9440002441406,
+   "p99": 16.8449993133545,
+   "late": 1,
+   "draws": 55,
+   "prims": 308839,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.27
+  },
+  "held/boulder": {
+   "p50": 13.8409996032715,
+   "p99": 16.2779998779297,
+   "late": 1,
+   "draws": 69,
+   "prims": 304359,
+   "stalls": [
+    {
+     "ms": 58.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.266
+  },
+  "held/moss": {
+   "p50": 13.8059997558594,
+   "p99": 16.7719993591309,
+   "late": 0,
+   "draws": 69,
+   "prims": 295735,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.192
+  },
+  "held/oil-palette": {
+   "p50": 13.918999671936,
+   "p99": 16.7959995269775,
+   "late": 0,
+   "draws": 70,
+   "prims": 332303,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.392
+  },
+  "held/water-palette": {
+   "p50": 13.9090003967285,
+   "p99": 16.3700008392334,
+   "late": 0,
+   "draws": 70,
+   "prims": 304359,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.276
+  },
+  "held/small": {
+   "p50": 13.8669996261597,
+   "p99": 16.5590000152588,
+   "late": 0,
+   "draws": 83,
+   "prims": 297919,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.174
+  },
+  "held/big": {
+   "p50": 13.878999710083,
+   "p99": 17.8589992523193,
+   "late": 0,
+   "draws": 83,
+   "prims": 297919,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.188
+  },
+  "held/flat": {
+   "p50": 13.9650001525879,
+   "p99": 16.4120006561279,
+   "late": 0,
+   "draws": 83,
+   "prims": 297919,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.184
+  },
+  "held/stick": {
+   "p50": 13.9209995269775,
+   "p99": 17.0200004577637,
+   "late": 0,
+   "draws": 55,
+   "prims": 297919,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.219
+  },
+  "held/book": {
+   "p50": 13.9370002746582,
+   "p99": 16.1270008087158,
+   "late": 0,
+   "draws": 195,
+   "prims": 301531,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.393
+  },
+  "meadow/aerial": {
+   "p50": 13.91100025177,
+   "p99": 17.7250003814697,
+   "late": 0,
+   "draws": 108,
+   "prims": 307861,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.08,
+     "late": 0
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 9.273
+  },
+  "meadow/ground": {
+   "p50": 13.8229999542236,
+   "p99": 17.1860008239746,
+   "late": 6,
+   "draws": 65,
+   "prims": 300565,
+   "landings": [
+    {
+     "frames": 32,
+     "max": 31.87,
+     "late": 4
+    }
+   ],
+   "step": 1,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.942
+  },
+  "book/tucked": {
+   "p50": 13.8859996795654,
+   "p99": 17.4200000762939,
+   "late": 0,
+   "draws": 59,
+   "prims": 305055,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.72
+  },
+  "book/shut": {
+   "p50": 13.8299999237061,
+   "p99": 17.681999206543,
+   "late": 0,
+   "draws": 65,
+   "prims": 300565,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.001
+  },
+  "book/open": {
+   "p50": 13.8900003433228,
+   "p99": 17.9799995422363,
+   "late": 0,
+   "draws": 207,
+   "prims": 333097,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.053
+  },
+  "book/turning": {
+   "p50": 13.923999786377,
+   "p99": 17.8819999694824,
+   "late": 0,
+   "draws": 306,
+   "prims": 348171,
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.215
+  },
+  "meadow/edge": {
+   "p50": 13.9130001068115,
+   "p99": 17.8659992218018,
+   "late": 0,
+   "draws": 96,
+   "prims": 308129,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.171,
+     "late": 0
+    }
+   ],
+   "step": 0,
+   "fill": 0.322,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.764
+  },
+  "paths/ground": {
+   "p50": 13.8280000686646,
+   "p99": 17.3080005645752,
+   "late": 0,
+   "draws": 97,
+   "prims": 307859,
+   "step": 0,
+   "fill": 0.512,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.759
+  },
+  "flora/aerial": {
+   "p50": 13.9280004501343,
+   "p99": 19.2320003509521,
+   "late": 0,
+   "draws": 153,
+   "prims": 661343,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.319,
+     "late": 0
+    }
+   ],
+   "step": 3,
+   "fill": 0.512,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.971
+  },
+  "flora/ground": {
+   "p50": 13.9160003662109,
+   "p99": 20.2129993438721,
+   "late": 2,
+   "draws": 94,
+   "prims": 696479,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.669,
+     "late": 0
+    }
+   ],
+   "step": 3,
+   "fill": 0.512,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.61
+  },
+  "butterflies/aerial": {
+   "p50": 13.9340000152588,
+   "p99": 18.2140007019043,
+   "late": 0,
+   "draws": 153,
+   "prims": 661871,
+   "step": 3,
+   "fill": 0.512,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.756
+  },
+  "butterflies/ground": {
+   "p50": 13.8680000305176,
+   "p99": 29.4190006256104,
+   "late": 26,
+   "draws": 109,
+   "prims": 695329,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 25.145,
+     "late": 1
+    }
+   ],
+   "step": 3,
+   "fill": 0.512,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.671
+  },
+  "drawing": {
+   "p50": 13.7910003662109,
+   "p99": 29.5830001831055,
+   "late": 10,
+   "draws": 163,
+   "prims": 700172,
+   "step": 3,
+   "fill": 0.512,
+   "gpu_mhz": 875.0,
+   "gpu_ms": 10.071
+  },
+  "r10/aerial": {
+   "p50": 13.871000289917,
+   "p99": 19.0249996185303,
+   "late": 1,
+   "draws": 173,
+   "prims": 848133,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.806,
+     "late": 0
+    }
+   ],
+   "step": 5,
+   "fill": 2.31,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.898
+  },
+  "r10/ground": {
+   "p50": 13.7919998168945,
+   "p99": 21.5020008087158,
+   "late": 7,
+   "draws": 105,
+   "prims": 794230,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.857,
+     "late": 1
+    }
+   ],
+   "step": 5,
+   "fill": 2.31,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.372
+  },
+  "r15/aerial": {
+   "p50": 13.9200000762939,
+   "p99": 19.2140007019043,
+   "late": 0,
+   "draws": 173,
+   "prims": 1032975,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.005,
+     "late": 0
+    }
+   ],
+   "step": 5,
+   "fill": 4.077,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.148
+  },
+  "r15/ground": {
+   "p50": 13.8579998016357,
+   "p99": 22.6889991760254,
+   "late": 11,
+   "draws": 110,
+   "prims": 917161,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 22.709,
+     "late": 1
+    }
+   ],
+   "step": 5,
+   "fill": 4.077,
+   "gpu_mhz": 891.0,
+   "gpu_ms": 8.262
+  },
+  "r20/aerial": {
+   "p50": 13.8719997406006,
+   "p99": 19.6560001373291,
+   "late": 2,
+   "draws": 133,
+   "prims": 1264542,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 24.97,
+     "late": 1
+    }
+   ],
+   "step": 10,
+   "fill": 6.139,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.589
+  },
+  "r20/ground": {
+   "p50": 13.9139995574951,
+   "p99": 20.367000579834,
+   "late": 3,
+   "draws": 124,
+   "prims": 1097540,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.319,
+     "late": 0
+    }
+   ],
+   "step": 9,
+   "fill": 6.139,
+   "gpu_mhz": 889.0,
+   "gpu_ms": 9.181
+  },
+  "r25/aerial": {
+   "p50": 13.8920001983643,
+   "p99": 19.6840000152588,
+   "late": 0,
+   "draws": 180,
+   "prims": 1696288,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.168,
+     "late": 0
+    }
+   ],
+   "step": 8,
+   "fill": 7.769,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.45
+  },
+  "r25/ground": {
+   "p50": 13.8629999160767,
+   "p99": 22.4120006561279,
+   "late": 5,
+   "draws": 122,
+   "prims": 1221634,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.188,
+     "late": 0
+    }
+   ],
+   "step": 7,
+   "fill": 7.769,
+   "gpu_mhz": 866.0,
+   "gpu_ms": 9.599
+  },
+  "r15-tall/aerial": {
+   "p50": 13.8809995651245,
+   "p99": 18.943000793457,
+   "late": 0,
+   "draws": 135,
+   "prims": 1080972,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.975,
+     "late": 0
+    }
+   ],
+   "step": 13,
+   "fill": 6.897,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.371
+  },
+  "r15-tall/ground": {
+   "p50": 13.8629999160767,
+   "p99": 22.1630001068115,
+   "late": 4,
+   "draws": 123,
+   "prims": 1052549,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.63,
+     "late": 0
+    }
+   ],
+   "step": 11,
+   "fill": 6.897,
+   "gpu_mhz": 876.0,
+   "gpu_ms": 9.809
+  },
+  "village/aerial": {
+   "p50": 13.8850002288818,
+   "p99": 19.6149997711182,
+   "late": 2,
+   "draws": 193,
+   "prims": 780896,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.436,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.416,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.885
+  },
+  "village/ground": {
+   "p50": 13.8809995651245,
+   "p99": 21.371000289917,
+   "late": 7,
+   "draws": 126,
+   "prims": 816156,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.932,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.416,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.518
+  },
+  "village-boards/aerial": {
+   "p50": 13.9289999008179,
+   "p99": 19.6959991455078,
+   "late": 0,
+   "draws": 203,
+   "prims": 777680,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.381,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.416,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.937
+  },
+  "village-boards/ground": {
+   "p50": 13.8809995651245,
+   "p99": 20.0410003662109,
+   "late": 6,
+   "draws": 136,
+   "prims": 821424,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.865,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 8.416,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.422
+  },
+  "village-steps/aerial": {
+   "p50": 13.871000289917,
+   "p99": 19.4489994049072,
+   "late": 0,
+   "draws": 205,
+   "prims": 746126,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.975,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.779,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.842
+  },
+  "village-steps/ground": {
+   "p50": 13.8559999465942,
+   "p99": 21.173999786377,
+   "late": 5,
+   "draws": 132,
+   "prims": 761956,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 22.549,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 8.779,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.389
+  },
+  "thatched/aerial": {
+   "p50": 13.8240003585815,
+   "p99": 19.261999130249,
+   "late": 2,
+   "draws": 268,
+   "prims": 630250,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.15,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 7.965,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.542
+  },
+  "thatched/ground": {
+   "p50": 13.7819995880127,
+   "p99": 19.8199996948242,
+   "late": 1,
+   "draws": 153,
+   "prims": 583473,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.63,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 7.965,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.303
+  },
+  "plaster/aerial": {
+   "p50": 13.8549995422363,
+   "p99": 19.5130004882812,
+   "late": 4,
+   "draws": 142,
+   "prims": 339344,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 22.142,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 4.245,
+   "gpu_mhz": 689.0,
+   "gpu_ms": 3.603
+  },
+  "plaster/ground": {
+   "p50": 13.8649997711182,
+   "p99": 23.5909996032715,
+   "late": 8,
+   "draws": 115,
+   "prims": 545628,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.899,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 4.245,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.947
+  },
+  "plaster-village/aerial": {
+   "p50": 13.8450002670288,
+   "p99": 18.9810009002686,
+   "late": 1,
+   "draws": 183,
+   "prims": 442994,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.18,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.674,
+   "gpu_mhz": 770.0,
+   "gpu_ms": 3.621
+  },
+  "plaster-village/ground": {
+   "p50": 13.8830003738403,
+   "p99": 18.9540004730225,
+   "late": 0,
+   "draws": 118,
+   "prims": 587472,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.919,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.674,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.018
+  },
+  "ponds/aerial": {
+   "p50": 13.9359998703003,
+   "p99": 18.6809997558594,
+   "late": 0,
+   "draws": 148,
+   "prims": 226958,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.012,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.481
+  },
+  "ponds/ground": {
+   "p50": 13.9079999923706,
+   "p99": 19.4610004425049,
+   "late": 0,
+   "draws": 142,
+   "prims": 309424,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.213,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 727.0,
+   "gpu_ms": 3.562
+  },
+  "underwater/level": {
+   "p50": 13.8870000839233,
+   "p99": 19.9850006103516,
+   "late": 3,
+   "draws": 67,
+   "prims": 242093,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 21.041,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 631.0,
+   "gpu_ms": 3.472
+  },
+  "underwater/up": {
+   "p50": 13.8509998321533,
+   "p99": 18.6909999847412,
+   "late": 0,
+   "draws": 86,
+   "prims": 267765,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.454,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 720.0,
+   "gpu_ms": 3.637
+  },
+  "ducks/aerial": {
+   "p50": 13.8579998016357,
+   "p99": 19.326000213623,
+   "late": 0,
+   "draws": 157,
+   "prims": 247140,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 646.0,
+   "gpu_ms": 3.461
+  },
+  "ducks/ground": {
+   "p50": 13.8649997711182,
+   "p99": 21.3129997253418,
+   "late": 5,
+   "draws": 145,
+   "prims": 322728,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.086,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 729.0,
+   "gpu_ms": 3.591
+  },
+  "snails/underwater": {
+   "p50": 13.8179998397827,
+   "p99": 20.4290008544922,
+   "late": 3,
+   "draws": 79,
+   "prims": 245260,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 21.136,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.474
+  },
+  "conures/aerial": {
+   "p50": 13.8979997634888,
+   "p99": 20.2199993133545,
+   "late": 4,
+   "draws": 161,
+   "prims": 254306,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 669.0,
+   "gpu_ms": 3.473
+  },
+  "conures/ground": {
+   "p50": 13.8549995422363,
+   "p99": 22.1569995880127,
+   "late": 4,
+   "draws": 145,
+   "prims": 322728,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.015,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 733.0,
+   "gpu_ms": 3.601
+  },
+  "conures/carried": {
+   "p50": 13.8970003128052,
+   "p99": 21.5450000762939,
+   "late": 11,
+   "draws": 145,
+   "prims": 324705,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 736.0,
+   "gpu_ms": 3.597
+  },
+  "sheep/ground": {
+   "p50": 13.8570003509521,
+   "p99": 21.1709995269775,
+   "late": 7,
+   "draws": 138,
+   "prims": 323855,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 721.0,
+   "gpu_ms": 3.612
+  },
+  "fish-frenzy/ground": {
+   "p50": 13.8620004653931,
+   "p99": 21.2320003509521,
+   "late": 10,
+   "draws": 102,
+   "prims": 264415,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 736.0,
+   "gpu_ms": 3.544
+  },
+  "neck/clips": {
+   "p50": 13.8680000305176,
+   "p99": 21.2819995880127,
+   "late": 13,
+   "draws": 159,
+   "prims": 304253,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 41.918,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 775.0,
+   "gpu_ms": 3.56
+  },
+  "neck/feeding": {
+   "p50": 13.826000213623,
+   "p99": 22.1870002746582,
+   "late": 17,
+   "draws": 159,
+   "prims": 303372,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 21.155,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 770.0,
+   "gpu_ms": 3.6
+  },
+  "deer/ground": {
+   "p50": 13.9449996948242,
+   "p99": 20.7779998779297,
+   "late": 4,
+   "draws": 122,
+   "prims": 274869,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 679.0,
+   "gpu_ms": 3.529
+  },
+  "fox/ground": {
+   "p50": 13.9040002822876,
+   "p99": 20.132999420166,
+   "late": 1,
+   "draws": 30,
+   "prims": 176359,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 578.0,
+   "gpu_ms": 3.302
+  },
+  "daylight/aerial": {
+   "p50": 13.7849998474121,
+   "p99": 21.9979991912842,
+   "late": 9,
+   "draws": 164,
+   "prims": 255024,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 665.0,
+   "gpu_ms": 3.504
+  },
+  "fireflies/aerial": {
+   "p50": 13.9069995880127,
+   "p99": 22.117000579834,
+   "late": 6,
+   "draws": 159,
+   "prims": 254352,
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 673.0,
+   "gpu_ms": 3.371
+  },
+  "fireflies/ground": {
+   "p50": 13.831000328064,
+   "p99": 20.7450008392334,
+   "late": 2,
+   "draws": 147,
+   "prims": 323866,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.049,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.79,
+   "gpu_mhz": 731.0,
+   "gpu_ms": 3.609
+  },
+  "paths/stroke": {
+   "p50": 13.7040004730225,
+   "p99": 41.5709991455078,
+   "late": 86,
+   "draws": 163,
+   "prims": 1161194,
+   "stalls": [
+    {
+     "ms": 73.2,
+     "notes": [
+      {
+       "ms": 54.3,
+       "what": "world: applying path"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 8.379,
+   "gpu_mhz": 826.0,
+   "gpu_ms": 3.691
+  },
+  "hills/stroke": {
+   "p50": 15.1099996566772,
+   "p99": 35.515998840332,
+   "late": 136,
+   "draws": 241,
+   "prims": 911214,
+   "stalls": [
+    {
+     "ms": 54.5,
+     "notes": [
+      {
+       "ms": 36.6,
+       "what": "world: applying heights"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 8.379,
+   "gpu_mhz": 800.0,
+   "gpu_ms": 3.836
+  },
+  "hills/aerial": {
+   "p50": 13.8420000076294,
+   "p99": 22.1529998779297,
+   "late": 10,
+   "draws": 164,
+   "prims": 581784,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 834.0,
+   "gpu_ms": 3.628
+  },
+  "hills/ground": {
+   "p50": 13.8400001525879,
+   "p99": 22.556999206543,
+   "late": 8,
+   "draws": 138,
+   "prims": 664896,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.736,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.06
+  },
+  "hands/walls": {
+   "p50": 13.7440004348755,
+   "p99": 33.1529998779297,
+   "late": 41,
+   "draws": 139,
+   "prims": 664896,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 888.0,
+   "gpu_ms": 5.096
+  },
+  "camera/ground": {
+   "p50": 13.8299999237061,
+   "p99": 22.6119995117188,
+   "late": 12,
+   "draws": 255,
+   "prims": 1215469,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.594
+  },
+  "camera/shutter": {
+   "p50": 13.91100025177,
+   "p99": 33.3580017089844,
+   "late": 132,
+   "draws": 382,
+   "prims": 4268508,
+   "stalls": [
+    {
+     "ms": 75.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.601
+  },
+  "camera/recording": {
+   "p50": 13.8649997711182,
+   "p99": 22.4150009155273,
+   "late": 12,
+   "draws": 272,
+   "prims": 1214383,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.712
+  },
+  "camera/selfie": {
+   "p50": 13.835000038147,
+   "p99": 25.7600002288818,
+   "late": 29,
+   "draws": 423,
+   "prims": 4529614,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.586
+  },
+  "camera/two": {
+   "p50": 13.8269996643066,
+   "p99": 22.7700004577637,
+   "late": 7,
+   "draws": 279,
+   "prims": 1230096,
+   "step": 16,
+   "fill": 8.376,
+   "gpu_mhz": 887.0,
+   "gpu_ms": 5.642
+  },
+  "garden/aerial": {
+   "p50": 13.8879995346069,
+   "p99": 21.9899997711182,
+   "late": 7,
+   "draws": 344,
+   "prims": 833895,
+   "step": 16,
+   "fill": 2.502,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.649
+  },
+  "garden/ground": {
+   "p50": 13.8079996109009,
+   "p99": 21.5620002746582,
+   "late": 5,
+   "draws": 271,
+   "prims": 767689,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 21.248,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 2.502,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.817
+  },
+  "lanterns/ground": {
+   "p50": 13.7919998168945,
+   "p99": 21.0139999389648,
+   "late": 7,
+   "draws": 278,
+   "prims": 732075,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 20.364,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.823,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.746
+  },
+  "lanterns/aerial": {
+   "p50": 13.7659997940063,
+   "p99": 21.257999420166,
+   "late": 13,
+   "draws": 398,
+   "prims": 658239,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 21.031,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 2.823,
+   "gpu_mhz": 862.0,
+   "gpu_ms": 3.542
+  },
+  "stairs/aerial": {
+   "p50": 13.871000289917,
+   "p99": 17.1730003356934,
+   "late": 0,
+   "draws": 162,
+   "prims": 166976,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.846,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.994,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.501
+  },
+  "stairs/ground": {
+   "p50": 13.9060001373291,
+   "p99": 17.2310009002686,
+   "late": 0,
+   "draws": 159,
+   "prims": 156712,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.245,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.994,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.567
+  },
+  "timber-village/aerial": {
+   "p50": 13.8380002975464,
+   "p99": 18.4939994812012,
+   "late": 0,
+   "draws": 260,
+   "prims": 547627,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 18.487,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 6.045,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.426
+  },
+  "timber-village/ground": {
+   "p50": 13.8590002059937,
+   "p99": 21.4549999237061,
+   "late": 6,
+   "draws": 153,
+   "prims": 642613,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.396,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 6.045,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.465
+  },
+  "avatars/wave": {
+   "p50": 13.8199996948242,
+   "p99": 22.3969993591309,
+   "late": 23,
+   "draws": 127,
+   "prims": 624115,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 21.777,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 6.045,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.411
+  },
+  "curved-tile/aerial": {
+   "p50": 13.8909997940063,
+   "p99": 18.0060005187988,
+   "late": 0,
+   "draws": 176,
+   "prims": 424591,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.051,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 3.023,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.58
+  },
+  "curved-tile/ground": {
+   "p50": 13.8690004348755,
+   "p99": 18.613000869751,
+   "late": 0,
+   "draws": 149,
+   "prims": 451301,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.779,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 3.023,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.749
+  },
+  "curved-thatch/aerial": {
+   "p50": 13.9139995574951,
+   "p99": 18.8819999694824,
+   "late": 0,
+   "draws": 197,
+   "prims": 304963,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.805,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.828,
+   "gpu_mhz": 879.0,
+   "gpu_ms": 3.61
+  },
+  "curved-thatch/ground": {
+   "p50": 13.9040002822876,
+   "p99": 18.3360004425049,
+   "late": 0,
+   "draws": 146,
+   "prims": 286957,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.777,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.828,
+   "gpu_mhz": 827.0,
+   "gpu_ms": 3.547
+  },
+  "curved-deck/aerial": {
+   "p50": 13.8540000915527,
+   "p99": 18.1299991607666,
+   "late": 0,
+   "draws": 154,
+   "prims": 286777,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.663,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.827,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.691
+  },
+  "curved-deck/ground": {
+   "p50": 13.8999996185303,
+   "p99": 17.923999786377,
+   "late": 0,
+   "draws": 128,
+   "prims": 269023,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.913,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 2.827,
+   "gpu_mhz": 770.0,
+   "gpu_ms": 3.633
+  },
+  "roofs/aerial": {
+   "p50": 13.9060001373291,
+   "p99": 19.4640007019043,
+   "late": 0,
+   "draws": 167,
+   "prims": 534935,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.623,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 5.104,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.364
+  },
+  "roofs/ground": {
+   "p50": 13.8950004577637,
+   "p99": 18.9720001220703,
+   "late": 0,
+   "draws": 132,
+   "prims": 519185,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.808,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 5.104,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.623
+  },
+  "standing/along": {
+   "p50": 13.8229999542236,
+   "p99": 20.9139995574951,
+   "late": 5,
+   "draws": 176,
+   "prims": 724815,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.331,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 5.287,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.103
+  },
+  "standing/across": {
+   "p50": 13.8730001449585,
+   "p99": 20.3659992218018,
+   "late": 2,
+   "draws": 186,
+   "prims": 668494,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.547,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 5.287,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.183
+  },
+  "raised/aerial": {
+   "p50": 13.9040002822876,
+   "p99": 18.257999420166,
+   "late": 0,
+   "draws": 172,
+   "prims": 332087,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.703,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 1.988,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.851
+  },
+  "raised/ground": {
+   "p50": 13.9370002746582,
+   "p99": 17.4020004272461,
+   "late": 0,
+   "draws": 155,
+   "prims": 288565,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.445,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 1.988,
+   "gpu_mhz": 795.0,
+   "gpu_ms": 3.567
+  },
+  "finishes/aerial": {
+   "p50": 13.8889999389648,
+   "p99": 20.4699993133545,
+   "late": 2,
+   "draws": 219,
+   "prims": 692563,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 19.471,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 7.697,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.819
+  },
+  "finishes/ground": {
+   "p50": 13.8730001449585,
+   "p99": 21.0090007781982,
+   "late": 4,
+   "draws": 128,
+   "prims": 680039,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 20.545,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 7.697,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 4.43
+  },
+  "windows/aerial": {
+   "p50": 13.8559999465942,
+   "p99": 19.0009994506836,
+   "late": 0,
+   "draws": 194,
+   "prims": 602291,
+   "step": 16,
+   "fill": 6.636,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.602
+  },
+  "windows/ground": {
+   "p50": 13.8559999465942,
+   "p99": 19.318000793457,
+   "late": 0,
+   "draws": 154,
+   "prims": 501339,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.368,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 6.636,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.0
+  },
+  "sweep/foundation-stone": {
+   "p50": 13.9180002212524,
+   "p99": 17.94700050354,
+   "late": 0,
+   "draws": 178,
+   "prims": 174782,
+   "step": 16,
+   "fill": 0.398,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.532
+  },
+  "sweep/foundation-plaster": {
+   "p50": 13.8879995346069,
+   "p99": 18.2360000610352,
+   "late": 0,
+   "draws": 178,
+   "prims": 171710,
+   "step": 16,
+   "fill": 0.398,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.502
+  },
+  "sweep/foundation-stone-repeat": {
+   "p50": 13.8520002365112,
+   "p99": 18.0769996643066,
+   "late": 0,
+   "draws": 179,
+   "prims": 176878,
+   "step": 16,
+   "fill": 0.398,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.557
+  },
+  "ruins/no-delete": {
+   "p50": 13.8780002593994,
+   "p99": 17.367000579834,
+   "late": 0,
+   "draws": 172,
+   "prims": 172615,
+   "step": 16,
+   "fill": 0.374,
+   "gpu_mhz": 692.0,
+   "gpu_ms": 3.578
+  },
+  "ruins/pick-gap": {
+   "p50": 13.8450002670288,
+   "p99": 17.8549995422363,
+   "late": 0,
+   "draws": 176,
+   "prims": 175443,
+   "step": 16,
+   "fill": 0.374,
+   "gpu_mhz": 691.0,
+   "gpu_ms": 3.588
+  },
+  "ruins/pick-rubble": {
+   "p50": 13.8690004348755,
+   "p99": 17.3169994354248,
+   "late": 0,
+   "draws": 176,
+   "prims": 175443,
+   "step": 16,
+   "fill": 0.374,
+   "gpu_mhz": 690.0,
+   "gpu_ms": 3.589
+  },
+  "doors/aerial": {
+   "p50": 13.8699998855591,
+   "p99": 19.1790008544922,
+   "late": 2,
+   "draws": 425,
+   "prims": 1384571,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 22.238,
+     "late": 1
+    }
+   ],
+   "step": 16,
+   "fill": 8.194,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.885
+  },
+  "doors/ground": {
+   "p50": 13.8409996032715,
+   "p99": 20.0949993133545,
+   "late": 0,
+   "draws": 260,
+   "prims": 1192541,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 19.488,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 8.194,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 5.732
+  },
+  "easels/preview": {
+   "p50": 13.875,
+   "p99": 17.4309997558594,
+   "late": 0,
+   "draws": 231,
+   "prims": 147560,
+   "step": 16,
+   "fill": 0.749,
+   "gpu_mhz": 680.0,
+   "gpu_ms": 3.554
+  },
+  "decorations/night": {
+   "p50": 13.8920001983643,
+   "p99": 17.2339992523193,
+   "late": 0,
+   "draws": 190,
+   "prims": 196381,
+   "step": 16,
+   "fill": 0.584,
+   "gpu_mhz": 690.0,
+   "gpu_ms": 3.58
+  },
+  "furniture/night": {
+   "p50": 13.871000289917,
+   "p99": 16.8770008087158,
+   "late": 0,
+   "draws": 228,
+   "prims": 198165,
+   "step": 16,
+   "fill": 0.808,
+   "gpu_mhz": 739.0,
+   "gpu_ms": 3.578
+  },
+  "wheel/avatars": {
+   "p50": 13.8979997634888,
+   "p99": 18.5939998626709,
+   "late": 0,
+   "draws": 504,
+   "prims": 442558,
+   "step": 16,
+   "fill": 0.808,
+   "gpu_mhz": 769.0,
+   "gpu_ms": 3.553
+  },
+  "wheel/empty": {
+   "p50": 13.8739995956421,
+   "p99": 17.875,
+   "late": 0,
+   "draws": 505,
+   "prims": 434774,
+   "step": 16,
+   "fill": 0.808,
+   "gpu_mhz": 751.0,
+   "gpu_ms": 3.581
+  },
+  "ceilings/inside": {
+   "p50": 13.875,
+   "p99": 17.6840000152588,
+   "late": 0,
+   "draws": 152,
+   "prims": 163706,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.805,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "fill": 0.269,
+   "gpu_mhz": 683.0,
+   "gpu_ms": 3.399
+  },
+  "ceilings/curved-join": {
+   "p50": 13.8739995956421,
+   "p99": 17.7479991912842,
+   "late": 0,
+   "draws": 115,
+   "prims": 160980,
+   "step": 16,
+   "fill": 0.443,
+   "gpu_mhz": 651.0,
+   "gpu_ms": 3.499
+  },
+  "sweep/arches/aerial": {
+   "p50": 13.8529996871948,
+   "p99": 16.9309997558594,
+   "late": 0,
+   "draws": 149,
+   "prims": 507037,
+   "step": 16,
+   "fill": 3.59,
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.989
+  },
+  "sweep/arches/ground": {
+   "p50": 13.8769998550415,
+   "p99": 17.0179996490479,
+   "late": 0,
+   "draws": 168,
+   "prims": 478256,
+   "step": 16,
+   "fill": 3.59,
+   "gpu_mhz": 834.0,
+   "gpu_ms": 3.644
+  },
+  "canvas-contact": {
+   "p50": 13.8479995727539,
+   "p99": 17.7310009002686,
+   "late": 0,
+   "draws": 179,
+   "prims": 143853,
+   "step": 16,
+   "fill": 0.187,
+   "gpu_mhz": 578.0,
+   "gpu_ms": 3.175
+  },
+  "wheel/boulders": {
+   "p50": 13.8870000839233,
+   "p99": 17.7950000762939,
+   "late": 0,
+   "draws": 220,
+   "prims": 163632,
+   "step": 16,
+   "fill": 0.314,
+   "gpu_mhz": 673.0,
+   "gpu_ms": 3.431
+  },
+  "wheel/houses": {
+   "p50": 13.8859996795654,
+   "p99": 17.7080001831055,
+   "late": 0,
+   "draws": 185,
+   "prims": 227218,
+   "step": 16,
+   "fill": 0.314,
+   "gpu_mhz": 732.0,
+   "gpu_ms": 3.558
+  },
+  "sky/stars": {
+   "p50": 13.9029998779297,
+   "p99": 18.3299999237061,
+   "late": 0,
+   "draws": 305,
+   "prims": 297718,
+   "step": 16,
+   "fill": 0.279,
+   "gpu_mhz": 500.0,
+   "gpu_ms": 3.006
+  },
+  "wipe/village": {
+   "p50": 13.8920001983643,
+   "p99": 17.6189994812012,
+   "late": 1,
+   "draws": 246,
+   "prims": 691431,
+   "stalls": [
+    {
+     "ms": 115.7,
+     "notes": [
+      {
+       "ms": 29.5,
+       "what": "world: applying wipe"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 8.107,
+   "gpu_mhz": 594.0,
+   "gpu_ms": 3.415
+  },
+  "materials/aerial": {
+   "p50": 13.9049997329712,
+   "p99": 17.4249992370605,
+   "late": 0,
+   "draws": 153,
+   "prims": 188109,
+   "step": 16,
+   "fill": 1.914,
+   "gpu_mhz": 672.0,
+   "gpu_ms": 3.471
+  },
+  "materials/ground": {
+   "p50": 13.8870000839233,
+   "p99": 17.1100006103516,
+   "late": 0,
+   "draws": 131,
+   "prims": 167963,
+   "step": 16,
+   "fill": 1.914,
+   "gpu_mhz": 717.0,
+   "gpu_ms": 3.566
+  },
+  "bridges/aerial": {
+   "p50": 13.8859996795654,
+   "p99": 17.6650009155273,
+   "late": 0,
+   "draws": 166,
+   "prims": 154981,
+   "step": 16,
+   "fill": 0.581,
+   "gpu_mhz": 629.0,
+   "gpu_ms": 3.468
+  },
+  "bridges/ground": {
+   "p50": 13.8540000915527,
+   "p99": 17.3910007476807,
+   "late": 0,
+   "draws": 194,
+   "prims": 161688,
+   "step": 16,
+   "fill": 0.581,
+   "gpu_mhz": 660.0,
+   "gpu_ms": 3.467
+  }
+ }
+}
