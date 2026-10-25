@@ -58,7 +58,7 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	var pressure := Brushwork.pressure(radius - target.z - minf(axis.z, 0.0) if stick else -target.z)
 	var across := axis if stick else local.basis.x
 	var angle := atan2(-across.y, across.x)
-	return {"pose": frame * local, "point": frame * Vector3(near.x, near.y, 0), "uv": Vector2(near.x / Brushwork.METRES.x + 0.5, 0.5 - near.y / Brushwork.METRES.y), "on": on, "pressure": pressure, "bend": bend, "hard": on and (stick or bend >= BEND - SKIN), "angle": angle, "side": side}
+	return {"pose": frame * local, "point": frame * Vector3(near.x, near.y, 0), "uv": Vector2(near.x / Brushwork.METRES.x + 0.5, 0.5 - near.y / Brushwork.METRES.y), "on": on, "pressure": pressure, "bend": bend, "hard": on and (stick or pressure > 0.999), "angle": angle, "side": side}
 
 
 func hit(p: Vector3) -> Variant:

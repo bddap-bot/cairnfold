@@ -3899,7 +3899,7 @@ sound costs no frame time.
 ## Canvas contact feedback
 
 Paintbrush contact is silent for watercolour and oil. The hand gets a slight tick on
-first contact, then no feedback until the bend limit. At that limit a faint haptic
+first contact, then no feedback until it presses fully. Pressed fully, a faint haptic
 continues while holding still or moving, ending as soon as pressure eases or contact
 ends. Feedback uses physical contact, independently of brush load and paint samples.
 

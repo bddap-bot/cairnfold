@@ -96,12 +96,12 @@ static func turn(from: float, to: float) -> float:
 	return wrapf(to - from, -PI * 0.5, PI * 0.5)
 
 
-## How far a footprint moves from `from` to `to` (texels) as it turns from `from_angle` to `to_angle`, a stick on its
-## side being a line `reach` texels (`side_reach`) either way of its middle: the farthest any point of it goes, and how
-## far its points go on average.
-static func sweep(from: Vector2, from_angle: float, to: Vector2, to_angle: float, reach: float) -> Vector2:
+## How far `brush`'s footprint moves from `from` to `to` (texels) as it turns from `from_angle` to `to_angle`, a stick
+## lying `side` on the canvas being a line `side_reach` either way of its middle: the farthest any point of it goes,
+## and how far its points go on average.
+static func sweep(brush: Brush, from: Vector2, from_angle: float, to: Vector2, to_angle: float, side: float) -> Vector2:
 	var moved := to - from
-	var end := reach * (Vector2.from_angle(from_angle + turn(from_angle, to_angle)) - Vector2.from_angle(from_angle))
+	var end := side_reach(brush, side) * (Vector2.from_angle(from_angle + turn(from_angle, to_angle)) - Vector2.from_angle(from_angle))
 	var mean := 0.0
 	for k in 8:
 		var along := (k + 0.5) / 4.0 - 1.0
@@ -198,7 +198,7 @@ class Stroker:
 		if run > 0.01:
 			_heading = (to - from).angle()
 		var turned := Brushwork.turn(_last[2], s[2])
-		var swept := Brushwork.sweep(from, _last[2], to, s[2], Brushwork.side_reach(stroke.brush, maxf(_last[3], side)))
+		var swept := Brushwork.sweep(stroke.brush, from, _last[2], to, s[2], maxf(_last[3], side))
 		if charcoal and swept.y < 1e-5:
 			_last = [to, s[1], s[2], side]
 			return out

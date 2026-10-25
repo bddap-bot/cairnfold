@@ -664,7 +664,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	if not s.last.is_empty():
 		var r: float = Brushwork.radii(p.brush).y * pressure
 		var size := Vector2(Brushwork.SIZE)
-		var moved := Brushwork.sweep(s.last[0] * size, s.last[2], uv * size, angle, Brushwork.side_reach(p.brush, maxf(side, s.last[3]))).x
+		var moved := Brushwork.sweep(p.brush, s.last[0] * size, s.last[2], uv * size, angle, maxf(side, s.last[3])).x
 		if Brushwork.is_stick(p.brush) and moved < 0.01:
 			return
 		if moved < maxf(r * 0.15, 1.0) and absf(pressure - s.last[1]) < 0.05 and canvas.ticks - s.at < STILL_TICKS:

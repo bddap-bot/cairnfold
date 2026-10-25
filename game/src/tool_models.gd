@@ -27,9 +27,9 @@ const BRUSH_TIP := Vector3(0, 0.01, -0.27)
 const HANDLE_RADIUS := 0.005
 ## A stick of charcoal is held leaned back this far from the controller's aim, its tip dropped, about where a hand
 ## grips it: aimed at the canvas it meets it at this angle, and a wrist turned down as far lays its side flat on it.
-## Whatever its length, its back end rests in the hand this far along the aim, so a short stick's tip is nearer it.
 const STICK_LEAN := deg_to_rad(45.0)
 const STICK_GRIP := Vector3(0, 0.01, -0.06)
+## Whatever its length, a stick's back end rests in the hand this far along the aim, so a short stick's tip is nearer it.
 const STICK_BUTT := -0.02
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
