@@ -16,6 +16,7 @@ func _run() -> void:
 	await process_frame
 	world = main.world
 	await _joining_does_not_change_the_budget()
+	await _a_fresh_meadow_has_room_for_small_stone_houses()
 	_every_step_keeps_the_same_fill()
 	await _counts_follow_placements_and_deletions()
 	await _arches_reserve_room_until_removed()
@@ -158,6 +159,22 @@ func _build(walls: Array) -> bool:
 	check(settled[0], "a wall command settles at once on the host")
 	await _settled()
 	return world.state.walls.size() > before
+
+
+## A Quest once priced its fresh meadow's own trees and flowers at 141% of the bar and turned down the first house.
+func _a_fresh_meadow_has_room_for_small_stone_houses() -> void:
+	var meadow := world.units.duplicate()
+	var walls: int = world.state.walls.size()
+	await play([{"op": "place", "x": 0, "z": 14}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3},
+		{"op": "house", "at": [6, 0], "size": [2.4, 2.4], "seconds": 0.3}])
+	await _settled()
+	check(world.state.walls.size() == walls + 2, "a fresh meadow takes two small stone houses: %d walls" % (world.state.walls.size() - walls))
+	print("budget-houses: meadow %.6f, two houses %.6f of the bar" % [Budget.fill(meadow), world.fill()])
+	check(Budget.fill(meadow) < 1.0 and world.fill() < 1.0, "the meadow and both houses fit: %.3f, %.3f" % [Budget.fill(meadow), world.fill()])
+	world.undo()
+	world.undo()
+	await _settled()
+	check(_same(world.units, meadow), "undoing the houses gives back the meadow's count: %s" % world.units)
 
 
 func _counts_follow_placements_and_deletions() -> void:
