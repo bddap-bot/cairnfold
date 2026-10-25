@@ -4347,7 +4347,10 @@ canvas's own 1536×1152 (`Brushwork.SIZE`, the resolution it is painted at, abou
 the colour and height `canvas.gdshaderinc` gives the canvas in the garden, each canvas on a frame of its own after the
 photo's, then read back and encoded on a worker thread like the photo. Godot writes no PNG deeper than 8
 bits, so `PhotoMeta.gray16` writes the height map, its CRCs read off a native gzip trailer. `tests/gpu_photo_canvas.gd`
-holds both files to the canvas's textures texel for texel. Occlusion is not asked: a canvas hidden behind a wall but
+holds both files to the canvas's textures texel for texel. On a Quest 2 (stress run on 3281abe, two painted easels before the camera, each
+shutter press saving both) `camera/shutter` held its longest frames where the run before held them, p99 195 ms
+against 192 ms, the photo's own frame; its median rose with every phase of that run (`hands/walls`, before the easels,
+16.7 to 19.7 ms). Occlusion is not asked: a canvas hidden behind a wall but
 filling the frame still saves.
 
 Directive (paraphrased): a turned-around version of the camera that acts as a selfie cam; while using it you can
