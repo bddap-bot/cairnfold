@@ -1,0 +1,546 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": "fit"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 30
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-held-0"
+ },
+ {
+  "op": "label",
+  "name": "aerial/held/0"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-away-0"
+ },
+ {
+  "op": "label",
+  "name": "aerial/away/0"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-held-1"
+ },
+ {
+  "op": "label",
+  "name": "aerial/held/1"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-away-1"
+ },
+ {
+  "op": "label",
+  "name": "aerial/away/1"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-held-2"
+ },
+ {
+  "op": "label",
+  "name": "aerial/held/2"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "aerial-away-2"
+ },
+ {
+  "op": "label",
+  "name": "aerial/away/2"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-held-0"
+ },
+ {
+  "op": "label",
+  "name": "ground/held/0"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-away-0"
+ },
+ {
+  "op": "label",
+  "name": "ground/away/0"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-held-1"
+ },
+ {
+  "op": "label",
+  "name": "ground/held/1"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-away-1"
+ },
+ {
+  "op": "label",
+  "name": "ground/away/1"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-held-2"
+ },
+ {
+  "op": "label",
+  "name": "ground/held/2"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.9,
+   -0.5,
+   -0.3
+  ],
+  "right": [
+   0.9,
+   -0.5,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "ground-away-2"
+ },
+ {
+  "op": "label",
+  "name": "ground/away/2"
+ },
+ {
+  "op": "wait",
+  "seconds": 6
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quit"
+ }
+]

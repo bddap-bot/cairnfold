@@ -255,7 +255,7 @@ scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 failed=
 python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1
-import bisect, json, os, re, sys
+import bisect, json, os, re, shutil, sys
 out, device, record, players = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
@@ -273,8 +273,9 @@ if not phases:
     sys.exit("bench: the run measured no phase; see the game's log")
 if device == "frame" and not d["info"].get("xr"):
     sys.exit("bench: the game ran without an XR session; see the game's log")
-# Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second.
-gpu = {}
+# Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second, its
+# compositor's TW= beside it.
+gpu, timewarp = {}, {}
 if device == "frame":
     for name, secs in phases.items():
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
@@ -313,6 +314,9 @@ elif device == "quest":
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))
+            m = re.search(r"TW=([\d.]+)ms", line)
+            if m:
+                timewarp.setdefault(label, []).append(float(m.group(1)))
         elif m and label != "-" and not done:
             shared.setdefault(label, set()).add(pid)
     if crash or (game_pid and not done):
@@ -361,6 +365,8 @@ for name, secs in phases.items():
     if gpu.get(name):
         g = mid(gpu[name])
         summary[name]["gpu_ms"] = round(g, 3)
+        if timewarp.get(name):
+            summary[name]["timewarp_ms"] = round(mid(timewarp[name]), 3)
         row += f" {g:7.2f}"
         if device == "frame":
             row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
@@ -373,6 +379,7 @@ for name, secs in phases.items():
 os.makedirs(os.path.dirname(record), exist_ok=True)
 with open(record, "w") as f:
     json.dump({"budget_gpu_ms": budget["gpu_ms"], **({"players": players} if players > 1 else {}), "phases": summary}, f, indent=1)
+shutil.copy(record, os.path.join(out, "record.json"))
 print(f"recorded {os.path.relpath(record)}")
 if over:
     print("over budget: " + ", ".join(over))

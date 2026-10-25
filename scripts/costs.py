@@ -4,7 +4,7 @@ costs.py OUT_DIR
 
 OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
 bare meadow plus one kind of build, at the fixed calibration step (Budget.fit_step), from the air and standing; its cost is its
-median viewport GPU time (the governor's signal) over the bare meadow's from the same view, or over the phase it is built on
+median GPU time as the runtime counts it (VrApi's App=, bench.sh's record) over the bare meadow's from the same view, or over the phase it is built on
 (ON) for one that adds to another's builds. Masonry is fitted twice: its far rate on all its area from the air, where every
 chunk draws far meshes, and its near excess on the area near one eye (`<unit>_near`, Budget.near) standing among it. A view whose frames fell
 below the refresh rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
@@ -17,7 +17,9 @@ own plants standing or of the bare meadow, dusk included: the meadow's plants sp
 packs them, so it is measured whole rather than counted at their prices. Its trees and bushes are charged as planted ones, so the room
 is this base less what demo/meadow-flora.json reads them to cost (scripts/layers.py), view by view (docs/design.md). Water costs by the pixels it covers: a square
 metre of it costs what small ponds wholly in view give, and all of it at most `water`, the lake phase's dearest view over
-the meadow with its own plants, the meadow's whole bowl filled."""
+the meadow with its own plants, the meadow's whole bowl filled. The governor's own viewport timer is no fit: on a Quest 2 it reads the compositor's
+timewarp too, about 1 ms, in the spells that work lands inside the frame's span, and whole phases fall in them or out of
+them from run to run (docs/design.md, "Bench repeatability on the Quest 2"). The base carries the timewarp, so the room holds in them."""
 import json
 import os
 import re
@@ -52,17 +54,14 @@ for line in open(os.path.join(out, log), errors="replace"):
 units["base"] = {}
 
 d = json.load(open(os.path.join(out, "metrics.json")))
+record = json.load(open(os.path.join(out, "record.json")))["phases"]
+gpu = {name: p["gpu_ms"] for name, p in record.items() if "gpu_ms" in p}
 phases = {}
 for s in d["seconds"]:
-    if s["label"] != "-" and "viewport_gpu_ms" in s:
+    if s["label"] in gpu:
         phases.setdefault(s["label"], []).append(s)
 mid = lambda xs: sorted(xs)[len(xs) // 2]
-gpu, halved = {}, set()
-for name, secs in phases.items():
-    secs = secs[1:] or secs
-    gpu[name] = mid([s["viewport_gpu_ms"] for s in secs])
-    if mid([s["frames"] for s in secs]) < round(d["info"]["refresh_hz"]) - 1:
-        halved.add(name)
+halved = {name for name, secs in phases.items() if mid([s["frames"] for s in secs[1:] or secs]) < round(d["info"]["refresh_hz"]) - 1}
 
 views = [name.split("/")[1] for name in gpu if name.startswith("base/")]
 base = {v: gpu[f"base/{v}"] for v in views}
@@ -109,6 +108,7 @@ wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in
 meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
 line = {**{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": "MOSS_US"}
 print(", ".join(f'"{k}": {v}' for k, v in line.items()))
-base_ms = max([*base.values(), *meadow]) + wild
-print(f"base {base_ms:.2f} ms against the {d['info']['budget']['gpu_ms']:.2f} ms line (Budget.line_ms()); CAPACITY_MS is the line less "
+timewarp = max([record[name].get("timewarp_ms", 0.0) for name in record if name.startswith(("base/", "meadow/")) and name not in halved] + [0.0])
+base_ms = max([*base.values(), *meadow]) + wild + timewarp
+print(f"base {base_ms:.2f} ms, {timewarp:.2f} of it the compositor's timewarp, against the {d['info']['budget']['gpu_ms']:.2f} ms line (Budget.line_ms()); CAPACITY_MS is the line less "
       f"this base less what demo/meadow-flora.json reads the meadow's trees and bushes to cost")

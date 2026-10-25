@@ -1156,6 +1156,31 @@ limit the Quest 2 keeps 1.4 ms and the Frame 3.6 ms. In the first two or three s
 air, while the ladder walked down, the Quest 2 ran 52 to 70 fps and the Frame, from the top
 step, half rate for about ten seconds.
 
+### Bench repeatability on the Quest 2
+
+One build benched twice read the meadow up to 2 ms apart, steady within each run, and once stepped 1.5 ms mid-run
+(`perf/quest-2/meadow-layers/20261021T203327Z-ab7159c.json`, `…/20261021T222648Z-ab7159c.json`,
+`…/20261021T221029Z-e6f5b3b.json`). Two causes, each measured:
+
+- **The hands.** Scenes that posed no hand left them where the unworn headset's idle controllers last stood. The dear
+  runs drew about 20 more draw calls for a few hundred primitives, and their captures show the shut book in the left
+  hand and the right hand's beam in view, which the cheap run's do not; the mid-run step came the second logcat had
+  both controllers go `CONNECTED_INACTIVE tracking: NONE`. `demo/hands-repro.json` alternates the hands held as a
+  player holds them while building with the hands out of view, three times from each view: held reads 0.29 to 0.37 ms
+  dearer from the air and 0.45 to 0.69 standing, every time
+  ([record](../perf/quest-2/hands-repro/20261025T113811Z-b6adba0.json)). In a headset the driver now holds both hands
+  so from a script's start (`Driver.HELD`, the stress scene's pose), until a step poses them.
+- **The governor's timer.** The viewport GPU timer reads about 1 ms more (the compositor's timewarp, VrApi `TW=` 1.15
+  to 1.21 ms) in spells of seconds when that work lands inside the frame's span, with draws, primitives and VrApi's own
+  `App=` unchanged; a 7 s phase can fall wholly in or out of one. `scripts/costs.py` fits on `App=` (bench.sh's
+  record), and its base adds the run's timewarp, so the room holds in those spells too.
+
+Three costs runs of one build with both: the base 7.44, 7.64 and 7.51 ms, where the viewport timer gave 6.98, 7.63 and
+6.90 ([record](../perf/quest-2/costs/20261025T120532Z-b6adba0.json),
+[record](../perf/quest-2/costs/20261025T123216Z-b6adba0.json),
+[record](../perf/quest-2/costs/20261025T130115Z-b6adba0.json)). The rest of the spread is `App=` itself: about
+0.25 ms more in seconds the runtime preempts the game four times a frame (VrApi `Preempt=` near 280) over twice (near 145).
+
 ### What the bare meadow costs the Quest 2
 
 `NESTCOMBE_SCENE=demo/meadow-layers.json bench.sh OUT --android APK` hides each part of the meadow in turn, twice, each
