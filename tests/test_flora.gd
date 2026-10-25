@@ -471,7 +471,7 @@ func _rock_holds_no_grass_or_flowers() -> void:
 			cliff[j * cells.size.x + i] += i * 1.5
 	var grass := flora.add_grass(spot, rng)
 	var cover := flora.grass.cover
-	var t := cover.texel_of(spot)
+	var t := Terrain.grid_point(spot.x, spot.z)
 	check(not grass.rock, "grass stands on the meadow")
 	Terrain.write(cells, cliff)
 	check(Terrain.rock_at(at.x, at.y), "ground rising 1.5 m a metre is rock, %.2f steep" % Terrain.steep_at(at.x, at.y))
