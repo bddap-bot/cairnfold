@@ -4,6 +4,8 @@ extends Node3D
 ## While the player floats, a faint ring at the floor they float on and a soft shadow on the ground below, both by
 ## height alone: standing on nothing tens of metres up is the classic trigger of fear of heights and of lost balance.
 
+## Per-build: whether they show at all. Over the stress garden from 8 m up they cost the Quest 2 0.35 ms of GPU time.
+const SHOWN := true
 ## Floating this much over LIFTED shows both at full strength.
 const FULL_ABOVE := 1.0
 const RING := 1.2
@@ -55,7 +57,7 @@ func _disc(size: float, offsets: Array, alphas: Array, colour: Color) -> MeshIns
 ## Shows both under `head`, the player's feet at `feet` over a floor at `floor_y`.
 func follow(head: Vector3, feet: float, floor_y: float) -> void:
 	var k := clampf((feet - floor_y - Rig.LIFTED) / FULL_ABOVE, 0.0, 1.0)
-	visible = k > 0.0
+	visible = SHOWN and k > 0.0
 	if not visible:
 		return
 	_ring.global_position = Vector3(head.x, feet + RAISE, head.z)
