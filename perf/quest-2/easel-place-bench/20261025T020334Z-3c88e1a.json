@@ -1,0 +1,38 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "easel/first": {
+   "p50": 13.9060001373291,
+   "p99": 17.4060001373291,
+   "late": 1,
+   "draws": 72,
+   "prims": 134153,
+   "stalls": [
+    {
+     "ms": 11060.8,
+     "notes": [
+      {
+       "ms": 7.3,
+       "what": "world: applying easel"
+      }
+     ],
+     "compiled": [
+      6,
+      38
+     ]
+    }
+   ],
+   "step": 16,
+   "gpu_ms": 4.61
+  },
+  "easel/again": {
+   "p50": 13.9420003890991,
+   "p99": 15.6780004501343,
+   "late": 0,
+   "draws": 101,
+   "prims": 139137,
+   "step": 16,
+   "gpu_ms": 6.1
+  }
+ }
+}
