@@ -51,13 +51,34 @@ done
 display=:$((100 + RANDOM % 800))
 Xvfb "$display" -screen 0 640x480x24 -nolisten tcp &
 xvfb=$!
-trap 'kill $xvfb 2>/dev/null || true; rm -rf "$runs"' EXIT
+trap 'kill $xvfb ${gpu:-} 2>/dev/null || true; rm -rf "$runs"' EXIT
 for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
+# Runs a command as `timeout` does, but its limit counts only the seconds the command has the GPU: a GPU shared with
+# other work holds a process at its driver's open until there is room, or stops it while the GPU is lent out, for as
+# long as that takes, and those seconds are not the check's.
+gpu_timeout() {
+  local limit=$1 used=0
+  shift
+  "$@" &
+  gpu=$!
+  local pid=$gpu
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    if ! cat /proc/"$pid"/task/*/wchan 2>/dev/null | grep -q fanotify && [ "$(cut -d' ' -f3 /proc/"$pid"/stat 2>/dev/null)" != T ]; then
+      used=$((used + 1))
+    fi
+    if [ "$used" = "$limit" ]; then kill "$pid"; fi
+  done
+  local code=0
+  wait "$pid" || code=$?
+  if [ "$used" -ge "$limit" ]; then return 124; fi
+  return "$code"
+}
 for t in tests/gpu_*.gd; do
   log="$runs/$(basename "$t").log"
   code=0
   DISPLAY=$display VK_ICD_FILENAMES=${NESTCOMBE_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json} XDG_DATA_HOME=$(mktemp -d -p "$runs") \
-    timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
+    gpu_timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
   grep -E "^(tests|FAIL):|SCRIPT ERROR|Parameter \"material\" is null" "$log" | sed "s|^|$t: |" || true
   if [ "$code" != 0 ] || grep -qE "SCRIPT ERROR|Parameter \"material\" is null" "$log" || ! grep -q "^tests: ok" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
 done
