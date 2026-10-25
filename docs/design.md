@@ -1707,14 +1707,20 @@ The ladder's two new steps, measured at the bottom grass step, where the rest is
 Flowers come first: beyond 20 m they are a few pixels, while coarse blobs show on every
 tree. A flower's reach works as grass reach does: the meadow's flower cells beyond it are
 not drawn and flowers shrink to their roots over its last 4 m; painted flowers and a
-stroke's ghost shrink alike. Both reaches move at 8 m a second. The blob detail changes by
+stroke's ghost shrink alike. Painted plants draw in patches, one per pool and cell square, each boxed
+around the plants it holds, so the camera culls a patch off screen and the reach takes one wholly past
+it out of view: a 2,000-clump patch behind or beside the eye from 4 m out, or past the reach, cost the
+Quest 2 0.09 to 0.11 µs a clump and now measures within noise of nothing, and an 800-flower patch 0.3 to
+0.5 µs a flower anywhere and now within noise past 12 m or out of view
+([before](../perf/quest-2/flora-distance/20261024T104945Z-5148129.json),
+[after](../perf/quest-2/flora-distance/20261024T165227Z-d3fbae0.json)). With every painted pool full
+over the stress scene's 20 m disc, flora/aerial fell from 14.6-15.3 to 13.6 ms and flora/ground from
+12.3 to 11.8. Both reaches move at 8 m a second. The blob detail changes by
 swapping the mesh the foliage's MultiMeshes draw, kept for both details from the start:
 switching it back and forth six times over 12 s, from the air, left the slowest frame of
 each second at 14.8 to 16.7 ms, as in the seconds around the switches: switching causes no stall.
 
-Measured and left out: 16 m chunks for painted plants, so the camera and grass reach could
-cull them (1.5 to 2.2 ms slower at full quality, and at the bottom 0.8 ms faster from the
-air but 1.4 ms slower standing); drawing both blob details in one mesh and dropping one per vertex by distance
+Measured and left out: drawing both blob details in one mesh and dropping one per vertex by distance
 (0.7 ms, where the twice-split icosphere alone saves 1.2: dropped vertices are still binned);
 lighting flowers or leaves per vertex, shrinking flower stalks beyond 8 m, and sun shadows
 to 25 m (each within noise); grass lit per vertex (near blades lose the rounded shading
