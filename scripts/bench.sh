@@ -255,7 +255,7 @@ scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 failed=
 python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1
-import bisect, json, os, re, shutil, sys
+import bisect, json, os, re, sys
 out, device, record, players = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
@@ -377,9 +377,9 @@ for name, secs in phases.items():
                 over.append(name)
     print(row)
 os.makedirs(os.path.dirname(record), exist_ok=True)
-with open(record, "w") as f:
-    json.dump({"budget_gpu_ms": budget["gpu_ms"], **({"players": players} if players > 1 else {}), "phases": summary}, f, indent=1)
-shutil.copy(record, os.path.join(out, "record.json"))
+for path in (record, os.path.join(out, "record.json")):
+    with open(path, "w") as f:
+        json.dump({"budget_gpu_ms": budget["gpu_ms"], **({"players": players} if players > 1 else {}), "phases": summary}, f, indent=1)
 print(f"recorded {os.path.relpath(record)}")
 if over:
     print("over budget: " + ", ".join(over))
