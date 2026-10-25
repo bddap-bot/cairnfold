@@ -78,18 +78,23 @@ func _init() -> void:
 	name = "Easels"
 
 
-## Builds the shared geometry, the paint pipeline and the easel's draw pipelines by an easel that stands hidden for its
-## first frame, so not even the first placement in a session builds any of them (`Warmup`).
+## Builds the shared geometry, the paint pipeline and the easel's draw pipelines as the game loads (`Warmup`), by an
+## easel a centimetre tall drawn once in front of the eyes and then kept hidden for the game's life: Godot compiles a
+## pipeline only for what it draws and lets it go with its last material, and either way a Quest 2 compiled them in
+## the first placement's frame, which held it seconds.
 func warm() -> void:
 	var warm := Easel.new()
 	_build(warm)
 	var look := ShaderMaterial.new()
 	look.shader = preload("res://src/canvas.gdshader")
 	warm.canvas_mesh.material_override = look
-	warm.visible = false
 	add_child(warm)
-	warm.queue_free()
 	Canvas.warm()
+	var eye := get_viewport().get_camera_3d()
+	if eye != null and RenderingServer.get_rendering_device() != null:
+		warm.global_transform = eye.global_transform.translated_local(Vector3.FORWARD).scaled_local(Vector3.ONE * 0.01)
+		await RenderingServer.frame_post_draw
+	warm.visible = false
 
 
 ## Where pigment `i` lies on `kit`'s palette, in its frame.
