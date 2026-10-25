@@ -173,13 +173,12 @@ script a frame. Grown in the frame its command applied in, the flora phase's 4 s
 stroke (about 850 plants) took 24 ms of main-thread script on the Frame and one late frame
 at every release; a full stroke of 4000 would take about 110 ms. Its spots are still laid out
 as the command applies: 7.4 ms for a full stroke of 4000 on the Frame, with no late frame. The flora phase (flowers,
-grass, two trees, ivy on the wall), unworn with the standby pause off, and the measured
-phases of `demo/grass.json`:
+grass, two trees, ivy on the wall), unworn with the standby pause off:
 
-| Run | Flora phase: late frames, frame time p99 | `grass.json` bench-eye, bench-kneel: late frames |
-| --- | --- | --- |
-| Before (d9f8ec7), two runs | 1 (22 ms), 1 (28 ms) | 0, 0 |
-| After | 0, 13.89 ms | 0, 0 |
+| Run | Flora phase: late frames, frame time p99 |
+| --- | --- |
+| Before (d9f8ec7), two runs | 1 (22 ms), 1 (28 ms) |
+| After | 0, 13.89 ms |
 
 A command that takes more than 4 ms to apply is logged (`world: applying path took 11.8 ms`):
 the late-frame line's script time leaves out what a demo script's driver runs, and it showed 3 ms
@@ -2247,10 +2246,9 @@ specifically to tame specular aliasing). Wind stays low-frequency and
 world-anchored, so it moves the grass rather than the ground. Tiny Glade's public
 talks cover its walls and lighting, not its grass.
 
-Cost so far: on a desktop RTX 2080 at 1600×1200 the painted-meadow views of
-`demo/grass.json` render in about 1.1–1.6 ms of GPU time before and after these
-changes, inside run-to-run noise. Holding the Frame's refresh with them is
-measured on the device (the epic's flora-on-the-headset box).
+Cost so far: on a Quest 2 the painted-meadow views of `demo/grass.json` take 8.4 ms
+(standing) and 8.0 ms (kneeling) of the 12.5 ms GPU budget, with no late frame
+(`perf/quest-2/grass/`).
 
 `demo/grass.json` paints a meadow, captures it from fixed cameras (with a hand
 held in the grass for the last pair), and records two benchmark stretches;
