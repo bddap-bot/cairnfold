@@ -757,7 +757,8 @@ func _dig(s: Dictionary) -> void:
 
 
 ## Pulls the trigger of the pond tool pointed at the ground at x, z: the hollow beside it fills to that height. With
-## `brim`, a hollow pressed at x, z out to that radius fills to its brim (`Water.brim`).
+## `brim`, a hollow pressed at x, z out to that radius fills to its brim (`Water.brim`). Returns once the fill is sent
+## to the garden, so `World.idle` then means its water is in.
 func _pond(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	if s.has("brim"):
@@ -767,6 +768,8 @@ func _pond(s: Dictionary) -> void:
 	main.water_tool.fill(_holding(s, Hand.Tool.POND), at)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	while main.water_tool.pouring():
+		await get_tree().process_frame
 	hand.tool = was
 
 

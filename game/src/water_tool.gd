@@ -66,6 +66,11 @@ func _process(_delta: float) -> void:
 		_let_in(_fires.pop_front())
 
 
+## Whether a fill let in is still being worked out off the main thread, so the garden has not been sent it yet.
+func pouring() -> bool:
+	return not _fires.is_empty()
+
+
 ## Lets in every fill still being worked out, waiting for each and for the garden to take it.
 func settle() -> void:
 	while not _fires.is_empty():
