@@ -211,7 +211,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	viewer._clock += Session.RETRY + 1.0
 	await process_frame
 	await process_frame
-	check(not viewer.previewing() and viewer._failed.get(junk_key) == INF, "and while its beacon names it, it is not fetched again")
+	check(not viewer._fetches.has(junk_key) and viewer._failed.get(junk_key) == INF, "and while its beacon names it, it is not fetched again")
 	host._shelved = shelved
 	viewer.nearby.erase("127.0.0.1:1")
 	for s in sessions:
