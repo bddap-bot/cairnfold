@@ -337,7 +337,7 @@ static func stairs(d: Dictionary) -> Dictionary:
 	var run := d.a.distance_to(d.b) as float
 	var rails := 2.0 * StairLayout.RAIL_HEIGHT * run if StairLayout.railed(d) else 0.0
 	var sides := 0.0
-	if StairLayout.classify(d.a, d.b) == StairLayout.Kind.FLIGHT:
+	if StairLayout.classify(d) == StairLayout.Kind.FLIGHT:
 		sides = Vector2(d.b.x - d.a.x, d.b.z - d.a.z).length() * absf(d.b.y - d.a.y) * 0.5
 	return {"wall_m2": run * d.width + rails + sides}
 

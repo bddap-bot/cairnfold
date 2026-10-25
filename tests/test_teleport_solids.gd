@@ -348,19 +348,19 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 		var on := w.layout.point_at(3.5)
 		tops.append(rig.solid_hit.call(on + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y)
 	var deck := maxf(tops[0], tops[1])
-	var bridge := {"a": Vector3(-4, deck, -0.5), "b": Vector3(3, deck, -0.5), "width": 1.2, "rail": "wood", "seed": 5, "paint": Palette.plain(), "on": ids}
+	var bridge := {"a": Vector3(-4, deck, -0.5), "b": Vector3(3, deck, -0.5), "width": 1.2, "sag": 0.4, "rail": "wood", "seed": 5, "paint": Palette.plain(), "on": ids}
 	var foot := main.world.terrain.ground(-9, 1.5)
-	var flight := {"a": foot, "b": Vector3(-4, tops[0], 1.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array([ids[0]])}
+	var flight := {"a": foot, "b": Vector3(-4, tops[0], 1.5), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array([ids[0]])}
 	world._order({"op": "stairs", "stairs": bridge}, 1)
 	world._order({"op": "stairs", "stairs": flight}, 1)
 	var keys: Array = world.stairs.layouts.keys()
 	var span: StairLayout = world.stairs.layouts[keys[-2]]
 	var steps: StairLayout = world.stairs.layouts[keys[-1]]
-	check(span.kind == StairLayout.Kind.LANDING and steps.kind == StairLayout.Kind.FLIGHT, "a level run between two wall tops is a bridge, a rising one a flight")
-	var middle := Vector3(-0.5, deck, -0.5)
-	var on_bridge := func(_p: Vector3) -> float: return deck
+	check(span.kind == StairLayout.Kind.BRIDGE and steps.kind == StairLayout.Kind.FLIGHT, "a hanging run between two wall tops is a bridge, a rising one a flight")
+	var middle := Vector3(-0.8, span.surface(Vector3(-0.8, deck, -0.5)), -0.5)
+	var on_bridge := func(p: Vector3) -> float: return span.surface(p + Vector3.UP)
 	_lands(rig, middle + Vector3(0, 5, 5), middle, on_bridge, "down onto a bridge between two wall walks")
-	_hovers(rig, middle, deck, "a bridge")
+	_hovers(rig, middle, middle.y, "a bridge")
 	_stands(middle, -1.0, main.world.terrain.height_at(middle.x, middle.z), "a point under the bridge")
 	var tread := foot.lerp(flight.b, 0.5)
 	var tread_y := steps.surface(tread + Vector3.UP)

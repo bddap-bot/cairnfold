@@ -105,7 +105,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var rock: Dictionary = hits.get(World.Kind.BOULDER, {})
 	var stair: Dictionary = hits.get(World.Kind.STAIRS, {})
 	if not stair.is_empty():
-		return colour_target(Palette.KINDS[stair.kind], stair.point, "stairs", stair.stair)
+		return colour_target(Palette.KINDS.get(stair.kind, Palette.Element.WOOD), stair.point, "stairs", stair.stair)
 	if not rock.is_empty():
 		return colour_target(Palette.Element.STONE, rock.point, "boulders", rock.boulder.id)
 	if not gable.is_empty():
@@ -139,7 +139,7 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
 ## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall, fence, path or painted stone it meets first,
-## a roofless wall's top near it; ladders, bushes and the bare meadow have no style.
+## a roofless wall's top near it; ladders, single-rope bridges, bushes and the bare meadow have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var hits := world.pick(origin, dir, {World.Kind.TARGET: INF, World.Kind.PLANT: DeleteTool.REACH, World.Kind.FLOOR: INF, World.Kind.STAIRS: INF, World.Kind.BOULDER: INF, World.Kind.GROUND: INF})
 	var pick: Dictionary = hits.get(World.Kind.TARGET, {})
@@ -158,7 +158,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	if not rock.is_empty():
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": rock.point, "of": "boulders", "id": rock.boulder.id, "wall": null}
 	if not stair.is_empty():
-		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
+		if not StairLayout.can_rail(world.state.stairs[stair.stair]):
 			return {}
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
 	if not floor.is_empty():

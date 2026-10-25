@@ -302,7 +302,7 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 
 static func _stairs(root: Node3D, rail: String) -> void:
 	var layout := StairLayout.new()
-	layout.build({"a": Vector3.ZERO, "b": Vector3(0, 0.8, -1.5), "width": 1.2, "rail": rail, "seed": 1, "paint": Palette.plain()})
+	layout.build({"a": Vector3.ZERO, "b": Vector3(0, 0.8, -1.5), "width": 1.2, "sag": 0.0, "rail": rail, "seed": 1, "paint": Palette.plain()})
 	var stones := Stones.new()
 	stones.lay(layout.stones)
 	stones.scale = Vector3.ONE * 0.035

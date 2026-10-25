@@ -39,7 +39,7 @@ const MAX_SUPPORTS := 8
 ## by the entries they name.
 const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "ruins"],
-	"stairs": ["rail", "a", "b", "width", "on"],
+	"stairs": ["rail", "a", "b", "width", "sag", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style", "at", "turn", "s"],
 	"easels": ["at", "yaw"],
@@ -662,11 +662,11 @@ static func _stairs(d: Variant) -> Variant:
 		if typeof(d.get(key)) != TYPE_VECTOR3 or not _finite(d[key]):
 			return null
 	var length: float = d.a.distance_to(d.b)
-	if length < 0.3 or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH):
+	if length < 0.3 or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH) or not _in(d.get("sag"), Vector2(0.0, StairLayout.SAG_MOST)) or not StairLayout.sag_fits(d.a, d.b, d.sag):
 		return null
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null
 	var on: Variant = d.get("on")
 	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
 		return null
-	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail, "paint": d.paint, "on": on}
+	return {"a": d.a, "b": d.b, "width": d.width, "sag": d.sag, "seed": d.seed, "rail": d.rail, "paint": d.paint, "on": on}

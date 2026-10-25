@@ -1218,7 +1218,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var stairs := world.stairs
 	var was: Dictionary = world.state.stairs[grip.id].duplicate()
-	var shown := {"a": was.a, "b": was.b, "width": was.width}
+	var shown := {"a": was.a, "b": was.b, "width": was.width, "sag": was.sag}
 	var from := shown.duplicate()
 	var current := func() -> bool:
 		var now: Dictionary = world.state.stairs.get(grip.id, {})
@@ -1228,6 +1228,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	s.current = current
 	s.show = func(width: float) -> void:
 		shown.width = width
+		shown.sag = stair_sag(shown)
 		stairs.show_reshaped(grip.id, shown)
 	s.command = func() -> Dictionary:
 		var same: bool = shown.a.is_equal_approx(was.a) and shown.b.is_equal_approx(was.b) and is_equal_approx(shown.width, was.width)
@@ -1235,6 +1236,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	s.take = func() -> void: from.merge(shown, true)
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
 		shown.merge(carry_stairs(from, m.took, hand, m.gain, world.terrain.height_at), true)
+		shown.sag = stair_sag(shown)
 		stairs.show_reshaped(grip.id, shown)
 	s.settle = func() -> void:
 		if world.state.stairs.has(grip.id) and not in_hand.call():
@@ -1254,6 +1256,12 @@ static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gai
 	var low := a if a.y < b.y else b
 	var under := maxf(height.call(low.x, low.z) - low.y, 0.0)
 	return {"a": a + Vector3.UP * under, "b": b + Vector3.UP * under, "width": at.width}
+
+
+## How far stairs standing as `d` ({a, b, width}) hang over the ground, water and builds under them: 0 for stairs that
+## stand.
+func stair_sag(d: Dictionary) -> float:
+	return StairLayout.sag_over(d.a, d.b, d.width, func(p: Vector3) -> float: return floor_under(p + Vector3.UP * 0.05), world.terrain.water_at)
 
 
 ## The builds stairs standing as `d` rest their ends on, on a top or a floor inside, which take the stairs with them

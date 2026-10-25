@@ -3083,8 +3083,8 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Shape a roof | Two grips on a roof, whatever the hands hold: drawn apart upright for a taller ridge, together for a lower one, all the way down snapping it flat; spread across for convex slopes and squeezed for concave slopes (stone decks bow too). Two grips on the eaves, past the walls: each hand out from its walls pulls them out, back pushes them in |
 | Put up a house or tower | Trigger of a hand holding the house or the tower: a square house or round tower stands where it points, on the ground or on a build's top for an upper storey, its front square to the head. The trigger only places it |
 | Move a house or tower | Grip anywhere on it, roof included, whatever the hand holds: it moves and turns with the hand, the gain growing with distance, and rises onto its plinth as the hand rises, or comes back down; let go to set it there, one undo step |
-| Move stairs | Grip on a flight, landing or ladder, whatever the hand holds: it moves with the hand and turns as the hand turns, the gain growing with distance, its lower end never under the ground; let go to set it there |
-| Widen stairs | Holding stairs with one grip, grip them with the other hand too and pull the hands apart, or push them together to narrow them |
+| Move stairs | Grip on a flight, landing, bridge or ladder, whatever the hand holds: it moves with the hand and turns as the hand turns, the gain growing with distance, its lower end never under the ground; let go to set it there |
+| Widen stairs | Holding stairs with one grip, grip them with the other hand too and pull the hands apart, or push them together to narrow them; a bridge narrowed all the way is a single rope |
 | Size a house or tower | Holding it with one grip, grip the same house with the other hand: spread or close the hands across its front for width, along its flank for depth, or across a tower for its diameter; one over the other, draw them apart for taller walls or together for lower ones (see "Moving and sizing a house") |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
@@ -3318,7 +3318,7 @@ house's or tower's roof, its covering: tile or thatch on a pitched roof or a con
 wall's top, merlons, plain capping or coping; a wall's or fence's face, its finish (see "Wall finishes"; walls, houses
 and fences laid after take the finish turned to last); a window, its family, the lights fused with it alike (see
 "Window families"; windows opened after take it); a house's or tower's floor, flags or boards, apart
-from its walls (see "Floors"); a flight or landing, its railings, stone, wooden or
+from its walls (see "Floors"); a flight, landing or bridge, its railings, stone, wooden, rope or
 none (stairs laid after take them); painted stone or a boulder, its stone style from the one table (see "Ground materials"; stone painted and boulders set down after take it); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
 wine-red dome. Every species is the same trunk and eight foliage blobs placed differently, so a tree changes
@@ -3476,6 +3476,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 17. Window families: arched windows, arrow slits, round and corner windows and roof trapdoors; windows glowing at night in a picked colour; lived-in houses' curtains, flower boxes and washing. (Done.)
 18. Paths make doors: a path into a house opens a door as wide as it, which goes with the path. (Done.)
 19. Path materials and gardens: dirt, sand, cobbles and flagstones blending where they meet, stepping stones across water, garden beds sprouting rows of vegetables. (Done.)
+20. Bridges: plank-and-rope bridges hung between high points with a railing style, a single rope at the least width; walls arching over ponds. (Done.)
 
 ## Water
 
@@ -4771,10 +4772,10 @@ Report (verbatim): "I liked the stair slash bridge object that you had in a prev
 
 The stairs tool lives beside paths on the tool wheel. Hold the trigger at one end,
 point at the other, then release. Either end can be ground, a wall top, a flat roof
-or an existing landing. A level stroke is a landing, so one drawn between two wall
-tops is a bridge; a near-vertical run becomes a wooden ladder. A flight, landing or ladder runs as long as a wall
+or an existing landing. A level stroke along the ground is a landing, and one between two high points hangs as a
+bridge (see "Bridges"); a near-vertical run becomes a wooden ladder. A flight, landing or ladder runs as long as a wall
 can, its treads and railings charged by the metre against the build budget. Railings are stone until
-the style tool turns them wooden or takes them off, and the colour tool paints stairs as
+the style tool turns them wooden or rope or takes them off, and the colour tool paints stairs as
 any build (see "Colour per build" and "Styles"). Stones
 appear in order from the lower end. Delete takes a flight, ladder or landing whole;
 undo, redo, autosave and joining a garden preserve it like other builds.
@@ -4793,6 +4794,45 @@ stress scene fills the build budget with stairs, ladders and landings, beside a
 stepped path up a hill, for its `stairs/*` views. On the Steam Frame, governed, both views
 hold 72 Hz with no late frame: 8.9 ms of GPU time a frame from the air and 8.0 standing
 (`perf/frame/stress`), the ladder settling two steps from the top.
+
+## Bridges
+
+The stairs tool hangs a bridge where a stroke spans a gap: its run at least `StairLayout.HANG_LEAST` (2 m), rising no
+more than `HANG_SLOPE` of it, and its middle half either crossing water or standing `HANG_CLEAR` (1 m) over the ground
+and any build under it, along its centre line and both edges, as between two wall tops, roofs, platforms or the banks
+of a pond (`StairLayout.sag_over`). One drawn along a wall's walk or a floor is a landing on it. The tool works this
+out from what is under the stroke as it is drawn, carried or widened, and the build keeps it as its `sag`: how far
+the deck hangs below the line between its ends at the middle, 7 cm a metre of span (`SAG`) down to what keeps the
+deck 15 cm over the ground, water or build beneath, no less than 3 cm and no more than 2 m (`Commands` refuses any
+other). The top an end rests on, or a bank's lip up to 30 cm over the line, may stand into the deck's first and last
+quarters, so a bridge from bank to bank across a pond lies almost flat just over the water. Anything else is a
+flight, landing or ladder as before. Like the ends of any stairs, the sag stays as it was set when the ground or
+water under a bridge changes later; carrying or widening it works it out again.
+
+The deck follows a parabola through both ends (`StairLayout.deck`): planks 18 cm deep a plank every 22 cm, each tilted
+to the hang and set a little askew, on two ropes running under their ends. Each end is tied to a post on either side.
+The railings, from the style tool's railing wheel as on a flight:
+
+- **Rope**: handrails strung along the hang, a hanger down to the deck rope every 60 cm or so, on wooden posts.
+- **Stone**: the same rope handrails and hangers, tied to stone pillars at the ends instead of the posts.
+- **Wood**: wooden posts and rails following the hang.
+- **None**: the deck on its ropes.
+
+At the least width (0.6 m) a bridge is a single rope down the middle, tied to a post at each end, with no planks or
+railing; the style tool has no railings to offer it. Rope keeps its hemp whatever the colour tool paints, and the
+colour tool pointed at it paints the bridge's woodwork: planks, posts and rails. A player stands on the deck where it
+hangs (`StairLayout.surface`), or on the single rope, and the teleport lands on it, the gaps between planks included
+(`StairLayout.solids`). A bridge is charged as a landing of its span and width, railings included.
+
+A wall drawn across a pond arches over the water (see "Stone in ponds"): one arch over a narrow crossing, an arcade
+on pillars standing in the pond over a wider one.
+
+`tests/test_bridges.gd` checks where a stroke hangs, the sag and the planks along it, each railing style, the single
+rope, the command's checks, the tool hanging one between two wall tops and laying a landing along the meadow and
+along a wall's walk, the colour tool on a rope, the demo with its teleport and the stress phases. `demo/bridges.json` hangs a bridge in every railing style and a single rope between two
+walls over a pond, one from bank to bank across another, and a wall across a third arching over the water, then
+teleports onto a bridge. The stress scene's `bridges/aerial` and `bridges/ground` phases hang a bridge from bank to
+bank across every pond in the meadow's ring, the railing styles in turn.
 
 ## Standing on what you built
 

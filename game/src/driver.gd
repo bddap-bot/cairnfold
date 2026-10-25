@@ -2040,7 +2040,7 @@ func _stairs(s: Dictionary) -> void:
 	if s.get("on", false):
 		a = _target(s, main.world.terrain.ground(a.x, a.z)).point
 		b = _target(s, main.world.terrain.ground(b.x, b.z)).point
-	main.stair_tool.begin(hand, a)
+	main.stair_tool.begin(hand, a, s.get("width", StairTool.WIDTH))
 	var frames := maxi(1, int(s.get("seconds", 1.0) * 30.0))
 	for i in frames:
 		main.stair_tool.extend(hand, a.lerp(b, float(i + 1) / frames))
@@ -2057,7 +2057,7 @@ func _stair_field(_s: Dictionary) -> void:
 	for row in 9:
 		for col in 9:
 			var a := main.world.terrain.ground((col - 4) * 3.5, (row - 4) * 6.0)
-			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col, "paint": Palette.plain(), "on": PackedInt32Array()}
+			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "sag": 0.0, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col, "paint": Palette.plain(), "on": PackedInt32Array()}
 			if col % 3 == 1:
 				d.b = a + Vector3(0, 3, -1)
 			elif col % 3 == 2:

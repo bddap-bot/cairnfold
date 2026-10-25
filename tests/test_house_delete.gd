@@ -115,7 +115,7 @@ func _decorate(w: int, mount: String, point: Vector3, s := 0.0, style := Decorat
 
 
 func _stairs(a: Vector3, b: Vector3) -> int:
-	var d := {"a": a, "b": b, "width": 1.2, "rail": "stone", "seed": 7, "paint": Palette.plain()}
+	var d := {"a": a, "b": b, "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 7, "paint": Palette.plain()}
 	d.on = main.tool.stair_supports(d)
 	world.submit({"op": "stairs", "stairs": d})
 	check(world.state.stairs.has(world.seq), "stairs are laid")

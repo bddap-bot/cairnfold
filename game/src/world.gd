@@ -21,7 +21,7 @@ const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one.
-const FORMAT := 8
+const FORMAT := 9
 ## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"

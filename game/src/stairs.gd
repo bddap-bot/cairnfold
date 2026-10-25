@@ -78,7 +78,7 @@ func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 		var near: Variant = layout.bounds.intersects_ray(origin, direction)
 		if near == null and not layout.bounds.has_point(origin) or near != null and origin.distance_to(near) >= reach:
 			continue
-		for piece: Dictionary in layout.stones:
+		for piece: Dictionary in layout.solids:
 			var x: Transform3D = piece.xform
 			var inverse := x.affine_inverse()
 			var box := AABB(-Vector3.ONE * 0.5, Vector3.ONE)

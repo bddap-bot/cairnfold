@@ -6,7 +6,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8, "paint": Palette.plain(), "on": PackedInt32Array()}
+	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 8, "paint": Palette.plain(), "on": PackedInt32Array()}
 	var stairs := StairLayout.new()
 	stairs.build(d)
 	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == 10, "two metres rise makes ten steps")
@@ -20,8 +20,8 @@ func _run() -> void:
 		check(is_zero_approx(piece.xform.origin.y - piece.xform.basis.y.length() * 0.5), "blocks reach down to the foot, a solid flight with no air under its steps")
 	_posts_on_treads(d)
 	_walkable(d)
-	_walkable({"a": Vector3(1, 0.5, 2), "b": Vector3(-3, 0.5, -1), "width": 2.0, "rail": "none", "seed": 3, "paint": Palette.plain()})
-	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "rail": "wood", "seed": 4, "paint": Palette.plain()})
+	_walkable({"a": Vector3(1, 0.5, 2), "b": Vector3(-3, 0.5, -1), "width": 2.0, "sag": 0.0, "rail": "none", "seed": 3, "paint": Palette.plain()})
+	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "sag": 0.0, "rail": "wood", "seed": 4, "paint": Palette.plain()})
 	check(is_nan(stairs.surface(Vector3(2, 1, -2))), "nothing to stand on beside the flight")
 	check(is_nan(stairs.surface(Vector3(0, 1, 1))), "nothing to stand on before its foot")
 	var first := stairs.stones.duplicate(true)
@@ -46,7 +46,7 @@ func _run() -> void:
 	var bare := d.duplicate()
 	bare.rail = "none"
 	check(is_equal_approx(Budget.stairs(bare).wall_m2, 3.0 * d.width), "a landing without railings is charged for its treads alone")
-	var solid := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "none"}
+	var solid := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "none"}
 	check(is_equal_approx(Budget.stairs(solid).wall_m2, Vector3(0, 2, -4).length() * 1.2 + 4.0 * 2.0 * 0.5), "a flight is charged for its treads and its solid side, as a wall for one face")
 	check(is_equal_approx(Budget.stairs(d).wall_m2, 3.0 * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)), "railings are charged on a railed flight")
 	var climb := d.duplicate()
@@ -56,13 +56,13 @@ func _run() -> void:
 		var invalid := d.duplicate()
 		invalid.b = bad
 		check(Commands._stairs(invalid) == null, "reject invalid endpoint")
-	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}
-	check(Commands._stairs(long) != null, "a sixty-metre bridge is a valid command")
+	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}
+	check(Commands._stairs(long) != null, "a sixty-metre landing is a valid command")
 	stairs.build(long)
-	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre bridge is walkable to its far end")
+	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre landing is walkable to its far end")
 	long.b.y = 2.15
 	stairs.build(long)
-	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == ceili(60.0 / StairLayout.TREAD), "a gently sloped long bridge climbs in shallow treads, not a few long ones: %d" % stairs.treads.size())
+	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == ceili(60.0 / StairLayout.TREAD), "a gently sloped long landing climbs in shallow treads, not a few long ones: %d" % stairs.treads.size())
 	boot_main()
 	await process_frame
 	var world: World = main.world
@@ -95,14 +95,17 @@ func _run() -> void:
 	world.stairs._process(10.0)
 	check(not world.stairs.laying(), "assembly finishes")
 	var id: int = world.state.stairs.keys()[0]
+	var span: StairLayout = world.stairs.layouts[id]
+	var deck := span.surface(Vector3(0, 3, -1))
+	check(span.kind == StairLayout.Kind.BRIDGE and deck < 2.0 - 0.1, "a level stroke two metres over the meadow hangs as a bridge: %s" % deck)
 	var hit: Dictionary = main.stair_tool.aim(Vector3(0, 5, -1), Vector3.DOWN)
-	check(hit.get("stair", -1) == id, "tool targets a landing for a connected flight")
-	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 3, -1)), 2.0), "a point over the landing stands on it")
-	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 1, -1)), main.world.terrain.height_at(0, -1)), "a point under the landing stands on the ground")
+	check(hit.get("stair", -1) == id, "tool targets a bridge for a connected flight")
+	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 3, -1)), deck), "a point over the bridge stands on its deck")
+	check(is_equal_approx(main.rig.floor_under.call(Vector3(0, 1, -1)), main.world.terrain.height_at(0, -1)), "a point under the bridge stands on the ground")
 	main.rig.aim(Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), Vector3(0, 5, -1)))
-	check(main.rig.aim_ground != null and is_equal_approx(main.rig.aim_ground.y, 2.0), "the teleport ray lands on the landing")
+	check(main.rig.aim_ground != null and absf(main.rig.aim_ground.y - deck) < 0.03, "the teleport ray lands on the deck: %s" % main.rig.aim_ground)
 	main.rig.aim(Transform3D(Basis.looking_at(Vector3(0, -1, -1).normalized(), Vector3.UP), Vector3(0, 5, 2)), 0.9)
-	check(main.rig.aim_ground != null and is_equal_approx(main.rig.aim_ground.y, 2.0), "short of the landing, the target floats over it, not the ground")
+	check(main.rig.aim_ground != null and main.rig.aim_ground.y > 1.5, "short of the bridge, the target floats over it, not the ground: %s" % main.rig.aim_ground)
 	main.rig.hide_markers()
 	var cut: Dictionary = main.delete_tool.aim(Vector3(0, 5, -1), Vector3.DOWN)
 	check(cut.get("stair", -1) == id, "eraser targets stairs")
@@ -118,7 +121,7 @@ func _run() -> void:
 	check(world.state.stairs.size() == 1, "snapshot restores stairs")
 	main.delete_tool.press(self, Vector3(0, 5, -1), Vector3.DOWN)
 	main.delete_tool.let_go(self)
-	check(world.state.stairs.is_empty(), "eraser takes the whole landing")
+	check(world.state.stairs.is_empty(), "eraser takes the whole bridge")
 	world.undo()
 	check(world.state.stairs.size() == 1, "erased stairs return on undo")
 	_painted_and_styled(main)
@@ -172,7 +175,7 @@ func _painted_and_styled(main: Node) -> void:
 	var stone := Palette.Element.STONE
 	world.submit({"op": "wipe"})
 	var a := world.terrain.ground(10, 0)
-	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys()[0]
 	var over := a + Vector3(0, 6, -2)
@@ -224,7 +227,7 @@ func _painted_and_styled(main: Node) -> void:
 	var fresh: Dictionary = world.state.stairs[world.state.stairs.keys().max()]
 	check(fresh.rail == "wood" and fresh.paint[stone] == 3, "new stairs take the last swatch and railings")
 	var ladder := world.terrain.ground(0, 10)
-	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var facing := ladder + Vector3(0.6, 1.5, 3)
 	check(not world.stairs.pick(facing, Vector3.FORWARD, 10.0).is_empty() and picker.aim_style(facing, Vector3.FORWARD).is_empty(), "a ladder has no style")
@@ -267,7 +270,7 @@ func _gripped(main: Node) -> void:
 	var world: World = main.world
 	var tool: WallTool = main.tool
 	var g := world.terrain.ground(6, -6)
-	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys().filter(func(k: int) -> bool: return world.state.stairs[k].seed == 9)[0]
 	var was: Dictionary = world.state.stairs[id].duplicate()

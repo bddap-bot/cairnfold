@@ -27,8 +27,8 @@ func _run() -> void:
 		for yaw in [-0.3, 0.0, 0.3]:
 			var tilted := Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)) * Basis(head.basis.x, deg_to_rad(pitch)) * head.basis, head.origin)
 			rig.aim(Driver.aim_pose(tilted, aim.dir))
-			check(rig.aim_ground != null and rig.aim_ground.y > 2.0, "head turned %s° up, %s° left: the ray lands on the bridge, not %s" % [pitch, yaw, rig.aim_ground])
+			check(rig.aim_ground != null and rig.aim_ground.y > 1.5, "head turned %s° up, %s° left: the ray lands on the bridge, not %s" % [pitch, yaw, rig.aim_ground])
 	rig.hide_markers()
 	await play([aim])
-	check(rig.global_position.y > 2.0 and absf(rig.head.global_position.z - -0.5) < 0.6, "the demo's teleport stands on the bridge: %s" % rig.head.global_position)
+	check(rig.global_position.y > 1.5 and absf(rig.head.global_position.z - -0.5) < 0.6, "the demo's teleport stands on the bridge: %s" % rig.head.global_position)
 	finish()

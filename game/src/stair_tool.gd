@@ -1,6 +1,9 @@
 class_name StairTool
 extends Node3D
 
+## How wide stairs are drawn; a grip widens or narrows them after.
+const WIDTH := 1.2
+
 var rig: Rig
 var walls: WallTool
 var world: World
@@ -20,11 +23,11 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 func busy(hand: Hand = null) -> bool:
 	return not _strokes.is_empty() if hand == null else _strokes.has(hand)
 
-func begin(hand: Hand, at: Vector3) -> void:
+func begin(hand: Hand, at: Vector3, width := WIDTH) -> void:
 	_cancel(hand)
 	var ghost := Stones.new()
 	add_child(ghost)
-	_strokes[hand] = {"data": {"a": at, "b": at, "width": 1.2, "rail": world.stairs.rail, "seed": randi(), "paint": walls.paint.duplicate()}, "ghost": ghost}
+	_strokes[hand] = {"data": {"a": at, "b": at, "width": clampf(width, StairLayout.WIDTH.x, StairLayout.WIDTH.y), "sag": 0.0, "rail": world.stairs.rail, "seed": randi(), "paint": walls.paint.duplicate()}, "ghost": ghost}
 
 func extend(hand: Hand, at: Vector3) -> void:
 	if not _strokes.has(hand):
@@ -32,6 +35,7 @@ func extend(hand: Hand, at: Vector3) -> void:
 	var s: Dictionary = _strokes[hand]
 	var d: Vector3 = at - s.data.a
 	s.data.b = s.data.a + d.limit_length(Commands.STROKE_LENGTH)
+	s.data.sag = walls.stair_sag(s.data)
 	s.data.rail = world.stairs.rail
 	var layout := StairLayout.new()
 	layout.build(s.data)
