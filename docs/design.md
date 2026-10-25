@@ -2967,7 +2967,13 @@ toadstools, petals, a ghost of the avatar, footprints, a sunbeam and a bubble; t
 with it. `tests/test_teleport.gd` checks it faces as the player does and holds their eyes and hands.
 
 Its cost while aiming is a second avatar's draw: avatars are rigid parts with no skinning and cast no shadow (`Avatar._dress`).
-`demo/landing-cost.json` alternates six seconds aiming a near preview with six at rest, for the Quest 2 bench.
+On a Quest 2 (`demo/landing-cost.json`: six seconds aiming a near preview, six at rest, four times; built-in avatar
+0; ten runs alternating this build with a control of the same commit whose `Landing.put` returns at once, so the arc
+still draws; each phase's first second left out) aiming costs the game's GPU 0.198 ± 0.004 ms a frame over rest with
+the preview and 0.190 ± 0.002 ms without it (median per-second GPU time, mean ± standard error of five runs each): the
+arc is about 0.19 ms and the preview +0.008 ± 0.005 ms, within noise of nothing against `Budget.gpu_ms()`'s 12.5 ms,
+where the scene sits near 8.0 ms. Its per-frame pose adds no CPU time the runs resolve: script time aiming over rest
+moved -0.12 ± 0.09 ms with it and -0.17 ± 0.05 ms without.
 
 ### Something underfoot
 
