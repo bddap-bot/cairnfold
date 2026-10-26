@@ -1,0 +1,303 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "mix/clean-1": {
+   "p50": 13.9320001602173,
+   "p99": 15.371000289917,
+   "late": 1,
+   "draws": 48,
+   "prims": 130891,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.15,
+   "timewarp_ms": 1.27
+  },
+  "mix/painting-1": {
+   "p50": 13.9029998779297,
+   "p99": 16.7910003662109,
+   "late": 1,
+   "draws": 51,
+   "prims": 131071,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.2,
+   "timewarp_ms": 1.26
+  },
+  "mix/painted-1": {
+   "p50": 13.9350004196167,
+   "p99": 16.5769996643066,
+   "late": 3,
+   "draws": 48,
+   "prims": 130891,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 4.96,
+   "timewarp_ms": 1.27
+  },
+  "mix/clean-2": {
+   "p50": 13.9259996414185,
+   "p99": 18.7730007171631,
+   "late": 3,
+   "draws": 49,
+   "prims": 132987,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.03,
+   "timewarp_ms": 1.27
+  },
+  "mix/painting-2": {
+   "p50": 14.0979995727539,
+   "p99": 16.6049995422363,
+   "late": 1,
+   "draws": 53,
+   "prims": 135263,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.31,
+   "timewarp_ms": 1.27
+  },
+  "mix/painted-2": {
+   "p50": 13.9440002441406,
+   "p99": 16.7630004882812,
+   "late": 1,
+   "draws": 51,
+   "prims": 136931,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.18,
+   "timewarp_ms": 1.27
+  },
+  "mix/clean-3": {
+   "p50": 13.9650001525879,
+   "p99": 16.7280006408691,
+   "late": 2,
+   "draws": 50,
+   "prims": 135083,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.15,
+   "timewarp_ms": 1.27
+  },
+  "mix/painting-3": {
+   "p50": 13.9899997711182,
+   "p99": 17.0200004577637,
+   "late": 1,
+   "draws": 52,
+   "prims": 133167,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.19,
+   "timewarp_ms": 1.28
+  },
+  "mix/painted-3": {
+   "p50": 14.003999710083,
+   "p99": 16.7000007629395,
+   "late": 3,
+   "draws": 49,
+   "prims": 132987,
+   "step": 15,
+   "fill": 0.223,
+   "gpu_ms": 5.11,
+   "timewarp_ms": 1.27
+  },
+  "sweep/meadow-fit": {
+   "p50": 13.9580001831055,
+   "p99": 16.5470008850098,
+   "late": 2,
+   "draws": 40,
+   "prims": 134052,
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 5.48,
+   "timewarp_ms": 1.27
+  },
+  "easels/four": {
+   "p50": 13.8339996337891,
+   "p99": 27.2269992828369,
+   "late": 2,
+   "draws": 164,
+   "prims": 153316,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.089,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 10.17,
+   "timewarp_ms": 1.27
+  },
+  "sweep/four-fit": {
+   "p50": 13.8420000076294,
+   "p99": 16.3490009307861,
+   "late": 2,
+   "draws": 164,
+   "prims": 153316,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 10.02,
+   "timewarp_ms": 1.27
+  },
+  "paint/four-wet": {
+   "p50": 13.9289999008179,
+   "p99": 24.9500007629395,
+   "late": 19,
+   "draws": 164,
+   "prims": 153316,
+   "stalls": [
+    {
+     "ms": 171.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 10.89,
+   "timewarp_ms": 1.27
+  },
+  "paint/four-drying": {
+   "p50": 14.2320003509521,
+   "p99": 37.0849990844727,
+   "late": 39,
+   "draws": 164,
+   "prims": 153316,
+   "stalls": [
+    {
+     "ms": 152.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 119.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 11.6,
+   "timewarp_ms": 1.28
+  },
+  "paint/watercolour": {
+   "p50": 15.2229995727539,
+   "p99": 29.1459999084473,
+   "late": 33,
+   "draws": 155,
+   "prims": 145818,
+   "stalls": [
+    {
+     "ms": 53.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 12.48,
+   "timewarp_ms": 1.28
+  },
+  "paint/drying": {
+   "p50": 15.0369997024536,
+   "p99": 29.2549991607666,
+   "late": 52,
+   "draws": 155,
+   "prims": 145638,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 12.64,
+   "timewarp_ms": 1.28
+  },
+  "paint/oil": {
+   "p50": 14.3979997634888,
+   "p99": 27.7129993438721,
+   "late": 43,
+   "draws": 155,
+   "prims": 145638,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 11.97,
+   "timewarp_ms": 1.28
+  },
+  "paint/charcoal": {
+   "p50": 14.375,
+   "p99": 25.7390003204346,
+   "late": 33,
+   "draws": 156,
+   "prims": 145698,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 11.25,
+   "timewarp_ms": 1.27
+  },
+  "paint/replay": {
+   "p50": 14.3360004425049,
+   "p99": 30.121000289917,
+   "late": 51,
+   "draws": 158,
+   "prims": 145938,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 11.56,
+   "timewarp_ms": 1.29
+  },
+  "paint/after-replay": {
+   "p50": 13.9809999465942,
+   "p99": 16.8369998931885,
+   "late": 7,
+   "draws": 123,
+   "prims": 143190,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 7.47,
+   "timewarp_ms": 1.27
+  },
+  "rag/full": {
+   "p50": 14.0389995574951,
+   "p99": 16.6660003662109,
+   "late": 1,
+   "draws": 120,
+   "prims": 143010,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 6.87,
+   "timewarp_ms": 1.28
+  },
+  "rag/one": {
+   "p50": 14.0719995498657,
+   "p99": 16.2730007171631,
+   "late": 1,
+   "draws": 122,
+   "prims": 143010,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 6.94,
+   "timewarp_ms": 1.27
+  },
+  "rag/three": {
+   "p50": 14.0620002746582,
+   "p99": 16.371000289917,
+   "late": 2,
+   "draws": 125,
+   "prims": 143310,
+   "step": 15,
+   "fill": 0.892,
+   "gpu_ms": 7.02,
+   "timewarp_ms": 1.26
+  }
+ }
+}

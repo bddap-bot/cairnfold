@@ -591,7 +591,7 @@ func _a_tip_in_each_well_loads_its_colour() -> void:
 	check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4 and strokes[-1].medium == Brushwork.Medium.OIL, "the stroke after paints in the last oil colour")
 
 
-## Oil painted onto the palette's board is strokes on it, laid as on the canvas, spending the brush and kept by the
+## Oil painted onto the palette's board is strokes on it, laid as on the canvas, the brush staying full, kept by the
 ## garden apart from the canvas's; undo takes them back. Taking paint up off the board needs the GPU
 ## (tests/gpu_palette.gd).
 func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:

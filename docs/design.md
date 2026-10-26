@@ -4721,7 +4721,12 @@ olive green over a few strokes, and a clean brush touching it comes away loaded 
 already carries what the brush took up. Colours mix by optical density, as on the canvas. A photo of the palette
 saves its paint beside it as one of a canvas does (`-palette-N.png`, and its height).
 
-What it costs: BOARD_COST
+What it costs: the board's paint is the canvas's dabs over 384 by 256 texels; oil never flows, so a board costs its
+strokes' dabs, one transparent quad per easel, and a 64-texel readback a frame while a brush is on it. On one Quest 2
+(`demo/easel-bench.json`, the fitted quality step, `perf/quest-2/easel-bench/`), main before this change and after it
+read 5.04/5.20, 5.29/5.31 and 5.04/5.19 ms of GPU time painting onto the palette, and 5.05/4.96, 5.04/5.18 and
+5.04/5.11 with the painted palette in view, every phase holding 72 Hz; the paint phases over budget after are among
+those over before. In the stress scene a view of a palette painted with 60 strokes read 7.05 ms (`easels/palette`).
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no
