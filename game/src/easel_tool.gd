@@ -187,7 +187,10 @@ func _handle(p: Painter, delta: float) -> void:
 	var tip := held_brush(p) * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
 	if e != null:
-		_wipe(p, e, tip)
+		if _wipe(p, e, tip):
+			_clear_contact(p)
+			hand.hold()
+			return
 		_dip(p, tip)
 		if _mix(p, tip, delta):
 			end_stroke(p)
@@ -488,12 +491,12 @@ func fresh_sheet(id: int, hand: Hand = null) -> void:
 	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 
-func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> void:
+func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:
 	var local := e.to_local(tip)
 	var on := not Brushwork.is_stick(p.brush) and Easels.RAG.grow(0.008).has_point(local)
 	if not on:
 		p.rag = null
-		return
+		return false
 	end_stroke(p)
 	if p.rag != e:
 		p.rag = e
@@ -502,6 +505,7 @@ func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> void:
 	if not p.wiped and Vector2(local.x - p.wipe_start.x, local.z - p.wipe_start.z).length() >= 0.035:
 		wipe(p, e)
 		p.wiped = true
+	return true
 
 
 func wipe(p: Painter, e: Easels.Easel) -> void:

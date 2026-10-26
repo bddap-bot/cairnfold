@@ -314,7 +314,7 @@ func _the_tray_loads_the_brush() -> void:
 	check(is_equal_approx(p.load, 0.75), "one physical rag wipe lowers load once")
 	await play([{"op": "brush", "points": [[0.1, 0.5, 0.8], [0.9, 0.5, 0.8]], "seconds": 0.4}])
 	await _settled()
-	check(is_equal_approx(p.load, 0.75) and is_equal_approx(world.state.easels[e.id].strokes[-1].load, 0.75), "painting keeps the wiped load and sends it in the stroke command")
+	check(is_equal_approx(p.load, 0.75) and is_equal_approx(world.state.easels[e.id].strokes[-1].load, 0.75), "painting keeps the wiped load and sends it in the stroke command: brush=%s stroke=%s" % [p.load, world.state.easels[e.id].strokes[-1].load])
 
 	await play([{"op": "rag_wipe", "times": 2}])
 	check(is_equal_approx(p.load, 0.25), "three wipes leave a quarter load")
