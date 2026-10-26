@@ -798,7 +798,23 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best_i := 0
 	var best_t := 0.0
 	var best_p := Vector3.ZERO
-	for i in layout.samples.size():
+	# How far a sample stands from the ray seen from above bounds its distance below, so a sample that could neither
+	# be in reach nor nearer than the best is passed over, with every sample after it too near along the wall to do better.
+	var flat := Vector2(dir.x, dir.z)
+	var across := flat.normalized() if flat.length_squared() > 1e-12 else Vector2.ZERO
+	var from := Vector2(origin.x, origin.z)
+	var lengths := layout.lengths
+	var next := 0
+	while next < layout.samples.size():
+		var i := next
+		next += 1
+		var off := Vector2(layout.samples[i].x, layout.samples[i].z) - from
+		var least := absf(across.cross(off)) if across != Vector2.ZERO else off.length()
+		var beat := reach if best_key.x == 0.0 else maxf(reach, best_d)
+		if least >= beat:
+			# Samples within arc length `least - beat` of this one stand no nearer than `beat` either.
+			next = maxi(next, lengths.bsearch(lengths[i] + least - beat, false))
+			continue
 		var under := layout.depths[i] if i < layout.depths.size() else 0.0
 		var a := layout.samples[i] + Vector3.DOWN * under
 		var up := Vector3.UP * (layout.height + WallLayout.CAP + under)
@@ -829,13 +845,32 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 	var best := {}
 	var n := layout.samples.size()
 	var half := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
-	for i in n if layout.closed else n - 1:
+	# A stretch's box stands on the strip `half` either side of it, so a ray passing further from that strip, seen
+	# from above, cannot meet it; arc length bounds how far apart two samples stand, so a sample far from the ray skips
+	# every stretch after it that cannot come near: a long wall costs a ray a few steps away from it.
+	var flat := Vector2(dir.x, dir.z)
+	var across := flat.normalized() if flat.length_squared() > 1e-12 else Vector2.ZERO
+	var from := Vector2(origin.x, origin.z)
+	var lengths := layout.lengths
+	var next := 0
+	while next < (n if layout.closed else n - 1):
+		var i := next
+		next += 1
 		var j := (i + 1) % n
 		var a := layout.samples[i]
 		var b := layout.samples[j]
+		var off := Vector2(a.x, a.z) - from
+		var gap := (absf(across.cross(off)) if across != Vector2.ZERO else off.length()) - half - 0.01
+		if gap > 0.0 and i < n - 1:
+			var past := lengths.bsearch(lengths[i] + gap) - 1
+			if past > i:
+				next = past
+				continue
 		var edge := b - a
 		var length := Vector2(edge.x, edge.z).length()
 		if length < 1e-6:
+			continue
+		if across.dot(Vector2(a.x + b.x, a.z + b.z) * 0.5 - from) < -(length * 0.5 + half + 0.01):
 			continue
 		var x := Vector3(edge.x, 0, edge.z) / length
 		var z := x.cross(Vector3.UP)
