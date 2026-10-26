@@ -29,5 +29,9 @@
   {"op": "label", "name": "rag/four-easels"},
   {"op": "wait", "seconds": 10},
   {"op": "label", "name": "-"},
+  {"op": "wait", "seconds": 20},
+  {"op": "label", "name": "rag/four-easels-settled"},
+  {"op": "wait", "seconds": 30},
+  {"op": "label", "name": "-"},
   {"op": "quit"}
 ]
