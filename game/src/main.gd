@@ -41,7 +41,7 @@ var rng_seed := randi()
 func _ready() -> void:
 	args = _parse(launch_args())
 	seed(rng_seed)
-	Store.check(get_tree())
+	Store.check()
 	get_viewport().use_occlusion_culling = true
 	world = World.new()
 	world.terrain.install()
