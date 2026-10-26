@@ -19,6 +19,7 @@ func _run() -> void:
 	_a_path_beside_a_wall_opens_nothing()
 	_crossings_test_every_segment_pair_that_meets()
 	_a_growing_stroke_plans_and_meets_as_a_whole_one()
+	_the_gardens_copy_of_a_stroke_is_the_same_stroke()
 	_arcades_stand_on_pillars()
 	_overlapping_arches_do_not_both_open()
 	_the_mask_parts_the_path_only()
@@ -175,6 +176,20 @@ func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
 			for m in n:
 				out.append(s + (m - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
 	return out
+
+
+## The garden's copy of a stroke, its widths packed and its clutter gathered, is the stroke its ghost drew: the wall
+## crossings and meetings the ghost worked out serve it.
+func _the_gardens_copy_of_a_stroke_is_the_same_stroke() -> void:
+	var ghost := PathLayout.new()
+	for i in 12:
+		ghost.add(Vector3(i * 0.7, 0.0, sin(i * 0.5)), 1.8 / 3.0 + i * 0.0137)
+	var data := ghost.data()
+	data.clutter = PackedVector4Array([Vector4(2.0, 1.0, 0.3, 0.0)])
+	var copy := PathLayout.of(data)
+	check(copy.same_stroke(ghost) and ghost.same_stroke(copy), "the garden's copy, clutter and all, is the ghost's stroke")
+	data.points[3] += Vector3(0.0, 0.0, 0.2)
+	check(not PathLayout.of(data).same_stroke(ghost), "a stroke bent elsewhere is not")
 
 
 func _arcades_stand_on_pillars() -> void:

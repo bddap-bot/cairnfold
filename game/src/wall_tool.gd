@@ -1709,7 +1709,7 @@ func relay_crossings(path: PathLayout) -> void:
 	# A stroke laid after every other path, its ghost the only preview: a wall whose preview is cut from the paths laid
 	# as they stand already shows the arches this lays, cut last as it would be.
 	var ghost: PathLayout = null
-	if paths.previews.size() == 1 and not paths.layouts.is_empty() and paths.layouts[-1] == path and paths.previews[0].data() == path.data():
+	if paths.previews.size() == 1 and not paths.layouts.is_empty() and paths.layouts[-1] == path and paths.previews[0].same_stroke(path):
 		ghost = paths.previews[0]
 	for w in walls:
 		if not met.has(w) or _held(w):

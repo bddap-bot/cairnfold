@@ -102,6 +102,13 @@ func data() -> Dictionary:
 	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface, "clutter": PackedVector4Array(clutter)}
 
 
+## Whether `other` is the same stroke as this, whatever clutter the garden has laid beside either: where it meets a
+## wall and what it wears depend on the stroke alone.
+func same_stroke(other: PathLayout) -> bool:
+	# As `data` packs them, so a stroke and the garden's copy of it compare equal.
+	return points == other.points and PackedFloat32Array(half_widths) == PackedFloat32Array(other.half_widths) and seed == other.seed and surface == other.surface
+
+
 func add(p: Vector3, half_width: float) -> void:
 	points.append(p)
 	half_widths.append(clampf(half_width, HALF_WIDTH.x, HALF_WIDTH.y))

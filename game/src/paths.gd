@@ -104,7 +104,7 @@ func put(id: int, data: Dictionary) -> void:
 	var path := PathLayout.of(data)
 	path.plan()
 	for ghost in previews:
-		if ghost != drawing and ghost.data() == data:
+		if ghost != drawing and ghost.same_stroke(path):
 			path.share_meetings(ghost)
 	_garden[id] = data
 	ids[path] = id
