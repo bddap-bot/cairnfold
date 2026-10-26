@@ -10,9 +10,10 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
-func _node(id: int) -> Node3D:
+## Where decoration `id` stands, or null where it stands down.
+func _node(id: int) -> Variant:
 	main.world.decorations.sync()
-	return main.world.decorations.nodes.get(id)
+	return main.world.decorations.world_xform(id) if main.world.decorations.placed.has(id) else null
 
 
 func _place(origin: Vector3, at: Vector3, mount: String, wall: Wall) -> int:
@@ -82,12 +83,12 @@ func _run() -> void:
 	decked.lay_now()
 
 	var chair := _place(Vector3(0.5, 1.6, 1.2), Vector3(1.2, 0.0, -0.6), "floor", house)
-	var n := _node(chair)
-	check(n != null and absf(n.position.y - house.layout.floor_y) < 0.01, "indoor piece stands on the floor")
+	var n: Variant = _node(chair)
+	check(n != null and absf(n.origin.y - house.layout.floor_y) < 0.01, "indoor piece stands on the floor")
 	var deck := _place(Vector3(12.5, 9.0, 0.5), Vector3(12.5, 0.0, 0.5), "deck", decked)
 	n = _node(deck)
-	check(n != null and absf(n.position.y - decked.roof.height_at(n.position.x, n.position.z)) < 0.01, "outdoor piece stands on the deck")
-	check(n != null and Vector2(n.position.x, n.position.z).distance_to(Vector2(12.5, 0.5)) < 0.05, "outdoor piece where it was aimed")
+	check(n != null and absf(n.origin.y - decked.roof.height_at(n.origin.x, n.origin.z)) < 0.01, "outdoor piece stands on the deck")
+	check(n != null and Vector2(n.origin.x, n.origin.z).distance_to(Vector2(12.5, 0.5)) < 0.05, "outdoor piece where it was aimed")
 	var pitched: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, Vector3(0.5, 9.0, 0.5), Vector3.DOWN)
 	check(pitched.get("what") == "chimney", "a pitched roof still takes a chimney, not furniture")
 
@@ -102,8 +103,8 @@ func _run() -> void:
 
 	n = _node(chair)
 	var r0 := house.roof.frame()
-	var o0: Vector3 = n.position - r0.mid
-	var face0: Vector3 = n.transform.basis.z
+	var o0: Vector3 = n.origin - r0.mid
+	var face0: Vector3 = n.basis.z
 	var from: Dictionary = WallTool.house_of(main.world.state.walls[house.id])
 	var to := from.duplicate()
 	to.center += Vector3(2.0, 0.0, 1.0)
@@ -113,15 +114,15 @@ func _run() -> void:
 	house.lay_now()
 	n = _node(chair)
 	var r1 := house.roof.frame()
-	var o1: Vector3 = n.position - r1.mid if n != null else Vector3.INF
-	check(n != null and absf(n.position.y - house.layout.floor_y) < 0.01 and house.layout.floor_y > 0.8, "indoor piece rises with its floor")
+	var o1: Vector3 = n.origin - r1.mid if n != null else Vector3.INF
+	check(n != null and absf(n.origin.y - house.layout.floor_y) < 0.01 and house.layout.floor_y > 0.8, "indoor piece rises with its floor")
 	check(absf(o0.dot(r0.along) - o1.dot(r1.along)) < 0.05 and absf(o0.dot(r0.across) - o1.dot(r1.across)) < 0.05, "indoor piece moves and turns with its house")
-	check(n != null and absf(face0.dot(r0.along) - n.transform.basis.z.dot(r1.along)) < 0.01, "indoor piece keeps its facing in the room")
+	check(n != null and absf(face0.dot(r0.along) - n.basis.z.dot(r1.along)) < 0.01, "indoor piece keeps its facing in the room")
 	main.world.undo()
 	house.lay_now()
 
 	n = _node(chair)
-	var top: Vector3 = (n.transform * (n.get_meta(&"bounds") as AABB)).get_center()
+	var top: Vector3 = (n * (main.world.decorations.placed[chair].bounds as AABB)).get_center()
 	var eye := top + Vector3(0.0, 1.2, 0.6)
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, (top - eye).normalized())
 	check(style_target.get("id") == chair and style_target.get("options") == DecorationLayout.standing("floor"), "Style on an indoor piece offers every style but the strings")

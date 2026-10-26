@@ -432,7 +432,7 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != shape):
 		if _ghosts[i].has("decoration"):
 			_ghosts[i].decoration.free()
-		var n := ToolModels.decoration(world.decorations.laid(ghost.d), ghost.d.seed, ghost.d.lantern)
+		var n := ToolModels.decoration(world.decorations.laid(ghost.d), ghost.d.lantern)
 		n.top_level = true
 		n.set_meta(&"shape", shape)
 		add_child(n)

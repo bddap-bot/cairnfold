@@ -257,7 +257,7 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 		var layout := DecorationLayout.new()
 		var strung: bool = DecorationLayout.STYLES[i].get("string", false)
 		layout.build(i, 0, 0.6, "span" if strung else "ground", Vector3(2.4, 0, 0), Vector2(1.6, 1.6))
-		var model := decoration(layout, 0)
+		var model := decoration(layout)
 		model.scale = Vector3.ONE * 0.035
 		if strung:
 			model.position = Vector3(-1.2, 1.6, 0) * 0.035
@@ -1113,7 +1113,7 @@ static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> Stand
 
 
 ## A decoration as `layout` lays it, its flames burning in `look` (a Palette.Element.LANTERN swatch).
-static func decoration(layout: DecorationLayout, seed: int, look := 0) -> Node3D:
+static func decoration(layout: DecorationLayout, look := 0) -> Node3D:
 	var root := Node3D.new()
 	var stones := Stones.new()
 	stones.lay(layout.parts)
@@ -1125,9 +1125,8 @@ static func decoration(layout: DecorationLayout, seed: int, look := 0) -> Node3D
 	if not layout.flowers.is_empty():
 		var surface := SurfaceTool.new()
 		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for i in layout.flowers.size():
-			var mesh := Meshes.flower(6, FloraLayout.FLOWER_COLORS[posmod(seed + i, FloraLayout.FLOWER_COLORS.size())])
-			surface.append_from(mesh, 0, layout.flowers[i])
+		for f in layout.flowers:
+			surface.append_from(Meshes.flower(6, f.color), 0, f.xform)
 		var flower := MeshInstance3D.new()
 		flower.mesh = surface.commit()
 		flower.material_override = _vertex_mat("decoration_flowers", 0.8, true)

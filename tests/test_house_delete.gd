@@ -88,7 +88,7 @@ func _scene() -> Dictionary:
 	return {
 		"walls": main.tool.walls.size(),
 		"stairs": world.stairs.layouts.size(),
-		"decorations": world.decorations.nodes.size(),
+		"decorations": world.decorations.placed.size(),
 		"flames": world.decorations.flames.size(),
 		"masonry": Array(main.tool.masonry.counts()),
 		"floor marks": world._floor_marks.size(),

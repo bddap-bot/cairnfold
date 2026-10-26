@@ -174,20 +174,23 @@ func _run() -> void:
 		return
 	var chair: int = added[0]
 	var was: Dictionary = world.state.decorations[chair].duplicate()
-	var node: Node3D = world.decorations.nodes[chair]
-	var p0 := node.position
+	var p0 := world.decorations.world_xform(chair).origin
 	var tool_m := tool.mason(main.rig.right)
 	var grip := tool._fitting_grip(_decoration(chair))
 	var from := Transform3D(Basis(), p0 + Vector3(0, 0.5, 0.8))
 	tool.begin_grow(tool_m, grip, from, p0)
+	tool_m.sizing.follow.call(tool_m, Transform3D(Basis(Vector3.UP, 0.25), from.origin + Vector3(0.3, 0.4, -0.15)))
+	var alone := [str(chair), world.state.decorations[chair].lantern]
+	var node: Node3D = world.decorations._batches.get(alone, {}).get("node")
 	tool_m.sizing.follow.call(tool_m, Transform3D(Basis(Vector3.UP, 0.5), from.origin + Vector3(0.6, 0.4, -0.3)))
-	check(world.decorations.nodes[chair] == node and node.position.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06, "a held chair's node moves across its floor, nothing laid again: %s from %s" % [node.position, p0])
+	check(node != null and world.decorations._batches.get(alone, {}).get("node") == node and node.position.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06, "a held chair is its own node, which moves across its floor, nothing laid again: %s from %s" % [node.position if node != null else Vector3.INF, p0])
 	check(world.state.decorations[chair] == was, "nothing is sent while it is held")
 	tool.end_grow(tool_m)
 	_lay()
 	var set_at: Dictionary = world.state.decorations[chair]
-	node = world.decorations.nodes[chair]
-	check(node.position.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06 and absf(node.position.y - house.layout.floor_y) < 0.01, "let go, the chair stands where it was carried, on its floor: %s" % node.position)
+	var at := world.decorations.world_xform(chair).origin
+	check(not world.decorations._batches.has(alone), "let go, the chair goes back into its house's batch")
+	check(at.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06 and absf(at.y - house.layout.floor_y) < 0.01, "let go, the chair stands where it was carried, on its floor: %s" % at)
 	check(absf(angle_difference(was.turn, set_at.turn) - snappedf(0.5, FittingGrip.TURN_STEP)) < 0.001 and set_at.style == was.style and set_at.seed == was.seed, "and turned with the hand: %.3f from %.3f" % [set_at.turn, was.turn])
 	world.undo()
 	_lay()

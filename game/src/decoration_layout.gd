@@ -67,7 +67,8 @@ const RIBBON := Color(0.9, 0.78, 0.4)
 const DYES: Array[Color] = [Color(0.55, 0.16, 0.12), Color(0.17, 0.27, 0.48), Color(0.66, 0.5, 0.16), Color(0.24, 0.4, 0.26)]
 var parts: Array[Dictionary] = []
 var flames: Array[Transform3D] = []
-var flowers: Array[Transform3D] = []
+## Each flower: its `xform` and `color`.
+var flowers: Array[Dictionary] = []
 ## Where the style tool's own model is drawn flat, as on a present's lid.
 var pictures: Array[Transform3D] = []
 var bounds := AABB()
@@ -145,7 +146,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			box(Vector3(0, 0.18, 0.33), Vector3(1.1, 0.32, 0.5), WOOD, "board")
 			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), Color(0.12, 0.09, 0.06), "")
 			for i in 5:
-				flowers.append(Transform3D(Basis().scaled(Vector3.ONE * 1.2), Vector3((i - 2) * 0.19, 0.36, 0.33 + sin(i * 2.1) * 0.09)))
+				flower(Transform3D(Basis().scaled(Vector3.ONE * 1.2), Vector3((i - 2) * 0.19, 0.36, 0.33 + sin(i * 2.1) * 0.09)), seed)
 			bounds = bounds.expand(Vector3(0, 0.9, 0.6))
 		"Bench":
 			for x in [-0.52, 0.52]:
@@ -233,7 +234,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			box(Vector3(0, 0.17, 0), Vector3(0.34, 0.34, 0.34), CLAY, "")
 			box(Vector3(0, 0.345, 0), Vector3(0.28, 0.02, 0.28), SOIL, "")
 			for i in 3:
-				flowers.append(Transform3D(Basis(Vector3.UP, i * 2.1).scaled(Vector3.ONE * 1.5), Vector3(sin(i * 2.1) * 0.07, 0.35, cos(i * 2.1) * 0.07)))
+				flower(Transform3D(Basis(Vector3.UP, i * 2.1).scaled(Vector3.ONE * 1.5), Vector3(sin(i * 2.1) * 0.07, 0.35, cos(i * 2.1) * 0.07)), seed)
 			bounds = bounds.expand(Vector3(0, 1.0, 0))
 		"Candle stand":
 			box(Vector3(0, 0.03, 0), Vector3(0.3, 0.06, 0.3), IRON, "iron")
@@ -256,7 +257,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			box(Vector3(0, 0.22, 0), Vector3(1.2, 0.44, 0.42), OAK, "board")
 			box(Vector3(0, 0.445, 0), Vector3(1.1, 0.02, 0.34), SOIL, "")
 			for i in 5:
-				flowers.append(Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * 1.3), Vector3((i - 2) * 0.21, 0.45, sin(i * 2.1) * 0.08)))
+				flower(Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * 1.3), Vector3((i - 2) * 0.21, 0.45, sin(i * 2.1) * 0.08)), seed)
 			bounds = bounds.expand(Vector3(0, 1.1, 0))
 		"Parasol":
 			box(Vector3(0, 0.06, 0), Vector3(0.44, 0.12, 0.44), STONE, "block")
@@ -297,9 +298,11 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 	var shift := Vector3(-bounds.get_center().x, 0.0, -bounds.position.z + 0.04 if mount == "foundation" else -bounds.get_center().z)
 	for part in parts:
 		part.xform.origin += shift
-	for list: Array[Transform3D] in [flames, flowers, pictures]:
+	for list: Array[Transform3D] in [flames, pictures]:
 		for i in list.size():
 			list[i].origin += shift
+	for f in flowers:
+		f.xform.origin += shift
 	bounds.position += shift
 
 
@@ -344,6 +347,22 @@ func lantern(at: Vector3) -> void:
 	box(at + Vector3.UP * 0.19, Vector3(0.22, 0.05, 0.22), IRON, "iron")
 	box(at - Vector3.UP * 0.07, Vector3(0.18, 0.04, 0.18), IRON, "iron")
 	flame(at + Vector3.UP * 0.05, Vector3(0.12, 0.22, 0.12))
+
+
+func flower(x: Transform3D, seed: int) -> void:
+	flowers.append({"xform": x, "color": FloraLayout.FLOWER_COLORS[posmod(seed + flowers.size(), FloraLayout.FLOWER_COLORS.size())]})
+
+
+## Lays `other`'s parts, flames, flowers and pictures into this one, placed by `x`.
+func add(other: DecorationLayout, x: Transform3D) -> void:
+	for p in other.parts:
+		parts.append(p.merged({"xform": x * p.xform}, true))
+	for f in other.flames:
+		flames.append(x * f)
+	for f in other.flowers:
+		flowers.append({"xform": x * f.xform, "color": f.color})
+	for p in other.pictures:
+		pictures.append(x * p)
 
 
 func flame(at: Vector3, size: Vector3) -> void:

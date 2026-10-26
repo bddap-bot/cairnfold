@@ -51,7 +51,8 @@ func _run() -> void:
 		check(main.fitting_tool.fit(target), "place %d" % style)
 	main.world.decorations.sync()
 	check(main.world.state.decorations.size() == 9, "all styles saved")
-	check(main.world.decorations.nodes.size() == 9, "all styles rendered")
+	check(main.world.decorations.placed.size() == 9, "all styles rendered")
+	check(main.world.decorations._batches.size() == 2, "the house's decorations are one batch, the ground's in one cell another: %d" % main.world.decorations._batches.size())
 	var snapshot: Array = main.world.snapshot().cmds
 	check(snapshot.filter(func(c): return c.op == "decoration").size() == 9, "snapshot carries styles and seeds")
 	for item in main.world.decorations.targets():
@@ -104,17 +105,17 @@ func _run() -> void:
 	var aside := Vector3.FORWARD.rotated(Vector3.UP, 0.6)
 	main.delete_tool.press(self, eye, aside)
 	main.delete_tool.hold(self, eye, Vector3.FORWARD)
-	var node: Node3D = main.world.decorations.nodes[torch.decoration]
+	var alone := [str(torch.decoration), torch.value.lantern]
 	check(main.delete_tool._cuts[self].decorations.has(torch.decoration), "a delete sweep takes the ground torch")
-	check(Cues.asked.get(Cues.Act.DELETE_SWEEP, 0) > swept and not node.visible, "taking it sounds and hides it while the sweep goes on")
+	check(Cues.asked.get(Cues.Act.DELETE_SWEEP, 0) > swept and not main.world.decorations._batches[alone].node.visible, "taking it sounds and hides it while the sweep goes on")
 	main.world.decorations._stamp.clear()
 	main.world.decorations.sync()
-	check(not main.world.decorations.nodes[torch.decoration].visible, "it stays hidden when the decorations are laid again mid-sweep")
+	check(not main.world.decorations._batches[alone].node.visible, "it stays hidden when the decorations are laid again mid-sweep")
 	check(main.delete_tool.hold(self, eye, Vector3.FORWARD).get("decoration") != torch.decoration, "and the beam passes through it")
 	var kept: Dictionary = main.world.snapshot()
 	main.world.restore(kept)
 	main.world.decorations.sync()
-	check(main.world.decorations.nodes[torch.decoration].visible and main.delete_tool._cuts.is_empty(), "a garden restored mid-sweep shows the torch again")
+	check(not main.world.decorations._batches.has(alone) and main.world.decorations.placed.has(torch.decoration) and main.delete_tool._cuts.is_empty(), "a garden restored mid-sweep shows the torch again")
 	main.delete_tool.press(self, eye, aside)
 	main.delete_tool.hold(self, eye, Vector3.FORWARD)
 	main.delete_tool.let_go(self)

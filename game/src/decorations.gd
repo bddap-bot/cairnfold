@@ -1,12 +1,17 @@
 class_name Decorations
 extends Node3D
 
+## Decorations on open ground share a batch per square cell this wide.
+const CELL := 16.0
+
 var world: World
 var walls: WallTool
-var nodes := {}
-## Each decoration's place as its build was laid, which its build's carry moves it from (`carry`), and its flames there.
-var _frames := {}
-var _flames := {}
+## Each standing decoration's place as its build was laid (`xform`), which its build's carry moves it from (`carry`),
+## its `bounds`, and its `flames` there.
+var placed := {}
+## The batches by key, a decoration's place and its lanterns' look (Lamps.lantern): its house's id, its ground cell, or,
+## for one held or swept, its id as a String, so it stands alone; each its `node` and the `sig` it was laid from.
+var _batches := {}
 var _shown := {}
 ## Decorations a hand carries, as it shows them; moving one moves its node alone.
 var _held := {}
@@ -25,37 +30,81 @@ func _init(garden: World, builder: WallTool) -> void:
 	walls = builder
 
 
+## Lays the decorations again where they changed. A house's, or open ground's in one cell, are one batch, since a draw
+## per piece costs more than its triangles; only a batch whose pieces changed is laid again.
 func sync() -> void:
-	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision, _shown.duplicate(true)]
+	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision, _shown.duplicate(true), _held.keys(), _swept.keys()]
 	for w in walls.walls:
 		stamp.append([w.id, w.layout.laid, w.paint.duplicate()])
 	if _stamp.get("value") == stamp:
 		return
 	_stamp.value = stamp
-	for n in nodes.values():
-		n.free()
-	nodes.clear()
-	_frames.clear()
-	_flames.clear()
+	var groups := {}
+	var frames := {}
+	var shown := {}
 	for id in world.state.decorations:
 		var d: Dictionary = world.state.decorations[id].merged(_shown.get(id, {}), true).merged(_held.get(id, {}), true)
 		var x: Variant = frame(d)
 		if x == null:
 			continue
-		var layout := laid(d)
 		var wall := walls.find(d.wall)
-		if wall != null:
-			for part in layout.parts:
-				part.color = Wall._painted_as(part, wall.paint)
-		var n := ToolModels.decoration(layout, d.seed, d.lantern)
-		n.transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
-		n.set_meta(&"bounds", DecorationLayout.strung(span(d)) if d.mount == "span" else layout.bounds)
-		n.visible = not _swept.has(id)
+		var alone := _held.has(id) or _swept.has(id)
+		var at: Variant = str(id) if alone else d.wall if wall != null else Vector2i((Vector2(x.origin.x, x.origin.z) / CELL).floor())
+		var group: Array = groups.get_or_add([at, d.lantern], [])
+		group.append([id, d.style, d.seed, rise(d), d.mount, span(d), d.get("drop", Vector2.ZERO), wall.paint.duplicate() if wall != null else null, Transform3D.IDENTITY if alone else x])
+		frames[id] = x
+		shown[id] = d
+	var was := placed
+	placed = {}
+	for key in _batches.keys():
+		if groups.get(key) != _batches[key].sig:
+			_batches[key].node.free()
+			_batches.erase(key)
+	for key in groups:
+		if _batches.has(key):
+			for e in groups[key]:
+				placed[e[0]] = was[e[0]]
+			continue
+		var batch := DecorationLayout.new()
+		for e in groups[key]:
+			var layout := laid(shown[e[0]])
+			if e[7] != null:
+				for part in layout.parts:
+					part.color = Wall._painted_as(part, e[7])
+			var x: Transform3D = frames[e[0]]
+			var bounds := DecorationLayout.strung(e[5]) if e[4] == "span" else layout.bounds
+			placed[e[0]] = {"xform": x, "bounds": bounds, "flames": PackedVector3Array(layout.flames.map(func(f: Transform3D) -> Vector3: return x * f.origin))}
+			batch.add(layout, e[8])
+		var n := ToolModels.decoration(batch, key[1])
+		n.visible = not (key[0] is String and _swept.has(int(key[0])))
 		add_child(n)
-		nodes[id] = n
-		_frames[id] = x
-		_flames[id] = PackedVector3Array(layout.flames.map(func(f: Transform3D) -> Vector3: return x * f.origin))
-	_gather()
+		_batches[key] = {"node": n, "sig": groups[key]}
+	_place()
+
+
+## Stands each batch where its house now is, a decoration standing alone where it is, and gathers their flames.
+func _place() -> void:
+	for key in _batches:
+		var w: Wall = walls.find(key[0]) if key[0] is int else null
+		_batches[key].node.transform = world_xform(int(key[0])) if key[0] is String else w.transform if w != null else Transform3D.IDENTITY
+	flames.clear()
+	lights.clear()
+	for id in placed:
+		var w := _wall_of(id)
+		var g := Lamps.light_of(world.state.decorations.get(id, {}).merged(_shown.get(id, {}), true).get("lantern", 0))
+		for f in placed[id].flames:
+			flames.append(w.transform * f if w != null else f)
+			lights.append(g)
+
+
+## Where decoration `id` stands now, its build's carry included.
+func world_xform(id: int) -> Transform3D:
+	var w := _wall_of(id)
+	return (w.transform if w != null else Transform3D.IDENTITY) * placed[id].xform
+
+
+func _wall_of(id: int) -> Wall:
+	return walls.find(_held.get(id, world.state.decorations.get(id, {})).get("wall", -1))
 
 
 ## Decoration `d` laid about its frame.
@@ -119,39 +168,24 @@ static func plan(w: Wall) -> Transform3D:
 
 
 ## Moves the decorations on `w` with its stones, as it is carried from where it was laid.
-func carry(w: Wall) -> void:
-	for id in nodes:
-		if world.state.decorations.has(id) and world.state.decorations[id].wall == w.id:
-			nodes[id].transform = w.transform * _frames[id]
-	_gather()
-
-
-func _gather() -> void:
-	flames.clear()
-	lights.clear()
-	for id in _flames:
-		var d: Dictionary = world.state.decorations.get(id, {})
-		var w := walls.find(d.get("wall", -1))
-		var g := Lamps.light_of(d.merged(_shown.get(id, {}), true).get("lantern", 0))
-		for f in _flames[id]:
-			flames.append(w.transform * f if w != null else f)
-			lights.append(g)
+func carry(_w: Wall) -> void:
+	_place()
 
 
 ## Whether decoration `id` burns a flame.
 func lit(id: int) -> bool:
-	return not _flames.get(id, PackedVector3Array()).is_empty()
+	return placed.has(id) and not placed[id].flames.is_empty()
 
 
 func targets() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for id in nodes:
+	for id in placed:
 		if not world.state.decorations.has(id) or _swept.has(id):
 			continue
-		var n: Node3D = nodes[id]
+		var x := world_xform(id)
 		var d: Dictionary = world.state.decorations[id]
-		var b: AABB = n.get_meta(&"bounds")
-		out.append({"decoration": id, "fitting": true, "what": "decoration", "index": id, "value": d, "bounds": n.transform * b, "box": b, "inverse": n.transform.affine_inverse(), "wall": walls.find(d.wall), "on_roof": false})
+		var b: AABB = placed[id].bounds
+		out.append({"decoration": id, "fitting": true, "what": "decoration", "index": id, "value": d, "bounds": x * b, "box": b, "inverse": x.affine_inverse(), "wall": walls.find(d.wall), "on_roof": false})
 	return out
 
 
@@ -160,37 +194,32 @@ func show_reshaped(id: int, data: Dictionary) -> void:
 	sync()
 
 
-## Shows decoration `id` as `d` while a hand carries it: its node moves, nothing is laid again.
+## Shows decoration `id` as `d` while a hand carries it: taken out of its batch once, its own node then moves.
 func show_held(id: int, d: Dictionary) -> void:
 	_held[id] = d
+	sync()
 	var x: Variant = frame(d)
-	if not nodes.has(id) or x == null:
+	if not placed.has(id) or x == null:
 		return
-	var wall := walls.find(d.wall)
-	nodes[id].transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
-	var layout_flames: PackedVector3Array = _flames.get(id, PackedVector3Array())
-	var was: Transform3D = _frames[id]
-	_flames[id] = PackedVector3Array(Array(layout_flames).map(func(f: Vector3) -> Vector3: return x * (was.affine_inverse() * f)))
-	_frames[id] = x
-	_gather()
+	var was: Transform3D = placed[id].xform
+	placed[id].flames = PackedVector3Array(Array(placed[id].flames).map(func(f: Vector3) -> Vector3: return x * (was.affine_inverse() * f)))
+	placed[id].xform = x
+	_place()
 
 
 func sweep(id: int) -> void:
 	_swept[id] = true
-	if nodes.has(id):
-		nodes[id].visible = false
+	sync()
 
 
 ## Shows a swept decoration again on the next sync, by when the garden has taken it or kept it.
 func unsweep(id: int) -> void:
 	_swept.erase(id)
-	_stamp.clear()
 
 
 func settle(id: int) -> void:
 	_held.erase(id)
 	_shown.erase(id)
-	_stamp.clear()
 	sync()
 
 

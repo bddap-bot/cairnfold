@@ -216,8 +216,7 @@ func _stroke() -> void:
 	fit.lamps.finish()
 	var mid: Vector3 = (stroke.at + stroke.to) * 0.5
 	check(fit.lamps.at(mid.x, mid.z, 0) > 0.1, "the string's lanterns light the ground under it: %.2f" % fit.lamps.at(mid.x, mid.z, 0))
-	var n: Node3D = world.decorations.nodes[id]
-	var on := n.transform * (n.get_meta(&"bounds") as AABB).get_center()
+	var on := world.decorations.world_xform(id) * (world.decorations.placed[id].bounds as AABB).get_center()
 	var look := Vector3(mid.x, on.y + 0.5, mid.z + 3.0)
 	var styled := main.palette_tool.aim_style(look, (on - look).normalized())
 	check(styled.get("id") == id and styled.get("options") == DecorationLayout.standing("span"), "the style tool on a string offers the strings alone: %s" % [styled.get("options")])
