@@ -182,6 +182,7 @@ func _ready() -> void:
 		quality.pin = int(args.quality)
 	add_child(quality)
 	metrics.quality = quality
+	easels.quality = quality
 	metrics.head = rig.head
 	if metrics.info.xr:
 		metrics.xr = xr

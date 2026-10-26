@@ -110,6 +110,9 @@ const WARMUP := 5.0
 ## first time the governor reached the last step, mid-play.
 const PRIME_FRAMES := 2
 
+## The session's first walk down the primed rungs is over.
+signal rungs_primed
+
 var governor: Governor
 var map := Map.new()
 ## The step held instead of the governor's, for measuring; -1 while governed.
@@ -220,6 +223,11 @@ static func reach(now: float, to: float, delta: float) -> float:
 	return to if to < now else move_toward(now, to, REACH_RATE * delta)
 
 
+## Whether the session is still drawing its primed rungs.
+func priming() -> bool:
+	return _primed < _priming.size() * PRIME_FRAMES
+
+
 ## The step the knobs are heading to.
 func step() -> int:
 	return pin if pin >= 0 else governor.level
@@ -241,13 +249,14 @@ func _process(delta: float) -> void:
 		budget_ms = 1000.0 / hz
 		_warm += delta
 		_primed += 1
+		if _primed == _priming.size() * PRIME_FRAMES:
+			rungs_primed.emit()
 		if pin < 0 and _warm > WARMUP:
 			var was := governor.level
 			governor.step(frame_ms, budget_ms, dt, _settled)
 			if governor.level != was:
 				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s" % [was, governor.level, frame_ms, budget_ms, governor.why])
-	var priming := _primed < _priming.size() * PRIME_FRAMES
-	var n := _priming[_primed / PRIME_FRAMES] if priming else step()
+	var n := _priming[_primed / PRIME_FRAMES] if priming() else step()
 	var at := ladder[n]
 	if _foveates and fresh and _warm > WARMUP and at.foveation > 0:
 		var was_on := map.on

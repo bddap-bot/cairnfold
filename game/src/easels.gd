@@ -81,6 +81,7 @@ const WATER := Color(0.38, 0.62, 0.86, 0.75)
 static var _mats := {}
 
 var terrain: Terrain
+var quality: Quality
 var easels := {}
 
 
@@ -89,9 +90,9 @@ func _init() -> void:
 
 
 ## Builds the shared geometry, the paint pipeline and the easel's draw pipelines as the game loads (`Warmup`), by an
-## easel a centimetre tall drawn once in front of the eyes and then kept hidden for the game's life: Godot compiles a
-## pipeline only for what it draws and lets it go with its last material, and either way a Quest 2 compiled them in
-## the first placement's frame, which held it seconds.
+## easel a centimetre tall held 1 m before the eyes while `quality` draws its primed rungs, then kept hidden for the
+## game's life: Godot compiles a pipeline only for what it draws, for each MSAA level and foveation map it draws into,
+## and lets it go with its last material, and each way a Quest 2 compiled them in the first placement's frame.
 func warm() -> void:
 	var warm := Easel.new()
 	_build(warm)
@@ -101,12 +102,17 @@ func warm() -> void:
 	var board := ShaderMaterial.new()
 	board.shader = preload("res://src/board.gdshader")
 	warm.board_mesh.material_override = board
-	add_child(warm)
 	Canvas.warm()
 	var eye := get_viewport().get_camera_3d()
-	if eye != null and RenderingServer.get_rendering_device() != null:
-		warm.global_transform = eye.global_transform.translated_local(Vector3.FORWARD).scaled_local(Vector3.ONE * 0.01)
-		await RenderingServer.frame_post_draw
+	if eye == null or RenderingServer.get_rendering_device() == null:
+		warm.visible = false
+		add_child(warm)
+		return
+	warm.transform = Transform3D(Basis.from_scale(Vector3.ONE * 0.01), Vector3.FORWARD)
+	eye.add_child(warm)
+	if quality != null and quality.priming():
+		await quality.rungs_primed
+	await RenderingServer.frame_post_draw
 	warm.visible = false
 
 
