@@ -53,9 +53,18 @@ if [ -n "$dry" ]; then
   echo "release: dry run, $tag of $rev (Latest: $latest) built and checked, not published"
   exit 0
 fi
-gh release create "$tag" --target "$rev" --latest="$latest" --title "$(sed -n 's/^config\/name="\(.*\)"$/\1/p' game/project.godot) $tag" \
+assets=(cairnfold-quest.apk cairnfold-lepton.apk cairnfold-linux-x64.tar.gz cairnfold-linux-arm64.tar.gz cairnfold-windows.zip)
+# Another run of this rev (a deploy job, the bothouse publisher) can publish $tag during the build; that run's release is
+# this one's, so a complete one is success.
+if ! gh release create "$tag" --target "$rev" --latest="$latest" --title "$(sed -n 's/^config\/name="\(.*\)"$/\1/p' game/project.godot) $tag" \
   --notes "Built from $rev. PC VR: cairnfold-windows.zip or cairnfold-linux-x64.tar.gz, run Cairnfold.exe or cairnfold/cairnfold with an OpenXR runtime (SteamVR). Steam Frame: cairnfold-lepton.apk for an Android depot, or cairnfold-linux-arm64.tar.gz (README, \"Running\"). Quest: install cairnfold-quest.apk (README, \"Quest\")." \
-  "$out/cairnfold-quest.apk" "$out/cairnfold-lepton.apk" "$out/cairnfold-linux-x64.tar.gz" "$out/cairnfold-linux-arm64.tar.gz" "$out/cairnfold-windows.zip"
+  "${assets[@]/#/$out/}"; then
+  published=$(gh release view "$tag" --json targetCommitish,isDraft,assets --jq '[.targetCommitish, .isDraft, ([.assets[].name] | sort | join(" "))] | join(" ")' 2>&1) || true
+  [ "$published" = "$rev false $(printf '%s\n' "${assets[@]}" | sort | paste -sd ' ')" ] ||
+    { echo "release: $tag not created, and the existing one is not a complete release of $rev: $published" >&2; exit 1; }
+  echo "release: $tag of $rev was published by another run; Latest is left as it is" >&2
+  exit 0
+fi
 if [ -n "$store" ]; then
   util=$(fetch "${ovr_platform_util[@]}")
   chmod +x "$util"
