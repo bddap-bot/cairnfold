@@ -48,7 +48,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 			index = p.brush
 			detail = p.brush_from
 			source = p.models[p.brush]
-			colour = p.tip.albedo_color
+			colour = p.tip.get_shader_parameter("paint_colour")
 			load = p.load
 			bend = p.bend
 	elif hand.tool == Hand.Tool.BOOK:
@@ -123,7 +123,7 @@ func show_state(s: Array) -> void:
 			Kind.BRUSH:
 				model = ToolModels.brush(s[1])
 				if not Brushwork.is_stick(s[1]):
-					(model.get_node("tip") as MeshInstance3D).material_override = StandardMaterial3D.new()
+					(model.get_node("tip") as MeshInstance3D).material_override = ToolModels.bristle_material()
 			Kind.PALETTE:
 				var e := easels.find(s[5]) if easels != null else null
 				model = e.palettes[s[1]].duplicate() if e != null else Easels.watercolours() if s[1] == Brushwork.Medium.WATER else Easels.oils()
@@ -142,9 +142,9 @@ func show_state(s: Array) -> void:
 	model.visible = true
 	model.transform = s[2]
 	if s[0] == Kind.BRUSH and not Brushwork.is_stick(s[1]):
-		var tip := (model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
-		tip.albedo_color = s[3]
-		tip.roughness = 0.25 if s[4] > 0.02 else 0.7
+		var tip := (model.get_node("tip") as MeshInstance3D).material_override as ShaderMaterial
+		tip.set_shader_parameter("paint_colour", s[3])
+		tip.set_shader_parameter("load", s[4])
 		ToolModels.bend(model, s[1], s[7])
 
 

@@ -26,8 +26,8 @@ func _run() -> void:
 		item.show_state(s)
 		check(item.model != null, "painting implement builds")
 		if not Brushwork.is_stick(kind):
-			var mat: StandardMaterial3D = item.model.get_node("tip").material_override
-			check(mat.albedo_color == s[3] and is_equal_approx(mat.roughness, 0.25), "loaded paint reaches actual bristles")
+			var mat: ShaderMaterial = item.model.get_node("tip").material_override
+			check(mat.get_shader_parameter("paint_colour") == s[3] and is_equal_approx(mat.get_shader_parameter("load"), s[4]), "loaded paint reaches actual bristles")
 		if not Brushwork.is_stick(kind):
 			var model := item.model
 			var tip := model.get_node("tip") as MeshInstance3D
@@ -39,6 +39,11 @@ func _run() -> void:
 			check(item.model == model and not tip.transform.is_equal_approx(relaxed), "remote bend deforms existing bristles without rebuilding")
 			item.show_state(s)
 			check(tip.transform.is_equal_approx(relaxed), "leaving canvas restores remote bristles")
+			var wiped := s.duplicate()
+			wiped[4] = 0.25
+			check(not HeldItem.same(s, wiped), "a rag wipe changes the reliable held state")
+			item.show_state(wiped)
+			check(item.model == model and is_equal_approx((tip.material_override as ShaderMaterial).get_shader_parameter("load"), 0.25), "remote rag load updates existing bristles")
 		var bad_bend := s.duplicate()
 		bad_bend[7] = Vector3(NAN, 0, 0)
 		check(not HeldItem.valid(bad_bend), "nonfinite bend rejected")

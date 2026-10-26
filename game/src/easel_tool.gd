@@ -107,8 +107,7 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 		var p := Painter.new()
 		p.hand = h
 		p.buttons = Buttons.new(h).watch(["tool", "grab"])
-		p.tip = ShaderMaterial.new()
-		p.tip.shader = preload("res://src/bristles.gdshader")
+		p.tip = ToolModels.bristle_material()
 		for kind in Brushwork.Brush.values():
 			var m := ToolModels.brush(kind)
 			m.transform = ToolModels.hold(kind)
@@ -491,7 +490,7 @@ func fresh_sheet(id: int, hand: Hand = null) -> void:
 
 func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> void:
 	var local := e.to_local(tip)
-	var on := p.brush != Brushwork.Brush.STICK and Easels.RAG.grow(0.008).has_point(local)
+	var on := not Brushwork.is_stick(p.brush) and Easels.RAG.grow(0.008).has_point(local)
 	if not on:
 		p.rag = null
 		return
@@ -506,7 +505,7 @@ func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> void:
 
 
 func wipe(p: Painter, e: Easels.Easel) -> void:
-	if p.brush == Brushwork.Brush.STICK or p.load <= 0.0:
+	if Brushwork.is_stick(p.brush) or p.load <= 0.0:
 		return
 	end_stroke(p)
 	p.load = maxf(0.15, p.load - 0.25)

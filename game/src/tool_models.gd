@@ -446,6 +446,12 @@ static func bend(model: Node3D, kind: Brushwork.Brush, offset: Vector3) -> void:
 	tip.transform = Transform3D(along, BRUSH_TIP + Vector3(0, 0, 0.013) + offset * 0.5)
 
 
+static func bristle_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/bristles.gdshader")
+	return mat
+
+
 ## Charcoal's matte black, which no sky glints off, coloured by vertex.
 static func charcoal_material() -> StandardMaterial3D:
 	return _plain("charcoal", Color.WHITE, {"roughness": 1.0, "metallic_specular": 0.0, "vertex_color_use_as_albedo": true, "vertex_color_is_srgb": true})
