@@ -4566,8 +4566,8 @@ or an oil colour, or pushed on through the palette under it, loads that pigment 
 A pan's mixes on the brush with the watercolour there already, and the box shows the mix; the glass wets the brush
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
 the oil palette's open board (`Mixing`): an oil colour loads the brush with that colour alone; painting onto the board
-lays the paint there, painting over wet paint blends the two, and touching the board loads the brush with the paint
-under it. The board draws its paint as the canvas does (`paint.gdshaderinc`): a colour on it shows as it will on the
+lays the paint there, painting over wet paint blends the two, and a dab into a blob on it loads the brush with
+that paint, with a dip's sound and feel. The board draws its paint as the canvas does (`paint.gdshaderinc`): a colour on it shows as it will on the
 canvas, never tinted by the wood under it, and stands up off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
 or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
@@ -4764,7 +4764,7 @@ the next. On the Frame no frame of the undo/50 or undo/200 phases ran late after
 frames in the three seconds after an undo come no faster than in the three seconds before it, the drying canvas's own.
 
 `demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/oil-mixing.json` paints
-blue and then yellow onto the oil palette, stirs them green, picks the green up and paints with it; `demo/easel-bench.json`
+blue and then yellow onto the oil palette, stirs them green, dabs a clean brush into the green and paints with it; `demo/easel-bench.json`
 measures painting on a headset, and `demo/costs.json` what an easel costs a frame.
 
 ## Verifying on a headset

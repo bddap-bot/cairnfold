@@ -600,8 +600,8 @@ func _show_brush(p: Painter, holding: bool, delta: float) -> void:
 
 
 ## Works an oil palette's mixing field while the tip touches its open board, on the tray or in a hand: the brush and
-## the board trade paint, so painting onto it lays and blends paint and touching it picks the paint there up. A
-## watercolour brush leaves its water behind and takes up oil. Whether the tip touches a field.
+## the board trade paint, so painting onto it lays and blends paint and a dab into a blob loads it, with a dip's sound
+## and feel. A watercolour brush leaves its water behind and takes up oil. Whether the tip touches a field.
 func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 	var on: Easels.Easel = null
 	var local := Vector3.ZERO
@@ -625,6 +625,8 @@ func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 	var got := on.mixing.touch({"ks": Mixing.ks_of(p.colour), "load": p.load if oil else 0.0}, Vector2(local.x, local.z), radius, delta)
 	if got[1]:
 		on.show_mixing()
+		if not p.mixed:
+			Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
 		p.mixed = true
 		p.medium = Brushwork.Medium.OIL
 		p.colour = Mixing.density_of(got[0].ks)
