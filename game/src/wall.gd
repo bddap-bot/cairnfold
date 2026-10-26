@@ -50,6 +50,8 @@ var massing: Massing
 var ivy_age := 0.0
 ## Encloses every stone, for pointing.
 var pick_bounds := AABB()
+## The sample `ray_distance` found nearest last, where it looks first.
+var _nearest := 0
 var _ruin_pick: Array[TriangleMesh] = []
 var _parts: Array[PackedFloat32Array] = []
 ## Each part's buffer split by ground chunk (`Masonry.split`), as the Masonry takes it.
@@ -798,6 +800,12 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best_i := 0
 	var best_t := 0.0
 	var best_p := Vector3.ZERO
+	# The sample nearest last time, a hand's ray moving little between frames, bounds what any sample must come within.
+	var bound := Vector2.INF
+	if _nearest < layout.samples.size():
+		var seen := _sample_near(_nearest, origin, dir, reach)
+		if not seen.is_empty():
+			bound = seen[0]
 	# How far a sample stands from the ray seen from above bounds its distance below, so a sample that could neither
 	# be in reach nor nearer than the best is passed over, with every sample after it too near along the wall to do better.
 	var flat := Vector2(dir.x, dir.z)
@@ -809,32 +817,40 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 		var i := next
 		next += 1
 		var off := Vector2(layout.samples[i].x, layout.samples[i].z) - from
-		var least := absf(across.cross(off)) if across != Vector2.ZERO else off.length()
-		var beat := reach if best_key.x == 0.0 else maxf(reach, best_d)
+		# Less a margin over float error, so the bound never passes the distance it bounds.
+		var least := (absf(across.cross(off)) if across != Vector2.ZERO else off.length()) - 1e-3
+		var beat := reach if best_key.x == 0.0 or bound.x == 0.0 else maxf(reach, minf(best_d, bound.y + 1e-3))
 		if least >= beat:
 			# Samples within arc length `least - beat` of this one stand no nearer than `beat` either.
 			next = maxi(next, lengths.bsearch(lengths[i] + least - beat, false))
 			continue
-		var under := layout.depths[i] if i < layout.depths.size() else 0.0
-		var a := layout.samples[i] + Vector3.DOWN * under
-		var up := Vector3.UP * (layout.height + WallLayout.CAP + under)
-		var ud := up.dot(dir)
-		var denom := up.dot(up) - ud * ud
-		var w := origin - a
-		var sc := 0.0 if absf(denom) < 1e-6 else clampf((up.dot(w) - ud * dir.dot(w)) / denom, 0.0, 1.0)
-		var t := maxf(0.0, ud * sc - dir.dot(w))
-		var p := a + up * sc
-		if layout.hides(p):
-			continue
-		var d := p.distance_to(origin + dir * t)
-		var key := Vector2(0.0, t) if d < reach else Vector2(1.0, d)
-		if key < best_key:
-			best_key = key
-			best_d = d
+		var near := _sample_near(i, origin, dir, reach)
+		if not near.is_empty() and near[0] < best_key:
+			best_key = near[0]
+			best_d = near[1]
 			best_i = i
-			best_t = t
-			best_p = p
+			best_t = near[2]
+			best_p = near[3]
+	_nearest = best_i
 	return {"distance": best_d, "s": layout.lengths[best_i] if best_d < INF else 0.0, "point": best_p, "along": best_t if best_d < INF else INF, "through": best_key.x == 0.0}
+
+
+## Sample `i`'s upright and the ray's nearest approach to it, as [key, distance, along the ray, point on the upright]
+## (`ray_distance` orders keys: within `reach` by how far along, else by how near), or empty where the wall hides it.
+func _sample_near(i: int, origin: Vector3, dir: Vector3, reach: float) -> Array:
+	var under := layout.depths[i] if i < layout.depths.size() else 0.0
+	var a := layout.samples[i] + Vector3.DOWN * under
+	var up := Vector3.UP * (layout.height + WallLayout.CAP + under)
+	var ud := up.dot(dir)
+	var denom := up.dot(up) - ud * ud
+	var w := origin - a
+	var sc := 0.0 if absf(denom) < 1e-6 else clampf((up.dot(w) - ud * dir.dot(w)) / denom, 0.0, 1.0)
+	var t := maxf(0.0, ud * sc - dir.dot(w))
+	var p := a + up * sc
+	if layout.hides(p):
+		return []
+	var d := p.distance_to(origin + dir * t)
+	return [Vector2(0.0, t) if d < reach else Vector2(1.0, d), d, t, p]
 
 
 ## Intersects the continuous wall body between samples, including its foundation and top; `through_arches` sees
