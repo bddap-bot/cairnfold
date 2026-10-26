@@ -297,7 +297,8 @@ elif device == "quest":
         if not m:
             continue
         label, pid = at(float(m.group(1))), m.group(2)
-        if game_pid is None and m.group(3).startswith("godot"):
+        # The idle headset's own game may still print as it gives way; the launched one's engine banner names it.
+        if m.group(3).startswith("godot") and (game_pid is None or "Godot Engine v" in line):
             game_pid = pid
         if label != "-":
             phase = label
