@@ -133,6 +133,9 @@ var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
+## Which of the birds, herds and roamers looks next: each looks every LOOK_EVERY, a third of it after the one before, so
+## no frame pays for all three.
+var _looker := 0
 var _asleep := false
 ## Per hand and the head: where it was last tick and how fast it has been moving. A teleport or a snap turn forgets
 ## where each was, so the cut is no motion to an animal: a player in a small room cannot help teleporting.
@@ -248,11 +251,15 @@ func tick(delta: float) -> void:
 	fish.tick(delta)
 	snails.tick(delta)
 	_since_look += delta
-	if _since_look >= LOOK_EVERY:
+	if is_inf(_since_look):
 		_since_look = 0.0
 		birds.look()
 		herds.look()
 		roamers.look()
+	elif _since_look >= LOOK_EVERY / 3.0:
+		_since_look = 0.0
+		[birds.look, herds.look, roamers.look][_looker].call()
+		_looker = (_looker + 1) % 3
 	ducks_came = ducks_came or not families.is_empty()
 	var perches := [birds] if ducks_came and birds.birds.is_empty() and not birds.sites.is_empty() else []
 	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, day, birds.rng).is_empty():
