@@ -61,10 +61,8 @@ report.
 ## A photo's sun
 
 A photo is lit by its own sun (`Look.photo_sun`, four blended splits), which no
-other view sees. The first frame drawn with it asks for seven new pipeline
-specializations, and Godot draws that frame while they compile, without that
-sun's shadows. That first photo of a session lost every shadow, while every later
-photo, after a three-second gap or a new time of day, cast them with no further
-compiles. Neither the shadow atlas resize nor the foliage detail swap in
-`PhotoTool.draw_finest` changes this. `PhotoTool._ready` draws one small photo
-view as the game loads, so the pipelines are built before the first shot.
+other view sees. Its pipelines compile on worker threads when a photo first
+needs them. `PhotoTool` draws at preview size until every visible and shadow pass
+is ready, then repeats at full size with `draw_finest` before reading the pixels.
+The viewport's skipped-draw count is checked only after a new frame has drawn;
+a viewport that did not render is not ready. Play continues during these awaits.

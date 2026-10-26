@@ -242,9 +242,8 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 func render_screen(at: Transform3D) -> Image:
 	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 	_aim(vp, at, FOV, Quality.VIEW_MASK)
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	await RenderingServer.frame_post_draw
-	var img := vp.get_texture().get_image()
+	await _draw_complete(vp)
+	var img := await _read(vp)
 	vp.queue_free()
 	return img
 
@@ -545,18 +544,38 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var full := mask & Quality.FULL_LAYER != 0
 	var vp := photo_viewport() if full else _view_viewport()
 	_aim(vp, at, fov, mask)
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	if full:
-		await RenderingServer.frame_pre_draw
-		Metrics.note("photo: drawn at its finest")
-		var undo := draw_finest()
-		await RenderingServer.frame_post_draw
-		undo.call()
-	else:
-		await RenderingServer.frame_post_draw
+		vp.size = PREVIEW_SIZE
+		await _draw_complete(vp)
+		vp.size = PHOTO_SIZE
+	await _draw_complete(vp, full)
 	var img := await _read(vp)
 	_busy = false
 	return img
+
+
+## Compile a photo's pipelines at preview size first; repeated full-size draws would spend the frame budget
+## on pixels that cannot yet be saved. Awaiting frames leaves play running while compilation finishes.
+func _draw_complete(vp: SubViewport, full := false) -> void:
+	var name := &"VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME"
+	var info := ClassDB.class_get_integer_constant(&"RenderingServer", name) if ClassDB.class_has_integer_constant(&"RenderingServer", name) else -1
+	while true:
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_pre_draw
+		var issued := Engine.get_frames_drawn()
+		var undo := draw_finest() if full else Callable()
+		await RenderingServer.frame_post_draw
+		if undo.is_valid():
+			undo.call()
+		while Engine.get_frames_drawn() <= issued:
+			await get_tree().process_frame
+		if info < 0:
+			return
+		var kind := info as RenderingServer.ViewportRenderInfo
+		var visible := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, kind)
+		var shadow := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, kind)
+		if visible == 0 and shadow == 0:
+			return
 
 
 ## What `vp` last drew. The pixels come back from the GPU a frame or two later instead of stalling the frame that asked.

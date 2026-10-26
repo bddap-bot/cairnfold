@@ -84,7 +84,7 @@
  				RS::PipelineSource pipeline_source = pipeline_key.ubershader ? RS::PIPELINE_SOURCE_DRAW : RS::PIPELINE_SOURCE_SPECIALIZATION;
 -				pipeline_rd = shader->pipeline_hash_map.get_pipeline(pipeline_key, pipeline_hash, pipeline_key.ubershader, pipeline_source);
 +				bool lookup_pending = false;
-+				pipeline_rd = shader->pipeline_hash_map.get_pipeline(pipeline_key, pipeline_hash, pipeline_key.ubershader && !skip_unready_draws, pipeline_source, pipeline_key.ubershader, &lookup_pending);
++				pipeline_rd = shader->pipeline_hash_map.get_pipeline(pipeline_key, pipeline_hash, pipeline_key.ubershader && !skip_unready_draws, pipeline_source, pipeline_key.ubershader && !skip_unready_draws, &lookup_pending);
 +				// A surface whose ubershader failed still draws once its pending specialization lands, so either lookup pending makes the skip count.
 +				pipeline_pending = pipeline_pending || lookup_pending;
  
@@ -106,7 +106,7 @@
  void RenderForwardMobile::_mesh_compile_pipeline_for_surface(SceneShaderForwardMobile::ShaderData *p_shader, void *p_mesh_surface, bool p_instanced_surface, RS::PipelineSource p_source, SceneShaderForwardMobile::ShaderData::PipelineKey &r_pipeline_key, Vector<ShaderPipelinePair> *r_pipeline_pairs) {
  	RendererRD::MeshStorage *mesh_storage = RendererRD::MeshStorage::get_singleton();
  	uint64_t input_mask = p_shader->get_vertex_input_mask(r_pipeline_key.version, true);
-+	// The mask lookup above still waits here, off the render thread, for the shader's variants. Draws that skip then compile exactly the ubershaders they meet, at high priority: speculative keys would occupy the low priority workers specializations need, and dedup would hold any demanded one to their priority.
++	// The mask lookup above still waits here, off the render thread, for the shader's variants. Draws that skip compile only the ubershaders they meet, at low priority so culling can still use the pool. Speculative keys would occupy those limited workers before the pipelines a view actually needs.
 +	if (skip_unready_draws) {
 +		return;
 +	}

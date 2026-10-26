@@ -19,6 +19,8 @@ window/vsync/vsync_mode=0
 import/use_multiple_threads=false
 
 [rendering]
+
+rendering_device/pipeline_compilation/skip_unready_draws=true
 renderer/rendering_method="mobile"
 reflections/sky_reflections/texture_array_reflections=false
 lights_and_shadows/directional_shadow/size=4096

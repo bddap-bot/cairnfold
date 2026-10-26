@@ -462,7 +462,7 @@ func _build_live() -> void:
 		job.build(height, water, revision)
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks, colours)
-		out.merge(Wall.pack(job, ks, colours)))
+		out.merge(Wall.pack(job, ks, colours)), true)
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
