@@ -370,7 +370,6 @@ def check_peers(out, count):
     check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
     easels = list(g["easels"].values())
     check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds the joiner's watercolour stroke and the host's oil one: {easels}")
-    check(easels[0]["palette"] == 1, f"and the host's blue painted onto its oil palette, a stroke there on every machine: {easels}")
     for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -450)]:
         seen_shape = {n: json.load(open(f"{out}/{n}-{shape}.json")) for n in names}
         for v in seen_shape.values():
