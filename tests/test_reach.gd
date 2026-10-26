@@ -59,7 +59,7 @@ func _run() -> void:
 	main.world.bounded = false
 	var rig: Rig = main.rig
 	var hand: Hand = rig.right
-	await play([{"op": "place", "x": 0, "z": 6}, {"op": "house", "relative": true, "at": [0, 12], "size": [4.5, 4.5], "seconds": 0.5}])
+	await play([{"op": "place", "x": 0, "z": 6}, {"op": "house", "relative": true, "at": [0, 12], "size": [4.5, 4.5], "seconds": 0.5}, {"op": "uncluttered"}])
 	var house: Wall = main.tool.walls[-1]
 	var was: Vector3 = WallTool.house_of(main.world.state.walls[house.id]).center
 	hand.tool = Hand.Tool.NONE
