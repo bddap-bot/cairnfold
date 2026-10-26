@@ -1,5 +1,5 @@
 [
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 30},
   {"op": "label", "name": "-"},

@@ -71,8 +71,8 @@ func _every_step_draws_less() -> void:
 	for i in steps.size() - 1:
 		var a := steps[i]
 		var b := steps[i + 1]
-		var drawn_less := b.render_scale < a.render_scale or b.msaa < a.msaa or (a.reflections and not b.reflections) or b.foveation > a.foveation or (a.lake and not b.lake)
-		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation and (a.lake or not b.lake), "step %d draws no more than step %d" % [i + 1, i])
+		var drawn_less := b.render_scale < a.render_scale or b.msaa < a.msaa or (a.reflections and not b.reflections) or b.foveation > a.foveation
+		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation, "step %d draws no more than step %d" % [i + 1, i])
 		check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d, "step %d draws less than step %d" % [i + 1, i])
 		check(not drawn_less or i < Quality.START, "only the steps above the start change how the view is drawn, step %d does" % (i + 1))
 	for i in steps.size():
@@ -170,9 +170,9 @@ func _every_pipeline_a_rung_draws_with_is_primed() -> void:
 	var drawn := {}
 	for n in primed:
 		var s := Quality.ladder[n]
-		drawn[[s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d, s.foveation > 0]] = true
+		drawn[[s.render_scale, s.msaa, s.reflections, s.shadows, s.scale_3d, s.foveation > 0]] = true
 	for s in Quality.ladder:
-		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d, s.foveation > 0]), "a rung's pipelines are primed")
+		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.shadows, s.scale_3d, s.foveation > 0]), "a rung's pipelines are primed")
 	_check(primed[-1] == Quality.START, "priming ends where the governor starts")
 
 
@@ -246,7 +246,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
 	check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
 	check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
-	check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED and not look._lake[1].visible and look._plain.visible, "the step's MSAA, without reflections, over the plain")
+	check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED, "the step's MSAA, without reflections")
 	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
 	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
 	check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and is_equal_approx(stone.far.visibility_range_begin, bottom.stone_near_m + ks[Wall.Part.STONE].radius()), "a chunk already standing takes the step's reaches")
@@ -258,7 +258,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 		q._process(0.1)
 	check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
 	check(sun.shadow_enabled and q.view.scaling_3d_scale == 1.0, "and so do the shadows and the full 3D resolution")
-	check(q.view.msaa_3d == Viewport.MSAA_4X and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_SKY and look._lake[1].visible and not look._plain.visible, "and 4x MSAA, the sky's reflections and the lake")
+	check(q.view.msaa_3d == Viewport.MSAA_4X and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_SKY, "and 4x MSAA and the sky's reflections")
 	look.free()
 	q.view.free()
 	q.free()
@@ -383,7 +383,7 @@ func _the_frames_after_a_stall_are_not_judged() -> void:
 
 func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:
 	var pops := Quality.popping()
-	check(pops == PackedInt32Array([Quality.START - 4, Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, the plain, shadows off and a lower 3D scale pop, got %s" % [pops])
+	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, shadows off and a lower 3D scale pop, got %s" % [pops])
 	var g := Quality.Governor.new(10, PackedInt32Array([0]))
 	_down(g)
 	check(_feed(g, BUDGET * 0.1, 72 * 30) == 1, "a step up that pops waits more than a calm spell")

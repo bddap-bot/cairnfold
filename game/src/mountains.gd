@@ -15,13 +15,12 @@ const RANGES := [
 ## Rows from foot to ridge, each its share of the height; the last rows stand steep, a stone face over its talus.
 const ROWS := [0.0, 0.12, 0.3, 0.5, 0.68, 0.84, 1.0]
 const REACH := [0.0, 0.42, 0.66, 0.8, 0.88, 0.95, 1.0]
-## Without the lake a plain runs from the meadow's bank (Terrain.BANK) out to the first range's foot at this height.
-const PLAIN_HIGH := 6.0
-## With the lake, water stands round the meadow at LAKE, under every point of the meadow's edge and over its bank's
+## Water stands round the meadow at LAKE, under every point of the meadow's edge and over its bank's
 ## foot, out past the first range's ridge; the ranges' feet stand SUNK under it, so the water floods their lower slopes
-## and meets them along a contour, not at a straight foot. Quality draws it whenever the frame has room for it.
+## and meets them along a contour, not at a straight foot.
 const LAKE := 3.5
 const SUNK := 12.0
+const FOOT := LAKE - SUNK
 ## The water's edge round the meadow's square is cut this far apart.
 const SHORE_STEP := 5.0
 const LAKE_OUT := 600.0
@@ -70,9 +69,9 @@ static func _crags(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float
 	return JAG * r.high * pow(tooth, 3.0) * (1.0 - passes(azimuth))
 
 
-## Whether a ray from `from` along `dir` meets a range before the sky, with every foot under the `lake` or on the
-## plain: whether it passes under some range's ridge where it crosses it.
-static func hides(from: Vector3, dir: Vector3, lake: bool) -> bool:
+## Whether a ray from `from` along `dir` meets a range before the sky: whether it passes under some range's ridge where
+## it crosses it.
+static func hides(from: Vector3, dir: Vector3) -> bool:
 	var flat := Vector2(dir.x, dir.z)
 	if flat.length() < 1e-6:
 		return false
@@ -82,7 +81,7 @@ static func hides(from: Vector3, dir: Vector3, lake: bool) -> bool:
 		if is_nan(along):
 			continue
 		var at := Vector2(from.x, from.z) + flat.normalized() * along
-		if from.y + rise * along < foot_high(lake) + ridge(r, noise_for(r), at.angle()):
+		if from.y + rise * along < FOOT + ridge(r, noise_for(r), at.angle()):
 			return true
 	return false
 
@@ -113,16 +112,15 @@ static func noise_for(r: Dictionary) -> FastNoiseLite:
 	return n
 
 
-## The plain, or the `lake`'s bed, from the meadow's bank's foot out to the first range's foot, then each range's facing slopes, as one indexed
+## The lake's bed from the meadow's bank's foot out to the first range's foot, then each range's facing slopes, as one indexed
 ## surface whose normals are smoothed across every fold gentler than CREASE. COLOR.r is the height as a share of the
 ## farthest range's highest, COLOR.g the haze of the air in front, COLOR.b where snow may lie.
-static func arrays(lake: bool) -> Array:
+static func arrays() -> Array:
 	var corners := PackedVector3Array()
 	var colors := PackedColorArray()
-	var foot := foot_high(lake)
-	_edge(corners, colors, foot)
+	_edge(corners, colors)
 	for r: Dictionary in RANGES:
-		_range(corners, colors, r, foot)
+		_range(corners, colors, r)
 	return _smooth(corners, colors)
 
 
@@ -169,7 +167,7 @@ static func _smooth(corners: PackedVector3Array, colors: PackedColorArray) -> Ar
 	return out
 
 
-static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, foot: float) -> void:
+static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary) -> void:
 	var noise := noise_for(r)
 	var crag := noise_for(r)
 	crag.seed += 100
@@ -183,41 +181,36 @@ static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 			var h: float = _body(r, noise, a) * ROWS[k] + _crags(r, noise, a) * CRAGGED[k]
 			var jut: float = crag.get_noise_2d(c * 0.7 / DETAIL[k], k * 1.3) * CRAG * r.depth * (1.0 - absf(ROWS[k] * 2.0 - 1.0))
 			var dist: float = r.radius - r.depth * (1.0 - REACH[k]) + jut
-			row.append(Vector3(cos(a) * dist, foot + h, sin(a) * dist))
+			row.append(Vector3(cos(a) * dist, FOOT + h, sin(a) * dist))
 		grid.append(row)
 	for k in ROWS.size() - 1:
-		_strip(corners, colors, r, grid[k], grid[k + 1], foot)
+		_strip(corners, colors, r, grid[k], grid[k + 1])
 
 
 ## Joins two rings of points round the range, each fanning to the other where it is cut finer.
-static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, lo: PackedVector3Array, hi: PackedVector3Array, foot: float) -> void:
+static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, lo: PackedVector3Array, hi: PackedVector3Array) -> void:
 	var i := 0
 	var j := 0
 	while i < lo.size() or j < hi.size():
 		if j == hi.size() or (i < lo.size() and (i + 1) * hi.size() <= (j + 1) * lo.size()):
-			_face(corners, colors, r, [lo[i], hi[j % hi.size()], lo[(i + 1) % lo.size()]], foot)
+			_face(corners, colors, r, [lo[i], hi[j % hi.size()], lo[(i + 1) % lo.size()]])
 			i += 1
 		else:
-			_face(corners, colors, r, [lo[i % lo.size()], hi[j], hi[(j + 1) % hi.size()]], foot)
+			_face(corners, colors, r, [lo[i % lo.size()], hi[j], hi[(j + 1) % hi.size()]])
 			j += 1
 
 
-## Where every range's foot stands: under the `lake`, or on the plain.
-static func foot_high(lake: bool) -> float:
-	return LAKE - SUNK if lake else PLAIN_HIGH
-
-
 ## Starts at the bank's foot point for point, so the ground's own bank (Terrain.build_mesh) meets it with no crack.
-static func _edge(corners: PackedVector3Array, colors: PackedColorArray, foot: float) -> void:
+static func _edge(corners: PackedVector3Array, colors: PackedColorArray) -> void:
 	var r: Dictionary = RANGES[0]
 	var bank := Terrain.edge(Terrain.BANK)
 	for k in bank.size():
 		var a := Vector3(bank[k].x, Terrain.BANK_FOOT, bank[k].y)
 		var b := Vector3(bank[(k + 1) % bank.size()].x, Terrain.BANK_FOOT, bank[(k + 1) % bank.size()].y)
-		var fa: Vector3 = Vector3(a.x, 0, a.z).normalized() * (r.radius - r.depth) + Vector3.UP * foot
-		var fb: Vector3 = Vector3(b.x, 0, b.z).normalized() * (r.radius - r.depth) + Vector3.UP * foot
-		_face(corners, colors, r, [a, fa, b], foot)
-		_face(corners, colors, r, [b, fa, fb], foot)
+		var fa: Vector3 = Vector3(a.x, 0, a.z).normalized() * (r.radius - r.depth) + Vector3.UP * FOOT
+		var fb: Vector3 = Vector3(b.x, 0, b.z).normalized() * (r.radius - r.depth) + Vector3.UP * FOOT
+		_face(corners, colors, r, [a, fa, b])
+		_face(corners, colors, r, [b, fa, fb])
 
 
 ## The lake's surface: flat at LAKE from the meadow's edge out to LAKE_OUT.
@@ -251,29 +244,28 @@ static func ridge_image() -> Image:
 		var a := TAU * i / RIDGE_SAMPLES
 		var h := [0.0, 0.0]
 		for k in RANGES.size():
-			h[k] = (foot_high(true) - LAKE + ridge(RANGES[k], noises[k], a)) / top
+			h[k] = (FOOT - LAKE + ridge(RANGES[k], noises[k], a)) / top
 		img.set_pixel(i, 0, Color(h[0], h[1], 0))
 	return img
 
 
-static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, tri: Array, foot: float) -> void:
+static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, tri: Array) -> void:
 	var n: Vector3 = (tri[2] - tri[0]).cross(tri[1] - tri[0])
 	if n.dot(SEEN_FROM - tri[0]) < 0.0:
 		tri = [tri[0], tri[2], tri[1]]
 	var top: float = RANGES[RANGES.size() - 1].high
 	for p: Vector3 in tri:
 		corners.append(p)
-		colors.append(Color((p.y - foot) / top, r.haze, r.snow))
+		colors.append(Color((p.y - FOOT) / top, r.haze, r.snow))
 
 
-## The ranges over the lake in `material` with its water in `water`, and the ranges over the plain: the lake's two
-## instances, then the plain's.
+## The ranges in `material`, and the lake's water in `water`.
 static func build(material: ShaderMaterial, water: ShaderMaterial) -> Array[MeshInstance3D]:
 	water.set_shader_parameter("ridges", ImageTexture.create_from_image(ridge_image()))
 	water.set_shader_parameter("level", LAKE)
 	water.set_shader_parameter("radii", Vector2(RANGES[0].radius, RANGES[1].radius))
 	water.set_shader_parameter("top", RANGES[RANGES.size() - 1].high)
-	return [_instance(arrays(true), material), _instance(lake_arrays(), water), _instance(arrays(false), material)]
+	return [_instance(arrays(), material), _instance(lake_arrays(), water)]
 
 
 static func _instance(a: Array, material: ShaderMaterial) -> MeshInstance3D:

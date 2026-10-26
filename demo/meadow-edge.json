@@ -9,7 +9,7 @@
   {"op": "view", "eye": [55, 30, -25], "at": [80, 5, 0]},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "lake-air"},
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "wait", "seconds": 3},
   {"op": "view", "ground": true, "eye": [72, 1.65, -6], "at": [90, 0, 4]},
   {"op": "wait", "seconds": 2},
@@ -24,7 +24,7 @@
   {"op": "view", "eye": [55, 30, -25], "at": [80, 5, 0]},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "lake-air-sculpted"},
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "wait", "seconds": 3},
   {"op": "capture", "name": "plain-air-sculpted"},
   {"op": "quit"}

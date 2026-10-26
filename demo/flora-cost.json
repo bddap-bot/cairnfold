@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 13},
+  {"op": "quality", "step": 12},
   {"op": "fill_flora", "pools": ["grass", "flowers"], "radius": 15},
   {"op": "wait", "seconds": 5},
   {"op": "view", "eye": [0, 9, 45], "at": [0, 0, 0]},

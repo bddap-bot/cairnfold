@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 8},
   {"op": "village", "radius": 20, "spacing": 7, "storeys": 2, "wings": true},

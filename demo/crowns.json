@@ -1,5 +1,5 @@
 [
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "tree", "x": 0, "z": -9, "seed": 11},
   {"op": "tree", "x": -6, "z": -12, "seed": 22},
   {"op": "tree", "x": 6, "z": -13, "seed": 33},

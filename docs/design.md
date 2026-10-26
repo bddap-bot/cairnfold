@@ -1462,7 +1462,7 @@ Directive (verbatim):
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
 every frame, the same on every headset.** `Quality` (`game/src/quality.gd`) first decides how the
 view is drawn: the sky's reflections, then fixed foveation's rim, then 4x MSAA against 2x, then the
-swapchain at 0.85 and 0.7 of the runtime's size a side, then the lake round the meadow. Below that it first draws the meadow's sparse far grass to 60,
+swapchain at 0.85 and 0.7 of the runtime's size a side. Below that it first draws the meadow's sparse far grass to 60,
 48, 36 or 30 m before holding it at 24 m, then settled stones in full only to 8 m instead of 16 m
 and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, then foliage from
 coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing else held the
@@ -1483,25 +1483,25 @@ Directive (verbatim): "I usually prefer all hardware use the same dynamic qualit
 an antipattern, but fixed foveation and eye tracked foveation are likely legitimately different user experiences. Good
 eye-tracked fovation is free ux-wise. I'm thinking eye-tracked and fixed should be treated differently."
 
-**Decision: how the view is drawn is the ladder's top seven rungs (`Quality.DRAWN`), not a table per headset.**
+**Decision: how the view is drawn is the ladder's top six rungs (`Quality.DRAWN`), not a table per headset.**
 Each rung drops what loses least for what it saves, as measured on the Quest 2 at the ladder's bottom ("Which knobs
 matter" and "Anti-aliasing on the Quest 2"):
 
-| Step | Swapchain | MSAA | Sky reflections | Fixed foveation | Lake | Estimated cost over the next step |
-| --- | --- | --- | --- | --- | --- | --- |
-| 0 | 1.0 | 4x | on | 0 | on | 0.25 of the frame |
-| 1 | 1.0 | 4x | off | 0 | on | 0.17 |
-| 2 | 1.0 | 4x | off | 3 | on | 0.31 |
-| 3 | 1.0 | 2x | off | 3 | on | 0.38 |
-| 4 | 0.85 | 2x | off | 3 | on | 0.47 |
-| 5 | 0.7 | 2x | off | 3 | on | 0.15 |
-| 6, the start | 0.7 | 2x | off | 3 | off, the plain | |
+| Step | Swapchain | MSAA | Sky reflections | Fixed foveation | Estimated cost over the next step |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 1.0 | 4x | on | 0 | 0.25 of the frame |
+| 1 | 1.0 | 4x | off | 0 | 0.17 |
+| 2 | 1.0 | 4x | off | 3 | 0.31 |
+| 3 | 1.0 | 2x | off | 3 | 0.38 |
+| 4 | 0.85 | 2x | off | 3 | 0.47 |
+| 5, the start | 0.7 | 2x | off | 3 | |
 
-Steps 7 to 16 are the reach, shadow and 3D scale cuts above, drawn as step 6. Step numbers in measurements recorded
-before this ladder count from the start: their step N is step N + 6 now, and the demo scripts' pins were moved
-with it. Step 6 is what the Quest 2 drew
-for its whole session before (its tuned table), so a Quest 2 starts where it was tuned and the build budget,
-fitted at the bottom step (`Budget.fit_step`), prices the same frame as before. A headset with room climbs out of it:
+Steps 6 to 15 are the reach, shadow and 3D scale cuts above, drawn as step 5. Step numbers in measurements recorded
+before this ladder count from the start: their step N is step N + 5 now. Records made while the ladder had a seventh
+rung, the plain in place of the lake (from 5edf8594 until it went), read one higher from their step 6 down; the demo
+scripts' pins were moved with each change. Step 5 is what the Quest 2 drew
+for its whole session before (its tuned table) with the lake added, so a Quest 2 starts where it was tuned and the
+build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. A headset with room climbs out of it:
 
 - The estimate. A step up across a rung not yet measured in the scene is expected to cost its share of the current
   frame (the last column, from the Quest 2's measurements; the swapchain's is its pixels': first estimated from the
@@ -1509,11 +1509,11 @@ fitted at the bottom step (`Budget.fit_step`), prices the same frame as before. 
   0.85 at 7.3 ms and read 10.7, and stepped back within seven seconds), and is taken only when the average plus that stays under the line. A measured step
   takes its measured cost, as every step does.
 - Pops. The steps into 2x MSAA and each smaller swapchain reallocate what the view is drawn into, as the bottom
-  steps' shadows and 3D scale do, and the step to the plain swaps the whole horizon (`Quality.popping`). Above the start the governor crosses them at the calm of any
+  steps' shadows and 3D scale do (`Quality.popping`). Above the start the governor crosses them at the calm of any
   step until the scene first asks for less; once a step down has crossed one, a step back up across it waits the
   longest calm (64 s), and one undone within ten seconds is not taken again that session.
 - Priming. Among loading's late frames, before the governor starts, the view is drawn for two frames each at the
-  bottom step and at every rung whose swapchain, MSAA, reflections or lake differ, so their pipelines are compiled then
+  bottom step and at every rung whose swapchain, MSAA or reflections differ, so their pipelines are compiled then
   and not mid-play. Changing the render target size multiplier mid-session recreates the swapchain, which the
   Quest 2's runtime takes in its stride (the log's `quality: step` lines and the compositor's swapchain lines).
 - MSAA is never off: no rung has fewer than 2x samples, and a test holds every step to it.
@@ -1539,12 +1539,11 @@ tuned build sat at its step 0 (step 6 now) for 256 s; it never held a rung above
 level 3 and the rim is as sharp as before. With the swapchain first estimated at 0.27 of the frame it climbed to 0.85
 and stepped back within seven seconds, one late frame a second meanwhile, which set that estimate to the pixels'.
 
-The lake (see "Look on a mobile budget") was the Steam Frame's build's alone, an export feature. No build chooses
-content now, and the lake is no near-free option: on the Quest 2 `demo/edge.json` read 8.52 and 8.24 ms with it
-against 7.37 and 7.16 over the plain, ground and air
-([with](../perf/quest-2/edge/20261022T154215Z-5ef92f8.json), [without](../perf/quest-2/edge/20261022T154823Z-d4a9c75.json)),
-1.1 ms of the 4.16 the build budget leaves a garden. So it is a rung: every headset stands the lake round the meadow
-whenever the frame has room for it, and the plain otherwise.
+The lake (see "Look on a mobile budget") stands round the meadow on every headset at every step; the plain it
+replaced is gone. It was a rung for a while on a reading of 1.1 ms ([with](../perf/quest-2/edge/20261022T154215Z-5ef92f8.json),
+[without](../perf/quest-2/edge/20261022T154823Z-d4a9c75.json)), but those two runs measured different trees (the
+quality ladder's work in progress against main, 1,148 primitives apart where the lake is 256). The same tree with
+and without it read 0.00 ms standing and +0.14 ms from the air (`perf/quest-2/edge/20261023T03*`).
 
 The 3D scale is exactly 1.0 on every step but the last. The Frame's Turnip driver tonemaps more cheaply at any scale
 off 1.0 (below), so the Frame no longer gets its 0.9 for the session from a check of its platform; it draws the
@@ -2055,22 +2054,22 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   the sky, so distant hills fade and the near meadow stays saturated.
 - **Horizon:** the ground's own mesh runs a bank `Terrain.BANK` out from every point of the meadow's edge, read
   from the heights as they stand so it follows the ground as it is reshaped, down to `Terrain.BANK_FOOT`; from that
-  foot, vertex for vertex, two rings of stone-faced mountains, 300 to 2100 m out, stand with a plain to their feet
-  (`Mountains`): one indexed mesh of about 8k triangles in one
+  foot, vertex for vertex, a lake bed runs out under the water to two rings of stone-faced mountains, 300 to 2100 m
+  out (`Mountains`): one indexed mesh of about 8k triangles in one
   draw, its top rows cut finer (`Mountains.DETAIL`) so the skyline breaks into crags, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
   shade softly while ridges and crags keep their edge, unshaded, lit and hazed in its own
   shader from the hour's light, casting no shadow.
   They are real geometry far enough off that both eyes and every step through the garden
   see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
   through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
-  Where the frame has room (the ladder's lake rung, "One ladder for every headset"), a lake replaces the plain: water stands at `Mountains.LAKE`
+  A lake stands round the meadow on every headset: water stands at `Mountains.LAKE`
   over the bank's foot out past the first ridge, and the ranges' feet sink
   `Mountains.SUNK` under it, so the water floods their lower slopes and meets them along a
   contour. The water is one opaque, unshaded surface of 256 triangles (`lake.gdshader`) that
   mirrors the ranges without drawing them twice: each fragment follows its reflected ray to
   each range's circle and compares its climb with the ridge there, read from a 512-texel
-  ring of ridge heights (`Mountains.ridge_image`). `demo/edge.json` measures it against the
-  plain from the garden and from the air: on a Quest 2 (`perf/quest-2/edge/20261023T03*`, two
+  ring of ridge heights (`Mountains.ridge_image`). `demo/edge.json` measured it against the
+  plain it replaced from the garden and from the air: on a Quest 2 (`perf/quest-2/edge/20261023T03*`, two
   rounds of each build, GPU ms a frame) it adds 256 primitives and one draw, and costs 0.00 ms
   standing (10.66 both) and +0.14 ms from 22 m up (11.02 to 11.16).
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden

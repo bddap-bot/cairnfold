@@ -10,8 +10,7 @@ extends Node
 ## `shadows` is whether the sun casts them; `scale_3d` is the share of the swapchain's resolution the 3D scene is drawn
 ## at. The rest is how the view is drawn (DRAWN): `render_scale` is the share of each eye's width and height the
 ## runtime is asked for (render_target_size_multiplier), `msaa` the view's MSAA, `reflections` whether surfaces take
-## reflected light from the sky, `foveation` the runtime's fixed foveation level (XR_FB_foveation, 0 to 3), and `lake`
-## whether the lake stands round the meadow (Mountains) or the plain.
+## reflected light from the sky, and `foveation` the runtime's fixed foveation level (XR_FB_foveation, 0 to 3).
 ## `share` is what the rung costs over the next one down, as a share of the frame, until the governor measures it.
 class Step:
 	var grass_m: float
@@ -25,7 +24,6 @@ class Step:
 	var msaa: Viewport.MSAA
 	var reflections: bool
 	var foveation: int
-	var lake: bool
 	var share: float
 
 	func _init(flora: Array, drawn: Dictionary) -> void:
@@ -40,25 +38,22 @@ class Step:
 		msaa = drawn.msaa
 		reflections = drawn.reflections
 		foveation = drawn.foveation
-		lake = drawn.lake
 
 
 ## How the view is drawn, richest first, each rung dropping what loses least for what it saves, as measured on the
 ## Quest 2 at the ladder's bottom ("Which knobs matter" and "Anti-aliasing on the Quest 2" in docs/design.md): the sky's
 ## reflections on surfaces nearly all rough (0.7 to 1.9 ms), the rim's sharpness to fixed foveation (0.7 to 1.2 ms),
-## 4x MSAA to 2x (1.5 to 2.7 ms), then a smaller swapchain, which the compositor stretches to the display, and last
-## the lake (1.1 ms in demo/edge.json). MSAA stays on at every rung. `share` is each rung's cost over the next as a
+## 4x MSAA to 2x (1.5 to 2.7 ms), and last a smaller swapchain, which the compositor stretches to the display. MSAA stays on at every rung. `share` is each rung's cost over the next as a
 ## share of the frame from those measurements, the swapchain's its pixels' (the Quest 2's frame grew with them whole,
 ## 7.3 to 10.7 ms from 0.7 to 0.85 in a governed run of the stress scene). The last
 ## rung is where every headset starts.
 const DRAWN := [
-	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": true, "foveation": 0, "lake": true, "share": 0.25},
-	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": false, "foveation": 0, "lake": true, "share": 0.17},
-	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": false, "foveation": 3, "lake": true, "share": 0.31},
-	{"render_scale": 1.0, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "lake": true, "share": 0.38},
-	{"render_scale": 0.85, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "lake": true, "share": 0.47},
-	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "lake": true, "share": 0.15},
-	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "lake": false, "share": 0.0},
+	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": true, "foveation": 0, "share": 0.25},
+	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": false, "foveation": 0, "share": 0.17},
+	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": false, "foveation": 3, "share": 0.31},
+	{"render_scale": 1.0, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.38},
+	{"render_scale": 0.85, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.47},
+	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.0},
 ]
 ## What the ladder cuts below DRAWN's last rung, cheapest loss per millisecond saved first: grass, flowers and blob
 ## detail, stones in full and ivy (`Step`'s first five), then the sun's shadows and the 3D scale. Flowers beyond 60 m are
@@ -78,7 +73,7 @@ const FLORA := [
 ]
 ## The rung every headset starts on: the cheapest way of drawing the view with every reach whole. The governor climbs
 ## from it as the frame shows room and steps down the rest of the ladder below it.
-const START := 6
+const START := 5
 static var ladder: Array[Step] = rungs()
 
 
@@ -165,7 +160,7 @@ func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
 
-## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or the lake back, which
+## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain or MSAA back, which
 ## shows at once across the whole view or reallocates what it is drawn into: a governor crossing that line back and
 ## forth would flicker every shadow or the horizon, or drop a frame each time.
 static func popping() -> PackedInt32Array:
@@ -173,13 +168,13 @@ static func popping() -> PackedInt32Array:
 	for i in ladder.size() - 1:
 		var a := ladder[i]
 		var b := ladder[i + 1]
-		if a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.lake != b.lake:
+		if a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa:
 			out.append(i)
 	return out
 
 
 ## The rungs drawn for PRIME_FRAMES each as the session starts: the top and every rung whose swapchain, MSAA,
-## reflections, lake, sun's shadows, 3D scale or foveation on or off differ from the one above, then START, where the
+## reflections, sun's shadows, 3D scale or foveation on or off differ from the one above, then START, where the
 ## governor takes over. On the Quest 2 a session that first draws the foveation map at the first foveated rung, after
 ## the top drew without it, keeps built walls from the air at 20 ms; one that first draws it at 2x MSAA, or from the
 ## start, takes 250 ms ("Anti-aliasing on the Quest 2" in docs/design.md).
@@ -188,7 +183,7 @@ static func primed() -> PackedInt32Array:
 	for i in range(1, ladder.size()):
 		var a := ladder[i - 1]
 		var b := ladder[i]
-		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.lake != b.lake or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0):
+		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0):
 			out.append(i)
 	out.append(START)
 	return out
@@ -202,7 +197,7 @@ static func idle(foveates: bool) -> PackedInt32Array:
 	for i in range(1, ladder.size()):
 		var a := ladder[i - 1]
 		var b := ladder[i]
-		if a.foveation != b.foveation and a.render_scale == b.render_scale and a.msaa == b.msaa and a.reflections == b.reflections and a.lake == b.lake:
+		if a.foveation != b.foveation and a.render_scale == b.render_scale and a.msaa == b.msaa and a.reflections == b.reflections:
 			out.append(i)
 	return out
 
@@ -273,7 +268,6 @@ func _apply(at: Step, n: int) -> void:
 	view.msaa_3d = at.msaa
 	if _look != null:
 		_look.env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY if at.reflections else Environment.REFLECTION_SOURCE_DISABLED
-		_look.show_lake(at.lake)
 	if _xr == null:
 		return
 	if not is_equal_approx(_xr.render_target_size_multiplier, at.render_scale):

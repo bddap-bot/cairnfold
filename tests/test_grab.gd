@@ -37,7 +37,7 @@ func _the_mountains_are_not_sky(hand: Hand) -> void:
 	main.look.set_time(0.5)
 	var r: Dictionary = Mountains.RANGES[0]
 	for az in [-PI / 2.0, 0.0, PI / 2.0, PI]:
-		var ridge: float = Mountains.foot_high(true) + Mountains.ridge(r, Mountains.noise_for(r), az) * 0.5
+		var ridge: float = Mountains.FOOT + Mountains.ridge(r, Mountains.noise_for(r), az) * 0.5
 		var flat := Vector3(cos(az), 0.0, sin(az))
 		var toward: Vector3 = (flat * float(r.radius) + Vector3.UP * (ridge - hand.global_position.y)).normalized()
 		hand.global_basis = Basis.looking_at(toward)

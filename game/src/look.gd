@@ -47,9 +47,6 @@ var disc: MeshInstance3D
 var moon_disc: MeshInstance3D
 var mountains_mat := ShaderMaterial.new()
 var lake_mat := ShaderMaterial.new()
-## The ranges over the lake with its water, and the ranges over the plain (Mountains.build).
-var _lake: Array[MeshInstance3D] = []
-var _plain: MeshInstance3D
 var bounce := Bounce.new()
 var terrain: Terrain
 var _lift := -1.0
@@ -150,9 +147,6 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	var horizon := Mountains.build(look.mountains_mat, look.lake_mat)
 	for m in horizon:
 		look.add_child(m)
-	look._lake = horizon.slice(0, 2)
-	look._plain = horizon[2]
-	look.show_lake(true)
 	look.bounce.install()
 	RenderingServer.global_shader_parameter_set(&"detail", detail_noise())
 	look.lift_to(0.0)
@@ -176,18 +170,6 @@ static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
 	disc_mi.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
 	return disc_mi
-
-
-## Whether the lake stands round the garden, rather than the plain.
-func lake() -> bool:
-	return _plain != null and not _plain.visible
-
-
-## Stands the lake round the meadow, or the plain.
-func show_lake(on: bool) -> void:
-	for m in _lake:
-		m.visible = on
-	_plain.visible = not on
 
 
 ## Sets the time of day, wrapping round midnight.

@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 14},
+  {"op": "quality", "step": 13},
   {"op": "label", "name": "-"},
   {"op": "fill_flora", "radius": 20, "pools": ["trees"]},
   {"op": "wait", "seconds": 10},
@@ -14,7 +14,7 @@
   {"op": "label", "name": "sweep/trees-ground-bottom"},
   {"op": "wait", "seconds": 15},
   {"op": "label", "name": "-"},
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "wait", "seconds": 5},
   {"op": "label", "name": "sweep/trees-ground-top"},
   {"op": "wait", "seconds": 15},

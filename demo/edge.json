@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 6},
+  {"op": "quality", "step": 5},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 20},
   {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [60, 1.65, 0]},

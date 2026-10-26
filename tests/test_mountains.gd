@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var a := Mountains.arrays(false)
+	var a := Mountains.arrays()
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = a[Mesh.ARRAY_INDEX]
@@ -24,11 +24,8 @@ func _run() -> void:
 	_slopes_shade_smoothly_and_ridges_crisply(verts, normals, indices)
 	_the_sun_rises_and_sets_through_a_pass()
 	print("mountains: %d triangles, %d vertices" % [indices.size() / 3, verts.size()])
-	var l := Mountains.arrays(true)
-	_every_face_faces_the_garden(l[Mesh.ARRAY_VERTEX], l[Mesh.ARRAY_NORMAL], l[Mesh.ARRAY_INDEX])
-	_the_lake_stands_under_the_meadow_and_over_the_feet(l[Mesh.ARRAY_VERTEX])
-	_the_ground_and_the_plain_share_the_banks_foot(verts)
-	_the_ground_and_the_plain_share_the_banks_foot(l[Mesh.ARRAY_VERTEX])
+	_the_lake_stands_under_the_meadow_and_over_the_feet(verts)
+	_the_ground_and_the_lake_bed_share_the_banks_foot(verts)
 	_the_lake_reaches_past_the_first_ridge()
 	_the_water_mirrors_the_ridges_as_they_stand()
 	finish()
@@ -114,7 +111,7 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 			var clear := true
 			for k in Mountains.RANGES.size():
 				var r: Dictionary = Mountains.RANGES[k]
-				var top := Vector3(cos(az) * r.radius, Mountains.foot_high(false) + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
+				var top := Vector3(cos(az) * r.radius, Mountains.FOOT + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
 				clear = clear and toward.y > (top - eye).normalized().y
 			if clear:
 				first = Daylight.elevation(t)
@@ -136,17 +133,17 @@ func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Arr
 		var out := maxf(absf(p.x), absf(p.z)) - half
 		if out > 1.0 and out < Terrain.BANK + 1.0:
 			dry += 1 if p.y >= Mountains.LAKE else 0
-	check(Mountains.foot_high(true) < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.foot_high(true))
+	check(Mountains.FOOT < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.FOOT)
 	check(Terrain.BANK_FOOT < Mountains.LAKE, "the bank's foot at %.1f m stands out of the lake" % Terrain.BANK_FOOT)
 	check(dry == 0, "%d points of the bank's foot stand out of the water" % dry)
 
 
-## Every point of the ground's bank's foot is a point of the plain's (or the lake bed's) edge, and the bank ends there,
+## Every point of the ground's bank's foot is a point of the lake bed's edge, and the bank ends there,
 ## so the two meet with no crack between them however the meadow's edge is reshaped above.
-func _the_ground_and_the_plain_share_the_banks_foot(verts: PackedVector3Array) -> void:
-	var plain := {}
+func _the_ground_and_the_lake_bed_share_the_banks_foot(verts: PackedVector3Array) -> void:
+	var bed := {}
 	for p in verts:
-		plain[p] = true
+		bed[p] = true
 	var ground: PackedVector3Array = Terrain.build_mesh().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	var half := Terrain.SIZE * 0.5
 	var feet := 0
@@ -154,9 +151,9 @@ func _the_ground_and_the_plain_share_the_banks_foot(verts: PackedVector3Array) -
 	for p in ground:
 		if maxf(absf(p.x), absf(p.z)) > half:
 			feet += 1
-			missed += 0 if plain.has(p) else 1
+			missed += 0 if bed.has(p) else 1
 	check(feet == Terrain.edge(Terrain.BANK).size(), "the ground's bank has %d feet" % feet)
-	check(missed == 0, "%d of the bank's feet are no point of the plain's edge" % missed)
+	check(missed == 0, "%d of the bank's feet are no point of the lake bed's edge" % missed)
 
 
 func _the_lake_reaches_past_the_first_ridge() -> void:
@@ -180,5 +177,5 @@ func _the_water_mirrors_the_ridges_as_they_stand() -> void:
 		for i in range(0, Mountains.RIDGE_SAMPLES, 7):
 			var az := TAU * i / Mountains.RIDGE_SAMPLES
 			var mirrored: float = img.get_pixel(i, 0)[k] * top + Mountains.LAKE
-			worst = maxf(worst, absf(mirrored - Mountains.foot_high(true) - Mountains.ridge(r, noise, az)))
+			worst = maxf(worst, absf(mirrored - Mountains.FOOT - Mountains.ridge(r, noise, az)))
 	check(worst < 0.05, "the mirrored ridge strays %.2f m from the ridge" % worst)
