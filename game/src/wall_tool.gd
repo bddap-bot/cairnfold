@@ -1442,7 +1442,7 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 			grip.shown = v
 		lay.call()
 	s.command = func() -> Dictionary:
-		if not current.call() or not grip.copy and grip.shown == grip.start:
+		if not current.call() or grip.shown == grip.start:
 			return {}
 		return {"op": "reshape", "of": of, "id": id, "data": {"clutter": _clutter_with(of, id, [grip])}}
 	s.settle = func() -> void:

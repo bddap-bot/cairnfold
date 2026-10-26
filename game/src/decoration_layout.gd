@@ -307,7 +307,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			for i in 3:
 				var at := Vector3(-0.27 + 0.54 * i, 0.25, sin(seed + i) * 0.04) if i < 2 else Vector3(-0.02, 0.75, 0.0)
 				var turn := sin(seed * 1.7 + i) * 0.12 + (0.35 if i == 2 else 0.0)
-				box(at, Vector3(0.5, 0.5, 0.5), WOOD.lightened(0.2 + 0.04 * i), "board", turn)
+				box(at, Vector3(0.5, 0.5, 0.5), OAK.darkened(0.1 + 0.05 * i), "planter", turn)
 				box(at, Vector3(0.52, 0.08, 0.52), WOOD, "board", turn)
 		"Market stall":
 			box(Vector3(0, 0.45, 0.1), Vector3(1.8, 0.9, 0.7), WOOD.lightened(0.1), "board")

@@ -355,7 +355,7 @@ func pieces(height: Callable, water := Callable()) -> Array[Dictionary]:
 		_crops(height, wet, out)
 	for v in clutter:
 		var x: Variant = clutter_frame(v, height)
-		if x != null:
+		if x != null and not wet.call(x.origin):
 			out.append_array(ClutterLayout.parts(v, x, seed))
 	return out
 

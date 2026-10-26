@@ -377,8 +377,11 @@ func let_go(who: Object) -> void:
 			cmds.append(cmd)
 	for id: int in cut.pieces:
 		if world.state.paths.has(id) and not cut.marks.has(id):
-			var kept := Array(world.state.paths[id].clutter).filter(func(v: Vector4) -> bool: return not v in cut.pieces[id])
-			cmds.append({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": PackedVector4Array(kept)}})
+			var kept := PackedVector4Array(world.state.paths[id].clutter)
+			for v: Vector4 in cut.pieces[id]:
+				if kept.has(v):
+					kept.remove_at(kept.find(v))
+			cmds.append({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": kept}})
 	for id: int in cut.fittings:
 		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "take" and c.of == "walls" and id in c.ids):
 			continue

@@ -23,6 +23,8 @@ const PATH_CLEAR := 1.5
 ## A plain wall gathers something at its foot about each WALL_EVERY metres, and a nest on its top each NEST_EVERY.
 const WALL_EVERY := 5.0
 const NEST_EVERY := 8.0
+## Pieces a house gathers stand at least this far apart along it.
+const CLEAR := 1.1
 ## A nest under eaves hangs this far below the wall's top.
 const UNDER_EAVE := 0.2
 
@@ -76,7 +78,8 @@ static func of_wall(d: Dictionary) -> PackedVector4Array:
 				if side.run < 1.6 or rng.randf() > 0.5:
 					continue
 				var name: String = "Rain barrel" if rng.randf() < 0.5 else "Crates"
-				out.append(Vector4(side.start + 0.6, outward * 0.4, rng.randf_range(-0.3, 0.3), style(name)))
+				if _clear(out, side.start + 0.6, length):
+					out.append(Vector4(side.start + 0.6, outward * 0.4, rng.randf_range(-0.3, 0.3), style(name)))
 			var trade := rng.randf()
 			var back: Dictionary = sides[mini(2, sides.size() - 1)]
 			if trade < 0.25 and back.run >= 2.6:
@@ -100,6 +103,11 @@ static func of_wall(d: Dictionary) -> PackedVector4Array:
 			out.append(Vector4(s, 0.0, rng.randf() * TAU, style("Bird nest")))
 		s += NEST_EVERY * rng.randf_range(0.8, 1.2)
 	return out
+
+
+## Whether arc length `s` round a loop `length` long stands CLEAR of every piece in `out`.
+static func _clear(out: PackedVector4Array, s: float, length: float) -> bool:
+	return Array(out).all(func(v: Vector4) -> bool: return absf(fposmod(v.x - s + length * 0.5, length) - length * 0.5) >= CLEAR)
 
 
 ## What path `d` (a build command's path) gathers: a piece beside it PATH_FIRST from its start and each PATH_EVERY after,
