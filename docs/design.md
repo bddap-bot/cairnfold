@@ -2215,11 +2215,14 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   rounds of each build, GPU ms a frame) it adds 256 primitives and one draw, and costs 0.00 ms
   standing (10.66 both) and +0.14 ms from 22 m up (11.02 to 11.16).
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
-  without a fade or cascade boundary inside it. Godot's Mobile renderer selects
-  cascades and fades shadows by view depth: a fixed distant tree used to lose its
-  shade when looked at directly, then regain it at the periphery. Removing those
-  transitions keeps its shade under head rotation. The map uses the existing
-  4096 atlas; the blur is 0.2 to retain edges at the larger reach. See
+  without a fade inside it. Godot's Mobile renderer selects cascades and fades
+  shadows by view depth: a fixed distant tree used to lose its shade when looked at
+  directly, then regain it at the periphery. That map's texels are 21 cm, too coarse
+  for a rock to shade itself or the ground, so the engine
+  (`scripts/engine.patch`) selects cascades and fades by distance from the
+  eye instead, and there a second, sharp cascade covers the first 10 m. Turning the
+  head moves nothing across a boundary; walking moves the boundary with the eye.
+  An engine without that setting keeps the single map. See
   [the rendered yaw check](shadows.md).
 - **Floating viewpoints:** fog follows the eye's height above the ground
   (`Look.fog_at_height`). It begins and ends farther out from above, so the garden

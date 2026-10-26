@@ -39,11 +39,16 @@ the frame budget. Use `scripts/bench.sh` without the diagnostic for performance.
 The game never loads this capture code during ordinary play.
 
 The root is view-depth selection in the engine's
-[Mobile shadow shader](https://github.com/godotengine/godot/blob/4.5.1-stable/servers/rendering/renderer_rd/shaders/forward_mobile/scene_forward_mobile.glsl).
+[Mobile shadow shader](https://github.com/godotengine/godot/blob/4.6-stable/servers/rendering/renderer_rd/shaders/forward_mobile/scene_forward_mobile.glsl).
 Map stabilization already exists in
-[the directional shadow fitting code](https://github.com/godotengine/godot/blob/4.5.1-stable/servers/rendering/renderer_scene_cull.cpp).
-The fix removes the fade and split transitions from the garden rather than
-changing quality with the head's direction.
+[the directional shadow fitting code](https://github.com/godotengine/godot/blob/4.6-stable/servers/rendering/renderer_scene_cull.cpp).
+One 256 m map has no transition in the garden, but its fit sphere has a 436 m radius:
+21 cm texels, a 25 cm normal bias (1.2 texels) and a 36 cm depth bias (0.04 % of the
+892 m depth range, times the blur), so rocks a few metres away cast no shadow and lose
+their own shade. Lower biases bring acne before the rocks return. The engine's
+`rendering/lights_and_shadows/directional_shadow/split_by_distance` selects cascades and
+fades by the distance from the eye, which turning the head does not change, so `Look`
+adds a 10 m cascade (0.8 by 1.7 cm texels); a stock engine keeps the single map.
 
 ## Flicker in a headset
 

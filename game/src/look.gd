@@ -13,8 +13,12 @@ const SUN_DISC := {"span": 6.5, "radius": 1.8}
 const MOON_DISC := {"span": 9.0, "radius": 2.5}
 
 # A fade or split selected by view depth changes a fixed object's shade when the head turns.
-# One stabilized map covers the garden's diagonal, including its height and floating views.
+# One stabilized map covers the garden's diagonal, including its height and floating views; its 21 cm texels lose
+# small casters, so an engine that selects splits by distance from the eye (scripts/engine.patch) also
+# draws a sharp split within SHADOW_NEAR.
 const SHADOW_REACH := 256.0
+const SHADOW_NEAR := 10.0
+const SPLIT_BY_DISTANCE := "rendering/lights_and_shadows/directional_shadow/split_by_distance"
 const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
@@ -123,6 +127,10 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	sun.shadow_enabled = true
 	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	if ProjectSettings.get_setting(SPLIT_BY_DISTANCE, false):
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_split_1 = SHADOW_NEAR / SHADOW_REACH
+		sun.directional_shadow_blend_splits = true
 	sun.directional_shadow_max_distance = SHADOW_REACH
 	sun.directional_shadow_fade_start = 1.0
 	sun.shadow_bias = 0.04
