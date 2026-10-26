@@ -774,6 +774,27 @@ The LOD's key is the coarse lattice's largest stray from the full one in the mes
 they differ by under the renderer's one pixel: 2.57 M primitives became 1.34 M in `r25/ground`. Mortar, plaster,
 timber, floors and boulders keep reading the volumes once a fragment: their triangles span the volumes' metre.
 
+The same two halves on a Quest 2, paired and interleaved on one headset (parent, LOD alone, both; then both, LOD
+alone, parent; LOD alone is 3899ff1e with stones and tiles back in `Stones.shared_material`, its records named
+ba864ff, the others' 8adbc31 and 700f7df): `demo/stress.json` up to `hills/ground` with its quality op at step 6, runtime `App=` GPU ms a frame,
+the mean of the two runs, each pair's difference in brackets (`perf/quest-2/walls6/`):
+
+| Phase | Before (3cf05131) | LOD alone | Both (3899ff1e) | LOD | Per vertex |
+| --- | --- | --- | --- | --- | --- |
+| `r20/ground` | 20.31 | 20.62 | 19.59 | +0.30 (+0.17, +0.44) | -1.02 (-0.65, -1.40) |
+| `r25/ground` | 21.91 | 21.63 | 22.16 | -0.28 (-0.31, -0.24) | +0.53 (+1.55, -0.49) |
+| `r15-tall/ground` | 19.77 | 20.45 | 21.12 | +0.67 (+0.24, +1.10) | +0.68 (+1.34, +0.02) |
+| `village/ground` | 22.69 | 22.24 | 22.34 | -0.45 (-0.27, -0.63) | +0.11 (+0.04, +0.17) |
+| `village/aerial` | 19.30 | 19.30 | 20.05 | +0.00 (-0.09, +0.09) | +0.76 (+0.83, +0.68) |
+| `plaster/ground` | 23.25 | 22.34 | 22.00 | -0.91 (-1.60, -0.23) | -0.33 (+0.08, -0.74) |
+| `hills/ground` | 23.79 | 23.23 | 23.17 | -0.56 (-1.36, +0.24) | -0.05 (+1.10, -1.21) |
+
+Over the fifteen wall phases (30 pairs each) the LOD moved the Quest 2 -0.02 ± 0.11 ms and the per-vertex reads
+-0.03 ± 0.15, where one build run twice differs by 0.70 ms (standard deviation): neither costs it, so both stay. The
+LOD takes the Quest 2's primitives in `r25/ground` from 2.0 M to 1.2 M without moving its GPU time, as its frame is
+fragments ("Steps 9 and 10 on the Quest 2"), and the per-vertex reads that saved the Frame 0.8 to 0.9 ms neither save
+nor cost it.
+
 The stress scene, played governed since it holds the gardens a player can build, on the Frame on b4e2a39
 (`perf/frame/stress/20261025T161738Z-b4e2a39.json`, unworn through `frame-unworn`): all 140 phases other than the
 sweeps within the 11.1 ms line, the dearest `r25/ground` at 9.4 ms, and every one at the 72 Hz period but
