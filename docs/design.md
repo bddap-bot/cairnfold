@@ -1286,7 +1286,7 @@ standing cost of walls saturates: +5.51, +5.34 and +4.76 ms for 231, 450 and 584
 +4.64 ms from the air. The village's 43 m² of wall and 32 m² of roof measured +0.36 to +0.59 ms and are priced 1.62 ms;
 the lanterns' phase reads under its walls' price, so `fitting` fits to nothing.
 The lake drowns the plants the cut made cheaper, so its view reads as before (9.56 ms App time) over a meadow 0.7 ms
-cheaper: a view full of water now costs 1.99 ms, more than the room, and the whole bowl no longer fits an empty garden.
+cheaper: a view full of water cost 1.99 ms, more than the room then, until the water itself was made cheaper ("Water").
 
 ### Anti-aliasing on the Quest 2
 
@@ -3635,8 +3635,29 @@ much, so over the meadow as it stands the lake adds 0.37 ms from the air and sav
 under it. So `Budget` prices water by the square metre (`pond_m2`), which these runs fitted at 5.15 µs, the most
 seven small ponds (71 m²) wholly in view gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a
 garden's water at most what the lake adds to the meadow from its dearest view (`water`), here 0.37 ms, a fifth of
-the Quest 2's 2 ms of room then. Both are refitted since: their current prices are in `Budget.COSTS`, and the
-Frame's lake, measured later, costs more and sets `water` ("Build budget").
+the Quest 2's 2 ms of room then. Both are refitted since: their current prices are in `Budget.COSTS`.
+
+A view full of water is measured by itself in `demo/lake-cost.json` (`CAIRNFOLD_SCENE=demo/lake-cost.json bench.sh OUT
+--android APK`): the meadow with its own plants and the meadow's whole bowl filled, from the air, standing in it and
+from the shore, four rounds of the pair taken in turn (undo, then redo) so drift between minutes cancels, plus each
+view with the lake's surface hidden. `water` is held to the most any view of any round gives over the meadow from the
+same view, on either timer; the record carries that as the price `tests/test_prices.py` checks.
+
+Lit by Godot, the surface over the drowned bed took 3.3 ms of viewport time from the air on the Quest 2, and the lake
+over the meadow 2.3 ms ([run](../perf/quest-2/lake-cost/20261024T062128Z-29c9683.json)), more than the room was then.
+Swapping shaders on the lake in view ([1](../perf/quest-2/water-variants/20261025T062416Z-298b5e2.json),
+[2](../perf/quest-2/water-variants/20261025T201128Z-77e89da.json),
+[3](../perf/quest-2/water-variants/20261025T230328Z-6ad5e4e.json)) found Godot's lighting in the transparent pass the
+largest part, about 0.9 ms of it; a flat colour blended over the bed costs 0.5 ms, so the rest is the surface's own
+arithmetic, not its texture reads (one wave map in place of two, or noise in place of the foam's texture, saved
+nothing measurable). So the water lights itself from the hour's light as the far lake does (`daylight.gdshaderinc`),
+skips the ripple loop while no ring is live, and away from any shore reads its depth from the shared depth texture,
+keeping the spline where the foam and the fade at the shoreline read it. On this build
+([run](../perf/quest-2/water-variants/20261026T031917Z-1b1aa1f.json)) the surface alone costs 0.9 to 1.0 ms from the
+air, 0.2 to 0.3 ms less than the old surface swapped in on the same lake; the lake over the meadow adds 1.6 ms from the
+air and 2.1 to 2.6 ms from the shore, where the meadow beyond it is cheap and the bed under the water is not: hidden,
+the surface leaves 0.9 to 1.3 ms of that over the meadow. The whole bowl fits an empty garden, which
+`tests/test_budget.gd` checks by filling it.
 
 Filling a lake never holds the main thread. Done on it, putting the lake held the Quest 2's for one frame of 476 to
 1,617 ms, and each ground edit inside it for one of 123 to 169 ms, 53 and 12 refresh periods or more. Timers placed
@@ -3670,9 +3691,9 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
   line at the shore and faint foam bands drifting toward it.
 - **Ripples:** two scrolling normal maps for the breeze, plus up to twelve rings where a hand dips in
   or moves through the surface.
-- **Reflections:** the sky's radiance and the sun's glint through the rippled normal, with Fresnel
-  raising opacity at grazing angles. No planar or screen-space reflection: a planar pass renders
-  the scene again per eye.
+- **Reflections:** the sky between horizon and zenith and the sun's glint through the rippled normal,
+  with Fresnel raising opacity at grazing angles, worked out in the shader from the hour's light rather
+  than by Godot's lighting. No planar or screen-space reflection: a planar pass renders the scene again per eye.
 - **Filling:** a new pond rises from its deepest point over 1.8 s.
 - **Cost:** measured with Godot's viewport GPU timer on a desktop RTX 2080 at 1600×1200, same view
   (lowest tenth of 23–24 one-second samples): 1.01 ms before, 1.01 ms with the plant and terrain

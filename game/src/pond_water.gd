@@ -142,6 +142,7 @@ func _process(delta: float) -> void:
 				_ripples[i] = r
 				_live += int(r.w > 0.0)
 		_mat.set_shader_parameter("ripples", _ripples)
+		_mat.set_shader_parameter("rippling", _live > 0)
 	set_process(_filled < 1.0 or _live > 0)
 
 
@@ -157,6 +158,7 @@ func ripple(at: Vector3, strength: float) -> void:
 	_next = (_next + 1) % RIPPLES
 	_live += 1
 	_mat.set_shader_parameter("ripples", _ripples)
+	_mat.set_shader_parameter("rippling", true)
 	set_process(true)
 
 

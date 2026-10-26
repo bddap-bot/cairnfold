@@ -24,6 +24,7 @@ func _run() -> void:
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
 	_water_costs_at_most_a_view_full()
+	await _the_meadow_lake_fits_an_empty_garden()
 	_masonry_near_one_eye_is_charged_once()
 	_stone_ground_counts_its_square_metres()
 	_a_boulder_costs_no_more_once_it_fills_the_view()
@@ -76,8 +77,22 @@ func _water_costs_at_most_a_view_full() -> void:
 	check(is_equal_approx(Budget.cost_ms(pond), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
 	var lake := {"pond_m2": 13158.0}
 	check(is_equal_approx(Budget.cost_ms(lake), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
-	check(Budget.fits({}, lake) == (q.water / 1000.0 <= Budget.CAPACITY_MS), "and fits an empty garden exactly when that view fits the room")
 	check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
+
+
+## The meadow's whole bowl, the largest lake there can be, pointed at as demo/lake-cost.json does.
+func _the_meadow_lake_fits_an_empty_garden() -> void:
+	await play([{"op": "bare"}])
+	await _settled()
+	var bounded := world.bounded
+	world.bounded = true
+	await play([{"op": "pond", "x": 0, "z": -72}])
+	await _settled()
+	check(world.units.get("pond_m2", 0.0) > 13000.0, "the meadow's whole bowl fills an empty garden: %s m²" % world.units.get("pond_m2", 0.0))
+	check(world.fill() <= 1.0, "and fits its budget: %.3f" % world.fill())
+	world.bounded = bounded
+	await play([{"op": "bare"}])
+	await _settled()
 
 
 func _stone_ground_counts_its_square_metres() -> void:

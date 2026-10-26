@@ -12,10 +12,9 @@ def expanded(path):
 
 class Shaders(unittest.TestCase):
     def test_every_lit_surface_takes_lantern_light(self):
-        # Lanterns are no Godot lights: a shaded surface is lit by them only through given_back (Lamps). Water
-        # mostly mirrors the sky and keeps no diffuse colour for a lantern to light. A picture-book page's meadow is
-        # lit in the page's own world, where no lantern hangs.
-        for path in sorted(set(SRC.glob('*.gdshader')) - {SRC / 'water.gdshader', SRC / 'lesson_dish.gdshader'}):
+        # Lanterns are no Godot lights: a shaded surface is lit by them only through given_back (Lamps). A picture-book
+        # page's meadow is lit in the page's own world, where no lantern hangs.
+        for path in sorted(set(SRC.glob('*.gdshader')) - {SRC / 'lesson_dish.gdshader'}):
             text = expanded(path)
             mode = re.search(r'^render_mode ([^;]*);', text, re.M)
             if not text.startswith('shader_type spatial') or (mode and 'unshaded' in mode.group(1)):

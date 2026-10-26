@@ -192,15 +192,19 @@ func set_time(t: float) -> void:
 	_exposure = l.exposure * night_adapted(l)
 	_grade()
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
-	for mat in [mountains_mat, lake_mat]:
-		mat.set_shader_parameter("sun_dir", toward)
-		mat.set_shader_parameter("sun", l.sun)
-		mat.set_shader_parameter("energy", l.energy)
-		mat.set_shader_parameter("sky", l.zenith)
-		mat.set_shader_parameter("ambient", l.ambient)
-		mat.set_shader_parameter("horizon", l.horizon)
-		mat.set_shader_parameter("haze", l.fog)
+	RenderingServer.global_shader_parameter_set(&"sun_toward", toward)
+	RenderingServer.global_shader_parameter_set(&"sun_light", _linear(l.sun) * l.energy)
+	RenderingServer.global_shader_parameter_set(&"sky_zenith", _linear(l.zenith))
+	RenderingServer.global_shader_parameter_set(&"sky_horizon", _linear(l.horizon))
+	RenderingServer.global_shader_parameter_set(&"sky_haze", _linear(l.fog))
+	RenderingServer.global_shader_parameter_set(&"sky_ambient", l.ambient)
 	bounce.set_sun(toward, l.sun * l.energy)
+
+
+## A colour as shaders that light themselves read it, as a source_color uniform would take it.
+static func _linear(c: Color) -> Vector3:
+	var l := c.srgb_to_linear()
+	return Vector3(l.r, l.g, l.b)
 
 
 ## How many times the night's dark raises the exposure at the hour's `l` (Daylight.light).

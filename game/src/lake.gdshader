@@ -41,13 +41,13 @@ void fragment() {
 	float climb = r.y / max(length(r.xz), 1e-4);
 	vec2 near = ridge_ahead(s, d, radii.x, vec2(1.0, 0.0));
 	vec2 far = ridge_ahead(s, d, radii.y, vec2(0.0, 1.0));
-	vec3 light = sun * energy * 0.45 + mix(horizon, sky, 0.5) * ambient * 0.5;
-	vec3 seen = mix(horizon, sky, pow(clamp(r.y, 0.0, 1.0), 0.55));
-	seen = climb * far.x < far.y ? mix(mix(slope, stone, climb * far.x / far.y) * light, haze, 0.55) : seen;
-	seen = climb * near.x < near.y ? mix(mix(slope, stone, climb * near.x / near.y) * light, haze, 0.35) : seen;
+	vec3 light = sun_light * 0.45 + mix(sky_horizon, sky_zenith, 0.5) * sky_ambient * 0.5;
+	vec3 seen = mix(sky_horizon, sky_zenith, pow(clamp(r.y, 0.0, 1.0), 0.55));
+	seen = climb * far.x < far.y ? mix(mix(slope, stone, climb * far.x / far.y) * light, sky_haze, 0.55) : seen;
+	seen = climb * near.x < near.y ? mix(mix(slope, stone, climb * near.x / near.y) * light, sky_haze, 0.35) : seen;
 
-	vec3 body = deep * (sun * energy * max(sun_dir.y, 0.0) * 0.5 + mix(horizon, sky, 0.6) * ambient * 0.6);
+	vec3 body = deep * (sun_light * max(sun_toward.y, 0.0) * 0.5 + mix(sky_horizon, sky_zenith, 0.6) * sky_ambient * 0.6);
 	vec3 col = mix(body, seen * 0.85, fresnel);
-	col += sun * energy * pow(max(dot(r, sun_dir), 0.0), 400.0) * 3.0;
-	ALBEDO = mix(col, haze, 0.2 * smoothstep(0.0, radii.x - 300.0, dist));
+	col += sun_light * pow(max(dot(r, sun_toward), 0.0), 400.0) * 3.0;
+	ALBEDO = mix(col, sky_haze, 0.2 * smoothstep(0.0, radii.x - 300.0, dist));
 }

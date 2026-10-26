@@ -93,6 +93,30 @@ sky_overhead={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
 }
+sun_toward={
+"type": "vec3",
+"value": Vector3(0, 1, 0)
+}
+sun_light={
+"type": "vec3",
+"value": Vector3(1, 1, 1)
+}
+sky_zenith={
+"type": "vec3",
+"value": Vector3(0.3, 0.5, 0.85)
+}
+sky_horizon={
+"type": "vec3",
+"value": Vector3(0.86, 0.88, 0.84)
+}
+sky_haze={
+"type": "vec3",
+"value": Vector3(0.86, 0.88, 0.84)
+}
+sky_ambient={
+"type": "float",
+"value": 0.7
+}
 season_bloom={
 "type": "float",
 "value": 1.0
