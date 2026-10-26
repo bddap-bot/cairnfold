@@ -4632,10 +4632,11 @@ a grip at its place on the tray sets it down. The palette a brush dips into is i
 or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, wiping off the other.
 A pan's mixes on the brush with the watercolour there already, and the box shows the mix; the glass wets the brush
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
-the oil palette's open board (`Mixing`): an oil colour loads the brush with that colour alone; painting onto the board
-lays the paint there, painting over wet paint blends the two, and a dab into a blob on it loads the brush with
-that paint, with a dip's sound and feel. The board draws its paint as the canvas does (`paint.gdshaderinc`): a colour on it shows as it will on the
-canvas, never tinted by the wood under it, and stands up off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
+the oil palette's open board, a paint surface like the canvas (`Easel.board`): an oil colour loads the brush with that
+colour alone; painting onto the board lays strokes there as on the canvas, and touching paint on the board loads the brush
+with it, with a dip's sound and feel, so working one colour into another mixes them. The board draws its paint as the canvas does
+(`paint.gdshaderinc`): a colour on it shows as it will on the canvas, never tinted by the wood under it, and stands up
+off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
 or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
 when set down.
@@ -4697,28 +4698,30 @@ Directive (verbatim, voice relay): "Please space the charcoal pencils out a litt
 Directive (paraphrased): oil mixing should work like real life: paint taken on the brush is painted onto the mixing
 surface, which is how colours mix, and touching that part of the surface with the brush picks up the paint there.
 
-The board is a grid of 48 by 32 texels, 7.5 mm each, over the palette's oval clear of its thumb hole, each holding an
-amount of paint and its colour. A brush touching it trades pigment with every texel under it and smears the two
-colours into each other, so stirring mixes and a clean brush comes away loaded. Stirring preserves the brush's
-chosen load; only dipping or wiping changes it once loaded. Colours mix
-by Kubelka-Munk with one constant: a colour is its absorption over scattering (K/S) per channel, which mixes in
-proportion to the amounts, so blue and yellow make a dull green and white lightens without greying. A touch's working
-of the board goes to the garden as one command (`mix`, docs/multiplayer.md) carrying the board whole, 6 KB, when the
-brush lifts off it, so every player sees the palette as it was left, and undo takes a working back. The board draws
-as one texture over the palette's wood, the paint's amount as its alpha.
+Directive (verbatim): "I'd like painting the palette to be as satisfying as painting the canvas So You can probably
+share some code between there. I mean, I imagine. People might want to be able to paint on their little palette and
+then show their friends. That'd be cool"
 
-What it costs: on a Quest 2, a full-pressure big brush (24 mm radius) takes 0.200–0.206 ms of CPU work per
-frame touching the board (six touches of 181 frames each, 0.202 ms mean, 0.293 ms worst frame, including texture
-updates). The board costs one draw call and one 48×32 texture per easel, updated only on frames a brush changes it.
-In `demo/easel-bench.json`, three fixed close-view comparisons of one easel at the Quest 2's fitted quality step
-read 6.91/6.88, 6.87/7.01 and 6.98/6.96 ms of GPU time per frame for clean/painted boards (runtime `App=` medians,
-15 seconds per phase, first sample discarded; clocks held at level 4). All six phases held 72 Hz with no late frames.
-Painting the field adds no consistent GPU cost resolved by these runs: paired differences are −0.03, +0.14 and
-−0.02 ms per easel. The second pair also varies in scene primitives, so the +0.14 ms is not isolated field cost.
-The clean board already draws the transparent quad; this comparison measures adding paint, not removing the quad.
-These costs need no lower update rate. The full bench also measures canvas painting: its watercolour and drying
-phases exceed budget independently of these mixing phases. The record is
-`perf/quest-2/easel-bench/mixing-field.json`.
+The board is a paint surface as the canvas is: a `Canvas` of 384 by 256 texels at the canvas's millimetre a texel
+(`Easels.BOARD`), a little larger than the palette, its paint laid by the canvas's compute shader (`paint.glsl`) and
+drawn over the wood within the palette's oval and clear of its thumb hole (`board.gdshader`, coloured and raised by
+`paint.gdshaderinc`). An oil brush on it lays strokes as on the canvas, bristle streaks standing up as impasto, sent
+to the garden as `paint` commands on the easel's `palette` (docs/multiplayer.md): every player's board replays them,
+a reload lays them again and undo takes them back one at a time.
+
+Any brush on the board takes up the paint under it. The GPU holds that paint, so the board reads it back without
+waiting on it (`Canvas.probe`): each frame the tip is on the board, the texels under its footprint are copied into a
+64-texel square read back asynchronously, there a frame or two later. While the painter's brush lays a stroke, the
+read is of the board as it stood before that stroke (its checkpoint), what the brush lays over rather than what it has
+just laid. The brush's colour moves toward that paint's as fast as a brush soaking up 1.5 times its mean height would,
+half that pace stirring even a full brush; stirring keeps the brush's load, and a clean brush comes away full. A
+stroke keeps the paint it began with, so once taking up has moved the brush's colour 0.15 (optical density) from it,
+at most six times a second, the stroke ends and the next lays the brush's new paint: stirring lemon into blue makes an
+olive green over a few strokes, and a clean brush touching it comes away loaded with it. A stroke on the board waits for the first read, so its first dab
+already carries what the brush took up. Colours mix by optical density, as on the canvas. A photo of the palette
+saves its paint beside it as one of a canvas does (`-palette-N.png`, and its height).
+
+What it costs: BOARD_COST
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no

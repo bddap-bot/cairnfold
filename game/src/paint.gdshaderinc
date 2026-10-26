@@ -1,5 +1,5 @@
 // Paint as every surface it lies on draws it: the canvas in the garden (canvas.gdshader), the flat copy a photo saves of
-// it (canvas_flat.gdshader) and the oil palette's board (mixing.gdshader). Pigment is an optical density per channel
+// it (canvas_flat.gdshader) and the oil palette's board (board.gdshader). Pigment is an optical density per channel
 // over the canvas's sheet, so a colour mixed on the palette shows there as it will on the canvas; oil stands off its
 // surface as high as it is thick, and the light catches its ridges.
 

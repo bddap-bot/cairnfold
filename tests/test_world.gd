@@ -22,7 +22,7 @@ func _run() -> void:
 	_bad_commands_are_dropped()
 	_commands_cost_by_size()
 	_ground_undo_waits_on_overlapping_ground()
-	_a_mix_undo_waits_on_its_easel()
+	_a_palette_undo_waits_on_its_easel()
 	_a_pond_undo_waits_on_the_ground_that_drained_it()
 	_stacks_keep_their_newest_steps()
 	_undo_restores_exact_values()
@@ -285,20 +285,21 @@ func _ground_undo_waits_on_overlapping_ground() -> void:
 	world._order({"op": "heights", "cells": Rect2i(60, 60, 12, 12), "values": original}, 21)
 
 
-func _a_mix_undo_waits_on_its_easel() -> void:
-	world._order({"op": "easel", "at": main.world.terrain.ground(-40, -40), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}, 31)
+func _a_palette_undo_waits_on_its_easel() -> void:
+	world._order({"op": "easel", "at": main.world.terrain.ground(-40, -40), "yaw": 0.0}, 31)
 	var id := world.seq
-	var mix := PackedByteArray()
-	mix.resize(Mixing.SIZE.x * Mixing.SIZE.y * 4)
-	mix.fill(200)
-	world._order({"op": "mix", "easel": id, "mix": mix}, 31)
+	var samples := Brushwork.pack(Vector2(0.4, 0.5), 0.8, 0.0, 0)
+	samples.append_array(Brushwork.pack(Vector2(0.6, 0.5), 0.8, 0.0, 4))
+	var stroke := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.BIG, "colour": Vector3(2, 1, 0.2), "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples}
+	world._order({"op": "paint", "easel": id, "palette": true, "stroke": stroke}, 31)
+	check(world.state.easels[id].palette == [stroke] and world.state.easels[id].strokes.is_empty(), "a stroke on the palette lies on the palette, not the canvas")
 	world._order({"op": "take", "of": "easels", "ids": PackedInt32Array([id])}, 32)
 	var before := world.seq
 	world._order({"op": "undo"}, 31)
-	check(world.seq == before, "a mix on an easel someone has since taken away is not undone")
+	check(world.seq == before, "a palette stroke on an easel someone has since taken away is not undone")
 	world._order({"op": "undo"}, 32)
 	world._order({"op": "undo"}, 31)
-	check(world.state.easels.has(id) and world.state.easels[id].mix == mix, "nor once they put it back: it keeps the mix")
+	check(world.state.easels.has(id) and world.state.easels[id].palette == [stroke], "nor once they put it back: it keeps the palette's paint")
 	world._order({"op": "take", "of": "easels", "ids": PackedInt32Array([id])}, 32)
 
 

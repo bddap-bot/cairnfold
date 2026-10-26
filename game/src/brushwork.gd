@@ -165,17 +165,20 @@ static func clean(d: Variant) -> Variant:
 ## with constant paint load. The first sample lays one dab.
 class Stroker:
 	var stroke: Dictionary
+	var _texels: Vector2
 	var _last: Array = []
 	var _heading := 0.0
 
-	func _init(of: Dictionary) -> void:
+	## Lays `of` on a surface `texels` large.
+	func _init(of: Dictionary, texels := SIZE) -> void:
 		stroke = of
+		_texels = Vector2(texels)
 
 	## The dabs sample `s` ([uv, pressure, angle, ticks, side], as `unpack` gives) adds. A stick on its side lays a
 	## line, so it lays by how far that line sweeps, turning about its middle as much as moving it.
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
-		var to := Vector2(s[0].x * SIZE.x, s[0].y * SIZE.y)
+		var to: Vector2 = s[0] * _texels
 		var side: float = s[4]
 		var charcoal: bool = stroke.medium == Medium.CHARCOAL
 		if _last.is_empty():

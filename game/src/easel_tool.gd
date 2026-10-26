@@ -9,11 +9,11 @@ extends Node3D
 ## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
 ## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
 ## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
-## palette's open board, painted onto it and picked up from it by touching it (`Mixing`); the jar wets the brush for
+## palette's open board, painted onto it as the canvas is and taken up from it by touching it; the jar wets the brush for
 ## watercolour, thinner each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in
 ## presses harder (`Brushwork.pressure`), and moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
-## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas, laid on this machine's
-## canvas as they are painted and played on everyone else's as they were.
+## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas or the board, laid on this
+## machine's as they are painted and played on everyone else's as they were.
 
 ## A grip takes what is within this of the hand.
 const REACH := 0.12
@@ -25,9 +25,15 @@ const PEEL := 0.3
 const PLACE_CLEAR := 2.5
 ## A brush held still on the canvas keeps laying paint this often, in ticks.
 const STILL_TICKS := 6
-## On the mixing field a brush touches a disc whose radius, pressed fully, is its reach on the canvas in texels
-## (`Brushwork.radii`) times this, in metres.
-const MIX_RADIUS := 0.0006
+## A brush on the board takes up the paint under it at this pace a second, as if until it held SOAK times the paint's
+## height there, and that share of the pace stirs the two colours together even when it holds more.
+const TAKE_UP := 6.0
+const SOAK := 1.5
+const STIR := 0.5
+## A stroke on the board ends and the next begins in the brush's new colour once taking up has moved its colour this far
+## (optical density), so stirring mixes as it goes, at most so often a second.
+const RECOLOUR := 0.15
+const RESTROKE_HZ := 6.0
 ## The palette's thumb hole in the hand holding it, from the controller, the palette reaching forward and inward,
 ## turned this far off the hand's right.
 const GRIP := Vector3(0, -0.035, 0.02)
@@ -54,18 +60,22 @@ class Painter:
 	var load := 0.0
 	var models := {}
 	var tip: ShaderMaterial
-	## The stroke being painted: {easel, data, stroker, last: [uv, pressure], at (tick of the last sample)}.
+	## The stroke being painted: {easel, palette (whether on its oil palette's board), data, stroker, last: [uv, pressure],
+	## at (tick of the last sample), began (msec)}.
 	var stroke := {}
 	## What the tip is in, so a dip happens once on going in.
 	var dipped := ""
 	var rag: Easels.Easel
 	var wipe_start := Vector3.ZERO
 	var wiped := false
-	## The easel whose mixing field the tip is working, whether it changed it, and the microseconds each frame of it
-	## took.
+	## The easel whose oil palette's board the tip is on, and the paint read back from under it last: {height, density},
+	## gone once taken up.
 	var board: Easels.Easel
-	var mixed := false
-	var mix_cost := PackedInt32Array()
+	var under := {}
+	## Seconds the brush has been on paint on the board since it last took any up.
+	var soaked := 0.0
+	## Whether it has taken any up since it came onto the board, which sounds and feels as a dip does.
+	var took := false
 	## The easel whose palette of medium `kit` this hand holds.
 	var palette: Easels.Easel
 	var kit := Brushwork.Medium.OIL
@@ -149,7 +159,7 @@ func _forget() -> void:
 	for p in painters:
 		p.stroke = {}
 		p.board = null
-		p.mix_cost.clear()
+		p.under = {}
 		_set_down(p)
 		p.peel = null
 		p.brush_from = 0
@@ -182,7 +192,7 @@ func _handle(p: Painter, delta: float) -> void:
 	if not holding or not live or p.peel != null:
 		end_stroke(p)
 		_clear_contact(p)
-		_lift(p)
+		p.board = null
 		return
 	var tip := held_brush(p) * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
@@ -192,8 +202,7 @@ func _handle(p: Painter, delta: float) -> void:
 			hand.hold()
 			return
 		_dip(p, tip)
-		if _mix(p, tip, delta):
-			end_stroke(p)
+		if _board(p, tip, delta):
 			_clear_contact(p)
 			hand.hold()
 			return
@@ -599,10 +608,9 @@ func _show_brush(p: Painter, holding: bool, delta: float) -> void:
 		m.scale = Vector3.ONE * maxf(p.shown, 0.001)
 
 
-## Works an oil palette's mixing field while the tip touches its open board, on the tray or in a hand: the brush and
-## the board trade paint, so painting onto it lays and blends paint and a dab into a blob loads it, with a dip's sound
-## and feel. A watercolour brush leaves its water behind and takes up oil. Whether the tip touches a field.
-func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
+## Paints the oil palette's board while the tip touches it, on the tray or in a hand, as the canvas is painted, an oil
+## brush laying strokes on it, and any brush takes up the paint under it (`_take_up`). Whether the tip is on a board.
+func _board(p: Painter, tip: Vector3, delta: float) -> bool:
 	var on: Easels.Easel = null
 	var local := Vector3.ZERO
 	if not Brushwork.is_stick(p.brush):
@@ -610,45 +618,90 @@ func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 			if taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, Brushwork.Medium.OIL)):
 				continue
 			local = e.palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * tip
-			if local.y < Easels.BOARD_TOP + CONTACT and local.y > Easels.WELL_DEPTH.x and Mixing.open_at(Vector2(local.x, local.z)) and Easels.well_at(Brushwork.Medium.OIL, local) < 0:
+			if local.y < Easels.BOARD_TOP + CONTACT and local.y > Easels.WELL_DEPTH.x and Easels.open_at(Vector2(local.x, local.z)) and Easels.well_at(Brushwork.Medium.OIL, local) < 0:
 				on = e
 				break
 	if p.board != on:
-		_lift(p)
+		p.under = {}
+		p.soaked = 0.0
+		p.took = false
+	p.board = on
 	if on == null:
 		return false
-	p.board = on
-	var start := Time.get_ticks_usec()
-	var pressure := Brushwork.pressure(Easels.BOARD_TOP - local.y)
-	var radius: float = Brushwork.radii(p.brush).y * MIX_RADIUS * (0.5 + 0.5 * pressure)
-	var oil := p.medium == Brushwork.Medium.OIL
-	var got := on.mixing.touch({"ks": Mixing.ks_of(p.colour), "load": p.load if oil else 0.0}, Vector2(local.x, local.z), radius, delta)
-	if got[1]:
-		on.show_mixing()
-		if not p.mixed:
-			Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
-		p.mixed = true
-		p.medium = Brushwork.Medium.OIL
-		p.colour = Mixing.density_of(got[0].ks)
-		p.strength = 1.0
-		p.load = 1.0 if not oil or p.load == 0.0 else p.load
-		_show_paint(p)
-	p.mix_cost.append(Time.get_ticks_usec() - start)
+	var at := on.on_board(tip)
+	var uv := Vector2(at.x, at.y)
+	var pressure := Brushwork.pressure(-at.z)
+	var across: Vector3 = on.palettes[Brushwork.Medium.OIL].global_basis.inverse() * held_brush(p).basis.x
+	_take_up(p, delta)
+	# A stroke waits for the first read of what is under it, so it lays the brush's paint as that has already taken up.
+	if p.medium == Brushwork.Medium.OIL and (not p.under.is_empty() or not on.board.reads_back()):
+		touch(p, on, uv, pressure, atan2(across.z, across.x), 0.0, true)
+	var r := Brushwork.radii(p.brush).y * (0.5 + 0.5 * pressure)
+	var centre := Vector2i((uv * Vector2(on.board.size)).round())
+	var me: WeakRef = weakref(p)
+	on.board.probe(Rect2i(centre - Vector2i.ONE * ceili(r), Vector2i.ONE * ceili(r * 2.0)), func(paint: Image) -> void:
+		var still: Painter = me.get_ref()
+		if still != null and still.board == on:
+			still.under = _under(paint))
 	return true
 
 
-## The tip has left the mixing field it was working: what it changed goes to the garden, and what it cost to the log.
-func _lift(p: Painter) -> void:
-	var e := p.board
-	p.board = null
-	if p.mix_cost.is_empty():
+## The paint in `paint` (Canvas.probe) under a round footprint filling it: its mean height, and its colour as the
+## optical density the heights weight.
+static func _under(paint: Image) -> Dictionary:
+	var size := paint.get_size()
+	var step := maxi(size.x / 12, 1)
+	var half := Vector2(size) * 0.5
+	var height := 0.0
+	var density := Vector3.ZERO
+	var n := 0
+	for y in range(step / 2, size.y, step):
+		for x in range(step / 2, size.x, step):
+			if (Vector2(x, y) + Vector2(0.5, 0.5) - half).length() > half.x:
+				continue
+			var c := paint.get_pixel(x, y)
+			n += 1
+			height += c.a
+			density += Vector3(c.r, c.g, c.b) * c.a
+	if n == 0 or height <= 0.0:
+		return {"height": 0.0, "density": Vector3.ZERO}
+	return {"height": clampf(height / n, 0.0, 1.0), "density": density / height}
+
+
+## The brush takes up the paint read back from under it over the seconds since it last did, the two colours stirring
+## together; stirring keeps a loaded brush's load, and a clean one comes away full. A stroke on the board keeps the paint it began
+## with, so taking up waits until it is far enough from that and the stroke old enough, then ends it: the next stroke
+## lays the new paint.
+func _take_up(p: Painter, delta: float) -> void:
+	var under := p.under
+	if under.is_empty() or under.height <= 0.0:
+		p.soaked = 0.0
 		return
-	var cost := Array(p.mix_cost)
-	print("easel: mixed %d frames, %.0f us a frame, %d us at most" % [cost.size(), cost.reduce(func(a: int, b: int) -> int: return a + b) / float(cost.size()), cost.max()])
-	p.mix_cost.clear()
-	if p.mixed and is_instance_valid(e) and e.is_inside_tree():
-		world.submit({"op": "mix", "easel": e.id, "mix": e.mixing.bytes.duplicate()}, Callable(), p.hand)
-	p.mixed = false
+	p.soaked += delta
+	var s := p.stroke
+	var held := 0.0
+	if p.medium == Brushwork.Medium.OIL:
+		held = p.load
+	var pace := 1.0 - exp(-TAKE_UP * p.soaked)
+	var gain := pace * maxf(under.height * SOAK - held, 0.0)
+	var stir := pace * STIR * minf(under.height, held)
+	if gain + stir <= 0.0:
+		return
+	var colour: Vector3 = (p.colour * held + under.density * (gain + stir)) / (held + gain + stir)
+	var load := held if held > 0.0 else 1.0
+	if not s.is_empty():
+		if Time.get_ticks_msec() - s.began < 1000.0 / RESTROKE_HZ or colour.distance_to(p.colour) < RECOLOUR:
+			return
+		end_stroke(p)
+	p.soaked = 0.0
+	if not p.took:
+		Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
+		p.took = true
+	p.colour = colour
+	p.medium = Brushwork.Medium.OIL
+	p.strength = 1.0
+	p.load = load
+	_show_paint(p)
 
 
 func _clear_contact(p: Painter) -> void:
@@ -686,19 +739,22 @@ func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
 	return true
 
 
-## The tip at `uv` on easel `e`'s canvas, pressed `pressure` (0..1), a flat brush or a stick turned `angle`, a stick
-## lying `side` (0..1) on the canvas: starts a stroke or carries one on, laying its paint at once.
-func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: float, side := 0.0) -> void:
-	var canvas := e.canvas
+## The tip at `uv` on easel `e`'s canvas, or with `palette` its oil palette's board, pressed `pressure` (0..1), a flat
+## brush or a stick turned `angle`, a stick lying `side` (0..1) on the canvas: starts a stroke or carries one on, laying
+## its paint at once.
+func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: float, side := 0.0, palette := false) -> void:
+	var canvas := e.surface(palette)
+	if not p.stroke.is_empty() and (p.stroke.easel != e or p.stroke.palette != palette):
+		end_stroke(p)
 	if p.stroke.is_empty():
-		if p.load <= 0.01 or not _room(e):
+		if p.load <= 0.01 or not _room(e, palette):
 			return
 		var data := {"medium": p.medium, "brush": p.brush, "colour": p.colour, "strength": p.strength, "load": p.load, "gap": clampi(canvas.ticks - canvas.last_end, 0, Brushwork.DRY_TICKS), "samples": PackedInt32Array()}
-		p.stroke = {"easel": e, "data": data, "stroker": Brushwork.Stroker.new(data), "last": [], "at": canvas.ticks}
+		p.stroke = {"easel": e, "palette": palette, "data": data, "stroker": Brushwork.Stroker.new(data, canvas.size), "last": [], "at": canvas.ticks, "began": Time.get_ticks_msec()}
 	var s := p.stroke
 	if not s.last.is_empty():
 		var r: float = Brushwork.radii(p.brush).y * pressure
-		var size := Vector2(Brushwork.SIZE)
+		var size := Vector2(canvas.size)
 		var moved := Brushwork.sweep(p.brush, s.last[0] * size, s.last[2], uv * size, angle, maxf(side, s.last[3])).x
 		if Brushwork.is_stick(p.brush) and moved < 0.01:
 			return
@@ -713,15 +769,16 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 		end_stroke(p)
 
 
-## Whether easel `e` takes another stroke; past its limit the hand feels why.
-func _room(e: Easels.Easel) -> bool:
+## Whether easel `e`'s canvas, or with `palette` its oil palette's board, takes another stroke.
+func _room(e: Easels.Easel, palette: bool) -> bool:
 	var standing: Dictionary = world.state.easels.get(e.id, {})
+	if standing.is_empty():
+		return false
+	var strokes: Array = standing[Commands.surface({"palette": palette})]
 	var total := 0
-	for s: Dictionary in standing.get("strokes", []):
+	for s: Dictionary in strokes:
 		total += Brushwork.count(s)
-	if not standing.is_empty() and standing.strokes.size() < Brushwork.MAX_STROKES and total + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL:
-		return true
-	return false
+	return strokes.size() < Brushwork.MAX_STROKES and total + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
 
 
 ## Sends the stroke under way, if any; the brush keeps what paint it has left.
@@ -733,19 +790,20 @@ func end_stroke(p: Painter) -> void:
 	var e: Easels.Easel = s.easel
 	if not is_instance_valid(e):
 		return
-	e.canvas.end(s.data)
+	var palette: bool = s.palette
+	e.surface(palette).end(s.data)
 	var id := e.id
 	var data: Dictionary = s.data
-	world.submit({"op": "paint", "easel": id, "stroke": data}, func() -> void: _settled.call_deferred(id, data), p.hand)
+	world.submit({"op": "paint", "easel": id, "palette": palette, "stroke": data}, func() -> void: _settled.call_deferred(id, data, palette), p.hand)
 
 
-## A stroke the garden turned down leaves the canvas as the garden has it.
-func _settled(id: int, data: Dictionary) -> void:
+## A stroke the garden turned down leaves the canvas or board as the garden has it.
+func _settled(id: int, data: Dictionary, palette: bool) -> void:
 	var standing: Dictionary = world.state.easels.get(id, {})
 	if standing.is_empty():
 		return
-	var strokes: Array = standing.strokes
+	var strokes: Array = standing[Commands.surface({"palette": palette})]
 	for i in range(strokes.size() - 1, maxi(strokes.size() - 16, 0) - 1, -1):
 		if strokes[i].samples == data.samples:
 			return
-	easels.repaint(id, strokes)
+	easels.repaint(id, strokes, palette)

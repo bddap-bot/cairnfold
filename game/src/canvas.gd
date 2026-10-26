@@ -1,7 +1,8 @@
 class_name Canvas
 extends Node
 
-## One easel's canvas: its paint simulated on the GPU by paint.glsl, drawn by canvas.gdshader. Strokes come in two
+## A surface paint lies on, an easel's canvas or its oil palette's board: its paint simulated on the GPU by paint.glsl,
+## drawn by the shader it is made with (canvas.gdshader, board.gdshader). Strokes come in two
 ## ways: a painter's own brush lays its dabs as it touches (`lay`), and a stroke from the garden is played back sample
 ## by sample at the pace it was painted (`play`), or a whole kept painting replayed as fast as the frame allows
 ## (`rebuild`). Wet paint flows and dries in ticks, only on tiles a wet brush touched in the last DRY_TICKS, and every
@@ -13,7 +14,6 @@ extends Node
 
 ## Ticks owed beyond this are let go: past its budget the paint dries slower instead of stalling the frame.
 const MAX_OWED := 3.0
-const TILES := Vector2i(Brushwork.SIZE.x / Brushwork.TILE, Brushwork.SIZE.y / Brushwork.TILE)
 const BUNDLES := 3
 const DAB_ROOM := 8192
 const PAPER := 0
@@ -24,7 +24,9 @@ const FLOW := 2
 const IMPASTO := 0.008
 const GRAIN := 0.00025
 const TOP := IMPASTO + GRAIN
-## Checkpoints a canvas keeps, each two textures of 14 MB: undo steps back this far without a replay.
+## The most texels each way one `probe` reads back.
+const PROBE := 64
+## Checkpoints a canvas keeps, each two textures (14 MB for the easel's): undo steps back this far without a replay.
 const CHECKPOINTS := 6
 
 static var _shader: RID
@@ -45,6 +47,10 @@ static var _frame := -1
 static var _flowing := 0
 static var _flowing_now := 0
 
+## The surface in texels, its tiles each way, and its size in metres.
+var size: Vector2i
+var tiles: Vector2i
+var metres: Vector2
 ## Ticks laid so far, and the tick the last stroke on this canvas ended at.
 var ticks := 0
 var last_end := 0
@@ -88,17 +94,24 @@ var _dabs := PackedFloat32Array()
 var _batch_start := 0
 var _shown: Array[Texture2DRD] = []
 var _frozen: Array[RID] = []
+## Render thread: the texture the paint under a brush is copied into to be read back; and whether a read is under way.
+var _probe: RID
+var _probing := false
 ## Whether nothing has been laid since the sheet was last cleared: a blank sheet has nothing to keep on show.
 var _blank := true
 
 
-func _init() -> void:
+## A surface `texels` large, a whole number of tiles, at the easel canvas's texels a metre, drawn by `look`.
+func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gdshader")) -> void:
 	name = "Canvas"
 	process_priority = 100
-	_tiles.resize(TILES.x * TILES.y * 2)
+	size = texels
+	tiles = size / Brushwork.TILE
+	metres = metres_of(size)
+	_tiles.resize(tiles.x * tiles.y * 2)
 	material = ShaderMaterial.new()
-	material.shader = preload("res://src/canvas.gdshader")
-	material.set_shader_parameter("metres", Brushwork.METRES)
+	material.shader = look
+	material.set_shader_parameter("metres", metres)
 	material.set_shader_parameter("impasto", IMPASTO)
 	material.set_shader_parameter("grain", GRAIN)
 	_rd = RenderingServer.get_rendering_device()
@@ -110,6 +123,11 @@ func _init() -> void:
 			_shown[i].texture_rd_rid = [_wet[0], _dry, _paper][i]
 	for i in 3:
 		material.set_shader_parameter(["wet", "dry", "paper"][i], _shown[i])
+
+
+## How big a surface `texels` large is, in metres.
+static func metres_of(texels: Vector2i) -> Vector2:
+	return Vector2(texels) * Brushwork.METRES / Vector2(Brushwork.SIZE)
 
 
 ## Compiles the paint pipeline ahead of the first canvas, which would otherwise wait on it.
@@ -130,8 +148,8 @@ static func _compile(rd: RenderingDevice) -> void:
 func _create() -> void:
 	_compile(_rd)
 	var fmt := RDTextureFormat.new()
-	fmt.width = Brushwork.SIZE.x
-	fmt.height = Brushwork.SIZE.y
+	fmt.width = size.x
+	fmt.height = size.y
 	fmt.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
 	fmt.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	for i in 2:
@@ -139,13 +157,19 @@ func _create() -> void:
 	_dry = _rd.texture_create(fmt, RDTextureView.new())
 	for t in _wet + [_dry]:
 		_rd.texture_clear(t, Color(0, 0, 0, 0), 0, 1, 0, 1)
+	var probe := RDTextureFormat.new()
+	probe.width = PROBE
+	probe.height = PROBE
+	probe.format = fmt.format
+	probe.usage_bits = RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+	_probe = _rd.texture_create(probe, RDTextureView.new())
 	fmt.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
 	_paper = _rd.texture_create(fmt, RDTextureView.new())
 	for b in BUNDLES:
 		var dabs := _rd.storage_buffer_create(DAB_ROOM * Brushwork.DAB * 4)
 		var tiles := _rd.storage_buffer_create(_tiles.size() * 4, _tiles.to_byte_array())
 		_bundles.append([dabs, tiles, _uniforms(_wet[0], _wet[1], dabs, tiles), _uniforms(_wet[1], _wet[0], dabs, tiles)])
-	_dispatch(_bundles[0][3], PAPER, Rect2i(Vector2i.ZERO, Brushwork.SIZE), [0, 0, 0], Vector4.ZERO, Vector4.ZERO)
+	_dispatch(_bundles[0][3], PAPER, Rect2i(Vector2i.ZERO, size), [0, 0, 0], Vector4.ZERO, Vector4.ZERO)
 
 
 func _uniforms(from: RID, to: RID, dabs: RID, tiles: RID) -> RID:
@@ -184,7 +208,7 @@ func _exit_tree() -> void:
 	var rids: Array[RID] = []
 	for b: Array in _bundles:
 		rids.append_array([b[2], b[3], b[0], b[1]])
-	rids.append_array(_wet + [_dry, _paper] + _frozen)
+	rids.append_array(_wet + [_dry, _paper, _probe] + _frozen)
 	var rd := _rd
 	var slots := _slots
 	RenderingServer.call_on_render_thread(func() -> void:
@@ -200,13 +224,13 @@ func _exit_tree() -> void:
 ## with `height` its height off the board in 1/65535ths of TOP as canvas_flat.gdshader packs it. It draws
 ## on the first frame it is in the tree.
 func flat_view(height: bool) -> SubViewport:
-	return flat(_shown, height)
+	return flat(_shown, height, size)
 
 
-## A view drawing `textures`, a canvas's wet, dry and paper, as flat_view does, `size` large.
-static func flat(textures: Array, height: bool, size := Brushwork.SIZE) -> SubViewport:
+## A view drawing `textures`, a canvas's wet, dry and paper, as flat_view does, `texels` large.
+static func flat(textures: Array, height: bool, texels: Vector2i) -> SubViewport:
 	var vp := SubViewport.new()
-	vp.size = size
+	vp.size = texels
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var look := ShaderMaterial.new()
@@ -217,10 +241,46 @@ static func flat(textures: Array, height: bool, size := Brushwork.SIZE) -> SubVi
 	look.set_shader_parameter("grain", GRAIN)
 	look.set_shader_parameter("height", height)
 	var sheet := ColorRect.new()
-	sheet.size = size
+	sheet.size = texels
 	sheet.material = look
 	vp.add_child(sheet)
 	return vp
+
+
+## Reads back the laid paint over `rect`, at most PROBE texels each way, without waiting on the GPU: a frame or two
+## later `done` gets it on the main thread as an Image of half floats (rgb optical density, a the oil's height), as
+## big as the part of `rect` on the surface. While the painter's own brush lays a stroke it reads the paint as it stood
+## before that stroke (its checkpoint), what the brush is laying over, not what it has just laid. Asks nothing while a
+## read is under way, or with no RenderingDevice (`reads_back`); whether it asked.
+func probe(rect: Rect2i, done: Callable) -> bool:
+	rect = rect.intersection(Rect2i(Vector2i.ZERO, size))
+	rect.size = rect.size.min(Vector2i.ONE * PROBE)
+	if not reads_back() or _probing or rect.size.x <= 0 or rect.size.y <= 0:
+		return false
+	_probing = true
+	var slot: int = _checkpoints[-1][5] if _open and not _checkpoints.is_empty() and _checkpoints[-1][1] == _count else -1
+	var me: WeakRef = weakref(self)
+	RenderingServer.call_on_render_thread(func() -> void:
+		var from := _dry
+		if slot >= 0 and slot < _slots.size() and not _slots[slot].is_empty():
+			from = _slots[slot][1]
+		_rd.texture_copy(from, _probe, Vector3(rect.position.x, rect.position.y, 0), Vector3.ZERO, Vector3(rect.size.x, rect.size.y, 1), 0, 0, 0, 0)
+		_rd.texture_get_data_async(_probe, 0, func(data: PackedByteArray) -> void:
+			var c: Canvas = me.get_ref()
+			if c != null:
+				c._probed.call_deferred(data, rect.size, done)))
+	return true
+
+
+## Whether `probe` can read the paint back: only with a RenderingDevice.
+func reads_back() -> bool:
+	return _rd != null
+
+
+func _probed(data: PackedByteArray, texels: Vector2i, done: Callable) -> void:
+	_probing = false
+	if _rd != null and done.is_valid():
+		done.call(Image.create_from_data(PROBE, PROBE, false, Image.FORMAT_RGBAH, data).get_region(Rect2i(Vector2i.ZERO, texels)))
 
 
 ## Whether a kept painting is still being replayed.
@@ -254,7 +314,7 @@ func end(stroke: Dictionary) -> void:
 ## Plays `stroke` after `gap` ticks, each sample at the tick it was painted.
 func play(stroke: Dictionary, gap: int) -> void:
 	_wait(gap)
-	var s := Brushwork.Stroker.new(stroke)
+	var s := Brushwork.Stroker.new(stroke, size)
 	for i in Brushwork.count(stroke):
 		var sample := Brushwork.unpack(stroke.samples, i)
 		_wait(sample[3])
@@ -425,7 +485,7 @@ func _wet_rect(tick: int) -> Rect2i:
 	var r := Rect2i()
 	for t: int in _wet_tiles:
 		if _tiles[t * 2] <= tick and tick < _tiles[t * 2 + 1]:
-			var at := Rect2i(Vector2i(t % TILES.x, t / TILES.x) * Brushwork.TILE, Vector2i.ONE * Brushwork.TILE)
+			var at := Rect2i(Vector2i(t % tiles.x, t / tiles.x) * Brushwork.TILE, Vector2i.ONE * Brushwork.TILE)
 			r = at if r.size == Vector2i.ZERO else r.merge(at)
 	return r
 
@@ -450,12 +510,12 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> float:
 		var r := dabs[i + 2] * (1.6 if stroke.medium == Brushwork.Medium.SMEAR else 1.4) + 2.0
 		lo = Vector2(minf(lo.x, dabs[i] - r), minf(lo.y, dabs[i + 1] - r))
 		hi = Vector2(maxf(hi.x, dabs[i] + r), maxf(hi.y, dabs[i + 1] + r))
-	var rect := Rect2i(Vector2i(lo.floor()), Vector2i((hi - lo).ceil()) + Vector2i.ONE).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
+	var rect := Rect2i(Vector2i(lo.floor()), Vector2i((hi - lo).ceil()) + Vector2i.ONE).intersection(Rect2i(Vector2i.ZERO, size))
 	if rect.size == Vector2i.ZERO:
 		return 0.0
 	if stroke.medium == Brushwork.Medium.WATER:
 		var wet_rect := rect.grow_individual(Brushwork.MARGIN, Brushwork.MARGIN, Brushwork.MARGIN, Brushwork.RUN)
-		_wetten(wet_rect.intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE)))
+		_wetten(wet_rect.intersection(Rect2i(Vector2i.ZERO, size)))
 	if _dabs.size() + dabs.size() > DAB_ROOM * Brushwork.DAB:
 		_close_batch()
 	var first := _dabs.size() / Brushwork.DAB
@@ -472,7 +532,7 @@ func _wetten(rect: Rect2i) -> void:
 	var to := (rect.end - Vector2i.ONE) / Brushwork.TILE
 	for y in range(from.y, to.y + 1):
 		for x in range(from.x, to.x + 1):
-			var t := y * TILES.x + x
+			var t := y * tiles.x + x
 			var until := ticks + Brushwork.DRY_TICKS
 			if _wet_tiles.has(t):
 				_tiles[t * 2 + 1] = until
@@ -612,7 +672,7 @@ func _dispatch_all(batches: Array) -> void:
 				"dabs":
 					var s: Dictionary = op[1]
 					if s.medium == Brushwork.Medium.SMEAR:
-						var region: Rect2i = op[4].grow(12).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
+						var region: Rect2i = op[4].grow(12).intersection(Rect2i(Vector2i.ZERO, size))
 						var origin := Vector3(region.position.x, region.position.y, 0)
 						_rd.texture_copy(_wet[0], _wet[1], origin, origin, Vector3(region.size.x, region.size.y, 1), 0, 0, 0, 0)
 					var c: Vector3 = Brushwork.CHARCOAL if s.medium == Brushwork.Medium.CHARCOAL else s.colour
@@ -620,7 +680,7 @@ func _dispatch_all(batches: Array) -> void:
 
 
 func _copy(from: RID, to: RID) -> void:
-	_rd.texture_copy(from, to, Vector3.ZERO, Vector3.ZERO, Vector3(Brushwork.SIZE.x, Brushwork.SIZE.y, 1), 0, 0, 0, 0)
+	_rd.texture_copy(from, to, Vector3.ZERO, Vector3.ZERO, Vector3(size.x, size.y, 1), 0, 0, 0, 0)
 
 
 ## Shows a copy of the canvas as it stood before this frame's `rebuild` while a replay catches up behind it.

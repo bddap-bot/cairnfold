@@ -1828,7 +1828,8 @@ func _dip(s: Dictionary) -> void:
 
 ## A brushstroke on the oil palette's open board, wherever the palette is, through `points` [x, z, pressure] (x toward
 ## the paint, z across, both -1..1 of the board's half size) over `seconds`: the tip comes down onto the first, pushes
-## each point's pressure's share of `Brushwork.PRESS_DEPTH` into the board, and lifts off the last.
+## each point's pressure's share of `Brushwork.PRESS_DEPTH` into the board, and lifts off the last. It paints there as
+## on the canvas, and takes up what paint lies under it.
 func _mix(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -1914,15 +1915,18 @@ func _sheet(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Puts a fresh sheet up on the easel, paints `strokes` strokes of `painting` on it, and waits until the canvas has
-## replayed them as a kept painting.
+## Puts a fresh sheet up on the easel, paints `strokes` strokes of `painting` on it, and with `palette` that many of
+## `daubs` on its oil palette's board, and waits until both have replayed them as a kept painting.
 func _painting(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	main.world.submit({"op": "sheet", "easel": e.id, "strokes": []})
 	for stroke: Dictionary in painting(int(s.strokes)):
 		main.world.submit({"op": "paint", "easel": e.id, "stroke": stroke})
+	for stroke: Dictionary in daubs(int(s.get("palette", 0))):
+		main.world.submit({"op": "paint", "easel": e.id, "palette": true, "stroke": stroke})
 	await _frames(2)
 	main.easels.repaint(e.id, main.world.state.easels[e.id].strokes)
+	main.easels.repaint(e.id, main.world.state.easels[e.id].palette, true)
 	await _caught_up(s)
 
 
@@ -1937,10 +1941,10 @@ func _redo(_s: Dictionary) -> void:
 	await _frames(1)
 
 
-## Waits until the easel's canvas has caught up with its painting.
+## Waits until the easel's canvas and oil palette have caught up with their paint.
 func _caught_up(s: Dictionary) -> void:
 	var e := _easel_of(s)
-	while e.canvas.catching_up():
+	while e.canvas.catching_up() or e.board.catching_up():
 		await _frames(1)
 
 
@@ -1958,6 +1962,24 @@ static func painting(n: int) -> Array:
 			samples.append_array(Brushwork.pack(from.lerp(to, i / 14.0), 0.8, 0.0, 0 if i == 0 else 2))
 		var c: Color = Brushwork.PIGMENTS[1 + k % (Brushwork.PIGMENTS.size() - 1)]
 		out.append({"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(c), "strength": 0.8, "load": 1.0, "gap": 20, "samples": samples})
+	return out
+
+
+## `n` oil strokes round an oil palette's open board, a big brush's fully loaded, each colour in turn: paint as a
+## painter leaves a palette, as benches and tests replay it.
+static func daubs(n: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var out := []
+	for k in n:
+		var samples := PackedInt32Array()
+		var at := Vector2(rng.randf_range(-0.6, 0.75), rng.randf_range(-0.55, 0.55)) * Easels.PALETTE_SIZE * 0.5
+		var heading := rng.randf() * TAU
+		for i in 12:
+			var point := at + Vector2.from_angle(heading + i * 0.25) * i * 0.004
+			samples.append_array(Brushwork.pack(point / Canvas.metres_of(Easels.BOARD) + Vector2(0.5, 0.5), 0.9, 0.0, 0 if i == 0 else 2))
+		var c: Color = Brushwork.PIGMENTS[k % Brushwork.PIGMENTS.size()]
+		out.append({"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(c), "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples})
 	return out
 
 

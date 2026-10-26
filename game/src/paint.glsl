@@ -1,7 +1,7 @@
 #[compute]
 #version 450
 
-// One canvas's paint (Canvas, Brushwork). `wet` holds pigment still in the water (rgb, optical density) and the water
+// One surface's paint, a canvas's or an oil palette's (Canvas, Brushwork), each a whole number of tiles. `wet` holds pigment still in the water (rgb, optical density) and the water
 // itself (a); `dry` the pigment laid into the paper (rgb) and the height of oil standing on it (a); `paper` the
 // paper's tooth (r). A tick is two flow steps, wet A to B and B back to A, so A is always the canvas as it stands.
 
@@ -42,7 +42,6 @@ const int CHARCOAL = 2;
 const int SMEAR = 3;
 const int FLAT = 2;
 const int TILE = 64;
-const int TILES_X = 24;
 
 const float WET = 0.004;
 // Water flows to a neighbour by this share of the difference in level; into dry paper only past the paper's tooth.
@@ -109,7 +108,7 @@ vec2 grain(ivec2 p) {
 }
 
 ivec2 tile(ivec2 p) {
-	return tiles[(p.y / TILE) * TILES_X + p.x / TILE];
+	return tiles[(p.y / TILE) * (canvas_size().x / TILE) + p.x / TILE];
 }
 
 bool wet_tile(ivec2 p, int tick) {

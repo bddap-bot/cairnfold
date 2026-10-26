@@ -6,8 +6,8 @@ extends Node3D
 ## photo, saved as a PNG that says where and how it was taken (PhotoMeta); the shot stays on the screen a moment after.
 ## Held, the trigger records a video of what that camera's screen shows, with the game's sound, until let go. The player's own avatar stands in the lens's view while a camera is
 ## held, and in no other.
-## A photo is the intent to keep what it is of: a canvas covering SUBJECT of its frame, face on, is saved beside it as
-## the painting itself, flat at the canvas's own full size, and as its height off the board.
+## A photo is the intent to keep what it is of: a canvas, or an oil palette's board, covering SUBJECT of its frame, face
+## on, is saved beside it as the painting itself, flat at its own full size, and as its height off the board.
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
@@ -34,7 +34,7 @@ const HOLD := 0.3
 const VIDEO_SIZE := Vector2i(640, 480)
 const VIDEO_FPS := 24
 const VIDEO_QUALITY := 0.8
-## A canvas covering at least this much of a photo's frame, its face toward the lens, is what the photo is of.
+## A paint surface covering at least this much of a photo's frame, its face toward the lens, is what the photo is of.
 const SUBJECT := 0.25
 ## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
 ## holds up play, and a dropped frame's time goes to the next one.
@@ -259,11 +259,12 @@ func shoot(hand: Hand) -> String:
 	if img == null:
 		return ""
 	var paintings: Array = []
-	for e in subjects:
-		if is_instance_valid(e) and e.is_inside_tree():
-			var painting := await _flatten(e.canvas)
+	for subject: Array in subjects:
+		var c: Canvas = subject[1]
+		if is_instance_valid(c) and c.is_inside_tree():
+			var painting := await _flatten(c)
 			if not painting.is_empty():
-				paintings.append(painting)
+				paintings.append([subject[0]] + painting)
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
@@ -275,10 +276,13 @@ func shoot(hand: Hand) -> String:
 	_reserved.erase(path)
 	if not _report(path, saved):
 		return ""
-	for i in paintings.size():
-		var stem := "%s-canvas-%d" % [path.get_basename(), i + 1]
-		var colour: Image = paintings[i][0]
-		var height: Image = paintings[i][1]
+	var counts := {}
+	for painting: Array in paintings:
+		var kind: String = painting[0]
+		counts[kind] = counts.get(kind, 0) + 1
+		var stem := "%s-%s-%d" % [path.get_basename(), kind, counts[kind]]
+		var colour: Image = painting[1]
+		var height: Image = painting[2]
 		if colour != null:
 			_report(stem + ".png", await save(colour, stem + ".png"))
 		if height != null:
@@ -298,9 +302,10 @@ func _report(path: String, saved: Error) -> bool:
 	return true
 
 
-## The easels whose canvases a photo from `at` is of, oldest first.
-func _subjects(at: Transform3D) -> Array[Easels.Easel]:
-	var out: Array[Easels.Easel] = []
+## The canvases and oil palettes' boards a photo from `at` is of, by easel, oldest first: ["canvas" or "palette",
+## Canvas].
+func _subjects(at: Transform3D) -> Array:
+	var out := []
 	if easels == null or RenderingServer.get_rendering_device() == null:
 		return out
 	var ids := easels.easels.keys()
@@ -308,7 +313,9 @@ func _subjects(at: Transform3D) -> Array[Easels.Easel]:
 	for id: int in ids:
 		var e := easels.find(id)
 		if coverage(at, e.canvas_frame()) >= SUBJECT:
-			out.append(e)
+			out.append(["canvas", e.canvas])
+		if coverage(at, e.board_mesh.global_transform, e.board.metres) >= SUBJECT:
+			out.append(["palette", e.board])
 	return out
 
 
@@ -327,10 +334,10 @@ func _flatten(canvas: Canvas) -> Array[Image]:
 	return out if out.size() == views.size() else []
 
 
-## How much of the frame of a photo from `at` a canvas in `frame` (Easel.canvas_frame) covers, as a fraction of the
-## frame, negative when the lens sees its back. Only what lies past the lens's near plane counts.
-static func coverage(at: Transform3D, frame: Transform3D) -> float:
-	var h := Brushwork.METRES * 0.5
+## How much of the frame of a photo from `at` a surface `metres` large in `frame` (Easel.canvas_frame) covers, as a
+## fraction of the frame, negative when the lens sees its back. Only what lies past the lens's near plane counts.
+static func coverage(at: Transform3D, frame: Transform3D, metres := Brushwork.METRES) -> float:
+	var h := metres * 0.5
 	var seen := (at.affine_inverse() * frame) * PackedVector3Array([Vector3(-h.x, -h.y, 0), Vector3(h.x, -h.y, 0), Vector3(h.x, h.y, 0), Vector3(-h.x, h.y, 0)])
 	var ahead := PackedVector2Array()
 	var half := Vector2(float(PHOTO_SIZE.x) / PHOTO_SIZE.y, 1.0) * tan(deg_to_rad(FOV) * 0.5)

@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make and the garden's ground, or {} for anything
 ## else: every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "decoration"]
+const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "sheet", "restone", "boulder", "decoration"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them (PUTS) and of what water drowned.
 const BATCHED := ["take", "reshape", "show"]
 const HOST_BATCHED := ["heights", "ponds", "tree"]
@@ -177,23 +177,13 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 		"easel":
 			ok = _easel(cmd, state, from_host, out)
 		"paint":
-			var e: Variant = cmd.get("easel")
-			ok = typeof(e) == TYPE_INT and state.easels.has(e)
+			ok = _surface(cmd, state, out)
 			if ok:
-				out.easel = e
 				out.stroke = Brushwork.clean(cmd.get("stroke"))
-				var strokes: Array = state.easels[e].strokes
+				var strokes: Array = state.easels[out.easel][surface(out)]
 				ok = out.stroke != null and strokes.size() < Brushwork.MAX_STROKES and _samples(strokes) + Brushwork.count(out.stroke) <= Brushwork.MAX_TOTAL
-		"mix":
-			var e: Variant = cmd.get("easel")
-			var mix: Variant = cmd.get("mix")
-			ok = typeof(e) == TYPE_INT and state.easels.has(e) and _mix(mix)
-			out.easel = e
-			out.mix = mix
 		"unpaint":
-			var e: Variant = cmd.get("easel")
-			ok = typeof(e) == TYPE_INT and state.easels.has(e) and not state.easels[e].strokes.is_empty()
-			out.easel = e
+			ok = _surface(cmd, state, out) and not state.easels[out.easel][surface(out)].is_empty()
 		"sheet":
 			var e: Variant = cmd.get("easel")
 			ok = typeof(e) == TYPE_INT and state.easels.has(e)
@@ -275,16 +265,16 @@ static func _boulder(d: Dictionary) -> Variant:
 	return {"at": at, "turn": turn.normalized(), "sink": sink, "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 
 
-## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes and
-## mixing field it comes back with when a taking is undone or a garden is rebuilt.
+## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes on its
+## canvas and its oil palette it comes back with when a taking is undone or a garden is rebuilt.
 static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	if not _stands(cmd) or not from_host and not Easels.room_at(cmd.at, state.easels):
 		return false
 	out.at = cmd.at
 	out.yaw = cmd.yaw
 	out.strokes = _strokes(cmd.get("strokes", []))
-	out.mix = cmd.get("mix", PackedByteArray())
-	return out.strokes != null and _mix(out.mix) and (from_host or (out.strokes.is_empty() and out.mix.is_empty()))
+	out.palette = _strokes(cmd.get("palette", []))
+	return out.strokes != null and out.palette != null and (from_host or (out.strokes.is_empty() and out.palette.is_empty()))
 
 
 ## Whether an easel's `at` and `yaw` in `d` are a place in the garden and a facing.
@@ -294,12 +284,21 @@ static func _stands(d: Dictionary) -> bool:
 	return typeof(at) == TYPE_VECTOR3 and _finite(at) and typeof(yaw) == TYPE_FLOAT and is_finite(yaw) and absf(yaw) <= TAU
 
 
-## An oil palette's mixing field: empty, or one as `Mixing.bytes` holds it.
-static func _mix(d: Variant) -> bool:
-	return d is PackedByteArray and (d.is_empty() or d.size() == Mixing.SIZE.x * Mixing.SIZE.y * 4)
+## The easel a stroke command paints on, standing, and whether on its canvas or (`palette`) its oil palette's board.
+static func _surface(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
+	var e: Variant = cmd.get("easel")
+	var palette: Variant = cmd.get("palette", false)
+	out.easel = e
+	out.palette = palette
+	return typeof(e) == TYPE_INT and state.easels.has(e) and typeof(palette) == TYPE_BOOL
 
 
-## A canvas's strokes, each clean, within what one canvas holds, or null.
+## The field of an easel's record holding the strokes a clean stroke command `cmd` paints.
+static func surface(cmd: Dictionary) -> String:
+	return "palette" if cmd.palette else "strokes"
+
+
+## A surface's strokes, each clean, within what one surface holds, or null.
 static func _strokes(d: Variant) -> Variant:
 	if not d is Array or d.size() > Brushwork.MAX_STROKES:
 		return null

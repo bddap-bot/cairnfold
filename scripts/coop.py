@@ -252,7 +252,7 @@ def held_scripts():
     return {
         "host": [
             {"op": "easel", "x": -4, "z": 4}, {"op": "until", "seq": 1},
-            {"op": "digest", "name": "ready"}, barrier(["loaded"]),
+            {"op": "digest", "name": "ready"}, barrier(["loaded"]), {"op": "until", "seq": 2},
             {"op": "remote_holds", "name": "loaded"},
             {"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
             {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"},
@@ -261,6 +261,8 @@ def held_scripts():
         "join": [
             barrier(["ready"]), {"op": "join"}, {"op": "until", "seq": 1},
             {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5},
+            {"op": "mix", "points": [[-0.3, -0.2, 0.9], [0.2, 0.25, 0.9], [-0.1, 0.3, 0.9]], "seconds": 0.5},
+            {"op": "until", "seq": 2}, {"op": "dip", "what": "oil", "index": 5},
             {"op": "take", "what": "palette", "hand": "left"},
             {"op": "view", "eye": [-4, 1.65, 6], "at": [-4, 1.4, 4]},
             {"op": "hands", "left": [-0.32, -0.35, -0.4], "right": [0.32, -0.3, -0.4], "tip": 20},
@@ -368,6 +370,7 @@ def check_peers(out, count):
     check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
     easels = list(g["easels"].values())
     check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds the joiner's watercolour stroke and the host's oil one: {easels}")
+    check(easels[0]["palette"] == 1, f"and the host's blue painted onto its oil palette, a stroke there on every machine: {easels}")
     for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -450)]:
         seen_shape = {n: json.load(open(f"{out}/{n}-{shape}.json")) for n in names}
         for v in seen_shape.values():
@@ -390,6 +393,7 @@ def check_peers(out, count):
             v.pop(k)
     check(all(v == painted["host"] for v in painted.values()), "every peer shows the easel alike after the host and the joiner took charcoal, switched, set down and tore there together")
     check([e["strokes"] for e in painted["host"]["easels"].values()] == [2], f"the joiner's sheet tore off both first strokes; its charcoal stroke and the host's after stand: {painted['host']['easels']}")
+    check([e["palette"] for e in painted["host"]["easels"].values()] == [1], f"the host's blue lies on the oil palette as one stroke, the same on every peer: {painted['host']['easels']}")
     turned = json.load(open(f"{out}/host-sun.json"))["sun"]
     check(abs(turned - 0.6683) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
     check(abs(g["sun"] - 0.3878) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")

@@ -42,16 +42,20 @@ const POT_GAP := 0.001
 ## leans as far as the pot's mouth lets it (`in_pot`), so their handles stand well apart.
 const SPLAY := {Brushwork.Brush.SMALL: deg_to_rad(-80.0), Brushwork.Brush.FLAT: 0.0, Brushwork.Brush.BIG: deg_to_rad(80.0)}
 ## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end.
-## The oil palette's paint lies round its far edge with its open board, the mixing field (`Mixing`), inside it; the
-## box's pans lie in two rows beside a field showing the brush's own mix.
+## The oil palette's paint lies round its far edge with its open board inside it, painted on as the canvas is
+## (`Easel.board`); the box's pans lie in two rows beside a field showing the brush's own mix.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
 const THUMB := Vector3(-0.12, 0, 0)
 const MIX_AT := Vector3(0.1, 0.0075, 0)
-## The oil palette's board top, where its mixing field lies.
+## The oil palette's board top, where its paint lies; the board's paint in texels, a whole number of tiles a little
+## larger than the board; and the share of the board's oval paint lies within, clear of the thumb hole by THUMB_CLEAR.
 const BOARD_TOP := 0.004
+const BOARD := Vector2i(384, 256)
+const OPEN := 0.92
+const THUMB_CLEAR := 0.026
 const WELL_RADIUS := 0.018
 const PAN := Vector2(0.02, 0.035)
-## The box's pans run in two rows between these x, short of the mixing field; the oil paint runs this far either way
+## The box's pans run in two rows between these x, short of the field showing the brush's mix; the oil paint runs this far either way
 ## round the palette's edge from its far end, short of the thumb.
 const PANS := Vector2(-0.04, 0.056)
 const OIL_ARC := 1.75
@@ -94,6 +98,9 @@ func warm() -> void:
 	var look := ShaderMaterial.new()
 	look.shader = preload("res://src/canvas.gdshader")
 	warm.canvas_mesh.material_override = look
+	var board := ShaderMaterial.new()
+	board.shader = preload("res://src/board.gdshader")
+	warm.board_mesh.material_override = board
 	add_child(warm)
 	Canvas.warm()
 	var eye := get_viewport().get_camera_3d()
@@ -128,6 +135,11 @@ static func well_at(kit: Brushwork.Medium, local: Vector3) -> int:
 	return best
 
 
+## Whether paint may lie at `point` on the oil palette's board (its frame's x, z).
+static func open_at(point: Vector2) -> bool:
+	return Vector2(point.x / PALETTE_SIZE.x, point.y / PALETTE_SIZE.y).length() * 2.0 < OPEN and point.distance_to(Vector2(THUMB.x, THUMB.z)) > THUMB_CLEAR
+
+
 class Easel:
 	extends Node3D
 
@@ -137,10 +149,10 @@ class Easel:
 	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
 	## (EaselTool) and it comes back when let go.
 	var palettes := {}
-	## The watercolour box's field showing the brush's mix, and the oil palette's mixing field and what draws it.
+	## The watercolour box's field showing the brush's mix, and the paint on the oil palette's board and what draws it.
 	var wash: StandardMaterial3D
-	var mixing := Mixing.new()
-	var field: ImageTexture
+	var board: Canvas
+	var board_mesh: MeshInstance3D
 	## The water in the jar, clouded by each rinse.
 	var water: StandardMaterial3D
 	## Each brush in the pot and stick of charcoal on the tray, by its Brushwork.Brush; one a hand holds is off it
@@ -157,12 +169,19 @@ class Easel:
 		var p := canvas_frame().affine_inverse() * point
 		return Vector3(p.x / Brushwork.METRES.x + 0.5, 0.5 - p.y / Brushwork.METRES.y, p.z)
 
+	## Where `point` lies on the oil palette's board, wherever the palette is: x, y as uv (0..1, x toward its paint, y
+	## across), z its height over the board's top.
+	func on_board(point: Vector3) -> Vector3:
+		var p: Vector3 = palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * point
+		var m := Canvas.metres_of(Easels.BOARD)
+		return Vector3(p.x / m.x + 0.5, p.z / m.y + 0.5, p.y - Easels.BOARD_TOP)
+
+	## The canvas, or with `palette` the oil palette's board.
+	func surface(palette: bool) -> Canvas:
+		return board if palette else canvas
+
 	func tray(at: Vector3) -> Vector3:
 		return global_transform * at
-
-	## Draws the mixing field as `mixing` holds it now.
-	func show_mixing() -> void:
-		field.update(Image.create_from_data(Mixing.SIZE.x, Mixing.SIZE.y, false, Image.FORMAT_RGBA8, mixing.bytes))
 
 
 static func canvas_local() -> Transform3D:
@@ -182,12 +201,20 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.transform = on_ground(data.at, data.yaw)
 	e.canvas = Canvas.new()
 	e.add_child(e.canvas)
+	e.board = Canvas.new(BOARD, preload("res://src/board.gdshader"))
+	e.board.name = "Board"
+	e.board.material.set_shader_parameter("board", PALETTE_SIZE)
+	e.board.material.set_shader_parameter("open", OPEN)
+	e.board.material.set_shader_parameter("thumb", Vector2(THUMB.x, THUMB.z))
+	e.board.material.set_shader_parameter("thumb_clear", THUMB_CLEAR)
+	e.add_child(e.board)
 	_build(e)
 	e.canvas_mesh.material_override = e.canvas.material
+	e.board_mesh.material_override = e.board.material
 	add_child(e)
 	easels[id] = e
 	e.canvas.rebuild(data.strokes)
-	mixed(id, data.mix, false)
+	e.board.rebuild(data.palette)
 	return e
 
 
@@ -205,28 +232,20 @@ func clear() -> void:
 		take(id)
 
 
-## A stroke from the garden on easel `id`: the painter's own is on the canvas already; anyone else's plays as it was
-## painted.
-func painted(id: int, stroke: Dictionary, own: bool) -> void:
+## A stroke from the garden on easel `id`'s canvas, or with `palette` its oil palette's board: the painter's own is
+## there already; anyone else's plays as it was painted.
+func painted(id: int, stroke: Dictionary, own: bool, palette := false) -> void:
 	var e := find(id)
 	if e != null and not own:
-		e.canvas.play(stroke, 0)
+		e.surface(palette).play(stroke, 0)
 
 
-## Easel `id`'s oil palette's mixing field as `bytes` (`Mixing.bytes`), from the garden; the painter's own is on the
-## palette already.
-func mixed(id: int, bytes: PackedByteArray, own: bool) -> void:
-	var e := find(id)
-	if e != null and not own:
-		e.mixing.load_bytes(bytes)
-		e.show_mixing()
-
-
-## Lays easel `id`'s painting again from its strokes, after one is taken back or a fresh sheet goes up.
-func repaint(id: int, strokes: Array) -> void:
+## Lays easel `id`'s painting, or with `palette` its oil palette's paint, again from its strokes, after one is taken
+## back or a fresh sheet goes up.
+func repaint(id: int, strokes: Array, palette := false) -> void:
 	var e := find(id)
 	if e != null:
-		e.canvas.rebuild(strokes)
+		e.surface(palette).rebuild(strokes)
 
 
 ## Stands easel `id` at `at` facing `yaw`, its painting and kit carried with it.
@@ -450,13 +469,7 @@ func _build(e: Easel) -> void:
 		implements.add_child(palette)
 		e.palettes[kit] = palette
 	e.wash = e.palettes[Brushwork.Medium.WATER].get_meta("mix")
-	e.field = ImageTexture.create_from_image(Image.create_from_data(Mixing.SIZE.x, Mixing.SIZE.y, false, Image.FORMAT_RGBA8, e.mixing.bytes))
-	var film := ShaderMaterial.new()
-	film.shader = preload("res://src/mixing.gdshader")
-	film.set_shader_parameter("field", e.field)
-	film.set_shader_parameter("metres", PALETTE_SIZE)
-	film.set_shader_parameter("impasto", Canvas.IMPASTO)
-	_part(e.palettes[Brushwork.Medium.OIL], _quad("oil_field", PALETTE_SIZE), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), film, false)
+	e.board_mesh = _part(e.palettes[Brushwork.Medium.OIL], _quad("oil_board_paint", Canvas.metres_of(BOARD)), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), null, false)
 
 
 static func _quad(key: String, size: Vector2) -> QuadMesh:
@@ -504,7 +517,7 @@ static func _foot(x: float) -> Vector3:
 
 
 ## An oil palette: a wooden board with its eight colours squeezed out round its far end and a thumb hole at its near
-## one; its mixing field is laid on it per easel.
+## one; the paint on its open board is laid on it per easel.
 static func oils() -> Node3D:
 	var root := Node3D.new()
 	_part(root, ToolModels.shared("oil_board", _oil_board), Transform3D(), _baked("oil_board", 0.45), false)
