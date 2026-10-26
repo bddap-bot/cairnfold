@@ -105,7 +105,7 @@ func tick(delta: float) -> void:
 		var t := s.transform
 		var next := t.origin - t.basis.z * SPEED * delta
 		var bed := wildlife.terrain.height_at(next.x, next.z)
-		if wildlife.water.pond_at(next.x, next.z) == s.pond and s.pond.surface_y() - bed >= DEPTH and wildlife._swims_clear(t.origin, Vector2(next.x, next.z)):
+		if wildlife.water.pond_at(next.x, next.z) == s.pond and s.pond.surface_y() - bed >= DEPTH and wildlife._swims_clear(t.origin, Vector2(next.x, next.z), s.pond):
 			t.origin = Vector3(next.x, bed, next.z)
 		else:
 			s.heading += PI * delta

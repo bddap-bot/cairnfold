@@ -172,7 +172,7 @@ var _path_openings := {}
 var _walls_at := {}
 ## Wall → the segment grid `_walls_at` holds for it, and a count bumped when any changes.
 var _walls_at_from := {}
-var _walls_at_rev := 0
+var walls_at_rev := 0
 ## Wall → the segment grid and inputs its preview arches were last cut from: a wall the stroke's moving end is not
 ## near keeps them.
 var _previewed := {}
@@ -1623,7 +1623,7 @@ func _preview_crossings() -> void:
 	var met := {}
 	# Between relays of one stroke only the walls in the cells its moving end left or reached can change.
 	var moved: Variant = paths.drawing.moved if paths.drawing != null else {}
-	if _walls_at_rev == _previewed_rev and paths.previews == _previewed_paths and moved != null:
+	if walls_at_rev == _previewed_rev and paths.previews == _previewed_paths and moved != null:
 		var near := {}
 		for c in moved:
 			for w: Wall in walls_at.get(c, []):
@@ -1644,7 +1644,7 @@ func _preview_crossings() -> void:
 					if not met[w].has(p):
 						met[w][p] = []
 					met[w][p].append(c)
-	_previewed_rev = _walls_at_rev
+	_previewed_rev = walls_at_rev
 	_previewed_paths = paths.previews.duplicate()
 	for w: Wall in check:
 		if _held(w) or not _path_openings.has(w.id):
@@ -1675,7 +1675,7 @@ func walls_by_cell() -> Dictionary:
 		if not is_same(grid, _walls_at_from.get(w)):
 			_unindex(w)
 			_walls_at_from[w] = grid
-			_walls_at_rev += 1
+			walls_at_rev += 1
 			for c in grid:
 				if not _walls_at.has(c):
 					_walls_at[c] = []
@@ -1691,7 +1691,7 @@ func _unindex(w: Variant) -> void:
 		if _walls_at[c].is_empty():
 			_walls_at.erase(c)
 	_walls_at_from.erase(w)
-	_walls_at_rev += 1
+	walls_at_rev += 1
 
 
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses. Only the arches change, so the

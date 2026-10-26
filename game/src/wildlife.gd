@@ -109,6 +109,9 @@ var walls: WallTool
 ## The wall tool's walls by grid cell, as `_swims_clear` last read them in frame `_walls_frame`.
 var _walls_at := {}
 var _walls_frame := -1
+## Per pond, [the wall index's revision, its layout, its `_pond_area`, whether a wall's cells come within a swimmer's
+## reach of that]: a pond no wall comes near asks no wall about a step inside it.
+var _walled := {}
 var palette: Palette
 var viewer: Node3D
 var hands: Array[Node3D] = []
@@ -770,7 +773,7 @@ static func _pond_quota(p: PondWater, ponds: int, cap: int, each: int, most: int
 	return clampi(p.pond.cells.size() / each, mini(1, share), mini(most, share))
 
 
-func _swims_clear(from: Vector3, to: Vector2) -> bool:
+func _swims_clear(from: Vector3, to: Vector2, pond: PondWater = null) -> bool:
 	if walls == null or from == Vector3.INF:
 		return true
 	var a := Vector2(from.x, from.z)
@@ -780,14 +783,36 @@ func _swims_clear(from: Vector3, to: Vector2) -> bool:
 		_walls_at = walls.walls_by_cell()
 	# Only a wall with samples in the cells the step and its end's reach meet can turn it back.
 	var reach := Vector2.ONE * WallLayout.SWIM_REACH
+	var step := Rect2(a, Vector2.ZERO).expand(to)
+	if pond != null:
+		var near: Array = _walled.get(pond, [])
+		if near.is_empty() or near[0] != walls.walls_at_rev or near[1] != pond.pond:
+			for gone in _walled.keys().filter(func(k: Object) -> bool: return not is_instance_valid(k)):
+				_walled.erase(gone)
+			near = [walls.walls_at_rev, pond.pond, _pond_area(pond.pond), false]
+			for c in PathLayout.cells_along(near[2].position - reach, near[2].end + reach):
+				if _walls_at.has(c):
+					near[3] = true
+					break
+			_walled[pond] = near
+		if not near[3] and near[2].encloses(step):
+			return true
 	var asked := {}
-	for c in PathLayout.cells_along(a.min(to - reach), a.max(to + reach)):
+	for c in PathLayout.cells_along(step.position - reach, step.end + reach):
 		for w: Wall in _walls_at.get(c, []):
 			if not asked.has(w):
 				asked[w] = true
 				if w.layout.blocks_swim(a, to):
 					return false
 	return true
+
+
+## The ground `pond`'s grid points cover, out to the squares round them.
+static func _pond_area(pond: PondLayout.Pond) -> Rect2:
+	var area := Rect2(Terrain.grid_xz(pond.cells[0]), Vector2.ZERO)
+	for c in pond.cells:
+		area = area.expand(Terrain.grid_xz(c))
+	return area.grow(Terrain.STEP)
 
 
 ## Ground a duck may stand on a little way up the bank from a shore point, reached straight from `from` across no wall

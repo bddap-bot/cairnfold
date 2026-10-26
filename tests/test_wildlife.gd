@@ -24,6 +24,7 @@ func _initialize() -> void:
 	await _teleport_is_no_motion()
 	await _ducks_come_only_to_ponds()
 	await _ducks_keep_out_of_walls()
+	await _a_pond_no_wall_reaches_asks_no_wall()
 	finish()
 
 
@@ -398,6 +399,45 @@ func _ducks_come_only_to_ponds() -> void:
 
 ## A fence drawn three quarters of the way round a pond, close along its bank: no duck rests on it or beyond it, a family
 ## never walks in through it, and one inside never walks out through it; all of them use the open quarter.
+## A swimmer's pond, given to the walls check, changes no answer: a wall across it still turns steps back, and a step
+## in a pond no wall reaches is clear.
+func _a_pond_no_wall_reaches_asks_no_wall() -> void:
+	seed(2)
+	var g := GladeBase.new()
+	await g.build(self, 1)
+	g.world.terrain.install()
+	var walls := g.walls
+	var wildlife := g.wildlife
+	await GladeBase.dig(g.add_tool(WaterTool.new(g.rig, g.world)), 3, -4, 90)
+	var pond := g.water.ponds[0]
+	pond._process(PondWater.FILL)
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	var far := 0.0
+	for c in pond.pond.shore:
+		far = maxf(far, Terrain.grid_xz(c).distance_to(mid))
+	var ask := func(n: int) -> Vector3i:
+		var out := Vector3i.ZERO
+		for i in n:
+			var a := mid + Vector2.from_angle(randf() * TAU) * randf() * (far + 1.0)
+			var b := a + Vector2.from_angle(randf() * TAU) * randf_range(0.05, 1.5)
+			var clear := wildlife._swims_clear(Vector3(a.x, 0.0, a.y), b)
+			out.x += 1
+			out.y += int(not clear)
+			out.z += int(wildlife._swims_clear(Vector3(a.x, 0.0, a.y), b, pond) != clear)
+		return out
+	var open: Vector3i = ask.call(200)
+	check(open.y == 0 and open.z == 0, "a pond no wall reaches is clear: %s" % open)
+	var across := walls._new_wall()
+	across.layout.points.assign([g.world.terrain.ground(mid.x - far - 2.0, mid.y), g.world.terrain.ground(mid.x + far + 2.0, mid.y)])
+	walls.build([across])
+	await process_frame
+	walls.walls[-1].lay_now()
+	await process_frame
+	var walled: Vector3i = ask.call(400)
+	check(walled.y > 0 and walled.z == 0, "a wall across the pond turns steps back as before: %s (steps, blocked, differing)" % walled)
+	await g.teardown()
+
+
 func _ducks_keep_out_of_walls() -> void:
 	seed(1)
 	var g := GladeBase.new()

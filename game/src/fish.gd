@@ -238,7 +238,7 @@ func _grain_for(f: One, meal: Array) -> Vector2:
 			if d < nearest and _deep(f.pond, xz):
 				nearest = d
 				best = xz
-	if best == Vector2.INF or not wildlife._swims_clear(f.at, best):
+	if best == Vector2.INF or not wildlife._swims_clear(f.at, best, f.pond):
 		return Vector2.INF
 	return best + Vector2.from_angle(rng.randf() * TAU) * BITE * 0.3
 
@@ -304,7 +304,7 @@ func _deep_spot(p: PondWater, from: Vector3) -> Vector2:
 	var cells := p.pond.cells
 	for attempt in 8:
 		var xz := Terrain.grid_xz(cells[rng.randi() % cells.size()]) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3))
-		if _deep(p, xz) and wildlife._swims_clear(from, xz):
+		if _deep(p, xz) and wildlife._swims_clear(from, xz, p):
 			return xz
 	return Vector2.INF
 
@@ -353,7 +353,7 @@ func _flee_spot(f: One, dir: Vector2) -> Vector2:
 	for attempt in 8:
 		var turn := 0.9 + attempt * 0.3
 		var xz := Vector2(f.at.x, f.at.z) + dir.rotated(rng.randf_range(-turn, turn)) * rng.randf_range(0.6, 1.2)
-		if _deep(f.pond, xz) and wildlife._swims_clear(f.at, xz):
+		if _deep(f.pond, xz) and wildlife._swims_clear(f.at, xz, f.pond):
 			return xz
 	return Vector2.INF
 
