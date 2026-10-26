@@ -409,16 +409,15 @@ static func path(d: Dictionary) -> Dictionary:
 
 
 ## A decoration's paired Quest 2 cost, the least linear rule at or over every style's dearest of two 24-copy runs of
-## demo/decoration-costs.json (docs/decorations.md): a piece's own draws, each solid, each flame overlay with its halo (a
-## picture counted as two), in microseconds; its flowers are charged as painted ones.
-const DECORATION_PIECE_US := 52.5
-const DECORATION_SOLID_US := 2.8
-const DECORATION_FLAME_US := 11.2
+## demo/decoration-costs.json (docs/decorations.md), each piece laid in its house's or ground cell's batch: a piece and
+## each solid, in microseconds, its flames and pictures costing nothing the runs resolve; its flowers are charged as
+## painted ones.
+const DECORATION_PIECE_US := 35.7
+const DECORATION_SOLID_US := 2.6
 
 
 static func decoration(d: Dictionary) -> Dictionary:
 	var layout := DecorationLayout.new()
 	layout.build(d.style, 0, 4.8, d.mount, Decorations.span(d), d.get("drop", Vector2.ZERO))
-	var flames := layout.flames.size() + layout.pictures.size() * 2
-	var us := DECORATION_PIECE_US + DECORATION_SOLID_US * layout.parts.size() + DECORATION_FLAME_US * flames
+	var us := DECORATION_PIECE_US + DECORATION_SOLID_US * layout.parts.size()
 	return {"fitting": us / COSTS.fitting, "flower": float(layout.flowers.size())}
