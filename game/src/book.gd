@@ -124,6 +124,9 @@ func _init(live_pages := true) -> void:
 
 
 func _ready() -> void:
+	# A book in no player's hands, a prop or a copy of one, moves only through a turn `turn_to` starts.
+	if rig == null and _turn.is_empty():
+		set_process(false)
 	if live and not _baking and RenderingServer.get_rendering_device() != null:
 		_baking = true
 		_bake()
