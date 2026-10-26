@@ -33,6 +33,9 @@ const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 ## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls
 ## have about a millisecond to spare; the rest wait for the frames after.
 const MASONRY_FLUSH_US := 300.0
+## Main-thread time a frame spends looking over painted flowers for where butterflies may come, in microseconds: about
+## fifty flowers on the Steam Frame; a path stroke wearing the ground every frame keeps them looking.
+const BUTTERFLY_SCAN_US := 300.0
 ## Main-thread time a frame spends wearing a path just laid into the garden's ground, in microseconds: a few of its rows
 ## on the Steam Frame; a 48 m path's hundred and more take the frames after.
 const GROUND_WEAR_US := 1000.0

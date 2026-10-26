@@ -12,8 +12,6 @@ const CAP := 24
 ## Painted flowers in bloom are grouped into square patches this wide; one with MIN_BLOOMS of them draws butterflies.
 const PATCH := 3.0
 const MIN_BLOOMS := 12
-## Painted flowers looked at a frame, so regrouping them never costs one frame much.
-const SCAN_PER_FRAME := 128
 const PER_PATCH := Vector2i(2, 4)
 const COLORS := [Color(0.86, 0.78, 0.36), Color(0.88, 0.52, 0.22), Color(0.42, 0.58, 0.86), Color(0.88, 0.88, 0.84), Color(0.64, 0.52, 0.86)]
 const SIZE := Vector2(0.8, 1.2)
@@ -135,17 +133,20 @@ func _scan() -> void:
 		_filling = {}
 		_bloom = wildlife.palette.bloom()
 	_next = maxi(_next, pool.kept)
-	var end := mini(_next + SCAN_PER_FRAME, pool.size())
-	for i in range(_next, end):
+	# As many flowers as Budget.BUTTERFLY_SCAN_US allows, at least one, so regrouping them never costs one frame much.
+	var start := Time.get_ticks_usec()
+	while _next < pool.size():
+		var i := _next
+		_next += 1
 		var p := pool.anchors[i]
-		if p == Flora.Pool.GONE or FloraLayout.bloom_rank(p) >= _bloom or wildlife.marks.bare(p.x, p.z) > 0.5 or wildlife.water.pond_at(p.x, p.z) != null:
-			continue
-		var x := pool.plants[i].xform
-		var key := Vector2i(floori(p.x / PATCH), floori(p.z / PATCH))
-		if not _filling.has(key):
-			_filling[key] = PackedVector3Array()
-		_filling[key].append(Vector3(p.x, x.origin.y + x.basis.y.y * Meshes.FLOWER_HEIGHT, p.z))
-	_next = end
+		if not (p == Flora.Pool.GONE or FloraLayout.bloom_rank(p) >= _bloom or wildlife.marks.bare(p.x, p.z) > 0.5 or wildlife.water.pond_at(p.x, p.z) != null):
+			var x := pool.plants[i].xform
+			var key := Vector2i(floori(p.x / PATCH), floori(p.z / PATCH))
+			if not _filling.has(key):
+				_filling[key] = PackedVector3Array()
+			_filling[key].append(Vector3(p.x, x.origin.y + x.basis.y.y * Meshes.FLOWER_HEIGHT, p.z))
+		if Time.get_ticks_usec() - start > Budget.BUTTERFLY_SCAN_US:
+			return
 	if _next < pool.size():
 		return
 	_made_from = _scanning
