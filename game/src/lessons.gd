@@ -55,7 +55,7 @@ const PAGES := [
 			{"t": 0.9, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0]}},
 			{"t": 2.3, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0], "roll": -75.0}},
 		], "press": [{"hand": "right", "action": "tool", "from": 0.5, "to": 2.7}]},
-	{"effect": "house", "length": 5.2, "setup": [{"op": "house", "at": [0, 5.5], "size": [4.5, 4.5], "relative": true, "seconds": 0.3}], "tools": {"left": "none", "right": "none"},
+	{"effect": "house", "length": 5.2, "setup": [{"op": "house", "at": [0, 5.5], "size": [4.5, 4.5], "relative": true, "seconds": 0.3}, {"op": "uncluttered"}], "tools": {"left": "none", "right": "none"},
 		"view": {"look": "side", "back": 0.5},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.12, -0.36, -0.36], "aim": [0.02, -0.2, -1.0]}, "right": {"at": [0.12, -0.36, -0.36], "aim": [-0.02, -0.2, -1.0]}},
