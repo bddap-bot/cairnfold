@@ -246,7 +246,7 @@ static func _uncaptured(s: Dictionary) -> Dictionary:
 	return out
 
 
-## The clutter/* phases: three houses, a wall and a path, with what they gathered and things copied round their walls
+## The clutter/* phases: two houses, a wall and a path, with what they gathered and things copied round their walls
 ## until the budget is full or their feet are.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")

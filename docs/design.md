@@ -2710,8 +2710,9 @@ from them, their commands, the stroke, the colour and style tools on them, runs,
 copy pulled off a pumpkin or a box of flowers, a piece by the path taken away, and the pumpkins at night.
 `tests/test_clutter.gd` covers where each build gathers, the schema, the budget, the layout, the targets, each edit
 with undo and redo, a house put back keeping its things, the doorway, perches, the demo, and the stress scene's
-`clutter/*` phases: the doors village, every house and wall then given a piece every 1.6 m round its foot until the
-budget is full.
+`clutter/*` phases: two houses, a wall and a path with what they gathered, every house and wall then given a piece
+every 0.7 m round its foot until the budget or its foot is full. `demo/clutter-cost.json` prices the same garden on a
+Quest 2 bare of clutter and cluttered.
 
 ## Raising a house
 
