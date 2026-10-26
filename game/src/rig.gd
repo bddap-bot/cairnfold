@@ -151,13 +151,8 @@ func wear(a: Avatar) -> void:
 	a.visible = true
 	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
 		v.layers = Quality.SELF_LAYER
-	var definition: Dictionary = a._model.get_meta("springs", {"springs": []})
-	for chain: Dictionary in definition.springs:
-		for joint: Dictionary in chain.joints:
-			var name := "spring_" + str(joint.node)
-			if a._joints.has(name):
-				for v: VisualInstance3D in a._joints[name].node.find_children("*", "VisualInstance3D", true, false):
-					v.layers = Quality.PEOPLE_LAYER | Quality.SELF_LAYER
+	for mi in a.swaying():
+		mi.layers = Quality.PEOPLE_LAYER | Quality.SELF_LAYER
 	add_child(a)
 	_landing.wear(a)
 

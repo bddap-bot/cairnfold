@@ -395,6 +395,9 @@ for name, secs in phases.items():
         summary[name]["step"] = mid(steps)
     fill = max(s.get("fill", 0.0) for s in phases[name])
     summary[name]["fill"] = fill
+    mem = [s["mem_mb"] for s in secs if "mem_mb" in s]
+    if mem:
+        summary[name]["mem_mb"] = {k: max(m[k] for m in mem) for k in mem[0]}
     mhz = [s["gpu_mhz"] for s in secs if "gpu_mhz" in s]
     if mhz:
         summary[name]["gpu_mhz"] = mid(mhz)

@@ -2,9 +2,9 @@ extends SceneTree
 
 ## Writes the built-in avatars (game/avatars/*.vrm): run from game/ as
 ## godot4 --headless --path . --script ../scripts/avatars.gd
-## Each is a VRM 1.0 humanoid in T-pose facing +Z with a floating head, mittens and a small smock;
-## surfaces whose material name starts with "tint" take the player's colour. Its eyes look by bone: both eye bones
-## sit behind the face, so a turned eye slides over it.
+## Each is a VRM 1.0 humanoid in T-pose facing +Z with a floating head, mittens and a small smock, skinned as any VRM
+## body is; surfaces whose material name starts with "tint" take the player's colour. Its eyes look by bone: both eye
+## bones sit behind the face, so a turned eye slides over it.
 
 const STONE := Color(0.78, 0.74, 0.66)
 const DARK := Color(0.12, 0.1, 0.09)
@@ -16,9 +16,11 @@ const LOOK_REACH := 30.0
 func _init() -> void:
 	for a in [_pebble(), _acorn(), _hood()]:
 		_tassel(a)
-		Vrm.write(a, "res://avatars/%s.vrm" % a.name)
-		print("avatars: ", a.name)
+		var body := _skinned(a)
 		a.free()
+		Vrm.write(body, "res://avatars/%s.vrm" % body.name)
+		print("avatars: ", body.name)
+		body.free()
 	quit()
 
 
@@ -54,6 +56,90 @@ func _hood() -> Node3D:
 	_mittens(root, _tint())
 	_smock(root, _tint())
 	return root
+
+
+## A figure built of bone nodes and the parts they carry, as one skeleton of those bones and a skinned mesh of one
+## surface per material, each vertex weighed wholly to the bone its part hangs from. Parts on spring joints make a
+## mesh of their own, bound to those joints alone, which the wearer sees (Rig.wear).
+func _skinned(figure: Node3D) -> Node3D:
+	var out := Node3D.new()
+	out.name = figure.name
+	for key in figure.get_meta_list():
+		out.set_meta(key, figure.get_meta(key))
+	var skeleton := Skeleton3D.new()
+	skeleton.name = "skeleton"
+	out.add_child(skeleton)
+	var swaying := {}
+	for chain: Dictionary in figure.get_meta("springs").springs:
+		for joint: Dictionary in chain.joints:
+			swaying[joint.node] = true
+	var meshes := [{"binds": {}, "surfaces": {}}, {"binds": {}, "surfaces": {}}]
+	_add_bones(figure, skeleton, -1, Transform3D.IDENTITY, swaying, meshes)
+	skeleton.reset_bone_poses()
+	# Every bone is a joint of the body's skin, so that a glTF reader makes each one a bone of the skeleton.
+	for bone in skeleton.get_bone_count():
+		meshes[0].binds.get_or_add(bone, meshes[0].binds.size())
+	for k in meshes.size():
+		var m: Dictionary = meshes[k]
+		if m.surfaces.is_empty():
+			continue
+		var mesh := ArrayMesh.new()
+		for key: Array in m.surfaces:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m.surfaces[key][1])
+			mesh.surface_set_material(mesh.get_surface_count() - 1, m.surfaces[key][0])
+		var skin := Skin.new()
+		for bone: int in m.binds:
+			skin.add_named_bind(skeleton.get_bone_name(bone), skeleton.get_bone_global_rest(bone).affine_inverse())
+		var mi := MeshInstance3D.new()
+		mi.name = ["body", "sway"][k]
+		mi.mesh = mesh
+		mi.skin = skin
+		skeleton.add_child(mi)
+		mi.skeleton = mi.get_path_to(skeleton)
+	return out
+
+
+func _add_bones(node: Node3D, skeleton: Skeleton3D, parent: int, at: Transform3D, swaying: Dictionary, meshes: Array) -> void:
+	for c: Node3D in node.get_children():
+		if c is MeshInstance3D:
+			var m: Dictionary = meshes[1 if swaying.has(skeleton.get_bone_name(parent)) else 0]
+			var bind: int = m.binds.get_or_add(parent, m.binds.size())
+			var mat: StandardMaterial3D = (c as MeshInstance3D).mesh.surface_get_material(0)
+			var surface: Array = m.surfaces.get_or_add([mat.resource_name, mat.albedo_color], [mat, []])
+			var part := _placed((c as MeshInstance3D).mesh.surface_get_arrays(0), at * c.transform, bind)
+			if surface[1].is_empty():
+				surface[1] = part
+			else:
+				Meshes.join(surface[1], part)
+			continue
+		var bone := skeleton.add_bone(c.name)
+		skeleton.set_bone_parent(bone, parent)
+		skeleton.set_bone_rest(bone, c.transform)
+		_add_bones(c, skeleton, bone, at * c.transform, swaying, meshes)
+
+
+## A part's arrays placed by `at` in the skeleton's frame, every vertex weighed wholly to bind `bind`.
+func _placed(arrays: Array, at: Transform3D, bind: int) -> Array:
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	var vertex := PackedVector3Array()
+	var normal := PackedVector3Array()
+	var turn := at.basis.inverse().transposed()
+	for v: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+		vertex.append(at * v)
+	for n: Vector3 in arrays[Mesh.ARRAY_NORMAL]:
+		normal.append((turn * n).normalized())
+	var bones := PackedInt32Array()
+	var weights := PackedFloat32Array()
+	for v in vertex.size():
+		bones.append_array([bind, 0, 0, 0])
+		weights.append_array([1.0, 0.0, 0.0, 0.0])
+	out[Mesh.ARRAY_VERTEX] = vertex
+	out[Mesh.ARRAY_NORMAL] = normal
+	out[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(vertex.size()))
+	out[Mesh.ARRAY_BONES] = bones
+	out[Mesh.ARRAY_WEIGHTS] = weights
+	return out
 
 
 ## The VRM bone hierarchy in T-pose, eyes 1.65 m up.

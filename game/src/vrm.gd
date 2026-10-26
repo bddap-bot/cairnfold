@@ -11,7 +11,7 @@ extends GLTFDocumentExtension
 ## "look" is how the model points its eyes (VRM lookAt): {"type": BONE or EXPRESSION, "ranges": the horizontal inner,
 ## horizontal outer, vertical down and vertical up range maps, each Vector2(largest input angle in degrees, output at
 ## it: degrees for eye bones, a weight for expressions), "shapes": for an expression model, each of LOOKS to its
-## morph targets as [mesh node path, blend shape name, weight]}. Export writes "look"'s type and ranges.
+## morph targets as [mesh node path, blend shape index, weight]}. Export writes "look"'s type and ranges.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
@@ -80,7 +80,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 			for b: Array in binds[dir]:
 				var path: Variant = meshes.get(state.get_nodes()[b[0]].resource_name)
 				if path != null:
-					look.shapes.get_or_add(dir, []).append([path, morph_name(b[1]), b[2]])
+					look.shapes.get_or_add(dir, []).append([path, b[1], b[2]])
 	var springs := SpringDefinition.read(state.json)
 	var spring_nodes := {}
 	for chain: Dictionary in springs.springs:
@@ -194,11 +194,6 @@ static func look_binds(state: GLTFState) -> Dictionary:
 				if mesh is float and nodes[i].mesh == int(mesh) and weight is float:
 					add.call(dir, i, _field(b, "index"), weight / 100.0)
 	return out
-
-
-## The name a kept morph target goes by: Avatar.read keeps only the ones LOOKS set, and renames them so.
-static func morph_name(morph: int) -> String:
-	return "look %d" % morph
 
 
 static func _number(x: Variant, low: float, high: float, otherwise: float) -> float:
