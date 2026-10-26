@@ -1,0 +1,141 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "wipe/village": {
+   "p50": 13.9750003814697,
+   "p99": 103.747001647949,
+   "late": 31,
+   "draws": 154,
+   "prims": 677892,
+   "stalls": [
+    {
+     "ms": 98.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 105.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 97.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 100.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 104.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 99.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 100.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 103.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 101.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 178.1,
+     "notes": [
+      {
+       "ms": 58.7,
+       "what": "world: applying wipe"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 60.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 7.904,
+   "gpu_ms": 5.42,
+   "timewarp_ms": 1.14
+  },
+  "lights/aerial": {
+   "p50": 13.9379997253418,
+   "p99": 15.41100025177,
+   "late": 0,
+   "draws": 138,
+   "prims": 193230,
+   "step": 16,
+   "fill": 0.984,
+   "gpu_ms": 8.17,
+   "timewarp_ms": 1.14
+  },
+  "lights/ground": {
+   "p50": 13.9169998168945,
+   "p99": 15.2819995880127,
+   "late": 0,
+   "draws": 131,
+   "prims": 222266,
+   "step": 16,
+   "fill": 0.984,
+   "gpu_ms": 9.73,
+   "timewarp_ms": 1.14
+  }
+ }
+}

@@ -1,0 +1,152 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "wipe/village": {
+   "p50": 14.1479997634888,
+   "p99": 102.731002807617,
+   "late": 36,
+   "draws": 156,
+   "prims": 678378,
+   "stalls": [
+    {
+     "ms": 100.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 103.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 100.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 101.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 101.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 101.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 101.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 102.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 68.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "fill": 7.904,
+   "gpu_ms": 91.83,
+   "timewarp_ms": 1.14
+  },
+  "lights/aerial": {
+   "p50": 13.9409999847412,
+   "p99": 15.6400003433228,
+   "late": 0,
+   "draws": 138,
+   "prims": 196026,
+   "step": 16,
+   "fill": 0.984,
+   "gpu_ms": 8.17,
+   "timewarp_ms": 1.14
+  },
+  "lights/ground": {
+   "p50": 13.9099998474121,
+   "p99": 15.4490003585815,
+   "late": 0,
+   "draws": 132,
+   "prims": 226142,
+   "step": 16,
+   "fill": 0.984,
+   "gpu_ms": 9.92,
+   "timewarp_ms": 1.14
+  }
+ }
+}

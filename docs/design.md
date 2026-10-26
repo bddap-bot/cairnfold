@@ -3674,21 +3674,35 @@ One look, no options. Nothing blurs or sways: in a headset both read as bad eyes
   cells leave the neighbourhood as the head moves. The 320 soft motes, one in eight a rising bubble, drift
   within a box around the head. Shafts and motes take their colour from the water and sunlight.
 - **Sound:** the mix goes through a low-pass at 650 Hz and 4 dB down.
-- **Cost:** above water nothing is drawn and no effect runs; the surface's back face is never rasterized from
-  above, and the fog and colour correction are the ones already applied. Under water the eyes clip where the
+- **Cost:** above water the underwater overlay is not drawn; submerged terrain still receives bed light.
+  The surface's back face is never rasterized from above, and the fog and colour correction are the ones already applied. Under water the eyes clip where the
   water's fog ends (`Rig.under`) and the fog takes the sky whole, so nothing past 7 m is drawn and none could be
-  seen. `demo/underwater.json` plays a pond at the ladder's fit step (`Budget.fit_step`), the step play holds;
-  GPU ms a frame, 12.5 the then budget at 72 Hz, no late frame under water past the first second on either headset:
+  seen. `demo/bed-light.json` measures a deep pond at the ladder's fit step (`Budget.fit_step`),
+  with identical scripted standing and aerial views on a Quest 2. GPU ms a frame, quality step 16,
+  11.11 ms budget at 72 Hz (`perf/quest-2/bed-light`):
 
-  | | above | under, level | under, looking up | under, straight up |
-  |---|---|---|---|---|
-  | Quest 2 (`perf/quest-2/underwater`) | 7.6 | 6.8 | 6.6 | 4.2 |
-  | Frame (`perf/frame/underwater`) | 7.2 | 6.9 | 7.6 | 7.7 |
+  | View | Main | Bed light | Difference |
+  |---|---:|---:|---:|
+  | Standing, facing the bed | 4.29 | 4.44 | +0.15 |
+  | Aerial | 5.93 | 5.96 | +0.03 |
+  | Standing repeated | 4.34 | 4.50 | +0.16 |
 
-  In the stress scene at full quality the Frame's view level from a pond's bed fell from 14.3 to 7.4 ms with the
-  clip, back to 72 Hz (`perf/frame/stress`); looking up there is 15.8 ms, the garden round that pond rather than
-  the look, which in a bare pond takes 7.5 at full quality beside 7.8 above. A fresh install's first dip waits
-  about a third of a second on the Frame for its pipelines; the shader cache keeps them after.
+  Main is `3e988be4`; the measured lighting build is `4713ed43`. Both runs hold GPU clocks at
+  level 4 and use the same scene, seed and quality. These are complete scene costs, not isolated
+  shader timings. The aerial run has four late frames on main and none with bed light; the first
+  standing phase has none on main and one with bed light. The repeated standing phase has none
+  on either. All phases stay within the GPU budget. An upward-facing pair
+  (`perf/quest-2/bed-light-upward`) measures 4.82 versus 5.20 ms standing and 5.22 versus 5.45 ms
+  on its repeat; the additional cost depends on the view. No Frame measurement is established
+  for this lighting. The full stress run records 7.88 ms for `underwater/bed`, but exits 1:
+  `lights/ground` is 11.53 ms against 11.11 ms, and `wipe/village` rises to 148.64 ms versus
+  the historical 66.36 ms median. This is not a green full-stress result. The comparison
+  remains on its branch pending the owner's choice. Isolating those workloads with
+  `demo/stress-probes.json` gives lighting aerial/ground costs of 8.17/9.92 ms on main and
+  8.17/9.73 ms with bed light. The isolated wipe spikes on main (91.83 ms), while the candidate
+  probe reads 5.42 ms. Thus neither isolated lighting run reproduces the full lighting failure,
+  and a wipe spike also occurs on main. These probes do not explain the full-run totals; no
+  unrelated performance fix is included.
 
 ### Stone in ponds
 

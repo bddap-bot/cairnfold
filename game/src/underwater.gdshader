@@ -1,8 +1,6 @@
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, shadows_disabled;
 
-// Motes, bubbles and shafts of sunlight about an eye under water (Underwater). Each is held still in the world and
-// wrapped into a box about the head, fading out toward the box's edge, so none follows the head and none pops.
 uniform float level;
 uniform float reach;
 uniform float bottom;

@@ -1,0 +1,190 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "bare"
+  },
+  {
+    "op": "wait",
+    "seconds": 10
+  },
+  {
+    "op": "sun",
+    "time": 0.3805,
+    "seconds": 0.5
+  },
+  {
+    "op": "clear"
+  },
+  {
+    "op": "village",
+    "radius": 20,
+    "spacing": 7,
+    "storeys": 2,
+    "wings": true
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      22,
+      32
+    ],
+    "at": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "wipe/village"
+  },
+  {
+    "op": "wait",
+    "seconds": 2
+  },
+  {
+    "op": "bare"
+  },
+  {
+    "op": "wait",
+    "seconds": 4
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bare"
+  },
+  {
+    "op": "house",
+    "at": [
+      -7,
+      0
+    ],
+    "size": [
+      5,
+      4
+    ],
+    "seconds": 0.3
+  },
+  {
+    "op": "house",
+    "at": [
+      0,
+      0
+    ],
+    "size": [
+      5,
+      4
+    ],
+    "seconds": 0.3
+  },
+  {
+    "op": "house",
+    "at": [
+      7,
+      0
+    ],
+    "size": [
+      5,
+      4
+    ],
+    "seconds": 0.3
+  },
+  {
+    "op": "lights",
+    "every": 1.5,
+    "within": 8,
+    "radius": 18,
+    "span": 6,
+    "rows": 4
+  },
+  {
+    "op": "sun",
+    "time": 0.765,
+    "seconds": 1
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      14,
+      22
+    ],
+    "at": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "lights/aerial"
+  },
+  {
+    "op": "wait",
+    "seconds": 6
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "lights-aerial"
+  },
+  {
+    "op": "view",
+    "ground": true,
+    "eye": [
+      0,
+      1.65,
+      11
+    ],
+    "at": [
+      0,
+      2.2,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "lights/ground"
+  },
+  {
+    "op": "wait",
+    "seconds": 6
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "lights-ground"
+  },
+  {
+    "op": "quit"
+  }
+]
