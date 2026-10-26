@@ -42,6 +42,7 @@ mkdir -p "$out"
 seed=25
 device=desktop
 game=0
+hung=
 rig=desktop
 build=$(git -C "$here" rev-parse HEAD)
 players=${CAIRNFOLD_PLAYERS:-1}
@@ -242,7 +243,12 @@ if [ "${2:-}" = --android ]; then
   adb shell kill "$logcat_pid"
   logcat_pid=
   adb pull "$log" "$out/logcat.txt" > /dev/null
-  [ -n "$ended" ] || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
+  if [ -z "$ended" ]; then
+    adb shell am force-stop "$pkg"
+    grep -q "driver: done" "$out/logcat.txt" || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
+    # The game writes its metrics before it quits, so a hang on the way out loses no measurement, only fails the run.
+    hung="bench: the game ended its script but was still running after $((limit + 300)) s; see $out/logcat.txt"
+  fi
   adb pull "$dir/." "$out/" > /dev/null
   if [ -n "$replay" ]; then
     python3 "$here/sessions.py" "$(dirname "$replay")" --replayed "$out/metrics.json" | tee "$out/replayed.txt"
@@ -421,4 +427,5 @@ if over:
 PY
 [ ! -f "$record" ] || python3 "$here/trend.py" "$rig" "$scene" || failed=1
 [ "$game" = 0 ] || { echo "bench: the game exited $game; see $out/godot.log" >&2; exit 1; }
+[ -z "$hung" ] || { echo "$hung" >&2; exit 1; }
 [ -z "$failed" ] || exit 1
