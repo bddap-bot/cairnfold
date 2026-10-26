@@ -167,6 +167,19 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   that loaded file without removing it. On a Quest the folder is
   `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
+- **From a Unity package.** `scripts/unity_avatar.gd` converts the humanoid model of a
+  Unity source package (an `Assets` folder, its `.meta` files beside the assets) into a VRM 1.0
+  file to wear: from `game/`,
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE_DIR avatar.vrm`.
+  The model is the package's one FBX imported as a humanoid (`animationType: 3` in its
+  `.meta`). Godot's FBX importer reads its skeleton, skins and blend shapes; the bone map is
+  the `.meta`'s humanDescription, Unity's Avatar definition, each bone renamed to its VRM
+  1.0 name. Unity suffixes a transform named like another in the model (`head 1`) and
+  Godot's importer does not, so a mapped name the skeleton lacks matches the bone without
+  the suffix, under the bone its Unity parent is. The bones keep their rest rotations rather
+  than VRM 1.0's normalized T-pose; `Avatar.read` needs only the rest pose. Textures, Unity
+  materials, prefabs, animations and the package's scripts are not translated; the
+  converter prints what it dropped.
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
   while the wearer sees its spring parts. Chains stay posed and simulated even without a
   camera. Empty hands can grip a nearby tip; a held implement retains its own controls.
@@ -190,9 +203,15 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the bone that weighs most on its corners, and the skeleton is dropped: nothing is skinned
   on the GPU. A forearm stretches along its length where a hand is held past the arm's reach,
   so the hand stays on its arm and at the controller. A material spanning several moving
-  bones draws once for each, so the limit is 32 surfaces (draw calls) after the cut. A VRoid
+  bones draws once for each, so the limit is 40 surfaces (draw calls) after the cut. A VRoid
   avatar (34,000 triangles, 65 primitives, 17 materials, 16 MB) reads as 15,000 triangles in
   28 surfaces. Where a rigid part meets the next, a bent joint can open a thin crack.
+  Seed-san, the Unity sample package (16 materials over five skinned meshes), reads as 39.
+  On a Quest 2 at quality step 6 the widest view of three Seed-san figures in
+  `demo/avatar-cost.json` takes 9.68 GPU ms against 9.02 with built-ins, and of seven in
+  `demo/avatar-chain-cost.json` 10.98 against 9.35, inside the 11.11 ms budget
+  (`perf/quest-2/avatar-cost/20261026T184814Z-72c8d46.json`,
+  `perf/quest-2/avatar-chain-cost/20261026T190741Z-72c8d46.json`).
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is cut out, never blended, where it is see-through; normal maps and
@@ -390,7 +409,10 @@ players' custom-file hashes (N-1 on the host, N-2 on each visitor). The returnin
 visitor must recover its own garden. `tests/test_world.gd` covers the undo rule, the
 schema and the snapshot round trip. `tests/test_avatar.gd` reads the public sample avatars in
 `tests/avatars/` (VRM 1.0 and 0.x) and checks the limits, the pose, the arms' reach, and that
-one model in both versions stands alike.
+one model in both versions stands alike. It also converts the Unity sample package there and
+checks the VRM keeps its skins, blend shapes and every bone of its Avatar definition as a skin
+joint, and
+that it reads, poses and reaches as the VRM samples do.
 
 `scripts/coop.sh OUT --flat` renders a host and a flat-screen player (`--flat`) on one machine,
 each wearing a sample avatar from its own avatars folder: the flat-screen player hears the

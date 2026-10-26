@@ -4,6 +4,7 @@ extends "res://../tests/support/suite.gd"
 
 ## Public sample avatars (tests/avatars/README.md).
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
+const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 
 
 func _initialize() -> void:
@@ -22,6 +23,7 @@ func _run() -> void:
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
 	_both_versions_stand_alike()
+	_unity_package_converts()
 	for i in Avatar.BUILT_IN.size():
 		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
 	_expressions_follow_the_look()
@@ -61,7 +63,7 @@ func _images_are_measured_before_decoding() -> void:
 ## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.
 func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
-	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + length).get_string_from_utf8())
+	var json := _gltf_json(bytes)
 	var bin := bytes.slice(28 + length, 28 + length + bytes.decode_u32(20 + length))
 	json.images = []
 	for image: PackedByteArray in images:
@@ -87,6 +89,55 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	head.encode_u32(0, bin.size())
 	head.encode_u32(4, 0x004E4942)
 	return out + head + bin
+
+
+## The Unity sample package converts to a VRM 1.0 that keeps its skeleton, skins and blend shapes, its humanoid bones
+## as the package's Avatar definition maps them, and that Avatar.read opens and poses as it does any VRM.
+func _unity_package_converts() -> void:
+	var model := UnityAvatar.humanoid_scene(_sample("seed-san"))
+	check(model != null, "the Unity package converts")
+	if model == null:
+		return
+	var avatar := UnityAvatar.avatar_definition(FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
+	var human: Dictionary = model.get_meta("humanoid")
+	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool: return human.get(UnityAvatar.vrm_bone(avatar.human[b])) == b), "every bone the Avatar definition maps keeps its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
+	check(human.hips == "hips" and human.head == "head 1" and human.leftThumbMetacarpal == "thumb.01.L", "the Avatar definition's own names: Unity's de-duplicated head, its thumb proximal as VRM's metacarpal")
+	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	check(human.keys().all(func(b: String) -> bool: return sk.find_bone(b) >= 0), "each humanoid bone is the skeleton bone of its VRM name")
+	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
+	Vrm.write(model, path)
+	model.free()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var json := _gltf_json(bytes)
+	var bones: Dictionary = json.extensions.VRMC_vrm.humanoid.humanBones
+	var skins: Array = json.get("skins", [])
+	var joints := {}
+	for k: Dictionary in skins:
+		for j: float in k.joints:
+			joints[int(j)] = true
+	check(bones.size() == avatar.human.size() and bones.keys().all(func(b: String) -> bool: return joints.has(int(bones[b].node)) and json.nodes[int(bones[b].node)].name == b), "the VRM names every mapped humanoid bone as a skin joint of its name (%d)" % bones.size())
+	check(skins.size() == 5 and skins.all(func(k: Dictionary) -> bool: return k.has("inverseBindMatrices") and not (k.joints as Array).is_empty()), "the VRM keeps each skinned mesh's skin and inverse binds (%d)" % skins.size())
+	var targets := {}
+	for m: Dictionary in json.meshes:
+		for p: Dictionary in m.primitives:
+			targets[p.get("targets", []).size()] = true
+	check(targets.has(43), "the VRM keeps the face's blend shapes (%s)" % [targets.keys()])
+	var started := Time.get_ticks_usec()
+	var scene := Avatar.read(bytes)
+	print("unity package: Avatar.read %.0f ms, %d bytes" % [(Time.get_ticks_usec() - started) / 1000.0, bytes.size()])
+	check(scene != null, "Avatar.read opens the converted package")
+	if scene == null:
+		return
+	_pose_puts_the_eyes_on_the_head(scene, "seed-san")
+	_arms_join_shoulders_to_hands(scene, "seed-san")
+	var empty := ProjectSettings.globalize_path("user://no-humanoid")
+	DirAccess.make_dir_recursive_absolute(empty)
+	check(UnityAvatar.humanoid_scene(empty) == null, "a package with no humanoid model converts to nothing")
+
+
+## The JSON chunk of a binary glTF.
+func _gltf_json(bytes: PackedByteArray) -> Dictionary:
+	return JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
 
 
 func _sample(name: String) -> String:

@@ -15,7 +15,10 @@ extends GLTFDocumentExtension
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
-const BONES := ["hips", "spine", "head", "leftEye", "rightEye", "leftUpperArm", "leftLowerArm", "leftHand", "rightUpperArm", "rightLowerArm", "rightHand", "leftUpperLeg", "leftLowerLeg", "leftFoot", "rightUpperLeg", "rightLowerLeg", "rightFoot"]
+## VRM 1.0 humanoid bones.
+const BONES := ["hips", "spine", "chest", "upperChest", "neck", "head", "leftEye", "rightEye", "jaw", "leftUpperLeg", "leftLowerLeg", "leftFoot", "leftToes", "leftShoulder", "leftUpperArm", "leftLowerArm", "leftHand", "leftThumbMetacarpal", "leftThumbProximal", "leftThumbDistal", "leftIndexProximal", "leftIndexIntermediate", "leftIndexDistal", "leftMiddleProximal", "leftMiddleIntermediate", "leftMiddleDistal", "leftRingProximal", "leftRingIntermediate", "leftRingDistal", "leftLittleProximal", "leftLittleIntermediate", "leftLittleDistal", "rightUpperLeg", "rightLowerLeg", "rightFoot", "rightToes", "rightShoulder", "rightUpperArm", "rightLowerArm", "rightHand", "rightThumbMetacarpal", "rightThumbProximal", "rightThumbDistal", "rightIndexProximal", "rightIndexIntermediate", "rightIndexDistal", "rightMiddleProximal", "rightMiddleIntermediate", "rightMiddleDistal", "rightRingProximal", "rightRingIntermediate", "rightRingDistal", "rightLittleProximal", "rightLittleIntermediate", "rightLittleDistal"]
+## VRM 0.x thumb bones by their VRM 1.0 names.
+const THUMBS_0X := {"leftThumbProximal": "leftThumbMetacarpal", "leftThumbIntermediate": "leftThumbProximal", "rightThumbProximal": "rightThumbMetacarpal", "rightThumbIntermediate": "rightThumbProximal"}
 const BONE := "bone"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
@@ -56,7 +59,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 		var human: Variant = _field(_field(exts.VRM, "humanoid"), "humanBones")
 		if human is Array:
 			for b: Variant in human:
-				_bind(found, str(_field(b, "bone")), _field(b, "node"), state, root)
+				_bind(found, THUMBS_0X.get(str(_field(b, "bone")), str(_field(b, "bone"))), _field(b, "node"), state, root)
 		var off: Variant = _field(_field(exts.VRM, "firstPerson"), "firstPersonBoneOffset")
 		if off is Dictionary and [off.get("x"), off.get("y"), off.get("z")].all(func(x: Variant) -> bool: return x is float):
 			eyes = Vector3(off.x, off.y, -off.z)

@@ -1,0 +1,71 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/built-in/close": {
+   "p50": 13.9490003585815,
+   "p99": 16.5699996948242,
+   "late": 5,
+   "draws": 68,
+   "prims": 288497,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 8.31,
+   "timewarp_ms": 1.33
+  },
+  "sweep/built-in/across": {
+   "p50": 13.9659996032715,
+   "p99": 16.8990001678467,
+   "late": 5,
+   "draws": 92,
+   "prims": 294839,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 9.02,
+   "timewarp_ms": 1.33
+  },
+  "sweep/built-in/away": {
+   "p50": 13.9169998168945,
+   "p99": 16.826000213623,
+   "late": 5,
+   "draws": 67,
+   "prims": 298996,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 9.29,
+   "timewarp_ms": 1.33
+  },
+  "sweep/vrm/close": {
+   "p50": 14.0139999389648,
+   "p99": 17.30299949646,
+   "late": 6,
+   "draws": 72,
+   "prims": 305025,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 8.77,
+   "timewarp_ms": 1.33
+  },
+  "sweep/vrm/across": {
+   "p50": 13.8830003738403,
+   "p99": 16.9020004272461,
+   "late": 6,
+   "draws": 101,
+   "prims": 318664,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 9.68,
+   "timewarp_ms": 1.32
+  },
+  "sweep/vrm/away": {
+   "p50": 13.9090003967285,
+   "p99": 17.3090000152588,
+   "late": 4,
+   "draws": 68,
+   "prims": 301092,
+   "step": 5,
+   "fill": 0.322,
+   "gpu_ms": 9.31,
+   "timewarp_ms": 1.33
+  }
+ }
+}

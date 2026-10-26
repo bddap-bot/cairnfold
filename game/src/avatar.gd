@@ -13,8 +13,8 @@ const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acor
 const MAX_BYTES := 24 << 20
 const MAX_TRIANGLES := 20000
 ## Draw calls, counted once the meshes are cut into rigid parts: a material spanning several moving bones draws once
-## for each.
-const MAX_SURFACES := 32
+## for each. Seven figures of 39 hold the Quest 2's frame (docs/multiplayer.md, "Rigid parts").
+const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
