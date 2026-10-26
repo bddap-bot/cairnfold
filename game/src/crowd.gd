@@ -27,20 +27,34 @@ func _init(terrain: Terrain, mesh: Mesh, cap: int, material: Material, colours :
 ## Writes instance `i`; `colour` is ignored by a crowd without colours.
 func put(i: int, x: Transform3D, custom: Color, colour := Color.WHITE) -> void:
 	var at := i * stride
-	for r in 3:
-		buffer[at + r * 4] = x.basis.x[r]
-		buffer[at + r * 4 + 1] = x.basis.y[r]
-		buffer[at + r * 4 + 2] = x.basis.z[r]
-		buffer[at + r * 4 + 3] = x.origin[r]
+	var a := x.basis.x
+	var b := x.basis.y
+	var c := x.basis.z
+	var o := x.origin
+	buffer[at] = a.x
+	buffer[at + 1] = b.x
+	buffer[at + 2] = c.x
+	buffer[at + 3] = o.x
+	buffer[at + 4] = a.y
+	buffer[at + 5] = b.y
+	buffer[at + 6] = c.y
+	buffer[at + 7] = o.y
+	buffer[at + 8] = a.z
+	buffer[at + 9] = b.z
+	buffer[at + 10] = c.z
+	buffer[at + 11] = o.z
 	if multimesh.use_colors:
-		for c in 4:
-			buffer[at + 12 + c] = colour[c]
+		buffer[at + 12] = colour.r
+		buffer[at + 13] = colour.g
+		buffer[at + 14] = colour.b
+		buffer[at + 15] = colour.a
 	at += stride - 4
-	for c in 4:
-		buffer[at + c] = custom[c]
+	buffer[at] = custom.r
+	buffer[at + 1] = custom.g
+	buffer[at + 2] = custom.b
+	buffer[at + 3] = custom.a
 
 
-## Draws the first `count` instances as last put.
 func upload(count: int) -> void:
 	if count > 0 or multimesh.visible_instance_count > 0:
 		multimesh.buffer = buffer
