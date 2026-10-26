@@ -9,7 +9,7 @@ signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
 ## "mountains" are the ranges and whatever lies between them and the meadow.
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife"]
 
 var main: Main
 var steps: Array
@@ -1155,6 +1155,15 @@ func _layer_parts(name: String) -> Array[Array]:
 		"ceilings":
 			for n: Node3D in main.get_tree().get_nodes_in_group(&"roof_ceilings"):
 				out.append([n, "visible", false])
+		"flames":
+			materials = [Fittings._flame]
+		"halos":
+			materials = [Fittings._halo]
+		"smoke":
+			materials = [Smoke._material]
+		"wildlife":
+			out.append([main.wildlife, "visible", false])
+			out.append([main.fish, "visible", false])
 		_ when name.begins_with("part/"):
 			var bits := name.split("/")
 			var kind: int = Wall.Part[bits[1].to_upper()]
