@@ -2,8 +2,8 @@
 """What each part of the bare meadow costs a frame: layers.py OUT_DIR [JSON]
 
 OUT_DIR is what `CAIRNFOLD_SCENE=demo/meadow-layers.json scripts/bench.sh OUT_DIR ...` left. Each layer was shown and
-hidden in turn, twice each, from the air and standing; its cost is the median viewport GPU time (the governor's signal,
-as Budget prices in) shown over hidden, each hidden stretch against the shown ones beside it. "all" hides every layer
+hidden in turn, twice each, from the air and standing; its cost is the median GPU time as the runtime counts it (VrApi's
+App=, bench.sh's record, as scripts/costs.py prices in) shown over hidden, each hidden stretch against the shown ones beside it. "all" hides every layer
 at once: what is left is what a frame costs with nothing of the meadow drawn. With JSON, writes the table there too."""
 import json
 import os
@@ -12,16 +12,12 @@ import sys
 
 out = sys.argv[1]
 d = json.load(open(os.path.join(out, "metrics.json")))
-runs = {}
-for s in d["seconds"]:
-    parts = s["label"].split("/")
-    if len(parts) == 4 and "viewport_gpu_ms" in s:
-        runs.setdefault(tuple(parts), []).append(s)
 table = {}
-for (view, layer, mode, k), secs in sorted(runs.items()):
-    secs = secs[1:] or secs
-    row = table.setdefault(view, {}).setdefault(layer, {"on": [], "off": []})
-    row[mode].append(statistics.median(s["viewport_gpu_ms"] for s in secs))
+for name, phase in sorted(json.load(open(os.path.join(out, "record.json")))["phases"].items()):
+    parts = name.split("/")
+    if len(parts) == 4 and "gpu_ms" in phase:
+        view, layer, mode, _ = parts
+        table.setdefault(view, {}).setdefault(layer, {"on": [], "off": []})[mode].append(phase["gpu_ms"])
 result = {}
 for view, layers in table.items():
     shown = statistics.median(x for row in layers.values() for x in row["on"])

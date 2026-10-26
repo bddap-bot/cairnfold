@@ -1038,7 +1038,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` is one fixed table in GPU microseconds per unit, and
-  `Budget.CAPACITY_MS` is one fixed 4.68 ms-equivalent capacity. Fill is
+  `Budget.CAPACITY_MS` is one fixed 3.99 ms-equivalent capacity. Fill is
   the cost of the garden divided by that capacity, on Frame, Quest, desktop and tests.
   Neither the running quality step, refresh rate nor the visitors present changes it.
   The host and visitor apply the same check; removing cost still works in older gardens
@@ -1054,7 +1054,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   counted per member at its dense-village price (`TIMBER_US`). Two interleaved Quest 2 runs on 2eb107d
   ([record](../perf/quest-2/costs/20261024T035706Z-2eb107d.json),
   [record](../perf/quest-2/costs/20261024T041730Z-2eb107d.json)), the larger of each, µs a m², far + near: stone wall
-  4.29 + 6.23 (each from the 10 m disc), plaster 1.11 + 4.28, fence 2.27 + 3.38, tiled roof 9.44 + 0, thatch
+  4.29 + 6.23 (each from the 10 m disc), plaster 1.11 + 4.28, fence 2.27 + 3.38, tiled roof 9.44 + 0 (9.49 since a8dc2bc, below), thatch
   10.18 + 0. Lanterns and thatch are measured on the builds before them left standing (the 10 m disc of walls, the
   village re-thatched) and fitted against those from the same view, so they are charged only what they add:
   `fitting` 15.19 µs. A hamlet of five default stone houses 14 to 25 m apart (`hamlet`, its walls 264 m² and roofs
@@ -1070,25 +1070,35 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), except the flora "Cheaper flora" made cheaper,
   refitted on that build (trees and bushes from its costs fit), and grass and flowers, refitted on 5728d72, at the
   dearest view of their pools packed into a 1.8 m disc, in the costs scene beside the eye or the pondweed scene from
-  the bed and the shore. The Frame sets one unit, `water`: its lake read 1.91 ms over the meadow from the air against
-  the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other Frame price fell under the Quest 2's: `fitting`, the
+  the bed and the shore. Two costs runs of a8dc2bc fitted on `App=`
+  ([record](../perf/quest-2/costs/20261026T070527Z-a8dc2bc.json),
+  [record](../perf/quest-2/costs/20261026T073236Z-a8dc2bc.json)) priced three units over the table, which took the
+  larger: `water` 2,510 µs (2,380 in the other), the lake 2.51 ms over the meadow from the shore, over the Frame's 1.91
+  from the air, which set it until then; `easel` 890 (860); `roof_m2` 9.488 (8.129). Every other unit fit under its
+  price. Refitted on 0774568 (below), every Frame price but `water` fell under the Quest 2's: `fitting`, the
   Frame's 15.609 µs until then, fit to 3.852 in that run, under the Quest 2's, so the Frame no longer sets it. The prices
   themselves live only in `Budget.COSTS`; this document cites the runs they came from. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity is the Quest 2's room, every device priced on its table: the 72 Hz calibration
-  line of 11.111111111111111 ms less the Quest 2's 6.42 ms base, the meadow without its own trees and bushes plus
-  wildlife, rounded down to 4.68 ms. That base is the meadow two costs runs measured, the larger of each view
-  ([record](../perf/quest-2/costs/20261022T134517Z-6a5692a.json),
-  [record](../perf/quest-2/costs/20261022T141312Z-6a5692a.json)), less the smaller of what two runs of
-  `demo/meadow-flora.json`, interleaved with them on one Quest 2, measured the meadow's trees and bushes to cost in each
-  of its views ([record](../perf/quest-2/meadow-flora/20261022T135336Z-6a5692a.json),
-  [record](../perf/quest-2/meadow-flora/20261022T142008Z-6a5692a.json)): from the air 5.61 less 1.35,
-  standing 4.64 less 0.33, from the shore 4.75 less 0.48, the dearest 4.31, plus the larger run's 2.11 of wildlife.
-  Its 46 trees and 60 bushes, at the prices of that refit, were charged 1.51 ms, at least the 0.33 the room gained. The Frame's room below (1.77 ms,
+  line of 11.111111111111111 ms less the Quest 2's 7.12 ms base, rounded down to 3.99 ms. The base is what
+  `scripts/costs.py` defines, on the runtime's `App=` time (see "Bench repeatability on the Quest 2"): the dearest view
+  of the meadow without its own trees and bushes, plus wildlife, plus the compositor's timewarp, from two costs runs of
+  a8dc2bc ([record](../perf/quest-2/costs/20261026T070527Z-a8dc2bc.json),
+  [record](../perf/quest-2/costs/20261026T073236Z-a8dc2bc.json)) and two runs of `demo/meadow-flora.json` interleaved
+  with them on one Quest 2 ([record](../perf/quest-2/meadow-flora/20261026T071237Z-a8dc2bc.json),
+  [record](../perf/quest-2/meadow-flora/20261026T073943Z-a8dc2bc.json), read by `scripts/layers.py`). The meadow, the
+  larger of each view, less the smaller of what the flora runs read its trees and bushes to cost there: from the air
+  5.90 less 0.37, standing 5.61 less 0.30, from the shore 5.57 less 0.22; the bare meadow's own views (`base/`, the
+  same meadow with them cleared) read at most 5.55 from the air, the dearest, so 5.55; plus the larger run's 0.39 of
+  wildlife (ponds) and 1.18 of timewarp. costs.py's own base, the meadow with its trees and bushes, was 7.40 and
+  7.42 in the two runs. The room was 4.68 ms until then, fitted on the governor's viewport timer, whose base (6.42 on
+  6a5692a) carried the timewarp only in the spells it fell inside a frame's span. The meadow's 46 trees and 60 bushes are charged
+  1.51 ms at the table's prices, at least the 0.37 the room gained for them.
+  The Frame's room below (1.77 ms,
   its own plants in the base, the ladder held at step 8) is no input: Directive (verbatim): "I'd like everything
   priced on the quest2 table."
   The meadow's grass and flowers stay in the base: priced as painted plants, at their densest beside the eye, its
-  22,000 clumps and 3,200 flowers would charge several times the whole capacity, where clearing them with its trees and bushes saves 1.92 to 1.93 ms
-  from the air, 1.68 to 2.29 standing and 0.83 to 0.85 from the shore (the same records). These are fixed design numbers, independent of future governor tuning.
+  22,000 clumps and 3,200 flowers would charge several times the whole capacity, where clearing them with its trees and bushes saves 1.14 to 1.15 ms
+  from the air, 1.83 to 1.88 standing and 0.62 to 0.67 from the shore (the a8dc2bc flora records). These are fixed design numbers, independent of future governor tuning.
   The Quest 2 is the weakest supported target; its full-garden runs below held 72 fps
   once the ladder settled. This choice admits no more cost than either measured table.
   The measurements bound the tested scenes, not every possible arrangement; the initial

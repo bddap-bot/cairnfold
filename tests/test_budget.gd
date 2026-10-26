@@ -325,9 +325,9 @@ func _painting_stops_at_the_budget() -> void:
 		var at := -30.0 + i * 3.0
 		if not await _build([_wall(Vector2(-6, at), Vector2(6, at), 4.5)]):
 			break
-	var walls: Array = world.state.walls.keys()
-	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([walls.max()])})
-	await _settled()
+	while Budget.CAPACITY_MS - Budget.cost_ms(world.units) <= Budget.COSTS.stone / 1000.0:
+		world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([world.state.walls.keys().max()])})
+		await _settled()
 	await play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
 	await _settled()
 	check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
