@@ -180,7 +180,7 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 		_cuts[who] = {"single": target}
 		return
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}, "decorations": {}}
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}, "decorations": {}, "pieces": {}}
 	target = _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
@@ -195,7 +195,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	if cut.has("single"):
-		return cut.single if cut.single.has("decoration") or is_instance_valid(cut.single.wall) else {}
+		return cut.single if cut.single.has("decoration") or cut.single.has("path") or is_instance_valid(cut.single.wall) else {}
 	var was: Array = cut.ray
 	var aimed := aim(origin, dir, cut.plants, _gone(cut))
 	var far := Vector3(aimed.get("point", origin + dir))
@@ -214,7 +214,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 static func _taken(cut: Dictionary) -> int:
-	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size() + cut.decorations.size()
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size() + cut.decorations.size() + cut.pieces.size()
 
 
 static func _gone(cut: Dictionary) -> Dictionary:
@@ -234,8 +234,18 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 		cut.decorations[target.decoration] = target
 		world.decorations.sweep(target.decoration)
 		return target
+	if target.has("path"):
+		var taken: Array = cut.pieces.get_or_add(target.path, [])
+		if not taken.has(target.value):
+			taken.append(target.value)
+		return target
 	if target.has("fitting"):
-		cut.wall = {}
+		# A sweep along a wall takes the clutter at its foot or on its top as it goes, and keeps on along the wall.
+		var along: bool = target.key == "clutter" and cut.wall.get("wall") == target.wall
+		if along:
+			sweep(cut, origin, dir)
+		else:
+			cut.wall = {}
 		var items: Array = cut.fittings.get_or_add(target.wall.id, [])
 		if not items.any(func(item: Dictionary) -> bool: return item.key == target.key and item.value == target.value):
 			items.append(target)
@@ -365,6 +375,10 @@ func let_go(who: Object) -> void:
 		var cmd := FittingTool.removal(world.state, item)
 		if not cmd.is_empty():
 			cmds.append(cmd)
+	for id: int in cut.pieces:
+		if world.state.paths.has(id) and not cut.marks.has(id):
+			var kept := Array(world.state.paths[id].clutter).filter(func(v: Vector4) -> bool: return not v in cut.pieces[id])
+			cmds.append({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": PackedVector4Array(kept)}})
 	for id: int in cut.fittings:
 		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "take" and c.of == "walls" and id in c.ids):
 			continue

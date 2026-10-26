@@ -36,6 +36,8 @@ var points: Array[Vector3] = []
 var half_widths: Array[float] = []
 var seed := 1
 var surface := Surface.DIRT
+## The small things gathered beside it (ClutterLayout).
+var clutter: Array[Vector4] = []
 ## What this path wears into Ground's mask, as Ground's marks are read.
 var kind: Ground.Kind:
 	get:
@@ -89,6 +91,7 @@ static func of(data: Dictionary) -> PathLayout:
 	var path := PathLayout.new()
 	path.seed = data.seed
 	path.surface = data.surface
+	path.clutter.assign(Array(data.get("clutter", PackedVector4Array())))
 	for i in data.points.size():
 		path.add(data.points[i], data.half_widths[i])
 	return path
@@ -96,7 +99,7 @@ static func of(data: Dictionary) -> PathLayout:
 
 ## What a build command carries to lay this path again.
 func data() -> Dictionary:
-	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface}
+	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface, "clutter": PackedVector4Array(clutter)}
 
 
 func add(p: Vector3, half_width: float) -> void:
@@ -350,7 +353,22 @@ func pieces(height: Callable, water := Callable()) -> Array[Dictionary]:
 	_stepping_stones(height, water, wet, out)
 	if surface == Surface.BED:
 		_crops(height, wet, out)
+	for v in clutter:
+		var x: Variant = clutter_frame(v, height)
+		if x != null:
+			out.append_array(ClutterLayout.parts(v, x, seed))
 	return out
+
+
+## Where piece `v` of the path's clutter stands on ground of `height`, its middle facing out from the path, or null past
+## either end.
+func clutter_frame(v: Vector4, height: Callable) -> Variant:
+	if v.x < 0.0 or v.x > length():
+		return null
+	var f := frame_at(v.x)
+	var x := ClutterLayout.facing(f.point, f.along, v.y, absf(v.y), v.z)
+	x.origin.y = height.call(x.origin.x, x.origin.z)
+	return x
 
 
 func _treads(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:

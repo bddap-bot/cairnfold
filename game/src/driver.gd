@@ -620,6 +620,95 @@ func _carry(s: Dictionary) -> void:
 	tool.end_grow(m)
 
 
+## Takes hold of a piece of clutter as a hand within reach of it does: piece `piece` (or the first of `style`) of wall
+## `wall` (an index into the walls, -1 the last), or of path `path` (likewise into the paths). Over `seconds` the hand
+## moves by `move` [x, y, z] metres while turning by `turn` degrees about the vertical, then lets go; with `copy` the
+## other hand grips it too and carries a copy off instead; with `take` a press of the decorations tool takes it away.
+## "capture" saves the view before letting go.
+func _clutter(s: Dictionary) -> void:
+	var target := _clutter_target(s)
+	if target.is_empty():
+		print("clutter: no piece %s" % s)
+		failed = true
+		return
+	var tool: WallTool = main.tool
+	var at: Vector3 = target.bounds.get_center()
+	target.point = at
+	if s.get("take", false):
+		main.fitting_tool.fit(target)
+		return
+	var from := Transform3D(Basis(), at + Vector3(0.0, 0.3, 0.3))
+	var first := tool.mason(main.rig.right)
+	tool.begin_grow(first, tool._fitting_grip(target), from, at)
+	var m := first
+	if s.get("copy", false):
+		m = tool.mason(main.rig.left)
+		tool.begin_grow(m, tool._fitting_grip(target), from, at)
+	var move: Array = s.get("move", [0, 0, 0])
+	var turn := deg_to_rad(float(s.get("turn", 0.0)))
+	await _over(s, 1.0, func(done: float) -> void:
+		var k := smoothstep(0.0, 1.0, done)
+		m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, turn * k), from.origin + Vector3(move[0], move[1], move[2]) * k)))
+	if s.has("capture"):
+		await main.capture(s.capture)
+	tool.end_grow(m)
+	if m != first:
+		tool.end_grow(first)
+
+
+## The pick a hand would make on the piece of clutter `_clutter` names, laid as the build stands now; {} for none.
+func _clutter_target(s: Dictionary) -> Dictionary:
+	var targets: Array[Dictionary] = []
+	if s.has("path"):
+		var paths: Paths = main.tool.paths
+		paths.lay_now()
+		var id: int = paths.ids[paths.layouts[s.path]]
+		targets.assign(FittingTool.path_targets(paths, main.world.terrain.height_at).filter(func(t: Dictionary) -> bool: return t.path == id))
+	else:
+		var w: Wall = main.tool.walls[s.get("wall", -1)]
+		w.lay_now()
+		targets.assign(FittingTool.targets(w).filter(func(t: Dictionary) -> bool: return t.what == "clutter"))
+	if s.has("style"):
+		targets.assign(targets.filter(func(t: Dictionary) -> bool: return int(t.value.w) == DecorationLayout.named(s.style)))
+	var k: int = s.get("piece", 0)
+	return targets[k] if k < targets.size() else {}
+
+
+## Has every house and wall standing gather more of its own, as if hands copied pieces round it: one of each clutter
+## style in turn each `every` metres along its foot, `out` from it, until it holds ClutterLayout.MOST or the budget is
+## full.
+func _cluttered(s: Dictionary) -> void:
+	var styles := ["Bench", "Rain barrel", "Crates", "Flower box", "Carved pumpkin", "Anvil", "Market stall"].map(DecorationLayout.named)
+	var tally := {"pieces": 0, "full": false}
+	var k := 0
+	for w: Wall in main.tool.walls:
+		var d: Dictionary = main.world.state.walls.get(w.id, {})
+		if d.is_empty() or d.fence or not d.on.is_empty():
+			continue
+		w.lay_now()
+		var outward := 1.0 if w.layout.inner_side() <= 0.0 else -1.0
+		var list := PackedVector4Array(d.clutter)
+		var at: float = s.every * 0.5
+		while at < w.layout.length() and list.size() < ClutterLayout.MOST:
+			var v := Vector4(at, outward * float(s.out), 0.0, styles[k % styles.size()])
+			if w.layout.clutter_frame(v) != null:
+				list.append(v)
+				k += 1
+			at += s.every
+		var added: int = list.size() - d.clutter.size()
+		if added > 0 and _lit({"op": "reshape", "of": "walls", "id": w.id, "data": {"clutter": list}}, tally):
+			tally.pieces += added
+	print("stress: %d pieces of clutter more, fill %.3f%s" % [tally.pieces, main.world.fill(), ", the budget full" if tally.full else ""])
+
+
+## Takes every build's clutter away, as hands would piece by piece: what a garden costs without it.
+func _uncluttered(_s: Dictionary) -> void:
+	for of in ["walls", "paths"]:
+		for id: int in main.world.state[of]:
+			if not main.world.state[of][id].clutter.is_empty():
+				main.world.submit({"op": "reshape", "of": of, "id": id, "data": {"clutter": PackedVector4Array()}})
+
+
 ## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
 ## reach a visitor: checked, then played.
 func _arrive(s: Dictionary) -> void:

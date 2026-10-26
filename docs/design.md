@@ -2457,6 +2457,7 @@ Stage numbers refer to the build order at the end.
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Two grips on a roof, whatever the hands hold: drawn apart upright they raise the ridge and together lower it; spread across they bow the slopes out, squeezed together inward (`RoofLayout`). Brought all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). Two grips on the eaves, past the walls, pull them out or push them back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Windows, doors | Cottage, arched, arrow-slit, round and corner families that fuse, adapt and wear the plaster around them; doors where windows meet the ground; trapdoors in flat roofs; glowing at night; dressed where people live | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"), at a flat roof a trapdoor, and at a corner's pier a corner window. The style tool turns a window to another family: arched, an arrow slit or round (see "Window families"). At night a room's windows glow in a colour the colour tool picks. A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done), 17 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away; a grip carries it over what it stands on (see "Moving a fitting"). Lanterns also stand on the ground (the Lantern and Lamp post styles), every lantern burns in one of the eight glow colours, lit, bright or dim, its flame and its light alike, a stroke of the decorations tool hangs a string of lanterns or flags, flags close together along a wall's top join into a run, and chimneys smoke (see "Lights, strings and smoke") | 6 (done), 21 (done) |
+| Clutter | Benches, barrels, crates, stalls, pumpkins, nests and more gather round houses and paths; each can be moved, rotated, copied or deleted | A house, wall or path gathers its own small things as it is built: a bench by a house's front with pumpkins or a box of flowers the other side, barrels and crates at its corners, now and then a market stall or an anvil, a swallows' nest under its eaves; things along a wall's foot and nests on its top; benches, barrels, crates and pumpkins beside a path. A grip moves one along its build and out from it and turns it with the hand, a second hand's grip pulls a copy off it, and a press of the decorations tool or the eraser takes it away. Birds perch in nests and on lanterns and flags (see "Clutter") | 22 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between, or planks (see "Wall finishes"). A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done), 16 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
@@ -2677,6 +2678,40 @@ lanterns, a house with two smoking chimneys and a blue one, lanterns standing on
 posts in green, teal and violet, strings of lanterns and of flags on poles, and a string tied from the wall's top to
 the house's eaves. `tests/test_lights.gd` covers the looks and the light they bake, the strings' sag and what hangs
 from them, their commands, the stroke, the colour and style tools on them, runs, smoke, the demo and the stress phases.
+
+## Clutter
+
+- **Gathered.** A house, wall or path gathers its own small things when it is built (`ClutterLayout`), worked out on
+  the host from its command, so every machine lays the same; a build put back by undo or a snapshot keeps the things it
+  had. A house on the ground: a bench beside its door, or the middle of its front, and two carved pumpkins or a box of
+  flowers the other side; a barrel or a stack of crates at about half its corners; one house in four a market stall
+  along its back, one in five an anvil at its end; a swallows' nest under its eaves on any storey. Along a plain wall's
+  foot, a barrel, crates, flowers or a bench about every 5 m on either face, and a nest on its top about every 8 m. A
+  path a piece beside it 1.2 m from its start and about every 7 m after, either side in turn, facing it, none within
+  1.5 m of its end, where it may run into a house. A fence or a ruin gathers nothing.
+- **Kept.** A build keeps them as its `clutter`: a list of `Vector4(s, off, turn, style)`, the arc length along it, how
+  far out it stands (from a wall's face to its middle, or from a path's spine; the sign the side), its turn from facing
+  out, and a decoration's style (`DecorationLayout`, whose Crates, Market stall, Anvil, Flower box, Carved pumpkin and
+  Bird nest stand on any mount as the rest do). A piece follows its build as it is carried, sized or reshaped. One in a
+  doorway, past an open wall's end or where a ruin broke the wall away is not laid. A carved pumpkin's face is glass,
+  glowing at night in its build's glow colour.
+- **Laid with the build.** Each piece is laid as parts of its build, a wall's stones or a path's treads, so it draws in
+  its build's chunks and costs no draw call of its own; the budget charges a part a piece as wall stone
+  (`Budget.PIECE_M2`, 0.1 m², as a path's treads and crops are).
+- **In the hand.** Every piece is a fitting of its build: a grip carries it along the build and out from it or back,
+  0.05 to 3 m out from a wall's face or up to 3 m past a path's edge, and turns it with the hand, by 5 cm and 5° steps,
+  the build laid again only as it moves on by a step. Another hand's grip on a held piece pulls a copy off it, carried
+  by that hand. Let go, each is one reshape of the build's `clutter`, one undo step; a press of the decorations tool,
+  or the eraser, takes one away. A build holds at most 64.
+- **Birds.** A bird perches on a flag's finial, a lantern's hood and in a nest, a house's under its eaves too, besides a
+  wall's top.
+
+`demo/clutter.json` renders two houses, a wall and a path with what they gathered, then a bench carried and turned, a
+copy pulled off a pumpkin or a box of flowers, a piece by the path taken away, and the pumpkins at night.
+`tests/test_clutter.gd` covers where each build gathers, the schema, the budget, the layout, the targets, each edit
+with undo and redo, a house put back keeping its things, the doorway, perches, the demo, and the stress scene's
+`clutter/*` phases: the doors village, every house and wall then given a piece every 1.6 m round its foot until the
+budget is full.
 
 ## Raising a house
 
@@ -3609,6 +3644,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 19. Path materials and gardens: dirt, sand, cobbles and flagstones blending where they meet, stepping stones across water, garden beds sprouting rows of vegetables. (Done.)
 20. Bridges: plank-and-rope bridges hung between high points with a railing style, a single rope at the least width; walls arching over ponds. (Done.)
 21. Lights, strings and smoke: lanterns standing on the ground, in colours and three brightnesses; strings of lanterns or flags hung by a stroke; flags joining into runs along a wall; smoking chimneys. (Done.)
+22. Clutter: houses, walls and paths gathering benches, barrels, crates, market stalls, anvils, flower boxes, carved pumpkins and bird nests that a hand moves, turns, copies or takes away; birds perching on nests, lanterns and flags. (Done.)
 
 ## Water
 

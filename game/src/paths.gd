@@ -1,7 +1,8 @@
 class_name Paths
 extends Node3D
 
-## Path strokes, the ground they wear into the ground mask and what they lay on it: treads, stepping stones and crops.
+## Path strokes, the ground they wear into the ground mask and what they lay on it: treads, stepping stones, crops and
+## the clutter beside them.
 
 const MIN_LENGTH := 1.0
 
@@ -144,16 +145,20 @@ func resurface(id: int, data: Dictionary) -> void:
 	settle(id)
 
 
-## Shows path `id` in the surface a reshape with `data` would give it, here alone, until `settle`.
+## Shows path `id` in the surface and with the clutter a reshape with `data` would give it, here alone, until `settle`.
 func show_reshaped(id: int, data: Dictionary) -> void:
 	var path := layout(id)
 	if path == null:
 		return
-	var shown: PathLayout.Surface = World.reshaped(_garden[id], data).surface
-	if path.surface != shown:
-		path.surface = shown
+	var shown := World.reshaped(_garden[id], data)
+	var surfaced: bool = path.surface != shown.surface
+	if not surfaced and PackedVector4Array(path.clutter) == shown.clutter:
+		return
+	path.surface = shown.surface
+	path.clutter.assign(Array(shown.clutter))
+	if surfaced:
 		marks.rewear_mark(path)
-		_lay(path)
+	_lay(path)
 
 
 ## Shows path `id` as the garden has it.

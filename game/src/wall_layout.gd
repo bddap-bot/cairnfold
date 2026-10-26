@@ -225,6 +225,8 @@ var openings: Array[Vector4] = []
 var lanterns: Array[Vector3] = []
 ## Flags on the wall's top, by arc length.
 var flags: Array[float] = []
+## The small things gathered at its foot, on its top or under its eaves (ClutterLayout).
+var clutter: Array[Vector4] = []
 ## Stretches broken away to the ground, by arc length from and to, each within the wall's length.
 var ruins: Array[Vector2] = []
 ## The builds this one stands on, the builds standing on it and the houses and towers it joins
@@ -478,6 +480,11 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 		cloths.append(parts.cloth)
 	for run in flag_runs(flying, length(), closed):
 		_lay_flag_run(run.x, run.y)
+	for v in clutter:
+		var x: Variant = clutter_frame(v)
+		if x != null:
+			for part in ClutterLayout.parts(v, x, seed):
+				_world(part.xform, part.color, part.kind, self.wrap(v.x))
 	_hide()
 	_lay_floor()
 
@@ -1606,6 +1613,24 @@ func _lay_flower_box(o: Dictionary, out: float, rng: RandomNumberGenerator) -> v
 		_part(at, o.sill + 0.15 + rng.randf_range(0.0, 0.04), Vector3(0.07, 0.06, 0.07), BLOOMS[rng.randi() % BLOOMS.size()], rng, "bloom", off + out * rng.randf_range(-0.05, 0.05), 0.5)
 
 
+## Where piece `v` of the wall's clutter stands, its middle on the ground facing out, or null where nothing holds it:
+## past an open wall's end, in a doorway or where a ruin broke the wall away. A nest sits on a bare wall's top, or
+## under the eaves of a roof or deck.
+func clutter_frame(v: Vector4) -> Variant:
+	if length() <= 0.0 or not closed and (v.x < 0.0 or v.x > length()) or broken(v.x, 0.4):
+		return null
+	var s := self.wrap(v.x)
+	var f := frame_at(s)
+	if not ClutterLayout.perched(int(v.w)):
+		for o in apertures:
+			if o.door and absf(offset(s, o.s)) < o.half + 0.3:
+				return null
+		return ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5 + absf(v.y), v.z)
+	if cover == Cover.OPEN:
+		return Transform3D(Basis(Vector3.UP, v.z), f.point + Vector3.UP * (standing(s) + CAP))
+	return ClutterLayout.facing(f.point + Vector3.UP * (rise + height - ClutterLayout.UNDER_EAVE), f.tangent, v.y, THICKNESS * 0.5 + 0.12, v.z)
+
+
 ## Whether a washing line's arms beside window `o` stand on its own straight face.
 func _washing_fits(o: Dictionary) -> bool:
 	var reach: float = o.half + WASHING_ARM
@@ -1656,7 +1681,7 @@ func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerato
 		_world(Transform3D(arm.scaled_local(Vector3(reach + 0.04, 0.04, 0.04)), at + out * reach * 0.5 + Vector3.UP * 0.32), IRON, "iron", s)
 		_world(Transform3D(Basis().scaled(Vector3(0.02, 0.1, 0.02)), hang + Vector3.UP * 0.26), IRON, "iron", s)
 	var turn := Basis(Vector3.UP, rng.randf() * TAU)
-	_world(Transform3D(turn.scaled_local(Vector3(0.2, 0.05, 0.2)), hang + Vector3.UP * 0.19), IRON, "iron", s)
+	_world(Transform3D(turn.scaled_local(Vector3(0.2, 0.05, 0.2)), hang + Vector3.UP * 0.19), IRON, "hood", s)
 	_world(Transform3D(turn.scaled_local(Vector3(0.16, 0.035, 0.16)), hang - Vector3.UP * 0.07), IRON, "iron", s)
 	flames.append(Transform3D(turn.scaled_local(Vector3(0.12, 0.22, 0.12)), hang + Vector3.UP * 0.055))
 
@@ -2678,22 +2703,22 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 
-## Where a small bird can stand on the wall's top, in world space: along the top of every cap, coping stone,
-## merlon and pier, a fence's upper rails and its posts, a step apart, and only the highest where they
-## overlap; none on a roofed wall, none beside a flag or a lantern.
+## Where a small bird can stand on the wall, in world space: on a flag's finial, a lantern's hood and in a nest; and,
+## on a wall with no roof, along the top of every cap, coping stone, merlon and pier, a fence's upper rails and its
+## posts, a step apart, only the highest where they overlap, and none beside a flag or a lantern.
 func perches() -> PackedVector3Array:
 	var out := PackedVector3Array()
-	if cover == Cover.ROOF:
-		return out
 	var tops: Array[Vector3] = []
 	var fittings: Array[Vector3] = []
 	for st in stones:
 		var kind: String = st.kind
 		var x: Transform3D = st.xform
-		if kind in ["pole", "iron", "finial"]:
+		if kind in ["finial", "hood", "nest"]:
+			out.append(x.origin + Vector3.UP * x.basis.y.length() * 0.5)
+		if kind in ["pole", "iron", "finial", "hood"]:
 			fittings.append(x.origin)
 			continue
-		if not (kind in ["cap", "cope", "merlon", "pier", "post"] or kind == "rail" and st.y > FENCE_HEIGHT * 0.6):
+		if cover == Cover.ROOF or not (kind in ["cap", "cope", "merlon", "pier", "post"] or kind == "rail" and st.y > FENCE_HEIGHT * 0.6):
 			continue
 		var top := x.origin + x.basis.y * 0.5
 		var run := x.basis.x
@@ -2719,7 +2744,7 @@ func perches() -> PackedVector3Array:
 
 
 ## What `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
-const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"finish", &"wear", &"foundation", &"planks", &"gable_end", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
+const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"finish", &"wear", &"foundation", &"planks", &"gable_end", &"openings", &"lanterns", &"flags", &"clutter", &"ruins", &"supports", &"resting", &"joined", &"older"]
 
 
 ## A copy of what `build` reads, to build on another thread while this one is edited.
@@ -2757,6 +2782,7 @@ func set_data(d: Dictionary) -> void:
 	openings.assign(Array(d.openings))
 	lanterns.assign(Array(d.lanterns))
 	flags.assign(Array(d.flags))
+	clutter.assign(Array(d.get("clutter", PackedVector4Array())))
 	ruins.assign(Array(d.ruins))
 
 

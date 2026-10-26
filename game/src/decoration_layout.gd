@@ -31,6 +31,12 @@ const STYLES := [
 	{"name": "String lights"},
 	{"name": "Lantern"},
 	{"name": "Lamp post"},
+	{"name": "Crates"},
+	{"name": "Market stall"},
+	{"name": "Anvil"},
+	{"name": "Flower box"},
+	{"name": "Carved pumpkin"},
+	{"name": "Bird nest"},
 	{"name": "Lantern string", "string": true},
 	{"name": "Flag string", "string": true},
 ]
@@ -63,6 +69,13 @@ const SOIL := Color(0.12, 0.09, 0.06)
 const WAX := Color(0.93, 0.88, 0.74)
 const PAPER := Color(0.62, 0.12, 0.14)
 const RIBBON := Color(0.9, 0.78, 0.4)
+const PUMPKIN := Color(0.86, 0.42, 0.08)
+const STALK := Color(0.28, 0.36, 0.12)
+## A carved face is glass: it glows at night in its build's glow colour, as windows do.
+const CANDLE := Color(0.95, 0.62, 0.2)
+const TWIG := Color(0.38, 0.27, 0.15)
+const EGG := Color(0.72, 0.84, 0.86)
+const PRODUCE: Array[Color] = [Color(0.72, 0.12, 0.1), Color(0.86, 0.6, 0.12), Color(0.36, 0.56, 0.18), Color(0.5, 0.22, 0.44)]
 ## Cloth: rugs, blankets and canvas take one of these by seed.
 const DYES: Array[Color] = [Color(0.55, 0.16, 0.12), Color(0.17, 0.27, 0.48), Color(0.66, 0.5, 0.16), Color(0.24, 0.4, 0.26)]
 var parts: Array[Dictionary] = []
@@ -290,6 +303,47 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			box(Vector3(0, 2.22, 0), Vector3(0.14, 0.04, 0.14), IRON, "iron")
 			lantern(Vector3(0, 2.36, 0))
 			box(Vector3(0, 2.62, 0), Vector3(0.06, 0.08, 0.06), IRON, "iron")
+		"Crates":
+			for i in 3:
+				var at := Vector3(-0.27 + 0.54 * i, 0.25, sin(seed + i) * 0.04) if i < 2 else Vector3(-0.02, 0.75, 0.0)
+				var turn := sin(seed * 1.7 + i) * 0.12 + (0.35 if i == 2 else 0.0)
+				box(at, Vector3(0.5, 0.5, 0.5), WOOD.lightened(0.2 + 0.04 * i), "board", turn)
+				box(at, Vector3(0.52, 0.08, 0.52), WOOD, "board", turn)
+		"Market stall":
+			box(Vector3(0, 0.45, 0.1), Vector3(1.8, 0.9, 0.7), WOOD.lightened(0.1), "board")
+			box(Vector3(0, 0.92, 0.12), Vector3(1.9, 0.06, 0.8), OAK.lightened(0.12), "board")
+			for x in [-0.88, 0.88]:
+				for z in [-0.3, 0.5]:
+					box(Vector3(x, 1.1, z), Vector3(0.08, 2.2 - (z + 0.3) * 0.35, 0.08), WOOD, "board")
+			for i in 4:
+				box(Vector3(-0.72 + 0.48 * i, 2.05, 0.15), Vector3(0.49, 0.03, 1.15), dye if i % 2 == 0 else LINEN, "", 0.0, 0.24)
+			for i in 3:
+				box(Vector3(-0.55 + 0.55 * i, 1.02, 0.18), Vector3(0.42, 0.14, 0.42), PRODUCE[posmod(seed + i, PRODUCE.size())], "")
+		"Anvil":
+			box(Vector3(0, 0.26, 0), Vector3(0.42, 0.52, 0.42), WOOD.lightened(0.08), "board")
+			box(Vector3(0, 0.6, 0), Vector3(0.16, 0.16, 0.3), IRON, "iron")
+			box(Vector3(0, 0.74, -0.04), Vector3(0.2, 0.12, 0.52), IRON, "iron")
+			box(Vector3(0, 0.75, 0.3), Vector3(0.1, 0.08, 0.18), IRON, "iron", 0.0, 0.22)
+			box(Vector3(0.08, 0.83, -0.12), Vector3(0.04, 0.04, 0.3), WOOD, "board", 0.6)
+		"Flower box":
+			box(Vector3(0, 0.17, 0), Vector3(1.0, 0.34, 0.34), WOOD.lightened(0.12), "planter")
+			box(Vector3(0, 0.36, 0), Vector3(0.94, 0.06, 0.28), WallLayout.LEAVES, "leaf")
+			for i in 6:
+				box(Vector3(-0.4 + 0.16 * i, 0.43, sin(seed + i * 2.3) * 0.07), Vector3(0.09, 0.07, 0.09), WallLayout.BLOOMS[posmod(seed + i, WallLayout.BLOOMS.size())], "bloom", i * 0.7)
+		"Carved pumpkin":
+			for i in 3:
+				box(Vector3(0, 0.2, 0), Vector3(0.44 - 0.06 * absi(i - 1), 0.36 + 0.04 * (1 - absi(i - 1)), 0.44 - 0.06 * absi(i - 1)), PUMPKIN.darkened(0.08 * i), "", i * PI / 6.0)
+			box(Vector3(0, 0.42, 0), Vector3(0.05, 0.1, 0.05), STALK, "", 0.3, 0.2)
+			for x in [-0.09, 0.09]:
+				box(Vector3(x, 0.26, 0.205), Vector3(0.07, 0.06, 0.02), CANDLE, "glass", 0.0, 0.0)
+			box(Vector3(0, 0.14, 0.205), Vector3(0.2, 0.05, 0.02), CANDLE, "glass")
+		"Bird nest":
+			for i in 7:
+				var a := i * TAU / 7.0
+				box(Vector3(sin(a) * 0.11, 0.05, cos(a) * 0.11), Vector3(0.16, 0.07, 0.05), TWIG.lightened(0.06 * (i % 3)), "", a + 0.4, 0.3)
+			box(Vector3(0, 0.025, 0), Vector3(0.18, 0.04, 0.18), TWIG.darkened(0.3), "nest")
+			for i in 3:
+				box(Vector3(sin(i * 2.1) * 0.04, 0.07, cos(i * 2.1) * 0.04), Vector3(0.045, 0.04, 0.055), EGG, "", i * 1.1)
 		"Lantern string", "Flag string":
 			_string(span, drop, seed, STYLES[style].name == "Lantern string")
 

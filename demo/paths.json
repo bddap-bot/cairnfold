@@ -2,6 +2,7 @@
   {"op": "budget", "bounded": false},
   {"op": "label", "name": "walls"},
   {"op": "place", "x": 0, "z": 10},
+  {"op": "budget", "bounded": false},
   {"op": "wall", "points": [[-9, -2], [-4, -3], [0, -3.2], [4, -2.6]], "seconds": 1.5},
   {"op": "lift_wall", "index": 0, "height": 3.3},
   {"op": "wall", "points": [[6, -6], [12, -1]], "seconds": 1},

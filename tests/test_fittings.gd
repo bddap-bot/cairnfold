@@ -579,6 +579,7 @@ func _shared_opening_cap(w: Wall) -> void:
 	check(Commands._wall(data) == null, "the command rejects openings without their size")
 	data.fence = true
 	data.flags = PackedFloat32Array()
+	data.clutter = PackedVector4Array()
 	data.openings = PackedVector4Array([WallLayout.archway(2.0)])
 	var gate := Commands._wall(data) != null
 	data.openings = PackedVector4Array([WallLayout.archway(2.0, 2.0)])

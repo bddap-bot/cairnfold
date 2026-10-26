@@ -621,6 +621,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		if cmd.is_empty():
 			_refuse(by, proposed, "no such command in this build" if not kind in Commands.OPS else "it does not fit the garden as it stands")
 			return
+		_gather(cmd)
 		if kind != "wipe" and not fits(cmd):
 			_refuse(by, proposed, OVER)
 			return
@@ -656,6 +657,15 @@ func _order(proposed: Dictionary, by: int) -> void:
 		_:
 			_push(mine.undo, entry)
 			mine.redo.clear()
+
+
+## A new house, wall or path gathers its own clutter here, on the host, so every machine lays the same.
+static func _gather(cmd: Dictionary) -> void:
+	if cmd.op == "wall":
+		for w: Dictionary in cmd.walls:
+			w.clutter = ClutterLayout.of_wall(w)
+	elif cmd.op == "path":
+		cmd.path.clutter = ClutterLayout.of_path(cmd.path)
 
 
 func _refuse(by: int, proposed: Dictionary, why: String) -> void:

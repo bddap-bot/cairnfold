@@ -36,6 +36,9 @@ const MASONRY_FLUSH_US := 300.0
 ## Main-thread time a frame spends wearing a path just laid into the garden's ground, in microseconds: a few of its rows
 ## on the Steam Frame; a 48 m path's hundred and more take the frames after.
 const GROUND_WEAR_US := 1000.0
+## What a piece laid with a build's stones but apart from its courses counts as: wall courses lay roughly ten blocks a
+## square metre. A path's treads and crops and every build's clutter (ClutterLayout) are charged so, a part a piece.
+const PIECE_M2 := 0.1
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
 ## The mean plank laid across a wall or along a walk: BOARD_RUN's, less for each run's shorter first and the turns.
@@ -223,6 +226,7 @@ static func add(into: Dictionary, units: Dictionary, times := 1.0) -> Dictionary
 ## A wall as its build command carries it.
 static func wall(d: Dictionary) -> Dictionary:
 	var length := Commands.length(d.points)
+	var clutter := ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
 	if d.closed and d.points.size() > 2:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
 	var face := "fence_m2" if d.fence else "wall_m2" if d.finish == WallLayout.Finish.BARE else "plaster_m2"
@@ -291,6 +295,8 @@ static func wall(d: Dictionary) -> Dictionary:
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0) + (d.roof.hatches.size() if slopes.flat() else 0)
 	if fittings > 0:
 		out.fitting = fittings
+	if clutter > 0.0:
+		out.wall_m2 = out.get("wall_m2", 0.0) + clutter
 	return out
 
 
@@ -393,7 +399,7 @@ static func path(d: Dictionary) -> Dictionary:
 		var stones := ceili(layout.length() / PathLayout.STRIDE)
 		for spot in layout.crop_spots():
 			stones += PathLayout.crop(spot.crop).size()
-		out = {"wall_m2": stones * 0.1}
+		out = {"wall_m2": stones * PIECE_M2}
 	else:
 		var stones := 0
 		var timbers := 0
@@ -405,8 +411,8 @@ static func path(d: Dictionary) -> Dictionary:
 				stones += maxi(1, ceili(f.half * 2.0 / 0.5))
 				# Stringers come to at most three timbers a tread, where every flight is two treads long.
 				timbers += 3
-		# Wall courses lay roughly ten blocks per square metre.
-		out = {"wall_m2": stones * 0.1, "timber": timbers}
+		out = {"wall_m2": stones * PIECE_M2, "timber": timbers}
+	out.wall_m2 += ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
 	if layout.kind == Ground.Kind.STONE:
 		var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
 		for k in layout.row_ends.size():

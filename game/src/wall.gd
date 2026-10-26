@@ -223,7 +223,7 @@ func data() -> Dictionary:
 	var d := {
 		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise,
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
-		"openings": PackedVector4Array(layout.openings), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
+		"openings": PackedVector4Array(layout.openings), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags), "clutter": PackedVector4Array(layout.clutter),
 		"ruins": PackedVector2Array(layout.ruins), "finish": int(layout.finish), "wear": layout.wear, "foundation": int(layout.foundation), "planks": layout.planks, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:

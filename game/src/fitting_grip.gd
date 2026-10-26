@@ -1,8 +1,10 @@
 class_name FittingGrip
 extends RefCounted
 
-## A placed fitting a grip holds: entry `index` of the list `key` on `wall` (or its roof, `on_roof`), or decoration
-## `decoration`. Where a hand carries it is pure data, worked out here from where it stood and how far the hand moved.
+## A placed fitting a grip holds: entry `index` of the list `key` on `wall` (or its roof, `on_roof`), or of path
+## `path`'s clutter, or decoration `decoration`. A grip on a piece of clutter another hand holds is a `copy` of it, which
+## its build takes as one more entry. Where a hand carries it is pure data, worked out here from where it stood and how
+## far the hand moved.
 
 ## A carried fitting moves by steps this long and turns by steps this wide, so a wall is laid again only as the fitting
 ## moves on by a step, and a hand's tremor leaves it where it stood.
@@ -11,9 +13,14 @@ const TURN_STEP := deg_to_rad(5.0)
 
 var wall: Wall
 var decoration := -1
+var path := -1
 var key := ""
 var index := -1
 var on_roof := false
+var copy := false
+## A piece of clutter as it was taken, and as the hand shows it now.
+var start := Vector4()
+var shown := Vector4()
 
 
 ## A wall's `reshape` data setting its list `key`, or its roof's, to `list`.
@@ -72,6 +79,19 @@ static func moved(w: Wall, key: String, v: Variant, by: Vector3) -> Variant:
 		"hatches":
 			return w.roof.hatch_spot(c)
 	return w.roof.dormer_spot(c)
+
+
+## Piece `v` of a build's clutter (ClutterLayout) carried `by` and turned `turn`: along its build by the move's run
+## along `tangent` there, out from it or back by the move across, kept `least` to `most` out, and turned with the hand.
+static func shifted(v: Vector4, tangent: Vector3, by: Vector3, turn: float, least: float, most: float) -> Vector4:
+	var side := 1.0 if v.y >= 0.0 else -1.0
+	var out := tangent.cross(Vector3.UP).normalized() * side
+	return Vector4(v.x + by.dot(tangent), side * clampf(absf(v.y) + by.dot(out), least, most), wrapf(v.z + turn, -PI, PI), v.w)
+
+
+## Whether this and `other` hold clutter of one build.
+func beside(other: FittingGrip) -> bool:
+	return key == "clutter" and other.key == "clutter" and path == other.path and wall == other.wall
 
 
 ## Whether fitting `v` from list `key` stands on `w` beside `others`, the rest of its list, as the tools that place

@@ -38,12 +38,12 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "clutter", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "sag", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style", "at", "turn", "s", "lantern", "to"],
 	"easels": ["at", "yaw"],
-	"paths": ["surface"],
+	"paths": ["surface", "clutter"],
 }
 ## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:
 ## whatever stands on a build goes when it goes (`World._take`). Every table is named here, so a new one cannot be
@@ -423,7 +423,10 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "finish": finish, "wear": wear, "foundation": foundation, "planks": planks, "gable_end": gable_end, "on": on, "paint": paint}
+	var clutter: Variant = _clutter(d)
+	if clutter == null or d.fence and not clutter.is_empty():
+		return null
+	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "clutter": clutter, "ruins": ruins, "finish": finish, "wear": wear, "foundation": foundation, "planks": planks, "gable_end": gable_end, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -514,7 +517,10 @@ static func _whole(of: String, d: Dictionary) -> Variant:
 
 
 static func _path(d: Variant) -> Variant:
-	if not d is Dictionary or d.size() != 4 or typeof(d.get("seed")) != TYPE_INT:
+	if not d is Dictionary or d.size() != (5 if d.has("clutter") else 4) or typeof(d.get("seed")) != TYPE_INT:
+		return null
+	var clutter: Variant = _clutter(d)
+	if clutter == null:
 		return null
 	var surface: Variant = d.get("surface")
 	if typeof(surface) != TYPE_INT or surface < 0 or surface >= PathLayout.Surface.size():
@@ -525,7 +531,15 @@ static func _path(d: Variant) -> Variant:
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null
-	return {"points": points, "half_widths": halves, "seed": d.seed, "surface": surface}
+	return {"points": points, "half_widths": halves, "seed": d.seed, "surface": surface, "clutter": clutter}
+
+
+## A build's clutter (ClutterLayout), none if it carries no list, or null for a list no hand could leave.
+static func _clutter(d: Dictionary) -> Variant:
+	var list: Variant = d.get("clutter", PackedVector4Array())
+	if typeof(list) != TYPE_PACKED_VECTOR4_ARRAY or list.size() > ClutterLayout.MOST or not Array(list).all(ClutterLayout.valid):
+		return null
+	return list
 
 
 static func _ground(cmd: Dictionary, out: Dictionary) -> bool:

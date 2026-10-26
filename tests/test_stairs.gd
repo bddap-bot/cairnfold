@@ -244,6 +244,7 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	world.submit({"op": "heights", "cells": cells, "values": flat})
 	world.submit({"op": "path", "path": {"points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42, "surface": PathLayout.Surface.DIRT}})
 	var id: int = world.state.paths.keys().max()
+	world.submit({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": PackedVector4Array()}})
 	var owner := -2000000 - id
 	check(world.units != before, "paths reserve steps through World")
 	main.tool.paths.lay_now()

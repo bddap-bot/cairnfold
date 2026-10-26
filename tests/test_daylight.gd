@@ -180,7 +180,7 @@ func _twisting_wraps_round_the_wheel() -> void:
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:
-	var kept := ["iron", "finial", "pot", "ligger", "curtain", "bloom", "leaf", "rope"]
+	var kept := ["iron", "hood", "finial", "pot", "ligger", "curtain", "bloom", "leaf", "rope"]
 	var kinds := {}
 	var wall := WallLayout.new()
 	wall.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]

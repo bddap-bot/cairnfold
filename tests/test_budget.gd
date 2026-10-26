@@ -292,7 +292,10 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 		built += 1
 	check(built > 0 and built < 40, "walls go up until the budget is full: %d" % built)
 	check(world.fill() <= 1.0, "the garden never passes its budget: %.3f" % world.fill())
-	check(world.fill() + share > 1.0, "the wall turned down would have passed it: %.3f + %.3f" % [world.fill(), share])
+	var next := _wall(Vector2(-6, -30.0 + built * 3.0), Vector2(6, -30.0 + built * 3.0), 4.5)
+	next.clutter = ClutterLayout.of_wall(next)
+	var need := Budget.fill(world.change_of({"op": "wall", "walls": [next]}))
+	check(world.fill() + need > 1.0, "the wall turned down would have passed it: %.3f + %.3f" % [world.fill(), need])
 	var full := world.units.duplicate()
 	var last: int = world.state.walls.keys().max()
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([last])})
@@ -302,7 +305,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	var ids: Array = world.state.walls.keys()
 	ids.sort()
 	var tall_id: int = ids[ids.size() / 2 - 1]
-	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
+	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 13.5}})
 	await _settled()
 	check(world.state.walls[tall_id].height == 4.5, "pulling a wall among the others taller than the budget allows is turned down")
 	await play([{"op": "bare"}])

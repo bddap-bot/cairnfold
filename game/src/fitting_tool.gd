@@ -255,6 +255,11 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 	if target.what == "decoration":
 		world.submit(cmd, Callable(), hand)
 		return true
+	if target.has("path"):
+		if world.fits(cmd):
+			Cues.play(Cues.Act.FITTING_OFF, target.point, hand)
+		world.submit(cmd, Callable(), hand)
+		return true
 	var w: Wall = target.wall
 	var key: String = cmd.data.roof.keys()[0] if cmd.data.has("roof") else cmd.data.keys()[0]
 	var after: Variant = cmd.data.roof[key] if cmd.data.has("roof") else cmd.data[key]
@@ -301,10 +306,10 @@ func change(target: Dictionary) -> Dictionary:
 		return {"ok": false}
 	if target.what == "decoration":
 		return {"ok": true, "near": target.index if target.has("fitting") else -1}
-	var w: Wall = target.wall
-	var layout := w.layout
 	if target.has("fitting"):
 		return {"ok": not removal(world.state, target).is_empty(), "near": target.index}
+	var w: Wall = target.wall
+	var layout := w.layout
 	match target.what:
 		"opening":
 			if layout.fence:
@@ -511,6 +516,18 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.y = point.y - w.layout.point_at(best.s).y
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
+	for item in path_targets(builder.paths, builder.world.terrain.height_at):
+		var local: Vector3 = item.inverse * origin
+		var direction: Vector3 = item.inverse.basis * dir
+		var hit: Variant = item.box.intersects_ray(local, direction)
+		if hit == null:
+			continue
+		var along: float = (hit - local).dot(direction) / direction.length_squared()
+		if along < 0.0 or along > best.get("along", INF) + 0.001 or removal(builder.world.state, item).is_empty():
+			continue
+		best = item.duplicate()
+		best.point = origin + dir * along
+		best.along = along
 	if builder.world.decorations != null:
 		for item in builder.world.decorations.targets():
 			var local: Vector3 = item.inverse * origin
@@ -559,6 +576,10 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		if l.flag_fits(v):
 			var f := l.frame_at(v)
 			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(f.point + Vector3.UP * (l.height + WallLayout.CAP), f.tangent)))
+	for i in l.clutter.size():
+		var x: Variant = l.clutter_frame(l.clutter[i])
+		if x != null:
+			out.append(_target(w, "clutter", "clutter", i, l.clutter[i], ClutterLayout.bounds(l.clutter[i]), false, x))
 	if w.roof != null:
 		var r := w.roof
 		var f := r.frame()
@@ -585,6 +606,19 @@ static func targets(w: Wall) -> Array[Dictionary]:
 	return out
 
 
+## The pieces of clutter beside every path, as `targets` has a wall's, on ground of `height`.
+static func path_targets(paths: Paths, height: Callable) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for path in paths.layouts:
+		for i in path.clutter.size():
+			var v := path.clutter[i]
+			var x: Variant = path.clutter_frame(v, height)
+			if x != null:
+				var box := ClutterLayout.bounds(v)
+				out.append({"path": paths.ids[path], "wall": null, "fitting": true, "what": "clutter", "key": "clutter", "index": i, "value": v, "bounds": x * box, "box": box, "inverse": x.affine_inverse(), "on_roof": false})
+	return out
+
+
 static func _flag_bounds(foot: Vector3, along: Vector3) -> AABB:
 	var parts := WallLayout.flag(foot, along, Color.WHITE)
 	var unit := AABB(Vector3.ONE * -0.5, Vector3.ONE)
@@ -598,6 +632,13 @@ static func _target(w: Wall, what: String, key: String, index: int, value: Varia
 static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 	if target.has("decoration"):
 		return {"op": "take", "of": "decorations", "ids": PackedInt32Array([target.decoration])} if state.decorations.has(target.decoration) else {}
+	if target.has("path"):
+		var list := PackedVector4Array(state.paths.get(target.path, {}).get("clutter", PackedVector4Array()))
+		var at := list.find(target.value)
+		if at < 0:
+			return {}
+		list.remove_at(at)
+		return {"op": "reshape", "of": "paths", "id": target.path, "data": {"clutter": list}}
 	if not is_instance_valid(target.wall):
 		return {}
 	var w: Wall = target.wall

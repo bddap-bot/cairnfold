@@ -50,7 +50,7 @@ func _only_birds_make_conures() -> void:
 
 
 ## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
-## beside a flag, none on a roofed wall.
+## beside a flag but one on its finial, none on a roofed wall without a lantern or a nest.
 func _wall_tops_are_perches() -> void:
 	for top in WallLayout.Top.values():
 		var w := WallLayout.new()
@@ -62,7 +62,12 @@ func _wall_tops_are_perches() -> void:
 		var low := INF
 		var high := -INF
 		var by_flag := 0
+		var finial: Vector3 = w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "finial")[0].xform.origin
+		var on_finial := 0
 		for p in perches:
+			if p.distance_to(finial) < 0.1:
+				on_finial += 1
+				continue
 			var up: float = p.y - w.frame_at(p.x).point.y
 			low = minf(low, up)
 			high = maxf(high, up)
@@ -70,6 +75,7 @@ func _wall_tops_are_perches() -> void:
 		check(perches.size() > 20, "a 6 m wall has perches along its top, %d" % perches.size())
 		check(low >= w.height + 0.05 and high <= w.height + 1.2, "they stand on its top: %.2f to %.2f up a wall %.2f tall" % [low, high, w.height])
 		check(by_flag == 0, "none beside the flag")
+		check(on_finial == 1, "one on the flag's finial")
 	var f := WallLayout.new()
 	f.points.assign([Vector3(0, 0, 0), Vector3(6, 0, 0)])
 	f.fence = true
