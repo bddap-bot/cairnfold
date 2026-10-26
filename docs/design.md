@@ -2599,10 +2599,12 @@ they size a boulder; every other fitting has no size, and the other hand's grip 
   shader lifts 2.4 m, drifts downwind, swells and fades over seven seconds, lit as the hour lights everything else.
   The processor lays them once with the roof.
 - **Budget.** A string is charged by the decoration rule (`Budget.decoration`): a piece, a solid for each length of
-  rope, pole, lantern part and flag, a flame for each lantern; a 6 m string of lanterns on two poles costs 184 µs. Neither the
-  strings, the runs, the colours nor the smoke are measured on a headset yet: the stress scene's `lights/*` phases,
-  three houses with a chimney every 1.5 m along their ridges, a lantern every 1.5 m round them and strings between
-  them and in rows across the meadow until the budget is full, at dusk, are the next box's run on the Frame.
+  rope, pole, lantern part and flag, a flame for each lantern; a 6 m string of lanterns on two poles costs 184 µs. The
+  stress scene's `lights/*` phases, three houses with a chimney every 1.5 m along their ridges, a lantern every 1.5 m
+  round them and strings between them and in rows across the meadow until the budget is full, at dusk, hold 72 Hz on
+  the Steam Frame, governed, with no late frame ([record](../perf/frame/stress/20261026T024617Z-3e988be.json)): 3.6 ms
+  of GPU time a frame from the air and on the ground, at step 16, where the ladder came down at the village and
+  stayed.
 
 `demo/lights.json` renders it at dusk and at night: a capped wall with three flags joined into two runs and red
 lanterns, a house with two smoking chimneys and a blue one, lanterns standing on the ground lit, bright and dim, lamp
