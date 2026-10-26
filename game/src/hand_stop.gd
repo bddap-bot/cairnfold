@@ -99,14 +99,18 @@ func _process(delta: float) -> void:
 
 
 ## The world round `box` for hand `i`, or the eyes after the hands: what was gathered last time while the box stays inside the region it was
-## gathered for and nothing built or planted since, else gathered afresh for a region SPARE wider.
+## gathered for and nothing planted since nor built there, else gathered afresh for a region SPARE wider. A wall laid
+## anywhere is checked against the region only once, so a stroke laying walls elsewhere costs no gathering.
 func _near_for(i: int, box: AABB) -> Near:
 	var w := _world
 	var stamp := Vector4i(WallLayout._laid_count, w.wall_tool.walls.size() if w.wall_tool != null else 0, w.flora.changes if w.flora != null else 0, w.boulders.changes if w.boulders != null else 0)
-	if _gathered[i] == null or _stamps[i] != stamp or not _gathered[i].region.encloses(box):
-		_gathered[i] = Near.gather(w, box.grow(SPARE))
-		_stamps[i] = stamp
-	return _gathered[i]
+	var near := _gathered[i]
+	var planted := near == null or Vector2i(_stamps[i].z, _stamps[i].w) != Vector2i(stamp.z, stamp.w)
+	if planted or not near.region.encloses(box) or _stamps[i] != stamp and not near.walls_hold(w.wall_tool):
+		near = Near.gather(w, box.grow(SPARE))
+		_gathered[i] = near
+	_stamps[i] = stamp
+	return near
 
 
 ## Where a ball moving from `from` toward `to` comes to rest: `to` if the way is clear, else at the first surface it
@@ -212,6 +216,8 @@ class Near:
 	var facing := Vector3.UP
 	var terrain: Terrain
 	var marks: Ground
+	## Each wall reaching `region` when gathered, as [wall, layout, its laying, roof]: what `walls_hold` compares.
+	var _walls_seen: Array[Array] = []
 
 	## What of `world`'s builds, plants and boulders reaches `box`, over its ground.
 	static func gather(world: World, box: AABB) -> Near:
@@ -224,6 +230,7 @@ class Near:
 		var rocks := world.boulders
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
 		if on != null:
+			near._walls_seen = _walls_reaching(on, box)
 			for w in on.walls:
 				if not w.pick_bounds.has_volume() or not w.pick_bounds.intersects(box):
 					continue
@@ -244,6 +251,17 @@ class Near:
 				if AABB(b.transform.origin, Vector3.ZERO).grow(b.shape.reach() * b.size + RADIUS).intersects(box):
 					near.boulders.append(b)
 		return near
+
+	## Whether the walls reaching `region` are the ones gathered, each laid as it was then.
+	func walls_hold(on: WallTool) -> bool:
+		return on == null or _walls_reaching(on, region) == _walls_seen
+
+	static func _walls_reaching(on: WallTool, box: AABB) -> Array[Array]:
+		var out: Array[Array] = []
+		for w in on.walls:
+			if w.pick_bounds.has_volume() and w.pick_bounds.intersects(box):
+				out.append([w, w.layout, w.layout.laid, w.roof])
+		return out
 
 	## Narrows the walls tested to those reaching `box`, a frame's sweep, and gathers the animals there, which move.
 	func focus(box: AABB, critters: Array) -> void:

@@ -24,6 +24,7 @@ func _run() -> void:
 	_a_trunk_is_solid_and_its_leaves_are_brushed()
 	_surfaces_come_from_what_is_touched(wall)
 	_animals_are_solid_in_their_coats()
+	await _a_wall_laid_elsewhere_keeps_what_was_gathered()
 	await _a_hand_does_not_stop_against_the_bird_it_carries()
 	await _an_eye_inside_a_wall_or_hill_sees_dark()
 	finish()
@@ -269,6 +270,20 @@ func _surfaces_come_from_what_is_touched(wall: Wall) -> void:
 	check(near.touch(p) == HandStop.Surface.STONE, "a stone wall feels of stone")
 	var g := main.world.terrain.ground(10.0, 10.0)
 	check(near.touch(g) == HandStop.Surface.GROUND, "the meadow feels of ground")
+
+
+## A wall laid away from a hand leaves what was gathered round it standing; one laid through it is gathered.
+func _a_wall_laid_elsewhere_keeps_what_was_gathered() -> void:
+	var p := main.world.terrain.ground(0.0, 12.0) + Vector3.UP * 1.0
+	var box := AABB(p, Vector3.ZERO).grow(0.3)
+	var stop := HandStop.new(main.world, main.rig)
+	var near := stop._near_for(0, box)
+	await play([{"op": "wall", "points": [[-3, 20], [3, 20]], "seconds": 0.2}])
+	check(stop._near_for(0, box) == near, "a wall laid elsewhere costs no gathering")
+	await play([{"op": "wall", "points": [[-3, 12], [3, 12]], "seconds": 0.2}])
+	var again := stop._near_for(0, box)
+	check(again != near and again.solid(p), "a wall laid through the hand is gathered, and stops it")
+	stop.free()
 
 
 func _animals_are_solid_in_their_coats() -> void:
