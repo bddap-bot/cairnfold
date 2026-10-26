@@ -184,7 +184,7 @@ func _process(delta: float) -> void:
 			_previews[h] = preview
 		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE)
 		if h == drawing:
-			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
+			_aim(preview, lens(h), FOV, Quality.SCREEN_MASK)
 			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 			if h == _clip_hand:
 				_grab(preview)
@@ -241,7 +241,7 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 ## The view the camera's screen would show from `at`, drawn once by a viewport made as the screen's is.
 func render_screen(at: Transform3D) -> Image:
 	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
-	_aim(vp, at, FOV, Quality.VIEW_MASK)
+	_aim(vp, at, FOV, Quality.SCREEN_MASK)
 	await _draw_complete(vp)
 	var img := await _read(vp)
 	vp.queue_free()

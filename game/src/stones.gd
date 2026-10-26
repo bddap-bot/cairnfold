@@ -4,9 +4,12 @@ extends Node3D
 ## Shared stone meshes and instanced stones in world space.
 
 const FLIPS: Array[Basis] = [Basis.IDENTITY, Basis(Vector3.UP, PI), Basis(Vector3.RIGHT, PI)]
+const ROUNDING := 0.14
+const SEED := 100
 
 static var _mesh: ArrayMesh
 static var _far_mesh: ArrayMesh
+static var _screen_mesh: ArrayMesh
 static var _material: ShaderMaterial
 static var _small: ShaderMaterial
 static var _baked: ShaderMaterial
@@ -46,8 +49,16 @@ static func _stone(shader: Shader) -> ShaderMaterial:
 
 static func mesh() -> ArrayMesh:
 	if _mesh == null:
-		_mesh = Meshes.rounded_box(0.14, 3, 100)
+		_mesh = Meshes.rounded_box(ROUNDING, 3, SEED)
 	return _mesh
+
+
+## `mesh` in the coarser lattice it carries as its level of detail, for a camera's screen (Masonry.Kind.screen): there a
+## stone a metre off shows no difference, and a screen standing among walls draws in half the time.
+static func screen_mesh() -> ArrayMesh:
+	if _screen_mesh == null:
+		_screen_mesh = Meshes.rounded_box(ROUNDING, Meshes.LOD_SEGMENTS, SEED)
+	return _screen_mesh
 
 
 ## A stone for far off, 12 triangles to `mesh`'s 108. Its faces stand where `mesh`'s do, so a piece that meets its

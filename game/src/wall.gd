@@ -124,6 +124,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.STONE] = Masonry.Kind.new(Stones.mesh(), Stones.small_material(), true, true, off, true)
 		_kinds[Part.STONE].far = Stones.far_mesh()
 		_kinds[Part.STONE].far_baked = Stones.baked_material()
+		_kinds[Part.STONE].screen = Stones.screen_mesh()
 		_kinds[Part.STONE].size = WallLayout.LONGEST
 		_kinds[Part.MORTAR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
 		_kinds[Part.STONE_SHADOW] = shadow

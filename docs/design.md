@@ -468,6 +468,13 @@ What makes building cheap:
 - A chunk wholly beyond the near distance of the quality step draws its stones
   and roof tiles with `Stones.far_mesh`, the same lumps at the corners alone: 12
   triangles to the full stone's 108 and the full tile's 48. Ivy chunks past ivy's reach are not drawn at all.
+- A camera's screen draws a near chunk's stones in the coarser lattice the stone mesh carries as its level of detail
+  (`Stones.screen_mesh`: 48 triangles to 108) on `Quality.SCREEN_LAYER`, while the eyes see them whole on
+  `Quality.NEAR_LAYER`. The renderer picks a level of detail per chunk, and the chunk the lens stands in is at
+  distance 0, so the screen drew its nearest stones whole. At 256×192 the two differ by single-pixel edges (screen
+  captures standing among walls: mean difference 2 of 255; the far box, at 5, closed the gaps between stones a metre
+  off). On the Frame at step 6 the screen's cost standing among the stress scene's walls fell from 1.68 to 1.39 ms a
+  frame (three alternating rounds in one run).
 - Stones and roof tiles cast no shadow themselves; a box of 8 vertices per stone
   does. Mortar, seen only in the gaps, is a plain box. A stone's faces share the
   vertices along their borders.
@@ -4633,8 +4640,9 @@ frame drawn so too.
 What it costs: nothing until a hand first holds the camera. Its screen is then a second view of
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
 one view range the eye, the screen and the photo share), redrawn on one frame in three:
-that frame pays the scene's draw calls and shadow pass again at a small size. A camera in each hand
-draws two such views, each on frames of its own, so no frame draws both. A photo is one
+that frame pays the scene's draw calls and shadow pass again at a small size, its walls' near stones in their coarser
+lattice ("What makes building cheap"). A camera in each hand draws two such views, taking turns on that frame, so no
+frame draws both. A photo is one
 render on the frame after the press, read back from the GPU asynchronously, then converted,
 encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
 for the shot and let go once the screen stops showing it. The frame drawing it is long; the
