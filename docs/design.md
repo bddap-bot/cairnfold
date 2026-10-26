@@ -445,7 +445,10 @@ density, and no build the player can make may bring the frame rate down.
   named scene a GPU-time rise fails it, and bench.sh runs it on the scene it recorded.
 - Nothing the player does waits on a build or a compile. Every Vulkan export ships its shaders baked (`shader_baker`,
   run by `scripts/export.sh` in an editor with a RenderingDevice): a Quest 2 with its data cleared sat 52 s on its
-  first frame, 34 s baked. What a cleared headset still compiles is its driver's pipelines, which no export can ship:
+  first frame, 34 s baked. The baker compiles only shaders it meets in exported materials, and the game makes its
+  materials in code, so `game/shaders.tres` holds one of each kind a booted game makes, every `.gdshader` among them
+  (`scripts/shaders.sh` rewrites it; `tests/test_shaders.gd` fails when it falls behind): with it a cleared Quest 2
+  reaches its first scripted step in 17.6 to 20.0 s rather than 31.2 to 33.2 s. What a cleared headset still compiles is its driver's pipelines, which no export can ship:
   the first easel 11 s, the first house 7 s, once per install; an update keeps them. The style wheel's miniatures are
   built on a thread of their own (`ToolModels`) and the rest of the warm-ups run from one list, `Warmup`.
   `demo/first-use.json` plays each tool's first use, and `CAIRNFOLD_COLD=1 scripts/bench.sh` clears the game's data

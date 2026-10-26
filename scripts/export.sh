@@ -2,8 +2,9 @@
 # Exports a preset: export.sh GAME_DIR PRESET OUT LOG, printing the log's tail when it fails.
 # A preset with shader_baker/enabled ships its shaders compiled, which the baker does only from an editor running a
 # RenderingDevice renderer, never a headless one: a Quest 2 with its data cleared sat 52 s on its first frame compiling
-# them, 34 s baked. So the editor runs on a virtual display through Mesa's software Vulkan, the nix shell's
-# (CAIRNFOLD_LAVAPIPE): a host's driver is built against the host's C library, which the shell's Godot may predate.
+# them, 34 s baked. The baker sees only exported materials, so game/shaders.tres lists those the game makes in code.
+# The editor runs on a virtual display through Mesa's software Vulkan, the nix shell's (CAIRNFOLD_LAVAPIPE): a host's
+# driver is built against the host's C library, which the shell's Godot may predate.
 set -euo pipefail
 game=$1 preset=$2 out=$3 log=$4
 display=:$((100 + RANDOM % 800))
