@@ -137,9 +137,10 @@ func tick(delta: float) -> void:
 		_rehome()
 	var food := _food()
 	var startling: Array[Vector3] = []
-	for n in wildlife._watched():
-		if wildlife.sudden(n):
-			startling.append(n.global_position)
+	if not wildlife._calm:
+		for n in wildlife._watched():
+			if wildlife.sudden(n):
+				startling.append(n.global_position)
 	var have := {}
 	for f in swimming:
 		if not f.leaving:

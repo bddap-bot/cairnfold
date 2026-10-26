@@ -141,6 +141,8 @@ var _asleep := false
 ## where each was, so the cut is no motion to an animal: a player in a small room cannot help teleporting.
 var _was := {}
 var _speed := {}
+## No hand or head moving suddenly, as `_watch` last found them: nothing to startle anything.
+var _calm := true
 var _velocity := {}
 ## Per hand holding seeds or seeds scattered: whatever is eating from it or on its way to.
 var _eaters := {}
@@ -550,6 +552,7 @@ func _watch(delta: float) -> void:
 		_was[n] = at
 		_speed[n] = lerpf(_speed.get(n, 0.0), moved.length(), ease)
 		_velocity[n] = _velocity.get(n, Vector3.ZERO).lerp(moved, ease)
+	_calm = _speed.values().all(func(v: float) -> bool: return v <= CALM)
 	var held := offers()
 	for h in _eaters.keys():
 		if not held.has(h):
@@ -583,6 +586,8 @@ func approaching(n: Node3D, p: Vector3) -> bool:
 
 ## The first hand, or the head, within `reach` of `p` and moving suddenly, or null.
 func _startled(p: Vector3, reach: float) -> Node3D:
+	if _calm:
+		return null
 	for n in _watched():
 		if p.distance_to(n.global_position) < reach and sudden(n):
 			return n
