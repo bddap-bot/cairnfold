@@ -1,0 +1,285 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "settle": {
+   "p50": 13.8850002288818,
+   "p99": 44.2999992370605,
+   "late": 8,
+   "draws": 68,
+   "prims": 296644,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.389,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 53.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 1,
+   "fill": 0.322,
+   "gpu_ms": 8.11,
+   "timewarp_ms": 1.13
+  },
+  "pick/easel": {
+   "p50": 13.8420000076294,
+   "p99": 15.460000038147,
+   "late": 5,
+   "draws": 82,
+   "prims": 297486,
+   "step": 3,
+   "fill": 0.322,
+   "gpu_ms": 8.7,
+   "timewarp_ms": 0.97
+  },
+  "easel/first": {
+   "p50": 13.8540000915527,
+   "p99": 15.0880002975464,
+   "late": 0,
+   "draws": 120,
+   "prims": 301796,
+   "step": 3,
+   "fill": 0.509,
+   "gpu_ms": 9.23,
+   "timewarp_ms": 0.99
+  },
+  "pick/house": {
+   "p50": 13.878999710083,
+   "p99": 14.9230003356934,
+   "late": 0,
+   "draws": 106,
+   "prims": 301628,
+   "step": 3,
+   "fill": 0.509,
+   "gpu_ms": 8.98,
+   "timewarp_ms": 1.0
+  },
+  "house/first": {
+   "p50": 13.9709997177124,
+   "p99": 15.2930002212524,
+   "late": 0,
+   "draws": 121,
+   "prims": 352940,
+   "step": 4,
+   "fill": 0.704,
+   "gpu_ms": 10.2,
+   "timewarp_ms": 1.0
+  },
+  "pick/tower": {
+   "p50": 13.9440002441406,
+   "p99": 15.125,
+   "late": 0,
+   "draws": 125,
+   "prims": 366584,
+   "step": 4,
+   "fill": 0.704,
+   "gpu_ms": 8.6,
+   "timewarp_ms": 0.9
+  },
+  "tower/first": {
+   "p50": 13.8819999694824,
+   "p99": 15.2709999084473,
+   "late": 0,
+   "draws": 131,
+   "prims": 384404,
+   "step": 4,
+   "fill": 0.846,
+   "gpu_ms": 9.65,
+   "timewarp_ms": 0.9
+  },
+  "pick/book": {
+   "p50": 13.8520002365112,
+   "p99": 15.3979997634888,
+   "late": 0,
+   "draws": 131,
+   "prims": 385874,
+   "step": 4,
+   "fill": 0.846,
+   "gpu_ms": 9.75,
+   "timewarp_ms": 0.89
+  },
+  "book/open": {
+   "p50": 14.0559997558594,
+   "p99": 16.2240009307861,
+   "late": 0,
+   "draws": 280,
+   "prims": 422032,
+   "step": 5,
+   "fill": 0.846,
+   "gpu_ms": 10.06,
+   "timewarp_ms": 0.89
+  },
+  "pick/camera": {
+   "p50": 13.9379997253418,
+   "p99": 16.1389999389648,
+   "late": 0,
+   "draws": 259,
+   "prims": 783325,
+   "step": 5,
+   "fill": 0.846,
+   "gpu_ms": 9.88,
+   "timewarp_ms": 0.8
+  },
+  "photo": {
+   "p50": 13.9619998931885,
+   "p99": 41.7639999389648,
+   "late": 15,
+   "draws": 371,
+   "prims": 1557894,
+   "step": 7,
+   "fill": 0.846,
+   "gpu_ms": 9.59,
+   "timewarp_ms": 0.81
+  },
+  "walls": {
+   "p50": 13.8959999084473,
+   "p99": 18.2059993743896,
+   "late": 2,
+   "draws": 152,
+   "prims": 407162,
+   "stalls": [
+    {
+     "ms": 210.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.894,
+   "gpu_ms": 10.03,
+   "timewarp_ms": 0.8
+  },
+  "pick/delete": {
+   "p50": 13.8920001983643,
+   "p99": 15.0620002746582,
+   "late": 0,
+   "draws": 154,
+   "prims": 407022,
+   "step": 6,
+   "fill": 0.894,
+   "gpu_ms": 9.74,
+   "timewarp_ms": 0.81
+  },
+  "unwall": {
+   "p50": 13.9870004653931,
+   "p99": 15.3030004501343,
+   "late": 0,
+   "draws": 154,
+   "prims": 406860,
+   "step": 6,
+   "fill": 0.894,
+   "gpu_ms": 9.66,
+   "timewarp_ms": 0.84
+  },
+  "pick/pond": {
+   "p50": 13.9020004272461,
+   "p99": 14.9829998016357,
+   "late": 0,
+   "draws": 157,
+   "prims": 407300,
+   "step": 6,
+   "fill": 0.894,
+   "gpu_ms": 9.63,
+   "timewarp_ms": 0.8
+  },
+  "style/first": {
+   "p50": 13.9449996948242,
+   "p99": 17.4890003204346,
+   "late": 1,
+   "draws": 160,
+   "prims": 420714,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.462,
+     "late": 0
+    }
+   ],
+   "step": 6,
+   "fill": 0.915,
+   "gpu_ms": 8.75,
+   "timewarp_ms": 0.84
+  },
+  "style/again": {
+   "p50": 13.875,
+   "p99": 16.9360008239746,
+   "late": 1,
+   "draws": 160,
+   "prims": 420984,
+   "step": 6,
+   "fill": 0.915,
+   "gpu_ms": 9.18,
+   "timewarp_ms": 0.84
+  },
+  "wipe": {
+   "p50": 13.8680000305176,
+   "p99": 24.5499992370605,
+   "late": 3,
+   "draws": 178,
+   "prims": 412904,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.214,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 90.2,
+     "notes": [
+      {
+       "ms": 33.5,
+       "what": "world: applying wipe"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 5,
+   "fill": 0.894,
+   "gpu_ms": 6.85,
+   "timewarp_ms": 0.86
+  },
+  "undo": {
+   "p50": 13.9309997558594,
+   "p99": 15.2819995880127,
+   "late": 2,
+   "draws": 177,
+   "prims": 398402,
+   "stalls": [
+    {
+     "ms": 88.2,
+     "notes": [
+      {
+       "ms": 26.4,
+       "what": "world: applying garden"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 5,
+   "fill": 0.894,
+   "gpu_ms": 9.32,
+   "timewarp_ms": 0.83
+  }
+ }
+}

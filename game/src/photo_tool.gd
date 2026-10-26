@@ -554,8 +554,8 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	return img
 
 
-## Compile a photo's pipelines at preview size first; repeated full-size draws would spend the frame budget
-## on pixels that cannot yet be saved. Awaiting frames leaves play running while compilation finishes.
+## A viewport can finish a frame while its pipelines are still compiling. Reading it then would save missing
+## geometry or shadows; awaiting complete draws leaves play running.
 func _draw_complete(vp: SubViewport, full := false) -> void:
 	var name := &"VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME"
 	var info := ClassDB.class_get_integer_constant(&"RenderingServer", name) if ClassDB.class_has_integer_constant(&"RenderingServer", name) else -1
