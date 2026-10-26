@@ -4814,7 +4814,8 @@ Brush load stays constant while painting, including across separate strokes. Dip
 a clean brush picking paint up from the mixing board fills too. A lateral wipe across the cloth on
 the tray lip removes a quarter of the load, once until the brush lifts, down to a 15% dry-brush floor.
 The cloth takes a smear of the current colour. Charcoal is unaffected. On the brush itself the painted
-part of the bristles retreats from the tip and loses its gloss as load drops, without a text readout.
+part of the bristles empties from the ferrule, the last paint staying at the tip, and loses its gloss as load drops,
+without a text readout.
 `demo/brush-load.json` captures the same stroke and bristles at full load, after one wipe and after three.
 
 Every stroke is a build command (`paint`, docs/multiplayer.md): the brush's medium, colour, strength and load, and
