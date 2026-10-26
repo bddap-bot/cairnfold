@@ -1543,7 +1543,8 @@ The lake (see "Look on a mobile budget") stands round the meadow on every headse
 replaced is gone. It was a rung for a while on a reading of 1.1 ms ([with](../perf/quest-2/edge/20261022T154215Z-5ef92f8.json),
 [without](../perf/quest-2/edge/20261022T154823Z-d4a9c75.json)), but those two runs measured different trees (the
 quality ladder's work in progress against main, 1,148 primitives apart where the lake is 256). The same tree with
-and without it read 0.00 ms standing and +0.14 ms from the air (`perf/quest-2/edge/20261023T03*`).
+and without it read 0.00 ms standing and +0.14 ms from the air (`perf/quest-2/edge/20261023T03*`). It stays in every build
+while it stays that cheap; a reading that puts it near a millisecond again reopens it.
 
 The 3D scale is exactly 1.0 on every step but the last. The Frame's Turnip driver tonemaps more cheaply at any scale
 off 1.0 (below), so the Frame no longer gets its 0.9 for the session from a check of its platform; it draws the
