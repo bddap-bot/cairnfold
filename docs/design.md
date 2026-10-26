@@ -935,10 +935,9 @@ in `perf/quest-2/village-layers/`): the stress scene's own `village/aerial` view
 crowns, so it read 19.9 ms. The same village from the same eye with no trees between reads 158 and 161 ms. Hiding the
 far roof tiles takes it to 83 and 89 ms; hiding all masonry, to 12.0 and 12.1. The timber village read 71 to 131 ms
 at every step tried, top to bottom. The GPU spends 78% of that time shading vertices, 117 M a second, so about 19 M
-a frame for 1.46 M primitives drawn: its 42 bins of 192 by 176 pixels re-run the vertices of every piece in them, and
-the bins over the village took 10 to 22 ms each. Reading no texture in the stones' and tiles' vertex shader
-saved nothing (160.68 against 160.96 ms), so the cost is how many piece vertices a bin runs, which a far wall or roof
-drawn as one surface would cut.
+a frame for 1.46 M primitives drawn: its bins re-run the vertices of every piece in them. That is the fixed-foveation
+map, not the pieces ("Fixed foveation on the Quest 2"): with the map off the same village reads 25 to 33 ms and each
+bin runs only the vertices that fall in it.
 
 The deer and the fox come and go on their own timetable, so the scene brings a band of each in (`roamers`) before
 each view of them; a view of an absent animal fails the script.
@@ -1341,13 +1340,39 @@ The cost belongs to the mode, not the level. It is not the sun's shadows: 119 ms
 step 15. It is not shading: 164 ms drawn unshaded, against 184. It is not MSAA: 149 ms without, 186 with 2x, 314 with
 4x. Ground views of the same village are unaffected, at 25 ms either way.
 
-What clears it is the order in which the session first draws the map. The mode now follows the rung, off at foveation
-0, and priming draws a rung on each side of the switch. So the map is first drawn at rung 2, at 4x MSAA, after the
-top rung drew without it. With that order, the village from the air takes 19.8 ms at step 6 and 20.3 at step 5,
-against 257 for main at step 6. The meadow costs the same either way (10.9 against 11.1 ms), so the map is still
-applied. A build whose mode follows the rung but whose priming first draws the map at rung 3, at 2x, stays at
-265 ms at step 6. Which engine or driver state that order sets is not known; the stress scene's aerial wall phases
-are what show it if it returns.
+### Fixed foveation on the Quest 2
+
+The order in which a session first draws the map does not clear it. Where the map is dear is what the view holds.
+The timber village from the air at step 6, every phase in one session on one Quest 2, viewport GPU ms a frame
+([records](../perf/quest-2/foveation-map/README.md)):
+
+| View | Map on | Map off |
+| --- | --- | --- |
+| The village alone | 100 to 110 | 25 to 33 |
+| The same village with 64 tall trees in view | 16.5 to 17 | |
+| With those trees there but hidden | 96 | |
+| With 64 trees of a third the size in view | 88 | |
+| With the 64 tall trees out of view | 101 | |
+| The village with its masonry hidden | 6.8 | |
+
+So the stress scene's village/aerial read 19.6 ms with the map at step 6 only because the flora pools' trees, filled
+earlier in the scene and kept by `clear`, stood in view ("The stress scene on the Quest 2"). The render-stage trace (`ovrgpuprofiler -t -s 21,39`) shows
+what the map does when it is dear. Without it, each of the 42 tiles of 192×176 shades the vertices that fall in it,
+1 to 19 thousand. With it, each of the 19 tiles it draws shades 1.46 M vertices, every vertex of the walls in view,
+and takes about 10 ms. Otherwise the tiles shade the same pixels. With the tall trees in view the map's tiles go back
+to 15 to 37 thousand vertices each. What in the view makes the driver go one way or the other is not known. A larger
+swapchain makes it worse, since there are more tiles to run the walls in: 110 ms at the 0.7 swapchain, 272 at 0.85 and
+405 at 1.0.
+
+So whether the map is drawn is measured, not assumed (`Quality.Map`). While the frame on a foveated rung reads over
+the governor's line for half a second, the map is taken off for a trial. The trial reads the median of at least 12
+frames once four have let the timer catch up. The map stays off only if the frame reads under 0.8 of what it read with
+the map, and a trial that saves nothing waits 8 s before the next. Once the frame has been under the line for 2 s, the
+map goes back on for a trial. It stays on unless that cost a fifth of the frame or more, and after a failed trial the
+calm it waits for doubles, up to 64 s. Where the eyes are tracked there is no fixed map, so nothing changes on the
+Steam Frame. Played governed, the timber village from the air read 92 ms on main, the map always on, and 22 ms with
+`Quality.Map`. The same village with the tall trees in view held 72 Hz with the map on, 8.5 ms. A trial of the map off
+over that view saved nothing, so the map went back on.
 
 None of the meadow's plants cut out by alpha (`grass`, `flower`, `leaf` and `plant` shaders write no `ALPHA` and do
 not discard), so alpha-to-coverage has nothing to act on. FXAA and SMAA blur textures and cost more standing; temporal

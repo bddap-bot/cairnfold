@@ -1,0 +1,560 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": 16
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 30
+ },
+ {
+  "op": "village",
+  "radius": 20,
+  "spacing": 7,
+  "storeys": 2,
+  "wings": true,
+  "plaster": true,
+  "timber_style": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "base"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-masonry"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "terrain",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-terrain"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "terrain",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "sky",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-sky"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "sky",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "mountains",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-mountains"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "mountains",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "fog",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-fog"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "fog",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "post",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-post"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "post",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "msaa",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-msaa"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "msaa",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "water",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-water"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "water",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "trees",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-trees"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "trees",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "grass",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-grass"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "grass",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "flowers",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-flowers"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "flowers",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-ceilings"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "ambient",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-ambient"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "ambient",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "sun",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "hide-sun"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "layer",
+  "name": "sun",
+  "mode": "on"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "unshaded": true
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "unshaded"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "antialias",
+  "unshaded": false
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 1
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "fov1"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 2
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "fov2"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "fov0"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 3
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "fov3"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "all",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "all-hidden"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quit"
+ }
+]

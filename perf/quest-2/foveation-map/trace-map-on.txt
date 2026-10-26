@@ -1,0 +1,914 @@
+Tracing for 0.1 seconds...
+Captured 5 metrics, 0 rejected by SoC counter budget
+Process io.github.bddapbot.nestcombe has 4 surface executions
+Surface 0    | 2048x2048 | color 0 bit, depth 16bit, stencil 0 bit, MSAA 1, Mode: 0 (Direct)    | 1   2048x2048 bins ( 1   rendered) |  0.01 ms | 1   stages : Render : 0.011ms
+	Bin 0   | topLeft 0   x0    | 1x1 logical bins | Fov 1/1
+		Stage 0   : Render             0.011 ms
+			Clocks                                     :        3706.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+Surface 1    | 2048x2048 | color 0 bit, depth 16bit, stencil 0 bit, MSAA 1, Mode: 0 (Direct)    | 1   2048x2048 bins ( 1   rendered) |  1.26 ms | 2   stages : Render : 1.248ms Blit : 0.007ms
+	Bin 0   | topLeft 0   x0    | 1x1 logical bins | Fov 1/1
+		Stage 0   : Render             1.248 ms
+			Clocks                                     :      653497.000
+			Pre-clipped Polygons                       :      382150.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :      300032.000
+			Fragments Shaded                           :           0.000
+		Stage 1   : Blit               0.007 ms
+			Clocks                                     :        2654.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+Surface 2    | 1008x1108 | color 32bit, depth 24bit, stencil 8 bit, MSAA 2, Mode: 1 (HwBinning) | 42  192x176 bins ( 19  rendered) | 126.04 ms | 71  stages : Binning : 4.978ms Render : 107.175ms StoreColor : 0.434ms Preempt : 12.324ms
+	Bin Unknown
+		Stage 0   : Binning            3.915 ms
+			Clocks                                     :     2052407.000
+			Pre-clipped Polygons                       :     1217974.000
+			% Prims Trivially Rejected                 :          11.142
+			Vertices Shaded                            :      868257.000
+			Fragments Shaded                           :           6.000
+		Stage 1   : Preempt            0.830 ms
+			Clocks                                     :      432767.000
+			Pre-clipped Polygons                       :        5975.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6082.000
+			Fragments Shaded                           :     2995783.000
+		Stage 2   : Binning            1.063 ms
+			Clocks                                     :      556588.000
+			Pre-clipped Polygons                       :      375906.000
+			% Prims Trivially Rejected                 :          14.360
+			Vertices Shaded                            :      251195.000
+			Fragments Shaded                           :           0.000
+	Bin 0   | topLeft 192 x352  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 3   : Render             9.406 ms
+			Clocks                                     :     4935644.000
+			Pre-clipped Polygons                       :      817410.000
+			% Prims Trivially Rejected                 :           6.604
+			Vertices Shaded                            :     1460472.000
+			Fragments Shaded                           :      147834.000
+		Stage 4   : StoreColor         0.012 ms
+			Clocks                                     :        4685.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 5   : StoreColor         0.010 ms
+			Clocks                                     :        3831.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 6   : Preempt            0.868 ms
+			Clocks                                     :      452737.000
+			Pre-clipped Polygons                       :        5989.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6103.000
+			Fragments Shaded                           :     3000917.000
+	Bin 1   | topLeft 384 x352  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 7   : Render             11.599 ms
+			Clocks                                     :     6087155.000
+			Pre-clipped Polygons                       :      868070.000
+			% Prims Trivially Rejected                 :           6.218
+			Vertices Shaded                            :     1535028.000
+			Fragments Shaded                           :      241945.000
+		Stage 8   : StoreColor         0.012 ms
+			Clocks                                     :        4539.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 9   : StoreColor         0.011 ms
+			Clocks                                     :        4031.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 10  : Preempt            1.530 ms
+			Clocks                                     :      800442.000
+			Pre-clipped Polygons                       :       11956.000
+			% Prims Trivially Rejected                 :           0.059
+			Vertices Shaded                            :       12177.000
+			Fragments Shaded                           :     5996694.000
+	Bin 2   | topLeft 192 x528  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 11  : Render             19.448 ms
+			Clocks                                     :    10207757.000
+			Pre-clipped Polygons                       :      820564.000
+			% Prims Trivially Rejected                 :           6.578
+			Vertices Shaded                            :     1463079.000
+			Fragments Shaded                           :      193165.000
+		Stage 12  : StoreColor         0.011 ms
+			Clocks                                     :        4411.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 13  : StoreColor         0.010 ms
+			Clocks                                     :        3766.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 14  : Preempt            1.406 ms
+			Clocks                                     :      734869.000
+			Pre-clipped Polygons                       :       11956.000
+			% Prims Trivially Rejected                 :           0.059
+			Vertices Shaded                            :       12177.000
+			Fragments Shaded                           :     5996694.000
+	Bin 3   | topLeft 384 x528  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 15  : Render             18.935 ms
+			Clocks                                     :     9938367.000
+			Pre-clipped Polygons                       :      837270.000
+			% Prims Trivially Rejected                 :           6.447
+			Vertices Shaded                            :     1486760.000
+			Fragments Shaded                           :      261840.000
+		Stage 16  : StoreColor         0.011 ms
+			Clocks                                     :        4489.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 17  : StoreColor         0.010 ms
+			Clocks                                     :        3986.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 18  : Preempt            1.473 ms
+			Clocks                                     :      770654.000
+			Pre-clipped Polygons                       :       11956.000
+			% Prims Trivially Rejected                 :           0.059
+			Vertices Shaded                            :       12177.000
+			Fragments Shaded                           :     5996694.000
+	Bin 4   | topLeft 576 x352  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 19  : Render             4.103 ms
+			Clocks                                     :     2151456.000
+			Pre-clipped Polygons                       :      307236.000
+			% Prims Trivially Rejected                 :          17.570
+			Vertices Shaded                            :      305242.000
+			Fragments Shaded                           :      195766.000
+		Stage 20  : StoreColor         0.012 ms
+			Clocks                                     :        4746.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 21  : StoreColor         0.010 ms
+			Clocks                                     :        4284.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 22  : Preempt            0.804 ms
+			Clocks                                     :      419331.000
+			Pre-clipped Polygons                       :        5975.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6082.000
+			Fragments Shaded                           :     2995783.000
+	Bin 5   | topLeft 576 x528  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 23  : Render             6.467 ms
+			Clocks                                     :     3392381.000
+			Pre-clipped Polygons                       :      277604.000
+			% Prims Trivially Rejected                 :          19.445
+			Vertices Shaded                            :      276088.000
+			Fragments Shaded                           :      232780.000
+		Stage 24  : StoreColor         0.011 ms
+			Clocks                                     :        4368.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 25  : StoreColor         0.010 ms
+			Clocks                                     :        3874.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 26  : Preempt            0.798 ms
+			Clocks                                     :      415862.000
+			Pre-clipped Polygons                       :        5989.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6103.000
+			Fragments Shaded                           :     3000917.000
+	Bin 6   | topLeft 384 x704  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 27  : Render             0.709 ms
+			Clocks                                     :      370250.000
+			Pre-clipped Polygons                       :        6544.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :       15631.000
+			Fragments Shaded                           :       87231.000
+		Stage 28  : StoreColor         0.011 ms
+			Clocks                                     :        4281.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 29  : StoreColor         0.009 ms
+			Clocks                                     :        3867.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+	Bin 7   | topLeft 576 x704  | 1x1 logical bins | Fov L1/1 R2/2
+		Stage 30  : Render             0.436 ms
+			Clocks                                     :      226896.000
+			Pre-clipped Polygons                       :        6082.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :       11048.000
+			Fragments Shaded                           :       61313.000
+		Stage 31  : StoreColor         0.010 ms
+			Clocks                                     :        4024.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+		Stage 32  : StoreColor         0.007 ms
+			Clocks                                     :        2310.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       33792.000
+	Bin 8   | topLeft 0   x0    | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 33  : Render             8.693 ms
+			Clocks                                     :     4561530.000
+			Pre-clipped Polygons                       :      801086.000
+			% Prims Trivially Rejected                 :           6.746
+			Vertices Shaded                            :     1433923.000
+			Fragments Shaded                           :      138329.000
+		Stage 34  : StoreColor         0.019 ms
+			Clocks                                     :        8802.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+		Stage 35  : StoreColor         0.018 ms
+			Clocks                                     :        7879.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+		Stage 36  : Preempt            1.438 ms
+			Clocks                                     :      752241.000
+			Pre-clipped Polygons                       :       11956.000
+			% Prims Trivially Rejected                 :           0.059
+			Vertices Shaded                            :       12177.000
+			Fragments Shaded                           :     5996694.000
+	Bin 9   | topLeft 384 x0    | 1x2 logical bins | Fov L2/2 R2/2
+		Stage 37  : Render             8.423 ms
+			Clocks                                     :     4419593.000
+			Pre-clipped Polygons                       :      806692.000
+			% Prims Trivially Rejected                 :           6.692
+			Vertices Shaded                            :     1440147.000
+			Fragments Shaded                           :       62748.000
+		Stage 38  : StoreColor         0.014 ms
+			Clocks                                     :        5743.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       67584.000
+		Stage 39  : StoreColor         0.012 ms
+			Clocks                                     :        4913.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       67584.000
+		Stage 40  : Preempt            0.763 ms
+			Clocks                                     :      397861.000
+			Pre-clipped Polygons                       :        5975.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6082.000
+			Fragments Shaded                           :     2995783.000
+	Bin 10  | topLeft 0   x352  | 1x2 logical bins | Fov L2/2 R2/2
+		Stage 41  : Render             9.355 ms
+			Clocks                                     :     4909173.000
+			Pre-clipped Polygons                       :      805798.000
+			% Prims Trivially Rejected                 :           6.936
+			Vertices Shaded                            :     1442117.000
+			Fragments Shaded                           :       55185.000
+		Stage 42  : StoreColor         0.013 ms
+			Clocks                                     :        5534.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       67584.000
+		Stage 43  : StoreColor         0.012 ms
+			Clocks                                     :        5074.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       67584.000
+		Stage 44  : Preempt            0.822 ms
+			Clocks                                     :      428837.000
+			Pre-clipped Polygons                       :        5989.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6103.000
+			Fragments Shaded                           :     3000921.000
+	Bin 11  | topLeft 576 x0    | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 45  : Render             1.909 ms
+			Clocks                                     :      999836.000
+			Pre-clipped Polygons                       :      226928.000
+			% Prims Trivially Rejected                 :          23.798
+			Vertices Shaded                            :      188850.000
+			Fragments Shaded                           :       98440.000
+		Stage 46  : StoreColor         0.019 ms
+			Clocks                                     :        8708.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+		Stage 47  : StoreColor         0.015 ms
+			Clocks                                     :        7036.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+		Stage 48  : Preempt            0.805 ms
+			Clocks                                     :      419924.000
+			Pre-clipped Polygons                       :        5975.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6082.000
+			Fragments Shaded                           :     2995783.000
+	Bin 12  | topLeft 960 x0    | 1x2 logical bins | Fov L2/2 R2/2
+		Stage 49  : Render             1.623 ms
+			Clocks                                     :      849697.000
+			Pre-clipped Polygons                       :      225232.000
+			% Prims Trivially Rejected                 :          23.996
+			Vertices Shaded                            :      186460.000
+			Fragments Shaded                           :       12713.000
+		Stage 50  : StoreColor         0.009 ms
+			Clocks                                     :        3172.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       16896.000
+		Stage 51  : StoreColor         0.007 ms
+			Clocks                                     :        2769.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       16896.000
+	Bin 13  | topLeft 768 x352  | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 52  : Render             4.618 ms
+			Clocks                                     :     2422069.000
+			Pre-clipped Polygons                       :      261814.000
+			% Prims Trivially Rejected                 :          20.919
+			Vertices Shaded                            :      233930.000
+			Fragments Shaded                           :       93911.000
+		Stage 53  : StoreColor         0.014 ms
+			Clocks                                     :        5817.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       84480.000
+		Stage 54  : StoreColor         0.012 ms
+			Clocks                                     :        5013.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       84480.000
+		Stage 55  : Preempt            0.787 ms
+			Clocks                                     :      410195.000
+			Pre-clipped Polygons                       :        5989.000
+			% Prims Trivially Rejected                 :           0.117
+			Vertices Shaded                            :        6103.000
+			Fragments Shaded                           :     3000917.000
+	Bin 14  | topLeft 768 x704  | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 56  : Render             0.342 ms
+			Clocks                                     :      177672.000
+			Pre-clipped Polygons                       :        9244.000
+			% Prims Trivially Rejected                 :           8.903
+			Vertices Shaded                            :       13421.000
+			Fragments Shaded                           :       80499.000
+		Stage 57  : StoreColor         0.014 ms
+			Clocks                                     :        6265.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       84480.000
+		Stage 58  : StoreColor         0.014 ms
+			Clocks                                     :        5808.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       84480.000
+	Bin 15  | topLeft 384 x880  | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 59  : Render             0.253 ms
+			Clocks                                     :      131230.000
+			Pre-clipped Polygons                       :        3696.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :        5879.000
+			Fragments Shaded                           :       62512.000
+		Stage 60  : StoreColor         0.012 ms
+			Clocks                                     :        5163.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       87552.000
+		Stage 61  : StoreColor         0.011 ms
+			Clocks                                     :        4717.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       87552.000
+	Bin 16  | topLeft 768 x1056 | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 62  : Render             0.114 ms
+			Clocks                                     :       58277.000
+			Pre-clipped Polygons                       :         668.000
+			% Prims Trivially Rejected                 :          19.311
+			Vertices Shaded                            :         887.000
+			Fragments Shaded                           :       10830.000
+		Stage 63  : StoreColor         0.005 ms
+			Clocks                                     :        1694.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       12480.000
+		Stage 64  : StoreColor         0.005 ms
+			Clocks                                     :        1218.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       12480.000
+	Bin 17  | topLeft 0   x704  | 2x2 logical bins | Fov L2/2 R2/2
+		Stage 65  : Render             0.622 ms
+			Clocks                                     :      324538.000
+			Pre-clipped Polygons                       :        9968.000
+			% Prims Trivially Rejected                 :           2.237
+			Vertices Shaded                            :       17626.000
+			Fragments Shaded                           :      114658.000
+		Stage 66  : StoreColor         0.016 ms
+			Clocks                                     :        6950.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+		Stage 67  : StoreColor         0.015 ms
+			Clocks                                     :        6622.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      135168.000
+	Bin 18  | topLeft 0   x1056 | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 68  : Render             0.120 ms
+			Clocks                                     :       61107.000
+			Pre-clipped Polygons                       :         966.000
+			% Prims Trivially Rejected                 :           1.760
+			Vertices Shaded                            :        1474.000
+			Fragments Shaded                           :       15344.000
+		Stage 69  : StoreColor         0.006 ms
+			Clocks                                     :        2178.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       19968.000
+		Stage 70  : StoreColor         0.005 ms
+			Clocks                                     :        1710.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       19968.000
+Surface 3    | 1008x1108 | color 32bit, depth 24bit, stencil 8 bit, MSAA 2, Mode: 1 (HwBinning) | 20  288x224 bins ( 14  rendered) |  2.16 ms | 71  stages : Binning : 0.011ms LoadColor : 0.745ms Render : 0.647ms StoreColor : 0.455ms
+	Bin Unknown
+		Stage 0   : Binning            0.011 ms
+			Clocks                                     :        4445.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :           0.000
+	Bin 0   | topLeft 288 x224  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 1   : LoadColor          0.026 ms
+			Clocks                                     :       12105.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 2   : LoadColor          0.024 ms
+			Clocks                                     :       10880.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 3   : Render             0.060 ms
+			Clocks                                     :       30373.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 4   : StoreColor         0.019 ms
+			Clocks                                     :        9164.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 5   : StoreColor         0.013 ms
+			Clocks                                     :        5069.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 1   | topLeft 576 x224  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 6   : LoadColor          0.030 ms
+			Clocks                                     :       14169.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 7   : LoadColor          0.024 ms
+			Clocks                                     :       11272.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 8   : Render             0.059 ms
+			Clocks                                     :       29846.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 9   : StoreColor         0.012 ms
+			Clocks                                     :        4779.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 10  : StoreColor         0.016 ms
+			Clocks                                     :        7377.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 2   | topLeft 288 x448  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 11  : LoadColor          0.032 ms
+			Clocks                                     :       15127.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 12  : LoadColor          0.039 ms
+			Clocks                                     :       18996.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 13  : Render             0.061 ms
+			Clocks                                     :       30655.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 14  : StoreColor         0.012 ms
+			Clocks                                     :        4767.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 15  : StoreColor         0.012 ms
+			Clocks                                     :        5334.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 3   | topLeft 576 x448  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 16  : LoadColor          0.033 ms
+			Clocks                                     :       15660.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 17  : LoadColor          0.032 ms
+			Clocks                                     :       15240.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 18  : Render             0.061 ms
+			Clocks                                     :       30516.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 19  : StoreColor         0.012 ms
+			Clocks                                     :        4731.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 20  : StoreColor         0.011 ms
+			Clocks                                     :        4684.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 4   | topLeft 288 x672  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 21  : LoadColor          0.033 ms
+			Clocks                                     :       15955.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 22  : LoadColor          0.030 ms
+			Clocks                                     :       14251.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 23  : Render             0.060 ms
+			Clocks                                     :       30164.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 24  : StoreColor         0.012 ms
+			Clocks                                     :        4759.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 25  : StoreColor         0.011 ms
+			Clocks                                     :        4843.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 5   | topLeft 576 x672  | 1x1 logical bins | Fov L1/1 R1/1
+		Stage 26  : LoadColor          0.034 ms
+			Clocks                                     :       16337.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 27  : LoadColor          0.030 ms
+			Clocks                                     :       14456.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       64512.000
+		Stage 28  : Render             0.060 ms
+			Clocks                                     :       30286.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :      129024.000
+		Stage 29  : StoreColor         0.011 ms
+			Clocks                                     :        4681.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+		Stage 30  : StoreColor         0.012 ms
+			Clocks                                     :        4802.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :           0.000
+	Bin 6   | topLeft 0   x0    | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 31  : LoadColor          0.036 ms
+			Clocks                                     :       17107.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 32  : LoadColor          0.033 ms
+			Clocks                                     :       16336.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 33  : Render             0.042 ms
+			Clocks                                     :       21080.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       64512.000
+		Stage 34  : StoreColor         0.020 ms
+			Clocks                                     :        9561.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      129024.000
+		Stage 35  : StoreColor         0.025 ms
+			Clocks                                     :       11277.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      129024.000
+	Bin 7   | topLeft 576 x0    | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 36  : LoadColor          0.026 ms
+			Clocks                                     :       12488.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       25088.000
+		Stage 37  : LoadColor          0.023 ms
+			Clocks                                     :       10610.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       25088.000
+		Stage 38  : Render             0.035 ms
+			Clocks                                     :       16929.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       48384.000
+		Stage 39  : StoreColor         0.017 ms
+			Clocks                                     :        7255.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       96768.000
+		Stage 40  : StoreColor         0.017 ms
+			Clocks                                     :        7652.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       96768.000
+	Bin 8   | topLeft 0   x224  | 1x2 logical bins | Fov L2/2 R2/2
+		Stage 41  : LoadColor          0.028 ms
+			Clocks                                     :       13589.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 42  : LoadColor          0.027 ms
+			Clocks                                     :       12800.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 43  : Render             0.053 ms
+			Clocks                                     :       26209.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       64512.000
+		Stage 44  : StoreColor         0.021 ms
+			Clocks                                     :        9649.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      129024.000
+		Stage 45  : StoreColor         0.026 ms
+			Clocks                                     :       12165.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      129024.000
+	Bin 9   | topLeft 864 x224  | 1x2 logical bins | Fov L2/2 R2/2
+		Stage 46  : LoadColor          0.022 ms
+			Clocks                                     :       10339.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       17920.000
+		Stage 47  : LoadColor          0.022 ms
+			Clocks                                     :        9795.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       17920.000
+		Stage 48  : Render             0.028 ms
+			Clocks                                     :       13585.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       32256.000
+		Stage 49  : StoreColor         0.019 ms
+			Clocks                                     :        8660.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       64512.000
+		Stage 50  : StoreColor         0.012 ms
+			Clocks                                     :        4710.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       64512.000
+	Bin 10  | topLeft 0   x672  | 1x1 logical bins | Fov L2/2 R2/2
+		Stage 51  : LoadColor          0.022 ms
+			Clocks                                     :       10281.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       16128.000
+		Stage 52  : LoadColor          0.019 ms
+			Clocks                                     :        8583.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       16128.000
+		Stage 53  : Render             0.033 ms
+			Clocks                                     :       16035.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       32256.000
+		Stage 54  : StoreColor         0.012 ms
+			Clocks                                     :        5004.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       64512.000
+		Stage 55  : StoreColor         0.013 ms
+			Clocks                                     :        5487.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       64512.000
+	Bin 11  | topLeft 864 x672  | 1x1 logical bins | Fov L2/2 R2/2
+		Stage 56  : LoadColor          0.014 ms
+			Clocks                                     :        5697.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :        8960.000
+		Stage 57  : LoadColor          0.012 ms
+			Clocks                                     :        5000.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :        8960.000
+		Stage 58  : Render             0.024 ms
+			Clocks                                     :       11465.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       16128.000
+		Stage 59  : StoreColor         0.008 ms
+			Clocks                                     :        2982.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       32256.000
+		Stage 60  : StoreColor         0.007 ms
+			Clocks                                     :        2838.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       32256.000
+	Bin 12  | topLeft 0   x896  | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 61  : LoadColor          0.026 ms
+			Clocks                                     :       12153.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 62  : LoadColor          0.025 ms
+			Clocks                                     :       11889.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       32256.000
+		Stage 63  : Render             0.037 ms
+			Clocks                                     :       18150.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       61056.000
+		Stage 64  : StoreColor         0.019 ms
+			Clocks                                     :        9031.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      122112.000
+		Stage 65  : StoreColor         0.019 ms
+			Clocks                                     :        8680.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :      122112.000
+	Bin 13  | topLeft 576 x896  | 2x1 logical bins | Fov L2/2 R2/2
+		Stage 66  : LoadColor          0.023 ms
+			Clocks                                     :       10571.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       25088.000
+		Stage 67  : LoadColor          0.020 ms
+			Clocks                                     :        9074.000
+			Pre-clipped Polygons                       :           1.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           2.000
+			Fragments Shaded                           :       25088.000
+		Stage 68  : Render             0.034 ms
+			Clocks                                     :       16358.000
+			Pre-clipped Polygons                       :           2.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           3.000
+			Fragments Shaded                           :       45792.000
+		Stage 69  : StoreColor         0.015 ms
+			Clocks                                     :        6784.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       91584.000
+		Stage 70  : StoreColor         0.052 ms
+			Clocks                                     :       25978.000
+			Pre-clipped Polygons                       :           0.000
+			% Prims Trivially Rejected                 :           0.000
+			Vertices Shaded                            :           0.000
+			Fragments Shaded                           :       91584.000

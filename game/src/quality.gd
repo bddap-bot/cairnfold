@@ -111,6 +111,7 @@ const WARMUP := 5.0
 const PRIME_FRAMES := 2
 
 var governor: Governor
+var map := Map.new()
 ## The step held instead of the governor's, for measuring; -1 while governed.
 var pin := -1:
 	set(n):
@@ -175,9 +176,7 @@ static func popping() -> PackedInt32Array:
 
 ## The rungs drawn for PRIME_FRAMES each as the session starts: the top and every rung whose swapchain, MSAA,
 ## reflections, sun's shadows, 3D scale or foveation on or off differ from the one above, then START, where the
-## governor takes over. On the Quest 2 a session that first draws the foveation map at the first foveated rung, after
-## the top drew without it, keeps built walls from the air at 20 ms; one that first draws it at 2x MSAA, or from the
-## start, takes 250 ms ("Anti-aliasing on the Quest 2" in docs/design.md).
+## governor takes over. Foveation on or off is another framebuffer to draw into, as `Map` also switches it.
 static func primed() -> PackedInt32Array:
 	var out := PackedInt32Array([0])
 	for i in range(1, ladder.size()):
@@ -250,6 +249,12 @@ func _process(delta: float) -> void:
 	var priming := _primed < _priming.size() * PRIME_FRAMES
 	var n := _priming[_primed / PRIME_FRAMES] if priming else step()
 	var at := ladder[n]
+	if _foveates and fresh and _warm > WARMUP and at.foveation > 0:
+		var was_on := map.on
+		map.step(frame_ms, budget_ms * Governor.LINE, delta)
+		if map.on != was_on:
+			print("quality: foveation map %s, the GPU at %.1f ms" % ["on" if map.on else "off", frame_ms])
+			_applied = -1
 	if n != _applied:
 		_apply(at, n)
 	_settled = _flora.approach(at, delta)
@@ -275,8 +280,88 @@ func _apply(at: Step, n: int) -> void:
 		print("quality: step %d swapchain %.2f msaa %dx foveation %d" % [n, at.render_scale, 2 << (at.msaa - 1), at.foveation])
 	if _foveates:
 		# The Mobile renderer reads the runtime's foveation map only with the view's VRS mode at XR.
-		view.vrs_mode = Viewport.VRS_XR if at.foveation > 0 else Viewport.VRS_DISABLED
+		view.vrs_mode = Viewport.VRS_XR if at.foveation > 0 and map.on else Viewport.VRS_DISABLED
 		_xr.foveation_level = at.foveation
+
+
+## Whether a foveated rung draws with the runtime's density map, by what the map costs the scene as measured. On the
+## Quest 2 the map can cost a scene five times its frame: with it, some views' tiles each run every vertex of the
+## walls in view, 1.46 M a tile, against 15 k without it or in other views with it ("Fixed foveation on the Quest 2" in
+## docs/design.md). Which views do is the driver's choice and is not known ahead, so while the frame runs over the line
+## the map is taken off for a trial, and stays off only if that saved a share of the frame; it goes back on for a
+## trial once the frame has been calm, and stays on only if that cost no more than the share.
+class Map:
+	## A trial reads the median of at least this many frames over at least this long, once its first frames have let
+	## the timer catch up: at five frames a second, a time average of half a second was mostly the frames before the
+	## switch. The frame's median runs over the line this long before the map is tried off.
+	const TRIAL_FRAMES := 12
+	const TRIAL_SECONDS := 0.5
+	const SETTLE_FRAMES := 4
+	## The map stays off only where the frame without it reads under this share of the frame with it.
+	const SAVES := 0.8
+	## Seconds the frame reads under the line before the map is tried again, doubling with each trial it fails.
+	const CALM_SECONDS := 2.0
+	const CALM_SECONDS_MAX := 64.0
+	## Seconds after a trial of the map off that saved nothing before the next.
+	const RETRY_SECONDS := 8.0
+
+	var on := true
+	var _recent := PackedFloat32Array()
+	var _settle := 0
+	var _trial := false
+	var _trial_s := 0.0
+	var _before := 0.0
+	var _calm := 0.0
+	var _over := 0.0
+	var _wait := CALM_SECONDS
+	var _since := INF
+
+	## `line_ms` is the governor's line.
+	func step(frame_ms: float, line_ms: float, dt: float) -> void:
+		_since += dt
+		if _settle > 0:
+			_settle -= 1
+			return
+		_recent.append(frame_ms)
+		if _trial:
+			_trial_s += dt
+			if _recent.size() >= TRIAL_FRAMES and _trial_s >= TRIAL_SECONDS:
+				_settle_trial(_median())
+			return
+		if _recent.size() > TRIAL_FRAMES:
+			_recent.remove_at(0)
+		var now := _median()
+		_calm = _calm + dt if now < line_ms else 0.0
+		_over = _over + dt if now > line_ms else 0.0
+		if on and _over >= TRIAL_SECONDS and _since > RETRY_SECONDS:
+			_start(false)
+		elif not on and _calm >= _wait:
+			_start(true)
+
+	func _median() -> float:
+		var sorted := _recent.duplicate()
+		sorted.sort()
+		return sorted[sorted.size() / 2]
+
+	func _start(to: bool) -> void:
+		_before = _median()
+		on = to
+		_recent.clear()
+		_trial = true
+		_trial_s = 0.0
+		_settle = SETTLE_FRAMES
+
+	func _settle_trial(read: float) -> void:
+		_trial = false
+		_calm = 0.0
+		_over = 0.0
+		if not on and read >= _before * SAVES:
+			on = true
+			_since = 0.0
+		elif on and read * SAVES > _before:
+			on = false
+			_wait = minf(_wait * 2.0, CALM_SECONDS_MAX)
+		_recent.clear()
 
 
 ## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when

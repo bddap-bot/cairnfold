@@ -1,0 +1,209 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": -1
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "clear"
+ },
+ {
+  "op": "village",
+  "radius": 20,
+  "spacing": 7,
+  "storeys": 2,
+  "wings": true,
+  "plaster": true,
+  "timber_style": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "label",
+  "name": "gov-aerial"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   4.5
+  ],
+  "at": [
+   20,
+   1.2,
+   4.5
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "label",
+  "name": "gov-ground"
+ },
+ {
+  "op": "wait",
+  "seconds": 12
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "label",
+  "name": "gov-aerial2"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "fill_flora",
+  "pools": [
+   "trees"
+  ],
+  "radius": 20,
+  "scale": 3
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "label",
+  "name": "gov-trees-aerial"
+ },
+ {
+  "op": "wait",
+  "seconds": 20
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quality",
+  "step": 6
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "label",
+  "name": "s6-trees"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quit"
+ }
+]

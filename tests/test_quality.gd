@@ -34,6 +34,9 @@ func _initialize() -> void:
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
 	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
 	_every_pipeline_a_rung_draws_with_is_primed()
+	_a_density_map_that_costs_the_frame_comes_off()
+	_a_density_map_that_saves_stays_on()
+	_the_density_map_is_tried_again_once_calm()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -391,3 +394,35 @@ func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void
 	_down(g)
 	check(g.level == 1, "undone at once")
 	check(_feed(g, BUDGET * 0.1, 72 * 300) == 1, "it is not taken again")
+
+
+## Feeds `seconds` of frames whose GPU time is `on_ms` with the map drawn and `off_ms` without, and returns whether the
+## map is on after.
+func _feed_map(m: Quality.Map, on_ms: float, off_ms: float, seconds: float) -> bool:
+	for i in int(seconds * 72):
+		m.step(on_ms if m.on else off_ms, BUDGET * Quality.Governor.LINE, DT)
+	return m.on
+
+
+func _a_density_map_that_costs_the_frame_comes_off() -> void:
+	var m := Quality.Map.new()
+	check(not _feed_map(m, 100.0, 25.0, 2.0), "a map that makes the frame four times dearer comes off")
+	check(not _feed_map(m, 100.0, 25.0, 30.0), "and stays off while the frame without it runs over the line")
+
+
+func _a_density_map_that_saves_stays_on() -> void:
+	var m := Quality.Map.new()
+	check(_feed_map(m, 15.0, 16.0, 30.0), "a map that saves stays on, however long the frame runs over the line")
+	m = Quality.Map.new()
+	check(_feed_map(m, 15.0, 13.0, 30.0), "as does one that costs less than a fifth of the frame")
+
+
+func _the_density_map_is_tried_again_once_calm() -> void:
+	var m := Quality.Map.new()
+	_feed_map(m, 100.0, 25.0, 2.0)
+	check(_feed_map(m, 5.0, 5.5, Quality.Map.CALM_SECONDS + 2.0), "a calm frame puts the map back on, where it costs nothing")
+	_feed_map(m, 100.0, 25.0, 2.0)
+	check(not _feed_map(m, 30.0, 5.0, Quality.Map.CALM_SECONDS + 1.0), "a map still dear when tried again comes off again")
+	_feed_map(m, 30.0, 25.0, 0.5)
+	check(not _feed_map(m, 30.0, 5.0, Quality.Map.CALM_SECONDS * 2.0 - 0.5), "and the next try waits twice as long")
+	check(_feed_map(m, 5.0, 5.0, Quality.Map.CALM_SECONDS * 2.0 + 2.0), "then tries again")

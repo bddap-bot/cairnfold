@@ -1,0 +1,130 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": 6
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "clear"
+ },
+ {
+  "op": "village",
+  "radius": 20,
+  "spacing": 7,
+  "storeys": 2,
+  "wings": true,
+  "plaster": true,
+  "timber_style": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "bare"
+ },
+ {
+  "op": "wait",
+  "seconds": 7
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "fill_flora",
+  "pools": [
+   "trees"
+  ],
+  "radius": 20,
+  "scale": 1
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "+trees"
+ },
+ {
+  "op": "wait",
+  "seconds": 7
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quit"
+ }
+]
