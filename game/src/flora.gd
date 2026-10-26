@@ -85,6 +85,8 @@ class Pool:
 	## Bumped each time a slot is reused, so a remembered plant knows when its slot has moved on.
 	var stamps := PackedInt32Array()
 	var anchors := PackedVector3Array()
+	## Bumped with every change to `anchors` or a plant's transform, so a reader can tell nothing moved.
+	var anchored := 0
 	var plants: Array[Plant] = []
 	var _parent: Node3D
 	var terrain: Terrain
@@ -166,6 +168,7 @@ class Pool:
 			far.set_instance_custom_data(i, custom)
 		stamps[i] += 1
 		anchors[i] = anchor
+		anchored += 1
 		plants[i] = Plant.new(self, i, xform, anchor)
 		plants[i].rock = rock
 		if indexed:
@@ -361,6 +364,7 @@ class Pool:
 			return
 		xform.origin.y -= terrain.height_at(p.anchor.x, p.anchor.z)
 		p.xform = xform
+		anchored += 1
 		if p.shown():
 			place(p.slot, xform)
 		if p.slot < kept:
@@ -386,6 +390,7 @@ class Pool:
 		p.rock = soil and terrain.rock_at(p.anchor.x, p.anchor.z)
 		if anchors[p.slot] != GONE:
 			anchors[p.slot] = p.anchor
+		anchored += 1
 		if indexed:
 			_grid.get_or_add(square(p.anchor), []).append(p.slot)
 		set_custom(p.slot, Color(custom.r, custom.g, p.anchor.x, p.anchor.z))
@@ -578,6 +583,7 @@ class Plant:
 			return
 		draw(on)
 		pool.anchors[slot] = anchor if on else Pool.GONE
+		pool.anchored += 1
 
 	## Draws it standing or not without changing whether it stands, for a tool's preview.
 	func draw(on: bool) -> void:

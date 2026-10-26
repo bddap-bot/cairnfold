@@ -106,6 +106,9 @@ var marks: Ground
 var water: Water
 var flora: Flora
 var walls: WallTool
+## The wall tool's walls by grid cell, as `_swims_clear` last read them in frame `_walls_frame`.
+var _walls_at := {}
+var _walls_frame := -1
 var palette: Palette
 var viewer: Node3D
 var hands: Array[Node3D] = []
@@ -759,7 +762,20 @@ func _swims_clear(from: Vector3, to: Vector2) -> bool:
 	if walls == null or from == Vector3.INF:
 		return true
 	var a := Vector2(from.x, from.z)
-	return not walls.walls.any(func(w: Wall) -> bool: return w.layout.blocks_swim(a, to))
+	var frame := Engine.get_process_frames()
+	if frame != _walls_frame:
+		_walls_frame = frame
+		_walls_at = walls.walls_by_cell()
+	# Only a wall with samples in the cells the step and its end's reach meet can turn it back.
+	var reach := Vector2.ONE * WallLayout.SWIM_REACH
+	var asked := {}
+	for c in PathLayout.cells_along(a.min(to - reach), a.max(to + reach)):
+		for w: Wall in _walls_at.get(c, []):
+			if not asked.has(w):
+				asked[w] = true
+				if w.layout.blocks_swim(a, to):
+					return false
+	return true
 
 
 ## Ground a duck may stand on a little way up the bank from a shore point, reached straight from `from` across no wall

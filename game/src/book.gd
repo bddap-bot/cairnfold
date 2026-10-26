@@ -78,6 +78,8 @@ var _front: ShaderMaterial
 var _ribbon: MeshInstance3D
 var _ribbon_mat: ShaderMaterial
 var _frame := 0
+## Laid out and its pages stopped once since it was hidden: nothing to do until it shows again.
+var _hidden_laid := false
 
 
 ## `live` false makes the book a prop: its pages stay blank frames and nothing renders behind them.
@@ -302,6 +304,9 @@ func _process(delta: float) -> void:
 			_turn.clear()
 			if rig == null:
 				set_process(false)
+	if not visible and _hidden_laid:
+		return
+	_hidden_laid = not visible
 	_lay()
 	_render_pages()
 

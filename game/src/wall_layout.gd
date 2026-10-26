@@ -100,6 +100,8 @@ const ARCH_STYLES := [
 const WADE_UNDER := 0.1
 ## How far a paddling duck keeps from the sides of an arch it swims under.
 const SWIM_CLEAR := 0.25
+## How near a swimmer's step must end to a wall's middle for that wall to turn it back (`blocks_swim`).
+const SWIM_REACH := THICKNESS * 0.5 + SWIM_CLEAR
 const FENCE_HEIGHT := 1.1
 ## A planked fence's planks: laid across, each this tall at these heights between its posts; or upright, this wide.
 const FENCE_BOARD_TALL := 0.14
@@ -2926,7 +2928,7 @@ func blocks_swim(a: Vector2, b: Vector2) -> bool:
 		var hit: Variant = Geometry2D.segment_intersects_segment(a, b, p, q)
 		if hit != null and not _swims_through(lengths[i] + p.distance_to(hit)):
 			return true
-	var reach := THICKNESS * 0.5 + SWIM_CLEAR
+	var reach := SWIM_REACH
 	var near := {}
 	for c in PathLayout.cells_along(b - Vector2.ONE * reach, b + Vector2.ONE * reach):
 		for i: int in grid.get(c, []):

@@ -65,9 +65,10 @@ func tick(delta: float) -> void:
 	var have := {}
 	for i in range(crawling.size() - 1, -1, -1):
 		var s := crawling[i]
-		s.pond = wildlife.water.pond_at(s.position.x, s.position.z)
+		var at := s.position
+		s.pond = wildlife.water.pond_at(at.x, at.z)
 		var count: int = have.get(s.pond, 0)
-		if s.pond == null or not _wet(s.pond, s.position) or count >= Wildlife._pond_quota(s.pond, ponds.size(), CAP, CELLS_EACH, PER_POND):
+		if s.pond == null or s.pond.surface_y() - wildlife.terrain.height_at(at.x, at.z) < DEPTH or count >= Wildlife._pond_quota(s.pond, ponds.size(), CAP, CELLS_EACH, PER_POND):
 			crawling.remove_at(i)
 			s.queue_free()
 		else:
@@ -101,16 +102,19 @@ func tick(delta: float) -> void:
 			s.turn = rng.randf_range(4.0, 10.0)
 			s.heading += rng.randf_range(-0.6, 0.6)
 		s.rotation.y = lerp_angle(s.rotation.y, s.heading, minf(delta, 1.0))
-		var next := s.position - s.basis.z * SPEED * delta
-		if _wet(s.pond, next) and wildlife._swims_clear(s.position, Vector2(next.x, next.z)):
-			s.position = wildlife.terrain.ground(next.x, next.z)
+		var t := s.transform
+		var next := t.origin - t.basis.z * SPEED * delta
+		var bed := wildlife.terrain.height_at(next.x, next.z)
+		if wildlife.water.pond_at(next.x, next.z) == s.pond and s.pond.surface_y() - bed >= DEPTH and wildlife._swims_clear(t.origin, Vector2(next.x, next.z)):
+			t.origin = Vector3(next.x, bed, next.z)
 		else:
 			s.heading += PI * delta
 		# Match the local bed slope; the soft foot fills the small gap between samples.
-		var at := s.position
+		var at := t.origin
 		var normal := Vector3(wildlife.terrain.height_at(at.x - 0.03, at.z) - wildlife.terrain.height_at(at.x + 0.03, at.z), 0.06, wildlife.terrain.height_at(at.x, at.z - 0.03) - wildlife.terrain.height_at(at.x, at.z + 0.03)).normalized()
-		var right := normal.cross(s.basis.z).normalized()
-		s.basis = Basis(right, normal, right.cross(normal))
+		var right := normal.cross(t.basis.z).normalized()
+		t.basis = Basis(right, normal, right.cross(normal))
+		s.transform = t
 		s.shown = minf(s.shown + delta / 1.5, 1.0)
-		crowd.put(i, s.transform, Color(s.phase, s.shown, 0, 0))
+		crowd.put(i, t, Color(s.phase, s.shown, 0, 0))
 	crowd.upload(crawling.size())

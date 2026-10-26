@@ -45,6 +45,9 @@ var crowd: Crowd
 var _next := -1
 var _filling := {}
 var _bloom := 1.0
+## What the patches were made from (`_inputs`), and what the pass under way started from: a pass starts only once they differ.
+var _made_from := []
+var _scanning := []
 
 
 class Butterfly:
@@ -126,6 +129,9 @@ func _scan() -> void:
 	if _next > pool.size():
 		_next = -1
 	if _next < 0:
+		_scanning = _inputs()
+		if _scanning == _made_from:
+			return
 		_filling = {}
 		_bloom = wildlife.palette.bloom()
 	_next = maxi(_next, pool.kept)
@@ -142,6 +148,7 @@ func _scan() -> void:
 	_next = end
 	if _next < pool.size():
 		return
+	_made_from = _scanning
 	patches.clear()
 	for key in _filling:
 		if _filling[key].size() >= MIN_BLOOMS:
@@ -150,6 +157,12 @@ func _scan() -> void:
 	for b in butterflies:
 		if b.state != State.LEAVE and b.state != State.FLEE and patches.has(b.patch) and not _blooming(b):
 			_flit(b)
+
+
+## Everything a pass reads that can change: the flowers, the season's bloom, the marks, and the ground and water (`revision`).
+func _inputs() -> Array:
+	var pool := wildlife.flora.flowers
+	return [pool.anchored, pool.size(), pool.kept, wildlife.palette.bloom(), wildlife.marks.rewears, wildlife.terrain.revision]
 
 
 ## Whether the bloom a butterfly makes for, or sits on, still stands in its patch.

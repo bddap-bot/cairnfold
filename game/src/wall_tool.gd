@@ -168,7 +168,7 @@ var _dirty := false
 var _due := {}
 var _path_openings := {}
 ## Grid cell → the walls whose samples reach it (WallLayout.segment_cells), kept up every frame as walls are laid
-## (`_walls_by_cell`), so no frame of a stroke indexes them all.
+## (`walls_by_cell`), so no frame of a stroke indexes them all.
 var _walls_at := {}
 ## Wall → the segment grid `_walls_at` holds for it, and a count bumped when any changes.
 var _walls_at_from := {}
@@ -226,7 +226,7 @@ func busy(hand: Hand = null) -> bool:
 
 func _process(delta: float) -> void:
 	Wall.reap()
-	_walls_by_cell()
+	walls_by_cell()
 	_let_go_handed()
 	for m in masons:
 		_handle(m)
@@ -1618,7 +1618,7 @@ func _open_paths(w: Wall, own: Variant = null) -> void:
 ## Cuts the paths in hand into the walls, looking only in the grid cells each shares with a wall, so a long stroke
 ## over many walls costs what its crossings do rather than its length times the walls.
 func _preview_crossings() -> void:
-	var walls_at := _walls_by_cell()
+	var walls_at := walls_by_cell()
 	var check: Array = walls
 	var met := {}
 	# Between relays of one stroke only the walls in the cells its moving end left or reached can change.
@@ -1666,7 +1666,7 @@ func _preview_crossings() -> void:
 
 
 ## `_walls_at` as the walls stand: a wall gone leaves it, one laid anew is indexed again.
-func _walls_by_cell() -> Dictionary:
+func walls_by_cell() -> Dictionary:
 	for w in _walls_at_from.keys():
 		if not is_instance_valid(w) or w.is_queued_for_deletion():
 			_unindex(w)
@@ -1697,7 +1697,7 @@ func _unindex(w: Variant) -> void:
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses. Only the arches change, so the
 ## wall is not resampled.
 func relay_crossings(path: PathLayout) -> void:
-	var walls_at := _walls_by_cell()
+	var walls_at := walls_by_cell()
 	var met := {}
 	for c in path.segment_cells():
 		for w: Wall in walls_at.get(c, []):
