@@ -2289,8 +2289,9 @@ func _remote_holds(s: Dictionary) -> void:
 				matches = matches and item.transform.is_equal_approx(avatar.hands[side] if side < 2 else Torso.frame(avatar.eyes, avatar.torso))
 				matches = matches and (side >= 2 or avatar.folded(side) == item.replaces_hand())
 				if item.state[0] == HeldItem.Kind.BRUSH and not Brushwork.is_stick(item.state[1]):
-					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
-					matches = matches and tip.albedo_color.is_equal_approx(item.state[3])
+					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as ShaderMaterial
+					var colour: Color = tip.get_shader_parameter("paint_colour")
+					matches = matches and colour.is_equal_approx(item.state[3]) and is_equal_approx(tip.get_shader_parameter("load"), item.state[4])
 		if matches:
 			print("held: peer sees %s in the other player's hands and on their shoulders" % str(expected[1].map(HeldItem.label)))
 			return
