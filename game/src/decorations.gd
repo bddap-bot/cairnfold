@@ -33,6 +33,9 @@ func _init(garden: World, builder: WallTool) -> void:
 ## Lays the decorations again where they changed. A house's, or open ground's in one cell, are one batch, since a draw
 ## per piece costs more than its triangles; only a batch whose pieces changed is laid again.
 func sync() -> void:
+	# A garden with none to show, and none shown, has nothing for a wall's change to move.
+	if world.state.decorations.is_empty() and _shown.is_empty() and _held.is_empty() and _swept.is_empty() and _batches.is_empty() and placed.is_empty():
+		return
 	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision, _shown.duplicate(true), _held.keys(), _swept.keys()]
 	for w in walls.walls:
 		stamp.append([w.id, w.layout.laid, w.paint.duplicate()])
