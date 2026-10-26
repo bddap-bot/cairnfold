@@ -258,6 +258,10 @@ var plinths := PackedFloat32Array()
 var bounds := Rect2()
 ## PathLayout.segment_grid of `samples`, made when a path first asks for it.
 var _segment_cells := {}
+## The samples a grid was last made for, and that grid: resampled to the same samples, as on ground changed elsewhere,
+## the wall keeps it.
+var _cells_for: Array[Vector3] = []
+var _cells_made := {}
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
@@ -2973,7 +2977,10 @@ func closest_s(p: Vector3) -> float:
 
 func segment_cells() -> Dictionary:
 	if _segment_cells.is_empty() and samples.size() > 1:
-		_segment_cells = PathLayout.segment_grid(samples)
+		if samples != _cells_for:
+			_cells_for = samples.duplicate()
+			_cells_made = PathLayout.segment_grid(samples)
+		_segment_cells = _cells_made
 	return _segment_cells
 
 
