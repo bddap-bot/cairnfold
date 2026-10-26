@@ -1,0 +1,75 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/built-in/close": {
+   "p50": 13.9309997558594,
+   "p99": 16.0209999084473,
+   "late": 1,
+   "draws": 48,
+   "prims": 283095,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.25,
+   "timewarp_ms": 1.15
+  },
+  "sweep/built-in/across": {
+   "p50": 13.918999671936,
+   "p99": 15.7399997711182,
+   "late": 1,
+   "draws": 125,
+   "prims": 299288,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.28,
+   "timewarp_ms": 1.14
+  },
+  "sweep/built-in/away": {
+   "p50": 13.9169998168945,
+   "p99": 15.4729995727539,
+   "late": 2,
+   "draws": 60,
+   "prims": 297421,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.05,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/close": {
+   "p50": 13.9099998474121,
+   "p99": 16.8770008087158,
+   "late": 5,
+   "draws": 49,
+   "prims": 283175,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.29,
+   "timewarp_ms": 1.15
+  },
+  "sweep/vrm/across": {
+   "p50": 13.8859996795654,
+   "p99": 17.5750007629395,
+   "late": 4,
+   "draws": 180,
+   "prims": 320547,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 9.6,
+   "timewarp_ms": 1.15
+  },
+  "sweep/vrm/away": {
+   "p50": 13.9010000228882,
+   "p99": 17.3099994659424,
+   "late": 3,
+   "draws": 60,
+   "prims": 297421,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.13,
+   "timewarp_ms": 1.15
+  }
+ },
+ "avatar_fixture": {
+  "file": "tests/avatars/godette-0.x.vrm",
+  "sha256": "0b008f60c808eb1c83781c650e654a70d512574932e3867f80609c62d7052c6c"
+ }
+}

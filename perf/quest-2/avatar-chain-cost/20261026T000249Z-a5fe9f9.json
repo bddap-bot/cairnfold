@@ -1,0 +1,95 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/built-in/close": {
+   "p50": 13.9589996337891,
+   "p99": 15.6990003585815,
+   "late": 1,
+   "draws": 49,
+   "prims": 284943,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.27,
+   "timewarp_ms": 1.14
+  },
+  "sweep/built-in/across": {
+   "p50": 13.914999961853,
+   "p99": 15.5500001907349,
+   "late": 1,
+   "draws": 104,
+   "prims": 300506,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.13,
+   "timewarp_ms": 1.14
+  },
+  "sweep/built-in/away": {
+   "p50": 13.9169998168945,
+   "p99": 15.4370002746582,
+   "late": 0,
+   "draws": 59,
+   "prims": 295573,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.01,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/close": {
+   "p50": 13.9519996643066,
+   "p99": 15.7880001068115,
+   "late": 2,
+   "draws": 50,
+   "prims": 285685,
+   "stalls": [
+    {
+     "ms": 4928.5,
+     "notes": [],
+     "compiled": [
+      1,
+      27
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 7.3,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/across": {
+   "p50": 13.9399995803833,
+   "p99": 17.5440006256104,
+   "late": 3,
+   "draws": 125,
+   "prims": 322451,
+   "stalls": [
+    {
+     "ms": 1236.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 9.26,
+   "timewarp_ms": 1.14
+  },
+  "sweep/vrm/away": {
+   "p50": 13.9289999008179,
+   "p99": 15.4340000152588,
+   "late": 0,
+   "draws": 60,
+   "prims": 297669,
+   "step": 6,
+   "fill": 0.322,
+   "gpu_ms": 8.05,
+   "timewarp_ms": 1.14
+  }
+ },
+ "avatar_fixture": {
+  "file": "tests/avatars/godette-0.x.vrm",
+  "sha256": "0b008f60c808eb1c83781c650e654a70d512574932e3867f80609c62d7052c6c"
+ }
+}

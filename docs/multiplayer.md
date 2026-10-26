@@ -232,6 +232,49 @@ The avatar cost scene measures three figures; the stress tour includes seven cha
 figures in view. Avatar files used by scripted figures load through the same worker
 path as players' files.
 
+Quest 2, quality step 6 at 72 Hz, three figures in `demo/avatar-cost.json`:
+the matched Godette runs are
+`perf/quest-2/avatar-cost/20261025T233338Z-a5fe9f9.json` before and
+`perf/quest-2/avatar-cost/20261025T234834Z-5c5ef5d.json` after. Both use
+`tests/avatars/godette-0.x.vrm`; each view repeats three times.
+
+| Figures / view | Before GPU ms | With chains GPU ms |
+| --- | ---: | ---: |
+| Built-in / close | 7.24 | 7.27 |
+| Built-in / across | 7.94 | 8.02 |
+| Built-in / away | 8.10 | 8.06 |
+| Godette / close | 7.58 | 7.63 |
+| Godette / across | 8.44 | 8.79 |
+| Godette / away | 8.10 | 8.14 |
+
+Every phase holds the 11.11 ms GPU budget. The widest Godette view adds 24 draws
+(88 to 112) while its triangle count stays effectively unchanged. This retains the
+rigid representation with moving chain parts. These runs measure the complete
+change, including the wearer's body pose and chain, rather than isolating solver
+cost. Labeled phases contain six late frames before and eight after; their causes
+are not isolated. The baseline's first Godette load also records a 3623 ms stall
+with shader compilation. GPU medians do not establish hitch-free loading.
+
+The seven-figure scene, `demo/avatar-chain-cost.json`, keeps the same views,
+quality and repeated measurement sequence with seven figures. Its records are
+`perf/quest-2/avatar-chain-cost/20261026T000249Z-a5fe9f9.json` before and
+`perf/quest-2/avatar-chain-cost/20261026T000805Z-5c5ef5d.json` after.
+
+| Seven figures / view | Before GPU ms | With chains GPU ms |
+| --- | ---: | ---: |
+| Built-in / close | 7.27 | 7.25 |
+| Built-in / across | 8.13 | 8.28 |
+| Built-in / away | 8.01 | 8.05 |
+| Godette / close | 7.30 | 7.29 |
+| Godette / across | 9.26 | 9.60 |
+| Godette / away | 8.05 | 8.13 |
+
+All six phases hold the GPU budget. The widest Godette view adds 55 draws
+(125 to 180). Labeled phases contain seven late frames before and sixteen after;
+the runs do not isolate their causes. This is a budget measurement on the Quest 2,
+not a substitute for a worn-headset feel check.
+
+
 Each player's avatar and colour go to every other player once, reliably. A pose packet carries
 three transforms, the look direction in the head's frame, and spring state, unreliable and ordered at 30 Hz,
 smoothed on arrival. Held implements use the same hand transforms. A reliable description of
