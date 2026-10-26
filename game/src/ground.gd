@@ -32,10 +32,13 @@ var _held: Array[Object] = []
 var rewears := 0
 ## True while a whole garden is being swapped in: one rewear at the end instead of one per mark.
 var quiet := false
-## Marks laid last, not yet worn into `laid`: worn on the frame after they are laid, or at once when `laid` is read,
-## so a build's release does not wear its whole path in the frame it lands.
+## Marks laid last, not yet worn into `laid`: worn from the frame after they are laid, a path a few rows a frame, or at
+## once when `laid` is read, so a build's release does not wear its whole path in one frame. The shown image keeps what
+## it showed until they are.
 var _unworn: Array[Object] = []
 var _unworn_since := 0
+## The rows of the first unworn path already worn into `laid`.
+var _worn_rows := 0
 ## A stroke was held or released: the shown image is redrawn when the unworn marks are.
 var _unshown := false
 static var _brushes := {}
@@ -201,6 +204,7 @@ func rewear() -> void:
 	for m in _marks:
 		_area_of(m, laid)
 	_unworn.clear()
+	_worn_rows = 0
 	_show()
 
 
@@ -214,9 +218,7 @@ func _area_of(mark: Object, onto: Image) -> Rect2i:
 
 ## Wears again, in order, every mark meeting `area`, and only that patch of `laid`.
 func _rewear_area(area: Rect2i) -> void:
-	for m in _unworn:
-		_area_of(m, laid)
-	_unworn.clear()
+	_wear_unworn()
 	if area.has_area():
 		_patch.fill_rect(area, Color(0, 0, 0, 0))
 		for m in _marks:
@@ -229,10 +231,33 @@ func _rewear_area(area: Rect2i) -> void:
 func settle() -> void:
 	if _unworn.is_empty() and not _unshown:
 		return
-	for m in _unworn:
-		_area_of(m, laid)
-	_unworn.clear()
+	_wear_unworn()
 	_show()
+
+
+## Wears every unworn mark into `laid`, or with `budget_us` as many of a path's rows as fit that many microseconds (one
+## at least); whether none is left.
+func _wear_unworn(budget_us := INF) -> bool:
+	var start := Time.get_ticks_usec()
+	while not _unworn.is_empty():
+		var m: Object = _unworn[0]
+		if m is PathLayout:
+			_wearing = _areas.get(m, Rect2i()) if _worn_rows > 0 else Rect2i()
+			while _worn_rows < m.row_ends.size():
+				m.wear(laid, _worn_rows, _worn_rows + 1)
+				_worn_rows += 1
+				if Time.get_ticks_usec() - start > budget_us:
+					break
+			_areas[m] = _wearing
+			if _worn_rows < m.row_ends.size():
+				return false
+		else:
+			_area_of(m, laid)
+		_unworn.pop_front()
+		_worn_rows = 0
+		if Time.get_ticks_usec() - start > budget_us:
+			return _unworn.is_empty()
+	return true
 
 
 func _wait() -> void:
@@ -242,8 +267,8 @@ func _wait() -> void:
 
 ## Settles what has waited since an earlier frame; called once a frame.
 func settle_due() -> void:
-	if Engine.get_process_frames() > _unworn_since:
-		settle()
+	if Engine.get_process_frames() > _unworn_since and (not _unworn.is_empty() or _unshown) and _wear_unworn(Budget.GROUND_WEAR_US):
+		_show()
 
 
 func _show() -> void:

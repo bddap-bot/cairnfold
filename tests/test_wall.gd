@@ -28,6 +28,7 @@ func _init() -> void:
 	_a_narrow_crossing_takes_one_arch()
 	_a_low_wall_crosses_as_a_causeway()
 	_ducks_pass_only_under_arches()
+	_a_swimmer_is_stopped_as_by_every_segment()
 	_a_path_arch_beside_a_pond_stays_open()
 	_water_leaves_the_dry_stones_as_they_were()
 	_mortar_stops_short_of_a_doorway_and_the_ends()
@@ -456,8 +457,8 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	glade.free()
 
 
-## Ivy that finishes growing leaves the wall's own instance for the glade's chunks in the frame it stops, so it never
-## blinks out for the frame before the glade next processes.
+## Ivy that finishes growing passes from the wall's own instance to the glade's chunks without a frame drawn by neither:
+## the wall keeps drawing it until the glade has.
 func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
@@ -473,12 +474,19 @@ func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	w._process(0.0)
 	check(w._ivy != null and w._ivy.multimesh.instance_count > 0, "growing ivy is drawn by its wall")
 	w.ivy_age = INF
-	w._process(0.0)
+	var gaps := 0
 	var leaves := 0
-	for key: Vector3i in glade._chunks:
-		if key.z == Wall.Part.IVY:
-			leaves += glade._chunks[key].instance.multimesh.instance_count
-	check(w._ivy.multimesh.instance_count == 0 and leaves > 0, "grown ivy is drawn by the glade the frame its wall lets it go, got %d leaves" % leaves)
+	for frame in 30:
+		w._process(0.0)
+		leaves = 0
+		for key: Vector3i in glade._chunks:
+			if key.z == Wall.Part.IVY:
+				leaves += glade._chunks[key].instance.multimesh.instance_count
+		if w._ivy.multimesh.instance_count == 0 and leaves == 0:
+			gaps += 1
+		glade._process(0.0)
+	check(gaps == 0, "grown ivy is drawn by its wall or the glade every frame, by neither in %d" % gaps)
+	check(w._ivy.multimesh.instance_count == 0 and leaves > 0, "then by the glade alone, got %d leaves" % leaves)
 	w.free()
 	glade.free()
 
@@ -575,6 +583,44 @@ func _a_low_wall_crosses_as_a_causeway() -> void:
 	check(covered > 5.5, "its lowest course runs along the bed, %f m" % covered)
 
 
+## Looking only in the grid cells a step meets stops a swimmer exactly where testing the whole wall does.
+func _a_swimmer_is_stopped_as_by_every_segment() -> void:
+	var bent := WallLayout.new()
+	bent.points = [Vector3(-6, 0, -1), Vector3(0, 0, 2), Vector3(5, 0, -2), Vector3(9, 0, 3)]
+	bent.height = 2.6
+	bent.build(_bowl, _surface)
+	var loop := WallLayout.new()
+	for k in 7:
+		loop.points.append(Vector3(cos(k * TAU / 7) * 4.0 + 6.0, 0, sin(k * TAU / 7) * 4.0))
+	loop.closed = true
+	loop.height = 2.6
+	loop.build(_bowl, _surface)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var differ := 0
+	for w in [_wet(6.0, 2.6), bent, loop]:
+		for k in 400:
+			var a := Vector2(rng.randf_range(-7, 12), rng.randf_range(-5, 5))
+			var b := a + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.02, 1.5)
+			if w.blocks_swim(a, b) != _blocks_swim_whole(w, a, b):
+				differ += 1
+	check(differ == 0, "a swimmer's step is stopped as testing every segment would: %d of 1200 differ" % differ)
+
+
+func _blocks_swim_whole(w: WallLayout, a: Vector2, b: Vector2) -> bool:
+	if w.fence or not w.bounds.grow(WallLayout.THICKNESS).intersects(Rect2(a, Vector2.ZERO).expand(b).grow(0.01)):
+		return false
+	for i in w.samples.size() - 1:
+		var p := Vector2(w.samples[i].x, w.samples[i].z)
+		var q := Vector2(w.samples[i + 1].x, w.samples[i + 1].z)
+		var hit: Variant = Geometry2D.segment_intersects_segment(a, b, p, q)
+		if hit != null and not w._swims_through(w.lengths[i] + p.distance_to(hit)):
+			return true
+	var end := w.closest_s(Vector3(b.x, 0.0, b.y))
+	var at: Vector3 = w.frame_at(end).point
+	return Vector2(at.x, at.z).distance_to(b) < WallLayout.THICKNESS * 0.5 + WallLayout.SWIM_CLEAR and not w._swims_through(end)
+
+
 func _ducks_pass_only_under_arches() -> void:
 	var w := _wet(6.0, 2.6)
 	var a: float = w.archways()[0]
@@ -651,6 +697,14 @@ func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 	m._process(0.0)
 	m.place(1, parts)
 	check(m._dirty.is_empty(), "placing the same pieces again draws nothing")
+	m.remove(2)
+	m.place(3, bare)
+	var held := PackedInt32Array()
+	held.resize(ks.size())
+	for key: Vector3i in m._chunks:
+		for buf: PackedFloat32Array in m._chunks[key].parts.values():
+			held[key.z] += buf.size() / ks[key.z].stride()
+	check(m.counts() == held, "the instances counted as placed are those the chunks hold: %s, %s" % [m.counts(), held])
 	m.free()
 
 

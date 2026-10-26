@@ -28,6 +28,8 @@ var _settled_mask: Image
 var _settled_rows := 0
 var _since_rebuild := 0.0
 var _dirty := false
+## The stroke was worn again and its arches are still to cut, next frame.
+var _cut_due := false
 ## marks.rewears when the drawing's settled mask was taken: a rewear since wiped the drawn wear.
 var _seen := -1
 
@@ -40,6 +42,7 @@ func begin(p: Vector3, half: float) -> void:
 	drawing = PathLayout.new()
 	previews.append(drawing)
 	drawing.seed = randi()
+	drawing.growing = true
 	drawing.surface = surface
 	drawing.add(p, half)
 	marks.settle()
@@ -65,6 +68,7 @@ func extend(p: Vector3, half: float) -> bool:
 
 ## Holds the stroke as a ghost until its command lands.
 func end() -> Dictionary:
+	drawing.growing = false
 	drawing.plan()
 	var path := drawing
 	drawing = null
@@ -98,6 +102,9 @@ func forget() -> void:
 func put(id: int, data: Dictionary) -> void:
 	var path := PathLayout.of(data)
 	path.plan()
+	for ghost in previews:
+		if ghost != drawing and ghost.data() == data:
+			path.share_meetings(ghost)
 	_garden[id] = data
 	ids[path] = id
 	var i := 0
@@ -158,12 +165,24 @@ func _process(delta: float) -> void:
 	marks.settle_due()
 	_place()
 	_since_rebuild += delta
-	if _dirty and drawing != null and _since_rebuild >= WallTool.REBUILD_EVERY:
-		_relay()
+	if _cut_due:
+		_cut_due = false
+		previewed.emit()
+	elif _dirty and drawing != null and _since_rebuild >= WallTool.REBUILD_EVERY:
+		_wear_tip()
+		_cut_due = true
 
 
-## Keep settled wear while rebuilding the moving tip.
+## Keep settled wear while rebuilding the moving tip, its arches cut at once.
 func _relay() -> void:
+	_wear_tip()
+	_cut_due = false
+	previewed.emit()
+
+
+## Plans the stroke again and wears it: what a relay shows first. Its arches follow the frame after, so the two
+## don't spend one frame.
+func _wear_tip() -> void:
 	marks.settle()
 	if _seen != marks.rewears:
 		_settled_mask = marks.image.duplicate()
@@ -178,7 +197,6 @@ func _relay() -> void:
 	marks.upload()
 	_dirty = false
 	_since_rebuild = 0.0
-	previewed.emit()
 
 
 ## The ground or the water over `area` changed: the paths there lay their treads, stepping stones and crops again.

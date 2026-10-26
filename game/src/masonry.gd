@@ -128,6 +128,10 @@ var kinds: Array[Kind]
 ## (chunk x, chunk z, kind) -> Chunk.
 var _chunks := {}
 var _dirty := {}
+## Instances placed, by kind, kept as they are placed.
+var _counts := PackedInt32Array()
+## Coarse chunks whose fine chunks were drawn again since they were.
+var _coarse_dirty := {}
 ## Owner id -> the chunks holding its pieces.
 var _owners := {}
 ## (COARSE chunk x, z, kind) -> the far instance of the FINE chunks under it of a kind with a far mesh, drawn in their
@@ -138,6 +142,7 @@ var _coarse := {}
 
 func _init(piece_kinds: Array[Kind]) -> void:
 	kinds = piece_kinds
+	_counts.resize(kinds.size())
 	set_process(false)
 
 
@@ -179,13 +184,15 @@ func place(owner: int, parts: Array[Dictionary]) -> void:
 	for key: Vector3i in keys.keys() + Array(_owners.get(owner, [])):
 		var c := _chunk(key)
 		var now: PackedFloat32Array = parts[key.z].get(Vector2i(key.x, key.y), none)
-		if now != c.parts.get(owner, none):
+		var was: PackedFloat32Array = c.parts.get(owner, none)
+		if now != was:
 			_dirty[key] = true
 			occluders = occluders or kinds[key.z].occludes
 		if keys.has(key):
+			_counts[key.z] += (now.size() - was.size()) / kinds[key.z].stride()
 			c.parts[owner] = now
-		else:
-			c.parts.erase(owner)
+		elif c.parts.erase(owner):
+			_counts[key.z] -= was.size() / kinds[key.z].stride()
 	if keys.is_empty():
 		_owners.erase(owner)
 	else:
@@ -224,12 +231,7 @@ static func _coarse_key(key: Vector3i) -> Vector3i:
 
 ## Instances placed, by kind: what the build costs to render.
 func counts() -> PackedInt32Array:
-	var out := PackedInt32Array()
-	out.resize(kinds.size())
-	for key: Vector3i in _chunks:
-		for buf: PackedFloat32Array in _chunks[key].parts.values():
-			out[key.z] += buf.size() / kinds[key.z].stride()
-	return out
+	return _counts.duplicate()
 
 
 ## The instances drawing `kind`'s pieces near or far, for measuring what each costs.
@@ -320,14 +322,25 @@ func _ranges(key: Vector3i) -> void:
 
 
 func _process(_delta: float) -> void:
-	flush()
+	flush(Budget.MASONRY_FLUSH_US)
 
 
-## Uploads every chunk placed since the last upload now, rather than when this node next processes, for a wall moving its
-## stones between two of them in one frame.
-func flush() -> void:
-	var coarse := {}
-	for key: Vector3i in _dirty:
+## Whether every chunk holding `owner`'s pieces is drawn as they stand.
+func drawn(owner: int) -> bool:
+	for key: Vector3i in _owners.get(owner, []):
+		if _dirty.has(key) or _coarse_dirty.has(_coarse_key(key)):
+			return false
+	return true
+
+
+## Draws the chunks changed since, all of them, or with `budget_us` as many as fit that many microseconds (one at
+## least) and the rest in the frames after: each chunk swaps its stones whole, so none blink out between.
+func flush(budget_us := INF) -> void:
+	var start := Time.get_ticks_usec()
+	for key: Vector3i in _dirty.keys():
+		if Time.get_ticks_usec() - start > budget_us:
+			break
+		_dirty.erase(key)
 		var c: Chunk = _chunks[key]
 		_ranges(key)
 		var buf := PackedFloat32Array()
@@ -341,9 +354,12 @@ func flush() -> void:
 			if mm.instance_count > 0:
 				mm.buffer = buf
 		if c.far != null:
-			coarse[_coarse_key(key)] = true
+			_coarse_dirty[_coarse_key(key)] = true
 	var n := roundi(COARSE / FINE)
-	for key: Vector3i in coarse:
+	for key: Vector3i in _coarse_dirty.keys():
+		if Time.get_ticks_usec() - start > budget_us:
+			break
+		_coarse_dirty.erase(key)
 		var buf := PackedFloat32Array()
 		for x in n:
 			for z in n:
@@ -355,6 +371,5 @@ func flush() -> void:
 		mm.instance_count = buf.size() / kinds[key.z].stride()
 		if mm.instance_count > 0:
 			mm.buffer = buf
-	_dirty.clear()
-	set_process(false)
+	set_process(not _dirty.is_empty() or not _coarse_dirty.is_empty())
 

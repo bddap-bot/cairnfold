@@ -56,6 +56,12 @@ var _parts: Array[PackedFloat32Array] = []
 var _chunked: Array[Dictionary] = []
 ## Draws the parts while the wall is not settled, made when first needed.
 var _drawn: Masonry
+## Which parts the last `_sync` placed with the Masonry. While the same ones stay there and nothing else draws them,
+## new stones replace the old chunk by chunk over the next frames, so a long wall laid again (an arch opening) spends no
+## frame drawing all its chunks at once. Ivy passing between the wall's own and the Masonry shows twice for those frames:
+## the wall keeps drawing its grown ivy until the Masonry has drawn it (`_ivy_handoff`).
+var _in_masonry := []
+var _ivy_handoff := false
 ## Ivy's own MultiMesh while it grows, made when first needed: it shows as much of it as has grown.
 var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
@@ -261,10 +267,13 @@ func _process(delta: float) -> void:
 		_sync()
 		if _ivy_stale:
 			_layout_ivy()
+	if _ivy_handoff and masonry.drawn(get_instance_id()):
+		_ivy_handoff = false
+		_show_ivy(false)
 	if _ivy != null:
 		var mm := _ivy.multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
-	if _build_task < 0 and _recolour_task < 0 and not _ivy_growing():
+	if _build_task < 0 and _recolour_task < 0 and not _ivy_growing() and not _ivy_handoff:
 		set_process(false)
 		if _settled:
 			_sync()
@@ -737,6 +746,11 @@ func _sync() -> void:
 		placed.append(_chunked[p] if settle else {})
 		drawn.append(_chunked[p] if not settle and p != Part.IVY else {})
 		live = live or not drawn[p].is_empty()
+	var parts := placed.map(func(d: Dictionary) -> bool: return not d.is_empty())
+	var swapped := not live and _drawn == null and _stand_in == null and _in_masonry.size() == parts.size()
+	_ivy_handoff = swapped and parts[Part.IVY] and (_ivy_handoff or not _in_masonry[Part.IVY])
+	swapped = swapped and range(parts.size()).all(func(p: int) -> bool: return p == Part.IVY or parts[p] == _in_masonry[p])
+	_in_masonry = parts
 	masonry.place(get_instance_id(), placed)
 	if live:
 		if _drawn == null:
@@ -747,8 +761,12 @@ func _sync() -> void:
 	elif _drawn != null:
 		_drawn.queue_free()
 		_drawn = null
-	masonry.flush()
-	_show_ivy(_settled and _ivy_growing())
+	if not swapped:
+		_ivy_handoff = false
+		masonry.flush()
+	if _ivy_handoff:
+		set_process(true)
+	_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
 	if _stand_in != null:
 		_stand_in.queue_free()
 		_stand_in = null

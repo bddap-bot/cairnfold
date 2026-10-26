@@ -40,6 +40,9 @@ var _gpu_ns := -1
 var _gpu_cycles := -1
 var _gpu_counted_ns := 0
 var _drm_fds: PackedStringArray = []
+## The second's row while a worker reads the GPU time it needs, and that reading.
+var _row := {}
+var _gpu_reader: Thread
 ## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
 var _drm_scan := 0
 var _draws := 0
@@ -190,15 +193,8 @@ func _process(delta: float) -> void:
 	# A stall's script time shows only on the frame after it, so its second waits for that frame.
 	if _acc >= 1.0 and (_stalls.is_empty() or _stalls[-1].has("scripts_after_ms")):
 		var begin := Time.get_ticks_usec()
-		var gpu := gpu_time() if not path.is_empty() else PackedInt64Array([-1, -1, 0])
+		_finish_row()
 		var row := summary(_deltas)
-		if gpu[0] >= 0 and _gpu_ns >= 0:
-			row.gpu_ms = (gpu[0] - _gpu_ns) / 1e6
-			if gpu[1] >= 0 and _gpu_cycles >= 0 and gpu[2] > _gpu_counted_ns:
-				row.gpu_mhz = snappedf(float(gpu[1] - _gpu_cycles) / (gpu[2] - _gpu_counted_ns) * 1000.0, 1.0)
-		_gpu_ns = gpu[0]
-		_gpu_cycles = gpu[1]
-		_gpu_counted_ns = gpu[2]
 		row.draws = _draws
 		if head != null:
 			row.head_m = snappedf(head.position.y, 0.01)
@@ -251,18 +247,45 @@ func _process(delta: float) -> void:
 			row.view_direction = [forward.x, forward.y, forward.z]
 		row.logging_us = _logging_us
 		row.mem_mb = memory_mb()
-		if play_log != null:
-			play_log.sample(row)
 		_cpu.clear()
 		_gpu.clear()
+		_row = row
 		if not path.is_empty():
-			_seconds.append(row)
+			_gpu_reader = Thread.new()
+			_gpu_reader.start(gpu_time)
+		else:
+			_finish_row()
 		_logging_us = Time.get_ticks_usec() - begin
 		_deltas.clear()
 		_acc = 0.0
-		_since_flush += 1.0
-		if _since_flush >= 5.0:
-			flush()
+	if _gpu_reader != null and not _gpu_reader.is_alive():
+		_finish_row()
+
+
+## Completes the last second's row with the GPU time a thread of its own read, a frame or two after the second ended:
+## reading the DRM clients' info held the Steam Frame's main thread for up to 8 ms, enough to drop a second to every
+## other refresh, and a pool's worker can be busy for seconds laying builds.
+func _finish_row() -> void:
+	if _row.is_empty():
+		return
+	if _gpu_reader != null:
+		var gpu: PackedInt64Array = _gpu_reader.wait_to_finish()
+		_gpu_reader = null
+		if gpu[0] >= 0 and _gpu_ns >= 0:
+			_row.gpu_ms = (gpu[0] - _gpu_ns) / 1e6
+			if gpu[1] >= 0 and _gpu_cycles >= 0 and gpu[2] > _gpu_counted_ns:
+				_row.gpu_mhz = snappedf(float(gpu[1] - _gpu_cycles) / (gpu[2] - _gpu_counted_ns) * 1000.0, 1.0)
+		_gpu_ns = gpu[0]
+		_gpu_cycles = gpu[1]
+		_gpu_counted_ns = gpu[2]
+	if play_log != null:
+		play_log.sample(_row)
+	if not path.is_empty():
+		_seconds.append(_row)
+	_row = {}
+	_since_flush += 1.0
+	if _since_flush >= 5.0:
+		flush()
 
 
 func _close_landing() -> void:
@@ -435,6 +458,7 @@ static func distribution(samples: PackedFloat32Array) -> Variant:
 
 
 func close() -> void:
+	_finish_row()
 	flush()
 	if play_log != null:
 		play_log.finish()

@@ -18,6 +18,7 @@ func _run() -> void:
 	_a_wide_or_slanted_crossing_opens_an_arcade()
 	_a_path_beside_a_wall_opens_nothing()
 	_crossings_test_every_segment_pair_that_meets()
+	_a_growing_stroke_plans_and_meets_as_a_whole_one()
 	_arcades_stand_on_pillars()
 	_overlapping_arches_do_not_both_open()
 	_the_mask_parts_the_path_only()
@@ -32,6 +33,8 @@ func _run() -> void:
 	_a_scripted_stroke_outlasts_the_hand()
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
+	_a_stroke_over_many_walls_previews_as_one_cut_whole()
+	_a_stroke_laid_keeps_the_arches_its_ghost_showed()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
 	await _dirt_wears_without_stones()
 	_each_surface_wears_its_own_ground()
@@ -112,6 +115,42 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 			if p.crossings(w) != _every_pair(p, w) or (not shared.is_empty() and p.crossings(w, shared) != _every_pair(p, w)):
 				mismatched += 1
 	check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
+
+
+## A stroke being drawn re-plans only its moving end and keeps each wall's meetings along the rest; after every relay
+## its samples, cells and meetings are those of the same points planned whole.
+func _a_growing_stroke_plans_and_meets_as_a_whole_one() -> void:
+	var walls: Array[WallLayout] = []
+	for z in [-5.0, -1.0, 3.0]:
+		walls.append(_wall([[-10, z], [10, z]]))
+	walls.append(_wall([[-9, -8], [-9, 8]]))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var drawn := PathLayout.new()
+	drawn.growing = true
+	var at := Vector3(-8, 0, -9)
+	drawn.add(at, 0.6)
+	var differ := 0
+	for step in 120:
+		at += Vector3(rng.randf_range(-0.3, 0.6), 0, rng.randf_range(0.0, 0.4))
+		if drawn.points.size() >= 2 and drawn.points[-1].distance_to(drawn.points[-2]) < WallTool.POINT_SPACING:
+			drawn.points[-1] = at
+			drawn.half_widths[-1] = maxf(drawn.half_widths[-1], rng.randf_range(0.5, 1.5))
+		else:
+			drawn.add(at, rng.randf_range(0.5, 1.5))
+		if step % 3 != 0:
+			continue
+		drawn.plan()
+		var whole := PathLayout.new()
+		whole.points = drawn.points.duplicate()
+		whole.half_widths = drawn.half_widths.duplicate()
+		whole.plan()
+		if drawn.samples != whole.samples or drawn.lengths != whole.lengths or drawn.sample_half_widths != whole.sample_half_widths or drawn.point_lengths != whole.point_lengths or drawn.segment_cells() != whole.segment_cells():
+			differ += 1
+		for w in walls:
+			if drawn.meetings(w) != whole.meetings(w):
+				differ += 1
+	check(differ == 0, "a growing stroke plans and meets walls as the same points planned whole: %d differ" % differ)
 
 
 func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
@@ -518,6 +557,75 @@ func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
 	_lay_walls(nodes[0])
 
 
+## Relays look again only at the walls in the cells a stroke's moving end left or reached; what each wall shows is what
+## cutting every wall from scratch shows.
+func _a_stroke_over_many_walls_previews_as_one_cut_whole() -> void:
+	var nodes := _setup()
+	var tool: WallTool = nodes[0]
+	var paths: Paths = nodes[1]
+	var world: World = nodes[2]
+	var walls: Array[Wall] = []
+	for z in [20.0, 24.0, 28.0, 32.0]:
+		walls.append(_draw_wall(tool, Vector3(-8, 0, z), Vector3(8, 0, z)))
+	paths.begin(world.terrain.ground(1, 18), 0.6)
+	var differ := 0
+	for i in 40:
+		var z := 18 + i * 0.4
+		paths.extend(world.terrain.ground(1 + 0.15 * sin(i * 0.5), z), 0.6)
+		paths._relay()
+		# The tip reaches over the next wall and draws back from it, as a hand overshooting does.
+		if i % 10 == 2:
+			var pts := paths.drawing.points
+			pts[-1] = pts[-1] + Vector3(0, 0, 1.6)
+			paths._dirty = true
+			paths._relay()
+			pts[-1] = pts[-1] - Vector3(0, 0, 1.6)
+			paths._relay()
+		for w in walls:
+			var shown := w.layout.openings.duplicate()
+			w.layout.openings.assign(tool._path_openings[w.id])
+			for p in paths.previews:
+				tool._cut_crossings(w, p)
+			if w.layout.openings != shown:
+				differ += 1
+			w.layout.openings = shown
+	check(differ == 0, "a stroke's relays open the arches cutting every wall again would: %d relays differ" % differ)
+	check(walls.all(func(w: Wall) -> bool: return w.layout.openings.size() == 1), "each wall the stroke crossed shows its arch: %s" % [walls.map(func(w: Wall) -> int: return w.layout.openings.size())])
+	paths.forget()
+	_teardown(nodes)
+
+
+## Laid, a stroke's walls keep the arches its ghost showed, as cutting each again from the paths laid would leave them,
+## without laying a wall again.
+func _a_stroke_laid_keeps_the_arches_its_ghost_showed() -> void:
+	var nodes := _setup()
+	var tool: WallTool = nodes[0]
+	var paths: Paths = nodes[1]
+	var world: World = nodes[2]
+	var walls: Array[Wall] = []
+	for z in [40.0, 44.0, 48.0]:
+		walls.append(_draw_wall(tool, Vector3(-8, 0, z), Vector3(8, 0, z)))
+	_lay(nodes, Vector3(-5, 0, 37), Vector3(-5, 0, 51), 0.6)
+	paths.begin(world.terrain.ground(2, 38), 0.6)
+	for i in 30:
+		paths.extend(world.terrain.ground(2, 38 + i * 0.4), 0.6)
+		paths._relay()
+	_lay_walls(tool)
+	var laid := walls.map(func(w: Wall) -> int: return w.layout.laid)
+	var ghost := paths.end()
+	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	check(walls.all(func(w: Wall) -> bool: return not w.laying()) and walls.map(func(w: Wall) -> int: return w.layout.laid) == laid, "laying the stroke lays no wall again")
+	var differ := 0
+	for w in walls:
+		var shown := w.layout.openings.duplicate()
+		var kept: Array = tool._path_openings[w.id].duplicate()
+		tool._open_paths(w)
+		if w.layout.openings != shown or tool._path_openings[w.id] != kept:
+			differ += 1
+	check(differ == 0 and walls.all(func(w: Wall) -> bool: return w.layout.openings.size() == 2), "each wall keeps both paths' arches, as cut again: %d differ" % differ)
+	_teardown(nodes)
+
+
 func _a_path_opens_its_arch_before_release() -> void:
 	var nodes := _setup()
 	var paths: Paths = nodes[1]
@@ -562,19 +670,29 @@ func _a_path_opens_its_arch_before_release() -> void:
 	_teardown(nodes)
 
 
-## A path's command wears the garden's mask before anything reads it, and the shown mask a frame later, not in the
-## frame it lands.
+## A path's command wears the garden's mask before anything reads it, and the shown mask over the frames after, a few
+## rows a frame, not in the frame it lands.
 func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void:
 	var nodes := _setup()
 	var world: World = nodes[2]
 	world.marks.install()
 	_lay(nodes, Vector3(-40, 0, 70), Vector3(-30, 0, 70), 0.8)
 	check(world.marks.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % world.marks.bare(-35, 70))
-	for i in 2:
+	var frames := 0
+	while world.marks.bare(-35, 70) <= 0.99 and frames < 30:
 		await process_frame
-	check(world.marks.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % world.marks.bare(-35, 70))
-	_lay(nodes, Vector3(-40, 0, 75), Vector3(-30, 0, 75), 0.8)
-	check(world.marks.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % world.marks.laid_bare(-35, 75))
+		frames += 1
+	check(world.marks.bare(-35, 70) > 0.99, "the frames after show the path's wear (%.2f after %d)" % [world.marks.bare(-35, 70), frames])
+	var worn := world.marks.laid.get_data()
+	world.marks.rewear()
+	check(world.marks.laid.get_data() == worn, "worn a few rows a frame, the mask is the one worn whole")
+	_lay(nodes, Vector3(-40, 0, 75), Vector3(-10, 0, 85), 0.8)
+	await process_frame
+	await process_frame
+	check(world.marks.laid_bare(-25, 80) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % world.marks.laid_bare(-25, 80))
+	worn = world.marks.laid.get_data()
+	world.marks.rewear()
+	check(world.marks.laid.get_data() == worn, "read part way through its wear, the mask is the one worn whole")
 	_teardown(nodes)
 
 

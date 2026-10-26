@@ -735,9 +735,19 @@ with the ground's steepness read once a fragment (a separate change landed in be
 | `stairs/aerial` | 8.2, 72 Hz | 8.0, 73 Hz | 7.0, 73 Hz (8) | 6.9, 73 Hz (8) |
 | `stairs/ground` | 7.2, 73 Hz | 7.0, 73 Hz | 6.5, 73 Hz (7-8) | 6.4, 72 Hz (5-8) |
 
-A path stroke over the walls still loses frames for a few seconds with the GPU at 8 ms a
-frame at the bottom step: the main thread spends 12 to 19 ms a frame laying the path, as it
-did before this work, which no quality step reaches.
+A path stroke over the walls lost frames with the GPU well inside its line: the main thread was the cost. On the
+Frame the runtime then holds every other refresh for a second or more after a single frame of 20 ms or so, so one
+heavy frame costs dozens. Timed on the Frame during a 48 m stroke over the stress scene's 24 walls, each relay of
+the stroke cut its preview arches by walking the whole stroke against every wall (105 ms a second); laying the
+stroke re-cut every wall from every path, closed and reopened their arches and wore the whole path into the ground
+mask in one frame (59 ms); a wall laid again with a new arch drew every changed Masonry chunk in its landing frame
+(4 to 7 ms); and the wildlife's snails and fish tested each step against every sample of every wall. Now a stroke
+being drawn keeps the samples, cell grid and wall meetings of its settled points and works only on its moving end; an
+index of the walls by grid cell names those it can meet; its ground wear and its arches go on alternate frames; the
+laid path keeps the arches its ghost showed (the ghost gives way after the command, as a painted stroke's does);
+Masonry draws changed chunks within `Budget.MASONRY_FLUSH_US` a frame and the ground wears a laid path within
+`Budget.GROUND_WEAR_US`; one arch cue plays for a stroke, not one per wall; swimmers look only in the cells their step
+meets; and the metrics' once-a-second GPU reading (up to 8 ms of procfs reads) runs on a thread of its own.
 
 A visited garden past the build budget, as one came in a played co-op session (4.1 to
 4.7 times the room, 23,000 stones, 130,000 to 150,000 sprigs of ivy): `demo/visited-host.json`

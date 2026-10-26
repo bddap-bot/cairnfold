@@ -2887,17 +2887,40 @@ func _water_arches() -> Array[float]:
 func blocks_swim(a: Vector2, b: Vector2) -> bool:
 	if fence or not bounds.grow(THICKNESS).intersects(Rect2(a, Vector2.ZERO).expand(b).grow(0.01)):
 		return false
-	for i in samples.size() - 1:
+	# A swimmer's step is short and a wall long: only the segments in the grid cells the step and its end's reach meet
+	# can stop it, and a pond's few dozen swimmers ask every frame.
+	var grid := segment_cells()
+	var crossed := {}
+	for c in PathLayout.cells_along(a, b):
+		for i: int in grid.get(c, []):
+			crossed[i] = true
+	for i: int in crossed:
 		var p := Vector2(samples[i].x, samples[i].z)
 		var q := Vector2(samples[i + 1].x, samples[i + 1].z)
 		var hit: Variant = Geometry2D.segment_intersects_segment(a, b, p, q)
-		if hit == null:
-			continue
-		if not _swims_through(lengths[i] + p.distance_to(hit)):
+		if hit != null and not _swims_through(lengths[i] + p.distance_to(hit)):
 			return true
-	var end := closest_s(Vector3(b.x, 0.0, b.y))
+	var reach := THICKNESS * 0.5 + SWIM_CLEAR
+	var near := {}
+	for c in PathLayout.cells_along(b - Vector2.ONE * reach, b + Vector2.ONE * reach):
+		for i: int in grid.get(c, []):
+			near[i] = true
+	var ends := near.keys()
+	ends.sort()
+	var best := INF
+	var end := 0.0
+	for i: int in ends:
+		var p := Vector2(samples[i].x, samples[i].z)
+		var q := Vector2(samples[i + 1].x, samples[i + 1].z)
+		var t := clampf((b - p).dot(q - p) / maxf((q - p).length_squared(), 1e-9), 0.0, 1.0)
+		var d := p.lerp(q, t).distance_to(b)
+		if d < best:
+			best = d
+			end = lerpf(lengths[i], lengths[i + 1], t)
+	if best == INF:
+		return false
 	var at: Vector3 = frame_at(end).point
-	return Vector2(at.x, at.z).distance_to(b) < THICKNESS * 0.5 + SWIM_CLEAR and not _swims_through(end)
+	return Vector2(at.x, at.z).distance_to(b) < reach and not _swims_through(end)
 
 
 func _swims_through(s: float) -> bool:
@@ -3088,9 +3111,9 @@ static func rectangle(a: Vector3, b: Vector3, depth: float) -> Array[Vector3]:
 
 
 ## Visits Catmull-Rom samples through an open stroke, SAMPLE apart and ending on its last point, as
-## `each(sample, i, t)`: `t` of the way from point `i` to the next.
-static func smooth(stroke: Array[Vector3], each: Callable) -> void:
-	for i in stroke.size() - 1:
+## `each(sample, i, t)`: `t` of the way from point `i` to the next; with `from`, the samples from that point on.
+static func smooth(stroke: Array[Vector3], each: Callable, from := 0) -> void:
+	for i in range(from, stroke.size() - 1):
 		var p0 := stroke[maxi(i - 1, 0)]
 		var p3 := stroke[mini(i + 2, stroke.size() - 1)]
 		var seg := maxi(1, int(ceil(stroke[i].distance_to(stroke[i + 1]) / SAMPLE)))

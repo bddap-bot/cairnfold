@@ -77,6 +77,7 @@ func _late_and_refresh_follow_the_runtime_rate() -> void:
 	m._acc = 1.0
 	m._last_tick = Time.get_ticks_usec() - 13900
 	m._process(0.0139)
+	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	check(row.refresh_hz == 72.0 and row.late == 0 and row.frames == 51, "a second at 72 Hz reads 72 Hz with no 18 ms frame late: %s" % [row])
 	check(m.is_late(21.0) and not m.is_late(20.0), "late is past 1.5 refresh periods of the rate the runtime runs")
@@ -141,6 +142,7 @@ func _a_landing_keeps_every_frame_of_its_window() -> void:
 	origin.position.x += 1.0
 	m._acc = 1.0
 	frame.call(13.9)
+	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	check(m._landings.is_empty() and row.landings.size() == 1 and row.landings[0].frames_ms.size() == 2, "a window closed by the next move goes out with its second: %s" % [row.get("landings")])
 	origin.free()
@@ -181,6 +183,7 @@ func _a_stall_names_what_ran_in_it() -> void:
 	frame.call(430.0)
 	check(m._seconds.is_empty(), "the stall's second waits for the frame after it, which reports its script time")
 	frame.call(13.9)
+	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	var stalls: Array = row.get("stalls", [])
 	check(stalls.size() == 1 and stalls[0].ms >= 430.0 and stalls[0].ms < 435.0, "the stall is listed with its length: %s" % [stalls])
@@ -189,6 +192,7 @@ func _a_stall_names_what_ran_in_it() -> void:
 	frame.call(13.9)
 	m._acc = 1.0
 	frame.call(13.9)
+	m._finish_row()
 	check(not m._seconds[-1].has("stalls"), "a second without one lists none")
 	m.free()
 
@@ -205,6 +209,7 @@ func _a_pause_is_no_frame() -> void:
 	frame.call(60000.0)
 	m._acc = 1.0
 	frame.call(13.9)
+	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	check(absf(row.get("paused_s", 0.0) - 60.0) < 0.1, "the paused span is counted as paused: %s" % [row])
 	check(row.max < 20.0 and row.frames == 2 and not row.has("stalls"), "and is no frame, nor a stall: %s" % [row])

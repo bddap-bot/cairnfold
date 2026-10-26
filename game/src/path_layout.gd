@@ -45,12 +45,25 @@ var samples: Array[Vector3] = []
 var sample_half_widths: Array[float] = []
 var lengths: Array[float] = []
 var point_lengths: Array[float] = []
+## Where each point's samples start in `samples`, and how many points the last `_resample` read.
+var _point_samples := PackedInt32Array()
+var _resampled := 0
+## The grid cells the last `_resample` took segments from or laid them in, or null where it laid them all again.
+var moved: Variant = null
 ## Each wear row fills the band of arc length from the previous row's end to its own.
 var row_ends: Array[float] = []
 ## Bounds for skipping walls that cannot cross.
 var area := Rect2()
 ## Grid cell → indices of the sample segments whose boxes reach into it, made when first asked for.
 var _segment_cells := {}
+## A stroke still being drawn: its segments before `settled` stand, so `meetings` keeps each wall's along them and tests
+## only the moving end again. A path not growing keeps each wall's whole until it is planned again.
+var growing := false:
+	set(v):
+		growing = v
+		_met.clear()
+## Wall instance id → [its segment grid, the segments kept (-1 for all), and the crossings found and met along them].
+var _met := {}
 ## Each crop's pieces (`crop`), made as the class loads so workers laying beds only read them.
 static var _crop_pieces: Array = _made_crops()
 
@@ -159,29 +172,60 @@ func frame_at(s: float) -> Dictionary:
 
 
 func _resample() -> void:
-	samples.clear()
-	sample_half_widths.clear()
-	lengths.clear()
-	point_lengths.clear()
+	# While `growing`, only the points the last resample read may have moved: its last, which `extend` moves, and the
+	# new ones. A sample segment reads the point before and the two after it, so those from three before stand.
+	var first := maxi(_resampled - 3, 0) if growing else 0
+	var keep := _point_samples[first] if first > 0 and first < _point_samples.size() else 0
+	moved = null
+	if keep == 0 or _segment_cells.is_empty():
+		first = 0 if keep == 0 else first
+		_segment_cells = {}
+		_met.clear()
+	else:
+		moved = {}
+		for i in range(keep - 1, samples.size() - 1):
+			for c in cells_along(_flat(samples[i]), _flat(samples[i + 1])):
+				moved[c] = true
+				_segment_cells[c].erase(i)
+				if _segment_cells[c].is_empty():
+					_segment_cells.erase(c)
+	samples.resize(keep)
+	sample_half_widths.resize(keep)
+	lengths.resize(keep)
+	point_lengths.resize(first)
+	_point_samples.resize(first)
 	WallLayout.smooth(points, func(q: Vector3, i: int, t: float):
 		lengths.append(lengths[-1] + Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length() if samples.size() > 0 else 0.0)
 		samples.append(q)
 		sample_half_widths.append(lerpf(half_widths[i], half_widths[mini(i + 1, half_widths.size() - 1)], t))
 		if t == 0.0:
-			point_lengths.append(lengths[-1]))
+			point_lengths.append(lengths[-1])
+			_point_samples.append(samples.size() - 1), first)
+	_resampled = points.size()
 	area = Rect2(_flat(samples[0]), Vector2.ZERO) if samples.size() > 0 else Rect2()
 	for q in samples:
 		area = area.expand(_flat(q))
 	area = area.grow(HALF_WIDTH.y)
-	_segment_cells = {}
+	if moved != null:
+		for i in range(maxi(keep - 1, 0), samples.size() - 1):
+			for c in cells_along(_flat(samples[i]), _flat(samples[i + 1])):
+				moved[c] = true
+				if not _segment_cells.has(c):
+					_segment_cells[c] = []
+				_segment_cells[c].append(i)
 
 
 ## Arc lengths along `wall` where this path opens arches: one where it crosses, or an arcade where the
 ## crossing runs long along the wall (a wide path, or one meeting the wall at a slant). Looks only in `cells` of
 ## `segment_cells`, by default all of them.
 func crossings(wall: WallLayout, cells: Array = []) -> Array[float]:
+	return arches(meetings(wall, cells))
+
+
+## The arc lengths of the arches `met`, a path's `meetings` with a wall, open: an arcade where one runs long along it.
+static func arches(met: Array[Dictionary]) -> Array[float]:
 	var out: Array[float] = []
-	for m in meetings(wall, cells):
+	for m in met:
 		var n := 1 if m.span < ARCADE_SPAN else ceili((m.span - WallLayout.ARCH_HALF * 2.0) / WallLayout.ARCADE_PITCH) + 1
 		for k in n:
 			out.append(m.s + (k - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
@@ -198,20 +242,38 @@ func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
 	if not wall.bounds.grow(0.01).intersects(area, true):
 		return out
 	var theirs := wall.segment_cells()
+	var found: Array[float] = []
+	var from := 0
+	var fixed := lengths.bsearch(settled(), false) - 1 if growing else 0
+	var kept: Array = _met.get(wall.get_instance_id(), [])
+	if not growing and not kept.is_empty() and is_same(kept[0], theirs) and kept[1] < 0:
+		out.assign(kept[3])
+		return out
+	if growing and not kept.is_empty() and is_same(kept[0], theirs) and kept[1] <= fixed:
+		from = kept[1]
+		found.assign(kept[2])
+		out.assign(kept[3])
 	var meets := {}
 	for c in cells if not cells.is_empty() else segment_cells().keys():
 		var js: Variant = theirs.get(c)
 		if js == null:
 			continue
 		for i: int in segment_cells()[c]:
+			if i < from:
+				continue
 			if not meets.has(i):
 				meets[i] = {}
 			for j: int in js:
 				meets[i][j] = true
-	var found: Array[float] = []
 	var near := meets.keys()
 	near.sort()
+	near.append(samples.size())
 	for i: int in near:
+		if growing and i >= fixed and fixed > from:
+			_met[wall.get_instance_id()] = [theirs, fixed, found.duplicate(), out.duplicate()]
+			from = fixed
+		if i == samples.size():
+			break
 		var a := _flat(samples[i])
 		var b := _flat(samples[i + 1])
 		var js: Array = meets[i].keys()
@@ -229,6 +291,8 @@ func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
 			found.append(s)
 			var slant := absf((b - a).normalized().cross((d - c).normalized()))
 			out.append({"s": s, "span": 2.0 * lerpf(sample_half_widths[i], sample_half_widths[i + 1], a.distance_to(hit) / maxf(a.distance_to(b), 1e-5)) / maxf(slant, 0.4)})
+	if not growing:
+		_met[wall.get_instance_id()] = [theirs, -1, [], out.duplicate()]
 	return out
 
 
@@ -238,22 +302,22 @@ func segment_cells() -> Dictionary:
 	return _segment_cells
 
 
-## The ends and half-widths of the segments in `cells` of `segment_cells`: all `crossings` reads of this path there.
-func segments_in(cells: Array) -> Array:
-	var ends := PackedVector3Array()
-	var halves := PackedFloat32Array()
-	for c in cells:
-		for i: int in segment_cells()[c]:
-			ends.append_array([samples[i], samples[i + 1]])
-			halves.append_array([sample_half_widths[i], sample_half_widths[i + 1]])
-	return [ends, halves]
+## The cells of `segment_cells` that `wall`'s reach too.
+func shared_cells(wall: WallLayout) -> Array:
+	var mine := segment_cells()
+	return wall.segment_cells().keys().filter(func(c: Vector2i) -> bool: return mine.has(c))
+
+
+## Takes the meetings `other`, the same path laid again, has found and will find.
+func share_meetings(other: PathLayout) -> void:
+	_met = other._met
 
 
 ## Grid cell → indices of the segments between consecutive `points` whose boxes reach into it.
 static func segment_grid(points: Array[Vector3]) -> Dictionary:
 	var grid := {}
 	for i in points.size() - 1:
-		for c in _cells_along(_flat(points[i]), _flat(points[i + 1])):
+		for c in cells_along(_flat(points[i]), _flat(points[i + 1])):
 			if not grid.has(c):
 				grid[c] = []
 			grid[c].append(i)
@@ -261,7 +325,7 @@ static func segment_grid(points: Array[Vector3]) -> Dictionary:
 
 
 ## The grid cells the box around segment a–b reaches, padded so a crossing on a cell edge is found from both sides.
-static func _cells_along(a: Vector2, b: Vector2) -> Array[Vector2i]:
+static func cells_along(a: Vector2, b: Vector2) -> Array[Vector2i]:
 	var lo := Vector2i(((a.min(b) - Vector2.ONE * 0.01) / CELL).floor())
 	var hi := Vector2i(((a.max(b) + Vector2.ONE * 0.01) / CELL).floor())
 	var out: Array[Vector2i] = []

@@ -29,6 +29,13 @@ const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
 ## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
 const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
+## Main-thread time the Masonry spends a frame drawing chunks changed in place (a wall laid again), in microseconds:
+## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls
+## have about a millisecond to spare; the rest wait for the frames after.
+const MASONRY_FLUSH_US := 300.0
+## Main-thread time a frame spends wearing a path just laid into the garden's ground, in microseconds: a few of its rows
+## on the Steam Frame; a 48 m path's hundred and more take the frames after.
+const GROUND_WEAR_US := 1000.0
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
 ## The mean plank laid across a wall or along a walk: BOARD_RUN's, less for each run's shorter first and the turns.

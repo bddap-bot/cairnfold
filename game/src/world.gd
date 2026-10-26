@@ -921,9 +921,10 @@ static func _pond_keys(cmd: Dictionary) -> Array:
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost
 ## goes first, so a stroke's hump is not counted twice under walls laid on the new ground; a painted
 ## stroke's goes last, to stand until the plants it shows have grown, and so does a turned sky's, which only shows the
-## garden's sky again if the host turned it down.
+## garden's sky again if the host turned it down, and a drawn path's, whose arches the walls keep as the path lays them
+## again, rather than closing and opening each.
 func _apply(cmd: Dictionary) -> Dictionary:
-	var last: bool = cmd.op == "sky" or cmd.op == "plant" and not cmd.kind in Flora.PLACED
+	var last: bool = cmd.op in ["sky", "path"] or cmd.op == "plant" and not cmd.kind in Flora.PLACED
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
