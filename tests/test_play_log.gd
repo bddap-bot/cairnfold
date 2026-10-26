@@ -24,8 +24,7 @@ func _initialize() -> void:
 	logger.sample({"unix": 21.0, "padding": "x".repeat(PlayLog.MAX_BYTES * 3 / 5)})
 	logger.finish()
 	var files := DirAccess.get_files_at(folder)
-	check(files.size() == PlayLog.MAX_FILES + 1, "the ring retains its chunks and latest")
-	check(JSON.parse_string(FileAccess.get_file_as_string(folder + "/latest.json")).unix == 21.0, "latest is a whole current sample")
+	check(files.size() == PlayLog.MAX_FILES, "the ring retains its chunks")
 	for name in files:
 		var f := FileAccess.open(folder.path_join(name), FileAccess.READ)
 		check(f.get_length() <= PlayLog.MAX_BYTES, "chunk is bounded")

@@ -4967,12 +4967,10 @@ hand's controller pose in the play space, its stick and the inputs the controls 
 110 bytes, written on the log's worker thread. Sixty-four chunks of at most 4 MiB retain recent history;
 rotation can discard the beginning of a long session, and `scripts/sessions.py` counts the frames lost. Each chunk repeats the
 session start, build revision and device model; a chunk is renamed into place
-holding that start record, and every line is flushed as it is written. A quit the
+holding that start record, and each second's lines are flushed together as they are written. A quit the
 engine reports (the window closing, the XR runtime ending the session) writes the end
 record first; a missing end means the process was killed (Godot does not report
-SIGTERM), not a measured end time. `latest.json` is an
-atomically replaced sample for local inspection, including head position in garden
-coordinates and normalized view direction (Godot's forward is negative Z).
+SIGTERM), not a measured end time.
 
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`

@@ -127,13 +127,7 @@ func _write(row: Dictionary, input: Dictionary) -> void:
 		return
 	_write_input(input)
 	_store(row.merged({"event": "frame", "session": session_id}))
-	# Rename keeps readers from seeing half of the current sample.
-	var latest := FileAccess.open(directory.path_join("latest.new"), FileAccess.WRITE)
-	if latest != null:
-		latest.store_line(JSON.stringify(metadata.merged(row)))
-		latest.close()
-		DirAccess.rename_absolute(directory.path_join("latest.new"), directory.path_join("latest.json"))
-
+	_flush()
 	_write_us = Time.get_ticks_usec() - begin
 
 
@@ -155,7 +149,12 @@ func _store(record: Dictionary) -> void:
 	if _file == null:
 		return
 	_file.store_line(line)
-	_file.flush()
+
+
+## Once a write: each flush of a Quest's shared storage costs the writer milliseconds.
+func _flush() -> void:
+	if _file != null:
+		_file.flush()
 
 
 func finish() -> void:
