@@ -12,9 +12,61 @@
     "op": "sculpt",
     "x": 0,
     "z": -1,
-    "lift": -6,
-    "radius": 7,
+    "lift": -1.2,
+    "radius": 4,
     "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "sculpt",
+    "x": 0,
+    "z": -1,
+    "lift": -1.2,
+    "radius": 4,
+    "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "sculpt",
+    "x": 0,
+    "z": -1,
+    "lift": -1.2,
+    "radius": 4,
+    "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "sculpt",
+    "x": 0,
+    "z": -1,
+    "lift": -1.2,
+    "radius": 4,
+    "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "sculpt",
+    "x": 0,
+    "z": -1,
+    "lift": -1.2,
+    "radius": 4,
+    "seconds": 1
+  },
+  {
+    "op": "wait",
+    "seconds": 3
   },
   {
     "op": "wait",
@@ -24,11 +76,15 @@
     "op": "pond",
     "x": 0,
     "z": -1,
-    "brim": 7
+    "brim": 4
   },
   {
     "op": "wait",
     "seconds": 8
+  },
+  {
+    "op": "digest",
+    "name": "pond-state"
   },
   {
     "op": "view",
@@ -59,6 +115,11 @@
   {
     "op": "label",
     "name": "-"
+  },
+  {
+    "op": "digest",
+    "name": "standing-pose",
+    "ground": true
   },
   {
     "op": "capture",
@@ -95,6 +156,11 @@
     "name": "-"
   },
   {
+    "op": "digest",
+    "name": "air-pose",
+    "ground": true
+  },
+  {
     "op": "capture",
     "name": "air"
   },
@@ -127,6 +193,11 @@
   {
     "op": "label",
     "name": "-"
+  },
+  {
+    "op": "digest",
+    "name": "standing-repeat-pose",
+    "ground": true
   },
   {
     "op": "capture",
