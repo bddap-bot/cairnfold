@@ -1,9 +1,9 @@
 // Stone in its styles (StoneStyles), painted ground laid in its pattern and each boulder one stone of it: a pattern
-// layer a style, r height, g each stone's value, b and a its face's normal; per style its tile in metres, moss, and how
-// much of its joints is meadow; its stones' tones.
+// layer a style, r height, g each stone's value, b and a its face's normal; per style its tile in metres, moss, how
+// much of its joints is meadow and how matt a boulder of it; its stones' tones.
 #define STONE_ROOM 8
 uniform sampler2DArray stone_patterns : filter_linear_mipmap, repeat_enable;
-uniform vec3 stone_look[STONE_ROOM];
+uniform vec4 stone_look[STONE_ROOM];
 uniform vec3 stone_light[STONE_ROOM];
 uniform vec3 stone_dark[STONE_ROOM];
 
@@ -24,7 +24,7 @@ vec3 stone_face(int style, vec4 p, vec3 green, float d, float fine, float grit) 
 // d, fine and grit are noise at three scales. `laid` is how much shows stone face and `slope` that face's tilt, x
 // and z per metre up.
 vec3 stone_ground(int style, vec2 xz, float stony, vec3 under, vec3 soil, vec3 green, float d, float fine, float grit, out float laid, out vec2 slope) {
-	vec3 look = stone_look[style];
+	vec4 look = stone_look[style];
 	vec4 p = texture(stone_patterns, vec3(xz / look.x, float(style)));
 	float h = p.r;
 	float v = p.g;

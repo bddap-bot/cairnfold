@@ -4078,7 +4078,14 @@ is bare (earth, sand or stone), and the brushes plant nothing there.
   A boulder is one stone of its style, drawn in wall stone's own material (`stone.gdshader`, a per-instance
   `stone_style`; wall stone keeps -1 and its own colour): the style's tones at a value of its own, shaded by the
   face code the ground's stones use (`stone_face`), so it darkens in its pits and carries the style's lichen and
-  moss, tinted by its stone swatch, with no joint lines across it. Cost (desktop `render.sh`,
+  moss, tinted by its stone swatch, with no joint lines across it. The style also grows its outline
+  (`BoulderLayout.shape(seed, style)`, StoneStyles' `boulder`) and sets its sheen (`rough`): mossy is a fractured
+  field block, faceted, pitted, matt and grain-mottled, moss capping its top as far down its flanks as the style's
+  moss reaches; river cobble is a stone the water wore smooth, with no fracture face but its bed, lower and longer,
+  pale, fine-grained, mossless and half as rough. Restyling one regrows its mesh from the same seed, so it keeps its
+  place, turn and depth in the ground. At 3 m in sun (`demo/boulder-styles.json`) the cobble's face gradient is half
+  the block's (0.0031 against 0.0058; before both 0.006) and its green tint 0.003 against the block's 0.026 (before
+  0.014 and 0.017). Cost (desktop `render.sh`,
   `demo/boulders.json`, a house-sized boulder filling the view, viewport GPU medians of three
   interleaved runs each): 2.96 ms unstyled, 3.03 ms styled, within the runs' 0.3 ms spread.
 - **Look:** each style's pattern tiles a square of ground, baked once at load on the GPU (`stone_bake.glsl`,

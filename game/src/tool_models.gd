@@ -50,7 +50,7 @@ const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1
 static var _mats := {}
 static var _meshes := {}
 static var _stars := {}
-static var _boulder_preview: MultiMesh
+static var _boulder_previews := {}
 ## The pieces of each build style's miniature, by `_style_key`, built on a worker thread: laid out on the frame, a
 ## Quest 2's first roof wheel held it 214 ms. `_lock` guards these and every cache the worker fills.
 static var _styled := {}
@@ -1074,17 +1074,17 @@ static func _leaf() -> StandardMaterial3D:
 	return leaf
 
 
-## The placed boulder's builder and stone material, sharing one miniature mesh across styles and wheels.
+## The placed boulder's builder and stone material, one seed's miniature in `style`, its mesh shared across wheels.
 static func _boulder_style(root: Node3D, style: int) -> void:
-	var shape := BoulderLayout.shape(7)
+	var shape := BoulderLayout.shape(7, style)
 	var model: MultiMeshInstance3D
-	if _boulder_preview == null:
+	if not _boulder_previews.has(style):
 		model = Boulders._instance(shape, BoulderLayout.FAR + 1)
 		model.multimesh.set_instance_color(0, Color.WHITE)
-		_boulder_preview = model.multimesh
+		_boulder_previews[style] = model.multimesh
 	else:
 		model = MultiMeshInstance3D.new()
-		model.multimesh = _boulder_preview
+		model.multimesh = _boulder_previews[style]
 		model.material_override = Stones.shared_material()
 	model.set_instance_shader_parameter("stone_style", style)
 	model.set_instance_shader_parameter("miniature", true)
@@ -1097,7 +1097,7 @@ static func _boulder_style(root: Node3D, style: int) -> void:
 static func _boulders(root: Node3D) -> void:
 	var stone := _plain("boulder", WallLayout.STONE, {"roughness": 0.9})
 	for b in [[7, Vector3(-0.004, 0, 0), 0.042], [3, Vector3(0.024, 0, 0.008), 0.016]]:
-		var shape := BoulderLayout.shape(b[0])
+		var shape := BoulderLayout.shape(b[0], StoneStyles.MOSSY)
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoulderLayout.arrays(shape, BoulderLayout.FAR + 1))
 		_piece(root, mesh, BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, func(_x: float, _z: float) -> float: return b[1].y), stone)

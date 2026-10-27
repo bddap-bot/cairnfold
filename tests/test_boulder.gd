@@ -23,6 +23,7 @@ func _run() -> void:
 	_a_seed_grows_the_same_shape()
 	_seeds_differ()
 	_a_boulder_is_faceted_not_a_ball()
+	_a_river_cobble_is_worn_smooth()
 	_its_mesh_is_its_surface()
 	_bad_commands_are_dropped()
 	await _a_placed_boulder_sizes_undoes_and_reloads()
@@ -55,14 +56,14 @@ static func _directions(n: int) -> Array[Vector3]:
 
 
 func _a_seed_grows_the_same_shape() -> void:
-	var a: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
-	var b: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
+	var a: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41, StoneStyles.MOSSY), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
+	var b: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41, StoneStyles.MOSSY), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
 	check(a == b, "one seed grows one shape")
 
 
 func _seeds_differ() -> void:
 	var dirs := _directions(200)
-	var shapes := range(12).map(func(i: int) -> BoulderLayout.Shape: return BoulderLayout.shape(1000 + i * 7919))
+	var shapes := range(12).map(func(i: int) -> BoulderLayout.Shape: return BoulderLayout.shape(1000 + i * 7919, StoneStyles.MOSSY))
 	for i in shapes.size():
 		for j in range(i + 1, shapes.size()):
 			var apart := 0.0
@@ -76,7 +77,7 @@ func _seeds_differ() -> void:
 func _a_boulder_is_faceted_not_a_ball() -> void:
 	var dirs := _directions(400)
 	for seed in [3, 77, 1234, 99991]:
-		var s := BoulderLayout.shape(seed)
+		var s := BoulderLayout.shape(seed, StoneStyles.MOSSY)
 		var radii := dirs.map(func(u: Vector3) -> float: return s.radius(u))
 		check(radii.min() / radii.max() < 0.7, "seed %d: its narrowest is under 0.7 of its widest (%.2f)" % [seed, radii.min() / radii.max()])
 		var flat := 0
@@ -89,8 +90,27 @@ func _a_boulder_is_faceted_not_a_ball() -> void:
 		check(bed < s.axes.y * 0.8, "seed %d: it rests on a flat bed, not a rounded bottom" % seed)
 
 
+## Water wore a river cobble round: above its middle its surface keeps to its ellipsoid with no fracture face, it lies flatter
+## than a mossy block of the same seed, and nothing of it reaches past its reach.
+func _a_river_cobble_is_worn_smooth() -> void:
+	var dirs := _directions(400)
+	for seed in [3, 77, 1234, 99991]:
+		var s := BoulderLayout.shape(seed, StoneStyles.RIVER_COBBLE)
+		var block := BoulderLayout.shape(seed, StoneStyles.MOSSY)
+		check(s.cuts.size() == 1, "seed %d: a river cobble has its bed and no fracture face (%d)" % [seed, s.cuts.size()])
+		var off := 0.0
+		for u: Vector3 in dirs:
+			check(s.radius(u) <= s.reach(), "seed %d: no part reaches past its reach" % seed)
+			if u.y > 0.0:
+				var e := 1.0 / sqrt(u.x * u.x / (s.axes.x * s.axes.x) + u.y * u.y / (s.axes.y * s.axes.y) + u.z * u.z / (s.axes.z * s.axes.z))
+				off = maxf(off, absf(s.radius(u) / e - 1.0))
+		check(off < 0.02, "seed %d: above its middle it keeps within 2%% of its ellipsoid (%.3f)" % [seed, off])
+		var flat := func(t: BoulderLayout.Shape) -> float: return t.axes.y / maxf(t.axes.x, t.axes.z)
+		check(flat.call(s) < flat.call(block) * 0.8, "seed %d: it lies flatter than a mossy block" % seed)
+
+
 func _its_mesh_is_its_surface() -> void:
-	var s := BoulderLayout.shape(5)
+	var s := BoulderLayout.shape(5, StoneStyles.MOSSY)
 	for subdiv in [BoulderLayout.NEAR, BoulderLayout.FAR]:
 		var verts: PackedVector3Array = BoulderLayout.arrays(s, subdiv)[Mesh.ARRAY_VERTEX]
 		var off := 0.0
@@ -361,7 +381,8 @@ func _pushed_into_the_ground_it_stays() -> void:
 	check(main.boulders.pick(under, (low - under).normalized()).is_empty(), "a ray aimed through the ground at its buried part meets nothing")
 	world.submit({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}})
 	await _settled()
-	check(b.transform.is_equal_approx(buried), "restyled, it stays buried")
+	check(absf(_showing(b) - BoulderLayout.KEEP) < 0.01 and b.shape.style == 1, "restyled, it grows its style's outline and stays buried (%.3f)" % _showing(b))
+	buried = b.transform
 	var left := tool.mason(main.rig.left)
 	main.rig.right.global_position = b.position + Vector3(0.3, 0.3, 1.5)
 	main.rig.left.global_position = b.position + Vector3(-0.3, 0.3, 1.5)
@@ -388,7 +409,7 @@ func _pushed_into_the_ground_it_stays() -> void:
 	await _settled()
 	world.undo()
 	await _settled()
-	check(b.transform.is_equal_approx(buried), "undoing the style keeps it buried")
+	check(b.shape.style == 0 and absf(_showing(b) - BoulderLayout.KEEP) < 0.01, "undoing the style keeps it buried (%.3f)" % _showing(b))
 	world.undo()
 	await _settled()
 	check(b.position.distance_to(held) < 1e-3, "undo sets it back halfway")

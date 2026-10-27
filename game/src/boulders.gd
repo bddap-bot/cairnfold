@@ -38,8 +38,10 @@ class Boulder:
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
-	## Shows it as `d` ({at, turn, sink, seed, scale, paint, style}) has it, its seed its own.
+	## Shows it as `d` ({at, turn, sink, seed, scale, paint, style}) has it, grown again where its seed or style differs.
 	func appear(d: Dictionary) -> void:
+		if shape == null or shape.seed != d.seed or shape.style != d.style:
+			_grow(BoulderLayout.shape(d.seed, d.style))
 		ground = d.at
 		turn = d.turn
 		sink = d.sink
@@ -51,6 +53,18 @@ class Boulder:
 			mesh.multimesh.set_instance_color(0, c)
 			mesh.set_instance_shader_parameter("stone_style", d.style)
 		seat(d.scale, terrain.height_at)
+
+	func _grow(s: BoulderLayout.Shape) -> void:
+		for mesh in [near, far]:
+			if mesh != null:
+				remove_child(mesh)
+				mesh.queue_free()
+		shape = s
+		near = Boulders._instance(s, BoulderLayout.NEAR)
+		far = Boulders._instance(s, BoulderLayout.FAR)
+		far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(near)
+		add_child(far)
 
 	## Rests it at `scale` on the ground `height` gives under it, or as deep in it as it was pushed.
 	func seat(scale: float, height: Callable) -> void:
@@ -94,11 +108,10 @@ func _init() -> void:
 	name = "Boulders"
 
 
-## Puts boulder `id` as `data` ({at, turn, sink, seed, scale, paint, style}) has it; one standing with that seed keeps its meshes.
+## Puts boulder `id` as `data` ({at, turn, sink, seed, scale, paint, style}) has it.
 func put(id: int, data: Dictionary) -> Boulder:
 	var b: Boulder = boulders.get(id)
-	if b == null or b.shape.seed != data.seed:
-		take(id)
+	if b == null:
 		b = ghost(data)
 		b.id = id
 		b.name = "Boulder%d" % id
@@ -113,12 +126,6 @@ func put(id: int, data: Dictionary) -> Boulder:
 func ghost(data: Dictionary) -> Boulder:
 	var b := Boulder.new()
 	b.terrain = terrain
-	b.shape = BoulderLayout.shape(data.seed)
-	b.near = _instance(b.shape, BoulderLayout.NEAR)
-	b.far = _instance(b.shape, BoulderLayout.FAR)
-	b.far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	b.add_child(b.near)
-	b.add_child(b.far)
 	add_child(b)
 	b.data = data
 	b.appear(data)

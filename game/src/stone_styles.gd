@@ -7,7 +7,10 @@ extends RefCounted
 ## and `warp` to break the grid, `joint` metres of bevel into the soil between stones, `dome` how much each rounds
 ## from its centre, `grain` how rough its face, `relief` metres from joint to crown, and `elongation` a pebble's
 ## longest over shortest. The ground shades it between `dark` and `light` stones, with `moss` on the stones and
-## `meadow` of the joints grassed rather than earth.
+## `meadow` of the joints grassed rather than earth. A boulder of a style is one stone of it (BoulderLayout): its
+## `boulder` cut by `cuts` fracture planes besides its bed, its edges worn `wear` round and pitted `pitting` deep, its
+## half-axes stretched by `axes`; `rough` is how matt its face shades. Mossy is a fractured field block, river cobble a
+## stone the water wore smooth, flat and long, so the two part by outline and sheen as well as by colour.
 
 enum Kind { CELLS, PEBBLES }
 
@@ -20,9 +23,11 @@ const MOSSY := 0
 const RIVER_COBBLE := 1
 const STYLES: Array[Dictionary] = [
 	{"name": "mossy", "kind": Kind.CELLS, "tile": 5.5, "across": 8, "jitter": 1.0, "warp": 0.25, "joint": 0.12, "dome": 0.6, "grain": 0.4, "relief": 0.12, "elongation": 1.0,
-		"light": Color(0.58, 0.57, 0.50), "dark": Color(0.33, 0.33, 0.30), "moss": 0.65, "meadow": 0.75},
+		"light": Color(0.58, 0.57, 0.50), "dark": Color(0.33, 0.33, 0.30), "moss": 0.65, "meadow": 0.75,
+		"boulder": {"cuts": Vector2i(6, 10), "wear": 0.01, "pitting": 0.035, "axes": Vector3.ONE}, "rough": 0.95},
 	{"name": "river cobble", "kind": Kind.PEBBLES, "tile": 3.2, "across": 14, "jitter": 0.35, "warp": 0.0, "joint": 0.0, "dome": 1.0, "grain": 0.04, "relief": 0.06, "elongation": 1.6,
-		"light": Color(0.75, 0.71, 0.65), "dark": Color(0.36, 0.35, 0.34), "moss": 0.0, "meadow": 0.12},
+		"light": Color(0.75, 0.71, 0.65), "dark": Color(0.36, 0.35, 0.34), "moss": 0.0, "meadow": 0.12,
+		"boulder": {"cuts": Vector2i(0, 0), "wear": 0.06, "pitting": 0.006, "axes": Vector3(1.15, 0.7, 0.9)}, "rough": 0.5},
 ]
 
 static var _patterns: Texture2DArray
@@ -90,12 +95,12 @@ static func _bake(rd: RenderingDevice) -> Array[Image]:
 
 ## Gives `mat`, a shader including stone_ground.gdshaderinc, the styles.
 static func apply(mat: ShaderMaterial) -> void:
-	var look := PackedVector3Array()
+	var look := PackedVector4Array()
 	var light := PackedVector3Array()
 	var dark := PackedVector3Array()
 	for i in ROOM:
 		var s: Dictionary = STYLES[mini(i, STYLES.size() - 1)]
-		look.append(Vector3(s.tile, s.moss, s.meadow))
+		look.append(Vector4(s.tile, s.moss, s.meadow, s.rough))
 		light.append(_linear(s.light))
 		dark.append(_linear(s.dark))
 	mat.set_shader_parameter("stone_patterns", patterns())

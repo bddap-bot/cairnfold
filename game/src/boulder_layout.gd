@@ -1,20 +1,17 @@
 class_name BoulderLayout
 extends RefCounted
 
-## A boulder's shape, drawn from its seed alone so every machine and every load grows the same one. A squat ellipsoid
-## cut by a handful of fracture planes, one of them its bed, whose edges are worn round and whose faces are pitted:
-## the radial distance along each direction from its centre (`radius`), so one function makes its mesh, its picking and
-## what a hand stops at. Pure data: the unit boulder is about a metre across, and the garden scales it.
+## A boulder's shape, drawn from its seed and stone style alone so every machine and every load grows the same one. A
+## squat ellipsoid cut by fracture planes, one of them its bed, whose edges are worn round and whose faces are pitted,
+## as far as its style (StoneStyles' `boulder`) breaks, wears and pits it: the radial distance along each direction from
+## its centre (`radius`), so one function makes its mesh, its picking and what a hand stops at. Pure data: the unit
+## boulder is about a metre across, and the garden scales it.
 
 ## The smallest a boulder goes, a pebble a hand could hold.
 const LEAST := 0.08
 ## The biggest a boulder grows, far past any hand's spread: the sizing tool stops there, and no command makes one
 ## bigger.
 const MOST := 10000.0
-## Fracture planes besides the bed.
-const CUTS := Vector2i(6, 10)
-## How round worn edges are, as a share of the unit boulder.
-const WEAR := 0.01
 ## How deep it sits in the ground, as a share of how far it reaches below its centre, whichever way it is turned.
 const BURY := 0.2
 ## The share of its height a boulder pushed into the ground keeps above it, so a ray still finds it to grip, delete
@@ -30,6 +27,11 @@ const FAR := 1
 ## Half-axes of the ellipsoid; fracture planes as (normal, distance from the centre); and the noise that pits it.
 class Shape:
 	var seed := 0
+	var style := 0
+	## How round its worn edges are, as a share of the unit boulder.
+	var wear: float
+	## How deep its pits go, as a share of its radius.
+	var pitting: float
 	var axes := Vector3.ONE
 	var cuts: Array[Vector4] = []
 	var pits := FastNoiseLite.new()
@@ -43,13 +45,13 @@ class Shape:
 	func radius(u: Vector3) -> float:
 		var e := 1.0 / sqrt(u.x * u.x / (axes.x * axes.x) + u.y * u.y / (axes.y * axes.y) + u.z * u.z / (axes.z * axes.z))
 		# A soft minimum of the ellipsoid and every plane's reach, so where two faces meet the edge is worn round.
-		var sum := exp(-e / WEAR)
+		var sum := exp(-e / wear)
 		for c in cuts:
 			var along := u.x * c.x + u.y * c.y + u.z * c.z
 			if along > 1e-3:
-				sum += exp(-c.w / along / WEAR)
-		var worn := -WEAR * log(sum)
-		return worn * (1.0 + pits.get_noise_3dv(u) * 0.035 + grain.get_noise_3dv(u) * 0.008)
+				sum += exp(-c.w / along / wear)
+		var worn := -wear * log(sum)
+		return worn * (1.0 + pits.get_noise_3dv(u) * pitting + grain.get_noise_3dv(u) * pitting * 0.23)
 
 	## Whether the local point `p` lies inside.
 	func inside(p: Vector3) -> bool:
@@ -93,13 +95,17 @@ class Shape:
 		return Vector3(f.call(p + Vector3(e, 0, 0)) - f.call(p - Vector3(e, 0, 0)), f.call(p + Vector3(0, e, 0)) - f.call(p - Vector3(0, e, 0)), f.call(p + Vector3(0, 0, e)) - f.call(p - Vector3(0, 0, e))).normalized()
 
 
-static func shape(seed: int) -> Shape:
+static func shape(seed: int, style: int) -> Shape:
+	var look: Dictionary = StoneStyles.STYLES[style].boulder
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var s := Shape.new()
 	s.seed = seed
-	s.axes = Vector3(rng.randf_range(0.42, 0.62), rng.randf_range(0.24, 0.46), rng.randf_range(0.3, 0.5))
-	for i in rng.randi_range(CUTS.x, CUTS.y):
+	s.style = style
+	s.wear = look.wear
+	s.pitting = look.pitting
+	s.axes = Vector3(rng.randf_range(0.42, 0.62), rng.randf_range(0.24, 0.46), rng.randf_range(0.3, 0.5)) * look.axes
+	for i in rng.randi_range(look.cuts.x, look.cuts.y):
 		var n := Vector3(rng.randfn(), rng.randfn() * 0.6 + 0.25, rng.randfn()).normalized()
 		var along := 1.0 / sqrt(n.x * n.x / (s.axes.x * s.axes.x) + n.y * n.y / (s.axes.y * s.axes.y) + n.z * n.z / (s.axes.z * s.axes.z))
 		s.cuts.append(Vector4(n.x, n.y, n.z, along * rng.randf_range(0.5, 0.82)))

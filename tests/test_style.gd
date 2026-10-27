@@ -475,7 +475,7 @@ func _boulders_take_a_stone_style() -> void:
 		if model != null:
 			check(model.material_override == main.boulders.find(id).near.material_override, "wheel and placed boulder share the stone material")
 			check(model.get_instance_shader_parameter("stone_style") == i, "each boulder shows its own style")
-			check(mesh == null or mesh == model.multimesh, "boulder choices share their geometry")
+			check(mesh == null or mesh != model.multimesh, "each style's boulder choice grows its own outline")
 			mesh = model.multimesh
 	picker.close(main.rig.right)
 	var relayed := _relayed({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}}, 2)
@@ -483,7 +483,7 @@ func _boulders_take_a_stone_style() -> void:
 	check(Commands.clean({"op": "reshape", "of": "boulders", "id": id, "data": {"style": -1}}, world.state, false, main.world.terrain).is_empty(), "no boulder style before the first")
 	_turn(target, 1)
 	var b: Boulders.Boulder = main.boulders.find(id)
-	check(world.state.boulders[id].style == 1 and b.near.get_instance_shader_parameter("stone_style") == 1 and b.far.get_instance_shader_parameter("stone_style") == 1, "a twist of the wheel draws the boulder in the second style")
+	check(world.state.boulders[id].style == 1 and b.near.get_instance_shader_parameter("stone_style") == 1 and b.far.get_instance_shader_parameter("stone_style") == 1 and b.shape.style == 1, "a twist of the wheel draws and grows the boulder in the second style")
 	check(Ground.style == 1, "boulders set down and stone painted after take it")
 	main.flora_tool.place_boulder(main.world.terrain.ground(-46, 30), null, 6)
 	check(world.state.boulders[world.seq].style == 1, "a boulder set down after is in it")

@@ -113,11 +113,14 @@ void fragment() {
 		if (style >= 0) {
 			// The styles' tones are linear where stone's own colours are not, so they come back to stone's before its
 			// paint tints them (Boulders: the swatch over the one stone is laid in) and its shade darkens them.
-			base = pow(stone_rock(style, tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
+			base = pow(stone_rock(style, tone, moss, patch, mix(0.5, tri, stone_look[style].w)), vec3(1.0 / 2.2)) * COLOR.rgb;
+			// A style's moss caps its boulders as far down their flanks as it grows thick: none on a river cobble.
+			float m = stone_look[style].y;
+			mossy = smoothstep(0.9 - m, 1.0 - m * 0.6, world_nrm.y) * smoothstep(0.5 - m * 0.6, 0.6, patch) * smoothstep(0.35, 0.7, bounce.a) * min(m * 2.0, 1.0);
 		}
 		ALBEDO = mix(mix(base, moss, mossy * 0.8), glass_colour, glass) * occlusion;
 	}
-	ROUGHNESS = 0.92;
+	ROUGHNESS = style >= 0 ? stone_look[style].w : 0.92;
 	SPECULAR = 0.25;
 	AO = bounce.a;
 #ifdef GIVEN_PER_VERTEX
