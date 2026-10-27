@@ -1,0 +1,38 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "wheel/avatars": {
+   "p50": 13.9659996032715,
+   "p99": 25.568000793457,
+   "late": 10,
+   "draws": 159,
+   "prims": 299570,
+   "step": 8,
+   "fill": 0.378,
+   "gpu_ms": 9.09,
+   "timewarp_ms": 1.31
+  },
+  "wheel/empty": {
+   "p50": 13.8959999084473,
+   "p99": 15.96399974823,
+   "late": 0,
+   "draws": 192,
+   "prims": 324535,
+   "step": 7,
+   "fill": 0.378,
+   "gpu_ms": 9.03,
+   "timewarp_ms": 1.31
+  },
+  "wheel/tools": {
+   "p50": 13.96399974823,
+   "p99": 15.5579996109009,
+   "late": 0,
+   "draws": 77,
+   "prims": 301061,
+   "step": 7,
+   "fill": 0.378,
+   "gpu_ms": 8.96,
+   "timewarp_ms": 1.32
+  }
+ }
+}
