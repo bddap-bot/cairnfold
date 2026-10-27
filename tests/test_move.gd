@@ -225,9 +225,12 @@ func _a_tap_copies_a_look() -> void:
 	await play([{"op": "tap", "hand": "right", "from": [4, 1.5, 14], "at": [4, 1.2, 12]}])
 	check(world.seq == seq, "a tap on a build that has the look already sends nothing")
 	palette.open(hand, palette.aim(Vector3(4, 1.5, 6), (Vector3(4, 1.2, 2) - Vector3(4, 1.5, 6)).normalized()))
-	palette.wheels[hand].opened -= int(PaletteTool.TAP * 1000.0) + 100
+	palette.wheels[hand].held = PaletteTool.TAP
 	palette.close(hand)
 	check(world.seq == seq and palette.looks[hand] == PaletteTool.look_of(source), "a press held past a tap is the wheel's, and changes nothing")
+	palette.open(hand, palette.aim(Vector3(4, 1.5, 6), (Vector3(4, 1.2, 2) - Vector3(4, 1.5, 6)).normalized()))
+	palette.close(hand, false)
+	check(world.seq == seq and palette.looks[hand] == PaletteTool.look_of(source), "a wheel closed by putting the tool down taps nothing")
 	await play([{"op": "tap", "hand": "right", "from": [0, 1.5, 20], "at": [0, 0, 16]}])
 	check(not palette.looks.has(hand), "a tap on the meadow lets the look go")
 	await play([{"op": "tap", "hand": "right", "from": [4, 1.5, 14], "at": [4, 1.2, 12]}])

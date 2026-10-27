@@ -2688,13 +2688,14 @@ bush turns about its foot, its crown with it, its turn kept by the garden (`turn
 restyles, undo and saves. Ivy roots by the build's seed and its place along the wall, so it climbs the carried build as
 it did and stays grown. Let go, each is one command, one undo step, which every peer applies alike.
 
-The colour tool copies one build's look onto another. A tap of its trigger (released within `PaletteTool.TAP`, the wheel
-never turned off where it opened) on a wall, house, tower or fence takes that build's look into the hand
+The colour tool copies one build's look onto another. A tap of its trigger (released within `PaletteTool.TAP` of game time, the
+wheel never turned off where it opened) on a wall, house, tower or fence takes that build's look into the hand
 (`PaletteTool.look_of`): its paint, face and wear, top, foundation, floor, gable ends and roof covering, and its beam
 takes the look's stone or plaster colour. Each tap after on another build lays the look there as one `reshape`, one undo
 step, as far as that build takes it (`PaletteTool.look_onto`): between a fence and a wall or house only the paint passes,
 a roofless wall takes no covering, and a tower's walls stay bare stone. A tap on the meadow, or putting the tool down,
-lets the look go. A tap is the one gesture the wheel had left unused: a press released at once changed nothing.
+lets the look go. A tap still makes the build's swatch the one new builds take, as any press does, and a wheel closed by
+putting the tool down taps nothing. The tap is timed in game time, so a script's tap is a tap on any machine.
 
 `demo/move.json` carries and turns a house with its window, lantern and chimney, a wall with its lantern, flag and ivy,
 and a tree, then copies the plastered, slate-roofed house's look onto a plain one and undoes it. `tests/test_move.gd`

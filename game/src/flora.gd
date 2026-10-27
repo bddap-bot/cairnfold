@@ -953,7 +953,8 @@ func turn_to(first: Plant, yaw: float) -> void:
 
 ## How far the tree or bush whose first part is `first` is turned from how it grew.
 func turn_of(first: Plant) -> float:
-	return _solids[_key_of(first)].turn
+	var solid: Solid = _solids.get(_key_of(first))
+	return solid.turn if first.current() and solid != null and solid.parts[0] == first else 0.0
 
 
 func _spin(solid: Solid, by: float) -> void:

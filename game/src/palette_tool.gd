@@ -50,7 +50,8 @@ class Wheel:
 	var pick := 0
 	var degrees := 0.0
 	var basis := Basis()
-	var opened := 0
+	## Seconds of game time it has been open.
+	var held := 0.0
 	var node: Node3D
 	var choices: Array[Node3D] = []
 	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it.
@@ -84,14 +85,16 @@ func busy(hand: Hand = null) -> bool:
 	return wheels.has(hand) if hand != null else not wheels.is_empty()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	for w: Wheel in wheels.values():
+		w.held += delta
 	for b in _buttons:
 		var hand: Hand = b.hand
 		var wheel: Wheel = wheels.get(hand)
 		if hand.tool != Hand.Tool.COLOUR:
 			looks.erase(hand)
 		if wheel != null and (hand.tool != wheel.target.tool or b.released("tool")):
-			close(hand)
+			close(hand, hand.tool == wheel.target.tool)
 		elif wheel != null and b.held("tool"):
 			twist(hand, wheel.degrees + wrapf(_roll(wheel.basis, hand.global_basis) - wheel.degrees, -180.0, 180.0))
 		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.tracked():
@@ -308,7 +311,6 @@ func open(hand: Hand, target: Dictionary) -> void:
 		for i in target.count:
 			w.data.append(_data(w, i))
 	w.basis = hand.global_basis.orthonormalized()
-	w.opened = Time.get_ticks_msec()
 	w.node = Node3D.new()
 	w.node.top_level = true
 	for i in target.count:
@@ -457,13 +459,11 @@ func _builder(of: String) -> Object:
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another
 ## player may have picked it meanwhile); until it comes back it shows here alone. A build's swatch or gable end
-## becomes the one new builds take.
-func close(hand: Hand) -> void:
+## becomes the one new builds take. The colour tool's trigger `released` within TAP, its wheel still where it opened, is
+## a tap.
+func close(hand: Hand, released := true) -> void:
 	var w: Wheel = wheels[hand]
 	_drop(hand)
-	if w.target.tool == Hand.Tool.COLOUR and w.pick == w.start and Time.get_ticks_msec() - w.opened <= TAP * 1000.0:
-		tap(hand, w.of, w.id)
-		return
 	var now := _now(w)
 	if now < 0:
 		return
@@ -494,6 +494,9 @@ func close(hand: Hand) -> void:
 		world.decorations.string_style = w.target.options[w.pick]
 	elif w.target.get("restyle") == Restyle.STONE:
 		Ground.style = w.pick
+	if released and w.target.tool == Hand.Tool.COLOUR and w.pick == w.start and w.held < TAP:
+		tap(hand, w.of, w.id)
+		return
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}
 	if w.pick == now or (w.id >= 0 and data.is_empty()):
 		_settled(w)
