@@ -4976,15 +4976,17 @@ Beside the rows the same chunks hold what a replay starts from and plays: a `rep
 seeds (the global generator's, which `Main` draws and sets as it starts, and the wildlife's) and the garden it began
 in (`World.snapshot`, deflated), and with each row an `input` record of every frame since the last, deflated and
 base64'd. A frame (`Replay`, laid out in each chunk's start record) is the frame's delta, the head's pose and each
-hand's controller pose in the play space, its stick and the inputs the controls table reads on it, held or not:
-110 bytes, written on the log's worker thread. With each row too goes a `net` record of every message the network brought since
+hand's controller pose in the play space (each the basis and origin as the engine holds them, so a replay puts them back
+bit for bit), its stick, the inputs the controls table reads on it, held or not, and whether it was tracked, bare and
+reaching: 174 bytes, written on the log's worker thread. With each row too goes a `net` record of every message the network brought since
 the last (`PlayLog.heard`): each the frame it came in before, its sender, the player it is about and the networked call,
 listed in the record's JSON, with their arguments as they arrived in Godot's own binary encoding (`var_to_bytes`),
 deflated and base64'd, which `Replay.messages` reads back. That is every build command the garden applied, each about
 the player who made it: elsewhere as the host sent it (`_commit`), on the host as it ordered it (`ordered`, from 0, this
 machine, beside the `_propose` it came in as), so a replay tells what a host ordered from what it was sent. With
 them go the refusals and the garden a host sends a joiner, each remote player's appearance, poses, held items, throws and
-spring grabs, players coming and going, and this machine joining a garden (its address and port) or going home. An
+spring grabs, players coming and going, and this machine joining a garden (its address and port), going home, or
+being dropped by the garden it visited. An
 avatar file a message carries is kept as its SHA-256 and length, never the file. Every networked method records what it
 hears before anything else (tests/test_net_record.gd holds them to it). `scripts/coop.sh` records every player's session
 and checks that each record holds every build command the host ordered after that player came, every player's among
@@ -4995,6 +4997,22 @@ holding that start record, and each second's lines are flushed together as they 
 engine reports (the window closing, the XR runtime ending the session) writes the end
 record first; a missing end means the process was killed (Godot does not report
 SIGTERM), not a measured end time.
+
+`--replay FILE` plays a session back from its record, `FILE` any chunk of it with the session's other chunks beside
+it. The game starts from the record's seeds and garden, and `Replayer` takes the place of the network: Godot polls it
+at the start of every frame, before anything else runs, and there it delivers each message the record says came in
+before that frame, as from the peer that sent it, then puts the head and hands where the record has them and presses
+the inputs the record has held. Peers come and go as the record says; a join reaches no one, and the game takes the id
+the host gave it then; what the game sends goes nowhere. Each frame is scaled to its recorded delta, taking the frame
+before as its own length: under `--fixed-fps` that is exact, and the replay is the session again, bit for bit.
+tests/test_replay.gd records a scripted session in which a visiting player proposes a tree and some frames run at half
+speed, replays it in a fresh game, and finds every frame's delta and head pose and the final garden equal. In real time
+a frame's length is only known after it, so deltas and whatever depends on them can differ. Two things differ even
+so: a host refills its visitors' allowance for commands by the wall clock, so a replay running faster than the session
+can refuse a burst the session took; and a hand played on its joints replays as a controller held at its palm, giving
+the same inputs. A record from another build revision, or with frames the ring dropped, is refused with the reason; a
+build run from the source has no revision, so its records replay on any source build with the same frame layout. The
+game quits when the record runs out.
 
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`

@@ -31,8 +31,10 @@ func finish() -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-func boot_main() -> void:
+## Boots the game with `args` as if launched with them, besides any this run was launched with.
+func boot_main(args := {}) -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
+	main.args = args
 	root.add_child(main)
 
 

@@ -145,7 +145,7 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 
 ## A game a player launched, as opposed to one a script or a test runs. Only it beacons on the network.
 static func played(args: Dictionary, launched: bool) -> bool:
-	return launched and not (args.has("script") or args.has("join") or args.has("port") or args.has("beacon-port"))
+	return launched and not (args.has("script") or args.has("replay") or args.has("join") or args.has("port") or args.has("beacon-port"))
 
 
 ## Where beacons go: a script's or a test's stay on this machine, so players never see them.
@@ -156,8 +156,8 @@ func beacon_to() -> Array:
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer)
 	multiplayer.peer_disconnected.connect(_on_gone)
-	multiplayer.server_disconnected.connect(go_home, CONNECT_DEFERRED)
-	multiplayer.connection_failed.connect(go_home, CONNECT_DEFERRED)
+	multiplayer.server_disconnected.connect(_dropped, CONNECT_DEFERRED)
+	multiplayer.connection_failed.connect(_dropped, CONNECT_DEFERRED)
 	multiplayer.connected_to_server.connect(func() -> void: world.hear("connected", [], world.me()))
 	_beacon.set_broadcast_enabled(true)
 	for p in (BEACON_PORTS if first_port else 0):
@@ -207,6 +207,12 @@ func join(address: String, at_port: int) -> bool:
 	world.hear("join", [address, at_port])
 	changed.emit()
 	return true
+
+
+## The garden we were visiting is gone, or never answered.
+func _dropped() -> void:
+	world.hear("dropped", [])
+	go_home()
 
 
 func go_home() -> void:

@@ -36,10 +36,22 @@ var book: Book
 var _editors: Array
 ## The global random generator's seed, which a session record keeps: drawn once, so a replay can start from it.
 var rng_seed := randi()
+## What drives the session in place of the headset and the network when it replays a record (--replay FILE).
+var replayer: Replayer
 
 
 func _ready() -> void:
-	args = _parse(launch_args())
+	args.merge(_parse(launch_args()))
+	if args.has("replay"):
+		var record := Replay.read(args.replay)
+		if record.has("error"):
+			push_error("replay: %s" % record.error)
+			Main.quit(get_tree(), 1)
+			return
+		replayer = Replayer.new(self, record)
+		get_tree().set_multiplayer(replayer)
+		rng_seed = int(record.seeds.rng)
+		args.seed = record.seeds.wildlife
 	seed(rng_seed)
 	Store.check()
 	get_viewport().use_occlusion_culling = true
@@ -212,12 +224,17 @@ func _ready() -> void:
 	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
 		world.load_from(garden)
+	# A session that began on the empty meadow loaded no garden, and its replay loads none either.
+	if replayer != null and world.snapshot() != replayer.record.garden:
+		world.restore_whole(replayer.record.garden)
 	if args.has("photo"):
 		open_photo(args.photo)
-	if get_tree().current_scene == self:
+	if replayer == null and (get_tree().current_scene == self or args.has("record-sessions")):
 		var into := PlayLog.open_enabled(args)
 		if into != null:
 			record(into)
+	if replayer != null and get_tree().current_scene == self:
+		replayer.finished.connect(finish)
 	if args.has("script"):
 		var driver := Driver.new(self, Driver.read(args.script))
 		driver.finished.connect(func() -> void: if driver.failed: finish(1))
@@ -312,8 +329,8 @@ func _watch_xr() -> void:
 
 
 func _xr_state(state: int) -> void:
-	# An unworn headset never focuses the session, and a script has no player to pause for.
-	var pause := state != OpenXRInterface.SESSION_STATE_FOCUSED and not args.has("script")
+	# An unworn headset never focuses the session, and a script or a replay has no player to pause for.
+	var pause := state != OpenXRInterface.SESSION_STATE_FOCUSED and not (args.has("script") or replayer != null)
 	if get_tree().paused == pause:
 		return
 	get_tree().paused = pause

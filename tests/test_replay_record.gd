@@ -74,26 +74,18 @@ func _initialize() -> void:
 		raw.append_array(block)
 	var n := raw.size() / Replay.FRAME_BYTES
 	check(n == probe.deltas.size() and n > 120, "every frame of the session is recorded: %d of %d" % [n, probe.deltas.size()])
-	var trigger_bit := 1 << Replay.inputs("left_hand").find("trigger_click")
 	var mismatched := 0
 	var pressed := 0
 	var pushed := 0
 	for i in mini(n, probe.deltas.size()):
-		var at := i * Replay.FRAME_BYTES
-		var head := Vector3(raw.decode_float(at + 4), raw.decode_float(at + 8), raw.decode_float(at + 12))
-		var q := Quaternion(raw.decode_float(at + 16), raw.decode_float(at + 20), raw.decode_float(at + 24), raw.decode_float(at + 28))
-		var left := at + 4 + Replay.POSE_BYTES
-		var stick := Vector2(raw.decode_float(left + Replay.POSE_BYTES), raw.decode_float(left + Replay.POSE_BYTES + 4))
-		var trigger := raw.decode_u16(left + Replay.POSE_BYTES + 8) & trigger_bit != 0
-		var right := left + Replay.HAND_BYTES
-		var left_at := Vector3(raw.decode_float(left), raw.decode_float(left + 4), raw.decode_float(left + 8))
-		var right_at := Vector3(raw.decode_float(right), raw.decode_float(right + 4), raw.decode_float(right + 8))
-		var want := probe.heads[i]
-		if not left_at.is_equal_approx(probe.hands[2 * i]) or not right_at.is_equal_approx(probe.hands[2 * i + 1]) or not is_equal_approx(raw.decode_float(at), probe.deltas[i]) or not head.is_equal_approx(want.origin) \
-				or not q.is_equal_approx(want.basis.get_rotation_quaternion()) or trigger != probe.triggers[i] or not stick.is_equal_approx(probe.sticks[i]):
+		var f := Replay.unpack(raw, i)
+		var left: Dictionary = f.hands[0]
+		var right: Dictionary = f.hands[1]
+		if left.pose.origin != probe.hands[2 * i] or right.pose.origin != probe.hands[2 * i + 1] or f.delta != probe.deltas[i] or f.head != probe.heads[i] \
+				or left.held.trigger_click != probe.triggers[i] or left.stick != probe.sticks[i]:
 			mismatched += 1
-		pressed += int(trigger)
-		pushed += int(stick.y > 0.5)
+		pressed += int(left.held.trigger_click)
+		pushed += int(left.stick.y > 0.5)
 	check(mismatched == 0, "each frame holds its delta, head and hand poses, stick and buttons as the game read them: %d differ" % mismatched)
 	check(pressed > 0 and pushed > 0, "the script's trigger press and teleport aim are in the record")
 	var ends := events.filter(func(e) -> bool: return e.event == "end")
