@@ -116,6 +116,7 @@ class BenchmarkRendering(unittest.TestCase):
                 "seconds": [{"label": "figures", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
                              "mem_mb": {"textures": 100.0 + i, "buffers": 50.0 - i, "video": 300.0}} for i in range(3)],
             }))
+            (out / "stress.json").write_text("[]")
             result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["figures"]

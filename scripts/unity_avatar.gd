@@ -346,6 +346,7 @@ static func _in_model(n: Node) -> Transform3D:
 
 ## Every drawn renderer's surfaces as one mesh over `sk`, its skin binding each source bone to the output bone of its
 ## name (or its nearest ancestor that has one): blend shapes kept, those of one name in several renderers one shape,
+## up to Avatar.MAX_BLEND_VERTICES (the rest baked at their saved weights),
 ## UVs moved into the material atlas, triangles simplified to Avatar.MAX_TRIANGLES. {"mesh", "skin", "weights": each
 ## blend shape's saved weight}, or empty if nothing draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
@@ -397,14 +398,14 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			var surface_shapes := mesh.surface_get_blend_shape_arrays(s)
 			for k in surface_shapes.size():
 				var name := mesh.get_blend_shape_name(k)
-				var d: Array = shapes.get_or_add(name, [PackedVector3Array(), PackedVector3Array()])
-				d[0].resize(verts.size())
-				d[1].resize(verts.size())
+				var moved: Dictionary = shapes.get_or_add(name, {})
 				var sv: PackedVector3Array = surface_shapes[k][Mesh.ARRAY_VERTEX]
 				var sn: Variant = surface_shapes[k][Mesh.ARRAY_NORMAL]
 				for i in v.size():
-					d[0].append(sv[i] if relative else sv[i] - v[i])
-					d[1].append(Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i])
+					var dv := sv[i] if relative else sv[i] - v[i]
+					var dn := Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i]
+					if not (dv.is_zero_approx() and dn.is_zero_approx()):
+						moved[verts.size() + i] = [dv, dn]
 				if k < saved.size():
 					saved_weights[name] = maxf(saved_weights.get(name, 0.0), str(saved[k]).to_float() / 100.0)
 			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
@@ -456,20 +457,42 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	arrays[Mesh.ARRAY_BONES] = bones
 	arrays[Mesh.ARRAY_WEIGHTS] = weights
 	arrays[Mesh.ARRAY_INDEX] = _simplified(arrays, indices, ranges)
+	var compacted := _compact(arrays)
+	var kept: Array = compacted[0]
+	var map: Dictionary = compacted[1]
+	var names := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return map.has(i)))
+	var room := Avatar.MAX_BLEND_VERTICES / maxi((kept[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), 1)
+	var dropped := names.slice(room)
+	names = names.slice(0, room)
+	var baked := 0
+	var base: PackedVector3Array = kept[Mesh.ARRAY_VERTEX]
+	for name: String in dropped:
+		var w: float = saved_weights.get(name, 0.0)
+		if is_zero_approx(w):
+			continue
+		baked += 1
+		for i: int in shapes[name]:
+			if map.has(i):
+				base[map[i]] += w * (shapes[name][i][0] as Vector3)
+	kept[Mesh.ARRAY_VERTEX] = base
 	var blends := []
-	for name: String in shapes:
-		var d: Array = shapes[name]
-		d[0].resize(verts.size())
-		d[1].resize(verts.size())
+	for name: String in names:
+		var dv := PackedVector3Array()
+		var dn := PackedVector3Array()
+		dv.resize(map.size())
+		dn.resize(map.size())
+		for i: int in shapes[name]:
+			if map.has(i):
+				dv[map[i]] = shapes[name][i][0]
+				dn[map[i]] = shapes[name][i][1]
 		var b := []
 		b.resize(Mesh.ARRAY_MAX)
-		b[Mesh.ARRAY_VERTEX] = d[0]
-		b[Mesh.ARRAY_NORMAL] = d[1]
+		b[Mesh.ARRAY_VERTEX] = dv
+		b[Mesh.ARRAY_NORMAL] = dn
 		blends.append(b)
-	var kept := _compact(arrays, blends)
 	var out := ArrayMesh.new()
 	out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
-	for name: String in shapes:
+	for name: String in names:
 		out.add_blend_shape(name)
 	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, kept, blends)
 	out.surface_set_material(0, materials.material())
@@ -478,10 +501,12 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		report["renderers not found in their model"] = skipped
 	report["triangles"] = "%d in the package's drawn renderers, %d kept" % [source_triangles, (kept[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3]
 	report["materials"] = used.keys().map(func(k: String) -> String: return _describe(materials.materials[k]))
-	report["blend shapes"] = "%d kept, %d set to their saved weights" % [shapes.size(), saved_weights.values().filter(func(w: float) -> bool: return not is_zero_approx(w)).size()]
+	report["blend shapes"] = "%d kept, %d moving nothing kept dropped, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [names.size(), shapes.size() - names.size() - dropped.size(), dropped.size(), baked]
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
-	return {"mesh": out, "skin": skin, "weights": saved_weights}
+	return {"mesh": out, "skin": skin, "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
+		kept_weights[name] = saved_weights.get(name, 0.0)
+		return kept_weights, {})}
 
 
 static func _describe(m: Dictionary) -> String:
@@ -632,8 +657,8 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 	return [b, w.map(func(x: float) -> float: return x / sum)]
 
 
-## Drops the vertices no triangle uses, from the surface's arrays and, in place, its blend shapes'.
-static func _compact(arrays: Array, blends: Array) -> Array:
+## Drops the vertices no triangle uses: [the surface's arrays, each kept vertex's old index to its new one].
+static func _compact(arrays: Array) -> Array:
 	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var map := {}
 	var order := PackedInt32Array()
@@ -669,14 +694,7 @@ static func _compact(arrays: Array, blends: Array) -> Array:
 	out[Mesh.ARRAY_BONES] = nb
 	out[Mesh.ARRAY_WEIGHTS] = nw
 	out[Mesh.ARRAY_INDEX] = ni
-	for shape: Array in blends:
-		for a in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL]:
-			var src: PackedVector3Array = shape[a]
-			var dst := PackedVector3Array()
-			for i in order:
-				dst.append(src[i])
-			shape[a] = dst
-	return out
+	return [out, map]
 
 
 ## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons
