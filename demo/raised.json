@@ -20,7 +20,7 @@
   {"op": "capture", "name": "04-foundations-rise-with-the-house"},
   {"op": "view", "eye": [1, 16, 8], "at": [0, 0, -9]},
   {"op": "capture", "name": "05-from-the-air"},
-  {"op": "house", "at": [-12, 6], "size": [5, 4], "rise": 1.5, "seconds": 0.5},
+  {"op": "house", "at": [-12, 6], "size": [5, 4], "rise": 1.5, "foundation": "stone", "seconds": 0.5},
   {"op": "view", "eye": [-12, 1.6, 13], "at": [-12, 1.2, 6]},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "06-on-its-plinth"},
