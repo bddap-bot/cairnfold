@@ -369,17 +369,13 @@ func _wall(s: Dictionary) -> void:
 	await _stroke(s, Hand.Tool.WALLS)
 
 
-## Walls, fences and houses a step lays are faced in its `finish` (a WallLayout.Finish: "plaster", worn by `wear`,
-## "timber", "boards_across" or "boards_upright"; a fence takes only the planks), else bare, floored in planks with
-## `planks`, else flags, and raised on a `foundation` ("plaster", "pillars" or "posts"), else a stone plinth, as if the
-## style tool had last turned a face, a floor and a foundation to them.
 func _lay_materials(s: Dictionary) -> void:
 	var finish := WallLayout.Finish[String(s.get("finish", "bare")).to_upper()] as WallLayout.Finish
 	main.tool.finish = finish
 	main.tool.wear = s.get("wear", 0.0)
 	main.tool.fence_finish = finish if WallLayout.suits(finish, true) else WallLayout.Finish.BARE
 	main.tool.planks = s.get("planks", false)
-	main.tool.foundation = WallLayout.Foundation[String(s.get("foundation", "stone")).to_upper()]
+	main.tool.foundation = WallLayout.Foundation[String(s.get("foundation", "pillars")).to_upper()]
 
 
 func _fence(s: Dictionary) -> void:
@@ -706,7 +702,7 @@ func _cluttered(s: Dictionary) -> void:
 		var at: float = s.every * 0.5
 		while at < w.layout.length() and list.size() < ClutterLayout.MOST:
 			var v := Vector4(at, outward * float(s.out), 0.0, styles[k % styles.size()])
-			if w.layout.clutter_frame(v) != null:
+			if w.layout.clutter_frame(v, main.world.terrain.height_at) != null:
 				list.append(v)
 				k += 1
 			at += s.every
@@ -1311,17 +1307,6 @@ func _layer_parts(name: String) -> Array[Array]:
 	return out
 
 
-## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter, or with `inner` the
-## ring of it outside that radius; with `storeys`,
-## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
-## with `thatch`, their roofs are thatched. With `roofs`, a list the houses take in turn, each house's roof is laid as
-## its entry has it: `pitch` (0 flat), `deck` and `top` ("stone" or "wood"; a WallLayout.Top), `dormers` on each slope,
-## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it; a `round`
-## entry is a round house as across as the others are deep, and one with `rise` stands raised that high on its plinth,
-## on its `foundation` ("pillars" or "posts", else a stone plinth). With `windows`, every house opens windows of each
-## family in turn (`_open_windows`), and a flat roof a trapdoor. With `doors`, a path runs into the middle of each
-## house's front from outside, its half-width taken from the list `doors` in turn, so each house opens a door as wide;
-## `clear` leaves those paths, which `bare` takes.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -1353,7 +1338,7 @@ func _village(s: Dictionary) -> void:
 				stance.rise = entry.get("rise", 0.0) if on.is_empty() else 0.0
 				stance.pitch = entry.get("pitch", s.get("pitch", WallTool.pitch_for(stance)))
 				var house := tool.new_house(stance, on)
-				house.layout.foundation = WallLayout.Foundation[String(entry.get("foundation", "stone")).to_upper()]
+				house.layout.foundation = WallLayout.Foundation[String(entry.get("foundation", "pillars")).to_upper()]
 				_dress_roof(house, entry, size)
 				if s.get("windows", false) and not round:
 					_open_windows(house, k + storey, on.is_empty())

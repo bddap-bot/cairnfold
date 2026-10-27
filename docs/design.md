@@ -2856,7 +2856,7 @@ that every player sees the joiner's raised wing.
 
 ### Stilts
 
-A raised house or tower on the ground can stand on stilts instead of a whole plinth: stone pillars, or timber posts.
+New houses and towers default to stone pillars when lifted. The foundation wheel also retains a whole stone plinth, plaster, and timber posts.
 A build's `foundation` (`WallLayout.Foundation`) is one of a stone plinth, a plaster one, pillars and posts, which
 the foundation wheel turns between, pillars and posts only under a house or tower; houses put up after take the
 foundation last turned to, standing on its stilts once raised. A house on a build is never raised, so stands on none.
@@ -2866,13 +2866,13 @@ foundation last turned to, standing on its stilts once raised. A house on a buil
 - Pillars, 0.5 m square on a broader base stone, carry a course of stone running whole round under the foot; a stone
   house's corner pier, carried down, is its corner's pillar. Posts carry timber beams, one straight from each post to
   the next, round under the walls; a corner pier stops on the foundation above its post.
-- The foundation: stilts stand in the raise up to 1.8 m (`STILT_SPAN`) over a stone foundation at least a course
+- The foundation always reaches the terrain, whether the floor is lifted or the walls stretched. Stretch changes wall height without changing the floor. Stilts stand in the raise up to 1.8 m (`STILT_SPAN`) over a stone foundation at least a course
   high, laid as the plinth is, following the slope. Raised further, the foundation rises with the house, so the grip
   that lifts the house sets the foundation's height under the stilts. Uphill, where the ground stands over the
   foundation's level, the stilts stand on the ground, shorter. A raise too low for stilts (under 0.9 m) stands on its
   plinth whole.
 - Ivy roots at the walls' foot, not down the stilts, and the decorations tool sets nothing at a stilted foundation,
-  where no face stands to back it.
+  where no face stands to back it. Exterior furniture stands on the terrain at its own position, independently of the house floor height; furniture moved inside stands on the floor.
 - The budget charges the foundation as plinth, pillars and their course as stone wall by the face they lay, and each
   post and beam as a timber; stilts cost less than the plinth they open up.
 

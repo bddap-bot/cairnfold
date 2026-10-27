@@ -490,7 +490,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	for run in flag_runs(flying, length(), closed):
 		_lay_flag_run(run.x, run.y)
 	for v in clutter:
-		var x: Variant = clutter_frame(v)
+		var x: Variant = clutter_frame(v, ground)
 		if x != null:
 			for part in ClutterLayout.parts(v, x, seed):
 				_world(part.xform, part.color, part.kind, self.wrap(v.x))
@@ -1636,10 +1636,7 @@ func _lay_flower_box(o: Dictionary, out: float, rng: RandomNumberGenerator) -> v
 		_part(at, o.sill + 0.15 + rng.randf_range(0.0, 0.04), Vector3(0.07, 0.06, 0.07), BLOOMS[rng.randi() % BLOOMS.size()], rng, "bloom", off + out * rng.randf_range(-0.05, 0.05), 0.5)
 
 
-## Where piece `v` of the wall's clutter stands, its middle on the ground facing out, or null where nothing holds it:
-## past an open wall's end, in a doorway or where a ruin broke the wall away. A nest sits on a bare wall's top, or
-## under the eaves of a roof or deck.
-func clutter_frame(v: Vector4) -> Variant:
+func clutter_frame(v: Vector4, ground: Callable) -> Variant:
 	if length() <= 0.0 or not closed and (v.x < 0.0 or v.x > length()) or broken(v.x, 0.4):
 		return null
 	var s := self.wrap(v.x)
@@ -1648,7 +1645,9 @@ func clutter_frame(v: Vector4) -> Variant:
 		for o in apertures:
 			if o.door and absf(offset(s, o.s)) < o.half + 0.3:
 				return null
-		return ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5 + absf(v.y), v.z)
+		var x := ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5 + absf(v.y), v.z)
+		x.origin.y = maxf(maxf(ground.call(x.origin.x, x.origin.z), rest(x.origin.x, x.origin.z)), floor_under(Vector3(x.origin.x, INF, x.origin.z)))
+		return x
 	if cover == Cover.OPEN:
 		return Transform3D(Basis(Vector3.UP, v.z), f.point + Vector3.UP * (standing(s) + CAP))
 	return ClutterLayout.facing(f.point + Vector3.UP * (rise + height - ClutterLayout.UNDER_EAVE), f.tangent, v.y, THICKNESS * 0.5 + 0.12, v.z)

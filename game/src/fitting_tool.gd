@@ -577,7 +577,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 			var f := l.frame_at(v)
 			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(f.point + Vector3.UP * (l.height + WallLayout.CAP), f.tangent)))
 	for i in l.clutter.size():
-		var x: Variant = l.clutter_frame(l.clutter[i])
+		var x: Variant = l.clutter_frame(l.clutter[i], w.terrain.shown_at)
 		if x != null:
 			out.append(_target(w, "clutter", "clutter", i, l.clutter[i], ClutterLayout.bounds(l.clutter[i]), false, x))
 	if w.roof != null:

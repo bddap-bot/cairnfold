@@ -126,8 +126,7 @@ var fence_finish := WallLayout.Finish.BARE
 var window_family := WallLayout.Family.COTTAGE
 ## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
 var planks := false
-## What new houses and towers stand on once raised: the foundation last turned to on this machine.
-var foundation := WallLayout.Foundation.STONE
+var foundation := WallLayout.Foundation.PILLARS
 ## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
 var deck := RoofLayout.Deck.STONE
@@ -1484,7 +1483,7 @@ func _carried_clutter(grip: FittingGrip, from: Vector4, by: Vector3, turn: float
 ## Whether piece `v` stands on the build `grip` holds clutter of, as its build is laid.
 func _clutter_stands(grip: FittingGrip, v: Vector4) -> bool:
 	if grip.path < 0:
-		return grip.wall.layout.clutter_frame(v) != null
+		return grip.wall.layout.clutter_frame(v, world.terrain.shown_at) != null
 	var path := paths.layout(grip.path)
 	return path != null and path.clutter_frame(v, world.terrain.height_at) != null
 
@@ -1574,7 +1573,7 @@ func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
 	if grip.path >= 0:
 		var path := paths.layout(grip.path)
 		return null if path == null else path.clutter_frame(v, world.terrain.height_at)
-	var x: Variant = grip.wall.layout.clutter_frame(v)
+	var x: Variant = grip.wall.layout.clutter_frame(v, world.terrain.shown_at)
 	return null if x == null else grip.wall.global_transform * x
 
 

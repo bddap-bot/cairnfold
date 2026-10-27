@@ -12,6 +12,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	check(main.tool.foundation == WallLayout.Foundation.PILLARS, "new houses default to pillar supports")
 	_gathered()
 	_valid()
 	await _in_the_garden()
@@ -128,7 +129,7 @@ func _held_apart(house: Wall) -> void:
 	check(grip.shown != grip.start, "the hand carried it")
 	check(house.layout.laid == laid, "steps of the hand lay the house no more: %d lays" % (house.layout.laid - laid))
 	var piece: Node3D = tool._held_clutter[grip].node
-	check(piece.global_transform.is_equal_approx(house.layout.clutter_frame(grip.shown)), "the piece stands where the hand carries it")
+	check(piece.global_transform.is_equal_approx(house.layout.clutter_frame(grip.shown, main.world.terrain.height_at)), "the piece stands where the hand carries it")
 	tool.end_grow(m)
 	await until(func() -> bool: return not tool._held_clutter.has(grip), "the piece let go stands apart until its house is laid")
 	check(house.layout.clutter.size() == _clutter(house.id).size() and Array(house.layout.clutter).has(grip.shown), "and the house lays it where it was let go")
@@ -166,11 +167,11 @@ func _in_the_garden() -> void:
 	var beside := FittingTool.path_targets(main.tool.paths, world.terrain.height_at)
 	check(beside.size() == world.state.paths[path_id].clutter.size(), "so is each beside the path")
 	var nest: Vector4 = _named(gathered, "Bird nest")[0]
-	var eave: Transform3D = house.layout.clutter_frame(nest)
+	var eave: Transform3D = house.layout.clutter_frame(nest, main.world.terrain.height_at)
 	check(eave.origin.y > house.layout.frame_at(nest.x).point.y + house.layout.height - 0.5, "a house's nest hangs under its eaves")
 	check(Array(house.perches(true)).any(func(p: Vector3) -> bool: return p.distance_to(eave.origin) < 0.3), "and birds perch in it")
 	var on_top: Array = _named(_clutter(wall.id), "Bird nest")
-	check(not on_top.is_empty() and Array(wall.perches(true)).any(func(p: Vector3) -> bool: return absf(p.y - (wall.layout.clutter_frame(on_top[0]).origin.y + 0.05)) < 0.05 and Vector2(p.x, p.z).distance_to(Vector2(wall.layout.clutter_frame(on_top[0]).origin.x, wall.layout.clutter_frame(on_top[0]).origin.z)) < 0.05), "a wall's nest sits on its top, a perch")
+	check(not on_top.is_empty() and Array(wall.perches(true)).any(func(p: Vector3) -> bool: return absf(p.y - (wall.layout.clutter_frame(on_top[0], main.world.terrain.height_at).origin.y + 0.05)) < 0.05 and Vector2(p.x, p.z).distance_to(Vector2(wall.layout.clutter_frame(on_top[0], main.world.terrain.height_at).origin.x, wall.layout.clutter_frame(on_top[0], main.world.terrain.height_at).origin.z)) < 0.05), "a wall's nest sits on its top, a perch")
 	await play([{"op": "fit", "what": "lantern", "index": 1, "s": 20.0, "y": 1.6, "side": 1}, {"op": "fit", "what": "flag", "index": 1, "s": 22.0}])
 	_lay()
 	var perches := Array(wall.perches(true))
@@ -189,7 +190,7 @@ func _in_the_garden() -> void:
 	check(absf(angle_difference(before[0].z, moved[0].z) - deg_to_rad(40.0)) < FittingGrip.TURN_STEP, "and turns it with the hand: %.2f" % rad_to_deg(angle_difference(before[0].z, moved[0].z)))
 	check(moved[0].x != before[0].x or absf(moved[0].y) != absf(before[0].y), "carrying it along or out from the wall")
 	check(steps.call() == undos + 1, "one undo step")
-	var x0: Transform3D = house.layout.clutter_frame(moved[0])
+	var x0: Transform3D = house.layout.clutter_frame(moved[0], main.world.terrain.height_at)
 	check(FittingTool.targets(house).any(func(t: Dictionary) -> bool: return t.what == "clutter" and t.bounds.has_point(x0.origin + Vector3.UP * 0.3)), "the house lays it where it was let go")
 	world.undo()
 	await frames(2)
@@ -247,7 +248,7 @@ func _in_the_garden() -> void:
 	if not door.is_empty():
 		var o: Dictionary = door[0]
 		var by_door := Vector4(o.s, -0.32 * signf(keep[0].y if keep[0].y != 0.0 else 1.0), 0.0, DecorationLayout.named("Bench"))
-		check(house.layout.clutter_frame(by_door) == null, "nothing stands in a doorway")
+		check(house.layout.clutter_frame(by_door, main.world.terrain.height_at) == null, "nothing stands in a doorway")
 	await play([{"op": "bare"}])
 
 
