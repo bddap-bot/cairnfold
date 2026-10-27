@@ -985,7 +985,9 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 
 
 ## The avatar's PhysBones as VRM spring chains, one per path from a PhysBone's root to each leaf of its bones, and its
-## PhysBone colliders as VRM colliders. A bone the output skeleton lacks ends its chain.
+## PhysBone colliders as VRM colliders. A bone the output skeleton lacks ends its chain. A root with several children
+## stays still, as PhysBones leave it unless its multiChildType is First, so its chains start at its children: a VRM
+## spring turns its first joint, which would swing every branch under that root.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary) -> Dictionary:
 	var bone_of := func(t: int) -> int:
 		return _find_bone(sk, str(objs.get(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")))
@@ -1040,7 +1042,12 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		for c: Variant in Prefabs._list(d.get("colliders")):
 			if collider_index.has(_ref(c)):
 				groups.append(collider_index[_ref(c)])
-		var pending := [[root_t, []]]
+		var kids_of := func(t: int) -> Array:
+			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
+		var starts: Array = kids_of.call(root_t)
+		if starts.size() < 2 or str(d.get("multiChildType", "0")) == "1":
+			starts = [root_t]
+		var pending := starts.map(func(t: int) -> Array: return [t, []])
 		while not pending.is_empty():
 			var item: Array = pending.pop_back()
 			var bone: int = bone_of.call(item[0])
@@ -1053,7 +1060,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups})
 				continue
-			var kids: Array = children.get(item[0], []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
+			var kids: Array = kids_of.call(item[0])
 			if kids.is_empty():
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups})

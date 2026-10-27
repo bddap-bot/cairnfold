@@ -20,6 +20,7 @@ func _run() -> void:
 	_nested_prefabs_flatten()
 	_material_properties_read_either_layout()
 	_outside_constraints_place()
+	_a_branching_physbone_root_stays_still()
 	finish()
 
 
@@ -147,3 +148,24 @@ func _outside_constraints_place() -> void:
 	var inside := {9: true}
 	check(UnityAvatar._constrained(objs, 1, inside), "a source in another prefab places its GameObject")
 	check(not UnityAvatar._constrained(objs, 3, inside), "the avatar's own source, and an unweighted outside one, do not")
+
+
+## A PhysBone whose root has two children: under the default multiChildType the root stays still and each branch is its
+## own chain; under First the first branch's chain turns the root.
+func _a_branching_physbone_root_stays_still() -> void:
+	var sk := Skeleton3D.new()
+	var objs := {}
+	for bone: Array in [[10, "Root", 0], [11, "A", 10], [12, "B", 10], [13, "A2", 11], [14, "B2", 12]]:
+		sk.add_bone(bone[1])
+		objs[bone[0] + 100] = {"type": "GameObject", "data": {"m_Name": bone[1]}}
+		objs[bone[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(bone[0] + 100)}, "m_Father": {"fileID": str(bone[2])}}}
+	var chains := func(multi_child: String) -> Array:
+		objs[20] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "multiChildType": multi_child}}
+		var out := []
+		for spring: Dictionary in UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs:
+			out.append(spring.joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
+		out.sort()
+		return out
+	check(chains.call("0") == [["A", "A2"], ["B", "B2"]], "under Ignore the root is in no chain: %s" % [chains.call("0")])
+	check(chains.call("1") == [["B", "B2"], ["Root", "A", "A2"]], "under First the first branch turns the root: %s" % [chains.call("1")])
+	sk.free()
