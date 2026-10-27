@@ -32,8 +32,9 @@
 # built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
 # which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
 # CAIRNFOLD_REPLAY=CHUNK.jsonl replays the session that chunk of a record belongs to, its other chunks beside it, on a
-# Quest in place of a scene (--replay), on the build that recorded it, and prints its per-activity timing beside the
-# session's own (scripts/sessions.py --replayed); phases are a scene's, so no budget is held and nothing is recorded.
+# Quest in place of a scene (--replay), on the given APK, whichever build recorded it (docs/replay.md), and prints its
+# per-activity timing beside the session's own (scripts/sessions.py --replayed); phases are a scene's, so no budget is
+# held and nothing is recorded.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$(realpath -m "$1")
@@ -69,10 +70,10 @@ limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds",
 if [ -n "$replay" ]; then
   session=$(basename "$replay" .jsonl)
   session=${session%-*}
-  read -r recorded limit < <(python3 "$here/sessions.py" "$(dirname "$replay")" --json | python3 -c '
+  read -r limit < <(python3 "$here/sessions.py" "$(dirname "$replay")" --json | python3 -c '
 import json, sys
 s = next((s for s in json.load(sys.stdin) if s["session"] == sys.argv[1] and s["replay"]), None)
-print(s["revision"], 300 + 2 * round(s["replay"]["seconds"])) if s else sys.exit(f"bench: {sys.argv[1]} holds no replay")' "$session")
+print(300 + 2 * round(s["replay"]["seconds"])) if s else sys.exit(f"bench: {sys.argv[1]} holds no replay")' "$session")
 fi
 [ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1 ||
   { echo "bench: the other players' game did not import, see $out/import.log" >&2; exit 1; }
@@ -158,8 +159,6 @@ if [ "${2:-}" = --android ]; then
   "$here/quest-install.sh" "$apk"
   build=$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
   same "$build" --short HEAD
-  [ -z "$replay" ] || [ "${recorded:0:${#build}}" = "$build" ] ||
-    { echo "bench: $session was recorded by build $recorded, the APK is $build" >&2; exit 1; }
   adb shell "rm -rf $dir $files/replay"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
   if [ -n "$replay" ]; then

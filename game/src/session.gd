@@ -639,7 +639,7 @@ func _prune() -> void:
 			_scenes.erase(key)
 
 
-static func _hash(bytes: PackedByteArray) -> String:
+static func sha256(bytes: PackedByteArray) -> String:
 	var h := HashingContext.new()
 	h.start(HashingContext.HASH_SHA256)
 	h.update(bytes)
@@ -742,7 +742,7 @@ func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> v
 		if path != "":
 			var f := FileAccess.open(path, FileAccess.READ)
 			b = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.MAX_BYTES else PackedByteArray()
-		out.merge({"key": _hash(b), "bytes": b, "scene": Avatar.read(b) if not b.is_empty() else null}))
+		out.merge({"key": sha256(b), "bytes": b, "scene": Avatar.read(b) if not b.is_empty() else null}))
 	_jobs.append({"task": task, "peer": peer, "done": done, "out": out})
 
 

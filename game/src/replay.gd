@@ -13,6 +13,8 @@ const HEAD := "<d12f"
 const HAND := "<12f2fHB"
 const HANDS := ["left_hand", "right_hand"]
 const FLAGS := ["tracked", "bare", "reaches"]
+## Frames between the checks a record takes of what the session's state has come to (`checks`).
+const CHECK_EVERY := 60
 const DELTA_BYTES := 8
 const POSE_BYTES := 48
 const HAND_BYTES := POSE_BYTES + 8 + 2 + 1
@@ -74,8 +76,9 @@ static func pose(raw: PackedByteArray, at: int) -> Transform3D:
 
 
 ## Frame `i` of `raw` (`frame`'s bytes end to end): its "delta", "head" pose and per hand of HANDS its "pose",
-## "stick", "held" (each of its inputs, by name, held or not) and its FLAGS by name.
-static func unpack(raw: PackedByteArray, i: int) -> Dictionary:
+## "stick", "held" (each of its inputs, by name, held or not) and its FLAGS by name. `names` holds each hand's inputs
+## in the order their bits take, as the record's layout lists them: by default this build's.
+static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	var at := i * FRAME_BYTES
 	var out := {"delta": raw.decode_double(at), "head": pose(raw, at + DELTA_BYTES), "hands": []}
 	for h in HANDS.size():
@@ -83,9 +86,9 @@ static func unpack(raw: PackedByteArray, i: int) -> Dictionary:
 		var mask := raw.decode_u16(o + POSE_BYTES + 8)
 		var bits := raw.decode_u8(o + POSE_BYTES + 10)
 		var held := {}
-		var names := inputs(HANDS[h])
-		for b in names.size():
-			held[names[b]] = mask & 1 << b != 0
+		var bits_of: Array = names.get(HANDS[h], inputs(HANDS[h]))
+		for b in bits_of.size():
+			held[bits_of[b]] = mask & 1 << b != 0
 		var flags := {}
 		for b in FLAGS.size():
 			flags[FLAGS[b]] = bits & 1 << b != 0
@@ -109,18 +112,21 @@ static func messages(event: Dictionary) -> Array:
 	return out
 
 
-## The session a record holds, from every chunk of it in the folder of `path`, any one of them: its "session" id, its "seeds", the
-## "garden" it started in, every frame's input as "frames" (`frame`'s bytes end to end) and every message it heard as
-## "messages" (`messages`'), oldest first. With "error" instead, why this build cannot replay it whole.
+## The session a record holds, from every chunk of it in the folder of `path`, any one of them: its "session" id, the
+## "revision" that recorded it, its "seeds", the "garden" it started in, every frame's input as "frames" (`frame`'s
+## bytes end to end) and each hand's inputs as "inputs" (`unpack`'s names), every message it heard as "messages"
+## (`messages`') and every check it took as "checks" (`check`'s digests, or the garden's, each with the "frame" it was
+## taken in), oldest first. A record from another build revision replays; with "error" instead, why this build cannot
+## replay it whole.
 static func read(path: String) -> Dictionary:
 	var folder := path.get_base_dir()
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
 	var names := Array(DirAccess.get_files_at(folder)).filter(func(f: String) -> bool: return f.begins_with(session + "-") and f.ends_with(".jsonl"))
 	names.sort()
-	var out := {"session": session, "frames": PackedByteArray(), "messages": []}
+	var out := {"session": session, "frames": PackedByteArray(), "messages": [], "checks": []}
 	var inputs := []
 	var nets := []
-	var layout: Variant = JSON.parse_string(JSON.stringify(layout()))
+	var frame_layout: Dictionary = JSON.parse_string(JSON.stringify(layout().merged({"inputs": null}, true)))
 	for name in names:
 		for line in FileAccess.get_file_as_string(folder.path_join(name)).split("\n", false):
 			var e: Variant = JSON.parse_string(line)
@@ -128,21 +134,28 @@ static func read(path: String) -> Dictionary:
 				continue
 			match e.get("event"):
 				"start":
-					if e.revision != Main.revision():
-						return {"error": "%s was recorded by build %s, this is %s" % [path, e.revision, Main.revision()]}
-					if e.input != layout:
-						return {"error": "%s lays its frames out as this build does not" % path}
+					if e.get("schema") != PlayLog.SCHEMA:
+						return {"error": "%s is a record of schema %s, this build reads schema %d" % [path, e.get("schema"), PlayLog.SCHEMA]}
+					if e.input.merged({"inputs": null}, true) != frame_layout:
+						return {"error": "%s lays its frames out as this build does not under the same schema: a new frame takes a new PlayLog.SCHEMA" % path}
+					out.revision = e.revision
+					out.inputs = e.input.inputs
 				"replay":
 					out.seeds = e.seeds
 					out.garden = bytes_to_var(Marshalls.base64_to_raw(e.save).decompress(int(e.save_bytes), FileAccess.COMPRESSION_DEFLATE))
+					if out.garden.get("format") != World.FORMAT:
+						return {"error": "%s began in a garden of format %s, this build reads format %d" % [path, out.garden.get("format"), World.FORMAT]}
 				"input":
 					inputs.append(e)
 				"net":
 					nets.append(e)
+				"checks":
+					out.checks.append_array(e.checks)
 	if not out.has("seeds"):
 		return {"error": "%s holds no seeds and starting garden: the ring dropped them, or it is no record" % path}
 	inputs.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	nets.sort_custom(func(a, b) -> bool: return a.first < b.first)
+	out.checks.sort_custom(func(a, b) -> bool: return a.frame < b.frame)
 	for e in inputs:
 		if int(e.first) * FRAME_BYTES != out.frames.size():
 			return {"error": "%s lost frames %d to %d" % [path, out.frames.size() / FRAME_BYTES, int(e.first) - 1]}
@@ -152,3 +165,36 @@ static func read(path: String) -> Dictionary:
 			return {"error": "%s lost messages %d to %d" % [path, out.messages.size(), int(e.first) - 1]}
 		out.messages.append_array(messages(e))
 	return out
+
+
+## What the session's state has come to, as the bytes of each part that game logic moves on its own, so a replay on a
+## later build can say which diverged from the record (Replayer): "player" where the play space stands, which teleports
+## and the ground under them set; "wildlife" every node under the wildlife and every generator held there as `rng`;
+## "physics" every thrown handful's flight. The record keeps each part's `digest`, taken on the log's worker.
+static func check(main: Main) -> Dictionary:
+	var wild := PackedFloat32Array()
+	var drawn := PackedInt64Array()
+	for n: Node in [main.wildlife] + main.wildlife.find_children("*", "", true, false):
+		if n is Node3D:
+			wild.append_array(_floats(n.transform))
+		if n.get("rng") is RandomNumberGenerator:
+			drawn.append(n.rng.state)
+	var thrown := PackedFloat32Array()
+	for h: Handful in main.feed_tool.handfuls:
+		thrown.append_array(_floats(h.transform))
+		thrown.append(h.age)
+	return {"player": _floats(main.rig.transform).to_byte_array(), "wildlife": wild.to_byte_array() + drawn.to_byte_array(),
+		"physics": thrown.to_byte_array()}
+
+
+## The garden's digest as the record keeps it (PlayLog.kept): of the snapshot World saves.
+static func garden(world: World) -> String:
+	return digest(var_to_bytes(world.snapshot()))
+
+
+static func digest(bytes: PackedByteArray) -> String:
+	return Session.sha256(bytes).left(16)
+
+
+static func _floats(t: Transform3D) -> PackedFloat32Array:
+	return _pose_bytes(t).to_float32_array()

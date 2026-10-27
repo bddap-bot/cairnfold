@@ -14,6 +14,11 @@ var context: Callable
 var activity: Callable
 ## This frame's input given its delta (Replay.frame), which the session record keeps every frame of.
 var input: Callable
+## What the session's state has come to (Replay.check), which a record keeps every Replay.CHECK_EVERY frames.
+var checks: Callable
+## Compares the state with the checks of the record a replay plays (Replayer.compare), here because the record took them
+## here, at this point of the frame.
+var compare: Callable
 var _cpu: PackedFloat32Array = []
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
@@ -121,10 +126,14 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	if compare.is_valid():
+		compare.call()
 	if play_log == null and path.is_empty():
 		return
 	if play_log != null and input.is_valid():
 		play_log.record(input.call(delta))
+		if checks.is_valid() and play_log.frames() % Replay.CHECK_EVERY == 0:
+			play_log.check(checks.call())
 	if refresh.is_valid():
 		var hz: float = refresh.call()
 		if hz > 0.0 and hz != info.get("refresh_hz", 0.0):

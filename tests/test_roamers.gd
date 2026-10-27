@@ -123,7 +123,7 @@ func _a_fox_and_a_doe_stand_true_to_life() -> void:
 
 ## A deer facing a fright runs from it the other way: it wheels round first, so it never gallops backwards.
 func _a_deer_turns_before_it_runs() -> void:
-	var wildlife := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [])
+	var wildlife := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [], 1)
 	var grazers := Grazers.new(wildlife, 1)
 	var a := Beast.new(Beast.Kind.DEER, 1.0, 0.0)
 	root.add_child(a)

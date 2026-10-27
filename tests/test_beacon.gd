@@ -199,7 +199,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	check(not viewer.previews.has(forged) and viewer._failed.has(forged), "a file whose hash is not the one its beacon names is not shown")
 	viewer.nearby.erase("127.0.0.1:1")
 	var junk := "not a vrm".to_utf8_buffer()
-	var junk_key := Session._hash(junk)
+	var junk_key := Session.sha256(junk)
 	var shelved := host._shelved
 	host._shelved = PackedByteArray([0, 0, 0, 0]) + junk
 	host._shelved.encode_u32(0, junk.size())

@@ -38,7 +38,8 @@ var hand_stop: HandStop
 var flat: Flat
 var book: Book
 var _editors: Array
-## The global random generator's seed, which a session record keeps: drawn once, so a replay can start from it.
+## The global random generator's seed, which a session record keeps: drawn once, so a replay can start from it. The
+## wildlife grows from it too unless --seed names another.
 var rng_seed := randi()
 ## What drives the session in place of the headset and the network when it replays a record (--replay FILE).
 var replayer: Replayer
@@ -161,7 +162,7 @@ func _ready() -> void:
 	if args.has("join"):
 		var at: PackedStringArray = str(args.join).split(":")
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
-	wildlife = Wildlife.new(world.terrain, world.marks, water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)), look)
+	wildlife = Wildlife.new(world.terrain, world.marks, water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", rng_seed)), look)
 	add_child(wildlife)
 	feed_tool = FeedTool.new(rig, water, world.terrain)
 	add_child(feed_tool)
@@ -213,6 +214,11 @@ func _ready() -> void:
 		metrics.refresh = func() -> float: return xr.display_refresh_rate
 	metrics.world = world
 	metrics.input = func(delta: float) -> PackedByteArray: return Replay.frame(delta, rig.head, rig.hands)
+	metrics.checks = func() -> Dictionary: return Replay.check(self)
+	if replayer != null:
+		world.replayed = true
+		metrics.compare = replayer.compare
+		replayer.watch(world)
 	metrics.context = func():
 		var counts := {}
 		for category in ["walls", "paths", "grounds", "groups", "easels", "boulders"]:

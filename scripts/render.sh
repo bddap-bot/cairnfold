@@ -2,7 +2,7 @@
 # Plays a demo script, or replays a session record, on the desktop renderer under a virtual display:
 # render.sh SCRIPT.json|CHUNK.jsonl OUT_DIR [ENGINE_ARGS...]
 # A record (any chunk of a session) is seen from its recorded head, or from CAIRNFOLD_CAMERA=PATH.json's camera path, until
-# it runs out (docs/design.md, "Local play-session history").
+# it runs out (docs/replay.md).
 # Recording a movie records the game's own audio mix too: render.sh SCRIPT OUT --write-movie OUT/x.avi --fixed-fps 30
 # CAIRNFOLD_QUIT_AFTER: game seconds before it quits (120 for a script). CAIRNFOLD_TIMEOUT: wall seconds before it is
 # killed (1800). CAIRNFOLD_ICD: the Vulkan driver's ICD file (the NVIDIA one).

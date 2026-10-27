@@ -3,8 +3,9 @@ extends RefCounted
 
 ## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
 ## by a dev tool on a device of ours, never by the game unasked. It may name another folder to record into.
-## Beside each second's metrics row it keeps every frame's input (Replay) and every message the network brought, so
-## the ring holds hours of all three.
+## Beside each second's metrics row it keeps every frame's input (Replay), every message the network brought, what the
+## session's state came to every Replay.CHECK_EVERY frames and the garden as World keeps it, so the ring holds hours of
+## all of them.
 const SWITCH := "record-sessions"
 ## A take's arm, a file a dev tool puts in the player folder beside the switch for one acted session: that session's
 ## record keeps the microphone too (`take`). The session that finds it removes it as it starts, so it arms one session
@@ -12,6 +13,8 @@ const SWITCH := "record-sessions"
 ## unused, so one left by a take that never started cannot record whoever plays next.
 const ARM := "capture-performance"
 const ARM_SECONDS := 600
+## The record's format: the events it holds and how a frame lays out (Replay). A record of another replays on no build.
+const SCHEMA := 2
 const MAX_BYTES := 4194304
 const MAX_FILES := 64
 var directory: String
@@ -28,6 +31,8 @@ var _write_us := 0
 ## Frames recorded since the last write, and how many the session recorded before them.
 var _input := PackedByteArray()
 var _frames := 0
+## Checks taken since the last write (`check`, `kept`), each with the frame it was taken in.
+var _checks := []
 ## Messages heard since the last write, each [frame, from, whose, call, args], and how many the session heard before them.
 var _heard := []
 var _messages := 0
@@ -73,7 +78,7 @@ func _init(folder: String, armed := false) -> void:
 	DirAccess.make_dir_recursive_absolute(directory)
 	var started := Time.get_unix_time_from_system()
 	session_id = "%d-%d-%d" % [started * 1000, OS.get_process_id(), Time.get_ticks_usec()]
-	metadata = {"schema": 2, "session": session_id, "started": started, "revision": Main.revision(),
+	metadata = {"schema": SCHEMA, "session": session_id, "started": started, "revision": Main.revision(),
 		"os": OS.get_name(), "device": OS.get_model_name(), "input": Replay.layout()}
 	if armed:
 		take = directory.path_join(session_id + ".wav")
@@ -107,7 +112,7 @@ func listen(frames: PackedVector2Array) -> void:
 	if take.is_empty() or _ended or frames.is_empty():
 		return
 	if _audio_frame < 0:
-		_audio_frame = _frames + _input.size() / Replay.FRAME_BYTES
+		_audio_frame = frames()
 	_audio.append_array(frames)
 
 
@@ -116,7 +121,24 @@ func listen(frames: PackedVector2Array) -> void:
 ## ordered as host, a join), about player `whose` (the one who made a build command, the one who came or went).
 func heard(from: int, whose: int, call: String, args: Array) -> void:
 	if not _ended:
-		_heard.append([_frames + _input.size() / Replay.FRAME_BYTES, from, whose, call, args.duplicate(true)])
+		_heard.append([frames(), from, whose, call, args.duplicate(true)])
+
+
+## The frames recorded so far.
+func frames() -> int:
+	return _frames + _input.size() / Replay.FRAME_BYTES
+
+
+## Keeps what the session's state has come to (Replay.check) for the next write, with the frame it was taken in.
+func check(parts: Dictionary) -> void:
+	if not _ended:
+		_checks.append(parts.merged({"frame": frames()}))
+
+
+## Keeps the garden as World keeps it, its snapshot's bytes once it has run command `seq`, as a check of its own.
+func kept(seq: int, garden: PackedByteArray) -> void:
+	if not _ended:
+		_checks.append({"frame": frames(), "seq": seq, "garden": garden})
 
 
 func _open() -> void:
@@ -153,7 +175,14 @@ func sample(row: Dictionary) -> void:
 	snapshot.skipped_log_samples = _skipped
 	snapshot.writer_us = _write_us
 	_skipped = 0
-	_task = WorkerThreadPool.add_task(_write.bind(snapshot, _take_input(), _take_heard(), _take_audio()))
+	_task = WorkerThreadPool.add_task(_write.bind(snapshot, _take_input(), _take_heard(), _take_audio(), _take_checks()))
+
+
+## The checks kept since the last write.
+func _take_checks() -> Array:
+	var block := _checks
+	_checks = []
+	return block
 
 
 ## The microphone frames kept since the last write.
@@ -189,12 +218,13 @@ func _join() -> void:
 		_task = -1
 
 
-func _write(row: Dictionary, input: Dictionary, net: Dictionary, audio: PackedVector2Array) -> void:
+func _write(row: Dictionary, input: Dictionary, net: Dictionary, audio: PackedVector2Array, checks: Array) -> void:
 	var begin := Time.get_ticks_usec()
 	if _file == null or _ended:
 		return
 	_write_input(input)
 	_write_net(net)
+	_write_checks(checks)
 	_write_audio(audio)
 	_store(row.merged({"event": "frame", "session": session_id}))
 	_flush()
@@ -207,6 +237,17 @@ func _write_input(input: Dictionary) -> void:
 	var raw: PackedByteArray = input.raw
 	_store({"event": "input", "session": session_id, "first": input.first, "frames": input.frames, "bytes": raw.size(),
 		"data": Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))})
+
+
+## The checks, each part's bytes digested here, off the main thread.
+func _write_checks(checks: Array) -> void:
+	if checks.is_empty():
+		return
+	for c: Dictionary in checks:
+		for part in c:
+			if c[part] is PackedByteArray:
+				c[part] = Replay.digest(c[part])
+	_store({"event": "checks", "session": session_id, "checks": checks})
 
 
 ## Each message's arguments in Godot's own binary encoding, the bytes the network carries, which `bytes_to_var` reads.
@@ -223,10 +264,7 @@ func _write_net(net: Dictionary) -> void:
 static func _without_files(args: Array) -> Array:
 	return args.map(func(a: Variant) -> Variant:
 		if a is PackedByteArray and not a.is_empty():
-			var h := HashingContext.new()
-			h.start(HashingContext.HASH_SHA256)
-			h.update(a)
-			return {"sha256": h.finish().hex_encode(), "bytes": a.size()}
+			return {"sha256": Session.sha256(a), "bytes": a.size()}
 		return a)
 
 
@@ -287,6 +325,7 @@ func finish() -> void:
 		return
 	_write_input(_take_input())
 	_write_net(_take_heard())
+	_write_checks(_take_checks())
 	_write_audio(_take_audio())
 	if _wav != null:
 		_wav.close()

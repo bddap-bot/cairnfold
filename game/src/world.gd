@@ -90,6 +90,8 @@ var _done := {}
 ## Where this garden is saved between sessions, or "" to save nothing (see `load_from`).
 var save_path := ""
 var _keep_due := false
+## Whether the garden has changed since the session's record last kept it (PlayLog.kept), a visitor's too.
+var _record_due := false
 var _keep_task := -1
 var _keep_wait := 0.0
 ## What the garden's builds count as in the frame budget (Budget.UNITS), kept as each command applies; walls and paths
@@ -120,6 +122,9 @@ var _queue: Array[Dictionary] = []
 var _ahead_task := -1
 ## Where the session's record keeps every message the network brings this garden and its Session, or null.
 var play_log: PlayLog
+## Whether the garden takes its commands from a session record (Replayer), as the session's host ordered them, so
+## what the tools make of the replayed input changes nothing.
+var replayed := false
 ## What the task leaves: the refill, and the fills `Commands` checks a pond put against (Water.know).
 var _ahead := []
 ## The refill worked out for the command now applying, for `_set_ponds`.
@@ -269,7 +274,7 @@ func _process(delta: float) -> void:
 	if not _queue.is_empty():
 		_drain()
 	_keep_wait -= delta
-	if _keep_due and _keep_wait <= 0.0 and (_keep_task < 0 or WorkerThreadPool.is_task_completed(_keep_task)):
+	if (_keep_due or _record_due) and _keep_wait <= 0.0 and (_keep_task < 0 or WorkerThreadPool.is_task_completed(_keep_task)):
 		_keep()
 
 
@@ -381,7 +386,7 @@ func idle() -> bool:
 
 ## Writes a save still due and waits for the last one to land.
 func flush() -> void:
-	if _keep_due:
+	if _keep_due or _record_due:
 		_keep()
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
@@ -418,17 +423,24 @@ func restore_whole(snap: Variant) -> bool:
 	return whole and restore(snap) == snap.cmds.size()
 
 
-## The snapshot is taken here, so the garden it describes cannot change under the writer.
+## The snapshot is taken here, so the garden it describes cannot change under the writer. A session record keeps it
+## too (PlayLog.kept), a visitor's as well, which is never saved: only a change made while the garden was ours saves.
 func _keep() -> void:
+	var ours := _keep_due and save_path != ""
 	_keep_due = false
-	if save_path == "":
+	_record_due = false
+	if not ours and play_log == null:
 		return
 	var start := Time.get_ticks_usec()
 	var bytes := var_to_bytes(snapshot())
+	if play_log != null:
+		play_log.kept(seq, bytes)
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
 	Metrics.note("world: keeping the garden", (Time.get_ticks_usec() - start) / 1000.0)
 	_keep_wait = KEEP_EVERY
+	if not ours:
+		return
 	var path := ProjectSettings.globalize_path(save_path)
 	_keep_task = WorkerThreadPool.add_task(func() -> void: World._write(path, bytes))
 
@@ -546,6 +558,10 @@ func hear(call: String, args: Array, whose := -1) -> void:
 ## take the garden past its frame budget is turned down, by a visitor before it is sent; `hand`, the one whose tool
 ## made it, feels a turned-down command.
 func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) -> void:
+	if replayed:
+		if done.is_valid():
+			done.call()
+		return
 	_next_token += 1
 	cmd.token = _next_token
 	if done.is_valid():
@@ -1162,6 +1178,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	applied.emit(cmd)
 	if save_path != "" and multiplayer.is_server():
 		_keep_due = true
+	if play_log != null:
+		_record_due = true
 	return inverse
 
 

@@ -148,7 +148,7 @@ func _every_file_in_the_folder_is_on_the_wheel(session: Session, hand: Hand) -> 
 	var keys := {}
 	for f: String in ["b.vrm", "a.vrm"]:
 		var bytes := FileAccess.get_file_as_bytes(source.path_join(vrms[keys.size()]))
-		keys[f] = Session._hash(bytes)
+		keys[f] = Session.sha256(bytes)
 		var out := FileAccess.open(folder.path_join(f), FileAccess.WRITE)
 		out.store_buffer(bytes)
 		out.close()

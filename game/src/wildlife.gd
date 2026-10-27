@@ -179,7 +179,7 @@ class Family:
 		return ducks[0]
 
 
-func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1, sky: Look = null) -> void:
+func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed: int, sky: Look = null) -> void:
 	terrain = land
 	marks = wear
 	water = ponds
@@ -195,10 +195,7 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 	Sheep.prepare()
 	Conure.prepare()
 	Beast.prepare()
-	if seed >= 0:
-		rng.seed = seed
-	else:
-		rng.randomize()
+	rng.seed = seed
 	butterflies = Butterflies.new(self, rng.seed + 1)
 	add_child(butterflies)
 	fireflies = Fireflies.new(self, rng.seed + 3)

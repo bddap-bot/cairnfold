@@ -1,8 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 ## Replays the record --replay names in a fresh game and writes to --out what tests/test_replay.gd compares with the
-## session it recorded: each frame's delta and the head's pose, and the garden once the replay ends and every command
-## is in.
+## session it recorded: each frame's delta and the head's pose, the garden once the replay ends and every command
+## is in, and where the replay diverged from the record (Replayer.diverged).
 
 
 class Probe:
@@ -32,7 +32,7 @@ func _initialize() -> void:
 	await main.replayer.finished
 	main.world.settle()
 	var out := FileAccess.open(main.args.out, FileAccess.WRITE)
-	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot()})
+	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot(), "diverged": main.replayer.diverged})
 	out.close()
 	main.queue_free()
 	await process_frame

@@ -5137,7 +5137,9 @@ the player who made it: elsewhere as the host sent it (`_commit`), on the host a
 machine, beside the `_propose` it came in as), so a replay tells what a host ordered from what it was sent. With
 them go the refusals and the garden a host sends a joiner, each remote player's appearance, poses, held items, throws and
 spring grabs, players coming and going, and this machine joining a garden (its address and port), going home, or
-being dropped by the garden it visited. An
+being dropped by the garden it visited. A `checks` record keeps what the session's state has
+come to every `Replay.CHECK_EVERY` frames, and the garden's digest whenever it is kept, for a replay to compare
+(replay.md). An
 avatar file a message carries is kept as its SHA-256 and length, never the file. Every networked method records what it
 hears before anything else (tests/test_net_record.gd holds them to it). `scripts/coop.sh` records every player's session
 and checks that each record holds every build command the host ordered after that player came, every player's among
@@ -5167,39 +5169,8 @@ microphone open past the take, so `Take` never asks: the dev tool that arms a ta
 nothing. tests/test_take.gd plays a tone where the microphone would be heard and finds it in the armed session's take,
 none of it leaving the take's bus, and no take in the session before it or the one after.
 
-`--replay FILE` plays a session back from its record, `FILE` any chunk of it with the session's other chunks beside
-it. The game starts from the record's seeds and garden, and `Replayer` takes the place of the network: Godot polls it
-at the start of every frame, before anything else runs, and there it delivers each message the record says came in
-before that frame, as from the peer that sent it, then puts the head and hands where the record has them and presses
-the inputs the record has held. Peers come and go as the record says; a join reaches no one, and the game takes the id
-the host gave it then; what the game sends goes nowhere. Each frame is scaled to its recorded delta, taking the frame
-before as its own length: under `--fixed-fps` that is exact, and the replay is the session again, bit for bit.
-tests/test_replay.gd records a scripted session in which a visiting player proposes a tree and some frames run at half
-speed, replays it in a fresh game, and finds every frame's delta and head pose and the final garden equal. In real time
-a frame's length is only known after it, so deltas and whatever depends on them can differ. Two things differ even
-so: a host refills its visitors' allowance for commands by the wall clock, so a replay running faster than the session
-can refuse a burst the session took; and a hand played on its joints replays as a controller held at its palm, giving
-the same inputs. A record from another build revision, or with frames the ring dropped, is refused with the reason; a
-build run from the source has no revision, so its records replay on any source build with the same frame layout. The
-game quits when the record runs out.
-
-In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
-under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session
-therefore replays on a Quest under `scripts/bench.sh` with `CAIRNFOLD_REPLAY=CHUNK.jsonl`, proximity held and unworn,
-on the build that recorded it, its rows written to the bench's `--metrics` file and its per-activity timing printed
-beside the recorded session's (`scripts/sessions.py DIR --replayed METRICS.json`). `demo/played.json` is a session made
-only of what a player's controllers give, so a bench run of it leaves a record the replay plays whole; a script's other
-steps place the rig or the garden directly, which no record holds.
-
-`scripts/render.sh CHUNK.jsonl OUT` re-renders a record on the desktop renderer with the graphics of the build running
-it, seen from the recorded head; with `CAIRNFOLD_CAMERA=PATH.json` it is seen instead from an authored camera
-(`CameraPath`, Main's `--camera`): a JSON list of keys, each a time `t` in game seconds from the start, an `eye` and
-the point it looks `at` in the garden's space, as a script's `view` takes them, the camera on a curve through the eyes
-looking at a point on a curve through the points looked at, holding before the first key and after the last. It sees
-and hears what an onlooker there would, the player's own body too; what the player did still comes from the player's
-head, so a wheel opens facing it and a pond is over it as in the session. Each frame of `--write-movie OUT/x.avi
---fixed-fps RATE` shows one recorded frame, so at the rate the session ran the clip keeps its pace but for its late
-frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
+Replaying a record, on the build that made it or a later one, and where a replay diverges from its session:
+[replay.md](replay.md).
 
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
