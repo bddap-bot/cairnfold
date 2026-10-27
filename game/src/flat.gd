@@ -157,7 +157,7 @@ func _process(delta: float) -> void:
 	var low := STOOP * maxf(0.0, -sin(pitch)) if rig.right.tool == Hand.Tool.SEEDS else 0.0
 	stoop = move_toward(stoop, low, STOOP_SPEED * delta)
 	var level := Basis(Vector3.UP, yaw)
-	var eyes := Transform3D(level * Basis(Vector3.RIGHT, pitch), Vector3.UP * (Rig.EYE - stoop))
+	var eyes := Transform3D(level * Basis(Vector3.RIGHT, pitch), Vector3.UP * (Rig.EYE * rig.world_scale - stoop))
 	rig.head.transform = eyes
 	var move := Input.get_vector("flat_left", "flat_right", "flat_forward", "flat_back")
 	if move != Vector2.ZERO:

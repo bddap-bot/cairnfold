@@ -144,6 +144,22 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Each arm is the one bend of its two bones that joins the shoulder to the tracked
   hand, its elbow down, out and a little back; a hand beyond reach leaves the arm
   straight toward it.
+- **Size.** An avatar is drawn at its own size and proportions whoever wears it, and the
+  wearer is fitted to it instead. Directive (verbatim): "I think our fitting of x height
+  players to y height avatars needs some thought, to prevent avatars from squishing or
+  stretching to fit the player. The player's experience should change depending on the
+  avatar's height." The world's scale (`XROrigin3D.world_scale`) makes the wearer
+  `Rig.fit` times their own size, the avatar's eye height over theirs: head, hands, hand
+  joints and the distance between the eyes all scale, so in a short avatar they see from
+  its eyes and reach as far as its arms while the garden looms larger, and in a tall one
+  the reverse. Standing, their eyes are the avatar's, so its feet meet the floor, and
+  others see it at its true size from the poses they already receive. `Stature` measures
+  the wearer's own eye height as they play: the height their head is held at or below
+  nine tenths of the time, so crouching to plant or a moment on tiptoe leaves it alone,
+  and someone seated throughout stands as tall as the avatar; until two seconds are
+  measured it is the typical `Rig.EYE`. A new fit, from another avatar or the measure
+  settling, comes behind a fade, as a teleport does: the world never grows in view. On a
+  flat screen the eyes stand at the avatar's eye height.
 - **Gaze.** Every avatar, built-in or a player's own, points its eyes through one path,
   the model's VRM lookAt: by eye bones or by the four look expressions, whichever the
   model declares, each angle mapped and clamped by its range maps. Where the eyes look

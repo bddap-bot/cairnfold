@@ -11,8 +11,14 @@ extends XROrigin3D
 const NEAR := 0.02
 ## Past the farthest range round the garden (Mountains) and the sun's disc beyond it.
 const FAR := 2600.0
-## The eyes' height above the floor, standing.
+## A typical wearer's eye height over the floor standing, in real metres, until `stature` has measured theirs.
 const EYE := 1.65
+## The world's scale makes the wearer `fit` times their own size, so that they see from their avatar's eyes and reach
+## as far as its arms, and the avatar is drawn at its own size and proportions whoever wears it. Once `fit` strays
+## this fraction from the scale, the view fades out and back in at the new one, as a teleport does.
+const REFIT := 0.02
+## The fit at its extremes, past which an avatar stands above the floor or sinks into it.
+const FITS := Vector2(0.1, 10.0)
 const AIR_REACH := 30.0
 ## A target across the map moves metres for a fraction of a degree of hand tremor. The aim follows the hand at
 ## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
@@ -66,6 +72,7 @@ var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
 var body: Avatar
+var stature := Stature.new()
 
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
@@ -191,6 +198,20 @@ func _process(delta: float) -> void:
 	_stick.latch()
 	_fade_step(delta)
 	_underfoot.follow(head.global_position, global_position.y, _floor_y)
+	_refit(delta)
+
+
+## How many times their own size the wearer stands: their avatar's eye height over their own, or 1 with none worn.
+func fit() -> float:
+	return clampf(body.eye_height / stature.eye(EYE), FITS.x, FITS.y) if body != null else 1.0
+
+
+## Measures the wearer's eye height, and refits them where they stand once `fit` strays from the world's scale.
+func _refit(delta: float) -> void:
+	stature.add(head.position.y / world_scale, delta)
+	if _fade_t < 0.0 and not _covered and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
+		var h := head.global_position
+		_cut(Vector3(h.x, _floor_y, h.z), global_position.y - _floor_y)
 
 
 ## The left stick clicked in while centred cycles every hand's reach (`Reach.mode`): a debug switch for comparing them
@@ -320,6 +341,11 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
 	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR
 	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left if aim_hand == null else aim_hand)
+	_cut(ground, lift_m)
+
+
+## Fades the view out, sets the player down at `ground`, `lift_m` up, and fades it back in.
+func _cut(ground: Vector3, lift_m: float) -> void:
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
 	_fade.visible = true
@@ -359,7 +385,13 @@ func spawn() -> Vector3:
 	return Vector3(top.x, floor_under.call(top), top.z)
 
 
+## Sets the player's head over `ground`, `lift_m` up, at the world's scale that fits them to their avatar (`fit`): the
+## tracked head moves with the scale at once, before the runtime next reports it.
 func place(ground: Vector3, lift_m: float) -> void:
+	var s := fit()
+	head.position *= s / world_scale
+	world_scale = s
+	head.near = NEAR * s
 	var h := head.global_position
 	_floor_y = maxf(ground.y, terrain.shown_at(ground.x, ground.z))
 	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)

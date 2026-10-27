@@ -1514,7 +1514,7 @@ func _process(_delta: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
 	for i in _stood.size():
 		var sway := 0.1 * sin(t * 2.0 + i)
-		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
+		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, _stood[i].eye_height, 0))
 		_stood[i].pose(eyes, eyes * Avatar.AT_SIDES[0].translated(Vector3(0, sway, -0.3)), eyes * Avatar.AT_SIDES[1].translated(Vector3(0, -sway, -0.3)))
 
 

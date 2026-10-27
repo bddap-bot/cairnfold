@@ -85,6 +85,8 @@ var _model: Node3D
 var _skeleton: Skeleton3D
 var _joints := {}
 var _facing: Basis
+## The eyes' height over the floor the model stands on, at rest.
+var eye_height := 0.0
 ## At rest, the head bone relative to the eyes.
 var _eye_to_head: Transform3D
 var _hips: Joint
@@ -335,6 +337,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a._hips = a._joints.hips
 	a._head = a._joints.head
 	var eye_at := a._head.rest * (a._model.get_meta("eyes") as Vector3)
+	a.eye_height = eye_at.y
 	a._eye_to_head = Transform3D(a._facing, eye_at).affine_inverse() * a._head.rest
 	var look: Dictionary = a._model.get_meta("look")
 	a._look_type = look.type
@@ -563,5 +566,5 @@ func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 
 ## Standing still with the hands at the sides, as a figure.
 func stand() -> void:
-	var at := Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
+	var at := Transform3D(Basis.IDENTITY, Vector3(0, eye_height, 0))
 	pose(at, at * AT_SIDES[0], at * AT_SIDES[1])
