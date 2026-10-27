@@ -70,10 +70,11 @@ func _every_table_says_what_it_stands_on() -> void:
 func _settle() -> void:
 	await process_frame
 	await process_frame
-	main.tool._relay_due()
 	for w in main.tool.walls:
 		w.ivy_age = INF
-		w.lay_now()
+	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
+		for w in main.tool.walls:
+			w.lay_now()
 	for id: int in world.stairs.layouts:
 		world.stairs.settle(id)
 	await process_frame

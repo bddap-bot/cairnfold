@@ -732,6 +732,7 @@ func _dirt_wears_without_stones() -> void:
 	check(marks.mark_at(-15, -20) == 123 and marks.mark_at(-15, -18) == -1, "path selection follows the stroke width")
 	paths.take(123)
 	await process_frame
+	marks.settle()
 	check(marks.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.style = "invalid"
 	check(Commands._path(data) == null, "extra path fields are rejected")

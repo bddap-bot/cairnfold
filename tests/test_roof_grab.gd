@@ -220,6 +220,7 @@ func _edits_made_meanwhile_stay() -> void:
 	wider.size += Vector2(1, 0)
 	tool.stand_build(wider)
 	tool.end_build()
+	await until(func() -> bool: return not w.due.is_valid(), "the house let go is laid again in its turn")
 	check(PackedVector3Array(w._build.job.points) != stood, "let go, it is never laid again where it stood: the garden answers before it applies the move")
 	await frames(4)
 	var d: Dictionary = world.state.walls[w.id]

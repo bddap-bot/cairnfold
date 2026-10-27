@@ -39,6 +39,10 @@ var _unworn: Array[Object] = []
 var _unworn_since := 0
 ## The rows of the first unworn path already worn into `laid`.
 var _worn_rows := 0
+## The patches of `laid` to wear again with the unworn marks, a frame after: where a mark was lifted or restyled, or a
+## mark laid among older ones, whose wear finds its patch. A house carried off its worn floor and set down on a new one
+## wears both once, and not in the frame that moved it.
+var _stale: Array = []
 ## A stroke was held or released: the shown image is redrawn when the unworn marks are.
 var _unshown := false
 static var _brushes := {}
@@ -145,7 +149,8 @@ func lay(mark: Object, id: int) -> void:
 		_wait()
 		_unworn.append(mark)
 	elif not quiet:
-		_rewear_area(_area_of(mark, _patch))
+		_wait()
+		_stale.append(mark)
 
 
 func lift(mark: Object) -> void:
@@ -154,6 +159,11 @@ func lift(mark: Object) -> void:
 		return
 	_marks.remove_at(i)
 	_ids.remove_at(i)
+	var unworn := _unworn.find(mark)
+	if unworn >= 0:
+		_unworn.remove_at(unworn)
+		if unworn == 0:
+			_worn_rows = 0
 	if not quiet:
 		_rewear_area(_areas.get(mark, Rect2i(0, 0, SIZE, SIZE)))
 	_areas.erase(mark)
@@ -205,6 +215,7 @@ func rewear() -> void:
 		_area_of(m, laid)
 	_unworn.clear()
 	_worn_rows = 0
+	_stale.clear()
 	_show()
 
 
@@ -216,22 +227,32 @@ func _area_of(mark: Object, onto: Image) -> Rect2i:
 	return _wearing
 
 
-## Wears again, in order, every mark meeting `area`, and only that patch of `laid`.
+## Has `area` of `laid` worn again a frame later, or once `laid` is read.
 func _rewear_area(area: Rect2i) -> void:
-	_wear_unworn()
 	if area.has_area():
+		_wait()
+		_stale.append(area)
+
+
+## Wears again, in order, every mark meeting each stale patch, and only those patches of `laid`.
+func _wear_stale() -> void:
+	for stale: Variant in _stale:
+		if stale is Object and not _marks.has(stale):
+			continue
+		var area: Rect2i = stale if stale is Rect2i else _area_of(stale, _patch)
 		_patch.fill_rect(area, Color(0, 0, 0, 0))
 		for m in _marks:
 			if not _areas.has(m) or _areas[m].intersects(area):
 				_area_of(m, _patch)
 		laid.blit_rect(_patch, area, area.position)
-	_show()
+	_stale.clear()
 
 
 func settle() -> void:
-	if _unworn.is_empty() and not _unshown:
+	if _unworn.is_empty() and not _unshown and _stale.is_empty():
 		return
 	_wear_unworn()
+	_wear_stale()
 	_show()
 
 
@@ -261,13 +282,14 @@ func _wear_unworn(budget_us := INF) -> bool:
 
 
 func _wait() -> void:
-	if _unworn.is_empty() and not _unshown:
+	if _unworn.is_empty() and not _unshown and _stale.is_empty():
 		_unworn_since = Engine.get_process_frames()
 
 
 ## Settles what has waited since an earlier frame; called once a frame.
 func settle_due() -> void:
-	if Engine.get_process_frames() > _unworn_since and (not _unworn.is_empty() or _unshown) and _wear_unworn(Budget.GROUND_WEAR_US):
+	if Engine.get_process_frames() > _unworn_since and (not _unworn.is_empty() or _unshown or not _stale.is_empty()) and _wear_unworn(Budget.GROUND_WEAR_US):
+		_wear_stale()
 		_show()
 
 

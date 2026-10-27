@@ -543,8 +543,8 @@ func hear(call: String, args: Array, whose := -1) -> void:
 
 
 ## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot. One that would
-## take the garden past its frame budget is turned down here at once; `hand`, the one whose tool made it, feels a
-## turned-down command.
+## take the garden past its frame budget is turned down, by a visitor before it is sent; `hand`, the one whose tool
+## made it, feels a turned-down command.
 func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) -> void:
 	_next_token += 1
 	cmd.token = _next_token
@@ -553,13 +553,12 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 	if hand != null:
 		_hands[_next_token] = hand
 	_ops[_next_token] = cmd.get("op")
-	if not cmd.get("op") in ["undo", "redo"] and not fits(cmd):
-		_turned_down(_next_token, OVER)
-		return
 	if multiplayer.is_server():
 		_enqueue(cmd, me(), _order.bind(cmd, me()))
-	else:
+	elif cmd.get("op") in ["undo", "redo"] or fits(cmd):
 		_propose.rpc_id(1, cmd)
+	else:
+		_turned_down(_next_token, OVER)
 
 
 func _settle(token: int) -> void:

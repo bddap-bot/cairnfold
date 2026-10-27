@@ -185,9 +185,9 @@ func _house(seed_value: int, count: int) -> void:
 	check(var_to_str(commands) == var_to_str(_commands(seed_value)), "seed %d commands repeat" % seed_value)
 	for cmd in commands:
 		main.world._order(cmd, 1)
-	main.tool._relay_due()
-	for w in main.tool.walls:
-		w.lay_now()
+	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
+		for w in main.tool.walls:
+			w.lay_now()
 	var room: Array[Wall] = main.tool.walls.duplicate()
 	check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
 	if room.is_empty():

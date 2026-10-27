@@ -120,6 +120,7 @@ func _a_stone_stroke_is_one_undo_step() -> void:
 	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(-4, 30), Vector2(4, 30), 1.5)
 	check(world.stacks[world.me()].undo.size() == steps + 1, "a stroke is one history step (%d)" % (world.stacks[world.me()].undo.size() - steps))
 	world.undo()
+	marks.settle()
 	check(marks.stone(0, 30) == 0.0, "undo takes the stone up (%.2f)" % marks.stone(0, 30))
 	world.redo()
 	marks.settle()
@@ -131,6 +132,7 @@ func _a_stone_stroke_is_one_undo_step() -> void:
 	over.add(marks, 10, 30, 0.8, 0.5)
 	marks.lay(over, 1001)
 	marks.lift(under)
+	marks.settle()
 	check(marks.stone(10, 30) > 0.99 and marks.stone(12, 30) == 0.0, "stone laid over stone keeps its own when the stone under it is lifted (%.2f)" % marks.stone(10, 30))
 	_teardown(nodes)
 
@@ -148,6 +150,7 @@ func _meadow_takes_back_stone_but_not_a_path() -> void:
 	marks.settle()
 	check(marks.bare(0, 40) > 0.99, "and the path under the stone is still worn (%.2f)" % marks.bare(0, 40))
 	world.undo()
+	marks.settle()
 	check(marks.stone(0, 40.5) > 0.99, "undoing the meadow stroke brings the stone back (%.2f)" % marks.stone(0, 40.5))
 	_teardown(nodes)
 

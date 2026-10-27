@@ -86,6 +86,18 @@ var _build_task := -1
 var _build_stale := false
 ## Waiting for one of `Budget.WALL_LAYS` lay slots.
 var _queued := false
+## What its builder runs to lay it again for a change to the garden, in its turn: from the frame after it fell due, so
+## the frame applying the change does not lay it too, walls lay theirs in tree order, oldest first, as many a frame as
+## Budget.RELAY_US lets and one at least; or at once in `lay_now`. Empty when none is due.
+var due := Callable():
+	set(lay):
+		if lay.is_valid() and not due.is_valid():
+			_due_since = Engine.get_process_frames()
+			set_process(true)
+		due = lay
+var _due_since := 0
+static var _due_frame := -1
+static var _due_us := 0
 ## A lay: its inputs (`job`, `roof`, the ground's `revision`) and what the worker laid from them (`out`).
 var _build := {}
 ## The lay now shown; a settling rebuild from the same inputs takes it rather than laying the stones again.
@@ -263,6 +275,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if due.is_valid() and Engine.get_process_frames() > _due_since and _may_lay_due():
+		_lay_due()
 	if _queued and _slot_free():
 		_queued = false
 		_lay()
@@ -294,7 +308,9 @@ func _process(delta: float) -> void:
 
 ## Waits for the stones being laid and coloured and takes them, for a caller that reads them at once.
 func lay_now() -> void:
-	while laying() or _recolour_task >= 0:
+	if due.is_valid():
+		_lay_due()
+	while _build_task >= 0 or _queued or _recolour_task >= 0:
 		if _queued:
 			_queued = false
 			_lay()
@@ -304,10 +320,16 @@ func lay_now() -> void:
 			_land_recolour()
 
 
+## Takes the lay just done, unless it was to settle and its inputs changed meanwhile: the lay replacing it settles, and
+## showing this one would draw the wall's stones apart from the glade's for the frames between.
 func _land() -> void:
 	_forget(_build_task)
 	WorkerThreadPool.wait_for_task_completion(_build_task)
 	_build_task = -1
+	if _build_stale and _settle_on_land:
+		_litter.append(_build.job.stones)
+		_build_live()
+		return
 	_litter.append(layout.stones)
 	_shown = _build
 	if _build_stale:
@@ -463,9 +485,26 @@ static func _drop(litter: Array[Array]) -> void:
 		stones.clear()
 
 
-## Whether a preview is still being laid on a worker thread.
+## Whether a preview is still being laid on a worker thread, or waits its turn to be.
 func laying() -> bool:
-	return _build_task >= 0 or _queued
+	return _build_task >= 0 or _queued or due.is_valid()
+
+
+## Whether this frame still has time for a wall due to be laid again: Budget.RELAY_US of it, and one wall at least.
+static func _may_lay_due() -> bool:
+	if _due_frame != Engine.get_process_frames():
+		_due_frame = Engine.get_process_frames()
+		_due_us = 0
+		return true
+	return not Budget.frame_deadline or _due_us <= Budget.RELAY_US
+
+
+func _lay_due() -> void:
+	var start := Time.get_ticks_usec()
+	var lay := due
+	due = Callable()
+	lay.call()
+	_due_us += Time.get_ticks_usec() - start
 
 
 ## Lays on worker threads. They run at high priority so pipeline compiles do not hold them back; a sculpt relays
@@ -792,12 +831,11 @@ func _take(packed: Dictionary) -> void:
 
 
 ## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it. The
-## glade lets them go at once, or they would stay standing where the hold took them from.
+## glade must let them go at once (`Masonry.flush`), or they would stay standing where the hold took them from.
 func draw_live() -> void:
 	if _settled:
 		_settled = false
 		_sync()
-		masonry.flush()
 
 
 ## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here, uploaded

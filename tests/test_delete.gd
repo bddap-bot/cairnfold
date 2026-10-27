@@ -100,6 +100,7 @@ func _takes_marks() -> void:
 	check(world.marks.laid_bare(-3, -12) < 0.1, "the ground under the path is meadow again")
 	check(world.state.grounds.size() == 1, "and leaves the stone")
 	await play([{"op": "delete", "x": 9.5, "z": -12}])
+	world.marks.settle()
 	check(world.state.grounds.is_empty() and world.marks.stone(9.5, -12) < 0.1, "delete takes the stone stroke it points at")
 
 

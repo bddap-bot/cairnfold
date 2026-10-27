@@ -66,6 +66,7 @@ func _stone_lines_a_pond() -> void:
 	check(water.pond_at(-29, 30) == pond and pond.pond.level == level and pond.pond.cells.size() == cells, "and the pond is as it was dug")
 	world.undo()
 	await process_frame
+	marks.settle()
 	check(marks.stone(-29, 30) == 0.0, "undo lifts it off the bed")
 	world.redo()
 	await process_frame

@@ -168,8 +168,6 @@ const TURN_NUDGE := 0.02
 var quiet := false
 var _since_rebuild := 0.0
 var _dirty := false
-## Ids of builds to lay again at the end of the frame for what they meet.
-var _due := {}
 var _path_openings := {}
 ## Grid cell → the walls whose samples reach it (WallLayout.segment_cells), kept up every frame as walls are laid
 ## (`walls_by_cell`), so no frame of a stroke indexes them all.
@@ -241,7 +239,6 @@ func _process(delta: float) -> void:
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
-	_relay_due()
 	_settle_clutter()
 	for m in masons:
 		if m.growing != null or m in _holders:
@@ -452,7 +449,6 @@ func _forget() -> void:
 	for e: Dictionary in _held_clutter.values():
 		e.node.queue_free()
 	_held_clutter.clear()
-	_due.clear()
 
 
 ## A hand holding the house or the tower points where one would stand, and its trigger puts one up there, on the
@@ -515,7 +511,7 @@ func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 
 ## Takes the built house or tower `w` in hand as the garden has it, or where it was let go if the garden has not yet
 ## answered, for the grips that join it (`_join_build`), or a script (`stand_build`), to move and size; what stands on it
-## goes with it.
+## goes with it, all their stones leaving the glade's in one flush.
 func take_build(w: Wall) -> void:
 	held = w
 	var d: Dictionary = world.state.walls[w.id]
@@ -533,6 +529,7 @@ func take_build(w: Wall) -> void:
 		if o != w and _below(o.on).has(w.id):
 			_riders[o] = _resettled(o, world.state.walls[o.id].points, o.layout.laid_rise)
 			o.draw_live()
+	masonry.flush()
 	_holders.clear()
 	_carried = 0.0
 
@@ -1708,8 +1705,9 @@ func show_reshaped(id: int, data: Dictionary) -> void:
 
 
 ## Lays a wall as the garden has it, with `data` in place of its own fields, with the arches the paths standing open
-## in it, on and among the builds it meets.
+## in it, on and among the builds it meets, so it is no longer due.
 func _relay(w: Wall, data := {}) -> void:
+	w.due = Callable()
 	var d := World.reshaped(world.state.walls[w.id], data)
 	w.set_data(d)
 	w.reshaped = data
@@ -1943,7 +1941,8 @@ func take(id: int) -> void:
 	w.queue_free()
 
 
-## A wall someone here is pulling keeps following their hand; it catches up when they let go.
+## A wall someone here is pulling keeps following their hand; it catches up when they let go. It is laid again in its
+## turn (`Wall.due`), so a house let go with a storey on it lays them over frames.
 func restyle(id: int, changed: Array) -> void:
 	var w := find(id)
 	if changed == ["paint"]:
@@ -1951,7 +1950,11 @@ func restyle(id: int, changed: Array) -> void:
 		return
 	if _held(w):
 		return
-	_relay(w)
+	w.set_data(World.reshaped(world.state.walls[id], {}))
+	w.due = _lay_again.bind(w, [] if quiet else changed)
+
+
+func _restyle_sound(w: Wall, changed: Array) -> void:
 	if "ruins" in changed:
 		_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
 	elif "openings" in changed:
@@ -2155,8 +2158,8 @@ static func _reach(w: Wall) -> Rect2:
 	return r.grow(WallLayout.THICKNESS + Massing.REACH + 0.5)
 
 
-## Takes the room `w` takes up as it now stands; if that changed, every build meeting it, before or after, is laid
-## again at the end of the frame.
+## Takes the room `w` takes up as it now stands; if that changed, every build meeting it, before or after, is due to be
+## laid again.
 func _reshaped(w: Wall) -> void:
 	var was := w.massing
 	w.massing = Massing.of(w.layout, w.roof)
@@ -2170,7 +2173,8 @@ func _stir(w: Wall, s: Massing) -> void:
 		return
 	for o in walls:
 		if o != w and o.massing != null and o.massing.rect.intersects(s.rect) and _related(w, o):
-			_due[o.id] = true
+			if not o.due.is_valid():
+				o.due = _lay_again.bind(o, null)
 
 
 ## Whether two builds meet: one stands on the other, or one of them is a house or tower they join.
@@ -2185,15 +2189,17 @@ func _meets_any(w: Wall) -> bool:
 	return false
 
 
-## Lays again the builds due, oldest first, so each stands on its supports as they now stand.
-func _relay_due() -> void:
-	while not _due.is_empty():
-		var id: int = _due.keys().min()
-		_due.erase(id)
-		var w := find(id)
-		if w == null or _held(w):
-			continue
-		_meet(w)
-		w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
-		_reshaped(w)
-		w.rebuild()
+## Lays `w` again, due, on its supports as they now stand, if the garden still has it: `changed` null for a build laid
+## again for what it meets, else what of it the garden changed, which has its arches cut again and sounds, unless
+## swapped in quietly.
+func _lay_again(w: Wall, changed: Variant) -> void:
+	if _held(w) or not world.state.walls.has(w.id):
+		return
+	_meet(w)
+	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
+	_reshaped(w)
+	if changed != null:
+		_open_paths(w)
+	w.rebuild()
+	if changed != null and not changed.is_empty():
+		_restyle_sound(w, changed)

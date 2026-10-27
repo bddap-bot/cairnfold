@@ -2698,6 +2698,24 @@ largest house is carried 40 m across it and turned round in 6 s. `tests/test_car
 the co-op run has the joiner copy the host's house's look, carry and turn it and its own tree, then undo the tree's
 carry, every peer alike.
 
+Letting the house go cost the Frame one 22 to 25 ms frame in every run of the move section at 0bb0c15: the host
+checked the batch's budget twice, applied it, and in that same frame laid the house again, laid its upper storey
+twice (once for the batch, once as a build the house met), laid the wing it joins, played both settle sounds, and
+lifted and laid the house's worn floor, each redrawing and uploading the whole ground mask. Now the host checks a
+command once (a visitor checks before sending); a build the garden reshaped, or one meeting it, falls due
+(`Wall.due`) and is laid from the frame after, in tree order, `Budget.RELAY_US` a frame and one at least, its sound
+playing as it is laid; the ground wears a lifted mark's patch and a mark laid among older ones from the frame after,
+once, with the marks laid last; a lay meant to settle that lands after its inputs changed is not shown, since the
+lay replacing it settles, where showing it drew the house's stones apart from the glade's for a few frames (3 to 6
+ms); and a hold lets its build and the storeys on it go from the glade in one flush. On the Frame, the move section
+played after a village has been built once, as the stress scene plays it (records in `perf/frame/stress-move/`,
+governed, and `perf/frame/stress-move-pinned/`, at step 0): the let-go and the phase's first second made no late
+frame governed in three runs and pinned in two of three; the third pinned run made one 21.6 ms frame as the house was
+let go, with 12.2 ms of scripts and physics and 10.2 ms on the GPU in the frame before it. The let-go's own frame now
+spends about 2.3 ms on the command (cleaning, pricing and applying it), the frames after about 2 ms each laying one
+build or wearing the ground. Governed, the ladder stepping from 3 to 1 at once during or after the carry (the GPU from
+7.2 to about 10 ms) makes 25 to 34 late frames before it steps back.
+
 ## Moving a fitting
 
 A grip on a placed fitting takes the fitting, not its build, and one hand carries it over the surface it was placed
