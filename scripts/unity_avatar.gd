@@ -426,9 +426,8 @@ static func _in_model(n: Node) -> Transform3D:
 
 ## Every drawn renderer's surfaces as one mesh over `sk`, its skin binding each source bone to the output bone of its
 ## name (or its nearest ancestor that has one): blend shapes kept, those of one name in several renderers one shape,
-## up to Avatar.MAX_BLEND_VERTICES (the rest baked at their saved weights),
-## UVs moved into the material atlas. {"mesh", "skin", "weights": each
-## blend shape's saved weight}, or empty if nothing draws.
+## up to Avatar.MAX_BLEND_VERTICES (the rest baked at their saved weights), UVs moved into the material atlas. {"mesh",
+## "skin", "weights": each blend shape's saved weight}, or empty if nothing draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
