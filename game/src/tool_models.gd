@@ -211,6 +211,11 @@ static func _build_styles() -> void:
 		_thread.wait_to_finish()
 	# Read back once here, on the main thread, the one mesh every stone is baked from.
 	_arrays_of(Stones.far_mesh())
+	# A renderer without a rendering device (the headless one) keeps its meshes in a table only one thread may add to:
+	# a mesh made here while the main thread makes another corrupts both.
+	if RenderingServer.get_rendering_device() == null:
+		_build_queued()
+		return
 	_thread = Thread.new()
 	_thread.start(_build_queued, Thread.PRIORITY_LOW)
 
