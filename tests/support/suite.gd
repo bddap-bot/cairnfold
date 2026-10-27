@@ -9,6 +9,10 @@ var failures := 0
 var main: Main
 
 
+static func _static_init() -> void:
+	Budget.frame_deadline = false
+
+
 func check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1

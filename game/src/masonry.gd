@@ -405,7 +405,7 @@ func drawn(owner: int) -> bool:
 func flush(budget_us := INF) -> void:
 	var start := Time.get_ticks_usec()
 	for key: Vector3i in _dirty.keys():
-		if Time.get_ticks_usec() - start > budget_us:
+		if Budget.over(start, budget_us):
 			break
 		_dirty.erase(key)
 		var c: Chunk = _chunks[key]
@@ -424,7 +424,7 @@ func flush(budget_us := INF) -> void:
 			_coarse_dirty[_coarse_key(key)] = true
 	var n := roundi(COARSE / FINE)
 	for key: Vector3i in _coarse_dirty.keys():
-		if Time.get_ticks_usec() - start > budget_us:
+		if Budget.over(start, budget_us):
 			break
 		_coarse_dirty.erase(key)
 		var buf := PackedFloat32Array()

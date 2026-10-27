@@ -145,7 +145,7 @@ func _scan() -> void:
 			if not _filling.has(key):
 				_filling[key] = PackedVector3Array()
 			_filling[key].append(Vector3(p.x, x.origin.y + x.basis.y.y * Meshes.FLOWER_HEIGHT, p.z))
-		if Time.get_ticks_usec() - start > Budget.BUTTERFLY_SCAN_US:
+		if Budget.over(start, Budget.BUTTERFLY_SCAN_US):
 			return
 	if _next < pool.size():
 		return

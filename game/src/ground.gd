@@ -246,7 +246,7 @@ func _wear_unworn(budget_us := INF) -> bool:
 			while _worn_rows < m.row_ends.size():
 				m.wear(laid, _worn_rows, _worn_rows + 1)
 				_worn_rows += 1
-				if Time.get_ticks_usec() - start > budget_us:
+				if Budget.over(start, budget_us):
 					break
 			_areas[m] = _wearing
 			if _worn_rows < m.row_ends.size():
@@ -255,7 +255,7 @@ func _wear_unworn(budget_us := INF) -> bool:
 			_area_of(m, laid)
 		_unworn.pop_front()
 		_worn_rows = 0
-		if Time.get_ticks_usec() - start > budget_us:
+		if Budget.over(start, budget_us):
 			return _unworn.is_empty()
 	return true
 

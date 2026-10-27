@@ -31,6 +31,11 @@ const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
 ## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
 const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
+## Whether work spread over frames stops once its share of the frame's time is spent (`over`). A headless test steps
+## frames with no deadline to keep, and work cut off by the host's clock would leave what a frame holds hanging on how
+## loaded the host is.
+static var frame_deadline := true
+
 ## Main-thread time the Masonry spends a frame drawing chunks changed in place (a wall laid again), in microseconds:
 ## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls
 ## have about a millisecond to spare; the rest wait for the frames after.
@@ -442,3 +447,8 @@ static func decoration(d: Dictionary) -> Dictionary:
 	layout.build(d.style, 0, 4.8, d.mount, Decorations.span(d), d.get("drop", Vector2.ZERO))
 	var us := DECORATION_PIECE_US + DECORATION_SOLID_US * layout.parts.size()
 	return {"fitting": us / COSTS.fitting, "flower": float(layout.flowers.size())}
+
+
+## Whether work begun at `start_us` has spent `budget_us` of this frame's time.
+static func over(start_us: int, budget_us: float) -> bool:
+	return frame_deadline and Time.get_ticks_usec() - start_us > budget_us
