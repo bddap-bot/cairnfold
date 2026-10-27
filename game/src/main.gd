@@ -42,6 +42,8 @@ var replayer: Replayer
 
 
 func _ready() -> void:
+	if get_tree().current_scene == self:
+		FastCores.keep_this_thread()
 	args.merge(_parse(launch_args()))
 	if args.has("replay"):
 		var record := Replay.read(args.replay)
