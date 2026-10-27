@@ -39,11 +39,10 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	check(model != null, "%s imports" % label)
 	if model == null:
 		return
-	var joints := 0
+	var carried := 0
 	for chain: Dictionary in (model.get_meta("springs") as Dictionary).springs:
-		joints += (chain.joints as Array).size()
-	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s keeps %d spring joints, within the limit" % [label, joints])
-	print("%s: %d ms, %s" % [label, Time.get_ticks_msec() - started, model.get_meta("report")])
+		carried += (chain.joints as Array).size()
+	print("%s: %d ms, %d spring joints, %s" % [label, Time.get_ticks_msec() - started, carried, model.get_meta("report")])
 	var worn: Node3D = model.duplicate()
 	UnityAvatar.wearable(worn)
 	var vrm := ProjectSettings.globalize_path("user://corpus.vrm")
@@ -60,6 +59,12 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	check(scene != null, "%s reads back" % label)
 	if scene == null:
 		return
+	var held := scene.instantiate()
+	var joints := 0
+	for chain: Dictionary in (held.get_meta("springs") as Dictionary).springs:
+		joints += (chain.joints as Array).size()
+	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s simulates %d spring joints, within the limit" % [label, joints])
+	held.free()
 	var a := Avatar.open(scene, Color.WHITE, label)
 	root.add_child(a)
 	var eyes := Transform3D(Basis(), Vector3(0, 1.6, 0))

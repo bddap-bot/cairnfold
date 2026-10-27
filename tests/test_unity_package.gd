@@ -21,6 +21,8 @@ func _run() -> void:
 	_material_properties_read_either_layout()
 	_outside_constraints_place()
 	_a_branching_physbone_root_stays_still()
+	_a_physbone_ends_at_its_endpoint()
+	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	finish()
 
 
@@ -168,4 +170,42 @@ func _a_branching_physbone_root_stays_still() -> void:
 		return out
 	check(chains.call("0") == [["A", "A2"], ["B", "B2"]], "under Ignore the root is in no chain: %s" % [chains.call("0")])
 	check(chains.call("1") == [["B", "B2"], ["Root", "A", "A2"]], "under First the first branch turns the root: %s" % [chains.call("1")])
+	sk.free()
+
+
+## A PhysBone of one bone with an endpoint swings about that endpoint, a bone added past the leaf at its offset in the
+## leaf's axes (X mirrored) and scale; without one the bone has no chain.
+func _a_physbone_ends_at_its_endpoint() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Ear")
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}, "m_LocalScale": {"x": "2", "y": "2", "z": "2"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Ear"}},
+	}
+	objs[20] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "endpointPosition": {"x": "0", "y": "0", "z": "0"}}}
+	check(UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).is_empty(), "a bone with no endpoint has no chain")
+	objs[20].data.endpointPosition = {"x": "0.01", "y": "0.05", "z": "0"}
+	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).get("springs", [])
+	var joints: Array = springs[0].joints if springs.size() == 1 else []
+	check(joints.size() == 2 and joints[0].node == 0, "the bone's chain runs to its endpoint: %s" % [springs])
+	if joints.size() == 2:
+		check(sk.get_bone_parent(joints[1].node) == 0 and sk.get_bone_rest(joints[1].node).origin.is_equal_approx(Vector3(-0.02, 0.1, 0)), "the endpoint is a bone under it at its offset: %s" % sk.get_bone_rest(joints[1].node).origin)
+	sk.free()
+
+
+## A transform the skeleton lacks becomes a bone, with each ancestor up to the nearest that is one, placed by their local
+## transforms (X mirrored) and that bone's scale; one under no bone adds nothing.
+func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Chest")
+	var rests: Array[Transform3D] = [Transform3D(Basis.IDENTITY, Vector3(0, 1, 0))]
+	var objs := {}
+	for t: Array in [[10, "Chest", 0, "2"], [11, "Wing", 10, "1"], [12, "Wing Tip", 11, "1"], [13, "Loose", 0, "1"]]:
+		objs[t[0] + 100] = {"type": "GameObject", "data": {"m_Name": t[1]}}
+		objs[t[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(t[0] + 100)}, "m_Father": {"fileID": str(t[2])}, "m_LocalPosition": {"x": "0.1", "y": "0", "z": "0"}, "m_LocalScale": {"x": t[3], "y": t[3], "z": t[3]}}}
+	var tip := UnityAvatar._as_bone(objs, 12, sk, rests)
+	var wing := sk.find_bone("Wing")
+	check(wing == 1 and tip == 2 and sk.get_bone_name(tip) == "Wing Tip" and sk.get_bone_parent(tip) == wing and sk.get_bone_parent(wing) == 0, "the transform and its ancestor are bones under the chest")
+	check(rests.size() == 3 and rests[tip].origin.is_equal_approx(Vector3(-0.4, 1, 0)), "each sits where Unity places it, scaled as the chest is: %s" % [rests])
+	check(UnityAvatar._as_bone(objs, 13, sk, rests) == -1 and sk.get_bone_count() == 3, "a transform under no bone adds none")
 	sk.free()

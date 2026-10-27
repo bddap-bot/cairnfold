@@ -189,7 +189,6 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		root.free()
 		return null
 	var springs := _springs(objs, found.transform, sk, named, k, report)
-	_keep_longest(springs, report)
 	var human := {}
 	var bone_path := func(b: int) -> NodePath: return NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(b)])
 	for i: int in named:
@@ -448,6 +447,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var skipped := []
 	var tiled := {}
 	var ranges := []
+	var humanoid_bones := sk.get_bone_count()
 	for r: Array in renderers:
 		var o: Dictionary = objs[r[0]]
 		var go_name := str(objs[r[1]].data.get("m_Name", ""))
@@ -457,7 +457,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		if mi == null or mi.mesh == null:
 			skipped.append(go_name)
 			continue
-		var place := _binder(mi, sk, rests, scale, objs, r[0], model.objects.has(_ref(objs[r[0]].data.get("m_GameObject"))))
+		var place := _binder(mi, sk, rests, scale, objs, r[0], model.objects.has(_ref(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
 		if place.is_empty():
 			skipped.append(go_name)
 			continue
@@ -857,12 +857,13 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 
 
 ## How a source mesh binds to the output skeleton: {"binds": [[output bone, bind pose]...], "remap": source bind index
-## to output bind index within the mesh}. A skinned mesh's bones bind by name; a bone the output lacks binds to its
-## nearest named ancestor in the avatar's Unity transforms, placed as they place it, or failing that in its own
-## skeleton. An unskinned mesh of the humanoid's model binds wholly to the bone it hangs from; one of another model is
-## placed by the avatar's Unity transforms. Each bind keeps the vertex where its source placed it at rest, in a model
+## to output bind index within the mesh}. A skinned mesh's bones bind by name; a bone the humanoid's model lacks is
+## added to the output from the avatar's Unity transforms, past `humanoid_bones`, and binds as they place it, or failing
+## that binds to its nearest named ancestor in its own skeleton. An
+## unskinned mesh of the humanoid's model binds wholly to the bone it hangs from; one of another model is added as a
+## bone from the avatar's Unity transforms. Each bind keeps the vertex where its source placed it at rest, in a model
 ## scaled by `scale`.
-static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D], scale: float, objs: Dictionary, renderer: int, own_model: bool) -> Dictionary:
+static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D], scale: float, objs: Dictionary, renderer: int, own_model: bool, humanoid_bones: int) -> Dictionary:
 	var scaled := Transform3D.IDENTITY.scaled(Vector3.ONE * scale)
 	var target := func(src: Skeleton3D, b: int) -> int:
 		while b >= 0:
@@ -885,17 +886,18 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 				b = src.find_bone(mi.skin.get_bind_name(i))
 			var name := src.get_bone_name(maxi(b, 0))
 			var t := _find_bone(sk, name)
-			var chain := _to_bone(objs, unity.get(name, 0), sk) if t < 0 and unity.has(name) else []
-			if not chain.is_empty():
-				binds.append([chain[0], chain[1] * mi.skin.get_bind_pose(i)])
-				continue
+			if unity.has(name) and (t < 0 or t >= humanoid_bones):
+				t = t if t >= 0 else _as_bone(objs, unity[name], sk, rests)
+				if t >= 0:
+					binds.append([t, mi.skin.get_bind_pose(i)])
+					continue
 			t = target.call(src, b)
 			binds.append([t, rests[t].affine_inverse() * at * src.get_bone_global_rest(maxi(b, 0)) * mi.skin.get_bind_pose(i)])
 		return {"binds": binds, "remap": func(i: int) -> int: return i}
 	if not own_model:
-		var chain := _to_bone(objs, _transform(objs, _ref(objs[renderer].data.get("m_GameObject"))), sk)
-		if not chain.is_empty():
-			return {"binds": [chain], "remap": func(_i: int) -> int: return 0}
+		var b := _as_bone(objs, _transform(objs, _ref(objs[renderer].data.get("m_GameObject"))), sk, rests)
+		if b >= 0:
+			return {"binds": [[b, Transform3D.IDENTITY]], "remap": func(_i: int) -> int: return 0}
 	var n := mi.get_parent()
 	var bone := -1
 	while n != null and bone < 0:
@@ -906,21 +908,37 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 	return {"binds": [[bone, rests[bone].affine_inverse() * scaled * _in_model(mi)]], "remap": func(_i: int) -> int: return 0}
 
 
-## [output bone, transform] for a Unity transform: its nearest ancestor (itself excluded) that is an output bone, and
-## the transform from that bone to it, by the transforms' local positions, rotations and scales in Godot's axes (X
-## mirrored) and the bone's own scale in the avatar. Empty if no ancestor is a bone.
-static func _to_bone(objs: Dictionary, t: int, sk: Skeleton3D) -> Array:
-	var rel := Transform3D.IDENTITY
+## A Unity transform added to the skeleton as a bone, with each ancestor up to its nearest one (itself excluded) that is
+## a bone, placed by the transforms' local positions, rotations and scales in Godot's axes (X mirrored) and that bone's
+## own scale in the avatar, so a PhysBone over them turns what they carry; -1, adding none, if no ancestor is a bone.
+static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Transform3D]) -> int:
+	var name_of := func(at: int) -> String:
+		return str(objs.get(_ref(objs.get(at, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", ""))
+	var path := []
 	var seen := {}
-	while objs.has(t) and not seen.has(t):
+	var b := -1
+	while objs.has(t) and not seen.has(t) and b < 0:
 		seen[t] = true
-		rel = _local(objs[t].data) * rel
+		path.append(t)
 		t = _ref(objs[t].data.get("m_Father"))
-		var go := _ref(objs.get(t, {}).get("data", {}).get("m_GameObject"))
-		var b := _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
-		if b >= 0:
-			return [b, Transform3D.IDENTITY.scaled(Vector3.ONE * _world_scale(objs, t)) * rel]
-	return []
+		b = _find_bone(sk, name_of.call(t))
+	if b < 0:
+		return -1
+	var rest := Transform3D.IDENTITY.scaled(Vector3.ONE * _world_scale(objs, t))
+	for i in range(path.size() - 1, -1, -1):
+		rest = rest * _local(objs[path[i]].data)
+		var name: String = name_of.call(path[i]).replace(":", "_").replace("/", "_").validate_node_name()
+		while sk.find_bone(name) >= 0:
+			name += "_"
+		var added := sk.get_bone_count()
+		sk.add_bone(name)
+		sk.set_bone_parent(added, b)
+		sk.set_bone_rest(added, rest)
+		sk.reset_bone_pose(added)
+		rests.append(rests[b] * rest)
+		rest = Transform3D.IDENTITY
+		b = added
+	return b
 
 
 static func _local(d: Dictionary) -> Transform3D:
@@ -932,22 +950,6 @@ static func _local(d: Dictionary) -> Transform3D:
 	var rot := Quaternion(f.call(q, "x", 0.0), -f.call(q, "y", 0.0), -f.call(q, "z", 0.0), f.call(q, "w", 1.0))
 	rot = rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
 	return Transform3D(Basis(rot).scaled_local(Vector3(f.call(sc, "x", 1.0), f.call(sc, "y", 1.0), f.call(sc, "z", 1.0))), Vector3(-f.call(p, "x", 0.0), f.call(p, "y", 0.0), f.call(p, "z", 0.0)))
-
-
-## Keeps the longest spring chains within Avatar.MAX_SPRING_JOINTS: each joint is simulated on the CPU every frame.
-static func _keep_longest(springs: Dictionary, report: Dictionary) -> void:
-	if springs.is_empty():
-		return
-	var longest: Array = springs.springs.duplicate()
-	longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
-	var kept := []
-	var joints := 0
-	for chain: Dictionary in longest:
-		if joints + chain.joints.size() <= Avatar.MAX_SPRING_JOINTS:
-			kept.append(chain)
-			joints += chain.joints.size()
-	report["spring chains kept within the joint limit"] = "%d of %d" % [kept.size(), longest.size()]
-	springs.springs = kept
 
 
 ## The bones the Avatar definition maps, by index: [humanoid (VRM 1.0) name, the Unity bone it is]; empty, with the
@@ -984,10 +986,12 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 	return Vector3(0, 0.06, 0)
 
 
-## The avatar's PhysBones as VRM spring chains, one per path from a PhysBone's root to each leaf of its bones, and its
-## PhysBone colliders as VRM colliders. A bone the output skeleton lacks ends its chain. A root with several children
-## stays still, as PhysBones leave it unless its multiChildType is First, so its chains start at its children: a VRM
-## spring turns its first joint, which would swing every branch under that root.
+## The avatar's PhysBones as VRM spring chains, one per path from a PhysBone's root to each leaf of its bones and on to
+## the endpoint past that leaf where the PhysBone sets one, a bone added to the skeleton there: a VRM spring ends at a
+## node, and a PhysBone of one bone swings about its endpoint alone. Its PhysBone colliders become VRM colliders. A bone
+## the output skeleton lacks ends its chain. A root with several children stays still, as PhysBones leave it unless its
+## multiChildType is First, so its chains start at its children: a VRM spring turns its first joint, which would swing
+## every branch under that root.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary) -> Dictionary:
 	var bone_of := func(t: int) -> int:
 		return _find_bone(sk, str(objs.get(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")))
@@ -1038,6 +1042,8 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		for t: Variant in Prefabs._list(d.get("ignoreTransforms")):
 			ignored[_ref(t)] = true
 		var joint := {"stiffness": 4.0 * str(d.get("pull", "0.2")).to_float() * (1.0 + str(d.get("stiffness", "0")).to_float()), "dragForce": clampf(1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": str(d.get("gravity", "0")).to_float(), "gravityDir": [0, -1, 0], "hitRadius": str(d.get("radius", "0")).to_float() * k}
+		var e: Variant = d.get("endpointPosition")
+		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var groups := []
 		for c: Variant in Prefabs._list(d.get("colliders")):
 			if collider_index.has(_ref(c)):
@@ -1062,6 +1068,10 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				continue
 			var kids: Array = kids_of.call(item[0])
 			if kids.is_empty():
+				if not joints.is_empty() and endpoint != Vector3.ZERO:
+					var j := joint.duplicate()
+					j["node"] = _endpoint(sk, bone, endpoint * _world_scale(objs, item[0]))
+					joints.append(j)
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups})
 				continue
@@ -1082,6 +1092,19 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			spring["colliderGroups"] = [g]
 		out_springs.append(spring)
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups}
+
+
+## A bone added under `leaf` at `offset` in its axes.
+static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:
+	var name := "%s endpoint" % sk.get_bone_name(leaf)
+	while sk.find_bone(name) >= 0:
+		name += "_"
+	var b := sk.get_bone_count()
+	sk.add_bone(name)
+	sk.set_bone_parent(b, leaf)
+	sk.set_bone_rest(b, Transform3D(Basis.IDENTITY, offset))
+	sk.reset_bone_pose(b)
+	return b
 
 
 ## The kinds of component under the avatar this converter does not translate, with how many of each.

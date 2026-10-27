@@ -26,6 +26,7 @@ func _run() -> void:
 			_arms_join_shoulders_to_hands(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
 	_both_versions_stand_alike()
+	_simulates_the_longest_chains_within_the_limit()
 	_unity_package_converts()
 	for i in Avatar.BUILT_IN.size():
 		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
@@ -358,6 +359,20 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 	check((a._model.get_meta("eyes") as Vector3).is_equal_approx(Vector3(0, 0.12, 0.09)), "built-in %d carries its eye offset in the file" % i)
 	check(a._eyes.size() == 2 and a._model.get_meta("look").type == Vrm.BONE, "built-in %d looks by its eye bones" % i)
 	a.free()
+
+
+## A file carrying more spring joints than an avatar simulates keeps its longest chains within the limit.
+func _simulates_the_longest_chains_within_the_limit() -> void:
+	var chain := func(length: int) -> Dictionary:
+		var joints := []
+		joints.resize(length)
+		return {"joints": joints}
+	var springs := {"springs": [chain.call(3), chain.call(Avatar.MAX_SPRING_JOINTS - 2), chain.call(2), chain.call(Avatar.MAX_SPRING_JOINTS)]}
+	Avatar._keep_longest(springs)
+	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS], "the longest chain fills the limit and the rest are not simulated")
+	springs = {"springs": [chain.call(3), chain.call(Avatar.MAX_SPRING_JOINTS - 2), chain.call(2)]}
+	Avatar._keep_longest(springs)
+	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
 
 
 func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:

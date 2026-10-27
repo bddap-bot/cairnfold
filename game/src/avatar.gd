@@ -18,9 +18,8 @@ const MAX_TRIANGLES := 20000
 ## Draw calls: one a material of each skinned mesh (docs/multiplayer.md, "Skinned bodies").
 const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
-## Spring joints an imported avatar keeps: every joint is simulated each frame on the CPU, about 0.05 ms a figure on a
-## Quest 2, and four figures of 59 hold its frame where four of 139 drop it to 22 frames a second
-## (scripts/unity_avatar.gd keeps the longest chains within it).
+## Spring joints an avatar simulates, whatever its file carries: every joint is simulated each frame on the CPU, about
+## 0.05 ms a figure on a Quest 2, and four figures of 59 hold its frame where four of 139 drop it to 22 frames a second.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
@@ -131,13 +130,14 @@ static func read(bytes: PackedByteArray) -> PackedScene:
 ## over the skeleton holding the hips, and its root's avatar data: "humanoid", each humanoid bone (Vrm.BONES) and
 ## "spring_N" for each node N the "springs" definition names, to its bone as the NodePath "skeleton:bone"; "eyes",
 ## where the eyes sit from the head bone; "forward", the way the model faces; "look", how it points its eyes (Vrm);
-## and "springs" (Avatar Workshop's spring definition). DATA fills what the importer left unsaid. Null if the hips,
+## and "springs" (Avatar Workshop's spring definition), its longest chains within MAX_SPRING_JOINTS. DATA fills what the importer left unsaid. Null if the hips,
 ## head and hands are not bones of one skeleton, or it is still too heavy; frees `root` either way.
 static func model(root: Node3D) -> PackedScene:
 	for key: String in DATA:
 		if not root.has_meta(key):
 			root.set_meta(key, DATA[key].duplicate(true) if DATA[key] is Dictionary else DATA[key])
 	_on_one_skeleton(root)
+	_keep_longest(root.get_meta("springs"))
 	var bones: Dictionary = root.get_meta("humanoid")
 	var surfaces := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
@@ -151,6 +151,19 @@ static func model(root: Node3D) -> PackedScene:
 	scene.pack(root)
 	root.free()
 	return scene
+
+
+## Keeps the longest spring chains within MAX_SPRING_JOINTS.
+static func _keep_longest(springs: Dictionary) -> void:
+	var longest: Array = springs.springs.duplicate()
+	longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
+	var kept := []
+	var joints := 0
+	for chain: Dictionary in longest:
+		if joints + chain.joints.size() <= MAX_SPRING_JOINTS:
+			kept.append(chain)
+			joints += chain.joints.size()
+	springs.springs = kept
 
 
 ## Keeps the humanoid and spring bones that are bones of the skeleton holding the hips: a pose moves only those.

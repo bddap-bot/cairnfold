@@ -204,7 +204,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the humanoid bones, which keep their Unity names. Unity suffixes a transform named like another
   in the model (`head 1`) and Godot's importer does not, so a mapped name the skeleton lacks
   matches the bone without the suffix, under the bone its Unity parent is. A mesh from another
-  model binds by bone name, or hangs where the avatar's Unity transforms place it.
+  model binds by bone name; a bone the humanoid's model lacks, and an unskinned mesh of another
+  model, become bones where the avatar's Unity transforms place them.
 
   Every renderer merges into one mesh over one skin, its blend shapes kept (those of one name in
   several renderers one shape) and set to their saved weights, a surface another renderer's
@@ -215,10 +216,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   cutoff, or blended) take a cell of one 2048 px atlas. A renderer's material slots follow the
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
-  spring chains, one per path from a PhysBone's root to each leaf, the longest kept within 60
-  joints (each one costs the Quest 2's CPU every frame), with pull, spring,
-  stiffness, gravity and radius mapped approximately and limits and grabbing dropped, and
-  their sphere and capsule colliders spring colliders. The descriptor's view position places
+  spring chains, one per path from a PhysBone's root to each leaf and on to its endpoint, with
+  pull, spring, stiffness, gravity and radius mapped approximately and limits and grabbing
+  dropped, and their sphere and capsule colliders spring colliders. The file keeps every chain;
+  an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
+  the Quest 2's CPU every frame). The descriptor's view position places
   the eyes. The importer prints what it kept and dropped: Animator controllers, expression
   menus, visemes, Contacts, constraints, particles and scripts are not translated. A renderer
   that a constraint places from outside the avatar (a follower, a prop left in the world) is not
