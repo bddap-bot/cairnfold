@@ -1,0 +1,405 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "pond": {
+   "p50": 13.9309997558594,
+   "p99": 24.7490005493164,
+   "late": 8,
+   "draws": 47,
+   "prims": 143853,
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 4.52,
+   "timewarp_ms": 1.15
+  },
+  "bare/under": {
+   "p50": 13.8990001678467,
+   "p99": 16.8899993896484,
+   "late": 2,
+   "draws": 27,
+   "prims": 117886,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 31.312,
+     "late": 2
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 4.06,
+   "timewarp_ms": 1.16
+  },
+  "bare/above": {
+   "p50": 13.8850002288818,
+   "p99": 15.7959995269775,
+   "late": 0,
+   "draws": 47,
+   "prims": 130604,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.008,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 6.31,
+   "timewarp_ms": 1.15
+  },
+  "bare/land-above": {
+   "p50": 13.9060001373291,
+   "p99": 15.581000328064,
+   "late": 0,
+   "draws": 46,
+   "prims": 136787,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.245,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 5.62,
+   "timewarp_ms": 1.14
+  },
+  "bare/land-low": {
+   "p50": 13.9079999923706,
+   "p99": 15.3109998703003,
+   "late": 0,
+   "draws": 41,
+   "prims": 129819,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 14.911,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 5.4,
+   "timewarp_ms": 1.16
+  },
+  "bare/shore": {
+   "p50": 13.9209995269775,
+   "p99": 15.6199998855591,
+   "late": 0,
+   "draws": 50,
+   "prims": 139765,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.921,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 6.16,
+   "timewarp_ms": 1.15
+  },
+  "bare/bloom-shore": {
+   "p50": 13.9119997024536,
+   "p99": 15.2620000839233,
+   "late": 0,
+   "draws": 50,
+   "prims": 148931,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.613,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.617,
+   "gpu_ms": 5.95,
+   "timewarp_ms": 1.14
+  },
+  "planting": {
+   "p50": 13.9300003051758,
+   "p99": 34.0139999389648,
+   "late": 18,
+   "draws": 121,
+   "prims": 309345,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.221,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 16.486,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.765,
+     "late": 0
+    },
+    {
+     "frames": 37,
+     "max": 14.959,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.931,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.408,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.781,
+   "gpu_ms": 5.94,
+   "timewarp_ms": 1.16
+  },
+  "shallows": {
+   "p50": 13.9160003662109,
+   "p99": 16.1679992675781,
+   "late": 0,
+   "draws": 124,
+   "prims": 326572,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.151,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.523,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.587,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 4.73,
+   "timewarp_ms": 1.17
+  },
+  "weed-full": {
+   "p50": 13.8850002288818,
+   "p99": 15.4589996337891,
+   "late": 2,
+   "draws": 47,
+   "prims": 150495,
+   "stalls": [
+    {
+     "ms": 897.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 6.33,
+   "timewarp_ms": 1.17
+  },
+  "weed-full/under": {
+   "p50": 14.0319995880127,
+   "p99": 19.2059993743896,
+   "late": 1,
+   "draws": 104,
+   "prims": 419704,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.672,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 8.33,
+   "timewarp_ms": 1.17
+  },
+  "weed-full/above": {
+   "p50": 13.9289999008179,
+   "p99": 18.2000007629395,
+   "late": 1,
+   "draws": 117,
+   "prims": 427468,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 14.893,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 9.58,
+   "timewarp_ms": 1.16
+  },
+  "land-full": {
+   "p50": 13.9350004196167,
+   "p99": 15.2919998168945,
+   "late": 2,
+   "draws": 59,
+   "prims": 213434,
+   "stalls": [
+    {
+     "ms": 867.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 9.51,
+   "timewarp_ms": 1.16
+  },
+  "land-full/above": {
+   "p50": 13.9370002746582,
+   "p99": 21.3470001220703,
+   "late": 5,
+   "draws": 59,
+   "prims": 220217,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 14.995,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 10.94,
+   "timewarp_ms": 1.15
+  },
+  "land-full/low": {
+   "p50": 13.9320001602173,
+   "p99": 15.5930004119873,
+   "late": 3,
+   "draws": 91,
+   "prims": 394956,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.772,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 9.68,
+   "timewarp_ms": 1.14
+  },
+  "iris-full": {
+   "p50": 14.0069999694824,
+   "p99": 15.5260000228882,
+   "late": 3,
+   "draws": 45,
+   "prims": 200326,
+   "stalls": [
+    {
+     "ms": 266.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 9.65,
+   "timewarp_ms": 1.15
+  },
+  "iris-full/shore": {
+   "p50": 13.8780002593994,
+   "p99": 26.6319999694824,
+   "late": 2,
+   "draws": 119,
+   "prims": 599678,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.315,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 10.9,
+   "timewarp_ms": 1.15
+  },
+  "bloom-land-full": {
+   "p50": 13.8909997940063,
+   "p99": 17.1700000762939,
+   "late": 2,
+   "draws": 56,
+   "prims": 287749,
+   "stalls": [
+    {
+     "ms": 304.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 10.89,
+   "timewarp_ms": 1.16
+  },
+  "bloom-land-full/shore": {
+   "p50": 14.6499996185303,
+   "p99": 29.2509994506836,
+   "late": 112,
+   "draws": 120,
+   "prims": 619578,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 22.164,
+     "late": 1
+    }
+   ],
+   "step": 15,
+   "fill": 0.808,
+   "gpu_ms": 12.34,
+   "timewarp_ms": 1.17
+  }
+ },
+ "prices": {
+  "grass": {
+   "unit": "grass",
+   "us": 0.591
+  },
+  "pondweed": {
+   "unit": "grass",
+   "us": 0.356
+  },
+  "irises": {
+   "unit": "flower",
+   "us": 1.185
+  },
+  "flowers from the shore": {
+   "unit": "flower",
+   "us": 1.597
+  }
+ }
+}

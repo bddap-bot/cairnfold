@@ -9,7 +9,8 @@ so a drift through the run cancels. Each pair's difference is one draw; the mean
 and that per thing are added to the record under "pairs" and printed.
 
 With --price, each FULL=EMPTY names a phase holding COUNT of KIND and the same view without them. The price is the
-most any pair gives a unit, in microseconds; it is added to the record under "prices", KIND's entry naming the Budget
+most any pair gives a unit, in microseconds, and a phase whose median frame took over 1.5 refresh periods, the frame
+rate halved, is refused: its GPU time is not the scene's (scripts/costs.py leaves such views out too). It is added to the record under "prices", KIND's entry naming the Budget
 unit it is charged as, and tests/test_prices.py holds every unit's charge to the latest price recorded for it."""
 import json
 import math
@@ -59,6 +60,9 @@ def price(d: dict, kind: str, unit: str, count: str, *pairs: str) -> None:
     each = {}
     for pair in pairs:
         full, empty = pair.split("=")
+        for name in (full, empty):
+            if d["phases"][name]["p50"] > 1.5 * d["budget_gpu_ms"]:
+                sys.exit(f"paired: {name} ran below the refresh rate ({d['phases'][name]['p50']:.1f} ms a frame)")
         each[pair] = (gpu[full] - gpu[empty]) * 1000.0 / float(count)
         print(f"{full:24} over {empty:20} {each[pair]:.3f} µs a {unit}")
     d.setdefault("prices", {})[kind] = {"unit": unit, "us": round(max(each.values()), 3)}

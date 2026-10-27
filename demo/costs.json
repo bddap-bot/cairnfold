@@ -90,7 +90,7 @@
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "grass-ground"},
   {"op": "bare"},
-  {"op": "fill_flora", "at": [8, -2], "radius": 1.8, "pools": ["grass"]},
+  {"op": "fill_flora", "at": [8, -2], "radius": 1.8, "pools": ["grass"], "count": 9000},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "sweep/grass-dense"},
   {"op": "units"},

@@ -80,7 +80,7 @@
   {"op": "wait", "seconds": 8},
   {"op": "capture", "name": "05-full-above"},
   {"op": "label", "name": "land-full"},
-  {"op": "fill_flora", "at": [8, -2], "radius": 1.8, "pools": ["grass"]},
+  {"op": "fill_flora", "at": [8, -2], "radius": 1.8, "pools": ["grass"], "count": 9000},
   {"op": "wait", "seconds": 2},
   {"op": "label", "name": "land-full/above"},
   {"op": "view", "eye": [8, 1.65, 2.5], "at": [8, -0.4, -2]},

@@ -1,0 +1,131 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "base/aerial": {
+   "p50": 13.9370002746582,
+   "p99": 15.8070001602173,
+   "late": 0,
+   "draws": 46,
+   "prims": 124948,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.242,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 5.53,
+   "timewarp_ms": 1.18
+  },
+  "base/ground": {
+   "p50": 13.918999671936,
+   "p99": 15.5419998168945,
+   "late": 0,
+   "draws": 42,
+   "prims": 130158,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.445,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 5.26,
+   "timewarp_ms": 1.16
+  },
+  "base/near": {
+   "p50": 13.9309997558594,
+   "p99": 15.3299999237061,
+   "late": 0,
+   "draws": 39,
+   "prims": 125732,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.005,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 5.17,
+   "timewarp_ms": 1.17
+  },
+  "sweep/g2000/near": {
+   "p50": 13.8999996185303,
+   "p99": 15.1969995498657,
+   "late": 0,
+   "draws": 41,
+   "prims": 135732,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.37,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 6.31,
+   "timewarp_ms": 1.14
+  },
+  "sweep/g3000/near": {
+   "p50": 13.9390001296997,
+   "p99": 15.6709995269775,
+   "late": 0,
+   "draws": 43,
+   "prims": 144924,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.379,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 6.9,
+   "timewarp_ms": 1.16
+  },
+  "sweep/g4000/near": {
+   "p50": 13.9829998016357,
+   "p99": 15.5059995651245,
+   "late": 0,
+   "draws": 43,
+   "prims": 149924,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.678,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 7.27,
+   "timewarp_ms": 1.16
+  },
+  "sweep/g6000/near": {
+   "p50": 13.9580001831055,
+   "p99": 15.6110000610352,
+   "late": 0,
+   "draws": 43,
+   "prims": 159924,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.906,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.0,
+   "gpu_ms": 8.24,
+   "timewarp_ms": 1.15
+  }
+ }
+}
