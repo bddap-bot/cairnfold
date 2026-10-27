@@ -203,6 +203,7 @@ func _ready() -> void:
 	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry, look)
 	if args.has("quality"):
 		quality.pin = int(args.quality)
+	quality.covered = rig.covered
 	add_child(quality)
 	metrics.quality = quality
 	easels.quality = quality

@@ -4704,9 +4704,7 @@ to the full layer instead of hiding; the sun has a twin on the full layer, a chi
 it is. The grass, flower and ivy shaders shrink nothing for a camera seeing the full layer
 (`CAMERA_VISIBLE_LAYERS`). Which blob mesh the foliage draws, which both views share, is set for
 the photo's one frame only, after every script has run (`RenderingServer.frame_pre_draw`), and put
-back after it draws; the headset sees that one frame drawn so too. The shadow atlas, which the engine
-also keeps one of for every view, stays as the eyes have it: growing it to 8192 for a shot allocated
-a new one each time and back again, 90 to 120 ms of a Quest 2's frame.
+back after it draws; the headset sees that one frame drawn so too.
 
 What it costs: nothing until a hand first holds the camera. Its screen is then a second view of
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
@@ -4720,11 +4718,13 @@ making the photo's 8x MSAA view and its `PhotoTool.PHOTO_SHADOWS` atlas took 60 
 memory that the engine's own code was paged back in on the main thread behind the photo's writes (a 148 ms frame).
 So a photo draws a small warm view first, at preview size, until its pipelines are ready; then the player's view fades
 to black over `PhotoTool.PHOTO_FADE` (`Rig.cover`: black is never brighter than what it covers), holds while the view
-and atlas are made, the photo drawn and read back in strips of `PhotoTool.READ_BYTES` and any canvas in it flattened,
-and fades back. The view is let go once the camera's screen stops showing the shot. Converting, encoding and writing
-the PNGs runs on a worker thread, a MiB at a time to flash (`Main.SYNC_BYTES`). Measured on a Quest 2 at 72 Hz with
-`demo/photo-shots.json`: no frame over 50 ms while the view showed, and the view black for 490 to 540 ms for a
-photo of a canvas, 320 to 350 ms for a selfie.
+and atlas are made, the photo drawn and read back whole and any canvas in it flattened, its two views read back
+together, and fades back one frame after the reads land: that frame copies them out of the GPU's memory, 50 to 70 ms.
+The view is let go once the camera's screen stops showing the shot. Converting, encoding and writing
+the PNGs runs on a worker thread, a MiB at a time to flash (`Main.SYNC_BYTES`). No frame drawn under the cover moves
+the quality governor (`Quality.covered`): a missed refresh there had stepped the garden down two rungs. Measured on a
+Quest 2 at 72 Hz with `demo/photo-shots.json`: no frame over 50 ms while the view showed, and the view black, from the
+end of the fade out to the fade back, for 220 to 280 ms for a photo of a canvas and 130 to 150 ms for a selfie.
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an
 iTXt chunk keyed `cairnfold` holds JSON with the lens's position, rotation and field of view, the

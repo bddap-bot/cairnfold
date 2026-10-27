@@ -57,6 +57,7 @@ func _a_cover_fades_to_black_holds_and_fades_back() -> void:
 	check(not rig.cover(PhotoTool.PHOTO_FADE), "a cover is not black on the frame it starts")
 	await frames(6)
 	check(rig.cover(PhotoTool.PHOTO_FADE) and dim.call() == 1.0, "within %.2f s it is black" % PhotoTool.PHOTO_FADE)
+	check(main.quality.covered.call(), "and the quality governor judges none of its frames")
 	await frames(30)
 	check(dim.call() == 1.0, "and holds black, %.2f" % dim.call())
 	rig.uncover()

@@ -1,0 +1,285 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "first shot": {
+   "p50": 13.9090003967285,
+   "p99": 16.798999786377,
+   "late": 7,
+   "draws": 168,
+   "prims": 636399,
+   "stalls": [
+    {
+     "ms": 57.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 61.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 12,
+   "fill": 0.989,
+   "mem_mb": {
+    "buffers": 44.9,
+    "textures": 275.1,
+    "video": 383.2
+   },
+   "gpu_ms": 10.42,
+   "timewarp_ms": 1.18
+  },
+  "camera shots": {
+   "p50": 13.9379997253418,
+   "p99": 85.3740005493164,
+   "late": 76,
+   "draws": 254,
+   "prims": 1235203,
+   "stalls": [
+    {
+     "ms": 120.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 57.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 87.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 61.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 91.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 64.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 57.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 85.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 65.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 62.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 63.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 69.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 122.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 59.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 69.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 12,
+   "fill": 0.989,
+   "mem_mb": {
+    "buffers": 45.9,
+    "textures": 288.6,
+    "video": 398.5
+   },
+   "gpu_ms": 10.4,
+   "timewarp_ms": 1.18
+  },
+  "selfie first": {
+   "p50": 14.0900001525879,
+   "p99": 41.5750007629395,
+   "late": 6,
+   "draws": 197,
+   "prims": 1016417,
+   "stalls": [
+    {
+     "ms": 63.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.989,
+   "mem_mb": {
+    "buffers": 45.9,
+    "textures": 222.3,
+    "video": 332.3
+   },
+   "gpu_ms": 10.21,
+   "timewarp_ms": 1.17
+  },
+  "selfie shots": {
+   "p50": 14.0120000839233,
+   "p99": 45.7970008850098,
+   "late": 36,
+   "draws": 193,
+   "prims": 1016403,
+   "step": 15,
+   "fill": 0.989,
+   "mem_mb": {
+    "buffers": 45.9,
+    "textures": 254.6,
+    "video": 364.5
+   },
+   "gpu_ms": 8.93,
+   "timewarp_ms": 1.17
+  },
+  "idle": {
+   "p50": 13.9429998397827,
+   "p99": 16.5629997253418,
+   "late": 1,
+   "draws": 131,
+   "prims": 283616,
+   "stalls": [
+    {
+     "ms": 87.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.989,
+   "mem_mb": {
+    "buffers": 45.9,
+    "textures": 222.4,
+    "video": 332.3
+   },
+   "gpu_ms": 8.88,
+   "timewarp_ms": 1.17
+  }
+ }
+}

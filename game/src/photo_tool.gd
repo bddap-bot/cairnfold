@@ -53,7 +53,6 @@ const SUBJECT := 0.25
 ## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
 ## holds up play, and a dropped frame's time goes to the next one.
 const VIDEO_QUEUE := 6
-const READ_BYTES := 4 << 20
 
 var rig: Rig
 var folder := Main.photos_folder()
@@ -267,7 +266,7 @@ func render_screen(at: Transform3D) -> Image:
 	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 	_aim(vp, at, FOV, Quality.VIEW_MASK)
 	await _draw_complete(vp)
-	var img := await _read(vp)
+	var img: Image = (await _read([vp])).pop_front()
 	vp.queue_free()
 	return img
 
@@ -290,15 +289,17 @@ func shoot(hand: Hand) -> String:
 			var painting := await _flatten(c)
 			if not painting.is_empty():
 				paintings.append([subject[0]] + painting)
+	var path := _reserve("png")
+	var about: Dictionary = around.about.duplicate()
+	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
+		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
+	# The frame the reads landed on copied them out of the GPU's memory, 50-70 ms on a Quest 2: it ends under the cover.
+	await get_tree().process_frame
 	rig.uncover()
 	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at))
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
-	var path := _reserve("png")
-	var about: Dictionary = around.about.duplicate()
-	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
-		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
 	var saved := await save(img, path, about, around.world)
 	_reserved.erase(path)
 	if not _report(path, saved):
@@ -353,12 +354,10 @@ func _flatten(canvas: Canvas) -> Array[Image]:
 	for vp in views:
 		add_child(vp)
 	await RenderingServer.frame_post_draw
-	var out: Array[Image] = []
+	var out := await _read(views)
 	for vp in views:
-		if is_instance_valid(canvas) and canvas.is_inside_tree():
-			out.append(await _read(vp))
 		vp.queue_free()
-	return out if out.size() == views.size() else []
+	return out if is_instance_valid(canvas) and canvas.is_inside_tree() and out.size() == views.size() else []
 
 
 ## How much of the frame of a photo from `at` a surface `metres` large in `frame` (Easel.canvas_frame) covers, as a
@@ -580,7 +579,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 		var view := _view_viewport()
 		_aim(view, at, fov, mask)
 		await _draw_complete(view)
-		var seen := await _read(view)
+		var seen: Image = (await _read([view])).pop_front()
 		_busy = false
 		return seen
 	if _photo == null:
@@ -602,8 +601,8 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	RenderingServer.directional_shadow_atlas_set_size(PHOTO_SHADOWS, bits)
 	_aim(_photo, at, fov, mask)
 	await _draw_complete(_photo, true)
-	var img := await _read(_photo)
 	RenderingServer.directional_shadow_atlas_set_size(atlas, bits)
+	var img: Image = (await _read([_photo])).pop_front()
 	_busy = false
 	return img
 
@@ -632,33 +631,27 @@ func _draw_complete(vp: SubViewport, finest := false) -> void:
 			return
 
 
-## What `vp` last drew. The pixels come back from the GPU a frame or two later instead of stalling the frame that asked,
-## READ_BYTES of rows at a time: the engine copies a read out of the GPU's memory on the frame it lands, and a photo's
-## 30 MB in one piece held a Quest 2's frame 50-70 ms.
-func _read(vp: SubViewport) -> Image:
+## What each of `views` last drew, read back together. The pixels come back from the GPU a frame or two later instead
+## of stalling the frame that asked; the frame they land on copies them out of the GPU's memory, 50-70 ms on a Quest 2
+## for a photo's 30 MB, which the cover hides.
+func _read(views: Array[SubViewport]) -> Array[Image]:
 	var rd := RenderingServer.get_rendering_device()
-	var tex := RenderingServer.texture_get_rd_texture(vp.get_texture().get_rid())
-	var fmt := rd.texture_get_format(tex)
-	if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
-		push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)
-		return null
-	var strip := RDTextureFormat.new()
-	strip.format = fmt.format
-	strip.width = fmt.width
-	strip.height = clampi(READ_BYTES / (fmt.width * 4), 1, fmt.height)
-	strip.usage_bits = RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
-	var rows := rd.texture_create(strip, RDTextureView.new())
-	var img := Image.create_empty(fmt.width, fmt.height, false, Image.FORMAT_RGBA8)
-	for y in range(0, fmt.height, strip.height):
-		var h := mini(strip.height, fmt.height - y)
-		var got := []
-		rd.texture_copy(tex, rows, Vector3(0, y, 0), Vector3.ZERO, Vector3(fmt.width, h, 1), 0, 0, 0, 0)
-		rd.texture_get_data_async(rows, 0, func(part: PackedByteArray) -> void: got.append(part))
-		while got.is_empty():
-			await get_tree().process_frame
-		img.blit_rect(Image.create_from_data(fmt.width, strip.height, false, Image.FORMAT_RGBA8, got[0]), Rect2i(0, 0, fmt.width, h), Vector2i(0, y))
-	rd.free_rid(rows)
-	return img
+	var got := {}
+	var sizes: Array[Vector2i] = []
+	for i in views.size():
+		var tex := RenderingServer.texture_get_rd_texture(views[i].get_texture().get_rid())
+		var fmt := rd.texture_get_format(tex)
+		if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
+			push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)
+			return []
+		sizes.append(Vector2i(fmt.width, fmt.height))
+		rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void: got[i] = data)
+	while got.size() < views.size():
+		await get_tree().process_frame
+	var out: Array[Image] = []
+	for i in views.size():
+		out.append(Image.create_from_data(sizes[i].x, sizes[i].y, false, Image.FORMAT_RGBA8, got[i]))
+	return out
 
 
 ## For the one frame a photo is drawn in, what the eyes' views share with it, the foliage's blobs, set for the photo

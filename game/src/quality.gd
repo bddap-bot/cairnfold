@@ -134,6 +134,9 @@ var _flora: Flora
 var _masonry: Masonry
 var _look: Look
 var view: Viewport
+## Whether the player's view is covered (Rig.covered): frames drawn under the cover, a photo's among them, are no
+## measure of the scene, and the governor judges none of them.
+var covered := func() -> bool: return false
 ## Whether the runtime foveates by a fixed level, which makes foveation one of the governor's knobs. Where the eyes are
 ## tracked the runtime's foveation follows the gaze instead (as Valve's does on the Steam Frame), which costs the player
 ## nothing to look at, so it stays on whole and is not the governor's.
@@ -258,7 +261,7 @@ func _process(delta: float) -> void:
 			rungs_primed.emit()
 		if pin < 0 and _warm > WARMUP:
 			var was := governor.level
-			governor.step(frame_ms, budget_ms, dt, _settled)
+			governor.step(frame_ms, budget_ms, dt, _settled, not covered.call())
 			if governor.level != was:
 				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s" % [was, governor.level, frame_ms, budget_ms, governor.why])
 	var n := _priming[_primed / PRIME_FRAMES] if priming() else step()
@@ -500,10 +503,11 @@ class Governor:
 		return bottom
 
 	## `settled` is whether the knobs have reached the step: only frames over the budget or at every other refresh
-	## judge a step still under way.
-	func step(frame_ms: float, budget_ms: float, dt: float, settled := true) -> void:
+	## judge a step still under way. A frame the player does not `see` is judged as a pause is, and so are the
+	## first frames after it, whose timer still reads it.
+	func step(frame_ms: float, budget_ms: float, dt: float, settled := true, see := true) -> void:
 		var dt_ms := dt * 1000.0
-		if dt_ms >= budget_ms * PAUSE:
+		if dt_ms >= budget_ms * PAUSE or not see:
 			_restart()
 			return
 		_since_up += dt

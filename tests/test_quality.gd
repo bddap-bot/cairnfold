@@ -27,6 +27,7 @@ func _initialize() -> void:
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
 	_the_frames_after_a_stall_are_not_judged()
+	_frames_the_player_does_not_see_step_nothing_down()
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
 	_nothing_branches_on_the_headset_or_the_build()
 	_every_headset_starts_conservative_and_climbs_to_what_it_holds()
@@ -382,6 +383,19 @@ func _the_frames_after_a_stall_are_not_judged() -> void:
 	_feed(g, BUDGET * 2.0, 2)
 	check(_feed(g, BUDGET * UNDER_LINE, 72 * 2) == 0, "a half-second stall and the two heavy frames drawing what it built step nothing down")
 	check(_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES) == 1, "frames over budget after it still do")
+
+
+## Frames under a cover (Rig.covered), a photo's at 45 ms each, and the two after it whose timer still reads them step
+## nothing down; seen, the same frames do.
+func _frames_the_player_does_not_see_step_nothing_down() -> void:
+	for see in [false, true]:
+		var g := Quality.Governor.new(10)
+		_feed(g, BUDGET * UNDER_LINE, 72 * 2)
+		for i in 30:
+			g.step(BUDGET * 1.3, BUDGET, 0.045, true, see)
+		_feed(g, BUDGET * 1.3, 2)
+		_feed(g, BUDGET * UNDER_LINE, 72 * 2)
+		check((g.level == 0) != see, "%s, a cover's frames leave the governor at %d" % ["seen" if see else "unseen", g.level])
 
 
 func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:
