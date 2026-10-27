@@ -415,7 +415,13 @@ func _no_implement_crosses_the_easel() -> void:
 	for mi: MeshInstance3D in implements:
 		for part in parts:
 			var into := part.global_transform.affine_inverse() * mi.global_transform
-			check(not _inside(part.get_aabb()).intersects(into * mi.get_aabb()), "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
+			var vertices := mi.mesh.get_faces()
+			var clear := true
+			for i in range(0, vertices.size(), 3):
+				var bounds := AABB(into * vertices[i], Vector3.ZERO)
+				bounds = bounds.expand(into * vertices[i + 1]).expand(into * vertices[i + 2])
+				clear = clear and not _inside(part.get_aabb()).intersects(bounds)
+			check(clear, "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
 
 
 ## Setting an easel up builds no geometry: every mesh it shows is the one the easel before it shows, so a placement
