@@ -162,7 +162,7 @@ if [ "${2:-}" = --android ]; then
   adb shell "rm -rf $dir $files/replay"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
   if [ -n "$replay" ]; then
-    for chunk in "$(dirname "$replay")/$session"-*.jsonl; do adb push "$chunk" "$files/replay/" > /dev/null; done
+    for chunk in "$(dirname "$replay")/$session"-*.jsonl; do adb push "$chunk" "$files/replay/${chunk##*/}" > /dev/null; done
   fi
   [ -z "${CAIRNFOLD_GUEST_AVATAR:-}" ] || adb push "$CAIRNFOLD_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
