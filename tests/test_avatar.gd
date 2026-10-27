@@ -14,7 +14,8 @@ func _initialize() -> void:
 func _run() -> void:
 	for i in Avatar.BUILT_IN.size():
 		_built_in_reads_as_humanoid(i)
-		_skin_bends_as_the_file_says(FileAccess.get_file_as_bytes(Avatar.BUILT_IN[i]), Avatar.built_in(i), Avatar.BUILT_IN[i].get_file())
+		var file := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[i])
+		_skin_bends_as(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file(), _gltf_skin.bind(file, Avatar.BUILT_IN[i].get_file()))
 	_pose_puts_the_eyes_on_the_head(Avatar.built_in(0), "pebble")
 	for path in SAMPLES:
 		var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample(path)))
@@ -23,7 +24,7 @@ func _run() -> void:
 			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(_sample(path))))
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
-			_skin_bends_as_the_file_says(FileAccess.get_file_as_bytes(_sample(path)), scene, path)
+			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
 	_both_versions_stand_alike()
 	_unity_package_converts()
 	for i in Avatar.BUILT_IN.size():
@@ -93,79 +94,68 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	return out + head + bin
 
 
-## The Unity sample package converts to a VRM 1.0 of one skinned mesh over its skeleton, its humanoid bones as the
-## package's Avatar definition maps them, that Avatar.read opens and poses as it does any VRM.
+## The Unity sample package imports as the avatar model straight from its FBX and .meta: its skeleton, skin and blend
+## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as a
+## scene and read back, it opens, poses and bends as the engine's own import of the FBX does.
 func _unity_package_converts() -> void:
 	var model := UnityAvatar.avatar_scene(_sample("seed-san"))
-	check(model != null, "the Unity package converts")
+	check(model != null, "the Unity package imports")
 	if model == null:
 		return
 	var avatar := UnityAvatar.avatar_definition(FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
 	var human: Dictionary = model.get_meta("humanoid")
-	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool: return human.get(UnityAvatar.vrm_bone(avatar.human[b])) == b), "every bone the Avatar definition maps keeps its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
-	check(human.hips == "hips" and human.head == "head 1" and human.leftThumbMetacarpal == "thumb.01.L", "the Avatar definition's own names: Unity's de-duplicated head, its thumb proximal as VRM's metacarpal")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
-	check(human.keys().all(func(b: String) -> bool: return sk.find_bone(b) >= 0), "each humanoid bone is the skeleton bone of its VRM name")
+	var bone_of := func(b: String) -> String: return (human[b] as NodePath).get_concatenated_subnames()
+	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool:
+		var as_bone := UnityAvatar.vrm_bone(avatar.human[b])
+		return human.has(as_bone) and sk.find_bone(bone_of.call(as_bone)) >= 0), "every bone the Avatar definition maps is a skeleton bone under its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
+	check(bone_of.call("hips") == "hips" and bone_of.call("head") == "head" and bone_of.call("leftThumbMetacarpal") == "thumb_01_L", "the bones keep Unity's names, made fit for nodes: its de-duplicated head is the skeleton's head, its thumb proximal VRM's metacarpal")
+	var path := ProjectSettings.globalize_path("user://seed-san.scn")
 	var report: Dictionary = model.get_meta("report")
 	check((report["renderers drawn"] as Array).size() == 5, "all five of the model's renderers draw (%s)" % [report["renderers drawn"]])
-	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
-	Vrm.write(model, path)
-	model.free()
-	var bytes := FileAccess.get_file_as_bytes(path)
-	var json := _gltf_json(bytes)
-	var bones: Dictionary = json.extensions.VRMC_vrm.humanoid.humanBones
-	var skins: Array = json.get("skins", [])
-	var joints := {}
-	for k: Dictionary in skins:
-		for j: float in k.joints:
-			joints[int(j)] = true
-	check(bones.size() == avatar.human.size() and bones.keys().all(func(b: String) -> bool: return joints.has(int(bones[b].node)) and json.nodes[int(bones[b].node)].name == b), "the VRM names every mapped humanoid bone as a skin joint of its name (%d)" % bones.size())
-	check(skins.size() == 1 and json.meshes.size() == 1 and (json.meshes[0].primitives as Array).size() == 1, "the VRM is one mesh of one primitive over one skin")
-	var triangles := 0
-	for p: Dictionary in json.meshes[0].primitives:
-		triangles += int(json.accessors[int(p.indices)].count) / 3
-	check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "within the triangle limit (%d)" % triangles)
 	var started := Time.get_ticks_usec()
-	var scene := Avatar.read(bytes)
-	print("unity package: Avatar.read %.0f ms, %d bytes" % [(Time.get_ticks_usec() - started) / 1000.0, bytes.size()])
-	check(scene != null, "Avatar.read opens the converted package")
+	var packed := Avatar.model(model)
+	check(packed != null and ResourceSaver.save(packed, path) == OK, "the model packs and saves as a scene")
+	var scene := load(path) as PackedScene
+	print("unity package: modelled and written in %.0f ms" % ((Time.get_ticks_usec() - started) / 1000.0))
+	check(scene != null, "the written scene reads back as the avatar model")
 	if scene == null:
 		return
 	_pose_puts_the_eyes_on_the_head(scene, "seed-san")
 	_arms_join_shoulders_to_hands(scene, "seed-san")
-	_keeps_skins_and_shapes(scene, "seed-san", json)
-	_skin_bends_as_the_file_says(bytes, scene, "seed-san")
+	var fbx := _sample("seed-san/Models/new_seedsan_betterfbx.fbx")
+	var reference := _imported(fbx)
+	var skins := reference.find_children("*", "MeshInstance3D", true, false).filter(func(mi: MeshInstance3D) -> bool: return mi.skin != null)
+	var shapes := {}
+	for mi: MeshInstance3D in skins:
+		shapes[mi.mesh] = mi.mesh.get_blend_shape_count()
+	check(skins.size() == 5 and shapes.values().has(43), "the engine's import of the FBX has five skinned meshes and the face's 43 blend shapes")
+	_keeps_skins_and_shapes(scene, "seed-san", shapes.values().reduce(func(n: int, k: int) -> int: return n + k, 0))
+	_skin_bends_as(scene, "seed-san", _scene_skin.bind(reference))
+	reference.free()
 	var empty := ProjectSettings.globalize_path("user://no-humanoid")
 	DirAccess.make_dir_recursive_absolute(empty)
-	check(UnityAvatar.avatar_scene(empty) == null, "a package with no humanoid model converts to nothing")
+	check(UnityAvatar.avatar_scene(empty) == null, "a package with no humanoid model imports as nothing")
 
 
-## Every vertex of the posed avatar sits where the file's own skin puts it: its weights and inverse binds over its
-## joints, which rest where the file's nodes do and bend as the pose leaves them, the elbows by the tracked hands
+## The engine's own import of an FBX, unshaped.
+func _imported(fbx: String) -> Node3D:
+	var doc := FBXDocument.new()
+	var state := FBXState.new()
+	state.create_animations = false
+	doc.append_from_file(fbx, state)
+	return doc.generate_scene(state)
+
+
+## Every vertex of the posed avatar sits where its source's skin puts it (`expected`, given the posed avatar, each rest
+## position to where the source's weights and binds over the same bones put it): the elbows bent by the tracked hands
 ## reaching in close and the knees bent back by hand. A vertex a rigid part carried, or a lost or reordered bind,
 ## would sit elsewhere wherever two bones share it.
-func _skin_bends_as_the_file_says(bytes: PackedByteArray, scene: PackedScene, what: String) -> void:
-	var json := _gltf_json(bytes)
-	var bin := bytes.slice(28 + bytes.decode_u32(12))
+func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
 	var sk := a._skeleton
 	var at := Avatar._space(sk, a._model)
-	# Godot's glTF reader names a bone after its node, with the characters a bone name cannot hold made underscores.
-	var joint := func(name: String) -> Transform3D: return at * sk.get_bone_global_pose(sk.find_bone(name.replace(":", "_").replace("/", "_")))
-	var world := []
-	world.resize(json.nodes.size())
-	var place := func(place: Callable, n: int, parent: Transform3D) -> void:
-		world[n] = parent * _node_transform(json.nodes[n])
-		for c: float in json.nodes[n].get("children", []):
-			place.call(place, int(c), world[n])
-	for n: float in json.scenes[int(json.get("scene", 0))].nodes:
-		place.call(place, int(n), Transform3D.IDENTITY)
-	var resting := 0.0
-	for skin: Dictionary in json.skins:
-		for k: float in skin.joints:
-			resting = maxf(resting, (joint.call(json.nodes[int(k)].name) as Transform3D).origin.distance_to((world[int(k)] as Transform3D).origin))
-	check(resting < 1e-4, "%s: its skeleton's joints rest where the file's nodes do (%.6f m apart)" % [what, resting])
 	var eyes := Transform3D(Basis.IDENTITY, Vector3(0, 1.6, 0))
 	a.pose(eyes, Transform3D(), Transform3D())
 	var held: Array[Transform3D] = []
@@ -179,29 +169,7 @@ func _skin_bends_as_the_file_says(bytes: PackedByteArray, scene: PackedScene, wh
 		if knee:
 			var now := a._get_joint(knee)
 			a._place(knee, Transform3D(Basis(Basis(Vector3.UP, a.torso) * Vector3.RIGHT, -1.2) * now.basis, now.origin))
-	var expected := {}
-	var resting_at := {}
-	for n in json.nodes.size():
-		var node: Dictionary = json.nodes[n]
-		if not node.has("mesh") or not node.has("skin"):
-			continue
-		var skin: Dictionary = json.skins[int(node.skin)]
-		var binds := _floats(json, bin, int(skin.inverseBindMatrices))
-		var joints: Array[Transform3D] = []
-		for k in skin.joints.size():
-			var m := binds.slice(k * 16, k * 16 + 16)
-			var ibm := Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
-			joints.append((joint.call(json.nodes[int(skin.joints[k])].name) as Transform3D) * ibm)
-		for prim: Dictionary in json.meshes[int(node.mesh)].primitives:
-			var position := _floats(json, bin, int(prim.attributes.POSITION))
-			var bones := _floats(json, bin, int(prim.attributes.JOINTS_0))
-			var weights := _floats(json, bin, int(prim.attributes.WEIGHTS_0))
-			for v in position.size() / 3:
-				var rest := Vector3(position[v * 3], position[v * 3 + 1], position[v * 3 + 2])
-				var posed := Vector3.ZERO
-				for c in 4:
-					posed += joints[int(bones[v * 4 + c])] * rest * weights[v * 4 + c]
-				expected.get_or_add(rest.snappedf(1e-5), []).append(posed)
+	var want: Dictionary = expected.call(a)
 	var worst := 0.0
 	var moved := 0.0
 	var unmatched := 0
@@ -220,17 +188,92 @@ func _skin_bends_as_the_file_says(bytes: PackedByteArray, scene: PackedScene, wh
 				var posed := Vector3.ZERO
 				for c in stride:
 					posed += binds[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
-				var want: Variant = expected.get(vertex[v].snappedf(1e-5))
+				var there: Variant = want.get(vertex[v].snappedf(1e-5))
 				count += 1
-				if want == null:
+				if there == null:
 					unmatched += 1
 					continue
-				worst = maxf(worst, (want as Array).map(func(p: Vector3) -> float: return p.distance_to(posed)).min())
+				worst = maxf(worst, (there as Array).map(func(p: Vector3) -> float: return p.distance_to(posed)).min())
 				moved = maxf(moved, posed.distance_to(vertex[v]))
-	check(count > 0 and unmatched == 0, "%s: every vertex is one of the file's (%d of %d unmatched)" % [what, unmatched, count])
-	check(worst < 1e-3, "%s: bent at elbows and knees, every vertex sits where the file's skin puts it (%.6f m off at worst)" % [what, worst])
+	print("%s: %d vertices bent at elbows and knees, %.6f m from the source's skin at worst, moved up to %.2f m" % [what, count, worst, moved])
+	check(count > 0 and unmatched == 0, "%s: every vertex is one of the source's (%d of %d unmatched)" % [what, unmatched, count])
+	check(worst < 1e-3, "%s: bent at elbows and knees, every vertex sits where the source's skin puts it (%.6f m off at worst)" % [what, worst])
 	check(moved > 0.1, "%s: and the bend moves the body (%.2f m at most)" % [what, moved])
 	a.free()
+
+
+## Where a binary glTF's own skins put each vertex over the posed avatar's bones, by rest position; its joints are
+## checked to rest where the file's nodes do.
+func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
+	var json := _gltf_json(bytes)
+	var bin := bytes.slice(28 + bytes.decode_u32(12))
+	var sk := a._skeleton
+	var at := Avatar._space(sk, a._model)
+	# Godot's glTF reader names a bone after its node, with the characters a bone name cannot hold made underscores.
+	var bone := func(name: String) -> int: return sk.find_bone(name.replace(":", "_").replace("/", "_"))
+	var world := []
+	world.resize(json.nodes.size())
+	var place := func(place: Callable, n: int, parent: Transform3D) -> void:
+		world[n] = parent * _node_transform(json.nodes[n])
+		for c: float in json.nodes[n].get("children", []):
+			place.call(place, int(c), world[n])
+	for n: float in json.scenes[int(json.get("scene", 0))].nodes:
+		place.call(place, int(n), Transform3D.IDENTITY)
+	var resting := 0.0
+	for skin: Dictionary in json.skins:
+		for k: float in skin.joints:
+			resting = maxf(resting, (at * sk.get_bone_global_rest(bone.call(json.nodes[int(k)].name))).origin.distance_to((world[int(k)] as Transform3D).origin))
+	check(resting < 1e-4, "%s: its skeleton's joints rest where the file's nodes do (%.6f m apart)" % [what, resting])
+	var out := {}
+	for node: Dictionary in json.nodes:
+		if not node.has("mesh") or not node.has("skin"):
+			continue
+		var skin: Dictionary = json.skins[int(node.skin)]
+		var binds := _floats(json, bin, int(skin.inverseBindMatrices))
+		var joints: Array[Transform3D] = []
+		for k in skin.joints.size():
+			var m := binds.slice(k * 16, k * 16 + 16)
+			var ibm := Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
+			joints.append(at * sk.get_bone_global_pose(bone.call(json.nodes[int(skin.joints[k])].name)) * ibm)
+		for prim: Dictionary in json.meshes[int(node.mesh)].primitives:
+			var position := _floats(json, bin, int(prim.attributes.POSITION))
+			var bones := _floats(json, bin, int(prim.attributes.JOINTS_0))
+			var weights := _floats(json, bin, int(prim.attributes.WEIGHTS_0))
+			for v in position.size() / 3:
+				var rest := Vector3(position[v * 3], position[v * 3 + 1], position[v * 3 + 2])
+				var posed := Vector3.ZERO
+				for c in 4:
+					posed += joints[int(bones[v * 4 + c])] * rest * weights[v * 4 + c]
+				out.get_or_add(rest.snappedf(1e-5), []).append(posed)
+	return out
+
+
+## Where an importer's own scene's skins put each vertex over the posed avatar's bones of the same names (as node names
+## hold them), by rest position.
+func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
+	var sk := a._skeleton
+	var at := Avatar._space(sk, a._model)
+	var out := {}
+	for mi: MeshInstance3D in source.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null:
+			continue
+		var theirs := mi.get_node(mi.skeleton) as Skeleton3D
+		var joints: Array[Transform3D] = []
+		for i in mi.skin.get_bind_count():
+			var b := mi.skin.get_bind_bone(i) if mi.skin.get_bind_bone(i) >= 0 else theirs.find_bone(mi.skin.get_bind_name(i))
+			joints.append(at * sk.get_bone_global_pose(sk.find_bone(theirs.get_bone_name(b).validate_node_name())) * mi.skin.get_bind_pose(i))
+		for s in mi.mesh.get_surface_count():
+			var arrays := mi.mesh.surface_get_arrays(s)
+			var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			var stride := bone.size() / vertex.size()
+			for v in vertex.size():
+				var posed := Vector3.ZERO
+				for c in stride:
+					posed += joints[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
+				out.get_or_add(vertex[v].snappedf(1e-5), []).append(posed)
+	return out
 
 
 ## A glTF node's local transform.
@@ -294,7 +337,10 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 
 
 func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
-	_keeps_skins_and_shapes(scene, what, json)
+	var targets := 0
+	for m: Dictionary in json.meshes:
+		targets += (m.primitives[0] as Dictionary).get("targets", []).size()
+	_keeps_skins_and_shapes(scene, what, targets)
 	var a := Avatar.open(scene, Color.WHITE)
 	var triangles := 0
 	var surfaces := 0
@@ -320,20 +366,28 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	a.free()
 
 
-## Every mesh stays skinned over the one skeleton a pose moves, and keeps every blend shape its file has.
-func _keeps_skins_and_shapes(scene: PackedScene, what: String, json: Dictionary) -> void:
+## Every mesh stays skinned over the one skeleton a pose moves, keeps all `targets` blend shapes its source has, and
+## holds no vertex its surfaces do not draw, since the GPU skins every one.
+func _keeps_skins_and_shapes(scene: PackedScene, what: String, targets: int) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	var meshes := 0
 	var skinned := 0
 	var shapes := {}
+	var vertices := 0
+	var drawn := 0
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		meshes += 1
 		skinned += 1 if mi.skin != null and mi.get_node_or_null(mi.skeleton) == a._skeleton else 0
 		shapes[mi.mesh] = mi.mesh.get_blend_shape_count()
+		for s in mi.mesh.get_surface_count():
+			var arrays := mi.mesh.surface_get_arrays(s)
+			var used := {}
+			for v in arrays[Mesh.ARRAY_INDEX]:
+				used[v] = true
+			vertices += arrays[Mesh.ARRAY_VERTEX].size()
+			drawn += used.size()
+	check(drawn == vertices, "%s holds only vertices it draws (%d of %d)" % [what, drawn, vertices])
 	check(meshes > 0 and skinned == meshes and a.find_children("*", "Skeleton3D", true, false).size() == 1, "%s stands skinned: every mesh bends over the one skeleton a pose moves (%d of %d)" % [what, skinned, meshes])
-	var targets := 0
-	for m: Dictionary in json.meshes:
-		targets += (m.primitives[0] as Dictionary).get("targets", []).size()
 	var kept: int = shapes.values().reduce(func(n: int, k: int) -> int: return n + k, 0)
 	check(kept == targets, "%s keeps every blend shape (%d of %d)" % [what, kept, targets])
 	a.free()

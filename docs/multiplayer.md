@@ -169,43 +169,46 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   in file-name order. On a Quest the folder is
   `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
-- **From a Unity package.** `scripts/unity_avatar.gd` converts the avatar in a Unity source
-  package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) into a VRM 1.0 file
-  to wear: from `game/`,
-  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.vrm [AVATAR]`.
+- **From a Unity package.** `scripts/unity_avatar.gd` imports the avatar in a Unity source
+  package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) straight into the
+  avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR]`.
+  No VRM lies between them: VRM cannot carry Unity's shader properties, Animator controllers,
+  menus, Contacts or PhysBones settings, which later importer work adds to the same model. The
+  game wears only `.vrm` files so far; wearing an imported package is the player-usable import
+  still to come.
   The avatar is the GameObject with a VRChat avatar descriptor (AVATAR names it where a package
   holds several), instantiated as its scene or prefab does: prefab instances, nested ones too,
   expand with their modifications, so the renderers it draws are those active there, with the
   materials and blend shape weights saved on them. Unity names a model's objects by fixed IDs
-  from its `.meta` or, since 2019, by the XXH64 of each object's type and path, so the converter
+  from its `.meta` or, since 2019, by the XXH64 of each object's type and path, so the importer
   finds the model objects a scene modifies the same way. The skeleton is the humanoid model's
   the descriptor's Animator names; its `.meta` humanDescription, Unity's Avatar definition, maps
-  the bones, each renamed to its VRM 1.0 name. Unity suffixes a transform named like another in
-  the model (`head 1`) and Godot's importer does not, so a mapped name the skeleton lacks
+  the humanoid bones, which keep their Unity names. Unity suffixes a transform named like another
+  in the model (`head 1`) and Godot's importer does not, so a mapped name the skeleton lacks
   matches the bone without the suffix, under the bone its Unity parent is. A mesh from another
   model binds by bone name, or hangs where the avatar's Unity transforms place it.
 
-  The result is cut to what `Avatar.read` keeps, so it reads at once and fits the limits: every
-  renderer merged into one mesh over one skin, blend shapes baked at their saved weights, a
-  surface another renderer's opaque surface covers within 1.5 cm dropped (skin under a tight
-  garment would show through once both are simplified), and each renderer's levels of detail
-  taken finest first, for whichever has kept least of its own, up to 20,000 triangles. Shader
-  programs do not port; each material's saved colour texture, colour, tiling and alpha mode
-  (opaque, cut out at its cutoff, or blended) take a cell of one 2048 px atlas. A renderer's
-  material slots follow the FBX's materials in their connections' order where the slots match
-  them one for one; otherwise a surface takes the slot whose material is named like its own.
-  PhysBones become VRM spring chains, one per path from a PhysBone's root to each leaf, the
-  longest kept within 60 joints (each one costs the Quest 2's CPU every frame), with
-  pull, spring, stiffness, gravity and radius mapped approximately and limits and grabbing
-  dropped, and their sphere and capsule colliders VRM colliders; while each spring bone is a
-  rigid part of its own (below), the shortest chains go until the file reads within the draw
-  limit. The descriptor's view position places the eyes. The converter prints what it kept and
-  dropped: Animator controllers, expression menus, visemes, Contacts, constraints, particles and
-  scripts are not translated. `tests/test_private_avatars.gd` converts a private corpus of
-  packages that never enters this repository, and says it checked nothing where that corpus is
-  absent.
+  Every renderer merges into one mesh over one skin, its blend shapes kept (those of one name in
+  several renderers one shape) and set to their saved weights, a surface another renderer's
+  opaque surface covers within 1.5 cm dropped (skin under a tight garment would show through
+  once both are simplified), and each renderer's levels of detail taken finest first, for
+  whichever has kept least of its own, up to 20,000 triangles. Shader programs do not port;
+  each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
+  cutoff, or blended) take a cell of one 2048 px atlas. A renderer's material slots follow the
+  FBX's materials in their connections' order where the slots match them one for one;
+  otherwise a surface takes the slot whose material is named like its own. PhysBones become
+  spring chains, one per path from a PhysBone's root to each leaf, the longest kept within 60
+  joints (each one costs the Quest 2's CPU every frame), with pull, spring,
+  stiffness, gravity and radius mapped approximately and limits and grabbing dropped, and
+  their sphere and capsule colliders spring colliders. The descriptor's view position places
+  the eyes. The importer prints what it kept and dropped: Animator controllers, expression
+  menus, visemes, Contacts, constraints, particles and scripts are not translated.
+  `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
+  repository, and says it checked nothing where that corpus is absent.
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
-  while the wearer sees its spring parts. Chains stay posed and simulated even without a
+  while the wearer sees the meshes only its spring joints move, such as the built-ins'
+  tassels. Chains stay posed and simulated even without a
   camera. Empty hands can grip a nearby tip; a held implement retains its own controls.
 - **Sending it.** The file goes once, reliably, to every player you meet, and again
   whenever it changes. It travels on its own ENet channel, so build commands never
@@ -215,28 +218,22 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   size limit, is not a humanoid VRM, or is still too heavy after cutting.
 - **Limits.** `Avatar.read` cuts every file the same way, the player's own before
   it is sent, so all players see the same avatar: at most 24 MB, surfaces merged per
-  material within a mesh, animations and every expression (blend shape) but the four that
-  point the eyes dropped, triangles simplified to at most 20,000, and textures shrunk to
+  material within a mesh, animations dropped, every blend shape kept, triangles
+  simplified to at most 20,000, and textures shrunk to
   1024 px with mipmaps. Every surface also gets levels of detail, which the renderer picks
   by size on screen, so a player across the garden costs a fraction of one up close. The
   quality ladder already changes how much of the scene draws; avatars need no setting of
   their own.
-- **Rigid parts.** A pose moves the hips, head, eyes, upper and lower arms and hands; spring
-  joints and their collider and center anchors are also retained,
-  so each skinned mesh is cut into one rigid part per retained bone, every triangle going to
-  the bone that weighs most on its corners, and the skeleton is dropped: nothing is skinned
-  on the GPU. A forearm stretches along its length where a hand is held past the arm's reach,
-  so the hand stays on its arm and at the controller. A material spanning several moving
-  bones draws once for each, so the limit is 40 surfaces (draw calls) after the cut. A VRoid
-  avatar (34,000 triangles, 65 primitives, 17 materials, 16 MB) reads as 15,000 triangles in
-  28 surfaces. Where a rigid part meets the next, a bent joint can open a thin crack.
-  A conversion of Seed-san, the Unity sample package, with its five skinned meshes and 16
-  materials kept apart, reads as 39. On a Quest 2 at quality step 6 the widest view of three
-  such figures in
-  `demo/avatar-cost.json` takes 9.68 GPU ms against 9.02 with built-ins, and of seven in
-  `demo/avatar-chain-cost.json` 10.98 against 9.35, inside the 11.11 ms budget
-  (`perf/quest-2/avatar-cost/20261026T184814Z-72c8d46.json`,
-  `perf/quest-2/avatar-chain-cost/20261026T190741Z-72c8d46.json`).
+- **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:
+  a scene of skinned meshes over one `Skeleton3D`, the skins' weights, inverse binds and
+  blend shapes as the source has them, and on its root the avatar data: each humanoid
+  bone and spring joint as a bone of that skeleton, where the eyes sit, which way the model
+  faces, how its eyes look and its spring chains. A pose moves the hips, head, eyes, upper
+  and lower arms and hands as skeleton bones, and the GPU bends the skin over them, so
+  shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
+  the hand still goes to the controller and the forearm's skin stretches after it. The
+  built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
+  surface is a draw call, one per material of each mesh, and the limit is 40.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is cut out, never blended, where it is see-through; normal maps and
@@ -245,12 +242,13 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 
 ### Spring motion and gripping
 
-Avatar Workshop supplies the shared VRM spring definitions and node-based runtime.
+Avatar Workshop supplies the shared VRM spring definitions and their runtime, which drives
+nodes or, through its `skeleton_bone.gd`, a skinned skeleton's bones.
 The solver adapts godot-vrm's Verlet integration and collision projection, retaining
 its MIT notice. It runs at 60 Hz with a bounded accumulator, preserving joint lengths
 and projecting sphere and capsule contacts. A declared center carries the simulation
-frame with that node. A long pause resets momentum. The game maps imported glTF node
-indices to its retained nodes; no skeleton skinning pass or editor importer is added.
+frame with that node. A long pause resets momentum. The game binds imported glTF node
+indices to the avatar skeleton's bones; no editor importer is added.
 
 The wearer owns their avatar's simulation. Empty-hand grip within 12 cm selects the
 nearest unclaimed tip. A remote request identifies its hand and the target chain;
@@ -291,8 +289,8 @@ the matched Godette runs are
 | Godette / away | 8.10 | 8.14 |
 
 Every phase holds the 11.11 ms GPU budget. The widest Godette view adds 24 draws
-(88 to 112) while its triangle count stays effectively unchanged. This retains the
-rigid representation with moving chain parts. These runs measure the complete
+(88 to 112) while its triangle count stays effectively unchanged. These runs read
+avatars as rigid parts, each spring joint its own part. These runs measure the complete
 change, including the wearer's body pose and chain, rather than isolating solver
 cost. Labeled phases contain six late frames before and eight after; their causes
 are not isolated. The baseline's first Godette load also records a 3623 ms stall
@@ -569,7 +567,7 @@ lacks it.
 `CAIRNFOLD_SCENE=demo/avatars.json` looks at them three ways, three times over: close
 (one of them 3.6 m away, the others behind), across the meadow (all three, 6 to 18 m)
 and away (none in view). The VRM is the CC0 VRoid sample AvatarSample_D (VRM 1.0, 16.6 MB),
-which read as 15,000 triangles in 17 surfaces when these runs were made (28 now, see "Rigid parts").
+which read as 15,000 triangles in 17 surfaces when these runs were made.
 
 On the Quest 2, `CAIRNFOLD_PLAYERS=4 bench.sh OUT --android APK`, the game's GPU
 milliseconds per frame, median of each phase. "Arrived" counts the other players whose
@@ -623,9 +621,9 @@ and each took off:
 | Alpha | 0.19 |
 | All five | 1.68 of 1.94 |
 
-The VRM now reads as rigid parts with plain materials (see "Rigid parts" and "Materials"
-above), and lighting each pixel was the largest share left, 0.6 ms of the three across the
-meadow, so avatars are lit once a vertex. Quest 2, quality step 6, median GPU milliseconds
+The VRM then read as rigid parts with plain materials, and lighting each pixel was the
+largest share left, 0.6 ms of the three across the meadow, so avatars are lit once a vertex.
+Avatars are skinned again (see "Skinned bodies"), and skinning's cost is measured there. Quest 2, quality step 6, median GPU milliseconds
 of three runs of each phase:
 
 | Other players wear | Close (one in view) | Across (three) | Away (none) |
@@ -645,12 +643,13 @@ acknowledgement; on the Quest 2, all three files arrive and are worn within 25 s
 
 ### Shared avatar runtime
 
-VRM 0.x/1.0 and VRChat-style Unity packages will feed one runtime in
+VRM 0.x/1.0 and VRChat-style Unity packages feed one runtime in
 [Avatar Workshop](https://github.com/bddap-bot/avatar-workshop), a public Godot
-addon under MIT OR Apache-2.0. The first extracted component mixes eye-expression
-weights; `Avatar` supplies bindings and applies the results. Avatar selection,
-networking, tracked poses and quality policy stay in the game. The importer and
-rigid-body limits described above still apply until the fidelity milestones land.
+addon under MIT OR Apache-2.0, through the one avatar model above. Its expression mixer
+weighs the eye expressions, `Avatar` supplying bindings and applying the results, and its
+spring runtime swings the skeleton's spring bones. Avatar selection, networking, tracked
+poses and quality policy stay in the game. The importer limits described above still
+apply until the fidelity milestones land.
 
 `game/addons/avatar_workshop/source.json` pins the upstream commit and SHA256 of
 each vendored file, following the immutable-version and content-hash convention

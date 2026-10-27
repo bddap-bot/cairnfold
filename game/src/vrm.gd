@@ -5,8 +5,8 @@ extends GLTFDocumentExtension
 ## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
 ## 1.0 from nodes named after the bones (and the scene root's "eyes" metadata); import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
-## it is a skeleton's bone), "eyes", "forward" and "look". Materials and expressions other than the
-## four that point the eyes are not read.
+## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
+## Avatar.model. Materials and expressions other than the four that point the eyes are not read.
 ##
 ## "look" is how the model points its eyes (VRM lookAt): {"type": BONE or EXPRESSION, "ranges": the horizontal inner,
 ## horizontal outer, vertical down and vertical up range maps, each Vector2(largest input angle in degrees, output at
@@ -37,7 +37,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	var exts: Variant = state.json.get("extensions")
 	exts = exts if exts is Dictionary else {}
 	var found := {}
-	var eyes := Vector3(0, 0.06, 0)
+	var eyes := Vector3.INF
 	var forward := Vector3.BACK
 	var look := {"type": look_type(state), "ranges": [], "shapes": {}}
 	var ranges := []
@@ -96,7 +96,8 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
-	root.set_meta("eyes", eyes if eyes.is_finite() and eyes.length() < 1.0 else Vector3(0, 0.06, 0))
+	if eyes.is_finite() and eyes.length() < 1.0:
+		root.set_meta("eyes", eyes)
 	root.set_meta("forward", forward)
 	return OK
 
@@ -276,9 +277,9 @@ static func _doc() -> GLTFDocument:
 
 
 ## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `fits`, given each image's size
-## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, `shape`, given the parsed state, its meshes and materials before the scene is made, and `built`,
-## given the state and the scene, the scene. Null if the file is not one.
-static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image: Callable, built: Callable) -> Node3D:
+## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, and
+## `shape`, given the parsed state, its meshes and materials before the scene is made. Null if the file is not one.
+static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image: Callable) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
 	state.set_additional_data(&"vrm_fits", fits)
@@ -288,10 +289,7 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused") == true:
 		return null
 	shape.call(state)
-	var root := doc.generate_scene(state) as Node3D
-	if root != null:
-		built.call(state, root)
-	return root
+	return doc.generate_scene(state) as Node3D
 
 
 static func write(root: Node3D, path: String) -> void:

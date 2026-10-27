@@ -1,6 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Converts each Unity avatar package of a private corpus that never enters this repository and checks each wears
+## Imports each Unity avatar package of a private corpus that never enters this repository and checks each wears
 ## within the limits: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_private_avatars.gd
 ## The corpus is the folder CAIRNFOLD_PRIVATE_AVATARS names, or ~/.local/share/cairnfold-avatars/vrchat, holding
 ## .unitypackage files and avatars.json, each package's file name to the name of the avatar in it to convert ("" for
@@ -30,25 +30,28 @@ func _run() -> void:
 	finish()
 
 
-## The package converts, writes, reads back within Avatar.read's limits and poses with its eyes on its head.
+## The package imports as an avatar model within the limits, writes, reads back and poses with its eyes on its head.
 func _wears(label: String, package: String, avatar: String) -> void:
 	var started := Time.get_ticks_msec()
 	var dir := UnityAvatar.unpacked(package)
 	check(dir != "", "%s unpacks" % label)
 	var model := UnityAvatar.avatar_scene(dir, avatar) if dir != "" else null
-	check(model != null, "%s converts" % label)
+	check(model != null, "%s imports" % label)
 	if model == null:
 		return
 	var joints := 0
-	for chain: Dictionary in (model.get_meta("springs") as Dictionary).get("springs", []):
+	for chain: Dictionary in (model.get_meta("springs") as Dictionary).springs:
 		joints += (chain.joints as Array).size()
 	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s keeps %d spring joints, within the limit" % [label, joints])
-	var path := ProjectSettings.globalize_path("user://corpus.vrm")
-	Vrm.write(model, path)
 	print("%s: %d ms, %s" % [label, Time.get_ticks_msec() - started, model.get_meta("report")])
-	model.free()
-	var scene := Avatar.read(FileAccess.get_file_as_bytes(path))
-	check(scene != null, "%s reads within the limits" % label)
+	var packed := Avatar.model(model)
+	check(packed != null, "%s is an avatar model within the limits" % label)
+	if packed == null:
+		return
+	var path := ProjectSettings.globalize_path("user://corpus.scn")
+	check(ResourceSaver.save(packed, path) == OK, "%s writes" % label)
+	var scene := load(path) as PackedScene
+	check(scene != null, "%s reads back" % label)
 	if scene == null:
 		return
 	var a := Avatar.open(scene, Color.WHITE, label)

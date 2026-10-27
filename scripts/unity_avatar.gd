@@ -1,19 +1,21 @@
 extends SceneTree
 
-## Converts the avatar in a Unity source package into a VRM 1.0 file Avatar.read opens: run from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.vrm [AVATAR]
+## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
+## from game/ as
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR]
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, with their materials and blend shape weights, over the skeleton of its humanoid
 ## model, whose Unity Avatar definition is the bone map. A package without a descriptor converts its one humanoid model.
-## The avatar is cut to what Avatar.read keeps: one mesh of at most Avatar.MAX_TRIANGLES triangles, one atlas of the
-## materials' colour textures, blend shapes baked at their saved weights, PhysBones as VRM spring chains. The converter
-## prints what it kept and what it dropped.
+## The avatar is cut to one mesh of at most Avatar.MAX_TRIANGLES triangles and one atlas of the materials' colour
+## textures; its blend shapes stay, set to their saved weights, and its PhysBones become spring chains. No VRM lies
+## between: VRM cannot carry what later importer work adds to the model. The importer prints what it kept and dropped.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
 const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
@@ -25,7 +27,7 @@ const COVER := 0.015
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() < 2 or args.size() > 3:
-		printerr("usage: unity_avatar.gd PACKAGE OUT.vrm [AVATAR]")
+		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR]")
 		quit(2)
 		return
 	var dir := unpacked(args[0])
@@ -37,12 +39,19 @@ func _init() -> void:
 	if root == null:
 		quit(1)
 		return
-	Vrm.write(root, args[1])
 	var report: Dictionary = root.get_meta("report")
+	var scene := Avatar.model(root)
+	if scene == null:
+		printerr("unity_avatar: Avatar.model refuses it: it needs %s as bones of one skeleton and at most %d surfaces" % [Avatar.NEEDS, Avatar.MAX_SURFACES])
+		quit(1)
+		return
+	if ResourceSaver.save(scene, args[1]) != OK:
+		printerr("unity_avatar: cannot write %s" % args[1])
+		quit(1)
+		return
 	report["file bytes"] = FileAccess.get_size(args[1])
 	for k: String in report:
 		print("unity_avatar: %s: %s" % [k, report[k]])
-	root.free()
 	quit()
 
 
@@ -59,9 +68,8 @@ static func unpacked(path: String) -> String:
 static var _unpacked: Array[DirAccess] = []
 
 
-## The package's avatar as a scene Vrm.write exports, its root carrying the metadata "humanoid" (VRM bone to the Unity
-## bone it was), "eyes", "springs" and "report" (what was kept and dropped, by kind). Null, with the reason printed, if
-## the package holds no avatar to convert.
+## The package's avatar as the scene and avatar data Avatar.model takes, its root also carrying "report" (what was kept
+## and dropped, by kind). Null, with the reason printed, if the package holds no avatar to convert.
 static func avatar_scene(dir: String, pick := "") -> Node3D:
 	var prefabs := Prefabs.new(Assets.new(dir))
 	var root := _convert(prefabs, pick)
@@ -125,71 +133,40 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	mi.mesh = merged.mesh
 	mi.skin = merged.skin
 	mi.skeleton = NodePath("..")
+	for name: String in merged.weights:
+		mi.set_blend_shape_value(mi.find_blend_shape_by_name(name), merged.weights[name])
 	var named := _human_bones(sk, definition, assets.by_guid[main].path)
 	if named.is_empty():
 		root.free()
 		return null
 	var springs := _springs(objs, found.transform, sk, named, k, report)
+	_keep_longest(springs, report)
 	var human := {}
-	# Two passes, so a bone may take the name another mapped bone is about to give up.
+	var bone_path := func(b: int) -> NodePath: return NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(b)])
 	for i: int in named:
-		human[named[i][0]] = named[i][1]
-		sk.set_bone_name(i, "unity_avatar %d" % i)
-	for i: int in named:
-		sk.set_bone_name(i, named[i][0])
-	for spring: Dictionary in springs.get("springs", []):
-		for j: Dictionary in spring.joints:
-			j.node = sk.get_bone_name(j.node)
-	for c: Dictionary in springs.get("colliders", []):
-		c.node = sk.get_bone_name(c.node)
+		human[named[i][0]] = bone_path.call(i)
+	var nodes := []
+	nodes.resize(sk.get_bone_count())
+	nodes.fill({})
+	var chains := SpringDefinition.read({"nodes": nodes, "extensions": {"VRMC_springBone": springs}}) if not springs.is_empty() else {"springs": [], "colliders": []}
+	for chain: Dictionary in chains.springs:
+		for j: Dictionary in chain.joints:
+			human["spring_%d" % j.node] = bone_path.call(j.node)
+		if chain.center >= 0:
+			human["spring_%d" % chain.center] = bone_path.call(chain.center)
+	for c: Dictionary in chains.colliders:
+		if c.node >= 0:
+			human["spring_%d" % c.node] = bone_path.call(c.node)
 	root.set_meta("humanoid", human)
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
-	root.set_meta("springs", springs)
+	root.set_meta("springs", chains)
 	report["not translated"] = _untranslated(objs, found.transform, found.descriptor)
 	if not prefabs.missing.is_empty():
 		report["not in the package"] = prefabs.missing.keys()
 	if not materials.undecoded.is_empty():
 		report["textures not decoded"] = materials.undecoded.keys()
 	root.set_meta("report", report)
-	for n in root.find_children("*", "", true, false):
-		n.owner = root
-	if not _fit(root):
-		printerr("unity_avatar: %s is past Avatar.read's limits even without spring chains" % found.name)
-		root.free()
-		return null
 	return root
-
-
-## Whether the avatar reads within Avatar.read's limits once written, its longest spring chains kept within
-## Avatar.MAX_SPRING_JOINTS, then its shortest dropped, half at a time, until it does: every spring bone the rigid-part
-## runtime moves is a draw of its own.
-static func _fit(root: Node3D) -> bool:
-	var path := OS.get_temp_dir().path_join("unity_avatar_%d.vrm" % OS.get_process_id())
-	var springs: Dictionary = root.get_meta("springs")
-	var all: int = springs.get("springs", []).size()
-	if not springs.is_empty():
-		var longest: Array = springs.springs.duplicate()
-		longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
-		var kept := []
-		var joints := 0
-		for chain: Dictionary in longest:
-			if joints + chain.joints.size() <= Avatar.MAX_SPRING_JOINTS:
-				kept.append(chain)
-				joints += chain.joints.size()
-		springs.springs = kept
-	while true:
-		Vrm.write(root, path)
-		var fits := Avatar.read(FileAccess.get_file_as_bytes(path)) != null
-		DirAccess.remove_absolute(path)
-		var chains: Array = springs.get("springs", [])
-		if fits or chains.is_empty():
-			(root.get_meta("report") as Dictionary)["spring chains kept within the joint and draw limits"] = "%d of %d" % [chains.size(), all]
-			return fits
-		chains.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
-		springs.springs = chains.slice(0, chains.size() / 2)
-		if springs.springs.is_empty():
-			springs.clear()
-	return false
 
 
 ## The avatar to convert: {"objects" of the document it is in, "go", "transform", "name", "descriptor" (its fields, or
@@ -368,8 +345,9 @@ static func _in_model(n: Node) -> Transform3D:
 
 
 ## Every drawn renderer's surfaces as one mesh over `sk`, its skin binding each source bone to the output bone of its
-## name (or its nearest ancestor that has one): blend shapes baked at their saved weights, UVs moved into the material
-## atlas, triangles simplified to Avatar.MAX_TRIANGLES. {"mesh", "skin"}, or empty if nothing draws.
+## name (or its nearest ancestor that has one): blend shapes kept, those of one name in several renderers one shape,
+## UVs moved into the material atlas, triangles simplified to Avatar.MAX_TRIANGLES. {"mesh", "skin", "weights": each
+## blend shape's saved weight}, or empty if nothing draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -380,7 +358,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var skin := Skin.new()
 	var corners := {}
 	var source_triangles := 0
-	var baked := 0
+	var shapes := {}
+	var saved_weights := {}
 	var drawn := []
 	var skipped := []
 	var tiled := {}
@@ -414,19 +393,20 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
 			n.resize(v.size())
-			var shapes := mesh.surface_get_blend_shape_arrays(s)
-			for k in mini(shapes.size(), saved.size()):
-				var w := str(saved[k]).to_float() / 100.0
-				if is_zero_approx(w):
-					continue
-				baked += 1
-				var sv: PackedVector3Array = shapes[k][Mesh.ARRAY_VERTEX]
-				var sn: Variant = shapes[k][Mesh.ARRAY_NORMAL]
-				var relative := mesh.blend_shape_mode == Mesh.BLEND_SHAPE_MODE_RELATIVE
+			var relative := mesh.blend_shape_mode == Mesh.BLEND_SHAPE_MODE_RELATIVE
+			var surface_shapes := mesh.surface_get_blend_shape_arrays(s)
+			for k in surface_shapes.size():
+				var name := mesh.get_blend_shape_name(k)
+				var d: Array = shapes.get_or_add(name, [PackedVector3Array(), PackedVector3Array()])
+				d[0].resize(verts.size())
+				d[1].resize(verts.size())
+				var sv: PackedVector3Array = surface_shapes[k][Mesh.ARRAY_VERTEX]
+				var sn: Variant = surface_shapes[k][Mesh.ARRAY_NORMAL]
 				for i in v.size():
-					v[i] += w * (sv[i] if relative else sv[i] - v[i])
-					if sn is PackedVector3Array and not relative:
-						n[i] += w * ((sn as PackedVector3Array)[i] - n[i])
+					d[0].append(sv[i] if relative else sv[i] - v[i])
+					d[1].append(Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i])
+				if k < saved.size():
+					saved_weights[name] = maxf(saved_weights.get(name, 0.0), str(saved[k]).to_float() / 100.0)
 			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
 			uv.resize(v.size())
 			var fallback := Color.WHITE
@@ -476,19 +456,32 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	arrays[Mesh.ARRAY_BONES] = bones
 	arrays[Mesh.ARRAY_WEIGHTS] = weights
 	arrays[Mesh.ARRAY_INDEX] = _simplified(arrays, indices, ranges)
-	var kept := _compact(arrays)
+	var blends := []
+	for name: String in shapes:
+		var d: Array = shapes[name]
+		d[0].resize(verts.size())
+		d[1].resize(verts.size())
+		var b := []
+		b.resize(Mesh.ARRAY_MAX)
+		b[Mesh.ARRAY_VERTEX] = d[0]
+		b[Mesh.ARRAY_NORMAL] = d[1]
+		blends.append(b)
+	var kept := _compact(arrays, blends)
 	var out := ArrayMesh.new()
-	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, kept)
+	out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
+	for name: String in shapes:
+		out.add_blend_shape(name)
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, kept, blends)
 	out.surface_set_material(0, materials.material())
 	report["renderers drawn"] = drawn
 	if not skipped.is_empty():
 		report["renderers not found in their model"] = skipped
 	report["triangles"] = "%d in the package's drawn renderers, %d kept" % [source_triangles, (kept[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3]
 	report["materials"] = used.keys().map(func(k: String) -> String: return _describe(materials.materials[k]))
-	report["blend shapes"] = "%d baked at their saved weights; the rest dropped" % baked
+	report["blend shapes"] = "%d kept, %d set to their saved weights" % [shapes.size(), saved_weights.values().filter(func(w: float) -> bool: return not is_zero_approx(w)).size()]
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
-	return {"mesh": out, "skin": skin}
+	return {"mesh": out, "skin": skin, "weights": saved_weights}
 
 
 static func _describe(m: Dictionary) -> String:
@@ -639,8 +632,8 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 	return [b, w.map(func(x: float) -> float: return x / sum)]
 
 
-## Drops the vertices no triangle uses.
-static func _compact(arrays: Array) -> Array:
+## Drops the vertices no triangle uses, from the surface's arrays and, in place, its blend shapes'.
+static func _compact(arrays: Array, blends: Array) -> Array:
 	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var map := {}
 	var order := PackedInt32Array()
@@ -676,6 +669,13 @@ static func _compact(arrays: Array) -> Array:
 	out[Mesh.ARRAY_BONES] = nb
 	out[Mesh.ARRAY_WEIGHTS] = nw
 	out[Mesh.ARRAY_INDEX] = ni
+	for shape: Array in blends:
+		for a in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL]:
+			var src: PackedVector3Array = shape[a]
+			var dst := PackedVector3Array()
+			for i in order:
+				dst.append(src[i])
+			shape[a] = dst
 	return out
 
 
@@ -833,12 +833,27 @@ static func _local(d: Dictionary) -> Transform3D:
 	return Transform3D(Basis(rot).scaled_local(Vector3(f.call(sc, "x", 1.0), f.call(sc, "y", 1.0), f.call(sc, "z", 1.0))), Vector3(-f.call(p, "x", 0.0), f.call(p, "y", 0.0), f.call(p, "z", 0.0)))
 
 
-## The bones the Avatar definition maps, by index: [VRM 1.0 name, the Unity bone it was]; empty, with the reason
-## printed, if the definition names a bone the skeleton lacks, two VRM bones for one, or a bone VRM does not have, or an
-## unmapped bone already bears a mapped VRM name.
+## Keeps the longest spring chains within Avatar.MAX_SPRING_JOINTS: each joint is simulated on the CPU every frame.
+static func _keep_longest(springs: Dictionary, report: Dictionary) -> void:
+	if springs.is_empty():
+		return
+	var longest: Array = springs.springs.duplicate()
+	longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
+	var kept := []
+	var joints := 0
+	for chain: Dictionary in longest:
+		if joints + chain.joints.size() <= Avatar.MAX_SPRING_JOINTS:
+			kept.append(chain)
+			joints += chain.joints.size()
+	report["spring chains kept within the joint limit"] = "%d of %d" % [kept.size(), longest.size()]
+	springs.springs = kept
+
+
+## The bones the Avatar definition maps, by index: [humanoid (VRM 1.0) name, the Unity bone it is]; empty, with the
+## reason printed, if the definition names a bone the skeleton lacks, two humanoid bones for one, or a bone the humanoid
+## has not.
 static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> Dictionary:
 	var named := {}
-	var vrm_names := {}
 	var refuse := func(why: String) -> Dictionary:
 		printerr("unity_avatar: %s: %s" % [model, why])
 		return {}
@@ -852,22 +867,19 @@ static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> D
 		if named.has(b):
 			return refuse.call("the Avatar definition maps %s twice" % unity_bone)
 		named[b] = [vrm, unity_bone]
-		vrm_names[vrm] = true
-	for i in sk.get_bone_count():
-		if not named.has(i) and vrm_names.has(String(sk.get_bone_name(i))):
-			return refuse.call("its unmapped bone %s bears a mapped VRM name" % sk.get_bone_name(i))
 	return named
 
 
 ## Where the eyes are from the head bone: the descriptor's view position (Unity's axes, X mirrored), or between the eye
 ## bones, or a little above the head bone.
 static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> Vector3:
-	var head := sk.get_bone_global_rest(sk.find_bone("head"))
+	var rest := func(b: String) -> Transform3D: return sk.get_bone_global_rest(sk.find_bone((human[b] as NodePath).get_concatenated_subnames()))
+	var head: Transform3D = rest.call("head")
 	var view: Variant = descriptor.get("ViewPosition")
 	if view is Dictionary:
 		return head.affine_inverse() * Vector3(-str(view.get("x", "0")).to_float(), str(view.get("y", "0")).to_float(), str(view.get("z", "0")).to_float())
 	if human.has("leftEye") and human.has("rightEye"):
-		return head.affine_inverse() * ((sk.get_bone_global_rest(sk.find_bone("leftEye")).origin + sk.get_bone_global_rest(sk.find_bone("rightEye")).origin) / 2.0)
+		return head.affine_inverse() * (((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0)
 	return Vector3(0, 0.06, 0)
 
 
