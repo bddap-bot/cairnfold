@@ -448,6 +448,9 @@ func _forget() -> void:
 	_holders.clear()
 	_riders.clear()
 	_settling.clear()
+	for e: Dictionary in _held_clutter.values():
+		e.node.queue_free()
+	_held_clutter.clear()
 	_due.clear()
 
 
@@ -1511,12 +1514,17 @@ func _show_clutter(of: String, id: int) -> void:
 	for i in garden.size():
 		if not carried.has(i):
 			list.append(garden[i])
-	var data := {} if grips.is_empty() else {"clutter": list}
 	if of == "paths":
-		paths.show_reshaped(id, data)
+		paths.show_reshaped(id, {} if grips.is_empty() else {"clutter": list})
 		return
 	var w := find(id)
-	if w != null and (PackedVector4Array(w.layout.clutter) != data.get("clutter", world.state.walls[id].clutter) or w.reshaped != data):
+	if w == null:
+		return
+	var data := w.reshaped.duplicate()
+	data.erase("clutter")
+	if not grips.is_empty():
+		data.clutter = list
+	if PackedVector4Array(w.layout.clutter) != data.get("clutter", garden) or w.reshaped != data:
 		_relay(w, data)
 
 
@@ -1545,9 +1553,18 @@ func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
 		add_child(piece)
 		_held_clutter[grip] = {"node": piece, "of": of, "id": id, "let_go": false}
 	var node: Node3D = _held_clutter[grip].node
-	node.visible = x != null
+	# Until its build is drawn without it, the build still shows it where it was taken.
+	node.visible = x != null and _clutter_drawn(of, id)
 	if x != null:
 		node.global_transform = x
+
+
+## Whether build `id` of table `of` is drawn as it was last laid.
+func _clutter_drawn(of: String, id: int) -> bool:
+	if of == "paths":
+		return not paths.laying(id) and masonry.drawn(-2000000 - id)
+	var w := find(id)
+	return not w.laying() and masonry.drawn(w.get_instance_id())
 
 
 ## Where piece `v` of the clutter `grip` holds stands in the world, or null where nothing holds it.
@@ -1559,14 +1576,16 @@ func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
 	return null if x == null else grip.wall.global_transform * x
 
 
-## A piece let go stands apart until its build is laid with it, or is gone.
+## A piece in hand keeps its build shown without it, whatever else lays the build again; let go, it stands apart until
+## its build is drawn with it. Either goes with its build.
 func _settle_clutter() -> void:
 	for grip: FittingGrip in _held_clutter.keys():
 		var e: Dictionary = _held_clutter[grip]
-		if not e.let_go:
-			continue
-		var gone: bool = not world.state[e.of].has(e.id) or (e.of == "walls" and find(e.id) == null)
-		if gone or not (paths.laying(e.id) if e.of == "paths" else find(e.id).laying()):
+		var gone: bool = not world.state[e.of].has(e.id) or (e.of == "walls" and find(e.id) == null) or (e.of == "paths" and paths.layout(e.id) == null)
+		if not gone and not e.let_go:
+			_show_clutter(e.of, e.id)
+			_hold_clutter(grip, e.of, e.id)
+		elif gone or _clutter_drawn(e.of, e.id):
 			e.node.queue_free()
 			_held_clutter.erase(grip)
 

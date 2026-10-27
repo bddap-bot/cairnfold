@@ -112,6 +112,7 @@ func _held_apart(house: Wall) -> void:
 	var grip := tool._fitting_grip(target)
 	tool.begin_grow(m, grip, from, at)
 	_lay()
+	await until(func() -> bool: return tool._held_clutter[grip].node.visible, "the piece in hand shows once its house is drawn without it")
 	var laid := house.layout.laid
 	check(house.layout.clutter.size() == _clutter(house.id).size() - 1, "the house is laid without the piece in hand")
 	var held: Node3D = tool._held_clutter[grip].node
