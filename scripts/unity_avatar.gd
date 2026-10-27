@@ -875,10 +875,14 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	var physbones := 0
 	var live := {}
 	for e: Array in _under(objs, top):
-		live[e[1]] = true
+		live[e[0]] = true
+	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
+	var ours := func(d: Dictionary) -> bool:
+		var t := _ref(d.get("rootTransform"))
+		return live.has(t if t != 0 else _transform(objs, _ref(d.get("m_GameObject"))))
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not live.has(_ref(d.get("m_GameObject"))):
+		if objs[id].type != "MonoBehaviour" or not ours.call(d):
 			continue
 		if d.has("shapeType") and d.has("insideBounds"):
 			var t := _ref(d.get("rootTransform"))
@@ -898,7 +902,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			colliders.append({"node": bone, "shape": shape})
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not d.has("pull") or not d.has("rootTransform") or not live.has(_ref(d.get("m_GameObject"))):
+		if objs[id].type != "MonoBehaviour" or not d.has("pull") or not d.has("rootTransform") or not ours.call(d):
 			continue
 		physbones += 1
 		var root_t := _ref(d.get("rootTransform"))
