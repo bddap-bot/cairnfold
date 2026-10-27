@@ -1,0 +1,659 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "village/aerial": {
+   "p50": 13.9320001602173,
+   "p99": 28.7099990844727,
+   "late": 20,
+   "draws": 117,
+   "prims": 737038,
+   "landings": [
+    {
+     "frames": 31,
+     "max": 34.459,
+     "late": 3
+    }
+   ],
+   "step": 15,
+   "fill": 0.925,
+   "gpu_ms": 10.75,
+   "timewarp_ms": 1.3
+  },
+  "village/ground": {
+   "p50": 13.9409999847412,
+   "p99": 18.0580005645752,
+   "late": 3,
+   "draws": 69,
+   "prims": 285966,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.607,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.925,
+   "gpu_ms": 9.67,
+   "timewarp_ms": 1.28
+  },
+  "village-boards/aerial": {
+   "p50": 13.9709997177124,
+   "p99": 17.0849990844727,
+   "late": 3,
+   "draws": 93,
+   "prims": 289044,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.602,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.932,
+   "gpu_ms": 10.85,
+   "timewarp_ms": 1.31
+  },
+  "village-boards/ground": {
+   "p50": 13.9359998703003,
+   "p99": 26.132999420166,
+   "late": 7,
+   "draws": 68,
+   "prims": 285648,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 18.682,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 150.7,
+     "notes": [
+      {
+       "ms": 4.8,
+       "what": "world: applying take"
+      },
+      {
+       "ms": 4.6,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.6,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.3,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.984,
+   "gpu_ms": 9.63,
+   "timewarp_ms": 1.28
+  },
+  "village-steps/aerial": {
+   "p50": 13.9379997253418,
+   "p99": 17.3600006103516,
+   "late": 3,
+   "draws": 96,
+   "prims": 288992,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.069,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.984,
+   "gpu_ms": 10.86,
+   "timewarp_ms": 1.3
+  },
+  "village-steps/ground": {
+   "p50": 13.951000213623,
+   "p99": 27.2600002288818,
+   "late": 9,
+   "draws": 70,
+   "prims": 286218,
+   "landings": [
+    {
+     "frames": 34,
+     "max": 42.073,
+     "late": 1
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 134.5,
+     "notes": [
+      {
+       "ms": 4.7,
+       "what": "world: applying take"
+      },
+      {
+       "ms": 4.6,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.5,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.2,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 9.66,
+   "timewarp_ms": 1.28
+  },
+  "thatched/aerial": {
+   "p50": 13.9289999008179,
+   "p99": 17.1539993286133,
+   "late": 4,
+   "draws": 96,
+   "prims": 282194,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.789,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 10.72,
+   "timewarp_ms": 1.3
+  },
+  "thatched/ground": {
+   "p50": 13.9309997558594,
+   "p99": 67.8759994506836,
+   "late": 5,
+   "draws": 75,
+   "prims": 317103,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.981,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 429.8,
+     "notes": [
+      {
+       "ms": 4.8,
+       "what": "world: applying take"
+      },
+      {
+       "ms": 7.1,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.8,
+       "what": "world: applying reshape"
+      },
+      {
+       "ms": 5.9,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 5.5,
+       "what": "world: applying reshape"
+      },
+      {
+       "ms": 7.2,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 6.4,
+       "what": "world: applying reshape"
+      },
+      {
+       "ms": 7.3,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 67.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 9.67,
+   "timewarp_ms": 1.28
+  },
+  "plaster/aerial": {
+   "p50": 13.8850002288818,
+   "p99": 16.826000213623,
+   "late": 3,
+   "draws": 106,
+   "prims": 274572,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.65,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.997,
+   "gpu_ms": 10.64,
+   "timewarp_ms": 1.3
+  },
+  "plaster/ground": {
+   "p50": 13.914999961853,
+   "p99": 20.5230007171631,
+   "late": 7,
+   "draws": 81,
+   "prims": 317850,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.151,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 108.6,
+     "notes": [
+      {
+       "ms": 4.6,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.6,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.3,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.997,
+   "gpu_ms": 10.49,
+   "timewarp_ms": 1.29
+  },
+  "plaster-village/aerial": {
+   "p50": 13.9589996337891,
+   "p99": 17.4080009460449,
+   "late": 3,
+   "draws": 125,
+   "prims": 305236,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.559,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.956,
+   "gpu_ms": 11.05,
+   "timewarp_ms": 1.3
+  },
+  "plaster-village/ground": {
+   "p50": 13.9029998779297,
+   "p99": 187.001007080078,
+   "late": 10,
+   "draws": 80,
+   "prims": 313526,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.629,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 187.0,
+     "notes": [
+      {
+       "ms": 99.1,
+       "what": "world: applying wipe"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 496.3,
+     "notes": [
+      {
+       "ms": 6.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 7.0,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 6.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 7.1,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 7.2,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 7.0,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 52.1,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 65.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 66.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 10.17,
+   "timewarp_ms": 1.29
+  },
+  "timber-village/aerial": {
+   "p50": 13.9130001068115,
+   "p99": 15.7810001373291,
+   "late": 2,
+   "draws": 105,
+   "prims": 181729,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 16.161,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 7.86,
+   "timewarp_ms": 1.27
+  },
+  "timber-village/ground": {
+   "p50": 13.9180002212524,
+   "p99": 17.2810001373291,
+   "late": 4,
+   "draws": 47,
+   "prims": 129927,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.813,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 5.5,
+   "timewarp_ms": 1.28
+  },
+  "timber-village/interior": {
+   "p50": 13.9180002212524,
+   "p99": 16.17799949646,
+   "late": 2,
+   "draws": 58,
+   "prims": 140197,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.652,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.999,
+   "gpu_ms": 5.18,
+   "timewarp_ms": 1.29
+  },
+  "curved-tile/aerial": {
+   "p50": 13.9969997406006,
+   "p99": 16.1439990997314,
+   "late": 2,
+   "draws": 95,
+   "prims": 200677,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.541,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 1.0,
+   "gpu_ms": 8.7,
+   "timewarp_ms": 1.28
+  },
+  "curved-tile/ground": {
+   "p50": 13.9390001296997,
+   "p99": 25.6630001068115,
+   "late": 7,
+   "draws": 60,
+   "prims": 152535,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.905,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 123.9,
+     "notes": [
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.2,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.9,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 1.0,
+   "gpu_ms": 5.65,
+   "timewarp_ms": 1.27
+  },
+  "curved-thatch/aerial": {
+   "p50": 13.9250001907349,
+   "p99": 15.7670001983643,
+   "late": 2,
+   "draws": 104,
+   "prims": 171617,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.857,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.97,
+   "gpu_ms": 7.52,
+   "timewarp_ms": 1.28
+  },
+  "curved-thatch/ground": {
+   "p50": 13.9449996948242,
+   "p99": 91.8190002441406,
+   "late": 7,
+   "draws": 60,
+   "prims": 147219,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.852,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 110.7,
+     "notes": [
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.1,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.2,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.1,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 91.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.97,
+   "gpu_ms": 5.8,
+   "timewarp_ms": 1.28
+  },
+  "curved-deck/aerial": {
+   "p50": 13.9259996414185,
+   "p99": 16.2830009460449,
+   "late": 2,
+   "draws": 94,
+   "prims": 165255,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 17.536,
+     "late": 0
+    }
+   ],
+   "step": 15,
+   "fill": 0.965,
+   "gpu_ms": 7.68,
+   "timewarp_ms": 1.27
+  },
+  "curved-deck/ground": {
+   "p50": 13.9219999313354,
+   "p99": 23.6720008850098,
+   "late": 3,
+   "draws": 51,
+   "prims": 125983,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.666,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 57.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.965,
+   "gpu_ms": 5.34,
+   "timewarp_ms": 1.28
+  }
+ }
+}
