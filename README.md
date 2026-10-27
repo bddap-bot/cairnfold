@@ -97,8 +97,8 @@ also holds the people: avatars to wear, and nearby gardens to join.
   `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows. An APK keeps the garden
   (`garden.save`) and avatars in `/sdcard/Android/data/io.github.bddapbot.cairnfold/files`,
   where adb reads them, and photos in `Pictures/Cairnfold` in shared storage.
-  Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
-  is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)). On a
+  Put VRM avatars (1.0 or 0.x) in its `avatars` folder to wear them: each is a slot on the
+  inventory wheel, the newest arrival is put on, and other players see the one you wear (see [docs/multiplayer.md](docs/multiplayer.md)). On a
   Quest the folder is `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`:
   `adb push avatar.vrm /sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars/`.
 

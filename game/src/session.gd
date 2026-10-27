@@ -3,8 +3,8 @@ extends Node
 
 ## Who shares this garden (docs/multiplayer.md). Every instance hosts its own garden, which alone is
 ## single player, and announces it on the local network; joining someone swaps in their garden until
-## you leave or they go. Each player's head and hands travel to the others as poses, and the newest VRM
-## in their avatar folder travels once to everyone they meet.
+## you leave or they go. Each player's head and hands travel to the others as poses, and the VRM they
+## wear from their avatar folder travels once to everyone they meet.
 
 const PORT := 7480
 ## A host takes the first free of PORTS ports from its first; beacons may name any in PORT_RANGE from PORT.
@@ -58,7 +58,6 @@ var feed: FeedTool:
 			if not multiplayer.get_peers().is_empty():
 				_threw.rpc(from, velocity, seed))
 var avatar := 0
-var avatar_file := {}
 var colour := COLOURS[0]
 var me: Persona
 var port := 0
@@ -84,8 +83,16 @@ var held := {}
 var painting: EaselTool
 var book: Book
 var _sent_held: Array = []
-## The folder whose newest .vrm is this player's avatar, or "" for a built-in one.
+## The folder whose .vrm files are this player's own avatars, or "" for none.
 var folder := ""
+## Every .vrm in that folder by file name: {seen, when, key, bytes, scene}. `seen` is its modified time and size, so a
+## file is read again only when it changes; `key` is "" until it has been read, and `scene` null unless it read as an
+## avatar within the limits.
+var files := {}
+## The folder file worn once it reads: the newest of those that last changed.
+var _wanted := ""
+## The folder file being read: one at a time, newest first, so a full folder never holds every core or its memory.
+var _reading := ""
 ## That file once it has read as an avatar within the limits; sent to every player met.
 var worn := PackedByteArray()
 ## Its hash, which the beacon names so the picker can fetch the file before anyone joins; "" for a built-in avatar.
@@ -101,7 +108,6 @@ var _scenes := {}
 ## completes; each player's latest file waiting to be.
 var _jobs: Array[Dictionary] = []
 var _waiting := {}
-var _seen_file := ""
 var _since_folder := INF
 var _home := {}
 var _key := 0
@@ -640,47 +646,75 @@ static func _hash(bytes: PackedByteArray) -> String:
 	return h.finish().hex_encode()
 
 
-func choose_avatar(choice: String) -> void:
-	if choice == "file" and avatar_file.is_empty():
-		return
-	if choice != "file":
-		avatar = posmod(choice.to_int(), Avatar.BUILT_IN.size())
-	if choice == "file":
-		_set_look(avatar_file.key, avatar_file.bytes, avatar_file.scene)
-	else:
-		_set_look("", PackedByteArray(), null)
+## Wears built-in avatar `look`.
+func choose_avatar(look: int) -> void:
+	_wanted = ""
+	avatar = posmod(look, Avatar.BUILT_IN.size())
+	_set_look("", PackedByteArray(), null)
 
 
-## Wears the newest .vrm in the avatar folder once it reads as an avatar; with none there, the built-in one.
+## Wears folder file `f` if it has read as an avatar.
+func wear_file(f: String) -> void:
+	var file: Dictionary = files.get(f, {})
+	if file.get("scene") != null:
+		_wanted = ""
+		_set_look(file.key, file.bytes, file.scene)
+
+
+## Notes which .vrm files in the avatar folder are new, changed or gone. The newest new or changed one is worn once it
+## reads; the worn one gone, the built-in avatar is.
 func _look_in_folder() -> void:
 	if folder == "":
 		return
-	var newest := ""
-	var when := -1
+	var found := {}
 	for f in DirAccess.get_files_at(folder):
-		var path := folder.path_join(f)
-		if f.get_extension().to_lower() == "vrm" and FileAccess.get_modified_time(path) > when:
-			newest = path
-			when = FileAccess.get_modified_time(path)
-	var seen := "%s %d %d" % [newest, when, FileAccess.get_size(newest) if newest != "" else 0]
-	if seen == _seen_file:
-		return
-	_seen_file = seen
-	if newest == "":
-		_put_on("", PackedByteArray(), null, seen)
-	else:
-		_read(PackedByteArray(), newest, _put_on.bind(seen))
+		if f.get_extension().to_lower() == "vrm":
+			found[f] = folder.path_join(f)
+	var gone := []
+	for f in files.keys():
+		if not found.has(f):
+			gone.append(files[f].key)
+			files.erase(f)
+	if worn_key != "" and gone.has(worn_key):
+		_set_look("", PackedByteArray(), null)
+	if not files.has(_wanted):
+		_wanted = ""
+	var newest := ""
+	for f in found:
+		var when := FileAccess.get_modified_time(found[f])
+		var seen := "%d %d" % [when, FileAccess.get_size(found[f])]
+		if files.get(f, {}).get("seen") != seen:
+			files[f] = {"seen": seen, "when": when, "key": "", "bytes": PackedByteArray(), "scene": null}
+			if newest == "" or when > files[newest].when:
+				newest = f
+	if newest != "":
+		_wanted = newest
+	_read_next()
 
 
-## Wears a file read from the folder, unless the folder has changed since.
-func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: String) -> void:
-	if seen != _seen_file:
+## Starts reading the newest folder file not yet read, unless one is being read.
+func _read_next() -> void:
+	if _reading != "":
 		return
-	if key != "" and scene == null:
-		print("session: %s is not an avatar within the limits" % _seen_file)
-		return
-	avatar_file = {"key": key, "bytes": bytes, "scene": scene} if scene != null else {}
-	_set_look(key, bytes, scene)
+	for f in files:
+		if files[f].key == "" and (_reading == "" or files[f].when > files[_reading].when):
+			_reading = f
+	if _reading != "":
+		_read(PackedByteArray(), folder.path_join(_reading), _have_file.bind(_reading, files[_reading].seen))
+
+
+## Keeps a folder file read as it was when seen, and wears it if it is the one wanted.
+func _have_file(key: String, bytes: PackedByteArray, scene: PackedScene, f: String, seen: String) -> void:
+	_reading = ""
+	if files.get(f, {}).get("seen") == seen:
+		if scene == null:
+			print("session: %s is not an avatar within the limits" % folder.path_join(f))
+		files[f].merge({"key": key, "bytes": bytes if scene != null else PackedByteArray(), "scene": scene}, true)
+		if f == _wanted:
+			_wanted = ""
+			if scene != null:
+				_set_look(key, bytes, scene)
+	_read_next()
 
 
 func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:

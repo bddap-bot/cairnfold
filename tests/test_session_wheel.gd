@@ -107,14 +107,7 @@ func _run() -> void:
 	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected.erase(button)
 	await process_frame
-	var bytes := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[0])
-	var key := Session._hash(bytes)
-	session._put_on(key, bytes, Avatar.built_in(0), session._seen_file)
-	hand.people.activate("avatar:2")
-	check(session.worn.is_empty() and session.avatar == 2, "a built-in choice replaces the loaded file")
-	check(ToolWheel.paths(hand.inventory()).has("avatar:file"), "the loaded file stays available on the wheel")
-	hand.people.activate("avatar:file")
-	check(session.worn_key == key and main.rig.body.source == key, "the loaded file can be selected again")
+	await _every_file_in_the_folder_is_on_the_wheel(session, hand)
 	var cached := -1
 	for repeat in 3:
 		var preview := hand.people.figure("avatar:0")
@@ -128,3 +121,40 @@ func _run() -> void:
 	main.queue_free()
 	await process_frame
 	finish()
+
+
+## Each .vrm in the folder that reads is a slot of its own; the newest to arrive is worn, and the worn one removed, the
+## built-in avatar is.
+func _every_file_in_the_folder_is_on_the_wheel(session: Session, hand: Hand) -> void:
+	var source := ProjectSettings.globalize_path("res://").path_join("../tests/avatars")
+	var vrms := Array(DirAccess.get_files_at(source)).filter(func(f: String) -> bool: return f.get_extension() == "vrm")
+	vrms.sort()
+	var folder := ProjectSettings.globalize_path("user://test-wheel-avatars")
+	DirAccess.make_dir_recursive_absolute(folder)
+	session.folder = folder
+	var keys := {}
+	for f: String in ["b.vrm", "a.vrm"]:
+		var bytes := FileAccess.get_file_as_bytes(source.path_join(vrms[keys.size()]))
+		keys[f] = Session._hash(bytes)
+		var out := FileAccess.open(folder.path_join(f), FileAccess.WRITE)
+		out.store_buffer(bytes)
+		out.close()
+		session._look_in_folder()
+		while session._reading != "":
+			await process_frame
+		check(session.worn_key == keys[f] and main.rig.body.source == keys[f], "the newest file to arrive is worn: " + f)
+	var slots := ToolWheel.paths(hand.people.avatars()).keys().filter(func(k: String) -> bool: return k.begins_with("file:"))
+	check(slots == ["file:a.vrm", "file:b.vrm"], "two files are two slots, in name order: %s" % [slots])
+	session._look_in_folder()
+	check(session._reading == "" and session._jobs.is_empty(), "an unchanged file is not read again")
+	hand.people.activate("avatar:2")
+	check(session.worn.is_empty() and session.avatar == 2, "a built-in choice replaces a worn file")
+	for f: String in keys:
+		hand.people.activate("file:" + f)
+		check(session.worn_key == keys[f] and main.rig.body.source == keys[f], "choosing a file's slot wears it: " + f)
+	DirAccess.remove_absolute(folder.path_join("a.vrm"))
+	session._look_in_folder()
+	check(session.worn_key == "" and session.worn.is_empty(), "removing the worn file brings the built-in avatar back")
+	check(not ToolWheel.paths(hand.inventory()).has("file:a.vrm") and ToolWheel.paths(hand.inventory()).has("file:b.vrm"), "and takes its slot off the wheel")
+	session.folder = ""
+	session.files.clear()

@@ -18,8 +18,10 @@ func avatars() -> Array:
 	var out: Array = []
 	for i in Avatar.BUILT_IN.size():
 		out.append("avatar:%d" % i)
-	if not session.avatar_file.is_empty():
-		out.append("avatar:file")
+	var files := session.files.keys().filter(func(f: String) -> bool: return session.files[f].scene != null)
+	files.sort()
+	for f in files:
+		out.append("file:" + f)
 	if not session.me.steam():
 		out.append("name")
 	return pages(out)
@@ -47,7 +49,9 @@ static func pages(items: Array) -> Array:
 
 func activate(key: String) -> void:
 	if key.begins_with("avatar:"):
-		session.choose_avatar(key.trim_prefix("avatar:"))
+		session.choose_avatar(key.trim_prefix("avatar:").to_int())
+	elif key.begins_with("file:"):
+		session.wear_file(key.trim_prefix("file:"))
 	elif key == "name":
 		session.me.pick()
 	elif key == "home":
@@ -61,7 +65,9 @@ func activate(key: String) -> void:
 ## What figure(key) is drawn from: a wheel keeping its figures builds one again when this changes.
 func signature(key: String) -> String:
 	if key.begins_with("avatar:"):
-		return str([session.colour, session.avatar_file.get("key", "") if key == "avatar:file" else ""])
+		return str([session.colour, ""])
+	if key.begins_with("file:"):
+		return str([session.colour, session.files.get(key.trim_prefix("file:"), {}).get("key", "")])
 	if key == "name":
 		return str([session.avatar, session.colour, _tag(key)])
 	if key.begins_with("join:"):
@@ -80,17 +86,19 @@ func figure(key: String) -> Node3D:
 	var root := Node3D.new()
 	var garden := {"avatar": session.avatar, "colour": session.colour, "wears": "", "joins": true}
 	var tag := ""
+	var file := {}
 	if key.begins_with("join:"):
 		tag = key.trim_prefix("join:")
 		garden = session.nearby.get(tag, garden)
 	elif key == "name":
 		tag = "name"
-	elif key == "avatar:file":
-		garden.wears = session.avatar_file.key
+	elif key.begins_with("file:"):
+		file = session.files.get(key.trim_prefix("file:"), {})
+		garden.wears = file.get("key", "")
 	elif key.begins_with("avatar:"):
 		garden.avatar = key.trim_prefix("avatar:").to_int()
 	var wears: String = garden.get("wears", "")
-	var scene: PackedScene = session.avatar_file.scene if key == "avatar:file" else session.look(wears, garden.avatar)
+	var scene: PackedScene = file.get("scene") if file.get("scene") != null else session.look(wears, garden.avatar)
 	var a := Avatar.open(scene, garden.colour, wears if session.previews.has(wears) else "")
 	a.name = "Figure"
 	a.stand()

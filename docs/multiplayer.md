@@ -158,13 +158,15 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   through the same Session poses as tracked VR hands.
   Avatars keep their own size, so a small one's feet stand off the ground under a
   tall player's head.
-- **Your own avatar.** The newest `.vrm` in the game's `avatars` folder is yours
+- **Your own avatars.** Every `.vrm` in the game's `avatars` folder that reads as an
+  avatar within the limits is yours to wear
   (`~/.local/share/godot/app_userdata/Cairnfold/avatars` on Linux and the Frame,
   `%APPDATA%\Godot\app_userdata\Cairnfold\avatars` on Windows). The game creates
-  the folder and looks at it every two seconds, so dropping a file in changes your
-  avatar within a few seconds, mid-session included; removing it brings the built-in
-  one back. The inventory wheel lets you switch between the built-in figures and
-  that loaded file without removing it. On a Quest the folder is
+  the folder and looks at it every two seconds, reading only files that are new or
+  changed, one at a time, newest first. Dropping a file in puts it on within a few
+  seconds, mid-session included; removing the one worn brings the built-in avatar back.
+  The inventory wheel's avatars branch holds the built-in figures and a slot per file,
+  in file-name order. On a Quest the folder is
   `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
 - **From a Unity package.** `scripts/unity_avatar.gd` converts the avatar in a Unity source

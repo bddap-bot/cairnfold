@@ -170,7 +170,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	var host := sessions[1]
 	host.folder = folder
 	var tool := SessionWheel.new(viewer)
-	while host.worn_key == "" and (host._seen_file == "" or not host._jobs.is_empty()):
+	while host.worn_key == "" and (host.files.is_empty() or host._reading != ""):
 		await process_frame
 	check(host.worn_key != "" and Session.read_beacon(host.beacon()).wears == host.worn_key, "a host wearing its own file names it in the beacon")
 	var where := "127.0.0.1:%d" % host.port
