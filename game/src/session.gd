@@ -326,7 +326,7 @@ func _process(delta: float) -> void:
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds)
+		_pose.rpc(rig.head.global_transform, rig.left.held_at(), rig.right.held_at(), rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]

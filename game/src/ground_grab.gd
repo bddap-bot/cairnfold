@@ -113,7 +113,7 @@ func _handle(g: Grab, delta: float) -> void:
 	var hit: Variant = world.terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
 	if hit == null or Daylight.aims_at_body(dir, world.time):
 		return
-	begin(hand, hit, hand.at_controller().distance_to(hit) * RADIUS_PER_METRE)
+	begin(hand, hit, hand.at_controller().origin.distance_to(hit) * RADIUS_PER_METRE)
 	Cues.play(Cues.Act.GROUND_TAKE, hit, hand)
 	g.gripped = true
 	g.hand_y = hand.position.y

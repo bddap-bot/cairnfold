@@ -31,8 +31,8 @@ const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
-## Tools that work by touch at arm's length: a hand holding one stays where the controller is.
-const STAYS := [Tool.SEEDS, Tool.EASEL, Tool.CAMERA, Tool.SELFIE, Tool.BOOK]
+## What a hand may hold and still reach far by stretching (`Reach`); every other tool keeps its pointer.
+const REACHES := [Tool.NONE]
 ## Tools with no model in the hand.
 const UNMODELLED := [Tool.NONE, Tool.EASEL, Tool.BOOK]
 ## How far a wheel icon's model tips its top toward the eye.
@@ -393,9 +393,9 @@ func tracked() -> bool:
 	return held_still or bare or get_has_tracking_data()
 
 
-## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing.
+## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing: never both.
 func reaches() -> bool:
-	return Reach.mode == Reach.Mode.GOGO and (held_reaches or not held_still)
+	return Reach.mode == Reach.Mode.GOGO and tool in REACHES and (held_reaches or not held_still)
 
 
 ## Where the grip looks for what it takes, from along the aim, and how far it looks: a reaching hand what it touches,
@@ -409,8 +409,15 @@ func grip_reach() -> float:
 
 
 ## Where the controller is in the garden.
-func at_controller() -> Vector3:
-	return (get_parent() as Node3D).global_transform * controller.origin
+func at_controller() -> Transform3D:
+	return (get_parent() as Node3D).global_transform * controller
+
+
+## Where the player's avatar, here and in every other player's game, holds this hand: the controller, stopped at what
+## is solid as the hand you see is, and never out where a reach throws the hand you see.
+func held_at() -> Transform3D:
+	var at := at_controller()
+	return at if reaches() else Transform3D(at.basis, at.origin + body.global_position - global_position)
 
 
 ## Throws the hand out from the controller by `reach` while it holds a build tool or nothing; a pose the runtime or
@@ -419,7 +426,7 @@ func _reach(delta: float) -> void:
 	if transform != _placed:
 		controller = transform
 	var rig := get_parent() as Rig
-	if rig != null and reaches() and tracked() and not picking and not _buttons.held("wheel") and not tool in STAYS:
+	if rig != null and reaches() and tracked() and not picking and not _buttons.held("wheel"):
 		# Upright at the floor, so a script tipping the rig to level an unworn headset still measures across the ground.
 		var floor := Transform3D(Basis(), rig.global_position)
 		var to_floor := floor.affine_inverse()

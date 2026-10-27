@@ -3321,8 +3321,8 @@ calibrated to each player's own arm so a child with short arms reaches as far as
   arm back reels the hand in along the same curve.
 - The grip takes what the hand touches: the first thing within 0.3 m of it along its aim, before or after it
   (`Reach.TOUCH`), by the grip's existing order (a build, a fitting, a plant, a boulder, stairs, an easel, the
-  ground). Nothing far is taken by pointing at it. A grab of the sky stays aimed, since turning the sky by pointing is
-  its control. What is taken then moves with the hand one to one, a house too, which a pointing grip moves farther the
+  ground). Nothing far is taken by pointing at it, and a reaching hand never grabs the sky, which only a pointing
+  hand turns. What is taken then moves with the hand one to one, a house too, which a pointing grip moves farther the
   farther its middle is: the projection already carries a far hand far, so a held house moves, turns, is stretched by
   two hands and is reeled in by the existing operations. A hump of ground is as wide as one pulled from where the
   controller is.
@@ -3338,9 +3338,10 @@ calibrated to each player's own arm so a child with short arms reaches as far as
   throws the hand along the arm's line onto the ground ahead.
 - How far the hand is thrown follows the stretch at 4 Hz, plus 2 Hz for each metre it lags, so a held arm holds the
   hand still against tremor and a deliberate reach catches up, as the teleport ray's aim does.
-- It reaches with the build tools and with an empty hand. A hand holding the seed dish, the easel's brushes, a
-  camera or the picture book stays where the controller is, since those work by touch at arm's length, as does a
-  hand opening the wheel. Tracked hands reach as controllers do: the mapping reads the hand's pose alone.
+- Only an empty hand reaches (`Hand.REACHES`): the far grip is what has moved to it so far. A hand holding any tool
+  stays where the controller is and keeps its pointer, its grip included, as does a hand opening the wheel, so no
+  hand is ever thrown out and pointing at once. Tracked hands reach as controllers do: the mapping reads the hand's
+  pose alone.
 
 Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking the left stick
 in while it is centred cycles every hand between Go-Go reach and the pointing grab it replaces (`Reach.mode`), so one

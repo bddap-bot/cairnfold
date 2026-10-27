@@ -1,7 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Go-Go reach: the mapping, its calibration to a short and a long arm, and a far house taken by touch, moved and
-## reeled in through the grip: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_reach.gd
+## Go-Go reach: the mapping, its calibration to a short and a long arm, a far house taken by touch, moved and reeled
+## in through the grip, the avatar's hand left at the controller, and each mode's far grabs inert in the other: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_reach.gd
 
 
 func _initialize() -> void:
@@ -67,6 +67,22 @@ func _run() -> void:
 	hand.held_reaches = true
 	var eyes := rig.head.transform
 	var shoulder := hand.reach.shoulder(eyes)
+	await _grip_up(hand, shoulder)
+	check(main.sky_tool.holder == null, "a reaching hand pointed at the sky does not grab it")
+	Buttons.injected.erase("right_hand/grip_click")
+	await _pose(hand, shoulder, 0.3, 0.0)
+	Buttons.injected["right_hand/grip_click"] = true
+	await _pose(hand, shoulder, 0.3, 0.0)
+	await _pose(hand, shoulder, 0.3, 0.0)
+	check(main.tool.held == null, "a reaching hand pointed at the house, unstretched, does not take it")
+	Buttons.injected.erase("right_hand/grip_click")
+	await _pose(hand, shoulder, 0.3, 0.0)
+	hand.tool = Hand.Tool.WALLS
+	for f in 30:
+		await _pose(hand, shoulder, 0.75, 0.0)
+	check(not hand.reaches() and hand.position.distance_to(hand.controller.origin) < 0.001, "a hand holding a pointing tool is never thrown")
+	hand.tool = Hand.Tool.NONE
+	await _pose(hand, shoulder, 0.3, 0.0)
 	var touched := false
 	var across := 0.3
 	while across < 0.8 and not touched:
@@ -74,7 +90,8 @@ func _run() -> void:
 		touched = main.tool.pick_building(hand.grip_from(), -hand.global_basis.z).get("along", INF) <= hand.grip_reach()
 		across += 0.0005
 	check(touched, "stretching out, the hand reaches the house %.1f m away" % rig.head.global_position.distance_to(was))
-	check(main.tool.pick_building(hand.at_controller(), -hand.global_basis.z).get("along", INF) > 5.0, "while the controller is far from it")
+	check(main.tool.pick_building(hand.at_controller().origin, -hand.global_basis.z).get("along", INF) > 5.0, "while the controller is far from it")
+	check(rig.body.hands[1].origin.distance_to(hand.at_controller().origin) < 0.001 and hand.global_position.distance_to(hand.at_controller().origin) > 3.0, "the avatar's hand stays at the controller while the hand you see is %.1f m out" % hand.global_position.distance_to(hand.at_controller().origin))
 	Buttons.injected["right_hand/grip_click"] = true
 	await _pose(hand, shoulder, across, 0.0)
 	await _pose(hand, shoulder, across, 0.0)
@@ -112,11 +129,38 @@ func _run() -> void:
 	await _pose(hand, shoulder, 0.6, 0.0)
 	await _pose(hand, shoulder, 0.6, 0.0)
 	check(hand.position.distance_to(hand.controller.origin) < 0.001, "the pointing grab's hand stays at the controller")
+	await play([{"op": "house", "relative": true, "at": [0, -12], "size": [4.5, 4.5], "seconds": 0.5}])
+	var far: Wall = main.tool.walls[-1]
+	hand.tool = Hand.Tool.NONE
+	var at: Vector3 = rig.global_transform.affine_inverse() * WallTool.house_of(main.world.state.walls[far.id]).center
+	var toward := Basis.looking_at(at + Vector3.UP * 2.5 - (shoulder + Vector3(0.0, 0.0, -0.3)))
+	await _pose(hand, shoulder, 0.3, 0.0, toward)
+	check(main.tool.pick_building(hand.global_position, -hand.global_basis.z).get("along", 0.0) > 5.0, "the pointing hand aims at a house far off")
+	Buttons.injected["right_hand/grip_click"] = true
+	await _pose(hand, shoulder, 0.3, 0.0, toward)
+	await _pose(hand, shoulder, 0.3, 0.0, toward)
+	check(main.tool.held == far, "the pointing grab takes it")
+	Buttons.injected.erase("right_hand/grip_click")
+	await _pose(hand, shoulder, 0.3, 0.0, toward)
+	await _pose(hand, shoulder, 0.3, 0.0, toward)
+	await _grip_up(hand, shoulder)
+	check(main.sky_tool.holder == hand, "a pointing hand pointed at the sky grabs it")
+	Buttons.injected.erase("right_hand/grip_click")
+	await _pose(hand, shoulder, 0.3, 0.0)
 	finish()
 
 
 ## Holds the right controller `across` ahead of `shoulder` and `aside` to its right, pointing ahead, for a frame.
-func _pose(hand: Hand, shoulder: Vector3, across: float, aside: float) -> void:
-	hand.transform = Transform3D(Basis(), shoulder + Vector3(aside, 0.0, -across))
+func _pose(hand: Hand, shoulder: Vector3, across: float, aside: float, aim := Basis()) -> void:
+	hand.transform = Transform3D(aim, shoulder + Vector3(aside, 0.0, -across))
 	await process_frame
 	await process_frame
+
+
+## Grips with the right controller pointed straight up, and lets go.
+func _grip_up(hand: Hand, shoulder: Vector3) -> void:
+	var up := Basis(Vector3.RIGHT, PI * 0.5)
+	await _pose(hand, shoulder, 0.3, 0.0, up)
+	Buttons.injected["right_hand/grip_click"] = true
+	await _pose(hand, shoulder, 0.3, 0.0, up)
+	await _pose(hand, shoulder, 0.3, 0.0, up)

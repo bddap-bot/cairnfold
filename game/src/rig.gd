@@ -169,7 +169,7 @@ func wear(a: Avatar) -> void:
 ## reach in front of a camera's lens.
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
-	body.pose(head.global_transform, left.global_transform, right.global_transform, gaze.look)
+	body.pose(head.global_transform, left.held_at(), right.held_at(), gaze.look)
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))
