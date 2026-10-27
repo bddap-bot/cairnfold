@@ -1650,7 +1650,7 @@ func clutter_frame(v: Vector4, ground: Callable) -> Variant:
 		return x
 	if cover == Cover.OPEN:
 		return Transform3D(Basis(Vector3.UP, v.z), f.point + Vector3.UP * (standing(s) + CAP))
-	return ClutterLayout.facing(f.point + Vector3.UP * (rise + height - ClutterLayout.UNDER_EAVE), f.tangent, v.y, THICKNESS * 0.5 + 0.12, v.z)
+	return ClutterLayout.facing(f.point + Vector3.UP * (height - ClutterLayout.UNDER_EAVE), f.tangent, v.y, THICKNESS * 0.5 + 0.12, v.z)
 
 
 ## Whether a washing line's arms beside window `o` stand on its own straight face.
