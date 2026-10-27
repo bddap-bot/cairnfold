@@ -9,17 +9,19 @@ func _initialize() -> void:
 func _check_icons(tree: Array, people: SessionWheel) -> void:
 	for item in tree:
 		if item is Array:
-			var model := Hand.miniature(item, people.figure)
+			var model := Hand.miniature(item, people.icon)
 			check(_shows(model, item, people, 2), "the icon of %s shows what it holds" % [item])
 			model.free()
 			_check_icons(item, people)
 
 
 func _shows(model: Node3D, item: Variant, people: SessionWheel, depth: int) -> bool:
-	if item is Array:
+	var drawn: Node3D = people.icon(item)
+	if drawn == null and item is Array:
 		var shown := range(mini(item.size(), 4)).filter(func(j: int) -> bool: return depth > 1 or not item[j] is Array)
 		return model.get_child_count() == shown.size() and range(shown.size()).all(func(c: int) -> bool: return _shows(model.get_child(c), item[shown[c]], people, depth - 1))
-	var drawn := people.figure(item) if item is String else Hand.miniature(item)
+	if drawn == null:
+		drawn = Hand.miniature(item)
 	var same := _meshes(model) == _meshes(drawn)
 	drawn.free()
 	return same
@@ -45,6 +47,17 @@ func _run() -> void:
 		session.nearby["192.0.2.1:%d" % (8000 + i)] = {"address": "192.0.2.1", "port": 8000 + i, "key": i, "avatar": i % 3, "colour": Color.WHITE, "name": "Friend %d" % i, "joins": true, "seen": INF}
 	var tree := hand.inventory()
 	_check_icons(tree, hand.people)
+	var mirror := hand.people.icon(hand.people.avatars())
+	check(mirror.find_children("Glass", "MeshInstance3D", true, false).size() == 1 and mirror.find_children("*", "Avatar", true, false).size() == 1, "the avatars slot is one figure in a hand mirror")
+	var gate := hand.people.icon(hand.people.friends())
+	check(gate.find_children("Glass", "MeshInstance3D", true, false).is_empty() and gate.find_children("*", "Avatar", true, false).size() == 3, "the friends slot is a gate with a few nearby players behind it")
+	check(mirror.find_children("*", "Label3D", true, false).is_empty() and gate.find_children("*", "Label3D", true, false).is_empty(), "the people slots carry no text")
+	mirror.free()
+	gate.free()
+	var worn := hand.people.signature(hand.people.avatars())
+	session.avatar = (session.avatar + 1) % Avatar.BUILT_IN.size()
+	check(hand.people.signature(hand.people.avatars()) != worn, "the mirror is drawn again when the player changes who they are")
+	session.avatar = (session.avatar + Avatar.BUILT_IN.size() - 1) % Avatar.BUILT_IN.size()
 	var paths := ToolWheel.paths(tree)
 	for i in 25:
 		var key := "join:192.0.2.1:%d" % (8000 + i)

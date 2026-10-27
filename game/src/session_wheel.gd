@@ -62,12 +62,19 @@ func activate(key: String) -> void:
 			session.join(garden.address, garden.port)
 
 
-## What figure(key) is drawn from: a wheel keeping its figures builds one again when this changes.
-func signature(key: String) -> String:
+## What the icon of `item`, a person's key or a subtree, is drawn from: a wheel keeping its icons builds one again when
+## this changes.
+func signature(item: Variant) -> String:
+	if item is Array:
+		var whom := " ".join(item.map(signature))
+		return whom + " " + _worn() + " " + signature(_worn()) if item == avatars() else whom
+	if not item is String:
+		return ""
+	var key: String = item
 	if key.begins_with("avatar:"):
 		return str([session.colour, ""])
 	if key.begins_with("file:"):
-		return str([session.colour, session.files.get(key.trim_prefix("file:"), {}).get("key", "")])
+		return str([session.colour, _file(key).get("key", "")])
 	if key == "name":
 		return str([session.avatar, session.colour, _tag(key)])
 	if key.begins_with("join:"):
@@ -78,45 +85,107 @@ func signature(key: String) -> String:
 	return ""
 
 
+## The icon of `item`: a person's key as their figure (`figure`); the avatars as who you are now, alone in a hand
+## mirror, since picking one changes you; the gardens to join as a gate with the nearby players behind it, since picking
+## one takes you through; anything else null.
+func icon(item: Variant) -> Node3D:
+	if item is String:
+		return figure(item)
+	if not item is Array:
+		return null
+	if item == avatars():
+		return _mirror()
+	if item == friends():
+		return _gate()
+	return null
+
+
+## The avatar key this player wears now.
+func _worn() -> String:
+	for f: String in session.files:
+		if session.worn_key != "" and session.files[f].get("key") == session.worn_key:
+			return "file:" + f
+	return "avatar:%d" % session.avatar
+
+
+func _mirror() -> Node3D:
+	const SIZE := 0.55
+	var root := Node3D.new()
+	var frame := Node3D.new()
+	frame.scale = Vector3.ONE * SIZE
+	ToolModels.mirror(frame)
+	root.add_child(frame)
+	var me := _person(_worn())
+	me.scale *= 0.5
+	me.position = (ToolModels.MIRROR_CENTRE - Vector3(0, ToolModels.MIRROR_GLASS.y * 0.4, -0.004)) * SIZE
+	root.add_child(me)
+	return root
+
+
+func _gate() -> Node3D:
+	const WIDTH := 0.036
+	var root := Node3D.new()
+	ToolModels.gate(root, WIDTH)
+	var keys := session.nearby.keys()
+	keys.sort()
+	keys = keys.slice(0, 3)
+	for i in keys.size():
+		var who := _person("join:" + keys[i])
+		who.scale *= 0.5
+		who.position = Vector3((i - (keys.size() - 1) * 0.5) * 0.011, 0, -0.012 - 0.004 * (i % 2))
+		root.add_child(who)
+	return root
+
+
 func figure(key: String) -> Node3D:
 	if key == "home":
 		var home := _home()
 		home.scale = Vector3.ONE * 0.25
 		return home
 	var root := Node3D.new()
-	var garden := {"avatar": session.avatar, "colour": session.colour, "wears": "", "joins": true}
-	var tag := ""
-	var file := {}
-	if key.begins_with("join:"):
-		tag = key.trim_prefix("join:")
-		garden = session.nearby.get(tag, garden)
-	elif key == "name":
-		tag = "name"
-	elif key.begins_with("file:"):
-		file = session.files.get(key.trim_prefix("file:"), {})
-		garden.wears = file.get("key", "")
-	elif key.begins_with("avatar:"):
-		garden.avatar = key.trim_prefix("avatar:").to_int()
-	var wears: String = garden.get("wears", "")
-	var scene: PackedScene = file.get("scene") if file.get("scene") != null else session.look(wears, garden.avatar)
-	var a := Avatar.open(scene, garden.colour, wears if session.previews.has(wears) else "")
-	a.name = "Figure"
-	a.stand()
-	a.rotation.y = PI
-	a.scale = Vector3.ONE * 0.032
-	root.add_child(a)
+	root.add_child(_person(key))
 	if key == "empty":
-		_ghost(a)
-	if not garden.joins:
+		_ghost(root.get_child(0))
+	if not _garden(key).joins:
 		var cross := Label3D.new()
 		cross.text = "×"
 		cross.pixel_size = 0.001
 		cross.position.y = 0.04
 		root.add_child(cross)
+	var tag := key.trim_prefix("join:") if key.begins_with("join:") else "name" if key == "name" else ""
 	if tag != "":
 		var info := _tag(tag)
 		_retag(root, info[0], info[1], info[2])
 	return root
+
+
+## The look of whoever `key` names: {avatar, colour, wears, joins}.
+func _garden(key: String) -> Dictionary:
+	var garden := {"avatar": session.avatar, "colour": session.colour, "wears": "", "joins": true}
+	if key.begins_with("join:"):
+		garden = session.nearby.get(key.trim_prefix("join:"), garden)
+	elif key.begins_with("file:"):
+		garden.wears = _file(key).get("key", "")
+	elif key.begins_with("avatar:"):
+		garden.avatar = key.trim_prefix("avatar:").to_int()
+	return garden
+
+
+func _file(key: String) -> Dictionary:
+	return session.files.get(key.trim_prefix("file:"), {}) if key.begins_with("file:") else {}
+
+
+## The avatar `key` names, standing and facing the player, untagged.
+func _person(key: String) -> Avatar:
+	var garden := _garden(key)
+	var wears: String = garden.get("wears", "")
+	var scene: PackedScene = _file(key).get("scene") if _file(key).get("scene") != null else session.look(wears, garden.avatar)
+	var a := Avatar.open(scene, garden.colour, wears if session.previews.has(wears) else "")
+	a.name = "Figure"
+	a.stand()
+	a.rotation.y = PI
+	a.scale = Vector3.ONE * 0.032
+	return a
 
 
 ## A figure as a faint, colourless outline of one: the place a person would stand, with no one in it.

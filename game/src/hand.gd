@@ -294,26 +294,19 @@ func _wanted(items: Array, prefix: Array[int], out: Dictionary) -> void:
 			_wanted(items[k], path, out)
 
 
-## Where an icon sits and what it shows, which for a person's figure includes what it is drawn from.
+## Where an icon sits and what it shows, which for people includes what they are drawn from (SessionWheel.signature).
 func _icon_key(path: Array[int], item: Variant) -> String:
-	return "%s %s %s" % [path, item, _signature(item)]
+	return "%s %s %s" % [path, item, people.signature(item) if people != null else ""]
 
 
-## What the people an icon draws are drawn from, through every subtree it shows in miniature.
-func _signature(item: Variant) -> String:
-	if people == null:
-		return ""
-	if item is String:
-		return people.signature(item)
-	if item is Array:
-		return " ".join(item.map(_signature))
-	return ""
-
-
+## An icon standing upright where people draw it (SessionWheel.icon), since a person or the people slots are seen face
+## on; else tipped as a tool or a subtree's miniature is.
 func _make_icon(item: Variant) -> Node3D:
-	var model := miniature(item, people.figure if people != null else Callable())
+	var draw: Callable = people.icon if people != null else Callable()
+	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
+	var model := drawn if drawn != null else miniature(item, draw)
 	var i := icon(model)
-	if item is String and people != null:
+	if drawn != null:
 		model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
 	unlit(i)
 	i.scale = Vector3.ZERO
@@ -322,13 +315,14 @@ func _make_icon(item: Variant) -> Node3D:
 	return i
 
 
-## A tool's model, or a subtree's items in miniature, two by two, each drawn as its own icon draws it: a person by
-## `figure` (SessionWheel.figure), or a generic figure without one, and a nested subtree in miniature again, `depth`
-## levels down at most so a long page of friends stays a few figures to build.
-static func miniature(item: Variant, figure := Callable(), depth := 2) -> Node3D:
+## A tool's model, or a subtree's items in miniature, two by two, each drawn as its own icon draws it: by `draw`
+## (SessionWheel.icon) where that draws it, a person as a generic figure without one, and a nested subtree in miniature
+## again, `depth` levels down at most so a long page of friends stays a few figures to build.
+static func miniature(item: Variant, draw := Callable(), depth := 2) -> Node3D:
+	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
+	if drawn != null:
+		return drawn
 	if item is String:
-		if figure.is_valid():
-			return figure.call(item)
 		var generic := Node3D.new()
 		ToolModels._figure(generic)
 		return generic
@@ -338,7 +332,7 @@ static func miniature(item: Variant, figure := Callable(), depth := 2) -> Node3D
 	for j in mini(item.size(), 4):
 		if item[j] is Array and depth <= 1:
 			continue
-		var mini := miniature(item[j], figure, depth - 1)
+		var mini := miniature(item[j], draw, depth - 1)
 		mini.scale = Vector3.ONE * 0.5
 		if item.size() > 1:
 			mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)

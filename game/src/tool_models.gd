@@ -659,6 +659,25 @@ static func mirror(root: Node3D) -> MeshInstance3D:
 	return glass
 
 
+## A garden gate standing on y = 0, `width` wide between its stone posts, under a wooden lintel, its picket leaf swung
+## in on its left hinge so whoever stands behind it (-z) shows through.
+static func gate(root: Node3D, width: float) -> void:
+	var stone := _plain("gate_stone", Color(0.52, 0.48, 0.42), {"roughness": 0.9})
+	var wood := _plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
+	var post := Vector3(0.007, 0.036, 0.007)
+	for side in [-1.0, 1.0]:
+		_piece(root, box(post), Transform3D(Basis(), Vector3(side * (width + post.x) * 0.5, post.y * 0.5, 0)), stone)
+	_piece(root, box(Vector3(width + post.x * 2.6, 0.004, 0.009)), Transform3D(Basis(), Vector3(0, post.y + 0.002, 0)), wood)
+	var leaf := Node3D.new()
+	leaf.transform = Transform3D(Basis(Vector3.UP, PI * 0.42), Vector3(-width * 0.5, 0.002, 0))
+	root.add_child(leaf)
+	for i in 4:
+		var x := (i + 0.5) * width / 4.0
+		_piece(leaf, box(Vector3(0.003, 0.022 + (0.002 if i % 2 == 0 else 0.0), 0.0015)), Transform3D(Basis(), Vector3(x, 0.011, 0)), wood)
+	for y in [0.005, 0.017]:
+		_piece(leaf, box(Vector3(width, 0.0025, 0.0015)), Transform3D(Basis(), Vector3(width * 0.5, y, -0.0015)), wood)
+
+
 ## A little person: the wheel's people, the avatars to wear and the gardens to join.
 static func _figure(root: Node3D) -> void:
 	var a := Avatar.open(Avatar.built_in(0), Session.COLOURS[0])
