@@ -3744,7 +3744,7 @@ then teleport down to stand in its gate.
 ## Build order
 
 Ordered by what makes it feel like the original soonest. Progress is tracked in
-the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
+the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target. (Done.)

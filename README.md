@@ -115,7 +115,7 @@ See [local play-session history](docs/design.md#local-play-session-history).
 
 ## Quest
 
-Each [release](https://github.com/bddap-bot/nestcombe/releases) carries
+Each [release](https://github.com/bddap-bot/cairnfold/releases) carries
 `cairnfold-quest.apk`. To install it:
 
 1. Turn on developer mode for the headset in the Meta Horizon phone app
