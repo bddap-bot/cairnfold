@@ -1375,6 +1375,23 @@ to 15 to 37 thousand vertices each. What in the view makes the driver go one way
 swapchain makes it worse, since there are more tiles to run the walls in: 110 ms at the 0.7 swapchain, 272 at 0.85 and
 405 at 1.0.
 
+What the map runs in every tile is instanced masonry. A build sets each kind of piece in one MultiMesh per chunk; a far
+chunk baked into one mesh instead (`Masonry.bake`), each vertex carrying its piece's frame and custom data
+(`piece.gdshaderinc`), draws the same stones with the map on at a fraction of the cost. One Quest 2, one session,
+the stress scene's roofs and timber villages from the air at the bottom step, viewport GPU ms a frame
+([records](../perf/quest-2/foveation-map/README.md), `demo/foveation-instancing.json`):
+
+| Build | Roofs, map on | Roofs, map off | Timber, map on | Timber, map off |
+| --- | --- | --- | --- | --- |
+| Main, far chunks instanced | 97 | 20 | 98 | 22 |
+| Far boxes cut from 12 triangles to 4, still instanced | 65 | 18 | 57 | 18 |
+| Far chunks baked (this) | 28 | 18 | 19 | 19 |
+
+A third of the triangles saved a third of the cost; dropping the instancing saved nearly all of it. Twice the
+distance, a quarter of the pixels, read the same (67 against 63 ms), so it is not the pixels. The tall trees' cure fits:
+their crowns hide the walls before the binning pass sorts them into tiles. Near chunks, whose pieces change as walls are
+built, stay instanced, and a far chunk draws from its instances while its bake runs on a worker after any change.
+
 So whether the map is drawn is measured, not assumed (`Quality.Map`). While the frame on a foveated rung reads over
 the governor's line for half a second, the map is taken off for a trial. The trial reads the median of at least 12
 frames once four have let the timer catch up. The map stays off only if the frame reads under 0.8 of what it read with

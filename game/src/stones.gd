@@ -9,6 +9,7 @@ static var _mesh: ArrayMesh
 static var _far_mesh: ArrayMesh
 static var _material: ShaderMaterial
 static var _small: ShaderMaterial
+static var _baked: ShaderMaterial
 
 var _instance := Masonry.Kind.new(mesh(), small_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
 
@@ -25,6 +26,13 @@ static func small_material() -> ShaderMaterial:
 	if _small == null:
 		_small = _stone(preload("res://src/stone_small.gdshader"))
 	return _small
+
+
+## small_material for a baked far chunk (Masonry.bake).
+static func baked_material() -> ShaderMaterial:
+	if _baked == null:
+		_baked = _stone(preload("res://src/stone_far.gdshader"))
+	return _baked
 
 
 static func _stone(shader: Shader) -> ShaderMaterial:

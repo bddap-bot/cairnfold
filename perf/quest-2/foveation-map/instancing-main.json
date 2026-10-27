@@ -1,0 +1,91 @@
+{
+ "phases": {
+  "sweep/roofs/vrs-off": {
+   "gpu_ms": 20.48
+  },
+  "sweep/roofs/hide-part-tile": {
+   "gpu_ms": 62.87
+  },
+  "sweep/roofs/hide-part-tile_shadow": {
+   "gpu_ms": 97.86
+  },
+  "sweep/roofs/hide-part-stone": {
+   "gpu_ms": 65.02
+  },
+  "sweep/roofs/hide-part-stone_shadow": {
+   "gpu_ms": 97.66
+  },
+  "sweep/roofs/hide-part-mortar": {
+   "gpu_ms": 70.92
+  },
+  "sweep/roofs/hide-part-coat": {
+   "gpu_ms": 97.29
+  },
+  "sweep/roofs/hide-part-timber": {
+   "gpu_ms": 97.99
+  },
+  "sweep/roofs/hide-part-floor": {
+   "gpu_ms": 94.35
+  },
+  "sweep/roofs/hide-wall_meshes": {
+   "gpu_ms": 96.05
+  },
+  "sweep/roofs/hide-ceilings": {
+   "gpu_ms": 98.77
+  },
+  "sweep/roofs/hide-shadows": {
+   "gpu_ms": 97.35
+  },
+  "sweep/roofs/hide-masonry": {
+   "gpu_ms": 6.39
+  },
+  "sweep/roofs/all-again": {
+   "gpu_ms": 96.63
+  },
+  "sweep/timber/vrs-off": {
+   "gpu_ms": 21.74
+  },
+  "sweep/timber/all": {
+   "gpu_ms": 98.34
+  },
+  "sweep/timber/hide-part-tile": {
+   "gpu_ms": 34.55
+  },
+  "sweep/timber/hide-part-tile_shadow": {
+   "gpu_ms": 96.53
+  },
+  "sweep/timber/hide-part-stone": {
+   "gpu_ms": 88.41
+  },
+  "sweep/timber/hide-part-stone_shadow": {
+   "gpu_ms": 98.16
+  },
+  "sweep/timber/hide-part-mortar": {
+   "gpu_ms": 56.84
+  },
+  "sweep/timber/hide-part-coat": {
+   "gpu_ms": 98.99
+  },
+  "sweep/timber/hide-part-timber": {
+   "gpu_ms": 93.41
+  },
+  "sweep/timber/hide-part-floor": {
+   "gpu_ms": 95.58
+  },
+  "sweep/timber/hide-wall_meshes": {
+   "gpu_ms": 92.13
+  },
+  "sweep/timber/hide-ceilings": {
+   "gpu_ms": 99.94
+  },
+  "sweep/timber/hide-shadows": {
+   "gpu_ms": 100.84
+  },
+  "sweep/timber/hide-masonry": {
+   "gpu_ms": 6.78
+  },
+  "sweep/timber/all-again": {
+   "gpu_ms": 101.04
+  }
+ }
+}

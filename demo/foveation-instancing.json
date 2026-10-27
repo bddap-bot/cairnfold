@@ -1,0 +1,852 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": -1
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "clear"
+ },
+ {
+  "op": "village",
+  "radius": 20,
+  "spacing": 7,
+  "roofs": [
+   {
+    "pitch": 0,
+    "deck": "wood",
+    "top": "rail",
+    "storeys": 3,
+    "upper": 0.72
+   },
+   {
+    "pitch": 3.0,
+    "dormers": 2,
+    "overhang": 0.9
+   },
+   {
+    "pitch": 0,
+    "deck": "stone",
+    "top": "cap",
+    "storeys": 2,
+    "upper": 0.72
+   },
+   {
+    "pitch": 3.0,
+    "dormers": 1,
+    "overhang": 0.6
+   }
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "quality",
+  "step": "fit"
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "antialias",
+  "foveation": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/vrs-off"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 3
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/all"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-tile"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile_shadow",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-tile_shadow"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile_shadow",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-stone"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone_shadow",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-stone_shadow"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone_shadow",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/mortar",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-mortar"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/mortar",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/coat",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-coat"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/coat",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/timber",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-timber"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/timber",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/floor",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-part-floor"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/floor",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "wall_meshes",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-wall_meshes"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "wall_meshes",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-ceilings"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "shadows",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-shadows"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "shadows",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/hide-masonry"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "on"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/roofs/all-again"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "village",
+  "radius": 20,
+  "spacing": 7,
+  "storeys": 2,
+  "wings": true,
+  "finish": "timber"
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   22,
+   32
+  ],
+  "at": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "quality",
+  "step": "fit"
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "antialias",
+  "foveation": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/vrs-off"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "antialias",
+  "foveation": 3
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/all"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-tile"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile_shadow",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-tile_shadow"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/tile_shadow",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-stone"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone_shadow",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-stone_shadow"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/stone_shadow",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/mortar",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-mortar"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/mortar",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/coat",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-coat"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/coat",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/timber",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-timber"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/timber",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "part/floor",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-part-floor"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "part/floor",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "wall_meshes",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-wall_meshes"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "wall_meshes",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-ceilings"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "ceilings",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "shadows",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-shadows"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "shadows",
+  "mode": "on"
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "off"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/hide-masonry"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "layer",
+  "name": "masonry",
+  "mode": "on"
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "sweep/timber/all-again"
+ },
+ {
+  "op": "wait",
+  "seconds": 4
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "quit"
+ }
+]

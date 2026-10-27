@@ -16,3 +16,9 @@ One Quest 2, `CAIRNFOLD_SCENE=demo/foveation-X.json scripts/bench.sh OUT --andro
 `trace-map-off.txt` and `trace-map-on.txt` are `ovrgpuprofiler -t 0.2 -v -s 1,21,28,39,40` render-stage traces of the
 timber village from the air at step 6, with the map off and on. `trace-map-on-trees.txt` is the stress scene's
 village/aerial, where the flora pools' trees stand in view and the map is on.
+
+`instancing-main.json`, `instancing-four-triangles.json` and `instancing-baked.json` are `demo/foveation-instancing.json`
+(the stress scene's roofs and timber villages from the air at the bottom step, the map off, on, and each masonry part
+hidden in turn) on main a8dc2bcb, on that build with the far boxes cut to four triangles, and on c6556132 with far chunks baked
+into one mesh each (`Masonry.bake`). Main's game did not quit at the end of its run, so the bench wrote no
+table; `instancing-main.json` holds each phase's median App= time read from that run's logcat, as the bench reads it.

@@ -1,4 +1,5 @@
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/piece.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
 
@@ -36,26 +37,27 @@ varying flat int style;
 varying flat float tone;
 
 void vertex() {
-	// A piece's ends turn by INSTANCE_CUSTOM.zw about its local y: a wall panel's each cut along the bisector with its
+	mat4 piece = PIECE_MATRIX;
+	// A piece's ends turn by its custom data's zw about its local y: a wall panel's each cut along the bisector with its
 	// neighbour, an arch's wedge on lines through the arch's centre; its z faces' normals turn with each end, so a
 	// curved run of panels or a ring of wedges closes and shades round.
 #ifdef ROOF_TIMBER
 	float turn = 0.0;
 #else
-	float turn = VERTEX.x < 0.0 ? INSTANCE_CUSTOM.z : INSTANCE_CUSTOM.w;
+	float turn = VERTEX.x < 0.0 ? PIECE_CUSTOM.z : PIECE_CUSTOM.w;
 #endif
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_nrm = normalize((piece * vec4(NORMAL, 0.0)).xyz);
 	if (turn != 0.0) {
-		vec3 axis = normalize(MODEL_MATRIX[1].xyz);
-		vec3 run = MODEL_MATRIX[0].xyz;
-		VERTEX.x += VERTEX.z * length(MODEL_MATRIX[2].xyz) * tan(turn) / length(run - axis * dot(run, axis));
+		vec3 axis = normalize(piece[1].xyz);
+		vec3 run = piece[0].xyz;
+		VERTEX.x += VERTEX.z * length(piece[2].xyz) * tan(turn) / length(run - axis * dot(run, axis));
 		if (abs(NORMAL.z) > 0.5) {
-			vec3 n = normalize(MODEL_MATRIX[2].xyz) * sign(NORMAL.z);
+			vec3 n = normalize(piece[2].xyz) * sign(NORMAL.z);
 			world_nrm = n * cos(turn) + cross(axis, n) * sin(turn);
-			NORMAL = transpose(mat3(MODEL_MATRIX)) * world_nrm;
+			NORMAL = transpose(mat3(piece)) * world_nrm;
 		}
 	}
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
 	surface_pos = miniature ? VERTEX : world_pos;
 	float ground = ground_at(world_pos.xz);
 #ifdef GIVEN_PER_VERTEX
@@ -71,11 +73,15 @@ void vertex() {
 	occlusion = 0.85;
 	material = 5.0;
 #else
-	occlusion = INSTANCE_CUSTOM.x;
-	material = INSTANCE_CUSTOM.y;
+	occlusion = PIECE_CUSTOM.x;
+	material = PIECE_CUSTOM.y;
 #endif
 	style = stone_style;
-	tone = 0.35 + 0.3 * fract(sin(dot(MODEL_MATRIX[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+	tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+#ifdef BAKED
+	VERTEX = world_pos;
+	NORMAL = world_nrm;
+#endif
 }
 
 void fragment() {

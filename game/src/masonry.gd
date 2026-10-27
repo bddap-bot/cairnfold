@@ -39,6 +39,9 @@ class Kind:
 	var far: Mesh
 	## What `far` is drawn in; null to draw it in `material`.
 	var far_material: Material
+	## What a baked far chunk is drawn in (`bake`): `far_material`'s or `material`'s shader built with BAKED.
+	var far_baked: Material
+	var _far_surface: Array = []
 	var near := 0.0
 	## The longest a piece of it is laid, in metres: its mesh's level of detail is keyed in the mesh's own units
 	## (Meshes.lod_error), so a chunk scales that key by it and swaps none sooner than its error allows.
@@ -52,6 +55,13 @@ class Kind:
 		custom = use_custom
 		shadow = cast
 		occludes = occluding
+
+	## `far`'s vertices, normals and indices, read once on the main thread so `bake` can run on a worker.
+	func far_surface() -> Array:
+		if _far_surface.is_empty():
+			var a := far.surface_get_arrays(0)
+			_far_surface = [a[Mesh.ARRAY_VERTEX], a[Mesh.ARRAY_NORMAL], a[Mesh.ARRAY_INDEX]]
+		return _far_surface
 
 	func stride() -> int:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
@@ -138,10 +148,18 @@ var _owners := {}
 ## place once the whole COARSE chunk is past the near distance. Each FINE chunk's near and far instances draw only
 ## while it is not (`visibility_parent`), so no piece is drawn twice or missed.
 var _coarse := {}
+## Whether COARSE far chunks are baked into one mesh each (`bake`): settled masonry only, a live wall's changing
+## every frame.
+var _bakes := false
+## COARSE key -> [the worker task baking it, an array its mesh arrays land in]; and the buffer to bake next for a key
+## whose pieces changed while it baked.
+var _baking := {}
+var _rebake := {}
 
 
-func _init(piece_kinds: Array[Kind]) -> void:
+func _init(piece_kinds: Array[Kind], baked := false) -> void:
 	kinds = piece_kinds
+	_bakes = baked
 	_counts.resize(kinds.size())
 	set_process(false)
 
@@ -235,8 +253,8 @@ func counts() -> PackedInt32Array:
 
 
 ## The instances drawing `kind`'s pieces near or far, for measuring what each costs.
-func parts(kind: int, near: bool, far: bool) -> Array[MultiMeshInstance3D]:
-	var out: Array[MultiMeshInstance3D] = []
+func parts(kind: int, near: bool, far: bool) -> Array[GeometryInstance3D]:
+	var out: Array[GeometryInstance3D] = []
 	for key: Vector3i in _chunks:
 		if key.z == kind:
 			var c: Chunk = _chunks[key]
@@ -289,6 +307,16 @@ func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
 		far.layers = Quality.LADDER_LAYER
 		far.name = "Far_%d_%d_%d" % [key.x, key.y, key.z]
 		add_child(far)
+		if _bakes and k.far_baked != null:
+			k.far_surface()
+			var baked := MeshInstance3D.new()
+			baked.name = "Baked"
+			baked.top_level = true
+			baked.material_override = k.far_baked
+			baked.cast_shadow = far.cast_shadow
+			baked.layers = far.layers
+			baked.visible = false
+			far.add_child(baked)
 		_coarse[key] = far
 		_coarse_ranges(key)
 	return _coarse[key]
@@ -304,8 +332,14 @@ func set_ranges() -> void:
 
 func _coarse_ranges(key: Vector3i) -> void:
 	var kind := kinds[key.z]
-	_coarse[key].visibility_range_begin = kind.near + radius(COARSE)
-	_coarse[key].visibility_range_end = kind.reach + radius(COARSE) if kind.reach > 0.0 else 0.0
+	var baked := _baked(key)
+	for g: GeometryInstance3D in [_coarse[key], baked] if baked != null else [_coarse[key]]:
+		g.visibility_range_begin = kind.near + radius(COARSE)
+		g.visibility_range_end = kind.reach + radius(COARSE) if kind.reach > 0.0 else 0.0
+
+
+func _baked(key: Vector3i) -> MeshInstance3D:
+	return _coarse[key].get_node_or_null(^"Baked")
 
 
 func _ranges(key: Vector3i) -> void:
@@ -322,7 +356,26 @@ func _ranges(key: Vector3i) -> void:
 
 
 func _process(_delta: float) -> void:
+	for key: Vector3i in _baking.keys():
+		var task: Array = _baking[key]
+		if not WorkerThreadPool.is_task_completed(task[0]):
+			continue
+		WorkerThreadPool.wait_for_task_completion(task[0])
+		_baking.erase(key)
+		if _rebake.has(key):
+			_start_bake(key, _rebake[key])
+			_rebake.erase(key)
+		else:
+			_show_baked(key, task[1][0])
 	flush(Budget.MASONRY_FLUSH_US)
+
+
+func _exit_tree() -> void:
+	for key: Vector3i in _baking:
+		WorkerThreadPool.wait_for_task_completion(_baking[key][0])
+		_coarse_dirty[key] = true
+	_baking.clear()
+	_rebake.clear()
 
 
 ## Whether every chunk holding `owner`'s pieces is drawn as they stand.
@@ -371,5 +424,94 @@ func flush(budget_us := INF) -> void:
 		mm.instance_count = buf.size() / kinds[key.z].stride()
 		if mm.instance_count > 0:
 			mm.buffer = buf
-	set_process(not _dirty.is_empty() or not _coarse_dirty.is_empty())
+		if _baked(key) != null:
+			_show_baked(key, [])
+			if _baking.has(key):
+				_rebake[key] = buf
+			else:
+				_start_bake(key, buf)
+	set_process(not _dirty.is_empty() or not _coarse_dirty.is_empty() or not _baking.is_empty())
+
+
+func _start_bake(key: Vector3i, buf: PackedFloat32Array) -> void:
+	var kind := kinds[key.z]
+	var out := []
+	_baking[key] = [WorkerThreadPool.add_task(func() -> void: out.append(bake(buf, kind))), out]
+
+
+## Draws COARSE chunk `key` from its baked `arrays` (`bake`), or while they are empty, from its instances: the baked
+## mesh stands in for them only once it holds every piece they do.
+func _show_baked(key: Vector3i, arrays: Array) -> void:
+	var baked := _baked(key)
+	var mm: MultiMesh = _coarse[key].multimesh
+	if arrays.is_empty() or mm.instance_count == 0:
+		baked.visible = false
+		baked.mesh = null
+		mm.visible_instance_count = -1
+		return
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays[0], [], {}, BAKED_FORMAT)
+	mesh.custom_aabb = arrays[1]
+	baked.mesh = mesh
+	baked.visible = true
+	mm.visible_instance_count = 0
+
+
+const BAKED_FORMAT := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT)
+
+
+## `buf`'s pieces of `kind` as one mesh of its far mesh, [Mesh arrays, their bounds]: each vertex carries its piece's
+## frame and custom data (piece.gdshaderinc), so the chunk draws without instancing. On the Quest 2, with the fixed
+## foveation map applied, every tile of the frame shades every instanced vertex in view, so far masonry cost the
+## frame several times its unfoveated price; baked, it shades only what each tile holds ("Far masonry under the
+## foveation map" in docs/design.md). Reads nothing but its arguments, so it runs on a worker thread.
+static func bake(buf: PackedFloat32Array, kind: Kind) -> Array:
+	assert(kind.colors and kind.custom, "a baked piece carries its colour and custom data")
+	var surface := kind.far_surface()
+	var sv: PackedVector3Array = surface[0]
+	var sn: PackedVector3Array = surface[1]
+	var si: PackedInt32Array = surface[2]
+	var stride := kind.stride()
+	var n := buf.size() / stride
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colours := PackedColorArray()
+	var idx := PackedInt32Array()
+	var custom: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
+	verts.resize(n * sv.size())
+	normals.resize(verts.size())
+	colours.resize(verts.size())
+	idx.resize(n * si.size())
+	for c in custom:
+		c.resize(verts.size() * 4)
+	var bounds := AABB()
+	for i in n:
+		var o := i * stride
+		var frame := Transform3D(Basis(Vector3(buf[o], buf[o + 4], buf[o + 8]), Vector3(buf[o + 1], buf[o + 5], buf[o + 9]), Vector3(buf[o + 2], buf[o + 6], buf[o + 10])), Vector3(buf[o + 3], buf[o + 7], buf[o + 11]))
+		var colour := Color(buf[o + 12], buf[o + 13], buf[o + 14], buf[o + 15])
+		var rows := [PackedFloat32Array([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]), PackedFloat32Array([buf[o + 4], buf[o + 5], buf[o + 6], buf[o + 7]]), PackedFloat32Array([buf[o + 8], buf[o + 9], buf[o + 10], buf[o + 11]]), PackedFloat32Array([buf[o + 16], buf[o + 17], buf[o + 18], buf[o + 19]])]
+		var base := i * sv.size()
+		for j in sv.size():
+			var v := base + j
+			verts[v] = sv[j]
+			normals[v] = sn[j]
+			colours[v] = colour
+			for c in 4:
+				for e in 4:
+					custom[c][v * 4 + e] = rows[c][e]
+			var at := frame * sv[j]
+			bounds = AABB(at, Vector3.ZERO) if i == 0 and j == 0 else bounds.expand(at)
+		for j in si.size():
+			idx[i * si.size() + j] = base + si[j]
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_CUSTOM0] = custom[0]
+	arrays[Mesh.ARRAY_CUSTOM1] = custom[1]
+	arrays[Mesh.ARRAY_CUSTOM2] = custom[2]
+	arrays[Mesh.ARRAY_CUSTOM3] = custom[3]
+	arrays[Mesh.ARRAY_INDEX] = idx
+	return [arrays, bounds]
 

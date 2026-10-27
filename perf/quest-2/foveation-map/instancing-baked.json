@@ -1,0 +1,812 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "held/walls": {
+   "p50": 13.9720001220703,
+   "p99": 15.3549995422363,
+   "late": 0,
+   "draws": 50,
+   "prims": 296200,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.1,
+   "timewarp_ms": 1.26
+  },
+  "held/flowers": {
+   "p50": 13.9849996566772,
+   "p99": 14.9139995574951,
+   "late": 1,
+   "draws": 78,
+   "prims": 288892,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.15,
+   "timewarp_ms": 1.25
+  },
+  "held/grass": {
+   "p50": 14.0159997940063,
+   "p99": 14.8179998397827,
+   "late": 0,
+   "draws": 50,
+   "prims": 288528,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.08,
+   "timewarp_ms": 1.25
+  },
+  "held/trees": {
+   "p50": 14.0539999008179,
+   "p99": 15.3470001220703,
+   "late": 2,
+   "draws": 64,
+   "prims": 324816,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.74,
+   "timewarp_ms": 1.26
+  },
+  "held/delete": {
+   "p50": 13.9910001754761,
+   "p99": 15.1420001983643,
+   "late": 0,
+   "draws": 78,
+   "prims": 289480,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.17,
+   "timewarp_ms": 1.25
+  },
+  "held/pond": {
+   "p50": 13.9300003051758,
+   "p99": 15.4540004730225,
+   "late": 1,
+   "draws": 120,
+   "prims": 296368,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.68,
+   "timewarp_ms": 1.25
+  },
+  "held/fence": {
+   "p50": 13.9519996643066,
+   "p99": 15.33899974823,
+   "late": 0,
+   "draws": 50,
+   "prims": 289480,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 7.98,
+   "timewarp_ms": 1.25
+  },
+  "held/windows": {
+   "p50": 13.9610004425049,
+   "p99": 14.9259996414185,
+   "late": 2,
+   "draws": 50,
+   "prims": 289816,
+   "stalls": [
+    {
+     "ms": 72.8,
+     "notes": [],
+     "compiled": [
+      1,
+      1
+     ]
+    }
+   ],
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.43,
+   "timewarp_ms": 1.27
+  },
+  "held/decorations": {
+   "p50": 13.9029998779297,
+   "p99": 15.0050001144409,
+   "late": 2,
+   "draws": 106,
+   "prims": 290908,
+   "stalls": [
+    {
+     "ms": 127.4,
+     "notes": [],
+     "compiled": [
+      3,
+      3
+     ]
+    }
+   ],
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 9.01,
+   "timewarp_ms": 1.25
+  },
+  "held/stone": {
+   "p50": 13.9779996871948,
+   "p99": 15.2919998168945,
+   "late": 0,
+   "draws": 64,
+   "prims": 290656,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.18,
+   "timewarp_ms": 1.26
+  },
+  "held/colour": {
+   "p50": 13.9479999542236,
+   "p99": 15.1859998703003,
+   "late": 0,
+   "draws": 162,
+   "prims": 301520,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 9.13,
+   "timewarp_ms": 1.24
+  },
+  "held/camera": {
+   "p50": 13.9790000915527,
+   "p99": 15.6199998855591,
+   "late": 1,
+   "draws": 120,
+   "prims": 293204,
+   "step": 4,
+   "fill": 0.378,
+   "gpu_ms": 8.74,
+   "timewarp_ms": 1.25
+  },
+  "held/house": {
+   "p50": 14.0699996948242,
+   "p99": 33.173999786377,
+   "late": 7,
+   "draws": 64,
+   "prims": 428248,
+   "step": 8,
+   "fill": 0.378,
+   "gpu_ms": 9.87,
+   "timewarp_ms": 1.24
+  },
+  "held/seeds": {
+   "p50": 13.9250001907349,
+   "p99": 15.4309997558594,
+   "late": 2,
+   "draws": 64,
+   "prims": 303872,
+   "stalls": [
+    {
+     "ms": 126.6,
+     "notes": [],
+     "compiled": [
+      1,
+      1
+     ]
+    }
+   ],
+   "step": 8,
+   "fill": 0.378,
+   "gpu_ms": 6.52,
+   "timewarp_ms": 1.15
+  },
+  "held/path": {
+   "p50": 13.9409999847412,
+   "p99": 15.2390003204346,
+   "late": 0,
+   "draws": 92,
+   "prims": 290432,
+   "step": 7,
+   "fill": 0.378,
+   "gpu_ms": 6.25,
+   "timewarp_ms": 1.14
+  },
+  "held/style": {
+   "p50": 13.8380002975464,
+   "p99": 15.5019998550415,
+   "late": 0,
+   "draws": 92,
+   "prims": 290432,
+   "step": 6,
+   "fill": 0.378,
+   "gpu_ms": 6.76,
+   "timewarp_ms": 1.14
+  },
+  "held/stairs": {
+   "p50": 13.918999671936,
+   "p99": 16.3400001525879,
+   "late": 1,
+   "draws": 64,
+   "prims": 290848,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.14,
+   "timewarp_ms": 1.15
+  },
+  "held/tower": {
+   "p50": 13.923999786377,
+   "p99": 15.2030000686646,
+   "late": 0,
+   "draws": 64,
+   "prims": 394984,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.21,
+   "timewarp_ms": 1.14
+  },
+  "held/arch": {
+   "p50": 13.9379997253418,
+   "p99": 15.210000038147,
+   "late": 0,
+   "draws": 50,
+   "prims": 301744,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.45,
+   "timewarp_ms": 1.14
+  },
+  "held/selfie": {
+   "p50": 14.1000003814697,
+   "p99": 15.5270004272461,
+   "late": 1,
+   "draws": 134,
+   "prims": 294044,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.11,
+   "timewarp_ms": 1.14
+  },
+  "held/bushes": {
+   "p50": 13.8940000534058,
+   "p99": 15.5019998550415,
+   "late": 1,
+   "draws": 50,
+   "prims": 301744,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.44,
+   "timewarp_ms": 1.14
+  },
+  "held/boulder": {
+   "p50": 13.8520002365112,
+   "p99": 15.5279998779297,
+   "late": 2,
+   "draws": 64,
+   "prims": 297264,
+   "stalls": [
+    {
+     "ms": 112.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.46,
+   "timewarp_ms": 1.14
+  },
+  "held/moss": {
+   "p50": 13.9980001449585,
+   "p99": 15.2589998245239,
+   "late": 0,
+   "draws": 65,
+   "prims": 290488,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.32,
+   "timewarp_ms": 1.14
+  },
+  "held/oil-palette": {
+   "p50": 13.8549995422363,
+   "p99": 15.6940002441406,
+   "late": 0,
+   "draws": 65,
+   "prims": 325208,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.76,
+   "timewarp_ms": 1.14
+  },
+  "held/water-palette": {
+   "p50": 13.8870000839233,
+   "p99": 15.1780004501343,
+   "late": 0,
+   "draws": 65,
+   "prims": 297264,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.64,
+   "timewarp_ms": 1.14
+  },
+  "held/small": {
+   "p50": 13.8109998703003,
+   "p99": 15.4379997253418,
+   "late": 0,
+   "draws": 78,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.55,
+   "timewarp_ms": 1.15
+  },
+  "held/big": {
+   "p50": 13.9270000457764,
+   "p99": 15.4460000991821,
+   "late": 0,
+   "draws": 78,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.59,
+   "timewarp_ms": 1.14
+  },
+  "held/flat": {
+   "p50": 13.8669996261597,
+   "p99": 15.5710000991821,
+   "late": 0,
+   "draws": 78,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.54,
+   "timewarp_ms": 1.14
+  },
+  "held/stick": {
+   "p50": 13.9429998397827,
+   "p99": 15.5920000076294,
+   "late": 0,
+   "draws": 50,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.26,
+   "timewarp_ms": 1.14
+  },
+  "held/thin_stick": {
+   "p50": 13.9300003051758,
+   "p99": 15.4300003051758,
+   "late": 0,
+   "draws": 50,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.28,
+   "timewarp_ms": 1.15
+  },
+  "held/thick_stick": {
+   "p50": 13.9049997329712,
+   "p99": 15.3660001754761,
+   "late": 0,
+   "draws": 50,
+   "prims": 290824,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 6.29,
+   "timewarp_ms": 1.14
+  },
+  "held/book": {
+   "p50": 13.918999671936,
+   "p99": 15.8219995498657,
+   "late": 1,
+   "draws": 190,
+   "prims": 294436,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.98,
+   "timewarp_ms": 1.14
+  },
+  "meadow/aerial": {
+   "p50": 13.878999710083,
+   "p99": 25.1520004272461,
+   "late": 7,
+   "draws": 294,
+   "prims": 1184677,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.62,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 1987.0,
+     "notes": [
+      {
+       "ms": 4.8,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.5,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.2,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.0,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.5,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.3,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.7,
+       "what": "world: applying wall"
+      },
+      {
+       "ms": 4.3,
+       "what": "world: applying wall"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 315.4,
+     "notes": [],
+     "compiled": [
+      3,
+      5
+     ]
+    },
+    {
+     "ms": 110.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 77.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 7.85,
+   "timewarp_ms": 1.16
+  },
+  "sweep/roofs/vrs-off": {
+   "p50": 22.2749996185303,
+   "p99": 30.617000579834,
+   "late": 54,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 16.82,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/all": {
+   "p50": 36.5709991455078,
+   "p99": 39.0250015258789,
+   "late": 112,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.44,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-tile": {
+   "p50": 18.5240001678467,
+   "p99": 28.1359996795654,
+   "late": 72,
+   "draws": 180,
+   "prims": 372168,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 15.85,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-tile_shadow": {
+   "p50": 34.8320007324219,
+   "p99": 36.4420013427734,
+   "late": 116,
+   "draws": 204,
+   "prims": 539184,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.37,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-stone": {
+   "p50": 18.5849990844727,
+   "p99": 27.5540008544922,
+   "late": 70,
+   "draws": 178,
+   "prims": 367086,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 15.03,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-stone_shadow": {
+   "p50": 34.2999992370605,
+   "p99": 36.0870018005371,
+   "late": 119,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.33,
+   "timewarp_ms": 1.16
+  },
+  "sweep/roofs/hide-part-mortar": {
+   "p50": 19.496000289917,
+   "p99": 26.4790000915527,
+   "late": 76,
+   "draws": 190,
+   "prims": 499710,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 15.45,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-coat": {
+   "p50": 36.2480010986328,
+   "p99": 38.0550003051758,
+   "late": 112,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.33,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-timber": {
+   "p50": 33.9129981994629,
+   "p99": 35.4669990539551,
+   "late": 120,
+   "draws": 178,
+   "prims": 533814,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 27.79,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-part-floor": {
+   "p50": 36.6139984130859,
+   "p99": 38.4129981994629,
+   "late": 111,
+   "draws": 178,
+   "prims": 516030,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 29.14,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-wall_meshes": {
+   "p50": 34.8709983825684,
+   "p99": 37.0400009155273,
+   "late": 116,
+   "draws": 191,
+   "prims": 535490,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.87,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-ceilings": {
+   "p50": 35.7910003662109,
+   "p99": 37.8400001525879,
+   "late": 112,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.0,
+   "timewarp_ms": 1.18
+  },
+  "sweep/roofs/hide-shadows": {
+   "p50": 35.9879989624023,
+   "p99": 37.5509986877441,
+   "late": 112,
+   "draws": 202,
+   "prims": 538662,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.21,
+   "timewarp_ms": 1.17
+  },
+  "sweep/roofs/hide-masonry": {
+   "p50": 13.91100025177,
+   "p99": 15.9750003814697,
+   "late": 0,
+   "draws": 94,
+   "prims": 133638,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 6.09,
+   "timewarp_ms": 1.2
+  },
+  "sweep/roofs/all-again": {
+   "p50": 34.7220001220703,
+   "p99": 36.8880004882812,
+   "late": 115,
+   "draws": 204,
+   "prims": 539184,
+   "step": 15,
+   "fill": 6.644,
+   "gpu_ms": 28.16,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/vrs-off": {
+   "p50": 22.5550003051758,
+   "p99": 25.1630001068115,
+   "late": 171,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 18.67,
+   "timewarp_ms": 1.16
+  },
+  "sweep/timber/all": {
+   "p50": 25.4780006408691,
+   "p99": 27.8099994659424,
+   "late": 162,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 19.33,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-part-tile": {
+   "p50": 22.1889991760254,
+   "p99": 29.2320003509521,
+   "late": 79,
+   "draws": 301,
+   "prims": 347984,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 17.73,
+   "timewarp_ms": 1.2
+  },
+  "sweep/timber/hide-part-tile_shadow": {
+   "p50": 25.2870006561279,
+   "p99": 32.6920013427734,
+   "late": 144,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.59,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-part-stone": {
+   "p50": 23.3229999542236,
+   "p99": 30.9190006256104,
+   "late": 143,
+   "draws": 301,
+   "prims": 491600,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 18.8,
+   "timewarp_ms": 1.16
+  },
+  "sweep/timber/hide-part-stone_shadow": {
+   "p50": 26.3600006103516,
+   "p99": 29.3339996337891,
+   "late": 157,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.64,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-part-mortar": {
+   "p50": 19.6760005950928,
+   "p99": 28.7490005493164,
+   "late": 80,
+   "draws": 313,
+   "prims": 507608,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 16.62,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-part-coat": {
+   "p50": 28.6389999389648,
+   "p99": 32.3450012207031,
+   "late": 144,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.37,
+   "timewarp_ms": 1.18
+  },
+  "sweep/timber/hide-part-timber": {
+   "p50": 23.8950004577637,
+   "p99": 31.2719993591309,
+   "late": 139,
+   "draws": 301,
+   "prims": 534140,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 18.81,
+   "timewarp_ms": 1.16
+  },
+  "sweep/timber/hide-part-floor": {
+   "p50": 24.1709995269775,
+   "p99": 32.5519981384277,
+   "late": 138,
+   "draws": 301,
+   "prims": 526280,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.89,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-wall_meshes": {
+   "p50": 24.2369995117188,
+   "p99": 32.4500007629395,
+   "late": 132,
+   "draws": 220,
+   "prims": 554456,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 19.23,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-ceilings": {
+   "p50": 26.1660003662109,
+   "p99": 28.701000213623,
+   "late": 158,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.27,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-shadows": {
+   "p50": 26.0639991760254,
+   "p99": 28.5249996185303,
+   "late": 161,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.61,
+   "timewarp_ms": 1.17
+  },
+  "sweep/timber/hide-masonry": {
+   "p50": 14.0120000839233,
+   "p99": 16.2250003814697,
+   "late": 1,
+   "draws": 217,
+   "prims": 142748,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 6.59,
+   "timewarp_ms": 1.16
+  },
+  "sweep/timber/all-again": {
+   "p50": 23.076000213623,
+   "p99": 32.5769996643066,
+   "late": 135,
+   "draws": 325,
+   "prims": 566216,
+   "step": 15,
+   "fill": 7.616,
+   "gpu_ms": 20.46,
+   "timewarp_ms": 1.17
+  }
+ }
+}

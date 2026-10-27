@@ -112,7 +112,7 @@ var rig: Rig
 var world: World
 var flora: Flora
 var paths: Paths
-var masonry := Masonry.new(Wall.kinds())
+var masonry := Masonry.new(Wall.kinds(), true)
 var walls: Array[Wall] = []
 ## The paint new builds are laid in: the swatch last picked on this machine for each material (PaletteTool).
 var paint := Palette.plain()

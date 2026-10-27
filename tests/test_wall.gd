@@ -19,6 +19,7 @@ func _init() -> void:
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
 	_far_stones_draw_by_coarse_chunks()
+	_far_chunks_bake_into_one_mesh()
 	_far_pieces_reach_the_near_pieces_faces()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
@@ -403,6 +404,52 @@ func _far_stones_draw_by_coarse_chunks() -> void:
 	for x in [0, 1]:
 		var c: Masonry.Chunk = m._chunks[Vector3i(x, 0, Wall.Part.STONE)]
 		check(c.far.get_node(c.far.visibility_parent) == coarse and c.instance.get_node(c.instance.visibility_parent) == coarse, "chunk %d draws only while its 16 m chunk does not" % x)
+	m.free()
+
+
+## Settled far stones draw from one baked mesh, each vertex carrying its stone's frame and custom data, once the
+## worker has baked them; till then, and after any change till it bakes again, the 16 m chunk's instances draw.
+func _far_chunks_bake_into_one_mesh() -> void:
+	var ks := Wall.kinds()
+	var stone := ks[Wall.Part.STONE]
+	var m := Masonry.new(ks, true)
+	root.add_child(m)
+	var buf := PackedFloat32Array()
+	buf.resize(stone.stride() * 2)
+	var frames := [Transform3D(Basis(Vector3.UP, 0.5).scaled(Vector3(0.4, 0.2, 0.3)), Vector3(1.0, 2.0, 3.0)), Transform3D(Basis.IDENTITY, Vector3(5.0, 0.5, 9.0))]
+	for i in 2:
+		stone.write(buf, i, frames[i], Color(0.5, 0.4, 0.3, 1.0 - i), 0.9, 2.0, Vector2(0.1 * i, -0.2))
+	var parts: Array[Dictionary] = []
+	for k in ks.size():
+		parts.append(Masonry.split(buf, stone) if k == Wall.Part.STONE else {})
+	m.place(1, parts)
+	m._process(0.0)
+	var coarse: MultiMeshInstance3D = m._coarse[Vector3i(0, 0, Wall.Part.STONE)]
+	var baked := m._baked(Vector3i(0, 0, Wall.Part.STONE))
+	check(baked != null and not baked.visible and coarse.multimesh.visible_instance_count == -1, "the instances draw while the chunk bakes")
+	while not m._baking.is_empty():
+		m._process(0.0)
+	check(baked.visible and coarse.multimesh.visible_instance_count == 0 and baked.material_override == stone.far_baked, "baked, the chunk draws from its one mesh")
+	var a := baked.mesh.surface_get_arrays(0)
+	var corners: PackedVector3Array = stone.far_surface()[0]
+	check(a[Mesh.ARRAY_VERTEX].size() == corners.size() * 2 and a[Mesh.ARRAY_INDEX].size() == stone.far_surface()[2].size() * 2, "every stone's far mesh, once")
+	for i in 2:
+		var v := corners.size() * i + 3
+		var rows: Array = [a[Mesh.ARRAY_CUSTOM0], a[Mesh.ARRAY_CUSTOM1], a[Mesh.ARRAY_CUSTOM2]]
+		var x: Transform3D = frames[i]
+		var row := func(r: int) -> Vector4: return Vector4(rows[r][v * 4], rows[r][v * 4 + 1], rows[r][v * 4 + 2], rows[r][v * 4 + 3])
+		check(row.call(0).is_equal_approx(Vector4(x.basis.x.x, x.basis.y.x, x.basis.z.x, x.origin.x)) and row.call(2).is_equal_approx(Vector4(x.basis.x.z, x.basis.y.z, x.basis.z.z, x.origin.z)), "stone %d's vertices carry the rows of its frame" % i)
+		var custom: PackedFloat32Array = a[Mesh.ARRAY_CUSTOM3]
+		check(is_equal_approx(custom[v * 4], 0.9) and is_equal_approx(custom[v * 4 + 1], 2.0) and is_equal_approx(custom[v * 4 + 2], 0.1 * i), "stone %d's vertices carry its occlusion, material and ends" % i)
+		var colour: Color = a[Mesh.ARRAY_COLOR][v]
+		check(Vector4(colour.r - 0.5, colour.g - 0.4, colour.b - 0.3, colour.a - 1.0 + i).length() < 0.01, "stone %d's vertices carry its colour, glass in its alpha" % i)
+		check((baked.mesh as ArrayMesh).custom_aabb.grow(0.001).has_point(x * corners[3]), "the mesh's bounds hold stone %d where it stands" % i)
+	m.remove(1)
+	m._process(0.0)
+	check(not baked.visible and coarse.multimesh.visible_instance_count == -1, "a changed chunk draws its instances again until it is baked anew")
+	while not m._baking.is_empty():
+		m._process(0.0)
+	check(not baked.visible and baked.mesh == null, "an emptied chunk bakes to nothing")
 	m.free()
 
 

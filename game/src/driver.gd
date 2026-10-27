@@ -1260,7 +1260,7 @@ func _layer_parts(name: String) -> Array[Array]:
 			var far := bits.size() < 3 or bits[2] == "far"
 			for m in main.find_children("*", "Node3D", true, false):
 				if m is Masonry:
-					for n: MultiMeshInstance3D in (m as Masonry).parts(kind, near, far):
+					for n: GeometryInstance3D in (m as Masonry).parts(kind, near, far):
 						out.append([n, "visible", false])
 		"wall_meshes":
 			for w in main.find_children("*", "Node3D", true, false):
