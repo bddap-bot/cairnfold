@@ -4961,8 +4961,14 @@ wet paint runs down the tilted canvas. Oil lays opaque paint in bristle streaks,
 catches, picking up the colour under it as the brush empties. Charcoal catches on the paper's peaks, reaching the
 hollows as it is pressed harder.
 
+Relief normals are derived from neighbouring height texels into a mipmapped texture. Its mip levels average
+normals without renormalizing; their shortened length measures unresolved slope variance, which increases
+roughness rather than allowing the gloss to sparkle. Dabs, clears and restores update the affected normal texels
+and their mip footprints. Water flow preserves oil height, so it does not rebuild relief. Frozen replay views
+keep the matching normal mip chain alongside pigment.
+
 What it costs: flow runs only on 64-texel tiles a wet brush touched in the last six seconds, two steps a tick at 60
-ticks a second. Every canvas together runs at most `Budget.PAINT_STEPS` texel-steps of flow a frame, 1 million, split
+ticks a second. Every canvas together runs at most `Budget.PAINT_STEPS` texel-steps of flow a frame, 300,000, split
 evenly among the canvases flowing; past it the paint dries slower instead of the frame running long. A tick dearer
 than a canvas's share runs over several frames, each flow step a band of rows at a time: a step reads only the texture
 the other writes, so its rows run in any number of parts to the same result (`tests/gpu_canvas.gd` dries a painting
@@ -4972,21 +4978,19 @@ up charges its dabs against the canvas's share, so it lays a painting no faster 
 costs its drawing only. The quality governor reads the viewport's GPU timer, which leaves out the canvases' work, so
 the canvases time their own with GPU timestamps and the governor adds them (`Canvas.gpu_ms`).
 
-On the Quest 2 (`demo/easel-bench.json`), with each canvas allowed 3 million texel-steps a frame of its own, flow cost
-2.75 ns a texel-step on the paint phases: one canvas painting spent a median 2.33 million a frame and four painting at
-once 7.0 million. Watercolour read 15.30 ms of GPU time, four canvases painting 20.14 and their drying 13.39, against
-the then 12.50 ms (`perf/quest-2/measure/`, 683 late frames painting four). Sharing 1 million among them, with the
-governor counting the canvases' time, two runs held every phase under the 11.11 ms budget, the dearest four canvases
-painting 9.20 and 9.73 ms, their drying 10.22 and 10.28, watercolour 10.46 and 10.55, replay 9.32 and 9.44, and the
-four easels in view 10.84 and 11.10, 8 and 5 late frames a run in all (`perf/quest-2/easel-bench/`). A run sharing the
-budget whose governor did not count the canvases chose a dearer step and read 11.14 and 11.30 there. The paint pays:
-a stroke across four canvases at once flows and dries at about a seventh of its pace, one canvas at under half. Every
-late frame left is the CPU: a scene reset, a quality step, or one stall of about 130 ms early in watercolour painting.
+On Quest 2, `demo/easel-bench.json` holds the four-easel garden at 89.2% of the build budget. With filtered
+relief and 300,000 shared flow texel-steps per frame, every phase holds the 11.11 ms cap: four easels in view
+10.25 ms, four painting 9.59, their drying 8.54, watercolour 9.32, oil 9.23, charcoal 9.21 and replay 9.06
+(`perf/quest-2/easel-bench/20261027T232557Z-ebe7c04.json`). The unchanged-build comparison measured watercolour
+12.95 ms and oil 12.35 (`20261027T230812Z-daab9f9.json` in that directory). Keeping the million-step allowance
+with filtered normals updated only when height can change measured watercolour 11.63 and oil 10.91
+(`20261027T231401Z-150cacc.json`); the shared flow allowance supplies the remaining headroom. A dry canvas
+needs no normal rebuild. Simultaneous wet paintings take longer to flow and dry when their work exceeds the
+allowance; oil's height and pigment equations are unchanged.
 
 The flow shader reads the immutable water input and paper through integer texture fetches. Empty texels whose
 four neighbours cannot supply water write zero to the next buffer without evaluating flow or settling; every
-other texel runs the same equations. Canvas resolution, wet-tile margins, drying ticks and the work budget stay
-unchanged. `demo/canvas-water-bench.json` reproduces the loaded big-water-brush phase on a single easel; run it with
+other texel runs the same equations. Canvas resolution, wet-tile margins and drying ticks remain fixed. `demo/canvas-water-bench.json` reproduces the loaded big-water-brush phase on a single easel; run it with
 `CAIRNFOLD_SCENE=demo/canvas-water-bench.json scripts/bench.sh OUT --android APK` on a Quest.
 
 On Quest 2, the loaded-water phase measured 15.52 ms before these changes, against the then 12.50 ms. A first candidate

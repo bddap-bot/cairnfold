@@ -60,8 +60,7 @@ const BOARD_MEAN := 1.3
 ## Largest residual above existing wall/timber charges in paired Quest 2 arch sweeps, rounded up.
 ## A larger opening still reserves a whole arch.
 const ARCH_US := 60.0
-## Paint flow every canvas together may run a frame, in texel-steps (one texel through one flow step): the most the
-## Quest 2's four-easel bench holds its budget at with four canvases wet (docs/design.md, "Painting").
+## Sharing flow texel-steps across canvases prevents each wet painting from multiplying the frame cost.
 const PAINT_STEPS := 3.0e5
 ## The least a boulder counts, however small: a pebble still draws its mesh.
 const BOULDER_LEAST := 0.25
