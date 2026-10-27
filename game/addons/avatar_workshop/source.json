@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "6c69c9c65f4beafc52bb84e61fa883d7e9e72124",
+  "commit": "1dfbec0c46c773e419a0ad323b0083573a60b7d6",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
@@ -9,11 +9,11 @@
     },
     "spring_definition.gd": {
       "source": "addons/avatar_workshop/spring_definition.gd",
-      "sha256": "b728828485be97a079cffa91999cd6237a9e81c6507f9498080e548a103a86c4"
+      "sha256": "cddaa71a71df42441cd6392166e552a771ce587e03cb60b74e488b57c08ac4f1"
     },
     "spring_runtime.gd": {
       "source": "addons/avatar_workshop/spring_runtime.gd",
-      "sha256": "f929b1f8b4b0457167188777b8e9a315f375df01d10ba5309af11c7913625af3"
+      "sha256": "8af14214e4fa278bb3c700fe443be438bc79c68eadea5c6fa2a242c2529b9ebb"
     },
     "LICENSE-godot-vrm": {
       "source": "addons/avatar_workshop/LICENSE-godot-vrm",
@@ -42,6 +42,22 @@
     "skeleton_bone.gd.uid": {
       "source": "addons/avatar_workshop/skeleton_bone.gd.uid",
       "sha256": "43ef93982cc074b63e6eb821d144e691b4a3f553919bf986e58002733085e6fb"
+    },
+    "skin_bindings.gd": {
+      "source": "addons/avatar_workshop/skin_bindings.gd",
+      "sha256": "4dc2036785bb1d0435822c47459bf260ce166951e46419505b8b2daf4a179236"
+    },
+    "spring_native.gd": {
+      "source": "addons/avatar_workshop/spring_native.gd",
+      "sha256": "a010e4215ec31960bb4b82a96959f271156b67b8e9fd8c7a504d66b51a833407"
+    },
+    "spring_native.gd.uid": {
+      "source": "addons/avatar_workshop/spring_native.gd.uid",
+      "sha256": "0479c2b570e19af1ac6665d0d60d37bca50e335826788768a177f0cefca30d88"
+    },
+    "skin_bindings.gd.uid": {
+      "source": "addons/avatar_workshop/skin_bindings.gd.uid",
+      "sha256": "95bf09cf30ee16c2ae269857d024bb0f3fd52e68234fd5bc8cdce564645d05c9"
     }
   }
 }

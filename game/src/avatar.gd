@@ -18,8 +18,7 @@ const MAX_TRIANGLES := 20000
 ## Draw calls: one a material of each skinned mesh (docs/multiplayer.md, "Skinned bodies").
 const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
-## Spring joints an avatar simulates, whatever its file carries: every joint is simulated each frame on the CPU, about
-## 0.05 ms a figure on a Quest 2, and four figures of 59 hold its frame where four of 139 drop it to 22 frames a second.
+## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
@@ -335,6 +334,16 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a.scene = scene
 	a.tint = tint
 	a._model = scene.instantiate()
+	# Reading mesh surfaces accesses the renderer; imports can run on a worker.
+	var bindings: Dictionary = scene.get_meta("compact_skin_bindings", {})
+	for mi: MeshInstance3D in a._model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh is ArrayMesh and mi.skin != null:
+			var key := [mi.mesh, mi.skin]
+			if not bindings.has(key):
+				bindings[key] = preload("res://addons/avatar_workshop/skin_bindings.gd").compact(mi.mesh, mi.skin)
+			mi.mesh = bindings[key][0]
+			mi.skin = bindings[key][1]
+	scene.set_meta("compact_skin_bindings", bindings)
 	a.add_child(a._model)
 	a._facing = FACING if (a._model.get_meta("forward", Vector3.BACK) as Vector3).z > 0.0 else Basis.IDENTITY
 	var bones: Dictionary = a._model.get_meta("humanoid")

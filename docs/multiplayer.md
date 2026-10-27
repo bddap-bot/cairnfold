@@ -276,11 +276,29 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 
 Avatar Workshop supplies the shared VRM spring definitions and their runtime, which drives
 nodes or, through its `skeleton_bone.gd`, a skinned skeleton's bones.
-The solver adapts godot-vrm's Verlet integration and collision projection, retaining
-its MIT notice. It runs at 60 Hz with a bounded accumulator, preserving joint lengths
-and projecting sphere and capsule contacts. A declared center carries the simulation
-frame with that node. A long pause resets momentum. The game binds imported glTF node
-indices to the avatar skeleton's bones; no editor importer is added.
+Adjacent skeleton chains with unit transforms share one Godot `SpringBoneSimulator3D`
+per skeleton, processed in definition order with shared sphere and capsule colliders.
+Their completed endpoints feed replication. Held groups use the constraint solver,
+which preserves release momentum until the chains settle before returning to native
+simulation. Gapped chains, materially scaled transforms and collider dependencies the
+native group cannot preserve use that same solver. It adapts godot-vrm's Verlet
+integration and collision projection at 60 Hz with a bounded accumulator, retaining
+its MIT notice. A declared center carries the simulation frame; a long pause resets
+momentum. The game binds imported glTF node indices to skeleton bones. The selection
+is by supported transforms and constraints, identical on every device.
+
+Opening a scene also compacts its skin bindings: unused bindings disappear and exactly
+identical bone/inverse-pose bindings share an index. Geometry, weights and blend shapes
+stay unchanged. The result is cached on the scene and prepared on the main thread,
+because reading mesh surfaces accesses the renderer while file import can run on a worker.
+
+The 60-joint import ceiling is priced with the skinned runtime on Quest 2: three
+figures visibly in view plus the same avatar worn, six private fixtures, give frame
+p50 of 13.60–13.94 ms at 72 Hz under the common quality governor. GPU p50 is
+7.81–9.20 ms (`perf/quest-2/avatar-skin-cost/20261027T214340Z-785038e.json`).
+The fixtures keep up to 60 definition joints; endpoints are not additional driven
+joints. These medians do not exclude occasional late frames, whose counts and p99
+remain in the record.
 
 The wearer owns their avatar's simulation. Empty-hand grip within 12 cm selects the
 nearest unclaimed tip. A remote request identifies its hand and the target chain;

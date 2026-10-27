@@ -686,9 +686,9 @@ static func gate(root: Node3D, width: float) -> void:
 ## A little person: the wheel's people, the avatars to wear and the gardens to join.
 static func _figure(root: Node3D) -> void:
 	var a := Avatar.open(Avatar.built_in(0), Session.COLOURS[0])
+	a.stand()
 	a.scale = Vector3.ONE * 0.026
 	root.add_child(a)
-	a.stand.call_deferred()
 
 
 ## A disc of stone ground as the stone tool lays it in `style`, shaded as the ground shades it, fraying toward the rim
