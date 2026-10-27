@@ -257,7 +257,6 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	check(sun.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS and sun.directional_shadow_max_distance >= Terrain.SIZE * sqrt(2.0), "a photo's shadows reach the garden's far corner in four splits: %.0f m" % sun.directional_shadow_max_distance)
 	look.set_time(0.9)
 	check(sun.global_basis.is_equal_approx(look.sun.global_basis) and sun.light_color == look.sun.light_color and sun.light_energy == look.sun.light_energy, "and it stands and shines as the sun does")
-	check(PhotoTool.settings().shadow_atlas == PhotoTool.PHOTO_SHADOWS and PhotoTool.PHOTO_SHADOWS >= 8192, "a photo's frame draws shadows into an 8192 atlas")
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
 	var parts: Array[Dictionary] = []

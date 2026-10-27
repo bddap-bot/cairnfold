@@ -11,8 +11,9 @@ extends Node3D
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
-## shadows reach the garden's edge in four splits), at PHOTO_SIZE with 8x MSAA, a shadow atlas of PHOTO_SHADOWS and
-## the foliage's finest blobs. A view capture (Main.capture) is drawn as the eyes see it.
+## shadows reach the garden's edge in four splits), at PHOTO_SIZE with 8x MSAA and the foliage's finest blobs. Its sun
+## draws into the eyes' shadow atlas: the atlas is the engine's one for every view, and growing it for a shot allocates
+## a new one each time, which stalled a Quest 2's frame by 90-120 ms. A view capture (Main.capture) is drawn as the eyes see it.
 
 signal recorded(path: String)
 
@@ -22,7 +23,6 @@ const PREVIEW_SIZE := Vector2i(256, 192)
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
-const PHOTO_SHADOWS := 8192
 const VIEW_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
@@ -39,6 +39,7 @@ const SUBJECT := 0.25
 ## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
 ## holds up play, and a dropped frame's time goes to the next one.
 const VIDEO_QUEUE := 6
+const READ_BYTES := 4 << 20
 
 var rig: Rig
 var folder := Main.photos_folder()
@@ -92,7 +93,7 @@ func _init(player: Rig) -> void:
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
-	var vp := _viewport(PREVIEW_SIZE, PHOTO_MSAA)
+	var vp := _photo_view(PREVIEW_SIZE)
 	_aim(vp, rig.head.global_transform, FOV, Quality.PHOTO_MASK)
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var flat := Canvas.flat([null, null, null], false, Vector2i(8, 8))
@@ -117,15 +118,21 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	return vp
 
 
-## The photo's view, made when a shot needs it and let go once the screen stops showing it: its 8x MSAA buffers are
-## the size of several headset views.
+## The photo's view, made when a shot first needs it and kept while a hand holds a camera: allocating its 8x MSAA
+## buffers, the size of several headset views, stalls a Quest 2's frame for about 100 ms, so shots do not repeat it.
 func photo_viewport() -> SubViewport:
 	if _photo == null:
-		_photo = _viewport(PHOTO_SIZE, PHOTO_MSAA)
-		_photo.mesh_lod_threshold = 0.0
-		_photo.anisotropic_filtering_level = Viewport.ANISOTROPY_16X
-		_photo.use_debanding = true
+		_photo = _photo_view(PHOTO_SIZE)
 	return _photo
+
+
+## A view drawn as a photo is, `size` large: at a small size it builds the photo's pipelines cheaply.
+func _photo_view(size: Vector2i) -> SubViewport:
+	var vp := _viewport(size, PHOTO_MSAA)
+	vp.mesh_lod_threshold = 0.0
+	vp.anisotropic_filtering_level = Viewport.ANISOTROPY_16X
+	vp.use_debanding = true
+	return vp
 
 
 func _view_viewport() -> SubViewport:
@@ -136,7 +143,7 @@ func _view_viewport() -> SubViewport:
 
 ## What a photo is drawn with, as its PNG records it.
 static func settings() -> Dictionary:
-	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << PHOTO_MSAA, "shadow_atlas": PHOTO_SHADOWS, "shadow_splits": 4,
+	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << PHOTO_MSAA, "shadow_atlas": ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size"), "shadow_splits": 4,
 		"shadow_reach_m": Look.SHADOW_REACH, "blob_detail": Quality.ladder[0].blob_detail, "reach": "whole garden",
 		"mesh_lod": "off", "anisotropy": 16}
 
@@ -159,7 +166,7 @@ func _process(delta: float) -> void:
 		_heard.append_array(_take_sound())
 		if not held.has(_clip_hand) or _clip_hand.tool != _clip_tool or _clip.full:
 			stop()
-	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
+	if _photo != null and not _busy and not rig.hands.any(func(h: Hand) -> bool: return h.tool in CAMERAS):
 		_photo.queue_free()
 		_photo = null
 	_frame = (_frame + 1) % PREVIEW_EVERY
@@ -550,11 +557,13 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	_busy = true
 	var full := mask & Quality.FULL_LAYER != 0
 	var vp := photo_viewport() if full else _view_viewport()
-	_aim(vp, at, fov, mask)
 	if full:
-		vp.size = PREVIEW_SIZE
-		await _draw_complete(vp)
-		vp.size = PHOTO_SIZE
+		# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
+		var warm := _photo_view(PREVIEW_SIZE)
+		_aim(warm, at, fov, mask)
+		await _draw_complete(warm)
+		warm.queue_free()
+	_aim(vp, at, fov, mask)
 	await _draw_complete(vp, full)
 	var img := await _read(vp)
 	_busy = false
@@ -585,32 +594,42 @@ func _draw_complete(vp: SubViewport, full := false) -> void:
 			return
 
 
-## What `vp` last drew. The pixels come back from the GPU a frame or two later instead of stalling the frame that asked.
+## What `vp` last drew. The pixels come back from the GPU a frame or two later instead of stalling the frame that asked,
+## READ_BYTES of rows at a time: the engine copies a read out of the GPU's memory on the frame it lands, and a photo's
+## 30 MB in one piece held a Quest 2's frame 50-70 ms.
 func _read(vp: SubViewport) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	var tex := RenderingServer.texture_get_rd_texture(vp.get_texture().get_rid())
-	var got := []
-	rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void: got.append(data))
-	while got.is_empty():
-		await get_tree().process_frame
 	var fmt := rd.texture_get_format(tex)
 	if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
 		push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)
 		return null
-	return Image.create_from_data(fmt.width, fmt.height, false, Image.FORMAT_RGBA8, got[0])
+	var strip := RDTextureFormat.new()
+	strip.format = fmt.format
+	strip.width = fmt.width
+	strip.height = clampi(READ_BYTES / (fmt.width * 4), 1, fmt.height)
+	strip.usage_bits = RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+	var rows := rd.texture_create(strip, RDTextureView.new())
+	var img := Image.create_empty(fmt.width, fmt.height, false, Image.FORMAT_RGBA8)
+	for y in range(0, fmt.height, strip.height):
+		var h := mini(strip.height, fmt.height - y)
+		var got := []
+		rd.texture_copy(tex, rows, Vector3(0, y, 0), Vector3.ZERO, Vector3(fmt.width, h, 1), 0, 0, 0, 0)
+		rd.texture_get_data_async(rows, 0, func(part: PackedByteArray) -> void: got.append(part))
+		while got.is_empty():
+			await get_tree().process_frame
+		img.blit_rect(Image.create_from_data(fmt.width, strip.height, false, Image.FORMAT_RGBA8, got[0]), Rect2i(0, 0, fmt.width, h), Vector2i(0, y))
+	rd.free_rid(rows)
+	return img
 
 
-## For the one frame a photo is drawn in, what the eyes' views share with it: the shadow atlas and the foliage's
-## blobs, set for the photo before the frame draws; returns what puts them back. Set after every script's turn, so the
+## For the one frame a photo is drawn in, what the eyes' views share with it, the foliage's blobs, set for the photo
+## before the frame draws; returns what puts them back. Set after every script's turn, so the
 ## quality governor (Quality) does not undo them first. The eyes see that frame drawn so too.
 func draw_finest() -> Callable:
-	var atlas: int = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")
-	var bits: bool = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")
-	RenderingServer.directional_shadow_atlas_set_size(PHOTO_SHADOWS, bits)
 	var blobs := flora.blob_detail if flora != null else 0
 	if flora != null:
 		flora.blob_detail = Quality.ladder[0].blob_detail
 	return func() -> void:
-		RenderingServer.directional_shadow_atlas_set_size(atlas, bits)
 		if flora != null:
 			flora.blob_detail = blobs

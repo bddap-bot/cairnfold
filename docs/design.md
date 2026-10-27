@@ -4644,7 +4644,7 @@ headset stands on. A photo is 3200×2400 at 8x MSAA, its meshes at full detail
 (`mesh_lod_threshold` 0) and its textures filtered 16x; it sees grass, flowers and ivy to the
 garden's edge, grass blades whole at every distance, every stone with its full mesh and the
 foliage's finest blobs; and its sun casts shadows to the garden's far corner
-(`Look.SHADOW_REACH`) in four blended splits drawn into an 8192 atlas. The eyes' views
+(`Look.SHADOW_REACH`) in four blended splits drawn into the eyes' atlas. The eyes' views
 and a scripted run's view captures (`Main.capture`) are drawn as the ladder allows, as before.
 
 How one scene is drawn two ways: what the ladder cuts lives on `Quality.LADDER_LAYER`, which the
@@ -4653,10 +4653,11 @@ photo's camera sees. A wall chunk's stones and ivy each get one more `MultiMeshI
 the near instance's multimesh with no visibility range; a grass or flower cell out of reach moves
 to the full layer instead of hiding; the sun has a twin on the full layer, a child of it, lit as
 it is. The grass, flower and ivy shaders shrink nothing for a camera seeing the full layer
-(`CAMERA_VISIBLE_LAYERS`). Two things both views share are set for the photo's one frame only,
-after every script has run (`RenderingServer.frame_pre_draw`) and put back after it draws: the
-directional shadow atlas size and which blob mesh the foliage draws. The headset sees that one
-frame drawn so too.
+(`CAMERA_VISIBLE_LAYERS`). Which blob mesh the foliage draws, which both views share, is set for
+the photo's one frame only, after every script has run (`RenderingServer.frame_pre_draw`), and put
+back after it draws; the headset sees that one frame drawn so too. The shadow atlas, which the engine
+also keeps one of for every view, stays as the eyes have it: growing it to 8192 for a shot allocated
+a new one each time and back again, 90 to 120 ms of a Quest 2's frame.
 
 What it costs: nothing until a hand first holds the camera. Its screen is then a second view of
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
@@ -4665,13 +4666,16 @@ that frame pays the scene's draw calls and shadow pass again at a small size, it
 lattice ("What makes building cheap"). A camera in each hand draws two such views, taking turns on that frame, so no
 frame draws both. A photo is one
 render on the frame after the press, read back from the GPU asynchronously, then converted,
-encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
-for the shot and let go once the screen stops showing it. The frame drawing it is long; the
-runtime shows the last frame reprojected meanwhile. Measured on a Quest 2 at 72 Hz (`CAIRNFOLD_SCENE=demo/photo.json
+encoded and written on a worker thread, so no frame waits on the pixels. The read comes back in
+strips of `PhotoTool.READ_BYTES`, one a frame: the engine copies a read out of GPU memory on the
+frame it lands, and the photo's 30 MB in one piece held a Quest 2's frame 50 to 70 ms. Its 8x MSAA
+view is made at the first shot and kept while a hand holds a camera: allocating it costs a Quest 2
+about 100 ms of one frame, which a shot no longer repeats. Measured on a Quest 2 at 72 Hz (`CAIRNFOLD_SCENE=demo/photo.json
 bench.sh OUT --android APK`), four photos in one session, which ran on: the first photo of a session drew a 310 ms
-frame and the second after it ran at 13 frames instead of about 39, as the 8x MSAA pipelines were first built; each
-later photo cost one frame of 76 to 148 ms and the runtime's App GPU time rose for that second only (42.6 ms against
-about 25). Converting, encoding and writing the 3200×2400 PNG took about 8 s on a worker thread there, with no
+frame and the second after it ran at 13 frames instead of about 39, as the 8x MSAA pipelines were first built. Each
+later photo cost one to five frames of 50 to 152 ms until the view was kept, the read split and the atlas left alone;
+with them, of the 16 shots after the first in `demo/photo-shots.json` only the second drew frames over 50 ms, two of
+64 and 69 ms while 14 pipelines compiled, and the first a 106 ms one as it made the view. Converting, encoding and writing the 3200×2400 PNG took about 8 s on a worker thread there, with no
 frame waiting on it.
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an

@@ -62,7 +62,8 @@ report.
 
 A photo is lit by its own sun (`Look.photo_sun`, four blended splits), which no
 other view sees. Its pipelines compile on worker threads when a photo first
-needs them. `PhotoTool` draws at preview size until every visible and shadow pass
-is ready, then repeats at full size with `draw_finest` before reading the pixels.
+needs them. `PhotoTool` draws at preview size, in a view of its own, until every
+visible and shadow pass is ready, then draws at full size with `draw_finest`
+before reading the pixels.
 The viewport's skipped-draw count is checked only after a new frame has drawn;
 a viewport that did not render is not ready. Play continues during these awaits.
