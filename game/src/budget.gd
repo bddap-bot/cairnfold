@@ -62,7 +62,7 @@ const BOARD_MEAN := 1.3
 const ARCH_US := 60.0
 ## Paint flow every canvas together may run a frame, in texel-steps (one texel through one flow step): the most the
 ## Quest 2's four-easel bench holds its budget at with four canvases wet (docs/design.md, "Painting").
-const PAINT_STEPS := 1.0e6
+const PAINT_STEPS := 3.0e5
 ## The least a boulder counts, however small: a pebble still draws its mesh.
 const BOULDER_LEAST := 0.25
 ## The most one boulder costs the Quest 2 however large, in microseconds: its dearest paired cost, carried or still, near
