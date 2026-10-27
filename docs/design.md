@@ -423,14 +423,20 @@ density, and no build the player can make may bring the frame rate down.
   two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), the deer and the fox each seen from a person's height, with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
-  every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
-  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then two painted easels stood before them and the camera held up to them and a photo taken each second, each saving both paintings, then the selfie camera held out at the player, whose own avatar it draws.
-  It plays governed, the ladder walking as it does in play, with its builds unbounded: most go past the build budget,
-  which no player can do, and price what such a garden draws.
+  every firefly there can be over the ponds at dusk, and a hill pulled up live under the walls the build budget
+  leaves room for beside a path, each seen from the air and standing among them, then both hands pushed into the walls
+  beside the player, then two painted easels stood before them and the camera held up to them and a photo taken each
+  second, each saving both paintings, then the selfie camera held out at the player, whose own avatar it draws, then
+  the other players waving (`avatars/wave`). It plays governed, the ladder walking as it does in play. Its feature
+  phases stand on gardens the build budget admits, built bounded as a player builds; its pricing gardens (the wall
+  discs, villages and roof families) are built unbounded past the budget, which no player can do, and price what
+  such a garden draws.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
-  calls, primitives and GPU time; on a Quest it holds to the budget each phase whose garden the build budget admits
-  (`World.fill` at most 1 throughout) and fails when one goes over. A phase past the build budget only measures ("The
-  stress scene on the Quest 2"). A new feature adds itself to the stress scene.
+  calls, primitives and GPU time; on a Quest it holds every phase to the budget and fails when one goes over. Only
+  measuring are `sweep/` phases and those whose label the scene marks `past_budget` while their garden is past the
+  build budget (`World.fill` over 1): a mark exempts nothing a player can build, and an unmarked phase is held
+  wherever it stands ("The stress scene on the Quest 2"). A new feature adds itself to the stress scene, unmarked, on
+  a garden the build budget admits.
   `CAIRNFOLD_PLAYERS=8 CAIRNFOLD_WAVE=1` fills the session with flat-screen
   companions playing the recorded wave throughout the tour, including its final
   `avatars/wave` view.
@@ -916,9 +922,20 @@ What the game promises is the refresh rate for every garden a player can build. 
 that, and the build budget keeps a garden within what the ladder's bottom step holds (`Budget.fit_step`). So the bench
 holds a phase to the line where the build budget admits its garden, with the governor free. Pinning the start step
 (6), as the stress scene did, held every garden to a step the governor leaves as soon as the frame runs over. The
-scene's other gardens are past the build budget: the wall discs, villages, hills and roof families run from 1.99 to
-8.78 times it (`World.fill`). On the Quest 2 no step of the ladder brings those within the line, so their phases
-measure what they cost and set no verdict.
+scene's pricing gardens are past the build budget: the wall discs, villages and roof families run from 1.99 to 8.78
+times it (`World.fill`). On the Quest 2 no step of the ladder brings those within the line, so their phases, each
+label marked `past_budget`, measure what they cost and set no verdict. The features (hands, camera, selfie, other
+players, path materials, the wipe) are not pricing: they stand on gardens built bounded, at most the budget, and are
+held. At the 3.99 ms capacity a hill under 26 m of walls beside a 12 m path, with the camera's two easels, fills
+0.93 of the budget (the 973 m it stood under before read 8.37); a village built until the budget turns a house down,
+0.96; the materials garden (cobbles, flagstones, sand, dirt and three 8 m beds), 0.93, where three cobble paths and
+six 14 m beds had read 1.87 (desktop `units` lines; the fill is the garden's, the same on every headset). The other
+players (`avatars/wave`, `avatars/chains`) stand on the hill garden too.
+
+On a Quest 2 of the build before the refit, the features on these gardens read, governed: `hands/walls` 7.05 ms,
+`camera/ground` 10.10, `camera/shutter` 9.20, `camera/recording` 10.19, `camera/selfie` 9.14, `camera/two` 9.16,
+`avatars/wave` 8.48, `wipe/village` 5.79, `materials/aerial` 6.69 and `materials/ground` 7.71, all within the line;
+on the hills, the timber village and the paths' old garden they had read 13.6 to 17.0, 14.1 and 12.3.
 
 Measured on a Quest 2, the runtime's `App=` GPU ms a frame, the median of each phase's seconds after its first. The
 pinned run is main's last before the change (`perf/quest-2/stress/20261024T221834Z-dff34d8.json`); the governed run

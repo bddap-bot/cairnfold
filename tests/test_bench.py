@@ -21,6 +21,7 @@ class BenchmarkRendering(unittest.TestCase):
                 "seconds": [{"label": "drag", "p50": 13.89, "p99": 13.89,
                              "late": 0, "draws": 100, "prims": 1000}],
             }))
+            (out / "stress.json").write_text("[]")
             for log in ["logcat.txt", "godot.log"]:
                 with self.subTest(log=log):
                     path = out / log
@@ -53,6 +54,7 @@ class BenchmarkRendering(unittest.TestCase):
                 "seconds": [{"label": "-" if s == 20 else "paths/stroke", "unix": 1792370000 + s, "p50": 13.89, "p99": 13.89,
                              "late": 0, "draws": 100, "prims": 1000} for s in range(20, 26)],
             }))
+            (out / "stress.json").write_text("[]")
             run = lambda: subprocess.run([sys.executable, "-c", report, str(out), "quest", str(out / "record.json"), "1"], capture_output=True, text=True)
             for name, (log, message) in logs.items():
                 with self.subTest(log=name):
@@ -77,10 +79,34 @@ class BenchmarkRendering(unittest.TestCase):
                 "seconds": [{"label": "wipe/village", "p50": 13.89, "p99": 13.89, "late": 1, "draws": 100, "prims": 1000,
                              **({"stalls": [stall]} if i == 0 else {})} for i in range(3)],
             }))
+            (out / "stress.json").write_text("[]")
             result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["wipe/village"]
             self.assertEqual(phase["stalls"], [{"ms": 412.5, "notes": [{"what": "wipe", "ms": 390.0}], "compiled": [0, 2]}])
+
+    def test_only_a_marked_phase_past_the_build_budget_goes_unheld(self):
+        """A phase over the line fails unless the scene marks its label past_budget and its garden is past the
+        build budget: an unmarked feature on a dense garden is held, and a mark exempts no garden a player can build."""
+        labels = {21: ("feature", 2.0), 22: ("feature", 2.0), 23: ("pricing", 2.0), 24: ("pricing", 2.0), 25: ("buildable", 0.5), 26: ("buildable", 0.5)}
+        game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
+        vrapi = '17923700{s}.000  6423  6717 I VrApi   : FPS=72/72,Prd=40ms,App=15.00ms,GPU%=0.5\n'
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({
+                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
+                "seconds": [{"label": labels.get(s, ("-", 0.0))[0], "fill": labels.get(s, ("-", 0.0))[1], "unix": 1792370000 + s,
+                             "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000} for s in range(20, 28)],
+            }))
+            (out / "stress.json").write_text(json.dumps([{"op": "label", "name": "pricing", "past_budget": True},
+                                                         {"op": "label", "name": "buildable", "past_budget": True},
+                                                         {"op": "label", "name": "feature"}]))
+            (out / "logcat.txt").write_text(game.format(s=20, text="xr: session at 72.0 Hz") + "".join(vrapi.format(s=s) for s in labels)
+                                            + game.format(s=27, text="driver: done"))
+            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "quest", str(out / "record.json"), "1"], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("over budget: feature, buildable", result.stdout)
+            self.assertIn("past the build budget (2.00)", result.stdout)
 
 
 class Trend(unittest.TestCase):

@@ -14,9 +14,9 @@
 #                                             session's eye tracking and passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
-# On a Quest, exits 1 when a phase the build must hold goes over budget: one whose garden the build budget admits (World.fill
-# at most 1 every second of it). A phase past the budget, which no player can build, only measures, as do phases named
-# "sweep/...", pricing phases.
+# On a Quest, exits 1 when a phase goes over budget. Only measuring are phases named "sweep/...", pricing phases, and
+# those whose label the scene marks "past_budget" while their garden is past the build budget (World.fill over 1), which
+# no player can build; a marked phase whose garden the budget admits is held.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured. scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
@@ -264,6 +264,7 @@ for name in ["logcat.txt", "godot.log"]:
             if any("When supplying a custom region, it must be contained within the framebuffer rectangle" in line for line in log):
                 sys.exit(f"bench: invalid framebuffer region; rendering failed, see {name}")
 d = json.load(open(os.path.join(out, "metrics.json")))
+marked = {s["name"] for s in json.load(open(os.path.join(out, "stress.json"))) if s.get("op") == "label" and s.get("past_budget")}
 budget = d["info"]["budget"]
 phases = {}
 for s in d["seconds"]:
@@ -372,9 +373,13 @@ for name, secs in phases.items():
         if device == "frame":
             row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
         if device == "quest":
-            held = g <= budget["gpu_ms"]
-            row += " holds" if held else f" past the build budget ({fill:.2f})" if fill > 1 else " OVER"
-            if not held and fill <= 1 and not name.startswith("sweep/"):
+            measured = name.startswith("sweep/") or (name in marked and fill > 1)
+            if g <= budget["gpu_ms"]:
+                row += " holds"
+            elif measured:
+                row += f" past the build budget ({fill:.2f})" if fill > 1 else " measures"
+            else:
+                row += " OVER"
                 over.append(name)
     print(row)
 os.makedirs(os.path.dirname(record), exist_ok=True)

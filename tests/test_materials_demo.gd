@@ -60,7 +60,8 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The materials/* phases follow the last wipe, over the meadow's paths in cobbles, stepping stones and full beds.
+## The materials/* phases follow the last wipe, over a garden the build budget admits: the meadow's paths in cobbles,
+## stepping stones and full beds.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "materials/aerial")
@@ -70,10 +71,11 @@ func _stress() -> void:
 	var wiped := aerial
 	while steps[wiped].op != "bare":
 		wiped -= 1
-	await play([steps[0]] + steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "dig", "pave"]))
+	var paves := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op == "pave")
+	await play([steps[0], {"op": "budget", "bounded": true}] + steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "dig", "pave"]))
 	await until(func() -> bool: return main.water.ponds.size() > 0, "the stress pond fills")
 	var paths: Array[PathLayout] = main.tool.paths.layouts
-	var cobbles := paths.filter(func(p: PathLayout) -> bool: return p.surface == PathLayout.Surface.COBBLES)
-	check(cobbles.size() >= 3, "the meadow's paths are cobbled: %d" % cobbles.size())
-	check(paths.filter(func(p: PathLayout) -> bool: return p.surface == PathLayout.Surface.BED).size() >= 6 and _beds_full(paths), "every bed is full")
+	check(paths.size() == paves.size(), "the build budget admits every path the phases look over: %d of %d" % [paths.size(), paves.size()])
+	check(paths.any(func(p: PathLayout) -> bool: return p.surface == PathLayout.Surface.COBBLES), "the meadow's paths are cobbled")
+	check(_beds_full(paths), "every bed is full")
 	check(paths.any(func(p: PathLayout) -> bool: return not _pieces(p, "block").is_empty()), "a path crosses the pond on stepping stones")
