@@ -27,6 +27,10 @@ var _hidden := {}
 var _area := 1.0
 ## Players `figures` stood, posed again every frame as streamed poses pose another player.
 var _stood: Array[Avatar] = []
+## Whether the figures hold Posture's poses, and the microseconds and frames their poses have taken.
+var _posing := false
+var _posed_usec := 0
+var _posed_frames := 0
 ## The units the last fill_flora's plants would count as, carried on the next units line.
 var _flora_units := {}
 ## Where a headset's hands stand until a step poses them: as a player holds them while building, the book shut in the
@@ -1552,11 +1556,18 @@ func _flat(s: Dictionary) -> void:
 
 ## Stands a player at each of `spots` [[x, z], ...], looking at the middle of the garden, in the VRM at `file`, a path
 ## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its hands swaying, as another player's streamed
-## poses pose them; [] takes them away. Prices another player's avatar on one headset, with no network in the way.
+## poses pose them; with "posture" each instead holds Posture's recorded poses in turn, a second and a fifth each, over
+## what is under it, as another player's avatar reads them; [] takes them away. Prices another player's avatar on one
+## headset, with no network in the way, and prints the main thread's microseconds per avatar pose when they go.
 func _figures(s: Dictionary) -> void:
+	if not _stood.is_empty():
+		print("figures: %d %s avatars %s, %.1f us per avatar pose over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
 	for a in _stood:
 		a.queue_free()
 	_stood.clear()
+	_posing = s.get("posture", false)
+	_posed_usec = 0
+	_posed_frames = 0
 	var path: String = s.get("file", "")
 	var scene: PackedScene = Avatar.built_in(0)
 	if path:
@@ -1570,16 +1581,26 @@ func _figures(s: Dictionary) -> void:
 		var a := Avatar.open(scene, Color.WHITE, path)
 		var foot := main.world.terrain.ground(at[0], at[1])
 		a.transform = Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)
+		if _posing:
+			a.ground = func(w: Vector3) -> float: return main.rig.floor_under.call(w)
 		main.add_child(a)
 		_stood.append(a)
 
 
 func _process(_delta: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
+	var start := Time.get_ticks_usec()
 	for i in _stood.size():
-		var sway := 0.1 * sin(t * 2.0 + i)
 		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, _stood[i].eye_height, 0))
-		_stood[i].pose(eyes, eyes * Avatar.AT_SIDES[0].translated(Vector3(0, sway, -0.3)), eyes * Avatar.AT_SIDES[1].translated(Vector3(0, -sway, -0.3)))
+		if _posing:
+			var held := Posture.held(1 + (int(t / 1.2) + i) % (Posture.poses.size() - 1), _stood[i].eye_height)
+			_stood[i].pose(held[0], held[1], held[2])
+		else:
+			var sway := 0.1 * sin(t * 2.0 + i)
+			_stood[i].pose(eyes, eyes * Avatar.AT_SIDES[0].translated(Vector3(0, sway, -0.3)), eyes * Avatar.AT_SIDES[1].translated(Vector3(0, -sway, -0.3)))
+	if not _stood.is_empty():
+		_posed_usec += Time.get_ticks_usec() - start
+		_posed_frames += 1
 
 
 ## Turns the view to `at`, or to the figure of the host's garden with "figure", or to the eyes of the first other
@@ -1626,7 +1647,7 @@ func _frenzied() -> bool:
 	return f[1] > 0 and f[0] == f[1]
 
 
-## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, and how many eat from held dishes, to `name`.json in the capture
+## Writes `World.digest`, where the sun stands, how many other players' avatars stand here, the hashes of their own files and the poses they show, and how many eat from held dishes, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
 	var path: String = main.capture_path(s.name + ".json")
@@ -1640,6 +1661,7 @@ func _digest(s: Dictionary) -> void:
 	out.avatar_choices.append(main.session.avatar)
 	out.avatar_choices.sort()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
+	out.postures = main.session.avatars.values().map(func(a: Avatar) -> String: return Posture.poses[a.posture.target].name)
 	out.fed = {"hand": main.fed(false), "dish": main.fed(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
 	out.frenzy = main.fish.frenzy()
@@ -2191,6 +2213,74 @@ func _wear(s: Dictionary) -> void:
 	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
 	main.rig.wear(Avatar.open(scene, Color(s.get("tint", "#d9824b"))))
 	await _frames(2)
+
+
+## Desktop only: holds the head and both hands where a person in Posture's pose `pose` had theirs, sized to the
+## player's own avatar (Posture.held), on the ground at `x`, `z` (or `y` metres up), turned `yaw` degrees; `lift`
+## raises the eyes and `lean` pitches them that many degrees about their own right, with the hands, to try a near
+## miss. Over `seconds` it moves there from where the head and hands are, as a player lies down or sits.
+func _posture(s: Dictionary) -> void:
+	var rig: Rig = main.rig
+	var which := Posture.poses.find_custom(func(q: Dictionary) -> bool: return q.name == s.pose)
+	var points := Posture.held(which, rig.body.eye_height if rig.body else Rig.EYE)
+	var eyes := points[0]
+	var held: Array[Transform3D] = [points[1], points[2]]
+	var lean := Transform3D(Basis(eyes.basis.x, deg_to_rad(s.get("lean", 0.0))), Vector3.ZERO)
+	lean = Transform3D(Basis.IDENTITY, eyes.origin) * lean * Transform3D(Basis.IDENTITY, -eyes.origin)
+	var x := float(s.get("x", 0.0))
+	var z := float(s.get("z", 0.0))
+	var frame := Transform3D(Basis(Vector3.UP, deg_to_rad(s.get("yaw", 0.0))), Vector3(x, float(s.get("y", main.world.terrain.height_at(x, z))) + s.get("lift", 0.0), z)) * lean
+	var to: Array[Transform3D] = [frame * eyes, frame * held[0], frame * held[1]]
+	var from: Array[Transform3D] = [rig.head.global_transform, rig.left.global_transform, rig.right.global_transform]
+	var seconds := float(s.get("seconds", 0.0))
+	var t := 0.0
+	while true:
+		var k := smoothstep(0.0, 1.0, minf(t / seconds, 1.0)) if seconds > 0.0 else 1.0
+		rig.head.global_transform = from[0].interpolate_with(to[0], k)
+		for i in 2:
+			rig.hands[i].global_transform = from[i + 1].interpolate_with(to[i + 1], k)
+			rig.hands[i].held_still = true
+		if k >= 1.0:
+			break
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _frames(2)
+
+
+## Draws where each other player's head and hands are tracked, as their avatar receives them: a red ball at the eyes
+## with a stalk ahead of them, a green ball at the left hand and a blue one at the right, seen through everything.
+func _markers(_s: Dictionary) -> void:
+	var balls: Array[MeshInstance3D] = []
+	for c: Color in [Color.RED, Color.GREEN, Color.BLUE, Color.RED]:
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.no_depth_test = true
+		mat.albedo_color = c
+		var mi := MeshInstance3D.new()
+		if balls.size() < 3:
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.035
+			sphere.height = 0.07
+			mi.mesh = sphere
+		else:
+			var stalk := BoxMesh.new()
+			stalk.size = Vector3(0.012, 0.012, 0.2)
+			mi.mesh = stalk
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		balls.append(mi)
+		add_child(mi)
+	while is_inside_tree():
+		var shown: Array = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible)
+		for mi in balls:
+			mi.visible = not shown.is_empty()
+		if not shown.is_empty():
+			var a: Avatar = shown[0]
+			balls[0].global_position = a.eyes.origin
+			balls[1].global_position = a.hands[0].origin
+			balls[2].global_position = a.hands[1].origin
+			balls[3].global_transform = a.eyes * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.1))
+		await get_tree().process_frame
 
 
 ## Holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.

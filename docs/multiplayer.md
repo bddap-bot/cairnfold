@@ -170,6 +170,30 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   measured it is the typical `Rig.EYE`. A new fit, from another avatar or the measure
   settling, comes behind a fade, as a teleport does: the world never grows in view. On a
   flat screen the eyes stand at the avatar's eye height.
+- **Lying and sitting.** A player lying down or sitting is shown in a recorded human
+  pose: on the back, on either side (one recording and its mirror), on the front,
+  sitting on the ground with the hands forward or leaning back on them, or sitting on
+  a ledge (a stair, a floor's or a roof's edge) with the feet on lower ground. Each is
+  one frame of a CMU motion-capture trial (`LICENSE-CMU`), converted by
+  `scripts/mocap.gd` into each humanoid bone's turn from the recording's T-pose, so
+  every VRM, built-in or a player's own, 1.0 or 0.x, takes the same turns from its own
+  T-pose. `Posture` (game/src/posture.gd) picks the pose from the head and both hands
+  over what is under them: the eyes' height over the support behind them, whether the
+  support drops ahead of an upright head, which way is up as the eyes see it, and each
+  hand's place as the eyes see it and its height. The nearest recorded pose wins once
+  it has been nearer than the shown one by a margin for 0.4 s, then blends in over
+  0.6 s. A lying or sitting body keeps its heading while the head turns up to 50
+  degrees from where the recording's looked, then turns after it. The head and hands
+  stay exactly where they are tracked: the body is moved so its neck carries the
+  head, and the arms reach to the hands as standing, the elbows pointing as the
+  recording's upper arms do. Three trackers cannot tell sitting on the ground from
+  crouching or kneeling, so an upright head 1 m or more over its support stands,
+  whatever the hands do, and a head lowered for a moment to work the ground keeps
+  standing; only a head held low sits. A pose lying on the front propped on the
+  elbows has no licensed human recording (docs/package-notices.md), so a player lying
+  so shows the front pose. The figures on the inventory wheel always stand. `scripts/poses.sh`
+  captures a guest's avatar in each pose as a host sees it, the tracked head and
+  hands drawn as markers.
 - **Gaze.** Every avatar, built-in or a player's own, points its eyes through one path,
   the model's VRM lookAt: by eye bones or by the four look expressions, whichever the
   model declares, each angle mapped and clamped by its range maps. Where the eyes look
@@ -180,7 +204,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   sending it: slowly for small movements, so tracking noise does not jitter the eyes, and
   faster the further it lags, so a glance lands in a few frames instead of drifting. Avatar
   body motion prefers human-made recordings to invented poses. A flat-screen player waves
-  with CMU mocap trial 141_16 (see `LICENSE-CMU-WAVE`); its recorded hands travel
+  with CMU mocap trial 141_16 (see `LICENSE-CMU`); its recorded hands travel
   through the same Session poses as tracked VR hands.
 - **Your own avatars.** Every `.vrm` in the game's `avatars` folder that reads as an
   avatar within the limits is yours to wear
@@ -265,8 +289,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   a scene of skinned meshes over one `Skeleton3D`, the skins' weights, inverse binds and
   blend shapes as the source has them, and on its root the avatar data: each humanoid
   bone and spring joint as a bone of that skeleton, where the eyes sit, which way the model
-  faces, how its eyes look and its spring chains. A pose moves the hips, head, eyes, upper
-  and lower arms and hands as skeleton bones, and the GPU bends the skin over them, so
+  faces, how its eyes look and its spring chains. A pose moves the hips, spine, chest, upper chest,
+  neck, shoulders, legs, feet, head, eyes, upper and lower arms and hands as skeleton bones, and the GPU bends the skin over them, so
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
@@ -498,7 +522,7 @@ schema and the snapshot round trip. `tests/test_avatar.gd` reads the public samp
 one model in both versions stands alike. It also converts the Unity sample package there and
 checks the VRM keeps its skins, blend shapes and every bone of its Avatar definition as a skin
 joint, and
-that it reads, poses and reaches as the VRM samples do.
+that it reads, poses and reaches as the VRM samples do. `tests/test_posture.gd` checks that each recorded pose, held at any heading over ground at any height, reads as itself, that crouches stand, that a ledge needs a drop ahead, the dwell and blend, and that every built-in and sample avatar keeps its eyes and hands on their tracked points through every pose and blend while its body bones turn as the recording's did.
 
 `scripts/coop.sh OUT --flat` renders a host and a flat-screen player (`--flat`) on one machine,
 each wearing a sample avatar from its own avatars folder: the flat-screen player hears the
@@ -512,7 +536,14 @@ covers its controls, its hands' pose and that none of its controls sends an edit
 Each remote player costs one avatar pose a frame, as their avatar follows their latest pose
 packet, and on the host the relaying of their packets; networking otherwise adds only reading
 sockets and sending one pose packet every other frame. Each remote player adds about seven
-small draw calls and a few hundred triangles. Frame times with 1, 2 and 4 players in the stress scene are under
+small draw calls and a few hundred triangles. On a Quest 2, eight figures posed every frame beside the meadow (`demo/avatar-cost.json`
+under `scripts/bench.sh OUT --android`, its figures step timing `Avatar.pose` on the main thread) cost, per avatar
+pose, 85.9 µs for a built-in avatar and 70.5 µs for the crimsom sample VRM before lying and sitting, and with them
+102.7 and 99.3 µs standing, and 149.3 and 140.3 µs lying and sitting in turn, a pose change every 1.2 s with its
+blend: at most 70 µs more a remote player, the classifier included. Reading what is under a player asks every
+build, so it is read again only as they move. The stress scene's `avatars/posture` phase poses eight figures lying
+and sitting in the village: 12.74 ms of GPU a frame, beside `avatars/wave`'s 14.07 and `avatars/chains`' 14.24 in
+the same run ([record](../perf/quest-2/stress/20261027T191500Z-d62d7e6.json)). Frame times with 1, 2 and 4 players in the stress scene are under
 "Measurements".
 
 ## Increments

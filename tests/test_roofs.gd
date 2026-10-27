@@ -18,6 +18,7 @@ func _initialize() -> void:
 	_the_budget_counts_eaves_and_dormers()
 	_the_command_carries_decks_eaves_and_dormers()
 	_the_style_tool_offers_both_decks()
+	_a_roof_still_being_laid_has_no_deck()
 	boot_main()
 	_in_the_glade.call_deferred()
 
@@ -216,6 +217,13 @@ func _flat_roofs_stack_into_terraces() -> void:
 	check(upper.roof.tiles.size() > 10 and middle.roof.tiles.size() > 10, "each platform is decked")
 	var r: RoofLayout = middle.roof
 	check(absf(r.deck_under(Vector3(4.0, second + 0.2, 1.0)) - r.height_at(4.0, 1.0)) < 0.001, "a stacked platform is stood on at its deck")
+
+
+## A house's roof is laid off the main thread; until then it has its inputs but no corners, and nothing stands on it.
+func _a_roof_still_being_laid_has_no_deck() -> void:
+	var r := RoofLayout.new()
+	r.pitch = 0.0
+	check(r.deck_under(Vector3(0, 3, 0)) == -INF, "a flat roof still being laid has no deck to stand on")
 
 
 func _the_eaves_reach_as_far_as_pulled() -> void:

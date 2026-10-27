@@ -26,7 +26,7 @@ aiming at; our implementation is our own.
   misses vsync in VR is felt, not seen; every feature is measured at worst-case
   density before it lands (see "Frame budget").
 - Original assets, generated procedurally wherever possible. Human avatar motion
-  prefers licensed human-made recordings (`LICENSE-CMU-WAVE`) to invented poses; a
+  prefers licensed human-made recordings (`LICENSE-CMU`) to invented poses; a
   preference, not a gate. Animals move by animation made here, procedural or not.
 
   Directive (verbatim): "if we removed bot-made animations from animals because of our bot-made animation rule, we can add them back. that rule applies to *human* posing. and it please treat it as a suggestion, not a rule. I seem to recall seeing some good wing flits on ducks before."

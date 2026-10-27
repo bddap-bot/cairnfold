@@ -106,13 +106,22 @@ its expected notices from the matching revision and run
 `scripts/notices.py check PACKAGE EXPECTED_DIRECTORY`; for APKs the expected tree
 also includes the build's generated Android dependency notices.
 
-## Human-recorded wave
+## Human-recorded motion
 
-`LICENSE-CMU-WAVE` ships in every package through the existing `LICENSE-*`
+`LICENSE-CMU` ships in every package through the existing `LICENSE-*`
 collection. It records the CMU Graphics Lab source, commercial-product terms,
-and the requested acknowledgment for trial 141_16, “Wave Hello”. The original
-ASF/AMC inputs are in `third_party/cmu-wave/`; `scripts/wave.gd` converts them
-without authoring motion. The data is not covered by the game’s code licenses.
+the requested acknowledgment, and each trial used: 141_16, “Wave Hello”, and the
+single frames of trials 140_01, 140_03, 140_08, 82_05 and 14_31 that avatars lie
+and sit in, with every original file's hash. The original ASF/AMC inputs are in
+`third_party/cmu/`; `scripts/mocap.gd` converts them without authoring motion.
+The data is not covered by the game’s code licenses.
+
+A pose lying on the front propped on the elbows was looked for and not found:
+CMU's lying and getting-up trials (140_01–04, 140_08–09, 77_16–18, 111_06,
+114_11) hold push-ups and lying back on the elbows but not that pose, and
+MakeHuman's CC0 pose packs (poses01–05) hold a yoga cobra on straight arms, a
+push-up and a prostrate kneel. A player lying so shows the front pose, with the
+head and hands where they are tracked.
 
 VRoid’s official VRMA_02 Greeting was also checked at
 https://vroid.booth.pm/items/5512385. Its commercial license requires attribution

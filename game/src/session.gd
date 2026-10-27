@@ -628,6 +628,7 @@ func _dress(id: int, scene: PackedScene, key: String) -> void:
 	var old: Avatar = avatars.get(id)
 	a.visible = old != null and old.visible
 	if old != null:
+		a.posture.take(old.posture)
 		a.pose(old.eyes, old.hands[0], old.hands[1], old.look)
 		old.queue_free()
 	add_child(a)
