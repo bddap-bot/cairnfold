@@ -44,6 +44,7 @@ func _run() -> void:
 		var tilted := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, lift - 0.03), rotation), Brushwork.Brush.STICK)
 		check(tilted.on and tilted.pressure > 0.99, "either end and shallow side contact stay pressed at angle %f" % angle)
 	_pushing_in_presses_harder()
+	_a_stick_pushed_in_lies_on_its_side()
 	contact.reset()
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1), sideways), Brushwork.Brush.BIG)
 	var flat_brush := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -0.1), sideways), Brushwork.Brush.BIG)
@@ -104,3 +105,31 @@ func _pushing_in_presses_harder() -> void:
 		check(pressures[0] < 0.1, "the %s grazing presses lightly: %s" % [what, pressures])
 		check(pressures[0] < pressures[1] and pressures[1] < pressures[2], "the %s presses harder the farther it is pushed: %s" % [what, pressures])
 		check(pressures[2] > 0.999 and pressures[3] > 0.999, "the %s presses fully at the press depth and past it: %s" % [what, pressures])
+
+
+## A stick held as a hand holds it and laid on its side, pushed in: a wrist rolled either way about the aim keeps its side
+## on the canvas, since a stick leaned off the aim sweeps a cone the canvas is tangent to, and turned about the canvas's
+## facing through half a turn its mark turns with it.
+func _a_stick_pushed_in_lies_on_its_side() -> void:
+	for kind: Brushwork.Brush in Brushwork.STICKS:
+		var length: float = Brushwork.STICKS[kind].y
+		var hold := ToolModels.hold(kind)
+		var flat := Basis.looking_at(Vector3.LEFT, Vector3.BACK)
+		var stick := Transform3D(flat, Vector3(-length * 0.5, 0, Brushwork.STICKS[kind].x) - flat * ToolModels.BRUSH_TIP)
+		var hand := stick * hold.affine_inverse()
+		for roll in [-20.0, 0.0, 20.0]:
+			var rolled := Transform3D(hand.basis * Basis(Vector3.FORWARD, deg_to_rad(roll)), hand.origin)
+			var contact := CanvasContact.new()
+			contact.move(Transform3D.IDENTITY, (rolled * hold).translated(Vector3(0, 0, 0.1)), kind)
+			var lying := 0
+			var turning := 0
+			for i in 13:
+				var held := (Transform3D(Basis(Vector3.BACK, PI * i / 12.0)) * rolled * hold).translated(Vector3(0, 0, -Brushwork.PRESS_DEPTH))
+				var c := contact.move(Transform3D.IDENTITY, held, kind)
+				if c.on and c.side > 0.7:
+					lying += 1
+				if absf(Brushwork.turn(atan2(-held.basis.z.y, held.basis.z.x), c.angle)) < 0.05:
+					turning += 1
+			var name: String = Brushwork.Brush.keys()[kind]
+			check(lying == 13, "the %s rolled %.0f degrees and pushed in lies on its side: %d of 13" % [name, roll, lying])
+			check(turning == 13, "the %s rolled %.0f degrees turns its mark as it turns: %d of 13" % [name, roll, turning])

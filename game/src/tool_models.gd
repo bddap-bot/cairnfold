@@ -30,8 +30,8 @@ const MIRROR_CENTRE := Vector3(0, MIRROR_HANDLE + MIRROR_RIM + MIRROR_GLASS.y * 
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
 ## A brush handle's radius at its widest, by the ferrule.
 const HANDLE_RADIUS := 0.005
-## A stick of charcoal is held leaned back this far from the controller's aim, its tip dropped, about where a hand
-## grips it: aimed at the canvas it meets it at this angle, and a wrist turned down as far lays its side flat on it.
+## A stick of charcoal is held leaned back this far from the controller's aim, its tip raised, about where a hand
+## grips it: aimed at the canvas it meets it at this angle, and a wrist turned up as far lays its side flat on it.
 const STICK_LEAN := deg_to_rad(45.0)
 const STICK_GRIP := Vector3(0, 0.01, -0.06)
 ## Whatever its length, a stick's back end rests in the hand this far along the aim, so a short stick's tip is nearer it.
@@ -423,7 +423,7 @@ static func _easel(root: Node3D) -> void:
 static func hold(kind: Brushwork.Brush) -> Transform3D:
 	if not Brushwork.is_stick(kind):
 		return Transform3D()
-	var lean := Basis(Vector3.RIGHT, -STICK_LEAN)
+	var lean := Basis(Vector3.RIGHT, STICK_LEAN)
 	var back := Vector3(0, 0, STICK_BUTT - BRUSH_TIP.z - Brushwork.STICKS[kind].y)
 	return Transform3D(lean, STICK_GRIP - lean * STICK_GRIP + lean * back)
 

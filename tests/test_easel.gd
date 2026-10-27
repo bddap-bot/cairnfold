@@ -877,7 +877,7 @@ static func _length(stick: Node3D) -> float:
 	return (mi.transform * mi.get_aabb()).size.z
 
 
-## A stick of charcoal is held leaned back 45 degrees from the hand's aim, its tip dropped, and a brush along the aim.
+## A stick of charcoal is held leaned back 45 degrees from the hand's aim, its tip raised, and a brush along the aim.
 func _a_held_stick_leans_back() -> void:
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	for kind: Brushwork.Brush in Brushwork.STICKS:
@@ -886,7 +886,7 @@ func _a_held_stick_leans_back() -> void:
 		await process_frame
 		var body := p.hand.body.global_basis.orthonormalized()
 		var along: Vector3 = -p.models[kind].global_basis.orthonormalized().z
-		check(absf(rad_to_deg((-body.z).angle_to(along)) - 45.0) < 1.0 and along.dot(body.y) < 0.0, "the %s is held leaned back 45 degrees, tip down: %.1f" % [Brushwork.Brush.keys()[kind], rad_to_deg((-body.z).angle_to(along))])
+		check(absf(rad_to_deg((-body.z).angle_to(along)) - 45.0) < 1.0 and along.dot(body.y) > 0.0, "the %s is held leaned back 45 degrees, tip up: %.1f" % [Brushwork.Brush.keys()[kind], rad_to_deg((-body.z).angle_to(along))])
 		check((EaselTool.held_brush(p) * ToolModels.BRUSH_TIP).distance_to(p.models[kind].global_transform * ToolModels.BRUSH_TIP) < 1e-4, "its tip is where it paints")
 	await play([{"op": "take", "what": "big"}])
 	await process_frame

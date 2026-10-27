@@ -4851,8 +4851,8 @@ off the board as thick as it lies. Charcoal takes no paint; a stick's thickness 
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
 or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
 when set down.
-A stick of charcoal is held leaned back 45° from the hand's aim, its tip dropped, its back end in the hand whatever its
-length: aimed at the canvas it meets it at 45°, and a wrist turned down as far lays its side flat on it.
+A stick of charcoal is held leaned back 45° from the hand's aim, its tip raised, its back end in the hand whatever its
+length: aimed at the canvas it meets it at 45°, and a wrist turned up as far lays its side flat on it.
 The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
