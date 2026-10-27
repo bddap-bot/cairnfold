@@ -178,8 +178,8 @@ func _work(job: Dictionary) -> Dictionary:
 	return result
 
 
-## Approximate diffuse daylight by each opening's projected solid angle. This changes the existing bake,
-## not the shader: sealed rooms see no sky, and the opening's contribution falls with distance into the room.
+## Bound sky and exterior bounced sunlight by each opening's projected solid angle; the column height field
+## cannot distinguish the inside of a shell from its sunlit outside.
 static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Array[Lamps.Room]) -> void:
 	var groups := Lamps._groups(rooms)
 	var portals := {}

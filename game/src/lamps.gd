@@ -5,7 +5,7 @@ extends Bake
 ## it where they read the bounce (bounce.gdshaderinc), shared as the global lamp_volume. Every lantern lights and none costs the frame:
 ## the volume is solved again on a worker only when a lantern is hung or taken or the ground moves. Godot's own
 ## lights cost the Quest 2 milliseconds a frame each. A house's walls and roof hold its lanterns' light in and keep
-## the light of lanterns outside out; its windows and, faintly, its doors shine with the light inside them.
+## outside lantern light from crossing solid walls; openings spill light between the room and the garden.
 
 ## How far a lantern's light carries: from high on a tall house's wall down to its floor.
 const REACH := 9.0
@@ -70,7 +70,7 @@ class Room:
 	## Under a flat deck or a wall's top; a loop without a cover is open to the sky.
 	var top := INF
 	var roof: RoofLayout
-	## Per opening: OUT before the middle of its outer face, its outward normal and how much of the light in it gets out.
+	## Per opening: position before its outer face, outward normal, area and outward light strength.
 	var openings: Array[Dictionary] = []
 
 	static func of(layout: WallLayout, massing: Massing) -> Room:
@@ -113,7 +113,6 @@ class Room:
 			return true
 		# The inner half of a removed wall belongs to the joined room too.
 		return massing.holds(p) and joined.any(func(s: Massing) -> bool: return s.holds(p))
-
 
 	func connects(other: Room) -> bool:
 		if not joined.any(func(s: Massing) -> bool: return s.same(other.massing)):
@@ -279,7 +278,7 @@ static func _falloff(d: float) -> float:
 	return fade * fade / maxf(d, 0.5)
 
 
-## Adds to the probes outside every room the light `lit` an opening at `at` facing `out` throws, brightest
+## Adds the light `lit` an opening at `at` facing `out` throws into `home`, brightest
 ## straight out and gone at SPILL. Outward spill stays below the eaves; inward spill stays in its room group.
 static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Color, within: PackedInt32Array, ground: PackedFloat32Array, home := 0) -> void:
 	var n := Bounce.CELLS
