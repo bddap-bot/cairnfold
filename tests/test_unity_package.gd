@@ -7,6 +7,7 @@ const XXHash = preload("res://../scripts/unity/xxhash.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
+const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 
 
 func _initialize() -> void:
@@ -18,6 +19,7 @@ func _run() -> void:
 	_yaml_reads_unity_objects()
 	_nested_prefabs_flatten()
 	_material_properties_read_either_layout()
+	_outside_constraints_place()
 	finish()
 
 
@@ -131,3 +133,17 @@ func _material_properties_read_either_layout() -> void:
 	var saved: Dictionary = Yaml.document(lines).Material.m_SavedProperties
 	check(Materials._properties(saved.m_TexEnvs)._MainTex.m_Texture.guid == "t1", "a property list of one-key entries")
 	check(Materials._properties(saved.m_Floats)._Mode == "1", "a property list of first/second pairs")
+
+
+## A constraint with a weighted source outside the avatar places its GameObject; one sourced by the avatar's own
+## transforms, or weighted nothing outside, does not.
+func _outside_constraints_place() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}]}},
+		2: {"type": "ParentConstraint", "data": {"m_Sources": [{"sourceTransform": {"fileID": "7", "guid": "elsewhere"}, "weight": "1"}]}},
+		3: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "4"}}]}},
+		4: {"type": "MonoBehaviour", "data": {"PositionAtRest": {}, "Sources": {"source0": {"SourceTransform": {"fileID": "9"}, "Weight": "1"}, "source1": {"SourceTransform": {"fileID": "8"}, "Weight": "0"}}}},
+	}
+	var inside := {9: true}
+	check(UnityAvatar._constrained(objs, 1, inside), "a source in another prefab places its GameObject")
+	check(not UnityAvatar._constrained(objs, 3, inside), "the avatar's own source, and an unweighted outside one, do not")

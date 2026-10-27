@@ -44,6 +44,12 @@ func _wears(label: String, package: String, avatar: String) -> void:
 		joints += (chain.joints as Array).size()
 	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s keeps %d spring joints, within the limit" % [label, joints])
 	print("%s: %d ms, %s" % [label, Time.get_ticks_msec() - started, model.get_meta("report")])
+	var worn: Node3D = model.duplicate()
+	UnityAvatar.wearable(worn)
+	var vrm := ProjectSettings.globalize_path("user://corpus.vrm")
+	Vrm.write(worn, vrm)
+	worn.free()
+	check(Avatar.read(FileAccess.get_file_as_bytes(vrm)) != null, "%s's VRM, the file a player wears, reads into the avatar model" % label)
 	var packed := Avatar.model(model)
 	check(packed != null, "%s is an avatar model within the limits" % label)
 	if packed == null:

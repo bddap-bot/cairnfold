@@ -3,6 +3,8 @@ extends SceneTree
 ## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
 ## from game/ as
 ## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR]
+## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
+## every player met and a Godot scene can run code; Avatar.read reads it back into the same model.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, with their materials and blend shape weights, over the skeleton of its humanoid
@@ -40,6 +42,19 @@ func _init() -> void:
 		quit(1)
 		return
 	var report: Dictionary = root.get_meta("report")
+	if args[1].get_extension() == "vrm":
+		wearable(root)
+		Vrm.write(root, args[1])
+		root.free()
+		if Avatar.read(FileAccess.get_file_as_bytes(args[1])) == null:
+			printerr("unity_avatar: Avatar.read refuses %s" % args[1])
+			quit(1)
+			return
+		report["file bytes"] = FileAccess.get_size(args[1])
+		for k: String in report:
+			print("unity_avatar: %s: %s" % [k, report[k]])
+		quit()
+		return
 	var scene := Avatar.model(root)
 	if scene == null:
 		printerr("unity_avatar: Avatar.model refuses it: it needs %s as bones of one skeleton and at most %d surfaces" % [Avatar.NEEDS, Avatar.MAX_SURFACES])
@@ -53,6 +68,40 @@ func _init() -> void:
 	for k: String in report:
 		print("unity_avatar: %s: %s" % [k, report[k]])
 	quit()
+
+
+## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, and its springs as
+## VRMC_springBone, each node by its bone's name.
+static func wearable(root: Node3D) -> void:
+	var human: Dictionary = root.get_meta("humanoid")
+	var sk: Skeleton3D = root.get_node(str(human.hips).get_slice(":", 0))
+	var renamed := {}
+	for b: String in human:
+		if b in Vrm.BONES:
+			renamed[sk.find_bone((human[b] as NodePath).get_concatenated_subnames())] = b
+	# Two passes, so a bone may take the name another humanoid bone is about to give up.
+	for i: int in renamed:
+		sk.set_bone_name(i, "unity_avatar %d" % i)
+	for i: int in renamed:
+		sk.set_bone_name(i, renamed[i])
+	var chains: Dictionary = root.get_meta("springs")
+	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
+	var colliders := []
+	for c: Dictionary in chains.get("colliders", []):
+		colliders.append({"node": sk.get_bone_name(c.node), "shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}})
+	var groups := []
+	var springs := []
+	for chain: Dictionary in chains.get("springs", []):
+		var joints := []
+		for j: Dictionary in chain.joints:
+			var g: Vector3 = j.gravity
+			joints.append({"node": sk.get_bone_name(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)})
+		var spring := {"joints": joints}
+		if not (chain.colliders as Array).is_empty():
+			spring["colliderGroups"] = [groups.size()]
+			groups.append({"colliders": chain.colliders})
+		springs.append(spring)
+	root.set_meta("springs", {} if springs.is_empty() else {"specVersion": "1.0", "springs": springs, "colliders": colliders, "colliderGroups": groups})
 
 
 ## A .unitypackage unpacked into a temporary folder removed at exit, or any other path as it is; "" if tar fails.
@@ -86,7 +135,7 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		return null
 	var objs: Dictionary = found.objects
 	var report := {"avatar": found.name}
-	var renderers := _renderers(objs, found.transform)
+	var renderers := _renderers(objs, found.transform, report)
 	var main := _main_model(assets, prefabs, objs, found.go, renderers)
 	if main == "":
 		printerr("unity_avatar: %s: no renderer's model is a humanoid with a Unity Avatar definition" % found.name)
@@ -250,20 +299,54 @@ static func _active(objs: Dictionary, go: int) -> bool:
 
 ## The renderers that draw when the avatar is worn: every enabled renderer whose GameObject and its parents up to the
 ## avatar are active and not editor-only. [[renderer id, go], ...]
-static func _renderers(objs: Dictionary, top: int) -> Array:
+static func _renderers(objs: Dictionary, top: int, report: Dictionary) -> Array:
 	var on := {}
+	var placed := {}
 	var out := []
+	var left := []
+	var inside := {}
+	for e: Array in _under(objs, top):
+		inside[e[0]] = true
 	for e: Array in _under(objs, top):
 		var father := _ref(objs[e[0]].data.get("m_Father"))
 		var live: bool = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
 		on[e[0]] = live
+		placed[e[0]] = e[0] != top and (placed.get(father, false) or _constrained(objs, e[1], inside))
 		if not live or not objs.has(e[1]):
 			continue
 		for c: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
 			var id := _ref((c as Dictionary).get("component"))
 			if objs.has(id) and objs[id].type in RENDERERS and str(objs[id].data.get("m_Enabled", "1")) == "1":
-				out.append([id, e[1]])
+				if placed[e[0]]:
+					left.append(str(objs[e[1]].data.get("m_Name", "")))
+				else:
+					out.append([id, e[1]])
+	if not left.is_empty():
+		report["renderers a constraint places from outside the avatar, not drawn"] = left
 	return out
+
+
+## Whether a constraint places the GameObject from outside the avatar: a follower or world-fixed prop goes where a
+## source the avatar's bones do not move puts it, so drawn at its authored offset it would stand glued to the body.
+static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
+	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := _ref((c as Dictionary).get("component"))
+		if not objs.has(id):
+			continue
+		var d: Dictionary = objs[id].data
+		var sources := []
+		if objs[id].type in ["ParentConstraint", "PositionConstraint"]:
+			for e: Variant in Prefabs._list(d.get("m_Sources")):
+				sources.append([(e as Dictionary).get("sourceTransform"), (e as Dictionary).get("weight", "1")])
+		elif objs[id].type == "MonoBehaviour" and d.get("Sources") is Dictionary and (d.has("PositionAtRest") or d.has("PositionOffset")):
+			for k: String in d.Sources:
+				if k.begins_with("source") and d.Sources[k] is Dictionary:
+					sources.append([d.Sources[k].get("SourceTransform"), d.Sources[k].get("Weight", "1")])
+		for e: Array in sources:
+			var ref: Dictionary = e[0] if e[0] is Dictionary else {}
+			if str(e[1]).to_float() > 0.0 and (ref.has("guid") or not inside.has(_ref(ref))):
+				return true
+	return false
 
 
 ## The GUID of the humanoid model the avatar's Animator names, or failing that, of the humanoid model most of its

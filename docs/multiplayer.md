@@ -190,9 +190,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
   `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR]`.
   No VRM lies between them: VRM cannot carry Unity's shader properties, Animator controllers,
-  menus, Contacts or PhysBones settings, which later importer work adds to the same model. The
-  game wears only `.vrm` files so far; wearing an imported package is the player-usable import
-  still to come.
+  menus, Contacts or PhysBones settings, which later importer work adds to the same model.
+  Named `avatar.vrm`, the output is instead the file a player wears: the avatars folder reads
+  only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
+  `Avatar.read` reads it back into the same model, with what VRM cannot carry left behind.
   The avatar is the GameObject with a VRChat avatar descriptor (AVATAR names it where a package
   holds several), instantiated as its scene or prefab does: prefab instances, nested ones too,
   expand with their modifications, so the renderers it draws are those active there, with the
@@ -219,7 +220,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   stiffness, gravity and radius mapped approximately and limits and grabbing dropped, and
   their sphere and capsule colliders spring colliders. The descriptor's view position places
   the eyes. The importer prints what it kept and dropped: Animator controllers, expression
-  menus, visemes, Contacts, constraints, particles and scripts are not translated.
+  menus, visemes, Contacts, constraints, particles and scripts are not translated. A renderer
+  that a constraint places from outside the avatar (a follower, a prop left in the world) is not
+  drawn, since without its constraint it would stand glued to the body.
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
