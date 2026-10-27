@@ -144,8 +144,10 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.small_material(), true, true, off, true)
 		_kinds[Part.TILE].far = Stones.far_mesh()
 		_kinds[Part.TILE].far_baked = Stones.baked_material()
-		_kinds[Part.TILE_SHADOW] = shadow
-		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
+		var roof_shadow := ShaderMaterial.new()
+		roof_shadow.shader = load("res://src/roof_shadow.gdshader")
+		_kinds[Part.TILE_SHADOW] = Masonry.Kind.new(Meshes.plain_box(), roof_shadow, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), roof_shadow, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
 		_kinds[Part.TIMBER] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off, true)
 		_kinds[Part.TIMBER].far = Stones.far_mesh()

@@ -1,4 +1,5 @@
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/roof_shadow.gdshaderinc"
 #include "res://src/piece.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
@@ -89,6 +90,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (abs(material - 2.0) < 0.5) {
+		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
+	}
 #ifdef GIVEN_PER_VERTEX
 	vec4 bounce = given;
 #else

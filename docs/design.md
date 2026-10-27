@@ -2255,9 +2255,15 @@ metre apart, so any probe less than a layer over the roof would bring the sky
 onto it. A roof's covering (tiles, thatch) reads the volume over that band instead,
 so its outer face keeps the sky. Joined rooms share their openings;
 a joined roofless courtyard keeps the height-field solution. This runs on the
-bake worker and adds no texture or shader sample. The remaining light at gable
-and wall tops under the roof is the sun's: the shadow depth bias lets it through
-where a face lies within the bias of the roof over it.
+bake worker and adds no texture or shader sample.
+
+A roof's covering (tiles, thatch) casts its shadow from boxes pulled half a metre
+toward the light (`roof_shadow.gdshader`), and its own faces take their shadows
+from as far out, so it shades itself as before. Without the pull the sun's shadow
+depth bias, sized against acne on the tiles, let light through onto the gable and
+wall tops lying within the bias of the roof over them; a lower bias instead
+speckles the tiles at a low sun. A face less than half a metre over the roof
+toward the light, such as a chimney's foot, takes the roof's shadow.
 
 Probes up among a roof's tiles cannot tell its inside from its outside, so plaster
 reads lower: the lime torching under a pitched roof's tiles takes the probe on the

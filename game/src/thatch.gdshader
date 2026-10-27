@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/roof_shadow.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
 
 // Its build's thatch swatch over the first (Palette.tint).
@@ -25,6 +26,7 @@ void vertex() {
 }
 
 void fragment() {
+	LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
 	// The detail noise stretched along the way the straw runs (the vertex's tangent) reads as reed.
 	vec3 across = normalize(cross(world_nrm, fall));
 	vec2 uv = vec2(dot(world_pos, across) * 4.0, dot(world_pos, fall) * 0.35);
