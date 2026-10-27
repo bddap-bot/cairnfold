@@ -157,7 +157,8 @@ var _held_dirty := false
 ## was let go, and whether the garden has answered for them, so their stones are carried there until they are laid again.
 var _settling := {}
 ## The pieces of clutter hands hold, standing apart from their builds, by grip: their `node`, the build's table `of` and
-## `id`, and whether the hand has `let_go`, so the node stands until its build is laid with the piece.
+## `id`, whether the hand has `let_go` and its build was `shown` as the garden has it since, so the node stands until
+## its build is drawn with the piece.
 var _held_clutter := {}
 ## How far a house may be carried, in metres, or turned, in radians, and still count as left where it stood: a hand held
 ## still trembles.
@@ -1456,11 +1457,7 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 			return {}
 		return {"op": "reshape", "of": of, "id": id, "data": {"clutter": _clutter_with(of, id, [grip])}}
 	s.settle = func() -> void:
-		if in_hand.call():
-			return
-		if stood.call():
-			_show_clutter(of, id)
-		if _held_clutter.has(grip):
+		if not in_hand.call() and _held_clutter.has(grip):
 			_held_clutter[grip].let_go = true
 	return s
 
@@ -1551,7 +1548,7 @@ func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
 		var piece := Stones.new()
 		piece.lay(parts)
 		add_child(piece)
-		_held_clutter[grip] = {"node": piece, "of": of, "id": id, "let_go": false}
+		_held_clutter[grip] = {"node": piece, "of": of, "id": id, "let_go": false, "shown": false}
 	var node: Node3D = _held_clutter[grip].node
 	# Until its build is drawn without it, the build still shows it where it was taken.
 	node.visible = x != null and _clutter_drawn(of, id)
@@ -1576,15 +1573,19 @@ func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
 	return null if x == null else grip.wall.global_transform * x
 
 
-## A piece in hand keeps its build shown without it, whatever else lays the build again; let go, it stands apart until
+## A piece in hand keeps its build shown without it, whatever else lays the build again; let go, its build is shown as
+## the garden has it, after the garden applied what the hand did, so that lays it once, and the piece stands apart until
 ## its build is drawn with it. Either goes with its build.
 func _settle_clutter() -> void:
 	for grip: FittingGrip in _held_clutter.keys():
 		var e: Dictionary = _held_clutter[grip]
 		var gone: bool = not world.state[e.of].has(e.id) or (e.of == "walls" and find(e.id) == null) or (e.of == "paths" and paths.layout(e.id) == null)
-		if not gone and not e.let_go:
+		if not gone and not (e.let_go and e.shown):
 			_show_clutter(e.of, e.id)
-			_hold_clutter(grip, e.of, e.id)
+			if e.let_go:
+				e.shown = true
+			else:
+				_hold_clutter(grip, e.of, e.id)
 		elif gone or _clutter_drawn(e.of, e.id):
 			e.node.queue_free()
 			_held_clutter.erase(grip)
