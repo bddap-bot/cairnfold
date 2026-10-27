@@ -31,10 +31,13 @@ func finish() -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-## Boots the game with `args` as if launched with them, besides any this run was launched with.
+## Boots the game with `args` as if launched with them, besides any this run was launched with, on one session seed, so
+## every run lays the same garden: a build's seed, and so its clutter, is drawn from the generator Main seeds, and a
+## check met by most gardens but not all would fail one run in several, loaded or not.
 func boot_main(args := {}) -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	main.args = args
+	main.rng_seed = 1
 	root.add_child(main)
 
 

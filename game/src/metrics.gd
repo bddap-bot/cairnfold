@@ -17,7 +17,9 @@ var input: Callable
 var _cpu: PackedFloat32Array = []
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
-var _last_tick := Time.get_ticks_usec()
+## The microseconds a frame's length is read from: the host's clock, or a test's that moves only as its frames say.
+var clock := func() -> int: return Time.get_ticks_usec()
+var _last_tick: int = clock.call()
 var quality: Quality
 ## The tracked head, whose height above the play area's floor each second records, with where its play
 ## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
@@ -128,7 +130,7 @@ func _process(delta: float) -> void:
 		if hz > 0.0 and hz != info.get("refresh_hz", 0.0):
 			print("metrics: running at %s Hz" % hz)
 			info.refresh_hz = hz
-	var now := Time.get_ticks_usec()
+	var now: int = clock.call()
 	# Engine delta is capped during stalls.
 	var elapsed := (now - _last_tick) / 1000000.0
 	_last_tick = now

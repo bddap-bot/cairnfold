@@ -20,6 +20,16 @@ func _read(path: String) -> Variant:
 	return JSON.parse_string(FileAccess.get_file_as_string(path))
 
 
+## A frame of `ms` for `m`, on a clock that moves only by the frames given, so a host that preempts the test between
+## frames lengthens none of them.
+static func _frames(m: Metrics) -> Callable:
+	var now := [m._last_tick]
+	m.clock = func() -> int: return now[0]
+	return func(ms: float) -> void:
+		now[0] += int(ms * 1000.0)
+		m._process(ms / 1000.0)
+
+
 func _every_flush_leaves_whole_json_with_every_second() -> void:
 	var path := OS.get_cache_dir().path_join("cairnfold-test-metrics-%d.json" % OS.get_process_id())
 	var m := Metrics.new(path)
@@ -44,7 +54,7 @@ func _every_flush_leaves_whole_json_with_every_second() -> void:
 
 func _stalls_are_not_capped_by_engine_delta() -> void:
 	var m := Metrics.new("user://unused-metrics-test.json")
-	m._last_tick = Time.get_ticks_usec() - 100000
+	m.clock = func() -> int: return m._last_tick + 100000
 	m._process(0.05)
 	check(m._deltas[0] >= 99.0, "a 100 ms stall is recorded even when engine delta is capped to 50 ms")
 	m.free()
@@ -71,12 +81,11 @@ func _late_and_refresh_follow_the_runtime_rate() -> void:
 	var hz := [90.0]
 	m.refresh = func() -> float: return hz[0]
 	hz[0] = 72.0
+	var frame := _frames(m)
 	for i in 50:
-		m._last_tick = Time.get_ticks_usec() - 18000
-		m._process(0.018)
+		frame.call(18.0)
 	m._acc = 1.0
-	m._last_tick = Time.get_ticks_usec() - 13900
-	m._process(0.0139)
+	frame.call(13.9)
 	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	check(row.refresh_hz == 72.0 and row.late == 0 and row.frames == 51, "a second at 72 Hz reads 72 Hz with no 18 ms frame late: %s" % [row])
@@ -108,9 +117,7 @@ func _a_landing_keeps_every_frame_of_its_window() -> void:
 	root.add_child(origin)
 	await process_frame
 	m.head = head
-	var frame := func(ms: float) -> void:
-		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
-		m._process(ms / 1000.0)
+	var frame := _frames(m)
 	frame.call(13.9)
 	m._acc = 0.0
 	m.info.label = "standing/along"
@@ -173,9 +180,7 @@ func _head_motion_is_moving() -> void:
 func _a_stall_names_what_ran_in_it() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-stall-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
-	var frame := func(ms: float) -> void:
-		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
-		m._process(ms / 1000.0)
+	var frame := _frames(m)
 	frame.call(13.9)
 	Metrics.note("world: applying wipe", 420.0)
 	Metrics.note("world: applying paint", 1.0)
@@ -201,9 +206,7 @@ func _a_stall_names_what_ran_in_it() -> void:
 func _a_pause_is_no_frame() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-pause-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
-	var frame := func(ms: float) -> void:
-		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
-		m._process(ms / 1000.0)
+	var frame := _frames(m)
 	frame.call(13.9)
 	m._notification(Node.NOTIFICATION_UNPAUSED)
 	frame.call(60000.0)

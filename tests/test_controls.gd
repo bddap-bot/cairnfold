@@ -154,6 +154,8 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	trackers[&"right_hand"].set_input(&"grip_click", true)
 	await frames(2)
 	check(tool.held == w, "a grip on its wall takes the house")
+	if tool.held != w:
+		return
 	var laid: int = w.layout.laid
 	var start: Vector3 = tool.held_at.center
 	for i in 10:
