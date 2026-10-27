@@ -282,13 +282,6 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 
 
 ## Waits up to three seconds for `done`.
-func _until(done: Callable) -> void:
-	var left := 3.0
-	while not done.call() and left > 0.0:
-		await process_frame
-		left -= get_root().get_process_delta_time()
-
-
 func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	var rig := Rig.new(terrain)
 	root.add_child(rig)
@@ -318,7 +311,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	await create_timer(0.5).timeout
 	check(tool._clip_hand == rig.right, "and keeps recording while it is held")
 	Buttons.injected.erase(key)
-	await _until(func() -> bool: return not saved.is_empty())
+	await until(func() -> bool: return not saved.is_empty(), "letting go saves the video")
 	check(tool._clip == null and tool._clip_hand == null, "letting go stops recording")
 	check(not saved.is_empty(), "letting go saves the video")
 	check(heard.call("VIDEO_STOP") == 1, "and stopping one its own, apart from starting")
@@ -331,7 +324,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	await create_timer(PhotoTool.HOLD * 1.5).timeout
 	check(tool._clip_hand == rig.right, "a second hold records again")
 	rig.right.tool = Hand.Tool.WALLS
-	await _until(func() -> bool: return saved.size() == 2)
+	await until(func() -> bool: return saved.size() == 2, "a second hold's video is saved")
 	Buttons.injected.erase(key)
 	check(saved.size() == 2 and tool._clip == null and saved[1] != saved[0] and FileAccess.file_exists(saved[1]), "putting the camera away stops and saves the video")
 	for f in saved:
