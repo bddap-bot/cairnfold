@@ -1,8 +1,3 @@
-// Paint as every surface it lies on draws it: the canvas in the garden (canvas.gdshader), the flat copy a photo saves of
-// it (canvas_flat.gdshader) and the oil palette's board (board.gdshader). Pigment is an optical density per channel
-// over the canvas's sheet, so a colour mixed on the palette shows there as it will on the canvas; oil stands off its
-// surface as high as it is thick, and the light catches its ridges.
-
 uniform float impasto;
 uniform float grain;
 
@@ -17,7 +12,6 @@ vec3 canvas_colour(vec4 w, vec4 d, vec2 tooth) {
 	return sheet * exp(-(d.rgb + w.rgb)) * (1.0 - 0.12 * canvas_damp(w));
 }
 
-// Metres above the board.
 float canvas_height(vec4 d, vec2 tooth) {
 	return d.a * impasto + tooth.x * grain;
 }
@@ -28,7 +22,6 @@ float paint_filtered_roughness(float roughness, vec3 mean_normal) {
 	return pow(min(pow(roughness, 4.0) + variance, 1.0), 0.25);
 }
 
-// How glossy a surface is under `oil` (0 bare to 1 a full body of oil paint) and `damp` (water standing on it).
 float paint_roughness(float oil, float damp) {
 	return mix(mix(0.92, 0.45, oil), 0.18, damp);
 }

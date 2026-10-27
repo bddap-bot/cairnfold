@@ -5,9 +5,6 @@ render_mode blend_mix, depth_draw_opaque, cull_back;
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
-// An oil palette's board as paint.glsl leaves it, the paint coloured and raised as on the canvas (paint.gdshaderinc)
-// and the wood showing where none lies. Paint lies only within `open` of the board's oval and clear of its thumb hole.
-
 uniform sampler2D wet : filter_linear, repeat_disable;
 uniform sampler2D dry : filter_linear, repeat_disable;
 uniform sampler2D paper : filter_linear, repeat_disable;

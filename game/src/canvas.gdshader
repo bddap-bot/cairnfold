@@ -4,10 +4,6 @@ shader_type spatial;
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
-// A canvas as paint.glsl leaves it, coloured as paint.gdshaderinc says: glossy where wet, oil standing up off it in
-// ridges the light catches, charcoal and dry paper matte. The sheet is mounted on a board, so no light comes through
-// it from behind.
-
 uniform sampler2D wet : filter_linear, repeat_disable;
 uniform sampler2D dry : filter_linear, repeat_disable;
 uniform sampler2D paper : filter_linear, repeat_disable;

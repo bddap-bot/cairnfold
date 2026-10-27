@@ -94,12 +94,12 @@ var _dabs := PackedFloat32Array()
 var _batch_start := 0
 var _shown: Array[Texture2DRD] = []
 var _frozen: Array[RID] = []
-## Render thread: the texture the paint under a brush is copied into to be read back; and whether a read is under way.
 var _normal: RID
 var _normal_sets: Array[RID] = []
 static var _normal_shader: RID
 static var _normal_pipeline: RID
 static var _normal_sampler: RID
+## Render thread: the texture the paint under a brush is copied into to be read back; and whether a read is under way.
 var _probe: RID
 var _probing := false
 ## Whether nothing has been laid since the sheet was last cleared: a blank sheet has nothing to keep on show.
@@ -667,7 +667,6 @@ func _run(batches: Array) -> void:
 			var rect := Rect2i()
 			match op[0]:
 				"clear", "restore": rect = Rect2i(Vector2i.ZERO, size)
-				"flow": rect = op[2]
 				"dabs": rect = op[4]
 			if rect.has_area():
 				dirty = dirty.merge(rect) if dirty.has_area() else rect
@@ -748,9 +747,8 @@ func _freeze() -> void:
 	if _rd == null or _blank or not _frozen.is_empty():
 		return
 	RenderingServer.call_on_render_thread(func() -> void:
-		var fmt := _rd.texture_get_format(_dry)
 		for from in [_wet[0], _dry, _normal]:
-			fmt = _rd.texture_get_format(from)
+			var fmt := _rd.texture_get_format(from)
 			var copy := _rd.texture_create(fmt, RDTextureView.new())
 			var extent := size
 			for level in fmt.mipmaps:
