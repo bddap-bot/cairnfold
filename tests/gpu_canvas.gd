@@ -16,6 +16,7 @@ func _run() -> void:
 		check(false, "no RenderingDevice; run on the desktop renderer")
 		finish()
 		return
+	await _relief()
 	await _smear()
 	await _charcoal_contact()
 	var strokes := Driver.painting(N + 1)
@@ -163,5 +164,45 @@ func _smear() -> void:
 			var pixel := moved.get_pixel(x, y)
 			total += Vector4(pixel.r, pixel.g, pixel.b, pixel.a)
 	check((total - Vector4(500,250,125,750)).length() < 1.0, "smear conserves pigment and water within half-float rounding")
+	c.queue_free()
+	await process_frame
+
+
+func _normal_pixels(c: Canvas, frozen := false) -> PackedByteArray:
+	var out := []
+	RenderingServer.call_on_render_thread(func() -> void:
+		out.append(c._rd.texture_get_data(c._frozen[2] if frozen else c._normal, 0)))
+	while out.is_empty():
+		await process_frame
+	return out[0]
+
+
+func _relief() -> void:
+	var c := Canvas.new(Vector2i(192, 128))
+	root.add_child(c)
+	c.set_process(false)
+	await process_frame
+	var bare := await _normal_pixels(c)
+	var rect := Rect2i(181, 117, 11, 11)
+	var image := Image.create(c.size.x, c.size.y, false, Image.FORMAT_RGBAH)
+	image.fill(Color(0, 0, 0, 0))
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			image.set_pixel(x, y, Color(0, 0, 0, 0.25 if y % 2 == 0 else 0.75))
+	RenderingServer.call_on_render_thread(func() -> void:
+		var rd := c._rd
+		var initial := rd.texture_create(rd.texture_get_format(c._dry), RDTextureView.new(), [image.get_data()])
+		c._copy(initial, c._dry)
+		rd.free_rid(initial)
+		c._update_normals(rect))
+	var incremental := await _normal_pixels(c)
+	check(incremental != bare, "paint changes the relief normal mip chain")
+	RenderingServer.call_on_render_thread(c._update_normals.bind(Rect2i(Vector2i.ZERO, c.size)))
+	check(await _normal_pixels(c) == incremental, "dirty normal updates match a full rebuild through odd-sized mips and texture edges")
+	c._blank = false
+	c._freeze()
+	check(await _normal_pixels(c, true) == incremental, "a replay's frozen painting retains every normal mip")
+	c._thaw()
+	check(c._shown[3].texture_rd_rid == c._normal, "a completed replay shows the live normal chain")
 	c.queue_free()
 	await process_frame

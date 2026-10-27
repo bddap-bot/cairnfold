@@ -95,6 +95,11 @@ var _batch_start := 0
 var _shown: Array[Texture2DRD] = []
 var _frozen: Array[RID] = []
 ## Render thread: the texture the paint under a brush is copied into to be read back; and whether a read is under way.
+var _normal: RID
+var _normal_sets: Array[RID] = []
+static var _normal_shader: RID
+static var _normal_pipeline: RID
+static var _normal_sampler: RID
 var _probe: RID
 var _probing := false
 ## Whether nothing has been laid since the sheet was last cleared: a blank sheet has nothing to keep on show.
@@ -115,14 +120,14 @@ func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gd
 	material.set_shader_parameter("impasto", IMPASTO)
 	material.set_shader_parameter("grain", GRAIN)
 	_rd = RenderingServer.get_rendering_device()
-	for i in 3:
+	for i in 4:
 		_shown.append(Texture2DRD.new())
 	if _rd != null:
 		RenderingServer.call_on_render_thread(_create)
-		for i in 3:
-			_shown[i].texture_rd_rid = [_wet[0], _dry, _paper][i]
-	for i in 3:
-		material.set_shader_parameter(["wet", "dry", "paper"][i], _shown[i])
+		for i in 4:
+			_shown[i].texture_rd_rid = [_wet[0], _dry, _paper, _normal][i]
+	for i in 4:
+		material.set_shader_parameter(["wet", "dry", "paper", "relief"][i], _shown[i])
 
 
 ## How big a surface `texels` large is, in metres.
@@ -163,6 +168,55 @@ func _create() -> void:
 		var tiles := _rd.storage_buffer_create(_tiles.size() * 4, _tiles.to_byte_array())
 		_bundles.append([dabs, tiles, _uniforms(_wet[0], _wet[1], dabs, tiles), _uniforms(_wet[1], _wet[0], dabs, tiles)])
 	_dispatch(_bundles[0][3], PAPER, Rect2i(Vector2i.ZERO, size), [0, 0, 0], Vector4.ZERO, Vector4.ZERO)
+	_create_normals()
+	_update_normals(Rect2i(Vector2i.ZERO, size))
+
+
+func _create_normals() -> void:
+	if not _normal_shader.is_valid():
+		var shader: RDShaderFile = preload("res://src/paint_normal.glsl")
+		_normal_shader = _rd.shader_create_from_spirv(shader.get_spirv())
+		_normal_pipeline = _rd.compute_pipeline_create(_normal_shader)
+		var sampler := RDSamplerState.new()
+		sampler.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		sampler.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		_normal_sampler = _rd.sampler_create(sampler)
+	var fmt := _rd.texture_get_format(_paper)
+	fmt.mipmaps = floori(log(maxi(size.x, size.y)) / log(2.0)) + 1
+	_normal = _rd.texture_create(fmt, RDTextureView.new())
+	var previous := _dry
+	for level in fmt.mipmaps:
+		var view := _rd.texture_create_shared_from_slice(RDTextureView.new(), _normal, 0, level)
+		var uniforms: Array[RDUniform] = []
+		for i in 4:
+			var u := RDUniform.new()
+			u.binding = i
+			u.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE if i == 3 else RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+			if i != 3:
+				u.add_id(_normal_sampler)
+			u.add_id([_dry, _paper, previous, view][i])
+			uniforms.append(u)
+		_normal_sets.append(_rd.uniform_set_create(uniforms, _normal_shader, 0))
+		previous = view
+
+
+func _update_normals(dirty: Rect2i) -> void:
+	var extent := size
+	var rect := dirty.grow(1).intersection(Rect2i(Vector2i.ZERO, extent))
+	for level in _normal_sets.size():
+		var push := PackedInt32Array([rect.position.x, rect.position.y, rect.size.x, rect.size.y]).to_byte_array()
+		push.append_array(PackedFloat32Array([IMPASTO, GRAIN, 0.5 * size.x / metres.x, float(level)]).to_byte_array())
+		var list := _rd.compute_list_begin()
+		_rd.compute_list_bind_compute_pipeline(list, _normal_pipeline)
+		_rd.compute_list_bind_uniform_set(list, _normal_sets[level], 0)
+		_rd.compute_list_set_push_constant(list, push, push.size())
+		_rd.compute_list_dispatch(list, ceili(rect.size.x / 8.0), ceili(rect.size.y / 8.0), 1)
+		_rd.compute_list_end()
+		var next := Vector2i(maxi(extent.x / 2, 1), maxi(extent.y / 2, 1))
+		var from := Vector2i((Vector2(rect.position) * Vector2(next) / Vector2(extent)).floor())
+		var to := Vector2i((Vector2(rect.end) * Vector2(next) / Vector2(extent)).ceil())
+		rect = Rect2i(from, to - from).grow(1).intersection(Rect2i(Vector2i.ZERO, next))
+		extent = next
 
 
 func _uniforms(from: RID, to: RID, dabs: RID, tiles: RID) -> RID:
@@ -201,7 +255,8 @@ func _exit_tree() -> void:
 	var rids: Array[RID] = []
 	for b: Array in _bundles:
 		rids.append_array([b[2], b[3], b[0], b[1]])
-	rids.append_array(_wet + [_dry, _paper, _probe] + _frozen)
+	rids.append_array(_normal_sets)
+	rids.append_array(_wet + [_dry, _paper, _probe, _normal] + _frozen)
 	var rd := _rd
 	var slots := _slots
 	RenderingServer.call_on_render_thread(func() -> void:
@@ -606,6 +661,18 @@ func _run(batches: Array) -> void:
 	_read_gpu_time()
 	_rd.capture_timestamp("canvas/start")
 	_dispatch_all(batches)
+	var dirty := Rect2i()
+	for b: Array in batches:
+		for op: Array in b[0]:
+			var rect := Rect2i()
+			match op[0]:
+				"clear", "restore": rect = Rect2i(Vector2i.ZERO, size)
+				"flow": rect = op[2]
+				"dabs": rect = op[4]
+			if rect.has_area():
+				dirty = dirty.merge(rect) if dirty.has_area() else rect
+	if dirty.has_area():
+		_update_normals(dirty)
 	_rd.capture_timestamp("canvas/end")
 	_ran = Engine.get_process_frames()
 	cpu_us += Time.get_ticks_usec() - start
@@ -682,12 +749,17 @@ func _freeze() -> void:
 		return
 	RenderingServer.call_on_render_thread(func() -> void:
 		var fmt := _rd.texture_get_format(_dry)
-		for from in [_wet[0], _dry]:
+		for from in [_wet[0], _dry, _normal]:
+			fmt = _rd.texture_get_format(from)
 			var copy := _rd.texture_create(fmt, RDTextureView.new())
-			_copy(from, copy)
+			var extent := size
+			for level in fmt.mipmaps:
+				_rd.texture_copy(from, copy, Vector3.ZERO, Vector3.ZERO, Vector3(extent.x, extent.y, 1), level, level, 0, 0)
+				extent = Vector2i(maxi(extent.x / 2, 1), maxi(extent.y / 2, 1))
 			_frozen.append(copy))
 	_shown[0].texture_rd_rid = _frozen[0]
 	_shown[1].texture_rd_rid = _frozen[1]
+	_shown[3].texture_rd_rid = _frozen[2]
 
 
 func _thaw() -> void:
@@ -695,6 +767,7 @@ func _thaw() -> void:
 		return
 	_shown[0].texture_rd_rid = _wet[0]
 	_shown[1].texture_rd_rid = _dry
+	_shown[3].texture_rd_rid = _normal
 	var gone := _frozen
 	_frozen = []
 	RenderingServer.call_on_render_thread(func() -> void:

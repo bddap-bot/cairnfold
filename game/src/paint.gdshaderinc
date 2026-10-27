@@ -22,17 +22,10 @@ float canvas_height(vec4 d, vec2 tooth) {
 	return d.a * impasto + tooth.x * grain;
 }
 
-// The normal map of `height` (metres) over a surface whose UV spans `metres`.
-vec3 paint_relief(float height, vec2 uv, vec2 metres) {
-	vec2 dx = dFdx(uv * metres);
-	vec2 dy = dFdy(uv * metres);
-	vec2 dh = vec2(dFdx(height), dFdy(height));
-	float determinant = dx.x * dy.y - dx.y * dy.x;
-	vec2 slope = vec2(0.0);
-	if (abs(determinant) > 1e-12) {
-		slope = vec2(dh.x * dy.y - dh.y * dx.y, dh.y * dx.x - dh.x * dy.x) / determinant;
-	}
-	return normalize(vec3(-slope.x, slope.y, 1.0)) * 0.5 + 0.5;
+float paint_filtered_roughness(float roughness, vec3 mean_normal) {
+	// A mip's shortened mean measures the subpixel slopes that would otherwise sparkle.
+	float variance = min(2.0 * max(1.0 - length(mean_normal), 0.0), 0.5);
+	return pow(min(pow(roughness, 4.0) + variance, 1.0), 0.25);
 }
 
 // How glossy a surface is under `oil` (0 bare to 1 a full body of oil paint) and `damp` (water standing on it).
