@@ -19,6 +19,11 @@ vec3 bounce_over(vec3 p, vec3 n, float ground) {
 	return volume_coord(p + n * 0.5, ground);
 }
 
+// The same for a roof's covering, whose upper faces read over the layer Bounce keeps dark over the room below.
+vec3 bounce_over_cover(vec3 p, vec3 n, float ground) {
+	return volume_coord(p + n * 0.5 + vec3(0.0, 1.5 * max(n.y, 0.0), 0.0), ground);
+}
+
 // The same for what lies on the ground or rises from it, whose height there is known: the lowest layer.
 vec3 bounce_on_ground(vec2 xz) {
 	return vec3((xz - bounce_grid.x) / bounce_grid.y, 0.5 / bounce_grid.z);
@@ -38,10 +43,13 @@ vec3 given_back(vec3 at, vec3 lamp_at, vec4 bounce) {
 // given_back and the sky seen, read once a vertex for things small or dense enough that the volumes do not vary
 // over a triangle: what lights them where they stand without a read per fragment. A thing whose ground height is
 // known where it stands, as a leaf knows its wall's foot, passes it and reads no ground.
-vec4 given_over(vec3 p, vec3 n, float ground) {
-	vec3 at = bounce_over(p, n, ground);
+vec4 given_read(vec3 at, vec3 lamp_at) {
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
-	return vec4(given_back(at, lamp_over(p, n, ground), bounce), bounce.a);
+	return vec4(given_back(at, lamp_at, bounce), bounce.a);
+}
+
+vec4 given_over(vec3 p, vec3 n, float ground) {
+	return given_read(bounce_over(p, n, ground), lamp_over(p, n, ground));
 }
 
 vec4 given_at(vec3 p, vec3 n) {

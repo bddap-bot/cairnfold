@@ -101,13 +101,14 @@ class Room:
 			out = -out
 		openings.append({"at": at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives, "area": area})
 
-	## Boundary probes supply the inside face through linear filtering; include their half-cell support.
-	func holds(p: Vector3, probe := false) -> bool:
+	## Boundary probes supply the inside face through linear filtering; include their half-cell support, and `over`
+	## more above the ceiling.
+	func holds(p: Vector3, probe := false, over := 0.0) -> bool:
 		var margin := Terrain.STEP * 0.5 if probe else 0.0
 		if p.y < floor - margin or not rect.grow(margin).has_point(Vector2(p.x, p.z)):
 			return false
 		var ceiling := roof.height_at(p.x, p.z) if roof != null else top
-		if p.y >= ceiling + margin:
+		if p.y >= ceiling + margin + over:
 			return false
 		if Massing.encloses(Vector2(p.x, p.z), probe_inside if probe else inside):
 			return true

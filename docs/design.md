@@ -2249,10 +2249,15 @@ The same footprint, roof and openings used by `Lamps.Room` also bound the sky an
 bounced sunlight in covered rooms. Each opening contributes its projected area
 with inverse-square falloff into the room; sealed rooms contribute none. Boundary
 probes include half a cell around the shell so linear filtering does not bring the
-outside probe straight onto its inner face. Joined rooms share their openings;
+outside probe straight onto its inner face. Over the roof they reach a full
+layer further: a gable or ceiling face reads half a metre out between layers a
+metre apart, so any probe less than a layer over the roof would bring the sky
+onto it. A roof's covering (tiles, thatch) reads the volume over that band instead,
+so its outer face keeps the sky. Joined rooms share their openings;
 a joined roofless courtyard keeps the height-field solution. This runs on the
-bake worker and adds no texture or shader sample. The coarse grid still blends
-light at some gable and roof edges; it is not a per-pixel visibility test.
+bake worker and adds no texture or shader sample. The remaining light at gable
+and wall tops under the roof is the sun's: the shadow depth bias lets it through
+where a face lies within the bias of the roof over it.
 
 Probes up among a roof's tiles cannot tell its inside from its outside, so plaster
 reads lower: the lime torching under a pitched roof's tiles takes the probe on the

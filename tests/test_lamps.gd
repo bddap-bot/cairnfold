@@ -15,6 +15,7 @@ func _init() -> void:
 	_an_open_loop_lets_light_up()
 	_openings_admit_exterior_light()
 	_rooms_limit_sky()
+	_sky_stays_out_a_layer_over_the_roof()
 	_a_live_hump_solves_nothing()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -190,9 +191,31 @@ func _sky_result(room: Lamps.Room) -> Dictionary:
 	return result
 
 
-func _sky(result: Dictionary, x: float, z: float) -> int:
+func _sky(result: Dictionary, x: float, z: float, layer := 0) -> int:
 	var p := Bounce.column(x, z) - result.area.position as Vector2i
-	return result.layers[0][(p.y * result.area.size.x + p.x) * 4 + 3]
+	return result.layers[layer][(p.y * result.area.size.x + p.x) * 4 + 3]
+
+
+## A face under the roof reads the volume half a metre out, between layers a metre apart: a sealed room's probes less
+## than a layer over its roof stay dark, and those clear of that band keep the sky for the roof's own covering.
+func _sky_stays_out_a_layer_over_the_roof() -> void:
+	var room := _house()
+	room.openings.clear()
+	var result := _sky_result(room)
+	var band := 0
+	var clear := 0
+	for x in [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5]:
+		for z in [-1.5, -0.5, 0.5, 1.5]:
+			var over: float = room.roof.height_at(x, z) + Terrain.STEP * 0.5
+			for k in Bounce.LAYERS:
+				var y := k + 0.5
+				if y >= over and y < over + Terrain.STEP * 0.5:
+					band += 1
+					_check(_sky(result, x, z, k) == 0, "a probe %.2f m over the roof at (%.1f, %.1f) stays dark" % [y - over + Terrain.STEP * 0.5, x, z])
+				elif y >= over + Terrain.STEP * 1.5:
+					clear += 1
+					_check(_sky(result, x, z, k) == 255, "a probe a layer clear of the roof at (%.1f, %.1f) sees the sky" % [x, z])
+	_check(band > 0 and clear > 0, "the house has probes in and clear of the band over its roof")
 
 
 func _rooms_limit_sky() -> void:

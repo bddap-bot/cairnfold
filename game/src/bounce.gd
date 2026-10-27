@@ -24,6 +24,10 @@ const ALBEDO := 0.75
 const ENCODE := 2.0
 ## A probe's own column counts only where its lowest piece stands this far over the ground: a roof over a floor.
 const HANGING := 0.5
+## How far over a room's half-layer margin its probes stay as dark as the room: a face under the roof reads half a
+## metre out between layers a metre apart, so a probe less than a layer over the roof would light it. A roof's
+## covering reads over them (bounce_over_cover).
+const OVER_ROOF := 0.5
 
 ## Owner id -> the columns it fills: column -> [bottom, top, colour]. Worker-side while a solve runs.
 var _owners := {}
@@ -205,7 +209,7 @@ static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms
 				for k in LAYERS:
 					var p := Vector3(-Terrain.SIZE * 0.5 + (x + 0.5) * Terrain.STEP, ground[z * CELLS + x] + k + 0.5, -Terrain.SIZE * 0.5 + (z + 0.5) * Terrain.STEP)
 					var index := (k * CELLS + z) * CELLS + x
-					if visited.has(index) or not room.holds(p, true):
+					if visited.has(index) or not room.holds(p, true, OVER_ROOF):
 						continue
 					visited[index] = true
 					var sky := 0.0

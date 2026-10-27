@@ -59,22 +59,26 @@ void vertex() {
 	}
 	world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
 	surface_pos = miniature ? VERTEX : world_pos;
-	float ground = ground_at(world_pos.xz);
-#ifdef GIVEN_PER_VERTEX
-	given = given_over(world_pos, world_nrm, ground);
+#ifdef ROOF_TIMBER
+	occlusion = 0.85;
+	material = 5.0;
 #else
-	bounce_at = bounce_over(world_pos, world_nrm, ground);
+	occlusion = PIECE_CUSTOM.x;
+	material = PIECE_CUSTOM.y;
+#endif
+	float ground = ground_at(world_pos.xz);
+	// Palette.Element ROOF: the covering.
+	vec3 at = abs(material - 2.0) < 0.5 ? bounce_over_cover(world_pos, world_nrm, ground) : bounce_over(world_pos, world_nrm, ground);
+#ifdef GIVEN_PER_VERTEX
+	given = given_read(at, lamp_over(world_pos, world_nrm, ground));
+#else
+	bounce_at = at;
 	lamp_at = lamp_over(world_pos, world_nrm, ground);
 #endif
 	glass = COLOR.a < 0.5 ? 1.0 : 0.0;
 	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_over(world_pos, -world_nrm, ground), 0.0).rgb : vec3(0.0);
 #ifdef ROOF_TIMBER
 	COLOR = vec4(timber_color, 1.0);
-	occlusion = 0.85;
-	material = 5.0;
-#else
-	occlusion = PIECE_CUSTOM.x;
-	material = PIECE_CUSTOM.y;
 #endif
 	style = stone_style;
 	tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
