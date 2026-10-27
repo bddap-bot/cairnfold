@@ -31,6 +31,9 @@
 # streaming their heads and hands. CAIRNFOLD_WAVE=1 makes them flat-screen players repeatedly waving. CAIRNFOLD_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
 # which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
+# CAIRNFOLD_REPLAY=CHUNK.jsonl replays the session that chunk of a record belongs to, its other chunks beside it, on a
+# Quest in place of a scene (--replay), on the build that recorded it, and prints its per-activity timing beside the
+# session's own (scripts/sessions.py --replayed); phases are a scene's, so no budget is held and nothing is recorded.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$(realpath -m "$1")
@@ -43,7 +46,10 @@ rig=desktop
 build=$(git -C "$here" rev-parse HEAD)
 players=${CAIRNFOLD_PLAYERS:-1}
 read -ra extra <<< "${CAIRNFOLD_ARGS:-}"
+replay=${CAIRNFOLD_REPLAY:+$(realpath "$CAIRNFOLD_REPLAY")}
 case $players in [1-8]) ;; *) echo "bench: CAIRNFOLD_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
+[ -z "$replay" ] || { [ "${2:-}" = --android ] && [ "$players" -eq 1 ]; } ||
+  { echo "bench: CAIRNFOLD_REPLAY replays on a Quest, alone" >&2; exit 1; }
 # A scripted run hosts only when given a port.
 hosting=
 [ "$players" -eq 1 ] || hosting=7480
@@ -59,6 +65,14 @@ print(json.dumps(steps))
 PY
 # The game is stopped this long after it starts: twice the scene's own seconds, so no scene outgrows it.
 limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds", 0) for s in json.load(open(sys.argv[1])))))' "$out/stress.json")
+if [ -n "$replay" ]; then
+  session=$(basename "$replay" .jsonl)
+  session=${session%-*}
+  read -r recorded limit < <(python3 "$here/sessions.py" "$(dirname "$replay")" --json | python3 -c '
+import json, sys
+s = next((s for s in json.load(sys.stdin) if s["session"] == sys.argv[1] and s["replay"]), None)
+print(s["revision"], 300 + 2 * round(s["replay"]["seconds"])) if s else sys.exit(f"bench: {sys.argv[1]} holds no replay")' "$session")
+fi
 [ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1 ||
   { echo "bench: the other players' game did not import, see $out/import.log" >&2; exit 1; }
 guest_avatar=()
@@ -143,8 +157,13 @@ if [ "${2:-}" = --android ]; then
   "$here/quest-install.sh" "$apk"
   build=$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
   same "$build" --short HEAD
-  adb shell "rm -rf $dir"
+  [ -z "$replay" ] || [ "${recorded:0:${#build}}" = "$build" ] ||
+    { echo "bench: $session was recorded by build $recorded, the APK is $build" >&2; exit 1; }
+  adb shell "rm -rf $dir $files/replay"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
+  if [ -n "$replay" ]; then
+    for chunk in "$(dirname "$replay")/$session"-*.jsonl; do adb push "$chunk" "$files/replay/" > /dev/null; done
+  fi
   [ -z "${CAIRNFOLD_GUEST_AVATAR:-}" ] || adb push "$CAIRNFOLD_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
@@ -159,6 +178,7 @@ if [ "${2:-}" = --android ]; then
     adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
     for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
     adb shell am force-stop "$pkg"
+    adb shell "rm -rf $files/replay"
     [ -z "$saves" ] || "$here/quest-install.sh" --restore "$saves" "$apk"
     stop
   }
@@ -195,8 +215,12 @@ if [ "${2:-}" = --android ]; then
     [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
     adb logcat -c
     logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -v epoch -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
-    printf '%s\n' --script "$files/bench.json" --metrics "$dir/metrics.json" --capture-dir "$dir" --seed "$seed" \
-      ${hosting:+--port "$hosting"} "${extra[@]}" > "$out/launch.args"
+    if [ -n "$replay" ]; then
+      printf '%s\n' --replay "$files/replay/$(basename "$replay")" --metrics "$dir/metrics.json" --capture-dir "$dir" "${extra[@]}" > "$out/launch.args"
+    else
+      printf '%s\n' --script "$files/bench.json" --metrics "$dir/metrics.json" --capture-dir "$dir" --seed "$seed" \
+        ${hosting:+--port "$hosting"} "${extra[@]}" > "$out/launch.args"
+    fi
     adb push "$out/launch.args" "$files/launch.args" > /dev/null
     adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
     sleep 15
@@ -220,6 +244,10 @@ if [ "${2:-}" = --android ]; then
   adb pull "$log" "$out/logcat.txt" > /dev/null
   [ -n "$ended" ] || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
   adb pull "$dir/." "$out/" > /dev/null
+  if [ -n "$replay" ]; then
+    python3 "$here/sessions.py" "$(dirname "$replay")" --replayed "$out/metrics.json" | tee "$out/replayed.txt"
+    exit
+  fi
 elif [ $# -ge 4 ]; then
   device=frame
   rig=frame

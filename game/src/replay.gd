@@ -109,7 +109,7 @@ static func messages(event: Dictionary) -> Array:
 	return out
 
 
-## The session a record holds, from every chunk of it in the folder of `path`, any one of them: its "seeds", the
+## The session a record holds, from every chunk of it in the folder of `path`, any one of them: its "session" id, its "seeds", the
 ## "garden" it started in, every frame's input as "frames" (`frame`'s bytes end to end) and every message it heard as
 ## "messages" (`messages`'), oldest first. With "error" instead, why this build cannot replay it whole.
 static func read(path: String) -> Dictionary:
@@ -117,7 +117,7 @@ static func read(path: String) -> Dictionary:
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
 	var names := Array(DirAccess.get_files_at(folder)).filter(func(f: String) -> bool: return f.begins_with(session + "-") and f.ends_with(".jsonl"))
 	names.sort()
-	var out := {"frames": PackedByteArray(), "messages": []}
+	var out := {"session": session, "frames": PackedByteArray(), "messages": []}
 	var inputs := []
 	var nets := []
 	var layout: Variant = JSON.parse_string(JSON.stringify(layout()))

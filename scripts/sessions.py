@@ -3,13 +3,16 @@
 player was doing.
 
     sessions.py DIR [--last N] [--json]
+    sessions.py DIR --replayed METRICS.json
 
 Sessions print oldest first, each with where its chunks were found, its device, build revision, id and length, then
 per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
 frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
 the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
 what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play, and the
-messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each."""
+messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each.
+With --replayed, the per-activity timing of the session a replay of it measured (the --metrics file of a --replay run,
+as scripts/bench.sh CAIRNFOLD_REPLAY writes it) prints beside the session's own, recorded | replayed."""
 import argparse
 import base64
 import json
@@ -181,6 +184,32 @@ def summarise(sid, start, ended, where, rows):
     }
 
 
+COLUMNS = f"{'frames':>7} {'late':>6} {'p50':>6} {'p99':>6} {'worst':>7} {'cpu':>6} {'gpu':>6}"
+
+
+def fmt(v):
+    return "-" if v is None else f"{v:.1f}"
+
+
+def cells(a):
+    """One activity's timing in COLUMNS, blank where the run had none of it."""
+    if not a:
+        return " " * len(COLUMNS)
+    return (f"{a['frames']:7} {a['late']:6} {fmt(a['p50_ms']):>6} {fmt(a['p99_ms']):>6} {fmt(a['worst_ms']):>7} "
+            f"{fmt(a['cpu_ms']):>6} {fmt(a['gpu_ms']):>6}")
+
+
+def beside(s, r):
+    """The session's per-activity timing, recorded, with its replay's `r` beside it."""
+    rev = (s["revision"] or "?")[:10]
+    lines = [f"{s['where']} {s['device']} {rev} {s['session']}: {s['seconds']} s recorded | {r['seconds']} s replayed",
+             f"  {'':9} {COLUMNS} | {COLUMNS}"]
+    for tag in ACTIVITIES:
+        if tag in s["activity"] or tag in r["activity"]:
+            lines.append(f"  {tag:9} {cells(s['activity'].get(tag))} | {cells(r['activity'].get(tag))}")
+    return "\n".join(lines)
+
+
 def text(s):
     from datetime import datetime, timezone
     when = datetime.fromtimestamp(s["started"], timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ") if s["started"] else "?"
@@ -188,13 +217,10 @@ def text(s):
     end = "" if s["ended"] else ", no end record"
     lines = [f"{s['where']} {s['device']} {rev} {s['session']} {when}: {s['seconds']} s at {s['refresh_hz']} Hz, "
              f"{s['players']} player{'s' if s['players'] != 1 else ''}{end}"]
-    lines.append(f"  {'':9} {'frames':>7} {'late':>6} {'p50':>6} {'p99':>6} {'worst':>7} {'cpu':>6} {'gpu':>6}")
-    fmt = lambda v: "-" if v is None else f"{v:.1f}"
+    lines.append(f"  {'':9} {COLUMNS}")
     for tag in ACTIVITIES:
-        a = s["activity"].get(tag)
-        if a:
-            lines.append(f"  {tag:9} {a['frames']:7} {a['late']:6} {fmt(a['p50_ms']):>6} {fmt(a['p99_ms']):>6} "
-                         f"{fmt(a['worst_ms']):>7} {fmt(a['cpu_ms']):>6} {fmt(a['gpu_ms']):>6}")
+        if s["activity"].get(tag):
+            lines.append(f"  {tag:9} {cells(s['activity'][tag])}")
     if s["steps"]:
         lines.append("  quality steps (s): " + ", ".join(f"{k}: {v}" for k, v in s["steps"].items()))
     if s["fill"]:
@@ -229,8 +255,19 @@ def main():
     parser.add_argument("folder")
     parser.add_argument("--last", type=int, default=0)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--replayed", metavar="METRICS.json")
     a = parser.parse_args()
     sessions = read(a.folder)
+    if a.replayed:
+        replayed = json.loads(Path(a.replayed).read_text())
+        sid = replayed["info"].get("replayed")
+        s = next((s for s in sessions if s["session"] == sid), None)
+        if s is None:
+            print(f"sessions: {a.replayed} replayed {sid}, which is not under {a.folder}", file=sys.stderr)
+            return 1
+        r = summarise(sid, {}, None, a.replayed, replayed["seconds"])
+        print(json.dumps({"recorded": s, "replayed": r}, indent=1) if a.json else beside(s, r))
+        return 0
     if a.last:
         sessions = sessions[-a.last:]
     if not sessions:

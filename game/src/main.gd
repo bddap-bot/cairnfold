@@ -185,6 +185,8 @@ func _ready() -> void:
 	rig.respawn()
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "-", "budget": Budget.info()}
+	if replayer != null:
+		metrics.info.replayed = replayer.record.session
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
 	if metrics.info.flat:
 		flat = Flat.new(rig)

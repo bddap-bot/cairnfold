@@ -109,6 +109,31 @@ class Sessions(unittest.TestCase):
             self.assertIn("paused: 53.5 s", text)
             self.assertIn("437 ms  still  scripts 12.0/436.0 ms, pipelines 0+2: world: applying wipe 431 ms; wheel: right opened", text)
 
+    def test_a_replay_prints_beside_its_session(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d) / "sessions"
+            folder.mkdir()
+            self.write(folder, "s1", [{"unix": 1.0, "activity": {"moving": tally([13.9] * 10, late=1, gpu=9.0), "building": tally([20.0] * 5)}}])
+            self.write(folder, "s2", [{"unix": 1.0, "activity": {"still": tally([50.0] * 10)}}])
+            metrics = Path(d) / "metrics.json"
+            metrics.write_text(json.dumps({"info": {"replayed": "s1"}, "seconds": [
+                {"unix": 5.0, "activity": {"moving": tally([15.9] * 8, late=2, gpu=10.0), "wheel": tally([13.9] * 3)}}]}))
+            out = subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics), "--json"], capture_output=True, text=True, check=True)
+            both = json.loads(out.stdout)
+            self.assertEqual(both["recorded"]["session"], "s1")
+            self.assertEqual(both["recorded"]["activity"]["moving"]["frames"], 10)
+            self.assertEqual(both["replayed"]["activity"]["moving"], {"frames": 8, "late": 2, "p50_ms": 16.0, "p99_ms": 16.0, "worst_ms": 15.9, "cpu_ms": 2.0, "gpu_ms": 10.0})
+            lines = subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics)], capture_output=True, text=True, check=True).stdout.splitlines()
+            self.assertIn("s1: 1 s recorded | 1 s replayed", lines[0])
+            rows = {line.split()[0]: line for line in lines[2:]}
+            self.assertEqual(list(rows), ["moving", "building", "wheel"])
+            recorded, replayed = rows["moving"].split(" | ")
+            self.assertEqual(recorded.split()[1:4], ["10", "1", "14.0"])
+            self.assertEqual(replayed.split()[:3], ["8", "2", "16.0"])
+            self.assertEqual(rows["building"].split(" | ")[1].strip(), "", "an activity the replay never reached is blank on its side")
+            metrics.write_text(json.dumps({"info": {"replayed": "gone"}, "seconds": []}))
+            self.assertNotEqual(subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics)], capture_output=True).returncode, 0)
+
     def test_last_keeps_the_newest_and_an_empty_folder_fails(self):
         with tempfile.TemporaryDirectory() as d:
             self.write(Path(d), "old", [{"unix": 1.0}], part=0)

@@ -14,12 +14,14 @@ var _id := 1
 var _sender := 0
 var _peers := PackedInt32Array()
 var _peer: MultiplayerPeer = OfflineMultiplayerPeer.new()
+var _head: Transform3D
 
 
 func _init(on: Main, played: Dictionary) -> void:
 	_main = on
 	record = played
 	_count = record.frames.size() / Replay.FRAME_BYTES
+	RenderingServer.frame_pre_draw.connect(_view)
 
 
 ## Runs where the tree polls the network, before anything of the frame: the frame's messages, then its input.
@@ -48,7 +50,16 @@ func _pace() -> void:
 	Engine.time_scale = record.frames.decode_double(_frame * Replay.FRAME_BYTES) / step if _frame < _count and step > 0.0 else 1.0
 
 
+## A headset draws its eyes where its own tracking puts them, whatever the head node says. XROrigin3D sets the play
+## space back from the rig as each frame is processed, so the shift lasts only for the draw.
+func _view() -> void:
+	if _frame == 0 or _frame > _count or not _main.metrics.info.xr:
+		return
+	XRServer.world_origin = _main.rig.global_transform * _head * XRServer.get_hmd_transform().affine_inverse()
+
+
 func _apply(f: Dictionary) -> void:
+	_head = f.head
 	_main.rig.head.transform = f.head
 	for i in Replay.HANDS.size():
 		var h: Hand = _main.rig.hands[i]

@@ -5056,6 +5056,14 @@ the same inputs. A record from another build revision, or with frames the ring d
 build run from the source has no revision, so its records replay on any source build with the same frame layout. The
 game quits when the record runs out.
 
+In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
+under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session
+therefore replays on a Quest under `scripts/bench.sh` with `CAIRNFOLD_REPLAY=CHUNK.jsonl`, proximity held and unworn,
+on the build that recorded it, its rows written to the bench's `--metrics` file and its per-activity timing printed
+beside the recorded session's (`scripts/sessions.py DIR --replayed METRICS.json`). `demo/played.json` is a session made
+only of what a player's controllers give, so a bench run of it leaves a record the replay plays whole; a script's other
+steps place the rig or the garden directly, which no record holds.
+
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
 summarizes available viewport GPU timer readings. Unsupported GPU readings are
