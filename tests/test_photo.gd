@@ -269,12 +269,7 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	for k in [Wall.Part.STONE, Wall.Part.IVY]:
 		var chunk: Masonry.Chunk = glade._chunks[Vector3i(0, 0, k)]
 		check(chunk.full != null and chunk.full.multimesh == chunk.instance.multimesh and chunk.full.layers == Quality.FULL_LAYER and chunk.full.visibility_range_end == 0.0, "a photo draws part %d whole at every distance" % k)
-		var drawn := chunk.instance.layers | (chunk.far.layers if chunk.far != null else 0)
-		check(rig.head.cull_mask & drawn == drawn and chunk.instance.visibility_range_end > 0.0, "the headset draws part %d as the ladder allows" % k)
-	var stones: Masonry.Chunk = glade._chunks[Vector3i(0, 0, Wall.Part.STONE)]
-	check(not Quality.SCREEN_MASK & stones.instance.layers and Quality.SCREEN_MASK & stones.screen.layers and not rig.head.cull_mask & stones.screen.layers and not Quality.PHOTO_MASK & stones.screen.layers, "a camera's screen draws stones near coarser, the headset whole")
-	check(stones.screen.multimesh.mesh == Stones.screen_mesh() and stones.screen.multimesh.buffer == stones.instance.multimesh.buffer and stones.screen.visibility_range_end == stones.instance.visibility_range_end and stones.screen.visibility_parent == stones.instance.visibility_parent, "the same stones, where the headset draws them whole")
-	check(Stones.screen_mesh().get_faces().size() < Stones.mesh().get_faces().size(), "in fewer triangles")
+		check(chunk.instance.layers == Quality.LADDER_LAYER and chunk.instance.visibility_range_end > 0.0, "the headset draws part %d as the ladder allows" % k)
 	check(glade._chunks[Vector3i(0, 0, Wall.Part.STONE_SHADOW)].full == null, "what is drawn whole anyway has no second instance")
 	for n in [tool, flora, parent, glade, rig]:
 		n.queue_free()

@@ -96,17 +96,12 @@ const LADDER_LAYER := 1 << 16
 const FULL_LAYER := 1 << 17
 ## The player's own avatar, which only the camera sees: their eyes would see it from inside.
 const SELF_LAYER := 1 << 18
-## Stones near are drawn whole on NEAR_LAYER, which only the eyes see, and coarser on SCREEN_LAYER, which only a
-## camera's screen sees (PhotoTool, Masonry.Kind.screen): a few hundred pixels wide, the screen shows no difference.
-const NEAR_LAYER := 1 << 19
-const SCREEN_LAYER := 1 << 15
 ## Everyone's avatar but the player's own, every body the game draws for a person: what a mirror reflects (MirrorTool).
 const PEOPLE_LAYER := 1 << 14
 ## A mirror's own light, which lights the people it reflects and nothing any other view draws.
 const MIRROR_LAYER := 1 << 13
-const VIEW_MASK := 0xFFFFF & ~FULL_LAYER & ~SCREEN_LAYER & ~MIRROR_LAYER
-const SCREEN_MASK := 0xFFFFF & ~FULL_LAYER & ~NEAR_LAYER & ~MIRROR_LAYER
-const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER & ~NEAR_LAYER & ~SCREEN_LAYER & ~MIRROR_LAYER
+const VIEW_MASK := 0xFFFFF & ~FULL_LAYER & ~MIRROR_LAYER
+const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER & ~MIRROR_LAYER
 const MIRROR_MASK := PEOPLE_LAYER | SELF_LAYER | MIRROR_LAYER
 ## Grass, flower and ivy reach grow toward a step up at this many metres a second, so the edge comes out rather than
 ## jumps. A step down takes its reach at once: it was taken because frames ran over, and receding at this rate held a

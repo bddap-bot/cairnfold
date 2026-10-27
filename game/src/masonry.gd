@@ -43,8 +43,6 @@ class Kind:
 	var far_baked: Material
 	var _far_surface: Array = []
 	var near := 0.0
-	## What a camera's screen draws near in place of `mesh` (Quality.SCREEN_LAYER); null to draw `mesh`.
-	var screen: Mesh
 	## The longest a piece of it is laid, in metres: its mesh's level of detail is keyed in the mesh's own units
 	## (Meshes.lod_error), so a chunk scales that key by it and swaps none sooner than its error allows.
 	var size := 1.0
@@ -129,8 +127,6 @@ class Chunk:
 	var instance: MultiMeshInstance3D
 	## Its far instance, null for a kind without one.
 	var far: MultiMeshInstance3D
-	## Its instance for a camera's screen, in its kind's `screen` mesh where `instance` draws; null for a kind without one.
-	var screen: MultiMeshInstance3D
 	## Its whole instance for a photo, sharing `instance`'s multimesh at every distance (Quality.FULL_LAYER), null
 	## for a kind drawn whole anyway.
 	var full: MultiMeshInstance3D
@@ -264,8 +260,6 @@ func parts(kind: int, near: bool, far: bool) -> Array[GeometryInstance3D]:
 			var c: Chunk = _chunks[key]
 			if near:
 				out.append(c.instance)
-				if c.screen != null:
-					out.append(c.screen)
 			if far and c.far != null:
 				out.append(c.far)
 	if far:
@@ -290,14 +284,8 @@ func _chunk(key: Vector3i) -> Chunk:
 			var parent := _coarse_far(_coarse_key(key))
 			c.far.visibility_parent = NodePath("../" + parent.name)
 			c.instance.visibility_parent = c.far.visibility_parent
-		if k.screen != null:
-			c.screen = k.instance()
-			c.screen.multimesh.mesh = k.screen
-			c.screen.visibility_parent = c.instance.visibility_parent
-			c.screen.layers = Quality.SCREEN_LAYER
-			add_child(c.screen)
 		if k.ranged():
-			c.instance.layers = Quality.LADDER_LAYER if c.screen == null else Quality.NEAR_LAYER
+			c.instance.layers = Quality.LADDER_LAYER
 			if c.far != null:
 				c.far.layers = Quality.LADDER_LAYER
 			c.full = k.instance()
@@ -365,8 +353,6 @@ func _ranges(key: Vector3i) -> void:
 		c.instance.visibility_range_end = split
 		c.far.visibility_range_begin = split
 		c.far.visibility_range_end = end
-	if c.screen != null:
-		c.screen.visibility_range_end = c.instance.visibility_range_end
 
 
 func _process(_delta: float) -> void:
@@ -413,7 +399,7 @@ func flush(budget_us := INF) -> void:
 		var buf := PackedFloat32Array()
 		for part: PackedFloat32Array in c.parts.values():
 			buf.append_array(part)
-		for mmi: MultiMeshInstance3D in [c.instance, c.far, c.screen]:
+		for mmi: MultiMeshInstance3D in [c.instance, c.far]:
 			if mmi == null:
 				continue
 			var mm := mmi.multimesh
