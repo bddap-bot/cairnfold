@@ -11,10 +11,14 @@ extends Node3D
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
-## shadows reach the garden's edge in four splits), at PHOTO_SIZE with PHOTO_MSAA and the foliage's finest blobs. Its sun
-## draws into the eyes' shadow atlas: the atlas is the engine's one for every view, and growing it for a shot allocates
-## a new one each time, which stalled a Quest 2's frame by 90-120 ms. Its MSAA steps down only where its buffers would
-## not fit the memory available (photo_msaa). A view capture (Main.capture) is drawn as the eyes see it.
+## shadows reach the garden's edge in four splits), at PHOTO_SIZE with PHOTO_MSAA, a shadow atlas of PHOTO_SHADOWS and
+## the foliage's finest blobs. Its MSAA steps down only where its buffers would not fit the memory available
+## (photo_msaa). A view capture (Main.capture) is drawn as the eyes see it.
+##
+## Godot draws a viewport whole within one frame, and on a Quest 2 a photo's frame cannot stay under 50 ms: allocating
+## its view and atlas took 60-250 ms, its draw 40-80 ms of GPU time, its read 50-70 ms. So the player's view fades to
+## black over PHOTO_FADE (Rig.cover), holds there while the photo is drawn and read, and fades back: the headset shows
+## black, never a stalled or brighter frame.
 
 signal recorded(path: String)
 
@@ -24,6 +28,8 @@ const PREVIEW_SIZE := Vector2i(256, 192)
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
+const PHOTO_SHADOWS := 8192
+const PHOTO_FADE := 0.05
 ## Bytes a photo's buffers keep for each sample of each pixel, colour and depth: Godot keeps every MSAA sample in
 ## memory, so at 8x the photo's view took 515 MB more on a Quest 2 (docs/design.md, "A photo's memory").
 const SAMPLE_BYTES := 8
@@ -68,6 +74,8 @@ var _turn := 0
 ## Per hand, how much longer its screen holds the shot it took.
 var _shots := {}
 var _busy := false
+## When the view began to fade for the photo now drawn.
+var _covered_at := 0
 ## The MSAA the photo now drawn is drawn with, as photo_msaa chose it.
 var _photo_msaa := PHOTO_MSAA
 ## Photo paths chosen but not yet written, so two quick shots never share one.
@@ -99,16 +107,15 @@ func _init(player: Rig) -> void:
 
 ## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, and the photo sun lights
 ## no other view, so a session's first photo came out shadowless (docs/shadows.md). A photo's view, and a canvas's flat
-## view, are drawn once as the game loads to compile them.
+## view, are drawn as the game loads to compile them.
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
 	var vp := _photo_view(PREVIEW_SIZE)
 	_aim(vp, rig.head.global_transform, FOV, Quality.PHOTO_MASK)
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var flat := Canvas.flat([null, null, null], false, Vector2i(8, 8))
 	add_child(flat)
-	await RenderingServer.frame_post_draw
+	await _draw_complete(vp, true)
 	vp.queue_free()
 	flat.queue_free()
 
@@ -126,15 +133,6 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	vp.add_child(cam)
 	add_child(vp)
 	return vp
-
-
-## The photo's view, made when a shot first needs it and kept while a hand holds a camera: allocating its 8x MSAA
-## buffers, the size of several headset views, stalls a Quest 2's frame for about 100 ms, so shots do not repeat it.
-func photo_viewport() -> SubViewport:
-	if _photo == null:
-		_photo_msaa = photo_msaa(OS.get_memory_info().available)
-		_photo = _photo_view(PHOTO_SIZE, _photo_msaa)
-	return _photo
 
 
 ## A view drawn as a photo is, `size` large: at a small size it builds the photo's pipelines cheaply.
@@ -162,7 +160,7 @@ static func photo_msaa(available: int) -> Viewport.MSAA:
 
 ## What a photo drawn with `msaa` is drawn with, as its PNG records it.
 static func settings(msaa := PHOTO_MSAA) -> Dictionary:
-	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << msaa, "shadow_atlas": ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size"), "shadow_splits": 4,
+	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << msaa, "shadow_atlas": PHOTO_SHADOWS, "shadow_splits": 4,
 		"shadow_reach_m": Look.SHADOW_REACH, "blob_detail": Quality.ladder[0].blob_detail, "reach": "whole garden",
 		"mesh_lod": "off", "anisotropy": 16}
 
@@ -185,7 +183,7 @@ func _process(delta: float) -> void:
 		_heard.append_array(_take_sound())
 		if not held.has(_clip_hand) or _clip_hand.tool != _clip_tool or _clip.full:
 			stop()
-	if _photo != null and not _busy and not rig.hands.any(func(h: Hand) -> bool: return h.tool in CAMERAS):
+	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
 		_photo.queue_free()
 		_photo = null
 	_frame = (_frame + 1) % PREVIEW_EVERY
@@ -292,6 +290,8 @@ func shoot(hand: Hand) -> String:
 			var painting := await _flatten(c)
 			if not painting.is_empty():
 				paintings.append([subject[0]] + painting)
+	rig.uncover()
+	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at))
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
@@ -566,7 +566,8 @@ func _store(path: String, encode: Callable) -> Error:
 
 
 ## The garden seen from `at` by a camera seeing `mask`'s layers, rendered once, one render at a time: as a photo when
-## `mask` sees Quality.FULL_LAYER (see the top of this file), else as the eyes see it at VIEW_SIZE.
+## `mask` sees Quality.FULL_LAYER (see the top of this file), which returns with the view still covered for the caller
+## to lift (Rig.uncover), else as the eyes see it at VIEW_SIZE.
 func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	if rd == null or not is_inside_tree():
@@ -575,31 +576,48 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	while _busy:
 		await get_tree().process_frame
 	_busy = true
-	var full := mask & Quality.FULL_LAYER != 0
-	var vp := photo_viewport() if full else _view_viewport()
-	if full:
-		# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
-		var warm := _photo_view(PREVIEW_SIZE, _photo_msaa)
-		_aim(warm, at, fov, mask)
-		await _draw_complete(warm)
-		warm.queue_free()
-	_aim(vp, at, fov, mask)
-	await _draw_complete(vp, full)
-	var img := await _read(vp)
+	if mask & Quality.FULL_LAYER == 0:
+		var view := _view_viewport()
+		_aim(view, at, fov, mask)
+		await _draw_complete(view)
+		var seen := await _read(view)
+		_busy = false
+		return seen
+	if _photo == null:
+		_photo_msaa = photo_msaa(OS.get_memory_info().available)
+	# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
+	var warm := _photo_view(PREVIEW_SIZE, _photo_msaa)
+	_aim(warm, at, fov, mask)
+	await _draw_complete(warm, true)
+	warm.queue_free()
+	_covered_at = Time.get_ticks_msec()
+	while not rig.cover(PHOTO_FADE):
+		await get_tree().process_frame
+	# The photo's view is made under the cover and let go once the screen stops showing it: held, its buffers left
+	# the system short enough of memory to page the engine's own code back in on the main thread (148 ms frames).
+	if _photo == null:
+		_photo = _photo_view(PHOTO_SIZE, _photo_msaa)
+	var atlas: int = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")
+	var bits: bool = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")
+	RenderingServer.directional_shadow_atlas_set_size(PHOTO_SHADOWS, bits)
+	_aim(_photo, at, fov, mask)
+	await _draw_complete(_photo, true)
+	var img := await _read(_photo)
+	RenderingServer.directional_shadow_atlas_set_size(atlas, bits)
 	_busy = false
 	return img
 
 
 ## A viewport can finish a frame while its pipelines are still compiling. Reading it then would save missing
-## geometry or shadows; awaiting complete draws leaves play running.
-func _draw_complete(vp: SubViewport, full := false) -> void:
+## geometry or shadows; awaiting complete draws leaves play running. `finest` draws it as a photo is (draw_finest).
+func _draw_complete(vp: SubViewport, finest := false) -> void:
 	var name := &"VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME"
 	var info := ClassDB.class_get_integer_constant(&"RenderingServer", name) if ClassDB.class_has_integer_constant(&"RenderingServer", name) else -1
 	while true:
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_pre_draw
 		var issued := Engine.get_frames_drawn()
-		var undo := draw_finest() if full else Callable()
+		var undo := draw_finest() if finest else Callable()
 		await RenderingServer.frame_post_draw
 		if undo.is_valid():
 			undo.call()

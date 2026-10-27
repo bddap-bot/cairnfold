@@ -27,6 +27,7 @@ func _run() -> void:
 	await _a_wall_laid_elsewhere_keeps_what_was_gathered()
 	await _a_hand_does_not_stop_against_the_bird_it_carries()
 	await _an_eye_inside_a_wall_or_hill_sees_dark()
+	await _a_cover_fades_to_black_holds_and_fades_back()
 	finish()
 
 
@@ -47,6 +48,22 @@ func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 		rig.place(main.world.terrain.ground(0, 0), 0.0)
 		await frames(30)
 		check(dim.call() == 0.0, "and clear once out of it")
+
+
+## A cover (a photo's, PhotoTool.PHOTO_FADE) fades the view to black, holds it while frames pass, and fades back.
+func _a_cover_fades_to_black_holds_and_fades_back() -> void:
+	var rig: Rig = main.rig
+	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
+	check(not rig.cover(PhotoTool.PHOTO_FADE), "a cover is not black on the frame it starts")
+	await frames(6)
+	check(rig.cover(PhotoTool.PHOTO_FADE) and dim.call() == 1.0, "within %.2f s it is black" % PhotoTool.PHOTO_FADE)
+	await frames(30)
+	check(dim.call() == 1.0, "and holds black, %.2f" % dim.call())
+	rig.uncover()
+	await frames(2)
+	var lifting: float = dim.call()
+	await frames(6)
+	check(lifting > 0.0 and lifting < 1.0 and dim.call() == 0.0, "uncovered, it fades back, %.2f then %.2f" % [lifting, dim.call()])
 
 
 static func _past_one(p: Vector3) -> bool:

@@ -93,6 +93,8 @@ var _stick: Buttons
 var _fade_t := -1.0
 ## The view is held black for a garden swap until `respawn` (`blackout`).
 var _covered := false
+## Seconds the fade under way takes each way.
+var _fade_len := FADE
 ## Whether the eyes are inside something solid (`HandStop`).
 var inside := false
 var _dim := 0.0
@@ -347,6 +349,7 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 ## Fades the view out, sets the player down at `ground`, `lift_m` up, and fades it back in.
 func _cut(ground: Vector3, lift_m: float) -> void:
 	_pending = [ground, lift_m]
+	_fade_len = FADE
 	_fade_t = 0.0
 	_fade.visible = true
 
@@ -357,17 +360,34 @@ func blackout() -> bool:
 	if not _covered:
 		end_aim()
 		_pending = null
-		_covered = true
-		_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, FADE * 2.0 - _fade_t)
-		_fade.visible = true
-	return _fade_t >= FADE
+	return cover()
 
 
 ## Sets the player down on open ground at SPAWN, or the nearest open ground to it, and lifts a cover.
 func respawn() -> void:
 	_pending = null
 	place(spawn(), 0.0)
+	uncover()
+
+
+## Fades the view to black over `fade` seconds and holds it there until `uncover`; says whether it is black yet. Black
+## is never brighter than what it covers.
+func cover(fade := FADE) -> bool:
+	if not _covered:
+		_covered = true
+		_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, _fade_len * 2.0 - _fade_t) * fade / _fade_len
+		_fade_len = fade
+		_fade.visible = true
+	return _fade_t >= _fade_len
+
+
+## Fades a cover back to the view.
+func uncover() -> void:
 	_covered = false
+
+
+func covered() -> bool:
+	return _covered
 
 
 ## The open ground nearest SPAWN, tried ring by ring SPAWN_STEP apart: a point nothing is built, planted or set down
@@ -412,13 +432,13 @@ func _fade_step(delta: float) -> void:
 	if _fade_t >= 0.0:
 		_fade_t += delta
 		if _covered:
-			_fade_t = minf(_fade_t, FADE)
-		a = clampf(1.0 - absf(_fade_t / FADE - 1.0), 0.0, 1.0)
-		if _pending != null and _fade_t >= FADE:
+			_fade_t = minf(_fade_t, _fade_len)
+		a = clampf(1.0 - absf(_fade_t / _fade_len - 1.0), 0.0, 1.0)
+		if _pending != null and _fade_t >= _fade_len:
 			place(_pending[0], _pending[1])
 			_pending = null
 			jumped.emit()
-		if _fade_t >= FADE * 2.0:
+		if _fade_t >= _fade_len * 2.0:
 			_fade_t = -1.0
 			a = 0.0
 	a = maxf(a, _dim)

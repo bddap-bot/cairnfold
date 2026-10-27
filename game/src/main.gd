@@ -1,6 +1,9 @@
 class_name Main
 extends Node3D
 
+## How much of a photo write_bytes hands the flash at a time.
+const SYNC_BYTES := 1 << 20
+
 var args := {}
 var xr: OpenXRInterface
 var rig: Rig
@@ -225,6 +228,8 @@ func _ready() -> void:
 			tags.append("building")
 		if rig.hands.any(func(h: Hand) -> bool: return h.picking):
 			tags.append("wheel")
+		if rig.covered():
+			tags.append("covered")
 		if session.players() > 1:
 			tags.append("coop")
 		return tags
@@ -460,14 +465,22 @@ static func player_path(name: String) -> String:
 
 
 ## Writes `bytes` to `path`. On Android Godot's own files reach shared storage only in Download and Documents, so a
-## photo is written through java.io, as scoped storage lets an app write its own pictures without a permission.
+## photo is written through java.io, as scoped storage lets an app write its own pictures without a permission. It
+## reaches flash SYNC_BYTES at a time: written whole, the kernel flushed a photo's 23 MB in one burst, and the engine's
+## code, paged back in on the main thread behind it, held a Quest 2's frame 148 ms.
 static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	if OS.has_feature("android") and path.begins_with(photos_folder()):
 		var out: JavaObject = JavaClassWrapper.wrap("java.io.FileOutputStream").FileOutputStream(path)
 		if out == null or JavaClassWrapper.get_exception() != null:
 			return ERR_FILE_CANT_OPEN
-		out.write(bytes)
-		var failed := JavaClassWrapper.get_exception() != null
+		var fd: JavaObject = out.getFD()
+		var failed := false
+		for at in range(0, bytes.size(), SYNC_BYTES):
+			out.write(bytes.slice(at, at + SYNC_BYTES))
+			fd.sync()
+			failed = JavaClassWrapper.get_exception() != null
+			if failed:
+				break
 		out.close()
 		return ERR_FILE_CANT_WRITE if failed or JavaClassWrapper.get_exception() != null else OK
 	var file := FileAccess.open(path, FileAccess.WRITE)

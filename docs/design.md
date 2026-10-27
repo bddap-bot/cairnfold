@@ -4712,19 +4712,19 @@ What it costs: nothing until a hand first holds the camera. Its screen is then a
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
 one view range the eye, the screen and the photo share), redrawn on one frame in three:
 that frame pays the scene's draw calls and shadow pass again at a small size. A camera in each hand
-draws two such views, taking turns on that frame, so no frame draws both. A photo is one
-render on the frame after the press, read back from the GPU asynchronously, then converted,
-encoded and written on a worker thread, so no frame waits on the pixels. The read comes back in
-strips of `PhotoTool.READ_BYTES`, one a frame: the engine copies a read out of GPU memory on the
-frame it lands, and the photo's 30 MB in one piece held a Quest 2's frame 50 to 70 ms. Its 8x MSAA
-view is made at the first shot and kept while a hand holds a camera: allocating it costs a Quest 2
-about 100 ms of one frame, which a shot no longer repeats. Measured on a Quest 2 at 72 Hz (`CAIRNFOLD_SCENE=demo/photo.json
-bench.sh OUT --android APK`), four photos in one session, which ran on: the first photo of a session drew a 310 ms
-frame and the second after it ran at 13 frames instead of about 39, as the 8x MSAA pipelines were first built. Each
-later photo cost one to five frames of 50 to 152 ms until the view was kept, the read split and the atlas left alone;
-with them, of the 16 shots after the first in `demo/photo-shots.json` only the second drew frames over 50 ms, two of
-64 and 69 ms while 14 pipelines compiled, and the first a 106 ms one as it made the view. Converting, encoding and writing the 3200×2400 PNG took about 8 s on a worker thread there, with no
-frame waiting on it.
+draws two such views, taking turns on that frame, so no frame draws both.
+
+A photo cannot be drawn within a Quest 2's frame budget: Godot draws a viewport whole on one frame, and on a Quest 2
+making the photo's 8x MSAA view and its `PhotoTool.PHOTO_SHADOWS` atlas took 60 to 250 ms of a frame, its draw 40 to
+80 ms of GPU time and its read 50 to 70 ms. Kept between shots, the view's buffers left the system short enough of
+memory that the engine's own code was paged back in on the main thread behind the photo's writes (a 148 ms frame).
+So a photo draws a small warm view first, at preview size, until its pipelines are ready; then the player's view fades
+to black over `PhotoTool.PHOTO_FADE` (`Rig.cover`: black is never brighter than what it covers), holds while the view
+and atlas are made, the photo drawn and read back in strips of `PhotoTool.READ_BYTES` and any canvas in it flattened,
+and fades back. The view is let go once the camera's screen stops showing the shot. Converting, encoding and writing
+the PNGs runs on a worker thread, a MiB at a time to flash (`Main.SYNC_BYTES`). Measured on a Quest 2 at 72 Hz with
+`demo/photo-shots.json`: no frame over 50 ms while the view showed, and the view black for 490 to 540 ms for a
+photo of a canvas, 320 to 350 ms for a selfie.
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an
 iTXt chunk keyed `cairnfold` holds JSON with the lens's position, rotation and field of view, the
@@ -4802,8 +4802,7 @@ its place (#110). On a meadow with 1043 MB available the same photo drew on.
 
 So a photo's MSAA (`PhotoTool.photo_msaa`) is the finest, 8x at most, whose buffers take no more than half the memory
 the system reports available (`OS.get_memory_info`), and the PNG records the MSAA it was drawn with. The Frame and the
-desktop always have the room for 8x; a Quest 2 drawing after a dense garden steps to 4x, its buffers 246 MB, which it
-then holds as long as a hand holds a camera.
+desktop always have the room for 8x; a Quest 2 drawing after a dense garden steps to 4x, its buffers 246 MB.
 
 
 ## Mirror
