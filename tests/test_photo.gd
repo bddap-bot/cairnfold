@@ -106,11 +106,7 @@ func _the_lens_sees_the_body_and_the_wearer_sees_springs() -> void:
 	root.add_child(tool)
 	rig.wear(Avatar.open(Avatar.built_in(0), Color.RED))
 	var meshes := rig.body.find_children("*", "VisualInstance3D", true, false)
-	var chain_meshes := []
-	var definition: Dictionary = rig.body._model.get_meta("springs")
-	for chain: Dictionary in definition.springs:
-		for joint: Dictionary in chain.joints:
-			chain_meshes.append_array(rig.body._joints["spring_" + str(joint.node)].node.find_children("*", "VisualInstance3D", true, false))
+	var chain_meshes := rig.body.swaying()
 	check(not chain_meshes.is_empty() and chain_meshes.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask), "the wearer sees their grabbable spring parts")
 	check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v in chain_meshes or v.layers == Quality.SELF_LAYER), "the remaining body draws on the photo layer alone")
 	check(rig.head.cull_mask & Quality.SELF_LAYER == 0, "the player's eyes exclude the body photo layer")

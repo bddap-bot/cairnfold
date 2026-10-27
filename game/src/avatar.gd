@@ -27,6 +27,9 @@ const MAX_SPRING_JOINTS := 60
 const MAX_IMAGES := 32
 const MAX_IMAGE_SIDE := 4096
 const MAX_PIXELS := 4 * MAX_IMAGE_SIDE * MAX_IMAGE_SIDE
+## Blend shapes times the vertices they move, summed over a file's meshes, past which it is refused before they are
+## copied: a file of a few MB can name thousands of sparse blend shapes, each held whole once read.
+const MAX_BLEND_VERTICES := 4000000
 ## What an importer leaves unsaid of a model's avatar data (`model`).
 const DATA := {"humanoid": {}, "eyes": Vector3(0, 0.06, 0), "forward": Vector3.BACK, "look": {"type": Vrm.BONE, "ranges": [Vector2(90, 10), Vector2(90, 10), Vector2(90, 10), Vector2(90, 10)], "shapes": {}}, "springs": {"springs": [], "colliders": []}}
 ## A built-in VRM 1.0 avatar faces +Z; a Godot camera looks down -Z.
@@ -164,8 +167,15 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material and
-## simplified to the triangle limit with its skin and blend shapes, its materials plain.
-static func shape(state: GLTFState) -> void:
+## simplified to the triangle limit with its skin and blend shapes, its materials plain. False, leaving them as they
+## were, if their blend shapes are past MAX_BLEND_VERTICES.
+static func shape(state: GLTFState) -> bool:
+	var blended := 0
+	for gm in state.get_meshes():
+		for i in gm.mesh.get_surface_count():
+			blended += gm.mesh.get_blend_shape_count() * (gm.mesh.get_surface_arrays(i)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	if blended > MAX_BLEND_VERTICES:
+		return false
 	var triangles := 0
 	for gm in state.get_meshes():
 		gm.mesh = _merged(gm.mesh)
@@ -177,6 +187,7 @@ static func shape(state: GLTFState) -> void:
 	for m in state.get_materials():
 		if m is BaseMaterial3D:
 			_plain(m)
+	return true
 
 
 ## Draws a material with its colour texture alone, lit once a vertex, front faces only, and cut out where it is
@@ -431,7 +442,7 @@ func swaying() -> Array[MeshInstance3D]:
 				swings[_skeleton.get_bone_name(j.bone)] = true
 	var out: Array[MeshInstance3D] = []
 	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mi.skin and mi.skin.get_bind_count() > 0 and range(mi.skin.get_bind_count()).all(func(i: int) -> bool: return swings.has(_skeleton.get_bone_name(bind_bone(mi.skin, i)))):
+		if mi.skin and mi.skin.get_bind_count() > 0 and mi.get_node_or_null(mi.skeleton) == _skeleton and range(mi.skin.get_bind_count()).all(func(i: int) -> bool: return bind_bone(mi.skin, i) >= 0 and swings.has(_skeleton.get_bone_name(bind_bone(mi.skin, i)))):
 			out.append(mi)
 	return out
 

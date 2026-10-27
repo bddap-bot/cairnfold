@@ -3222,7 +3222,7 @@ toadstools, petals, a ghost of the avatar, footprints, a sunbeam and a bubble; t
 `demo/landing-preview.json` aims beside the head and waves the other hand, so the preview shows in profile waving
 with it. `tests/test_teleport.gd` checks it faces as the player does and holds their eyes and hands.
 
-Its cost while aiming is a second avatar's draw: avatars are rigid parts with no skinning and cast no shadow (`Avatar._dress`).
+Its cost while aiming is a second avatar's draw, skinned on the GPU as every avatar is, with no shadow (`Avatar._dress`).
 On a Quest 2 (`demo/landing-cost.json`: six seconds aiming a near preview, six at rest, four times; built-in avatar
 0; ten runs alternating this build with a control of the same commit whose `Landing.put` returns at once, so the arc
 still draws; each phase's first second left out) aiming costs the game's GPU 0.198 ± 0.004 ms a frame over rest with

@@ -35,6 +35,7 @@ func _run() -> void:
 	big.resize(Avatar.MAX_BYTES + 1)
 	check(Avatar.read(big) == null, "a file over the size limit is not read")
 	_images_are_measured_before_decoding()
+	_blend_shapes_are_bounded()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -63,6 +64,24 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
 
 
+## A file naming more blend shape data than the bound is refused before its shapes are copied.
+func _blend_shapes_are_bounded() -> void:
+	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var json := _gltf_json(bytes)
+	var bin := bytes.slice(28 + bytes.decode_u32(12))
+	var prim: Dictionary = json.meshes[0].primitives[0]
+	var vertices: int = json.accessors[int(prim.attributes.POSITION)].count
+	var targets: Array = prim.targets
+	var times := Avatar.MAX_BLEND_VERTICES / (vertices * targets.size()) + 1
+	var many := []
+	for i in times:
+		many.append_array(targets)
+	prim.targets = many
+	json.meshes[0].erase("weights")
+	json.meshes[0].get("extras", {}).erase("targetNames")
+	check(Avatar.read(_glb(json, bin)) == null, "a file of %d blend shapes over %d vertices is refused" % [many.size(), vertices])
+
+
 ## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.
 func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
@@ -76,6 +95,11 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 		while bin.size() % 4:
 			bin.append(0)
 	json.buffers[0].byteLength = bin.size()
+	return _glb(json, bin)
+
+
+## A binary glTF of `json` and its binary chunk `bin`.
+func _glb(json: Dictionary, bin: PackedByteArray) -> PackedByteArray:
 	var text := JSON.stringify(json).to_utf8_buffer()
 	while text.size() % 4:
 		text.append(0x20)

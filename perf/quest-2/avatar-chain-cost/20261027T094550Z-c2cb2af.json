@@ -1,0 +1,121 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/built-in/close": {
+   "p50": 13.8809995651245,
+   "p99": 16.7530002593994,
+   "late": 4,
+   "draws": 55,
+   "prims": 288549,
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 40.3,
+    "textures": 150.4,
+    "video": 222.4
+   },
+   "gpu_ms": 8.37,
+   "timewarp_ms": 1.39
+  },
+  "sweep/built-in/across": {
+   "p50": 13.9119997024536,
+   "p99": 18.2520008087158,
+   "late": 5,
+   "draws": 79,
+   "prims": 299661,
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 40.3,
+    "textures": 150.4,
+    "video": 222.4
+   },
+   "gpu_ms": 9.37,
+   "timewarp_ms": 1.4
+  },
+  "sweep/built-in/away": {
+   "p50": 13.9130001068115,
+   "p99": 19.0939998626709,
+   "late": 6,
+   "draws": 68,
+   "prims": 301092,
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 40.3,
+    "textures": 150.4,
+    "video": 222.4
+   },
+   "gpu_ms": 9.13,
+   "timewarp_ms": 1.4
+  },
+  "sweep/vrm/close": {
+   "p50": 13.9079999923706,
+   "p99": 23.806999206543,
+   "late": 5,
+   "draws": 63,
+   "prims": 312016,
+   "stalls": [
+    {
+     "ms": 197.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 43.5,
+    "textures": 150.4,
+    "video": 225.5
+   },
+   "gpu_ms": 9.14,
+   "timewarp_ms": 1.4
+  },
+  "sweep/vrm/across": {
+   "p50": 14.6949996948242,
+   "p99": 29.4689998626709,
+   "late": 305,
+   "draws": 100,
+   "prims": 359226,
+   "stalls": [
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 43.5,
+    "textures": 150.4,
+    "video": 225.5
+   },
+   "gpu_ms": 11.97,
+   "timewarp_ms": 1.41
+  },
+  "sweep/vrm/away": {
+   "p50": 13.8889999389648,
+   "p99": 17.2269992828369,
+   "late": 5,
+   "draws": 67,
+   "prims": 298996,
+   "step": 6,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 43.5,
+    "textures": 150.4,
+    "video": 225.5
+   },
+   "gpu_ms": 9.24,
+   "timewarp_ms": 1.4
+  }
+ }
+}

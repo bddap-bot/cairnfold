@@ -233,7 +233,18 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
-  surface is a draw call, one per material of each mesh, and the limit is 40.
+  surface is a draw call, one per material of each mesh, and the limit is 40. The GPU skins
+  every vertex of a skinned surface each frame, drawn or not, so a simplified surface keeps
+  only the vertices its levels of detail use: a VRM of Seed-san, the Unity sample package,
+  with its five meshes as the FBX has them, skins 11,888 vertices, not the 35,181 it holds.
+  On a Quest 2 at quality step 6, seven such figures in `demo/avatar-chain-cost.json`, all
+  in view across the meadow, take 11.97 GPU ms against 9.37 with built-ins
+  (`perf/quest-2/avatar-chain-cost/20261027T094550Z-c2cb2af.json`), 2.6 ms for the seven
+  where their rigid parts took 1.6, which puts that view 0.86 ms past the 11.11 ms budget;
+  one in view close takes 9.14 against 8.37. Each adds 3.2 MB of buffers and 3.1 MB of
+  video memory; each phase's record keeps its peak texture, buffer and video memory.
+  Fitting a crowd of heavy avatars to the frame is the job of load-time avatar budgets
+  chosen by measured headroom.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is cut out, never blended, where it is see-through; normal maps and
@@ -623,8 +634,8 @@ and each took off:
 
 The VRM then read as rigid parts with plain materials, and lighting each pixel was the
 largest share left, 0.6 ms of the three across the meadow, so avatars are lit once a vertex.
-Avatars are skinned again (see "Skinned bodies"), and skinning's cost is measured there. Quest 2, quality step 6, median GPU milliseconds
-of three runs of each phase:
+Quest 2, quality step 6, median GPU milliseconds of three runs of each phase, before avatars
+were skinned again (see "Skinned bodies" for skinning's cost now):
 
 | Other players wear | Close (one in view) | Across (three) | Away (none) |
 | --- | --- | --- | --- |
