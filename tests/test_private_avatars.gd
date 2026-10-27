@@ -39,6 +39,10 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	check(model != null, "%s converts" % label)
 	if model == null:
 		return
+	var joints := 0
+	for chain: Dictionary in (model.get_meta("springs") as Dictionary).get("springs", []):
+		joints += (chain.joints as Array).size()
+	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s keeps %d spring joints, within the limit" % [label, joints])
 	var path := ProjectSettings.globalize_path("user://corpus.vrm")
 	Vrm.write(model, path)
 	print("%s: %d ms, %s" % [label, Time.get_ticks_msec() - started, model.get_meta("report")])

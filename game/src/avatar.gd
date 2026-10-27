@@ -16,6 +16,10 @@ const MAX_TRIANGLES := 20000
 ## for each. Seven figures of 39 hold the Quest 2's frame (docs/multiplayer.md, "Rigid parts").
 const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
+## Spring joints an imported avatar keeps: every joint is simulated each frame on the CPU, about 0.05 ms a figure on a
+## Quest 2, and four figures of 59 hold its frame where four of 139 drop it to 22 frames a second
+## (scripts/unity_avatar.gd keeps the longest chains within it).
+const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
 const MAX_IMAGES := 32

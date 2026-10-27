@@ -194,7 +194,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   (opaque, cut out at its cutoff, or blended) take a cell of one 2048 px atlas. A renderer's
   material slots follow the FBX's materials in their connections' order where the slots match
   them one for one; otherwise a surface takes the slot whose material is named like its own.
-  PhysBones become VRM spring chains, one per path from a PhysBone's root to each leaf, with
+  PhysBones become VRM spring chains, one per path from a PhysBone's root to each leaf, the
+  longest kept within 60 joints (each one costs the Quest 2's CPU every frame), with
   pull, spring, stiffness, gravity and radius mapped approximately and limits and grabbing
   dropped, and their sphere and capsule colliders VRM colliders; while each spring bone is a
   rigid part of its own (below), the shortest chains go until the file reads within the draw

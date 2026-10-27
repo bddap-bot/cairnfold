@@ -160,19 +160,30 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	return root
 
 
-## Whether the avatar reads within Avatar.read's limits once written, dropping its shortest spring chains, half at a
-## time, until it does: every spring bone the rigid-part runtime moves is a draw of its own.
+## Whether the avatar reads within Avatar.read's limits once written, its longest spring chains kept within
+## Avatar.MAX_SPRING_JOINTS, then its shortest dropped, half at a time, until it does: every spring bone the rigid-part
+## runtime moves is a draw of its own.
 static func _fit(root: Node3D) -> bool:
 	var path := OS.get_temp_dir().path_join("unity_avatar_%d.vrm" % OS.get_process_id())
 	var springs: Dictionary = root.get_meta("springs")
 	var all: int = springs.get("springs", []).size()
+	if not springs.is_empty():
+		var longest: Array = springs.springs.duplicate()
+		longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
+		var kept := []
+		var joints := 0
+		for chain: Dictionary in longest:
+			if joints + chain.joints.size() <= Avatar.MAX_SPRING_JOINTS:
+				kept.append(chain)
+				joints += chain.joints.size()
+		springs.springs = kept
 	while true:
 		Vrm.write(root, path)
 		var fits := Avatar.read(FileAccess.get_file_as_bytes(path)) != null
 		DirAccess.remove_absolute(path)
 		var chains: Array = springs.get("springs", [])
 		if fits or chains.is_empty():
-			(root.get_meta("report") as Dictionary)["spring chains kept within the draw limit"] = "%d of %d" % [chains.size(), all]
+			(root.get_meta("report") as Dictionary)["spring chains kept within the joint and draw limits"] = "%d of %d" % [chains.size(), all]
 			return fits
 		chains.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
 		springs.springs = chains.slice(0, chains.size() / 2)
