@@ -1952,6 +1952,8 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 func _top_hit(w: Wall, origin: Vector3, dir: Vector3) -> float:
 	if w.roof != null and not w.roof.flat():
 		return minf(w.roof.ray_hit(origin, dir), w.roof.gable_hit(origin, dir))
+	if dir.y > -1e-3:
+		return INF
 	var top := w.massing.feet[0] + w.massing.rise
 	if not w.layout.closed:
 		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:

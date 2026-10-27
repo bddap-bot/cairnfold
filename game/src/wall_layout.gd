@@ -262,6 +262,9 @@ var _segment_cells := {}
 ## the wall keeps it.
 var _cells_for: Array[Vector3] = []
 var _cells_made := {}
+## The samples and depths `_feet` was last found for, and the lowest foot and highest sample it found.
+var _feet_for := []
+var _feet := Vector2.ZERO
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
@@ -801,6 +804,20 @@ func walk_under(p: Vector3) -> float:
 				if top <= p.y + SINK and top > best and not hides(Vector3(p.x, top - SINK, p.z)):
 					best = top
 	return best
+
+
+## The lowest any stretch's body reaches, its foundation included, and the highest sample its top stands on.
+func feet() -> Vector2:
+	var key := [samples, depths]
+	if key != _feet_for:
+		_feet_for = [samples.duplicate(), depths.duplicate()]
+		var deepest := 0.0
+		for d in depths:
+			deepest = maxf(deepest, d)
+		_feet = Vector2(INF, -INF)
+		for q in samples:
+			_feet = Vector2(minf(_feet.x, q.y - deepest), maxf(_feet.y, q.y))
+	return _feet
 
 
 ## How far a full-height wall's top stands over its height: the tall stones of a coping, else its cap.

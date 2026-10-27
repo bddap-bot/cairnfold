@@ -928,6 +928,16 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 	var across := flat.normalized() if flat.length_squared() > 1e-12 else Vector2.ZERO
 	var from := Vector2(origin.x, origin.z)
 	var lengths := layout.lengths
+	var height := layout.height + layout.top_rise()
+	# Seen from above, a sample behind the ray's start, or past `clear` where the ray has risen over every top, sunk
+	# under every foot or passed the nearest hit yet, skips the stretches after it as one far to its side does.
+	var feet := layout.feet()
+	var climb := dir.y / flat.length() if across != Vector2.ZERO else 0.0
+	var clear := INF
+	if climb > 0.0:
+		clear = maxf(feet.y + height - origin.y, 0.0) / climb
+	elif climb < 0.0:
+		clear = minf(feet.x - origin.y, 0.0) / climb
 	var next := 0
 	while next < (n if layout.closed else n - 1):
 		var i := next
@@ -936,7 +946,8 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 		var a := layout.samples[i]
 		var b := layout.samples[j]
 		var off := Vector2(a.x, a.z) - from
-		var gap := (absf(across.cross(off)) if across != Vector2.ZERO else off.length()) - half - 0.01
+		var along := across.dot(off)
+		var gap := maxf(maxf(absf(across.cross(off)) if across != Vector2.ZERO else off.length(), along - clear), -along) - half - 0.01
 		if gap > 0.0 and i < n - 1:
 			var past := lengths.bsearch(lengths[i] + gap) - 1
 			if past > i:
@@ -957,7 +968,6 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 		var local := Vector3(ox, offset.y - slope * ox, offset.dot(z))
 		var direction := Vector3(dx, dir.y - slope * dx, dir.dot(z))
 		var under := maxf(layout.depths[i], layout.depths[j]) if layout.depths.size() == n else 0.0
-		var height := layout.height + layout.top_rise()
 		var box := AABB(Vector3(0, -under, -half), Vector3(length, height + under, half * 2.0))
 		var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
 		if hit == null:
@@ -979,6 +989,7 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 			var face := Rig.box_normal(box, at)
 			var side := arched or Rig.side(x * face.x + (Vector3.UP - x * slope) * face.y + z * face.z)
 			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(at.x / length, 0.0, 1.0)), "distance": 0.0, "side": side}
+			clear = minf(clear, t * flat.length())
 	return best
 
 
