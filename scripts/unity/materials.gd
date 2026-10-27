@@ -38,7 +38,7 @@ func use(ref: Dictionary, fallback: Color) -> String:
 	if key == guid:
 		_read(m, guid)
 	if m.texture != "":
-		m.image = _image(m.texture)
+		m.image = image(m.texture)
 	materials[key] = m
 	return key
 
@@ -112,10 +112,15 @@ static func _vector2(v: Variant, otherwise: Vector2) -> Vector2:
 	return otherwise
 
 
-## The texture's image, decoded once from its own bytes; null, and recorded, if it is no PNG, JPEG, TGA, BMP or WebP.
-func _image(guid: String) -> Image:
+## The texture's image, decoded once from its own bytes; null, and recorded, if the package lacks it or it is no PNG,
+## JPEG, TGA, BMP or WebP.
+func image(guid: String) -> Image:
 	if _images.has(guid):
 		return _images[guid]
+	if not assets.by_guid.has(guid):
+		undecoded["not in the package: " + guid] = true
+		_images[guid] = null
+		return null
 	var bytes := FileAccess.get_file_as_bytes(assets.by_guid[guid].file)
 	var img := Image.new()
 	var err := ERR_FILE_UNRECOGNIZED
@@ -225,6 +230,21 @@ func place(key: String, uv: Vector2) -> Array:
 	u = u.clamp(Vector2.ZERO, Vector2.ONE)
 	var cell: Rect2i = m.cell
 	return [(Vector2(cell.position) + Vector2(u.x, 1.0 - u.y) * Vector2(cell.size)) / ATLAS, not inside]
+
+
+## How a UV `place` put into material `from`'s cell moves to where it would put it in material `to`'s:
+## [scale, offset], a UV in `from`'s cell times scale plus offset. Tiling the cell clamps is not followed.
+func moved(from: String, to: String) -> Array:
+	var affine := func(key: String) -> Array:
+		var m: Dictionary = materials[key]
+		var cell: Rect2 = Rect2(m.cell)
+		var scale: Vector2 = m.scale
+		var offset: Vector2 = m.offset
+		return [Vector2(scale.x * cell.size.x, scale.y * cell.size.y) / ATLAS, Vector2(cell.position.x + offset.x * cell.size.x, cell.position.y + cell.size.y * (1.0 - scale.y - offset.y)) / ATLAS]
+	var a: Array = affine.call(from)
+	var b: Array = affine.call(to)
+	var s: Vector2 = Vector2(b[0].x / a[0].x if a[0].x != 0.0 else 1.0, b[0].y / a[0].y if a[0].y != 0.0 else 1.0)
+	return [s, (b[1] as Vector2) - (a[1] as Vector2) * s]
 
 
 ## The material every surface draws with: the atlas, cut out where any packed material is not opaque.

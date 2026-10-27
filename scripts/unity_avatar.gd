@@ -7,21 +7,26 @@ extends SceneTree
 ## every player met and a Godot scene can run code; Avatar.read reads it back into the same model.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
-## it: the renderers active there, with their materials and blend shape weights, over the skeleton of its humanoid
-## model, whose Unity Avatar definition is the bone map. A package without a descriptor converts its one humanoid model.
-## The avatar becomes one mesh of every triangle its drawn renderers have and one atlas of the materials' colour
-## textures; its blend shapes stay, set to their saved weights, and its PhysBones become spring chains. No VRM lies
-## between: VRM cannot carry what later importer work adds to the model. The importer prints what it kept and dropped.
+## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
+## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
+## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
+## draw under, every triangle kept, and one atlas of the materials' colour textures; its blend shapes stay, set to their
+## saved weights, its PhysBones become spring chains, and its menu, parameters and FX controller become the model's
+## "expressions" (VRCHAT_expressions in a VRM). No VRM lies between: VRM cannot carry what later importer work adds to
+## the model. The importer prints what it kept and dropped.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
+const Expressions = preload("res://../scripts/unity/expressions.gd")
 
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
 const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
 const RENDERERS := ["SkinnedMeshRenderer", "MeshRenderer"]
+## The side, in pixels, of a menu icon as the model carries it: a board row's height.
+const ICON := 44.0
 
 
 func _init() -> void:
@@ -133,7 +138,10 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		return null
 	var objs: Dictionary = found.objects
 	var report := {"avatar": found.name}
-	var renderers := _renderers(objs, found.transform, report)
+	var expressions := Expressions.new(assets, found.descriptor)
+	var paths := _paths(objs, found.transform)
+	var switches := _switches(expressions, objs, paths)
+	var renderers := _renderers(objs, found.transform, switches.by_object, report)
 	var main := _main_model(assets, prefabs, objs, found.go, renderers)
 	if main == "":
 		printerr("unity_avatar: %s: no renderer's model is a humanoid with a Unity Avatar definition" % found.name)
@@ -169,19 +177,27 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		sk.set_bone_rest(b, rests[b] if p < 0 else rests[p].affine_inverse() * rests[b])
 	sk.reset_bone_poses()
 	var materials := Materials.new(assets)
-	var merged := _merge(prefabs, materials, objs, renderers, sk, rests, scale, report)
+	var animated := {}
+	for clip: Dictionary in expressions.data.get("clips", []):
+		for c: Dictionary in clip.curves:
+			if c.attribute.begins_with("blendShape."):
+				animated[c.attribute.trim_prefix("blendShape.")] = true
+	var merged := _merge(prefabs, materials, objs, renderers, switches.slots, animated, sk, rests, scale, report)
 	if merged.is_empty():
 		printerr("unity_avatar: %s draws nothing" % found.name)
 		root.free()
 		return null
-	var mi := MeshInstance3D.new()
-	mi.name = "Body"
-	sk.add_child(mi)
-	mi.mesh = merged.mesh
-	mi.skin = merged.skin
-	mi.skeleton = NodePath("..")
-	for name: String in merged.weights:
-		mi.set_blend_shape_value(mi.find_blend_shape_by_name(name), merged.weights[name])
+	for part: Dictionary in merged.meshes:
+		var mi := MeshInstance3D.new()
+		mi.name = "Body" if (part.when as Array).is_empty() and not part.has("swap") else "Body %d" % sk.get_child_count()
+		sk.add_child(mi)
+		mi.mesh = part.mesh
+		mi.skin = merged.skin
+		mi.skeleton = NodePath("..")
+		part.node = mi.name
+		for name: String in part.weights:
+			mi.set_blend_shape_value(mi.find_blend_shape_by_name(name), part.weights[name])
+		mi.visible = (part.when as Array).all(func(w: Array) -> bool: return is_equal_approx(switches.targets[w[0]].default, w[1]))
 	var named := _human_bones(sk, definition, assets.by_guid[main].path)
 	if named.is_empty():
 		root.free()
@@ -206,6 +222,8 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	root.set_meta("humanoid", human)
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
+	if not expressions.data.is_empty():
+		root.set_meta("expressions", _bound(expressions, switches, merged.meshes, objs, paths, sk, materials, report))
 	report["not translated"] = _untranslated(objs, found.transform, found.descriptor)
 	if not prefabs.missing.is_empty():
 		report["not in the package"] = prefabs.missing.keys()
@@ -294,10 +312,12 @@ static func _active(objs: Dictionary, go: int) -> bool:
 	return str(d.get("m_IsActive", "1")) == "1" and str(d.get("m_TagString", "")) != "EditorOnly"
 
 
-## The renderers that draw when the avatar is worn: every enabled renderer whose GameObject and its parents up to the
-## avatar are active and not editor-only. [[renderer id, go], ...]
-static func _renderers(objs: Dictionary, top: int, report: Dictionary) -> Array:
+## The renderers that draw when the avatar is worn or its menu can show: every renderer, enabled or switched by
+## `switches`, whose GameObject and its parents up to the avatar are active or switched, and not editor-only.
+## [[renderer id, go, [[switch target, 1]...] each switch that must be on for it to draw], ...]
+static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report: Dictionary) -> Array:
 	var on := {}
+	var when := {}
 	var placed := {}
 	var out := []
 	var left := []
@@ -306,21 +326,270 @@ static func _renderers(objs: Dictionary, top: int, report: Dictionary) -> Array:
 		inside[e[0]] = true
 	for e: Array in _under(objs, top):
 		var father := _ref(objs[e[0]].data.get("m_Father"))
-		var live: bool = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
+		var switched: bool = switches.has(e[1]) and str(objs.get(e[1], {}).get("data", {}).get("m_TagString", "")) != "EditorOnly"
+		var live: bool = (_active(objs, e[1]) or switched) and (e[0] == top or on.get(father, false))
 		on[e[0]] = live
+		when[e[0]] = (when.get(father, []) as Array) + ([[switches[e[1]], 1]] if switched else [])
 		placed[e[0]] = e[0] != top and (placed.get(father, false) or _constrained(objs, e[1], inside))
 		if not live or not objs.has(e[1]):
 			continue
 		for c: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
 			var id := _ref((c as Dictionary).get("component"))
-			if objs.has(id) and objs[id].type in RENDERERS and str(objs[id].data.get("m_Enabled", "1")) == "1":
-				if placed[e[0]]:
-					left.append(str(objs[e[1]].data.get("m_Name", "")))
-				else:
-					out.append([id, e[1]])
+			if not objs.has(id) or not objs[id].type in RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
+				continue
+			if placed[e[0]]:
+				left.append(str(objs[e[1]].data.get("m_Name", "")))
+			else:
+				out.append([id, e[1], (when[e[0]] as Array) + ([[switches[id], 1]] if switches.has(id) else [])])
 	if not left.is_empty():
 		report["renderers a constraint places from outside the avatar, not drawn"] = left
 	return out
+
+
+## Each transform under `top` by its path from it, as an animation clip names it: "" for `top`, then GameObject
+## names joined by "/".
+static func _paths(objs: Dictionary, top: int) -> Dictionary:
+	var by_transform := {top: ""}
+	var out := {"": top}
+	for e: Array in _under(objs, top):
+		if e[0] == top:
+			continue
+		var parent: String = by_transform.get(_ref(objs[e[0]].data.get("m_Father")), "")
+		var path := ("%s/%s" % [parent, objs.get(e[1], {}).get("data", {}).get("m_Name", "")]).trim_prefix("/")
+		by_transform[e[0]] = path
+		out.get_or_add(path, e[0])
+	return out
+
+
+## The menu's switches: each GameObject whose active flag, renderer whose enabled flag, and renderer material slot
+## whose material the controller's clips animate. {"targets": [{"effect": "switch", "default"}], "by_object": its
+## target by GameObject or renderer ID, "slots": "renderer:slot" to [target, [each material reference it takes, the
+## renderer's own first]], "by_curve": "path|attribute|class" to its target}.
+static func _switches(expressions: Expressions, objs: Dictionary, paths: Dictionary) -> Dictionary:
+	var out := {"targets": [], "by_object": {}, "slots": {}, "by_curve": {}}
+	if expressions.data.is_empty():
+		return out
+	for clip: Dictionary in expressions.data.clips:
+		for c: Dictionary in clip.curves:
+			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			if out.by_curve.has(key) or not paths.has(c.path):
+				continue
+			var go := _ref(objs[paths[c.path]].data.get("m_GameObject"))
+			if c.attribute == "m_IsActive" and c["class"] == "1":
+				out.by_curve[key] = _switch(out, go, 1.0 if str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" else 0.0)
+				continue
+			var renderer := _renderer_of(objs, go)
+			if renderer == 0 or not c["class"] in ["23", "137"]:
+				continue
+			if c.attribute == "m_Enabled":
+				out.by_curve[key] = _switch(out, renderer, 1.0 if str(objs[renderer].data.get("m_Enabled", "1")) == "1" else 0.0)
+			elif c.attribute.begins_with("m_Materials.Array.data[") and c.has("refs"):
+				var slot: int = str(c.attribute).trim_prefix("m_Materials.Array.data[").trim_suffix("]").to_int()
+				var refs: Array = Prefabs._list(objs[renderer].data.get("m_Materials"))
+				var at := "%d:%d" % [renderer, slot]
+				if not out.slots.has(at):
+					out.slots[at] = [_switch(out, at, 0.0), [refs[slot] if slot < refs.size() else {}]]
+				out.by_curve[key] = out.slots[at][0]
+	for clip: Dictionary in expressions.data.clips:
+		for c: Dictionary in clip.curves:
+			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			if not c.has("refs") or not out.by_curve.has(key):
+				continue
+			for slot: String in out.slots:
+				if out.slots[slot][0] != out.by_curve[key]:
+					continue
+				var choices: Array = out.slots[slot][1]
+				for k: Array in c.refs:
+					if k[1] != "" and not choices.any(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]):
+						choices.append({"guid": k[1], "fileID": "2100000"})
+	return out
+
+
+static func _switch(out: Dictionary, object: Variant, default: float) -> int:
+	if not out.by_object.has(object):
+		out.by_object[object] = out.targets.size()
+		out.targets.append({"effect": "switch", "default": default})
+	return out.by_object[object]
+
+
+static func _renderer_of(objs: Dictionary, go: int) -> int:
+	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := _ref((c as Dictionary).get("component"))
+		if objs.has(id) and objs[id].type in RENDERERS:
+			return id
+	return 0
+
+
+## The menu as the model carries it (VRCHAT_expressions, written by Vrm): each clip curve bound to a target the model
+## can show (a switch, a material slot's choice, a blend shape of the meshes drawing its renderer, a factor on a bone's
+## scale) and the curves of
+## anything else dropped and reported; layers that move no target, nor drive a parameter one reads, dropped; and menu
+## controls whose parameters move nothing dropped. Meshes and blend shapes go by node and shape name, which Vrm
+## resolves to glTF indices.
+static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
+	var data: Dictionary = expressions.data.duplicate(true)
+	var targets: Array = switches.targets.duplicate(true)
+	for m: Dictionary in meshes:
+		if m.has("swap"):
+			targets[m.swap].effect = {"material": {"node": m.node, "choices": m.choices}}
+	var by_curve: Dictionary = switches.by_curve.duplicate()
+	var dropped := expressions.dropped.duplicate()
+	for clip: Dictionary in data.clips:
+		var curves := []
+		for c: Dictionary in clip.curves:
+			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			if not by_curve.has(key):
+				var target := _target(c, objs, paths, meshes, sk, targets)
+				if target < 0:
+					var kind := "shader property" if c.attribute.begins_with("material.") else "%s on class %s" % [c.attribute.get_slice(".", 0), c["class"]]
+					dropped[kind + " curve"] = dropped.get(kind + " curve", 0) + 1
+					continue
+				by_curve[key] = target
+			var t: int = by_curve[key]
+			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material")}
+			if c.has("refs"):
+				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
+				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
+			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
+				var rest: float = targets[t].rest
+				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / rest if rest != 0.0 else 1.0])
+			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
+				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / 100.0])
+			else:
+				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0 if k[1] != 0.0 else 0.0])
+			curves.append(curve)
+		clip.curves = curves
+	for t: Dictionary in targets:
+		t.erase("rest")
+	var moving := func(motion: Dictionary, recurse: Callable) -> bool:
+		return (motion.has("clip") and not (data.clips[motion.clip].curves as Array).is_empty()) or (motion.get("children", []) as Array).any(func(c: Dictionary) -> bool: return recurse.call(c.motion, recurse))
+	var read_by := func(layer: Dictionary) -> Dictionary:
+		var names := {}
+		var add := func(motion: Dictionary, recurse: Callable) -> void:
+			if motion.has("time"):
+				names[motion.time] = true
+			for p: String in motion.get("parameters", []):
+				names[p] = true
+			for c: Dictionary in motion.get("children", []):
+				names[c.parameter] = true
+				recurse.call(c.motion, recurse)
+		for t: Dictionary in layer.entry + layer.any:
+			for c: Dictionary in t.conditions:
+				names[c.parameter] = true
+		for s: Dictionary in layer.states:
+			add.call(s.get("motion", {}), add)
+			for t: Dictionary in s.transitions:
+				for c: Dictionary in t.conditions:
+					names[c.parameter] = true
+			for d: Dictionary in s.drivers:
+				names[d.source] = true
+		return names
+	var live := {}
+	var reads := {}
+	for i in (data.layers as Array).size():
+		reads[i] = read_by.call(data.layers[i])
+		if (data.layers[i].states as Array).any(func(s: Dictionary) -> bool: return moving.call(s.get("motion", {}), moving)):
+			live[i] = true
+	var effective := {}
+	var grew := true
+	while grew:
+		grew = false
+		for i: int in live:
+			for p: String in reads[i]:
+				if not effective.has(p):
+					effective[p] = true
+					grew = true
+		for i in (data.layers as Array).size():
+			if not live.has(i) and (data.layers[i].states as Array).any(func(s: Dictionary) -> bool: return (s.drivers as Array).any(func(d: Dictionary) -> bool: return effective.has(d.parameter))):
+				live[i] = true
+				grew = true
+	data.layers = range((data.layers as Array).size()).filter(func(i: int) -> bool: return live.has(i)).map(func(i: int) -> Dictionary: return data.layers[i])
+	var cut := []
+	data.icons = []
+	data.menu = _pruned(data.menu, effective, cut, materials, data.icons, {})
+	if not cut.is_empty():
+		dropped["menu controls moving nothing the model shows"] = cut.size()
+	data.targets = targets
+	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
+	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
+	if not dropped.is_empty():
+		report["menu: not translated"] = dropped
+	return data
+
+
+## The target a clip curve binds to, made the first time: a blend shape of each mesh drawing the renderer at its path,
+## or a factor on one axis of the scale of the bone at its path (its "rest" the transform's own scale on that axis).
+## -1 if the model shows nothing it moves.
+static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, sk: Skeleton3D, targets: Array) -> int:
+	if not paths.has(c.path) or c.has("refs"):
+		return -1
+	var transform: int = paths[c.path]
+	var go := _ref(objs[transform].data.get("m_GameObject"))
+	var effect := {}
+	var rest := 1.0
+	if c.attribute.begins_with("blendShape.") and c["class"] == "137":
+		var renderer := _renderer_of(objs, go)
+		var shape: String = c.attribute.trim_prefix("blendShape.")
+		var binds := []
+		for m: Dictionary in meshes:
+			var mesh: ArrayMesh = m.mesh
+			if renderer in m.renderers and range(mesh.get_blend_shape_count()).any(func(k: int) -> bool: return mesh.get_blend_shape_name(k) == shape):
+				binds.append([m.node, shape])
+		if binds.is_empty():
+			return -1
+		effect = {"morph": binds}
+		var saved := 0.0
+		for m: Dictionary in meshes:
+			saved = maxf(saved, m.weights.get(shape, 0.0) if renderer in m.renderers else 0.0)
+		rest = saved
+	elif c.attribute.begins_with("m_LocalScale.") and c["class"] == "4":
+		var bone := sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
+		if bone < 0:
+			return -1
+		var axis := "xyz".find(c.attribute.right(1))
+		var local: Variant = objs[transform].data.get("m_LocalScale")
+		rest = str((local as Dictionary).get(c.attribute.right(1), "1")).to_float() if local is Dictionary else 1.0
+		effect = {"scale": {"node": sk.get_bone_name(bone), "axis": axis}}
+	else:
+		return -1
+	for i in targets.size():
+		if targets[i].effect is Dictionary and targets[i].effect == effect:
+			return i
+	targets.append({"effect": effect, "default": rest if effect.has("morph") else 1.0, "rest": rest if effect.has("scale") else 1.0})
+	return targets.size() - 1
+
+
+## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon a
+## Base64 PNG of at most ICON pixels a side in `icons`, by index.
+static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: Materials, icons: Array, indices: Dictionary) -> Array:
+	var out := []
+	for c: Dictionary in menu:
+		var icon: String = c.icon
+		c.erase("icon")
+		if icon != "" and materials.assets.by_guid.has(icon) and not indices.has(icon):
+			var image := materials.image(icon)
+			if image != null:
+				var small := image.duplicate() as Image
+				var side := maxf(small.get_width(), small.get_height())
+				if side > ICON:
+					small.resize(maxi(roundi(small.get_width() * ICON / side), 1), maxi(roundi(small.get_height() * ICON / side), 1), Image.INTERPOLATE_LANCZOS)
+				indices[icon] = icons.size()
+				icons.append(Marshalls.raw_to_base64(small.save_png_to_buffer()))
+		if indices.has(icon):
+			c.icon = indices[icon]
+		if c.type == "submenu":
+			c.controls = _pruned(c.controls, effective, cut, materials, icons, indices)
+			if (c.controls as Array).is_empty():
+				continue
+		elif not (effective.has(c.parameter) or (c.axes as Array).any(func(a: String) -> bool: return effective.has(a))):
+			cut.append(c.name)
+			continue
+		out.append(c)
+	return out
+
+
+static func _controls(menu: Array) -> int:
+	return menu.reduce(func(n: int, c: Dictionary) -> int: return n + 1 + (_controls(c.controls) if c.has("controls") else 0), 0)
 
 
 ## Whether a constraint places the GameObject from outside the avatar: a follower or world-fixed prop goes where a
@@ -424,18 +693,25 @@ static func _in_model(n: Node) -> Transform3D:
 	return t
 
 
-## Every drawn renderer's surfaces as one mesh over `sk`, its skin binding each source bone to the output bone of its
-## name (or its nearest ancestor that has one): blend shapes kept, those of one name in several renderers one shape,
-## up to Avatar.MAX_BLEND_VERTICES (the rest baked at their saved weights), UVs moved into the material atlas. {"mesh",
-## "skin", "weights": each blend shape's saved weight}, or empty if nothing draws.
-static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
+## The drawn renderers' surfaces over `sk` as one mesh for each set of switches they draw under, its skin binding each
+## source bone to the output bone of its name (or its nearest ancestor that has one): blend shapes kept, those of one
+## name in several renderers of a mesh one shape, while the vertices of the meshes each moves fit Avatar.MAX_BLEND_VERTICES
+## together, those the menu's clips name (`animated`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
+## target, [each material reference it can take]]) is a mesh of its own, its UVs in its first material's cell and
+## "choices" moving them to each material's ([scale x, y, offset x, y]) under "swap", that switch.
+## {"skin", "meshes": [{"mesh", "when", "renderers", "weights": each blend shape's saved weight}]}, or empty if nothing
+## draws.
+static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, slots: Dictionary, animated: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var bones := PackedInt32Array()
 	var weights := PackedFloat32Array()
 	var indices := PackedInt32Array()
+	var group_of := PackedInt32Array()
+	var groups := {}
 	var skin := Skin.new()
+	var binds := {}
 	var corners := {}
 	var shapes := {}
 	var saved_weights := {}
@@ -457,13 +733,16 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			skipped.append(go_name)
 			continue
 		drawn.append(go_name)
-		var offset := skin.get_bind_count()
-		for b: Array in place.binds:
-			skin.add_bind(b[0], b[1])
+		var bound: Array = place.binds.map(func(b: Array) -> int:
+			var key := str(b)
+			if not binds.has(key):
+				binds[key] = skin.get_bind_count()
+				skin.add_bind(b[0], b[1])
+			return binds[key])
 		var mesh: ArrayMesh = mi.mesh
 		var saved: Array = Prefabs._list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Prefabs._list(o.data.get("m_Materials"))
-		var slots := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, str(ref.get("guid", ""))).get(_model_name(model, mi), []))
+		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, str(ref.get("guid", ""))).get(_model_name(model, mi), []))
 		for s in mesh.get_surface_count():
 			if mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
 				continue
@@ -473,6 +752,28 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			n.resize(v.size())
 			var relative := mesh.blend_shape_mode == Mesh.BLEND_SHAPE_MODE_RELATIVE
 			var surface_shapes := mesh.surface_get_blend_shape_arrays(s)
+			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+			uv.resize(v.size())
+			var fallback := Color.WHITE
+			var sm := mesh.surface_get_material(s)
+			if sm is BaseMaterial3D:
+				fallback = (sm as BaseMaterial3D).albedo_color
+			var slot: int = slot_of[s]
+			var mref: Dictionary = refs[mini(slot, refs.size() - 1)] if not refs.is_empty() and refs[mini(slot, refs.size() - 1)] is Dictionary else {"name": String(sm.resource_name) if sm != null else ""}
+			var swap: Array = slots.get("%d:%d" % [r[0], slot], [])
+			var choices: Array = swap[1] if not swap.is_empty() else []
+			var src_bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+			var src_weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+			var per := src_bones.size() / maxi(v.size(), 1)
+			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
+			var group: Dictionary = groups.get_or_add("%s|%s" % [r[2], swap], {"index": groups.size(), "when": r[2], "renderers": {}})
+			group.renderers[r[0]] = true
+			var key := materials.use(mref, fallback)
+			if not swap.is_empty():
+				group.swap = swap[0]
+				group.choices = choices.map(func(c: Variant) -> String: return materials.use(c if c is Dictionary else mref, fallback))
+				key = group.choices[0]
+			var base := verts.size()
 			for k in surface_shapes.size():
 				var name := mesh.get_blend_shape_name(k)
 				var moved: Dictionary = shapes.get_or_add(name, {})
@@ -482,32 +783,19 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					var dv := sv[i] if relative else sv[i] - v[i]
 					var dn := Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i]
 					if not (dv.is_zero_approx() and dn.is_zero_approx()):
-						moved[verts.size() + i] = [dv, dn]
+						moved[base + i] = [dv, dn]
 				if k < saved.size():
 					saved_weights[name] = maxf(saved_weights.get(name, 0.0), str(saved[k]).to_float() / 100.0)
-			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
-			uv.resize(v.size())
-			var fallback := Color.WHITE
-			var sm := mesh.surface_get_material(s)
-			if sm is BaseMaterial3D:
-				fallback = (sm as BaseMaterial3D).albedo_color
-			var slot: int = slots[s]
-			var mref: Dictionary = refs[mini(slot, refs.size() - 1)] if not refs.is_empty() and refs[mini(slot, refs.size() - 1)] is Dictionary else {"name": String(sm.resource_name) if sm != null else ""}
-			var key := materials.use(mref, fallback)
-			var src_bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
-			var src_weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
-			var per := src_bones.size() / maxi(v.size(), 1)
-			var base := verts.size()
 			for i in v.size():
 				verts.append(v[i])
 				normals.append(n[i].normalized() if not n[i].is_zero_approx() else Vector3.UP)
 				uvs.append(uv[i])
+				group_of.append(group.index)
 				corners[base + i] = key
 				var top := _top4(src_bones, src_weights, i, per)
 				for j in 4:
-					bones.append(offset + place.remap.call(top[0][j]))
+					bones.append(bound[place.remap.call(top[0][j])])
 					weights.append(top[1][j])
-			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
 			for i in idx:
 				indices.append(base + i)
 	if indices.is_empty():
@@ -515,64 +803,118 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var used := {}
 	for i: int in corners:
 		used[corners[i]] = true
+	for group: Dictionary in groups.values():
+		for key: String in group.get("choices", []):
+			used[key] = true
 	materials.pack(used.keys())
 	for i in uvs.size():
 		var at: Array = materials.place(corners[i], uvs[i])
 		uvs[i] = at[0]
 		if at[1]:
 			tiled[materials.materials[corners[i]].name] = true
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_BONES] = bones
-	arrays[Mesh.ARRAY_WEIGHTS] = weights
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var names := shapes.keys().filter(func(name: String) -> bool: return not (shapes[name] as Dictionary).is_empty())
-	var room := Avatar.MAX_BLEND_VERTICES / maxi(verts.size(), 1)
-	var dropped := names.slice(room)
-	names = names.slice(0, room)
+	var material := materials.material()
+	var meshes := []
+	var sizes := {}
+	for g in group_of:
+		sizes[g] = sizes.get(g, 0) + 1
+	var kept := {}
+	var budget := Avatar.MAX_BLEND_VERTICES
+	var order := shapes.keys().filter(func(name: String) -> bool: return animated.has(name)) + shapes.keys().filter(func(name: String) -> bool: return not animated.has(name))
+	for name: String in order:
+		var moves := {}
+		for i: int in shapes[name]:
+			moves[group_of[i]] = true
+		var cost: int = moves.keys().reduce(func(sum: int, g: int) -> int: return sum + sizes[g], 0)
+		if cost <= budget:
+			budget -= cost
+			kept[name] = true
+	var kept_shapes := 0
+	var dropped_shapes := 0
 	var baked := 0
-	for name: String in dropped:
-		var w: float = saved_weights.get(name, 0.0)
-		if is_zero_approx(w):
+	for group: Dictionary in groups.values():
+		var remap := {}
+		var gi := PackedInt32Array()
+		var gv := PackedVector3Array()
+		var gn := PackedVector3Array()
+		var gu := PackedVector2Array()
+		var gb := PackedInt32Array()
+		var gw := PackedFloat32Array()
+		for t in range(0, indices.size(), 3):
+			if group_of[indices[t]] != group.index:
+				continue
+			for c in 3:
+				var i := indices[t + c]
+				if not remap.has(i):
+					remap[i] = gv.size()
+					gv.append(verts[i])
+					gn.append(normals[i])
+					gu.append(uvs[i])
+					gb.append_array(bones.slice(4 * i, 4 * i + 4))
+					gw.append_array(weights.slice(4 * i, 4 * i + 4))
+				gi.append(remap[i])
+		if gi.is_empty():
 			continue
-		baked += 1
-		for i: int in shapes[name]:
-			verts[i] += w * (shapes[name][i][0] as Vector3)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	var blends := []
-	for name: String in names:
-		var dv := PackedVector3Array()
-		var dn := PackedVector3Array()
-		dv.resize(verts.size())
-		dn.resize(verts.size())
-		for i: int in shapes[name]:
-			dv[i] = shapes[name][i][0]
-			dn[i] = shapes[name][i][1]
-		var b := []
-		b.resize(Mesh.ARRAY_MAX)
-		b[Mesh.ARRAY_VERTEX] = dv
-		b[Mesh.ARRAY_NORMAL] = dn
-		blends.append(b)
-	var out := ArrayMesh.new()
-	out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
-	for name: String in names:
-		out.add_blend_shape(name)
-	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, blends)
-	out.surface_set_material(0, materials.material())
+		var moving := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return remap.has(i)))
+		var names := moving.filter(func(name: String) -> bool: return kept.has(name))
+		var dropped := moving.filter(func(name: String) -> bool: return not kept.has(name))
+		kept_shapes += names.size()
+		dropped_shapes += dropped.size()
+		for name: String in dropped:
+			var w: float = saved_weights.get(name, 0.0)
+			if is_zero_approx(w):
+				continue
+			baked += 1
+			for i: int in shapes[name]:
+				if remap.has(i):
+					gv[remap[i]] += w * (shapes[name][i][0] as Vector3)
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = gv
+		arrays[Mesh.ARRAY_NORMAL] = gn
+		arrays[Mesh.ARRAY_TEX_UV] = gu
+		arrays[Mesh.ARRAY_BONES] = gb
+		arrays[Mesh.ARRAY_WEIGHTS] = gw
+		arrays[Mesh.ARRAY_INDEX] = gi
+		var blends := []
+		for name: String in names:
+			var dv := PackedVector3Array()
+			var dn := PackedVector3Array()
+			dv.resize(gv.size())
+			dn.resize(gv.size())
+			for i: int in shapes[name]:
+				if remap.has(i):
+					dv[remap[i]] = shapes[name][i][0]
+					dn[remap[i]] = shapes[name][i][1]
+			var b := []
+			b.resize(Mesh.ARRAY_MAX)
+			b[Mesh.ARRAY_VERTEX] = dv
+			b[Mesh.ARRAY_NORMAL] = dn
+			blends.append(b)
+		var out := ArrayMesh.new()
+		out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
+		for name: String in names:
+			out.add_blend_shape(name)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, blends)
+		out.surface_set_material(0, material)
+		var part := {"mesh": out, "when": group.when, "renderers": group.renderers.keys(), "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
+			kept_weights[name] = saved_weights.get(name, 0.0)
+			return kept_weights, {})}
+		if group.has("swap"):
+			part.swap = group.swap
+			part.choices = (group.choices as Array).map(func(c: String) -> Array:
+				var m: Array = materials.moved(group.choices[0], c)
+				return [m[0].x, m[0].y, m[1].x, m[1].y])
+		meshes.append(part)
 	report["renderers drawn"] = drawn
 	if not skipped.is_empty():
 		report["renderers not found in their model"] = skipped
 	report["triangles"] = indices.size() / 3
+	report["meshes"] = meshes.size()
 	report["materials"] = used.keys().map(func(k: String) -> String: return _describe(materials.materials[k]))
-	report["blend shapes"] = "%d kept, %d moving nothing dropped, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [names.size(), shapes.size() - names.size() - dropped.size(), dropped.size(), baked]
+	report["blend shapes"] = "%d kept over the meshes, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [kept_shapes, dropped_shapes, baked]
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
-	return {"mesh": out, "skin": skin, "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
-		kept_weights[name] = saved_weights.get(name, 0.0)
-		return kept_weights, {})}
+	return {"skin": skin, "meshes": meshes}
 
 
 static func _describe(m: Dictionary) -> String:
@@ -946,8 +1288,6 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 			kinds[kind] = kinds.get(kind, 0) + 1
 	if Prefabs._list(descriptor.get("VisemeBlendShapes")).size() > 0:
 		kinds["visemes"] = Prefabs._list(descriptor.get("VisemeBlendShapes")).size()
-	if descriptor.has("customExpressions") and str(descriptor.customExpressions) == "1":
-		kinds["expression menu and parameters"] = 1
 	return kinds
 
 

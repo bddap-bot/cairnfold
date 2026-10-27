@@ -237,8 +237,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent, so all players see the same avatar: at most 24 MB, surfaces merged per
-  material within a mesh, animations dropped, every triangle and blend shape kept as the
+  it is sent, so all players see the same avatar: at most 64 MB, surfaces merged per
+  material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
   author made them, and textures shrunk to 1024 px with mipmaps. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.

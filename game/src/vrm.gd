@@ -20,6 +20,7 @@ const BONES := ["hips", "spine", "chest", "upperChest", "neck", "head", "leftEye
 ## VRM 0.x thumb bones by their VRM 1.0 names.
 const THUMBS_0X := {"leftThumbProximal": "leftThumbMetacarpal", "leftThumbIntermediate": "leftThumbProximal", "rightThumbProximal": "rightThumbMetacarpal", "rightThumbIntermediate": "rightThumbProximal"}
 const BONE := "bone"
+const EXPRESSIONS := "VRCHAT_expressions"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
@@ -221,6 +222,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"springs", root.get_meta("springs", {}))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
+	state.set_additional_data(&"expressions", root.get_meta("expressions", {}))
 	return OK
 
 
@@ -257,12 +259,41 @@ func _export_post(state: GLTFState) -> Error:
 		for collider: Dictionary in encoded.colliders:
 			collider.node = indices[collider.node]
 		exts["VRMC_springBone"] = encoded
+	var expressions: Dictionary = state.get_additional_data(&"expressions")
+	if not expressions.is_empty():
+		exts[EXPRESSIONS] = _indexed(expressions, state)
 	var used: Array = state.json.get_or_add("extensionsUsed", [])
 	if not springs.is_empty() and not used.has("VRMC_springBone"):
 		used.append("VRMC_springBone")
+	if not expressions.is_empty() and not used.has(EXPRESSIONS):
+		used.append(EXPRESSIONS)
 	if not used.has("VRMC_vrm"):
 		used.append("VRMC_vrm")
 	return OK
+
+
+## The importer's VRCHAT_expressions with each node and blend shape it names by name as its glTF index: a morph bind
+## [node, shape] becomes [mesh, target].
+static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
+	var out := expressions.duplicate(true)
+	var nodes := state.get_nodes()
+	var index := {}
+	for i in nodes.size():
+		index[nodes[i].resource_name] = i
+	var morph := func(bind: Array) -> Array:
+		var mesh := nodes[index[bind[0]]].mesh
+		var shapes: ImporterMesh = state.get_meshes()[mesh].mesh
+		return [mesh, range(shapes.get_blend_shape_count()).filter(func(k: int) -> bool: return shapes.get_blend_shape_name(k) == bind[1])[0]]
+	for t: Dictionary in out.targets:
+		if t.effect is Dictionary and t.effect.has("morph"):
+			t.effect.morph = t.effect.morph.map(morph)
+		elif t.effect is Dictionary and t.effect.has("scale"):
+			t.effect.scale.node = index[t.effect.scale.node]
+		elif t.effect is Dictionary and t.effect.has("material"):
+			t.effect.material.node = index[t.effect.material.node]
+	for s: Dictionary in out.shown:
+		s.node = index[s.node]
+	return out
 
 
 static var _registered := false
@@ -296,6 +327,7 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 
 static func write(root: Node3D, path: String) -> void:
 	var doc := _doc()
+	doc.visibility_mode = GLTFDocument.VISIBILITY_MODE_INCLUDE_OPTIONAL
 	var state := GLTFState.new()
 	var err := doc.append_from_scene(root, state)
 	assert(err == OK, "vrm: cannot export %s" % root.name)

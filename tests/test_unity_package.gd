@@ -8,6 +8,7 @@ const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
+const Expressions = preload("res://../scripts/unity/expressions.gd")
 
 
 func _initialize() -> void:
@@ -23,6 +24,7 @@ func _run() -> void:
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
+	_a_menu_toggle_switches_a_hidden_renderer()
 	finish()
 
 
@@ -208,4 +210,118 @@ func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
 	check(wing == 1 and tip == 2 and sk.get_bone_name(tip) == "Wing Tip" and sk.get_bone_parent(tip) == wing and sk.get_bone_parent(wing) == 0, "the transform and its ancestor are bones under the chest")
 	check(rests.size() == 3 and rests[tip].origin.is_equal_approx(Vector3(-0.4, 1, 0)), "each sits where Unity places it, scaled as the chest is: %s" % [rests])
 	check(UnityAvatar._as_bone(objs, 13, sk, rests) == -1 and sk.get_bone_count() == 3, "a transform under no bone adds none")
+## An avatar's menu toggle, its parameter, and the FX layer whose clip turns a GameObject on: the GameObject is a
+## switch, its renderer, inactive in the scene, draws under it, and the toggle survives pruning; a control whose
+## parameter moves nothing is cut.
+func _a_menu_toggle_switches_a_hidden_renderer() -> void:
+	var dir := ProjectSettings.globalize_path("user://menu")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("menu.asset", "m1", """--- !u!114 &11400000
+MonoBehaviour:
+  controls:
+  - name: Hat
+    icon: {fileID: 0}
+    type: 102
+    parameter:
+      name: Hat
+    value: 1
+    subParameters: []
+  - name: Idle
+    icon: {fileID: 0}
+    type: 102
+    parameter:
+      name: Unused
+    value: 1
+    subParameters: []
+""")
+	write.call("parameters.asset", "p1", """--- !u!114 &11400000
+MonoBehaviour:
+  parameters:
+  - name: Hat
+    valueType: 2
+    saved: 1
+    defaultValue: 0
+  - name: Unused
+    valueType: 2
+    saved: 1
+    defaultValue: 0
+""")
+	write.call("fx.controller", "c1", """--- !u!91 &9100000
+AnimatorController:
+  m_AnimatorParameters:
+  - m_Name: Hat
+    m_Type: 4
+    m_DefaultBool: 0
+  m_AnimatorLayers:
+  - m_Name: Hat
+    m_StateMachine: {fileID: 1}
+    m_DefaultWeight: 0
+--- !u!1107 &1
+AnimatorStateMachine:
+  m_ChildStates:
+  - m_State: {fileID: 2}
+  - m_State: {fileID: 3}
+  m_AnyStateTransitions: []
+  m_EntryTransitions: []
+  m_DefaultState: {fileID: 2}
+--- !u!1102 &2
+AnimatorState:
+  m_Name: Off
+  m_Transitions:
+  - {fileID: 4}
+  m_Motion: {fileID: 0}
+  m_WriteDefaultValues: 1
+--- !u!1102 &3
+AnimatorState:
+  m_Name: On
+  m_Transitions: []
+  m_Motion: {fileID: 5}
+  m_WriteDefaultValues: 1
+--- !u!1101 &4
+AnimatorStateTransition:
+  m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: Hat
+    m_EventTreshold: 0
+  m_DstState: {fileID: 3}
+  m_HasExitTime: 0
+--- !u!74 &5
+AnimationClip:
+  m_FloatCurves:
+  - curve:
+      m_Curve:
+      - time: 0
+        value: 1
+    attribute: m_IsActive
+    path: Hat
+    classID: 1
+  m_AnimationClipSettings:
+    m_StopTime: 0
+""")
+	var descriptor := {"customExpressions": "1", "expressionsMenu": {"guid": "m1"}, "expressionParameters": {"guid": "p1"}, "baseAnimationLayers": [{"type": "5", "isDefault": "0", "animatorController": {"guid": "c1"}}]}
+	var expressions := Expressions.new(Assets.new(dir), descriptor)
+	check(expressions.data.menu.size() == 2 and expressions.data.menu[0].type == "toggle" and expressions.data.menu[0].parameter == "Hat", "the menu's toggles read: %s" % [expressions.data.get("menu")])
+	check(expressions.data.parameters.any(func(p: Dictionary) -> bool: return p.name == "Hat" and p.type == "bool" and p.saved), "its parameter reads as a saved bool")
+	var layer: Dictionary = expressions.data.layers[0]
+	check(layer.weight == 1.0 and layer.states.size() == 2 and layer.states[0].transitions[0].to == 1 and layer.states[0].transitions[0].conditions[0].mode == "if", "the first layer weighs one and its toggle transition reads: %s" % [layer])
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Hat", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "5"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}}},
+		5: {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": "3"}, "m_Enabled": "1"}},
+	}
+	var paths := UnityAvatar._paths(objs, 2)
+	check(paths.get("Hat") == 4, "a clip's path names the transform under the avatar")
+	var switches := UnityAvatar._switches(expressions, objs, paths)
+	check(switches.targets.size() == 1 and switches.targets[0].default == 0.0 and switches.by_object.get(3) == 0, "the GameObject the clip turns on is a switch, off as the scene has it")
+	var drawn := UnityAvatar._renderers(objs, 2, switches.by_object, {})
+	check(drawn.size() == 1 and drawn[0][0] == 5 and drawn[0][2] == [[0, 1]], "its inactive renderer draws while the switch is on: %s" % [drawn])
+	var sk := Skeleton3D.new()
+	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], objs, paths, sk, Materials.new(Assets.new(dir)), {})
+	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
+	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
 	sk.free()

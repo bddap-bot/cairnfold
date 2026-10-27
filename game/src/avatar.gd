@@ -13,8 +13,10 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
-const MAX_BYTES := 24 << 20
-## Draw calls: one a material of each skinned mesh (docs/multiplayer.md, "Skinned bodies").
+## A Unity avatar with every outfit its menu can show runs to 40 MB.
+const MAX_BYTES := 64 << 20
+## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
+## "Skinned bodies").
 const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
@@ -139,7 +141,8 @@ static func model(root: Node3D) -> PackedScene:
 	var bones: Dictionary = root.get_meta("humanoid")
 	var surfaces := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
-		surfaces += mi.mesh.get_surface_count()
+		if mi.visible:
+			surfaces += mi.mesh.get_surface_count()
 	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES:
 		root.free()
 		return null
