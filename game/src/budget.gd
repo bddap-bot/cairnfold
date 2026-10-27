@@ -36,7 +36,7 @@ const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 ## loaded the host is.
 static var frame_deadline := true
 
-## Main-thread time the Masonry spends a frame drawing chunks changed in place (a wall laid again), in microseconds:
+## Main-thread time the Masonry spends a frame drawing chunks changed (a wall laid again or settled), in microseconds:
 ## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls
 ## have about a millisecond to spare; the rest wait for the frames after.
 const MASONRY_FLUSH_US := 300.0

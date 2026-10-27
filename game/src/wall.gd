@@ -58,11 +58,13 @@ var _parts: Array[PackedFloat32Array] = []
 var _chunked: Array[Dictionary] = []
 ## Draws the parts while the wall is not settled, made when first needed.
 var _drawn: Masonry
-## Which parts the last `_sync` placed with the Masonry. While the same ones stay there and nothing else draws them,
-## new stones replace the old chunk by chunk over the next frames, so a long wall laid again (an arch opening) spends no
-## frame drawing all its chunks at once. Ivy passing between the wall's own and the Masonry shows twice for those frames:
-## the wall keeps drawing its grown ivy until the Masonry has drawn it (`_ivy_handoff`).
-var _in_masonry := []
+## The glade's Masonry draws what `_sync` places chunk by chunk over the frames after (Budget.MASONRY_FLUSH_US): a
+## sculpt settles every wall on the ground, and drawing each one's chunks at once took 4 to 12 ms of a Steam Frame frame
+## a wall. Until it has, the wall keeps drawing what it drew (`_handoff`): its live stones, its stand-in and its grown
+## ivy, shown twice for those frames so none blinks out.
+var _handoff := false
+var _live := false
+var _ivy_placed := false
 var _ivy_handoff := false
 ## Ivy's own MultiMesh while it grows, made when first needed: it shows as much of it as has grown.
 var _ivy: MultiMeshInstance3D
@@ -280,13 +282,12 @@ func _process(delta: float) -> void:
 		_sync()
 		if _ivy_stale:
 			_layout_ivy()
-	if _ivy_handoff and masonry.drawn(get_instance_id()):
-		_ivy_handoff = false
-		_show_ivy(false)
+	if _handoff and masonry.drawn(get_instance_id()):
+		_hand_off()
 	if _ivy != null:
 		var mm := _ivy.multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
-	if not laying() and _recolour_task < 0 and not _ivy_growing() and not _ivy_handoff:
+	if not laying() and _recolour_task < 0 and not _ivy_growing() and not _handoff:
 		set_process(false)
 		if _settled:
 			_sync()
@@ -323,9 +324,11 @@ func _ivy_growing() -> bool:
 	return _ivy_task >= 0 or (not _ivy_times.is_empty() and ivy_age <= _ivy_times[-1])
 
 
+## A stand-in let go as its wall leaves may leave after the glade.
 func _exit_tree() -> void:
-	masonry.remove(get_instance_id())
-	if _stand_in != null:
+	if is_instance_valid(masonry):
+		masonry.remove(get_instance_id())
+	if is_instance_valid(_stand_in):
 		_stand_in.queue_free()
 
 
@@ -789,16 +792,17 @@ func _take(packed: Dictionary) -> void:
 	(_occluder.occluder as ArrayOccluder3D).set_arrays(packed.occluder[0], packed.occluder[1])
 
 
-## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it.
+## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it. The
+## glade lets them go at once, or they would stay standing where the hold took them from.
 func draw_live() -> void:
 	if _settled:
 		_settled = false
 		_sync()
+		masonry.flush()
 
 
 ## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here, uploaded
-## at once so the stones drawn here are always the ones laid, which a carry's transform is placed for; a part moving
-## between the two is uploaded by both this frame, so none blinks out.
+## at once so the stones drawn here are always the ones laid, which a carry's transform is placed for.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
@@ -808,11 +812,9 @@ func _sync() -> void:
 		placed.append(_chunked[p] if settle else {})
 		drawn.append(_chunked[p] if not settle and p != Part.IVY else {})
 		live = live or not drawn[p].is_empty()
-	var parts := placed.map(func(d: Dictionary) -> bool: return not d.is_empty())
-	var swapped := not live and _drawn == null and _stand_in == null and _in_masonry.size() == parts.size()
-	_ivy_handoff = swapped and parts[Part.IVY] and (_ivy_handoff or not _in_masonry[Part.IVY])
-	swapped = swapped and range(parts.size()).all(func(p: int) -> bool: return p == Part.IVY or parts[p] == _in_masonry[p])
-	_in_masonry = parts
+	var ivy_placed := not placed[Part.IVY].is_empty()
+	_ivy_handoff = ivy_placed and (_ivy_handoff or not _ivy_placed)
+	_ivy_placed = ivy_placed
 	masonry.place(get_instance_id(), placed)
 	if live:
 		if _drawn == null:
@@ -820,18 +822,25 @@ func _sync() -> void:
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
 		_drawn.flush()
-	elif _drawn != null:
+	_live = live
+	_handoff = not masonry.drawn(get_instance_id())
+	if _handoff:
+		set_process(true)
+		_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
+	else:
+		_hand_off()
+
+
+func _hand_off() -> void:
+	_handoff = false
+	_ivy_handoff = false
+	if _drawn != null and not _live:
 		_drawn.queue_free()
 		_drawn = null
-	if not swapped:
-		_ivy_handoff = false
-		masonry.flush()
-	if _ivy_handoff:
-		set_process(true)
-	_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
-	if _stand_in != null:
+	if is_instance_valid(_stand_in):
 		_stand_in.queue_free()
-		_stand_in = null
+	_stand_in = null
+	_show_ivy(_settled and _ivy_growing())
 
 
 func _show_ivy(growing: bool) -> void:

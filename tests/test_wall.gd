@@ -499,7 +499,10 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	w.finished = true
 	w.rebuild(true)
 	w.lay_now()
-	check(glade._owners.has(id) and w._drawn == null, "once settled the glade draws them, and the wall's own Masonry goes")
+	check(glade._owners.has(id) and w._drawn != null, "once settled the glade takes them, and the wall draws them until it has")
+	glade.flush()
+	w._process(0.0)
+	check(w._drawn == null, "then the wall's own Masonry goes")
 	w.free()
 	glade.free()
 
