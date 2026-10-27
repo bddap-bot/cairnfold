@@ -2777,8 +2777,7 @@ Quest 2 bare of clutter and cluttered.
 On the Frame, governed, the stress scene's clutter section played alone (its `budget` step, then from the `sun` step
 before the village; `perf/frame/stress-clutter/`): when each step of the hand laid the house again, b4d160c made 4 late
 frames carrying and 3 copying; held pieces standing apart made none carrying in three runs and one copying in one of
-them, a 28 ms frame with 11.7 ms of scripts before it, as much as nothing held costs (see "Single late frames" in the
-epic's checklist).
+them, a 28 ms frame with 11.7 ms of scripts before it, as much as nothing held costs, one of the isolated late frames most phases show.
 
 ## Raising a house
 
