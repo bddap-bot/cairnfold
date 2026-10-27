@@ -280,7 +280,6 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 		n.queue_free()
 
 
-## Waits up to three seconds for `done`.
 func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	var rig := Rig.new(terrain)
 	root.add_child(rig)
