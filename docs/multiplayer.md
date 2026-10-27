@@ -145,7 +145,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   hand, its elbow down, out and a little back; a hand beyond reach leaves the arm
   straight toward it.
 - **Size.** An avatar is drawn at its own size and proportions whoever wears it, and the
-  wearer is fitted to it instead. Directive (verbatim): "I think our fitting of x height
+  wearer is fitted to it. Directive (verbatim): "I think our fitting of x height
   players to y height avatars needs some thought, to prevent avatars from squishing or
   stretching to fit the player. The player's experience should change depending on the
   avatar's height." The world's scale (`XROrigin3D.world_scale`) makes the wearer

@@ -6,16 +6,15 @@ extends XROrigin3D
 ## unable to move; how far forward it is pushed sets how far along the aim the target lies. Flicked sideways it
 ## snap-turns, and flicked back it turns the player round.
 
-## The eyes' near clip: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
+## The eyes' near clip, in real metres: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
 ## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
 const NEAR := 0.02
 ## Past the farthest range round the garden (Mountains) and the sun's disc beyond it.
 const FAR := 2600.0
 ## A typical wearer's eye height over the floor standing, in real metres, until `stature` has measured theirs.
 const EYE := 1.65
-## The world's scale makes the wearer `fit` times their own size, so that they see from their avatar's eyes and reach
-## as far as its arms, and the avatar is drawn at its own size and proportions whoever wears it. Once `fit` strays
-## this fraction from the scale, the view fades out and back in at the new one, as a teleport does.
+## Once `fit` strays this fraction from the world's scale, the view fades out and back in at the new one, as a
+## teleport does: the world never grows in view.
 const REFIT := 0.02
 ## The fit at its extremes, past which an avatar stands above the floor or sinks into it.
 const FITS := Vector2(0.1, 10.0)
@@ -203,7 +202,9 @@ func _process(delta: float) -> void:
 	_refit(delta)
 
 
-## How many times their own size the wearer stands: their avatar's eye height over their own, or 1 with none worn.
+## How many times their own size the wearer stands, as the world's scale: their avatar's eye height over their own, or
+## 1 with none worn. They see from its eyes and reach as far as its arms, and it is drawn at its own size and
+## proportions whoever wears it.
 func fit() -> float:
 	return clampf(body.eye_height / stature.eye(EYE), FITS.x, FITS.y) if body != null else 1.0
 
@@ -211,7 +212,7 @@ func fit() -> float:
 ## Measures the wearer's eye height, and refits them where they stand once `fit` strays from the world's scale.
 func _refit(delta: float) -> void:
 	stature.add(head.position.y / world_scale, delta)
-	if _fade_t < 0.0 and not _covered and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
+	if _fade_t < 0.0 and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
 		var h := head.global_position
 		_cut(Vector3(h.x, _floor_y, h.z), global_position.y - _floor_y)
 

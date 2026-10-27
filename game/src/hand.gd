@@ -513,13 +513,14 @@ func _runtime_joints() -> Array:
 		return []
 	if t.hand_tracking_source != XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED and _controller_posed():
 		return []
-	var origin := (get_parent() as Node3D).global_transform
+	var origin := get_parent() as XROrigin3D
 	var out: Array[Transform3D] = []
 	for j in HandShape.JOINTS:
 		if not t.get_hand_joint_flags(j) & XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID:
 			return []
+		# The runtime reports joints in real metres, unscaled by the world's scale as every other pose is.
 		var joint := t.get_hand_joint_transform(j)
-		out.append(origin * Transform3D(joint.basis, joint.origin * XRServer.world_scale))
+		out.append(origin.global_transform * Transform3D(joint.basis, joint.origin * origin.world_scale))
 	return out
 
 

@@ -72,6 +72,8 @@ var source := ""
 ## What it was opened from and tinted with, so another can be opened of it.
 var scene: PackedScene
 var tint: Color
+## The eyes' height over the floor the model stands on, at rest.
+var eye_height := 0.0
 ## The last pose given: eyes, left and right hands, and where the eyes look in the eyes' frame (-Z ahead).
 var eyes := Transform3D.IDENTITY
 var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
@@ -85,8 +87,6 @@ var _model: Node3D
 var _skeleton: Skeleton3D
 var _joints := {}
 var _facing: Basis
-## The eyes' height over the floor the model stands on, at rest.
-var eye_height := 0.0
 ## At rest, the head bone relative to the eyes.
 var _eye_to_head: Transform3D
 var _hips: Joint
