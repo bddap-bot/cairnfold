@@ -250,6 +250,11 @@ func _place(all := false) -> void:
 				masonry.place(-2000000 - ids[path], job[2])
 
 
+## Whether path `id` is being laid again.
+func laying(id: int) -> bool:
+	return _laying.has(layout(id))
+
+
 ## Places every lay under way now: what a script or test reads next sees the paths' pieces.
 func lay_now() -> void:
 	_place(true)

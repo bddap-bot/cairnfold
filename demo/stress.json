@@ -1095,6 +1095,16 @@
   {"op": "wait", "seconds": 6},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "clutter-ground"},
+  {"op": "label", "name": "clutter/carry"},
+  {"op": "clutter", "wall": 0, "piece": 0, "move": [0.8, 0, 0.9], "turn": 90, "seconds": 2},
+  {"op": "clutter", "wall": 0, "piece": 1, "move": [-0.8, 0, 0.9], "turn": -90, "seconds": 2},
+  {"op": "clutter", "wall": 0, "piece": 2, "move": [0.6, 0, 1.2], "turn": 120, "seconds": 2},
+  {"op": "label", "name": "-"},
+  {"op": "label", "name": "clutter/copy"},
+  {"op": "clutter", "wall": 0, "piece": 3, "copy": true, "move": [0.8, 0, 1.0], "seconds": 2},
+  {"op": "clutter", "wall": 0, "piece": 4, "copy": true, "move": [-0.8, 0, 1.0], "seconds": 2},
+  {"op": "clutter", "wall": 0, "piece": 5, "copy": true, "move": [0.6, 0, 1.4], "seconds": 2},
+  {"op": "label", "name": "-"},
   {"op": "bare"},
   {"op": "quit"}
 ]

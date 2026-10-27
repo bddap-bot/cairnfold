@@ -100,6 +100,41 @@ func _lay() -> void:
 	main.tool.paths.lay_now()
 
 
+## A held piece stands apart from its house: the house is laid once without it, each step of the hand moves only the
+## piece, a second hand reaching for it pulls off a copy, and let go it stands until the house is laid with it.
+func _held_apart(house: Wall) -> void:
+	var tool: WallTool = main.tool
+	var target: Dictionary = FittingTool.targets(house).filter(func(t: Dictionary) -> bool: return t.what == "clutter")[0]
+	var at: Vector3 = target.bounds.get_center()
+	target.point = at
+	var from := Transform3D(Basis(), at + Vector3(0.0, 0.3, 0.3))
+	var m := tool.mason(main.rig.right)
+	var grip := tool._fitting_grip(target)
+	tool.begin_grow(m, grip, from, at)
+	_lay()
+	var laid := house.layout.laid
+	check(house.layout.clutter.size() == _clutter(house.id).size() - 1, "the house is laid without the piece in hand")
+	var held: Node3D = tool._held_clutter[grip].node
+	var reach: Vector3 = held.global_transform * ClutterLayout.bounds(grip.shown).get_center()
+	var out: Vector3 = held.global_transform.basis.z.normalized()
+	var pick := FittingTool.pick_target(tool, reach + out, -out, true)
+	var copy: Variant = tool._fitting_grip(pick) if pick.get("what") == "clutter" else null
+	check(copy != null and copy.copy, "a second hand reaching for it pulls off a copy")
+	for k in 8:
+		m.sizing.follow.call(m, Transform3D(Basis(), from.origin + Vector3(0.1 * (k + 1), 0.0, 0.04 * (k + 1))))
+		await frames(1)
+		_lay()
+	check(grip.shown != grip.start, "the hand carried it")
+	check(house.layout.laid == laid, "steps of the hand lay the house no more: %d lays" % (house.layout.laid - laid))
+	var piece: Node3D = tool._held_clutter[grip].node
+	check(piece.global_transform.is_equal_approx(house.layout.clutter_frame(grip.shown)), "the piece stands where the hand carries it")
+	tool.end_grow(m)
+	await until(func() -> bool: return not tool._held_clutter.has(grip), "the piece let go stands apart until its house is laid")
+	check(house.layout.clutter.size() == _clutter(house.id).size() and Array(house.layout.clutter).has(grip.shown), "and the house lays it where it was let go")
+	main.world.undo()
+	await frames(2)
+
+
 func _clutter(id: int) -> PackedVector4Array:
 	return main.world.state.walls[id].clutter
 
@@ -171,6 +206,7 @@ func _in_the_garden() -> void:
 	check(_clutter(house.id) == moved, "undo takes the copy back")
 	world.redo()
 	await frames(2)
+	await _held_apart(house)
 
 	var kept := _clutter(house.id)
 	await play([{"op": "clutter", "wall": 0, "piece": 0, "take": true}])
@@ -251,7 +287,7 @@ static func _uncaptured(s: Dictionary) -> Dictionary:
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "clutter/aerial")
-	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "clutter/ground"), "the stress scene has clutter/aerial and clutter/ground phases")
+	check(aerial >= 0 and ["clutter/ground", "clutter/carry", "clutter/copy"].all(func(name: String) -> bool: return steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == name)), "the stress scene has clutter/aerial, clutter/ground, clutter/carry and clutter/copy phases")
 	if aerial < 0:
 		return
 	var wiped := aerial

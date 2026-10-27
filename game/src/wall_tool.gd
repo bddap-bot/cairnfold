@@ -156,6 +156,9 @@ var _held_dirty := false
 ## Houses let go, and the builds on them, not yet laid as the garden has them, by id: their `_laid_at`, where the house
 ## was let go, and whether the garden has answered for them, so their stones are carried there until they are laid again.
 var _settling := {}
+## The pieces of clutter hands hold, standing apart from their builds, by grip: their `node`, the build's table `of` and
+## `id`, and whether the hand has `let_go`, so the node stands until its build is laid with the piece.
+var _held_clutter := {}
 ## How far a house may be carried, in metres, or turned, in radians, and still count as left where it stood: a hand held
 ## still trembles.
 const NUDGE := 0.05
@@ -238,6 +241,7 @@ func _process(delta: float) -> void:
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
 	_relay_due()
+	_settle_clutter()
 	for m in masons:
 		if m.growing != null or m in _holders:
 			m.hand.hold()
@@ -1411,9 +1415,9 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 
 
 ## Carries a piece of a build's clutter (ClutterLayout): one hand moves it along its wall or path, out from it and back,
-## and turns it with the hand, by whole steps, stopping it at the last place it stands. Its build is laid again only as
-## it moves on by a step, showing every piece hands hold on it as they hold them. Let go, it is set as one reshape of
-## its build; a copy another hand pulled off it becomes one more piece there.
+## and turns it with the hand, by whole steps, stopping it at the last place it stands. Its build is laid once without
+## the pieces hands hold, which stand apart while held, so a step moves only the piece's node, as a held decoration's
+## does. Let go, it is set as one reshape of its build; a copy another hand pulled off it becomes one more piece there.
 func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var of := "walls" if grip.path < 0 else "paths"
 	var id: int = grip.wall.id if grip.path < 0 else grip.path
@@ -1423,16 +1427,19 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 			return false
 		var list: PackedVector4Array = world.state[of][id].clutter
 		return grip.copy or list.size() > grip.index and list[grip.index] == grip.start
-	var hold := {"from": grip.start, "laid": grip.start}
+	var hold := {"from": grip.start}
 	var lay := func() -> void:
-		if grip.shown != hold.laid and stood.call():
-			hold.laid = grip.shown
-			_show_clutter(of, id)
+		if stood.call():
+			_hold_clutter(grip, of, id)
 	s.current = current
 	s.scale = func() -> float: return 1.0
 	s.limits = Vector2.ONE
 	s.show = func(_size: float) -> void: lay.call()
-	s.take = func() -> void: hold.from = grip.shown
+	s.take = func() -> void:
+		hold.from = grip.shown
+		if stood.call():
+			_show_clutter(of, id)
+		lay.call()
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
 		if not stood.call():
 			return
@@ -1446,8 +1453,12 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 			return {}
 		return {"op": "reshape", "of": of, "id": id, "data": {"clutter": _clutter_with(of, id, [grip])}}
 	s.settle = func() -> void:
-		if stood.call() and not in_hand.call():
+		if in_hand.call():
+			return
+		if stood.call():
 			_show_clutter(of, id)
+		if _held_clutter.has(grip):
+			_held_clutter[grip].let_go = true
 	return s
 
 
@@ -1487,18 +1498,93 @@ func _clutter_with(of: String, id: int, grips: Array) -> PackedVector4Array:
 	return list
 
 
-## Shows build `id` of table `of` with its clutter as the hands holding pieces of it hold them, or as the garden has it.
+## Shows build `id` of table `of` without the pieces of its clutter hands hold, which stand apart (`_hold_clutter`), or
+## as the garden has it; laid again only when that changes.
 func _show_clutter(of: String, id: int) -> void:
-	var grips := []
-	for m in masons:
-		var g: Variant = m.growing
-		if g is FittingGrip and g.key == "clutter" and (g.path == id if of == "paths" else g.path < 0 and is_instance_valid(g.wall) and g.wall.id == id):
-			grips.append(g)
-	var data := {} if grips.is_empty() else {"clutter": _clutter_with(of, id, grips)}
+	var garden: PackedVector4Array = world.state[of][id].clutter
+	var grips := _clutter_grips(of, id)
+	var carried := {}
+	for g in grips:
+		if not g.copy and g.index < garden.size() and garden[g.index] == g.start:
+			carried[g.index] = true
+	var list := PackedVector4Array()
+	for i in garden.size():
+		if not carried.has(i):
+			list.append(garden[i])
+	var data := {} if grips.is_empty() else {"clutter": list}
 	if of == "paths":
 		paths.show_reshaped(id, data)
-	elif find(id) != null:
-		_relay(find(id), data)
+		return
+	var w := find(id)
+	if w != null and (PackedVector4Array(w.layout.clutter) != data.get("clutter", world.state.walls[id].clutter) or w.reshaped != data):
+		_relay(w, data)
+
+
+## The grips of hands holding pieces of build `id` of table `of`'s clutter.
+func _clutter_grips(of: String, id: int) -> Array[FittingGrip]:
+	var out: Array[FittingGrip] = []
+	for m in masons:
+		var g: Variant = m.growing
+		if g is FittingGrip and g.key == "clutter" and (g.path == id if of == "paths" else g.path < 0 and is_instance_valid(g.wall) and g.wall.id == id) and not out.has(g):
+			out.append(g)
+	return out
+
+
+## Stands the piece `grip` holds of build `id` of table `of` apart from its build, where the hand shows it.
+func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
+	var x: Variant = _clutter_place(grip, grip.shown)
+	if not _held_clutter.has(grip):
+		var seed: int = paths.layout(id).seed if of == "paths" else grip.wall.layout.seed
+		var colours: PackedInt32Array = Palette.plain() if of == "paths" else grip.wall.paint
+		var parts: Array[Dictionary] = []
+		for part in ClutterLayout.parts(grip.shown, Transform3D.IDENTITY, seed):
+			part.color = Wall._painted_as(part, colours)
+			parts.append(part)
+		var piece := Stones.new()
+		piece.lay(parts)
+		add_child(piece)
+		_held_clutter[grip] = {"node": piece, "of": of, "id": id, "let_go": false}
+	var node: Node3D = _held_clutter[grip].node
+	node.visible = x != null
+	if x != null:
+		node.global_transform = x
+
+
+## Where piece `v` of the clutter `grip` holds stands in the world, or null where nothing holds it.
+func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
+	if grip.path >= 0:
+		var path := paths.layout(grip.path)
+		return null if path == null else path.clutter_frame(v, world.terrain.height_at)
+	var x: Variant = grip.wall.layout.clutter_frame(v)
+	return null if x == null else grip.wall.global_transform * x
+
+
+## A piece let go stands apart until its build is laid with it, or is gone.
+func _settle_clutter() -> void:
+	for grip: FittingGrip in _held_clutter.keys():
+		var e: Dictionary = _held_clutter[grip]
+		if not e.let_go:
+			continue
+		var gone: bool = not world.state[e.of].has(e.id) or (e.of == "walls" and find(e.id) == null)
+		if gone or not (paths.laying(e.id) if e.of == "paths" else find(e.id).laying()):
+			e.node.queue_free()
+			_held_clutter.erase(grip)
+
+
+## The pieces of clutter hands hold, as a hand picks them (`FittingTool.targets`).
+func held_clutter_targets() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for grip: FittingGrip in _held_clutter:
+		var e: Dictionary = _held_clutter[grip]
+		if e.let_go or not e.node.visible:
+			continue
+		var x: Transform3D = e.node.global_transform
+		var box := ClutterLayout.bounds(grip.shown)
+		var target := {"wall": null if grip.path >= 0 else grip.wall, "fitting": true, "what": "clutter", "key": "clutter", "index": grip.index, "value": grip.shown, "bounds": x * box, "box": box, "inverse": x.affine_inverse(), "on_roof": false}
+		if grip.path >= 0:
+			target.path = grip.path
+		out.append(target)
+	return out
 
 
 ## Carries a decoration: one hand moves it across the ground, its floor or deck and turns it with the hand, or along the
@@ -1549,7 +1635,7 @@ func _fitting_grip(pick: Dictionary) -> FittingGrip:
 			grip.start = g.shown
 			grip.shown = g.shown
 			return grip
-		if g is FittingGrip and (g.decoration == pick.decoration if pick.has("decoration") else g.wall == pick.wall and g.path == grip.path and g.key == pick.key and g.index == pick.index and g.on_roof == pick.on_roof):
+		if g is FittingGrip and (g.decoration == pick.decoration if pick.has("decoration") else g.wall == pick.wall and g.path == grip.path and g.key == pick.key and g.key != "clutter" and g.index == pick.index and g.on_roof == pick.on_roof):
 			return g if g.sized() else null
 	if pick.has("decoration"):
 		grip.decoration = pick.decoration

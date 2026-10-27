@@ -516,7 +516,7 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.y = point.y - w.layout.point_at(best.s).y
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
-	for item in path_targets(builder.paths, builder.world.terrain.height_at):
+	for item in path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else []):
 		var local: Vector3 = item.inverse * origin
 		var direction: Vector3 = item.inverse.basis * dir
 		var hit: Variant = item.box.intersects_ray(local, direction)
