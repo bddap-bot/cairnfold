@@ -3010,12 +3010,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, arches, houses, towers, stairs, decorations, paths, stone, flowers, grass, moss, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, seeds, easel, the picture book and delete. A hand
+windows, arches, houses, towers, stairs, decorations, paths, stone, flowers, grass, moss, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, mirror, seeds, easel, the picture book and delete. A hand
 holding a tool is drawn as that tool alone, with no controller, built from the same generators as the full-size
 thing (see "Held tools and aiming"): a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of dirt, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, three bushes, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the hand for the easel, and a spade held blade ahead for delete. A new tool
+sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a hand mirror, a clay dish heaped with bird seed, a paintbrush reaching past the hand for the easel, and a spade held blade ahead for delete. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. There is no text anywhere.
 
 A hand can also hold nothing, for when the building is done and the player just wants to be in the garden.
@@ -3051,7 +3051,7 @@ it. The split, by how each aims:
 | --- | --- | --- |
 | Style | The wand, star ahead, hand-long | Sight past the star |
 | Delete | The spade, blade ahead, hand-long | Sight past the blade |
-| Walls, fences, windows, arches, house, tower, decorations, boulders, stairs, paths, stone, flowers, grass, moss, trees, bushes, ponds, colour | Its miniature | Sight just ahead of it: these aim at the ground or a build, and their own previews mark the target |
+| Walls, fences, windows, arches, house, tower, decorations, boulders, stairs, paths, stone, flowers, grass, moss, trees, bushes, ponds, colour, mirror | Its miniature | Sight just ahead of it: these aim at the ground or a build, and their own previews mark the target |
 | Camera, selfie camera | The camera | Its lens and screen, unchanged: it never had a ray |
 | Seeds, easel, picture book | The dish, the brush or palette, the book | Unchanged: they work by reach and touch, not by aim |
 | Nothing | The controller | Sight at its front, only while it grabs the sky |
@@ -3107,7 +3107,7 @@ The slots never move, so each tool is one learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour, style |
-| Upper right | The cameras (camera, selfie camera), seeds, easel |
+| Upper right | The cameras (camera, selfie camera) and the mirror, seeds, easel |
 | Right | Flowers, grass and moss, the placed plants (trees, bushes), ponds |
 | Lower right | The people (avatars to wear, nearby gardens to join), the picture book |
 | Bottom | Delete |
@@ -3339,6 +3339,7 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window, door or lantern, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
+| Stand a mirror | Trigger of a hand holding the mirror, at the ground: it stands there facing the player; at its glass, it is put away |
 | Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
 | Move an easel | Grip pointing at an easel's legs or tray, whatever the hand holds, with no brush, palette or canvas within the hand's reach: it moves along the ground with the hand and turns about the vertical as the hand turns, the gain growing with distance, its painting and kit with it; let go to set it there, one undo step, unless that is within 1.4 m of another easel, when it goes back. The other hand's grip on it does nothing: an easel has one size |
@@ -3472,15 +3473,15 @@ endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the st
 
 With no headset at start the game comes up on the flat screen (`Flat`, `Controls.FLAT`): a player who walks,
 looks, takes photos, visits and feeds the animals, and never edits. Its controls stand in for a controller's through
-the same tool entry points; the only tools it holds are the camera and the seed dish, raised in the
+the same tool entry points; the only tools it holds are the camera, the seed dish and the mirror, raised in the
 right hand before the eye, or none, both hands then hanging at its sides, as other players see it.
 
 | Action | Mouse and keyboard | Gamepad |
 | --- | --- | --- |
 | Walk | W, A, S, D or the arrows | Left stick |
 | Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
-| Take up the camera, the seed dish, or none, in turn | Tab or the right button | Y |
-| Take a photo or throw a handful of seeds | Left button | Right trigger or A |
+| Take up the camera, the seed dish, the mirror, or none, in turn | Tab or the right button | Y |
+| Take a photo, throw a handful of seeds or stand the mirror | Left button | Right trigger or A |
 | Record a video with the camera up | Hold the left button | Hold the right trigger or A |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
@@ -4726,6 +4727,28 @@ whole.
 
 Left out: Godot's MovieWriter, which renders the main view at a fixed time step and so slows play to the
 encoder's pace, and platform video encoders, which Godot does not reach from a script on either target.
+
+## Mirror
+
+Directive (verbatim): "avatar[s] only sounds good." The mirror reflects people and nothing else: a place to see the
+avatar one wears, and the others' beside it.
+
+The cameras' entry on the wheel opens the mirror beside the selfie camera (`Hand.Tool.MIRROR`). Held, it is a hand
+mirror (`ToolModels.mirror`, one model for the hand, the wheel and the garden); the trigger stands a mirror where the
+hand points, its glass turned to the player, and pressed again elsewhere moves it there. The trigger on its glass puts
+it away. It is the player's own, as a camera is (`MirrorTool`): no edit to the garden, so no command, save or other
+player sees it.
+
+Standing, it is the hand mirror made large (`MirrorTool.STAND`): an oval glass 0.8 m by 1.2 m topped above a tall player's
+crown, so heads at eye height fall in its broad middle and a player a step or two away sees themselves whole. The glass shows every avatar the game draws,
+each player's on `Quality.PEOPLE_LAYER` (set as `Avatar.open` dresses it, so any avatar file that opens appears with no
+change here) and the player's own on `SELF_LAYER`, lit by a light of its own (`MIRROR_LAYER`, which no other view sees)
+before a plain backdrop. Each eye sees it through a view of its own (`Budget.MIRROR_VIEW`): a camera at that eye
+reflected in the glass, looking out of it, whose frustum is the glass's rectangle with its near plane on the glass
+(`MirrorTool.reflection`), so each eye's view maps onto the glass by the glass's own coordinates (`mirror.gdshader`,
+which picks the view by `VIEW_INDEX`), and the two eyes see the depth a mirror has. A flat screen has one view. Put
+away it holds no view; standing, a view draws only while the glass is on screen and the eye before it. The people's
+pipelines for its views compile as the game loads (`MirrorTool._ready`).
 
 ## Painting
 

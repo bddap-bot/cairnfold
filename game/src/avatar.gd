@@ -584,6 +584,8 @@ func bone(name: String) -> Transform3D:
 
 ## Tints the tint surfaces; avatars cast no shadow, since a shadow pass would double their draw calls.
 func _dress(n: Node, tint: Color) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = Quality.PEOPLE_LAYER
 	if n is MeshInstance3D:
 		var mi: MeshInstance3D = n
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

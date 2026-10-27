@@ -3,13 +3,13 @@ extends Node
 
 ## A player without a headset, on a flat screen with mouse and keyboard or a gamepad (`Controls.FLAT`). It walks the
 ## ground instead of teleporting and looks with the mouse or the right stick; its input stands in for the controllers
-## through the same tool entry points. The only tools it holds are the camera and the seed dish, in the
+## through the same tool entry points. The only tools it holds are the camera, the seed dish and the mirror, in the
 ## right hand raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at
 ## the sides, as other players see them.
 
 const WAVE: Animation = preload("res://animations/wave.tres")
 
-const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.SEEDS]
+const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.SEEDS, Hand.Tool.MIRROR]
 const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
 const STICK_LOOK := 2.6

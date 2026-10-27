@@ -20,6 +20,11 @@ const SELFIE_LIFT := 0.08
 const SELFIE_LENS := Vector3(0.02, 0.024 + SELFIE_LIFT, 0.0167)
 const SELFIE_SCREEN := Vector2(0.036, 0.027)
 const _SELFIE_SCREEN_X := -0.011
+## The hand mirror: its oval glass's width and height, the rim round it, and its handle below, standing on y = 0.
+const MIRROR_GLASS := Vector2(0.04, 0.06)
+const MIRROR_RIM := 0.004
+const MIRROR_HANDLE := 0.034
+const MIRROR_CENTRE := Vector3(0, MIRROR_HANDLE + MIRROR_RIM + MIRROR_GLASS.y * 0.5, 0.003)
 ## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
 ## with the brush, not the hand.
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
@@ -127,6 +132,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_easel(root)
 		Hand.Tool.BOOK:
 			root.add_child(Book.miniature())
+		Hand.Tool.MIRROR:
+			mirror(root)
 	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
@@ -635,6 +642,21 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	glow.albedo_color = PhotoTool.DARK
 	_piece(root, quad, Transform3D(Basis(), Vector3(screen_x, y, 0.0141)), glow).name = "Screen"
+
+
+## A hand mirror, its glass facing +z over a turned handle: the mirror in the hand, the avatars' icon, and, made large,
+## the mirror that stands in the garden (MirrorTool). Returns the glass, an oval (`MIRROR_GLASS` its
+## width and height about `MIRROR_CENTRE`) and faces +z.
+static func mirror(root: Node3D) -> MeshInstance3D:
+	var wood := _plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
+	var facing := Basis(Vector3.RIGHT, PI * 0.5)
+	var rim := MIRROR_GLASS * 0.5 + Vector2.ONE * MIRROR_RIM
+	_piece(root, cylinder(0.0035, 0.0045, MIRROR_HANDLE, 10), Transform3D(Basis(), Vector3(0, MIRROR_HANDLE * 0.5, 0)), wood)
+	_piece(root, cylinder(1.0, 1.0, 0.005, 32), Transform3D(Basis.from_scale(Vector3(rim.x, rim.y, 1)) * facing, MIRROR_CENTRE - Vector3(0, 0, 0.003)), wood)
+	var glass := _piece(root, cylinder(1.0, 1.0, 0.001, 32), Transform3D(Basis.from_scale(Vector3(MIRROR_GLASS.x * 0.5, MIRROR_GLASS.y * 0.5, 1)) * facing, MIRROR_CENTRE),
+		_plain("mirror_glass", Color(0.74, 0.82, 0.86), {"metallic": 0.6, "roughness": 0.12}))
+	glass.name = "Glass"
+	return glass
 
 
 ## A little person: the wheel's people, the avatars to wear and the gardens to join.

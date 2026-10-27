@@ -5,13 +5,13 @@ extends XRController3D
 ## selection wheel show it, so they cannot disagree. A hand holding a tool is drawn as that tool alone; only an empty
 ## hand shows the controller.
 
-enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
+enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS, MIRROR }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
-	[[Tool.CAMERA, Tool.SELFIE], Tool.SEEDS, Tool.EASEL],
+	[[Tool.CAMERA, Tool.SELFIE, Tool.MIRROR], Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
 	["avatars", "friends", Tool.BOOK],
 	Tool.DELETE,
@@ -175,10 +175,12 @@ func _build_wheel() -> void:
 ## Draws every surface under `root` in the one icon look (icon.gdshaderinc), lit by nothing in the garden: a standard
 ## material gives its colour, picture and whether its vertex colours count (icon.gdshader); a shader material that paints
 ## its own surface names its twin in that look in its "icon_material" meta; any other draws its vertex colours, tinted
-## by its "icon_colour" meta where it sets one, and not at all where that colour is clear.
+## by its "icon_colour" meta where it sets one, and not at all where that colour is clear. An icon's figure is no person
+## a mirror reflects.
 static func unlit(root: Node) -> void:
 	for g: GeometryInstance3D in root.find_children("*", "MeshInstance3D", true, false) + root.find_children("*", "MultiMeshInstance3D", true, false):
 		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		g.layers = 1
 		var mi := g as MeshInstance3D
 		if g.material_override != null or mi == null:
 			var mesh: Mesh = mi.mesh if mi != null else (g as MultiMeshInstance3D).multimesh.mesh
@@ -218,7 +220,7 @@ func inventory() -> Array:
 	if flat_only:
 		# The book opens only to the other hand's touch, which a flat player's never reaches.
 		var people_slot: Array = tree[3].filter(func(t: Variant) -> bool: return typeof(t) != TYPE_INT or t != Tool.BOOK)
-		return [null, [Tool.CAMERA, Tool.SEEDS], null, people_slot, null, null, null, null]
+		return [null, [Tool.CAMERA, Tool.SEEDS, Tool.MIRROR], null, people_slot, null, null, null, null]
 	return tree
 
 

@@ -8,6 +8,8 @@ extends RefCounted
 
 ## One graphics configuration for every headset, held to the weakest: the Quest 2 at 72 Hz.
 const REFRESH_HZ := 72.0
+## A standing mirror's view for each eye, in pixels: its glass's shape, a pixel about a Quest 2 pixel at a step from it.
+const MIRROR_VIEW := Vector2i(448, 672)
 ## Fixed tread density keeps raising terrain from multiplying a path's geometry.
 const PATH_TREADS_PER_ROW := 2
 

@@ -17,7 +17,7 @@ func _initialize() -> void:
 	await _keys_and_a_gamepad_walk_and_look()
 	await _the_hands_hang_at_the_sides_until_a_tool_is_raised()
 	await _the_flat_wheel_selects_an_avatar()
-	await _the_trigger_reaches_only_the_camera_and_the_seed_dish()
+	await _the_trigger_reaches_only_a_raised_tool()
 	await _wave_plays_recorded_hands()
 	await _the_seed_dish_is_held_out_level_and_low_looking_down()
 	await _every_control_on_every_tool_sends_no_edit(sent)
@@ -144,6 +144,8 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	await _tap(_button.bind(JOY_BUTTON_Y))
 	check(rig.right.tool == Hand.Tool.SEEDS, "the gamepad's Y takes up the seed dish")
 	await _tap(_key.bind(KEY_TAB))
+	check(rig.right.tool == Hand.Tool.MIRROR, "Tab takes up the mirror")
+	await _tap(_key.bind(KEY_TAB))
 	check(rig.right.tool == Hand.Tool.NONE, "and Tab puts it away")
 	await frames(1)
 	check(_near(rig.right.body.global_transform, level * Avatar.AT_SIDES[1]), "the hand dropping back to the side")
@@ -157,7 +159,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	rig.solid_hit = solid
 
 
-func _the_trigger_reaches_only_the_camera_and_the_seed_dish() -> void:
+func _the_trigger_reaches_only_a_raised_tool() -> void:
 	var rig := main.rig
 	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)

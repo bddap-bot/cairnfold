@@ -1,0 +1,16 @@
+[
+  {"op": "place", "x": 0, "z": 0},
+  {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [0, 1.15, -1.6]},
+  {"op": "figures", "spots": [[0.45, 0.9]]},
+  {"op": "pick", "hand": "right", "tool": "mirror"},
+  {"op": "mirror", "x": 0, "z": -1.6},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "mirror"},
+  {"op": "view", "ground": true, "eye": [-1.0, 1.65, 0.3], "at": [0, 1.15, -1.6]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "mirror-aside"},
+  {"op": "mirror", "away": true},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "mirror-away"},
+  {"op": "quit"}
+]

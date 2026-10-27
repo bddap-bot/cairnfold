@@ -1785,6 +1785,17 @@ func _easel(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Stands the hand mirror at the ground under `x`, `z`, its glass toward the head or the ground under `facing`; with
+## "away", puts it away.
+func _mirror(s: Dictionary) -> void:
+	if s.get("away", false):
+		main.mirror_tool.put_away()
+	else:
+		var at := _spot(s, s.x, s.z)
+		main.mirror_tool.stand_at(at, _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position)
+	await _frames(2)
+
+
 ## The easel a step works at: its `easel`th by age, the newest by default.
 func _easel_of(s: Dictionary) -> Easels.Easel:
 	var ids: Array = main.easels.easels.keys()

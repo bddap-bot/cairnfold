@@ -23,6 +23,7 @@ var look: Look
 var sky_tool: SkyTool
 var palette_tool: PaletteTool
 var photo_tool: PhotoTool
+var mirror_tool: MirrorTool
 var feed_tool: FeedTool
 var easels: Easels
 var easel_tool: EaselTool
@@ -133,6 +134,8 @@ func _ready() -> void:
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
+	mirror_tool = MirrorTool.new(rig, world.terrain)
+	add_child(mirror_tool)
 	_undo = Buttons.new(rig.left).watch(["undo"])
 	_redo = Buttons.new(rig.right).watch(["redo"])
 	var played := Session.played(args, get_tree().current_scene == self)

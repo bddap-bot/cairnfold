@@ -157,7 +157,7 @@ func wear(a: Avatar) -> void:
 			var name := "spring_" + str(joint.node)
 			if a._joints.has(name):
 				for v: VisualInstance3D in a._joints[name].node.find_children("*", "VisualInstance3D", true, false):
-					v.layers = 1 | Quality.SELF_LAYER
+					v.layers = Quality.PEOPLE_LAYER | Quality.SELF_LAYER
 	add_child(a)
 	_landing.wear(a)
 

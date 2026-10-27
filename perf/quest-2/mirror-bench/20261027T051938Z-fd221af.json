@@ -1,0 +1,93 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "sweep/mirror/people-1/away": {
+   "p50": 13.9469995498657,
+   "p99": 15.2919998168945,
+   "late": 0,
+   "draws": 60,
+   "prims": 297801,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.84,
+   "timewarp_ms": 1.13
+  },
+  "sweep/mirror/people-1/out": {
+   "p50": 13.9420003890991,
+   "p99": 15.3809995651245,
+   "late": 0,
+   "draws": 103,
+   "prims": 300425,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 8.3,
+   "timewarp_ms": 1.13
+  },
+  "sweep/mirror/people-2/away": {
+   "p50": 13.9309997558594,
+   "p99": 15.1059999465942,
+   "late": 0,
+   "draws": 62,
+   "prims": 301993,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.96,
+   "timewarp_ms": 1.13
+  },
+  "sweep/mirror/people-2/out": {
+   "p50": 13.9270000457764,
+   "p99": 15.0500001907349,
+   "late": 0,
+   "draws": 123,
+   "prims": 305565,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 8.53,
+   "timewarp_ms": 1.14
+  },
+  "sweep/mirror/people-3/away": {
+   "p50": 13.9390001296997,
+   "p99": 15.2810001373291,
+   "late": 0,
+   "draws": 62,
+   "prims": 301993,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.94,
+   "timewarp_ms": 1.13
+  },
+  "sweep/mirror/people-3/out": {
+   "p50": 13.9230003356934,
+   "p99": 15.0270004272461,
+   "late": 0,
+   "draws": 141,
+   "prims": 306513,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 8.61,
+   "timewarp_ms": 1.14
+  },
+  "sweep/mirror/people-4/away": {
+   "p50": 13.951000213623,
+   "p99": 15.2200002670288,
+   "late": 0,
+   "draws": 62,
+   "prims": 301993,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 7.94,
+   "timewarp_ms": 1.13
+  },
+  "sweep/mirror/people-4/out": {
+   "p50": 13.9280004501343,
+   "p99": 15.3769998550415,
+   "late": 0,
+   "draws": 159,
+   "prims": 307461,
+   "step": 5,
+   "fill": 0.378,
+   "gpu_ms": 8.69,
+   "timewarp_ms": 1.14
+  }
+ }
+}
