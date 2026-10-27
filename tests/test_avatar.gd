@@ -91,10 +91,10 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	return out + head + bin
 
 
-## The Unity sample package converts to a VRM 1.0 that keeps its skeleton, skins and blend shapes, its humanoid bones
-## as the package's Avatar definition maps them, and that Avatar.read opens and poses as it does any VRM.
+## The Unity sample package converts to a VRM 1.0 of one skinned mesh over its skeleton, its humanoid bones as the
+## package's Avatar definition maps them, that Avatar.read opens and poses as it does any VRM.
 func _unity_package_converts() -> void:
-	var model := UnityAvatar.humanoid_scene(_sample("seed-san"))
+	var model := UnityAvatar.avatar_scene(_sample("seed-san"))
 	check(model != null, "the Unity package converts")
 	if model == null:
 		return
@@ -104,6 +104,8 @@ func _unity_package_converts() -> void:
 	check(human.hips == "hips" and human.head == "head 1" and human.leftThumbMetacarpal == "thumb.01.L", "the Avatar definition's own names: Unity's de-duplicated head, its thumb proximal as VRM's metacarpal")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	check(human.keys().all(func(b: String) -> bool: return sk.find_bone(b) >= 0), "each humanoid bone is the skeleton bone of its VRM name")
+	var report: Dictionary = model.get_meta("report")
+	check((report["renderers drawn"] as Array).size() == 5, "all five of the model's renderers draw (%s)" % [report["renderers drawn"]])
 	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
 	Vrm.write(model, path)
 	model.free()
@@ -116,12 +118,11 @@ func _unity_package_converts() -> void:
 		for j: float in k.joints:
 			joints[int(j)] = true
 	check(bones.size() == avatar.human.size() and bones.keys().all(func(b: String) -> bool: return joints.has(int(bones[b].node)) and json.nodes[int(bones[b].node)].name == b), "the VRM names every mapped humanoid bone as a skin joint of its name (%d)" % bones.size())
-	check(skins.size() == 5 and skins.all(func(k: Dictionary) -> bool: return k.has("inverseBindMatrices") and not (k.joints as Array).is_empty()), "the VRM keeps each skinned mesh's skin and inverse binds (%d)" % skins.size())
-	var targets := {}
-	for m: Dictionary in json.meshes:
-		for p: Dictionary in m.primitives:
-			targets[p.get("targets", []).size()] = true
-	check(targets.has(43), "the VRM keeps the face's blend shapes (%s)" % [targets.keys()])
+	check(skins.size() == 1 and json.meshes.size() == 1 and (json.meshes[0].primitives as Array).size() == 1, "the VRM is one mesh of one primitive over one skin")
+	var triangles := 0
+	for p: Dictionary in json.meshes[0].primitives:
+		triangles += int(json.accessors[int(p.indices)].count) / 3
+	check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "within the triangle limit (%d)" % triangles)
 	var started := Time.get_ticks_usec()
 	var scene := Avatar.read(bytes)
 	print("unity package: Avatar.read %.0f ms, %d bytes" % [(Time.get_ticks_usec() - started) / 1000.0, bytes.size()])
@@ -132,7 +133,7 @@ func _unity_package_converts() -> void:
 	_arms_join_shoulders_to_hands(scene, "seed-san")
 	var empty := ProjectSettings.globalize_path("user://no-humanoid")
 	DirAccess.make_dir_recursive_absolute(empty)
-	check(UnityAvatar.humanoid_scene(empty) == null, "a package with no humanoid model converts to nothing")
+	check(UnityAvatar.avatar_scene(empty) == null, "a package with no humanoid model converts to nothing")
 
 
 ## The JSON chunk of a binary glTF.

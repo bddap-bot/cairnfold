@@ -167,19 +167,40 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   that loaded file without removing it. On a Quest the folder is
   `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
-- **From a Unity package.** `scripts/unity_avatar.gd` converts the humanoid model of a
-  Unity source package (an `Assets` folder, its `.meta` files beside the assets) into a VRM 1.0
-  file to wear: from `game/`,
-  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE_DIR avatar.vrm`.
-  The model is the package's one FBX imported as a humanoid (`animationType: 3` in its
-  `.meta`). Godot's FBX importer reads its skeleton, skins and blend shapes; the bone map is
-  the `.meta`'s humanDescription, Unity's Avatar definition, each bone renamed to its VRM
-  1.0 name. Unity suffixes a transform named like another in the model (`head 1`) and
-  Godot's importer does not, so a mapped name the skeleton lacks matches the bone without
-  the suffix, under the bone its Unity parent is. The bones keep their rest rotations rather
-  than VRM 1.0's normalized T-pose; `Avatar.read` needs only the rest pose. Textures, Unity
-  materials, prefabs, animations and the package's scripts are not translated; the
-  converter prints what it dropped.
+- **From a Unity package.** `scripts/unity_avatar.gd` converts the avatar in a Unity source
+  package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) into a VRM 1.0 file
+  to wear: from `game/`,
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.vrm [AVATAR]`.
+  The avatar is the GameObject with a VRChat avatar descriptor (AVATAR names it where a package
+  holds several), instantiated as its scene or prefab does: prefab instances, nested ones too,
+  expand with their modifications, so the renderers it draws are those active there, with the
+  materials and blend shape weights saved on them. Unity names a model's objects by fixed IDs
+  from its `.meta` or, since 2019, by the XXH64 of each object's type and path, so the converter
+  finds the model objects a scene modifies the same way. The skeleton is the humanoid model's
+  the descriptor's Animator names; its `.meta` humanDescription, Unity's Avatar definition, maps
+  the bones, each renamed to its VRM 1.0 name. Unity suffixes a transform named like another in
+  the model (`head 1`) and Godot's importer does not, so a mapped name the skeleton lacks
+  matches the bone without the suffix, under the bone its Unity parent is. A mesh from another
+  model binds by bone name, or hangs where the avatar's Unity transforms place it.
+
+  The result is cut to what `Avatar.read` keeps, so it reads at once and fits the limits: every
+  renderer merged into one mesh over one skin, blend shapes baked at their saved weights, a
+  surface another renderer's opaque surface covers within 1.5 cm dropped (skin under a tight
+  garment would show through once both are simplified), and each renderer's levels of detail
+  taken finest first, for whichever has kept least of its own, up to 20,000 triangles. Shader
+  programs do not port; each material's saved colour texture, colour, tiling and alpha mode
+  (opaque, cut out at its cutoff, or blended) take a cell of one 2048 px atlas. A renderer's
+  material slots follow the FBX's materials in their connections' order where the slots match
+  them one for one; otherwise a surface takes the slot whose material is named like its own.
+  PhysBones become VRM spring chains, one per path from a PhysBone's root to each leaf, with
+  pull, spring, stiffness, gravity and radius mapped approximately and limits and grabbing
+  dropped, and their sphere and capsule colliders VRM colliders; while each spring bone is a
+  rigid part of its own (below), the shortest chains go until the file reads within the draw
+  limit. The descriptor's view position places the eyes. The converter prints what it kept and
+  dropped: Animator controllers, expression menus, visemes, Contacts, constraints, particles and
+  scripts are not translated. `tests/test_private_avatars.gd` converts a private corpus of
+  packages that never enters this repository, and says it checked nothing where that corpus is
+  absent.
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
   while the wearer sees its spring parts. Chains stay posed and simulated even without a
   camera. Empty hands can grip a nearby tip; a held implement retains its own controls.
@@ -206,8 +227,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   bones draws once for each, so the limit is 40 surfaces (draw calls) after the cut. A VRoid
   avatar (34,000 triangles, 65 primitives, 17 materials, 16 MB) reads as 15,000 triangles in
   28 surfaces. Where a rigid part meets the next, a bent joint can open a thin crack.
-  Seed-san, the Unity sample package (16 materials over five skinned meshes), reads as 39.
-  On a Quest 2 at quality step 6 the widest view of three Seed-san figures in
+  A conversion of Seed-san, the Unity sample package, with its five skinned meshes and 16
+  materials kept apart, reads as 39. On a Quest 2 at quality step 6 the widest view of three
+  such figures in
   `demo/avatar-cost.json` takes 9.68 GPU ms against 9.02 with built-ins, and of seven in
   `demo/avatar-chain-cost.json` 10.98 against 9.35, inside the 11.11 ms budget
   (`perf/quest-2/avatar-cost/20261026T184814Z-72c8d46.json`,
