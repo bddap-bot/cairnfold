@@ -1,0 +1,38 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "players": 2,
+ "phases": {
+  "interact/poke": {
+   "p50": 13.8909997940063,
+   "p99": 32.8779983520508,
+   "late": 6,
+   "draws": 159,
+   "prims": 334152,
+   "step": 9,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 119.9,
+    "textures": 205.8,
+    "video": 484.1
+   },
+   "gpu_ms": 10.3,
+   "timewarp_ms": 1.38
+  },
+  "interact/grab": {
+   "p50": 13.91100025177,
+   "p99": 21.0189990997314,
+   "late": 4,
+   "draws": 158,
+   "prims": 335236,
+   "step": 11,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 119.9,
+    "textures": 205.8,
+    "video": 484.1
+   },
+   "gpu_ms": 10.22,
+   "timewarp_ms": 1.38
+  }
+ }
+}

@@ -250,8 +250,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
   spring chains, one per path from a PhysBone's root to each leaf and on to its endpoint, with
-  pull, spring, stiffness, gravity and radius mapped approximately and limits and grabbing
-  dropped, and their sphere and capsule colliders spring colliders. The file keeps every chain;
+  pull, spring, stiffness, gravity and radius mapped approximately, whose hands may push and
+  grab them (allowCollision and allowGrabbing with their filters) kept as each spring's extras,
+  limits kept without their curves, and grab movement and posing dropped, and their sphere and capsule colliders spring
+  colliders. The file keeps every chain;
   an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
   the Quest 2's CPU every frame). The descriptor's view position places
   the eyes. The importer reports untranslated curves and components, including Contacts,
@@ -282,7 +284,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
   while the wearer sees the meshes only its spring joints move, such as the built-ins'
   tassels. Chains stay posed and simulated even without a
-  camera. Empty hands can grip a nearby tip; a held implement retains its own controls.
+  camera. Hands push chains aside and empty hands can grip a nearby tip, as each chain
+  allows; a held implement retains its own controls.
 - **Sending it.** The file goes once, reliably, to every player you meet, and again
   whenever it changes. It travels on its own ENet channel, so build commands never
   wait behind it. A receiver reads it on a worker thread, so a file that takes a
@@ -347,11 +350,16 @@ The fixtures keep up to 60 definition joints; endpoints are not additional drive
 joints. These medians do not exclude occasional late frames, whose counts and p99
 remain in the record.
 
-The wearer owns their avatar's simulation. Empty-hand grip within 12 cm selects the
-nearest unclaimed tip. A remote request identifies its hand and the target chain;
+The wearer owns their avatar's simulation. Each spring says whose hands touch it, the
+wearer's and others', for pushing and for gripping; a VRM without that says everyone.
+Every tracked hand, the wearer's and each visible player's as their poses place it, is a
+4 cm sphere that pushes the chains its owner may push, as the avatar's own colliders do,
+so a poke moves hair, ears or a tail; a hand farther than a chain's reach costs it
+nothing. Empty-hand grip within 12 cm selects the nearest unclaimed tip the hand may
+grip. A remote request identifies its hand and the target chain;
 the wearer checks the hand is within 20 cm to allow for pose smoothing and rejects
-an already-held chain. Held tips follow the hand within the chain's reach and yield
-to colliders; release restores free motion. Tracking loss, leaving, changing avatars,
+an already-held chain or one that hand may not grip. Held tips follow the hand within the chain's reach and yield
+to the avatar's colliders, not to hands; release restores free motion. Tracking loss, leaving, changing avatars,
 and releasing the grip clear the relevant holds. The hold consumes the hand before
 building tools act. A paused player releases their local grip.
 

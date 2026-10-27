@@ -1,5 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
+
 
 func _initialize() -> void:
 	_run.call_deferred()
@@ -47,6 +49,28 @@ func _run() -> void:
 	peer.pose(eyes, grasp, grasp)
 	session._hold_spring(42, 0, 0)
 	check(session._spring_holds.is_empty(), "distant remote grab is rejected")
+	await frames(60)
+	var resting := body.springs.tip(0)
+	grasp.origin = resting + Vector3(0.03, 0, 0)
+	peer.pose(eyes, grasp, grasp)
+	await frames(20)
+	check(body.springs.tip(0).distance_to(grasp.origin) >= Session.HAND_RADIUS - 0.002, "another player's hand pokes the wearer's chain aside")
+	body.springs.chains[0].collide = SpringDefinition.WEARER
+	await frames(60)
+	check(body.springs.tip(0).distance_to(resting) < 0.01, "a chain that only its wearer's hands push lets another's through")
+	body.springs.chains[0].grab = SpringDefinition.WEARER
+	grasp.origin = body.springs.tip(0)
+	peer.pose(eyes, grasp, grasp)
+	session._hold_spring(42, 0, 0)
+	check(session._spring_holds.is_empty(), "a chain only its wearer may grab refuses another's hand")
+	grasp.origin = eyes.origin + Vector3(4, 0, 0)
+	peer.pose(eyes, grasp, grasp)
+	body.springs.chains[0].collide = SpringDefinition.WEARER | SpringDefinition.OTHERS
+	body.springs.chains[0].grab = SpringDefinition.WEARER | SpringDefinition.OTHERS
+	hand.global_position = resting + Vector3(0, 0, 0.03)
+	await frames(20)
+	check(body.springs.tip(0).distance_to(hand.global_position) >= Session.HAND_RADIUS - 0.002, "the wearer's own hand pokes their chain aside")
+	hand.global_position = resting + Vector3(1, 0, 0)
 	session.avatars[0] = peer
 	session._pose(eyes, grasp, grasp, Vector3.FORWARD, PackedVector3Array([Vector3.ZERO]), {})
 	check(session._targets.has(0), "head and hands continue while a different avatar's springs are loading")

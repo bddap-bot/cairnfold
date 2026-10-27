@@ -6,6 +6,7 @@ extends Node
 ## you leave or they go. Each player's head and hands travel to the others as poses, and the VRM they
 ## wear from their avatar folder travels once to everyone they meet.
 
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const PORT := 7480
 ## A host takes the first free of PORTS ports from its first; beacons may name any in PORT_RANGE from PORT.
 const PORTS := 8
@@ -43,6 +44,8 @@ const RETRY := 30.0
 ## A thrown handful flies slower than this, in metres a second; a player's throws come at most this often, in seconds.
 const MAX_THROW := 20.0
 const THROW_EVERY := 0.1
+## A hand's reach into a spring chain: a sphere about a palm across, round where it grips.
+const HAND_RADIUS := 0.04
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
 ## Peers or nearby gardens came or went.
@@ -841,7 +844,7 @@ func _spring_input(delta: float) -> void:
 				if avatar.springs == null:
 					continue
 				for chain in avatar.springs.chains.size():
-					if (_spring_holds if id == mine else avatar.spring_holders).has(chain):
+					if (_spring_holds if id == mine else avatar.spring_holders).has(chain) or not avatar.springs.grabs(chain, SpringDefinition.WEARER if id == mine else SpringDefinition.OTHERS):
 						continue
 					var distance := avatar.springs.tip(chain).distance_to(hand.global_position)
 					if distance < nearest:
@@ -856,6 +859,14 @@ func _spring_input(delta: float) -> void:
 	if rig.body.springs == null:
 		return
 	rig.body.springs.targets.clear()
+	rig.body.springs.hands.clear()
+	for side in 2:
+		if rig.hands[side].tracked():
+			rig.body.springs.hands.append([rig.hands[side].global_position, HAND_RADIUS, SpringDefinition.WEARER])
+	for avatar: Avatar in avatars.values():
+		if avatar.visible:
+			for hand: Transform3D in avatar.hands:
+				rig.body.springs.hands.append([hand.origin, HAND_RADIUS, SpringDefinition.OTHERS])
 	for chain: int in _spring_holds.keys():
 		var holder: Array = _spring_holds[chain]
 		var hand: Variant = _spring_hand(holder[0], holder[1])
@@ -891,7 +902,7 @@ func _hold_spring(peer: int, side: int, chain: int) -> void:
 	for held in _spring_holds.keys():
 		if _spring_holds[held] == [peer, side]:
 			_spring_holds.erase(held)
-	if chain < 0 or rig.body.springs == null or chain >= rig.body.springs.chains.size() or _spring_holds.has(chain):
+	if chain < 0 or rig.body.springs == null or chain >= rig.body.springs.chains.size() or _spring_holds.has(chain) or not rig.body.springs.grabs(chain, SpringDefinition.WEARER if peer == multiplayer.get_unique_id() else SpringDefinition.OTHERS):
 		return
 	var hand: Variant = _spring_hand(peer, side)
 	if hand != null and hand.distance_to(rig.body.springs.tip(chain)) < 0.2:

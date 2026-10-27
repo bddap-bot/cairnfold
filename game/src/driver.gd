@@ -2943,11 +2943,13 @@ func _spring_ready(_s: Dictionary) -> void:
 	push_error("spring: peer never observed wearer grip and release")
 
 
-func _spring_view(_s: Dictionary) -> void:
+## Looks at chain "chain" (0 if unsaid) of the first other player's avatar from that avatar's left, level with the
+## middle of the chain and its head.
+func _spring_view(s: Dictionary) -> void:
 	await get_tree().create_timer(2.0).timeout
 	var avatar: Avatar = main.session.avatars.values()[0]
-	var head := avatar.eyes.origin
-	main.view(head + Vector3(-0.45, -0.05, -0.8), head + Vector3(-0.12, -0.1, 0), false)
+	var middle := (avatar.eyes.origin + avatar.springs.tip(s.get("chain", 0))) * 0.5
+	main.view(middle - avatar.eyes.basis.x * 0.8, middle, false)
 	await _frames(2)
 
 
@@ -3001,3 +3003,30 @@ func _expression(s: Dictionary) -> void:
 	Hand.injected_sticks.erase("right_hand")
 	hand.global_basis = from
 	await _frames(2)
+
+
+## Sweeps the empty right hand back and forth through the middle joint of chain "chain" (0 if unsaid) of the first
+## other player's avatar with "remote", else the wearer's own, along that avatar's facing and on its left, where
+## spring_view looks from, for "seconds", and fails unless the chain's tip moves.
+func _spring_poke(s: Dictionary) -> void:
+	var avatar: Avatar = main.session.avatars.values()[0] if s.get("remote", false) else main.rig.body
+	var chain: Dictionary = avatar.springs.chains[s.get("chain", 0)]
+	await _pick({"hand": "right", "tool": "none"})
+	var hand := main.rig.right
+	hand.held_still = true
+	var through: Vector3 = chain.joints[chain.joints.size() / 2].node.global_position
+	var rest := avatar.springs.tip(s.get("chain", 0))
+	var seconds: float = s.get("seconds", 4.0)
+	var elapsed := 0.0
+	var moved := 0.0
+	while elapsed < seconds:
+		hand.global_position = through - avatar.eyes.basis.x * 0.03 - avatar.eyes.basis.z * 0.15 * cos(elapsed / seconds * 2.0 * TAU)
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		moved = maxf(moved, rest.distance_to(avatar.springs.tip(s.get("chain", 0))))
+	hand.global_position = through - avatar.eyes.basis.x * 0.4
+	await get_tree().create_timer(1.0).timeout
+	print("spring: poke moved the tip %.4f m" % moved)
+	if moved < 0.02:
+		failed = true
+		push_error("spring: poke did not move the tip")

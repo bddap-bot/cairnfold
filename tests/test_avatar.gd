@@ -5,6 +5,7 @@ extends "res://../tests/support/suite.gd"
 ## Public sample avatars (tests/avatars/README.md).
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 
 func _initialize() -> void:
@@ -32,6 +33,7 @@ func _run() -> void:
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
 	_unity_package_converts()
+	_physbones_keep_whose_hands_touch_them()
 	for i in Avatar.BUILT_IN.size():
 		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
 	_expressions_follow_the_look()
@@ -317,6 +319,17 @@ func _writes_expressions(model: Node3D) -> void:
 	var happy: Array = expressions.preset.get("happy", {}).get("morphTargetBinds", [])
 	check(happy.size() == 1 and target.call(happy[0]) == shape and happy[0].weight == 0.5, "a preset binds its shape's morph target at its weight: %s" % [expressions])
 	check(expressions.custom.has("wink") and expressions.preset.size() == 1 and expressions.custom.size() == 1, "a name no preset has is custom, and an expression binding nothing is left out: %s" % [expressions])
+
+
+## A PhysBone's allowCollision and allowGrabbing, False, True or Other by its filter, become its springs' extras, which
+## read back as the bits the spring runtime checks.
+func _physbones_keep_whose_hands_touch_them() -> void:
+	var cases := [[{}, ["wearer", "others"]], [{"allowGrabbing": "0"}, []], [{"allowGrabbing": "1"}, ["wearer", "others"]], [{"allowGrabbing": "2", "grabFilter": {"allowSelf": "1", "allowOthers": "0"}}, ["wearer"]], [{"allowGrabbing": "2", "grabFilter": {"allowSelf": "0", "allowOthers": "1"}}, ["others"]]]
+	for c: Array in cases:
+		check(UnityAvatar._filter(c[0], "allowGrabbing", "grabFilter") == c[1], "a PhysBone's %s lets %s grab it" % [c[0], c[1]])
+	for bits in 4:
+		var spring := SpringDefinition.hands({"extras": {"collide": UnityAvatar._hands(bits), "grab": UnityAvatar._hands(3 - bits)}}, {})
+		check(spring.collide == bits and spring.grab == 3 - bits, "hand bits %d survive the file" % bits)
 
 
 ## The engine's own import of an FBX, unshaped.

@@ -1,0 +1,13 @@
+[
+  {"op": "view", "eye": [0, 1.65, 0], "at": [0, 1.65, -1]},
+  {"op": "label", "name": "-"},
+  {"op": "until", "worn": 1, "seconds": 300},
+  {"op": "spring_view", "chain": 0},
+  {"op": "label", "name": "interact/poke"},
+  {"op": "wait", "seconds": 4},
+  {"op": "spring_poke", "remote": true, "chain": 0, "seconds": 6},
+  {"op": "label", "name": "interact/grab"},
+  {"op": "spring_grab", "remote": true, "chain": 0, "move": [0, 0.2, 0], "seconds": 3},
+  {"op": "wait", "seconds": 2},
+  {"op": "quit"}
+]

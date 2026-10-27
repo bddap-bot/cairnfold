@@ -117,7 +117,7 @@ static func wearable(root: Node3D) -> void:
 			if j.has("extras"):
 				joint["extras"] = j.extras
 			joints.append(joint)
-		var spring := {"joints": joints}
+		var spring := {"joints": joints, "extras": {"collide": _hands(chain.collide), "grab": _hands(chain.grab)}}
 		if not (chain.colliders as Array).is_empty():
 			spring["colliderGroups"] = [groups.size()]
 			groups.append({"colliders": chain.colliders})
@@ -1766,6 +1766,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			return j
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
+		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
 		var groups := []
 		for c: Variant in Prefabs._list(d.get("colliders", d.get("m_Colliders"))):
 			if collider_index.has(_ref(c)):
@@ -1786,7 +1787,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				joints.append(limited.call(j, item[0]))
 			elif not joints.is_empty():
 				if joints.size() >= 2:
-					springs.append({"joints": joints, "colliders": groups})
+					springs.append({"joints": joints, "colliders": groups, "extras": touch})
 				continue
 			var kids: Array = kids_of.call(item[0])
 			if kids.is_empty():
@@ -1798,7 +1799,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 					j["node"] = _endpoint(sk, bone, offset)
 					joints.append(j)
 				if joints.size() >= 2:
-					springs.append({"joints": joints, "colliders": groups})
+					springs.append({"joints": joints, "colliders": groups, "extras": touch})
 				continue
 			for i in kids.size():
 				pending.append([kids[i], joints if i == 0 else []])
@@ -1812,7 +1813,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		elif not component.chains.is_empty():
 			component.reason = ""
 	report["spring coverage"] = JSON.stringify(coverage)
-	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components off when the avatar loads); parameters mapped approximately; limits kept without their curves; grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle]
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components off when the avatar loads); parameters mapped approximately, whose hands push and grab kept; limits kept without their curves; grab movement and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle]
 	if springs.is_empty():
 		return {}
 	var groups := []
@@ -1822,7 +1823,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if not (s.colliders as Array).is_empty():
 			g = groups.size()
 			groups.append({"colliders": s.colliders})
-		var spring := {"joints": s.joints}
+		var spring := {"joints": s.joints, "extras": s.extras}
 		if g >= 0:
 			spring["colliderGroups"] = [g]
 		out_springs.append(spring)
@@ -1883,6 +1884,24 @@ static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:
 	sk.set_bone_rest(b, Transform3D(Basis.IDENTITY, offset))
 	sk.reset_bone_pose(b)
 	return b
+
+
+## Whose hands a PhysBone lets touch it, as a spring's extras list them, from its allow field (False, True or Other)
+## and, for Other, that field's filter.
+static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
+	match str(d.get(allow, "1")):
+		"0":
+			return []
+		"2":
+			var f: Variant = d.get(filter, {})
+			var by: Dictionary = f if f is Dictionary else {}
+			return (["wearer"] if str(by.get("allowSelf", "1")) == "1" else []) + (["others"] if str(by.get("allowOthers", "1")) == "1" else [])
+	return ["wearer", "others"]
+
+
+## WEARER and OTHERS bits as a spring's extras list them.
+static func _hands(bits: int) -> Array:
+	return (["wearer"] if bits & SpringDefinition.WEARER else []) + (["others"] if bits & SpringDefinition.OTHERS else [])
 
 
 ## The kinds of component under the avatar this converter does not translate, with how many of each.
