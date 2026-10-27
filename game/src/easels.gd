@@ -82,6 +82,15 @@ static var _mats := {}
 
 var terrain: Terrain
 var quality: Quality
+## A whole easel, hidden, the next placement stands rather than make one in its frame; none while the garden holds
+## its MAX, so no more canvases are ever on the GPU than that.
+var _spare: Easel
+## The spare being made, the steps of it made, and the frame of its last step.
+var _making: Easel
+var _made := 0
+var _step_frame := 0
+## The eyes the spare is held before while it warms (`warm`).
+var _eye: Camera3D
 var easels := {}
 
 
@@ -89,31 +98,64 @@ func _init() -> void:
 	name = "Easels"
 
 
-## Builds the shared geometry, the paint pipeline and the easel's draw pipelines as the game loads (`Warmup`), by an
-## easel a centimetre tall held 1 m before the eyes while `quality` draws its primed rungs, then kept hidden for the
-## game's life: Godot compiles a pipeline only for what it draws, for each MSAA level and foveation map it draws into,
-## and lets it go with its last material, and each way a Quest 2 compiled them in the first placement's frame.
+## Builds the spare easel the first placement stands (`_spare`) as the game loads (`Warmup`), held a centimetre tall
+## 1 m before the eyes while `quality` draws its primed rungs: Godot compiles a pipeline only for what it draws, for
+## each MSAA level and foveation map it draws into, and a Quest 2 compiled the easel's in the first placement's frame.
+## A spare or a standing easel keeps its materials, and with them their pipelines, for the game's life.
 func warm() -> void:
-	var warm := Easel.new()
-	_build(warm)
-	var look := ShaderMaterial.new()
-	look.shader = preload("res://src/canvas.gdshader")
-	warm.canvas_mesh.material_override = look
-	var board := ShaderMaterial.new()
-	board.shader = preload("res://src/board.gdshader")
-	warm.board_mesh.material_override = board
-	Canvas.warm()
+	var spare := _easel()
+	add_child(spare)
+	_spare = spare
 	var eye := get_viewport().get_camera_3d()
-	if eye == null or RenderingServer.get_rendering_device() == null:
-		warm.visible = false
-		add_child(warm)
+	if eye != null and RenderingServer.get_rendering_device() != null:
+		_eye = eye
+		_follow()
+		if quality != null and quality.priming():
+			await quality.rungs_primed
+		await RenderingServer.frame_post_draw
+		_eye = null
+	if _spare == spare:
+		spare.visible = false
+
+
+## Holds the spare 1 m before `_eye`, a centimetre tall, while it warms: moved, not reparented, since a canvas leaving
+## the tree frees its paint.
+func _follow() -> void:
+	if _eye != null and _spare != null:
+		_spare.global_transform = _eye.global_transform.translated_local(Vector3.FORWARD).scaled_local(Vector3.ONE * 0.01)
+
+
+## Starts the next spare, made a step a frame (`_process`) while the garden has room for another easel: a whole easel
+## made in one frame, on top of the ~10 ms of script every frame runs, held a Quest 2 past its refresh.
+func _restock() -> void:
+	if _spare != null or _making != null or easels.size() >= MAX:
 		return
-	warm.transform = Transform3D(Basis.from_scale(Vector3.ONE * 0.01), Vector3.FORWARD)
-	eye.add_child(warm)
-	if quality != null and quality.priming():
-		await quality.rungs_primed
-	await RenderingServer.frame_post_draw
-	warm.visible = false
+	_making = Easel.new()
+	_making.visible = false
+	add_child(_making)
+	_made = 0
+	_step_frame = Engine.get_process_frames()
+
+
+func _process(_delta: float) -> void:
+	_follow()
+	if _making == null or Engine.get_process_frames() == _step_frame:
+		return
+	_step_frame = Engine.get_process_frames()
+	[_canvas, _board, _build][_made].call(_making)
+	_made += 1
+	if _made == 3:
+		_spare = _making
+		_making = null
+
+
+## A whole easel, made now.
+func _easel() -> Easel:
+	var e := Easel.new()
+	_canvas(e)
+	_board(e)
+	_build(e)
+	return e
 
 
 ## Where pigment `i` lies on `kit`'s palette, in its frame.
@@ -200,27 +242,20 @@ func find(id: int) -> Easel:
 
 func put(id: int, data: Dictionary) -> Easel:
 	take(id)
-	var e := Easel.new()
+	var e := _spare
+	_spare = null
+	if e == null:
+		e = _easel()
+		add_child(e)
 	e.id = id
 	e.name = "Easel%d" % id
 	e.add_to_group("easel")
 	e.transform = on_ground(data.at, data.yaw)
-	e.canvas = Canvas.new()
-	e.add_child(e.canvas)
-	e.board = Canvas.new(BOARD, preload("res://src/board.gdshader"))
-	e.board.name = "Board"
-	e.board.material.set_shader_parameter("board", PALETTE_SIZE)
-	e.board.material.set_shader_parameter("open", OPEN)
-	e.board.material.set_shader_parameter("thumb", Vector2(THUMB.x, THUMB.z))
-	e.board.material.set_shader_parameter("thumb_clear", THUMB_CLEAR)
-	e.add_child(e.board)
-	_build(e)
-	e.canvas_mesh.material_override = e.canvas.material
-	e.board_mesh.material_override = e.board.material
-	add_child(e)
+	e.visible = true
 	easels[id] = e
 	e.canvas.rebuild(data.strokes)
 	e.board.rebuild(data.palette)
+	_restock()
 	return e
 
 
@@ -231,6 +266,7 @@ func take(id: int) -> void:
 	easels.erase(id)
 	remove_child(e)
 	e.queue_free()
+	_restock()
 
 
 func clear() -> void:
@@ -428,12 +464,27 @@ static func lay_frame(stand: Node3D, board: Node3D) -> void:
 	_part(board, ToolModels.box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
 
 
+func _canvas(e: Easel) -> void:
+	e.canvas = Canvas.new()
+	e.add_child(e.canvas)
+
+
+func _board(e: Easel) -> void:
+	e.board = Canvas.new(BOARD, preload("res://src/board.gdshader"))
+	e.board.name = "Board"
+	e.board.material.set_shader_parameter("board", PALETTE_SIZE)
+	e.board.material.set_shader_parameter("open", OPEN)
+	e.board.material.set_shader_parameter("thumb", Vector2(THUMB.x, THUMB.z))
+	e.board.material.set_shader_parameter("thumb_clear", THUMB_CLEAR)
+	e.add_child(e.board)
+
+
 func _build(e: Easel) -> void:
 	var stand := Node3D.new()
 	stand.name = "stand"
 	e.add_child(stand)
 	lay_frame(stand, e)
-	e.canvas_mesh = _part(e, _quad("canvas", Brushwork.METRES), canvas_local(), null, false)
+	e.canvas_mesh = _part(e, _quad("canvas", Brushwork.METRES), canvas_local(), e.canvas.material, false)
 	var implements := Node3D.new()
 	implements.name = "implements"
 	e.add_child(implements)
@@ -475,7 +526,7 @@ func _build(e: Easel) -> void:
 		implements.add_child(palette)
 		e.palettes[kit] = palette
 	e.wash = e.palettes[Brushwork.Medium.WATER].get_meta("mix")
-	e.board_mesh = _part(e.palettes[Brushwork.Medium.OIL], _quad("oil_board_paint", Canvas.metres_of(BOARD)), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), null, false)
+	e.board_mesh = _part(e.palettes[Brushwork.Medium.OIL], _quad("oil_board_paint", Canvas.metres_of(BOARD)), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), e.board.material, false)
 
 
 static func _quad(key: String, size: Vector2) -> QuadMesh:

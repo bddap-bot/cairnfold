@@ -130,13 +130,6 @@ static func metres_of(texels: Vector2i) -> Vector2:
 	return Vector2(texels) * Brushwork.METRES / Vector2(Brushwork.SIZE)
 
 
-## Compiles the paint pipeline ahead of the first canvas, which would otherwise wait on it.
-static func warm() -> void:
-	var rd := RenderingServer.get_rendering_device()
-	if rd != null:
-		RenderingServer.call_on_render_thread(_compile.bind(rd))
-
-
 static func _compile(rd: RenderingDevice) -> void:
 	if not _shader.is_valid():
 		var file: RDShaderFile = preload("res://src/paint.glsl")
