@@ -2757,9 +2757,10 @@ from them, their commands, the stroke, the colour and style tools on them, runs,
   its build's chunks and costs no draw call of its own; the budget charges a part a piece as wall stone
   (`Budget.PIECE_M2`, 0.1 m², as a path's treads and crops are).
 - **In the hand.** Every piece is a fitting of its build: a grip carries it along the build and out from it or back,
-  0.05 to 3 m out from a wall's face or up to 3 m past a path's edge, and turns it with the hand, by 5 cm and 5° steps,
-  the build laid again only as it moves on by a step. Another hand's grip on a held piece pulls a copy off it, carried
-  by that hand. Let go, each is one reshape of the build's `clutter`, one undo step; a press of the decorations tool,
+  0.05 to 3 m out from a wall's face or up to 3 m past a path's edge, and turns it with the hand, by 5 cm and 5° steps.
+  The build is laid once without the pieces hands hold, which stand apart as their own nodes, so a step moves only the
+  piece, as a held decoration's does; let go, the build is laid once more with it, after the garden applied the edit.
+  Another hand's grip on a held piece pulls a copy off it, carried by that hand. Let go, each is one reshape of the build's `clutter`, one undo step; a press of the decorations tool,
   or the eraser, takes one away. A build holds at most 64.
 - **Birds.** A bird perches on a flag's finial, a lantern's hood and in a nest, a house's under its eaves too, besides a
   wall's top.
@@ -2769,8 +2770,15 @@ copy pulled off a pumpkin or a box of flowers, a piece by the path taken away, a
 `tests/test_clutter.gd` covers where each build gathers, the schema, the budget, the layout, the targets, each edit
 with undo and redo, a house put back keeping its things, the doorway, perches, the demo, and the stress scene's
 `clutter/*` phases: two houses, a wall and a path with what they gathered, every house and wall then given a piece
-every 0.7 m round its foot until the budget or its foot is full. `demo/clutter-cost.json` prices the same garden on a
+every 0.7 m round its foot until the budget or its foot is full, then `clutter/carry`, three 2 s carries and turns of
+a house's pieces, and `clutter/copy`, three copies pulled off them. `demo/clutter-cost.json` prices the same garden on a
 Quest 2 bare of clutter and cluttered.
+
+On the Frame, governed, the stress scene's clutter section played alone (its `budget` step, then from the `sun` step
+before the village; `perf/frame/stress-clutter/`): when each step of the hand laid the house again, b4d160c made 4 late
+frames carrying and 3 copying; held pieces standing apart made none carrying in three runs and one copying in one of
+them, a 28 ms frame with 11.7 ms of scripts before it, as much as nothing held costs (see "Single late frames" in the
+epic's checklist).
 
 ## Raising a house
 
