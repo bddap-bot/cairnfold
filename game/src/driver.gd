@@ -2515,7 +2515,9 @@ func _held_cost(s: Dictionary) -> void:
 			if s.get("without_cup", false) and item.model is Conure:
 				for child in item.model.get_children():
 					(child as Node3D).hide()
-		await get_tree().create_timer(0.1).timeout
+		# Every item's models are built in one frame, which no player does, and the runtime runs at half rate for a
+		# moment after it.
+		await get_tree().create_timer(1.0).timeout
 		if s.has("capture"):
 			await main.capture(s.capture)
 		var name := HeldItem.label(state) + ("-without-cup" if s.get("without_cup", false) else "")
@@ -2523,9 +2525,9 @@ func _held_cost(s: Dictionary) -> void:
 		print("driver: ", label)
 		await _label(label)
 		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
-	var end := {"op": "label", "name": "-"}
-	print("driver: ", end)
-	await _label(end)
+		var end := {"op": "label", "name": "-"}
+		print("driver: ", end)
+		await _label(end)
 	for item in items:
 		item.queue_free()
 
