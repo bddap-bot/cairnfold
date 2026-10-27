@@ -5728,3 +5728,15 @@ only once sent off it. Peers see it standing on your avatar's shoulder; the avat
 the same way (see docs/multiplayer.md). It adds no draw: the bird was in the garden already, and
 a peer's shoulder bird is one held conure, the cost measured above.
 `demo/conure-shoulder.json` feeds one, lets it go and captures the view ahead and turned to it.
+
+
+### Interior probe cost
+
+The shared room bounds and opening spill keep the existing GPU lighting volumes and samples.
+A matched Quest 2 pair on the bounded dense-building tour holds all 21 phases below the
+11.11 ms GPU line: the median phase change is 0.00 ms. The largest increase is
+plaster-village/aerial, 9.61 to 10.62 ms; timber-village/interior is 4.64 to 4.61 ms.
+These are single-pair measurements, not a claim of zero cost. Total late frames across
+labelled phases are 90 before and 51 after; the maximum reported phase p99 is 1045.51 ms
+before and 94.16 ms after. Transient stalls remain, and this pair does not establish
+their cause. The records are `perf/quest-2/interior-density/before.json` and `after.json`.
