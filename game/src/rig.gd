@@ -2,9 +2,9 @@ class_name Rig
 extends XROrigin3D
 
 ## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
-## Either stick pushed forward aims from its own hand whatever it holds, so no choice of tools or hands leaves the
-## player unable to move; how far forward it is pushed sets how far along the aim the target lies. Either stick
-## flicked sideways snap-turns, and flicked back turns the player round.
+## The left stick pushed forward aims from the left hand whatever it holds, so no choice of tools leaves the player
+## unable to move; how far forward it is pushed sets how far along the aim the target lies. Flicked sideways it
+## snap-turns, and flicked back it turns the player round.
 
 ## The eyes' near clip: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
 ## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
@@ -81,9 +81,8 @@ var floor_under := func(p: Vector3) -> float: return terrain.shown_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
 ## {point, side}, `side` whether it struck a side; or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
-## Each hand's stick flicks, in the order of `hands`.
-var _sticks: Array[Buttons] = []
-var _reach_switch: Array[Buttons] = []
+## The left stick's flicks and click.
+var _stick: Buttons
 var _fade_t := -1.0
 ## The view is held black for a garden swap until `respawn` (`blackout`).
 var _covered := false
@@ -120,9 +119,7 @@ func _init(ground: Terrain) -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-	for h in hands:
-		_sticks.append(Buttons.new(h).watch(["teleport", "turn_left", "turn_right", "turn_round"]))
-		_reach_switch.append(Buttons.new(h).watch(["reach"]))
+	_stick = Buttons.new(left).watch(["teleport", "turn_left", "turn_right", "turn_round", "reach"])
 	_build_markers()
 
 
@@ -196,29 +193,25 @@ func _process(delta: float) -> void:
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
 	_switch_reach()
-	for b in _sticks:
-		b.latch()
+	_stick.latch()
 	_fade_step(delta)
 	_underfoot.follow(head.global_position, global_position.y, _floor_y)
 
 
-## Both sticks clicked in together cycle every hand's reach (`Reach.mode`): a debug switch for comparing them in one
-## session, gone once a playtest keeps one.
+## The left stick clicked in while centred cycles every hand's reach (`Reach.mode`): a debug switch for comparing them
+## in one session, gone once a playtest keeps one. A thumb pressing hard into a push or a flick clicks it by accident.
 func _switch_reach() -> void:
-	if _reach_switch.all(func(b: Buttons) -> bool: return b.held("reach")) and _reach_switch.any(func(b: Buttons) -> bool: return b.pressed("reach")):
+	if _stick.pressed("reach") and aim_hand == null and left.stick().length() < DEADZONE:
 		Reach.mode = (Reach.mode + 1) % Reach.Mode.size() as Reach.Mode
 		print("reach: %s" % Reach.Mode.keys()[Reach.mode])
 		Cues.play_in(Cues.Act.WHEEL_PICK, head.global_position, hands)
-	for b in _reach_switch:
-		b.latch()
 
 
 func _locomotion_input(delta: float) -> void:
 	if _covered:
 		return
-	for b in _sticks:
-		if aim_hand == null and b.held("teleport"):
-			aim_hand = b.hand
+	if aim_hand == null and _stick.held("teleport"):
+		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
 		end_aim()
 	if aim_hand != null:
@@ -235,10 +228,9 @@ func _locomotion_input(delta: float) -> void:
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
 		return
-	for b in _sticks:
-		for turn: String in TURNS:
-			if b.pressed(turn):
-				snap_turn(TURNS[turn], b.hand)
+	for turn: String in TURNS:
+		if _stick.pressed(turn):
+			snap_turn(TURNS[turn], left)
 
 
 func end_aim() -> void:

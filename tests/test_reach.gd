@@ -94,14 +94,21 @@ func _run() -> void:
 	var now: Vector3 = WallTool.house_of(main.world.state.walls[house.id]).center
 	check(main.tool.held == null and rig.head.global_position.distance_to(now) < near + 0.5, "let go, the garden has it where it was reeled to")
 
-	Buttons.injected["left_hand/primary_click"] = true
-	await _pose(hand, shoulder, 0.3, 0.0)
-	check(Reach.mode == Reach.Mode.GOGO, "one stick clicked in switches nothing")
 	Buttons.injected["right_hand/primary_click"] = true
 	await _pose(hand, shoulder, 0.3, 0.0)
-	Buttons.injected.erase("left_hand/primary_click")
 	Buttons.injected.erase("right_hand/primary_click")
-	check(Reach.mode == Reach.Mode.AIM, "both sticks clicked in together switch to the pointing grab")
+	check(Reach.mode == Reach.Mode.GOGO, "the right stick clicked in switches nothing")
+	Hand.injected_sticks["left_hand"] = Vector2(1, 0)
+	Buttons.injected["left_hand/primary_click"] = true
+	await _pose(hand, shoulder, 0.3, 0.0)
+	Buttons.injected.erase("left_hand/primary_click")
+	Hand.injected_sticks.erase("left_hand")
+	await _pose(hand, shoulder, 0.3, 0.0)
+	check(Reach.mode == Reach.Mode.GOGO, "the left stick clicked in mid-flick switches nothing")
+	Buttons.injected["left_hand/primary_click"] = true
+	await _pose(hand, shoulder, 0.3, 0.0)
+	Buttons.injected.erase("left_hand/primary_click")
+	check(Reach.mode == Reach.Mode.AIM, "the left stick clicked in while centred switches to the pointing grab")
 	await _pose(hand, shoulder, 0.6, 0.0)
 	await _pose(hand, shoulder, 0.6, 0.0)
 	check(hand.position.distance_to(hand.controller.origin) < 0.001, "the pointing grab's hand stays at the controller")

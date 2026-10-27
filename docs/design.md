@@ -3072,9 +3072,11 @@ subtree means letting go and opening the wheel again.
 
 Directive (verbatim): "I think making teleport its own item was- was a mistake for me. And I think we can get rid of it, and keep the- the old teleport"
 
-Teleport is not a tool. Either stick pushed forward aims from its own hand whatever it holds, so no
-choice of tools leaves you unable to move, and aiming at the ground is how you come back down. Both hands move
-alike, with no option: a left-handed player, or one with a single controller, teleports and turns with one stick.
+Teleport is not a tool. The left stick pushed forward aims from the left hand whatever it holds, so no
+choice of tools leaves you unable to move, and aiming at the ground is how you come back down. The same stick turns,
+so one thumb moves the body and the right stick stays free for avatar menus.
+
+Directive (verbatim): "Free up our right joystick in preparation then by putting our snap turning onto the left joystick."
 
 Directive (verbatim): "When I'm teleporting... I'd like to be able to... hold forward on the teleport button... and then... lean my stick back just a little bit... and I'll teleport... less far when I do that. Teleport... For example, into the sky. slowly bring the stick back"
 
@@ -3223,10 +3225,10 @@ calibrated to each player's own arm so a child with short arms reaches as far as
   camera or the picture book stays where the controller is, since those work by touch at arm's length, as does a
   hand opening the wheel. Tracked hands reach as controllers do: the mapping reads the hand's pose alone.
 
-Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking both sticks in
-together cycles every hand between Go-Go reach and the pointing grab it replaces (`Reach.mode`), so one session
-compares them. No action uses either stick's click, and both at once is not pressed by accident; nothing shows the
-switch to a player. The picture book's pages still teach the pointing grab, and the tests that grip by pointing
+Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking the left stick
+in while it is centred cycles every hand between Go-Go reach and the pointing grab it replaces (`Reach.mode`), so one
+session compares them. No other action uses a stick's click, and a click while the stick aims a teleport or flicks a
+turn, as a thumb pressing hard makes by accident, switches nothing; nothing shows the switch to a player. The picture book's pages still teach the pointing grab, and the tests that grip by pointing
 check it. Once one is kept, the switch and the other go. `tests/test_reach.gd` checks the mapping, the
 calibration of a short and a long arm, and a far house taken, moved and reeled in through the grip;
 `demo/reach.json` films it.
@@ -3236,12 +3238,12 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad left), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Either stick forward, with any tool: aimed straight from that hand, it lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
+| Teleport onto the ground | Left stick forward, with any tool: aimed straight from the left hand, it lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, marked by a ring there alone: the headset's depth places it, so nothing marks the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
-| Turn | Either stick flicked left or right, while it aims no teleport: 30° snap turn |
-| Turn round | Either stick flicked back: 180° snap turn, for seated play |
+| Turn | Left stick flicked left or right, while it aims no teleport: 30° snap turn |
+| Turn round | Left stick flicked back: 180° snap turn, for seated play |
 | Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a floor, at a tree, a boulder or painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Move a wall or fence | Grip pointing at a wall or fence, whatever the hand holds: it moves along the ground with the hand and turns about its middle as the hand turns, the gain growing with distance so far walls are easy to carry; let go to set it there, one undo step |
@@ -3300,7 +3302,7 @@ controllers is played by hand with nothing more. No tool and no action knows whi
 | Fist | The grip | Grabs what the hand points at: the ground, a build, the sky, a brush at the easel |
 | Thumb to middle | The upper face button | Opens the wheel; held, sweep the hand onto a tool and let go |
 | Thumb to ring | The lower face button | Undo on the left hand, redo on the right |
-| Thumb to little | The stick, pushed by the hand | Held, the hand moved from where it pinched pushes it: forward 10 cm is the stick full forward, so a hand pinched and pushed out aims a teleport, eased back toward where it pinched brings the target back along the ray, and letting go goes; a swing sideways snap-turns that way, and one back turns round |
+| Thumb to little | The stick, pushed by the hand (the left; the right does nothing) | Held, the hand moved from where it pinched pushes it: forward 10 cm is the stick full forward, so a hand pinched and pushed out aims a teleport, eased back toward where it pinched brings the target back along the ray, and letting go goes; a swing sideways snap-turns that way, and one back turns round |
 
 A pinch closes when the thumb tip comes within a fifth of the hand's length (wrist to the middle knuckle) of a
 fingertip and opens past two fifths, so it neither flickers nor sticks; only one is held at a time, the first to
@@ -3461,14 +3463,15 @@ profiles are bound exactly as the Touch is, so neither runtime falls back to it.
 
 One table, `Controls.ACTIONS`, says what each hand's inputs do, and both hands are alike: trigger for the
 tool, grip to grab, upper face button held for the wheel. The lower face buttons walk the history: left X
-undoes, right A redoes. The sticks move the body alike: either forward teleports from its hand, either left or
-right turns, either back turns round; a stick flick reads as a button (`Hand.FLICKS`). `Controls.DEVICES` lists what each shipped device's controls arrive
+undoes, right A redoes. The left stick moves the body: forward teleports from the left hand, left or right turns,
+back turns round; a stick flick reads as a button (`Hand.FLICKS`). No action reads the right stick, kept for avatar
+menus. `Controls.DEVICES` lists what each shipped device's controls arrive
 as, so each device's bindings derive from the one table; `tests/test_bindings.gd` holds every control of
 every device and checks it does its action alone, that every action reaches a control on every hand it
 names, that no wheel opens on a stick click, and that each device's profile binds every control. The Frame's
 bumpers, Menu and View, the
-Quest's left menu button and either stick's click alone do nothing; both clicks together are the reach debug switch
-(see "Reaching far").
+Quest's left menu button and the right stick, flicked or clicked, do nothing; the left stick's click is the reach
+debug switch (see "Reaching far").
 The Frame binds bumpers and Menu to their own inputs so they cannot open a wheel accidentally;
 the system buttons remain reserved for the runtime. Changing how a
 thing looks is a tool, not a button: every style change lives in the style tool. `tests/test_controls.gd`

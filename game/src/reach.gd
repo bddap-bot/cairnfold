@@ -5,7 +5,7 @@ extends RefCounted
 ## player's own arm as they stretch it (see "Reaching far").
 
 enum Mode { GOGO, AIM }
-## Every hand's reach, cycled by both sticks clicked in together until a headset playtest keeps one.
+## Every hand's reach, cycled by the left stick clicked in while centred until a headset playtest keeps one.
 static var mode := Mode.GOGO
 
 ## The share of the arm the hand follows one to one.

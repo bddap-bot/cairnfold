@@ -67,10 +67,10 @@ also holds the people: avatars to wear, and nearby gardens to join.
   roofs and fittings.
 - A wall drawn round into a loop stays a wall.
 - Holding the house or the tower: trigger puts one up where you point; the grip moves it.
-- Either stick forward: aim a teleport from that hand, whatever it holds;
+- Left stick forward: aim a teleport from the left hand, whatever it holds;
   release to go, into the sky to float. Ease the stick back to land nearer
   along the aim.
-- Either stick left/right: snap turn; back: turn round.
+- Left stick left/right: snap turn; back: turn round. The right stick does nothing.
 - Left X (the Frame's D-pad down): undo. Right A: redo. One history across every
   tool; with others, each player undoes only their own steps.
 - Animals come on their own, drawn by what you make: ducks and fish to a pond, butterflies

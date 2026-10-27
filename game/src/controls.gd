@@ -2,18 +2,18 @@ class_name Controls
 extends RefCounted
 
 ## The one controls table: each action as the input each hand reads for it (a stick direction is a flick, see
-## `Hand.FLICKS`). Code reads actions through `Buttons`, never inputs.
+## `Hand.FLICKS`). Code reads actions through `Buttons`, never inputs. The right stick is kept free for avatar menus.
 const ACTIONS := {
 	"tool": {"left_hand": "trigger_click", "right_hand": "trigger_click"},
 	"grab": {"left_hand": "grip_click", "right_hand": "grip_click"},
 	"wheel": {"left_hand": "by_button", "right_hand": "by_button"},
 	"undo": {"left_hand": "ax_button"},
 	"redo": {"right_hand": "ax_button"},
-	"teleport": {"left_hand": "primary_up", "right_hand": "primary_up"},
-	"turn_left": {"left_hand": "primary_left", "right_hand": "primary_left"},
-	"turn_right": {"left_hand": "primary_right", "right_hand": "primary_right"},
-	"turn_round": {"left_hand": "primary_down", "right_hand": "primary_down"},
-	"reach": {"left_hand": "primary_click", "right_hand": "primary_click"},
+	"teleport": {"left_hand": "primary_up"},
+	"turn_left": {"left_hand": "primary_left"},
+	"turn_right": {"left_hand": "primary_right"},
+	"turn_round": {"left_hand": "primary_down"},
+	"reach": {"left_hand": "primary_click"},
 }
 
 ## A tracked hand as the controller it stands in for: each gesture (`HandShape`) as the input it presses. The little

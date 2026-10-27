@@ -22,6 +22,7 @@ func _run() -> void:
 	_a_tool_is_picked_without_a_stick_click()
 	_each_device_profile_binds_its_controls()
 	_only_one_control_opens_each_frame_wheel()
+	_the_right_stick_is_free()
 	_every_touch_controller_binds_alike()
 	await _unused_frame_controls_do_nothing()
 	await _each_control_does_its_action_alone()
@@ -81,6 +82,13 @@ func _every_touch_controller_binds_alike() -> void:
 	var touch: Array = bindings[PROFILES.quest]
 	for path in TOUCH_LATER:
 		check(bindings.get(path) == touch, "%s binds as the Touch controller: %d of %d bindings" % [path, bindings.get(path, []).size(), touch.size()])
+
+
+## Kept for avatar menus: no action reads the right stick, its flicks or its click.
+func _the_right_stick_is_free() -> void:
+	for action in Controls.ACTIONS:
+		var input: String = Controls.ACTIONS[action].get("right_hand", "")
+		check(not input.begins_with("primary"), "%s is bound to the right stick's %s" % [action, input])
 
 
 func _only_one_control_opens_each_frame_wheel() -> void:
@@ -144,15 +152,15 @@ func _each_control_does_its_action_alone() -> void:
 ## A flick one way stays that way as the thumb drifts, until the stick comes back.
 func _a_flick_is_one_way() -> void:
 	var hands := _hands()
-	var right: Hand = hands.right_hand
-	var b := Buttons.new(right).watch(["turn_right"])
+	var left: Hand = hands.left_hand
+	var b := Buttons.new(left).watch(["turn_right"])
 	var turns := 0
 	var seen: Array[String] = []
 	for at in [Vector2(1, 0), Vector2(0.6, -0.5), Vector2(0.3, -0.75), Vector2(0, -0.9), Vector2.ZERO, Vector2(0.9, 0.2), Vector2.ZERO]:
-		Hand.injected_sticks["right_hand"] = at
+		Hand.injected_sticks["left_hand"] = at
 		await process_frame
 		turns += int(b.pressed("turn_right"))
-		seen.append(right.flick)
+		seen.append(left.flick)
 		b.latch()
 	Hand.injected_sticks.clear()
 	check(turns == 2 and seen == ["primary_right", "primary_right", "primary_right", "primary_right", "", "primary_right", ""], "a flick right drifting down stays right until the stick comes back: %d turns, %s" % [turns, seen])
