@@ -431,6 +431,9 @@ static func path(d: Dictionary) -> Dictionary:
 const DECORATION_PIECE_US := 35.7
 const DECORATION_SOLID_US := 2.6
 
+## Wall lays on worker threads at once; the rest wait their turn (`Wall._build_live`).
+const WALL_LAYS := 2
+
 
 static func decoration(d: Dictionary) -> Dictionary:
 	var layout := DecorationLayout.new()

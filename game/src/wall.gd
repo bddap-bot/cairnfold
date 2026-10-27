@@ -82,6 +82,8 @@ var _ivy_baked := {}
 var _ivy_stale := false
 var _build_task := -1
 var _build_stale := false
+## Waiting for one of `Budget.WALL_LAYS` lay slots.
+var _queued := false
 ## A lay: its inputs (`job`, `roof`, the ground's `revision`) and what the worker laid from them (`out`).
 var _build := {}
 ## The lay now shown; a settling rebuild from the same inputs takes it rather than laying the stones again.
@@ -250,10 +252,13 @@ func _cover() -> void:
 
 
 func _ready() -> void:
-	set_process(finished or _build_task >= 0 or _recolour_task >= 0)
+	set_process(finished or laying() or _recolour_task >= 0)
 
 
 func _process(delta: float) -> void:
+	if _queued and _slot_free():
+		_queued = false
+		_lay()
 	if _build_task >= 0 and WorkerThreadPool.is_task_completed(_build_task):
 		_land()
 	if _recolour_task >= 0 and WorkerThreadPool.is_task_completed(_recolour_task):
@@ -275,7 +280,7 @@ func _process(delta: float) -> void:
 	if _ivy != null:
 		var mm := _ivy.multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
-	if _build_task < 0 and _recolour_task < 0 and not _ivy_growing() and not _ivy_handoff:
+	if not laying() and _recolour_task < 0 and not _ivy_growing() and not _ivy_handoff:
 		set_process(false)
 		if _settled:
 			_sync()
@@ -283,7 +288,10 @@ func _process(delta: float) -> void:
 
 ## Waits for the stones being laid and coloured and takes them, for a caller that reads them at once.
 func lay_now() -> void:
-	while _build_task >= 0 or _recolour_task >= 0:
+	while laying() or _recolour_task >= 0:
+		if _queued:
+			_queued = false
+			_lay()
 		if _build_task >= 0:
 			_land()
 		else:
@@ -291,13 +299,14 @@ func lay_now() -> void:
 
 
 func _land() -> void:
+	_forget(_build_task)
 	WorkerThreadPool.wait_for_task_completion(_build_task)
 	_build_task = -1
 	_litter.append(layout.stones)
 	_shown = _build
 	if _build_stale:
 		_build_live()
-	if _settle_on_land and _build_task < 0:
+	if _settle_on_land and not laying():
 		_settle()
 	else:
 		_put_shown()
@@ -337,6 +346,7 @@ static func reap(all := false) -> void:
 	var left := PackedInt32Array()
 	for t in _orphans:
 		if all or WorkerThreadPool.is_task_completed(t):
+			_forget(t)
 			WorkerThreadPool.wait_for_task_completion(t)
 		else:
 			left.append(t)
@@ -396,6 +406,7 @@ func rebuild(settle := true) -> void:
 	if not settle:
 		_settled = false
 	if settle and _build_task < 0 and _laid_from(_shown):
+		_queued = false
 		_settle()
 	else:
 		_build_live()
@@ -406,7 +417,7 @@ func rebuild(settle := true) -> void:
 func stand_in(preview: Wall) -> void:
 	preview.set_process(false)
 	_stand_in = preview
-	if preview._build_task < 0:
+	if not preview.laying():
 		_shown = preview._shown
 
 
@@ -446,7 +457,12 @@ static func _drop(litter: Array[Array]) -> void:
 
 ## Whether a preview is still being laid on a worker thread.
 func laying() -> bool:
-	return _build_task >= 0
+	return _build_task >= 0 or _queued
+
+
+## Lays on worker threads. They run at high priority so pipeline compiles do not hold them back; a sculpt relays
+## every wall on the ground at once, and unbounded they take every worker while the frame waits on the pool.
+static var _lays := PackedInt32Array()
 
 
 func _build_live() -> void:
@@ -456,6 +472,32 @@ func _build_live() -> void:
 	if _build_task >= 0:
 		_build_stale = not _laid_from(_build)
 		return
+	if _queued:
+		return
+	if not _slot_free():
+		_queued = true
+		return
+	_lay()
+
+
+static func _slot_free() -> bool:
+	var running := PackedInt32Array()
+	for t in _lays:
+		if not WorkerThreadPool.is_task_completed(t):
+			running.append(t)
+	_lays = running
+	return _lays.size() < Budget.WALL_LAYS
+
+
+## A waited task's id is gone from the pool, so it leaves `_lays` first.
+static func _forget(task: int) -> void:
+	var at := _lays.find(task)
+	if at >= 0:
+		_lays.remove_at(at)
+
+
+func _lay() -> void:
+	set_process(true)
 	_build_stale = false
 	var job := layout.inputs()
 	var roof_job := roof.inputs() if roof != null else null
@@ -474,6 +516,7 @@ func _build_live() -> void:
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks, colours)
 		out.merge(Wall.pack(job, ks, colours)), true)
+	_lays.append(_build_task)
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
