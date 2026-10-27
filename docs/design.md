@@ -3115,15 +3115,13 @@ it. The split, by how each aims:
 | Seeds, easel, picture book | The dish, the brush or palette, the book | Unchanged: they work by reach and touch, not by aim |
 | Nothing | The controller | Sight at its front, only while it grabs the sky |
 
-Two sights, both kept until a headset playtest culls one: the left hand's is a glowing bead at the tip, the right
-hand's a ring standing across the aim to look down the tool through, so one session compares them side by side. A
-per-build option would branch on which build runs, which the game never does (`tests/test_quality.gd`). Each is one
-small unshaded mesh per hand in place of the old beam, with the same mark at the target, so the frame costs what the
-ray did: one draw each, under 200 triangles.
+The sight is a ring standing across the aim at the tool's tip, to look down the tool through, the same on both
+hands. It is one small unshaded mesh per hand in place of the old beam, with the same mark at the target, so the
+frame costs what the ray did: one draw each, under 200 triangles.
 
 Other players see the held tool where the hand was: their avatar's hand folds away while it holds anything but a bird
 (`HeldItem.replaces_hand`), as the player's own body does in a selfie. `demo/held-aim.json` renders the held tools,
-both sights and the teleport halo from the eyes.
+the sight on each hand and the teleport halo from the eyes.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
 the wheel show, so they cannot disagree. The hands start as walls in the right and the picture book in the left (see "Picture book").

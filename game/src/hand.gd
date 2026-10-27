@@ -150,8 +150,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 		body.add_child(m)
 		_models.append(m)
 	_build_wheel()
-	# Both sights stay until a headset playtest culls one: the right hand's is the ring, the left's the bead.
-	_sight = Sight.new(tracker_name == "right_hand")
+	_sight = Sight.new()
 	body.add_child(_sight)
 	var dot := SphereMesh.new()
 	dot.radius = 0.05
