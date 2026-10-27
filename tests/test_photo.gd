@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
 	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
+	_a_photo_steps_its_msaa_down_only_where_memory_is_short()
 	_a_photo_is_of_a_canvas_filling_its_frame_face_on()
 	await _holding_the_trigger_records_until_it_is_let_go()
 	finish()
@@ -225,6 +226,14 @@ func _a_photo_is_of_a_canvas_filling_its_frame_face_on() -> void:
 	check(absf(aside - close * 0.5) < 1e-3, "half out of the frame, half of it counts: %.3f" % aside)
 	var through := PhotoTool.coverage(lens, _canvas_at(Vector3(0.4, 1.3, 5), Vector3(-1, 0, 0.3).normalized()))
 	check(through > 0.0 and through < 1.0, "half behind the lens, what lies ahead of it counts: %.3f" % through)
+
+
+func _a_photo_steps_its_msaa_down_only_where_memory_is_short() -> void:
+	const MB := 1 << 20
+	check(PhotoTool.photo_msaa(1043 * MB) == Viewport.MSAA_8X and PhotoTool.photo_msaa(16384 * MB) == Viewport.MSAA_8X, "with a gigabyte free a photo draws at 8x")
+	check(PhotoTool.photo_msaa(546 * MB) == Viewport.MSAA_4X, "with 546 MB free, where 8x stalled a Quest 2, it draws at 4x")
+	check(PhotoTool.photo_msaa(0) == Viewport.MSAA_DISABLED, "with nothing free, without MSAA")
+	check(PhotoTool.settings(Viewport.MSAA_4X).msaa == 4 and PhotoTool.settings().msaa == 8, "its PNG records the MSAA it was drawn with")
 
 
 func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:

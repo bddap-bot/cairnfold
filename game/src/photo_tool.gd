@@ -11,9 +11,10 @@ extends Node3D
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
-## shadows reach the garden's edge in four splits), at PHOTO_SIZE with 8x MSAA and the foliage's finest blobs. Its sun
+## shadows reach the garden's edge in four splits), at PHOTO_SIZE with PHOTO_MSAA and the foliage's finest blobs. Its sun
 ## draws into the eyes' shadow atlas: the atlas is the engine's one for every view, and growing it for a shot allocates
-## a new one each time, which stalled a Quest 2's frame by 90-120 ms. A view capture (Main.capture) is drawn as the eyes see it.
+## a new one each time, which stalled a Quest 2's frame by 90-120 ms. Its MSAA steps down only where its buffers would
+## not fit the memory available (photo_msaa). A view capture (Main.capture) is drawn as the eyes see it.
 
 signal recorded(path: String)
 
@@ -23,6 +24,13 @@ const PREVIEW_SIZE := Vector2i(256, 192)
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
+## Bytes a photo's buffers keep for each sample of each pixel, colour and depth: Godot keeps every MSAA sample in
+## memory, so at 8x the photo's view took 515 MB more on a Quest 2 (docs/design.md, "A photo's memory").
+const SAMPLE_BYTES := 8
+## The most of the memory the system reports available that a photo's buffers may take. A photo taking 515 of 546 MB
+## stalled the game 1.1 s while the system killed apps to free it, and the headset's shell drew in its place; taking
+## 515 of 1043 MB, it drew on.
+const PHOTO_MEMORY_SHARE := 0.5
 const VIEW_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
@@ -60,6 +68,8 @@ var _turn := 0
 ## Per hand, how much longer its screen holds the shot it took.
 var _shots := {}
 var _busy := false
+## The MSAA the photo now drawn is drawn with, as photo_msaa chose it.
+var _photo_msaa := PHOTO_MSAA
 ## Photo paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
 var _pressed_for: Array[float] = []
@@ -122,13 +132,14 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 ## buffers, the size of several headset views, stalls a Quest 2's frame for about 100 ms, so shots do not repeat it.
 func photo_viewport() -> SubViewport:
 	if _photo == null:
-		_photo = _photo_view(PHOTO_SIZE)
+		_photo_msaa = photo_msaa(OS.get_memory_info().available)
+		_photo = _photo_view(PHOTO_SIZE, _photo_msaa)
 	return _photo
 
 
 ## A view drawn as a photo is, `size` large: at a small size it builds the photo's pipelines cheaply.
-func _photo_view(size: Vector2i) -> SubViewport:
-	var vp := _viewport(size, PHOTO_MSAA)
+func _photo_view(size: Vector2i, msaa := PHOTO_MSAA) -> SubViewport:
+	var vp := _viewport(size, msaa)
 	vp.mesh_lod_threshold = 0.0
 	vp.anisotropic_filtering_level = Viewport.ANISOTROPY_16X
 	vp.use_debanding = true
@@ -141,9 +152,17 @@ func _view_viewport() -> SubViewport:
 	return _view
 
 
-## What a photo is drawn with, as its PNG records it.
-static func settings() -> Dictionary:
-	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << PHOTO_MSAA, "shadow_atlas": ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size"), "shadow_splits": 4,
+## The finest MSAA, PHOTO_MSAA at most, whose buffers take no more than PHOTO_MEMORY_SHARE of `available` bytes.
+static func photo_msaa(available: int) -> Viewport.MSAA:
+	var msaa := PHOTO_MSAA
+	while msaa > Viewport.MSAA_DISABLED and PHOTO_SIZE.x * PHOTO_SIZE.y * (1 << msaa) * SAMPLE_BYTES > available * PHOTO_MEMORY_SHARE:
+		msaa = (msaa - 1) as Viewport.MSAA
+	return msaa
+
+
+## What a photo drawn with `msaa` is drawn with, as its PNG records it.
+static func settings(msaa := PHOTO_MSAA) -> Dictionary:
+	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << msaa, "shadow_atlas": ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size"), "shadow_splits": 4,
 		"shadow_reach_m": Look.SHADOW_REACH, "blob_detail": Quality.ladder[0].blob_detail, "reach": "whole garden",
 		"mesh_lod": "off", "anisotropy": 16}
 
@@ -265,6 +284,7 @@ func shoot(hand: Hand) -> String:
 	var img := await render(at, FOV, Quality.PHOTO_MASK)
 	if img == null:
 		return ""
+	var msaa := _photo_msaa
 	var paintings: Array = []
 	for subject: Array in subjects:
 		var c: Canvas = subject[1]
@@ -277,7 +297,7 @@ func shoot(hand: Hand) -> String:
 	_shots[hand] = SHOT_HOLD
 	var path := _reserve("png")
 	var about: Dictionary = around.about.duplicate()
-	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(),
+	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
 	var saved := await save(img, path, about, around.world)
 	_reserved.erase(path)
@@ -559,7 +579,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var vp := photo_viewport() if full else _view_viewport()
 	if full:
 		# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
-		var warm := _photo_view(PREVIEW_SIZE)
+		var warm := _photo_view(PREVIEW_SIZE, _photo_msaa)
 		_aim(warm, at, fov, mask)
 		await _draw_complete(warm)
 		warm.queue_free()

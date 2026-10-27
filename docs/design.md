@@ -4762,6 +4762,21 @@ whole.
 Left out: Godot's MovieWriter, which renders the main view at a fixed time step and so slows play to the
 encoder's pace, and platform video encoders, which Godot does not reach from a script on either target.
 
+### A photo's memory
+
+Godot 4.6 keeps every MSAA sample of a view in memory (its own TODO in `render_scene_buffers_rd.cpp`; no transient
+attachments), so a photo at 3200x2400 and 8x MSAA takes about 8 bytes a sample: on a Quest 2, `dumpsys meminfo` read the
+game's GL memory 413 MB before a photo and 928 MB while it drew. In the stress scene, after the pricing gardens, the
+headset had 546 MB available when `camera/shutter` took its first photo: the system killed a dozen apps to free the
+rest, the game stalled 1.1 s (a 1078 ms script frame, then frames of 542 and 588 ms), and the headset's shell drew in
+its place (#110). On a meadow with 1043 MB available the same photo drew on.
+
+So a photo's MSAA (`PhotoTool.photo_msaa`) is the finest, 8x at most, whose buffers take no more than half the memory
+the system reports available (`OS.get_memory_info`), and the PNG records the MSAA it was drawn with. The Frame and the
+desktop always have the room for 8x; a Quest 2 drawing after a dense garden steps to 4x, its buffers 246 MB, which it
+then holds as long as a hand holds a camera.
+
+
 ## Mirror
 
 Directive (verbatim): "avatar[s] only sounds good." The mirror reflects people and nothing else: a place to see the
