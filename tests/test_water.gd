@@ -297,7 +297,7 @@ func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 	var holder := Node.new()
 	root.add_child(holder)
 	var look := Look.build(holder, water.terrain)
-	var under := Underwater.new(water, look)
+	var under := Underwater.new(water, look, rig)
 	holder.add_child(under)
 	var effects := AudioServer.get_bus_effect_count(0)
 	var fog_keys: Array = Look.WATER_FOG.keys() + ["fog_light_color", "adjustment_color_correction"]
@@ -312,7 +312,7 @@ func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 
 	rig.head.global_position.y = pond.surface_y() - 0.1
 	await process_frame
-	check(under.visible and look.under, "a head just under it is underwater")
+	check(under.visible and look.under and rig.under, "a head just under it is underwater")
 	check(look.env.fog_depth_end == Look.WATER_FOG.fog_depth_end and look.env.adjustment_color_correction != null, "its view closes in and loses red")
 	check(AudioServer.is_bus_effect_enabled(0, effects - 1) and AudioServer.get_bus_volume_db(0) < 0.0, "its mix is muffled")
 

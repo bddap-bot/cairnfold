@@ -577,9 +577,9 @@ func _select_input(delta: float) -> void:
 		_wheel = ToolWheel.new(inventory())
 		Metrics.note("wheel: %s opened" % tracker)
 		picking = true
-		var cam := get_viewport().get_camera_3d()
-		var head := cam.global_position if cam != null else global_position + global_basis.z
-		var forward := -cam.global_basis.z if cam != null else -global_basis.z
+		var rig := get_parent() as Rig
+		var head := rig.head.global_position if rig != null else global_position + global_basis.z
+		var forward := -rig.head.global_basis.z if rig != null else -global_basis.z
 		_wheel_root.global_transform = Transform3D(ToolWheel.facing(global_position, head, forward), global_position)
 		_wheel_root.visible = true
 		Cues.play(Cues.Act.WHEEL_OPEN, global_position, self)

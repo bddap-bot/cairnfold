@@ -5130,6 +5130,16 @@ beside the recorded session's (`scripts/sessions.py DIR --replayed METRICS.json`
 only of what a player's controllers give, so a bench run of it leaves a record the replay plays whole; a script's other
 steps place the rig or the garden directly, which no record holds.
 
+`scripts/render.sh CHUNK.jsonl OUT` re-renders a record on the desktop renderer with the graphics of the build running
+it, seen from the recorded head; with `CAIRNFOLD_CAMERA=PATH.json` it is seen instead from an authored camera
+(`CameraPath`, Main's `--camera`): a JSON list of keys, each a time `t` in game seconds from the start, an `eye` and
+the point it looks `at` in the garden's space, as a script's `view` takes them, the camera on a curve through the eyes
+looking at a point on a curve through the points looked at, holding before the first key and after the last. It sees
+and hears what an onlooker there would, the player's own body too; what the player did still comes from the player's
+head, so a wheel opens facing it and a pond is over it as in the session. Each frame of `--write-movie OUT/x.avi
+--fixed-fps RATE` shows one recorded frame, so at the rate the session ran the clip keeps its pace but for its late
+frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
+
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
 summarizes available viewport GPU timer readings. Unsupported GPU readings are

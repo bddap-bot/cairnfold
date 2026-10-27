@@ -108,7 +108,8 @@ device into bounded local frame-timing history and replay input (every frame's h
 what other players' games sent it)
 in that folder's `sessions/`;
 `--forget-sessions` opts out. `scripts/sessions.py DIR` summarises a pulled folder.
-`--replay FILE`, a chunk of a session's record, plays that session back (exactly with `--fixed-fps`).
+`--replay FILE`, a chunk of a session's record, plays that session back (exactly with `--fixed-fps`);
+`scripts/render.sh CHUNK.jsonl OUT` re-renders it, from the recorded head or a camera path (`CAIRNFOLD_CAMERA`).
 See [local play-session history](docs/design.md#local-play-session-history).
 
 ## Quest

@@ -18,14 +18,16 @@ const WATER_IOR := 1.333
 
 var water: Water
 var look: Look
+var rig: Rig
 var _mat := ShaderMaterial.new()
 var _muffle := AudioEffectLowPassFilter.new()
 var _volume_db := 0.0
 
 
-func _init(ponds: Water, light: Look) -> void:
+func _init(ponds: Water, light: Look, player: Rig) -> void:
 	water = ponds
 	look = light
+	rig = player
 	mesh = _kit()
 	_mat.shader = load("res://src/underwater.gdshader")
 	_mat.render_priority = 2
@@ -58,13 +60,12 @@ func _muffle_index() -> int:
 
 
 func _process(_delta: float) -> void:
+	rig.under = _pond_over(rig.head.global_position) != null
 	var eye := get_viewport().get_camera_3d()
-	var pond: PondWater = null if eye == null else water.pond_at(eye.global_position.x, eye.global_position.z)
-	var under := pond != null and eye.global_position.y < pond.surface_y()
+	var pond: PondWater = null if eye == null else _pond_over(eye.global_position)
+	var under := pond != null
 	if under != visible:
 		_submerge(under)
-		if eye.get_parent() is Rig:
-			eye.get_parent().under = under
 	if under:
 		global_position = eye.global_position
 		var l := Daylight.light(look.time)
@@ -73,6 +74,12 @@ func _process(_delta: float) -> void:
 		_mat.set_shader_parameter("ray", into_water(-Daylight.toward_light(look.time)))
 		_mat.set_shader_parameter("sun", Vector3(sun.r, sun.g, sun.b))
 		_mat.set_shader_parameter("ambient", Vector3(Look.UNDER_FOG.r, Look.UNDER_FOG.g, Look.UNDER_FOG.b) * Look.under_light(l))
+
+
+## The pond whose surface is over `p`, or null.
+func _pond_over(p: Vector3) -> PondWater:
+	var pond := water.pond_at(p.x, p.z)
+	return pond if pond != null and p.y < pond.surface_y() else null
 
 
 ## Sunlight travelling `way` (downward) bends toward straight down as it enters the water (Snell's law).

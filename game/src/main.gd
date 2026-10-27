@@ -171,7 +171,7 @@ func _ready() -> void:
 	add_child(Cues.new())
 	add_child(Warmup.new([ToolModels.prepare_styles, easels.warm, PondWater.prepare]))
 	add_child(sound)
-	add_child(Underwater.new(water, look))
+	add_child(Underwater.new(water, look, rig))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(maxf(tool.floor_under(p), world.stairs.floor_under(p)), boulders.floor_under(p))
 	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
 		var hits := world.pick(origin, dir, {World.Kind.BUILDING_PAST_ARCHES: reach, World.Kind.FLOOR: reach, World.Kind.PLANT: reach, World.Kind.STAIRS: reach, World.Kind.BOULDER: reach})
@@ -243,6 +243,13 @@ func _ready() -> void:
 			record(into)
 	if replayer != null and get_tree().current_scene == self:
 		replayer.finished.connect(finish)
+	if args.has("camera"):
+		var keys: Variant = CameraPath.read(args.camera) if not metrics.info.xr else "a headset draws from its own eyes"
+		if keys is String:
+			push_error("camera: %s" % keys)
+			Main.quit(get_tree(), 1)
+			return
+		add_child(CameraPath.new(keys, rig.head))
 	if args.has("script"):
 		var driver := Driver.new(self, Driver.read(args.script))
 		driver.finished.connect(func() -> void: if driver.failed: finish(1))
