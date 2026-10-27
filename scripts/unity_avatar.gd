@@ -9,7 +9,7 @@ extends SceneTree
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, with their materials and blend shape weights, over the skeleton of its humanoid
 ## model, whose Unity Avatar definition is the bone map. A package without a descriptor converts its one humanoid model.
-## The avatar is cut to one mesh of at most Avatar.MAX_TRIANGLES triangles and one atlas of the materials' colour
+## The avatar becomes one mesh of every triangle its drawn renderers have and one atlas of the materials' colour
 ## textures; its blend shapes stay, set to their saved weights, and its PhysBones become spring chains. No VRM lies
 ## between: VRM cannot carry what later importer work adds to the model. The importer prints what it kept and dropped.
 
@@ -22,8 +22,6 @@ const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
 const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
 const RENDERERS := ["SkinnedMeshRenderer", "MeshRenderer"]
-## How far out from a surface, in metres, another renderer's opaque surface hides it.
-const COVER := 0.015
 
 
 func _init() -> void:
@@ -429,7 +427,7 @@ static func _in_model(n: Node) -> Transform3D:
 ## Every drawn renderer's surfaces as one mesh over `sk`, its skin binding each source bone to the output bone of its
 ## name (or its nearest ancestor that has one): blend shapes kept, those of one name in several renderers one shape,
 ## up to Avatar.MAX_BLEND_VERTICES (the rest baked at their saved weights),
-## UVs moved into the material atlas, triangles simplified to Avatar.MAX_TRIANGLES. {"mesh", "skin", "weights": each
+## UVs moved into the material atlas. {"mesh", "skin", "weights": each
 ## blend shape's saved weight}, or empty if nothing draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
@@ -440,13 +438,11 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var indices := PackedInt32Array()
 	var skin := Skin.new()
 	var corners := {}
-	var source_triangles := 0
 	var shapes := {}
 	var saved_weights := {}
 	var drawn := []
 	var skipped := []
 	var tiled := {}
-	var ranges := []
 	var humanoid_bones := sk.get_bone_count()
 	for r: Array in renderers:
 		var o: Dictionary = objs[r[0]]
@@ -462,7 +458,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			skipped.append(go_name)
 			continue
 		drawn.append(go_name)
-		ranges.append([verts.size(), indices.size()])
 		var offset := skin.get_bind_count()
 		for b: Array in place.binds:
 			skin.add_bind(b[0], b[1])
@@ -514,7 +509,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					bones.append(offset + place.remap.call(top[0][j]))
 					weights.append(top[1][j])
 			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
-			source_triangles += idx.size() / 3
 			for i in idx:
 				indices.append(base + i)
 	if indices.is_empty():
@@ -528,10 +522,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		uvs[i] = at[0]
 		if at[1]:
 			tiled[materials.materials[corners[i]].name] = true
-	ranges.append([verts.size(), indices.size()])
-	var before := indices.size() / 3
-	indices = _uncovered(verts, normals, bones, weights, indices, ranges, skin, rests, func(t: int) -> bool: return materials.atlas.get_pixelv(Vector2i((uvs[indices[t]] + uvs[indices[t + 1]] + uvs[indices[t + 2]]) / 3.0 * Materials.ATLAS).clamp(Vector2i.ZERO, Vector2i.ONE * (Materials.ATLAS - 1))).a >= 0.5)
-	report["hidden triangles removed"] = before - indices.size() / 3
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -539,35 +529,29 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_BONES] = bones
 	arrays[Mesh.ARRAY_WEIGHTS] = weights
-	arrays[Mesh.ARRAY_INDEX] = _simplified(arrays, indices, ranges)
-	var compacted := _compact(arrays)
-	var kept: Array = compacted[0]
-	var map: Dictionary = compacted[1]
-	var names := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return map.has(i)))
-	var room := Avatar.MAX_BLEND_VERTICES / maxi((kept[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), 1)
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var names := shapes.keys().filter(func(name: String) -> bool: return not (shapes[name] as Dictionary).is_empty())
+	var room := Avatar.MAX_BLEND_VERTICES / maxi(verts.size(), 1)
 	var dropped := names.slice(room)
 	names = names.slice(0, room)
 	var baked := 0
-	var base: PackedVector3Array = kept[Mesh.ARRAY_VERTEX]
 	for name: String in dropped:
 		var w: float = saved_weights.get(name, 0.0)
 		if is_zero_approx(w):
 			continue
 		baked += 1
 		for i: int in shapes[name]:
-			if map.has(i):
-				base[map[i]] += w * (shapes[name][i][0] as Vector3)
-	kept[Mesh.ARRAY_VERTEX] = base
+			verts[i] += w * (shapes[name][i][0] as Vector3)
+	arrays[Mesh.ARRAY_VERTEX] = verts
 	var blends := []
 	for name: String in names:
 		var dv := PackedVector3Array()
 		var dn := PackedVector3Array()
-		dv.resize(map.size())
-		dn.resize(map.size())
+		dv.resize(verts.size())
+		dn.resize(verts.size())
 		for i: int in shapes[name]:
-			if map.has(i):
-				dv[map[i]] = shapes[name][i][0]
-				dn[map[i]] = shapes[name][i][1]
+			dv[i] = shapes[name][i][0]
+			dn[i] = shapes[name][i][1]
 		var b := []
 		b.resize(Mesh.ARRAY_MAX)
 		b[Mesh.ARRAY_VERTEX] = dv
@@ -577,14 +561,14 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
 	for name: String in names:
 		out.add_blend_shape(name)
-	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, kept, blends)
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, blends)
 	out.surface_set_material(0, materials.material())
 	report["renderers drawn"] = drawn
 	if not skipped.is_empty():
 		report["renderers not found in their model"] = skipped
-	report["triangles"] = "%d in the package's drawn renderers, %d kept" % [source_triangles, (kept[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3]
+	report["triangles"] = indices.size() / 3
 	report["materials"] = used.keys().map(func(k: String) -> String: return _describe(materials.materials[k]))
-	report["blend shapes"] = "%d kept, %d moving nothing kept dropped, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [names.size(), shapes.size() - names.size() - dropped.size(), dropped.size(), baked]
+	report["blend shapes"] = "%d kept, %d moving nothing dropped, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [names.size(), shapes.size() - names.size() - dropped.size(), dropped.size(), baked]
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
 	return {"mesh": out, "skin": skin, "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
@@ -595,130 +579,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 static func _describe(m: Dictionary) -> String:
 	var texture := "no texture" if m.texture == "" else ("texture" if m.image != null else "texture not decoded")
 	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended→cutout"][m.alpha], "" if m.cull else ", two-sided→one"]
-
-
-## The triangles of `indices` left once those another renderer's opaque surface covers are gone: a triangle goes when
-## each of its corners, at rest, looks out along its normal onto another renderer's triangle within COVER that is
-## opaque in the atlas at its middle.
-## Skin under a tight garment would otherwise show through it once both are simplified. Updates where each renderer's
-## indices start in `ranges`.
-static func _uncovered(verts: PackedVector3Array, normals: PackedVector3Array, bones: PackedInt32Array, weights: PackedFloat32Array, indices: PackedInt32Array, ranges: Array, skin: Skin, rests: Array[Transform3D], opaque: Callable) -> PackedInt32Array:
-	var at := PackedVector3Array()
-	var dirs := PackedVector3Array()
-	at.resize(verts.size())
-	dirs.resize(verts.size())
-	var poses: Array[Transform3D] = []
-	for k in skin.get_bind_count():
-		poses.append(rests[skin.get_bind_bone(k)] * skin.get_bind_pose(k))
-	for i in verts.size():
-		var p := Vector3.ZERO
-		var n := Vector3.ZERO
-		for j in 4:
-			var w := weights[i * 4 + j]
-			if w > 0.0:
-				var t := poses[bones[i * 4 + j]]
-				p += w * (t * verts[i])
-				n += w * (t.basis * normals[i])
-		at[i] = p
-		dirs[i] = n.normalized()
-	var owner := PackedInt32Array()
-	owner.resize(verts.size())
-	for r in ranges.size() - 1:
-		for i in range(ranges[r][0], ranges[r + 1][0]):
-			owner[i] = r
-	var grid := {}
-	for t in range(0, indices.size(), 3):
-		if not opaque.call(t):
-			continue
-		var box := AABB(at[indices[t]], Vector3.ZERO).expand(at[indices[t + 1]]).expand(at[indices[t + 2]])
-		var lo := Vector3i((box.position / COVER).floor())
-		var hi := Vector3i((box.end / COVER).floor())
-		if (hi - lo).length_squared() > 64:
-			continue
-		for x in range(lo.x, hi.x + 1):
-			for y in range(lo.y, hi.y + 1):
-				for z in range(lo.z, hi.z + 1):
-					grid.get_or_add(Vector3i(x, y, z), PackedInt32Array()).append(t)
-	var covered := PackedByteArray()
-	covered.resize(verts.size())
-	for i in verts.size():
-		var from := at[i] + dirs[i] * 0.0005
-		var to := at[i] + dirs[i] * COVER
-		var cells := {Vector3i((from / COVER).floor()): true, Vector3i((to / COVER).floor()): true}
-		for c: Vector3i in cells:
-			for t in grid.get(c, PackedInt32Array()):
-				if owner[indices[t]] != owner[i] and Geometry3D.segment_intersects_triangle(from, to, at[indices[t]], at[indices[t + 1]], at[indices[t + 2]]) != null:
-					covered[i] = 1
-					break
-			if covered[i] == 1:
-				break
-	var out := PackedInt32Array()
-	var starts := []
-	for r in ranges.size() - 1:
-		starts.append(out.size())
-		for t in range(ranges[r][1], ranges[r + 1][1], 3):
-			if covered[indices[t]] == 0 or covered[indices[t + 1]] == 0 or covered[indices[t + 2]] == 0:
-				out.append_array([indices[t], indices[t + 1], indices[t + 2]])
-	starts.append(out.size())
-	for r in ranges.size():
-		ranges[r][1] = starts[r]
-	return out
-
-
-## The triangles kept of each renderer's, `ranges` giving where each one's vertices and indices start: each renderer's
-## levels of detail, as the renderer would make them, taken finest first for whichever renderer has kept the least of
-## its own, while all stay within Avatar.MAX_TRIANGLES.
-static func _simplified(arrays: Array, indices: PackedInt32Array, ranges: Array) -> PackedInt32Array:
-	var ladders := []
-	for r in ranges.size() - 1:
-		var vb: int = ranges[r][0]
-		var ve: int = ranges[r + 1][0]
-		var full := indices.slice(ranges[r][1], ranges[r + 1][1])
-		if full.is_empty():
-			ladders.append([full])
-			continue
-		var part := []
-		part.resize(Mesh.ARRAY_MAX)
-		for a in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV]:
-			part[a] = arrays[a].slice(vb, ve)
-		var local := PackedInt32Array()
-		for i in full:
-			local.append(i - vb)
-		part[Mesh.ARRAY_INDEX] = local
-		var im := ImporterMesh.new()
-		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, part)
-		im.generate_lods(60.0, 25.0, [])
-		var levels := [full]
-		for l in im.get_surface_lod_count(0):
-			var lod := im.get_surface_lod_indices(0, l)
-			if lod.size() < levels[-1].size():
-				var shifted := PackedInt32Array()
-				for i in lod:
-					shifted.append(i + vb)
-				levels.append(shifted)
-		ladders.append(levels)
-	var at := ladders.map(func(l: Array) -> int: return l.size() - 1)
-	var total := func() -> int:
-		var n := 0
-		for r in ladders.size():
-			n += ladders[r][at[r]].size() / 3
-		return n
-	var sum: int = total.call()
-	while true:
-		var best := -1
-		for r in ladders.size():
-			if at[r] == 0 or sum + (ladders[r][at[r] - 1].size() - ladders[r][at[r]].size()) / 3 > Avatar.MAX_TRIANGLES:
-				continue
-			if best < 0 or float(ladders[r][at[r]].size()) / ladders[r][0].size() < float(ladders[best][at[best]].size()) / ladders[best][0].size():
-				best = r
-		if best < 0:
-			break
-		sum += (ladders[best][at[best] - 1].size() - ladders[best][at[best]].size()) / 3
-		at[best] -= 1
-	var out := PackedInt32Array()
-	for r in ladders.size():
-		out.append_array(ladders[r][at[r]])
-	return out
 
 
 ## The four heaviest bone influences of vertex `i`, weights summing to one.
@@ -738,46 +598,6 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 		w[0] = 1.0
 		sum = 1.0
 	return [b, w.map(func(x: float) -> float: return x / sum)]
-
-
-## Drops the vertices no triangle uses: [the surface's arrays, each kept vertex's old index to its new one].
-static func _compact(arrays: Array) -> Array:
-	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var map := {}
-	var order := PackedInt32Array()
-	for i in idx:
-		if not map.has(i):
-			map[i] = order.size()
-			order.append(i)
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
-	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var b: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-	var w: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-	var nv := PackedVector3Array()
-	var nn := PackedVector3Array()
-	var nuv := PackedVector2Array()
-	var nb := PackedInt32Array()
-	var nw := PackedFloat32Array()
-	for i in order:
-		nv.append(v[i])
-		nn.append(n[i])
-		nuv.append(uv[i])
-		for j in 4:
-			nb.append(b[i * 4 + j])
-			nw.append(w[i * 4 + j])
-	var ni := PackedInt32Array()
-	for i in idx:
-		ni.append(map[i])
-	out[Mesh.ARRAY_VERTEX] = nv
-	out[Mesh.ARRAY_NORMAL] = nn
-	out[Mesh.ARRAY_TEX_UV] = nuv
-	out[Mesh.ARRAY_BONES] = nb
-	out[Mesh.ARRAY_WEIGHTS] = nw
-	out[Mesh.ARRAY_INDEX] = ni
-	return [out, map]
 
 
 ## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons

@@ -300,4 +300,81 @@ static func write(root: Node3D, path: String) -> void:
 	var err := doc.append_from_scene(root, state)
 	assert(err == OK, "vrm: cannot export %s" % root.name)
 	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_buffer(doc.generate_buffer(state))
+	f.store_buffer(_positional(doc.generate_buffer(state)))
+
+
+## The binary glTF `glb` with its morph targets moving positions alone. Godot writes a target's normals and tangents
+## whole, one a vertex, and those of a vertex the shape leaves still as a unit vector rather than none, so a shape set
+## would turn every normal of its mesh; and a full mesh's body shapes would fill the file with them.
+static func _positional(glb: PackedByteArray) -> PackedByteArray:
+	var json_size := glb.decode_u32(12)
+	var json: Dictionary = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
+	var bin := glb.slice(28 + json_size, 28 + json_size + glb.decode_u32(20 + json_size))
+	var views: Array = json.bufferViews
+	var accessors: Array = json.accessors
+	var data := views.map(func(v: Dictionary) -> PackedByteArray: return bin.slice(int(v.get("byteOffset", 0)), int(v.get("byteOffset", 0)) + int(v.byteLength)))
+	for mesh: Dictionary in json.get("meshes", []):
+		for primitive: Dictionary in mesh.primitives:
+			for target: Dictionary in primitive.get("targets", []):
+				for k: String in ["NORMAL", "TANGENT"]:
+					if target.has(k):
+						(accessors[int(target[k])] as Dictionary).erase("bufferView")
+						target.erase(k)
+	var refs := []
+	for acc: Dictionary in accessors:
+		refs.append([acc, "bufferView"])
+		if acc.has("sparse"):
+			refs.append([acc.sparse.indices, "bufferView"])
+			refs.append([acc.sparse.values, "bufferView"])
+	for image: Dictionary in json.get("images", []):
+		refs.append([image, "bufferView"])
+	var kept := {}
+	for r: Array in refs:
+		if (r[0] as Dictionary).has(r[1]):
+			kept[int(r[0][r[1]])] = true
+	var renumbered := {}
+	var out_views := []
+	var out_bin := PackedByteArray()
+	for v in views.size():
+		if not kept.has(v):
+			continue
+		renumbered[v] = out_views.size()
+		var view: Dictionary = views[v].duplicate()
+		view.byteOffset = out_bin.size()
+		out_views.append(view)
+		out_bin.append_array(data[v])
+		out_bin.resize((out_bin.size() + 3) & ~3)
+	for r: Array in refs:
+		if (r[0] as Dictionary).has(r[1]):
+			r[0][r[1]] = renumbered[int(r[0][r[1]])]
+	json.bufferViews = out_views
+	json.buffers = [{"byteLength": out_bin.size()}]
+	var text := JSON.stringify(_whole(json), "", false, true).to_utf8_buffer()
+	while text.size() % 4 != 0:
+		text.append(0x20)
+	var out := PackedByteArray()
+	out.resize(28 + text.size())
+	out.encode_u32(0, 0x46546C67)
+	out.encode_u32(4, 2)
+	out.encode_u32(12, text.size())
+	out.encode_u32(16, 0x4E4F534A)
+	for i in text.size():
+		out[20 + i] = text[i]
+	out.encode_u32(20 + text.size(), out_bin.size())
+	out.encode_u32(24 + text.size(), 0x004E4942)
+	out.append_array(out_bin)
+	out.encode_u32(8, out.size())
+	return out
+
+
+## `v` with every whole number JSON read as a float an integer again, as glTF writes its indices and counts.
+static func _whole(v: Variant) -> Variant:
+	if v is Dictionary:
+		for k: String in v:
+			v[k] = _whole(v[k])
+	elif v is Array:
+		for i in (v as Array).size():
+			v[i] = _whole(v[i])
+	elif v is float and v == floorf(v) and absf(v) < 1e15:
+		return int(v)
+	return v

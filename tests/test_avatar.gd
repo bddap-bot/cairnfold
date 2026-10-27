@@ -377,8 +377,11 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 
 func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	var targets := 0
+	var authored := 0
 	for m: Dictionary in json.meshes:
 		targets += (m.primitives[0] as Dictionary).get("targets", []).size()
+		for p: Dictionary in m.primitives:
+			authored += int(json.accessors[int(p.indices)].count) / 3
 	_keeps_skins_and_shapes(scene, what, targets)
 	var a := Avatar.open(scene, Color.WHITE)
 	var triangles := 0
@@ -396,7 +399,7 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR] else 0
 				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
-	check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "%s keeps to the triangle limit (%d)" % [what, triangles])
+	check(triangles == authored, "%s keeps every triangle its file has (%d of %d)" % [what, triangles, authored])
 	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
 	check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
@@ -405,27 +408,16 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	a.free()
 
 
-## Every mesh stays skinned over the one skeleton a pose moves, keeps all `targets` blend shapes its source has, and
-## holds no vertex its surfaces do not draw, since the GPU skins every one.
+## Every mesh stays skinned over the one skeleton a pose moves and keeps all `targets` blend shapes its source has.
 func _keeps_skins_and_shapes(scene: PackedScene, what: String, targets: int) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	var meshes := 0
 	var skinned := 0
 	var shapes := {}
-	var vertices := 0
-	var drawn := 0
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		meshes += 1
 		skinned += 1 if mi.skin != null and mi.get_node_or_null(mi.skeleton) == a._skeleton else 0
 		shapes[mi.mesh] = mi.mesh.get_blend_shape_count()
-		for s in mi.mesh.get_surface_count():
-			var arrays := mi.mesh.surface_get_arrays(s)
-			var used := {}
-			for v in arrays[Mesh.ARRAY_INDEX]:
-				used[v] = true
-			vertices += arrays[Mesh.ARRAY_VERTEX].size()
-			drawn += used.size()
-	check(drawn == vertices, "%s holds only vertices it draws (%d of %d)" % [what, drawn, vertices])
 	check(meshes > 0 and skinned == meshes and a.find_children("*", "Skeleton3D", true, false).size() == 1, "%s stands skinned: every mesh bends over the one skeleton a pose moves (%d of %d)" % [what, skinned, meshes])
 	var kept: int = shapes.values().reduce(func(n: int, k: int) -> int: return n + k, 0)
 	check(kept == targets, "%s keeps every blend shape (%d of %d)" % [what, kept, targets])

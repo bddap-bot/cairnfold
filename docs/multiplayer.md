@@ -207,11 +207,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   model binds by bone name; a bone the humanoid's model lacks, and an unskinned mesh of another
   model, become bones where the avatar's Unity transforms place them.
 
-  Every renderer merges into one mesh over one skin, its blend shapes kept (those of one name in
-  several renderers one shape) and set to their saved weights, a surface another renderer's
-  opaque surface covers within 1.5 cm dropped (skin under a tight garment would show through
-  once both are simplified), and each renderer's levels of detail taken finest first, for
-  whichever has kept least of its own, up to 20,000 triangles. Shader programs do not port;
+  Every renderer merges into one mesh over one skin, every triangle kept as its author made it,
+  its blend shapes kept (those of one name in several renderers one shape) and set to their
+  saved weights: a heavy mesh is its author's cost to carry, not the importer's to edit. Shader
+  programs do not port;
   each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
   cutoff, or blended) take a cell of one 2048 px atlas. A renderer's material slots follow the
   FBX's materials in their connections' order where the slots match them one for one;
@@ -236,15 +235,13 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   wait behind it. A receiver reads it on a worker thread, so a file that takes a
   second or two to read costs no frame, and shows your built-in avatar until then.
   Players wearing the same file share one read. A file is dropped if it is over the
-  size limit, is not a humanoid VRM, or is still too heavy after cutting.
-- **Limits.** `Avatar.read` cuts every file the same way, the player's own before
+  size limit or is not a humanoid VRM.
+- **Limits.** `Avatar.read` reads every file the same way, the player's own before
   it is sent, so all players see the same avatar: at most 24 MB, surfaces merged per
-  material within a mesh, animations dropped, every blend shape kept, triangles
-  simplified to at most 20,000, and textures shrunk to
-  1024 px with mipmaps. Every surface also gets levels of detail, which the renderer picks
-  by size on screen, so a player across the garden costs a fraction of one up close. The
-  quality ladder already changes how much of the scene draws; avatars need no setting of
-  their own.
+  material within a mesh, animations dropped, every triangle and blend shape kept as the
+  author made them, and textures shrunk to 1024 px with mipmaps. A heavy mesh is its
+  author's cost to carry; the reader edits none. The quality ladder already changes how much
+  of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:
   a scene of skinned meshes over one `Skeleton3D`, the skins' weights, inverse binds and
   blend shapes as the source has them, and on its root the avatar data: each humanoid
@@ -254,18 +251,13 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
-  surface is a draw call, one per material of each mesh, and the limit is 40. The GPU skins
-  every vertex of a skinned surface each frame, drawn or not, so a simplified surface keeps
-  only the vertices its levels of detail use: a VRM of Seed-san, the Unity sample package,
-  with its five meshes as the FBX has them, skins 11,888 vertices, not the 35,181 it holds.
-  On a Quest 2 at quality step 6, seven such figures in `demo/avatar-chain-cost.json`, all
+  surface is a draw call, one per material of each mesh, and the limit is 40.
+  On a Quest 2 at quality step 6, seven figures of Seed-san, the Unity sample package, in `demo/avatar-chain-cost.json`, all
   in view across the meadow, take 11.97 GPU ms against 9.37 with built-ins
   (`perf/quest-2/avatar-chain-cost/20261027T094550Z-c2cb2af.json`), 2.6 ms for the seven
   where their rigid parts took 1.6, which puts that view 0.86 ms past the 11.11 ms budget;
   one in view close takes 9.14 against 8.37. Each adds 3.2 MB of buffers and 3.1 MB of
   video memory; each phase's record keeps its peak texture, buffer and video memory.
-  Fitting a crowd of heavy avatars to the frame is the job of load-time avatar budgets
-  chosen by measured headroom.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is cut out, never blended, where it is see-through; normal maps and
