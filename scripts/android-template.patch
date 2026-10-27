@@ -26,6 +26,36 @@
  			Represents the size of the [enum RenderInfo] enum.
  		</constant>
  		<constant name="RENDER_INFO_TYPE_VISIBLE" value="0" enum="RenderInfoType">
+--- a/drivers/vulkan/rendering_context_driver_vulkan.cpp
++++ b/drivers/vulkan/rendering_context_driver_vulkan.cpp
+@@ -387,7 +387,7 @@
+ 		functions.DestroyDebugReportCallbackEXT(instance, debug_report, get_allocation_callbacks(VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT));
+ 	}
+ 
+-	if (instance != VK_NULL_HANDLE) {
++	if (instance != VK_NULL_HANDLE && !instance_from_xr) {
+ 		vkDestroyInstance(instance, get_allocation_callbacks(VK_OBJECT_TYPE_INSTANCE));
+ 	}
+ }
+@@ -892,6 +892,7 @@
+ 
+ Error RenderingContextDriverVulkan::_create_vulkan_instance(const VkInstanceCreateInfo *p_create_info, VkInstance *r_instance) {
+ 	if (VulkanHooks::get_singleton() != nullptr) {
++		instance_from_xr = true;
+ 		return VulkanHooks::get_singleton()->create_vulkan_instance(p_create_info, r_instance) ? OK : ERR_CANT_CREATE;
+ 	} else {
+ 		VkResult err = vkCreateInstance(p_create_info, get_allocation_callbacks(VK_OBJECT_TYPE_INSTANCE), r_instance);
+--- a/drivers/vulkan/rendering_context_driver_vulkan.h
++++ b/drivers/vulkan/rendering_context_driver_vulkan.h
+@@ -96,6 +96,8 @@
+ 	};
+ 
+ 	VkInstance instance = VK_NULL_HANDLE;
++	// An instance the XR runtime created outlives it at exit: destroying it after xrDestroyInstance hangs the Quest's runtime.
++	bool instance_from_xr = false;
+ 	uint32_t instance_api_version = VK_API_VERSION_1_0;
+ 	HashMap<CharString, bool> requested_instance_extensions;
+ 	HashSet<CharString> enabled_instance_extension_names;
 --- a/scene/main/viewport.cpp
 +++ b/scene/main/viewport.cpp
 @@ -5260,6 +5260,7 @@
