@@ -78,6 +78,8 @@ controls and the build order.
     stays in its own folder on the device, and uninstalling deletes it all.
   - Session recording stays off unless a device is opted in (`record-sessions`), which only our own
     test headsets are; a record leaves a device only when a dev tool pulls it.
+  - No record holds microphone audio unless a dev tool arms one acted take (`capture-performance`); the
+    session that finds that arm spends it, and the game never sets it.
   - Other players get only what play needs, directly over the local network: the discovery beacon's
     random key, avatar choice and colour, plus the visitor name once picked; during a visit, head and
     hand poses, garden edits, the garden and the avatar file worn. Steam's friend presence is the one

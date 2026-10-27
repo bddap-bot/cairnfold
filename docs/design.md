@@ -5139,6 +5139,24 @@ engine reports (the window closing, the XR runtime ending the session) writes th
 record first; a missing end means the process was killed (Godot does not report
 SIGTERM), not a measured end time.
 
+No recording holds microphone or voice audio unless a performance take is armed: a `capture-performance` file
+(`PlayLog.ARM`) a dev tool puts in the player folder for one acted session. The switch never sets it and the game
+never writes it. The first session to start after it removes it at once, whether or not that session records, so the
+arm covers that session alone; an arm older than ten minutes (`PlayLog.ARM_SECONDS`) is removed unused, so one left by
+a take that never started records no one. On a recording device that session's `Take` plays the microphone into a muted
+bus of its own, so it is never heard, and hands what it captures to the record; the log's worker writes it as a mono
+16-bit WAV at the mix rate, `SESSION.wav`, beside the chunks, its header whole after every write. Every chunk's start
+record names the take and its rate, and a `take` record the input frame its first sample came in before. When the
+record ends `Take` frees itself and its capture; the muted bus stays, since the microphone's last buffer, fading
+out, would play on the master bus if its own were gone. A take goes from the device when the ring drops the last
+of its session's chunks. The project enables audio input, which opens no device until a take plays the microphone.
+The APKs our headsets run declare the microphone permission and the store and Steam ones do not
+(`scripts/android.sh` checks both). Android grants it only by asking the wearer, and once granted the engine keeps the
+microphone open past the take, so `Take` never asks: the dev tool that arms a take grants it beforehand
+(`adb shell pm grant io.github.bddapbot.cairnfold android.permission.RECORD_AUDIO`), and without it the take records
+nothing. tests/test_take.gd plays a tone where the microphone would be heard and finds it in the armed session's take,
+none of it leaving the take's bus, and no take in the session before it or the one after.
+
 `--replay FILE` plays a session back from its record, `FILE` any chunk of it with the session's other chunks beside
 it. The game starts from the record's seeds and garden, and `Replayer` takes the place of the network: Godot polls it
 at the start of every frame, before anything else runs, and there it delivers each message the record says came in

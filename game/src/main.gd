@@ -260,10 +260,12 @@ func _ready() -> void:
 
 
 ## Records the session into `into` from here: the seeds and the garden it starts from, then every frame's input and
-## every message the network brings beside the metrics.
+## every message the network brings beside the metrics, and in an armed take the microphone.
 func record(into: PlayLog) -> void:
 	metrics.play_log = into
 	world.play_log = into
+	if not into.take.is_empty():
+		add_child(Take.new(into))
 	into.begin({"rng": str(rng_seed), "wildlife": str(wildlife.rng.seed)}, world.snapshot())
 
 

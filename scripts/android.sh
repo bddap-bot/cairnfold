@@ -38,6 +38,8 @@ if [ "$variant" = store ]; then
   printf '[gd_resource type="Resource" format=3]\n[resource]\nmetadata/app_id = "%s"\n' "$meta_app_id" > "$stage/game/store.tres"
 fi
 sed -i "s/^version\/code=.*/version\/code=$number/; s/^version\/name=.*/version\/name=\"$(git -C "$root" rev-parse --short HEAD)\"/" "$stage/game/export_presets.cfg"
+# Only our own headsets take performances (PlayLog.ARM); an APK a store sells declares no microphone.
+[ -z "$variant" ] || sed -i '/^permissions\/record_audio=/d' "$stage/game/export_presets.cfg"
 
 [ -f "$android_key/release.keystore" ] || { echo "android: no signing key in $android_key (AGENTS.md, \"Signing\")" >&2; exit 1; }
 password=$(< "$android_key/password")
@@ -90,6 +92,8 @@ if [ "$target" = lepton ] && grep -q -i -E 'oculus|horizonos|com\.meta\.' <<<"$m
   echo "android: the Lepton manifest names Meta" >&2
   exit 1
 fi
+microphone=$(grep -c 'android.permission.RECORD_AUDIO' <<<"$manifest" || true)
+[ "$microphone" -eq "$([ -z "$variant" ] && echo 1 || echo 0)" ] || { echo "android: a ${variant:-plain} APK declaring the microphone $microphone times" >&2; exit 1; }
 unzip -l "$out" lib/arm64-v8a/libopenxr_loader.so > /dev/null || { echo "android: no OpenXR loader in the APK" >&2; exit 1; }
 [ "$target" = lepton ] || unzip -l "$out" assets/vr_splash.png > /dev/null || { echo "android: no system splash in the Quest APK" >&2; exit 1; }
 steamed=$(unzip -Z1 "$out" | grep -c -E 'lib/arm64-v8a/lib(godotsteam|steam_api)' || true)

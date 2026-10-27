@@ -10,7 +10,8 @@ per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst fr
 frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
 the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
 what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play, and the
-messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each.
+messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each,
+and for a performance take (PlayLog.ARM) its microphone WAV, how long it runs and the input frame it begins at.
 With --replayed, the per-activity timing of the session a replay of it measured (the --metrics file of a --replay run,
 as scripts/bench.sh CAIRNFOLD_REPLAY writes it) prints beside the session's own, recorded | replayed."""
 import argparse
@@ -43,6 +44,8 @@ def read(folder):
             event = record.get("event")
             if event == "start":
                 s.setdefault("start", record)
+                if "take" in record:
+                    s["take"] = record["take"] | {"path": chunk.parent / record["take"]["file"]}
             elif event == "end":
                 s["ended"] = record.get("ended")
             elif event == "frame":
@@ -56,12 +59,15 @@ def read(folder):
             elif event == "replay":
                 s["replay"] = record
                 s["replay_bytes"] += len(line) + 1
+            elif event == "take":
+                s["take_frame"] = record["frame"]
     out = []
     for sid, s in sessions.items():
         if sid is None or "start" not in s:
             continue
         rows = sorted(s["rows"], key=lambda r: r.get("unix") or 0)
-        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows) | {"replay": replay(s), "net": net(s)})
+        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows)
+                   | {"replay": replay(s), "net": net(s), "take": take(s, folder)})
     return sorted(out, key=lambda x: x["started"])
 
 
@@ -80,6 +86,16 @@ def frames(event, layout):
                           "flags": [n for b, n in enumerate(layout["flags"]) if flags >> b & 1]})
         out.append({"delta": delta, "head": head, "hands": hands})
     return out
+
+
+def take(s, folder):
+    """The session's microphone take, if it was one: its file, rate, first input frame and length."""
+    if "take" not in s:
+        return None
+    t = s["take"]
+    seconds = (t["path"].stat().st_size - 44) / 2 / t["rate"] if t["path"].exists() else None
+    return {"file": t["path"].relative_to(folder.parent).as_posix(), "rate": t["rate"], "frame": s.get("take_frame"),
+            "seconds": None if seconds is None else round(seconds, 1)}
 
 
 def replay(s):
@@ -233,6 +249,11 @@ def text(s):
         begun = "" if r["start"] else ", its start lost to the ring"
         lines.append(f"  replay: {r['frames']} frames over {r['seconds']} s, {r['bytes'] / 1e6:.2f} MB, "
                      f"{r['mb_per_hour']} MB an hour{lost}{begun}")
+    if s["take"]:
+        t = s["take"]
+        length = "not pulled" if t["seconds"] is None else f"{t['seconds']} s"
+        begun = "its start lost to the ring" if t["frame"] is None else f"from input frame {t['frame']}"
+        lines.append(f"  take: {t['file']}, {length} at {t['rate']} Hz, {begun}")
     if s["net"]:
         n = s["net"]
         lost = f", {n['missing']} lost to the ring" if n["missing"] else ""

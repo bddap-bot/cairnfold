@@ -6,6 +6,9 @@ run/main_scene="res://main.tscn"
 run/flush_stdout_on_print=true
 boot_splash/image="res://splash.png"
 
+[audio]
+driver/enable_input=true
+
 [autoload]
 AudioLifetime="*res://src/audio_lifetime.gd"
 

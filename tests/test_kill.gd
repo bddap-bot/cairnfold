@@ -42,7 +42,7 @@ func _write_until_killed(into: String) -> void:
 	var n := 1
 	while true:
 		World._write(into.path_join("garden.save"), gardens[n % 2])
-		log._write({"unix": float(n)}, {}, {})
+		log._write({"unix": float(n)}, {}, {}, PackedVector2Array())
 		if n % 3 == 0:
 			log._open()
 		n += 1

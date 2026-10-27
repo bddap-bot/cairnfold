@@ -107,7 +107,8 @@ Session telemetry is off by default. Launch with
 device into bounded local frame-timing history and replay input (every frame's head and hand poses and buttons, and
 what other players' games sent it)
 in that folder's `sessions/`;
-`--forget-sessions` opts out. `scripts/sessions.py DIR` summarises a pulled folder.
+`--forget-sessions` opts out. A `capture-performance` file beside it also records the microphone for the next
+session alone, as `sessions/SESSION.wav`. `scripts/sessions.py DIR` summarises a pulled folder.
 `--replay FILE`, a chunk of a session's record, plays that session back (exactly with `--fixed-fps`);
 `scripts/render.sh CHUNK.jsonl OUT` re-renders it, from the recorded head or a camera path (`CAIRNFOLD_CAMERA`).
 See [local play-session history](docs/design.md#local-play-session-history).
