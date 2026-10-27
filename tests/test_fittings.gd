@@ -369,6 +369,8 @@ func _in_the_glade() -> void:
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
+		# Grounded clutter can occlude the rays meant to isolate wall picking.
+		{"op": "uncluttered"},
 	])
 	world.submit({"op": "wall", "walls": [_tower(terrain.ground(-12, 8), 2.0)]})
 	await play([
