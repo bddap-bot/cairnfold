@@ -1951,7 +1951,7 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 ## with the same ends as the one below grows up instead of stacking on it.
 func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 	var gable_ends: Array[Vector2] = []
-	if plaster and gable_end == GableEnd.WALL:
+	if plastered() and gable_kind() == GableEnd.WALL:
 		gable_ends = gable_spans()
 	var cells := _cells()
 	var turns := PackedFloat32Array()
@@ -2516,7 +2516,7 @@ func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[V
 		for span in _standing([[mid - half, mid + half]]):
 			if not plastered():
 				_lay_course(span[0], span[1], y, h, offset, rng)
-			if gable_end != GableEnd.WALL:
+			if gable_kind() != GableEnd.WALL:
 				_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:

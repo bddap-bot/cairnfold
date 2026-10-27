@@ -11,27 +11,26 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	for plaster in [false, true]:
-		for timber in [-1, 0] if plaster else [-1]:
-			for pitch in [0.0, 1.2, 4.0]:
-				for curve in [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]:
-					for thatch in [false] if pitch == 0.0 else [false, true]:
-						for raised in [0.0, 1.5]:
-							_case(plaster, timber, pitch, curve, thatch, raised)
+	for finish_kind in WallLayout.Finish.values():
+		for pitch in [0.0, 1.2, 4.0]:
+			for curve in [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]:
+				for thatch in [false] if pitch == 0.0 else [false, true]:
+					for raised in [0.0, 1.5]:
+						_case(finish_kind, pitch, curve, thatch, raised)
 	for curve in [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]:
 		for pitch in [0.0, 1.2, 4.0]:
 			for thatch in [false] if pitch == 0.0 else [false, true]:
-				_case(false, -1, pitch, curve, thatch, 1.5, RoofLayout.Kind.CONE)
+				_case(WallLayout.Finish.BARE, pitch, curve, thatch, 1.5, RoofLayout.Kind.CONE)
 	for end in [WallLayout.GableEnd.BOARDS, WallLayout.GableEnd.STEPS]:
-		for plaster in [false, true]:
+		for finish_kind in WallLayout.Finish.values():
 			for curve in [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]:
 				for thatch in [false, true]:
-					_case(plaster, 0 if plaster else -1, 1.2, curve, thatch, 1.5, RoofLayout.Kind.GABLE, end)
+					_case(finish_kind, 1.2, curve, thatch, 1.5, RoofLayout.Kind.GABLE, end)
 	print("tests: roof closure: %d cases, %d probes, %d leaks; %d instances, %d triangles" % [cases, probes, failures, instances, triangles])
 	finish()
 
 
-func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool, raised: float, kind := RoofLayout.Kind.GABLE, end_style := WallLayout.GableEnd.WALL) -> void:
+func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: bool, raised: float, kind := RoofLayout.Kind.GABLE, end_style := WallLayout.GableEnd.WALL) -> void:
 	cases += 1
 	var r := RoofLayout.new()
 	r.kind = kind
@@ -43,8 +42,7 @@ func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool,
 	w.seed = 216519444
 	w.points = WallLayout.circle(Vector3.ZERO, r.radius) if kind == RoofLayout.Kind.CONE else WallLayout.rectangle(Vector3.ZERO, Vector3(7.75, 0, 0), 4.5)
 	w.closed = true
-	w.plaster = plaster
-	w.timber_style = timber
+	w.finish = finish_kind
 	w.height = 2.4
 	w.rise = raised
 	w.cover = WallLayout.Cover.DECK if r.flat() else WallLayout.Cover.ROOF
@@ -54,7 +52,7 @@ func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool,
 	var kinds := Wall.kinds()
 	var roof := Wall.pack_roof(w, r, kinds, Palette.plain())
 	var packed := Wall.pack(w, kinds, Palette.plain())
-	var rendered := Wall.new(w.seed, null)
+	var rendered := Wall.new(w.seed, null, Terrain.new())
 	rendered.layout = w
 	rendered.add_roof(r)
 	rendered._take(packed)
@@ -94,14 +92,14 @@ func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool,
 						continue
 					probes += 1
 					var hit := mesh.intersect_ray(origin, dir)
-					var cavity := plaster and end_style == WallLayout.GableEnd.WALL and not r.flat() and side % 2 == 1 and slope == 0.0 and height < r.base and not hit.is_empty() and origin.distance_to(hit.position) > origin.distance_to(target)
+					var cavity := w.plastered() and end_style == WallLayout.GableEnd.WALL and not r.flat() and side % 2 == 1 and slope == 0.0 and height < r.base and not hit.is_empty() and origin.distance_to(hit.position) > origin.distance_to(target)
 					if hit.is_empty() or cavity:
 						leaks += 1
 						if leaks < 4:
 							print("LEAK ", origin, " ", dir, " side ", side, " height ", height, " slope ", slope)
 	failures += leaks
 	if leaks > 0:
-		print("FAIL: closure kind=%d end=%d plaster=%s timber=%d pitch=%.1f curve=%.2f thatch=%s raised=%.1f: %d leaks" % [kind, end_style, plaster, timber, pitch, curve, thatch, raised, leaks])
+		print("FAIL: closure kind=%d end=%d finish=%d pitch=%.1f curve=%.2f thatch=%s raised=%.1f: %d leaks" % [kind, end_style, finish_kind, pitch, curve, thatch, raised, leaks])
 
 
 ## Reproduce the rendered instance transforms, including the panel mitres in stone.gdshaderinc.
