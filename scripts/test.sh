@@ -11,8 +11,10 @@ trap 'rm -rf "$runs"' EXIT
 XDG_DATA_HOME=$(mktemp -d -p "$runs")
 TMPDIR=$runs
 export XDG_DATA_HOME TMPDIR
-# A test holds about 300 MB; a runaway allocation fails its test at 4 GB instead of exhausting the machine.
-ulimit -v $((4 * 1024 * 1024))
+# A test holds about 300 MB, the GPU checks 1.6 GB; a runaway allocation fails its test at 4 GB of data instead of
+# exhausting the machine. The cap counts data, not address space: glibc reserves 64 MB for each thread's malloc arena,
+# and a GPU check's ~40 of them reserve 1.7-2.0 GB it never touches, enough to put its address space at the 4 GB line.
+ulimit -d $((4 * 1024 * 1024))
 python3 -m unittest discover -s tests -p 'test_*.py' >"$runs/python.log" 2>&1 &
 python=$!
 scripts/check.sh
