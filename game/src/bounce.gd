@@ -32,6 +32,7 @@ var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
 ## Owner id -> its pieces' instance buffers and their strides, placed since the last solve began.
 var _pending := {}
+var _rooms: Array[Lamps.Room] = []
 var _sun := Vector3.UP
 var _relight := false
 ## The ground the probes follow, and its heights_revision the last solve stood on.
@@ -120,13 +121,20 @@ func set_sun(toward_sun: Vector3, light: Color) -> void:
 	_relight = true
 
 
+## Share the rooms already derived for lantern occlusion; the column approximation cannot distinguish a
+## roof and wall in one cell, so it must not invent sky through that solid shell.
+func enclose(rooms: Array[Lamps.Room]) -> void:
+	_rooms = rooms.duplicate()
+	_relight = true
+
+
 func _next() -> Callable:
 	if _ground != terrain.heights_revision:
 		_ground = terrain.heights_revision
 		_relight = true
 	if _pending.is_empty() and not _relight:
 		return Callable()
-	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL)}
+	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL), "rooms": _rooms.duplicate()}
 	_pending = {}
 	_relight = false
 	return _work.bind(job)
@@ -164,7 +172,53 @@ func _work(job: Dictionary) -> Dictionary:
 	for c in changed:
 		area = area.expand(c).expand(c + Vector2i.ONE)
 	area = area.grow(REACH + SUN_WALK).intersection(AREA)
-	return solve(_bottoms, _tops, _colors, grounds(job.heights), job.sun, area)
+	var ground := grounds(job.heights)
+	var result := solve(_bottoms, _tops, _colors, ground, job.sun, area)
+	enclose_probes(result, ground, job.rooms)
+	return result
+
+
+## Approximate diffuse daylight by each opening's projected solid angle. This changes the existing bake,
+## not the shader: sealed rooms see no sky, and the opening's contribution falls with distance into the room.
+static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Array[Lamps.Room]) -> void:
+	var groups := Lamps._groups(rooms)
+	var portals := {}
+	var open_groups := {}
+	for r in rooms.size():
+		if not portals.has(groups[r]):
+			portals[groups[r]] = []
+		portals[groups[r]].append_array(rooms[r].openings)
+		if rooms[r].roof == null and is_inf(rooms[r].top):
+			open_groups[groups[r]] = true
+	var area: Rect2i = result.area
+	var visited := {}
+	for r in rooms.size():
+		var room: Lamps.Room = rooms[r]
+		if open_groups.has(groups[r]):
+			continue
+		var footprint := room.rect.grow(Terrain.STEP * 0.5)
+		var a := column(footprint.position.x, footprint.position.y)
+		var b := column(footprint.end.x, footprint.end.y)
+		var bounds := Rect2i(a, b - a + Vector2i.ONE).intersection(area)
+		for z in range(bounds.position.y, bounds.end.y):
+			for x in range(bounds.position.x, bounds.end.x):
+				for k in LAYERS:
+					var p := Vector3(-Terrain.SIZE * 0.5 + (x + 0.5) * Terrain.STEP, ground[z * CELLS + x] + k + 0.5, -Terrain.SIZE * 0.5 + (z + 0.5) * Terrain.STEP)
+					var index := (k * CELLS + z) * CELLS + x
+					if visited.has(index) or not room.holds(p, true):
+						continue
+					visited[index] = true
+					var sky := 0.0
+					for o: Dictionary in portals[groups[r]]:
+						var to: Vector3 = o.at - p
+						var d := maxf(to.length(), 0.1)
+						sky += o.area * maxf(to.dot(o.out) / d, 0.0) / (TAU * d * d)
+					var px: PackedByteArray = result.layers[k]
+					var offset := ((z - area.position.y) * area.size.x + x - area.position.x) * 4
+					var visibility := clampf(sky, 0.0, 1.0)
+					px[offset + 3] = mini(px[offset + 3], roundi(visibility * 255.0))
+					for channel in 3:
+						px[offset + channel] = roundi(px[offset + channel] * visibility)
 
 
 func _refill(c: Vector2i) -> void:

@@ -28,6 +28,8 @@ const OUT := 0.5
 ## How much of the light in a doorway gets out: a doorway spills a little, so a lit house reads by its windows.
 const DOOR := 0.2
 
+signal rooms_changed(rooms: Array[Room])
+
 var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
@@ -60,6 +62,7 @@ static func light_of(look: int) -> Color:
 ## its openings. Pure data, made on the main thread and read by the solve.
 class Room:
 	var inside: Array[PackedVector2Array] = []
+	var probe_inside: Array[PackedVector2Array] = []
 	var massing: Massing
 	var joined: Array[Massing] = []
 	var rect := Rect2()
@@ -78,6 +81,7 @@ class Room:
 		for p in layout.points:
 			line.append(Vector2(p.x, p.z))
 		r.inside = Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5)
+		r.probe_inside = Geometry2D.offset_polygon(line, Terrain.STEP * 0.5)
 		r.rect = Rect2(line[0], Vector2.ZERO)
 		for p in line:
 			r.rect = r.rect.expand(p)
@@ -86,27 +90,30 @@ class Room:
 		if layout.cover != WallLayout.Cover.OPEN:
 			r.top = massing.feet[0] + massing.rise
 		for o in layout.apertures:
-			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else WINDOW_GLOW)
+			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else WINDOW_GLOW, 2.0 * o.half * (o.head - o.sill))
 		return r
 
-	func _open(layout: WallLayout, s: float, y: float, gives: float) -> void:
+	func _open(layout: WallLayout, s: float, y: float, gives: float, area: float) -> void:
 		var f := layout.frame_at(s)
 		var out: Vector3 = f.tangent.cross(Vector3.UP)
 		var at: Vector3 = f.point + Vector3.UP * y
 		if Massing.encloses(Vector2(at.x + out.x, at.z + out.z), inside):
 			out = -out
-		openings.append({"at": at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives})
+		openings.append({"at": at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives, "area": area})
 
-	func holds(p: Vector3) -> bool:
-		if p.y < floor or not rect.has_point(Vector2(p.x, p.z)):
+	## Boundary probes supply the inside face through linear filtering; include their half-cell support.
+	func holds(p: Vector3, probe := false) -> bool:
+		var margin := Terrain.STEP * 0.5 if probe else 0.0
+		if p.y < floor - margin or not rect.grow(margin).has_point(Vector2(p.x, p.z)):
 			return false
 		var ceiling := roof.height_at(p.x, p.z) if roof != null else top
-		if p.y >= ceiling:
+		if p.y >= ceiling + margin:
 			return false
-		if Massing.encloses(Vector2(p.x, p.z), inside):
+		if Massing.encloses(Vector2(p.x, p.z), probe_inside if probe else inside):
 			return true
 		# The inner half of a removed wall belongs to the joined room too.
 		return massing.holds(p) and joined.any(func(s: Massing) -> bool: return s.holds(p))
+
 
 	func connects(other: Room) -> bool:
 		if not joined.any(func(s: Massing) -> bool: return s.same(other.massing)):
@@ -142,6 +149,7 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 		_rooms.clear()
 		for s in shells:
 			_rooms.append(Room.of(s[0].layout, s[1]))
+		rooms_changed.emit(_rooms)
 		_dirty = true
 	if flames != _flames or lights != _lights:
 		_flames = flames
@@ -179,7 +187,7 @@ func _take(out: Dictionary) -> void:
 ## Per layer, the light each probe takes from `flames`, each in its `lights` (lit in the first colour where none is
 ## given), with the ground at each column's middle `ground`: falling off with distance and gone at REACH, as Godot
 ## fades an omni light. A flame in one of `rooms` lights only that room, and its openings shine outward with the light
-## at them; a flame outside lights no room.
+## at them; exterior flames spill inward through openings.
 static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms: Array[Room] = [], lights := PackedColorArray()) -> Array[PackedByteArray]:
 	var n := Bounce.CELLS
 	var sum := PackedFloat32Array()
@@ -222,9 +230,17 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 		for o in rooms[k].openings:
 			var inner: Vector3 = o.at - o.out * (WallLayout.THICKNESS + OUT)
 			var lit := Color(0, 0, 0)
+			var entering := Color(0, 0, 0)
 			for f in flames.size():
 				if homes[f] == groups[k]:
 					lit += lights[f] * _falloff(flames[f].distance_to(inner))
+				elif homes[f] == 0:
+					var entrance: Vector3 = o.at - o.out * OUT
+					var to: Vector3 = flames[f] - entrance
+					if to.dot(o.out) > 0.0 and not _crosses(flames[f], entrance, within, ground):
+						entering += lights[f] * _falloff(to.length()) * to.normalized().dot(o.out)
+			if entering.r + entering.g + entering.b > 0.0:
+				_spill(sum, inner, -o.out, entering, within, ground, groups[k])
 			if lit.r + lit.g + lit.b > 0.0:
 				_spill(sum, o.at, o.out, lit * o.gives, within, ground)
 	var layers: Array[PackedByteArray] = []
@@ -264,9 +280,8 @@ static func _falloff(d: float) -> float:
 
 
 ## Adds to the probes outside every room the light `lit` an opening at `at` facing `out` throws, brightest
-## straight out and gone at SPILL. None goes up: above an opening it would meet only the eaves' underside, and the
-## probes there are what the roof over them reads.
-static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Color, within: PackedInt32Array, ground: PackedFloat32Array) -> void:
+## straight out and gone at SPILL. Outward spill stays below the eaves; inward spill stays in its room group.
+static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Color, within: PackedInt32Array, ground: PackedFloat32Array, home := 0) -> void:
 	var n := Bounce.CELLS
 	var r := ceili(SPILL / Terrain.STEP)
 	var c := Bounce.column(at.x, at.z)
@@ -279,7 +294,7 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Colo
 				var to := Vector3(x, ground[j * n + i] + k + 0.5, z) - at
 				var d := to.length()
 				var facing := to.dot(out)
-				if within[p] == 0 and facing > 0.0 and to.y <= 0.0 and d < SPILL:
+				if within[p] == home and facing > 0.0 and (home != 0 or to.y <= 0.0) and d < SPILL:
 					var share := pow(facing / d, 2.0) * pow(1.0 - pow(d / SPILL, 2.0), 2.0)
 					sum[p * 3] += lit.r * share
 					sum[p * 3 + 1] += lit.g * share
@@ -292,14 +307,15 @@ static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array, groups: Pa
 	var within := PackedInt32Array()
 	within.resize(n * n * Bounce.LAYERS)
 	for r in rooms.size():
-		var a := Bounce.column(rooms[r].rect.position.x, rooms[r].rect.position.y)
-		var b := Bounce.column(rooms[r].rect.end.x, rooms[r].rect.end.y)
+		var bounds := rooms[r].rect.grow(Terrain.STEP * 0.5)
+		var a := Bounce.column(bounds.position.x, bounds.position.y)
+		var b := Bounce.column(bounds.end.x, bounds.end.y)
 		for j in range(maxi(a.y, 0), mini(b.y + 1, n)):
 			for i in range(maxi(a.x, 0), mini(b.x + 1, n)):
 				var x := -Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP
 				var z := -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP
 				for k in Bounce.LAYERS:
-					if rooms[r].holds(Vector3(x, ground[j * n + i] + k + 0.5, z)):
+					if rooms[r].holds(Vector3(x, ground[j * n + i] + k + 0.5, z), true):
 						within[(k * n + j) * n + i] = groups[r]
 	return within
 

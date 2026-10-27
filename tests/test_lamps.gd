@@ -13,6 +13,8 @@ func _init() -> void:
 	_window_strength_does_not_brighten_the_room()
 	_a_house_keeps_light_out()
 	_an_open_loop_lets_light_up()
+	_openings_admit_exterior_light()
+	_rooms_limit_sky()
 	_a_live_hump_solves_nothing()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -162,3 +164,48 @@ func _a_live_hump_solves_nothing() -> void:
 	lamps.update()
 	_check(lamps._task >= 0, "ground raised under a lantern solves its light again")
 	lamps.stop()
+
+
+func _openings_admit_exterior_light() -> void:
+	var room := _house()
+	var flame := PackedVector3Array([Vector3(3.5, 1.2, -4.5)])
+	var lit := Lamps.shine(flame, ground, [room])
+	var near := _at(lit, 3.5, -1.5, 0)
+	var far := _at(lit, 3.5, 1.5, 0)
+	_check(near > 0.0 and far < near, "an exterior flame spills through the arch and fades with depth")
+	room.openings.clear()
+	var closed := Lamps.shine(flame, ground, [room])
+	_check(_at(closed, 3.5, -1.5, 0) == 0.0, "closing the opening blocks that same flame")
+	_check(_at(closed, 3.5, -4.5, 0) > 0.0, "the exterior stays lit")
+
+
+func _sky_result(room: Lamps.Room) -> Dictionary:
+	var result := {"area": Rect2i(Bounce.column(-1, -4), Vector2i(10, 9)), "layers": []}
+	for k in Bounce.LAYERS:
+		var bytes := PackedByteArray()
+		bytes.resize(result.area.size.x * result.area.size.y * 4)
+		bytes.fill(255)
+		result.layers.append(bytes)
+	Bounce.enclose_probes(result, ground, [room])
+	return result
+
+
+func _sky(result: Dictionary, x: float, z: float) -> int:
+	var p := Bounce.column(x, z) - result.area.position as Vector2i
+	return result.layers[0][(p.y * result.area.size.x + p.x) * 4 + 3]
+
+
+func _rooms_limit_sky() -> void:
+	var room := _house()
+	var result := _sky_result(room)
+	_check(_sky(result, 3.5, -1.5) > _sky(result, 0.5, 0.5), "daylight is stronger near an opening than in the back corner")
+	room.openings.clear()
+	result = _sky_result(room)
+	_check(_sky(result, 3.5, -1.5) == 0, "a closed room sees no sky even if the column bake leaks")
+	var at := Bounce.column(3.5, -1.5) - result.area.position as Vector2i
+	_check(result.layers[0][(at.y * result.area.size.x + at.x) * 4] == 0, "a sealed room receives no exterior bounced sunlight")
+	_check(room.holds(Vector3(7.0, 1.0, 0.0), true) and not room.holds(Vector3(7.0, 1.0, 0.0)), "boundary probes cover the inner face without classifying exterior lamps as inside")
+	_check(_sky(result, -0.5, 0.5) == 255, "exterior sky remains unchanged")
+	var yard := _house(WallLayout.Cover.OPEN)
+	yard.openings.clear()
+	_check(_sky(_sky_result(yard), 3.5, -1.5) == 255, "a roofless courtyard remains open to the sky")

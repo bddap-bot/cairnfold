@@ -2249,6 +2249,15 @@ on the Quest 2, the bottom tested at every column a probe passes, on every layer
 (973 m of walls, about 40,000 stones) solves in under 0.7 s. While the sun is dragged the bounce follows a solve behind
 it. Walls still being drawn or pulled are left out until they settle.
 
+The same footprint, roof and openings used by `Lamps.Room` also bound the sky and
+bounced sunlight in covered rooms. Each opening contributes its projected area
+with inverse-square falloff into the room; sealed rooms contribute none. Boundary
+probes include half a cell around the shell so linear filtering does not bring the
+outside probe straight onto its inner face. Joined rooms share their openings;
+a joined roofless courtyard keeps the height-field solution. This runs on the
+bake worker and adds no texture or shader sample. The coarse grid still blends
+light at some gable and roof edges; it is not a per-pixel visibility test.
+
 Probes up among a roof's tiles cannot tell its inside from its outside, so plaster
 reads lower: the lime torching under a pitched roof's tiles takes the probe on the
 floor below it, and a plaster gable's face the air a metre before it, no higher
@@ -2294,8 +2303,8 @@ light of every lantern within 9 m in its colour and strength, fading with distan
 bounce (`given_back` in `bounce.gdshaderinc`), so it costs one more read of a small texture where they already
 read one, and nothing more however many lanterns hang. A worker solves it again when a lantern is hung or taken
 or the ground moves. A house or tower is a room to it: the air inside its walls' inner faces and under its roof.
-A lantern in a room lights only that room, and one outside lights no room, nor what stands behind one, so roofs and
-outer walls stay dark. Each window and doorway shines outward and down with the light the room has at it, fading over 3 m
+A lantern in a room lights its connected rooms. An exterior lantern reaches a room through its openings,
+with directional spill fading over 3 m; solid walls block it. Each window and doorway shines outward and down with the light the room has at it, fading over 3 m
 and brightest straight out from a point half a metre before its face, so it lights the ground below more than the
 wall around it and never the eaves; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_over`), so a face of the shell
 reads the air on its own side, and a pane of glass also shows the light a metre behind it.
