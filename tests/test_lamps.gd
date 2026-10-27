@@ -180,7 +180,7 @@ func _openings_admit_exterior_light() -> void:
 
 
 func _sky_result(room: Lamps.Room) -> Dictionary:
-	var result := {"area": Rect2i(Bounce.column(-1, -4), Vector2i(10, 9)), "layers": []}
+	var result := {"area": Rect2i(Bounce.column(-2, -4), Vector2i(12, 9)), "layers": []}
 	for k in Bounce.LAYERS:
 		var bytes := PackedByteArray()
 		bytes.resize(result.area.size.x * result.area.size.y * 4)
@@ -205,7 +205,8 @@ func _rooms_limit_sky() -> void:
 	var at := Bounce.column(3.5, -1.5) - result.area.position as Vector2i
 	_check(result.layers[0][(at.y * result.area.size.x + at.x) * 4] == 0, "a sealed room receives no exterior bounced sunlight")
 	_check(room.holds(Vector3(7.0, 1.0, 0.0), true) and not room.holds(Vector3(7.0, 1.0, 0.0)), "boundary probes cover the inner face without classifying exterior lamps as inside")
-	_check(_sky(result, -0.5, 0.5) == 255, "exterior sky remains unchanged")
+	_check(_sky(result, -1.5, 0.5) == 255, "exterior sky remains unchanged")
+	_check(_sky(result, -0.5, 0.5) == 0, "the boundary probe cannot interpolate sky onto the inside face")
 	var yard := _house(WallLayout.Cover.OPEN)
 	yard.openings.clear()
 	_check(_sky(_sky_result(yard), 3.5, -1.5) == 255, "a roofless courtyard remains open to the sky")
