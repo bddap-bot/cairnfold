@@ -1,4 +1,5 @@
 shader_type spatial;
+render_mode cull_disabled;
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 varying vec4 given;

@@ -11,10 +11,15 @@ extends Node3D
 const TILT := deg_to_rad(10.0)
 const CANVAS_AT := Vector3(0, 1.32, 0)
 const TRAY_Y := 0.72
-const RAG := AABB(Vector3(-0.48, TRAY_Y + 0.04, 0.30), Vector3(0.23, 0.008, 0.12))
 const TRAY := AABB(Vector3(-0.82, TRAY_Y - 0.03, 0.035), Vector3(1.64, 0.03, 0.31))
-## The rail along the tray's front edge: height and thickness.
 const LIP := Vector2(0.035, 0.012)
+const RAG := AABB(Vector3(-0.48, TRAY_Y + LIP.x, TRAY.end.z - LIP.y), Vector3(0.23, 0.008, LIP.y))
+const RAG_EDGE := [
+	Vector2(RAG.position.z - 0.035, TRAY_Y + 0.0005),
+	Vector2(RAG.position.z, RAG.position.y + 0.0005),
+	Vector2(RAG.end.z + 0.0005, RAG.position.y + 0.0005),
+	Vector2(RAG.end.z + 0.0005, TRAY_Y - 0.09),
+]
 ## Where each thing on the tray sits, on the tray's top.
 const POT := Vector3(-0.68, TRAY_Y, 0.2)
 const JAR := Vector3(-0.54, TRAY_Y, 0.23)
@@ -479,6 +484,29 @@ func _board(e: Easel) -> void:
 	e.add_child(e.board)
 
 
+static func rag_distance(point: Vector3) -> float:
+	if point.x < RAG.position.x - 0.008 or point.x > RAG.end.x + 0.008:
+		return INF
+	var yz := Vector2(point.z, point.y)
+	var distance := INF
+	for i in RAG_EDGE.size() - 1:
+		distance = minf(distance, yz.distance_to(Geometry2D.get_closest_point_to_segment(yz, RAG_EDGE[i], RAG_EDGE[i + 1])))
+	return distance
+
+
+static func rag_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in RAG_EDGE.size() - 1:
+		for uv in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)]:
+			var yz: Vector2 = RAG_EDGE[i + int(uv.y)]
+			st.set_uv(Vector2(uv.x, (i + uv.y) / (RAG_EDGE.size() - 1)))
+			st.add_vertex(Vector3(lerpf(RAG.position.x, RAG.end.x, uv.x), yz.y, yz.x))
+	st.generate_normals()
+	st.index()
+	return st.commit()
+
+
 func _build(e: Easel) -> void:
 	var stand := Node3D.new()
 	stand.name = "stand"
@@ -490,7 +518,7 @@ func _build(e: Easel) -> void:
 	e.add_child(implements)
 	e.rag = ShaderMaterial.new()
 	e.rag.shader = preload("res://src/rag.gdshader")
-	_part(implements, ToolModels.box(RAG.size), Transform3D(Basis(), RAG.get_center()), e.rag, false)
+	_part(implements, ToolModels.shared("rag", rag_mesh), Transform3D.IDENTITY, e.rag, false)
 	var glass := _mat("glass", Color(0.86, 0.93, 0.96, 0.22), 0.04)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.rim_enabled = true

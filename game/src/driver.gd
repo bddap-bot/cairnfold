@@ -1939,16 +1939,15 @@ func _rag_wipe(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
 	var at := Easels.RAG.get_center()
+	var start := at + Vector3(-0.08, 0, 0)
+	var end := start if s.get("dab", false) else at + Vector3(0.08, 0, 0)
+	var path := [start + Vector3.UP * 0.08, start, end, end + Vector3.UP * 0.08]
+	var steps := maxi(2, int(s.get("frames", 12)))
 	for i in s.get("times", 1):
-		_tip_at(hand, e.tray(at + Vector3(-0.08, 0.08, 0)), Vector3.DOWN, -e.global_basis.z)
-		await _frames(2)
-		_tip_at(hand, e.tray(at + Vector3(-0.08, 0, 0)), Vector3.DOWN, -e.global_basis.z)
-		await _frames(2)
-		for k in 12:
-			_tip_at(hand, e.tray(at + Vector3(-0.08 + k * 0.014, 0, 0)), Vector3.DOWN, -e.global_basis.z)
-			await _frames(1)
-		_tip_at(hand, e.tray(at + Vector3(0.08, 0.08, 0)), Vector3.DOWN, -e.global_basis.z)
-		await _frames(2)
+		for j in path.size() - 1:
+			for k in steps:
+				_tip_at(hand, e.tray(path[j].lerp(path[j + 1], float(k) / (steps - 1))), Vector3.DOWN, -e.global_basis.z)
+				await _frames(1)
 
 
 ## Dips the brush in `hand` into the jar, or pigment `index` of the watercolour box ("pan") or the oil palette ("oil"),

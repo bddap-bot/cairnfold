@@ -502,7 +502,8 @@ func fresh_sheet(id: int, hand: Hand = null) -> void:
 
 func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:
 	var local := e.to_local(tip)
-	var on := not Brushwork.is_stick(p.brush) and Easels.RAG.grow(0.008).has_point(local)
+	var distance := Easels.rag_distance(local)
+	var on := not Brushwork.is_stick(p.brush) and distance <= 0.014
 	if not on:
 		p.rag = null
 		return false
@@ -511,17 +512,18 @@ func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:
 		p.rag = e
 		p.wipe_start = local
 		p.wiped = false
-	if not p.wiped and Vector2(local.x - p.wipe_start.x, local.z - p.wipe_start.z).length() >= 0.035:
+	if not p.wiped and (distance <= 0.006 or Vector2(local.x - p.wipe_start.x, local.z - p.wipe_start.z).length() >= 0.035):
 		wipe(p, e)
 		p.wiped = true
 	return true
 
 
 func wipe(p: Painter, e: Easels.Easel) -> void:
-	if Brushwork.is_stick(p.brush) or p.load <= 0.0:
+	if Brushwork.is_stick(p.brush) or p.load <= 0.15:
 		return
 	end_stroke(p)
 	p.load = maxf(0.15, p.load - 0.25)
+	Cues.play(Cues.Act.BRUSH_WIPE, e.tray(Easels.RAG.get_center()), p.hand)
 	e.rag.set_shader_parameter("paint_colour", _paint_colour(p))
 	e.rag.set_shader_parameter("stained", true)
 	_show_paint(p)

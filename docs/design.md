@@ -4298,6 +4298,7 @@ Every player action, from the code:
 | `EASEL_PLACE` | An easel is set up | low wooden knock | knock |
 | `BRUSH_TAKE` | A grip takes a brush, charcoal, the palette or the sheet's corner | tock | knock |
 | `BRUSH_DIP` | A brush dips into paint, the jar or the tin | quiet dip | tick |
+| `BRUSH_WIPE` | A dab or wipe actually removes paint into the cloth | none | one 45 ms pulse |
 | `SHEET_TEAR` | The sheet is torn off | paper tear | pulse |
 | `PHOTO` | The camera takes a photo (flat players too) | wooden shutter | knock |
 | `VIDEO_START` | Holding the camera's trigger starts a video | two soft knocks rising | two knocks |
@@ -5018,12 +5019,16 @@ frame after is the undo itself, 33 ms applying the command. The replay now takes
 the bench's strokes are back on the canvas.
 
 Brush load stays constant while painting, including across separate strokes. Dipping fills the brush;
-a clean brush picking paint up from the mixing board fills too. A lateral wipe across the cloth on
+a clean brush picking paint up from the mixing board fills too. A sideways wipe or a dab pressed into the cloth on
 the tray lip removes a quarter of the load, once until the brush lifts, down to a 15% dry-brush floor.
-The cloth takes a smear of the current colour. Charcoal is unaffected. On the brush itself the painted
-part of the bristles empties from the ferrule, the last paint staying at the tip, and loses its gloss as load drops,
+A brush already at or below the floor stays unchanged. Only an actual unload gives the wiping hand a distinct
+45 ms pulse, without sound. The cloth takes a smear of the current colour. Charcoal is unaffected.
+The cloth folds over the tray lip: its inner edge rests on the tray, its middle rests on the wooden lip,
+and its outer edge hangs vertically down the front. It shares the easel transform at every player height.
+On the brush itself the painted part of the bristles empties from the ferrule, the last paint staying at the tip, and loses its gloss as load drops,
 without a text readout.
 `demo/brush-load.json` captures the same stroke and bristles at full load, after one wipe and after three.
+`demo/towel.json` views the supported cloth from three angles and two player eye heights, then dabs and wipes it.
 
 Every stroke is a build command (`paint`, docs/multiplayer.md): the brush's medium, colour, strength and load, and
 its samples (where on the canvas, how hard, the flat brush's angle, at which tick), packed in two ints each.
