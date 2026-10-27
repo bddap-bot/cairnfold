@@ -70,3 +70,13 @@ static func _pose(out: PackedByteArray, at: int, t: Transform3D) -> void:
 ## The frames a record's "input" event holds, decoded back to the bytes `frame` wrote.
 static func frames(event: Dictionary) -> PackedByteArray:
 	return Marshalls.base64_to_raw(event.data).decompress(int(event.bytes), FileAccess.COMPRESSION_DEFLATE)
+
+
+## The messages a record's "net" event holds (PlayLog.heard), each [frame, from, whose, call, args].
+static func messages(event: Dictionary) -> Array:
+	var args: Array = bytes_to_var(Marshalls.base64_to_raw(event.data).decompress(int(event.bytes), FileAccess.COMPRESSION_DEFLATE))
+	var out := []
+	for i in event.messages.size():
+		var m: Array = event.messages[i]
+		out.append([int(m[0]), int(m[1]), int(m[2]), str(m[3]), args[i]])
+	return out

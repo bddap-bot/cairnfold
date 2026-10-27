@@ -118,6 +118,8 @@ var _ops := {}
 ## commands in the same order.
 var _queue: Array[Dictionary] = []
 var _ahead_task := -1
+## Where the session's record keeps every message the network brings this garden and its Session, or null.
+var play_log: PlayLog
 ## What the task leaves: the refill, and the fills `Commands` checks a pond put against (Water.know).
 var _ahead := []
 ## The refill worked out for the command now applying, for `_set_ponds`.
@@ -532,6 +534,14 @@ func me() -> int:
 	return multiplayer.get_unique_id()
 
 
+## Keeps the networked `call` now arriving, or a change this machine makes to its session, in the session's record:
+## about its sender, or the player `whose` it names.
+func hear(call: String, args: Array, whose := -1) -> void:
+	if play_log != null:
+		var from := multiplayer.get_remote_sender_id()
+		play_log.heard(from, from if whose < 0 else whose, call, args)
+
+
 ## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot. One that would
 ## take the garden past its frame budget is turned down here at once; `hand`, the one whose tool made it, feels a
 ## turned-down command.
@@ -572,6 +582,7 @@ func redo(hand: XRController3D = null) -> void:
 
 @rpc("any_peer", "reliable")
 func _propose(cmd: Dictionary) -> void:
+	hear("_propose", [cmd])
 	if not multiplayer.is_server():
 		return
 	var by := multiplayer.get_remote_sender_id()
@@ -638,6 +649,8 @@ func _order(proposed: Dictionary, by: int) -> void:
 	if cmd.op == "plant" and not cmd.kind in Flora.PLACED:
 		cmd.skip = state.groups[cmd.id].skip
 	_commit.rpc(cmd)
+	if play_log != null:
+		play_log.heard(0, by, "ordered", [cmd])
 	# Turning the sky is not an edit, so undo leaves it be.
 	if cmd.op == "sky":
 		return
@@ -683,11 +696,13 @@ func _refuse(by: int, proposed: Dictionary, why: String) -> void:
 
 @rpc("authority", "reliable")
 func _refused(token: int) -> void:
+	hear("_refused", [token])
 	_turned_down(token, "the host refused it")
 
 
 @rpc("authority", "reliable")
 func _capped(token: int) -> void:
+	hear("_capped", [token])
 	_turned_down(token, OVER)
 
 
@@ -712,6 +727,7 @@ func cap(hand: XRController3D) -> void:
 
 @rpc("authority", "reliable")
 func _commit(sent: Dictionary) -> void:
+	hear("_commit", [sent], sent.get("by") if sent.get("by") is int else -1)
 	_enqueue(sent, -1, _apply_sent.bind(sent))
 
 
@@ -740,6 +756,7 @@ func _timed(cmd: Dictionary) -> Dictionary:
 ## A player whose garden no longer matches the host's asks for it whole.
 @rpc("any_peer", "reliable")
 func _resend() -> void:
+	hear("_resend", [])
 	if multiplayer.is_server():
 		var by := multiplayer.get_remote_sender_id()
 		if _spend(by, BURST * 0.5):
@@ -1292,6 +1309,7 @@ func welcome(id: int) -> void:
 
 @rpc("authority", "reliable")
 func _welcome(snap: Dictionary) -> void:
+	hear("_welcome", [snap])
 	if not (snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT):
 		push_error("world: the host sent a garden this one cannot read")
 		return

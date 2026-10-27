@@ -7,8 +7,11 @@ It has no accounts, analytics, advertising or crash reporting.
 
 The game keeps its own files in its app folder on your device: your garden, the photos you take,
 the visitor name you pick, avatar files you add, and, only if you turn it on, a record of your
-play sessions: how the game ran, and every frame your head's and hands' movements and the buttons you
-pressed, so a session can be played back. None of them leaves the device except as described below.
+play sessions: how the game ran, every frame your head's and hands' movements and the buttons you
+pressed, and what other players' games sent yours while you played together (their head and hand movements, their edits
+to the garden, the garden you visited and its network address, and a fingerprint of the avatar file each wore, never the
+file), so a session can be played back. None
+of them leaves the device except as described below.
 
 ## What goes to other players
 
@@ -24,5 +27,6 @@ pressed, so a session can be played back. None of them leaves the device except 
 ## Removing your data
 
 Uninstalling the game deletes its folder and everything in it. Once a visit ends, the other players
-keep nothing from it but the photos they took in the garden. Questions or requests go to the project's issue tracker:
+keep nothing from it but the photos they took in the garden and, on a device that records its play sessions, that
+session's record. Questions or requests go to the project's issue tracker:
 https://github.com/bddap-bot/nestcombe/issues

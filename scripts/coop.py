@@ -1,4 +1,4 @@
-"""Drive the existing build gestures with N peers, then check every peer's view."""
+"""Drive the existing build gestures with N peers, then check every peer's view and every peer's session record."""
 import argparse
 import hashlib
 import json
@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import random
 import re
+import shutil
 import socket
 import subprocess
 import threading
@@ -428,10 +429,50 @@ def check_peers(out, count):
     return not failed
 
 
+def heard(folder):
+    """Every message a player's session record holds (PlayLog.heard), oldest first, as [frame, from, whose, call]."""
+    nets = [r for chunk in sorted(folder.glob("*.jsonl")) for r in map(json.loads, chunk.read_text().splitlines())
+            if r.get("event") == "net"]
+    return [m for e in sorted(nets, key=lambda e: e["first"]) for m in e["messages"]]
+
+
+def check_records(out, names):
+    """Whether each player's record holds every build command applied from when it joined, which is every one the host
+    ordered after that player came, each player's among them, and every other player's poses; each message stamped
+    with a frame no earlier than the one before."""
+    records = {n: heard(out / "sessions" / n) for n in names}
+    joined = {n: 0 if n == "host" else next((i for i, m in enumerate(records[n]) if m[3] == "connected"), None) for n in names}
+    failed = [n for n in names if joined[n] is None]
+    for n in failed:
+        print(f"FAIL: {n}'s record holds no connection to the host")
+    ids = {n: 1 if n == "host" else records[n][joined[n]][2] for n in names if n not in failed}
+    ordered = [i for i, m in enumerate(records["host"]) if m[3] == "ordered"]
+    came = {n: -1 if n == "host" else next((i for i, m in enumerate(records["host"]) if m[3] == "peer_connected" and m[2] == ids[n]), len(records["host"]))
+            for n in ids}
+    for n in ids:
+        since = records[n][joined[n]:]
+        built = {}
+        for m in since:
+            if m[3] in ("_commit", "ordered"):
+                built[m[2]] = built.get(m[2], 0) + 1
+        due = sum(1 for i in ordered if i > came[n])
+        posed = {m[1] for m in since if m[3] == "_pose"}
+        ok = (sum(built.values()) == due and set(built) == set(ids.values()) and posed == set(ids.values()) - {ids[n]}
+              and all(a[0] <= b[0] for a, b in zip(records[n], records[n][1:])))
+        print(("ok: " if ok else "FAIL: ") + f"{n}'s record holds {len(records[n])} messages: {sum(built.values())} of the {due} "
+              f"build commands the host ordered after it came, by player {dict(sorted(built.items()))}, poses from "
+              f"{sorted(posed)}, of players {ids}")
+        if not ok:
+            failed.append(n)
+    return not failed
+
+
 def run(out, count, mode="full", capture=False):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
+    for folder in ("sessions", "user"):
+        shutil.rmtree(out / folder, ignore_errors=True)
     full = mode == "full"
     generated = {"full": lambda: scripts(count, capture), "spawn": lambda: spawn_scripts(capture),
                  "held": held_scripts, "flat": flat_scripts}[mode]()
@@ -467,7 +508,8 @@ def run(out, count, mode="full", capture=False):
         args += ["--resolution", "1200x900"] if mode == "flat" else [] if rendered else ["--headless"]
         args += ["--", "--desktop", "--script", str(out / f"script-{name}.json"),
                  "--capture-dir", str(out), "--host-port", str(port),
-                 "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
+                 "--beacon-port", str(beacon), "--port", str(port if name == "host" else first),
+                 "--record-sessions", "--session-directory", str(out / "sessions" / name)]
         vrm = None
         if mode == "flat":
             vrm = FLAT_AVATARS[name]
@@ -487,7 +529,10 @@ def run(out, count, mode="full", capture=False):
             args += ["--avatars", str(folder)]
         log = (out / f"{name}.log").open("w")
         logs.append(log)
-        env = dict(os.environ, DISPLAY=display) if rendered else None
+        # Each player's own player folder, so the opt-in --record-sessions writes stays out of the one this machine plays in.
+        env = dict(os.environ, XDG_DATA_HOME=str(out / "user" / name))
+        if rendered:
+            env["DISPLAY"] = display
         if mode == "flat":
             env["VK_ICD_FILENAMES"] = os.environ.get("CAIRNFOLD_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
         processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env)
@@ -593,6 +638,8 @@ def run(out, count, mode="full", capture=False):
         return
     if not check_peers(out, count):
         raise SystemExit("coop: the peers' gardens differ")
+    if not check_records(out, list(generated)):
+        raise SystemExit("coop: a player's session record misses what the others did")
     rows = []
     for path in sorted(out.glob("*-cost.json")):
         row = json.loads(path.read_text())

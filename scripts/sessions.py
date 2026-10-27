@@ -8,7 +8,8 @@ Sessions print oldest first, each with where its chunks were found, its device, 
 per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
 frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
 the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
-what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play."""
+what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play, and the
+messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each."""
 import argparse
 import base64
 import json
@@ -33,7 +34,8 @@ def read(folder):
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            s = sessions.setdefault(record.get("session"), {"rows": [], "inputs": [], "replay_bytes": 0,
+            s = sessions.setdefault(record.get("session"), {"rows": [], "inputs": [], "nets": [], "replay_bytes": 0,
+                                                            "net_bytes": 0,
                                                             "where": chunk.parent.relative_to(folder.parent).as_posix()})
             event = record.get("event")
             if event == "start":
@@ -45,6 +47,9 @@ def read(folder):
             elif event == "input":
                 s["inputs"].append(record)
                 s["replay_bytes"] += len(line) + 1
+            elif event == "net":
+                s["nets"].append(record)
+                s["net_bytes"] += len(line) + 1
             elif event == "replay":
                 s["replay"] = record
                 s["replay_bytes"] += len(line) + 1
@@ -53,7 +58,7 @@ def read(folder):
         if sid is None or "start" not in s:
             continue
         rows = sorted(s["rows"], key=lambda r: r.get("unix") or 0)
-        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows) | {"replay": replay(s)})
+        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows) | {"replay": replay(s), "net": net(s)})
     return sorted(out, key=lambda x: x["started"])
 
 
@@ -90,6 +95,27 @@ def replay(s):
         "bytes": s["replay_bytes"],
         "mb_per_hour": round(s["replay_bytes"] / played * 3600 / 1e6, 2) if played else None,
     }
+
+
+def messages(s):
+    """Every message the session heard, oldest first, as [frame, from, whose, call]."""
+    return [m for e in sorted(s["nets"], key=lambda e: e["first"]) for m in e["messages"]]
+
+
+def net(s):
+    """What the network brought the session: how many of each call, the build commands each player made, and how many
+    messages the ring lost."""
+    if not s["nets"]:
+        return None
+    heard = messages(s)
+    calls, commands = {}, {}
+    for _, _, whose, call in heard:
+        calls[call] = calls.get(call, 0) + 1
+        if call in ("_commit", "ordered"):
+            commands[str(whose)] = commands.get(str(whose), 0) + 1
+    last = max(s["nets"], key=lambda e: e["first"])
+    return {"messages": len(heard), "missing": last["first"] + len(last["messages"]) - len(heard),
+            "calls": dict(sorted(calls.items())), "commands": commands, "bytes": s["net_bytes"]}
 
 
 def merge(rows):
@@ -181,6 +207,13 @@ def text(s):
         begun = "" if r["start"] else ", its start lost to the ring"
         lines.append(f"  replay: {r['frames']} frames over {r['seconds']} s, {r['bytes'] / 1e6:.2f} MB, "
                      f"{r['mb_per_hour']} MB an hour{lost}{begun}")
+    if s["net"]:
+        n = s["net"]
+        lost = f", {n['missing']} lost to the ring" if n["missing"] else ""
+        lines.append(f"  network: {n['messages']} messages, {n['bytes'] / 1e6:.2f} MB{lost}: "
+                     + ", ".join(f"{k} {v}" for k, v in n["calls"].items()))
+        if n["commands"]:
+            lines.append("  build commands by player: " + ", ".join(f"{k}: {v}" for k, v in n["commands"].items()))
     if s["stalls"]:
         worst = sorted(sorted(s["stalls"], key=lambda x: -x["ms"])[:STALLS_SHOWN], key=lambda x: x["t"] or 0)
         lines.append(f"  stalls: {len(s['stalls'])}, the worst {len(worst)}:")

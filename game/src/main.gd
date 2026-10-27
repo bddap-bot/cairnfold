@@ -227,10 +227,11 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
 
-## Records the session into `into` from here: the seeds and the garden it starts from, then every frame's input
-## beside the metrics.
+## Records the session into `into` from here: the seeds and the garden it starts from, then every frame's input and
+## every message the network brings beside the metrics.
 func record(into: PlayLog) -> void:
 	metrics.play_log = into
+	world.play_log = into
 	into.begin({"rng": str(rng_seed), "wildlife": str(wildlife.rng.seed)}, world.snapshot())
 
 

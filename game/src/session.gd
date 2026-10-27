@@ -158,6 +158,7 @@ func _ready() -> void:
 	multiplayer.peer_disconnected.connect(_on_gone)
 	multiplayer.server_disconnected.connect(go_home, CONNECT_DEFERRED)
 	multiplayer.connection_failed.connect(go_home, CONNECT_DEFERRED)
+	multiplayer.connected_to_server.connect(func() -> void: world.hear("connected", [], world.me()))
 	_beacon.set_broadcast_enabled(true)
 	for p in (BEACON_PORTS if first_port else 0):
 		if _listen.bind(beacon_port + p, "*" if lan else "127.0.0.1") == OK:
@@ -203,6 +204,7 @@ func join(address: String, at_port: int) -> bool:
 	_drop_avatars()
 	multiplayer.multiplayer_peer = peer
 	visiting = {"address": address, "port": at_port}
+	world.hear("join", [address, at_port])
 	changed.emit()
 	return true
 
@@ -211,6 +213,7 @@ func go_home() -> void:
 	if visiting.is_empty() and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
 		return
 	print("session: home from ", visiting)
+	world.hear("home", [])
 	multiplayer.multiplayer_peer.close()
 	_drop_avatars()
 	host()
@@ -229,6 +232,7 @@ func players() -> int:
 
 
 func _on_peer(id: int) -> void:
+	world.hear("peer_connected", [], id)
 	# A script's or a test's peer is never dropped for going quiet: on a loaded machine one long frame starves its
 	# link however alive it is, and its harness ends a run whose player stops. Leaving still says goodbye.
 	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
@@ -245,6 +249,7 @@ func _on_peer(id: int) -> void:
 
 
 func _on_gone(id: int) -> void:
+	world.hear("peer_disconnected", [], id)
 	print("session: player %d left" % id)
 	Cues.play(Cues.Act.PLAYER_LEAVES, avatars[id].global_position if avatars.has(id) else _here())
 	if avatars.has(id):
@@ -523,6 +528,7 @@ func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted
 ## A player's avatar and colour, sent once to each player they meet.
 @rpc("any_peer", "reliable")
 func _appear(look: int, tint: Color) -> void:
+	world.hear("_appear", [look, tint])
 	var id := multiplayer.get_remote_sender_id()
 	if avatars.has(id):
 		return
@@ -564,6 +570,7 @@ func _drop_dishes(id: int) -> void:
 ## They keep their built-in avatar until the file has been read, on a worker thread, and passes the limits.
 @rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
 func _wear(bytes: PackedByteArray, look: int) -> void:
+	world.hear("_wear", [bytes, look])
 	var id := multiplayer.get_remote_sender_id()
 	print("session: player %d sent %d bytes of avatar%s" % [id, bytes.size(), "" if _looks.has(id) else " before appearing"])
 	if not _looks.has(id) or bytes.size() > Avatar.MAX_BYTES:
@@ -718,6 +725,7 @@ func _finish_jobs() -> void:
 
 @rpc("any_peer", "reliable")
 func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
+	world.hear("_threw", [from, velocity, seed])
 	var id := multiplayer.get_remote_sender_id()
 	if feed == null or not avatars.has(id) or _clock - _thrown.get(id, -INF) < THROW_EVERY:
 		return
@@ -730,6 +738,7 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 ## A player's head, hands and where their eyes look, in their head's frame.
 @rpc("any_peer", "unreliable_ordered")
 func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}) -> void:
+	world.hear("_pose", [eyes, left, right, look, springs, holders])
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
@@ -759,6 +768,7 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 
 @rpc("any_peer", "reliable")
 func _held(items: Array) -> void:
+	world.hear("_held", [items])
 	var id := multiplayer.get_remote_sender_id()
 	if not held.has(id) or items.size() != 4:
 		return
@@ -829,6 +839,7 @@ func _spring_request(owner: int, side: int, chain: int) -> void:
 
 @rpc("any_peer", "reliable")
 func _grab_spring(side: int, chain: int) -> void:
+	world.hear("_grab_spring", [side, chain])
 	_hold_spring(multiplayer.get_remote_sender_id(), side, chain)
 
 

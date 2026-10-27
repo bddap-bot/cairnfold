@@ -4964,7 +4964,18 @@ seeds (the global generator's, which `Main` draws and sets as it starts, and the
 in (`World.snapshot`, deflated), and with each row an `input` record of every frame since the last, deflated and
 base64'd. A frame (`Replay`, laid out in each chunk's start record) is the frame's delta, the head's pose and each
 hand's controller pose in the play space, its stick and the inputs the controls table reads on it, held or not:
-110 bytes, written on the log's worker thread. Sixty-four chunks of at most 4 MiB retain recent history;
+110 bytes, written on the log's worker thread. With each row too goes a `net` record of every message the network brought since
+the last (`PlayLog.heard`): each the frame it came in before, its sender, the player it is about and the networked call,
+listed in the record's JSON, with their arguments as they arrived in Godot's own binary encoding (`var_to_bytes`),
+deflated and base64'd, which `Replay.messages` reads back. That is every build command the garden applied, each about
+the player who made it: elsewhere as the host sent it (`_commit`), on the host as it ordered it (`ordered`, from 0, this
+machine, beside the `_propose` it came in as), so a replay tells what a host ordered from what it was sent. With
+them go the refusals and the garden a host sends a joiner, each remote player's appearance, poses, held items, throws and
+spring grabs, players coming and going, and this machine joining a garden (its address and port) or going home. An
+avatar file a message carries is kept as its SHA-256 and length, never the file. Every networked method records what it
+hears before anything else (tests/test_net_record.gd holds them to it). `scripts/coop.sh` records every player's session
+and checks that each record holds every build command the host ordered after that player came, every player's among
+them, and every other player's poses. Nearby gardens' beacons and the avatar previews fetched from them are not kept. Sixty-four chunks of at most 4 MiB retain recent history;
 rotation can discard the beginning of a long session, and `scripts/sessions.py` counts the frames lost. Each chunk repeats the
 session start, build revision and device model; a chunk is renamed into place
 holding that start record, and each second's lines are flushed together as they are written. A quit the
