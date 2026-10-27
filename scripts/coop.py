@@ -122,7 +122,8 @@ def held_steps(name, names, capture=False):
 
 
 # Where the host puts up a house, which the joiner carries away and turns, and where the joiner puts up its own, which
-# takes the host's house's look with two taps of the joiner's colour tool.
+# takes the host's house's look with two taps of the joiner's colour tool. The joiner names the host's house as the
+# build before its own.
 MOVED_HOUSE = (-12, 8)
 COPIED_HOUSE = (-4, 12)
 # How far the joiner carries the host's house, across the ground, and turns it, in degrees.
@@ -148,7 +149,7 @@ def move_steps(name, names, seq):
         steps += [{"op": "tap", "from": [MOVED_HOUSE[0], 1.5, MOVED_HOUSE[1] + 6], "at": [MOVED_HOUSE[0], 1.2, MOVED_HOUSE[1]]},
                   {"op": "tap", "from": [COPIED_HOUSE[0], 1.5, COPIED_HOUSE[1] + 6], "at": [COPIED_HOUSE[0], 1.2, COPIED_HOUSE[1]]},
                   {"op": "until", "seq": seq + 4},
-                  {"op": "resize", "at": list(MOVED_HOUSE), "move": list(HOUSE_CARRY[:2]), "turn": HOUSE_CARRY[2], "seconds": 0.5},
+                  {"op": "resize", "index": -2, "move": list(HOUSE_CARRY[:2]), "turn": HOUSE_CARRY[2], "seconds": 0.5},
                   {"op": "until", "seq": seq + 5},
                   {"op": "carry", "x": DROWN[0], "z": DROWN[1], "move": [2, 0, 0], "turn": [0, 90, 0], "seconds": 0.5}]
     steps += [{"op": "until", "seq": seq + 6}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-moved"},
