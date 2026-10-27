@@ -102,7 +102,7 @@ also holds the people: avatars to wear, and nearby gardens to join.
   Quest the folder is `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`:
   `adb push avatar.vrm /sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars/`.
 
-Session telemetry is off by default and never sent by the game. Launch with
+Session telemetry is off by default. Launch with
 `--record-sessions`, or put a `record-sessions` file in the player folder, to opt this
 device into bounded local frame-timing history and replay input (every frame's head and hand poses and buttons, and
 what other players' games sent it)
@@ -128,10 +128,6 @@ it signs with your own key (AGENTS.md, "Signing"), so a release install must go 
 `scripts/quest-install.sh cairnfold.apk` uninstalls it when it must and puts your garden and avatars back.
 `scripts/release.sh` publishes the desktop and Frame builds and both APKs together; `--rollback TAG` makes an
 older release Latest again.
-
-## Privacy
-
-The game collects nothing about you: [PRIVACY.md](PRIVACY.md).
 
 ## License
 

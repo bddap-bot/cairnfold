@@ -68,6 +68,21 @@ controls and the build order.
 - Put an APK on a Quest only with `scripts/quest-install.sh APK`, never a bare `adb install` or
   `adb uninstall`: an install that needs an uninstall erases the players' garden and avatars, and
   that script alone copies them off first and puts them back.
+- Players' privacy is an obligation, not a feature: never advertise it in the README, store copy, docs
+  or game, and keep no separate privacy file. Directive (verbatim): "Privacy is not a "feature" of
+  cairnfold, it's an ethical obligation. Don't advertise it in the readme or in a separate privacy file.
+  Reasonable to put it in agents.md though." What that obliges:
+  - The game collects no personal data and sends nothing to its makers or to any server they run: no
+    accounts, analytics, advertising, crash reporting or telemetry upload in any build players get.
+  - Everything the game keeps (the garden, photos, the visitor name, avatar files, session records)
+    stays in its own folder on the device, and uninstalling deletes it all.
+  - Session recording stays off unless a device is opted in (`record-sessions`), which only our own
+    test headsets are; a record leaves a device only when a dev tool pulls it.
+  - Other players get only what play needs, directly over the local network: the discovery beacon's
+    random key, avatar choice and colour, plus the visitor name once picked; during a visit, head and
+    hand poses, garden edits, the garden and the avatar file worn. Steam's friend presence is the one
+    path through a third party. A visit leaves the other players nothing but their own photos and, on
+    an opted-in device, its session record.
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
   `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.sh out'` must pass too.
