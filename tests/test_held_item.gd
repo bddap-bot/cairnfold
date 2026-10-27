@@ -9,6 +9,21 @@ func _run() -> void:
 	var item := HeldItem.new()
 	item.terrain = Terrain.new()
 	root.add_child(item)
+	var stress := Driver.held_states()
+	var expected := Hand.Tool.size() - Hand.UNMODELLED.size() + Easels.KITS.size() + Brushwork.Brush.size() + 1
+	check(stress.size() == expected, "stress sweep includes every modelled tool, palette, brush and book")
+	stress.append_array(Driver.held_states(true))
+	var seen := {}
+	for state in stress:
+		var label := HeldItem.label(state)
+		check(not seen.has(label), "stress state appears once: " + label)
+		seen[label] = true
+		check(HeldItem.valid(state), "stress state is valid: " + label)
+		if not HeldItem.valid(state):
+			continue
+		item.show_state(state)
+		check(item.model != null, "stress state renders: " + label)
+	check(Driver.held_states(true).size() == 1 and stress[-1][0] == HeldItem.Kind.BIRD, "bird sweep renders its carried conure")
 	for tool in Hand.Tool.values():
 		if tool in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
 			continue

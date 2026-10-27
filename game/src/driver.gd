@@ -2479,6 +2479,21 @@ func _remote_holds(s: Dictionary) -> void:
 	assert(false, "remote held models differ from holder: " + s.name)
 
 
+static func held_states(birds: bool = false) -> Array:
+	var states: Array = []
+	for tool in Hand.Tool.values():
+		if tool not in Hand.UNMODELLED:
+			states.append([HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, false, Vector3.ZERO])
+	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.OIL, Transform3D(), Color.WHITE, 0.0, 1, false, Vector3.ZERO])
+	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.WATER, Transform3D(), Color.WHITE, 0.0, 1, false, Vector3.ZERO])
+	for brush in Brushwork.Brush.values():
+		states.append([HeldItem.Kind.BRUSH, brush, Transform3D(), Color(0.15, 0.3, 0.65), 1.0, 0, false, Vector3.ZERO])
+	states.append([HeldItem.Kind.BOOK, 1, Book.local(1.0), Color.WHITE, 0.0, 0, false, Vector3.ZERO])
+	if birds:
+		states = [[HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]]
+	return states
+
+
 ## The maximum seven peers' fourteen held models, close enough to fill the view, through the live renderer.
 ## `shown` false keeps them in place hidden, and `label` names the phase, for a pair without them; `capture` saves the view
 ## before the phase starts.
@@ -2491,18 +2506,9 @@ func _held_cost(s: Dictionary) -> void:
 		add_child(item)
 		item.global_transform = eye * Transform3D(Basis(), Vector3((i % 7 - 3) * 0.2, (i / 7 - 0.5) * 0.35, -0.8))
 		items.append(item)
-	var states: Array = []
-	for tool in Hand.Tool.values():
-		if tool not in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
-			states.append([HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, false])
-	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.OIL, Transform3D(), Color.WHITE, 0.0, 1, false])
-	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.WATER, Transform3D(), Color.WHITE, 0.0, 1, false])
-	for brush in Brushwork.Brush.values():
-		states.append([HeldItem.Kind.BRUSH, brush, Transform3D(), Color(0.15, 0.3, 0.65), 1.0, 0, false])
-	states.append([HeldItem.Kind.BOOK, 1, Book.local(1.0), Color.WHITE, 0.0, 0, false])
-	if s.get("birds", false):
-		states = [[HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]]
+	var states := held_states(s.get("birds", false))
 	for state in states:
+		assert(HeldItem.valid(state), "invalid stress state: " + HeldItem.label(state))
 		for item in items:
 			item.show_state(state)
 			item.visible = s.get("shown", true)
