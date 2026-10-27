@@ -522,7 +522,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 ## The meadow's own group as it grows, every plant standing and every tree an oak, its trees and bushes charged as
 ## planted ones are.
 func _grow_meadow() -> void:
-	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}}
+	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}, "turns": {}}
 	if _meadow_units.is_empty():
 		for p: Flora.Plant in flora.groups[0]:
 			if p != null:
@@ -1037,6 +1037,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			g.hidden = {}
 			if g.kind in Flora.PLACED:
 				g.places = {}
+				g.turns = {}
 			if g.kind == "tree":
 				g.species = {}
 				g.scale = {}
@@ -1067,6 +1068,13 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				inverse.at = first.foot()
 				g.places[cmd.index] = cmd.at
 				flora.move(first, cmd.at)
+			if cmd.has("turn"):
+				inverse.turn = g.turns.get(cmd.index, 0.0)
+				if cmd.turn == 0.0:
+					g.turns.erase(cmd.index)
+				else:
+					g.turns[cmd.index] = cmd.turn
+				flora.turn_to(first, cmd.turn)
 			for k: String in ["species", "scale", "moss"]:
 				if not cmd.has(k):
 					continue
@@ -1339,18 +1347,22 @@ func snapshot() -> Dictionary:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
 			var c := g.duplicate(true)
-			for k in ["hidden", "size", "species", "scale", "moss", "places"]:
+			for k in ["hidden", "size", "species", "scale", "moss", "places", "turns"]:
 				c.erase(k)
 			c.op = "plant"
 			c.id = id
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
-		for i in g.get("species", {}).merged(g.get("scale", {})).merged(g.get("moss", {})).merged(g.get("places", {})):
+		var named := {"species": "species", "scale": "scale", "moss": "moss", "places": "at", "turns": "turn"}
+		var changed := {}
+		for k in named:
+			changed.merge(g.get(k, {}))
+		for i in changed:
 			var c := {"op": "tree", "group": id, "index": i}
-			for k in ["species", "scale", "moss", "places"]:
+			for k in named:
 				if g.get(k, {}).has(i):
-					c["at" if k == "places" else k] = g[k][i]
+					c[named[k]] = g[k][i]
 			cmds.append(c)
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
@@ -1491,11 +1503,13 @@ func digest() -> Dictionary:
 				spot += p.anchor
 		var species := []
 		var scales := []
+		var turns := []
 		for p: Flora.Plant in flora.groups[g]:
 			if p != null and p.pool == flora.trunks:
 				species.append(flora.species_of(p))
 				scales.append(snappedf(flora.scale_of(p), 0.001))
-		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01)), "species": species, "scale": scales}
+				turns.append(snappedf(flora.turn_of(p), 0.001))
+		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01)), "species": species, "scale": scales, "turn": turns}
 	out.stairs = state.stairs.duplicate(true)
 	out.paths = state.paths.keys()
 	out.pond_levels = state.ponds.keys().map(func(g: Vector2i) -> String: return "%s %.3f" % [g, state.ponds[g]])

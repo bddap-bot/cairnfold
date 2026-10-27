@@ -607,8 +607,9 @@ static func _show(plants: Dictionary, state: Dictionary, out: Dictionary) -> boo
 	return true
 
 
-## Where a tree or bush stands across the ground (`at`), and a tree's species, scale and bark moss: a planted tree or
-## bush is its group's first plant, a meadow tree one of the meadow group's `trees`, a meadow bush one of its `bushes`.
+## Where a tree or bush stands across the ground (`at`) and its turn about its foot from how it grew (`turn`), and a
+## tree's species, scale and bark moss: a planted tree or bush is its group's first plant, a meadow tree one of the
+## meadow group's `trees`, a meadow bush one of its `bushes`.
 static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	var g: Variant = cmd.get("group")
 	var i: Variant = cmd.get("index")
@@ -623,6 +624,10 @@ static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 		if typeof(cmd.at) != TYPE_VECTOR3 or not _finite(cmd.at):
 			return false
 		out.at = cmd.at
+	if cmd.has("turn"):
+		if typeof(cmd.turn) != TYPE_FLOAT or not is_finite(cmd.turn):
+			return false
+		out.turn = wrapf(cmd.turn, -PI, PI)
 	if cmd.has("species"):
 		var species: Variant = cmd.species
 		if typeof(species) != TYPE_INT or species < 0 or species >= FloraLayout.Species.size():
@@ -639,7 +644,7 @@ static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 		out.moss = cmd.moss
 	out.group = g
 	out.index = i
-	return out.has("at") or out.has("species") or out.has("scale") or out.has("moss")
+	return out.has("at") or out.has("turn") or out.has("species") or out.has("scale") or out.has("moss")
 
 
 static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:

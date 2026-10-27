@@ -399,6 +399,18 @@ class Pool:
 		if p.slot < kept:
 			_cover_cell(p.slot)
 
+	## Turns a plant `by` radians about the vertical through `about`, across the ground.
+	func spin(p: Plant, about: Vector3, by: float) -> void:
+		if not p.current():
+			return
+		var r := Basis(Vector3.UP, by)
+		var o := Vector3(about.x, p.xform.origin.y, about.z)
+		p.xform = Transform3D(r * p.xform.basis, o + r * (p.xform.origin - o))
+		if p.drawn:
+			place(p.slot, p.xform)
+		if p.slot < kept:
+			_cover_cell(p.slot)
+
 	## Finds again which of its plants standing in `area` across the ground are on rock, as the ground now lies.
 	func reground(area: Rect2) -> void:
 		if not soil:
@@ -527,6 +539,8 @@ class Solid:
 	var species := -1
 	var scale := 1.0
 	var moss := false
+	## How far it is turned about its foot from how it grew, in radians.
+	var turn := 0.0
 	## Where its first part's anchor stood as it grew.
 	var home: Vector3
 	## Its shade blob's instance in `crown_shade` as last fitted, or -1 for none.
@@ -902,6 +916,9 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 		foliage.repose(solid.parts[i + 1], t.blobs[i][0], t.blobs[i][1])
 	solid.species = species
 	solid.scale = scale
+	var yaw := solid.turn
+	solid.turn = 0.0
+	_spin(solid, yaw)
 	solid.fit()
 	changes += 1
 	_index(key, solid)
@@ -920,13 +937,42 @@ func move(first: Plant, at: Vector3) -> void:
 	var synced := _shade_seen() == _shaded
 	for p in solid.parts:
 		p.pool.shift(p, by, Color(1.0 if solid.moss and p.pool == trunks else 0.0, 0, 0, 0))
+	_refit(key, solid, synced)
+
+
+## Turns the tree or bush whose first part is `first` to `yaw` radians about its foot from how it grew.
+func turn_to(first: Plant, yaw: float) -> void:
+	var key := _key_of(first)
+	var solid: Solid = _solids.get(key)
+	if solid == null or solid.parts[0] != first or not first.current() or is_equal_approx(yaw, solid.turn):
+		return
+	var synced := _shade_seen() == _shaded
+	_spin(solid, yaw - solid.turn)
+	_refit(key, solid, synced)
+
+
+## How far the tree or bush whose first part is `first` is turned from how it grew.
+func turn_of(first: Plant) -> float:
+	return _solids[_key_of(first)].turn
+
+
+func _spin(solid: Solid, by: float) -> void:
+	var about := solid.parts[0].anchor
+	for p in solid.parts:
+		p.pool.spin(p, about, by)
+	solid.turn += by
+
+
+## Fits `solid` again after it moved. A carried tree moves every frame: only its own shade is fitted again, not every
+## crown's.
+func _refit(key: Vector2i, solid: Solid, synced: bool) -> void:
 	solid.fit()
 	_index(key, solid)
 	changes += 1
-	# A carried tree moves every frame: only its own shade is fitted again, not every crown's.
 	if synced:
 		_shaded = _shade_seen()
 		if solid.shade >= 0:
+			var first := solid.parts[0]
 			crown_shade.set_instance_transform(solid.shade, shade_of(solid.parts))
 			crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, first.anchor.x, first.anchor.z))
 
@@ -1181,6 +1227,7 @@ func reset() -> void:
 	for key: Vector2i in _solids:
 		var solid: Solid = _solids[key]
 		move(solid.parts[0], solid.home)
+		turn_to(solid.parts[0], 0.0)
 		if solid.species > FloraLayout.Species.OAK or solid.scale != 1.0:
 			set_look(solid.parts[0], FloraLayout.Species.OAK, 1.0)
 		_index(key, solid)

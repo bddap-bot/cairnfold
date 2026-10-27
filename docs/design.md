@@ -2679,6 +2679,31 @@ pair has a span, across and upright, which is what sizing needs. The trigger is 
 tool's trigger places and nothing else. One rule stretches both sides of every house (`WallTool.stretched`): the
 side nearest the hands' line stretches by the ratio of their spread.
 
+## Moving and copying
+
+A grip on a wall, fence, house, tower or tree carries it to a new spot and turns it as the hand turns (see "Moving and
+sizing a house" for a house's hold). A wall or fence turns about its middle, its openings, lanterns, flags and ruins
+keeping their places along it; a house or tower takes its roof, fittings, furniture and what stands on it; a tree or
+bush turns about its foot, its crown with it, its turn kept by the garden (`turn` of its `tree` command) through
+restyles, undo and saves. Ivy roots by the build's seed and its place along the wall, so it climbs the carried build as
+it did and stays grown. Let go, each is one command, one undo step, which every peer applies alike.
+
+The colour tool copies one build's look onto another. A tap of its trigger (released within `PaletteTool.TAP`, the wheel
+never turned off where it opened) on a wall, house, tower or fence takes that build's look into the hand
+(`PaletteTool.look_of`): its paint, face and wear, top, foundation, floor, gable ends and roof covering, and its beam
+takes the look's stone or plaster colour. Each tap after on another build lays the look there as one `reshape`, one undo
+step, as far as that build takes it (`PaletteTool.look_onto`): between a fence and a wall or house only the paint passes,
+a roofless wall takes no covering, and a tower's walls stay bare stone. A tap on the meadow, or putting the tool down,
+lets the look go. A tap is the one gesture the wheel had left unused: a press released at once changed nothing.
+
+`demo/move.json` carries and turns a house with its window, lantern and chimney, a wall with its lantern, flag and ivy,
+and a tree, then copies the plastered, slate-roofed house's look onto a plain one and undoes it. `tests/test_move.gd`
+checks each carry and turn with undo and redo, the copy and how far a look goes, and plays the stress scene's
+`move/carry` phase: in the densest village the budget lets a player build, two storeys and a wing to each house, the
+largest house is carried 40 m across it and turned round in 6 s. `tests/test_carry_plants.gd` checks a tree's turn, and
+the co-op run has the joiner copy the host's house's look, carry and turn it and its own tree, then undo the tree's
+carry, every peer alike.
+
 ## Moving a fitting
 
 A grip on a placed fitting takes the fitting, not its build, and one hand carries it over the surface it was placed
@@ -3327,7 +3352,7 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
 | Plant a tree or bush | Trigger of a hand holding trees or bushes, pointing at the ground |
 | Set a boulder down | Trigger of a hand holding boulders, pointing at the ground, takes up a metre-wide boulder of a shape never seen before, in the stone swatch walls are being laid in; carry and turn it as a grip carries a placed one, and let go to set it down there. A tap sets it down where it points |
-| Move a tree or bush | Grip pointing at a tree or bush, the meadow's own too, whatever the hand holds: it moves along the ground with the hand, the gain growing with distance as a wall's does; let go to set it there, one undo step |
+| Move a tree or bush | Grip pointing at a tree or bush, the meadow's own too, whatever the hand holds: it moves along the ground with the hand, the gain growing with distance as a wall's does, and turns about its foot as the hand turns; let go to set it there, one undo step |
 | Grow or shrink a tree | Holding a tree with one grip, grip it with the other hand too: spread or close the hands and it scales by their span, from 0.4 to 3 times the size it grew at; letting one go leaves the other carrying it at its new size |
 | Move a boulder | Grip pointing at a boulder, whatever the hand holds: it moves with the hand, up off the ground too, the gain growing with distance, and turns about its centre as the hand turns, every way, so it can be tipped onto a face or stood on end. Let go and it drops straight down onto the ground under it, keeping its turn, or, pushed into the ground, stays as deep as it was let go, with at least 15% of its height showing: it is never left in the air (directive (verbatim): "Boulder should not be placeable in mid air") |
 | Grow or shrink a boulder | Grip a boulder with one hand, then the other: spread or close the hands and it scales by their span, from a pebble of 8 cm up to a hill, a giant costing no more than one 3.5 times a metre wide; letting one go leaves the other carrying it at its new size |
@@ -3349,6 +3374,7 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Decorate | Trigger of a hand holding decorations, let go where it went down: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; a present at a house's foot, on open ground, on a house's floor or on a flat roof, its lid drawn with the Style tool's own wand and turned to face the hand; the preview is the present a press places. Style turns it into any decoration on any of those surfaces (planter, bench, rain barrel, woodpile, steps, gatepost lantern, standing torch, campfire, chair, table, settle, bed, shelf, rug, stool, chest, potted plant, candle stand, table and chairs, garden bench, trough planter, parasol, string lights, lantern, lamp post); on one already there it takes it away |
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window, door or lantern, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
+| Copy a look | Tap the trigger of a hand holding the colour tool on a wall, house, tower or fence: the beam takes its colour. Each tap on another build lays that look there, one undo step; a tap on the meadow lets it go (see "Moving and copying") |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Stand a mirror | Trigger of a hand holding the mirror, at the ground: it stands there facing the player; at its glass, it is put away |
 | Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |

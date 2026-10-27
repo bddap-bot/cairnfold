@@ -20,6 +20,8 @@ extends Node3D
 ## and one of flags; strings hung after take it). It only restyles: openings are the windows' and the arch's, and a
 ## corner window is the windows' at a corner. The colour tool on a room's window picks the colour its glass glows at
 ## night, and on a lantern, or a decoration with a flame, its colour and brightness: a wall's lanterns all burn alike.
+## A tap of the colour tool's trigger on a wall, house, tower or fence takes its look into the hand (`look_of`), and each
+## tap on another after lays that look on it (`look_onto`), one undo step each; a tap anywhere else lets the look go.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
@@ -27,6 +29,8 @@ const WHEEL_RADIUS := 0.07
 const CHOICE_GAP := 0.045
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
+## The longest press of the colour tool's trigger, in seconds, that leaves its wheel where it opened and is a tap.
+const TAP := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
 ## The face wheel's choices, each a WallLayout.Finish and how worn its plaster is.
@@ -46,6 +50,7 @@ class Wheel:
 	var pick := 0
 	var degrees := 0.0
 	var basis := Basis()
+	var opened := 0
 	var node: Node3D
 	var choices: Array[Node3D] = []
 	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it.
@@ -56,6 +61,8 @@ var rig: Rig
 var walls: WallTool
 var world: World
 var wheels := {}
+## The look each hand's colour tool took with a tap, as `look_of` gives it.
+var looks := {}
 var _buttons: Array[Buttons] = []
 
 
@@ -66,6 +73,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 	world.restored.connect(func() -> void:
+		looks.clear()
 		for hand in wheels.keys():
 			_drop(hand))
 
@@ -80,6 +88,8 @@ func _process(_delta: float) -> void:
 	for b in _buttons:
 		var hand: Hand = b.hand
 		var wheel: Wheel = wheels.get(hand)
+		if hand.tool != Hand.Tool.COLOUR:
+			looks.erase(hand)
 		if wheel != null and (hand.tool != wheel.target.tool or b.released("tool")):
 			close(hand)
 		elif wheel != null and b.held("tool"):
@@ -87,7 +97,7 @@ func _process(_delta: float) -> void:
 		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := aim(t.origin, -t.basis.z) if hand.tool == Hand.Tool.COLOUR else aim_style(t.origin, -t.basis.z)
-			hand.point(target.get("point", null), BEAM)
+			hand.point(target.get("point", null), _beam(looks.get(hand, {})))
 			if b.pressed("tool") and not target.is_empty() and not busy():
 				open(hand, target)
 		b.latch()
@@ -298,6 +308,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 		for i in target.count:
 			w.data.append(_data(w, i))
 	w.basis = hand.global_basis.orthonormalized()
+	w.opened = Time.get_ticks_msec()
 	w.node = Node3D.new()
 	w.node.top_level = true
 	for i in target.count:
@@ -450,6 +461,9 @@ func _builder(of: String) -> Object:
 func close(hand: Hand) -> void:
 	var w: Wheel = wheels[hand]
 	_drop(hand)
+	if w.target.tool == Hand.Tool.COLOUR and w.pick == w.start and Time.get_ticks_msec() - w.opened <= TAP * 1000.0:
+		tap(hand, w.of, w.id)
+		return
 	var now := _now(w)
 	if now < 0:
 		return
@@ -493,6 +507,75 @@ func close(hand: Hand) -> void:
 		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
 	else:
 		world.submit({"op": "reshape", "of": w.of, "id": w.id, "data": data}, _settled.bind(w), hand)
+
+
+## A tap of `hand`'s colour tool on the build `id` of the garden's table `of`: on a wall, house, tower or fence it takes
+## that build's look, or lays the look it took on it as one reshape; anywhere else it lets the look go.
+func tap(hand: Hand, of: String, id: int) -> void:
+	if of != "walls" or not world.state.walls.has(id):
+		looks.erase(hand)
+		return
+	var d: Dictionary = world.state.walls[id]
+	if not looks.has(hand):
+		looks[hand] = look_of(d)
+		Cues.play(Cues.Act.DIAL_TURN, hand.global_position, hand)
+		return
+	var data := look_onto(looks[hand], d)
+	if data.is_empty():
+		return
+	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
+	walls.show_reshaped(id, data)
+	world.submit({"op": "reshape", "of": "walls", "id": id, "data": data}, func() -> void: walls.settle.call_deferred(id), hand)
+
+
+## The look of a wall, house, tower or fence with garden data `d`: its paint, face, top, foundation, floor, gable ends
+## and roof covering.
+static func look_of(d: Dictionary) -> Dictionary:
+	var look := {"fence": d.fence, "paint": PackedInt32Array(d.paint), "face": {"finish": d.finish, "wear": d.wear}, "top": d.top, "foundation": d.foundation, "planks": d.planks, "gable_end": d.gable_end}
+	if d.has("roof"):
+		look["roof"] = {"deck": d.roof.deck, "thatch": d.roof.thatch}
+	return look
+
+
+## The `reshape` data that lays `look` on the build with garden data `d`, as far as that build can take it: between a
+## fence and a wall or house only the paint passes, a wall without a roof takes no covering, a tower's walls stay bare
+## stone.
+static func look_onto(look: Dictionary, d: Dictionary) -> Dictionary:
+	var data := {}
+	var paint := {}
+	for e in mini(look.paint.size(), d.paint.size()):
+		if Palette.SWATCHES.has(e) and look.paint[e] != d.paint[e]:
+			paint[e] = look.paint[e]
+	if not paint.is_empty():
+		data["paint"] = paint
+	for k in ["face", "top", "foundation", "planks", "gable_end", "roof"]:
+		if look.fence != d.fence or not look.has(k) or (k == "roof" and not d.has("roof")):
+			continue
+		var part: Dictionary = look[k] if look[k] is Dictionary and k != "roof" else {k: look[k]}
+		var cleaned: Variant = Commands._reshape("walls", data.merged(part), d)
+		if cleaned != null:
+			data = cleaned
+	var out := {}
+	for k: String in data:
+		if k == "roof":
+			var roof := {}
+			for r: String in data.roof:
+				if data.roof[r] != d.roof[r]:
+					roof[r] = data.roof[r]
+			if not roof.is_empty():
+				out["roof"] = roof
+		elif k == "paint" or data[k] != d[k]:
+			out[k] = data[k]
+	return out
+
+
+func _beam(look: Dictionary) -> Color:
+	if look.is_empty():
+		return BEAM
+	var element := Palette.Element.PLASTER if look.face.finish == WallLayout.Finish.PLASTER else Palette.Element.STONE
+	var c := Palette.swatch(element, look.paint[element])
+	c.a = BEAM.a
+	return c
 
 
 ## A sent choice is settled before it applies, so the build is shown as the garden has it once it has.

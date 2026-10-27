@@ -1153,13 +1153,15 @@ func _sizing(target: Object) -> Sizing:
 
 
 ## Carries a tree or bush (`first`, a tree's trunk or a bush's blob), the meadow's own too: one hand moves it along the
-## ground with the hand, a far one farther per metre; two hands size a tree by their span. Let go, its place and size are
-## one `tree` command; over water it goes back where it stood.
+## ground with the hand, a far one farther per metre, and turns it about its foot as the hand turns; two hands size a
+## tree by their span. Let go, its place, turn and size are one `tree` command; over water it goes back where it stood.
 func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	var tree := first.pool == flora.trunks
 	var placed := func() -> Vector3:
 		return world.state.groups.get(first.group, {}).get("places", {}).get(first.index, flora.home_of(first))
-	var hold := {"from": Vector3.ZERO}
+	var turned_to := func() -> float:
+		return world.state.groups.get(first.group, {}).get("turns", {}).get(first.index, 0.0)
+	var hold := {"from": Vector3.ZERO, "turn": 0.0}
 	s.scale = flora.scale_of.bind(first) if tree else func() -> float: return 1.0
 	s.limits = FloraLayout.SCALES if tree else Vector2.ONE
 	s.current = first.current
@@ -1175,16 +1177,22 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 		var was: Vector3 = placed.call()
 		if Vector2(at.x - was.x, at.z - was.z).length() >= NUDGE:
 			cmd.at = world.terrain.ground(at.x, at.z)
+		if absf(angle_difference(turned_to.call(), flora.turn_of(first))) >= TURN_NUDGE:
+			cmd.turn = flora.turn_of(first)
 		if tree and not is_equal_approx(flora.scale_of(first), g.scale.get(first.index, 1.0)):
 			cmd.scale = flora.scale_of(first)
 		return {} if cmd.size() == 3 else cmd
-	s.take = func() -> void: hold.from = first.foot()
+	s.take = func() -> void:
+		hold.from = first.foot()
+		hold.turn = flora.turn_of(first)
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
 		flora.move(first, hold.from + (hand.origin - m.took.origin) * m.gain)
+		flora.turn_to(first, wrapf(hold.turn + turned(m.took, hand), -PI, PI))
 	s.settle = func() -> void:
 		var g: Dictionary = world.state.groups.get(first.group, {})
 		if first.current() and not g.is_empty() and not in_hand.call():
 			flora.move(first, placed.call())
+			flora.turn_to(first, turned_to.call())
 			if tree:
 				flora.set_look(first, g.species.get(first.index, FloraLayout.Species.OAK), g.scale.get(first.index, 1.0))
 	return s

@@ -1,8 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 ## Headless checks of a grip carrying trees and bushes, planted and the meadow's own: one hand moves one along the
-## ground, farther for a far one; let go, it is set as one `tree` command, one undo step, which a peer takes and a
-## snapshot keeps; two hands still size a tree and leave a bush as it is:
+## ground, farther for a far one, and turns it about its foot as the hand turns; let go, it is set as one `tree` command,
+## one undo step, which a peer takes and a snapshot keeps; two hands still size a tree and leave a bush as it is:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_carry_plants.gd
 
 var world: World
@@ -21,6 +21,7 @@ func _run() -> void:
 	flora = main.flora_tool.flora
 	tool = main.tool
 	await _a_planted_tree_is_carried()
+	_a_tree_turns_with_the_hand()
 	_meadow_plants_are_carried()
 	_bushes_are_carried_not_sized()
 	_commands_are_checked()
@@ -100,6 +101,52 @@ func _a_planted_tree_is_carried() -> void:
 	trunk = flora.groups[g][0]
 	check(var_to_str(world.digest()) == picture and _across(trunk.anchor).distance_to(to) < 0.01 and flora.species_of(trunk) == FloraLayout.Species.FIR, "a snapshot keeps it there, a fir")
 	world.restore({"seq": 0, "cmds": []})
+
+
+## A hand turned as it carries a tree turns the tree about its foot as far, its crown with it, and its species, size and
+## moss stay; let go, its turn is set with its place, one undo step, kept through a restyle and a snapshot. A meadow
+## tree turns too, and stands as it grew in a swapped garden.
+func _a_tree_turns_with_the_hand() -> void:
+	var at := world.terrain.ground(-8, 14)
+	world._order({"op": "plant", "kind": "tree", "seed": 11, "at": at}, world.me())
+	var g := world.seq
+	var parts: Array = flora.groups[g]
+	var trunk: Flora.Plant = parts[0]
+	var crown := _across(parts[1].xform.origin - trunk.anchor)
+	var top := flora.top_of(trunk)
+	var m := tool.mason(main.rig.right)
+	var hand := _take(trunk)
+	var turn := deg_to_rad(70.0)
+	m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, turn), hand.origin + Vector3(1.0, 0.0, 0.0)))
+	check(is_equal_approx(flora.turn_of(trunk), turn), "a hand turned 70° turns the tree it carries as far: %.1f°" % rad_to_deg(flora.turn_of(trunk)))
+	var turned := _across(parts[1].xform.origin - trunk.anchor)
+	check(turned.distance_to(crown.rotated(-turn)) < 0.01 and is_equal_approx(flora.top_of(trunk), top), "its crown turns about its foot with it, as tall: %s from %s" % [turned, crown])
+	check(not world.state.groups[g].turns.has(0), "shown here alone while held")
+	tool.end_grow(m)
+	check(is_equal_approx(world.state.groups[g].turns.get(0, 0.0), turn) and world.state.groups[g].places.has(0), "let go, the garden sets its turn with its place")
+	world._order({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, world.me())
+	check(is_equal_approx(flora.turn_of(trunk), turn) and trunk.xform.basis.x.is_equal_approx(Basis(Vector3.UP, turn) * FloraLayout.tree(trunk.foot(), flora._solids[Vector2i(0, trunk.slot)].seed, FloraLayout.Species.BIRCH).trunk.basis.x), "restyled, it keeps its turn")
+	world._order({"op": "undo"}, world.me())
+	world._order({"op": "undo"}, world.me())
+	check(is_zero_approx(flora.turn_of(trunk)) and _across(parts[1].xform.origin - trunk.anchor).distance_to(crown) < 0.01 and not world.state.groups[g].turns.has(0), "one undo turns it back as it grew")
+	world._order({"op": "redo"}, world.me())
+	check(is_equal_approx(flora.turn_of(trunk), turn), "a redo turns it again")
+	var picture := var_to_str(world.digest())
+	world.restore(world.snapshot())
+	trunk = flora.groups[g][0]
+	check(var_to_str(world.digest()) == picture and is_equal_approx(flora.turn_of(trunk), turn), "a snapshot keeps its turn")
+	world.restore({"seq": 0, "cmds": []})
+	var oak: Flora.Plant = flora.groups[0][flora.meadow_trees()[1]]
+	m = tool.mason(main.rig.right)
+	hand = _take(oak)
+	m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, -turn), hand.origin))
+	tool.end_grow(m)
+	check(is_equal_approx(world.state.groups[0].turns.get(oak.index, 0.0), -turn) and not world.state.groups[0].places.has(oak.index), "a meadow tree turned where it stands sends its turn alone")
+	world.restore({"seq": 0, "cmds": []})
+	check(is_zero_approx(flora.turn_of(oak)), "and stands as it grew in an empty garden")
+	for bad: Variant in [1, "left", NAN, INF]:
+		check(Commands.clean({"op": "tree", "group": 0, "index": oak.index, "turn": bad}, world.state, false, world.terrain).is_empty(), "no turn %s" % [bad])
+	check(is_equal_approx(Commands.clean({"op": "tree", "group": 0, "index": oak.index, "turn": TAU + 0.5}, world.state, false, world.terrain).get("turn", 0.0), 0.5), "a turn is kept within a circle")
 
 
 ## The meadow's own trees and bushes carry as planted ones do, and stand where they grew in a swapped garden.

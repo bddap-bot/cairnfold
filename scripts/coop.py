@@ -121,6 +121,45 @@ def held_steps(name, names, capture=False):
     return steps
 
 
+# Where the host puts up a house, which the joiner carries away and turns, and where the joiner puts up its own, which
+# takes the host's house's look with two taps of the joiner's colour tool.
+MOVED_HOUSE = (-12, 8)
+COPIED_HOUSE = (-4, 12)
+# How far the joiner carries the host's house, across the ground, and turns it, in degrees.
+HOUSE_CARRY = (0, -5, 90)
+
+
+# The host puts up a house and paints its stone; the joiner puts up its own, copies the host's house's look onto it with
+# two taps of its colour tool, carries the host's house away and turns it, and carries and turns its drowned tree; every
+# peer digests that, then the joiner's undo puts the tree back. Seven commands.
+def move_steps(name, names, seq):
+    steps = []
+    if name == "host":
+        steps += [{"op": "house", "at": list(MOVED_HOUSE), "size": [5, 4], "seconds": 0.3}]
+    steps += [{"op": "until", "seq": seq + 1}]
+    if name == "join":
+        steps += [{"op": "house", "at": list(COPIED_HOUSE), "size": [5, 4], "seconds": 0.3}]
+    steps += [{"op": "until", "seq": seq + 2}]
+    if name == "host":
+        steps += [{"op": "colour", "hand": "right", "element": "stone", "swatch": 3, "seconds": 0.3,
+                   "from": [MOVED_HOUSE[0], 1.5, MOVED_HOUSE[1] + 6], "at": [MOVED_HOUSE[0], 1.2, MOVED_HOUSE[1]]}]
+    steps += [{"op": "until", "seq": seq + 3}]
+    if name == "join":
+        steps += [{"op": "tap", "from": [MOVED_HOUSE[0], 1.5, MOVED_HOUSE[1] + 6], "at": [MOVED_HOUSE[0], 1.2, MOVED_HOUSE[1]]},
+                  {"op": "tap", "from": [COPIED_HOUSE[0], 1.5, COPIED_HOUSE[1] + 6], "at": [COPIED_HOUSE[0], 1.2, COPIED_HOUSE[1]]},
+                  {"op": "until", "seq": seq + 4},
+                  {"op": "resize", "at": list(MOVED_HOUSE), "move": list(HOUSE_CARRY[:2]), "turn": HOUSE_CARRY[2], "seconds": 0.5},
+                  {"op": "until", "seq": seq + 5},
+                  {"op": "carry", "x": DROWN[0], "z": DROWN[1], "move": [2, 0, 0], "turn": [0, 90, 0], "seconds": 0.5}]
+    steps += [{"op": "until", "seq": seq + 6}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-moved"},
+              barrier([f"{n}-moved" for n in names])]
+    if name == "join":
+        steps += [{"op": "press", "button": "dpad_down"}]
+    steps += [{"op": "until", "seq": seq + 7}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-unmoved"},
+              barrier([f"{n}-unmoved" for n in names])]
+    return steps
+
+
 def scripts(count, capture=False):
     names = ["host", "join"] + [f"late-{i}" for i in range(2, count)]
     result = {}
@@ -192,6 +231,7 @@ def scripts(count, capture=False):
             steps += [{"op": "press", "button": "dpad_down"}]
         steps += [{"op": "until", "seq": last + 22}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-undrowned"},
                   barrier([f"{n}-undrowned" for n in names])]
+        steps += move_steps(name, names, last + 22)
         steps += held_steps(name, names, capture)
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},
@@ -423,6 +463,30 @@ def check_peers(out, count):
           f"the joiner's wipe left bare meadow: {len(w['walls'])} walls, groups {list(w['groups'])}, {len(w['paths'])} paths, {len(w['easels'])} easels")
     check(all(v == unwiped["host"] for v in unwiped.values()), "every peer shows the joiner's undone wipe alike")
     check(unwiped["host"] == built["host"], "the joiner's undo brings back every build of the garden as it was, every plant where it stood")
+    moved, unmoved = garden("moved"), garden("unmoved")
+    check(all(v == moved["host"] for v in moved.values()), "every peer shows the joiner's carries and copy alike")
+    check(all(v == unmoved["host"] for v in unmoved.values()), "and its undo alike")
+    def middle(w):
+        m = re.search(r'"points": PackedVector3Array\(([^)]*)\)', w["data"])
+        v = [float(x) for x in m.group(1).split(",")]
+        return (sum(v[0::3]) / (len(v) // 3), sum(v[2::3]) / (len(v) // 3))
+    def paint(w):
+        return w["data"].split('"paint": ')[1].split(")")[0] + ")"
+    houses = {middle(w): w for w in moved["host"]["walls"].values() if "roof" in w["data"]}
+    carried = (MOVED_HOUSE[0] + HOUSE_CARRY[0], MOVED_HOUSE[1] + HOUSE_CARRY[1])
+    host_house = next((w for c, w in houses.items() if math.dist(c, carried) < 0.1), None)
+    copy_house = next((w for c, w in houses.items() if math.dist(c, COPIED_HOUSE) < 0.1), None)
+    check(host_house is not None and sides(host_house) == [4.0, 4.0, 5.0, 5.0], f"the joiner carried the host's house 5 m, whole: {list(houses)}")
+    if host_house is not None:
+        v = [float(x) for x in re.search(r'"points": PackedVector3Array\(([^)]*)\)', host_house["data"]).group(1).split(",")]
+        first = (v[3] - v[0], v[5] - v[2])
+        check(abs(abs(first[0]) - 4.0) < 0.01 or abs(abs(first[1]) - 5.0) < 0.01, f"and turned it a quarter: its first side runs {first}")
+    check(host_house is not None and copy_house is not None and paint(copy_house) == paint(host_house) and paint(host_house).startswith("PackedInt32Array(0, 3,"),
+          f"the joiner's house took the host's stone with two taps on every machine: {[paint(w) for w in houses.values()]}")
+    trees = lambda g: [v for v in g["groups"].values() if v["kind"] == "tree"]
+    turned_tree, back = trees(moved["host"]), trees(unmoved["host"])
+    check(len(turned_tree) == 1 and abs(turned_tree[0]["turn"][0] - math.pi / 2) < 0.01, f"the joiner turned its tree a quarter on every machine: {turned_tree}")
+    check(len(back) == 1 and back[0]["turn"] == [0.0] and back[0]["spot"] != turned_tree[0]["spot"], f"and its undo put it back as it stood: {back}")
     rocks = {n: json.load(open(f"{out}/{n}-boulder.json"))["boulders"] for n in names}
     check(all(v == rocks["host"] for v in rocks.values()), "the joiner's huge boulder stands alike on every machine")
     check([b["scale"] for b in rocks["host"].values()] == [160.0], f"at twenty times the size a house could hide behind: {rocks['host']}")

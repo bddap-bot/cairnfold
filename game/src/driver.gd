@@ -480,14 +480,16 @@ func _resize(s: Dictionary) -> void:
 	end.yaw = start.yaw + deg_to_rad(s.get("turn", 0.0))
 	if s.has("size"):
 		end.size = Vector2(s.size[0], s.size[0] if start.round else s.size[1])
-	for k in ["rise", "height", "pitch", "curve", "overhang"]:
+	var keys := ["rise", "height", "pitch", "curve", "overhang"].filter(func(k: String) -> bool: return start.has(k))
+	for k: String in keys:
 		end[k] = s.get(k, start[k])
 	await _over(s, 1.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(end.center, k)
 		to.yaw = lerp_angle(start.yaw, end.yaw, k)
-		to.size = start.size.lerp(end.size, k)
-		for key in ["rise", "height", "pitch", "curve", "overhang"]:
+		if start.has("size"):
+			to.size = start.size.lerp(end.size, k)
+		for key: String in keys:
 			to[key] = lerpf(start[key], end[key], k)
 		tool.stand_build(to))
 	if tool.held != null:
@@ -573,15 +575,7 @@ func _grip(s: Dictionary) -> void:
 func _grow(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var flora: Flora = main.flora_tool.flora
-	var trunk: Flora.Plant
-	if s.has("tree"):
-		trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
-	else:
-		var spot := Vector3(s.x, 0.0, s.z)
-		for parts in flora.solids():
-			var p: Flora.Plant = parts[0]
-			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
-				trunk = p
+	var trunk := _trunk(s)
 	var at := trunk.foot() + Vector3.UP * flora.top_of(trunk) * 0.8
 	var mid: Vector3 = at + Vector3.BACK * 2.0
 	var right := tool.mason(main.rig.right)
@@ -598,17 +592,38 @@ func _grow(s: Dictionary) -> void:
 	tool.end_grow(right)
 
 
-## Grips the boulder placed `boulder` before the last (0 the last) from `reach` metres off (1.5 without), as a hand
-## does, and over `seconds` moves the hand by `move` [x, y, z] metres while turning it by `turn` [x, y, z] degrees,
-## then lets go; "capture" saves the view before letting go.
+## The meadow's tree `tree`, or with `x`, `z` the tree standing nearest there.
+func _trunk(s: Dictionary) -> Flora.Plant:
+	var flora: Flora = main.flora_tool.flora
+	if s.has("tree"):
+		return flora.groups[0][flora.meadow_trees()[s.tree]]
+	var trunk: Flora.Plant
+	var spot := Vector3(s.x, 0.0, s.z)
+	for parts in flora.solids():
+		var p: Flora.Plant = parts[0]
+		if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
+			trunk = p
+	return trunk
+
+
+## Grips the boulder placed `boulder` before the last (0 the last) from `reach` metres off (1.5 without), or with
+## "tree" or `x`, `z` a tree's trunk as `grow` finds it, as a hand does, and over `seconds` moves the hand by `move`
+## [x, y, z] metres while turning it by `turn` [x, y, z] degrees, then lets go; "capture" saves the view before letting go.
 func _carry(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var ids: Array = main.world.state.boulders.keys()
-	var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
 	var m := tool.mason(_hand(s))
-	var from := Transform3D(Basis(), b.position + Vector3.BACK * (b.shape.reach() * b.size + s.get("reach", 1.5)))
-	var rock: Dictionary = main.boulders.pick(from.origin, -from.basis.z)
-	tool.begin_grow(m, b, from, rock.get("point", b.position))
+	var from: Transform3D
+	if s.has("tree") or s.has("x"):
+		var trunk := _trunk(s)
+		var at := trunk.foot() + Vector3.UP * 1.2
+		from = Transform3D(Basis(), at + Vector3.BACK * s.get("reach", 1.5))
+		tool.begin_grow(m, trunk, from, at)
+	else:
+		var ids: Array = main.world.state.boulders.keys()
+		var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
+		from = Transform3D(Basis(), b.position + Vector3.BACK * (b.shape.reach() * b.size + s.get("reach", 1.5)))
+		var rock: Dictionary = main.boulders.pick(from.origin, -from.basis.z)
+		tool.begin_grow(m, b, from, rock.get("point", b.position))
 	var move: Array = s.get("move", [0, 0, 0])
 	var turn: Array = s.get("turn", [0, 0, 0])
 	await _over(s, 1.0, func(done: float) -> void:
@@ -733,8 +748,24 @@ func _arrive(s: Dictionary) -> void:
 		await get_tree().create_timer(s.get("every", 0.5)).timeout
 
 
-## The wall a step names: by `index` in build order, or the one under the ground point `at` [x, z].
+## The house or tower on the ground of the largest footprint `tool` has built, or null for none.
+static func largest(tool: WallTool) -> Wall:
+	var best: Wall
+	var area := 0.0
+	for w: Wall in tool.walls:
+		var at := WallTool.house_of(tool.world.state.walls[w.id])
+		var a: float = 0.0 if at.is_empty() or not w.on.is_empty() else at.size.x * at.size.y
+		if a > area:
+			best = w
+			area = a
+	return best
+
+
+## The wall a step names: by `index` in build order, the one under the ground point `at` [x, z], or with "largest" the
+## house or tower on the ground of the largest footprint.
 func _wall_of(s: Dictionary) -> Wall:
+	if s.get("largest", false):
+		return largest(main.tool)
 	if s.has("at"):
 		return main.tool.pick_building(_spot(s, s.at[0], s.at[1]) + Vector3.UP * 2.0, Vector3.DOWN).wall
 	return main.tool.walls[s.index]
@@ -1649,6 +1680,20 @@ func _colour(s: Dictionary) -> void:
 		push_error("driver: colour aimed at %s, not %s" % [target, s.element])
 		return
 	await _dial(s, _holding(s, Hand.Tool.COLOUR), target, s.swatch)
+
+
+## A tap of the colour tool's trigger on `hand`, aimed from `from` at `at` as `colour` aims: on a wall, house, tower or
+## fence it takes that build's look, or lays the look taken on it; anywhere else it lets the look go.
+func _tap(s: Dictionary) -> void:
+	var tool: PaletteTool = main.palette_tool
+	var hand := _holding(s, Hand.Tool.COLOUR)
+	var target := tool.aim(_dial_from(s), _dial_dir(s))
+	if target.is_empty():
+		tool.tap(hand, "", -1)
+	else:
+		tool.open(hand, target)
+		tool.close(hand)
+	await get_tree().process_frame
 
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
