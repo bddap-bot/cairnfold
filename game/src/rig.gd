@@ -241,7 +241,7 @@ func _locomotion_input(delta: float) -> void:
 				teleport(held[1], held[2])
 			end_aim()
 			return
-		aim(_steadied(aim_hand.global_transform, delta), reach_scale(stick.y))
+		aim(_steadied(aim_hand.at_controller(), delta), reach_scale(stick.y))
 		_aim_clock += delta
 		_aim_trail.append([_aim_clock, aim_ground, aim_lift])
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:

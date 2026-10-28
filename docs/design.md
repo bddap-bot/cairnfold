@@ -3336,18 +3336,29 @@ calibrated to each player's own arm so a child with short arms reaches as far as
   throws the hand along the arm's line onto the ground ahead.
 - How far the hand is thrown follows the stretch at 4 Hz, plus 2 Hz for each metre it lags, so a held arm holds the
   hand still against tremor and a deliberate reach catches up, as the teleport ray's aim does.
+- Thrust reach (`Reach.Mode.THRUST`) throws the same hand along the same line by a different measure: how far the
+  controller has been thrust rather than how far the arm is stretched. A move away from the shoulder faster than
+  0.8 m/s (`Reach.THRUST_SPEED`) throws the hand 16 m farther per metre of it (`Reach.THRUST_GAIN`), a move toward it
+  as fast brings the hand back as far, and a slower move carries the hand one to one, so after a thrust the arm is
+  drawn back at ease with the hand left out. Thrusts add up to 24 m and back to the controller, no farther. A held
+  house is brought near by thrusting in. The shoulder and the steadying are Go-Go's; the stretch counts for nothing.
+- A thrown hand meets the world as a near one does: it stops at a wall, a roof, the ground, a trunk or an animal and
+  feels it (see "Hands at surfaces"), and the grip takes what it is stopped at. A stretch or thrust past the
+  surface carries it no deeper unseen, so drawing back or thrusting in takes it off the surface at once. The teleport
+  ray is cast from the controller, never from a thrown hand.
 - Only an empty hand reaches (`Hand.REACHES`): the far grip is what has moved to it so far. A hand holding any tool
   stays where the controller is and keeps its pointer, its grip included, as does a hand opening the wheel, so no
   hand is ever thrown out and pointing at once. Tracked hands reach as controllers do: the mapping reads the hand's
   pose alone.
 
 Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking the left stick
-in while it is centred cycles every hand between Go-Go reach and the pointing grab it replaces (`Reach.mode`), so one
-session compares them. No other action uses a stick's click, and a click while the stick aims a teleport or flicks a
+in while it is centred cycles every hand from Go-Go reach to thrust reach to the pointing grab they replace (`Reach.mode`), so one
+session compares them; each owns the empty hand's far grip alone. No other action uses a stick's click, and a click while the stick aims a teleport or flicks a
 turn, as a thumb pressing hard makes by accident, switches nothing; nothing shows the switch to a player. The picture book's pages still teach the pointing grab, and the tests that grip by pointing
 check it. Once one is kept, the switch and the other go. `tests/test_reach.gd` checks the mapping, the
-calibration of a short and a long arm, and a far house taken, moved and reeled in through the grip;
-`demo/reach.json` films it.
+calibration of a short and a long arm, thrusts out and in, a far house taken, moved and reeled in through the grip
+in each, a thrown hand stopped at a house's front, and the teleport ray cast from the controller of a thrown hand;
+`demo/reach.json` films Go-Go and `demo/thrust-reach.json` thrust.
 
 ## VR controls
 
@@ -3557,7 +3568,11 @@ The hand you see stops where the controller pushes into something solid, as in H
 a wall or fence (not its doors, windows or arches), a roof, a trunk or an animal. It slides along the surface
 to the point nearest the controller and is back on the controller as soon as the way is clear; held more than
 1 m away it lets go. Leaves and pond water are passed through and felt. Every tool still aims, points and grabs
-from the controller itself; the sight stands on the tool you see, and other players see that tool.
+from the controller itself; the sight stands on the tool you see, and other players see that tool. A hand thrown out
+by a reach (see "Reaching far") is the exception: it never lets go however far it is held, slides along a surface
+only as far as it is swept across its throw, so it is never carried over a roof, and while it holds nothing it stops
+at the surface itself, its throw cut short there, so it grips and feels the wall it meets rather than reaching
+through it. It runs after the hands move and before any tool reads them.
 `HandStop` sweeps a ball the size of the hand from where it was to where the controller is each frame, against
 the world near that sweep alone, so no physics bodies exist.
 

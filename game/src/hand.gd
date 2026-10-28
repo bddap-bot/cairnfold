@@ -66,6 +66,8 @@ var held_reaches := false
 var reach: Reach
 ## The pose this hand last set itself to: one the runtime or the driver did not move since.
 var _placed := Transform3D()
+## Whether a tool held this hand last frame.
+var was_held := false
 
 var tool := Tool.WALLS:
 	set(value):
@@ -394,7 +396,7 @@ func tracked() -> bool:
 
 ## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing: never both.
 func reaches() -> bool:
-	return Reach.mode == Reach.Mode.GOGO and tool in REACHES and (held_reaches or not held_still)
+	return Reach.mode != Reach.Mode.AIM and tool in REACHES and (held_reaches or not held_still)
 
 
 ## Where the grip looks for what it takes, from along the aim, and how far it looks: a reaching hand what it touches,
@@ -416,6 +418,14 @@ func at_controller() -> Transform3D:
 ## is solid as the hand you see is, and never out where a reach throws the hand you see.
 func held_at() -> Transform3D:
 	return at_controller() if reaches() else body.global_transform
+
+
+## A reaching hand thrown into something solid stops `by` short, its throw with it, so it grips, aims and feels at the
+## surface rather than from inside the wall.
+func stop(by: Vector3) -> void:
+	global_position += by
+	_placed = transform
+	reach.stop(at_controller().origin.distance_to(global_position))
 
 
 ## Throws the hand out from the controller by `reach` while it holds a build tool or nothing; a pose the runtime or
@@ -480,6 +490,7 @@ func _process(delta: float) -> void:
 	_reach(delta)
 	_log_profile()
 	_flick_input()
+	was_held = taken()
 	_holding = false
 	clear_pointer()
 	if world != null:

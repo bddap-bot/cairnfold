@@ -37,7 +37,8 @@ const BISECT := 5
 const SLIDES := 3
 ## How far past a stop the surface's facing is read, well over the bisection's last step.
 const PROBE := 0.002
-## A hand held further than this from its controller lets go and jumps back to it.
+## A hand held further than this from its controller lets go and jumps back to it. A reaching hand never does: it is
+## thrown metres a frame, and would jump through every wall it is thrown at.
 const BREAK := 1.0
 ## How much wider than a frame's sweep the world round a hand is gathered, so a moving hand keeps it a while.
 const SPARE := 0.2
@@ -48,8 +49,10 @@ const FENCE_HALF := 0.06
 var eyes := true
 var _world: World
 var _rig: Rig
-## Per hand, where its ball was last frame, in the rig's space so locomotion carries it along.
+## Per hand, where its ball was last frame, and where it was carried to, in the rig's space so locomotion carries them
+## along.
 var _held: Array[Vector3] = []
+var _was_to: Array[Vector3] = []
 var _feels: Array[Feel] = []
 var _gathered: Array[Near] = []
 var _stamps: Array[Vector4i] = []
@@ -58,8 +61,11 @@ var _stamps: Array[Vector4i] = []
 func _init(world: World, player: Rig) -> void:
 	_world = world
 	_rig = player
+	# After the hands move and before anything reads the hand you see: a reaching hand moves metres a frame.
+	process_priority = -6
 	for h in _rig.hands:
 		_held.append(Vector3.INF)
+		_was_to.append(Vector3.INF)
 		_feels.append(Feel.new())
 	for i in _rig.hands.size() + 1:
 		_gathered.append(null)
@@ -74,18 +80,29 @@ func _process(delta: float) -> void:
 		hand.body.basis = Basis()
 		if not hand.tracked():
 			_held[i] = Vector3.INF
+			_was_to[i] = Vector3.INF
 			hand.body.position = Vector3.ZERO
 			continue
 		var to := hand.global_transform * CENTRE
 		var from := to if _held[i] == Vector3.INF else _rig.global_transform * _held[i]
-		if from.distance_to(to) > BREAK:
+		if from.distance_to(to) > BREAK and not hand.reaches():
 			from = to
+		var slide := INF
+		if hand.reaches() and _was_to[i] != Vector3.INF:
+			var moved := to - _rig.global_transform * _was_to[i]
+			var out := (to - hand.at_controller() * CENTRE).normalized()
+			slide = (moved - out * moved.dot(out)).length()
 		var box := AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP)
 		var near := _near_for(i, box)
 		near.focus(box, critters.filter(func(c: Critter) -> bool: return c.hand != hand))
-		var at := resolve(from, to, near.solid, near.normal)
+		var at := resolve(from, to, near.solid, near.normal, STEP, slide)
 		_held[i] = _rig.global_transform.affine_inverse() * at
-		hand.body.global_position = hand.global_position + (at - to)
+		_was_to[i] = _rig.global_transform.affine_inverse() * to
+		var short := at - to
+		if hand.reaches() and not hand.was_held and short != Vector3.ZERO:
+			hand.stop(short)
+			short = Vector3.ZERO
+		hand.body.global_position = hand.global_position + short
 		var touched := near.touch(at.move_toward(to, 0.01)) if at.distance_to(to) > 1e-3 else Surface.NONE
 		var pulse := _feels[i].step(now, delta, touched, near.passing(at), from.distance_to(to), from.distance_to(at))
 		if pulse.x > 0.0:
@@ -115,9 +132,10 @@ func _near_for(i: int, box: AABB) -> Near:
 
 ## Where a ball moving from `from` toward `to` comes to rest: `to` if the way is clear, else at the first surface it
 ## meets and then slid along it, the rest of the move turned along the surface's `normal`, a few times over to
-## settle into corners. A ball that starts inside something is let go, so a build raised round a hand, or an animal
-## walking into it, cannot trap it.
-static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable, step := STEP) -> Vector3:
+## settle into corners, each slide no longer than `slide`: a reaching hand thrown metres into a wall slides as far as
+## it was swept across its throw, not over the roof. A ball that starts inside something is let go, so a build raised
+## round a hand, or an animal walking into it, cannot trap it.
+static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable, step := STEP, slide := INF) -> Vector3:
 	if solid.call(from):
 		return to
 	var at := _sweep(from, to, solid, step)
@@ -127,7 +145,7 @@ static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callabl
 			break
 		var n: Vector3 = normal.call(at + pushed.normalized() * PROBE)
 		var rest := to - at
-		pushed = rest - n * minf(rest.dot(n), 0.0)
+		pushed = (rest - n * minf(rest.dot(n), 0.0)).limit_length(slide)
 		if n == Vector3.ZERO or pushed.length_squared() < 1e-6:
 			break
 		var target := at + pushed
