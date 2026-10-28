@@ -3,6 +3,6 @@
   {"op": "layer", "name": "flowers", "mode": "off"},
   {"op": "view", "ground": true, "eye": [1.7, 1.2, 9.6], "at": [1.8, 0.6, 7]},
   {"op": "until", "players": 2},
-  {"op": "wait", "seconds": 42},
+  {"op": "wait", "seconds": 55},
   {"op": "quit"}
 ]
