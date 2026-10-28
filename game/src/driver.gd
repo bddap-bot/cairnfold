@@ -2018,8 +2018,12 @@ func _brush(s: Dictionary) -> void:
 		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
 	var pts: Array = s.points
 	var before := frame.affine_inverse() * hand.global_position
+	# A long stick taken from the tray can start behind the sheet: clear its bottom before coming forward.
+	before.y = -Brushwork.METRES.y
+	_tip_at(hand, frame * before, direction, frame.basis.y, roll)
+	await _frames(2)
 	before.z = 0.6
-	hand.global_position = frame * before
+	_tip_at(hand, frame * before, direction, frame.basis.y, roll)
 	await _frames(2)
 	_tip_at(hand, on.call(pts[0], 0.4), direction, frame.basis.y, roll)
 	await _frames(2)

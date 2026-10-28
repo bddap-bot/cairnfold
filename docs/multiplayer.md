@@ -292,7 +292,7 @@ identical bone/inverse-pose bindings share an index. Geometry, weights and blend
 stay unchanged. The result is cached on the scene and prepared on the main thread,
 because reading mesh surfaces accesses the renderer while file import can run on a worker.
 
-The 60-joint import ceiling is priced with the skinned runtime on Quest 2: three
+The 60-joint simulation ceiling is priced with the skinned runtime on Quest 2: three
 figures visibly in view plus the same avatar worn, six private fixtures, give frame
 p50 of 13.60–13.94 ms at 72 Hz under the common quality governor. GPU p50 is
 7.81–9.20 ms (`perf/quest-2/avatar-skin-cost/20261027T214340Z-785038e.json`).

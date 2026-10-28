@@ -11,6 +11,7 @@ func _run() -> void:
 	var driver := Driver.new(main, [])
 	main.add_child(driver)
 	await _avatar_ready(driver)
+	await _charcoal_from_tray()
 	main.world.bounded = false
 	await driver._stair_field({})
 	check(not main.world.bounded, "the bounded stair fixture restores the unbounded stress workload")
@@ -46,3 +47,17 @@ func _avatar_ready(driver: Driver) -> void:
 func _wait_for_avatar(driver: Driver, done: Array) -> void:
 	await driver._until({"files": ["fixture.vrm"], "wearing": "fixture.vrm", "seconds": 30})
 	done[0] = true
+
+
+func _charcoal_from_tray() -> void:
+	await play([
+		{"op": "place", "x": 0, "z": 6},
+		{"op": "easel", "x": 0, "z": 3},
+		{"op": "take", "what": "thin_stick"},
+		{"op": "holds", "what": "thin_stick"},
+		{"op": "brush", "points": [[0.6, 0.3, 0.8], [0.9, 0.35, 0.8]], "seconds": 0.3},
+	])
+	main.world.flush()
+	var strokes: Array = main.world.state.easels.values()[-1].strokes
+	check(strokes.size() == 1 and Brushwork.count(strokes[0]) >= 2,
+		"the long stick clears the sheet coming off the tray and lays its first stroke")
