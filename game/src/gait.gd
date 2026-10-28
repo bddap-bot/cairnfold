@@ -45,6 +45,8 @@ var height := 1.0
 var _hips := Vector3.ZERO
 var _placed := false
 var _velocity := Vector3.ZERO
+## The soles' outline `supported` tests, kept until a foot moves.
+var _support := PackedVector2Array()
 
 
 func _init(leg_length: float, hips_height: float) -> void:
@@ -74,18 +76,17 @@ func update(hips: Vector3, center: Vector3, yaw: float, places: Array[Vector3], 
 			f.t = -1.0
 		elif not f.down:
 			_set_down(f, _place(center, places[s]), yaw, floor)
-	var stepping := feet.filter(func(f: Foot) -> bool: return f.t >= 0.0)
-	if stepping.is_empty():
+	var f: Foot = feet[0] if feet[0].t >= 0.0 else feet[1] if feet[1].t >= 0.0 else null
+	if f == null:
 		var s := _to_step(center, yaw, places)
 		if s < 0:
 			return
-		var f := feet[s]
+		f = feet[s]
 		f.t = 0.0
 		f.from = f.at
 		f.from_yaw = f.yaw
-		stepping = [f]
-	var f: Foot = stepping[0]
-	var place := _place(center, places[feet.find(f)]) + _velocity * STEP_TIME
+		_support.clear()
+	var place := _place(center, places[0 if f == feet[0] else 1]) + _velocity * STEP_TIME
 	var g: float = floor.call(Vector3(place.x, hips.y - 0.4 * height, place.z))
 	if not is_finite(g) or hips.y - g > HANG * height:
 		f.down = false
@@ -103,14 +104,14 @@ func update(hips: Vector3, center: Vector3, yaw: float, places: Array[Vector3], 
 
 ## The foot to step now, or -1.
 func _to_step(center: Vector3, yaw: float, places: Array[Vector3]) -> int:
-	if not feet.all(func(f: Foot) -> bool: return f.down):
+	if not feet[0].down or not feet[1].down:
 		return -1
 	var off: Array[float] = []
 	for s in 2:
 		var p := _place(center, places[s])
 		off.append(Vector2(feet[s].at.x - p.x, feet[s].at.z - p.z).length() / leg)
 	var order := [0, 1] if off[0] >= off[1] else [1, 0]
-	if balance and not supported(center) and off[order[0]] > SETTLED:
+	if balance and off[order[0]] > SETTLED and not supported(center):
 		return order[0]
 	for s: int in order:
 		var out_of_reach := off[s] > SETTLED and _hips.distance_to(feet[s].at) > REACH * height
@@ -121,13 +122,15 @@ func _to_step(center: Vector3, yaw: float, places: Array[Vector3]) -> int:
 
 ## Whether `center`, seen from above, lies over the ground the planted feet's soles cover between them.
 func supported(center: Vector3) -> bool:
-	var corners := PackedVector2Array()
-	for f in feet:
-		var b := Basis(Vector3.UP, f.yaw)
-		for c: Vector2 in [Vector2(-SOLE.x, -SOLE.y), Vector2(SOLE.x, -SOLE.y), Vector2(SOLE.x, SOLE.z), Vector2(-SOLE.x, SOLE.z)]:
-			var p := f.at + b * Vector3(c.x, 0.0, c.y) * leg
-			corners.append(Vector2(p.x, p.z))
-	return Geometry2D.is_point_in_polygon(Vector2(center.x, center.z), Geometry2D.convex_hull(corners))
+	if _support.is_empty():
+		var corners := PackedVector2Array()
+		for f in feet:
+			var b := Basis(Vector3.UP, f.yaw)
+			for c: Vector2 in [Vector2(-SOLE.x, -SOLE.y), Vector2(SOLE.x, -SOLE.y), Vector2(SOLE.x, SOLE.z), Vector2(-SOLE.x, SOLE.z)]:
+				var p := f.at + b * Vector3(c.x, 0.0, c.y) * leg
+				corners.append(Vector2(p.x, p.z))
+		_support = Geometry2D.convex_hull(corners)
+	return Geometry2D.is_point_in_polygon(Vector2(center.x, center.z), _support)
 
 
 static func _place(center: Vector3, off: Vector3) -> Vector3:
@@ -135,6 +138,7 @@ static func _place(center: Vector3, off: Vector3) -> Vector3:
 
 
 func _set_down(f: Foot, p: Vector3, yaw: float, floor: Callable) -> void:
+	_support.clear()
 	var g: float = floor.call(Vector3(p.x, _hips.y - 0.4 * height, p.z))
 	f.t = -1.0
 	f.yaw = yaw
