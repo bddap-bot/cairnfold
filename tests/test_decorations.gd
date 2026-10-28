@@ -96,7 +96,7 @@ func _run() -> void:
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, Vector3.FORWARD)
 	check(style_target.get("options") == DecorationLayout.standing("ground"), "Style wheel lists every style but the strings")
 	main.palette_tool.open(main.rig.right, style_target)
-	main.palette_tool.wheels[main.rig.right].pick = 8
+	main.palette_tool.wheels[main.rig.right].dial.pick = 8
 	main.palette_tool.close(main.rig.right)
 	check(main.world.state.decorations[torch.decoration].style == 8, "Style changes only chosen torch to campfire")
 	main.world.undo()

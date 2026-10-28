@@ -16,10 +16,8 @@ func _initialize() -> void:
 	_first_swatches_are_the_laid_colours()
 	_the_default_palette_changes_nothing()
 	_five_seasons()
-	_twisting_wraps_round_the_wheel()
 	_every_laid_kind_is_painted_or_kept()
 	_shaders_read_the_codes_and_globals_palette_writes()
-	_a_clockwise_twist_counts_up()
 	_the_dark_before_dawn()
 	boot_main()
 	_in_the_glade.call_deferred()
@@ -165,18 +163,6 @@ func _five_seasons() -> void:
 	check(winter.bloom == 0.0 and winter.meadow.a > 0.5 and winter.meadow.get_luminance() > 0.8, "winter whitens the meadow with nothing in bloom")
 	for e in Palette.SWATCHES:
 		check(Palette.count(e) >= 6, "%s has %d swatches" % [Palette.Element.keys()[e], Palette.count(e)])
-
-
-func _twisting_wraps_round_the_wheel() -> void:
-	var n := Palette.count(Palette.Element.ROOF)
-	check(PaletteTool.twisted(n, 0, Palette.TWIST_STEP) == 1, "one step clockwise is the next swatch")
-	check(PaletteTool.twisted(n, 0, -Palette.TWIST_STEP) == n - 1, "one step back wraps to the last")
-	check(PaletteTool.twisted(n, 2, Palette.TWIST_STEP * 0.4) == 2, "a small twist stays put")
-	var styles := DecorationLayout.STYLES.size()
-	var reached := {}
-	for degrees in range(-180, 181):
-		reached[PaletteTool.twisted(styles, 0, degrees)] = true
-	check(reached.size() == styles, "half a turn either way reaches all %d decoration styles, not %d" % [styles, reached.size()])
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:
@@ -337,7 +323,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 
 	var left: Hand = main.rig.left
 	tool.open(left, tool.aim(face + Vector3(0, 0, 3), Vector3.FORWARD))
-	tool.twist(left, Palette.TWIST_STEP * 0.0)
+	tool.twist(left, 0.0)
 	var steps_now: int = world.stacks[world.me()].undo.size()
 	tool.close(left)
 	check(world.stacks[world.me()].undo.size() == steps_now, "a wheel let go on the swatch the build already has sends nothing")
@@ -372,13 +358,6 @@ func _scaled_by(was: PackedFloat32Array, now: PackedFloat32Array, tint: Color) -
 		if not (Color(was[i + 12], was[i + 13], was[i + 14]) * k).is_equal_approx(Color(now[i + 12], now[i + 13], now[i + 14])):
 			return false
 	return true
-
-
-func _a_clockwise_twist_counts_up() -> void:
-	var start := Basis.looking_at(Vector3(0.3, -0.2, -1.0))
-	var fwd := -start.z
-	var turned := Basis(fwd, deg_to_rad(40.0)) * start
-	check(absf(PaletteTool._roll(start, turned) - 40.0) < 0.1, "a 40° turn clockwise, seen along the hand, reads %.1f" % PaletteTool._roll(start, turned))
 
 
 func _in_the_glade() -> void:

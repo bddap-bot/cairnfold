@@ -24,11 +24,6 @@ extends Node3D
 ## tap on another after lays that look on it (`look_onto`), one undo step each; a tap anywhere else lets the look go.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
-const WHEEL_RADIUS := 0.07
-## A wheel of many choices widens so neighbours stay this far apart around it.
-const CHOICE_GAP := 0.045
-## Where the wheel stands from the controller, in its frame when the trigger went down.
-const WHEEL_AT := Vector3(0, 0.06, -0.05)
 ## The longest press of the colour tool's trigger, in seconds, that leaves its wheel where it opened and is a tap.
 const TAP := 0.3
 
@@ -38,22 +33,15 @@ const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(Wal
 enum Floor { FLAGS, PLANKS }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
-## none; a boulder's is "boulders"), tree (its trunk; null for none) or stone stroke (-1 for none), the choice it started on and the one at its top,
-## and the hand's frame when it opened. One on none of them is on the meadow.
+## none; a boulder's is "boulders"), tree (its trunk; null for none) or stone stroke (-1 for none), and the dial of its
+## choices. One on none of them is on the meadow.
 class Wheel:
 	var of := ""
 	var id := -1
 	var tree: Flora.Plant
 	var stroke := -1
 	var target: Dictionary
-	var start := 0
-	var pick := 0
-	var degrees := 0.0
-	var basis := Basis()
-	## Seconds of game time it has been open.
-	var held := 0.0
-	var node: Node3D
-	var choices: Array[Node3D] = []
+	var dial := Dial.new()
 	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it.
 	var data: Array[Dictionary] = []
 
@@ -86,8 +74,6 @@ func busy(hand: Hand = null) -> bool:
 
 
 func _process(delta: float) -> void:
-	for w: Wheel in wheels.values():
-		w.held += delta
 	for b in _buttons:
 		var hand: Hand = b.hand
 		var wheel: Wheel = wheels.get(hand)
@@ -96,7 +82,7 @@ func _process(delta: float) -> void:
 		if wheel != null and (hand.tool != wheel.target.tool or b.released("tool")):
 			close(hand, hand.tool == wheel.target.tool)
 		elif wheel != null and b.held("tool"):
-			twist(hand, wheel.degrees + wrapf(_roll(wheel.basis, hand.global_basis) - wheel.degrees, -180.0, 180.0))
+			twist(hand, wheel.dial.wrist(hand))
 		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := aim(t.origin, -t.basis.z) if hand.tool == Hand.Tool.COLOUR else aim_style(t.origin, -t.basis.z)
@@ -106,7 +92,7 @@ func _process(delta: float) -> void:
 		b.latch()
 	for hand in wheels:
 		hand.hold()
-		_place(wheels[hand], hand)
+		wheels[hand].dial.follow(hand)
 
 
 ## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
@@ -305,21 +291,15 @@ func open(hand: Hand, target: Dictionary) -> void:
 	w.id = target.id
 	w.tree = target.get("tree")
 	w.stroke = target.get("stroke", -1)
-	w.start = _now(w)
-	w.pick = w.start
 	if w.id >= 0 and target.tool == Hand.Tool.STYLE:
 		for i in target.count:
 			w.data.append(_data(w, i))
-	w.basis = hand.global_basis.orthonormalized()
-	w.node = Node3D.new()
-	w.node.top_level = true
+	var choices: Array[Node3D] = []
 	for i in target.count:
-		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, target.get("options", range(target.count))[i], target.wall, target.of == "boulders")
-		w.node.add_child(choice)
-		w.choices.append(choice)
-	add_child(w.node)
+		choices.append(_swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, target.get("options", range(target.count))[i], target.wall, target.of == "boulders"))
+	add_child(w.dial)
+	w.dial.open(hand, choices, _now(w))
 	wheels[hand] = w
-	_place(w, hand)
 	Metrics.note("style wheel: opened on %s" % Restyle.find_key(target.get("restyle", -1)) if target.tool == Hand.Tool.STYLE else "colour wheel: opened", (Time.get_ticks_usec() - start) / 1000.0)
 
 
@@ -353,12 +333,8 @@ static func _swatch(element: Palette.Element, i: int) -> MeshInstance3D:
 ## on this machine only.
 func twist(hand: Hand, degrees: float) -> void:
 	var w: Wheel = wheels[hand]
-	w.degrees = degrees
-	var pick := twisted(w.target.count, w.start, degrees)
-	if pick != w.pick:
-		w.pick = pick
-		_show(w, pick)
-		Cues.play(Cues.Act.DIAL_TURN, hand.global_position, hand)
+	if w.dial.twist(hand, degrees):
+		_show(w, w.dial.pick)
 
 
 ## The choice `w` would send as the garden has it now, or -1 once its build or tree is gone.
@@ -468,46 +444,46 @@ func close(hand: Hand, released := true) -> void:
 	if now < 0:
 		return
 	if w.id >= 0 and w.target.tool == Hand.Tool.COLOUR:
-		walls.paint[w.target.element] = w.pick
+		walls.paint[w.target.element] = w.dial.pick
 	elif w.id >= 0 and w.target.restyle == Restyle.GABLE:
-		walls.gable_end = w.pick as WallLayout.GableEnd
-	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.pick] in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]:
-		walls.deck = RoofLayout.Deck.WOOD if w.target.options[w.pick] == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
+		walls.gable_end = w.dial.pick as WallLayout.GableEnd
+	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.dial.pick] in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]:
+		walls.deck = RoofLayout.Deck.WOOD if w.target.options[w.dial.pick] == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
 	elif w.id >= 0 and w.target.restyle == Restyle.ROOF:
-		walls.thatch = w.target.options[w.pick] == WallTool.RoofStyle.THATCHED
+		walls.thatch = w.target.options[w.dial.pick] == WallTool.RoofStyle.THATCHED
 	elif w.id >= 0 and w.target.restyle == Restyle.FACE and w.target.wall.layout.fence:
-		walls.fence_finish = int(FACES[w.target.options[w.pick]].x) as WallLayout.Finish
+		walls.fence_finish = int(FACES[w.target.options[w.dial.pick]].x) as WallLayout.Finish
 	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
-		walls.finish = int(FACES[w.target.options[w.pick]].x) as WallLayout.Finish
-		walls.wear = FACES[w.target.options[w.pick]].y
+		walls.finish = int(FACES[w.target.options[w.dial.pick]].x) as WallLayout.Finish
+		walls.wear = FACES[w.target.options[w.dial.pick]].y
 	elif w.id >= 0 and w.target.restyle == Restyle.FOUNDATION:
-		walls.foundation = w.pick as WallLayout.Foundation
+		walls.foundation = w.dial.pick as WallLayout.Foundation
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
-		walls.planks = w.pick == Floor.PLANKS
+		walls.planks = w.dial.pick == Floor.PLANKS
 	elif w.id >= 0 and w.target.restyle == Restyle.WINDOW:
-		walls.window_family = WallLayout.WINDOW_FAMILIES[w.target.options[w.pick]]
+		walls.window_family = WallLayout.WINDOW_FAMILIES[w.target.options[w.dial.pick]]
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
-		world.stairs.rail = StairLayout.RAILS[w.pick]
+		world.stairs.rail = StairLayout.RAILS[w.dial.pick]
 	elif w.id >= 0 and w.target.restyle == Restyle.PATH:
-		world.paths.surface = w.pick as PathLayout.Surface
+		world.paths.surface = w.dial.pick as PathLayout.Surface
 	elif w.id >= 0 and w.target.restyle == Restyle.DECORATION and world.state.decorations[w.id].mount == "span":
-		world.decorations.string_style = w.target.options[w.pick]
+		world.decorations.string_style = w.target.options[w.dial.pick]
 	elif w.target.get("restyle") == Restyle.STONE:
-		Ground.style = w.pick
-	if released and w.target.tool == Hand.Tool.COLOUR and w.pick == w.start and w.held < TAP:
+		Ground.style = w.dial.pick
+	if released and w.target.tool == Hand.Tool.COLOUR and w.dial.pick == w.dial.start and w.dial.held < TAP:
 		tap(hand, w.of, w.id)
 		return
-	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}
-	if w.pick == now or (w.id >= 0 and data.is_empty()):
+	var data: Dictionary = (w.data[w.dial.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.dial.pick)) if w.id >= 0 else {}
+	if w.dial.pick == now or (w.id >= 0 and data.is_empty()):
 		_settled(w)
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
 	if w.stroke >= 0:
-		world.submit({"op": "restone", "id": w.stroke, "style": w.pick}, _settled.bind(w), hand)
+		world.submit({"op": "restone", "id": w.stroke, "style": w.dial.pick}, _settled.bind(w), hand)
 	elif w.tree != null:
-		world.submit({"op": "tree", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
+		world.submit({"op": "tree", "group": w.tree.group, "index": w.tree.index, "species": w.dial.pick}, _settled.bind(w), hand)
 	elif w.id < 0:
-		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
+		world.submit({"op": "season", "index": w.dial.pick}, world.palette.apply, hand)
 	else:
 		world.submit({"op": "reshape", "of": w.of, "id": w.id, "data": data}, _settled.bind(w), hand)
 
@@ -594,30 +570,8 @@ func _settled(w: Wheel) -> void:
 
 
 func _drop(hand: Hand) -> void:
-	wheels[hand].node.queue_free()
+	wheels[hand].dial.queue_free()
 	wheels.erase(hand)
-
-
-## The wheel follows the hand but keeps the frame it opened in, turning with the twist; the picked choice
-## stands at the top, larger.
-func _place(w: Wheel, hand: Hand) -> void:
-	w.node.global_transform = Transform3D(w.basis, hand.global_position + w.basis * WHEEL_AT)
-	var n := w.choices.size()
-	for k in n:
-		var a := (w.degrees / Palette.twist_step(n) - (k - w.start)) * TAU / n
-		w.choices[k].position = Vector3(sin(a), cos(a), 0.0) * maxf(WHEEL_RADIUS, n * CHOICE_GAP / TAU)
-		w.choices[k].scale = Vector3.ONE * (1.6 if k == w.pick else 1.0)
-
-
-static func twisted(count: int, start: int, degrees: float) -> int:
-	return posmod(start + roundi(degrees / Palette.twist_step(count)), count)
-
-
-## Degrees the hand has turned about its pointing axis since `start`, clockwise as the hand sees it.
-static func _roll(start: Basis, now: Basis) -> float:
-	var fwd := -start.z
-	var x := now.x - fwd * now.x.dot(fwd)
-	return rad_to_deg(atan2(fwd.dot(start.x.cross(x)), start.x.dot(x)))
 
 
 static func _on_timber(layout: WallLayout, point: Vector3) -> bool:

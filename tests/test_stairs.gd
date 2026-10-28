@@ -184,7 +184,7 @@ func _painted_and_styled(main: Node) -> void:
 	var target := picker.aim(over, Vector3.DOWN)
 	check(target.get("of") == "stairs" and target.get("id") == id and target.get("element") == stone, "the colour tool on a tread picks the stairs' stone: %s" % [target])
 	picker.open(hand, target)
-	picker.twist(hand, 3 * Palette.TWIST_STEP)
+	picker.twist(hand, 3 * Dial.STEP)
 	var shown: Color = world.stairs.layouts[id].stones[0].color
 	check(world.state.stairs[id].paint[stone] == 0 and shown.is_equal_approx(laid * Palette.tint(stone, 3)), "the turned swatch shows on the stairs before it is sent")
 	picker.close(hand)
@@ -196,8 +196,8 @@ func _painted_and_styled(main: Node) -> void:
 	target = picker.aim_style(over, Vector3.DOWN)
 	check(target.get("restyle") == PaletteTool.Restyle.RAIL and target.get("id") == id and target.count == StairLayout.RAILS.size(), "the style tool on stairs offers their railings: %s" % [target])
 	picker.open(hand, target)
-	check(picker.wheels[hand].choices.size() == StairLayout.RAILS.size(), "a miniature for each railing")
-	picker.twist(hand, StairLayout.RAILS.find("wood") * Palette.TWIST_STEP)
+	check(picker.wheels[hand].dial.choices.size() == StairLayout.RAILS.size(), "a miniature for each railing")
+	picker.twist(hand, StairLayout.RAILS.find("wood") * Dial.STEP)
 	check(world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "the turned railing shows on the stairs before it is sent")
 	picker.close(hand)
 	var wooden: Array = world.stairs.layouts[id].stones

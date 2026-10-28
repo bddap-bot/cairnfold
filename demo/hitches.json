@@ -61,7 +61,7 @@
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 4},
   {"op": "label", "name": "visit/pick"},
-  {"op": "pick", "action": "empty", "seconds": 2},
+  {"op": "pick", "action": "home", "seconds": 2},
   {"op": "wait", "seconds": 2},
   {"op": "point", "tool": "walls", "at": [-20, 0, -4]},
   {"op": "label", "name": "-"},

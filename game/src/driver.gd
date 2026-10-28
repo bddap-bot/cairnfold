@@ -124,8 +124,9 @@ static func hold(device: String, control: String, on: bool) -> void:
 
 ## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
 ## level of the tool's path, let go; "none" lets go at the centre, emptying the hand. An untracked hand is moved itself; a tracked one sweeps by injected
-## reach. "capture" saves a view at the opening and at each level reached, as "<capture>-<level>",
-## "popping" one the frame after the pick. "bare" picks with a bare hand before the head: thumb to middle, the palm swept.
+## reach. An "action", a person's key (SessionWheel.choices), sweeps to its people leaf and twists the dial that opens
+## there round to it, the shorter way. "capture" saves a view at the opening and at each level reached, as
+## "<capture>-<level>", the dial turned as "<capture>-dial", "popping" one the frame after the pick. "bare" picks with a bare hand before the head: thumb to middle, the palm swept.
 func _pick(s: Dictionary) -> void:
 	if s.get("bare", false):
 		await _pick_bare(s)
@@ -133,7 +134,9 @@ func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
 	var tree := hand.inventory()
-	var leaf: Variant = s.get("action", Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE))
+	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
+	if s.has("action"):
+		leaf = SessionWheel.LEAVES.filter(func(l: String) -> bool: return hand.people.choices(l).has(s.action)).front()
 	var path: Array[int] = ToolWheel.paths(tree).get(leaf, [] as Array[int])
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
@@ -154,6 +157,11 @@ func _pick(s: Dictionary) -> void:
 		if s.has("capture"):
 			await _frames(6)
 			await main.capture("%s-%d" % [s.capture, level])
+	if s.has("action"):
+		await _twist_dial(hand, hand.people.choices(leaf).find(s.action))
+		if s.has("capture"):
+			await _frames(6)
+			await main.capture("%s-dial" % s.capture)
 	if s.get("seconds", 0.0) > 0.0:
 		await get_tree().create_timer(s.seconds).timeout
 	Buttons.injected.erase(key)
@@ -164,6 +172,19 @@ func _pick(s: Dictionary) -> void:
 	Hand.injected_reach.erase(hand.tracker)
 	if not hand.get_has_tracking_data():
 		hand.global_position = start
+	await _frames(2)
+
+
+## Twists `hand`, holding its dial, about its pointing axis until choice `to` stands at the top.
+func _twist_dial(hand: Hand, to: int) -> void:
+	var n := hand.dial.choices.size()
+	var steps := posmod(to - hand.dial.start, n)
+	if steps > n / 2:
+		steps -= n
+	var from := hand.global_basis
+	for f in 12:
+		hand.global_basis = Basis(-from.z, deg_to_rad(steps * Dial.step(n) * (f + 1) / 12.0)) * from
+		await _frames(1)
 	await _frames(2)
 
 
@@ -1447,6 +1468,18 @@ func _arrived(arrived: Array) -> void:
 		await get_tree().process_frame
 
 
+## Hears `count` made-up gardens near, from documentation addresses no game answers on, each in a built-in avatar and
+## colour under "Visitor <n>", every `unjoinable`th one from another build: the friends dial full without as many games.
+func _neighbours(s: Dictionary) -> void:
+	for i in int(s.count):
+		var unjoinable := int(s.get("unjoinable", 0))
+		main.session.nearby["192.0.2.1:%d" % (Session.PORT + i)] = {"address": "192.0.2.1", "port": Session.PORT + i, "key": 9000 + i,
+			"avatar": i % Avatar.BUILT_IN.size(), "wears": "", "colour": Session.COLOURS[i % Session.COLOURS.size()],
+			"name": "Visitor %d" % (i + 1), "joins": unjoinable == 0 or (i + 1) % unjoinable != 0, "seen": INF}
+	main.session.changed.emit()
+	await get_tree().process_frame
+
+
 ## Joins through the same wheel sweep and release as a player.
 func _visit(s: Dictionary) -> void:
 	var home: bool = s.get("home", false)
@@ -1714,8 +1747,8 @@ func _dial_dir(s: Dictionary) -> Vector3:
 func _dial(s: Dictionary, hand: Hand, target: Dictionary, to: int) -> void:
 	var tool: PaletteTool = main.palette_tool
 	tool.open(hand, target)
-	var from: int = tool.wheels[hand].start
-	var turn := (to - from) * Palette.twist_step(target.count)
+	var from: int = tool.wheels[hand].dial.start
+	var turn := (to - from) * Dial.step(target.count)
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)
 	while t < seconds:

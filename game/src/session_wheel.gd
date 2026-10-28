@@ -1,7 +1,8 @@
 class_name SessionWheel
 extends RefCounted
 
-const PAGE := 4
+## The inventory wheel's people leaves, each opening a Dial of its choices.
+const LEAVES := ["avatars", "friends"]
 const TAG_FONT := 48
 const TAG_PIXEL := 0.00012
 const PICTURE := 0.012
@@ -14,37 +15,38 @@ func _init(people: Session) -> void:
 	session = people
 
 
-func avatars() -> Array:
+## The keys a dial opened on `leaf` turns through: the avatars to wear, built in and then loaded, with the visitor's
+## name to set off Steam; or your own garden and then the gardens near to join.
+func choices(leaf: String) -> Array:
 	var out: Array = []
-	for i in Avatar.BUILT_IN.size():
-		out.append("avatar:%d" % i)
-	var files := session.files.keys().filter(func(f: String) -> bool: return session.files[f].scene != null)
-	files.sort()
-	for f in files:
-		out.append("file:" + f)
-	if not session.me.steam():
-		out.append("name")
-	return pages(out)
-
-
-func friends() -> Array:
+	if leaf == "avatars":
+		for i in Avatar.BUILT_IN.size():
+			out.append("avatar:%d" % i)
+		var files := session.files.keys().filter(func(f: String) -> bool: return session.files[f].scene != null)
+		files.sort()
+		for f in files:
+			out.append("file:" + f)
+		if not session.me.steam():
+			out.append("name")
+		return out
 	var keys := session.nearby.keys()
+	if not session.visiting.is_empty() and not keys.has(_visited()):
+		keys.append(_visited())
 	keys.sort()
-	var out: Array = []
+	out.append("home")
 	for key in keys:
 		out.append("join:" + key)
-	if out.is_empty():
-		out.append("empty")
-	if not session.visiting.is_empty():
-		out.push_front("home")
-	return pages(out)
+	return out
 
 
-## The middle continuation is horizontal, so arbitrarily many pages zig-zag in the same reach.
-static func pages(items: Array) -> Array:
-	if items.size() <= PAGE:
-		return items
-	return [items[0], pages(items.slice(2)), items[1]]
+## Where a dial opened on `leaf` starts: who you are now, or the garden you are in.
+func start(leaf: String) -> int:
+	var at := _worn() if leaf == "avatars" else "home" if session.visiting.is_empty() else "join:" + _visited()
+	return maxi(0, choices(leaf).find(at))
+
+
+func _visited() -> String:
+	return "%s:%d" % [session.visiting.address, session.visiting.port]
 
 
 func activate(key: String) -> void:
@@ -62,15 +64,16 @@ func activate(key: String) -> void:
 			session.join(garden.address, garden.port)
 
 
-## What the icon of `item`, a person's key or a subtree, is drawn from: a wheel keeping its icons builds one again when
-## this changes.
+## What the icon of `item`, a person's key or a people leaf, is drawn from: a wheel keeping its icons builds one again
+## when this changes.
 func signature(item: Variant) -> String:
-	if item is Array:
-		var whom := " ".join(item.map(signature))
-		return whom + " " + _worn() + " " + signature(_worn()) if item == avatars() else whom
 	if not item is String:
 		return ""
 	var key: String = item
+	if key == "avatars":
+		return _worn() + " " + signature(_worn())
+	if key == "friends":
+		return " ".join(_behind_gate().map(func(k: String) -> String: return signature("join:" + k)))
 	if key.begins_with("avatar:"):
 		return str([session.colour, ""])
 	if key.begins_with("file:"):
@@ -85,19 +88,17 @@ func signature(item: Variant) -> String:
 	return ""
 
 
-## The icon of `item`: a person's key as their figure (`figure`); the avatars as who you are now, alone in a hand
-## mirror, since picking one changes you; the gardens to join as a gate with the nearby players behind it, since picking
-## one takes you through; anything else null.
+## The icon of `item`: the avatars leaf as who you are now, alone in a hand mirror, since picking one changes you; the
+## friends leaf as a gate with the nearby players behind it, since picking one takes you through; a person's key as
+## their figure (`figure`); anything else null.
 func icon(item: Variant) -> Node3D:
-	if item is String:
-		return figure(item)
-	if not item is Array:
+	if not item is String:
 		return null
-	if item == avatars():
+	if item == "avatars":
 		return _mirror()
-	if item == friends():
+	if item == "friends":
 		return _gate()
-	return null
+	return figure(item)
 
 
 ## The avatar key this player wears now.
@@ -126,9 +127,7 @@ func _gate() -> Node3D:
 	const WIDTH := 0.036
 	var root := Node3D.new()
 	ToolModels.gate(root, WIDTH)
-	var keys := session.nearby.keys()
-	keys.sort()
-	keys = keys.slice(0, 3)
+	var keys := _behind_gate()
 	for i in keys.size():
 		var who := _person("join:" + keys[i])
 		who.scale *= 0.5
@@ -137,21 +136,25 @@ func _gate() -> Node3D:
 	return root
 
 
+func _behind_gate() -> Array:
+	var keys := session.nearby.keys()
+	keys.sort()
+	return keys.slice(0, 3)
+
+
+## A person's key as who wears it, standing: a garden that cannot be joined from this build a faint outline, its name
+## still under it.
 func figure(key: String) -> Node3D:
 	if key == "home":
-		var home := _home()
-		home.scale = Vector3.ONE * 0.25
+		var home := Node3D.new()
+		var cairn := _home()
+		cairn.scale = Vector3.ONE * 0.25
+		home.add_child(cairn)
 		return home
 	var root := Node3D.new()
 	root.add_child(_person(key))
-	if key == "empty":
-		_ghost(root.get_child(0))
 	if not _garden(key).joins:
-		var cross := Label3D.new()
-		cross.text = "×"
-		cross.pixel_size = 0.001
-		cross.position.y = 0.04
-		root.add_child(cross)
+		_ghost(root.get_child(0))
 	var tag := key.trim_prefix("join:") if key.begins_with("join:") else "name" if key == "name" else ""
 	if tag != "":
 		var info := _tag(tag)
@@ -188,7 +191,7 @@ func _person(key: String) -> Avatar:
 	return a
 
 
-## A figure as a faint, colourless outline of one: the place a person would stand, with no one in it.
+## A figure as a faint, colourless outline of one: someone near whom this build cannot reach.
 static func _ghost(figure: Node3D) -> void:
 	if _ghost_mat == null:
 		_ghost_mat = Meshes.glow(Color(0.25, 0.25, 0.28, 0.45))

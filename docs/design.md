@@ -33,7 +33,7 @@ aiming at; our implementation is our own.
 - One input mapping that works on any OpenXR controller with a stick, trigger,
   grip and two face buttons.
 - No text, with one exception: the player's name in the session picker (the
-  figures on the wheel's friends page, docs/multiplayer.md "Finding each other"). Nothing else gets text
+  figures on the friends dial, docs/multiplayer.md "Finding each other"). Nothing else gets text
   under this exception.
 
   Directive (verbatim): "in the multiplayer menu... I don't expect this to be solved now, but it was difficult to determine which... session to join... just by the avatar. I think eventually we'll need to break my rule about having no text. And we'll need to... I guess for Steam works, we'll need to display the... user profile... next to their avatar and their name"
@@ -2545,7 +2545,7 @@ Stage numbers refer to the build order at the end.
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk and stay all night while the day's animals rest (no new arrivals, butterflies settled, conures roosting with only murmurs, ducks quiet on the bank), conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Cairnfold` in shared storage on Android) that records where and how it was taken (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
-| Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network through the wheel's people branch (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
+| Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network through the friends dial (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
 ## Walls meeting walls
 
@@ -3399,7 +3399,8 @@ in each, a thrown hand stopped at a house's front, and the teleport ray cast fro
 | Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: everything anyone placed goes, walls, stairs, paths, stone, easels, decorations, boulders, planted and painted plants, ponds, ground edits and each player's standing mirror, and so do the meadow's own flowers, bushes and trees; its grass and the season stay. The wipe empties one list, everything that stands what players place (`World.holders`), so nothing placeable is left out; `tests/test_wipe.gd` places one of each and wipes, as host and as a visitor. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Anyone in the garden, host or visitor, can wipe it |
 | Undo | Tap left X (the Frame's D-pad down): one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled, erased into ruins or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
 | Redo | Tap right A: one step forward per tap. A new edit after an undo drops what could be redone |
-| Join a garden | Release the wheel on a nearby player's figure on its friends page: join their garden. Releasing on the cairn there while visiting: go home to your own |
+| Choose an avatar | Hold the wheel button, sweep on into the hand mirror: the wheel becomes a dial of every avatar, built in and loaded, starting on the one worn; twist the wrist to turn it and let go to wear the one at the top |
+| Join a garden | Hold the wheel button, sweep on into the gate: a dial of your own garden's cairn and every garden near, starting where you are; twist to a player's figure and let go to join their garden, or to the cairn while visiting to go home |
 | Throw seeds | Trigger of a hand holding seeds: a handful leaves the dish the way the hand is swinging, or falls from a still one, and scatters where it lands (see "Feeding") |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
@@ -3475,7 +3476,7 @@ and the left back, at any speed or angle, since the book finds where the hand's 
 sweep or pass turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a turn never
 undoes it. A hand resting on the pages, hovering over them or passing beside the book turns none (`tests/test_book_turn.gd`). Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
 grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
-a fifth of a second); the wheel's lower-right slot holds it beside the people pages, and taking it brings it back at the page it
+a fifth of a second); the wheel's lower-right slot holds it beside the mirror and the gate, and taking it brings it back at the page it
 was left on. The book is each player's own and is never sent to others.
 
 Each page is one control a player would not guess from the tool in hand, shown as a little live picture with no words:
@@ -5641,13 +5642,19 @@ saving or sharing a wall does not smooth it again. Paths retain their own interp
 curve. `tests/test_wall_smoothing.gd` checks jitter, sharp corners, endpoints and the
 longest stroke's command size.
 
-Avatar choice and joining a garden use the inventory wheel's people branch. Its
-avatar slots show the built-in figures and the loaded VRM; its friends slots show
-nearby gardens, with deeper pages when they exceed four slots. With no gardens,
-one empty ring is shown. Figures use the normal avatar lighting and exist only
-on the open page. In flat mode hold Q or the left shoulder button, sweep with the
-mouse or right stick, and release on a slot. The same wheel handles selection,
-sound and haptics in both modes.
+Avatar choice and joining a garden turn on the style tool's dial (`Dial`), the one
+component every twisted choice uses. The inventory wheel's people slot holds a hand
+mirror and a gate; reaching on into either, as into a subtree, closes the wheel and
+opens that dial over the controller while the wheel button stays held. The mirror's
+dial holds the built-in figures, the loaded VRMs and, off Steam, the visitor's name,
+starting on the one worn; the gate's holds your own cairn and the nearby gardens,
+starting where you are, so letting go untwisted changes nothing. A garden this build
+cannot join stands faint. Twisting shows the choice at the top larger and wears or
+joins nothing until the release. The figures are the wheel's own icons, built ahead
+while the wheel is closed (`Hand._prepare_icons`), so opening a dial builds none. In
+flat mode hold Q or the left shoulder button, sweep with the mouse or right stick,
+then move across to twist, and release (`tests/test_session_wheel.gd`,
+`tests/test_flat.gd`, `tests/test_dial.gd`).
 
 ### Flat-roof ceilings
 

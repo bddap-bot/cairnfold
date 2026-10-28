@@ -221,7 +221,7 @@ func _stroke() -> void:
 	var styled := main.palette_tool.aim_style(look, (on - look).normalized())
 	check(styled.get("id") == id and styled.get("options") == DecorationLayout.standing("span"), "the style tool on a string offers the strings alone: %s" % [styled.get("options")])
 	main.palette_tool.open(hand, styled)
-	main.palette_tool.wheels[hand].pick = styled.options.find(DecorationLayout.named("Flag string"))
+	main.palette_tool.wheels[hand].dial.pick = styled.options.find(DecorationLayout.named("Flag string"))
 	main.palette_tool.close(hand)
 	check(world.state.decorations[id].style == DecorationLayout.named("Flag string") and world.decorations.string_style == DecorationLayout.named("Flag string"), "it turns the string to flags, and strings hung after take flags")
 	world.undo()
@@ -229,7 +229,7 @@ func _stroke() -> void:
 	var coloured := main.palette_tool.aim(look, (on - look).normalized())
 	check(coloured.get("element") == Palette.Element.LANTERN and coloured.get("of") == "decorations" and coloured.get("id") == id, "the colour tool on a string of lanterns picks their colour: %s" % coloured)
 	main.palette_tool.open(hand, coloured)
-	main.palette_tool.wheels[hand].pick = 13
+	main.palette_tool.wheels[hand].dial.pick = 13
 	main.palette_tool.close(hand)
 	check(world.state.decorations[id].lantern == 13 and main.tool.paint[Palette.Element.LANTERN] == 13, "its lanterns burn in the swatch let go, as lanterns hung after do")
 	world.decorations.sync()
@@ -264,7 +264,7 @@ func _coloured() -> void:
 	check(aimed.get("element") == Palette.Element.LANTERN and aimed.get("of") == "walls" and aimed.get("id") == w.id, "the colour tool on a lantern picks its wall's lanterns' colour: %s" % aimed)
 	check(aimed.get("count") == Palette.count(Palette.Element.LANTERN), "on a wheel of every colour and brightness")
 	main.palette_tool.open(hand, aimed)
-	main.palette_tool.wheels[hand].pick = 9
+	main.palette_tool.wheels[hand].dial.pick = 9
 	main.palette_tool.close(hand)
 	w.lay_now()
 	check(world.state.walls[w.id].paint[Palette.Element.LANTERN] == 9 and w.paint[Palette.Element.LANTERN] == 9, "the wall's lanterns take the swatch")

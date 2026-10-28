@@ -60,15 +60,8 @@ const KINDS := {
 	"glass": Element.GLOW,
 	"plaster": Element.PLASTER, "timber": Element.TIMBER,
 }
-const TWIST_STEP := 28.0
 
 var season := SUMMER
-
-
-## The twist from one of `count` choices to the next: TWIST_STEP, or finer where a half turn either way would not
-## reach them all.
-static func twist_step(count: int) -> float:
-	return minf(TWIST_STEP, 360.0 / count)
 
 
 static func count(element: Element) -> int:

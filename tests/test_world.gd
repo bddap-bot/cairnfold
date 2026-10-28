@@ -225,7 +225,7 @@ func _gable_ends_go_through_the_host() -> void:
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.WALL, "an undo puts the wall's back")
 	var picker: PaletteTool = main.palette_tool
 	picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.GABLE, main.tool.find(id), Vector3.ZERO))
-	picker.twist(main.rig.right, Palette.TWIST_STEP)
+	picker.twist(main.rig.right, Dial.STEP)
 	picker.close(main.rig.right)
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "a twist of the style tool on them turns them to the next style")
 	world.restore(world.snapshot())

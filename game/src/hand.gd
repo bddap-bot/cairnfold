@@ -40,6 +40,8 @@ const TILT := PI * 0.3
 ## Seconds between looks, while the wheel is closed, for an icon to build or free: one built per look keeps a person's
 ## figure changing, a friend arriving or an avatar chosen, to one figure's build in a frame.
 const PREPARE_EVERY := 0.25
+## How large a person stands on a dial, so the discs behind them stay apart.
+const DIAL_SIZE := 0.66
 static var _disc: CylinderMesh
 static var _icon_mats := {}
 
@@ -94,6 +96,9 @@ var people: SessionWheel:
 		_prepare_icons(-1)
 		_warming = 2
 var _wheel: ToolWheel
+## The dial a people leaf opened (SessionWheel.choices), turned by the wrist while the wheel button stays held.
+var dial: Dial
+var _dial_keys: Array = []
 var _drawn_levels := 0
 var _holding := false
 ## The driver holds this hand where tracking would put it. In a headset it names a pose the runtime does not have, so
@@ -216,8 +221,6 @@ static func _icon_material(mat: Material, g: GeometryInstance3D) -> ShaderMateri
 
 func inventory() -> Array:
 	var tree := TREE.duplicate(true)
-	if people != null:
-		tree[3] = [people.avatars(), people.friends(), Tool.BOOK]
 	if flat_only:
 		# The book opens only to the other hand's touch, which a flat player's never reaches.
 		var people_slot: Array = tree[3].filter(func(t: Variant) -> bool: return typeof(t) != TYPE_INT or t != Tool.BOOK)
@@ -230,6 +233,12 @@ func close_wheel() -> void:
 	picking = false
 	_wheel_root.visible = false
 	_clear_icons()
+	if dial != null:
+		for c in dial.release():
+			_wheel_root.add_child(c)
+			c.visible = false
+			c.scale = Vector3.ZERO
+		dial = null
 
 
 func _clear_icons() -> void:
@@ -293,6 +302,47 @@ func _wanted(items: Array, prefix: Array[int], out: Dictionary) -> void:
 		out[_icon_key(path, items[k])] = items[k]
 		if items[k] is Array:
 			_wanted(items[k], path, out)
+		elif people != null and items[k] in SessionWheel.LEAVES:
+			for key: String in people.choices(items[k]):
+				out[_dial_key(key)] = key
+
+
+## A dial's person, the same icon whichever dial and slot shows them.
+func _dial_key(key: String) -> String:
+	return "dial %s %s" % [key, people.signature(key)]
+
+
+## Opens the dial of `leaf` over the hand in place of the wheel, building any figure not yet built.
+func _open_dial(leaf: String) -> void:
+	_wheel = null
+	_wheel_root.visible = false
+	_clear_icons()
+	_dial_keys = people.choices(leaf)
+	var figures: Array[Node3D] = []
+	for key: String in _dial_keys:
+		if not _built.has(_dial_key(key)):
+			_built[_dial_key(key)] = _make_icon(key)
+		figures.append(_built[_dial_key(key)])
+	dial = Dial.new()
+	dial.size = DIAL_SIZE
+	add_child(dial)
+	dial.open(self, figures, people.start(leaf))
+	Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
+
+
+## The open dial turns with the wrist; letting go of the wheel button does what the person at its top means, unless
+## that is where it started.
+func _dial_input() -> void:
+	if not _buttons.held("wheel"):
+		var key: String = _dial_keys[dial.pick]
+		var moved := dial.pick != dial.start
+		close_wheel()
+		if moved:
+			Cues.play(Cues.Act.DIAL_SET, global_position, self)
+			people.activate(key)
+		return
+	dial.twist(self, dial.wrist(self))
+	dial.follow(self)
 
 
 ## Where an icon sits and what it shows, which for people includes what they are drawn from (SessionWheel.signature).
@@ -318,7 +368,7 @@ func _make_icon(item: Variant) -> Node3D:
 
 ## A tool's model, or a subtree's items in miniature, two by two, each drawn as its own icon draws it: by `draw`
 ## (SessionWheel.icon) where that draws it, a person as a generic figure without one, and a nested subtree in miniature
-## again, `depth` levels down at most so a long page of friends stays a few figures to build.
+## again, `depth` levels down at most.
 static func miniature(item: Variant, draw := Callable(), depth := 2) -> Node3D:
 	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
 	if drawn != null:
@@ -575,10 +625,14 @@ func _log_profile() -> void:
 		print("controls: %s on %s, wheel %s" % [tracker, _profile, Controls.input("wheel", tracker)])
 
 
-## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
-## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing.
+## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand onto a tool, or onto a
+## subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing. Reaching on into a
+## people leaf turns the wheel into that leaf's dial.
 func _select_input(delta: float) -> void:
 	if carried != null:
+		return
+	if dial != null:
+		_dial_input()
 		return
 	if _wheel == null:
 		if _warming > 0:
@@ -609,12 +663,13 @@ func _select_input(delta: float) -> void:
 	_wheel.move(p)
 	if _wheel.levels[-1].hot >= 0 and [_wheel.levels.size(), _wheel.levels[-1].hot] != was:
 		Cues.play(Cues.Act.WHEEL_HOVER, global_position, self)
+	var pick: Variant = _wheel.chosen()
+	if pick is String and people != null and (p - _wheel.levels[-1].centre).length() >= ToolWheel.ENTER:
+		_open_dial(pick)
+		return
 	_show_wheel(delta)
 	if _buttons.released("wheel"):
-		var pick: Variant = _wheel.chosen()
-		if pick is String and people != null:
-			people.activate(pick)
-		else:
+		if not pick is String:
 			tool = pick if pick != null else Tool.NONE
 		Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
 		close_wheel()

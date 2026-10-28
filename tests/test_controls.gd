@@ -303,7 +303,7 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 		trackers[&"right_hand"].set_input(&"trigger_click", true)
 		await frames(2)
 		check(picker.wheels.has(rig.right) and picker.wheels[rig.right].target.get("restyle") == PaletteTool.Restyle.ROOF, "the style tool's trigger on the roof opens its roof styles")
-		pose.call(aim * Basis(Vector3.FORWARD, deg_to_rad(Palette.TWIST_STEP * steps)))
+		pose.call(aim * Basis(Vector3.FORWARD, deg_to_rad(Dial.STEP * steps)))
 		await frames(2)
 		trackers[&"right_hand"].set_input(&"trigger_click", false)
 		await frames(6)

@@ -392,7 +392,7 @@ func _the_face_wheel_turns_every_finish() -> void:
 	check(target.count == PaletteTool.FACES.size(), "an open wall offers every finish: %d" % target.count)
 	for pick in target.count:
 		picker.open(main.rig.right, target)
-		picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.twist_step(target.count))
+		picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].dial.start) * Dial.step(target.count))
 		picker.close(main.rig.right)
 		var face: Vector2 = PaletteTool.FACES[target.options[pick]]
 		check(world.state.walls[id].finish == int(face.x) and world.state.walls[id].wear == face.y, "the wheel turns the wall to %s worn %.2f" % [WallLayout.Finish.keys()[int(face.x)], face.y])
@@ -417,7 +417,7 @@ func _the_face_wheel_turns_every_finish() -> void:
 func _turn(target: Dictionary, steps: int) -> void:
 	var picker: PaletteTool = main.palette_tool
 	picker.open(main.rig.right, target)
-	picker.twist(main.rig.right, Palette.twist_step(target.count) * steps)
+	picker.twist(main.rig.right, Dial.step(target.count) * steps)
 	picker.close(main.rig.right)
 
 

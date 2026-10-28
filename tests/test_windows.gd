@@ -353,7 +353,7 @@ func _in_the_glade() -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.STYLE
 	palette.open(hand, styled)
-	palette.twist(hand, (styled.options.find(WallLayout.WINDOW_FAMILIES.find(WallLayout.Family.ARCHED)) - palette.wheels[hand].start) * Palette.twist_step(styled.count))
+	palette.twist(hand, (styled.options.find(WallLayout.WINDOW_FAMILIES.find(WallLayout.Family.ARCHED)) - palette.wheels[hand].dial.start) * Dial.step(styled.count))
 	palette.close(hand)
 	hand.tool = Hand.Tool.WALLS
 	await until(func() -> bool: return Array(world.state.walls[house.id].openings).any(func(e: Vector4) -> bool: return e.z == WallLayout.Family.ARCHED and e.x == round_at.x), "the window turned arched")

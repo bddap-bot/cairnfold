@@ -61,8 +61,8 @@ also holds the people: avatars to wear, and nearby gardens to join.
   or shape two hills at once.
 - A hand’s pointer disappears while grabbing and returns when released, except
   on the sky, where aiming is what turns it.
-- On the inventory wheel, enter the people branch to pick your avatar or a nearby
-  garden. Release on a host figure to join; while visiting, pick the cairn to go home.
+- On the inventory wheel, reach on into the mirror or the gate and twist the wrist to turn
+  a dial of avatars or nearby gardens; let go to wear one or join it. The cairn there is home.
 - Plaster keeps stone bases, corners and opening trim; either material supports the same
   roofs and fittings.
 - A wall drawn round into a loop stays a wall.
@@ -136,6 +136,6 @@ older release Latest again.
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT license](LICENSE-MIT) at your option.
 
-Avatar and multiplayer choices share the inventory wheel. Its people branch contains
-avatar figures and paged gardens to join. In flat mode, hold Q or the gamepad left
-shoulder button, move the mouse or right stick through the wheel, and release to pick.
+Avatar and multiplayer choices turn on the same dial as styles, opened from the inventory
+wheel's mirror and gate. In flat mode, hold Q or the gamepad left shoulder button, move the
+mouse or right stick onto one, then across to turn its dial, and release to pick.

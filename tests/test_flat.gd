@@ -273,10 +273,20 @@ func _the_flat_wheel_selects_an_avatar() -> void:
 	_key(true, KEY_Q)
 	await frames(3)
 	check(hand.picking, "Q opens the shared inventory wheel")
-	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["avatar:2"]):
+	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["avatars"]):
 		flat._reach = at
 		await frames(3)
+	check(hand.dial != null, "sweeping to the mirror opens the avatars dial")
+	var choices := hand.people.choices("avatars")
+	var to: String = choices[(hand.dial.start + 2) % choices.size()]
+	flat.mouse_held = true
+	var move := InputEventMouseMotion.new()
+	move.relative = Vector2(2.0 * Dial.step(choices.size()) / Flat.MOUSE_TWIST, 0.0)
+	Input.parse_input_event(move)
+	await frames(3)
+	check(choices[hand.dial.pick] == to, "the mouse across twists the dial two avatars on")
 	_key(false, KEY_Q)
 	await frames(3)
-	check(main.session.avatar == 2 and not hand.picking, "releasing Q selects the avatar through the shared wheel")
+	flat.mouse_held = false
+	check("avatar:%d" % main.session.avatar == to and not hand.picking, "releasing Q wears the avatar at the dial's top")
 	check(not hand._wheel_root.visible and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "flat wheel release leaves no figures shown")

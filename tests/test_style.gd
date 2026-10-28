@@ -46,7 +46,7 @@ func _relayed(cmd: Dictionary, by: int) -> Dictionary:
 func _turn(target: Dictionary, steps: int) -> void:
 	var picker: PaletteTool = main.palette_tool
 	picker.open(main.rig.right, target)
-	picker.twist(main.rig.right, Palette.twist_step(target.count) * steps)
+	picker.twist(main.rig.right, Dial.step(target.count) * steps)
 	picker.close(main.rig.right)
 
 
@@ -203,7 +203,7 @@ func _faces_cut_no_opening() -> void:
 			var target := picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(at))
 			for pick in target.count:
 				picker.open(main.rig.right, target)
-				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.twist_step(target.count))
+				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].dial.start) * Dial.step(target.count))
 				check(PackedVector4Array(wall.layout.openings) == before, "face %d shown at %.1f m keeps the arches: %s" % [pick, at, wall.layout.openings])
 				picker.close(main.rig.right)
 				check(PackedVector4Array(world.state.walls[id].openings) == before, "face %d sent at %.1f m keeps the arches: %s" % [pick, at, world.state.walls[id].openings])
@@ -470,7 +470,7 @@ func _boulders_take_a_stone_style() -> void:
 	picker.open(main.rig.right, target)
 	var mesh: MultiMesh
 	for i in StoneStyles.STYLES.size():
-		var model := picker.wheels[main.rig.right].choices[i].get_child(0).get_child(0) as MultiMeshInstance3D
+		var model := picker.wheels[main.rig.right].dial.choices[i].get_child(0).get_child(0) as MultiMeshInstance3D
 		check(model != null, "a boulder wheel entry is a solid boulder, not painted ground")
 		if model != null:
 			check(model.material_override == main.boulders.find(id).near.material_override, "wheel and placed boulder share the stone material")
@@ -518,7 +518,7 @@ func _roof_choices_keep_shape() -> void:
 				var wheel: PaletteTool.Wheel = picker.wheels[main.rig.right]
 				for change in wheel.data:
 					check(not change.get("roof", {}).has("pitch") and not change.get("roof", {}).has("curve"), "covering choices never write shape")
-				picker.twist(main.rig.right, (pick - wheel.start) * Palette.TWIST_STEP)
+				picker.twist(main.rig.right, (pick - wheel.dial.start) * Dial.STEP)
 				check(wall.roof.pitch == pitch and wall.roof.curve == 0.4, "preview preserves pitch and curve")
 				picker.close(main.rig.right)
 				check(world.state.walls[id].roof.pitch == pitch and world.state.walls[id].roof.curve == 0.4, "committed covering preserves pitch and curve")

@@ -508,12 +508,12 @@ func _play_colour(at: float) -> void:
 	var f: Transform3D = pads.right.transform
 	var twist := deg_to_rad(Lessons.pose(page, "right", at).roll)
 	var n: int = _fx.swatches.size()
-	wheel.transform = Transform3D(f.basis, f * PaletteTool.WHEEL_AT)
-	var chosen := posmod(roundi(-rad_to_deg(twist) / Palette.twist_step(n)), n)
+	wheel.transform = Transform3D(f.basis, f * Dial.AT)
+	var chosen := posmod(roundi(-rad_to_deg(twist) / Dial.step(n)), n)
 	for i in n:
 		var a := float(i - chosen) / n * TAU + twist
 		var d: MeshInstance3D = _fx.swatches[i]
-		d.position = Vector3(sin(a), cos(a), 0) * PaletteTool.WHEEL_RADIUS
+		d.position = Vector3(sin(a), cos(a), 0) * Dial.RADIUS
 		d.rotation = Vector3(PI * 0.5, 0, 0)
 		d.scale = Vector3.ONE * (1.5 if i == chosen else 1.0)
 	var m: StandardMaterial3D = _fx.tint

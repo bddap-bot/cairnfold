@@ -388,21 +388,22 @@ game's port number gets that file (its length, then its bytes), the same file ev
 joins gets anyway, so the wheel shows it before anyone joins: a game hearing a hash it lacks
 fetches the file, at most two at a time, reads it on a worker thread like a joined player's,
 and keeps it only if its hash is the one the beacon named.
-Hold the inventory wheel and enter its people branch. The avatar page offers the
-built-in figures and the loaded VRM; releasing on one wears it and updates every peer.
-The friends page shows nearby hosts in their avatars, with names and Steam pictures
-where available. Each page holds at most four slots; its nested fan continues to more
-friends. An empty ring marks no gardens available. Release on a host to join, or the
-cairn to go home. Closing the wheel, changing tools or teleporting frees its figures.
-Flat players hold Q or the left shoulder button, move the mouse or right stick through
-the same wheel, and release to select. Names remain the game's one text exception.
+Hold the inventory wheel and reach on into its hand mirror or gate: either becomes the
+style tool's dial (design.md, "Avatar choice"). The mirror's dial holds the built-in
+figures and the loaded VRMs; letting go on one wears it and updates every peer. The gate's
+holds your own cairn and the nearby hosts in their avatars, with names and Steam pictures
+where available, all on one ring; letting go on a host joins it, on the cairn while
+visiting goes home. Changing tools or teleporting closes the dial and joins nothing.
+Flat players hold Q or the left shoulder button, move the mouse or right stick onto the
+mirror or gate, then across to twist, and release. Names remain the game's one text
+exception.
 
 Only gardens of a build with the same networked methods can be joined. Godot numbers a
 node's RPCs by name, so a build with one more or one fewer calls the wrong methods on the
 other: a visitor's digs, ponds and plants never land, and its strokes show and then vanish.
 The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`).
 A garden whose beacon carries another (or the constant 1 of builds before the fingerprint)
-still appears on the wheel, with a small X over it, and selecting it joins nothing. Builds
+still appears on the dial, a faint figure, and selecting it joins nothing. Builds
 from one revision always match. Builds before the fingerprint drop every beacon but their
 own constant, so they list no newer garden at all.
 
@@ -418,7 +419,7 @@ nothing that says who they are. A name reaches others only by a way the player c
   on one machine share one rich presence, so only the later one is named; on two machines
   each reads only its own, so neither is. Anyone on the network can copy a
   friend's key into their own beacon, so when two gardens announce one key neither is named.
-- **Without Steam,** the avatar page includes your own figure under a name the game
+- **Without Steam,** the avatars dial includes your own figure under a name the game
   offers, faint while only you can see it. Pick it and the name joins your beacon; pick it
   again for another. The game keeps the name you picked for later starts. A host who never
   picked one stands unnamed.

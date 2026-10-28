@@ -14,6 +14,9 @@ const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
 const STICK_LOOK := 2.6
 const MOUSE_LOOK := 0.003
+## Degrees a dial turns per pixel of mouse, and a second at full stick.
+const MOUSE_TWIST := 0.25
+const STICK_TWIST := 120.0
 const PITCH := deg_to_rad(85.0)
 ## The camera is held on the line of sight, its screen the viewfinder, so the photo frames what the view shows.
 const CAMERA_HELD := Vector3(0.0, 0.0, -0.32)
@@ -39,6 +42,8 @@ var _taking_click := false
 var _trigger := ""
 var _wheel_button := ""
 var _reach := Vector2.ZERO
+## Degrees the right hand is twisted, clockwise, while it turns a dial: the mouse or the stick across.
+var _twist := 0.0
 var _wheeling := false
 var _firing := false
 var _wave_time := -1.0
@@ -97,6 +102,9 @@ func _input(event: InputEvent) -> void:
 		_taking_click = true
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event is InputEventMouseMotion and mouse_held:
+		if rig.right.dial != null:
+			_twist += event.relative.x * MOUSE_TWIST
+			return
 		if rig.right.picking:
 			_reach += Vector2(event.relative.x, -event.relative.y) * 0.0005
 			return
@@ -141,6 +149,10 @@ func _process(delta: float) -> void:
 		_taking_click = false
 	var stick := Input.get_vector("flat_look_left", "flat_look_right", "flat_look_down", "flat_look_up")
 	var wheel := Input.is_action_pressed("flat_wheel")
+	if rig.right.dial != null:
+		_twist += stick.x * STICK_TWIST * delta
+	else:
+		_twist = 0.0
 	if wheel:
 		if not Buttons.injected.has(_wheel_button):
 			_reach = Vector2.ZERO
@@ -175,7 +187,7 @@ func _process(delta: float) -> void:
 			_wave_time = -1.0
 	for s in 2:
 		var at_side := Transform3D(level, eyes.origin) * Avatar.AT_SIDES[s]
-		rig.hands[s].transform = eyes * (Transform3D(Basis.IDENTITY, WHEEL_HELD) if wheel or rig.right.picking else Flat.held(rig.right.tool, pitch)) if raised and s == 1 else at_side
+		rig.hands[s].transform = eyes * (Transform3D(Basis(Vector3.FORWARD, deg_to_rad(_twist)), WHEEL_HELD) if wheel or rig.right.picking else Flat.held(rig.right.tool, pitch)) if raised and s == 1 else at_side
 		if _wave_time >= 0.0:
 			var hand := Transform3D(Basis(WAVE.rotation_track_interpolate(s * 2 + 1, _wave_time)), WAVE.position_track_interpolate(s * 2, _wave_time))
 			rig.hands[s].transform = Transform3D(level, eyes.origin) * hand
