@@ -1,0 +1,17 @@
+[
+  {"op": "budget", "bounded": false},
+  {"op": "place", "x": 0, "z": 14},
+  {"op": "house", "at": [0, 0], "size": [6, 4], "rise": 0.8, "seed": 56509, "seconds": 0.5},
+  {"op": "wait", "seconds": 3},
+  {"op": "view", "eye": [4.6, 1.4, 0.9], "at": [3, 3.6, 0], "ground": true},
+  {"op": "capture", "name": "01-gable-from-below"},
+  {"op": "view", "eye": [9, 1.7, 6], "at": [0, 1.8, 0], "ground": true},
+  {"op": "capture", "name": "02-house"},
+  {"op": "view", "eye": [6.5, 1.6, 0], "at": [3, 2.4, 0], "ground": true},
+  {"op": "capture", "name": "03-gable-end"},
+  {"op": "view", "eye": [1, 1.3, 3.6], "at": [1, 0.8, 2], "ground": true},
+  {"op": "capture", "name": "04-floor-line"},
+  {"op": "view", "eye": [1, 0.3, 4.6], "at": [1, 0.7, 2], "ground": true},
+  {"op": "capture", "name": "05-ground"},
+  {"op": "quit"}
+]

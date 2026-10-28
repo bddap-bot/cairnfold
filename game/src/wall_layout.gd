@@ -31,21 +31,17 @@ const LONGEST := 0.85
 ## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
 ## charges both as wall.
 const MIN_HEIGHT := 0.9
-## A house's or tower's floor: the flags
-## (or the planks: width, length range and gap) it is laid in, and how far in from the outer faces
-## its rows end, inside the stones.
+## A house's or tower's floor: the flags (or the planks: width, length range and gap) it is laid in, and how far out
+## from the walls' centre line its rows end: behind the shallowest mortar, a worn patch's, so no joint shows the floor.
 const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
-const FLOOR_IN := 0.04
+const FLOOR_REACH := WORN_THICK * 0.5 - JOINT - 0.01
 ## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
 const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
 ## The discs wearing the meadow bare under a floor: how far apart, how far inside the walls' centre line their centres
 ## stay, and each one's radius and fade.
 const BARE_STAMP := Vector4(0.4, 0.15, 0.3, 0.1)
-## The courses under a wall's foot, its plinth, stand this far proud of each face, in stone this much darker, so a
-## raised house reads as standing on them.
-const PLINTH := Vector2(0.05, 0.86)
 ## The most of a raise that stilts stand in: raised higher, the foundation under them rises with the house.
 const STILT_SPAN := 1.8
 ## The farthest apart stilts stand along the walls; a pillar's width, a post's, and a beam's width and height.
@@ -873,7 +869,7 @@ func _floor_bounds() -> PackedVector2Array:
 		return PackedVector2Array()
 	var line := _floor_line()
 	var inner := Geometry2D.offset_polygon(line, -THICKNESS * 0.5)
-	var outer := Geometry2D.offset_polygon(line, THICKNESS * 0.5 - FLOOR_IN)
+	var outer := Geometry2D.offset_polygon(line, FLOOR_REACH)
 	return outer[0] if not inner.is_empty() and not outer.is_empty() else PackedVector2Array()
 
 
@@ -1024,7 +1020,7 @@ func _lay_rubble() -> void:
 		for i in mini(int((r.y - r.x) * RUBBLE * minf(height, 3.0) / 3.0) + 2, 40):
 			var s := rng.randf_range(r.x, r.y)
 			var size := Vector3(rng.randf_range(0.3, 0.6), rng.randf_range(0.16, 0.28), rng.randf_range(0.24, 0.42))
-			var st := _stone(s, size.y * 0.4 - depth_at(s), size, rng, "rubble", 0.92, 0.45, rng.randf_range(-0.5, 0.5))
+			var st := _stone(s, size.y * 0.4 - depth_at(s), size, rng, "rubble", 0.45, rng.randf_range(-0.5, 0.5))
 			st.xform.origin += _normal(s) * rng.randf_range(-0.8, 0.8)
 			stones.append(st)
 
@@ -1829,7 +1825,7 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 		for i in k:
 			var t := (i + 0.5) / k * PI
 			var size := Vector3(PI * r / k * 1.2, 0.11, 0.1)
-			stones.append(_stone(a - cos(t) * r, GATE_POST + 0.04 + sin(t) * r * squash, size, rng, "gate", 1.0, 0.0, atan2(cos(t) * squash, sin(t))))
+			stones.append(_stone(a - cos(t) * r, GATE_POST + 0.04 + sin(t) * r * squash, size, rng, "gate", 0.0, atan2(cos(t) * squash, sin(t))))
 			stones[-1].color = WOOD * rng.randf_range(0.8, 1.05)
 	if standing.is_empty():
 		return
@@ -1860,7 +1856,7 @@ static func stone_color(rng: RandomNumberGenerator) -> Color:
 ## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1. It keeps its depth:
 ## a glazing bar or strap jittered like rubble sinks into the glass or plank behind it.
 func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0, face := INF) -> void:
-	var st := _stone(s, y, size, rng, kind, 1.0, wobble, 0.0, 0.0, face)
+	var st := _stone(s, y, size, rng, kind, wobble, 0.0, 0.0, face)
 	st.xform.origin += _normal(s) * out
 	st.color = color
 	stones.append(st)
@@ -1960,8 +1956,8 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 			first = false
 		var l := minf(want, b - s)
 		var hj := h * rng.randf_range(0.9, 1.04)
-		var depth := thick * rng.randf_range(0.92, 1.05) + (PLINTH.x * 2.0 if y0 < 0.0 else 0.0)
-		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", PLINTH.y if y0 < 0.0 else 1.0, 0.035)
+		var depth := thick * rng.randf_range(0.92, 1.05)
+		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", 0.035)
 		s += l
 
 
@@ -2262,7 +2258,7 @@ func _wedge(st: Dictionary, turn: float) -> Dictionary:
 
 
 func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
-	return _stone(s, y, size, rng, style.kind, 1.0, 0.0, roll, style.jitter)
+	return _stone(s, y, size, rng, style.kind, 0.0, roll, style.jitter)
 
 
 ## How far along the wall `a` lies past `b`, the short way round a closed loop.
@@ -2295,13 +2291,13 @@ func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator
 	var w := half * 2.0
 	var bed := maxf(maxf(depth_at(s - half), depth_at(s)), depth_at(s + half))
 	_lay_footing(s, bed, Vector3(w - 0.1, 0.0, THICKNESS - 0.06), "pillar", wet)
-	_add(s, 0.1, Vector3(w + 0.08, 0.2, THICKNESS + 0.1), rng, "pillar", 0.95, 0.02)
+	_add(s, 0.1, Vector3(w + 0.08, 0.2, THICKNESS + 0.1), rng, "pillar", 0.02)
 	var y := 0.2
 	while y < top_y - 0.25:
 		var h := minf(rng.randf_range(0.34, 0.46), top_y - 0.18 - y)
-		_add(s, y + h * 0.5, Vector3(w - 0.1, h, THICKNESS - 0.06), rng, "pillar", 1.0, 0.02)
+		_add(s, y + h * 0.5, Vector3(w - 0.1, h, THICKNESS - 0.06), rng, "pillar", 0.02)
 		y += h
-	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.95, 0.0)
+	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.0)
 
 
 ## How far under the foot the stilts of `kind` stand in a raise of `rise`, over a foundation at least a course high: all
@@ -2362,11 +2358,11 @@ func _lay_stilts(span: float, rng: RandomNumberGenerator) -> void:
 		if top - bottom < 0.02 or piers.any(func(c: float) -> bool: return absf(offset(s, c)) < 0.01):
 			continue
 		var base := minf(0.2, top - bottom)
-		_add(s, bottom + base * 0.5, Vector3(PILLAR + 0.12, base, PILLAR + 0.12), rng, "pillar", PLINTH.y, 0.02)
+		_add(s, bottom + base * 0.5, Vector3(PILLAR + 0.12, base, PILLAR + 0.12), rng, "pillar", 0.02)
 		var y := bottom + base
 		while y < top - 0.05:
 			var h := minf(rng.randf_range(0.34, 0.46), top - y)
-			_add(s, y + h * 0.5, Vector3(PILLAR, h, PILLAR), rng, "pillar", PLINTH.y, 0.02)
+			_add(s, y + h * 0.5, Vector3(PILLAR, h, PILLAR), rng, "pillar", 0.02)
 			y += h
 
 
@@ -2443,14 +2439,14 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		while total - s > 0.001:
 			var l := minf(rng.randf_range(0.11, 0.17), total - s)
 			var h := rng.randf_range(COPE_TALL.x, COPE_TALL.y) if tall else rng.randf_range(COPE_SHORT.x, COPE_SHORT.y)
-			_add(s + l * 0.5, height + h * 0.5, Vector3(l, h, THICKNESS * 0.86), rng, "cope", 0.97, 0.06)
+			_add(s + l * 0.5, height + h * 0.5, Vector3(l, h, THICKNESS * 0.86), rng, "cope", 0.06)
 			tall = not tall
 			s += l + 0.012
 		return
 	var s := a
 	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.5, 0.95), total - s)
-		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + (0.0 if cover == Cover.ROOF else 0.16)), rng, "cap", 0.95, 0.02)
+		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + (0.0 if cover == Cover.ROOF else 0.16)), rng, "cap", 0.02)
 		s += l
 	if style == Top.CAP and cover == Cover.DECK:
 		_lay_parapet(a, total, rng)
@@ -2462,7 +2458,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	var edge := a + 0.3
 	while edge < total - 0.001:
 		var width := minf(0.5, total - edge)
-		_add(edge + width * 0.5, height + CAP + 0.24, Vector3(width, 0.48, THICKNESS * 0.8), rng, "merlon", 1.0, 0.03)
+		_add(edge + width * 0.5, height + CAP + 0.24, Vector3(width, 0.48, THICKNESS * 0.8), rng, "merlon", 0.03)
 		edge += 1.15
 
 
@@ -2526,21 +2522,21 @@ func _lay_gables() -> void:
 					_lay_verge(mid, hs, base, rng, "cope")
 
 
-## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: stone
-## backed by the roof's continuous infill. Stepped ends keep their mortar panels above the roof instead. Courses
-## stop at the corners rather than turn down the side walls, filling each corner through its thickness.
+## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: the
+## wall's own courses carried on, bonded as the next ones up and set in its mortar, the roof's infill closing only what
+## the slopes leave over them. Courses stop at the corners rather than turn down the side walls, filling each corner
+## through its thickness.
 func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var edge := hs - THICKNESS * 0.5
 	var inset := 0.0 if plastered() else JOINT
 	for row in rows:
 		var y := base + row.x * h
 		var half := minf(row.y, edge)
-		var offset := (0.5 if int(row.x) % 2 == 0 else 0.0) * rng.randf_range(0.3, 0.6)
+		var offset := (0.5 if posmod(courses() + int(row.x), 2) == 1 else 0.0) * rng.randf_range(0.3, 0.6)
 		for span in _standing([[mid - half, mid + half]]):
 			if not plastered():
 				_lay_course(span[0], span[1], y, h, offset, rng)
-			if gable_kind() != GableEnd.WALL:
-				_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
+			_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:
 				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plastered() else stone_color(rng), rng, "plaster" if plastered() else "block", 0.0, 0.0, mid)
@@ -2592,10 +2588,10 @@ func _lay_crow_steps(mid: float, hs: float, base: float, h: float, rng: RandomNu
 		var top := base + (steps[i].y + steps[i].z) * h + CAP * 0.5
 		var outer := steps[i].x + 0.06
 		if i + 1 == steps.size():
-			_add(mid, top, Vector3(outer * 2.0, CAP, THICKNESS + 0.12), rng, "cap", 0.95, 0.0)
+			_add(mid, top, Vector3(outer * 2.0, CAP, THICKNESS + 0.12), rng, "cap", 0.0)
 			break
 		for side in [-1.0, 1.0]:
-			_add(mid + side * (steps[i + 1].x + outer) * 0.5, top, Vector3(outer - steps[i + 1].x, CAP, THICKNESS + 0.12), rng, "cap", 0.95, 0.0)
+			_add(mid + side * (steps[i + 1].x + outer) * 0.5, top, Vector3(outer - steps[i + 1].x, CAP, THICKNESS + 0.12), rng, "cap", 0.0)
 
 
 ## Upright planks side by side across a gable end, each up to where the slope crosses its outer edge.
@@ -2636,7 +2632,7 @@ func _lay_verge(mid: float, hs: float, base: float, rng: RandomNumberGenerator, 
 			var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
 			if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
 				var roll := atan(run.y / (run.x * side))
-				var piece := _stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, kind, 0.97, 0.02, roll, 0.015, mid)
+				var piece := _stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, kind, 0.02, roll, 0.015, mid)
 				if kind == "board":
 					piece.color = WOOD * rng.randf_range(0.8, 0.95)
 				stones.append(piece)
@@ -2656,14 +2652,14 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	var s := a
 	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.4, 0.75), total - s)
-		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 1.0, 0.02)
+		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 0.02)
 		s += l
 	_lay_mortar([[y, PARAPET, [[a, total]]]], THICKNESS * 0.62)
 	rng.seed = hash([rng.seed, "parapet-cap"])
 	s = a
 	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.6, 1.0), total - s)
-		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.95, 0.02)
+		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.02)
 		s += l
 
 
@@ -2709,10 +2705,10 @@ func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator,
 		var h := minf(rng.randf_range(0.36, 0.5), top_y - y)
 		if gap != Vector2.ZERO and y < gap.x:
 			h = minf(h, gap.x - y)
-		_add(s, y + h * 0.5, Vector3(PIER, h, PIER) * rng.randf_range(0.97, 1.03), rng, "pier", 0.97, 0.03)
+		_add(s, y + h * 0.5, Vector3(PIER, h, PIER) * rng.randf_range(0.97, 1.03), rng, "pier", 0.03)
 		y += h
 	if cover != Cover.ROOF:
-		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.92, 0.0)
+		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.0)
 
 
 ## Stones from the bed `depth` below the foot up to it, or to `top`, `size` across, under a pillar or pier standing in
@@ -2721,17 +2717,17 @@ func _lay_footing(s: float, depth: float, size: Vector3, kind: String, rng: Rand
 	var y := -depth
 	while y < top - 0.05:
 		var h := minf(rng.randf_range(0.34, 0.46), top - y)
-		_add(s, y + h * 0.5, Vector3(size.x, h, size.z), rng, kind, 0.95, 0.02)
+		_add(s, y + h * 0.5, Vector3(size.x, h, size.z), rng, kind, 0.02)
 		y += h
 
 
-func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float) -> void:
-	stones.append(_stone(s, y, size, rng, kind, shade, wobble))
+func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, wobble: float) -> void:
+	stones.append(_stone(s, y, size, rng, kind, wobble))
 
 
 ## A stone at arc length `s`; one given the arc length of a straight `face` it belongs to, such as a gable end's middle,
 ## lies on that face's line carried on past its corners, rather than turning onto the next side.
-func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float, roll := 0.0, jitter := 0.015, face := INF) -> Dictionary:
+func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, wobble: float, roll := 0.0, jitter := 0.015, face := INF) -> Dictionary:
 	var frame := frame_at(s)
 	if is_finite(face):
 		var line := frame_at(face)
@@ -2740,8 +2736,8 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	basis = basis * Basis.from_euler(Vector3(rng.randf_range(-wobble, wobble), rng.randf_range(-wobble, wobble) * 2.0, rng.randf_range(-wobble, wobble)))
 	var origin: Vector3 = frame.point + Vector3.UP * y
 	origin += basis.z * rng.randf_range(-jitter, jitter)
-	var color := stone_color(rng) * shade
-	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
+	var color := stone_color(rng)
+	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + (y + depth_at(s)) * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 
 ## Where a small bird can stand on the wall, in world space: on a flag's finial, a lantern's hood and in a nest; and,

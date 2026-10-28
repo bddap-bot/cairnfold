@@ -9,6 +9,7 @@ func _init() -> void:
 	_doors_stand_their_height_over_the_floor()
 	_doors_and_arches_stop_at_the_floor()
 	_an_arch_is_placed_and_taken_over_a_raised_floor()
+	_the_floor_stays_behind_every_joint()
 	_the_floor_is_flags_or_planks_apart_from_the_walls()
 	_a_round_tower_is_floored_too()
 	_a_house_has_one_floor_however_tall()
@@ -148,6 +149,35 @@ func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
 		placed.assign(w.openings)
 		check(w.threshold() > 0.3 and w.opening_fits(WallLayout.archway(13.0), placed), "an arch fits over a floor %.2f up" % w.threshold())
 		check(w.placed_at(WallLayout.archway(3.2), placed) == 0, "a press on the arch over a floor %.2f up finds it" % w.threshold())
+
+
+## No joint in the walls shows the floor: every flag, plank and bed stays inside the walls' footprint, behind the face of
+## the shallowest mortar laid, worn plaster's included, whatever the finish, rise or ground.
+func _the_floor_stays_behind_every_joint() -> void:
+	for ground in [Terrain.flat, _slope]:
+		for rise in [0.0, 1.2]:
+			for finish in [WallLayout.Finish.BARE, WallLayout.Finish.PLASTER]:
+				for planks in [false, true]:
+					var w := _house(ground, rise, false, 2.4, planks)
+					w.finish = finish
+					w.build(ground)
+					var name := "%s%s, raised %.1f%s" % ["plaster" if finish == WallLayout.Finish.PLASTER else "stone", " planked" if planks else "", rise, " up a slope" if ground == _slope else ""]
+					var mortar := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "mortar")
+					check(not mortar.is_empty(), "%s: mortar is laid" % name)
+					var face := INF
+					for st in mortar:
+						face = minf(face, st.size.z * 0.5)
+					var line := PackedVector2Array()
+					for p in w.laid_points:
+						line.append(Vector2(p.x, p.z))
+					var footprint: PackedVector2Array = Geometry2D.offset_polygon(line, face)[0]
+					var out := []
+					for st in w.stones.filter(func(s: Dictionary) -> bool: return s.kind in WallLayout.FLOOR_KINDS):
+						for c in WallLayout.BOX:
+							var q: Vector3 = st.xform * c
+							if not Geometry2D.is_point_in_polygon(Vector2(q.x, q.z), footprint):
+								out.append(Vector2(q.x, q.z))
+					check(out.is_empty(), "%s: the floor stays %.3f inside the walls' centre line, behind the mortar, not at %s" % [name, face, out.slice(0, 4)])
 
 
 ## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.

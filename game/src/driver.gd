@@ -426,7 +426,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 ## tool's, a round tower `size` [across, across]. Put up at `from` (default `at`) turned `turn_from` (default `turn`), a
 ## grip then carries it there over `seconds`, raising it as it goes; else "seconds" waits that long after. With "capture",
 ## `shots` views named after it are saved at even steps of the carry, the last just before letting go. With `windows`,
-## a square house opens windows of that family in WallLayout.WINDOW_FAMILIES all round it (`_open_windows`).
+## a square house opens windows of that family in WallLayout.WINDOW_FAMILIES all round it (`_open_windows`). With `seed`,
+## its stones and roof are laid from that seed, so runs before and after a change lay the same house.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
@@ -450,6 +451,9 @@ func _house(s: Dictionary) -> void:
 	_lay_gables(s)
 	var count := tool.walls.size()
 	var house := tool.new_house(put, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+	if s.has("seed"):
+		house.layout.seed = int(s.seed)
+		house.roof.seed = int(s.seed)
 	if s.has("windows") and not round:
 		_open_windows(house, int(s.windows), on < 0)
 	tool.build([house])
