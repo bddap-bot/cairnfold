@@ -564,7 +564,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		out.append(_target(w, "lantern", "lanterns", i, v, AABB(at + Vector3(-0.14, -0.1, -0.14), Vector3(0.28, 0.44, 0.28))))
 	for i in l.openings.size():
 		var v := l.openings[i]
-		if l._opening_in(l.apertures, v.x, v.y).is_empty():
+		if l._opening_of(l.apertures, v).is_empty():
 			continue
 		var o := l.opening_for(v)
 		var f := l.frame_at(v.x)

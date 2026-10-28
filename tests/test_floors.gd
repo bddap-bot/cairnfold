@@ -8,6 +8,7 @@ func _init() -> void:
 	_a_raised_house_floors_its_foot()
 	_doors_stand_their_height_over_the_floor()
 	_doors_and_arches_stop_at_the_floor()
+	_an_arch_is_placed_and_taken_over_a_raised_floor()
 	_the_floor_is_flags_or_planks_apart_from_the_walls()
 	_a_round_tower_is_floored_too()
 	_a_house_has_one_floor_however_tall()
@@ -136,6 +137,17 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 								open.append(Vector2(d, y))
 						y += 0.1
 					check(open.is_empty(), "%s: the wall stands whole under the floor, not at %s" % [name, open.slice(0, 6)])
+
+
+## A press with the arch tool on a house whose floor stands over its foot cuts an arch, and a press on that arch finds it
+## to fill it again.
+func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
+	for plaster in [false, true]:
+		var w := _house(_slope, 0.0, plaster, 4.8)
+		var placed: Array[Vector4] = []
+		placed.assign(w.openings)
+		check(w.threshold() > 0.3 and w.opening_fits(WallLayout.archway(13.0), placed), "an arch fits over a floor %.2f up" % w.threshold())
+		check(w.placed_at(WallLayout.archway(3.2), placed) == 0, "a press on the arch over a floor %.2f up finds it" % w.threshold())
 
 
 ## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.

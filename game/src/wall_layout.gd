@@ -572,6 +572,7 @@ func hide_roof(r: RoofLayout) -> void:
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	r.gable_faces = _unhidden(r.gable_faces)
+	r.gable_pick = _unhidden(r.gable_pick)
 	r.torching_faces = _unhidden(r.torching_faces)
 	r.timber_faces = _unhidden(r.timber_faces, r)
 
@@ -1309,14 +1310,20 @@ func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	return {}
 
 
+## The opening among `list` that placed opening `w` makes. An arch is placed at the wall's foot, and opens from the
+## floor, which may stand above it, so it is found at its sill.
+func _opening_of(list: Array[Dictionary], w: Vector4) -> Dictionary:
+	return _opening_in(list, w.x, opening_for(w).sill if int(w.z) == Family.ARCHWAY else w.y)
+
+
 ## Whether a window placed at `at` among the openings `placed` would open without closing any they open.
 func opening_fits(at: Vector4, placed: Array[Vector4]) -> bool:
 	var before := openings_for(placed)
 	var after := placed.duplicate()
 	after.append(at)
 	var now := openings_for(after)
-	var added := _opening_in(now, at.x, at.y)
-	return not added.is_empty() and added.style == at.z and placed.all(func(e): return _opening_in(before, e.x, e.y).is_empty() or not _opening_in(now, e.x, e.y).is_empty())
+	var added := _opening_of(now, at)
+	return not added.is_empty() and added.style == at.z and placed.all(func(e): return _opening_of(before, e).is_empty() or not _opening_of(now, e).is_empty())
 
 
 ## The largest size up to `upto` that opening `at` opens at among `placed`, to a hundredth, from its own size,
@@ -1347,7 +1354,7 @@ func path_doors(s: float, span: float, placed: Array[Vector4]) -> Array[Vector4]
 	var door := Vector4(s, maxf(threshold(), 0.0), Family.COTTAGE, MIN_SIZE)
 	var standing: Array[Dictionary] = []
 	standing.assign(openings_for(placed).filter(func(o: Dictionary) -> bool: return o.door))
-	if not opens_door(door) or placed.size() >= Commands.MAX_FITTINGS or not _opening_in(standing, door.x, door.y).is_empty():
+	if not opens_door(door) or placed.size() >= Commands.MAX_FITTINGS or not _opening_of(standing, door).is_empty():
 		return out
 	var widest := largest_fit(door, placed, maxf(span / _door_width(1), MIN_SIZE))
 	if is_nan(widest):
@@ -1377,13 +1384,13 @@ static func _door_width(lights: int) -> float:
 ## The window among `placed` nearest `click` in the opening they make there, or -1 where they make none.
 func placed_at(click: Vector4, placed: Array[Vector4]) -> int:
 	var made := openings_for(placed)
-	var o := _opening_in(made, click.x, click.y)
+	var o := _opening_of(made, click)
 	var near := -1
 	if o.is_empty():
 		return near
 	for i in placed.size():
 		var e := placed[i]
-		if _opening_in(made, e.x, e.y) == o and (near < 0 or absf(offset(e.x, click.x)) < absf(offset(placed[near].x, click.x))):
+		if _opening_of(made, e) == o and (near < 0 or absf(offset(e.x, click.x)) < absf(offset(placed[near].x, click.x))):
 			near = i
 	return near
 

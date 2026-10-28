@@ -233,18 +233,18 @@ func _refamilied(wall: Wall, opening: Vector4, family: int) -> PackedVector4Arra
 		at = placed.find(same[0])
 	var layout := wall.layout
 	var made := layout.openings_for(walls.standing_openings(wall, placed))
-	var o := layout._opening_in(made, placed[at].x, placed[at].y)
+	var o := layout._opening_of(made, placed[at])
 	if o.is_empty():
 		return PackedVector4Array()
 	var after := placed.duplicate()
 	var moved: Array[int] = []
 	for i in placed.size():
-		if i == at or layout._opening_in(made, placed[i].x, placed[i].y) == o:
+		if i == at or layout._opening_of(made, placed[i]) == o:
 			after[i] = Vector4(placed[i].x, placed[i].y, family, placed[i].w)
 			moved.append(i)
 	var now := layout.openings_for(walls.standing_openings(wall, after))
 	for i in moved:
-		var into := layout._opening_in(now, after[i].x, after[i].y)
+		var into := layout._opening_of(now, after[i])
 		if into.is_empty() or into.style != family or into.door != o.door:
 			return PackedVector4Array()
 	return PackedVector4Array(after)

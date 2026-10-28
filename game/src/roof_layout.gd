@@ -141,6 +141,9 @@ var resting: Array[Massing] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
+## The gable ends at the face of what is laid on them, where pointing meets them: boards, plaster and stone all stand out
+## to the wall's face, whatever plane `gable_faces` backs them on.
+var gable_pick := PackedVector3Array()
 ## Under a pitched roof, the lime torching under its tiles that closes the gaps between them, facing down.
 var torching_faces := PackedVector3Array()
 var timber_faces := PackedVector3Array()
@@ -194,6 +197,7 @@ func adopt(built: RoofLayout) -> void:
 	resting = built.resting
 	faces = built.faces
 	gable_faces = built.gable_faces
+	gable_pick = built.gable_pick
 	torching_faces = built.torching_faces
 	timber_faces = built.timber_faces
 	stepped = built.stepped
@@ -337,10 +341,11 @@ func stretch() -> float:
 func build(gable_inset := WallLayout.PLASTER_INSET) -> void:
 	faces = surface()
 	gable_faces = gables(gable_inset)
+	gable_pick = gables()
 	torching_faces = torching()
 	timber_faces = PackedVector3Array()
 	bounds = AABB(faces[0], Vector3.ZERO)
-	for p in faces + gable_faces:
+	for p in faces + gable_pick:
 		bounds = bounds.expand(p)
 	tiles.clear()
 	coat = []
@@ -1447,7 +1452,7 @@ func ray_hit(origin: Vector3, dir: Vector3) -> float:
 
 ## Nearest distance along a ray to a gable end, or INF.
 func gable_hit(origin: Vector3, dir: Vector3) -> float:
-	return _nearest(origin, dir, gable_faces)
+	return _nearest(origin, dir, gable_pick)
 
 
 func _nearest(origin: Vector3, dir: Vector3, tris: PackedVector3Array) -> float:

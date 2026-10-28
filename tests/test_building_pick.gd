@@ -42,7 +42,55 @@ func _run() -> void:
 	main.rig.right.global_transform = Transform3D(Basis.looking_at(dir), origin)
 	await _capture("wall-lantern", origin + Vector3.UP * 0.35, origin + dir * 3.0)
 	await _overlapping_roofs()
+	await _gable_ends_are_met_at_their_face()
 	finish()
+
+
+## The building ray meets a house's gable ends, wall faces and roof in every finish, gable end and roof covering, a gable
+## end from outside and in at the face of the boards, plaster or stone laid on it, where the hand's dot shows.
+func _gable_ends_are_met_at_their_face() -> void:
+	await play([{"op": "house", "at": [0, -12], "size": [6, 5], "seconds": 0.2}])
+	var w: Wall = main.tool.walls[-1]
+	var face := WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET - 0.01
+	var missed := []
+	for thatch in [false, true]:
+		for finish in WallLayout.Finish.values():
+			for gable_end in WallLayout.GableEnd.values():
+				main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"finish": finish, "gable_end": gable_end, "roof": {"thatch": thatch}}})
+				w.lay_now()
+				var name := "finish %d, gable end %d, thatch %s" % [finish, gable_end, thatch]
+				var f := w.roof.frame()
+				var hs := w.roof.half_span()
+				for end in [-1.0, 1.0]:
+					var out: Vector3 = f.along * end
+					var plane: Vector3 = f.mid + out * w.roof.ridge_length() * 0.5
+					for x in [-0.4, 0.0, 0.4]:
+						var on: Vector3 = plane + f.across * x * hs + Vector3.UP * w.roof.rise(1.0 - absf(x)) * 0.4
+						for from in [3.0, -2.0]:
+							var target := main.palette_tool.aim_style(on + out * from, -out * signf(from))
+							var depth: float = (target.get("point", plane) - plane).dot(out * signf(from))
+							if target.get("restyle") != PaletteTool.Restyle.GABLE or depth < face:
+								missed.append("%s: gable %s %.1f, %s %.2f deep" % [name, "outside" if from > 0.0 else "inside", x, target.get("restyle"), depth])
+				var below := w.layout.frame_at(w.layout.length() * 0.1)
+				var across: Vector3 = below.tangent.cross(Vector3.UP)
+				across *= signf((below.point - f.mid).dot(across))
+				var wall := main.palette_tool.aim_style(below.point + Vector3.UP * 1.5 + across * 3.0, -across)
+				var wall_depth: float = (wall.get("point", below.point) - below.point).dot(across)
+				if wall.get("restyle") != PaletteTool.Restyle.FACE or wall_depth < face:
+					missed.append("%s: wall face %s %.2f deep" % [name, wall.get("restyle"), wall_depth])
+				var roof := main.palette_tool.aim_style(f.mid + f.across * hs * 0.5 + Vector3.UP * 12.0, Vector3.DOWN)
+				if roof.get("restyle") != PaletteTool.Restyle.ROOF:
+					missed.append("%s: roof %s" % [name, roof.get("restyle")])
+	check(missed.is_empty(), "every gable end, wall face and roof meets the ray at its face: %d missed, %s" % [missed.size(), missed.slice(0, 6)])
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"finish": WallLayout.Finish.BOARDS_UPRIGHT, "gable_end": WallLayout.GableEnd.BOARDS, "roof": {"thatch": false}}})
+	w.lay_now()
+	var f := w.roof.frame()
+	var on: Vector3 = f.mid + f.along * w.roof.ridge_length() * 0.5 + Vector3.UP * w.roof.rise(1.0) * 0.4
+	var hand: Vector3 = on + f.along * 3.0 + f.across * 0.6 + Vector3.DOWN * 0.4
+	main.rig.right.tool = Hand.Tool.STYLE
+	main.rig.right.held_still = true
+	main.rig.right.global_transform = Transform3D(Basis.looking_at(on - hand), hand)
+	await _capture("wooden-gable", hand + f.across * 1.2 + f.along * 1.5 + Vector3.UP * 0.5, on)
 
 
 func _capture(name: String, eye: Vector3, at: Vector3) -> void:
