@@ -36,6 +36,7 @@ func _run() -> void:
 	_a_hue_radial_keeps_its_material_binding()
 	_a_decal_alpha_binds_its_atlas_layer()
 	_submeshes_take_slots_in_first_use_order()
+	_gesture_faces_become_expressions()
 	finish()
 
 
@@ -755,3 +756,43 @@ func _submeshes_take_slots_in_first_use_order() -> void:
 	var geometry := {"children": [{"name": "LayerElementMaterial", "children": [{"name": "Materials", "props": [PackedInt32Array([2, 2, 0, 1, 0, 2])]}]}]}
 	check(FbxSlots._first_uses(geometry) == PackedInt32Array([2, 0, 1]), "slots follow the polygons' first use of each material")
 
+
+## The descriptor's visemes and the FX layer's gesture faces become expressions: a face named for a mood takes that
+## preset once, a later one of the same mood and any other keeps its own name; a clip no gesture plays, and a shape a
+## face sets to zero, are no expression. Their shapes come first, visemes ahead of faces.
+func _gesture_faces_become_expressions() -> void:
+	var dir := ProjectSettings.globalize_path("user://faces")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var clip := func(shapes: Dictionary) -> String:
+		var text := "--- !u!74 &7400000\nAnimationClip:\n  m_FloatCurves:\n"
+		for s: String in shapes:
+			text += "  - curve:\n      m_Curve:\n      - time: 0\n        value: 0\n      - time: 0.1\n        value: %s\n    attribute: blendShape.%s\n    path: Body\n    classID: 137\n" % [shapes[s], s]
+		return text
+	write.call("Big Smile.anim", "c1", clip.call({"Mouth Up": 100, "Brow Up": 0}))
+	write.call("Happy 2.anim", "c2", clip.call({"Eyes Closed": 50}))
+	write.call("Wave.anim", "c3", clip.call({"Mouth Up": 30}))
+	write.call("Outfit.anim", "c4", clip.call({"Skirt Short": 100}))
+	var transition := func(id: int, to: int, event: String) -> String:
+		return "--- !u!1101 &%d\nAnimatorStateTransition:\n  m_Conditions:\n  - m_ConditionMode: 6\n    m_ConditionEvent: %s\n    m_EventTreshold: 1\n  m_DstState: {fileID: %d}\n" % [id, event, to]
+	var state := func(id: int, motion: String) -> String:
+		return "--- !u!1102 &%d\nAnimatorState:\n  m_Motion: %s\n" % [id, motion]
+	write.call("FX.controller", "f1", "".join([
+		transition.call(1, 10, "GestureLeft"), transition.call(2, 11, "GestureRight"), transition.call(3, 12, "Outfit"),
+		state.call(10, "{fileID: 7400000, guid: c1, type: 2}"), state.call(11, "{fileID: 20}"), state.call(12, "{fileID: 7400000, guid: c4, type: 2}"),
+		"--- !u!206 &20\nBlendTree:\n  m_Childs:\n  - m_Motion: {fileID: 7400000, guid: c2, type: 2}\n  - m_Motion: {fileID: 7400000, guid: c3, type: 2}\n  - m_Motion: {fileID: 20}\n"]))
+	var visemes := ["sil", "pp", "ff", "th", "dd", "kk", "ch", "ss", "nn", "rr", "A", "E", "I", "O", "U"]
+	var descriptor := {"lipSync": "3", "VisemeBlendShapes": visemes, "baseAnimationLayers": [{"type": "3", "animatorController": {"fileID": "9100000", "guid": "f1"}}, {"type": "5", "animatorController": {"fileID": "9100000", "guid": "f1", "type": "2"}}]}
+	var face := UnityAvatar._face(Prefabs.new(Assets.new(dir)), {}, descriptor)
+	var bound := func(name: String) -> Dictionary:
+		var out := {}
+		for b: Dictionary in face.expressions.get(name, []):
+			out[b.shape] = b.weight
+		return out
+	check(bound.call("aa") == {"A": 1.0} and bound.call("ee") == {"E": 1.0} and bound.call("ih") == {"I": 1.0} and bound.call("oh") == {"O": 1.0} and bound.call("ou") == {"U": 1.0}, "the visemes are VRM's: %s" % [face.expressions])
+	check(bound.call("happy") == {"Mouth Up": 1.0} and bound.call("happy 2") == {"Eyes Closed": 0.5} and bound.call("wave") == {"Mouth Up": 0.3}, "faces by mood, then by name, at their last keyed weight: %s" % [face.expressions])
+	check(face.expressions.size() == 8, "no expression for the outfit or a zeroed shape: %s" % [face.expressions.keys()])
+	check(face.shapes.slice(0, 15) == visemes and face.shapes.slice(15) == ["Mouth Up", "Eyes Closed", "Mouth Up"], "visemes first, then the faces' shapes: %s" % [face.shapes])
+	check(UnityAvatar._face(Prefabs.new(Assets.new(dir)), {}, {"lipSync": "1", "VisemeBlendShapes": visemes}).expressions.is_empty(), "visemes count only where it lip-syncs by blend shape")

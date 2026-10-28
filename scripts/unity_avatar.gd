@@ -11,10 +11,11 @@ extends SceneTree
 ## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
 ## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
 ## draw under, every triangle kept and drawn on the sides its material's shader culls to, and one atlas of the
-## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones
-## become spring chains, and its menu, parameters and FX controller become the model's "expressions"
-## (VRCHAT_expressions in a VRM). No VRM lies between: VRM cannot carry what later importer work adds to
-## the model. The importer prints what it kept and dropped.
+## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones become
+## spring chains, and its menu, parameters and FX controller become the model's "expressions" (VRCHAT_expressions in a
+## VRM); its visemes, eyelid blink and the faces its FX layer makes for hand gestures become VRM expressions, "faces" on
+## the root as Vrm.write takes them. No VRM lies between: VRM cannot carry what later importer work adds to the model.
+## The importer prints what it kept and dropped.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
@@ -22,12 +23,17 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const Yaml = preload("res://../scripts/unity/yaml.gd")
 
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
 const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
 const RENDERERS := ["SkinnedMeshRenderer", "MeshRenderer"]
 ## The side, in pixels, of a menu icon as the model carries it: a board row's height.
 const ICON := 44.0
+## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
+const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
+## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
+const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 
 
 func _init() -> void:
@@ -207,11 +213,14 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	var avatar_frame := _world_transform(objs, found.transform)
 	sk.set_meta("unity_frame", Transform3D(avatar_frame.basis.orthonormalized(), avatar_frame.origin).affine_inverse())
 	var materials := Materials.new(assets)
+	var face := _face(prefabs, objs, found.descriptor)
 	var animated := {}
 	for clip: Dictionary in expressions.data.get("clips", []):
 		for c: Dictionary in clip.curves:
 			if c.attribute.begins_with("blendShape."):
 				animated[c.attribute.trim_prefix("blendShape.")] = true
+	for shape: String in face.shapes:
+		animated[shape] = true
 	var merged := _merge(prefabs, materials, objs, renderers, switches.slots, animated, sk, rests, scale, report)
 	if merged.is_empty():
 		printerr("unity_avatar: %s draws nothing" % found.name)
@@ -261,6 +270,8 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	root.set_meta("springs", chains)
 	if not expressions.data.is_empty():
 		root.set_meta("expressions", _bound(expressions, switches, merged.meshes, objs, paths, sk, materials, report))
+	root.set_meta("faces", face.expressions)
+	report["faces"] = (face.expressions as Dictionary).keys()
 	report["not translated"] = _untranslated(objs, found.transform, found.descriptor)
 	if not prefabs.missing.is_empty():
 		report["not in the package"] = prefabs.missing.keys()
@@ -1107,6 +1118,115 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
 	return {"skin": skin, "meshes": meshes}
+
+
+## The avatar's face as {"expressions": each VRM expression's name to its [{"shape", "weight" 0 to 1}], "shapes": the
+## blend shapes the descriptor and the FX layer's gesture faces use, in that order}: its visemes as VRM's (VISEMES) where
+## it lip-syncs by blend shape, its eyelid blink shape as blink, and each gesture face, a clip a GestureLeft or
+## GestureRight transition reaches, as the mood preset its name says (MOODS), once each, or else as itself by name.
+static func _face(prefabs: Prefabs, objs: Dictionary, descriptor: Dictionary) -> Dictionary:
+	var expressions := {}
+	var used := []
+	var visemes := Prefabs._list(descriptor.get("VisemeBlendShapes")) if str(descriptor.get("lipSync", "")) == "3" else []
+	used.append_array(visemes)
+	for preset: String in VISEMES:
+		if VISEMES[preset] < visemes.size() and str(visemes[VISEMES[preset]]) != "":
+			expressions[preset] = [{"shape": str(visemes[VISEMES[preset]]), "weight": 1.0}]
+	var eyes: Variant = descriptor.get("customEyeLookSettings")
+	if eyes is Dictionary and str(eyes.get("eyelidType", "")) == "2":
+		var lids := _eyelid_shapes(prefabs, objs, eyes)
+		used.append_array(lids)
+		if not lids.is_empty() and lids[0] != "":
+			expressions["blink"] = [{"shape": lids[0], "weight": 1.0}]
+	for clip: Array in _gesture_faces(prefabs.assets, descriptor):
+		var shapes: Dictionary = clip[1]
+		used.append_array(shapes.keys())
+		var name := _mood(clip[0])
+		if name == "" or expressions.has(name):
+			var base := (clip[0] as String).to_lower().strip_edges()
+			name = base
+			var n := 1
+			while expressions.has(name) or name in Vrm.PRESETS:
+				n += 1
+				name = "%s %d" % [base, n]
+		expressions[name] = shapes.keys().map(func(s: String) -> Dictionary: return {"shape": s, "weight": shapes[s]})
+	return {"expressions": expressions, "shapes": used.filter(func(s: Variant) -> bool: return str(s) != "")}
+
+
+## The mood preset (MOODS) a clip's name says, or "".
+static func _mood(clip: String) -> String:
+	var words := RegEx.create_from_string("[a-z]+").search_all(clip.to_lower()).map(func(m: RegExMatch) -> String: return m.get_string())
+	for preset: String in MOODS:
+		for word: String in words:
+			if (MOODS[preset] as Array).any(func(k: String) -> bool: return word.begins_with(k)):
+				return preset
+	return ""
+
+
+## The blend shapes a descriptor's eye-look settings close, raise and lower the eyelids with, by name ("" for none):
+## eyelidsBlendshapes indexes eyelidsSkinnedMesh's shapes, written as little-endian 32-bit integers in hex.
+static func _eyelid_shapes(prefabs: Prefabs, objs: Dictionary, eyes: Dictionary) -> Array:
+	var renderer := _ref(eyes.get("eyelidsSkinnedMesh"))
+	if not objs.has(renderer):
+		return []
+	var ref := _mesh_ref(objs, renderer)
+	var guid := str(ref.get("guid", ""))
+	var mi := _mesh_node(prefabs.model(guid) if prefabs.assets.by_guid.has(guid) else {}, str(ref.get("fileID", "0")).to_int())
+	if mi == null or mi.mesh == null:
+		return []
+	var hex := str(eyes.get("eyelidsBlendshapes", ""))
+	var out := []
+	for at in range(0, hex.length() - 7, 8):
+		var k := ("0x" + hex.substr(at + 6, 2) + hex.substr(at + 4, 2) + hex.substr(at + 2, 2) + hex.substr(at, 2)).hex_to_int()
+		out.append(mi.mesh.get_blend_shape_name(k) if k < mi.mesh.get_blend_shape_count() else "")
+	return out
+
+
+## The clips the descriptor's FX controllers play on a GestureLeft or GestureRight transition that set blend shapes, as
+## [clip name, {blend shape: its last keyed weight, 0 to 1}], each clip once.
+static func _gesture_faces(assets: Assets, descriptor: Dictionary) -> Array:
+	var out := []
+	var seen := {}
+	for layer: Variant in Prefabs._list(descriptor.get("baseAnimationLayers")):
+		if not (layer is Dictionary and str(layer.get("type")) == "5" and layer.get("animatorController") is Dictionary):
+			continue
+		var controller := Yaml.objects(assets.text(str(layer.animatorController.get("guid", ""))))
+		var trees := {}
+		for t: Dictionary in controller.values():
+			if t.type != "AnimatorStateTransition" or not Prefabs._list(t.data.get("m_Conditions")).any(func(c: Variant) -> bool: return c is Dictionary and str(c.get("m_ConditionEvent")) in ["GestureLeft", "GestureRight"]):
+				continue
+			var pending := [controller.get(_ref(t.data.get("m_DstState")), {}).get("data", {}).get("m_Motion")]
+			while not pending.is_empty():
+				var motion: Variant = pending.pop_front()
+				var guid := str(motion.get("guid", "")) if motion is Dictionary else ""
+				if guid == "":
+					if not trees.has(_ref(motion)):
+						trees[_ref(motion)] = true
+						for child: Variant in Prefabs._list(controller.get(_ref(motion), {}).get("data", {}).get("m_Childs")):
+							pending.append(child.get("m_Motion") if child is Dictionary else null)
+					continue
+				if seen.has(guid) or assets.extension(guid) != "anim":
+					continue
+				seen[guid] = true
+				var shapes := _clip_shapes(assets.text(guid))
+				if not shapes.is_empty():
+					out.append([assets.name(guid), shapes])
+	return out
+
+
+## The blend shapes an animation clip sets above zero, each at the weight (0 to 1) of its curve's last key.
+static func _clip_shapes(text: String) -> Dictionary:
+	var shapes := {}
+	for o: Dictionary in Yaml.objects(text).values():
+		for c: Variant in Prefabs._list(o.data.get("m_FloatCurves")):
+			if not (c is Dictionary and str(c.get("classID")) == "137" and str(c.get("attribute")).begins_with("blendShape.")):
+				continue
+			var keys := Prefabs._list((c.get("curve", {}) as Dictionary).get("m_Curve")) if c.get("curve") is Dictionary else []
+			var w := clampf(str((keys[-1] as Dictionary).get("value", "0")).to_float() / 100.0, 0.0, 1.0) if not keys.is_empty() and keys[-1] is Dictionary else 0.0
+			var name := str(c.attribute).trim_prefix("blendShape.")
+			if w > 0.0:
+				shapes[name] = maxf(shapes.get(name, 0.0), w)
+	return shapes
 
 
 static func _describe(m: Dictionary) -> String:

@@ -215,6 +215,7 @@ func _unity_package_converts() -> void:
 	var path := ProjectSettings.globalize_path("user://seed-san.scn")
 	var report: Dictionary = model.get_meta("report")
 	check((report["renderers drawn"] as Array).size() == 5, "all five of the model's renderers draw (%s)" % [report["renderers drawn"]])
+	_writes_expressions(model)
 	var started := Time.get_ticks_usec()
 	var packed := Avatar.model(model)
 	check(packed != null and ResourceSaver.save(packed, path) == OK, "the model packs and saves as a scene")
@@ -272,6 +273,27 @@ func _unity_rotation(text: String) -> Quaternion:
 	for part in text.trim_prefix("rotation: {").trim_suffix("}").split(","):
 		q[part.get_slice(":", 0).strip_edges()] = part.get_slice(":", 1).to_float()
 	return Quaternion(q.x, q.y, q.z, q.w).normalized()
+
+
+## An imported avatar's "faces" write as VRM expressions, preset or custom by name, each bound to the morph target
+## of its shape's name, and the file lists every extension it carries.
+func _writes_expressions(model: Node3D) -> void:
+	var worn: Node3D = model.duplicate()
+	var mi: MeshInstance3D = worn.find_children("*", "MeshInstance3D", true, false)[0]
+	var shape: String = mi.mesh.get_blend_shape_name(mi.mesh.get_blend_shape_count() - 1)
+	worn.set_meta("faces", {"happy": [{"shape": shape, "weight": 0.5}], "wink": [{"shape": shape, "weight": 1.0}], "none": [{"shape": "no such shape", "weight": 1.0}]})
+	UnityAvatar.wearable(worn)
+	var vrm := ProjectSettings.globalize_path("user://seed-san.vrm")
+	Vrm.write(worn, vrm)
+	worn.free()
+	var json := _gltf_json(FileAccess.get_file_as_bytes(vrm))
+	var used: Array = json.get("extensionsUsed", [])
+	check((json.extensions as Dictionary).keys().all(func(e: String) -> bool: return used.has(e)), "the file lists the extensions it carries: %s of %s" % [used, (json.extensions as Dictionary).keys()])
+	var expressions: Dictionary = json.extensions.VRMC_vrm.expressions
+	var target := func(b: Dictionary) -> String: return json.meshes[json.nodes[int(b.node)].mesh].extras.targetNames[int(b.index)]
+	var happy: Array = expressions.preset.get("happy", {}).get("morphTargetBinds", [])
+	check(happy.size() == 1 and target.call(happy[0]) == shape and happy[0].weight == 0.5, "a preset binds its shape's morph target at its weight: %s" % [expressions])
+	check(expressions.custom.has("wink") and expressions.preset.size() == 1 and expressions.custom.size() == 1, "a name no preset has is custom, and an expression binding nothing is left out: %s" % [expressions])
 
 
 ## The engine's own import of an FBX, unshaped.

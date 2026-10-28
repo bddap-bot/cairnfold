@@ -3,7 +3,9 @@ extends GLTFDocumentExtension
 
 ## The humanoid part of VRM 1.0 (VRMC_vrm) and VRM 0.x (VRM): which glTF nodes are the head, hands and the rest
 ## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
-## 1.0 from nodes named after the bones (and the scene root's "eyes" metadata); import records on the scene root
+## 1.0 from nodes named after the bones, the scene root's "eyes" metadata and its "faces" (each VRM expression's
+## name, a preset where PRESETS has it and custom otherwise, to its [{"shape": blend shape name, "weight" 0 to 1}],
+## bound to every mesh with a blend shape of that name); import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
 ## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
 ## Avatar.model. VRCHAT_expressions carries imported menu controls and FX targets.
@@ -24,6 +26,8 @@ const EXPRESSIONS := "VRCHAT_expressions"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
+## VRM 1.0 preset expressions.
+const PRESETS := ["happy", "angry", "sad", "relaxed", "surprised", "aa", "ih", "ou", "ee", "oh", "blink", "blinkLeft", "blinkRight", "lookUp", "lookDown", "lookLeft", "lookRight", "neutral"]
 ## Each kept blend shape is a pass over its mesh's vertices every frame, so a file's look binds are cut to these.
 const BINDS_PER_LOOK := 2
 const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
@@ -228,6 +232,14 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
 	state.set_additional_data(&"expressions", root.get_meta("expressions", {}))
+	state.set_additional_data(&"faces", root.get_meta("faces", {}))
+	state.add_used_extension("VRMC_vrm", false)
+	if not root.get_meta("springs", {}).is_empty():
+		state.add_used_extension("VRMC_springBone", false)
+	if not root.get_meta("constraints", []).is_empty():
+		state.add_used_extension("UNITY_constraints", false)
+	if not root.get_meta("expressions", {}).is_empty():
+		state.add_used_extension(EXPRESSIONS, false)
 	return OK
 
 
@@ -245,12 +257,28 @@ func _export_post(state: GLTFState) -> Error:
 		look_at.type = look.type
 		for i in RANGES.size():
 			look_at[RANGES[i]] = {"inputMaxValue": look.ranges[i].x, "outputScale": look.ranges[i].y}
+	var morphs := {}
+	for i in nodes.size():
+		if nodes[i].mesh >= 0:
+			var mesh := state.get_meshes()[nodes[i].mesh].mesh
+			for k in mesh.get_blend_shape_count():
+				morphs.get_or_add(mesh.get_blend_shape_name(k), []).append({"node": i, "index": k})
+	var faces := {"preset": {}, "custom": {}}
+	var wanted: Dictionary = state.get_additional_data(&"faces")
+	for name: String in wanted:
+		var binds := []
+		for b: Dictionary in wanted[name]:
+			for at: Dictionary in morphs.get(b.shape, []):
+				binds.append({"node": at.node, "index": at.index, "weight": b.weight})
+		if not binds.is_empty():
+			faces["preset" if name in PRESETS else "custom"][name] = {"morphTargetBinds": binds}
 	var exts: Dictionary = state.json.get_or_add("extensions", {})
 	exts["VRMC_vrm"] = {
 		"specVersion": "1.0",
 		"meta": {"name": state.get_scene_name(), "authors": [ProjectSettings.get_setting("application/config/name")], "licenseUrl": "https://vrm.dev/licenses/1.0/", "avatarPermission": "everyone", "commercialUsage": "corporation", "modification": "allowModificationRedistribution"},
 		"humanoid": {"humanBones": bones},
 		"lookAt": look_at,
+		"expressions": faces,
 	}
 	var springs: Dictionary = state.get_additional_data(&"springs")
 	if not springs.is_empty():
@@ -279,15 +307,6 @@ func _export_post(state: GLTFState) -> Error:
 	var expressions: Dictionary = state.get_additional_data(&"expressions")
 	if not expressions.is_empty():
 		exts[EXPRESSIONS] = _indexed(expressions, state)
-	var used: Array = state.json.get_or_add("extensionsUsed", [])
-	if not springs.is_empty() and not used.has("VRMC_springBone"):
-		used.append("VRMC_springBone")
-	if not expressions.is_empty() and not used.has(EXPRESSIONS):
-		used.append(EXPRESSIONS)
-	if not constraints.is_empty():
-		used.append("UNITY_constraints")
-	if not used.has("VRMC_vrm"):
-		used.append("VRMC_vrm")
 	return OK
 
 
