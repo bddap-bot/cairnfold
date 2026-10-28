@@ -22,6 +22,18 @@ vec3 star_field(vec3 d) {
 	return tint * lit * (1.0 - smoothstep(0.0, 0.32, length(fract(s) - at))) * (0.4 + 0.6 * fract(h * 7.0));
 }
 
+// Cells about a pixel and a half wide in the headset, so the dither stays on the sky, unaliased, as the head turns.
+float grain(vec3 d) {
+	uvec3 v = uvec3(ivec3(floor(d * 900.0)) + 2048);
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+	v ^= v >> 16u;
+	v.x += v.y * v.z;
+	return float(v.x >> 8u) / 16777216.0 - 0.5;
+}
+
 void sky() {
 	vec3 d = EYEDIR;
 	float up = clamp(d.y, 0.0, 1.0);
@@ -44,6 +56,6 @@ void sky() {
 		vec3 shade = mix(vec3(0.72, 0.76, 0.84), lit, smoothstep(cloud_cover, cloud_cover + 0.5, c));
 		col = mix(col, shade * cloud_light, a * 0.9);
 	}
-	// Dither: the night's dim, wide moon glow otherwise bands into rings.
-	COLOR = col + (fract(sin(dot(FRAGCOORD.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.004;
+	// The night sky fills a few codes of the 10-bit scene buffer, so its moon glow bands into rings undithered.
+	COLOR = col + grain(d) * 0.002;
 }
