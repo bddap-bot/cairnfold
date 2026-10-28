@@ -23,6 +23,7 @@ func _run() -> void:
 	await _a_wipe_empties_every_layer_and_undo_brings_it_all_back()
 	_a_visitor_wipes()
 	_a_wipe_someone_built_on_stays()
+	await _a_wipe_leaves_no_placed_thing_here_or_for_a_visitor()
 	await _settled()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
@@ -129,6 +130,48 @@ func _a_wipe_someone_built_on_stays() -> void:
 	check(world.seq == seq and world.state.walls.keys() == [wall], "the host's undo leaves a wipe a visitor has since built on, and every step of theirs before it")
 	world._order({"op": "undo"}, 2)
 	check(world.state.walls.is_empty(), "while the visitor still takes back their own wall")
+
+
+## Stands one of every placeable kind: something in every list the garden keeps, and the mirror.
+func _place_everything() -> void:
+	world.restore({"seq": world.seq, "cmds": []})
+	await _build()
+	await play([
+		{"op": "stairs", "a": [-20, 0, -12], "b": [-14, 0, -12], "ground": true, "seconds": 0.3},
+		{"op": "easel", "x": 10, "z": -6},
+		{"op": "boulder", "x": -14, "z": 14, "seed": 4409, "scale": 1.2},
+		{"op": "fit", "what": "decoration", "x": 16, "z": -14},
+		{"op": "mirror", "x": 2, "z": 4},
+	])
+	await _settled()
+	var s := world.state
+	var empty: Array = s.keys().filter(func(k: String) -> bool: return s[k].is_empty())
+	check(empty.is_empty() and s.groups.size() > 1 and world.sculpted and main.mirror_tool.standing(), "one of every placeable kind stands; empty: %s" % [empty])
+
+
+func _nothing_placed_remains(who: String) -> void:
+	await _settled()
+	var s := world.state
+	var left: Array = s.keys().filter(func(k: String) -> bool: return not s[k].is_empty() and k != "groups")
+	check(left.is_empty() and s.groups.keys() == [0] and not world.sculpted, "%s: a wipe leaves nothing in the garden's lists: %s" % [who, left])
+	check(main.tool.walls.is_empty() and main.easels.easels.is_empty() and main.boulders.boulders.is_empty() and main.water.ponds.is_empty(), "%s: nor anything built standing" % who)
+	check(not main.mirror_tool.standing(), "%s: and the mirror is gone with the rest" % who)
+
+
+func _a_wipe_leaves_no_placed_thing_here_or_for_a_visitor() -> void:
+	await _place_everything()
+	world._order({"op": "wipe"}, 1)
+	await _nothing_placed_remains("the host")
+	await _place_everything()
+	var real := main.multiplayer.multiplayer_peer
+	var client := ENetMultiplayerPeer.new()
+	client.create_client("127.0.0.1", 9)
+	main.multiplayer.multiplayer_peer = client
+	world._commit({"op": "wipe", "seq": world.seq + 1, "by": 1})
+	await until(func() -> bool: return world.idle(), "the visitor applies the host's wipe")
+	await _nothing_placed_remains("a visitor")
+	client.close()
+	main.multiplayer.multiplayer_peer = real
 
 
 func _wall(by: int) -> int:

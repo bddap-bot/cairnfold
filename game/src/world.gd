@@ -53,6 +53,9 @@ var water: Water
 var easels: Easels
 var boulders: Boulders
 var decorations: Decorations
+## Everything that stands what players place, each emptied by its `clear()` when the garden goes, so a wipe or a
+## swap takes whatever anyone can place, the player's own mirror included.
+var holders: Array[Node] = []
 ## The garden's ground: its heights and ponds, and the marks paths and painted strokes wear into it.
 var terrain := Terrain.new()
 var marks := Ground.new()
@@ -527,6 +530,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	water = ponds
 	easels = stands
 	boulders = rocks
+	holders.assign([walls, ways, ponds, stands, rocks].filter(func(h: Node) -> bool: return h != null))
 	if flora != null and flora.groups.has(0):
 		_grow_meadow()
 
@@ -1444,18 +1448,8 @@ func _hushed(change: Callable) -> Variant:
 
 ## Back to the empty meadow, every one of its plants standing, in summer, the sun where a garden starts.
 func _clear() -> void:
-	for id in state.walls.keys():
-		wall_tool.take(id)
-	for id in state.stairs.keys():
-		stairs.take(id)
-	for id in state.paths.keys():
-		paths.take(id)
-	if easels != null:
-		easels.clear()
-	if boulders != null:
-		boulders.clear()
-	if water != null:
-		water.reset()
+	for h in holders:
+		h.call(&"clear")
 	for id in _strokes:
 		marks.lift(_strokes[id])
 	_strokes.clear()

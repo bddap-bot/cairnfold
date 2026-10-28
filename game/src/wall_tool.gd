@@ -1924,6 +1924,11 @@ func _let_go_handed() -> void:
 	_handing.clear()
 
 
+func clear() -> void:
+	for w in walls.duplicate():
+		take(w.id)
+
+
 func take(id: int) -> void:
 	_path_openings.erase(id)
 	var w := find(id)

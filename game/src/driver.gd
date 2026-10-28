@@ -1822,7 +1822,7 @@ func _easel(s: Dictionary) -> void:
 ## "away", puts it away.
 func _mirror(s: Dictionary) -> void:
 	if s.get("away", false):
-		main.mirror_tool.put_away()
+		main.mirror_tool.clear()
 	else:
 		var at := _spot(s, s.x, s.z)
 		main.mirror_tool.stand_at(at, _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position)

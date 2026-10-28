@@ -125,7 +125,10 @@ func _ready() -> void:
 	add_child(water)
 	water_tool = WaterTool.new(rig, world)
 	add_child(water_tool)
+	mirror_tool = MirrorTool.new(rig, world.terrain)
+	add_child(mirror_tool)
 	world.attach(tool, flora, paths, ground_grab, water, easels, boulders)
+	world.holders.append_array([world.stairs, mirror_tool])
 	for h in rig.hands:
 		h.world = world
 	palette_tool = PaletteTool.new(rig, tool, world)
@@ -140,8 +143,6 @@ func _ready() -> void:
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
-	mirror_tool = MirrorTool.new(rig, world.terrain)
-	add_child(mirror_tool)
 	_undo = Buttons.new(rig.left).watch(["undo"])
 	_redo = Buttons.new(rig.right).watch(["redo"])
 	var played := Session.played(args, get_tree().current_scene == self)

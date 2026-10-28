@@ -3,10 +3,11 @@ extends Node3D
 
 ## For a hand holding the hand mirror: the trigger stands a mirror where the hand points, facing the player, or moves
 ## it there, and the trigger on the standing mirror puts it away. It is the player's own, as a camera is: no edit to the
-## garden, and nobody else sees it. It reflects people alone, every avatar the game draws (Quality.PEOPLE_LAYER) and
-## the player's own (SELF_LAYER), lit by its own light against a plain backdrop. Each eye sees it through its own view:
-## a camera at that eye reflected in the glass, whose frustum is the glass itself, so it reads as a mirror, not a
-## screen. Put away, or out of sight, it draws nothing.
+## garden, and nobody else sees it; it stands in the garden all the same, so a wipe or a garden swap puts it away. It
+## reflects people alone, every avatar the game draws (Quality.PEOPLE_LAYER) and the player's own (SELF_LAYER), lit by
+## its own light against a plain backdrop. Each eye sees it through its own view: a camera at that eye reflected in the
+## glass, whose frustum is the glass itself, so it reads as a mirror, not a screen. Put away, or out of sight, it draws
+## nothing.
 
 const TINT := Color(0.8, 0.9, 1.0, 0.6)
 ## How many times the hand mirror's size the standing one is: its glass, 0.8 by 1.2 m and topped above a tall player's
@@ -99,7 +100,7 @@ func _aim(h: Hand, pressed: bool) -> void:
 	if on != null:
 		h.point(on, TINT)
 		if pressed:
-			put_away()
+			clear()
 		return
 	var hit: Variant = terrain.raycast(from, dir)
 	h.point(hit, TINT)
@@ -123,7 +124,7 @@ func stand_at(foot: Vector3, toward: Vector3) -> void:
 	_glass.set_shader_parameter(&"right_eye", _views[-1].get_texture())
 
 
-func put_away() -> void:
+func clear() -> void:
 	stand.visible = false
 	_close_views()
 

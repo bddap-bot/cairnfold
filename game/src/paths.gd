@@ -117,6 +117,11 @@ func put(id: int, data: Dictionary) -> void:
 	laid.emit(path)
 
 
+func clear() -> void:
+	for id in ids.values():
+		take(id)
+
+
 func take(id: int) -> void:
 	var path := layout(id)
 	if path == null:

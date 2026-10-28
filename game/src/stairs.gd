@@ -22,6 +22,11 @@ func put(id: int, data: Dictionary) -> void:
 	add_child(shown)
 	_growing[id] = {"node": shown, "count": 0.0, "shown": -1}
 
+func clear() -> void:
+	for id in _data.keys():
+		take(id)
+
+
 func take(id: int) -> void:
 	_data.erase(id)
 	layouts.erase(id)
