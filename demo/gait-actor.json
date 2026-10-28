@@ -1,0 +1,7 @@
+[
+  {"op": "until", "players": 2},
+  {"op": "wait", "seconds": 4},
+  {"op": "act", "at": [3, 7], "yaw": 90},
+  {"op": "wait", "seconds": 2},
+  {"op": "quit"}
+]

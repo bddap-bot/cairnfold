@@ -9,6 +9,8 @@ signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
 ## "mountains" are the ranges and whatever lies between them and the meadow.
+## How long `act` acts.
+const ACT_SECONDS := 33.0
 const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife"]
 
 var main: Main
@@ -231,6 +233,37 @@ func _hands(s: Dictionary) -> void:
 		hand.global_transform = Transform3D(b * Basis(Vector3.BACK, deg_to_rad(s.get("roll", 0.0))), at)
 		hand.held_still = true
 	await get_tree().process_frame
+
+
+## Acts out with the head and hands, in real seconds, what a player without full-body tracking does: stands, sways,
+## leans over to look down, crouches, turns round and back, then walks `walk` metres ahead, turns, walks back and turns
+## again, standing at `at` [x, z] facing `yaw` degrees, the eyes the worn avatar's height over the ground under them.
+func _act(s: Dictionary) -> void:
+	var start := Vector3(s.at[0], 0.0, s.at[1])
+	var facing := deg_to_rad(s.get("yaw", 0.0))
+	var walk: float = s.get("walk", 2.4)
+	var up := func(t: float, a: float, b: float, c: float, d: float) -> float: return smoothstep(a, b, t) * (1.0 - smoothstep(c, d, t))
+	var t := 0.0
+	while t < ACT_SECONDS:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var side: float = 0.07 * sin(TAU * (t - 2.0) / 2.0) * up.call(t, 2.0, 2.5, 7.5, 8.0)
+		var lean: float = up.call(t, 8.0, 9.0, 10.5, 11.5)
+		var crouch: float = up.call(t, 12.0, 13.5, 15.0, 16.5)
+		var turn: float = deg_to_rad(120.0) * up.call(t, 17.0, 19.0, 20.0, 22.0)
+		var ahead := walk * (smoothstep(23.0, 26.0, t) - smoothstep(27.5, 30.5, t))
+		turn += PI * (smoothstep(26.0, 27.5, t) - smoothstep(30.5, 32.0, t))
+		var body := Basis(Vector3.UP, facing)
+		var p := start + body * Vector3(side, 0.0, -ahead - 0.25 * lean)
+		var yaw := Basis(Vector3.UP, facing + turn)
+		var eye := Vector3(p.x, main.world.terrain.height_at(p.x, p.z) + main.rig.body.eye_height * (1.0 - 0.45 * crouch), p.z)
+		var head := Transform3D(yaw * Basis(Vector3.RIGHT, -deg_to_rad(40.0) * lean), eye)
+		main.view(eye, eye + head.basis * Vector3.FORWARD, false)
+		var level := Transform3D(yaw, eye)
+		for i in 2:
+			var hand: Hand = [main.rig.left, main.rig.right][i]
+			hand.global_transform = level * Avatar.AT_SIDES[i]
+			hand.held_still = true
 
 
 ## Plays both hands through a script in the picture book's form (Lessons.PAGES: `keys` posing each hand in head space
