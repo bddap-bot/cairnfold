@@ -2024,12 +2024,8 @@ func _brushstroke(s: Dictionary, palette: bool) -> void:
 		return frame * Vector3(at.x, at.y, depth + out)
 	var pts: Array = s.points
 	var before := frame.affine_inverse() * hand.global_position
-	# A long stick taken from the tray can start behind the sheet: clear its bottom before coming forward.
-	before.y = -Brushwork.METRES.y
-	_tip_at(hand, frame * before, direction, frame.basis.y, roll)
-	await _frames(2)
 	before.z = 0.6
-	_tip_at(hand, frame * before, direction, frame.basis.y, roll)
+	hand.global_position = frame * before
 	await _frames(2)
 	_tip_at(hand, on.call(pts[0], 0.4), direction, frame.basis.y, roll)
 	await _frames(2)
