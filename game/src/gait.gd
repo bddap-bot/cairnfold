@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Where the two feet of a body tracked only at the head and hands stand: each stays planted where it was set down,
 ## and one steps at a time once the body's balance leaves the ground the feet cover, or, failing that, once a foot is
-## left too far from its place under the body or turned too far from it. A move too far to walk, a teleport, sets both
+## left too far from its place under the body, turned too far from it, or out of the leg's reach. A move too far to walk, a teleport, sets both
 ## down at once, and with no floor in reach of the hips the feet hang. Distances count in leg lengths, so every avatar
 ## steps alike at its own size. Positions are in the avatar's pose space, ground heights from `floor`.
 
@@ -14,6 +14,8 @@ const STEP_TIME := 0.3
 const LIFT := 0.1
 ## A foot already this near its place does not step for balance: a step there would not widen the support.
 const SETTLED := 0.05
+## A foot further from the hips than this many of their standing heights is out of the leg's reach.
+const REACH := 1.04
 ## A foot's sole, out from the ankle's ground point: half its width, its reach forward to the toes and back to the heel.
 const SOLE := Vector3(0.08, 0.28, 0.1)
 ## A move further than this between two poses is a teleport.
@@ -111,7 +113,8 @@ func _to_step(center: Vector3, yaw: float, places: Array[Vector3]) -> int:
 	if balance and not supported(center) and off[order[0]] > SETTLED:
 		return order[0]
 	for s: int in order:
-		if off[s] > STRIDE or absf(angle_difference(feet[s].yaw, yaw)) > TURN:
+		var out_of_reach := off[s] > SETTLED and _hips.distance_to(feet[s].at) > REACH * height
+		if off[s] > STRIDE or out_of_reach or absf(angle_difference(feet[s].yaw, yaw)) > TURN:
 			return s
 	return -1
 

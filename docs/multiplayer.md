@@ -139,11 +139,21 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Surfaces whose material is named `tint…` take the player's colour. Each file is read
   once at start; every avatar of it shares its meshes.
 - **Pose.** The head follows the tracked headset and the hands follow the
-  controllers, pointing where the controller points with the palm inward. The body
-  hangs from the head bone in its rest pose and turns with the head but stays upright.
-  Each arm is the one bend of its two bones that joins the shoulder to the tracked
-  hand, its elbow down, out and a little back; a hand beyond reach leaves the arm
-  straight toward it.
+  controllers, pointing where the controller points with the palm inward; the rest is
+  solved from those three, and every player solves it alike from the same streamed poses,
+  so the network carries no body. The body hangs from the head bone and turns with the
+  head once it has turned further than a neck turns; the spine bends forward about the
+  head as the head looks down and as it crouches, so the hips go back. The feet stand
+  planted on the floor (`Rig.floor_under`: the ground, or anything built on it) and step
+  one at a time (`Gait`): when the centre of mass, taken between the upright body's hips
+  and head, leaves the soles of the planted feet seen from above, or else when a foot is
+  left more than a third of a leg from its place under the body, beyond the leg's reach,
+  or turned 40 degrees from it. A step lands under the centre of mass, ahead by how fast the body moves, and a move
+  too far to walk, a teleport, sets both feet down at once; with no floor in reach the legs
+  hang. Each leg and each arm is the one bend of its two bones that joins its root to its
+  end: a knee forward over its foot, an elbow down, out and a little back. A leg stretches
+  a few percent to keep its foot down before the foot lifts, and a hand beyond reach
+  leaves the arm straight toward it.
 - **Size.** An avatar is drawn at its own size and proportions whoever wears it, and the
   wearer is fitted to it. Directive (verbatim): "I think our fitting of x height
   players to y height avatars needs some thought, to prevent avatars from squishing or
@@ -168,12 +178,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Quests) or on a flat screen, ahead of the head, or at the nearest other player's face
   within 30 degrees of ahead and 4 m. The player's own game steadies the look before
   sending it: slowly for small movements, so tracking noise does not jitter the eyes, and
-  faster the further it lags, so a glance lands in a few frames instead of drifting. This places tracked parts only. Avatar
+  faster the further it lags, so a glance lands in a few frames instead of drifting. Avatar
   body motion prefers human-made recordings to invented poses. A flat-screen player waves
   with CMU mocap trial 141_16 (see `LICENSE-CMU-WAVE`); its recorded hands travel
   through the same Session poses as tracked VR hands.
-  Avatars keep their own size, so a small one's feet stand off the ground under a
-  tall player's head.
 - **Your own avatars.** Every `.vrm` in the game's `avatars` folder that reads as an
   avatar within the limits is yours to wear
   (`~/.local/share/godot/app_userdata/Cairnfold/avatars` on Linux and the Frame,

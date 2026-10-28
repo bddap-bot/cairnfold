@@ -64,19 +64,19 @@ static func _float(a: Avatar) -> float:
 
 ## The COM rule steps once balance leaves the soles, where the distance rule alone stands still.
 func _balance_steps_before_distance() -> void:
-	var places: Array[Vector3] = [Vector3(-0.1, 0, 0), Vector3(0.1, 0, 0)]
+	var places: Array[Vector3] = [Vector3(-0.05, 0, 0), Vector3(0.05, 0, 0)]
 	for balance in [true, false]:
-		var g := Gait.new(0.8, 0.9)
+		var g := Gait.new(0.8, 1.0)
 		g.balance = balance
 		var flat := func(_p: Vector3) -> float: return 0.0
-		g.update(Vector3(0, 0.9, 0), Vector3(0, 1.0, 0), 0.0, places, flat, STEP)
+		g.update(Vector3(0, 1.0, 0), Vector3(0, 1.1, 0), 0.0, places, flat, STEP)
 		check(g.supported(Vector3(0, 1, 0)), "standing, the centre of mass is over the soles")
 		var at := g.feet[0].at
 		for i in 60:
-			var x := 0.2 * (i + 1) / 60.0
-			g.update(Vector3(x, 0.9, 0), Vector3(x, 1.0, 0), 0.0, places, flat, STEP)
+			var x := 0.15 * (i + 1) / 60.0
+			g.update(Vector3(x, 1.0, 0), Vector3(x, 1.1, 0), 0.0, places, flat, STEP)
 		var stepped := g.feet.any(func(f: Gait.Foot) -> bool: return f.t >= 0.0) or not g.feet[0].at.is_equal_approx(at)
-		check(stepped == balance, "a 20 cm sway sideways %s with balance %s (supported %s)" % ["steps" if stepped else "stands", balance, g.supported(Vector3(0.2, 1, 0))])
+		check(stepped == balance, "a 15 cm sway sideways %s with balance %s" % ["steps" if stepped else "stands", balance])
 
 
 ## Swaying a hand's width either way over 3 s, the feet neither slide nor leave the floor.
