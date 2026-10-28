@@ -514,7 +514,7 @@ func _the_preview_holds_the_players_pose(rig: Rig) -> void:
 	rig.left.transform = Transform3D.IDENTITY
 
 
-## Floating, a ring marks the floor the player floats on and a shadow the ground below; standing, neither shows.
+## Floating, a shadow marks the ground below and nothing the air at the feet; standing, nothing shows.
 func _floating_shows_what_is_underfoot(rig: Rig) -> void:
 	var g := terrain.ground(0, 0)
 	rig.place(g, 0.0)
@@ -523,9 +523,9 @@ func _floating_shows_what_is_underfoot(rig: Rig) -> void:
 	rig.place(g, 12.0)
 	rig._process(STEP)
 	var h := rig.head.global_position
-	var ring: Vector3 = rig._underfoot._ring.global_position
 	var shadow: Vector3 = rig._underfoot._shadow.global_position
-	check(rig._underfoot.visible and absf(ring.y - g.y - 12.0) < 0.1 and absf(shadow.y - g.y) < 0.1 and Vector2(ring.x - h.x, ring.z - h.z).length() < 0.01 and Vector2(shadow.x - h.x, shadow.z - h.z).length() < 0.01, "floating 12 m up shows a ring at the feet, %s, and a shadow on the ground, %s" % [ring, shadow])
+	check(rig._underfoot.visible and absf(shadow.y - g.y) < 0.1 and Vector2(shadow.x - h.x, shadow.z - h.z).length() < 0.01, "floating 12 m up shows a shadow on the ground, %s" % shadow)
+	check(rig._underfoot.get_children() == [rig._underfoot._shadow], "floating shows nothing under the feet but the shadow on the ground")
 	rig.place(g, 0.0)
 	rig._process(STEP)
-	check(not rig._underfoot.visible, "coming back down hides both")
+	check(not rig._underfoot.visible, "coming back down hides it")
