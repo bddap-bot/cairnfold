@@ -314,8 +314,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 
 ## Directive (verbatim): "When something doesn't work because of the frame cap, I think it should be obvious to the
 ## player. I think maybe we can do that by embiggening the little bar that represents frame cap and shaking it around
-## and making a little sound, like a [grunt ]sound". The bar has since gone from the hand; the grunt, the knocks and
-## the sight turning red stay.
+## and making a little sound, like a [grunt ]sound". The bar shows only while a placement is shown.
 func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.WALLS
@@ -329,13 +328,25 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	var change := {}
 	for w: Dictionary in too_big:
 		Budget.add(change, Budget.wall(w))
+	var bar: BudgetBar = hand.body.get_children().filter(func(n: Node) -> bool: return n is BudgetBar)[0]
 	for i in 3:
+		await process_frame
+	check(not bar.visible, "the budget bar hides while nothing is placed")
+	for i in 3:
+		world.preview(hand, {"flower": 1})
+		await process_frame
+	check(bar.visible and not hand.capped, "a placement that fits shows the bar")
+	check(bar.scale.x < 1.0 + BudgetBar.SWELL * 0.5, "unswollen")
+	for i in 30:
 		world.preview(hand, change)
 		await process_frame
 	check(hand.capped, "a preview that will not fit shows refused before it is let go")
+	check(bar.visible and bar.material_override.get_shader_parameter("over") > 0.5, "the bar shows it over the budget")
+	check(bar.scale.x > 1.0 + BudgetBar.SWELL * 0.5, "and swells")
 	for i in 3:
 		await process_frame
 	check(not hand.capped, "and stops once nothing over is shown")
+	check(not bar.visible, "and the bar hides once the placement is gone")
 
 
 func _painting_stops_at_the_budget() -> void:

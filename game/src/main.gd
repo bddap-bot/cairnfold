@@ -131,6 +131,7 @@ func _ready() -> void:
 	world.holders.append_array([world.stairs, mirror_tool])
 	for h in rig.hands:
 		h.world = world
+		h.body.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
 	_editors = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]

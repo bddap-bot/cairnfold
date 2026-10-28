@@ -2,8 +2,8 @@ class_name Budget
 extends RefCounted
 
 ## The frame every build must fit, and what building costs against it: the one source of these numbers.
-## scripts/bench.sh holds the stress scene to them, and World turns down an edit that would take a garden past the
-## whole.
+## scripts/bench.sh holds the stress scene to them; the bar behind a placing hand's tool (BudgetBar) shows a garden's
+## share of them and World turns down an edit that would take it past the whole.
 ## Lantern light is baked (`Lamps`) and costs the frame nothing however many hang: a lantern counts by its meshes.
 
 ## One graphics configuration for every headset, held to the weakest: the Quest 2 at 72 Hz.

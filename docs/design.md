@@ -1153,9 +1153,11 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   once the ladder settled. This choice admits no more cost than either measured table.
   The measurements bound the tested scenes, not every possible arrangement; the initial
   quality-settling frames remain as documented below.
-- Nothing shows the garden's fill in the hand: a held tool is the tool alone. A preview
-  that would not fit turns the held tool's sight red. Refused actions knock twice;
-  painting stops at capacity and knocks once.
+- While a hand's tool shows a placement, a bar behind the held tool shows this same garden
+  fill, moss green warming to amber near full, with a paler stretch for what the placement
+  adds; it swells and pulses red, and the sight turns red, when the placement would not fit.
+  Otherwise the bar is hidden. Refused actions knock twice; painting stops at capacity and
+  knocks once.
 - `demo/costs.json`, played by `CAIRNFOLD_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, which prints a candidate table for review, measures each kind of build alone over the bare
   meadow at `Budget.fit_step()` (the bottom of the quality ladder), from the air and standing. Each phase of walls, a
@@ -4263,11 +4265,9 @@ its drop would reach (`Boulders.impact`, full at 7 m/s, a 2.5 m fall), so a pebb
 house-sized boulder dropped from high a heavy one.
 
 What the frame budget turns down is plain: a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`).
-Before that, while what the tool shows would not fit, the held tool's sight turns red, so a preview that will be
-refused already looks refused. `tests/test_budget.gd` checks both. The bar that once showed the garden's share on each
-controller is gone. Directive (verbatim): "Earlier we mentioned not showing hands, just showing tools. We can do that
-with the book. We don't need to show a hand underneath the book. It can just be the book. Don't need to show the build
-budget bar either." Anything else turned down
+Before that, while what the tool shows would not fit, the budget bar (`BudgetBar`, shown only while a placement is
+shown) swells and pulses red and the held tool's sight turns red, so a preview that will be refused already looks
+refused. `tests/test_budget.gd` checks both, and that the bar follows placement. Anything else turned down
 (a crowded easel, no hollow to fill, the host refusing) gets the plain `REFUSED` knock.
 
 Every player action, from the code:
@@ -4338,7 +4338,7 @@ Every player action, from the code:
 | `HAND_PREEN` | A preening stroke reaches its shoulder | none | one 0.008 pulse, 5 ms |
 | `HAND_LOOK` | An idle head turn begins | none | one 0.005 pulse, 4 ms |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
-| `CAPPED` | The frame budget turns an action down | soft grunt | two knocks |
+| `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and a shown budget bar jumps and shakes |
 
 Conure pulses follow `Conure.animation_event`, on the same clock as its shader motion.
 The tail shake and wing flit share one fluff-up and one pulse; breathing has none.
