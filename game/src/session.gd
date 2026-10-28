@@ -624,6 +624,7 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 func _dress(id: int, scene: PackedScene, key: String) -> void:
 	var a := Avatar.open(scene, _looks[id][1], key)
 	a.simulate_springs = false
+	a.ground = func(p: Vector3) -> float: return rig.floor_under.call(p)
 	var old: Avatar = avatars.get(id)
 	a.visible = old != null and old.visible
 	if old != null:

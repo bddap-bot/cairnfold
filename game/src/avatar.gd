@@ -36,6 +36,17 @@ const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
 ## Where elbows point, in the body's frame (forward -Z): down, out to the side, and a little back.
 const ELBOW := Vector3(0.5, -1.0, 0.4)
+## The spine bends forward by BEND of every radian the eyes look down past LOOK, and CROUCH_BEND radians at the
+## deepest crouch, up to MAX_BEND.
+const BEND := 0.4
+const LOOK := deg_to_rad(20.0)
+const CROUCH_BEND := 1.2
+const MAX_BEND := 1.2
+## A leg straight at rest has no slack, so the skin of a shin stretches this many leg lengths to keep a foot down
+## before it lifts off the floor.
+const STRETCH := 0.06
+## The centre of mass, this far from the hips toward the head.
+const CENTER := 0.3
 ## The left and right hands' aim poses hanging at the sides, from eyes looking level.
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
@@ -51,20 +62,44 @@ class Joint:
 	var base: Joint
 	var offset: Transform3D
 
-## One arm's joints and what about them never changes. Upper and lower are null on an arm without them.
-class Arm:
+## One limb's joints and what about them never changes: the upper and lower bones that bend between its root and its
+## end, null on a limb without them.
+class Limb:
 	var upper: Joint
 	var lower: Joint
-	var hand: Joint
-	## The hand's turn from a held controller's.
-	var grip: Basis
+	var end: Joint
 	var upper_length: float
 	var lower_length: float
-	## Where the elbow points, in the body's frame.
-	var elbow: Vector3
-	## Each bone's rest turn from the frame that its length and the body's back make.
+	## Where the middle joint points, in the body's frame.
+	var bend: Vector3
+	## Each bone's rest turn from the frame that its length and `bend` at rest make.
 	var upper_bind: Basis
 	var lower_bind: Basis
+
+	func _init(up: Joint, low: Joint, to: Joint, facing: Basis, bend_at_rest: Vector3) -> void:
+		upper = up
+		lower = low
+		end = to
+		if not upper:
+			return
+		var u := upper.rest.origin
+		var l := lower.rest.origin
+		var e := end.rest.origin
+		upper_length = l.distance_to(u)
+		lower_length = e.distance_to(l)
+		upper_bind = Avatar._frame(facing * (l - u), bend_at_rest).transposed() * facing * upper.rest.basis
+		lower_bind = Avatar._frame(facing * (e - l), bend_at_rest).transposed() * facing * lower.rest.basis
+
+## An arm: its end is the hand.
+class Arm extends Limb:
+	## The hand's turn from a held controller's.
+	var grip: Basis
+
+## A leg: its end is the foot.
+class Leg extends Limb:
+	## The foot's place under the centre of mass standing, in the body's frame, and the ankle's height over the floor.
+	var place: Vector3
+	var ankle: float
 
 ## A file's identity: a built-in's path, or the hash of a player's own file.
 var source := ""
@@ -79,6 +114,10 @@ var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var look := Vector3.FORWARD
 ## The body's turn about up, as `Torso.follow` keeps it.
 var torso := NAN
+## Where the feet stand, on avatars with legs.
+var gait: Gait
+## What a point in the world stands on, as `Rig.floor_under` finds it; unset, the floor is this node's own.
+var ground := Callable()
 var springs: SpringRuntime
 var simulate_springs := true
 var expressions: ExpressionPlayer
@@ -92,6 +131,9 @@ var _eye_to_head: Transform3D
 var _hips: Joint
 var _head: Joint
 var _arms: Array[Arm] = []
+var _legs: Array[Leg] = []
+## Seconds since the last pose, which the feet step by.
+var _unposed := 0.0
 ## The model's lookAt (Vrm, "look"): its type and range maps; its eye bones, left then right, empty unless it looks
 ## by bone; and for each of Vrm.LOOKS, [mesh, blend shape, weight] for each shape it sets.
 var _look_type := Vrm.BONE
@@ -308,28 +350,31 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	var placed: Array[Joint] = [a._hips, a._head]
 	for s in 2:
 		var side: String = ["left", "right"][s]
-		var arm := Arm.new()
-		arm.hand = a._joints[side + "Hand"]
+		var hand: Joint = a._joints[side + "Hand"]
 		var from_bone: Joint = a._joints.get(side + "LowerArm", a._joints.get(side + "UpperArm"))
-		var along := a._facing * (arm.hand.rest.origin - from_bone.rest.origin) if from_bone else Vector3(1 - 2 * s, 0, 0)
+		var along := a._facing * (hand.rest.origin - from_bone.rest.origin) if from_bone else Vector3(1 - 2 * s, 0, 0)
+		var limbed := a._joints.has(side + "UpperArm") and a._joints.has(side + "LowerArm")
+		# The arm's bend is solved in the body's frame, so the body's turn cancels from its binds.
+		var arm := Arm.new(a._joints[side + "UpperArm"] if limbed else null, a._joints[side + "LowerArm"] if limbed else null, hand, a._facing, Vector3.BACK)
 		# A VRM rests in T-pose, palms down; a hand holding a controller points along it, palm inward.
 		var held := _frame(Vector3.FORWARD, Vector3(signf(along.x), 0, 0) * -1.0) * _frame(along, Vector3.DOWN).transposed()
-		arm.grip = held * a._facing * arm.hand.rest.basis
-		if a._joints.has(side + "UpperArm") and a._joints.has(side + "LowerArm"):
-			arm.upper = a._joints[side + "UpperArm"]
-			arm.lower = a._joints[side + "LowerArm"]
-			var up := arm.upper.rest.origin
-			var low := arm.lower.rest.origin
-			var hand := arm.hand.rest.origin
-			arm.upper_length = low.distance_to(up)
-			arm.lower_length = hand.distance_to(low)
-			arm.elbow = ELBOW * Vector3(signf((a._facing * (hand - up)).x), 1, 1)
-			# The arm's bend is solved in the body's frame, so the body's turn cancels from these.
-			arm.upper_bind = _frame(a._facing * (low - up), Vector3.BACK).transposed() * a._facing * arm.upper.rest.basis
-			arm.lower_bind = _frame(a._facing * (hand - low), Vector3.BACK).transposed() * a._facing * arm.lower.rest.basis
+		arm.grip = held * a._facing * hand.rest.basis
+		if limbed:
+			arm.bend = ELBOW * Vector3(signf((a._facing * (hand.rest.origin - arm.upper.rest.origin)).x), 1, 1)
 			placed.append_array([arm.upper, arm.lower])
-		placed.append(arm.hand)
+		placed.append(hand)
 		a._arms.append(arm)
+		var leg_bones: Array = [side + "UpperLeg", side + "LowerLeg", side + "Foot"].map(func(n: String) -> Joint: return a._joints.get(n))
+		if not leg_bones.has(null):
+			# A knee bends forward, as a leg stands at rest.
+			var leg := Leg.new(leg_bones[0], leg_bones[1], leg_bones[2], a._facing, Vector3.FORWARD)
+			leg.bend = Vector3.FORWARD
+			leg.place = a._facing * (leg.end.rest.origin - a._hips.rest.origin) * Vector3(1, 0, 1)
+			leg.ankle = leg.end.rest.origin.y
+			placed.append_array(leg_bones)
+			a._legs.append(leg)
+	if a._legs.size() == 2:
+		a.gait = Gait.new(a._legs[0].upper_length + a._legs[0].lower_length, a._hips.rest.origin.y)
 	placed.append_array(a._eyes)
 	for j: Joint in a._joints.values():
 		a._find_base(j, placed)
@@ -431,8 +476,11 @@ func _dress(n: Node, tint: Color) -> void:
 
 
 ## Poses of the eyes and the two hands' aim poses, in this node's space (the world's, for a player), and where the
-## eyes look in their own frame. Only the tracked parts are placed: the body hangs upright from the head bone in its
-## rest pose, and each arm is the one bend that joins its shoulder to its hand.
+## eyes look in their own frame. Only the head and hands are tracked; the rest is solved from them as every player
+## sees it, since each solves the same pose from the same streamed one. The body hangs from the head, bent forward as
+## far as the head looks down past LOOK and further as it crouches; the feet stand planted on the floor where `gait`
+## sets them, each leg the one bend that joins its hip to its foot, and each arm the one that joins its shoulder to
+## its hand.
 func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FORWARD) -> void:
 	eyes = at
 	hands[0] = l
@@ -442,15 +490,22 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 	var turn := Basis(Vector3.UP, torso)
 	var head := at * _eye_to_head
 	var body := turn * _facing
-	_place(_hips, Transform3D(body, head.origin - body * _head.rest.origin) * _hips.rest)
+	var floor_y := _feet_floor()
+	var down := asin(clampf(at.basis.z.normalized().y, -1.0, 1.0))
+	var crouch := clampf(1.0 - (at.origin.y - floor_y) / eye_height, 0.0, 1.0) if is_finite(floor_y) else 0.0
+	var bent := Basis(turn * Vector3.RIGHT, -minf(BEND * maxf(down - LOOK, 0.0) + CROUCH_BEND * crouch, MAX_BEND))
+	var model := Transform3D(bent * body, head.origin - bent * body * _head.rest.origin)
+	_place(_hips, model * _hips.rest)
+	if gait:
+		_stand(model, Transform3D(body, head.origin - body * _head.rest.origin), turn)
 	_place(_head, head)
 	_look(head)
 	for s in 2:
 		var arm := _arms[s]
 		var grip := Transform3D(hands[s].basis * arm.grip, hands[s].origin)
 		if arm.upper:
-			_arm(arm, grip.origin, turn)
-		_place(arm.hand, grip)
+			_bend(arm, grip.origin, turn)
+		_place(arm.end, grip)
 
 	if springs == null and is_inside_tree():
 		var nodes := {}
@@ -461,6 +516,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 
 
 func _process(delta: float) -> void:
+	_unposed += delta
 	if springs != null and simulate_springs:
 		springs.advance(delta)
 
@@ -495,30 +551,74 @@ static func _mapped(r: Vector2, angle: float) -> float:
 
 ## Folds hand `side` (0 left, 1 right) and its fingers into the wrist, until the next `pose`.
 func fold(side: int) -> void:
-	var at := _get_joint(_arms[side].hand)
-	_place(_arms[side].hand, Transform3D(at.basis.scaled_local(Vector3.ONE * 0.001), at.origin))
+	var at := _get_joint(_arms[side].end)
+	_place(_arms[side].end, Transform3D(at.basis.scaled_local(Vector3.ONE * 0.001), at.origin))
 
 
 ## Whether hand `side` is folded away this pose.
 func folded(side: int) -> bool:
-	return _get_joint(_arms[side].hand).basis.get_scale().x < 0.01
+	return _get_joint(_arms[side].end).basis.get_scale().x < 0.01
 
 
-## Bends the arm to reach `to`. Where the arm is too short the hand still goes to the controller, where held things
-## are, and the skin of the forearm stretches after it.
-func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
-	var shoulder := _get_joint(arm.upper).origin
-	var a := arm.upper_length
-	var b := arm.lower_length
-	var reach := to - shoulder
+## Bends the limb to reach `to`, its middle joint toward `bend` turned `turn`, and returns where its end reaches. Where
+## an arm is too short its hand still goes to the controller, where held things are, and the skin of the forearm
+## stretches after it.
+func _bend(limb: Limb, to: Vector3, turn: Basis) -> Vector3:
+	var root := _get_joint(limb.upper).origin
+	var a := limb.upper_length
+	var b := limb.lower_length
+	var reach := to - root
 	var c := clampf(reach.length(), absf(a - b) + 0.001, a + b - 0.0001)
 	var u := reach.normalized() if reach.length() > 0.001 else turn * Vector3.DOWN
-	var pole := turn * arm.elbow
+	var pole := turn * limb.bend
 	var p := (pole - u * pole.dot(u)).normalized()
 	var cos_a := (a * a + c * c - b * b) / (2.0 * a * c)
-	var elbow := shoulder + u * a * cos_a + p * a * sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
-	_place(arm.upper, Transform3D(_frame(elbow - shoulder, p) * arm.upper_bind, shoulder))
-	_place(arm.lower, Transform3D(_frame(to - elbow, p) * arm.lower_bind, elbow))
+	var middle := root + u * a * cos_a + p * a * sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
+	var end := root + u * c
+	_place(limb.upper, Transform3D(_frame(middle - root, p) * limb.upper_bind, root))
+	_place(limb.lower, Transform3D(_frame(end - middle, p) * limb.lower_bind, middle))
+	return end
+
+
+## Steps the feet under the body `model` puts the hips in, and bends each leg to its foot, flat on the floor and turned
+## as the foot is; feet with no floor in reach hang as they rest. The centre of mass is the upright body's, `upright`:
+## a body bending forward to look down or crouch keeps its balance over its feet, its knees going forward as its hips
+## go back.
+func _stand(model: Transform3D, upright: Transform3D, turn: Basis) -> void:
+	var places: Array[Vector3] = []
+	for leg in _legs:
+		places.append(turn * leg.place)
+	gait.update(_hips.at.origin, upright * _hips.rest.origin.lerp(_head.rest.origin, CENTER), torso, places, _floor, _unposed)
+	_unposed = 0.0
+	for s in 2:
+		var leg := _legs[s]
+		var foot := gait.feet[s]
+		if not foot.down:
+			for j: Joint in [leg.upper, leg.lower, leg.end]:
+				_place(j, model * j.rest)
+			continue
+		var yaw := Basis(Vector3.UP, foot.yaw)
+		var ankle := foot.at + Vector3.UP * leg.ankle
+		var reached := _bend(leg, ankle, yaw)
+		_place(leg.end, Transform3D(yaw * _facing * leg.end.rest.basis, ankle if reached.distance_to(ankle) < STRETCH * gait.leg else reached))
+
+
+## The floor height under a point in this node's space, or -INF where nothing stands under it.
+func _floor(p: Vector3) -> float:
+	if not ground.is_valid():
+		return 0.0
+	var to := global_transform if is_inside_tree() else transform
+	var w := to * p
+	return (to.affine_inverse() * Vector3(w.x, ground.call(w), w.z)).y
+
+
+## The floor under the planted feet, or NAN with neither planted.
+func _feet_floor() -> float:
+	var y := NAN
+	for f in gait.feet if gait else []:
+		if f.down and f.t < 0.0:
+			y = f.at.y if is_nan(y) else minf(y, f.at.y)
+	return y
 
 
 ## Standing still with the hands at the sides, as a figure.

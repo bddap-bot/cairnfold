@@ -72,7 +72,8 @@ func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye
 	var at_rest: float = a._hips.rest.origin.distance_to(a._head.rest.origin)
 	check(absf(hips_to_head - at_rest) < 0.001, "%s keeps its proportions: hips to head %.3f m, %.3f at rest" % [what, hips_to_head, at_rest])
 	if a._joints.has("leftFoot"):
-		var foot: float = a.bone("leftFoot").origin.y - floor_y
+		var ankle := a.bone("leftFoot").origin
+		var foot: float = ankle.y - rig.floor_under.call(ankle + Vector3.UP)
 		var rest: float = a._joints.leftFoot.rest.origin.y
 		check(absf(foot - rest) < 0.01, "%s stands on the floor: its foot %.3f m up, %.3f at rest" % [what, foot, rest])
 	var arm := a._arms[0]
@@ -81,7 +82,7 @@ func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye
 	var reach := ARM * eye_m * rig.world_scale
 	rig.left.global_position = a.to_global(shoulder + out.normalized() * reach)
 	rig.pose_body()
-	var stretch := a._get_joint(arm.hand).origin.distance_to(a._get_joint(arm.lower).origin) / arm.lower_length
+	var stretch := a._get_joint(arm.end).origin.distance_to(a._get_joint(arm.lower).origin) / arm.lower_length
 	rig.left.transform = Transform3D.IDENTITY
 	return stretch
 

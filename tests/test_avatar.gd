@@ -490,7 +490,7 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 		var held: Transform3D = [l, r][s]
 		check(along.normalized().dot(-held.basis.z) > 0.99, "%s: the %s hand points where its controller points" % [what, side])
 	check(a.bone("hips").origin.y < eyes.origin.y - 0.4, "%s: the body hangs below the head" % what)
-	var tilted := Transform3D(Basis.from_euler(Vector3(0.5, 1.1, 0.3)), Vector3(1, 1.6, 1))
+	var tilted := Transform3D(Basis.from_euler(Vector3(0.5, 1.1, 0.3)), Vector3(1, a.eye_height, 1))
 	a.pose(tilted, l, r)
 	var hips: Basis = a.bone("hips").basis * a._joints.hips.rest.basis.inverse()
 	check(hips.y.is_equal_approx(Vector3.UP), "%s: the body stays upright when the head tips" % what)

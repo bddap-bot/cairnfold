@@ -163,6 +163,7 @@ func wear(a: Avatar) -> void:
 		body.queue_free()
 	body = a
 	a.top_level = true
+	a.ground = func(p: Vector3) -> float: return floor_under.call(p)
 	a.visible = true
 	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
 		v.layers = Quality.SELF_LAYER
