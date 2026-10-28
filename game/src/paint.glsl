@@ -30,7 +30,7 @@ layout(push_constant, std430) uniform Params {
 	int count;
 	int brush;
 	vec4 colour; // optical density, and the paint's strength
-	vec4 more; // medium, unused, tick, 1 on a tick's second step
+	vec4 more; // medium, 1 on a surface standing up, tick, 1 on a tick's second step
 } pc;
 
 const int PAPER = 0;
@@ -48,7 +48,7 @@ const float WET = 0.004;
 const float FLOW_RATE = 0.2;
 const float EDGE = 0.4;
 const float TOOTH_HOLD = 0.35;
-// A tilted canvas: very wet paint runs down.
+// A canvas standing up: very wet paint runs down it.
 const float GRAVITY = 0.09;
 const float RUNS = 0.55;
 // Water dries by a little every step and a share of what is there, a share far larger at a wash's edge. Since a
@@ -270,7 +270,7 @@ float give(float wi, float wj, float hj, ivec2 dir) {
 	if (wj < WET && wi < EDGE + hj * TOOTH_HOLD) {
 		return 0.0;
 	}
-	float level = wi - wj + GRAVITY * float(dir.y) * max(wi - RUNS, 0.0);
+	float level = wi - wj + GRAVITY * pc.more.y * float(dir.y) * max(wi - RUNS, 0.0);
 	return clamp(FLOW_RATE * level, 0.0, wi * 0.24);
 }
 

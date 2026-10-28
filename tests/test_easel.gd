@@ -46,6 +46,7 @@ func _run() -> void:
 	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
 	await _oil_paints_onto_the_board_as_onto_the_canvas()
+	await _a_touch_paints_the_board_as_it_paints_the_canvas()
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
@@ -630,6 +631,76 @@ func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 	check(not Easels.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Easels.open_at(Easels.PALETTE_SIZE * 0.5) and Easels.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
 
 
+## The same touch, in each surface's own frame, on the canvas and on the oil palette's board: each brush and the
+## charcoal stop at the face, the bristles bend as far, the hand feels it alike, and a brush's stroke keeps the same
+## samples, as far apart in metres, as hard and at the same angle. Charcoal marks the canvas's paper, not the board.
+func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	await play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}])
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var tool: EaselTool = main.easel_tool
+	var p: EaselTool.Painter = tool.painter(main.rig.right)
+	var felt := [0, 0]
+	var on := [false]
+	var feel := func(hand: Hand, _at: Vector3, _stick: bool, touching: bool, _pressure: float, _speed: float, _distance: float, _hard: bool) -> void:
+		if hand == p.hand and touching:
+			felt[1 if on[0] else 0] += 1
+	tool.canvas_contact.connect(feel)
+	const STEPS := 40
+	for kind: Brushwork.Brush in [Brushwork.Brush.BIG, Brushwork.Brush.FLAT, Brushwork.Brush.STICK]:
+		var b := Basis(Vector3.RIGHT, -PI * 0.25) if Brushwork.is_stick(kind) else Basis(Vector3.RIGHT, 0.4) * Basis(Vector3.BACK, 0.3)
+		var runs := []
+		for palette: bool in [false, true]:
+			on[0] = palette
+			felt[1 if palette else 0] = 0
+			tool._take_brush(p, kind, e)
+			if not Brushwork.is_stick(kind):
+				tool.dip(p, "oil5")
+			var frame := e.frame(palette)
+			var deepest := INF
+			var bent := 0.0
+			var data := {}
+			for i in STEPS:
+				var tip := Vector3(-0.02 + 0.04 * i / (STEPS - 1.0), 0.01, 0.02 - 0.05 * minf(i / 10.0, 1.0))
+				p.hand.body.global_transform = frame * Transform3D(b, tip - b * ToolModels.BRUSH_TIP) * ToolModels.hold(p.brush).affine_inverse()
+				tool._touch(p, e, palette, 1.0 / 60.0)
+				deepest = minf(deepest, (frame.affine_inverse() * EaselTool.held_brush(p) * ToolModels.BRUSH_TIP).z)
+				bent = maxf(bent, p.bend.length())
+				if not p.stroke.is_empty():
+					data = p.stroke.data
+			tool.end_stroke(p)
+			tool._clear_contact(p)
+			world.flush()
+			runs.append({"deepest": deepest, "bent": bent, "data": data, "metres": e.surface(palette).metres, "felt": felt[1 if palette else 0]})
+		var what: String = Brushwork.Brush.keys()[kind].to_lower()
+		var canvas: Dictionary = runs[0]
+		var board: Dictionary = runs[1]
+		check(absf(board.deepest - canvas.deepest) < 1e-4, "the %s stops as deep at the board as at the canvas: %.4f and %.4f m" % [what, board.deepest, canvas.deepest])
+		check(absf(board.bent - canvas.bent) < 1e-4 and (Brushwork.is_stick(kind) or canvas.bent > CanvasContact.BEND * 0.9), "its bristles bend as far against each: %.4f and %.4f m" % [board.bent, canvas.bent])
+		check(board.felt == canvas.felt and canvas.felt > 0, "the hand feels each touch alike: %d and %d frames" % [board.felt, canvas.felt])
+		if Brushwork.is_stick(kind):
+			check(not canvas.data.is_empty() and board.data.is_empty(), "the %s marks the canvas and not the board" % what)
+			continue
+		check(not canvas.data.is_empty() and not board.data.is_empty(), "the %s paints both the canvas and the board" % what)
+		if canvas.data.is_empty() or board.data.is_empty():
+			continue
+		var n := Brushwork.count(canvas.data)
+		check(Brushwork.count(board.data) == n and n > 5, "it keeps as many samples on each: %d and %d" % [Brushwork.count(board.data), n])
+		if Brushwork.count(board.data) != n:
+			continue
+		var worst := Vector3.ZERO
+		var first := [Brushwork.unpack(canvas.data.samples, 0), Brushwork.unpack(board.data.samples, 0)]
+		for i in n:
+			var c := Brushwork.unpack(canvas.data.samples, i)
+			var o := Brushwork.unpack(board.data.samples, i)
+			var moved: Vector2 = (c[0] - first[0][0]) * canvas.metres - (o[0] - first[1][0]) * board.metres
+			worst = Vector3(maxf(worst.x, moved.length()), maxf(worst.y, absf(c[1] - o[1])), maxf(worst.z, absf(Brushwork.turn(c[2], o[2]))))
+		check(worst.x < 1e-4 and worst.y < 1.5 / 255.0 and worst.z < 0.02, "and each sample alike, worst apart %.5f m, pressure %.3f, angle %.3f" % [worst.x, worst.y, worst.z])
+		check(board.data.medium == canvas.data.medium and board.data.brush == canvas.data.brush, "in the same medium")
+	tool.canvas_contact.disconnect(feel)
+
+
 ## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the
 ## trigger pressed; on either hand and either headset's controls. A press that sets none up says why.
 func _the_trigger_sets_one_up_or_says_why_not() -> void:
@@ -917,7 +988,7 @@ func _a_side_stroke_turns_with_the_stick() -> void:
 		var size: Vector2 = Brushwork.STICKS[p.brush]
 		var tip := Vector3(0, 0, size.x - 0.004) - d * size.y * 0.5
 		p.hand.body.global_transform = frame * Transform3D(b, tip - b * ToolModels.BRUSH_TIP) * ToolModels.hold(p.brush).affine_inverse()
-		main.easel_tool._touch(p, e, 1.0 / 60.0)
+		main.easel_tool._touch(p, e, false, 1.0 / 60.0)
 		last_angle = atan2(-d.y, d.x)
 	check(not p.stroke.is_empty(), "the stick lies on the canvas throughout")
 	if p.stroke.is_empty():
@@ -987,7 +1058,7 @@ func _changing_canvases_ends_the_previous_stroke() -> void:
 	for e: Easels.Easel in stands:
 		var frame := e.canvas_frame()
 		p.hand.body.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, -0.01) - frame.basis * ToolModels.BRUSH_TIP) * ToolModels.hold(p.brush).affine_inverse()
-		main.easel_tool._touch(p, e, 1.0 / 60.0)
+		main.easel_tool._touch(p, e, false, 1.0 / 60.0)
 	world.flush()
 	check(world.state.easels[stands[0].id].strokes.size() == 1 and p.stroke.easel == stands[1], "crossing to another canvas commits the old stroke to its own canvas")
 	main.easel_tool.end_stroke(p)

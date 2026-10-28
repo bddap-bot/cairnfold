@@ -47,10 +47,13 @@ static var _frame := -1
 static var _flowing := 0
 static var _flowing_now := 0
 
-## The surface in texels, its tiles each way, and its size in metres.
+## The surface in texels, its tiles each way, its size in metres, whether it stands up, so very wet paint runs down it,
+## and whether charcoal marks it, as paper takes it and a palette's oiled wood does not.
 var size: Vector2i
 var tiles: Vector2i
 var metres: Vector2
+var upright := true
+var paper := true
 ## Ticks laid so far, and the tick the last stroke on this canvas ended at.
 var ticks := 0
 var last_end := 0
@@ -106,11 +109,14 @@ var _probing := false
 var _blank := true
 
 
-## A surface `texels` large, a whole number of tiles, at the easel canvas's texels a metre, drawn by `look`.
-func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gdshader")) -> void:
+## A surface `texels` large, a whole number of tiles, at the easel canvas's texels a metre, drawn by `look`: the
+## canvas's paper standing up, or, not `sheet`, a palette's board lying flat.
+func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gdshader"), sheet := true) -> void:
 	name = "Canvas"
 	process_priority = 100
 	size = texels
+	upright = sheet
+	paper = sheet
 	tiles = size / Brushwork.TILE
 	metres = metres_of(size)
 	_tiles.resize(tiles.x * tiles.y * 2)
@@ -727,7 +733,7 @@ func _dispatch_all(batches: Array) -> void:
 					_copy(_slots[op[1]][0], _wet[1])
 					_copy(_slots[op[1]][1], _dry)
 				"flow":
-					_dispatch(bundle[2 + op[3]], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], op[3]))
+					_dispatch(bundle[2 + op[3]], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 1.0 if upright else 0.0, op[1], op[3]))
 				"dabs":
 					var s: Dictionary = op[1]
 					if s.medium == Brushwork.Medium.SMEAR:

@@ -2,7 +2,8 @@ extends "res://../tests/support/suite.gd"
 
 ## The oil palette's board on the GPU: strokes painted onto it are laid by the canvas's own paint (an oil stroke stands
 ## as high and as coloured on the board as on the canvas), a brush touching it takes up the paint under it and paints
-## that onto the canvas, and a photo of the palette saves its paint as one of a canvas is saved. Needs a
+## that onto the canvas, a brush touching the canvas takes up its paint alike, and a photo of the palette saves its paint
+## as one of a canvas is saved. Needs a
 ## RenderingDevice, so scripts/test.sh runs it on the desktop renderer: godot4 --path game --xr-mode off --script
 ## ../tests/gpu_palette.gd
 
@@ -22,6 +23,7 @@ func _run() -> void:
 	main.world.bounded = false
 	await _one_stroke_lies_alike_on_board_and_canvas()
 	await _the_brush_takes_up_what_it_touches()
+	await _the_canvas_gives_up_its_paint_as_the_board_does()
 	await _a_photo_of_the_palette_keeps_its_paint()
 	finish()
 
@@ -101,6 +103,27 @@ func _the_brush_takes_up_what_it_touches() -> void:
 	await frames(2)
 	var strokes: Array = main.world.state.easels[e.id].strokes
 	check(strokes.size() == 1 and strokes[0].medium == Brushwork.Medium.OIL and Vector3(strokes[0].colour).distance_to(took) < 1e-4, "and paints it onto the canvas")
+
+
+## Blue laid on the canvas, then a clean brush touching it there: it comes away full of the blue, as off the board, and
+## its strokes over it carry that paint.
+func _the_canvas_gives_up_its_paint_as_the_board_does() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	var blue := Brushwork.absorbance(Brushwork.PIGMENTS[5])
+	await play([{"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}, {"op": "brush", "points": [[0.6, 0.6, 0.9], [0.75, 0.6, 0.9], [0.75, 0.65, 0.9], [0.6, 0.65, 0.9]], "seconds": 0.8}])
+	main.world.flush()
+	await frames(4)
+	await play([{"op": "take", "what": "small"}])
+	check(p.load == 0.0, "a fresh brush is clean")
+	await play([{"op": "brush", "points": [[0.66, 0.62, 0.7], [0.68, 0.62, 0.7], [0.66, 0.62, 0.7]], "seconds": 0.5}])
+	print("canvas: took up %s at load %.2f" % [Brushwork.colour(p.colour), p.load])
+	check(p.medium == Brushwork.Medium.OIL and p.load == 1.0, "touching the canvas's oil loads the clean brush full: load %.2f" % p.load)
+	check(p.colour.distance_to(blue) < 0.3, "with the blue there: %s" % Brushwork.colour(p.colour))
+	main.world.flush()
+	await frames(2)
+	var strokes: Array = main.world.state.easels[e.id].strokes
+	check(strokes.size() >= 2 and strokes[-1].brush == Brushwork.Brush.SMALL and Vector3(strokes[-1].colour).distance_to(blue) < 0.3, "and its stroke on the canvas lays that paint")
 
 
 ## A photo looking down onto the palette saves its paint beside it, at the board's own size.

@@ -1958,49 +1958,33 @@ func _dip(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## A brushstroke on the oil palette's open board, wherever the palette is, through `points` [x, z, pressure] (x toward
-## the paint, z across, both -1..1 of the board's half size) over `seconds`: the tip comes down onto the first, pushes
-## each point's pressure's share of `Brushwork.PRESS_DEPTH` into the board, and lifts off the last. It paints there as
-## on the canvas, and takes up what paint lies under it.
+## A brushstroke on the oil palette's open board, wherever the palette is, as `_brush` paints the canvas, through
+## `points` [x, z, pressure] (x toward the paint, z across, both -1..1 of the palette's half size).
 func _mix(s: Dictionary) -> void:
-	var hand := _hand(s)
-	var e := _easel_of(s)
-	var board: Transform3D = e.palettes[Brushwork.Medium.OIL].global_transform
-	var on := func(p: Array, up: float) -> Vector3:
-		var depth: float = Easels.BOARD_TOP - p[2] * Brushwork.PRESS_DEPTH
-		return board * Vector3(p[0] * Easels.PALETTE_SIZE.x * 0.5, depth + up, p[1] * Easels.PALETTE_SIZE.y * 0.5)
-	var pts: Array = s.points
-	_tip_at(hand, on.call(pts[0], 0.06), -board.basis.y, -board.basis.x)
-	await _frames(2)
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames + 1:
-		var k := float(f) / frames * (pts.size() - 1)
-		var i := mini(floori(k), pts.size() - 2) if pts.size() > 1 else 0
-		var a: Array = pts[i]
-		var b: Array = pts[mini(i + 1, pts.size() - 1)]
-		var t := k - i
-		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), -board.basis.y, -board.basis.x)
-		await _frames(1)
-	_tip_at(hand, on.call(pts[-1], 0.06), -board.basis.y, -board.basis.x)
-	await _frames(2)
+	await _brushstroke(s, true)
 
 
-## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`: the
-## tip comes in from off the canvas, pushes each point's pressure's share of `Brushwork.PRESS_DEPTH` past its face (a
-## stick's tip by its rim), and lifts off at the end. A flat brush is
-## turned `roll` degrees.
+## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`.
 func _brush(s: Dictionary) -> void:
+	await _brushstroke(s, false)
+
+
+## A brushstroke on the canvas, or with `palette` the oil palette's board, through `points` as `_brush` or `_mix` gives
+## them: the tip comes in from off the surface, pushes each point's pressure's share of `Brushwork.PRESS_DEPTH` past its
+## face (a stick's tip by its rim), and lifts off at the end, leaning `tilt` degrees and a flat brush turned `roll`.
+func _brushstroke(s: Dictionary, palette: bool) -> void:
 	var hand := _hand(s)
 	hand.tool = Hand.Tool.EASEL
 	var e := _easel_of(s)
-	var frame := e.canvas_frame()
+	var frame := e.frame(palette)
 	var roll := deg_to_rad(s.get("roll", 0.0))
 	var direction := frame.basis * (Basis(Vector3.UP, deg_to_rad(s.get("tilt", 0.0))) * Vector3.FORWARD)
 	var kind := main.easel_tool.painter(hand).brush
 	var face: float = Brushwork.STICKS[kind].x if Brushwork.is_stick(kind) else 0.0
 	var on := func(p: Array, out: float) -> Vector3:
 		var depth: float = face - p[2] * Brushwork.PRESS_DEPTH
-		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
+		var at := Vector2(p[0], -p[1]) * Easels.PALETTE_SIZE * 0.5 if palette else Vector2(p[0] - 0.5, 0.5 - p[1]) * Brushwork.METRES
+		return frame * Vector3(at.x, at.y, depth + out)
 	var pts: Array = s.points
 	var before := frame.affine_inverse() * hand.global_position
 	# A long stick taken from the tray can start behind the sheet: clear its bottom before coming forward.
@@ -2024,8 +2008,8 @@ func _brush(s: Dictionary) -> void:
 		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), direction, frame.basis.y, roll)
 		await _frames(1)
 	if s.has("capture"):
-		var hold := ToolModels.hold(main.easel_tool.painter(hand).brush)
-		print("brush contact: tracked %s, visible %s" % [e.on_canvas(hand.global_transform * hold * ToolModels.BRUSH_TIP), e.on_canvas(hand.body.global_transform * hold * ToolModels.BRUSH_TIP)])
+		var hold := ToolModels.hold(kind)
+		print("brush contact: tracked %s, visible %s" % [frame.affine_inverse() * hand.global_transform * hold * ToolModels.BRUSH_TIP, frame.affine_inverse() * hand.body.global_transform * hold * ToolModels.BRUSH_TIP])
 		await main.capture(s.capture)
 	_tip_at(hand, on.call(pts[-1], 0.05), direction, frame.basis.y, roll)
 	await _frames(2)

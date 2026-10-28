@@ -4866,8 +4866,8 @@ or an oil colour, or pushed on through the palette under it, loads that pigment 
 A pan's mixes on the brush with the watercolour there already, and the box shows the mix; the glass wets the brush
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
 the oil palette's open board, a paint surface like the canvas (`Easel.board`): an oil colour loads the brush with that
-colour alone; painting onto the board lays strokes there as on the canvas, and touching paint on the board loads the brush
-with it, with a dip's sound and feel, so working one colour into another mixes them. The board draws its paint as the canvas does
+colour alone; painting onto the board lays strokes there as on the canvas, and touching paint on the board or the
+canvas loads the brush with it, with a dip's sound and feel, so working one colour into another mixes them. The board draws its paint as the canvas does
 (`paint.gdshaderinc`): a colour on it shows as it will on the canvas, never tinted by the wood under it, and stands up
 off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
@@ -4880,12 +4880,12 @@ reaches past the controller; touching the canvas paints, pushing in presses hard
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
 
-Held brushes and charcoal use the hand's swept collision solver against the canvas
-face and edges. Bristles deform up to 12 mm, then the visible hand and brush stop
+Held brushes and charcoal use the hand's swept collision solver against the face and
+edges of the canvas and of the oil palette's board, wherever the palette is. Bristles deform up to 12 mm, then the visible hand and brush stop
 while the tracked controller can continue. The rigid brush shaft and charcoal also
-stop at the sheet. Pressure is how far the tracked tool is pushed past the surface
+stop at the surface. Pressure is how far the tracked tool is pushed past the surface
 it paints, by one curve for every tool, the brush and the stick's tip and side on
-the canvas and a brush on the oil palette's board (`Brushwork.pressure`): a graze
+the canvas and the oil palette's board alike (`Brushwork.pressure`): a graze
 presses at 5%, easing up to full at 20 mm (`Brushwork.PRESS_DEPTH`). A firmer press
 lays a wider mark and, for charcoal, reaches deeper into the paper's tooth and
 darkens more; the stick's grain pulse in the hand grows with it. Charcoal
@@ -4938,19 +4938,23 @@ then show their friends. That'd be cool"
 The board is a paint surface as the canvas is: a `Canvas` of 384 by 256 texels at the canvas's millimetre a texel
 (`Easels.BOARD`), a little larger than the palette, its paint laid by the canvas's compute shader (`paint.glsl`) and
 drawn over the wood within the palette's oval and clear of its thumb hole (`board.gdshader`, coloured and raised by
-`paint.gdshaderinc`). An oil brush on it lays strokes as on the canvas, bristle streaks standing up as impasto, sent
-to the garden as `paint` commands on the easel's `palette` (docs/multiplayer.md): every player's board replays them,
-a reload lays them again and undo takes them back one at a time.
+`paint.gdshaderinc`). One touch paints both (`EaselTool._touch`): a brush or stick stops at its face, the bristles
+bending against it, the hand feels it, and it lays strokes there as on the canvas, oil's bristle streaks standing up
+as impasto, watercolour as on paper, sent to the garden as `paint` commands on the easel's `palette`
+(docs/multiplayer.md): every player's board replays them, a reload lays them again and undo takes them back one at a
+time. The board differs from the canvas only in its size and its wood: wood shows round its paint, it lies flat, so
+very wet paint on it does not run, and charcoal stops at it and feels it as at the canvas but marks only paper, so a
+hand reaching for the palette with a stick leaves no line on its paint.
 
-Any brush on the board takes up the paint under it. The GPU holds that paint, so the board reads it back without
-waiting on it (`Canvas.probe`): each frame the tip is on the board, the texels under its footprint are copied into a
+Any brush on either surface takes up the paint under it. The GPU holds that paint, so the surface reads it back without
+waiting on it (`Canvas.probe`): each frame the tip is on it, the texels under its footprint are copied into a
 64-texel square read back asynchronously, there a frame or two later. While the painter's brush lays a stroke, the
-read is of the board as it stood before that stroke (its checkpoint), what the brush lays over rather than what it has
+read is of the surface as it stood before that stroke (its checkpoint), what the brush lays over rather than what it has
 just laid. The brush's colour moves toward that paint's as fast as a brush soaking up 1.5 times its mean height would,
 half that pace stirring even a full brush; stirring keeps the brush's load, and a clean brush comes away full. A
 stroke keeps the paint it began with, so once taking up has moved the brush's colour 0.15 (optical density) from it,
 at most six times a second, the stroke ends and the next lays the brush's new paint: stirring lemon into blue makes an
-olive green over a few strokes, and a clean brush touching it comes away loaded with it. A stroke on the board waits for the first read, so its first dab
+olive green over a few strokes, and a clean brush touching it comes away loaded with it. A brush's stroke waits for the first read, so its first dab
 already carries what the brush took up. Colours mix by optical density, as on the canvas. A photo of the palette
 saves its paint beside it as one of a canvas does (`-palette-N.png`, and its height).
 
@@ -4959,7 +4963,11 @@ strokes' dabs, one transparent quad per easel, and a 64-texel readback a frame w
 (`demo/easel-bench.json`, the fitted quality step, `perf/quest-2/easel-bench/`), main before this change and after it
 read 5.04/5.20, 5.29/5.31 and 5.04/5.19 ms of GPU time painting onto the palette, and 5.05/4.96, 5.04/5.18 and
 5.04/5.11 with the painted palette in view, every phase holding 72 Hz; the paint phases over budget after are among
-those over before. In the stress scene a view of a palette painted with 60 strokes read 7.05 ms (`easels/palette`).
+those over before. In the stress scene a view of a palette painted with 60 strokes read 7.05 ms (`easels/palette`). With the canvas and the board
+painted by one touch (the canvas's brush now reading back what is under it too), two runs each of main and of the
+change on one Quest 2 read the palette's mix phases within 0.11 ms of main and the canvas's oil and replay phases no
+dearer; the charcoal phase read 11.95 and 11.75 ms against main's 11.16 and 11.30, with no cause found in the
+charcoal path, which reads nothing back.
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no

@@ -222,16 +222,25 @@ class Easel:
 		var p := canvas_frame().affine_inverse() * point
 		return Vector3(p.x / Brushwork.METRES.x + 0.5, 0.5 - p.y / Brushwork.METRES.y, p.z)
 
-	## Where `point` lies on the oil palette's board, wherever the palette is: x, y as uv (0..1, x toward its paint, y
-	## across), z its height over the board's top.
-	func on_board(point: Vector3) -> Vector3:
-		var p: Vector3 = palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * point
-		var m := Canvas.metres_of(Easels.BOARD)
-		return Vector3(p.x / m.x + 0.5, p.z / m.y + 0.5, p.y - Easels.BOARD_TOP)
+	## The oil palette's board's frame, wherever the palette is, as the canvas's is: x toward its paint, y across it
+	## against uv's v, z up out of its top, origin at its middle.
+	func board_frame() -> Transform3D:
+		return palettes[Brushwork.Medium.OIL].global_transform * Transform3D(Basis(Vector3.RIGHT, Vector3.FORWARD, Vector3.UP), Vector3(0, Easels.BOARD_TOP, 0))
 
 	## The canvas, or with `palette` the oil palette's board.
 	func surface(palette: bool) -> Canvas:
 		return board if palette else canvas
+
+	func frame(palette: bool) -> Transform3D:
+		return board_frame() if palette else canvas_frame()
+
+	## Whether paint may lie at `uv` on the canvas, or with `palette` on the board: the board's open oval, clear of its
+	## thumb hole and its colours.
+	func open(palette: bool, uv: Vector2) -> bool:
+		if not palette:
+			return true
+		var at := (uv - Vector2(0.5, 0.5)) * board.metres
+		return Easels.open_at(at) and Easels.well_at(Brushwork.Medium.OIL, Vector3(at.x, Easels.BOARD_TOP, at.y)) < 0
 
 	func tray(at: Vector3) -> Vector3:
 		return global_transform * at
@@ -475,7 +484,7 @@ func _canvas(e: Easel) -> void:
 
 
 func _board(e: Easel) -> void:
-	e.board = Canvas.new(BOARD, preload("res://src/board.gdshader"))
+	e.board = Canvas.new(BOARD, preload("res://src/board.gdshader"), false)
 	e.board.name = "Board"
 	e.board.material.set_shader_parameter("board", PALETTE_SIZE)
 	e.board.material.set_shader_parameter("open", OPEN)

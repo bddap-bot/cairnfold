@@ -9,29 +9,32 @@ extends Node3D
 ## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
 ## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
 ## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
-## palette's open board, painted onto it as the canvas is and taken up from it by touching it; the jar wets the brush for
-## watercolour, thinner each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in
-## presses harder (`Brushwork.pressure`), and moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
+## palette's open board; the jar wets the brush for watercolour, thinner each dip, and the water clouds with what it
+## rinses off. The canvas and the board are painted by one touch (`_touch`): the brush stops at the face and bends
+## against it, pushing in presses harder (`Brushwork.pressure`), moving fast skims, and the brush takes up the paint it
+## touches. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
 ## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas or the board, laid on this
 ## machine's as they are painted and played on everyone else's as they were.
 
 ## A grip takes what is within this of the hand.
 const REACH := 0.12
-## The tip touches the oil palette's board within this of its face.
-const CONTACT := 0.006
+## The tip is at the oil palette's board, rather than the canvas, within this of the palette's face.
+const NEAR_BOARD := 0.05
+## How far past a surface the tracked hand may go and the brush stay stopped at it.
+const PUSH_THROUGH := 0.3
 ## A sheet pulled this far off the canvas tears away when let go.
 const PEEL := 0.3
 ## The trigger sets an easel up only with none this near the hand.
 const PLACE_CLEAR := 2.5
 ## A brush held still on the canvas keeps laying paint this often, in ticks.
 const STILL_TICKS := 6
-## A brush on the board takes up the paint under it at this pace a second, as if until it held SOAK times the paint's
+## A brush on paint takes up what is under it at this pace a second, as if until it held SOAK times the paint's
 ## height there, and that share of the pace stirs the two colours together even when it holds more.
 const TAKE_UP := 6.0
 const SOAK := 1.5
 const STIR := 0.5
-## A stroke on the board ends and the next begins in the brush's new colour once taking up has moved its colour this far
-## (optical density), so stirring mixes as it goes, at most so often a second.
+## A stroke ends and the next begins in the brush's new colour once taking up has moved its colour this far (optical
+## density), so stirring mixes as it goes, at most so often a second.
 const RECOLOUR := 0.15
 const RESTROKE_HZ := 6.0
 ## The palette's thumb hole in the hand holding it, from the controller, the palette reaching forward and inward,
@@ -68,13 +71,11 @@ class Painter:
 	var rag: Easels.Easel
 	var wipe_start := Vector3.ZERO
 	var wiped := false
-	## The easel whose oil palette's board the tip is on, and the paint read back from under it last: {height, density},
-	## gone once taken up.
-	var board: Easels.Easel
+	## The paint read back from under the tip last: {height, density}, gone once taken up.
 	var under := {}
-	## Seconds the brush has been on paint on the board since it last took any up.
+	## Seconds the brush has been on paint since it last took any up.
 	var soaked := 0.0
-	## Whether it has taken any up since it came onto the board, which sounds and feels as a dip does.
+	## Whether it has taken any up since it came onto the surface, which sounds and feels as a dip does.
 	var took := false
 	## The easel whose palette of medium `kit` this hand holds.
 	var palette: Easels.Easel
@@ -86,8 +87,10 @@ class Painter:
 	var shown := 0.0
 	## What the hand held when last logged (`holding`).
 	var held := ""
+	## The surface the tip meets, as the easel and whether its oil palette's board, and where it touched it last.
 	var contact := CanvasContact.new()
 	var contact_easel: Easels.Easel
+	var contact_palette := false
 	var contact_point := Vector3.INF
 	var bend := Vector3.ZERO
 
@@ -158,7 +161,6 @@ func busy(hand: Hand = null) -> bool:
 func _forget() -> void:
 	for p in painters:
 		p.stroke = {}
-		p.board = null
 		p.under = {}
 		_set_down(p)
 		p.peel = null
@@ -192,7 +194,6 @@ func _handle(p: Painter, delta: float) -> void:
 	if not holding or not live or p.peel != null:
 		end_stroke(p)
 		_clear_contact(p)
-		p.board = null
 		return
 	var tip := held_brush(p) * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
@@ -202,11 +203,8 @@ func _handle(p: Painter, delta: float) -> void:
 			hand.hold()
 			return
 		_dip(p, tip)
-		if _board(p, tip, delta):
-			_clear_contact(p)
-			hand.hold()
-			return
-		if _touch(p, e, delta):
+		var board := _board_at(p, tip)
+		if _touch(p, board if board != null else e, board != null, delta):
 			hand.hold()
 			return
 	if e == null or Easels._flat(e.global_position, hand.global_position) > PLACE_CLEAR:
@@ -610,42 +608,18 @@ func _show_brush(p: Painter, holding: bool, delta: float) -> void:
 		m.scale = Vector3.ONE * maxf(p.shown, 0.001)
 
 
-## Paints the oil palette's board while the tip touches it, on the tray or in a hand, as the canvas is painted, an oil
-## brush laying strokes on it, and any brush takes up the paint under it (`_take_up`). Whether the tip is on a board.
-func _board(p: Painter, tip: Vector3, delta: float) -> bool:
-	var on: Easels.Easel = null
-	var local := Vector3.ZERO
-	if not Brushwork.is_stick(p.brush):
-		for e: Easels.Easel in easels.easels.values():
-			if taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, Brushwork.Medium.OIL)):
-				continue
-			local = e.palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * tip
-			if local.y < Easels.BOARD_TOP + CONTACT and local.y > Easels.WELL_DEPTH.x and Easels.open_at(Vector2(local.x, local.z)) and Easels.well_at(Brushwork.Medium.OIL, local) < 0:
-				on = e
-				break
-	if p.board != on:
-		p.under = {}
-		p.soaked = 0.0
-		p.took = false
-	p.board = on
-	if on == null:
-		return false
-	var at := on.on_board(tip)
-	var uv := Vector2(at.x, at.y)
-	var pressure := Brushwork.pressure(-at.z)
-	var across: Vector3 = on.palettes[Brushwork.Medium.OIL].global_basis.inverse() * held_brush(p).basis.x
-	_take_up(p, delta)
-	# A stroke waits for the first read of what is under it, so it lays the brush's paint as that has already taken up.
-	if p.medium == Brushwork.Medium.OIL and (not p.under.is_empty() or not on.board.reads_back()):
-		touch(p, on, uv, pressure, atan2(across.z, across.x), 0.0, true)
-	var r := Brushwork.radii(p.brush).y * (0.5 + 0.5 * pressure)
-	var centre := Vector2i((uv * Vector2(on.board.size)).round())
-	var me: WeakRef = weakref(p)
-	on.board.probe(Rect2i(centre - Vector2i.ONE * ceili(r), Vector2i.ONE * ceili(r * 2.0)), func(paint: Image) -> void:
-		var still: Painter = me.get_ref()
-		if still != null and still.board == on:
-			still.under = _under(paint))
-	return true
+## The easel whose oil palette's board, on the tray or in a hand, `p`'s tip at `tip` is at, or null: near its face, or
+## pushed on through the one the brush has stopped at, as far as through the canvas.
+func _board_at(p: Painter, tip: Vector3) -> Easels.Easel:
+	for e: Easels.Easel in easels.easels.values():
+		if taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, Brushwork.Medium.OIL)):
+			continue
+		var local := e.board_frame().affine_inverse() * tip
+		var reach := Easels.PALETTE_SIZE * 0.5 + Vector2.ONE * NEAR_BOARD
+		var deep := PUSH_THROUGH if p.contact_easel == e and p.contact_palette and p.contact.previous != Vector3.INF else NEAR_BOARD
+		if local.z < NEAR_BOARD and local.z > -deep and Vector2(local.x / reach.x, local.y / reach.y).length() < 1.0:
+			return e
+	return null
 
 
 ## The paint in `paint` (Canvas.probe) under a round footprint filling it: its mean height, and its colour as the
@@ -671,12 +645,12 @@ static func _under(paint: Image) -> Dictionary:
 
 
 ## The brush takes up the paint read back from under it over the seconds since it last did, the two colours stirring
-## together; stirring keeps a loaded brush's load, and a clean one comes away full. A stroke on the board keeps the paint it began
+## together; stirring keeps a loaded brush's load, and a clean one comes away full. A stroke keeps the paint it began
 ## with, so taking up waits until it is far enough from that and the stroke old enough, then ends it: the next stroke
-## lays the new paint.
+## lays the new paint. Charcoal takes none up.
 func _take_up(p: Painter, delta: float) -> void:
 	var under := p.under
-	if under.is_empty() or under.height <= 0.0:
+	if Brushwork.is_stick(p.brush) or under.is_empty() or under.height <= 0.0:
 		p.soaked = 0.0
 		return
 	p.soaked += delta
@@ -710,20 +684,34 @@ func _clear_contact(p: Painter) -> void:
 	p.contact.reset()
 	p.contact_easel = null
 	p.contact_point = Vector3.INF
+	_off_paint(p)
 	p.bend = Vector3.ZERO
 	if not Brushwork.is_stick(p.brush):
 		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
 	canvas_contact.emit(p.hand, p.hand.global_position, Brushwork.is_stick(p.brush), false, 0.0, 0.0, 0.0, false)
 
 
-## Paints while the tip touches easel `e`'s canvas; whether it does.
-func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
-	if p.contact_easel != e:
+func _off_paint(p: Painter) -> void:
+	p.under = {}
+	p.soaked = 0.0
+	p.took = false
+
+
+## Paints while the tip touches easel `e`'s canvas, or with `palette` its oil palette's board, wherever that is: the
+## brush stops at the face and bends against it, takes up the paint under it (`_take_up`) and lays its own. Whether it
+## touches.
+func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
+	if p.contact_easel != e or p.contact_palette != palette:
 		end_stroke(p)
+		_off_paint(p)
 		p.contact_point = Vector3.INF
-		p.contact.reset()
+		if palette:
+			p.contact.fit(e.board.metres, Vector3(Easels.PALETTE_SIZE.x, Easels.PALETTE_SIZE.y, Easels.BOARD_TOP * 2.0), true)
+		else:
+			p.contact.fit(e.canvas.metres, CanvasContact.SHEET)
 		p.contact_easel = e
-	var frame := e.canvas_frame()
+		p.contact_palette = palette
+	var frame := e.frame(palette)
 	var stick := Brushwork.is_stick(p.brush)
 	var contact := p.contact.move(frame, held_brush(p), p.brush)
 	p.hand.body.global_transform = contact.pose * ToolModels.hold(p.brush).affine_inverse()
@@ -732,13 +720,34 @@ func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
 		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
 	var distance: float = contact.point.distance_to(p.contact_point) if contact.on and p.contact_point != Vector3.INF else 0.0
 	canvas_contact.emit(p.hand, contact.point, stick, contact.on, contact.pressure, distance / maxf(delta, 1e-6), distance, contact.hard)
-	if not contact.on:
+	if not contact.on or not e.open(palette, contact.uv):
 		end_stroke(p)
+		_off_paint(p)
 		p.contact_point = Vector3.INF
-		return false
+		return contact.on
 	p.contact_point = contact.point
-	touch(p, e, contact.uv, contact.pressure, contact.angle, contact.side)
+	var surface := e.surface(palette)
+	_take_up(p, delta)
+	# A brush's stroke waits for the first read of what is under it, so it lays the paint the brush has already taken up.
+	if stick and not surface.paper:
+		return true
+	if stick or not p.under.is_empty() or not surface.reads_back():
+		touch(p, e, contact.uv, contact.pressure, contact.angle, contact.side, palette)
+	if not stick:
+		_probe(p, e, palette, contact.uv, contact.pressure)
 	return true
+
+
+## Asks for the paint under `p`'s brush at `uv` on easel `e`'s canvas or board, pressed `pressure`, to take up.
+func _probe(p: Painter, e: Easels.Easel, palette: bool, uv: Vector2, pressure: float) -> void:
+	var surface := e.surface(palette)
+	var r := Brushwork.radii(p.brush).y * (0.5 + 0.5 * pressure)
+	var centre := Vector2i((uv * Vector2(surface.size)).round())
+	var me: WeakRef = weakref(p)
+	surface.probe(Rect2i(centre - Vector2i.ONE * ceili(r), Vector2i.ONE * ceili(r * 2.0)), func(paint: Image) -> void:
+		var still: Painter = me.get_ref()
+		if still != null and still.contact_easel == e and still.contact_palette == palette:
+			still.under = _under(paint))
 
 
 ## The tip at `uv` on easel `e`'s canvas, or with `palette` its oil palette's board, pressed `pressure` (0..1), a flat

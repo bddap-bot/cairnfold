@@ -1,0 +1,19 @@
+[
+  {"op": "budget", "bounded": false},
+  {"op": "place", "x": 0, "z": 4},
+  {"op": "easel", "x": 0, "z": 3, "facing": [0, 6]},
+  {"op": "hands", "left": [-0.25, -0.6, 0.1], "right": [0.25, -0.6, 0.1]},
+  {"op": "wait", "seconds": 1},
+  {"op": "take", "what": "big"},
+  {"op": "dip", "what": "oil", "index": 5},
+  {"op": "view", "subject": "easel", "index": 0, "eye": [0.7, 1.12, 0.42], "at": [0.7, 0.76, 0.1]},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "brush", "points": [[0.8, 0.9, 0.9], [0.867, 0.9, 0.9]], "seconds": 2.0, "tilt": 40, "capture": "1-canvas-pressed"},
+  {"op": "mix", "points": [[-0.3, 0.0, 0.9], [0.26, 0.0, 0.9]], "seconds": 2.0, "tilt": 40, "capture": "2-board-pressed"},
+  {"op": "take", "what": "small"},
+  {"op": "brush", "points": [[0.83, 0.9, 0.7], [0.93, 0.9, 0.7]], "seconds": 1.5, "tilt": 40},
+  {"op": "mix", "points": [[-0.05, 0.0, 0.7], [0.65, 0.0, 0.7]], "seconds": 1.5, "tilt": 40},
+  {"op": "view", "subject": "easel", "index": 0, "eye": [0.7, 1.12, 0.42], "at": [0.7, 0.76, 0.1]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "3-after-pickup"}
+]
