@@ -1,5 +1,7 @@
 [
-  {"op": "view", "ground": true, "eye": [1.6, 1.45, 10.2], "at": [1.9, 0.85, 7]},
+  {"op": "layer", "name": "grass", "mode": "off"},
+  {"op": "layer", "name": "flowers", "mode": "off"},
+  {"op": "view", "ground": true, "eye": [1.7, 1.2, 9.6], "at": [1.8, 0.6, 7]},
   {"op": "until", "players": 2},
   {"op": "wait", "seconds": 42},
   {"op": "quit"}
