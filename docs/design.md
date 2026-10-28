@@ -2796,10 +2796,11 @@ from them, their commands, the stroke, the colour and style tools on them, runs,
   the host from its command, so every machine lays the same; a build put back by undo or a snapshot keeps the things it
   had. A house on the ground: a bench beside its door, or the middle of its front, and two carved pumpkins or a box of
   flowers the other side; a barrel or a stack of crates at about half its corners; one house in four a market stall
-  along its back, one in five an anvil at its end; a swallows' nest under its eaves on any storey. Along a plain wall's
-  foot, a barrel, crates, flowers or a bench about every 5 m on either face, and a nest on its top about every 8 m. A
-  path a piece beside it 1.2 m from its start and about every 7 m after, either side in turn, facing it, none within
-  1.5 m of its end, where it may run into a house. A fence or a ruin gathers nothing.
+  along its back, one in five an anvil at its end; a swallows' nest under its eaves on any storey, its top against the
+  roof's underside whatever the roof's style, pitch or plinth. Along a plain wall's foot, a barrel, crates, flowers or
+  a bench about every 5 m on either face, and a nest on its top about every 8 m. A path a piece beside it 1.2 m from
+  its start and about every 7 m after, either side in turn, facing it, none within 1.5 m of its end, where it may run
+  into a house. A fence or a ruin gathers nothing.
 - **Kept.** A build keeps them as its `clutter`: a list of `Vector4(s, off, turn, style)`, the arc length along it, how
   far out it stands (from a wall's face to its middle, or from a path's spine; the sign the side), its turn from facing
   out, and a decoration's style (`DecorationLayout`, whose Crates, Market stall, Anvil, Flower box, Carved pumpkin and
@@ -2820,12 +2821,14 @@ from them, their commands, the stroke, the colour and style tools on them, runs,
 
 `demo/clutter.json` renders two houses, a wall and a path with what they gathered, then a bench carried and turned, a
 copy pulled off a pumpkin or a box of flowers, a piece by the path taken away, and the pumpkins at night.
-`tests/test_clutter.gd` covers where each build gathers, the schema, the budget, the layout, the targets, each edit
-with undo and redo, a house put back keeping its things, the doorway, perches, the demo, and the stress scene's
-`clutter/*` phases: two houses, a wall and a path with what they gathered, every house and wall then given a piece
-every 0.7 m round its foot until the budget or its foot is full, then `clutter/carry`, three 2 s carries and turns of
-a house's pieces, and `clutter/copy`, three copies pulled off them. `demo/clutter-cost.json` prices the same garden on a
-Quest 2 bare of clutter and cluttered.
+`demo/roof-nests.json` shows a house's nest under each style of roof: tiled, raised, steep, swept, a tower's cone, a
+flat deck and an upper storey's.
+`tests/test_clutter.gd` covers where each build gathers, the schema, the budget, the layout, the targets, each edit with
+undo and redo, a house put back keeping its things, the doorway, perches, a nest against every style of roof, the demo,
+and the stress scene's `clutter/*` phases: two houses, a wall and a path with what they gathered, every house and wall
+then given a piece every 0.7 m round its foot until the budget or its foot is full, then `clutter/carry`, three 2 s
+carries and turns of a house's pieces, and `clutter/copy`, three copies pulled off them. `demo/clutter-cost.json` prices
+the same garden on a Quest 2 bare of clutter and cluttered.
 
 On the Frame, governed, the stress scene's clutter section played alone (its `budget` step, then from the `sun` step
 before the village; `perf/frame/stress-clutter/`): when each step of the hand laid the house again, b4d160c made 4 late

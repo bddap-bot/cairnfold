@@ -58,7 +58,11 @@ func _edit(ground: Callable, round: bool, foundation: int, action: String, rise:
 			check(lowest <= ground.call(foot.x, foot.z) + 0.05, label + ": foundation reaches the terrain at every support station")
 	var nest := Vector4(0.5, 0.5, 0.0, ClutterLayout.style("Bird nest"))
 	var perched: Transform3D = after.clutter_frame(nest, ground)
-	check(is_equal_approx(perched.origin.y, after.frame_at(nest.x).point.y + after.height - ClutterLayout.UNDER_EAVE), label + ": the nest stays under the eave when lifted")
+	var nest_top := -INF
+	for part in ClutterLayout.parts(nest, perched, after.seed):
+		for c in WallLayout.BOX:
+			nest_top = maxf(nest_top, (part.xform * c).y)
+	check(absf(nest_top - after.roof_base()) < 0.001, label + ": the nest's top meets the walls' top when lifted")
 	for side in [-1.0, 1.0]:
 		for along in [0.5, before.length() * 0.4, before.length() * 0.8]:
 			var item := Vector4(along, side * 2.0, 0.0, ClutterLayout.style("Rain barrel"))

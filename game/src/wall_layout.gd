@@ -214,7 +214,8 @@ var foundation := Foundation.STONE
 ## Whether the floor is laid in planks rather than flags: its own choice, apart from the walls' material.
 var planks := false
 var gable_end := GableEnd.WALL
-## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
+## The roof these walls stand under, seated on their top as they are laid; a gable roof's end walls rise under it
+## course by course, as stone walls do. Null for an open wall.
 var gable: RoofLayout
 ## Placed openings: arc length, click height above the foot, Family, and size, 1 for a doorway's (or a plain
 ## window's) and more for a bigger one, scaling it every way.
@@ -364,6 +365,8 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	resample(ground, water, revision)
 	laid_points = points.duplicate()
 	laid_rise = rise
+	if gable != null:
+		seat(gable)
 	_laid_count += 1
 	laid = _laid_count
 	stones.clear()
@@ -1653,7 +1656,35 @@ func clutter_frame(v: Vector4, ground: Callable) -> Variant:
 		return x
 	if cover == Cover.OPEN:
 		return Transform3D(Basis(Vector3.UP, v.z), f.point + Vector3.UP * (standing(s) + CAP))
-	return ClutterLayout.facing(f.point + Vector3.UP * (height - ClutterLayout.UNDER_EAVE), f.tangent, v.y, THICKNESS * 0.5 + 0.12, v.z)
+	var hung := ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5 + ClutterLayout.UNDER_EAVE, v.z)
+	hung.origin.y += _under_roof(ClutterLayout.parts(v, hung, seed))
+	return hung
+
+
+## How far `parts` rise to bring the highest of them against the roof's underside, which `fit_under` brings the stones
+## under too, or against the walls' top where no roof is seated on them.
+func _under_roof(parts: Array[Dictionary]) -> float:
+	var rise_by := INF
+	for part in parts:
+		for c in BOX:
+			var p: Vector3 = part.xform * c
+			rise_by = minf(rise_by, (gable.height_at(p.x, p.z) if gable != null else roof_base()) - p.y)
+	return rise_by
+
+
+## Where a roof sits on these walls: on their top, its cap included.
+func roof_base() -> float:
+	return samples[0].y + height + CAP
+
+
+## Seats roof `r` on these walls as they are laid: on their top and within their corners, its gable ends stepped where
+## theirs are.
+func seat(r: RoofLayout) -> void:
+	r.base = roof_base()
+	r.foot = stands_at()
+	r.stepped = gable_kind() == GableEnd.STEPS
+	if r.kind == RoofLayout.Kind.GABLE:
+		r.corners = laid_points
 
 
 ## Whether a washing line's arms beside window `o` stand on its own straight face.

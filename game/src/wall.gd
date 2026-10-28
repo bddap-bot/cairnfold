@@ -581,11 +581,7 @@ func _lay_dressing(roofed := {}) -> void:
 ## Lays `r` on a built layout's walls and packs its tiles as instance buffers by Part. Touches nothing but its
 ## arguments, so it runs on a worker thread.
 static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
-	r.base = built.samples[0].y + built.height + WallLayout.CAP
-	r.foot = built.stands_at()
-	r.stepped = built.gable_kind() == WallLayout.GableEnd.STEPS
-	if r.kind == RoofLayout.Kind.GABLE:
-		r.corners = built.laid_points
+	built.seat(r)
 	r.build(WallLayout.PLASTER_INSET if built.plastered() and built.gable_kind() == WallLayout.GableEnd.WALL else WallLayout.THICKNESS * 0.5)
 	built.hide_roof(r)
 	built.fit_under(r)

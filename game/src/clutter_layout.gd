@@ -25,8 +25,8 @@ const WALL_EVERY := 5.0
 const NEST_EVERY := 8.0
 ## Pieces a house gathers stand at least this far apart along it.
 const CLEAR := 1.1
-## A nest under eaves hangs this far below the wall's top.
-const UNDER_EAVE := 0.2
+## A nest under eaves stands this far out from its wall's face, its top against the roof.
+const UNDER_EAVE := 0.12
 
 static var _shapes := {}
 

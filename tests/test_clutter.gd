@@ -16,6 +16,7 @@ func _run() -> void:
 	_gathered()
 	_valid()
 	await _in_the_garden()
+	await _nests_meet_roofs()
 	await _demo()
 	await _stress()
 	finish()
@@ -250,6 +251,44 @@ func _in_the_garden() -> void:
 		var by_door := Vector4(o.s, -0.32 * signf(keep[0].y if keep[0].y != 0.0 else 1.0), 0.0, DecorationLayout.named("Bench"))
 		check(house.layout.clutter_frame(by_door, main.world.terrain.height_at) == null, "nothing stands in a doorway")
 	await play([{"op": "bare"}])
+
+
+## A house's nest sits with its top against its roof on every roof style demo/roof-nests.json puts up, raised on a
+## plinth or on another house too, and stays there as the roofs are thatched, a house grown taller and steeper and
+## another carried.
+func _nests_meet_roofs() -> void:
+	var steps := Driver.read("res://../demo/roof-nests.json")
+	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
+	_check_nests("laid")
+	await play([
+		{"op": "thatch"},
+		{"op": "lift_wall", "index": 0, "height": 3.6},
+		{"op": "roof", "index": 0, "pitch": 2.0},
+		{"op": "house", "at": [45, 0], "from": [45, 6], "size": [6, 4.2], "seconds": 1},
+		{"op": "wait", "seconds": 2},
+	])
+	_check_nests("thatched, regrown and carried")
+	await play([{"op": "bare"}])
+
+
+## Whether each house's nest, as its stones were laid, touches its roof's underside, neither short of it nor through it.
+func _check_nests(when: String) -> void:
+	_lay()
+	var houses := main.tool.walls.filter(func(w: Wall) -> bool: return w.roof != null)
+	check(houses.size() >= 8, "%s: the roof styles stand: %d" % [when, houses.size()])
+	for w: Wall in houses:
+		var nests := _named(w.layout.clutter, "Bird nest")
+		check(nests.size() == 1, "%s: house %d has its nest" % [when, w.id])
+		for v: Vector4 in nests:
+			var at: Vector3 = (w.layout.clutter_frame(v, main.world.terrain.height_at) as Transform3D).origin
+			var gap := INF
+			for st in w.layout.stones:
+				if st.s != w.layout.wrap(v.x) or st.xform.origin.distance_to(at) > 0.4:
+					continue
+				for c in WallLayout.BOX:
+					var p: Vector3 = st.xform * c
+					gap = minf(gap, w.roof.height_at(p.x, p.z) - p.y)
+			check(absf(gap) < 0.02, "%s: house %d's nest meets its %s roof: %.3f m short of it" % [when, w.id, "flat" if w.roof.flat() else "cone" if w.roof.kind == RoofLayout.Kind.CONE else "gable", gap])
 
 
 func _demo() -> void:

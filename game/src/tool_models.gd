@@ -800,14 +800,11 @@ static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := 
 		layout.openings = [WallLayout.archway(3.2 * 1.5 + 2.6)]
 	var roof := RoofLayout.new()
 	roof.seed = 7
-	roof.corners = layout.points
 	roof.pitch = 0.0 if flat else 1.8
-	roof.stepped = layout.gable_kind() == WallLayout.GableEnd.STEPS
 	roof.thatch = thatched
 	roof.deck = deck
 	layout.gable = roof
 	layout.build(Terrain.flat)
-	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
 	_roofed(root, layout, roof, layout.plastered())
@@ -831,7 +828,6 @@ static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofL
 	roof.deck = deck
 	layout.gable = roof
 	layout.build(Terrain.flat)
-	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
 	_roofed(root, layout, roof, false)
