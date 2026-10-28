@@ -381,7 +381,7 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	for m: Dictionary in json.meshes:
 		targets += (m.primitives[0] as Dictionary).get("targets", []).size()
 		for p: Dictionary in m.primitives:
-			authored += int(json.accessors[int(p.indices)].count) / 3
+			authored += int(json.accessors[int(p.get("indices", p.attributes.POSITION))].count) / 3
 	_keeps_skins_and_shapes(scene, what, targets)
 	var a := Avatar.open(scene, Color.WHITE)
 	var triangles := 0

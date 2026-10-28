@@ -251,13 +251,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
-  surface is a draw call, one per material of each mesh, and the limit is 40.
-  On a Quest 2 at quality step 6, seven figures of Seed-san, the Unity sample package, in `demo/avatar-chain-cost.json`, all
-  in view across the meadow, take 11.97 GPU ms against 9.37 with built-ins
-  (`perf/quest-2/avatar-chain-cost/20261027T094550Z-c2cb2af.json`), 2.6 ms for the seven
-  where their rigid parts took 1.6, which puts that view 0.86 ms past the 11.11 ms budget;
-  one in view close takes 9.14 against 8.37. Each adds 3.2 MB of buffers and 3.1 MB of
-  video memory; each phase's record keeps its peak texture, buffer and video memory.
+  surface is a draw call, one per material of each mesh, and the limit is 40. On a Quest 2
+  at quality step 6, seven figures of Seed-san, the Unity sample package, at its full 45,058
+  triangles in `demo/avatar-chain-cost.json`, all in view across the meadow, take 12.67 GPU
+  ms against 8.73 with built-ins
+  (`perf/quest-2/avatar-chain-cost/20261028T063015Z-3f56378.json`), 3.9 ms for the seven,
+  which puts that view 1.56 ms past the 11.11 ms budget; one in view close takes 9.54
+  against 7.55. Each adds 5.0 MB of buffers and 5.8 MB of video memory; each phase's record
+  keeps its peak texture, buffer and video memory.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is cut out, never blended, where it is see-through; normal maps and

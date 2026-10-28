@@ -335,9 +335,9 @@ static func write(root: Node3D, path: String) -> void:
 	f.store_buffer(_positional(doc.generate_buffer(state)))
 
 
-## The binary glTF `glb` with its morph targets moving positions alone. Godot writes a target's normals and tangents
-## whole, one a vertex, and those of a vertex the shape leaves still as a unit vector rather than none, so a shape set
-## would turn every normal of its mesh; and a full mesh's body shapes would fill the file with them.
+## The binary glTF `glb` with its morph targets moving positions alone, their normal and tangent accessors left with no
+## data. Godot writes a target's normals and tangents as the shape's own vectors rather than their change, so a set shape
+## would turn every normal of its mesh, and a full mesh's body shapes would fill the file with them.
 static func _positional(glb: PackedByteArray) -> PackedByteArray:
 	var json_size := glb.decode_u32(12)
 	var json: Dictionary = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
