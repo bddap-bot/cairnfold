@@ -30,13 +30,14 @@ func _finish(rig: Rig) -> void:
 	_reaches_across_the_map(rig)
 	_air_target_shows_the_preview(rig)
 	_the_preview_holds_the_players_pose(rig)
-	_mountains_are_sky(rig)
+	_casts_end_at_the_side(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _left_stick_moves(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
 	await _ground_pull_back_walks_the_ray(rig)
 	await _far_aim_holds_against_tremor(rig)
+	await _preview_is_the_landing(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
 	_landing_sounds(rig)
@@ -109,42 +110,42 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 	check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
 
 
-## The mountains are sky to the ray: aimed at one over the map's ground, level or up at its ridge, it gives what the
-## sky over it gives, nothing near the map's side and the air reach farther in, and never the floor at the edge.
-## Aimed down near the edge it still lands on the ground there.
-func _mountains_are_sky(rig: Rig) -> void:
+## The mountains are sky to the ray and its cast ends at the map's side: aimed past any side, at the foothills, level,
+## or up at a ridge, it targets the point where the cast leaves the map, on the floor there unless aimed above the
+## horizon, where the air reach, if nearer, ends it instead. Aimed down near the edge it still lands on the ground there.
+func _casts_end_at_the_side(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5
 	var ranges: Dictionary = Mountains.RANGES[0]
 	for side: Vector2 in [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]:
 		var az := atan2(side.y, side.x)
 		var ridge: Vector3 = Vector3(side.x, 0, side.y) * ranges.radius + Vector3.UP * Mountains.ridge(ranges, Mountains.noise_for(ranges), az)
+		var foothill := Vector3(side.x, 0, side.y) * (half + Terrain.BANK + 20.0) + Vector3.UP * Terrain.BANK_FOOT
 		for at: Vector2 in [Vector2(half - 6.0, Rig.EYE), Vector2(40.0, 25.0)]:
 			var from := at.x
 			var o := Vector3(side.x * from, terrain.height_at(side.x * from, side.y * from) + at.y, side.y * from)
-			var sky := Vector3(side.x, 0.5, side.y).normalized()
-			rig.aim(_pose(o, sky))
-			var above: Variant = rig.aim_ground
-			var above_lift := rig.aim_lift
-			for dir: Vector3 in [Vector3(side.x, 0, side.y), Vector3(side.x, 0.2, side.y), ridge - o]:
+			for dir: Vector3 in [foothill - o, Vector3(side.x, 0, side.y), Vector3(side.x, 0.2, side.y), ridge - o]:
 				dir = dir.normalized()
+				var leaves := Terrain.side_along(o, dir)
+				var what := "a ray from %.0f m past the %s side along %s" % [from, side, dir]
+				if terrain.raycast(o, dir, leaves) != null:
+					continue
 				rig.aim(_pose(o, dir))
 				var g: Variant = rig.aim_ground
-				var what := "a ray from %.0f m at the mountains along %s" % [from, dir]
-				check(terrain.raycast(o, dir) == null, what + " clears the map's ground")
-				var air := o + dir * Rig.AIR_REACH
-				if dir.y <= 0.0 or not Terrain.over_map(air):
-					check(g == null and not rig._landing.visible, what + " has no target, as the sky has none: %s" % g)
+				check(g != null and rig._landing.visible, what + " has a target")
+				if g == null:
+					continue
+				var target: Vector3 = g + Vector3.UP * rig.aim_lift
+				if dir.y <= 0.0:
+					var edge := o + dir * leaves
+					check(absf(maxf(absf(g.x), absf(g.z)) - half) < 0.01 and Vector2(g.x, g.z).distance_to(Vector2(edge.x, edge.z)) < 0.01, what + " ends at the map's side where it leaves: %s" % g)
+					check(absf(g.y - terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, what + " stands on the floor there: %s" % g)
 				else:
-					check(g != null and (g + Vector3.UP * rig.aim_lift).distance_to(air) < 0.01, what + " targets the air at the reach, as the sky does: %s" % g)
-				if from == half - 6.0:
-					check(g == null and above == null, what + " gives what the sky above it gives: %s and %s" % [g, above])
-			if from != half - 6.0:
-				check(above != null and (above + Vector3.UP * above_lift).distance_to(o + sky * Rig.AIR_REACH) < 0.01, "the sky from %.0f m in targets the air" % from)
+					check(target.distance_to(o + dir * minf(Rig.AIR_REACH, leaves)) < 0.01, what + " floats at the air reach or the side, the nearer: %s" % target)
 		var near := Vector3(side.x, 0, side.y) * (half - 6.0)
 		var eye := near + Vector3.UP * (terrain.height_at(near.x, near.z) + Rig.EYE)
 		rig.aim(_pose(eye, Vector3(side.x, -0.5, side.y).normalized()))
 		var g: Variant = rig.aim_ground
-		check(g != null and Terrain.over_map(g) and absf(g.y - terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, "a ray down at the ground by the edge lands on it: %s" % g)
+		check(g != null and maxf(absf(g.x), absf(g.z)) < half - 0.01 and absf(g.y - terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, "a ray down at the ground by the edge lands on it: %s" % g)
 	rig.hide_markers()
 
 
@@ -162,6 +163,32 @@ func _reaches_across_the_map(rig: Rig) -> void:
 	var preview := rig._landing.global_transform
 	check(rig._landing.visible and preview.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far preview grows with its distance: %.1f" % preview.basis.get_scale().x)
 	rig.hide_markers()
+	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
+
+
+## Through real frames, a cast across the map and past its side, released as a thumb lets go, through partial
+## deflection: every frame the preview stands where a release then would land, so the last one shown is where the
+## player lands.
+func _preview_is_the_landing(rig: Rig) -> void:
+	var half := Terrain.SIZE * 0.5 - 4.0
+	for to: Vector3 in [terrain.ground(half, -half), Vector3(half + 60.0, terrain.height_at(half, -half) + 20.0, -half - 60.0)]:
+		var o := Vector3(-half, terrain.height_at(-half, half) + 30.0, half)
+		rig.place(Vector3(o.x, o.y - Rig.EYE, o.z), 0.0)
+		await _frame(rig)
+		var eye := rig.head.global_position
+		rig.left.global_transform = Transform3D(Basis.looking_at(to - eye, Vector3.UP), eye + Vector3(-0.2, -0.4, -0.3))
+		var shown := Vector3.INF
+		for y in [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.55, 0.32, 0.0]:
+			Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
+			await _frame(rig)
+			if rig._landing.visible:
+				shown = rig._landing.global_position
+		Hand.injected_sticks.erase(rig.left.tracker)
+		for f in roundi(0.3 / STEP):
+			await _frame(rig)
+		var h := rig.head.global_position
+		var stood := Vector3(h.x, rig.global_position.y, h.z)
+		check(eye.distance_to(stood) > 150.0 and shown.distance_to(stood) < Rig.LIFTED + 0.01, "a cast %.0f m toward %s: the last preview shown, %s, is where the player lands, %s" % [eye.distance_to(stood), to, shown, stood])
 	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
 
 
@@ -344,8 +371,9 @@ func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 	check(absf(snapped - Vector2(far.x - aimed.x, far.z - aimed.z).length()) < 1.0, "%s: a release straight from full forward goes the full distance" % what)
 
 
-## Through real frames, aimed at the ground: easing the stick back walks the target back along the ray, a slow
-## release lands there in the air, and only a quick release from full forward lands on the ground the ray hit.
+## Through real frames, aimed at the ground: easing the stick back walks the target back along the ray, as far as the
+## stick reached RELEASE_LOOKBACK before, a slow release lands there in the air, and only a quick release from full
+## forward lands on the ground the ray hit.
 func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	var dir := Vector3(0, -0.3, -1).normalized()
 	rig.place(Vector3(0, terrain.height_at(0, 0), 0), 0.0)
@@ -359,7 +387,8 @@ func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	var hit: Vector3 = rig.aim_ground
 	for y in [0.85, 0.7, 0.55, 0.4]:
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
-		await _frame(rig)
+		for f in roundi(Rig.RELEASE_LOOKBACK / STEP) + 2:
+			await _frame(rig)
 		var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
 		var want := o.lerp(hit, Rig.reach_scale(y))
 		check(target.distance_to(want) < 0.01, "ground, stick at %.2f: the target is on the ray at %s, not %s" % [y, want, target])

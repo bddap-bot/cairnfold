@@ -1,0 +1,19 @@
+[
+  {"op": "place", "x": -72, "z": 72},
+  {"op": "view", "eye": [-72, 1.65, 72], "at": [72, 0, -72], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "aim", "dir": [0, 0, -1], "stick": 1.0, "seconds": 1.5, "capture": "01-long-cast-preview", "settle": 3.0},
+  {"op": "view", "eye": [0, 0, 0], "at": [1, -0.25, -1], "relative": true},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "02-long-cast-landed"},
+  {"op": "digest", "name": "02-long-cast-landed", "ground": true},
+  {"op": "place", "x": 0, "z": -74},
+  {"op": "view", "eye": [0, 1.65, -74], "at": [0, 1.65, -130], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "aim", "dir": [0, 0.1, -1], "stick": 1.0, "seconds": 1.5, "capture": "03-aimed-past-the-edge", "settle": 3.0},
+  {"op": "view", "eye": [0, 0, 0], "at": [0, -0.35, -1], "relative": true},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "04-edge-landed"},
+  {"op": "digest", "name": "04-edge-landed", "ground": true},
+  {"op": "quit"}
+]

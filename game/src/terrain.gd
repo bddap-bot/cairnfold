@@ -318,9 +318,13 @@ func exit_along(origin: Vector3, dir: Vector3) -> float:
 	return maxf(t, 0.0)
 
 
-## Whether `p` lies over the map, not out past its side.
-static func over_map(p: Vector3) -> bool:
-	return maxf(absf(p.x), absf(p.z)) <= SIZE * 0.5
+## How far along `dir` from `origin` the ray leaves the map over its side; INF if it never does, 0 if it is past it.
+static func side_along(origin: Vector3, dir: Vector3) -> float:
+	var t := INF
+	for axis in [0, 2]:
+		if dir[axis] != 0.0:
+			t = minf(t, (signf(dir[axis]) * SIZE * 0.5 - origin[axis]) / dir[axis])
+	return maxf(t, 0.0)
 
 
 ## The grid cells within `radius` of (x, z), clipped to the play area.

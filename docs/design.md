@@ -3201,8 +3201,13 @@ Directive (verbatim): "When I'm teleporting... I'd like to be able to... hold fo
 How far the stick is pushed sets how far along the aim the target lies, so the reach is the
 same stick as the aim. The other stick no longer moves an air target nearer or farther: two controls
 for one distance did not read together, and the air reach is a fixed 30 m to ease back from. A
-released stick springs through every smaller deflection on its way to centre, so the release takes
-the target from 0.1 s before the stick reached its deadzone.
+released stick springs through every smaller deflection on its way to centre, so the target reaches
+as far as the stick did 0.1 s before; the preview shown when the stick reaches its deadzone is the
+one target, and the release lands there.
+
+Report: the landing preview stood only part of the way along a cast across the map, short of where the teleport
+then landed. It ran back toward the player as the released stick sprang through smaller deflections, while the
+landing read the target from 0.1 s before; now the delay applies to the stick, so preview and landing are one point.
 
 Directive (verbatim): "I'm testing out the teleport movement, the ability to teleport only a short distance, and in the sky it is what I wanted, but on the ground I would only like to teleport along the ray that I am casting. I don't want to choose a location on the ground that is closer to me. When I pull back on the thumbstick slowly after extending it, I want the teleport location to walk back along the ray that I'm casting, not along the ground. So the only way I would teleport to the ground is if I'm holding the thumbstick straight forward and then I release quickly. Otherwise I should be teleporting to a location along the ray that I have cast."
 
@@ -3231,10 +3236,13 @@ Report: with the mountains in place, teleporting far horizontally no longer work
 
 Directive (verbatim): "I'd like mountains to behave like skybox as far as teleport is concerned."
 
-Everything past the map's side, the mountains and the ground before them, is sky to the ray: it never meets them.
-Aimed at a mountain, the ray gives what the sky there gives: the point in the air at the 30 m reach while that is
-over the map, and otherwise no target at all, so the player never floats out past the edge. Ground, roofs, walls
-and trees on the map stay targets up to the edge.
+Report: aimed toward the mountains' foothills, the teleport target vanished and there was no teleport; the cast
+should clip to the map's edge.
+
+Everything past the map's side, the mountains and the ground before them, is sky to the ray: it never meets them,
+and its cast ends at the side. A ray that hits nothing on the map stands the player on the floor at the side where it
+leaves; aimed above the horizon it floats them at the 30 m air reach or at the side, whichever is nearer, so the
+player never stands or floats out past the edge. Ground, roofs, walls and trees on the map stay targets up to the edge.
 
 ### The landing preview
 

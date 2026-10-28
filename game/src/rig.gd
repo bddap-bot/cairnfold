@@ -30,8 +30,8 @@ const MARKER_NEAR := 15.0
 const FULL_STICK := 0.9
 const DEADZONE := 0.3
 const NEAREST := 0.1
-## A released stick springs through every smaller deflection on its way to centre; the release takes the
-## target from this long before the stick reached its deadzone.
+## A released stick springs through every smaller deflection on its way to centre; the target reaches as far as the
+## stick did this long before, so the one shown when it reaches its deadzone is where the release lands.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
 ## A surface whose outward normal rises less than this, steeper than 70 degrees or facing down, is a side, as of a
@@ -99,7 +99,7 @@ var inside := false
 var _dim := 0.0
 var _pending: Variant = null
 var _aim_clock := 0.0
-## [time, aim_ground, aim_lift] over the last RELEASE_LOOKBACK of aiming, oldest first.
+## [time, the stick's forward deflection] over the last RELEASE_LOOKBACK of aiming, oldest first.
 var _aim_trail: Array = []
 var _steady_dir := Vector3.ZERO
 
@@ -236,16 +236,15 @@ func _locomotion_input(delta: float) -> void:
 	if aim_hand != null:
 		var stick := aim_hand.stick()
 		if stick.length() < DEADZONE:
-			var held: Array = _aim_trail[0] if not _aim_trail.is_empty() else [0.0, null, 0.0]
-			if held[1] != null:
-				teleport(held[1], held[2])
+			if aim_ground != null:
+				teleport(aim_ground, aim_lift)
 			end_aim()
 			return
-		aim(_steadied(aim_hand.at_controller(), delta), reach_scale(stick.y))
 		_aim_clock += delta
-		_aim_trail.append([_aim_clock, aim_ground, aim_lift])
+		_aim_trail.append([_aim_clock, stick.y])
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
+		aim(_steadied(aim_hand.at_controller(), delta), reach_scale(_aim_trail[0][1]))
 		return
 	for turn: String in TURNS:
 		if _stick.pressed(turn):
@@ -254,6 +253,7 @@ func _locomotion_input(delta: float) -> void:
 
 func end_aim() -> void:
 	aim_hand = null
+	aim_ground = null
 	_aim_clock = 0.0
 	_aim_trail.clear()
 	_steady_dir = Vector3.ZERO
@@ -278,23 +278,23 @@ static func reach_scale(y: float) -> float:
 
 ## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
 ## the ground, a roof of any pitch, a wall's top, a tree's crown from above, where the player then stands, or a side,
-## as of a wall, at whose foot they stand if it was struck within CLIMB of the floor there, else floating where it was struck; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
-## along it while that is over the map. The mountains round it are sky to the ray: one that hits nothing on the map has
-## no target. The target lies `fraction` of the way there along the ray, in the air above the floor short of a hit.
+## as of a wall, at whose foot they stand if it was struck within CLIMB of the floor there, else floating where it was
+## struck. The mountains round the map are sky to the ray, and its cast ends at the map's side: one that hits nothing
+## stands the player on the floor at the side where it leaves, or, aimed above the horizon, floats them in the air
+## AIR_REACH along it or at the side if that is nearer. The target lies `fraction` of the way there along the ray, in
+## the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
-	var upward := dir.y > 0.0
-	var reach := terrain.exit_along(origin, dir)
+	var reach := minf(terrain.exit_along(origin, dir), Terrain.side_along(origin, dir))
 	var hit: Variant = terrain.raycast(origin, dir, reach)
 	var solid: Dictionary = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
 	if not solid.is_empty():
 		hit = solid.point
-	var full: Vector3 = hit if hit != null else origin + dir * AIR_REACH
-	if hit == null and (not upward or not Terrain.over_map(full)):
-		aim_ground = null
-		hide_markers()
-		return
+	if hit == null and dir.y <= 0.0:
+		var leaves := origin + dir * reach
+		hit = Vector3(leaves.x, floor_under.call(leaves), leaves.z)
+	var full: Vector3 = hit if hit != null else origin + dir * minf(AIR_REACH, reach)
 	var target := origin.lerp(full, fraction)
 	var stand := target
 	var g: float = floor_under.call(target)
