@@ -61,6 +61,7 @@ func _run() -> void:
 ## A little pinch pushed sideways flicks the stick that way even with the arm stretched, so a reaching hand is thrown
 ## far: the stick reads the hand's own move, not the thrown hand's.
 func _stick_reads_the_palm(right: Hand) -> void:
+	right.tool = Hand.Tool.NONE
 	var head: Transform3D = main.rig.head.global_transform
 	var at := head * Lessons.frame({"at": Vector3(0.45, -0.3, -0.5), "aim": Vector3(0, -0.3, -1), "roll": 0.0})
 	for f in 30:

@@ -416,8 +416,7 @@ func at_controller() -> Transform3D:
 ## Where the player's avatar, here and in every other player's game, holds this hand: the controller, stopped at what
 ## is solid as the hand you see is, and never out where a reach throws the hand you see.
 func held_at() -> Transform3D:
-	var at := at_controller()
-	return at if reaches() else Transform3D(at.basis, at.origin + body.global_position - global_position)
+	return at_controller() if reaches() else body.global_transform
 
 
 ## Throws the hand out from the controller by `reach` while it holds a build tool or nothing; a pose the runtime or
