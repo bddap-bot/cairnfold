@@ -6,7 +6,7 @@ controls and the build order.
 - Clean room: never use, inspect or derive anything from Tiny Glade's files.
   Public talks and store material may inform the feel; every asset is generated
   here or authored for this project, with four exceptions, all CC0 and each listed with its page and author:
-  - the animal calls, recordings of real animals, in `game/audio/animals/sources.json`;
+  - the animal calls, recordings of real animals, and the grass a snake rustles, in `game/audio/animals/sources.json`;
   - the pencil scratch, in `game/audio/charcoal/source.json`;
   - the teleport sounds, a swish and a cloth rustle, in `game/audio/fx/sources.json`;
   - the deer and fox models with their animations, in `game/animals/sources.json`.

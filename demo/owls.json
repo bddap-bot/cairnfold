@@ -1,0 +1,22 @@
+[
+  {"op": "place", "x": 0, "z": 4},
+  {"op": "tree", "x": 0, "z": -3, "seed": 7},
+  {"op": "wall", "points": [[2.5, -4], [6, -5]], "seconds": 1},
+  {"op": "sun", "time": 0.7806, "seconds": 2},
+  {"op": "wait", "seconds": 3},
+  {"op": "shy"},
+  {"op": "label", "name": "owls"},
+  {"op": "view", "eye": [1.5, 1.7, 3], "at": [1.5, 2.0, -3.5]},
+  {"op": "wait", "seconds": 10},
+  {"op": "capture", "name": "00-arrived"},
+  {"op": "view", "subject": "owls", "eye": [0.15, 0.05, -1.5], "at": [0, 0.15, 0]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "01-perched"},
+  {"op": "wait", "seconds": 18},
+  {"op": "capture", "name": "02-later"},
+  {"op": "label", "name": "approach"},
+  {"op": "glide", "subject": "owls", "eye": [0.1, 0.0, -0.6], "at": [0, 0.15, 0], "seconds": 2.5},
+  {"op": "wait", "seconds": 5},
+  {"op": "capture", "name": "03-flown"},
+  {"op": "quit"}
+]

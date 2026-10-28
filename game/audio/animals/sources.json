@@ -139,5 +139,255 @@
   "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
   "kind": "fox",
   "clips": {"yip0": [[8.51, 0.28]], "yip1": [[13.11, 0.24]], "yip2": [[45.23, 0.24]], "yip3": [[48.79, 0.24]]}
+ },
+ {
+  "page": "https://freesound.org/people/shaunhillyard/sounds/532235/",
+  "audio": "https://cdn.freesound.org/previews/532/532235_4759831-hq.mp3",
+  "title": "Frog Croaking (UK Common Frog)",
+  "author": "shaunhillyard",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "frog",
+  "clips": {
+   "croak0": [[0.43, 0.9]],
+   "croak1": [[5.08, 0.9]],
+   "croak2": [[9.53, 0.48]],
+   "croak3": [[34.21, 0.89]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Breviceps/sounds/462863/",
+  "audio": "https://cdn.freesound.org/previews/462/462863_9159316-hq.mp3",
+  "title": "Common toad (Bufo bufo)",
+  "author": "Breviceps",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "frog",
+  "clips": {
+   "croak4": [[1.61, 0.8]],
+   "croak5": [[3.62, 0.27], [5.62, 0.18]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/SpliceSound/sounds/188195/",
+  "audio": "https://cdn.freesound.org/previews/188/188195_1480854-hq.mp3",
+  "title": "Green frog, croaking.wav",
+  "author": "SpliceSound",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "frog",
+  "clips": {
+   "croak6": [[5.54, 0.44]],
+   "croak7": [[15.52, 0.35], [15.92, 0.31]],
+   "croak8": [[29.23, 0.45]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Breviceps/sounds/573584/",
+  "audio": "https://cdn.freesound.org/previews/573/573584_9159316-hq.mp3",
+  "title": "Croaking Frogs",
+  "author": "Breviceps",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "frog",
+  "clips": {
+   "croak9": [[1.74, 0.45]],
+   "croak10": [[3.62, 0.32]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Patrick_Corra/sounds/745208/",
+  "audio": "https://cdn.freesound.org/previews/745/745208_8711646-hq.mp3",
+  "title": "Tawny owl hooting",
+  "author": "Patrick_Corra",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot0": [[0.25, 0.85]],
+   "hoot1": [[5.58, 1.45]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/faxfaxfax/sounds/655380/",
+  "audio": "https://cdn.freesound.org/previews/655/655380_12156778-hq.mp3",
+  "title": "Tawny Owl",
+  "author": "faxfaxfax",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot2": [[5.15, 1.4]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Marcuspepsi/sounds/450214/",
+  "audio": "https://cdn.freesound.org/previews/450/450214_9336600-hq.mp3",
+  "title": "Tawny Owl in Molkom, Sweden.",
+  "author": "Marcuspepsi",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot3": [[1.98, 1.02]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Elanor1995/sounds/688869/",
+  "audio": "https://cdn.freesound.org/previews/688/688869_6903350-hq.mp3",
+  "title": "Tawny owl.wav",
+  "author": "Elanor1995",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot4": [[2.4, 1.11]],
+   "hoot5": [[14.57, 1.08]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Breviceps/sounds/465697/",
+  "audio": "https://cdn.freesound.org/previews/465/465697_9159316-hq.mp3",
+  "title": "Owl Hoot",
+  "author": "Breviceps",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot6": [[0.19, 1.15]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Bansemer/sounds/763194/",
+  "audio": "https://cdn.freesound.org/previews/763/763194_341440-hq.mp3",
+  "title": "Great Horned Owls",
+  "author": "Bansemer",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot7": [[3.33, 0.53], [4.26, 0.43]],
+   "hoot8": [[22.94, 0.46]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/danielmcadams/sounds/486390/",
+  "audio": "https://cdn.freesound.org/previews/486/486390_7588344-hq.mp3",
+  "title": "Barred Owl Calling",
+  "author": "danielmcadams",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot9": [[21.73, 0.94]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/craigsmith/sounds/479588/",
+  "audio": "https://cdn.freesound.org/previews/479/479588_2524442-hq.mp3",
+  "title": "R01-27-Great Horned Owl Hoot.wav",
+  "author": "craigsmith",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "owl",
+  "clips": {
+   "hoot10": [[4.0, 1.27]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/naturenotesuk/sounds/435372/",
+  "audio": "https://cdn.freesound.org/previews/435/435372_7455632-hq.mp3",
+  "title": "Grey Squirrel",
+  "author": "naturenotesuk",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "squirrel",
+  "clips": {
+   "chitter0": [[4.77, 0.51]],
+   "chitter1": [[9.28, 0.2], [9.7, 0.18]],
+   "chitter2": [[32.87, 0.52]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/TRP/sounds/570996/",
+  "audio": "https://cdn.freesound.org/previews/570/570996_97550-hq.mp3",
+  "title": "180606 Squirrel, clucks and squaks TORONTO.flac",
+  "author": "TRP",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "squirrel",
+  "clips": {
+   "chitter3": [[0.73, 0.47]],
+   "chitter4": [[4.36, 0.43]],
+   "chitter5": [[37.57, 0.79]],
+   "chitter6": [[1.87, 0.21], [2.18, 0.22]],
+   "chitter7": [[25.94, 0.64]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/philberts/sounds/111393/",
+  "audio": "https://cdn.freesound.org/previews/111/111393_835438-hq.mp3",
+  "title": "Red_Squirrel_chatter.wav",
+  "author": "philberts",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "squirrel",
+  "clips": {
+   "chitter8": [[6.36, 0.56]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/TheKingOfGeeks360/sounds/852386/",
+  "audio": "https://cdn.freesound.org/previews/852/852386_15895934-hq.mp3",
+  "title": "Rodents - Eastern Gray Squirrel; Chatter, Close Perspective",
+  "author": "TheKingOfGeeks360",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "squirrel",
+  "clips": {
+   "chitter9": [[1.84, 0.32]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/morganpurkis/sounds/396014/",
+  "audio": "https://cdn.freesound.org/previews/396/396014_5937039-hq.mp3",
+  "title": "Rustling Grass 1.wav",
+  "author": "morganpurkis",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "rustle",
+  "clips": {
+   "rustle0": [[0.08, 0.42]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/morganpurkis/sounds/396012/",
+  "audio": "https://cdn.freesound.org/previews/396/396012_5937039-hq.mp3",
+  "title": "Rustling Grass 3",
+  "author": "morganpurkis",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "rustle",
+  "clips": {
+   "rustle1": [[0.0, 0.5]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/alegemaate/sounds/364712/",
+  "audio": "https://cdn.freesound.org/previews/364/364712_2531187-hq.mp3",
+  "title": "Rustling Grass",
+  "author": "alegemaate",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "rustle",
+  "clips": {
+   "rustle2": [[0.0, 1.2]],
+   "rustle3": [[4.94, 0.75]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Wigglesworth/sounds/767220/",
+  "audio": "https://cdn.freesound.org/previews/767/767220_6775466-hq.mp3",
+  "title": "Rustling grass",
+  "author": "Wigglesworth",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "rustle",
+  "clips": {
+   "rustle4": [[8.74, 0.75]],
+   "rustle5": [[11.98, 0.89]],
+   "rustle6": [[15.32, 0.74]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Clusman/sounds/543508/",
+  "audio": "https://cdn.freesound.org/previews/543/543508_1218735-hq.mp3",
+  "title": "grass_rustling_uncut.wav",
+  "author": "Clusman",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "rustle",
+  "clips": {
+   "rustle7": [[2.31, 1.2]]
+  }
  }
 ]

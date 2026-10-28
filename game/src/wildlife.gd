@@ -8,10 +8,12 @@ extends Node3D
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
 ## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), fish to the ponds (`Fish`), conures,
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`); deer
-## and a fox come out of the trees round the meadow (`Roamers`).
+## and a fox come out of the trees round the meadow (`Roamers`). Frogs, grass snakes, squirrels and owls keep their
+## distance (`Shy`).
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
 ## those that eat from it, each kind as its `Appetite` says. At night the day's animals rest: no new ones come but
-## the fireflies, butterflies stay settled on their flowers, conures roost and only murmur, and ducks rest quietly.
+## the fireflies and the owls, butterflies stay settled on their flowers, conures roost and only murmur, ducks rest
+## quietly, snakes lie still, squirrels keep to their crowns, and the frogs croak.
 
 ## How long after its habitat appears a duck, a pond's fish, or a flock of conures, comes.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
@@ -125,6 +127,10 @@ var fish: Fish
 var birds: Birds
 var herds: Herds
 var roamers: Roamers
+var frogs: Frogs
+var snakes: Snakes
+var squirrels: Squirrels
+var owls: Owls
 var calls: Calls
 ## The sky whose hour sets day and night; none is always day.
 var light: Look
@@ -136,8 +142,8 @@ var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
-## Which of the birds, herds and roamers looks next: each looks every LOOK_EVERY, a third of it after the one before, so
-## no frame pays for all three.
+## Which of the birds, herds, roamers and squirrels looks next: each looks every LOOK_EVERY, a quarter of it after the one
+## before, so no frame pays for them all.
 var _looker := 0
 var _asleep := false
 ## Per hand and the head: where it was last tick and how fast it has been moving. A teleport or a snap turn forgets
@@ -210,6 +216,12 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 	add_child(herds)
 	roamers = Roamers.new(self, rng.seed + 7)
 	add_child(roamers)
+	frogs = Frogs.new(self, rng.seed + 9)
+	snakes = Snakes.new(self, rng.seed + 10)
+	squirrels = Squirrels.new(self, rng.seed + 11)
+	owls = Owls.new(self, rng.seed + 12)
+	for kind in shy():
+		add_child(kind)
 	calls = Calls.new(eyes, rng.seed + 5)
 	add_child(calls)
 
@@ -219,6 +231,11 @@ func ducks() -> Array[Duck]:
 	for f in families:
 		out.append_array(f.ducks)
 	return out
+
+
+## The kinds that keep their distance.
+func shy() -> Array[Shy]:
+	return [frogs, snakes, squirrels, owls]
 
 
 func _process(delta: float) -> void:
@@ -258,10 +275,11 @@ func tick(delta: float) -> void:
 		birds.look()
 		herds.look()
 		roamers.look()
-	elif _since_look >= LOOK_EVERY / 3.0:
+		squirrels.look()
+	elif _since_look >= LOOK_EVERY / 4.0:
 		_since_look = 0.0
-		[birds.look, herds.look, roamers.look][_looker].call()
-		_looker = (_looker + 1) % 3
+		[birds.look, herds.look, roamers.look, squirrels.look][_looker].call()
+		_looker = (_looker + 1) % 4
 	ducks_came = ducks_came or not families.is_empty()
 	var perches := [birds] if ducks_came and birds.birds.is_empty() and not birds.sites.is_empty() else []
 	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, day, birds.rng).is_empty():
@@ -274,6 +292,8 @@ func tick(delta: float) -> void:
 		if herds.count() < Herds.CAP:
 			herds.arrive(fence)
 	roamers.tick(delta)
+	for kind in shy():
+		kind.tick(delta)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)

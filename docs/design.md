@@ -4225,7 +4225,7 @@ sound costs no frame time.
   energy above 4 kHz. Conures get six kinds of call, the soft ones most: murmurs, beak grinding, beak
   clicks, grumbled chatter, chirps, and their contact calls cut down to the two lowest harmonics.
   `Calls` plays them at the animal, sparse and under the music: each
-  kind waits its own while between calls and any two but the soft ones (murmurs, grinding, clicks) are 3 s apart, no clip plays twice
+  kind waits its own while between calls and any two but the soft ones (murmurs, grinding, clicks, rustles) are 3 s apart, no clip plays twice
   running, pitch and level vary a little, the voices fall off from 6 m and never pass
   full level, and the distance takes up to 12 dB off above 3 kHz. Report (verbatim): "I am not
   hearing any sound coming from these animals right now. Is there supposed to be sound in the game right now".
@@ -4240,7 +4240,10 @@ sound costs no frame time.
   no conure at all: in the five minutes `demo/feeding.json` runs with the conures there,
   they had made 19 calls, each a 0.3 to 1 s chirp or chatter 3 to 15 m off and none while on the hand,
   watching, preening or flying; now about 60. A settled sheep bleats about once a minute and a quarter, a settled deer
-  mews about every minute and a half, and a fox yips about every two and a half. Fish make
+  mews about every minute and a half, and a fox yips about every two and a half. At night a sitting frog croaks
+  about every 14 s and a perched owl hoots about every 24 s; a squirrel chuckles about every 22 s clinging and
+  every half minute foraging, and chatters as it takes fright; a sliding snake rustles the grass about every 9 s,
+  softly enough that no call waits on it. Fish make
   no call: their nibbles are water sounds. An animal within 2.5 m of
   the head makes only its close calls (`Calls.CLOSE`): the soft ones, and a duck family's
   quacks and peeps, as a family fed from a hand held over the pond is that near. A duck
@@ -4543,6 +4546,36 @@ or thrown only draw those already there (see "Feeding").
   A short neck/head IK chain is the exception during hand feeding: `NeckAim` runs after the clip, aims at the
   seed heap above the dish, and leaves the torso, legs and ears on their authored animation. A behaviour
   without a clip is otherwise left out: they never lie down.
+- **Frogs, grass snakes, squirrels and owls** keep their distance (`Shy`). Each kind comes to habitats of its own
+  `Wildlife.ARRIVE_AFTER` after one appears (owls `Owls.AFTER`), where nobody is looking, grows in, and goes with its
+  habitat. One a person comes toward within the kind's `FLIGHT`, or moves suddenly near within its `STARTLE`, gets
+  away its own way; a person standing still, or teleporting, sends none off, and a demo's `view` is a cut as a
+  teleport is.
+  - Frogs sit at a pond's waterline, one per eight of its wet grid points, up to four a pond and twelve in all
+    (`Frogs.CAP`). Now and then one hops along the bank or into the water, swims a while with only its eyes out and
+    hops back up its bank. Walked up to, it hops for the water, plops in with a ripple and stays under 8 to 20 s
+    before it comes up to swim back. At night they croak, the throat swelling with each.
+  - A grass snake comes to each pond of at least `Wildlife.MIN_POND` wet grid points, three in all: olive with a
+    cream collar edged in black, it slides from one spot in the grass 0.8 to 4.5 m out from the shore to another and
+    lies still between, tongue flicking, keeping out of water, paths and paving and clear of walls. Its waves are
+    fixed to the ground it slides over, so the body follows the way the head went. Walked up to, it slips off
+    quickly the other way. It moves by day and lies still at night.
+  - A red squirrel comes to each planted tree, four in all: down out of its crown, about the trunk with its belly to
+    the bark, and down to forage within 3 m of the trunk, sitting up to nibble. Walked up to, it races up the trunk
+    round the side away from the person and stays up until all has been quiet a while. At night it keeps to the top
+    of its trunk.
+  - Owls, one or two, come at night to the perches conures use (`Birds.sites`), kept 0.5 m from any conure or other
+    owl. Perched, one turns its head a long way round, watches a person within 7 m, blinks and hoots now and then;
+    it glides to another perch or drops to the grass and flies back up. Walked up to, it flies to the perch
+    furthest off, or away with none 4.5 m clear. With the day they fly off out of sight.
+
+  Each is built in code like the snail, soft ellipsoids coloured per vertex (the snake a tapering tube), and its motions run in
+  its vertex shader from four numbers a frame (`Shy.One.pose`): a frog's leap, kick and throat; the snake's slide,
+  turn and tongue; the squirrel's bounds, sitting up and tail; the owl's wingbeat, hoot, blink and head turn. Their
+  calls are recordings like the others' (`game/audio/animals/sources.json`): eleven croaks from four kinds of frog
+  and toad, eleven hoots from tawny, great horned and barred owls, ten squirrel chuckles and chatters taken down three
+  semitones, and eight grass rustles muffled below 1.6 kHz, which a sliding snake makes and which wait on no other
+  call. No clip plays twice running, each varies a little in level and pitch, and each kind keeps its own while between calls.
 
 ### Feeding
 
@@ -4632,8 +4665,24 @@ no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eig
 about 7,000 triangles at most, one shared mesh and one material, no shadows. Deer come at most three at a time
 (`Roamers.HERD`) and the fox alone: four draw calls of about 2,100 and 1,850 triangles, each kind's surfaces
 merged into one mesh coloured per vertex (`Beast`), shared with one material, no shadows; each animal poses
-its own skeleton of about 50 bones from its clips, with nothing riding the bones. Every animal of a kind
-shares its mesh and material, through `Critter` or, for the deer and fox, `Beast`.
+its own skeleton of about 50 bones from its clips, with nothing riding the bones. Frogs, snakes, squirrels
+and owls are one `Crowd` a kind, unshadowed: four draw calls of 772, 680, 968 and 884 triangles an animal, at most
+16,944 triangles with every kind at its cap; the CPU steers them and writes each one's pose once a frame. Every
+animal of a kind shares its mesh and material, through `Critter`, `Crowd` or, for the deer and fox, `Beast`.
+
+What the four cost the Quest 2 (`demo/shy-cost.json`, `bench.sh`, the ladder pinned at its fitted step, 15): three
+ponds, four planted trees and a wall, seen from 1.65 m with the frogs, snakes and squirrels in view by day and the owls
+come by night, each shown and hidden twice (`layer` "shy"), median GPU milliseconds a frame
+(`perf/quest-2/shy-cost/20261028T153345Z-a89d89b.json`):
+
+| View | Hidden | Shown | Draws, hidden to shown | Primitives added |
+| --- | --- | --- | --- | --- |
+| Day, a | 5.93 | 6.25 | 58 → 63 | 6,459 |
+| Day, b | 6.17 | 6.34 | 59 → 62 | 3,617 |
+| Night, a | 6.03 | 6.19 | 55 → 61 | 9,441 |
+| Night, b | 6.15 | 6.28 | 57 → 62 | 5,886 |
+
+They add 0.13 to 0.32 ms against the 11.1 ms line, and the frame holds 72 Hz (p50 13.9 to 14.0 ms) shown or hidden.
 
 On the CPU, `Wildlife` looks the walls and trees over twice a second for perches and pastures, and
 between looks the animals use what it found. A wall's perch points read every stone, several

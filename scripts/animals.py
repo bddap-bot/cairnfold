@@ -19,7 +19,8 @@ CACHE = pathlib.Path(__file__).resolve().parent / ".animals-cache"
 # Per kind: high-pass and low-pass corners in Hz and pitch ratio. A conure's chirps sit at 3–5 kHz, so they are
 # taken down three semitones, near the meadow bed's birds, and rolled off from 2.6 kHz with a steeper slope than the others;
 # their contact calls, loud and ringing to 8 kHz, keep only their lowest two harmonics.
-# A fox is taken down three semitones too, out of the bright bark its quarrels have.
+# A fox and a squirrel are taken down three semitones too, out of the bright bark and chatter they have.
+# A rustle is broadband noise, so it keeps nothing much above 1.6 kHz: a muffled brush through grass, not a hiss.
 SHAPE = {
     "conure": (500, 2600, 3, 2 ** (-3 / 12)),
     "conure contact": (600, 1800, 6, 2 ** (-3 / 12)),
@@ -28,6 +29,10 @@ SHAPE = {
     "sheep": (150, 3500, 2, 1.0),
     "deer": (300, 2600, 3, 1.0),
     "fox": (350, 2400, 3, 2 ** (-3 / 12)),
+    "frog": (120, 2200, 3, 1.0),
+    "owl": (150, 1800, 3, 1.0),
+    "squirrel": (400, 2400, 3, 2 ** (-3 / 12)),
+    "rustle": (200, 1600, 4, 1.0),
 }
 GAP = 0.09
 RMS = 10 ** (-22 / 20)

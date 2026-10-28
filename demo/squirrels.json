@@ -1,0 +1,20 @@
+[
+  {"op": "place", "x": 0, "z": 4},
+  {"op": "tree", "x": 0, "z": -3, "seed": 7},
+  {"op": "wait", "seconds": 3},
+  {"op": "shy"},
+  {"op": "label", "name": "squirrel"},
+  {"op": "view", "eye": [2.1, 1.1, -1.2], "at": [0, 1.0, -3]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "00-coming-down"},
+  {"op": "wait", "seconds": 12},
+  {"op": "capture", "name": "01-later"},
+  {"op": "wait", "seconds": 14},
+  {"op": "capture", "name": "02-later"},
+  {"op": "label", "name": "approach"},
+  {"op": "glide", "eye": [0.9, 1.4, -2.0], "at": [0, 1.8, -3], "seconds": 3},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "03-up-the-tree"},
+  {"op": "wait", "seconds": 5},
+  {"op": "quit"}
+]

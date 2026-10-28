@@ -11,7 +11,7 @@ signal finished
 ## "mountains" are the ranges and whatever lies between them and the meadow.
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy"]
 
 var main: Main
 var steps: Array
@@ -1341,6 +1341,9 @@ func _layer_parts(name: String) -> Array[Array]:
 		"wildlife":
 			out.append([main.wildlife, "visible", false])
 			out.append([main.fish, "visible", false])
+		"shy":
+			for kind in main.wildlife.shy():
+				out.append([kind, "visible", false])
 		_ when name.begins_with("part/"):
 			var bits := name.split("/")
 			var kind: int = Wall.Part[bits[1].to_upper()]
@@ -1819,6 +1822,8 @@ func _view(s: Dictionary) -> void:
 	_eye = pose[0] + origin
 	_at = pose[1] + (Vector3.ZERO if s.has("toward") else origin)
 	main.view(_eye, _at, false)
+	# A view is a cut, as a teleport is: no animal takes it for the player moving suddenly.
+	main.rig.jumped.emit()
 	await get_tree().process_frame
 
 
@@ -2708,6 +2713,16 @@ func _view_held(s: Dictionary) -> void:
 	main.view(at + Vector3(0.25, 0.13, -0.36), at, false)
 	h.global_transform = hand_pose
 	await _frames(30)
+
+
+## Brings every frog, snake, squirrel and owl their habitats draw now, as each kind would in its own time, so the views
+## of them do not hang on when they happen to come.
+func _shy(_s: Dictionary) -> void:
+	main.wildlife.birds.look()
+	main.wildlife.squirrels.look()
+	for kind in main.wildlife.shy():
+		kind.fill()
+	await get_tree().process_frame
 
 
 ## Brings a band of deer and the fox to the meadow's rim now where none is there, as Roamers does in its own time, and

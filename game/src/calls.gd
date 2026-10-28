@@ -21,10 +21,14 @@ const CALLS := {
 	"bleat": {"clips": 10, "gap": 14.0, "level": -4.0},
 	"mew": {"clips": 6, "gap": 12.0, "level": -6.0},
 	"yip": {"clips": 4, "gap": 20.0, "level": -9.0},
+	"croak": {"clips": 11, "gap": 2.5, "level": -11.0},
+	"hoot": {"clips": 11, "gap": 9.0, "level": -9.0},
+	"chitter": {"clips": 10, "gap": 6.0, "level": -13.0},
+	"rustle": {"clips": 8, "gap": 2.0, "level": -16.0},
 }
 ## Calls quiet enough that no other call waits on them: a conure on the hand or watching a face up close murmurs and
-## works its beak.
-const SOFT := ["murmur", "grind", "click"]
+## works its beak, and a snake rustles the grass.
+const SOFT := ["murmur", "grind", "click", "rustle"]
 ## Calls an animal still makes beside the head: the soft ones, and the ducks' low quacks and peeps, as a family fed from
 ## a hand held over the pond is that near.
 const CLOSE := ["murmur", "grind", "click", "quack", "peep"]

@@ -1,0 +1,143 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "shy/day-off-a": {
+   "p50": 13.996000289917,
+   "p99": 16.8150005340576,
+   "late": 0,
+   "draws": 58,
+   "prims": 144414,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 231.4,
+    "video": 313.9
+   },
+   "gpu_ms": 5.93,
+   "timewarp_ms": 1.39
+  },
+  "shy/day-on-a": {
+   "p50": 13.9429998397827,
+   "p99": 18.1000003814697,
+   "late": 3,
+   "draws": 63,
+   "prims": 150873,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.25,
+   "timewarp_ms": 1.4
+  },
+  "shy/day-off-b": {
+   "p50": 13.951000213623,
+   "p99": 16.923999786377,
+   "late": 0,
+   "draws": 59,
+   "prims": 147001,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.17,
+   "timewarp_ms": 1.39
+  },
+  "shy/day-on-b": {
+   "p50": 14.0069999694824,
+   "p99": 17.306999206543,
+   "late": 3,
+   "draws": 62,
+   "prims": 150618,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.34,
+   "timewarp_ms": 1.39
+  },
+  "shy/night-off-a": {
+   "p50": 13.9580001831055,
+   "p99": 28.363000869751,
+   "late": 9,
+   "draws": 55,
+   "prims": 142969,
+   "stalls": [
+    {
+     "ms": 54.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.03,
+   "timewarp_ms": 1.38
+  },
+  "shy/night-on-a": {
+   "p50": 13.9720001220703,
+   "p99": 17.1560001373291,
+   "late": 2,
+   "draws": 61,
+   "prims": 152410,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.19,
+   "timewarp_ms": 1.36
+  },
+  "shy/night-off-b": {
+   "p50": 13.9870004653931,
+   "p99": 16.9260005950928,
+   "late": 1,
+   "draws": 57,
+   "prims": 146770,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.15,
+   "timewarp_ms": 1.37
+  },
+  "shy/night-on-b": {
+   "p50": 13.9820003509521,
+   "p99": 17.0270004272461,
+   "late": 2,
+   "draws": 62,
+   "prims": 152656,
+   "step": 15,
+   "fill": 0.462,
+   "mem_mb": {
+    "buffers": 42.8,
+    "textures": 231.4,
+    "video": 314.2
+   },
+   "gpu_ms": 6.28,
+   "timewarp_ms": 1.37
+  }
+ }
+}
