@@ -105,8 +105,6 @@ func _the_brush_takes_up_what_it_touches() -> void:
 	check(strokes.size() == 1 and strokes[0].medium == Brushwork.Medium.OIL and Vector3(strokes[0].colour).distance_to(took) < 1e-4, "and paints it onto the canvas")
 
 
-## Blue laid on the canvas, then a clean brush touching it there: it comes away full of the blue, as off the board, and
-## its strokes over it carry that paint.
 func _the_canvas_gives_up_its_paint_as_the_board_does() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
