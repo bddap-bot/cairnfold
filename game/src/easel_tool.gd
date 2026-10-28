@@ -1,23 +1,9 @@
 class_name EaselTool
 extends Node3D
 
-## Painting at an easel, with nothing to pick from a menu. A hand holding the easel tool holds a brush, reaching past
-## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
-## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
-## and at the tray one of three sticks of charcoal, long and thin to short and thick, held leaned back so its side meets the canvas. An
-## easel holds one of each, and the one a hand holds is off it until that hand takes another. A grip at either palette, the watercolour box or the oil palette, takes it by its
-## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
-## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
-## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
-## palette's open board; the jar wets the brush for watercolour, thinner each dip, and the water clouds with what it
-## rinses off. The canvas and the board are painted by one touch (`_touch`): the brush stops at the face and bends
-## against it, pushing in presses harder (`Brushwork.pressure`), moving fast skims, and the brush takes up the paint it
-## touches. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
-## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas or the board, laid on this
-## machine's as they are painted and played on everyone else's as they were.
-
 ## A grip takes what is within this of the hand.
 const REACH := 0.12
+const DIP_LOAD := 0.1
 ## The tip is at the oil palette's board, rather than the canvas, within this of the palette's face.
 const NEAR_BOARD := 0.05
 ## How far past a surface the tracked hand may go and the brush stay stopped at it.
@@ -527,8 +513,6 @@ func wipe(p: Painter, e: Easels.Easel) -> void:
 	_show_paint(p)
 
 
-## Dips the brush into whatever the tip has just gone into: a pan, an oil colour or the jar, on any easel's tray or a
-## palette in a hand.
 func _dip(p: Painter, tip: Vector3) -> void:
 	var into := ""
 	for e: Easels.Easel in easels.easels.values():
@@ -563,8 +547,6 @@ static func _inside(local: Vector3, base: Vector3, size: Vector2) -> bool:
 	return Vector2(local.x - base.x, local.z - base.z).length() < size.x and local.y > base.y and local.y < base.y + size.y + 0.01
 
 
-## Loads the brush from `what`: "jar", or a pigment as "pan<i>" or "oil<i>". A pan's mixes with the watercolour on the
-## brush; an oil colour replaces what is on it. Paint of the other medium on the brush is wiped off first.
 func dip(p: Painter, what: String) -> void:
 	if Brushwork.is_stick(p.brush):
 		return
@@ -575,15 +557,12 @@ func dip(p: Painter, what: String) -> void:
 	else:
 		var kit: Brushwork.Medium = PAINTS.find_key(what.rstrip("0123456789"))
 		var a := Brushwork.absorbance(Brushwork.PIGMENTS[int(what.trim_prefix(PAINTS[kit]))])
-		var clean := p.strength < 0.05 or p.load < 0.05 or p.medium != kit or kit == Brushwork.Medium.OIL
+		var clean := p.strength < 0.05 or p.medium != kit
+		var held := p.load if p.medium == kit else 0.0
 		p.medium = kit
-		p.colour = a if clean else p.colour.lerp(a, 0.5)
-		if kit == Brushwork.Medium.OIL:
-			p.strength = 1.0
-			p.load = 1.0
-		else:
-			p.strength = minf(1.0, p.strength + 0.6) if not clean else 0.6
-			p.load = 1.0
+		p.colour = a if clean else p.colour.lerp(a, DIP_LOAD / (held + DIP_LOAD))
+		p.load = minf(1.0, held + DIP_LOAD)
+		p.strength = 1.0 if kit == Brushwork.Medium.OIL else (minf(1.0, p.strength + 0.6) if not clean else 0.6)
 	Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
 	_show_paint(p)
 

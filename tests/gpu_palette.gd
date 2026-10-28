@@ -111,7 +111,10 @@ func _the_canvas_gives_up_its_paint_as_the_board_does() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	var blue := Brushwork.absorbance(Brushwork.PIGMENTS[5])
-	await play([{"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}, {"op": "brush", "points": [[0.6, 0.6, 0.9], [0.75, 0.6, 0.9], [0.75, 0.65, 0.9], [0.6, 0.65, 0.9]], "seconds": 0.8}])
+	await play([{"op": "take", "what": "big"}])
+	for tap in 10:
+		await play([{"op": "dip", "what": "oil", "index": 5}])
+	await play([{"op": "brush", "points": [[0.6, 0.6, 0.9], [0.75, 0.6, 0.9], [0.75, 0.65, 0.9], [0.6, 0.65, 0.9]], "seconds": 0.8}])
 	main.world.flush()
 	await frames(4)
 	await play([{"op": "take", "what": "small"}])

@@ -4863,10 +4863,14 @@ charcoal that stick; a grip at either palette takes it by its thumb hole, paint 
 and reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until
 a grip at its place on the tray sets it down. The palette a brush dips into is its medium: a tip anywhere over a pan
 or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, wiping off the other.
-A pan's mixes on the brush with the watercolour there already, and the box shows the mix; the glass wets the brush
+Each new contact after lifting adds 10% load, capped at 100%, on either palette.
+The added pigment mixes with the paint already held, weighted by their loads in optical density
+(the existing subtractive mix). Five blue taps followed by one yellow tap leave 60% load,
+five parts blue to one part yellow. Each tap mixes its 10% with the held load before capping,
+so a full brush can still change colour. The box shows its watercolour mix; the glass wets the brush
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
-the oil palette's open board, a paint surface like the canvas (`Easel.board`): an oil colour loads the brush with that
-colour alone; painting onto the board lays strokes there as on the canvas, and touching paint on the board or the
+the oil palette's open board, a paint surface like the canvas (`Easel.board`):
+painting onto the board lays strokes there as on the canvas, and touching paint on the board or the
 canvas loads the brush with it, with a dip's sound and feel, so working one colour into another mixes them. The board draws its paint as the canvas does
 (`paint.gdshaderinc`): a colour on it shows as it will on the canvas, never tinted by the wood under it, and stands up
 off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
@@ -5045,7 +5049,9 @@ frame and its dabs up to 1.1 million more; five more runs before the change read
 frame after is the undo itself, 33 ms applying the command. The replay now takes longer: eight seconds in, about half
 the bench's strokes are back on the canvas.
 
-Brush load stays constant while painting, including across separate strokes. Dipping fills the brush;
+Brush load stays constant while painting, including across separate strokes. A paint-source tap adds
+`EaselTool.DIP_LOAD` (10%) after lifting, on oil sources and watercolour pans alike;
+the jar fills the brush with water, and switching medium starts a fresh 10% paint load;
 a clean brush picking paint up from the mixing board fills too. A sideways wipe or a dab pressed into the cloth on
 the tray lip removes a quarter of the load, once until the brush lifts, down to a 15% dry-brush floor.
 A brush already at or below the floor stays unchanged. Only an actual unload gives the wiping hand a distinct
