@@ -45,6 +45,7 @@ func _run() -> void:
 		check(tilted.on and tilted.pressure > 0.99, "either end and shallow side contact stay pressed at angle %f" % angle)
 	_pushing_in_presses_harder()
 	_a_stick_pushed_in_lies_on_its_side()
+	_a_stick_caught_under_the_sheet_comes_free()
 	contact.reset()
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1), sideways), Brushwork.Brush.BIG)
 	var flat_brush := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -0.1), sideways), Brushwork.Brush.BIG)
@@ -133,3 +134,16 @@ func _a_stick_pushed_in_lies_on_its_side() -> void:
 			var name: String = Brushwork.Brush.keys()[kind]
 			check(lying == 13, "the %s rolled %.0f degrees and pushed in lies on its side: %d of 13" % [name, roll, lying])
 			check(turning == 13, "the %s rolled %.0f degrees turns its mark as it turns: %d of 13" % [name, roll, turning])
+
+
+## A thin stick taken from the tray pokes its tip behind the canvas just under its bottom edge, where drawing it forward
+## would catch it on the back face; clear in front of the sheet it is free and draws where it presses.
+func _a_stick_caught_under_the_sheet_comes_free() -> void:
+	var contact := CanvasContact.new()
+	var tray := Basis(Vector3.RIGHT, 0.36)
+	var under := -Brushwork.METRES.y * 0.5 - 0.003
+	contact.move(Transform3D.IDENTITY, pose(Vector3(-0.1, under, -0.16), tray), Brushwork.Brush.THIN_STICK)
+	contact.move(Transform3D.IDENTITY, pose(Vector3(-0.1, under, 0.35), tray), Brushwork.Brush.THIN_STICK)
+	contact.move(Transform3D.IDENTITY, pose(Vector3(0.15, 0.225, 0.04)), Brushwork.Brush.THIN_STICK)
+	var pressed := contact.move(Transform3D.IDENTITY, pose(Vector3(0.15, 0.225, -0.0125)), Brushwork.Brush.THIN_STICK)
+	check(pressed.on and pressed.uv.distance_to(Vector2(0.6, 0.3)) < 0.001, "brought clear in front, it draws where it presses: %s at %s" % [pressed.on, pressed.uv])

@@ -49,7 +49,9 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	axis = local.basis.z * length
 	var target := local * ToolModels.BRUSH_TIP
 	var from := previous
-	if from == Vector3.INF:
+	# A tool clear in front of the sheet is free, however the last stop caught it: wedged on a back corner, every sweep
+	# from there would stop at once.
+	if from == Vector3.INF or target.z > 0.0 and not solid(target):
 		from = target
 		if solid(from):
 			from.z = maxf(box.end.z, shaft_box.end.z if not stick else box.end.z) + maxf(0.0, -axis.z) + SKIN
