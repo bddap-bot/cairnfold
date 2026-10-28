@@ -141,6 +141,9 @@ func _pick(s: Dictionary) -> void:
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
 		Hand.injected_reach[hand.tracker] = p
+	# Setting the player down closes the wheel, and a change of avatar refits them where they stand after a fade.
+	while main.rig._pending != null or absf(main.rig.fit() / main.rig.world_scale - 1.0) > Rig.REFIT:
+		await get_tree().process_frame
 	Buttons.injected[key] = true
 	await _frames(3)
 	if s.has("capture"):
@@ -2592,18 +2595,19 @@ func _shoulder_bird(s: Dictionary) -> void:
 	var flock: Birds = main.wildlife.birds
 	var elapsed := 0.0
 	var head := main.rig.head.global_position
-	if not flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(head) < Birds.FOLLOW_FROM):
-		flock.look()
-		var nearest: Birds.Site = null
-		var reach := Birds.FOLLOW_FROM
-		for site in flock.sites:
-			for p in site.points():
-				if p.distance_to(head) < reach:
-					reach = p.distance_to(head)
-					nearest = site
-		assert(nearest != null, "no perch near enough for a conure to follow the player")
-		flock.arrive(nearest)
 	while elapsed < 120.0:
+		# A conure bound near may perch further off before it comes, out of reach of the player it would follow.
+		if not flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(head) < Birds.FOLLOW_FROM):
+			flock.look()
+			var nearest: Birds.Site = null
+			var reach := Birds.FOLLOW_FROM
+			for site in flock.sites:
+				for p in site.points():
+					if p.distance_to(head) < reach:
+						reach = p.distance_to(head)
+						nearest = site
+			assert(nearest != null, "no perch near enough for a conure to follow the player")
+			flock.arrive(nearest)
 		if s.get("trust", false):
 			for b in flock.birds:
 				if b.state == Birds.State.PERCH:
