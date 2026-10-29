@@ -539,6 +539,22 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var center := cell.position + cell.size / 2
 	check(materials.atlas.get_pixelv(center).r == 0.0 and raw.get_pixelv(center).r > 0.99, "animation can recover a channel that baking had removed")
 	check(is_equal_approx(raw.get_pixelv(center).a, materials.atlas.get_pixelv(center).a), "the original transparency is preserved")
+	materials.color_regions.clear()
+	materials.materials.colour.shader = "Poiyomi Toon"
+	materials.materials.colour.properties = {"_MainGamma_Test": true}
+	materials.materials.colour.floats = {"_MainGamma_Test": "1", "_MainColorAdjustToggle": "1"}
+	materials.materials.colour.textures = {"_MainColorAdjustTexture": {"m_Texture": {"guid": "mask"}}}
+	expressions.data.clips[0].curves[0].attribute = "material._MainGamma_Test"
+	expressions.data.clips[0].curves[0].keys = [[0.0, 1.0], [1.0, 2.0]]
+	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(toned.targets.size() == 1 and toned.targets[0].default == 1.0 and toned.targets[0].effect.tone[0].channel == 0, "gamma keeps its material region and neutral default")
+	check(toned.clips[0].curves[0].keys == [[0.0, 1.0], [1.0, 2.0]], "tone curves remain continuous")
+	check(packed.load_png_from_buffer(Marshalls.base64_to_raw(toned.hueMask)) == OK, "the color adjustment mask is carried")
+	var first := packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
+	check(first.r > 0.8 and first.g < 0.2 and first.b < 0.2 and first.a > 0.99, "the adjustment mask retains independent RGBA channels")
+	materials.materials.colour.floats._MainColorAdjustToggle = "0"
+	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(off.targets.is_empty(), "disabled color adjustment does not bind tone curves")
 
 	sk.free()
 

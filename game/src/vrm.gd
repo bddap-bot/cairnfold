@@ -302,8 +302,8 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 	for t: Dictionary in out.targets:
 		if t.effect is Dictionary and t.effect.has("morph"):
 			t.effect.morph = t.effect.morph.map(morph)
-		elif t.effect is Dictionary and (t.effect.has("hue") or t.effect.has("color")):
-			for region: Dictionary in t.effect.get("hue", t.effect.get("color", [])):
+		elif t.effect is Dictionary and (t.effect.has("hue") or t.effect.has("color") or t.effect.has("tone")):
+			for region: Dictionary in t.effect.get("hue", t.effect.get("color", t.effect.get("tone", []))):
 				region.node = index[region.node]
 		elif t.effect is Dictionary and t.effect.has("scale"):
 			t.effect.scale.node = index[t.effect.scale.node]

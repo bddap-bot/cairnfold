@@ -252,7 +252,8 @@ func hue_mask() -> String:
 	var out: Image
 	for key: String in hue_masks:
 		var m: Dictionary = materials[key]
-		var entry: Dictionary = (m.textures as Dictionary).get("_HueShiftMask", {})
+		var mobile: bool = m.shader == "VRChat/Mobile/Toon Standard"
+		var entry: Dictionary = (m.textures as Dictionary).get("_HueShiftMask" if mobile else "_MainColorAdjustTexture", {})
 		var guid := str((entry.get("m_Texture", {}) as Dictionary).get("guid", ""))
 		if guid == "":
 			continue
@@ -274,8 +275,8 @@ func hue_mask() -> String:
 				var base := Vector2i(pixel.floor())
 				var fraction := pixel - pixel.floor()
 				var at := func(dx: int, dy: int) -> Color: return source.get_pixel(posmod(base.x + dx, source.get_width()), posmod(base.y + dy, source.get_height()))
-				var value: float = at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)[channel]
-				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value, value, value, 1.0))
+				var value: Color = at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)
+				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value[channel], value[channel], value[channel], 1.0) if mobile else value)
 	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 

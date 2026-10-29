@@ -232,6 +232,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   metadata. The runtime samples that mask independently of the colour atlas. RGB colour
   curves carry an untinted atlas and their saved channel values, preserving the original
   transparency; a black saved channel can therefore become visible when animated.
+  Enabled colour adjustment also carries gamma, saturation and brightness curves, with
+  the RGBA adjustment mask retaining each channel independently.
 
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
