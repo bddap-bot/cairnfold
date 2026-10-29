@@ -919,7 +919,8 @@ static func _in_model(n: Node) -> Transform3D:
 
 
 ## The drawn renderers' surfaces over `sk` as one mesh for each set of switches they draw under, its skin binding each
-## source bone to the output bone of its name (or its nearest ancestor that has one): blend shapes kept, those of one
+## source bone to the output bone of its name (or its nearest ancestor that has one), one bind per output bone since
+## glTF lists a skin's joints once each (`_bind_once`): blend shapes kept, those of one
 ## name in several renderers one shape only where Unity always weighs them alike (one saved weight, the same clip curves
 ## in `animated`, renderer to shape name to [[clip, keys]]), while the vertices of the meshes each moves fit
 ## Avatar.MAX_BLEND_VERTICES together, those the menu's clips animate or the face uses (`faced`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
@@ -962,15 +963,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			skipped.append(go_name)
 			continue
 		drawn.append(go_name)
-		var rebase := _rebase(skin, binds, place.binds)
-		var bound: Array = place.binds.map(func(b: Array) -> int:
-			var pose: Transform3D = b[1] * rebase.affine_inverse()
-			for at: int in binds.get(b[0], []):
-				if _near(skin.get_bind_pose(at), pose):
-					return at
-			binds.get_or_add(b[0], []).append(skin.get_bind_count())
-			skin.add_bind(b[0], pose)
-			return skin.get_bind_count() - 1)
+		var bind := _bind_once(place.binds, skin, binds, rests)
+		var bound: Array = bind.bound
 		var mesh: ArrayMesh = mi.mesh
 		# Unity winds a renderer that its transforms mirror the other way, so its faces still face out.
 		var mirrored := _world_transform(objs, _transform(objs, r[1])).basis.determinant() < 0.0
@@ -1008,6 +1002,12 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				group.choices = choices.map(func(c: Variant) -> String: return materials.use(c if c is Dictionary else mref, fallback))
 				key = group.choices[0]
 			var base := verts.size()
+			var tops := []
+			var placed: Array[Transform3D] = []
+			for i in v.size():
+				var top := _top4(src_bones, src_weights, i, per)
+				tops.append(top)
+				placed.append(_at_rest(top, bind, place.remap))
 			for k in surface_shapes.size():
 				var source := mesh.get_blend_shape_name(k)
 				var curves: Array = animated.get(r[0], {}).get(source, [])
@@ -1029,17 +1029,18 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				var sv: PackedVector3Array = surface_shapes[k][Mesh.ARRAY_VERTEX]
 				var sn: Variant = surface_shapes[k][Mesh.ARRAY_NORMAL]
 				for i in v.size():
-					var dv := rebase.basis * (sv[i] if relative else sv[i] - v[i])
-					var dn := rebase.basis * (Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i])
+					var dv := sv[i] if relative else sv[i] - v[i]
+					var dn := Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i]
 					if not (dv.is_zero_approx() and dn.is_zero_approx()):
-						moved[base + i] = [dv, dn]
+						moved[base + i] = [placed[i].basis * dv, placed[i].basis * dn]
 			for i in v.size():
-				verts.append(rebase * v[i])
-				normals.append((rebase.basis * n[i]).normalized() if not n[i].is_zero_approx() else Vector3.UP)
+				verts.append(placed[i] * v[i])
+				var normal := placed[i].basis * n[i]
+				normals.append(normal.normalized() if not normal.is_zero_approx() else Vector3.UP)
 				uvs.append(uv[i])
 				group_of.append(group.index)
 				corners[base + i] = key
-				var top := _top4(src_bones, src_weights, i, per)
+				var top: Array = tops[i]
 				for j in 4:
 					bones.append(bound[place.remap.call(top[0][j])])
 					weights.append(top[1][j])
@@ -1174,9 +1175,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				return [m[0].x, m[0].y, m[1].x, m[1].y])
 		meshes.append(part)
 	report["renderers drawn"] = drawn
-	var twice := binds.keys().filter(func(b: int) -> bool: return (binds[b] as Array).size() > 1)
-	if not twice.is_empty():
-		printerr("unity_avatar: bones bound in more than one pose, which glTF cannot carry: %s" % twice.map(func(b: int) -> String: return sk.get_bone_name(b)))
 	if not skipped.is_empty():
 		report["renderers not found in their model"] = skipped
 	report["triangles"] = indices.size() / 3
@@ -1302,28 +1300,64 @@ static func _describe(m: Dictionary) -> String:
 	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended, depth written" if m.depth else "blended"][m.alpha], [", two-sided", ", front faces culled", ""][m.cull]]
 
 
-## The four heaviest bone influences of vertex `i`, weights summing to one.
-## How far a renderer's mesh space lies from the one `skin` already binds its bones in (`binds`: each bone's bind
-## indices), where every bone both bind is one transform apart: its vertices move by that, so each bone keeps one bind,
-## since glTF lists a joint once. Identity where they share no bone or lie apart by more than one transform.
-static func _rebase(skin: Skin, binds: Dictionary, renderer: Array) -> Transform3D:
-	var apart: Variant = null
-	for b: Array in renderer:
+## A source's [[output bone, bind pose]...] bound into `skin`, which binds each output bone once (`binds`, bone to
+## index), as {"bound": each one's index in `skin`, "moves": each one's move of the source's vertices into that bind,
+## or null where its vertices blend "shared" and "own", each bind's (output rest * the skin's bind) and (output rest *
+## the source's bind)}. A bone already bound keeps its bind; when the source binds such bones in other poses differing
+## by one transform, as a second model of the package placed apart does, that transform moves its vertices and its new
+## bones bind to match, which skins exactly in every pose.
+static func _bind_once(source_binds: Array, skin: Skin, binds: Dictionary, rests: Array[Transform3D]) -> Dictionary:
+	var known := []
+	for b: Array in source_binds:
+		if binds.has(b[0]):
+			known.append(skin.get_bind_pose(binds[b[0]]).affine_inverse() * b[1])
+	var move: Transform3D = known[0] if not known.is_empty() and not _same(known[0], Transform3D.IDENTITY) else Transform3D.IDENTITY
+	var rigid := known.all(func(m: Transform3D) -> bool: return _same(m, move))
+	var bound := []
+	var shared := []
+	var own := []
+	for b: Array in source_binds:
 		if not binds.has(b[0]):
-			continue
-		var each: Transform3D = skin.get_bind_pose(binds[b[0]][0]).affine_inverse() * b[1]
-		if apart == null:
-			apart = each
-		elif not _near(apart, each):
-			return Transform3D.IDENTITY
-	return Transform3D.IDENTITY if apart == null else apart
+			binds[b[0]] = skin.get_bind_count()
+			skin.add_bind(b[0], b[1] * move.affine_inverse() if rigid else b[1])
+		bound.append(binds[b[0]])
+		shared.append(rests[b[0]] * skin.get_bind_pose(binds[b[0]]))
+		own.append(rests[b[0]] * b[1])
+	return {"bound": bound, "moves": source_binds.map(func(_b: Array) -> Variant: return move if rigid else null), "shared": shared, "own": own}
 
 
-static func _near(a: Transform3D, b: Transform3D) -> bool:
-	var columns := [[a.basis.x, b.basis.x], [a.basis.y, b.basis.y], [a.basis.z, b.basis.z], [a.origin, b.origin]]
-	return columns.all(func(c: Array) -> bool: return (c[0] - c[1]).length() <= 1e-3 * maxf(1.0, (c[1] as Vector3).length()))
+## Whether two binds' moves agree to within a tenth of a millimetre of a metre-scale bind, as an exporter's rounding does.
+static func _same(a: Transform3D, b: Transform3D) -> bool:
+	return (a.basis.x - b.basis.x).length() <= 1e-4 and (a.basis.y - b.basis.y).length() <= 1e-4 and (a.basis.z - b.basis.z).length() <= 1e-4 and (a.origin - b.origin).length() <= 1e-4
 
 
+## What moves a vertex weighted `top` ([source bind indices, weights]) into the skin's binds (`bind`, from
+## `_bind_once`): the source's one move when it has one, otherwise what puts the vertex where the source's binds do
+## with the skeleton at rest.
+static func _at_rest(top: Array, bind: Dictionary, remap: Callable) -> Transform3D:
+	var move: Variant = bind.moves[remap.call(top[0][0])] if not bind.moves.is_empty() else null
+	if move != null:
+		return move
+	return _blend(top, bind.shared, remap).affine_inverse() * _blend(top, bind.own, remap)
+
+
+## The weighted blend of the transforms `top` ([indices, weights]) picks from `of`.
+static func _blend(top: Array, of: Array, remap: Callable) -> Transform3D:
+	var x := Vector3.ZERO
+	var y := Vector3.ZERO
+	var z := Vector3.ZERO
+	var origin := Vector3.ZERO
+	for j in 4:
+		var at: Transform3D = of[remap.call(top[0][j])]
+		var w: float = top[1][j]
+		x += at.basis.x * w
+		y += at.basis.y * w
+		z += at.basis.z * w
+		origin += at.origin * w
+	return Transform3D(Basis(x, y, z), origin)
+
+
+## The four heaviest bone influences of vertex `i`, weights summing to one.
 static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, per: int) -> Array:
 	var pairs := []
 	for j in per:

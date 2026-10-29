@@ -29,7 +29,7 @@ func _run() -> void:
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
 	_mesh_bones_do_not_alias_another_models_names()
-	_a_renderer_bound_apart_moves_into_the_skins_space()
+	_sources_binding_one_bone_differently_share_one_bind()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_a_physbone_carries_its_limit()
@@ -910,24 +910,44 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	target.free()
 
 
-## A renderer whose bones the skin already binds, in a mesh space one transform apart (a mirrored or 100x-scaled
-## prop), moves its vertices by that transform so each bone keeps one bind; one apart by more keeps its own.
-func _a_renderer_bound_apart_moves_into_the_skins_space() -> void:
+## glTF lists a skin's joints once each: a second source binding the same bones in poses one transform apart shares
+## their binds, its new bones bind to match, and its vertices, moved by that transform, skin where its own binds put
+## them in any pose. A first source keeps its binds and vertices as they are, and a source whose binds disagree by no
+## one transform still lands where its binds put it with the skeleton at rest. A mirrored source is one transform apart.
+func _sources_binding_one_bone_differently_share_one_bind() -> void:
+	var rests: Array[Transform3D] = [Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)), Transform3D(Basis(Vector3.UP, 0.5), Vector3(1, 1, 0)), Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0, 1.5, 0))]
 	var skin := Skin.new()
-	var arm := Transform3D(Basis(Vector3.FORWARD, 0.3), Vector3(0.2, 1.4, 0)).affine_inverse()
-	var hand := Transform3D(Basis.IDENTITY, Vector3(0.6, 1.4, 0)).affine_inverse()
-	skin.add_bind(1, arm)
-	skin.add_bind(2, hand)
-	var binds := {1: [0], 2: [1]}
-	for apart: Transform3D in [Transform3D.IDENTITY.scaled(Vector3(-1.01, 1.03, 1)), Transform3D.IDENTITY.scaled(Vector3.ONE * 100.0).translated(Vector3(0, 0.1, 0))]:
-		var rebase := UnityAvatar._rebase(skin, binds, [[1, arm * apart], [2, hand * apart], [3, apart]])
-		check(UnityAvatar._near(rebase, apart), "a renderer one transform apart moves by it: %s" % rebase)
-		var vertex := Vector3(0.01, 0.02, 0.03)
-		check(((arm * apart) * vertex).is_equal_approx((arm * apart * rebase.affine_inverse()) * (rebase * vertex)), "its moved vertices skin where they did")
-		check(UnityAvatar._near(arm * apart * rebase.affine_inverse(), arm), "its bones keep the skin's binds")
-	var twisted := Transform3D(Basis(Vector3.UP, 0.5), Vector3.ZERO)
-	check(UnityAvatar._rebase(skin, binds, [[1, arm * twisted], [2, hand]]) == Transform3D.IDENTITY, "a renderer apart by more than one transform stays where it is")
-	check(UnityAvatar._rebase(skin, binds, [[4, arm]]) == Transform3D.IDENTITY, "a renderer sharing no bone stays where it is")
+	var binds := {}
+	var shifted := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 100.0), Vector3(0, -2, 0))
+	var first := [[0, Transform3D(Basis.IDENTITY, Vector3(0, -1, 0))], [1, Transform3D(Basis(Vector3.UP, 0.5), Vector3(-1, -1, 0))]]
+	var second := [[1, first[1][1] * shifted], [2, Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, -1.5, 0.2)) * shifted]]
+	var askew := [[0, first[0][1] * shifted], [1, first[1][1]]]
+	var a := UnityAvatar._bind_once(first, skin, binds, rests)
+	var b := UnityAvatar._bind_once(second, skin, binds, rests)
+	var c := UnityAvatar._bind_once(askew, skin, binds, rests)
+	check(skin.get_bind_count() == 3 and a.bound == [0, 1] and b.bound == [1, 2] and c.bound == [0, 1], "a bone sources bind differently is one bind: %s %s %s" % [a.bound, b.bound, c.bound])
+	check(a.moves.all(func(m: Variant) -> bool: return m == Transform3D.IDENTITY), "the first source keeps its vertices where they are")
+	var top := [[0, 1, 0, 0], [0.25, 0.75, 0.0, 0.0]]
+	var identity := func(i: int) -> int: return i
+	var vertex := Vector3(0.003, -0.0001, 0.0002)
+	var skins := func(source: Array, bind: Dictionary, posed: Array[Transform3D]) -> Array:
+		var at := UnityAvatar._at_rest(top, bind, identity) * vertex
+		var expected := Vector3.ZERO
+		var skinned := Vector3.ZERO
+		for j in 2:
+			expected += top[1][j] * (posed[source[j][0]] * source[j][1] * vertex)
+			skinned += top[1][j] * (posed[bind.bound[j]] * skin.get_bind_pose(bind.bound[j]) * at)
+		return [skinned, expected]
+	var posed: Array[Transform3D] = [Transform3D(Basis(Vector3.UP, 0.2), Vector3.ZERO), Transform3D(Basis(Vector3.FORWARD, 1.2), Vector3(1, 1, 0)), Transform3D(Basis(Vector3.RIGHT, -0.7), Vector3(0, 2, 1))]
+	var bent: Array = skins.call(second, b, posed)
+	check(bent[0].is_equal_approx(bent[1]), "a vertex skins where its source's binds put it in any pose: %s vs %s" % bent)
+	var resting: Array = skins.call(askew, c, rests)
+	check(resting[0].is_equal_approx(resting[1]), "a source with no one move lands where its binds put it at rest: %s vs %s" % resting)
+	var mirror := Transform3D.IDENTITY.scaled(Vector3(-1.01, 1.03, 1))
+	var mirrored := [[0, first[0][1] * mirror], [1, first[1][1] * mirror]]
+	var d := UnityAvatar._bind_once(mirrored, skin, binds, rests)
+	var flipped: Array = skins.call(mirrored, d, posed)
+	check(skin.get_bind_count() == 3 and flipped[0].is_equal_approx(flipped[1]), "a mirrored source shares the binds and skins where its binds put it: %s vs %s" % flipped)
 
 
 func _a_decal_alpha_binds_its_atlas_layer() -> void:
