@@ -97,6 +97,7 @@ var people: SessionWheel:
 		_warming = 2
 var expressions: ExpressionMenu
 var _expression_dial := false
+var _expression_latched := false
 var _expression_frame := Basis()
 var _expression_twist := 0.0
 var _expression_count := 0
@@ -242,6 +243,7 @@ func close_wheel() -> void:
 		expressions.close()
 		expressions = null
 	_expression_dial = false
+	_expression_latched = false
 	_wheel = null
 	picking = false
 	_wheel_root.visible = false
@@ -790,7 +792,17 @@ func _expression_input(delta: float) -> void:
 	if not is_instance_valid(expressions.player) or not tracked():
 		close_wheel()
 		return
+	if _buttons.pressed("wheel") and _expression_latched:
+		_expression_latched = false
+		if not expressions.puppet.is_empty():
+			expressions.back()
+			_end_expression_dial()
+		_expression_level()
+		return
 	if _buttons.released("wheel"):
+		if not expressions.puppet.is_empty():
+			_expression_latched = true
+			return
 		var control: Variant = _wheel.chosen() if _wheel != null else null
 		if control is Dictionary and control.type in ["toggle", "button"]:
 			expressions.choose(control)
@@ -808,6 +820,7 @@ func _expression_input(delta: float) -> void:
 		_end_expression_dial()
 		_expression_level()
 	if _buttons.pressed("tool"):
+		_expression_latched = not _buttons.held("wheel")
 		if not expressions.back():
 			close_wheel()
 			return
@@ -823,6 +836,9 @@ func _expression_input(delta: float) -> void:
 		if dial != null:
 			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.puppet.type == "radial" else rig.right.stick()
 			dial.follow(self)
+		return
+	if _expression_latched:
+		_show_wheel(delta)
 		return
 	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
 	if p == Vector2.INF:

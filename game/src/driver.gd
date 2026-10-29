@@ -2831,6 +2831,10 @@ func _expression(s: Dictionary) -> void:
 		if hand.expressions != null and (hand._wheel == null or hand._wheel.chosen() == null):
 			Hand.injected_reach[hand.tracker] = Vector2.ZERO
 		await _frames(2)
+	var puppet := hand.expressions != null and not hand.expressions.puppet.is_empty()
+	if puppet:
+		Buttons.injected.erase(button)
+		await _frames(2)
 	var from := hand.global_basis
 	if s.has("twist"):
 		for f in 30:
@@ -2843,6 +2847,9 @@ func _expression(s: Dictionary) -> void:
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
 	if s.has("capture"):
 		await main.capture(s.capture)
+	if puppet:
+		Buttons.injected[button] = true
+		await _frames(2)
 	Buttons.injected.erase(button)
 	await _frames(2)
 	Hand.injected_reach.erase(hand.tracker)
