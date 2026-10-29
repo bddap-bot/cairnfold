@@ -278,7 +278,7 @@ AnimatorState:
 AnimatorState:
   m_Name: On
   m_Transitions: []
-  m_Motion: {fileID: 5}
+  m_Motion: {fileID: 6}
   m_WriteDefaultValues: 1
 --- !u!1101 &4
 AnimatorStateTransition:
@@ -300,12 +300,25 @@ AnimationClip:
     classID: 1
   m_AnimationClipSettings:
     m_StopTime: 0
+--- !u!206 &6
+BlendTree:
+  m_BlendType: 0
+  m_BlendParameter: Hat
+  m_Childs:
+  - m_Motion: {fileID: 5}
+    m_Threshold: 0
+    m_TimeScale: -1
+    m_CycleOffset: 0.25
+  - m_Motion: {fileID: 5}
+    m_Threshold: 1
 """)
 	var descriptor := {"customExpressions": "1", "expressionsMenu": {"guid": "m1"}, "expressionParameters": {"guid": "p1"}, "baseAnimationLayers": [{"type": "5", "isDefault": "0", "animatorController": {"guid": "c1"}}]}
 	var expressions := Expressions.new(Assets.new(dir), descriptor)
 	check(expressions.data.menu.size() == 2 and expressions.data.menu[0].type == "toggle" and expressions.data.menu[0].parameter == "Hat", "the menu's toggles read: %s" % [expressions.data.get("menu")])
 	check(expressions.data.parameters.any(func(p: Dictionary) -> bool: return p.name == "Hat" and p.type == "bool" and p.saved), "its parameter reads as a saved bool")
 	var layer: Dictionary = expressions.data.layers[0]
+	var children: Array = layer.states[1].motion.children
+	check(children[0].speed == -1.0 and children[0].offset == 0.25 and children[1].speed == 1.0 and children[1].offset == 0.0, "blend children keep reverse playback and cycle offsets, with normal playback by default")
 	check(layer.weight == 1.0 and layer.states.size() == 2 and layer.states[0].transitions[0].to == 1 and layer.states[0].transitions[0].conditions[0].mode == "if", "the first layer weighs one and its toggle transition reads: %s" % [layer])
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},

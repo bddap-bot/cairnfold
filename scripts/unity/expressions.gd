@@ -1,9 +1,5 @@
 extends RefCounted
 
-## A VRChat avatar descriptor's Expressions Menu, Expression Parameters and FX controller, read as data: the menu tree,
-## the parameters, and the controller's layers with their states, transitions, blend trees and parameter drivers. Its
-## clips stay as Unity binds them, each curve by the GameObject path, attribute and class it animates; the importer
-## decides what each binds to in the model.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -14,15 +10,11 @@ const ANIMATOR_TYPES := {"1": "float", "3": "int", "4": "bool", "9": "bool"}
 const CONDITIONS := {"1": "if", "2": "ifNot", "3": "greater", "4": "less", "6": "equals", "7": "notEqual"}
 const DRIVES := ["set", "add", "random", "copy"]
 const FX := "5"
-## Parameters VRChat sets for the wearer itself, as an avatar worn in VR with head and hands tracked sees them at rest.
 const BUILT_IN := {"IsLocal": 1.0, "VRMode": 1.0, "TrackingType": 3.0, "Grounded": 1.0, "Upright": 1.0}
 const MAX_MENU_DEPTH := 8
 
 var assets: Assets
-## "menu" (the root menu's controls), "parameters", "layers", "clips" (each {"length", "loop", "curves"}); empty
-## without a descriptor menu or FX controller.
 var data := {}
-## What was met and not translated, by kind, with how many of each.
 var dropped := {}
 var _documents := {}
 var _clips := {}
@@ -64,14 +56,12 @@ static func _float(v: Variant, otherwise := 0.0) -> float:
 	return str(v).to_float() if v != null and str(v).is_valid_float() else otherwise
 
 
-## The asset's objects by file ID, read once.
 func _objects(guid: String) -> Dictionary:
 	if not _documents.has(guid):
 		_documents[guid] = Yaml.objects(assets.text(guid))
 	return _documents[guid]
 
 
-## The first MonoBehaviour's fields in a ScriptableObject asset such as a menu or parameter list.
 func _asset(guid: String) -> Dictionary:
 	for o: Dictionary in _objects(guid).values():
 		if o.type == "MonoBehaviour":
@@ -79,8 +69,6 @@ func _asset(guid: String) -> Dictionary:
 	return {}
 
 
-## The controls of a menu: {"name", "type", "parameter", "value", "icon" (a texture GUID or ""), "controls" (a
-## submenu's), "axes" (a puppet's or radial's parameters)}.
 func _menu(guid: String, depth: int) -> Array:
 	var out := []
 	for c: Variant in _list(_asset(guid).get("controls")):
@@ -102,8 +90,6 @@ func _menu(guid: String, depth: int) -> Array:
 	return out
 
 
-## Every parameter the menu or controller names: {"name", "type", "default", "saved"}, the expression parameters'
-## defaults over the controller's, built-in ones at BUILT_IN.
 func _parameters(list: String, controller: String) -> Array:
 	var out := {}
 	for o: Dictionary in _objects(controller).values():
@@ -122,8 +108,6 @@ func _parameters(list: String, controller: String) -> Array:
 	return out.values()
 
 
-## The controller's layers: {"weight", "default" state, "entry" and "any" transitions, "states"}, sub-state machines
-## flattened into their layer's states.
 func _layers(guid: String, parameters: Array) -> Array:
 	var objs := _objects(guid)
 	var out := []
@@ -173,7 +157,6 @@ func _layers(guid: String, parameters: Array) -> Array:
 	return out
 
 
-## The states of a state machine and its sub-state machines, by file ID, and the machines themselves.
 static func _collect(objs: Dictionary, machine: int, states: Dictionary, machines: Dictionary) -> void:
 	if machines.has(machine) or not objs.has(machine):
 		return
@@ -186,14 +169,11 @@ static func _collect(objs: Dictionary, machine: int, states: Dictionary, machine
 		_collect(objs, _id((c as Dictionary).get("m_StateMachine")), states, machines)
 
 
-## A state machine's default state, through the default of a sub-state machine it names.
 static func _default(objs: Dictionary, machine: int) -> int:
 	var d := _id(objs[machine].data.get("m_DefaultState"))
 	return d
 
 
-## A transition as {"to" (a state index, -1 for the layer's exit), "conditions", "exitTime" (absent without one)}: a
-## transition into a sub-state machine goes to its default state. Empty for a muted transition or one to nowhere.
 func _transition(objs: Dictionary, id: int, index: Dictionary) -> Array:
 	if not objs.has(id):
 		return []
@@ -223,7 +203,6 @@ func _transition(objs: Dictionary, id: int, index: Dictionary) -> Array:
 	return [out]
 
 
-## A VRChat parameter driver's entries: {"parameter", "drive", "value", "min", "max", "chance", "source"}.
 func _drivers(d: Dictionary) -> Array:
 	if not d.has("parameters") or not d.has("localOnly"):
 		if d.has("playable") or d.has("layer"):
@@ -236,8 +215,6 @@ func _drivers(d: Dictionary) -> Array:
 	return out
 
 
-## A state's motion: {"clip": index into data.clips}, or a blend tree {"blend": "1d"|"2d"|"direct", "parameters",
-## "children": [{"motion", "threshold" or "position" or "parameter"}]}; empty for none.
 func _motion(document: String, ref: Variant, depth: int) -> Dictionary:
 	var guid := _guid(ref)
 	if guid == "":
@@ -264,15 +241,13 @@ func _motion(document: String, ref: Variant, depth: int) -> Dictionary:
 		return {}
 	var tree := {"blend": blend, "parameters": [str(d.get("m_BlendParameter", "")), str(d.get("m_BlendParameterY", ""))], "children": []}
 	for c: Variant in _list(d.get("m_Childs")):
-		var child := {"motion": _motion(guid, c.get("m_Motion"), depth + 1), "threshold": _float(c.get("m_Threshold")), "parameter": str(c.get("m_DirectBlendParameter", ""))}
+		var child := {"motion": _motion(guid, c.get("m_Motion"), depth + 1), "threshold": _float(c.get("m_Threshold")), "parameter": str(c.get("m_DirectBlendParameter", "")), "speed": _float(c.get("m_TimeScale"), 1.0), "offset": _float(c.get("m_CycleOffset"))}
 		var at: Variant = c.get("m_Position")
 		child.position = [_float((at as Dictionary).get("x")), _float((at as Dictionary).get("y"))] if at is Dictionary else [0.0, 0.0]
 		tree.children.append(child)
 	return tree
 
 
-## The index in data.clips of a clip: {"length", "loop", "curves": [{"path", "attribute", "class", "keys": [[time,
-## value]...]} or, for an object reference curve, "refs": [[time, GUID or ""]...]}]}.
 func _clip(guid: String, id: int, d: Dictionary) -> int:
 	var key := "%s:%d" % [guid, id]
 	if _clips.has(key):
