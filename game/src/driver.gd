@@ -1494,6 +1494,7 @@ func _visit(s: Dictionary) -> void:
 		assert(not keys.is_empty(), "the requested garden has not been discovered")
 		key = "join:" + str(keys[0])
 	await _pick({"action": key})
+	assert(not home or main.session.visiting.is_empty(), "driver: the wheel's home left this player visiting")
 	await _arrived(arrived)
 
 
@@ -1556,9 +1557,9 @@ func _face(s: Dictionary) -> void:
 ## `previewed` avatar files (this player's own included) stand ready for the picker, folder `files` have loaded,
 ## `wearing` names the folder file worn locally, `swimming` fish have come, with `fed`
 ## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here), the
-## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
-## heard, for at most `seconds`. Without `seconds` the wait has no limit: how long another player takes to start and
-## catch up is the machine's load, not the script's.
+## `digests` named have been written to the capture directory (by any player), with "frenzy" every fish of a pond some
+## landed seeds lie on feeds, or with "heard" the host's beacon is heard, for at most `seconds`. Without `seconds` the
+## wait has no limit: how long another player takes to start and catch up is the machine's load, not the script's.
 func _until(s: Dictionary) -> void:
 	var dir := str(main.args.get("capture-dir", "user://captures"))
 	var t := 0.0
@@ -1570,13 +1571,18 @@ func _until(s: Dictionary) -> void:
 		var selected: bool = not s.has("avatar") or (main.session.avatar == s.avatar and worn == 0 and main.session._looks.values().all(func(v: Array) -> bool: return v[0] == int(s.avatar)))
 		var files_ready: bool = s.get("files", []).all(func(f: String) -> bool: return main.session.files.get(f, {}).get("scene") != null)
 		var wearing: bool = not s.has("wearing") or (main.session.worn_key != "" and main.session.worn_key == main.session.files.get(s.wearing, {}).get("key", ""))
-		if files_ready and wearing and selected and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if files_ready and wearing and selected and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_waiting = {}
 	push_error("driver: until %s timed out" % s)
+
+
+func _frenzied() -> bool:
+	var f := main.fish.frenzy()
+	return f[1] > 0 and f[0] == f[1]
 
 
 ## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, and how many eat from held dishes, to `name`.json in the capture
@@ -2609,8 +2615,12 @@ func _shoulder_bird(s: Dictionary) -> void:
 				var yaw: float = main.rig.torso().basis.get_euler().y - main.rig.global_basis.get_euler().y
 				main.rig.head.transform.basis = Basis.from_euler(Vector3(-0.6, yaw + Torso.TURN * (1.0 if side == 0 else -1.0), 0))
 			return
+		var was := elapsed
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
+		if was < 20.0 and elapsed >= 20.0:
+			for b in flock.birds:
+				print("conure: %s, affection %.2f, away %.1f s, %.1f m off, asleep %s, head under water %s" % [Birds.State.keys()[b.state], b.affection, b.away, b.node.position.distance_to(main.rig.head.global_position), main.wildlife.asleep(), main.rig.under])
 	assert(false, "no conure came to the shoulder")
 
 

@@ -184,7 +184,7 @@ def scripts(count, capture=False):
         if name == "host":
             steps += [barrier([f"{n}-fish" for n in names]),
                       {"op": "toss", "from": [12, 1.2, 10], "velocity": [0.2, 0.5, 0.1]}, {"op": "digest", "name": "host-threw"}]
-        steps += [barrier(["host-threw"]), {"op": "wait", "seconds": 9.0}, {"op": "digest", "name": f"{name}-fed"},
+        steps += [barrier(["host-threw"]), {"op": "until", "frenzy": True}, {"op": "digest", "name": f"{name}-fed"},
                   barrier([f"{n}-fed" for n in names])]
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]
@@ -242,7 +242,6 @@ def scripts(count, capture=False):
                   barrier([f"{n}-avatar-seen" for n in names])]
         if name == "join":
             steps += [{"op": "visit", "home": True},
-                      {"op": "until", "players": 1},
                       {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": "home"}]
         else:
             steps += [barrier(["home"])]
