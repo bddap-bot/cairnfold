@@ -181,6 +181,11 @@ func _a_branching_physbone_root_stays_still() -> void:
 	objs[20].data.ignoreOtherPhysBones = "0"
 	var shared: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs
 	check(shared.size() == 3, "an explicit opt-out retains overlapping source components")
+	objs[110].data.m_Component = [{"component": {"fileID": "10"}}]
+	objs[190] = objs[110]
+	objs[20].data.rootTransform.fileID = "0"
+	objs[20].data.m_GameObject = {"fileID": "190"}
+	check(UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs.size() == 3, "an implicit root resolves its GameObject alias before checking avatar membership")
 	sk.free()
 
 

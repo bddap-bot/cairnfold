@@ -1171,7 +1171,10 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
 	var ours := func(d: Dictionary) -> bool:
 		var t := _ref(d.get("rootTransform", d.get("m_Root")))
-		return live.has(_ref(d.get("m_GameObject")) if t == 0 else _ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
+		if t == 0:
+			var go := _ref(d.get("m_GameObject"))
+			t = _transform(objs, go) if objs.has(go) else 0
+		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
 		if objs[id].type != "MonoBehaviour" or not ours.call(d):
