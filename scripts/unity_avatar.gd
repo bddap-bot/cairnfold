@@ -1429,7 +1429,9 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 					ignored[other] = true
 		for t: Variant in Prefabs._list(d.get("ignoreTransforms", d.get("m_Exclusions"))):
 			ignored[canonical.call(_ref(t))] = true
-		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": str(d.get("gravity", "0")).to_float(), "gravityDir": [0, -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * k}
+		# A PhysBone's negative gravity pulls up; a VRM gravityPower may not be negative, so its direction carries the sign.
+		var gravity := str(d.get("gravity", "0")).to_float()
+		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * k}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var groups := []

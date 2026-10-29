@@ -10,6 +10,7 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 
 func _initialize() -> void:
@@ -241,7 +242,11 @@ func _a_physbone_ends_at_its_endpoint() -> void:
 	objs[20] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "endpointPosition": {"x": "0", "y": "0", "z": "0"}}}
 	check(UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).is_empty(), "a bone with no endpoint has no chain")
 	objs[20].data.endpointPosition = {"x": "0.01", "y": "0.05", "z": "0"}
-	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).get("springs", [])
+	objs[20].data.gravity = "-0.01"
+	var definition: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
+	var springs: Array = definition.get("springs", [])
+	var read: Array = SpringDefinition.read({"nodes": [{}, {}], "extensions": {"VRMC_springBone": definition}}).springs
+	check(read.size() == 1 and read[0].joints.all(func(j: Dictionary) -> bool: return j.gravity.is_equal_approx(Vector3(0, 0.01, 0))), "a negative PhysBone gravity pulls up: %s" % [read])
 	var joints: Array = springs[0].joints if springs.size() == 1 else []
 	check(joints.size() == 2 and joints[0].node == 0, "the bone's chain runs to its endpoint: %s" % [springs])
 	if joints.size() == 2:
