@@ -2805,3 +2805,47 @@ func _spring_view(_s: Dictionary) -> void:
 	var head := avatar.eyes.origin
 	main.view(head + Vector3(-0.45, -0.05, -0.8), head + Vector3(-0.12, -0.1, 0), false)
 	await _frames(2)
+
+
+## Exercises expressions through the same wheel, wrist and stick input as a player. The fixture is generated here.
+func _expression(s: Dictionary) -> void:
+	if s.get("fixture", false):
+		main.rig.wear(Avatar.open(preload("res://demo/expressions.gd").scene(), Color.WHITE, "expression-demo"))
+		main.rig.body.expressions.state.restore({"Hat": 0.0, "Size": 0.5})
+		await _frames(2)
+		return
+	var hand := _hand(s)
+	var button := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
+	var tree := hand.inventory()
+	Hand.injected_reach[hand.tracker] = Vector2.ZERO
+	Buttons.injected[button] = true
+	await _frames(2)
+	for p in ToolWheel.sweep(tree, ToolWheel.paths(tree)["expressions"]):
+		Hand.injected_reach[hand.tracker] = p
+		await _frames(2)
+	Hand.injected_reach[hand.tracker] = Vector2.ZERO
+	await _frames(2)
+	for index: int in s.get("controls", []):
+		Hand.injected_reach[hand.tracker] = ToolWheel.ring_dirs()[index] * ToolWheel.RADIUS
+		await _frames(1)
+		if hand.expressions != null and (hand._wheel == null or hand._wheel.chosen() == null):
+			Hand.injected_reach[hand.tracker] = Vector2.ZERO
+		await _frames(2)
+	var from := hand.global_basis
+	if s.has("twist"):
+		for f in 30:
+			hand.global_basis = Basis(-from.z, deg_to_rad(float(s.twist) * (f + 1) / 30.0)) * from
+			await _frames(1)
+	if s.has("stick"):
+		Hand.injected_sticks["right_hand"] = Vector2(s.stick[0], s.stick[1])
+	if s.has("label"):
+		main.metrics.info.label = s.label
+	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
+	if s.has("capture"):
+		await main.capture(s.capture)
+	Buttons.injected.erase(button)
+	await _frames(2)
+	Hand.injected_reach.erase(hand.tracker)
+	Hand.injected_sticks.erase("right_hand")
+	hand.global_basis = from
+	await _frames(2)

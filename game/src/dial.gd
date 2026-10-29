@@ -14,6 +14,8 @@ const AT := Vector3(0, 0.06, -0.05)
 const STEP := 28.0
 const TOP := 1.6
 
+## A continuous puppet positions its one cursor in the dial plane.
+var cursor := Vector2.INF
 var start := 0
 var pick := 0
 var degrees := 0.0
@@ -69,7 +71,7 @@ func follow(hand: Node3D) -> void:
 	var n := choices.size()
 	for k in n:
 		var a := (degrees / step(n) - (k - start)) * TAU / n
-		choices[k].position = Vector3(sin(a), cos(a), 0.0) * radius(n)
+		choices[k].position = Vector3(sin(a), cos(a), 0.0) * radius(n) if cursor == Vector2.INF else Vector3(cursor.x, cursor.y, 0.0) * RADIUS
 		choices[k].scale = Vector3.ONE * size * (TOP if k == pick else 1.0)
 
 

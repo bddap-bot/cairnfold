@@ -112,7 +112,11 @@ var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
 
 
+var expression_store := ExpressionStore.new()
+
+
 func _init(ground: Terrain) -> void:
+	add_child(expression_store)
 	terrain = ground
 	head = XRCamera3D.new()
 	head.position = Vector3(0, EYE, 0)
@@ -152,6 +156,9 @@ func _build_markers() -> void:
 
 ## Wears `a` as the player's own avatar, posed from the head and hands by `pose_body`.
 func wear(a: Avatar) -> void:
+	for hand in hands:
+		hand.close_wheel()
+	expression_store.wear(a.expressions, a.source)
 	if body != null:
 		body.queue_free()
 	body = a

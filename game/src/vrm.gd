@@ -6,7 +6,7 @@ extends GLTFDocumentExtension
 ## 1.0 from nodes named after the bones (and the scene root's "eyes" metadata); import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
 ## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
-## Avatar.model. Materials and expressions other than the four that point the eyes are not read.
+## Avatar.model. VRCHAT_expressions carries imported menu controls and FX targets.
 ##
 ## "look" is how the model points its eyes (VRM lookAt): {"type": BONE or EXPRESSION, "ranges": the horizontal inner,
 ## horizontal outer, vertical down and vertical up range maps, each Vector2(largest input angle in degrees, output at
@@ -30,7 +30,7 @@ const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
 
 func _get_supported_extensions() -> PackedStringArray:
-	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone"])
+	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone", EXPRESSIONS])
 
 
 ## Files come from other players, so every field is checked for its type before use.
@@ -94,6 +94,8 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 			spring_nodes[collider.node] = true
 	for index: int in spring_nodes:
 		_bind(found, "spring_" + str(index), float(index), state, root)
+	if exts.get(EXPRESSIONS) is Dictionary:
+		root.set_meta("expressions", _named(exts[EXPRESSIONS], state))
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
@@ -311,6 +313,35 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 			t.effect.material.node = index[t.effect.material.node]
 	for s: Dictionary in out.shown:
 		s.node = index[s.node]
+	return out
+
+
+static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
+	var out := definition.duplicate(true)
+	var nodes := state.get_nodes()
+	for t: Dictionary in out.get("targets", []):
+		if not t.get("effect") is Dictionary:
+			continue
+		var effect: Dictionary = t.effect
+		if effect.has("morph"):
+			var binds := []
+			for b: Array in effect.morph:
+				for n in nodes:
+					if n.mesh == int(b[0]) and n.mesh >= 0 and n.mesh < state.get_meshes().size():
+						var mesh: ImporterMesh = state.get_meshes()[n.mesh].mesh
+						if int(b[1]) >= 0 and int(b[1]) < mesh.get_blend_shape_count():
+							binds.append([n.resource_name, str(mesh.get_blend_shape_name(int(b[1])))])
+			effect.morph = binds
+		for kind: String in ["scale", "material"]:
+			if effect.has(kind):
+				var index := int(effect[kind].get("node", -1))
+				effect[kind].node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
+		for region: Dictionary in effect.get("hue", []):
+			var index := int(region.get("node", -1))
+			region.node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
+	for shown: Dictionary in out.get("shown", []):
+		var index := int(shown.get("node", -1))
+		shown.node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
 	return out
 
 

@@ -81,6 +81,7 @@ var look := Vector3.FORWARD
 var torso := NAN
 var springs: SpringRuntime
 var simulate_springs := true
+var expressions: ExpressionPlayer
 var spring_holders := {}
 var _model: Node3D
 var _skeleton: Skeleton3D
@@ -148,6 +149,7 @@ static func model(root: Node3D) -> PackedScene:
 		return null
 	for n in root.find_children("*", "", true, false):
 		n.owner = root
+	ExpressionPlayer.prepare(root)
 	var scene := PackedScene.new()
 	scene.pack(root)
 	root.free()
@@ -329,6 +331,9 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	for j: Joint in a._joints.values():
 		a._find_base(j, placed)
 	a._dress(a._model, tint)
+	if a._model.has_meta("expressions"):
+		a.expressions = ExpressionPlayer.new(a._model)
+		a.add_child(a.expressions)
 	return a
 
 

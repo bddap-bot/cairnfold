@@ -95,6 +95,11 @@ var people: SessionWheel:
 		people = v
 		_prepare_icons(-1)
 		_warming = 2
+var expressions: ExpressionMenu
+var _expression_dial := false
+var _expression_frame := Basis()
+var _expression_twist := 0.0
+var _expression_count := 0
 var _wheel: ToolWheel
 ## The dial a people leaf opened (SessionWheel.choices), turned by the wrist while the wheel button stays held.
 var dial: Dial
@@ -168,7 +173,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
-	_buttons = Buttons.new(self).watch(["wheel"])
+	_buttons = Buttons.new(self).watch(["wheel", "tool"])
 
 
 func _build_wheel() -> void:
@@ -221,6 +226,9 @@ static func _icon_material(mat: Material, g: GeometryInstance3D) -> ShaderMateri
 
 func inventory() -> Array:
 	var tree := TREE.duplicate(true)
+	var rig := get_parent() as Rig
+	if rig != null and rig.body != null and rig.body.expressions != null and rig.expression_store.loaded and not rig.body.expressions.state.data.get("menu", []).is_empty():
+		tree[3].append("expressions")
 	if flat_only:
 		# The book opens only to the other hand's touch, which a flat player's never reaches.
 		var people_slot: Array = tree[3].filter(func(t: Variant) -> bool: return typeof(t) != TYPE_INT or t != Tool.BOOK)
@@ -229,6 +237,11 @@ func inventory() -> Array:
 
 
 func close_wheel() -> void:
+	_end_expression_dial()
+	if expressions != null:
+		expressions.close()
+		expressions = null
+	_expression_dial = false
 	_wheel = null
 	picking = false
 	_wheel_root.visible = false
@@ -261,7 +274,7 @@ func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: A
 		var i: Node3D = _built[key]
 		i.position = Vector3(at.x, at.y, 0)
 		i.scale = Vector3.ZERO
-		_icons.append({"path": path, "node": i})
+		_icons.append({"path": path, "node": i, "item": items[k]})
 
 
 func _warm() -> void:
@@ -353,7 +366,7 @@ func _icon_key(path: Array[int], item: Variant) -> String:
 ## An icon standing upright where people draw it (SessionWheel.icon), since a person or the people slots are seen face
 ## on; else tipped as a tool or a subtree's miniature is.
 func _make_icon(item: Variant) -> Node3D:
-	var draw: Callable = people.icon if people != null else Callable()
+	var draw: Callable = _draw_item
 	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
 	var model := drawn if drawn != null else miniature(item, draw)
 	var i := icon(model)
@@ -631,6 +644,9 @@ func _log_profile() -> void:
 func _select_input(delta: float) -> void:
 	if carried != null:
 		return
+	if expressions != null:
+		_expression_input(delta)
+		return
 	if dial != null:
 		_dial_input()
 		return
@@ -665,6 +681,9 @@ func _select_input(delta: float) -> void:
 		Cues.play(Cues.Act.WHEEL_HOVER, global_position, self)
 	var pick: Variant = _wheel.chosen()
 	if pick is String and people != null and (p - _wheel.levels[-1].centre).length() >= ToolWheel.ENTER:
+		if pick == "expressions":
+			_open_expressions()
+			return
 		_open_dial(pick)
 		return
 	_show_wheel(delta)
@@ -701,6 +720,10 @@ func _show_wheel(delta: float) -> void:
 	for e in _icons:
 		var path: Array[int] = e.path
 		var node: Node3D = e.node
+		if e.item is Dictionary and expressions != null:
+			var on := node.get_child(1).get_node_or_null("On") as Node3D
+			if on != null:
+				on.visible = expressions.player.state.active(e.item)
 		var target := 0.0
 		if path.size() == levels.size() and path.slice(0, -1) == opened:
 			target = HOT if levels[-1].hot == path[-1] else IDLE
@@ -735,3 +758,100 @@ func _show_tool(delta: float) -> void:
 	var k := clampf((_pop_t - POP * 0.3) / (POP * 0.7), 0.0, 1.0)
 	var overshoot := 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
 	_models[_shown].scale = Vector3.ONE * overshoot * HELD.get(_shown, 1.0)
+
+
+func _draw_item(item: Variant) -> Node3D:
+	if item is Dictionary and expressions != null:
+		return expressions.icon(item)
+	if item is String and item == "expressions":
+		return ToolModels.build(Tool.STYLE)
+	return people.icon(item) if people != null else null
+
+
+func _open_expressions() -> void:
+	var rig := get_parent() as Rig
+	for hand in rig.hands:
+		if hand != self and hand.expressions != null:
+			hand.close_wheel()
+	expressions = ExpressionMenu.new(rig.body.expressions)
+	_expression_count = 0
+	_expression_level()
+
+
+func _expression_level() -> void:
+	_clear_icons()
+	_wheel = ToolWheel.new(expressions.current)
+	_wheel_root.global_position = global_position
+	_wheel_root.visible = true
+	_expression_count = expressions.player.state.opened.size()
+
+
+func _expression_input(delta: float) -> void:
+	if not is_instance_valid(expressions.player) or not tracked():
+		close_wheel()
+		return
+	if _buttons.released("wheel"):
+		var control: Variant = _wheel.chosen() if _wheel != null else null
+		if control is Dictionary and control.type in ["toggle", "button"]:
+			expressions.choose(control)
+		close_wheel()
+		return
+	var depth := expressions.player.state.opened.size()
+	var changed := depth < _expression_count
+	while depth < _expression_count:
+		if not expressions.puppet.is_empty():
+			expressions.puppet = {}
+		elif not expressions.parents.is_empty():
+			expressions.current = expressions.parents.pop_back()
+		_expression_count -= 1
+	if changed:
+		_end_expression_dial()
+		_expression_level()
+	if _buttons.pressed("tool"):
+		if not expressions.back():
+			close_wheel()
+			return
+		_end_expression_dial()
+		_expression_level()
+		return
+	if not expressions.puppet.is_empty():
+		var rig := get_parent() as Rig
+		var twist := _expression_twist + wrapf(Dial.roll(_expression_frame, global_basis) - _expression_twist, -180.0, 180.0)
+		_expression_twist = twist
+		var value := clampf(expressions.radial_start + twist / 360.0, 0, 1)
+		expressions.player.state.puppet(expressions.puppet, rig.right.stick(), value)
+		if dial != null:
+			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.puppet.type == "radial" else rig.right.stick()
+			dial.follow(self)
+		return
+	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
+	if p == Vector2.INF:
+		var local := _wheel_root.global_transform.affine_inverse() * global_position
+		p = Vector2(local.x, local.y)
+	_wheel.move(p)
+	_show_wheel(delta)
+	var pick: Variant = _wheel.chosen()
+	if pick is Dictionary and pick.type not in ["toggle", "button"] and p.length() >= ToolWheel.ENTER:
+		expressions.choose(pick)
+		_expression_count = expressions.player.state.opened.size()
+		if pick.type == "submenu":
+			_expression_level()
+		else:
+			_expression_frame = global_basis.orthonormalized()
+			_expression_twist = 0.0
+			_wheel = null
+			_clear_icons()
+			_wheel_root.visible = false
+			var figure := _make_icon(pick)
+			dial = Dial.new()
+			add_child(dial)
+			dial.open(self, [figure] as Array[Node3D], 0)
+			_expression_dial = true
+
+
+func _end_expression_dial() -> void:
+	if _expression_dial and dial != null:
+		for item in dial.release():
+			item.queue_free()
+		dial = null
+	_expression_dial = false
