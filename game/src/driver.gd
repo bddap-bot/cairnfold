@@ -2217,19 +2217,20 @@ func _wear(s: Dictionary) -> void:
 
 ## Desktop only: holds the head and both hands where a person in Posture's pose `pose` had theirs, sized to the
 ## player's own avatar (Posture.held), on the ground at `x`, `z` (or `y` metres up), turned `yaw` degrees; `lift`
-## raises the eyes and `lean` pitches them that many degrees about their own right, with the hands, to try a near
+## (an adult's metres, sized as the pose is) raises the eyes and `lean` pitches them that many degrees about their own right, with the hands, to try a near
 ## miss. Over `seconds` it moves there from where the head and hands are, as a player lies down or sits.
 func _posture(s: Dictionary) -> void:
 	var rig: Rig = main.rig
 	var which := Posture.poses.find_custom(func(q: Dictionary) -> bool: return q.name == s.pose)
-	var points := Posture.held(which, rig.body.eye_height if rig.body else Rig.EYE)
+	var eye_height: float = rig.body.eye_height if rig.body else Rig.EYE
+	var points := Posture.held(which, eye_height)
 	var eyes := points[0]
 	var held: Array[Transform3D] = [points[1], points[2]]
 	var lean := Transform3D(Basis(eyes.basis.x, deg_to_rad(s.get("lean", 0.0))), Vector3.ZERO)
 	lean = Transform3D(Basis.IDENTITY, eyes.origin) * lean * Transform3D(Basis.IDENTITY, -eyes.origin)
 	var x := float(s.get("x", 0.0))
 	var z := float(s.get("z", 0.0))
-	var frame := Transform3D(Basis(Vector3.UP, deg_to_rad(s.get("yaw", 0.0))), Vector3(x, float(s.get("y", main.world.terrain.height_at(x, z))) + s.get("lift", 0.0), z)) * lean
+	var frame := Transform3D(Basis(Vector3.UP, deg_to_rad(s.get("yaw", 0.0))), Vector3(x, float(s.get("y", main.world.terrain.height_at(x, z))) + s.get("lift", 0.0) * eye_height / Rig.EYE, z)) * lean
 	var to: Array[Transform3D] = [frame * eyes, frame * held[0], frame * held[1]]
 	var from: Array[Transform3D] = [rig.head.global_transform, rig.left.global_transform, rig.right.global_transform]
 	var seconds := float(s.get("seconds", 0.0))

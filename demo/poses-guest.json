@@ -26,7 +26,7 @@
   {"op": "posture", "pose": "sitting on a ledge", "x": 5.55, "z": -1.25, "yaw": -90, "seconds": 1.0},
   {"op": "digest", "name": "guest-sitting-on-a-ledge"},
   {"op": "until", "digests": ["host-sitting-on-a-ledge"], "seconds": 60},
-  {"op": "posture", "pose": "standing", "x": 0, "z": 0, "yaw": 15, "seconds": 1.0, "lift": -0.65},
+  {"op": "posture", "pose": "standing", "x": 0, "z": 0, "yaw": 15, "seconds": 1.0, "lift": -0.55},
   {"op": "digest", "name": "guest-crouching"},
   {"op": "until", "digests": ["host-crouching"], "seconds": 60},
   {"op": "posture", "pose": "standing", "yaw": 30, "seconds": 0.5},
