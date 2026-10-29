@@ -2,6 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 
 func _init() -> void:
+	_malformed()
 	_controls()
 	_fx()
 	_bindings()
@@ -126,3 +127,16 @@ func _roundtrip() -> void:
 		avatar.expressions.apply()
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
 	avatar.free()
+
+
+func _malformed() -> void:
+	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
+	var invalid := _definition()
+	invalid.clips[0].curves[0].target = 200
+	check(not ExpressionDefinition.valid(invalid), "out-of-range animation targets are rejected")
+	invalid = _definition()
+	invalid.layers[0].states[0].motion.clip = -1
+	check(not ExpressionDefinition.valid(invalid), "negative clip references are rejected")
+	var state := ExpressionState.new({"layers": [{}]})
+	state.advance(0.1)
+	check(state.outputs.is_empty(), "malformed external data never enters the evaluator")

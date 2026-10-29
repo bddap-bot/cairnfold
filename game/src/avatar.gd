@@ -134,6 +134,9 @@ static func read(bytes: PackedByteArray) -> PackedScene:
 ## and "springs" (Avatar Workshop's spring definition), its longest chains within MAX_SPRING_JOINTS. DATA fills what the importer left unsaid. Null if the hips,
 ## head and hands are not bones of one skeleton, or it is still too heavy; frees `root` either way.
 static func model(root: Node3D) -> PackedScene:
+	if root.has_meta("expressions") and not ExpressionDefinition.valid(root.get_meta("expressions")):
+		root.free()
+		return null
 	for key: String in DATA:
 		if not root.has_meta(key):
 			root.set_meta(key, DATA[key].duplicate(true) if DATA[key] is Dictionary else DATA[key])

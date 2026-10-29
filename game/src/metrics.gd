@@ -375,7 +375,7 @@ func summary(d: PackedFloat32Array) -> Dictionary:
 	for x in ds:
 		if is_late(x):
 			late += 1
-	return {"t": Time.get_ticks_msec() / 1000.0, "frames": ds.size(), "p50": _q(ds, 0.5), "p95": _q(ds, 0.95), "p99": _q(ds, 0.99), "max": ds[-1], "late": late, "label": info.get("label", "")}
+	return {"t": Time.get_ticks_msec() / 1000.0, "frames": ds.size(), "mean": ds.reduce(func(sum: float, ms: float) -> float: return sum + ms, 0.0) / ds.size(), "p50": _q(ds, 0.5), "p95": _q(ds, 0.95), "p99": _q(ds, 0.99), "max": ds[-1], "late": late, "label": info.get("label", "")}
 
 
 ## Whether a frame of `ms` ran over 1.5× the refresh period.

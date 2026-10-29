@@ -94,7 +94,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 			spring_nodes[collider.node] = true
 	for index: int in spring_nodes:
 		_bind(found, "spring_" + str(index), float(index), state, root)
-	if exts.get(EXPRESSIONS) is Dictionary:
+	if exts.get(EXPRESSIONS) is Dictionary and ExpressionDefinition.valid(exts[EXPRESSIONS]):
 		root.set_meta("expressions", _named(exts[EXPRESSIONS], state))
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)

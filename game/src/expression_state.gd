@@ -16,7 +16,7 @@ var revision := 0
 
 
 func _init(definition: Dictionary) -> void:
-	data = definition
+	data = definition if ExpressionDefinition.valid(definition) else {}
 	for p: Dictionary in data.get("parameters", []):
 		definitions[p.name] = p
 		put(p.name, p.get("default", 0.0))

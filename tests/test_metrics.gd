@@ -4,6 +4,7 @@ extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
+	_frame_mean()
 	_every_flush_leaves_whole_json_with_every_second()
 	_stalls_are_not_capped_by_engine_delta()
 	_eye_frusta_swing_is_the_widest_edge_change()
@@ -217,3 +218,10 @@ func _a_pause_is_no_frame() -> void:
 	check(absf(row.get("paused_s", 0.0) - 60.0) < 0.1, "the paused span is counted as paused: %s" % [row])
 	check(row.max < 20.0 and row.frames == 2 and not row.has("stalls"), "and is no frame, nor a stall: %s" % [row])
 	m.free()
+
+
+func _frame_mean() -> void:
+	var metrics := Metrics.new("")
+	var summary := metrics.summary(PackedFloat32Array([10.0, 10.0, 10.0, 30.0]))
+	check(summary.mean == 15.0 and summary.p50 == 10.0, "frame mean includes the long frame rather than reporting the median")
+	metrics.free()
