@@ -204,6 +204,8 @@ func model(guid: String) -> Dictionary:
 	objects[root_go] = {"type": "GameObject", "guid": guid, "data": {"m_Name": root_name, "m_IsActive": "1", "m_Component": [{"component": {"fileID": str(root_tf)}}]}}
 	objects[root_tf] = {"type": "Transform", "guid": guid, "data": {"m_GameObject": {"fileID": str(root_go)}, "m_Father": {"fileID": "0"}, "m_LocalScale": {"x": "1", "y": "1", "z": "1"}}}
 	var pending := []
+	var transforms := {}
+	var renderer_skins := {}
 	for r in state.root_nodes:
 		pending.append([r, root_tf, ROOT])
 	while not pending.is_empty():
@@ -214,9 +216,12 @@ func model(guid: String) -> Dictionary:
 		names[item[0]] = name
 		var go: int = id_of.call(1, "GameObject", unity_path, name)
 		var tf: int = id_of.call(4, "Transform", unity_path + "/Transform", name)
+		transforms[item[0]] = tf
 		var components := [{"component": {"fileID": str(tf)}}]
 		var s := node.scale
-		objects[tf] = {"type": "Transform", "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(item[1])}, "m_LocalScale": {"x": str(s.x), "y": str(s.y), "z": str(s.z)}}}
+		var p := node.position
+		var q := node.rotation
+		objects[tf] = {"type": "Transform", "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(item[1])}, "m_LocalPosition": {"x": str(-p.x), "y": str(p.y), "z": str(p.z)}, "m_LocalRotation": {"x": str(q.x), "y": str(-q.y), "z": str(-q.z), "w": str(q.w)}, "m_LocalScale": {"x": str(s.x), "y": str(s.y), "z": str(s.z)}}}
 		if node.mesh >= 0:
 			var gm := state.get_meshes()[node.mesh]
 			var materials := []
@@ -233,6 +238,8 @@ func model(guid: String) -> Dictionary:
 			var mesh_id: int = id_of.call(43, "Mesh", name, name)
 			components.append({"component": {"fileID": str(r)}})
 			objects[r] = {"type": type, "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": "1", "m_Mesh": {"fileID": str(mesh_id), "guid": guid}, "m_Materials": materials, "m_BlendShapeWeights": []}}
+			if node.skin >= 0:
+				renderer_skins[r] = node.skin
 			if not skinned:
 				var mf: int = id_of.call(33, "MeshFilter", unity_path + "/MeshFilter", name)
 				components.append({"component": {"fileID": str(mf)}})
@@ -240,5 +247,10 @@ func model(guid: String) -> Dictionary:
 		objects[go] = {"type": "GameObject", "guid": guid, "node": item[0], "data": {"m_Name": name, "m_IsActive": "1", "m_Component": components}}
 		for c in node.children:
 			pending.append([c, tf, unity_path])
+	for renderer: int in renderer_skins:
+		var bones := []
+		for joint in state.get_skins()[renderer_skins[renderer]].joints_original:
+			bones.append({"fileID": str(transforms[joint])})
+		objects[renderer].data["m_Bones"] = bones
 	models[guid] = {"state": state, "scene": scene, "objects": objects, "names": names}
 	return models[guid]

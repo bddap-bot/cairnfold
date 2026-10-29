@@ -26,6 +26,7 @@ func _run() -> void:
 			_arms_join_shoulders_to_hands(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
 	_both_versions_stand_alike()
+	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
 	_unity_package_converts()
 	for i in Avatar.BUILT_IN.size():
@@ -65,7 +66,17 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
 
 
-## A file naming more blend shape data than the bound is refused before its shapes are copied.
+func _unweighted_children_keep_humanoid_bones() -> void:
+	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var json := _gltf_json(bytes)
+	var bin := bytes.slice(28 + bytes.decode_u32(12))
+	for bone: String in ["hips", "head"]:
+		var node := int(json.extensions.VRMC_vrm.humanoid.humanBones[bone].node)
+		json.nodes[node].get_or_add("children", []).append(json.nodes.size())
+		json.nodes.append({"name": bone + " unweighted child", "translation": [0, 0.1, 0]})
+	check(Avatar.read(_glb(json, bin)) != null, "unweighted children leave hips and head bound to their skeleton bones")
+
+
 func _blend_shapes_are_bounded() -> void:
 	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
 	var json := _gltf_json(bytes)

@@ -19,11 +19,13 @@ func _run() -> void:
 	_xxhash_matches_the_reference()
 	_yaml_reads_unity_objects()
 	_nested_prefabs_flatten()
+	_model_objects_keep_their_bindings_and_transforms()
 	_material_properties_read_either_layout()
 	_outside_constraints_place()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_legacy_springs_keep_their_root_and_endpoint()
+	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
 	finish()
@@ -124,6 +126,28 @@ GameObject:
 	check(prefabs.missing.is_empty(), "nothing missing")
 
 
+func _model_objects_keep_their_bindings_and_transforms() -> void:
+	var assets := Assets.new(ProjectSettings.globalize_path("res://../tests/avatars"))
+	var prefabs := Prefabs.new(assets)
+	var model := prefabs.model(assets.of(["fbx"])[0])
+	var bound := 0
+	var positioned := 0
+	for id: int in model.objects:
+		var object: Dictionary = model.objects[id]
+		if object.type == "Transform" and object.has("node"):
+			var expected: Transform3D = model.state.get_nodes()[object.node].xform
+			check(UnityAvatar._local(object.data).is_equal_approx(expected), "generated source transforms preserve the model's position and rotation")
+			positioned += int(not expected.origin.is_zero_approx())
+		if object.type == "SkinnedMeshRenderer":
+			var bones := Prefabs._list(object.data.get("m_Bones"))
+			check(not bones.is_empty(), "a model's skinned renderer retains its bone references")
+			for bone: Dictionary in bones:
+				check(model.objects.has(UnityAvatar._ref(bone)), "generated bone references resolve to source transforms")
+			bound += bones.size()
+	check(positioned > 0 and bound > 0, "the model fixture exercises both nonzero positions and skin bindings")
+	(model.scene as Node).free()
+
+
 func _material_properties_read_either_layout() -> void:
 	var lines: Array[String] = []
 	lines.assign("""Material:
@@ -186,6 +210,18 @@ func _a_branching_physbone_root_stays_still() -> void:
 	objs[20].data.rootTransform.fileID = "0"
 	objs[20].data.m_GameObject = {"fileID": "190"}
 	check(UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs.size() == 3, "an implicit root resolves its GameObject alias before checking avatar membership")
+	var branches := Skeleton3D.new()
+	for name: String in ["A", "A2", "B", "B2"]:
+		branches.add_bone(name)
+	branches.set_bone_parent(1, 0)
+	branches.set_bone_parent(3, 2)
+	objs.erase(21)
+	objs[20].data.multiChildType = "0"
+	var report := {}
+	var organizational: Array = UnityAvatar._springs(objs, 10, branches, {}, 1.0, report).springs
+	check(organizational.size() == 2, "an organizational root absent from the output skeleton still owns its child chains")
+	check(JSON.parse_string(report["spring coverage"])[0].reason == "", "a represented organizational root is not reported as missing")
+	branches.free()
 	sk.free()
 
 
@@ -206,6 +242,43 @@ func _a_physbone_ends_at_its_endpoint() -> void:
 	check(joints.size() == 2 and joints[0].node == 0, "the bone's chain runs to its endpoint: %s" % [springs])
 	if joints.size() == 2:
 		check(sk.get_bone_parent(joints[1].node) == 0 and sk.get_bone_rest(joints[1].node).origin.is_equal_approx(Vector3(-0.02, 0.1, 0)), "the endpoint is a bone under it at its offset: %s" % sk.get_bone_rest(joints[1].node).origin)
+	sk.free()
+
+
+func _linked_props_keep_their_placement_and_bone_identity() -> void:
+	var objs := {}
+	for spec: Array in [[10, "Avatar", 0, Vector3.ZERO], [11, "Chest", 10, Vector3.UP], [20, "Wing", 10, Vector3(0.2, 0.4, 0)], [21, "Wing", 20, Vector3(0.1, 0.1, 0)], [22, "Tip", 21, Vector3(0, 0.2, 0)]]:
+		objs[spec[0] + 100] = {"type": "GameObject", "guid": "main" if spec[0] == 11 else "prop", "data": {"m_Name": spec[1], "m_Component": [{"component": {"fileID": str(spec[0])}}]}}
+		objs[spec[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(spec[0] + 100)}, "m_Father": {"fileID": str(spec[2])}, "m_LocalPosition": {"x": str(spec[3].x), "y": str(spec[3].y), "z": str(spec[3].z)}}}
+	objs[30] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "120"}, "references": {"RefIds": [{"type": {"class": "ArmatureLink"}, "data": {"propBone": {"fileID": "120"}, "linkTo": [{"bone": "8", "useBone": "1"}]}}]}}}
+	objs[31] = {"type": "MonoBehaviour", "data": {"rootTransform": {"fileID": "21"}, "pull": "0.2"}}
+	objs[20].data.m_LocalScale = {"x": "0.5", "y": "0.5", "z": "0.5"}
+	objs[24] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "999"}, "m_Father": {"fileID": "10"}}}
+	objs[123] = {"type": "GameObject", "data": {"m_Name": "Tip End"}}
+	objs[23] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "123"}, "m_Father": {"fileID": "22"}, "m_LocalPosition": {"y": "0.2"}}}
+	var before := UnityAvatar._world_transform(objs, 22)
+	UnityAvatar._attach_armatures(objs, 10, "main", {"human": {"Chest": "Chest"}}, {})
+	check(objs[20].data.m_Father.fileID == "11", "a linked prop follows its authored humanoid target")
+	check(UnityAvatar._world_transform(objs, 22).is_equal_approx(before), "reparenting without alignment preserves the prop's world placement")
+	var sk := Skeleton3D.new()
+	sk.add_bone("Chest")
+	var rests: Array[Transform3D] = [Transform3D(Basis(Vector3.UP, 0.1), Vector3.UP)]
+	sk.set_bone_rest(0, rests[0])
+	sk.set_meta("unity_bones", {111: 0})
+	var tip := UnityAvatar._as_bone(objs, 22, sk, rests)
+	check(tip == 3 and sk.get_bone_parent(1) == 0, "the linked hierarchy is attached under the humanoid bone")
+	check(rests[tip].is_equal_approx(before), "bone rests preserve the linked prop placement")
+	check(UnityAvatar._as_bone(objs, 22, sk, rests) == tip and sk.get_bone_count() == 4, "a source object is added once despite duplicate bone names")
+	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs
+	check(springs.size() == 1 and springs[0].joints[0].node == 2, "the spring uses the inner object's identity, not the outer bone with the same name")
+	check(springs[0].joints.size() == 3 and sk.get_bone_name(springs[0].joints[2].node) == "Tip End", "an unweighted source end node still supplies the spring's last segment")
+	check(sk.get_bone_global_rest(springs[0].joints[2].node).is_equal_approx(UnityAvatar._world_transform(objs, 23)), "a later unweighted child inherits the prop scale exactly once")
+	objs[140] = {"type": "GameObject", "data": {"m_Name": "Chest"}}
+	objs[141] = {"type": "GameObject", "data": {"m_Name": "Tip"}}
+	objs[40] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "140"}, "m_Father": {"fileID": "10"}}}
+	objs[41] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "141"}, "m_Father": {"fileID": "40"}}}
+	objs[32] = {"type": "MonoBehaviour", "data": {"rootTransform": {"fileID": "40"}, "pull": "0.2"}}
+	check(UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs.size() == 1, "an unbound object does not acquire another object's spring bones by sharing their names")
 	sk.free()
 
 
@@ -248,6 +321,7 @@ func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
 	for t: Array in [[10, "Chest", 0, "2"], [11, "Wing", 10, "1"], [12, "Wing Tip", 11, "1"], [13, "Loose", 0, "1"]]:
 		objs[t[0] + 100] = {"type": "GameObject", "data": {"m_Name": t[1]}}
 		objs[t[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(t[0] + 100)}, "m_Father": {"fileID": str(t[2])}, "m_LocalPosition": {"x": "0.1", "y": "0", "z": "0"}, "m_LocalScale": {"x": t[3], "y": t[3], "z": t[3]}}}
+	objs[10].data.m_LocalPosition = {"x": "0", "y": "1", "z": "0"}
 	var tip := UnityAvatar._as_bone(objs, 12, sk, rests)
 	var wing := sk.find_bone("Wing")
 	check(wing == 1 and tip == 2 and sk.get_bone_name(tip) == "Wing Tip" and sk.get_bone_parent(tip) == wing and sk.get_bone_parent(wing) == 0, "the transform and its ancestor are bones under the chest")

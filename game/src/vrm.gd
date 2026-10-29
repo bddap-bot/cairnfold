@@ -210,6 +210,8 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 	if not ((bone in BONES or bone.begins_with("spring_")) and node is float and node >= 0 and node < state.get_nodes().size()):
 		return
 	var n := state.get_scene_node(int(node))
+	if n is BoneAttachment3D:
+		n = (n as BoneAttachment3D).get_skeleton()
 	if n is Skeleton3D:
 		var name := state.get_nodes()[int(node)].resource_name
 		if (n as Skeleton3D).find_bone(name) >= 0:
