@@ -11,7 +11,7 @@ extends SceneTree
 ## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
 ## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
 ## draw under, every triangle kept, and one atlas of the materials' colour textures; its blend shapes stay, set to their
-## saved weights, its PhysBones become spring chains, and its menu, parameters and FX controller become the model's
+## saved weights, its PhysBones and DynamicBones become spring chains, and its menu, parameters and FX controller become the model's
 ## "expressions" (VRCHAT_expressions in a VRM). No VRM lies between: VRM cannot carry what later importer work adds to
 ## the model. The importer prints what it kept and dropped.
 
@@ -1147,36 +1147,37 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 	return Vector3(0, 0.06, 0)
 
 
-## The avatar's PhysBones as VRM spring chains, one per path from a PhysBone's root to each leaf of its bones and on to
-## the endpoint past that leaf where the PhysBone sets one, a bone added to the skeleton there: a VRM spring ends at a
-## node, and a PhysBone of one bone swings about its endpoint alone. Its PhysBone colliders become VRM colliders. A bone
-## the output skeleton lacks ends its chain. A root with several children stays still, as PhysBones leave it unless its
-## multiChildType is First, so its chains start at its children: a VRM spring turns its first joint, which would swing
-## every branch under that root.
+## VRM ends a spring at a node, so authored endpoints become bones beyond the leaves.
+## PhysBone roots with several child chains remain fixed unless the source chooses First.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary) -> Dictionary:
 	var bone_of := func(t: int) -> int:
 		return _find_bone(sk, str(objs.get(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")))
 	var children := {}
-	for id: int in objs:
-		if objs[id].type == "Transform":
-			children.get_or_add(_ref(objs[id].data.get("m_Father")), []).append(id)
+	# Unity can name one transform by both its model ID and a stripped-object alias.
+	# The resolved skeleton has one identity per bone; snapshot it before adding endpoints.
+	for bone in sk.get_bone_count():
+		children[bone] = Array(sk.get_bone_children(bone))
 	var colliders := []
 	var collider_index := {}
 	var springs := []
 	var physbones := 0
+	var dynamicbones := 0
+	var coverage := []
 	var live := {}
+	var scales := {}
 	for e: Array in _under(objs, top):
-		live[e[0]] = true
+		live[_ref(objs[e[0]].data.get("m_GameObject"))] = true
+		scales[bone_of.call(e[0])] = _world_scale(objs, e[0])
 	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
 	var ours := func(d: Dictionary) -> bool:
-		var t := _ref(d.get("rootTransform"))
-		return live.has(t if t != 0 else _transform(objs, _ref(d.get("m_GameObject"))))
+		var t := _ref(d.get("rootTransform", d.get("m_Root")))
+		return live.has(_ref(d.get("m_GameObject")) if t == 0 else _ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
 		if objs[id].type != "MonoBehaviour" or not ours.call(d):
 			continue
 		if d.has("shapeType") and d.has("insideBounds"):
-			var t := _ref(d.get("rootTransform"))
+			var t := _ref(d.get("rootTransform", d.get("m_Root")))
 			if t == 0:
 				t = _transform(objs, _ref(d.get("m_GameObject")))
 			var bone: int = bone_of.call(t)
@@ -1191,33 +1192,54 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				shape = {"capsule": {"offset": [offset[0], offset[1] - (height / 2.0 - radius), offset[2]], "tail": [offset[0], offset[1] + (height / 2.0 - radius), offset[2]], "radius": radius}}
 			collider_index[id] = colliders.size()
 			colliders.append({"node": bone, "shape": shape})
+	var components := {}
+	var component_roots := {}
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not d.has("pull") or not d.has("rootTransform") or not ours.call(d):
+		if objs[id].type != "MonoBehaviour" or not ((d.has("pull") and d.has("rootTransform")) or (d.has("m_Damping") and d.has("m_Root"))) or not ours.call(d):
 			continue
-		physbones += 1
-		var root_t := _ref(d.get("rootTransform"))
+		components[id] = d
+		var t := _ref(d.get("rootTransform", d.get("m_Root")))
+		if t == 0:
+			t = _transform(objs, _ref(d.get("m_GameObject")))
+		component_roots[bone_of.call(t)] = true
+	for id: int in components:
+		var d: Dictionary = components[id]
+		var legacy := d.has("m_Damping")
+		physbones += int(not legacy)
+		dynamicbones += int(legacy)
+		var root_t := _ref(d.get("rootTransform", d.get("m_Root")))
 		if root_t == 0:
 			root_t = _transform(objs, _ref(d.get("m_GameObject")))
+		var root_bone: int = bone_of.call(root_t)
+		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(_ref(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
+		coverage.append(component)
+		if root_bone < 0:
+			continue
+		var first_chain := springs.size()
 		var ignored := {}
-		for t: Variant in Prefabs._list(d.get("ignoreTransforms")):
-			ignored[_ref(t)] = true
-		var joint := {"stiffness": 4.0 * str(d.get("pull", "0.2")).to_float() * (1.0 + str(d.get("stiffness", "0")).to_float()), "dragForce": clampf(1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": str(d.get("gravity", "0")).to_float(), "gravityDir": [0, -1, 0], "hitRadius": str(d.get("radius", "0")).to_float() * k}
-		var e: Variant = d.get("endpointPosition")
+		if not legacy and str(d.get("ignoreOtherPhysBones", "1")) != "0":
+			for other: int in component_roots:
+				if other != root_bone:
+					ignored[other] = true
+		for t: Variant in Prefabs._list(d.get("ignoreTransforms", d.get("m_Exclusions"))):
+			ignored[bone_of.call(_ref(t))] = true
+		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": str(d.get("gravity", "0")).to_float(), "gravityDir": [0, -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * k}
+		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var groups := []
-		for c: Variant in Prefabs._list(d.get("colliders")):
+		for c: Variant in Prefabs._list(d.get("colliders", d.get("m_Colliders"))):
 			if collider_index.has(_ref(c)):
 				groups.append(collider_index[_ref(c)])
 		var kids_of := func(t: int) -> Array:
-			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
-		var starts: Array = kids_of.call(root_t)
-		if starts.size() < 2 or str(d.get("multiChildType", "0")) == "1":
-			starts = [root_t]
+			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c))
+		var starts: Array = kids_of.call(root_bone)
+		if starts.size() < 2 or str(d.get("multiChildType", "1" if legacy else "0")) == "1":
+			starts = [root_bone]
 		var pending := starts.map(func(t: int) -> Array: return [t, []])
 		while not pending.is_empty():
 			var item: Array = pending.pop_back()
-			var bone: int = bone_of.call(item[0])
+			var bone: int = item[0]
 			var joints: Array = (item[1] as Array).duplicate()
 			if bone >= 0 and not human.has(bone) and not ignored.has(item[0]):
 				var j := joint.duplicate()
@@ -1231,14 +1253,26 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			if kids.is_empty():
 				if not joints.is_empty() and endpoint != Vector3.ZERO:
 					var j := joint.duplicate()
-					j["node"] = _endpoint(sk, bone, endpoint * _world_scale(objs, item[0]))
+					var offset := endpoint * float(scales.get(bone, k))
+					if legacy:
+						# DynamicBone end offsets use the component root axes, not each leaf's axes.
+						offset = sk.get_bone_global_rest(bone).basis.inverse() * sk.get_bone_global_rest(root_bone).basis * endpoint * _world_scale(objs, root_t)
+					j["node"] = _endpoint(sk, bone, offset)
 					joints.append(j)
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups})
 				continue
 			for i in kids.size():
 				pending.append([kids[i], joints if i == 0 else []])
-	report["PhysBones"] = "%d components as %d spring chains, %d colliders; parameters mapped approximately (pull, spring, stiffness, gravity, radius); limits, grabbing and posing dropped" % [physbones, springs.size(), colliders.size()]
+		for index in range(first_chain, springs.size()):
+			var joints: Array = springs[index].joints
+			component.chains.append(joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
+			for index_in_chain in range(1, joints.size()):
+				component.simulated_joints += int(sk.get_bone_rest(joints[index_in_chain].node).origin != Vector3.ZERO)
+		if component.chains.is_empty():
+			component.reason = "no segment after source exclusions, humanoid bones and endpoint are applied"
+	report["spring coverage"] = JSON.stringify(coverage)
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders; parameters mapped approximately; limits, grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size()]
 	if springs.is_empty():
 		return {}
 	var groups := []
@@ -1255,7 +1289,6 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups}
 
 
-## A bone added under `leaf` at `offset` in its axes.
 static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:
 	var name := "%s endpoint" % sk.get_bone_name(leaf)
 	while sk.find_bone(name) >= 0:

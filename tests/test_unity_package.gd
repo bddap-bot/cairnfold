@@ -23,6 +23,7 @@ func _run() -> void:
 	_outside_constraints_place()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
+	_legacy_springs_keep_their_root_and_endpoint()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
 	finish()
@@ -161,10 +162,13 @@ func _a_branching_physbone_root_stays_still() -> void:
 	var objs := {}
 	for bone: Array in [[10, "Root", 0], [11, "A", 10], [12, "B", 10], [13, "A2", 11], [14, "B2", 12]]:
 		sk.add_bone(bone[1])
+		if bone[2] != 0:
+			sk.set_bone_parent(sk.get_bone_count() - 1, bone[2] - 10)
 		objs[bone[0] + 100] = {"type": "GameObject", "data": {"m_Name": bone[1]}}
 		objs[bone[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(bone[0] + 100)}, "m_Father": {"fileID": str(bone[2])}}}
+	objs[99] = objs[10]
 	var chains := func(multi_child: String) -> Array:
-		objs[20] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "multiChildType": multi_child}}
+		objs[20] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "99"}, "multiChildType": multi_child}}
 		var out := []
 		for spring: Dictionary in UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs:
 			out.append(spring.joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
@@ -172,6 +176,11 @@ func _a_branching_physbone_root_stays_still() -> void:
 		return out
 	check(chains.call("0") == [["A", "A2"], ["B", "B2"]], "under Ignore the root is in no chain: %s" % [chains.call("0")])
 	check(chains.call("1") == [["B", "B2"], ["Root", "A", "A2"]], "under First the first branch turns the root: %s" % [chains.call("1")])
+	objs[21] = {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "11"}}}
+	check(chains.call("1") == [["A", "A2"], ["Root", "B", "B2"]], "a nested component owns its subtree, including when the parent names an alias")
+	objs[20].data.ignoreOtherPhysBones = "0"
+	var shared: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs
+	check(shared.size() == 3, "an explicit opt-out retains overlapping source components")
 	sk.free()
 
 
@@ -192,6 +201,35 @@ func _a_physbone_ends_at_its_endpoint() -> void:
 	check(joints.size() == 2 and joints[0].node == 0, "the bone's chain runs to its endpoint: %s" % [springs])
 	if joints.size() == 2:
 		check(sk.get_bone_parent(joints[1].node) == 0 and sk.get_bone_rest(joints[1].node).origin.is_equal_approx(Vector3(-0.02, 0.1, 0)), "the endpoint is a bone under it at its offset: %s" % sk.get_bone_rest(joints[1].node).origin)
+	sk.free()
+
+
+func _legacy_springs_keep_their_root_and_endpoint() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Root")
+	sk.add_bone("Tip")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(1, Transform3D(Basis(Vector3.FORWARD, PI / 2), Vector3(0, 0.1, 0)))
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Root"}},
+		111: {"type": "GameObject", "data": {"m_Name": "Tip"}},
+		20: {"type": "MonoBehaviour", "data": {"m_Root": {"fileID": "10"}, "m_Damping": "0.6", "m_Elasticity": "0.12", "m_Stiffness": "0.9", "m_EndOffset": {"x": "0", "y": "0.02", "z": "0"}}},
+	}
+	objs[99] = objs[10]
+	objs[20].data.m_Root = {"fileID": "99"}
+	var report := {}
+	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, report).get("springs", [])
+	check(springs.size() == 1, "a legacy component produces a spring chain")
+	if springs.size() == 1:
+		var joints: Array = springs[0].joints
+		check(joints.size() == 3 and joints[0].node == 0 and joints[1].node == 1, "the root, child and endpoint are retained")
+		check(is_equal_approx(joints[0].dragForce, 0.6), "legacy damping remains damping")
+		if joints.size() == 3:
+			var offset := sk.get_bone_global_rest(joints[2].node).origin - sk.get_bone_global_rest(1).origin
+			check(offset.is_equal_approx(Vector3(0, 0.02, 0)), "the endpoint follows root axes despite the rotated leaf: %s" % offset)
+	check(str(report.get("spring components", "")).begins_with("0 PhysBones, 1 DynamicBones"), "the inventory distinguishes source component types")
 	sk.free()
 
 
