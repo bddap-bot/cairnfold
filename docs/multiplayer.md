@@ -229,7 +229,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   folder must include its shader dependencies and their `.meta` files; saved properties
   alone do not identify features a shader implements. Toon Standard's enabled hue
   feature carries its radian curve and selected texture-mask channel in expression
-  metadata. The runtime samples that mask independently of the colour atlas.
+  metadata. The runtime samples that mask independently of the colour atlas. RGB colour
+  curves carry an untinted atlas and their saved channel values, preserving the original
+  transparency; a black saved channel can therefore become visible when animated.
 
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.

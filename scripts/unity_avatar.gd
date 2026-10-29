@@ -473,7 +473,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
 				var rest: float = targets[t].rest
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / rest if rest != 0.0 else 1.0])
-			elif targets[t].effect is Dictionary and targets[t].effect.has("hue"):
+			elif targets[t].effect is Dictionary and (targets[t].effect.has("hue") or targets[t].effect.has("color")):
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / 100.0])
@@ -534,6 +534,9 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	var hue_mask := materials.hue_mask()
 	if hue_mask != "":
 		data.hueMask = hue_mask
+	var color_atlas := materials.color_atlas()
+	if color_atlas != "":
+		data.colorAtlas = color_atlas
 	data.targets = targets
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
@@ -564,10 +567,12 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		for m: Dictionary in meshes:
 			saved = maxf(saved, m.weights.get(shape, 0.0) if renderer in m.renderers else 0.0)
 		rest = saved
-	elif (c.attribute.begins_with("material._MainHueShift") or c.attribute == "material._HueShift") and c["class"] == "137":
+	elif c.attribute.begins_with("material.") and c["class"] == "137":
 		var property: String = c.attribute.trim_prefix("material.")
-		if property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
+		var channel := "rgb".find(property.right(1)) if property in ["_Color.r", "_Color.g", "_Color.b"] else -1
+		if channel < 0 and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
 			return -1
+		var kind := "color" if channel >= 0 else "hue"
 		var renderer := _renderer_of(objs, go)
 		var regions := []
 		for ref: Variant in Prefabs._list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
@@ -577,25 +582,37 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			if not materials.materials.has(key):
 				continue
 			var material: Dictionary = materials.materials[key]
-			var floats: Dictionary = material.get("floats", {})
-			if not floats.has(property) or not material.has("cell") or not (material.get("properties", {}) as Dictionary).has(property):
+			if not material.has("cell") or not (material.get("properties", {}) as Dictionary).has("_Color" if channel >= 0 else property):
 				continue
-			var mobile: bool = property == "_HueShift" and material.shader == "VRChat/Mobile/Toon Standard"
-			if mobile:
-				if not "USE_HUE_SHIFT" in material.get("keywords", []):
+			var binding := {}
+			if channel >= 0:
+				var color: Color = material.colour
+				binding = {"channel": channel, "color": [color.r, color.g, color.b]}
+				rest = color[channel]
+				materials.color_regions[key] = true
+			else:
+				var floats: Dictionary = material.get("floats", {})
+				if not floats.has(property):
 					continue
-				materials.hue_masks[key] = true
-			elif property == "_HueShift" or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
-				continue
+				var mobile: bool = property == "_HueShift" and material.shader == "VRChat/Mobile/Toon Standard"
+				if mobile:
+					if not "USE_HUE_SHIFT" in material.get("keywords", []):
+						continue
+					materials.hue_masks[key] = true
+				elif property == "_HueShift" or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
+					continue
+				binding = {"space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()}
+				rest = str(floats[property]).to_float()
 			var cell: Rect2 = Rect2(material.cell)
-			var rect := [cell.position.x / Materials.ATLAS, cell.position.y / Materials.ATLAS, cell.end.x / Materials.ATLAS, cell.end.y / Materials.ATLAS]
+			binding.rect = [cell.position.x / Materials.ATLAS, cell.position.y / Materials.ATLAS, cell.end.x / Materials.ATLAS, cell.end.y / Materials.ATLAS]
 			for m: Dictionary in meshes:
 				if renderer in m.renderers:
-					regions.append({"node": m.node, "rect": rect, "space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()})
-			rest = str(floats[property]).to_float()
+					var region := binding.duplicate(true)
+					region.node = m.node
+					regions.append(region)
 		if regions.is_empty():
 			return -1
-		effect = {"hue": regions}
+		effect = {kind: regions}
 	elif c.attribute.begins_with("m_LocalScale.") and c["class"] == "4":
 		var bone := sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
 		if bone < 0:
@@ -609,7 +626,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	for i in targets.size():
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
-	targets.append({"effect": effect, "default": rest if effect.has("morph") or effect.has("hue") else 1.0, "rest": rest if effect.has("scale") else 1.0})
+	targets.append({"effect": effect, "default": rest if effect.has("morph") or effect.has("hue") or effect.has("color") else 1.0, "rest": rest if effect.has("scale") else 1.0})
 	return targets.size() - 1
 
 

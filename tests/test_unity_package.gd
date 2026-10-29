@@ -522,6 +522,23 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.keywords.clear()
 	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
 	check(disabled.targets.is_empty(), "a disabled shader feature does not create a hue binding")
+	materials.hue_masks.clear()
+	materials.materials.colour.properties = {"_Color": true}
+	materials.materials.colour.colour = Color(0.0, 0.5, 0.25, 0.5)
+	materials.materials.colour.alpha = Materials.Alpha.BLEND
+	materials.pack(["colour"])
+	materials.material()
+	expressions.data.clips[0].curves[0].attribute = "material._Color.r"
+	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, 1.0]]
+	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(colored.targets.size() == 1 and colored.targets[0].default == 0.0 and colored.targets[0].effect.color[0].channel == 0, "RGB curves bind even when the saved channel is black")
+	check(colored.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]], "RGB stays continuous")
+	var raw := Image.new()
+	check(raw.load_png_from_buffer(Marshalls.base64_to_raw(colored.colorAtlas)) == OK, "untinted colors are carried in the expression metadata")
+	cell = materials.materials.colour.cell
+	var center := cell.position + cell.size / 2
+	check(materials.atlas.get_pixelv(center).r == 0.0 and raw.get_pixelv(center).r > 0.99, "animation can recover a channel that baking had removed")
+	check(is_equal_approx(raw.get_pixelv(center).a, materials.atlas.get_pixelv(center).a), "the original transparency is preserved")
 
 	sk.free()
 

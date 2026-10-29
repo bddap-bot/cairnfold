@@ -16,6 +16,7 @@ var _images := {}
 var atlas: Image
 var undecoded := {}
 var hue_masks := {}
+var color_regions := {}
 
 
 func _init(from: Assets) -> void:
@@ -276,3 +277,30 @@ func hue_mask() -> String:
 				var value: float = at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)[channel]
 				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value, value, value, 1.0))
 	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())
+
+
+func color_atlas() -> String:
+	if color_regions.is_empty():
+		return ""
+	var out := atlas.duplicate() as Image
+	out.clear_mipmaps()
+	for key: String in color_regions:
+		var m: Dictionary = materials[key]
+		var cell: Rect2i = m.cell
+		var raw: Image
+		if m.image == null:
+			raw = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+			raw.fill(Color.WHITE)
+		else:
+			raw = (m.image as Image).duplicate()
+		raw.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_CUBIC)
+		var outer := raw.duplicate() as Image
+		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, Image.INTERPOLATE_BILINEAR)
+		out.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
+		out.blit_rect(raw, Rect2i(Vector2i.ZERO, raw.get_size()), cell.position)
+	var data := out.get_data()
+	var original := atlas.get_data()
+	for i in range(3, data.size(), 4):
+		data[i] = original[i]
+	out.set_data(ATLAS, ATLAS, false, Image.FORMAT_RGBA8, data)
+	return Marshalls.raw_to_base64(out.save_png_to_buffer())
