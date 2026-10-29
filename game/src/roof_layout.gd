@@ -213,8 +213,10 @@ func flat() -> bool:
 	return pitch <= 0.0
 
 
+## Height of the deck that `p` stands on, or -INF: a pitched roof, one not laid yet, a point beside the house, or one
+## below the deck, inside the house under it.
 func deck_under(p: Vector3) -> float:
-	if not flat():
+	if not flat() or kind != Kind.CONE and corners.size() < 4:
 		return -INF
 	var y := height_at(p.x, p.z)
 	return y if p.y >= y - ON_DECK and over(p.x, p.z) else -INF

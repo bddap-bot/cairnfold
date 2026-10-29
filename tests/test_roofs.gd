@@ -5,6 +5,7 @@ const SETTLE_FRAMES := 3600
 
 func _initialize() -> void:
 	check(RoofLayout.new().deck_under(Vector3.ZERO) == -INF, "a pitched roof offers no deck before its footprint is laid")
+	_a_roof_not_laid_yet_has_no_deck()
 	_a_wooden_deck_is_boards_on_joists()
 	_a_tower_takes_a_wooden_deck_inside_its_ring()
 	_a_curved_wooden_deck_follows_its_surface()
@@ -43,6 +44,13 @@ func _covers(x: Transform3D, p: Vector2) -> bool:
 
 func _top_of(x: Transform3D) -> float:
 	return x.origin.y + absf(x.basis.y.y) * 0.5
+
+
+## Between a house taking its roof and the roof being laid, nothing stands on it: a body's feet look for floor there.
+func _a_roof_not_laid_yet_has_no_deck() -> void:
+	var r := RoofLayout.new()
+	r.pitch = 0.0
+	check(r.deck_under(Vector3(0, 3, 0)) == -INF, "a flat roof not laid yet has no deck")
 
 
 func _a_wooden_deck_is_boards_on_joists() -> void:
