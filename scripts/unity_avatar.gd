@@ -87,6 +87,11 @@ static func wearable(root: Node3D) -> void:
 		sk.set_bone_name(i, "unity_avatar %d" % i)
 	for i: int in renamed:
 		sk.set_bone_name(i, renamed[i])
+	for c: Dictionary in root.get_meta("constraints", []):
+		c.node = sk.get_bone_name(c.node)
+		for source: Dictionary in c.sources:
+			if source.has("node"):
+				source.node = sk.get_bone_name(source.node)
 	var chains: Dictionary = root.get_meta("springs")
 	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
 	var colliders := []
@@ -186,6 +191,8 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 			if object.get("guid", "") == main and bone >= 0:
 				source_bones[go] = bone
 	sk.set_meta("unity_bones", source_bones)
+	sk.set_meta("unity_top", found.transform)
+	sk.set_meta("unity_model", main)
 	var avatar_frame := _world_transform(objs, found.transform)
 	sk.set_meta("unity_frame", Transform3D(avatar_frame.basis.orthonormalized(), avatar_frame.origin).affine_inverse())
 	var materials := Materials.new(assets)
@@ -214,6 +221,13 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	if named.is_empty():
 		root.free()
 		return null
+	var constraints := _constraints(prefabs, objs, found.transform, sk, rests)
+	if constraints.has("error"):
+		printerr("unity_avatar: " + str(constraints.error))
+		root.free()
+		return null
+	root.set_meta("constraints", constraints.get("constraints", []))
+	report["active transform constraints"] = constraints.get("constraints", []).size()
 	var springs := _springs(objs, found.transform, sk, named, k, report)
 	var human := {}
 	var bone_path := func(b: int) -> NodePath: return NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(b)])
@@ -604,8 +618,7 @@ static func _controls(menu: Array) -> int:
 	return menu.reduce(func(n: int, c: Dictionary) -> int: return n + 1 + (_controls(c.controls) if c.has("controls") else 0), 0)
 
 
-## Whether a constraint places the GameObject from outside the avatar: a follower or world-fixed prop goes where a
-## source the avatar's bones do not move puts it, so drawn at its authored offset it would stand glued to the body.
+## Script constraints without a runtime representation still exclude externally placed geometry.
 static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
 		var id := _ref((c as Dictionary).get("component"))
@@ -613,10 +626,7 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 			continue
 		var d: Dictionary = objs[id].data
 		var sources := []
-		if objs[id].type in ["ParentConstraint", "PositionConstraint"]:
-			for e: Variant in Prefabs._list(d.get("m_Sources")):
-				sources.append([(e as Dictionary).get("sourceTransform"), (e as Dictionary).get("weight", "1")])
-		elif objs[id].type == "MonoBehaviour" and d.get("Sources") is Dictionary and (d.has("PositionAtRest") or d.has("PositionOffset")):
+		if objs[id].type == "MonoBehaviour" and d.get("Sources") is Dictionary and (d.has("PositionAtRest") or d.has("PositionOffset")):
 			for k: String in d.Sources:
 				if k.begins_with("source") and d.Sources[k] is Dictionary:
 					sources.append([d.Sources[k].get("SourceTransform"), d.Sources[k].get("Weight", "1")])
@@ -1111,6 +1121,7 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 ## scaled by `scale`.
 static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D], scale: float, objs: Dictionary, renderer: int, own_model: bool, humanoid_bones: int) -> Dictionary:
 	var scaled := Transform3D.IDENTITY.scaled(Vector3.ONE * scale)
+	var same_model: bool = not sk.has_meta("unity_model") or _mesh_model(objs, renderer, objs[renderer].type) == sk.get_meta("unity_model")
 	var target := func(src: Skeleton3D, b: int) -> int:
 		while b >= 0:
 			var t := _find_bone(sk, src.get_bone_name(b))
@@ -1127,7 +1138,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 			var name := str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()
 			unity[name] = _ref(t)
 			var bone := _find_bone(sk, name)
-			if sk.has_meta("unity_bones") and bone >= 0 and bone < humanoid_bones:
+			if same_model and sk.has_meta("unity_bones") and bone >= 0 and bone < humanoid_bones:
 				sk.get_meta("unity_bones")[go] = bone
 		var binds := []
 		for i in mi.skin.get_bind_count():
@@ -1136,7 +1147,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 				b = src.find_bone(mi.skin.get_bind_name(i))
 			var name := src.get_bone_name(maxi(b, 0))
 			var t := _find_bone(sk, name)
-			if unity.has(name) and (t < 0 or t >= humanoid_bones):
+			if unity.has(name) and (not same_model or t < 0 or t >= humanoid_bones):
 				t = _as_bone(objs, unity[name], sk, rests)
 				if t >= 0:
 					binds.append([t, mi.skin.get_bind_pose(i)])
@@ -1174,7 +1185,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 		path.append(t)
 		t = _ref(objs[t].data.get("m_Father"))
 		b = source_bones.get(go_of.call(t), -1) if sk.has_meta("unity_bones") else _find_bone(sk, name_of.call(t))
-	if b < 0:
+	if b < 0 and (path.is_empty() or path.back() != sk.get_meta("unity_top", -1)):
 		return -1
 	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
 	for i in range(path.size() - 1, -1, -1):
@@ -1185,7 +1196,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 		var added := sk.get_bone_count()
 		sk.add_bone(name)
 		sk.set_bone_parent(added, b)
-		sk.set_bone_rest(added, rests[b].affine_inverse() * world)
+		sk.set_bone_rest(added, rests[b].affine_inverse() * world if b >= 0 else world)
 		sk.reset_bone_pose(added)
 		source_bones[go_of.call(path[i])] = added
 		rests.append(world)
@@ -1426,7 +1437,7 @@ static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:
 ## The kinds of component under the avatar this converter does not translate, with how many of each.
 static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) -> Dictionary:
 	var kinds := {}
-	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true}
+	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true, "ParentConstraint": true, "PositionConstraint": true, "LookAtConstraint": true}
 	for e: Array in _under(objs, top):
 		for c: Variant in Prefabs._list(objs.get(e[1], {}).get("data", {}).get("m_Component")):
 			var id := _ref((c as Dictionary).get("component"))
@@ -1509,3 +1520,67 @@ static func _bone_of(sk: Skeleton3D, unity: String, parents: Dictionary) -> int:
 	if b < 0 or sk.get_bone_parent(b) < 0:
 		return b
 	return b if sk.get_bone_parent(b) == _bone_of(sk, parents[unity], parents) else -1
+
+
+static func _matrix(t: Transform3D) -> Array:
+	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, 0, t.basis.y.x, t.basis.y.y, t.basis.y.z, 0, t.basis.z.x, t.basis.z.y, t.basis.z.z, 0, t.origin.x, t.origin.y, t.origin.z, 1]
+
+
+static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
+	var out := []
+	var on := {}
+	for e: Array in _under(objs, top):
+		var father := _ref(objs[e[0]].data.get("m_Father"))
+		on[e[0]] = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
+		if not on[e[0]] or not objs.has(e[1]):
+			continue
+		for component: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
+			var o: Dictionary = objs.get(_ref(component.get("component")), {})
+			if not o.get("type", "") in ["ParentConstraint", "PositionConstraint", "LookAtConstraint"]:
+				continue
+			var d: Dictionary = o.data
+			if str(d.get("m_Enabled", "1")) != "1" or str(d.get("m_Active", "0")) != "1" or str(d.get("m_Weight", "1")).to_float() == 0.0:
+				continue
+			if o.type == "LookAtConstraint" and (str(d.get("m_UseUpObject", "0")) != "0" or str(d.get("m_Roll", "0")).to_float() != 0.0):
+				return {"error": "LookAtConstraint up object or roll is unsupported"}
+			var bone := _as_bone(objs, e[0], sk, rests)
+			if bone < 0:
+				return {"error": "constraint target has no output bone"}
+			var c := {"kind": str(o.type).trim_suffix("Constraint"), "node": bone, "weight": str(d.get("m_Weight", "1")).to_float(), "sources": [], "translation": [], "rotation": []}
+			for axis: String in ["X", "Y", "Z"]:
+				c.translation.append(str(d.get("m_AffectTranslation" + axis, "1")) == "1")
+				c.rotation.append(str(d.get("m_AffectRotation" + axis, "1")) == "1")
+			c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
+			c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
+			var entries := Prefabs._list(d.get("m_Sources"))
+			for i in entries.size():
+				var entry: Dictionary = entries[i]
+				var weight := str(entry.get("weight", "1")).to_float()
+				if weight <= 0.0:
+					continue
+				var ref: Dictionary = entry.get("sourceTransform", {})
+				var source := {"weight": weight}
+				if ref.has("guid"):
+					if not prefabs.assets.by_guid.has(str(ref.guid)):
+						return {"error": "constraint source asset is missing"}
+					var external := prefabs.flatten(str(ref.guid))
+					if not external.has(_ref(ref)):
+						return {"error": "constraint source transform is missing"}
+					source.world = _matrix(_world_transform(external, _ref(ref)))
+				else:
+					var at := _as_bone(objs, _ref(ref), sk, rests)
+					if at < 0:
+						return {"error": "constraint source has no output bone"}
+					source.node = at
+				var positions := Prefabs._list(d.get("m_TranslationOffsets"))
+				var rotations := Prefabs._list(d.get("m_RotationOffsets"))
+				source.offset = _matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
+				c.sources.append(source)
+			out.append(c)
+	return {"constraints": out}
+
+
+static func _constraint_rotation(v: Dictionary) -> Dictionary:
+	var angles := Vector3(str(v.get("x", "0")).to_float(), str(v.get("y", "0")).to_float(), str(v.get("z", "0")).to_float()) * PI / 180.0
+	var q := Quaternion.from_euler(angles)
+	return {"x": q.x, "y": q.y, "z": q.z, "w": q.w}

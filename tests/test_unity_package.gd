@@ -22,6 +22,8 @@ func _run() -> void:
 	_model_objects_keep_their_bindings_and_transforms()
 	_material_properties_read_either_layout()
 	_outside_constraints_place()
+	_native_constraints_resolve_world_and_feedback()
+	_mesh_bones_do_not_alias_another_models_names()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_legacy_springs_keep_their_root_and_endpoint()
@@ -165,8 +167,6 @@ func _material_properties_read_either_layout() -> void:
 	check(Materials._properties(saved.m_Floats)._Mode == "1", "a property list of first/second pairs")
 
 
-## A constraint with a weighted source outside the avatar places its GameObject; one sourced by the avatar's own
-## transforms, or weighted nothing outside, does not.
 func _outside_constraints_place() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}]}},
@@ -175,7 +175,7 @@ func _outside_constraints_place() -> void:
 		4: {"type": "MonoBehaviour", "data": {"PositionAtRest": {}, "Sources": {"source0": {"SourceTransform": {"fileID": "9"}, "Weight": "1"}, "source1": {"SourceTransform": {"fileID": "8"}, "Weight": "0"}}}},
 	}
 	var inside := {9: true}
-	check(UnityAvatar._constrained(objs, 1, inside), "a source in another prefab places its GameObject")
+	check(not UnityAvatar._constrained(objs, 1, inside), "native constraints retain their rendered subtree for runtime evaluation")
 	check(not UnityAvatar._constrained(objs, 3, inside), "the avatar's own source, and an unweighted outside one, do not")
 
 
@@ -455,3 +455,70 @@ BlendTree:
 	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
 	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
 	sk.free()
+
+
+func _native_constraints_resolve_world_and_feedback() -> void:
+	var dir := ProjectSettings.globalize_path("user://constraints")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var assets := Assets.new(dir)
+	assets.by_guid["anchor"] = {}
+	var prefabs := Prefabs.new(assets)
+	prefabs._flat["anchor"] = {90: {"type": "Transform", "data": {"m_LocalPosition": {"x": "2", "y": "3", "z": "4"}}}}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_IsActive": "1"}},
+		2: {"type": "GameObject", "data": {"m_Name": "World", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "20"}}]}},
+		3: {"type": "GameObject", "data": {"m_Name": "Follower", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "21"}}]}},
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Children": [{"fileID": "11"}]}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}, "m_Father": {"fileID": "10"}, "m_Children": [{"fileID": "12"}]}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "11"}}},
+		20: {"type": "ParentConstraint", "data": {"m_Active": "1", "m_Sources": [{"sourceTransform": {"guid": "anchor", "fileID": "90"}, "weight": "1"}]}},
+		21: {"type": "PositionConstraint", "data": {"m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "12"}, "weight": "1"}, {"sourceTransform": {"fileID": "10"}, "weight": "0.01"}]}},
+	}
+	var sk := Skeleton3D.new()
+	sk.set_meta("unity_bones", {})
+	sk.set_meta("unity_top", 10)
+	var rests: Array[Transform3D] = []
+	var result := UnityAvatar._constraints(prefabs, objs, 10, sk, rests)
+	check(not result.has("error"), "active native constraints resolve")
+	if result.has("constraints"):
+		check(result.constraints.size() == 2, "both active native constraints exported")
+		var parent: Dictionary = result.constraints[0]
+		var follower: Dictionary = result.constraints[1]
+		check(parent.sources[0].world.slice(12, 15) == [-2.0, 3.0, 4.0], "external prefab keeps its world coordinates with handedness conversion")
+		check(follower.sources[0].node == follower.node and is_equal_approx(follower.sources[1].weight, 0.01), "feedback reference and authored weight survive")
+	objs[21].data.m_Enabled = "0"
+	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).constraints.size() == 1, "disabled component remains disabled")
+	objs[2].data.m_IsActive = "0"
+	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).constraints.is_empty(), "inactive hierarchy remains inactive")
+	sk.free()
+
+
+func _mesh_bones_do_not_alias_another_models_names() -> void:
+	var root := Node3D.new()
+	var source := Skeleton3D.new()
+	source.name = "Source"
+	source.add_bone("Head")
+	root.add_child(source)
+	var mesh := MeshInstance3D.new()
+	mesh.skin = Skin.new()
+	mesh.skin.add_bind(0, Transform3D.IDENTITY)
+	mesh.skeleton = NodePath("../Source")
+	root.add_child(mesh)
+	var target := Skeleton3D.new()
+	target.add_bone("Head")
+	target.set_meta("unity_bones", {1: 0})
+	target.set_meta("unity_top", 10)
+	target.set_meta("unity_model", "body")
+	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Head"}},
+		2: {"type": "GameObject", "data": {"m_Name": "Head"}},
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "1"}}},
+		20: {"type": "SkinnedMeshRenderer", "data": {"m_Mesh": {"guid": "prop"}, "m_Bones": [{"fileID": "11"}]}},
+	}
+	var bound := UnityAvatar._binder(mesh, target, rests, 1.0, objs, 20, false, 1)
+	check(bound.binds[0][0] == 1 and target.get_bone_count() == 2, "prop Head binds to its own source transform, not humanoid Head")
+	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
+	root.free()
+	target.free()

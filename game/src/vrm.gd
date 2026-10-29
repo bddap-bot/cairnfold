@@ -222,6 +222,7 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"springs", root.get_meta("springs", {}))
+	state.set_additional_data(&"constraints", root.get_meta("constraints", []))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
 	state.set_additional_data(&"expressions", root.get_meta("expressions", {}))
@@ -261,6 +262,18 @@ func _export_post(state: GLTFState) -> Error:
 		for collider: Dictionary in encoded.colliders:
 			collider.node = indices[collider.node]
 		exts["VRMC_springBone"] = encoded
+	var constraints: Array = state.get_additional_data(&"constraints")
+	if not constraints.is_empty():
+		var indices := {}
+		for i in nodes.size():
+			indices[nodes[i].resource_name] = i
+		var encoded := constraints.duplicate(true)
+		for c: Dictionary in encoded:
+			c.node = indices[c.node]
+			for source: Dictionary in c.sources:
+				if source.has("node"):
+					source.node = indices[source.node]
+		exts["UNITY_constraints"] = {"constraints": encoded}
 	var expressions: Dictionary = state.get_additional_data(&"expressions")
 	if not expressions.is_empty():
 		exts[EXPRESSIONS] = _indexed(expressions, state)
@@ -269,6 +282,8 @@ func _export_post(state: GLTFState) -> Error:
 		used.append("VRMC_springBone")
 	if not expressions.is_empty() and not used.has(EXPRESSIONS):
 		used.append(EXPRESSIONS)
+	if not constraints.is_empty():
+		used.append("UNITY_constraints")
 	if not used.has("VRMC_vrm"):
 		used.append("VRMC_vrm")
 	return OK
