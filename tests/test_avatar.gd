@@ -34,6 +34,7 @@ func _run() -> void:
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
 	_switched_off_physics_stays_out()
+	_prepared_skins_release_sources()
 	_unity_package_converts()
 	_physbones_keep_whose_hands_touch_them()
 	for i in Avatar.BUILT_IN.size():
@@ -926,3 +927,29 @@ func _blended_surfaces_stay_blended() -> void:
 	player.free()
 	model.free()
 
+
+func _skins_with_unused_binding(scene: PackedScene) -> Array[WeakRef]:
+	var model := scene.instantiate()
+	var sources: Array[WeakRef] = []
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin != null:
+			mi.skin.add_bind(0, Transform3D.IDENTITY)
+			sources.append(weakref(mi.mesh))
+	model.free()
+	return sources
+
+
+func _prepared_skins_release_sources() -> void:
+	var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm")))
+	var sources := _skins_with_unused_binding(scene)
+	var first := Avatar.open(scene, Color.WHITE)
+	check(not sources.is_empty() and sources.all(func(source: WeakRef) -> bool: return source.get_ref() == null), "preparing skins releases superseded source mesh buffers")
+	var second := Avatar.open(scene, Color.WHITE)
+	var a := first._model.find_children("*", "MeshInstance3D", true, false)
+	var b := second._model.find_children("*", "MeshInstance3D", true, false)
+	check(a.size() == b.size(), "preparing a scene retains every mesh")
+	for i in mini(a.size(), b.size()):
+		check(a[i].mesh == b[i].mesh and a[i].skin == b[i].skin, "repeated opens share prepared mesh and skin resources")
+	check(first._skeleton != second._skeleton, "prepared meshes keep each avatar's skeleton independent")
+	first.free()
+	second.free()
