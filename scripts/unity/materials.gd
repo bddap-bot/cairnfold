@@ -15,6 +15,7 @@ var materials := {}
 var _images := {}
 var atlas: Image
 var undecoded := {}
+var hue_masks := {}
 
 
 func _init(from: Assets) -> void:
@@ -50,6 +51,8 @@ func _read(m: Dictionary, guid: String) -> void:
 			m.properties[found.get_string(1)] = true
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
+	m.textures = textures
+	m.keywords = mat.get("m_ValidKeywords", [])
 	var floats := _properties(saved.get("m_Floats"))
 	m.floats = floats
 	var colours := _properties(saved.get("m_Colors"))
@@ -242,3 +245,34 @@ func material() -> StandardMaterial3D:
 		out.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		out.alpha_scissor_threshold = 0.5
 	return out
+
+
+func hue_mask() -> String:
+	var out: Image
+	for key: String in hue_masks:
+		var m: Dictionary = materials[key]
+		var entry: Dictionary = (m.textures as Dictionary).get("_HueShiftMask", {})
+		var guid := str((entry.get("m_Texture", {}) as Dictionary).get("guid", ""))
+		if guid == "":
+			continue
+		var source := image(guid)
+		if source == null:
+			continue
+		if out == null:
+			out = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+			out.fill(Color.WHITE)
+		var scale := _vector2(entry.get("m_Scale"), Vector2.ONE)
+		var offset := _vector2(entry.get("m_Offset"), Vector2.ZERO)
+		var cell: Rect2i = m.cell
+		var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
+		for y in range(-PAD, cell.size.y + PAD):
+			for x in range(-PAD, cell.size.x + PAD):
+				var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
+				uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2) * scale + offset
+				var pixel := Vector2(uv.x, 1.0 - uv.y) * Vector2(source.get_size()) - Vector2(0.5, 0.5)
+				var base := Vector2i(pixel.floor())
+				var fraction := pixel - pixel.floor()
+				var at := func(dx: int, dy: int) -> Color: return source.get_pixel(posmod(base.x + dx, source.get_width()), posmod(base.y + dy, source.get_height()))
+				var value: float = at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)[channel]
+				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value, value, value, 1.0))
+	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())

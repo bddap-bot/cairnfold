@@ -501,6 +501,28 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.properties.clear()
 	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
 	check(absent.targets.is_empty(), "a stale saved property not declared by the shader has no binding")
+	materials.materials.colour.shader = "VRChat/Mobile/Toon Standard"
+	materials.materials.colour.properties = {"_HueShift": true}
+	materials.materials.colour.floats = {"_HueShift": "0.5", "_HueShiftMaskChannel": "1"}
+	materials.materials.colour.keywords = ["USE_HUE_SHIFT"]
+	materials.materials.colour.textures = {"_HueShiftMask": {"m_Texture": {"guid": "mask"}}}
+	var mask := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	mask.set_pixel(0, 0, Color(1, 0, 0, 1))
+	mask.set_pixel(1, 0, Color(0, 1, 0, 1))
+	materials._images.mask = mask
+	expressions.data.clips[0].curves[0].attribute = "material._HueShift"
+	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, TAU]]
+	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(mobile.targets.size() == 1 and mobile.targets[0].effect.hue[0].space == 2.0, "Toon Standard binds RGB-axis hue")
+	check(mobile.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, TAU]], "the shader's angle stays in radians")
+	var packed := Image.new()
+	check(packed.load_png_from_buffer(Marshalls.base64_to_raw(mobile.hueMask)) == OK, "the hue mask is carried in expression metadata")
+	var cell: Rect2i = materials.materials.colour.cell
+	check(packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2).r < 0.2 and packed.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2).r > 0.8, "the selected green mask channel follows the atlas region")
+	materials.materials.colour.keywords.clear()
+	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(disabled.targets.is_empty(), "a disabled shader feature does not create a hue binding")
+
 	sk.free()
 
 

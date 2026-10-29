@@ -531,6 +531,9 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	data.menu = _pruned(data.menu, effective, cut, materials, data.icons, {})
 	if not cut.is_empty():
 		dropped["menu controls moving nothing the model shows"] = cut.size()
+	var hue_mask := materials.hue_mask()
+	if hue_mask != "":
+		data.hueMask = hue_mask
 	data.targets = targets
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
@@ -561,9 +564,9 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		for m: Dictionary in meshes:
 			saved = maxf(saved, m.weights.get(shape, 0.0) if renderer in m.renderers else 0.0)
 		rest = saved
-	elif c.attribute.begins_with("material._MainHueShift") and c["class"] == "137":
+	elif (c.attribute.begins_with("material._MainHueShift") or c.attribute == "material._HueShift") and c["class"] == "137":
 		var property: String = c.attribute.trim_prefix("material.")
-		if property != "_MainHueShift" and not property.begins_with("_MainHueShift_"):
+		if property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
 			return -1
 		var renderer := _renderer_of(objs, go)
 		var regions := []
@@ -575,13 +578,20 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 				continue
 			var material: Dictionary = materials.materials[key]
 			var floats: Dictionary = material.get("floats", {})
-			if not floats.has(property) or not material.has("cell") or not (material.get("properties", {}) as Dictionary).has(property) or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
+			if not floats.has(property) or not material.has("cell") or not (material.get("properties", {}) as Dictionary).has(property):
+				continue
+			var mobile: bool = property == "_HueShift" and material.shader == "VRChat/Mobile/Toon Standard"
+			if mobile:
+				if not "USE_HUE_SHIFT" in material.get("keywords", []):
+					continue
+				materials.hue_masks[key] = true
+			elif property == "_HueShift" or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
 				continue
 			var cell: Rect2 = Rect2(material.cell)
 			var rect := [cell.position.x / Materials.ATLAS, cell.position.y / Materials.ATLAS, cell.end.x / Materials.ATLAS, cell.end.y / Materials.ATLAS]
 			for m: Dictionary in meshes:
 				if renderer in m.renderers:
-					regions.append({"node": m.node, "rect": rect, "space": str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()})
+					regions.append({"node": m.node, "rect": rect, "space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()})
 			rest = str(floats[property]).to_float()
 		if regions.is_empty():
 			return -1

@@ -189,11 +189,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) straight into the
   avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
   `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR]`.
-  No VRM lies between them: VRM cannot carry Unity's shader properties, Animator controllers,
-  menus, Contacts or PhysBones settings, which later importer work adds to the same model.
   Named `avatar.vrm`, the output is instead the file a player wears: the avatars folder reads
   only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
-  `Avatar.read` reads it back into the same model, with what VRM cannot carry left behind.
+  `Avatar.read` reads it back into the same model. The `VRCHAT_expressions` extension carries
+  creator menus, parameters, animation curves and supported material controls.
   The avatar is the GameObject with a VRChat avatar descriptor (AVATAR names it where a package
   holds several), instantiated as its scene or prefab does: prefab instances, nested ones too,
   expand with their modifications, so the renderers it draws are those active there, with the
@@ -220,10 +219,18 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   dropped, and their sphere and capsule colliders spring colliders. The file keeps every chain;
   an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
   the Quest 2's CPU every frame). The descriptor's view position places
-  the eyes. The importer prints what it kept and dropped: Animator controllers, expression
-  menus, visemes, Contacts, constraints, particles and scripts are not translated. A renderer
+  the eyes. The importer reports untranslated curves and components, including Contacts,
+  particles and scripts. A renderer
   that a constraint places from outside the avatar (a follower, a prop left in the world) is not
   drawn, since without its constraint it would stand glued to the body.
+
+  The material hue importer supports supplied Poiyomi shader declarations and the
+  `VRChat/Mobile/Toon Standard` schema from `com.vrchat.base` 3.10.5. A Unity source
+  folder must include its shader dependencies and their `.meta` files; saved properties
+  alone do not identify features a shader implements. Toon Standard's enabled hue
+  feature carries its radian curve and selected texture-mask channel in expression
+  metadata. The runtime samples that mask independently of the colour atlas.
+
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
 - **Seeing yourself.** The body uses the photo layer, so a camera sees the whole avatar
