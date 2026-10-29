@@ -30,6 +30,7 @@ func _run() -> void:
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
+	_a_hue_radial_keeps_its_material_binding()
 	finish()
 
 
@@ -454,6 +455,52 @@ BlendTree:
 	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], objs, paths, sk, Materials.new(Assets.new(dir)), {})
 	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
 	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
+	sk.free()
+
+
+func _a_hue_radial_keeps_its_material_binding() -> void:
+	var dir := ProjectSettings.globalize_path("user://hue")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("colour.shader", "shader", 'Shader "Fixture" { Properties { _MainHueShift ("Hue", Float) = 0 } }')
+	write.call("colour.mat", "colour", """Material:
+  m_Shader: {guid: shader}
+  m_SavedProperties:
+    m_Floats:
+    - _MainHueShift: 0.25
+    - _MainHueShiftToggle: 1
+    - _MainHueShiftColorSpace: 1
+    - _MainHueShiftSelectOrShift: 0
+""")
+	var assets := Assets.new(dir)
+	var materials := Materials.new(assets)
+	materials.use({"guid": "colour"}, Color.WHITE)
+	materials.pack(["colour"])
+	var expressions := Expressions.new(assets, {})
+	expressions.data = {
+		"menu": [{"name": "Hue", "type": "radial", "parameter": "", "axes": ["Hue"], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Hue", "type": "float", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0, "time": "Hue"}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 1, "loop": false, "curves": [{"path": "", "attribute": "material._MainHueShift", "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]}]}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "colour"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(data.menu.size() == 1 and data.targets.size() == 1, "a hue radial survives binding")
+	if data.targets.size() == 1:
+		var target: Dictionary = data.targets[0]
+		check(target.default == 0.25 and target.effect.hue[0].node == "Body" and target.effect.hue[0].space == 1.0 and target.effect.hue[0].shift == 0.0, "the saved colour space, mode and default survive")
+		check(data.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]] and not data.clips[0].curves[0].step, "hue remains continuous instead of becoming a switch")
+	materials.materials.colour.properties.clear()
+	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(absent.targets.is_empty(), "a stale saved property not declared by the shader has no binding")
 	sk.free()
 
 

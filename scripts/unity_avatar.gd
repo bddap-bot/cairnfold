@@ -446,12 +446,6 @@ static func _renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
-## The menu as the model carries it (VRCHAT_expressions, written by Vrm): each clip curve bound to a target the model
-## can show (a switch, a material slot's choice, a blend shape of the meshes drawing its renderer, a factor on a bone's
-## scale) and the curves of
-## anything else dropped and reported; layers that move no target, nor drive a parameter one reads, dropped; and menu
-## controls whose parameters move nothing dropped. Meshes and blend shapes go by node and shape name, which Vrm
-## resolves to glTF indices.
 static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
 	var data: Dictionary = expressions.data.duplicate(true)
 	var targets: Array = switches.targets.duplicate(true)
@@ -465,7 +459,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 		for c: Dictionary in clip.curves:
 			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
 			if not by_curve.has(key):
-				var target := _target(c, objs, paths, meshes, sk, targets)
+				var target := _target(c, objs, paths, meshes, sk, targets, materials)
 				if target < 0:
 					var kind := "shader property" if c.attribute.begins_with("material.") else "%s on class %s" % [c.attribute.get_slice(".", 0), c["class"]]
 					dropped[kind + " curve"] = dropped.get(kind + " curve", 0) + 1
@@ -479,6 +473,8 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
 				var rest: float = targets[t].rest
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / rest if rest != 0.0 else 1.0])
+			elif targets[t].effect is Dictionary and targets[t].effect.has("hue"):
+				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / 100.0])
 			else:
@@ -543,10 +539,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
-## The target a clip curve binds to, made the first time: a blend shape of each mesh drawing the renderer at its path,
-## or a factor on one axis of the scale of the bone at its path (its "rest" the transform's own scale on that axis).
-## -1 if the model shows nothing it moves.
-static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, sk: Skeleton3D, targets: Array) -> int:
+static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, sk: Skeleton3D, targets: Array, materials: Materials) -> int:
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
 	var transform: int = paths[c.path]
@@ -568,6 +561,31 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		for m: Dictionary in meshes:
 			saved = maxf(saved, m.weights.get(shape, 0.0) if renderer in m.renderers else 0.0)
 		rest = saved
+	elif c.attribute.begins_with("material._MainHueShift") and c["class"] == "137":
+		var property: String = c.attribute.trim_prefix("material.")
+		if property != "_MainHueShift" and not property.begins_with("_MainHueShift_"):
+			return -1
+		var renderer := _renderer_of(objs, go)
+		var regions := []
+		for ref: Variant in Prefabs._list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
+			if not ref is Dictionary:
+				continue
+			var key := str(ref.get("guid", ""))
+			if not materials.materials.has(key):
+				continue
+			var material: Dictionary = materials.materials[key]
+			var floats: Dictionary = material.get("floats", {})
+			if not floats.has(property) or not material.has("cell") or not (material.get("properties", {}) as Dictionary).has(property) or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
+				continue
+			var cell: Rect2 = Rect2(material.cell)
+			var rect := [cell.position.x / Materials.ATLAS, cell.position.y / Materials.ATLAS, cell.end.x / Materials.ATLAS, cell.end.y / Materials.ATLAS]
+			for m: Dictionary in meshes:
+				if renderer in m.renderers:
+					regions.append({"node": m.node, "rect": rect, "space": str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()})
+			rest = str(floats[property]).to_float()
+		if regions.is_empty():
+			return -1
+		effect = {"hue": regions}
 	elif c.attribute.begins_with("m_LocalScale.") and c["class"] == "4":
 		var bone := sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
 		if bone < 0:
@@ -581,7 +599,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	for i in targets.size():
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
-	targets.append({"effect": effect, "default": rest if effect.has("morph") else 1.0, "rest": rest if effect.has("scale") else 1.0})
+	targets.append({"effect": effect, "default": rest if effect.has("morph") or effect.has("hue") else 1.0, "rest": rest if effect.has("scale") else 1.0})
 	return targets.size() - 1
 
 

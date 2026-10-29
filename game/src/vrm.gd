@@ -289,8 +289,6 @@ func _export_post(state: GLTFState) -> Error:
 	return OK
 
 
-## The importer's VRCHAT_expressions with each node and blend shape it names by name as its glTF index: a morph bind
-## [node, shape] becomes [mesh, target].
 static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 	var out := expressions.duplicate(true)
 	var nodes := state.get_nodes()
@@ -304,6 +302,9 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 	for t: Dictionary in out.targets:
 		if t.effect is Dictionary and t.effect.has("morph"):
 			t.effect.morph = t.effect.morph.map(morph)
+		elif t.effect is Dictionary and t.effect.has("hue"):
+			for region: Dictionary in t.effect.hue:
+				region.node = index[region.node]
 		elif t.effect is Dictionary and t.effect.has("scale"):
 			t.effect.scale.node = index[t.effect.scale.node]
 		elif t.effect is Dictionary and t.effect.has("material"):

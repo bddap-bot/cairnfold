@@ -1,8 +1,5 @@
 extends RefCounted
 
-## Unity materials as the one material an imported avatar draws with: each material's colour texture, tinted by its
-## colour, takes a cell of one atlas, and its surfaces' UVs move into that cell. Shader programs are not ported: a
-## material keeps what its saved properties say of colour, texture, tiling and alpha, whichever shader saved them.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -14,12 +11,9 @@ const COLOURS := ["_Color", "_BaseColor", "_MainColor"]
 enum Alpha { OPAQUE, CUTOUT, BLEND }
 
 var assets: Assets
-## Each material read, by key: {"name", "shader", "texture" GUID or "", "colour", "scale", "offset", "alpha", "cull",
-## "cutoff", "image" (null if its texture did not decode), "cell" Rect2i once packed}.
 var materials := {}
 var _images := {}
 var atlas: Image
-## Texture files that did not decode, by path.
 var undecoded := {}
 
 
@@ -27,8 +21,6 @@ func _init(from: Assets) -> void:
 	assets = from
 
 
-## The key of a material reference from a renderer's m_Materials, reading the material the first time; a material the
-## package lacks keeps the name its model gave it and draws its model's colour.
 func use(ref: Dictionary, fallback: Color) -> String:
 	var guid := str(ref.get("guid", ""))
 	var key := guid if assets.by_guid.has(guid) and assets.extension(guid) == "mat" else "missing:" + str(ref.get("name", guid))
@@ -50,9 +42,16 @@ func _read(m: Dictionary, guid: String) -> void:
 	m.name = str(mat.get("m_Name", assets.name(guid)))
 	var shader: Dictionary = mat.get("m_Shader", {})
 	m.shader = _shader_name(shader)
+	m.properties = {}
+	var shader_guid := str(shader.get("guid", ""))
+	if assets.by_guid.has(shader_guid):
+		var property := RegEx.create_from_string("(_[A-Za-z0-9_]+)\\s*\\(\\s*\"")
+		for found in property.search_all(assets.text(shader_guid)):
+			m.properties[found.get_string(1)] = true
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
 	var floats := _properties(saved.get("m_Floats"))
+	m.floats = floats
 	var colours := _properties(saved.get("m_Colors"))
 	for k: String in TEXTURES:
 		var t: Variant = textures.get(k)
@@ -89,8 +88,6 @@ func _shader_name(ref: Dictionary) -> String:
 	return "Standard" if str(ref.get("fileID", "")) == "46" else "not in package (%s)" % guid.left(8)
 
 
-## A material's saved property list as a Dictionary, from either layout Unity has written it in: entries of one key,
-## or {first: {name}, second: value}.
 static func _properties(list: Variant) -> Dictionary:
 	var out := {}
 	if not list is Array:
@@ -112,8 +109,6 @@ static func _vector2(v: Variant, otherwise: Vector2) -> Vector2:
 	return otherwise
 
 
-## The texture's image, decoded once from its own bytes; null, and recorded, if the package lacks it or it is no PNG,
-## JPEG, TGA, BMP or WebP.
 func image(guid: String) -> Image:
 	if _images.has(guid):
 		return _images[guid]
@@ -145,8 +140,6 @@ func image(guid: String) -> Image:
 	return img
 
 
-## Packs the materials `used` names into one atlas, each cell its texture tinted by its colour, alpha kept only where
-## the material is cut out or blended, each scaled by the largest factor at which all fit.
 func pack(used: Array) -> void:
 	var sizes := {}
 	for key: String in used:
@@ -184,8 +177,6 @@ func pack(used: Array) -> void:
 		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
 
 
-## Multiplies a cell by its material's colour, and sets its alpha as the atlas's one cutoff of 0.5 should treat it:
-## opaque everywhere, cut where the material cuts at its own cutoff, or as it is for a blended material.
 static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float) -> void:
 	var data := img.get_data()
 	var mul := [colour.r, colour.g, colour.b, colour.a]
@@ -197,7 +188,6 @@ static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float) -> voi
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
-## Cells for each size scaled by `factor`, tallest first along shelves; empty if they do not fit the atlas.
 static func _shelves(keys: Array, sizes: Dictionary, factor: float) -> Dictionary:
 	var order := keys.duplicate()
 	order.sort_custom(func(a: String, b: String) -> bool: return sizes[a].y > sizes[b].y)
@@ -221,8 +211,6 @@ static func _shelves(keys: Array, sizes: Dictionary, factor: float) -> Dictionar
 	return out
 
 
-## Where a vertex's UV lands in the atlas for material `key`: its texture's tiling and offset applied in Unity's UV
-## frame (V up), then clamped into the cell. The second value says whether it was clamped.
 func place(key: String, uv: Vector2) -> Array:
 	var m: Dictionary = materials[key]
 	var u := Vector2(uv.x, 1.0 - uv.y) * (m.scale as Vector2) + (m.offset as Vector2)
@@ -232,8 +220,6 @@ func place(key: String, uv: Vector2) -> Array:
 	return [(Vector2(cell.position) + Vector2(u.x, 1.0 - u.y) * Vector2(cell.size)) / ATLAS, not inside]
 
 
-## How a UV `place` put into material `from`'s cell moves to where it would put it in material `to`'s:
-## [scale, offset], a UV in `from`'s cell times scale plus offset. Tiling the cell clamps is not followed.
 func moved(from: String, to: String) -> Array:
 	var affine := func(key: String) -> Array:
 		var m: Dictionary = materials[key]
@@ -247,7 +233,6 @@ func moved(from: String, to: String) -> Array:
 	return [s, (b[1] as Vector2) - (a[1] as Vector2) * s]
 
 
-## The material every surface draws with: the atlas, cut out where any packed material is not opaque.
 func material() -> StandardMaterial3D:
 	var out := StandardMaterial3D.new()
 	out.resource_name = "atlas"
