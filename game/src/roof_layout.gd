@@ -213,11 +213,11 @@ func flat() -> bool:
 	return pitch <= 0.0
 
 
-## Height of the deck that `p` stands on, or -INF: a pitched roof, a point beside the house, or one below
-## the deck, inside the house under it.
 func deck_under(p: Vector3) -> float:
+	if not flat():
+		return -INF
 	var y := height_at(p.x, p.z)
-	return y if flat() and p.y >= y - ON_DECK and over(p.x, p.z) else -INF
+	return y if p.y >= y - ON_DECK and over(p.x, p.z) else -INF
 
 
 ## Rise above the wall top at `u`, 0 at the walls' outer faces and 1 at the ridge; below 0 (the overhang) it carries on straight.

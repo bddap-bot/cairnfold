@@ -1,12 +1,10 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of flat roofs and platforms, railings, stacked decks, eaves, tents and dormers, as layouts and
-## through the tools: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roofs.gd
-
 const SETTLE_FRAMES := 3600
 
 
 func _initialize() -> void:
+	check(RoofLayout.new().deck_under(Vector3.ZERO) == -INF, "a pitched roof offers no deck before its footprint is laid")
 	_a_wooden_deck_is_boards_on_joists()
 	_a_tower_takes_a_wooden_deck_inside_its_ring()
 	_a_curved_wooden_deck_follows_its_surface()
