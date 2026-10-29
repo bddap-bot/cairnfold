@@ -142,6 +142,7 @@ func _unity_package_converts() -> void:
 	var human: Dictionary = model.get_meta("humanoid")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var bone_of := func(b: String) -> String: return (human[b] as NodePath).get_concatenated_subnames()
+	_rests_in_the_avatar_definitions_pose(sk, bone_of.call("leftUpperArm"), FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
 	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool:
 		var as_bone := UnityAvatar.vrm_bone(avatar.human[b])
 		return human.has(as_bone) and sk.find_bone(bone_of.call(as_bone)) >= 0), "every bone the Avatar definition maps is a skeleton bone under its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
@@ -169,9 +170,43 @@ func _unity_package_converts() -> void:
 	_keeps_skins_and_shapes(scene, "seed-san", shapes.values().reduce(func(n: int, k: int) -> int: return n + k, 0))
 	_skin_bends_as(scene, "seed-san", _scene_skin.bind(reference))
 	reference.free()
+	var lowered := ProjectSettings.globalize_path("user://seed-san-lowered/Models")
+	DirAccess.make_dir_recursive_absolute(lowered)
+	DirAccess.copy_absolute(_sample("seed-san/Models/new_seedsan_betterfbx.fbx"), lowered.path_join("new_seedsan_betterfbx.fbx"))
+	var meta := FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta"))
+	var entry := meta.find("    - name: upper_arm.L\n")
+	var start := meta.find("rotation: {", entry)
+	var end := meta.find("}", start) + 1
+	var turned := _unity_rotation(meta.substr(start, end - start)) * Quaternion(Vector3.FORWARD, PI / 4)
+	meta = meta.substr(0, start) + "rotation: {x: %f, y: %f, z: %f, w: %f}" % [turned.x, turned.y, turned.z, turned.w] + meta.substr(end)
+	FileAccess.open(lowered.path_join("new_seedsan_betterfbx.fbx.meta"), FileAccess.WRITE).store_string(meta)
+	var moved := UnityAvatar.avatar_scene(lowered.get_base_dir())
+	check(moved != null, "the package with its Avatar's arm turned imports")
+	if moved != null:
+		var moved_sk: Skeleton3D = moved.find_children("*", "Skeleton3D", true, false)[0]
+		_rests_in_the_avatar_definitions_pose(moved_sk, bone_of.call("leftUpperArm"), meta)
+		moved.free()
 	var empty := ProjectSettings.globalize_path("user://no-humanoid")
 	DirAccess.make_dir_recursive_absolute(empty)
 	check(UnityAvatar.avatar_scene(empty) == null, "a package with no humanoid model imports as nothing")
+
+
+## The humanoid rests in the pose its Unity Avatar definition records, whatever pose the model file binds its skin in:
+## a model bound with its arms lowered converts with the T-pose its Avatar was configured in.
+func _rests_in_the_avatar_definitions_pose(sk: Skeleton3D, bone: String, meta: String) -> void:
+	var entry := meta.find("    - name: upper_arm.L\n")
+	var start := meta.find("rotation: {", entry)
+	var unity := _unity_rotation(meta.substr(start, meta.find("}", start) + 1 - start))
+	var mirrored := Quaternion(unity.x, -unity.y, -unity.z, unity.w)
+	var rest := sk.get_bone_rest(sk.find_bone(bone)).basis.get_rotation_quaternion()
+	check(rest.angle_to(mirrored) < 0.01, "the upper arm rests as the Avatar definition turns it (%.1f degrees off)" % rad_to_deg(rest.angle_to(mirrored)))
+
+
+func _unity_rotation(text: String) -> Quaternion:
+	var q := {}
+	for part in text.trim_prefix("rotation: {").trim_suffix("}").split(","):
+		q[part.get_slice(":", 0).strip_edges()] = part.get_slice(":", 1).to_float()
+	return Quaternion(q.x, q.y, q.z, q.w).normalized()
 
 
 ## The engine's own import of an FBX, unshaped.

@@ -159,6 +159,16 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	var definition := avatar_definition(FileAccess.get_file_as_string(assets.by_guid[main].meta))
 	_attach_armatures(objs, found.transform, main, definition, report)
 	var source: Skeleton3D = skeletons[0]
+	# The model file's bind pose need not be a T-pose; the humanoid rests in the pose its Unity Avatar was configured in,
+	# mirrored across X as Godot's FBX importer mirrors Unity's.
+	var description: Dictionary = (assets.meta(main).get("ModelImporter", {}) as Dictionary).get("humanDescription", {})
+	for bone: Dictionary in Prefabs._list(description.get("skeleton")):
+		var b := source.find_bone(str(bone.get("name", "")))
+		var q: Variant = bone.get("rotation")
+		if b >= 0 and q is Dictionary:
+			var rest := source.get_bone_rest(b)
+			var turn := Quaternion(str(q.x).to_float(), -str(q.y).to_float(), -str(q.z).to_float(), str(q.w).to_float()).normalized()
+			source.set_bone_rest(b, Transform3D(Basis(turn).scaled(rest.basis.get_scale()), rest.origin))
 	var scale := _world_scale(objs, _model_root(objs, main, renderers, found.transform))
 	var from := Transform3D.IDENTITY.scaled(Vector3.ONE * scale) * _in_model(source)
 	var k := from.basis.get_scale().y
