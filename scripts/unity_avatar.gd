@@ -1088,8 +1088,8 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 
 
 ## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons
-## use, they pair in the FBX's connection order; otherwise a surface takes the slot whose material is named like its
-## FBX material ("Head" for "Head.003", "Eye" for "Eye Left"), and the rest pair in order.
+## use, they pair in the order those polygons first use them; otherwise a surface takes the slot whose material is
+## named like its FBX material ("Head" for "Head.003", "Eye" for "Eye Left"), and the rest pair in order.
 static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array) -> Array:
 	var names := []
 	for s in mesh.get_surface_count():

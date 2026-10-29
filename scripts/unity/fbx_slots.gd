@@ -1,8 +1,8 @@
 extends RefCounted
 
-## A binary FBX's material slots: each model's materials that its polygons use, in its connections' order, the order
-## of a Unity renderer's m_Materials where it has one slot for each. Godot drops a surface it finds no triangles in, so
-## a surface finds its slot by its material's name.
+## A binary FBX's material slots: each model's materials that its polygons use, in the order its polygons first use
+## them, the order of a Unity renderer's m_Materials where it has one slot for each. Godot drops a surface it finds no
+## triangles in, so a surface finds its slot by its material's name.
 
 
 ## Model name to its material names, slot by slot; empty for a file that is not binary FBX.
@@ -49,7 +49,8 @@ static func slots(path: String) -> Dictionary:
 	return out
 
 
-## The material indices a Geometry's polygons use, in increasing order.
+## The material indices a Geometry's polygons use, in the order its polygons first use them, which is the order Unity
+## gives its submeshes.
 static func _first_uses(geometry: Dictionary) -> PackedInt32Array:
 	for layer: Dictionary in geometry.children:
 		if layer.name != "LayerElementMaterial":
@@ -59,9 +60,7 @@ static func _first_uses(geometry: Dictionary) -> PackedInt32Array:
 				var seen := {}
 				for i: int in c.props[0]:
 					seen[i] = true
-				var out := PackedInt32Array(seen.keys())
-				out.sort()
-				return out
+				return PackedInt32Array(seen.keys())
 	return PackedInt32Array()
 
 

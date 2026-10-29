@@ -7,6 +7,7 @@ const XXHash = preload("res://../scripts/unity/xxhash.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
+const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 
@@ -31,6 +32,7 @@ func _run() -> void:
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
 	_a_hue_radial_keeps_its_material_binding()
+	_submeshes_take_slots_in_first_use_order()
 	finish()
 
 
@@ -624,3 +626,9 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
 	root.free()
 	target.free()
+
+
+func _submeshes_take_slots_in_first_use_order() -> void:
+	var geometry := {"children": [{"name": "LayerElementMaterial", "children": [{"name": "Materials", "props": [PackedInt32Array([2, 2, 0, 1, 0, 2])]}]}]}
+	check(FbxSlots._first_uses(geometry) == PackedInt32Array([2, 0, 1]), "slots follow the polygons' first use of each material")
+
