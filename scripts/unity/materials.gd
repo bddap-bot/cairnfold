@@ -17,6 +17,7 @@ var atlas: Image
 var undecoded := {}
 var hue_masks := {}
 var color_regions := {}
+var decal_slots := {}
 
 
 func _init(from: Assets) -> void:
@@ -57,6 +58,7 @@ func _read(m: Dictionary, guid: String) -> void:
 	var floats := _properties(saved.get("m_Floats"))
 	m.floats = floats
 	var colours := _properties(saved.get("m_Colors"))
+	m.colours = colours
 	for k: String in TEXTURES:
 		var t: Variant = textures.get(k)
 		if t is Dictionary and str((t.get("m_Texture", {}) as Dictionary).get("guid", "")) != "":
@@ -114,11 +116,14 @@ static func _vector2(v: Variant, otherwise: Vector2) -> Vector2:
 
 
 func image(guid: String) -> Image:
-	if _images.has(guid):
-		return _images[guid]
+	if not _images.has(guid):
+		_images[guid] = _decoded(guid)
+	return _images[guid]
+
+
+func _decoded(guid: String) -> Image:
 	if not assets.by_guid.has(guid):
 		undecoded["not in the package: " + guid] = true
-		_images[guid] = null
 		return null
 	var bytes := FileAccess.get_file_as_bytes(assets.by_guid[guid].file)
 	var img := Image.new()
@@ -136,11 +141,9 @@ func image(guid: String) -> Image:
 			err = img.load_webp_from_buffer(bytes)
 	if err != OK:
 		undecoded[assets.by_guid[guid].path] = true
-		img = null
-	else:
-		img.decompress()
-		img.convert(Image.FORMAT_RGBA8)
-	_images[guid] = img
+		return null
+	img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
 	return img
 
 
@@ -271,11 +274,7 @@ func hue_mask() -> String:
 			for x in range(-PAD, cell.size.x + PAD):
 				var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
 				uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2) * scale + offset
-				var pixel := Vector2(uv.x, 1.0 - uv.y) * Vector2(source.get_size()) - Vector2(0.5, 0.5)
-				var base := Vector2i(pixel.floor())
-				var fraction := pixel - pixel.floor()
-				var at := func(dx: int, dy: int) -> Color: return source.get_pixel(posmod(base.x + dx, source.get_width()), posmod(base.y + dy, source.get_height()))
-				var value: Color = at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)
+				var value := _sample(source, uv)
 				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value[channel], value[channel], value[channel], 1.0) if mobile else value)
 	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())
 
@@ -305,3 +304,89 @@ func color_atlas() -> String:
 		data[i] = original[i]
 	out.set_data(ATLAS, ATLAS, false, Image.FORMAT_RGBA8, data)
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
+
+
+## Poiyomi decal `slot` of the material at `key` as {"multiply": bool}, or {} where the decal draws in a way the atlas
+## layers cannot hold: anything but the whole UV0 square, untiled, unrotated, at its saved hue and with an alpha
+## intensity of one unless animated, replacing or multiplying the albedo.
+func decal(key: String, slot: int) -> Dictionary:
+	var m: Dictionary = materials[key]
+	var floats: Dictionary = m.get("floats", {})
+	var colours: Dictionary = m.get("colours", {})
+	var n := "" if slot == 0 else str(slot)
+	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
+	var vector := func(name: String) -> Color: return _colour(colours.get(name), Color(0, 0, 0, 0))
+	if not m.has("cell") or number.call("_DecalEnabled" + n) == 0.0:
+		return {}
+	var blend: float = number.call("_DecalBlendType" + n)
+	var position: Color = vector.call("_DecalPosition" + n)
+	var scale: Color = vector.call("_DecalScale" + n)
+	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_DecalOverrideAlpha" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
+	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return number.call(name) != 0.0):
+		return {}
+	if (m.get("properties", {}) as Dictionary).has("_DecalAlphaIntensity" + n) and str(floats.get("_DecalAlphaIntensity" + n, "1")).to_float() != 1.0:
+		return {}
+	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and floats.keys().any(func(name: String) -> bool: return (name == "_DecalHueShift" + n or name.begins_with("_DecalHueShift%s_" % n)) and number.call(name) != 0.0):
+		return {}
+	if not position.is_equal_approx(Color(0.5, 0.5, 0, 0)) or not is_equal_approx(scale.r, 1.0) or not is_equal_approx(scale.g, 1.0) or vector.call("_DecalSideOffset" + n) != Color(0, 0, 0, 0) or vector.call("_DecalTexture%sPan" % n) != Color(0, 0, 0, 0):
+		return {}
+	return {"multiply": blend == 2.0}
+
+
+## One atlas-sized layer per decal slot in `decal_slots`, each texel the decal's colour and coverage over the material
+## cell beneath it, for the renderer to blend by the slot's animated alpha.
+func decal_layers() -> Array:
+	var slots := 0
+	for key: String in decal_slots:
+		for slot: int in decal_slots[key]:
+			slots = maxi(slots, slot + 1)
+	var out := []
+	for slot in slots:
+		var layer := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+		layer.fill(Color(0, 0, 0, 0))
+		for key: String in decal_slots:
+			if not decal_slots[key].has(slot):
+				continue
+			var m: Dictionary = materials[key]
+			var n := "" if slot == 0 else str(slot)
+			var cell: Rect2i = m.cell
+			var texture := func(entry: Dictionary) -> Image:
+				var guid := str((entry.get("m_Texture", {}) as Dictionary).get("guid", ""))
+				var decoded := _decoded(guid) if guid != "" else null
+				if decoded != null:
+					decoded.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_BILINEAR)
+				return decoded
+			var entry: Dictionary = (m.textures as Dictionary).get("_DecalTexture" + n, {})
+			var source: Image = texture.call(entry)
+			var tiling := [_vector2(entry.get("m_Scale"), Vector2.ONE), _vector2(entry.get("m_Offset"), Vector2.ZERO)]
+			var mask_entry: Dictionary = (m.textures as Dictionary).get("_DecalMask", {})
+			var mask: Image = texture.call(mask_entry)
+			var mask_tiling := [_vector2(mask_entry.get("m_Scale"), Vector2.ONE), _vector2(mask_entry.get("m_Offset"), Vector2.ZERO)]
+			var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3)
+			var tint := _colour((m.get("colours", {}) as Dictionary).get("_DecalColor" + n), Color.WHITE)
+			for y in range(-PAD, cell.size.y + PAD):
+				for x in range(-PAD, cell.size.x + PAD):
+					var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
+					uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2)
+					if uv.x < 0.0 or uv.x > 1.0 or uv.y < 0.0 or uv.y > 1.0:
+						continue
+					var value := tint * (_sample(source, uv * (tiling[0] as Vector2) + (tiling[1] as Vector2)) if source != null else Color.WHITE)
+					if mask != null:
+						value.a *= _sample(mask, uv * (mask_tiling[0] as Vector2) + (mask_tiling[1] as Vector2))[channel]
+					layer.set_pixel(cell.position.x + x, cell.position.y + y, value)
+		out.append(Marshalls.raw_to_base64(layer.save_png_to_buffer()))
+	return out
+
+
+static func _colour(v: Variant, otherwise: Color) -> Color:
+	if v is Dictionary:
+		return Color(str(v.get("r", otherwise.r)).to_float(), str(v.get("g", otherwise.g)).to_float(), str(v.get("b", otherwise.b)).to_float(), str(v.get("a", otherwise.a)).to_float())
+	return otherwise
+
+
+static func _sample(source: Image, uv: Vector2) -> Color:
+	var pixel := Vector2(uv.x, 1.0 - uv.y) * Vector2(source.get_size()) - Vector2(0.5, 0.5)
+	var base := Vector2i(pixel.floor())
+	var fraction := pixel - pixel.floor()
+	var at := func(dx: int, dy: int) -> Color: return source.get_pixel(posmod(base.x + dx, source.get_width()), posmod(base.y + dy, source.get_height()))
+	return at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)

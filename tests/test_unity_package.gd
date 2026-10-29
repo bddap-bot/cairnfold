@@ -32,6 +32,7 @@ func _run() -> void:
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
 	_a_hue_radial_keeps_its_material_binding()
+	_a_decal_alpha_binds_its_atlas_layer()
 	_submeshes_take_slots_in_first_use_order()
 	finish()
 
@@ -626,6 +627,86 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
 	root.free()
 	target.free()
+
+
+func _a_decal_alpha_binds_its_atlas_layer() -> void:
+	var dir := ProjectSettings.globalize_path("user://decal")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("skin.shader", "shader", 'Shader "Fixture" { Properties { _DecalBlendAlpha2_Skin ("Alpha", Range(0, 1)) = 1 } }')
+	write.call("skin.mat", "skin", """Material:
+  m_Shader: {guid: shader}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _DecalMask:
+        m_Texture: {guid: mask}
+    m_Floats:
+    - _DecalBlendAlpha2_Skin: 0.25
+    - _DecalEnabled2: 1
+    - _DecalBlendType2: 2
+    - _Decal2MaskChannel: 1
+    m_Colors:
+    - _DecalColor2: {r: 1, g: 0.5, b: 0, a: 1}
+    - _DecalPosition2: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _DecalScale2: {r: 1, g: 1, b: 1, a: 0}
+""")
+	var mask := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	mask.set_pixel(0, 0, Color(1, 0, 0, 1))
+	mask.set_pixel(1, 0, Color(0, 1, 0, 1))
+	mask.save_png(dir.path_join("mask.png"))
+	FileAccess.open(dir.path_join("mask.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: mask\n")
+	var assets := Assets.new(dir)
+	var materials := Materials.new(assets)
+	materials.use({"guid": "skin"}, Color.WHITE)
+	materials.pack(["skin"])
+	var expressions := Expressions.new(assets, {})
+	expressions.data = {
+		"menu": [{"name": "Freckles", "type": "toggle", "parameter": "Freckles", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Freckles", "type": "bool", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 0, "loop": false, "curves": [{"path": "", "attribute": "material._DecalBlendAlpha2_Skin", "class": "137", "keys": [[0.0, 1.0]]}]}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "skin"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(data.targets.size() == 1 and data.targets[0].default == 0.25, "a decal alpha binds with its saved alpha: %s" % [data.targets])
+	if data.targets.size() == 1:
+		var region: Dictionary = data.targets[0].effect.decal[0]
+		check(region.node == "Body" and region.slot == 2 and region.multiply, "the region names its slot and multiply blend")
+		check(data.clips[0].curves[0].keys == [[0.0, 1.0]] and not data.clips[0].curves[0].step, "decal alpha stays continuous")
+	check((data.get("decals", []) as Array).size() == 3, "one layer per slot up to the highest bound")
+	if (data.get("decals", []) as Array).size() == 3:
+		var layer := Image.new()
+		check(layer.load_png_from_buffer(Marshalls.base64_to_raw(data.decals[2])) == OK, "the layer is a PNG")
+		var cell: Rect2i = materials.materials.skin.cell
+		var left := layer.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
+		var right := layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
+		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the layer carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
+		check(layer.get_pixel(Materials.ATLAS - 1, Materials.ATLAS - 1).a == 0.0, "outside the material the layer is clear")
+	materials.materials.skin.properties._DecalAlphaIntensity2_Skin = true
+	materials.materials.skin.floats._DecalAlphaIntensity2_Skin = "0"
+	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalAlphaIntensity2_Skin", "class": "137", "keys": [[0.0, 3.0]]})
+	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(intense.targets.size() == 2 and not intense.targets[0].effect.decal[0].intensity and intense.targets[1].effect.decal[0].intensity and intense.targets[1].default == 0.0, "an animated alpha intensity binds as its slot's second factor: %s" % [intense.targets])
+	expressions.data.clips[0].curves.pop_back()
+	materials.materials.skin.properties._DecalAlphaIntensity2 = true
+	materials.materials.skin.floats._DecalAlphaIntensity2 = "2"
+	materials.decal_slots.clear()
+	var held := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(held.targets.is_empty(), "a decal held at another alpha intensity is not bound")
+	materials.materials.skin.floats._DecalAlphaIntensity2 = "1"
+	materials.materials.skin.colours._DecalPosition2 = {"r": 0.25, "g": 0.5, "b": 0, "a": 0}
+	materials.decal_slots.clear()
+	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	check(moved.targets.is_empty() and not moved.has("decals"), "a decal placed off the whole texture is not bound")
+	sk.free()
 
 
 func _submeshes_take_slots_in_first_use_order() -> void:
