@@ -130,6 +130,7 @@ func _roundtrip() -> void:
 
 
 func _malformed() -> void:
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"scale": {"node": &"head", "axis": 0}}, "default": 1.0}]}), "imported bone names remain valid before JSON serialization")
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
 	var invalid := _definition()
 	invalid.clips[0].curves[0].target = 200

@@ -59,7 +59,7 @@ static func _index(v: Variant, size: int) -> bool:
 
 
 static func _node(v: Variant) -> bool:
-	return v is String or (_number(v) and float(v) == floorf(float(v)) and v >= 0)
+	return v is String or v is StringName or (_number(v) and float(v) == floorf(float(v)) and v >= 0)
 
 
 static func _numbers(v: Variant, size: int) -> bool:

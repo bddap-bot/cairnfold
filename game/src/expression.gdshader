@@ -1,6 +1,15 @@
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled, vertex_lighting, cull_back;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
+
+varying vec4 given;
+
+void vertex() {
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+}
+
 uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
@@ -67,4 +76,6 @@ void fragment() {
 	ALPHA = base.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	ROUGHNESS = 1.0;
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }
