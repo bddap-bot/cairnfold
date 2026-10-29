@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Material properties a target animates over the atlas regions of the materials it names: docs/model.md "File", a clip
 ## curve's material property by name.
-const REGIONS := ["hue", "color", "tone", "decal"]
+const REGIONS := ["hue", "color", "tone", "look"]
 
 
 ## The region kind `effect` animates, or "" for any other effect.
@@ -12,7 +12,7 @@ static func region(effect: Variant) -> String:
 
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
-	for key: String in ["parameters", "targets", "clips", "layers", "shown", "menu", "icons", "decals"]:
+	for key: String in ["parameters", "targets", "clips", "layers", "shown", "menu", "icons"]:
 		if not data.get(key, []) is Array:
 			return false
 	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is String):

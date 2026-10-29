@@ -42,6 +42,7 @@ func _run() -> void:
 	_a_menu_toggle_switches_a_hidden_renderer()
 	_a_hue_radial_keeps_its_material_binding()
 	_a_decal_alpha_binds_its_atlas_layer()
+	_matcaps_and_emission_join_the_look()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
@@ -899,7 +900,7 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	var write := func(name: String, guid: String, text: String) -> void:
 		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
 		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
-	write.call("skin.shader", "shader", 'Shader "Fixture" { Properties { _DecalBlendAlpha2_Skin ("Alpha", Range(0, 1)) = 1 } }')
+	write.call("skin.shader", "shader", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _DecalBlendAlpha2_Skin ("Alpha", Range(0, 1)) = 1 } }')
 	write.call("skin.mat", "skin", """Material:
   m_Shader: {guid: shader}
   m_SavedProperties:
@@ -942,34 +943,154 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(data.targets.size() == 1 and data.targets[0].default == 0.25, "a decal alpha binds with its saved alpha: %s" % [data.targets])
 	if data.targets.size() == 1:
-		var region: Dictionary = data.targets[0].effect.decal[0]
-		check(region.node == "Body" and region.slot == 2 and region.multiply, "the region names its slot and multiply blend")
+		var region: Dictionary = data.targets[0].effect.look[0]
+		check(region.node == "Body" and region.slot == 2 and region.field == "decal", "the region names its field and slot: %s" % [region])
 		check(data.clips[0].curves[0].keys == [[0.0, 1.0]] and not data.clips[0].curves[0].step, "decal alpha stays continuous")
-	check((data.get("decals", []) as Array).size() == 3, "one layer per slot up to the highest bound")
-	if (data.get("decals", []) as Array).size() == 3:
+	var looks: Dictionary = data.get("looks", {})
+	check((looks.get("decals", []) as Array).size() == 3, "one layer per slot up to the highest drawn")
+	check(looks.get("materials", []) == [{"decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true}, null], "matcaps": [null, null, null, null], "emission": null}], "the look holds each slot's saved alpha and blend: %s" % [looks.get("materials")])
+	var cell: Rect2i = materials.materials.skin.cell
+	if (looks.get("decals", []) as Array).size() == 3:
 		var layer := Image.new()
-		check(layer.load_png_from_buffer(Marshalls.base64_to_raw(data.decals[2])) == OK, "the layer is a PNG")
-		var cell: Rect2i = materials.materials.skin.cell
+		check(layer.load_png_from_buffer(Marshalls.base64_to_raw(looks.decals[2])) == OK, "the layer is a PNG")
 		var left := layer.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		var right := layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the layer carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
 		check(layer.get_pixel(Materials.ATLAS - 1, Materials.ATLAS - 1).a == 0.0, "outside the material the layer is clear")
+	var index := Image.new()
+	check(index.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("index", ""))) == OK, "the look index is a PNG")
+	if not index.is_empty():
+		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(Materials.ATLAS - 1, Materials.ATLAS - 1).r8 == 0, "each texel names its material's look")
+	expressions.data.clips[0].curves.clear()
+	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	check(unbound.targets.is_empty() and (unbound.get("looks", {}).get("decals", []) as Array).size() == 3, "a decal no clip animates is still drawn at its saved alpha")
+	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalBlendAlpha2_Skin", "class": "137", "keys": [[0.0, 1.0]]})
 	materials.materials.skin.properties._DecalAlphaIntensity2_Skin = true
 	materials.materials.skin.floats._DecalAlphaIntensity2_Skin = "0"
 	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalAlphaIntensity2_Skin", "class": "137", "keys": [[0.0, 3.0]]})
 	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
-	check(intense.targets.size() == 2 and not intense.targets[0].effect.decal[0].intensity and intense.targets[1].effect.decal[0].intensity and intense.targets[1].default == 0.0, "an animated alpha intensity binds as its slot's second factor: %s" % [intense.targets])
+	check(intense.targets.size() == 2 and intense.targets[1].effect.look[0].field == "decalIntensity" and intense.targets[1].default == 0.0, "an animated alpha intensity binds as its slot's second factor: %s" % [intense.targets])
+	check(intense.looks.materials[0].decals[2].intensity == 0.0, "the look holds the saved intensity under its declared name")
 	expressions.data.clips[0].curves.pop_back()
-	materials.materials.skin.properties._DecalAlphaIntensity2 = true
-	materials.materials.skin.floats._DecalAlphaIntensity2 = "2"
-	materials.decal_slots.clear()
-	var held := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
-	check(held.targets.is_empty(), "a decal held at another alpha intensity is not bound")
-	materials.materials.skin.floats._DecalAlphaIntensity2 = "1"
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.25, "g": 0.5, "b": 0, "a": 0}
-	materials.decal_slots.clear()
 	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
-	check(moved.targets.is_empty() and not moved.has("decals"), "a decal placed off the whole texture is not bound")
+	check(moved.targets.is_empty() and not moved.has("looks"), "a decal placed off the whole texture is neither bound nor drawn")
+	sk.free()
+
+
+func _matcaps_and_emission_join_the_look() -> void:
+	var dir := ProjectSettings.globalize_path("user://look")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _Matcap3HueShift ("Hue", Range(0, 1)) = 0 _Matcap3Replace ("Replace", Range(0, 1)) = 0 } }')
+	write.call("mobile.shader", "mobile", 'Shader "VRChat/Mobile/Toon Standard" { Properties { _EmissionHueShift ("Hue", Range(0, 6.3)) = 0 _EmissionStrength ("Strength", Range(0, 2)) = 1 } }')
+	write.call("body.mat", "body", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _Matcap3:
+        m_Texture: {guid: gold}
+    - _Matcap3Mask:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _Matcap3Enable: 1
+    - _Matcap3UVMode: 2
+    - _Matcap3Border: 0.43
+    - _Matcap3Intensity: 5
+    - _Matcap3Replace: 0.771
+    - _Matcap3Multiply: 0.737
+    - _Matcap3HueShift: 0
+    - _Matcap3HueShiftEnabled: 1
+    - _Matcap3MaskChannel: 1
+    - _Matcap2Enable: 1
+    - _Matcap2UVMode: 3
+    m_Colors:
+    - _Matcap3Color: {r: 1, g: 1, b: 1, a: 1}
+""")
+	write.call("eye.mat", "eye", """Material:
+  m_Shader: {guid: mobile}
+  m_ValidKeywords:
+  - USE_HUE_SHIFT
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMap:
+        m_Texture: {guid: half}
+    - _HueShiftMask:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EmissionStrength: 0.8
+    - _EmissionHueShift: 0
+    - _MatcapEnable: 1
+    m_Colors:
+    - _EmissionColor: {r: 0.5, g: 1, b: 1, a: 1}
+""")
+	var half := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	half.set_pixel(0, 0, Color(1, 0, 0, 1))
+	half.set_pixel(1, 0, Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var gold := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	gold.fill(Color(1, 0.8, 0.2, 1))
+	gold.save_png(dir.path_join("gold.png"))
+	FileAccess.open(dir.path_join("gold.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: gold\n")
+	var assets := Assets.new(dir)
+	var materials := Materials.new(assets)
+	materials.use({"guid": "body"}, Color.WHITE)
+	materials.use({"guid": "eye"}, Color.WHITE)
+	materials.pack(["body", "eye"])
+	var expressions := Expressions.new(assets, {})
+	expressions.data = {
+		"menu": [{"name": "Tint", "type": "radial", "parameter": "Tint", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Tint", "type": "float", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 0, "loop": false, "curves": [
+			{"path": "Body", "attribute": "material._Matcap3HueShift", "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]},
+			{"path": "Eyes", "attribute": "material._EmissionHueShift", "class": "137", "keys": [[0.0, 0.0], [1.0, 6.28]]},
+		]}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "body"}]}},
+		4: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "5"}}, {"component": {"fileID": "6"}}]}},
+		5: {"type": "Transform", "data": {"m_GameObject": {"fileID": "4"}}},
+		6: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "eye"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var meshes := [{"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}, {"node": "Eyes", "when": [], "renderers": [6], "weights": {}, "mesh": ArrayMesh.new()}]
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Body": 2, "Eyes": 5}, sk, materials, {})
+	var fields: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].node, t.effect.look[0].field, t.effect.look[0].slot])
+	check(fields == [["Body", "matcapHueShift", 2], ["Eyes", "emissionHue", 0]], "matcap hue and emission hue bind to their looks: %s" % [fields])
+	var looks: Dictionary = data.get("looks", {})
+	var entries: Array = looks.get("materials", [])
+	check(entries.size() == 2, "both materials have a look")
+	if entries.size() == 2:
+		var gilt: Variant = entries[0].matcaps[2]
+		check(entries[0].matcaps[1] == null, "a matcap mapped by a view the renderer does not draw is left out")
+		check(gilt is Dictionary and gilt.texture == 0 and gilt.mode == "reflection" and gilt.intensity == 5.0 and gilt.replace == 0.771 and gilt.multiply == 0.737 and gilt.hue == {"shift": 0.0, "space": 0.0, "select": 1.0} and gilt.circle == null, "the matcap carries its texture, mapping and strengths: %s" % [gilt])
+		var glows: Variant = entries[1].emission
+		check(glows is Dictionary and is_equal_approx(glows.color[0], Color(0.5, 0, 0).srgb_to_linear().r) and glows.color[1] == 1.0 and glows.strength == 0.8 and glows.hue == 0.0 and glows.shiftsHue, "the emission carries its linear colour, strength and hue: %s" % [glows])
+		check(entries[1].matcaps == [null, null, null, null], "a Toon Standard material draws no matcap Poiyomi left saved in it")
+	check((looks.get("matcaps", []) as Array).size() == 1, "each matcap texture is carried once")
+	var masks := Image.new()
+	check(masks.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("matcapMasks", ""))) == OK, "the matcap masks are a PNG")
+	if not masks.is_empty():
+		var cell: Rect2i = materials.materials.body.cell
+		var left := masks.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
+		var right := masks.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
+		check(left.b < 0.2 and right.b > 0.8 and left.r == 1.0, "slot three's channel holds its mask's chosen channel: %s %s" % [left, right])
+	var glow := Image.new()
+	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
+	if not glow.is_empty():
+		var eye: Rect2i = materials.materials.eye.cell
+		check(glow.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8 and glow.get_pixelv(materials.materials.body.cell.get_center()) == Color.BLACK, "the emission map lies over the glowing material only")
+	var hue := Image.new()
+	check(hue.load_png_from_buffer(Marshalls.base64_to_raw(data.get("hueMask", ""))) == OK, "a shifting emission carries its hue mask")
+	if not hue.is_empty():
+		var eye: Rect2i = materials.materials.eye.cell
+		check(hue.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r < 0.2 and hue.get_pixel(eye.position.x + 3 * eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8, "the mask's chosen channel")
 	sk.free()
 
 

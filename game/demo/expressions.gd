@@ -63,14 +63,14 @@ static func definition() -> Dictionary:
 	var drives := [
 		["Colour", {"color": [region.merged({"channel": 2, "color": [HAT.r, HAT.g, HAT.b]})]}, HAT.b, 1.0],
 		["Tone", {"tone": [region.merged({"channel": 1})]}, 0.0, -1.0],
-		["Decal", {"decal": [region.merged({"slot": 0, "multiply": false, "intensity": false, "alpha": 0.0})]}, 0.0, 1.0]]
+		["Decal", {"look": [region.merged({"field": "decal", "slot": 0, "multiply": false, "alpha": 0.0})]}, 0.0, 1.0]]
 	for drive: Array in drives:
 		data.menu.append(control.call(drive[0], "toggle", drive[0]))
 		data.targets.append({"effect": drive[1], "default": drive[2]})
 		data.clips.append({"length": 1.0, "curves": [{"target": data.targets.size() - 1, "step": false, "keys": [[0, drive[2]], [1, drive[3]]]}]})
 		data.layers.append({"weight": 1.0, "default": 0, "states": [{"writeDefaults": false, "motion": {"clip": data.clips.size() - 1, "time": drive[0]}}]})
 	data.colorAtlas = Marshalls.raw_to_base64(untinted().save_png_to_buffer())
-	data.decals = [Marshalls.raw_to_base64(decal().save_png_to_buffer())]
+	data.looks = {"decals": [Marshalls.raw_to_base64(decal().save_png_to_buffer())]}
 	return data
 
 

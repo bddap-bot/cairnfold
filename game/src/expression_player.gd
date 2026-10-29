@@ -11,7 +11,7 @@ var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
 
-const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "decal": ["decals"]}
+const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": ["decals"]}
 
 
 func _init(model: Node3D) -> void:
@@ -57,7 +57,7 @@ func _init(model: Node3D) -> void:
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
 					var mesh: MeshInstance3D = nodes.get(str(region.node))
-					if mesh == null:
+					if mesh == null or (kind == "look" and not str(region.get("field", "")).begins_with("decal")):
 						continue
 					var mat := _material(mesh)
 					var list: Array = _regions.get_or_add(mat, [])
@@ -131,7 +131,7 @@ static func prepare(model: Node3D) -> void:
 		if img != null:
 			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(img))
 	var layers: Array[Image] = []
-	for encoded: Variant in data.get("decals", []):
+	for encoded: Variant in data.get("looks", {}).get("decals", []):
 		layers.append(decode.call(encoded, true))
 	if not layers.is_empty() and layers.all(func(l: Image) -> bool: return l != null and l.get_size() == layers[0].get_size()):
 		var decals := Texture2DArray.new()
@@ -148,7 +148,7 @@ static func _settings(kind: String, region: Dictionary) -> Array:
 			return [region.get("channel", 0), 0, c[0], c[1], c[2]]
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
-	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("intensity", false) else 0, 0]
+	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("field") == "decalIntensity" else 0, 0]
 
 
 func _material(mesh: MeshInstance3D) -> ShaderMaterial:

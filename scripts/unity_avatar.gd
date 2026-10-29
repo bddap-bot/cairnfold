@@ -603,15 +603,15 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	data.menu = _pruned(data.menu, effective, cut, materials, data.icons, {})
 	if not cut.is_empty():
 		dropped["menu controls moving nothing the model shows"] = cut.size()
+	var looks := materials.looks()
+	if not looks.is_empty():
+		data.looks = looks
 	var hue_mask := materials.hue_mask()
 	if hue_mask != "":
 		data.hueMask = hue_mask
 	var color_atlas := materials.color_atlas()
 	if color_atlas != "":
 		data.colorAtlas = color_atlas
-	var decals := materials.decal_layers()
-	if not decals.is_empty():
-		data.decals = decals
 	data.targets = targets
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
@@ -642,10 +642,10 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		var property: String = c.attribute.trim_prefix("material.")
 		var channel := "rgb".find(property.right(1)) if property in ["_Color.r", "_Color.g", "_Color.b"] else -1
 		var tone := ["MainGamma", "Saturation", "MainBrightness"].find(property.get_slice("_", 1))
-		var decal := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity)([1-3]?)(_|$)").search(property)
-		if channel < 0 and tone < 0 and decal == null and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
+		var look := Materials.field(property)
+		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
 			return -1
-		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "decal" if decal != null else "hue"
+		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "look" if not look.is_empty() else "hue"
 		var renderer := _renderer_of(objs, go)
 		var regions := []
 		for ref: Variant in Prefabs._list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
@@ -667,22 +667,19 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 				var floats: Dictionary = material.get("floats", {})
 				if not floats.has(property):
 					continue
-				if decal != null:
-					var slot := decal.get_string(2).to_int()
-					binding = materials.decal(key, slot)
-					if binding.is_empty():
+				if not look.is_empty():
+					if not materials.draws(key, look):
 						continue
-					binding.slot = slot
-					binding.intensity = decal.get_string(1) == "AlphaIntensity"
-					binding.alpha = str(floats.get("_DecalBlendAlpha" + decal.get_string(2), "1")).to_float()
-					materials.decal_slots.get_or_add(key, {})[slot] = true
+					binding = look.duplicate()
+					if look.field.begins_with("decal"):
+						binding.merge(materials.decal(key, look.slot))
 				elif tone >= 0:
 					if str(floats.get("_MainColorAdjustToggle", "0")).to_float() == 0.0:
 						continue
 					binding = {"channel": tone}
 					materials.hue_masks[key] = true
 				else:
-					var mobile: bool = property == "_HueShift" and material.shader == "VRChat/Mobile/Toon Standard"
+					var mobile := property == "_HueShift" and Materials.toon_standard(material)
 					if mobile:
 						if not "USE_HUE_SHIFT" in material.get("keywords", []):
 							continue

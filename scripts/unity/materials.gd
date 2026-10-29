@@ -30,6 +30,8 @@ const ABSENT_CULL := {
 	"3ad043b7f9839cb48a75a9238d433dec": Cull.BACK,
 	"0b7113dea2069fc4e8943843eff19f70": Cull.BACK,
 }
+const MATCAPS := ["_Matcap", "_Matcap2", "_Matcap3", "_Matcap4"]
+const MATCAP := 256
 
 var assets: Assets
 var materials := {}
@@ -38,7 +40,6 @@ var atlas: Image
 var undecoded := {}
 var hue_masks := {}
 var color_regions := {}
-var decal_slots := {}
 
 
 func _init(from: Assets) -> void:
@@ -90,11 +91,10 @@ func _read(m: Dictionary, guid: String) -> void:
 	var colours := _properties(saved.get("m_Colors"))
 	m.colours = colours
 	for k: String in TEXTURES:
-		var t: Variant = textures.get(k)
-		if t is Dictionary and str((t.get("m_Texture", {}) as Dictionary).get("guid", "")) != "":
-			m.texture = str(t.m_Texture.guid)
-			m.scale = _vector2(t.get("m_Scale"), Vector2.ONE)
-			m.offset = _vector2(t.get("m_Offset"), Vector2.ZERO)
+		if _texture_guid(m, k) != "":
+			m.texture = _texture_guid(m, k)
+			m.scale = _vector2(textures[k].get("m_Scale"), Vector2.ONE)
+			m.offset = _vector2(textures[k].get("m_Offset"), Vector2.ZERO)
 			break
 	for k: String in COLOURS:
 		if colours.get(k) is Dictionary:
@@ -290,30 +290,30 @@ func atlas_materials() -> Array[StandardMaterial3D]:
 
 
 func hue_mask() -> String:
+	var keys := hue_masks.keys()
+	keys.append_array(materials.keys().filter(func(key: String) -> bool: return not hue_masks.has(key) and not emission(key).is_empty() and emission(key).shiftsHue))
 	var out: Image
-	for key: String in hue_masks:
+	for key: String in keys:
 		var m: Dictionary = materials[key]
-		var mobile: bool = m.shader == "VRChat/Mobile/Toon Standard"
-		var entry: Dictionary = (m.textures as Dictionary).get("_HueShiftMask" if mobile else "_MainColorAdjustTexture", {})
-		var guid := str((entry.get("m_Texture", {}) as Dictionary).get("guid", ""))
-		if guid == "":
-			continue
-		var source := image(guid)
+		var mobile := toon_standard(m)
+		var property := "_HueShiftMask" if mobile else "_MainColorAdjustTexture"
+		var source := image(_texture_guid(m, property)) if _texture_guid(m, property) != "" else null
 		if source == null:
 			continue
 		if out == null:
 			out = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
 			out.fill(Color.WHITE)
-		var scale := _vector2(entry.get("m_Scale"), Vector2.ONE)
-		var offset := _vector2(entry.get("m_Offset"), Vector2.ZERO)
-		var cell: Rect2i = m.cell
-		var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
-		for y in range(-PAD, cell.size.y + PAD):
-			for x in range(-PAD, cell.size.x + PAD):
-				var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
-				uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2) * scale + offset
-				var value := _sample(source, uv)
-				out.set_pixel(cell.position.x + x, cell.position.y + y, Color(value[channel], value[channel], value[channel], 1.0) if mobile else value)
+		var mask := _over_cell(m, source, property, Color.WHITE)
+		if mobile:
+			var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
+			var data := mask.get_data()
+			for i in range(0, data.size(), 4):
+				data[i] = data[i + channel]
+				data[i + 1] = data[i]
+				data[i + 2] = data[i]
+				data[i + 3] = 255
+			mask.set_data(mask.get_width(), mask.get_height(), false, Image.FORMAT_RGBA8, data)
+		out.blit_rect(mask, Rect2i(Vector2i.ZERO, mask.get_size()), (m.cell as Rect2i).position - Vector2i(PAD, PAD))
 	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 
@@ -344,9 +344,9 @@ func color_atlas() -> String:
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 
-## Poiyomi decal `slot` of the material at `key` as {"multiply": bool}, or {} where the decal draws in a way the atlas
-## layers cannot hold: anything but the whole UV0 square, untiled, unrotated, at its saved hue and with an alpha
-## intensity of one unless animated, replacing or multiplying the albedo.
+## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "multiply"} at rest, or {} where the decal
+## draws in a way the atlas layers cannot hold: anything but the whole UV0 square, untiled, unrotated, at its saved hue,
+## replacing or multiplying the albedo.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var floats: Dictionary = m.get("floats", {})
@@ -354,7 +354,7 @@ func decal(key: String, slot: int) -> Dictionary:
 	var n := "" if slot == 0 else str(slot)
 	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
 	var vector := func(name: String) -> Color: return _colour(colours.get(name), Color(0, 0, 0, 0))
-	if not m.has("cell") or number.call("_DecalEnabled" + n) == 0.0:
+	if not m.has("cell") or not poiyomi(m) or number.call("_DecalEnabled" + n) == 0.0:
 		return {}
 	var blend: float = number.call("_DecalBlendType" + n)
 	var position: Color = vector.call("_DecalPosition" + n)
@@ -362,57 +362,252 @@ func decal(key: String, slot: int) -> Dictionary:
 	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_DecalOverrideAlpha" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
 	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return number.call(name) != 0.0):
 		return {}
-	if (m.get("properties", {}) as Dictionary).has("_DecalAlphaIntensity" + n) and str(floats.get("_DecalAlphaIntensity" + n, "1")).to_float() != 1.0:
-		return {}
 	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and floats.keys().any(func(name: String) -> bool: return (name == "_DecalHueShift" + n or name.begins_with("_DecalHueShift%s_" % n)) and number.call(name) != 0.0):
 		return {}
 	if not position.is_equal_approx(Color(0.5, 0.5, 0, 0)) or not is_equal_approx(scale.r, 1.0) or not is_equal_approx(scale.g, 1.0) or vector.call("_DecalSideOffset" + n) != Color(0, 0, 0, 0) or vector.call("_DecalTexture%sPan" % n) != Color(0, 0, 0, 0):
 		return {}
-	return {"multiply": blend == 2.0}
+	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0}
 
 
-## One atlas-sized layer per decal slot in `decal_slots`, each texel the decal's colour and coverage over the material
-## cell beneath it, for the renderer to blend by the slot's animated alpha.
-func decal_layers() -> Array:
-	var slots := 0
-	for key: String in decal_slots:
-		for slot: int in decal_slots[key]:
-			slots = maxi(slots, slot + 1)
-	var out := []
-	for slot in slots:
-		var layer := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
-		layer.fill(Color(0, 0, 0, 0))
-		for key: String in decal_slots:
-			if not decal_slots[key].has(slot):
+## The material's saved value of the shader property `name`, under the name its shader declares it by: a locked shader
+## renames an animated property with the material's suffix.
+static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
+	var floats: Dictionary = m.get("floats", {})
+	for declared: String in m.get("properties", {}):
+		if declared.begins_with(name + "_") and floats.has(declared):
+			return str(floats[declared]).to_float()
+	return str(floats.get(name, otherwise)).to_float()
+
+
+## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or {} where it is off or maps its matcap by a view
+## the renderer does not draw: those other than the normal's (0, which a headset draws as 1) and the reflection's (2),
+## or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain white.
+func matcap(key: String, slot: int) -> Dictionary:
+	var m: Dictionary = materials[key]
+	var floats: Dictionary = m.get("floats", {})
+	var colours: Dictionary = m.get("colours", {})
+	var p: String = MATCAPS[slot]
+	var number := func(name: String, otherwise: float) -> float: return str(floats.get(name, otherwise)).to_float()
+	if not m.has("cell") or not poiyomi(m) or number.call(p + "Enable", 0.0) == 0.0:
+		return {}
+	var mode: float = number.call(p + "UVMode", 1.0)
+	if mode not in [0.0, 1.0, 2.0] or number.call(p + "Rotation", 0.0) != 0.0 or _colour(colours.get(p + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
+		return {}
+	var colour := _colour(colours.get(p + "Color"), Color.WHITE).srgb_to_linear()
+	var hue: Variant = null
+	if number.call(p + "HueShiftEnabled", 0.0) != 0.0:
+		hue = {"shift": _saved(m, p + "HueShift", 0.0), "space": number.call(p + "HueShiftColorSpace", 0.0), "select": number.call(p + "HueSelectOrShift", 1.0)}
+	var circle: Variant = null
+	if slot == 0 and number.call("_Matcap0CircleMaskEnabled", 0.0) != 0.0:
+		circle = {"border": number.call("_Matcap0CircleMaskBorder", 0.5), "blur": number.call("_Matcap0CircleMaskBlur", 0.0)}
+	return {
+		"texture": _texture_guid(m, p),
+		"mode": "reflection" if mode == 2.0 else "normal",
+		"border": number.call(p + "Border", 0.43),
+		"color": [colour.r, colour.g, colour.b, colour.a],
+		"intensity": _saved(m, p + "Intensity", 1.0),
+		"baseMix": number.call(p + "BaseColorMix", 0.0),
+		"replace": _saved(m, p + "Replace", 1.0),
+		"multiply": _saved(m, p + "Multiply", 0.0),
+		"add": _saved(m, p + "Add", 0.0),
+		"screen": _saved(m, p + "Screen", 0.0),
+		"mixed": _saved(m, p + "Mixed", 0.0),
+		"lightAdd": number.call(p + "AddToLight", 0.0),
+		"emission": number.call(p + "EmissionStrength", 0.0),
+		"lightMask": number.call(p + "LightMask", 0.0),
+		"hue": hue,
+		"circle": circle,
+	}
+
+
+## The emission of a VRChat Toon Standard material at `key` at rest as {"color", "strength", "hue", "shiftsHue"}, its
+## map in the emission atlas, or {} for a material that glows by another shader's emission or not at all.
+func emission(key: String) -> Dictionary:
+	var m: Dictionary = materials[key]
+	if not m.has("cell") or not toon_standard(m) or str((m.get("floats", {}) as Dictionary).get("_EmissionUV", "0")).to_int() != 0:
+		return {}
+	var colour := _colour((m.get("colours", {}) as Dictionary).get("_EmissionColor"), Color.BLACK)
+	if colour.r + colour.g + colour.b == 0.0:
+		return {}
+	colour = colour.srgb_to_linear()
+	return {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0), "hue": _saved(m, "_EmissionHueShift", 0.0), "shiftsHue": "USE_HUE_SHIFT" in m.get("keywords", [])}
+
+
+## Whether the material at `key` draws the look `field` that an animated property drives in `slot`.
+func draws(key: String, look: Dictionary) -> bool:
+	match look.field:
+		"decal", "decalIntensity":
+			return not decal(key, look.slot).is_empty()
+		"emission":
+			return not emission(key).is_empty()
+		"emissionHue":
+			return not emission(key).is_empty() and emission(key).shiftsHue
+		"matcapHueShift":
+			return matcap(key, look.slot).get("hue") != null
+	return not matcap(key, look.slot).is_empty()
+
+
+## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
+## or alpha intensity, a matcap's hue shift or strengths, or emission's strength or hue.
+static func field(property: String) -> Dictionary:
+	var decal := _DECAL_FIELD.search(property)
+	if decal != null:
+		return {"field": "decal" if decal.get_string(1) == "BlendAlpha" else "decalIntensity", "slot": decal.get_string(2).to_int()}
+	var matcap := _MATCAP_FIELD.search(property)
+	if matcap != null:
+		return {"field": "matcap" + matcap.get_string(2), "slot": maxi(matcap.get_string(1).to_int() - 1, 0)}
+	var glow := _EMISSION_FIELD.search(property)
+	if glow != null:
+		return {"field": "emission" if glow.get_string(1) == "Strength" else "emissionHue", "slot": 0}
+	return {}
+
+
+static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity)([1-3]?)(_|$)")
+static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
+static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift)(_|$)")
+
+
+## Whether the material draws by a Poiyomi shader: a material switched to another shader keeps Poiyomi's saved decal and
+## matcap values, which that shader never draws.
+static func poiyomi(m: Dictionary) -> bool:
+	return str(m.get("shader", "")).containsn("poiyomi")
+
+
+static func toon_standard(m: Dictionary) -> bool:
+	return m.get("shader", "") == "VRChat/Mobile/Toon Standard"
+
+
+static func _texture_guid(m: Dictionary, property: String) -> String:
+	var entry: Variant = (m.get("textures", {}) as Dictionary).get(property)
+	return str(((entry as Dictionary).get("m_Texture", {}) as Dictionary).get("guid", "")) if entry is Dictionary else ""
+
+
+## What each packed material lays over its albedo and adds to its light, for the renderer to read by atlas texel: the
+## material a texel shows decides it, so a material swapped in for another draws its own. Empty where no material has
+## any; otherwise the "index" (a greyscale PNG, each texel one plus its material's entry in "materials", zero for none),
+## each entry's decals, matcaps and emission at rest, and the atlas-sized "decals" layers, "matcapMasks" (channel k
+## matcap slot k's) and "emission" map, with the "matcaps" textures their entries name by position.
+func looks() -> Dictionary:
+	var entries := []
+	var index := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_L8)
+	var decal_layers := []
+	var matcap_textures := {}
+	var matcap_masks: Image
+	var glow: Image
+	for key: String in materials:
+		var m: Dictionary = materials[key]
+		if not m.has("cell"):
+			continue
+		var decals := range(4).map(func(slot: int) -> Dictionary: return decal(key, slot))
+		var matcaps := range(4).map(func(slot: int) -> Dictionary: return matcap(key, slot))
+		var glows := emission(key)
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty():
+			continue
+		if entries.size() == 255:
+			push_error("unity_avatar: over 255 materials with decals, matcaps or emission; the rest draw without them")
+			break
+		var padded := Rect2i((m.cell as Rect2i).position - Vector2i(PAD, PAD), (m.cell as Rect2i).size + 2 * Vector2i(PAD, PAD))
+		index.fill_rect(padded, Color8(entries.size() + 1, entries.size() + 1, entries.size() + 1))
+		for slot in 4:
+			if decals[slot].is_empty():
 				continue
-			var m: Dictionary = materials[key]
+			while decal_layers.size() <= slot:
+				var layer := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				layer.fill(Color(0, 0, 0, 0))
+				decal_layers.append(layer)
 			var n := "" if slot == 0 else str(slot)
-			var cell: Rect2i = m.cell
-			var texture := func(entry: Dictionary) -> Image:
-				var guid := str((entry.get("m_Texture", {}) as Dictionary).get("guid", ""))
-				var decoded := _decoded(guid) if guid != "" else null
-				if decoded != null:
-					decoded.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_BILINEAR)
-				return decoded
-			var entry: Dictionary = (m.textures as Dictionary).get("_DecalTexture" + n, {})
-			var source: Image = texture.call(entry)
-			var tiling := [_vector2(entry.get("m_Scale"), Vector2.ONE), _vector2(entry.get("m_Offset"), Vector2.ZERO)]
-			var mask_entry: Dictionary = (m.textures as Dictionary).get("_DecalMask", {})
-			var mask: Image = texture.call(mask_entry)
-			var mask_tiling := [_vector2(mask_entry.get("m_Scale"), Vector2.ONE), _vector2(mask_entry.get("m_Offset"), Vector2.ZERO)]
-			var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3)
 			var tint := _colour((m.get("colours", {}) as Dictionary).get("_DecalColor" + n), Color.WHITE)
-			for y in range(-PAD, cell.size.y + PAD):
-				for x in range(-PAD, cell.size.x + PAD):
-					var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
-					uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2)
-					if uv.x < 0.0 or uv.x > 1.0 or uv.y < 0.0 or uv.y > 1.0:
-						continue
-					var value := tint * (_sample(source, uv * (tiling[0] as Vector2) + (tiling[1] as Vector2)) if source != null else Color.WHITE)
-					if mask != null:
-						value.a *= _sample(mask, uv * (mask_tiling[0] as Vector2) + (mask_tiling[1] as Vector2))[channel]
-					layer.set_pixel(cell.position.x + x, cell.position.y + y, value)
-		out.append(Marshalls.raw_to_base64(layer.save_png_to_buffer()))
+			var colour := _over_cell(m, _slot_image(m, "_DecalTexture" + n), "_DecalTexture" + n, Color.WHITE)
+			var mask := _slot_image(m, "_DecalMask")
+			var cover := _over_cell(m, mask, "_DecalMask", Color.WHITE).get_data()
+			var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3) if mask != null else 3
+			var data := colour.get_data()
+			for i in range(0, data.size(), 4):
+				data[i] = mini(int(data[i] * tint.r), 255)
+				data[i + 1] = mini(int(data[i + 1] * tint.g), 255)
+				data[i + 2] = mini(int(data[i + 2] * tint.b), 255)
+				data[i + 3] = mini(int(data[i + 3] * tint.a * cover[i + channel] / 255.0), 255)
+			colour.set_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data)
+			(decal_layers[slot] as Image).blit_rect(colour, Rect2i(Vector2i.ZERO, padded.size), padded.position)
+		var drawn_matcaps := []
+		for slot in 4:
+			var c: Dictionary = matcaps[slot]
+			if c.is_empty():
+				drawn_matcaps.append(null)
+				continue
+			var drawn := c.duplicate()
+			drawn.texture = null
+			if c.texture != "" and not matcap_textures.has(c.texture):
+				var decoded := _decoded(c.texture)
+				if decoded != null:
+					decoded.resize(MATCAP, MATCAP, Image.INTERPOLATE_BILINEAR)
+					matcap_textures[c.texture] = decoded
+			if matcap_textures.has(c.texture):
+				drawn.texture = matcap_textures.keys().find(c.texture)
+			drawn_matcaps.append(drawn)
+			var mask := _slot_image(m, MATCAPS[slot] + "Mask")
+			var invert := str(m.floats.get(MATCAPS[slot] + "MaskInvert", "0")).to_float() != 0.0
+			if mask == null and not invert:
+				continue
+			if matcap_masks == null:
+				matcap_masks = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				matcap_masks.fill(Color.WHITE)
+			var channel := clampi(str(m.floats.get(MATCAPS[slot] + "MaskChannel", "0")).to_int(), 0, 3)
+			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask", Color.WHITE).get_data()
+			var region := matcap_masks.get_region(padded)
+			var data := region.get_data()
+			for i in range(0, data.size(), 4):
+				data[i + slot] = 255 - source[i + channel] if invert else source[i + channel]
+			region.set_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data)
+			matcap_masks.blit_rect(region, Rect2i(Vector2i.ZERO, padded.size), padded.position)
+		if not glows.is_empty():
+			if glow == null:
+				glow = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				glow.fill(Color.BLACK)
+			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap", Color.WHITE), Rect2i(Vector2i.ZERO, padded.size), padded.position)
+		entries.append({"decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows})
+	if entries.is_empty():
+		return {}
+	var png := func(img: Image) -> String: return Marshalls.raw_to_base64(img.save_png_to_buffer())
+	var out := {"index": png.call(index), "materials": entries, "decals": decal_layers.map(png), "matcaps": matcap_textures.values().map(png)}
+	if matcap_masks != null:
+		out.matcapMasks = png.call(matcap_masks)
+	if glow != null:
+		out.emission = png.call(glow)
+	return out
+
+
+## The texture in the material's `property` slot, decoded afresh: looks read each once, and holding them all would
+## outgrow an avatar's memory budget.
+func _slot_image(m: Dictionary, property: String) -> Image:
+	var guid := _texture_guid(m, property)
+	return _decoded(guid) if guid != "" else null
+
+
+## `source` (`blank` where null) as it lies over the material's cell, padded like the atlas: the material's own texture
+## fills its cell, so another texture slot of the same UV0 is read through both slots' tilings.
+func _over_cell(m: Dictionary, source: Image, property: String, blank: Color) -> Image:
+	var cell: Rect2i = m.cell
+	var out := Image.create_empty(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, false, Image.FORMAT_RGBA8)
+	if source == null:
+		out.fill(blank)
+		return out
+	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(property, {})
+	var scale := _vector2(entry.get("m_Scale"), Vector2.ONE)
+	var offset := _vector2(entry.get("m_Offset"), Vector2.ZERO)
+	if scale == m.scale and offset == m.offset:
+		var inner := source.duplicate() as Image
+		inner.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_BILINEAR)
+		var outer := source.duplicate() as Image
+		outer.resize(out.get_width(), out.get_height(), Image.INTERPOLATE_BILINEAR)
+		out.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), Vector2i.ZERO)
+		out.blit_rect(inner, Rect2i(Vector2i.ZERO, inner.get_size()), Vector2i(PAD, PAD))
+		return out
+	for y in range(-PAD, cell.size.y + PAD):
+		for x in range(-PAD, cell.size.x + PAD):
+			var uv := Vector2((clampi(x, 0, cell.size.x - 1) + 0.5) / cell.size.x, 1.0 - (clampi(y, 0, cell.size.y - 1) + 0.5) / cell.size.y)
+			uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2) * scale + offset
+			out.set_pixel(x + PAD, y + PAD, _sample(source, uv))
 	return out
 
 

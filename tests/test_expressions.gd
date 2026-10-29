@@ -134,11 +134,11 @@ func _roundtrip() -> void:
 
 func _malformed() -> void:
 	check(ExpressionDefinition.valid({"targets": [{"effect": {"scale": {"node": &"head", "axis": 0}}, "default": 1.0}]}), "imported bone names remain valid before JSON serialization")
-	for kind: String in ["color", "tone", "decal"]:
+	for kind: String in ["color", "tone", "look"]:
 		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}}]}), "an imported %s region is a valid target" % kind)
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"decal": [{"node": 0, "rect": [0, 0, 1, 1], "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
 	var invalid := _definition()
 	invalid.clips[0].curves[0].target = 200
