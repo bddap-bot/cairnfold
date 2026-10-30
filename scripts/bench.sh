@@ -392,8 +392,11 @@ for name, secs in phases.items():
     steps = [s["step"] for s in secs if "step" in s]
     if steps:
         summary[name]["step"] = mid(steps)
-    fill = max(s.get("fill", 0.0) for s in phases[name])
+    fullest = max(phases[name], key=lambda s: s.get("fill", 0.0))
+    fill = fullest.get("fill", 0.0)
     summary[name]["fill"] = fill
+    if "charges" in fullest:
+        summary[name]["charges_ms"] = fullest["charges"]
     mem = [s["mem_mb"] for s in secs if "mem_mb" in s]
     if mem:
         summary[name]["mem_mb"] = {k: max(m[k] for m in mem) for k in mem[0]}

@@ -208,11 +208,19 @@ class Near:
 
 
 static func cost_ms(units: Dictionary) -> float:
-	var us := 0.0
+	var ms := 0.0
+	for v: float in charges(units).values():
+		ms += v
+	return ms
+
+
+## What each unit adds to the frame, in milliseconds: cost_ms split by unit.
+static func charges(units: Dictionary) -> Dictionary:
+	var out := {}
 	for k in units:
 		var cap: float = COSTS[CAPS[k]] if k in CAPS else INF
-		us += minf(units[k] * COSTS[k], cap)
-	return us / 1000.0
+		out[k] = minf(units[k] * COSTS[k], cap) / 1000.0
+	return out
 
 
 static func fill(units: Dictionary) -> float:

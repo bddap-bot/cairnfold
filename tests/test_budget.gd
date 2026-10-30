@@ -78,6 +78,8 @@ func _water_costs_at_most_a_view_full() -> void:
 	var lake := {"pond_m2": 13158.0}
 	check(is_equal_approx(Budget.cost_ms(lake), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
 	check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
+	var both := Budget.charges({"pond_m2": 13158.0, "grass": 10.0})
+	check(is_equal_approx(both.pond_m2, q.water / 1000.0) and is_equal_approx(both.grass, 10.0 * q.grass / 1000.0), "each unit's charge is its capped share: %s" % both)
 
 
 ## The meadow's whole bowl, the largest lake there can be, pointed at as demo/lake-cost.json does.

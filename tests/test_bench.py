@@ -108,6 +108,20 @@ class BenchmarkRendering(unittest.TestCase):
             self.assertIn("over budget: feature, buildable", result.stdout)
             self.assertIn("past the build budget (2.00)", result.stdout)
 
+    def test_a_phase_keeps_the_charges_of_its_fullest_second(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({
+                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
+                "seconds": [{"label": "village", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
+                             "fill": f, "charges": {"wall_m2": f}} for f in (0.5, 2.0, 1.0)],
+            }))
+            (out / "stress.json").write_text("[]")
+            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            phase = json.loads((out / "record.json").read_text())["phases"]["village"]
+            self.assertEqual((phase["fill"], phase["charges_ms"]), (2.0, {"wall_m2": 2.0}))
+
     def test_a_phases_peak_memory_is_kept_in_its_record(self):
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)

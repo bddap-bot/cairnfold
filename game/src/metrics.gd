@@ -235,6 +235,10 @@ func _process(delta: float) -> void:
 			_paused_s = 0.0
 		if world != null:
 			row.fill = snappedf(world.fill(), 0.001)
+			var charges := Budget.charges(world.units)
+			for k in charges:
+				charges[k] = snappedf(charges[k], 0.001)
+			row.charges = charges
 		_draws = 0
 		_prims = 0
 		if _viewport_frames > 0:
