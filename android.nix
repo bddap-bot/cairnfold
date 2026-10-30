@@ -13,7 +13,7 @@ let
   }).androidsdk;
 in
 pkgs.mkShell {
-  packages = [ pkgs.python3 pkgs.godot_4_6 pkgs.jdk17 sdk pkgs.unzip pkgs.curl pkgs.git pkgs.scons ];
+  packages = [ pkgs.python3 (import ./godot.nix { inherit pkgs; }) pkgs.jdk17 sdk pkgs.unzip pkgs.curl pkgs.git pkgs.scons ];
   CAIRNFOLD_LAVAPIPE = "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.x86_64.json";
   ANDROID_HOME = "${sdk}/libexec/android-sdk";
   ANDROID_BUILD_TOOLS = buildTools;

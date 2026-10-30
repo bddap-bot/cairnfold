@@ -1,0 +1,263 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "baseline": {
+   "p50": 13.8940000534058,
+   "p99": 16.367000579834,
+   "late": 4,
+   "draws": 44,
+   "prims": 303118,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.575,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 163.1,
+     "notes": [],
+     "compiled": [
+      63,
+      66
+     ]
+    }
+   ],
+   "step": 4,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.1,
+    "textures": 430.5,
+    "video": 507.1
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 3.939
+  },
+  "drawing": {
+   "p50": 13.8760004043579,
+   "p99": 16.363000869751,
+   "late": 0,
+   "draws": 50,
+   "prims": 312486,
+   "step": 0,
+   "fill": 0.49,
+   "mem_mb": {
+    "buffers": 42.5,
+    "textures": 430.5,
+    "video": 507.4
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 6.25
+  },
+  "floating": {
+   "p50": 13.8400001525879,
+   "p99": 16.3169994354248,
+   "late": 0,
+   "draws": 135,
+   "prims": 643436,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.378,
+     "late": 0
+    }
+   ],
+   "step": 0,
+   "fill": 0.49,
+   "mem_mb": {
+    "buffers": 42.7,
+    "textures": 514.2,
+    "video": 598.9
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.512
+  },
+  "flora": {
+   "p50": 13.8129997253418,
+   "p99": 16.6529998779297,
+   "late": 1,
+   "draws": 149,
+   "prims": 688060,
+   "step": 0,
+   "fill": 0.772,
+   "mem_mb": {
+    "buffers": 43.0,
+    "textures": 514.2,
+    "video": 599.2
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 7.747
+  },
+  "houses": {
+   "p50": 13.8599996566772,
+   "p99": 17.1599998474121,
+   "late": 0,
+   "draws": 98,
+   "prims": 358112,
+   "step": 0,
+   "fill": 0.888,
+   "mem_mb": {
+    "buffers": 43.5,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.675
+  },
+  "terrain": {
+   "p50": 13.8649997711182,
+   "p99": 16.5249996185303,
+   "late": 1,
+   "draws": 223,
+   "prims": 723424,
+   "step": 0,
+   "fill": 0.888,
+   "mem_mb": {
+    "buffers": 43.5,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.728
+  },
+  "paths": {
+   "p50": 13.8610000610352,
+   "p99": 17.2000007629395,
+   "late": 0,
+   "draws": 232,
+   "prims": 723886,
+   "step": 0,
+   "fill": 0.968,
+   "mem_mb": {
+    "buffers": 43.6,
+    "textures": 514.2,
+    "video": 599.7
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.756
+  },
+  "erase": {
+   "p50": 13.875,
+   "p99": 16.9699993133545,
+   "late": 0,
+   "draws": 130,
+   "prims": 369419,
+   "step": 0,
+   "fill": 0.968,
+   "mem_mb": {
+    "buffers": 43.6,
+    "textures": 514.2,
+    "video": 599.7
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.718
+  },
+  "water": {
+   "p50": 13.8610000610352,
+   "p99": 19.3509998321533,
+   "late": 0,
+   "draws": 233,
+   "prims": 717974,
+   "step": 0,
+   "fill": 0.948,
+   "mem_mb": {
+    "buffers": 43.4,
+    "textures": 514.2,
+    "video": 599.5
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.846
+  },
+  "fittings": {
+   "p50": 13.8719997406006,
+   "p99": 17.1480007171631,
+   "late": 0,
+   "draws": 247,
+   "prims": 722270,
+   "step": 0,
+   "fill": 0.976,
+   "mem_mb": {
+    "buffers": 43.4,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.955
+  },
+  "daylight": {
+   "p50": 13.8640003204346,
+   "p99": 16.6840000152588,
+   "late": 0,
+   "draws": 244,
+   "prims": 725809,
+   "step": 0,
+   "fill": 0.976,
+   "mem_mb": {
+    "buffers": 43.4,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.861
+  },
+  "wildlife": {
+   "p50": 13.878999710083,
+   "p99": 17.318000793457,
+   "late": 0,
+   "draws": 256,
+   "prims": 730447,
+   "step": 0,
+   "fill": 0.984,
+   "mem_mb": {
+    "buffers": 43.4,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.897
+  },
+  "dusk": {
+   "p50": 13.8719997406006,
+   "p99": 16.6040000915527,
+   "late": 0,
+   "draws": 249,
+   "prims": 728763,
+   "step": 0,
+   "fill": 0.984,
+   "mem_mb": {
+    "buffers": 43.4,
+    "textures": 514.2,
+    "video": 599.6
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 8.795
+  },
+  "camera": {
+   "p50": 13.8959999084473,
+   "p99": 29.0389995574951,
+   "late": 70,
+   "draws": 260,
+   "prims": 1259804,
+   "stalls": [
+    {
+     "ms": 69.6,
+     "notes": [],
+     "compiled": [
+      1,
+      1
+     ]
+    }
+   ],
+   "step": 0,
+   "fill": 0.984,
+   "mem_mb": {
+    "buffers": 44.2,
+    "textures": 845.9,
+    "video": 956.1
+   },
+   "gpu_mhz": 903.0,
+   "gpu_ms": 9.231
+  }
+ }
+}

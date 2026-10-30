@@ -4,7 +4,7 @@
 #           gets, also carries the Platform SDK and the app's id, and quits for a user who does not own the game (Store)
 #   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
-# Both carry the engine scripts/android-template.sh builds from the pinned Godot source and android-template.patch.
+# Both carry the engine scripts/engine.sh builds.
 # A steam Lepton APK also carries the GodotSteam extension and Valve's steam_api library; a Quest APK never does.
 # Every APK, bench or release, signs with the one key in $CAIRNFOLD_ANDROID_KEY (AGENTS.md, "Signing"), so any build
 # installs over any other and the garden on the device survives.
@@ -16,9 +16,10 @@ out=$(realpath -m "$2")
 variant=${3:-}
 case $target:$variant in quest:|quest:store|lepton:|lepton:steam) ;; *) echo "android: store is a quest variant, steam a lepton one" >&2; exit 1 ;; esac
 steam=${variant#store}
-steam_dir=androidarm64 template=android_source.zip
+steam_dir=androidarm64
 # shellcheck source=scripts/stage.sh
 . "$root/scripts/stage.sh"
+unzip -p "$(fetch "${godot_templates[@]}")" templates/android_source.zip > "$tdir/android_source.zip"
 vendors=$(fetch "${openxr_vendors[@]}")
 number=$(build_number "$root")
 # A Gradle daemon outlives its export by its 3 h default idle timeout, holding a worker's RAM; a minute still serves
@@ -49,9 +50,9 @@ export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$android_key/release.keystore GODOT_A
 cd "$stage/game"
 # Install first so notices enter ordinary APK assets before signing.
 mkdir -p android/build
-unzip -q "$tdir/$template" -d android/build
+unzip -q "$tdir/android_source.zip" -d android/build
 # The engine build (scons) and the export (Gradle) size themselves to every CPU; with-jobs holds them to their share.
-cp "$("$root/scripts/with-jobs" "$root/scripts/android-template.sh" android/build/libs/release/godot-lib.template_release.aar)" \
+cp "$("$root/scripts/with-jobs" "$root/scripts/engine.sh" android android/build/libs/release/godot-lib.template_release.aar)" \
   android/build/libs/release/godot-lib.template_release.aar
 printf '%s.stable\n' "$godot_version" > android/.build_version
 # The toolkit's Android library brings its own GDExtension and the Platform SDK loader. Its addon is left out: the

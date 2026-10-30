@@ -67,28 +67,21 @@ ignored by git. Packages built without `steam`, and every Quest APK, carry no St
 [key rules](https://partner.steamgames.com/doc/features/keys) govern Steam keys sold
 elsewhere, not builds.
 
-## Desktop packages
+## Engine
 
-The desktop packages are Godot's official, unmodified export templates at the
-pinned version with the game's data embedded. Linux templates link only
-components in Godot's source tree, so `COPYRIGHT.txt` and the extracted upstream
-files cover them; Godot's embedded OpenXR loader is among them. The official
-Windows template has no `COPYRIGHT.txt` of its own and statically links two
-components outside that tree: Mesa's NIR compiler for the Direct3D 12 driver,
-built by `godot-nir-static` at the version Godot's
-`misc/scripts/install_d3d12_sdk_windows.py` names, and the MinGW-w64 runtime of
-the MinGW toolchain it was built with. The Windows package adds their license
-texts under `notices/windows/`. The template links no WinPixEventRuntime, and the
-export ships no Direct3D 12 Agility SDK library.
+Every package, desktop and Android, runs an engine `scripts/engine.sh` builds from the pinned Godot source with
+`scripts/engine.patch` applied, with the official template's build flags less AccessKit's static library and, on
+Windows, ANGLE and the Direct3D 12 driver. Linux builds use Godot's own buildroot SDKs, Windows llvm-mingw
+(`toolchains.nix`, pinned in `scripts/pins.sh`), Android the NDK revision of the official template. The patch modifies
+MIT-licensed Godot sources only and adds no component, so the source notices above cover the binaries; it is part of
+this repository's source under its licenses. `SOURCES.txt` records the source and the patch's SHA256.
 
-## Android engine
-
-Both APKs carry Godot's official Android release library at the pinned version
-with one file replaced: `libgodot_android.so`, built by `scripts/android-template.sh`
-from the pinned Godot source with `scripts/android-template.patch` applied, using
-the official template's build flags and NDK revision. The patch modifies MIT-licensed
-Godot sources only and adds no component, so the source notices above cover the
-binary; it is part of this repository's source under its licenses.
+Linux templates link only components in Godot's source tree, so `COPYRIGHT.txt` and the extracted upstream files cover
+them; Godot's embedded OpenXR loader is among them. The Windows template is built without the Direct3D 12 driver, so
+it links no Mesa NIR, WinPixEventRuntime or Agility SDK, and statically links two components outside that tree from
+the llvm-mingw toolchain it was built with: the MinGW-w64 runtime and LLVM's C++ runtime, whose license texts the
+Windows package adds under `notices/windows/`. Both APKs carry Godot's official Android release library at the pinned
+version with that engine as its `libgodot_android.so`.
 
 ## Building and checking
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs what AGENTS.md says a change owes before it lands, for the diff from BASE (default origin/main) to the working
 # tree: gate.sh [BASE]. Every change owes test.sh, a changed shell script shellcheck, a change to World, Commands or a
-# tool coop.sh, and a change to what scripts/android.sh builds from both APKs.
+# tool coop.sh, a change to what scripts/android.sh builds from both APKs, and a change to what scripts/package.sh builds
+# from its three packages.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 base=$(git merge-base "${1:-origin/main}" HEAD)
@@ -23,10 +24,16 @@ if owes '^game/src/(world|commands|[a-z_]+_tool)\.gd$'; then
   echo "gate: scripts/coop.sh"
   nix-shell --run "scripts/coop.sh $out/coop"
 fi
-if owes '^(android\.nix|scripts/(android|android-template|export|notices|pins)\.sh|scripts/(android-notices\.gradle|android-template\.patch|notices\.py)|game/(project\.godot|export_presets\.cfg|android/.*))$'; then
+if owes '^(android\.nix|godot\.nix|nixpkgs\.nix|scripts/with-jobs|scripts/(android|engine|export|notices|pins|stage)\.sh|scripts/(android-notices\.gradle|engine\.patch|notices\.py)|game/(project\.godot|export_presets\.cfg|android/.*))$'; then
   for target in quest lepton; do
     echo "gate: scripts/android.sh $target"
     nix-shell android.nix --run "scripts/android.sh $target $out/$target.apk"
+  done
+fi
+if owes '^(shell\.nix|godot\.nix|toolchains\.nix|nixpkgs\.nix|scripts/with-jobs|LICENSE-.*|steam/.*|scripts/(package|engine|export|notices|pins|stage)\.sh|scripts/(engine\.patch|notices\.py)|game/(project\.godot|export_presets\.cfg))$'; then
+  for target in linux-x64 linux-arm64 windows; do
+    echo "gate: scripts/package.sh $target"
+    nix-shell --run "scripts/package.sh $target $out/$target.pkg"
   done
 fi
 echo "gate: ok"

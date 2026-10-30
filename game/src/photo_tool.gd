@@ -610,8 +610,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 ## A viewport can finish a frame while its pipelines are still compiling. Reading it then would save missing
 ## geometry or shadows; awaiting complete draws leaves play running. `finest` draws it as a photo is (draw_finest).
 func _draw_complete(vp: SubViewport, finest := false) -> void:
-	var name := &"VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME"
-	var info := ClassDB.class_get_integer_constant(&"RenderingServer", name) if ClassDB.class_has_integer_constant(&"RenderingServer", name) else -1
+	var skipped := RenderingServer.VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME
 	while true:
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_pre_draw
@@ -622,11 +621,8 @@ func _draw_complete(vp: SubViewport, finest := false) -> void:
 			undo.call()
 		while Engine.get_frames_drawn() <= issued:
 			await get_tree().process_frame
-		if info < 0:
-			return
-		var kind := info as RenderingServer.ViewportRenderInfo
-		var visible := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, kind)
-		var shadow := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, kind)
+		var visible := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, skipped)
+		var shadow := RenderingServer.viewport_get_render_info(vp.get_viewport_rid(), RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, skipped)
 		if visible == 0 and shadow == 0:
 			return
 

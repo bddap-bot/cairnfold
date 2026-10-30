@@ -13,8 +13,9 @@ ndk=()
 case $kind in quest|lepton) ndk=("$android_ndk_version") ;; esac
 python3 "$root/scripts/notices.py" extract "$(fetch "${godot_source[@]}")" "$out/godot" "${ndk[@]}"
 cp "$(fetch "${cinzel_license[@]}")" "$out/Cinzel-OFL.txt"
-printf 'Godot %s\n%s\nSHA256 %s\nCinzel OFL\n%s\nSHA256 %s\n' \
-  "$godot_version" "${godot_source[@]}" "${cinzel_license[@]}" > "$out/SOURCES.txt"
+printf 'Godot %s\n%s\nSHA256 %s\nEngine patch\nscripts/engine.patch\nSHA256 %s\nCinzel OFL\n%s\nSHA256 %s\n' \
+  "$godot_version" "${godot_source[@]}" "$(sha256sum < "$root/scripts/engine.patch" | cut -d' ' -f1)" "${cinzel_license[@]}" \
+  > "$out/SOURCES.txt"
 if [ "${3:-}" = steam ]; then
   mkdir -p "$out/godotsteam"
   unzip -p "$(fetch "${godotsteam[@]}")" addons/godotsteam/license.md > "$out/godotsteam/license.md"
@@ -26,13 +27,12 @@ if [ "${3:-}" = store ]; then
   printf 'Godot Meta Toolkit %s\n%s\nSHA256 %s\nLicense\n%s\nSHA256 %s\n' \
     "$meta_toolkit_version" "${meta_toolkit[@]}" "${meta_toolkit_license[@]}" >> "$out/SOURCES.txt"
 fi
+# The Windows template links the toolchain's MinGW-w64 runtime and LLVM's C++ runtime.
 if [ "$kind" = windows ]; then
   mkdir -p "$out/windows"
-  cp "$(fetch "${godot_nir_license[@]}")" "$out/windows/godot-nir-static-LICENSE.md"
-  cp "$(fetch "${mesa_license[@]}")" "$out/windows/mesa-license.rst"
-  cp "$(fetch "${mingw_license[@]}")" "$out/windows/COPYING.MinGW-w64-runtime.txt"
-  printf 'Godot NIR static\n%s\nSHA256 %s\nMesa\n%s\nSHA256 %s\nMinGW-w64 runtime\n%s\nSHA256 %s\n' \
-    "${godot_nir_license[@]}" "${mesa_license[@]}" "${mingw_license[@]}" >> "$out/SOURCES.txt"
+  cp "$CAIRNFOLD_MINGW/x86_64-w64-mingw32/share/mingw32/COPYING.MinGW-w64-runtime.txt" "$out/windows/"
+  cp "$CAIRNFOLD_MINGW/LICENSE.TXT" "$out/windows/llvm-mingw-LICENSE.TXT"
+  printf 'llvm-mingw\n%s\nSHA256 %s\n' "${llvm_mingw[@]}" >> "$out/SOURCES.txt"
 fi
 if [ "$kind" = quest ] || [ "$kind" = lepton ]; then
   python3 "$root/scripts/notices.py" extract "$(fetch "${openxr_vendors_source[@]}")" "$out/openxr-vendors" "$android_ndk_version"

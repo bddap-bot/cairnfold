@@ -48,7 +48,8 @@ controls and the build order.
   Directive (verbatim): "remember we haven't released yet so don't sacrifice maintainability for backwards compatibility"
 - `nix-shell --run scripts/test.sh` must pass before landing; a change to the build
   scripts, `game/project.godot` or `game/export_presets.cfg` also owes a
-  green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`, and a changed shell
+  green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix` and a green
+  `scripts/package.sh` for `linux-x64`, `linux-arm64` and `windows`, and a changed shell
   script owes a clean `shellcheck`. `scripts/gate.sh` runs every check the diff from origin/main owes, the co-op run
   below included.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and

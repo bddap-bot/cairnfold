@@ -8,14 +8,14 @@ godot_swappy=(https://github.com/godotengine/godot-swappy/releases/download/from
 openxr_vendors_version=5.1.0-stable
 openxr_vendors=("https://github.com/GodotVR/godot_openxr_vendors/releases/download/$openxr_vendors_version/godotopenxrvendorsaddon.zip" 6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911)
 godot_source=("$godot_release/godot-$godot_version-stable.tar.xz" 900ad0f6241b8051daa569cee1b07b6e30c4cb4f804471f72256d052334c0550)
+# Native engine toolchains, which toolchains.nix reads: Godot's buildroot SDKs (glibc 2.28), the official Linux
+# templates' own (godotengine/build-containers), and llvm-mingw for Windows.
+godot_sdk_x86_64=(https://github.com/godotengine/buildroot/releases/download/godot-2023.08.x-4/x86_64-godot-linux-gnu_sdk-buildroot.tar.bz2 b89f173b1f2f2f35f3090bc4efad732f1c0c1c1206e5480cfcb141977010bc94)
+godot_sdk_arm64=(https://github.com/godotengine/buildroot/releases/download/godot-2023.08.x-4/aarch64-godot-linux-gnu_sdk-buildroot.tar.bz2 d7b673823e8078ac70ffa202b4471356eca360b80960c6d1a722af0c03aea29d)
+llvm_mingw=(https://github.com/mstorsjo/llvm-mingw/releases/download/20251118/llvm-mingw-20251118-ucrt-ubuntu-22.04-x86_64.tar.xz 53a0c22caa46b501e1c089e1c31b24a7c0e0d5a86f8ad12b131aafd4cee01ef4)
 openxr_vendors_source=("https://codeload.github.com/GodotVR/godot_openxr_vendors/tar.gz/refs/tags/$openxr_vendors_version" 60199880ae0eb06565979865f55969f5059cc088c8a7a5065366e2f90bce9653)
 # The godot-cpp submodule at the pinned vendors release.
 godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/58d1de720b8ffe9f8ffcdfe3a85148582cfd2e74/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
-# What the official Windows template links beyond Godot's own sources: Mesa's NIR (through godot-nir-static, the
-# version Godot's install_d3d12_sdk_windows.py names) and the MinGW-w64 runtime of its Fedora MinGW toolchain.
-godot_nir_license=(https://raw.githubusercontent.com/godotengine/godot-nir-static/25.3.1-1/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
-mesa_license=(https://gitlab.freedesktop.org/mesa/mesa/-/raw/5005a50879b11b953ade113fccd13a208f706ba0/docs/license.rst 0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615)
-mingw_license=(https://raw.githubusercontent.com/mingw-w64/mingw-w64/v13.0.0/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd)
 # The Horizon Store's Platform SDK binding, only in store APKs (docs/package-notices.md, "Horizon Store package").
 meta_toolkit_version=1.0.3-stable
 meta_toolkit=("https://github.com/godot-sdk-integrations/godot-meta-toolkit/releases/download/$meta_toolkit_version/godotmetatoolkitaddon.zip" cbd23eb9c0ce6868570aa43a674688d749bafeab6b38027f5a588bb21b27d879)
