@@ -935,6 +935,12 @@ held. At the 3.99 ms capacity a hill under 26 m of walls beside a 12 m path, wit
 six 14 m beds had read 1.87 (desktop `units` lines; the fill is the garden's, the same on every headset). The other
 players (`avatars/wave`, `avatars/chains`) stand on the hill garden too.
 
+Each phase holds a view 6 s, so its median takes the frames after the governor has answered what the phase brought.
+The held tools (`held/*`, fourteen of one in view) held 3 s each, and fourteen books arriving at step 4 read 11.5 ms
+for the second before the governor stepped to 6 (8.5 ms), half of what that phase's median counted. Pinned at step 4
+the same books read 10.2 to 10.5 ms (`App=`), within the line; baking their covers first or keeping them out of the
+shadow pass moved that by 0.2 ms at most.
+
 On a Quest 2 of the build before the refit, the features on these gardens read, governed: `hands/walls` 7.05 ms,
 `camera/ground` 10.10, `camera/shutter` 9.20, `camera/recording` 10.19, `camera/selfie` 9.14, `camera/two` 9.16,
 `avatars/wave` 8.48, `wipe/village` 5.79, `materials/aerial` 6.69 and `materials/ground` 7.71, all within the line;

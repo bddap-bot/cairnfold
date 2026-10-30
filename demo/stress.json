@@ -3,7 +3,7 @@
   {"op": "quality", "step": -1},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 10},
-  {"op": "held_cost", "seconds": 3},
+  {"op": "held_cost", "seconds": 6},
   {"op": "label", "name": "meadow/aerial"},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
   {"op": "wait", "seconds": 6},
