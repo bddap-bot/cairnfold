@@ -75,12 +75,19 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	for i in RANGES.size():
 		var r: Array = ranges[i] if i < ranges.size() else [null, null]
 		look.ranges.append(Vector2(_number(r[0], 1.0, 180.0, 90.0), _number(r[1], 0.0, most, 10.0 if look.type == BONE else 1.0)))
+	# Skinned meshes are rebuilt under their skeleton, out of reach of the state's node map; their names are unique.
+	var meshes := {}
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		meshes[String(mi.name)] = root.get_path_to(mi)
+	# Godot reads each mesh's default morph weights but leaves its instances at zero; a shape saved at a weight rests at it.
+	for node: GLTFNode in state.get_nodes():
+		if node.mesh >= 0 and meshes.has(node.resource_name):
+			var mi: MeshInstance3D = root.get_node(meshes[node.resource_name])
+			var weights := state.get_meshes()[node.mesh].blend_weights
+			for k in mini(weights.size(), mi.get_blend_shape_count()):
+				mi.set_blend_shape_value(k, clampf(weights[k], 0.0, 1.0) if is_finite(weights[k]) else 0.0)
 	var binds := look_binds(state)
 	if not binds.is_empty():
-		# Skinned meshes are rebuilt under their skeleton, out of reach of the state's node map; their names are unique.
-		var meshes := {}
-		for mi in root.find_children("*", "MeshInstance3D", true, false):
-			meshes[String(mi.name)] = root.get_path_to(mi)
 		for dir: String in binds:
 			for b: Array in binds[dir]:
 				var path: Variant = meshes.get(state.get_nodes()[b[0]].resource_name)

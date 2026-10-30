@@ -236,13 +236,17 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	var materials := Materials.new(assets)
 	var face := _face(prefabs, objs, found.descriptor)
 	var animated := {}
-	for clip: Dictionary in expressions.data.get("clips", []):
-		for c: Dictionary in clip.curves:
-			if c.attribute.begins_with("blendShape."):
-				animated[c.attribute.trim_prefix("blendShape.")] = true
+	var clips: Array = expressions.data.get("clips", [])
+	for i in clips.size():
+		for c: Dictionary in clips[i].curves:
+			if c.attribute.begins_with("blendShape.") and c["class"] == "137" and paths.has(c.path) and not c.has("refs"):
+				var renderer := _renderer_of(objs, _ref(objs[paths[c.path]].data.get("m_GameObject")))
+				var shapes: Dictionary = animated.get_or_add(renderer, {})
+				(shapes.get_or_add(c.attribute.trim_prefix("blendShape."), []) as Array).append([i, c["keys"]])
+	var faced := {}
 	for shape: String in face.shapes:
-		animated[shape] = true
-	var merged := _merge(prefabs, materials, objs, renderers, switches.slots, animated, sk, rests, scale, report)
+		faced[shape] = true
+	var merged := _merge(prefabs, materials, objs, renderers, switches.slots, animated, faced, sk, rests, scale, report)
 	if merged.is_empty():
 		printerr("unity_avatar: %s draws nothing" % found.name)
 		root.free()
@@ -290,7 +294,17 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
 	if not expressions.data.is_empty():
-		root.set_meta("expressions", _bound(expressions, switches, merged.meshes, objs, paths, sk, materials, report))
+		root.set_meta("expressions", _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, report))
+	for name: String in face.expressions:
+		var binds := []
+		for b: Dictionary in face.expressions[name]:
+			var shapes := {}
+			for r: int in merged.shapes:
+				if merged.shapes[r].has(b.shape):
+					shapes[merged.shapes[r][b.shape]] = true
+			for s: String in shapes:
+				binds.append({"shape": s, "weight": b.weight})
+		face.expressions[name] = binds
 	root.set_meta("faces", face.expressions)
 	report["faces"] = (face.expressions as Dictionary).keys()
 	report["not translated"] = _untranslated(objs, found.transform, found.descriptor)
@@ -489,7 +503,7 @@ static func _renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
-static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
+static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, shapes: Dictionary, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
 	var data: Dictionary = expressions.data.duplicate(true)
 	var targets: Array = switches.targets.duplicate(true)
 	for m: Dictionary in meshes:
@@ -502,7 +516,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 		for c: Dictionary in clip.curves:
 			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
 			if not by_curve.has(key):
-				var target := _target(c, objs, paths, meshes, sk, targets, materials)
+				var target := _target(c, objs, paths, meshes, shapes, sk, targets, materials)
 				if target < 0:
 					var kind := "shader property" if c.attribute.begins_with("material.") else "%s on class %s" % [c.attribute.get_slice(".", 0), c["class"]]
 					dropped[kind + " curve"] = dropped.get(kind + " curve", 0) + 1
@@ -591,7 +605,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
-static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, sk: Skeleton3D, targets: Array, materials: Materials) -> int:
+static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials) -> int:
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
 	var transform: int = paths[c.path]
@@ -600,19 +614,15 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	var rest := 1.0
 	if c.attribute.begins_with("blendShape.") and c["class"] == "137":
 		var renderer := _renderer_of(objs, go)
-		var shape: String = c.attribute.trim_prefix("blendShape.")
+		var shape: String = shapes.get(renderer, {}).get(c.attribute.trim_prefix("blendShape."), "")
 		var binds := []
 		for m: Dictionary in meshes:
-			var mesh: ArrayMesh = m.mesh
-			if renderer in m.renderers and range(mesh.get_blend_shape_count()).any(func(k: int) -> bool: return mesh.get_blend_shape_name(k) == shape):
+			if renderer in m.renderers and m.weights.has(shape):
 				binds.append([m.node, shape])
+				rest = m.weights[shape]
 		if binds.is_empty():
 			return -1
 		effect = {"morph": binds}
-		var saved := 0.0
-		for m: Dictionary in meshes:
-			saved = maxf(saved, m.weights.get(shape, 0.0) if renderer in m.renderers else 0.0)
-		rest = saved
 	elif c.attribute.begins_with("material.") and c["class"] == "137":
 		var property: String = c.attribute.trim_prefix("material.")
 		var channel := "rgb".find(property.right(1)) if property in ["_Color.r", "_Color.g", "_Color.b"] else -1
@@ -897,13 +907,14 @@ static func _in_model(n: Node) -> Transform3D:
 
 ## The drawn renderers' surfaces over `sk` as one mesh for each set of switches they draw under, its skin binding each
 ## source bone to the output bone of its name (or its nearest ancestor that has one): blend shapes kept, those of one
-## name in several renderers of a mesh one shape, while the vertices of the meshes each moves fit Avatar.MAX_BLEND_VERTICES
-## together, those the menu's clips name (`animated`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
+## name in several renderers one shape only where Unity always weighs them alike (one saved weight, the same clip curves
+## in `animated`, renderer to shape name to [[clip, keys]]), while the vertices of the meshes each moves fit
+## Avatar.MAX_BLEND_VERTICES together, those the menu's clips animate or the face uses (`faced`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
 ## target, [each material reference it can take]]) is a mesh of its own, its UVs in its first material's cell and
 ## "choices" moving them to each material's ([scale x, y, offset x, y]) under "swap", that switch.
-## {"skin", "meshes": [{"mesh", "when", "renderers", "weights": each blend shape's saved weight}]}, or empty if nothing
-## draws.
-static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, slots: Dictionary, animated: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
+## {"skin", "meshes": [{"mesh", "when", "renderers", "weights": each blend shape's saved weight}], "shapes": renderer to
+## source shape name to its shape's name}, or empty if nothing draws.
+static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, slots: Dictionary, animated: Dictionary, faced: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -917,6 +928,9 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var corners := {}
 	var shapes := {}
 	var saved_weights := {}
+	var identities := {}
+	var shape_of := {}
+	var live := {}
 	var drawn := []
 	var skipped := []
 	var tiled := {}
@@ -979,7 +993,22 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				key = group.choices[0]
 			var base := verts.size()
 			for k in surface_shapes.size():
-				var name := mesh.get_blend_shape_name(k)
+				var source := mesh.get_blend_shape_name(k)
+				var curves: Array = animated.get(r[0], {}).get(source, [])
+				var weight := str(saved[k]).to_float() / 100.0 if k < saved.size() else 0.0
+				var identity := JSON.stringify([source, weight, curves])
+				if not identities.has(identity):
+					var name := source
+					var copy := 1
+					while saved_weights.has(name):
+						copy += 1
+						name = "%s (%d)" % [source, copy]
+					identities[identity] = name
+					saved_weights[name] = weight
+					if not curves.is_empty() or faced.has(source):
+						live[name] = true
+				var name: String = identities[identity]
+				shape_of.get_or_add(r[0], {})[source] = name
 				var moved: Dictionary = shapes.get_or_add(name, {})
 				var sv: PackedVector3Array = surface_shapes[k][Mesh.ARRAY_VERTEX]
 				var sn: Variant = surface_shapes[k][Mesh.ARRAY_NORMAL]
@@ -988,8 +1017,6 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					var dn := Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i]
 					if not (dv.is_zero_approx() and dn.is_zero_approx()):
 						moved[base + i] = [dv, dn]
-				if k < saved.size():
-					saved_weights[name] = maxf(saved_weights.get(name, 0.0), str(saved[k]).to_float() / 100.0)
 			for i in v.size():
 				verts.append(v[i])
 				normals.append(n[i].normalized() if not n[i].is_zero_approx() else Vector3.UP)
@@ -1024,7 +1051,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		sizes[g] = sizes.get(g, 0) + 1
 	var kept := {}
 	var budget := Avatar.MAX_BLEND_VERTICES
-	var order := shapes.keys().filter(func(name: String) -> bool: return animated.has(name)) + shapes.keys().filter(func(name: String) -> bool: return not animated.has(name))
+	var order := shapes.keys().filter(func(name: String) -> bool: return live.has(name)) + shapes.keys().filter(func(name: String) -> bool: return not live.has(name))
 	for name: String in order:
 		var moves := {}
 		for i: int in shapes[name]:
@@ -1138,7 +1165,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	report["blend shapes"] = "%d kept over the meshes, %d past Avatar.MAX_BLEND_VERTICES dropped (%d of them baked at their saved weights)" % [kept_shapes, dropped_shapes, baked]
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
-	return {"skin": skin, "meshes": meshes}
+	return {"skin": skin, "meshes": meshes, "shapes": shape_of}
 
 
 ## The avatar's face as {"expressions": each VRM expression's name to its [{"shape", "weight" 0 to 1}], "shapes": the

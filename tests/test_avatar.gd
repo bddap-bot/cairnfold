@@ -259,6 +259,24 @@ func _unity_package_converts() -> void:
 	var empty := ProjectSettings.globalize_path("user://no-humanoid")
 	DirAccess.make_dir_recursive_absolute(empty)
 	check(UnityAvatar.avatar_scene(empty) == null, "a package with no humanoid model imports as nothing")
+	_rest_weights_survive_the_vrm()
+
+
+## A blend shape the package saves at a weight, drawn so by Unity at rest, keeps its weight in the VRM a player wears.
+func _rest_weights_survive_the_vrm() -> void:
+	var model := UnityAvatar.avatar_scene(_sample("seed-san"))
+	var mi: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false).filter(func(m: MeshInstance3D) -> bool: return m.get_blend_shape_count() > 1)[0]
+	var shape: StringName = mi.mesh.get_blend_shape_name(1)
+	mi.set_blend_shape_value(1, 0.6)
+	UnityAvatar.wearable(model)
+	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
+	Vrm.write(model, path)
+	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(path)), Color.WHITE)
+	var worn: Array = a.find_children(str(mi.name), "MeshInstance3D", true, false)
+	var at := -1.0 if worn.size() != 1 else (worn[0] as MeshInstance3D).get_blend_shape_value((worn[0] as MeshInstance3D).find_blend_shape_by_name(shape))
+	check(is_equal_approx(at, 0.6), "a shape saved at 0.6 is worn at 0.6, not %f" % at)
+	a.free()
+	model.free()
 
 
 ## The humanoid rests in the pose its Unity Avatar definition records, whatever pose the model file binds its skin in:

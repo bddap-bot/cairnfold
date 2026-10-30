@@ -41,6 +41,7 @@ func _run() -> void:
 	_a_decal_alpha_binds_its_atlas_layer()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
+	_a_shape_name_keeps_each_renderers_weight()
 	finish()
 
 
@@ -628,7 +629,7 @@ BlendTree:
 	var drawn := UnityAvatar._renderers(objs, 2, switches.by_object, {})
 	check(drawn.size() == 1 and drawn[0][0] == 5 and drawn[0][2] == [[0, 1]], "its inactive renderer draws while the switch is on: %s" % [drawn])
 	var sk := Skeleton3D.new()
-	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], objs, paths, sk, Materials.new(Assets.new(dir)), {})
+	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], {}, objs, paths, sk, Materials.new(Assets.new(dir)), {})
 	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
 	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
 	sk.free()
@@ -668,14 +669,14 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(data.menu.size() == 1 and data.targets.size() == 1, "a hue radial survives binding")
 	if data.targets.size() == 1:
 		var target: Dictionary = data.targets[0]
 		check(target.default == 0.25 and target.effect.hue[0].node == "Body" and target.effect.hue[0].space == 1.0 and target.effect.hue[0].shift == 0.0, "the saved colour space, mode and default survive")
 		check(data.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]] and not data.clips[0].curves[0].step, "hue remains continuous instead of becoming a switch")
 	materials.materials.colour.properties.clear()
-	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(absent.targets.is_empty(), "a stale saved property not declared by the shader has no binding")
 	materials.materials.colour.shader = "VRChat/Mobile/Toon Standard"
 	materials.materials.colour.properties = {"_HueShift": true}
@@ -688,7 +689,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials._images.mask = mask
 	expressions.data.clips[0].curves[0].attribute = "material._HueShift"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, TAU]]
-	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(mobile.targets.size() == 1 and mobile.targets[0].effect.hue[0].space == 2.0, "Toon Standard binds RGB-axis hue")
 	check(mobile.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, TAU]], "the shader's angle stays in radians")
 	var packed := Image.new()
@@ -696,7 +697,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var cell: Rect2i = materials.materials.colour.cell
 	check(packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2).r < 0.2 and packed.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2).r > 0.8, "the selected green mask channel follows the atlas region")
 	materials.materials.colour.keywords.clear()
-	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(disabled.targets.is_empty(), "a disabled shader feature does not create a hue binding")
 	materials.hue_masks.clear()
 	materials.materials.colour.properties = {"_Color": true}
@@ -706,7 +707,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.atlas_materials()
 	expressions.data.clips[0].curves[0].attribute = "material._Color.r"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, 1.0]]
-	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(colored.targets.size() == 1 and colored.targets[0].default == 0.0 and colored.targets[0].effect.color[0].channel == 0, "RGB curves bind even when the saved channel is black")
 	check(colored.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]], "RGB stays continuous")
 	var raw := Image.new()
@@ -722,14 +723,14 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.textures = {"_MainColorAdjustTexture": {"m_Texture": {"guid": "mask"}}}
 	expressions.data.clips[0].curves[0].attribute = "material._MainGamma_Test"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 1.0], [1.0, 2.0]]
-	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(toned.targets.size() == 1 and toned.targets[0].default == 1.0 and toned.targets[0].effect.tone[0].channel == 0, "gamma keeps its material region and neutral default")
 	check(toned.clips[0].curves[0].keys == [[0.0, 1.0], [1.0, 2.0]], "tone curves remain continuous")
 	check(packed.load_png_from_buffer(Marshalls.base64_to_raw(toned.hueMask)) == OK, "the color adjustment mask is carried")
 	var first := packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 	check(first.r > 0.8 and first.g < 0.2 and first.b < 0.2 and first.a > 0.99, "the adjustment mask retains independent RGBA channels")
 	materials.materials.colour.floats._MainColorAdjustToggle = "0"
-	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(off.targets.is_empty(), "disabled color adjustment does not bind tone curves")
 
 	sk.free()
@@ -848,7 +849,7 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(data.targets.size() == 1 and data.targets[0].default == 0.25, "a decal alpha binds with its saved alpha: %s" % [data.targets])
 	if data.targets.size() == 1:
 		var region: Dictionary = data.targets[0].effect.decal[0]
@@ -866,18 +867,18 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	materials.materials.skin.properties._DecalAlphaIntensity2_Skin = true
 	materials.materials.skin.floats._DecalAlphaIntensity2_Skin = "0"
 	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalAlphaIntensity2_Skin", "class": "137", "keys": [[0.0, 3.0]]})
-	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(intense.targets.size() == 2 and not intense.targets[0].effect.decal[0].intensity and intense.targets[1].effect.decal[0].intensity and intense.targets[1].default == 0.0, "an animated alpha intensity binds as its slot's second factor: %s" % [intense.targets])
 	expressions.data.clips[0].curves.pop_back()
 	materials.materials.skin.properties._DecalAlphaIntensity2 = true
 	materials.materials.skin.floats._DecalAlphaIntensity2 = "2"
 	materials.decal_slots.clear()
-	var held := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var held := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(held.targets.is_empty(), "a decal held at another alpha intensity is not bound")
 	materials.materials.skin.floats._DecalAlphaIntensity2 = "1"
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.25, "g": 0.5, "b": 0, "a": 0}
 	materials.decal_slots.clear()
-	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})
+	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(moved.targets.is_empty() and not moved.has("decals"), "a decal placed off the whole texture is not bound")
 	sk.free()
 
@@ -941,3 +942,76 @@ func _gesture_faces_become_expressions() -> void:
 	check(face.expressions.size() == 8, "no expression for the outfit or a zeroed shape: %s" % [face.expressions.keys()])
 	check(face.shapes.slice(0, 15) == visemes and face.shapes.slice(15) == ["Mouth Up", "Eyes Closed", "Mouth Up"], "visemes first, then the faces' shapes: %s" % [face.shapes])
 	check(UnityAvatar._face(Prefabs.new(Assets.new(dir)), {}, {"lipSync": "1", "VisemeBlendShapes": visemes}).expressions.is_empty(), "visemes count only where it lip-syncs by blend shape")
+
+## Renderers merged into one mesh keep one shape for a name only where Unity weighs it alike in each: one renderer's saved
+## weight or clip never moves another's.
+func _a_shape_name_keeps_each_renderers_weight() -> void:
+	var dir := ProjectSettings.globalize_path("user://shapes")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var root := Node3D.new()
+	var source := Skeleton3D.new()
+	source.name = "Source"
+	source.add_bone("Hips")
+	root.add_child(source)
+	var nodes: Array[GLTFNode] = []
+	var objects := {}
+	var objs := {}
+	var renderers := []
+	var paths := {}
+	for i in 3:
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(i, 0, 0), Vector3(i, 1, 0), Vector3(i + 1, 0, 0)])
+		arrays[Mesh.ARRAY_BONES] = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+		arrays[Mesh.ARRAY_WEIGHTS] = PackedFloat32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0])
+		var moved := []
+		moved.resize(Mesh.ARRAY_MAX)
+		moved[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(0, 0, 0.1), Vector3(0, 0, 0.1), Vector3(0, 0, 0.1)])
+		var mesh := ArrayMesh.new()
+		mesh.add_blend_shape("Shorts")
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [moved])
+		var mi := MeshInstance3D.new()
+		mi.name = "M%d" % i
+		mi.mesh = mesh
+		mi.skin = Skin.new()
+		mi.skin.add_bind(0, Transform3D.IDENTITY)
+		mi.skeleton = NodePath("../Source")
+		root.add_child(mi)
+		var node := GLTFNode.new()
+		node.resource_name = mi.name
+		nodes.append(node)
+		objects[100 + i] = {"type": "SkinnedMeshRenderer", "data": {"m_Mesh": {"fileID": str(10 + i)}}, "node": i}
+		var go := 3 * i + 1
+		objs[go] = {"type": "GameObject", "data": {"m_Name": "R%d" % i, "m_Component": [{"component": {"fileID": str(go + 1)}}, {"component": {"fileID": str(go + 2)}}]}}
+		objs[go + 1] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}}}
+		objs[go + 2] = {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": str(go)}, "m_Mesh": {"guid": "model", "fileID": str(10 + i)}, "m_BlendShapeWeights": ["0" if i == 0 else "100"], "m_Materials": []}}
+		renderers.append([go + 2, go, []])
+		paths["R%d" % i] = go + 1
+	var state := GLTFState.new()
+	state.set_nodes(nodes)
+	var prefabs := Prefabs.new(Assets.new(dir))
+	prefabs.assets.by_guid["model"] = {"file": "", "path": "model.fbx", "meta": ""}
+	prefabs.models["model"] = {"scene": root, "state": state, "objects": objects}
+	UnityAvatar._slot_cache["model"] = {}
+	var sk := Skeleton3D.new()
+	sk.add_bone("Hips")
+	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
+	var materials := Materials.new(prefabs.assets)
+	var merged := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, {}, {}, sk, rests, 1.0, {})
+	check(merged.meshes.size() == 1 and merged.meshes[0].weights == {"Shorts": 0.0, "Shorts (2)": 1.0}, "a name saved at two weights is two shapes, each at its renderer's weight: %s" % [merged.meshes.map(func(m: Dictionary) -> Dictionary: return m.weights)])
+	check(merged.shapes == {3: {"Shorts": "Shorts"}, 6: {"Shorts": "Shorts (2)"}, 9: {"Shorts": "Shorts (2)"}}, "renderers weighed alike share their shape: %s" % [merged.shapes])
+	var animated := {6: {"Shorts": [[0, [[0.0, 50.0]]]]}}
+	var split := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, animated, {}, sk, rests, 1.0, {})
+	check(split.shapes[6].Shorts != split.shapes[9].Shorts, "a clip moving one renderer's shape parts it from a renderer the clip leaves: %s" % [split.shapes])
+	var expressions := Expressions.new(prefabs.assets, {})
+	expressions.data = {
+		"menu": [{"name": "Shorts", "type": "toggle", "parameter": "Shorts", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Shorts", "type": "bool", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 0, "loop": false, "curves": [{"path": "R0", "attribute": "blendShape.Shorts", "class": "137", "keys": [[0.0, 50.0]]}]}],
+	}
+	merged.meshes[0].node = "Body"
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, {})
+	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
+	root.free()
+	sk.free()
