@@ -11,7 +11,8 @@
 # package and version code, so adb would install the Frame's build over the Quest's.
 # Saves never block an install: a copy that fails is reported and the install goes on. A push that fails to land every
 # file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
-# (default ~/.local/state/cairnfold/quest-saves). Bench output, bench/ and bench.json, is not a save and is left out.
+# (default ~/.local/state/cairnfold/quest-saves), files identical across copies hardlinked as one. Bench output,
+# bench/ and bench.json, is not a save and is left out.
 set -euo pipefail
 pkg=io.github.bddapbot.cairnfold
 
@@ -109,6 +110,7 @@ case $failed in
   *INSTALL_FAILED_VERSION_DOWNGRADE* | *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
     saves=${CAIRNFOLD_QUEST_SAVES:-$HOME/.local/state/cairnfold/quest-saves}/$(date -u +%Y%m%dT%H%M%SZ)
     backup "$saves"
+    hardlink -q -t "${saves%/*}" > /dev/null || echo "quest-install: copies of the saves left unlinked" >&2
     adb uninstall "$pkg" > /dev/null
     adb install -g "$1" > /dev/null
     restore "$saves" ;;

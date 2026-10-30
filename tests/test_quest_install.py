@@ -127,6 +127,15 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'vrm')
         self.assertFalse((self.files / 'bench').exists())
 
+    def test_a_copy_shares_files_identical_to_an_earlier_one(self):
+        earlier = self.saves / '20000101T000000Z/garden.save'
+        earlier.parent.mkdir(parents=True)
+        earlier.write_bytes(b'the players\x00 garden')
+        os.utime(earlier, (0, 0))
+        self.assertEqual(self.install().returncode, 0)
+        copy = next(d for d in self.saves.iterdir() if d != earlier.parent)
+        self.assertEqual((copy / 'garden.save').stat().st_ino, earlier.stat().st_ino)
+
     def test_saves_that_cannot_be_copied_never_block_the_install(self):
         run = self.install(FAKE_FAIL='pull')
         self.assertEqual(run.returncode, 0, run.stderr)
