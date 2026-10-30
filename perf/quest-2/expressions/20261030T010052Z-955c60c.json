@@ -1,0 +1,37 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "expressions/closed": {
+   "p50": 13.9409999847412,
+   "p99": 15.3819999694824,
+   "late": 0,
+   "draws": 72,
+   "prims": 299736,
+   "step": 5,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.0,
+    "textures": 216.9,
+    "video": 291.3
+   },
+   "gpu_ms": 8.21,
+   "timewarp_ms": 1.13
+  },
+  "expressions/open": {
+   "p50": 13.9370002746582,
+   "p99": 14.9870004653931,
+   "late": 1,
+   "draws": 81,
+   "prims": 300988,
+   "step": 5,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.2,
+    "textures": 217.1,
+    "video": 291.8
+   },
+   "gpu_ms": 8.28,
+   "timewarp_ms": 1.13
+  }
+ }
+}
