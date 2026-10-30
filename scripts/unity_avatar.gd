@@ -125,17 +125,32 @@ static func wearable(root: Node3D) -> void:
 	root.set_meta("springs", {} if springs.is_empty() else {"specVersion": "1.0", "springs": springs, "colliders": colliders, "colliderGroups": groups})
 
 
-## A .unitypackage unpacked into a temporary folder removed at exit, or any other path as it is; "" if tar fails.
+## A .unitypackage unpacked into a folder under TMPDIR removed at exit, or any other path as it is; "" if tar fails.
+## Godot's own temporary folders go to /tmp whatever TMPDIR says, where a run killed before exit left gigabytes no caller
+## cleans up; under TMPDIR the folder goes with the caller's.
 static func unpacked(path: String) -> String:
 	if path.get_extension() != "unitypackage":
 		return path
-	var temp := DirAccess.create_temp("unity_avatar", false)
-	_unpacked.append(temp)
-	return temp.get_current_dir() if OS.execute("tar", ["-xzf", path, "-C", temp.get_current_dir()]) == 0 else ""
+	var temp := OS.get_environment("TMPDIR")
+	var dir := (temp if temp != "" else "/tmp").path_join("unity_avatar-%d-%d" % [OS.get_process_id(), _unpacked.size()])
+	_unpacked.append(Unpacked.new(dir))
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		return ""
+	return dir if OS.execute("tar", ["-xzf", path, "-C", dir]) == 0 else ""
 
 
-## Godot removes a temporary folder once nothing holds its DirAccess.
-static var _unpacked: Array[DirAccess] = []
+static var _unpacked: Array[Unpacked] = []
+
+
+class Unpacked:
+	var path: String
+
+	func _init(dir: String) -> void:
+		path = dir
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			OS.execute("rm", ["-rf", path])
 
 
 ## The package's avatar as the scene and avatar data Avatar.model takes, its root also carrying "report" (what was kept
