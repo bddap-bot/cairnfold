@@ -1,0 +1,143 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "expressions/closed": {
+   "p50": 14.8299999237061,
+   "p99": 113.428001403809,
+   "late": 188,
+   "draws": 126,
+   "prims": 806458,
+   "stalls": [
+    {
+     "ms": 127.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 111.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 111.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 113.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 113.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 96.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 93.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 78.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 75.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 3,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.0,
+    "textures": 623.2,
+    "video": 697.7
+   },
+   "gpu_ms": 11.96,
+   "timewarp_ms": 1.52
+  },
+  "expressions/open": {
+   "p50": 13.9429998397827,
+   "p99": 31.5459995269775,
+   "late": 62,
+   "draws": 174,
+   "prims": 603586,
+   "step": 5,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.5,
+    "textures": 268.7,
+    "video": 351.1
+   },
+   "gpu_ms": 8.3,
+   "timewarp_ms": 1.15
+  },
+  "expressions/hat": {
+   "p50": 13.9169998168945,
+   "p99": 15.0190000534058,
+   "late": 0,
+   "draws": 74,
+   "prims": 305303,
+   "step": 5,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.3,
+    "textures": 268.7,
+    "video": 350.9
+   },
+   "gpu_ms": 8.32,
+   "timewarp_ms": 1.14
+  },
+  "expressions/material": {
+   "p50": 13.9329996109009,
+   "p99": 14.9540004730225,
+   "late": 0,
+   "draws": 75,
+   "prims": 305462,
+   "step": 5,
+   "fill": 0.378,
+   "mem_mb": {
+    "buffers": 42.3,
+    "textures": 268.7,
+    "video": 350.9
+   },
+   "gpu_ms": 8.33,
+   "timewarp_ms": 1.14
+  }
+ }
+}
