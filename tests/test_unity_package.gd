@@ -822,6 +822,21 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 func _submeshes_take_slots_in_first_use_order() -> void:
 	var geometry := {"children": [{"name": "LayerElementMaterial", "children": [{"name": "Materials", "props": [PackedInt32Array([2, 2, 0, 1, 0, 2])]}]}]}
 	check(FbxSlots._first_uses(geometry) == PackedInt32Array([2, 0, 1]), "slots follow the polygons' first use of each material")
+	var assets := Assets.new(ProjectSettings.globalize_path("res://../tests/avatars"))
+	for guid: String in ["skin", "eye", "metal"]:
+		assets.by_guid[guid] = {"file": "", "path": "Assets/%s.mat" % guid.capitalize(), "meta": ""}
+	var mesh := ArrayMesh.new()
+	for fbx_name: String in ["Stud.003", "Skin.001", "Lashes.002"]:
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var named := StandardMaterial3D.new()
+		named.resource_name = fbx_name
+		mesh.surface_set_material(mesh.get_surface_count() - 1, named)
+	var refs := ["skin", "eye", "metal", "metal"].map(func(guid: String) -> Dictionary: return {"fileID": "2100000", "guid": guid})
+	var slots := UnityAvatar._slot_of(mesh, refs, assets, ["Skin.001", "Lashes.002", "Stud.003"])
+	check(slots == [2, 0, 1], "a slot past the last submesh, a second pass over it, leaves the first-use pairing: %s" % [slots])
 
 
 ## The descriptor's visemes and the FX layer's gesture faces become expressions: a face named for a mood takes that

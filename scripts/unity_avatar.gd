@@ -1260,7 +1260,8 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 
 
 ## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons
-## use, they pair in the order those polygons first use them; otherwise a surface takes the slot whose material is
+## use, they pair in the order those polygons first use them, as Unity pairs submeshes with slots; slots past the last
+## submesh only draw it again, so they leave the pairing alone. Otherwise a surface takes the slot whose material is
 ## named like its FBX material ("Head" for "Head.003", "Eye" for "Eye Left"), and the rest pair in order.
 static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array) -> Array:
 	var names := []
@@ -1270,7 +1271,7 @@ static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array)
 	var out := []
 	for s in names.size():
 		var i := order.find(names[s])
-		out.append(i if i >= 0 and refs.size() == order.size() else -1)
+		out.append(i if i >= 0 and refs.size() >= order.size() else -1)
 	if not out.has(-1):
 		return out
 	out.fill(-1)
