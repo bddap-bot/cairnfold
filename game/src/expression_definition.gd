@@ -122,6 +122,7 @@ static func _effect(effect: Variant) -> bool:
 		return effect.scale is Dictionary and _node(effect.scale.get("node")) and _index(effect.scale.get("axis"), 3)
 	if effect.has("material"):
 		return effect.material is Dictionary and _node(effect.material.get("node")) and effect.material.get("choices") is Array and not effect.material.choices.is_empty() and effect.material.choices.all(func(c: Variant) -> bool: return _numbers(c, 4))
-	if effect.has("hue") and effect.hue is Array:
-		return effect.hue.all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)))
+	var kind: String = effect.keys()[0]
+	if kind in ["hue", "color", "tone", "decal"] and effect[kind] is Array:
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)))
 	return false
