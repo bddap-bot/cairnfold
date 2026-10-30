@@ -43,6 +43,7 @@ func _run() -> void:
 	_blend_shapes_are_bounded()
 	_shape_normals_turn_with_the_shape()
 	_set_blend_shapes_are_written()
+	_blended_surfaces_stay_blended()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -551,12 +552,12 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 			if m != null and m.albedo_texture != null:
 				textures[m.albedo_texture] = true
 			if m != null:
-				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR] else 0
+				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, BaseMaterial3D.TRANSPARENCY_ALPHA] else 0
 				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 	check(triangles == authored, "%s keeps every triangle its file has (%d of %d)" % [what, triangles, authored])
 	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
-	check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out where see-through (%d of %d)" % [what, plain, materials])
+	check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
 	for tex: Texture2D in textures:
 		check(maxi(tex.get_width(), tex.get_height()) <= Avatar.MAX_TEXTURE and tex.get_image().has_mipmaps(), "%s keeps its textures to the size limit, mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
@@ -822,3 +823,47 @@ func _set_blend_shapes_are_written() -> void:
 	var json := _gltf_json(FileAccess.get_file_as_bytes(path))
 	var weights: Array = json.meshes[0].get("weights", [])
 	check(weights.size() == 2 and is_equal_approx(weights[0], 0.75) and is_zero_approx(weights[1]), "a set blend shape is written as its mesh's weight: %s" % [weights])
+
+
+## A blended material reads back from the VRM drawn blended, writing depth where its extras say so, and an animated
+## mesh's blended surfaces draw through the blended expression shaders: none is cut out at half alpha.
+func _blended_surfaces_stay_blended() -> void:
+	var root := Node3D.new()
+	root.name = "veiled"
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	for depth: Variant in [null, false, true]:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1, 1, 1, 0.5)
+		if depth != null:
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.set_meta("extras", {"depthWrite": depth})
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, m)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	root.add_child(mi)
+	var path := ProjectSettings.globalize_path("user://veiled.vrm")
+	Vrm.write(root, path)
+	root.free()
+	var state := GLTFState.new()
+	check(GLTFDocument.new().append_from_buffer(FileAccess.get_file_as_bytes(path), "", state) == OK and Avatar.shape(state), "the blended file reads and shapes")
+	var read: Array[BaseMaterial3D] = []
+	read.assign(state.get_materials())
+	check(read.size() == 3 and read[0].transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "an opaque material stays opaque")
+	check(read.size() == 3 and read[1].transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and read[1].depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY, "a blended material draws blended, writing no depth")
+	check(read.size() == 3 and read[2].transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and read[2].depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS, "a depth-written blended material writes depth")
+	var shown := MeshInstance3D.new()
+	shown.mesh = ArrayMesh.new()
+	for m in read:
+		(shown.mesh as ArrayMesh).add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		shown.mesh.surface_set_material(shown.mesh.get_surface_count() - 1, m)
+	var player := ExpressionPlayer.new(Node3D.new())
+	player._material(shown)
+	var shaders := range(3).map(func(i: int) -> String: return (shown.get_surface_override_material(i) as ShaderMaterial).shader.resource_path.get_file())
+	check(shaders == ["expression.gdshader", "expression_blended.gdshader", "expression_blended_depth.gdshader"], "every surface of an animated mesh draws as it did: %s" % [shaders])
+	shown.free()
+	player.free()
+

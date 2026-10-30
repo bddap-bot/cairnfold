@@ -10,6 +10,10 @@ const PAD := 4
 const TEXTURES := ["_MainTex", "_BaseMap", "_BaseColorMap", "_MainTexture", "_Albedo"]
 const COLOURS := ["_Color", "_BaseColor", "_MainColor"]
 enum Alpha { OPAQUE, CUTOUT, BLEND }
+## How a material's faces draw: whole or cut out, blended over what is behind, or blended and writing depth as Unity's
+## ZWrite On does. The atlas holds one material for each pass on each side, PASSES * 2.
+enum Pass { SOLID, BLENDED, BLENDED_DEPTH }
+const PASSES := 3
 ## Unity's cull modes, as a shader's `Cull` reads them.
 enum Cull { OFF, FRONT, BACK }
 ## The shaders packages name without carrying, Unity's built-in ones and the VRChat SDK's: the property a shader's
@@ -51,7 +55,7 @@ func use(ref: Dictionary, fallback: Color) -> String:
 	var key := guid if assets.by_guid.has(guid) and assets.extension(guid) == "mat" else "missing:" + str(ref.get("name", guid))
 	if materials.has(key):
 		return key
-	var m := {"name": str(ref.get("name", key)), "shader": "", "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "cull": Cull.BACK, "image": null}
+	var m := {"name": str(ref.get("name", key)), "shader": "", "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "alpha_mod": 0.0, "depth": false, "cull": Cull.BACK, "image": null}
 	if key == guid:
 		_read(m, guid)
 	if m.texture != "":
@@ -105,11 +109,19 @@ func _read(m: Dictionary, guid: String) -> void:
 	var tags: Variant = mat.get("stringTagMap")
 	var render_type := str((tags as Dictionary).get("RenderType", "")) if tags is Dictionary else ""
 	var mode := str(floats.get("_Mode", "0")).to_int()
-	if queue >= 3000 or render_type == "Transparent" or m.shader.contains("Transparent") or mode >= 2:
+	var number := func(name: String, otherwise: float) -> float: return str(ints.get(name, floats.get(name, otherwise))).to_float()
+	var declared := func(name: String) -> bool: return m.properties.has(name) and (ints.has(name) or floats.has(name))
+	# A shader drawing `Blend [_SrcBlend] [_DstBlend]` blends exactly when its destination factor is not Zero, whatever
+	# queue or preset name the material carries; only without one are those the evidence.
+	var blended: bool = number.call("_DstBlend", 0.0) != 0.0 if declared.call("_DstBlend") else queue >= 3000 or render_type == "Transparent" or m.shader.contains("Transparent") or mode >= 2
+	if blended:
 		m.alpha = Alpha.BLEND
+		m.depth = declared.call("_ZWrite") and number.call("_ZWrite", 0.0) != 0.0
 	elif queue >= 2450 or render_type == "TransparentCutout" or m.shader.contains("Cutout") or mode == 1:
 		m.alpha = Alpha.CUTOUT
 		m.cutoff = str(floats.get("_Cutoff", "0.5")).to_float()
+	if declared.call("_AlphaMod"):
+		m.alpha_mod = number.call("_AlphaMod", 0.0)
 	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
 
 
@@ -208,20 +220,21 @@ func pack(used: Array) -> void:
 		else:
 			img = (m.image as Image).duplicate()
 		img.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_CUBIC)
-		_tint(img, m.colour, m.alpha, m.cutoff)
+		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod)
 		var outer := img.duplicate() as Image
 		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, Image.INTERPOLATE_BILINEAR)
 		atlas.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
 		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
 
 
-static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float) -> void:
+## `mod` is Poiyomi's Alpha Mod, added to the alpha before it cuts or blends.
+static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: float) -> void:
 	var data := img.get_data()
 	var mul := [colour.r, colour.g, colour.b, colour.a]
 	for i in range(0, data.size(), 4):
 		for c in 3:
 			data[i + c] = int(data[i + c] * mul[c])
-		var a: float = data[i + 3] * float(mul[3]) / 255.0
+		var a: float = clampf(data[i + 3] * float(mul[3]) / 255.0 + mod, 0.0, 1.0)
 		data[i + 3] = 255 if alpha == Alpha.OPAQUE or (alpha == Alpha.CUTOUT and a >= cutoff) else 0 if alpha == Alpha.CUTOUT else int(a * 255.0)
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
@@ -271,21 +284,31 @@ func moved(from: String, to: String) -> Array:
 	return [s, (b[1] as Vector2) - (a[1] as Vector2) * s]
 
 
-## The atlas as the material of the faces whose materials draw one side, and as that of those drawing both.
+static func pass_of(m: Dictionary) -> Pass:
+	return Pass.SOLID if m.alpha != Alpha.BLEND else Pass.BLENDED_DEPTH if m.depth else Pass.BLENDED
+
+
+## The atlas as the material of the faces of each pass (Pass), drawing one side and then both: index `two_sided + 2 *
+## pass`. Depth written while blending goes as the material's glTF extras, since glTF has no word for it.
 func atlas_materials() -> Array[StandardMaterial3D]:
 	atlas.generate_mipmaps()
 	var texture := ImageTexture.create_from_image(atlas)
-	var cut := materials.values().any(func(m: Dictionary) -> bool: return m.has("cell") and m.alpha != Alpha.OPAQUE)
+	var cut := materials.values().any(func(m: Dictionary) -> bool: return m.has("cell") and m.alpha == Alpha.CUTOUT)
 	var out: Array[StandardMaterial3D] = []
-	for two_sided: bool in [false, true]:
-		var drawn := StandardMaterial3D.new()
-		drawn.resource_name = "atlas, two-sided" if two_sided else "atlas"
-		drawn.albedo_texture = texture
-		drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
-		if cut:
-			drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			drawn.alpha_scissor_threshold = 0.5
-		out.append(drawn)
+	for drawn_as in PASSES:
+		for two_sided: bool in [false, true]:
+			var drawn := StandardMaterial3D.new()
+			drawn.resource_name = "atlas" + (", two-sided" if two_sided else "") + ["", ", blended", ", blended, depth written"][drawn_as]
+			drawn.albedo_texture = texture
+			drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
+			if drawn_as != Pass.SOLID:
+				drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				drawn.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if drawn_as == Pass.BLENDED_DEPTH else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+				drawn.set_meta("extras", {"depthWrite": drawn_as == Pass.BLENDED_DEPTH})
+			elif cut:
+				drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				drawn.alpha_scissor_threshold = 0.5
+			out.append(drawn)
 	return out
 
 

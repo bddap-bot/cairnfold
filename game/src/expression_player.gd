@@ -48,27 +48,29 @@ func _init(model: Node3D) -> void:
 			elif effect.has("material"):
 				var mesh: MeshInstance3D = nodes.get(str(effect.material.node))
 				if mesh != null:
-					var mat := _material(mesh)
+					var mats := _material(mesh)
 					var choices: Array = effect.material.choices
 					binds.append(func(v: float) -> void:
 						var uv: Array = choices[clampi(roundi(v), 0, choices.size() - 1)]
-						mat.set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3])))
+						for mat in mats:
+							mat.set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3])))
 			else:
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
 					var mesh: MeshInstance3D = nodes.get(str(region.node))
 					if mesh == null or (kind == "look" and not str(region.get("field", "")).begins_with("decal")):
 						continue
-					var mat := _material(mesh)
-					var list: Array = _regions.get_or_add(mat, [])
+					var mats := _material(mesh)
 					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region)}
-					list.append(entry)
-					for uniform: String in TEXTURES[kind]:
-						if model.has_meta("expression_" + uniform):
-							mat.set_shader_parameter(uniform, model.get_meta("expression_" + uniform))
+					for mat in mats:
+						(_regions.get_or_add(mat, []) as Array).append(entry)
+						for uniform: String in TEXTURES[kind]:
+							if model.has_meta("expression_" + uniform):
+								mat.set_shader_parameter(uniform, model.get_meta("expression_" + uniform))
 					binds.append(func(v: float) -> void:
 						entry.value = v
-						_dirty_regions[mat] = true)
+						for mat in mats:
+							_dirty_regions[mat] = true)
 		_bindings.append(binds)
 	for shown: Dictionary in data.get("shown", []):
 		var node: Node3D = nodes.get(str(shown.node))
@@ -151,17 +153,28 @@ static func _settings(kind: String, region: Dictionary) -> Array:
 	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("field") == "decalIntensity" else 0, 0]
 
 
-func _material(mesh: MeshInstance3D) -> ShaderMaterial:
+## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
+## blended writing depth.
+func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
 		return _materials[mesh]
-	var base := mesh.get_active_material(0) as BaseMaterial3D
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://src/expression.gdshader")
-	if base != null:
-		mat.set_shader_parameter("picture", base.albedo_texture)
-		mat.set_shader_parameter("colour", base.albedo_color)
-		mat.set_shader_parameter("use_vertex", base.vertex_color_use_as_albedo)
-		mat.set_meta("icon_material", Hand._icon_material(base, mesh))
-	mesh.set_surface_override_material(0, mat)
-	_materials[mesh] = mat
-	return mat
+	var by_shader := {}
+	for i in mesh.mesh.get_surface_count():
+		var base := mesh.get_active_material(i) as BaseMaterial3D
+		var shader: Shader = preload("res://src/expression.gdshader")
+		if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+			shader = preload("res://src/expression_blended_depth.gdshader") if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else preload("res://src/expression_blended.gdshader")
+		if not by_shader.has(shader):
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			if base != null:
+				mat.set_shader_parameter("picture", base.albedo_texture)
+				mat.set_shader_parameter("colour", base.albedo_color)
+				mat.set_shader_parameter("use_vertex", base.vertex_color_use_as_albedo)
+				mat.set_meta("icon_material", Hand._icon_material(base, mesh))
+			by_shader[shader] = mat
+		mesh.set_surface_override_material(i, by_shader[shader])
+	var out: Array[ShaderMaterial] = []
+	out.assign(by_shader.values())
+	_materials[mesh] = out
+	return out

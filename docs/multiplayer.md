@@ -243,7 +243,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   saved weights: a heavy mesh is its author's cost to carry, not the importer's to edit. Shader
   programs do not port;
   each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
-  cutoff, or blended) take a cell of one 2048 px atlas. A renderer's material slots follow the
+  cutoff, or blended) take a cell of one 2048 px atlas. A material blends when its shader's
+  `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
+  writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
+  over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
   spring chains, one per path from a PhysBone's root to each leaf and on to its endpoint, with
@@ -304,8 +307,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   keeps its peak texture, buffer and video memory.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
-  front faces only, and is cut out, never blended, where it is see-through; normal maps and
-  emission are dropped. Unlit (toon) surfaces are lit like the rest of the garden, so an
+  front faces only, and is blended where its file blends it (writing depth where its glTF
+  extras say `depthWrite`, as Unity's ZWrite On) and cut out where else it is see-through;
+  normal maps and emission are dropped. Unlit (toon) surfaces are lit like the rest of the garden, so an
   avatar darkens at dusk instead of glowing.
 
 ### Spring motion and gripping

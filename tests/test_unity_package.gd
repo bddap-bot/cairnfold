@@ -24,6 +24,7 @@ func _run() -> void:
 	_model_objects_keep_their_bindings_and_transforms()
 	_material_properties_read_either_layout()
 	_materials_cull_as_their_shader_reads()
+	_materials_blend_as_their_shader_blends()
 	_an_sdk_shader_the_package_omits_is_known()
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
@@ -217,6 +218,41 @@ func _materials_cull_as_their_shader_reads() -> void:
 	materials.pack(materials.materials.keys())
 	var sided := materials.atlas_materials()
 	check(sided[0].cull_mode == BaseMaterial3D.CULL_BACK and sided[1].cull_mode == BaseMaterial3D.CULL_DISABLED and sided[0].albedo_texture == sided[1].albedo_texture, "one atlas, drawn one-sided and two-sided")
+## A material blends exactly when its shader's destination blend factor is not Zero, whatever its queue says, by its
+## colour's alpha plus Poiyomi's Alpha Mod, and writes depth as its _ZWrite says; the atlas draws its faces blended.
+func _materials_blend_as_their_shader_blends() -> void:
+	var dir := ProjectSettings.globalize_path("user://blend")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("toon.shader", "toon", 'Shader "Fixture/Toon" { Properties { _Color ("Color", Color) = (1, 1, 1, 1) _AlphaMod ("Alpha Mod", Range(-1, 1)) = 0 _SrcBlend ("Src", Int) = 1 _DstBlend ("Dst", Int) = 0 _ZWrite ("ZWrite", Int) = 1 } SubShader { Pass { Blend [_SrcBlend] [_DstBlend] ZWrite [_ZWrite] } } }')
+	write.call("plain.shader", "plain", 'Shader "Fixture/Plain" { SubShader { Pass { } } }')
+	var material := func(name: String, shader: String, queue: int, alpha: float, floats: String) -> void:
+		write.call(name + ".mat", name, "Material:\n  m_Shader: {fileID: 4800000, guid: %s, type: 3}\n  m_CustomRenderQueue: %d\n  m_SavedProperties:\n    m_Floats:\n%s    m_Colors:\n    - _Color: {r: 1, g: 1, b: 1, a: %s}\n" % [shader, queue, floats, alpha])
+	material.call("late", "toon", 3000, 1.0, "    - _SrcBlend: 1\n    - _DstBlend: 0\n    - _ZWrite: 1\n")
+	material.call("veil", "toon", 3000, 0.51, "    - _SrcBlend: 1\n    - _DstBlend: 10\n    - _ZWrite: 0\n")
+	material.call("sheer", "toon", 2460, 1.0, "    - _SrcBlend: 5\n    - _DstBlend: 10\n    - _ZWrite: 1\n    - _AlphaMod: -0.15\n")
+	material.call("stale", "plain", 2000, 1.0, "    - _DstBlend: 10\n")
+	var materials := Materials.new(Assets.new(dir))
+	var of := func(guid: String) -> Dictionary: return materials.materials[materials.use({"guid": guid}, Color.WHITE)]
+	check(of.call("late").alpha != Materials.Alpha.BLEND, "a shader blending One Zero draws opaque from the transparent queue")
+	check(of.call("stale").alpha != Materials.Alpha.BLEND, "a saved blend factor the shader does not declare is stale")
+	check(Materials.pass_of(of.call("veil")) == Materials.Pass.BLENDED, "a blend over OneMinusSrcAlpha with ZWrite off draws blended")
+	check(Materials.pass_of(of.call("sheer")) == Materials.Pass.BLENDED_DEPTH and is_equal_approx(of.call("sheer").alpha_mod, -0.15), "ZWrite on blends writing depth, its Alpha Mod read")
+	materials.pack(materials.materials.keys())
+	var alpha := func(guid: String) -> float:
+		var cell: Rect2i = of.call(guid).cell
+		return materials.atlas.get_pixelv(cell.position + cell.size / 2).a
+	check(absf(alpha.call("veil") - 0.51) < 0.01 and absf(alpha.call("sheer") - 0.85) < 0.01, "the atlas keeps the blended alphas, Alpha Mod added: %.3f, %.3f" % [alpha.call("veil"), alpha.call("sheer")])
+	var drawn := materials.atlas_materials()
+	check(drawn.size() == 2 * Materials.PASSES, "one atlas material for each pass on each side")
+	var blended := drawn[2 * Materials.Pass.BLENDED]
+	var depth := drawn[2 * Materials.Pass.BLENDED_DEPTH + 1]
+	check(blended.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and blended.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY and not blended.get_meta("extras").depthWrite, "blended faces draw blended, writing no depth")
+	check(depth.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and depth.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS and depth.get_meta("extras").depthWrite and depth.cull_mode == BaseMaterial3D.CULL_DISABLED, "depth-written blended faces say so in their glTF extras")
+
+
 ## A material naming one of the VRChat SDK's shaders, which a package never carries, reads that shader's name and
 ## properties as if the package held it.
 func _an_sdk_shader_the_package_omits_is_known() -> void:

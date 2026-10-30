@@ -1060,7 +1060,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		uvs[i] = at[0]
 		if at[1]:
 			tiled[materials.materials[corners[i]].name] = true
-	var sided := materials.atlas_materials()
+	var passes := materials.atlas_materials()
 	var meshes := []
 	var sizes := {}
 	for g in group_of:
@@ -1080,18 +1080,19 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var dropped_shapes := 0
 	var baked := 0
 	for group: Dictionary in groups.values():
-		var faces: Array[PackedInt32Array] = [PackedInt32Array(), PackedInt32Array()]
+		var faces: Array[PackedInt32Array] = []
+		faces.resize(passes.size())
 		var reversed := {}
 		for t in range(0, indices.size(), 3):
 			if group_of[indices[t]] == group.index:
-				var cull: int = materials.materials[corners[indices[t]]].cull
-				faces[int(cull == Materials.Cull.OFF)].append(t)
-				if cull == Materials.Cull.FRONT:
+				var m: Dictionary = materials.materials[corners[indices[t]]]
+				faces[int(m.cull == Materials.Cull.OFF) + 2 * Materials.pass_of(m)].append(t)
+				if m.cull == Materials.Cull.FRONT:
 					reversed[t] = true
 		var surfaces := []
 		var touched := {}
-		for two_sided in 2:
-			if faces[two_sided].is_empty():
+		for slot in passes.size():
+			if faces[slot].is_empty():
 				continue
 			var remap := {}
 			var gi := PackedInt32Array()
@@ -1100,7 +1101,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			var gu := PackedVector2Array()
 			var gb := PackedInt32Array()
 			var gw := PackedFloat32Array()
-			for t in faces[two_sided]:
+			for t in faces[slot]:
 				# A front-culled face shows its back: wound the other way, it is a back-culled face.
 				for c: int in [0, 2, 1] if reversed.has(t) else [0, 1, 2]:
 					var i := indices[t + c]
@@ -1121,7 +1122,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			arrays[Mesh.ARRAY_BONES] = gb
 			arrays[Mesh.ARRAY_WEIGHTS] = gw
 			arrays[Mesh.ARRAY_INDEX] = gi
-			surfaces.append({"arrays": arrays, "remap": remap, "material": sided[two_sided]})
+			surfaces.append({"arrays": arrays, "remap": remap, "material": passes[slot]})
 		if surfaces.is_empty():
 			continue
 		var moving := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return touched.has(i)))
@@ -1298,7 +1299,7 @@ static func _clip_shapes(text: String) -> Dictionary:
 
 static func _describe(m: Dictionary) -> String:
 	var texture := "no texture" if m.texture == "" else ("texture" if m.image != null else "texture not decoded")
-	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended→cutout"][m.alpha], [", two-sided", ", front faces culled", ""][m.cull]]
+	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended, depth written" if m.depth else "blended"][m.alpha], [", two-sided", ", front faces culled", ""][m.cull]]
 
 
 ## The four heaviest bone influences of vertex `i`, weights summing to one.

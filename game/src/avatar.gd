@@ -273,9 +273,10 @@ static func shape(state: GLTFState) -> bool:
 	return true
 
 
-## Draws a material with its colour texture alone, lit once a vertex, front faces only, and cut out where it is
-## see-through. Lighting each pixel, normal maps, emission, both sides and blending each cost the Quest 2 GPU time
-## over every pixel an avatar covers (docs/multiplayer.md, "A player's own avatar").
+## Draws a material with its colour texture alone, lit once a vertex, front faces only, blended where its file blends
+## it (writing depth where its glTF extras say depthWrite, as Unity's ZWrite On) and otherwise cut out where it is
+## see-through. Lighting each pixel, normal maps, emission and both sides each cost the Quest 2 GPU time over every
+## pixel an avatar covers (docs/multiplayer.md, "A player's own avatar").
 static func _plain(m: BaseMaterial3D) -> void:
 	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
 	if m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
@@ -287,7 +288,10 @@ static func _plain(m: BaseMaterial3D) -> void:
 	m.emission_enabled = false
 	m.emission_texture = null
 	m.cull_mode = BaseMaterial3D.CULL_BACK
-	if m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+	if m.transparency in [BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS]:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if (m.get_meta("extras", {}) as Dictionary).get("depthWrite", false) else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	elif m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 
 
