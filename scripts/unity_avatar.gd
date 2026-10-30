@@ -34,6 +34,8 @@ const ICON := 44.0
 const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
 ## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
+## A Transform's Euler angle curves, by the names Unity's clips give them.
+const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
 
 
 func _init() -> void:
@@ -185,7 +187,8 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		printerr("unity_avatar: %s has %d skeletons, not one" % [assets.by_guid[main].path, skeletons.size()])
 		return null
 	var definition := avatar_definition(FileAccess.get_file_as_string(assets.by_guid[main].meta))
-	_attach_armatures(objs, found.transform, main, definition, report)
+	var model_bones := _model_bones(objs, found.transform, main, renderers)
+	_attach_armatures(objs, found.transform, model_bones, definition, report)
 	var source: Skeleton3D = skeletons[0]
 	# The model file's bind pose need not be a T-pose; the humanoid rests in the pose its Unity Avatar was configured in,
 	# mirrored across X as Godot's FBX importer mirrors Unity's.
@@ -221,13 +224,10 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		sk.set_bone_rest(b, rests[b] if p < 0 else rests[p].affine_inverse() * rests[b])
 	sk.reset_bone_poses()
 	var source_bones := {}
-	for id: int in objs:
-		if objs[id].type == "Transform":
-			var go := _ref(objs[id].data.get("m_GameObject"))
-			var object: Dictionary = objs.get(go, {})
-			var bone := _find_bone(sk, str(object.get("data", {}).get("m_Name", "")))
-			if object.get("guid", "") == main and bone >= 0:
-				source_bones[go] = bone
+	for name: String in model_bones:
+		var bone := _find_bone(sk, name)
+		if bone >= 0:
+			source_bones[_ref(objs[model_bones[name]].data.get("m_GameObject"))] = bone
 	sk.set_meta("unity_bones", source_bones)
 	sk.set_meta("unity_top", found.transform)
 	sk.set_meta("unity_model", main)
@@ -266,6 +266,7 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	if named.is_empty():
 		root.free()
 		return null
+	sk.set_meta("humanoid_bones", named)
 	var constraints := _constraints(prefabs, objs, found.transform, sk, rests)
 	if constraints.has("error"):
 		printerr("unity_avatar: " + str(constraints.error))
@@ -547,14 +548,20 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 					continue
 				by_curve[key] = target
 			var t: int = by_curve[key]
-			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material")}
+			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material") or targets[t].effect.has("spring")}
 			if c.has("refs"):
 				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
 				var rest: float = targets[t].rest
 				curve.keys = _scaled(c["keys"], 1.0 / rest) if rest != 0.0 else c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0])
-			elif ExpressionDefinition.region(targets[t].effect) != "":
+			elif targets[t].effect is Dictionary and targets[t].effect.has("translation"):
+				var rest: float = targets[t].rest
+				curve.keys = c["keys"].map(func(k: Array) -> Array:
+					var moved := k.duplicate()
+					moved[1] = k[1] - rest
+					return moved)
+			elif (targets[t].effect is Dictionary and targets[t].effect.has("rotation")) or ExpressionDefinition.region(targets[t].effect) != "":
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = _scaled(c["keys"], 0.01)
@@ -636,6 +643,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	var go := _ref(objs[transform].data.get("m_GameObject"))
 	var effect := {}
 	var rest := 1.0
+	var bone: int = (sk.get_meta("unity_bones", {}) as Dictionary).get(go, sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()))
 	if c.attribute.begins_with("blendShape.") and c["class"] == "137":
 		var renderer := _renderer_of(objs, go)
 		var shape: String = shapes.get(renderer, {}).get(c.attribute.trim_prefix("blendShape."), "")
@@ -708,19 +716,63 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			return -1
 		effect = {kind: regions}
 	elif c.attribute.begins_with("m_LocalScale.") and c["class"] == "4":
-		var bone := sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
 		if bone < 0:
 			return -1
 		var axis := "xyz".find(c.attribute.right(1))
 		var local: Variant = objs[transform].data.get("m_LocalScale")
 		rest = str((local as Dictionary).get(c.attribute.right(1), "1")).to_float() if local is Dictionary else 1.0
 		effect = {"scale": {"node": sk.get_bone_name(bone), "axis": axis}}
+	elif c.attribute == "m_Enabled" and c["class"] == "114":
+		var joints: Dictionary = sk.get_meta("physbone_joints", {})
+		var component := 0
+		for ref: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
+			var id := _ref((ref as Dictionary).get("component"))
+			if joints.has(id) and str((objs[id].data.get("m_Script", {}) as Dictionary).get("guid", "")) == c.get("script", ""):
+				component = id
+				break
+		if component == 0:
+			return -1
+		effect = {"spring": joints[component]}
+		rest = 1.0 if str(objs[component].data.get("m_Enabled", "1")) == "1" else 0.0
+	elif c["class"] == "4" and (c.attribute.get_slice(".", 0) in EULERS or c.attribute.begins_with("m_LocalRotation.") or c.attribute.begins_with("m_LocalPosition.")):
+		# VRChat masks FX transform curves off humanoid bones; the humanoid's pose is the muscles'.
+		if bone < 0 or (sk.get_meta("humanoid_bones", {}) as Dictionary).has(bone):
+			return -1
+		var data: Dictionary = objs[transform].data
+		var f := func(v: Variant, k: String, otherwise: float) -> float: return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
+		var q: Variant = data.get("m_LocalRotation")
+		var unity := Quaternion(f.call(q, "x", 0.0), f.call(q, "y", 0.0), f.call(q, "z", 0.0), f.call(q, "w", 1.0))
+		if c.attribute.begins_with("m_LocalPosition."):
+			var axis := "xyz".find(c.attribute.right(1))
+			rest = f.call(data.get("m_LocalPosition"), c.attribute.right(1), 0.0)
+			var along := Vector3.ZERO
+			along[axis] = -1.0 if axis == 0 else 1.0
+			var parent := sk.get_bone_parent(bone)
+			var scene := sk.get_meta("unity_frame", Transform3D.IDENTITY) as Transform3D * _world_transform(objs, transform)
+			# The bone's frame is the source's, X mirrored; only the units its parent measures in may differ.
+			var direction := along * (scene * _local(data).affine_inverse()).basis.get_scale() / (sk.get_bone_global_rest(parent).basis.get_scale() if parent >= 0 else Vector3.ONE)
+			effect = {"translation": {"node": sk.get_bone_name(bone), "direction": [direction.x, direction.y, direction.z]}}
+		else:
+			var euler: bool = c.attribute.get_slice(".", 0) in EULERS
+			var at: Vector3 = Basis(unity.normalized() if unity.length() > 0.0 else Quaternion.IDENTITY).get_euler(EULER_ORDER_YXZ) * 180.0 / PI
+			var hint: Variant = data.get("m_LocalEulerAnglesHint")
+			if hint is Dictionary:
+				at = Vector3(f.call(hint, "x", at.x), f.call(hint, "y", at.y), f.call(hint, "z", at.z))
+			var values: Array = [at.x, at.y, at.z] if euler else [unity.x, unity.y, unity.z, unity.w]
+			var axis := ("xyz" if euler else "xyzw").find(c.attribute.right(1))
+			rest = values[axis]
+			effect = {"rotation": {"node": sk.get_bone_name(bone), "axis": axis, "rest": values}}
 	else:
 		return -1
 	for i in targets.size():
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
-	targets.append({"effect": effect, "default": rest if effect.has("morph") or ExpressionDefinition.region(effect) != "" else 1.0, "rest": rest if effect.has("scale") else 1.0})
+	var default := 1.0
+	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("spring") or effect.has("rotation"):
+		default = rest
+	elif effect.has("translation"):
+		default = 0.0
+	targets.append({"effect": effect, "default": default, "rest": rest if effect.has("scale") or effect.has("translation") else 1.0})
 	return targets.size() - 1
 
 
@@ -854,7 +906,25 @@ static func _world_transform(objs: Dictionary, t: int) -> Transform3D:
 	return world
 
 
-static func _attach_armatures(objs: Dictionary, top: int, model: String, definition: Dictionary, report: Dictionary) -> void:
+## The transforms of the avatar's own skeleton by name: those the main model's renderers skin to, and the model's own
+## objects, so an armature unpacked into the scene, its objects no longer the model's, still counts.
+static func _model_bones(objs: Dictionary, top: int, model: String, renderers: Array) -> Dictionary:
+	var out := {}
+	for r: Array in renderers:
+		if _mesh_model(objs, r[0], objs[r[0]].type) != model:
+			continue
+		for t: Variant in Prefabs._list(objs[r[0]].data.get("m_Bones")):
+			var go := _ref(objs.get(_ref(t), {}).get("data", {}).get("m_GameObject"))
+			if objs.has(go):
+				out.get_or_add(str(objs[go].data.get("m_Name", "")), _ref(t))
+	for e: Array in _under(objs, top):
+		var object: Dictionary = objs.get(e[1], {})
+		if object.get("guid", "") == model:
+			out[str(object.get("data", {}).get("m_Name", ""))] = e[0]
+	return out
+
+
+static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, definition: Dictionary, report: Dictionary) -> void:
 	var names := ["Hips", "LeftUpperLeg", "RightUpperLeg", "LeftLowerLeg", "RightLowerLeg", "LeftFoot", "RightFoot", "Spine", "Chest", "Neck", "Head", "LeftShoulder", "RightShoulder", "LeftUpperArm", "RightUpperArm", "LeftLowerArm", "RightLowerArm", "LeftHand", "RightHand", "LeftToes", "RightToes", "LeftEye", "RightEye", "Jaw"]
 	for side: String in ["Left", "Right"]:
 		for finger: String in ["Thumb", "Index", "Middle", "Ring", "Little"]:
@@ -865,11 +935,11 @@ static func _attach_armatures(objs: Dictionary, top: int, model: String, definit
 	var inside := {}
 	for e: Array in _under(objs, top):
 		inside[e[1]] = true
-		var object: Dictionary = objs.get(e[1], {})
-		var name := str(object.get("data", {}).get("m_Name", ""))
-		if object.get("guid", "") == model and definition.human.has(name):
-			targets[definition.human[name]] = e[0]
+	for name: String in definition.human:
+		if bones.has(name):
+			targets[definition.human[name]] = bones[name]
 	var links := []
+	var unlinked := []
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
 		if objs[id].type != "MonoBehaviour" or not inside.has(_ref(d.get("m_GameObject"))):
@@ -894,6 +964,8 @@ static func _attach_armatures(objs: Dictionary, top: int, model: String, definit
 				if to != 0:
 					break
 			if from == 0 or to == 0 or from == to:
+				if from != to:
+					unlinked.append({"source_id": id, "from": go, "link": JSON.stringify(link.get("linkTo"))})
 				continue
 			var world := _world_transform(objs, from)
 			var parent := _world_transform(objs, to)
@@ -915,6 +987,8 @@ static func _attach_armatures(objs: Dictionary, top: int, model: String, definit
 			links.append({"source_id": id, "from": go, "to": _ref(objs[to].data.get("m_GameObject"))})
 	if not links.is_empty():
 		report["armature attachments"] = JSON.stringify(links)
+	if not unlinked.is_empty():
+		report["armature links with no target in the avatar"] = JSON.stringify(unlinked)
 
 
 ## A node's transform from its scene's root.
@@ -1519,7 +1593,6 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 	return {"binds": [[bone, rests[bone].affine_inverse() * scaled * _in_model(mi)]], "remap": func(_i: int) -> int: return 0}
 
 
-## Source world rests preserve placement when the output parent has a different rest rotation or scale.
 static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Transform3D]) -> int:
 	var source_bones: Dictionary = sk.get_meta("unity_bones", {})
 	var go_of := func(at: int) -> int: return _ref(objs.get(at, {}).get("data", {}).get("m_GameObject"))
@@ -1538,8 +1611,14 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 	if b < 0 and (path.is_empty() or path.back() != sk.get_meta("unity_top", -1)):
 		return -1
 	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
+	# The transforms keep their place relative to the bone they hang from, as it stands in the scene, wherever the
+	# output skeleton's rest puts that bone.
+	var follow := Transform3D.IDENTITY
+	if b >= 0:
+		var scene := frame * _world_transform(objs, t)
+		follow = Transform3D(rests[b].basis.orthonormalized(), rests[b].origin) * Transform3D(scene.basis.orthonormalized(), scene.origin).affine_inverse()
 	for i in range(path.size() - 1, -1, -1):
-		var world := frame * _world_transform(objs, path[i])
+		var world := follow * frame * _world_transform(objs, path[i])
 		var name: String = name_of.call(path[i]).replace(":", "_").replace("/", "_").validate_node_name()
 		while sk.find_bone(name) >= 0:
 			name += "_"
@@ -1803,6 +1882,13 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				continue
 			for i in kids.size():
 				pending.append([kids[i], joints if i == 0 else []])
+		var driven := []
+		for index in range(first_chain, springs.size()):
+			driven.append_array(springs[index].joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
+		if not legacy and not driven.is_empty():
+			if not sk.has_meta("physbone_joints"):
+				sk.set_meta("physbone_joints", {})
+			sk.get_meta("physbone_joints")[id] = driven
 		for index in range(first_chain, springs.size()):
 			var joints: Array = springs[index].joints
 			component.chains.append(joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))

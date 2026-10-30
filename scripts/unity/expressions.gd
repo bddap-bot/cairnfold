@@ -254,14 +254,15 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 		return _clips[key]
 	var curves := []
 	for c: Variant in _list(d.get("m_FloatCurves")):
-		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"))})
+		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "script": _guid(c.get("script")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"))})
 	for kind: String in ["m_ScaleCurves", "m_PositionCurves", "m_EulerCurves"]:
 		for c: Variant in _list(d.get(kind)):
 			var attribute: String = {"m_ScaleCurves": "m_LocalScale", "m_PositionCurves": "m_LocalPosition", "m_EulerCurves": "localEulerAnglesRaw"}[kind]
 			for axis: String in ["x", "y", "z"]:
 				curves.append({"path": str(c.get("path", "")), "attribute": "%s.%s" % [attribute, axis], "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), axis)})
-	if not _list(d.get("m_RotationCurves")).is_empty():
-		_count("rotation curve")
+	for c: Variant in _list(d.get("m_RotationCurves")):
+		for axis: String in ["x", "y", "z", "w"]:
+			curves.append({"path": str(c.get("path", "")), "attribute": "m_LocalRotation.%s" % axis, "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), axis)})
 	for c: Variant in _list(d.get("m_PPtrCurves")):
 		var refs := []
 		for k: Variant in _list(c.get("curve")):

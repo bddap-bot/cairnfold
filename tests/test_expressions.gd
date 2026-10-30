@@ -150,6 +150,10 @@ func _malformed() -> void:
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
+	for effect: Dictionary in [{"spring": [&"tail", 3]}, {"rotation": {"node": 2, "axis": 2, "rest": [-85, 0, 1]}}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0, 1]}}, {"translation": {"node": 2, "direction": [-1, 0, 0]}}]:
+		check(ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "an imported %s target is valid" % effect.keys()[0])
+	for effect: Dictionary in [{"spring": []}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}]:
+		check(not ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "a malformed %s target is rejected" % effect.keys()[0])
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
 	var invalid := _definition()
 	invalid.clips[0].curves[0].target = 200

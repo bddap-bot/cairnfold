@@ -138,6 +138,13 @@ static func _effect(effect: Variant) -> bool:
 		return effect.scale is Dictionary and _node(effect.scale.get("node")) and _index(effect.scale.get("axis"), 3)
 	if effect.has("material"):
 		return effect.material is Dictionary and _node(effect.material.get("node")) and effect.material.get("choices") is Array and not effect.material.choices.is_empty() and effect.material.choices.all(func(c: Variant) -> bool: return _numbers(c, 4))
+	if effect.has("spring"):
+		return effect.spring is Array and not effect.spring.is_empty() and effect.spring.all(_node)
+	if effect.has("rotation"):
+		var rest: Variant = effect.rotation.get("rest") if effect.rotation is Dictionary else null
+		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and _index(effect.rotation.get("axis"), rest.size())
+	if effect.has("translation"):
+		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
 	if kind in REGIONS and effect[kind] is Array:
 		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)))

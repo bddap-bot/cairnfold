@@ -48,6 +48,8 @@ func _run() -> void:
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
 	_curves_keep_their_unity_tangents()
+	_an_unpacked_armature_still_takes_a_link()
+	_transform_and_physbone_curves_bind()
 	finish()
 
 
@@ -513,7 +515,7 @@ func _linked_props_keep_their_placement_and_bone_identity() -> void:
 	objs[123] = {"type": "GameObject", "data": {"m_Name": "Tip End"}}
 	objs[23] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "123"}, "m_Father": {"fileID": "22"}, "m_LocalPosition": {"y": "0.2"}}}
 	var before := UnityAvatar._world_transform(objs, 22)
-	UnityAvatar._attach_armatures(objs, 10, "main", {"human": {"Chest": "Chest"}}, {})
+	UnityAvatar._attach_armatures(objs, 10, UnityAvatar._model_bones(objs, 10, "main", []), {"human": {"Chest": "Chest"}}, {})
 	check(objs[20].data.m_Father.fileID == "11", "a linked prop follows its authored humanoid target")
 	check(UnityAvatar._world_transform(objs, 22).is_equal_approx(before), "reparenting without alignment preserves the prop's world placement")
 	var sk := Skeleton3D.new()
@@ -523,12 +525,12 @@ func _linked_props_keep_their_placement_and_bone_identity() -> void:
 	sk.set_meta("unity_bones", {111: 0})
 	var tip := UnityAvatar._as_bone(objs, 22, sk, rests)
 	check(tip == 3 and sk.get_bone_parent(1) == 0, "the linked hierarchy is attached under the humanoid bone")
-	check(rests[tip].is_equal_approx(before), "bone rests preserve the linked prop placement")
+	check(rests[tip].is_equal_approx(rests[0] * UnityAvatar._world_transform(objs, 11).affine_inverse() * before), "the linked prop keeps its place relative to the bone as the scene poses it, wherever the output rest puts that bone")
 	check(UnityAvatar._as_bone(objs, 22, sk, rests) == tip and sk.get_bone_count() == 4, "a source object is added once despite duplicate bone names")
 	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs
 	check(springs.size() == 1 and springs[0].joints[0].node == 2, "the spring uses the inner object's identity, not the outer bone with the same name")
 	check(springs[0].joints.size() == 3 and sk.get_bone_name(springs[0].joints[2].node) == "Tip End", "an unweighted source end node still supplies the spring's last segment")
-	check(sk.get_bone_global_rest(springs[0].joints[2].node).is_equal_approx(UnityAvatar._world_transform(objs, 23)), "a later unweighted child inherits the prop scale exactly once")
+	check(sk.get_bone_global_rest(springs[0].joints[2].node).is_equal_approx(rests[0] * UnityAvatar._world_transform(objs, 11).affine_inverse() * UnityAvatar._world_transform(objs, 23)), "a later unweighted child inherits the prop scale exactly once")
 	objs[140] = {"type": "GameObject", "data": {"m_Name": "Chest"}}
 	objs[141] = {"type": "GameObject", "data": {"m_Name": "Tip"}}
 	objs[40] = {"type": "Transform", "data": {"m_GameObject": {"fileID": "140"}, "m_Father": {"fileID": "10"}}}
@@ -1282,6 +1284,69 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, {})
 	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
 	root.free()
+
+
+## A VRCFury Armature Link onto a humanoid bone applies when the avatar's armature is unpacked into the scene, its
+## objects no longer the model's: the bone is the one the model's renderer skins to. A link with no target is reported.
+func _an_unpacked_armature_still_takes_a_link() -> void:
+	var objs := {}
+	for spec: Array in [[10, "Avatar", 0, Vector3.ZERO], [11, "Armature", 10, Vector3.ZERO], [12, "Hips", 11, Vector3(0, 1, 0)], [20, "Part", 10, Vector3(0, 0.9, 0.2)], [21, "Bone", 20, Vector3(0, 0.1, 0)], [30, "Hips", 10, Vector3(0, 2, 0)]]:
+		objs[spec[0] + 100] = {"type": "GameObject", "guid": "scene", "data": {"m_Name": spec[1], "m_Component": [{"component": {"fileID": str(spec[0])}}]}}
+		objs[spec[0]] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(spec[0] + 100)}, "m_Father": {"fileID": str(spec[2])}, "m_LocalPosition": {"x": str(spec[3].x), "y": str(spec[3].y), "z": str(spec[3].z)}}}
+	objs[40] = {"type": "SkinnedMeshRenderer", "data": {"m_Mesh": {"guid": "main"}, "m_Bones": [{"fileID": "12"}]}}
+	objs[41] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "120"}, "references": {"RefIds": [{"type": {"class": "ArmatureLink"}, "data": {"propBone": {"fileID": "120"}, "linkTo": [{"bone": "0", "useBone": "1"}]}}]}}}
+	objs[42] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "121"}, "references": {"RefIds": [{"type": {"class": "ArmatureLink"}, "data": {"propBone": {"fileID": "121"}, "linkTo": [{"bone": "8", "useBone": "1"}]}}]}}}
+	var bones := UnityAvatar._model_bones(objs, 10, "main", [[40, 111, []]])
+	check(bones.get("Hips") == 12, "the skinned Hips is the avatar's, not another object of that name: %s" % [bones])
+	var before := UnityAvatar._world_transform(objs, 21)
+	var report := {}
+	UnityAvatar._attach_armatures(objs, 10, bones, {"human": {"Hips": "Hips"}}, report)
+	check(objs[20].data.m_Father.fileID == "12" and UnityAvatar._world_transform(objs, 21).is_equal_approx(before), "the part hangs from the hips where the scene placed it")
+	check(str(report.get("armature links with no target in the avatar", "")).contains("121"), "a link whose bone the avatar lacks is reported: %s" % [report])
+
+
+## A clip's Euler rotation and position curves on a non-humanoid bone, and a PhysBone's enabled flag, become targets:
+## rotation in Unity's own degrees with the transform's authored angles as its rest, position as an offset along the
+## bone's mirrored axis, the PhysBone as a switch over the joints of its chains.
+func _transform_and_physbone_curves_bind() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Tail", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "5"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}, "m_LocalPosition": {"x": "0.5", "y": "1", "z": "0"}, "m_LocalRotation": {"x": "0", "y": "0", "z": "0", "w": "1"}, "m_LocalEulerAnglesHint": {"x": "-85", "y": "0", "z": "0"}}},
+		5: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "3"}, "m_Enabled": "1", "m_Script": {"guid": "physbone"}, "rootTransform": {"fileID": "4"}, "pull": "0.2"}},
+	}
+	var sk := Skeleton3D.new()
+	sk.add_bone("Hips")
+	sk.add_bone("Tail")
+	sk.add_bone("Tail End")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_parent(2, 1)
+	sk.set_bone_rest(0, Transform3D.IDENTITY.scaled(Vector3.ONE * 2.0))
+	sk.set_meta("unity_bones", {3: 1})
+	sk.set_meta("humanoid_bones", {0: ["hips", "Hips"]})
+	sk.set_meta("physbone_joints", {5: ["Tail", "Tail End"]})
+	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
+	var curve := func(attribute: String, cls: String, keys: Array, script := "") -> Dictionary: return {"path": "Tail", "attribute": attribute, "class": cls, "script": script, "keys": keys}
+	expressions.data = {
+		"menu": [{"name": "Throb", "type": "toggle", "parameter": "Throb", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Throb", "type": "bool", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 1, "loop": true, "curves": [curve.call("localEulerAnglesRaw.x", "4", [[0.0, -85.0], [1.0, -80.0]]), curve.call("m_LocalPosition.x", "4", [[0.0, 0.5, 0.0, 0.0], [1.0, 0.75, 0.0, 0.0]]), curve.call("m_Enabled", "114", [[0.0, 0.0]], "physbone"), curve.call("m_Enabled", "114", [[0.0, 0.0]], "other script")]}],
+	}
+	var report := {}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [], {}, objs, {"": 2, "Tail": 4}, sk, Materials.new(expressions.assets), report)
+	var effects: Array = data.targets.map(func(t: Dictionary) -> Dictionary: return t.effect)
+	check(effects.size() == 3, "rotation, position and the PhysBone switch bind, the other script's flag does not: %s" % [effects])
+	if effects.size() == 3:
+		check(effects[0] == {"rotation": {"node": "Tail", "axis": 0, "rest": [-85.0, 0.0, 0.0]}} and data.targets[0].default == -85.0, "rotation keeps Unity's degrees, its rest the authored angles: %s" % [data.targets[0]])
+		check(data.clips[0].curves[0].keys == [[0.0, -85.0], [1.0, -80.0]], "rotation keys stay as authored")
+		check(effects[1] == {"translation": {"node": "Tail", "direction": [-0.5, 0.0, 0.0]}} and data.targets[1].default == 0.0, "position moves along the mirrored X, in the parent's output units: %s" % [effects[1]])
+		check(data.clips[0].curves[1].keys == [[0.0, 0.0, 0.0, 0.0], [1.0, 0.25, 0.0, 0.0]], "position keys are offsets from rest, tangents kept: %s" % [data.clips[0].curves[1].keys])
+		check(effects[2] == {"spring": ["Tail", "Tail End"]} and data.targets[2].default == 1.0 and data.clips[0].curves[2].step, "the PhysBone's flag switches its joints, on as the scene has it")
+	sk.set_meta("unity_bones", {3: 0})
+	var humanoid := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [], {}, objs, {"": 2, "Tail": 4}, sk, Materials.new(expressions.assets), {})
+	check(humanoid.targets.size() == 1 and humanoid.targets[0].effect.has("spring"), "transform curves on a humanoid bone are left to the muscles")
 	sk.free()
 
 

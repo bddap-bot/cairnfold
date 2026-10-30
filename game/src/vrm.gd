@@ -351,6 +351,12 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 				region.node = index[region.node]
 		elif t.effect is Dictionary and t.effect.has("scale"):
 			t.effect.scale.node = index[t.effect.scale.node]
+		elif t.effect is Dictionary and t.effect.has("rotation"):
+			t.effect.rotation.node = index[t.effect.rotation.node]
+		elif t.effect is Dictionary and t.effect.has("translation"):
+			t.effect.translation.node = index[t.effect.translation.node]
+		elif t.effect is Dictionary and t.effect.has("spring"):
+			t.effect.spring = t.effect.spring.map(func(n: String) -> int: return index[n])
 		elif t.effect is Dictionary and t.effect.has("material"):
 			t.effect.material.node = index[t.effect.material.node]
 	for s: Dictionary in out.shown:
