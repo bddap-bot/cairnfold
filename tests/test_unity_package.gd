@@ -23,6 +23,7 @@ func _run() -> void:
 	_nested_prefabs_flatten()
 	_model_objects_keep_their_bindings_and_transforms()
 	_material_properties_read_either_layout()
+	_materials_cull_as_their_shader_reads()
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
 	_mesh_bones_do_not_alias_another_models_names()
@@ -170,6 +171,42 @@ func _material_properties_read_either_layout() -> void:
 	var saved: Dictionary = Yaml.document(lines).Material.m_SavedProperties
 	check(Materials._properties(saved.m_TexEnvs)._MainTex.m_Texture.guid == "t1", "a property list of one-key entries")
 	check(Materials._properties(saved.m_Floats)._Mode == "1", "a property list of first/second pairs")
+
+
+## A material draws the faces its shader's `Cull` names, from the property it reads, whatever stale culling properties
+## the material still saves; the SDK's shaders, absent from packages, read theirs by GUID.
+func _materials_cull_as_their_shader_reads() -> void:
+	var dir := ProjectSettings.globalize_path("user://cull")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("property.shader", "property", 'Shader "Fixture" { Properties { _Sides ("Cull Off", Int) = 2 } SubShader { // Cull Off\n /* Cull Front */ Pass { Cull [_Sides] } Pass { Cull Front } } }')
+	write.call("off.shader", "off", 'Shader "Fixture/Off" { SubShader { Pass { cull off } } }')
+	write.call("plain.shader", "plain", 'Shader "Fixture/Plain" { SubShader { Pass { } } }')
+	var material := func(name: String, shader: String, floats: String) -> void:
+		write.call(name + ".mat", name, "Material:\n  m_Shader: {fileID: 4800000, guid: %s, type: 3}\n  m_SavedProperties:\n    m_Floats:\n%s" % [shader, floats])
+	material.call("both", "property", "    - _Cull: 2\n    - _Sides: 0\n")
+	material.call("front", "property", "    - _Sides: 1\n")
+	material.call("fixed", "off", "    - _Cull: 2\n")
+	material.call("default", "plain", "    - _Cull: 0\n")
+	material.call("sdk", "e765db0afa7ecfc44ade2e4e2491f65a", "    - _Cull: 2\n    - _Culling: 0\n")
+	material.call("absent", "0123456789abcdef0123456789abcdef", "    - _Cull: 0\n")
+	material.call("builtin", "0000000000000000f000000000000000", "    - _Cull: 0\n")
+	write.call("ints.mat", "ints", "Material:\n  m_Shader: {fileID: 4800000, guid: property, type: 3}\n  m_SavedProperties:\n    m_Ints:\n    - _Sides: 0\n    m_Floats:\n    - _Sides: 2\n")
+	var materials := Materials.new(Assets.new(dir))
+	var cull := func(guid: String) -> int: return materials.materials[materials.use({"guid": guid}, Color.WHITE)].cull
+	check(cull.call("both") == Materials.Cull.OFF, "the first pass's cull property decides, past comments and names, not a stale _Cull")
+	check(cull.call("ints") == Materials.Cull.OFF, "an Int property reads from the saved ints")
+	check(cull.call("builtin") == Materials.Cull.BACK, "a built-in shader culls back faces whatever _Cull says")
+	check(cull.call("front") == Materials.Cull.FRONT, "front culling reads as front")
+	check(cull.call("fixed") == Materials.Cull.OFF, "a fixed Cull Off draws both sides")
+	check(cull.call("default") == Materials.Cull.BACK, "a shader naming no Cull culls back faces")
+	check(cull.call("sdk") == Materials.Cull.OFF, "the SDK's Toon Standard reads _Culling")
+	check(cull.call("absent") == Materials.Cull.OFF, "a shader missing from the package reads _Cull")
+	materials.pack(materials.materials.keys())
+	var sided := materials.atlas_materials()
+	check(sided[0].cull_mode == BaseMaterial3D.CULL_BACK and sided[1].cull_mode == BaseMaterial3D.CULL_DISABLED and sided[0].albedo_texture == sided[1].albedo_texture, "one atlas, drawn one-sided and two-sided")
 
 
 func _outside_constraints_place() -> void:
@@ -535,7 +572,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.colour = Color(0.0, 0.5, 0.25, 0.5)
 	materials.materials.colour.alpha = Materials.Alpha.BLEND
 	materials.pack(["colour"])
-	materials.material()
+	materials.atlas_materials()
 	expressions.data.clips[0].curves[0].attribute = "material._Color.r"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, 1.0]]
 	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], objs, {"": 2}, sk, materials, {})

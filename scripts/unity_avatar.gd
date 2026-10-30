@@ -10,9 +10,10 @@ extends SceneTree
 ## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
 ## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
 ## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
-## draw under, every triangle kept, and one atlas of the materials' colour textures; its blend shapes stay, set to their
-## saved weights, its PhysBones and DynamicBones become spring chains, and its menu, parameters and FX controller become the model's
-## "expressions" (VRCHAT_expressions in a VRM). No VRM lies between: VRM cannot carry what later importer work adds to
+## draw under, every triangle kept and drawn on the sides its material's shader culls to, and one atlas of the
+## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones
+## become spring chains, and its menu, parameters and FX controller become the model's "expressions"
+## (VRCHAT_expressions in a VRM). No VRM lies between: VRM cannot carry what later importer work adds to
 ## the model. The importer prints what it kept and dropped.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -909,6 +910,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				skin.add_bind(b[0], b[1])
 			return binds[key])
 		var mesh: ArrayMesh = mi.mesh
+		# Unity winds a renderer that its transforms mirror the other way, so its faces still face out.
+		var mirrored := _world_transform(objs, _transform(objs, r[1])).basis.determinant() < 0.0
 		var saved: Array = Prefabs._list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Prefabs._list(o.data.get("m_Materials"))
 		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, str(ref.get("guid", ""))).get(_model_name(model, mi), []))
@@ -965,8 +968,9 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				for j in 4:
 					bones.append(bound[place.remap.call(top[0][j])])
 					weights.append(top[1][j])
-			for i in idx:
-				indices.append(base + i)
+			for t in range(0, idx.size(), 3):
+				for c: int in [0, 2, 1] if mirrored else [0, 1, 2]:
+					indices.append(base + idx[t + c])
 	if indices.is_empty():
 		return {}
 	var used := {}
@@ -981,7 +985,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		uvs[i] = at[0]
 		if at[1]:
 			tiled[materials.materials[corners[i]].name] = true
-	var material := materials.material()
+	var sided := materials.atlas_materials()
 	var meshes := []
 	var sizes := {}
 	for g in group_of:
@@ -1001,29 +1005,51 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var dropped_shapes := 0
 	var baked := 0
 	for group: Dictionary in groups.values():
-		var remap := {}
-		var gi := PackedInt32Array()
-		var gv := PackedVector3Array()
-		var gn := PackedVector3Array()
-		var gu := PackedVector2Array()
-		var gb := PackedInt32Array()
-		var gw := PackedFloat32Array()
+		var faces: Array[PackedInt32Array] = [PackedInt32Array(), PackedInt32Array()]
+		var reversed := {}
 		for t in range(0, indices.size(), 3):
-			if group_of[indices[t]] != group.index:
+			if group_of[indices[t]] == group.index:
+				var cull: int = materials.materials[corners[indices[t]]].cull
+				faces[int(cull == Materials.Cull.OFF)].append(t)
+				if cull == Materials.Cull.FRONT:
+					reversed[t] = true
+		var surfaces := []
+		var touched := {}
+		for two_sided in 2:
+			if faces[two_sided].is_empty():
 				continue
-			for c in 3:
-				var i := indices[t + c]
-				if not remap.has(i):
-					remap[i] = gv.size()
-					gv.append(verts[i])
-					gn.append(normals[i])
-					gu.append(uvs[i])
-					gb.append_array(bones.slice(4 * i, 4 * i + 4))
-					gw.append_array(weights.slice(4 * i, 4 * i + 4))
-				gi.append(remap[i])
-		if gi.is_empty():
+			var remap := {}
+			var gi := PackedInt32Array()
+			var gv := PackedVector3Array()
+			var gn := PackedVector3Array()
+			var gu := PackedVector2Array()
+			var gb := PackedInt32Array()
+			var gw := PackedFloat32Array()
+			for t in faces[two_sided]:
+				# A front-culled face shows its back: wound the other way, it is a back-culled face.
+				for c: int in [0, 2, 1] if reversed.has(t) else [0, 1, 2]:
+					var i := indices[t + c]
+					if not remap.has(i):
+						remap[i] = gv.size()
+						touched[i] = true
+						gv.append(verts[i])
+						gn.append(normals[i])
+						gu.append(uvs[i])
+						gb.append_array(bones.slice(4 * i, 4 * i + 4))
+						gw.append_array(weights.slice(4 * i, 4 * i + 4))
+					gi.append(remap[i])
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = gv
+			arrays[Mesh.ARRAY_NORMAL] = gn
+			arrays[Mesh.ARRAY_TEX_UV] = gu
+			arrays[Mesh.ARRAY_BONES] = gb
+			arrays[Mesh.ARRAY_WEIGHTS] = gw
+			arrays[Mesh.ARRAY_INDEX] = gi
+			surfaces.append({"arrays": arrays, "remap": remap, "material": sided[two_sided]})
+		if surfaces.is_empty():
 			continue
-		var moving := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return remap.has(i)))
+		var moving := shapes.keys().filter(func(name: String) -> bool: return (shapes[name] as Dictionary).keys().any(func(i: int) -> bool: return touched.has(i)))
 		var names := moving.filter(func(name: String) -> bool: return kept.has(name))
 		var dropped := moving.filter(func(name: String) -> bool: return not kept.has(name))
 		kept_shapes += names.size()
@@ -1033,38 +1059,35 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			if is_zero_approx(w):
 				continue
 			baked += 1
-			for i: int in shapes[name]:
-				if remap.has(i):
-					gv[remap[i]] += w * (shapes[name][i][0] as Vector3)
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = gv
-		arrays[Mesh.ARRAY_NORMAL] = gn
-		arrays[Mesh.ARRAY_TEX_UV] = gu
-		arrays[Mesh.ARRAY_BONES] = gb
-		arrays[Mesh.ARRAY_WEIGHTS] = gw
-		arrays[Mesh.ARRAY_INDEX] = gi
-		var blends := []
-		for name: String in names:
-			var dv := PackedVector3Array()
-			var dn := PackedVector3Array()
-			dv.resize(gv.size())
-			dn.resize(gv.size())
-			for i: int in shapes[name]:
-				if remap.has(i):
-					dv[remap[i]] = shapes[name][i][0]
-					dn[remap[i]] = shapes[name][i][1]
-			var b := []
-			b.resize(Mesh.ARRAY_MAX)
-			b[Mesh.ARRAY_VERTEX] = dv
-			b[Mesh.ARRAY_NORMAL] = dn
-			blends.append(b)
+			for surface: Dictionary in surfaces:
+				var gv: PackedVector3Array = surface.arrays[Mesh.ARRAY_VERTEX]
+				for i: int in shapes[name]:
+					if surface.remap.has(i):
+						gv[surface.remap[i]] += w * (shapes[name][i][0] as Vector3)
+				surface.arrays[Mesh.ARRAY_VERTEX] = gv
 		var out := ArrayMesh.new()
 		out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
 		for name: String in names:
 			out.add_blend_shape(name)
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, blends)
-		out.surface_set_material(0, material)
+		for surface: Dictionary in surfaces:
+			var size: int = (surface.arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			var blends := []
+			for name: String in names:
+				var dv := PackedVector3Array()
+				var dn := PackedVector3Array()
+				dv.resize(size)
+				dn.resize(size)
+				for i: int in shapes[name]:
+					if surface.remap.has(i):
+						dv[surface.remap[i]] = shapes[name][i][0]
+						dn[surface.remap[i]] = shapes[name][i][1]
+				var b := []
+				b.resize(Mesh.ARRAY_MAX)
+				b[Mesh.ARRAY_VERTEX] = dv
+				b[Mesh.ARRAY_NORMAL] = dn
+				blends.append(b)
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface.arrays, blends)
+			out.surface_set_material(out.get_surface_count() - 1, surface.material)
 		var part := {"mesh": out, "when": group.when, "renderers": group.renderers.keys(), "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
 			kept_weights[name] = saved_weights.get(name, 0.0)
 			return kept_weights, {})}
@@ -1088,7 +1111,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 
 static func _describe(m: Dictionary) -> String:
 	var texture := "no texture" if m.texture == "" else ("texture" if m.image != null else "texture not decoded")
-	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended→cutout"][m.alpha], "" if m.cull else ", two-sided→one"]
+	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended→cutout"][m.alpha], [", two-sided", ", front faces culled", ""][m.cull]]
 
 
 ## The four heaviest bone influences of vertex `i`, weights summing to one.

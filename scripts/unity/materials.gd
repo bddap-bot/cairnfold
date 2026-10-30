@@ -9,6 +9,26 @@ const PAD := 4
 const TEXTURES := ["_MainTex", "_BaseMap", "_BaseColorMap", "_MainTexture", "_Albedo"]
 const COLOURS := ["_Color", "_BaseColor", "_MainColor"]
 enum Alpha { OPAQUE, CUTOUT, BLEND }
+## Unity's cull modes, as a shader's `Cull` reads them.
+enum Cull { OFF, FRONT, BACK }
+## The shaders packages name without carrying, Unity's built-in ones and the VRChat SDK's: the property a shader's
+## `Cull` reads, or its fixed mode. Any other shader missing from a package is taken to read `_Cull`, as most avatar
+## shaders do.
+const ABSENT_CULL := {
+	"0000000000000000f000000000000000": Cull.BACK,
+	"e765db0afa7ecfc44ade2e4e2491f65a": "_Culling",
+	"051a0ed2f2aedd741aa8186ae92f97e0": "_Culling",
+	"d5b89f0c74ccf5049ba803c14a090378": Cull.OFF,
+	"9200bec112b65ec4fbbbd33fa89c20f4": Cull.OFF,
+	"8b39b95ac85682040beff730e0cfc77a": Cull.OFF,
+	"affc81f3d164d734d8f13053effb1c5c": Cull.BACK,
+	"2dcd9e0568e0a6f45b92c60ba2eb16a0": Cull.BACK,
+	"f8c1f8ac363df824899534a0b30eef00": Cull.BACK,
+	"528d55c4e8adab14b974ca665ed1b996": Cull.BACK,
+	"584dc70fbb9834e48beb29e3206e3ca0": Cull.BACK,
+	"3ad043b7f9839cb48a75a9238d433dec": Cull.BACK,
+	"0b7113dea2069fc4e8943843eff19f70": Cull.BACK,
+}
 
 var assets: Assets
 var materials := {}
@@ -29,7 +49,7 @@ func use(ref: Dictionary, fallback: Color) -> String:
 	var key := guid if assets.by_guid.has(guid) and assets.extension(guid) == "mat" else "missing:" + str(ref.get("name", guid))
 	if materials.has(key):
 		return key
-	var m := {"name": str(ref.get("name", key)), "shader": "", "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "cull": true, "image": null}
+	var m := {"name": str(ref.get("name", key)), "shader": "", "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "cull": Cull.BACK, "image": null}
 	if key == guid:
 		_read(m, guid)
 	if m.texture != "":
@@ -47,16 +67,22 @@ func _read(m: Dictionary, guid: String) -> void:
 	m.shader = _shader_name(shader)
 	m.properties = {}
 	var shader_guid := str(shader.get("guid", ""))
+	var cull: Variant = ABSENT_CULL.get(shader_guid, "_Cull")
 	if assets.by_guid.has(shader_guid):
+		var source := assets.text(shader_guid)
 		var property := RegEx.create_from_string("(_[A-Za-z0-9_]+)\\s*\\(\\s*\"")
-		for found in property.search_all(assets.text(shader_guid)):
+		for found in property.search_all(source):
 			m.properties[found.get_string(1)] = true
+		var code := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/|\"[^\"\\n]*\"").sub(source, " ", true)
+		var directive := RegEx.create_from_string("(?i)\\bCull\\s+(?:\\[\\s*(\\w+)\\s*\\]|(Off|Front|Back)\\b)").search(code)
+		cull = Cull.BACK if directive == null else directive.get_string(1) if directive.get_string(1) != "" else ["off", "front", "back"].find(directive.get_string(2).to_lower())
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
 	m.textures = textures
 	m.keywords = mat.get("m_ValidKeywords", [])
 	var floats := _properties(saved.get("m_Floats"))
 	m.floats = floats
+	var ints := _properties(saved.get("m_Ints"))
 	var colours := _properties(saved.get("m_Colors"))
 	m.colours = colours
 	for k: String in TEXTURES:
@@ -80,8 +106,7 @@ func _read(m: Dictionary, guid: String) -> void:
 	elif queue >= 2450 or render_type == "TransparentCutout" or m.shader.contains("Cutout") or mode == 1:
 		m.alpha = Alpha.CUTOUT
 		m.cutoff = str(floats.get("_Cutoff", "0.5")).to_float()
-	if floats.has("_Cull"):
-		m.cull = str(floats._Cull).to_float() != 0.0
+	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
 
 
 func _shader_name(ref: Dictionary) -> String:
@@ -240,14 +265,21 @@ func moved(from: String, to: String) -> Array:
 	return [s, (b[1] as Vector2) - (a[1] as Vector2) * s]
 
 
-func material() -> StandardMaterial3D:
-	var out := StandardMaterial3D.new()
-	out.resource_name = "atlas"
+## The atlas as the material of the faces whose materials draw one side, and as that of those drawing both.
+func atlas_materials() -> Array[StandardMaterial3D]:
 	atlas.generate_mipmaps()
-	out.albedo_texture = ImageTexture.create_from_image(atlas)
-	if materials.values().any(func(m: Dictionary) -> bool: return m.has("cell") and m.alpha != Alpha.OPAQUE):
-		out.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		out.alpha_scissor_threshold = 0.5
+	var texture := ImageTexture.create_from_image(atlas)
+	var cut := materials.values().any(func(m: Dictionary) -> bool: return m.has("cell") and m.alpha != Alpha.OPAQUE)
+	var out: Array[StandardMaterial3D] = []
+	for two_sided: bool in [false, true]:
+		var drawn := StandardMaterial3D.new()
+		drawn.resource_name = "atlas, two-sided" if two_sided else "atlas"
+		drawn.albedo_texture = texture
+		drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
+		if cut:
+			drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			drawn.alpha_scissor_threshold = 0.5
+		out.append(drawn)
 	return out
 
 
