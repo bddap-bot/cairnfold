@@ -949,12 +949,15 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			skipped.append(go_name)
 			continue
 		drawn.append(go_name)
+		var rebase := _rebase(skin, binds, place.binds)
 		var bound: Array = place.binds.map(func(b: Array) -> int:
-			var key := str(b)
-			if not binds.has(key):
-				binds[key] = skin.get_bind_count()
-				skin.add_bind(b[0], b[1])
-			return binds[key])
+			var pose: Transform3D = b[1] * rebase.affine_inverse()
+			for at: int in binds.get(b[0], []):
+				if _near(skin.get_bind_pose(at), pose):
+					return at
+			binds.get_or_add(b[0], []).append(skin.get_bind_count())
+			skin.add_bind(b[0], pose)
+			return skin.get_bind_count() - 1)
 		var mesh: ArrayMesh = mi.mesh
 		# Unity winds a renderer that its transforms mirror the other way, so its faces still face out.
 		var mirrored := _world_transform(objs, _transform(objs, r[1])).basis.determinant() < 0.0
@@ -1013,13 +1016,13 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				var sv: PackedVector3Array = surface_shapes[k][Mesh.ARRAY_VERTEX]
 				var sn: Variant = surface_shapes[k][Mesh.ARRAY_NORMAL]
 				for i in v.size():
-					var dv := sv[i] if relative else sv[i] - v[i]
-					var dn := Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i]
+					var dv := rebase.basis * (sv[i] if relative else sv[i] - v[i])
+					var dn := rebase.basis * (Vector3.ZERO if not sn is PackedVector3Array else (sn as PackedVector3Array)[i] if relative else (sn as PackedVector3Array)[i] - n[i])
 					if not (dv.is_zero_approx() and dn.is_zero_approx()):
 						moved[base + i] = [dv, dn]
 			for i in v.size():
-				verts.append(v[i])
-				normals.append(n[i].normalized() if not n[i].is_zero_approx() else Vector3.UP)
+				verts.append(rebase * v[i])
+				normals.append((rebase.basis * n[i]).normalized() if not n[i].is_zero_approx() else Vector3.UP)
 				uvs.append(uv[i])
 				group_of.append(group.index)
 				corners[base + i] = key
@@ -1157,6 +1160,9 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				return [m[0].x, m[0].y, m[1].x, m[1].y])
 		meshes.append(part)
 	report["renderers drawn"] = drawn
+	var twice := binds.keys().filter(func(b: int) -> bool: return (binds[b] as Array).size() > 1)
+	if not twice.is_empty():
+		printerr("unity_avatar: bones bound in more than one pose, which glTF cannot carry: %s" % twice.map(func(b: int) -> String: return sk.get_bone_name(b)))
 	if not skipped.is_empty():
 		report["renderers not found in their model"] = skipped
 	report["triangles"] = indices.size() / 3
@@ -1283,6 +1289,27 @@ static func _describe(m: Dictionary) -> String:
 
 
 ## The four heaviest bone influences of vertex `i`, weights summing to one.
+## How far a renderer's mesh space lies from the one `skin` already binds its bones in (`binds`: each bone's bind
+## indices), where every bone both bind is one transform apart: its vertices move by that, so each bone keeps one bind,
+## since glTF lists a joint once. Identity where they share no bone or lie apart by more than one transform.
+static func _rebase(skin: Skin, binds: Dictionary, renderer: Array) -> Transform3D:
+	var apart: Variant = null
+	for b: Array in renderer:
+		if not binds.has(b[0]):
+			continue
+		var each: Transform3D = skin.get_bind_pose(binds[b[0]][0]).affine_inverse() * b[1]
+		if apart == null:
+			apart = each
+		elif not _near(apart, each):
+			return Transform3D.IDENTITY
+	return Transform3D.IDENTITY if apart == null else apart
+
+
+static func _near(a: Transform3D, b: Transform3D) -> bool:
+	var columns := [[a.basis.x, b.basis.x], [a.basis.y, b.basis.y], [a.basis.z, b.basis.z], [a.origin, b.origin]]
+	return columns.all(func(c: Array) -> bool: return (c[0] - c[1]).length() <= 1e-3 * maxf(1.0, (c[1] as Vector3).length()))
+
+
 static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, per: int) -> Array:
 	var pairs := []
 	for j in per:

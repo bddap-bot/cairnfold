@@ -28,6 +28,7 @@ func _run() -> void:
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
 	_mesh_bones_do_not_alias_another_models_names()
+	_a_renderer_bound_apart_moves_into_the_skins_space()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_a_physbone_carries_its_limit()
@@ -801,6 +802,26 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
 	root.free()
 	target.free()
+
+
+## A renderer whose bones the skin already binds, in a mesh space one transform apart (a mirrored or 100x-scaled
+## prop), moves its vertices by that transform so each bone keeps one bind; one apart by more keeps its own.
+func _a_renderer_bound_apart_moves_into_the_skins_space() -> void:
+	var skin := Skin.new()
+	var arm := Transform3D(Basis(Vector3.FORWARD, 0.3), Vector3(0.2, 1.4, 0)).affine_inverse()
+	var hand := Transform3D(Basis.IDENTITY, Vector3(0.6, 1.4, 0)).affine_inverse()
+	skin.add_bind(1, arm)
+	skin.add_bind(2, hand)
+	var binds := {1: [0], 2: [1]}
+	for apart: Transform3D in [Transform3D.IDENTITY.scaled(Vector3(-1.01, 1.03, 1)), Transform3D.IDENTITY.scaled(Vector3.ONE * 100.0).translated(Vector3(0, 0.1, 0))]:
+		var rebase := UnityAvatar._rebase(skin, binds, [[1, arm * apart], [2, hand * apart], [3, apart]])
+		check(UnityAvatar._near(rebase, apart), "a renderer one transform apart moves by it: %s" % rebase)
+		var vertex := Vector3(0.01, 0.02, 0.03)
+		check(((arm * apart) * vertex).is_equal_approx((arm * apart * rebase.affine_inverse()) * (rebase * vertex)), "its moved vertices skin where they did")
+		check(UnityAvatar._near(arm * apart * rebase.affine_inverse(), arm), "its bones keep the skin's binds")
+	var twisted := Transform3D(Basis(Vector3.UP, 0.5), Vector3.ZERO)
+	check(UnityAvatar._rebase(skin, binds, [[1, arm * twisted], [2, hand]]) == Transform3D.IDENTITY, "a renderer apart by more than one transform stays where it is")
+	check(UnityAvatar._rebase(skin, binds, [[4, arm]]) == Transform3D.IDENTITY, "a renderer sharing no bone stays where it is")
 
 
 func _a_decal_alpha_binds_its_atlas_layer() -> void:
