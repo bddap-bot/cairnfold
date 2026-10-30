@@ -103,7 +103,10 @@ static func wearable(root: Node3D) -> void:
 	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
 	var colliders := []
 	for c: Dictionary in chains.get("colliders", []):
-		colliders.append({"node": sk.get_bone_name(c.node), "shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}})
+		var collider := {"node": sk.get_bone_name(c.node), "shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}}
+		if c.has("extensions"):
+			collider["extensions"] = c.extensions
+		colliders.append(collider)
 	var groups := []
 	var springs := []
 	for chain: Dictionary in chains.get("springs", []):
@@ -257,6 +260,9 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	nodes.resize(sk.get_bone_count())
 	nodes.fill({})
 	var chains := SpringDefinition.read({"nodes": nodes, "extensions": {"VRMC_springBone": springs}}) if not springs.is_empty() else {"springs": [], "colliders": []}
+	for i in (chains.colliders as Array).size():
+		if springs.colliders[i].has("extensions"):
+			chains.colliders[i]["extensions"] = springs.colliders[i].extensions
 	for chain: Dictionary in chains.springs:
 		for j: Dictionary in chain.joints:
 			human["spring_%d" % j.node] = bone_path.call(j.node)
@@ -1500,26 +1506,6 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			var go := _ref(d.get("m_GameObject"))
 			t = _transform(objs, go) if objs.has(go) else 0
 		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
-	for id: int in objs:
-		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not ours.call(d):
-			continue
-		if d.has("shapeType") and d.has("insideBounds"):
-			var t := _ref(d.get("rootTransform", d.get("m_Root")))
-			if t == 0:
-				t = _transform(objs, _ref(d.get("m_GameObject")))
-			var bone: int = bone_of.call(t)
-			if bone < 0:
-				continue
-			var p: Variant = d.get("position", {})
-			var offset := [-str(p.get("x", "0")).to_float(), str(p.get("y", "0")).to_float(), str(p.get("z", "0")).to_float()] if p is Dictionary else [0, 0, 0]
-			var radius := str(d.get("radius", "0")).to_float()
-			var height := str(d.get("height", "0")).to_float()
-			var shape := {"sphere": {"offset": offset, "radius": radius}}
-			if str(d.shapeType) == "1" and height > 2.0 * radius:
-				shape = {"capsule": {"offset": [offset[0], offset[1] - (height / 2.0 - radius), offset[2]], "tail": [offset[0], offset[1] + (height / 2.0 - radius), offset[2]], "radius": radius}}
-			collider_index[id] = colliders.size()
-			colliders.append({"node": bone, "shape": shape})
 	var components := {}
 	var component_roots := {}
 	for id: int in objs:
@@ -1552,6 +1538,53 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			sk.set_bone_rest(bone, rests[parent].affine_inverse() * rests[bone])
 			sk.reset_bone_pose(bone)
 		pending_bones.append_array(children.get(t, []))
+	# A collider sits on a bone's unweighted child as often as on the bone, so it goes onto the nearest kept ancestor.
+	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
+	var dropped := 0
+	for id: int in objs:
+		var d: Dictionary = objs[id].data
+		if objs[id].type != "MonoBehaviour" or not ours.call(d):
+			continue
+		var c := _collider(d)
+		if c.is_empty():
+			continue
+		var t := _ref(d.get("rootTransform"))
+		if t == 0:
+			t = _transform(objs, _ref(d.get("m_GameObject")))
+		var placed := frame * _world_transform(objs, t) * (c.local as Transform3D)
+		var bone := -1
+		var at := t
+		var seen := {}
+		while objs.has(at) and not seen.has(at) and bone < 0:
+			seen[at] = true
+			bone = bone_of.call(at)
+			at = _ref(objs[at].data.get("m_Father"))
+		if bone < 0:
+			dropped += 1
+			continue
+		var held := sk.get_bone_global_rest(bone)
+		var local := held.affine_inverse() * placed
+		var scale: Vector3 = placed.basis.get_scale().abs()
+		var radius: float = c.radius * maxf(scale.x, maxf(scale.y, scale.z)) / held.basis.get_scale().x
+		var axis: Vector3 = c.axis
+		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
+		var offset: Array = v.call(local.origin)
+		var geometry := {"offset": offset, "radius": radius}
+		var kind := "sphere"
+		if c.kind == "plane":
+			kind = "plane"
+			geometry = {"offset": offset, "normal": v.call((local.basis.inverse().transposed() * axis).normalized())}
+		elif c.half > 0.0:
+			kind = "capsule"
+			geometry = {"offset": v.call(local * (-axis * c.half)), "tail": v.call(local * (axis * c.half)), "radius": radius}
+		var collider := {"node": bone, "shape": {kind: geometry}}
+		# VRM's own shapes cannot keep a joint inside or behind a plane; readers without the extension see a point.
+		if c.inside or kind == "plane":
+			if c.inside:
+				geometry["inside"] = true
+			collider = {"node": bone, "shape": {"sphere": {"offset": offset, "radius": 0.0}}, "extensions": {"VRMC_springBone_extended_collider": {"specVersion": "1.0", "shape": {kind: geometry}}}}
+		collider_index[id] = colliders.size()
+		colliders.append(collider)
 	for id: int in components:
 		var d: Dictionary = components[id]
 		var legacy := d.has("m_Damping")
@@ -1624,7 +1657,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		elif not component.chains.is_empty():
 			component.reason = ""
 	report["spring coverage"] = JSON.stringify(coverage)
-	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders; parameters mapped approximately; limits, grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size()]
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped); parameters mapped approximately; limits, grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped]
 	if springs.is_empty():
 		return {}
 	var groups := []
@@ -1639,6 +1672,31 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			spring["colliderGroups"] = [g]
 		out_springs.append(spring)
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups}
+
+
+## A PhysBone or DynamicBone collider in its transform's space (Unity's axes, X mirrored): `local` places it, `axis` is
+## a capsule's length and a plane's normal there, `half` the distance from its middle to each end's centre (0 for a
+## sphere). Empty for any other component.
+static func _collider(d: Dictionary) -> Dictionary:
+	var f := func(v: Variant, k: String) -> float: return str((v as Dictionary).get(k, "0")).to_float() if v is Dictionary else 0.0
+	var mirrored := func(v: Variant) -> Vector3: return Vector3(-f.call(v, "x"), f.call(v, "y"), f.call(v, "z"))
+	if d.has("shapeType") and d.has("insideBounds"):
+		var q: Variant = d.get("rotation")
+		var rot := Quaternion(f.call(q, "x"), -f.call(q, "y"), -f.call(q, "z"), f.call(q, "w")) if q is Dictionary else Quaternion.IDENTITY
+		rot = rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
+		var radius := str(d.get("radius", "0")).to_float()
+		var height := str(d.get("height", "0")).to_float()
+		var shape := str(d.shapeType)
+		return {"local": Transform3D(Basis(rot), mirrored.call(d.get("position"))), "axis": Vector3.UP, "radius": radius, "half": maxf(height / 2.0 - radius, 0.0) if shape == "1" else 0.0, "kind": "plane" if shape == "2" else "round", "inside": shape != "2" and str(d.insideBounds) == "1"}
+	if d.has("m_Bound") and d.has("m_Direction") and d.has("m_Center"):
+		var axis: Vector3 = [Vector3.LEFT, Vector3.UP, Vector3.BACK][clampi(str(d.m_Direction).to_int(), 0, 2)]
+		var inside := str(d.m_Bound) == "1"
+		var local := Transform3D(Basis.IDENTITY, mirrored.call(d.m_Center))
+		if not d.has("m_Radius"):
+			return {"local": local, "axis": -axis if inside else axis, "radius": 0.0, "half": 0.0, "kind": "plane", "inside": false}
+		var radius := str(d.m_Radius).to_float()
+		return {"local": local, "axis": axis, "radius": radius, "half": maxf(str(d.get("m_Height", "0")).to_float() / 2.0 - radius, 0.0), "kind": "round", "inside": inside}
+	return {}
 
 
 static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:

@@ -236,6 +236,8 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.add_used_extension("VRMC_vrm", false)
 	if not root.get_meta("springs", {}).is_empty():
 		state.add_used_extension("VRMC_springBone", false)
+		if (root.get_meta("springs").colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
+			state.add_used_extension("VRMC_springBone_extended_collider", false)
 	if not root.get_meta("constraints", []).is_empty():
 		state.add_used_extension("UNITY_constraints", false)
 	if not root.get_meta("expressions", {}).is_empty():

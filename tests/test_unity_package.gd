@@ -31,6 +31,7 @@ func _run() -> void:
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_legacy_springs_keep_their_root_and_endpoint()
+	_colliders_keep_their_shape_side_and_bone()
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
@@ -277,6 +278,60 @@ func _a_branching_physbone_root_stays_still() -> void:
 	check(organizational.size() == 2, "an organizational root absent from the output skeleton still owns its child chains")
 	check(JSON.parse_string(report["spring coverage"])[0].reason == "", "a represented organizational root is not reported as missing")
 	branches.free()
+	sk.free()
+
+
+## A chain's colliders arrive as the source shapes them: one on a bone's unweighted child sits on that bone where the
+## child puts it, turned and scaled by it; inside spheres and planes, which VRM's own shapes cannot hold, ride in
+## VRMC_springBone_extended_collider over a point; a DynamicBone collider lies along its direction.
+func _colliders_keep_their_shape_side_and_bone() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Head")
+	sk.add_bone("Hair")
+	sk.set_bone_parent(1, 0)
+	sk.add_bone("Hair2")
+	sk.set_bone_parent(2, 1)
+	var turn := sin(PI / 4.0)
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "11"}}},
+		30: {"type": "Transform", "data": {"m_GameObject": {"fileID": "130"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0.1", "y": "0.2", "z": "0"}, "m_LocalRotation": {"x": "0", "y": "0", "z": str(turn), "w": str(turn)}, "m_LocalScale": {"x": "2", "y": "2", "z": "2"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Head", "m_Component": [{"component": {"fileID": "10"}}]}},
+		111: {"type": "GameObject", "data": {"m_Name": "Hair", "m_Component": [{"component": {"fileID": "11"}}]}},
+		112: {"type": "GameObject", "data": {"m_Name": "Hair2", "m_Component": [{"component": {"fileID": "12"}}]}},
+		130: {"type": "GameObject", "data": {"m_Name": "Head Collider", "m_Component": [{"component": {"fileID": "30"}}]}},
+		40: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "rootTransform": {"fileID": "0"}, "shapeType": "1", "insideBounds": "0", "radius": "0.05", "height": "0.3", "position": {"x": "0", "y": "0.01", "z": "0"}, "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}}},
+		41: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "rootTransform": {"fileID": "10"}, "shapeType": "0", "insideBounds": "1", "radius": "0.2", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		42: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "rootTransform": {"fileID": "10"}, "shapeType": "2", "insideBounds": "0", "radius": "0", "height": "0", "position": {"x": "0", "y": "-0.1", "z": "0"}}},
+		43: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Center": {"x": "0.1", "y": "0", "z": "0"}, "m_Direction": "0", "m_Radius": "0.05", "m_Height": "0.3", "m_Bound": "0"}},
+		20: {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "11"}, "colliders": [{"fileID": "40"}, {"fileID": "41"}, {"fileID": "42"}, {"fileID": "43"}]}},
+	}
+	var report := {}
+	var out: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, report)
+	var springs: Array = out.get("springs", [])
+	check(springs.size() == 1 and springs[0].has("colliderGroups"), "the chain keeps a collider group: %s" % [springs])
+	if springs.size() != 1 or not springs[0].has("colliderGroups"):
+		sk.free()
+		return
+	var listed: Array = out.colliderGroups[springs[0].colliderGroups[0]].colliders.map(func(i: int) -> Dictionary: return out.colliders[i])
+	check(listed.size() == 4, "all four of the chain's colliders arrive: %s" % [report.get("spring components")])
+	if listed.size() != 4:
+		sk.free()
+		return
+	var near := func(a: Array, b: Vector3) -> bool: return Vector3(a[0], a[1], a[2]).is_equal_approx(b)
+	var capsule: Dictionary = listed[0].shape.get("capsule", {})
+	check(listed[0].node == 0 and not capsule.is_empty(), "the child's capsule sits on the bone above it: %s" % [listed[0]])
+	if not capsule.is_empty():
+		check(near.call(capsule.offset, Vector3(-0.28, 0.2, 0)) and near.call(capsule.tail, Vector3(0.12, 0.2, 0)), "turned a quarter about Z, the capsule lies along X, its ends where the child puts them: %s" % [capsule])
+		check(is_equal_approx(capsule.radius, 0.1), "and its radius takes the child's scale: %s" % [capsule.radius])
+	var inside: Dictionary = listed[1].get("extensions", {}).get("VRMC_springBone_extended_collider", {}).get("shape", {}).get("sphere", {})
+	check(inside.get("inside", false) and is_equal_approx(inside.get("radius", 0.0), 0.2), "an inside sphere keeps its side in the extension: %s" % [listed[1]])
+	check(listed[1].shape.sphere.radius == 0.0, "over a point where the extension is not read")
+	var plane: Dictionary = listed[2].get("extensions", {}).get("VRMC_springBone_extended_collider", {}).get("shape", {}).get("plane", {})
+	check(not plane.is_empty() and near.call(plane.normal, Vector3.UP) and near.call(plane.offset, Vector3(0, -0.1, 0)), "a plane faces its transform's up: %s" % [listed[2]])
+	var legacy: Dictionary = listed[3].shape.get("capsule", {})
+	check(not legacy.is_empty() and near.call(legacy.offset, Vector3(0, 0, 0)) and near.call(legacy.tail, Vector3(-0.2, 0, 0)), "a DynamicBone collider lies along its direction, X mirrored: %s" % [listed[3]])
 	sk.free()
 
 
