@@ -38,6 +38,7 @@ func _run() -> void:
 	check(Avatar.read(big) == null, "a file over the size limit is not read")
 	_images_are_measured_before_decoding()
 	_blend_shapes_are_bounded()
+	_shape_normals_turn_with_the_shape()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -92,6 +93,70 @@ func _blend_shapes_are_bounded() -> void:
 	json.meshes[0].erase("weights")
 	json.meshes[0].get("extras", {}).erase("targetNames")
 	check(Avatar.read(_glb(json, bin)) == null, "a file of %d blend shapes over %d vertices is refused" % [many.size(), vertices])
+
+
+## A written blend shape turns the normals of the surface it tilts, and only those: a flat grid whose x > 0 half a shape
+## raises into a ramp reads, once written, as normals up on the flat and across the ramp's slope on the ramp.
+func _shape_normals_turn_with_the_shape() -> void:
+	var side := 9
+	var slope := 0.5
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var raised := PackedVector3Array()
+	for z in side:
+		for x in side:
+			var at := Vector3(x - side / 2, 0, z - side / 2)
+			vertices.append(at)
+			normals.append(Vector3.UP)
+			raised.append(Vector3(0, slope * maxf(at.x, 0.0), 0))
+	var indices := PackedInt32Array()
+	for z in side - 1:
+		for x in side - 1:
+			var i := z * side + x
+			indices.append_array([i, i + 1, i + side, i + 1, i + side + 1, i + side])
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var shape := []
+	shape.resize(Mesh.ARRAY_MAX)
+	shape[Mesh.ARRAY_VERTEX] = raised
+	var unturned := PackedVector3Array()
+	unturned.resize(vertices.size())
+	shape[Mesh.ARRAY_NORMAL] = unturned
+	var mesh := ArrayMesh.new()
+	mesh.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
+	mesh.add_blend_shape("ramp")
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [shape])
+	var root := Node3D.new()
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	root.add_child(instance)
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	check(doc.append_from_scene(root, state) == OK, "a ramp shape exports")
+	root.free()
+	var glb := Vrm._positional(doc.generate_buffer(state))
+	var json := _gltf_json(glb)
+	var bin := glb.slice(28 + glb.decode_u32(12))
+	var data: Array = json.bufferViews.map(func(v: Dictionary) -> PackedByteArray: return bin.slice(int(v.get("byteOffset", 0)), int(v.get("byteOffset", 0)) + int(v.byteLength)))
+	var primitive: Dictionary = json.meshes[0].primitives[0]
+	var target: Dictionary = primitive.targets[0]
+	check(not target.has("TANGENT"), "a written shape carries no tangents")
+	check(target.has("NORMAL"), "a written shape carries its normals' turn")
+	if not target.has("NORMAL"):
+		return
+	var positions := Vrm._vec3s(json.accessors[int(primitive.attributes.POSITION)], json.bufferViews, data)
+	var base := Vrm._vec3s(json.accessors[int(primitive.attributes.NORMAL)], json.bufferViews, data)
+	var turns := Vrm._vec3s(json.accessors[int(target.NORMAL)], json.bufferViews, data)
+	var across := Vector3(-slope, 1, 0).normalized()
+	for i in positions.size():
+		var p := positions[i]
+		if p.x < -1.0:
+			check(turns[i] == Vector3.ZERO, "the flat at %s keeps its normal" % p)
+		elif p.x > 0.5:
+			check((base[i] + turns[i]).normalized().distance_to(across) < 1e-4, "the ramp at %s faces across its slope: %s" % [p, (base[i] + turns[i]).normalized()])
 
 
 ## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.

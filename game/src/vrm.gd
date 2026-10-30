@@ -384,9 +384,10 @@ static func write(root: Node3D, path: String) -> void:
 	f.store_buffer(_positional(doc.generate_buffer(state)))
 
 
-## The binary glTF `glb` with its morph targets moving positions alone, their normal and tangent accessors left with no
-## data. Godot writes a target's normals and tangents as the shape's own vectors rather than their change, so a set shape
-## would turn every normal of its mesh, and a full mesh's body shapes would fill the file with them.
+## The binary glTF `glb` with each morph target's normals the turn its positions give its mesh's smooth normals, and no
+## tangents. Godot writes a target's normals and tangents as unit vectors rather than their change and keeps none an
+## importer hands it, so its own would turn every normal of the mesh; a shape's normals follow from its moved surface, as
+## Unity computes them by default.
 static func _positional(glb: PackedByteArray) -> PackedByteArray:
 	var json_size := glb.decode_u32(12)
 	var json: Dictionary = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
@@ -396,11 +397,33 @@ static func _positional(glb: PackedByteArray) -> PackedByteArray:
 	var data := views.map(func(v: Dictionary) -> PackedByteArray: return bin.slice(int(v.get("byteOffset", 0)), int(v.get("byteOffset", 0)) + int(v.byteLength)))
 	for mesh: Dictionary in json.get("meshes", []):
 		for primitive: Dictionary in mesh.primitives:
-			for target: Dictionary in primitive.get("targets", []):
+			var targets: Array = primitive.get("targets", [])
+			for target: Dictionary in targets:
 				for k: String in ["NORMAL", "TANGENT"]:
 					if target.has(k):
 						(accessors[int(target[k])] as Dictionary).erase("bufferView")
 						target.erase(k)
+			if targets.is_empty():
+				continue
+			var turns := _shape_normals(primitive, accessors, views, data)
+			for t in targets.size():
+				var vertices: PackedInt32Array = turns[t][0]
+				if vertices.is_empty():
+					continue
+				var values: PackedVector3Array = turns[t][1]
+				var indices := PackedByteArray()
+				indices.resize(vertices.size() * 4)
+				var floats := PackedByteArray()
+				floats.resize(values.size() * 12)
+				for k in vertices.size():
+					indices.encode_u32(k * 4, vertices[k])
+					for c in 3:
+						floats.encode_float(k * 12 + c * 4, values[k][c])
+				for bytes: PackedByteArray in [indices, floats]:
+					views.append({"buffer": 0, "byteLength": bytes.size()})
+					data.append(bytes)
+				accessors.append({"componentType": 5126, "count": accessors[int(primitive.attributes.POSITION)].count, "type": "VEC3", "sparse": {"count": vertices.size(), "indices": {"bufferView": views.size() - 2, "componentType": 5125}, "values": {"bufferView": views.size() - 1}}})
+				(targets[t] as Dictionary).NORMAL = accessors.size() - 1
 	var refs := []
 	for acc: Dictionary in accessors:
 		refs.append([acc, "bufferView"])
@@ -445,6 +468,138 @@ static func _positional(glb: PackedByteArray) -> PackedByteArray:
 	out.encode_u32(24 + text.size(), 0x004E4942)
 	out.append_array(out_bin)
 	out.encode_u32(8, out.size())
+	return out
+
+
+## For each of `primitive`'s morph targets [the vertices whose normal it turns, ascending, and each one's change]: a
+## vertex's normal is the area-weighted sum of the faces around every vertex at its position, with the target's positions
+## moved and without.
+static func _shape_normals(primitive: Dictionary, accessors: Array, views: Array, data: Array) -> Array:
+	var positions := _vec3s(accessors[int(primitive.attributes.POSITION)], views, data)
+	var count := positions.size()
+	var faces: PackedInt32Array
+	if primitive.has("indices"):
+		var acc: Dictionary = accessors[int(primitive.indices)]
+		faces = _integers(acc, int(acc.count), data)
+	else:
+		faces = PackedInt32Array(range(count))
+	var welded := PackedInt32Array()
+	welded.resize(count)
+	var first := {}
+	for i in count:
+		welded[i] = first.get_or_add(positions[i], i)
+	var base := PackedVector3Array()
+	base.resize(count)
+	for f in range(0, faces.size(), 3):
+		var n := _face(positions, faces, f)
+		for c in 3:
+			base[welded[faces[f + c]]] += n
+	var corners := PackedInt32Array()
+	corners.resize(faces.size())
+	for k in faces.size():
+		corners[k] = k - k % 3
+	var around := _groups(count, faces, corners)
+	var faces_at: PackedInt32Array = around[0]
+	var faces_of: PackedInt32Array = around[1]
+	var members := _groups(count, welded, PackedInt32Array(range(count)))
+	var members_at: PackedInt32Array = members[0]
+	var members_of: PackedInt32Array = members[1]
+	var out := []
+	for target: Dictionary in primitive.targets:
+		var moves := _vec3s(accessors[int(target.POSITION)], views, data)
+		var moved := positions.duplicate()
+		var touched := {}
+		for i in count:
+			if moves[i] != Vector3.ZERO:
+				moved[i] += moves[i]
+				for k in range(faces_at[i], faces_at[i + 1]):
+					touched[faces_of[k]] = true
+		var sums := {}
+		for f: int in touched:
+			var change := _face(moved, faces, f) - _face(positions, faces, f)
+			for c in 3:
+				var w := welded[faces[f + c]]
+				sums[w] = sums.get(w, base[w]) + change
+		var vertices := PackedInt32Array()
+		var values := PackedVector3Array()
+		for w: int in sums:
+			var turn: Vector3 = (sums[w] as Vector3).normalized() - base[w].normalized()
+			if turn.length_squared() < 1e-12:
+				continue
+			for k in range(members_at[w], members_at[w + 1]):
+				vertices.append(members_of[k])
+				values.append(turn)
+		var order := Array(range(vertices.size()))
+		order.sort_custom(func(a: int, b: int) -> bool: return vertices[a] < vertices[b])
+		out.append([PackedInt32Array(order.map(func(k: int) -> int: return vertices[k])), PackedVector3Array(order.map(func(k: int) -> Vector3: return values[k]))])
+	return out
+
+
+## The face at `faces[f]`, `faces[f + 1]`, `faces[f + 2]` of `positions`: counterclockwise, as glTF winds a front face,
+## its normal scaled by twice its area.
+static func _face(positions: PackedVector3Array, faces: PackedInt32Array, f: int) -> Vector3:
+	var a := positions[faces[f]]
+	return (positions[faces[f + 1]] - a).cross(positions[faces[f + 2]] - a)
+
+
+## `values` grouped by their `keys`, each below `count`, as [offsets, grouped]: key i's values are grouped[offsets[i]] to
+## grouped[offsets[i + 1]], in their order in `values`.
+static func _groups(count: int, keys: PackedInt32Array, values: PackedInt32Array) -> Array:
+	var offsets := PackedInt32Array()
+	offsets.resize(count + 1)
+	for key in keys:
+		offsets[key + 1] += 1
+	for i in count:
+		offsets[i + 1] += offsets[i]
+	var grouped := PackedInt32Array()
+	grouped.resize(keys.size())
+	var next := offsets.duplicate()
+	for k in keys.size():
+		grouped[next[keys[k]]] = values[k]
+		next[keys[k]] += 1
+	return [offsets, grouped]
+
+
+## A float VEC3 accessor's values, its sparse ones over its dense or zero base.
+static func _vec3s(acc: Dictionary, views: Array, data: Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	out.resize(int(acc.count))
+	if acc.has("bufferView"):
+		var bytes: PackedByteArray = data[int(acc.bufferView)]
+		var stride := int((views[int(acc.bufferView)] as Dictionary).get("byteStride", 12))
+		var at := int(acc.get("byteOffset", 0))
+		for i in out.size():
+			out[i] = _vec3(bytes, at + i * stride)
+	if acc.has("sparse"):
+		var sparse: Dictionary = acc.sparse
+		var indices := _integers(sparse.indices, int(sparse.count), data)
+		var bytes: PackedByteArray = data[int(sparse.values.bufferView)]
+		var at := int(sparse.values.get("byteOffset", 0))
+		for k in indices.size():
+			out[indices[k]] = _vec3(bytes, at + k * 12)
+	return out
+
+
+static func _vec3(bytes: PackedByteArray, at: int) -> Vector3:
+	return Vector3(bytes.decode_float(at), bytes.decode_float(at + 4), bytes.decode_float(at + 8))
+
+
+## `count` unsigned integers from `ref`'s buffer view, as an index accessor or a sparse accessor's indices hold them.
+static func _integers(ref: Dictionary, count: int, data: Array) -> PackedInt32Array:
+	var bytes: PackedByteArray = data[int(ref.bufferView)]
+	var at := int(ref.get("byteOffset", 0))
+	var out := PackedInt32Array()
+	out.resize(count)
+	match int(ref.componentType):
+		5121:
+			for i in count:
+				out[i] = bytes.decode_u8(at + i)
+		5123:
+			for i in count:
+				out[i] = bytes.decode_u16(at + i * 2)
+		_:
+			for i in count:
+				out[i] = bytes.decode_u32(at + i * 4)
 	return out
 
 
