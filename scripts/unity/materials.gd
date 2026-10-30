@@ -3,6 +3,7 @@ extends RefCounted
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
+const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 
 const ATLAS := 2048
 const PAD := 4
@@ -76,6 +77,9 @@ func _read(m: Dictionary, guid: String) -> void:
 		var code := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/|\"[^\"\\n]*\"").sub(source, " ", true)
 		var directive := RegEx.create_from_string("(?i)\\bCull\\s+(?:\\[\\s*(\\w+)\\s*\\]|(Off|Front|Back)\\b)").search(code)
 		cull = Cull.BACK if directive == null else directive.get_string(1) if directive.get_string(1) != "" else ["off", "front", "back"].find(directive.get_string(2).to_lower())
+	elif Sdk.SHADERS.has(shader_guid):
+		for name: String in Sdk.SHADERS[shader_guid].properties:
+			m.properties[name] = true
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
 	m.textures = textures
@@ -116,6 +120,8 @@ func _shader_name(ref: Dictionary) -> String:
 			if line.strip_edges().begins_with("Shader \""):
 				return line.strip_edges().get_slice("\"", 1)
 		return assets.name(guid)
+	if Sdk.SHADERS.has(guid):
+		return Sdk.SHADERS[guid].name
 	return "Standard" if str(ref.get("fileID", "")) == "46" else "not in package (%s)" % guid.left(8)
 
 

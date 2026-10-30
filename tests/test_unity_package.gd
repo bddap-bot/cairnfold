@@ -24,6 +24,7 @@ func _run() -> void:
 	_model_objects_keep_their_bindings_and_transforms()
 	_material_properties_read_either_layout()
 	_materials_cull_as_their_shader_reads()
+	_an_sdk_shader_the_package_omits_is_known()
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
 	_mesh_bones_do_not_alias_another_models_names()
@@ -208,6 +209,17 @@ func _materials_cull_as_their_shader_reads() -> void:
 	materials.pack(materials.materials.keys())
 	var sided := materials.atlas_materials()
 	check(sided[0].cull_mode == BaseMaterial3D.CULL_BACK and sided[1].cull_mode == BaseMaterial3D.CULL_DISABLED and sided[0].albedo_texture == sided[1].albedo_texture, "one atlas, drawn one-sided and two-sided")
+## A material naming one of the VRChat SDK's shaders, which a package never carries, reads that shader's name and
+## properties as if the package held it.
+func _an_sdk_shader_the_package_omits_is_known() -> void:
+	var dir := ProjectSettings.globalize_path("user://sdk-shader")
+	DirAccess.make_dir_recursive_absolute(dir)
+	FileAccess.open(dir.path_join("toon.mat"), FileAccess.WRITE).store_string("Material:\n  m_Shader: {fileID: 4800000, guid: e765db0afa7ecfc44ade2e4e2491f65a, type: 3}\n")
+	FileAccess.open(dir.path_join("toon.mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: toon\n")
+	var materials := Materials.new(Assets.new(dir))
+	var m: Dictionary = materials.materials[materials.use({"guid": "toon"}, Color.WHITE)]
+	check(m.shader == "VRChat/Mobile/Toon Standard", "the SDK shader is known by name: %s" % m.shader)
+	check(m.properties.has("_HueShift") and m.properties.has("_Color"), "the SDK shader's declared properties are known")
 
 
 func _outside_constraints_place() -> void:
