@@ -263,6 +263,9 @@ var _cells_made := {}
 var _feet_for := []
 var _feet := Vector2.ZERO
 var stones: Array[Dictionary] = []
+## Where each nest under the eaves hung as the stones were laid, by its clutter entry: finding it again walks the
+## stones round it.
+var _hung := {}
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
 ## The apertures `build` cut for the openings that fit, fused where they stand together: arc length `s`,
@@ -370,6 +373,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	_laid_count += 1
 	laid = _laid_count
 	stones.clear()
+	_hung = {}
 	flames.clear()
 	cloths.clear()
 	apertures.clear()
@@ -493,6 +497,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 		if x != null:
 			for part in ClutterLayout.parts(v, x, seed):
 				_world(part.xform, part.color, part.kind, self.wrap(v.x))
+				stones[-1].clutter = true
 	_hide()
 	_lay_floor()
 
@@ -529,24 +534,31 @@ func fit_under(r: RoofLayout) -> void:
 		return
 	var kept: Array[Dictionary] = []
 	for st in stones:
-		var fitted := st
-		if st.y + st.size.y * 0.5 <= height + CAP + FIT_CLEAR:
-			for i in 4:
-				var cut := _cut_under(r, fitted.xform)
-				if cut <= 0.0:
-					break
-				var k := 1.0 - cut
-				if k * fitted.size.y < MIN_FIT:
-					fitted = {}
-					break
-				var x: Transform3D = fitted.xform
-				fitted = fitted.duplicate()
-				fitted.xform = Transform3D(Basis(x.basis.x, x.basis.y * k, x.basis.z), x.origin - x.basis.y * (1.0 - k) * 0.5)
-				fitted.y -= fitted.size.y * (1.0 - k) * 0.5
-				fitted.size = Vector3(fitted.size.x, fitted.size.y * k, fitted.size.z)
+		var fitted := _fitted(st, r)
 		if not fitted.is_empty():
 			kept.append(fitted)
 	stones = kept
+
+
+## Stone `st` as `fit_under` leaves it under non-flat roof `r`: its top lowered under the tiles, or empty where too
+## little of it would be left.
+func _fitted(st: Dictionary, r: RoofLayout) -> Dictionary:
+	var fitted := st
+	if st.y + st.size.y * 0.5 > height + CAP + FIT_CLEAR:
+		return fitted
+	for i in 4:
+		var cut := _cut_under(r, fitted.xform)
+		if cut <= 0.0:
+			break
+		var k := 1.0 - cut
+		if k * fitted.size.y < MIN_FIT:
+			return {}
+		var x: Transform3D = fitted.xform
+		fitted = fitted.duplicate()
+		fitted.xform = Transform3D(Basis(x.basis.x, x.basis.y * k, x.basis.z), x.origin - x.basis.y * (1.0 - k) * 0.5)
+		fitted.y -= fitted.size.y * (1.0 - k) * 0.5
+		fitted.size = Vector3(fitted.size.x, fitted.size.y * k, fitted.size.z)
+	return fitted
 
 
 ## The share of a stone's height to take off its top to bring it under `r`, or 1 where its foot already pokes through.
@@ -1656,18 +1668,102 @@ func clutter_frame(v: Vector4, ground: Callable) -> Variant:
 		return x
 	if cover == Cover.OPEN:
 		return Transform3D(Basis(Vector3.UP, v.z), f.point + Vector3.UP * (standing(s) + CAP))
-	var hung := ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5 + ClutterLayout.UNDER_EAVE, v.z)
-	hung.origin.y += _under_roof(ClutterLayout.parts(v, hung, seed))
-	return hung
+	if _hung.has(v):
+		return _hung[v]
+	var face := ClutterLayout.facing(f.point, f.tangent, v.y, THICKNESS * 0.5, v.z)
+	var out: Vector3 = f.tangent.cross(Vector3.UP).normalized() * (1.0 if v.y >= 0.0 else -1.0)
+	var shape := ClutterLayout.parts(v, Transform3D.IDENTITY, seed)
+	var placed := func(x: Transform3D) -> Array[Transform3D]:
+		var out_parts: Array[Transform3D] = []
+		for part in shape:
+			out_parts.append(x * (part.xform as Transform3D))
+		return out_parts
+	var hung := func(by: float) -> Transform3D:
+		var x := face.translated(out * by)
+		x.origin.y += _under_roof(placed.call(x))
+		return x
+	var at: Transform3D = hung.call(0.0)
+	var near: Array[Transform3D] = []
+	for st in stones:
+		if st.has("clutter") or (st.xform as Transform3D).origin.distance_to(at.origin) > (st.size as Vector3).length() * 0.5 + 1.0:
+			continue
+		# The nest clears the stones as fit_under leaves them under the roof, laid after it or not.
+		var kept := _fitted(st, gable) if gable != null and not gable.flat() else st
+		if not kept.is_empty():
+			near.append(kept.xform)
+	var off := func(by: float) -> float: return _off_stones(placed.call(hung.call(by)), near, out)
+	# Each step out brings a sloped roof's underside lower, and the nest with it: past other stones, or clear of the one
+	# that pushed it, back toward the wall.
+	var clashed := 0.0
+	var clear := 0.0
+	for i in 8:
+		var step: float = off.call(clear)
+		if step <= 0.0:
+			break
+		clashed = clear
+		clear += step
+	for i in 6:
+		var mid := (clashed + clear) * 0.5
+		if off.call(mid) > 0.0:
+			clashed = mid
+		else:
+			clear = mid
+	_hung[v] = hung.call(clear)
+	return _hung[v]
+
+
+## How far `parts` move along `out` to clear every stone of `near`, touching the nearest.
+static func _off_stones(parts: Array[Transform3D], near: Array[Transform3D], out: Vector3) -> float:
+	var off := 0.0
+	for st in near:
+		var reach := _reach(st)
+		for part in parts:
+			if part.origin.distance_to(st.origin) < reach + _reach(part):
+				off = maxf(off, _clear_along(part, st, out))
+	return off
+
+
+## How far a box (a unit cube under `x`) reaches from its middle.
+static func _reach(x: Transform3D) -> float:
+	return (x.basis.x.abs() + x.basis.y.abs() + x.basis.z.abs()).length() * 0.5
+
+
+## How far box `a` moves along `dir` to clear box `b`, both unit cubes under their transforms: across each axis that
+## could part them, how far until `a`'s side passes `b`'s, the least of them.
+static func _clear_along(a: Transform3D, b: Transform3D, dir: Vector3) -> float:
+	var axes: Array[Vector3] = []
+	for i in 3:
+		axes.append(a.basis[i])
+		axes.append(b.basis[i])
+	for i in 3:
+		for j in 3:
+			axes.append(a.basis[i].cross(b.basis[j]))
+	var least := INF
+	for axis in axes:
+		if axis.length_squared() < 1e-10:
+			continue
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for c in BOX:
+			var pa := (a * c).dot(axis)
+			var pb := (b * c).dot(axis)
+			lo = Vector2(minf(lo.x, pa), minf(lo.y, pb))
+			hi = Vector2(maxf(hi.x, pa), maxf(hi.y, pb))
+		if hi.x <= lo.y or hi.y <= lo.x:
+			return 0.0
+		var along := axis.dot(dir)
+		if absf(along) > 1e-6 * axis.length():
+			least = minf(least, (hi.y - lo.x) / along if along > 0.0 else (lo.y - hi.x) / along)
+	return least
 
 
 ## How far `parts` rise to bring the highest of them against the roof's underside, which `fit_under` brings the stones
 ## under too, or against the walls' top where no roof is seated on them.
-func _under_roof(parts: Array[Dictionary]) -> float:
+func _under_roof(parts: Array[Transform3D]) -> float:
 	var rise_by := INF
 	for part in parts:
 		for c in BOX:
-			var p: Vector3 = part.xform * c
+			var p: Vector3 = part * c
 			rise_by = minf(rise_by, (gable.height_at(p.x, p.z) if gable != null else roof_base()) - p.y)
 	return rise_by
 
@@ -2859,6 +2955,7 @@ func adopt(built: WallLayout) -> void:
 	_sampled_from = built._sampled_from
 	laid_points = built.laid_points
 	laid_rise = built.laid_rise
+	gable = built.gable
 	if built.samples != samples:
 		_segment_cells = built._segment_cells
 	samples = built.samples
@@ -2868,6 +2965,7 @@ func adopt(built: WallLayout) -> void:
 	grounds = built.grounds
 	bounds = built.bounds
 	stones = built.stones
+	_hung = built._hung
 	_stone_scale = built._stone_scale
 	apertures = built.apertures
 	flames = built.flames

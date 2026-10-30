@@ -271,7 +271,8 @@ func _nests_meet_roofs() -> void:
 	await play([{"op": "bare"}])
 
 
-## Whether each house's nest, as its stones were laid, touches its roof's underside, neither short of it nor through it.
+## Whether each house's nest, as its stones were laid, rests against its wall's face without entering any of its stones,
+## and touches its roof's underside, neither short of it nor through it.
 func _check_nests(when: String) -> void:
 	_lay()
 	var houses := main.tool.walls.filter(func(w: Wall) -> bool: return w.roof != null)
@@ -281,14 +282,56 @@ func _check_nests(when: String) -> void:
 		check(nests.size() == 1, "%s: house %d has its nest" % [when, w.id])
 		for v: Vector4 in nests:
 			var at: Vector3 = (w.layout.clutter_frame(v, main.world.terrain.height_at) as Transform3D).origin
-			var gap := INF
+			var nest: Array[Transform3D] = []
+			var wall: Array[Dictionary] = []
 			for st in w.layout.stones:
-				if st.s != w.layout.wrap(v.x) or st.xform.origin.distance_to(at) > 0.4:
+				if st.xform.origin.distance_to(at) > 1.2:
 					continue
+				if st.s == w.layout.wrap(v.x) and st.xform.origin.distance_to(at) < 0.4:
+					nest.append(st.xform)
+				else:
+					wall.append(st)
+			var gap := INF
+			var sunk := -INF
+			var into := ""
+			for x in nest:
 				for c in WallLayout.BOX:
-					var p: Vector3 = st.xform * c
+					var p: Vector3 = x * c
 					gap = minf(gap, w.roof.height_at(p.x, p.z) - p.y)
-			check(absf(gap) < 0.02, "%s: house %d's nest meets its %s roof: %.3f m short of it" % [when, w.id, "flat" if w.roof.flat() else "cone" if w.roof.kind == RoofLayout.Kind.CONE else "gable", gap])
+				for st in wall:
+					var depth := _overlap(x, st.xform)
+					if depth > sunk:
+						sunk = depth
+						into = st.kind
+			var style := "flat" if w.roof.flat() else "cone" if w.roof.kind == RoofLayout.Kind.CONE else "gable"
+			check(sunk < 0.02, "%s: house %d's nest stays out of its wall: %.3f m into a %s stone" % [when, w.id, sunk, into])
+			check(sunk > -0.03, "%s: house %d's nest rests against its wall: %.3f m off a %s stone" % [when, w.id, -sunk, into])
+			check(absf(gap) < 0.02, "%s: house %d's nest meets its %s roof: %.3f m short of it" % [when, w.id, style, gap])
+
+
+## How deep boxes `a` and `b` (unit cubes under their transforms) overlap along the axis they overlap least on; zero or
+## less where they are apart.
+static func _overlap(a: Transform3D, b: Transform3D) -> float:
+	var axes: Array[Vector3] = []
+	for x in [a, b]:
+		for i in 3:
+			axes.append(x.basis[i].normalized())
+	for i in 3:
+		for j in 3:
+			var c := a.basis[i].cross(b.basis[j])
+			if c.length_squared() > 1e-8:
+				axes.append(c.normalized())
+	var least := INF
+	for axis in axes:
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for c in WallLayout.BOX:
+			var pa := (a * c).dot(axis)
+			var pb := (b * c).dot(axis)
+			lo = Vector2(minf(lo.x, pa), minf(lo.y, pb))
+			hi = Vector2(maxf(hi.x, pa), maxf(hi.y, pb))
+		least = minf(least, minf(hi.x, hi.y) - maxf(lo.x, lo.y))
+	return least
 
 
 func _demo() -> void:
