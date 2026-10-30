@@ -13,7 +13,7 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
-## A Unity avatar with every outfit its menu can show runs to 40 MB.
+## Leaves headroom for a Unity avatar that carries every outfit its menu can show.
 const MAX_BYTES := 64 << 20
 ## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
 ## "Skinned bodies").

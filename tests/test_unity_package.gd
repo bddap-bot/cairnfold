@@ -858,8 +858,8 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	materials.pack(["skin"])
 	var expressions := Expressions.new(assets, {})
 	expressions.data = {
-		"menu": [{"name": "Freckles", "type": "toggle", "parameter": "Freckles", "axes": [], "value": 1, "icon": ""}],
-		"parameters": [{"name": "Freckles", "type": "bool", "default": 0}],
+		"menu": [{"name": "Spots", "type": "toggle", "parameter": "Spots", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Spots", "type": "bool", "default": 0}],
 		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
 		"clips": [{"length": 0, "loop": false, "curves": [{"path": "", "attribute": "material._DecalBlendAlpha2_Skin", "class": "137", "keys": [[0.0, 1.0]]}]}],
 	}
@@ -911,7 +911,7 @@ func _submeshes_take_slots_in_first_use_order() -> void:
 	for guid: String in ["skin", "eye", "metal"]:
 		assets.by_guid[guid] = {"file": "", "path": "Assets/%s.mat" % guid.capitalize(), "meta": ""}
 	var mesh := ArrayMesh.new()
-	for fbx_name: String in ["Stud.003", "Skin.001", "Lashes.002"]:
+	for fbx_name: String in ["Trim.003", "Skin.001", "Lining.002"]:
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
@@ -920,7 +920,7 @@ func _submeshes_take_slots_in_first_use_order() -> void:
 		named.resource_name = fbx_name
 		mesh.surface_set_material(mesh.get_surface_count() - 1, named)
 	var refs := ["skin", "eye", "metal", "metal"].map(func(guid: String) -> Dictionary: return {"fileID": "2100000", "guid": guid})
-	var slots := UnityAvatar._slot_of(mesh, refs, assets, ["Skin.001", "Lashes.002", "Stud.003"])
+	var slots := UnityAvatar._slot_of(mesh, refs, assets, ["Skin.001", "Lining.002", "Trim.003"])
 	check(slots == [2, 0, 1], "a slot past the last submesh, a second pass over it, leaves the first-use pairing: %s" % [slots])
 
 
