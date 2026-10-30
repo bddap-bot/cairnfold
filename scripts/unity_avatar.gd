@@ -113,7 +113,10 @@ static func wearable(root: Node3D) -> void:
 		var joints := []
 		for j: Dictionary in chain.joints:
 			var g: Vector3 = j.gravity
-			joints.append({"node": sk.get_bone_name(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)})
+			var joint := {"node": sk.get_bone_name(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
+			if j.has("extras"):
+				joint["extras"] = j.extras
+			joints.append(joint)
 		var spring := {"joints": joints}
 		if not (chain.colliders as Array).is_empty():
 			spring["colliderGroups"] = [groups.size()]
@@ -259,10 +262,7 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	var nodes := []
 	nodes.resize(sk.get_bone_count())
 	nodes.fill({})
-	var chains := SpringDefinition.read({"nodes": nodes, "extensions": {"VRMC_springBone": springs}}) if not springs.is_empty() else {"springs": [], "colliders": []}
-	for i in (chains.colliders as Array).size():
-		if springs.colliders[i].has("extensions"):
-			chains.colliders[i]["extensions"] = springs.colliders[i].extensions
+	var chains := _read_springs(springs, nodes) if not springs.is_empty() else {"springs": [], "colliders": []}
 	for chain: Dictionary in chains.springs:
 		for j: Dictionary in chain.joints:
 			human["spring_%d" % j.node] = bone_path.call(j.node)
@@ -1612,6 +1612,19 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var holder := _transform(objs, _ref(d.get("m_GameObject"))) if objs.has(_ref(d.get("m_GameObject"))) else 0
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
+		# A PhysBone's limit keeps each bone's swing about its rest direction inside a cone (Angle), an arc in one plane
+		# (Hinge) or an elliptical cone (Polar), turned by limitRotation, Unity's Euler angles (about Z, then X, then Y).
+		var limit_shape: String = "" if legacy else ["", "angle", "hinge", "polar"][clampi(str(d.get("limitType", "0")).to_int(), 0, 3)]
+		var turned: Variant = d.get("limitRotation")
+		var about := func(axis: Vector3, key: String) -> Quaternion: return Quaternion(axis, deg_to_rad(str(turned.get(key, "0")).to_float()) if turned is Dictionary else 0.0)
+		var tilt: Quaternion = about.call(Vector3.UP, "y") * about.call(Vector3.RIGHT, "x") * about.call(Vector3.BACK, "z")
+		tilt = Quaternion(tilt.x, -tilt.y, -tilt.z, tilt.w)
+		var limited := func(j: Dictionary, t: int) -> Dictionary:
+			if limit_shape != "":
+				var unity := sk.get_bone_global_rest(j.node).basis.orthonormalized().inverse() * (frame * _world_transform(objs, t)).basis.orthonormalized()
+				var q := (unity.get_rotation_quaternion() * tilt).normalized()
+				j["extras"] = {"limit": {"shape": limit_shape, "x": str(d.get("maxAngleX", "0")).to_float(), "z": str(d.get("maxAngleZ", "0")).to_float(), "rotation": [q.x, q.y, q.z, q.w]}}
+			return j
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var groups := []
@@ -1631,7 +1644,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			if bone >= 0 and not human.has(bone) and not ignored.has(item[0]):
 				var j := joint.duplicate()
 				j["node"] = bone
-				joints.append(j)
+				joints.append(limited.call(j, item[0]))
 			elif not joints.is_empty():
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups})
@@ -1660,7 +1673,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		elif not component.chains.is_empty():
 			component.reason = ""
 	report["spring coverage"] = JSON.stringify(coverage)
-	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped); parameters mapped approximately; limits, grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped]
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped); parameters mapped approximately; limits kept without their curves; grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped]
 	if springs.is_empty():
 		return {}
 	var groups := []
@@ -1700,6 +1713,25 @@ static func _collider(d: Dictionary) -> Dictionary:
 		var radius := str(d.m_Radius).to_float()
 		return {"local": local, "axis": axis, "radius": radius, "half": maxf(str(d.get("m_Height", "0")).to_float() / 2.0 - radius, 0.0), "kind": "round", "inside": inside}
 	return {}
+
+
+## `springs` as SpringDefinition reads them, each collider keeping its extensions and each joint its extras, which the
+## reader drops.
+static func _read_springs(springs: Dictionary, nodes: Array) -> Dictionary:
+	var chains := SpringDefinition.read({"nodes": nodes, "extensions": {"VRMC_springBone": springs}})
+	for i in (chains.colliders as Array).size():
+		if springs.colliders[i].has("extensions"):
+			chains.colliders[i]["extensions"] = springs.colliders[i].extensions
+	var extras := {}
+	for spring: Dictionary in springs.springs:
+		for joint: Dictionary in spring.joints:
+			if joint.has("extras"):
+				extras[joint.node] = joint.extras
+	for chain: Dictionary in chains.springs:
+		for joint: Dictionary in chain.joints:
+			if extras.has(joint.node):
+				joint["extras"] = extras[joint.node]
+	return chains
 
 
 static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:

@@ -30,6 +30,7 @@ func _run() -> void:
 	_mesh_bones_do_not_alias_another_models_names()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
+	_a_physbone_carries_its_limit()
 	_legacy_springs_keep_their_root_and_endpoint()
 	_a_dynamic_bone_sizes_by_its_own_transform()
 	_colliders_keep_their_shape_side_and_bone()
@@ -357,6 +358,37 @@ func _a_physbone_ends_at_its_endpoint() -> void:
 	check(joints.size() == 2 and joints[0].node == 0, "the bone's chain runs to its endpoint: %s" % [springs])
 	if joints.size() == 2:
 		check(sk.get_bone_parent(joints[1].node) == 0 and sk.get_bone_rest(joints[1].node).origin.is_equal_approx(Vector3(-0.02, 0.1, 0)), "the endpoint is a bone under it at its offset: %s" % sk.get_bone_rest(joints[1].node).origin)
+	sk.free()
+
+
+## A PhysBone's limit rides on each of its joints, its angles in degrees and its limitRotation turned into the joint's
+## own axes (X mirrored), and survives the reading the converter writes the springs back from.
+func _a_physbone_carries_its_limit() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Ear")
+	sk.add_bone("Tip")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)))
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Ear"}},
+		111: {"type": "GameObject", "data": {"m_Name": "Tip"}},
+		20: {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "limitType": "3", "maxAngleX": "14", "maxAngleZ": "16", "limitRotation": {"x": "32", "y": "0", "z": "0"}}},
+	}
+	var definition: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
+	var joints: Array = definition.springs[0].joints if definition.get("springs", []).size() == 1 else []
+	check(joints.size() == 2, "the bone and its child make the chain: %s" % [definition])
+	if joints.size() == 2:
+		var limit: Dictionary = joints[0].get("extras", {}).get("limit", {})
+		check(limit.get("shape") == "polar" and is_equal_approx(limit.get("x", 0.0), 14.0) and is_equal_approx(limit.get("z", 0.0), 16.0), "the polar limit's angles are carried: %s" % [joints[0]])
+		var q: Array = limit.get("rotation", [])
+		check(q.size() == 4 and Quaternion(q[0], q[1], q[2], q[3]).is_equal_approx(Quaternion(Vector3.RIGHT, deg_to_rad(32.0))), "its turn about X is carried into the joint's axes: %s" % [q])
+		var read: Array = UnityAvatar._read_springs(definition, [{}, {}]).springs
+		check(read.size() == 1 and read[0].joints[0].get("extras") == joints[0].extras, "reading the springs keeps each joint's limit: %s" % [read])
+	objs[20].data.limitType = "0"
+	var free: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
+	check(not free[0].has("extras"), "a PhysBone without a limit carries none: %s" % [free])
 	sk.free()
 
 
