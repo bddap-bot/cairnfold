@@ -39,6 +39,7 @@ func _run() -> void:
 	_images_are_measured_before_decoding()
 	_blend_shapes_are_bounded()
 	_shape_normals_turn_with_the_shape()
+	_set_blend_shapes_are_written()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -683,3 +684,31 @@ func _expressions_follow_the_look() -> void:
 		var b: Array = a._shapes[Vrm.LOOKS.find(dir)][0]
 		return (b[0] as MeshInstance3D).get_blend_shape_value(b[1]) == 0.0), "looking ahead weighs none")
 	a.free()
+
+
+## A blend shape set on a mesh is written as its glTF default weight: an imported avatar's saved shapes (a toggle held
+## on, a face edit) hold in the worn file.
+func _set_blend_shapes_are_written() -> void:
+	var root := Node3D.new()
+	root.name = "shaped"
+	var mesh := ArrayMesh.new()
+	mesh.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
+	for name: String in ["held", "rest"]:
+		mesh.add_blend_shape(name)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	var moved := []
+	moved.resize(Mesh.ARRAY_MAX)
+	moved[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.BACK])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [moved, moved])
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	root.add_child(mi)
+	mi.set_blend_shape_value(0, 0.75)
+	var path := ProjectSettings.globalize_path("user://shaped.vrm")
+	Vrm.write(root, path)
+	root.free()
+	var json := _gltf_json(FileAccess.get_file_as_bytes(path))
+	var weights: Array = json.meshes[0].get("weights", [])
+	check(weights.size() == 2 and is_equal_approx(weights[0], 0.75) and is_zero_approx(weights[1]), "a set blend shape is written as its mesh's weight: %s" % [weights])
