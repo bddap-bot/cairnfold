@@ -48,7 +48,10 @@ func _run() -> void:
 	await process_frame
 	_contract()
 	var terrain := Probe.new()
-	var ground := Terrain.build_mesh().get_faces()
+	var ground := Terrain.bank_mesh().get_faces()
+	for cj in Terrain.CHUNKS:
+		for ci in Terrain.CHUNKS:
+			ground.append_array(Terrain.chunk_mesh(ci, cj, 1).get_faces())
 	for i in ground.size():
 		ground[i].y = main.world.terrain.height_at(ground[i].x, ground[i].z)
 	terrain.add_faces(ground, "terrain", -1)

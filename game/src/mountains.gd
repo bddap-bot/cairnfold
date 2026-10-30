@@ -200,7 +200,7 @@ static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 			j += 1
 
 
-## Starts at the bank's foot point for point, so the ground's own bank (Terrain.build_mesh) meets it with no crack.
+## Starts at the bank's foot point for point, so the ground's own bank (Terrain.bank_mesh) meets it with no crack.
 static func _edge(corners: PackedVector3Array, colors: PackedColorArray) -> void:
 	var r: Dictionary = RANGES[0]
 	var bank := Terrain.edge(Terrain.BANK)

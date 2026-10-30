@@ -522,38 +522,78 @@ func _sync(cells: Rect2i) -> void:
 		_water_texture.update(_water_image)
 
 
-## A flat grid the terrain shader lifts onto the heights, ringed by the bank's foot, which it leaves where it lies;
-## vertex colour red is how dry the meadow's grass is there.
-static func build_mesh() -> ArrayMesh:
+## The ground is drawn in CHUNK-metre squares, so a camera draws only those in its view, each a flat grid the terrain
+## shader lifts onto the heights; vertex colour red is how dry the meadow's grass is there.
+const CHUNK := 16
+const CHUNKS := CELLS / CHUNK
+## The grid steps a chunk is drawn at, finest first: Meadow picks one by how far the chunk lies from the eye.
+const LODS: Array[int] = [1, 2, 4]
+
+
+## Chunk (ci, cj) at grid step `k`. Its edge keeps a vertex every STEP whatever `k`, so it meets every neighbour's edge
+## vertex for vertex, with no crack, at any step either is drawn at: each cell along the edge is a fan round its centre.
+static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in VERTS:
-		for i in VERTS:
-			var x := -SIZE * 0.5 + i * STEP
-			var z := -SIZE * 0.5 + j * STEP
+	var index := {}
+	var vertex := func(key: Vector2i) -> int:
+		if not index.has(key):
+			var x := -SIZE * 0.5 + key.x * STEP * 0.5
+			var z := -SIZE * 0.5 + key.y * STEP * 0.5
 			st.set_color(Color(FloraLayout.dryness(Vector3(x, 0, z)), 0, 0))
 			st.set_normal(Vector3.UP)
 			st.add_vertex(Vector3(x, 0, z))
-	for j in CELLS:
-		for i in CELLS:
-			var a := j * VERTS + i
-			var b := a + 1
-			var c := a + VERTS
-			var d := c + 1
-			st.add_index(a); st.add_index(b); st.add_index(c)
-			st.add_index(b); st.add_index(d); st.add_index(c)
+			index[key] = index.size()
+		return index[key]
+	var i0 := ci * CHUNK
+	var j0 := cj * CHUNK
+	var n := CHUNK / k
+	for b in n:
+		for a in n:
+			var i := i0 + a * k
+			var j := j0 + b * k
+			var corners: Array[Vector2i] = [Vector2i(i, j), Vector2i(i + k, j), Vector2i(i + k, j + k), Vector2i(i, j + k)]
+			if k == 1 or (a > 0 and b > 0 and a < n - 1 and b < n - 1):
+				var q: Array[int] = []
+				for c in corners:
+					q.append(vertex.call(c * 2))
+				st.add_index(q[0]); st.add_index(q[1]); st.add_index(q[3])
+				st.add_index(q[1]); st.add_index(q[2]); st.add_index(q[3])
+				continue
+			var loop: Array[int] = []
+			for side in 4:
+				var from := corners[side]
+				var to := corners[(side + 1) % 4]
+				var on_edge := (from.x == to.x and (from.x == i0 or from.x == i0 + CHUNK)) or (from.y == to.y and (from.y == j0 or from.y == j0 + CHUNK))
+				var steps := k if on_edge else 1
+				for t in steps:
+					loop.append(vertex.call((from + (to - from) * t / steps) * 2))
+			var centre: int = vertex.call(Vector2i(i, j) * 2 + Vector2i(k, k))
+			for t in loop.size():
+				st.add_index(centre); st.add_index(loop[t]); st.add_index(loop[(t + 1) % loop.size()])
+	return st.commit()
+
+
+## The bank, from the ground's edge down to BANK_FOOT, which it leaves where it lies.
+static func bank_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rim := edge(0.0)
 	var foot := edge(BANK)
+	for p in rim:
+		st.set_color(Color(FloraLayout.dryness(Vector3(p.x, 0, p.y)), 0, 0))
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3(p.x, 0, p.y))
 	for p in foot:
 		st.set_color(Color(FloraLayout.dryness(Vector3(p.x, 0, p.y)), 0, 0))
 		st.set_normal(Vector3.UP)
 		st.add_vertex(Vector3(p.x, BANK_FOOT, p.y))
 	var n := rim.size()
 	for k in n:
-		var a := _rim_vertex(k)
-		var b := _rim_vertex((k + 1) % n)
-		var c := VERTS * VERTS + k
-		var d := VERTS * VERTS + (k + 1) % n
+		var a := k
+		var b := (k + 1) % n
+		var c := n + k
+		var d := n + (k + 1) % n
 		st.add_index(a); st.add_index(c); st.add_index(b)
 		st.add_index(b); st.add_index(c); st.add_index(d)
 	return st.commit()
@@ -571,9 +611,3 @@ static func edge(out: float) -> PackedVector2Array:
 			points.append(p * ((half + out) / half))
 	return points
 
-
-## The grid vertex at edge(0.0)'s `k`th point.
-static func _rim_vertex(k: int) -> int:
-	var side := k / CELLS
-	var t := k % CELLS
-	return [t, t * VERTS + CELLS, CELLS * VERTS + CELLS - t, (CELLS - t) * VERTS][side]

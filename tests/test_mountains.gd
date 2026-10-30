@@ -144,7 +144,7 @@ func _the_ground_and_the_lake_bed_share_the_banks_foot(verts: PackedVector3Array
 	var bed := {}
 	for p in verts:
 		bed[p] = true
-	var ground: PackedVector3Array = Terrain.build_mesh().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var ground: PackedVector3Array = Terrain.bank_mesh().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	var half := Terrain.SIZE * 0.5
 	var feet := 0
 	var missed := 0

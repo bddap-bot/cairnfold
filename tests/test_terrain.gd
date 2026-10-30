@@ -25,6 +25,7 @@ func _run() -> void:
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	_a_lay_reads_the_ground_it_started_on()
 	_raycast_skips_only_open_air()
+	_chunks_meet_at_every_step()
 	finish()
 
 
@@ -283,3 +284,29 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	terrain.write(cells, before)
 	w.rebuild()
 	w.lay_now()
+
+
+## Every chunk at every grid step has a vertex every STEP along its edge and covers its square once over, so chunks
+## drawn at different steps meet with no crack and no overlap.
+func _chunks_meet_at_every_step() -> void:
+	var size := Terrain.CHUNK * Terrain.STEP
+	for k in Terrain.LODS:
+		var arrays := Terrain.chunk_mesh(2, 3, k).surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK)
+		var edge := {}
+		for p in verts:
+			var at := Vector2(p.x, p.z) - corner
+			if is_zero_approx(at.x) or is_zero_approx(at.y) or is_equal_approx(at.x, size) or is_equal_approx(at.y, size):
+				edge[Vector2i(roundi(at.x), roundi(at.y))] = true
+		check(edge.size() == 4 * Terrain.CHUNK, "a chunk at step %d has %d edge vertices, not one every metre" % [k, edge.size()])
+		var area := 0.0
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for t in range(0, idx.size(), 3):
+			var a := verts[idx[t]]
+			var b := verts[idx[t + 1]]
+			var c := verts[idx[t + 2]]
+			var turn := (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)
+			check(turn > 0.0, "a chunk at step %d has a triangle wound the other way" % k)
+			area += turn * 0.5
+		check(is_equal_approx(area, size * size), "a chunk at step %d covers %.1f m², not its %.0f" % [k, area, size * size])
