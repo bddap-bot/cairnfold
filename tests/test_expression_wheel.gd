@@ -7,15 +7,16 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
-func _open(hand: Hand) -> void:
+func _open(hand: Hand, slot := "expressions") -> void:
 	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected["%s/by_button" % hand.tracker] = true
 	await frames(2)
 	var tree := hand.inventory()
-	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["expressions"]):
+	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)[slot]):
 		Hand.injected_reach[hand.tracker] = at
 		await frames(2)
-	Hand.injected_reach[hand.tracker] = Vector2.ZERO
+	if slot == "expressions":
+		Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	await frames(2)
 
 
@@ -67,4 +68,18 @@ func _run() -> void:
 	main.rig.wear(Avatar.open(Fixture.scene(), Color.WHITE, "expression-test"))
 	await frames(2)
 	check(main.rig.body.expressions.state.values.Hat == 1.0, "switching away and back restores this avatar's saved toggle")
+	main.rig.body.expressions.state.put("Size", 0.9)
+	await frames(2)
+	await _open(hand, "reset")
+	await _release(hand)
+	var state := main.rig.body.expressions.state
+	check(state.values.Hat == 0.0 and state.values.Size == 0.5 and state.values.Horizontal == 0.0, "the reset slot returns every parameter to the creator's default: %s" % [state.values])
+	await frames(2)
+	check(not main.rig.body.find_child("ExpressionHat", true, false).visible, "the reset avatar shows its default look")
+	check(not main.rig.expression_store.chosen.has("expression-test"), "reset forgets the avatar's saved parameters")
+	main.rig.wear(Avatar.open(Avatar.built_in(0), Color.WHITE, "other"))
+	await frames(2)
+	main.rig.wear(Avatar.open(Fixture.scene(), Color.WHITE, "expression-test"))
+	await frames(2)
+	check(main.rig.body.expressions.state.values.Hat == 0.0, "wearing it again after reset keeps the defaults")
 	finish()

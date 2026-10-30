@@ -229,7 +229,7 @@ func inventory() -> Array:
 	var tree := TREE.duplicate(true)
 	var rig := get_parent() as Rig
 	if rig != null and rig.body != null and rig.body.expressions != null and rig.expression_store.loaded and not rig.body.expressions.state.data.get("menu", []).is_empty():
-		tree[3].append("expressions")
+		tree[3].append_array(["expressions", "reset"])
 	if flat_only:
 		# The book opens only to the other hand's touch, which a flat player's never reaches.
 		var people_slot: Array = tree[3].filter(func(t: Variant) -> bool: return typeof(t) != TYPE_INT or t != Tool.BOOK)
@@ -682,7 +682,7 @@ func _select_input(delta: float) -> void:
 	if _wheel.levels[-1].hot >= 0 and [_wheel.levels.size(), _wheel.levels[-1].hot] != was:
 		Cues.play(Cues.Act.WHEEL_HOVER, global_position, self)
 	var pick: Variant = _wheel.chosen()
-	if pick is String and people != null and (p - _wheel.levels[-1].centre).length() >= ToolWheel.ENTER:
+	if pick is String and pick != "reset" and people != null and (p - _wheel.levels[-1].centre).length() >= ToolWheel.ENTER:
 		if pick == "expressions":
 			_open_expressions()
 			return
@@ -690,7 +690,9 @@ func _select_input(delta: float) -> void:
 		return
 	_show_wheel(delta)
 	if _buttons.released("wheel"):
-		if not pick is String:
+		if pick is String and pick == "reset":
+			(get_parent() as Rig).expression_store.reset()
+		elif not pick is String:
 			tool = pick if pick != null else Tool.NONE
 		Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
 		close_wheel()
@@ -767,6 +769,8 @@ func _draw_item(item: Variant) -> Node3D:
 		return expressions.icon(item)
 	if item is String and item == "expressions":
 		return ToolModels.build(Tool.STYLE)
+	if item is String and item == "reset":
+		return ExpressionMenu.reset_icon()
 	return people.icon(item) if people != null else null
 
 

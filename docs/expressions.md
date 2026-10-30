@@ -14,6 +14,10 @@ thumbstick; tracked hands use the right little-finger pinch stick. Press B/Y
 again to return to the parent wheel. Closing a puppet preserves its axis values
 and clears its optional open parameter.
 
+The slot beside it, a curled arrow, resets: release B/Y on it and the avatar
+returns to its creator's defaults and its saved values are forgotten, as VRChat's
+Reset Avatar does.
+
 Only parameters marked Saved are restored when that avatar is worn again. The
 local file is keyed by avatar identity. Reading and writing it run on workers,
 and icon decoding happens during avatar import.

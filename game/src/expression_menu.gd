@@ -88,3 +88,28 @@ func icon(control: Dictionary) -> Node3D:
 	label.no_depth_test = false
 	out.add_child(label)
 	return out
+
+
+static func reset_icon() -> Node3D:
+	var out := Node3D.new()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.85, 0.55, 0.2)
+	var ring := MeshInstance3D.new()
+	var shape := TorusMesh.new()
+	shape.inner_radius = 0.012
+	shape.outer_radius = 0.018
+	shape.rings = 16
+	shape.ring_segments = 8
+	ring.mesh = shape
+	ring.rotation.x = PI / 2
+	ring.material_override = mat
+	out.add_child(ring)
+	var head := MeshInstance3D.new()
+	var arrow := PrismMesh.new()
+	arrow.size = Vector3(0.014, 0.012, 0.006)
+	head.mesh = arrow
+	head.position = Vector3(0, 0.015, 0)
+	head.rotation.z = -PI / 2
+	head.material_override = mat
+	out.add_child(head)
+	return out

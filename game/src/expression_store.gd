@@ -28,6 +28,16 @@ func wear(player: ExpressionPlayer, key: String) -> void:
 		_restore()
 
 
+## Returns the worn avatar to its creator's defaults and forgets what was saved for it.
+func reset() -> void:
+	if not loaded or not is_instance_valid(_player):
+		return
+	_player.state.reset()
+	_revision = _player.state.revision
+	if chosen.erase(_key):
+		_dirty = true
+
+
 func _restore() -> void:
 	if is_instance_valid(_player):
 		_player.state.restore(chosen.get(_key, {}))

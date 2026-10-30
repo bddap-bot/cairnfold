@@ -2820,10 +2820,11 @@ func _expression(s: Dictionary) -> void:
 	Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	Buttons.injected[button] = true
 	await _frames(2)
-	for p in ToolWheel.sweep(tree, ToolWheel.paths(tree)["expressions"]):
+	for p in ToolWheel.sweep(tree, ToolWheel.paths(tree)[s.get("slot", "expressions")]):
 		Hand.injected_reach[hand.tracker] = p
 		await _frames(2)
-	Hand.injected_reach[hand.tracker] = Vector2.ZERO
+	if s.get("slot", "expressions") == "expressions":
+		Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	await _frames(2)
 	for index: int in s.get("controls", []):
 		Hand.injected_reach[hand.tracker] = ToolWheel.ring_dirs()[index] * ToolWheel.RADIUS

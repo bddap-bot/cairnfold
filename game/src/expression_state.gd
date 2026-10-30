@@ -55,6 +55,13 @@ func restore(saved_values: Dictionary) -> void:
 			put(key, saved_values[key])
 
 
+func reset() -> void:
+	close()
+	pulses.clear()
+	for key: String in definitions:
+		put(key, definitions[key].get("default", 0.0))
+
+
 func active(control: Dictionary) -> bool:
 	return control.get("parameter", "") != "" and is_equal_approx(values.get(control.parameter, 0.0), _typed(control.parameter, float(control.get("value", 1.0))))
 

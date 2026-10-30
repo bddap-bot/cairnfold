@@ -21,5 +21,12 @@
   {"op": "capture", "name": "hat-off"},
   {"op": "expression", "controls": [1], "seconds": 1},
   {"op": "wait", "seconds": 2},
+  {"op": "expression", "controls": [0], "seconds": 2},
+  {"op": "expression", "controls": [2, 0], "twist": 120, "seconds": 2},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "before-reset"},
+  {"op": "expression", "slot": "reset", "seconds": 1},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "after-reset"},
   {"op": "quit"}
 ]
