@@ -248,7 +248,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 ## Godot exports every morph weight as zero; a mesh carries the values its node sets, as glTF's default weights.
 func _export_node(state: GLTFState, gltf_node: GLTFNode, _json: Dictionary, node: Node) -> Error:
 	var mi := node as MeshInstance3D
-	if mi != null and mi.mesh != null and gltf_node.mesh >= 0 and mi.mesh.get_blend_shape_count() > 0:
+	if mi != null and mi.mesh is ArrayMesh and gltf_node.mesh >= 0 and mi.mesh.get_blend_shape_count() > 0:
 		var weights: Dictionary = state.get_additional_data(&"weights") if state.get_additional_data(&"weights") is Dictionary else {}
 		weights[gltf_node.mesh] = range(mi.mesh.get_blend_shape_count()).map(func(k: int) -> float: return mi.get_blend_shape_value(k))
 		state.set_additional_data(&"weights", weights)
