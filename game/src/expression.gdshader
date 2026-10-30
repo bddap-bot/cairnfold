@@ -16,8 +16,9 @@ uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 uniform sampler2D regions : filter_nearest, repeat_disable;
 uniform int region_count = 0;
-uniform sampler2D hue_mask : filter_linear, repeat_disable;
-uniform bool masked = false;
+uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
+uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
+uniform sampler2DArray decals : source_color, hint_default_transparent, filter_linear_mipmap, repeat_disable;
 
 vec3 hsv(vec3 c) {
 	vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -61,15 +62,65 @@ vec3 shift_hue(vec3 c, vec3 settings) {
 		dot(lms, vec3(-0.0041960863, -0.7034186147, 1.7076147010)));
 }
 
+vec3 linear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
 void fragment() {
 	vec2 uv = UV * atlas.xy + atlas.zw;
-	vec4 base = texture(picture, uv) * colour;
-	if (use_vertex) { base *= COLOR; }
+	vec2 dx = dFdx(uv);
+	vec2 dy = dFdy(uv);
+	vec4 base = texture(picture, uv);
+	vec4 hue = vec4(0.0);
+	vec3 tint = vec3(-1.0);
+	vec3 tone = vec3(1.0, 0.0, 0.0);
+	vec4 decal_alpha = vec4(-1.0);
+	vec4 decal_intensity = vec4(1.0);
+	vec4 decal_multiply = vec4(0.0);
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
-			vec4 settings = texelFetch(regions, ivec2(i, 1), 0);
-			base.rgb = mix(base.rgb, shift_hue(base.rgb, settings.xyz), masked ? texture(hue_mask, UV).r : 1.0);
+			vec4 s = texelFetch(regions, ivec2(i, 1), 0);
+			vec4 e = texelFetch(regions, ivec2(i, 2), 0);
+			int kind = int(s.y);
+			if (kind == 0) {
+				hue = vec4(s.x, s.z, s.w, 1.0);
+			} else if (kind == 1) {
+				if (tint.x < 0.0) { tint = e.xyz; }
+				tint[int(s.z)] = s.x;
+			} else if (kind == 2) {
+				tone[int(s.z)] = s.x;
+			} else {
+				int slot = int(s.z);
+				decal_multiply[slot] = s.w;
+				if (e.y > 0.5) {
+					decal_intensity[slot] = s.x;
+					if (decal_alpha[slot] < 0.0) { decal_alpha[slot] = e.x; }
+				} else {
+					decal_alpha[slot] = s.x;
+				}
+			}
+		}
+	}
+	if (tint.x >= 0.0) {
+		base.rgb = textureGrad(untinted, uv, dx, dy).rgb * linear(clamp(tint, 0.0, 1.0));
+	}
+	base *= colour;
+	if (use_vertex) { base *= COLOR; }
+	vec4 adjust = texture(hue_mask, UV);
+	if (hue.w > 0.5) {
+		base.rgb = mix(base.rgb, shift_hue(base.rgb, hue.xyz), adjust.r);
+	}
+	if (tone != vec3(1.0, 0.0, 0.0)) {
+		base.rgb = mix(base.rgb, sign(base.rgb) * pow(abs(base.rgb), vec3(tone.x)), adjust.a);
+		base.rgb = mix(base.rgb, vec3(dot(base.rgb, vec3(0.3, 0.59, 0.11))), -tone.y * adjust.b);
+		base.rgb = mix(base.rgb, base.rgb * (tone.z + 1.0), adjust.g);
+	}
+	for (int slot = 0; slot < 4; slot++) {
+		if (decal_alpha[slot] >= 0.0) {
+			vec4 decal = textureGrad(decals, vec3(uv, float(slot)), dx, dy);
+			float alpha = clamp(decal_intensity[slot] * decal.a * clamp(decal_alpha[slot], 0.0, 1.0), 0.0, 1.0);
+			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * decal.rgb : decal.rgb, alpha);
 		}
 	}
 	ALBEDO = base.rgb;

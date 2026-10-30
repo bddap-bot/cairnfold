@@ -1,9 +1,18 @@
 class_name ExpressionDefinition
 extends RefCounted
 
+## Material properties a target animates over the atlas regions of the materials it names: docs/model.md "File", a clip
+## curve's material property by name.
+const REGIONS := ["hue", "color", "tone", "decal"]
+
+
+## The region kind `effect` animates, or "" for any other effect.
+static func region(effect: Variant) -> String:
+	return effect.keys()[0] if effect is Dictionary and effect.size() == 1 and effect.keys()[0] in REGIONS else ""
+
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
-	for key: String in ["parameters", "targets", "clips", "layers", "shown", "menu", "icons"]:
+	for key: String in ["parameters", "targets", "clips", "layers", "shown", "menu", "icons", "decals"]:
 		if not data.get(key, []) is Array:
 			return false
 	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is String):
@@ -123,6 +132,6 @@ static func _effect(effect: Variant) -> bool:
 	if effect.has("material"):
 		return effect.material is Dictionary and _node(effect.material.get("node")) and effect.material.get("choices") is Array and not effect.material.choices.is_empty() and effect.material.choices.all(func(c: Variant) -> bool: return _numbers(c, 4))
 	var kind: String = effect.keys()[0]
-	if kind in ["hue", "color", "tone", "decal"] and effect[kind] is Array:
-		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)))
+	if kind in REGIONS and effect[kind] is Array:
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)))
 	return false

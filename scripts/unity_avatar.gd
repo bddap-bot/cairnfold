@@ -530,7 +530,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
 				var rest: float = targets[t].rest
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / rest if rest != 0.0 else 1.0])
-			elif targets[t].effect is Dictionary and (targets[t].effect.has("hue") or targets[t].effect.has("color") or targets[t].effect.has("tone") or targets[t].effect.has("decal")):
+			elif ExpressionDefinition.region(targets[t].effect) != "":
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / 100.0])
@@ -659,6 +659,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 						continue
 					binding.slot = slot
 					binding.intensity = decal.get_string(1) == "AlphaIntensity"
+					binding.alpha = str(floats.get("_DecalBlendAlpha" + decal.get_string(2), "1")).to_float()
 					materials.decal_slots.get_or_add(key, {})[slot] = true
 				elif tone >= 0:
 					if str(floats.get("_MainColorAdjustToggle", "0")).to_float() == 0.0:
@@ -698,7 +699,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	for i in targets.size():
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
-	targets.append({"effect": effect, "default": rest if effect.has("morph") or effect.has("hue") or effect.has("color") or effect.has("tone") or effect.has("decal") else 1.0, "rest": rest if effect.has("scale") else 1.0})
+	targets.append({"effect": effect, "default": rest if effect.has("morph") or ExpressionDefinition.region(effect) != "" else 1.0, "rest": rest if effect.has("scale") else 1.0})
 	return targets.size() - 1
 
 

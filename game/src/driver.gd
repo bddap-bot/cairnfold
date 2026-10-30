@@ -2955,7 +2955,7 @@ func _spring_view(_s: Dictionary) -> void:
 func _expression(s: Dictionary) -> void:
 	if s.get("fixture", false):
 		main.rig.wear(Avatar.open(preload("res://demo/expressions.gd").scene(), Color.WHITE, "expression-demo"))
-		main.rig.body.expressions.state.restore({"Hat": 0.0, "Size": 0.5})
+		main.rig.body.expressions.state.restore({"Hat": 0.0, "Size": 0.5, "Colour": 0.0, "Tone": 0.0, "Decal": 0.0})
 		await _frames(2)
 		return
 	var hand := _hand(s)

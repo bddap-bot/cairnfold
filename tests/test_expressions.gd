@@ -126,6 +126,9 @@ func _roundtrip() -> void:
 		avatar.expressions.state.advance(0)
 		avatar.expressions.apply()
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
+		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
+		var mat := hat.get_surface_override_material(0) as ShaderMaterial
+		check(mat != null and mat.get_shader_parameter("region_count") == 3 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone and decal regions and their layers to the hat")
 	avatar.free()
 
 
@@ -134,6 +137,8 @@ func _malformed() -> void:
 	for kind: String in ["color", "tone", "decal"]:
 		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}}]}), "an imported %s region is a valid target" % kind)
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"decal": [{"node": 0, "rect": [0, 0, 1, 1], "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
 	var invalid := _definition()
 	invalid.clips[0].curves[0].target = 200

@@ -28,5 +28,18 @@
   {"op": "expression", "slot": "reset", "seconds": 1},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "after-reset"},
+  {"op": "expression", "controls": [0], "seconds": 2},
+  {"op": "wait", "seconds": 2},
+  {"op": "label", "name": "expressions/hat"},
+  {"op": "wait", "seconds": 10},
+  {"op": "label", "name": "-"},
+  {"op": "expression", "controls": [3], "seconds": 1},
+  {"op": "expression", "controls": [4], "seconds": 1},
+  {"op": "expression", "controls": [5], "seconds": 1},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "material"},
+  {"op": "label", "name": "expressions/material"},
+  {"op": "wait", "seconds": 10},
+  {"op": "label", "name": "-"},
   {"op": "quit"}
 ]

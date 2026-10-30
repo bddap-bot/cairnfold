@@ -346,7 +346,7 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 	for t: Dictionary in out.targets:
 		if t.effect is Dictionary and t.effect.has("morph"):
 			t.effect.morph = t.effect.morph.map(morph)
-		elif t.effect is Dictionary and (t.effect.has("hue") or t.effect.has("color") or t.effect.has("tone") or t.effect.has("decal")):
+		elif ExpressionDefinition.region(t.effect) != "":
 			for region: Dictionary in t.effect.values()[0]:
 				region.node = index[region.node]
 		elif t.effect is Dictionary and t.effect.has("scale"):
@@ -378,7 +378,7 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 			if effect.has(kind):
 				var index := int(effect[kind].get("node", -1))
 				effect[kind].node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
-		for region: Dictionary in effect.get("hue", []):
+		for region: Dictionary in effect.values()[0] if ExpressionDefinition.region(effect) != "" else []:
 			var index := int(region.get("node", -1))
 			region.node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
 	for shown: Dictionary in out.get("shown", []):
