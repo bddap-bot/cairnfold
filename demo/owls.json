@@ -1,6 +1,5 @@
 [
   {"op": "place", "x": 0, "z": 4},
-  {"op": "tree", "x": 0, "z": -3, "seed": 7},
   {"op": "wall", "points": [[2.5, -4], [6, -5]], "seconds": 1},
   {"op": "sun", "time": 0.7806, "seconds": 2},
   {"op": "wait", "seconds": 3},
