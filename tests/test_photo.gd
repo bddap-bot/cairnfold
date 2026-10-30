@@ -108,7 +108,16 @@ func _the_lens_sees_the_body_and_the_wearer_sees_springs() -> void:
 	var meshes := rig.body.find_children("*", "VisualInstance3D", true, false)
 	var chain_meshes := rig.body.swaying()
 	check(not chain_meshes.is_empty() and chain_meshes.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask), "the wearer sees their grabbable spring parts")
-	check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v in chain_meshes or v.layers == Quality.SELF_LAYER), "the remaining body draws on the photo layer alone")
+	check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v in chain_meshes or v.layers == Quality.SELF_LAYER or v in rig._seen), "the remaining body draws on the photo layer alone, whole")
+	check(not rig._seen.is_empty() and rig._seen.all(func(v: VisualInstance3D) -> bool: return v.layers == Quality.EYES_LAYER), "and headless on the eyes' layer alone")
+	rig.left.tool = Hand.Tool.NONE
+	rig.right.tool = Hand.Tool.NONE
+	rig.pose_body()
+	var bare := rig._seen.all(func(v: VisualInstance3D) -> bool: return v.visible)
+	rig.right.tool = Hand.Tool.WALLS
+	rig.pose_body()
+	check(bare and rig._seen.all(func(v: VisualInstance3D) -> bool: return not v.visible), "the eyes see the body while both hands are empty, and not while one holds a tool")
+	check(not rig.head.cull_mask & Quality.SELF_LAYER and rig.head.cull_mask & Quality.EYES_LAYER and not Quality.VIEW_MASK & Quality.EYES_LAYER and not Quality.PHOTO_MASK & Quality.EYES_LAYER and not Quality.MIRROR_MASK & Quality.EYES_LAYER, "the eyes see the body headless, and the lenses and mirror see it whole")
 	check(rig.head.cull_mask & Quality.SELF_LAYER == 0, "the player's eyes exclude the body photo layer")
 	var icons := rig.right.find_children("*", "VisualInstance3D", true, false)
 	check(not icons.is_empty() and icons.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask and not v.layers & Quality.SELF_LAYER), "while they still see the tool wheel")

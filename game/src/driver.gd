@@ -11,7 +11,7 @@ signal finished
 ## "mountains" are the ranges and whatever lies between them and the meadow.
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy"]
 
 var main: Main
 var steps: Array
@@ -1256,7 +1256,7 @@ func _flora_far(s: Dictionary) -> void:
 
 ## Hides one of LAYERS, or shows it again, so a scene measures what it costs against the same view without it.
 ## Grass is every blade, the meadow's and painted; the ground paints its grass either way. Trees count their bushes,
-## which share their crowns' material.
+## which share their crowns' material. Self is the player's own body as their eyes see it.
 func _layer(s: Dictionary) -> void:
 	var on: bool = s.get("mode", "on") != "off"
 	for name: String in LAYERS if s.name == "all" else [s.name]:
@@ -1324,6 +1324,8 @@ func _layer_parts(name: String) -> Array[Array]:
 		"hands":
 			for h: Node3D in main.rig.hands:
 				out.append([h, "visible", false])
+		"self":
+			out.append([main.rig.head, "cull_mask", main.rig.head.cull_mask & ~Quality.EYES_LAYER])
 		"underfoot":
 			for n: Node3D in main.rig._underfoot.get_children():
 				out.append([n, "visible", false])
@@ -2183,9 +2185,11 @@ static func daubs(n: int) -> Array:
 	return out
 
 
-## The player wears built-in avatar `avatar`, tinted `tint`.
+## The player wears built-in avatar `avatar`, or the VRM at `file`, tinted `tint`.
 func _wear(s: Dictionary) -> void:
-	main.rig.wear(Avatar.open(Avatar.built_in(int(s.avatar)), Color(s.get("tint", "#d9824b"))))
+	var scene := Avatar.read(FileAccess.get_file_as_bytes(s.file)) if s.has("file") else Avatar.built_in(int(s.avatar))
+	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
+	main.rig.wear(Avatar.open(scene, Color(s.get("tint", "#d9824b"))))
 	await _frames(2)
 
 

@@ -48,6 +48,8 @@ const STRETCH := 0.06
 ## The centre of mass, this far from the hips toward the head.
 const CENTER := 0.3
 ## The left and right hands' aim poses hanging at the sides, from eyes looking level.
+## Shrinks what a bone moves to a speck, keeping its normals' directions.
+const GONE := Basis(Vector3(1e-6, 0, 0), Vector3(0, 1e-6, 0), Vector3(0, 0, 1e-6))
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
 ## One humanoid bone of the skeleton.
@@ -435,6 +437,35 @@ func _place(j: Joint, xform: Transform3D) -> void:
 ## A bone's transform in the world, by its VRM name.
 func bone(name: String) -> Transform3D:
 	return global_transform * _get_joint(_joints[name])
+
+
+## Its shown skinned meshes but the swaying ones, which the wearer's eyes already see, again on its own skeleton so every
+## pose moves them too, with every vertex the head or a bone under it moves drawn at the eyes: what joins those to the
+## body lies in planes through the eyes, which see it edge on, so they see the body and none of the head.
+func headless() -> Array[MeshInstance3D]:
+	var head := {}
+	for b in _skeleton.get_bone_count():
+		var up := b
+		while up >= 0 and up != _head.bone:
+			up = _skeleton.get_bone_parent(up)
+		if up >= 0:
+			head[b] = true
+	var seen := swaying()
+	var out: Array[MeshInstance3D] = []
+	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if not mi.visible or mi.skin == null or mi.get_node_or_null(mi.skeleton) != _skeleton or mi in seen:
+			continue
+		var skin: Skin = mi.skin.duplicate()
+		for i in skin.get_bind_count():
+			if head.has(bind_bone(skin, i)):
+				skin.set_bind_bone(i, _head.bone)
+				skin.set_bind_name(i, _skeleton.get_bone_name(_head.bone))
+				skin.set_bind_pose(i, Transform3D(GONE, _model.get_meta("eyes")))
+		var copy: MeshInstance3D = mi.duplicate()
+		copy.skin = skin
+		mi.add_sibling(copy)
+		out.append(copy)
+	return out
 
 
 ## The meshes that only spring joints move, which the wearer sees swing and grips.

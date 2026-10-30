@@ -71,6 +71,8 @@ var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
 var body: Avatar
+## The body as the eyes see it (`Avatar.headless`), shown while both hands are empty.
+var _seen: Array[MeshInstance3D] = []
 var stature := Stature.new()
 
 ## The hand whose teleport ray is out, or null.
@@ -122,7 +124,7 @@ func _init(ground: Terrain) -> void:
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
 	head.far = far()
-	head.cull_mask = Quality.VIEW_MASK & ~Quality.SELF_LAYER
+	head.cull_mask = Quality.VIEW_MASK & ~Quality.SELF_LAYER | Quality.EYES_LAYER
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)
@@ -154,7 +156,8 @@ func _build_markers() -> void:
 	head.add_child(_fade)
 
 
-## Wears `a` as the player's own avatar, posed from the head and hands by `pose_body`.
+## Wears `a` as the player's own avatar, posed from the head and hands by `pose_body`: the cameras and mirrors see
+## it whole, and the eyes see it headless while both hands are empty.
 func wear(a: Avatar) -> void:
 	for hand in hands:
 		hand.close_wheel()
@@ -169,6 +172,9 @@ func wear(a: Avatar) -> void:
 		v.layers = Quality.SELF_LAYER
 	for mi in a.swaying():
 		mi.layers = Quality.PEOPLE_LAYER | Quality.SELF_LAYER
+	_seen = a.headless()
+	for mi in _seen:
+		mi.layers = Quality.EYES_LAYER
 	add_child(a)
 	_landing.wear(a)
 
@@ -178,9 +184,13 @@ func wear(a: Avatar) -> void:
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
 	body.pose(head.global_transform, left.held_at(), right.held_at(), gaze.look)
+	var bare := true
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))
+			bare = false
+	for mi in _seen:
+		mi.visible = bare
 
 
 ## The torso under the head, in the world's space (`Torso`).

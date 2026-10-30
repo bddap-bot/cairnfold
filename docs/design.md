@@ -3117,6 +3117,18 @@ An empty hand is drawn as the controller's own rounded body, with nothing on it,
 what every hand does whatever it holds: its grip grabs what it points at, and a grab of the sky shows the sight at the
 controller's front while in use. Picking any tool brings that tool's sight back. Nothing hides on a timer.
 
+Directive (verbatim): "When both hands are empty self avatar should be displayed. Player should be able to see their own hands arms and bod."
+
+With both hands empty the player sees their own avatar from inside it: its hands round the controllers, its arms and
+its body, posed as everyone else sees it. The eyes draw it headless (`Avatar.headless`): the same meshes again on the
+avatar's own skeleton, on `Quality.EYES_LAYER`, which only the eyes see, with every vertex the head or a bone under it
+moves drawn at the eyes, so what joins the head to the neck lies in planes through the eyes and shows edge on. The
+cameras and the mirror see the avatar whole, head included, on `SELF_LAYER`. Holding a tool in either hand hides it
+again. On a Quest 2 the body in view costs nothing measurable: in `demo/self-cost.json`, looking down at the
+built-in avatar with empty hands, three phases each way read 6.08, 6.13 and 6.12 ms of GPU time a frame shown
+against 6.14, 6.14 and 6.16 hidden, one more draw call and 384 more primitives
+([record](../perf/quest-2/self-cost/20261030T022822Z-c3c7908.json)).
+
 ### Held tools and aiming
 
 Directive (verbatim): "I've learned that it is I think it's more fun to aim down some sort of reticle or aiming
@@ -4762,8 +4774,8 @@ subtree of the camera's entry on the wheel, not a new top-level slot.
 The selfie camera is the same tool on the same code path: the camera's entry on the wheel opens two, the camera and
 the selfie camera, whose lens sits beside a smaller screen on the back and looks back along the controller at the
 holder (`PhotoTool.lens`). Held out, its screen shows the holder as a mirror would, so leaning left moves them left on
-it; the photo, taken on the trigger as the camera's is, is not mirrored. The player's own avatar, which the eyes never
-see, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen's view is drawn as
+it; the photo, taken on the trigger as the camera's is, is not mirrored. The player's own avatar, whole, head
+included, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen's view is drawn as
 the camera's is, the same size and rate, so it costs what the camera does (`camera/selfie` in the table above).
 Measured on a Quest 2 in the stress run, GPU time a frame: the scene with no camera held 27.7 ms
 (`hands/walls`), one camera held 30.3 (`camera/ground`), the selfie camera held out 30.7 (`camera/selfie`),

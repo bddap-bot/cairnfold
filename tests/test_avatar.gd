@@ -17,6 +17,8 @@ func _run() -> void:
 		var file := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[i])
 		_skin_bends_as(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file(), _gltf_skin.bind(file, Avatar.BUILT_IN[i].get_file()))
 	_pose_puts_the_eyes_on_the_head(Avatar.built_in(0), "pebble")
+	for i in Avatar.BUILT_IN.size():
+		_headless_leaves_the_eyes_clear(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file())
 	for path in SAMPLES:
 		var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample(path)))
 		check(scene != null, "%s reads as an avatar" % path)
@@ -24,6 +26,7 @@ func _run() -> void:
 			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(_sample(path))))
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
+			_headless_leaves_the_eyes_clear(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
 	_both_versions_stand_alike()
 	_unweighted_children_keep_humanoid_bones()
@@ -589,6 +592,95 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 	ahead = hips * a._facing.inverse() * Vector3.FORWARD
 	check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(-sin(1.0), -cos(1.0))), "%s: and turns once the head turns further" % what)
 	a.free()
+
+
+## The body as its wearer's eyes see it is drawn on the same skeleton, posed with it, and without its head: each vertex
+## of it the head bone or one under it moves wholly sits at the eyes, and one it moves in part, between the eyes and
+## where its other bones put it, so the eyes see there only what the body's own bones place, past their near clip.
+## Both reach the hands.
+func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
+	var a := Avatar.open(scene, Color.WHITE)
+	root.add_child(a)
+	var whole := a._model.find_children("*", "MeshInstance3D", true, false)
+	var swaying := a.swaying()
+	var seen := a.headless()
+	var eyes := Vector3(0, 1.6, 0)
+	a.pose(Transform3D(Basis.IDENTITY, eyes), Transform3D(Basis.IDENTITY, Vector3(-0.25, 1.2, -0.4)), Transform3D(Basis.IDENTITY, Vector3(0.25, 1.2, -0.4)))
+	var head := {}
+	for b in a._skeleton.get_bone_count():
+		var up := b
+		while up >= 0 and up != a._joints.head.bone:
+			up = a._skeleton.get_bone_parent(up)
+		if up >= 0:
+			head[b] = true
+	var at := Avatar._space(a._skeleton, a._model)
+	var hands := [a.bone("leftHand").origin, a.bone("rightHand").origin]
+	var gone := 0
+	var off := 0.0
+	var reach := [INF, INF]
+	var meshes := whole.filter(func(mi: MeshInstance3D) -> bool: return mi.visible and mi not in swaying)
+	for k in seen.size():
+		var mi: MeshInstance3D = meshes[k]
+		var p := _skinned(a, seen[k])
+		var binds: Array[Transform3D] = []
+		for i in mi.skin.get_bind_count():
+			binds.append(at * a._skeleton.get_bone_global_pose(a.bind_bone(mi.skin, i)) * mi.skin.get_bind_pose(i))
+		var n := 0
+		for s in mi.mesh.get_surface_count():
+			var arrays := mi.mesh.surface_get_arrays(s)
+			var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			var stride := bone.size() / vertex.size()
+			for v in vertex.size():
+				var body := Vector3.ZERO
+				var w := 0.0
+				for c in stride:
+					var bind := bone[v * stride + c]
+					if not head.has(a.bind_bone(mi.skin, bind)):
+						body += binds[bind] * vertex[v] * weight[v * stride + c]
+						w += weight[v * stride + c]
+				var q := p[n]
+				n += 1
+				if w < 1e-3:
+					gone += 1
+					off = maxf(off, q.distance_to(eyes) * 0.1)
+				elif w < 0.999 and q.distance_to(eyes) > Rig.NEAR:
+					off = maxf(off, (q - eyes).normalized().cross((body / w - eyes).normalized()).length())
+				for h in 2:
+					reach[h] = minf(reach[h], q.distance_to(hands[h]))
+	var full := [INF, INF]
+	for mi: MeshInstance3D in whole:
+		for q in _skinned(a, mi):
+			for h in 2:
+				full[h] = minf(full[h], q.distance_to(hands[h]))
+	print("%s: %d meshes seen headless, %d vertices at the eyes, the rest %.5f rad off where the body puts them" % [what, seen.size(), gone, off])
+	check(seen.size() == meshes.size() and seen.all(func(mi: MeshInstance3D) -> bool: return mi.get_node(mi.skeleton) == a._skeleton), "%s: the headless body is drawn on the avatar's own skeleton" % what)
+	check(gone > 0, "%s: headless, the head is drawn at the eyes" % what)
+	check(off < deg_to_rad(0.3), "%s: and every vertex shows within a third of a degree of where the body's own bones put it (%.5f rad off)" % [what, off])
+	check(reach == full, "%s: headless, the body still reaches both hands" % what)
+	a.free()
+
+
+## Where a mesh's skin puts each of its vertices over the avatar's posed bones, in the avatar's space.
+func _skinned(a: Avatar, mi: MeshInstance3D) -> PackedVector3Array:
+	var at := Avatar._space(a._skeleton, a._model)
+	var binds: Array[Transform3D] = []
+	for i in mi.skin.get_bind_count():
+		binds.append(at * a._skeleton.get_bone_global_pose(a.bind_bone(mi.skin, i)) * mi.skin.get_bind_pose(i))
+	var out := PackedVector3Array()
+	for s in mi.mesh.get_surface_count():
+		var arrays := mi.mesh.surface_get_arrays(s)
+		var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var stride := bone.size() / vertex.size()
+		for v in vertex.size():
+			var posed := Vector3.ZERO
+			for c in stride:
+				posed += binds[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
+			out.append(posed)
+	return out
 
 
 ## The arms keep their length: each bends at the elbow to reach its hand, out and down from the body.
