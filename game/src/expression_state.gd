@@ -240,11 +240,45 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 	return out
 
 
+## Unity's AnimationCurve.Evaluate: each key pair is a cubic Bezier through the keys' slopes and weights (a plain
+## Hermite at the default third), held at the left key where either facing slope is infinite, clamped past the ends.
+## Keys without slopes interpolate linearly.
 static func sample(keys: Array, time: float, stepped: bool) -> float:
-	for i in range(1, keys.size()):
+	var after := keys.size()
+	for i in keys.size():
 		if time < float(keys[i][0]):
-			return float(keys[i - 1][1]) if stepped else lerpf(float(keys[i - 1][1]), float(keys[i][1]), clampf(inverse_lerp(float(keys[i - 1][0]), float(keys[i][0]), time), 0.0, 1.0))
-	return float(keys[-1][1])
+			after = i
+			break
+	if after == 0:
+		return float(keys[0][1])
+	if after == keys.size():
+		return float(keys[-1][1])
+	var a: Array = keys[after - 1]
+	var b: Array = keys[after]
+	var span := float(b[0]) - float(a[0])
+	if stepped or span <= 0.0:
+		return float(a[1])
+	var p := (time - float(a[0])) / span
+	if a.size() < 4 or b.size() < 4:
+		return lerpf(float(a[1]), float(b[1]), p)
+	if a[3] == null or b[2] == null:
+		return float(a[1])
+	var wa := clampf(float(a[5]), 0.0, 1.0) if a.size() == 6 else 1.0 / 3.0
+	var wb := clampf(float(b[4]), 0.0, 1.0) if b.size() == 6 else 1.0 / 3.0
+	var low := 0.0
+	var high := 1.0
+	for _i in 32:
+		var mid := 0.5 * (low + high)
+		if _bezier(mid, 0.0, wa, 1.0 - wb, 1.0) < p:
+			low = mid
+		else:
+			high = mid
+	return _bezier(0.5 * (low + high), float(a[1]), float(a[1]) + wa * span * float(a[3]), float(b[1]) - wb * span * float(b[2]), float(b[1]))
+
+
+static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> float:
+	var r := 1.0 - s
+	return r * r * r * p0 + 3.0 * r * r * s * p1 + 3.0 * r * s * s * p2 + s * s * s * p3
 
 
 func _targets(motion: Dictionary, targets: Dictionary) -> void:

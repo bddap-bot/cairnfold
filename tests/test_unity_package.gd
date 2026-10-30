@@ -47,6 +47,7 @@ func _run() -> void:
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
+	_curves_keep_their_unity_tangents()
 	finish()
 
 
@@ -1282,3 +1283,26 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
 	root.free()
 	sk.free()
+
+
+## The synthetic clip reads into the keys Unity 2022.3 itself reports for it (tests/unity/unity-curves.json, written by
+## tests/unity/Sample.cs).
+func _curves_keep_their_unity_tangents() -> void:
+	var unity: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/unity-curves.json"))
+	var objects := Yaml.objects(FileAccess.get_file_as_string("res://../tests/unity/curve-tangents.anim"))
+	var dir := ProjectSettings.globalize_path("user://curves")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var expressions := Expressions.new(Assets.new(dir), {})
+	expressions.data = {"clips": []}
+	var clip: Dictionary = expressions.data.clips[expressions._clip("anim", 7400000, objects[7400000].data)]
+	check(clip.curves.size() == unity.size(), "every curve reads: %s" % [clip.curves.size()])
+	for c: Dictionary in clip.curves:
+		var want: Array = unity.get(c.path, {}).get("keys", [])
+		var same: bool = want.size() == c["keys"].size()
+		for i in mini(want.size(), c["keys"].size()):
+			var got: Array = c["keys"][i]
+			same = same and got.size() == want[i].size()
+			for j in mini(got.size(), want[i].size()):
+				same = same and ((got[j] == null and want[i][j] == null) or (got[j] != null and want[i][j] != null and absf(got[j] - want[i][j]) < 1e-6))
+		check(same, "%s keeps Unity's slopes, constant tangents and weights: %s" % [c.path, c["keys"]])
+	check(UnityAvatar._scaled([[0.5, 100.0, 50.0, null, 0.2, 0.7]], 0.01) == [[0.5, 1.0, 0.5, null, 0.2, 0.7]], "a rescaled curve scales its slopes with its values and keeps its weights")

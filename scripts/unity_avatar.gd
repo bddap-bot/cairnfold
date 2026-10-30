@@ -518,6 +518,15 @@ static func _renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
+static func _scaled(keys: Array, by: float) -> Array:
+	return keys.map(func(k: Array) -> Array:
+		var out := k.duplicate()
+		for i in range(1, mini(4, out.size())):
+			if out[i] != null:
+				out[i] *= by
+		return out)
+
+
 static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, shapes: Dictionary, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
 	var data: Dictionary = expressions.data.duplicate(true)
 	var targets: Array = switches.targets.duplicate(true)
@@ -544,11 +553,11 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
 				var rest: float = targets[t].rest
-				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / rest if rest != 0.0 else 1.0])
+				curve.keys = _scaled(c["keys"], 1.0 / rest) if rest != 0.0 else c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0])
 			elif ExpressionDefinition.region(targets[t].effect) != "":
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
-				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], k[1] / 100.0])
+				curve.keys = _scaled(c["keys"], 0.01)
 			else:
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0 if k[1] != 0.0 else 0.0])
 			curves.append(curve)

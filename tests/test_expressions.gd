@@ -74,6 +74,17 @@ func _fx() -> void:
 	check(state.outputs == [0.0], "turning the toggle off transitions back")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, false) == 0.25, "continuous curves interpolate")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, true) == 0.0, "switch curves stay stepped")
+	var unity: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/unity-curves.json"))
+	for name: String in unity:
+		var samples: Array = unity[name].unity
+		var values := samples.map(func(at: Array) -> float: return at[1])
+		var range_of: float = values.max() - values.min()
+		var worst := 0.0
+		for at: Array in samples:
+			worst = maxf(worst, absf(ExpressionState.sample(unity[name]["keys"], at[0], false) - at[1]))
+		check(samples.size() == 20 and worst <= 0.01 * range_of, "a %s curve samples as Unity does: worst %.6f of range %.3f" % [name, worst, range_of])
+		check(ExpressionDefinition.valid({"targets": [{"effect": "switch"}], "clips": [{"curves": [{"target": 0, "keys": unity[name]["keys"]}]}]}), "%s keys are valid curve data" % name)
+	check(not ExpressionDefinition.valid({"targets": [{"effect": "switch"}], "clips": [{"curves": [{"target": 0, "keys": [[0, 0, 1]]}]}]}), "a key with a lone slope is rejected")
 	var definition := _definition()
 	definition.layers = [{"states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
 		{"motion": {"clip": 0}, "threshold": 0}, {"motion": {"clip": 1}, "threshold": 1}]}}]}]

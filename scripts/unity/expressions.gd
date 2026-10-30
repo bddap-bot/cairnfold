@@ -254,12 +254,12 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 		return _clips[key]
 	var curves := []
 	for c: Variant in _list(d.get("m_FloatCurves")):
-		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), func(v: Variant) -> float: return _float(v))})
+		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"))})
 	for kind: String in ["m_ScaleCurves", "m_PositionCurves", "m_EulerCurves"]:
 		for c: Variant in _list(d.get(kind)):
 			var attribute: String = {"m_ScaleCurves": "m_LocalScale", "m_PositionCurves": "m_LocalPosition", "m_EulerCurves": "localEulerAnglesRaw"}[kind]
 			for axis: String in ["x", "y", "z"]:
-				curves.append({"path": str(c.get("path", "")), "attribute": "%s.%s" % [attribute, axis], "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), func(v: Variant) -> float: return _float((v as Dictionary).get(axis)) if v is Dictionary else 0.0)})
+				curves.append({"path": str(c.get("path", "")), "attribute": "%s.%s" % [attribute, axis], "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), axis)})
 	if not _list(d.get("m_RotationCurves")).is_empty():
 		_count("rotation curve")
 	for c: Variant in _list(d.get("m_PPtrCurves")):
@@ -274,9 +274,21 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 	return _clips[key]
 
 
-static func _keys(list: Variant, value: Callable) -> Array:
+## Unity keys as [time, value, inSlope, outSlope], plus [inWeight, outWeight] when either side is
+## weighted (an unweighted side keeps Unity's 1/3); an infinite (constant) slope is null.
+static func _keys(list: Variant, axis := "") -> Array:
 	var out := []
 	for k: Variant in _list(list):
 		if k is Dictionary:
-			out.append([_float(k.get("time")), value.call(k.get("value"))])
+			var of := func(field: String) -> Variant: return (k.get(field) as Dictionary).get(axis) if axis != "" and k.get(field) is Dictionary else k.get(field)
+			var key := [_float(k.get("time")), _float(of.call("value")), _slope(of.call("inSlope")), _slope(of.call("outSlope"))]
+			var weighted := int(_float(k.get("weightedMode")))
+			if weighted != 0:
+				key.append(_float(of.call("inWeight")) if weighted & 1 else 1.0 / 3.0)
+				key.append(_float(of.call("outWeight")) if weighted & 2 else 1.0 / 3.0)
+			out.append(key)
 	return out
+
+
+static func _slope(v: Variant) -> Variant:
+	return null if str(v).ends_with("Infinity") else _float(v)

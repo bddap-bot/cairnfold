@@ -31,7 +31,7 @@ static func valid(data: Dictionary) -> bool:
 		for curve: Variant in c.get("curves", []):
 			if not curve is Dictionary or not _index(curve.get("target"), targets.size()) or not curve.get("keys") is Array:
 				return false
-			if not curve.keys.all(func(k: Variant) -> bool: return _numbers(k, 2)):
+			if not curve.keys.all(_key):
 				return false
 	for l: Variant in data.get("layers", []):
 		if not l is Dictionary or not l.get("states") is Array or not _number(l.get("weight", 1.0)):
@@ -69,6 +69,13 @@ static func _index(v: Variant, size: int) -> bool:
 
 static func _node(v: Variant) -> bool:
 	return v is String or v is StringName or (_number(v) and float(v) == floorf(float(v)) and v >= 0)
+
+
+## [time, value], or with Unity's in and out slopes (null where infinite), optionally followed by their weights.
+static func _key(v: Variant) -> bool:
+	if not v is Array or not v.size() in [2, 4, 6] or not _number(v[0]) or not _number(v[1]):
+		return false
+	return v.slice(2, 4).all(func(s: Variant) -> bool: return s == null or _number(s)) and v.slice(4).all(_number)
 
 
 static func _numbers(v: Variant, size: int) -> bool:
