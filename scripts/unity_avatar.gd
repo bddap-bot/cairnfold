@@ -1608,7 +1608,10 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			ignored[canonical.call(_ref(t))] = true
 		# A PhysBone's negative gravity pulls up; a VRM gravityPower may not be negative, so its direction carries the sign.
 		var gravity := str(d.get("gravity", "0")).to_float()
-		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * k}
+		# A DynamicBone sizes its radius and end offset by its own transform, wherever its root bone lies.
+		var holder := _transform(objs, _ref(d.get("m_GameObject"))) if objs.has(_ref(d.get("m_GameObject"))) else 0
+		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
+		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var groups := []
@@ -1639,8 +1642,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 					var j := joint.duplicate()
 					var offset := endpoint * _world_scale(objs, item[0])
 					if legacy:
-						# DynamicBone end offsets use the component root axes, not each leaf's axes.
-						offset = sk.get_bone_global_rest(bone).basis.inverse() * sk.get_bone_global_rest(root_bone).basis * endpoint * _world_scale(objs, root_t)
+						offset = sk.get_bone_global_rest(bone).basis.inverse() * (held_by.basis * endpoint)
 					j["node"] = _endpoint(sk, bone, offset)
 					joints.append(j)
 				if joints.size() >= 2:

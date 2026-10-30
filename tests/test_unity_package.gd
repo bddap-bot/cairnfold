@@ -31,6 +31,7 @@ func _run() -> void:
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_legacy_springs_keep_their_root_and_endpoint()
+	_a_dynamic_bone_sizes_by_its_own_transform()
 	_colliders_keep_their_shape_side_and_bone()
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
@@ -422,6 +423,36 @@ func _legacy_springs_keep_their_root_and_endpoint() -> void:
 			var offset := sk.get_bone_global_rest(joints[2].node).origin - sk.get_bone_global_rest(1).origin
 			check(offset.is_equal_approx(Vector3(0, 0.02, 0)), "the endpoint follows root axes despite the rotated leaf: %s" % offset)
 	check(str(report.get("spring components", "")).begins_with("0 PhysBones, 1 DynamicBones"), "the inventory distinguishes source component types")
+	sk.free()
+
+
+## A DynamicBone on an unscaled object sizes its radius and end offset by that object, not by the scaled armature its
+## root bone lies in: a bone of an armature scaled 100 keeps a 0.02 radius, not 2.
+func _a_dynamic_bone_sizes_by_its_own_transform() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Root")
+	sk.add_bone("Tip")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(0, Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)))
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)))
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalScale": {"x": "100", "y": "100", "z": "100"}}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "11"}, "m_LocalPosition": {"x": "0", "y": "0.01", "z": "0"}}},
+		13: {"type": "Transform", "data": {"m_GameObject": {"fileID": "113"}, "m_Father": {"fileID": "12"}, "m_LocalPosition": {"x": "0", "y": "0.001", "z": "0"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "10"}}]}},
+		111: {"type": "GameObject", "data": {"m_Name": "Armature"}},
+		112: {"type": "GameObject", "data": {"m_Name": "Root"}},
+		113: {"type": "GameObject", "data": {"m_Name": "Tip"}},
+		20: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Root": {"fileID": "12"}, "m_Damping": "0.2", "m_Radius": "0.02", "m_EndOffset": {"x": "0", "y": "0.02", "z": "0"}}},
+	}
+	var springs: Array = UnityAvatar._springs(objs, 10, sk, {}, 100.0, {}).get("springs", [])
+	var joints: Array = springs[0].joints if springs.size() == 1 else []
+	check(joints.size() == 3, "the root, tip and endpoint make the chain: %s" % [springs])
+	if joints.size() == 3:
+		check(joints.all(func(j: Dictionary) -> bool: return is_equal_approx(j.hitRadius, 0.02)), "each joint's radius is the component's, in its unscaled object's units: %s" % [joints])
+		var offset := sk.get_bone_global_rest(joints[2].node).origin - sk.get_bone_global_rest(1).origin
+		check(offset.is_equal_approx(Vector3(0, 0.02, 0)), "the endpoint lies its offset in the object's units past the tip: %s" % offset)
 	sk.free()
 
 
