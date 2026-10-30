@@ -52,6 +52,7 @@ var moon_disc: MeshInstance3D
 var mountains_mat := ShaderMaterial.new()
 var lake_mat := ShaderMaterial.new()
 var bounce := Bounce.new()
+var interior := Interior.new()
 var terrain: Terrain
 var _lift := -1.0
 var time := -1.0
@@ -156,6 +157,7 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	for m in horizon:
 		look.add_child(m)
 	look.bounce.install()
+	look.interior.install()
 	RenderingServer.global_shader_parameter_set(&"detail", detail_noise())
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
@@ -207,6 +209,7 @@ func set_time(t: float) -> void:
 	RenderingServer.global_shader_parameter_set(&"sky_haze", _linear(l.fog))
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", l.ambient)
 	bounce.set_sun(toward, l.sun * l.energy)
+	interior.set_sun(toward)
 
 
 ## A colour as shaders that light themselves read it, as a source_color uniform would take it.

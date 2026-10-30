@@ -100,6 +100,7 @@ func _ready() -> void:
 	add_child(hand_stop)
 	fitting_tool = FittingTool.new(rig, tool, world)
 	fitting_tool.lamps.rooms_changed.connect(look.bounce.enclose)
+	fitting_tool.lamps.rooms_changed.connect(look.interior.enclose)
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)
 	add_child(delete_tool)

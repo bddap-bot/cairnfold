@@ -1,9 +1,10 @@
 extends SceneTree
 
 ## The sun stays out of a sealed house: looking up at its gable from inside at noon, with every light but the sun's
-## direct light taken away, the view is black. The shadow depth bias let the sun through onto the gable and wall tops
-## just under the roof until the roof cast its shadow pulled toward the light (roof_shadow.gdshader). Shadows are drawn
-## only on the desktop renderer, so scripts/test.sh runs this there.
+## direct light taken away, the view is black, and stays black with the sun's shadows off, as the ladder's lowest steps
+## draw it (Interior). The shadow depth bias let the sun through onto the gable and wall tops just under the roof until
+## the roof cast its shadow pulled toward the light (roof_shadow.gdshader). Shadows are drawn only on the desktop
+## renderer, so scripts/test.sh runs this there.
 
 var failures := 0
 var main: Node
@@ -59,5 +60,11 @@ func _run() -> void:
 	await _steps([{"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
 	var inside := await _mean()
 	check(inside < 0.5, "no sun reaches under the sealed roof: %.3f" % inside)
+	await _steps([{"op": "layer", "name": "shadows", "mode": "off"}, {"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
+	var unshadowed := await _mean()
+	check(unshadowed < 0.5, "nor with the sun's shadows off: %.3f" % unshadowed)
+	await _steps([{"op": "view", "eye": [-6, 1.8, 7], "at": [0, 1.2, 0], "ground": true}])
+	var outside_unshadowed := await _mean()
+	check(outside_unshadowed > 20.0, "while it still lights the house from outside: %.2f" % outside_unshadowed)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

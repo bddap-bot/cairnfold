@@ -1,0 +1,520 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 16
+  },
+  {
+    "op": "house",
+    "at": [
+      -16,
+      -4
+    ],
+    "seconds": 0.5,
+    "size": [
+      6,
+      4.5
+    ]
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 0,
+    "s": 3.0,
+    "y": 0.0,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 0,
+    "s": 8.25,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 0,
+    "s": 13.5,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 0,
+    "s": 18.75,
+    "style": 1
+  },
+  {
+    "op": "house",
+    "at": [
+      -6,
+      -4
+    ],
+    "seconds": 0.5,
+    "size": [
+      6,
+      4.5
+    ],
+    "finish": "plaster",
+    "wear": 0.4
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 1,
+    "s": 3.0,
+    "y": 0.0,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 1,
+    "s": 8.25,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 1,
+    "s": 13.5,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 1,
+    "s": 18.75,
+    "style": 1
+  },
+  {
+    "op": "house",
+    "at": [
+      4,
+      -4
+    ],
+    "seconds": 0.5,
+    "size": [
+      6,
+      4.5
+    ],
+    "finish": "timber"
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 2,
+    "s": 3.0,
+    "y": 0.0,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 2,
+    "s": 8.25,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 2,
+    "s": 13.5,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 2,
+    "s": 18.75,
+    "style": 1
+  },
+  {
+    "op": "house",
+    "at": [
+      14,
+      -4
+    ],
+    "seconds": 0.5,
+    "round": true
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 3,
+    "s": 2.0,
+    "y": 0.0,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 3,
+    "s": 7.0,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 3,
+    "s": 12.0,
+    "y": 1.5,
+    "style": 0
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      -1,
+      16,
+      12
+    ],
+    "at": [
+      -1,
+      0,
+      -4
+    ]
+  },
+  {
+    "op": "sun",
+    "time": 0.55,
+    "seconds": 0.5
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      -14.2,
+      1.6,
+      -5.2
+    ],
+    "at": [
+      -19,
+      0.6,
+      -2.5
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/1interior/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/none/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/none/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/1interior/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/1interior/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/none/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/none/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/inside/1interior/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "view",
+    "eye": [
+      -1,
+      1.7,
+      8
+    ],
+    "at": [
+      -1,
+      1.5,
+      -4
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/1interior/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/none/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/none/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/1interior/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/1interior/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/none/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/none/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "label",
+    "name": "pair/village/1interior/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "quit"
+  }
+]

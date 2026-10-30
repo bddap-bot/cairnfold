@@ -2408,6 +2408,44 @@ the hills beyond still fade. Still short of the target: its warmer, golden
 late-afternoon light and blue distant haze belong to the time-of-day colours
 (`Daylight`), not to this pass.
 
+### Sun inside rooms
+
+Inside a house or tower the sun and moon arrive only through its openings (`Interior`, `interior.gdshaderinc`). The
+shell's shadow boxes leave seams a shadow-map texel wide at every joint, where the walls meet the roof and the floor,
+and the ladder's lowest steps draw no sun shadows at all, which lit a whole room; tuning the bias only moves the seams.
+So the shell's shaders (stone, its floors, woodwork and ceilings, plaster, torching and thatch) ask, per point, whether
+the way to the light leaves its room through a door, window, arch or dormer window, and scale the direct light by the
+answer whatever the shadow map holds; the shadow map still shapes the patch that does come in.
+
+The rooms are `Lamps.Room`'s, sent as two textures: `room_field`, over the play area every quarter metre, how far
+inside its walls' centre line a point lies, the floor and ceiling there and its group's row, remade when the rooms
+change; and `room_data`, a row per group of the openings facing the light (`Interior.crossing`), remade when the light
+moves too. Each opening is stored as the light crosses it from inside: across and up from the middle of its sill as two
+affine functions of the point, narrowed by how far the ray runs through the wall's depth so a deep reveal narrows a low
+sun's patch, its rounded head, and the plane a point must stand inside. The centre line divides in from out, so a
+wall's inner face is in its room and its outer face is not, however its stones are lumped. Each vertex reads the field
+once; a fragment whose triangle lies wholly outside reads nothing, one wholly inside walks only the facing openings,
+and only a triangle across the centre line reads the field again. Godot scales the sun by
+`mix(1, AO, AO_LIGHT_AFFECT)` and ambient light by `AO`: where the sun reaches at least as far as the sky does
+(everywhere outside a room) both stay exact; inside, where it reaches less, `AO` is the sun's share and the rest of the
+sky's light Bounce gives the point comes back as emission in the sky's colours. Window glass casts no shadow, so the sun through a window lands on the floor.
+
+![Inside a stone, a plaster and a timber house and a tower (column pairs, before and after) at four hours, morning to evening (rows), with the sun's shadows off as the ladder's lowest steps draw them; brightened three times](interior-sun-off.jpg)
+
+![The same with the sun's shadows on](interior-sun-on.jpg)
+
+`demo/interior-sun.json` renders these houses at the four hours, and `demo/interior-cost.json` measures the rooms on a
+headset against the same views unmasked (the driver's `interior` layer). Bright lines still left along a timber house's
+wall top and a gable's rake are the sunlit eaves outside, seen through gaps in the shell, not light on the inside.
+`tests/test_interior.gd` checks the packing and an archway's patch, and `tests/gpu_interior_sun.gd` a sealed room with
+the sun's shadows on and off.
+
+Its cost on the Quest 2 (`demo/interior-cost.json`, the rooms against the same views unmasked, three pairs each,
+GPU ms a frame, [record](../perf/quest-2/interior-cost/20261030T014740Z-4703714.json)): looking round a stone house
+from inside, 9.71 against 8.40, +1.31; the village from outside, 8.40 against 7.96, +0.44. Earlier forms cost more: a
+custom `light()` reading the rooms' shapes per fragment +2.5 and +0.9, and the shapes tested per vertex from the
+openings' texture +1.5 for that test alone.
+
 ### Lantern light
 
 Directive (verbatim): "I am inside of a house right now, and it's dark. So I added lights. But those lights did not illuminate the ground inside of the house, as I would have expected"

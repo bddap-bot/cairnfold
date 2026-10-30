@@ -52,6 +52,18 @@ bounce_volume={
 "type": "sampler3D",
 "value": ""
 }
+room_field={
+"type": "sampler2D",
+"value": ""
+}
+room_nearest={
+"type": "sampler2D",
+"value": ""
+}
+room_data={
+"type": "sampler2D",
+"value": ""
+}
 bounce_grid={
 "type": "vec3",
 "value": Vector3(0, 1, 1)

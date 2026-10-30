@@ -11,7 +11,7 @@ signal finished
 ## "mountains" are the ranges and whatever lies between them and the meadow.
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy", "interior"]
 
 var main: Main
 var steps: Array
@@ -1344,6 +1344,8 @@ func _layer_parts(name: String) -> Array[Array]:
 			materials = [Fittings._halo]
 		"smoke":
 			materials = [Smoke._material]
+		"interior":
+			out.append([main.look.interior, "masked", false])
 		"wildlife":
 			out.append([main.wildlife, "visible", false])
 			out.append([main.fish, "visible", false])

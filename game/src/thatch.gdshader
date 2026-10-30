@@ -12,6 +12,7 @@ uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
+#include "res://src/interior.gdshaderinc"
 varying vec3 fall;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
@@ -19,6 +20,8 @@ varying vec3 lamp_at;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	room_row = room_row_at(world_pos);
+	room_in = room_in_at(room_row, world_pos, world_nrm);
 	fall = normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz);
 	float ground = ground_at(world_pos.xz);
 	bounce_at = bounce_over_cover(world_pos, world_nrm, ground);
@@ -38,6 +41,10 @@ void fragment() {
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.15;
 	vec4 bounce = texture(bounce_volume, bounce_at);
-	AO = bounce.a;
+	float sun_share = interior_light(world_pos, world_nrm, room_row, room_in);
+	vec2 ao = interior_ao(sun_share, bounce.a);
+	AO = ao.x;
+	AO_LIGHT_AFFECT = ao.y;
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
+	EMISSION += ALBEDO * interior_ambient(sun_share, bounce.a, world_nrm);
 }

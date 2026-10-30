@@ -39,7 +39,8 @@ const HATCH := 0.8
 const HATCH_CLEAR := 0.15
 ## A dormer: half its width out to its cheeks' outer faces, how tall its front stands from the slope to its eaves, how
 ## far its own little gable rises over that, how far its roof reaches past its front and cheeks, how far from the gable
-## ends and its neighbours it keeps, how far its ridge stays under the roof's, and its window's half-width.
+## ends and its neighbours it keeps, how far its ridge stays under the roof's, its window's half-width, and how far its
+## window's sill stands over the slope and its head under the eaves.
 const DORMER_HALF := 0.62
 const DORMER_TALL := 0.9
 const DORMER_PITCH := 0.42
@@ -47,6 +48,8 @@ const DORMER_EAVE := 0.12
 const DORMER_CLEAR := 0.25
 const DORMER_UNDER := 0.15
 const DORMER_WINDOW := 0.3
+const DORMER_SILL := 0.2
+const DORMER_HEAD := 0.12
 ## The upright boards a dormer's front and cheeks are clad in: width and thickness.
 const DORMER_BOARD := Vector2(0.16, 0.05)
 ## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
@@ -794,6 +797,25 @@ func dormer_area(c: Vector2) -> Vector2:
 	return Vector2(front + depth * DORMER_TALL, 2.0 * slope * (depth + DORMER_EAVE))
 
 
+## Each dormer's window as an opening in the room under the roof: the middle of its sill on the front's face, the way
+## the front faces, its half-width and its height.
+func dormer_windows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	# A roof not yet laid over its walls has no corners to stand a dormer on.
+	if corners.size() < 4:
+		return out
+	for c in dormers:
+		var spot := dormer_spot(c)
+		if is_nan(spot.x):
+			continue
+		var f := frame()
+		var facing: Vector3 = f.across * signf(spot.y)
+		var x := absf(spot.y)
+		var foot := rise(1.0 - x / half_span()) + (COAT if thatched() else 0.0)
+		out.append({"at": f.mid + f.along * spot.x + facing * x + Vector3.UP * (foot + DORMER_SILL), "out": facing, "half": DORMER_WINDOW, "tall": DORMER_TALL - DORMER_HEAD - DORMER_SILL})
+	return out
+
+
 ## A dormer standing out of a slope: an upright boarded front with a cottage window, boarded cheeks back to where its
 ## eaves meet the slope, and its own little gable of tiles under a ridge running back into the roof. Its pieces stand
 ## a little into the slope (on thatch, into the coat) so no gap opens where they meet it.
@@ -810,8 +832,8 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 	var eave_y := foot + DORMER_TALL
 	var ridge_y := eave_y + DORMER_PITCH
 	var o: Vector3 = f.mid + f.along * spot.x + out * x
-	var sill := foot + 0.2
-	var head := eave_y - 0.12
+	var sill := foot + DORMER_SILL
+	var head := eave_y - DORMER_HEAD
 	var t := -DORMER_HALF
 	while t < DORMER_HALF - 0.001:
 		var w := minf(DORMER_BOARD.x, DORMER_HALF - t)

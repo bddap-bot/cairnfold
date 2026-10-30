@@ -587,7 +587,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	built.fit_under(r)
 	var mortar: PackedFloat32Array = _pack_parts(r.mortar, func(_m: Dictionary) -> Array: return [Part.MORTAR], ks, colours)[Part.MORTAR]
 	var slabs: PackedFloat32Array = _pack_parts(r.slabs, func(_m: Dictionary) -> Array: return [Part.COAT], ks, colours)[Part.COAT]
-	var tiled := _pack_parts(r.tiles, func(_t: Dictionary) -> Array: return [Part.TILE, Part.TILE_SHADOW], ks, colours)
+	var tiled := _pack_parts(r.tiles, func(t: Dictionary) -> Array: return [Part.TILE] if t.kind == "glass" else [Part.TILE, Part.TILE_SHADOW], ks, colours)
 	var tiles := tiled[Part.TILE]
 	var shadows := tiled[Part.TILE_SHADOW]
 	var chunks := {Part.TILE: Masonry.split(tiles, ks[Part.TILE]), Part.TILE_SHADOW: Masonry.split(shadows, ks[Part.TILE_SHADOW]), Part.COAT: Masonry.split(slabs, ks[Part.COAT])}
@@ -654,7 +654,8 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false, backing
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	var route := func(s: Dictionary) -> Array:
 		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind in ["timber", "board"] else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
-		return [own] if s.kind in ["mortar", "crop"] or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
+		# Glass casts no shadow: the sun through a window lands on the floor inside (Interior).
+		return [own] if s.kind in ["mortar", "crop", "glass"] or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
 	var bufs := _pack_parts(built.stones, route, ks, colours)
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)
 	for s in built.stones:

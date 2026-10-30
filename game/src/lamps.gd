@@ -72,8 +72,11 @@ class Room:
 	var roof: RoofLayout
 	## Per opening: position before its outer face, outward normal, area and outward light strength.
 	var openings: Array[Dictionary] = []
+	## Every way the sun gets in (Interior): each opening and dormer window as the middle of its sill on the plane it is
+	## cut in, its outward normal, half-width, height, how deep it is cut and how round its corners are.
+	var portals: Array[Dictionary] = []
 
-	static func of(layout: WallLayout, massing: Massing) -> Room:
+	static func of(layout: WallLayout, massing: Massing, cover: RoofLayout = null) -> Room:
 		var r := Room.new()
 		r.massing = massing
 		r.joined = layout.joined.duplicate()
@@ -91,7 +94,30 @@ class Room:
 			r.top = massing.feet[0] + massing.rise
 		for o in layout.apertures:
 			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else WINDOW_GLOW, 2.0 * o.half * (o.head - o.sill))
+			r._portal(layout, o)
+		if cover != null:
+			for d in cover.dormer_windows():
+				d.depth = RoofLayout.DORMER_BOARD.y
+				d.round = 0.0
+				r.portals.append(d)
 		return r
+
+	func _portal(layout: WallLayout, o: Dictionary) -> void:
+		var f := layout.frame_at(o.s)
+		var out: Vector3 = f.tangent.cross(Vector3.UP)
+		var at: Vector3 = f.point + Vector3.UP * o.sill
+		if Massing.encloses(Vector2(at.x + out.x, at.z + out.z), inside):
+			out = -out
+		var head: float = o.head
+		var round := 0.0
+		if o.style == WallLayout.Family.ARCHWAY:
+			head -= layout.arch_style().ring * o.size
+			round = o.half
+		elif o.style == WallLayout.Family.ARCHED:
+			round = o.half
+		elif o.style == WallLayout.Family.ROUND:
+			round = -o.half
+		portals.append({"at": at, "out": out, "half": o.half, "tall": head - o.sill, "depth": WallLayout.THICKNESS * 0.5, "round": round})
 
 	func _open(layout: WallLayout, s: float, y: float, gives: float, area: float) -> void:
 		var f := layout.frame_at(s)
@@ -143,12 +169,12 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 			flames.append(w.transform * f.origin)
 			lights.append(g)
 		if w.layout.closed and not w.layout.fence and w.massing != null:
-			shells.append([w, w.massing, w.layout.laid])
+			shells.append([w, w.massing, w.layout.laid, w.roof.dormers.duplicate() if w.roof != null else []])
 	if shells != _shells:
 		_shells = shells
 		_rooms.clear()
 		for s in shells:
-			_rooms.append(Room.of(s[0].layout, s[1]))
+			_rooms.append(Room.of(s[0].layout, s[1], s[0].roof))
 		rooms_changed.emit(_rooms)
 		_dirty = true
 	if flames != _flames or lights != _lights:
