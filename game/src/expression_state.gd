@@ -230,13 +230,15 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 					if i != j and b.length_squared() > 0.0:
 						weights[i] = minf(weights[i], clampf(1.0 - (point - a).dot(b) / b.length_squared(), 0.0, 1.0))
 	var total: float = weights.reduce(func(a: float, b: float) -> float: return a + b, 0.0)
+	# Unity sums a direct tree's children unless it normalizes its blend values.
+	var divisor := total if total > 0.0 and (motion.get("blend") != "direct" or motion.get("normalized", false)) else 1.0
 	for i in children.size():
 		if weights[i] <= 0.0:
 			continue
 		var child: Dictionary = children[i]
 		var sample_values := _motion(child.motion, time * float(child.get("speed", 1.0)) + float(child.get("offset", 0.0)) * _length(child.motion))
 		for t: int in sample_values:
-			out[t] = out.get(t, 0.0) + sample_values[t] * weights[i] / maxf(total, 1.0)
+			out[t] = out.get(t, 0.0) + sample_values[t] * weights[i] / divisor
 	return out
 
 

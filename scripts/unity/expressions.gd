@@ -247,6 +247,8 @@ func _motion(document: String, ref: Variant, depth: int) -> Dictionary:
 	if blend == "":
 		return {}
 	var tree := {"blend": blend, "parameters": [str(d.get("m_BlendParameter", "")), str(d.get("m_BlendParameterY", ""))], "children": []}
+	if blend == "direct" and str(d.get("m_NormalizedBlendValues", "0")) == "1":
+		tree.normalized = true
 	for c: Variant in _list(d.get("m_Childs")):
 		var child := {"motion": _motion(guid, c.get("m_Motion"), depth + 1), "threshold": _float(c.get("m_Threshold")), "parameter": str(c.get("m_DirectBlendParameter", "")), "speed": _float(c.get("m_TimeScale"), 1.0), "offset": _float(c.get("m_CycleOffset"))}
 		var at: Variant = c.get("m_Position")

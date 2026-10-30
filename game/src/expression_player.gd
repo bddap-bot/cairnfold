@@ -111,7 +111,13 @@ func apply() -> void:
 			texture.update(image)
 	_dirty_regions.clear()
 	for shown: Dictionary in _shown:
-		shown.node.visible = (shown.when as Array).all(func(w: Array) -> bool: return is_equal_approx(state.outputs[int(w[0])], float(w[1])))
+		shown.node.visible = shows(state.outputs, shown.when)
+
+
+## Whether a mesh drawn under `when`, [[switch target, 1]...], draws at `outputs`. A direct blend tree sums its
+## children, so a switch two of them turn on reads two.
+static func shows(outputs: Array[float], when: Array) -> bool:
+	return when.all(func(w: Array) -> bool: return is_equal_approx(minf(outputs[int(w[0])], 1.0), float(w[1])))
 
 
 static func prepare(model: Node3D) -> void:

@@ -130,6 +130,8 @@ static func _motion(m: Variant, clips: int) -> bool:
 		return false
 	if m.has("clip"):
 		return _index(m.clip, clips) and m.get("time", "") is String
+	if not m.get("normalized", false) is bool:
+		return false
 	if not m.get("children", []) is Array or not m.get("parameters", []) is Array or not m.get("parameters", []).all(func(v: Variant) -> bool: return v is String):
 		return false
 	for c: Variant in m.get("children", []):

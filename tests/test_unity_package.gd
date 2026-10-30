@@ -47,6 +47,7 @@ func _run() -> void:
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
+	_a_direct_tree_sums_its_toggles_unnormalized()
 	_a_hue_radial_keeps_its_material_binding()
 	_a_decal_alpha_binds_its_atlas_layer()
 	_a_shrunk_texture_averages_what_its_cell_covers()
@@ -903,6 +904,53 @@ BlendTree:
 	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
 	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
 	sk.free()
+
+
+func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
+	var dir := ProjectSettings.globalize_path("user://direct")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var names := ["A", "B", "C"]
+	write.call("menu.asset", "m1", "--- !u!114 &11400000\nMonoBehaviour:\n  controls:\n" + "".join(PackedStringArray(names.map(func(n: String) -> String: return "  - name: %s\n    icon: {fileID: 0}\n    type: 102\n    parameter:\n      name: %s\n    value: 1\n    subParameters: []\n" % [n, n]))))
+	write.call("parameters.asset", "p1", "--- !u!114 &11400000\nMonoBehaviour:\n  parameters:\n" + "".join(PackedStringArray([["A", 1], ["B", 1], ["C", 0]].map(func(p: Array) -> String: return "  - name: %s\n    valueType: 2\n    saved: 1\n    defaultValue: %d\n" % p))))
+	# An optimizer's layer: one direct tree, every child weighted by a constant parameter, each a toggle's 1D tree
+	# between its off and on clips; A's toggle is a child twice, so its sum passes one.
+	var controller := func(normalized: int) -> String:
+		var text := "--- !u!91 &9100000\nAnimatorController:\n  m_AnimatorParameters:\n  - m_Name: One\n    m_Type: 1\n    m_DefaultFloat: 1\n"
+		text += "".join(PackedStringArray(names.map(func(n: String) -> String: return "  - m_Name: %s\n    m_Type: 1\n" % n)))
+		text += "  m_AnimatorLayers:\n  - m_Name: Toggles\n    m_StateMachine: {fileID: 1}\n--- !u!1107 &1\nAnimatorStateMachine:\n  m_ChildStates:\n  - m_State: {fileID: 2}\n  m_DefaultState: {fileID: 2}\n"
+		text += "--- !u!1102 &2\nAnimatorState:\n  m_Name: Toggles\n  m_Transitions: []\n  m_Motion: {fileID: 10}\n  m_WriteDefaultValues: 1\n"
+		text += "--- !u!206 &10\nBlendTree:\n  m_BlendType: 4\n  m_NormalizedBlendValues: %d\n  m_Childs:\n" % normalized
+		text += "".join(PackedStringArray([11, 11, 12, 13].map(func(t: int) -> String: return "  - m_Motion: {fileID: %d}\n    m_DirectBlendParameter: One\n" % t)))
+		for i in names.size():
+			text += "--- !u!206 &%d\nBlendTree:\n  m_BlendType: 0\n  m_BlendParameter: %s\n  m_Childs:\n  - m_Motion: {fileID: %d}\n    m_Threshold: 0\n  - m_Motion: {fileID: %d}\n    m_Threshold: 1\n" % [11 + i, names[i], 20 + 2 * i, 21 + 2 * i]
+			for on in 2:
+				text += "--- !u!74 &%d\nAnimationClip:\n  m_FloatCurves:\n  - curve:\n      m_Curve:\n      - time: 0\n        value: %d\n    attribute: m_IsActive\n    path: %s\n    classID: 1\n  m_AnimationClipSettings:\n    m_StopTime: 0\n" % [20 + 2 * i + on, on, names[i]]
+		return text
+	var objs := {1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}}, 2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}}}
+	for i in names.size():
+		var go := 10 * (i + 1)
+		objs[go] = {"type": "GameObject", "data": {"m_Name": names[i], "m_IsActive": "0", "m_Component": [{"component": {"fileID": str(go + 1)}}, {"component": {"fileID": str(go + 2)}}]}}
+		objs[go + 1] = {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": "2"}}}
+		objs[go + 2] = {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": "1"}}
+	var descriptor := {"customExpressions": "1", "expressionsMenu": {"guid": "m1"}, "expressionParameters": {"guid": "p1"}, "baseAnimationLayers": [{"type": "5", "isDefault": "0", "animatorController": {"guid": "c1"}}]}
+	var shown := func(normalized: int) -> Array:
+		write.call("fx.controller", "c1", controller.call(normalized))
+		var expressions := Expressions.new(Assets.new(dir), descriptor)
+		var paths := UnityAvatar._paths(objs, 2)
+		var switches := UnityAvatar._switches(expressions, objs, paths)
+		var meshes := UnityAvatar._renderers(objs, 2, switches.by_object, {}).map(func(r: Array) -> Dictionary: return {"node": "Body %d" % r[0], "when": r[2], "renderers": [r[0]], "weights": {}, "mesh": ArrayMesh.new()})
+		var sk := Skeleton3D.new()
+		var data := UnityAvatar._bound(expressions, switches, meshes, {}, objs, paths, sk, Materials.new(Assets.new(dir)), {})
+		sk.free()
+		check(data.layers[0].states[0].motion.get("normalized", false) == (normalized == 1), "the direct tree reads its normalized blend values flag as %d" % normalized)
+		var state := ExpressionState.new(data)
+		state.advance(1.0 / 60.0)
+		return data.shown.map(func(s: Dictionary) -> bool: return ExpressionPlayer.shows(state.outputs, s.when))
+	check(shown.call(0) == [true, true, false], "each toggle a direct tree sums at its full weight shows as its default says: %s" % [shown.call(0)])
+	check(shown.call(1) == [false, false, false], "normalized blend values share the tree's weight among its toggles: %s" % [shown.call(1)])
 
 
 func _a_hue_radial_keeps_its_material_binding() -> void:
