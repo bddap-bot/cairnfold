@@ -44,7 +44,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	await process_frame
 	_contract()
 	var terrain := Probe.new()

@@ -311,7 +311,7 @@ func _the_demos_show_them() -> void:
 
 func _in_the_glade() -> void:
 	await process_frame
-	main.world.bounded = false
+	main.world.limit = INF
 	var tool: WallTool = main.tool
 	var fit: FittingTool = main.fitting_tool
 	var palette: PaletteTool = main.palette_tool

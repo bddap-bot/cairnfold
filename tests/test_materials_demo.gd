@@ -12,7 +12,7 @@ func _initialize() -> void:
 func _run() -> void:
 	boot_main()
 	await process_frame
-	main.world.bounded = false
+	main.world.limit = INF
 	await _demo()
 	await _stress()
 	finish()

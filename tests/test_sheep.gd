@@ -37,7 +37,7 @@ func _glade(seed: int) -> Glade:
 	g.world.terrain.install()
 	g.world.marks.install()
 	# Fence fixtures exceed capacity; this test checks the flocks they attract.
-	g.world.bounded = false
+	g.world.limit = INF
 	g.digger = g.add_tool(WaterTool.new(g.rig, g.world))
 	return g
 

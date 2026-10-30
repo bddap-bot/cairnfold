@@ -146,7 +146,7 @@ func _clutter(id: int) -> PackedVector4Array:
 ## copies and takes each away, one reshape and one undo step each.
 func _in_the_garden() -> void:
 	var world: World = main.world
-	world.bounded = false
+	world.limit = INF
 	await play([
 		{"op": "house", "at": [0, -10], "size": [6, 4.2], "seconds": 0.3},
 		{"op": "wall", "points": [[-12, 2], [12, 2]], "seconds": 0.3},
@@ -293,7 +293,7 @@ func _check_nests(when: String) -> void:
 
 func _demo() -> void:
 	var steps := Driver.read("res://../demo/clutter.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
-	main.world.bounded = true
+	main.world.limit = 1.0
 	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
 	_lay()
 	var world: World = main.world
@@ -336,7 +336,7 @@ func _stress() -> void:
 		wiped -= 1
 	var built := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "house", "wall", "pave", "cluttered"])
 	check(built.any(func(s: Dictionary) -> bool: return s.op == "cluttered"), "the village is cluttered")
-	main.world.bounded = true
+	main.world.limit = 1.0
 	await play([steps[0]] + built)
 	_lay()
 	var world: World = main.world

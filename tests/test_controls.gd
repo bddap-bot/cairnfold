@@ -12,7 +12,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	var rig: Rig = main.rig
 	var walls: Array[Wall] = main.tool.walls
 	await play([

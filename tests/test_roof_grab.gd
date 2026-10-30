@@ -17,7 +17,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	await play([{"op": "house", "at": [0, 0], "size": [6, 4], "seconds": 0.1}])
 	await frames(30)
 	var rig: Rig = main.rig

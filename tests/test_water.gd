@@ -201,7 +201,7 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	var water := Water.new(world.terrain, [])
 	root.add_child(water)
 	world.attach(null, null, null, terrain, water)
-	world.bounded = false
+	world.limit = INF
 	await process_frame
 	var at := world.terrain.ground(0, -72)
 	var lake := Water.pointed(world.terrain, at)
@@ -337,7 +337,7 @@ func _ponds_in_the_glade() -> void:
 	world.terrain.install()
 	var rig := Rig.new(world.terrain)
 	root.add_child(rig)
-	world.bounded = false
+	world.limit = INF
 	root.add_child(world)
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)

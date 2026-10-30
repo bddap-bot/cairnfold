@@ -1153,6 +1153,28 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   once the ladder settled. This choice admits no more cost than either measured table.
   The measurements bound the tested scenes, not every possible arrangement; the initial
   quality-settling frames remain as documented below.
+- `demo/fill.json` checks the whole table against the frame: four gardens built to 50%, 75% and the full room as a
+  player is refused at it (`{"op": "budget", "fill": F}` stops builds at that share), a fresh meadow built out as a
+  hamlet, walls and planting, walls alone, houses alone and a mix, each seen from the air, standing at the meadow's
+  centre and standing among its builds, at `Budget.fit_step()`; at the full room it frees the governor and hides each
+  layer in turn. Two runs on one Quest 2 ([record](../perf/quest-2/fill/20261030T024507Z-6d75ada.json)), `App=` ms,
+  the dearest view of each, against the table's prediction (its 5.94 ms base, wildlife included, plus fill times
+  the capacity):
+
+  | Garden at its full room | Fill | Predicted | Measured, dearest view |
+  | --- | --- | --- | --- |
+  | Meadow built out | 1.000 | 9.93 | 6.43, from the air |
+  | Walls | 0.957 | 9.76 | 7.04, among them |
+  | Houses (four) | 0.875 | 9.43 | 9.02, among them ([record](../perf/quest-2/fill-profile/20261030T033104Z-6d75ada.json)) |
+  | Mix | 1.000 | 9.93 | 6.86, among them |
+
+  The table holds where it must: standing among a full room of houses reads within 0.4 ms of its prediction, the
+  wildlife allowance (no ponds here) left out, so the room cannot grow without that view going over. Spread and mixed
+  gardens leave 2.5 to 3.5 ms, since each unit is charged its dearest view and no one view meets them all at it; the
+  governor spends that on the ladder (step 5 in every full garden, 72 Hz held). Among the houses at their full room,
+  hiding the masonry saves 4.2 ms of 9.0 (96,000 primitives in 30 draws), 2x MSAA 1.5, grass 0.9, the terrain 0.3;
+  among the walls, masonry 2.8 of 7.5, grass 1.0, MSAA 0.9, the terrain 0.7; shadows, post and ceilings read within
+  run noise of nothing. A garden holds more by making those cheaper, not by charging them less.
 - While a hand's tool shows a placement, a bar behind the held tool shows this same garden
   fill, moss green warming to amber near full, with a paler stretch for what the placement
   adds; it swells and pulses red, and the sight turns red, when the placement would not fit.

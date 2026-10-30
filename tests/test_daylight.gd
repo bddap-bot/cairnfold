@@ -363,7 +363,7 @@ func _scaled_by(was: PackedFloat32Array, now: PackedFloat32Array, tint: Color) -
 func _in_the_glade() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	var tool: PaletteTool = main.palette_tool
 	var walls: Array[Wall] = main.tool.walls
 	await play([

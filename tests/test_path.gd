@@ -276,7 +276,7 @@ func _setup() -> Array:
 	var rig := Rig.new(world.terrain)
 	root.add_child(rig)
 	# Crossing fixtures exceed capacity; test_budget covers the shared limit.
-	world.bounded = false
+	world.limit = INF
 	root.add_child(world)
 	var paths := Paths.new()
 	paths.terrain = world.terrain

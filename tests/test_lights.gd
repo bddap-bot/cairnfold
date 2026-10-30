@@ -21,7 +21,7 @@ func _run() -> void:
 	_vents()
 	boot_main()
 	await process_frame
-	main.world.bounded = false
+	main.world.limit = INF
 	await _stroke()
 	await _coloured()
 	await _smoking()

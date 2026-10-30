@@ -12,9 +12,9 @@ func _run() -> void:
 	main.add_child(driver)
 	await _avatar_ready(driver)
 	await _charcoal_from_tray()
-	main.world.bounded = false
+	main.world.limit = INF
 	await driver._stair_field({})
-	check(not main.world.bounded, "the bounded stair fixture restores the unbounded stress workload")
+	check(main.world.limit == INF, "the bounded stair fixture restores the unbounded stress workload")
 	await driver._bare({})
 	await driver._clear({})
 	var before: int = main.tool.walls.size()

@@ -100,7 +100,7 @@ func _thrusts() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	var rig: Rig = main.rig
 	var hand: Hand = rig.right
 	await play([{"op": "place", "x": 0, "z": 6}, {"op": "house", "relative": true, "at": [0, 12], "size": [4.5, 4.5], "seconds": 0.5}, {"op": "uncluttered"}])

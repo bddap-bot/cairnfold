@@ -84,13 +84,13 @@ func _water_costs_at_most_a_view_full() -> void:
 func _the_meadow_lake_fits_an_empty_garden() -> void:
 	await play([{"op": "bare"}])
 	await _settled()
-	var bounded := world.bounded
-	world.bounded = true
+	var limit := world.limit
+	world.limit = 1.0
 	await play([{"op": "pond", "x": 0, "z": -72}])
 	await _settled()
 	check(world.units.get("pond_m2", 0.0) > 13000.0, "the meadow's whole bowl fills an empty garden: %s m²" % world.units.get("pond_m2", 0.0))
 	check(world.fill() <= 1.0, "and fits its budget: %.3f" % world.fill())
-	world.bounded = bounded
+	world.limit = limit
 	await play([{"op": "bare"}])
 	await _settled()
 
@@ -106,8 +106,8 @@ func _stone_ground_counts_its_square_metres() -> void:
 	check(absf(area - PI * 9.0 * r * r) < PI * 9.0 * r * r * 0.1, "a stone disc counts the ground it reaches, fade included: %.1f m²" % area)
 	var twice := {"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": PackedVector4Array([disc[0], disc[0] + Vector4(0.5, 0, 0, 0)]), "style": 0}
 	check(Budget.ground(twice).stone_m2 < area * 1.5, "a stroke counts the ground its discs share once")
-	var bounded := world.bounded
-	world.bounded = false
+	var limit := world.limit
+	world.limit = INF
 	world._order(stone, world.me())
 	var id := world.seq
 	check(world.state.grounds.has(id), "the stone stroke goes into the garden")
@@ -115,7 +115,7 @@ func _stone_ground_counts_its_square_metres() -> void:
 	check(_same(world.units, _recount()), "stone's count matches a recount")
 	world._order({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])}, world.me())
 	check(_same(world.units, before), "taking the stone away frees it")
-	world.bounded = bounded
+	world.limit = limit
 	var q: Dictionary = Budget.COSTS
 	check(is_equal_approx(Budget.cost_ms({"stone_m2": 100.0}), 100.0 * q.stone_m2 / 1000.0), "a little stone costs its square metres")
 	check(is_equal_approx(Budget.cost_ms({"stone_m2": 25600.0}), q.stone / 1000.0), "the whole meadow in stone costs a view full of it")

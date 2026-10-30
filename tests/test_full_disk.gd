@@ -23,7 +23,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await process_frame
-	main.world.bounded = false
+	main.world.limit = INF
 	var path := OS.get_user_data_dir().path_join("cairnfold-full-%d.save" % OS.get_process_id())
 	main.world.load_from(path)
 	await play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}, {"op": "tree", "x": 4, "z": 4}])

@@ -2392,9 +2392,10 @@ func _bare(_s: Dictionary) -> void:
 	await _frames(3)
 
 
-## With `bounded` false the garden takes builds past the frame budget, as the stress scene must; true holds it again.
+## With `bounded` false the garden takes builds past the frame budget, as the stress scene must; true holds it again,
+## to `fill` of its room (all of it without).
 func _budget(s: Dictionary) -> void:
-	main.world.bounded = s.bounded
+	main.world.limit = s.get("fill", 1.0) if s.bounded else INF
 
 
 func _units(_s: Dictionary) -> void:

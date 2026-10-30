@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	await process_frame
 	world = main.world
 	dir = OS.get_user_data_dir().path_join("cairnfold-easel-%d" % OS.get_process_id())

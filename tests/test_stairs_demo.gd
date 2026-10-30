@@ -11,7 +11,7 @@ func _run() -> void:
 	boot_main()
 	await process_frame
 	# The bridge fixture exceeds capacity; this test checks its teleport landing.
-	main.world.bounded = false
+	main.world.limit = INF
 	var steps := Driver.read("res://../demo/stairs.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
 	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.op == "aim")
 	var aim: Dictionary = steps[at]

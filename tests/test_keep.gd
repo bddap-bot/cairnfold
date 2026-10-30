@@ -15,7 +15,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	await process_frame
 	world = main.world
 	dir = OS.get_user_data_dir().path_join("cairnfold-keep-%d" % OS.get_process_id())

@@ -35,7 +35,7 @@ func _lantern(w: Wall) -> Dictionary:
 func _run() -> void:
 	await process_frame
 	world = main.world
-	world.bounded = false
+	world.limit = INF
 	tool = main.tool
 	flora = main.flora_tool.flora
 	await play([

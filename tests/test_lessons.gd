@@ -22,7 +22,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	await frames(3)
 	var rig: Rig = main.rig
 	check(rig.left.tool == Hand.Tool.BOOK and main.book.at == 0, "the player starts with the book shut in the left hand")

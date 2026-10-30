@@ -20,7 +20,7 @@ func _run() -> void:
 		check(false, "no RenderingDevice; run on the desktop renderer")
 		finish()
 		return
-	main.world.bounded = false
+	main.world.limit = INF
 	await _one_stroke_lies_alike_on_board_and_canvas()
 	await _the_brush_takes_up_what_it_touches()
 	await _the_canvas_gives_up_its_paint_as_the_board_does()

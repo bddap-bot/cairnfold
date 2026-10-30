@@ -12,7 +12,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	await process_frame
 	world = main.world
 	_undo_takes_back_only_your_own_steps()

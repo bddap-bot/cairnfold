@@ -11,7 +11,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	await play([{"op": "house", "at": [0, 0], "size": [8, 6], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()

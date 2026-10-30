@@ -17,7 +17,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await process_frame
-	main.world.bounded = false
+	main.world.limit = INF
 	world = main.world
 	_finishes_clear_every_opening()
 	_plaster_wears_back_to_the_stones()

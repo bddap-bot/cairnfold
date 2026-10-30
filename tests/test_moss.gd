@@ -10,7 +10,7 @@ func _run() -> void:
 	await process_frame
 	var world: World = main.world
 	var flora: Flora = main.flora_tool.flora
-	world.bounded = false
+	world.limit = INF
 	var stone := Ground.Stroke.new(Ground.Kind.STONE)
 	stone.add(world.marks, 7, 0, 1, 2)
 	world._order({"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": stone.stamps}, 1)

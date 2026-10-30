@@ -219,10 +219,10 @@ static func fill(units: Dictionary) -> float:
 	return cost_ms(units) / CAPACITY_MS
 
 
-## Removing cost must remain possible in an older garden already over capacity.
-static func fits(units: Dictionary, change: Dictionary) -> bool:
+## Removing cost must remain possible in an older garden already over capacity. `limit` is the fill it may reach.
+static func fits(units: Dictionary, change: Dictionary, limit := 1.0) -> bool:
 	var now := cost_ms(add(units.duplicate(), change))
-	return now <= cost_ms(units) or now <= CAPACITY_MS
+	return now <= cost_ms(units) or now <= CAPACITY_MS * limit
 
 
 ## `into` with `units` added `times` over, keys at zero dropped.

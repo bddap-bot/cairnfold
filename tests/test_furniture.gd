@@ -71,7 +71,7 @@ func _held_preview() -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	await play([
 		{"op": "house", "at": [0, 0], "size": [7, 5], "seconds": 0.2},
 		{"op": "house", "at": [12, 0], "size": [6, 5], "seconds": 0.2, "rise": 0.6},

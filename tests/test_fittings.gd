@@ -360,7 +360,7 @@ func _fittings_are_deterministic() -> void:
 func _in_the_glade() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
+	main.world.limit = INF
 	var walls: Array[Wall] = main.tool.walls
 	var fit: FittingTool = main.fitting_tool
 	var world: World = main.world

@@ -54,7 +54,7 @@ func _carry(target: Dictionary, path: Array, turn := 0.0) -> void:
 
 
 func _run() -> void:
-	main.world.bounded = false
+	main.world.limit = INF
 	await play([
 		{"op": "wall", "points": [[-6, 0], [6, 0]], "seconds": 0.2},
 		{"op": "house", "at": [0, 12], "size": [7, 5], "seconds": 0.2},

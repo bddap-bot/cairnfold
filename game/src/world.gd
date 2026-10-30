@@ -106,8 +106,9 @@ var _units_of := {}
 var _cells_of := {}
 var _near := Budget.Near.new()
 var _near_units := {}
-## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
-var bounded := true
+## The fill builds may take the garden to: INF lets them past the frame budget, as the stress scene does to find what
+## they cost, and a share of it stops them short, as demo/fill.json measures a garden at half its room.
+var limit := 1.0
 var _fills := {}
 ## What the meadow's own plants, all standing, count as: summed once, since the meadow never changes, where summing it
 ## on every wipe and garden swap held a Quest's frame for hundreds of milliseconds.
@@ -163,7 +164,7 @@ func pending(hand: Node) -> Dictionary:
 
 
 func fits(cmd: Dictionary) -> bool:
-	return not bounded or Budget.fits(units, change_of(cmd))
+	return Budget.fits(units, change_of(cmd), limit)
 
 
 ## What `cmd` would add to `units`, without applying it: negative for what it takes away. A paint stroke counts every
