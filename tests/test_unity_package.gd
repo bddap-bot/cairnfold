@@ -35,6 +35,8 @@ func _run() -> void:
 	_legacy_springs_keep_their_root_and_endpoint()
 	_a_dynamic_bone_sizes_by_its_own_transform()
 	_colliders_keep_their_shape_side_and_bone()
+	_a_collider_rides_its_bone_where_unity_places_it()
+	_components_off_when_the_avatar_loads_do_not_run()
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
@@ -336,6 +338,73 @@ func _colliders_keep_their_shape_side_and_bone() -> void:
 	check(not plane.is_empty() and near.call(plane.normal, Vector3.UP) and near.call(plane.offset, Vector3(0, -0.1, 0)), "a plane faces its transform's up: %s" % [listed[2]])
 	var legacy: Dictionary = listed[3].shape.get("capsule", {})
 	check(not legacy.is_empty() and near.call(legacy.offset, Vector3(0, 0, 0)) and near.call(legacy.tail, Vector3(-0.2, 0, 0)), "a DynamicBone collider lies along its direction, X mirrored: %s" % [listed[3]])
+	sk.free()
+
+
+## A collider keeps the offset from its bone that Unity's transforms give it, wherever the output rest poses that bone.
+func _a_collider_rides_its_bone_where_unity_places_it() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Chest")
+	sk.add_bone("Breast")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(0, Transform3D(Basis(Vector3.BACK, 0.02), Vector3(0.02, 1.0, 0)))
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.05)))
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}, "m_LocalPosition": {"x": "0", "y": "1", "z": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0", "z": "0.05"}}},
+		30: {"type": "Transform", "data": {"m_GameObject": {"fileID": "130"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.03", "z": "0.06"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Chest", "m_Component": [{"component": {"fileID": "10"}}]}},
+		111: {"type": "GameObject", "data": {"m_Name": "Breast", "m_Component": [{"component": {"fileID": "11"}}]}},
+		130: {"type": "GameObject", "data": {"m_Name": "Chest Sphere", "m_Component": [{"component": {"fileID": "30"}}]}},
+		40: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "1", "radius": "0.1", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		20: {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "11"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": [{"fileID": "40"}]}},
+	}
+	var out: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
+	var colliders: Array = out.get("colliders", [])
+	check(colliders.size() == 1, "the sphere arrives: %s" % [out])
+	if colliders.size() == 1:
+		var offset: Array = colliders[0].extensions.VRMC_springBone_extended_collider.shape.sphere.offset
+		check(Vector3(offset[0], offset[1], offset[2]).is_equal_approx(Vector3(0, 0.03, 0.06)), "the sphere sits where Unity puts it from the chest, not shifted by the rest's own offset and turn: %s" % [offset])
+	sk.free()
+
+
+## A disabled PhysBone, and a collider that is disabled or on an inactive GameObject, do not run when the avatar loads;
+## a PhysBone on an inactive GameObject moves bones the menu shows with it.
+func _components_off_when_the_avatar_loads_do_not_run() -> void:
+	var sk := Skeleton3D.new()
+	for name: String in ["Chest", "Left", "Right"]:
+		sk.add_bone(name)
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_parent(2, 0)
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "10"}}},
+		30: {"type": "Transform", "data": {"m_GameObject": {"fileID": "130"}, "m_Father": {"fileID": "10"}}},
+		31: {"type": "Transform", "data": {"m_GameObject": {"fileID": "131"}, "m_Father": {"fileID": "10"}}},
+		32: {"type": "Transform", "data": {"m_GameObject": {"fileID": "132"}, "m_Father": {"fileID": "31"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Chest", "m_Component": [{"component": {"fileID": "10"}}]}},
+		111: {"type": "GameObject", "data": {"m_Name": "Left", "m_Component": [{"component": {"fileID": "11"}}]}},
+		112: {"type": "GameObject", "data": {"m_Name": "Right", "m_Component": [{"component": {"fileID": "12"}}]}},
+		130: {"type": "GameObject", "data": {"m_Name": "Hidden Sphere", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "30"}}]}},
+		131: {"type": "GameObject", "data": {"m_Name": "Off Parent", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "31"}}]}},
+		132: {"type": "GameObject", "data": {"m_Name": "Disabled Physics", "m_Component": [{"component": {"fileID": "32"}}]}},
+		40: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "m_Enabled": "1", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "1", "radius": "0.1", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		41: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Enabled": "0", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": "0.1", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		42: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Enabled": "1", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": "0.05", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		20: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "111"}, "m_Enabled": "1", "pull": "0.2", "rootTransform": {"fileID": "11"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": [{"fileID": "40"}, {"fileID": "41"}, {"fileID": "42"}]}},
+		21: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "112"}, "m_Enabled": "0", "pull": "0.2", "rootTransform": {"fileID": "12"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}}},
+		22: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "132"}, "m_Enabled": "1", "pull": "0.2", "rootTransform": {"fileID": "12"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}}},
+	}
+	var out: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
+	var springs: Array = out.get("springs", [])
+	var roots := springs.map(func(s: Dictionary) -> String: return sk.get_bone_name(s.joints[0].node))
+	roots.sort()
+	check(roots == ["Left", "Right"], "the disabled PhysBone stays out and the one under an inactive parent stays in: %s" % [roots])
+	var left := springs.filter(func(s: Dictionary) -> bool: return sk.get_bone_name(s.joints[0].node) == "Left")
+	if left.size() == 1:
+		var listed: Array = out.colliderGroups[left[0].colliderGroups[0]].colliders
+		check(listed.size() == 1 and is_equal_approx(out.colliders[listed[0]].shape.sphere.radius, 0.05), "it collides with the one collider that runs: %s" % [out.colliders])
 	sk.free()
 
 

@@ -395,6 +395,21 @@ static func _active(objs: Dictionary, go: int) -> bool:
 	return str(d.get("m_IsActive", "1")) == "1" and str(d.get("m_TagString", "")) != "EditorOnly"
 
 
+## Whether Unity runs a component when the avatar loads: it is enabled and its GameObject and every parent are active.
+static func _runs(objs: Dictionary, d: Dictionary) -> bool:
+	if str(d.get("m_Enabled", "1")) != "1":
+		return false
+	var go := _ref(d.get("m_GameObject"))
+	var t := _transform(objs, go) if objs.has(go) else 0
+	var seen := {}
+	while objs.has(t) and not seen.has(t):
+		seen[t] = true
+		if not _active(objs, _ref(objs[t].data.get("m_GameObject"))):
+			return false
+		t = _ref(objs[t].data.get("m_Father"))
+	return true
+
+
 ## The renderers that draw when the avatar is worn or its menu can show: every renderer, enabled or switched by
 ## `switches`, whose GameObject and its parents up to the avatar are active or switched, and not editor-only.
 ## [[renderer id, go, [[switch target, 1]...] each switch that must be on for it to draw], ...]
@@ -1579,9 +1594,14 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	var components := {}
 	var component_roots := {}
+	var idle := 0
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
 		if objs[id].type != "MonoBehaviour" or not ((d.has("pull") and d.has("rootTransform")) or (d.has("m_Damping") and d.has("m_Root"))) or not ours.call(d):
+			continue
+		# A menu that shows an inactive object shows the bones its PhysBone moves, so only a disabled component stays out.
+		if str(d.get("m_Enabled", "1")) != "1":
+			idle += 1
 			continue
 		components[id] = d
 		var t := _ref(d.get("rootTransform", d.get("m_Root")))
@@ -1619,22 +1639,30 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var c := _collider(d)
 		if c.is_empty():
 			continue
+		# A collider presses on chains that stay shown, so one that does not run when the avatar loads stays out.
+		if not _runs(objs, d):
+			idle += 1
+			continue
 		var t := _ref(d.get("rootTransform"))
 		if t == 0:
 			t = _transform(objs, _ref(d.get("m_GameObject")))
 		var placed := frame * _world_transform(objs, t) * (c.local as Transform3D)
 		var bone := -1
 		var at := t
+		var owner := t
 		var seen := {}
 		while objs.has(at) and not seen.has(at) and bone < 0:
 			seen[at] = true
 			bone = bone_of.call(at)
+			owner = at
 			at = _ref(objs[at].data.get("m_Father"))
 		if bone < 0:
 			dropped += 1
 			continue
 		var held := sk.get_bone_global_rest(bone)
-		var local := held.affine_inverse() * placed
+		# The collider rides its bone as Unity places it there; the output rest may pose the bone elsewhere.
+		var unity_held := frame * _world_transform(objs, owner)
+		var local := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * (unity_held.affine_inverse() * placed)
 		var scale: Vector3 = placed.basis.get_scale().abs()
 		var radius: float = c.radius * maxf(scale.x, maxf(scale.y, scale.z)) / held.basis.get_scale().x
 		var axis: Vector3 = c.axis
@@ -1743,7 +1771,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		elif not component.chains.is_empty():
 			component.reason = ""
 	report["spring coverage"] = JSON.stringify(coverage)
-	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped); parameters mapped approximately; limits kept without their curves; grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped]
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components off when the avatar loads); parameters mapped approximately; limits kept without their curves; grabbing and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle]
 	if springs.is_empty():
 		return {}
 	var groups := []
