@@ -31,9 +31,10 @@ func _run() -> void:
 	var top := (model.find_child("ExpressionHat", true, false) as Node3D).global_position
 	eye.look_at_from_position(top + Vector3(0, 0.05, 0.6), top)
 	light.look_at_from_position(top + Vector3(0, 1, 1), top)
-	var bare := await _shot(view, player, 0, "", out)
+	await _shot(view, player, 0, "", out)
 	var start := Time.get_ticks_msec()
-	while (await _shot(view, player, 1, "", "")).is_equal_approx(bare):
+	var drawn := func(c: Color) -> bool: return c.r > c.g * 3.0 and c.r > c.b * 3.0
+	while not drawn.call(await _shot(view, player, 1, "", "")):
 		if Time.get_ticks_msec() - start > HANG * 1000:
 			check(false, "the hat is drawn once its pipeline compiles")
 			finish()
