@@ -545,15 +545,17 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
 
 
-## A spring chain or collider the expressions' default state switches off is not simulated; one it leaves on is.
+## A spring chain or collider the expressions' default state switches off is not simulated; one it leaves on is, also
+## where a switched-off PhysBone shares its first bone.
 func _switched_off_physics_stays_out() -> void:
 	var root := Node3D.new()
-	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0], "when": [[0, 1]]}, {"joints": [5.0], "when": [[1, 1]]}], "colliders": [{"collider": 0.0, "when": [[0, 1]]}]})
-	root.set_meta("springs", {"springs": [{"joints": [{"node": 2}, {"node": 3}], "colliders": [0, 1]}, {"joints": [{"node": 5}], "colliders": [0, 1]}], "colliders": [{}, {}]})
+	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0, 4.0], "when": [[0, 1]]}, {"joints": [5.0, 6.0], "when": [[1, 1]]}, {"joints": [3.0, 7.0], "when": [[1, 1]]}], "colliders": [{"collider": 0.0, "when": [[0, 1]]}]})
+	root.set_meta("springs", {"springs": [{"joints": [{"node": 3}, {"node": 4}], "colliders": [0, 1]}, {"joints": [{"node": 5}, {"node": 6}], "colliders": [0, 1]}, {"joints": [{"node": 3}, {"node": 7}], "colliders": [0, 1]}], "colliders": [{}, {}]})
 	Avatar._switched_off(root)
 	var springs: Array = root.get_meta("springs").springs
-	check(springs.size() == 1 and springs[0].joints[0].node == 5, "the chain switched off is out, the one switched on stays: %s" % [springs])
-	check(springs.size() == 1 and springs[0].colliders == [1], "the collider switched off presses on nothing: %s" % [springs])
+	var ends := springs.map(func(c: Dictionary) -> int: return c.joints[-1].node)
+	check(ends == [6, 7], "the chain switched off is out; the one switched on stays, and so does one sharing the first bone of the one off: %s" % [ends])
+	check(springs.all(func(c: Dictionary) -> bool: return c.colliders == [1]), "the collider switched off presses on nothing: %s" % [springs])
 	root.free()
 
 

@@ -229,20 +229,34 @@ static func model(root: Node3D) -> PackedScene:
 	return scene
 
 
-## Leaves out the spring chains and colliders that the expressions' default state switches off.
+## Leaves out the spring chains and colliders that the expressions' default state switches off. A chain is off when
+## every segment of it is moved by a switched-off spring and by no running switched one: two PhysBones may take turns
+## on one bone, each reaching its own end.
 static func _switched_off(root: Node3D) -> void:
 	var data: Dictionary = root.get_meta("expressions", {})
 	var targets: Array = data.get("targets", [])
 	var off := func(s: Dictionary) -> bool: return not (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(float(targets[int(w[0])].get("default", 0.0)), float(w[1])))
-	var joints := {}
-	for s: Dictionary in data.get("springs", []).filter(off):
+	var bones := func(s: Dictionary) -> Dictionary:
+		var out := {}
 		for j: Variant in s.joints:
-			joints[j if j is String else int(j)] = true
+			out[j if j is String else int(j)] = true
+		return out
+	var switched: Array = data.get("springs", [])
+	var stopped: Array = switched.filter(off).map(bones)
+	var running: Array = switched.filter(func(s: Dictionary) -> bool: return not off.call(s)).map(bones)
+	var still := func(chain: Dictionary) -> bool:
+		var joints: Array = chain.joints
+		for i in joints.size():
+			var segment := [joints[i].node] if i + 1 == joints.size() else [joints[i].node, joints[i + 1].node]
+			var moves := func(b: Dictionary) -> bool: return segment.all(func(n: Variant) -> bool: return b.has(n))
+			if not stopped.any(moves) or running.any(moves):
+				return false
+		return true
 	var colliders := {}
 	for s: Dictionary in data.get("colliders", []).filter(off):
 		colliders[int(s.collider)] = true
 	var springs: Dictionary = root.get_meta("springs")
-	springs.springs = springs.springs.filter(func(chain: Dictionary) -> bool: return not (chain.joints as Array).any(func(j: Dictionary) -> bool: return joints.has(j.node)))
+	springs.springs = springs.springs.filter(func(chain: Dictionary) -> bool: return not still.call(chain))
 	for chain: Dictionary in springs.springs:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
