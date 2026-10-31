@@ -13,6 +13,8 @@ const NEAR := 0.02
 const FAR := 2600.0
 ## A typical wearer's eye height over the floor standing, in real metres, until `stature` has measured theirs.
 const EYE := 1.65
+## An empty hand drawn closer than this, in metres, to where the avatar holds it is the avatar's own hand to the eyes.
+const APART := 0.05
 ## Once `fit` strays this fraction from the world's scale, the view fades out and back in at the new one, as a
 ## teleport does: the world never grows in view.
 const REFIT := 0.02
@@ -184,13 +186,21 @@ func wear(a: Avatar) -> void:
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
 	body.pose(head.global_transform, left.held_at(), right.held_at(), gaze.look)
-	var bare := true
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))
-			bare = false
 	for mi in _seen:
-		mi.visible = bare
+		mi.visible = bare()
+
+
+## Whether both hands are empty, so the eyes see the player's own body.
+func bare() -> bool:
+	return hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE)
+
+
+## Whether the eyes see the avatar's own hand where `h` is drawn, rather than `h` thrown out from it.
+func shows_hand(h: Hand) -> bool:
+	return body != null and bare() and h.held_at().origin.distance_to(h.body.global_position) < APART
 
 
 ## The torso under the head, in the world's space (`Torso`).

@@ -1,8 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
 ## Far reach: Go-Go's mapping, its calibration to a short and a long arm, a thrust throwing the hand out and back, a far
-## house taken by touch, moved and reeled in through the grip in each, the avatar's hand left at the controller, and
-## each mode's far grabs inert in the others: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_reach.gd
+## house taken by touch, moved and reeled in through the grip in each, the avatar's hand left at the controller with no
+## controller drawn over it until the hand is thrown, and each mode's far grabs inert in the others: godot4 --headless
+## --fixed-fps 60 --path game --script ../tests/test_reach.gd
 
 
 func _initialize() -> void:
@@ -126,7 +127,10 @@ func _run() -> void:
 		await _pose(hand, shoulder, 0.75, 0.0)
 	check(not hand.reaches() and hand.position.distance_to(hand.controller.origin) < 0.001, "a hand holding a pointing tool is never thrown")
 	hand.tool = Hand.Tool.NONE
+	var left_holds := rig.left.tool
+	rig.left.tool = Hand.Tool.NONE
 	await _pose(hand, shoulder, 0.3, 0.0)
+	check(not hand._controller.visible, "with both hands empty the eyes see the avatar's own hand at the controller, with no controller drawn over it")
 	var touched := false
 	var across := 0.3
 	while across < 0.8 and not touched:
@@ -136,6 +140,8 @@ func _run() -> void:
 	check(touched, "stretching out, the hand reaches the house %.1f m away" % rig.head.global_position.distance_to(was))
 	check(main.tool.pick_building(hand.at_controller().origin, -hand.global_basis.z).get("along", INF) > 5.0, "while the controller is far from it")
 	check(rig.body.hands[1].origin.distance_to(hand.at_controller().origin) < 0.001 and hand.global_position.distance_to(hand.at_controller().origin) > 3.0, "the avatar's hand stays at the controller while the hand you see is %.1f m out" % hand.global_position.distance_to(hand.at_controller().origin))
+	check(hand._controller.visible, "the hand thrown out from the avatar's is drawn as the controller")
+	rig.left.tool = left_holds
 	Buttons.injected["right_hand/grip_click"] = true
 	await _pose(hand, shoulder, across, 0.0)
 	await _pose(hand, shoulder, across, 0.0)

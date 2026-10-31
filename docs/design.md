@@ -3234,13 +3234,14 @@ controller's front while in use. Picking any tool brings that tool's sight back.
 
 Directive (verbatim): "When both hands are empty self avatar should be displayed. Player should be able to see their own hands arms and bod."
 
-With both hands empty the player sees their own avatar from inside it: its hands round the controllers, its arms and
-its body, posed as everyone else sees it. The eyes draw it headless (`Avatar.headless`): the same meshes again on the
-avatar's own skeleton, on `Quality.EYES_LAYER`, which only the eyes see, with every vertex the head or a bone under it
-moves drawn at the eyes, so what joins the head to the neck lies in planes through the eyes and shows edge on. The
-cameras and the mirror see the avatar whole, head included, on `SELF_LAYER`. Holding a tool in either hand hides it
-again. On a Quest 2 the body in view costs nothing measurable: in `demo/self-cost.json`, looking down at the
-built-in avatar with empty hands, three phases each way read 6.08, 6.13 and 6.12 ms of GPU time a frame shown
+With both hands empty the player sees their own avatar from inside it: its hands round the controllers, its arms and its
+body, posed as everyone else sees it, with no controller body drawn over its hands; a hand a reach throws out from the
+avatar's is drawn as the controller's body again (`Rig.shows_hand`). The eyes draw it headless (`Avatar.headless`): the
+same meshes again on the avatar's own skeleton, on `Quality.EYES_LAYER`, which only the eyes see, with every vertex the
+head or a bone under it moves drawn at the eyes, so what joins the head to the neck lies in planes through the eyes and
+shows edge on. The cameras and the mirror see the avatar whole, head included, on `SELF_LAYER`. Holding a tool in either
+hand hides it again. On a Quest 2 the body in view costs nothing measurable: in `demo/self-cost.json`, looking down at
+the built-in avatar with empty hands, three phases each way read 6.08, 6.13 and 6.12 ms of GPU time a frame shown
 against 6.14, 6.14 and 6.16 hidden, one more draw call and 384 more primitives
 ([record](../perf/quest-2/self-cost/20261030T022822Z-c3c7908.json)).
 

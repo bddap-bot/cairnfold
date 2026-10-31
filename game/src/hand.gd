@@ -741,6 +741,8 @@ func _show_wheel(delta: float) -> void:
 
 
 func _show_tool(delta: float) -> void:
+	var rig := get_parent() as Rig
+	_controller.visible = tool == Tool.NONE and not (rig != null and rig.shows_hand(self))
 	if tool != _shown:
 		if _leaving >= 0:
 			_models[_leaving].visible = false
@@ -748,7 +750,6 @@ func _show_tool(delta: float) -> void:
 		_shown = tool
 		_pop_t = 0.0
 		_models[_shown].visible = true
-		_controller.visible = tool == Tool.NONE
 		_sight.position = CONTROLLER_TIP if tool == Tool.NONE else TOP + ToolModels.tip(tool) * HELD.get(tool, 1.0)
 	if _pop_t >= POP:
 		return
