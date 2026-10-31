@@ -45,6 +45,7 @@ func _run() -> void:
 	_a_menu_toggle_switches_a_hidden_renderer()
 	_a_hue_radial_keeps_its_material_binding()
 	_a_decal_alpha_binds_its_atlas_layer()
+	_a_shrunk_texture_averages_what_its_cell_covers()
 	_matcaps_and_emission_join_the_look()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
@@ -1133,6 +1134,61 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	materials.materials.skin.floats._DecalHueShiftSpeed2 = "1"
 	check(hued.call().a == 0.0, "a decal whose hue cycles over time is not drawn")
 	sk.free()
+
+
+func _a_shrunk_texture_averages_what_its_cell_covers() -> void:
+	var dir := ProjectSettings.globalize_path("user://shrink")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("skin.shader", "shader", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { } }')
+	write.call("skin.mat", "skin", """Material:
+  m_Shader: {guid: shader}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {guid: stripes}
+    - _DecalTexture:
+        m_Texture: {guid: stripes}
+    m_Floats:
+    - _DecalEnabled: 1
+    m_Colors:
+    - _DecalPosition: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _DecalScale: {r: 1, g: 1, b: 1, a: 0}
+""")
+	var size := Vector2i(3000, 64)
+	var stripes := PackedByteArray()
+	stripes.resize(size.x * size.y * 4)
+	for y in size.y:
+		for x in size.x:
+			var v := 255 if x % 2 == 0 else 0
+			var i := (y * size.x + x) * 4
+			stripes[i] = v
+			stripes[i + 1] = v
+			stripes[i + 2] = v
+			stripes[i + 3] = 255
+	Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBA8, stripes).save_png(dir.path_join("stripes.png"))
+	FileAccess.open(dir.path_join("stripes.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: stripes\n")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "skin"}, Color.WHITE)
+	materials.pack(["skin"])
+	var cell: Rect2i = materials.materials.skin.cell
+	var looks := materials.looks()
+	var decal := Image.new()
+	if (looks.get("decals", []) as Array).size() == 1:
+		decal.load_png_from_buffer(Marshalls.base64_to_raw(looks.decals[0]))
+	check(not decal.is_empty(), "the decal is drawn into its layer")
+	for named: Array in [["albedo", materials.atlas], ["decal", decal]]:
+		var img: Image = named[1]
+		if img.is_empty():
+			continue
+		var spread := Vector2(1, 0)
+		for y in range(cell.position.y + 3, cell.end.y - 3):
+			for x in range(cell.position.x + 3, cell.end.x - 3):
+				var r := img.get_pixel(x, y).r
+				spread = Vector2(minf(spread.x, r), maxf(spread.y, r))
+		check(spread.x > 0.4 and spread.y < 0.6, "a 3000-texel texture of one-texel stripes shrunk into a %d-texel cell is the stripes' grey in the %s, not a moire of them: %s" % [cell.size.x, named[0], spread])
 
 
 func _matcaps_and_emission_join_the_look() -> void:

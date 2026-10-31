@@ -7,6 +7,9 @@ const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 
 const ATLAS := 2048
 const PAD := 4
+## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels
+## per texel, so they alias, while Lanczos widens its kernel to the shrink.
+const RESAMPLE := Image.INTERPOLATE_LANCZOS
 const TEXTURES := ["_MainTex", "_BaseMap", "_BaseColorMap", "_MainTexture", "_Albedo"]
 const COLOURS := ["_Color", "_BaseColor", "_MainColor"]
 enum Alpha { OPAQUE, CUTOUT, BLEND }
@@ -219,10 +222,10 @@ func pack(used: Array) -> void:
 			img.fill(Color.WHITE)
 		else:
 			img = (m.image as Image).duplicate()
-		img.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_CUBIC)
+		img.resize(cell.size.x, cell.size.y, RESAMPLE)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod)
 		var outer := img.duplicate() as Image
-		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, Image.INTERPOLATE_BILINEAR)
+		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
 		atlas.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
 		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
 
@@ -354,9 +357,9 @@ func color_atlas() -> String:
 			raw.fill(Color.WHITE)
 		else:
 			raw = (m.image as Image).duplicate()
-		raw.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_CUBIC)
+		raw.resize(cell.size.x, cell.size.y, RESAMPLE)
 		var outer := raw.duplicate() as Image
-		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, Image.INTERPOLATE_BILINEAR)
+		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
 		out.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
 		out.blit_rect(raw, Rect2i(Vector2i.ZERO, raw.get_size()), cell.position)
 	var data := out.get_data()
@@ -592,7 +595,7 @@ func looks() -> Dictionary:
 			if c.texture != "" and not matcap_textures.has(c.texture):
 				var decoded := _decoded(c.texture)
 				if decoded != null:
-					decoded.resize(MATCAP, MATCAP, Image.INTERPOLATE_BILINEAR)
+					decoded.resize(MATCAP, MATCAP, RESAMPLE)
 					matcap_textures[c.texture] = decoded
 			if matcap_textures.has(c.texture):
 				drawn.texture = matcap_textures.keys().find(c.texture)
@@ -649,9 +652,9 @@ func _over_cell(m: Dictionary, source: Image, property: String, blank: Color) ->
 	var offset := _vector2(entry.get("m_Offset"), Vector2.ZERO)
 	if scale == m.scale and offset == m.offset:
 		var inner := source.duplicate() as Image
-		inner.resize(cell.size.x, cell.size.y, Image.INTERPOLATE_BILINEAR)
+		inner.resize(cell.size.x, cell.size.y, RESAMPLE)
 		var outer := source.duplicate() as Image
-		outer.resize(out.get_width(), out.get_height(), Image.INTERPOLATE_BILINEAR)
+		outer.resize(out.get_width(), out.get_height(), RESAMPLE)
 		out.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), Vector2i.ZERO)
 		out.blit_rect(inner, Rect2i(Vector2i.ZERO, inner.get_size()), Vector2i(PAD, PAD))
 		return out
