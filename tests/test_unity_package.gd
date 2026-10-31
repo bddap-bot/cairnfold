@@ -571,6 +571,9 @@ func _a_physbone_carries_its_settings_bone_by_bone() -> void:
 	for i in 3:
 		check(radii[i].size() == 2 and is_equal_approx(radii[i][0], expected[i][0]) and is_equal_approx(radii[i][1], expected[i][1]), "bone %d's radius at each end follows the curve to the endpoint, in the output's units: %s" % [i, radii])
 	check(bones.map(func(b: Dictionary) -> int: return b.get("depth", -1)) == [0, 1, 2] and bones.map(func(b: Dictionary) -> bool: return b.get("endpoint", false)) == [false, false, true], "each bone knows its depth and the last ends at the endpoint: %s" % [bones])
+	var shared := {"springs": [{"joints": [{"node": 0, "extras": {"physbone": {"pull": 0.066}}}, {"node": 1}]}, {"joints": [{"node": 0, "extras": {"physbone": {"pull": 0.033}}}, {"node": 2}]}], "colliders": []}
+	var kept: Array = UnityAvatar._read_springs(shared, [{}, {}, {}]).springs.map(func(c: Dictionary) -> float: return c.joints[0].get("extras", {}).get("physbone", {}).get("pull", 0.0))
+	check(kept.size() == 2 and is_equal_approx(kept[0], 0.066) and is_equal_approx(kept[1], 0.033), "two PhysBones sharing a bone each keep their own settings through the read: %s" % [kept])
 	objs[20].data.erase("endpointPosition")
 	var plain: Array = UnityAvatar._springs(objs, 10, sk, {}, 2.0, {}).springs[0].joints
 	check(plain.size() == 3 and not plain[1].extras.physbone.endpoint and is_equal_approx(plain[1].extras.physbone.pull, 0.1), "without an endpoint the last bone is a tail and the curve ends a bone sooner: %s" % [plain])

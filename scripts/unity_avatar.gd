@@ -2049,15 +2049,17 @@ static func _read_springs(springs: Dictionary, nodes: Array) -> Dictionary:
 	for i in (chains.colliders as Array).size():
 		if springs.colliders[i].has("extensions"):
 			chains.colliders[i]["extensions"] = springs.colliders[i].extensions
-	var extras := {}
+	# Each chain takes its own source spring's joint extras: two PhysBones may share a bone, each with its own settings.
+	var unread := (chains.springs as Array).duplicate()
 	for spring: Dictionary in springs.springs:
-		for joint: Dictionary in spring.joints:
-			if joint.has("extras"):
-				extras[joint.node] = joint.extras
-	for chain: Dictionary in chains.springs:
-		for joint: Dictionary in chain.joints:
-			if extras.has(joint.node):
-				joint["extras"] = extras[joint.node]
+		var nodes_of := func(joints: Array) -> Array: return joints.map(func(j: Dictionary) -> Variant: return j.node)
+		var at := unread.find_custom(func(chain: Dictionary) -> bool: return nodes_of.call(chain.joints) == nodes_of.call(spring.joints))
+		if at < 0:
+			continue
+		var chain: Dictionary = unread.pop_at(at)
+		for i in (spring.joints as Array).size():
+			if spring.joints[i].has("extras"):
+				chain.joints[i]["extras"] = spring.joints[i].extras
 	return chains
 
 
