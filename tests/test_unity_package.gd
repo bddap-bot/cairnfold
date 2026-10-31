@@ -1108,6 +1108,24 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.25, "g": 0.5, "b": 0, "a": 0}
 	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(moved.targets.is_empty() and not moved.has("looks"), "a decal placed off the whole texture is neither bound nor drawn")
+	materials.materials.skin.colours._DecalPosition2 = {"r": 0.5, "g": 0.5, "b": 0, "a": 0}
+	materials.materials.skin.properties._DecalHueShift2_Skin = true
+	materials.materials.skin.floats.merge({"_DecalHueShiftEnabled2": "1", "_DecalHueShiftColorSpace2": "1", "_DecalHueShift2": "0", "_DecalHueShift2_Skin": "0.5"})
+	var hued := func() -> Color:
+		var bound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+		if (bound.get("looks", {}).get("decals", []) as Array).size() != 3:
+			return Color(0, 0, 0, 0)
+		var layer := Image.new()
+		layer.load_png_from_buffer(Marshalls.base64_to_raw(bound.looks.decals[2]))
+		return layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
+	var cyan: Color = hued.call()
+	check(cyan.a > 0.8 and cyan.r < 0.02 and absf(cyan.g - 0.9) < 0.02 and cyan.b > 0.98, "a decal at a fixed hue shift is drawn at it, by the shader-named value: linear orange half a turn round HSV is cyan, %s" % cyan)
+	materials.materials.skin.colours._DecalColor2 = {"r": 1, "g": 1, "b": 1, "a": 1}
+	materials.materials.skin.floats.merge({"_DecalHueShiftColorSpace2": "0", "_DecalHueShift2_Skin": "0.331"})
+	var white: Color = hued.call()
+	check(white.a > 0.8 and white.r > 0.98 and white.g > 0.98 and white.b > 0.98, "a white decal stays white under an OKLab hue shift: %s" % white)
+	materials.materials.skin.floats._DecalHueShiftSpeed2 = "1"
+	check(hued.call().a == 0.0, "a decal whose hue cycles over time is not drawn")
 	sk.free()
 
 

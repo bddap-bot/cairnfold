@@ -368,8 +368,8 @@ func color_atlas() -> String:
 
 
 ## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "multiply"} at rest, or {} where the decal
-## draws in a way the atlas layers cannot hold: anything but the whole UV0 square, untiled, unrotated, at its saved hue,
-## replacing or multiplying the albedo.
+## draws in a way the atlas layers cannot hold: anything but the whole UV0 square, untiled, unrotated, its hue shifted
+## by a fixed amount if at all, replacing or multiplying the albedo.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var floats: Dictionary = m.get("floats", {})
@@ -385,11 +385,31 @@ func decal(key: String, slot: int) -> Dictionary:
 	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_DecalOverrideAlpha" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
 	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return number.call(name) != 0.0):
 		return {}
-	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and floats.keys().any(func(name: String) -> bool: return (name == "_DecalHueShift" + n or name.begins_with("_DecalHueShift%s_" % n)) and number.call(name) != 0.0):
+	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and (number.call("_DecalHueShiftSpeed" + n) != 0.0 or number.call("_DecalHueAngleStrength" + n) != 0.0):
 		return {}
 	if not position.is_equal_approx(Color(0.5, 0.5, 0, 0)) or not is_equal_approx(scale.r, 1.0) or not is_equal_approx(scale.g, 1.0) or vector.call("_DecalSideOffset" + n) != Color(0, 0, 0, 0) or vector.call("_DecalTexture%sPan" % n) != Color(0, 0, 0, 0):
 		return {}
 	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0}
+
+
+## Poiyomi's `hueShift` of the linear colour `c`: rotated by `shift` turns in OKLab, or in HSV as `space` nears 1, the
+## hue kept (`select` 1) or replaced by the shift alone (`select` 0).
+static func hue_shift(c: Color, shift: float, space: float, select: float) -> Color:
+	var l := pow(maxf(0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b, 0.0), 1.0 / 3.0)
+	var m := pow(maxf(0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b, 0.0), 1.0 / 3.0)
+	var s := pow(maxf(0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b, 0.0), 1.0 / 3.0)
+	var lightness := 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+	var ab := Vector2(1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s)
+	if select <= 0.5:
+		ab = Vector2(ab.length(), 0.0)
+	ab = ab.rotated(shift * TAU)
+	var cube := func(x: float) -> float: return x * x * x
+	var l3: float = cube.call(lightness + 0.3963377774 * ab.x + 0.2158037573 * ab.y)
+	var m3: float = cube.call(lightness - 0.1055613458 * ab.x - 0.0638541728 * ab.y)
+	var s3: float = cube.call(lightness - 0.0894841775 * ab.x - 1.2914855480 * ab.y)
+	var oklab := Color(4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3, -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3, -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3)
+	var hsv := Color.from_hsv(fposmod(c.h * select + shift, 1.0), c.s, c.v)
+	return oklab.lerp(hsv, clampf(space, 0.0, 1.0))
 
 
 ## The material's saved value of the shader property `name`, under the name its shader declares it by: a locked shader
@@ -550,6 +570,15 @@ func looks() -> Dictionary:
 				data[i + 1] = mini(int(data[i + 1] * tint.g), 255)
 				data[i + 2] = mini(int(data[i + 2] * tint.b), 255)
 				data[i + 3] = mini(int(data[i + 3] * tint.a * cover[i + channel] / 255.0), 255)
+			if str(m.floats.get("_DecalHueShiftEnabled" + n, "0")).to_float() != 0.0:
+				var shift := _saved(m, "_DecalHueShift" + n, 0.0)
+				var space := str(m.floats.get("_DecalHueShiftColorSpace" + n, "0")).to_float()
+				var select := str(m.floats.get("_DecalHueShiftSelectOrShift" + n, "1")).to_float()
+				for i in range(0, data.size(), 4):
+					var shifted := hue_shift(Color8(data[i], data[i + 1], data[i + 2]).srgb_to_linear(), shift, space, select).clamp().linear_to_srgb()
+					data[i] = shifted.r8
+					data[i + 1] = shifted.g8
+					data[i + 2] = shifted.b8
 			colour.set_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data)
 			(decal_layers[slot] as Image).blit_rect(colour, Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		var drawn_matcaps := []
