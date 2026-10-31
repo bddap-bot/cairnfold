@@ -57,9 +57,9 @@ const PARENT := {
 	"leftLowerLeg": "leftUpperLeg", "rightLowerLeg": "rightUpperLeg", "leftFoot": "leftLowerLeg", "rightFoot": "rightLowerLeg",
 	"leftToes": "leftFoot", "rightToes": "rightFoot",
 }
-## The left and right hands' aim poses hanging at the sides, from eyes looking level.
 ## Shrinks what a bone moves to a speck, keeping its normals' directions.
 const GONE := Basis(Vector3(1e-6, 0, 0), Vector3(0, 1e-6, 0), Vector3(0, 0, 1e-6))
+## The left and right hands' aim poses hanging at the sides, from eyes looking level.
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
 ## One humanoid bone of the skeleton.
