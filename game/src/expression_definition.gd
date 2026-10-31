@@ -12,7 +12,7 @@ static func region(effect: Variant) -> String:
 
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
-	for key: String in ["parameters", "targets", "clips", "layers", "shown", "menu", "icons"]:
+	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "menu", "icons"]:
 		if not data.get(key, []) is Array:
 			return false
 	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is String):
@@ -50,12 +50,23 @@ static func valid(data: Dictionary) -> bool:
 				for key: String in ["value", "min", "max", "chance"]:
 					if not _number(driver.get(key, 0.0)):
 						return false
-	for shown: Variant in data.get("shown", []):
-		if not shown is Dictionary or not _node(shown.get("node")) or not shown.get("when") is Array:
+	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", [])
+	for s: Variant in switched:
+		if not s is Dictionary or not s.get("when") is Array:
 			return false
-		for condition: Variant in shown.when:
+		for condition: Variant in s.when:
 			if not _numbers(condition, 2) or not _index(condition[0], targets.size()):
 				return false
+	for shown: Dictionary in data.get("shown", []):
+		if not _node(shown.get("node")):
+			return false
+	for spring: Dictionary in data.get("springs", []):
+		if not spring.get("joints") is Array or spring.joints.is_empty() or not spring.joints.all(_node):
+			return false
+	for collider: Dictionary in data.get("colliders", []):
+		var at: Variant = collider.get("collider")
+		if not _number(at) or float(at) != floorf(float(at)) or at < 0:
+			return false
 	return true
 
 
@@ -138,8 +149,6 @@ static func _effect(effect: Variant) -> bool:
 		return effect.scale is Dictionary and _node(effect.scale.get("node")) and _index(effect.scale.get("axis"), 3)
 	if effect.has("material"):
 		return effect.material is Dictionary and _node(effect.material.get("node")) and effect.material.get("choices") is Array and not effect.material.choices.is_empty() and effect.material.choices.all(func(c: Variant) -> bool: return _numbers(c, 4))
-	if effect.has("spring"):
-		return effect.spring is Array and not effect.spring.is_empty() and effect.spring.all(_node)
 	if effect.has("rotation"):
 		var rest: Variant = effect.rotation.get("rest") if effect.rotation is Dictionary else null
 		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and _index(effect.rotation.get("axis"), rest.size())

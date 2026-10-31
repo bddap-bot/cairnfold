@@ -150,11 +150,16 @@ func _malformed() -> void:
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
-	for effect: Dictionary in [{"spring": [&"tail", 3]}, {"rotation": {"node": 2, "axis": 2, "rest": [-85, 0, 1]}}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0, 1]}}, {"translation": {"node": 2, "direction": [-1, 0, 0]}}]:
+	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 2, "rest": [-85, 0, 1]}}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0, 1]}}, {"translation": {"node": 2, "direction": [-1, 0, 0]}}]:
 		check(ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "an imported %s target is valid" % effect.keys()[0])
-	for effect: Dictionary in [{"spring": []}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}]:
+	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}]:
 		check(not ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "a malformed %s target is rejected" % effect.keys()[0])
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
+	var switch := [{"effect": "switch", "default": 1.0}]
+	check(ExpressionDefinition.valid({"targets": switch, "springs": [{"joints": [&"tail", 3], "when": [[0, 1]]}], "colliders": [{"collider": 2, "when": [[0, 1]]}]}), "switched springs and colliders are valid")
+	for bad: Dictionary in [{"springs": [{"joints": [], "when": [[0, 1]]}]}, {"springs": [{"joints": [3], "when": [[1, 1]]}]}, {"colliders": [{"collider": -1, "when": [[0, 1]]}]}, {"colliders": [{"collider": 0.5, "when": []}]}, {"colliders": [{"collider": 0}]}]:
+		bad.targets = switch
+		check(not ExpressionDefinition.valid(bad), "a malformed switched spring or collider is rejected: %s" % [bad])
 	var invalid := _definition()
 	invalid.clips[0].curves[0].target = 200
 	check(not ExpressionDefinition.valid(invalid), "out-of-range animation targets are rejected")

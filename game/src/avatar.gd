@@ -210,6 +210,7 @@ static func model(root: Node3D) -> PackedScene:
 		if not root.has_meta(key):
 			root.set_meta(key, DATA[key].duplicate(true) if DATA[key] is Dictionary else DATA[key])
 	_on_one_skeleton(root)
+	_switched_off(root)
 	_keep_longest(root.get_meta("springs"))
 	var bones: Dictionary = root.get_meta("humanoid")
 	var surfaces := 0
@@ -226,6 +227,24 @@ static func model(root: Node3D) -> PackedScene:
 	scene.pack(root)
 	root.free()
 	return scene
+
+
+## Leaves out the spring chains and colliders that the expressions' default state switches off.
+static func _switched_off(root: Node3D) -> void:
+	var data: Dictionary = root.get_meta("expressions", {})
+	var targets: Array = data.get("targets", [])
+	var off := func(s: Dictionary) -> bool: return not (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(float(targets[int(w[0])].get("default", 0.0)), float(w[1])))
+	var joints := {}
+	for s: Dictionary in data.get("springs", []).filter(off):
+		for j: Variant in s.joints:
+			joints[j if j is String else int(j)] = true
+	var colliders := {}
+	for s: Dictionary in data.get("colliders", []).filter(off):
+		colliders[int(s.collider)] = true
+	var springs: Dictionary = root.get_meta("springs")
+	springs.springs = springs.springs.filter(func(chain: Dictionary) -> bool: return not (chain.joints as Array).any(func(j: Dictionary) -> bool: return joints.has(j.node)))
+	for chain: Dictionary in springs.springs:
+		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
 
 ## Keeps the longest spring chains within MAX_SPRING_JOINTS.

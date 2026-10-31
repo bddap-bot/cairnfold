@@ -38,7 +38,8 @@ func _run() -> void:
 	_a_dynamic_bone_sizes_by_its_own_transform()
 	_colliders_keep_their_shape_side_and_bone()
 	_a_collider_rides_its_bone_where_unity_places_it()
-	_components_off_when_the_avatar_loads_do_not_run()
+	_physics_runs_as_the_menu_switches_it()
+	_a_moved_collider_rides_its_own_bone()
 	_linked_props_keep_their_placement_and_bone_identity()
 	_a_transform_the_skeleton_lacks_becomes_a_bone()
 	_a_menu_toggle_switches_a_hidden_renderer()
@@ -409,43 +410,69 @@ func _a_collider_rides_its_bone_where_unity_places_it() -> void:
 	sk.free()
 
 
-## A disabled PhysBone, and a collider that is disabled or on an inactive GameObject, do not run when the avatar loads;
-## a PhysBone on an inactive GameObject moves bones the menu shows with it.
-func _components_off_when_the_avatar_loads_do_not_run() -> void:
+## A PhysBone or collider runs as Unity runs it when the avatar loads, or under the menu switches that turn on its own
+## flag and each inactive GameObject above it; one nothing turns on stays out.
+func _physics_runs_as_the_menu_switches_it() -> void:
 	var sk := Skeleton3D.new()
-	for name: String in ["Chest", "Left", "Right"]:
+	for name: String in ["Chest", "Left", "Right", "Far"]:
 		sk.add_bone(name)
-	sk.set_bone_parent(1, 0)
-	sk.set_bone_parent(2, 0)
+		sk.set_bone_parent(sk.get_bone_count() - 1, 0 if name != "Chest" else -1)
+	var transform := func(id: int, go: int, father: int) -> Dictionary: return {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(father)}}}
+	var object := func(name: String, t: int, active := "1") -> Dictionary: return {"type": "GameObject", "data": {"m_Name": name, "m_IsActive": active, "m_Component": [{"component": {"fileID": str(t)}}]}}
+	var sphere := func(go: int, enabled: String, radius: String) -> Dictionary: return {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": enabled, "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": radius, "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}}
+	var physbone := func(go: int, enabled: String, root: int, colliders: Array) -> Dictionary: return {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": enabled, "pull": "0.2", "rootTransform": {"fileID": str(root)}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": colliders.map(func(c: int) -> Dictionary: return {"fileID": str(c)})}}
 	var objs := {
-		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
-		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}}},
-		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "10"}}},
-		30: {"type": "Transform", "data": {"m_GameObject": {"fileID": "130"}, "m_Father": {"fileID": "10"}}},
-		31: {"type": "Transform", "data": {"m_GameObject": {"fileID": "131"}, "m_Father": {"fileID": "10"}}},
-		32: {"type": "Transform", "data": {"m_GameObject": {"fileID": "132"}, "m_Father": {"fileID": "31"}}},
-		110: {"type": "GameObject", "data": {"m_Name": "Chest", "m_Component": [{"component": {"fileID": "10"}}]}},
-		111: {"type": "GameObject", "data": {"m_Name": "Left", "m_Component": [{"component": {"fileID": "11"}}]}},
-		112: {"type": "GameObject", "data": {"m_Name": "Right", "m_Component": [{"component": {"fileID": "12"}}]}},
-		130: {"type": "GameObject", "data": {"m_Name": "Hidden Sphere", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "30"}}]}},
-		131: {"type": "GameObject", "data": {"m_Name": "Off Parent", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "31"}}]}},
-		132: {"type": "GameObject", "data": {"m_Name": "Disabled Physics", "m_Component": [{"component": {"fileID": "32"}}]}},
-		40: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "m_Enabled": "1", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "1", "radius": "0.1", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
-		41: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Enabled": "0", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": "0.1", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
-		42: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "110"}, "m_Enabled": "1", "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": "0.05", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
-		20: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "111"}, "m_Enabled": "1", "pull": "0.2", "rootTransform": {"fileID": "11"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": [{"fileID": "40"}, {"fileID": "41"}, {"fileID": "42"}]}},
-		21: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "112"}, "m_Enabled": "0", "pull": "0.2", "rootTransform": {"fileID": "12"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}}},
-		22: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "132"}, "m_Enabled": "1", "pull": "0.2", "rootTransform": {"fileID": "12"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}}},
+		10: transform.call(10, 110, 0), 11: transform.call(11, 111, 10), 12: transform.call(12, 112, 10), 30: transform.call(30, 130, 10), 31: transform.call(31, 131, 10), 32: transform.call(32, 132, 31),
+		110: object.call("Chest", 10), 111: object.call("Left", 11), 112: object.call("Right", 12), 130: object.call("Hidden Sphere", 30, "0"), 131: object.call("Off Parent", 31, "0"), 132: object.call("Far", 32),
+		40: sphere.call(130, "1", "0.1"), 41: sphere.call(110, "0", "0.2"), 42: sphere.call(110, "1", "0.05"),
+		20: physbone.call(111, "1", 11, [40, 41, 42]), 21: physbone.call(112, "0", 12, []), 22: physbone.call(132, "1", 32, []),
 	}
-	var out: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
-	var springs: Array = out.get("springs", [])
-	var roots := springs.map(func(s: Dictionary) -> String: return sk.get_bone_name(s.joints[0].node))
-	roots.sort()
-	check(roots == ["Left", "Right"], "the disabled PhysBone stays out and the one under an inactive parent stays in: %s" % [roots])
-	var left := springs.filter(func(s: Dictionary) -> bool: return sk.get_bone_name(s.joints[0].node) == "Left")
-	if left.size() == 1:
-		var listed: Array = out.colliderGroups[left[0].colliderGroups[0]].colliders
-		check(listed.size() == 1 and is_equal_approx(out.colliders[listed[0]].shape.sphere.radius, 0.05), "it collides with the one collider that runs: %s" % [out.colliders])
+	var roots := func(out: Dictionary) -> Array:
+		var names: Array = out.springs.map(func(s: Dictionary) -> String: return sk.get_bone_name(s.joints[0].node))
+		names.sort()
+		return names
+	var radii := func(out: Dictionary) -> Array:
+		var left: Dictionary = out.springs.filter(func(s: Dictionary) -> bool: return sk.get_bone_name(s.joints[0].node) == "Left")[0]
+		var listed: Array = out.colliderGroups[left.colliderGroups[0]].colliders.map(func(c: int) -> float: return snappedf(out.colliders[c].shape.sphere.radius, 0.01))
+		listed.sort()
+		return listed
+	var fixed: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {})
+	check(roots.call(fixed) == ["Left"], "without the menu only what runs at load is carried: %s" % [roots.call(fixed)])
+	check(radii.call(fixed) == [0.05], "and the one collider that runs: %s" % [fixed.colliders])
+	check(fixed.switched == {"springs": [], "colliders": []}, "nothing waits on a switch: %s" % [fixed.switched])
+	var switched: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}, {"by_object": {130: 0, 21: 1, 131: 2}})
+	check(roots.call(switched) == ["Far", "Left", "Right"], "the menu's PhysBones are carried: %s" % [roots.call(switched)])
+	check(radii.call(switched) == [0.05, 0.1], "so is the collider it shows, and not the one it never enables: %s" % [switched.colliders])
+	var waits: Array = switched.switched.springs.map(func(s: Dictionary) -> Array: return [s.joints[0], s.when])
+	waits.sort()
+	check(waits == [["Far", [[2, 1]]], ["Right", [[1, 1]]]], "each switched PhysBone waits on its own flag or its object's parent: %s" % [switched.switched.springs])
+	var shown: Array = switched.switched.colliders
+	check(shown.size() == 1 and shown[0].when == [[0, 1]] and is_equal_approx(switched.colliders[shown[0].collider].shape.sphere.radius, 0.1), "the shown sphere waits on its object: %s" % [shown])
+	sk.free()
+
+
+## A collider whose transform the menu moves rides a bone of its own, placed where Unity places the transform.
+func _a_moved_collider_rides_its_own_bone() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Chest")
+	sk.add_bone("Breast")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_rest(0, Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)))
+	sk.set_meta("unity_bones", {110: 0, 111: 1})
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}, "m_LocalPosition": {"x": "0", "y": "1", "z": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}}},
+		30: {"type": "Transform", "data": {"m_GameObject": {"fileID": "130"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.03", "z": "0.06"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Chest", "m_Component": [{"component": {"fileID": "10"}}]}},
+		111: {"type": "GameObject", "data": {"m_Name": "Breast", "m_Component": [{"component": {"fileID": "11"}}]}},
+		130: {"type": "GameObject", "data": {"m_Name": "Lifter", "m_Component": [{"component": {"fileID": "30"}}]}},
+		40: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "130"}, "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": "0.02", "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}},
+		20: {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "11"}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": [{"fileID": "40"}]}},
+	}
+	var out: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}, {}, {30: true})
+	var lifter := sk.find_bone("Lifter")
+	check(lifter >= 0 and sk.get_bone_parent(lifter) == 0 and sk.get_bone_rest(lifter).origin.is_equal_approx(Vector3(0, 0.03, 0.06)), "the moved transform becomes a bone under the chest where Unity places it")
+	check(out.colliders.size() == 1 and out.colliders[0].node == lifter and Vector3(out.colliders[0].shape.sphere.offset[0], out.colliders[0].shape.sphere.offset[1], out.colliders[0].shape.sphere.offset[2]).is_zero_approx(), "the collider sits on it: %s" % [out.colliders])
 	sk.free()
 
 
@@ -1358,7 +1385,7 @@ func _an_unpacked_armature_still_takes_a_link() -> void:
 
 ## A clip's Euler rotation and position curves on a non-humanoid bone, and a PhysBone's enabled flag, become targets:
 ## rotation in Unity's own degrees with the transform's authored angles as its rest, position as an offset along the
-## bone's mirrored axis, the PhysBone as a switch over the joints of its chains.
+## bone's mirrored axis, the PhysBone's flag as a switch.
 func _transform_and_physbone_curves_bind() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
@@ -1376,7 +1403,6 @@ func _transform_and_physbone_curves_bind() -> void:
 	sk.set_bone_rest(0, Transform3D.IDENTITY.scaled(Vector3.ONE * 2.0))
 	sk.set_meta("unity_bones", {3: 1})
 	sk.set_meta("humanoid_bones", {0: ["hips", "Hips"]})
-	sk.set_meta("physbone_joints", {5: ["Tail", "Tail End"]})
 	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
 	var curve := func(attribute: String, cls: String, keys: Array, script := "") -> Dictionary: return {"path": "Tail", "attribute": attribute, "class": cls, "script": script, "keys": keys}
 	expressions.data = {
@@ -1386,18 +1412,21 @@ func _transform_and_physbone_curves_bind() -> void:
 		"clips": [{"length": 1, "loop": true, "curves": [curve.call("localEulerAnglesRaw.x", "4", [[0.0, -85.0], [1.0, -80.0]]), curve.call("m_LocalPosition.x", "4", [[0.0, 0.5, 0.0, 0.0], [1.0, 0.75, 0.0, 0.0]]), curve.call("m_Enabled", "114", [[0.0, 0.0]], "physbone"), curve.call("m_Enabled", "114", [[0.0, 0.0]], "other script")]}],
 	}
 	var report := {}
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [], {}, objs, {"": 2, "Tail": 4}, sk, Materials.new(expressions.assets), report)
-	var effects: Array = data.targets.map(func(t: Dictionary) -> Dictionary: return t.effect)
-	check(effects.size() == 3, "rotation, position and the PhysBone switch bind, the other script's flag does not: %s" % [effects])
+	var paths := {"": 2, "Tail": 4}
+	var switches := UnityAvatar._switches(expressions, objs, paths)
+	check(switches.by_object.keys() == [5], "the PhysBone's flag is a switch, the other script's is not: %s" % [switches.by_object])
+	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), report)
+	var effects: Array = data.targets.map(func(t: Variant) -> Variant: return t.effect)
+	check(effects.size() == 3, "the PhysBone switch, rotation and position bind: %s" % [effects])
 	if effects.size() == 3:
-		check(effects[0] == {"rotation": {"node": "Tail", "axis": 0, "rest": [-85.0, 0.0, 0.0]}} and data.targets[0].default == -85.0, "rotation keeps Unity's degrees, its rest the authored angles: %s" % [data.targets[0]])
+		check(effects[0] == "switch" and data.targets[0].default == 1.0 and data.clips[0].curves[2].target == 0 and data.clips[0].curves[2].step, "the PhysBone's flag is a switch, on as the scene has it")
+		check(effects[1] == {"rotation": {"node": "Tail", "axis": 0, "rest": [-85.0, 0.0, 0.0]}} and data.targets[1].default == -85.0, "rotation keeps Unity's degrees, its rest the authored angles: %s" % [data.targets[1]])
 		check(data.clips[0].curves[0].keys == [[0.0, -85.0], [1.0, -80.0]], "rotation keys stay as authored")
-		check(effects[1] == {"translation": {"node": "Tail", "direction": [-0.5, 0.0, 0.0]}} and data.targets[1].default == 0.0, "position moves along the mirrored X, in the parent's output units: %s" % [effects[1]])
+		check(effects[2] == {"translation": {"node": "Tail", "direction": [-0.5, 0.0, 0.0]}} and data.targets[2].default == 0.0, "position moves along the mirrored X, in the parent's output units: %s" % [effects[2]])
 		check(data.clips[0].curves[1].keys == [[0.0, 0.0, 0.0, 0.0], [1.0, 0.25, 0.0, 0.0]], "position keys are offsets from rest, tangents kept: %s" % [data.clips[0].curves[1].keys])
-		check(effects[2] == {"spring": ["Tail", "Tail End"]} and data.targets[2].default == 1.0 and data.clips[0].curves[2].step, "the PhysBone's flag switches its joints, on as the scene has it")
 	sk.set_meta("unity_bones", {3: 0})
-	var humanoid := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [], {}, objs, {"": 2, "Tail": 4}, sk, Materials.new(expressions.assets), {})
-	check(humanoid.targets.size() == 1 and humanoid.targets[0].effect.has("spring"), "transform curves on a humanoid bone are left to the muscles")
+	var humanoid := UnityAvatar._bound(expressions, UnityAvatar._switches(expressions, objs, paths), [], {}, objs, paths, sk, Materials.new(expressions.assets), {})
+	check(humanoid.targets.size() == 1 and humanoid.targets[0].effect == "switch", "transform curves on a humanoid bone are left to the muscles")
 	sk.free()
 
 

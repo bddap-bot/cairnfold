@@ -275,7 +275,14 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 		return null
 	root.set_meta("constraints", constraints.get("constraints", []))
 	report["active transform constraints"] = constraints.get("constraints", []).size()
-	var springs := _springs(objs, found.transform, sk, named, k, report)
+	var moved := {}
+	for clip: Dictionary in clips:
+		for c: Dictionary in clip.curves:
+			if c["class"] == "4" and paths.has(c.path):
+				moved[paths[c.path]] = true
+	var springs := _springs(objs, found.transform, sk, named, k, report, switches, moved)
+	var switched: Dictionary = springs.get("switched", {})
+	springs.erase("switched")
 	var human := {}
 	var bone_path := func(b: int) -> NodePath: return NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(b)])
 	for i: int in named:
@@ -296,7 +303,11 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
 	if not expressions.data.is_empty():
-		root.set_meta("expressions", _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, report))
+		var bound := _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, report)
+		for key: String in switched:
+			if not (switched[key] as Array).is_empty():
+				bound[key] = switched[key]
+		root.set_meta("expressions", bound)
 	for name: String in face.expressions:
 		var binds := []
 		for b: Dictionary in face.expressions[name]:
@@ -399,19 +410,30 @@ static func _active(objs: Dictionary, go: int) -> bool:
 	return str(d.get("m_IsActive", "1")) == "1" and str(d.get("m_TagString", "")) != "EditorOnly"
 
 
-## Whether Unity runs a component when the avatar loads: it is enabled and its GameObject and every parent are active.
-static func _runs(objs: Dictionary, d: Dictionary) -> bool:
-	if str(d.get("m_Enabled", "1")) != "1":
-		return false
+## The switches that must all be on for Unity to run a component (`id`, its fields `d`): its own enabled flag and the
+## active flag of its GameObject and every parent, each either switched by `switches` or fixed; null if one fixed off
+## means it never runs.
+static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary) -> Variant:
+	var by: Dictionary = switches.get("by_object", {})
+	var when := []
+	if by.has(id):
+		when.append([by[id], 1])
+	elif str(d.get("m_Enabled", "1")) != "1":
+		return null
 	var go := _ref(d.get("m_GameObject"))
 	var t := _transform(objs, go) if objs.has(go) else 0
 	var seen := {}
 	while objs.has(t) and not seen.has(t):
 		seen[t] = true
-		if not _active(objs, _ref(objs[t].data.get("m_GameObject"))):
-			return false
+		go = _ref(objs[t].data.get("m_GameObject"))
+		if str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly":
+			return null
+		if by.has(go):
+			when.append([by[go], 1])
+		elif not _active(objs, go):
+			return null
 		t = _ref(objs[t].data.get("m_Father"))
-	return true
+	return when
 
 
 ## The renderers that draw when the avatar is worn or its menu can show: every renderer, enabled or switched by
@@ -480,6 +502,11 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 			if c.attribute == "m_IsActive" and c["class"] == "1":
 				out.by_curve[key] = _switch(out, go, 1.0 if str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" else 0.0)
 				continue
+			if c.attribute == "m_Enabled" and c["class"] == "114":
+				var physics := _physics_of(objs, go, str(c.get("script", "")))
+				if physics != 0:
+					out.by_curve[key] = _switch(out, physics, 1.0 if str(objs[physics].data.get("m_Enabled", "1")) == "1" else 0.0)
+				continue
 			var renderer := _renderer_of(objs, go)
 			if renderer == 0 or not c["class"] in ["23", "137"]:
 				continue
@@ -512,6 +539,20 @@ static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 		out.by_object[object] = out.targets.size()
 		out.targets.append({"effect": "switch", "default": default})
 	return out.by_object[object]
+
+
+## The PhysBone, DynamicBone or collider on `go` that an m_Enabled curve naming `script` animates: Unity binds the first.
+static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
+	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := _ref((c as Dictionary).get("component"))
+		var d: Dictionary = objs.get(id, {}).get("data", {})
+		if str((d.get("m_Script", {}) as Dictionary).get("guid", "")) == script and (_spring_component(d) or not _collider(d).is_empty()):
+			return id
+	return 0
+
+
+static func _spring_component(d: Dictionary) -> bool:
+	return (d.has("pull") and d.has("rootTransform")) or (d.has("m_Damping") and d.has("m_Root"))
 
 
 static func _renderer_of(objs: Dictionary, go: int) -> int:
@@ -551,7 +592,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 					continue
 				by_curve[key] = target
 			var t: int = by_curve[key]
-			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material") or targets[t].effect.has("spring")}
+			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material")}
 			if c.has("refs"):
 				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
@@ -725,18 +766,6 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		var local: Variant = objs[transform].data.get("m_LocalScale")
 		rest = str((local as Dictionary).get(c.attribute.right(1), "1")).to_float() if local is Dictionary else 1.0
 		effect = {"scale": {"node": sk.get_bone_name(bone), "axis": axis}}
-	elif c.attribute == "m_Enabled" and c["class"] == "114":
-		var joints: Dictionary = sk.get_meta("physbone_joints", {})
-		var component := 0
-		for ref: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
-			var id := _ref((ref as Dictionary).get("component"))
-			if joints.has(id) and str((objs[id].data.get("m_Script", {}) as Dictionary).get("guid", "")) == c.get("script", ""):
-				component = id
-				break
-		if component == 0:
-			return -1
-		effect = {"spring": joints[component]}
-		rest = 1.0 if str(objs[component].data.get("m_Enabled", "1")) == "1" else 0.0
 	elif c["class"] == "4" and (c.attribute.get_slice(".", 0) in EULERS or c.attribute.begins_with("m_LocalRotation.") or c.attribute.begins_with("m_LocalPosition.")):
 		# VRChat masks FX transform curves off humanoid bones; the humanoid's pose is the muscles'.
 		if bone < 0 or (sk.get_meta("humanoid_bones", {}) as Dictionary).has(bone):
@@ -771,7 +800,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
 	var default := 1.0
-	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("spring") or effect.has("rotation"):
+	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("rotation"):
 		default = rest
 	elif effect.has("translation"):
 		default = 0.0
@@ -1692,7 +1721,10 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 
 ## VRM ends a spring at a node, so authored endpoints become bones beyond the leaves.
 ## PhysBone roots with several child chains remain fixed unless the source chooses First.
-static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary) -> Dictionary:
+## A component runs as Unity runs it when the avatar loads or the menu's `switches` turn it on; "switched" lists those
+## the menu switches, a PhysBone's joints or a collider's index with the switches it runs under. `moved` holds the
+## transforms the menu's curves move.
+static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary, switches := {}, moved := {}) -> Dictionary:
 	var bone_of := func(t: int) -> int:
 		var go := _ref(objs.get(t, {}).get("data", {}).get("m_GameObject"))
 		return sk.get_meta("unity_bones").get(go, -1) if sk.has_meta("unity_bones") else _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
@@ -1725,17 +1757,21 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			t = _transform(objs, go) if objs.has(go) else 0
 		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	var components := {}
+	var component_when := {}
+	var switched := {"springs": [], "colliders": []}
 	var component_roots := {}
 	var idle := 0
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not ((d.has("pull") and d.has("rootTransform")) or (d.has("m_Damping") and d.has("m_Root"))) or not ours.call(d):
+		if objs[id].type != "MonoBehaviour" or not _spring_component(d) or not ours.call(d):
 			continue
-		# A menu that shows an inactive object shows the bones its PhysBone moves, so only a disabled component stays out.
-		if str(d.get("m_Enabled", "1")) != "1":
+		var when: Variant = _when(objs, id, d, switches)
+		if when == null:
 			idle += 1
 			continue
 		components[id] = d
+		if not when.is_empty():
+			component_when[id] = when
 		var t := _ref(d.get("rootTransform", d.get("m_Root")))
 		if t == 0:
 			t = _transform(objs, _ref(d.get("m_GameObject")))
@@ -1771,13 +1807,16 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var c := _collider(d)
 		if c.is_empty():
 			continue
-		# A collider presses on chains that stay shown, so one that does not run when the avatar loads stays out.
-		if not _runs(objs, d):
+		var when: Variant = _when(objs, id, d, switches)
+		if when == null:
 			idle += 1
 			continue
 		var t := _ref(d.get("rootTransform"))
 		if t == 0:
 			t = _transform(objs, _ref(d.get("m_GameObject")))
+		# A collider the menu moves rides a bone of its own, which the menu's transform curves move.
+		if moved.has(t):
+			_as_bone(objs, t, sk, rests)
 		var placed := frame * _world_transform(objs, t) * (c.local as Transform3D)
 		var bone := -1
 		var at := t
@@ -1815,6 +1854,8 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				geometry["inside"] = true
 			collider = {"node": bone, "shape": {"sphere": {"offset": offset, "radius": 0.0}}, "extensions": {"VRMC_springBone_extended_collider": {"specVersion": "1.0", "shape": {kind: geometry}}}}
 		collider_index[id] = colliders.size()
+		if not when.is_empty():
+			switched.colliders.append({"collider": colliders.size(), "when": when})
 		colliders.append(collider)
 	for id: int in components:
 		var d: Dictionary = components[id]
@@ -1906,10 +1947,8 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var driven := []
 		for index in range(first_chain, springs.size()):
 			driven.append_array(springs[index].joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
-		if not legacy and not driven.is_empty():
-			if not sk.has_meta("physbone_joints"):
-				sk.set_meta("physbone_joints", {})
-			sk.get_meta("physbone_joints")[id] = driven
+		if component_when.has(id) and not driven.is_empty():
+			switched.springs.append({"joints": driven, "when": component_when[id]})
 		for index in range(first_chain, springs.size()):
 			var joints: Array = springs[index].joints
 			component.chains.append(joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
@@ -1920,7 +1959,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		elif not component.chains.is_empty():
 			component.reason = ""
 	report["spring coverage"] = JSON.stringify(coverage)
-	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components off when the avatar loads); parameters mapped approximately, whose hands push and grab kept; limits kept without their curves; grab movement and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle]
+	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components no menu turns on dropped, %d that the menu switches); parameters mapped approximately, whose hands push and grab kept; limits kept without their curves; grab movement and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle, component_when.size() + switched.colliders.size()]
 	if springs.is_empty():
 		return {}
 	var groups := []
@@ -1934,7 +1973,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if g >= 0:
 			spring["colliderGroups"] = [g]
 		out_springs.append(spring)
-	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups}
+	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups, "switched": switched}
 
 
 ## A PhysBone or DynamicBone collider in its transform's space (Unity's axes, X mirrored): `local` places it, `axis` is

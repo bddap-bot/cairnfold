@@ -32,6 +32,7 @@ func _run() -> void:
 	_both_versions_stand_alike()
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
+	_switched_off_physics_stays_out()
 	_unity_package_converts()
 	_physbones_keep_whose_hands_touch_them()
 	for i in Avatar.BUILT_IN.size():
@@ -542,6 +543,18 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	springs = {"springs": [chain.call(3), chain.call(Avatar.MAX_SPRING_JOINTS - 2), chain.call(2)]}
 	Avatar._keep_longest(springs)
 	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
+
+
+## A spring chain or collider the expressions' default state switches off is not simulated; one it leaves on is.
+func _switched_off_physics_stays_out() -> void:
+	var root := Node3D.new()
+	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0], "when": [[0, 1]]}, {"joints": [5.0], "when": [[1, 1]]}], "colliders": [{"collider": 0.0, "when": [[0, 1]]}]})
+	root.set_meta("springs", {"springs": [{"joints": [{"node": 2}, {"node": 3}], "colliders": [0, 1]}, {"joints": [{"node": 5}], "colliders": [0, 1]}], "colliders": [{}, {}]})
+	Avatar._switched_off(root)
+	var springs: Array = root.get_meta("springs").springs
+	check(springs.size() == 1 and springs[0].joints[0].node == 5, "the chain switched off is out, the one switched on stays: %s" % [springs])
+	check(springs.size() == 1 and springs[0].colliders == [1], "the collider switched off presses on nothing: %s" % [springs])
+	root.free()
 
 
 func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
