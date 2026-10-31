@@ -4,7 +4,10 @@ extends SceneTree
 ## direct light taken away, the view is black, and stays black with the sun's shadows off, as the ladder's lowest steps
 ## draw it (Interior). The shadow depth bias let the sun through onto the gable and wall tops just under the roof until
 ## the roof cast its shadow pulled toward the light (roof_shadow.gdshader). Shadows are drawn only on the desktop
-## renderer, so scripts/test.sh runs this there.
+## renderer, so scripts/test.sh runs this there. The house is laid from one seed, since the sunlit specks at its eaves
+## differ from one laying to the next (0.35 to 0.56 with the shadows off), and its meshes are drawn whole, as a
+## headset's eye draws them two metres away: 64 pixels across, the view takes the stones' far level of detail, which
+## doubles those specks.
 
 var failures := 0
 var main: Node
@@ -39,10 +42,11 @@ func _mean() -> float:
 
 
 func _run() -> void:
+	root.mesh_lod_threshold = 0.0
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await process_frame
-	await _steps([{"op": "place", "x": 0, "z": 12}, {"op": "house", "at": [0, 0], "size": [7, 5], "seconds": 0.1}])
+	await _steps([{"op": "place", "x": 0, "z": 12}, {"op": "house", "at": [0, 0], "size": [7, 5], "seed": 1, "seconds": 0.1}])
 	main.world.submit({"op": "sky", "time": 0.5})
 	await create_timer(1.0).timeout
 	main.look.bounce.finish()
