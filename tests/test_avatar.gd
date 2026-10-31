@@ -888,10 +888,12 @@ func _blended_surfaces_stay_blended() -> void:
 	for m in read:
 		(shown.mesh as ArrayMesh).add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		shown.mesh.surface_set_material(shown.mesh.get_surface_count() - 1, m)
-	var player := ExpressionPlayer.new(Node3D.new())
+	var model := Node3D.new()
+	var player := ExpressionPlayer.new(model)
 	player._material(shown)
 	var shaders := range(3).map(func(i: int) -> String: return (shown.get_surface_override_material(i) as ShaderMaterial).shader.resource_path.get_file())
 	check(shaders == ["expression.gdshader", "expression_blended.gdshader", "expression_blended_depth.gdshader"], "every surface of an animated mesh draws as it did: %s" % [shaders])
 	shown.free()
 	player.free()
+	model.free()
 

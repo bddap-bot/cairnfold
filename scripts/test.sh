@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The repo's checks: scripts compile, then every headless test; a script error, a failed allocation, an engine math call
-# given an unnormalized axis, a resource left in use at exit or an engine call given a freed object or a null material
-# fails it.
+# given an unnormalized axis, a resource left in use or an object leaked at exit, or an engine call given a freed object
+# or a null material fails it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 runs=$(mktemp -d)
@@ -41,8 +41,8 @@ for t in tests/test_*.gd; do
   code=$(cat "$log.exit")
   failed=0
   if [ "$code" != 0 ]; then echo "$t: exited $code"; failed=1; fi
-  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log" | sed "s|^|$t: |" || true
-  if grep -qE "SCRIPT ERROR|still in use at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log"; then failed=1; fi
+  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log" | sed "s|^|$t: |" || true
+  if grep -qE "SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log"; then failed=1; fi
   # A test that stops short of its end, however it exits, never prints its verdict.
   if ! grep -q "^tests: ok" "$log"; then failed=1; fi
   # A failure seen once is kept in the run's log, crash backtraces and errors around it included.

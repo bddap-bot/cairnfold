@@ -689,6 +689,9 @@ func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
 	check(wing == 1 and tip == 2 and sk.get_bone_name(tip) == "Wing Tip" and sk.get_bone_parent(tip) == wing and sk.get_bone_parent(wing) == 0, "the transform and its ancestor are bones under the chest")
 	check(rests.size() == 3 and rests[tip].origin.is_equal_approx(Vector3(-0.4, 1, 0)), "each sits where Unity places it, scaled as the chest is: %s" % [rests])
 	check(UnityAvatar._as_bone(objs, 13, sk, rests) == -1 and sk.get_bone_count() == 3, "a transform under no bone adds none")
+	sk.free()
+
+
 ## An avatar's menu toggle, its parameter, and the FX layer whose clip turns a GameObject on: the GameObject is a
 ## switch, its renderer, inactive in the scene, draws under it, and the toggle survives pruning; a control whose
 ## parameter moves nothing is cut.
@@ -1380,6 +1383,7 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, {})
 	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
 	root.free()
+	sk.free()
 
 
 ## A VRCFury Armature Link onto a humanoid bone applies when the avatar's armature is unpacked into the scene, its

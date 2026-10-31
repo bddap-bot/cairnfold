@@ -62,6 +62,9 @@ var brushes: Array[Brush] = []
 var stand_in := Flora.NO_HAND
 ## Sent strokes still shown as ghosts.
 var _sent := 0
+## The ghosts of settled strokes, hidden once the garden has grown their plants. A connection, not an await: a coroutine
+## still waiting when the tool is freed leaks its script.
+var _settled: Array = []
 
 
 func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
@@ -70,6 +73,7 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	paths = ways
 	world = garden
 	world.restored.connect(_forget)
+	flora.grown.connect(_hide_settled)
 	for h in rig.hands:
 		var b := Brush.new()
 		b.hand = h
@@ -298,16 +302,23 @@ func _send_ground(b: Brush) -> void:
 
 ## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
 func _lay(ghost: Array[Flora.Plant]) -> void:
-	if flora.growing():
-		await flora.grown
-	_sent -= 1
-	if _sent == 0 and not busy():
-		flora.clear_ghosts()
-		return
-	# Hiding a stroke's ghost a plant at a time took 17 ms for a 1900-plant stroke on a Quest 2; clearing them is one call.
-	for p in ghost:
-		if p != null:
-			p.set_shown(false)
+	_settled.append(ghost)
+	if not flora.growing():
+		_hide_settled()
+
+
+func _hide_settled() -> void:
+	var settled := _settled
+	_settled = []
+	for ghost: Array in settled:
+		_sent -= 1
+		if _sent == 0 and not busy():
+			flora.clear_ghosts()
+			continue
+		# Hiding a stroke's ghost a plant at a time took 17 ms for a 1900-plant stroke on a Quest 2; clearing them is one call.
+		for p: Flora.Plant in ghost:
+			if p != null:
+				p.set_shown(false)
 
 
 func _forget() -> void:

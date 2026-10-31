@@ -474,6 +474,8 @@ func _painting_skips_a_path() -> void:
 	t.paint(b, world.terrain.ground(25, -20), 0.8, 1.0)
 	check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
 	t.end_stroke(b)
+	# Unrun, the growth would leave the garden as it was whatever the stroke held.
+	flora.grow_now()
 	check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
 	t.free()
 	_teardown(nodes)
