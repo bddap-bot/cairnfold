@@ -23,6 +23,7 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const ExpressionCurves = preload("res://src/expression_state.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
@@ -1846,6 +1847,14 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
+		var deepest := _deepest(children, ignored, root_t)
+		var physbone := func(j: Dictionary, depth: int, last: bool) -> Dictionary:
+			if not legacy:
+				var extras: Dictionary = j.get("extras", {})
+				extras["physbone"] = _physbone(d, depth, deepest, endpoint != Vector3.ZERO, k)
+				extras.physbone["endpoint"] = last
+				j["extras"] = extras
+			return j
 		var groups := []
 		for c: Variant in Prefabs._list(d.get("colliders", d.get("m_Colliders"))):
 			if collider_index.has(_ref(c)):
@@ -1855,7 +1864,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var starts: Array = kids_of.call(root_t)
 		if starts.size() < 2 or str(d.get("multiChildType", "1" if legacy else "0")) == "1":
 			starts = [root_t]
-		var pending := starts.map(func(t: int) -> Array: return [t, []])
+		var pending := starts.map(func(t: int) -> Array: return [t, [], 0 if t == root_t else 1])
 		while not pending.is_empty():
 			var item: Array = pending.pop_back()
 			var bone: int = bone_of.call(item[0])
@@ -1863,7 +1872,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			if bone >= 0 and not human.has(bone) and not ignored.has(item[0]):
 				var j := joint.duplicate()
 				j["node"] = bone
-				joints.append(limited.call(j, item[0]))
+				joints.append(physbone.call(limited.call(j, item[0]), item[2], false))
 			elif not joints.is_empty():
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups, "extras": touch})
@@ -1871,6 +1880,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			var kids: Array = kids_of.call(item[0])
 			if kids.is_empty():
 				if not joints.is_empty() and endpoint != Vector3.ZERO:
+					joints[-1] = physbone.call(joints[-1], item[2], true)
 					var j := joint.duplicate()
 					var offset := endpoint * _world_scale(objs, item[0])
 					if legacy:
@@ -1881,7 +1891,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 					springs.append({"joints": joints, "colliders": groups, "extras": touch})
 				continue
 			for i in kids.size():
-				pending.append([kids[i], joints if i == 0 else []])
+				pending.append([kids[i], joints if i == 0 else [], item[2] + 1])
 		var driven := []
 		for index in range(first_chain, springs.size()):
 			driven.append_array(springs[index].joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
@@ -1939,6 +1949,47 @@ static func _collider(d: Dictionary) -> Dictionary:
 		var radius := str(d.m_Radius).to_float()
 		return {"local": local, "axis": axis, "radius": radius, "half": maxf(str(d.get("m_Height", "0")).to_float() / 2.0 - radius, 0.0), "kind": "round", "inside": inside}
 	return {}
+
+
+## How many transforms down from `root` its PhysBone reaches: VRChat's maxBoneChainIndex, over every transform below it
+## the PhysBone does not ignore, bones of the output skeleton or not.
+static func _deepest(children: Dictionary, ignored: Dictionary, root: int) -> int:
+	var deepest := 0
+	var level: Array = [root]
+	while true:
+		level = level.reduce(func(next: Array, t: int) -> Array: return next + children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c)), [])
+		if level.is_empty():
+			return deepest
+		deepest += 1
+	return deepest
+
+
+## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc
+## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; radii in the output's units.
+static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, k: float) -> Dictionary:
+	var reach := deepest + (1 if endpoint else 0)
+	var along := clampf(float(depth) / (reach - 1), 0.0, 1.0) if reach - 1 > 0 else 0.0
+	var at := func(index: int) -> float: return clampf(float(index) / reach, 0.0, 1.0) if reach > 0 else 0.0
+	var curved := func(field: String, t: float, fallback: float) -> float:
+		var keys := Expressions._keys((d.get(field + "Curve", {}) as Dictionary).get("m_Curve") if d.get(field + "Curve") is Dictionary else [])
+		return (ExpressionCurves.sample(keys, t, false) if not keys.is_empty() else 1.0) * str(d.get(field, fallback)).to_float()
+	var radius := func(t: float) -> float: return curved.call("radius", t, 0.0) * k
+	return {
+		"version": "1.0" if str(d.get("version", "1")) == "0" else "1.1",
+		"integration": "advanced" if str(d.get("integrationType", "0")) == "1" else "simplified",
+		"pull": clampf(curved.call("pull", along, 0.2), 0.0, 1.0),
+		"spring": clampf(curved.call("spring", along, 0.2), 0.0, 1.0),
+		"stiffness": clampf(curved.call("stiffness", along, 0.2), 0.0, 1.0),
+		"gravity": curved.call("gravity", along, 0.0),
+		"gravityFalloff": clampf(curved.call("gravityFalloff", along, 0.0), 0.0, 1.0),
+		"immobile": clampf(curved.call("immobile", along, 0.0), 0.0, 1.0),
+		"immobileType": "world" if str(d.get("immobileType", "0")) == "1" else "allMotion",
+		"maxStretch": maxf(curved.call("maxStretch", along, 0.0), 0.0),
+		"maxSquish": clampf(curved.call("maxSquish", along, 0.0), 0.0, 1.0),
+		"stretchMotion": clampf(curved.call("stretchMotion", along, 0.0), 0.0, 1.0),
+		"radius": [radius.call(at.call(depth)), radius.call(at.call(depth + 1))],
+		"depth": depth,
+	}
 
 
 ## `springs` as SpringDefinition reads them, each collider keeping its extensions and each joint its extras, which the

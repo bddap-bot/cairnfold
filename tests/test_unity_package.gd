@@ -33,6 +33,7 @@ func _run() -> void:
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_a_physbone_carries_its_limit()
+	_a_physbone_carries_its_settings_bone_by_bone()
 	_legacy_springs_keep_their_root_and_endpoint()
 	_a_dynamic_bone_sizes_by_its_own_transform()
 	_colliders_keep_their_shape_side_and_bone()
@@ -499,7 +500,53 @@ func _a_physbone_carries_its_limit() -> void:
 		check(read.size() == 1 and read[0].joints[0].get("extras") == joints[0].extras, "reading the springs keeps each joint's limit: %s" % [read])
 	objs[20].data.limitType = "0"
 	var free: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
-	check(not free[0].has("extras"), "a PhysBone without a limit carries none: %s" % [free])
+	check(not free[0].get("extras", {}).has("limit"), "a PhysBone without a limit carries none: %s" % [free])
+	sk.free()
+
+
+## Every joint of a PhysBone carries the source's own settings for the runtime to step it as VRChat does: each curve
+## evaluated at the bone's place down the chain as VRChat's Calc functions place it, the radius at both its ends, and
+## which bone ends at the endpoint.
+func _a_physbone_carries_its_settings_bone_by_bone() -> void:
+	var sk := Skeleton3D.new()
+	for name in ["Root", "Mid", "Tip"]:
+		sk.add_bone(name)
+	for i in [1, 2]:
+		sk.set_bone_parent(i, i - 1)
+		sk.set_bone_rest(i, Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)))
+	var ramp := func(a: float, b: float) -> Dictionary: return {"m_Curve": [{"time": "0", "value": str(a), "inSlope": "0", "outSlope": str(b - a)}, {"time": "1", "value": str(b), "inSlope": str(b - a), "outSlope": "0"}]}
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "11"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Root"}},
+		111: {"type": "GameObject", "data": {"m_Name": "Mid"}},
+		112: {"type": "GameObject", "data": {"m_Name": "Tip"}},
+		20: {"type": "MonoBehaviour", "data": {"version": "1", "integrationType": "1", "rootTransform": {"fileID": "10"}, "endpointPosition": {"x": "0", "y": "0.05", "z": "0"},
+			"pull": "0.2", "pullCurve": ramp.call(1.0, 0.5), "spring": "0.7", "stiffness": "0.1", "gravity": "-0.02", "gravityFalloff": "0.5", "immobileType": "1", "immobile": "0.3",
+			"maxStretch": "0.1", "maxSquish": "0.4", "stretchMotion": "0.5", "radius": "0.04", "radiusCurve": ramp.call(1.0, 0.5)}},
+	}
+	var definition: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 2.0, {})
+	var joints: Array = definition.springs[0].joints if definition.get("springs", []).size() == 1 else []
+	check(joints.size() == 4, "the three bones and the endpoint make the chain: %s" % [definition])
+	if joints.size() != 4:
+		sk.free()
+		return
+	var bones: Array = joints.slice(0, 3).map(func(j: Dictionary) -> Dictionary: return j.get("extras", {}).get("physbone", {}))
+	var first: Dictionary = bones[0]
+	check(first.get("version") == "1.1" and first.get("integration") == "advanced" and first.get("immobileType") == "world", "the version, integration and immobile type are carried: %s" % [first])
+	check(is_equal_approx(first.get("spring", 0.0), 0.7) and is_equal_approx(first.get("stiffness", 0.0), 0.1) and is_equal_approx(first.get("gravity", 0.0), -0.02) and is_equal_approx(first.get("gravityFalloff", 0.0), 0.5) and is_equal_approx(first.get("immobile", 0.0), 0.3), "the settings without a curve are carried as set, gravity's sign kept: %s" % [first])
+	check(is_equal_approx(first.get("maxStretch", 0.0), 0.1) and is_equal_approx(first.get("maxSquish", 0.0), 0.4) and is_equal_approx(first.get("stretchMotion", 0.0), 0.5), "stretch and squish are carried: %s" % [first])
+	var pulls: Array = bones.map(func(b: Dictionary) -> float: return b.get("pull", 0.0))
+	check(is_equal_approx(pulls[0], 0.2) and is_equal_approx(pulls[1], 0.15) and is_equal_approx(pulls[2], 0.1), "pull follows its curve from the root to the bone before the endpoint: %s" % [pulls])
+	var radii: Array = bones.map(func(b: Dictionary) -> Array: return b.get("radius", []))
+	var expected := [[0.08, 0.08 * (1.0 - 0.5 / 3.0)], [0.08 * (1.0 - 0.5 / 3.0), 0.08 * (1.0 - 1.0 / 3.0)], [0.08 * (1.0 - 1.0 / 3.0), 0.04]]
+	for i in 3:
+		check(radii[i].size() == 2 and is_equal_approx(radii[i][0], expected[i][0]) and is_equal_approx(radii[i][1], expected[i][1]), "bone %d's radius at each end follows the curve to the endpoint, in the output's units: %s" % [i, radii])
+	check(bones.map(func(b: Dictionary) -> int: return b.get("depth", -1)) == [0, 1, 2] and bones.map(func(b: Dictionary) -> bool: return b.get("endpoint", false)) == [false, false, true], "each bone knows its depth and the last ends at the endpoint: %s" % [bones])
+	objs[20].data.erase("endpointPosition")
+	var plain: Array = UnityAvatar._springs(objs, 10, sk, {}, 2.0, {}).springs[0].joints
+	check(plain.size() == 3 and not plain[1].extras.physbone.endpoint and is_equal_approx(plain[1].extras.physbone.pull, 0.1), "without an endpoint the last bone is a tail and the curve ends a bone sooner: %s" % [plain])
 	sk.free()
 
 
