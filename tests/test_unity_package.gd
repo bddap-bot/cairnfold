@@ -1261,7 +1261,7 @@ func _gesture_faces_become_expressions() -> void:
 	check(UnityAvatar._face(Prefabs.new(Assets.new(dir)), {}, {"lipSync": "1", "VisemeBlendShapes": visemes}).expressions.is_empty(), "visemes count only where it lip-syncs by blend shape")
 
 ## Renderers merged into one mesh keep one shape for a name only where Unity weighs it alike in each: one renderer's saved
-## weight or clip never moves another's.
+## weight or clip never moves another's. A shape alone in its mesh under its source's name keeps that name.
 func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var dir := ProjectSettings.globalize_path("user://shapes")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -1317,6 +1317,10 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var merged := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, {}, {}, sk, rests, 1.0, {})
 	check(merged.meshes.size() == 1 and merged.meshes[0].weights == {"Shorts": 0.0, "Shorts (2)": 1.0}, "a name saved at two weights is two shapes, each at its renderer's weight: %s" % [merged.meshes.map(func(m: Dictionary) -> Dictionary: return m.weights)])
 	check(merged.shapes == {3: {"Shorts": "Shorts"}, 6: {"Shorts": "Shorts (2)"}, 9: {"Shorts": "Shorts (2)"}}, "renderers weighed alike share their shape: %s" % [merged.shapes])
+	var switched := renderers.map(func(r: Array) -> Array: return [r[0], r[1], [] if r[0] == 3 else [[0, 1]]])
+	var apart := UnityAvatar._merge(prefabs, materials, objs, switched, {}, {}, {}, sk, rests, 1.0, {})
+	var names: Array = apart.meshes.map(func(m: Dictionary) -> Array: return [m.renderers, m.weights])
+	check(names == [[[3], {"Shorts": 0.0}], [[6, 9], {"Shorts": 1.0}]], "each mesh names its shape as the source does: %s" % [names])
 	var animated := {6: {"Shorts": [[0, [[0.0, 50.0]]]]}}
 	var split := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, animated, {}, sk, rests, 1.0, {})
 	check(split.shapes[6].Shorts != split.shapes[9].Shorts, "a clip moving one renderer's shape parts it from a renderer the clip leaves: %s" % [split.shapes])

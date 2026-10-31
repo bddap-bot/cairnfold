@@ -301,12 +301,12 @@ func _unity_rotation(text: String) -> Quaternion:
 
 
 ## An imported avatar's "faces" write as VRM expressions, preset or custom by name, each bound to the morph target
-## of its shape's name, and the file lists every extension it carries.
+## of its shape's name on its node, and the file lists every extension it carries.
 func _writes_expressions(model: Node3D) -> void:
 	var worn: Node3D = model.duplicate()
 	var mi: MeshInstance3D = worn.find_children("*", "MeshInstance3D", true, false)[0]
 	var shape: String = mi.mesh.get_blend_shape_name(mi.mesh.get_blend_shape_count() - 1)
-	worn.set_meta("faces", {"happy": [{"shape": shape, "weight": 0.5}], "wink": [{"shape": shape, "weight": 1.0}], "none": [{"shape": "no such shape", "weight": 1.0}]})
+	worn.set_meta("faces", {"happy": [{"node": mi.name, "shape": shape, "weight": 0.5}], "wink": [{"node": mi.name, "shape": shape, "weight": 1.0}], "none": [{"node": mi.name, "shape": "no such shape", "weight": 1.0}]})
 	UnityAvatar.wearable(worn)
 	var vrm := ProjectSettings.globalize_path("user://seed-san.vrm")
 	Vrm.write(worn, vrm)

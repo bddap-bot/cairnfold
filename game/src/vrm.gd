@@ -4,8 +4,8 @@ extends GLTFDocumentExtension
 ## The humanoid part of VRM 1.0 (VRMC_vrm) and VRM 0.x (VRM): which glTF nodes are the head, hands and the rest
 ## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
 ## 1.0 from nodes named after the bones, the scene root's "eyes" metadata and its "faces" (each VRM expression's
-## name, a preset where PRESETS has it and custom otherwise, to its [{"shape": blend shape name, "weight" 0 to 1}],
-## bound to every mesh with a blend shape of that name); import records on the scene root
+## name, a preset where PRESETS has it and custom otherwise, to its [{"node": mesh node name, "shape": blend shape
+## name, "weight" 0 to 1}]); import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
 ## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
 ## Avatar.model. VRCHAT_expressions carries imported menu controls and FX targets.
@@ -285,13 +285,14 @@ func _export_post(state: GLTFState) -> Error:
 		if nodes[i].mesh >= 0:
 			var mesh := state.get_meshes()[nodes[i].mesh].mesh
 			for k in mesh.get_blend_shape_count():
-				morphs.get_or_add(mesh.get_blend_shape_name(k), []).append({"node": i, "index": k})
+				morphs[[str(nodes[i].resource_name), str(mesh.get_blend_shape_name(k))]] = {"node": i, "index": k}
 	var faces := {"preset": {}, "custom": {}}
 	var wanted: Dictionary = state.get_additional_data(&"faces")
 	for name: String in wanted:
 		var binds := []
 		for b: Dictionary in wanted[name]:
-			for at: Dictionary in morphs.get(b.shape, []):
+			var at: Variant = morphs.get([str(b.node), str(b.shape)])
+			if at != null:
 				binds.append({"node": at.node, "index": at.index, "weight": b.weight})
 		if not binds.is_empty():
 			faces["preset" if name in PRESETS else "custom"][name] = {"morphTargetBinds": binds}

@@ -304,8 +304,10 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 			for r: int in merged.shapes:
 				if merged.shapes[r].has(b.shape):
 					shapes[merged.shapes[r][b.shape]] = true
-			for s: String in shapes:
-				binds.append({"shape": s, "weight": b.weight})
+			for m: Dictionary in merged.meshes:
+				for s: String in shapes:
+					if m.names.has(s):
+						binds.append({"node": m.node, "shape": m.names[s], "weight": b.weight})
 		face.expressions[name] = binds
 	root.set_meta("faces", face.expressions)
 	report["faces"] = (face.expressions as Dictionary).keys()
@@ -650,9 +652,9 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		var shape: String = shapes.get(renderer, {}).get(c.attribute.trim_prefix("blendShape."), "")
 		var binds := []
 		for m: Dictionary in meshes:
-			if renderer in m.renderers and m.weights.has(shape):
-				binds.append([m.node, shape])
-				rest = m.weights[shape]
+			if renderer in m.renderers and m.names.has(shape):
+				binds.append([m.node, m.names[shape]])
+				rest = m.weights[m.names[shape]]
 		if binds.is_empty():
 			return -1
 		effect = {"morph": binds}
@@ -1010,8 +1012,9 @@ static func _in_model(n: Node) -> Transform3D:
 ## Avatar.MAX_BLEND_VERTICES together, those the menu's clips animate or the face uses (`faced`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
 ## target, [each material reference it can take]]) is a mesh of its own, its UVs in its first material's cell and
 ## "choices" moving them to each material's ([scale x, y, offset x, y]) under "swap", that switch.
-## {"skin", "meshes": [{"mesh", "when", "renderers", "weights": each blend shape's saved weight}], "shapes": renderer to
-## source shape name to its shape's name}, or empty if nothing draws.
+## {"skin", "meshes": [{"mesh", "when", "renderers", "names": each of its shapes' name to its name in this mesh, "weights":
+## each blend shape's saved weight}], "shapes": renderer to source shape name to its shape's name}, or empty if nothing
+## draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, slots: Dictionary, animated: Dictionary, faced: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -1028,6 +1031,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var saved_weights := {}
 	var identities := {}
 	var shape_of := {}
+	var source_of := {}
 	var live := {}
 	var drawn := []
 	var skipped := []
@@ -1104,6 +1108,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 						copy += 1
 						name = "%s (%d)" % [source, copy]
 					identities[identity] = name
+					source_of[name] = source
 					saved_weights[name] = weight
 					if not curves.is_empty() or faced.has(source):
 						live[name] = true
@@ -1226,10 +1231,16 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					if surface.remap.has(i):
 						gv[surface.remap[i]] += w * (shapes[name][i][0] as Vector3)
 				surface.arrays[Mesh.ARRAY_VERTEX] = gv
+		# Shapes need distinct names only within one mesh, so each takes its source's name unless another shape of that
+		# name shares the mesh.
+		var sources: Array = names.map(func(name: String) -> String: return source_of[name])
+		var named := {}
+		for name: String in names:
+			named[name] = source_of[name] if sources.count(source_of[name]) == 1 and not names.any(func(other: String) -> bool: return other != name and other == source_of[name]) else name
 		var out := ArrayMesh.new()
 		out.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_RELATIVE
 		for name: String in names:
-			out.add_blend_shape(name)
+			out.add_blend_shape(named[name])
 		for surface: Dictionary in surfaces:
 			var size: int = (surface.arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 			var blends := []
@@ -1249,8 +1260,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				blends.append(b)
 			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surface.arrays, blends)
 			out.surface_set_material(out.get_surface_count() - 1, surface.material)
-		var part := {"mesh": out, "when": group.when, "renderers": group.renderers.keys(), "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
-			kept_weights[name] = saved_weights.get(name, 0.0)
+		var part := {"mesh": out, "when": group.when, "renderers": group.renderers.keys(), "names": named, "weights": names.reduce(func(kept_weights: Dictionary, name: String) -> Dictionary:
+			kept_weights[named[name]] = saved_weights.get(name, 0.0)
 			return kept_weights, {})}
 		if group.has("swap"):
 			part.swap = group.swap
