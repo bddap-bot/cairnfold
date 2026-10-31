@@ -10,14 +10,18 @@ varying vec4 given;
 
 void vertex() {
 	mat4 piece = PIECE_MATRIX;
-	vec3 world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
-	vec3 world_nrm = normalize(mat3(piece) * NORMAL);
-	occlusion = PIECE_CUSTOM.x;
-	given = given_at(world_pos, world_nrm);
+	if (piece_cut(piece, CAMERA_POSITION_WORLD)) {
+		VERTEX = vec3(0.0);
+	} else {
+		vec3 world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
+		vec3 world_nrm = normalize(mat3(piece) * NORMAL);
+		occlusion = PIECE_CUSTOM.x;
+		given = given_at(world_pos, world_nrm);
 #ifdef BAKED
-	VERTEX = world_pos;
-	NORMAL = world_nrm;
+		VERTEX = world_pos;
+		NORMAL = world_nrm;
 #endif
+	}
 }
 
 void fragment() {

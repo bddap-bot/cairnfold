@@ -253,7 +253,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED, "the step's MSAA, without reflections")
 	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
 	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
-	check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and is_equal_approx(stone.far.visibility_range_begin, bottom.stone_near_m + ks[Wall.Part.STONE].radius()), "a chunk already standing takes the step's reaches")
+	check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and stone.far.get_instance_shader_parameter(&"piece_range").x == bottom.stone_near_m, "a chunk already standing takes the step's reaches")
 	q.pin = 0
 	q._process(0.1)
 	q._process(0.1)

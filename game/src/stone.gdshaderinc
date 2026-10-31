@@ -39,54 +39,58 @@ varying flat float tone;
 
 void vertex() {
 	mat4 piece = PIECE_MATRIX;
-	// A piece's ends turn by its custom data's zw about its local y: a wall panel's each cut along the bisector with its
-	// neighbour, an arch's wedge on lines through the arch's centre; its z faces' normals turn with each end, so a
-	// curved run of panels or a ring of wedges closes and shades round.
+	if (piece_cut(piece, CAMERA_POSITION_WORLD)) {
+		VERTEX = vec3(0.0);
+	} else {
+		// A piece's ends turn by its custom data's zw about its local y: a wall panel's each cut along the bisector with its
+		// neighbour, an arch's wedge on lines through the arch's centre; its z faces' normals turn with each end, so a
+		// curved run of panels or a ring of wedges closes and shades round.
 #ifdef ROOF_TIMBER
-	float turn = 0.0;
+		float turn = 0.0;
 #else
-	float turn = VERTEX.x < 0.0 ? PIECE_CUSTOM.z : PIECE_CUSTOM.w;
+		float turn = VERTEX.x < 0.0 ? PIECE_CUSTOM.z : PIECE_CUSTOM.w;
 #endif
-	world_nrm = normalize((piece * vec4(NORMAL, 0.0)).xyz);
-	if (turn != 0.0) {
-		vec3 axis = normalize(piece[1].xyz);
-		vec3 run = piece[0].xyz;
-		VERTEX.x += VERTEX.z * length(piece[2].xyz) * tan(turn) / length(run - axis * dot(run, axis));
-		if (abs(NORMAL.z) > 0.5) {
-			vec3 n = normalize(piece[2].xyz) * sign(NORMAL.z);
-			world_nrm = n * cos(turn) + cross(axis, n) * sin(turn);
-			NORMAL = transpose(mat3(piece)) * world_nrm;
+		world_nrm = normalize((piece * vec4(NORMAL, 0.0)).xyz);
+		if (turn != 0.0) {
+			vec3 axis = normalize(piece[1].xyz);
+			vec3 run = piece[0].xyz;
+			VERTEX.x += VERTEX.z * length(piece[2].xyz) * tan(turn) / length(run - axis * dot(run, axis));
+			if (abs(NORMAL.z) > 0.5) {
+				vec3 n = normalize(piece[2].xyz) * sign(NORMAL.z);
+				world_nrm = n * cos(turn) + cross(axis, n) * sin(turn);
+				NORMAL = transpose(mat3(piece)) * world_nrm;
+			}
 		}
-	}
-	world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
-	surface_pos = miniature ? VERTEX : world_pos;
+		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
+		surface_pos = miniature ? VERTEX : world_pos;
 #ifdef ROOF_TIMBER
-	occlusion = 0.85;
-	material = 5.0;
+		occlusion = 0.85;
+		material = 5.0;
 #else
-	occlusion = PIECE_CUSTOM.x;
-	material = PIECE_CUSTOM.y;
+		occlusion = PIECE_CUSTOM.x;
+		material = PIECE_CUSTOM.y;
 #endif
-	float ground = ground_at(world_pos.xz);
-	// Palette.Element ROOF: the covering.
-	vec3 at = abs(material - 2.0) < 0.5 ? bounce_over_cover(world_pos, world_nrm, ground) : bounce_over(world_pos, world_nrm, ground);
+		float ground = ground_at(world_pos.xz);
+		// Palette.Element ROOF: the covering.
+		vec3 at = abs(material - 2.0) < 0.5 ? bounce_over_cover(world_pos, world_nrm, ground) : bounce_over(world_pos, world_nrm, ground);
 #ifdef GIVEN_PER_VERTEX
-	given = given_read(at, lamp_over(world_pos, world_nrm, ground));
+		given = given_read(at, lamp_over(world_pos, world_nrm, ground));
 #else
-	bounce_at = at;
-	lamp_at = lamp_over(world_pos, world_nrm, ground);
+		bounce_at = at;
+		lamp_at = lamp_over(world_pos, world_nrm, ground);
 #endif
-	glass = COLOR.a < 0.5 ? 1.0 : 0.0;
-	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_over(world_pos, -world_nrm, ground), 0.0).rgb : vec3(0.0);
+		glass = COLOR.a < 0.5 ? 1.0 : 0.0;
+		pane = glass > 0.5 ? textureLod(lamp_volume, lamp_over(world_pos, -world_nrm, ground), 0.0).rgb : vec3(0.0);
 #ifdef ROOF_TIMBER
-	COLOR = vec4(timber_color, 1.0);
+		COLOR = vec4(timber_color, 1.0);
 #endif
-	style = stone_style;
-	tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+		style = stone_style;
+		tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
 #ifdef BAKED
-	VERTEX = world_pos;
-	NORMAL = world_nrm;
+		VERTEX = world_pos;
+		NORMAL = world_nrm;
 #endif
+	}
 }
 
 void fragment() {

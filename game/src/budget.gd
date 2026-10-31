@@ -24,7 +24,7 @@ const PATH_TREADS_PER_ROW := 2
 ## each a canvas drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone
 ## ground and of cobbled or flagged path, each stroke the ground its discs reach, a stroke over another counted again.
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
-## Masonry draws a chunk's stones whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
+## Masonry draws a stone whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
 ## these costs a far rate on all of it and, as `<unit>_near` (World counts them, `Near`), a near excess on what stands in
 ## the chunks one eye has near.
 const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
@@ -78,7 +78,7 @@ const CAPACITY_MS := 3.99
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 0.591, "flower": 1.682, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.488, "thatch_m2": 3.834, "fitting": 15.187, "easel": 890.0, "boulder": 37.518, "water": 2570.0, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 8.116}
+const COSTS := {"grass": 0.591, "flower": 1.682, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.488, "thatch_m2": 3.834, "fitting": 15.187, "easel": 890.0, "boulder": 37.518, "water": 2570.0, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 3.761, "plaster_m2_near": 3.693, "fence_m2_near": 2.626, "roof_m2_near": 0.0, "thatch_m2_near": 7.159}
 
 
 static func fit_step() -> int:

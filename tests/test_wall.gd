@@ -363,7 +363,9 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 			Wall.Part.STONE:
 				check(c.far != null and c.far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
 				check(c.far.multimesh.instance_count == 0 and c.instance.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
-				check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.STONE].near + ks[Wall.Part.STONE].radius()) and is_equal_approx(c.far.visibility_range_begin, c.instance.visibility_range_end), "near and far stones meet at the near distance")
+				var near: float = ks[Wall.Part.STONE].near
+				check(is_equal_approx(c.instance.visibility_range_end, near + ks[Wall.Part.STONE].radius()) and c.far.visibility_range_begin == 0.0, "a chunk that may hold a near stone draws its near and far instances")
+				check(c.instance.get_instance_shader_parameter(&"piece_range") == Vector2(0.0, near) and c.far.get_instance_shader_parameter(&"piece_range").x == near, "near and far stones meet at the near distance")
 			Wall.Part.IVY:
 				check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.IVY].reach + ks[Wall.Part.IVY].radius()), "ivy stops at its reach")
 			Wall.Part.MORTAR:
@@ -495,7 +497,7 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 		check(stones.size() >= 4, "by the ground chunk under each, got %d chunks" % stones.size())
 		for key in stones:
 			var far: MultiMeshInstance3D = w._drawn._chunks[key].far
-			check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Wall.kinds()[Wall.Part.STONE].radius()), "beyond the near distance in coarse stones")
+			check(far != null and far.multimesh.mesh == Stones.far_mesh() and far.get_instance_shader_parameter(&"piece_range").x == Wall.kinds()[Wall.Part.STONE].near, "beyond the near distance in coarse stones")
 	w.finished = true
 	w.rebuild(true)
 	w.lay_now()

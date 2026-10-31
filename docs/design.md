@@ -1100,18 +1100,19 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   The host and visitor apply the same check; removing cost still works in older gardens
   already over capacity, and undo uses the same limit.
 - Masonry (stone, plaster and fence faces, tiled roofs and thatch) is charged as the frame pays for it: `Masonry`
-  draws a chunk's stones whole only while it stands within the fit step's `stone_near_m` of the eye, and 12-triangle
-  stones past it. So each masonry unit costs a far rate on all of it, fitted from the air, where every chunk draws far
+  draws a stone whole only while it stands within the fit step's `stone_near_m` of the eye, and 12-triangle
+  stones past it (see "Near masonry a piece at a time"). So each masonry unit costs a far rate on all of it, fitted from the air, where every chunk draws far
   meshes, and a near excess (`wall_m2_near` and the like) on what stands in the chunks one eye can have near at once
   (`Budget.near`): `World` bins each build's masonry into Masonry's 8 m chunks along its line (`Budget.spread`), and
-  the near units are what the 3 by 3 chunks around the dearest one hold (`Budget.near_span`; a chunk draws near while
-  its centre is within 4 m and a chunk's radius, 7.2 m, of the eye, which never reaches past the chunks beside the
-  eye's own). The excess is fitted standing among the walls, over what their far rate already charges. Timber stays
+  the near units are what the 3 by 3 chunks around the dearest one hold (`Budget.near_span`; a chunk can hold a piece
+  drawn near only while its centre is within 4 m and a chunk's radius, 7.2 m, of the eye, which never reaches past
+  the chunks beside the eye's own). The excess is fitted standing among the walls, over what their far rate already charges. Timber stays
   counted per member at its dense-village price (`TIMBER_US`). Two interleaved Quest 2 runs on 2eb107d
   ([record](../perf/quest-2/costs/20261024T035706Z-2eb107d.json),
   [record](../perf/quest-2/costs/20261024T041730Z-2eb107d.json)), the larger of each, µs a m², far + near: stone wall
   4.29 + 6.23 (each from the 10 m disc), plaster 1.11 + 4.28, fence 2.27 + 3.38, tiled roof 9.44 + 0 (9.49 since a8dc2bc, below), thatch
-  10.18 + 0. Lanterns and thatch are measured on the builds before them left standing (the 10 m disc of walls, the
+  10.18 + 0. The near excess was refitted since a piece takes its near mesh by its own distance (see "Near masonry
+  a piece at a time"). Lanterns and thatch are measured on the builds before them left standing (the 10 m disc of walls, the
   village re-thatched) and fitted against those from the same view, so they are charged only what they add:
   `fitting` 15.19 µs. A hamlet of five default stone houses 14 to 25 m apart (`hamlet`, its walls 264 m² and roofs
   200 m²) held 72 Hz from the air and standing and measured 3.42 ms from the air, its dearest view; it is charged
@@ -1494,7 +1495,8 @@ near and far meshes; past the near distance a whole 16 m chunk draws the far mes
 ones under it in their place; everything drawn at every distance (mortar, tiles, coats, shadow
 boxes) stands in 16 m chunks.** `Masonry` makes each 16 m far instance the `visibility_parent`
 of its 8 m chunks' near and far instances, so the renderer draws either the one or the others,
-never both and never neither. Standing among walls a garden pays 8 m chunks' full stones;
+never both and never neither; within an 8 m chunk the near and far instances each draw the pieces on their own
+side of the near distance. Standing among walls a garden pays 8 m chunks' full stones;
 from the air, 16 m chunks' draw calls. The extra draw calls of 8 m chunks were what cost from
 the air: their primitives matched 16 m chunks' to under 1%.
 
@@ -1582,6 +1584,78 @@ fitted 92.6 µs a m². Thatch costs more than tiles from the air: five thatched 
 Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/costs.json`. On the Frame a later run
 fitted them alone (`perf/frame/costs/`), its bare meadow 7.62 ms from the air and 5.67 standing: the easels read 8.05
 and 7.91 ms, 0.62 ms an easel.
+
+### Near masonry a piece at a time
+
+At the build budget's full room, standing among four default stone houses (`demo/fill-profile.json`, fill 0.875),
+the masonry took 4.4 ms of a 9.0 ms Quest 2 frame. Each part hidden in turn over that view and over the walls'
+(`demo/masonry-prof.json`, [record](../perf/quest-2/masonry-prof/20261030T161232Z-a065cf4.json); `App=` ms, the
+view with everything shown read 8.6 to 9.2 among the houses and 7.5 to 7.6 among the walls):
+
+| Hidden | Among the houses | Among the walls |
+| --- | --- | --- |
+| All masonry | 4.64 | 4.70 |
+| All masonry and MSAA | 4.34 | 4.53 |
+| Roof tiles drawn whole | 6.92 | 7.55 |
+| Stones drawn whole | 7.76 | 6.33 |
+| Stones drawn coarse | 9.02 | 7.17 |
+| Ivy | 8.04 | 6.31 |
+| Mortar | 8.76 | 7.24 |
+| Floors | 8.81 | 7.48 |
+| Everything else (tiles coarse, shadow boxes, plaster coats, timber) | 9.00 to 9.03 | 7.48 to 7.60 |
+
+What the whole tiles and stones cost is their small triangles shaded, not their vertices: over the same view in one
+build (all shown 8.96 to 9.23), drawing each kind's whole pieces as their 12-triangle far box instead read 7.36 for
+tiles and 7.60 for stones, as much as hiding them (7.23, 7.59); an unlit fragment 7.90 and 7.87; the stone
+shader's own fragment work alone (the light kept) 8.29 and 8.09; skipping the light volumes each vertex reads,
+nothing (9.08, 8.98).
+
+Masonry drew a chunk's pieces whole once the chunk's centre stood within the near distance and its radius of the eye,
+so at the fit step every piece within 11 m could be drawn whole where `stone_near_m` is 4 m: the house in front of
+the eye, 7 m off, was. **Decision: each piece takes its near or far mesh by its own distance from the eye.** A chunk
+that may hold a near piece draws both its instances, and each collapses the pieces on the other side of
+`stone_near_m` to a point (`piece_range`, piece.gdshaderinc). A baked far chunk, drawn only past the near distance,
+leaves the test out: read on every vertex of its mesh, it cost the view of a hamlet from the air 0.3 ms
+(`demo/masonry-aerial.json`, settled views, `App=` ms; before 55764949, the test everywhere 72a28cd, baked chunks
+without it e9db85b):
+
+| From the air | Before | Test on every vertex | Baked chunks without it |
+| --- | --- | --- | --- |
+| Village | 8.56, 8.62, 8.68 | 9.09, 9.07 | 8.52, 8.59 |
+| Hamlet | 9.06, 8.99, 8.94 | 9.30, 9.25 | 9.00, 9.05 |
+
+`demo/fill-profile.json` on one Quest 2, interleaved, `App=` ms (before
+[record](../perf/quest-2/fill-profile/20261031T010805Z-5576494.json),
+[record](../perf/quest-2/fill-profile/20261031T013644Z-5576494.json); after
+[record](../perf/quest-2/fill-profile/20261031T011450Z-72a28cd.json),
+[record](../perf/quest-2/fill-profile/20261031T012113Z-72a28cd.json),
+[record](../perf/quest-2/fill-profile/20261031T035512Z-e9db85b.json)):
+
+| View | Before | After | Masonry's share, before and after |
+| --- | --- | --- | --- |
+| Among the houses (fill 0.88) | 9.20, 9.24 | 7.35, 7.51, 7.33 | 4.57 to 2.73 |
+| Among the houses, masonry hidden | 4.60, 4.71 | 4.66, 4.68, 4.65 | |
+| Among the walls (fill 0.95), settled | 7.27, 7.10 | 7.21, 7.15, 7.43 | unchanged |
+| Among the walls, masonry hidden | 4.60, 4.59 | 4.60, 4.59, 4.58 | |
+
+The walls stand 5 m apart, so the pieces near the eye there are within 4 m of it anyway. The near excess was refitted
+on e9db85b, the larger of two `demo/costs.json` runs
+([record](../perf/quest-2/costs/20261031T041459Z-e9db85b.json),
+[record](../perf/quest-2/costs/20261031T043451Z-e9db85b.json)), µs a m²: `wall_m2_near` 6.23 to 3.76 (2.63, 3.76),
+`plaster_m2_near` 4.28 to 3.69 (2.95, 3.69), `fence_m2_near` 3.38 to 2.63 (1.33, 2.63), `thatch_m2_near` 8.12 to 7.16
+(7.16, 6.86). A run of the build before on the same headset
+([record](../perf/quest-2/costs/20261031T032143Z-5576494.json)) fit the stone wall's near excess at 3.76 too: the
+costs scene stands among walls, where the change draws as before, and the houses' saving is in no view it takes. The
+far rates stand: from the air the change draws as before (above). The costs scene's village from the air, read just
+after it is laid, fitted `roof_m2` at 12.6 and 12.3 on the after build and 10.7 on the build before, over its
+9.49; the paired views above, taken once the village settled, read the same before and after.
+
+`demo/fill.json` on the refitted build ([record](../perf/quest-2/fill/20261031T045606Z-8fc94fa.json), against
+[record](../perf/quest-2/fill/20261031T015800Z-5576494.json) before): the houses scene at its full room lays five
+houses where it laid four (roof 156.6 to 195.7 m², fill 0.883 to 0.984), the walls scene 635.9 m² of wall where it
+laid 523.9 (fill 0.955 to 0.943). Every view held 72 Hz; the dearest, the houses from the air, read 7.41 ms. Among
+the five houses at fill 0.968, `demo/fill-profile.json` reads 7.40 and 7.24
+([record](../perf/quest-2/fill-profile/20261031T050045Z-8fc94fa.json)), where four at 0.875 read 9.2.
 
 ## Automatic quality
 

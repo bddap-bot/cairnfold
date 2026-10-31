@@ -7,11 +7,13 @@ extends Node3D
 ## their owner until they settle.
 
 ## A chunk is also the step of culling and of reach: the renderer culls a chunk's MultiMesh as a whole, by its
-## bounds, so each piece goes to the chunk under it, however long the wall it belongs to. A whole chunk draws its
-## stones in full once any of it is near, so its size bounds how many full stones stand around the eye, and every
-## chunk drawn costs a draw call. So a kind cut by distance (`Kind.ranged`) is chunked by FINE, and its far mesh is
-## drawn by COARSE chunks once a whole one is past the near distance; the rest, drawn at every distance, by COARSE
-## (see "What walls cost the Quest 2" in docs/design.md).
+## bounds, so each piece goes to the chunk under it, however long the wall it belongs to. A chunk any of whose pieces
+## may stand near draws both its near and its far instance, each of them the pieces on its own side of the near
+## distance from the eye (`piece_range`, piece.gdshaderinc): drawn whole a chunk at a time, the near meshes of every
+## piece within a chunk's diagonal of the eye cost the Quest 2 most of its masonry's time among houses. Every chunk
+## drawn costs a draw call, so a kind cut by distance (`Kind.ranged`) is chunked by FINE, and its far mesh is drawn by
+## COARSE chunks once a whole one is past the near distance; the rest, drawn at every distance, by COARSE (see "What
+## walls cost the Quest 2" in docs/design.md).
 const FINE := 8.0
 const COARSE := 16.0
 ## How tall a chunk's pieces are taken to stand when its draw distances allow for its size; a taller build's top
@@ -35,7 +37,7 @@ class Kind:
 	var occludes: bool
 	## Metres beyond which a piece is not seen, so a settled chunk wholly past it is not drawn; 0 for no limit.
 	var reach := 0.0
-	## Drawn instead of `mesh` by a settled chunk wholly beyond `near` metres; null to draw `mesh` at every distance.
+	## Drawn instead of `mesh` for a settled piece beyond `near` metres of the eye; null to draw `mesh` at every distance.
 	var far: Mesh
 	## What `far` is drawn in; null to draw it in `material`.
 	var far_material: Material
@@ -349,9 +351,9 @@ func _ranges(key: Vector3i) -> void:
 	if c.far == null:
 		c.instance.visibility_range_end = end
 	else:
-		var split := kind.near + kind.radius()
-		c.instance.visibility_range_end = split
-		c.far.visibility_range_begin = split
+		c.instance.visibility_range_end = kind.near + kind.radius()
+		c.instance.set_instance_shader_parameter(&"piece_range", Vector2(0.0, kind.near))
+		c.far.set_instance_shader_parameter(&"piece_range", Vector2(kind.near, 1.0e30))
 		c.far.visibility_range_end = end
 
 
