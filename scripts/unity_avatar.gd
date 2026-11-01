@@ -750,7 +750,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					materials.hue_masks[key] = true
 				rest = str(floats[property]).to_float()
 			var cell: Rect2 = Rect2(material.cell)
-			binding.rect = [cell.position.x / Materials.ATLAS, cell.position.y / Materials.ATLAS, cell.end.x / Materials.ATLAS, cell.end.y / Materials.ATLAS]
+			binding.rect = [cell.position.x / materials.atlas_side, cell.position.y / materials.atlas_side, cell.end.x / materials.atlas_side, cell.end.y / materials.atlas_side]
 			for m: Dictionary in meshes:
 				if renderer in m.renderers:
 					var region := binding.duplicate(true)

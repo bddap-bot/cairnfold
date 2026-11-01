@@ -5,6 +5,8 @@ const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 
+## The atlas starts this wide and doubles, up to the widest image an avatar file may carry, until every material fits at
+## its own texture's size (at most half the atlas); past that every cell shrinks alike.
 const ATLAS := 2048
 const PAD := 4
 ## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels
@@ -44,6 +46,7 @@ var assets: Assets
 var materials := {}
 var _images := {}
 var atlas: Image
+var atlas_side := ATLAS
 var undecoded := {}
 var hue_masks := {}
 var color_regions := {}
@@ -194,23 +197,27 @@ func _decoded(guid: String) -> Image:
 
 
 func pack(used: Array) -> void:
-	var sizes := {}
-	for key: String in used:
-		var m: Dictionary = materials[key]
-		var img: Image = m.image
-		var side := Vector2i(8, 8) if img == null else img.get_size()
-		var big := maxi(side.x, side.y)
-		if big > ATLAS / 2:
-			side = Vector2i(maxi(1, side.x * (ATLAS / 2) / big), maxi(1, side.y * (ATLAS / 2) / big))
-		sizes[key] = side
-	var factor := 1.0
 	var cells := {}
+	atlas_side = ATLAS
+	var sizes := {}
 	while true:
-		cells = _shelves(used, sizes, factor)
-		if not cells.is_empty():
+		for key: String in used:
+			var m: Dictionary = materials[key]
+			var img: Image = m.image
+			var wanted := Vector2i(8, 8) if img == null else img.get_size()
+			var big := maxi(wanted.x, wanted.y)
+			if big > atlas_side / 2:
+				wanted = Vector2i(maxi(1, wanted.x * (atlas_side / 2) / big), maxi(1, wanted.y * (atlas_side / 2) / big))
+			sizes[key] = wanted
+		cells = _shelves(used, sizes, 1.0, atlas_side)
+		if not cells.is_empty() or atlas_side * 2 > Avatar.MAX_IMAGE_SIDE:
 			break
+		atlas_side *= 2
+	var factor := 1.0
+	while cells.is_empty():
 		factor *= 0.9
-	atlas = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+		cells = _shelves(used, sizes, factor, atlas_side)
+	atlas = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 	atlas.fill(Color(0.5, 0.5, 0.5, 1.0))
 	for key: String in used:
 		var m: Dictionary = materials[key]
@@ -242,7 +249,7 @@ static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: f
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
-static func _shelves(keys: Array, sizes: Dictionary, factor: float) -> Dictionary:
+static func _shelves(keys: Array, sizes: Dictionary, factor: float, side: int) -> Dictionary:
 	var order := keys.duplicate()
 	order.sort_custom(func(a: String, b: String) -> bool: return sizes[a].y > sizes[b].y)
 	var out := {}
@@ -253,11 +260,11 @@ static func _shelves(keys: Array, sizes: Dictionary, factor: float) -> Dictionar
 		var s := Vector2i(maxi(1, int(sizes[key].x * factor)), maxi(1, int(sizes[key].y * factor)))
 		var w := s.x + 2 * PAD
 		var h := s.y + 2 * PAD
-		if x + w > ATLAS:
+		if x + w > side:
 			x = 0
 			y += row
 			row = 0
-		if y + h > ATLAS:
+		if y + h > side:
 			return {}
 		out[key] = Rect2i(Vector2i(x + PAD, y + PAD), s)
 		x += w
@@ -271,7 +278,7 @@ func place(key: String, uv: Vector2) -> Array:
 	var inside := u.x >= -0.001 and u.x <= 1.001 and u.y >= -0.001 and u.y <= 1.001
 	u = u.clamp(Vector2.ZERO, Vector2.ONE)
 	var cell: Rect2i = m.cell
-	return [(Vector2(cell.position) + Vector2(u.x, 1.0 - u.y) * Vector2(cell.size)) / ATLAS, not inside]
+	return [(Vector2(cell.position) + Vector2(u.x, 1.0 - u.y) * Vector2(cell.size)) / atlas_side, not inside]
 
 
 func moved(from: String, to: String) -> Array:
@@ -280,7 +287,7 @@ func moved(from: String, to: String) -> Array:
 		var cell: Rect2 = Rect2(m.cell)
 		var scale: Vector2 = m.scale
 		var offset: Vector2 = m.offset
-		return [Vector2(scale.x * cell.size.x, scale.y * cell.size.y) / ATLAS, Vector2(cell.position.x + offset.x * cell.size.x, cell.position.y + cell.size.y * (1.0 - scale.y - offset.y)) / ATLAS]
+		return [Vector2(scale.x * cell.size.x, scale.y * cell.size.y) / atlas_side, Vector2(cell.position.x + offset.x * cell.size.x, cell.position.y + cell.size.y * (1.0 - scale.y - offset.y)) / atlas_side]
 	var a: Array = affine.call(from)
 	var b: Array = affine.call(to)
 	var s: Vector2 = Vector2(b[0].x / a[0].x if a[0].x != 0.0 else 1.0, b[0].y / a[0].y if a[0].y != 0.0 else 1.0)
@@ -327,7 +334,7 @@ func hue_mask() -> String:
 		if source == null:
 			continue
 		if out == null:
-			out = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+			out = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 			out.fill(Color.WHITE)
 		var mask := _over_cell(m, source, property, Color.WHITE)
 		if mobile:
@@ -366,7 +373,7 @@ func color_atlas() -> String:
 	var original := atlas.get_data()
 	for i in range(3, data.size(), 4):
 		data[i] = original[i]
-	out.set_data(ATLAS, ATLAS, false, Image.FORMAT_RGBA8, data)
+	out.set_data(atlas_side, atlas_side, false, Image.FORMAT_RGBA8, data)
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 
@@ -535,7 +542,7 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## matcap slot k's) and "emission" map, with the "matcaps" textures their entries name by position.
 func looks() -> Dictionary:
 	var entries := []
-	var index := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_L8)
+	var index := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_L8)
 	var decal_layers := []
 	var matcap_textures := {}
 	var matcap_masks: Image
@@ -558,7 +565,7 @@ func looks() -> Dictionary:
 			if decals[slot].is_empty():
 				continue
 			while decal_layers.size() <= slot:
-				var layer := Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				var layer := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				layer.fill(Color(0, 0, 0, 0))
 				decal_layers.append(layer)
 			var n := "" if slot == 0 else str(slot)
@@ -605,7 +612,7 @@ func looks() -> Dictionary:
 			if mask == null and not invert:
 				continue
 			if matcap_masks == null:
-				matcap_masks = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				matcap_masks = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				matcap_masks.fill(Color.WHITE)
 			var channel := clampi(str(m.floats.get(MATCAPS[slot] + "MaskChannel", "0")).to_int(), 0, 3)
 			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask", Color.WHITE).get_data()
@@ -617,7 +624,7 @@ func looks() -> Dictionary:
 			matcap_masks.blit_rect(region, Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		if not glows.is_empty():
 			if glow == null:
-				glow = Image.create_empty(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+				glow = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				glow.fill(Color.BLACK)
 			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap", Color.WHITE), Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		entries.append({"decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows})

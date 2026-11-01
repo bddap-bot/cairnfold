@@ -243,7 +243,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   saved weights: a heavy mesh is its author's cost to carry, not the importer's to edit. Shader
   programs do not port;
   each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
-  cutoff, or blended) take a cell of one 2048 px atlas. A material blends when its shader's
+  cutoff, or blended) take a cell of one atlas, 2048 px wide where every texture fits at its own size (at most half the atlas), else 4096 px, its cells shrunk alike past that with a Lanczos filter. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
   writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
   over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the
@@ -293,9 +293,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent, so all players see the same avatar: at most 64 MB, surfaces merged per
+  it is sent, so all players see the same avatar: at most 96 MB, surfaces merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
-  author made them, and textures shrunk to 1024 px with mipmaps. A heavy mesh is its
+  author made them, textures shrunk to 1024 px with mipmaps, and expression layers to 2048 px. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:

@@ -7,6 +7,7 @@ func _init() -> void:
 	_fx()
 	_bindings()
 	_roundtrip()
+	_wide_layers_shrink()
 	finish()
 
 
@@ -117,6 +118,17 @@ func _bindings() -> void:
 	player.apply()
 	check(hat.visible, "the imported switch shows the actual node")
 	player.free()
+	root.free()
+
+
+func _wide_layers_shrink() -> void:
+	var wide := Image.create_empty(4096, 4096, false, Image.FORMAT_RGBA8)
+	var root := Node3D.new()
+	root.set_meta("expressions", {"colorAtlas": Marshalls.raw_to_base64(wide.save_png_to_buffer()), "looks": {"decals": [Marshalls.raw_to_base64(wide.save_png_to_buffer())]}})
+	ExpressionPlayer.prepare(root)
+	var decals: Texture2DArray = root.get_meta("expression_decals", null)
+	var untinted: Texture2D = root.get_meta("expression_untinted", null)
+	check(decals != null and decals.get_width() == Avatar.MAX_LAYER and untinted != null and untinted.get_width() == Avatar.MAX_LAYER, "a 4096 expression layer is held at %d: %s %s" % [Avatar.MAX_LAYER, decals.get_width() if decals else null, untinted.get_width() if untinted else null])
 	root.free()
 
 

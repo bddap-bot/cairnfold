@@ -46,6 +46,7 @@ func _run() -> void:
 	_a_hue_radial_keeps_its_material_binding()
 	_a_decal_alpha_binds_its_atlas_layer()
 	_a_shrunk_texture_averages_what_its_cell_covers()
+	_the_atlas_widens_before_its_cells_shrink()
 	_matcaps_and_emission_join_the_look()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
@@ -1096,11 +1097,11 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 		var left := layer.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		var right := layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the layer carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
-		check(layer.get_pixel(Materials.ATLAS - 1, Materials.ATLAS - 1).a == 0.0, "outside the material the layer is clear")
+		check(layer.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).a == 0.0, "outside the material the layer is clear")
 	var index := Image.new()
 	check(index.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("index", ""))) == OK, "the look index is a PNG")
 	if not index.is_empty():
-		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(Materials.ATLAS - 1, Materials.ATLAS - 1).r8 == 0, "each texel names its material's look")
+		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).r8 == 0, "each texel names its material's look")
 	expressions.data.clips[0].curves.clear()
 	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(unbound.targets.is_empty() and (unbound.get("looks", {}).get("decals", []) as Array).size() == 3, "a decal no clip animates is still drawn at its saved alpha")
@@ -1189,6 +1190,31 @@ func _a_shrunk_texture_averages_what_its_cell_covers() -> void:
 				var r := img.get_pixel(x, y).r
 				spread = Vector2(minf(spread.x, r), maxf(spread.y, r))
 		check(spread.x > 0.4 and spread.y < 0.6, "a 3000-texel texture of one-texel stripes shrunk into a %d-texel cell is the stripes' grey in the %s, not a moire of them: %s" % [cell.size.x, named[0], spread])
+
+
+func _the_atlas_widens_before_its_cells_shrink() -> void:
+	var dir := ProjectSettings.globalize_path("user://widen")
+	DirAccess.make_dir_recursive_absolute(dir)
+	Image.create_empty(1024, 1024, false, Image.FORMAT_RGBA8).save_png(dir.path_join("big.png"))
+	FileAccess.open(dir.path_join("big.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: big\n")
+	Image.create_empty(256, 256, false, Image.FORMAT_RGBA8).save_png(dir.path_join("small.png"))
+	FileAccess.open(dir.path_join("small.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: small\n")
+	var keys := []
+	for i in 6:
+		var name := "m%d" % i
+		FileAccess.open(dir.path_join(name + ".mat"), FileAccess.WRITE).store_string("Material:\n  m_SavedProperties:\n    m_TexEnvs:\n    - _MainTex:\n        m_Texture: {guid: %s}\n" % ("big" if i < 5 else "small"))
+		FileAccess.open(dir.path_join(name + ".mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % name)
+		keys.append(name)
+	var many := Materials.new(Assets.new(dir))
+	for key: String in keys:
+		many.use({"guid": key}, Color.WHITE)
+	many.pack(keys)
+	check(many.atlas_side == 4096 and many.atlas.get_width() == 4096, "five 1024 textures widen the atlas to 4096: %d" % many.atlas_side)
+	check(keys.all(func(key: String) -> bool: return (many.materials[key].cell as Rect2i).size == (many.materials[key].image as Image).get_size()), "each keeps its own size: %s" % [keys.map(func(key: String) -> Vector2i: return (many.materials[key].cell as Rect2i).size)])
+	var one := Materials.new(Assets.new(dir))
+	one.use({"guid": "m5"}, Color.WHITE)
+	one.pack(["m5"])
+	check(one.atlas_side == Materials.ATLAS, "one that fits stays %d wide: %d" % [Materials.ATLAS, one.atlas_side])
 
 
 func _matcaps_and_emission_join_the_look() -> void:

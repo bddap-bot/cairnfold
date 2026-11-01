@@ -125,6 +125,9 @@ static func prepare(model: Node3D) -> void:
 		if not encoded is String or img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) != OK:
 			return null
 		img.convert(Image.FORMAT_RGBA8)
+		var big := maxi(img.get_width(), img.get_height())
+		if big > Avatar.MAX_LAYER:
+			img.resize(img.get_width() * Avatar.MAX_LAYER / big, img.get_height() * Avatar.MAX_LAYER / big, Image.INTERPOLATE_LANCZOS)
 		if mipmapped:
 			img.generate_mipmaps()
 		return img

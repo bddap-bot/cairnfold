@@ -13,12 +13,15 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
-## Leaves headroom for a Unity avatar that carries every outfit its menu can show.
-const MAX_BYTES := 64 << 20
+## Leaves headroom for a Unity avatar that carries every outfit its menu can show, in a 4096 atlas.
+const MAX_BYTES := 96 << 20
 ## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
 ## "Skinned bodies").
 const MAX_SURFACES := 40
 const MAX_TEXTURE := 1024
+## The widest an expression layer (decals, untinted colours, hue mask) is held: a converted avatar's atlas-sized layers
+## at 4096 would hold four times a Quest 2's memory for them.
+const MAX_LAYER := 2048
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
