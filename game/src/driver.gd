@@ -2934,7 +2934,9 @@ func _spring_watch(s: Dictionary) -> void:
 
 
 func _spring_sway(s: Dictionary) -> void:
-	var before: int = main.rig.body.springs.contacts
+	var springs = main.rig.body.springs
+	var contacts := 0
+	var native := 0
 	var eye := main.rig.head.global_position
 	var ahead := -main.rig.head.global_basis.z
 	var elapsed := 0.0
@@ -2944,11 +2946,17 @@ func _spring_sway(s: Dictionary) -> void:
 		elapsed += get_process_delta_time()
 		var offset := Vector3(sin(elapsed * TAU) * 0.3, 0, 0)
 		main.view(eye + offset, eye + offset + ahead, false)
+		for c: int in springs.chains.size():
+			if springs.touches(c, 0.002):
+				contacts += 1
+				if springs.chains[c].native_active:
+					native += 1
 	main.view(eye, eye + ahead, false)
-	var contacts: int = main.rig.body.springs.contacts - before
-	print("spring: sway resolved %d collider contacts" % contacts)
+	print("spring: sway held chains on their declared colliders for %d chain-frames, %d on native springs" % [contacts, native])
 	if contacts == 0:
 		_fail("spring: sway never contacted the declared collider")
+	if springs.chains.any(func(chain: Dictionary) -> bool: return chain.native != null) and native == 0:
+		_fail("spring: native springs never met their declared collider")
 
 
 func _spring_ready(_s: Dictionary) -> void:
