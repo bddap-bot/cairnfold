@@ -1813,18 +1813,24 @@ func _tap(s: Dictionary) -> void:
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
 ## (`restyle` names what that must be: a PaletteTool.Restyle, such as gable, roof, top, face or foundation), twisted round to choice `pick` over
-## `seconds` and let go, as `colour` does.
+## `seconds` and let go, as `colour` does. A wall named by `index` or `largest` is held at `s` along it (its middle by
+## default) and `y` up (half its height), as the build lays it now.
 ## With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from `side` metres away.
 func _style(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
-	var target := tool.aim_style(_dial_from(s), _dial_dir(s)) if not s.has("tree") else {}
+	var restyle: PaletteTool.Restyle = PaletteTool.Restyle[s.restyle.to_upper()]
+	var target := tool.aim_style(_dial_from(s), _dial_dir(s)) if s.has("at") else {}
+	if s.has("index") or s.has("largest"):
+		var w := _wall_of(s)
+		var along: float = s.get("s", w.layout.length() * 0.5)
+		target = tool.style_target(restyle, w, w.layout.point_at(along) + Vector3.UP * float(s.get("y", w.layout.height * 0.5)))
 	if s.has("tree"):
 		var flora: Flora = main.flora_tool.flora
 		var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[s.tree]]
 		var crown := trunk.foot() + Vector3.UP * 2.5
 		var from := crown + Vector3(0, 1, s.get("side", 6.0))
 		target = tool.aim_style(from, (crown - from).normalized())
-	if target.get("restyle") != PaletteTool.Restyle[s.restyle.to_upper()]:
+	if target.get("restyle") != restyle:
 		_fail("style aimed at %s, not %s" % [target, s.restyle])
 		return
 	await _dial(s, _holding(s, Hand.Tool.STYLE), target, s.pick)

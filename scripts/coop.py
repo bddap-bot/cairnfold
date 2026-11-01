@@ -334,8 +334,7 @@ def reshape_scripts():
         x = 6 if k % 2 else -6
         join += [{"op": "paint", "tool": "flowers", "points": [[x - 3.4, -2.8], [x + 3.4, -2.8]], "radius": 1.0, "seconds": 0.5},
                  {"op": "wall", "points": [[x - 3, 4 + k], [x + 3, 4 + k]], "seconds": 0.3},
-                 {"op": "style", "hand": "right", "restyle": "stone", "pick": k % 2, "seconds": 0.4,
-                  "from": [x, 4, 6], "at": [x, 0.5, 2.5]},
+                 {"op": "style", "hand": "right", "restyle": "face", "pick": k % 2, "seconds": 0.4, "index": k % 2},
                  {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
     # Each waits for its own commands to come back, so once the joiner is done nothing more is coming.
     host += [{"op": "until", "answered": True}, barrier(["join-done"]), {"op": "digest", "name": "host-final"},
