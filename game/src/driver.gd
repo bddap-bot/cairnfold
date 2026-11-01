@@ -17,7 +17,7 @@ var main: Main
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
-## A view found nothing to look at: the steps after it would capture the wrong thing under their names, so none run.
+## Set by `_fail`.
 var failed := false
 var _waiting := {}
 ## What `layer` hid: each property it turned off, by object and property, and the value it had before.
@@ -61,18 +61,23 @@ func _run() -> void:
 			await _hold_pose(s)
 	for step in steps:
 		if failed:
-			print("driver: failed")
-			finished.emit()
-			return
+			break
 		await _standing()
 		print("driver: ", step)
 		if step.get("background", false):
 			call("_" + step.op, step)
 		else:
 			await call("_" + step.op, step)
-	await _standing()
-	print("driver: done")
+	if not failed:
+		await _standing()
+	print("driver: failed" if failed else "driver: done")
 	finished.emit()
+
+
+## A step that could not do what it names: the steps after it would run on a garden it did not make, so none run.
+func _fail(why: String) -> void:
+	push_error("driver: " + why)
+	failed = true
 
 
 func _exit_tree() -> void:
@@ -505,7 +510,7 @@ func _house(s: Dictionary) -> void:
 			break
 		await get_tree().process_frame
 	if tool.walls.size() == count:
-		push_error("driver: the house put up at %s never stood" % put.center)
+		_fail("the house put up at %s never stood" % put.center)
 		return
 	tool.take_build(tool.walls[-1])
 	var start: Dictionary = tool.held_at.duplicate()
@@ -562,10 +567,11 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 	return WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - _spot(s, x, z))
 
 
-## Shapes the roof of build `index`: its `pitch` and `curve` as a grip pulls them, its eaves `overhang` metres past the
-## walls, its `deck` ("stone" or "wood"), its `dormers` and its `hatches`, each [metres along the ridge, across it].
+## Shapes the roof of the build `_wall_of` names: its `pitch` and `curve` as a grip pulls them, its eaves `overhang`
+## metres past the walls, its `deck` ("stone" or "wood"), its `dormers` and its `hatches`, each [metres along the
+## ridge, across it].
 func _roof(s: Dictionary) -> void:
-	var w: Wall = main.tool.walls[s.index]
+	var w := _wall_of(s)
 	var r := w.roof
 	r.pitch = RoofLayout.snap_pitch(s.get("pitch", r.pitch), WallTool.ROOF_STEP)
 	r.curve = clampf(s.get("curve", r.curve), -RoofLayout.CURVE, RoofLayout.CURVE)
@@ -704,8 +710,7 @@ func _carry(s: Dictionary) -> void:
 func _clutter(s: Dictionary) -> void:
 	var target := _clutter_target(s)
 	if target.is_empty():
-		print("clutter: no piece %s" % s)
-		failed = true
+		_fail("clutter: no piece %s" % s)
 		return
 	var tool: WallTool = main.tool
 	var at: Vector3 = target.bounds.get_center()
@@ -832,7 +837,7 @@ func _wall_of(s: Dictionary) -> Wall:
 	return main.tool.walls[s.index]
 
 
-## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim`
+## A press of the windows or decorations tool on wall `index` (-1 the last drawn) or the `largest` house, as `FittingTool.aim`
 ## would find it: `what` is opening, lantern, flag, chimney, dormer or tower_flag; `s` and `y` place it on the wall,
 ## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's or dormer's spot along and across the ridge.
 ## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
@@ -853,7 +858,7 @@ func _fit(s: Dictionary) -> void:
 		target.lantern = int(s.get("lantern", 0))
 		main.fitting_tool.fit(target)
 		return
-	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.Family.COTTAGE), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
+	var target := {"what": s.what, "wall": largest(main.tool) if s.get("largest", false) else main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.Family.COTTAGE), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
 	if s.has("at"):
 		target.at = Vector2(s.at[0], s.at[1])
 	main.fitting_tool.fit(target)
@@ -1508,14 +1513,14 @@ func _arrival() -> Array:
 	var arrived := [false]
 	main.world.loaded.connect(func() -> void:
 		if main.session.visiting.is_empty():
-			push_error("driver: went home instead of arriving")
+			_fail("went home instead of arriving")
 		else:
 			arrived[0] = true, CONNECT_ONE_SHOT)
 	return arrived
 
 
 func _arrived(arrived: Array) -> void:
-	while not arrived[0]:
+	while not arrived[0] and not failed:
 		await get_tree().process_frame
 
 
@@ -1644,7 +1649,7 @@ func _until(s: Dictionary) -> void:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_waiting = {}
-	push_error("driver: until %s timed out" % s)
+	_fail("until %s timed out" % s)
 
 
 ## The sequence number the digest at `path` recorded, or -1 while it has not been written whole.
@@ -1775,16 +1780,19 @@ func _sun(s: Dictionary) -> void:
 
 
 ## The colour picker aimed from `from` (the head by default) at `at`, each [x, height above the ground, z], which must
-## land on `element` (meadow, stone, roof, wood or plaster; the meadow needs no aim): opens its wheel on `hand`, twists
-## to `swatch` over `seconds`, optionally captures the view with the wheel open, then lets go.
+## land on `element` (meadow, stone, roof, wood or plaster; the meadow needs no aim), or with `largest` straight down
+## onto the largest house's roof: opens its wheel on `hand`, twists to `swatch` over `seconds`, optionally captures the
+## view with the wheel open, then lets go.
 func _colour(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var element: Palette.Element = Palette.Element[s.element.to_upper()]
 	var target := tool.colour_target(element, Vector3.ZERO)
-	if s.has("at"):
+	if s.get("largest", false):
+		target = tool.aim(largest(main.tool).roof.center + Vector3.UP * 20.0, Vector3.DOWN)
+	elif s.has("at"):
 		target = tool.aim(_dial_from(s), _dial_dir(s))
 	if target.get("element") != element:
-		push_error("driver: colour aimed at %s, not %s" % [target, s.element])
+		_fail("colour aimed at %s, not %s" % [target, s.element])
 		return
 	await _dial(s, _holding(s, Hand.Tool.COLOUR), target, s.swatch)
 
@@ -1817,7 +1825,7 @@ func _style(s: Dictionary) -> void:
 		var from := crown + Vector3(0, 1, s.get("side", 6.0))
 		target = tool.aim_style(from, (crown - from).normalized())
 	if target.get("restyle") != PaletteTool.Restyle[s.restyle.to_upper()]:
-		push_error("driver: style aimed at %s, not %s" % [target, s.restyle])
+		_fail("style aimed at %s, not %s" % [target, s.restyle])
 		return
 	await _dial(s, _holding(s, Hand.Tool.STYLE), target, s.pick)
 
@@ -1891,8 +1899,7 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 	if s.has("subject"):
 		var found := get_tree().get_nodes_in_group(s.subject)
 		if found.is_empty():
-			push_error("driver: nothing in %s to view" % s.subject)
-			failed = true
+			_fail("nothing in %s to view" % s.subject)
 			return []
 		var frame: Transform3D = found[s.get("index", 0)].global_transform
 		if s.get("ground", false):
@@ -1905,8 +1912,7 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 	if s.has("toward"):
 		var found := get_tree().get_nodes_in_group(s.toward)
 		if found.is_empty():
-			push_error("driver: nothing in %s to look toward" % s.toward)
-			failed = true
+			_fail("nothing in %s to look toward" % s.toward)
 			return []
 		var eye_at: Vector3 = eye + (main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO)
 		found.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(eye_at) < b.global_position.distance_to(eye_at))
@@ -2724,14 +2730,12 @@ func _befriend(s: Dictionary) -> void:
 			bird = fed[0]
 			break
 	if bird.node.hand != h or bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED:
-		push_error("bird did not feed and trust hand")
-		main.finish()
+		_fail("bird did not feed and trust hand")
 		return
 	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
 	await _frames(30)
 	if h.carried != bird.node:
-		push_error("grip did not pick up fed bird")
-		main.finish()
+		_fail("grip did not pick up fed bird")
 		return
 	print("conure: feeding earned trust, grip carries bird")
 
@@ -2857,8 +2861,7 @@ func _spring_grab(s: Dictionary) -> void:
 	var avatar: Avatar = main.session.avatars.values()[0] if remote and not main.session.avatars.is_empty() else main.rig.body
 	var chain: int = s.get("chain", 0)
 	if avatar.springs == null or chain >= avatar.springs.chains.size():
-		push_error("spring: no chain to grab")
-		failed = true
+		_fail("spring: no chain to grab")
 		return
 	await _pick({"hand": "right", "tool": "none"})
 	var hand := main.rig.right
@@ -2876,8 +2879,7 @@ func _spring_grab(s: Dictionary) -> void:
 	var holders: Dictionary = avatar.spring_holders if remote else main.session._spring_holds
 	if holders.get(chain) != [main.session.multiplayer.get_unique_id(), 1]:
 		Buttons.injected.erase(key)
-		failed = true
-		push_error("spring: owner did not accept grip")
+		_fail("spring: owner did not accept grip")
 		return
 	var from := hand.global_position
 	var move := Vector3(s.move[0], s.move[1], s.move[2])
@@ -2892,8 +2894,7 @@ func _spring_grab(s: Dictionary) -> void:
 	Buttons.injected.erase(key)
 	await get_tree().create_timer(1.0).timeout
 	if travelled < 0.025:
-		failed = true
-		push_error("spring: grip did not move the tip")
+		_fail("spring: grip did not move the tip")
 	print("spring: %s grip travelled %.4f m and released" % ["remote" if remote else "wearer", travelled])
 
 
@@ -2915,10 +2916,9 @@ func _spring_watch(s: Dictionary) -> void:
 		elif held:
 			print("spring: wearer observed remote grab, %.4f m movement, release" % moved)
 			if moved < 0.025:
-				failed = true
+				_fail("spring: a remote grab moved the tip only %.4f m" % moved)
 			return
-	failed = true
-	push_error("spring: wearer never observed a remote grab and release")
+	_fail("spring: wearer never observed a remote grab and release")
 
 
 func _spring_sway(s: Dictionary) -> void:
@@ -2936,8 +2936,7 @@ func _spring_sway(s: Dictionary) -> void:
 	var contacts: int = main.rig.body.springs.contacts - before
 	print("spring: sway resolved %d collider contacts" % contacts)
 	if contacts == 0:
-		failed = true
-		push_error("spring: sway never contacted the declared collider")
+		_fail("spring: sway never contacted the declared collider")
 
 
 func _spring_ready(_s: Dictionary) -> void:
@@ -2953,8 +2952,7 @@ func _spring_ready(_s: Dictionary) -> void:
 		elif held:
 			await get_tree().create_timer(1.0).timeout
 			return
-	failed = true
-	push_error("spring: peer never observed wearer grip and release")
+	_fail("spring: peer never observed wearer grip and release")
 
 
 ## Looks at chain "chain" (0 if unsaid) of the first other player's avatar from that avatar's left, level with the
@@ -3042,5 +3040,4 @@ func _spring_poke(s: Dictionary) -> void:
 	await get_tree().create_timer(1.0).timeout
 	print("spring: poke moved the tip %.4f m" % moved)
 	if moved < 0.02:
-		failed = true
-		push_error("spring: poke did not move the tip")
+		_fail("spring: poke did not move the tip")
