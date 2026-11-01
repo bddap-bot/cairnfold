@@ -49,3 +49,18 @@ class CoopPlayers(unittest.TestCase):
                     if step["op"] == "until":
                         with self.subTest(run=run, name=name, step=step):
                             self.assertNotIn("seconds", step)
+
+    def test_a_player_hung_at_exit_leaves_its_threads_and_dies(self):
+        import subprocess
+        import sys
+        import tempfile
+        coop = self.harness()
+        hung = subprocess.Popen([sys.executable, "-c", "import time; print('ready', flush=True); time.sleep(600)"],
+                                stdout=subprocess.PIPE, preexec_fn=coop.traceable)
+        hung.stdout.readline()
+        with tempfile.TemporaryDirectory() as folder:
+            stack = Path(folder) / "exit-stack.txt"
+            coop.end_hung(hung, stack)
+            self.assertIn("Thread 1", stack.read_text())
+        self.assertIsNotNone(hung.returncode)
+        hung.stdout.close()

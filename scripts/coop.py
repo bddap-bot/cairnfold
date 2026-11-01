@@ -1,5 +1,6 @@
 """Drive the existing build gestures with N peers, then check every peer's view and every peer's session record."""
 import argparse
+import ctypes
 import hashlib
 import json
 import math
@@ -15,8 +16,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 # A stuck run is one where no player takes a step while together they spend this much CPU; a busy machine only slows the
-# run in wall time, so no wall-clock limit applies. The joiner's strokes across the whole garden re-lay everything on it
-# on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
+# run in wall time, so no wall-clock limit applies to a step. The joiner's strokes across the whole garden re-lay
+# everything on it on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
 QUIET_CPU = 150
 # Going home before these steps means a player lost the garden it was visiting.
 # The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
@@ -31,6 +32,28 @@ AVATARS = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 # What a digest shows of the players and the moment rather than of the garden.
 LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
+# A player still running this long after it began to quit is hung on its way out: a healthy exit takes seconds even on
+# a loaded machine, and a hang at 0 CPU never trips QUIET_CPU. A guard against a hang, not a timing assertion.
+EXIT_HANG = 300
+# Bound in the parent: the child calls it between fork and exec, while the CPU sampler thread runs, where a dlopen could
+# deadlock.
+PRCTL = ctypes.CDLL(None).prctl
+
+
+# Lets a debugger that is not the player's parent attach to it under Yama's ptrace_scope 1, so a hang can be read.
+def traceable():
+    PRCTL(0x59616D61, ctypes.c_ulong(-1), 0, 0, 0)
+
+
+def end_hung(proc, stack):
+    with stack.open("w") as f:
+        try:
+            subprocess.run(["gdb", "-batch", "-p", str(proc.pid), "-ex", "thread apply all bt"],
+                           stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, timeout=120)
+        except subprocess.TimeoutExpired:
+            f.write("gdb did not finish in 120 s\n")
+    proc.kill()
+    proc.wait()
 
 
 def barrier(names):
@@ -637,9 +660,10 @@ def run(out, count, mode="full", capture=False):
             env["DISPLAY"] = display
         if mode == "flat":
             env["VK_ICD_FILENAMES"] = os.environ.get("CAIRNFOLD_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
-        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env)
+        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=traceable)
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
+    quitting = {}
 
     def fail(name, what):
         # The run's output is all a landing keeps, so the end of the player's log goes there.
@@ -668,7 +692,16 @@ def run(out, count, mode="full", capture=False):
                 fail(name, "failed")
             if "session: home from" in HOME_CUE.split(text, 1)[0]:
                 fail(name, "lost the garden it visited")
+            if proc.returncode is None and re.search(r"^main: quitting$", text, re.M):
+                quitting.setdefault(name, time.time())
             last[name] = [line for line in text.splitlines() if line.startswith("driver: {")]
+        # Players hang at exit together, so every one's threads are kept before the run fails.
+        hung = [n for n, t in quitting.items() if processes[n].returncode is None and time.time() - t > EXIT_HANG]
+        for name in hung:
+            end_hung(processes[name], out / f"{name}-exit-stack.txt")
+            print(f"{name} exit stack:\n" + (out / f"{name}-exit-stack.txt").read_text(errors="replace"), end="", flush=True)
+        if hung:
+            fail(hung[0], f"hung at exit for {EXIT_HANG} s (hung: {', '.join(hung)}); threads in {out}/<name>-exit-stack.txt")
         steps = sum(len(lines) for lines in last.values())
         spent = sum(samples[-1][1] for samples in list(cpu.values()))
         if steps > progress["steps"]:

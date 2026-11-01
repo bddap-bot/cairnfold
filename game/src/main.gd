@@ -512,6 +512,7 @@ static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 
 ## Data-only tests can finish before the autoloads have entered the tree.
 static func quit(tree: SceneTree, code := 0) -> void:
+	print("main: quitting")
 	Wall.quitting = true
 	Wall.reap(true)
 	if not tree.root.is_inside_tree():
