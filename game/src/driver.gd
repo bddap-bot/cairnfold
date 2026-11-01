@@ -191,7 +191,8 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Twists `hand`, holding its dial, about its pointing axis until choice `to` stands at the top.
+## Twists `hand`, holding its dial, about its pointing axis until choice `to` stands at the top; in flat mode through
+## the twist the mouse turns, since Flat poses the hand every frame.
 func _twist_dial(hand: Hand, to: int) -> void:
 	var n := hand.dial.choices.size()
 	var steps := posmod(to - hand.dial.start, n)
@@ -199,7 +200,11 @@ func _twist_dial(hand: Hand, to: int) -> void:
 		steps -= n
 	var from := hand.global_basis
 	for f in 12:
-		hand.global_basis = Basis(-from.z, deg_to_rad(steps * Dial.step(n) * (f + 1) / 12.0)) * from
+		var degrees := steps * Dial.step(n) * (f + 1) / 12.0
+		if main.flat != null:
+			main.flat._twist = degrees
+		else:
+			hand.global_basis = Basis(-from.z, deg_to_rad(degrees)) * from
 		await _frames(1)
 	await _frames(2)
 
