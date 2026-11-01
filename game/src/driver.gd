@@ -11,6 +11,8 @@ signal finished
 ## "mountains" are the ranges and whatever lies between them and the meadow.
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
+## Flow texel-steps a frame while `painting` replays: a thousand times Budget.PAINT_STEPS, under a second on a Quest 2.
+const SETUP_STEPS := 3.0e8
 const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy", "interior"]
 
 var main: Main
@@ -2165,7 +2167,8 @@ func _sheet(s: Dictionary) -> void:
 
 
 ## Puts a fresh sheet up on the easel, paints `strokes` strokes of `painting` on it, and with `palette` that many of
-## `daubs` on its oil palette's board, and waits until both have replayed them as a kept painting.
+## `daubs` on its oil palette's board, and waits until both have replayed them as a kept painting. The replay is setup,
+## run at SETUP_STEPS a frame: at the frame's own flow budget ten strokes take 2794 frames.
 func _painting(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	main.world.submit({"op": "sheet", "easel": e.id, "strokes": []})
@@ -2174,9 +2177,12 @@ func _painting(s: Dictionary) -> void:
 	for stroke: Dictionary in daubs(int(s.get("palette", 0))):
 		main.world.submit({"op": "paint", "easel": e.id, "palette": true, "stroke": stroke})
 	await _frames(2)
+	var steps := Canvas.steps
+	Canvas.steps = SETUP_STEPS
 	main.easels.repaint(e.id, main.world.state.easels[e.id].strokes)
 	main.easels.repaint(e.id, main.world.state.easels[e.id].palette, true)
 	await _caught_up(s)
+	Canvas.steps = steps
 
 
 ## Takes back this player's last step, as the undo button does whatever the hands hold.
