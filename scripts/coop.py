@@ -28,6 +28,8 @@ EXTREME = 500
 DROWN = (14, -14)
 # The custom avatars the joiners wear in turn, from tests/avatars.
 AVATARS = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
+# What a digest shows of the players and the moment rather than of the garden.
+LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 
@@ -313,6 +315,44 @@ def held_scripts():
     }
 
 
+# The host reshapes two houses again and again while the joiner, unsynchronised with it, paints flowers against their
+# walls, builds a wall beside them, restyles one and undoes and redoes its own steps; every peer must apply every
+# command the host sends and end with the host's garden.
+def reshape_scripts():
+    houses = [{"op": "house", "at": [x, 0], "size": [6, 5], "finish": "timber", "seconds": 0.1} for x in (-6, 6)]
+    host = [*houses, {"op": "until", "seq": 2}, {"op": "digest", "name": "built"}, barrier(["joined"])]
+    for k in range(4):
+        for i in (0, 1):
+            host += [{"op": "resize", "index": i, "size": [5 + k % 2, 4 + (k + i) % 2], "rise": 0.8 + 0.2 * k, "seconds": 0.3},
+                     {"op": "roof", "index": i, "pitch": 0.3 * ((k + i) % 3)},
+                     {"op": "top", "index": i, "style": ["cap", "crenel", "rail"][(k + i) % 3]},
+                     {"op": "lift_wall", "index": i, "height": 3 + k},
+                     {"op": "gable", "index": i, "style": ["boards", "steps"][k % 2]}]
+    join = [barrier(["built"]), {"op": "place", "x": 0, "z": 8}, {"op": "join"}, {"op": "until", "seq": 2},
+            {"op": "digest", "name": "joined"}]
+    for k in range(4):
+        x = 6 if k % 2 else -6
+        join += [{"op": "paint", "tool": "flowers", "points": [[x - 3.4, -2.8], [x + 3.4, -2.8]], "radius": 1.0, "seconds": 0.5},
+                 {"op": "wall", "points": [[x - 3, 4 + k], [x + 3, 4 + k]], "seconds": 0.3},
+                 {"op": "style", "hand": "right", "restyle": "stone", "pick": k % 2, "seconds": 0.4,
+                  "from": [x, 4, 6], "at": [x, 0.5, 2.5]},
+                 {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
+    # Each waits for its own commands to come back, so once the joiner is done nothing more is coming.
+    host += [{"op": "until", "answered": True}, barrier(["join-done"]), {"op": "digest", "name": "host-final"},
+             barrier(["home"]), {"op": "quit"}]
+    join += [{"op": "until", "answered": True}, {"op": "digest", "name": "join-done"},
+             {"op": "until", "seq_of": "host-final"}, {"op": "digest", "name": "join-final"},
+             {"op": "visit", "home": True}, {"op": "digest", "name": "home"}, {"op": "quit"}]
+    return {name: [{"op": "budget", "bounded": False}] + steps for name, steps in (("host", host), ("join", join))}
+
+
+def check_reshape(out):
+    host, join = (json.loads((out / f"{n}-final.json").read_text()) for n in ("host", "join"))
+    differ = [k for k in host.keys() | join.keys() if k not in LIVE and host.get(k) != join.get(k)]
+    if differ:
+        raise RuntimeError(f"the joiner's garden differs from the host's in {differ}")
+
+
 # A flat-screen player joins a VR host's garden through the visit tool's figures, walks up and takes a photo; both games
 # render under one virtual display. Each wears its own VRM from its avatars folder: the flat-screen player's picker
 # shows the host's, the host's captures show the flat-screen player's standing in its garden, and the photo lands in
@@ -454,7 +494,6 @@ def check_peers(out, count):
     decorated = {n: json.load(open(f"{out}/{n}-decorations.json"))["decorations"] for n in names}
     check(all(v == decorated["host"] for v in decorated.values()), "decoration styles and seeds sync after undo and redo")
     check(len(decorated["host"]) == 9, "all nine decoration styles survive co-op undo and redo")
-    LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
     garden = lambda phase: {n: {k: v for k, v in json.load(open(f"{out}/{n}-{phase}.json")).items() if k not in LIVE} for n in names}
     wiped, unwiped, built = garden("wiped"), garden("unwiped"), garden("decorations")
     w = wiped["host"]
@@ -539,7 +578,7 @@ def run(out, count, mode="full", capture=False):
         shutil.rmtree(out / folder, ignore_errors=True)
     full = mode == "full"
     generated = {"full": lambda: scripts(count, capture), "spawn": lambda: spawn_scripts(capture),
-                 "held": held_scripts, "flat": flat_scripts}[mode]()
+                 "held": held_scripts, "flat": flat_scripts, "reshape": reshape_scripts}[mode]()
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
@@ -700,6 +739,9 @@ def run(out, count, mode="full", capture=False):
     if mode == "flat":
         check_flat(out)
         return
+    if mode == "reshape":
+        check_reshape(out)
+        return
     if not check_peers(out, count):
         raise SystemExit("coop: the peers' gardens differ")
     if not check_records(out, list(generated)):
@@ -729,15 +771,18 @@ if __name__ == "__main__":
     parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
     parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
     parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
+    parser.add_argument("--reshape", action="store_true", help="only a host reshaping houses while a visitor edits beside them")
     args = parser.parse_args()
     if not 2 <= args.players <= 8:
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
     if args.held:
         run(args.out.resolve(), 2, "held", capture=True)
         raise SystemExit(0)
-    if args.flat:
-        run(args.out.resolve(), 2, "flat")
-        raise SystemExit(0)
+    for only in ("flat", "reshape"):
+        if getattr(args, only):
+            run(args.out.resolve(), 2, only)
+            raise SystemExit(0)
     run(args.out.resolve() / "spawn", 2, "spawn", capture=args.capture)
     if not args.spawn:
+        run(args.out.resolve() / "reshape", 2, "reshape")
         run(args.out.resolve(), args.players, capture=args.capture)

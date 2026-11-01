@@ -41,9 +41,11 @@ class CoopPlayers(unittest.TestCase):
 
     def test_waits_have_no_time_limit(self):
         # A late peer starts, imports and builds after the others, as fast as the machine allows.
-        for count in (2, 4, 8):
-            for name, steps in self.harness().scripts(count).items():
+        runs = {count: self.harness().scripts(count) for count in (2, 4, 8)}
+        runs["reshape"] = self.harness().reshape_scripts()
+        for run, scripts in runs.items():
+            for name, steps in scripts.items():
                 for step in steps:
                     if step["op"] == "until":
-                        with self.subTest(count=count, name=name, step=step):
+                        with self.subTest(run=run, name=name, step=step):
                             self.assertNotIn("seconds", step)

@@ -1617,8 +1617,9 @@ func _face(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files,
-## `previewed` avatar files (this player's own included) stand ready for the picker, folder `files` have loaded,
+## Waits until the garden has applied command `seq`, and the one digest `seq_of` (written by any player) recorded,
+## with "answered" the host has answered every command this player sent, `players` share it, `worn` of them show
+## their own avatar files, `previewed` avatar files (this player's own included) stand ready for the picker, folder `files` have loaded,
 ## `wearing` names the folder file worn locally, `swimming` fish have come, with `fed`
 ## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here), the
 ## `digests` named have been written to the capture directory (by any player), with "frenzy" every fish of a pond some
@@ -1635,13 +1636,23 @@ func _until(s: Dictionary) -> void:
 		var selected: bool = not s.has("avatar") or (main.session.avatar == s.avatar and worn == 0 and main.session._looks.values().all(func(v: Array) -> bool: return v[0] == int(s.avatar)))
 		var files_ready: bool = s.get("files", []).all(func(f: String) -> bool: return main.session.files.get(f, {}).get("scene") != null)
 		var wearing: bool = not s.has("wearing") or (main.session.worn_key != "" and main.session.worn_key == main.session.files.get(s.wearing, {}).get("key", ""))
-		if files_ready and wearing and selected and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		var digested_seq := _digested_seq(dir.path_join(s.seq_of + ".json")) if s.has("seq_of") else 0
+		var answered: bool = not s.get("answered", false) or w.answered()
+		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_waiting = {}
 	push_error("driver: until %s timed out" % s)
+
+
+## The sequence number the digest at `path` recorded, or -1 while it has not been written whole.
+static func _digested_seq(path: String) -> int:
+	if not FileAccess.file_exists(path):
+		return -1
+	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return int(d.seq) if d is Dictionary and d.has("seq") else -1
 
 
 func _frenzied() -> bool:

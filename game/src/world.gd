@@ -78,8 +78,8 @@ var stacks := {}
 var touched := {}
 var _allowance := {}
 var _next_token := 0
-## True from asking the host for its garden again until it arrives; commands meanwhile are moot.
-var _awaiting := false
+## When this garden asked the host for its garden again, in msec ticks, until it arrives, or -1.
+var _asked := -1
 ## Darkens the player's view for a garden swap, so they never see the jump or the frame the rebuild holds, and says
 ## whether it is black yet.
 var blackout := func() -> bool: return true
@@ -582,6 +582,11 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_turned_down(_next_token, OVER)
 
 
+## Whether the host has answered every command this player sent.
+func answered() -> bool:
+	return _ops.is_empty()
+
+
 func _settle(token: int) -> void:
 	var done: Callable = _done.get(token, Callable())
 	_done.erase(token)
@@ -752,16 +757,36 @@ func _commit(sent: Dictionary) -> void:
 
 
 func _apply_sent(sent: Dictionary) -> void:
-	var cmd := {} if _awaiting else Commands.clean(sent, state, true, terrain)
+	var cmd := {} if _asked >= 0 else Commands.clean(sent, state, true, terrain)
 	if cmd.is_empty():
 		# Our own stroke's ghost stays until the garden it is in comes back: `restore` settles it.
-		if not _awaiting:
-			push_error("world: the host sent a command this garden cannot apply: %s; asking for the garden again" % sent.get("op"))
-			_awaiting = true
+		if _asked < 0:
+			push_error("world: the host sent a command this garden cannot apply: %s; asking for the garden again" % _refusal(sent))
+			_asked = Time.get_ticks_msec()
 			_resend.rpc_id(1)
 		return
 	seq = cmd.seq
 	_timed(cmd)
+
+
+## What the host sent that this garden refused, and why as far as it can tell: the sequence numbers on both sides,
+## whether the build it names stands here, and which of a reshape's changes fail.
+func _refusal(sent: Dictionary) -> String:
+	var out := "%s #%s by %s, this garden at #%d" % [sent.get("op"), sent.get("seq"), sent.get("by"), seq]
+	var of: Variant = sent.get("of")
+	var id: Variant = sent.get("id")
+	if not (of is String and state.get(of) is Dictionary and id is int):
+		return out
+	if not state[of].has(id):
+		return out + "; %s %d is not here" % [of, id]
+	out += "; %s %d stands here" % [of, id]
+	if sent.get("op") != "reshape" or not sent.get("data") is Dictionary:
+		return out
+	var alone := ""
+	for k: Variant in sent.data:
+		if Commands.clean(sent.merged({"data": {k: sent.data[k]}}, true), state, true, terrain).is_empty():
+			alone += "; its %s fails: %s here, %s sent" % [k, str(state[of][id].get(k)).left(160), str(sent.data[k]).left(160)]
+	return out + (alone if alone != "" else "; its changes fail only together")
 
 
 ## Applies a played command, noting one that takes most of a frame, so a hitch it causes is placed without guessing.
@@ -1349,8 +1374,11 @@ func _welcome(snap: Dictionary) -> void:
 ## Swaps in the garden `snap` once the player's view is black (`blackout`), in turn with the commands around it.
 func swap(snap: Dictionary) -> void:
 	_queue.append({"cmd": {}, "by": -1, "swap": true, "run": func() -> void:
-		_awaiting = false
-		_restore(snap)})
+		var asked := _asked
+		_asked = -1
+		var applied := _restore(snap)
+		if asked >= 0:
+			print("world: the garden asked for again came %d ms later; %d of its %d commands applied" % [Time.get_ticks_msec() - asked, applied, snap.cmds.size()])})
 	_drain()
 
 
