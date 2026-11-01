@@ -1210,7 +1210,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   divided by that stretch, which is the cost the same run gives counted by slope, until it is measured again.
 - `demo/stress.json`, `demo/ladder.json`, `demo/tour.json` and `demo/costs.json` build past
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
-  beyond it.
+  beyond it. `demo/headset.json` does too, so its houses phase has a house to measure.
 
 On the Steam Frame (`CAIRNFOLD_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn, at
 `Budget.fit_step()`; [record](../perf/frame/costs/20261022T185026Z-0774568.json)), viewport GPU milliseconds a frame,
