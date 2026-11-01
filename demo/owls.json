@@ -8,6 +8,7 @@
   {"op": "view", "eye": [1.5, 1.7, 3], "at": [1.5, 2.0, -3.5]},
   {"op": "wait", "seconds": 10},
   {"op": "capture", "name": "00-arrived"},
+  {"op": "place", "x": 0, "z": 4, "lift": 1.7},
   {"op": "view", "subject": "owls", "eye": [0.15, 0.05, -1.5], "at": [0, 0.15, 0]},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "01-perched"},
