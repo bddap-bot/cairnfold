@@ -13,7 +13,6 @@ func _init() -> void:
 	_the_floor_is_flags_or_planks_apart_from_the_walls()
 	_a_round_tower_is_floored_too()
 	_flags_and_planks_lie_flush_and_apart()
-	_a_storey_floor_is_ribbed_beneath()
 	_a_house_has_one_floor_however_tall()
 	_open_walls_lay_no_floor()
 	_a_newer_house_yields_its_floor_to_an_older_one_it_joins()
@@ -268,50 +267,6 @@ func _flags_and_planks_lie_flush_and_apart() -> void:
 						if absf(_area(o)) > 1e-6:
 							overlaps += 1
 			check(overlaps == 0, "no two pieces of a %s's floor overlap: %d" % [name, overlaps])
-
-
-func _a_storey_floor_is_ribbed_beneath() -> void:
-	var ground := _house(Terrain.flat)
-	var roof := RoofLayout.new()
-	roof.corners = ground.points
-	var storey := WallLayout.new()
-	storey.points = ground.points
-	storey.closed = true
-	storey.cover = WallLayout.Cover.ROOF
-	storey.top = WallLayout.Top.CAP
-	storey.height = 2.4
-	storey.supports = [Massing.of(ground, roof)]
-	storey.build(Terrain.flat)
-	for w: WallLayout in [ground, storey]:
-		var bottoms := {}
-		for s in w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "bed"):
-			bottoms[snappedf(s.xform.origin.y - s.xform.basis.y.length() * 0.5, 0.001)] = true
-		var levels := bottoms.keys()
-		levels.sort()
-		if w == ground:
-			check(levels.size() == 1, "a floor on the ground lies on one flat bed: %s" % [levels])
-		else:
-			check(levels.size() == 2 and absf(levels[1] - levels[0] - WallLayout.FLOOR_RIB) < 0.002, "a storey's floor hangs every other row's bed a rib lower: %s" % [levels])
-	var below := Massing.of(ground, roof)
-	var over := WallLayout.new()
-	over.points = WallLayout.rectangle(Vector3(2, 0, 0), Vector3(8, 0, 0), 4.0)
-	over.closed = true
-	over.cover = WallLayout.Cover.ROOF
-	over.top = WallLayout.Top.CAP
-	over.height = 2.4
-	over.planks = true
-	over.supports = [below]
-	over.build(Terrain.flat)
-	var beds := over.stones.filter(func(s: Dictionary) -> bool: return s.kind == "bed")
-	var low: float = beds.map(func(s: Dictionary) -> float: return s.xform.origin.y - s.xform.basis.y.length() * 0.5).min()
-	var ribs := beds.filter(func(s: Dictionary) -> bool: return s.xform.origin.y - s.xform.basis.y.length() * 0.5 < low + 0.01)
-	var out := ribs.filter(func(s: Dictionary) -> bool:
-		for c in [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, -0.5, 0.5)]:
-			var q: Vector3 = s.xform * c
-			if not Massing.encloses(Vector2(q.x, q.z), below.outer):
-				return true
-		return false)
-	check(not ribs.is_empty() and out.is_empty(), "a storey overhanging the house under it hangs its ribs only within that house's walls: %d of %d out" % [out.size(), ribs.size()])
 
 
 func _area(polygon: PackedVector2Array) -> float:

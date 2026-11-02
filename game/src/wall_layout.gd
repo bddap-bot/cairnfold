@@ -37,9 +37,6 @@ const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
 const FLOOR_REACH := WORN_THICK * 0.5 - JOINT - 0.01
-## How far every other row's bed hangs over the room of a house or tower a floor stands on: ribs whose sides catch the
-## room's light, where a flat underside facing down reads black.
-const FLOOR_RIB := 0.14
 ## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
 const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
 ## The discs wearing the meadow bare under a floor: how far apart, how far inside the walls' centre line their centres
@@ -894,8 +891,7 @@ func _floor_bounds() -> PackedVector2Array:
 
 ## Lays the floor `_level_floor` set, its bed reaching down to the foot so it reads as a step at the door. Flags
 ## or `planks`, in rows along its first side that end inside the walls; none in the room of an older
-## build it joins, or under a build standing on it. Over the room of a build it stands on, every other row's bed hangs a
-## rib.
+## build it joins, or under a build standing on it.
 func _lay_floor() -> void:
 	if floor_y == -INF:
 		return
@@ -925,20 +921,10 @@ func _lay_floor() -> void:
 			var middle := across * (z + depth * 0.5)
 			var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), floor_y - (PLANK.y if planks else FLAG.y) * 0.5)
 			if open.y - open.x > 0.05:
-				var at := along * (open.x + open.y) * 0.5 + middle
-				var piece := Vector2(open.y - open.x, depth)
-				var rib := FLOOR_RIB if row % 2 == 1 and _over_room(at, along * piece.x * 0.5, across * piece.y * 0.5) else 0.0
-				_lay_floor_piece(at, piece, floor_y, foot - SINK - rib, along, planks, rng)
+				_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), floor_y, foot - SINK, along, planks, rng)
 			x += size
 		z += depth
 		row += 1
-
-
-## Whether the piece at `at`, reaching `half_along` and `half_across` either way, lies within the walls of a house or
-## tower this build stands on, so a rib under it hangs in that room.
-func _over_room(at: Vector2, half_along: Vector2, half_across: Vector2) -> bool:
-	var corners := [at - half_along - half_across, at + half_along - half_across, at + half_along + half_across, at - half_along + half_across]
-	return supports.any(func(s: Massing) -> bool: return s.closed and corners.all(func(c: Vector2) -> bool: return Massing.encloses(c, s.outer)))
 
 
 ## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints.

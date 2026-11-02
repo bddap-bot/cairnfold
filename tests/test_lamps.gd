@@ -15,6 +15,7 @@ func _init() -> void:
 	_an_open_loop_lets_light_up()
 	_openings_admit_exterior_light()
 	_rooms_limit_sky()
+	_a_room_passes_on_the_light_it_lets_in()
 	_sky_stays_out_a_layer_over_the_roof()
 	_a_live_hump_solves_nothing()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -180,15 +181,27 @@ func _openings_admit_exterior_light() -> void:
 	_check(_at(closed, 3.5, -4.5, 0) > 0.0, "the exterior stays lit")
 
 
-func _sky_result(room: Lamps.Room) -> Dictionary:
+## The probes over and around `room` after it bounds them, the column bake having given every one `baked` and the
+## builds `paint`, lit from `sun`.
+func _sky_result(room: Lamps.Room, sun := Vector3.UP, paint := Color(0.6, 0.6, 0.6), baked := 255) -> Dictionary:
 	var result := {"area": Rect2i(Bounce.column(-2, -4), Vector2i(12, 9)), "layers": []}
 	for k in Bounce.LAYERS:
 		var bytes := PackedByteArray()
 		bytes.resize(result.area.size.x * result.area.size.y * 4)
-		bytes.fill(255)
+		bytes.fill(baked)
+		for i in range(3, bytes.size(), 4):
+			bytes[i] = 255
 		result.layers.append(bytes)
-	Bounce.enclose_probes(result, ground, [room])
+	var colors := PackedColorArray()
+	colors.resize(Bounce.CELLS * Bounce.CELLS)
+	colors.fill(paint)
+	Bounce.enclose_probes(result, ground, [room], colors, sun)
 	return result
+
+
+func _bounce(result: Dictionary, x: float, z: float, layer := 0) -> int:
+	var p := Bounce.column(x, z) - result.area.position as Vector2i
+	return result.layers[layer][(p.y * result.area.size.x + p.x) * 4]
 
 
 func _sky(result: Dictionary, x: float, z: float, layer := 0) -> int:
@@ -216,6 +229,23 @@ func _sky_stays_out_a_layer_over_the_roof() -> void:
 					clear += 1
 					_check(_sky(result, x, z, k) == 255, "a probe a layer clear of the roof at (%.1f, %.1f) sees the sky" % [x, z])
 	_check(band > 0 and clear > 0, "the house has probes in and clear of the band over its roof")
+
+
+## Light let in through a room's openings lights its back corner and ceiling off its walls and floor: sunlight only
+## while the sun stands before an opening, sky light always, and less off darker stone.
+func _a_room_passes_on_the_light_it_lets_in() -> void:
+	var room := _house()
+	var before_door := Vector3(0.0, 0.5, -1.0).normalized()
+	var lit := _sky_result(room, before_door, Color(0.6, 0.6, 0.6), 0)
+	var behind := _sky_result(room, -before_door, Color(0.6, 0.6, 0.6), 0)
+	var dark := _sky_result(room, before_door, Color(0.2, 0.2, 0.2), 0)
+	_check(_bounce(lit, 0.5, 1.5, 2) > 0, "the sun through the door lights the back corner under the roof: %d" % _bounce(lit, 0.5, 1.5, 2))
+	_check(_bounce(lit, 0.5, 1.5, 2) > _bounce(behind, 0.5, 1.5, 2), "a sun behind the house lights less of its inside")
+	_check(_sky(behind, 0.5, 1.5, 2) > 0, "sky light let in still reaches the back corner under the roof")
+	_check(_bounce(dark, 0.5, 1.5, 2) < _bounce(lit, 0.5, 1.5, 2) and _sky(dark, 0.5, 1.5, 2) < _sky(lit, 0.5, 1.5, 2), "darker stone passes on less")
+	room.openings.clear()
+	var sealed := _sky_result(room, before_door, Color(0.6, 0.6, 0.6), 0)
+	_check(_bounce(sealed, 0.5, 1.5, 2) == 0 and _sky(sealed, 0.5, 1.5, 2) == 0, "a sealed room passes on nothing")
 
 
 func _rooms_limit_sky() -> void:

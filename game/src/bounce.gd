@@ -4,7 +4,8 @@ extends Bake
 ## Light the built garden gives back: a probe per ground cell over the play area in LAYERS a metre apart that
 ## follow the ground, shared with shaders as the global bounce_volume (bounce.gdshaderinc). Alpha is how
 ## much of the sky a probe sees past the builds around it, darkening ambient light at wall feet and in
-## corners; RGB is sunlight thrown back by the sunlit stone faces it sees, added to what it lights.
+## corners; RGB is sunlight thrown back by the sunlit stone faces it sees, added to what it lights. Inside a
+## closed room both also hold what its walls, floor and ceiling pass on of the light its openings let in.
 ##
 ## The builds are read as a height field: per column the bottom and top of the pieces over it and their mean
 ## colour. Walls, towers and houses stand straight up, so a span per column holds them, a tower on a wall
@@ -178,28 +179,37 @@ func _work(job: Dictionary) -> Dictionary:
 	area = area.grow(REACH + SUN_WALK).intersection(AREA)
 	var ground := grounds(job.heights)
 	var result := solve(_bottoms, _tops, _colors, ground, job.sun, area)
-	enclose_probes(result, ground, job.rooms)
+	enclose_probes(result, ground, job.rooms, _colors, job.sun)
 	return result
 
 
 ## Bound sky and exterior bounced sunlight by each opening's projected solid angle; the column height field
-## cannot distinguish the inside of a shell from its sunlit outside.
-static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Array[Lamps.Room]) -> void:
+## cannot distinguish the inside of a shell from its sunlit outside. What comes in through the openings then lights
+## the room evenly off its walls, floor and ceiling (interreflected).
+static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Array[Lamps.Room], colors: PackedColorArray, sun: Vector3) -> void:
 	var groups := Lamps._groups(rooms)
 	var portals := {}
+	var members := {}
 	var open_groups := {}
 	for r in rooms.size():
 		if not portals.has(groups[r]):
 			portals[groups[r]] = []
+			members[groups[r]] = []
 		portals[groups[r]].append_array(rooms[r].openings)
+		members[groups[r]].append(rooms[r])
 		if rooms[r].roof == null and is_inf(rooms[r].top):
 			open_groups[groups[r]] = true
+	var fills := {}
+	for g in members:
+		if not open_groups.has(g):
+			fills[g] = interreflected(members[g], colors, sun)
 	var area: Rect2i = result.area
 	var visited := {}
 	for r in rooms.size():
 		var room: Lamps.Room = rooms[r]
 		if open_groups.has(groups[r]):
 			continue
+		var fill: Color = fills[groups[r]]
 		var footprint := room.rect.grow(Terrain.STEP * 0.5)
 		var a := column(footprint.position.x, footprint.position.y)
 		var b := column(footprint.end.x, footprint.end.y)
@@ -220,9 +230,51 @@ static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms
 					var px: PackedByteArray = result.layers[k]
 					var offset := ((z - area.position.y) * area.size.x + x - area.position.x) * 4
 					var visibility := clampf(sky, 0.0, 1.0)
-					px[offset + 3] = mini(px[offset + 3], roundi(visibility * 255.0))
+					px[offset + 3] = mini(255, mini(px[offset + 3], roundi(visibility * 255.0)) + roundi(fill.a * 255.0))
 					for channel in 3:
-						px[offset + channel] = roundi(px[offset + channel] * visibility)
+						px[offset + channel] = mini(255, roundi(px[offset + channel] * visibility + fill[channel] * ENCODE * 255.0))
+
+
+## The light a closed room's surfaces pass between them, the same everywhere in it (split flux): what enters through
+## its openings, sunlight as rgb in the sun's irradiance and sky light as alpha in the open sky's, times
+## reflectance / (1 - reflectance) over the area of its walls, floor and ceiling. Its reflectance is its pieces'
+## colours, as bounce off them is taken.
+static func interreflected(rooms: Array, colors: PackedColorArray, sun: Vector3) -> Color:
+	var surface := 0.0
+	var paint := Color(0, 0, 0)
+	var painted := 0
+	var sun_in := 0.0
+	var sky_in := 0.0
+	var day := clampf(sun.y * 4.0, 0.0, 1.0)
+	for room: Lamps.Room in rooms:
+		var middle := room.rect.get_center()
+		var height := (room.top if is_finite(room.top) else room.roof.height_at(middle.x, middle.y)) - room.floor
+		for polygon in room.inside:
+			var span := 0.0
+			var twice := 0.0
+			for i in polygon.size():
+				var next := polygon[(i + 1) % polygon.size()]
+				span += polygon[i].distance_to(next)
+				twice += polygon[i].cross(next)
+			surface += absf(twice) + span * height
+		var a := column(room.rect.position.x, room.rect.position.y)
+		var b := column(room.rect.end.x, room.rect.end.y)
+		for z in range(maxi(a.y, 0), mini(b.y + 1, CELLS)):
+			for x in range(maxi(a.x, 0), mini(b.x + 1, CELLS)):
+				var c := colors[z * CELLS + x]
+				if c != Color(0, 0, 0):
+					paint += c
+					painted += 1
+		for o: Dictionary in room.openings:
+			sun_in += o.area * maxf((o.out as Vector3).dot(sun), 0.0) * day
+			# A wall's opening sees half the sky, the upper half.
+			sky_in += o.area * 0.5
+	if surface <= 0.0 or painted == 0:
+		return Color(0, 0, 0, 0)
+	var albedo := paint / painted * ALBEDO
+	var gain := Color(albedo.r / (1.0 - albedo.r), albedo.g / (1.0 - albedo.g), albedo.b / (1.0 - albedo.b))
+	var sun_fill := gain * (sun_in / surface)
+	return Color(sun_fill.r, sun_fill.g, sun_fill.b, gain.get_luminance() * sky_in / surface)
 
 
 func _refill(c: Vector2i) -> void:
