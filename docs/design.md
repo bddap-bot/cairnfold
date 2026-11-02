@@ -5893,11 +5893,14 @@ deck flags, boards and mortar crossing a joined building's centre line are cut
 back to it, where its ceiling starts, including where bowed decks cross. Wall
 panels hidden by their middle retain the portion above the lowest joining
 ceiling at their drawn corners, so cutting the deck cannot expose a wall-corner
-hole. Within overlapping domes, deck pieces are also cut where their undersides
-would descend below the higher ceiling boards; the deck above those boards
-keeps its overlap to seal the roof. Ceiling triangles are clipped at the same
-ownership boundary, so a partial board or beam face stays instead of leaving
-a triangular gap.
+hole. Where a house wall stands above a joined bowed flat ceiling along a whole
+stone, that stone reaches down to the ceiling's rafter undersides instead: the
+wall is the beam both rooms' rafters end against, so a rafter never steps in
+mid-air where two ceilings at different heights meet. Within overlapping domes,
+deck pieces are also cut where their undersides would descend below the higher
+ceiling boards; the deck above those boards keeps its overlap to seal the roof.
+Ceiling triangles are clipped at the same ownership boundary, so a partial board
+or beam face stays instead of leaving a triangular gap.
 The budget conservatively charges each box segment as an existing timber member;
 round roofs use their rectangular bound for that reservation.
 

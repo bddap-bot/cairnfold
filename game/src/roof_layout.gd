@@ -454,12 +454,25 @@ func _lay_ceiling() -> void:
 		var a := -wide + 2.0 * wide * i / count
 		var b := -wide + 2.0 * wide * (i + 1) / count
 		_ceiling_strip(across, -along, a, b, long, CEILING_DEPTH, drop)
-	var depth := clampf(2.0 * wide / 18.0, 0.14, 0.38)
+	var depth := rafter_depth()
 	var width := depth * 0.55
 	count = maxi(1, ceili(2.0 * long / RAFTER_SPACING))
 	for i in count:
 		var x := -long + 2.0 * long * (i + 0.5) / count
 		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + CEILING_DEPTH)
+
+
+## Deeper over a wider span, the shorter of a flat roof's two.
+func rafter_depth() -> float:
+	var wide := half_span() - WallLayout.THICKNESS * 0.5
+	if kind == Kind.GABLE:
+		wide = minf(wide, ridge_length() * 0.5)
+	return clampf(2.0 * wide / 18.0, 0.14, 0.38)
+
+
+## Height of the rafters' undersides over the ground point (x, z).
+func rafter_bottom(x: float, z: float) -> float:
+	return height_at(x, z) - CEILING_DROP - CEILING_DEPTH - rafter_depth()
 
 
 func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: float, depth: float, drop: float) -> void:

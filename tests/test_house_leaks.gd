@@ -218,6 +218,25 @@ func _house(seed_value: int, count: int) -> void:
 						var higher := other.roof.height_at(p.x, p.z)
 						if higher > w.roof.height_at(p.x, p.z) + 0.001:
 							check(p.y >= higher - RoofLayout.CEILING_DROP - RoofLayout.CEILING_DEPTH - 0.005, "crossing domes keep deck undersides above the higher ceiling boards")
+		var ends := 0
+		for w in room:
+			var line := PackedVector2Array()
+			for q in w.layout.points:
+				line.append(Vector2(q.x, q.z))
+			var band: Array[PackedVector2Array] = Geometry2D.offset_polygon(line, WallLayout.THICKNESS * 0.5)
+			band.append_array(Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5))
+			for other in room:
+				if other == w:
+					continue
+				for v in other.roof.timber_faces:
+					if not Massing.encloses(Vector2(v.x, v.z), band) or other.roof.height_at(v.x, v.z) > w.layout.roof_base() - 0.05:
+						continue
+					ends += 1
+					var borne := w.layout.stones.any(func(st: Dictionary) -> bool:
+						var l: Vector3 = st.xform.affine_inverse() * v
+						return absf(l.x) <= 0.501 and absf(l.y) <= 0.501 and absf(l.z) <= 0.501)
+					check(borne, "ceiling timber cut by a higher joined wall ends inside that wall, not stepping in the air")
+		check(ends > 0, "the curved join has rafters ending at the higher wall")
 		var ceiling := Probe.new()
 		for w in room:
 			ceiling.add_faces(w.roof.timber_faces, "ceiling", w.id)

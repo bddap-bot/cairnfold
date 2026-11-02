@@ -727,8 +727,15 @@ func _hide() -> void:
 			var ceiling := other.feet[0] + other.rise
 			if other.roof != null:
 				ceiling = INF
+				var highest := other.roof.height_at(x.origin.x, x.origin.z)
+				var framing := INF
 				for p in drawn_corners(st):
 					ceiling = minf(ceiling, other.roof.height_at(p.x, p.z))
+					highest = maxf(highest, other.roof.height_at(p.x, p.z))
+					framing = minf(framing, other.roof.rafter_bottom(p.x, p.z))
+				# Standing above a joined flat ceiling, this wall carries on down past it as the beam its rafters end against.
+				if closed and other.roof.flat() and highest < roof_base():
+					ceiling = framing
 			bottom = maxf(bottom, ceiling)
 		var top_y := x.origin.y + x.basis.y.y * 0.5
 		if bottom >= top_y:
