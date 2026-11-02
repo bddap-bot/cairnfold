@@ -4,14 +4,15 @@
 #   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz UNWORN...
 #                                             a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/cairnfold alone,
 #                                             in the headset's XR session unworn. SteamVR pauses the game while the
-#                                             headset is in standby, so the game runs as the command UNWORN... is
-#                                             given as its last argument: a host command that runs that bash command
-#                                             on the headset with power.pauseCompositorOnStandby off, restores the
+#                                             headset is in standby, so the game runs through UNWORN..., a host command
+#                                             given `--seconds N -- COMMAND` that runs that bash command on the headset
+#                                             for up to N seconds with power.pauseCompositorOnStandby off, restores the
 #                                             setting after, even if its caller dies, and exits with the command's
-#                                             status. Nothing else may use SteamVR meanwhile. The run autosaves every
-#                                             edit to log/garden.save, as play does, so the late column counts each
-#                                             save's frame. The GPU times are the headset's own render path; a worn
-#                                             session's eye tracking and passthrough cameras are not in them
+#                                             status; N covers the scene. Nothing else may use SteamVR meanwhile. The
+#                                             run autosaves every edit to log/garden.save, as play does, so the late
+#                                             column counts each save's frame. The GPU times are the headset's own
+#                                             render path; a worn session's eye tracking and passthrough cameras are not
+#                                             in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase goes over budget. Only measuring are phases named "sweep/...", pricing phases, and
@@ -263,7 +264,7 @@ elif [ $# -ge 4 ]; then
   scp -q "$out/stress.json" "$2:cairnfold-bench/cairnfold/log/stress.json"
   trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; stop' EXIT
   # shellcheck disable=SC2016 # expanded on the headset
-  "${@:4}" 'cd ~/cairnfold-bench/cairnfold
+  "${@:4}" --seconds $((limit + 60)) -- 'cd ~/cairnfold-bench/cairnfold
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
     status=0; timeout '"$limit"' ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
