@@ -246,11 +246,12 @@ var laid_rise := 0.0
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 ## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water and reaches down to its bed.
+## None under a loop on builds.
 var depths := PackedFloat32Array()
 ## Per sample, the ground's height under it.
 var grounds := PackedFloat32Array()
 ## Per sample, how far the plinth reaches below the foot to what the wall stands on: the ground, a pond's surface or a
-## build's top; none over stilts. A wall's ivy roots there.
+## build's top; none over stilts or under a loop on builds. A wall's ivy roots there.
 var plinths := PackedFloat32Array()
 var bounds := Rect2()
 ## PathLayout.segment_grid of `samples`, made when a path first asks for it.
@@ -3218,18 +3219,19 @@ func resample(ground: Callable, water := Callable(), revision := 0) -> void:
 	var footing := ground
 	if water.is_valid():
 		footing = func(x: float, z: float) -> float: return maxf(ground.call(x, z), water.call(x, z))
-	_resample_curve(footing)
+	var held := _resample_curve(footing)
 	var stilted := supports.is_empty() and stilt_span(foundation, rise) > 0.0
 	for q in samples:
 		grounds.append(ground.call(q.x, q.z))
-		depths.append(maxf(q.y - grounds[-1], 0.0))
-		plinths.append(0.0 if stilted else maxf(q.y + SINK - maxf(footing.call(q.x, q.z), rest(q.x, q.z)), 0.0))
+		depths.append(0.0 if held else maxf(q.y - grounds[-1], 0.0))
+		plinths.append(0.0 if stilted or held else maxf(q.y + SINK - maxf(footing.call(q.x, q.z), rest(q.x, q.z)), 0.0))
 	bounds = Rect2(Vector2(samples[0].x, samples[0].z), Vector2.ZERO)
 	for q in samples:
 		bounds = bounds.expand(Vector2(q.x, q.z))
 
 
-func _resample_curve(ground: Callable) -> void:
+## Lays the samples along the points; true when the loop stands on a build's top.
+func _resample_curve(ground: Callable) -> bool:
 	var dense: Array[Vector3] = []
 	var n := points.size()
 	for i in n if closed else n - 1:
@@ -3240,9 +3242,9 @@ func _resample_curve(ground: Callable) -> void:
 			dense.append(a.lerp(b, float(j) / count))
 	dense.append(points[0] if closed else points[-1])
 	var foot := INF
+	var held := -INF
 	if closed:
 		# On the ground a loop stands level on its lowest ground, raised by `rise`; on other builds, on the highest top under it.
-		var held := -INF
 		for q in dense:
 			foot = minf(foot, ground.call(q.x, q.z))
 			held = maxf(held, rest(q.x, q.z))
@@ -3258,6 +3260,7 @@ func _resample_curve(ground: Callable) -> void:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
 		lengths.append(acc)
+	return held > -INF
 
 
 ## Height of the ground, or the top of the builds, a closed loop stands on: under its plinth, if it is raised.

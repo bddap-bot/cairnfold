@@ -2754,7 +2754,8 @@ pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/t
 - A build stands on what it was aimed at. The ray of a hand holding walls, fences or the house stops at the first top it meets: a wall's top, a
   flat roof, or a pitched roof, which counts as the top of the walls under it. What is drawn there stands on that
   top, and its command carries the ids of the builds under it (`on`). A loop on builds stands level on the
-  highest top under it, an open wall on the top under each of its points, and the ground where it runs off. A
+  highest top under it, an open wall on the top under each of its points, and the ground where it runs off. A loop on
+  builds reaches no lower than its foot. A
   stroke begun on a top is drawn on that top's level, so a thin wall top is easy to follow, and it merges only
   with walls standing on the same build. Nothing on a top opens a door or an arch on its own.
 - Builds that meet lay nothing inside each other. A build's stones, roof tiles and plaster inside a house or

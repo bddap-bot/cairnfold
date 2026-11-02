@@ -7,6 +7,7 @@ func _init() -> void:
 	_a_wall_top_holds_what_stands_on_it()
 	_an_upper_storey_stands_on_the_house_and_takes_its_roof()
 	_a_tower_on_a_wall_stands_on_its_top_and_takes_its_merlons()
+	_a_house_on_a_wall_reaches_no_lower_than_the_wall_top()
 	_two_houses_joined_are_one_room_under_one_roof()
 	_a_wall_into_a_tower_stops_inside_it()
 	_builds_meeting_nothing_lay_as_before()
@@ -115,6 +116,29 @@ func _a_tower_on_a_wall_stands_on_its_top_and_takes_its_merlons() -> void:
 	check(merlons.call(bare, true) > 0 and merlons.call(w, true) == 0, "no merlons under the tower (%d of %d)" % [merlons.call(w, true), merlons.call(bare, true)])
 	check(merlons.call(w, false) == merlons.call(bare, false), "the rest of the wall keeps them")
 	check(w.stones.filter(func(s: Dictionary) -> bool: return s.kind != "merlon").size() == bare.stones.filter(func(s: Dictionary) -> bool: return s.kind != "merlon").size(), "and every stone below its top")
+
+
+func _a_house_on_a_wall_reaches_no_lower_than_the_wall_top() -> void:
+	var w := _wall(Vector3(0, 0, -6), Vector3(0, 0, 6))
+	var ws := Massing.of(w, null)
+	var top: float = ws.feet[0] + ws.rise
+	for h: Dictionary in [_house(Vector3(-3, 0, 0), Vector3(3, 0, 0), 3.6, [ws]), _tower(Vector3(0, 0, 0), 1.6, [ws])]:
+		var l: WallLayout = h.wall
+		check(absf(l.samples[0].y - (top - WallLayout.SINK)) < 0.01, "it stands on the wall's top (%f, top %f)" % [l.samples[0].y, top])
+		l.build(Terrain.flat)
+		var lowest := INF
+		for s: Dictionary in l.stones:
+			for c in WallLayout.BOX:
+				lowest = minf(lowest, (s.xform * c).y)
+		check(lowest > top - WallLayout.SINK - 0.05, "and lays nothing below it: its lowest stone at %f, the top at %f" % [lowest, top])
+		check(l.plinths.count(0.0) == l.plinths.size(), "its ivy roots on the top")
+	var off := WallLayout.new()
+	off.points = WallLayout.circle(Vector3.ZERO, 3.0)
+	off.closed = true
+	off.rise = 1.5
+	off.supports.assign([Massing.of(_wall(Vector3(-0.5, 0, 0), Vector3(0.5, 0, 0)), null)])
+	off.resample(func(x: float, _z: float) -> float: return 0.2 * x)
+	check(Array(off.depths).max() > 1.0 and Array(off.plinths).max() > 1.0, "a loop over no top of what it meets keeps its plinth down to the ground")
 
 
 ## A build's stones but its floors', which tests/test_floors.gd checks where joined rooms meet.
