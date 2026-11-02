@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# The repo's checks: scripts compile, then every headless test; a script error, a failed allocation, an engine math call
-# given an unnormalized axis, a resource left in use or an object leaked at exit, or an engine call given a freed object
-# or a null material fails it.
+# The repo's checks: perf records added since origin/main measured what lands (records.sh), scripts compile, then every
+# headless test; a script error, a failed allocation, an engine math call given an unnormalized axis, a resource left in
+# use or an object leaked at exit, or an engine call given a freed object or a null material fails it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+scripts/records.sh
 runs=$(mktemp -d)
 trap 'rm -rf "$runs"' EXIT
 # Godot's user:// lives under the XDG data home: each run, and each test in it, gets its own, so none share files. Tests
