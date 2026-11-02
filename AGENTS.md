@@ -53,8 +53,8 @@ controls and the build order.
   script owes a clean `shellcheck`. `scripts/gate.sh` runs every check the diff from origin/main owes, the co-op run
   below included.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and
-  Frame exports and both APKs together, marking the release Latest only when HEAD is origin/main's
-  tip; `scripts/release.sh --rollback TAG` marks an older release Latest. The Frame's install and
+  Frame exports and both APKs together, marking the release Latest only when its tag is the
+  highest published; `scripts/release.sh --rollback TAG` marks an older release Latest. The Frame's install and
   library shortcut are kept outside this repo (README, "Running").
 - Signing: every APK, bench or release, signs with one key read from the directory
   `$CAIRNFOLD_ANDROID_KEY` (default `~/.config/cairnfold/android-key`), holding
