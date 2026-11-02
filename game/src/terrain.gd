@@ -574,6 +574,22 @@ static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 	return st.commit()
 
 
+## The ground at (x, z) as `chunk_mesh` draws it nearby: each cell two flat triangles split from its (i + 1, j) corner to its
+## (i, j + 1), over `ground`'s grid heights. Within a cell it may stand above or below the bilinear `height_at`.
+static func drawn(x: float, z: float, ground: Callable) -> float:
+	var i := floorf(x / STEP) * STEP
+	var j := floorf(z / STEP) * STEP
+	var u := x / STEP - i / STEP
+	var v := z / STEP - j / STEP
+	var b: float = ground.call(i + STEP, j)
+	var c: float = ground.call(i, j + STEP)
+	if u + v <= 1.0:
+		var a: float = ground.call(i, j)
+		return a + (b - a) * u + (c - a) * v
+	var d: float = ground.call(i + STEP, j + STEP)
+	return d + (c - d) * (1.0 - u) + (b - d) * (1.0 - v)
+
+
 ## The bank, from the ground's edge down to BANK_FOOT, which it leaves where it lies.
 static func bank_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()

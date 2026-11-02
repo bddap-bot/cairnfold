@@ -5,6 +5,7 @@ extends "res://../tests/support/suite.gd"
 
 func _init() -> void:
 	_a_house_is_floored_wall_to_wall_over_its_highest_ground()
+	_a_house_floor_stands_over_ground_peaking_past_its_walls()
 	_a_raised_house_floors_its_foot()
 	_doors_stand_their_height_over_the_floor()
 	_doors_and_arches_stop_at_the_floor()
@@ -89,6 +90,44 @@ func _a_house_is_floored_wall_to_wall_over_its_highest_ground() -> void:
 	var flat := _house(Terrain.flat)
 	check(is_equal_approx(flat.floor_y, flat.samples[0].y + WallLayout.SINK), "on level ground the floor is the walls' foot")
 	check(_pieces(flat).all(func(s: Dictionary) -> bool: return absf(_top(s) - flat.floor_y) < 0.01), "every piece's top lies on the floor")
+
+
+## Ground drawn from one grid point raised a metre, the rest level, as Terrain reads its heights: bilinear between them.
+func _spike(peak: Vector2i) -> Callable:
+	var at := func(i: float, j: float) -> float: return 1.0 if Vector2i(roundi(i), roundi(j)) == peak else 0.0
+	return func(x: float, z: float) -> float:
+		var i := floorf(x)
+		var j := floorf(z)
+		var u := x - i
+		var v := z - j
+		return lerpf(lerpf(at.call(i, j), at.call(i + 1, j), u), lerpf(at.call(i, j + 1), at.call(i + 1, j + 1), u), v)
+
+
+func _a_house_floor_stands_over_ground_peaking_past_its_walls() -> void:
+	var house := func(ground: Callable) -> WallLayout:
+		var w := WallLayout.new()
+		w.points = WallLayout.rectangle(Vector3(0.45, 0, 0.3), Vector3(6.2, 0, 1.1), 4.0)
+		w.closed = true
+		w.cover = WallLayout.Cover.ROOF
+		w.build(ground)
+		return w
+	var outline: PackedVector2Array = house.call(Terrain.flat).floor_outline
+	var missed := 0
+	for j in range(-4, 8):
+		for i in range(-3, 10):
+			var peak := Vector2i(i, j)
+			if Geometry2D.is_point_in_polygon(Vector2(peak), outline):
+				continue
+			var ground := _spike(peak)
+			var w: WallLayout = house.call(ground)
+			var drawn := -INF
+			for k in w.floor_outline.size():
+				for t in 101:
+					var q := w.floor_outline[k].lerp(w.floor_outline[(k + 1) % w.floor_outline.size()], t / 100.0)
+					drawn = maxf(drawn, Terrain.drawn(q.x, q.y, ground))
+			if w.floor_y < drawn - 1e-4:
+				missed += 1
+	check(missed == 0, "ground peaking past a house's walls stays under its floor: %d peaks rise through it" % missed)
 
 
 func _a_raised_house_floors_its_foot() -> void:

@@ -1015,14 +1015,23 @@ static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2,
 	return out
 
 
-## The highest ground inside `outline`: at its corners and on the grid of the heights within it, where the ground's
-## bilinear surface peaks.
+## The highest the drawn ground rises inside `outline`: at its corners, where its sides cross the edges of the ground's
+## triangles, and on the grid points within it. The triangles are flat between those, so nothing in them stands higher.
 static func _highest_ground(outline: PackedVector2Array, ground: Callable) -> float:
 	var top := -INF
 	var box := Rect2(outline[0], Vector2.ZERO)
-	for q in outline:
-		box = box.expand(q)
-		top = maxf(top, ground.call(q.x, q.y))
+	for k in outline.size():
+		var a := outline[k] / Terrain.STEP
+		var b := outline[(k + 1) % outline.size()] / Terrain.STEP
+		box = box.expand(outline[k])
+		var along: Array[float] = [0.0]
+		for ends in [Vector2(a.x, b.x), Vector2(a.y, b.y), Vector2(a.x + a.y, b.x + b.y)]:
+			if ends.x != ends.y:
+				for n in range(ceili(minf(ends.x, ends.y)), floori(maxf(ends.x, ends.y)) + 1):
+					along.append((n - ends.x) / (ends.y - ends.x))
+		for t in along:
+			var q := a.lerp(b, t) * Terrain.STEP
+			top = maxf(top, Terrain.drawn(q.x, q.y, ground))
 	for j in range(floori(box.position.y / Terrain.STEP), ceili(box.end.y / Terrain.STEP) + 1):
 		for i in range(floori(box.position.x / Terrain.STEP), ceili(box.end.x / Terrain.STEP) + 1):
 			var q := Vector2(i, j) * Terrain.STEP
