@@ -385,8 +385,8 @@ for name, secs in phases.items():
     summary[name] = {"p50": mid([s["p50"] for s in secs]), "p99": max(s["p99"] for s in secs), "late": late,
                      "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
     # A phase's median hides whole seconds at half rate, so its record keeps the second with the most late frames.
-    worst = max(phases[name], key=lambda s: s["late"])
-    summary[name]["worst"] = {"late": worst["late"], "p50": worst["p50"]}
+    worst = max(secs, key=lambda s: s["late"])
+    summary[name]["worst"] = {"late": worst["late"], "p50": worst["p50"], "p99": worst["p99"]}
     if windows:
         summary[name]["landings"] = windows
     stalls = [{k: st[k] for k in ("ms", "notes", "compiled")} for s in phases[name] for st in s.get("stalls", [])]

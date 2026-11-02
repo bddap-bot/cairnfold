@@ -918,9 +918,10 @@ same two figures. The earlier records, 8.2 to 8.7 ms on some builds and 5.9 to 6
 the same primitives, carried no step and match these two. Bench records now carry each phase's step
 and GPU clock (`gpu_mhz`, from the driver's cycle count), and `scripts/trend.py` compares a phase only
 with runs on its step. `trend.py --pair CONTROL CANDIDATE` sets two runs' records side by side by the same rule: a
-phase on different steps is neither faster nor slower. A governed Frame tour whose governor fell to step 16 at
-r20/ground read faster by median in every later phase against a control at steps 7 to 10, so each record also keeps
-the phase's worst second (`worst`: its late frames and median), which a median hides.
+phase on different steps is neither faster nor slower. A governed Frame tour whose governor sat at step 6 at
+r20/ground and 16 from r25/aerial on read faster in 45 of the 48 phases from r20/ground on against a control at steps
+7 to 10, and r20/ground's median hid a second at half rate, so each record also keeps the phase's worst second
+(`worst`: its late frames, median and p99).
 
 ### The stress scene on the Quest 2
 

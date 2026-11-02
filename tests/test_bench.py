@@ -194,18 +194,31 @@ class Trend(unittest.TestCase):
                 result = subprocess.run([sys.executable, "-c", REPORT, str(out), "frame", str(out / "record.json"), "1"], capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 records[name] = json.loads((out / "record.json").read_text())
-        self.assertEqual(records["gov-tip5"]["phases"]["r20/ground"]["worst"], {"late": 32, "p50": 27.52})
-        with contextlib.redirect_stdout(io.StringIO()) as printed:
-            risen, mismatched = trend.pair(records["gov-main"], records["gov-tip5"])
+        self.assertEqual(records["gov-tip5"]["phases"]["r20/ground"]["worst"], {"late": 32, "p50": 27.52, "p99": 33.564})
         shared = [p for p in records["gov-tip5"]["phases"] if p in records["gov-main"]["phases"]]
         later = shared[shared.index("r20/ground"):]
         self.assertEqual(len(later), 48)
-        self.assertEqual([p for p in later if p not in mismatched], [])
-        self.assertEqual(risen, [])
-        row = next(line for line in printed.getvalue().splitlines() if line.split()[0] == "r20/ground")
-        self.assertIn(" 32 late p50  27.5", row)
-        self.assertTrue(row.endswith("steps differ"))
-        self.assertNotIn("faster", "".join(line for line in printed.getvalue().splitlines() if line.split()[0] in later))
+
+        def verdicts(control, candidate):
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                trend.pair(control, candidate)
+            rows = {line.split()[0]: line for line in printed.getvalue().splitlines()}
+            return [rows[p].rsplit(maxsplit=1)[-1] for p in later], rows
+
+        one_step = [{**r, "phases": {p: {**row, "step": 0} for p, row in r["phases"].items()}}
+                    for r in (records["gov-main"], records["gov-tip5"])]
+        self.assertEqual(verdicts(*one_step)[0].count("faster"), 45)
+        said, rows = verdicts(records["gov-main"], records["gov-tip5"])
+        self.assertEqual(said, ["differ"] * 48)
+        self.assertIn(" 32 late p50  27.5 p99  33.6 steps differ", rows["r20/ground"])
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            paths = []
+            for name in ("gov-main", "gov-tip5"):
+                (Path(folder) / f"{name}.json").write_text(json.dumps(records[name]))
+                paths.append(str(Path(folder) / f"{name}.json"))
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                self.assertEqual(trend.main(["--pair", *paths]), 0)
+        self.assertIn("on different steps, so neither faster nor slower: meadow/aerial", printed.getvalue())
 
 
 class StressScene(unittest.TestCase):

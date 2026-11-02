@@ -8,13 +8,14 @@ the best run, marking a rise of more than RISE times and FLOOR_MS over the base.
 whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
 Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp; any other file is no run. Given
 a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
-rerun once. A pair gives a phase no faster or slower when its two runs sat on different steps, and exits 1 when a phase on
-one step rose as a scene's run does; beside each it shows both runs' worst second, which a median hides."""
+rerun once. A pair gives a phase no faster or slower when its two runs sat on different steps, and exits 1 when a phase
+on one step rose as a scene's run does; beside each it shows both runs' worst second, which a median hides."""
 import json
 import os
 import re
 import statistics
 import sys
+from pathlib import Path
 
 # Two Quest 2 stress runs of one build (a4d3a15) differ by under this on all but five of 132 phases; those five, aerial
 # views of big builds among them, read up to five times apart, which the median of a few runs absorbs.
@@ -67,16 +68,23 @@ def report(rig, scene, folder):
 def pair(control, candidate):
     """Prints candidate's phases against control's; returns (risen, the phases on different steps)."""
     a, b = control["phases"], candidate["phases"]
-    print(f"  {'phase':24} {'steps':>7} {'gpu ms':>15} {'frame p50':>15} {'worst second':>27}")
+    for side, mine, other in (("control", a, b), ("candidate", b, a)):
+        only = [phase for phase in mine if phase not in other]
+        if only:
+            print(f"  only in {side}: {', '.join(only)}")
+    print(f"  {'phase':24} {'steps':>7} {'gpu ms':>15} {'frame p50':>15} {'worst second':>28}")
     risen, mismatched = [], []
     show = lambda r, k: f"{r[k]:7.2f}" if k in r else f"{'-':>7}"
-    worst = lambda r: f"{r['worst']['late']:3} late p50 {r['worst']['p50']:5.1f}" if "worst" in r else f"{'-':>18}"
+    worst = lambda r: (f"{r['worst']['late']:3} late p50 {r['worst']['p50']:5.1f} p99 {r['worst']['p99']:5.1f}"
+                       if "worst" in r else f"{'-':>28}")
     for phase, new in b.items():
         if phase not in a:
             continue
         old = a[phase]
         key = "gpu_ms" if "gpu_ms" in new and "gpu_ms" in old else "p50"
-        if old.get("step") != new.get("step"):
+        if "step" not in old or "step" not in new:
+            verdict = "step unknown"
+        elif old["step"] != new["step"]:
             mismatched.append(phase)
             verdict = "steps differ"
         elif rise(old[key], new[key]):
@@ -95,7 +103,9 @@ def pair(control, candidate):
 
 def main(want):
     if want[:1] == ["--pair"]:
-        control, candidate = (json.load(open(path)) for path in want[1:3])
+        if len(want) != 3:
+            sys.exit("usage: trend.py --pair CONTROL CANDIDATE")
+        control, candidate = (json.loads(Path(path).read_text()) for path in want[1:])
         risen, mismatched = pair(control, candidate)
         if mismatched:
             print(f"on different steps, so neither faster nor slower: {', '.join(mismatched)}")
