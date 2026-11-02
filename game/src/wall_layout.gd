@@ -161,6 +161,9 @@ const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
 const MORTAR := Color(0.32, 0.29, 0.25)
+## Scales the stones of a wall's top course off the wall's, so the top reads apart from the wall below it.
+const TOP_TONE := Color(0.40, 0.42, 0.47)
+const TOP_KINDS: Array[String] = ["cap", "cope", "merlon"]
 ## How far mortar stands back from the stones' faces, ends and tops wherever it would show.
 const JOINT := 0.07
 ## How far a plaster wall's face stands back from its stones'.
@@ -2870,6 +2873,8 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	var origin: Vector3 = frame.point + Vector3.UP * y
 	origin += basis.z * rng.randf_range(-jitter, jitter)
 	var color := stone_color(rng)
+	if kind in TOP_KINDS:
+		color *= TOP_TONE
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + (y + depth_at(s)) * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 

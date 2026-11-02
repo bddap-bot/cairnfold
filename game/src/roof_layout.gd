@@ -78,6 +78,8 @@ const CLAY := Color(0.72, 0.4, 0.28)
 ## Combed reed as laid, and the grey-brown it weathers toward.
 const STRAW := Color(0.6, 0.45, 0.25)
 const WEATHERED := Color(0.42, 0.38, 0.32)
+## Scales a stone deck's flags off the walls' stone, so a deck reads apart from them and from their dark top course.
+const DECK_TONE := Color(0.86, 0.72, 0.56)
 ## How far the coat's outer face stands off the roof's surface, and how far its lumps rise and sink from that.
 const COAT := 0.32
 const LUMPS := 0.05
@@ -605,7 +607,7 @@ func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator)
 	at = on.origin
 	basis = on.basis
 	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
-	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
+	var color := WallLayout.stone_color(rng) * DECK_TONE * rng.randf_range(0.86, 0.98)
 	_add(Transform3D(b.scaled_local(Vector3(maxf(0.001, size.x - 0.025), SLAB.y, maxf(0.001, size.y - 0.025))), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
 	var bed := Vector3(size.x + BED_LAP, SLAB.y * 0.7, size.y + BED_LAP)
 	mortar.append({"xform": Transform3D(basis.scaled_local(bed), at + Vector3.UP * (SLAB.y * 0.2 - bed.y * 0.5)), "color": WallLayout.MORTAR, "kind": "mortar", "ao": 0.8})
