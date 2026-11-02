@@ -1448,7 +1448,7 @@ static func _facing(tris: PackedVector3Array, facing: Vector3, a: Vector3, b: Ve
 	tris.append_array([a, b, c] if (b - a).cross(c - a).dot(facing) < 0.0 else [a, c, b])
 
 
-## The underside of a pitched roof's tiles, as triangles facing down.
+## The underside of a pitched roof's tiles, short of its verges, as triangles facing down.
 func torching() -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if flat():
@@ -1467,7 +1467,9 @@ func torching() -> PackedVector3Array:
 				var q := prof[i + 1]
 				quads.append(PackedVector3Array([mid + a0 * p.x + Vector3.UP * p.y, mid + a1 * p.x + Vector3.UP * p.y, mid + a1 * q.x + Vector3.UP * q.y, mid + a0 * q.x + Vector3.UP * q.y]))
 	else:
-		var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+		# It stops inside the gable walls, whose faces close the bed down past it: under a verge it would show edge-on
+		# from beyond the gable end.
+		var length := ridge_length()
 		var n := maxi(1, ceili(length / TORCHING_PIECE))
 		for side in [-1.0, 1.0]:
 			var out: Vector3 = f.across * side
