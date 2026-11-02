@@ -42,6 +42,8 @@ static var appetite := {
 
 ## Per kind with no band here: seconds until one comes.
 var due := {}
+## While set, no band comes.
+var held := false
 
 
 class Visit extends Band:
@@ -64,6 +66,8 @@ func _init(home: Wildlife, seed: int) -> void:
 
 
 func tick(delta: float) -> void:
+	if held:
+		return
 	super(delta)
 	for kind in FIRST:
 		if bands.any(func(b: Band) -> bool: return b.animals[0].kind == kind):
@@ -86,6 +90,16 @@ func arrive(kind: Beast.Kind) -> void:
 		return
 	_walk_in(v, first, rng.randi_range(HERD[kind].x, HERD[kind].y), WALK_FROM, 1.6, func() -> Beast:
 		return Beast.new(kind, rng.randf_range(0.9, 1.08), rng.randf()))
+
+
+## Takes every band away where it stands and lets none come until `held` is cleared.
+func hold() -> void:
+	held = true
+	for b in bands:
+		for a in b.animals:
+			wildlife.release(a)
+			a.queue_free()
+	bands.clear()
 
 
 func _keep(b: Band, delta: float) -> void:

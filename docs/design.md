@@ -979,8 +979,10 @@ a frame for 1.46 M primitives drawn: its bins re-run the vertices of every piece
 map, not the pieces ("Fixed foveation on the Quest 2"): with the map off the same village reads 25 to 33 ms and each
 bin runs only the vertices that fall in it.
 
-The deer and the fox come and go on their own timetable, so the scene brings a band of each in (`roamers`) before
-each view of them; a view of an absent animal fails the script.
+The deer and the fox come and go on their own timetable and walk where they please, so for its views of them the
+scene stands two deer and a fox of its own still at fixed spots in place of the roaming ones (`beasts`) and views them
+from fixed eyes: what those phases draw then holds from run to run, and a change to how the animals walk leaves their
+GPU time alone.
 
 ### Moving and acting at the build budget
 

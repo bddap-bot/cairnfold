@@ -35,6 +35,8 @@ var _posed_usec := 0
 var _posed_frames := 0
 ## The units the last fill_flora's plants would count as, carried on the next units line.
 var _flora_units := {}
+## The deer and fox `beasts` stood in place of the roaming ones.
+var _stood_beasts: Array[Beast] = []
 ## Where a headset's hands stand until a step poses them: as a player holds them while building, the book shut in the
 ## left hand and the right pointing at the ground. Left to the controllers, an unworn headset's idle ones put the book
 ## and the beam in view or out of it from run to run, about 2 ms of a Quest 2's GPU time.
@@ -2853,6 +2855,33 @@ func _shy(_s: Dictionary) -> void:
 	for kind in main.wildlife.shy():
 		kind.fill()
 	await get_tree().process_frame
+
+
+## Stands deer and fox still in place of the roaming ones, the same animals in the same places every run, so a fixed
+## view of them frames the same scene however the roamers walk: each of "deer" and "fox" lists ground points `[x, z]`,
+## every animal facing the ground point "facing". With neither, takes them away and lets the roamers come again.
+func _beasts(s: Dictionary) -> void:
+	for a in _stood_beasts:
+		a.queue_free()
+	_stood_beasts.clear()
+	var roamers: Roamers = main.wildlife.roamers
+	if not s.has("deer") and not s.has("fox"):
+		roamers.held = false
+		return
+	roamers.hold()
+	var facing := main.world.terrain.ground(s.facing[0], s.facing[1])
+	for kind: Beast.Kind in Beast.GROUPS:
+		var spots: Array = s.get(Beast.GROUPS[kind], [])
+		for i in spots.size():
+			var at := main.world.terrain.ground(spots[i][0], spots[i][1])
+			if not main.wildlife.standable(at):
+				_fail("%s %d at %s has no ground to stand on" % [Beast.GROUPS[kind], i, at])
+				return
+			var a := Beast.new(kind, 1.0, i * 0.3)
+			roamers.add_child(a)
+			a.position = at
+			Wildlife._face(a, facing - at, 1.0)
+			_stood_beasts.append(a)
 
 
 ## Brings a band of deer and the fox to the meadow's rim now where none is there, as Roamers does in its own time, and
