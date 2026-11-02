@@ -11,10 +11,12 @@
 # package and version code, so adb would install the Frame's build over the Quest's.
 # Saves never block an install: a copy that fails is reported and the install goes on. A push that fails to land every
 # file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
-# (default ~/.local/state/cairnfold/quest-saves), files identical across copies hardlinked as one. Bench output,
-# bench/ and bench.json, is not a save and is left out.
+# (default ~/.local/state/cairnfold/quest-saves), files identical across copies hardlinked as one. A save is only what
+# the game writes, the entries of $game_paths; what the shell pushes beside them (bench output, launch arguments, check
+# drivers) is left out of both the copy and the push.
 set -euo pipefail
 pkg=io.github.bddapbot.cairnfold
+game_paths="garden.save garden.save.bad avatars record-sessions sessions"
 
 # package APK [quest]: the manifest's package attribute, from the APK's binary XML; with quest, failing unless the
 # manifest names the Quest's VR category.
@@ -70,7 +72,9 @@ backup() {
   mkdir -p "$dir"
   adb shell "[ -d $files ]" || { echo "quest-install: no saves on the device to keep" >&2; return 0; }
   if adb pull "$files/." "$dir/" > /dev/null; then
-    rm -rf "$dir/bench" "$dir/bench.json"
+    for entry in "$dir"/* "$dir"/.[!.]*; do
+      [[ ! -e $entry || " $game_paths " == *" ${entry##*/} "* ]] || rm -rf "$entry"
+    done
     echo "quest-install: saves copied to $dir" >&2
   else
     echo "quest-install: the saves could not be copied off; installing without them" >&2
@@ -78,24 +82,58 @@ backup() {
 }
 
 # The game must make every folder the saves go in, its files folder and avatars/: on a Quest 3 it cannot write into one
-# the shell made, and the shell may not make one inside the game's.
+# the shell made, and the shell may not make one inside the game's. sessions/ appears only once record-sessions has gone
+# back, so the game starts again while a pushed file brings it a folder still missing; without record-sessions the game
+# never makes it, and the sessions stay in the copy. Each start is waited on until every folder is there or, with one
+# there to push into, five seconds pass without another.
 restore() {
-  local dir=$1 rel ok=1 folders
-  [ -n "$(ls -A "$dir" 2> /dev/null)" ] || return 0
-  folders=$(cd "$dir" && find . -mindepth 1 -type d | sed "s|^\.|$files|" | tr '\n' ' ')
-  if ! adb shell "for d in $files $folders; do [ -d \$d ] || exit 1; done"; then
-    adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
-    for _ in $(seq 60); do
-      adb shell "for d in $files $folders; do [ -d \$d ] || exit 1; done" && break
-      sleep 1
+  local dir=$1 rel ok=1 pending=() left=() folders there n last still entry
+  for entry in $game_paths; do
+    [ -e "$dir/$entry" ] || continue
+    if [ "$entry" = sessions ] && [ ! -e "$dir/record-sessions" ]; then
+      echo "quest-install: recorded sessions without record-sessions stay in $dir/sessions" >&2
+      continue
+    fi
+    while IFS= read -r rel; do pending+=("$rel"); done < <(cd "$dir" && find "$entry" -type f)
+  done
+  [ ${#pending[@]} -gt 0 ] || return 0
+  made() {
+    adb shell "for d in $(tr '\n' ' ' <<< "$folders"); do [ -d \$d ] && echo y || echo n; done" < /dev/null |
+      paste -d' ' - <(cat <<< "$folders") | sed -n 's/^y //p'
+  }
+  while [ ${#pending[@]} -gt 0 ]; do
+    folders=$(printf "$files/%s\n" "${pending[@]}" | sed 's|/[^/]*$||' | sort -u)
+    if [ "$(made | wc -l)" -lt "$(wc -l <<< "$folders")" ]; then
+      adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
+      last=0 still=0
+      for _ in $(seq 60); do
+        n=$(made | wc -l)
+        [ "$n" -lt "$(wc -l <<< "$folders")" ] || break
+        if [ "$n" -gt 0 ] && [ "$n" -eq "$last" ]; then
+          still=$((still + 1))
+          [ $still -lt 5 ] || break
+        else
+          still=0
+        fi
+        last=$n
+        sleep 1
+      done
+    fi
+    adb shell am force-stop "$pkg"
+    there=$(made)
+    left=()
+    for rel in "${pending[@]}"; do
+      if ! grep -qxF "$(dirname "$files/$rel")" <<< "$there"; then
+        left+=("$rel")
+      elif ! adb push "$dir/$rel" "$files/$rel" > /dev/null < /dev/null ||
+        [ "$(adb shell sha256sum "'$files/$rel'" < /dev/null | cut -d' ' -f1)" != "$(sha256sum "$dir/$rel" | cut -d' ' -f1)" ]; then
+        ok=
+      fi
     done
-  fi
-  adb shell am force-stop "$pkg"
-  while IFS= read -r rel; do
-    adb push "$dir/$rel" "$files/$rel" > /dev/null < /dev/null &&
-      [ "$(adb shell sha256sum "'$files/$rel'" < /dev/null | cut -d' ' -f1)" = "$(sha256sum "$dir/$rel" | cut -d' ' -f1)" ] || ok=
-  done < <(cd "$dir" && find . -type f | sed 's|^\./||')
-  [ -n "$ok" ] || { echo "quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})" >&2; exit 1; }
+    [ ${#left[@]} -lt ${#pending[@]} ] || break
+    pending=("${left[@]}")
+  done
+  [ -n "$ok" ] && [ ${#left[@]} -eq 0 ] || { echo "quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})" >&2; exit 1; }
   echo "quest-install: saves restored from $dir" >&2
 }
 

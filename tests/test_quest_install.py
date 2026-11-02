@@ -12,7 +12,7 @@ script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
 # A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
 # erases that package's external files folder, a push makes no folder, and only the game's start makes the folders it
-# uses.
+# uses: avatars/ always, sessions/ once record-sessions is there.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -42,6 +42,8 @@ FAKE_ADB = textwrap.dedent('''\
     elif args[0] == 'shell' and args[1:3] == ['am', 'start']:
         files = files_of(args[4].split('/')[0])
         os.makedirs(files + '/avatars', exist_ok=True)
+        if os.path.exists(files + '/record-sessions'):
+            os.makedirs(files + '/sessions', exist_ok=True)
         with open(files + '/garden.save', 'w') as f:
             f.write('a fresh garden')
     elif args[0] == 'shell' and args[1:3] == ['am', 'force-stop']:
@@ -82,13 +84,19 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         bin.mkdir()
         (bin / 'adb').write_text(FAKE_ADB)
         (bin / 'adb').chmod(0o755)
+        (bin / 'sleep').write_text(f'#!/bin/sh\necho >> {self.root}/sleeps\n')
+        (bin / 'sleep').chmod(0o755)
         self.quest = self.root / 'quest'
         self.files = self.quest / 'sdcard/Android/data/io.github.bddapbot.cairnfold/files'
         (self.files / 'avatars').mkdir(parents=True)
         (self.files / 'bench').mkdir()
         (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
+        (self.files / 'garden.save.bad').write_bytes(b'an unreadable garden')
         (self.files / 'avatars/Fairy.vrm').write_bytes(b'vrm')
         (self.files / 'bench/metrics.json').write_text('{}')
+        (self.files / 'check/bench').mkdir(parents=True)
+        (self.files / 'check/bench/drive.sh').write_text('true')
+        (self.files / 'launch.args').write_text('--bench')
         (self.quest / 'installed').touch()
         self.saves = self.root / 'saves'
         self.env = dict(os.environ, PATH=f'{bin}:{os.environ["PATH"]}', FAKE_QUEST=str(self.quest),
@@ -125,7 +133,42 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('uninstall', (self.quest / 'adb.log').read_text())
         self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
         self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'vrm')
-        self.assertFalse((self.files / 'bench').exists())
+        for shell_made in 'bench', 'check', 'launch.args':
+            self.assertFalse((self.files / shell_made).exists(), shell_made)
+        copy = next(self.saves.iterdir())
+        self.assertEqual(sorted(p.name for p in copy.iterdir()), ['avatars', 'garden.save', 'garden.save.bad'])
+        self.assertEqual((self.files / 'garden.save.bad').read_bytes(), b'an unreadable garden')
+
+    def test_recorded_sessions_go_back_into_the_folder_the_game_makes_for_them(self):
+        (self.files / 'record-sessions').write_text('')
+        (self.files / 'sessions').mkdir()
+        (self.files / 'sessions/1-2-3.jsonl').write_text('{}')
+        run = self.install()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual((self.files / 'sessions/1-2-3.jsonl').read_text(), '{}')
+        self.assertEqual((self.quest / 'adb.log').read_text().count('am start'), 2)
+        self.assertLess(len((self.root / 'sleeps').read_text().splitlines()), 15)
+
+    def test_sessions_without_record_sessions_stay_in_the_copy(self):
+        (self.files / 'sessions').mkdir()
+        (self.files / 'sessions/1-2-3.jsonl').write_text('{}')
+        run = self.install()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertFalse((self.files / 'sessions').exists())
+        copy = next(self.saves.iterdir())
+        self.assertEqual((copy / 'sessions/1-2-3.jsonl').read_text(), '{}')
+        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_a_restore_of_a_copy_holding_shell_pushed_folders_puts_back_only_the_saves(self):
+        copy = self.root / 'copy'
+        (copy / 'check/bench').mkdir(parents=True)
+        (copy / 'check/bench/drive.sh').write_text('true')
+        (copy / 'garden.save').write_bytes(b'kept')
+        subprocess.run(['adb', 'uninstall', 'io.github.bddapbot.cairnfold'], env=self.env, check=True)
+        run = subprocess.run([str(script), '--restore', str(copy)], env=self.env, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual((self.files / 'garden.save').read_bytes(), b'kept')
+        self.assertFalse((self.files / 'check').exists())
 
     def test_a_copy_shares_files_identical_to_an_earlier_one(self):
         earlier = self.saves / '20000101T000000Z/garden.save'
