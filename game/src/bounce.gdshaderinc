@@ -13,15 +13,18 @@ vec3 volume_coord(vec3 p, float ground) {
 	return vec3((p.xz - bounce_grid.x) / bounce_grid.y, (p.y - ground) / bounce_grid.z);
 }
 
-// Where a surface at `p` facing `n` over ground at height `ground` reads the volume: half a metre out, so a wall
-// reads the air before it.
+// Where a surface at `p` facing `n` reads the volume: half a metre out, so a wall reads the air before it.
+vec3 read_over(vec3 p, vec3 n) {
+	return p + n * 0.5;
+}
+
 vec3 bounce_over(vec3 p, vec3 n, float ground) {
-	return volume_coord(p + n * 0.5, ground);
+	return volume_coord(read_over(p, n), ground);
 }
 
 // The same for a roof's covering, whose upper faces read over the layer Bounce keeps dark over the room below.
-vec3 bounce_over_cover(vec3 p, vec3 n, float ground) {
-	return volume_coord(p + n * 0.5 + vec3(0.0, 1.5 * max(n.y, 0.0), 0.0), ground);
+vec3 read_over_cover(vec3 p, vec3 n) {
+	return read_over(p, n) + vec3(0.0, 1.5 * max(n.y, 0.0), 0.0);
 }
 
 // The same for what lies on the ground or rises from it, whose height there is known: the lowest layer.

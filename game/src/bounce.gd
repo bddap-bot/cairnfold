@@ -27,7 +27,7 @@ const ENCODE := 2.0
 const HANGING := 0.5
 ## How far over a room's half-layer margin its probes stay as dark as the room: a face under the roof reads half a
 ## metre out between layers a metre apart, so a probe less than a layer over the roof would light it. A roof's
-## covering reads over them (bounce_over_cover).
+## covering reads over them (read_over_cover).
 const OVER_ROOF := 0.5
 
 var texture := ImageTexture3D.new()

@@ -4,9 +4,10 @@ extends Bake
 ## Sun and moon reach inside a house or tower only through its openings (interior.gdshaderinc). The shell's shadow
 ## boxes leave gaps a shadow-map texel wide at every joint, and the ladder's lowest steps draw no sun shadows at all;
 ## so a shell shader lights a point inside a room only where the way to the light leaves it through a door, window,
-## arch or dormer window, whatever the shadow map holds. The rooms (Lamps.Room) go to the shaders as two global
+## arch or dormer window, whatever the shadow map holds. The rooms (Lamps.Room) go to the shaders as three global
 ## textures: room_field, over the play area every STEP, how far inside a room's walls' centre line a point lies, the
-## room's floor and ceiling there and its group's row; and room_data, a row per group of the openings facing the
+## room's floor and ceiling there and its group's row; room_top, the highest ceiling of the rooms a point lies inside,
+## which room_field's one room per texel cannot say of a stack of storeys; and room_data, a row per group of the openings facing the
 ## light, each as the light crosses it from inside. The field is remade when the rooms change, the rows when the
 ## light moves too.
 
@@ -23,6 +24,7 @@ const GROUPS := 256
 const OPENING := 4
 
 var field := ImageTexture.new()
+var top := ImageTexture.new()
 var data := ImageTexture.new()
 ## Whether the shaders read the rooms: unmasked, every shell is lit as if no room stood, which the driver's "interior"
 ## layer measures the rooms' cost against.
@@ -41,12 +43,14 @@ var _solved_toward := Vector3.UP
 
 func _init() -> void:
 	field.set_image(Image.create_empty(SIZE, SIZE, false, Image.FORMAT_RGBAH))
+	top.set_image(Image.create_empty(SIZE, SIZE, false, Image.FORMAT_RH))
 	data.set_image(Image.create_empty(WIDTH, GROUPS, false, Image.FORMAT_RGBAF))
 
 
 func install() -> void:
 	masked = masked
 	RenderingServer.global_shader_parameter_set(&"room_data", data)
+	RenderingServer.global_shader_parameter_set(&"room_top", top)
 
 
 func enclose(rooms: Array[Lamps.Room]) -> void:
@@ -76,12 +80,15 @@ static func _work(job: Dictionary) -> Dictionary:
 	if job.cells:
 		out.field = Image.create_from_data(SIZE, SIZE, false, Image.FORMAT_RGBAF, packed.field.to_byte_array())
 		out.field.convert(Image.FORMAT_RGBAH)
+		out.top = Image.create_from_data(SIZE, SIZE, false, Image.FORMAT_RF, packed.top.to_byte_array())
+		out.top.convert(Image.FORMAT_RH)
 	return out
 
 
 func _take(out: Dictionary) -> void:
 	if out.has("field"):
 		field.update(out.field)
+		top.update(out.top)
 	data.update(out.data)
 
 
@@ -94,8 +101,10 @@ static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Di
 	for r in rooms.size():
 		rows.get_or_add(groups[r], []).append(rooms[r])
 	var field_floats := PackedFloat32Array()
+	var tops := PackedFloat32Array()
 	if cells:
 		field_floats.resize(SIZE * SIZE * 4)
+		tops.resize(SIZE * SIZE)
 	var floats := PackedFloat32Array()
 	floats.resize(WIDTH * GROUPS * 4)
 	var row := 0
@@ -116,12 +125,12 @@ static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Di
 		floats[at] = portals.size()
 		if cells:
 			for m: Lamps.Room in members:
-				_fill(field_floats, m, row)
+				_fill(field_floats, tops, m, row)
 		for k in portals.size():
 			var crossed: Array = portals[k]
 			for i in crossed.size():
 				floats[at + (1 + k * OPENING) * 4 + i] = crossed[i]
-	return {"field": field_floats, "data": floats}
+	return {"field": field_floats, "top": tops, "data": floats}
 
 
 ## An opening as interior.gdshaderinc reads it with the light from `toward`: where a point's ray toward the light
@@ -150,8 +159,8 @@ static func crossing(o: Dictionary, toward: Vector3) -> Array:
 
 ## Writes `room`'s field over the texels round it: how far inside its walls' centre line each lies (negative
 ## outside), the lowest it reaches below its floor, its ceiling and `row`, where it is further inside than any
-## neighbour already there.
-static func _fill(field: PackedFloat32Array, room: Lamps.Room, row: int) -> void:
+## neighbour already there; `tops` takes its ceiling wherever a texel lies inside it and that is the highest yet.
+static func _fill(field: PackedFloat32Array, tops: PackedFloat32Array, room: Lamps.Room, row: int) -> void:
 	var bounds := room.rect.grow(WallLayout.THICKNESS + STEP)
 	var a := _texel_of(bounds.position)
 	var b := _texel_of(bounds.end)
@@ -165,12 +174,15 @@ static func _fill(field: PackedFloat32Array, room: Lamps.Room, row: int) -> void
 					inside = minf(inside, middle.distance_to(near))
 			if not Massing.encloses(middle, room.massing.centre):
 				inside = -inside
+			var ceiling: float = room.roof.height_at(middle.x, middle.y) if room.roof != null else room.top
+			if inside > 0.0:
+				tops[j * SIZE + i] = maxf(tops[j * SIZE + i], ceiling)
 			var at := (j * SIZE + i) * 4
 			if field[at + 3] > 0.0 and field[at] >= inside:
 				continue
 			field[at] = inside
 			field[at + 1] = room.floor - BELOW
-			field[at + 2] = room.roof.height_at(middle.x, middle.y) if room.roof != null else room.top
+			field[at + 2] = ceiling
 			field[at + 3] = row
 
 

@@ -27,7 +27,7 @@ void vertex() {
 	world_nrm = n;
 	room_row = room_row_at(world_pos);
 	room_in = room_in_at(room_row, world_pos, n);
-	vec3 q = world_pos + n;
+	vec3 q = room_read(room_row, world_pos + n, n);
 	float ground = ground_at(q.xz);
 	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground, LOW) / bounce_grid.z);
 	lamp_at = volume_coord(q, ground);

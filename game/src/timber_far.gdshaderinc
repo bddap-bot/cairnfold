@@ -19,9 +19,10 @@ void vertex() {
 		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
 		world_nrm = normalize(mat3(piece) * NORMAL);
 		occlusion = PIECE_CUSTOM.x;
-		given = given_at(world_pos, world_nrm);
 		room_row = room_row_at(world_pos);
 		room_in = room_in_at(room_row, world_pos, world_nrm);
+		float ground = ground_at(world_pos.xz);
+		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm), ground), lamp_over(world_pos, world_nrm, ground));
 #ifdef BAKED
 		VERTEX = world_pos;
 		NORMAL = world_nrm;

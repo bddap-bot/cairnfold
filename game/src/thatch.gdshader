@@ -24,7 +24,7 @@ void vertex() {
 	room_in = room_in_at(room_row, world_pos, world_nrm);
 	fall = normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz);
 	float ground = ground_at(world_pos.xz);
-	bounce_at = bounce_over_cover(world_pos, world_nrm, ground);
+	bounce_at = volume_coord(room_read(room_row, read_over_cover(world_pos, world_nrm), world_nrm), ground);
 	lamp_at = lamp_over(world_pos, world_nrm, ground);
 }
 

@@ -75,7 +75,7 @@ void vertex() {
 #endif
 		float ground = ground_at(world_pos.xz);
 		// Palette.Element ROOF: the covering.
-		vec3 at = abs(material - 2.0) < 0.5 ? bounce_over_cover(world_pos, world_nrm, ground) : bounce_over(world_pos, world_nrm, ground);
+		vec3 at = volume_coord(room_read(room_row, abs(material - 2.0) < 0.5 ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm), world_nrm), ground);
 #ifdef GIVEN_PER_VERTEX
 		given = given_read(at, lamp_over(world_pos, world_nrm, ground));
 #else

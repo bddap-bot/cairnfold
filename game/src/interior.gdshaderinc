@@ -8,6 +8,7 @@
 global uniform sampler2D room_field : filter_linear, repeat_disable;
 global uniform sampler2D room_nearest : filter_nearest, repeat_disable;
 global uniform sampler2D room_data : filter_nearest, repeat_disable;
+global uniform sampler2D room_top : filter_linear, repeat_disable;
 global uniform vec3 sky_zenith;
 global uniform vec3 sky_horizon;
 global uniform float sky_ambient;
@@ -17,6 +18,10 @@ global uniform float sky_ambient;
 const float ROOM_NUDGE = 0.05;
 // How wide in metres an opening's edge fades from lit to dark, so a patch of sun on the floor does not alias.
 const float ROOM_EDGE = 0.02;
+// How far inside its walls' centre line a face of a room reads the bounce volume from. Bounce keeps a room's probes up
+// to half a metre past that line and a read filters in probes a metre apart, so a read nearer the walls than this takes
+// in the open sky of a column outside, wherever the walls run across the grid.
+const float ROOM_READ = 1.0;
 
 // The room_data row over a vertex, 0 for none, and whether it lies in that room: a triangle whose corners all do is
 // in it everywhere, one whose corners all lie out of every room is out everywhere, and only one across the walls'
@@ -37,16 +42,45 @@ int room_row_at(vec3 p) {
 	return int(texelFetch(room_nearest, cell, 0).a + 0.5);
 }
 
+vec4 room_at(vec2 xz) {
+	return textureLod(room_field, (xz - bounce_grid.x) / bounce_grid.y, 0.0);
+}
+
 // Whether `p` facing `n` lies inside a room: within its walls' centre line, over its floor and under its roof.
 bool room_holds(vec3 p, vec3 n) {
 	vec3 q = p + n * ROOM_NUDGE;
-	vec4 room = textureLod(room_field, (q.xz - bounce_grid.x) / bounce_grid.y, 0.0);
+	vec4 room = room_at(q.xz);
 	return room.x > 0.0 && q.y > room.y && q.y < room.z;
 }
 
 // Whether `xz` lies within a room's walls' centre line, at any height: in its roof space too.
 bool within_walls(vec2 xz) {
-	return textureLod(room_field, (xz - bounce_grid.x) / bounce_grid.y, 0.0).x > 0.0;
+	return room_at(xz).x > 0.0;
+}
+
+// Where a shell's face facing `n` over room_data row `row` reads the bounce volume instead of `q`: under the rooms
+// over it, ROOM_READ from the nearest wall's centre line. A face looking at the nearest wall is the outside of a storey
+// set in from the walls below it. The step along the field's slope is over the slope's square because the slope
+// shortens along a corner's bisector, where the nearest wall changes.
+vec3 room_read(int row, vec3 q, vec3 n) {
+	if (row == 0) {
+		return q;
+	}
+	float inside = room_at(q.xz).x;
+	if (inside <= 0.0 || inside >= ROOM_READ || q.y >= textureLod(room_top, (q.xz - bounce_grid.x) / bounce_grid.y, 0.0).r) {
+		return q;
+	}
+	float texel = bounce_grid.y / float(textureSize(room_field, 0).x);
+	vec2 slope = vec2(
+		room_at(q.xz + vec2(texel, 0.0)).x - room_at(q.xz - vec2(texel, 0.0)).x,
+		room_at(q.xz + vec2(0.0, texel)).x - room_at(q.xz - vec2(0.0, texel)).x) / (2.0 * texel);
+	float steep = dot(slope, slope);
+	// Where two joined rooms' fields meet the slope flattens, and both sides of the old wall are dark already.
+	if (steep < 0.25 || dot(n.xz, slope) < -0.5) {
+		return q;
+	}
+	q.xz += slope * (ROOM_READ - inside) / steep;
+	return q;
 }
 
 float room_in_at(int row, vec3 p, vec3 n) {

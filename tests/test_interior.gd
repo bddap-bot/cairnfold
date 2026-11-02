@@ -9,6 +9,7 @@ func _init() -> void:
 	_an_open_loop_is_left_out()
 	_a_dormer_window_lets_the_sun_in()
 	_houses_apart_take_their_own_rows()
+	_a_stack_of_storeys_tops_at_its_highest_ceiling()
 	_changes_coalesce_into_one_pack()
 	finish()
 
@@ -90,6 +91,20 @@ func _houses_apart_take_their_own_rows() -> void:
 
 
 ## A village's field takes the Frame 12 to 17 ms, so it packs on a worker.
+func _a_stack_of_storeys_tops_at_its_highest_ceiling() -> void:
+	var lower := lit_house()
+	var upper := lit_house()
+	lower.roof = null
+	upper.roof = null
+	upper.floor += 3.0
+	upper.top += 3.0
+	var packed := Interior.pack([lower, upper], OVER_ARCH)
+	var inside := Interior._texel_of(Vector2(3.5, 0.0))
+	var outside := Interior._texel_of(Vector2(-4.0, 0.0))
+	check(is_equal_approx(packed.top[inside.y * Interior.SIZE + inside.x], upper.top), "a column inside the storeys tops at the upper's ceiling")
+	check(packed.top[outside.y * Interior.SIZE + outside.x] == 0.0, "the meadow round them tops at nothing")
+
+
 func _changes_coalesce_into_one_pack() -> void:
 	var interior := Interior.new()
 	check(not interior._next().is_valid(), "nothing to pack before any room")

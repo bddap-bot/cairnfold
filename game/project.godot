@@ -64,6 +64,10 @@ room_data={
 "type": "sampler2D",
 "value": ""
 }
+room_top={
+"type": "sampler2D",
+"value": ""
+}
 bounce_grid={
 "type": "vec3",
 "value": Vector3(0, 1, 1)

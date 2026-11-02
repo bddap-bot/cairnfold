@@ -2601,14 +2601,16 @@ it. Walls still being drawn or pulled are left out until they settle.
 The same footprint, roof and openings used by `Lamps.Room` also bound the sky and
 bounced sunlight in covered rooms. Each opening contributes its projected area
 with inverse-square falloff into the room; sealed rooms contribute none. Boundary
-probes include half a cell around the shell so linear filtering does not bring the
-outside probe straight onto its inner face. Over the roof they reach a full
+probes include half a cell around the shell, and a face inside a room reads the
+volume a metre from the nearest wall's centre line, moved straight away from it (`room_read`), so linear filtering never brings the outside column's
+sky onto a ceiling's edge or a wall's top. Over the roof they reach a full
 layer further: a gable or ceiling face reads half a metre out between layers a
 metre apart, so any probe less than a layer over the roof would bring the sky
 onto it. A roof's covering (tiles, thatch) reads the volume over that band instead,
 so its outer face keeps the sky. Joined rooms share their openings;
 a joined roofless courtyard keeps the height-field solution. This runs on the
-bake worker and adds no texture or shader sample.
+bake worker; the shader side costs a vertex nearer the walls than that metre five
+reads of `room_field` and one of `room_top`, the highest ceiling over each column.
 
 A roof's covering (tiles, thatch) casts its shadow from boxes pulled half a metre
 toward the light (`roof_shadow.gdshader`), and its own faces take their shadows
