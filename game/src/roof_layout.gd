@@ -453,7 +453,7 @@ func _lay_ceiling() -> void:
 	for i in count:
 		var a := -wide + 2.0 * wide * i / count
 		var b := -wide + 2.0 * wide * (i + 1) / count
-		_ceiling_strip(across, -along, a, b, long, CEILING_DEPTH, drop, 0.004)
+		_ceiling_strip(across, -along, a, b, long, CEILING_DEPTH, drop)
 	var depth := clampf(2.0 * wide / 18.0, 0.14, 0.38)
 	var width := depth * 0.55
 	count = maxi(1, ceili(2.0 * long / RAFTER_SPACING))
@@ -462,9 +462,7 @@ func _lay_ceiling() -> void:
 		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + CEILING_DEPTH)
 
 
-## A strip of ceiling framing from `a` to `b` across, its underside narrowed by `groove` on each side: neighbouring
-## boards meet along their tops, so the joint between them reads from below without opening onto the deck's gaps.
-func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: float, depth: float, drop: float, groove := 0.0) -> void:
+func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: float, depth: float, drop: float) -> void:
 	var mid: Vector3 = frame().mid
 	var ends := Vector2(reach, reach)
 	if kind == Kind.CONE:
@@ -473,8 +471,7 @@ func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: 
 	for i in pieces:
 		var verts := PackedVector3Array()
 		for c in 8:
-			var under := groove * (1 - ((c >> 1) & 1))
-			var x := a + under if (c & 1) == 0 else b - under
+			var x := a if (c & 1) == 0 else b
 			var end := ends.x if (c & 1) == 0 else ends.y
 			var z := end * (-1.0 + 2.0 * (i + ((c >> 2) & 1)) / pieces)
 			var p := mid + along * x + across * z
