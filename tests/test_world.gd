@@ -121,6 +121,18 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	var upper := world.seq * Commands.MAX_PIECES
 	var top := _foot(lower) + 2.6 + WallLayout.CAP
 	check(absf(_foot(upper) - (top - WallLayout.SINK)) < 0.01, "the storey stands on the house")
+	var area := Rect2(-70, 0, 60, 60)
+	main.world.terrain.set_hump(1, -37, 30, 30, -20)
+	main.tool.reground(area, false)
+	main.tool.find(lower).lay_now()
+	main.tool.find(upper).lay_now()
+	check(_foot(lower) < top - 2.6 - 5.0, "the house follows the ground shown sinking (%.2f)" % _foot(lower))
+	check(absf(_foot(upper) - (_foot(lower) + 2.6 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "the storey follows the house's top as the ground is shown moving (%.2f on %.2f)" % [_foot(upper), _foot(lower)])
+	main.world.terrain.clear_hump(1)
+	main.tool.reground(area, true)
+	main.tool.find(lower).lay_now()
+	await _laid(upper)
+	check(absf(_foot(upper) - (top - WallLayout.SINK)) < 0.01, "and settles back on it when the ground does")
 	world._order({"op": "reshape", "of": "walls", "id": lower, "data": {"height": 3.5}}, 1)
 	await _laid(upper)
 	check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")

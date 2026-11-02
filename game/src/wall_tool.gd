@@ -1985,14 +1985,45 @@ func _held(w: Wall) -> bool:
 	return false
 
 
-## Lays again every wall standing on ground that moved; ivy waits for `settled`.
+## Lays again every wall standing on ground that moved, or on a build that did; ivy waits for `settled`. A build is
+## taken after those it stands on and lays on their tops as the ground now stands: laid from their tops as they stood,
+## a house on a build the ground fell away under hangs a plinth from the old top down to the new ground.
 func reground(area: Rect2, settled: bool) -> void:
-	for w in walls:
-		if w.footprint().intersects(area):
-			w.rebuild(settled)
-			if settled and not _held(w) and _meets_any(w):
+	var order := walls.duplicate()
+	order.sort_custom(func(a: Wall, b: Wall) -> bool: return a.id < b.id)
+	var moved := {}
+	var tops := {}
+	var height := world.terrain.held_height(true)
+	var water := world.terrain.held_water(true)
+	for w: Wall in order:
+		if not w.footprint().intersects(area) and not Array(w.on).any(func(o: int) -> bool: return moved.has(o)):
+			continue
+		moved[w.id] = w
+		if not _held(w):
+			if settled and _meets_any(w):
+				_meet(w)
 				w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
 				_reshaped(w)
+			elif not settled and not w.on.is_empty():
+				w.layout.supports = _shown_tops(w.on, moved, tops, height, water)
+		w.rebuild(settled)
+
+
+## The tops of the builds `on` while the ground is shown moving, the moved ones as they would stand on the shown
+## `height` and `water`, kept in `tops` by id.
+func _shown_tops(on: PackedInt32Array, moved: Dictionary, tops: Dictionary, height: Callable, water: Callable) -> Array[Massing]:
+	var out: Array[Massing] = []
+	for id in on:
+		if moved.has(id) and not tops.has(id):
+			var under: Wall = moved[id]
+			var shown := under.layout.inputs()
+			shown.resample(height, water)
+			tops[id] = Massing.of(shown, under.roof)
+		var o := find(id)
+		var top: Massing = tops.get(id, o.massing if o != null else null)
+		if top != null:
+			out.append(top)
+	return out
 
 
 func _top(w: Wall, s: float) -> Vector3:
