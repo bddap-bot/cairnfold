@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -177,6 +179,33 @@ class Trend(unittest.TestCase):
                 self.record(out, "20261022T000000Z-aaaaaaa.json", {"a": before})
                 self.record(out, "20261023T000000Z-bbbbbbb.json", {"a": latest})
                 self.assertEqual(trend.report("rig", "scene", out), risen)
+
+    def test_a_governed_pair_on_different_steps_is_neither_faster_nor_slower(self):
+        """The Frame tour gov-tip5, whose governor fell to the bottom step at r20/ground, against gov-main at steps 7 to
+        10: from r20/ground on every phase read faster by its median alone, and r20/ground hid a second at half rate."""
+        tour = Path(__file__).resolve().parent / "governed-tour"
+        records = {}
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            for name in ["gov-main", "gov-tip5"]:
+                out = Path(folder) / name
+                out.mkdir()
+                (out / "metrics.json").write_text((tour / f"{name}.json").read_text())
+                (out / "stress.json").write_text("[]")
+                result = subprocess.run([sys.executable, "-c", REPORT, str(out), "frame", str(out / "record.json"), "1"], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                records[name] = json.loads((out / "record.json").read_text())
+        self.assertEqual(records["gov-tip5"]["phases"]["r20/ground"]["worst"], {"late": 32, "p50": 27.52})
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            risen, mismatched = trend.pair(records["gov-main"], records["gov-tip5"])
+        shared = [p for p in records["gov-tip5"]["phases"] if p in records["gov-main"]["phases"]]
+        later = shared[shared.index("r20/ground"):]
+        self.assertEqual(len(later), 48)
+        self.assertEqual([p for p in later if p not in mismatched], [])
+        self.assertEqual(risen, [])
+        row = next(line for line in printed.getvalue().splitlines() if line.split()[0] == "r20/ground")
+        self.assertIn(" 32 late p50  27.5", row)
+        self.assertTrue(row.endswith("steps differ"))
+        self.assertNotIn("faster", "".join(line for line in printed.getvalue().splitlines() if line.split()[0] in later))
 
 
 class StressScene(unittest.TestCase):

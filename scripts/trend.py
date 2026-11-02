@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Frame time per scene across the runs bench.sh recorded under perf/RIG/SCENE/: trend.py [RIG [SCENE]]
+Two runs' records phase by phase, a candidate against its control: trend.py --pair CONTROL CANDIDATE
 
 Per phase, the GPU milliseconds a frame (the desktop, with no GPU target, its median frame time) of the latest run
 beside its base, the median of the BASE runs before it with as many players and the phase on the same quality step, and
@@ -7,7 +8,8 @@ the best run, marking a rise of more than RISE times and FLOOR_MS over the base.
 whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
 Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp; any other file is no run. Given
 a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
-rerun once."""
+rerun once. A pair gives a phase no faster or slower when its two runs sat on different steps, and exits 1 when a phase on
+one step rose as a scene's run does; beside each it shows both runs' worst second, which a median hides."""
 import json
 import os
 import re
@@ -34,6 +36,10 @@ def runs(folder):
     return found
 
 
+def rise(base, ms):
+    return ms > base * RISE and ms - base > FLOOR_MS
+
+
 def report(rig, scene, folder):
     """Prints the scene's trend; returns the phases whose GPU time rose."""
     found = runs(folder)
@@ -51,14 +57,52 @@ def report(rig, scene, folder):
         seen = [r[phase][key] for r in earlier if key in r.get(phase, {}) and r[phase].get("step") == row.get("step")]
         base = statistics.median(seen[-BASE:]) if seen else None
         best = min(seen + [row[key]])
-        rose = base is not None and row[key] > base * RISE and row[key] - base > FLOOR_MS
+        rose = base is not None and rise(base, row[key])
         if rose and key == "gpu_ms":
             risen.append(phase)
         print(f"  {phase:24} {row.get('step', '-'):>4} {show(row[key])} {show(base)} {show(best)}{' rose' if rose else ''}")
     return risen
 
 
+def pair(control, candidate):
+    """Prints candidate's phases against control's; returns (risen, the phases on different steps)."""
+    a, b = control["phases"], candidate["phases"]
+    print(f"  {'phase':24} {'steps':>7} {'gpu ms':>15} {'frame p50':>15} {'worst second':>27}")
+    risen, mismatched = [], []
+    show = lambda r, k: f"{r[k]:7.2f}" if k in r else f"{'-':>7}"
+    worst = lambda r: f"{r['worst']['late']:3} late p50 {r['worst']['p50']:5.1f}" if "worst" in r else f"{'-':>18}"
+    for phase, new in b.items():
+        if phase not in a:
+            continue
+        old = a[phase]
+        key = "gpu_ms" if "gpu_ms" in new and "gpu_ms" in old else "p50"
+        if old.get("step") != new.get("step"):
+            mismatched.append(phase)
+            verdict = "steps differ"
+        elif rise(old[key], new[key]):
+            if key == "gpu_ms":
+                risen.append(phase)
+            verdict = "slower"
+        elif rise(new[key], old[key]):
+            verdict = "faster"
+        else:
+            verdict = ""
+        steps = f"{old.get('step', '-')}/{new.get('step', '-')}"
+        print(f"  {phase:24} {steps:>7} {show(old, 'gpu_ms')} {show(new, 'gpu_ms')} {show(old, 'p50')} {show(new, 'p50')}"
+              f" {worst(old)} | {worst(new)} {verdict}".rstrip())
+    return risen, mismatched
+
+
 def main(want):
+    if want[:1] == ["--pair"]:
+        control, candidate = (json.load(open(path)) for path in want[1:3])
+        risen, mismatched = pair(control, candidate)
+        if mismatched:
+            print(f"on different steps, so neither faster nor slower: {', '.join(mismatched)}")
+        if risen:
+            print(f"GPU time rose more than {RISE - 1:.0%} and {FLOOR_MS:g} ms: " + ", ".join(risen), file=sys.stderr)
+        return 1 if risen else 0
+
     risen = []
     for rig in sorted(os.listdir(ROOT)) if os.path.isdir(ROOT) else []:
         if want and rig != want[0]:
