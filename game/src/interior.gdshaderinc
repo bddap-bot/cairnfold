@@ -107,9 +107,9 @@ vec2 interior_ao(float lit, float sky) {
 }
 
 // The sky's light AO took from a surface facing world `n` over interior_ao's sun share, as an emission over its albedo:
-// the sky's own colours at the ambient strength Look gives the environment, the horizon's fading toward a downward face
-// as the sky's lower half, the ground, is darker.
+// the sky's own colours at the ambient strength Look gives the environment. A downward face sees the room's lit floor
+// and walls, not the darker ground outside.
 vec3 interior_ambient(float lit, float sky, vec3 n) {
-	vec3 seen = n.y >= 0.0 ? mix(sky_horizon, sky_zenith, n.y) : sky_horizon * (1.0 + 0.5 * n.y);
+	vec3 seen = mix(sky_horizon, sky_zenith, max(n.y, 0.0));
 	return lit >= sky ? vec3(0.0) : (sky - lit) * sky_ambient * seen;
 }

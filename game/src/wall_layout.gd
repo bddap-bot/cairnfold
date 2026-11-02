@@ -37,6 +37,9 @@ const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
 const FLOOR_REACH := WORN_THICK * 0.5 - JOINT - 0.01
+## How far every other row's bed hangs over the room of a house or tower a floor stands on: ribs whose sides catch the
+## room's light, where a flat underside facing down reads black.
+const FLOOR_RIB := 0.14
 ## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
 const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
 ## The discs wearing the meadow bare under a floor: how far apart, how far inside the walls' centre line their centres
@@ -891,7 +894,8 @@ func _floor_bounds() -> PackedVector2Array:
 
 ## Lays the floor `_level_floor` set, its bed reaching down to the foot so it reads as a step at the door. Flags
 ## or `planks`, in rows along its first side that end inside the walls; none in the room of an older
-## build it joins, or under a build standing on it.
+## build it joins, or under a build standing on it. Over the room of a build it stands on, every other row's bed hangs a
+## rib.
 func _lay_floor() -> void:
 	if floor_y == -INF:
 		return
@@ -921,10 +925,20 @@ func _lay_floor() -> void:
 			var middle := across * (z + depth * 0.5)
 			var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), floor_y - (PLANK.y if planks else FLAG.y) * 0.5)
 			if open.y - open.x > 0.05:
-				_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), floor_y, foot - SINK, along, planks, rng)
+				var at := along * (open.x + open.y) * 0.5 + middle
+				var piece := Vector2(open.y - open.x, depth)
+				var rib := FLOOR_RIB if row % 2 == 1 and _over_room(at, along * piece.x * 0.5, across * piece.y * 0.5) else 0.0
+				_lay_floor_piece(at, piece, floor_y, foot - SINK - rib, along, planks, rng)
 			x += size
 		z += depth
 		row += 1
+
+
+## Whether the piece at `at`, reaching `half_along` and `half_across` either way, lies within the walls of a house or
+## tower this build stands on, so a rib under it hangs in that room.
+func _over_room(at: Vector2, half_along: Vector2, half_across: Vector2) -> bool:
+	var corners := [at - half_along - half_across, at + half_along - half_across, at + half_along + half_across, at - half_along + half_across]
+	return supports.any(func(s: Massing) -> bool: return s.closed and corners.all(func(c: Vector2) -> bool: return Massing.encloses(c, s.outer)))
 
 
 ## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints.
@@ -933,9 +947,8 @@ func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, a
 	var centre := Vector3(at.x, top_y - thick * 0.5, at.y)
 	var x := Vector3(along.x, 0.0, along.y)
 	var basis := Basis(x, Vector3.UP, x.cross(Vector3.UP))
-	var tilt := Basis.from_euler(Vector3(rng.randf_range(-0.008, 0.008), 0.0, rng.randf_range(-0.008, 0.008))) if not planks else Basis()
 	var color := WOOD * rng.randf_range(0.78, 1.05) if planks else stone_color(rng) * rng.randf_range(0.86, 0.98)
-	var piece := Transform3D((basis * tilt).scaled_local(Vector3(size.x - FLOOR_JOINT, thick, size.y - FLOOR_JOINT)), centre + Vector3.UP * rng.randf_range(-0.004, 0.004))
+	var piece := Transform3D(basis.scaled_local(Vector3(size.x - FLOOR_JOINT, thick, size.y - FLOOR_JOINT)), centre)
 	stones.append({"xform": piece, "color": color, "kind": "plank" if planks else "flagstone", "s": 0.0, "y": 0.0, "size": Vector3(size.x, thick, size.y), "ao": 0.9, "variant": 0})
 	var bed_top := top_y - thick * 0.6
 	var bed := Transform3D(basis.scaled_local(Vector3(size.x, bed_top - bottom, size.y)), Vector3(centre.x, (bed_top + bottom) * 0.5, centre.z))
