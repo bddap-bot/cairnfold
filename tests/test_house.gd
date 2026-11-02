@@ -896,12 +896,11 @@ func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 						check(worst <= 0.0, "%s: a %s stands %.3f m out through the tiles" % [house, what, worst])
 
 
-## How far `p` stands out past the outer face of the tiles over it, square to the slope: they lie on the roof's bed
-## with their middles TILE.y/2 straight above it, so on a steep slope their face is nearer the bed.
+## How far `p` stands out past the outer face of the tiles over it, square to the slope: they lie on the roof's bed.
 static func _through_tiles(r: RoofLayout, p: Vector3) -> float:
 	var f := r.frame()
 	var steep := cos(r.slope_at(absf((p - f.mid).dot(f.across))))
-	return (p.y - r.height_at(p.x, p.z)) * steep - RoofLayout.TILE.y * 0.5 * (1.0 + steep)
+	return (p.y - r.height_at(p.x, p.z)) * steep - RoofLayout.TILE.y
 
 
 ## Houses and towers to roof, each with its roof's footprint set: a narrow and a wide house and two towers.

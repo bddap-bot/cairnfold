@@ -327,6 +327,18 @@ func profile(steps: int) -> PackedVector2Array:
 	return out
 
 
+## The profile the torching and gable ends are cut along: pieces no longer than TORCHING_PIECE, and halved until no
+## chord rises more than half TORCHING_DROP over the curve the tiles lie on, as a sagging slope's chords do.
+func lining() -> PackedVector2Array:
+	var hs := half_span()
+	var steps := ceili(eave() / TORCHING_PIECE)
+	var prof := profile(steps)
+	while range(steps).any(func(i: int) -> bool: return (prof[i].y + prof[i + 1].y) * 0.5 - rise(1.0 - (prof[i].x + prof[i + 1].x) * 0.5 / hs) > TORCHING_DROP * 0.5):
+		steps *= 2
+		prof = profile(steps)
+	return prof
+
+
 ## The roof's area along its slopes over its plan out to the eave: how much tile or straw it lays per square metre
 ## of ground it covers.
 func stretch() -> float:
@@ -878,7 +890,7 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 			var a := x + DORMER_EAVE
 			while a > into + 0.001:
 				var w := minf(TILE.x, a - into)
-				_tile(f.mid + f.along * spot.x + down * along + out * (a - w * 0.5) + Vector3.UP * (y + TILE.y * 0.5), basis, hue, rng, w / TILE.x, run)
+				_tile(f.mid + f.along * spot.x + down * along + out * (a - w * 0.5) + Vector3.UP * (y + TILE.y * 0.5) + basis.z * (NOSE - run * 0.5), basis, hue, rng, w / TILE.x, run)
 				a -= TILE.x
 			along -= ROW * cos(slope)
 	var ridge_back := out_at(ridge_y - lift, hs)
@@ -889,16 +901,14 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 		a -= w
 
 
-## Tile rows as {x, y, slope}, eave first, ROW apart along the curved slope.
-func _rows() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	var hs := half_span()
+## How far out from the ridge (or axis) each row of tiles lies, eave first, ROW apart along the curved slope.
+func _rows() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
 	var x := eave()
-	var stop := 0.12 if kind == Kind.CONE else 0.08
+	var stop := 0.12 if kind == Kind.CONE else 0.0
 	while x > stop:
-		var slope := slope_at(x)
-		out.append({"x": x, "y": rise(1.0 - x / hs), "slope": slope})
-		x -= ROW * cos(slope_at(x - ROW * cos(slope) * 0.5))
+		out.append(x)
+		x -= ROW * cos(slope_at(x - ROW * cos(slope_at(x)) * 0.5))
 	return out
 
 
@@ -919,34 +929,36 @@ func _along(x: float, d: float) -> float:
 
 ## A row of tiles down both slopes, `under` beneath its line: the eave row lies on an under-course staggered
 ## against it, as nothing else lies under its joints.
-func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumberGenerator, under := 0.0) -> void:
+func _lay_gable_row(row: float, stagger: float, hue: float, rng: RandomNumberGenerator, under := 0.0) -> void:
 	var f := frame()
 	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+	var bed := _bed(row)
 	var state := rng.state
 	for side in [-1.0, 1.0]:
 		rng.state = state
 		var out: Vector3 = f.across * side
-		var basis := _slope_basis(out, row.slope)
+		var basis := _slope_basis(out, bed.slope)
 		var x := -TILE.x * stagger
 		while x < length - 0.001:
 			var a := maxf(x, 0.0)
 			var b := minf(x + TILE.x, length)
-			var p: Vector3 = f.mid + f.along * ((a + b - length) * 0.5) + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5) - basis.y * under
-			_tile(p, basis, hue, rng, (b - a) / TILE.x, _run(row))
+			var p: Vector3 = f.mid + f.along * ((a + b - length) * 0.5) + out * bed.at.x + Vector3.UP * bed.at.y + basis.y * (TILE.y * 0.5 - under)
+			_tile(p, basis, hue, rng, (b - a) / TILE.x, bed.run)
 			x += TILE.x
 
 
 ## A ring of tiles. Its count changes ring to ring, so no ring's joints can sit over the tiles below: each tile
 ## laps its neighbours by CONE_LAP of its width instead.
-func _lay_cone_row(row: Dictionary, hue: float, rng: RandomNumberGenerator) -> void:
+func _lay_cone_row(row: float, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var n := maxi(4, ceili(TAU * row.x / TILE.x))
+	var n := maxi(4, ceili(TAU * row / TILE.x))
 	var twist := rng.randf() * TAU
+	var bed := _bed(row)
 	for i in n:
 		var a := twist + TAU * i / n
 		var out := Vector3(cos(a), 0.0, sin(a))
-		var basis := _slope_basis(out, row.slope)
-		_tile(f.mid + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5), basis, hue, rng, TAU * row.x / n / TILE.x * (1.0 + CONE_LAP), _run(row))
+		var basis := _slope_basis(out, bed.slope)
+		_tile(f.mid + out * bed.at.x + Vector3.UP * bed.at.y + basis.y * TILE.y * 0.5, basis, hue, rng, TAU * row / n / TILE.x * (1.0 + CONE_LAP), bed.run)
 
 
 ## A tile's frame on a slope facing `out`: x along the row, y off the roof, z down the slope.
@@ -968,15 +980,22 @@ func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 		x += width
 
 
-## How far up the slope a row's tiles run from their lower edge: their full length, short of the ridge or the cone's top.
-func _run(row: Dictionary) -> float:
-	var edge := Vector2(row.x + NOSE * cos(row.slope), row.y - NOSE * sin(row.slope))
-	return clampf(edge.distance_to(Vector2(0.0, pitch)), NOSE * 2.0, TILE.z)
+## Where the tiles of the row `row` out from the ridge lie, as {at, slope, run} in (out, rise): TILE.z long, centred on
+## the chord from their lower edge, NOSE down the curve, to the point TILE.z up it, or as long as that chord where it
+## reaches the ridge, so neither end of a tile on a curved slope dips under the torching.
+func _bed(row: float) -> Dictionary:
+	var hs := half_span()
+	var low := _along(row, -NOSE)
+	var high := _along(low, TILE.z)
+	var a := Vector2(low, rise(1.0 - low / hs))
+	var b := Vector2(high, rise(1.0 - high / hs))
+	var run := a.distance_to(b) if high <= 0.0 else TILE.z
+	return {"at": (a + b) * 0.5, "slope": atan2(b.y - a.y, a.x - b.x), "run": run}
 
 
 func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, width: float, run: float) -> void:
 	var b := basis.rotated(basis.x, -0.05) * Basis.from_euler(Vector3(0.0, rng.randf_range(-0.04, 0.04), rng.randf_range(-0.03, 0.03)))
-	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, run)), p + basis.z * (NOSE - run * 0.5)), "tile", _clay(hue, rng), 1.0)
+	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, run)), p), "tile", _clay(hue, rng), 1.0)
 
 
 ## Where a cone's flag pole, or its finial, stands: on its tip, over the thatch where it is thatched.
@@ -1397,7 +1416,7 @@ func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 	if kind != Kind.GABLE or flat():
 		return tris
 	var f := frame()
-	var prof := profile(ceili(eave() / TORCHING_PIECE))
+	var prof := lining()
 	var hs := half_span()
 	var faces_at := WallLayout.THICKNESS * 0.5 - inset
 	for end in [-1.0, 1.0]:
@@ -1435,7 +1454,7 @@ func torching() -> PackedVector3Array:
 	if flat():
 		return tris
 	var f := frame()
-	var prof := profile(ceili(eave() / TORCHING_PIECE))
+	var prof := lining()
 	var mid: Vector3 = f.mid + Vector3.DOWN * TORCHING_DROP
 	var quads: Array[PackedVector3Array] = []
 	if kind == Kind.CONE:
