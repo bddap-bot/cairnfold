@@ -13,6 +13,7 @@ func _init() -> void:
 	_the_floor_is_flags_or_planks_apart_from_the_walls()
 	_a_round_tower_is_floored_too()
 	_flags_and_planks_lie_flush_and_apart()
+	_a_storey_floor_shows_its_stone_beneath()
 	_a_house_has_one_floor_however_tall()
 	_open_walls_lay_no_floor()
 	_a_newer_house_yields_its_floor_to_an_older_one_it_joins()
@@ -267,6 +268,27 @@ func _flags_and_planks_lie_flush_and_apart() -> void:
 						if absf(_area(o)) > 1e-6:
 							overlaps += 1
 			check(overlaps == 0, "no two pieces of a %s's floor overlap: %d" % [name, overlaps])
+
+
+func _a_storey_floor_shows_its_stone_beneath() -> void:
+	var ground := _house(Terrain.flat)
+	var storey := WallLayout.new()
+	storey.points = ground.points
+	storey.closed = true
+	storey.cover = WallLayout.Cover.ROOF
+	storey.top = WallLayout.Top.CAP
+	storey.height = 2.4
+	var roof := RoofLayout.new()
+	roof.corners = ground.points
+	storey.supports = [Massing.of(ground, roof)]
+	storey.build(Terrain.flat)
+	for w: WallLayout in [ground, storey]:
+		var beds := w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "bed")
+		var mortar := beds.filter(func(s: Dictionary) -> bool: return s.color == WallLayout.MORTAR).size()
+		if w == ground:
+			check(not beds.is_empty() and mortar == beds.size(), "a floor on the ground lies on mortar: %d of %d beds" % [mortar, beds.size()])
+		else:
+			check(not beds.is_empty() and mortar == 0, "a storey's floor shows the room below its stone, not mortar: %d of %d beds mortar" % [mortar, beds.size()])
 
 
 func _area(polygon: PackedVector2Array) -> float:

@@ -36,6 +36,9 @@ const MIN_HEIGHT := 0.9
 const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
+## A floor standing on another build is the ceiling of the room below: its beds there take their flags' stone this
+## much darker, not mortar, so the underside reads as the stone it carries.
+const FLOOR_UNDERSIDE := 0.75
 const FLOOR_REACH := WORN_THICK * 0.5 - JOINT - 0.01
 ## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
 const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
@@ -938,7 +941,8 @@ func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, a
 	stones.append({"xform": piece, "color": color, "kind": "plank" if planks else "flagstone", "s": 0.0, "y": 0.0, "size": Vector3(size.x, thick, size.y), "ao": 0.9, "variant": 0})
 	var bed_top := top_y - thick * 0.6
 	var bed := Transform3D(basis.scaled_local(Vector3(size.x, bed_top - bottom, size.y)), Vector3(centre.x, (bed_top + bottom) * 0.5, centre.z))
-	stones.append({"xform": bed, "color": MORTAR, "kind": "bed", "s": 0.0, "y": 0.0, "size": bed.basis.get_scale(), "ao": 0.8, "variant": 0})
+	var bed_color := color * FLOOR_UNDERSIDE if not planks and not supports.is_empty() else MORTAR
+	stones.append({"xform": bed, "color": bed_color, "kind": "bed", "s": 0.0, "y": 0.0, "size": bed.basis.get_scale(), "ao": 0.8, "variant": 0})
 
 
 ## Discs wearing the ground bare under the floor inside the loop through `points`, as Ground.Stroke stamps: each
