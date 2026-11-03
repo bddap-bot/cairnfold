@@ -413,6 +413,9 @@ func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -
 	_down(g)
 	check(_feed(g, BUDGET * 0.1, 3 * longest + 72 * 30) == 1, "undone again, it waits twice as long again")
 	check(_feed_until(g, BUDGET * 0.1, longest + 72 * 10, 0) == 0, "and is taken after it")
+	_down(g)
+	check(_feed(g, BUDGET * 0.1, 3 * longest + 72 * 30) == 1, "undone a third time, it waits as long")
+	check(_feed_until(g, BUDGET * 0.1, longest + 72 * 10, 0) == 0, "and no longer: a longer calm than that is rare in play")
 
 
 ## Feeds `seconds` of frames whose GPU time is `on_ms` with the map drawn and `off_ms` without, and returns whether the

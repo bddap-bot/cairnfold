@@ -670,8 +670,8 @@ What the bottom step still costs, every part hidden in turn after the scene had 
 Hiding the terrain and holding shadows to 64 m instead of 256 m each saved nothing. So the
 ladder gained two steps below the old bottom: the sun's shadows off, then the 3D resolution
 at 0.78 of the swapchain's (0.70 on the Frame then). Both show at once across the whole view, so
-a step up out of either waits the governor's longest calm (64 s), and one undone is not taken
-again that session. Ending the ladder above a step that saved nothing was tried and cut: the
+a step up out of either waits the governor's longest calm (64 s), and one undone waits longer (see
+"Pops" below). Ending the ladder above a step that saved nothing was tried and cut: the
 village appeared in the same second the resolution step landed, read as a step that cost 1.6 ms,
 and held the governor two steps up for the rest of the run. On the Quest 2 the bottom step's bare
 meadow took 16.5 ms of App GPU time from the air and 14.2 standing at full swapchain size, so
@@ -1725,9 +1725,8 @@ build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. 
 - Pops. The steps into 2x MSAA and each smaller swapchain reallocate what the view is drawn into, as the bottom
   steps' shadows and 3D scale do (`Quality.popping`). Above the start the governor crosses them at the calm of any
   step until the scene first asks for less; once a step down has crossed one, a step back up across it waits the
-  longest calm (64 s), and one undone within ten seconds waits twice as long each time (128 s, 256 s, ...). Barred
-  for the session instead, a single halved second after a climb out of the bottom step held a Frame stress run
-  there through every later phase.
+  longest calm (64 s), and one undone within ten seconds waits twice that, then 256 s for each later undo: a single
+  halved second after a climb out of the bottom step must not hold a run at the bottom for the session.
 - Priming. Among loading's late frames, before the governor starts, the view is drawn for two frames each at the
   bottom step and at every rung whose swapchain, MSAA or reflections differ, so their pipelines are compiled then
   and not mid-play. Changing the render target size multiplier mid-session recreates the swapchain, which the
@@ -2216,7 +2215,7 @@ The governor (`Quality.Governor`) is Valve's adaptive quality with slower recove
   64 seconds under the line the cost is forgotten, unmeasured again: the scene has changed
   since.
 - No oscillation: a step down within ten seconds of the step up that reached it doubles the
-  calm needed to step up into that step again, up to 64 seconds, for the session.
+  calm needed to step up into that step again, up to 64 seconds, for the session; across a pop, from 64 up to 256.
 - The first five seconds of rendered frames are not judged: loading's frames are not the
   scene's cost.
 
