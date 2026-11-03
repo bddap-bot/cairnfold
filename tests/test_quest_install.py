@@ -12,7 +12,8 @@ script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
 # A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
 # erases that package's external files folder, a push makes no folder, and only the game's start makes the folders it
-# uses: avatars/ always, sessions/ once record-sessions is there.
+# uses: avatars/ always, sessions/ once record-sessions is there. FAKE_FAIL names the adb call that fails; with
+# FAKE_REFUSE=N the first N pushes are refused as a freshly installed app's folder refuses them.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -36,8 +37,11 @@ FAKE_ADB = textwrap.dedent('''\
             sys.exit(1)
         shutil.copytree(on_device(args[1]), args[2], dirs_exist_ok=True)
     elif args[0] == 'push':
-        if fail == 'push':
-            sys.exit(1)
+        refused = root + '/refused-pushes'
+        if fail == 'push' or (os.path.getsize(refused) if os.path.exists(refused) else 0) < int(os.environ.get('FAKE_REFUSE', 0)):
+            with open(refused, 'a') as f:
+                f.write('x')
+            sys.exit('adb: error: failed to copy: remote secure_mkdirs failed: Operation not permitted')
         shutil.copy(args[1], on_device(args[2]))
     elif args[0] == 'shell' and args[1:3] == ['am', 'start']:
         files = files_of(args[4].split('/')[0])
@@ -48,6 +52,8 @@ FAKE_ADB = textwrap.dedent('''\
             f.write('a fresh garden')
     elif args[0] == 'shell' and args[1:3] == ['am', 'force-stop']:
         pass
+    elif args[0] == 'shell' and (fail == 'shell' or fail == 'shell-after-uninstall' and 'uninstall' in open(root + '/adb.log').read()):
+        sys.exit('error: closed')
     elif args[0] == 'shell':
         sys.exit(subprocess.run(['sh', '-c', ' '.join(args[1:]).replace('/sdcard', root + '/sdcard')]).returncode)
     else:
@@ -179,11 +185,29 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         copy = next(d for d in self.saves.iterdir() if d != earlier.parent)
         self.assertEqual((copy / 'garden.save').stat().st_ino, earlier.stat().st_ino)
 
-    def test_saves_that_cannot_be_copied_never_block_the_install(self):
-        run = self.install(FAKE_FAIL='pull')
+    def test_saves_that_cannot_be_copied_stop_the_run_before_the_uninstall(self):
+        for fail in 'shell', 'pull':
+            with self.subTest(fail=fail):
+                run = self.install(FAKE_FAIL=fail)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertIn('stopping', run.stderr)
+                self.assertNotIn('uninstall', (self.quest / 'adb.log').read_text())
+                self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+                (self.quest / 'adb.log').unlink()
+
+    def test_a_backup_that_cannot_read_the_device_fails(self):
+        run = subprocess.run([str(script), '--backup', str(self.root / 'copy')], env=dict(self.env, FAKE_FAIL='shell'),
+                             capture_output=True, text=True)
+        self.assertNotEqual(run.returncode, 0)
+
+    def test_pushes_the_reinstalled_folder_refuses_at_first_are_tried_again(self):
+        (self.files / 'record-sessions').write_text('')
+        (self.files / 'sessions').mkdir()
+        (self.files / 'sessions/1-2-3.jsonl').write_text('{}')
+        run = self.install(FAKE_REFUSE='5')
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn('could not be copied off', run.stderr)
-        self.assertTrue((self.quest / 'installed').exists())
+        self.assertEqual((self.quest / 'refused-pushes').read_text(), 'xxxxx')
+        self.assertEqual((self.files / 'sessions/1-2-3.jsonl').read_text(), '{}')
 
     def test_a_restore_that_does_not_land_fails_loudly(self):
         run = self.install(FAKE_FAIL='push')
@@ -191,6 +215,11 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('--restore', run.stderr)
         copy = next(self.saves.iterdir())
         self.assertEqual((copy / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_an_adb_failure_during_the_restore_names_the_copy_to_restore(self):
+        run = self.install(FAKE_FAIL='shell-after-uninstall')
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn('--restore', run.stderr)
 
     def test_the_restore_a_renamed_build_names_acts_on_that_build(self):
         package = 'io.github.bddapbot.nestbisect'

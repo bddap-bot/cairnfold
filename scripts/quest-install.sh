@@ -9,8 +9,9 @@
 #                                 that package, so a build renamed to stand beside the game never touches the game.
 # An APK whose manifest lacks the Quest's VR launcher category is refused: the Lepton APK shares the Quest build's
 # package and version code, so adb would install the Frame's build over the Quest's.
-# Saves never block an install: a copy that fails is reported and the install goes on. A push that fails to land every
-# file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
+# A copy that fails, an adb call that fails included, stops the run before anything is uninstalled: a failed read of the
+# device is never taken for a device without saves. A push that fails to land every file byte for byte fails the run,
+# naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
 # (default ~/.local/state/cairnfold/quest-saves), files identical across copies hardlinked as one. A save is only what
 # the game writes, the entries of $game_paths; what the shell pushes beside them (bench output, launch arguments, check
 # drivers) is left out of both the copy and the push.
@@ -70,15 +71,25 @@ files=/sdcard/Android/data/$pkg/files
 backup() {
   local dir=$1
   mkdir -p "$dir"
-  adb shell "[ -d $files ]" || { echo "quest-install: no saves on the device to keep" >&2; return 0; }
-  if adb pull "$files/." "$dir/" > /dev/null; then
-    for entry in "$dir"/* "$dir"/.[!.]*; do
-      [[ ! -e $entry || " $game_paths " == *" ${entry##*/} "* ]] || rm -rf "$entry"
-    done
-    echo "quest-install: saves copied to $dir" >&2
-  else
-    echo "quest-install: the saves could not be copied off; installing without them" >&2
-  fi
+  local held
+  held=$(adb shell "[ -d $files ] && echo saves || echo none" < /dev/null | tr -d '\r') || held=
+  case $held in
+    none) echo "quest-install: no saves on the device to keep" >&2; return 0 ;;
+    saves) ;;
+    *) echo "quest-install: adb could not tell whether the device holds saves; stopping" >&2; exit 1 ;;
+  esac
+  adb pull "$files/." "$dir/" > /dev/null ||
+    { echo "quest-install: the saves could not be copied off, a partial copy left in $dir; stopping" >&2; exit 1; }
+  for entry in "$dir"/* "$dir"/.[!.]*; do
+    [[ ! -e $entry || " $game_paths " == *" ${entry##*/} "* ]] || rm -rf "$entry"
+  done
+  echo "quest-install: saves copied to $dir" >&2
+}
+
+# push_verified DIR REL: DIR/REL to the same place under files, failing unless the device then holds it byte for byte.
+push_verified() {
+  adb push "$1/$2" "$files/$2" > /dev/null < /dev/null &&
+    [ "$(adb shell sha256sum "'$files/$2'" < /dev/null | cut -d' ' -f1)" = "$(sha256sum "$1/$2" | cut -d' ' -f1)" ]
 }
 
 # The game must make every folder the saves go in, its files folder and avatars/: on a Quest 3 it cannot write into one
@@ -86,8 +97,10 @@ backup() {
 # back, so the game starts again while a pushed file brings it a folder still missing; without record-sessions the game
 # never makes it, and the sessions stay in the copy. Each start is waited on until every folder is there or, with one
 # there to push into, five seconds pass without another.
+# A freshly installed app's files folder refuses the shell's pushes for a while after the game has made it
+# (secure_mkdirs: Operation not permitted), so a restore retries refused pushes for thirty seconds in all.
 restore() {
-  local dir=$1 rel ok=1 pending=() left=() folders there n last still entry
+  local dir=$1 rel ok=1 pending=() left=() folders there n last still entry retries=30
   for entry in $game_paths; do
     [ -e "$dir/$entry" ] || continue
     if [ "$entry" = sessions ] && [ ! -e "$dir/record-sessions" ]; then
@@ -97,6 +110,8 @@ restore() {
     while IFS= read -r rel; do pending+=("$rel"); done < <(cd "$dir" && find "$entry" -type f)
   done
   [ ${#pending[@]} -gt 0 ] || return 0
+  unrestored="quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})"
+  trap 'echo "$unrestored" >&2' EXIT
   made() {
     adb shell "for d in $(tr '\n' ' ' <<< "$folders"); do [ -d \$d ] && echo y || echo n; done" < /dev/null |
       paste -d' ' - <(cat <<< "$folders") | sed -n 's/^y //p'
@@ -125,15 +140,19 @@ restore() {
     for rel in "${pending[@]}"; do
       if ! grep -qxF "$(dirname "$files/$rel")" <<< "$there"; then
         left+=("$rel")
-      elif ! adb push "$dir/$rel" "$files/$rel" > /dev/null < /dev/null ||
-        [ "$(adb shell sha256sum "'$files/$rel'" < /dev/null | cut -d' ' -f1)" != "$(sha256sum "$dir/$rel" | cut -d' ' -f1)" ]; then
-        ok=
+      else
+        until push_verified "$dir" "$rel"; do
+          retries=$((retries - 1))
+          [ $retries -gt 0 ] || { ok=; break; }
+          sleep 1
+        done
       fi
     done
     [ ${#left[@]} -lt ${#pending[@]} ] || break
     pending=("${left[@]}")
   done
-  [ -n "$ok" ] && [ ${#left[@]} -eq 0 ] || { echo "quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})" >&2; exit 1; }
+  [ -n "$ok" ] && [ ${#left[@]} -eq 0 ] || exit 1
+  trap - EXIT
   echo "quest-install: saves restored from $dir" >&2
 }
 
