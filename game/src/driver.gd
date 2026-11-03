@@ -41,6 +41,12 @@ var _stood_beasts: Array[Beast] = []
 ## left hand and the right pointing at the ground. Left to the controllers, an unworn headset's idle ones put the book
 ## and the beam in view or out of it from run to run, about 2 ms of a Quest 2's GPU time.
 const HELD := [{"hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}, {"hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]}]
+## How far of a day `sun` may leave the sky from the time it was given: a quarter hour.
+const SUN_MISS := 1.0 / 96.0
+## How many aims round the arc's axis `sun` tries for open sky to grip, at each of SKY_OFF_ARC radians off the arc, nearest
+## the arc first.
+const SKY_AIMS := 12
+const SKY_OFF_ARC := [0.25, -0.25, 0.6, -0.6, 1.0, -1.0]
 
 
 func _init(owner: Main, script: Array) -> void:
@@ -1763,17 +1769,22 @@ func _toss(s: Dictionary) -> void:
 
 
 ## Turns the sky as a player does, until the sun stands at `time` (0 midnight, 0.5 noon; the short way round) over
-## `seconds`: `hand` (right by default) beside the head grips open sky high off the sun's arc and turns its aim about the arc.
+## `seconds`: `hand` (right by default) beside the head grips open sky high off the sun's arc, where no build, plant,
+## boulder, stair or easel stands for the grip to take instead, and turns its aim about the arc.
 func _sun(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var was := hand.global_transform
 	var still := hand.held_still
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
-	var grab := Daylight.toward_sun(0.5).rotated(Daylight.RISE, 0.25)
 	var turn := wrapf(Daylight.angle(s.time) - Daylight.angle(main.look.time), -PI, PI)
 	var head: Transform3D = main.rig.head.global_transform
+	var at := head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3)
+	var grab := _open_sky(at, axis)
+	if grab == Vector3.ZERO:
+		_fail("sun: no open sky from %s to grip" % at)
+		return
 	hand.held_still = true
-	hand.global_transform = Transform3D(Basis.looking_at(grab), head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3))
+	hand.global_transform = Transform3D(Basis.looking_at(grab), at)
 	var grip := "%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]
 	Buttons.injected[grip] = true
 	await _frames(2)
@@ -1788,6 +1799,20 @@ func _sun(s: Dictionary) -> void:
 	await _frames(2)
 	hand.global_transform = was
 	hand.held_still = still
+	var missed := absf(wrapf(main.look.time - s.time, -0.5, 0.5))
+	if missed > SUN_MISS:
+		_fail("sun turned to %.4f, not %.4f" % [main.look.time, s.time])
+
+
+## The first aim from `at` round the arc's `axis` that grips the sky and meets nothing a grip would take instead, or zero.
+func _open_sky(at: Vector3, axis: Vector3) -> Vector3:
+	var takes := {World.Kind.PLANT: INF, World.Kind.HELD_TARGET: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF, World.Kind.STAND: INF}
+	for off: float in SKY_OFF_ARC:
+		for i in SKY_AIMS:
+			var dir := Daylight.toward_sun(0.5).rotated(Daylight.RISE, off).rotated(axis, TAU * i / SKY_AIMS)
+			if main.sky_tool.opens(at, dir) and main.world.pick(at, dir, takes, {}, [World.Kind.HELD_TARGET]).is_empty():
+				return dir
+	return Vector3.ZERO
 
 
 ## The colour picker aimed from `from` (the head by default) at `at`, each [x, height above the ground, z], which must

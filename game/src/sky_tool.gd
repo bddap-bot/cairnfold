@@ -43,10 +43,16 @@ func _process(_delta: float) -> void:
 			if holder == hand:
 				aim(dir)
 				hand.point(null, BEAM)
-			elif holder == null and b.pressed("grab") and not hand.reaches() and not hand.taken() and not editing.call(hand) and (Daylight.aims_at_body(dir, look.time) or world.terrain.raycast(hand.global_position, dir) == null and not Mountains.hides(hand.global_position, dir)):
+			elif holder == null and b.pressed("grab") and not hand.reaches() and not hand.taken() and not editing.call(hand) and opens(hand.global_position, dir):
 				take(hand, dir)
 				hand.point(null, BEAM)
 		b.latch()
+
+
+## Whether a grip along `dir` from `from` grabs the sky: at the sun or the moon, or at open sky clear of the ground and
+## the mountains.
+func opens(from: Vector3, dir: Vector3) -> bool:
+	return Daylight.aims_at_body(dir, look.time) or world.terrain.raycast(from, dir) == null and not Mountains.hides(from, dir)
 
 
 func take(hand: Hand, dir: Vector3) -> void:
