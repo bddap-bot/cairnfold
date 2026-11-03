@@ -651,6 +651,12 @@ static func sha256(bytes: PackedByteArray) -> String:
 	return h.finish().hex_encode()
 
 
+## Whether the folder's newest avatar file is still to be put on, or the folder not yet scanned: putting it on closes
+## the wheel (`Rig.wear`).
+func dressing() -> bool:
+	return _since_folder == INF or _wanted != ""
+
+
 ## Wears built-in avatar `look`.
 func choose_avatar(look: int) -> void:
 	_wanted = ""

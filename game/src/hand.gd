@@ -238,6 +238,9 @@ func inventory() -> Array:
 
 
 func close_wheel() -> void:
+	if picking and _buttons.held("wheel"):
+		var by := get_stack().slice(1, 3).map(func(f: Dictionary) -> String: return "%s:%d" % [f.function, f.line])
+		Metrics.note("wheel: %s closed under the held button by %s" % [tracker, by])
 	_end_expression_dial()
 	if expressions != null:
 		expressions.close()
