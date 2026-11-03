@@ -87,6 +87,24 @@ class BenchmarkRendering(unittest.TestCase):
             phase = json.loads((out / "record.json").read_text())["phases"]["wipe/village"]
             self.assertEqual(phase["stalls"], [{"ms": 412.5, "notes": [{"what": "wipe", "ms": 390.0}], "compiled": [0, 2]}])
 
+    def test_a_phase_is_pinned_only_when_every_second_held_one_step(self):
+        cases = {"held": ([6, 6, 6], [True] * 3, True), "governed once": ([6, 6, 6], [True, True, False], False),
+                 "re-pinned": ([6, 6, 14], [True] * 3, False), "unrecorded": ([6, 6, 6], [None] * 3, None)}
+        for case, (steps, pins, pinned) in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory(dir=".") as folder:
+                out = Path(folder)
+                (out / "metrics.json").write_text(json.dumps({
+                    "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
+                    "seconds": [{"label": "camera", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
+                                 "step": step, **({} if pin is None else {"pinned": pin})}
+                                for step, pin in zip([6] + steps, [pins[0]] + pins)],
+                }))
+                (out / "stress.json").write_text("[]")
+                result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads((out / "record.json").read_text())["phases"]["camera"].get("pinned"), pinned)
+
     def test_only_a_marked_phase_past_the_build_budget_goes_unheld(self):
         """A phase over the line fails unless the scene marks its label past_budget and its garden is past the
         build budget: an unmarked feature on a dense garden is held, and a mark exempts no garden a player can build."""
@@ -180,7 +198,7 @@ class Trend(unittest.TestCase):
                 self.record(out, "20261023T000000Z-bbbbbbb.json", {"a": latest})
                 self.assertEqual(trend.report("rig", "scene", out), risen)
 
-    def test_a_governed_pair_on_different_steps_is_neither_faster_nor_slower(self):
+    def test_a_governed_pair_is_refused(self):
         """The Frame tour gov-tip5, whose governor fell to the bottom step at r20/ground, against gov-main at steps 7 to
         10: from r20/ground on every phase read faster by its median alone, and r20/ground hid a second at half rate."""
         tour = Path(__file__).resolve().parent / "governed-tour"
@@ -205,8 +223,9 @@ class Trend(unittest.TestCase):
             rows = {line.split()[0]: line for line in printed.getvalue().splitlines()}
             return [rows[p].rsplit(maxsplit=1)[-1] for p in later], rows
 
-        self.assertFalse(any(row["pinned"] for row in records["gov-tip5"]["phases"].values() if "step" in row))
-        pinned = lambda step: [{**r, "phases": {p: {**row, "step": step(row), "pinned": True} for p, row in r["phases"].items()}}
+        self.assertFalse(any("pinned" in row for row in records["gov-tip5"]["phases"].values()))
+        pinned = lambda step: [{**r, "phases": {p: {**row, "step": step(row), "pinned": True}
+                                                for p, row in r["phases"].items()}}
                                for r in (records["gov-main"], records["gov-tip5"])]
         self.assertEqual(verdicts(*pinned(lambda row: 0))[0].count("faster"), 45)
         said, rows = verdicts(*pinned(lambda row: row.get("step", 0)))
@@ -222,8 +241,8 @@ class Trend(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as said:
                 self.assertEqual(trend.main(["--pair", *paths]), 1)
         step = lambda name: records[name]["phases"]["r20/ground"]["step"]
-        self.assertIn(f"refused r20/ground, not pinned at one step: control governed at step {step('gov-main')}, "
-                      f"candidate governed at step {step('gov-tip5')}", said.getvalue())
+        self.assertIn(f"refused r20/ground, not pinned at one step: control unrecorded pin at step {step('gov-main')}, "
+                      f"candidate unrecorded pin at step {step('gov-tip5')}", said.getvalue())
 
     def test_a_comparison_holds_only_phases_pinned_at_one_step(self):
         """A governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to

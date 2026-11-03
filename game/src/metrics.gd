@@ -2,9 +2,10 @@ class_name Metrics
 extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
-## clock it ran at, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the
-## lowest quality step the governor took (see Quality) and whether a pin held it all second, the frames again by what the player was doing in each
-## (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to JSON as it goes.
+## clock it ran at, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
+## lowest quality step the governor took (see Quality) and whether no governor walked it all second, the frames again
+## by what the player was doing in each (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to
+## JSON as it goes.
 
 var path: String
 var info := {}
@@ -175,7 +176,7 @@ func _process(delta: float) -> void:
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
 		_step = maxi(_step, quality.step())
-		_pinned = _pinned and quality.pin >= 0
+		_pinned = _pinned and quality.held()
 		_gpu.append(quality.frame_ms)
 		_viewport_ms += quality.frame_ms
 		_viewport_frames += 1

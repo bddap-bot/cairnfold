@@ -238,6 +238,11 @@ func priming() -> bool:
 	return _primed < _priming.size() * PRIME_FRAMES
 
 
+## Whether the step stays where it is: the governor walks it only in a headset, and never past a pin.
+func held() -> bool:
+	return pin >= 0 or _xr == null
+
+
 ## The step the knobs are heading to.
 func step() -> int:
 	return pin if pin >= 0 else governor.level
