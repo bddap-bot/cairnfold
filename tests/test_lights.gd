@@ -341,6 +341,8 @@ func _stress() -> void:
 	var lit := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "house", "lights", "sun"])
 	check(lit.any(func(s: Dictionary) -> bool: return s.op == "sun" and s.time > 0.75 and s.time < 0.8), "at dusk")
 	await play([steps[0]] + lit)
+	var dusk: float = lit.filter(func(s: Dictionary) -> bool: return s.op == "sun").back().time
+	check(absf(main.look.time - dusk) < Driver.SUN_MISS, "the sky turns to dusk from beside the houses: %.4f for %.4f" % [main.look.time, dusk])
 	var world: World = main.world
 	var strings: Array = world.state.decorations.values().filter(func(d: Dictionary) -> bool: return d.mount == "span")
 	var lanterns := 0

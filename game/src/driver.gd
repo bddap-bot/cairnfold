@@ -43,10 +43,13 @@ var _stood_beasts: Array[Beast] = []
 const HELD := [{"hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}, {"hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]}]
 ## How far of a day `sun` may leave the sky from the time it was given: a quarter hour.
 const SUN_MISS := 1.0 / 96.0
-## How many aims round the arc's axis `sun` tries for open sky to grip, at each of SKY_OFF_ARC radians off the arc, nearest
-## the arc first.
-const SKY_AIMS := 12
+## Where `sun` tries the right hand against the head for open sky to grip (the left mirrored), first beside the head
+## low, as a player holds it while building: the grip takes whatever box holds the hand, whichever way it aims.
+const SKY_SPOTS := [Vector3(0.18, -0.25, -0.3), Vector3(0.18, 0.1, -0.2), Vector3(0.0, 0.3, 0.0), Vector3(0.45, -0.1, 0.0)]
+## How far off the sun's arc, in radians, `sun` tries aims for open sky to grip, nearest the arc first, each at
+## SKY_AIMS turns round the arc's axis.
 const SKY_OFF_ARC := [0.25, -0.25, 0.6, -0.6, 1.0, -1.0]
+const SKY_AIMS := 12
 
 
 func _init(owner: Main, script: Array) -> void:
@@ -1769,7 +1772,7 @@ func _toss(s: Dictionary) -> void:
 
 
 ## Turns the sky as a player does, until the sun stands at `time` (0 midnight, 0.5 noon; the short way round) over
-## `seconds`: `hand` (right by default) beside the head grips open sky high off the sun's arc, where no build, plant,
+## `seconds`: `hand` (right by default) about the head grips open sky (`_open_sky`), where no build, plant,
 ## boulder, stair or easel stands for the grip to take instead, and turns its aim about the arc.
 func _sun(s: Dictionary) -> void:
 	var hand := _hand(s)
@@ -1777,14 +1780,13 @@ func _sun(s: Dictionary) -> void:
 	var still := hand.held_still
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
 	var turn := wrapf(Daylight.angle(s.time) - Daylight.angle(main.look.time), -PI, PI)
-	var head: Transform3D = main.rig.head.global_transform
-	var at := head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3)
-	var grab := _open_sky(at, axis)
-	if grab == Vector3.ZERO:
-		_fail("sun: no open sky from %s to grip" % at)
+	var grip_at: Variant = _open_sky(hand, axis)
+	if grip_at == null:
+		_fail("sun: no open sky round the head to grip")
 		return
+	var grab := -(grip_at as Transform3D).basis.z
 	hand.held_still = true
-	hand.global_transform = Transform3D(Basis.looking_at(grab), at)
+	hand.global_transform = grip_at
 	var grip := "%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]
 	Buttons.injected[grip] = true
 	await _frames(2)
@@ -1804,15 +1806,19 @@ func _sun(s: Dictionary) -> void:
 		_fail("sun turned to %.4f, not %.4f" % [main.look.time, s.time])
 
 
-## The first aim from `at` round the arc's `axis` that grips the sky and meets nothing a grip would take instead, or zero.
-func _open_sky(at: Vector3, axis: Vector3) -> Vector3:
-	var takes := {World.Kind.PLANT: INF, World.Kind.HELD_TARGET: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF, World.Kind.STAND: INF}
-	for off: float in SKY_OFF_ARC:
-		for i in SKY_AIMS:
-			var dir := Daylight.toward_sun(0.5).rotated(Daylight.RISE, off).rotated(axis, TAU * i / SKY_AIMS)
-			if main.sky_tool.opens(at, dir) and main.world.pick(at, dir, takes, {}, [World.Kind.HELD_TARGET]).is_empty():
-				return dir
-	return Vector3.ZERO
+## The first pose of `hand` at a SKY_SPOTS spot, aimed round the arc's `axis`, whose grip grabs the sky and nothing a
+## build tool's grip would take instead, or null.
+func _open_sky(hand: Hand, axis: Vector3) -> Variant:
+	var head: Transform3D = main.rig.head.global_transform
+	var side := 1.0 if hand == main.rig.right else -1.0
+	for spot: Vector3 in SKY_SPOTS:
+		var at := head * (spot * Vector3(side, 1, 1))
+		for off: float in SKY_OFF_ARC:
+			for i in SKY_AIMS:
+				var dir := Daylight.toward_sun(0.5).rotated(Daylight.RISE, off).rotated(axis, TAU * i / SKY_AIMS)
+				if main.sky_tool.opens(at, dir) and main.tool.grip_hits(at, dir, INF).is_empty():
+					return Transform3D(Basis.looking_at(dir), at)
+	return null
 
 
 ## The colour picker aimed from `from` (the head by default) at `at`, each [x, height above the ground, z], which must

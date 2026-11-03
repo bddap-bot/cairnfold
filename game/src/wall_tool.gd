@@ -279,7 +279,7 @@ func _handle(m: Mason) -> void:
 		var on_held := _held_hit(from, dir) if held != null else {}
 		var ground: Variant = world.terrain.raycast(from, dir, m.hand.grip_reach())
 		var nearest: float = from.distance_to(ground) if ground != null else m.hand.grip_reach()
-		var hits := world.pick(from, dir, {World.Kind.PLANT: nearest, World.Kind.HELD_TARGET: nearest, World.Kind.BOULDER: nearest, World.Kind.STAIRS: nearest, World.Kind.STAND: nearest}, {}, [World.Kind.HELD_TARGET])
+		var hits := grip_hits(from, dir, nearest)
 		var pick: Dictionary = hits.get(World.Kind.HELD_TARGET, {})
 		var before := nearest
 		for kind: World.Kind in hits:
@@ -313,6 +313,11 @@ func _handle(m: Mason) -> void:
 			m.sizing.follow.call(m, hand)
 		elif m.pair_span > 0.0:
 			drag_pair(m, m.partner.hand.global_position, origin)
+
+
+## What a grip from `from` along `dir` would take short of `reach`, by World.Kind, nearest last (World's `pick`).
+func grip_hits(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
+	return world.pick(from, dir, {World.Kind.PLANT: reach, World.Kind.HELD_TARGET: reach, World.Kind.BOULDER: reach, World.Kind.STAIRS: reach, World.Kind.STAND: reach}, {}, [World.Kind.HELD_TARGET])
 
 
 ## Shows the bar what the edit in `m`'s hand would add.
