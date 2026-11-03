@@ -368,9 +368,13 @@ def reshape_scripts():
     return {name: [{"op": "budget", "bounded": False}] + steps for name, steps in (("host", host), ("join", join))}
 
 
+def differing(a, b, skip=LIVE):
+    return sorted(k for k in a.keys() | b.keys() if k not in skip and a.get(k) != b.get(k))
+
+
 def check_reshape(out):
     host, join = (json.loads((out / f"{n}-final.json").read_text()) for n in ("host", "join"))
-    differ = [k for k in host.keys() | join.keys() if k not in LIVE and host.get(k) != join.get(k)]
+    differ = differing(host, join)
     if differ:
         raise RuntimeError(f"the joiner's garden differs from the host's in {differ}")
 
@@ -434,9 +438,11 @@ def check_peers(out, count):
         print(("ok: " if cond else "FAIL: ") + what)
         if not cond:
             failed.append(what)
-    check(d["host"] == d["join"], "host and joiner show the same garden")
-    for n in names[2:]:
-        check(d[n] == d["host"], f"{n} shows the same garden")
+    for n in names[1:]:
+        differ = differing(d[n], d["host"], ())
+        check(not differ, f"{n} shows the same garden as the host" + (f": {differ} differ" if differ else ""))
+    for n, v in d.items():
+        check(not v["marks"] or v["marks"][-1][1] == v["mask"], f"{n}'s ground mask is its marks worn again from nothing")
     g = d["host"]
     check(g["seq"] == SEQ + 2 * (len(names) - 2), "every late joiner built and undid its own wall")
     check(len(g["walls"]) == 6, f"six walls stand (A put back by its deleter's undo, B, C, the host's house, the joiner's storey on it, the host's wing across it): {len(g['walls'])}")

@@ -1525,7 +1525,8 @@ func _bare_meadow() -> void:
 
 
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
-## every plant group's standing plants, the ground, and the garden's share of the frame budget, which its bar shows.
+## every plant group's standing plants, the ground and the marks worn into it, and the garden's share of the frame
+## budget, which its bar shows.
 func digest() -> Dictionary:
 	flora.grow_now()
 	for w: Wall in wall_tool.walls:
@@ -1556,6 +1557,7 @@ func digest() -> Dictionary:
 	out.grounds = state.grounds.keys()
 	marks.settle()
 	out.mask = hash(marks.laid.get_data())
+	out.marks = marks.replayed()
 	out.ponds = water.ponds.size() if water != null else 0
 	out.season = palette.season
 	out.easels = {}

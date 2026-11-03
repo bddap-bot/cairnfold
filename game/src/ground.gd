@@ -248,6 +248,18 @@ func _wear_stale() -> void:
 	_stale.clear()
 
 
+## The garden's marks worn again from nothing, in order: each mark's id and the hash of the mask once it is worn. Two
+## machines' first differing entry names the mark where their masks part, and a last entry other than `laid`'s hash
+## shows the patched wear drifted from a full one.
+func replayed() -> Array:
+	var onto := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
+	var out := []
+	for i in _marks.size():
+		_marks[i].wear(onto)
+		out.append([_ids[i], hash(onto.get_data())])
+	return out
+
+
 func settle() -> void:
 	if _unworn.is_empty() and not _unshown and _stale.is_empty():
 		return
