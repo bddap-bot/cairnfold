@@ -1725,7 +1725,9 @@ build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. 
 - Pops. The steps into 2x MSAA and each smaller swapchain reallocate what the view is drawn into, as the bottom
   steps' shadows and 3D scale do (`Quality.popping`). Above the start the governor crosses them at the calm of any
   step until the scene first asks for less; once a step down has crossed one, a step back up across it waits the
-  longest calm (64 s), and one undone within ten seconds is not taken again that session.
+  longest calm (64 s), and one undone within ten seconds waits twice as long each time (128 s, 256 s, ...). Barred
+  for the session instead, a single halved second after a climb out of the bottom step held a Frame stress run
+  there through every later phase.
 - Priming. Among loading's late frames, before the governor starts, the view is drawn for two frames each at the
   bottom step and at every rung whose swapchain, MSAA or reflections differ, so their pipelines are compiled then
   and not mid-play. Changing the render target size multiplier mid-session recreates the swapchain, which the

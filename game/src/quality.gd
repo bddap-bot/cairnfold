@@ -425,7 +425,9 @@ class Governor:
 	## step that crossed the cliff and held every other refresh for six seconds.
 	const UNMEASURED := 0.04
 	## A step down this soon after the step up that reached it doubles the calm needed to step up again; the
-	## doubling lasts the session.
+	## doubling lasts the session. Across a pop it doubles from the longest calm, uncapped: barred for the session
+	## instead, one halved second after a climb out of the bottom step held a Steam Frame stress run there through
+	## every later phase.
 	const REGRET_SECONDS := 10.0
 
 	## 0 is full quality; each step down the ladder adds one.
@@ -460,7 +462,7 @@ class Governor:
 	var why := ""
 
 	## The governor starts at `start`. A step up across a level of `sticky` (ascending) waits the longest calm once a
-	## step down has crossed it, and once undone is not taken again in the session: above the start it is crossed
+	## step down has crossed it, and twice that for each time it is undone: above the start it is crossed
 	## at the calm of any other step until the scene first asks for less. `shares` are what each level costs over the
 	## next down as a share of the frame, the floor under a step up not yet measured; a level of `idle` changes
 	## nothing over the one above, so the governor passes it by.
@@ -548,7 +550,7 @@ class Governor:
 		if (_hot >= HOT_FRAMES or missed or halved or (settled and averaged and _average > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
 				for i in range(level, _up_from):
-					_wait[i] = INF if _sticky.has(i) else minf(_wait[i] * 2.0, CALM_SECONDS_MAX)
+					_wait[i] = maxf(_wait[i], CALM_SECONDS_MAX) * 2.0 if _sticky.has(i) else minf(_wait[i] * 2.0, CALM_SECONDS_MAX)
 			_since_up = INF
 			# A step down before the last one's second was in leaves the average from before both.
 			if averaged or _went_up or _measuring < 0:

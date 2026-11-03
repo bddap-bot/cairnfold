@@ -33,7 +33,7 @@ func _initialize() -> void:
 	_every_headset_starts_conservative_and_climbs_to_what_it_holds()
 	_a_rung_no_knob_of_the_headset_tells_apart_is_passed_by()
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
-	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
+	_a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone()
 	_every_pipeline_a_rung_draws_with_is_primed()
 	_a_density_map_that_costs_the_frame_comes_off()
 	_a_density_map_that_saves_stays_on()
@@ -398,7 +398,7 @@ func _frames_the_player_does_not_see_step_nothing_down() -> void:
 		check((g.level == 0) != see, "%s, a cover's frames leave the governor at %d" % ["seen" if see else "unseen", g.level])
 
 
-func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:
+func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -> void:
 	var pops := Quality.popping()
 	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, shadows off and a lower 3D scale pop, got %s" % [pops])
 	var g := Quality.Governor.new(10, PackedInt32Array([0]))
@@ -407,7 +407,12 @@ func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void
 	check(_feed_until(g, BUDGET * 0.1, 72 * 40, 0) == 0, "and is taken after the longest calm")
 	_down(g)
 	check(g.level == 1, "undone at once")
-	check(_feed(g, BUDGET * 0.1, 72 * 300) == 1, "it is not taken again")
+	var longest := int(72 * Quality.Governor.CALM_SECONDS_MAX)
+	check(_feed(g, BUDGET * 0.1, longest + 72 * 30) == 1, "it waits longer than the longest calm")
+	check(_feed_until(g, BUDGET * 0.1, longest + 72 * 10, 0) == 0, "and is taken again after twice the longest calm")
+	_down(g)
+	check(_feed(g, BUDGET * 0.1, 3 * longest + 72 * 30) == 1, "undone again, it waits twice as long again")
+	check(_feed_until(g, BUDGET * 0.1, longest + 72 * 10, 0) == 0, "and is taken after it")
 
 
 ## Feeds `seconds` of frames whose GPU time is `on_ms` with the map drawn and `off_ms` without, and returns whether the
