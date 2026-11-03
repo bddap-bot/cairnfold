@@ -397,6 +397,7 @@ for name, secs in phases.items():
     steps = [s["step"] for s in secs if "step" in s]
     if steps:
         summary[name]["step"] = mid(steps)
+        summary[name]["pinned"] = all(s.get("pinned", False) for s in secs if "step" in s)
     fullest = max(phases[name], key=lambda s: s.get("fill", 0.0))
     fill = fullest.get("fill", 0.0)
     summary[name]["fill"] = fill

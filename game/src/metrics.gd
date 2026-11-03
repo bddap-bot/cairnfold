@@ -3,7 +3,7 @@ extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
 ## clock it ran at, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the
-## lowest quality step the governor took (see Quality), the frames again by what the player was doing in each
+## lowest quality step the governor took (see Quality) and whether a pin held it all second, the frames again by what the player was doing in each
 ## (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to JSON as it goes.
 
 var path: String
@@ -38,6 +38,7 @@ var _landing := {}
 var _landings: Array = []
 var _moved := false
 var _step := 0
+var _pinned := true
 var _viewport_ms := 0.0
 var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
@@ -174,6 +175,7 @@ func _process(delta: float) -> void:
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
 		_step = maxi(_step, quality.step())
+		_pinned = _pinned and quality.pin >= 0
 		_gpu.append(quality.frame_ms)
 		_viewport_ms += quality.frame_ms
 		_viewport_frames += 1
@@ -244,9 +246,11 @@ func _process(delta: float) -> void:
 		if _viewport_frames > 0:
 			row.viewport_gpu_ms = _viewport_ms / _viewport_frames
 			row.step = _step
+			row.pinned = _pinned
 			if quality.budget_ms > 0.0:
 				row.budget_ms = quality.budget_ms
 		_step = quality.step() if quality != null else 0
+		_pinned = true
 		_viewport_ms = 0.0
 		_viewport_frames = 0
 		row.unix = Time.get_unix_time_from_system()

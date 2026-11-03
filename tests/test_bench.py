@@ -205,20 +205,55 @@ class Trend(unittest.TestCase):
             rows = {line.split()[0]: line for line in printed.getvalue().splitlines()}
             return [rows[p].rsplit(maxsplit=1)[-1] for p in later], rows
 
-        one_step = [{**r, "phases": {p: {**row, "step": 0} for p, row in r["phases"].items()}}
-                    for r in (records["gov-main"], records["gov-tip5"])]
-        self.assertEqual(verdicts(*one_step)[0].count("faster"), 45)
+        self.assertFalse(any(row["pinned"] for row in records["gov-tip5"]["phases"].values() if "step" in row))
+        pinned = lambda step: [{**r, "phases": {p: {**row, "step": step(row), "pinned": True} for p, row in r["phases"].items()}}
+                               for r in (records["gov-main"], records["gov-tip5"])]
+        self.assertEqual(verdicts(*pinned(lambda row: 0))[0].count("faster"), 45)
+        said, rows = verdicts(*pinned(lambda row: row.get("step", 0)))
+        self.assertEqual(said, ["refused"] * 48)
         said, rows = verdicts(records["gov-main"], records["gov-tip5"])
-        self.assertEqual(said, ["differ"] * 48)
-        self.assertIn(" 32 late p50  27.5 p99  33.6 steps differ", rows["r20/ground"])
+        self.assertEqual(said, ["refused"] * 48)
+        self.assertIn(" 32 late p50  27.5 p99  33.6 refused", rows["r20/ground"])
         with tempfile.TemporaryDirectory(dir=".") as folder:
             paths = []
             for name in ("gov-main", "gov-tip5"):
                 (Path(folder) / f"{name}.json").write_text(json.dumps(records[name]))
                 paths.append(str(Path(folder) / f"{name}.json"))
-            with contextlib.redirect_stdout(io.StringIO()) as printed:
-                self.assertEqual(trend.main(["--pair", *paths]), 0)
-        self.assertIn("on different steps, so neither faster nor slower: meadow/aerial", printed.getvalue())
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(trend.main(["--pair", *paths]), 1)
+        step = lambda name: records[name]["phases"]["r20/ground"]["step"]
+        self.assertIn(f"refused r20/ground, not pinned at one step: control governed at step {step('gov-main')}, "
+                      f"candidate governed at step {step('gov-tip5')}", said.getvalue())
+
+    def test_a_comparison_holds_only_phases_pinned_at_one_step(self):
+        """A governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to
+        13.54 ms against 13.14 to 13.73 before: the governor's figure, not the change's."""
+        seen = {"p50": 13.0, "draws": 100, "prims": 1000}
+        pinned = lambda ms, step=6: {**seen, "gpu_ms": ms, "step": step, "pinned": True}
+        governed = {**seen, "gpu_ms": 6.3, "step": 6, "pinned": False}
+        cases = {
+            "pinned": (pinned(13.14), pinned(12.55), None),
+            "governed": (pinned(13.14), governed, "candidate governed at step 6"),
+            "unrecorded": ({**seen, "gpu_ms": 13.14, "step": 6}, pinned(12.55), "control unrecorded pin at step 6"),
+            "steps differ": (pinned(13.14), pinned(12.55, 7), "control at step 6, candidate at step 7"),
+        }
+        for case, (control, candidate, why) in cases.items():
+            with self.subTest(case=case):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    _, refused = trend.pair({"phases": {"camera": control}}, {"phases": {"camera": candidate}})
+                self.assertEqual(refused, [("camera", why)] if why else [])
+                with tempfile.TemporaryDirectory(dir=".") as folder:
+                    record = Path(folder) / "record.json"
+                    record.write_text(json.dumps({"budget_gpu_ms": 11.111, "phases": {
+                        "pair/camera/2x/0": candidate, "pair/camera/none/0": control,
+                        "pair/camera/none/1": control, "pair/camera/2x/1": candidate}}))
+                    for args in ([], ["--price", "x", "x", "2", "pair/camera/2x/0=pair/camera/none/0"]):
+                        result = subprocess.run([sys.executable, str(SCRIPTS / "paired.py"), str(record), *args],
+                                                capture_output=True, text=True)
+                        self.assertEqual(result.returncode != 0, why is not None, result.stderr)
+                        if why:
+                            self.assertIn("not pinned at one step", result.stderr)
+                            self.assertIn("governed" if case == "governed" else "step", result.stderr)
 
 
 class StressScene(unittest.TestCase):

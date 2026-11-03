@@ -6,16 +6,20 @@
 A scene such as demo/conure-cost.json alternates each view with and without the thing, labelled
 pair/PHASE/NTHING/K and pair/PHASE/none/K, K the pair; its order runs with, without, without, with,
 so a drift through the run cancels. Each pair's difference is one draw; the mean, its standard error
-and that per thing are added to the record under "pairs" and printed.
+and that per thing are added to the record under "pairs" and printed. A view's phases all run pinned at one quality step
+or are refused, naming their steps: a governed phase measures the governor, not the thing.
 
 With --price, each FULL=EMPTY names a phase holding COUNT of KIND and the same view without them. The price is the
-most any pair gives a unit, in microseconds, and a phase whose median frame took over 1.5 refresh periods, the frame
+most any pair gives a unit, in microseconds; a FULL and EMPTY not pinned at one step are refused as views are, and a
+phase whose median frame took over 1.5 refresh periods, the frame
 rate halved, is refused: its GPU time is not the scene's (scripts/costs.py leaves such views out too). It is added to the record under "prices", KIND's entry naming the Budget
 unit it is charged as, and tests/test_prices.py holds every unit's charge to the latest price recorded for it."""
 import json
 import math
 import re
 import sys
+
+from trend import unpinned
 
 
 def stats(xs: list[float]) -> dict[str, float]:
@@ -26,6 +30,7 @@ def stats(xs: list[float]) -> dict[str, float]:
 
 def paired(record: str, d: dict) -> None:
     groups: dict[str, dict[int, dict[str, dict]]] = {}
+    named: dict[str, dict[str, dict]] = {}
     count: dict[str, int] = {}
     for name, phase in d["phases"].items():
         m = re.fullmatch(r"pair/(.+)/(?:(\d+)\D*|none)/(\d+)", name)
@@ -35,8 +40,12 @@ def paired(record: str, d: dict) -> None:
         if m.group(2):
             count[m.group(1)] = int(m.group(2))
         groups.setdefault(m.group(1), {}).setdefault(int(m.group(3)), {})[side] = phase
+        named.setdefault(m.group(1), {})[name] = phase
     if not groups:
         sys.exit(f"paired: {record} has no pair/ phases")
+    for phase, phases in named.items():
+        if why := unpinned(phases):
+            sys.exit(f"paired: {phase} not pinned at one step: {why}")
     pairs = {}
     print(f"{'phase':12} {'n':>2} {'pairs':>5} {'without ms':>10} {'delta ms':>14} {'per one ms':>14} {'draws':>6} {'prims':>7}")
     for phase, ks in groups.items():
@@ -60,6 +69,8 @@ def price(d: dict, kind: str, unit: str, count: str, *pairs: str) -> None:
     each = {}
     for pair in pairs:
         full, empty = pair.split("=")
+        if why := unpinned({name: d["phases"][name] for name in (full, empty)}):
+            sys.exit(f"paired: {pair} not pinned at one step: {why}")
         for name in (full, empty):
             if d["phases"][name]["p50"] > 1.5 * d["budget_gpu_ms"]:
                 sys.exit(f"paired: {name} ran below the refresh rate ({d['phases'][name]['p50']:.1f} ms a frame)")

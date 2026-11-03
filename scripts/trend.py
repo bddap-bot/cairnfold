@@ -8,8 +8,9 @@ the best run, marking a rise of more than RISE times and FLOOR_MS over the base.
 whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
 Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp; any other file is no run. Given
 a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
-rerun once. A pair gives a phase no faster or slower when its two runs sat on different steps, and exits 1 when a phase
-on one step rose as a scene's run does; beside each it shows both runs' worst second, which a median hides."""
+rerun once. A pair compares a phase only when both runs held it pinned at one step: a governed phase measures the
+governor, not the change, so the pair refuses it, naming its steps, and exits 1, as it does when a phase rose as a
+scene's run does; beside each it shows both runs' worst second, which a median hides."""
 import json
 import os
 import re
@@ -65,15 +66,27 @@ def report(rig, scene, folder):
     return risen
 
 
+def unpinned(phases):
+    """Why the named phases do not compare, each not held pinned at one step; None when they do."""
+    at = lambda p: f" at step {p['step']}" if "step" in p else ""
+    governed = [f"{name} {'governed' if 'pinned' in p else 'unrecorded pin'}{at(p)}" for name, p in phases.items()
+                if not p.get("pinned")]
+    if governed:
+        return ", ".join(governed)
+    if len({p["step"] for p in phases.values()}) > 1:
+        return ", ".join(f"{name}{at(p)}" for name, p in phases.items())
+    return None
+
+
 def pair(control, candidate):
-    """Prints candidate's phases against control's; returns (risen, the phases on different steps)."""
+    """Prints candidate's phases against control's; returns (risen, (phase, why) for each refused)."""
     a, b = control["phases"], candidate["phases"]
     for side, mine, other in (("control", a, b), ("candidate", b, a)):
         only = [phase for phase in mine if phase not in other]
         if only:
             print(f"  only in {side}: {', '.join(only)}")
     print(f"  {'phase':24} {'steps':>7} {'gpu ms':>15} {'frame p50':>15} {'worst second':>28}")
-    risen, mismatched = [], []
+    risen, refused = [], []
     show = lambda r, k: f"{r[k]:7.2f}" if k in r else f"{'-':>7}"
     worst = lambda r: (f"{r['worst']['late']:3} late p50 {r['worst']['p50']:5.1f} p99 {r['worst']['p99']:5.1f}"
                        if "worst" in r else f"{'-':>28}")
@@ -82,11 +95,10 @@ def pair(control, candidate):
             continue
         old = a[phase]
         key = "gpu_ms" if "gpu_ms" in new and "gpu_ms" in old else "p50"
-        if "step" not in old or "step" not in new:
-            verdict = "step unknown"
-        elif old["step"] != new["step"]:
-            mismatched.append(phase)
-            verdict = "steps differ"
+        why = unpinned({"control": old, "candidate": new})
+        if why:
+            refused.append((phase, why))
+            verdict = "refused"
         elif rise(old[key], new[key]):
             if key == "gpu_ms":
                 risen.append(phase)
@@ -98,7 +110,7 @@ def pair(control, candidate):
         steps = f"{old.get('step', '-')}/{new.get('step', '-')}"
         print(f"  {phase:24} {steps:>7} {show(old, 'gpu_ms')} {show(new, 'gpu_ms')} {show(old, 'p50')} {show(new, 'p50')}"
               f" {worst(old)} | {worst(new)} {verdict}".rstrip())
-    return risen, mismatched
+    return risen, refused
 
 
 def main(want):
@@ -106,12 +118,12 @@ def main(want):
         if len(want) != 3:
             sys.exit("usage: trend.py --pair CONTROL CANDIDATE")
         control, candidate = (json.loads(Path(path).read_text()) for path in want[1:])
-        risen, mismatched = pair(control, candidate)
-        if mismatched:
-            print(f"on different steps, so neither faster nor slower: {', '.join(mismatched)}")
+        risen, refused = pair(control, candidate)
+        for phase, why in refused:
+            print(f"refused {phase}, not pinned at one step: {why}", file=sys.stderr)
         if risen:
             print(f"GPU time rose more than {RISE - 1:.0%} and {FLOOR_MS:g} ms: " + ", ".join(risen), file=sys.stderr)
-        return 1 if risen else 0
+        return 1 if risen or refused else 0
 
     risen = []
     for rig in sorted(os.listdir(ROOT)) if os.path.isdir(ROOT) else []:

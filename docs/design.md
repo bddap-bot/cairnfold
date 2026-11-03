@@ -917,8 +917,11 @@ the roofs village and the walk three times over landed on step 15 or 16 at each 
 same two figures. The earlier records, 8.2 to 8.7 ms on some builds and 5.9 to 6.4 on others with
 the same primitives, carried no step and match these two. Bench records now carry each phase's step
 and GPU clock (`gpu_mhz`, from the driver's cycle count), and `scripts/trend.py` compares a phase only
-with runs on its step. `trend.py --pair CONTROL CANDIDATE` sets two runs' records side by side by the same rule: a
-phase on different steps is neither faster nor slower. A governed Frame tour whose governor sat at step 6 at
+with runs on its step. A comparison of a change goes further: a governed phase measures the governor, not the change
+(a governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to 13.54 ms
+against 13.14 to 13.73 before), so each record marks a phase `pinned` when a pin held its step every second, and
+`trend.py --pair CONTROL CANDIDATE` and `scripts/paired.py` refuse any phase not pinned at one step on both sides,
+naming it and its steps, and exit non-zero. A governed Frame tour whose governor sat at step 6 at
 r20/ground and 16 from r25/aerial on read faster in 45 of the 48 phases from r20/ground on against a control at steps
 7 to 10, and r20/ground's median hid a second at half rate, so each record also keeps the phase's worst second
 (`worst`: its late frames, median and p99).
@@ -2126,7 +2129,7 @@ clump charged before measured. Packed beside the eye on this build
 | GPU ms | 6.31 | 6.90 | 7.27 | 8.24 | 9.42 | 9.48 | 10.68 | 26.75, at 36 Hz |
 
 `scripts/paired.py --price` refuses a phase whose median frame took over 1.5 refresh periods, as the fit leaves such
-views out. Trees and bushes keep their charges.
+views out, and a pair not pinned at one step. Trees and bushes keep their charges.
 
 ### Crowns
 
