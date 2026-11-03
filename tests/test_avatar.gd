@@ -3,7 +3,7 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of the VRM avatars: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_avatar.gd
 
 ## Public sample avatars (tests/avatars/README.md).
-const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
+const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm", "twist-1.0.vrm"]
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 

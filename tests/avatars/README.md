@@ -11,6 +11,12 @@ Public VRM files the avatar tests and `scripts/coop.sh` read. None ships with th
   under Creative Commons Attribution 3.0 Unported (CC BY 3.0,
   https://creativecommons.org/licenses/by/3.0/). Taken unchanged from
   https://github.com/V-Sekai/godot-vrm, `vrm_samples/Godette_vrm_v4.vrm`.
+- `twist-1.0.vrm`: "VRM1_Constraint_Twist_Sample" by pixiv Inc., licensed under the VRM Public
+  License 1.0 (https://vrm.dev/licenses/1.0/; its VRM metadata allows redistribution and modified
+  redistribution, credit unnecessary). Taken unchanged from https://github.com/vrm-c/vrm-specification
+  at commit `94e82dd346fa6cf0337c4421728640e5252dd38e`,
+  `samples/VRM1_Constraint_Twist_Sample/vrm/VRM1_Constraint_Twist_Sample.vrm`. A node that is no joint
+  hangs from its head bone, so the importer puts a bone attachment where the head's node is.
 
 Unity source packages, which `tests/test_avatar.gd` converts with `scripts/unity_avatar.gd`:
 
