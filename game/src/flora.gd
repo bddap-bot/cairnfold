@@ -786,7 +786,7 @@ static func _plant_material(shader: String, roughness: float) -> ShaderMaterial:
 
 
 func _process(_delta: float) -> void:
-	_grow(GROW_USEC)
+	_grow(GROW_USEC if Budget.frame_deadline else -1)
 	_shade_crowns()
 	grass.cover.settle(grass)
 	var eye := get_viewport().get_camera_3d()

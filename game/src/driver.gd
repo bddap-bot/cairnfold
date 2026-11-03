@@ -375,13 +375,19 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
-## Calls `step` after each frame of `seconds` (the step's own, else `default`) with the share of them done, 1/frames
-## to 1; seconds × 60 frames, as tests count them under --fixed-fps 60.
+## Calls `step` after each frame of `seconds` (the step's own, else `default`) with the share of them done, ending on
+## the frame nearest `seconds`, at 1.
 func _over(s: Dictionary, default: float, step: Callable) -> void:
-	var frames := maxi(1, ceili(s.get("seconds", default) * 60.0))
-	for f in frames:
+	var seconds: float = s.get("seconds", default)
+	var t := 0.0
+	while true:
 		await get_tree().process_frame
-		step.call(float(f + 1) / frames)
+		var dt := get_process_delta_time()
+		t += dt
+		if seconds - t < dt * 0.5:
+			await step.call(1.0)
+			return
+		await step.call(t / seconds)
 
 
 func _hand(s: Dictionary) -> Hand:
@@ -465,13 +471,12 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	var path := _path(s)
 	var first := _target(s, path[0])
 	tool.begin_stroke(m, first.point, first.on)
-	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
-	var shot := ceili(frames * s.get("capture_at", 0.6)) if s.has("capture") else -1
-	for f in frames:
-		await get_tree().process_frame
-		tool.extend_stroke(m, _along(path, float(f + 1) / frames))
-		if f == shot:
-			await main.capture(s.capture)
+	var shot := [s.has("capture")]
+	await _over(s, 2.0, func(k: float) -> void:
+		tool.extend_stroke(m, _along(path, k))
+		if shot[0] and k >= s.get("capture_at", 0.6):
+			shot[0] = false
+			await main.capture(s.capture))
 	tool.end_stroke(m)
 
 
@@ -523,21 +528,18 @@ func _house(s: Dictionary) -> void:
 		return
 	tool.take_build(tool.walls[-1])
 	var start: Dictionary = tool.held_at.duplicate()
-	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
-	var taken := 0
-	for f in frames:
-		await get_tree().process_frame
-		var k := float(f + 1) / frames
+	var taken := [0]
+	await _over(s, 2.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(at.center, k)
 		to.yaw = lerp_angle(start.yaw, at.yaw, k)
 		to.rise = snappedf(at.rise * k, WallLayout.COURSE)
 		tool.stand_build(to)
-		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
-			taken += 1
+		while taken[0] < shots and k >= float(taken[0] + 1) / shots:
+			taken[0] += 1
 			await get_tree().create_timer(0.4).timeout
-			await main.capture("%s-%d" % [s.capture, taken])
+			await main.capture("%s-%d" % [s.capture, taken[0]]))
 	if tool.held != null:
 		tool.end_build()
 
@@ -924,13 +926,13 @@ func _pave(s: Dictionary) -> void:
 	for i in path.size():
 		path[i] = main.world.terrain.ground(lerpf(mid.x, path[i].x, _area), lerpf(mid.z, path[i].z, _area))
 	flora_tool.begin_path(b, path[0], s.radius)
-	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		flora_tool.extend_path(_along(path, float(f + 1) / frames), s.radius)
-		if s.has("capture") and f == int(frames * s.get("capture_at", 0.5)):
+	var shot := [s.has("capture")]
+	await _over(s, 2.0, func(k: float) -> void:
+		flora_tool.extend_path(_along(path, k), s.radius)
+		if shot[0] and k >= s.get("capture_at", 0.5):
+			shot[0] = false
 			await get_tree().create_timer(0.2).timeout
-			await main.capture(s.capture)
+			await main.capture(s.capture))
 	flora_tool.end_path(b)
 
 
@@ -2136,15 +2138,16 @@ func _brushstroke(s: Dictionary, palette: bool) -> void:
 	await _frames(2)
 	_tip_at(hand, on.call(pts[0], 0.05), direction, frame.basis.y, roll)
 	await _frames(2)
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames + 1:
-		var k := float(f) / frames * (pts.size() - 1)
+	var along := func(done: float) -> void:
+		var k := done * (pts.size() - 1)
 		var i := mini(floori(k), pts.size() - 2) if pts.size() > 1 else 0
 		var a: Array = pts[i]
 		var b: Array = pts[mini(i + 1, pts.size() - 1)]
 		var t := k - i
 		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), direction, frame.basis.y, roll)
-		await _frames(1)
+	along.call(0.0)
+	await _over(s, 1.0, along)
+	await _frames(1)
 	if s.has("capture"):
 		var hold := ToolModels.hold(kind)
 		print("brush contact: tracked %s, visible %s" % [frame.affine_inverse() * hand.global_transform * hold * ToolModels.BRUSH_TIP, frame.affine_inverse() * hand.body.global_transform * hold * ToolModels.BRUSH_TIP])
@@ -2162,11 +2165,9 @@ func _sheet(s: Dictionary) -> void:
 	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
 	Buttons.injected[key] = true
+	await _over(s, 0.6, func(k: float) -> void:
+		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * k)))
 	await _frames(1)
-	var frames := maxi(1, ceili(s.get("seconds", 0.6) * 60.0))
-	for f in frames:
-		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * (f + 1) / frames))
-		await _frames(1)
 	if s.has("capture"):
 		await main.capture(s.capture)
 	Buttons.injected.erase(key)

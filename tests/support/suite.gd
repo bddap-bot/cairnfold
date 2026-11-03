@@ -1,7 +1,9 @@
 extends SceneTree
 
 ## What every headless test shares: failures counted and reported on the `tests:` and `FAIL:` lines scripts/test.sh
-## reads, and an exit through Main.quit, which waits for playing sounds.
+## reads, and an exit through Main.quit, which waits for playing sounds. A test runs under `--fixed-fps 60`, as
+## scripts/test.sh runs it: every frame is then 1/60 s, so frame deltas, timers and Driver steps count frames, where
+## without it they take the host's clock and a loaded host changes what a frame holds.
 ## Seconds of the host's time an until() waits before it calls the wait a hang.
 const HANG := 120
 
@@ -90,6 +92,12 @@ static func village_before(steps: Array, at: int) -> int:
 	while steps[village].op != "village":
 		village -= 1
 	return village
+
+
+## Runs every command waiting on the world and waits until every wall and stair has laid what they hold.
+func laid() -> void:
+	main.world.settle()
+	await until(func() -> bool: return not main.world.stairs.laying() and not main.tool.walls.any(func(w: Wall) -> bool: return w.laying()), "every build lays")
 
 
 ## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.

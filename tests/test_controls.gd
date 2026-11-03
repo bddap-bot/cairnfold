@@ -41,8 +41,8 @@ func _run() -> void:
 		await play([{"op": "pick", "hand": "left", "tool": Hand.Tool.keys()[t].to_lower()}])
 		check(rig.left.tool == t, "the left wheel picks %s, holding %s" % [Hand.Tool.keys()[t], Hand.Tool.keys()[rig.left.tool]])
 	check(rig.right.tool == Hand.Tool.WALLS, "the left wheel leaves the right hand's tool alone")
-	await play([{"op": "wait", "seconds": 0.3}])
-	check(rig.global_position.is_equal_approx(stood), "picking from the left wheel never teleports")
+	await frames(ceili(Rig.FADE * 60.0) + 1)
+	check(rig._pending == null and rig.global_position.is_equal_approx(stood), "picking from the left wheel never teleports")
 	await play([{"op": "pick", "hand": "right", "tool": "trees"}])
 	check(rig.right.tool == Hand.Tool.TREES, "the right wheel picks trees")
 	await _sweep_by_hand(rig.left, at)
@@ -344,8 +344,8 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		{"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0},
 		{"op": "fit", "what": "lantern", "index": -1, "s": 15.0, "y": 1.6, "side": -1.0},
 		{"op": "fit", "what": "chimney", "index": -1, "at": [1.5, 0.6]},
-		{"op": "wait", "seconds": 0.3},
 	])
+	await laid()
 	var tool: WallTool = main.tool
 	var world: World = main.world
 	var house := walls[-1]
@@ -462,8 +462,8 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await play([
 		{"op": "house", "round": true, "at": [4, -15], "size": [3.4, 3.4], "seconds": 0.3},
 		{"op": "uncluttered"},
-		{"op": "wait", "seconds": 0.3},
 	])
+	await laid()
 	var tower := walls[-1]
 	var face := main.world.terrain.ground(4, -13.3) + Vector3.UP * 1.5
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), face)

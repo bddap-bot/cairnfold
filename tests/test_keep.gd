@@ -72,7 +72,8 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	world.load_from(path)
 	check(_picture() == picture, "loading rebuilds every wall, ruin, plant, path and height")
 	var seq := world.seq
-	await play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "tree", "x": -8, "z": 8}])
+	world.settle()
 	check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
 
 
@@ -128,7 +129,7 @@ func _a_placed_bush_counts_and_is_kept() -> void:
 	await _settled()
 	var flora: Flora = main.flora_tool.flora
 	var before := world.units.duplicate()
-	await play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}])
 	await _settled()
 	check(flora.placed("bush").size() == 2, "two placed bushes stand: %d" % flora.placed("bush").size())
 	check(world.units.get("bush", 0) == before.get("bush", 0) + 2, "each counts one bush: %s" % world.units)

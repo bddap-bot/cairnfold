@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var rig: Rig = main.rig
-	await play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.2}])
+	await play([{"op": "place", "x": 0, "z": 6}])
 	var tracker := XRPositionalTracker.new()
 	tracker.type = XRServer.TRACKER_CONTROLLER
 	tracker.name = &"right_hand"
