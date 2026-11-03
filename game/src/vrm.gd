@@ -240,6 +240,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"look", root.get_meta("look", {}))
 	state.set_additional_data(&"expressions", root.get_meta("expressions", {}))
 	state.set_additional_data(&"faces", root.get_meta("faces", {}))
+	state.set_additional_data(&"weights", {})
 	state.add_used_extension("VRMC_vrm", false)
 	if not root.get_meta("springs", {}).is_empty():
 		state.add_used_extension("VRMC_springBone", false)
@@ -256,17 +257,15 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 func _export_node(state: GLTFState, gltf_node: GLTFNode, _json: Dictionary, node: Node) -> Error:
 	var mi := node as MeshInstance3D
 	if mi != null and mi.mesh is ArrayMesh and gltf_node.mesh >= 0 and mi.mesh.get_blend_shape_count() > 0:
-		var weights: Dictionary = state.get_additional_data(&"weights") if state.get_additional_data(&"weights") is Dictionary else {}
+		var weights: Dictionary = state.get_additional_data(&"weights")
 		weights[gltf_node.mesh] = range(mi.mesh.get_blend_shape_count()).map(func(k: int) -> float: return mi.get_blend_shape_value(k))
-		state.set_additional_data(&"weights", weights)
 	return OK
 
 
 func _export_post(state: GLTFState) -> Error:
-	var weights: Variant = state.get_additional_data(&"weights")
-	if weights is Dictionary:
-		for mesh: int in weights:
-			state.json.meshes[mesh].weights = weights[mesh]
+	var weights: Dictionary = state.get_additional_data(&"weights")
+	for mesh: int in weights:
+		state.json.meshes[mesh].weights = weights[mesh]
 	var bones := {}
 	var nodes := state.get_nodes()
 	for i in nodes.size():
@@ -414,9 +413,10 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	var state := GLTFState.new()
 	state.set_additional_data(&"vrm_fits", fits)
 	state.set_additional_data(&"vrm_image", image)
+	state.set_additional_data(&"vrm_refused", false)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
-	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused") == true:
+	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused"):
 		return null
 	if not shape.call(state):
 		return null
