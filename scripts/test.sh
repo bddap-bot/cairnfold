@@ -42,8 +42,8 @@ for t in tests/test_*.gd; do
   code=$(cat "$log.exit")
   failed=0
   if [ "$code" != 0 ]; then echo "$t: exited $code"; failed=1; fi
-  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log" | sed "s|^|$t: |" || true
-  if grep -qE "SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log"; then failed=1; fi
+  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log" | sed "s|^|$t: |" || true
+  if grep -qE "SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter \"material\" is null|Parameter \"mem|must be normalized" "$log"; then failed=1; fi
   # A test that stops short of its end, however it exits, never prints its verdict.
   if ! grep -q "^tests: ok" "$log"; then failed=1; fi
   # A failure seen once is kept in the run's log, crash backtraces and errors around it included.

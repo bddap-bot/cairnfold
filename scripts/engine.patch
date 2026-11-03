@@ -394,3 +394,52 @@
  #ifdef USE_LIGHTMAP
  					}
  #endif
+--- a/servers/rendering/dummy/storage/material_storage.h
++++ b/servers/rendering/dummy/storage/material_storage.h
+@@ -47,7 +47,7 @@
+ 		HashMap<StringName, ShaderLanguage::ShaderNode::Uniform> uniforms;
+ 	};
+ 
+-	mutable RID_Owner<DummyShader> shader_owner;
++	mutable RID_Owner<DummyShader, true> shader_owner;
+ 
+ 	ShaderCompiler dummy_compiler;
+ 	HashSet<RID> dummy_embedded_set;
+@@ -57,7 +57,7 @@
+ 		RID next_pass;
+ 	};
+ 
+-	mutable RID_Owner<DummyMaterial> material_owner;
++	mutable RID_Owner<DummyMaterial, true> material_owner;
+ 
+ public:
+ 	static MaterialStorage *get_singleton() { return singleton; }
+--- a/servers/rendering/dummy/storage/mesh_storage.h
++++ b/servers/rendering/dummy/storage/mesh_storage.h
+@@ -47,13 +47,13 @@
+ private:
+ 	static MeshStorage *singleton;
+ 
+-	mutable RID_Owner<DummyMesh> mesh_owner;
++	mutable RID_Owner<DummyMesh, true> mesh_owner;
+ 
+ 	struct DummyMultiMesh {
+ 		PackedFloat32Array buffer;
+ 	};
+ 
+-	mutable RID_Owner<DummyMultiMesh> multimesh_owner;
++	mutable RID_Owner<DummyMultiMesh, true> multimesh_owner;
+ 
+ public:
+ 	static MeshStorage *get_singleton() { return singleton; }
+--- a/servers/rendering/dummy/storage/texture_storage.h
++++ b/servers/rendering/dummy/storage/texture_storage.h
+@@ -41,7 +41,7 @@
+ 	struct DummyTexture {
+ 		Ref<Image> image;
+ 	};
+-	mutable RID_PtrOwner<DummyTexture> texture_owner;
++	mutable RID_PtrOwner<DummyTexture, true> texture_owner;
+ 
+ public:
+ 	static TextureStorage *get_singleton() { return singleton; }
