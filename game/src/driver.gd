@@ -46,9 +46,9 @@ const SUN_MISS := 1.0 / 96.0
 ## Where `sun` tries the right hand against the head for open sky to grip (the left mirrored), first beside the head
 ## low, as a player holds it while building: the grip takes whatever box holds the hand, whichever way it aims.
 const SKY_SPOTS := [Vector3(0.18, -0.25, -0.3), Vector3(0.18, 0.1, -0.2), Vector3(0.0, 0.3, 0.0), Vector3(0.45, -0.1, 0.0)]
-## How far off the sun's arc, in radians, `sun` tries aims for open sky to grip, nearest the arc first, each at
-## SKY_AIMS turns round the arc's axis.
+## How far off the sun's arc, in radians, `sun` tries aims for open sky to grip, nearest the arc first.
 const SKY_OFF_ARC := [0.25, -0.25, 0.6, -0.6, 1.0, -1.0]
+## How many turns round the arc's axis `sun` tries at each of SKY_OFF_ARC.
 const SKY_AIMS := 12
 
 
@@ -1780,13 +1780,14 @@ func _sun(s: Dictionary) -> void:
 	var still := hand.held_still
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
 	var turn := wrapf(Daylight.angle(s.time) - Daylight.angle(main.look.time), -PI, PI)
-	var grip_at: Variant = _open_sky(hand, axis)
-	if grip_at == null:
+	var open: Variant = _open_sky(hand, axis)
+	if open == null:
 		_fail("sun: no open sky round the head to grip")
 		return
-	var grab := -(grip_at as Transform3D).basis.z
+	var pose := open as Transform3D
+	var grab := -pose.basis.z
 	hand.held_still = true
-	hand.global_transform = grip_at
+	hand.global_transform = pose
 	var grip := "%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]
 	Buttons.injected[grip] = true
 	await _frames(2)

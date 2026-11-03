@@ -420,8 +420,8 @@ func _in_the_glade() -> void:
 	await play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
 	check(absf(look.time - 0.02) < 1e-4, "turned on past midnight the day starts again: %.4f" % look.time)
 	check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and is_equal_approx(look.sun.light_energy, Daylight.light(0.02).energy), "at night the light comes from the moon, as strong as it stands high")
-	var hand := main.rig.head.global_transform * Vector3(0.18, -0.25, -0.3)
-	var aim := Daylight.toward_sun(0.5).rotated(Daylight.RISE, 0.25)
+	var hand := main.rig.head.global_transform * (Driver.SKY_SPOTS[0] as Vector3)
+	var aim := Daylight.toward_sun(0.5).rotated(Daylight.RISE, Driver.SKY_OFF_ARC[0])
 	var over := hand + aim * (3.5 - hand.y) / aim.y
 	await play([{"op": "house", "at": [over.x, over.z], "size": [3, 3], "seed": 1, "seconds": 0.3}])
 	check(not main.tool.grip_hits(hand, aim, INF).is_empty(), "a house stands where the sun op first aims its grip")
