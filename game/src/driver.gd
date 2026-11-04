@@ -2966,17 +2966,17 @@ func _spring_grab(s: Dictionary) -> void:
 	await get_tree().create_timer(0.3).timeout
 	var key := "right_hand/" + Controls.input("grab", "right_hand")
 	Buttons.injected[key] = true
+	var mine := [main.session.multiplayer.get_unique_id(), 1]
 	var deadline := Time.get_ticks_msec() + 5000
-	while Time.get_ticks_msec() < deadline:
-		var holders: Dictionary = avatar.spring_holders if remote else main.session._spring_holds
-		if holders.get(chain) == [main.session.multiplayer.get_unique_id(), 1]:
-			break
+	var held: Variant = null
+	while held == null and Time.get_ticks_msec() < deadline:
+		held = (avatar.spring_holders if remote else main.session._spring_holds).find_key(mine)
 		await get_tree().process_frame
-	var holders: Dictionary = avatar.spring_holders if remote else main.session._spring_holds
-	if holders.get(chain) != [main.session.multiplayer.get_unique_id(), 1]:
+	if held == null:
 		Buttons.injected.erase(key)
 		_fail("spring: owner did not accept grip")
 		return
+	chain = held
 	var from := hand.global_position
 	var move := Vector3(s.move[0], s.move[1], s.move[2])
 	var elapsed := 0.0
