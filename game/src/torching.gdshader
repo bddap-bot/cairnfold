@@ -18,10 +18,13 @@ varying vec3 lamp_at;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// The probes beside it stand among the tiles; the floor's see what the room does through its doors.
-	bounce_at = bounce_on_ground(world_pos.xz);
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	lamp_at = lamp_over(world_pos, world_nrm, ground_at(world_pos.xz));
+	float ground = ground_at(world_pos.xz);
+	// The probes beside it stand among the tiles; the floor's see what the room does through its doors. A gable's
+	// outer backing shows where its courses stop short of the apex, so it reads the air outside as their stones do.
+	bool outside = COLOR.r > 0.5 && !within_walls(world_pos.xz + world_nrm.xz * 0.5);
+	bounce_at = outside ? bounce_over(world_pos, world_nrm, ground) : bounce_on_ground(world_pos.xz);
+	lamp_at = lamp_over(world_pos, world_nrm, ground);
 	room_row = room_row_at(world_pos);
 	room_in = room_in_at(room_row, world_pos, world_nrm);
 }

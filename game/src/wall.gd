@@ -642,6 +642,8 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false, backing
 	st.set_color(Color(0, 0, 0))
 	for p in tris:
 		st.add_vertex(p)
+	# A gable's two backing faces lie on its centre line, wound apart: smoothed together, their normals would cancel.
+	st.set_smooth_group(-1)
 	st.set_color(Color(1, 0, 0))
 	for p in backing:
 		st.add_vertex(p)

@@ -44,6 +44,11 @@ bool room_holds(vec3 p, vec3 n) {
 	return room.x > 0.0 && q.y > room.y && q.y < room.z;
 }
 
+// Whether `xz` lies within a room's walls' centre line, at any height: in its roof space too.
+bool within_walls(vec2 xz) {
+	return textureLod(room_field, (xz - bounce_grid.x) / bounce_grid.y, 0.0).x > 0.0;
+}
+
 float room_in_at(int row, vec3 p, vec3 n) {
 	return row > 0 && room_holds(p, n) ? 1.0 : 0.0;
 }

@@ -65,6 +65,16 @@ func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: b
 		if node.mesh != null:
 			faces.append_array(node.mesh.get_faces())
 	triangles += faces.size() / 3
+	if rendered._torching.mesh != null and kind == RoofLayout.Kind.GABLE:
+		var arrays := rendered._torching.mesh.surface_get_arrays(0)
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		var along: Vector3 = r.frame().along
+		var askew := 0
+		for i in normals.size():
+			if colours[i].r > 0.5 and absf(normals[i].dot(along)) < 0.99:
+				askew += 1
+		check(askew == 0, "closure end=%d finish=%d pitch=%.1f curve=%.2f: %d gable backing normals not square to the gable" % [end_style, finish_kind, pitch, curve, askew])
 	rendered.free()
 	var mesh := TriangleMesh.new()
 	assert(mesh.create_from_faces(faces))
