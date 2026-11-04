@@ -83,26 +83,28 @@ func _init() -> void:
 	quit()
 
 
-## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, and the humanoid's
-## paths and the constraints following the renamed bones.
+## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, with the humanoid's
+## paths and the constraints kept on their bones.
 static func wearable(root: Node3D) -> void:
 	var human: Dictionary = root.get_meta("humanoid")
-	var sk: Skeleton3D = root.get_node(str(human.hips).get_slice(":", 0))
-	var renamed := {}
-	for b: String in human:
-		if b in Vrm.BONES:
-			renamed[sk.find_bone((human[b] as NodePath).get_concatenated_subnames())] = b
+	var skeleton := str(human.hips).get_slice(":", 0)
+	var sk: Skeleton3D = root.get_node(skeleton)
 	var bone_of := {}
 	for key: String in human:
-		bone_of[key] = sk.find_bone((human[key] as NodePath).get_concatenated_subnames())
+		var path: NodePath = human[key]
+		if str(path).get_slice(":", 0) == skeleton and sk.find_bone(path.get_concatenated_subnames()) >= 0:
+			bone_of[key] = sk.find_bone(path.get_concatenated_subnames())
+	var renamed := {}
+	for key: String in bone_of:
+		if key in Vrm.BONES:
+			renamed[bone_of[key]] = key
 	# Two passes, so a bone may take the name another humanoid bone is about to give up.
 	for i: int in renamed:
 		sk.set_bone_name(i, "unity_avatar %d" % i)
 	for i: int in renamed:
 		sk.set_bone_name(i, renamed[i])
 	for key: String in bone_of:
-		if bone_of[key] >= 0:
-			human[key] = NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(bone_of[key])])
+		human[key] = NodePath("%s:%s" % [skeleton, sk.get_bone_name(bone_of[key])])
 	for c: Dictionary in root.get_meta("constraints", []):
 		c.node = sk.get_bone_name(c.node)
 		for source: Dictionary in c.sources:

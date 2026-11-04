@@ -6,8 +6,7 @@ extends GLTFDocumentExtension
 ## 1.0 from nodes named after the bones, the scene root's "eyes" metadata and its "faces" (each VRM expression's
 ## name, a preset where PRESETS has it and custom otherwise, to its [{"node": mesh node name, "shape": blend shape
 ## name, "weight" 0 to 1}]) and its "springs" with the "spring_N" paths in its "humanoid", as import records them;
-## import records on the scene root
-## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
+## import records on the scene root the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
 ## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
 ## Avatar.model. VRCHAT_expressions carries imported menu controls and FX targets.
 ##
@@ -235,7 +234,7 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
-	var springs := _spring_bones(root)
+	var springs := _spring_extension(root)
 	state.set_additional_data(&"springs", springs)
 	state.set_additional_data(&"constraints", root.get_meta("constraints", []))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
@@ -255,10 +254,9 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
-## The root's "springs" as VRMC_springBone, each node N by the name of what the root's "spring_N" names: the bone's
-## name for a skeleton's bone, the node's otherwise. A chain with a joint the root names nothing for is left out; empty
-## if no chain or collider remains.
-static func _spring_bones(root: Node3D) -> Dictionary:
+## The root's "springs" as VRMC_springBone, each node named as export names it. A chain with a joint the humanoid gives
+## no path is left out, as import leaves out a chain with a joint it cannot find.
+static func _spring_extension(root: Node) -> Dictionary:
 	var definition: Dictionary = root.get_meta("springs", {})
 	var human: Dictionary = root.get_meta("humanoid", {})
 	var named := func(n: int) -> String:
@@ -270,8 +268,9 @@ static func _spring_bones(root: Node3D) -> Dictionary:
 	var colliders := []
 	for c: Dictionary in definition.get("colliders", []):
 		var collider := {"shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}}
-		if named.call(c.node) != "":
-			collider.node = named.call(c.node)
+		var node: String = named.call(c.node)
+		if node != "":
+			collider.node = node
 		if c.has("extensions"):
 			collider.extensions = c.extensions
 		colliders.append(collider)
@@ -288,8 +287,9 @@ static func _spring_bones(root: Node3D) -> Dictionary:
 		if joints.any(func(j: Dictionary) -> bool: return j.node == ""):
 			continue
 		var spring := {"joints": joints, "extras": {"collide": _hands(chain.collide), "grab": _hands(chain.grab)}}
-		if named.call(chain.center) != "":
-			spring.center = named.call(chain.center)
+		var center: String = named.call(chain.center)
+		if center != "":
+			spring.center = center
 		if not (chain.colliders as Array).is_empty():
 			spring.colliderGroups = [groups.size()]
 			groups.append({"colliders": chain.colliders})

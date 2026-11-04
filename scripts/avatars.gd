@@ -239,17 +239,18 @@ func _tint() -> StandardMaterial3D:
 
 
 func _tassel(root: Node3D) -> void:
-	var head: Node3D = root.find_child("head", true, false)
-	var parent := head
+	var nodes := ["tassel0", "tassel1", "tassel2", "tasselTip", "head"]
+	var parent: Node3D = root.find_child("head", true, false)
 	var joints := []
 	for i in 3:
-		parent = _bone(parent, "tassel%d" % i, Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
+		parent = _bone(parent, nodes[i], Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
 		_part(parent, _cylinder(0.012, 0.016, 0.09, 5), _tint(), Vector3(0, -0.045, 0), Vector3.ONE)
 		joints.append({"node": i, "stiffness": 0.35, "drag": 0.25, "radius": 0.015, "gravity": Vector3(0, -0.08, 0)})
-	_bone(parent, "tasselTip", Vector3(0, -0.09, 0))
+	_bone(parent, nodes[3], Vector3(0, -0.09, 0))
 	joints.append({"node": 3, "stiffness": 1.0, "drag": 0.5, "radius": 0.0, "gravity": Vector3.ZERO})
-	var human := {}
-	for name: String in ["tassel0", "tassel1", "tassel2", "tasselTip", "head"]:
-		human["spring_%d" % human.size()] = NodePath("skeleton:" + name)
+	var human: Dictionary = root.get_meta("humanoid", {})
+	for i in nodes.size():
+		human["spring_%d" % i] = NodePath("skeleton:" + nodes[i])
 	root.set_meta("humanoid", human)
-	root.set_meta("springs", {"springs": [{"joints": joints, "center": -1, "colliders": [0], "collide": SpringDefinition.WEARER | SpringDefinition.OTHERS, "grab": SpringDefinition.WEARER | SpringDefinition.OTHERS}], "colliders": [{"node": 4, "offset": Vector3(0, 0.12, 0), "tail": Vector3(0, 0.12, 0), "radius": 0.145}]})
+	var everyone := SpringDefinition.WEARER | SpringDefinition.OTHERS
+	root.set_meta("springs", {"springs": [{"joints": joints, "center": -1, "colliders": [0], "collide": everyone, "grab": everyone}], "colliders": [{"node": nodes.find("head"), "offset": Vector3(0, 0.12, 0), "tail": Vector3(0, 0.12, 0), "radius": 0.145}]})
