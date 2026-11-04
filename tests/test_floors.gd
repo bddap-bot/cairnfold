@@ -300,6 +300,9 @@ func _flags_and_planks_lie_flush_and_apart() -> void:
 					foot.append(Vector2(q.x, q.z))
 				feet.append(foot)
 			check(proud < 0.0005, "every corner of a %s's floor lies at its floor's height: %.4f off" % [name, proud])
+			var beds := w.stones.filter(func(b: Dictionary) -> bool: return b.kind == "bed")
+			var depths := beds.map(func(b: Dictionary) -> float: return w.floor_y - (b.xform.origin.y + b.xform.basis.y.length() * 0.5))
+			check(not beds.is_empty() and depths.min() > 0.0 and depths.max() <= WallLayout.FLOOR_JOINT * 0.5, "a %s's beds lie under its pieces' tops, and its joints seen 45 degrees down show more bed than pieces' sides: beds %.4f to %.4f under the floor" % [name, depths.min(), depths.max()])
 			var overlaps := 0
 			for i in feet.size():
 				for j in i:
