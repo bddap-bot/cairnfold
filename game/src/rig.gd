@@ -13,8 +13,6 @@ const NEAR := 0.02
 const FAR := 2600.0
 ## A typical wearer's eye height over the floor standing, in real metres, until `stature` has measured theirs.
 const EYE := 1.65
-## An empty hand drawn closer than this, in metres, to where the avatar holds it is the avatar's own hand to the eyes.
-const APART := 0.05
 ## Once `fit` strays this fraction from the world's scale, the view fades out and back in at the new one, as a
 ## teleport does: the world never grows in view.
 const REFIT := 0.02
@@ -135,7 +133,7 @@ func _init(ground: Terrain) -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-	_stick = Buttons.new(left).watch(["teleport", "turn_left", "turn_right", "turn_round", "reach"])
+	_stick = Buttons.new(left).watch(["teleport", "turn_left", "turn_right", "turn_round"])
 	_build_markers()
 
 
@@ -185,7 +183,7 @@ func wear(a: Avatar) -> void:
 ## reach in front of a camera's lens.
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
-	body.pose(head.global_transform, left.held_at(), right.held_at(), gaze.look)
+	body.pose(head.global_transform, left.body.global_transform, right.body.global_transform, gaze.look)
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))
@@ -198,9 +196,9 @@ func bare() -> bool:
 	return hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE)
 
 
-## Whether the eyes see the avatar's own hand where `h` is drawn, rather than `h` thrown out from it.
-func shows_hand(h: Hand) -> bool:
-	return body != null and bare() and h.held_at().origin.distance_to(h.body.global_position) < APART
+## Whether the eyes see the avatar's own hands, so no controller is drawn over them.
+func shows_hands() -> bool:
+	return body != null and bare()
 
 
 ## The torso under the head, in the world's space (`Torso`).
@@ -223,7 +221,6 @@ func far() -> float:
 func _process(delta: float) -> void:
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
-	_switch_reach()
 	_stick.latch()
 	_fade_step(delta)
 	_underfoot.follow(head.global_position, global_position.y, _floor_y)
@@ -245,15 +242,6 @@ func _refit(delta: float) -> void:
 		_cut(Vector3(h.x, _floor_y, h.z), global_position.y - _floor_y)
 
 
-## The left stick clicked in while centred cycles every hand's reach (`Reach.mode`): a debug switch for comparing them
-## in one session, gone once a playtest keeps one. A thumb pressing hard into a push or a flick clicks it by accident.
-func _switch_reach() -> void:
-	if _stick.pressed("reach") and aim_hand == null and left.stick().length() < DEADZONE:
-		Reach.mode = (Reach.mode + 1) % Reach.Mode.size() as Reach.Mode
-		print("reach: %s" % Reach.Mode.keys()[Reach.mode])
-		Cues.play_in(Cues.Act.WHEEL_PICK, head.global_position, hands)
-
-
 func _locomotion_input(delta: float) -> void:
 	if _covered:
 		return
@@ -272,7 +260,7 @@ func _locomotion_input(delta: float) -> void:
 		_aim_trail.append([_aim_clock, stick.y])
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
-		aim(_steadied(aim_hand.at_controller(), delta), reach_scale(_aim_trail[0][1]))
+		aim(_steadied(aim_hand.global_transform, delta), reach_scale(_aim_trail[0][1]))
 		return
 	for turn: String in TURNS:
 		if _stick.pressed(turn):

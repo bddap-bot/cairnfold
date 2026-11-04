@@ -13,7 +13,6 @@ const ACTIONS := {
 	"turn_left": {"left_hand": "primary_left"},
 	"turn_right": {"left_hand": "primary_right"},
 	"turn_round": {"left_hand": "primary_down"},
-	"reach": {"left_hand": "primary_click"},
 }
 
 ## A tracked hand as the controller it stands in for: each gesture (`HandShape`) as the input it presses. The little

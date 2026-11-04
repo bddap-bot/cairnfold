@@ -14,7 +14,6 @@ var terrain: Terrain:
 
 
 func _initialize() -> void:
-	Reach.mode = Reach.Mode.AIM
 	boot_main()
 	_run.call_deferred()
 

@@ -45,6 +45,11 @@ func _run() -> void:
 		shown += int(hand.aiming() or hand._dot.visible)
 	check(shown == 0, "an empty hand over the ground shows no sight, shown on %d of 30 frames" % shown)
 	check(hand._controller.visible, "an empty hand shows the controller")
+	var left_holds := rig.left.tool
+	rig.left.tool = Hand.Tool.NONE
+	await frames(2)
+	check(not hand._controller.visible, "with both hands empty the eyes see the avatar's own hand, with no controller drawn over it")
+	rig.left.tool = left_holds
 	hand.tool = Hand.Tool.BOOK
 	await frames(2)
 	check(not hand._controller.visible, "the held book shows no hand beneath it, just the book")

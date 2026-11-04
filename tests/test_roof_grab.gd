@@ -8,8 +8,6 @@ var trackers: Array[XRControllerTracker] = []
 
 
 func _initialize() -> void:
-	# These grips point at what they take: the reach they check is the pointing grab, until a playtest keeps one.
-	Reach.mode = Reach.Mode.AIM
 	boot_main()
 	_run.call_deferred()
 

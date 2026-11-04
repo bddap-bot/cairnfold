@@ -3246,8 +3246,7 @@ controller's front while in use. Picking any tool brings that tool's sight back.
 Directive (verbatim): "When both hands are empty self avatar should be displayed. Player should be able to see their own hands arms and bod."
 
 With both hands empty the player sees their own avatar from inside it: its hands round the controllers, its arms and its
-body, posed as everyone else sees it, with no controller body drawn over its hands; a hand a reach throws out from the
-avatar's is drawn as the controller's body again (`Rig.shows_hand`). The eyes draw it headless (`Avatar.headless`): the
+body, posed as everyone else sees it, with no controller body drawn over its hands (`Rig.shows_hands`). The eyes draw it headless (`Avatar.headless`): the
 same meshes again on the avatar's own skeleton, on `Quality.EYES_LAYER`, which only the eyes see, with every vertex the
 head or a bone under it moves drawn at the eyes, so what joins the head to the neck lies in planes through the eyes and
 shows edge on. The cameras and the mirror see the avatar whole, head included, on `SELF_LAYER`. Holding a tool in either
@@ -3487,59 +3486,6 @@ pointer as far as the sky can turn; the sun's disc, glow and light ride on it, a
 counts for nothing. The sight stays shown, since aiming is the control. The sky turns on round the
 whole day, through the night and past midnight. The clouds stay put: they are weather, not the dome.
 
-### Reaching far
-
-First contact with grabbing should be satisfying: reach out to a building far away and take it, then stretch it or
-move it, with no pointing, since pointing suits a gun and little else. Go-Go reach (Poupyrev et al., 1996) does that,
-calibrated to each player's own arm so a child with short arms reaches as far as an adult (`Reach`).
-
-- The hand follows the controller one to one out to two thirds of the player's arm. Past that, each further
-  centimetre throws the hand much farther, along the line from the player's shoulder through the controller: by the
-  square of how far into the last third the arm is stretched, up to 24 m at full stretch (`Reach.FAR`). Drawing the
-  arm back reels the hand in along the same curve.
-- The grip takes what the hand touches: the first thing within 0.3 m of it along its aim, before or after it
-  (`Reach.TOUCH`), by the grip's existing order (a build, a fitting, a plant, a boulder, stairs, an easel, the
-  ground). Nothing far is taken by pointing at it, and a reaching hand never grabs the sky, which only a pointing
-  hand turns. What is taken then moves with the hand one to one, a house too, which a pointing grip moves farther the
-  farther its middle is: the projection already carries a far hand far, so a held house moves, turns, is stretched by
-  two hands and is reeled in by the existing operations. A hump of ground is as wide as one pulled from where the
-  controller is.
-- The arm is measured, never assumed: its length is the farthest the controller has been held from the shoulder,
-  across the ground. The shoulder stands below the eyes and to that hand's side by fixed fractions of the arm, so a
-  small player's shoulder is as near their eyes as their arm is short. Until the player has stretched out, the arm
-  is taken as 0.36 of the eyes' height above the floor, a proportion a child and an adult share; any stretch past it
-  replaces it, and while the arm is not stretched the learned arm shrinks by half a percent a second, never below
-  that first guess, so the next player to wear the headset is learned anew within minutes and a hand held out never
-  creeps. No age, height preset, profile or device enters it, and a child and an adult throw the hand equally
-  far at the same fraction of their own arm.
-- Across the ground, so a hand hanging at the side is never stretched, and reaching forward and down still
-  throws the hand along the arm's line onto the ground ahead.
-- How far the hand is thrown follows the stretch at 4 Hz, plus 2 Hz for each metre it lags, so a held arm holds the
-  hand still against tremor and a deliberate reach catches up, as the teleport ray's aim does.
-- Thrust reach (`Reach.Mode.THRUST`) throws the same hand along the same line by a different measure: how far the
-  controller has been thrust rather than how far the arm is stretched. A move away from the shoulder faster than
-  0.8 m/s (`Reach.THRUST_SPEED`) throws the hand 16 m farther per metre of it (`Reach.THRUST_GAIN`), a move toward it
-  as fast brings the hand back as far, and a slower move carries the hand one to one, so after a thrust the arm is
-  drawn back at ease with the hand left out. Thrusts add up to 24 m and back to the controller, no farther. A held
-  house is brought near by thrusting in. The shoulder and the steadying are Go-Go's; the stretch counts for nothing.
-- A thrown hand meets the world as a near one does: it stops at a wall, a roof, the ground, a trunk or an animal and
-  feels it (see "Hands at surfaces"), and the grip takes what it is stopped at. A stretch or thrust past the
-  surface carries it no deeper unseen, so drawing back or thrusting in takes it off the surface at once. The teleport
-  ray is cast from the controller, never from a thrown hand.
-- Only an empty hand reaches (`Hand.REACHES`): the far grip is what has moved to it so far. A hand holding any tool
-  stays where the controller is and keeps its pointer, its grip included, as does a hand opening the wheel, so no
-  hand is ever thrown out and pointing at once. Tracked hands reach as controllers do: the mapping reads the hand's
-  pose alone.
-
-Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking the left stick
-in while it is centred cycles every hand from Go-Go reach to thrust reach to the pointing grab they replace (`Reach.mode`), so one
-session compares them; each owns the empty hand's far grip alone. No other action uses a stick's click, and a click while the stick aims a teleport or flicks a
-turn, as a thumb pressing hard makes by accident, switches nothing; nothing shows the switch to a player. The picture book's pages still teach the pointing grab, and the tests that grip by pointing
-check it. Once one is kept, the switch and the other go. `tests/test_reach.gd` checks the mapping, the
-calibration of a short and a long arm, thrusts out and in, a far house taken, moved and reeled in through the grip
-in each, a thrown hand stopped at a house's front, and the teleport ray cast from the controller of a thrown hand;
-`demo/reach.json` films Go-Go and `demo/thrust-reach.json` thrust.
-
 ## VR controls
 
 | Action | Control |
@@ -3749,11 +3695,7 @@ The hand you see stops where the controller pushes into something solid, as in H
 a wall or fence (not its doors, windows or arches), a roof, a trunk or an animal. It slides along the surface
 to the point nearest the controller and is back on the controller as soon as the way is clear; held more than
 1 m away it lets go. Leaves and pond water are passed through and felt. Every tool still aims, points and grabs
-from the controller itself; the sight stands on the tool you see, and other players see that tool. A hand thrown out
-by a reach (see "Reaching far") is the exception: it never lets go however far it is held, slides along a surface
-only as far as it is swept across its throw, so it is never carried over a roof, and while it holds nothing it stops
-at the surface itself, its throw cut short there, so it grips and feels the wall it meets rather than reaching
-through it. It runs after the hands move and before any tool reads them.
+from the controller itself; the sight stands on the tool you see, and other players see that tool.
 `HandStop` sweeps a ball the size of the hand from where it was to where the controller is each frame, against
 the world near that sweep alone, so no physics bodies exist.
 
@@ -3784,8 +3726,7 @@ as, so each device's bindings derive from the one table; `tests/test_bindings.gd
 every device and checks it does its action alone, that every action reaches a control on every hand it
 names, that no wheel opens on a stick click, and that each device's profile binds every control. The Frame's
 bumpers, Menu and View, the
-Quest's left menu button and the right stick, flicked or clicked, do nothing; the left stick's click is the reach
-debug switch (see "Reaching far").
+Quest's left menu button, the right stick, flicked or clicked, and the left stick's click do nothing.
 The Frame binds bumpers and Menu to their own inputs so they cannot open a wheel accidentally;
 the system buttons remain reserved for the runtime. Changing how a
 thing looks is a tool, not a button: every style change lives in the style tool. `tests/test_controls.gd`
@@ -5400,8 +5341,8 @@ seeds (the global generator's, which `Main` draws and sets as it starts, and the
 in (`World.snapshot`, deflated), and with each row an `input` record of every frame since the last, deflated and
 base64'd. A frame (`Replay`, laid out in each chunk's start record) is the frame's delta, the head's pose and each
 hand's controller pose in the play space (each the basis and origin as the engine holds them, so a replay puts them back
-bit for bit), its stick, the inputs the controls table reads on it, held or not, and whether it was tracked, bare and
-reaching: 174 bytes, written on the log's worker thread. With each row too goes a `net` record of every message the network brought since
+bit for bit), its stick, the inputs the controls table reads on it, held or not, and whether it was tracked and bare:
+174 bytes, written on the log's worker thread. With each row too goes a `net` record of every message the network brought since
 the last (`PlayLog.heard`): each the frame it came in before, its sender, the player it is about and the networked call,
 listed in the record's JSON, with their arguments as they arrived in Godot's own binary encoding (`var_to_bytes`),
 deflated and base64'd, which `Replay.messages` reads back. That is every build command the garden applied, each about

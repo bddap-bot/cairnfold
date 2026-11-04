@@ -17,7 +17,7 @@ class Probe:
 		heads.append(main.rig.head.transform)
 		triggers.append(Buttons.down(main.rig.left, "trigger_click"))
 		sticks.append(main.rig.left.stick())
-		hands.append_array([main.rig.left.controller.origin, main.rig.right.controller.origin])
+		hands.append_array([main.rig.left.position, main.rig.right.position])
 
 
 func _initialize() -> void:

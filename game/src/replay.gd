@@ -1,18 +1,17 @@
 class_name Replay
 extends RefCounted
 
-## One frame of what the player's devices gave the game, as a replay needs it (PlayLog keeps it beside the metrics):
-## the frame's delta, then the head's pose, then for each hand of HANDS its controller's pose (`Hand.controller`, before
-## any reach throws the hand out), its stick (`Hand.stick`), each of its INPUTS held or not (`Buttons.down`) as bit i of
-## a u16, and its FLAGS as bits of a u8 (`reaches` as `Hand.reaches` reads it, so a scripted hand replays held as it
-## was). Poses are in the play space, the basis's three columns then the origin, each number as the engine holds it, so
-## a replay puts the head and hands exactly where they were: every number little-endian float32 but the delta, a
-## float64, and the two masks. A frame is HEAD then a HAND per hand, as Python's struct lays them out, FRAME_BYTES in
-## all. Only what reaches `Hand` is kept: a flat-screen session's keys and mouse are not.
+## One frame of what the player's devices gave the game, as a replay needs it (PlayLog keeps it beside the metrics): the
+## frame's delta, then the head's pose, then for each hand of HANDS its controller's pose, its stick (`Hand.stick`),
+## each of its INPUTS held or not (`Buttons.down`) as bit i of a u16, and its FLAGS as bits of a u8. Poses are in the
+## play space, the basis's three columns then the origin, each number as the engine holds it, so a replay puts the head
+## and hands exactly where they were: every number little-endian float32 but the delta, a float64, and the two masks. A
+## frame is HEAD then a HAND per hand, as Python's struct lays them out, FRAME_BYTES in all. Only what reaches `Hand` is
+## kept: a flat-screen session's keys and mouse are not.
 const HEAD := "<d12f"
 const HAND := "<12f2fHB"
 const HANDS := ["left_hand", "right_hand"]
-const FLAGS := ["tracked", "bare", "reaches"]
+const FLAGS := ["tracked", "bare"]
 ## Frames between the checks a record takes of what the session's state has come to (`checks`).
 const CHECK_EVERY := 60
 const DELTA_BYTES := 8
@@ -54,9 +53,9 @@ static func frame(delta: float, head: Node3D, hands: Array[Hand]) -> PackedByteA
 			if Buttons.down(h, names[b]):
 				held |= 1 << b
 		var s := h.stick()
-		out.append_array(_pose_bytes(h.controller))
+		out.append_array(_pose_bytes(h.transform))
 		out.append_array(PackedFloat32Array([s.x, s.y]).to_byte_array())
-		out.append_array(PackedByteArray([held & 0xff, held >> 8, int(h.tracked()) | int(h.bare) << 1 | int(h.reaches()) << 2]))
+		out.append_array(PackedByteArray([held & 0xff, held >> 8, int(h.tracked()) | int(h.bare) << 1]))
 	return out
 
 

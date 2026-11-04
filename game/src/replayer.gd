@@ -126,7 +126,6 @@ func _apply(f: Dictionary) -> void:
 		var h: Hand = _main.rig.hands[i]
 		var got: Dictionary = f.hands[i]
 		h.held_still = got.flags.tracked or got.flags.bare
-		h.held_reaches = got.flags.reaches
 		h.transform = got.pose
 		Hand.injected_sticks[h.tracker] = got.stick
 		for input: String in got.held:
@@ -183,7 +182,6 @@ func _diverge(part: String, c: Dictionary, why: String) -> void:
 func _let_go() -> void:
 	for h: Hand in _main.rig.hands:
 		h.held_still = false
-		h.held_reaches = false
 		Hand.injected_sticks.erase(h.tracker)
 		for input in Replay.inputs(h.tracker):
 			Buttons.injected.erase("%s/%s" % [h.tracker, input])

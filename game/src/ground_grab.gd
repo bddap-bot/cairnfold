@@ -110,14 +110,15 @@ func _handle(g: Grab, delta: float) -> void:
 	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.tracked() or editing.call(hand):
 		return
 	var dir := -hand.global_basis.z
-	var hit: Variant = world.terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
+	var hit: Variant = world.terrain.raycast(hand.global_position, dir)
 	if hit == null or Daylight.aims_at_body(dir, world.time):
 		return
-	begin(hand, hit, hand.at_controller().origin.distance_to(hit) * RADIUS_PER_METRE)
+	var reach := hand.global_position.distance_to(hit)
+	begin(hand, hit, reach * RADIUS_PER_METRE)
 	Cues.play(Cues.Act.GROUND_TAKE, hit, hand)
 	g.gripped = true
 	g.hand_y = hand.position.y
-	g.gain = Hand.reach_gain(hand.global_position.distance_to(hit))
+	g.gain = Hand.reach_gain(reach)
 	g.ticked = 0.0
 	FloraTool.put_ring(g.ring, hit, g.radius, 0.05)
 

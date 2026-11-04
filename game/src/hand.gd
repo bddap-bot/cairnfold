@@ -31,8 +31,6 @@ const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
-## What a hand may hold and still reach far by stretching (`Reach`); every other tool keeps its pointer.
-const REACHES := [Tool.NONE]
 ## Tools with no model in the hand.
 const UNMODELLED := [Tool.NONE, Tool.EASEL, Tool.BOOK]
 ## How far a wheel icon's model tips its top toward the eye.
@@ -61,15 +59,6 @@ static var injected_joints := {}
 const STICK_REACH := 0.1
 
 var carried: Node3D
-## The controller's pose over the floor, which a reaching hand is thrown out from (`Reach`).
-var controller := Transform3D()
-## The driver holds the controller rather than the hand, which reaches from it as a tracked one does.
-var held_reaches := false
-var reach: Reach
-## The pose this hand last set itself to: one the runtime or the driver did not move since.
-var _placed := Transform3D()
-## Whether a tool held this hand last frame.
-var was_held := false
 
 var tool := Tool.WALLS:
 	set(value):
@@ -144,7 +133,6 @@ func _init(tracker_name: String, held: Tool) -> void:
 	tracker = tracker_name
 	pose = &"aim"
 	tool = held
-	reach = Reach.new(tracker_name == "right_hand")
 	process_priority = -10
 	add_child(body)
 	_controller.mesh = Meshes.rounded_box(0.3, 2, 7)
@@ -438,8 +426,7 @@ func wheel_frame() -> Transform3D:
 	return _wheel_root.global_transform
 
 
-## The thumbstick as locomotion reads it; on a bare hand, the hand's own move (not where reach throws it) from where
-## the little finger pinched.
+## The thumbstick as locomotion reads it; on a bare hand, its move from where the little finger pinched.
 func stick() -> Vector2:
 	if injected_sticks.has(tracker):
 		return injected_sticks[tracker]
@@ -449,7 +436,7 @@ func stick() -> Vector2:
 		return Vector2.ZERO
 	var right := (get_parent() as Rig).head.global_basis.x
 	right = Vector3(right.x, 0.0, right.z).normalized()
-	var moved := (get_parent() as Node3D).global_basis * (controller.origin - _stick_from)
+	var moved := (get_parent() as Node3D).global_basis * (position - _stick_from)
 	return (Vector2(moved.dot(right), moved.dot(Vector3.UP.cross(right))) / STICK_REACH).limit_length(1.0)
 
 
@@ -460,57 +447,6 @@ static func reach_gain(reach: float) -> float:
 
 func tracked() -> bool:
 	return held_still or bare or get_has_tracking_data()
-
-
-## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing: never both.
-func reaches() -> bool:
-	return Reach.mode != Reach.Mode.AIM and tool in REACHES and (held_reaches or not held_still)
-
-
-## Where the grip looks for what it takes, from along the aim, and how far it looks: a reaching hand what it touches,
-## before or after it, any other what it points at.
-func grip_from() -> Vector3:
-	return global_position + global_basis.z * Reach.TOUCH if reaches() else global_position
-
-
-func grip_reach() -> float:
-	return 2.0 * Reach.TOUCH if reaches() else INF
-
-
-## Where the controller is in the garden.
-func at_controller() -> Transform3D:
-	return (get_parent() as Node3D).global_transform * controller
-
-
-## Where the player's avatar, here and in every other player's game, holds this hand: the controller, stopped at what
-## is solid as the hand you see is, and never out where a reach throws the hand you see.
-func held_at() -> Transform3D:
-	return at_controller() if reaches() else body.global_transform
-
-
-## A reaching hand thrown into something solid stops `by` short, its throw with it, so it grips, aims and feels at the
-## surface rather than from inside the wall.
-func stop(by: Vector3) -> void:
-	global_position += by
-	_placed = transform
-	reach.stop(at_controller().origin.distance_to(global_position))
-
-
-## Throws the hand out from the controller by `reach` while it holds a build tool or nothing; a pose the runtime or
-## the driver set since the last frame is the controller's.
-func _reach(delta: float) -> void:
-	if transform != _placed:
-		controller = transform
-	var rig := get_parent() as Rig
-	if rig != null and reaches() and tracked() and not picking and not _buttons.held("wheel"):
-		# Upright at the floor, so a script tipping the rig to level an unworn headset still measures across the ground.
-		var floor := Transform3D(Basis(), rig.global_position)
-		var to_floor := floor.affine_inverse()
-		global_transform = floor * reach.project(to_floor * rig.global_transform * controller, to_floor * rig.head.global_transform, delta)
-	else:
-		reach.rest()
-		transform = controller
-	_placed = transform
 
 
 ## Whether it holds the seed dish out: animals eat from it, here and, through `Session`, in every other player's game.
@@ -555,10 +491,8 @@ func hold() -> void:
 
 func _process(delta: float) -> void:
 	_read_hand()
-	_reach(delta)
 	_log_profile()
 	_flick_input()
-	was_held = taken()
 	_holding = false
 	clear_pointer()
 	if world != null:
@@ -745,7 +679,7 @@ func _show_wheel(delta: float) -> void:
 
 func _show_tool(delta: float) -> void:
 	var rig := get_parent() as Rig
-	_controller.visible = tool == Tool.NONE and not (rig != null and rig.shows_hand(self))
+	_controller.visible = tool == Tool.NONE and not (rig != null and rig.shows_hands())
 	if tool != _shown:
 		if _leaving >= 0:
 			_models[_leaving].visible = false

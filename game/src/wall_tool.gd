@@ -275,11 +275,10 @@ func _handle(m: Mason) -> void:
 			extend_stroke(m, m.ground)
 
 	if m.buttons.pressed("grab") and not m.hand.taken() and not busy(m.hand) and not painting.call(m.hand):
-		var from := m.hand.grip_from()
-		var on_held := _held_hit(from, dir) if held != null else {}
-		var ground: Variant = world.terrain.raycast(from, dir, m.hand.grip_reach())
-		var nearest: float = from.distance_to(ground) if ground != null else m.hand.grip_reach()
-		var hits := grip_hits(from, dir, nearest)
+		var on_held := _held_hit(origin, dir) if held != null else {}
+		var ground: Variant = world.terrain.raycast(origin, dir)
+		var nearest: float = origin.distance_to(ground) if ground != null else INF
+		var hits := grip_hits(origin, dir, nearest)
 		var pick: Dictionary = hits.get(World.Kind.HELD_TARGET, {})
 		var before := nearest
 		for kind: World.Kind in hits:
@@ -569,7 +568,7 @@ func _restart_hold() -> void:
 	for m in _holders:
 		_hold_from.append(m.hand.global_transform)
 		mid += m.hand.global_position / _holders.size()
-	_hold_gain = 1.0 if _holders[0].hand.reaches() else Hand.reach_gain(mid.distance_to(held_at.center))
+	_hold_gain = Hand.reach_gain(mid.distance_to(held_at.center))
 	_pair = Pair.WALLS
 	if _holders.size() == 2 and held.roof != null and _holders.all(func(m: Mason) -> bool: return m.took_roof):
 		_pair = Pair.EAVES if _holders.all(func(m: Mason) -> bool: return m.eave_out != Vector3.ZERO) else Pair.ROOF
