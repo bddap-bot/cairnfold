@@ -2955,8 +2955,8 @@ func _release_bird(s: Dictionary) -> void:
 func _spring_grab(s: Dictionary) -> void:
 	var remote: bool = s.get("remote", false)
 	var avatar: Avatar = main.session.avatars.values()[0] if remote and not main.session.avatars.is_empty() else main.rig.body
-	var chain: int = s.get("chain", 0)
-	if avatar.springs == null or chain >= avatar.springs.chains.size():
+	var chain := _chain(avatar, s)
+	if chain < 0:
 		_fail("spring: no chain to grab")
 		return
 	await _pick({"hand": "right", "tool": "none"})
@@ -3059,12 +3059,27 @@ func _spring_ready(_s: Dictionary) -> void:
 	_fail("spring: peer never observed wearer grip and release")
 
 
-## Looks at chain "chain" (0 if unsaid) of the first other player's avatar from that avatar's left, level with the
+## The index of the spring chain step `s` names in `avatar`: "chain" as an index (0 if unsaid), or the name of the
+## bone the chain starts at; -1 if it has none such.
+func _chain(avatar: Avatar, s: Dictionary) -> int:
+	if avatar.springs == null:
+		return -1
+	var named: Variant = s.get("chain", 0)
+	if named is String:
+		for c in avatar.springs.chains.size():
+			var first: Variant = avatar.springs.chains[c].joints[0].node
+			if first is Avatar.SkeletonBone and first.skeleton.get_bone_name(first.bone) == named:
+				return c
+		return -1
+	return int(named) if int(named) < avatar.springs.chains.size() else -1
+
+
+## Looks at the chain "chain" names (`_chain`) of the first other player's avatar from that avatar's left, level with the
 ## middle of the chain and its head.
 func _spring_view(s: Dictionary) -> void:
 	await get_tree().create_timer(2.0).timeout
 	var avatar: Avatar = main.session.avatars.values()[0]
-	var middle := (avatar.eyes.origin + avatar.springs.tip(s.get("chain", 0))) * 0.5
+	var middle := (avatar.eyes.origin + avatar.springs.tip(_chain(avatar, s))) * 0.5
 	main.view(middle - avatar.eyes.basis.x * 0.8, middle, false)
 	await _frames(2)
 
@@ -3121,17 +3136,21 @@ func _expression(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Sweeps the empty right hand back and forth through the middle joint of chain "chain" (0 if unsaid) of the first
+## Sweeps the empty right hand back and forth through the middle joint of the chain "chain" names (`_chain`) of the first
 ## other player's avatar with "remote", else the wearer's own, along that avatar's facing and on its left, where
 ## spring_view looks from, for "seconds", and fails unless the chain's tip moves.
 func _spring_poke(s: Dictionary) -> void:
 	var avatar: Avatar = main.session.avatars.values()[0] if s.get("remote", false) else main.rig.body
-	var chain: Dictionary = avatar.springs.chains[s.get("chain", 0)]
+	var index := _chain(avatar, s)
+	if index < 0:
+		_fail("spring: no chain to poke")
+		return
+	var chain: Dictionary = avatar.springs.chains[index]
 	await _pick({"hand": "right", "tool": "none"})
 	var hand := main.rig.right
 	hand.held_still = true
 	var through: Vector3 = chain.joints[chain.joints.size() / 2].node.global_position
-	var rest := avatar.springs.tip(s.get("chain", 0))
+	var rest := avatar.springs.tip(index)
 	var seconds: float = s.get("seconds", 4.0)
 	var elapsed := 0.0
 	var moved := 0.0
@@ -3139,7 +3158,7 @@ func _spring_poke(s: Dictionary) -> void:
 		hand.global_position = through - avatar.eyes.basis.x * 0.03 - avatar.eyes.basis.z * 0.15 * cos(elapsed / seconds * 2.0 * TAU)
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
-		moved = maxf(moved, rest.distance_to(avatar.springs.tip(s.get("chain", 0))))
+		moved = maxf(moved, rest.distance_to(avatar.springs.tip(index)))
 	hand.global_position = through - avatar.eyes.basis.x * 0.4
 	await get_tree().create_timer(1.0).timeout
 	print("spring: poke moved the tip %.4f m" % moved)
