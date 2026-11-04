@@ -15,7 +15,7 @@ uniform sampler2D regions : filter_nearest, repeat_disable;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
-uniform sampler2DArray decals : source_color, hint_default_transparent, filter_linear_mipmap, repeat_disable;
+uniform sampler2DArray decals : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 
 vec3 hsv(vec3 c) {
 	vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
