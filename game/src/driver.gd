@@ -2195,7 +2195,9 @@ func _brushstroke(s: Dictionary, palette: bool) -> void:
 	await _frames(2)
 
 
-## Takes the canvas's sheet in `hand` and pulls it `pull` metres off (enough tears it away), then lets go.
+## Takes the canvas's sheet in `hand` and pulls it `pull` metres off (enough tears it away), then lets go. The hand
+## stays at the sheet for two frames before the pull: a step begun after this frame's EaselTool._process would
+## otherwise move the hand out of reach before the grip was read, and the first frame's await resumes before it runs.
 func _sheet(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -2204,6 +2206,11 @@ func _sheet(s: Dictionary) -> void:
 	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
 	Buttons.injected[key] = true
+	await _frames(2)
+	if main.easel_tool.painter(hand).peel != e:
+		Buttons.injected.erase(key)
+		_fail("sheet: %s at easel %d's canvas gripped no sheet" % [hand.tracker, e.id])
+		return
 	await _over(s, 0.6, func(k: float) -> void:
 		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * k)))
 	await _frames(1)

@@ -24,6 +24,8 @@ func _run() -> void:
 	await _strokes_are_kept_and_load_whole()
 	await _undo_takes_back_a_stroke_and_redo_paints_it_again()
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
+	await _a_sheet_grips_before_it_pulls()
+	await _a_sheet_step_that_grips_nothing_fails()
 	await _undoing_a_stroke_replays_nothing_however_many_came_before()
 	await _a_deleted_easel_comes_back_with_its_painting()
 	_a_grip_on_its_stand_carries_it()
@@ -160,6 +162,30 @@ func _a_fresh_sheet_clears_and_undo_brings_the_painting_back() -> void:
 	check(_easel().strokes.is_empty(), "a sheet pulled well off tears away, leaving a fresh one")
 	await play([{"op": "press", "button": "dpad_down"}])
 	check(_easel().strokes == before, "undo puts the painting back")
+
+
+## A sheet step that starts after the frame's tools have run, and whose pull ends in its first frame as on a loaded
+## host, still tears the sheet.
+func _a_sheet_grips_before_it_pulls() -> void:
+	var before: Array = _easel().strokes.duplicate()
+	check(not before.is_empty(), "the canvas has a painting to tear")
+	await play([{"op": "wait", "seconds": 0.05}, {"op": "sheet", "pull": 0.45, "seconds": 0}])
+	check(_easel().strokes.is_empty(), "a sheet pulled off in one frame tears away")
+	await play([{"op": "press", "button": "dpad_down"}])
+	check(_easel().strokes == before, "undo puts the painting back")
+
+
+## A grip that takes no sheet ends the run at the sheet step instead of leaving later steps waiting for its tear.
+func _a_sheet_step_that_grips_nothing_fails() -> void:
+	var before: Array = _easel().strokes.duplicate()
+	main.rig.right.picking = true
+	var d := Driver.new(main, [{"op": "sheet", "pull": 0.45}])
+	main.add_child(d)
+	await d.finished
+	main.rig.right.picking = false
+	check(d.failed, "the sheet step fails")
+	check(_easel().strokes == before, "the painting stays on")
+	d.queue_free()
 
 
 ## Undo's cost does not grow with the painting: the canvas goes back to the checkpoint the stroke before kept, at its
