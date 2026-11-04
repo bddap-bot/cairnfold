@@ -1647,7 +1647,8 @@ func _face(s: Dictionary) -> void:
 ## with "answered" the host has answered every command this player sent, `players` share it, `worn` of them show
 ## their own avatar files, `previewed` avatar files (this player's own included) stand ready for the picker, folder `files` have loaded,
 ## `wearing` names the folder file worn locally, `swimming` fish have come, with `fed`
-## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here), the
+## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here; a flock is
+## brought near such a dish held out, since one comes on its own only a minute or two after the ducks), the
 ## `digests` named have been written to the capture directory (by any player), with "frenzy" every fish of a pond some
 ## landed seeds lie on feeds, or with "heard" the host's beacon is heard, for at most `seconds`. Without `seconds` the
 ## wait has no limit: how long another player takes to start and catch up is the machine's load, not the script's.
@@ -1667,6 +1668,11 @@ func _until(s: Dictionary) -> void:
 		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
+		# A flock lands anywhere along its perch, maybe out of sight of the seeds, so one already full is left to come over.
+		if s.has("fed") and main.wildlife.birds.birds.size() < Birds.CAP:
+			for o in main.wildlife.offers():
+				if o is Dish if s.fed == "dish" else o is Hand:
+					_flock_near(o.global_position, Birds.appetite.notice)
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_waiting = {}
@@ -2801,18 +2807,7 @@ func _shoulder_bird(s: Dictionary) -> void:
 	var elapsed := 0.0
 	var head := main.rig.head.global_position
 	while elapsed < 120.0:
-		# A conure bound near may perch further off before it comes, out of reach of the player it would follow.
-		if not flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(head) < Birds.FOLLOW_FROM):
-			flock.look()
-			var nearest: Birds.Site = null
-			var reach := Birds.FOLLOW_FROM
-			for site in flock.sites:
-				for p in site.points():
-					if p.distance_to(head) < reach:
-						reach = p.distance_to(head)
-						nearest = site
-			assert(nearest != null, "no perch near enough for a conure to follow the player")
-			flock.arrive(nearest)
+		_flock_near(head, Birds.FOLLOW_FROM)
 		if s.get("trust", false):
 			for b in flock.birds:
 				if b.state == Birds.State.PERCH:
@@ -2831,6 +2826,24 @@ func _shoulder_bird(s: Dictionary) -> void:
 			for b in flock.birds:
 				print("conure: %s, affection %.2f, away %.1f s, %.1f m off, asleep %s, head under water %s" % [Birds.State.keys()[b.state], b.affection, b.away, b.node.position.distance_to(main.rig.head.global_position), main.wildlife.asleep(), main.rig.under])
 	assert(false, "no conure came to the shoulder")
+
+
+## Brings a flock to the perch nearest `at` unless a conure is bound within `reach` of it: one bound near may perch
+## further off before it comes.
+func _flock_near(at: Vector3, reach: float) -> void:
+	var flock: Birds = main.wildlife.birds
+	if flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(at) < reach):
+		return
+	flock.look()
+	var nearest: Birds.Site = null
+	var best := reach
+	for site in flock.sites:
+		for p in site.points():
+			if p.distance_to(at) < best:
+				best = p.distance_to(at)
+				nearest = site
+	assert(nearest != null, "no perch within %.1f m of %s for a conure" % [reach, at])
+	flock.arrive(nearest)
 
 
 ## Carries the bird to the canvas and sweeps its feathers across it, then lifts away.
