@@ -28,6 +28,9 @@ const REFUSED := Color(0.92, 0.3, 0.26, 0.75)
 const MARK_NEAR := 4.0
 ## The controller's front, where an empty hand's sight stands.
 const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
+## The grip pose's axes (OpenXR: -Z through the closed fist from little finger to thumb, +X out of the left palm and
+## into the right, the fingers toward -Y) turned to a hand's, its fingers toward -Z.
+const GRIP_TO_PALM := Transform3D(Basis(Vector3.RIGHT, -PI / 2), Vector3.ZERO)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
@@ -65,6 +68,10 @@ const REST := [1.0, 0.5, 1.0, 1.0, 1.0]
 const CURL_RATE := 25.0
 
 var carried: Node3D
+## The centre of the palm closed round the controller, from the hand as the avatar holds it (`body`): where the
+## runtime's grip pose puts it, its fingers along -Z and the palm toward +X on the left hand and -X on the right
+## (`Avatar.palms`). A bare hand's pose is its palm already; the driver sets it with the hand it holds.
+var palm := Transform3D()
 
 var tool := Tool.WALLS:
 	set(value):
@@ -84,6 +91,8 @@ func model(t: Tool) -> Node3D:
 
 
 var _profile := ""
+## The profile whose palm the log last noted.
+var _palm_noted := ""
 var flat_only := false
 var people: SessionWheel:
 	set(v):
@@ -503,6 +512,7 @@ func hold() -> void:
 
 func _process(delta: float) -> void:
 	_read_hand(delta)
+	_read_palm()
 	_log_profile()
 	_flick_input()
 	_holding = false
@@ -538,6 +548,26 @@ func _read_hand(delta: float) -> void:
 	if g == "little" and gesture != "little":
 		_stick_from = position
 	gesture = g
+
+
+## Where the runtime's grip pose puts the palm from its aim pose, both reported in the same frame, so the palm sits
+## where each controller's own profile says the hand holds it.
+func _read_palm() -> void:
+	if bare:
+		palm = Transform3D()
+		return
+	if held_still:
+		return
+	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var aim := t.get_pose(&"aim") if t != null else null
+	var grip := t.get_pose(&"grip") if t != null else null
+	if aim == null or grip == null or not aim.has_tracking_data or not grip.has_tracking_data:
+		return
+	palm = aim.get_adjusted_transform().affine_inverse() * grip.get_adjusted_transform() * GRIP_TO_PALM
+	if _profile != "" and _palm_noted != _profile:
+		_palm_noted = _profile
+		var s := (get_parent() as XROrigin3D).world_scale if get_parent() is XROrigin3D else 1.0
+		Metrics.note("palm: %s on %s, %s m from the aim, turned %.0f degrees" % [tracker, _profile, palm.origin / s, rad_to_deg(palm.basis.get_rotation_quaternion().get_angle())])
 
 
 func _hand_tracker() -> XRHandTracker:

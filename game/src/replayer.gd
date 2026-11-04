@@ -127,6 +127,7 @@ func _apply(f: Dictionary) -> void:
 		var got: Dictionary = f.hands[i]
 		h.held_still = got.flags.tracked or got.flags.bare
 		h.transform = got.pose
+		h.palm = got.palm
 		Hand.injected_sticks[h.tracker] = got.stick
 		for input: String in got.held:
 			if got.held[input]:

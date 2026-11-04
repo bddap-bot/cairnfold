@@ -3,20 +3,20 @@ extends RefCounted
 
 ## One frame of what the player's devices gave the game, as a replay needs it (PlayLog keeps it beside the metrics): the
 ## frame's delta, then the head's pose, then for each hand of HANDS its controller's pose, its stick (`Hand.stick`),
-## each of its INPUTS held or not (`Buttons.down`) as bit i of a u16, and its FLAGS as bits of a u8. Poses are in the
-## play space, the basis's three columns then the origin, each number as the engine holds it, so a replay puts the head
-## and hands exactly where they were: every number little-endian float32 but the delta, a float64, and the two masks. A
-## frame is HEAD then a HAND per hand, as Python's struct lays them out, FRAME_BYTES in all. Only what reaches `Hand` is
-## kept: a flat-screen session's keys and mouse are not.
+## each of its INPUTS held or not (`Buttons.down`) as bit i of a u16, its FLAGS as bits of a u8, and its palm's pose
+## from the hand's (`Hand.palm`). Poses are in the play space, the basis's three columns then the origin, each number
+## as the engine holds it, so a replay puts the head and hands exactly where they were: every number little-endian
+## float32 but the delta, a float64, and the two masks. A frame is HEAD then a HAND per hand, as Python's struct lays
+## them out, FRAME_BYTES in all. Only what reaches `Hand` is kept: a flat-screen session's keys and mouse are not.
 const HEAD := "<d12f"
-const HAND := "<12f2fHB"
+const HAND := "<12f2fHB12f"
 const HANDS := ["left_hand", "right_hand"]
 const FLAGS := ["tracked", "bare"]
 ## Frames between the checks a record takes of what the session's state has come to (`checks`).
 const CHECK_EVERY := 60
 const DELTA_BYTES := 8
 const POSE_BYTES := 48
-const HAND_BYTES := POSE_BYTES + 8 + 2 + 1
+const HAND_BYTES := POSE_BYTES + 8 + 2 + 1 + POSE_BYTES
 const FRAME_BYTES := DELTA_BYTES + POSE_BYTES + 2 * HAND_BYTES
 static var _inputs := {}
 
@@ -56,6 +56,7 @@ static func frame(delta: float, head: Node3D, hands: Array[Hand]) -> PackedByteA
 		out.append_array(_pose_bytes(h.transform))
 		out.append_array(PackedFloat32Array([s.x, s.y]).to_byte_array())
 		out.append_array(PackedByteArray([held & 0xff, held >> 8, int(h.tracked()) | int(h.bare) << 1]))
+		out.append_array(_pose_bytes(h.palm))
 	return out
 
 
@@ -75,7 +76,7 @@ static func pose(raw: PackedByteArray, at: int) -> Transform3D:
 
 
 ## Frame `i` of `raw` (`frame`'s bytes end to end): its "delta", "head" pose and per hand of HANDS its "pose",
-## "stick", "held" (each of its inputs, by name, held or not) and its FLAGS by name. `names` holds each hand's inputs
+## "stick", "held" (each of its inputs, by name, held or not), its FLAGS by name and its "palm". `names` holds each hand's inputs
 ## in the order their bits take, as the record's layout lists them: by default this build's.
 static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	var at := i * FRAME_BYTES
@@ -92,7 +93,7 @@ static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 		for b in FLAGS.size():
 			flags[FLAGS[b]] = bits & 1 << b != 0
 		out.hands.append({"pose": pose(raw, o), "stick": Vector2(raw.decode_float(o + POSE_BYTES), raw.decode_float(o + POSE_BYTES + 4)),
-			"held": held, "flags": flags})
+			"held": held, "flags": flags, "palm": pose(raw, o + POSE_BYTES + 11)})
 	return out
 
 

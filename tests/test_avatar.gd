@@ -647,11 +647,15 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 	var r := Transform3D(Basis(Vector3.UP, 0.7), Vector3(3.25, 1.2, -2.35))
 	a.pose(eyes, l, r)
 	var head := a.bone("head")
-	var seen: Vector3 = head * (a._model.get_meta("eyes") as Vector3)
+	var seen: Vector3 = head * a._eye_to_head.affine_inverse().origin
 	check(seen.distance_to(eyes.origin) < 0.001, "%s: eyes sit at the tracked head (%s vs %s)" % [what, seen, eyes.origin])
 	var face: Vector3 = head.basis * a._joints.head.rest.basis.inverse() * (a._model.get_meta("forward") as Vector3)
 	check(face.normalized().dot(-eyes.basis.z) > 0.99, "%s: the face looks where the head looks" % what)
-	check(a.bone("leftHand").origin.distance_to(l.origin) < 0.001 and a.bone("rightHand").origin.distance_to(r.origin) < 0.001, "%s: hands follow the controllers" % what)
+	var palms := [a.bone("leftHand") * a._arms[0].palm, a.bone("rightHand") * a._arms[1].palm]
+	check(palms[0].distance_to(l.origin) < 0.001 and palms[1].distance_to(r.origin) < 0.001, "%s: the middles of the palms sit where the controllers' grips are (%s vs %s)" % [what, palms[0], l.origin])
+	if a._joints.has("leftMiddleProximal"):
+		var back := (l.origin - a.bone("leftHand").origin).dot(-l.basis.z)
+		check(back > 0.02, "%s: the wrist sits %.3f m back from the palm, toward the elbow, not on the grip" % [what, back])
 	for s in 2:
 		var side: String = ["left", "right"][s]
 		var hand := a.bone(side + "Hand")

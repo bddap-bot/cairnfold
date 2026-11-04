@@ -72,7 +72,7 @@ def read(folder):
 
 
 def frames(event, layout):
-    """An "input" event's frames, each {delta, head, hands: [{pose, stick, inputs, flags}]}, as layout lays them out."""
+    """An "input" event's frames, each {delta, head, hands: [{pose, stick, palm, inputs, flags}]}, as layout lays them out."""
     raw = zlib.decompress(base64.b64decode(event["data"]))
     head_bytes, hand_bytes = struct.calcsize(layout["head"]), struct.calcsize(layout["hand"])
     out = []
@@ -80,8 +80,10 @@ def frames(event, layout):
         delta, *head = struct.unpack_from(layout["head"], raw, at)
         hands = []
         for i, tracker in enumerate(layout["hands"]):
-            *pose, sx, sy, held, flags = struct.unpack_from(layout["hand"], raw, at + head_bytes + i * hand_bytes)
-            hands.append({"pose": pose, "stick": [sx, sy],
+            fields = struct.unpack_from(layout["hand"], raw, at + head_bytes + i * hand_bytes)
+            n = int(layout["hand"].lstrip("<").split("f")[0])
+            pose, (sx, sy, held, flags), palm = list(fields[:n]), fields[n:n + 4], list(fields[n + 4:])
+            hands.append({"pose": pose, "stick": [sx, sy], "palm": palm,
                           "inputs": [n for b, n in enumerate(layout["inputs"][tracker]) if held >> b & 1],
                           "flags": [n for b, n in enumerate(layout["flags"]) if flags >> b & 1]})
         out.append({"delta": delta, "head": head, "hands": hands})

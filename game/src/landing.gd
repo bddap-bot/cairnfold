@@ -32,4 +32,5 @@ func put(at: Vector3, size: float, rig: Rig) -> void:
 	var h := rig.head.global_position
 	var mine := Transform3D(turn, Vector3(h.x, rig.global_position.y, h.z)).affine_inverse()
 	_avatar.torso = (mine.basis * rig.torso().basis).get_euler().y
-	_avatar.pose(mine * rig.head.global_transform, mine * rig.left.global_transform, mine * rig.right.global_transform, rig.gaze.look)
+	_avatar.palms = [rig.left.palm, rig.right.palm]
+	_avatar.pose(mine * rig.head.global_transform, mine * rig.left.body.global_transform, mine * rig.right.body.global_transform, rig.gaze.look)

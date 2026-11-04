@@ -21,6 +21,8 @@ const HEAR_PER_FRAME := 16
 const MAX_NEARBY := 12
 const MAX_PLAYERS := 8
 const POSE_EVERY := 1.0 / 30.0
+## A streamed palm farther than this from its hand, in metres of the sender's scaled world, is refused.
+const PALM_REACH := 2.0
 ## How fast a remote avatar closes on its latest pose, per second.
 const FOLLOW := 18.0
 ## How often the avatar folder is looked at, in seconds.
@@ -329,7 +331,7 @@ func _process(delta: float) -> void:
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds, rig.left.curls + rig.right.curls)
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds, rig.left.curls + rig.right.curls, rig.left.palm, rig.right.palm)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
@@ -636,6 +638,7 @@ func _dress(id: int, scene: PackedScene, key: String) -> void:
 	a.visible = old != null and old.visible
 	if old != null:
 		a.posture.take(old.posture)
+		a.palms = old.palms
 		a.pose(old.eyes, old.hands[0], old.hands[1], old.look)
 		old.queue_free()
 	add_child(a)
@@ -801,14 +804,17 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	feed.toss(from, velocity, seed)
 
 
-## A player's head, hands and where their eyes look, in their head's frame.
+## A player's head, hands and where their eyes look, in their head's frame, and each hand's palm from it.
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}, fingers := PackedFloat32Array()) -> void:
-	world.hear("_pose", [eyes, left, right, look, springs, holders, fingers])
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}, fingers := PackedFloat32Array(), left_palm := Transform3D(), right_palm := Transform3D()) -> void:
+	world.hear("_pose", [eyes, left, right, look, springs, holders, fingers, left_palm, right_palm])
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
 		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and room.has_point(t.origin)):
+			return
+	for t in [left_palm, right_palm]:
+		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and t.origin.length() < PALM_REACH):
 			return
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
@@ -828,6 +834,7 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 		fingers = PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs, fingers]
 	var a: Avatar = avatars[id]
+	a.palms = [left_palm.orthonormalized(), right_palm.orthonormalized()]
 	if not a.visible:
 		a.visible = true
 		a.pose(target[0], target[1], target[2], target[3])

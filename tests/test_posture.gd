@@ -188,8 +188,8 @@ func _poses_keep_head_and_hands_tracked(scene: PackedScene, what: String) -> voi
 		for frame in 90:
 			a.posture.update(t[0], t[1].origin, t[2].origin, support, 1.0 / 60.0)
 			a.pose(t[0], t[1], t[2])
-			var seen: Vector3 = a.bone("head") * (a._model.get_meta("eyes") as Vector3)
-			worst = maxf(worst, maxf(seen.distance_to(t[0].origin), maxf(a.bone("leftHand").origin.distance_to(t[1].origin), a.bone("rightHand").origin.distance_to(t[2].origin))))
+			var seen: Vector3 = a.bone("head") * a._eye_to_head.affine_inverse().origin
+			worst = maxf(worst, maxf(seen.distance_to(t[0].origin), maxf((a.bone("leftHand") * a._arms[0].palm).distance_to(t[1].origin), (a.bone("rightHand") * a._arms[1].palm).distance_to(t[2].origin))))
 			for s in 2:
 				var side: String = ["left", "right"][s]
 				var sh := a.bone(side + "UpperArm").origin

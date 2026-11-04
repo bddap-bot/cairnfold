@@ -62,7 +62,7 @@ const PARENT := {
 }
 ## Shrinks what a bone moves to a speck, keeping its normals' directions.
 const GONE := Basis(Vector3(1e-6, 0, 0), Vector3(0, 1e-6, 0), Vector3(0, 0, 1e-6))
-## The left and right hands' aim poses hanging at the sides, from eyes looking level.
+## The left and right hands hanging at the sides, from eyes looking level.
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
 ## Each finger's bones from the palm out, thumb to little, and how far each turns as the finger closes (`curl`).
@@ -111,8 +111,16 @@ class Limb:
 
 ## An arm: its end is the hand.
 class Arm extends Limb:
-	## The hand's turn from a held controller's.
+	## The hand's turn from its palm's (Hand.palm).
 	var grip: Basis
+	## The middle of the palm, from the hand bone in its own space: halfway along the middle finger's metacarpal, where
+	## a hand closes round a controller's grip.
+	var palm := Vector3.ZERO
+
+	## The hand bone's pose holding the middle of its palm at `at`.
+	func wrist(at: Transform3D) -> Transform3D:
+		var b := at.basis * grip
+		return Transform3D(b, at.origin - b * palm)
 
 ## A leg: its end is the foot.
 class Leg extends Limb:
@@ -135,6 +143,8 @@ var curls := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 ## For each hand, the bones of each finger the model has: [bone, rest rotation, the axis it curls about in its own
 ## frame, how far it turns closed, which finger].
 var _fingers: Array = [[], []]
+## Each hand's palm from its pose (Hand.palm), which the middle of the avatar's palm is held at.
+var palms: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var look := Vector3.FORWARD
 ## The body's turn about up, as `Torso.follow` keeps it.
 var torso := NAN
@@ -411,7 +421,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		a._joints[b] = j
 	a._hips = a._joints.hips
 	a._head = a._joints.head
-	var eye_at := a._head.rest * (a._model.get_meta("eyes") as Vector3)
+	# Both VRM versions give the eyes from the head bone in the model's axes, as a head bone turned at rest does not.
+	var eye_at := a._head.rest.origin + (a._model.get_meta("eyes") as Vector3)
 	a.eye_height = eye_at.y
 	a._eye_to_head = Transform3D(a._facing, eye_at).affine_inverse() * a._head.rest
 	var look: Dictionary = a._model.get_meta("look")
@@ -451,6 +462,9 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		# A VRM rests in T-pose, palms down; a hand holding a controller points along it, palm inward.
 		var held := _frame(Vector3.FORWARD, Vector3(signf(along.x), 0, 0) * -1.0) * _frame(along, Vector3.DOWN).transposed()
 		arm.grip = held * a._facing * hand.rest.basis
+		var knuckle: Joint = a._joints.get(side + "MiddleProximal")
+		if knuckle:
+			arm.palm = hand.rest.affine_inverse() * hand.rest.origin.lerp(knuckle.rest.origin, 0.5)
 		if limbed:
 			arm.bend = ELBOW * Vector3(signf((a._facing * (hand.rest.origin - arm.upper.rest.origin)).x), 1, 1)
 			placed.append_array([arm.upper, arm.lower])
@@ -594,7 +608,7 @@ func headless() -> Array[MeshInstance3D]:
 			if head.has(bind_bone(skin, i)):
 				skin.set_bind_bone(i, _head.bone)
 				skin.set_bind_name(i, _skeleton.get_bone_name(_head.bone))
-				skin.set_bind_pose(i, Transform3D(GONE, _model.get_meta("eyes")))
+				skin.set_bind_pose(i, Transform3D(GONE, _eye_to_head.affine_inverse().origin))
 		var copy: MeshInstance3D = mi.duplicate()
 		copy.skin = skin
 		mi.add_sibling(copy)
@@ -640,7 +654,7 @@ func _dress(n: Node, tint: Color) -> void:
 		_dress(c, tint)
 
 
-## Poses of the eyes and the two hands' aim poses, in this node's space (the world's, for a player), and where the
+## Poses of the eyes and the two hands (Hand.body), their palms at `palms` from them, in this node's space (the world's, for a player), and where the
 ## eyes look in their own frame. Only the head and hands are tracked; the rest is solved from them as every player
 ## sees it, since each solves the same pose from the same streamed one. Standing, the body hangs from the head, bent
 ## forward as far as the head looks down past LOOK and further as it crouches; the feet stand planted on the floor
@@ -662,7 +676,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 		_look(head)
 		for s in 2:
 			var arm := _arms[s]
-			var grip := Transform3D(hands[s].basis * arm.grip, hands[s].origin)
+			var grip := arm.wrist(hands[s] * palms[s])
 			if arm.upper:
 				_bend(arm, grip.origin, turn * arm.bend)
 			_place(arm.end, grip)
@@ -721,7 +735,7 @@ func _lie(at: Transform3D, head: Transform3D) -> void:
 	_look(head)
 	for s in 2:
 		var arm := _arms[s]
-		var grip := Transform3D(hands[s].basis * arm.grip, hands[s].origin)
+		var grip := arm.wrist(hands[s] * palms[s])
 		if arm.upper:
 			var pole := Vector3.ZERO
 			for n in shown.size():

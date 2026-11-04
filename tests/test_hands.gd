@@ -61,6 +61,7 @@ func _run() -> void:
 	await frames(3)
 	check(hand.aiming(), "picking a tool brings its sight back")
 	await _teleport_draws_no_ray(rig)
+	await _the_avatar_holds_the_grip(rig, tracker)
 	XRServer.remove_tracker(tracker)
 	finish()
 
@@ -78,3 +79,25 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	await frames(3)
 	Hand.injected_sticks.erase(rig.left.tracker)
 	rig.left.held_still = false
+
+
+## The avatar's hand closes round the controller where the runtime's grip pose is, never at its aim, which stands out
+## ahead of the hand on every controller.
+func _the_avatar_holds_the_grip(rig: Rig, tracker: XRPositionalTracker) -> void:
+	var hand := rig.right
+	hand.tool = Hand.Tool.FLOWERS
+	var aim := Transform3D(Basis.looking_at(Vector3(0, -0.2, -1), Vector3.UP), Vector3(0.2, 1.2, -0.35))
+	var from_aim := Transform3D(Basis(Vector3.RIGHT, 0.6), Vector3(0, -0.03, 0.08))
+	tracker.set_pose(&"aim", aim, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	tracker.set_pose(&"grip", aim * from_aim, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	await frames(3)
+	var s := rig.world_scale
+	var expected := Transform3D(from_aim.basis, from_aim.origin * s) * Hand.GRIP_TO_PALM
+	check(hand.palm.is_equal_approx(expected), "the palm stands where the grip pose is from the aim: %s, not %s" % [hand.palm.origin, expected.origin])
+	var grip := rig.global_transform * Transform3D((aim * from_aim).basis, (aim * from_aim).origin * s)
+	var held := (rig.body.hands[1] * rig.body.palms[1]).origin
+	check(held.distance_to(grip.origin) < 0.001, "the avatar holds its palm at the grip, %.3f m from it" % held.distance_to(grip.origin))
+	check(rig.body.hands[1].origin.distance_to(hand.body.global_position) < 0.001, "and the hand it streams, and holds tools in, stays the controller's")
+	var fingers := -(grip.basis * Hand.GRIP_TO_PALM.basis).z
+	check(fingers.dot(-grip.basis.y) > 0.999, "its fingers run down the grip's -Y, round the handle")
+	tracker.set_pose(&"grip", Transform3D(), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_NONE)

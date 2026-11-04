@@ -47,7 +47,7 @@ func _initialize() -> void:
 	var calls := heard.map(func(m: Array) -> String: return m[3])
 	check(calls == ["_pose", "_commit", "_wear", "_wear", "_threw"], "every message is kept, in the order heard: %s" % [calls])
 	check(heard[0][0] == first and heard[1][0] == first and heard[2][0] == first + 2, "each with the frame it came in before: %s" % [heard.map(func(m): return m[0])])
-	check(heard[0][4] == [eyes, eyes, eyes, Vector3.FORWARD, springs, {}, PackedFloat32Array()], "a pose as it arrived")
+	check(heard[0][4] == [eyes, eyes, eyes, Vector3.FORWARD, springs, {}, PackedFloat32Array(), Transform3D(), Transform3D()], "a pose as it arrived")
 	check(heard[1][2] == 9 and heard[1][4][0].seed == 1 and heard[1][4][0].at == cmd.at, "a build command as it arrived, about the player who made it, untouched by what came after")
 	var h := HashingContext.new()
 	h.start(HashingContext.HASH_SHA256)

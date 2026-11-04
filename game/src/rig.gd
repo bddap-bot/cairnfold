@@ -73,6 +73,8 @@ var hands: Array[Hand] = []
 var body: Avatar
 ## The body as the eyes see it (`Avatar.headless`), shown while both hands are empty.
 var _seen: Array[MeshInstance3D] = []
+## The controller profile each hand's wrist was last noted on (`_note_wrists`).
+var _wrists_noted: Array[String] = ["", ""]
 var stature := Stature.new()
 
 ## The hand whose teleport ray is out, or null.
@@ -183,13 +185,30 @@ func wear(a: Avatar) -> void:
 ## reach in front of a camera's lens.
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
+	body.palms = [left.palm, right.palm]
 	body.pose(head.global_transform, left.body.global_transform, right.body.global_transform, gaze.look)
 	body.curl(left.curls + right.curls)
+	_note_wrists()
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))
 	for mi in _seen:
 		mi.visible = bare()
+
+
+## Once for each controller profile a hand is measured on, the log notes how far, in real millimetres, the avatar's
+## wrist stands from the palm the grip pose gives, and from the controller's aim, where a hand held by its aim would
+## put it.
+func _note_wrists() -> void:
+	for s in 2:
+		var h := hands[s]
+		if h._palm_noted == "" or h._palm_noted == _wrists_noted[s] or h.held_still or h.bare:
+			continue
+		_wrists_noted[s] = h._palm_noted
+		var wrist := body.bone(["leftHand", "rightHand"][s]).origin
+		var aim := h.body.global_transform
+		var palm := aim * h.palm
+		Metrics.note("wrist: %s on %s, %.0f mm from the palm, %.0f mm back along the hand; the aim %.0f mm from the wrist" % [h.tracker, h._palm_noted, 1000.0 * wrist.distance_to(palm.origin) / world_scale, 1000.0 * (wrist - palm.origin).dot(palm.basis.z.normalized()) / world_scale, 1000.0 * aim.origin.distance_to(wrist) / world_scale])
 
 
 ## Whether both hands are empty, so the eyes see the player's own body.

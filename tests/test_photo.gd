@@ -129,7 +129,7 @@ func _the_lens_sees_the_body_and_the_wearer_sees_springs() -> void:
 		await process_frame
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
 	check(rig.body.visible and cam.cull_mask & Quality.SELF_LAYER != 0, "the lens sees the avatar while the camera is held")
-	var seen: Vector3 = rig.body.bone("head") * (rig.body._model.get_meta("eyes") as Vector3)
+	var seen: Vector3 = rig.body.bone("head") * rig.body._eye_to_head.affine_inverse().origin
 	check(seen.distance_to(rig.head.global_position) < 0.001, "the avatar's eyes are at the player's head")
 	var holding := rig.body.bone("rightHand")
 	check(holding.origin.distance_to(rig.right.global_position) < 0.001, "and its hand holds the camera")
