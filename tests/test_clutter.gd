@@ -180,6 +180,10 @@ func _in_the_garden() -> void:
 	var finial: Dictionary = wall.layout.stones.filter(func(st: Dictionary) -> bool: return st.kind == "finial")[0]
 	check(perches.any(func(p: Vector3) -> bool: return p.distance_to(hood.xform.origin) < 0.1), "birds perch on a lantern's hood")
 	check(perches.any(func(p: Vector3) -> bool: return p.distance_to(finial.xform.origin) < 0.1), "and on a flag's finial")
+	# Birds start a perch task every frame; a loaded host leaves one on an older lay still running as the wall is laid again.
+	wall._perch_out = {"laid": wall.layout.laid - 1, "points": PackedVector3Array()}
+	wall._perch_task = WorkerThreadPool.add_task(func() -> void: OS.delay_msec(500))
+	check(Array(wall.perches(true)) == perches, "perches asked for now are the wall's as laid, not an older lay's still being worked out")
 
 	var steps := func() -> int: return world.stacks.get(world.me(), {"undo": []}).undo.size()
 	var before := _clutter(house.id)

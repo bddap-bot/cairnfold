@@ -392,6 +392,11 @@ static func reap(all := false) -> void:
 func perches(now := false) -> PackedVector3Array:
 	if now:
 		lay_now()
+		_take_perches(true)
+		if _perches_laid != layout.laid:
+			_perches = layout.perches()
+			_perches_laid = layout.laid
+		return _perches
 	_take_perches(false)
 	if _perch_task < 0 and _perches_laid != layout.laid and not laying():
 		var job := WallLayout.new()
@@ -400,7 +405,7 @@ func perches(now := false) -> PackedVector3Array:
 		var out := {"laid": layout.laid}
 		_perch_out = out
 		_perch_task = WorkerThreadPool.add_task(func(): out.points = job.perches())
-	_take_perches(now)
+	_take_perches(false)
 	return _perches
 
 
