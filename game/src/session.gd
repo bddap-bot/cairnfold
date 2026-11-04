@@ -329,12 +329,16 @@ func _process(delta: float) -> void:
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds)
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds, rig.left.curls + rig.right.curls)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
 		var t: Array = _targets[id]
 		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), Gaze.turned(a.look, t[3], k))
+		var fingers := a.curls.duplicate()
+		for f in fingers.size():
+			fingers[f] = lerpf(fingers[f], t[5][f], k)
+		a.curl(fingers)
 		if a.springs != null and t.size() > 4:
 			var state: PackedVector3Array = a.springs.state()
 			var wanted: PackedVector3Array = t[4]
@@ -799,8 +803,8 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 
 ## A player's head, hands and where their eyes look, in their head's frame.
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}) -> void:
-	world.hear("_pose", [eyes, left, right, look, springs, holders])
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}, fingers := PackedFloat32Array()) -> void:
+	world.hear("_pose", [eyes, left, right, look, springs, holders, fingers])
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
@@ -820,7 +824,9 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 	for point in springs:
 		if not point.is_finite() or not room.has_point(point):
 			return
-	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs]
+	if fingers.size() != 10 or not Array(fingers).all(func(c: float) -> bool: return c >= 0.0 and c <= 1.0):
+		fingers = PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs, fingers]
 	var a: Avatar = avatars[id]
 	if not a.visible:
 		a.visible = true

@@ -65,6 +65,10 @@ const GONE := Basis(Vector3(1e-6, 0, 0), Vector3(0, 1e-6, 0), Vector3(0, 0, 1e-6
 ## The left and right hands' aim poses hanging at the sides, from eyes looking level.
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
+## Each finger's bones from the palm out, thumb to little, and how far each turns as the finger closes (`curl`).
+const FINGERS := [["ThumbMetacarpal", "ThumbProximal", "ThumbDistal"], ["IndexProximal", "IndexIntermediate", "IndexDistal"], ["MiddleProximal", "MiddleIntermediate", "MiddleDistal"], ["RingProximal", "RingIntermediate", "RingDistal"], ["LittleProximal", "LittleIntermediate", "LittleDistal"]]
+const BENDS := [[0.3, 0.5, 0.8], [1.3, 1.6, 1.1], [1.4, 1.6, 1.1], [1.4, 1.6, 1.1], [1.4, 1.5, 1.0]]
+
 ## One humanoid bone of the skeleton.
 class Joint:
 	var bone: int
@@ -126,6 +130,11 @@ var eye_height := 0.0
 ## The last pose given: eyes, left and right hands, and where the eyes look in the eyes' frame (-Z ahead).
 var eyes := Transform3D.IDENTITY
 var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
+## How far each finger curls as `curl` last set it.
+var curls := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+## For each hand, the bones of each finger the model has: [bone, rest rotation, the axis it curls about in its own
+## frame, how far it turns closed, which finger].
+var _fingers: Array = [[], []]
 var look := Vector3.FORWARD
 ## The body's turn about up, as `Torso.follow` keeps it.
 var torso := NAN
@@ -456,6 +465,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			leg.ankle = leg.end.rest.origin.y
 			placed.append_array(leg_bones)
 			a._legs.append(leg)
+	for s in 2:
+		a._fingers[s] = a._finger_bones(["left", "right"][s])
 	if a._legs.size() == 2:
 		a.gait = Gait.new(a._legs[0].upper_length + a._legs[0].lower_length, a._hips.rest.origin.y)
 	placed.append_array(a._eyes)
@@ -466,6 +477,40 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		a.expressions = ExpressionPlayer.new(a._model)
 		a.add_child(a.expressions)
 	return a
+
+
+## Each finger of hand `side` the model has, its bones curling toward the palm, a thumb across it: a VRM rests palms down.
+func _finger_bones(side: String) -> Array:
+	var out := []
+	for f in FINGERS.size():
+		var names: Array = (FINGERS[f] as Array).filter(func(n: String) -> bool: return _joints.has(side + n))
+		if names.size() < 2:
+			continue
+		var along: Vector3 = _joints[side + names[-1]].rest.origin - _joints[side + names[0]].rest.origin
+		var axis := along.cross(Vector3.DOWN if f > 0 else _across(side) + Vector3.DOWN * 0.5).normalized()
+		if not axis.is_finite() or axis.is_zero_approx():
+			continue
+		for n: String in names:
+			var j: Joint = _joints[side + n]
+			out.append([j.bone, _skeleton.get_bone_rest(j.bone).basis.get_rotation_quaternion(), (j.rest.basis.orthonormalized().inverse() * axis).normalized(), BENDS[f][FINGERS[f].find(n)], f])
+	return out
+
+
+## Across hand `side`'s palm from the index knuckle to the little one, where a thumb closes: down where it has neither.
+func _across(side: String) -> Vector3:
+	if not (_joints.has(side + "IndexProximal") and _joints.has(side + "LittleProximal")):
+		return Vector3.DOWN
+	return (_joints[side + "LittleProximal"].rest.origin - _joints[side + "IndexProximal"].rest.origin).normalized()
+
+
+## Curls each finger by `by` (0 straight to 1 closed), the left hand's thumb to little, then the right's (`Hand.curls`).
+func curl(by: PackedFloat32Array) -> void:
+	if by == curls:
+		return
+	curls = by.duplicate()
+	for s in 2:
+		for b: Array in _fingers[s]:
+			_skeleton.set_bone_pose_rotation(b[0], (b[1] as Quaternion) * Quaternion(b[2], b[3] * by[s * 5 + b[4]]))
 
 
 ## The nearest humanoid parent of bone `b` that this model has.

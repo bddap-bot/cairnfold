@@ -17,10 +17,28 @@ const PINCH_OPEN := 0.4
 ## A fist is the middle, ring and little tips all inside FIST of the palm; it opens once one is past FIST_OPEN.
 const FIST := 0.5
 const FIST_OPEN := 0.65
+## Each finger's joints from where it leaves the palm to its tip, thumb to little, and how far, summed over those joints,
+## it bends closed.
+const CHAINS := [[2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]]
+const CLOSED := [PI * 0.5, PI * 1.3, PI * 1.3, PI * 1.3, PI * 1.3]
 
 
 static func reach(joints: Array) -> float:
 	return joints[WRIST].origin.distance_to(joints[MIDDLE_KNUCKLE].origin)
+
+
+## How far each finger of `joints` curls, thumb to little, 0 straight to 1 closed.
+static func curls(joints: Array) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	for f in 5:
+		var chain: Array = CHAINS[f]
+		var bend := 0.0
+		for i in range(1, chain.size() - 1):
+			var into: Vector3 = joints[chain[i]].origin - joints[chain[i - 1]].origin
+			var on: Vector3 = joints[chain[i + 1]].origin - joints[chain[i]].origin
+			bend += into.angle_to(on)
+		out.append(clampf(bend / CLOSED[f], 0.0, 1.0))
+	return out
 
 
 ## The gesture `joints` make, `held` being the one they made last.

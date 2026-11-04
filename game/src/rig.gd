@@ -184,6 +184,7 @@ func wear(a: Avatar) -> void:
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
 	body.pose(head.global_transform, left.body.global_transform, right.body.global_transform, gaze.look)
+	body.curl(left.curls + right.curls)
 	for h in hands:
 		if h.tool != Hand.Tool.NONE:
 			body.fold(hands.find(h))

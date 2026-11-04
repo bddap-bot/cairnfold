@@ -28,6 +28,7 @@ func _run() -> void:
 			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(_sample(path))))
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
+			_fingers_curl_into_the_palm(scene, path)
 			_headless_leaves_the_eyes_clear(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
 	_both_versions_stand_alike()
@@ -788,6 +789,38 @@ func _arms_join_shoulders_to_hands(scene: PackedScene, what: String) -> void:
 			check(signf(e.x - (s.x + h.x) * 0.5) == signf(s.x), "%s: the %s elbow points out" % [what, side])
 			bent += 1
 	check(bent == 2, "%s: both arms bend to reach hands held close" % what)
+	a.free()
+
+
+## At rest, palms down, each finger curled closed folds down under its hand and back toward the wrist, a thumb across
+## the palm, and each comes back straight with its curl undone.
+func _fingers_curl_into_the_palm(scene: PackedScene, what: String) -> void:
+	var a := Avatar.open(scene, Color.WHITE)
+	root.add_child(a)
+	var at := func(b: String) -> Vector3: return (a._skeleton.global_transform * a._skeleton.get_bone_global_pose(a._joints[b].bone)).origin
+	var tips := {}
+	for side in ["left", "right"]:
+		for finger in ["Thumb", "Index", "Little"]:
+			if a._joints.has(side + finger + "Distal"):
+				tips[side + finger + "Distal"] = at.call(side + finger + "Distal")
+	check(tips.size() == 6, "%s has a thumb, index and little finger on each hand: %s" % [what, tips.keys()])
+	var closed := PackedFloat32Array()
+	closed.resize(10)
+	closed.fill(1.0)
+	a.curl(closed)
+	for tip: String in tips:
+		var hand: Vector3 = at.call(("left" if tip.begins_with("left") else "right") + "Hand")
+		var now: Vector3 = at.call(tip)
+		check(now.y < tips[tip].y - (0.003 if tip.contains("Thumb") else 0.01), "%s: the curled %s folds under the hand: %.3f m down" % [what, tip, tips[tip].y - now.y])
+		if tip.contains("Thumb"):
+			var little: Vector3 = at.call(tip.replace("Thumb", "Little").replace("Distal", "Proximal"))
+			check(now.distance_to(little) < tips[tip].distance_to(little) - 0.01, "%s: the curled %s closes across the palm" % [what, tip])
+		else:
+			check(now.distance_to(hand) < 0.8 * tips[tip].distance_to(hand), "%s: the curled %s folds back toward the wrist" % [what, tip])
+	closed.fill(0.0)
+	a.curl(closed)
+	for tip: String in tips:
+		check((at.call(tip) as Vector3).is_equal_approx(tips[tip]), "%s: the %s straightens with its curl undone" % [what, tip])
 	a.free()
 
 

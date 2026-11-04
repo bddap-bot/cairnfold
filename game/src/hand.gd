@@ -57,6 +57,12 @@ static var injected_reach := {}
 static var injected_joints := {}
 ## A bare hand moved this far from where its little finger pinched pushes the stick all the way.
 const STICK_REACH := 0.1
+## What each finger, thumb to little, rests on while it holds a controller: a touch curls it to REST, a value as far as
+## it is pulled. A finger whose controller senses none of these stays straight.
+const SENSES := [["ax_touch", "by_touch", "primary_touch", "secondary_touch"], ["trigger_touch", "trigger"], ["grip"], ["grip"], ["grip"]]
+const REST := [1.0, 0.5, 1.0, 1.0, 1.0]
+## How quickly, per second, a finger closes on its sensor, so a touch flickering at its edge does not jitter.
+const CURL_RATE := 25.0
 
 var carried: Node3D
 
@@ -108,6 +114,12 @@ var bare := false
 var gesture := ""
 ## Where, in the rig, the bare hand's little finger pinched: the stick's centre.
 var _stick_from := Vector3.ZERO
+## How far each finger curls, thumb to little, 0 straight to 1 closed: from the hand's joints where the runtime reports
+## them, a controller's included, else from what the controller's sensors feel (SENSES). It shapes the avatar's fingers
+## only; gestures read a bare hand's own joints.
+var curls := PackedFloat32Array([0, 0, 0, 0, 0])
+var _curled_by := ""
+var _sensed := {}
 var _buttons: Buttons
 ## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
 var body := Node3D.new()
@@ -490,7 +502,7 @@ func hold() -> void:
 
 
 func _process(delta: float) -> void:
-	_read_hand()
+	_read_hand(delta)
 	_log_profile()
 	_flick_input()
 	_holding = false
@@ -504,13 +516,17 @@ func _process(delta: float) -> void:
 
 
 ## Follows the hand's joints while the runtime reports them as the hand's own, or while it cannot say whose they are and
-## reports no controller pose for this hand; otherwise the controller.
-func _read_hand() -> void:
+## reports no controller pose for this hand; otherwise the controller. Either way the fingers curl as `curls` reads them.
+func _read_hand(delta: float) -> void:
 	var joints: Array = injected_joints.get(tracker, [])
+	var own := not joints.is_empty()
 	if joints.is_empty() and not held_still:
-		joints = _runtime_joints()
+		var t := _hand_tracker()
+		joints = _runtime_joints(t)
+		own = not joints.is_empty() and _own(t)
+	_curl(joints, delta)
 	var was := bare
-	bare = not joints.is_empty()
+	bare = own
 	if bare != was:
 		print("controls: %s %s" % [tracker, "bare" if bare else "on its controller"])
 		_follow()
@@ -524,12 +540,19 @@ func _read_hand() -> void:
 	gesture = g
 
 
-func _runtime_joints() -> Array:
-	var side := "left" if tracker == &"left_hand" else "right"
-	var t := XRServer.get_tracker("/user/hand_tracker/" + side) as XRHandTracker
-	if t == null or not t.has_tracking_data or t.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER:
-		return []
-	if t.hand_tracking_source != XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED and _controller_posed():
+func _hand_tracker() -> XRHandTracker:
+	return XRServer.get_tracker("/user/hand_tracker/" + ("left" if tracker == &"left_hand" else "right")) as XRHandTracker
+
+
+## Whether `t`'s joints are the hand's own rather than shaped from the controller it holds.
+func _own(t: XRHandTracker) -> bool:
+	if t.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER:
+		return false
+	return t.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED or not _controller_posed()
+
+
+func _runtime_joints(t: XRHandTracker) -> Array:
+	if t == null or not t.has_tracking_data:
 		return []
 	var origin := get_parent() as XROrigin3D
 	var out: Array[Transform3D] = []
@@ -539,6 +562,31 @@ func _runtime_joints() -> Array:
 		# The runtime reports joints in real metres, unscaled by the world's scale as every other pose is.
 		var joint := t.get_hand_joint_transform(j)
 		out.append(origin.global_transform * Transform3D(joint.basis, joint.origin * origin.world_scale))
+	return out
+
+
+## Moves `curls` toward what `joints` show, or with none what the controller senses, logging each source and sensor the
+## first time it moves a finger, so a device's log shows which finger data its runtime gives.
+func _curl(joints: Array, delta: float) -> void:
+	var by := "joints" if not joints.is_empty() else "sensors" if tracked() else ""
+	var want := HandShape.curls(joints) if by == "joints" else _sensors() if by == "sensors" else PackedFloat32Array([0, 0, 0, 0, 0])
+	if by != _curled_by:
+		_curled_by = by
+		print("fingers: %s from %s" % [tracker, by if by != "" else "nothing"])
+	var k := 1.0 - exp(-CURL_RATE * delta)
+	for f in 5:
+		curls[f] = lerpf(curls[f], want[f], k)
+
+
+func _sensors() -> PackedFloat32Array:
+	var out := PackedFloat32Array([0, 0, 0, 0, 0])
+	for f in 5:
+		for input: String in SENSES[f]:
+			var v: float = (REST[f] if Buttons.down(self, input) else 0.0) if input.ends_with("_touch") else get_float(input)
+			if v > 0.0 and not _sensed.has(input):
+				_sensed[input] = true
+				print("fingers: %s senses %s" % [tracker, input])
+			out[f] = maxf(out[f], v)
 	return out
 
 
