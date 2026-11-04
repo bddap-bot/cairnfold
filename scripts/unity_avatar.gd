@@ -1605,7 +1605,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 			var b := mi.skin.get_bind_bone(i)
 			if b < 0:
 				b = src.find_bone(mi.skin.get_bind_name(i))
-			var name := src.get_bone_name(maxi(b, 0))
+			var name := src.get_bone_name(maxi(b, 0)).validate_node_name()
 			var t := _find_bone(sk, name)
 			if unity.has(name) and (not same_model or t < 0 or t >= humanoid_bones):
 				t = _as_bone(objs, unity[name], sk, rests)
@@ -1655,7 +1655,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 		follow = Transform3D(rests[b].basis.orthonormalized(), rests[b].origin) * Transform3D(scene.basis.orthonormalized(), scene.origin).affine_inverse()
 	for i in range(path.size() - 1, -1, -1):
 		var world := follow * frame * _world_transform(objs, path[i])
-		var name: String = name_of.call(path[i]).replace(":", "_").replace("/", "_").validate_node_name()
+		var name: String = name_of.call(path[i]).validate_node_name()
 		while sk.find_bone(name) >= 0:
 			name += "_"
 		var added := sk.get_bone_count()
@@ -2150,7 +2150,7 @@ static func _scalar(s: String) -> String:
 
 ## The skeleton bone of a Unity transform's name, as Godot's importer and then this converter name bones; -1 if none.
 static func _find_bone(sk: Skeleton3D, unity: String) -> int:
-	return sk.find_bone(unity.replace(":", "_").replace("/", "_").validate_node_name())
+	return sk.find_bone(unity.validate_node_name())
 
 
 ## The skeleton bone a Unity transform name is. Unity gives a transform named like another in the model a " 1", " 2"...
@@ -2165,7 +2165,7 @@ static func _bone_of(sk: Skeleton3D, unity: String, parents: Dictionary) -> int:
 		plain = plain.left(-1)
 	if not plain.ends_with(" ") or not parents.has(unity):
 		return -1
-	b = sk.find_bone(plain.strip_edges())
+	b = _find_bone(sk, plain.strip_edges())
 	if b < 0 or sk.get_bone_parent(b) < 0:
 		return b
 	return b if sk.get_bone_parent(b) == _bone_of(sk, parents[unity], parents) else -1

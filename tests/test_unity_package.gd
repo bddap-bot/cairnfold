@@ -29,6 +29,7 @@ func _run() -> void:
 	_outside_constraints_place()
 	_native_constraints_resolve_world_and_feedback()
 	_mesh_bones_do_not_alias_another_models_names()
+	_a_dotted_bone_name_binds_its_own_transform()
 	_sources_binding_one_bone_differently_share_one_bind()
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
@@ -991,6 +992,39 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	var bound := UnityAvatar._binder(mesh, target, rests, 1.0, objs, 20, false, 1)
 	check(bound.binds[0][0] == 1 and target.get_bone_count() == 2, "prop Head binds to its own source transform, not humanoid Head")
 	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
+	root.free()
+	target.free()
+
+
+## A model's bone named as Blender numbers a duplicate ("Wing.001") binds its own Unity transform, not its parent's:
+## Godot keeps the dot in a skeleton's bone name and drops it from a node's.
+func _a_dotted_bone_name_binds_its_own_transform() -> void:
+	var root := Node3D.new()
+	var source := Skeleton3D.new()
+	source.name = "Source"
+	source.add_bone("Wing")
+	source.add_bone("Wing.001")
+	source.set_bone_parent(1, 0)
+	root.add_child(source)
+	var mesh := MeshInstance3D.new()
+	mesh.skin = Skin.new()
+	mesh.skin.add_bind(0, Transform3D.IDENTITY)
+	mesh.skin.add_bind(1, Transform3D.IDENTITY)
+	mesh.skeleton = NodePath("../Source")
+	root.add_child(mesh)
+	var target := Skeleton3D.new()
+	target.add_bone("Wing")
+	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Wing"}},
+		2: {"type": "GameObject", "data": {"m_Name": "Wing.001"}},
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "1"}}},
+		20: {"type": "SkinnedMeshRenderer", "data": {"m_Mesh": {"guid": "prop"}, "m_Bones": [{"fileID": "10"}, {"fileID": "11"}]}},
+	}
+	var bound := UnityAvatar._binder(mesh, target, rests, 1.0, objs, 20, false, 0)
+	check(bound.binds[1][0] != bound.binds[0][0] and target.get_bone_count() == 2, "Wing.001 binds its own bone, not Wing: %s" % [bound.binds])
+	check(target.get_bone_parent(bound.binds[1][0]) == 0, "under Wing")
 	root.free()
 	target.free()
 
