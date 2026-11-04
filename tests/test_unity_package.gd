@@ -1171,7 +1171,7 @@ func _a_shrunk_texture_averages_what_its_cell_covers() -> void:
 			stripes[i + 3] = 255
 	Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBA8, stripes).save_png(dir.path_join("stripes.png"))
 	FileAccess.open(dir.path_join("stripes.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: stripes\n")
-	var materials := Materials.new(Assets.new(dir))
+	var materials := Materials.new(Assets.new(dir), Materials.ATLAS)
 	materials.use({"guid": "skin"}, Color.WHITE)
 	materials.pack(["skin"])
 	var cell: Rect2i = materials.materials.skin.cell
@@ -1209,12 +1209,32 @@ func _the_atlas_widens_before_its_cells_shrink() -> void:
 	for key: String in keys:
 		many.use({"guid": key}, Color.WHITE)
 	many.pack(keys)
-	check(many.atlas_side == 4096 and many.atlas.get_width() == 4096, "five 1024 textures widen the atlas to 4096: %d" % many.atlas_side)
-	check(keys.all(func(key: String) -> bool: return (many.materials[key].cell as Rect2i).size == (many.materials[key].image as Image).get_size()), "each keeps its own size: %s" % [keys.map(func(key: String) -> Vector2i: return (many.materials[key].cell as Rect2i).size)])
+	check(many.atlas_side > Materials.ATLAS and many.atlas_side < 4096 and many.atlas.get_width() == many.atlas_side, "five 1024 textures widen the atlas past %d, by steps, to %d" % [Materials.ATLAS, many.atlas_side])
+	var kept := func(packed: Materials) -> bool: return keys.all(func(key: String) -> bool: return (packed.materials[key].cell as Rect2i).size == (packed.materials[key].image as Image).get_size())
+	check(kept.call(many), "each keeps its own size: %s" % [keys.map(func(key: String) -> Vector2i: return (many.materials[key].cell as Rect2i).size)])
+	var narrow := Materials.new(Assets.new(dir), Materials.ATLAS)
+	for key: String in keys:
+		narrow.use({"guid": key}, Color.WHITE)
+	narrow.pack(keys)
+	check(narrow.atlas_side == Materials.ATLAS and not kept.call(narrow), "held to %d wide, the same textures shrink: %d" % [Materials.ATLAS, narrow.atlas_side])
 	var one := Materials.new(Assets.new(dir))
 	one.use({"guid": "m5"}, Color.WHITE)
 	one.pack(["m5"])
 	check(one.atlas_side == Materials.ATLAS, "one that fits stays %d wide: %d" % [Materials.ATLAS, one.atlas_side])
+	FileAccess.open(dir.path_join("big.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: big\nTextureImporter:\n  maxTextureSize: 256\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: 128\n  - serializedVersion: 3\n    buildTarget: Standalone\n    maxTextureSize: 512\n    overridden: 1\n  - serializedVersion: 3\n    buildTarget: Android\n    maxTextureSize: 2048\n    overridden: 1\n  - serializedVersion: 3\n    buildTarget: iPhone\n    maxTextureSize: 4096\n    overridden: 1\n")
+	var shown := Materials.new(Assets.new(dir))
+	shown.use({"guid": "m0"}, Color.WHITE)
+	shown.pack(["m0"])
+	check((shown.materials["m0"].cell as Rect2i).size == Vector2i(512, 512), "a texture packs at the widest size its PC import settings name, not a phone's: %s" % (shown.materials["m0"].cell as Rect2i).size)
+	FileAccess.open(dir.path_join("big.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: big\nTextureImporter:\n  maxTextureSize: 256\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: Standalone\n    maxTextureSize: 2048\n    overridden: 0\n")
+	var unset := Materials.new(Assets.new(dir))
+	unset.use({"guid": "m0"}, Color.WHITE)
+	unset.pack(["m0"])
+	check((unset.materials["m0"].cell as Rect2i).size == Vector2i(256, 256), "a Standalone size not overridden does not count: %s" % (unset.materials["m0"].cell as Rect2i).size)
+	var wide := Image.create_empty(Materials.LAYER + 512, Materials.LAYER + 512, false, Image.FORMAT_L8)
+	var carried := Image.new()
+	carried.load_png_from_buffer(Marshalls.base64_to_raw(Materials._layer(wide, Image.INTERPOLATE_NEAREST)))
+	check(carried.get_size() == Vector2i(Materials.LAYER, Materials.LAYER), "a layer of a widened atlas is carried %d wide: %s" % [Materials.LAYER, carried.get_size()])
 
 
 func _matcaps_and_emission_join_the_look() -> void:

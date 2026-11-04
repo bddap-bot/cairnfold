@@ -220,7 +220,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **From a Unity package.** `scripts/unity_avatar.gd` imports the avatar in a Unity source
   package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) straight into the
   avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
-  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR]`.
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR] [--atlas SIDE]`.
   Named `avatar.vrm`, the output is instead the file a player wears: the avatars folder reads
   only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
   `Avatar.read` reads it back into the same model. The `VRCHAT_expressions` extension carries
@@ -243,7 +243,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   saved weights: a heavy mesh is its author's cost to carry, not the importer's to edit. Shader
   programs do not port;
   each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
-  cutoff, or blended) take a cell of one atlas, 2048 px wide where every texture fits at its own size (at most half the atlas), else 4096 px, its cells shrunk alike past that with a Lanczos filter. A material blends when its shader's
+  cutoff, or blended) take a cell of one atlas at the size Unity imports the texture at for a PC (its `.meta`'s
+  default or Standalone `maxTextureSize`), the size the avatar shows it at. The atlas is 2048 px wide, widened in 256 px
+  steps until every cell fits, up to `Avatar.MAX_IMAGE_SIDE` (4096), the widest a player's file carries, or `--atlas`
+  SIDE for a renderer that reads wider images; past that its cells shrink alike with a Lanczos filter. The expression
+  layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
   writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
   over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the

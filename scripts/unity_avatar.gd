@@ -2,9 +2,11 @@ extends SceneTree
 
 ## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
 ## from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR]
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--atlas SIDE]
 ## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
-## every player met and a Godot scene can run code; Avatar.read reads it back into the same model.
+## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
+## to Avatar.MAX_IMAGE_SIDE, the widest a player's file may carry, or SIDE (at most WEBP) for a renderer that reads wider
+## ones.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
@@ -37,12 +39,19 @@ const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": [
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 ## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
+## The widest image WebP holds, the widest atlas `--atlas` asks for.
+const WEBP := 16383
 
 
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
-	if args.size() < 2 or args.size() > 3:
-		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR]")
+	var widest := Avatar.MAX_IMAGE_SIDE
+	var flag := args.find("--atlas")
+	if flag >= 0 and flag + 1 < args.size() and args[flag + 1].is_valid_int():
+		widest = args[flag + 1].to_int()
+		args = args.slice(0, flag) + args.slice(flag + 2)
+	if args.size() < 2 or args.size() > 3 or args.has("--atlas") or widest < Materials.ATLAS or widest > WEBP:
+		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--atlas SIDE]")
 		quit(2)
 		return
 	var dir := unpacked(args[0])
@@ -50,7 +59,7 @@ func _init() -> void:
 		printerr("unity_avatar: cannot unpack %s" % args[0])
 		quit(1)
 		return
-	var root := avatar_scene(dir, args[2] if args.size() == 3 else "")
+	var root := avatar_scene(dir, args[2] if args.size() == 3 else "", widest)
 	if root == null:
 		quit(1)
 		return
@@ -59,7 +68,7 @@ func _init() -> void:
 		wearable(root)
 		Vrm.write(root, args[1])
 		root.free()
-		if Avatar.read(FileAccess.get_file_as_bytes(args[1])) == null:
+		if Avatar.read(FileAccess.get_file_as_bytes(args[1]), widest) == null:
 			printerr("unity_avatar: Avatar.read refuses %s" % args[1])
 			quit(1)
 			return
@@ -142,16 +151,16 @@ class Unpacked:
 
 ## The package's avatar as the scene and avatar data Avatar.model takes, its root also carrying "report" (what was kept
 ## and dropped, by kind). Null, with the reason printed, if the package holds no avatar to convert.
-static func avatar_scene(dir: String, pick := "") -> Node3D:
+static func avatar_scene(dir: String, pick := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
 	var prefabs := Prefabs.new(Assets.new(dir))
-	var root := _convert(prefabs, pick)
+	var root := _convert(prefabs, pick, widest)
 	for m: Dictionary in prefabs.models.values():
 		if m.has("scene"):
 			(m.scene as Node).free()
 	return root
 
 
-static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
+static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var assets := prefabs.assets
 	var found := _avatar(assets, prefabs, pick)
 	if found.is_empty():
@@ -218,7 +227,7 @@ static func _convert(prefabs: Prefabs, pick: String) -> Node3D:
 	sk.set_meta("unity_model", main)
 	var avatar_frame := _world_transform(objs, found.transform)
 	sk.set_meta("unity_frame", Transform3D(avatar_frame.basis.orthonormalized(), avatar_frame.origin).affine_inverse())
-	var materials := Materials.new(assets)
+	var materials := Materials.new(assets, widest)
 	var face := _face(prefabs, objs, found.descriptor)
 	var animated := {}
 	var clips: Array = expressions.data.get("clips", [])
@@ -1158,6 +1167,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		for key: String in group.get("choices", []):
 			used[key] = true
 	materials.pack(used.keys())
+	report["atlas"] = materials.atlas_side
+	report["textures"] = used.keys().map(func(key: String) -> String: return materials.packed(key))
 	for i in uvs.size():
 		var at: Array = materials.place(corners[i], uvs[i])
 		uvs[i] = at[0]

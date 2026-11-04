@@ -5,9 +5,13 @@ const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 
-## The atlas starts this wide and doubles, up to the widest image an avatar file may carry, until every material fits at
-## its own texture's size (at most half the atlas); past that every cell shrinks alike.
+## The atlas starts this wide and widens by STEP, up to `widest`, until every material fits at the size its texture
+## shows in Unity; past that every cell shrinks alike.
 const ATLAS := 2048
+const STEP := 256
+## The widest atlas expression layers other than the untinted colours are carried at, the widest image a player's file
+## carries: they mask or index the albedo, and at a widened atlas's side each would hold as much memory as it.
+const LAYER := Avatar.MAX_IMAGE_SIDE
 const PAD := 4
 ## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels
 ## per texel, so they alias, while Lanczos widens its kernel to the shrink.
@@ -47,13 +51,15 @@ var materials := {}
 var _images := {}
 var atlas: Image
 var atlas_side := ATLAS
+var widest: int
 var undecoded := {}
 var hue_masks := {}
 var color_regions := {}
 
 
-func _init(from: Assets) -> void:
+func _init(from: Assets, atlas_widest := Avatar.MAX_IMAGE_SIDE) -> void:
 	assets = from
+	widest = atlas_widest
 
 
 func use(ref: Dictionary, fallback: Color) -> String:
@@ -66,6 +72,7 @@ func use(ref: Dictionary, fallback: Color) -> String:
 		_read(m, guid)
 	if m.texture != "":
 		m.image = image(m.texture)
+		m.shown = shown(m.texture)
 	materials[key] = m
 	return key
 
@@ -196,23 +203,40 @@ func _decoded(guid: String) -> Image:
 	return img
 
 
+## The widest side the texture's import settings name for a PC build (the default or Standalone max size, or the
+## legacy field), so never less than Unity shows it at: a source image wider than that carries detail no one sees. 0
+## where its .meta names none.
+func shown(guid: String) -> int:
+	var importer: Dictionary = assets.meta(guid).get("TextureImporter", {})
+	var side := str(importer.get("maxTextureSize", "0")).to_int()
+	var platforms: Variant = importer.get("platformSettings", [])
+	for platform: Variant in platforms if platforms is Array else []:
+		if not platform is Dictionary:
+			continue
+		var target := str(platform.get("buildTarget", ""))
+		if target == "DefaultTexturePlatform" or target == "Standalone" and str(platform.get("overridden", "0")) == "1":
+			side = maxi(side, str(platform.get("maxTextureSize", "0")).to_int())
+	return side
+
+
 func pack(used: Array) -> void:
 	var cells := {}
-	atlas_side = ATLAS
+	atlas_side = mini(ATLAS, widest)
 	var sizes := {}
+	for key: String in used:
+		var m: Dictionary = materials[key]
+		var img: Image = m.image
+		var wanted := Vector2i(8, 8) if img == null else img.get_size()
+		var big := maxi(wanted.x, wanted.y)
+		var most: int = mini(m.get("shown", 0) if m.get("shown", 0) > 0 else big, widest - 2 * PAD)
+		if big > most:
+			wanted = Vector2i(maxi(1, wanted.x * most / big), maxi(1, wanted.y * most / big))
+		sizes[key] = wanted
 	while true:
-		for key: String in used:
-			var m: Dictionary = materials[key]
-			var img: Image = m.image
-			var wanted := Vector2i(8, 8) if img == null else img.get_size()
-			var big := maxi(wanted.x, wanted.y)
-			if big > atlas_side / 2:
-				wanted = Vector2i(maxi(1, wanted.x * (atlas_side / 2) / big), maxi(1, wanted.y * (atlas_side / 2) / big))
-			sizes[key] = wanted
 		cells = _shelves(used, sizes, 1.0, atlas_side)
-		if not cells.is_empty() or atlas_side * 2 > Avatar.MAX_IMAGE_SIDE:
+		if not cells.is_empty() or atlas_side >= widest:
 			break
-		atlas_side *= 2
+		atlas_side = mini(atlas_side + STEP, widest)
 	var factor := 1.0
 	while cells.is_empty():
 		factor *= 0.9
@@ -235,6 +259,13 @@ func pack(used: Array) -> void:
 		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
 		atlas.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
 		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
+
+
+## The material's texture as packed: its source size, the size Unity shows it at, and its cell's.
+func packed(key: String) -> String:
+	var m: Dictionary = materials[key]
+	var source := "none" if m.image == null else "%dx%d" % [(m.image as Image).get_width(), (m.image as Image).get_height()]
+	return "%s: source %s, shown %s, packed %dx%d" % [m.name, source, m.get("shown", 0) if m.get("shown", 0) > 0 else "as source", (m.cell as Rect2i).size.x, (m.cell as Rect2i).size.y]
 
 
 ## `mod` is Poiyomi's Alpha Mod, added to the alpha before it cuts or blends.
@@ -347,7 +378,7 @@ func hue_mask() -> String:
 				data[i + 3] = 255
 			mask.set_data(mask.get_width(), mask.get_height(), false, Image.FORMAT_RGBA8, data)
 		out.blit_rect(mask, Rect2i(Vector2i.ZERO, mask.get_size()), (m.cell as Rect2i).position - Vector2i(PAD, PAD))
-	return "" if out == null else Marshalls.raw_to_base64(out.save_png_to_buffer())
+	return "" if out == null else _layer(out, RESAMPLE)
 
 
 func color_atlas() -> String:
@@ -630,13 +661,21 @@ func looks() -> Dictionary:
 		entries.append({"decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows})
 	if entries.is_empty():
 		return {}
-	var png := func(img: Image) -> String: return Marshalls.raw_to_base64(img.save_png_to_buffer())
-	var out := {"index": png.call(index), "materials": entries, "decals": decal_layers.map(png), "matcaps": matcap_textures.values().map(png)}
+	var png := func(img: Image) -> String: return _layer(img, RESAMPLE)
+	var out := {"index": _layer(index, Image.INTERPOLATE_NEAREST), "materials": entries, "decals": decal_layers.map(png), "matcaps": matcap_textures.values().map(png)}
 	if matcap_masks != null:
 		out.matcapMasks = png.call(matcap_masks)
 	if glow != null:
 		out.emission = png.call(glow)
 	return out
+
+
+## The layer as the PNG an avatar file carries, at most LAYER wide.
+static func _layer(img: Image, resample: Image.Interpolation) -> String:
+	if img.get_width() > LAYER:
+		img = img.duplicate() as Image
+		img.resize(LAYER, LAYER * img.get_height() / img.get_width(), resample)
+	return Marshalls.raw_to_base64(img.save_png_to_buffer())
 
 
 ## The texture in the material's `property` slot, decoded afresh: looks read each once, and holding them all would

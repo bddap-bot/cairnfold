@@ -185,16 +185,17 @@ static func built_in(i: int) -> PackedScene:
 	return _built_in[path]
 
 
-## A VRM file as an avatar model to open (`model`), textures shrunk, null if it is not one. Takes tens to hundreds of
-## milliseconds, so a player's file is read on a worker thread.
-static func read(bytes: PackedByteArray) -> PackedScene:
-	if bytes.size() > MAX_BYTES:
+## A VRM file as an avatar model to open (`model`), textures shrunk, null if it is not one or is past the limits, its
+## images' scaled to `widest`: only the converter's check of a file for another renderer passes a wider one. Takes tens
+## to hundreds of milliseconds, so a player's file is read on a worker thread.
+static func read(bytes: PackedByteArray, widest := MAX_IMAGE_SIDE) -> PackedScene:
+	if bytes.size() > MAX_BYTES * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE):
 		return null
 	var seen := {"images": 0, "pixels": 0}
 	var fits := func(size: Vector2i) -> bool:
 		seen.images += 1
 		seen.pixels += size.x * size.y
-		return maxi(size.x, size.y) <= MAX_IMAGE_SIDE and seen.images <= MAX_IMAGES and seen.pixels <= MAX_PIXELS
+		return maxi(size.x, size.y) <= widest and seen.images <= MAX_IMAGES and seen.pixels <= MAX_PIXELS * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE)
 	var root := Vrm.read(bytes, fits, shape, _shrink)
 	return model(root) if root != null else null
 
