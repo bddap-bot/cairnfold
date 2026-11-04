@@ -5,7 +5,8 @@ extends GLTFDocumentExtension
 ## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
 ## 1.0 from nodes named after the bones, the scene root's "eyes" metadata and its "faces" (each VRM expression's
 ## name, a preset where PRESETS has it and custom otherwise, to its [{"node": mesh node name, "shape": blend shape
-## name, "weight" 0 to 1}]); import records on the scene root
+## name, "weight" 0 to 1}]) and its "springs" with the "spring_N" paths in its "humanoid", as import records them;
+## import records on the scene root
 ## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
 ## it is a skeleton's bone), "eyes" where the file gives them, "forward", "look" and "springs": the avatar data of
 ## Avatar.model. VRCHAT_expressions carries imported menu controls and FX targets.
@@ -234,7 +235,8 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
-	state.set_additional_data(&"springs", root.get_meta("springs", {}))
+	var springs := _spring_bones(root)
+	state.set_additional_data(&"springs", springs)
 	state.set_additional_data(&"constraints", root.get_meta("constraints", []))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
@@ -242,15 +244,64 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"faces", root.get_meta("faces", {}))
 	state.set_additional_data(&"weights", {})
 	state.add_used_extension("VRMC_vrm", false)
-	if not root.get_meta("springs", {}).is_empty():
+	if not springs.is_empty():
 		state.add_used_extension("VRMC_springBone", false)
-		if (root.get_meta("springs").colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
+		if (springs.colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
 			state.add_used_extension("VRMC_springBone_extended_collider", false)
 	if not root.get_meta("constraints", []).is_empty():
 		state.add_used_extension("UNITY_constraints", false)
 	if not root.get_meta("expressions", {}).is_empty():
 		state.add_used_extension(EXPRESSIONS, false)
 	return OK
+
+
+## The root's "springs" as VRMC_springBone, each node N by the name of what the root's "spring_N" names: the bone's
+## name for a skeleton's bone, the node's otherwise. A chain with a joint the root names nothing for is left out; empty
+## if no chain or collider remains.
+static func _spring_bones(root: Node3D) -> Dictionary:
+	var definition: Dictionary = root.get_meta("springs", {})
+	var human: Dictionary = root.get_meta("humanoid", {})
+	var named := func(n: int) -> String:
+		var path: Variant = human.get("spring_%d" % n)
+		if not path is NodePath:
+			return ""
+		return (path as NodePath).get_concatenated_subnames() if (path as NodePath).get_subname_count() > 0 else String(root.get_node(path).name)
+	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
+	var colliders := []
+	for c: Dictionary in definition.get("colliders", []):
+		var collider := {"shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}}
+		if named.call(c.node) != "":
+			collider.node = named.call(c.node)
+		if c.has("extensions"):
+			collider.extensions = c.extensions
+		colliders.append(collider)
+	var groups := []
+	var springs := []
+	for chain: Dictionary in definition.get("springs", []):
+		var joints := []
+		for j: Dictionary in chain.joints:
+			var g: Vector3 = j.gravity
+			var joint := {"node": named.call(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
+			if j.has("extras"):
+				joint.extras = j.extras
+			joints.append(joint)
+		if joints.any(func(j: Dictionary) -> bool: return j.node == ""):
+			continue
+		var spring := {"joints": joints, "extras": {"collide": _hands(chain.collide), "grab": _hands(chain.grab)}}
+		if named.call(chain.center) != "":
+			spring.center = named.call(chain.center)
+		if not (chain.colliders as Array).is_empty():
+			spring.colliderGroups = [groups.size()]
+			groups.append({"colliders": chain.colliders})
+		springs.append(spring)
+	if springs.is_empty() and colliders.is_empty():
+		return {}
+	return {"specVersion": "1.0", "springs": springs, "colliders": colliders, "colliderGroups": groups}
+
+
+## WEARER and OTHERS bits as a spring's extras list them.
+static func _hands(bits: int) -> Array:
+	return (["wearer"] if bits & SpringDefinition.WEARER else []) + (["others"] if bits & SpringDefinition.OTHERS else [])
 
 
 ## Godot exports every morph weight as zero; a mesh carries the values its node sets, as glTF's default weights.
@@ -308,13 +359,15 @@ func _export_post(state: GLTFState) -> Error:
 		var indices := {}
 		for i in nodes.size():
 			indices[nodes[i].resource_name] = i
-		var encoded: Dictionary = springs.duplicate(true)
-		for chain: Dictionary in encoded.springs:
+		for chain: Dictionary in springs.springs:
+			if chain.has("center"):
+				chain.center = indices[chain.center]
 			for joint: Dictionary in chain.joints:
 				joint.node = indices[joint.node]
-		for collider: Dictionary in encoded.colliders:
-			collider.node = indices[collider.node]
-		exts["VRMC_springBone"] = encoded
+		for collider: Dictionary in springs.colliders:
+			if collider.has("node"):
+				collider.node = indices[collider.node]
+		exts["VRMC_springBone"] = springs
 	var constraints: Array = state.get_additional_data(&"constraints")
 	if not constraints.is_empty():
 		var indices := {}

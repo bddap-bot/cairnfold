@@ -17,6 +17,7 @@ func _run() -> void:
 		_built_in_reads_as_humanoid(i)
 		var file := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[i])
 		_skin_bends_as(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file(), _gltf_skin.bind(file, Avatar.BUILT_IN[i].get_file()))
+		_springs_survive_a_rewrite(Avatar.BUILT_IN[i])
 	_pose_puts_the_eyes_on_the_head(Avatar.built_in(0), "pebble")
 	for i in Avatar.BUILT_IN.size():
 		_headless_leaves_the_eyes_clear(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file())
@@ -283,6 +284,34 @@ func _rest_weights_survive_the_vrm() -> void:
 	model.free()
 
 
+## A model Vrm.read made writes, and reads back with the same springs on the same bones.
+func _springs_survive_a_rewrite(file: String) -> void:
+	var path := ProjectSettings.globalize_path("user://rewritten.vrm")
+	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image) -> void: pass)
+	var first: Node3D = read.call(FileAccess.get_file_as_bytes(file))
+	var before := _springs_by_bone(first)
+	Vrm.write(first, path)
+	first.free()
+	var second: Node3D = read.call(FileAccess.get_file_as_bytes(path))
+	var after := _springs_by_bone(second)
+	second.free()
+	check(not (before.springs as Array).is_empty() and str(before) == str(after), "%s's springs survive a write: %s, then %s" % [file.get_file(), before, after])
+
+
+## A read model's springs with each node as the bone its "spring_N" names, "" for none.
+func _springs_by_bone(root: Node3D) -> Dictionary:
+	var human: Dictionary = root.get_meta("humanoid")
+	var bone := func(n: int) -> String: return (human["spring_%d" % n] as NodePath).get_concatenated_subnames() if n >= 0 else ""
+	var springs: Dictionary = root.get_meta("springs").duplicate(true)
+	for chain: Dictionary in springs.springs:
+		chain.center = bone.call(chain.center)
+		for joint: Dictionary in chain.joints:
+			joint.node = bone.call(joint.node)
+	for collider: Dictionary in springs.colliders:
+		collider.node = bone.call(collider.node)
+	return springs
+
+
 ## The humanoid rests in the pose its Unity Avatar definition records, whatever pose the model file binds its skin in:
 ## a model bound with its arms lowered converts with the T-pose its Avatar was configured in.
 func _rests_in_the_avatar_definitions_pose(sk: Skeleton3D, bone: String, meta: String) -> void:
@@ -329,7 +358,7 @@ func _physbones_keep_whose_hands_touch_them() -> void:
 	for c: Array in cases:
 		check(UnityAvatar._filter(c[0], "allowGrabbing", "grabFilter") == c[1], "a PhysBone's %s lets %s grab it" % [c[0], c[1]])
 	for bits in 4:
-		var spring := SpringDefinition.hands({"extras": {"collide": UnityAvatar._hands(bits), "grab": UnityAvatar._hands(3 - bits)}}, {})
+		var spring := SpringDefinition.hands({"extras": {"collide": Vrm._hands(bits), "grab": Vrm._hands(3 - bits)}}, {})
 		check(spring.collide == bits and spring.grab == 3 - bits, "hand bits %d survive the file" % bits)
 
 

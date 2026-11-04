@@ -6,6 +6,8 @@ extends SceneTree
 ## body is; surfaces whose material name starts with "tint" take the player's colour. Its eyes look by bone: both eye
 ## bones sit behind the face, so a turned eye slides over it.
 
+const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
+
 const STONE := Color(0.78, 0.74, 0.66)
 const DARK := Color(0.12, 0.1, 0.09)
 const BARK := Color(0.42, 0.29, 0.17)
@@ -70,9 +72,10 @@ func _skinned(figure: Node3D) -> Node3D:
 	skeleton.name = "skeleton"
 	out.add_child(skeleton)
 	var swaying := {}
+	var human: Dictionary = figure.get_meta("humanoid")
 	for chain: Dictionary in figure.get_meta("springs").springs:
 		for joint: Dictionary in chain.joints:
-			swaying[joint.node] = true
+			swaying[(human["spring_%d" % joint.node] as NodePath).get_concatenated_subnames()] = true
 	var meshes := [{"binds": {}, "surfaces": {}}, {"binds": {}, "surfaces": {}}]
 	_add_bones(figure, skeleton, -1, Transform3D.IDENTITY, swaying, meshes)
 	skeleton.reset_bone_poses()
@@ -240,10 +243,13 @@ func _tassel(root: Node3D) -> void:
 	var parent := head
 	var joints := []
 	for i in 3:
-		var name := "tassel%d" % i
-		parent = _bone(parent, name, Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
+		parent = _bone(parent, "tassel%d" % i, Vector3(0.1, 0.12, -0.04) if i == 0 else Vector3(0, -0.09, 0))
 		_part(parent, _cylinder(0.012, 0.016, 0.09, 5), _tint(), Vector3(0, -0.045, 0), Vector3.ONE)
-		joints.append({"node": name, "stiffness": 0.35, "gravityPower": 0.08, "gravityDir": [0, -1, 0], "dragForce": 0.25, "hitRadius": 0.015})
+		joints.append({"node": i, "stiffness": 0.35, "drag": 0.25, "radius": 0.015, "gravity": Vector3(0, -0.08, 0)})
 	_bone(parent, "tasselTip", Vector3(0, -0.09, 0))
-	joints.append({"node": "tasselTip"})
-	root.set_meta("springs", {"specVersion": "1.0", "springs": [{"joints": joints, "colliderGroups": [0]}], "colliders": [{"node": "head", "shape": {"sphere": {"offset": [0, 0.12, 0], "radius": 0.145}}}], "colliderGroups": [{"colliders": [0]}]})
+	joints.append({"node": 3, "stiffness": 1.0, "drag": 0.5, "radius": 0.0, "gravity": Vector3.ZERO})
+	var human := {}
+	for name: String in ["tassel0", "tassel1", "tassel2", "tasselTip", "head"]:
+		human["spring_%d" % human.size()] = NodePath("skeleton:" + name)
+	root.set_meta("humanoid", human)
+	root.set_meta("springs", {"springs": [{"joints": joints, "center": -1, "colliders": [0], "collide": SpringDefinition.WEARER | SpringDefinition.OTHERS, "grab": SpringDefinition.WEARER | SpringDefinition.OTHERS}], "colliders": [{"node": 4, "offset": Vector3(0, 0.12, 0), "tail": Vector3(0, 0.12, 0), "radius": 0.145}]})

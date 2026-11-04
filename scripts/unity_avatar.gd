@@ -83,8 +83,8 @@ func _init() -> void:
 	quit()
 
 
-## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, and its springs as
-## VRMC_springBone, each node by its bone's name.
+## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, and the humanoid's
+## paths and the constraints following the renamed bones.
 static func wearable(root: Node3D) -> void:
 	var human: Dictionary = root.get_meta("humanoid")
 	var sk: Skeleton3D = root.get_node(str(human.hips).get_slice(":", 0))
@@ -92,40 +92,22 @@ static func wearable(root: Node3D) -> void:
 	for b: String in human:
 		if b in Vrm.BONES:
 			renamed[sk.find_bone((human[b] as NodePath).get_concatenated_subnames())] = b
+	var bone_of := {}
+	for key: String in human:
+		bone_of[key] = sk.find_bone((human[key] as NodePath).get_concatenated_subnames())
 	# Two passes, so a bone may take the name another humanoid bone is about to give up.
 	for i: int in renamed:
 		sk.set_bone_name(i, "unity_avatar %d" % i)
 	for i: int in renamed:
 		sk.set_bone_name(i, renamed[i])
+	for key: String in bone_of:
+		if bone_of[key] >= 0:
+			human[key] = NodePath("%s:%s" % [root.get_path_to(sk), sk.get_bone_name(bone_of[key])])
 	for c: Dictionary in root.get_meta("constraints", []):
 		c.node = sk.get_bone_name(c.node)
 		for source: Dictionary in c.sources:
 			if source.has("node"):
 				source.node = sk.get_bone_name(source.node)
-	var chains: Dictionary = root.get_meta("springs")
-	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
-	var colliders := []
-	for c: Dictionary in chains.get("colliders", []):
-		var collider := {"node": sk.get_bone_name(c.node), "shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}}
-		if c.has("extensions"):
-			collider["extensions"] = c.extensions
-		colliders.append(collider)
-	var groups := []
-	var springs := []
-	for chain: Dictionary in chains.get("springs", []):
-		var joints := []
-		for j: Dictionary in chain.joints:
-			var g: Vector3 = j.gravity
-			var joint := {"node": sk.get_bone_name(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
-			if j.has("extras"):
-				joint["extras"] = j.extras
-			joints.append(joint)
-		var spring := {"joints": joints, "extras": {"collide": _hands(chain.collide), "grab": _hands(chain.grab)}}
-		if not (chain.colliders as Array).is_empty():
-			spring["colliderGroups"] = [groups.size()]
-			groups.append({"colliders": chain.colliders})
-		springs.append(spring)
-	root.set_meta("springs", {} if springs.is_empty() else {"specVersion": "1.0", "springs": springs, "colliders": colliders, "colliderGroups": groups})
 
 
 ## A .unitypackage unpacked into a folder under TMPDIR removed at exit, or any other path as it is; "" if tar fails.
@@ -2086,11 +2068,6 @@ static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
 			var by: Dictionary = f if f is Dictionary else {}
 			return (["wearer"] if str(by.get("allowSelf", "1")) == "1" else []) + (["others"] if str(by.get("allowOthers", "1")) == "1" else [])
 	return ["wearer", "others"]
-
-
-## WEARER and OTHERS bits as a spring's extras list them.
-static func _hands(bits: int) -> Array:
-	return (["wearer"] if bits & SpringDefinition.WEARER else []) + (["others"] if bits & SpringDefinition.OTHERS else [])
 
 
 ## The kinds of component under the avatar this converter does not translate, with how many of each.
