@@ -133,6 +133,11 @@ func _commands() -> void:
 	ground.erase("to")
 	ground.erase("drop")
 	check(Commands._decoration(ground) != null, "a lantern stands on the ground")
+	var hung: Dictionary = Commands._decoration(_span())
+	var moved := {"at": Vector3(1, 3, 0), "turn": 0.0, "s": 0.0}
+	moved.to = Vector3(9, 3, 0)
+	var change: Variant = Commands._reshape("decorations", moved, hung)
+	check(change != null and change.to == moved.to and change.keys().all(func(k: Variant) -> bool: return typeof(k) == TYPE_STRING), "a string carried by both ends moves, its keys going out as Strings: %s" % [change])
 
 
 func _runs() -> void:

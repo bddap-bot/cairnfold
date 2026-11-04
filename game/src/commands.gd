@@ -466,17 +466,21 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 		return null
 	var out := {}
 	var trial := now.duplicate(true)
-	for k in d:
-		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
-		if typeof(k) != TYPE_STRING:
+	for name in d:
+		# `data.to = ` stores a StringName key; the garden keeps Strings.
+		if typeof(name) != TYPE_STRING and typeof(name) != TYPE_STRING_NAME:
 			return null
+		var k := String(name)
 		if k in RESHAPES[of]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out[k] = {}
-			for r in d.roof:
-				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "hatches", "overhang", "deck", "flag", "thatch"]:
+			for field in d.roof:
+				if typeof(field) != TYPE_STRING and typeof(field) != TYPE_STRING_NAME:
+					return null
+				var r := String(field)
+				if not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "hatches", "overhang", "deck", "flag", "thatch"]:
 					return null
 				out[k][r] = d.roof[r]
 				trial.roof[r] = d.roof[r]
