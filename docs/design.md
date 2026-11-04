@@ -5903,7 +5903,7 @@ deck flags, boards and mortar crossing a joined building's centre line are cut
 back to it, where its ceiling starts, including where bowed decks cross. Wall
 panels hidden by their middle retain the portion above the lowest joining
 ceiling at their drawn corners, so cutting the deck cannot expose a wall-corner
-hole. Where a house wall stands above a joined bowed flat ceiling along a whole
+hole. Where a house wall stands above a joined flat ceiling along a whole
 stone, that stone reaches down to the ceiling's rafter undersides instead: the
 wall is the beam both rooms' rafters end against, so a rafter never steps in
 mid-air where two ceilings at different heights meet. Within overlapping domes,

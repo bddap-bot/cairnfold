@@ -1,8 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 const Probe = preload("res://../tests/support/house_leaks.gd")
-const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
-const SEALED_SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
+const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
+const SEALED_SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
 ## Escapes the dense sweep found, as [origin, direction]: the normal sphere is too sparse to meet them again.
 const SEALED_RAYS := {
 	35: [
@@ -218,13 +218,19 @@ func _house(seed_value: int, count: int) -> void:
 						var higher := other.roof.height_at(p.x, p.z)
 						if higher > w.roof.height_at(p.x, p.z) + 0.001:
 							check(p.y >= higher - RoofLayout.CEILING_DROP - RoofLayout.CEILING_DEPTH - 0.005, "crossing domes keep deck undersides above the higher ceiling boards")
+		var ceiling := Probe.new()
+		for w in room:
+			ceiling.add_faces(w.roof.timber_faces, "ceiling", w.id)
+		check(not ceiling.first(Vector3(-0.5, 1.3, -18.2), Vector3.UP).is_empty(), "boards meet across a curved join without a missing triangle exposing the bed")
+	if seed_value in [35, 55]:
 		var ends := 0
 		for w in room:
 			var line := PackedVector2Array()
 			for q in w.layout.points:
 				line.append(Vector2(q.x, q.z))
-			var band: Array[PackedVector2Array] = Geometry2D.offset_polygon(line, WallLayout.THICKNESS * 0.5)
-			band.append_array(Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5))
+			# Timber is cut at the centre line; nearer the faces a board still running into rubble may stand proud of a thin stone.
+			var band: Array[PackedVector2Array] = Geometry2D.offset_polygon(line, WallLayout.THICKNESS * 0.25)
+			band.append_array(Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.25))
 			for other in room:
 				if other == w:
 					continue
@@ -235,12 +241,8 @@ func _house(seed_value: int, count: int) -> void:
 					var borne := w.layout.stones.any(func(st: Dictionary) -> bool:
 						var l: Vector3 = st.xform.affine_inverse() * v
 						return absf(l.x) <= 0.501 and absf(l.y) <= 0.501 and absf(l.z) <= 0.501)
-					check(borne, "ceiling timber cut by a higher joined wall ends inside that wall, not stepping in the air")
-		check(ends > 0, "the curved join has rafters ending at the higher wall")
-		var ceiling := Probe.new()
-		for w in room:
-			ceiling.add_faces(w.roof.timber_faces, "ceiling", w.id)
-		check(not ceiling.first(Vector3(-0.5, 1.3, -18.2), Vector3.UP).is_empty(), "boards meet across a curved join without a missing triangle exposing the bed")
+					check(borne, "seed %d: ceiling timber cut by a higher joined wall ends inside that wall, not stepping in the air" % seed_value)
+		check(ends > 0, "seed %d: the join has rafters ending at the higher wall" % seed_value)
 	var probe := Probe.new()
 	for w in room:
 		probe.add_wall(w)

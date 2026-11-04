@@ -48,7 +48,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 		s.centre = [s.line]
 		s.outer = Geometry2D.offset_polygon(s.line, half)
 		s.eaves = Geometry2D.offset_polygon(s.line, half + (cover.overhang if cover != null else RoofLayout.OVERHANG))
-		if cover != null and (not cover.flat() or cover.curve != 0.0):
+		if cover != null:
 			s.roof = RoofLayout.new()
 			s.roof.kind = cover.kind
 			s.roof.corners = layout.points.duplicate()

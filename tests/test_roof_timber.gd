@@ -78,6 +78,28 @@ func _run() -> void:
 		if absf(piece.xform.origin.x - 3.0) < 0.6:
 			straddling += 1
 	check(straddling > 0, "deck pieces at the higher wall's line are cut back, not taken away")
+	# At this ground height the two ways of summing a flush ceiling's height round apart.
+	var raised := func(_x: float, _z: float) -> float: return 2.58
+	var low := WallLayout.new()
+	low.closed = true
+	low.height = 5.4
+	low.points = a.points
+	low.resample(raised)
+	var flush := RoofLayout.new()
+	flush.corners = low.points
+	flush.pitch = 0.0
+	flush.base = low.roof_base()
+	var beside := WallLayout.new()
+	beside.closed = true
+	beside.height = 5.4
+	beside.points = WallLayout.rectangle(Vector3(3, 0, -1), Vector3(9, 0, -1), 4.0)
+	beside.joined = [Massing.of(low, flush)]
+	beside.build(raised)
+	var room: Massing = beside.joined[0]
+	var under := beside.stones.filter(func(st: Dictionary) -> bool:
+		var x: Transform3D = st.xform
+		return room.holds(x.origin) and x.origin.y - x.basis.y.y * 0.5 < flush.base - 0.01)
+	check(under.is_empty(), "a wall joined to a flush flat ceiling keeps no beam below it")
 	var mesh := Wall._faces_mesh(original, true)
 	check(mesh.get_surface_count() == 1, "all framing has one draw surface")
 	finish()
