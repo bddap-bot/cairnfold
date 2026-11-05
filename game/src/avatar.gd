@@ -472,18 +472,6 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a.scene = scene
 	a.tint = tint
 	a._model = scene.instantiate()
-	# Reading mesh surfaces accesses the renderer; imports can run on a worker.
-	if not scene.has_meta("skin_bindings_ready"):
-		var bindings := {}
-		for mi: MeshInstance3D in a._model.find_children("*", "MeshInstance3D", true, false):
-			if mi.mesh is ArrayMesh and mi.skin != null:
-				var key := [mi.mesh, mi.skin]
-				if not bindings.has(key):
-					bindings[key] = preload("res://addons/avatar_workshop/skin_bindings.gd").compact(mi.mesh, mi.skin)
-				mi.mesh = bindings[key][0]
-				mi.skin = bindings[key][1]
-		scene.pack(a._model)
-		scene.set_meta("skin_bindings_ready", true)
 	a.add_child(a._model)
 	a._facing = FACING if (a._model.get_meta("forward", Vector3.BACK) as Vector3).z > 0.0 else Basis.IDENTITY
 	var bones: Dictionary = a._model.get_meta("humanoid")

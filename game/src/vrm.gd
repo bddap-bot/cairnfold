@@ -116,6 +116,70 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
+## Has each skin keep only the bones its mesh's vertices weigh, sharing one binding among identical ones, while the
+## meshes are still the importer's arrays: Godot's own import turns them into renderer meshes, and reading one of those
+## back costs the main thread a wait on the GPU. Registered ahead of that import, so it runs on the thread that reads
+## the file.
+class Skins extends GLTFDocumentExtension:
+	func _import_post(_state: GLTFState, root: Node) -> Error:
+		var compacted := {}
+		for mi: ImporterMeshInstance3D in root.find_children("*", "ImporterMeshInstance3D", true, false):
+			if mi.mesh != null and mi.skin != null:
+				var key := [mi.mesh, mi.skin]
+				if not compacted.has(key):
+					compacted[key] = compact(mi.mesh, mi.skin)
+				mi.mesh = compacted[key][0]
+				mi.skin = compacted[key][1]
+		return OK
+
+	static func compact(mesh: ImporterMesh, skin: Skin) -> Array:
+		var used := {}
+		for i in mesh.get_surface_count():
+			var arrays := mesh.get_surface_arrays(i)
+			if arrays[Mesh.ARRAY_BONES] == null:
+				continue
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			for j in bones.size():
+				if weights[j] > 0.0:
+					used[bones[j]] = true
+		if used.is_empty() or used.keys().min() < 0 or used.keys().max() >= skin.get_bind_count():
+			return [mesh, skin]
+		var indices := PackedInt32Array()
+		indices.resize(skin.get_bind_count())
+		var bindings := {}
+		var kept := Skin.new()
+		for i in skin.get_bind_count():
+			if not used.has(i):
+				continue
+			var key := [skin.get_bind_bone(i), skin.get_bind_name(i), skin.get_bind_pose(i)]
+			if not bindings.has(key):
+				kept.add_bind(key[0], key[2])
+				kept.set_bind_name(kept.get_bind_count() - 1, key[1])
+				bindings[key] = kept.get_bind_count() - 1
+			indices[i] = bindings[key]
+		if kept.get_bind_count() == skin.get_bind_count():
+			return [mesh, skin]
+		var out := ImporterMesh.new()
+		out.resource_name = mesh.resource_name
+		out.set_blend_shape_mode(mesh.get_blend_shape_mode())
+		for k in mesh.get_blend_shape_count():
+			out.add_blend_shape(mesh.get_blend_shape_name(k))
+		for i in mesh.get_surface_count():
+			var arrays := mesh.get_surface_arrays(i).duplicate()
+			if arrays[Mesh.ARRAY_BONES] != null:
+				var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+				for j in bones.size():
+					bones[j] = indices[bones[j]]
+				arrays[Mesh.ARRAY_BONES] = bones
+			var lods := {}
+			for l in mesh.get_surface_lod_count(i):
+				lods[mesh.get_surface_lod_size(i, l)] = mesh.get_surface_lod_indices(i, l)
+			var shapes := range(mesh.get_blend_shape_count()).map(func(k: int) -> Array: return mesh.get_surface_blend_shape_arrays(i, k))
+			out.add_surface(mesh.get_surface_primitive_type(i), arrays, shapes, lods, mesh.get_surface_material(i), mesh.get_surface_name(i), mesh.get_surface_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+		return [out, kept]
+
+
 ## Measures each image from its PNG or JPEG header and, if the read's `fits` takes that size, decodes it as the format
 ## measured and hands it to the read's `image` before it becomes a texture; anything else, or an image that does not
 ## decode, marks the read refused and leaves Godot's decoders nothing to try. Registered ahead of Godot's own decoders, so it sees every image first, apart from Vrm, whose import
@@ -480,6 +544,7 @@ static var _registered := false
 static func _doc() -> GLTFDocument:
 	if not _registered:
 		GLTFDocument.register_gltf_document_extension(Images.new(), true)
+		GLTFDocument.register_gltf_document_extension(Skins.new(), true)
 		GLTFDocument.register_gltf_document_extension(Vrm.new())
 		_registered = true
 	return GLTFDocument.new()
@@ -504,14 +569,40 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	return doc.generate_scene(state) as Node3D
 
 
+## Each skin is written binding every bone of its skeleton: a bone no skin binds would read back as a plain node, and
+## a read skin keeps only the bones its vertices weigh (Skins).
 static func write(root: Node3D, path: String) -> void:
 	var doc := _doc()
 	doc.visibility_mode = GLTFDocument.VISIBILITY_MODE_INCLUDE_OPTIONAL
 	var state := GLTFState.new()
+	var worn := {}
+	var full := {}
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		var skeleton := mi.get_node_or_null(mi.skeleton) as Skeleton3D
+		if mi.skin != null and skeleton != null:
+			worn[mi] = mi.skin
+			if not full.has([mi.skin, skeleton]):
+				full[[mi.skin, skeleton]] = _binding_every_bone(mi.skin, skeleton)
+			mi.skin = full[[mi.skin, skeleton]]
 	var err := doc.append_from_scene(root, state)
+	var glb := doc.generate_buffer(state) if err == OK else PackedByteArray()
+	for mi: MeshInstance3D in worn:
+		mi.skin = worn[mi]
 	assert(err == OK, "vrm: cannot export %s" % root.name)
 	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_buffer(_positional(doc.generate_buffer(state)))
+	f.store_buffer(_positional(glb))
+
+
+static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
+	var bound := {}
+	for i in skin.get_bind_count():
+		bound[skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))] = true
+	var full := skin.duplicate() as Skin
+	for b in skeleton.get_bone_count():
+		if not bound.has(b):
+			full.add_bind(b, skeleton.get_bone_global_rest(b).affine_inverse())
+			full.set_bind_name(full.get_bind_count() - 1, skeleton.get_bone_name(b))
+	return full
 
 
 ## The binary glTF `glb` with each morph target's normals the turn its positions give its mesh's smooth normals, and no

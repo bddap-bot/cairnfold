@@ -356,10 +356,11 @@ its MIT notice. A declared center carries the simulation frame; a long pause res
 momentum. The game binds imported glTF node indices to skeleton bones. The selection
 is by supported transforms and constraints, identical on every device.
 
-Opening a scene also compacts its skin bindings: unused bindings disappear and exactly
+Reading a VRM also compacts its skin bindings: unused bindings disappear and exactly
 identical bone/inverse-pose bindings share an index. Geometry, weights and blend shapes
-stay unchanged. The result is cached on the scene and prepared on the main thread,
-because reading mesh surfaces accesses the renderer while file import can run on a worker.
+stay unchanged. It works on the importer's arrays before they become renderer meshes,
+on the thread that reads the file, since reading a renderer mesh back waits on the GPU
+from the main thread.
 
 The 60-joint simulation ceiling is priced with the skinned runtime on Quest 2: three
 figures visibly in view plus the same avatar worn, six private fixtures, give frame

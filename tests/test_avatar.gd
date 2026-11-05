@@ -35,7 +35,7 @@ func _run() -> void:
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
 	_switched_off_physics_stays_out()
-	_prepared_skins_release_sources()
+	_read_skins_bind_only_weighed_bones()
 	_unity_package_converts()
 	_physbones_keep_whose_hands_touch_them()
 	for i in Avatar.BUILT_IN.size():
@@ -1007,28 +1007,35 @@ func _blended_surfaces_stay_blended() -> void:
 	model.free()
 
 
-func _skins_with_unused_binding(scene: PackedScene) -> Array[WeakRef]:
-	var model := scene.instantiate()
-	var sources: Array[WeakRef] = []
-	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		if mi.skin != null:
-			mi.skin.add_bind(0, Transform3D.IDENTITY)
-			sources.append(weakref(mi.mesh))
+func _read_skins_bind_only_weighed_bones() -> void:
+	var weighed := func(mesh: Mesh, skin: Skin) -> bool:
+		var used := {}
+		for surface in mesh.get_surface_count():
+			var arrays := mesh.surface_get_arrays(surface)
+			for k in (arrays[Mesh.ARRAY_BONES] as PackedInt32Array).size():
+				if arrays[Mesh.ARRAY_WEIGHTS][k] > 0.0:
+					used[arrays[Mesh.ARRAY_BONES][k]] = true
+		return used.size() == skin.get_bind_count()
+	var bytes := FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm"))
+	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
+	var joints: int = (json.skins as Array).map(func(skin: Dictionary) -> int: return (skin.joints as Array).size()).max()
+	var model := Avatar.read(bytes).instantiate()
+	var skinned := model.find_children("*", "MeshInstance3D", true, false).filter(func(mi: MeshInstance3D) -> bool: return mi.skin != null)
+	check(not skinned.is_empty() and skinned.all(func(mi: MeshInstance3D) -> bool: return weighed.call(mi.mesh, mi.skin)), "a read avatar's skins bind only the bones its vertices weigh")
+	check(skinned.any(func(mi: MeshInstance3D) -> bool: return mi.skin.get_bind_count() < joints), "the fixture's file binds bones its vertices do not weigh, so reading it compacts: %d joints" % joints)
 	model.free()
-	return sources
-
-
-func _prepared_skins_release_sources() -> void:
-	var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm")))
-	var sources := _skins_with_unused_binding(scene)
-	var first := Avatar.open(scene, Color.WHITE)
-	check(not sources.is_empty() and sources.all(func(source: WeakRef) -> bool: return source.get_ref() == null), "preparing skins releases superseded source mesh buffers")
-	var second := Avatar.open(scene, Color.WHITE)
-	var a := first._model.find_children("*", "MeshInstance3D", true, false)
-	var b := second._model.find_children("*", "MeshInstance3D", true, false)
-	check(a.size() == b.size(), "preparing a scene retains every mesh")
-	for i in mini(a.size(), b.size()):
-		check(a[i].mesh == b[i].mesh and a[i].skin == b[i].skin, "repeated opens share prepared mesh and skin resources")
-	check(first._skeleton != second._skeleton, "prepared meshes keep each avatar's skeleton independent")
-	first.free()
-	second.free()
+	var importer := ImporterMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	arrays[Mesh.ARRAY_BONES] = PackedInt32Array([2, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
+	arrays[Mesh.ARRAY_WEIGHTS] = PackedFloat32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0])
+	importer.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var skin := Skin.new()
+	for b in 4:
+		skin.add_bind(b, Transform3D.IDENTITY.translated(Vector3.UP * b))
+	var out: Array = Vrm.Skins.compact(importer, skin)
+	check(importer.get_surface_arrays(0)[Mesh.ARRAY_BONES] == arrays[Mesh.ARRAY_BONES], "compacting leaves the mesh it read unchanged")
+	var kept: Skin = out[1]
+	var bones: PackedInt32Array = (out[0] as ImporterMesh).get_surface_arrays(0)[Mesh.ARRAY_BONES]
+	check(kept.get_bind_count() == 2 and kept.get_bind_bone(bones[0]) == 2 and kept.get_bind_bone(bones[8]) == 3, "compacting keeps the weighed bones, each vertex still bound to its own")
