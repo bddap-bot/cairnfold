@@ -142,6 +142,34 @@ class Images extends GLTFDocumentExtension:
 		return OK
 
 
+## Each image of a binary glTF, in order, measured from its header before any is decoded: "size", zero for an image not
+## held in the file's own binary chunk, and "colour", whether a material's base colour samples it.
+static func images(glb: PackedByteArray) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if glb.size() < 28:
+		return out
+	var json_size := glb.decode_u32(12)
+	var json: Variant = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
+	if not json is Dictionary or not json.get("images") is Array or not json.get("bufferViews") is Array:
+		return out
+	var colour := {}
+	var textures: Variant = json.get("textures")
+	for m: Variant in (json.get("materials") if json.get("materials") is Array else []):
+		var t: Variant = _field(_field(_field(m, "pbrMetallicRoughness"), "baseColorTexture"), "index")
+		if t is float and textures is Array and t >= 0 and t < textures.size():
+			colour[_field(textures[int(t)], "source")] = true
+	var views: Array = json.bufferViews
+	var images: Array = json.images
+	for i in images.size():
+		var view: Variant = _field(images[i], "bufferView")
+		var size := Vector2i.ZERO
+		if view is float and view >= 0 and view < views.size() and views[int(view)] is Dictionary and _number(views[int(view)].get("buffer", 0.0), -1, 1, -1) == 0:
+			var at := 28 + json_size + int(_number(views[int(view)].get("byteOffset", 0), 0, glb.size(), 0))
+			size = _image_size(glb.slice(at, at + int(_number(views[int(view)].get("byteLength", 0), 0, glb.size(), 0))))
+		out.append({"size": size, "colour": colour.has(float(i))})
+	return out
+
+
 ## The width and height in the header of a PNG or a JPEG; zero if it is neither.
 static func _image_size(d: PackedByteArray) -> Vector2i:
 	if d.size() >= 24 and Array(d.slice(0, 8)) == PNG and d.slice(12, 16).get_string_from_ascii() == "IHDR":

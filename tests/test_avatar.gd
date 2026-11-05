@@ -46,6 +46,7 @@ func _run() -> void:
 	big.resize(Avatar.MAX_BYTES + 1)
 	check(Avatar.read(big) == null, "a file over the size limit is not read")
 	_images_are_measured_before_decoding()
+	_textures_share_the_texel_limit()
 	_blend_shapes_are_bounded()
 	_shape_normals_turn_with_the_shape()
 	_set_blend_shapes_are_written()
@@ -76,6 +77,44 @@ func _images_are_measured_before_decoding() -> void:
 	var fill := Avatar.MAX_PIXELS / (side * side)
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full))) != null, "images filling the pixel limit are read")
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
+
+
+## A file's base colour textures keep their size while their texels fit Avatar.MAX_TEXELS, and past it shrink alike to fit.
+func _textures_share_the_texel_limit() -> void:
+	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGBA8).save_png_to_buffer()
+	var side := Avatar.MAX_IMAGE_SIDE
+	var sizes := func(file: PackedByteArray) -> Array:
+		var scene := Avatar.read(file)
+		if scene == null:
+			return []
+		var a := scene.instantiate()
+		var out := {}
+		for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
+			for s in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
+				if m != null and m.albedo_texture != null:
+					out[m.albedo_texture.get_size()] = true
+		a.free()
+		return out.keys()
+	var full: PackedByteArray = png.call(side, side)
+	var whole := int(sqrt(float(Avatar.MAX_TEXELS)))
+	var fit: PackedByteArray = png.call(whole, whole)
+	check(sizes.call(_with_images(bytes, [fit, full, full])) == [Vector2(whole, whole)], "a base colour image of the texel limit keeps its every texel beside images no base colour samples")
+	var three := _with_images(bytes, [full, full, full])
+	var json := _gltf_json(three)
+	json.textures.append({"source": 1})
+	json.materials.append((json.materials[0] as Dictionary).duplicate(true))
+	json.materials[-1].pbrMetallicRoughness.baseColorTexture.index = json.textures.size() - 1
+	var shared: Array = sizes.call(_glb(json, three.slice(28 + three.decode_u32(12))))
+	var half := int(side * sqrt(float(Avatar.MAX_TEXELS) / (2 * side * side)))
+	check(shared == [Vector2(half, half)], "two base colour images at the side limit shrink alike to share the texel limit: %s" % [shared])
+	var hidden := _gltf_json(three)
+	hidden.images[2] = {"uri": "data:image/png;base64," + Marshalls.raw_to_base64(png.call(4, 4)), "mimeType": "image/png"}
+	check(Avatar.read(_glb(hidden, three.slice(28 + three.decode_u32(12)))) == null, "a file holding an image its headers were not measured from is refused")
+	var lying := _gltf_json(three)
+	lying.images.push_front({})
+	check(Avatar.read(_glb(lying, three.slice(28 + three.decode_u32(12)))) == null, "a file whose images decode out of the places they were measured in is refused")
 
 
 func _unweighted_children_keep_humanoid_bones() -> void:
@@ -611,15 +650,18 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 			if m != null and m.albedo_texture != null:
 				textures[m.albedo_texture] = true
 			if m != null:
-				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, BaseMaterial3D.TRANSPARENCY_ALPHA] else 0
+				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and m.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, BaseMaterial3D.TRANSPARENCY_ALPHA] else 0
 				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 	check(triangles == authored, "%s keeps every triangle its file has (%d of %d)" % [what, triangles, authored])
 	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
-	check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
+	check(plain == materials, "%s draws its colour alone, sampled anisotropically, lit once a vertex, front faces only, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
+	var texels := 0
 	for tex: Texture2D in textures:
-		check(maxi(tex.get_width(), tex.get_height()) <= Avatar.MAX_TEXTURE and tex.get_image().has_mipmaps(), "%s keeps its textures to the size limit, mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
+		texels += tex.get_width() * tex.get_height()
+		check(tex.get_image().has_mipmaps(), "%s keeps its textures mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
+	check(texels <= Avatar.MAX_TEXELS, "%s keeps its textures within the texel limit (%d)" % [what, texels])
 	a.free()
 
 

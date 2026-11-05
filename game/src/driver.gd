@@ -1581,7 +1581,8 @@ func _flat(s: Dictionary) -> void:
 ## Stands a player at each of `spots` [[x, z], ...], looking at the middle of the garden, in the VRM at `file`, a path
 ## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its hands swaying, as another player's streamed
 ## poses pose them; with "posture" each instead holds Posture's recorded poses in turn, a second and a fifth each, over
-## what is under it, as another player's avatar reads them; [] takes them away. Prices another player's avatar on one
+## what is under it, as another player's avatar reads them; with "apart" each reads the file itself and holds its own
+## textures, as players each wearing their own file do; [] takes them away. Prices another player's avatar on one
 ## headset, with no network in the way, and prints the main thread's microseconds per avatar pose when they go.
 func _figures(s: Dictionary) -> void:
 	if not _stood.is_empty():
@@ -1594,14 +1595,15 @@ func _figures(s: Dictionary) -> void:
 	_posed_frames = 0
 	var path: String = s.get("file", "")
 	var scene: PackedScene = Avatar.built_in(0)
-	if path:
-		var result := {}
-		main.session._read(PackedByteArray(), path if path.is_absolute_path() else Main.player_path(path), func(_hash: String, _bytes: PackedByteArray, loaded: PackedScene) -> void: result.scene = loaded)
-		while not result.has("scene"):
-			await get_tree().process_frame
-		scene = result.scene
-	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
-	for at: Array in s.spots:
+	for i in s.spots.size():
+		var at: Array = s.spots[i]
+		if path and (s.get("apart", false) or i == 0):
+			var result := {}
+			main.session._read(PackedByteArray(), path if path.is_absolute_path() else Main.player_path(path), func(_hash: String, _bytes: PackedByteArray, loaded: PackedScene) -> void: result.scene = loaded)
+			while not result.has("scene"):
+				await get_tree().process_frame
+			scene = result.scene
+		assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
 		var a := Avatar.open(scene, Color.WHITE, path)
 		var foot := main.world.terrain.ground(at[0], at[1])
 		a.transform = Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)

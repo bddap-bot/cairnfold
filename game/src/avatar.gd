@@ -18,7 +18,12 @@ const MAX_BYTES := 96 << 20
 ## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
 ## "Skinned bodies").
 const MAX_SURFACES := 40
-const MAX_TEXTURE := 1024
+## The texels a file's base colour textures are held in between them, all shrunk alike past it: half a MAX_IMAGE_SIDE
+## atlas's. A Quest 2 holds seven other players each wearing their own heavy converted avatar at this; at one and a half
+## times it, it runs out of memory (docs/multiplayer.md, "Limits").
+const MAX_TEXELS := MAX_IMAGE_SIDE * MAX_IMAGE_SIDE / 2
+## The widest an image no base colour samples is held while it is read; plain materials draw none of them.
+const MAX_OTHER_TEXTURE := 1024
 ## The widest an expression layer (decals, untinted colours, hue mask) is held: a converted avatar's atlas-sized layers
 ## at 4096 would hold four times a Quest 2's memory for them.
 const MAX_LAYER := 2048
@@ -212,12 +217,22 @@ static func built_in(i: int) -> PackedScene:
 static func read(bytes: PackedByteArray, widest := MAX_IMAGE_SIDE) -> PackedScene:
 	if bytes.size() > MAX_BYTES * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE):
 		return null
+	var images := Vrm.images(bytes)
+	var colour := 0
+	for image in images:
+		colour += image.size.x * image.size.y if image.colour else 0
+	var scale := minf(1.0, sqrt(float(MAX_TEXELS) / maxi(colour, 1)))
 	var seen := {"images": 0, "pixels": 0}
+	# Each image decoded must be the one Vrm.images measured in its place, or the scale and the colour of an image
+	# would be another's.
 	var fits := func(size: Vector2i) -> bool:
 		seen.images += 1
 		seen.pixels += size.x * size.y
-		return maxi(size.x, size.y) <= widest and seen.images <= MAX_IMAGES and seen.pixels <= MAX_PIXELS * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE)
-	var root := Vrm.read(bytes, fits, shape, _shrink)
+		return maxi(size.x, size.y) <= widest and seen.images <= mini(MAX_IMAGES, images.size()) and seen.pixels <= MAX_PIXELS * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE) and size == images[seen.images - 1].size
+	var shrink := func(img: Image) -> void:
+		var big := maxi(img.get_width(), img.get_height())
+		_shrink(img, scale if images[seen.images - 1].colour else minf(1.0, float(MAX_OTHER_TEXTURE) / big))
+	var root := Vrm.read(bytes, fits, shape, shrink)
 	return model(root) if root != null else null
 
 
@@ -406,6 +421,7 @@ static func _plain(m: BaseMaterial3D) -> void:
 	m.emission_enabled = false
 	m.emission_texture = null
 	m.cull_mode = BaseMaterial3D.CULL_BACK
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	if m.transparency in [BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS]:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if (m.get_meta("extras", {}) as Dictionary).get("depthWrite", false) else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
@@ -413,10 +429,9 @@ static func _plain(m: BaseMaterial3D) -> void:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 
 
-static func _shrink(img: Image) -> void:
-	var big := maxi(img.get_width(), img.get_height())
-	if big > MAX_TEXTURE:
-		img.resize(maxi(1, img.get_width() * MAX_TEXTURE / big), maxi(1, img.get_height() * MAX_TEXTURE / big), Image.INTERPOLATE_CUBIC)
+static func _shrink(img: Image, scale: float) -> void:
+	if scale < 1.0:
+		img.resize(maxi(1, int(img.get_width() * scale)), maxi(1, int(img.get_height() * scale)), Image.INTERPOLATE_CUBIC)
 	if not img.has_mipmaps():
 		img.generate_mipmaps()
 

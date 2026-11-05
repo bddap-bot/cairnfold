@@ -307,7 +307,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
   it is sent, so all players see the same avatar: at most 96 MB, surfaces merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
-  author made them, textures shrunk to 1024 px with mipmaps, and expression layers to 2048 px. A heavy mesh is its
+  author made them, a file's base colour textures held to 8.4 million texels between them (half a 4096 px atlas),
+  shrunk alike past that, mipmapped and sampled anisotropically, its other images to 1024 px, and expression layers
+  to 2048 px. On a Quest 2, seven figures each reading their own copy of a heavy converted avatar with one 4096 px
+  atlas in `demo/avatar-chain-cost.json` peak at 4.9 GB of the game's resident and swapped memory against 3.9 GB with
+  textures held to 1024 px, the renderer's textures at 1.35 GB against 0.54; at 12.6 million texels they peak at
+  5.23 GB, the system thrashes and its shell takes the display, and at 16.8 million it kills the game while they
+  load. Neither the
+  texels nor anisotropic sampling moved the scene's GPU time by more than 0.1 ms in any phase. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:
@@ -418,7 +425,8 @@ are not isolated. The baseline's first Godette load also records a 3623 ms stall
 with shader compilation. GPU medians do not establish hitch-free loading.
 
 The seven-figure scene, `demo/avatar-chain-cost.json`, keeps the same views,
-quality and repeated measurement sequence with seven figures. Its records are
+quality and repeated measurement sequence with seven figures; the records below
+predate its load phase, its capture and its figures each reading the file. Its records are
 `perf/quest-2/avatar-chain-cost/20261026T000249Z-a5fe9f9.json` before and
 `perf/quest-2/avatar-chain-cost/20261026T000805Z-5c5ef5d.json` after.
 

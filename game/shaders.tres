@@ -96,6 +96,7 @@ backlight_enabled = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ma1lj"]
 shading_mode = 2
+texture_filter = 5
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2mqp0"]
 shading_mode = 0
