@@ -443,3 +443,97 @@
  
  public:
  	static TextureStorage *get_singleton() { return singleton; }
+--- a/servers/rendering/renderer_rd/shaders/skeleton.glsl
++++ b/servers/rendering/renderer_rd/shaders/skeleton.glsl
+@@ -128,9 +128,10 @@
+ 		float blend_total = 0.0;
+ 		vec2 blend_vertex = vec2(0.0);
+ 
+-		for (uint i = 0; i < params.blend_shape_count; i++) {
+-			float w = blend_shape_weights.data[i];
+-			if (abs(w) > 0.0001) {
++		for (uint k = 0; k < params.blend_shape_count; k++) {
++			uint i = floatBitsToUint(blend_shape_weights.data[k * 2]);
++			float w = blend_shape_weights.data[k * 2 + 1];
++			{
+ 				uint base_offset = (params.vertex_count * i + index) * params.vertex_stride;
+ 
+ 				blend_vertex += uintBitsToFloat(uvec2(src_blend_shapes.data[base_offset + 0], src_blend_shapes.data[base_offset + 1])) * w;
+@@ -205,9 +206,10 @@
+ 		vec3 blend_normal = vec3(0.0);
+ 		vec3 blend_tangent = vec3(0.0);
+ 
+-		for (uint i = 0; i < params.blend_shape_count; i++) {
+-			float w = blend_shape_weights.data[i];
+-			if (abs(w) > 0.0001) {
++		for (uint k = 0; k < params.blend_shape_count; k++) {
++			uint i = floatBitsToUint(blend_shape_weights.data[k * 2]);
++			float w = blend_shape_weights.data[k * 2 + 1];
++			{
+ 				uint base_offset = params.vertex_count * i * (params.vertex_stride + params.normal_tangent_stride) + index * params.vertex_stride;
+ 
+ 				blend_vertex += uintBitsToFloat(uvec3(src_blend_shapes.data[base_offset + 0], src_blend_shapes.data[base_offset + 1], src_blend_shapes.data[base_offset + 2])) * w;
+--- a/servers/rendering/renderer_rd/storage_rd/mesh_storage.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/mesh_storage.cpp
+@@ -1043,7 +1043,8 @@
+ 		for (float &weight : mi->blend_weights) {
+ 			weight = 0;
+ 		}
+-		mi->blend_weights_buffer = RD::get_singleton()->storage_buffer_create(sizeof(float) * mi->blend_weights.size(), mi->blend_weights.span().reinterpret<uint8_t>());
++		mi->blend_active.resize(mi->blend_weights.size() * 2);
++		mi->blend_weights_buffer = RD::get_singleton()->storage_buffer_create(sizeof(float) * mi->blend_active.size());
+ 		mi->weights_dirty = true;
+ 	}
+ 
+@@ -1105,6 +1106,8 @@
+ 		}
+ 
+ 		mi->blend_weights.clear();
++		mi->blend_active.clear();
++		mi->blend_active_count = 0;
+ 		mi->weights_dirty = false;
+ 		mi->skeleton_version = 0;
+ 	}
+@@ -1147,7 +1150,20 @@
+ 		MeshInstance *mi = dirty_mesh_instance_weights.first()->self();
+ 
+ 		if (mi->blend_weights_buffer.is_valid()) {
+-			RD::get_singleton()->buffer_update(mi->blend_weights_buffer, 0, mi->blend_weights.size() * sizeof(float), mi->blend_weights.ptr());
++			// The skinning pass visits only the shapes that move the mesh: an avatar's face can carry hundreds, nearly
++			// all at rest, which it would otherwise read for every vertex every frame.
++			uint32_t active = 0;
++			for (uint32_t i = 0; i < mi->blend_weights.size(); i++) {
++				if (Math::abs(mi->blend_weights[i]) > 0.0001f) {
++					memcpy(&mi->blend_active[active * 2], &i, sizeof(uint32_t));
++					mi->blend_active[active * 2 + 1] = mi->blend_weights[i];
++					active++;
++				}
++			}
++			mi->blend_active_count = active;
++			if (active > 0) {
++				RD::get_singleton()->buffer_update(mi->blend_weights_buffer, 0, active * 2 * sizeof(float), mi->blend_active.ptr());
++			}
+ 		}
+ 		dirty_mesh_instance_weights.remove(&mi->weight_update_list);
+ 		mi->weights_dirty = false;
+@@ -1239,7 +1255,7 @@
+ 			push_constant.inverse_transform_offset[0] = inverse_transform.columns[2][0];
+ 			push_constant.inverse_transform_offset[1] = inverse_transform.columns[2][1];
+ 
+-			push_constant.blend_shape_count = mi->mesh->blend_shape_count;
++			push_constant.blend_shape_count = mi->blend_active_count;
+ 			push_constant.normalized_blend_shapes = mi->mesh->blend_shape_mode == RS::BLEND_SHAPE_MODE_NORMALIZED;
+ 			push_constant.pad1 = 0;
+ 
+--- a/servers/rendering/renderer_rd/storage_rd/mesh_storage.h
++++ b/servers/rendering/renderer_rd/storage_rd/mesh_storage.h
+@@ -196,6 +196,9 @@
+ 		};
+ 		LocalVector<Surface> surfaces;
+ 		LocalVector<float> blend_weights;
++		// The weights the skinning pass reads: the index and weight of each blend shape that moves the mesh.
++		LocalVector<float> blend_active;
++		uint32_t blend_active_count = 0;
+ 
+ 		RID blend_weights_buffer;
+ 		List<MeshInstance *>::Element *I = nullptr; //used to erase itself

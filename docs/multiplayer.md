@@ -334,6 +334,17 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   which puts that view 1.56 ms past the 11.11 ms budget; one in view close takes 9.54
   against 7.55. Each adds 5.0 MB of buffers and 5.8 MB of video memory; each phase's record
   keeps its peak texture, buffer and video memory.
+
+  What a heavy creator avatar costs is its vertices, not its materials. Three figures of a
+  creator avatar of about 200,000 triangles and 154,000 vertices, 4 m off at the ladder's last
+  step, cost a Quest 2 about 10 GPU ms over the empty meadow's 6.5: the skinning pass 3.4,
+  lighting once a vertex 2.6 and drawing the triangles the rest. Swapping their
+  expression materials for plain ones, drawing them opaque or taking off their colour regions
+  each moved the frame by under 0.4 ms, and lighting once a pixel saved under 0.3. A face can
+  carry hundreds of blend shapes at rest, and the skinning pass read each one's weight for
+  every vertex every frame; it now visits only those that move the mesh, which took
+  1.15 ms off three figures of a 47,000-vertex avatar whose face carries 267, on a Quest 2 at
+  the same step.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
   front faces only, and is blended where its file blends it (writing depth where its glTF
