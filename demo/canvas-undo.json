@@ -10,6 +10,7 @@
   {"op": "quality"},
   {"op": "view", "subject": "easel", "index": 0, "eye": [0.2, 1.6, 1.4], "at": [0, 1.3, 0]},
   {"op": "painting", "strokes": 10, "seconds": 10},
+  {"op": "wait", "seconds": 10},
   {"op": "take", "what": "big"},
   {"op": "dip", "what": "jar"},
   {"op": "dip", "what": "pan", "index": 5},
@@ -40,8 +41,8 @@
   {"op": "label", "name": "undo/200"},
   {"op": "undo"},
   {"op": "wait", "seconds": 3},
-  {"op": "capture", "name": "undone-200"},
   {"op": "label", "name": "-"},
+  {"op": "capture", "name": "undone-200"},
   {"op": "caught_up", "seconds": 240},
   {"op": "quit"}
 ]
