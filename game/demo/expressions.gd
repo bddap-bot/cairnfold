@@ -34,7 +34,7 @@ static func scene() -> PackedScene:
 
 static func definition() -> Dictionary:
 	var parameters := []
-	for key: String in ["Hat", "Size", "Horizontal", "Vertical", "Up", "Right", "Down", "Left", "Pulse", "Menu", "Puppet", "Colour", "Tone", "Decal"]:
+	for key: String in ["Hat", "Size", "Horizontal", "Vertical", "Up", "Right", "Down", "Left", "Pulse", "Menu", "Puppet", "Colour", "Tone", "Decal", "DecalHue"]:
 		parameters.append({"name": key, "type": "bool" if key == "Hat" else "float", "default": 0.5 if key == "Size" else 0.0, "saved": key not in ["Pulse", "Menu", "Puppet"]})
 	var control := func(name: String, kind: String, parameter: String, axes: Array = []) -> Dictionary:
 		return {"name": name, "type": kind, "parameter": parameter, "value": 1.0, "axes": axes}
@@ -63,7 +63,8 @@ static func definition() -> Dictionary:
 	var drives := [
 		["Colour", {"color": [region.merged({"channel": 2, "color": [HAT.r, HAT.g, HAT.b]})]}, HAT.b, 1.0],
 		["Tone", {"tone": [region.merged({"channel": 1})]}, 0.0, -1.0],
-		["Decal", {"look": [region.merged({"field": "decal", "slot": 0, "multiply": false, "alpha": 0.0, "image": 0})]}, 0.0, 1.0]]
+		["Decal", {"look": [region.merged({"field": "decal", "slot": 0, "multiply": false, "alpha": 0.0, "image": 0, "hue": {"shift": 0.0, "space": 1.0, "select": 1.0}})]}, 0.0, 1.0],
+		["DecalHue", {"look": [region.merged({"field": "decalHue", "slot": 0, "multiply": false, "alpha": 0.0, "image": 0, "hue": {"shift": 0.0, "space": 1.0, "select": 1.0}})]}, 0.0, 0.5]]
 	for drive: Array in drives:
 		data.menu.append(control.call(drive[0], "toggle", drive[0]))
 		data.targets.append({"effect": drive[1], "default": drive[2]})

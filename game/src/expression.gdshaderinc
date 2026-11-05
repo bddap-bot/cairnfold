@@ -122,6 +122,10 @@ void fragment() {
 	vec4 decal_page = vec4(0.0);
 	vec4 decal_rect[4];
 	vec4 decal_cell[4];
+#ifdef DECAL_HUE
+	vec4 decal_shift = vec4(0.0);
+	vec4 decal_turn = vec4(0.0);
+#endif
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
@@ -141,11 +145,19 @@ void fragment() {
 				decal_page[slot] = e.z;
 				decal_rect[slot] = texelFetch(regions, ivec2(i, 3), 0);
 				decal_cell[slot] = rect;
-				if (e.y > 0.5) {
-					decal_intensity[slot] = s.x;
-					if (decal_alpha[slot] < 0.0) { decal_alpha[slot] = e.x; }
-				} else {
+				int field = int(e.y + 0.5);
+#ifdef DECAL_HUE
+				if (decal_turn[slot] < 0.5 && e.w > 0.5) {
+					decal_turn[slot] = e.w;
+					decal_shift[slot] = texelFetch(regions, ivec2(i, 4), 0).x;
+				}
+				if (field == 2) { decal_shift[slot] = s.x; }
+#endif
+				if (field == 0) {
 					decal_alpha[slot] = s.x;
+				} else {
+					if (field == 1) { decal_intensity[slot] = s.x; }
+					if (decal_alpha[slot] < 0.0) { decal_alpha[slot] = e.x; }
 				}
 			}
 		}
@@ -171,8 +183,15 @@ void fragment() {
 			vec2 to_page = (place.zw - place.xy) / (cell.zw - cell.xy);
 			vec2 at = place.xy + (clamp(UV, cell.xy, cell.zw) - cell.xy) * to_page;
 			vec4 decal = textureGrad(decals, vec3(at, decal_page[slot]), uv_dx * to_page, uv_dy * to_page);
+			vec3 laid = decal.rgb;
+#ifdef DECAL_HUE
+			if (decal_turn[slot] > 0.5) {
+				float mode = decal_turn[slot] - 1.0;
+				laid = shift_hue(laid, vec3(decal_shift[slot], floor(mode * 0.5), mod(mode, 2.0)));
+			}
+#endif
 			float alpha = clamp(decal_intensity[slot] * decal.a * clamp(decal_alpha[slot], 0.0, 1.0), 0.0, 1.0);
-			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * decal.rgb : decal.rgb, alpha);
+			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * laid : laid, alpha);
 		}
 	}
 	vec3 glowing = vec3(0.0);

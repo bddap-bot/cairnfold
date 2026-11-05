@@ -22,10 +22,17 @@ var _last: Array[float] = []
 var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
+var _turned := {}
 
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
+## The expression shaders by whether they turn decal hues, each cut out, blended, and blended writing depth.
+const SHADERS := [
+	[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
+	[preload("res://src/expression_hue.gdshader"), preload("res://src/expression_blended_hue.gdshader"), preload("res://src/expression_blended_depth_hue.gdshader")]]
+## The look fields that drive a decal, in the order the shader reads them.
+const DECAL_FIELDS := ["decal", "decalIntensity", "decalHue"]
 
 
 func _init(model: Node3D) -> void:
@@ -36,6 +43,12 @@ func _init(model: Node3D) -> void:
 	for n: Node in model.find_children("*", "", true, false):
 		nodes[str(n.name)] = n
 	icons.assign(model.get_meta("expression_icons", []))
+	for target: Dictionary in data.get("targets", []):
+		var effect: Variant = target.get("effect")
+		if effect is Dictionary and effect.has("look"):
+			for region: Dictionary in effect.look:
+				if region.get("hue") is Dictionary:
+					_turned[str(region.node)] = true
 	for target: Dictionary in data.get("targets", []):
 		var binds := []
 		var effect: Variant = target.get("effect")
@@ -95,7 +108,7 @@ func _init(model: Node3D) -> void:
 					var mats := _material(mesh)
 					var decals: Dictionary = model.get_meta("expression_decal_sets", {}).get(str(region.node), {})
 					var place: Array = decals.get("places", {}).get(int(region.get("image", -1)), [0, 0.0, 0.0, 0.0, 0.0])
-					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region, place[0]), "decal": place.slice(1)}
+					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region, place[0]), "decal": place.slice(1), "turn": _turn(region)}
 					for mat in mats:
 						(_regions.get_or_add(mat, []) as Array).append(entry)
 						for uniform: String in TEXTURES[kind]:
@@ -138,14 +151,15 @@ func apply() -> void:
 	_move_bones()
 	for mat: ShaderMaterial in _dirty_regions:
 		var entries: Array = _regions[mat]
-		var image := Image.create(entries.size(), 4, false, Image.FORMAT_RGBAF)
+		var image := Image.create(entries.size(), 5, false, Image.FORMAT_RGBAF)
 		for k in entries.size():
 			var e: Dictionary = entries[k]
 			var s: Array = e.settings
 			image.set_pixel(k, 0, Color(e.rect[0], e.rect[1], e.rect[2], e.rect[3]))
 			image.set_pixel(k, 1, Color(e.value, e.kind, s[0], s[1]))
-			image.set_pixel(k, 2, Color(s[2], s[3], s[4], 0))
+			image.set_pixel(k, 2, Color(s[2], s[3], s[4], e.turn.g))
 			image.set_pixel(k, 3, Color(e.decal[0], e.decal[1], e.decal[2], e.decal[3]))
+			image.set_pixel(k, 4, e.turn)
 		var texture := mat.get_shader_parameter("regions") as ImageTexture
 		if texture == null:
 			texture = ImageTexture.create_from_image(image)
@@ -334,20 +348,32 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 			return [region.get("channel", 0), 0, c[0], c[1], c[2]]
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
-	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("field") == "decalIntensity" else 0, page]
+	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), DECAL_FIELDS.find(region.get("field", "decal")), page]
+
+
+## A decal's hue turn at rest as (shift, 1 + 2 * colour space + select or shift), or zero where its image holds its
+## colour: one number for how it turns keeps the shader's per-slot state in vectors, which a Quest's GPU indexes far more
+## cheaply than an array of them.
+static func _turn(region: Dictionary) -> Color:
+	var hue: Variant = region.get("hue")
+	if not hue is Dictionary:
+		return Color(0, 0, 0, 0)
+	return Color(float(hue.get("shift", 0)), 1 + 2 * float(hue.get("space", 0)) + float(hue.get("select", 1)), 0, 0)
 
 
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
-## blended writing depth.
+## blended writing depth. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
+## turn costs a Quest 2 a few milliseconds a frame on every surface, turned or not.
 func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
 		return _materials[mesh]
 	var by_shader := {}
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
-		var shader: Shader = preload("res://src/expression.gdshader")
+		var way := 0
 		if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
-			shader = preload("res://src/expression_blended_depth.gdshader") if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else preload("res://src/expression_blended.gdshader")
+			way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
+		var shader: Shader = SHADERS[1 if _turned.has(str(mesh.name)) else 0][way]
 		if not by_shader.has(shader):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader

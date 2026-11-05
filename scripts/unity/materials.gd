@@ -256,7 +256,7 @@ func pack(used: Array) -> void:
 		var cell: Rect2i = cells[key]
 		m.cell = cell
 		var img := _cell_image(m, cell)
-		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod)
+		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod, _alpha_overrides(key, img.get_size()))
 		_detail(m, img)
 		_blit_padded(atlas, img, cell)
 
@@ -348,14 +348,42 @@ static func _number(m: Dictionary, name: String, otherwise: float) -> float:
 	return str((m.get("ints", {}) as Dictionary).get(name, (m.get("floats", {}) as Dictionary).get(name, otherwise))).to_float()
 
 
-## `mod` is Poiyomi's Alpha Mod, added to the alpha before it cuts or blends.
-static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: float) -> void:
+## Poiyomi's decal Alpha Blend Modes of the material at `key`, in slot order, as [mode, each texel's decal alpha] at
+## `size`, its cell's: a decal spans its whole cell, so its bounds are the cell's.
+func _alpha_overrides(key: String, size: Vector2i) -> Array:
+	var floats: Dictionary = materials[key].get("floats", {})
+	var out := []
+	for slot in 4:
+		var mode := str(floats.get("_DecalOverrideAlpha" + ("" if slot == 0 else str(slot)), "0")).to_int()
+		if mode == 0:
+			continue
+		var d := decal(key, slot)
+		if d.is_empty():
+			continue
+		var layer := (decal_images[d.image] as Image).duplicate() as Image
+		layer.resize(size.x, size.y, RESAMPLE)
+		var blend := clampf(d.alpha, 0.0, 1.0)
+		var data := layer.get_data()
+		var alphas := PackedFloat32Array()
+		alphas.resize(size.x * size.y)
+		for i in alphas.size():
+			alphas[i] = data[4 * i + 3] / 255.0 * blend
+		out.append([mode, alphas])
+	return out
+
+
+## `mod` is Poiyomi's Alpha Mod, added to the alpha before its decals' `overrides` (`_alpha_overrides`) set it and it
+## cuts or blends.
+static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: float, overrides: Array) -> void:
 	var data := img.get_data()
 	var mul := [colour.r, colour.g, colour.b, colour.a]
 	for i in range(0, data.size(), 4):
 		for c in 3:
 			data[i + c] = int(data[i + c] * mul[c])
 		var a: float = clampf(data[i + 3] * float(mul[3]) / 255.0 + mod, 0.0, 1.0)
+		for over: Array in overrides:
+			var by: float = over[1][i / 4]
+			a = clampf([by, a * by, a + by, a - by, minf(a, by), maxf(a, by)][over[0] - 1], 0.0, 1.0)
 		data[i + 3] = 255 if alpha == Alpha.OPAQUE or (alpha == Alpha.CUTOUT and a >= cutoff) else 0 if alpha == Alpha.CUTOUT else int(a * 255.0)
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
@@ -495,14 +523,29 @@ func decal(key: String, slot: int) -> Dictionary:
 	var blend: float = number.call("_DecalBlendType" + n)
 	var position: Color = vector.call("_DecalPosition" + n)
 	var scale: Color = vector.call("_DecalScale" + n)
-	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_DecalOverrideAlpha" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
+	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
 	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return number.call(name) != 0.0):
+		return {}
+	if number.call("_DecalOverrideAlpha" + n) not in [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
+		return {}
+	if number.call("_DecalOverrideAlpha" + n) != 0.0 and number.call("_Decal%sOverrideAlphaMode" % slot) in [2.0, 3.0]:
 		return {}
 	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and (number.call("_DecalHueShiftSpeed" + n) != 0.0 or number.call("_DecalHueAngleStrength" + n) != 0.0):
 		return {}
 	if not position.is_equal_approx(Color(0.5, 0.5, 0, 0)) or not is_equal_approx(scale.r, 1.0) or not is_equal_approx(scale.g, 1.0) or vector.call("_DecalSideOffset" + n) != Color(0, 0, 0, 0) or vector.call("_DecalTexture%sPan" % n) != Color(0, 0, 0, 0):
 		return {}
-	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0, "image": _decal_image(key, slot)}
+	var hue: Variant = null
+	if _turned(m, n):
+		hue = {"shift": _saved(m, "_DecalHueShift" + n, 0.0), "space": number.call("_DecalHueShiftColorSpace" + n), "select": str(floats.get("_DecalHueShiftSelectOrShift" + n, "1")).to_float()}
+	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0, "image": _decal_image(key, slot), "hue": hue}
+
+
+## Whether the decal suffixed `n` turns its hue by a value a clip can move, which its image then holds unturned: a locked
+## Poiyomi shader declares an animated property under the material's suffix.
+static func _turned(m: Dictionary, n: String) -> bool:
+	if str((m.get("floats", {}) as Dictionary).get("_DecalHueShiftEnabled" + n, "0")).to_float() == 0.0:
+		return false
+	return (m.get("properties", {}) as Dictionary).keys().any(func(declared: String) -> bool: return declared.begins_with("_DecalHueShift" + n + "_"))
 
 
 ## The decal `slot` of the material at `key` as it lies over the material's texture, coloured, masked and hue shifted
@@ -529,7 +572,7 @@ func _decal_image(key: String, slot: int) -> int:
 		size = Vector2i(1, 1)
 	var tint := _colour((m.get("colours", {}) as Dictionary).get("_DecalColor" + n), Color.WHITE)
 	var colour := _over(m, source, property, size, 0)
-	var shift := str(m.floats.get("_DecalHueShiftEnabled" + n, "0")).to_float() != 0.0
+	var shift := str(m.floats.get("_DecalHueShiftEnabled" + n, "0")).to_float() != 0.0 and not _turned(m, n)
 	if mask != null or tint != Color.WHITE or shift:
 		var cover := _over(m, mask, "_DecalMask", size, 0).get_data()
 		var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3) if mask != null else 3
@@ -760,6 +803,8 @@ func draws(key: String, look: Dictionary) -> bool:
 	match look.field:
 		"decal", "decalIntensity":
 			return not decal(key, look.slot).is_empty()
+		"decalHue":
+			return decal(key, look.slot).get("hue") != null
 		"emission":
 			return not emission(key).is_empty()
 		"emissionHue":
@@ -770,11 +815,11 @@ func draws(key: String, look: Dictionary) -> bool:
 
 
 ## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## or alpha intensity, a matcap's hue shift or strengths, or emission's strength or hue.
+## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, or emission's strength or hue.
 static func field(property: String) -> Dictionary:
 	var decal := _DECAL_FIELD.search(property)
 	if decal != null:
-		return {"field": "decal" if decal.get_string(1) == "BlendAlpha" else "decalIntensity", "slot": decal.get_string(2).to_int()}
+		return {"field": {"BlendAlpha": "decal", "AlphaIntensity": "decalIntensity", "HueShift": "decalHue"}[decal.get_string(1)], "slot": decal.get_string(2).to_int()}
 	var matcap := _MATCAP_FIELD.search(property)
 	if matcap != null:
 		return {"field": "matcap" + matcap.get_string(2), "slot": maxi(matcap.get_string(1).to_int() - 1, 0)}
@@ -784,7 +829,7 @@ static func field(property: String) -> Dictionary:
 	return {}
 
 
-static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity)([1-3]?)(_|$)")
+static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
 static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift)(_|$)")
 

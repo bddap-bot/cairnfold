@@ -94,6 +94,15 @@ static func looks_valid(looks: Variant) -> bool:
 	return true
 
 
+## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
+## the turn names the colour space and mode it turns in, which the shader cannot guess.
+static func _hue(region: Dictionary) -> bool:
+	var v: Variant = region.get("hue")
+	if v == null:
+		return region.get("field") != "decalHue"
+	return v is Dictionary and _number(v.get("shift", 0.0)) and _number(v.get("space", 0.0)) and _number(v.get("select", 1.0))
+
+
 static func _number(v: Variant) -> bool:
 	return (v is int or v is float) and is_finite(float(v))
 
@@ -186,5 +195,5 @@ static func _effect(effect: Variant) -> bool:
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
 	if kind in REGIONS and effect[kind] is Array:
-		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16))
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _hue(r))
 	return false

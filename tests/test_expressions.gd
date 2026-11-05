@@ -321,7 +321,8 @@ func _roundtrip() -> void:
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
 		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
 		var mat := hat.get_surface_override_material(0) as ShaderMaterial
-		check(mat != null and mat.get_shader_parameter("region_count") == 3 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone and decal regions and their layers to the hat")
+		check(mat != null and mat.get_shader_parameter("region_count") == 4 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal and decal hue regions and their layers to the hat")
+		check(mat != null and mat.shader.resource_path.ends_with("expression_hue.gdshader"), "the hat, whose decal turns its hue, draws with the shader that turns it")
 		var regions: Texture2D = mat.get_shader_parameter("regions") if mat != null else null
 		var pad := float(ExpressionPlayer.DECAL_PAD) / (preload("res://demo/expressions.gd").SIZE + 2 * ExpressionPlayer.DECAL_PAD)
 		check(regions != null and regions.get_image().get_pixel(2, 3).is_equal_approx(Color(pad, pad, 1.0 - pad, 1.0 - pad)), "the decal region names its decal's place on its page: %s" % [regions.get_image().get_pixel(2, 3) if regions else null])
@@ -335,9 +336,16 @@ func _malformed() -> void:
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
-	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 2, "rest": [-85, 0, 1]}}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0, 1]}}, {"translation": {"node": 2, "direction": [-1, 0, 0]}}]:
+	var turned := {"node": 0, "rect": [0, 0, 1, 1], "field": "decalHue", "slot": 1, "alpha": 0.5, "hue": {"shift": 0.25, "space": 1.0, "select": 1.0}}
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned]}}]}), "a decal region turning its hue is valid")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": {"shift": "a"}}, true)]}}]}), "a decal region with a malformed hue turn is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": null}, true)]}}]}), "a decal hue region without the turn it drives is rejected")
+	var settings := ExpressionPlayer._settings("look", turned, 3)
+	check(settings == [1, 0, 0.5, 2, 3], "a decal hue region drives its slot's turn, not its alpha, which stays at the saved one: %s" % [settings])
+	check(ExpressionPlayer._turn(turned) == Color(0.25, 4.0, 0.0, 0.0) and ExpressionPlayer._turn({"field": "decal"}).g == 0.0, "a decal's turn at rest reaches the shader, and an unturned decal's is clear")
+	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 2, "rest": [-85, 0, 1]}}, {"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0, 1]}}, {"translation": {"node": 2, "direction": [-1, 0, 0]}}, {"constraint": {"node": 2}}]:
 		check(ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "an imported %s target is valid" % effect.keys()[0])
-	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}]:
+	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}, {"constraint": {}}]:
 		check(not ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "a malformed %s target is rejected" % effect.keys()[0])
 	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
 	var switch := [{"effect": "switch", "default": 1.0}]

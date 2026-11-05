@@ -1056,6 +1056,15 @@ func _blended_surfaces_stay_blended() -> void:
 	player._material(shown)
 	var shaders := range(3).map(func(i: int) -> String: return (shown.get_surface_override_material(i) as ShaderMaterial).shader.resource_path.get_file())
 	check(shaders == ["expression.gdshader", "expression_blended.gdshader", "expression_blended_depth.gdshader"], "every surface of an animated mesh draws as it did: %s" % [shaders])
+	var turned := MeshInstance3D.new()
+	turned.mesh = shown.mesh
+	var turning := ExpressionPlayer.new(model)
+	turning._turned[str(turned.name)] = true
+	turning._material(turned)
+	shaders = range(3).map(func(i: int) -> String: return (turned.get_surface_override_material(i) as ShaderMaterial).shader.resource_path.get_file())
+	check(shaders == ["expression_hue.gdshader", "expression_blended_hue.gdshader", "expression_blended_depth_hue.gdshader"], "a mesh with a decal whose hue turns draws each way with the shader that turns it: %s" % [shaders])
+	turned.free()
+	turning.free()
 	shown.free()
 	player.free()
 	model.free()

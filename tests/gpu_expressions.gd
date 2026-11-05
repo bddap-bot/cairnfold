@@ -1,7 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## A colour, a tone and a decal target each change what the expression fixture's hat looks like, as their material
-## properties would in VRChat. Needs a renderer, so scripts/test.sh runs it on the desktop one:
+## A colour, a tone, a decal and a decal hue target each change what the expression fixture's hat looks like, as their
+## material properties would in VRChat. Needs a renderer, so scripts/test.sh runs it on the desktop one:
 ## godot4 --path game --xr-mode off --script ../tests/gpu_expressions.gd [-- OUT_DIR]
 
 const SIZE := 128
@@ -43,28 +43,30 @@ func _run() -> void:
 	var colour := await _shot(view, player, 1, "Colour", out)
 	var tone := await _shot(view, player, 1, "Tone", out)
 	var decal := await _shot(view, player, 1, "Decal", out)
-	print("rest %s, colour %s, tone %s, decal %s" % [rest, colour, tone, decal])
+	var turned := await _shot(view, player, 1, "Decal", out, "DecalHue")
+	print("rest %s, colour %s, tone %s, decal %s, turned %s" % [rest, colour, tone, decal, turned])
 	check(rest.r > rest.g * 3.0 and rest.r > rest.b * 3.0, "the hat rests red: %s" % rest)
 	check(colour.b > rest.b * 3.0 and absf(colour.r - rest.r) < 0.1, "the colour target raises the hat's blue channel: %s" % colour)
 	check(absf(tone.r - tone.g) < 0.05 and absf(tone.r - tone.b) < 0.05, "the tone target takes the hat's saturation away: %s" % tone)
 	check(decal.b > rest.b * 3.0 and decal.r < rest.r * 0.8, "the decal target lays its blue stripes over the hat: %s" % decal)
+	check(turned.r > decal.r * 1.3 and turned.b < decal.b * 0.6, "the decal hue target turns the stripes half round, blue to orange, without hiding them: %s" % turned)
 	view.queue_free()
 	finish()
 
 
-## The mean colour at the middle of the view, the hat's place, with Hat at `hat` and only `parameter` of the three
-## driven.
-func _shot(view: SubViewport, player: ExpressionPlayer, hat: int, parameter: String, out: String) -> Color:
+## The mean colour at the middle of the view, the hat's place, with Hat at `hat` and only `parameter` (and `also`) of the
+## drives up.
+func _shot(view: SubViewport, player: ExpressionPlayer, hat: int, parameter: String, out: String, also := "") -> Color:
 	player.state.put("Hat", hat)
-	for p: String in ["Colour", "Tone", "Decal"]:
-		player.state.put(p, 1.0 if p == parameter else 0.0)
+	for p: String in ["Colour", "Tone", "Decal", "DecalHue"]:
+		player.state.put(p, 1.0 if p in [parameter, also] else 0.0)
 	player.state.advance(0)
 	player.apply()
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var image := view.get_texture().get_image()
 	if out != "":
-		image.save_png(out.path_join("%s.png" % (parameter if parameter != "" else "rest" if hat else "bare")))
+		image.save_png(out.path_join("%s.png" % (parameter + also if parameter != "" else "rest" if hat else "bare")))
 	var sum := Color(0, 0, 0, 0)
 	var n := 0
 	for y in range(SIZE * 3 / 8, SIZE * 5 / 8):

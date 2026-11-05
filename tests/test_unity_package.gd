@@ -1254,7 +1254,7 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	var cell: Rect2i = materials.materials.skin.cell
 	var rect := [float(cell.position.x) / materials.atlas_side, float(cell.position.y) / materials.atlas_side, float(cell.end.x) / materials.atlas_side, float(cell.end.y) / materials.atlas_side]
 	check((looks.get("decals", []) as Array).size() == 1, "one image per decal drawn")
-	check(looks.get("materials", []) == [{"rect": rect, "decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true, "image": 0}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds its cell and each slot's saved alpha, blend and image: %s" % [looks.get("materials")])
+	check(looks.get("materials", []) == [{"rect": rect, "decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true, "image": 0, "hue": null}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds its cell and each slot's saved alpha, blend and image: %s" % [looks.get("materials")])
 	if data.targets.size() == 1:
 		check(data.targets[0].effect.look[0].image == 0, "the region names its decal's image")
 	if (looks.get("decals", []) as Array).size() == 1:
@@ -1281,23 +1281,60 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(moved.targets.is_empty() and not moved.has("looks"), "a decal placed off the whole texture is neither bound nor drawn")
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.5, "g": 0.5, "b": 0, "a": 0}
-	materials.materials.skin.properties._DecalHueShift2_Skin = true
-	materials.materials.skin.floats.merge({"_DecalHueShiftEnabled2": "1", "_DecalHueShiftColorSpace2": "1", "_DecalHueShift2": "0", "_DecalHueShift2_Skin": "0.5"})
-	var hued := func() -> Color:
+	materials.materials.skin.floats.merge({"_DecalHueShiftEnabled2": "1", "_DecalHueShiftColorSpace2": "1", "_DecalHueShift2": "0.5"})
+	var drawn_decal := func() -> Dictionary:
 		var bound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 		var drawn: Variant = bound.get("looks", {}).get("materials", [{}])[0].get("decals", [null, null, null])[2]
 		if drawn == null:
-			return Color(0, 0, 0, 0)
+			return {"texel": Color(0, 0, 0, 0), "hue": null, "bound": bound}
 		var layer: Image = bound.looks.decals[drawn.image]
-		return layer.get_pixel(3 * layer.get_width() / 4, layer.get_height() / 2)
-	var cyan: Color = hued.call()
-	check(cyan.a > 0.8 and cyan.r < 0.02 and absf(cyan.g - 0.9) < 0.02 and cyan.b > 0.98, "a decal at a fixed hue shift is drawn at it, by the shader-named value: linear orange half a turn round HSV is cyan, %s" % cyan)
+		return {"texel": layer.get_pixel(3 * layer.get_width() / 4, layer.get_height() / 2), "hue": drawn.hue, "bound": bound}
+	var cyan: Dictionary = drawn_decal.call()
+	check(cyan.texel.a > 0.8 and cyan.texel.r < 0.02 and absf(cyan.texel.g - 0.9) < 0.02 and cyan.texel.b > 0.98 and cyan.hue == null, "a decal at a fixed hue shift is drawn at it: linear orange half a turn round HSV is cyan, %s" % cyan.texel)
+	materials.materials.skin.properties._DecalHueShift2_Skin = true
+	materials.materials.skin.floats._DecalHueShift2_Skin = "0.5"
+	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalHueShift2_Skin", "class": "137", "keys": [[0.0, 0.25]]})
+	var turned: Dictionary = drawn_decal.call()
+	check(turned.texel.a > 0.8 and is_equal_approx(turned.texel.r, 1.0) and absf(turned.texel.g - 0.5) < 0.02 and turned.hue == {"shift": 0.5, "space": 1.0, "select": 1.0}, "a hue a clip can move is drawn at runtime: the image holds the decal unturned and the look its saved turn, %s %s" % [turned.texel, turned.hue])
+	var hue_targets: Array = turned.bound.targets.filter(func(t: Dictionary) -> bool: return t.effect.look[0].field == "decalHue")
+	check(hue_targets.size() == 1 and hue_targets[0].default == 0.5 and hue_targets[0].effect.look[0].slot == 2, "the animated hue binds as its slot's decal hue at its saved turn: %s" % [turned.bound.targets])
+	expressions.data.clips[0].curves.pop_back()
+	materials.materials.skin.properties.erase("_DecalHueShift2_Skin")
+	materials.materials.skin.floats.erase("_DecalHueShift2_Skin")
 	materials.materials.skin.colours._DecalColor2 = {"r": 1, "g": 1, "b": 1, "a": 1}
-	materials.materials.skin.floats.merge({"_DecalHueShiftColorSpace2": "0", "_DecalHueShift2_Skin": "0.331"})
-	var white: Color = hued.call()
+	materials.materials.skin.floats.merge({"_DecalHueShiftColorSpace2": "0", "_DecalHueShift2": "0.331"})
+	var white: Color = drawn_decal.call().texel
 	check(white.a > 0.8 and white.r > 0.98 and white.g > 0.98 and white.b > 0.98, "a white decal stays white under an OKLab hue shift: %s" % white)
 	materials.materials.skin.floats._DecalHueShiftSpeed2 = "1"
-	check(hued.call().a == 0.0, "a decal whose hue cycles over time is not drawn")
+	check(drawn_decal.call().texel.a == 0.0, "a decal whose hue cycles over time is not drawn")
+	materials.materials.skin.floats._DecalHueShiftSpeed2 = "0"
+	materials.materials.skin.floats._DecalBlendAlpha2_Skin = "1"
+	materials.materials.skin.alpha = Materials.Alpha.CUTOUT
+	materials.materials.skin.cutoff = 0.5
+	var cut := func() -> Array:
+		materials.pack(["skin"])
+		var at: Rect2i = materials.materials.skin.cell
+		return [materials.atlas.get_pixel(at.position.x + at.size.x / 4, at.position.y + at.size.y / 2).a, materials.atlas.get_pixel(at.position.x + 3 * at.size.x / 4, at.position.y + at.size.y / 2).a]
+	check(cut.call() == [1.0, 1.0], "a decal that leaves the alpha alone cuts nothing")
+	materials.materials.skin.floats._Decal2OverrideAlphaMode = "3"
+	check(cut.call() == [1.0, 1.0], "a masked mode left with the alpha blend off draws the decal and cuts nothing")
+	materials.materials.skin.floats._Decal2OverrideAlphaMode = "1"
+	materials.materials.skin.floats._DecalOverrideAlpha2 = "1"
+	check(cut.call() == [0.0, 1.0], "a decal replacing the alpha, within its bounds the whole cell, cuts the material where the decal is clear: %s" % [cut.call()])
+	materials.materials.skin.floats._DecalBlendAlpha2_Skin = "0.4"
+	check(cut.call() == [0.0, 0.0], "the decal's alpha replaces the material's at its blend alpha, under the cutoff: %s" % [cut.call()])
+	materials.materials.skin.floats._DecalOverrideAlpha2 = "3"
+	materials.materials.skin.alpha_mod = -0.8
+	check(cut.call() == [0.0, 1.0], "Alpha Mod lowers the alpha before the decal adds to it: %s" % [cut.call()])
+	materials.materials.skin.alpha_mod = 0.0
+	materials.materials.skin.colour = Color(1, 1, 1, 0.2)
+	check(cut.call() == [0.0, 1.0], "the colour's alpha is taken before the decal adds to it: %s" % [cut.call()])
+	materials.materials.skin.colour = Color.WHITE
+	materials.materials.skin.floats._DecalOverrideAlpha2 = "7"
+	check(drawn_decal.call().texel.a == 0.0, "a decal in an alpha blend mode Poiyomi lacks is not drawn")
+	materials.materials.skin.floats._DecalOverrideAlpha2 = "1"
+	materials.materials.skin.floats._Decal2OverrideAlphaMode = "2"
+	check(drawn_decal.call().texel.a == 0.0, "a decal replacing the alpha under its mask is not drawn")
 	sk.free()
 
 
