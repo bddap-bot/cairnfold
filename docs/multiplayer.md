@@ -276,6 +276,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Enabled colour adjustment also carries gamma, saturation and brightness curves, with
   the RGBA adjustment mask retaining each channel independently.
 
+  Each material's looks also say how it takes the light: "flat" for Poiyomi's Flat lighting (capped at its
+  Lighting Cap where that is on) and VRChat's Toon Lit, "lit" otherwise. A flat material is lit alike whichever way
+  it faces, since its texture's painted shading is its only shading: its ambient and the light the builds give back and
+  the lanterns shed are added capped, and the main light falls on it through a normal turned toward it, tilted away by as
+  much as keeps the whole under the cap, so the sun's shadow still falls on it. The cap clips the ambient per channel
+  and the main light by its brightest channel. In the mirror, the mirror's light and ambient take the place of the sun's and the sky's. A file whose
+  looks name materials without their lighting is refused.
+
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
   `scripts/avatar_reference.gd` replays a reference recording made by Avatar Workshop's reference

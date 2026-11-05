@@ -54,7 +54,7 @@ func _init(model: Node3D) -> void:
 						var uv: Array = choices[clampi(roundi(v), 0, choices.size() - 1)]
 						for mat in mats:
 							mat.set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3])))
-			else:
+			elif ExpressionDefinition.region(effect) != "":
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
 					var mesh: MeshInstance3D = nodes.get(str(region.node))
@@ -72,6 +72,7 @@ func _init(model: Node3D) -> void:
 						for mat in mats:
 							_dirty_regions[mat] = true)
 		_bindings.append(binds)
+	_light_flat(model)
 	for shown: Dictionary in data.get("shown", []):
 		var node: Node3D = nodes.get(str(shown.node))
 		if node != null:
@@ -142,6 +143,29 @@ static func prepare(model: Node3D) -> void:
 		var decals := Texture2DArray.new()
 		if decals.create_from_images(layers) == OK:
 			model.set_meta("expression_decals", decals)
+
+
+## Binds the material index and lighting table (Avatar._flat_lit) to the meshes whose materials carry them, the ones
+## that show a flat material, and to every mesh already drawn animated, since a material swapped in may be flat.
+func _light_flat(model: Node3D) -> void:
+	var textures: Array = []
+	var flat := []
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		for i in mesh.mesh.get_surface_count():
+			var m := mesh.get_active_material(i)
+			if m != null and m.has_meta("light_index"):
+				textures = [m.get_meta("light_index"), m.get_meta("lighting")]
+				flat.append(mesh)
+				break
+	if textures.is_empty():
+		return
+	for mesh: MeshInstance3D in flat:
+		_material(mesh)
+	for mats: Array[ShaderMaterial] in _materials.values():
+		for mat in mats:
+			mat.set_shader_parameter("light_index", textures[0])
+			mat.set_shader_parameter("lighting", textures[1])
+			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 
 
 static func _settings(kind: String, region: Dictionary) -> Array:

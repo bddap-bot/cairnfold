@@ -22,6 +22,8 @@ const MAX_TEXTURE := 1024
 ## The widest an expression layer (decals, untinted colours, hue mask) is held: a converted avatar's atlas-sized layers
 ## at 4096 would hold four times a Quest 2's memory for them.
 const MAX_LAYER := 2048
+## The cap of a flat material that has none, past any light the garden sheds.
+const UNCAPPED := 1e4
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
@@ -313,7 +315,8 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material, its
-## materials plain. False, leaving them as they were, if their blend shapes are past MAX_BLEND_VERTICES.
+## materials plain and those of meshes showing a flat-lit material carrying their lighting (`_flat_lit`). False, leaving
+## them as they were, if their blend shapes are past MAX_BLEND_VERTICES or their looks lack lighting.
 static func shape(state: GLTFState) -> bool:
 	var blended := 0
 	for gm in state.get_meshes():
@@ -326,7 +329,66 @@ static func shape(state: GLTFState) -> bool:
 	for m in state.get_materials():
 		if m is BaseMaterial3D:
 			_plain(m)
+	var extensions: Variant = state.json.get("extensions", {})
+	var expressions: Variant = extensions.get(Vrm.EXPRESSIONS, {}) if extensions is Dictionary else {}
+	var looks: Variant = expressions.get("looks", {}) if expressions is Dictionary else {}
+	if not ExpressionDefinition.looks_valid(looks):
+		return false
+	_flat_lit(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
 	return true
+
+
+## Gives the meshes that show a material its looks light flat (ExpressionDefinition) copies of their materials carrying
+## the atlas's material index, nearest-sampled at most MAX_LAYER wide as each vertex reads it, and a row of each entry's
+## lighting (red one where flat, green its cap), for the avatar's shader to light them by (ExpressionPlayer). A mesh
+## shows a material where one of its vertices' texture coordinates falls in that material's cell.
+static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
+	var materials: Array = looks.get("materials", [])
+	var flat := PackedByteArray()
+	flat.resize(256)
+	var table := Image.create_empty(materials.size() + 1, 1, false, Image.FORMAT_RGF)
+	for k in materials.size():
+		var light: Dictionary = materials[k].lighting
+		if light.model == "flat":
+			flat[k + 1] = 1
+			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
+	if flat.count(1) == 0:
+		return
+	var index := Image.new()
+	if index.load_png_from_buffer(Marshalls.base64_to_raw(looks.index)) != OK:
+		push_error("avatar: the looks' material index is no PNG; its flat materials draw lit by angle")
+		return
+	index.convert(Image.FORMAT_L8)
+	var big := maxi(index.get_width(), index.get_height())
+	if big > MAX_LAYER:
+		index.resize(index.get_width() * MAX_LAYER / big, index.get_height() * MAX_LAYER / big, Image.INTERPOLATE_NEAREST)
+	var texels := index.get_data()
+	var size := index.get_size()
+	var lit_flat := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
+	var copies := {}
+	for im: ImporterMesh in meshes:
+		var shows := false
+		for i in im.get_surface_count():
+			var uvs: Variant = im.get_surface_arrays(i)[Mesh.ARRAY_TEX_UV]
+			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
+				var at := Vector2i((uv * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
+				if flat[texels[at.y * size.x + at.x]] == 1:
+					shows = true
+					break
+			if shows:
+				break
+		if not shows:
+			continue
+		for i in im.get_surface_count():
+			var m := im.get_surface_material(i)
+			if m == null:
+				continue
+			if not copies.has(m):
+				var copy: Material = m.duplicate()
+				for key: String in lit_flat:
+					copy.set_meta(key, lit_flat[key])
+				copies[m] = copy
+			im.set_surface_material(i, copies[m])
 
 
 ## Draws a material with its colour texture alone, lit once a vertex, front faces only, blended where its file blends

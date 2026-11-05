@@ -59,6 +59,9 @@ func _init(player: Rig, ground: Terrain) -> void:
 	_light.light_energy = 0.9
 	_light.basis = Basis.looking_at(Vector3(-0.35, -0.55, 1.0))
 	stand.add_child(_light)
+	var ambient := _env.ambient_light_color.srgb_to_linear() * _env.ambient_light_energy
+	RenderingServer.global_shader_parameter_set(&"mirror_ambient", Vector3(ambient.r, ambient.g, ambient.b))
+	RenderingServer.global_shader_parameter_set(&"mirror_light", Vector3.ONE * _light.light_energy)
 	stand.visible = false
 	add_child(stand)
 
@@ -194,6 +197,7 @@ func _eyes() -> Array:
 func _reflect() -> void:
 	if not standing():
 		return
+	RenderingServer.global_shader_parameter_set(&"mirror_toward", _light.global_basis.z)
 	var g := glass()
 	var eyes := _eyes()
 	for i in _views.size():

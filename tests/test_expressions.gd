@@ -8,6 +8,7 @@ func _init() -> void:
 	_bindings()
 	_roundtrip()
 	_wide_layers_shrink()
+	_lighting()
 	finish()
 
 
@@ -107,7 +108,9 @@ func _bindings() -> void:
 	hat.name = "Hat"
 	root.add_child(hat)
 	var definition := _definition()
-	definition.shown = [{"node": "Hat", "when": [[0, 1]]}]
+	definition.targets.push_front({"effect": {"translation": {"node": "Hat", "direction": [0, 1, 0]}}, "default": 0.0})
+	definition.clips.map(func(c: Dictionary) -> void: c.curves[0].target = 1)
+	definition.shown = [{"node": "Hat", "when": [[1, 1]]}]
 	root.set_meta("expressions", definition)
 	var player := ExpressionPlayer.new(root)
 	player.state.advance(0)
@@ -129,6 +132,48 @@ func _wide_layers_shrink() -> void:
 	var decals: Texture2DArray = root.get_meta("expression_decals", null)
 	var untinted: Texture2D = root.get_meta("expression_untinted", null)
 	check(decals != null and decals.get_width() == Avatar.MAX_LAYER and untinted != null and untinted.get_width() == Avatar.MAX_LAYER, "a 4096 expression layer is held at %d: %s %s" % [Avatar.MAX_LAYER, decals.get_width() if decals else null, untinted.get_width() if untinted else null])
+	root.free()
+
+
+## Looks that name materials carry each one's lighting or the file is refused. A mesh that shows a flat material
+## draws by the material index, held nearest-sampled at most MAX_LAYER wide, and the lighting table; one that shows only
+## lit materials keeps its plain material.
+func _lighting() -> void:
+	var index := Image.create_empty(4096, 4096, false, Image.FORMAT_L8)
+	index.fill_rect(Rect2i(0, 0, 2048, 4096), Color8(1, 1, 1))
+	index.fill_rect(Rect2i(2048, 0, 2048, 4096), Color8(2, 2, 2))
+	var encoded := Marshalls.raw_to_base64(index.save_png_to_buffer())
+	var looks := {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}}]}
+	check(ExpressionDefinition.valid({"looks": looks}), "looks lighting each material are valid")
+	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"materials": []}]:
+		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
+	var root := Node3D.new()
+	var meshes: Array[ImporterMesh] = []
+	for u: float in [0.25, 0.75]:
+		var im := ImporterMesh.new()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.1), Vector2(u, 0.5), Vector2(u + 0.1, 0.9)])
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+		meshes.append(im)
+	Avatar._flat_lit(looks, meshes)
+	var shown: Array[MeshInstance3D] = []
+	for im in meshes:
+		var mi := MeshInstance3D.new()
+		mi.mesh = im.get_mesh()
+		root.add_child(mi)
+		shown.append(mi)
+	root.set_meta("expressions", {"looks": looks})
+	var player := ExpressionPlayer.new(root)
+	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
+	var held: Texture2D = mat.get_shader_parameter("light_index") if mat else null
+	var table: Texture2D = mat.get_shader_parameter("lighting") if mat else null
+	check(held != null and held.get_width() == Avatar.MAX_LAYER and held.get_image().get_pixel(Avatar.MAX_LAYER / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.MAX_LAYER / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.MAX_LAYER)
+	var rows := table.get_image() if table else null
+	check(rows != null and rows.get_width() == 3 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
+	check(shown[1].get_surface_override_material(0) == null and shown[1].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials keeps its plain material")
+	player.free()
 	root.free()
 
 

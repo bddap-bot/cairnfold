@@ -67,6 +67,25 @@ static func valid(data: Dictionary) -> bool:
 		var at: Variant = collider.get("collider")
 		if not _number(at) or float(at) != floorf(float(at)) or at < 0:
 			return false
+	return looks_valid(data.get("looks", {}))
+
+
+## Looks that name their materials give each its "lighting": "lit" by angle, or "flat", lit alike whichever way it
+## faces and capped at "cap" when it has one (unity/materials.gd lighting). A file whose looks predate lighting would draw
+## flat materials shaded twice, so it is refused rather than guessed at (Avatar.shape).
+static func looks_valid(looks: Variant) -> bool:
+	if not looks is Dictionary:
+		return false
+	if not looks.has("materials") and not looks.has("index"):
+		return true
+	if not looks.get("index") is String or not looks.get("materials") is Array or looks.materials.size() > 255:
+		push_error("expressions: looks name materials without both an index and at most 255 materials")
+		return false
+	for m: Variant in looks.materials:
+		var light: Variant = m.get("lighting") if m is Dictionary else null
+		if not light is Dictionary or light.get("model") not in ["lit", "flat"] or not _number(light.get("cap", 0.0)):
+			push_error("expressions: a look's material has no lighting (\"lit\" or \"flat\" with a numeric cap): %s; convert the avatar again" % [light])
+			return false
 	return true
 
 

@@ -108,6 +108,18 @@ sky_overhead={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
 }
+mirror_toward={
+"type": "vec3",
+"value": Vector3(0, 1, 0)
+}
+mirror_light={
+"type": "vec3",
+"value": Vector3(0.9, 0.9, 0.9)
+}
+mirror_ambient={
+"type": "vec3",
+"value": Vector3(0.39, 0.41, 0.46)
+}
 sun_toward={
 "type": "vec3",
 "value": Vector3(0, 1, 0)

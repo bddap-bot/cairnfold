@@ -16,6 +16,7 @@ const TURN := Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 
 var _out := ""
 var _root := Node3D.new()
+var _sun := DirectionalLight3D.new()
 var _avatar: Avatar
 var _skeleton: Skeleton3D
 var _eyes_from_head := Transform3D.IDENTITY
@@ -110,14 +111,19 @@ func _stage(camera: Dictionary) -> SubViewport:
 	view.add_child(_root)
 	var eye := Camera3D.new()
 	eye.fov = camera.fov_vertical
+	eye.cull_mask = Quality.VIEW_MASK
 	var p: Array = camera.position
 	# A Unity camera looks down its +Z, a Godot one down its -Z.
 	eye.transform = Transform3D(_turn(camera.rotation_euler) * Basis(Vector3.UP, PI), MIRROR * Vector3(p[0], p[1], p[2]))
 	_root.add_child(eye)
-	var sun := DirectionalLight3D.new()
-	sun.light_energy = camera.light_intensity
-	sun.basis = Basis.looking_at(_turn(camera.light_euler) * Vector3.BACK)
-	_root.add_child(sun)
+	_sun.light_energy = camera.light_intensity
+	_sun.basis = Basis.looking_at(_turn(camera.light_euler) * Vector3.BACK)
+	_root.add_child(_sun)
+	var ambient := _grey(camera.ambient).srgb_to_linear()
+	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE * _sun.light_energy)
+	RenderingServer.global_shader_parameter_set(&"sky_zenith", Vector3(ambient.r, ambient.g, ambient.b))
+	RenderingServer.global_shader_parameter_set(&"sky_horizon", Vector3(ambient.r, ambient.g, ambient.b))
+	RenderingServer.global_shader_parameter_set(&"sky_ambient", 1.0)
 	return view
 
 
@@ -175,6 +181,8 @@ static func _plain(name: String) -> String:
 
 func _drive(row: PackedStringArray) -> void:
 	_root.transform = _unity(row[1])
+	# The light as Look gives it to shaders that light themselves, as it turns with the recorded root.
+	RenderingServer.global_shader_parameter_set(&"sun_toward", _root.basis * _sun.basis.z)
 	if _avatar == null:
 		return
 	var aims: Array[Transform3D] = []

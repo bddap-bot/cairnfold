@@ -1,16 +1,53 @@
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
-
-varying vec4 given;
-
-void vertex() {
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
-}
+#include "res://src/daylight.gdshaderinc"
 
 uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
+// Each atlas texel's entry in the looks' materials and each entry's lighting (Avatar._flat_lit): red one where flat,
+// green its cap. Unset, every texel is lit by angle.
+uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
+uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
+// The mirror's view, the one camera that sees just Quality.MIRROR_MASK, lit by the mirror's own light and ambient
+// (MirrorTool).
+uniform uint mirror_mask;
+global uniform vec3 mirror_toward;
+global uniform vec3 mirror_light;
+global uniform vec3 mirror_ambient;
+
+varying vec4 given;
+// One where the vertex's material is flat; then flat_light is the ambient and light given back it takes, capped.
+varying float flat_lit;
+varying vec3 flat_light;
+
+// A flat material, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it
+// faces, plus the ambient, capped: its texture's painted shading is the only shading. The ambient and the light given
+// back are added capped as emission, the engine's ambient left out; the main light stays the engine's, so the sun's
+// shadow still falls on it, through a normal turned toward the light and away by as much as keeps the whole under the
+// cap. The cap clips the ambient per channel and the main light by its brightest channel.
+void vertex() {
+	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
+	vec2 light = texelFetch(lighting, ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0), 0).rg;
+	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
+	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	given = given_over(at, flat_lit > 0.5 ? vec3(0.0) : normalize(mat3(MODEL_MATRIX) * NORMAL), ground_at(at.xz));
+	flat_light = vec3(0.0);
+	if (flat_lit > 0.5) {
+		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
+		vec3 ambient = (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
+		vec3 key = mirrored ? mirror_light : sun_light;
+		vec3 toward = mirrored ? mirror_toward : sun_toward;
+		flat_light = min(ambient + given.rgb, vec3(light.g));
+		float room = light.g - max(flat_light.r, max(flat_light.g, flat_light.b));
+		float facing = clamp(room / max(max(key.r, max(key.g, key.b)), 1e-4), 0.0, 1.0);
+		toward = length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0);
+		vec3 across = vec3(0.0, 1.0, 0.0) - toward * toward.y;
+		across = dot(across, across) > 1e-6 ? normalize(across) : vec3(1.0, 0.0, 0.0);
+		NORMAL = normalize(transpose(mat3(MODEL_MATRIX)) * (facing * toward + sqrt(1.0 - facing * facing) * across));
+	}
+}
 uniform sampler2D regions : filter_nearest, repeat_disable;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
@@ -126,6 +163,6 @@ void fragment() {
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 #endif
 	ROUGHNESS = 1.0;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	AO = flat_lit > 0.5 ? 0.0 : given.a;
+	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light : given.rgb);
 }
