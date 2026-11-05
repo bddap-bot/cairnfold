@@ -239,6 +239,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.3-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.3-h0-a"
   },
@@ -323,6 +345,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.3-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.3-h1-a"
   },
@@ -401,6 +445,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.3-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -512,6 +578,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.3-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.3-h3-b"
   },
@@ -614,6 +702,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.42-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.42-h0-a"
   },
@@ -698,6 +808,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.42-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.42-h1-a"
   },
@@ -776,6 +908,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.42-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -887,6 +1041,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.42-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.42-h3-b"
   },
@@ -989,6 +1165,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.55-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.55-h0-a"
   },
@@ -1073,6 +1271,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.55-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.55-h1-a"
   },
@@ -1151,6 +1371,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.55-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -1262,6 +1504,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.55-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.55-h3-b"
   },
@@ -1364,6 +1628,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.68-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.68-h0-a"
   },
@@ -1448,6 +1734,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.68-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.68-h1-a"
   },
@@ -1526,6 +1834,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.68-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -1637,6 +1967,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shon-t0.68-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shon-t0.68-h3-b"
   },
@@ -1727,6 +2079,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.3-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.3-h0-a"
   },
@@ -1811,6 +2185,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.3-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.3-h1-a"
   },
@@ -1889,6 +2285,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.3-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2000,6 +2418,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.3-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.3-h3-b"
   },
@@ -2079,6 +2519,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.42-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2169,6 +2631,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.42-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.42-h1-a"
   },
@@ -2247,6 +2731,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.42-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2358,6 +2864,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.42-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.42-h3-b"
   },
@@ -2437,6 +2965,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.55-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2527,6 +3077,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.55-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.55-h1-a"
   },
@@ -2605,6 +3177,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.55-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2716,6 +3310,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.55-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.55-h3-b"
   },
@@ -2795,6 +3411,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.68-h0-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -2885,6 +3523,28 @@
     "seconds": 1.2
   },
   {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.68-h1-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
     "op": "capture",
     "name": "shoff-t0.68-h1-a"
   },
@@ -2963,6 +3623,28 @@
       0.6,
       -5.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.68-h2-a-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",
@@ -3068,6 +3750,28 @@
       0.6,
       -2.5
     ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "off"
+  },
+  {
+    "op": "wait",
+    "seconds": 1.2
+  },
+  {
+    "op": "capture",
+    "name": "shoff-t0.68-h3-b-unmasked"
+  },
+  {
+    "op": "layer",
+    "name": "interior",
+    "mode": "on"
   },
   {
     "op": "wait",

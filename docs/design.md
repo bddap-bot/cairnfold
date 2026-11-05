@@ -2677,10 +2677,10 @@ sky's light Bounce gives the point comes back as emission in the sky's colours. 
 
 ![The same with the sun's shadows on](interior-sun-on.jpg)
 
-`demo/interior-sun.json` renders these houses at the four hours, and `demo/interior-cost.json` measures the rooms on a
-headset against the same views unmasked (the driver's `interior` layer). The faint line still left along a gable's rake,
-on the torching beside the gable, is sky light, not sun: there its Bounce sample gives it a share of the sky that the
-rest of the torching reads as none.
+`demo/interior-sun.json` renders these houses at the four hours, each pictured view masked and unmasked (the driver's
+`interior` layer), and `demo/interior-cost.json` measures the rooms on a headset against the same views unmasked. The
+faint line still left along a gable's rake, on the torching beside the gable, is sky light, not sun: there its Bounce
+sample gives it a share of the sky that the torching further along does not get.
 `tests/test_interior.gd` checks the packing and an archway's patch, and `tests/gpu_interior_sun.gd` a sealed room with
 the sun's shadows on and off.
 
