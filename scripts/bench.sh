@@ -45,7 +45,6 @@ mkdir -p "$out"
 seed=25
 device=desktop
 game=0
-hung=
 rig=desktop
 build=$(git -C "$here" rev-parse HEAD)
 players=${CAIRNFOLD_PLAYERS:-1}
@@ -144,6 +143,8 @@ if [ "${2:-}" = --android ]; then
   dir=$files/bench
   # A host-side logcat over wireless adb stalls with no sign, so the headset records its own.
   log=/data/local/tmp/cairnfold-bench.log
+  # Collects each "main: quitting", which the game prints once its metrics are closed; the idle copy may print one too.
+  quit=/data/local/tmp/cairnfold-bench.quit
   # shows SERVICE PATTERN [TEXT]: whether the first line of `dumpsys SERVICE` matching PATTERN holds TEXT. The
   # dump is read whole, since a grep stopping early would fail the pipe under pipefail.
   shows() {
@@ -172,11 +173,11 @@ if [ "${2:-}" = --android ]; then
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
   # it warms.
   saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
-  logcat_pid=
+  logcat_pids=
   restore_headset() {
     local kv
     set +e
-    [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
+    [ -z "$logcat_pids" ] || adb shell "kill $logcat_pids 2> /dev/null"
     adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
     for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
     adb shell am force-stop "$pkg"
@@ -214,9 +215,10 @@ if [ "${2:-}" = --android ]; then
   fresh_shell
   for try in 1 2 3; do
     adb shell am force-stop "$pkg"
-    [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
+    [ -z "$logcat_pids" ] || adb shell "kill $logcat_pids 2> /dev/null; true"
     adb logcat -c
-    logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -v epoch -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
+    logcat_pids=$(adb shell "rm -f $log $quit; nohup logcat -v threadtime -v epoch -f $log > /dev/null 2>&1 < /dev/null & echo \$!;
+      nohup logcat -v threadtime -e 'main: quitting' > $quit 2> /dev/null < /dev/null & echo \$!" | tr -d '\r' | tr '\n' ' ')
     if [ -n "$replay" ]; then
       printf '%s\n' --replay "$files/replay/$(basename "$replay")" --metrics "$dir/metrics.json" --capture-dir "$dir" "${extra[@]}" > "$out/launch.args"
     else
@@ -234,21 +236,25 @@ if [ "${2:-}" = --android ]; then
   if [ "$players" -gt 1 ]; then
     join adb shell cat "$log" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
-  # A dropped connection is no end.
+  # A dropped connection is no end. A game that has quit has closed its metrics, so one still running a grace later
+  # is stopped and its run kept: a Quest 2 can hold the engine's shutdown after its last AudioTrack stop for good.
   ended=
+  quitted=
   SECONDS=0
   while [ "$SECONDS" -lt $((limit + 300)) ]; do
     sleep 1
-    [ "$(adb shell "pidof $pkg > /dev/null || echo gone" 2> /dev/null | tr -d '\r')" != gone ] || { ended=1; break; }
+    state=$(adb shell "pidof $pkg > /dev/null || echo gone; grep -q \" \$(pidof $pkg) \" $quit && echo quit; true" 2> /dev/null | tr -d '\r') || state=
+    case $state in *gone*) ended=1; break ;; esac
+    case $state in *quit*) : "${quitted:=$SECONDS}" ;; esac
+    [ -z "$quitted" ] || [ $((SECONDS - quitted)) -lt 30 ] || break
   done
-  adb shell kill "$logcat_pid"
-  logcat_pid=
+  adb shell "kill $logcat_pids 2> /dev/null; true"
+  logcat_pids=
   adb pull "$log" "$out/logcat.txt" > /dev/null
   if [ -z "$ended" ]; then
     adb shell am force-stop "$pkg"
-    grep -q "driver: done" "$out/logcat.txt" || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
-    # The game writes its metrics before it quits, so a hang on the way out loses no measurement, only fails the run.
-    hung="bench: the game ended its script but was still running after $((limit + 300)) s; see $out/logcat.txt"
+    [ -n "$quitted" ] || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
+    echo "bench: the game quit but was still running $((SECONDS - quitted)) s later; stopped it" >&2
   fi
   adb pull "$dir/." "$out/" > /dev/null
   if [ -n "$replay" ]; then
@@ -440,5 +446,4 @@ if over:
 PY
 [ ! -f "$record" ] || python3 "$here/trend.py" "$rig" "$scene" || failed=1
 [ "$game" = 0 ] || { echo "bench: the game exited $game; see $out/godot.log" >&2; exit 1; }
-[ -z "$hung" ] || { echo "$hung" >&2; exit 1; }
 [ -z "$failed" ] || exit 1
