@@ -509,7 +509,7 @@ func _export_post(state: GLTFState) -> Error:
 
 
 ## The expression effects that name one node, written as its glTF index and read back as its name.
-const NODE_EFFECTS := ["scale", "rotation", "translation", "material"]
+const NODE_EFFECTS := ["scale", "rotation", "translation", "material", "constraint"]
 
 
 static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:

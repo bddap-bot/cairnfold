@@ -1087,6 +1087,21 @@ func _native_constraints_resolve_world_and_feedback() -> void:
 		var follower: Dictionary = result.constraints[1]
 		check(parent.sources[0].world.slice(12, 15) == [-2.0, 3.0, 4.0], "external prefab keeps its world coordinates with handedness conversion")
 		check(follower.sources[0].node == follower.node and is_equal_approx(follower.sources[1].weight, 0.01), "feedback reference and authored weight survive")
+	objs[21].data.m_Weight = "0"
+	var kept: Array = UnityAvatar._constraints(prefabs, objs, 10, sk, rests).get("constraints", [])
+	check(kept.size() == 2 and kept[1].weight == 0.0, "a constraint saved at weight 0 is kept for a clip to engage: %s" % [kept])
+	objs[20].data.m_Weight = "0"
+	assets.by_guid.erase("anchor")
+	var unsolvable := UnityAvatar._constraints(prefabs, objs, 10, sk, rests)
+	check(not unsolvable.has("error") and unsolvable.constraints.size() == 1, "a constraint saved at weight 0 that cannot be solved is left out, not fatal: %s" % [unsolvable])
+	objs[20].data.m_Weight = "1"
+	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).has("error"), "an engaged constraint that cannot be solved still fails the import")
+	assets.by_guid["anchor"] = {}
+	sk.add_bone("Follower")
+	var targets := []
+	var at := UnityAvatar._target({"path": "f", "attribute": "m_Weight", "class": "1818360608"}, objs, {"f": 12}, [], {}, sk, targets, null)
+	check(at == 0 and targets[0].effect == {"constraint": {"node": "Follower"}} and targets[0].default == 0.0, "a clip moving a constraint's weight binds it at the saved weight: %s" % [targets])
+	check(UnityAvatar._target({"path": "f", "attribute": "m_Weight", "class": "1773428102"}, objs, {"f": 12}, [], {}, sk, [], null) == -1, "a weight curve on a constraint the object lacks binds nothing")
 	objs[21].data.m_Enabled = "0"
 	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).constraints.size() == 1, "disabled component remains disabled")
 	objs[2].data.m_IsActive = "0"

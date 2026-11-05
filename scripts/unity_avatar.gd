@@ -35,6 +35,8 @@ const ICON := 44.0
 const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
 ## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
+## The constraints whose weight a clip can move, by the Unity class ID its curves name.
+const CONSTRAINTS := {"1773428102": "ParentConstraint", "1818360608": "PositionConstraint", "1183024399": "LookAtConstraint"}
 ## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
 static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
@@ -786,6 +788,12 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if regions.is_empty():
 			return -1
 		effect = {kind: regions}
+	elif c.attribute == "m_Weight" and CONSTRAINTS.has(c["class"]):
+		var held: Array = Prefabs.components(objs, go).map(func(id: int) -> Dictionary: return objs.get(id, {})).filter(func(o: Dictionary) -> bool: return o.get("type", "") == CONSTRAINTS[c["class"]])
+		if bone < 0 or held.size() != 1:
+			return -1
+		rest = str(held[0].data.get("m_Weight", "1")).to_float()
+		effect = {"constraint": {"node": sk.get_bone_name(bone)}}
 	elif c.attribute.begins_with("m_LocalScale.") and c["class"] == "4":
 		if bone < 0:
 			return -1
@@ -826,7 +834,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
 			return i
 	var default := 1.0
-	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("rotation"):
+	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("rotation") or effect.has("constraint"):
 		default = rest
 	elif effect.has("translation"):
 		default = 0.0
@@ -2249,48 +2257,60 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 			continue
 		for id: int in Prefabs.components(objs, e[1]):
 			var o: Dictionary = objs.get(id, {})
-			if not o.get("type", "") in ["ParentConstraint", "PositionConstraint", "LookAtConstraint"]:
+			if not o.get("type", "") in CONSTRAINTS.values():
 				continue
 			var d: Dictionary = o.data
-			if str(d.get("m_Enabled", "1")) != "1" or str(d.get("m_Active", "0")) != "1" or str(d.get("m_Weight", "1")).to_float() == 0.0:
+			if str(d.get("m_Enabled", "1")) != "1" or str(d.get("m_Active", "0")) != "1":
 				continue
-			if o.type == "LookAtConstraint" and (str(d.get("m_UseUpObject", "0")) != "0" or str(d.get("m_Roll", "0")).to_float() != 0.0):
-				return {"error": "LookAtConstraint up object or roll is unsupported"}
-			var bone := _as_bone(objs, e[0], sk, rests)
-			if bone < 0:
-				return {"error": "constraint target has no output bone"}
-			var c := {"kind": str(o.type).trim_suffix("Constraint"), "node": bone, "weight": str(d.get("m_Weight", "1")).to_float(), "sources": [], "translation": [], "rotation": []}
-			for axis: String in ["X", "Y", "Z"]:
-				c.translation.append(str(d.get("m_AffectTranslation" + axis, "1")) == "1")
-				c.rotation.append(str(d.get("m_AffectRotation" + axis, "1")) == "1")
-			c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
-			c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
-			var entries := Yaml.list(d.get("m_Sources"))
-			for i in entries.size():
-				var entry: Dictionary = entries[i]
-				var weight := str(entry.get("weight", "1")).to_float()
-				if weight <= 0.0:
-					continue
-				var ref: Dictionary = entry.get("sourceTransform", {})
-				var source := {"weight": weight}
-				if ref.has("guid"):
-					if not prefabs.assets.by_guid.has(str(ref.guid)):
-						return {"error": "constraint source asset is missing"}
-					var external := prefabs.flatten(str(ref.guid))
-					if not external.has(Yaml.file_id(ref)):
-						return {"error": "constraint source transform is missing"}
-					source.world = _matrix(_world_transform(external, Yaml.file_id(ref)))
-				else:
-					var at := _as_bone(objs, Yaml.file_id(ref), sk, rests)
-					if at < 0:
-						return {"error": "constraint source has no output bone"}
-					source.node = at
-				var positions := Yaml.list(d.get("m_TranslationOffsets"))
-				var rotations := Yaml.list(d.get("m_RotationOffsets"))
-				source.offset = _matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
-				c.sources.append(source)
+			var c := _constraint(prefabs, objs, o, e[0], sk, rests)
+			if c.has("error") and str(d.get("m_Weight", "1")).to_float() == 0.0:
+				continue
+			if c.has("error"):
+				return c
 			out.append(c)
 	return {"constraints": out}
+
+
+## The constraint `o` on the Transform `transform` as the runtime solves it, or {"error"} where it cannot be: a constraint
+## saved at weight 0 that cannot is left out rather than failing the import, since only a clip engages it.
+static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, transform: int, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
+	var d: Dictionary = o.data
+	if o.type == "LookAtConstraint" and (str(d.get("m_UseUpObject", "0")) != "0" or str(d.get("m_Roll", "0")).to_float() != 0.0):
+		return {"error": "LookAtConstraint up object or roll is unsupported"}
+	var bone := _as_bone(objs, transform, sk, rests)
+	if bone < 0:
+		return {"error": "constraint target has no output bone"}
+	var c := {"kind": str(o.type).trim_suffix("Constraint"), "node": bone, "weight": str(d.get("m_Weight", "1")).to_float(), "sources": [], "translation": [], "rotation": []}
+	for axis: String in ["X", "Y", "Z"]:
+		c.translation.append(str(d.get("m_AffectTranslation" + axis, "1")) == "1")
+		c.rotation.append(str(d.get("m_AffectRotation" + axis, "1")) == "1")
+	c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
+	c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
+	var entries := Yaml.list(d.get("m_Sources"))
+	for i in entries.size():
+		var entry: Dictionary = entries[i]
+		var weight := str(entry.get("weight", "1")).to_float()
+		if weight <= 0.0:
+			continue
+		var ref: Dictionary = entry.get("sourceTransform", {})
+		var source := {"weight": weight}
+		if ref.has("guid"):
+			if not prefabs.assets.by_guid.has(str(ref.guid)):
+				return {"error": "constraint source asset is missing"}
+			var external := prefabs.flatten(str(ref.guid))
+			if not external.has(Yaml.file_id(ref)):
+				return {"error": "constraint source transform is missing"}
+			source.world = _matrix(_world_transform(external, Yaml.file_id(ref)))
+		else:
+			var at := _as_bone(objs, Yaml.file_id(ref), sk, rests)
+			if at < 0:
+				return {"error": "constraint source has no output bone"}
+			source.node = at
+		var positions := Yaml.list(d.get("m_TranslationOffsets"))
+		var rotations := Yaml.list(d.get("m_RotationOffsets"))
+		source.offset = _matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
+		c.sources.append(source)
+	return c
 
 
 static func _constraint_rotation(v: Dictionary) -> Dictionary:

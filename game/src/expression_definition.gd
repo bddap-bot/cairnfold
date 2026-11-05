@@ -191,6 +191,8 @@ static func _effect(effect: Variant) -> bool:
 	if effect.has("rotation"):
 		var rest: Variant = effect.rotation.get("rest") if effect.rotation is Dictionary else null
 		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and _index(effect.rotation.get("axis"), rest.size())
+	if effect.has("constraint"):
+		return effect.constraint is Dictionary and _node(effect.constraint.get("node"))
 	if effect.has("translation"):
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
