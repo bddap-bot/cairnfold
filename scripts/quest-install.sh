@@ -96,11 +96,17 @@ push_verified() {
 # the shell made, and the shell may not make one inside the game's. sessions/ appears only once record-sessions has gone
 # back, so the game starts again while a pushed file brings it a folder still missing; without record-sessions the game
 # never makes it, and the sessions stay in the copy. Each start is waited on until every folder is there or, with one
-# there to push into, five seconds pass without another.
+# there to push into, five seconds pass without another. Off the head the Guardian puts up a dialog the shell holds every
+# launch behind, so it is held paused through each start.
 # A freshly installed app's files folder refuses the shell's pushes for a while after the game has made it
 # (secure_mkdirs: Operation not permitted), so a restore retries refused pushes for thirty seconds in all.
 restore() {
   local dir=$1 rel ok=1 pending=() left=() folders there n last still entry retries=30
+  paused=
+  unpause() {
+    [ -z "$paused" ] || adb shell setprop debug.oculus.guardian_pause "'${paused#-}'" < /dev/null
+    paused=
+  }
   for entry in $game_paths; do
     [ -e "$dir/$entry" ] || continue
     if [ "$entry" = sessions ] && [ ! -e "$dir/record-sessions" ]; then
@@ -111,7 +117,7 @@ restore() {
   done
   [ ${#pending[@]} -gt 0 ] || return 0
   unrestored="quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})"
-  trap 'echo "$unrestored" >&2' EXIT
+  trap 'echo "$unrestored" >&2; unpause' EXIT
   made() {
     adb shell "for d in $(tr '\n' ' ' <<< "$folders"); do [ -d \$d ] && echo y || echo n; done" < /dev/null |
       paste -d' ' - <(cat <<< "$folders") | sed -n 's/^y //p'
@@ -119,6 +125,9 @@ restore() {
   while [ ${#pending[@]} -gt 0 ]; do
     folders=$(printf "$files/%s\n" "${pending[@]}" | sed 's|/[^/]*$||' | sort -u)
     if [ "$(made | wc -l)" -lt "$(wc -l <<< "$folders")" ]; then
+      # The dash marks a pause taken, so an unset value is put back too.
+      paused=-$(adb shell getprop debug.oculus.guardian_pause < /dev/null | tr -d '\r')
+      adb shell setprop debug.oculus.guardian_pause 1 < /dev/null
       adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
       last=0 still=0
       for _ in $(seq 60); do
@@ -135,6 +144,7 @@ restore() {
       done
     fi
     adb shell am force-stop "$pkg"
+    unpause
     there=$(made)
     left=()
     for rel in "${pending[@]}"; do

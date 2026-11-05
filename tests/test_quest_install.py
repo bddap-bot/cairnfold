@@ -13,7 +13,8 @@ script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 # A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
 # erases that package's external files folder, a push makes no folder, and only the game's start makes the folders it
 # uses: avatars/ always, sessions/ once record-sessions is there. FAKE_FAIL names the adb call that fails; with
-# FAKE_REFUSE=N the first N pushes are refused as a freshly installed app's folder refuses them.
+# FAKE_REFUSE=N the first N pushes are refused as a freshly installed app's folder refuses them. Off the head the
+# Guardian's dialog holds every start while debug.oculus.guardian_pause is not 1.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -43,7 +44,19 @@ FAKE_ADB = textwrap.dedent('''\
                 f.write('x')
             sys.exit('adb: error: failed to copy: remote secure_mkdirs failed: Operation not permitted')
         shutil.copy(args[1], on_device(args[2]))
+    elif args[0] == 'shell' and args[1] == 'getprop':
+        prop = root + '/props/' + args[2]
+        print(open(prop).read() if os.path.exists(prop) else '')
+    elif args[0] == 'shell' and args[1] == 'setprop':
+        os.makedirs(root + '/props', exist_ok=True)
+        with open(root + '/props/' + args[2], 'w') as f:
+            f.write(args[3].strip("'"))
     elif args[0] == 'shell' and args[1:3] == ['am', 'start']:
+        if fail == 'start':
+            sys.exit(1)
+        prop = root + '/props/debug.oculus.guardian_pause'
+        if not os.path.exists(prop) or open(prop).read() != '1':
+            sys.exit(0)
         files = files_of(args[4].split('/')[0])
         os.makedirs(files + '/avatars', exist_ok=True)
         if os.path.exists(files + '/record-sessions'):
@@ -95,6 +108,8 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.quest = self.root / 'quest'
         self.files = self.quest / 'sdcard/Android/data/io.github.bddapbot.cairnfold/files'
         (self.files / 'avatars').mkdir(parents=True)
+        (self.quest / 'props').mkdir()
+        (self.quest / 'props/debug.oculus.guardian_pause').write_text('0')
         (self.files / 'bench').mkdir()
         (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
         (self.files / 'garden.save.bad').write_bytes(b'an unreadable garden')
@@ -139,6 +154,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('uninstall', (self.quest / 'adb.log').read_text())
         self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
         self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'vrm')
+        self.assertEqual((self.quest / 'props/debug.oculus.guardian_pause').read_text(), '0')
         for shell_made in 'bench', 'check', 'launch.args':
             self.assertFalse((self.files / shell_made).exists(), shell_made)
         copy = next(self.saves.iterdir())
@@ -220,6 +236,11 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         run = self.install(FAKE_FAIL='shell-after-uninstall')
         self.assertNotEqual(run.returncode, 0)
         self.assertIn('--restore', run.stderr)
+
+    def test_a_restore_that_dies_starting_the_game_leaves_the_guardian_as_it_was(self):
+        run = self.install(FAKE_FAIL='start')
+        self.assertNotEqual(run.returncode, 0)
+        self.assertEqual((self.quest / 'props/debug.oculus.guardian_pause').read_text(), '0')
 
     def test_the_restore_a_renamed_build_names_acts_on_that_build(self):
         package = 'io.github.bddapbot.nestbisect'
