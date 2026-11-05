@@ -5,12 +5,31 @@ extends RefCounted
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
+## The images a package may name from the shader packages its creator installs beside it, which it does not carry.
+const IMAGES := ["png", "jpg", "jpeg", "tga", "bmp", "webp"]
+
 ## GUID to {"file": where its bytes are, "path": its path in the project, "meta": its .meta file}.
 var by_guid := {}
 var _metas := {}
 
 
-func _init(dir: String) -> void:
+## `packages`, a Unity project's Packages folder, lends the images `dir` names but lacks: a shader package's own
+## textures (Poiyomi's matcaps) are referenced by GUID and installed beside the avatar, never shipped with it. It lends
+## nothing else, so its prefabs and scenes cannot change which avatar converts.
+func _init(dir: String, packages := "") -> void:
+	_scan(dir)
+	if packages == "":
+		return
+	var own := by_guid
+	by_guid = {}
+	_scan(packages)
+	for guid: String in by_guid.keys():
+		if own.has(guid) or extension(guid) not in IMAGES:
+			by_guid.erase(guid)
+	by_guid.merge(own)
+
+
+func _scan(dir: String) -> void:
 	var pending := [dir]
 	while not pending.is_empty():
 		var at: String = pending.pop_back()

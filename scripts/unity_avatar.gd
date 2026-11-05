@@ -2,11 +2,12 @@ extends SceneTree
 
 ## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
 ## from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--atlas SIDE]
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--atlas SIDE] [--packages DIR]
 ## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
 ## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
 ## to Avatar.MAX_IMAGE_SIDE, the widest a player's file may carry, or SIDE (at most WEBP) for a renderer that reads wider
-## ones.
+## ones. DIR, a Unity project's Packages folder, lends the images PACKAGE names but leaves to the shader packages
+## installed beside it (Poiyomi's matcaps); without it those draw as their shader's default, white.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
@@ -51,8 +52,13 @@ func _init() -> void:
 	if flag >= 0 and flag + 1 < args.size() and args[flag + 1].is_valid_int():
 		widest = args[flag + 1].to_int()
 		args = args.slice(0, flag) + args.slice(flag + 2)
-	if args.size() < 2 or args.size() > 3 or args.has("--atlas") or widest < Materials.ATLAS or widest > WEBP:
-		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--atlas SIDE]")
+	var packages := ""
+	flag = args.find("--packages")
+	if flag >= 0 and flag + 1 < args.size() and DirAccess.dir_exists_absolute(args[flag + 1]):
+		packages = args[flag + 1]
+		args = args.slice(0, flag) + args.slice(flag + 2)
+	if args.size() < 2 or args.size() > 3 or args.has("--atlas") or args.has("--packages") or widest < Materials.ATLAS or widest > WEBP:
+		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--atlas SIDE] [--packages DIR]")
 		quit(2)
 		return
 	var dir := unpacked(args[0])
@@ -60,7 +66,7 @@ func _init() -> void:
 		printerr("unity_avatar: cannot unpack %s" % args[0])
 		quit(1)
 		return
-	var root := avatar_scene(dir, args[2] if args.size() == 3 else "", widest)
+	var root := avatar_scene(dir, args[2] if args.size() == 3 else "", widest, packages)
 	if root == null:
 		quit(1)
 		return
@@ -152,8 +158,8 @@ class Unpacked:
 
 ## The package's avatar as the scene and avatar data Avatar.model takes, its root also carrying "report" (what was kept
 ## and dropped, by kind). Null, with the reason printed, if the package holds no avatar to convert.
-static func avatar_scene(dir: String, pick := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
-	var prefabs := Prefabs.new(Assets.new(dir))
+static func avatar_scene(dir: String, pick := "", widest := Avatar.MAX_IMAGE_SIDE, packages := "") -> Node3D:
+	var prefabs := Prefabs.new(Assets.new(dir, packages))
 	var root := _convert(prefabs, pick, widest)
 	for m: Dictionary in prefabs.models.values():
 		if m.has("scene"):

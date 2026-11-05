@@ -51,6 +51,7 @@ func _run() -> void:
 	_a_shrunk_texture_averages_what_its_cell_covers()
 	_the_atlas_widens_before_its_cells_shrink()
 	_matcaps_and_emission_join_the_look()
+	_installed_packages_lend_only_missing_images()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
@@ -1844,3 +1845,20 @@ func _a_full_controller_renames_its_layers_and_menu() -> void:
 	check(layers[0].entry[0].conditions[0].parameter == "VF3_Hat" and state.motion.parameters == ["VF3_Size", ""] and state.drivers[0] == {"parameter": "VF3_Hat", "source": "VF3_Size"}, "conditions, blend parameters and drivers take the new names: %s" % [layers])
 	check(state.transitions[0].conditions[0].parameter == "IsLocal", "VRChat's own parameter keeps its name")
 	check(menu[0].controls[0].parameter == "VF3_Hat" and menu[0].controls[1].axes == ["VF3_Size"], "the menu's controls take the new names: %s" % [menu])
+
+func _installed_packages_lend_only_missing_images() -> void:
+	var root := ProjectSettings.globalize_path("user://lend")
+	var write := func(dir: String, name: String, guid: String, text: String) -> void:
+		DirAccess.make_dir_recursive_absolute(root.path_join(dir))
+		FileAccess.open(root.path_join(dir).path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(root.path_join(dir).path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("avatar", "own.png", "own", "avatar's")
+	write.call("avatar", "shared.png", "shared", "avatar's")
+	write.call("packages/shader", "matcap.png", "matcap", "package's")
+	write.call("packages/shader", "shared.png", "shared", "package's")
+	write.call("packages/sdk", "other.prefab", "prefab", "package's")
+	var alone := Assets.new(root.path_join("avatar"))
+	var lent := Assets.new(root.path_join("avatar"), root.path_join("packages"))
+	check(not alone.by_guid.has("matcap") and lent.text("matcap") == "package's", "an image the package names but lacks is read from the installed packages")
+	check(lent.text("shared") == "avatar's" and lent.text("own") == "avatar's", "the package's own assets win")
+	check(not lent.by_guid.has("prefab"), "the installed packages lend images alone")
