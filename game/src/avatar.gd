@@ -836,6 +836,12 @@ func _blend(shown: Array[int], yaws: Array[Quaternion], weights: PackedFloat32Ar
 	return out
 
 
+## A hidden avatar, a closed wheel's figure among them, runs neither its springs nor its expressions.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ENTER_TREE or what == NOTIFICATION_VISIBILITY_CHANGED:
+		process_mode = Node.PROCESS_MODE_INHERIT if is_visible_in_tree() else Node.PROCESS_MODE_DISABLED
+
+
 func _process(delta: float) -> void:
 	_unposed += delta
 	if springs != null and simulate_springs:

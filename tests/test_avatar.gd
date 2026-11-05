@@ -36,6 +36,7 @@ func _run() -> void:
 	_simulates_the_longest_chains_within_the_limit()
 	_switched_off_physics_stays_out()
 	_read_skins_bind_only_weighed_bones()
+	_hidden_avatars_pause()
 	_unity_package_converts()
 	_physbones_keep_whose_hands_touch_them()
 	for i in Avatar.BUILT_IN.size():
@@ -1005,6 +1006,31 @@ func _blended_surfaces_stay_blended() -> void:
 	shown.free()
 	player.free()
 	model.free()
+
+
+## A figure kept under a closed wheel runs no expressions or springs until it is shown again.
+func _hidden_avatars_pause() -> void:
+	var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm")))
+	var holder := Node3D.new()
+	holder.hide()
+	root.add_child(holder)
+	var wheel := Node3D.new()
+	wheel.top_level = true
+	holder.add_child(wheel)
+	var a := Avatar.open(scene, Color.WHITE)
+	var player := Node.new()
+	a.add_child(player)
+	wheel.add_child(a)
+	check(not a.can_process() and not player.can_process(), "an avatar added under a hidden node does not process, nor do its children")
+	holder.show()
+	check(a.can_process() and player.can_process(), "showing it resumes its processing")
+	holder.hide()
+	check(not a.can_process() and not player.can_process(), "hiding it again pauses it")
+	holder.free()
+	var shown := Avatar.open(scene, Color.WHITE)
+	root.add_child(shown)
+	check(shown.can_process(), "an avatar added where it is seen processes")
+	shown.free()
 
 
 func _read_skins_bind_only_weighed_bones() -> void:
