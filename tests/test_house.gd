@@ -30,6 +30,7 @@ func _init() -> void:
 	_every_tile_joint_has_a_tile_under_it()
 	_a_gable_continues_the_wall_under_the_slopes()
 	_gable_faces_face_out_of_the_wall()
+	_gable_faces_keep_a_corner_in_the_room()
 	_the_budget_counts_gable_ends()
 	_every_gable_end_stays_on_its_footprint()
 	_every_gable_end_closes_its_wall()
@@ -775,6 +776,21 @@ func _gable_faces_face_out_of_the_wall() -> void:
 		var away := signf(d) * signf(absf(d) - r.ridge_length() * 0.5)
 		if n.dot(f.along) * away <= 0.0:
 			check(false, "a gable triangle at %.2f along faces into its wall" % d)
+			return
+
+
+## interior.gdshaderinc lights a triangle whose corners all lie outside every room as outside everywhere, so a gable
+## triangle reaching into the room keeps a corner in it: inside the walls' centre line and under the slope.
+func _gable_faces_keep_a_corner_in_the_room() -> void:
+	var r: RoofLayout = _gabled(true)[1]
+	var f := r.frame()
+	var inner := r.half_span() - WallLayout.THICKNESS * 0.5
+	var inside := func(p: Vector3) -> bool: return absf((p - f.mid).dot(f.across)) < inner and p.y < r.height_at(p.x, p.z) - 1e-4
+	var tris := r.gables()
+	for i in range(0, tris.size(), 3):
+		var corners := tris.slice(i, i + 3)
+		if inside.call((corners[0] + corners[1] + corners[2]) / 3.0) and not Array(corners).any(inside):
+			check(false, "a gable triangle %s reaches into the room with every corner outside it" % corners)
 			return
 
 

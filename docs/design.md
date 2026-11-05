@@ -2666,19 +2666,21 @@ moves too. Each opening is stored as the light crosses it from inside: across an
 affine functions of the point, narrowed by how far the ray runs through the wall's depth so a deep reveal narrows a low
 sun's patch, its rounded head, and the plane a point must stand inside. The centre line divides in from out, so a
 wall's inner face is in its room and its outer face is not, however its stones are lumped. Each vertex reads the field
-once; a fragment whose triangle lies wholly outside reads nothing, one wholly inside walks only the facing openings,
-and only a triangle across the centre line reads the field again. Godot scales the sun by
-`mix(1, AO, AO_LIGHT_AFFECT)` and ambient light by `AO`: where the sun reaches at least as far as the sky does
+once; a fragment whose triangle's corners all lie outside reads nothing, one wholly inside walks only the facing
+openings, and only a triangle across the centre line reads the field again. So a shell's triangle reaching into a room
+keeps a corner in it: a gable's cap band is cut where its slope's lining is (`tests/test_house.gd`). Godot scales the
+sun by `mix(1, AO, AO_LIGHT_AFFECT)` and ambient light by `AO`: where the sun reaches at least as far as the sky does
 (everywhere outside a room) both stay exact; inside, where it reaches less, `AO` is the sun's share and the rest of the
 sky's light Bounce gives the point comes back as emission in the sky's colours. Window glass casts no shadow, so the sun through a window lands on the floor.
 
-![Inside a stone, a plaster and a timber house and a tower (column pairs, before and after) at four hours, morning to evening (rows), with the sun's shadows off as the ladder's lowest steps draw them; brightened three times](interior-sun-off.jpg)
+![Inside a stone, a plaster and a timber house and a tower (column pairs, unmasked and masked) at four hours, morning to evening (rows), with the sun's shadows off as the ladder's lowest steps draw them; brightened three times](interior-sun-off.jpg)
 
 ![The same with the sun's shadows on](interior-sun-on.jpg)
 
 `demo/interior-sun.json` renders these houses at the four hours, and `demo/interior-cost.json` measures the rooms on a
-headset against the same views unmasked (the driver's `interior` layer). Bright lines still left along a timber house's
-wall top and a gable's rake are the sunlit eaves outside, seen through gaps in the shell, not light on the inside.
+headset against the same views unmasked (the driver's `interior` layer). The faint line still left along a gable's rake,
+on the torching beside the gable, is sky light, not sun: there its Bounce sample gives it a share of the sky that the
+rest of the torching reads as none.
 `tests/test_interior.gd` checks the packing and an archway's patch, and `tests/gpu_interior_sun.gd` a sealed room with
 the sun's shadows on and off.
 
