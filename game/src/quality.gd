@@ -233,6 +233,13 @@ static func reach(now: float, to: float, delta: float) -> float:
 	return to if to < now else move_toward(now, to, REACH_RATE * delta)
 
 
+## The middle of `values`, the upper of the two middles of an even count.
+static func median(values: PackedFloat32Array) -> float:
+	var sorted := values.duplicate()
+	sorted.sort()
+	return sorted[sorted.size() / 2]
+
+
 ## Whether the session is still drawing its primed rungs.
 func priming() -> bool:
 	return _primed < _priming.size() * PRIME_FRAMES
@@ -350,11 +357,11 @@ class Map:
 		if _trial:
 			_trial_s += dt
 			if _recent.size() >= TRIAL_FRAMES and _trial_s >= TRIAL_SECONDS:
-				_settle_trial(_median())
+				_settle_trial(Quality.median(_recent))
 			return
 		if _recent.size() > TRIAL_FRAMES:
 			_recent.remove_at(0)
-		var now := _median()
+		var now := Quality.median(_recent)
 		_calm = _calm + dt if now < line_ms else 0.0
 		_over = _over + dt if now > line_ms else 0.0
 		if on and _over >= TRIAL_SECONDS and _since > RETRY_SECONDS:
@@ -362,13 +369,8 @@ class Map:
 		elif not on and _calm >= _wait:
 			_start(true)
 
-	func _median() -> float:
-		var sorted := _recent.duplicate()
-		sorted.sort()
-		return sorted[sorted.size() / 2]
-
 	func _start(to: bool) -> void:
-		_before = _median()
+		_before = Quality.median(_recent)
 		on = to
 		_recent.clear()
 		_trial = true
@@ -408,11 +410,15 @@ class Governor:
 	const HALVED := 1.5
 	## Every other refresh counts only with the timer above this share of the budget: lower, the CPU held the frame.
 	const HALVED_GPU := 0.6
-	## A frame this far from the last, as a share of the refresh period, followed a pause (the headset off the head)
-	## or a stall on the main thread (a build laid at once): the frames after it draw what it built, not the scene's
-	## cost, so the governor starts its averages again rather than judge them. Judged, two such stalls in a Steam
-	## Frame tour stepped it from 14 to the bottom and, the second right after a step up, held it there for the rest.
+	## A frame this far from the last, as a share of the refresh period or of the usual gap between the last GAPS
+	## frames if longer, followed a pause (the headset off the head) or a stall on the main thread (a build laid at
+	## once): the frames after it draw what it built, not the scene's cost, so the governor starts its averages again
+	## rather than judge them. Judged, two such stalls in a Steam Frame tour stepped it from 14 to the bottom and, the
+	## second right after a step up, held it there for the rest. Against the period alone, a Quest 2 drawing three
+	## heavy avatars at every fourth refresh, 55.6 ms apart, read every frame a pause and sat at step 14 for the
+	## whole sweep, where step 15 held 72 Hz.
 	const PAUSE := 4.0
+	const GAPS := 9
 	## The line, as a share of the budget: the Steam Frame's runtime drops the game to every other refresh once its
 	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
 	## GPU time, so the houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate.
@@ -465,6 +471,8 @@ class Governor:
 	var _up_from := 0
 	## What took the last step, for the log.
 	var why := ""
+	## The last GAPS gaps between seen frames, in milliseconds, kept across restarts.
+	var _gaps := PackedFloat32Array()
 
 	## The governor starts at `start`. A step up across a level of `sticky` (ascending) waits the longest calm once a
 	## step down has crossed it, doubling up to REGRET_MAX each time it is undone: above the start it is crossed
@@ -516,7 +524,12 @@ class Governor:
 	## first frames after it, whose timer still reads it.
 	func step(frame_ms: float, budget_ms: float, dt: float, settled := true, see := true) -> void:
 		var dt_ms := dt * 1000.0
-		if dt_ms >= budget_ms * PAUSE or not see:
+		var paused := dt_ms >= PAUSE * maxf(budget_ms, Quality.median(_gaps) if _gaps.size() == GAPS else 0.0)
+		if see:
+			_gaps.append(dt_ms)
+			if _gaps.size() > GAPS:
+				_gaps.remove_at(0)
+		if paused or not see:
 			_restart()
 			return
 		_since_up += dt

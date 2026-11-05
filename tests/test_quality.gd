@@ -27,6 +27,7 @@ func _initialize() -> void:
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
 	_the_frames_after_a_stall_are_not_judged()
+	_frames_steadily_four_refreshes_apart_step_down()
 	_frames_the_player_does_not_see_step_nothing_down()
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
 	_nothing_branches_on_the_headset_or_the_build()
@@ -383,6 +384,24 @@ func _the_frames_after_a_stall_are_not_judged() -> void:
 	_feed(g, BUDGET * 2.0, 2)
 	check(_feed(g, BUDGET * UNDER_LINE, 72 * 2) == 0, "a half-second stall and the two heavy frames drawing what it built step nothing down")
 	check(_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES) == 1, "frames over budget after it still do")
+
+
+## A Quest 2 drawing heavy avatars ran every frame at the fourth refresh, PAUSE periods apart: a steady gap is the
+## scene's cost, not a pause.
+func _frames_steadily_four_refreshes_apart_step_down() -> void:
+	var period := DT * 1000.0
+	var g := Quality.Governor.new(10)
+	for i in 72 * 2:
+		g.step(period * UNDER_LINE, period, DT)
+	for i in 30:
+		g.step(period * 1.04, period, DT * Quality.Governor.PAUSE * 1.01)
+	check(g.level > 0, "frames four refreshes apart for a second and a half step down, at %d" % g.level)
+	for i in 72 * 2:
+		g.step(period * UNDER_LINE, period, DT)
+	var at := g.level
+	g.step(period * 2.0, period, 0.4)
+	g.step(period * 2.0, period, DT)
+	check(g.level == at, "a stall after them still reads as one, at %d from %d" % [g.level, at])
 
 
 ## Frames under a cover (Rig.covered), a photo's at 45 ms each, and the two after it whose timer still reads them step
