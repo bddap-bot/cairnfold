@@ -5,8 +5,8 @@ extends SceneTree
 ## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--atlas SIDE] [--packages DIR]
 ## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
 ## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
-## to Avatar.MAX_IMAGE_SIDE, the widest a player's file may carry, or SIDE (at most WEBP) for a renderer that reads wider
-## ones. DIR, a Unity project's Packages folder, lends the images PACKAGE names but leaves to the shader packages
+## to WEBP, so every texture keeps the size Unity shows it at, or to SIDE: a file a player wears in Cairnfold asks for
+## Avatar.MAX_IMAGE_SIDE, the widest it reads. DIR, a Unity project's Packages folder, lends the images PACKAGE names but leaves to the shader packages
 ## installed beside it (Poiyomi's matcaps); without it those draw as their shader's default, white.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
 ## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
@@ -40,14 +40,14 @@ const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": [
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 ## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
-## The widest image WebP holds, the widest atlas `--atlas` asks for.
+## The widest image WebP holds, as a published puppet packs its atlas, the widest atlas.
 const WEBP := 16383
 static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
 
 
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
-	var widest := Avatar.MAX_IMAGE_SIDE
+	var widest := WEBP
 	var flag := args.find("--atlas")
 	if flag >= 0 and flag + 1 < args.size() and args[flag + 1].is_valid_int():
 		widest = args[flag + 1].to_int()
@@ -82,6 +82,8 @@ func _init() -> void:
 		report["file bytes"] = FileAccess.get_size(args[1])
 		for k: String in report:
 			print("unity_avatar: %s: %s" % [k, report[k]])
+		if report["atlas"] > Avatar.MAX_IMAGE_SIDE:
+			print("unity_avatar: an atlas wider than Cairnfold reads of a player's file; one to wear there converts with --atlas %d" % Avatar.MAX_IMAGE_SIDE)
 		quit()
 		return
 	var scene := Avatar.model(root)
