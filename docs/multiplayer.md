@@ -364,10 +364,14 @@ remain in the record.
 
 The wearer owns their avatar's simulation. Each spring says whose hands touch it, the
 wearer's and others', for pushing and for gripping; a VRM without that says everyone.
-Every tracked hand, the wearer's and each visible player's as their poses place it, is a
-4 cm sphere that pushes the chains its owner may push, as the avatar's own colliders do,
-so a poke moves hair, ears or a tail; a hand farther than a chain's reach costs it
-nothing. Empty-hand grip within 12 cm selects the nearest unclaimed tip the hand may
+Every tracked hand, the wearer's and each visible player's as their poses place it,
+touches where its controller is drawn, an empty hand: the capsule the controller fills and its fingertip
+at the front (`Hand.touching`). It pushes the chains its owner may push, so a poke moves
+hair, ears or a tail, and what it presses holds to it, carried as it moves but never
+pulled as it draws away, so a strand caught in a hand drags with it until the hand leaves
+it or the chain's length draws it off. A
+chain with such a hand within its reach leaves the native solver for the constraint solver
+until the hand has gone and it rests. Empty-hand grip within 12 cm selects the nearest unclaimed tip the hand may
 grip. A remote request identifies its hand and the target chain;
 the wearer checks the hand is within 20 cm to allow for pose smoothing and rejects
 an already-held chain or one that hand may not grip. Held tips follow the hand within the chain's reach and yield

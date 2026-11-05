@@ -5,15 +5,22 @@ const EVERYONE := Definition.WEARER | Definition.OTHERS
 const SkeletonBone = preload("skeleton_bone.gd")
 
 const STEP := 1.0 / 60.0
+## The most a hand carries a point in one step, so a snap of the hand or its tracking does not fling what it holds.
+const CARRY := 0.05
+## How near a hand's surface a point it carried stays held, against the float error of a point just pushed onto it.
+const SKIN := 0.002
 
 var chains: Array = []
 var colliders: Array = []
 var targets := {}
-## World-space spheres [centre, radius, WEARER or OTHERS], set before advance.
+## World-space capsules {"key", "from", "to", "radius", "who": WEARER or OTHERS}, a sphere where the ends meet, set
+## before advance; "key" tells a hand from the others across frames.
 var hands: Array = []
 var point_count := 0
 var _time := 0.0
 var _native: Array[SpringBoneSimulator3D] = []
+var _hands_before := {}
+var _share := 1.0
 
 
 func _init(definition: Dictionary, nodes: Dictionary) -> void:
@@ -34,7 +41,7 @@ func _init(definition: Dictionary, nodes: Dictionary) -> void:
 		var count := joints.size() if end_length > 0.0 else joints.size() - 1
 		if count == 0:
 			continue
-		var chain := {"index": chains.size(), "native": null, "native_active": false, "endpoint": nodes[joints[-1].node] if count < joints.size() else null, "joints": [], "colliders": source.colliders, "collide": source.get("collide", EVERYONE), "grab": source.get("grab", EVERYONE), "center": nodes.get(source.center), "current": PackedVector3Array(), "previous": PackedVector3Array()}
+		var chain := {"index": chains.size(), "native": null, "native_active": false, "endpoint": nodes[joints[-1].node] if count < joints.size() else null, "joints": [], "colliders": source.colliders, "collide": source.get("collide", EVERYONE), "grab": source.get("grab", EVERYONE), "center": nodes.get(source.center), "current": PackedVector3Array(), "previous": PackedVector3Array(), "reach": 0.0, "gripped": {}, "stepped_center": Transform3D.IDENTITY}
 		for i in count:
 			var joint: Dictionary = joints[i].duplicate()
 			var node = nodes[joint.node]
@@ -48,7 +55,11 @@ func _init(definition: Dictionary, nodes: Dictionary) -> void:
 				var direction: Vector3 = node.global_position - nodes[joints[i - 1].node].global_position
 				tail = node.global_basis.inverse() * direction.normalized() * end_length
 			joint.tail = tail
+			var scale: Vector3 = node.global_basis.get_scale().abs()
+			chain.reach = maxf(chain.reach, joint.radius * maxf(scale.x, maxf(scale.y, scale.z)))
 			chain.joints.append(joint)
+		for joint: Dictionary in chain.joints:
+			chain.reach += (joint.node.global_basis * joint.tail).length()
 		chains.append(chain)
 	reset()
 	_bind_native()
@@ -63,6 +74,9 @@ func reset() -> void:
 			node.transform = joint.rest
 			chain.current.append(center.affine_inverse() * (node.global_transform * joint.tail))
 		chain.previous = chain.current.duplicate()
+		chain.gripped = {}
+		chain.stepped_center = center
+	_hands_before.clear()
 	_time = 0.0
 	for simulator in _native:
 		simulator.reset()
@@ -70,9 +84,8 @@ func reset() -> void:
 
 func advance(delta: float) -> void:
 	for simulator in _native:
-		simulator.update_hands(hands)
 		for component: Array in simulator.components:
-			var run: bool = component.all(func(chain: Dictionary) -> bool: return not targets.has(chain.index) and _unit_scale(chain))
+			var run: bool = component.all(func(chain: Dictionary) -> bool: return not targets.has(chain.index) and _unit_scale(chain) and not _within_hand(chain))
 			if run == component[0].native_active:
 				continue
 			if run:
@@ -88,9 +101,15 @@ func advance(delta: float) -> void:
 		reset()
 		return
 	_time += maxf(delta, 0.0)
-	while _time >= STEP:
+	var steps := floori(_time / STEP)
+	_share = 1.0 / maxi(steps, 1)
+	for i in steps:
 		_time -= STEP
 		_step()
+	if steps > 0:
+		_hands_before.clear()
+		for hand: Dictionary in hands:
+			_hands_before[hand.key] = [hand.from, hand.to]
 
 
 func _step() -> void:
@@ -120,7 +139,7 @@ func _step() -> void:
 			radii.append(joint.radius * maxf(scale.x, maxf(scale.y, scale.z)))
 			var now := center * current[i]
 			var before := center * previous[i]
-			points.append(now + (now - before) * (1.0 - joint.drag) + along.normalized() * joint.stiffness * STEP + joint.gravity * STEP)
+			points.append(now if chain.gripped.has(i) else now + (now - before) * (1.0 - joint.drag) + along.normalized() * joint.stiffness * STEP + joint.gravity * STEP)
 		# Poses stay fixed until _apply; prepare collision geometry once per chain.
 		var starts := PackedVector3Array()
 		var segments := PackedVector3Array()
@@ -143,15 +162,31 @@ func _step() -> void:
 			extents.append(extent)
 			centers.append(start + segment * 0.5)
 			bounds.append(segment.length() * 0.5 + extent)
+		var keys: Array[String] = []
+		keys.resize(starts.size())
+		var gripped := {}
+		var carried := {}
 		if not targets.get(c) is Vector3:
-			for hand: Array in hands:
-				if chain.collide & hand[2]:
-					starts.append(hand[0])
-					segments.append(Vector3.ZERO)
-					squared.append(1e-12)
-					extents.append(hand[1])
-					centers.append(hand[0])
-					bounds.append(hand[1])
+			var now := {}
+			for hand: Dictionary in hands:
+				if _reaches(chain, hand):
+					now[hand.key] = hand
+					var segment: Vector3 = hand.to - hand.from
+					starts.append(hand.from)
+					segments.append(segment)
+					squared.append(maxf(segment.length_squared(), 1e-12))
+					extents.append(hand.radius)
+					centers.append(hand.from + segment * 0.5)
+					bounds.append(segment.length() * 0.5 + hand.radius)
+					keys.append(hand.key)
+			var moved: Transform3D = center * chain.stepped_center.affine_inverse()
+			for i: int in chain.gripped:
+				var key: String = chain.gripped[i]
+				if now.has(key) and _hands_before.has(key):
+					var was: Array = _hands_before[key]
+					var carry := _carried(points[i + 1], [moved * was[0], moved * was[1]], now[key], _share).limit_length(CARRY)
+					points[i + 1] += carry
+					carried[i] = carry
 		var anchor := points[0]
 		var held: Variant = targets.get(c)
 		if held is Vector3:
@@ -176,14 +211,50 @@ func _step() -> void:
 					var closest := starts[j] + segments[j] * clampf((point - starts[j]).dot(segments[j]) / squared[j], 0.0, 1.0)
 					var away := point - closest
 					var extent := radii[i] + extents[j]
+					if keys[j] != "" and away.length_squared() < (extent + SKIN) * (extent + SKIN):
+						gripped[i] = keys[j]
 					if away.length_squared() < extent * extent:
 						point = closest + _direction(away, points[i] - closest) * extent
 						point = points[i] + _direction(point - points[i], Vector3.DOWN) * lengths[i]
 				points[i + 1] = point
+		chain.gripped = gripped
+		chain.stepped_center = center
 		chain.previous = current.duplicate()
+		for i: int in carried:
+			chain.previous[i] += inverse.basis * carried[i]
 		for i in lengths.size():
 			chain.current[i] = inverse * points[i + 1]
 		_apply(chain, points)
+
+
+## Whether a hand that may push `chain` is within its reach.
+func _within_hand(chain: Dictionary) -> bool:
+	for hand: Dictionary in hands:
+		if _reaches(chain, hand):
+			return true
+	return false
+
+
+## Whether `hand` may push `chain` and comes within the chain's reach of its first joint.
+static func _reaches(chain: Dictionary, hand: Dictionary) -> bool:
+	if not chain.collide & hand.who:
+		return false
+	var anchor: Vector3 = chain.joints[0].node.global_position
+	var segment: Vector3 = hand.to - hand.from
+	var closest: Vector3 = hand.from + segment * clampf((anchor - hand.from).dot(segment) / maxf(segment.length_squared(), 1e-12), 0.0, 1.0)
+	return anchor.distance_to(closest) < chain.reach + hand.radius
+
+
+## How far a hand that pushed the point at `at` carries it, `share` of its move from `before` ([from, to]) to `now`:
+## as the nearest point of its axis moved, but never pulled along as the hand draws away, so what a hand catches drags
+## with it until its own pull wins or the hand leaves it.
+static func _carried(at: Vector3, before: Array, now: Dictionary, share: float) -> Vector3:
+	var span: Vector3 = before[1] - before[0]
+	var along := clampf((at - before[0]).dot(span) / maxf(span.length_squared(), 1e-12), 0.0, 1.0)
+	var near: Vector3 = before[0] + span * along
+	var moved: Vector3 = ((now.from as Vector3).lerp(now.to, along) - near) * share
+	var normal := (at - near).normalized()
+	return moved - normal * minf(moved.dot(normal), 0.0)
 
 
 static func _direction(value: Vector3, fallback: Vector3) -> Vector3:

@@ -51,10 +51,10 @@ func _run() -> void:
 	check(session._spring_holds.is_empty(), "distant remote grab is rejected")
 	await frames(60)
 	var resting := body.springs.tip(0)
-	grasp.origin = resting + Vector3(0.03, 0, 0)
+	grasp.origin = resting - HandStop.CENTRE + Vector3(0.01, 0, 0)
 	peer.pose(eyes, grasp, grasp)
 	await frames(20)
-	check(body.springs.tip(0).distance_to(grasp.origin) >= Session.HAND_RADIUS - 0.002, "another player's hand pokes the wearer's chain aside")
+	check(_outside(body.springs.tip(0), Hand.touching(grasp, "", 0)[0]), "another player's controller pokes the wearer's chain aside")
 	body.springs.chains[0].collide = SpringDefinition.WEARER
 	await frames(60)
 	check(body.springs.tip(0).distance_to(resting) < 0.01, "a chain that only its wearer's hands push lets another's through")
@@ -67,9 +67,9 @@ func _run() -> void:
 	peer.pose(eyes, grasp, grasp)
 	body.springs.chains[0].collide = SpringDefinition.WEARER | SpringDefinition.OTHERS
 	body.springs.chains[0].grab = SpringDefinition.WEARER | SpringDefinition.OTHERS
-	hand.global_position = resting + Vector3(0, 0, 0.03)
+	hand.global_position += resting - hand.body.global_transform * HandStop.CENTRE + Vector3(0, 0.01, 0)
 	await frames(20)
-	check(body.springs.tip(0).distance_to(hand.global_position) >= Session.HAND_RADIUS - 0.002, "the wearer's own hand pokes their chain aside")
+	check(_outside(body.springs.tip(0), Hand.touching(hand.body.global_transform, "", 0)[0]), "the wearer's own controller pokes their own chain aside")
 	hand.global_position = resting + Vector3(1, 0, 0)
 	session.avatars[0] = peer
 	session._pose(eyes, grasp, grasp, Vector3.FORWARD, PackedVector3Array([Vector3.ZERO]), {})
@@ -96,3 +96,8 @@ func _run() -> void:
 		avatar.queue_free()
 	await frames(2)
 	finish()
+
+
+## Whether `point` lies outside the capsule `hand` (Hand.touching), within float error.
+func _outside(point: Vector3, hand: Dictionary) -> bool:
+	return point.distance_to(Geometry3D.get_closest_point_to_segment(point, hand.from, hand.to)) >= hand.radius - 0.001

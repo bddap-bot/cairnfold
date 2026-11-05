@@ -31,6 +31,8 @@ const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
 ## The grip pose's axes (OpenXR: -Z through the closed fist from little finger to thumb, +X out of the left palm and
 ## into the right, the fingers toward -Y) turned to a hand's, its fingers toward -Z.
 const GRIP_TO_PALM := Transform3D(Basis(Vector3.RIGHT, -PI / 2), Vector3.ZERO)
+## The drawn controller's width, thickness and length, its long axis along the body's z about HandStop.CENTRE.
+const CONTROLLER := Vector3(0.05, 0.035, 0.11)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
@@ -157,7 +159,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	process_priority = -10
 	add_child(body)
 	_controller.mesh = Meshes.rounded_box(0.3, 2, 7)
-	_controller.scale = Vector3(0.05, 0.035, 0.11)
+	_controller.scale = CONTROLLER
 	_controller.position = HandStop.CENTRE
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.93, 0.9, 0.84)
@@ -464,6 +466,15 @@ func stick() -> Vector2:
 ## How many metres a thing pulled at `reach` metres moves per metre of hand, so far things keep up.
 static func reach_gain(reach: float) -> float:
 	return maxf(1.0, reach / 1.2)
+
+
+## Where a hand whose body is at `body` in the world touches springs, as Avatar Workshop's hands named `key` for
+## `who`: the capsule its drawn controller fills and its fingertip at the controller's front.
+static func touching(body: Transform3D, key: String, who: int) -> Array[Dictionary]:
+	var radius := minf(CONTROLLER.x, CONTROLLER.y) * 0.5
+	var half := Vector3(0, 0, CONTROLLER.z * 0.5 - radius)
+	var tip := body * CONTROLLER_TIP
+	return [{"key": key, "from": body * (HandStop.CENTRE - half), "to": body * (HandStop.CENTRE + half), "radius": radius, "who": who}, {"key": key + "/tip", "from": tip, "to": tip, "radius": 0.005, "who": who}]
 
 
 func tracked() -> bool:
