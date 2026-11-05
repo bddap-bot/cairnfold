@@ -20,6 +20,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_xxhash_matches_the_reference()
+	_the_view_is_given_in_the_models_axes()
 	_yaml_reads_unity_objects()
 	_nested_prefabs_flatten()
 	_model_objects_keep_their_bindings_and_transforms()
@@ -68,6 +69,27 @@ func _run() -> void:
 
 
 ## XXH64's published values, and a model object's file ID as Unity's importer names it.
+## The descriptor's view position becomes the eyes' offset from the head bone in the model's axes, as VRM gives it and
+## Avatar reads it, whichever way the head bone is turned at rest.
+func _the_view_is_given_in_the_models_axes() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Head")
+	sk.add_bone("EyeL")
+	sk.add_bone("EyeR")
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_parent(2, 0)
+	sk.set_bone_rest(0, Transform3D(Basis(Vector3.RIGHT, -PI / 2), Vector3(0, 1.5, 0)))
+	sk.set_bone_rest(1, Transform3D(Basis(), Vector3(-0.03, 0.05, 0.08)))
+	sk.set_bone_rest(2, Transform3D(Basis(), Vector3(0.03, 0.05, 0.08)))
+	var human := {"head": NodePath(":Head"), "leftEye": NodePath(":EyeL"), "rightEye": NodePath(":EyeR")}
+	var viewed: Vector3 = UnityAvatar._eyes(sk, {"ViewPosition": {"x": "0", "y": "1.6", "z": "0.07"}}, human)
+	check(viewed.is_equal_approx(Vector3(0, 0.1, 0.07)), "the view position stands from the head bone in the model's axes: %s" % viewed)
+	var eyes: Vector3 = UnityAvatar._eyes(sk, {}, human)
+	var between := (sk.get_bone_global_rest(1).origin + sk.get_bone_global_rest(2).origin) / 2.0
+	check(eyes.is_equal_approx(between - Vector3(0, 1.5, 0)), "without one, the eyes stand between the eye bones: %s" % eyes)
+	sk.free()
+
+
 func _xxhash_matches_the_reference() -> void:
 	check(XXHash.hash64(PackedByteArray()) == -1205034819632174695, "XXH64 of nothing (0xEF46DB3751D8E999)")
 	check(XXHash.hash64("a".to_ascii_buffer()) == -3292477735350538661, "XXH64 of a (0xD24EC4F1A98C6E5B)")

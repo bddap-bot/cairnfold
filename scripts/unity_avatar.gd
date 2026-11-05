@@ -1793,16 +1793,16 @@ static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> D
 	return named
 
 
-## Where the eyes are from the head bone: the descriptor's view position (Unity's axes, X mirrored), or between the eye
-## bones, or a little above the head bone.
+## Where the eyes are from the head bone, in the model's axes as VRM gives them: the descriptor's view position (Unity's
+## axes, X mirrored), or between the eye bones, or a little above the head bone.
 static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> Vector3:
 	var rest := func(b: String) -> Transform3D: return sk.get_bone_global_rest(sk.find_bone((human[b] as NodePath).get_concatenated_subnames()))
-	var head: Transform3D = rest.call("head")
+	var head: Vector3 = (rest.call("head") as Transform3D).origin
 	var view: Variant = descriptor.get("ViewPosition")
 	if view is Dictionary:
-		return head.affine_inverse() * Vector3(-str(view.get("x", "0")).to_float(), str(view.get("y", "0")).to_float(), str(view.get("z", "0")).to_float())
+		return Vector3(-str(view.get("x", "0")).to_float(), str(view.get("y", "0")).to_float(), str(view.get("z", "0")).to_float()) - head
 	if human.has("leftEye") and human.has("rightEye"):
-		return head.affine_inverse() * (((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0)
+		return ((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0 - head
 	return Vector3(0, 0.06, 0)
 
 
