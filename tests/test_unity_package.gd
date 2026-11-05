@@ -536,6 +536,19 @@ func _a_physbone_carries_its_limit() -> void:
 		check(q.size() == 4 and Quaternion(q[0], q[1], q[2], q[3]).is_equal_approx(Quaternion(Vector3.RIGHT, deg_to_rad(32.0))), "its turn about X is carried into the joint's axes: %s" % [q])
 		var read: Array = UnityAvatar._read_springs(definition, [{}, {}]).springs
 		check(read.size() == 1 and read[0].joints[0].get("extras") == joints[0].extras, "reading the springs keeps each joint's limit: %s" % [read])
+	# A bone along Unity's X, its limit turned about X then Z: VRChat's CalcLimitAxis turns Y to the bone first, and
+	# applies limitRotation's angles about X, then Y, then Z.
+	objs[11].data.m_LocalPosition = {"x": "0.1", "y": "0", "z": "0"}
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(-0.1, 0, 0)))
+	objs[20].data.limitType = "2"
+	objs[20].data.limitRotation = {"x": "30", "y": "0", "z": "40"}
+	var turned: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
+	var unity := Quaternion(Vector3.UP, Vector3.RIGHT) * Quaternion(Vector3.BACK, deg_to_rad(40.0)) * Quaternion(Vector3.RIGHT, deg_to_rad(30.0))
+	var mirrored := func(v: Vector3) -> Vector3: return Vector3(-v.x, v.y, v.z)
+	var r: Array = turned[0].get("extras", {}).get("limit", {}).get("rotation", [0, 0, 0, 1])
+	var frame := Quaternion(r[0], r[1], r[2], r[3])
+	check((frame * Vector3.UP).is_equal_approx(mirrored.call(unity * Vector3.UP)), "the limit's axis is VRChat's, in the joint's axes: %s vs %s" % [frame * Vector3.UP, mirrored.call(unity * Vector3.UP)])
+	check(is_equal_approx(absf((frame * Vector3.RIGHT).dot(mirrored.call(unity * Vector3.RIGHT))), 1.0), "and its hinge turns across VRChat's X: %s vs %s" % [frame * Vector3.RIGHT, mirrored.call(unity * Vector3.RIGHT)])
 	objs[20].data.limitType = "0"
 	var free: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
 	check(not free[0].get("extras", {}).has("limit"), "a PhysBone without a limit carries none: %s" % [free])
@@ -583,8 +596,8 @@ func _a_physbone_carries_its_settings_bone_by_bone() -> void:
 		sk.set_bone_rest(i, Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)))
 	var ramp := func(a: float, b: float) -> Dictionary: return {"m_Curve": [{"time": "0", "value": str(a), "inSlope": "0", "outSlope": str(b - a)}, {"time": "1", "value": str(b), "inSlope": str(b - a), "outSlope": "0"}]}
 	var objs := {
-		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
-		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}, "m_LocalScale": {"x": "2", "y": "2", "z": "2"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}, "m_LocalScale": {"x": "1", "y": "1.5", "z": "1"}}},
 		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "11"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
 		110: {"type": "GameObject", "data": {"m_Name": "Root"}},
 		111: {"type": "GameObject", "data": {"m_Name": "Mid"}},
@@ -607,13 +620,18 @@ func _a_physbone_carries_its_settings_bone_by_bone() -> void:
 	var pulls: Array = bones.map(func(b: Dictionary) -> float: return b.get("pull", 0.0))
 	check(is_equal_approx(pulls[0], 0.2) and is_equal_approx(pulls[1], 0.15) and is_equal_approx(pulls[2], 0.1), "pull follows its curve from the root to the bone before the endpoint: %s" % [pulls])
 	var radii: Array = bones.map(func(b: Dictionary) -> Array: return b.get("radius", []))
-	var expected := [[0.08, 0.08 * (1.0 - 0.5 / 3.0)], [0.08 * (1.0 - 0.5 / 3.0), 0.08 * (1.0 - 1.0 / 3.0)], [0.08 * (1.0 - 1.0 / 3.0), 0.04]]
+	# The root is scaled 2 and Mid 1.5 more along Y: each end takes its own bone's largest world scale, Mid's from Mid on.
+	var r := func(t: float) -> float: return 0.04 * (1.0 - 0.5 * t)
+	var expected := [[r.call(0.0) * 2.0, r.call(1.0 / 3.0) * 3.0], [r.call(1.0 / 3.0) * 3.0, r.call(2.0 / 3.0) * 3.0], [r.call(2.0 / 3.0) * 3.0, r.call(1.0) * 3.0]]
 	for i in 3:
-		check(radii[i].size() == 2 and is_equal_approx(radii[i][0], expected[i][0]) and is_equal_approx(radii[i][1], expected[i][1]), "bone %d's radius at each end follows the curve to the endpoint, in the output's units: %s" % [i, radii])
+		check(radii[i].size() == 2 and is_equal_approx(radii[i][0], expected[i][0]) and is_equal_approx(radii[i][1], expected[i][1]), "bone %d's radius at each end follows the curve to the endpoint, scaled by that end's bone as VRChat scales it: %s vs %s" % [i, radii, expected])
 	check(bones.map(func(b: Dictionary) -> int: return b.get("depth", -1)) == [0, 1, 2] and bones.map(func(b: Dictionary) -> bool: return b.get("endpoint", false)) == [false, false, true], "each bone knows its depth and the last ends at the endpoint: %s" % [bones])
 	var shared := {"springs": [{"joints": [{"node": 0, "extras": {"physbone": {"pull": 0.066}}}, {"node": 1}]}, {"joints": [{"node": 0, "extras": {"physbone": {"pull": 0.033}}}, {"node": 2}]}], "colliders": []}
 	var kept: Array = UnityAvatar._read_springs(shared, [{}, {}, {}]).springs.map(func(c: Dictionary) -> float: return c.joints[0].get("extras", {}).get("physbone", {}).get("pull", 0.0))
 	check(kept.size() == 2 and is_equal_approx(kept[0], 0.066) and is_equal_approx(kept[1], 0.033), "two PhysBones sharing a bone each keep their own settings through the read: %s" % [kept])
+	objs[20].data.erase("version")
+	var unversioned: Dictionary = UnityAvatar._springs(objs, 10, sk, {}, 2.0, {}).springs[0].joints[0].extras.physbone
+	check(unversioned.get("version") == "1.0", "a PhysBone saved without a version is 1.0, Unity's default for the field: %s" % [unversioned])
 	objs[20].data.erase("endpointPosition")
 	var plain: Array = UnityAvatar._springs(objs, 10, sk, {}, 2.0, {}).springs[0].joints
 	check(plain.size() == 3 and not plain[1].extras.physbone.endpoint and is_equal_approx(plain[1].extras.physbone.pull, 0.1), "without an endpoint the last bone is a tail and the curve ends a bone sooner: %s" % [plain])

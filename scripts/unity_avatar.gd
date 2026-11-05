@@ -1968,25 +1968,36 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
 		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
 		var deepest := _deepest(children, ignored, root_t)
-		# A PhysBone's limit keeps each bone's swing about its rest direction inside a cone (Angle), an arc in one plane
-		# (Hinge) or an elliptical cone (Polar), turned by limitRotation, Unity's Euler angles (about Z, then X, then Y),
-		# its angles and turn each scaled by their curves at the bone's place down the chain.
+		var kids_of := func(t: int) -> Array:
+			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
+		# A PhysBone's limit keeps each bone's swing inside a cone (Angle), an arc in one plane (Hinge) or an elliptical
+		# cone (Polar) about the frame VRChat's CalcLimitAxis builds: Y turned to the bone's direction, after
+		# limitRotation's Euler angles about X, then Y, then Z; its angles and turn each scaled by their curves at the
+		# bone's place down the chain.
 		var limit_shape: String = "" if legacy else ["", "angle", "hinge", "polar"][clampi(str(d.get("limitType", "0")).to_int(), 0, 3)]
 		var turned: Variant = d.get("limitRotation")
 		var limited := func(j: Dictionary, t: int, depth: int) -> Dictionary:
 			if limit_shape != "":
 				var along := _along(depth, deepest, endpoint != Vector3.ZERO)
 				var about := func(axis: Vector3, key: String) -> Quaternion: return Quaternion(axis, deg_to_rad(_curved(d, "limitRotation" + key.to_upper(), along, str(turned.get(key, "0")).to_float() if turned is Dictionary else 0.0)))
-				var tilt: Quaternion = about.call(Vector3.UP, "y") * about.call(Vector3.RIGHT, "x") * about.call(Vector3.BACK, "z")
+				var tilt: Quaternion = about.call(Vector3.BACK, "z") * about.call(Vector3.UP, "y") * about.call(Vector3.RIGHT, "x")
 				tilt = Quaternion(tilt.x, -tilt.y, -tilt.z, tilt.w)
 				var unity := sk.get_bone_global_rest(j.node).basis.orthonormalized().inverse() * (frame * _world_transform(objs, t)).basis.orthonormalized()
-				var q := (unity.get_rotation_quaternion() * tilt).normalized()
+				var kids: Array = kids_of.call(t)
+				var bone_vector: Vector3 = _local(objs[kids[0]].data).origin if not kids.is_empty() else endpoint
+				var toward := Quaternion(Vector3.UP, bone_vector.normalized()) if bone_vector != Vector3.ZERO else Quaternion.IDENTITY
+				var q := (unity.get_rotation_quaternion() * toward * tilt).normalized()
 				j["extras"] = {"limit": {"shape": limit_shape, "x": maxf(_curved(d, "maxAngleX", along, str(d.get("maxAngleX", "0")).to_float()), 0.0), "z": maxf(_curved(d, "maxAngleZ", along, str(d.get("maxAngleZ", "0")).to_float()), 0.0), "rotation": [q.x, q.y, q.z, q.w]}}
 			return j
-		var physbone := func(j: Dictionary, depth: int, last: bool) -> Dictionary:
+		# VRChat scales a bone's radius by its own world scale at its start, and by its child's at its end.
+		var physbone := func(j: Dictionary, t: int, depth: int, last: bool) -> Dictionary:
 			if not legacy:
+				var own := (frame * _world_transform(objs, t)).basis.get_scale().abs()
+				var kids: Array = kids_of.call(t)
+				var child := own * (_local(objs[kids[0]].data).basis.get_scale().abs() if not kids.is_empty() else Vector3.ONE)
+				var held := sk.get_bone_global_rest(j.node).basis.get_scale().x
 				var extras: Dictionary = j.get("extras", {})
-				extras["physbone"] = _physbone(d, depth, deepest, endpoint != Vector3.ZERO, k)
+				extras["physbone"] = _physbone(d, depth, deepest, endpoint != Vector3.ZERO, [own[own.max_axis_index()] / held, child[child.max_axis_index()] / held])
 				extras.physbone["endpoint"] = last
 				j["extras"] = extras
 			return j
@@ -1994,8 +2005,6 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		for c: Variant in Prefabs._list(d.get("colliders", d.get("m_Colliders"))):
 			if collider_index.has(_ref(c)):
 				groups.append(collider_index[_ref(c)])
-		var kids_of := func(t: int) -> Array:
-			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
 		var starts: Array = kids_of.call(root_t)
 		if starts.size() < 2 or str(d.get("multiChildType", "1" if legacy else "0")) == "1":
 			starts = [root_t]
@@ -2007,7 +2016,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			if bone >= 0 and not human.has(bone) and not ignored.has(item[0]):
 				var j := joint.duplicate()
 				j["node"] = bone
-				joints.append(physbone.call(limited.call(j, item[0], item[2]), item[2], false))
+				joints.append(physbone.call(limited.call(j, item[0], item[2]), item[0], item[2], false))
 			elif not joints.is_empty():
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups, "extras": touch})
@@ -2015,7 +2024,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			var kids: Array = kids_of.call(item[0])
 			if kids.is_empty():
 				if not joints.is_empty() and endpoint != Vector3.ZERO:
-					joints[-1] = physbone.call(joints[-1], item[2], true)
+					joints[-1] = physbone.call(joints[-1], item[0], item[2], true)
 					var j := joint.duplicate()
 					var offset := endpoint * _world_scale(objs, item[0])
 					if legacy:
@@ -2098,7 +2107,8 @@ static func _deepest(children: Dictionary, ignored: Dictionary, root: int) -> in
 
 
 ## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc
-## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; radii in the output's units.
+## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; its radius at each end times that
+## end's entry in `scales`, so in the output's units.
 ## VRChat's CalcBoneRatio: where the bone `depth` transforms below the root lies down the chain, from 0 at the root to 1
 ## at the bone before the end.
 static func _along(depth: int, deepest: int, endpoint: bool) -> float:
@@ -2112,14 +2122,14 @@ static func _curved(d: Dictionary, field: String, t: float, value: float) -> flo
 	return (ExpressionCurves.sample(keys, t, false) if not keys.is_empty() else 1.0) * value
 
 
-static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, k: float) -> Dictionary:
+static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, scales: Array) -> Dictionary:
 	var reach := deepest + (1 if endpoint else 0)
 	var along := _along(depth, deepest, endpoint)
 	var at := func(index: int) -> float: return clampf(float(index) / reach, 0.0, 1.0) if reach > 0 else 0.0
 	var curved := func(field: String, t: float, fallback: float) -> float: return _curved(d, field, t, str(d.get(field, fallback)).to_float())
-	var radius := func(t: float) -> float: return curved.call("radius", t, 0.0) * k
+	var radius := func(t: float) -> float: return curved.call("radius", t, 0.0)
 	return {
-		"version": "1.0" if str(d.get("version", "1")) == "0" else "1.1",
+		"version": "1.0" if str(d.get("version", "0")) == "0" else "1.1",
 		"integration": "advanced" if str(d.get("integrationType", "0")) == "1" else "simplified",
 		"pull": clampf(curved.call("pull", along, 0.2), 0.0, 1.0),
 		"spring": clampf(curved.call("spring", along, 0.2), 0.0, 1.0),
@@ -2131,7 +2141,7 @@ static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, k
 		"maxStretch": maxf(curved.call("maxStretch", along, 0.0), 0.0),
 		"maxSquish": clampf(curved.call("maxSquish", along, 0.0), 0.0, 1.0),
 		"stretchMotion": clampf(curved.call("stretchMotion", along, 0.0), 0.0, 1.0),
-		"radius": [radius.call(at.call(depth)), radius.call(at.call(depth + 1))],
+		"radius": [radius.call(at.call(depth)) * scales[0], radius.call(at.call(depth + 1)) * scales[1]],
 		"depth": depth,
 	}
 
