@@ -10,6 +10,7 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 
@@ -56,6 +57,12 @@ func _run() -> void:
 	_curves_keep_their_unity_tangents()
 	_an_unpacked_armature_still_takes_a_link()
 	_transform_and_physbone_curves_bind()
+	_vrcfury_toggles_join_the_menu()
+	_vrcfury_full_controller_paths_resolve_from_their_object()
+	_a_udim_discard_tile_is_a_switch()
+	_a_radial_moving_nothing_is_cut_beside_a_live_one()
+	_a_blend_child_holds_what_its_sibling_animates_at_rest()
+	_a_full_controller_renames_its_layers_and_menu()
 	finish()
 
 
@@ -1550,15 +1557,15 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	sk.add_bone("Hips")
 	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
 	var materials := Materials.new(prefabs.assets)
-	var merged := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, {}, {}, sk, rests, 1.0, {})
+	var merged := UnityAvatar._merge(prefabs, materials, objs, renderers, {"slots": {}, "targets": [], "by_object": {}}, {}, {}, sk, rests, 1.0, {})
 	check(merged.meshes.size() == 1 and merged.meshes[0].weights == {"Shorts": 0.0, "Shorts (2)": 1.0}, "a name saved at two weights is two shapes, each at its renderer's weight: %s" % [merged.meshes.map(func(m: Dictionary) -> Dictionary: return m.weights)])
 	check(merged.shapes == {3: {"Shorts": "Shorts"}, 6: {"Shorts": "Shorts (2)"}, 9: {"Shorts": "Shorts (2)"}}, "renderers weighed alike share their shape: %s" % [merged.shapes])
 	var switched := renderers.map(func(r: Array) -> Array: return [r[0], r[1], [] if r[0] == 3 else [[0, 1]]])
-	var apart := UnityAvatar._merge(prefabs, materials, objs, switched, {}, {}, {}, sk, rests, 1.0, {})
+	var apart := UnityAvatar._merge(prefabs, materials, objs, switched, {"slots": {}, "targets": [], "by_object": {}}, {}, {}, sk, rests, 1.0, {})
 	var names: Array = apart.meshes.map(func(m: Dictionary) -> Array: return [m.renderers, m.weights])
 	check(names == [[[3], {"Shorts": 0.0}], [[6, 9], {"Shorts": 1.0}]], "each mesh names its shape as the source does: %s" % [names])
 	var animated := {6: {"Shorts": [[0, [[0.0, 50.0]]]]}}
-	var split := UnityAvatar._merge(prefabs, materials, objs, renderers, {}, animated, {}, sk, rests, 1.0, {})
+	var split := UnityAvatar._merge(prefabs, materials, objs, renderers, {"slots": {}, "targets": [], "by_object": {}}, animated, {}, sk, rests, 1.0, {})
 	check(split.shapes[6].Shorts != split.shapes[9].Shorts, "a clip moving one renderer's shape parts it from a renderer the clip leaves: %s" % [split.shapes])
 	var expressions := Expressions.new(prefabs.assets, {})
 	expressions.data = {
@@ -1661,3 +1668,162 @@ func _curves_keep_their_unity_tangents() -> void:
 				same = same and ((got[j] == null and want[i][j] == null) or (got[j] != null and want[i][j] != null and absf(got[j] - want[i][j]) < 1e-6))
 		check(same, "%s keeps Unity's slopes, constant tangents and weights: %s" % [c.path, c["keys"]])
 	check(UnityAvatar._scaled([[0.5, 100.0, 50.0, null, 0.2, 0.7]], 0.01) == [[0.5, 1.0, 0.5, null, 0.2, 0.7]], "a rescaled curve scales its slopes with its values and keeps its weights")
+
+
+## VRCFury Toggles become what VRCFury builds at upload: a menu control at the toggle's path, its parameter, and a layer
+## whose on state holds the actions as a clip (an object turned on, a blend shape set), siblings of one exclusive tag
+## turned off on entry; a MoveMenuItem and SetIcon then apply. An object toggled on is the menu's switch, resting as
+## its toggle starts.
+func _vrcfury_toggles_join_the_menu() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "9"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Hat", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "5"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}}},
+		5: {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": "3"}}},
+	}
+	var refs := [
+		{"rid": "1", "type": {"class": "Toggle"}, "data": {"name": "Clothes/Hat", "saved": "1", "defaultOn": "0", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": [{"rid": "2"}, {"rid": "3"}]}}},
+		{"rid": "2", "type": {"class": "ObjectToggleAction"}, "data": {"obj": {"fileID": "3"}, "mode": "0"}},
+		{"rid": "3", "type": {"class": "BlendShapeAction"}, "data": {"blendShape": "Squash", "blendShapeValue": "40", "allRenderers": "1"}},
+		{"rid": "4", "type": {"class": "Toggle"}, "data": {"name": "Clothes/Crown", "useGlobalParam": "1", "globalParam": "Crown", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": []}}},
+		{"rid": "5", "type": {"class": "Toggle"}, "data": {"name": "Body/Size", "slider": "1", "defaultSliderValue": "0.25", "state": {"actions": [{"rid": "3"}]}}},
+		{"rid": "6", "type": {"class": "MoveMenuItem"}, "data": {"fromPath": "Body/Size", "toPath": "Size"}},
+		{"rid": "7", "type": {"class": "SetIcon"}, "data": {"path": "Clothes/Hat", "icon": {"objRef": {"guid": "icon"}}}},
+	]
+	objs[9] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "1"}, "config": {"features": refs.filter(func(r: Dictionary) -> bool: return not r.type.class.ends_with("Action")).map(func(r: Dictionary) -> Dictionary: return {"rid": r.rid})}, "references": {"RefIds": refs}}}
+	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
+	var paths := {"": 2, "Hat": 4}
+	VRCFury.apply(expressions, objs, paths)
+	var menu: Array = expressions.data.get("menu", [])
+	check(menu.size() == 3 and menu[0].name == "Clothes" and menu[2].name == "Size" and menu[2].type == "radial" and menu[2].axes == ["VF2_Body/Size"], "the toggles' paths make the menu, the slider moved to the top: %s" % [menu])
+	if menu.size() < 2:
+		return
+	var hat: Dictionary = menu[0].controls[0]
+	check(hat.name == "Hat" and hat.type == "toggle" and hat.parameter == "VF0_Clothes/Hat" and hat.icon == "icon", "the hat is a toggle of its own parameter with its icon: %s" % [hat])
+	check(menu[0].controls[1].parameter == "Crown", "a global parameter keeps its name")
+	var hat_parameter: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF0_Clothes/Hat")
+	check(hat_parameter.size() == 1 and hat_parameter[0].type == "bool" and hat_parameter[0].saved and hat_parameter[0].default == 0.0, "the hat's parameter is a saved bool, off: %s" % [hat_parameter])
+	var size: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF2_Body/Size")
+	check(size.size() == 1 and size[0].type == "float" and size[0].default == 0.25, "the slider's parameter is a float at its default")
+	var layer: Dictionary = expressions.data.layers[0]
+	var curves: Array = expressions.data.clips[layer.states[1].motion.clip].curves
+	check(curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "m_IsActive" and c["class"] == "1" and c["keys"][0][1] == 1.0) and curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "blendShape.Squash" and c["keys"][0][1] == 40.0), "the on state turns the hat on and sets the shape: %s" % [curves])
+	var off: Array = expressions.data.clips[layer.states[0].motion.clip].curves
+	check(off.size() == 1 and off[0].path == "Hat" and off[0]["keys"][0][1] == 0.0, "the off state turns the hat off, whatever the scene has: %s" % [off])
+	check(layer.states[1].drivers == [{"parameter": "Crown", "drive": "set", "value": 0.0, "min": 0.0, "max": 1.0, "chance": 1.0, "source": ""}], "turning the hat on turns off the crown of its tag: %s" % [layer.states[1].drivers])
+	check(layer.states[0].transitions[0].conditions[0] == {"parameter": "VF0_Clothes/Hat", "mode": "if", "threshold": 0.0}, "the parameter enters the on state")
+	var switches := UnityAvatar._switches(expressions, objs, paths)
+	check(switches.by_object.has(3) and switches.targets[switches.by_object[3]].default == 0.0, "the hat is the menu's switch, resting off as its toggle starts though the scene shows it")
+
+
+## A FullController's bindings are below its object when that path is there, otherwise from the avatar's root; a
+## rewrite renames a path's prefix and a delete drops it.
+func _vrcfury_full_controller_paths_resolve_from_their_object() -> void:
+	var paths := {"": 1, "Wings": 2, "Wings/Left": 3, "Body": 4}
+	check(VRCFury._resolve(paths, "Wings", "Left") == "Wings/Left", "a path below the controller's object resolves there")
+	check(VRCFury._resolve(paths, "Wings", "Body") == "Body", "a path only the root has resolves from the root")
+	check(VRCFury._rewritten([{"from": "Old", "to": "Left"}], "Old/Tip") == "Left/Tip", "a rewrite renames the prefix")
+	check(VRCFury._rewritten([{"from": "Gone", "delete": "1"}], "Gone/Tip") == null, "a delete drops the binding")
+	var full := range(10).map(func(i: int) -> Dictionary: return {"name": str(i), "type": "toggle"})
+	VRCFury._paged(full)
+	check(full.size() == 8 and full[7].name == "Next" and (full[7].controls as Array).size() == 3, "a menu past VRChat's eight pages its rest into Next: %s" % [full])
+	var menu := []
+	VRCFury._merge(VRCFury._submenu(menu, ["Wings"]), [{"name": "Flap", "type": "toggle"}, {"name": "More", "type": "submenu", "controls": [{"name": "Glow", "type": "toggle"}]}])
+	VRCFury._merge(VRCFury._submenu(menu, ["Wings"]), [{"name": "More", "type": "submenu", "controls": [{"name": "Fold", "type": "toggle"}]}])
+	check(menu.size() == 1 and menu[0].controls.size() == 2 and (menu[0].controls[1].controls as Array).map(func(c: Dictionary) -> String: return c.name) == ["Glow", "Fold"], "menus under one prefix merge, submenus of one name join: %s" % [menu])
+
+
+## A Poiyomi UDIM discard tile the menu animates is a switch on its renderer, and a tile discarded at rest that nothing
+## changes is a switch that stays on; each vertex of a material that discards falls in the tile its UV names, counted
+## from Unity's V, drawn while its tile's switch is off.
+func _a_udim_discard_tile_is_a_switch() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Body", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "5"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}}},
+		5: {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": "3"}}},
+	}
+	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
+	expressions.data = {"menu": [], "parameters": [], "layers": [], "clips": [{"length": 0, "loop": false, "curves": [{"path": "Body", "attribute": "material._UDIMDiscardRow1_0", "class": "137", "keys": [[0.0, 0.0]]}]}]}
+	var switches := UnityAvatar._switches(expressions, objs, {"": 2, "Body": 4})
+	var animated: int = switches.by_object.get(UnityAvatar._udim_key(5, 1, 0), -1)
+	check(animated >= 0 and switches.by_curve.get("Body|material._UDIMDiscardRow1_0|137") == animated, "the animated tile is a switch of the renderer")
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	# Godot's V runs down from Unity's: Unity (0.5, 1.5) is Godot (0.5, -0.5).
+	arrays[Mesh.ARRAY_TEX_UV2] = PackedVector2Array([Vector2(0.5, -0.5), Vector2(2.5, 0.5), Vector2(0.5, 0.5)])
+	var floats := {"_EnableUDIMDiscardOptions": "1", "_UDIMDiscardUV": "1", "_UDIMDiscardRow1_0": "1", "_UDIMDiscardRow0_2": "1"}
+	var report := {}
+	var tiles := UnityAvatar._udim_tiles(switches, 5, {"floats": floats}, arrays, report)
+	check(tiles.get("vertex", []) == ["1:0", "0:2", "0:0"], "each vertex lies in its Unity tile: %s" % [tiles])
+	var still: int = switches.by_object.get(UnityAvatar._udim_key(5, 0, 2), -1)
+	check(tiles.get("1:0") == [[animated, 0]] and switches.targets[animated].default == 1.0, "the animated tile draws while its switch is off, discarded at rest")
+	check(still >= 0 and tiles.get("0:2") == [[still, 0]] and switches.targets[still].default == 1.0, "a tile only discarded at rest is a switch that stays on")
+	check(not tiles.has("0:0"), "a tile nothing discards needs no switch")
+	check(UnityAvatar._udim_tiles(switches, 5, {"floats": {}}, arrays, report).is_empty(), "a material that discards nothing splits nothing")
+
+
+## A 1D blend tree reads no second parameter, so a live one makes no radial effective: a radial whose own layer moves
+## nothing is cut even while another radial's tree moves something.
+func _a_radial_moving_nothing_is_cut_beside_a_live_one() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Tail", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "5"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}}},
+		5: {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "3"}, "m_Enabled": "1", "m_Script": {"guid": "physbone"}, "rootTransform": {"fileID": "4"}, "pull": "0.2"}},
+	}
+	var tree := func(parameter: String, clip: int) -> Dictionary: return {"blend": "1d", "parameters": [parameter, ""], "children": [{"motion": {"clip": clip}, "threshold": 1.0, "parameter": "", "speed": 1.0, "offset": 0.0, "position": [0.0, 0.0]}]}
+	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
+	expressions.data = {
+		"menu": [{"name": "Live", "type": "radial", "parameter": "", "axes": ["Live"], "value": 1, "icon": ""}, {"name": "Dead", "type": "radial", "parameter": "", "axes": ["Dead"], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Live", "type": "float", "default": 0}, {"name": "Dead", "type": "float", "default": 0}],
+		"layers": [
+			{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": tree.call("Live", 0), "transitions": [], "drivers": []}]},
+			{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": tree.call("Dead", 1), "transitions": [], "drivers": []}]}],
+		"clips": [
+			{"length": 0, "loop": false, "curves": [{"path": "Tail", "attribute": "m_Enabled", "class": "114", "script": "physbone", "keys": [[0.0, 0.0]]}]},
+			{"length": 0, "loop": false, "curves": [{"path": "Nowhere", "attribute": "m_IsActive", "class": "1", "script": "", "keys": [[0.0, 0.0]]}]}],
+	}
+	var paths := {"": 2, "Tail": 4}
+	var switches := UnityAvatar._switches(expressions, objs, paths)
+	var sk := Skeleton3D.new()
+	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), {})
+	sk.free()
+	check((data.menu as Array).map(func(c: Dictionary) -> String: return c.name) == ["Live"], "only the radial that moves something stays: %s" % [data.menu])
+
+
+## A 1D blend child that leaves a target its sibling animates holds that target at its default, so the blend leaves
+## rest as Unity's does rather than growing from zero; a direct blend is left as it is.
+func _a_blend_child_holds_what_its_sibling_animates_at_rest() -> void:
+	var child := func(motion: Dictionary, threshold: float) -> Dictionary: return {"motion": motion, "threshold": threshold, "parameter": "", "speed": 1.0, "offset": 0.0, "position": [0.0, 0.0]}
+	var data := {"clips": [{"length": 0.0, "loop": false, "curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
+	var tree := {"blend": "1d", "parameters": ["Size", ""], "children": [child.call({}, 0.0), child.call({"clip": 0}, 1.0)]}
+	var direct := {"blend": "direct", "parameters": ["", ""], "children": [child.call({}, 0.0), child.call({"clip": 0}, 1.0)]}
+	var targets := [{"effect": {"scale": {"node": "Tail", "axis": 0}}, "default": 0.5}]
+	UnityAvatar._hold_unanimated(data, targets, tree)
+	UnityAvatar._hold_unanimated(data, targets, direct)
+	var rest: Variant = tree.children[0].motion.get("clip")
+	check(rest is int and data.clips[rest].curves == [{"target": 0, "step": false, "keys": [[0.0, 0.5, 0.0, 0.0]]}], "the empty child holds the scale at its default: %s" % [data.clips])
+	check(tree.children[1].motion.clip == 0 and data.clips[0].curves.size() == 1, "the animating child is unchanged")
+	check(direct.children[0].motion.is_empty(), "a direct blend's children are left alone")
+	var nested := {"blend": "1d", "parameters": ["Outer", ""], "children": [child.call({"clip": 0}, 0.0), child.call({"blend": "1d", "parameters": ["Inner", ""], "children": [child.call({}, 0.0)]}, 1.0)]}
+	UnityAvatar._hold_unanimated(data, targets, nested)
+	var inner: Variant = nested.children[1].motion.children[0].motion.get("clip")
+	check(inner is int and data.clips[inner].curves[0]["keys"][0][1] == 0.5, "a subtree's child holds what the enclosing tree's sibling animates")
+
+
+## A FullController's parameter names change everywhere its layers and menu read or set them.
+func _a_full_controller_renames_its_layers_and_menu() -> void:
+	var renamed := func(n: String) -> String: return "VF3_" + n if n != "" and n != "IsLocal" else n
+	var layers := [{"entry": [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "if", "threshold": 0.0}]}], "any": [], "states": [
+		{"motion": {"blend": "1d", "parameters": ["Size", ""], "children": [{"motion": {}, "parameter": ""}]}, "transitions": [{"to": 0, "conditions": [{"parameter": "IsLocal", "mode": "if", "threshold": 0.0}]}], "drivers": [{"parameter": "Hat", "source": "Size"}]}]}]
+	var menu := [{"name": "More", "type": "submenu", "parameter": "", "axes": [], "controls": [{"name": "Hat", "type": "toggle", "parameter": "Hat", "axes": []}, {"name": "Size", "type": "radial", "parameter": "", "axes": ["Size"]}]}]
+	VRCFury._rename_layers(layers, renamed)
+	VRCFury._rename_menu(menu, renamed)
+	var state: Dictionary = layers[0].states[0]
+	check(layers[0].entry[0].conditions[0].parameter == "VF3_Hat" and state.motion.parameters == ["VF3_Size", ""] and state.drivers[0] == {"parameter": "VF3_Hat", "source": "VF3_Size"}, "conditions, blend parameters and drivers take the new names: %s" % [layers])
+	check(state.transitions[0].conditions[0].parameter == "IsLocal", "VRChat's own parameter keeps its name")
+	check(menu[0].controls[0].parameter == "VF3_Hat" and menu[0].controls[1].axes == ["VF3_Size"], "the menu's controls take the new names: %s" % [menu])

@@ -24,7 +24,11 @@ and icon decoding happens during avatar import.
 
 The runtime consumes the imported FX states, conditions, parameter drivers,
 clips and blend trees. Targets include visibility, blend shapes, bone scales,
-atlas material choices and hue regions. The importer reports controller features
+atlas material choices and hue regions. VRCFury features join the menu as
+VRCFury builds them at upload: each Toggle becomes a control, its parameter and
+a layer of its actions, and each FullController's FX controller, menus and
+parameters merge in before MoveMenuItem and SetIcon apply. A Poiyomi UDIM
+discard tile is a switch: its triangles draw while it is off. The importer reports controller features
 it cannot translate. Menu semantics follow the
 [VRChat Expressions Menu documentation](https://creators.vrchat.com/avatars/expression-menu-and-controls/).
 

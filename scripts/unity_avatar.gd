@@ -14,9 +14,9 @@ extends SceneTree
 ## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
 ## draw under, every triangle kept and drawn on the sides its material's shader culls to, and one atlas of the
 ## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones become
-## spring chains, and its menu, parameters and FX controller become the model's "expressions" (VRCHAT_expressions in a
-## VRM); its visemes, eyelid blink and the faces its FX layer makes for hand gestures become VRM expressions, "faces" on
-## the root as Vrm.write takes them. No VRM lies between: VRM cannot carry what later importer work adds to the model.
+## spring chains, and its menu, parameters and FX controller, with what its VRCFury features add, become the model's
+## "expressions" (VRCHAT_expressions in a VRM); its visemes, eyelid blink and the faces its FX layer makes for hand
+## gestures become VRM expressions, "faces" on the root as Vrm.write takes them. No VRM lies between: VRM cannot carry what later importer work adds to the model.
 ## The importer prints what it kept and dropped.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -25,12 +25,12 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const ExpressionCurves = preload("res://src/expression_state.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
 ## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
 const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
-const RENDERERS := ["SkinnedMeshRenderer", "MeshRenderer"]
 ## The side, in pixels, of a menu icon as the model carries it: a board row's height.
 const ICON := 44.0
 ## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
@@ -41,6 +41,7 @@ const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
 ## The widest image WebP holds, the widest atlas `--atlas` asks for.
 const WEBP := 16383
+static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
 
 
 func _init() -> void:
@@ -169,6 +170,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var report := {"avatar": found.name}
 	var expressions := Expressions.new(assets, found.descriptor)
 	var paths := _paths(objs, found.transform)
+	VRCFury.apply(expressions, objs, paths)
 	var switches := _switches(expressions, objs, paths)
 	var renderers := _renderers(objs, found.transform, switches.by_object, report)
 	var main := _main_model(assets, prefabs, objs, found.go, renderers)
@@ -234,13 +236,13 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	for i in clips.size():
 		for c: Dictionary in clips[i].curves:
 			if c.attribute.begins_with("blendShape.") and c["class"] == "137" and paths.has(c.path) and not c.has("refs"):
-				var renderer := _renderer_of(objs, _ref(objs[paths[c.path]].data.get("m_GameObject")))
+				var renderer := Prefabs.renderer_of(objs, _ref(objs[paths[c.path]].data.get("m_GameObject")))
 				var shapes: Dictionary = animated.get_or_add(renderer, {})
 				(shapes.get_or_add(c.attribute.trim_prefix("blendShape."), []) as Array).append([i, c["keys"]])
 	var faced := {}
 	for shape: String in face.shapes:
 		faced[shape] = true
-	var merged := _merge(prefabs, materials, objs, renderers, switches.slots, animated, faced, sk, rests, scale, report)
+	var merged := _merge(prefabs, materials, objs, renderers, switches, animated, faced, sk, rests, scale, report)
 	if merged.is_empty():
 		printerr("unity_avatar: %s draws nothing" % found.name)
 		root.free()
@@ -342,7 +344,7 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 				continue
 			var name := str(objs[go].data.get("m_Name", ""))
 			if pick == "" or name == pick:
-				found.append({"objects": objs, "go": go, "transform": _transform(objs, go), "name": name, "descriptor": o.data, "scene": assets.extension(guid) == "unity", "path": assets.by_guid[guid].path})
+				found.append({"objects": objs, "go": go, "transform": Prefabs.transform_of(objs, go), "name": name, "descriptor": o.data, "scene": assets.extension(guid) == "unity", "path": assets.by_guid[guid].path})
 	if found.any(func(f: Dictionary) -> bool: return f.scene):
 		found = found.filter(func(f: Dictionary) -> bool: return f.scene)
 	var names := {}
@@ -363,20 +365,12 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	var objs := prefabs.flatten(models[0])
 	for id: int in objs:
 		if objs[id].type == "GameObject" and not objs[id].has("node"):
-			return {"objects": objs, "go": id, "transform": _transform(objs, id), "name": assets.name(models[0]), "descriptor": {}}
+			return {"objects": objs, "go": id, "transform": Prefabs.transform_of(objs, id), "name": assets.name(models[0]), "descriptor": {}}
 	return {}
 
 
 static func _ref(v: Variant) -> int:
 	return str((v as Dictionary).get("fileID", "0")).to_int() if v is Dictionary else 0
-
-
-static func _transform(objs: Dictionary, go: int) -> int:
-	for c: Variant in Prefabs._list(objs[go].data.get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
-		if objs.has(id) and objs[id].type in ["Transform", "RectTransform"]:
-			return id
-	return 0
 
 
 ## Every transform under `top`, itself included, with its GameObject: [[transform, go], ...] parents first.
@@ -414,7 +408,7 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	elif str(d.get("m_Enabled", "1")) != "1":
 		return null
 	var go := _ref(d.get("m_GameObject"))
-	var t := _transform(objs, go) if objs.has(go) else 0
+	var t := Prefabs.transform_of(objs, go) if objs.has(go) else 0
 	var seen := {}
 	while objs.has(t) and not seen.has(t):
 		seen[t] = true
@@ -452,7 +446,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 			continue
 		for c: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
 			var id := _ref((c as Dictionary).get("component"))
-			if not objs.has(id) or not objs[id].type in RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
+			if not objs.has(id) or not objs[id].type in Prefabs.RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
 				continue
 			if placed[e[0]]:
 				left.append(str(objs[e[1]].data.get("m_Name", "")))
@@ -500,10 +494,13 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 				if physics != 0:
 					out.by_curve[key] = _switch(out, physics, 1.0 if str(objs[physics].data.get("m_Enabled", "1")) == "1" else 0.0)
 				continue
-			var renderer := _renderer_of(objs, go)
-			if renderer == 0 or not c["class"] in ["23", "137"]:
+			var renderer := Prefabs.renderer_of(objs, go)
+			if renderer == 0 or not c["class"] in Prefabs.RENDERERS.values():
 				continue
-			if c.attribute == "m_Enabled":
+			var tile := UDIM_TILE.search(c.attribute)
+			if tile != null:
+				out.by_curve[key] = _switch(out, _udim_key(renderer, tile.get_string(1).to_int(), tile.get_string(2).to_int()), 0.0)
+			elif c.attribute == "m_Enabled":
 				out.by_curve[key] = _switch(out, renderer, 1.0 if str(objs[renderer].data.get("m_Enabled", "1")) == "1" else 0.0)
 			elif c.attribute.begins_with("m_Materials.Array.data[") and c.has("refs"):
 				var slot: int = str(c.attribute).trim_prefix("m_Materials.Array.data[").trim_suffix("]").to_int()
@@ -527,6 +524,11 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 	return out
 
 
+## The switch of a Poiyomi UDIM discard tile of a renderer: while on, its materials discard the tile's vertices.
+static func _udim_key(renderer: int, row: int, column: int) -> String:
+	return "%d:udim:%d:%d" % [renderer, row, column]
+
+
 static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 	if not out.by_object.has(object):
 		out.by_object[object] = out.targets.size()
@@ -546,14 +548,6 @@ static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
 
 static func _spring_component(d: Dictionary) -> bool:
 	return (d.has("pull") and d.has("rootTransform")) or (d.has("m_Damping") and d.has("m_Root"))
-
-
-static func _renderer_of(objs: Dictionary, go: int) -> int:
-	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
-		if objs.has(id) and objs[id].type in RENDERERS:
-			return id
-	return 0
 
 
 static func _scaled(keys: Array, by: float) -> Array:
@@ -608,6 +602,9 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 		clip.curves = curves
 	for t: Dictionary in targets:
 		t.erase("rest")
+	for layer: Dictionary in data.layers:
+		for state: Dictionary in layer.states:
+			_hold_unanimated(data, targets, state.get("motion", {}))
 	var moving := func(motion: Dictionary, recurse: Callable) -> bool:
 		return (motion.has("clip") and not (data.clips[motion.clip].curves as Array).is_empty()) or (motion.get("children", []) as Array).any(func(c: Dictionary) -> bool: return recurse.call(c.motion, recurse))
 	var read_by := func(layer: Dictionary) -> Dictionary:
@@ -637,6 +634,9 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 		reads[i] = read_by.call(data.layers[i])
 		if (data.layers[i].states as Array).any(func(s: Dictionary) -> bool: return moving.call(s.get("motion", {}), moving)):
 			live[i] = true
+	# A 1D blend's unused second parameter is "", which names no parameter.
+	for names: Dictionary in reads.values():
+		names.erase("")
 	var effective := {}
 	var grew := true
 	while grew:
@@ -673,6 +673,43 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
+## A 1D or 2D blend's children each sample every target one of them animates, as Unity blends a tree: a child leaving
+## a target its sibling (or an enclosing tree's) animates holds it at its default, so the blend runs from rest, not from
+## zero. A direct blend's children add up and hold nothing.
+static func _hold_unanimated(data: Dictionary, targets: Array, motion: Dictionary, around := {}) -> void:
+	var children: Array = motion.get("children", [])
+	var blended: bool = motion.get("blend", "") in ["1d", "2d"]
+	var all := around.duplicate() if blended else {}
+	if blended:
+		for c: Dictionary in children:
+			all.merge(_animated(data, c.motion))
+	for c: Dictionary in children:
+		if c.motion.has("children"):
+			_hold_unanimated(data, targets, c.motion, all)
+			continue
+		var own := _animated(data, c.motion)
+		var held := all.keys().filter(func(t: int) -> bool: return not own.has(t))
+		if held.is_empty():
+			continue
+		var clip: Dictionary = data.clips[c.motion.clip].duplicate(true) if c.motion.has("clip") else {"length": 0.0, "loop": false, "curves": []}
+		for t: int in held:
+			clip.curves.append({"target": t, "step": targets[t].effect is String or targets[t].effect.has("material"), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
+		data.clips.append(clip)
+		c.motion = c.motion.duplicate()
+		c.motion.clip = data.clips.size() - 1
+
+
+## The targets a motion's clips animate, its subtrees' included.
+static func _animated(data: Dictionary, motion: Dictionary) -> Dictionary:
+	var out := {}
+	if motion.has("clip"):
+		for curve: Dictionary in data.clips[motion.clip].curves:
+			out[curve.target] = true
+	for c: Dictionary in motion.get("children", []):
+		out.merge(_animated(data, c.motion))
+	return out
+
+
 static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials) -> int:
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
@@ -682,7 +719,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	var rest := 1.0
 	var bone: int = (sk.get_meta("unity_bones", {}) as Dictionary).get(go, sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()))
 	if c.attribute.begins_with("blendShape.") and c["class"] == "137":
-		var renderer := _renderer_of(objs, go)
+		var renderer := Prefabs.renderer_of(objs, go)
 		var shape: String = shapes.get(renderer, {}).get(c.attribute.trim_prefix("blendShape."), "")
 		var binds := []
 		for m: Dictionary in meshes:
@@ -700,7 +737,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
 			return -1
 		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "look" if not look.is_empty() else "hue"
-		var renderer := _renderer_of(objs, go)
+		var renderer := Prefabs.renderer_of(objs, go)
 		var regions := []
 		for ref: Variant in Prefabs._list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
 			if not ref is Dictionary:
@@ -976,7 +1013,7 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 			var go := _ref(link.get("propBone"))
 			if not objs.has(go):
 				continue
-			var from := _transform(objs, go)
+			var from := Prefabs.transform_of(objs, go)
 			var to := 0
 			for target: Dictionary in Prefabs._list(link.get("linkTo")):
 				if str(target.get("offset", "")) != "":
@@ -985,7 +1022,7 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 				if str(target.get("useBone", "0")) == "1" and index >= 0 and index < names.size():
 					to = targets.get(names[index], 0)
 				elif str(target.get("useObj", "0")) == "1" and objs.has(_ref(target.get("obj"))):
-					to = _transform(objs, _ref(target.get("obj")))
+					to = Prefabs.transform_of(objs, _ref(target.get("obj")))
 				if to != 0:
 					break
 			if from == 0 or to == 0 or from == to:
@@ -1037,7 +1074,7 @@ static func _in_model(n: Node) -> Transform3D:
 ## {"skin", "meshes": [{"mesh", "when", "renderers", "names": each of its shapes' name to its name in this mesh, "weights":
 ## each blend shape's saved weight}], "shapes": renderer to source shape name to its shape's name}, or empty if nothing
 ## draws.
-static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, slots: Dictionary, animated: Dictionary, faced: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
+static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, switches: Dictionary, animated: Dictionary, faced: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -1045,6 +1082,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var weights := PackedFloat32Array()
 	var indices := PackedInt32Array()
 	var group_of := PackedInt32Array()
+	var face_group := {}
 	var groups := {}
 	var skin := Skin.new()
 	var binds := {}
@@ -1077,7 +1115,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var bound: Array = bind.bound
 		var mesh: ArrayMesh = mi.mesh
 		# Unity winds a renderer that its transforms mirror the other way, so its faces still face out.
-		var mirrored := _world_transform(objs, _transform(objs, r[1])).basis.determinant() < 0.0
+		var mirrored := _world_transform(objs, Prefabs.transform_of(objs, r[1])).basis.determinant() < 0.0
 		var saved: Array = Prefabs._list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Prefabs._list(o.data.get("m_Materials"))
 		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, str(ref.get("guid", ""))).get(_model_name(model, mi), []))
@@ -1098,19 +1136,25 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				fallback = (sm as BaseMaterial3D).albedo_color
 			var slot: int = slot_of[s]
 			var mref: Dictionary = refs[mini(slot, refs.size() - 1)] if not refs.is_empty() and refs[mini(slot, refs.size() - 1)] is Dictionary else {"name": String(sm.resource_name) if sm != null else ""}
-			var swap: Array = slots.get("%d:%d" % [r[0], slot], [])
+			var swap: Array = switches.slots.get("%d:%d" % [r[0], slot], [])
 			var choices: Array = swap[1] if not swap.is_empty() else []
 			var src_bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
 			var src_weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
 			var per := src_bones.size() / maxi(v.size(), 1)
 			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
-			var group: Dictionary = groups.get_or_add("%s|%s" % [r[2], swap], {"index": groups.size(), "when": r[2], "renderers": {}})
-			group.renderers[r[0]] = true
 			var key := materials.use(mref, fallback)
+			var swapped: Array = choices.map(func(c: Variant) -> String: return materials.use(c if c is Dictionary else mref, fallback))
 			if not swap.is_empty():
-				group.swap = swap[0]
-				group.choices = choices.map(func(c: Variant) -> String: return materials.use(c if c is Dictionary else mref, fallback))
-				key = group.choices[0]
+				key = swapped[0]
+			var tiles := _udim_tiles(switches, r[0], materials.materials[key], arrays, report)
+			var group_for := func(extra: Array) -> Dictionary:
+				var g: Dictionary = groups.get_or_add("%s|%s|%s" % [r[2], swap, extra], {"index": groups.size(), "when": (r[2] as Array) + extra, "renderers": {}})
+				g.renderers[r[0]] = true
+				if not swap.is_empty():
+					g.swap = swap[0]
+					g.choices = swapped
+				return g
+			var group: Dictionary = group_for.call([])
 			var base := verts.size()
 			var tops := []
 			var placed: Array[Transform3D] = []
@@ -1156,6 +1200,15 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					bones.append(bound[place.remap.call(top[0][j])])
 					weights.append(top[1][j])
 			for t in range(0, idx.size(), 3):
+				if not tiles.is_empty():
+					# Poiyomi discards a triangle with any vertex in a discarded tile.
+					var extra := []
+					for k in 3:
+						for w: Array in tiles.get(tiles.vertex[idx[t + k]], []):
+							if not w in extra:
+								extra.append(w)
+					if not extra.is_empty():
+						face_group[indices.size()] = (group_for.call(extra) as Dictionary).index
 				for c: int in [0, 2, 1] if mirrored else [0, 1, 2]:
 					indices.append(base + idx[t + c])
 	if indices.is_empty():
@@ -1198,7 +1251,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		faces.resize(passes.size())
 		var reversed := {}
 		for t in range(0, indices.size(), 3):
-			if group_of[indices[t]] == group.index:
+			if face_group.get(t, group_of[indices[t]]) == group.index:
 				var m: Dictionary = materials.materials[corners[indices[t]]]
 				faces[int(m.cull == Materials.Cull.OFF) + 2 * Materials.pass_of(m)].append(t)
 				if m.cull == Materials.Cull.FRONT:
@@ -1303,6 +1356,39 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	if not tiled.is_empty():
 		report["tiled textures clamped to one tile"] = tiled.keys()
 	return {"skin": skin, "meshes": meshes, "shapes": shape_of}
+
+
+## A surface's Poiyomi UDIM discard: {"vertex": each vertex's tile "row:column", and each tile some switch discards,
+## to the `when` drawing it: its switch off}; empty when the material discards no tile. A tile discarded at rest that the
+## menu never changes takes a switch of its own that stays on, so its triangles are kept but never drawn.
+static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, arrays: Array, report: Dictionary) -> Dictionary:
+	var floats: Dictionary = m.get("floats", {})
+	if str(floats.get("_EnableUDIMDiscardOptions", "0")).to_float() == 0.0:
+		return {}
+	var out := {}
+	for row in 4:
+		for column in 4:
+			var name := "_UDIMDiscardRow%d_%d" % [row, column]
+			var rest := str(floats.get(name, "0")).to_float()
+			var object := _udim_key(renderer, row, column)
+			if not switches.by_object.has(object) and rest == 0.0:
+				continue
+			var t := _switch(switches, object, rest)
+			switches.targets[t].default = 1.0 if rest != 0.0 else 0.0
+			out["%d:%d" % [row, column]] = [[t, 0]]
+	if out.is_empty():
+		return {}
+	var channel := str(floats.get("_UDIMDiscardUV", "0")).to_int()
+	var uv: Variant = arrays[Mesh.ARRAY_TEX_UV] if channel == 0 else arrays[Mesh.ARRAY_TEX_UV2] if channel == 1 else null
+	if not uv is PackedVector2Array:
+		report["UDIM discard on a UV channel the model lacks"] = report.get("UDIM discard on a UV channel the model lacks", 0) + 1
+		return {}
+	# Godot's model importer flips V; the tile row counts Unity's V.
+	var tile_of := []
+	for at: Vector2 in uv as PackedVector2Array:
+		tile_of.append("%d:%d" % [floori(1.0 - at.y), floori(at.x)])
+	out.vertex = tile_of
+	return out
 
 
 ## The avatar's face as {"expressions": each VRM expression's name to its [{"shape", "weight" 0 to 1}], "shapes": the
@@ -1565,7 +1651,7 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 		return null
 	for id: int in model.objects:
 		var o: Dictionary = model.objects[id]
-		if o.type in RENDERERS and _ref(o.data.get("m_Mesh")) == file_id:
+		if o.type in Prefabs.RENDERERS and _ref(o.data.get("m_Mesh")) == file_id:
 			var name := String((model.state as GLTFState).get_nodes()[o.node].resource_name)
 			var found := (model.scene as Node).find_children(name.validate_node_name(), "MeshInstance3D", true, false)
 			return found[0] if found.size() == 1 else null
@@ -1616,7 +1702,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 			binds.append([t, rests[t].affine_inverse() * at * src.get_bone_global_rest(maxi(b, 0)) * mi.skin.get_bind_pose(i)])
 		return {"binds": binds, "remap": func(i: int) -> int: return i}
 	if not own_model:
-		var b := _as_bone(objs, _transform(objs, _ref(objs[renderer].data.get("m_GameObject"))), sk, rests)
+		var b := _as_bone(objs, Prefabs.transform_of(objs, _ref(objs[renderer].data.get("m_GameObject"))), sk, rests)
 		if b >= 0:
 			return {"binds": [[b, Transform3D.IDENTITY]], "remap": func(_i: int) -> int: return 0}
 	var n := mi.get_parent()
@@ -1749,7 +1835,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var t := _ref(d.get("rootTransform", d.get("m_Root")))
 		if t == 0:
 			var go := _ref(d.get("m_GameObject"))
-			t = _transform(objs, go) if objs.has(go) else 0
+			t = Prefabs.transform_of(objs, go) if objs.has(go) else 0
 		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	var components := {}
 	var component_when := {}
@@ -1769,7 +1855,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			component_when[id] = when
 		var t := _ref(d.get("rootTransform", d.get("m_Root")))
 		if t == 0:
-			t = _transform(objs, _ref(d.get("m_GameObject")))
+			t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
 		component_roots[canonical.call(t)] = true
 	var rests: Array[Transform3D] = []
 	var original_bones := sk.get_bone_count()
@@ -1808,7 +1894,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			continue
 		var t := _ref(d.get("rootTransform"))
 		if t == 0:
-			t = _transform(objs, _ref(d.get("m_GameObject")))
+			t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
 		# A collider the menu moves rides a bone of its own, which the menu's transform curves move.
 		if moved.has(t):
 			_as_bone(objs, t, sk, rests)
@@ -1859,7 +1945,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		dynamicbones += int(legacy)
 		var root_t := _ref(d.get("rootTransform", d.get("m_Root")))
 		if root_t == 0:
-			root_t = _transform(objs, _ref(d.get("m_GameObject")))
+			root_t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
 		root_t = canonical.call(root_t)
 		var root_bone: int = bone_of.call(root_t)
 		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(_ref(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
@@ -1875,7 +1961,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		# A PhysBone's negative gravity pulls up; a VRM gravityPower may not be negative, so its direction carries the sign.
 		var gravity := str(d.get("gravity", "0")).to_float()
 		# A DynamicBone sizes its radius and end offset by its own transform, wherever its root bone lies.
-		var holder := _transform(objs, _ref(d.get("m_GameObject"))) if objs.has(_ref(d.get("m_GameObject"))) else 0
+		var holder := Prefabs.transform_of(objs, _ref(d.get("m_GameObject"))) if objs.has(_ref(d.get("m_GameObject"))) else 0
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))

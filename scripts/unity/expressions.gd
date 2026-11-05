@@ -32,8 +32,15 @@ func _init(from: Assets, descriptor: Dictionary) -> void:
 	if not assets.by_guid.has(menu) or not assets.by_guid.has(controller):
 		return
 	var parameters := _parameters(_guid(descriptor.get("expressionParameters")), controller)
-	data = {"menu": _menu(menu, 0), "parameters": parameters, "layers": [], "clips": []}
+	data = empty()
+	data.menu = _menu(menu, 0)
+	data.parameters = parameters
 	data.layers = _layers(controller, parameters)
+
+
+## Expressions with nothing in them yet.
+static func empty() -> Dictionary:
+	return {"menu": [], "parameters": [], "layers": [], "clips": []}
 
 
 func _count(kind: String) -> void:

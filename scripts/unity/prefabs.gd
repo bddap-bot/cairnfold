@@ -14,6 +14,8 @@ const MASK := 0x7FFFFFFFFFFFFFFF
 ## The path Unity's model importer hashes the model's own GameObject by; its nodes' paths extend it.
 const ROOT := "//RootNode/root"
 const MODELS := ["fbx", "obj", "dae", "blend", "gltf", "glb"]
+## The renderer components, by the class ID an animation clip names each with.
+const RENDERERS := {"SkinnedMeshRenderer": "137", "MeshRenderer": "23"}
 
 var assets: Assets
 ## Models by GUID: {"state": the FBXState, "scene": the scene Godot made of it, "objects": its Unity objects, "names": node index to its Unity name}.
@@ -143,6 +145,28 @@ static func _modify(data: Dictionary, path: String, value: Variant, reference: V
 
 static func _list(v: Variant) -> Array:
 	return v if v is Array else []
+
+
+## The Transform of a GameObject in `objs`, or 0.
+static func transform_of(objs: Dictionary, go: int) -> int:
+	for c: Variant in _list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := _file_id((c as Dictionary).get("component"))
+		if objs.has(id) and objs[id].type in ["Transform", "RectTransform"]:
+			return id
+	return 0
+
+
+## The renderer on a GameObject in `objs`, or 0.
+static func renderer_of(objs: Dictionary, go: int) -> int:
+	for c: Variant in _list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := _file_id((c as Dictionary).get("component"))
+		if objs.has(id) and RENDERERS.has(objs[id].type):
+			return id
+	return 0
+
+
+static func _file_id(ref: Variant) -> int:
+	return str((ref as Dictionary).get("fileID", "0")).to_int() if ref is Dictionary else 0
 
 
 ## A model's objects as Unity's importer makes them: a GameObject and Transform for the model and each node in it, and
