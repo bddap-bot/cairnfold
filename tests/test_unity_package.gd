@@ -34,6 +34,7 @@ func _run() -> void:
 	_a_branching_physbone_root_stays_still()
 	_a_physbone_ends_at_its_endpoint()
 	_a_physbone_carries_its_limit()
+	_a_physbone_limit_follows_its_curves_down_the_chain()
 	_a_physbone_carries_its_settings_bone_by_bone()
 	_legacy_springs_keep_their_root_and_endpoint()
 	_a_dynamic_bone_sizes_by_its_own_transform()
@@ -531,6 +532,35 @@ func _a_physbone_carries_its_limit() -> void:
 	objs[20].data.limitType = "0"
 	var free: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
 	check(not free[0].get("extras", {}).has("limit"), "a PhysBone without a limit carries none: %s" % [free])
+	sk.free()
+
+
+## A PhysBone's limit angles and limitRotation are each scaled by their curves at the bone's place down the chain, as
+## VRChat's CalcMaxAngle and CalcLimitRotation take CalcBoneRatio: a curve at 0 at the root gives the root no swing on that axis.
+func _a_physbone_limit_follows_its_curves_down_the_chain() -> void:
+	var sk := Skeleton3D.new()
+	for name in ["Root", "Mid", "Tip"]:
+		sk.add_bone(name)
+	for i in [1, 2]:
+		sk.set_bone_parent(i, i - 1)
+		sk.set_bone_rest(i, Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)))
+	var ramp := {"m_Curve": [{"time": "0", "value": "0", "inSlope": "0", "outSlope": "1"}, {"time": "1", "value": "1", "inSlope": "1", "outSlope": "0"}]}
+	var objs := {
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "110"}, "m_Father": {"fileID": "0"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "111"}, "m_Father": {"fileID": "10"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "112"}, "m_Father": {"fileID": "11"}, "m_LocalPosition": {"x": "0", "y": "0.1", "z": "0"}}},
+		110: {"type": "GameObject", "data": {"m_Name": "Root"}},
+		111: {"type": "GameObject", "data": {"m_Name": "Mid"}},
+		112: {"type": "GameObject", "data": {"m_Name": "Tip"}},
+		20: {"type": "MonoBehaviour", "data": {"pull": "0.2", "rootTransform": {"fileID": "10"}, "limitType": "3", "maxAngleX": "25", "maxAngleXCurve": ramp, "maxAngleZ": "40",
+			"limitRotation": {"x": "32", "y": "0", "z": "0"}, "limitRotationXCurve": ramp}},
+	}
+	var joints: Array = UnityAvatar._springs(objs, 10, sk, {}, 1.0, {}).springs[0].joints
+	var limits: Array = joints.slice(0, 2).map(func(j: Dictionary) -> Dictionary: return j.get("extras", {}).get("limit", {}))
+	check(limits.size() == 2 and is_equal_approx(limits[0].get("x", -1.0), 0.0) and is_equal_approx(limits[1].get("x", -1.0), 25.0), "the X angle follows its curve, none at the root: %s" % [limits])
+	check(limits.size() == 2 and is_equal_approx(limits[0].get("z", -1.0), 40.0) and is_equal_approx(limits[1].get("z", -1.0), 40.0), "the Z angle without a curve stays whole: %s" % [limits])
+	var turn := func(l: Dictionary) -> Quaternion: var q: Array = l.get("rotation", [0, 0, 0, 1]); return Quaternion(q[0], q[1], q[2], q[3])
+	check(limits.size() == 2 and turn.call(limits[0]).is_equal_approx(Quaternion.IDENTITY) and turn.call(limits[1]).is_equal_approx(Quaternion(Vector3.RIGHT, deg_to_rad(32.0))), "the turn follows its curve: %s" % [limits])
 	sk.free()
 
 

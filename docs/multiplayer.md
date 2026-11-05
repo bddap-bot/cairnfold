@@ -256,7 +256,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   spring chains, one per path from a PhysBone's root to each leaf and on to its endpoint, with
   pull, spring, stiffness, gravity and radius mapped approximately, whose hands may push and
   grab them (allowCollision and allowGrabbing with their filters) kept as each spring's extras,
-  limits kept without their curves, and grab movement and posing dropped, and their sphere and capsule colliders spring
+  limits kept with their angle and turn curves evaluated at each bone, and grab movement and posing dropped, and their sphere and capsule colliders spring
   colliders. The file keeps every chain;
   an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
   the Quest 2's CPU every frame). The descriptor's view position places
