@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "f0aa9278817b38e49e5c2954977376cd7885c509",
+  "commit": "9fb4fe0ef2ecfc7693b7cadb553fd4b1dc83e0af",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
@@ -9,11 +9,11 @@
     },
     "spring_definition.gd": {
       "source": "addons/avatar_workshop/spring_definition.gd",
-      "sha256": "cddaa71a71df42441cd6392166e552a771ce587e03cb60b74e488b57c08ac4f1"
+      "sha256": "acf64b33815c720c21045ffe91c02ca069570f0e9fbf9d52d03404d79990493c"
     },
     "spring_runtime.gd": {
       "source": "addons/avatar_workshop/spring_runtime.gd",
-      "sha256": "90225bd83eef57111cacc745cbdada76df23d09b140c24bcf1de2ef63ba59c7d"
+      "sha256": "66ce28ef732aa5cbb31ce2028e334aa1995ae0ab3883bca84d29d7b16e9de921"
     },
     "LICENSE-godot-vrm": {
       "source": "addons/avatar_workshop/LICENSE-godot-vrm",
@@ -50,6 +50,14 @@
     "spring_native.gd.uid": {
       "source": "addons/avatar_workshop/spring_native.gd.uid",
       "sha256": "0479c2b570e19af1ac6665d0d60d37bca50e335826788768a177f0cefca30d88"
+    },
+    "physbone.gd": {
+      "source": "addons/avatar_workshop/physbone.gd",
+      "sha256": "ef3d084c2ad7821a53d59adac2615c2d657f817f2bf2ea0d63b564391297fe3b"
+    },
+    "physbone.gd.uid": {
+      "source": "addons/avatar_workshop/physbone.gd.uid",
+      "sha256": "1fcf087ec6366e309a1add66b80f7dc123421a2291031973408b565b5df4bef2"
     }
   }
 }

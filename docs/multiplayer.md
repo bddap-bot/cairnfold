@@ -254,10 +254,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
   spring chains, one per path from a PhysBone's root to each leaf and on to its endpoint, with
-  pull, spring, stiffness, gravity and radius mapped approximately, whose hands may push and
+  pull, spring, stiffness, gravity and radius mapped approximately for other VRM readers and the
+  PhysBone's own settings and limit at each bone, curves evaluated, kept as that joint's
+  extras "physbone" and "limit", whose hands may push and
   grab them (allowCollision and allowGrabbing with their filters) kept as each spring's extras,
-  limits kept with their angle and turn curves evaluated at each bone, and grab movement and posing dropped, and their sphere and capsule colliders spring
-  colliders. The file keeps every chain;
+  and grab movement and posing dropped, and their
+  colliders spring colliders, an inside or plane one through `VRMC_springBone_extended_collider`. The file keeps every chain;
   an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
   the Quest 2's CPU every frame). The descriptor's view position places
   the eyes. The importer reports untranslated curves and components, including Contacts,
@@ -356,6 +358,13 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 
 Avatar Workshop supplies the shared VRM spring definitions and their runtime, which drives
 nodes or, through its `skeleton_bone.gd`, a skinned skeleton's bones.
+A chain whose joints carry "physbone" extras steps by VRChat's own PhysBone step
+(`physbone.gd`, VRC.Dynamics): whole 60 Hz steps with a part step for the time left over,
+versions 1.0 and 1.1, simplified and advanced integration, gravity falloff, immobile,
+squish and stretch, tapered bone radii against sphere, capsule, inside and plane colliders,
+and angle, hinge and polar limits. Steady motion of its anchor carries it and only a change
+in that motion swings it, where VRChat lets velocity swing it too. It runs in script, never
+on the native solver, parents' chains before their children's.
 Adjacent skeleton chains with unit transforms share one Godot `SpringBoneSimulator3D`
 per skeleton, processed in definition order with shared sphere and capsule colliders.
 Their completed endpoints feed replication. Held groups use the constraint solver,
@@ -455,6 +464,17 @@ All six phases hold the GPU budget. The widest Godette view adds 55 draws
 (125 to 180). Labeled phases contain seven late frames before and sixteen after;
 the runs do not isolate their causes. This is a budget measurement on the Quest 2,
 not a substitute for a worn-headset feel check.
+
+The PhysBone step runs in script and costs the Quest 2's CPU, not its GPU. Its guest
+was a built-in avatar given eleven more chains of four bones on its head, twelve
+PhysBone chains of 59 joints in all, run with `demo/avatar-chain-cost.json` on the
+build that brought the step in. With seven such
+figures each stepping their own chains, the guest phases' frames take 28.6-28.9 ms against
+13.9 ms for the built-in figures, and the scripts' median frame time, 11.8 ms on the
+build before under the VRM step, is 30.1-30.4 ms: about 2.6 ms a figure. The same scene with
+one figure in place of seven, not recorded here, put a lone guest at 1.6 ms (9.2 to
+10.8 ms) with its frames at 13.9 ms and none late. A player steps only the avatar they
+wear; others' chains replay the wearer's endpoints.
 
 
 Each player's avatar and colour go to every other player once, reliably. A pose packet carries
