@@ -1153,7 +1153,7 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 		check(data.clips[0].curves[0].keys == [[0.0, 1.0]] and not data.clips[0].curves[0].step, "decal alpha stays continuous")
 	var looks: Dictionary = data.get("looks", {})
 	check((looks.get("decals", []) as Array).size() == 3, "one layer per slot up to the highest drawn")
-	check(looks.get("materials", []) == [{"decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true}, null], "matcaps": [null, null, null, null], "emission": null}], "the look holds each slot's saved alpha and blend: %s" % [looks.get("materials")])
+	check(looks.get("materials", []) == [{"decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds each slot's saved alpha and blend: %s" % [looks.get("materials")])
 	var cell: Rect2i = materials.materials.skin.cell
 	if (looks.get("decals", []) as Array).size() == 3:
 		var layer := Image.new()
@@ -1317,6 +1317,8 @@ func _matcaps_and_emission_join_the_look() -> void:
         m_Texture: {guid: gold}
     - _Matcap3Mask:
         m_Texture: {guid: half}
+    - _GlobalMaskTexture0:
+        m_Texture: {guid: grey}
     m_Floats:
     - _Matcap3Enable: 1
     - _Matcap3UVMode: 2
@@ -1327,11 +1329,18 @@ func _matcaps_and_emission_join_the_look() -> void:
     - _Matcap3HueShift: 0
     - _Matcap3HueShiftEnabled: 1
     - _Matcap3MaskChannel: 1
+    - _Matcap3MaskGlobalMask: 1
+    - _Matcap3MaskGlobalMaskBlendType: 2
+    - _GlobalMaskTexturesEnable: 1
     - _Matcap2Enable: 1
     - _Matcap2UVMode: 3
+    - _LightingMode: 5
+    - _LightingCapEnabled: 1
+    - _LightingCap: 0.8
     m_Colors:
     - _Matcap3Color: {r: 1, g: 1, b: 1, a: 1}
 """)
+	write.call("skin.mat", "skin", "Material:\n  m_Shader: {guid: affc81f3d164d734d8f13053effb1c5c}\n")
 	write.call("eye.mat", "eye", """Material:
   m_Shader: {guid: mobile}
   m_ValidKeywords:
@@ -1358,11 +1367,16 @@ func _matcaps_and_emission_join_the_look() -> void:
 	gold.fill(Color(1, 0.8, 0.2, 1))
 	gold.save_png(dir.path_join("gold.png"))
 	FileAccess.open(dir.path_join("gold.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: gold\n")
+	var grey := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	grey.fill(Color(0.5, 1, 1, 1))
+	grey.save_png(dir.path_join("grey.png"))
+	FileAccess.open(dir.path_join("grey.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: grey\n")
 	var assets := Assets.new(dir)
 	var materials := Materials.new(assets)
 	materials.use({"guid": "body"}, Color.WHITE)
 	materials.use({"guid": "eye"}, Color.WHITE)
-	materials.pack(["body", "eye"])
+	materials.use({"guid": "skin"}, Color.WHITE)
+	materials.pack(["body", "eye", "skin"])
 	var expressions := Expressions.new(assets, {})
 	expressions.data = {
 		"menu": [{"name": "Tint", "type": "radial", "parameter": "Tint", "axes": [], "value": 1, "icon": ""}],
@@ -1388,8 +1402,11 @@ func _matcaps_and_emission_join_the_look() -> void:
 	check(fields == [["Body", "matcapHueShift", 2], ["Eyes", "emissionHue", 0]], "matcap hue and emission hue bind to their looks: %s" % [fields])
 	var looks: Dictionary = data.get("looks", {})
 	var entries: Array = looks.get("materials", [])
-	check(entries.size() == 2, "both materials have a look")
-	if entries.size() == 2:
+	check(entries.size() == 3, "every material has a look, the plain Toon Lit one for its lighting alone")
+	if entries.size() == 3:
+		check(entries[0].lighting == {"model": "flat", "cap": 0.8}, "Poiyomi's Flat lighting carries its Max Brightness: %s" % [entries[0].lighting])
+		check(entries[1].lighting == {"model": "lit"}, "Toon Standard is lit by angle: %s" % [entries[1].lighting])
+		check(entries[2].lighting == {"model": "flat"} and entries[2].matcaps == [null, null, null, null], "Toon Lit lights flat, uncapped: %s" % [entries[2]])
 		var gilt: Variant = entries[0].matcaps[2]
 		check(entries[0].matcaps[1] == null, "a matcap mapped by a view the renderer does not draw is left out")
 		check(gilt is Dictionary and gilt.texture == 0 and gilt.mode == "reflection" and gilt.intensity == 5.0 and gilt.replace == 0.771 and gilt.multiply == 0.737 and gilt.hue == {"shift": 0.0, "space": 0.0, "select": 1.0} and gilt.circle == null, "the matcap carries its texture, mapping and strengths: %s" % [gilt])
@@ -1397,13 +1414,15 @@ func _matcaps_and_emission_join_the_look() -> void:
 		check(glows is Dictionary and is_equal_approx(glows.color[0], Color(0.5, 0, 0).srgb_to_linear().r) and glows.color[1] == 1.0 and glows.strength == 0.8 and glows.hue == 0.0 and glows.shiftsHue, "the emission carries its linear colour, strength and hue: %s" % [glows])
 		check(entries[1].matcaps == [null, null, null, null], "a Toon Standard material draws no matcap Poiyomi left saved in it")
 	check((looks.get("matcaps", []) as Array).size() == 1, "each matcap texture is carried once")
+	check(Materials.global_mask({"floats": {"_GlobalMaskTexturesEnable": "0"}}, 3) == {"property": "", "channel": 0} and Materials.mask_blend(0.7, 1.0, 1) == 0.0, "a global mask no texture fills is Poiyomi's whole 1, which a subtract blend still takes away")
+	check(Materials.global_mask({"floats": {"_GlobalMaskTexturesEnable": "1", "_GlobalMaskModifiersDistanceEnable": "1"}}, 3) is bool, "a global mask a modifier sets is one the atlas cannot hold")
 	var masks := Image.new()
 	check(masks.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("matcapMasks", ""))) == OK, "the matcap masks are a PNG")
 	if not masks.is_empty():
 		var cell: Rect2i = materials.materials.body.cell
 		var left := masks.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		var right := masks.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
-		check(left.b < 0.2 and right.b > 0.8 and left.r == 1.0, "slot three's channel holds its mask's chosen channel: %s %s" % [left, right])
+		check(left.b < 0.2 and absf(right.b - 0.5) < 0.05 and left.r == 1.0, "slot three's channel holds its mask's chosen channel times its global mask: %s %s" % [left, right])
 	var glow := Image.new()
 	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
 	if not glow.is_empty():

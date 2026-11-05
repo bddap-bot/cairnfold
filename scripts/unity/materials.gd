@@ -477,6 +477,8 @@ func matcap(key: String, slot: int) -> Dictionary:
 	var mode: float = number.call(p + "UVMode", 1.0)
 	if mode not in [0.0, 1.0, 2.0] or number.call(p + "Rotation", 0.0) != 0.0 or _colour(colours.get(p + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
 		return {}
+	if global_mask(m, int(number.call(p + "MaskGlobalMask", 0.0))) is bool:
+		return {}
 	var colour := _colour(colours.get(p + "Color"), Color.WHITE).srgb_to_linear()
 	var hue: Variant = null
 	if number.call(p + "HueShiftEnabled", 0.0) != 0.0:
@@ -502,6 +504,47 @@ func matcap(key: String, slot: int) -> Dictionary:
 		"hue": hue,
 		"circle": circle,
 	}
+
+
+## Poiyomi global mask `index` (one-based; 0 for none) of the material: {} for none, {"property", "channel"} for a
+## texture's channel, with "property" "" where no texture fills it and it stays Poiyomi's whole 1, or false where it is
+## drawn by more than one UV0 texture sample (split, panned or other-UV sampling, or a modifier).
+static func global_mask(m: Dictionary, index: int) -> Variant:
+	var floats: Dictionary = m.get("floats", {})
+	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
+	if index <= 0:
+		return {}
+	if number.call("_GlobalMaskOptionsEnable") != 0.0 or ["Backface", "Camera", "Distance", "Mirror"].any(func(kind: String) -> bool: return number.call("_GlobalMaskModifiers%sEnable" % kind) != 0.0):
+		return false
+	var property := "_GlobalMaskTexture%d" % ((index - 1) / 4)
+	if number.call("_GlobalMaskTexturesEnable") == 0.0 or _texture_guid(m, property) == "":
+		return {"property": "", "channel": 0}
+	if number.call(property + "UV") != 0.0 or number.call(property + "Split") != 0.0 or _colour((m.get("colours", {}) as Dictionary).get(property + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
+		return false
+	return {"property": property, "channel": (index - 1) % 4}
+
+
+## Poiyomi's `maskBlend` of `mask` by a global mask's `value`: replace, subtract, multiply, divide, min, max, average or
+## add, as `type` counts from 0.
+static func mask_blend(mask: float, value: float, type: int) -> float:
+	var blended: float = [value, mask - value, mask * value, mask / maxf(value, 0.0001), minf(mask, value), maxf(mask, value), (mask + value) * 0.5, mask + value][clampi(type, 0, 7)]
+	return clampf(blended, 0.0, 1.0)
+
+
+## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
+## it faces (Poiyomi's Flat lighting, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped),
+## "lit" for a surface shaded by the angle of its light.
+func lighting(key: String) -> Dictionary:
+	var m: Dictionary = materials[key]
+	var floats: Dictionary = m.get("floats", {})
+	if poiyomi(m) and str(floats.get("_LightingMode", "")).to_float() == 5.0:
+		var flat := {"model": "flat"}
+		if str(floats.get("_LightingCapEnabled", "0")).to_float() != 0.0:
+			flat.cap = _saved(m, "_LightingCap", 1.0)
+		return flat
+	if m.get("shader", "") == "VRChat/Mobile/Toon Lit":
+		return {"model": "flat"}
+	return {"model": "lit"}
 
 
 ## The emission of a VRChat Toon Standard material at `key` at rest as {"color", "strength", "hue", "shiftsHue"}, its
@@ -566,11 +609,12 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 	return str(((entry as Dictionary).get("m_Texture", {}) as Dictionary).get("guid", "")) if entry is Dictionary else ""
 
 
-## What each packed material lays over its albedo and adds to its light, for the renderer to read by atlas texel: the
-## material a texel shows decides it, so a material swapped in for another draws its own. Empty where no material has
-## any; otherwise the "index" (a greyscale PNG, each texel one plus its material's entry in "materials", zero for none),
-## each entry's decals, matcaps and emission at rest, and the atlas-sized "decals" layers, "matcapMasks" (channel k
-## matcap slot k's) and "emission" map, with the "matcaps" textures their entries name by position.
+## What each packed material lays over its albedo and adds to its light, and how it takes the light, for the renderer
+## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
+## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale PNG, each texel one plus
+## its material's entry in "materials", zero for none), each entry's decals, matcaps and emission at rest and its
+## "lighting", and the atlas-sized "decals" layers, "matcapMasks" (channel k matcap slot k's, its global mask blended
+## in) and "emission" map, with the "matcaps" textures their entries name by position.
 func looks() -> Dictionary:
 	var entries := []
 	var index := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_L8)
@@ -585,10 +629,11 @@ func looks() -> Dictionary:
 		var decals := range(4).map(func(slot: int) -> Dictionary: return decal(key, slot))
 		var matcaps := range(4).map(func(slot: int) -> Dictionary: return matcap(key, slot))
 		var glows := emission(key)
-		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty():
+		var light := lighting(key)
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light.model == "lit":
 			continue
 		if entries.size() == 255:
-			push_error("unity_avatar: over 255 materials with decals, matcaps or emission; the rest draw without them")
+			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")
 			break
 		var padded := Rect2i((m.cell as Rect2i).position - Vector2i(PAD, PAD), (m.cell as Rect2i).size + 2 * Vector2i(PAD, PAD))
 		index.fill_rect(padded, Color8(entries.size() + 1, entries.size() + 1, entries.size() + 1))
@@ -640,17 +685,21 @@ func looks() -> Dictionary:
 			drawn_matcaps.append(drawn)
 			var mask := _slot_image(m, MATCAPS[slot] + "Mask")
 			var invert := str(m.floats.get(MATCAPS[slot] + "MaskInvert", "0")).to_float() != 0.0
-			if mask == null and not invert:
+			var global: Dictionary = global_mask(m, str(m.floats.get(MATCAPS[slot] + "MaskGlobalMask", "0")).to_int())
+			if mask == null and not invert and global.is_empty():
 				continue
 			if matcap_masks == null:
 				matcap_masks = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				matcap_masks.fill(Color.WHITE)
 			var channel := clampi(str(m.floats.get(MATCAPS[slot] + "MaskChannel", "0")).to_int(), 0, 3)
 			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask", Color.WHITE).get_data()
+			var over := PackedByteArray() if global.is_empty() else _over_cell(m, _slot_image(m, global.property) if global.property != "" else null, global.property, Color.WHITE).get_data()
+			var blend := str(m.floats.get(MATCAPS[slot] + "MaskGlobalMaskBlendType", "2")).to_int()
 			var region := matcap_masks.get_region(padded)
 			var data := region.get_data()
 			for i in range(0, data.size(), 4):
-				data[i + slot] = 255 - source[i + channel] if invert else source[i + channel]
+				var own := 255 - source[i + channel] if invert else source[i + channel]
+				data[i + slot] = own if over.is_empty() else roundi(255.0 * mask_blend(own / 255.0, over[i + global.channel] / 255.0, blend))
 			region.set_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data)
 			matcap_masks.blit_rect(region, Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		if not glows.is_empty():
@@ -658,7 +707,7 @@ func looks() -> Dictionary:
 				glow = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				glow.fill(Color.BLACK)
 			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap", Color.WHITE), Rect2i(Vector2i.ZERO, padded.size), padded.position)
-		entries.append({"decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows})
+		entries.append({"decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light})
 	if entries.is_empty():
 		return {}
 	var png := func(img: Image) -> String: return _layer(img, RESAMPLE)
