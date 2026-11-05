@@ -620,7 +620,6 @@ func _a_physbone_carries_its_settings_bone_by_bone() -> void:
 	var pulls: Array = bones.map(func(b: Dictionary) -> float: return b.get("pull", 0.0))
 	check(is_equal_approx(pulls[0], 0.2) and is_equal_approx(pulls[1], 0.15) and is_equal_approx(pulls[2], 0.1), "pull follows its curve from the root to the bone before the endpoint: %s" % [pulls])
 	var radii: Array = bones.map(func(b: Dictionary) -> Array: return b.get("radius", []))
-	# The root is scaled 2 and Mid 1.5 more along Y: each end takes its own bone's largest world scale, Mid's from Mid on.
 	var r := func(t: float) -> float: return 0.04 * (1.0 - 0.5 * t)
 	var expected := [[r.call(0.0) * 2.0, r.call(1.0 / 3.0) * 3.0], [r.call(1.0 / 3.0) * 3.0, r.call(2.0 / 3.0) * 3.0], [r.call(2.0 / 3.0) * 3.0, r.call(1.0) * 3.0]]
 	for i in 3:
