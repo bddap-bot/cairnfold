@@ -296,16 +296,11 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 			_wall(root, finish, i as WallLayout.Top)
 		PaletteTool.Restyle.PATH:
 			_path(root, i as PathLayout.Surface)
-			for part in root.get_children():
-				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.STONE:
 			if boulder:
 				_boulder_style(root, i)
 				return root
-			# Turned from lying flat to face the eye, a little from above.
 			_stone_ground(root, i)
-			for part in root.get_children():
-				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.FACE:
 			var face: Vector2 = PaletteTool.FACES[i]
 			if fence:
@@ -318,6 +313,10 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 			_house(root, WallLayout.Finish.BARE, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, i)
 		PaletteTool.Restyle.WINDOW:
 			_wall(root, WallLayout.Finish.BARE, WallLayout.Top.CAP, false, 0.0, WallLayout.WINDOW_FAMILIES[i])
+	if restyle in [PaletteTool.Restyle.PATH, PaletteTool.Restyle.STONE]:
+		# Turned from lying flat to face the eye, a little from above.
+		for part in root.get_children():
+			part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis(Vector3.UP, PI * 0.2) if house else Basis()
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.03 if house else -PI * 0.22) * turn, Vector3.ZERO) * part.transform

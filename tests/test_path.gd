@@ -65,7 +65,7 @@ func _wall(points: Array, height := 2.6) -> WallLayout:
 
 func _a_path_across_a_wall_opens_one_arch() -> void:
 	var w := _wall([[0, 0], [10, 0]])
-	var cut := _path([[4, -4], [4, 4]], 0.6).crossings(w)
+	var cut := PathLayout.arches(_path([[4, -4], [4, 4]], 0.6).meetings(w))
 	check(cut.size() == 1, "a narrow square crossing opens one arch, got %s" % [cut])
 	if cut.size() == 1:
 		check(absf(cut[0] - 4.0) < 0.05, "the arch opens where the path crosses, at %.2f" % cut[0])
@@ -73,7 +73,7 @@ func _a_path_across_a_wall_opens_one_arch() -> void:
 
 func _a_wide_or_slanted_crossing_opens_an_arcade() -> void:
 	var w := _wall([[0, 0], [16, 0]])
-	var cut := _path([[8, -6], [8, 6]], 2.5).crossings(w)
+	var cut := PathLayout.arches(_path([[8, -6], [8, 6]], 2.5).meetings(w))
 	check(cut.size() >= 2, "a 5 m wide crossing opens an arcade, got %s" % [cut])
 	if not cut.is_empty():
 		var lo: float = cut.min() - WallLayout.ARCH_HALF
@@ -84,14 +84,14 @@ func _a_wide_or_slanted_crossing_opens_an_arcade() -> void:
 		check(is_equal_approx(cut[i] - cut[i - 1], WallLayout.ARCADE_PITCH), "arcade arches stand a pitch apart: %s" % [cut])
 	if not cut.is_empty():
 		check(absf((cut[0] + cut[-1]) * 0.5 - 8.0) < 0.05, "the arcade centres on the crossing: %s" % [cut])
-	var slant := _path([[2, -1.2], [14, 1.2]], 0.9).crossings(w)
+	var slant := PathLayout.arches(_path([[2, -1.2], [14, 1.2]], 0.9).meetings(w))
 	check(slant.size() >= 2, "a path meeting the wall at a shallow angle opens an arcade, got %s" % [slant])
 
 
 func _a_path_beside_a_wall_opens_nothing() -> void:
 	var w := _wall([[0, 0], [10, 0]])
-	check(_path([[0, 2], [10, 2]], 1.2).crossings(w).is_empty(), "a path alongside a wall opens nothing")
-	check(_path([[4, 1.5], [4, 6]], 1.2).crossings(w).is_empty(), "a path that stops short of a wall opens nothing")
+	check(PathLayout.arches(_path([[0, 2], [10, 2]], 1.2).meetings(w)).is_empty(), "a path alongside a wall opens nothing")
+	check(PathLayout.arches(_path([[4, 1.5], [4, 6]], 1.2).meetings(w)).is_empty(), "a path that stops short of a wall opens nothing")
 
 
 ## Crossings found through the grid match testing every path segment against every wall segment.
@@ -113,7 +113,7 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 		var p := _path(pts, rng.randf_range(PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y))
 		for w in walls:
 			var shared := p.segment_cells().keys().filter(func(c: Vector2i) -> bool: return w.segment_cells().has(c))
-			if p.crossings(w) != _every_pair(p, w) or (not shared.is_empty() and p.crossings(w, shared) != _every_pair(p, w)):
+			if PathLayout.arches(p.meetings(w)) != _every_pair(p, w) or (not shared.is_empty() and PathLayout.arches(p.meetings(w, shared)) != _every_pair(p, w)):
 				mismatched += 1
 	check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
 
@@ -194,7 +194,7 @@ func _the_gardens_copy_of_a_stroke_is_the_same_stroke() -> void:
 
 func _arcades_stand_on_pillars() -> void:
 	var w := _wall([[0, 0], [16, 0]], 3.2)
-	w.openings.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w).map(WallLayout.archway))
+	w.openings.assign(PathLayout.arches(_path([[8, -6], [8, 6]], 2.5).meetings(w)).map(WallLayout.archway))
 	w.build(Terrain.flat)
 	check(w.archways().size() == w.openings.size(), "every arcade arch opens: %s of %s" % [w.archways(), w.openings])
 	var pillars := w.pillars()
@@ -333,7 +333,7 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 	w.closed = true
 	w.height = 4.5
 	w.build(Terrain.flat)
-	var cut := _path([[-1, 0.15], [4, 0.15]], 0.5).crossings(w)
+	var cut := PathLayout.arches(_path([[-1, 0.15], [4, 0.15]], 0.5).meetings(w))
 	check(cut.size() == 1, "a path into a tower crosses its wall once there, got %s" % [cut])
 	if cut.size() == 1:
 		var a := w.wrap(cut[0])
@@ -409,7 +409,7 @@ func _a_path_into_a_house_opens_a_door_as_wide_as_it() -> void:
 	open.points = w.points
 	open.closed = true
 	open.build(Terrain.flat)
-	check(_path([[0.5, 7], [0.5, 0]], 0.45).crossings(open).size() == 1 and not open.floored(), "a roofless loop is a wall, and a path through it opens an arch")
+	check(PathLayout.arches(_path([[0.5, 7], [0.5, 0]], 0.45).meetings(open)).size() == 1 and not open.floored(), "a roofless loop is a wall, and a path through it opens an arch")
 
 
 func _a_path_and_a_house_make_a_door_in_either_order() -> void:

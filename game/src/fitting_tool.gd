@@ -517,31 +517,31 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
 	for item in path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else []):
-		var local: Vector3 = item.inverse * origin
-		var direction: Vector3 = item.inverse.basis * dir
-		var hit: Variant = item.box.intersects_ray(local, direction)
-		if hit == null:
-			continue
-		var along: float = (hit - local).dot(direction) / direction.length_squared()
-		if along < 0.0 or along > best.get("along", INF) + 0.001 or removal(builder.world.state, item).is_empty():
+		var along := _along(item, origin, dir)
+		if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001 or removal(builder.world.state, item).is_empty():
 			continue
 		best = item.duplicate()
 		best.point = origin + dir * along
 		best.along = along
 	if builder.world.decorations != null:
 		for item in builder.world.decorations.targets():
-			var local: Vector3 = item.inverse * origin
-			var direction: Vector3 = item.inverse.basis * dir
-			var hit: Variant = item.box.intersects_ray(local, direction)
-			if hit == null:
-				continue
-			var along: float = (hit - local).dot(direction) / direction.length_squared()
-			if along < 0.0 or along > best.get("along", INF) + 0.001:
+			var along := _along(item, origin, dir)
+			if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001:
 				continue
 			best = item.duplicate()
 			best.point = origin + dir * along
 			best.along = along
 	return best
+
+
+## How far along `dir` from `origin` the ray meets `item`'s box, INF on a miss.
+static func _along(item: Dictionary, origin: Vector3, dir: Vector3) -> float:
+	var local: Vector3 = item.inverse * origin
+	var direction: Vector3 = item.inverse.basis * dir
+	var hit: Variant = item.box.intersects_ray(local, direction)
+	if hit == null:
+		return INF
+	return (hit - local).dot(direction) / direction.length_squared()
 
 
 ## Addressable additions only: ivy is grown as part of the wall, not stored as separate plants.

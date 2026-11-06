@@ -69,8 +69,7 @@ static func is_stick(brush: Brush) -> bool:
 ## How hard a tool pushed `depth` metres past the surface it paints presses, 0..1: every tool's one curve from push
 ## to mark, eased so a graze stays faint and narrow; a touch at the surface still marks.
 static func pressure(depth: float) -> float:
-	var t := clampf(depth / PRESS_DEPTH, 0.0, 1.0)
-	return lerpf(0.05, 1.0, t * t * (3.0 - 2.0 * t))
+	return lerpf(0.05, 1.0, smoothstep(0.0, PRESS_DEPTH, depth))
 
 
 ## `brush`'s radius in texels, from a touch to full pressure: a stick's mark is a little wider than the stick.

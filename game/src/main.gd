@@ -20,8 +20,6 @@ var ground_grab: GroundGrab
 var water: Water
 var water_tool: WaterTool
 var wildlife: Wildlife
-## What scripts read of the fish (Driver), which may not reach the animals themselves.
-var fish: Fish
 var look: Look
 var sky_tool: SkyTool
 var palette_tool: PaletteTool
@@ -173,7 +171,6 @@ func _ready() -> void:
 	wildlife.handfuls = feed_tool.handfuls
 	wildlife.dishes = session.dishes
 	add_child(BirdCarry.new(rig, wildlife.birds, easel_tool))
-	fish = wildlife.fish
 	session.feed = feed_tool
 	sound = Soundscape.new(tool, flora_tool, rig, world.terrain, look, wildlife.rng.seed + 9)
 	add_child(Cues.new())
@@ -311,7 +308,7 @@ func open_photo(path: String) -> bool:
 		return false
 	look.set_time(got.about.get("time_of_day", Daylight.DEFAULT))
 	var lens := PhotoTool.lens_of(got.about)
-	view(lens.origin, lens.origin - lens.basis.z, false)
+	view(lens.origin, lens.origin - lens.basis.z)
 	print("photo: opened %s" % path)
 	return true
 
@@ -397,10 +394,7 @@ static func _fov(p: Projection) -> Array:
 
 
 ## Put the head at `eye` looking at `at`; in a headset the play space moves under the tracked head instead.
-func view(eye: Vector3, at: Vector3, relative: bool) -> void:
-	if relative:
-		eye += rig.head.global_position
-		at += rig.head.global_position
+func view(eye: Vector3, at: Vector3) -> void:
 	var want := Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
 	if flat:
 		rig.global_position += eye - rig.head.global_position

@@ -249,18 +249,29 @@ func pack(used: Array) -> void:
 		var m: Dictionary = materials[key]
 		var cell: Rect2i = cells[key]
 		m.cell = cell
-		var img: Image
-		if m.image == null:
-			img = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
-			img.fill(Color.WHITE)
-		else:
-			img = (m.image as Image).duplicate()
-		img.resize(cell.size.x, cell.size.y, RESAMPLE)
+		var img := _cell_image(m, cell)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod)
-		var outer := img.duplicate() as Image
-		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
-		atlas.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
-		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
+		_blit_padded(atlas, img, cell)
+
+
+## The material `m`'s texture, or white where it has none, at the size of its `cell`.
+static func _cell_image(m: Dictionary, cell: Rect2i) -> Image:
+	var img: Image
+	if m.image == null:
+		img = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+	else:
+		img = (m.image as Image).duplicate()
+	img.resize(cell.size.x, cell.size.y, RESAMPLE)
+	return img
+
+
+## `img` drawn into `into` at `cell`, and stretched over the PAD around it so filtering at the cell's edge samples it.
+static func _blit_padded(into: Image, img: Image, cell: Rect2i) -> void:
+	var outer := img.duplicate() as Image
+	outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
+	into.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
+	into.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
 
 
 ## The material's texture as packed: its source size, the size Unity shows it at, and its cell's.
@@ -391,17 +402,7 @@ func color_atlas() -> String:
 	for key: String in color_regions:
 		var m: Dictionary = materials[key]
 		var cell: Rect2i = m.cell
-		var raw: Image
-		if m.image == null:
-			raw = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
-			raw.fill(Color.WHITE)
-		else:
-			raw = (m.image as Image).duplicate()
-		raw.resize(cell.size.x, cell.size.y, RESAMPLE)
-		var outer := raw.duplicate() as Image
-		outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
-		out.blit_rect(outer, Rect2i(Vector2i.ZERO, outer.get_size()), cell.position - Vector2i(PAD, PAD))
-		out.blit_rect(raw, Rect2i(Vector2i.ZERO, raw.get_size()), cell.position)
+		_blit_padded(out, _cell_image(m, cell), cell)
 	var data := out.get_data()
 	var original := atlas.get_data()
 	for i in range(3, data.size(), 4):

@@ -1074,10 +1074,10 @@ func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNu
 	return out
 
 
-func add_moss(p: Vector3, rng: RandomNumberGenerator, pool: Pool = null) -> Plant:
+func add_moss(p: Vector3, rng: RandomNumberGenerator, pool := moss) -> Plant:
 	var size := rng.randf_range(0.65, 1.1)
 	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size)
-	return (moss if pool == null else pool).add(Transform3D(basis, p), Color(0.055, 0.13, 0.015) * rng.randf_range(0.8, 1.3), p)
+	return pool.add(Transform3D(basis, p), Color(0.055, 0.13, 0.015) * rng.randf_range(0.8, 1.3), p)
 
 
 func set_moss(trunk: Plant, on: bool) -> void:
@@ -1120,7 +1120,7 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var skipped := PackedInt32Array()
 	var laid := marks.laid_image() if record and g.kind != "moss" else null
 	for d in g.dabs:
-		for p in FloraLayout.brush(d[0], d[1], d[2], rng, _level):
+		for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.flat):
 			if skip.has(growth.spots.size()) or laid != null and Ground.bare_in(laid, p.x, p.z) > 0.9:
 				skipped.append(growth.spots.size())
 				growth.spots.append(null)
@@ -1148,10 +1148,6 @@ class Growth:
 	var spots: Array = []
 	var looks: RandomNumberGenerator
 	var next := 0
-
-
-static func _level(_x: float, _z: float) -> float:
-	return 0.0
 
 
 ## Grows every committed stroke now.

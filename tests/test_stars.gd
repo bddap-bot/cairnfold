@@ -26,7 +26,7 @@ func _run() -> void:
 	driver._layer({"name": "stars", "mode": "on"})
 	check(main.look.sky_mat.get_shader_parameter("stars") == Daylight.light(0.0).stars, "paired measurement restores the time source")
 	var eye := main.world.terrain.ground(0, 12) + Vector3.UP * 0.2
-	main.view(eye, eye + Vector3(0, 10, -0.001), false)
+	main.view(eye, eye + Vector3(0, 10, -0.001))
 	for i in 60:
 		await process_frame
 	check(main.rig.head.global_position.is_equal_approx(eye), "low head is neither recentered nor pushed")

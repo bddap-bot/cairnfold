@@ -19,6 +19,8 @@ const PROP := 14.0 * K
 const GHOST := 1.7
 ## How far the sun stands from the sky page's meadow.
 const SUN := 1.4
+## Which way the sky page's sun starts from its meadow.
+static var _sun_from := Vector3(-0.35, 0.75, -0.55).normalized()
 ## Each page is painted at its own hour of the morning, up to this far either side of the garden's, so neighbouring
 ## pages do not share a sky.
 const HOURS := 0.034
@@ -263,6 +265,16 @@ func _prop(tool: Hand.Tool, at: Vector3, scale_k := 1.0, yaw := 0.0) -> Node3D:
 	return m
 
 
+static func _ball(radius: float, colour: Color, see_through := true) -> MeshInstance3D:
+	var ball := SphereMesh.new()
+	ball.radius = radius
+	ball.height = radius * 2.0
+	var m := MeshInstance3D.new()
+	m.mesh = ball
+	m.material_override = Meshes.glow(colour, see_through)
+	return m
+
+
 static func _pop(k: float) -> float:
 	k = clampf(k, 0.0, 1.0)
 	return 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
@@ -415,32 +427,20 @@ func _play_hill(at: float) -> void:
 
 # Turning the sky: the grip on open sky holds it, and turning the pointer carries the sun along its arc.
 func _build_sky() -> void:
-	var sun := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.19
-	ball.height = 0.38
-	sun.mesh = ball
-	sun.material_override = Meshes.glow(Color(1.0, 0.82, 0.4), false)
+	var sun := _ball(0.19, Color(1.0, 0.82, 0.4), false)
 	stage.add_child(sun)
 	_fx.sun = sun
-	var halo := MeshInstance3D.new()
-	var glow := SphereMesh.new()
-	glow.radius = 0.3
-	glow.height = 0.6
-	halo.mesh = glow
-	halo.material_override = Meshes.glow(Color(1.0, 0.95, 0.7, 0.35))
-	sun.add_child(halo)
+	sun.add_child(_ball(0.3, Color(1.0, 0.95, 0.7, 0.35)))
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.3, 0, 0.2), 1.0, 0.4)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.1), 1.0)
 
 
 func _focus_sky() -> Array[Vector3]:
-	var from := Vector3(-0.35, 0.75, -0.55).normalized()
 	var start: Vector3 = Lessons.pose(page, "right", 0.0).aim
 	var end: Vector3 = Lessons.pose(page, "right", page.length).aim
 	var up := _dish_at() + Vector3.UP * 0.2
 	var out: Array[Vector3] = []
-	for p in [up + from * SUN, up + Quaternion(start.normalized(), end.normalized()) * from * SUN]:
+	for p in [up + _sun_from * SUN, up + Quaternion(start.normalized(), end.normalized()) * _sun_from * SUN]:
 		out.append_array([p + Vector3.UP * 0.2, p + Vector3.RIGHT * 0.2, p - Vector3.RIGHT * 0.2])
 	return out
 
@@ -448,8 +448,7 @@ func _focus_sky() -> Array[Vector3]:
 func _play_sky(at: float) -> void:
 	var start: Vector3 = Lessons.pose(page, "right", 0.0).aim
 	var aim: Vector3 = -pads.right.transform.basis.z
-	var from := Vector3(-0.35, 0.75, -0.55).normalized()
-	var to_sun := Quaternion(start.normalized(), aim.normalized()) * from
+	var to_sun := Quaternion(start.normalized(), aim.normalized()) * _sun_from
 	var sun: Node3D = _fx.sun
 	sun.position = _dish_at() + Vector3.UP * 0.2 + to_sun * SUN
 	var time := Daylight.DEFAULT + 0.067 * (to_sun.x + 0.35)
@@ -564,22 +563,12 @@ func _build_wipe() -> void:
 	_prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(-0.4, 0, 0.3), 0.9, -0.3)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.45), 1.1)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(0.6, 0, -0.5), 0.8)
-	var orb := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.3
-	ball.height = 0.6
-	orb.mesh = ball
-	orb.material_override = Meshes.glow(Color.WHITE)
+	var orb := _ball(0.3, Color.WHITE)
 	stage.add_child(orb)
 	_fx.orb = orb
 	_fx.puffs = []
 	for p in props:
-		var puff := MeshInstance3D.new()
-		var cloud := SphereMesh.new()
-		cloud.radius = 0.12
-		cloud.height = 0.24
-		puff.mesh = cloud
-		puff.material_override = Meshes.glow(Color(1.0, 0.95, 0.88, 0.0))
+		var puff := _ball(0.12, Color(1.0, 0.95, 0.88, 0.0))
 		puff.position = p.position + Vector3.UP * 0.08
 		puff.visible = false
 		stage.add_child(puff)

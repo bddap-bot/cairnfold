@@ -7,19 +7,18 @@ extends Node
 
 signal finished
 
-## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
-## "mountains" are the ranges and whatever lies between them and the meadow.
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
 ## Flow texel-steps a frame while `painting` replays: a thousand times Budget.PAINT_STEPS, under a second on a Quest 2.
 const SETUP_STEPS := 3.0e8
+## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
+## "mountains" are the ranges and whatever lies between them and the meadow.
 const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy", "interior"]
 
 var main: Main
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
-## Set by `_fail`.
 var failed := false
 var _waiting := {}
 ## What `layer` hid: each property it turned off, by object and property, and the value it had before.
@@ -132,8 +131,7 @@ func _press(s: Dictionary) -> void:
 	hold(device, control, true)
 	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
 	hold(device, control, false)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _frames(2)
 
 
 ## Holds or lets go of a device's control: a stick direction moves the stick that way.
@@ -160,7 +158,7 @@ func _pick(s: Dictionary) -> void:
 		await _pick_bare(s)
 		return
 	var hand: Hand = _hand(s)
-	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
+	var key := _control(hand, "wheel")
 	var tree := hand.inventory()
 	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
 	if s.has("action"):
@@ -257,7 +255,7 @@ func _hands(s: Dictionary) -> void:
 	for side in ["left", "right"]:
 		if not s.has(side):
 			continue
-		var hand: Hand = main.rig.left if side == "left" else main.rig.right
+		var hand: Hand = _side(side)
 		var at: Vector3 = head * Vector3(s[side][0], s[side][1], s[side][2])
 		var fwd := -head.basis.z
 		var b := Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0)))
@@ -268,12 +266,11 @@ func _hands(s: Dictionary) -> void:
 
 
 ## Acts out with the head and hands, in real seconds, what a player without full-body tracking does: stands, sways,
-## leans over to look down, crouches, turns round and back, then walks `walk` metres ahead, turns, walks back and turns
+## leans over to look down, crouches, turns round and back, then walks 2.4 metres ahead, turns, walks back and turns
 ## again, standing at `at` [x, z] facing `yaw` degrees, the eyes the worn avatar's height over the ground under them.
 func _act(s: Dictionary) -> void:
 	var start := Vector3(s.at[0], 0.0, s.at[1])
 	var facing := deg_to_rad(s.get("yaw", 0.0))
-	var walk: float = s.get("walk", 2.4)
 	var up := func(t: float, a: float, b: float, c: float, d: float) -> float: return smoothstep(a, b, t) * (1.0 - smoothstep(c, d, t))
 	var t := 0.0
 	while t < ACT_SECONDS:
@@ -283,17 +280,17 @@ func _act(s: Dictionary) -> void:
 		var lean: float = up.call(t, 8.0, 9.0, 10.5, 11.5)
 		var crouch: float = up.call(t, 12.0, 13.5, 15.0, 16.5)
 		var turn: float = deg_to_rad(120.0) * up.call(t, 17.0, 19.0, 20.0, 22.0)
-		var ahead := walk * (smoothstep(23.0, 26.0, t) - smoothstep(27.5, 30.5, t))
+		var ahead := 2.4 * (smoothstep(23.0, 26.0, t) - smoothstep(27.5, 30.5, t))
 		turn += PI * (smoothstep(26.0, 27.5, t) - smoothstep(30.5, 32.0, t))
 		var body := Basis(Vector3.UP, facing)
 		var p := start + body * Vector3(side, 0.0, -ahead - 0.25 * lean)
 		var yaw := Basis(Vector3.UP, facing + turn)
 		var eye := Vector3(p.x, main.world.terrain.height_at(p.x, p.z) + main.rig.body.eye_height * (1.0 - 0.45 * crouch), p.z)
 		var head := Transform3D(yaw * Basis(Vector3.RIGHT, -deg_to_rad(40.0) * lean), eye)
-		main.view(eye, eye + head.basis * Vector3.FORWARD, false)
+		main.view(eye, eye + head.basis * Vector3.FORWARD)
 		var level := Transform3D(yaw, eye)
 		for i in 2:
-			var hand: Hand = [main.rig.left, main.rig.right][i]
+			var hand: Hand = main.rig.hands[i]
 			hand.global_transform = level * Avatar.AT_SIDES[i]
 			hand.held_still = true
 
@@ -306,7 +303,7 @@ func _act(s: Dictionary) -> void:
 ## plays it with bare hands (`Lessons.bare`).
 func _gesture(s: Dictionary) -> void:
 	for side in s.get("tools", {}):
-		(main.rig.left if side == "left" else main.rig.right).tool = Lessons.tool(s.tools[side])
+		_side(side).tool = Lessons.tool(s.tools[side])
 	var head: Transform3D = main.rig.head.global_transform
 	var fwd := -head.basis.z
 	fwd.y = 0.0
@@ -325,14 +322,14 @@ func _gesture(s: Dictionary) -> void:
 	var bare: bool = s.get("bare", false)
 	while t <= s.length:
 		for side in Lessons.hands(s):
-			var hand: Hand = main.rig.left if side == "left" else main.rig.right
+			var hand: Hand = _side(side)
 			if bare:
 				Hand.injected_joints[hand.tracker] = Lessons.bare(s, side, head, t)
 				continue
 			hand.held_still = true
 			hand.global_transform = head * Lessons.frame(Lessons.pose(s, side, t))
 		for p in (s.press if not bare else []):
-			var key := "%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")]
+			var key := _control(_side(p.hand), p.action)
 			if Lessons.held(s, p.hand, p.action, t):
 				Buttons.injected[key] = true
 			else:
@@ -343,7 +340,7 @@ func _gesture(s: Dictionary) -> void:
 			shots = shots.slice(1)
 		t += get_process_delta_time()
 	for p in s.press:
-		Buttons.injected.erase("%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")])
+		Buttons.injected.erase(_control(_side(p.hand), p.action))
 	if bare:
 		for side in Lessons.hands(s):
 			var tracker := side + "_hand"
@@ -400,8 +397,16 @@ func _over(s: Dictionary, default: float, step: Callable) -> void:
 		await step.call(t / seconds)
 
 
-func _hand(s: Dictionary) -> Hand:
-	return main.rig.left if s.get("hand", "right") == "left" else main.rig.right
+func _hand(s: Dictionary, side := "right") -> Hand:
+	return _side(s.get("hand", side))
+
+
+func _side(side: String) -> Hand:
+	return main.rig.left if side == "left" else main.rig.right
+
+
+func _control(hand: Hand, action: String) -> String:
+	return "%s/%s" % [hand.tracker, Controls.input(action, hand.tracker)]
 
 
 ## The step's hand, handed `tool` first, as a player picks it before using it.
@@ -614,7 +619,7 @@ func _thatch(_s: Dictionary) -> void:
 
 
 func _top(s: Dictionary) -> void:
-	var w: Wall = main.tool.walls[s.index]
+	var w := _wall_of(s)
 	if w.roof == null or w.roof.flat():
 		main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"top": int(WallLayout.Top[s.style.to_upper()])}})
 
@@ -694,7 +699,7 @@ func _trunk(s: Dictionary) -> Flora.Plant:
 	return trunk
 
 
-## Grips the boulder placed `boulder` before the last (0 the last) from `reach` metres off (1.5 without), or with
+## Grips the boulder placed `boulder` before the last (0 the last) from 1.5 metres off, or with
 ## "tree" or `x`, `z` a tree's trunk as `grow` finds it, as a hand does, and over `seconds` moves the hand by `move`
 ## [x, y, z] metres while turning it by `turn` [x, y, z] degrees, then lets go; "capture" saves the view before letting go.
 func _carry(s: Dictionary) -> void:
@@ -704,12 +709,12 @@ func _carry(s: Dictionary) -> void:
 	if s.has("tree") or s.has("x"):
 		var trunk := _trunk(s)
 		var at := trunk.foot() + Vector3.UP * 1.2
-		from = Transform3D(Basis(), at + Vector3.BACK * s.get("reach", 1.5))
+		from = Transform3D(Basis(), at + Vector3.BACK * 1.5)
 		tool.begin_grow(m, trunk, from, at)
 	else:
 		var ids: Array = main.world.state.boulders.keys()
 		var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
-		from = Transform3D(Basis(), b.position + Vector3.BACK * (b.shape.reach() * b.size + s.get("reach", 1.5)))
+		from = Transform3D(Basis(), b.position + Vector3.BACK * (b.shape.reach() * b.size + 1.5))
 		var rock: Dictionary = main.boulders.pick(from.origin, -from.basis.z)
 		tool.begin_grow(m, b, from, rock.get("point", b.position))
 	var move: Array = s.get("move", [0, 0, 0])
@@ -862,7 +867,7 @@ func _wall_of(s: Dictionary) -> Wall:
 ## would find it: `what` is opening, lantern, flag, chimney, dormer or tower_flag; `s` and `y` place it on the wall,
 ## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's or dormer's spot along and across the ridge.
 ## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
-## on a floor or a flat roof; its `style` is DecorationLayout's index or name. `glow`, a Palette.Element.LANTERN swatch,
+## on a floor or a flat roof; its `style` is DecorationLayout's index or name. `lantern`, a Palette.Element.LANTERN swatch,
 ## is a decoration's flames' or, after the press, its wall's lanterns'.
 func _fit(s: Dictionary) -> void:
 	if s.what == "decoration":
@@ -888,7 +893,7 @@ func _fit(s: Dictionary) -> void:
 
 
 ## Hangs a string of `style` (a DecorationLayout style name, "Lantern string" without one), its lanterns burning in
-## Palette.Element.LANTERN swatch `glow`, from `a` to `b`, each [x, z] on a pole on the ground or [x, y, z] tied there,
+## Palette.Element.LANTERN swatch `lantern`, from `a` to `b`, each [x, z] on a pole on the ground or [x, y, z] tied there,
 ## as a stroke of the decorations tool between them would.
 func _string(s: Dictionary) -> void:
 	var ends: Array[Dictionary] = []
@@ -906,7 +911,7 @@ func _paint(s: Dictionary) -> void:
 	if s.has("style"):
 		Ground.style = s.style
 	var flora_tool: FloraTool = main.flora_tool
-	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
+	var b := flora_tool.brush(_hand(s, "left"))
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]
 	if s.has("tree") and b.hand.tool == Hand.Tool.MOSS:
 		var flora := flora_tool.flora
@@ -928,7 +933,7 @@ func _paint(s: Dictionary) -> void:
 ## A stroke of the path tool from `hand` (left by default) in `surface` (dirt by default); `radius` is half the path's width.
 func _pave(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
-	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
+	var b := flora_tool.brush(_hand(s, "left"))
 	b.hand.tool = Hand.Tool.PATH
 	flora_tool.paths.surface = PathLayout.Surface[String(s.get("surface", "dirt")).to_upper()]
 	var path := _path(s)
@@ -991,8 +996,7 @@ func _pond(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var was := hand.tool
 	main.water_tool.fill(_holding(s, Hand.Tool.POND), at)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await _frames(2)
 	while main.water_tool.pouring():
 		await get_tree().process_frame
 	hand.tool = was
@@ -1374,7 +1378,7 @@ func _layer_parts(name: String) -> Array[Array]:
 			out.append([main.look.interior, "masked", false])
 		"wildlife":
 			out.append([main.wildlife, "visible", false])
-			out.append([main.fish, "visible", false])
+			out.append([main.wildlife.fish, "visible", false])
 		"shy":
 			for kind in main.wildlife.shy():
 				out.append([kind, "visible", false])
@@ -1513,7 +1517,7 @@ func _clear(_s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-func _scatter(rng: RandomNumberGenerator, radius: float, centre := Vector3.ZERO) -> Vector3:
+func _scatter(rng: RandomNumberGenerator, radius: float, centre: Vector3) -> Vector3:
 	return FloraLayout.brush(centre, radius, 1, rng, main.world.terrain.height_at)[0]
 
 
@@ -1650,15 +1654,14 @@ func _process(_delta: float) -> void:
 		_posed_frames += 1
 
 
-## Turns the view to `at`, or to the figure of the host's garden with "figure", or to the eyes of the first other
-## player with "player".
+## Turns the view to `at`, or to the eyes of the first other player with "player".
 func _face(s: Dictionary) -> void:
 	var to: Vector3
 	if s.get("player", false):
 		to = (main.session.avatars.values()[0] as Avatar).eyes.origin
 	else:
 		to = Vector3(s.at[0], s.at[1], s.at[2])
-	main.view(main.rig.head.global_position, to, false)
+	main.view(main.rig.head.global_position, to)
 	await _frames(2)
 
 
@@ -1684,7 +1687,7 @@ func _until(s: Dictionary) -> void:
 		var wearing: bool = not s.has("wearing") or (main.session.worn_key != "" and main.session.worn_key == main.session.files.get(s.wearing, {}).get("key", ""))
 		var digested_seq := _digested_seq(dir.path_join(s.seq_of + ".json")) if s.has("seq_of") else 0
 		var answered: bool = not s.get("answered", false) or w.answered()
-		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.wildlife.feeding(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.wildlife.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.wildlife.feeding(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		# A flock lands anywhere along its perch, maybe out of sight of the seeds, so one already full is left to come over.
@@ -1707,7 +1710,7 @@ static func _digested_seq(path: String) -> int:
 
 
 func _frenzied() -> bool:
-	var f := main.fish.frenzy()
+	var f := main.wildlife.fish.frenzy()
 	return f[1] > 0 and f[0] == f[1]
 
 
@@ -1728,7 +1731,7 @@ func _digest(s: Dictionary) -> void:
 	out.postures = main.session.avatars.values().map(func(a: Avatar) -> String: return Posture.poses[a.posture.target].name)
 	out.fed = {"hand": main.wildlife.feeding(false), "dish": main.wildlife.feeding(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
-	out.frenzy = main.fish.frenzy()
+	out.frenzy = main.wildlife.fish.frenzy()
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
 	print("driver: digest ", path)
 
@@ -1777,7 +1780,7 @@ func _photo(s: Dictionary) -> void:
 ## same edges the controller feeds, and waits until the file is written.
 func _video(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
-	var key := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
+	var key := _control(hand, "tool")
 	Buttons.injected[key] = true
 	await get_tree().create_timer(s.seconds).timeout
 	Buttons.injected.erase(key)
@@ -1814,7 +1817,7 @@ func _sun(s: Dictionary) -> void:
 	var grab := -pose.basis.z
 	hand.held_still = true
 	hand.global_transform = pose
-	var grip := "%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]
+	var grip := _control(hand, "grab")
 	Buttons.injected[grip] = true
 	await _frames(2)
 	var seconds: float = s.get("seconds", 2.0)
@@ -1894,9 +1897,7 @@ func _style(s: Dictionary) -> void:
 		var along: float = s.get("s", w.layout.length() * 0.5)
 		target = tool.style_target(restyle, w, w.layout.point_at(along) + Vector3.UP * float(s.get("y", w.layout.height * 0.5)))
 	if s.has("tree"):
-		var flora: Flora = main.flora_tool.flora
-		var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[s.tree]]
-		var crown := trunk.foot() + Vector3.UP * 2.5
+		var crown := _trunk(s).foot() + Vector3.UP * 2.5
 		var from := crown + Vector3(0, 1, s.get("side", 6.0))
 		target = tool.aim_style(from, (crown - from).normalized())
 	if target.get("restyle") != restyle:
@@ -1941,7 +1942,7 @@ func _view(s: Dictionary) -> void:
 	var origin: Vector3 = main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO
 	_eye = pose[0] + origin
 	_at = pose[1] + (Vector3.ZERO if s.has("toward") else origin)
-	main.view(_eye, _at, false)
+	main.view(_eye, _at)
 	# A view is a cut, as a teleport is: no animal takes it for the player moving suddenly.
 	main.rig.jumped.emit()
 	await get_tree().process_frame
@@ -1961,7 +1962,7 @@ func _glide(s: Dictionary) -> void:
 		var k := smoothstep(0.0, 1.0, minf(t / seconds, 1.0))
 		_eye = from[0].lerp(pose[0], k)
 		_at = from[1].lerp(pose[1], k)
-		main.view(_eye, _at, false)
+		main.view(_eye, _at)
 
 
 ## A step's `eye` and `at`. With "subject", they are in the frame of the first node in that group (or its
@@ -2007,7 +2008,7 @@ func _walk(s: Dictionary) -> void:
 		var at: Vector3 = eye + dir * float(s.get("ahead", 10.0))
 		at.y = float(s.get("look", 0.0)) + main.world.terrain.height_at(at.x, at.z)
 		eye.y += main.world.terrain.height_at(eye.x, eye.z)
-		main.view(eye, at, false)
+		main.view(eye, at)
 		await get_tree().process_frame
 		t += get_process_delta_time()
 
@@ -2015,7 +2016,7 @@ func _walk(s: Dictionary) -> void:
 ## Sets an easel up at `x`, `z`, facing the head (or the ground point `facing`), as the easel tool's trigger does.
 func _easel(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
-	var toward: Vector3 = _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position
+	var toward := _toward(s)
 	main.easel_tool.place(at, Easels.facing(at, toward), _hand(s))
 	await _frames(2)
 
@@ -2027,7 +2028,7 @@ func _mirror(s: Dictionary) -> void:
 		main.mirror_tool.clear()
 	else:
 		var at := _spot(s, s.x, s.z)
-		main.mirror_tool.stand_at(at, _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position)
+		main.mirror_tool.stand_at(at, _toward(s))
 	await _frames(2)
 
 
@@ -2069,7 +2070,7 @@ func _take(s: Dictionary) -> void:
 		return
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
 	hand.held_still = true
-	var key := "%s/grip_click" % hand.tracker
+	var key := _control(hand, "grab")
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
@@ -2081,7 +2082,7 @@ func _take(s: Dictionary) -> void:
 func _set_down(s: Dictionary) -> void:
 	var hand := _hand(s)
 	hand.held_still = true
-	var key := "%s/grip_click" % hand.tracker
+	var key := _control(hand, "grab")
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
@@ -2152,11 +2153,13 @@ func _dip(s: Dictionary) -> void:
 		_:
 			var kit: Brushwork.Medium = EaselTool.PAINTS.find_key(s.what)
 			into = e.palettes[kit].global_transform * (Easels.well(kit, s.index) - Vector3(0, s.get("depth", 0.0), 0))
-	_tip_at(hand, into + Vector3.UP * 0.08, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
+	var along := (Vector3.DOWN - e.global_basis.z * 0.6).normalized()
+	var up := -e.global_basis.z
+	_tip_at(hand, into + Vector3.UP * 0.08, along, up)
 	await _frames(2)
-	_tip_at(hand, into, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
+	_tip_at(hand, into, along, up)
 	await _frames(3)
-	_tip_at(hand, into + Vector3.UP * 0.08, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
+	_tip_at(hand, into + Vector3.UP * 0.08, along, up)
 	await _frames(2)
 
 
@@ -2221,7 +2224,7 @@ func _sheet(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
 	var frame := e.canvas_frame()
-	var key := "%s/grip_click" % hand.tracker
+	var key := _control(hand, "grab")
 	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
 	Buttons.injected[key] = true
@@ -2322,8 +2325,8 @@ func _wear(s: Dictionary) -> void:
 
 ## Desktop only: holds the head and both hands where a person in Posture's pose `pose` had theirs, sized to the
 ## player's own avatar (Posture.held), on the ground at `x`, `z` (or `y` metres up), turned `yaw` degrees; `lift`
-## (an adult's metres, sized as the pose is) raises the eyes and `lean` pitches them that many degrees about their own right, with the hands, to try a near
-## miss. Over `seconds` it moves there from where the head and hands are, as a player lies down or sits.
+## (an adult's metres, sized as the pose is) raises the eyes. Over `seconds` it moves there from where the head and
+## hands are, as a player lies down or sits.
 func _posture(s: Dictionary) -> void:
 	var rig: Rig = main.rig
 	var which := Posture.poses.find_custom(func(q: Dictionary) -> bool: return q.name == s.pose)
@@ -2331,11 +2334,9 @@ func _posture(s: Dictionary) -> void:
 	var points := Posture.held(which, eye_height)
 	var eyes := points[0]
 	var held: Array[Transform3D] = [points[1], points[2]]
-	var lean := Transform3D(Basis(eyes.basis.x, deg_to_rad(s.get("lean", 0.0))), Vector3.ZERO)
-	lean = Transform3D(Basis.IDENTITY, eyes.origin) * lean * Transform3D(Basis.IDENTITY, -eyes.origin)
 	var x := float(s.get("x", 0.0))
 	var z := float(s.get("z", 0.0))
-	var frame := Transform3D(Basis(Vector3.UP, deg_to_rad(s.get("yaw", 0.0))), Vector3(x, float(s.get("y", main.world.terrain.height_at(x, z))) + s.get("lift", 0.0) * eye_height / Rig.EYE, z)) * lean
+	var frame := Transform3D(Basis(Vector3.UP, deg_to_rad(s.get("yaw", 0.0))), Vector3(x, float(s.get("y", main.world.terrain.height_at(x, z))) + s.get("lift", 0.0) * eye_height / Rig.EYE, z))
 	var to: Array[Transform3D] = [frame * eyes, frame * held[0], frame * held[1]]
 	var from: Array[Transform3D] = [rig.head.global_transform, rig.left.global_transform, rig.right.global_transform]
 	var seconds := float(s.get("seconds", 0.0))
@@ -2443,7 +2444,7 @@ func _view_book(s: Dictionary) -> void:
 	var mid := b.global_transform * Vector3(Book.W * 0.5 if shut else 0.0, 0.0, 0.0)
 	_eye = mid + main.rig.global_basis * Lessons._v(s.eye)
 	_at = mid
-	main.view(_eye, _at, false)
+	main.view(_eye, _at)
 	await get_tree().process_frame
 
 
@@ -2479,6 +2480,11 @@ func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	var right := fwd.cross(Vector3.UP)
 	var p := head.global_position + right * x + fwd * z
 	return main.world.terrain.ground(p.x, p.z)
+
+
+## What an easel or the mirror turns toward: the ground under `facing`, else the head.
+func _toward(s: Dictionary) -> Vector3:
+	return _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position
 
 
 ## What the walls tool builds on at a ground spot: with "on", what a hand pointing straight down from above it
@@ -2527,8 +2533,7 @@ func _quality(s: Dictionary) -> void:
 
 ## Holds the view's anti-aliasing for measuring: `msaa` samples (0, 2, 4 or 8), `screen` ("none", "fxaa" or "smaa"),
 ## `foveation` 0 to 3 through the runtime's density map (XR_FB_foveation, which the Mobile renderer reads only with
-## the view's VRS mode at XR), `unshaded`, which draws every surface its albedo alone, and `frozen`, which stops the wind
-## so two shots of one view differ only by what changed. A key left out is left as is.
+## the view's VRS mode at XR), and `unshaded`, which draws every surface its albedo alone. A key left out is left as is.
 func _antialias(s: Dictionary) -> void:
 	var vp: Viewport = main.get_viewport()
 	if s.has("msaa"):
@@ -2541,8 +2546,6 @@ func _antialias(s: Dictionary) -> void:
 		print("driver: foveation %d supported %s" % [main.xr.foveation_level, main.xr.is_foveation_supported()])
 	if s.has("unshaded"):
 		vp.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if s.unshaded else Viewport.DEBUG_DRAW_DISABLED
-	if s.has("frozen"):
-		Engine.time_scale = 0.0 if s.frozen else 1.0
 
 
 func _label(s: Dictionary) -> void:
@@ -2767,15 +2770,12 @@ func _held_cost(s: Dictionary) -> void:
 		for item in items:
 			item.show_state(state)
 			item.visible = s.get("shown", true)
-			if s.get("without_cup", false) and item.model is Conure:
-				for child in item.model.get_children():
-					(child as Node3D).hide()
 		# Every item's models are built in one frame, which no player does, and the runtime runs at half rate for a
 		# moment after it.
 		await get_tree().create_timer(1.0).timeout
 		if s.has("capture"):
 			await main.capture(s.capture)
-		var name := HeldItem.label(state) + ("-without-cup" if s.get("without_cup", false) else "")
+		var name := HeldItem.label(state)
 		var label := {"op": "label", "name": s.get("label", "held/" + name.replace(" ", "-"))}
 		print("driver: ", label)
 		await _label(label)
@@ -2817,7 +2817,7 @@ func _befriend(s: Dictionary) -> void:
 	if bird.node.hand != h or bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED:
 		_fail("bird did not feed and trust hand")
 		return
-	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
+	Buttons.injected[_control(h, "grab")] = true
 	await _frames(30)
 	if h.carried != bird.node:
 		_fail("grip did not pick up fed bird")
@@ -2915,7 +2915,7 @@ func _view_held(s: Dictionary) -> void:
 	await _frames(30)
 	var at := h.carried.global_position + Vector3.UP * 0.07
 	var hand_pose := h.global_transform
-	main.view(at + Vector3(0.25, 0.13, -0.36), at, false)
+	main.view(at + Vector3(0.25, 0.13, -0.36), at)
 	h.global_transform = hand_pose
 	await _frames(30)
 
@@ -2970,7 +2970,7 @@ func _roamers(_s: Dictionary) -> void:
 
 func _release_bird(s: Dictionary) -> void:
 	var h := _hand(s)
-	Buttons.injected.erase("%s/%s" % [h.tracker, Controls.input("grab", h.tracker)])
+	Buttons.injected.erase(_control(h, "grab"))
 	await _frames(2)
 	assert(h.carried == null, "bird must leave the hand when grip releases")
 
@@ -2987,7 +2987,7 @@ func _spring_grab(s: Dictionary) -> void:
 	hand.held_still = true
 	hand.global_position = avatar.springs.tip(chain)
 	await get_tree().create_timer(0.3).timeout
-	var key := "right_hand/" + Controls.input("grab", "right_hand")
+	var key := _control(hand, "grab")
 	Buttons.injected[key] = true
 	var mine := [main.session.multiplayer.get_unique_id(), 1]
 	var deadline := Time.get_ticks_msec() + 5000
@@ -3052,13 +3052,13 @@ func _spring_sway(s: Dictionary) -> void:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
 		var offset := Vector3(sin(elapsed * TAU) * 0.3, 0, 0)
-		main.view(eye + offset, eye + offset + ahead, false)
+		main.view(eye + offset, eye + offset + ahead)
 		for c: int in springs.chains.size():
 			if springs.touches(c, 0.002):
 				contacts += 1
 				if springs.chains[c].native_active:
 					native += 1
-	main.view(eye, eye + ahead, false)
+	main.view(eye, eye + ahead)
 	print("spring: sway held chains on their declared colliders for %d chain-frames, %d on native springs" % [contacts, native])
 	if contacts == 0:
 		_fail("spring: sway never contacted the declared collider")
@@ -3103,7 +3103,7 @@ func _spring_view(s: Dictionary) -> void:
 	await get_tree().create_timer(2.0).timeout
 	var avatar: Avatar = main.session.avatars.values()[0]
 	var middle := (avatar.eyes.origin + avatar.springs.tip(_chain(avatar, s))) * 0.5
-	main.view(middle - avatar.eyes.basis.x * 0.8, middle, false)
+	main.view(middle - avatar.eyes.basis.x * 0.8, middle)
 	await _frames(2)
 
 
@@ -3115,7 +3115,7 @@ func _expression(s: Dictionary) -> void:
 		await _frames(2)
 		return
 	var hand := _hand(s)
-	var button := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
+	var button := _control(hand, "wheel")
 	var tree := hand.inventory()
 	Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	Buttons.injected[button] = true

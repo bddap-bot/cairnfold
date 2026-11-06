@@ -337,7 +337,7 @@ func pick_stand(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 
 ## How far along the unit ray from `o` along `d`, in an easel's frame, it first meets the stand within `reach`, or INF;
 ## INF too where the canvas is nearer.
-static func stand_hit(o: Vector3, d: Vector3, reach := INF) -> float:
+static func stand_hit(o: Vector3, d: Vector3, reach: float) -> float:
 	var near := reach
 	for leg: Array in legs():
 		var t := _rod_hit(o, d, leg[0], leg[1], LEG_GRIP)

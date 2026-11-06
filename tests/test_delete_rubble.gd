@@ -69,7 +69,7 @@ func _run() -> void:
 func _capture(label: String, w: Wall, eye: Vector3, highlight: bool) -> void:
 	if OS.get_environment("RUBBLE_CAPTURE").is_empty():
 		return
-	main.view(Vector3(7, 5, 10), Vector3(0, 1, 0), false)
+	main.view(Vector3(7, 5, 10), Vector3(0, 1, 0))
 	main.rig.right.tool = Hand.Tool.DELETE if highlight else Hand.Tool.NONE
 	main.rig.right.held_still = true
 	main.rig.right.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), eye)

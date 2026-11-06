@@ -772,7 +772,7 @@ func _step(d: Duck, velocity: Vector3, delta: float) -> void:
 static func _face(d: Node3D, dir: Vector3, weight: float) -> void:
 	if Vector2(dir.x, dir.z).length() < 1e-4:
 		return
-	d.rotation.y = lerp_angle(d.rotation.y, atan2(-dir.x, -dir.z), clampf(weight, 0.0, 1.0))
+	d.rotation.y = lerp_angle(d.rotation.y, Shy.heading(dir), clampf(weight, 0.0, 1.0))
 
 
 ## Deep enough to float a grown duck, and with `from` reached without paddling into a wall; else the pond's

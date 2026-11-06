@@ -66,8 +66,6 @@ def diatonic(motif, scale, steps):
     return out
 
 
-# ---------------------------------------------------------------- instruments
-
 def _t(seconds):
     return np.arange(int(seconds * SR)) / SR
 
@@ -179,8 +177,6 @@ def reverb(x, wet):
         out[:, c] = np.fft.irfft(np.fft.rfft(x[:, c], size) * np.fft.rfft(IR[:, c], size), size)[:n]
     return x * (1 - wet) + out[: len(x)] * wet * 1.4
 
-
-# ---------------------------------------------------------------- music
 
 class Section:
     def __init__(self, name, bpm, beats, chords, beats_per_chord=4):
@@ -318,8 +314,6 @@ def sections():
     return out
 
 
-# ---------------------------------------------------------------- effects
-
 def _clack(fund, decay, bright, g=rng):
     t = _t(0.35)
     out = np.zeros_like(t)
@@ -377,8 +371,6 @@ def _loop(x, fade_seconds):
     x[:fade] = x[:fade] * ramp + x[-fade:] * (1 - ramp)
     return x[:-fade]
 
-
-# ---------------------------------------------------------------- birds and the night
 
 # Their own generators, so changing one changes no other sound.
 brng = np.random.default_rng(43)
@@ -447,8 +439,6 @@ def night(seconds=40.0):
     out = _fft_lowpass(out, 2000, 3)
     return _loop(out, 3.0)
 
-
-# ---------------------------------------------------------------- water
 
 # Its own generator, so adding water sounds never changes the music, bed or stone sounds above.
 wrng = np.random.default_rng(31)
@@ -523,8 +513,6 @@ def water():
         fx[f"nibble{i}"] = x
     return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
 
-
-# ---------------------------------------------------------------- actions
 
 # Its own generator too: the action sounds Cues plays (game/src/cues.gd), soft like the stones and the music, nothing
 # bright above the low kHz.
@@ -698,8 +686,6 @@ def actions():
         fx[name] = x
     return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
 
-
-# ---------------------------------------------------------------- output
 
 def write_ogg(path, x, quality=3):
     x = np.asarray(x)

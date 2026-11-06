@@ -328,7 +328,7 @@ func _drain(wait := false) -> void:
 				r.publish(before, written, owners, shown)
 			for g: Vector2i in checks:
 				var p: PondLayout.Pond = r.filled.get(g) if not r.fills.has(g) else PondLayout.fill(r.heights, Terrain.ALL, g, checks[g])
-				box[1].append([r.heights, g, checks[g], -INF, p]))
+				box[1].append([r.heights, g, checks[g], p]))
 
 
 ## Every waiting command run.

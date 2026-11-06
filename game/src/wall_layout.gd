@@ -1547,9 +1547,9 @@ func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var r: float = o.pane
 	var ring: float = o.ring
 	var depth := THICKNESS + RING_PROUD * 2.0
-	var fill := THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
+	var fill := _infill_depth()
 	var wedge := {"kind": "voussoir", "jitter": 0.0}
-	var mortared := {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
+	var mortared := _infill_kind()
 	var middle: float = (o.sill + o.head) * 0.5 if round else o.head - r
 	var tint := rng.randf_range(0.92, 1.06)
 	if not o.door and not round:
@@ -2045,6 +2045,15 @@ func plastered() -> bool:
 	return finish == Finish.PLASTER or finish == Finish.TIMBER
 
 
+## The depth of the infill behind an arch's ring, set back inside both faces' finish.
+func _infill_depth() -> float:
+	return THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
+
+
+func _infill_kind() -> Dictionary:
+	return {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
+
+
 func boarded() -> bool:
 	return boards(finish)
 
@@ -2340,7 +2349,7 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	var mortar := RING * size + JOINT
 	var inner: float = 0.01 + ring * (1.0 - style.meet) * 0.5
 	var depth := THICKNESS * 1.04
-	var fill := THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
+	var fill := _infill_depth()
 	var head := arch_head(0.0, size)
 	var crown: Array = head[-1]
 	var key: Vector3 = style.keystone * Vector3(size, size, 1.0)
@@ -2348,7 +2357,7 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	var key_half := atan(key.x * 0.5 / (crown[1] + ring * 0.5))
 	var parts: Array[Dictionary] = []
 	var infill: Array[Dictionary] = []
-	var mortared := {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
+	var mortared := _infill_kind()
 	for side in [-1.0, 1.0]:
 		if jamb > 0.0:
 			parts.append(_arch_part(a + side * (ARCH_HALF * size + jamb * 0.5), (bottom + spring_y) * 0.5, Vector3(jamb, spring_y - bottom, depth), 0.0, style, rng))
@@ -2837,7 +2846,7 @@ func _rail(a: float, b: float, y: float, size: Vector3, color: Color, kind := "r
 
 ## A corner pier from the bed up past the top; over posts, its footing stops `open` under the foot, at the foundation.
 ## It leaves out `gap`, the heights a corner window opens over.
-func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator, open := 0.0, gap := Vector2.ZERO) -> void:
+func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator, open: float, gap: Vector2) -> void:
 	_lay_footing(s, depth_at(s), Vector3(PIER, 0.0, PIER), "pier", wet, -open)
 	var y := 0.0
 	var top_y := height + CAP + (0.0 if cover == Cover.ROOF else 0.35)
@@ -3113,20 +3122,11 @@ func blocks_swim(a: Vector2, b: Vector2) -> bool:
 	for c in PathLayout.cells_along(b - Vector2.ONE * reach, b + Vector2.ONE * reach):
 		for i: int in grid.get(c, []):
 			near[i] = true
+	if near.is_empty():
+		return false
 	var ends := near.keys()
 	ends.sort()
-	var best := INF
-	var end := 0.0
-	for i: int in ends:
-		var p := Vector2(samples[i].x, samples[i].z)
-		var q := Vector2(samples[i + 1].x, samples[i + 1].z)
-		var t := clampf((b - p).dot(q - p) / maxf((q - p).length_squared(), 1e-9), 0.0, 1.0)
-		var d := p.lerp(q, t).distance_to(b)
-		if d < best:
-			best = d
-			end = lerpf(lengths[i], lengths[i + 1], t)
-	if best == INF:
-		return false
+	var end := _nearest_s(b, ends)
 	var at: Vector3 = frame_at(end).point
 	return Vector2(at.x, at.z).distance_to(b) < reach and not _swims_through(end)
 
@@ -3137,10 +3137,15 @@ func _swims_through(s: float) -> bool:
 
 ## Closest arc length on the wall to a world point, measured on the ground plane.
 func closest_s(p: Vector3) -> float:
-	var at := Vector2(p.x, p.z)
+	return _nearest_s(Vector2(p.x, p.z), range(samples.size() - 1))
+
+
+## The arc length of the point nearest `at` on the ground plane over the sample segments indexed by `segments`, the
+## first of them on a tie.
+func _nearest_s(at: Vector2, segments: Array) -> float:
 	var best := INF
-	var best_s := lengths[0] if lengths.size() > 0 else 0.0
-	for i in samples.size() - 1:
+	var best_s := 0.0
+	for i: int in segments:
 		var a := Vector2(samples[i].x, samples[i].z)
 		var b := Vector2(samples[i + 1].x, samples[i + 1].z)
 		var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
@@ -3180,12 +3185,12 @@ func finish_stroke() -> void:
 	var result: Array[Vector3] = []
 	for k in anchors.size() - 1:
 		var span: Array[Vector3] = points.slice(anchors[k], anchors[k + 1] + 1)
-		for pass_index in 2:
+		for _pass in 2:
 			var filtered := span.duplicate()
 			for i in range(1, span.size() - 1):
 				filtered[i] = span[i - 1] * 0.25 + span[i] * 0.5 + span[i + 1] * 0.25
 			span = filtered
-		for pass_index in 3:
+		for _pass in 3:
 			var cut: Array[Vector3] = [span[0]]
 			for i in span.size() - 1:
 				cut.append(span[i].lerp(span[i + 1], 0.25))

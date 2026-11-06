@@ -95,7 +95,7 @@ func _capture(name: String, eye: Vector3, at: Vector3) -> void:
 	if OS.get_environment("PICK_CAPTURE").is_empty():
 		return
 	var hand: Transform3D = main.rig.right.global_transform
-	main.view(eye, at, false)
+	main.view(eye, at)
 	main.rig.right.global_transform = hand
 	for frame in 6:
 		await process_frame

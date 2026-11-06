@@ -118,7 +118,7 @@ func _run() -> void:
 		for yaw in yaws:
 			var direction := Basis(Vector3.UP, deg_to_rad(float(yaw))) * facing
 			for frame in 45:
-				main.view(eye, eye + direction, false)
+				main.view(eye, eye + direction)
 				await process_frame
 			effect.pending = true
 			var captured: Array = await effect.captured

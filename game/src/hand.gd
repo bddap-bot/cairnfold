@@ -382,9 +382,8 @@ func _icon_key(path: Array[int], item: Variant) -> String:
 ## An icon standing upright where people draw it (SessionWheel.icon), since a person or the people slots are seen face
 ## on; else tipped as a tool or a subtree's miniature is.
 func _make_icon(item: Variant) -> Node3D:
-	var draw: Callable = _draw_item
-	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
-	var model := drawn if drawn != null else miniature(item, draw)
+	var drawn := _draw_item(item)
+	var model := drawn if drawn != null else miniature(item, _draw_item)
 	var i := icon(model)
 	if drawn != null:
 		model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))

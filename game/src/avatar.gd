@@ -290,7 +290,7 @@ static func texture_bytes(glb: PackedByteArray, images: Array[Dictionary]) -> in
 	var texels := 0
 	for image in images:
 		texels += image.size.x * image.size.y
-	var json: Variant = JSON.parse_string(glb.slice(20, 20 + glb.decode_u32(12)).get_string_from_utf8()) if glb.size() >= 20 else null
+	var json: Variant = Vrm.json_chunk(glb) if glb.size() >= 20 else null
 	var definition: Variant = Vrm._field(Vrm._field(json, "extensions"), Vrm.EXPRESSIONS)
 	for layer: String in ["hueMask", "colorAtlas"]:
 		var encoded: Variant = Vrm._field(definition, layer)

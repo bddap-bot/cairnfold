@@ -11,7 +11,6 @@ const FREEBOARD := 0.08
 ## Shallower basins than this hold no pond.
 const MIN_DEPTH := 0.12
 const NEIGHBOURS := [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
-const AROUND := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
 
 
 class Pond:

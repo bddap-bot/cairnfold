@@ -27,11 +27,6 @@ const HOUSE_SIDE := 2.4
 enum RoofStyle { PITCHED, FLAT, THATCHED, BOARDED }
 ## What two hands on a house shape: its walls, its roof, or its eaves.
 enum Pair { WALLS, ROOF, EAVES }
-enum RoofShape { FLAT, PITCHED }
-const ROOF_OPTIONS := {
-	RoofShape.FLAT: [RoofStyle.FLAT, RoofStyle.BOARDED],
-	RoofShape.PITCHED: [RoofStyle.PITCHED, RoofStyle.THATCHED],
-}
 
 const HOUSE_SIZE := Vector2(4.5, 4.5)
 const TOWER_SIZE := Vector2(3.4, 3.4)
@@ -605,7 +600,7 @@ func _hold_build() -> void:
 ## and furniture with them; sized, raised or its roof reshaped, it is laid again.
 func stand_build(to: Dictionary) -> void:
 	to.center = world.terrain.ground(to.center.x, to.center.z)
-	var hands := _hands_of(_holders)
+	var hands := _holders.map(func(m: Mason) -> Hand: return m.hand)
 	var top: Vector3 = to.center + Vector3.UP * (to.rise + to.height)
 	var changed := func(k: String) -> bool: return to.has(k) and to[k] != held_at[k]
 	if ["size", "length", "height"].any(changed):
@@ -794,7 +789,7 @@ static func pitch_for(at: Dictionary) -> float:
 
 
 static func roof_options(pitch: float) -> Array:
-	return ROOF_OPTIONS[RoofShape.FLAT if pitch <= 0.0 else RoofShape.PITCHED]
+	return [RoofStyle.FLAT, RoofStyle.BOARDED] if pitch <= 0.0 else [RoofStyle.PITCHED, RoofStyle.THATCHED]
 
 
 static func roof_style(d: Dictionary) -> RoofStyle:
@@ -1841,7 +1836,7 @@ func relay_crossings(path: PathLayout) -> void:
 				w.rebuild()
 		else:
 			continue
-		var top := _top(w, w.layout.length() * 0.5)
+		var top := _top(w)
 		if eye == null or heard == Vector3.INF or top.distance_to(eye.global_position) < heard.distance_to(eye.global_position):
 			heard = top
 	# One cue for the walls a path crosses, from the nearest: a voice each would cost a frame and drown one another.
@@ -1905,10 +1900,6 @@ func _cue(act: Cues.Act, at: Vector3, hands: Array, tension := 0.0) -> void:
 	Cues.play_in(act, at, hands, tension)
 
 
-static func _hands_of(ms: Array[Mason]) -> Array:
-	return ms.map(func(m: Mason) -> Hand: return m.hand)
-
-
 ## The garden's side of a wall going up, from any player; `handed` when it is the next of this player's walls in hand.
 func put(id: int, handed: bool) -> void:
 	var w := _new_wall()
@@ -1918,7 +1909,7 @@ func put(id: int, handed: bool) -> void:
 	if handed and not _handing.is_empty():
 		w.stand_in(_handing.pop_front())
 	_relay(w)
-	_sound(Cues.Act.WALL_SETTLE, _top(w, w.layout.length() * 0.5), _handing_hand if handed else null)
+	_sound(Cues.Act.WALL_SETTLE, _top(w), _handing_hand if handed else null)
 
 
 ## Walls in hand whose command was turned down, or whose garden is gone.
@@ -1943,7 +1934,7 @@ func take(id: int) -> void:
 		_riders.clear()
 	_riders.erase(w)
 	_settling.erase(id)
-	_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
+	_sound(Cues.Act.WALL_CRUMBLE, _top(w))
 	walls.erase(w)
 	_stir(w, w.massing)
 	w.queue_free()
@@ -1964,13 +1955,13 @@ func restyle(id: int, changed: Array) -> void:
 
 func _restyle_sound(w: Wall, changed: Array) -> void:
 	if "ruins" in changed:
-		_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.WALL_CRUMBLE, _top(w))
 	elif "openings" in changed:
-		_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.ARCH, _top(w))
 	elif "roof" in changed or "gable_end" in changed:
 		_sound(Cues.Act.WALL_LAY, _ridge(w))
 	else:
-		_sound(Cues.Act.WALL_RESTYLE, _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.WALL_RESTYLE, _top(w))
 
 
 func find(id: int) -> Wall:
@@ -2030,8 +2021,8 @@ func _shown_tops(on: PackedInt32Array, moved: Dictionary, tops: Dictionary, heig
 	return out
 
 
-func _top(w: Wall, s: float) -> Vector3:
-	return w.layout.point_at(s) + Vector3.UP * w.layout.height
+func _top(w: Wall) -> Vector3:
+	return w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
 
 
 ## Over the middle of a roofed wall's ring at its ridge, from what the garden holds of it, laid yet or not.

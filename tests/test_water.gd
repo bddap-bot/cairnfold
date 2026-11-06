@@ -5,6 +5,7 @@ extends "res://../tests/support/suite.gd"
 const SIDE := 21
 const WINDOW := Rect2i(0, 0, SIDE, SIDE)
 const RADIUS := 2.8
+const AROUND := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
 ## Just past the edge of a hollow pressed a metre deep, which widens to GroundGrab.SPREAD metres.
 const RIM := GroundGrab.SPREAD + 0.2
 
@@ -124,7 +125,7 @@ func _shore_is_the_dry_ring_around_the_water() -> void:
 		check(not wet.has(s) and g[s.y * SIDE + s.x] >= p.level, "a shore point is dry")
 		ring[s] = true
 	for c in p.cells:
-		for o in PondLayout.AROUND:
+		for o in AROUND:
 			if not wet.has(c + o) and not ring.has(c + o):
 				check(false, "dry point %s beside the water is not shore" % (c + o))
 				return
@@ -204,7 +205,7 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	world.limit = INF
 	await process_frame
 	var at := world.terrain.ground(0, -72)
-	var lake := Water.pointed(world.terrain, at)
+	var lake := Water.deepest(Water.candidates(world.terrain, at), at.y)
 	check(lake != null and lake.cells.size() > 10000, "pointing high on the meadow's rim fills its bowl, %d grid points" % (lake.cells.size() if lake != null else 0))
 	if lake == null:
 		return
@@ -408,7 +409,7 @@ func _ponds_in_the_glade() -> void:
 	check(not tool._ghosts[0].visible and tool._ponds[0] == null, "and nothing where no hollow holds any")
 	tool.set_process(true)
 	var seq := world.seq
-	check(Water.pointed(world.terrain, dry) == null, "a point just over the hollow's bottom holds no water")
+	check(Water.deepest(Water.candidates(world.terrain, dry), dry.y) == null, "a point just over the hollow's bottom holds no water")
 	tool.fill(hand, dry)
 	tool.settle()
 	await process_frame

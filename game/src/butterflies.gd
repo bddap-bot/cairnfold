@@ -242,7 +242,7 @@ func _move(b: Butterfly, delta: float) -> void:
 	if d > 0.4:
 		b.at.y = maxf(b.at.y, wildlife.terrain.height_at(b.at.x, b.at.z) + CRUISE)
 	if Vector2(b.vel.x, b.vel.z).length() > 0.05:
-		b.yaw = lerp_angle(b.yaw, atan2(-b.vel.x, -b.vel.z), 1.0 - exp(-6.0 * delta))
+		b.yaw = lerp_angle(b.yaw, Shy.heading(b.vel), 1.0 - exp(-6.0 * delta))
 
 
 func _upload() -> void:

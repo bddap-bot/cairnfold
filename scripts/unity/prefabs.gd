@@ -143,10 +143,26 @@ static func _modify(data: Dictionary, path: String, value: Variant, reference: V
 			return
 
 
+## The file ids of a GameObject's components in `objs`, in its order.
+static func components(objs: Dictionary, go: int) -> Array[int]:
+	var out: Array[int] = []
+	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		out.append(Yaml.file_id((c as Dictionary).get("component")))
+	return out
+
+
+## The transform `t` in `objs` and each transform above it, nearest first, up its m_Father chain.
+static func ancestors(objs: Dictionary, t: int) -> Array[int]:
+	var out: Array[int] = []
+	while objs.has(t) and not out.has(t):
+		out.append(t)
+		t = Yaml.file_id(objs[t].data.get("m_Father"))
+	return out
+
+
 ## The Transform of a GameObject in `objs`, or 0.
 static func transform_of(objs: Dictionary, go: int) -> int:
-	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in components(objs, go):
 		if objs.has(id) and objs[id].type in ["Transform", "RectTransform"]:
 			return id
 	return 0
@@ -154,8 +170,7 @@ static func transform_of(objs: Dictionary, go: int) -> int:
 
 ## The renderer on a GameObject in `objs`, or 0.
 static func renderer_of(objs: Dictionary, go: int) -> int:
-	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in components(objs, go):
 		if objs.has(id) and RENDERERS.has(objs[id].type):
 			return id
 	return 0

@@ -453,17 +453,13 @@ func stop() -> String:
 	while _writing != -1 or not _queue.is_empty():
 		await get_tree().process_frame
 	var path := _clip_path
-	var closed := [ERR_BUG]
 	var clip := _clip
-	var task := WorkerThreadPool.add_task(func() -> void: closed[0] = clip.close())
-	while not WorkerThreadPool.is_task_completed(task):
-		await get_tree().process_frame
-	WorkerThreadPool.wait_for_task_completion(task)
+	var closed: Error = await _on_worker(func() -> Error: return clip.close())
 	_reserved.erase(path)
 	_clip = null
 	_clip_path = ""
-	if closed[0] != OK:
-		push_error("video: could not write %s: %s" % [path, error_string(closed[0])])
+	if closed != OK:
+		push_error("video: could not write %s: %s" % [path, error_string(closed)])
 		path = ""
 	else:
 		print("video: ", path, " ", clip.frames, " frames")
@@ -556,12 +552,17 @@ func save(img: Image, path: String, about: Variant = null, world := PackedByteAr
 ## frame.
 func _store(path: String, encode: Callable) -> Error:
 	var file := ProjectSettings.globalize_path(path)
-	var saved := [ERR_BUG]
-	var task := WorkerThreadPool.add_task(func() -> void: saved[0] = Main.write_bytes(file, encode.call()))
+	return await _on_worker(func() -> Error: return Main.write_bytes(file, encode.call()))
+
+
+## What `work` returns, run on a worker thread while frames go on.
+func _on_worker(work: Callable) -> Variant:
+	var result := [null]
+	var task := WorkerThreadPool.add_task(func() -> void: result[0] = work.call())
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame
 	WorkerThreadPool.wait_for_task_completion(task)
-	return saved[0]
+	return result[0]
 
 
 ## The garden seen from `at` by a camera seeing `mask`'s layers, rendered once, one render at a time: as a photo when

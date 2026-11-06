@@ -286,7 +286,7 @@ func candidate(p: Painter) -> Dictionary:
 				best = d
 				choice = {"take": _take_brush.bind(p, kind, e), "node": node}
 		for kit: Brushwork.Medium in e.palettes:
-			if not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit)) and not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+			if not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit)) and not _palette_in_hand(e, kit):
 				var d := at.distance_to(e.palettes[kit].global_position)
 				if d < maxf(REACH, Easels.KIT_REACH[kit]) and (choice.is_empty() or d < best):
 					best = d
@@ -360,8 +360,13 @@ func _rack() -> void:
 		for kind: Brushwork.Brush in e.brushes:
 			e.brushes[kind].visible = not taken.has(Vector3i(e.id, HeldItem.Kind.BRUSH, kind))
 		for kit: Brushwork.Medium in e.palettes:
-			if not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+			if not _palette_in_hand(e, kit):
 				e.palettes[kit].visible = not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit))
+
+
+## Whether a painter holds easel `e`'s `kit` palette.
+func _palette_in_hand(e: Easels.Easel, kit: Brushwork.Medium) -> bool:
+	return painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit)
 
 
 ## Whether `p`'s hand shows a brush taken from an easel.

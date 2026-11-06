@@ -91,7 +91,7 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.DELETE
 	hand.held_still = true
-	main.view(at - dir * 8.0 + Vector3.UP * 2.0, at, false)
+	main.view(at - dir * 8.0 + Vector3.UP * 2.0, at)
 	hand.global_transform = Transform3D(Basis.looking_at(dir), eye)
 	for i in 6:
 		await process_frame

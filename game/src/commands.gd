@@ -61,7 +61,7 @@ static func length(points: Variant) -> float:
 	return total
 
 
-## Walls, paths, easels, boulders and plant groups with anything standing.
+## Stairs, walls, paths, grounds, easels, boulders, decorations and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
 	var n: int = state.stairs.size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.easels.size() + state.boulders.size() + state.decorations.size()
 	for g: Dictionary in state.groups.values():
@@ -137,7 +137,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 				ok = Easels.room_at(out.data.get("at", state.easels[cmd.id].at), others)
 		"path":
 			out.path = _path(cmd.get("path"))
-			ok = out.path != null and not (out.has("id") and state.paths.has(out.id))
+			ok = out.path != null
 		"ground":
 			ok = _ground(cmd, out)
 		"restone":
@@ -360,6 +360,10 @@ static func _finite(v: Vector3) -> bool:
 	return v.is_finite() and Terrain.ROOM.has_point(v)
 
 
+static func _roof_point(c: Vector2) -> bool:
+	return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0
+
+
 static func _in(x: Variant, range: Vector2) -> bool:
 	return typeof(x) == TYPE_FLOAT and x >= range.x and x <= range.y
 
@@ -436,15 +440,15 @@ static func _wall(d: Variant) -> Variant:
 		if not _at_least(r.get("pitch"), 0.0) or not _at_least(r.get("curve"), -RoofLayout.CURVE) or r.curve > RoofLayout.CURVE:
 			return null
 		var chimneys: Variant = r.get("chimneys")
-		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0) or typeof(r.get("flag")) != TYPE_BOOL:
+		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(_roof_point) or typeof(r.get("flag")) != TYPE_BOOL:
 			return null
 		var dormers: Variant = r.get("dormers")
-		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0):
+		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(_roof_point):
 			return null
 		if r.kind == RoofLayout.Kind.CONE and not dormers.is_empty():
 			return null
 		var hatches: Variant = r.get("hatches")
-		if typeof(hatches) != TYPE_PACKED_VECTOR2_ARRAY or hatches.size() > MAX_HATCHES or not Array(hatches).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0):
+		if typeof(hatches) != TYPE_PACKED_VECTOR2_ARRAY or hatches.size() > MAX_HATCHES or not Array(hatches).all(_roof_point):
 			return null
 		if not _at_least(r.get("overhang"), 0.0) or r.overhang > RoofLayout.MAX_OVERHANG:
 			return null
@@ -595,7 +599,7 @@ static func _plant(cmd: Dictionary, out: Dictionary, from_host: bool) -> bool:
 		if typeof(skip) != TYPE_PACKED_INT32_ARRAY or skip.size() > total or not Array(skip).all(func(i: int) -> bool: return i >= 0 and i < total):
 			return false
 		out.skip = skip
-	return total <= MAX_STROKE
+	return true
 
 
 static func _show(plants: Dictionary, state: Dictionary, out: Dictionary) -> bool:

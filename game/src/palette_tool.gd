@@ -73,7 +73,7 @@ func busy(hand: Hand = null) -> bool:
 	return wheels.has(hand) if hand != null else not wheels.is_empty()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	for b in _buttons:
 		var hand: Hand = b.hand
 		var wheel: Wheel = wheels.get(hand)

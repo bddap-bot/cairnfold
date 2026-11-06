@@ -38,7 +38,6 @@ func _init(from: Assets, descriptor: Dictionary) -> void:
 	data.layers = _layers(controller)
 
 
-## Expressions with nothing in them yet.
 static func empty() -> Dictionary:
 	return {"menu": [], "parameters": [], "layers": [], "clips": []}
 

@@ -30,8 +30,6 @@ const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const ExpressionCurves = preload("res://src/expression_state.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
-## Unity's HumanBodyBones names for the thumb, by the VRM 1.0 bone each one is.
-const THUMB := {"ThumbProximal": "ThumbMetacarpal", "ThumbIntermediate": "ThumbProximal"}
 ## The side, in pixels, of a menu icon as the model carries it: a board row's height.
 const ICON := 44.0
 ## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
@@ -71,7 +69,8 @@ func _init() -> void:
 		quit(1)
 		return
 	var report: Dictionary = root.get_meta("report")
-	if args[1].get_extension() == "vrm":
+	var vrm: bool = args[1].get_extension() == "vrm"
+	if vrm:
 		wearable(root)
 		Vrm.write(root, args[1])
 		root.free()
@@ -79,25 +78,21 @@ func _init() -> void:
 			printerr("unity_avatar: Avatar.read refuses %s" % args[1])
 			quit(1)
 			return
-		report["file bytes"] = FileAccess.get_size(args[1])
-		for k: String in report:
-			print("unity_avatar: %s: %s" % [k, report[k]])
-		if report["atlas"] > Avatar.MAX_IMAGE_SIDE:
-			print("unity_avatar: an atlas wider than Cairnfold reads of a player's file; one to wear there converts with --atlas %d" % Avatar.MAX_IMAGE_SIDE)
-		quit()
-		return
-	var scene := Avatar.model(root)
-	if scene == null:
-		printerr("unity_avatar: Avatar.model refuses it: it needs %s as bones of one skeleton and at most %d surfaces" % [Avatar.NEEDS, Avatar.MAX_SURFACES])
-		quit(1)
-		return
-	if ResourceSaver.save(scene, args[1]) != OK:
-		printerr("unity_avatar: cannot write %s" % args[1])
-		quit(1)
-		return
+	else:
+		var scene := Avatar.model(root)
+		if scene == null:
+			printerr("unity_avatar: Avatar.model refuses it: it needs %s as bones of one skeleton and at most %d surfaces" % [Avatar.NEEDS, Avatar.MAX_SURFACES])
+			quit(1)
+			return
+		if ResourceSaver.save(scene, args[1]) != OK:
+			printerr("unity_avatar: cannot write %s" % args[1])
+			quit(1)
+			return
 	report["file bytes"] = FileAccess.get_size(args[1])
 	for k: String in report:
 		print("unity_avatar: %s: %s" % [k, report[k]])
+	if vrm and report["atlas"] > Avatar.MAX_IMAGE_SIDE:
+		print("unity_avatar: an atlas wider than Cairnfold reads of a player's file; one to wear there converts with --atlas %d" % Avatar.MAX_IMAGE_SIDE)
 	quit()
 
 
@@ -411,10 +406,7 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	elif str(d.get("m_Enabled", "1")) != "1":
 		return null
 	var go := Yaml.file_id(d.get("m_GameObject"))
-	var t := Prefabs.transform_of(objs, go) if objs.has(go) else 0
-	var seen := {}
-	while objs.has(t) and not seen.has(t):
-		seen[t] = true
+	for t: int in Prefabs.ancestors(objs, Prefabs.transform_of(objs, go) if objs.has(go) else 0):
 		go = Yaml.file_id(objs[t].data.get("m_GameObject"))
 		if str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly":
 			return null
@@ -422,7 +414,6 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 			when.append([by[go], 1])
 		elif not _active(objs, go):
 			return null
-		t = Yaml.file_id(objs[t].data.get("m_Father"))
 	return when
 
 
@@ -447,8 +438,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 		placed[e[0]] = e[0] != top and (placed.get(father, false) or _constrained(objs, e[1], inside))
 		if not live or not objs.has(e[1]):
 			continue
-		for c: Variant in Yaml.list(objs[e[1]].data.get("m_Component")):
-			var id := Yaml.file_id((c as Dictionary).get("component"))
+		for id: int in Prefabs.components(objs, e[1]):
 			if not objs.has(id) or not objs[id].type in Prefabs.RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
 				continue
 			if placed[e[0]]:
@@ -541,12 +531,16 @@ static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 
 ## The PhysBone, DynamicBone or collider on `go` that an m_Enabled curve naming `script` animates: Unity binds the first.
 static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
-	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in Prefabs.components(objs, go):
 		var d: Dictionary = objs.get(id, {}).get("data", {})
 		if Yaml.guid(d.get("m_Script")) == script and (_spring_component(d) or not _collider(d).is_empty()):
 			return id
 	return 0
+
+
+## Whether a target's curves hold each key until the next rather than blending: an on/off switch or a material swap.
+static func _steps(target: Dictionary) -> bool:
+	return target.effect is String or target.effect.has("material")
 
 
 static func _spring_component(d: Dictionary) -> bool:
@@ -582,7 +576,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 					continue
 				by_curve[key] = target
 			var t: int = by_curve[key]
-			var curve := {"target": t, "step": targets[t].effect is String or targets[t].effect.has("material")}
+			var curve := {"target": t, "step": _steps(targets[t])}
 			if c.has("refs"):
 				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
@@ -696,7 +690,7 @@ static func _hold_unanimated(data: Dictionary, targets: Array, motion: Dictionar
 			continue
 		var clip: Dictionary = data.clips[c.motion.clip].duplicate(true) if c.motion.has("clip") else {"length": 0.0, "loop": false, "curves": []}
 		for t: int in held:
-			clip.curves.append({"target": t, "step": targets[t].effect is String or targets[t].effect.has("material"), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
+			clip.curves.append({"target": t, "step": _steps(targets[t]), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
 		data.clips.append(clip)
 		c.motion = c.motion.duplicate()
 		c.motion.clip = data.clips.size() - 1
@@ -875,8 +869,7 @@ static func _controls(menu: Array) -> int:
 
 ## Script constraints without a runtime representation still exclude externally placed geometry.
 static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
-	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in Prefabs.components(objs, go):
 		if not objs.has(id):
 			continue
 		var d: Dictionary = objs[id].data
@@ -897,8 +890,7 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 static func _main_model(assets: Assets, prefabs: Prefabs, objs: Dictionary, go: int, renderers: Array) -> String:
 	var humanoid := func(g: String) -> bool:
 		return assets.by_guid.has(g) and assets.extension(g) in Prefabs.MODELS and not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty()
-	for c: Variant in Yaml.list(objs[go].data.get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in Prefabs.components(objs, go):
 		if objs.has(id) and objs[id].type == "Animator":
 			var g := Yaml.guid(objs[id].data.get("m_Avatar"))
 			if humanoid.call(g) and not prefabs.model(g).is_empty():
@@ -919,8 +911,7 @@ static func _mesh_ref(objs: Dictionary, renderer: int) -> Dictionary:
 	if objs[renderer].type == "SkinnedMeshRenderer":
 		return objs[renderer].data.get("m_Mesh", {})
 	var go := Yaml.file_id(objs[renderer].data.get("m_GameObject"))
-	for c: Variant in Yaml.list(objs[go].data.get("m_Component")):
-		var id := Yaml.file_id((c as Dictionary).get("component"))
+	for id: int in Prefabs.components(objs, go):
 		if objs.has(id) and objs[id].type == "MeshFilter":
 			return objs[id].data.get("m_Mesh", {})
 	return {}
@@ -939,21 +930,15 @@ static func _model_root(objs: Dictionary, model: String, top: int) -> int:
 ## The scale a transform takes in its document, from its own and its parents' local scales.
 static func _world_scale(objs: Dictionary, t: int) -> float:
 	var s := 1.0
-	var seen := {}
-	while objs.has(t) and not seen.has(t):
-		seen[t] = true
-		s *= absf(_num(objs[t].data.get("m_LocalScale"), "y", 1.0))
-		t = Yaml.file_id(objs[t].data.get("m_Father"))
+	for at: int in Prefabs.ancestors(objs, t):
+		s *= absf(_num(objs[at].data.get("m_LocalScale"), "y", 1.0))
 	return s
 
 
 static func _world_transform(objs: Dictionary, t: int) -> Transform3D:
 	var world := Transform3D.IDENTITY
-	var seen := {}
-	while objs.has(t) and not seen.has(t):
-		seen[t] = true
-		world = _local(objs[t].data) * world
-		t = Yaml.file_id(objs[t].data.get("m_Father"))
+	for at: int in Prefabs.ancestors(objs, t):
+		world = _local(objs[at].data) * world
 	return world
 
 
@@ -2183,8 +2168,7 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 	var kinds := {}
 	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true, "ParentConstraint": true, "PositionConstraint": true, "LookAtConstraint": true}
 	for e: Array in _under(objs, top):
-		for c: Variant in Yaml.list(objs.get(e[1], {}).get("data", {}).get("m_Component")):
-			var id := Yaml.file_id((c as Dictionary).get("component"))
+		for id: int in Prefabs.components(objs, e[1]):
 			if not objs.has(id) or known.has(objs[id].type):
 				continue
 			var d: Dictionary = objs[id].data
@@ -2228,11 +2212,8 @@ static func avatar_definition(meta: String) -> Dictionary:
 ## A Unity HumanBodyBones name ("Left Thumb Proximal") as the VRM 1.0 humanoid bone it is ("leftThumbMetacarpal").
 static func vrm_bone(unity: String) -> String:
 	var s := unity.replace(" ", "")
-	for k: String in THUMB:
-		if s.ends_with(k):
-			s = s.trim_suffix(k) + THUMB[k]
-			break
-	return s.left(1).to_lower() + s.substr(1)
+	s = s.left(1).to_lower() + s.substr(1)
+	return Vrm.THUMBS_0X.get(s, s)
 
 
 ## The skeleton bone of a Unity transform's name, as Godot's importer and then this converter name bones; -1 if none.
@@ -2270,8 +2251,8 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 		on[e[0]] = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
 		if not on[e[0]] or not objs.has(e[1]):
 			continue
-		for component: Variant in Yaml.list(objs[e[1]].data.get("m_Component")):
-			var o: Dictionary = objs.get(Yaml.file_id(component.get("component")), {})
+		for id: int in Prefabs.components(objs, e[1]):
+			var o: Dictionary = objs.get(id, {})
 			if not o.get("type", "") in ["ParentConstraint", "PositionConstraint", "LookAtConstraint"]:
 				continue
 			var d: Dictionary = o.data

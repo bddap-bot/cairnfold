@@ -22,7 +22,7 @@ var _owner := PackedInt32Array()
 ## The grid points `_owner` and the levels were last written at.
 var _written := PackedInt32Array()
 var _wet := {}
-## Fills worked out ahead of a command on another thread, as [heights, grid point, level, near, pond], for `fill`.
+## Fills worked out ahead of a command on another thread, as [heights, grid point, level, pond], for `fill`.
 static var _known: Array = []
 
 
@@ -41,17 +41,16 @@ func _init(ground: Terrain, touching: Array[Node3D]) -> void:
 	terrain.dry_water()
 
 
-## The pond grid point `at` fills over `ground` as it stands, with water no higher than `level`, or null; `near`
-## as `PondLayout.fill` takes it.
-static func fill(ground: Terrain, at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
+## The pond grid point `at` fills over `ground` as it stands, with water no higher than `level`, or null.
+static func fill(ground: Terrain, at: Vector2i, level: float) -> PondLayout.Pond:
 	var heights := ground.read(Terrain.ALL)
 	for k: Array in _known:
-		if k[1] == at and k[2] == level and k[3] == near and k[0] == heights:
-			return k[4]
-	return PondLayout.fill(heights, Terrain.ALL, at, level, near)
+		if k[1] == at and k[2] == level and k[0] == heights:
+			return k[3]
+	return PondLayout.fill(heights, Terrain.ALL, at, level)
 
 
-## Keeps `known` ([heights, grid point, level, near, pond] each) for `fill`, in place of those kept before.
+## Keeps `known` ([heights, grid point, level, pond] each) for `fill`, in place of those kept before.
 static func know(known: Array) -> void:
 	_known = known
 
@@ -63,12 +62,6 @@ static func brim(ground: Terrain, x: float, z: float, radius: float) -> float:
 	var cells := Terrain.cells_around(x, z, radius + Terrain.STEP * 2.0)
 	var p := PondLayout.fill(ground.read(cells), cells, Terrain.grid_point(x, z))
 	return p.level if p != null else -INF
-
-
-## The pond that filling to the height of `ground`'s point `point` makes: of the hollows the grid points around it
-## run down into, the one holding the most water. Null when none holds any.
-static func pointed(ground: Terrain, point: Vector3) -> PondLayout.Pond:
-	return deepest(candidates(ground, point), point.y)
 
 
 ## What `deepest` fills from for a point of `ground`: per hollow the grid points around it run down into, one of

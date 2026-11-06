@@ -10,7 +10,7 @@ func _initialize() -> void:
 	root.add_child(main.rig)
 	for eye in [Vector3(8, 6, 11), Vector3(8, 1.65, 13)]:
 		main.rig.place(Vector3.ZERO, 3.0)
-		main.view(eye, Vector3(0, 1, 0), false)
+		main.view(eye, Vector3(0, 1, 0))
 		var pose: Transform3D = main.rig.head.global_transform
 		for i in 360:
 			main.rig._process(1.0 / 72.0)

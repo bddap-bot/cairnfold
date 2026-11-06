@@ -575,7 +575,7 @@ func _lay() -> void:
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
 ## these stones on a worker thread (`pack_roof`).
-func _lay_dressing(roofed := {}) -> void:
+func _lay_dressing(roofed: Dictionary) -> void:
 	if roof != null:
 		_pack_roof(roofed)
 	else:
@@ -599,7 +599,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}
 
 
-func _pack_roof(roofed := {}) -> void:
+func _pack_roof(roofed: Dictionary) -> void:
 	if roofed.is_empty():
 		roofed = pack_roof(layout, roof, kinds(), _painted)
 	else:

@@ -211,12 +211,7 @@ func _update_normals(dirty: Rect2i) -> void:
 	for level in _normal_sets.size():
 		var push := PackedInt32Array([rect.position.x, rect.position.y, rect.size.x, rect.size.y]).to_byte_array()
 		push.append_array(PackedFloat32Array([IMPASTO, GRAIN, 0.5 * size.x / metres.x, float(level)]).to_byte_array())
-		var list := _rd.compute_list_begin()
-		_rd.compute_list_bind_compute_pipeline(list, _normal_pipeline)
-		_rd.compute_list_bind_uniform_set(list, _normal_sets[level], 0)
-		_rd.compute_list_set_push_constant(list, push, push.size())
-		_rd.compute_list_dispatch(list, ceili(rect.size.x / 8.0), ceili(rect.size.y / 8.0), 1)
-		_rd.compute_list_end()
+		_compute(_normal_pipeline, _normal_sets[level], push, rect)
 		var next := Vector2i(maxi(extent.x / 2, 1), maxi(extent.y / 2, 1))
 		var from := Vector2i((Vector2(rect.position) * Vector2(next) / Vector2(extent)).floor())
 		var to := Vector2i((Vector2(rect.end) * Vector2(next) / Vector2(extent)).ceil())
@@ -244,8 +239,12 @@ func _dispatch(set: RID, mode: int, rect: Rect2i, ints: Array, colour: Vector4, 
 	var tail := PackedFloat32Array([colour.x, colour.y, colour.z, colour.w, more.x, more.y, more.z, more.w])
 	var push := head.to_byte_array()
 	push.append_array(tail.to_byte_array())
+	_compute(_pipeline, set, push, rect)
+
+
+func _compute(pipeline: RID, set: RID, push: PackedByteArray, rect: Rect2i) -> void:
 	var list := _rd.compute_list_begin()
-	_rd.compute_list_bind_compute_pipeline(list, _pipeline)
+	_rd.compute_list_bind_compute_pipeline(list, pipeline)
 	_rd.compute_list_bind_uniform_set(list, set, 0)
 	_rd.compute_list_set_push_constant(list, push, push.size())
 	_rd.compute_list_dispatch(list, ceili(rect.size.x / 8.0), ceili(rect.size.y / 8.0), 1)

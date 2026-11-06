@@ -215,6 +215,11 @@ class Images extends GLTFDocumentExtension:
 		return OK
 
 
+## The parsed JSON chunk of the binary glTF `glb`, which the caller has checked holds a header.
+static func json_chunk(glb: PackedByteArray) -> Variant:
+	return JSON.parse_string(glb.slice(20, 20 + glb.decode_u32(12)).get_string_from_utf8())
+
+
 ## Each image of a binary glTF, in order, measured from its header before any is decoded: "size", zero for an image not
 ## held in the file's own binary chunk.
 static func images(glb: PackedByteArray) -> Array[Dictionary]:
@@ -222,7 +227,7 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	if glb.size() < 28:
 		return out
 	var json_size := glb.decode_u32(12)
-	var json: Variant = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
+	var json: Variant = json_chunk(glb)
 	if not json is Dictionary or not json.get("images") is Array or not json.get("bufferViews") is Array:
 		return out
 	var views: Array = json.bufferViews
@@ -704,7 +709,7 @@ static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
 ## Unity computes them by default.
 static func _positional(glb: PackedByteArray) -> PackedByteArray:
 	var json_size := glb.decode_u32(12)
-	var json: Dictionary = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
+	var json: Dictionary = json_chunk(glb)
 	var bin := glb.slice(28 + json_size, 28 + json_size + glb.decode_u32(20 + json_size))
 	var views: Array = json.bufferViews
 	var accessors: Array = json.accessors

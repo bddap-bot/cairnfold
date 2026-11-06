@@ -225,13 +225,6 @@ func _resample() -> void:
 				_segment_cells[c].append(i)
 
 
-## Arc lengths along `wall` where this path opens arches: one where it crosses, or an arcade where the
-## crossing runs long along the wall (a wide path, or one meeting the wall at a slant). Looks only in `cells` of
-## `segment_cells`, by default all of them.
-func crossings(wall: WallLayout, cells: Array = []) -> Array[float]:
-	return arches(meetings(wall, cells))
-
-
 ## The arc lengths of the arches `met`, a path's `meetings` with a wall, open: an arcade where one runs long along it.
 static func arches(met: Array[Dictionary]) -> Array[float]:
 	var out: Array[float] = []
