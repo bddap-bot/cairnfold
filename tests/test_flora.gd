@@ -464,7 +464,7 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 		var first: Flora.Plant = pool.plants[pool.kept]
 		var moved: Flora.Plant = pool.plants[pool.kept + 2]
 		pool.shift(moved, far - near, Color())
-		check(pool._patch_of[2].key != pool._patch_of[0].key, "a plant moved to another square moves to its patch")
+		check(pool._patch_of[2] != pool._patch_of[0], "a plant moved to another square moves to its patch")
 		pool.reset()
 		check(pool.patches().all(func(m: MultiMeshInstance3D) -> bool: return m.multimesh.visible_instance_count == 0), "reset empties every patch")
 		check(pool.patches().all(func(m: MultiMeshInstance3D) -> bool: return not m.visible), "and an empty patch is not drawn at all")

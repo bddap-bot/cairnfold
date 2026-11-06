@@ -340,7 +340,7 @@ func _process(delta: float) -> void:
 		for f in fingers.size():
 			fingers[f] = lerpf(fingers[f], t[5][f], k)
 		a.curl(fingers)
-		if a.springs != null and t.size() > 4:
+		if a.springs != null:
 			var state: PackedVector3Array = a.springs.state()
 			var wanted: PackedVector3Array = t[4]
 			if state.size() == wanted.size():
@@ -828,11 +828,10 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 	if fingers.size() != 10 or not Array(fingers).all(func(c: float) -> bool: return c >= 0.0 and c <= 1.0):
 		fingers = PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), springs, fingers]
-	var a: Avatar = avatars[id]
-	a.palms = [left_palm.orthonormalized(), right_palm.orthonormalized()]
-	if not a.visible:
-		a.visible = true
-		a.pose(target[0], target[1], target[2], target[3])
+	avatar.palms = [left_palm.orthonormalized(), right_palm.orthonormalized()]
+	if not avatar.visible:
+		avatar.visible = true
+		avatar.pose(target[0], target[1], target[2], target[3])
 	_targets[id] = target
 
 

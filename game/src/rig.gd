@@ -433,7 +433,7 @@ func spawn() -> Vector3:
 		var r := ring * SPAWN_STEP
 		var n := maxi(1, int(TAU * r / SPAWN_STEP))
 		for k in n:
-			var at := Vector2(SPAWN.x, SPAWN.y) + Vector2.from_angle(TAU * k / n) * r
+			var at := SPAWN + Vector2.from_angle(TAU * k / n) * r
 			var g := terrain.ground(at.x, at.y)
 			if solid_hit.call(g + Vector3.UP * SPAWN_CLEAR, Vector3.DOWN, SPAWN_CLEAR).is_empty():
 				return g
@@ -463,8 +463,8 @@ func _rescale_head(by: float) -> void:
 
 func snap_turn(angle: float, hand: Hand) -> void:
 	var pivot := head.global_position
-	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
-	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))
+	var turn := Basis(Vector3.UP, angle)
+	global_transform = Transform3D(turn * global_transform.basis, pivot + turn * (global_position - pivot))
 	jumped.emit()
 	Cues.play(Cues.Act.TURN, pivot, hand)
 

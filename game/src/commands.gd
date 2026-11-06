@@ -63,7 +63,7 @@ static func length(points: Variant) -> float:
 
 ## Stairs, walls, paths, grounds, easels, boulders, decorations and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
-	var n: int = state.stairs.size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.easels.size() + state.boulders.size() + state.decorations.size()
+	var n: int = PUTS.keys().reduce(func(sum: int, t: String) -> int: return sum + state[t].size(), 0)
 	for g: Dictionary in state.groups.values():
 		if g.kind != "meadow" and g.hidden.size() < g.size:
 			n += 1
@@ -90,7 +90,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
 	if ((op in PUTS.values() and op != "wall") or op == "plant") and from_host:
-		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.stairs.has(cmd.id) or state.easels.has(cmd.id) or state.boulders.has(cmd.id) or state.decorations.has(cmd.id):
+		if typeof(cmd.get("id")) != TYPE_INT or (PUTS.keys() + ["groups"]).any(func(t: String) -> bool: return t != "walls" and state[t].has(cmd.id)):
 			return {}
 		out.id = cmd.id
 	if (op in PUTS.values() or op == "plant") and not from_host and _things(state) >= MAX_THINGS:
@@ -224,7 +224,7 @@ static func _decoration(d: Dictionary) -> Variant:
 		return null
 	if not DecorationLayout.stands(d.style, d.mount) or d.lantern < 0 or d.lantern >= Palette.count(Palette.Element.LANTERN):
 		return null
-	if typeof(d.get("at")) != TYPE_VECTOR3 or not _finite(d.at):
+	if not _finite(d.get("at")):
 		return null
 	for key in ["turn", "s", "side"]:
 		if typeof(d.get(key)) != TYPE_FLOAT or not is_finite(d[key]):
@@ -234,7 +234,7 @@ static func _decoration(d: Dictionary) -> Variant:
 	var out := {"wall": d.wall, "mount": d.mount, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side, "lantern": d.lantern}
 	if d.mount != "span":
 		return out if not d.has("to") and not d.has("drop") else null
-	if typeof(d.get("to")) != TYPE_VECTOR3 or not _finite(d.to) or typeof(d.get("drop")) != TYPE_VECTOR2 or not d.drop.is_finite():
+	if not _finite(d.get("to")) or typeof(d.get("drop")) != TYPE_VECTOR2 or not d.drop.is_finite():
 		return null
 	var span: Vector3 = d.to - d.at
 	var run := Vector2(span.x, span.z).length()
@@ -256,7 +256,7 @@ static func _boulder(d: Dictionary) -> Variant:
 	var sink: Variant = d.get("sink")
 	if typeof(sink) != TYPE_FLOAT or not (sink >= 0.0 and sink < INF):
 		return null
-	if typeof(at) != TYPE_VECTOR3 or not _finite(at) or typeof(d.get("seed")) != TYPE_INT or not Palette.valid(d.get("paint")):
+	if not _finite(at) or typeof(d.get("seed")) != TYPE_INT or not Palette.valid(d.get("paint")):
 		return null
 	if typeof(turn) != TYPE_QUATERNION or not turn.is_finite() or absf(turn.length() - 1.0) > 1e-3:
 		return null
@@ -281,7 +281,7 @@ static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 static func _stands(d: Dictionary) -> bool:
 	var at: Variant = d.get("at")
 	var yaw: Variant = d.get("yaw")
-	return typeof(at) == TYPE_VECTOR3 and _finite(at) and typeof(yaw) == TYPE_FLOAT and is_finite(yaw) and absf(yaw) <= TAU
+	return _finite(at) and typeof(yaw) == TYPE_FLOAT and is_finite(yaw) and absf(yaw) <= TAU
 
 
 ## The easel a stroke command paints on, standing, and whether on its canvas or (`palette`) its oil palette's board.
@@ -356,8 +356,8 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 	return not out.cmds.is_empty() and seen.size() <= most
 
 
-static func _finite(v: Vector3) -> bool:
-	return v.is_finite() and Terrain.ROOM.has_point(v)
+static func _finite(v: Variant) -> bool:
+	return typeof(v) == TYPE_VECTOR3 and v.is_finite() and Terrain.ROOM.has_point(v)
 
 
 static func _on_roof(c: Vector2) -> bool:
@@ -435,7 +435,7 @@ static func _wall(d: Variant) -> Variant:
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
 			return null
-		if typeof(r.get("center")) != TYPE_VECTOR3 or not _finite(r.center) or not _at_least(r.get("radius"), MIN_ROOF_RADIUS) or typeof(r.get("seed")) != TYPE_INT:
+		if not _finite(r.get("center")) or not _at_least(r.get("radius"), MIN_ROOF_RADIUS) or typeof(r.get("seed")) != TYPE_INT:
 			return null
 		if not _at_least(r.get("pitch"), 0.0) or not _at_least(r.get("curve"), -RoofLayout.CURVE) or r.curve > RoofLayout.CURVE:
 			return null
@@ -582,13 +582,13 @@ static func _plant(cmd: Dictionary, out: Dictionary, from_host: bool) -> bool:
 		return false
 	if out.kind in Flora.PLACED:
 		out.at = cmd.get("at")
-		return typeof(out.at) == TYPE_VECTOR3 and _finite(out.at)
+		return _finite(out.at)
 	var dabs: Variant = cmd.get("dabs")
 	if not out.kind in Flora.BRUSHES or not dabs is Array or dabs.is_empty() or dabs.size() > MAX_DABS:
 		return false
 	var total := 0
 	for d: Variant in dabs:
-		if not d is Array or d.size() != 3 or typeof(d[0]) != TYPE_VECTOR3 or not _finite(d[0]) or not _in(d[1], Vector2(FloraTool.MIN_RADIUS, FloraTool.MAX_RADIUS)) or typeof(d[2]) != TYPE_INT or d[2] < 1 or d[2] > MAX_STROKE:
+		if not d is Array or d.size() != 3 or not _finite(d[0]) or not _in(d[1], Vector2(FloraTool.MIN_RADIUS, FloraTool.MAX_RADIUS)) or typeof(d[2]) != TYPE_INT or d[2] < 1 or d[2] > MAX_STROKE:
 			return false
 		total += d[2]
 		if total > MAX_STROKE:
@@ -629,7 +629,7 @@ static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	if not tree and (not bush or cmd.has("species") or cmd.has("scale") or cmd.has("moss")):
 		return false
 	if cmd.has("at"):
-		if typeof(cmd.at) != TYPE_VECTOR3 or not _finite(cmd.at):
+		if not _finite(cmd.at):
 			return false
 		out.at = cmd.at
 	if cmd.has("turn"):
@@ -660,7 +660,7 @@ static func _heights(cmd: Dictionary, out: Dictionary) -> bool:
 	var values: Variant = cmd.get("values")
 	if typeof(cells) != TYPE_RECT2I or typeof(values) != TYPE_PACKED_FLOAT32_ARRAY:
 		return false
-	if cells.size.x < 1 or cells.size.y < 1 or not Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS).encloses(cells) or values.size() != cells.get_area():
+	if cells.size.x < 1 or cells.size.y < 1 or not Terrain.ALL.encloses(cells) or values.size() != cells.get_area():
 		return false
 	for v in values:
 		if not absf(v) <= Terrain.RELIEF:
@@ -703,7 +703,7 @@ static func _stairs(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
 	for key in ["a", "b"]:
-		if typeof(d.get(key)) != TYPE_VECTOR3 or not _finite(d[key]):
+		if not _finite(d.get(key)):
 			return null
 	var length: float = d.a.distance_to(d.b)
 	if length < 0.3 or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH) or not _in(d.get("sag"), Vector2(0.0, StairLayout.SAG_MOST)) or not StairLayout.sag_fits(d.a, d.b, d.sag):

@@ -105,6 +105,7 @@ class Limb:
 	var lower_bind: Basis
 
 	func _init(up: Joint, low: Joint, to: Joint, facing: Basis, bend_at_rest: Vector3) -> void:
+		bend = bend_at_rest
 		upper = up
 		lower = low
 		end = to
@@ -620,7 +621,6 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		if not leg_bones.has(null):
 			# A knee bends forward, as a leg stands at rest.
 			var leg := Leg.new(leg_bones[0], leg_bones[1], leg_bones[2], a._facing, Vector3.FORWARD)
-			leg.bend = Vector3.FORWARD
 			leg.place = a._facing * (leg.end.rest.origin - a._hips.rest.origin) * Vector3(1, 0, 1)
 			leg.ankle = leg.end.rest.origin.y
 			placed.append_array(leg_bones)
@@ -816,18 +816,19 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 		posture.update(at, l.origin, r.origin, _floor, get_process_delta_time(), eye_height / Rig.EYE)
 	var turn := Basis(Vector3.UP, torso)
 	var head := at * _eye_to_head
+	var poles: Array[Vector3] = [turn * _arms[0].bend, turn * _arms[1].bend]
 	if posture.weights[Posture.STANDING] == 1.0:
 		_stand_up(at, head, turn)
-		_place(_head, head)
-		_look(head)
-		for s in 2:
-			var arm := _arms[s]
-			var grip := arm.wrist(hands[s] * palms[s])
-			if arm.upper:
-				_bend(arm, grip.origin, turn * arm.bend)
-			_place(arm.end, grip)
 	else:
-		_lie(at, head)
+		poles = _lie(head)
+	_place(_head, head)
+	_look(head)
+	for s in 2:
+		var arm := _arms[s]
+		var grip := arm.wrist(hands[s] * palms[s])
+		if arm.upper:
+			_bend(arm, grip.origin, poles[s])
+		_place(arm.end, grip)
 
 	if springs == null and is_inside_tree():
 		var nodes := {}
@@ -858,9 +859,9 @@ func _stand_up(at: Transform3D, head: Transform3D, turn: Basis) -> void:
 
 
 ## A lying or sitting body: the blend of Posture's poses shown, a standing share standing straight, each turned by its
-## heading and moved so that its neck carries the head; the head and hands where they are tracked, and each arm's elbow
-## pointing as the pose's upper arm does.
-func _lie(at: Transform3D, head: Transform3D) -> void:
+## heading and moved so that its neck carries the head. Returns where each arm's elbow points: as the pose's upper arm
+## does.
+func _lie(head: Transform3D) -> Array[Vector3]:
 	var shown: Array[int] = []
 	var yaws: Array[Quaternion] = []
 	for k in posture.weights.size():
@@ -877,21 +878,18 @@ func _lie(at: Transform3D, head: Transform3D) -> void:
 		else:
 			_place(_body[i], frame * body[i])
 	_settled = shown[0] if lone else -1
-	_place(_head, head)
-	_look(head)
+	var poles: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 	for s in 2:
 		var arm := _arms[s]
-		var grip := arm.wrist(hands[s] * palms[s])
-		if arm.upper:
-			var pole := Vector3.ZERO
-			for n in shown.size():
-				var elbow := yaws[n] * arm.bend.normalized()
-				var upper: Variant = _upper_turns[shown[n]][s]
-				if upper != null:
-					elbow = elbow * ELBOW_HINT + yaws[n] * (upper as Quaternion) * (_facing * (arm.lower.rest.origin - arm.upper.rest.origin)).normalized()
-				pole += elbow * posture.weights[shown[n]]
-			_bend(arm, grip.origin, pole)
-		_place(arm.end, grip)
+		if not arm.upper:
+			continue
+		for n in shown.size():
+			var elbow := yaws[n] * arm.bend.normalized()
+			var upper: Variant = _upper_turns[shown[n]][s]
+			if upper != null:
+				elbow = elbow * ELBOW_HINT + yaws[n] * (upper as Quaternion) * (_facing * (arm.lower.rest.origin - arm.upper.rest.origin)).normalized()
+			poles[s] += elbow * posture.weights[shown[n]]
+	return poles
 
 
 ## The body's joints with the hips at the origin, as the blend of the poses `shown`, weighed by `weights` and each

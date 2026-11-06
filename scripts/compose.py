@@ -143,6 +143,10 @@ def _fft_lowpass(x, cutoff, order=2):
     return np.fft.irfft(np.fft.rfft(x, size, axis=0) * (gain[:, None] if x.ndim == 2 else gain), size, axis=0)[: len(x)]
 
 
+def _add(out, sig, at):
+    out[at : at + len(sig)] += sig[: max(0, len(out) - at)]
+
+
 def _pan(mono, p):
     a = (p + 1) * np.pi / 4
     return np.stack([mono * np.cos(a), mono * np.sin(a)], axis=1)
@@ -170,12 +174,7 @@ IR = _impulse()
 
 
 def reverb(x, wet):
-    n = len(x) + len(IR)
-    size = 1 << (n - 1).bit_length()
-    out = np.empty((n, 2))
-    for c in range(2):
-        out[:, c] = np.fft.irfft(np.fft.rfft(x[:, c], size) * np.fft.rfft(IR[:, c], size), size)[:n]
-    return x * (1 - wet) + out[: len(x)] * wet * 1.4
+    return x * (1 - wet) + _convolve(x, IR) * wet * 1.4
 
 
 class Section:
@@ -209,9 +208,7 @@ class Section:
                     sig = pad(notes, d * spb, vel)
                 else:
                     sig = _pan(INSTRUMENTS[inst](notes[0], d * spb, vel), p)
-                start = max(0, int((b * spb + rng.normal(0, 0.006) * (inst != "pad")) * SR))
-                end = min(n, start + len(sig))
-                buf[start:end] += sig[: end - start]
+                _add(buf, sig, max(0, int((b * spb + rng.normal(0, 0.006) * (inst != "pad")) * SR)))
             stems[stem] = reverb(buf, 0.22 if stem == "bed" else 0.32)
         return stems
 
@@ -329,9 +326,7 @@ def _rattle(seconds, count, low, g=rng):
     times = np.sort(g.uniform(0, seconds - 0.35, count) ** 1.6 / seconds**0.6)
     for i, x in enumerate(times):
         c = _clack(g.uniform(380, 900) * low, g.uniform(25, 45), 0.4, g) * g.uniform(0.2, 1.0) * (1 - i / count) ** 0.8
-        start = int(x * SR)
-        end = min(len(out), start + len(c))
-        out[start:end] += c[: end - start]
+        _add(out, c, int(x * SR))
     return out
 
 
@@ -359,7 +354,7 @@ def meadow(seconds=48.0):
         gust = 0.55 + 0.45 * np.sin(2 * np.pi * t / seconds * 3 + c) * np.sin(2 * np.pi * t / seconds * 5 + 1.3 * c)
         wind = _fft_lowpass(brown, 600) * gust
         hiss = rng.standard_normal(n)
-        rustle = _fft_lowpass(hiss, 2600) - _fft_lowpass(hiss, 700)
+        rustle = _band(hiss, 700, 2600)
         out[:, c] = wind / np.std(wind) * 0.05 + rustle / np.std(rustle) * 0.008 * gust**2
     return _loop(out, 4.0)
 
@@ -455,7 +450,7 @@ def _slosh(seconds, cutoff):
     """One soft wave against the bank: low band-limited noise under a slow swell."""
     t = _t(seconds)
     n = wrng.standard_normal(len(t))
-    body = _fft_lowpass(n, cutoff) - _fft_lowpass(n, 90)
+    body = _band(n, 90, cutoff)
     swell = np.sin(np.pi * t / seconds) ** 2 * np.exp(-t * 1.2 / seconds)
     return body / np.std(body) * swell
 
@@ -467,16 +462,12 @@ def lapping(seconds=16.0):
     while at < seconds - 1.6:
         w = _slosh(wrng.uniform(0.9, 1.6), wrng.uniform(500, 850)) * wrng.uniform(0.5, 1.0)
         start = int(at * SR)
-        out[start : start + len(w)] += w[: n - start]
+        _add(out, w, start)
         if wrng.random() < 0.6:
             b = _bubble(wrng.uniform(280, 520), wrng.uniform(0.05, 0.1), 0.4) * wrng.uniform(0.1, 0.25)
-            bs = start + int(wrng.uniform(0.3, 0.8) * SR)
-            out[bs : bs + len(b)] += b[: max(0, n - bs)]
+            _add(out, b, start + int(wrng.uniform(0.3, 0.8) * SR))
         at += wrng.uniform(1.1, 2.3)
-    fade = int(2 * SR)
-    ramp = np.linspace(0, 1, fade)
-    out[:fade] = out[:fade] * ramp + out[-fade:] * (1 - ramp)
-    return _fft_lowpass(out[:-fade], 1400)
+    return _fft_lowpass(_loop(out, 2.0), 1400)
 
 
 def water():
@@ -485,31 +476,27 @@ def water():
         x = _slosh(0.5, 900) * 0.6
         for k in range(wrng.integers(2, 4)):
             b = _bubble(wrng.uniform(330, 640), wrng.uniform(0.04, 0.09), 0.5) * wrng.uniform(0.3, 0.7)
-            s = int(wrng.uniform(0.0, 0.2) * SR)
-            x[s : s + len(b)] += b[: len(x) - s]
+            _add(x, b, int(wrng.uniform(0.0, 0.2) * SR))
         fx[f"dip{i}"] = x
     for i in range(2):
         seconds = 2.4
         x = _slosh(seconds, 700) * 0.7
         for k in range(14):
             b = _bubble(wrng.uniform(220, 480), wrng.uniform(0.06, 0.14), 0.45) * wrng.uniform(0.15, 0.5)
-            s = int(wrng.uniform(0.05, seconds - 0.4) ** 1.3 / seconds**0.3 * SR)
-            x[s : s + len(b)] += b[: len(x) - s]
+            _add(x, b, int(wrng.uniform(0.05, seconds - 0.4) ** 1.3 / seconds**0.3 * SR))
         fx[f"fill{i}"] = x
     for i in range(3):
         seconds = 0.45
         x = _slosh(seconds, 600) * 0.15
         for k in range(wrng.integers(6, 10)):
             b = _bubble(wrng.uniform(420, 760), wrng.uniform(0.02, 0.045), 0.6) * wrng.uniform(0.2, 0.5)
-            s = int(wrng.uniform(0.0, 0.25) * SR)
-            x[s : s + len(b)] += b[: len(x) - s]
+            _add(x, b, int(wrng.uniform(0.0, 0.25) * SR))
         fx[f"plop{i}"] = x
     for i in range(4):
         seconds = 0.22
         x = _slosh(seconds, 500) * 0.25
         b = _bubble(wrng.uniform(260, 420), wrng.uniform(0.05, 0.08), 0.8) * 0.8
-        s = int(wrng.uniform(0.01, 0.04) * SR)
-        x[s : s + len(b)] += b[: len(x) - s]
+        _add(x, b, int(wrng.uniform(0.01, 0.04) * SR))
         fx[f"nibble{i}"] = x
     return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
 
@@ -526,7 +513,7 @@ def _band(x, lo, hi, order=2):
 def _convolve(x, ir):
     n = len(x) + len(ir)
     size = 1 << (n - 1).bit_length()
-    return np.fft.irfft(np.fft.rfft(x, size) * np.fft.rfft(ir, size), size)[: len(x)]
+    return np.fft.irfft(np.fft.rfft(x, size, axis=0) * np.fft.rfft(ir, size, axis=0), size, axis=0)[: len(x)]
 
 
 def _body(modes, seconds=0.4):
@@ -546,8 +533,7 @@ def _grains(seconds, count, length, lo, hi, shape=1.0):
     out = np.zeros(int(seconds * SR))
     for k in range(count):
         g = _band(crng.standard_normal(int(length * SR)), lo, hi) * np.hanning(int(length * SR)) * crng.uniform(0.3, 1.0)
-        at = int(crng.uniform(0, 1) ** shape * (seconds - length) * SR)
-        out[at : at + len(g)] += g
+        _add(out, g, int(crng.uniform(0, 1) ** shape * (seconds - length) * SR))
     return out
 
 
@@ -570,8 +556,7 @@ def _notes(midis, gap):
     out = np.zeros(int((gap * (len(midis) - 1) + 1.2) * SR))
     for i, m in enumerate(midis):
         n = pluck(m, 0.25, 1.0, crng)[: int(1.2 * SR)]
-        at = int(i * gap * SR)
-        out[at : at + len(n)] += n[: len(out) - at]
+        _add(out, n, int(i * gap * SR))
     return out
 
 
@@ -616,7 +601,7 @@ def actions():
         fx[f"bow{i}"] = _creak(0.42, crng.uniform(55, 70), crng.uniform(0.25, 0.45))
     for i in range(2):
         lift = _rattle(0.6, 6, 0.6, crng) * 0.5
-        lift[: int(0.3 * SR)] += np.exp(-_t(0.3) * 18) * np.sin(2 * np.pi * 72 * _t(0.3)) * 0.8
+        _add(lift, np.exp(-_t(0.3) * 18) * np.sin(2 * np.pi * 72 * _t(0.3)) * 0.8, 0)
         fx[f"lift{i}"] = lift
     for i in range(4):
         fx[f"scrape{i}"] = _grains(0.22, 14, 0.025, 100, 650, 1.0) * np.hanning(int(0.22 * SR))
@@ -630,15 +615,14 @@ def actions():
         x = np.zeros(int(0.25 * SR))
         for k in range(10):
             c = _clack(crng.uniform(450, 750), crng.uniform(60, 90), 0.2, crng)[: int(0.06 * SR)] * crng.uniform(0.1, 0.5)
-            at = int(crng.uniform(0, 0.18) * SR)
-            x[at : at + len(c)] += c
+            _add(x, c, int(crng.uniform(0, 0.18) * SR))
         fx[f"gravel{i}"] = x + _grains(0.25, 10, 0.02, 150, 800) * 0.5
     for i in range(3):
         t = _t(0.35)
         thump = np.exp(-t * 16) * np.sin(2 * np.pi * crng.uniform(65, 85) * t * (1 - 0.3 * t))
         fx[f"soil{i}"] = thump + _fft_lowpass(crng.standard_normal(len(t)) * np.exp(-t * 22), 600) * 0.4
     sweep = _band(crng.standard_normal(int(2.6 * SR)), 80, 900) * np.sin(np.pi * _t(2.6) / 2.6) ** 2
-    sweep[int(0.9 * SR) :] += _rattle(1.7, 26, 0.55, crng)[: len(sweep) - int(0.9 * SR)] * 0.5
+    _add(sweep, _rattle(1.7, 26, 0.55, crng) * 0.5, int(0.9 * SR))
     fx["sweep0"] = sweep
     for i, m in enumerate((59, 63, 66)):
         fx[f"pick{i}"] = _notes([m], 0.0)
@@ -655,8 +639,8 @@ def actions():
     for i in range(2):
         x = np.zeros(int(0.25 * SR))
         a, b = _knock(crng.uniform(380, 420), 0.1, 80.0), _knock(crng.uniform(300, 330), 0.12, 70.0) * 0.7
-        x[: len(a)] += a
-        x[int(0.07 * SR) : int(0.07 * SR) + len(b)] += b
+        _add(x, a, 0)
+        _add(x, b, int(0.07 * SR))
         fx[f"shutter{i}"] = x
     for i in range(3):
         fx[f"scatter{i}"] = _grains(0.4, 18, 0.008, 320, 880, 1.6) + _band(crng.standard_normal(int(0.4 * SR)), 150, 600) * np.exp(-_t(0.4) * 9) * 0.3
@@ -665,8 +649,7 @@ def actions():
         rate = crng.uniform(12, 16)
         for k in range(8):
             f = _band(crng.standard_normal(int(0.045 * SR)), 180, 800) * np.hanning(int(0.045 * SR)) * (1 - k / 9)
-            at = int(k / rate * SR)
-            x[at : at + len(f)] += f
+            _add(x, f, int(k / rate * SR))
         fx[f"flutter{i}"] = x
     for i, (f0, fall) in enumerate(((140, 0.3), (120, 0.25))):
         fx[f"grunt{i}"] = _grunt(0.32, f0, fall)
@@ -681,8 +664,8 @@ def actions():
     for name, (a, b) in (("roll0", (440, 560)), ("cut0", (560, 440))):
         x = np.zeros(int(0.22 * SR))
         first, second = _knock(a, 0.1, 80.0), _knock(b, 0.1, 80.0) * 0.8
-        x[: len(first)] += first
-        x[int(0.08 * SR) : int(0.08 * SR) + len(second)] += second
+        _add(x, first, 0)
+        _add(x, second, int(0.08 * SR))
         fx[name] = x
     return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
 

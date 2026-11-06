@@ -82,7 +82,7 @@ func _sampled_raycast(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 
 
 func _all() -> PackedFloat32Array:
-	return terrain.read(Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS))
+	return terrain.read(Terrain.ALL)
 
 
 func _pull_raises_a_smooth_hill() -> void:

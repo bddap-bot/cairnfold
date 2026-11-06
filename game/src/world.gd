@@ -1538,15 +1538,16 @@ func digest() -> Dictionary:
 	for g in flora.groups:
 		var shown := 0
 		var spot := Vector3.ZERO
-		for p: Flora.Plant in flora.groups[g]:
-			if p != null and p.shown():
-				shown += 1
-				spot += p.anchor
 		var species := []
 		var scales := []
 		var turns := []
 		for p: Flora.Plant in flora.groups[g]:
-			if p != null and p.pool == flora.trunks:
+			if p == null:
+				continue
+			if p.shown():
+				shown += 1
+				spot += p.anchor
+			if p.pool == flora.trunks:
 				species.append(flora.species_of(p))
 				scales.append(snappedf(flora.scale_of(p), 0.001))
 				turns.append(snappedf(flora.turn_of(p), 0.001))

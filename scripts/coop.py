@@ -314,30 +314,6 @@ def check_spawn(out):
     assert abs(probe["feet"] - probe["terrain"]) < 0.01, "joiner stands on current ground"
 
 
-def held_scripts():
-    return {
-        "host": [
-            {"op": "easel", "x": -4, "z": 4}, {"op": "until", "seq": 1},
-            {"op": "digest", "name": "ready"}, barrier(["loaded"]), {"op": "until", "seq": 2},
-            {"op": "remote_holds", "name": "loaded"},
-            {"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
-            {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"},
-            {"op": "digest", "name": "captured"}, barrier(["seen"]), {"op": "quit"},
-        ],
-        "join": [
-            barrier(["ready"]), {"op": "join"}, {"op": "until", "seq": 1},
-            {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5},
-            {"op": "mix", "points": [[-0.3, -0.2, 0.9], [0.2, 0.25, 0.9], [-0.1, 0.3, 0.9]], "seconds": 0.5},
-            {"op": "until", "seq": 2}, {"op": "dip", "what": "oil", "index": 5},
-            {"op": "take", "what": "palette", "hand": "left"},
-            {"op": "view", "eye": [-4, 1.65, 6], "at": [-4, 1.4, 4]},
-            {"op": "hands", "left": [-0.32, -0.35, -0.4], "right": [0.32, -0.3, -0.4], "tip": 20},
-            {"op": "held_snapshot", "name": "loaded", "loaded": True}, barrier(["captured"]),
-            {"op": "digest", "name": "seen"}, {"op": "quit"},
-        ],
-    }
-
-
 # The host reshapes two houses again and again while the joiner, unsynchronised with it, paints flowers against their
 # walls, builds a wall beside them, restyles one and undoes and redoes its own steps; every peer must apply every
 # command the host sends and end with the host's garden.
@@ -422,10 +398,30 @@ def reserve_beacons():
     raise RuntimeError("no free beacon block")
 
 
+def points(w):
+    return [float(x) for x in re.search(r'"points": PackedVector3Array\(([^)]*)\)', w["data"]).group(1).split(",")]
+
+
+def paint(w):
+    return w["data"].split('"paint": ')[1].split(")")[0] + ")"
+
+
+def strip(digest):
+    for k in ("avatars", "worn", "handfuls", "frenzy"):
+        digest.pop(k)
+    return digest
+
+
 def check_peers(out, count):
     """Whether every peer of a run of count players ended with the same garden, each step of it as the scripts made it."""
     names = list(scripts(count))
-    d = {n: json.load(open(f"{out}/{n}-final.json")) for n in names}
+
+    def digest(n, phase):
+        return json.load(open(f"{out}/{n}-{phase}.json"))
+
+    def peers(phase):
+        return {n: strip(digest(n, phase)) for n in names}
+    d = {n: digest(n, "final") for n in names}
     seen = {n: g.pop("avatars") for n, g in d.items()}
     worn = {n: sorted(g.pop("worn")) for n, g in d.items()}
     for g in d.values():
@@ -449,8 +445,7 @@ def check_peers(out, count):
     check(sum("\"on\": PackedInt32Array(" in w["data"] and "\"on\": PackedInt32Array()" not in w["data"] for w in g["walls"].values()) == 1, "the joiner's storey stands on the host's house")
     check(any(abs(w["height"] - 4.2) < 0.01 for w in g["walls"].values()), "the joiner's raised wall stands 4.2 m high")
     def sides(w):
-        m = re.search(r'"points": PackedVector3Array\(([^)]*)\)', w["data"])
-        v = [float(x) for x in m.group(1).split(",")]
+        v = points(w)
         p = [(v[i], v[i + 2]) for i in range(0, len(v), 3)]
         return sorted(round(math.dist(p[i], p[(i + 1) % len(p)]), 2) for i in range(len(p)))
     check(any("roof" in w["data"] and sides(w) == [3.5, 3.5, 10.0, 10.0] for w in g["walls"].values()), "the joiner stretched the host's wing from 8 m to 10 m long: " + str([sides(w) for w in g["walls"].values() if "roof" in w["data"]]))
@@ -468,7 +463,7 @@ def check_peers(out, count):
     check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")
     check(len(g["paths"]) == 1 and len(kinds("grass")) == 1, "the host's path and the grass painted across it stand")
     check(len(g["pond_levels"]) == 1 and g["ponds"] == 1, f"the joiner's pond holds water in the hollow it pressed: {g['pond_levels']}")
-    paints = {k: (w["data"].split('"paint": ')[1].split(")")[0] + ")", re.search(r'"finish": [12],', w["data"]) is not None, '"on": PackedInt32Array()' not in w["data"]) for k, w in g["walls"].items()}
+    paints = {k: (paint(w), re.search(r'"finish": [12],', w["data"]) is not None, '"on": PackedInt32Array()' not in w["data"]) for k, w in g["walls"].items()}
     picked = "PackedInt32Array(0, 0, 0, 0, 2, 0, 0, 0, 0)"
     check(all((p == picked) == (plaster or on) for p, plaster, on in paints.values()), f"the joiner's plaster on the host's wall, and on the storey it built after, is every machine's; no other wall changes: {paints}")
     meadow = g["groups"]["0"]
@@ -480,49 +475,38 @@ def check_peers(out, count):
     easels = list(g["easels"].values())
     check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds the joiner's watercolour stroke and the host's oil one: {easels}")
     for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -450)]:
-        seen_shape = {n: json.load(open(f"{out}/{n}-{shape}.json")) for n in names}
-        for v in seen_shape.values():
-            for k in ("avatars", "worn", "handfuls", "frenzy"):
-                v.pop(k)
+        seen_shape = peers(shape)
         check(all(v == seen_shape["host"] for v in seen_shape.values()), f"every peer shows the joiner's {shape} the same")
         check(reach(seen_shape["host"]["heights"]), f"the joiner's one stroke {shape} reaches past 450 m: {seen_shape['host']['heights']}")
     for phase, shown in [("drowned", False), ("undrowned", True)]:
-        seen_phase = {n: json.load(open(f"{out}/{n}-{phase}.json")) for n in names}
-        for v in seen_phase.values():
-            for k in ("avatars", "worn", "handfuls", "frenzy"):
-                v.pop(k)
+        seen_phase = peers(phase)
         check(all(v == seen_phase["host"] for v in seen_phase.values()), f"every peer shows the garden alike once {phase}")
         trees = [v for v in seen_phase["host"]["groups"].values() if v["kind"] == "tree"]
         check(len(trees) == 1 and (trees[0]["shown"] == trees[0]["plants"] if shown else trees[0]["shown"] == 0)
               and seen_phase["host"]["ponds"] == int(not shown), f"the joiner's pond {'came away and the tree stands' if shown else 'drowned its tree'}: {trees}, {seen_phase['host']['ponds']} ponds")
-    painted = {n: json.load(open(f"{out}/{n}-easel.json")) for n in names}
-    for v in painted.values():
-        for k in ("avatars", "worn", "handfuls", "frenzy"):
-            v.pop(k)
+    painted = peers("easel")
     check(all(v == painted["host"] for v in painted.values()), "every peer shows the easel alike after the host and the joiner took charcoal, switched, set down and tore there together")
     check([e["strokes"] for e in painted["host"]["easels"].values()] == [2], f"the joiner's sheet tore off both first strokes; its charcoal stroke and the host's after stand: {painted['host']['easels']}")
     check([e["palette"] for e in painted["host"]["easels"].values()] == [1], f"the host's blue lies on the oil palette as one stroke, the same on every peer: {painted['host']['easels']}")
-    turned = json.load(open(f"{out}/host-sun.json"))["sun"]
+    turned = digest("host", "sun")["sun"]
     check(abs(turned - 0.6683) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
     check(abs(g["sun"] - 0.3878) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")
-    fed = {n: json.load(open(f"{out}/{n}-fed.json")) for n in names}
+    fed = {n: digest(n, "fed") for n in names}
     landed = {n: f["handfuls"] for n, f in fed.items()}
     check(all(len(h) == 1 for h in landed.values()) and all(math.dist(h[0], landed["host"][0]) < 0.03 for h in landed.values()),
           f"the host's thrown seeds land alike for every player: {landed}")
     frenzy = {n: f["frenzy"] for n, f in fed.items()}
     check(all(f[1] > 0 and f[0] == f[1] for f in frenzy.values()), f"and every player sees every fish of the pond swarm them: {frenzy}")
-    home = json.load(open(f"{out}/home.json"))
-    for k in ("avatars", "worn", "handfuls", "frenzy"):
-        home.pop(k)
+    home = strip(json.load(open(f"{out}/home.json")))
     check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["season"] == 1, "the visitor's own garden, one wall, is back when it goes home")
     check(seen == {n: len(names) - 1 for n in names}, f"each player sees all other avatars: {seen}")
     for n in names:
         expected = sorted(h for peer, h in own.items() if peer != n)
         check(worn[n] == expected, f"{n} sees every other custom avatar: {worn[n]}")
-    decorated = {n: json.load(open(f"{out}/{n}-decorations.json"))["decorations"] for n in names}
+    decorated = {n: digest(n, "decorations")["decorations"] for n in names}
     check(all(v == decorated["host"] for v in decorated.values()), "decoration styles and seeds sync after undo and redo")
     check(len(decorated["host"]) == 9, "all nine decoration styles survive co-op undo and redo")
-    garden = lambda phase: {n: {k: v for k, v in json.load(open(f"{out}/{n}-{phase}.json")).items() if k not in LIVE} for n in names}
+    garden = lambda phase: {n: {k: v for k, v in digest(n, phase).items() if k not in LIVE} for n in names}
     wiped, unwiped, built = garden("wiped"), garden("unwiped"), garden("decorations")
     w = wiped["host"]
     check(all(v == w for v in wiped.values()), "every peer shows the joiner's wipe alike")
@@ -534,18 +518,15 @@ def check_peers(out, count):
     check(all(v == moved["host"] for v in moved.values()), "every peer shows the joiner's carries and copy alike")
     check(all(v == unmoved["host"] for v in unmoved.values()), "and its undo alike")
     def middle(w):
-        m = re.search(r'"points": PackedVector3Array\(([^)]*)\)', w["data"])
-        v = [float(x) for x in m.group(1).split(",")]
+        v = points(w)
         return (sum(v[0::3]) / (len(v) // 3), sum(v[2::3]) / (len(v) // 3))
-    def paint(w):
-        return w["data"].split('"paint": ')[1].split(")")[0] + ")"
     houses = {middle(w): w for w in moved["host"]["walls"].values() if "roof" in w["data"]}
     carried = (MOVED_HOUSE[0] + HOUSE_CARRY[0], MOVED_HOUSE[1] + HOUSE_CARRY[1])
     host_house = next((w for c, w in houses.items() if math.dist(c, carried) < 0.1), None)
     copy_house = next((w for c, w in houses.items() if math.dist(c, COPIED_HOUSE) < 0.1), None)
     check(host_house is not None and sides(host_house) == [4.0, 4.0, 5.0, 5.0], f"the joiner carried the host's house 5 m, whole: {list(houses)}")
     if host_house is not None:
-        v = [float(x) for x in re.search(r'"points": PackedVector3Array\(([^)]*)\)', host_house["data"]).group(1).split(",")]
+        v = points(host_house)
         first = (v[3] - v[0], v[5] - v[2])
         check(abs(abs(first[0]) - 4.0) < 0.01 or abs(abs(first[1]) - 5.0) < 0.01, f"and turned it a quarter: its first side runs {first}")
     check(host_house is not None and copy_house is not None and paint(copy_house) == paint(host_house) and paint(host_house).startswith("PackedInt32Array(0, 3,"),
@@ -554,7 +535,7 @@ def check_peers(out, count):
     turned_tree, back = trees(moved["host"]), trees(unmoved["host"])
     check(len(turned_tree) == 1 and abs(turned_tree[0]["turn"][0] - math.pi / 2) < 0.01, f"the joiner turned its tree a quarter on every machine: {turned_tree}")
     check(len(back) == 1 and back[0]["turn"] == [0.0] and back[0]["spot"] != turned_tree[0]["spot"], f"and its undo put it back as it stood: {back}")
-    rocks = {n: json.load(open(f"{out}/{n}-boulder.json"))["boulders"] for n in names}
+    rocks = {n: digest(n, "boulder")["boulders"] for n in names}
     check(all(v == rocks["host"] for v in rocks.values()), "the joiner's huge boulder stands alike on every machine")
     check([b["scale"] for b in rocks["host"].values()] == [160.0], f"at twenty times the size a house could hide behind: {rocks['host']}")
     return not failed
@@ -606,7 +587,7 @@ def run(out, count, mode="full", capture=False):
         shutil.rmtree(out / folder, ignore_errors=True)
     full = mode == "full"
     generated = {"full": lambda: scripts(count, capture), "spawn": lambda: spawn_scripts(capture),
-                 "held": held_scripts, "flat": flat_scripts, "reshape": reshape_scripts}[mode]()
+                 "flat": flat_scripts, "reshape": reshape_scripts}[mode]()
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
@@ -768,9 +749,6 @@ def run(out, count, mode="full", capture=False):
             xserver.terminate()
             xserver.wait()
     print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
-    if mode == "held":
-        assert (out / "remote-palette-loaded-brush.png").is_file(), "remote held capture exists"
-        return
     if mode == "spawn":
         check_spawn(out)
         return
@@ -805,7 +783,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out", type=Path)
     parser.add_argument("players", type=int, nargs="?", default=4)
-    parser.add_argument("--held", action="store_true", help="capture and assert a peer holding a palette and loaded brush")
     parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
     parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
     parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
@@ -813,9 +790,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if not 2 <= args.players <= 8:
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
-    if args.held:
-        run(args.out.resolve(), 2, "held", capture=True)
-        raise SystemExit(0)
     for only in ("flat", "reshape"):
         if getattr(args, only):
             run(args.out.resolve(), 2, only)

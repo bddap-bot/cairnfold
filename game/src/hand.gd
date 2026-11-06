@@ -256,12 +256,9 @@ func close_wheel() -> void:
 	if expressions != null:
 		expressions.close()
 		expressions = null
-	_expression_dial = false
 	_expression_latched = false
-	_wheel = null
 	picking = false
-	_wheel_root.visible = false
-	_clear_icons()
+	_hide_wheel()
 	if dial != null:
 		for c in dial.release():
 			_wheel_root.add_child(c)
@@ -343,9 +340,7 @@ func _dial_key(key: String) -> String:
 
 ## Opens the dial of `leaf` over the hand in place of the wheel, building any figure not yet built.
 func _open_dial(leaf: String) -> void:
-	_wheel = null
-	_wheel_root.visible = false
-	_clear_icons()
+	_hide_wheel()
 	_dial_keys = people.choices(leaf)
 	var figures: Array[Node3D] = []
 	for key: String in _dial_keys:
@@ -879,14 +874,18 @@ func _expression_input(delta: float) -> void:
 		else:
 			_expression_frame = global_basis.orthonormalized()
 			_expression_twist = 0.0
-			_wheel = null
-			_clear_icons()
-			_wheel_root.visible = false
+			_hide_wheel()
 			var figure := _make_icon(pick)
 			dial = Dial.new()
 			add_child(dial)
 			dial.open(self, [figure] as Array[Node3D], 0)
 			_expression_dial = true
+
+
+func _hide_wheel() -> void:
+	_wheel = null
+	_wheel_root.visible = false
+	_clear_icons()
 
 
 func _end_expression_dial() -> void:

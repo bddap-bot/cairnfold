@@ -212,7 +212,7 @@ func _update_normals(dirty: Rect2i) -> void:
 		var push := PackedInt32Array([rect.position.x, rect.position.y, rect.size.x, rect.size.y]).to_byte_array()
 		push.append_array(PackedFloat32Array([IMPASTO, GRAIN, 0.5 * size.x / metres.x, float(level)]).to_byte_array())
 		_compute(_normal_pipeline, _normal_sets[level], push, rect)
-		var next := Vector2i(maxi(extent.x / 2, 1), maxi(extent.y / 2, 1))
+		var next := (extent / 2).max(Vector2i.ONE)
 		var from := Vector2i((Vector2(rect.position) * Vector2(next) / Vector2(extent)).floor())
 		var to := Vector2i((Vector2(rect.end) * Vector2(next) / Vector2(extent)).ceil())
 		rect = Rect2i(from, to - from).grow(1).intersection(Rect2i(Vector2i.ZERO, next))
@@ -754,7 +754,7 @@ func _freeze() -> void:
 			var extent := size
 			for level in fmt.mipmaps:
 				_rd.texture_copy(from, copy, Vector3.ZERO, Vector3.ZERO, Vector3(extent.x, extent.y, 1), level, level, 0, 0)
-				extent = Vector2i(maxi(extent.x / 2, 1), maxi(extent.y / 2, 1))
+				extent = (extent / 2).max(Vector2i.ONE)
 			_frozen.append(copy))
 	_shown[0].texture_rd_rid = _frozen[0]
 	_shown[1].texture_rd_rid = _frozen[1]

@@ -9,6 +9,7 @@ const SIZE := 160.0
 const STEP := 1.0
 const CELLS := int(SIZE / STEP)
 const VERTS := CELLS + 1
+const ALL := Rect2i(0, 0, VERTS, VERTS)
 const NO_HUMP := Vector4(0, 0, 1, 0)
 ## The ground lies within this many metres above or below zero, past any hand's pull and within what the GPU's half-float
 ## heights carry: the ground tool stops there, and no command lays it past.
@@ -331,7 +332,7 @@ static func side_along(origin: Vector3, dir: Vector3) -> float:
 static func cells_around(x: float, z: float, radius: float) -> Rect2i:
 	var lo := Vector2i(floori((x - radius + SIZE * 0.5) / STEP), floori((z - radius + SIZE * 0.5) / STEP))
 	var hi := Vector2i(ceili((x + radius + SIZE * 0.5) / STEP), ceili((z + radius + SIZE * 0.5) / STEP))
-	return Rect2i(lo, hi - lo + Vector2i.ONE).intersection(Rect2i(0, 0, VERTS, VERTS))
+	return Rect2i(lo, hi - lo + Vector2i.ONE).intersection(ALL)
 
 
 ## The grid point nearest (x, z).
@@ -373,9 +374,6 @@ static func bell(t: float) -> float:
 
 static func _lift(hump: Vector4, i: int, j: int) -> float:
 	return hump.w * bell(Vector2(-SIZE * 0.5 + i * STEP - hump.x, -SIZE * 0.5 + j * STEP - hump.y).length() / hump.z)
-
-
-const ALL := Rect2i(0, 0, VERTS, VERTS)
 
 
 func set_hump(slot: int, x: float, z: float, radius: float, lift: float) -> void:
@@ -445,7 +443,7 @@ func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 func install() -> void:
 	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RGBAH)
 	_texture = ImageTexture.create_from_image(_image)
-	_sync(Rect2i(0, 0, VERTS, VERTS))
+	_sync(ALL)
 	RenderingServer.global_shader_parameter_set(&"ground_height", _texture)
 	RenderingServer.global_shader_parameter_set(&"ground_grid", Vector3(-SIZE * 0.5, STEP, VERTS))
 	_share_humps()

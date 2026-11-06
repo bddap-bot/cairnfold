@@ -185,7 +185,6 @@ class Pool:
 		var p: Patch = _patches.get(key)
 		if p == null:
 			p = Patch.new()
-			p.key = key
 			p.mm = MultiMesh.new()
 			_setup(p.mm, drawn, Patch.FIRST)
 			p.mm.visible_instance_count = 0
@@ -198,11 +197,7 @@ class Pool:
 			terrain.lift(p.mm, p.box)
 			for k in n:
 				_write(p, k, p.slots[k])
-		var ground := terrain.bounds()
-		var box := _xforms[i] * mesh.get_aabb()
-		box.position.y += ground.position.y
-		box.size.y += ground.size.y
-		box = box.grow(0.5)
+		var box := _over_ground(_xforms[i] * mesh.get_aabb())
 		if n == 0 or not p.box.encloses(box):
 			p.box = box if n == 0 else p.box.merge(box)
 			terrain.lift(p.mm, p.box)
@@ -307,11 +302,7 @@ class Pool:
 			m.set_instance_color(j, _colors[i])
 			m.set_instance_custom_data(j, _customs[i])
 			box = box.merge(plants[i].xform * mesh.get_aabb())
-		# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
-		var ground := terrain.bounds()
-		box.position.y += ground.position.y
-		box.size.y += ground.size.y
-		terrain.lift(m, box.grow(0.5))
+		terrain.lift(m, _over_ground(box))
 		return m
 
 	## What draws the painted plants.
@@ -450,11 +441,15 @@ class Pool:
 	## Widens a kept plant's cell box to take it in as it now stands, so the camera does not cull it.
 	func _cover_cell(slot: int) -> void:
 		var cell := _cell_of[slot]
+		cell.custom_aabb = cell.custom_aabb.merge(_over_ground(plants[slot].xform * mesh.get_aabb()))
+
+	## `box` of plants kept above the ground through every height the ground stands at, which the shaders add; wind
+	## and hands bend blades a little further.
+	func _over_ground(box: AABB) -> AABB:
 		var ground := terrain.bounds()
-		var box := plants[slot].xform * mesh.get_aabb()
 		box.position.y += ground.position.y
 		box.size.y += ground.size.y
-		cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
+		return box.grow(0.5)
 
 	func draw_with(m: Mesh) -> void:
 		drawn = m
@@ -517,7 +512,6 @@ class Pool:
 ## doubles when it fills, so painting rarely resizes a GPU buffer and an unpainted square costs none.
 class Patch:
 	const FIRST := 64
-	var key: Vector2i
 	var mm: MultiMesh
 	var mmi: MultiMeshInstance3D
 	var slots := PackedInt32Array()
@@ -604,7 +598,7 @@ class Plant:
 		if current():
 			drawn = on
 			pool.draws += 1
-			pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
+			pool.place(slot, Pool._drawn_as(xform, not on))
 
 
 var moss: Pool
