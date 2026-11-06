@@ -78,7 +78,7 @@ func _init(model: Node3D) -> void:
 						for mat in mats:
 							_dirty_regions[mat] = true)
 		_bindings.append(binds)
-	_light_flat(model)
+	_light_looks(model)
 	for shown: Dictionary in data.get("shown", []):
 		var node: Node3D = nodes.get(str(shown.node))
 		if node != null:
@@ -145,11 +145,11 @@ static func prepare(model: Node3D) -> void:
 		if mipmapped:
 			img.generate_mipmaps()
 		return img
-	for pair: Array in [["hueMask", "hue_mask", false], ["colorAtlas", "untinted", true]]:
-		var img: Image = decode.call(data.get(pair[0]), pair[2])
+	var looks: Dictionary = data.get("looks", {})
+	for pair: Array in [[data.get("hueMask"), "hue_mask", false], [data.get("colorAtlas"), "untinted", true], [looks.get("emission"), "glow", true]]:
+		var img: Image = decode.call(pair[0], pair[2])
 		if img != null:
 			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(img))
-	var looks: Dictionary = data.get("looks", {})
 	var decals: Array = looks.get("decals", [])
 	looks.erase("decals")
 	var by_node := {}
@@ -175,26 +175,29 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_decal_sets", sets)
 
 
-## Binds the material index and lighting table (Avatar._flat_lit) to the meshes whose materials carry them, the ones
-## that show a flat material, and to every mesh already drawn animated, since a material swapped in may be flat.
-func _light_flat(model: Node3D) -> void:
+## Binds the material index, looks table (Avatar._lit_looks) and emission map to the meshes whose materials carry them,
+## the ones that show a flat or glowing material, and to every mesh already drawn animated, since a material swapped in
+## may be either.
+func _light_looks(model: Node3D) -> void:
 	var textures: Array = []
-	var flat := []
+	var looked := []
 	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		for i in mesh.mesh.get_surface_count():
 			var m := mesh.get_active_material(i)
 			if m != null and m.has_meta("light_index"):
 				textures = [m.get_meta("light_index"), m.get_meta("lighting")]
-				flat.append(mesh)
+				looked.append(mesh)
 				break
 	if textures.is_empty():
 		return
-	for mesh: MeshInstance3D in flat:
+	var glow: Texture2D = model.get_meta("expression_glow") if model.has_meta("expression_glow") else null
+	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
 		for mat in mats:
 			mat.set_shader_parameter("light_index", textures[0])
 			mat.set_shader_parameter("lighting", textures[1])
+			mat.set_shader_parameter("glow", glow)
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 
 

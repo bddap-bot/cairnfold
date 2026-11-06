@@ -12,6 +12,9 @@ const STEP := 256
 ## The widest atlas expression layers other than the untinted colours are carried at, the widest image a player's file
 ## carries: they mask or index the albedo, and at a widened atlas's side each would hold as much memory as it.
 const LAYER := Avatar.MAX_IMAGE_SIDE
+## The widest the emission map is carried at: it can hold a full colour texture over every glowing cell, which at LAYER
+## would weigh in a file as much as the atlas and push heavy avatars past Avatar.MAX_BYTES.
+const GLOW_LAYER := LAYER / 2
 const PAD := 4
 ## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels
 ## per texel, so they alias, while Lanczos widens its kernel to the shrink.
@@ -55,6 +58,8 @@ var widest: int
 var undecoded := {}
 var hue_masks := {}
 var color_regions := {}
+## The materials whose emission an animation drives: one dark at rest glows only if it is among them.
+var glow_regions := {}
 ## Each decal a material draws (`decal`), at the size Unity imports its texture, once however many slots draw it.
 var decal_images: Array[Image] = []
 var _decal_of := {}
@@ -603,17 +608,85 @@ func lighting(key: String) -> Dictionary:
 	return {"model": "lit"}
 
 
-## The emission of a VRChat Toon Standard material at `key` at rest as {"color", "strength", "hue", "shiftsHue"}, its
-## map in the emission atlas, or {} for a material that glows by another shader's emission or not at all.
+## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
+## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission
+## atlas (`_glow`), or {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's first
+## emission with its colour or theme colour (but the AudioLink themes, which keep its colour where no world sends
+## AudioLink), map and mask read through UV0, not tinted by the base colour (which decals and hue shifts change after
+## the atlas), and no modulation over time but AudioLink's, which leaves it at rest there.
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
-	if not m.has("cell") or not toon_standard(m) or str((m.get("floats", {}) as Dictionary).get("_EmissionUV", "0")).to_int() != 0:
+	var floats: Dictionary = m.get("floats", {})
+	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
+	if not m.has("cell"):
 		return {}
-	var colour := _colour((m.get("colours", {}) as Dictionary).get("_EmissionColor"), Color.BLACK)
+	var colours: Dictionary = m.get("colours", {})
+	var colour := Color.BLACK
+	if toon_standard(m) and number.call("_EmissionUV") == 0.0:
+		colour = _colour(colours.get("_EmissionColor"), Color.BLACK).srgb_to_linear()
+	elif poiyomi(m) and _saved(m, "_EnableEmission", 0.0) != 0.0 and ["_EmissionMapUV", "_EmissionMaskUV", "_EmissionBaseColorAsMap", "_EmissionCenterOutEnabled", "_ScrollingEmission", "_EmissionBlinkingEnabled", "_EmissionHueShiftEnabled", "_EnableGITDEmission"].all(func(name: String) -> bool: return number.call(name) == 0.0) and global_mask(m, int(number.call("_EmissionMask0GlobalMask"))) is Dictionary:
+		var theme := int(number.call("_EmissionColorThemeIndex"))
+		colour = _theme_colour(m, theme - 1) if theme >= 1 and theme <= 4 else _colour(colours.get("_EmissionColor"), Color.WHITE).srgb_to_linear()
 	if colour.r + colour.g + colour.b == 0.0:
 		return {}
-	colour = colour.srgb_to_linear()
-	return {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0), "hue": _saved(m, "_EmissionHueShift", 0.0), "shiftsHue": "USE_HUE_SHIFT" in m.get("keywords", [])}
+	return {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0 if toon_standard(m) else 0.0), "hue": _saved(m, "_EmissionHueShift", 0.0) if toon_standard(m) else 0.0, "shiftsHue": toon_standard(m) and "USE_HUE_SHIFT" in m.get("keywords", []), "replace": 0.0 if toon_standard(m) else _saved(m, "_EmissionReplace0", 0.0)}
+
+
+## Poiyomi global theme colour `index` (0 to 3) of the material in linear light at rest: its HDR colour's hue,
+## saturation and value moved by the theme's own offsets, as Poiyomi's ModifyViaHSV moves them below its exposure.
+static func _theme_colour(m: Dictionary, index: int) -> Color:
+	var colour := _colour((m.get("colours", {}) as Dictionary).get("_GlobalThemeColor%d" % index), Color.WHITE).srgb_to_linear()
+	var exposure := maxf(maxf(colour.r, maxf(colour.g, colour.b)), 1.0)
+	colour = colour / exposure
+	var moved := Color.from_hsv(fposmod(colour.h + _saved(m, "_GlobalThemeHue%d" % index, 0.0), 1.0), clampf(colour.s + _saved(m, "_GlobalThemeSaturation%d" % index, 0.0), 0.0, 1.0), clampf(colour.v + _saved(m, "_GlobalThemeValue%d" % index, 0.0), 0.0, 1.0))
+	return Color(moved.r * exposure, moved.g * exposure, moved.b * exposure)
+
+
+## The emission map over the material's padded cell, as `emission` reads it: Poiyomi's map times its mask (`_mask`).
+func _glow(m: Dictionary) -> Image:
+	var map := _over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap")
+	var p := "_EmissionMask"
+	if not poiyomi(m) or not _masked(m, p, p + "Invert", p + "0GlobalMask"):
+		return map
+	var cover := _mask(m, p, p + "Channel", p + "Invert", p + "0GlobalMask", p + "0GlobalMaskBlendType")
+	var data := map.get_data()
+	for i in cover.size():
+		for c in 3:
+			data[4 * i + c] = _ENCODED[int(_LINEAR[data[4 * i + c]] * cover[i] * 4095.0 / 255.0)]
+	map.set_data(map.get_width(), map.get_height(), false, Image.FORMAT_RGBA8, data)
+	return map
+
+
+## Whether the material's mask in `property` covers anything less than all of its cell: a texture fills it, `invert`
+## inverts it, or `global` blends a global mask into it.
+func _masked(m: Dictionary, property: String, invert: String, global: String) -> bool:
+	var floats: Dictionary = m.get("floats", {})
+	return _texture_guid(m, property) != "" or int(str(floats.get(invert, "0")).to_float()) != 0 or not (global_mask(m, int(str(floats.get(global, "0")).to_float())) as Dictionary).is_empty()
+
+
+## The material's mask in `property` over its padded cell, one byte a texel: the channel `channel` names, inverted where
+## `invert` is set, blended with the global mask `global` names by the blend `blend` names, as Poiyomi masks a matcap
+## or an emission.
+func _mask(m: Dictionary, property: String, channel: String, invert: String, global: String, blend: String) -> PackedByteArray:
+	var floats: Dictionary = m.get("floats", {})
+	var number := func(name: String, otherwise: String) -> int: return int(str(floats.get(name, otherwise)).to_float())
+	var source := _over_cell(m, _slot_image(m, property), property).get_data()
+	var pick := clampi(number.call(channel, "0"), 0, 3)
+	var inverted: bool = number.call(invert, "0") != 0
+	var over_mask: Dictionary = global_mask(m, number.call(global, "0"))
+	var over := PackedByteArray() if over_mask.is_empty() else _over_cell(m, _slot_image(m, over_mask.property) if over_mask.property != "" else null, over_mask.property).get_data()
+	var type: int = number.call(blend, "2")
+	var out := PackedByteArray()
+	out.resize(source.size() / 4)
+	for i in out.size():
+		var own := 255 - source[4 * i + pick] if inverted else source[4 * i + pick]
+		out[i] = own if over.is_empty() else roundi(255.0 * mask_blend(own / 255.0, over[4 * i + over_mask.channel] / 255.0, type))
+	return out
+
+
+## Linear light of each sRGB byte, and the sRGB byte of each of 4096 steps of linear light.
+static var _LINEAR := PackedFloat32Array(range(256).map(func(v: int) -> float: return Color(v / 255.0, 0, 0).srgb_to_linear().r))
+static var _ENCODED := PackedByteArray(range(4096).map(func(v: int) -> int: return roundi(Color(v / 4095.0, 0, 0).linear_to_srgb().r * 255.0)))
 
 
 ## Whether the material at `key` draws the look `field` that an animated property drives in `slot`.
@@ -685,6 +758,8 @@ func looks() -> Dictionary:
 		var decals := range(4).map(func(slot: int) -> Dictionary: return decal(key, slot))
 		var matcaps := range(4).map(func(slot: int) -> Dictionary: return matcap(key, slot))
 		var glows := emission(key)
+		if not glows.is_empty() and glows.strength == 0.0 and not glow_regions.has(key):
+			glows = {}
 		var light := lighting(key)
 		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light.model == "lit":
 			continue
@@ -709,30 +784,24 @@ func looks() -> Dictionary:
 			if matcap_textures.has(c.texture):
 				drawn.texture = matcap_textures.keys().find(c.texture)
 			drawn_matcaps.append(drawn)
-			var mask := _slot_image(m, MATCAPS[slot] + "Mask")
-			var invert := str(m.floats.get(MATCAPS[slot] + "MaskInvert", "0")).to_float() != 0.0
-			var global: Dictionary = global_mask(m, str(m.floats.get(MATCAPS[slot] + "MaskGlobalMask", "0")).to_int())
-			if mask == null and not invert and global.is_empty():
+			var p: String = MATCAPS[slot] + "Mask"
+			if not _masked(m, p, p + "Invert", p + "GlobalMask"):
 				continue
 			if matcap_masks == null:
 				matcap_masks = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				matcap_masks.fill(Color.WHITE)
-			var channel := clampi(str(m.floats.get(MATCAPS[slot] + "MaskChannel", "0")).to_int(), 0, 3)
-			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask").get_data()
-			var over := PackedByteArray() if global.is_empty() else _over_cell(m, _slot_image(m, global.property) if global.property != "" else null, global.property).get_data()
-			var blend := str(m.floats.get(MATCAPS[slot] + "MaskGlobalMaskBlendType", "2")).to_int()
+			var cover := _mask(m, p, p + "Channel", p + "Invert", p + "GlobalMask", p + "GlobalMaskBlendType")
 			var region := matcap_masks.get_region(padded)
 			var data := region.get_data()
-			for i in range(0, data.size(), 4):
-				var own := 255 - source[i + channel] if invert else source[i + channel]
-				data[i + slot] = own if over.is_empty() else roundi(255.0 * mask_blend(own / 255.0, over[i + global.channel] / 255.0, blend))
+			for i in cover.size():
+				data[4 * i + slot] = cover[i]
 			region.set_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data)
 			matcap_masks.blit_rect(region, Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		if not glows.is_empty():
 			if glow == null:
 				glow = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				glow.fill(Color.BLACK)
-			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap"), Rect2i(Vector2i.ZERO, padded.size), padded.position)
+			glow.blit_rect(_glow(m), Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		var cell := Rect2(m.cell)
 		entries.append({"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light})
 	if entries.is_empty():
@@ -742,15 +811,15 @@ func looks() -> Dictionary:
 	if matcap_masks != null:
 		out.matcapMasks = png.call(matcap_masks)
 	if glow != null:
-		out.emission = png.call(glow)
+		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
 	return out
 
 
-## The layer as the PNG an avatar file carries, at most LAYER wide.
-static func _layer(img: Image, resample: Image.Interpolation) -> String:
-	if img.get_width() > LAYER:
+## The layer as the PNG an avatar file carries, at most `widest` wide.
+static func _layer(img: Image, resample: Image.Interpolation, widest := LAYER) -> String:
+	if img.get_width() > widest:
 		img = img.duplicate() as Image
-		img.resize(LAYER, LAYER * img.get_height() / img.get_width(), resample)
+		img.resize(widest, widest * img.get_height() / img.get_width(), resample)
 	return Marshalls.raw_to_base64(img.save_png_to_buffer())
 
 

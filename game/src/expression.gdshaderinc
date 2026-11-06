@@ -6,10 +6,13 @@ uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
-// Each atlas texel's entry in the looks' materials and each entry's lighting (Avatar._flat_lit): red one where flat,
-// green its cap. Unset, every texel is lit by angle.
+// Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
+// flat, green its cap; row 1 its emission's colour and strength over the emission map `glow`, alpha how far the glow
+// overrides the lit colour (Poiyomi's lerp toward the glow by its brightest channel). Unset, every texel is lit by
+// angle and glows nowhere.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
+uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 // The mirror's view, the one camera that sees just Quality.MIRROR_MASK, lit by the mirror's own light and ambient
 // (MirrorTool).
 uniform uint mirror_mask;
@@ -21,6 +24,7 @@ varying vec4 given;
 // One where the vertex's material is flat; then flat_light is the ambient and light given back it takes, capped.
 varying float flat_lit;
 varying vec3 flat_light;
+varying vec4 glow_colour;
 
 // A flat material, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it
 // faces, plus the ambient, capped: its texture's painted shading is the only shading. The ambient and the light given
@@ -29,7 +33,9 @@ varying vec3 flat_light;
 // cap. The cap clips the ambient per channel and the main light by its brightest channel.
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
-	vec2 light = texelFetch(lighting, ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0), 0).rg;
+	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
+	vec2 light = texelFetch(lighting, looked, 0).rg;
+	glow_colour = textureSize(lighting, 0).y > 1 ? texelFetch(lighting, looked + ivec2(0, 1), 0) : vec4(0.0);
 	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
 	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	given = given_over(at, flat_lit > 0.5 ? vec3(0.0) : normalize(mat3(MODEL_MATRIX) * NORMAL), ground_at(at.xz));
@@ -169,12 +175,18 @@ void fragment() {
 			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * decal.rgb : decal.rgb, alpha);
 		}
 	}
-	ALBEDO = base.rgb;
+	vec3 glowing = vec3(0.0);
+	float replaced = 0.0;
+	if (any(greaterThan(glow_colour.rgb, vec3(0.0)))) {
+		glowing = textureGrad(glow, uv, dx, dy).rgb * glow_colour.rgb;
+		replaced = clamp(max(glowing.r, max(glowing.g, glowing.b)) * glow_colour.a, 0.0, 1.0);
+	}
+	ALBEDO = base.rgb * (1.0 - replaced);
 	ALPHA = base.a;
 #ifndef BLENDED
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 #endif
 	ROUGHNESS = 1.0;
 	AO = flat_lit > 0.5 ? 0.0 : given.a;
-	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light : given.rgb);
+	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing;
 }

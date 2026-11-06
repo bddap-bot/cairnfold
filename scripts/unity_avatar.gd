@@ -762,6 +762,8 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 				if not look.is_empty():
 					if not materials.draws(key, look):
 						continue
+					if look.field.begins_with("emission"):
+						materials.glow_regions[key] = true
 					binding = look.duplicate()
 					if look.field.begins_with("decal"):
 						binding.merge(materials.decal(key, look.slot))

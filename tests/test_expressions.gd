@@ -166,21 +166,24 @@ func _decals_share_pages() -> void:
 	root.free()
 
 
-## Looks that name materials carry each one's lighting or the file is refused. A mesh that shows a flat material
-## draws by the material index, held nearest-sampled at most INDEX_SIDE wide, and the lighting table; one that shows only
-## lit materials keeps its plain material.
+## Looks that name materials carry each one's lighting, and any emission a colour and strength, or the file is
+## refused. A mesh that shows a flat or glowing material draws by the material index, held nearest-sampled at most
+## INDEX_SIDE wide, the looks table and the emission map; one that shows only lit materials, dark at rest, keeps its own.
 func _lighting() -> void:
 	var index := Image.create_empty(4096, 4096, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2048, 4096), Color8(1, 1, 1))
-	index.fill_rect(Rect2i(2048, 0, 2048, 4096), Color8(2, 2, 2))
+	index.fill_rect(Rect2i(2048, 0, 1536, 4096), Color8(2, 2, 2))
+	index.fill_rect(Rect2i(3584, 0, 512, 4096), Color8(3, 3, 3))
 	var encoded := Marshalls.raw_to_base64(index.save_png_to_buffer())
-	var looks := {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}}]}
+	var glow := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	glow.fill(Color.WHITE)
+	var looks := {"index": encoded, "emission": Marshalls.raw_to_base64(glow.save_png_to_buffer()), "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}, "emission": {"color": [0.0, 0.5, 1.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 0.5}}, {"lighting": {"model": "lit"}, "emission": {"color": [1.0, 1.0, 1.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks lighting each material are valid")
-	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"materials": []}]:
+	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"materials": []}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
 		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
 	var root := Node3D.new()
 	var meshes: Array[ImporterMesh] = []
-	for u: float in [0.25, 0.75]:
+	for u: float in [0.25, 0.75, 0.88]:
 		var im := ImporterMesh.new()
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
@@ -188,7 +191,7 @@ func _lighting() -> void:
 		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.1), Vector2(u, 0.5), Vector2(u + 0.1, 0.9)])
 		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
 		meshes.append(im)
-	Avatar._flat_lit(looks, meshes)
+	Avatar._lit_looks(looks, meshes)
 	var shown: Array[MeshInstance3D] = []
 	for im in meshes:
 		var mi := MeshInstance3D.new()
@@ -196,14 +199,18 @@ func _lighting() -> void:
 		root.add_child(mi)
 		shown.append(mi)
 	root.set_meta("expressions", {"looks": looks})
+	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
 	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
 	var held: Texture2D = mat.get_shader_parameter("light_index") if mat else null
 	var table: Texture2D = mat.get_shader_parameter("lighting") if mat else null
 	check(held != null and held.get_width() == Avatar.INDEX_SIDE and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.INDEX_SIDE)
 	var rows := table.get_image() if table else null
-	check(rows != null and rows.get_width() == 3 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
-	check(shown[1].get_surface_override_material(0) == null and shown[1].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials keeps its plain material")
+	check(rows != null and rows.get_width() == 4 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
+	check(rows != null and rows.get_height() == 2 and rows.get_pixel(1, 1) == Color(0, 0, 0, 0) and rows.get_pixel(2, 1).is_equal_approx(Color(0.0, 1.0, 2.0, 0.5)), "the table's second row holds each entry's emission colour times its strength, and how far it overrides the lit colour")
+	var lit := shown[1].get_surface_override_material(0) as ShaderMaterial
+	check(lit != null and lit.get_shader_parameter("glow") is Texture2D, "a mesh showing a glowing material draws by the looks with their emission map")
+	check(shown[2].get_surface_override_material(0) == null and shown[2].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials dark at rest keeps its plain material")
 	player.free()
 	root.free()
 

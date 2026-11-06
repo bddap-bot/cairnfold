@@ -1,7 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's flat material is lit alike on its side toward the light and its side away, and no brighter
-## than its cap however strong the light; a lit one is shaded by angle. Needs a renderer, so scripts/test.sh runs it on
+## than its cap however strong the light; a lit one is shaded by angle; a glowing one glows its emission in the dark,
+## over its glow's own colour where it overrides its base colour. Needs a renderer, so scripts/test.sh runs it on
 ## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
 
 const SIZE := 96
@@ -49,6 +50,14 @@ func _run() -> void:
 			env.ambient_light_color = Color.WHITE * light.y
 			shots["%s %s" % [model, light]] = await _sides(view)
 		avatar.queue_free()
+	var glowing := _ball("glow")
+	view.add_child(glowing)
+	sun.light_energy = 0.0
+	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ZERO)
+	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
+	env.ambient_light_color = Color.BLACK
+	shots["glow"] = await _sides(view)
+	glowing.queue_free()
 	print(shots)
 	var flat_dim: Vector2 = shots["flat (0.5, 0.0)"]
 	var flat_bright: Vector2 = shots["flat (3.0, 0.0)"]
@@ -60,11 +69,14 @@ func _run() -> void:
 	check(absf(flat_ambient.x - 0.5) < 0.04 and absf(flat_ambient.x - flat_ambient.y) < 0.03, "a flat material takes light 0.3 and ambient 0.2 whole, either side: %s" % flat_ambient)
 	check(absf(flat_both.x - 0.8) < 0.06 and absf(flat_both.x - flat_both.y) < 0.03, "a flat material in light and ambient past its cap is lit at the cap: %s" % flat_both)
 	check(lit.x > lit.y + 0.2, "a lit material is shaded by angle: %s" % lit)
+	var glow: Vector2 = shots["glow"]
+	check(absf(glow.x - 0.75) < 0.04 and absf(glow.y - 0.75) < 0.04, "a material glowing red 0.25 at strength 2 that overrides its base colour glows 0.5 over the half it replaces, 0.75, on both sides in the dark: %s" % glow)
 	view.queue_free()
 	finish()
 
 
-## A white ball whose looks light its one material `model`, capped at 0.8, as the avatar runtime opens it.
+## A white ball whose looks light its one material `model`, capped at 0.8, or for "glow" lit by angle and glowing red
+## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -80,12 +92,16 @@ func _ball(model: String) -> Node3D:
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sphere.get_mesh_arrays(), [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
-	var light := {"model": model, "cap": 0.8} if model == "flat" else {"model": model}
+	var light := {"model": "flat", "cap": 0.8} if model == "flat" else {"model": "lit"}
 	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "materials": [{"lighting": light}]}
-	Avatar._flat_lit(looks, [im])
+	if model == "glow":
+		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
+		looks.emission = Marshalls.raw_to_base64(picture.save_png_to_buffer())
+	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)
 	ball.set_meta("expressions", {"looks": looks})
+	ExpressionPlayer.prepare(ball)
 	ball.add_child(ExpressionPlayer.new(ball))
 	return ball
 

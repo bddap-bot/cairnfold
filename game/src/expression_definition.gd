@@ -71,8 +71,9 @@ static func valid(data: Dictionary) -> bool:
 
 
 ## Looks that name their materials give each its "lighting": "lit" by angle, or "flat", lit alike whichever way it
-## faces and capped at "cap" when it has one (unity/materials.gd lighting). A file whose looks predate lighting would draw
-## flat materials shaded twice, so it is refused rather than guessed at (Avatar.shape).
+## faces and capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
+## "color", "strength" and, optionally, "replace". A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
+## rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		return false
@@ -85,6 +86,10 @@ static func looks_valid(looks: Variant) -> bool:
 		var light: Variant = m.get("lighting") if m is Dictionary else null
 		if not light is Dictionary or light.get("model") not in ["lit", "flat"] or not _number(light.get("cap", 0.0)):
 			push_error("expressions: a look's material has no lighting (\"lit\" or \"flat\" with a numeric cap): %s; convert the avatar again" % [light])
+			return false
+		var glow: Variant = m.get("emission")
+		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
+			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
 			return false
 	return true
 

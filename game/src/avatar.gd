@@ -292,8 +292,7 @@ static func texture_bytes(glb: PackedByteArray, images: Array[Dictionary]) -> in
 		texels += image.size.x * image.size.y
 	var json: Variant = Vrm.json_chunk(glb) if glb.size() >= 20 else null
 	var definition: Variant = Vrm._field(Vrm._field(json, "extensions"), Vrm.EXPRESSIONS)
-	for layer: String in ["hueMask", "colorAtlas"]:
-		var encoded: Variant = Vrm._field(definition, layer)
+	for encoded: Variant in [Vrm._field(definition, "hueMask"), Vrm._field(definition, "colorAtlas"), Vrm._field(Vrm._field(definition, "looks"), "emission")]:
 		if encoded is String:
 			var dims := Vrm._image_size(Marshalls.base64_to_raw((encoded as String).left(44)))
 			texels += dims.x * dims.y
@@ -395,7 +394,7 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material, its
-## materials plain and those of meshes showing a flat-lit material carrying their lighting (`_flat_lit`). False, leaving
+## materials plain and those of meshes showing a flat-lit or glowing material carrying their looks (`_lit_looks`). False, leaving
 ## them as they were, if their blend shapes are past MAX_BLEND_VERTICES or their looks lack lighting.
 static func shape(state: GLTFState) -> bool:
 	var blended := 0
@@ -414,29 +413,35 @@ static func shape(state: GLTFState) -> bool:
 	var looks: Variant = expressions.get("looks", {}) if expressions is Dictionary else {}
 	if not ExpressionDefinition.looks_valid(looks):
 		return false
-	_flat_lit(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
+	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
 	return true
 
 
-## Gives the meshes that show a material its looks light flat (ExpressionDefinition) copies of their materials carrying
-## the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a row of each entry's
-## lighting (red one where flat, green its cap), for the avatar's shader to light them by (ExpressionPlayer). A mesh
-## shows a material where one of its vertices' texture coordinates falls in that material's cell.
-static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
+## Gives the meshes that show a material its looks light flat or make glow (ExpressionDefinition) copies of their
+## materials carrying the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a
+## table of each entry's looks: row 0 its lighting (red one where flat, green its cap), row 1 its emission's linear
+## colour times its strength and, in alpha, how far it overrides the lit colour, for the avatar's shader to draw them by (ExpressionPlayer) over the looks' emission map. A
+## mesh shows a material where one of its vertices' texture coordinates falls in that material's cell.
+static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var materials: Array = looks.get("materials", [])
-	var flat := PackedByteArray()
-	flat.resize(256)
-	var table := Image.create_empty(materials.size() + 1, 1, false, Image.FORMAT_RGF)
+	var drawn := PackedByteArray()
+	drawn.resize(256)
+	var table := Image.create_empty(materials.size() + 1, 2, false, Image.FORMAT_RGBAF)
 	for k in materials.size():
 		var light: Dictionary = materials[k].lighting
 		if light.model == "flat":
-			flat[k + 1] = 1
+			drawn[k + 1] = 1
 			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
-	if flat.count(1) == 0:
+		var glow: Variant = materials[k].get("emission")
+		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
+		if glows.r + glows.g + glows.b > 0.0:
+			drawn[k + 1] = 1
+			table.set_pixel(k + 1, 1, glows)
+	if drawn.count(1) == 0:
 		return
 	var index := Image.new()
 	if index.load_png_from_buffer(Marshalls.base64_to_raw(looks.index)) != OK:
-		push_error("avatar: the looks' material index is no PNG; its flat materials draw lit by angle")
+		push_error("avatar: the looks' material index is no PNG; its flat materials draw lit by angle, its glowing ones dark")
 		return
 	index.convert(Image.FORMAT_L8)
 	var big := maxi(index.get_width(), index.get_height())
@@ -444,7 +449,7 @@ static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
 		index.resize(index.get_width() * INDEX_SIDE / big, index.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
 	var texels := index.get_data()
 	var size := index.get_size()
-	var lit_flat := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
+	var looked := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
 	var copies := {}
 	for im: ImporterMesh in meshes:
 		var shows := false
@@ -452,7 +457,7 @@ static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
 			var uvs: Variant = im.get_surface_arrays(i)[Mesh.ARRAY_TEX_UV]
 			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
 				var at := Vector2i((uv * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
-				if flat[texels[at.y * size.x + at.x]] == 1:
+				if drawn[texels[at.y * size.x + at.x]] == 1:
 					shows = true
 					break
 			if shows:
@@ -465,8 +470,8 @@ static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
 				continue
 			if not copies.has(m):
 				var copy: Material = m.duplicate()
-				for key: String in lit_flat:
-					copy.set_meta(key, lit_flat[key])
+				for key: String in looked:
+					copy.set_meta(key, looked[key])
 				copies[m] = copy
 			im.set_surface_material(i, copies[m])
 

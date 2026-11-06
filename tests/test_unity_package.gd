@@ -54,6 +54,7 @@ func _run() -> void:
 	_the_atlas_widens_before_its_cells_shrink()
 	_a_decal_keeps_the_size_unity_imports()
 	_matcaps_and_emission_join_the_look()
+	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_installed_packages_lend_only_missing_images()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
@@ -1569,6 +1570,65 @@ func _matcaps_and_emission_join_the_look() -> void:
 		var eye: Rect2i = materials.materials.eye.cell
 		check(hue.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r < 0.2 and hue.get_pixel(eye.position.x + 3 * eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8, "the mask's chosen channel")
 	sk.free()
+
+
+## Poiyomi's first emission glows in its theme colour, its hue, saturation and value moved by the theme's offsets, over
+## its map times its mask's channel; one that blinks over time or takes the base colour glows nowhere the atlas could
+## hold, and one dark at rest that no animation lights has no look.
+func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
+	var dir := ProjectSettings.globalize_path("user://glow")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _EmissionStrength ("Strength", Range(0, 20)) = 0 } }')
+	var material := """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMask:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: %d
+    - _EmissionMaskChannel: 1
+    - _EmissionColorThemeIndex: 1
+    - _GlobalThemeValue0: -0.5
+    - _EmissionBlinkingEnabled: %d
+    - _EmissionReplace0: 1
+    m_Colors:
+    - _EmissionColor: {r: 1, g: 0, b: 0, a: 1}
+    - _GlobalThemeColor0: {r: 0, g: 0, b: 1, a: 1}
+"""
+	write.call("suit.mat", "suit", material % [3, 0])
+	write.call("blink.mat", "blink", material % [3, 1])
+	write.call("dark.mat", "dark", material % [0, 0])
+	write.call("tinted.mat", "tinted", (material % [3, 0]).replace("    - _EnableEmission: 1\n", "    - _EnableEmission: 1\n    - _EmissionBaseColorAsMap: 1\n"))
+	var half := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	half.set_pixel(0, 0, Color(1, 0, 0, 1))
+	half.set_pixel(1, 0, Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "suit"}, Color.WHITE)
+	materials.use({"guid": "blink"}, Color.WHITE)
+	materials.use({"guid": "dark"}, Color.WHITE)
+	materials.use({"guid": "tinted"}, Color.WHITE)
+	materials.pack(["suit", "blink", "dark", "tinted"])
+	var glows := materials.emission("suit")
+	var colour: Array = glows.get("color", [0, 0, 0])
+	check(Color(colour[0], colour[1], colour[2]).is_equal_approx(Color(0, 0, 0.5)) and glows.get("strength") == 3.0 and not glows.get("shiftsHue", true) and glows.get("replace") == 1.0, "the emission takes its theme colour, value moved by its offset, its strength and how far it overrides the base colour: %s" % [glows])
+	check(materials.emission("blink").is_empty(), "an emission that blinks over time is left out")
+	check(materials.emission("tinted").is_empty(), "an emission tinted by the base colour, which decals and hue shifts change after the atlas, is left out")
+	var looks := materials.looks()
+	check((looks.get("materials", []) as Array).map(func(e: Dictionary) -> bool: return e.emission != null) == [true], "a material dark at rest that no animation lights draws no look")
+	var glow := Image.new()
+	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
+	if not glow.is_empty():
+		var cell: Rect2i = materials.materials.suit.cell
+		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
+		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
+		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.blink.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
 
 
 func _submeshes_take_slots_in_first_use_order() -> void:
