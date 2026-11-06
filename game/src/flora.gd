@@ -9,19 +9,18 @@ extends Node3D
 const PAINTED_GRASS := 12000
 ## The meadow's grass cells are small, so a cell turns sparse close to where its clumps do.
 const GRASS_CELL := 8.0
-## From GRASS_LOD_BEGIN out, over GRASS_LOD_BAND, a clump draws fewer, wider blades (Meshes.grass_clump): far blades
-## are slivers whose cost is their count, not their pixels. Over the same band all but the GRASS_SURVIVORS share of
-## clumps (by FloraLayout.thin_rank) sink away, so past it a cell draws its survivors alone, from a mesh of the kept
-## blades only. Survivors sink away in turn from GRASS_SURVIVORS_FROM of the grass reach out to it, each at its own
-## distance: the meadow thins with distance instead of ending at a ring of growing blades.
-const GRASS_LOD_BEGIN := 8.0
+## From GRASS_LOD_BEGIN out, over GRASS_LOD_BAND, all but the GRASS_SURVIVORS share of clumps (by
+## FloraLayout.thin_rank) sink away, so past it a cell draws its survivors alone. Survivors sink away in turn from
+## GRASS_SURVIVORS_FROM of the grass reach out to it, each at its own distance: the meadow thins with distance instead
+## of ending at a ring of growing blades.
+const GRASS_LOD_BEGIN := 4.0
 const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
 ## A clump draws CLUMP_BLADES blades, each CLUMP_WIDE times a blade's width, covering what seven narrower ones did:
-## near grass costs the Quest 2 its triangles as well as its pixels.
-const CLUMP_BLADES := 5
-const CLUMP_WIDE := 1.4
+## the Quest 2 pays for the near blades' slivers more than for the pixels they cover (docs/design.md, "Cheaper flora").
+const CLUMP_BLADES := 3
+const CLUMP_WIDE := 2.33
 ## Land flowers past this distance draw as their far patches (flora_far.gdshader).
 const FLOWER_NEAR := 12.0
 ## Petals a flower head opens.
@@ -50,9 +49,9 @@ signal grown
 
 
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
-## one MultiMesh per `cell` square, so the camera culls those off screen, and they are never recycled. A pool with a
-## `sparse` mesh also bakes, per cell, the plants whose rank (colour alpha) is under `survivors` drawn with it, and
-## draws that instead of the whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill `capacity`
+## one MultiMesh per `cell` square, so the camera culls those off screen, and they are never recycled. A pool with
+## `survivors` also bakes, per cell, the plants whose rank (colour alpha) is under it, and draws those instead of the
+## whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill `capacity`
 ## in order and, once it is full, replace the oldest; each is drawn in a Patch, a growing MultiMesh per `cell`
 ## square, so painted plants off screen or past reach cost nothing either. Every tree has the same number of
 ## blobs, so the trunk and foliage pools recycle in step.
@@ -60,7 +59,6 @@ class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
 	const GRID := 2.0
 	var cell: float
-	var sparse: Mesh
 	var sparse_from := INF
 	var survivors := 0.0
 	## What the meadow's own plants bake with, where they need less than placed ones: no water plant parts.
@@ -266,18 +264,19 @@ class Pool:
 		_index_in_sparse.resize(kept)
 		for key: Vector2i in cells:
 			var slots: Array = cells[key]
-			var whole := _bake(slots, kept_mesh if kept_mesh != null else drawn)
+			var baked := kept_mesh if kept_mesh != null else drawn
+			var whole := _bake(slots, baked)
 			for j in slots.size():
 				_cell_of[slots[j]] = whole
 				_index_in_cell[slots[j]] = j
 			_cells.append(_show(whole))
 			_cell_layers.append(1)
 			_centres.append((Vector2(key) + Vector2(0.5, 0.5)) * cell)
-			if sparse != null:
+			if survivors > 0.0:
 				var few := slots.filter(func(i: int) -> bool: return _colors[i].a < survivors)
 				var mmi: MultiMeshInstance3D = null
 				if not few.is_empty():
-					var m := _bake(few, sparse)
+					var m := _bake(few, baked)
 					for j in few.size():
 						_sparse_cell_of[few[j]] = m
 						_index_in_sparse[few[j]] = j
@@ -470,7 +469,7 @@ class Pool:
 			if layers != _cell_layers[i]:
 				_cell_layers[i] = layers
 				_cells[i].layers = layers
-			if sparse != null and _sparse_cells[i] != null:
+			if survivors > 0.0 and _sparse_cells[i] != null:
 				_sparse_cells[i].visible = d >= sparse_from and d < reach
 		for p: Patch in _patches.values():
 			var lo := Vector2(p.box.position.x, p.box.position.z) - Vector2(eye.x, eye.z)
@@ -678,10 +677,9 @@ func _init(ground: Terrain, laid: Ground) -> void:
 		grass_mat.set_shader_parameter(k, Meadow.GRASS[k])
 	_grass_lod(grass_mat)
 	part(NO_HAND, NO_HAND)
-	var clump := Meshes.grass_clump(CLUMP_BLADES, 1, 3, false, CLUMP_WIDE)
+	var clump := Meshes.grass_clump(CLUMP_BLADES, 1, CLUMP_WIDE)
 	var bloom := Meshes.flower(PETALS, Color.WHITE, true)
 	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_CELL)
-	grass.sparse = Meshes.grass_clump(CLUMP_BLADES, 1, 3, true, CLUMP_WIDE)
 	grass.survivors = GRASS_SURVIVORS
 	grass.sparse_from = GRASS_LOD_BEGIN + GRASS_LOD_BAND
 	flower_mat = _plant_material("flower", 0.8)

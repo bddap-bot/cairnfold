@@ -341,17 +341,16 @@ func _grass_thins_with_distance() -> void:
 		if mmi in g.patches() + flora.ghost_grass.patches() or not mmi.visible or not mmi.layers & Quality.VIEW_MASK:
 			continue
 		var at := mmi.multimesh.custom_aabb.get_center()
-		if mmi.multimesh.mesh == g.mesh:
-			whole.append(at.x)
-		elif mmi.multimesh.mesh == g.sparse:
+		if mmi in g._sparse_cells:
 			few.append([at.x, mmi.multimesh.instance_count])
+		elif mmi.multimesh.mesh == g.mesh:
+			whole.append(at.x)
 	check(whole.size() == 1 and absf(whole[0] - near.x) < 1.0, "only the near cell draws every clump: %s" % [whole])
 	check(few.size() == 1 and absf(few[0][0] - mid) < 1.0 and few[0][1] == 1, "the cell past sparse_from draws its survivor alone: %s" % [few])
-	check(g.sparse.get_faces().size() < g.mesh.get_faces().size(), "from a mesh with fewer blades")
 	var photo := []
 	for mmi: MultiMeshInstance3D in flora.get_children():
-		if mmi not in g.patches() + flora.ghost_grass.patches() and mmi.multimesh.mesh in [g.mesh, g.sparse] and mmi.visible and mmi.layers & Quality.PHOTO_MASK:
-			photo.append(mmi.multimesh.mesh == g.mesh)
+		if mmi not in g.patches() + flora.ghost_grass.patches() and mmi.multimesh.mesh == g.mesh and mmi.visible and mmi.layers & Quality.PHOTO_MASK:
+			photo.append(mmi not in g._sparse_cells)
 	check(photo.size() == 3 and not photo.has(false), "a photo draws every cell with every clump: %s" % [photo])
 	# A dummy renderer keeps no instance transforms, so where taking a plant out writes is checked instead.
 	check(g._cell_of[1] == g._cell_of[2] and g._index_in_cell[1] != g._index_in_cell[2], "each clump of a cell has its own place in it")

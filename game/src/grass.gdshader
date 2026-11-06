@@ -84,7 +84,6 @@ void vertex() {
 		float wide = (1.0 - worn * 0.5) * mix(1.0, weed_narrow, weed);
 		VERTEX = root + (VERTEX - root) * vec3(wide, (1.0 - worn) * mix(1.0, accent_height, accent) * stretch, wide);
 		float lod = full ? 0.0 : smoothstep(lod_begin, lod_begin + lod_band, dist);
-		VERTEX = mix(VERTEX + mat3(MODEL_MATRIX) * vec3(CUSTOM0.x, 0.0, CUSTOM0.y) * lod, root, lod * CUSTOM0.z);
 		vec2 grown = mix(vec2(1.0), survivor_scale, lod * step(rank, survivors));
 		VERTEX = root + (VERTEX - root) * grown.xyx;
 

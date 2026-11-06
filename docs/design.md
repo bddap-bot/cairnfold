@@ -2197,6 +2197,73 @@ clump charged before measured. Packed beside the eye on this build
 `scripts/paired.py --price` refuses a phase whose median frame took over 1.5 refresh periods, as the fit leaves such
 views out, and a pair not pinned at one step. Trees and bushes keep their charges.
 
+### Grass at the fit step
+
+At the build budget's full room the meadow's grass was the dearest thing in view after masonry: hiding every blade
+saved 0.9 to 1.3 ms standing among a full garden's builds (`demo/fill.json`, `demo/fill-profile.json`). Measured on
+the Quest 2 at `Budget.fit_step()` before changing anything, App= ms a frame, each grass variant held 7 to 20 s in one
+run against the same view with every blade shown and hidden:
+
+| Grass variant (one run each) | Meadow, standing | Houses, among | Walls, among |
+| --- | --- | --- | --- |
+| Shown | 6.16 | 8.81 | 8.21 |
+| Hidden | 4.10 | 7.42 | 7.02 |
+| Every vertex of a clump at its root: submitted, no area | 4.38 | 7.59 | 7.22 |
+| No hand parting, bounce light, water, wind, worn ground or ground height, all six | 5.65 | 8.19 | 7.78 |
+
+The GPU's own counters (`ovrgpuprofiler`) over the meadow standing: fragments shaded a second were the same with the
+grass shown, hidden or collapsed to its roots (7.34 to 7.39 × 10⁸), while vertices shaded rose by 5.7 × 10⁶ a second and
+the share of time shading vertices from 20% to 29%. Lit per vertex, without its backlight, and even unshaded, the grass
+cost within 0.45 ms of itself (separate builds, one run each on a second Quest 2). So the cost is the near blades'
+slivers, rasterised and shaded where the ground behind them would have been, and the vertices that make them; what is
+drawn past 12 m, and the vertex shader's arithmetic, are small: grass drawn to 12 m instead of 24 saved 0.33 ms
+standing in the meadow and nothing among the builds (an earlier build, 5.54 to 5.21 ms). What buys it back is fewer near slivers:
+
+| One run, second Quest 2, App= ms | Meadow, standing | Houses, among |
+| --- | --- | --- |
+| Five blades a clump, thinning from 8 m (as it was) | 6.98, 6.92 | 11.12, 11.17 |
+| Three blades 2.33 times as wide | 6.54, 6.60 | 10.94, 10.96 |
+| Thinning from 4 m | 6.46, 6.47 | 10.99, 10.86 |
+| Hidden | 4.67 | 9.95 |
+
+Both now run: a clump draws three blades 2.33 times a blade's width at every distance, the three its far form kept
+before (`Flora.CLUMP_BLADES`, `CLUMP_WIDE`), and three clumps in four sink away from 4 m instead of 8
+(`Flora.GRASS_LOD_BEGIN`). The far widening, which grew a near clump's kept blades into its far form, has nothing left
+to do and is gone. Near grass reads as fewer, broader blades and the meadow thins sooner; its colour and cover are
+as they were.
+
+Before and after on one Quest 2 (the second, which reads about a millisecond above the first), interleaved, App= ms a
+frame at the fit step, standing among a garden built to its full room (`demo/fill-profile.json`, each view's two
+stretches, two pairs of runs):
+
+| View | Before | After | Grass hidden, before / after |
+| --- | --- | --- | --- |
+| Houses (`houses-100/all-among`, `all-among2`) | 10.22, 9.97 · 9.63, 9.20 | 9.48, 9.61 · 9.13, 8.81 | 9.23, 8.20 / 9.33, 8.75 |
+| Walls (`walls-100/all-among`, `all-among2`) | 9.12, 9.02 · 8.67, 8.85 | 8.25, 8.62 · 8.20, 8.21 | 7.56, 7.46 / 7.47, 7.29 |
+
+And every garden of `demo/fill.json` at its full room, one pair, the meadow's centre standing and among the builds:
+
+| Garden | Centre, before → after | Among, before → after |
+| --- | --- | --- |
+| Meadow built out | 6.06 → 5.30 | 6.14 → 5.65 |
+| Hamlet, walls and planting | 6.47 → 6.18 | 7.38 → 6.93 |
+| Walls | 6.47 → 5.90 | 8.60 → 8.43 |
+| Houses | 5.10 → 4.55 | 9.75 → 8.78 |
+| Mix | 6.29 → 6.17 | 7.60 → 7.27 |
+
+From the air each moved 0.02 to 0.25 ms. Standing among a full garden the frame is 0.45 to 0.6 ms cheaper, most of
+what the grass cost there.
+
+The budget, refitted per "Build budget" on these runs (`demo/costs.json` and `demo/meadow-flora.json`, one pair):
+the base's views that keep the meadow's grass fell standing (the meadow less its trees and bushes 5.54 to 5.16 ms, the
+bare meadow standing 5.48 to 4.51 and beside the eye 5.57 to 4.56), but the dearest of them is the meadow from the
+air less its trees and bushes, where a blade is a few pixels: 5.74 ms before and 5.65 after, its trees and bushes
+taken at the smaller of the two runs' readings there, 0.53 ms. A 0.09 ms move is inside a run's spread, so `Budget.CAPACITY_MS` stays 3.99 and
+`demo/fill.json` builds the same at its full room on either build: the houses scene lays five (fill 0.988 before, 0.995
+after) and the walls scene six (0.973, 0.985). Painted grass is cheaper: the packed 9,000-clump discs, which halved the frame rate on this Quest 2 before, hold 72 Hz
+after, and price at 0.412 µs a clump (costs) and 0.433 to 0.508 (pondweed's land disc, 0.379 to 0.387 its pondweed),
+under the 0.591 a clump is charged.
+
 ### Crowns
 
 A crown is lit and shaded as one soft mass, at no measured cost
@@ -2666,7 +2733,7 @@ defined once: tunables as uniforms in `grass.gdshader` and, for the wind every p
 | 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
 | 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a straight blade | Vertex count grows with segments | Dropped: a blade is one triangle (row 16) |
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
-| 12 | Distance LOD: fewer, wider, sparser clumps far away | The meadow reads to its far edge at less cost than a 24 m full-detail reach | From 8 m out, over 4 m (`Flora.GRASS_LOD_BEGIN`, `GRASS_LOD_BAND`), a clump keeps 3 of its 7 blades, widened to cover the same ground, and three clumps in four sink into the ground, each at its own distance by its rank (`FloraLayout.thin_rank`); the survivors spread twice as wide and stand a quarter taller to hold the cover. The meadow's grass is baked into 8 m cells, each also holding its survivors alone in a mesh of only their kept blades: a cell wholly past 12 m draws that instead, so far clumps bin 9 vertices rather than 21 and the sunk three quarters bin none. Nothing pops: by the distance a cell switches, what it stops drawing has already sunk away | Done |
+| 12 | Distance LOD: fewer, wider, sparser clumps far away | The meadow reads to its far edge at less cost than a 24 m full-detail reach | From 4 m out, over 4 m (`Flora.GRASS_LOD_BEGIN`, `GRASS_LOD_BAND`), three clumps in four sink into the ground, each at its own distance by its rank (`FloraLayout.thin_rank`); the survivors spread twice as wide and stand a quarter taller to hold the cover. Every clump draws the same three wide blades near and far (`Flora.CLUMP_BLADES`). The meadow's grass is baked into 8 m cells, each also holding its survivors alone: a cell wholly past 8 m draws that instead, so the sunk three quarters bin none. Nothing pops: by the distance a cell switches, what it stops drawing has already sunk away | Done |
 | 13 | Draw reach and ground | Survivors sink away one at a time from half of `Flora.grass_reach` (60 m at full quality, less down the ladder) out to it, so the meadow thins into the ground instead of ending at a ring of growing blades. The ground takes its colour from the blades' own palette (`meadow.gdshaderinc`, set from `Meadow.GRASS`) at the tone far blades converge on, and its lush and dry patches from the same field as the blades' (`FloraLayout.dryness`, baked into the terrain mesh), so where the blades thin the ground carries on the meadow they were | Cells wholly out of reach are not drawn | Done |
 | 14 | Colour patches in a few flat tones | The meadow reads as broad lush, mid and straw patches with soft edges rather than one smooth wash, on the blades and the ground alike | Two saturated ramps on the dryness the blades and ground already share (`patched` in `meadow.gdshaderinc`): per vertex on blades, per fragment on the ground; computing it per vertex on the ground blurred the patches away | Done |
 | 15 | Accent tufts | One clump in twenty, the warmest-tinted, stands 1.6 times as tall with fresher green tips, breaking up the carpet | A step and a mix per vertex from per-instance data already there | Done |

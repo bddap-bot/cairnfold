@@ -163,17 +163,12 @@ static func plain_box() -> ArrayMesh:
 	return st.commit()
 
 
-## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip. Far off, grass.gdshader draws only the first
-## `kept` blades, each widened by its CUSTOM0.xz, so they cover the ground all `blades` did; CUSTOM0.z is 1 on the
-## blades it drops.
-## With `only_kept`, the blades past `kept` are left out rather than marked to shrink: the clump as it stands far away.
-## `wide` scales every blade's width.
-static func grass_clump(blades: int, seed: int, kept := blades, only_kept := false, wide := 1.0) -> ArrayMesh:
+## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip. `wide` scales every blade's width.
+static func grass_clump(blades: int, seed: int, wide := 1.0) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
 	for b in blades:
 		var ang := rng.randf() * TAU
 		var dir := Vector3(cos(ang), 0, sin(ang))
@@ -189,14 +184,9 @@ static func grass_clump(blades: int, seed: int, kept := blades, only_kept := fal
 		var uvs := [Vector2(0, 0), Vector2(0.5, 1), Vector2(1, 0)]
 		# Edge normals tilt outward, so a flat blade shades as if rounded across its width.
 		var rounded := [nrm - side * 0.7, nrm, nrm + side * 0.7]
-		var widen := [-side * w, Vector3.ZERO, side * w]
-		var grow := float(blades) / kept - 1.0 if b < kept else 0.0
-		if only_kept and b >= kept:
-			continue
 		for k in 3:
 			st.set_normal(rounded[k].normalized())
 			st.set_uv(uvs[k])
-			st.set_custom(0, Color(widen[k].x * grow, widen[k].z * grow, float(b >= kept)))
 			st.add_vertex(pts[k])
 	return st.commit()
 
