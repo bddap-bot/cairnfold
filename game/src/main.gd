@@ -122,6 +122,7 @@ func _ready() -> void:
 	water = Water.new(world.terrain, hands)
 	water.refilled.connect(tool.reground.bind(true))
 	water.refilled.connect(paths.reground.bind(true))
+	water.refilled.connect(flora.rewet)
 	add_child(water)
 	water_tool = WaterTool.new(rig, world)
 	add_child(water_tool)

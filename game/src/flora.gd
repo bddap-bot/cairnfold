@@ -114,6 +114,9 @@ class Pool:
 	## Its plants grow in soil: one standing on rock (Terrain.ROCK) is not drawn, and is again once the ground under it
 	## is gentle enough to hold soil.
 	var soil := false
+	## Its painted water plants are drawn further than its land plants (Flora.flowers), so each patch keeps whether it
+	## holds one.
+	var water_plants_further := false
 
 	func _init(parent: Flora, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
 		terrain = parent.terrain
@@ -200,6 +203,7 @@ class Pool:
 			p.box = box if n == 0 else p.box.merge(box)
 			terrain.lift(p.mm, p.box)
 		p.slots.append(i)
+		p.water_plants = (n > 0 and p.water_plants) or water_plants_further and _water_plant(i)
 		p.mm.visible_instance_count = n + 1
 		p.mmi.visible = true
 		_patch_of[j] = p
@@ -458,9 +462,10 @@ class Pool:
 			p.mm.mesh = m
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
-	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo. Patches reach
-	## `painted_reach`: a painted flower may be an iris or a lily, drawn further than the meadow's land flowers.
-	func cull(eye: Vector3, reach: float, painted_reach := reach) -> void:
+	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo. A patch holding
+	## a water plant reaches `water_reach`: an iris or a lily is drawn further than a land flower, which past `reach`
+	## the shader shrinks to its root, so a dry patch past it would run every vertex for nothing.
+	func cull(eye: Vector3, reach: float, water_reach := reach) -> void:
 		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
 			var off := (_centres[i] - Vector2(eye.x, eye.z)).abs() - half
@@ -475,10 +480,29 @@ class Pool:
 			var lo := Vector2(p.box.position.x, p.box.position.z) - Vector2(eye.x, eye.z)
 			var hi := Vector2(p.box.end.x, p.box.end.z) - Vector2(eye.x, eye.z)
 			var gap := Vector2(maxf(maxf(lo.x, -hi.x), 0.0), maxf(maxf(lo.y, -hi.y), 0.0))
-			var layers := 1 if gap.length() < painted_reach else Quality.FULL_LAYER
+			var layers := 1 if gap.length() < (water_reach if p.water_plants else reach) else Quality.FULL_LAYER
 			if layers != p.layers:
 				p.layers = layers
 				p.mmi.layers = layers
+
+	## Finds again which patches crossing `area` hold a water plant, as the ponds and the ground there now lie.
+	func rewet(area: Rect2) -> void:
+		if not water_plants_further:
+			return
+		for p: Patch in _patches.values():
+			if not area.intersects(Rect2(p.box.position.x, p.box.position.z, p.box.size.x, p.box.size.z)):
+				continue
+			p.water_plants = false
+			for i in p.slots:
+				if _water_plant(i):
+					p.water_plants = true
+					break
+
+	## Whether the plant in `slot` may grow as a water plant (plant.gdshaderinc's `water_form`): one placed, rooted
+	## under a pond. Any depth over zero counts, not only the shader's 2 cm, so rounding never hides one.
+	func _water_plant(slot: int) -> bool:
+		var root := _xforms[slot].origin
+		return planted > 0.0 and terrain.depth_at(root.x, root.z) > 0.0
 
 	static func setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
@@ -519,6 +543,9 @@ class Patch:
 	## Around the plants it has drawn since it was last empty, through every height the ground can reach, so the
 	## camera culls a patch by where its plants stand rather than by its whole square.
 	var box: AABB
+	## Whether a plant it holds may be a water plant (`Pool._water_plant`), drawn out to the pool's water reach. It may
+	## stay set after that plant leaves, until the ground or ponds under the patch next change.
+	var water_plants := false
 
 
 ## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
@@ -704,6 +731,7 @@ func _init(ground: Terrain, laid: Ground) -> void:
 		pool.far_with(flower_far)
 	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
 		pool.planted = 1.0
+	flowers.water_plants_further = true
 	var moss_mat := ShaderMaterial.new()
 	moss_mat.shader = load("res://src/moss.gdshader")
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
@@ -844,6 +872,12 @@ func reground(area: Rect2, settled: bool) -> void:
 	area = area.grow(Terrain.STEP * 2.0)
 	for pool in [grass, flowers, ghost_grass, ghost_flowers]:
 		pool.reground(area)
+	flowers.rewet(area)
+
+
+## The ponds over `area` changed (Water.refilled): painted flowers there may have become water plants or stopped being.
+func rewet(area: Rect2) -> void:
+	flowers.rewet(area.grow(Terrain.STEP))
 
 
 func part(left: Vector3, right: Vector3) -> void:

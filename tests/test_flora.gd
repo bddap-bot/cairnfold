@@ -481,20 +481,45 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 
 
 ## A painted flower may stand in a pond as an iris or a lily, which the flower shader draws out to the full flower
-## reach, past where the meadow's land flowers hand off to their far patches.
+## reach, past where the land flowers hand off to their far patches; a patch of land flowers past that is left to photos.
 func _painted_flowers_draw_to_the_water_reach() -> void:
-	var flora := Flora.new(Terrain.new(), Ground.new())
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
 	root.add_child(flora)
 	var eye := Camera3D.new()
 	root.add_child(eye)
 	eye.make_current()
 	flora.keep()
 	check(flora.flower_reach > Flora.FLOWER_NEAR + flora.flowers.cell * 2.0, "the top step's flower reach lies well past the land flowers'")
-	var p := Vector3(Flora.FLOWER_NEAR + flora.flowers.cell * 1.5, 0, 0.5)
-	flora.add_flower(p, _rng(13))
-	flora._process(0.0)
-	var drawn := flora.flowers.patches().map(func(m: MultiMeshInstance3D) -> bool: return m.layers & Quality.VIEW_MASK != 0)
-	check(drawn == [true], "a painted flower past the land flowers' reach is drawn: %s" % [drawn])
+	var out := Flora.FLOWER_NEAR + flora.flowers.cell * 1.5
+	var pond := Vector3(out, 0, 0.5)
+	var g := Terrain.grid_point(pond.x, pond.z)
+	terrain.dry_water()
+	var levels := terrain.water_levels()
+	var wet := PackedInt32Array()
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var k := (g.y + dz) * Terrain.VERTS + g.x + dx
+			levels[k] = terrain.height_at(Terrain.grid_xz(Vector2i(g.x + dx, g.y + dz)).x, Terrain.grid_xz(Vector2i(g.x + dx, g.y + dz)).y) + 0.5
+			wet.append(k)
+	terrain.set_water(levels, Terrain.depth_image(levels, terrain.read(Terrain.ALL), wet))
+	var plants: Array[Flora.Plant] = []
+	for p: Vector3 in [pond, Vector3(-out, 0, 0.5), Vector3(0.5, 0, out)]:
+		plants.append(flora.add_flower(Vector3(p.x, terrain.height_at(p.x, p.z) - 0.02, p.z), _rng(13)))
+	var drawn := func() -> Array:
+		flora._process(0.0)
+		return plants.map(func(p: Flora.Plant) -> bool: return flora.flowers._patch_of[p.slot - flora.flowers.kept].mmi.layers & Quality.VIEW_MASK != 0)
+	var photo := func() -> bool:
+		return flora.flowers.patches().all(func(m: MultiMeshInstance3D) -> bool: return m.layers & Quality.PHOTO_MASK != 0)
+	var seen: Array = drawn.call()
+	check(seen == [true, false, false] and photo.call(), "past the land flowers' reach a painted water plant is drawn, a land flower only for a photo: %s" % [seen])
+	flora.flowers.shift(plants[2], pond + Vector3(0.3, 0, 0.3) - plants[2].anchor, flora.flowers._customs[plants[2].slot])
+	seen = drawn.call()
+	check(seen == [true, false, true], "a land flower moved into the pond is drawn as one: %s" % [seen])
+	terrain.dry_water()
+	flora.rewet(Rect2(pond.x - 4, pond.z - 4, 8, 8))
+	seen = drawn.call()
+	check(seen == [false, false, false], "and once the pond there is gone, none is: %s" % [seen])
 	eye.queue_free()
 	flora.queue_free()
 
