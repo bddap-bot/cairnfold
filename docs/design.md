@@ -1418,6 +1418,31 @@ the 3.99 the table carries: `Budget.CAPACITY_MS` stays 3.99, and `demo/fill.json
 either build, five walls (fill 0.968 and 0.964) and four houses (0.867 and 0.885). What is left of the ground's cost is
 its pixels: the room rises only once the ground's shading beside the eye costs less.
 
+### The ground's two shaders
+
+The bare meadow beside the eye set the base, and the ground drew 1.4 ms of it there (2.4 from the air), so its fragment shader was profiled on one Quest 2 at
+the fit step, the bare meadow beside the eye (`base/near` in `demo/costs.json`) and the meadow from the air
+(`meadow/aerial`), each variant of `terrain.gdshader` against the shipped one in the same run. Unlit, the ground drew
+0.6 ms (beside the eye) and 1.1 ms (from the air) faster; without fog 0.3 and 0.2, without the sky's ambient light 0.2
+and 0.2, without its shadows 0.2 and 0.2; dropping its two detail-noise reads saved 0.2 and 0.15, and a plain diffuse in
+place of the wrapped one 0.15 and 0.04; no reflected sky and no bounce light saved nothing. Each of these was read
+twice, a spread of 0.2 ms beside the eye. Those are the look. What was not: the
+code for stone and for ponds. A bare meadow runs neither branch, yet compiling them out of the shader, the ground mask
+still read, saved 0.22 ± 0.08 ms beside the eye and 0.24 ± 0.02 from the air (six interleaved pairs each); with the
+rock branch out as well, 0.34 and 0.42. From the air either branch alone saved at most 0.09 ms (beside the eye the pond's alone 0.28 ± 0.10), and keeping
+both with their texture reads given explicit gradients or their arithmetic at half precision saved nothing. The branches cost
+without running, as a larger program's register use would, though no profiler here reads registers to show it.
+
+So the ground draws in two shaders. `terrain_plain.gdshader` is `terrain.gdshaderinc` with `PLAIN` defined, which
+leaves out the stone and the pond code and the pond varying; `terrain.gdshader` is the whole of it. Each chunk's
+4 m tiles (`Terrain.TILE`, the coarsest grid's cell, so no triangle spans two) where stone has been laid
+(`Ground.stone_tiles`, every tile a stone stamp reaches) or a pond may be read (`Terrain.wet_tiles`, within three
+grid steps of any grid point a pond stands over) draw in the full shader, the rest in the plain one, as two meshes
+`Meadow` rebuilds when either changes. Rock stays in both: sculpted slopes are free to build, so no garden may make
+the ground dearer than the base it was fitted on, while stone ground and water are charged by the square metre and
+pay for their tiles' shader. A tile keeps the full shader once stone has been painted out of it until the garden is
+worn afresh. Where the tiles meet, both programs place their vertices with the same code.
+
 ### Anti-aliasing on the Quest 2
 
 Anti-aliasing stays on every headset. `demo/antialias.json` (driver step `antialias`) holds each state for 5 s, three

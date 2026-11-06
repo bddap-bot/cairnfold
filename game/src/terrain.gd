@@ -34,6 +34,8 @@ var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
 const NO_HUMPS: Array[Vector4] = []
 ## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
 var revision := 0
+## Counts changes to the water alone, for what keys on where ponds reach.
+var water_revision := 0
 ## Counts changes to the heights alone, for light that falls on the ground whatever water stands on it.
 var heights_revision := 0
 ## The same, and every move of a live hump: what work following the shown ground keys on.
@@ -175,6 +177,7 @@ func dry_water() -> void:
 	_water_texture = ImageTexture.create_from_image(_water_image)
 	RenderingServer.global_shader_parameter_set(&"water_depth", _water_texture)
 	revision += 1
+	water_revision += 1
 	shown_revision += 1
 
 
@@ -189,6 +192,7 @@ func set_water(levels: PackedFloat32Array, image: Image) -> void:
 	_water_image = image
 	_water_texture.update(_water_image)
 	revision += 1
+	water_revision += 1
 	shown_revision += 1
 
 
@@ -523,17 +527,29 @@ const CHUNK := 16
 const CHUNKS := CELLS / CHUNK
 ## The grid steps a chunk is drawn at, finest first: Meadow picks one by how far the chunk lies from the eye.
 const LODS: Array[int] = [1, 2, 4]
+## A chunk's triangles fall in tiles of TILE by TILE cells, the coarsest step's cell, so none spans two: what Meadow
+## draws in one shader or the other.
+const TILE := 4
+const TILES := CELLS / TILE
+const CHUNK_TILES := CHUNK / TILE
 
 
-## Chunk (ci, cj) at grid step `k`. Its edge keeps a vertex every STEP whatever `k`, so it meets every neighbour's edge
-## vertex for vertex, with no crack, at any step either is drawn at: each cell along the edge is a fan round its centre.
-static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+## Chunk (ci, cj) at grid step `k`: its mesh arrays, and for each of its tiles, row by row, the indices of the
+## triangles in it. Its edge keeps a vertex every STEP whatever `k`, so it meets every neighbour's edge vertex for
+## vertex, with no crack, at any step either is drawn at: each cell along the edge is a fan round its centre.
+static func chunk_parts(ci: int, cj: int, k: int) -> Array:
+	var vertices := PackedVector3Array()
+	var colors := PackedColorArray()
+	var lists: Array[Array] = []
+	for t in CHUNK_TILES * CHUNK_TILES:
+		lists.append([])
 	var index := {}
 	var vertex := func(key: Vector2i) -> int:
 		if not index.has(key):
-			_ground_vertex(st, Vector3(-SIZE * 0.5 + key.x * STEP * 0.5, 0, -SIZE * 0.5 + key.y * STEP * 0.5))
+			var x := -SIZE * 0.5 + key.x * STEP * 0.5
+			var z := -SIZE * 0.5 + key.y * STEP * 0.5
+			colors.append(_dryness(x, z))
+			vertices.append(Vector3(x, 0, z))
 			index[key] = index.size()
 		return index[key]
 	var i0 := ci * CHUNK
@@ -543,13 +559,13 @@ static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 		for a in n:
 			var i := i0 + a * k
 			var j := j0 + b * k
+			var tile := lists[(b * k / TILE) * CHUNK_TILES + a * k / TILE]
 			var corners: Array[Vector2i] = [Vector2i(i, j), Vector2i(i + k, j), Vector2i(i + k, j + k), Vector2i(i, j + k)]
 			if k == 1 or (a > 0 and b > 0 and a < n - 1 and b < n - 1):
 				var q: Array[int] = []
 				for c in corners:
 					q.append(vertex.call(c * 2))
-				st.add_index(q[0]); st.add_index(q[1]); st.add_index(q[3])
-				st.add_index(q[1]); st.add_index(q[2]); st.add_index(q[3])
+				tile.append_array([q[0], q[1], q[3], q[1], q[2], q[3]])
 				continue
 			var loop: Array[int] = []
 			for side in 4:
@@ -561,18 +577,67 @@ static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 					loop.append(vertex.call((from + (to - from) * t / steps) * 2))
 			var centre: int = vertex.call(Vector2i(i, j) * 2 + Vector2i(k, k))
 			for t in loop.size():
-				st.add_index(centre); st.add_index(loop[t]); st.add_index(loop[(t + 1) % loop.size()])
-	return st.commit()
+				tile.append_array([centre, loop[t], loop[(t + 1) % loop.size()]])
+	var tiles: Array[PackedInt32Array] = []
+	for list in lists:
+		tiles.append(PackedInt32Array(list))
+	var normals := PackedVector3Array()
+	normals.resize(vertices.size())
+	normals.fill(Vector3.UP)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	return [arrays, tiles]
+
+
+## The triangles of `parts` (chunk_parts) in the tiles whose byte in `keep` is set, every tile without `keep`, as a
+## mesh; null when that is none.
+static func part_mesh(parts: Array, keep := PackedByteArray()) -> ArrayMesh:
+	var indices := PackedInt32Array()
+	var tiles: Array[PackedInt32Array] = parts[1]
+	for t in tiles.size():
+		if keep.is_empty() or keep[t] != 0:
+			indices.append_array(tiles[t])
+	if indices.is_empty():
+		return null
+	var arrays: Array = parts[0].duplicate()
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+## The tiles a pond's water may reach the ground in, one byte each, row by row: those within three steps of a grid
+## point any pond stands over, past the reach of the terrain shader's pond_near (water.gdshaderinc) from any vertex.
+func wet_tiles() -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(TILES * TILES)
+	for k in _water.size():
+		if _water[k] == NO_WATER:
+			continue
+		var i := k % VERTS
+		var j := k / VERTS
+		for tj in range(maxi(j - 3, 0) / TILE, mini((j + 3) / TILE, TILES - 1) + 1):
+			for ti in range(maxi(i - 3, 0) / TILE, mini((i + 3) / TILE, TILES - 1) + 1):
+				out[tj * TILES + ti] = 1
+	return out
 
 
 ## A ground vertex at `at`, tinted by how dry the ground lies under it.
 static func _ground_vertex(st: SurfaceTool, at: Vector3) -> void:
-	st.set_color(Color(FloraLayout.dryness(Vector3(at.x, 0, at.z)), 0, 0))
+	st.set_color(_dryness(at.x, at.z))
 	st.set_normal(Vector3.UP)
 	st.add_vertex(at)
 
 
-## The ground at (x, z) as `chunk_mesh` draws it nearby: each cell two flat triangles split from its (i + 1, j) corner to its
+## A ground vertex's colour: red how dry the meadow's grass is at (x, z).
+static func _dryness(x: float, z: float) -> Color:
+	return Color(FloraLayout.dryness(Vector3(x, 0, z)), 0, 0)
+
+
+## The ground at (x, z) as `chunk_parts` lays it nearby: each cell two flat triangles split from its (i + 1, j) corner to its
 ## (i, j + 1), over `ground`'s grid heights. Within a cell it may stand above or below the bilinear `height_at`.
 static func drawn(x: float, z: float, ground: Callable) -> float:
 	var i := floorf(x / STEP) * STEP

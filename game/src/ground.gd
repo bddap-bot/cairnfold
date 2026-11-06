@@ -51,6 +51,13 @@ var _areas := {}
 static var _wearing := Rect2i()
 ## The style this machine's player lays stone and sets boulders down in: the one they last turned the style wheel to.
 static var style := 0
+## The tiles (Terrain.TILE) stone has been laid on since the garden was last worn afresh, one byte each, row by row:
+## where the ground draws its stone (Meadow). Stone painted out leaves its tile marked until then, which costs only the
+## cheaper shader there.
+var stone_tiles := _no_tiles()
+var stone_revision := 0
+## The tiles stone stamps have reached since the last upload, on any image: the shown one is uploaded after each change.
+static var _stoned := PackedInt32Array()
 ## Where a patch is worn again before it is copied into `laid`: what lies outside the patch is never read.
 var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 
@@ -207,6 +214,9 @@ func clear() -> void:
 func rewear() -> void:
 	if quiet:
 		return
+	stone_tiles = _no_tiles()
+	_stoned.clear()
+	stone_revision += 1
 	laid.fill(Color(0, 0, 0, 0))
 	for m in _marks:
 		_area_of(m, laid)
@@ -318,6 +328,30 @@ func _show() -> void:
 
 func upload() -> void:
 	texture.update(image)
+	var more := false
+	for t in _stoned:
+		more = more or stone_tiles[t] == 0
+		stone_tiles[t] = 1
+	_stoned.clear()
+	if more:
+		stone_revision += 1
+
+
+static func _no_tiles() -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(Terrain.TILES * Terrain.TILES)
+	return out
+
+
+## Notes the tiles a stone stamp over `area`'s texels reaches. Its brush's outer ring is always clear, so the
+## shader's filtering reads its stone from inside the area.
+static func _stone(area: Rect2i) -> void:
+	var per := Terrain.TILE * Terrain.STEP / TEXEL
+	var low := Vector2(area.position) / per
+	var high := Vector2(area.end) / per
+	for tj in range(maxi(floori(low.y), 0), mini(floori(high.y), Terrain.TILES - 1) + 1):
+		for ti in range(maxi(floori(low.x), 0), mini(floori(high.x), Terrain.TILES - 1) + 1):
+			_stoned.append(tj * Terrain.TILES + ti)
 
 
 ## Blends a disc of `kind` onto `onto`: full out to `radius`, fading to nothing over `verge` past it. Stone takes
@@ -334,6 +368,8 @@ static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, 
 	if area.size.x <= 0 or area.size.y <= 0:
 		return false
 	_wearing = area if not _wearing.has_area() else _wearing.merge(area)
+	if kind == Kind.STONE:
+		_stone(area)
 	var region := onto.get_region(area)
 	var px := region.get_data()
 	var changed := false

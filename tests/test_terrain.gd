@@ -26,6 +26,8 @@ func _run() -> void:
 	_a_lay_reads_the_ground_it_started_on()
 	_raycast_skips_only_open_air()
 	_chunks_meet_at_every_step()
+	_each_tile_holds_its_own_triangles()
+	_ponds_draw_in_the_full_shader_wherever_they_reach()
 	finish()
 
 
@@ -291,7 +293,7 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 func _chunks_meet_at_every_step() -> void:
 	var size := Terrain.CHUNK * Terrain.STEP
 	for k in Terrain.LODS:
-		var arrays := Terrain.chunk_mesh(2, 3, k).surface_get_arrays(0)
+		var arrays := Terrain.part_mesh(Terrain.chunk_parts(2, 3, k)).surface_get_arrays(0)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK)
 		var edge := {}
@@ -310,3 +312,62 @@ func _chunks_meet_at_every_step() -> void:
 			check(turn > 0.0, "a chunk at step %d has a triangle wound the other way" % k)
 			area += turn * 0.5
 		check(is_equal_approx(area, size * size), "a chunk at step %d covers %.1f m², not its %.0f" % [k, area, size * size])
+
+
+## A chunk's tiles at every step hold every triangle once over, each inside its tile, so a tile drawn in one shader and
+## its neighbour in the other leave no gap and no overlap.
+func _each_tile_holds_its_own_triangles() -> void:
+	var tile := Terrain.TILE * Terrain.STEP
+	var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK)
+	for k in Terrain.LODS:
+		var parts := Terrain.chunk_parts(2, 3, k)
+		var verts: PackedVector3Array = parts[0][Mesh.ARRAY_VERTEX]
+		var tiles: Array[PackedInt32Array] = parts[1]
+		var count := 0
+		for t in tiles.size():
+			var rect := Rect2(corner + Vector2(t % Terrain.CHUNK_TILES, t / Terrain.CHUNK_TILES) * tile, Vector2.ONE * tile).grow(0.001)
+			count += tiles[t].size()
+			for v in tiles[t]:
+				check(rect.has_point(Vector2(verts[v].x, verts[v].z)), "a triangle of tile %d at step %d reaches out of it" % [t, k])
+		check(count == Terrain.part_mesh(parts).surface_get_arrays(0)[Mesh.ARRAY_INDEX].size(), "the tiles at step %d hold the chunk's triangles once over" % k)
+		var some := PackedByteArray()
+		some.resize(tiles.size())
+		some[5] = 1
+		check(Terrain.part_mesh(parts, some).surface_get_arrays(0)[Mesh.ARRAY_INDEX] == tiles[5], "a mesh of one tile at step %d draws that tile alone" % k)
+		some[5] = 0
+		check(Terrain.part_mesh(parts, some) == null, "a mesh of no tiles is none")
+
+
+## Wherever the terrain shader would read a pond's depth (pond_near, at any vertex of a chunk at any step), the tile is
+## drawn in the full shader, and once the pond is gone in the plain one again.
+func _ponds_draw_in_the_full_shader_wherever_they_reach() -> void:
+	var meadow: Meadow = main.find_children("*", "Meadow", true, false)[0]
+	var before := terrain.water_levels()
+	var levels := before.duplicate()
+	var wet := Terrain.grid_point(5.0, -7.0)
+	levels[wet.y * Terrain.VERTS + wet.x] = terrain.height_at(5.0, -7.0) + 0.3
+	terrain.set_water(levels, Terrain.depth_image(levels, terrain.read(Terrain.ALL), PackedInt32Array([wet.y * Terrain.VERTS + wet.x])))
+	meadow._tile()
+	var tiles := terrain.wet_tiles()
+	var reached := 0
+	for k in Terrain.LODS:
+		for n in Terrain.CHUNKS * Terrain.CHUNKS:
+			var parts := Terrain.chunk_parts(n % Terrain.CHUNKS, n / Terrain.CHUNKS, k)
+			var verts: PackedVector3Array = parts[0][Mesh.ARRAY_VERTEX]
+			for v in verts:
+				var g := Vector2((v.x + Terrain.SIZE * 0.5) / Terrain.STEP, (v.z + Terrain.SIZE * 0.5) / Terrain.STEP)
+				# pond_near's five bilinear reads, a step apart, blend the grid points within two steps.
+				if absf(g.x - wet.x) < 2.0 and absf(g.y - wet.y) <= 1.0 or absf(g.y - wet.y) < 2.0 and absf(g.x - wet.x) <= 1.0:
+					reached += 1
+					var t := Vector2i(mini(int(g.x) / Terrain.TILE, Terrain.TILES - 1), mini(int(g.y) / Terrain.TILE, Terrain.TILES - 1))
+					for d: Vector2i in [Vector2i.ZERO, Vector2i(-1, 0), Vector2i(0, -1), Vector2i(-1, -1)]:
+						var on := Vector2(t + d) * Terrain.TILE
+						if on.x >= 0 and on.y >= 0 and Rect2(on, Vector2.ONE * Terrain.TILE).grow(0.001).has_point(g):
+							check(tiles[(t.y + d.y) * Terrain.TILES + t.x + d.x] == 1, "a vertex at %s that reads the pond lies in a tile drawn without it" % v)
+	check(reached > 0, "some vertex reads the pond")
+	var chunk := meadow._chunks[(wet.y / Terrain.CHUNK) * Terrain.CHUNKS + wet.x / Terrain.CHUNK]
+	check(chunk.full.mesh != null and chunk.marked.count(1) > 0, "the pond's chunk draws its tile in the full shader")
+	check(meadow._chunks[0].full.mesh == null, "a chunk far from any pond draws all of itself in the plain shader")
+	terrain.set_water(before, Terrain.depth_image(before, terrain.read(Terrain.ALL), PackedInt32Array()))
+	meadow._tile()
+	check(chunk.full.mesh == null, "with the pond gone its chunk draws all of itself in the plain shader")

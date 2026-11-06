@@ -666,8 +666,8 @@ var grass_reach: float = Quality.ladder[0].grass_m:
 	set(m):
 		grass_reach = m
 		grass_mat.set_shader_parameter(&"draw_reach", m)
-		if ground_mat != null:
-			ground_mat.set_shader_parameter(&"draw_reach", m)
+		for mat in ground_mats:
+			mat.set_shader_parameter(&"draw_reach", m)
 ## The quality reach still controls aquatic flowers; land meshes hand off to patches by FLOWER_NEAR.
 var flower_reach: float = Quality.ladder[0].flowers_m:
 	set(m):
@@ -685,8 +685,8 @@ var blob_detail: int = Quality.ladder[0].blob_detail:
 			bushes.draw_with(_blobs[n])
 var flower_mat: ShaderMaterial
 var flower_far: ShaderMaterial
-## The meadow's ground, which paints the grass past its clumps' reach (FloraCover).
-var ground_mat: ShaderMaterial
+## The meadow's ground in both its shaders (Meadow), which paint the grass past its clumps' reach (FloraCover).
+var ground_mats: Array[ShaderMaterial] = []
 static var _far_mesh: ArrayMesh
 ## Bumped whenever a tree or bush stands up or goes, so what was gathered from them knows it is stale.
 var changes := 0
@@ -781,10 +781,11 @@ func _far_material() -> ShaderMaterial:
 	return mat
 
 
-## Has the ground `mat` paint the grass where its clumps have sunk away.
-func paint_ground(mat: ShaderMaterial) -> void:
-	ground_mat = mat
-	_grass_lod(mat)
+## Has the ground's materials paint the grass where its clumps have sunk away.
+func paint_ground(mats: Array[ShaderMaterial]) -> void:
+	ground_mats = mats
+	for mat in mats:
+		_grass_lod(mat)
 
 
 ## Gives `mat` the grass's reach and LOD band (flora_lod.gdshaderinc), so the ground paints the grass where it sinks.

@@ -51,7 +51,7 @@ func _run() -> void:
 	var ground := Terrain.bank_mesh().get_faces()
 	for cj in Terrain.CHUNKS:
 		for ci in Terrain.CHUNKS:
-			ground.append_array(Terrain.chunk_mesh(ci, cj, 1).get_faces())
+			ground.append_array(Terrain.part_mesh(Terrain.chunk_parts(ci, cj, 1)).get_faces())
 	for i in ground.size():
 		ground[i].y = main.world.terrain.height_at(ground[i].x, ground[i].z)
 	terrain.add_faces(ground, "terrain", -1)

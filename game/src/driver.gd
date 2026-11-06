@@ -1272,7 +1272,8 @@ func _flora_far(s: Dictionary) -> void:
 	var on: bool = s.get("mode", "on") != "off"
 	for pool: Flora.Pool in [flora.flowers, flora.ghost_flowers]:
 		pool.far_live.visible = on
-	flora.ground_mat.set_shader_parameter(&"far_grass", on)
+	for mat in flora.ground_mats:
+		mat.set_shader_parameter(&"far_grass", on)
 
 ## Hides one of LAYERS, or shows it again, so a scene measures what it costs against the same view without it.
 ## Grass is every blade, the meadow's and painted; the ground paints its grass either way. Trees count their bushes,
@@ -1298,7 +1299,7 @@ func _layer_parts(name: String) -> Array[Array]:
 	var materials: Array[Material] = []
 	match name:
 		"terrain":
-			materials = [flora.ground_mat]
+			materials.assign(flora.ground_mats)
 		"grass":
 			materials = [flora.grass_mat]
 		"flowers":

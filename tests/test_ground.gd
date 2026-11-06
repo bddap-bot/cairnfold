@@ -15,6 +15,7 @@ func _run() -> void:
 	_meadow_takes_back_stone_but_not_a_path()
 	_lifting_a_path_keeps_the_stone_laid_after_it()
 	_lifting_or_slotting_a_mark_wears_only_what_it_met()
+	_stone_shows_only_on_tiles_marked_for_it()
 	finish()
 
 
@@ -78,6 +79,33 @@ func _a_stroke_lays_stone_with_a_soft_edge() -> void:
 	var edge := marks.stone(0, 11.8)
 	check(edge > 0.05 and edge < 0.95, "its edge fades into the meadow (%.2f)" % edge)
 	check(marks.stone(0, 13) == 0.0, "the meadow a metre past the brush is untouched (%.2f)" % marks.stone(0, 13))
+	_teardown(nodes)
+
+
+## Every texel the ground shader may read stone from, a texel round each one holding any, lies in a tile Ground marks
+## for the full shader (Meadow), the stroke still being drawn as well as the garden's; a garden worn afresh marks none.
+func _stone_shows_only_on_tiles_marked_for_it() -> void:
+	var nodes := _setup()
+	var marks: Ground = (nodes[2] as World).marks
+	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(-9, 3), Vector2(7, -6), 1.5)
+	var drawing := Ground.Stroke.new(Ground.Kind.STONE)
+	drawing.add(marks, 30, 30, 0.6, 0.3)
+	var data := marks.image.get_data()
+	var stony := 0
+	for j in Ground.SIZE:
+		for i in Ground.SIZE:
+			if data[(j * Ground.SIZE + i) * 4 + 1] == 0:
+				continue
+			stony += 1
+			for d: Vector2i in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+				var at := (Vector2(i + 0.5, j + 0.5) + Vector2(d)) * Ground.TEXEL / (Terrain.TILE * Terrain.STEP)
+				var t := Vector2i(clampi(floori(at.x), 0, Terrain.TILES - 1), clampi(floori(at.y), 0, Terrain.TILES - 1))
+				check(marks.stone_tiles[t.y * Terrain.TILES + t.x] == 1, "stone at texel %d, %d reaches tile %s, which is not marked" % [i, j, t])
+	check(stony > 0, "the strokes lay stone")
+	check(marks.stone_tiles.count(1) < Terrain.TILES * Terrain.TILES / 50, "only the tiles near the stone are marked (%d)" % marks.stone_tiles.count(1))
+	var seen := marks.stone_revision
+	marks.clear()
+	check(marks.stone_tiles.count(1) == 0 and marks.stone_revision != seen, "a garden swapped for an empty one marks no tile")
 	_teardown(nodes)
 
 
