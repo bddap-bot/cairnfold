@@ -285,7 +285,7 @@ func _process(delta: float) -> void:
 			var was := governor.level
 			governor.step(frame_ms, budget_ms, dt, _settled, not covered.call())
 			if governor.level != was:
-				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s" % [was, governor.level, frame_ms, budget_ms, governor.why])
+				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s, at %.3f s" % [was, governor.level, frame_ms, budget_ms, governor.why, Time.get_ticks_usec() / 1e6])
 	var n := _priming[_primed / PRIME_FRAMES] if priming() else step()
 	var at := ladder[n]
 	if _foveates and fresh and _warm > WARMUP and at.foveation > 0:
@@ -413,10 +413,12 @@ class Governor:
 	## Frames ignored after any step while the GPU timer catches up with the change. Six, from when a step down's
 	## reaches receded over seconds, left a walk into a budget-full garden on the Quest 2 missing refreshes between steps.
 	const SETTLE_FRAMES := 3
-	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh; one
-	## frame this far from the last is a missed refresh.
+	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh, which
+	## holds a step up; one frame this far from the last is a missed refresh. Neither steps down with the timer under
+	## the line, which reads high at every other refresh: the CPU or the runtime held those frames, not what the ladder
+	## draws. Stepped down at 0.6 of the budget, a photo's frames on the Steam Frame, 14.9 ms in scripts and the GPU at
+	## 8.2 ms, took a held phase from step 3 to 4.
 	const HALVED := 1.5
-	## Every other refresh counts only with the timer above this share of the budget: lower, the CPU held the frame.
 	const HALVED_GPU := 0.6
 	## A frame this far from the last, as a share of the refresh period or of the usual gap between the last GAPS
 	## frames if longer, followed a pause (the headset off the head) or a stall on the main thread (a build laid at
@@ -453,6 +455,9 @@ class Governor:
 	var level := 0
 	var bottom: int
 	var _hot := 0
+	## Consecutive frames over the line, and whether one of them missed a refresh.
+	var _over := 0
+	var _late := false
 	var _settle := 0
 	var _calm := 0.0
 	var _quiet := 0.0
@@ -561,9 +566,12 @@ class Governor:
 			_cost[level] = -1.0
 		var halved := averaged and _interval > budget_ms * HALVED and _average > budget_ms * HALVED_GPU
 		# The Quest 2 misses refreshes from about 0.84 of the period, short of HOT: walking into a budget-full garden
-		# there dropped 36 frames while the average stepped down once a second. A missed refresh with the GPU over
-		# the line steps down two at once, as a frame far over budget does; one the CPU held, the GPU under it, does not.
-		var missed := dt_ms > budget_ms * HALVED and frame_ms > line
+		# there dropped 36 frames while the average stepped down once a second. A missed refresh among HOT_FRAMES
+		# frames over the line steps down two at once, as a frame far over budget does. A single one the frames after
+		# do not repeat does not: on the Steam Frame one 14.8 ms frame as the view went under water took 5 to 7.
+		_over = _over + 1 if frame_ms > line else 0
+		_late = _over > 0 and (_late or dt_ms > budget_ms * HALVED)
+		var missed := _late and _over >= HOT_FRAMES
 		# A refresh missed after a step down, before the average shows what it saved, at no lower a reading than the one
 		# that took it, reads what the ladder does not draw: on the Steam Frame, after a village was laid at once, the
 		# timer read 12.6 to 14.3 ms at every step from 5 to 16 while each miss took two more.
@@ -573,7 +581,7 @@ class Governor:
 		# the governor through the shadows and the 3D scale on single frames, and each pop crossed holds the longest calm.
 		var floor := bottom if settled and (_went_up or _measuring < 0) else _unpopped()
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
-		if (_hot >= HOT_FRAMES or missed or halved or (settled and averaged and _average > line)) and level < floor:
+		if (_hot >= HOT_FRAMES or missed or (settled and averaged and _average > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
 				for i in range(level, _up_from):
 					_wait[i] = minf(maxf(_wait[i], CALM_SECONDS_MAX) * 2.0, REGRET_MAX) if _sticky.has(i) else minf(_wait[i] * 2.0, CALM_SECONDS_MAX)
@@ -590,7 +598,7 @@ class Governor:
 			_measuring = to
 			_went_up = false
 			_took = frame_ms
-			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "every other refresh" if halved else "average over the line", dt_ms, _average]
+			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "average over the line", dt_ms, _average]
 			_move(to)
 		elif level > 0 and _calm >= _climb_wait():
 			_before = _average
@@ -616,6 +624,8 @@ class Governor:
 
 	func _restart() -> void:
 		_hot = 0
+		_over = 0
+		_late = false
 		_average = 0.0
 		_interval = 0.0
 		_averaged = 0.0

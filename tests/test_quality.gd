@@ -23,7 +23,7 @@ func _initialize() -> void:
 	_an_unmeasured_step_up_waits_for_room_for_an_estimate()
 	_a_step_up_into_every_other_refresh_is_not_retried()
 	_a_held_step_reaches_its_knobs()
-	_every_other_refresh_steps_down_whatever_the_timer_reads()
+	_every_other_refresh_under_the_line_steps_neither_way()
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
 	_the_frames_after_a_stall_are_not_judged()
@@ -115,13 +115,22 @@ func _a_missed_refresh_over_the_line_steps_down() -> void:
 	var g := Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
 	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	check(g.level == 2, "a refresh missed with the GPU over the line steps down two at once: %d" % g.level)
+	check(_feed(g, BUDGET * 0.5, 72 * 2) == 0, "a single refresh missed with the GPU over the line, the frames after under it, leaves the ladder alone")
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	g.step(BUDGET * 0.9, BUDGET, DT)
+	check(g.level == 2, "one the next frame repeats over the line steps down two at once: %d" % g.level)
+	g = Quality.Governor.new(10)
+	_feed(g, BUDGET * UNDER_LINE, 72)
+	g.step(BUDGET * 0.9, BUDGET, DT)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	check(g.level == 2, "as does one after a frame over the line: %d" % g.level)
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * 0.5, 72)
 	g.step(BUDGET * 0.5, BUDGET, DT * 2.0)
 	check(g.level == 0, "one the CPU held leaves the ladder alone")
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
 	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
 	_feed(g, BUDGET * 0.9, Quality.Governor.SETTLE_FRAMES)
 	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
@@ -273,14 +282,10 @@ func _a_held_step_reaches_its_knobs() -> void:
 	flora.free()
 
 
-func _every_other_refresh_steps_down_whatever_the_timer_reads() -> void:
-	var g := Quality.Governor.new(10)
-	for i in 40:
-		g.step(BUDGET * 0.7, BUDGET, DT * 2.0)
-	check(g.level == 1, "a second at every other refresh, the timer under the line, steps down")
-	for i in 36 * 15:
-		g.step(BUDGET * 0.7, BUDGET, DT * 2.0)
-	check(g.level == 10, "and it keeps stepping down, never up, while the runtime holds that rate")
+func _every_other_refresh_under_the_line_steps_neither_way() -> void:
+	var g := Quality.Governor.new(10, PackedInt32Array(), 3)
+	check(_feed_dt(g, BUDGET * UNDER_LINE, 36 * 15, DT * 2.0) == 3, "fifteen seconds at every other refresh, the timer under the line, step nothing down, nor up")
+	check(_feed_dt(g, BUDGET * 0.9, 3, DT * 2.0) == 5, "the timer over it, they step down two at once")
 
 
 ## Every headset runs the one ladder: nothing in the game reads which headset or build it is to choose what it draws.

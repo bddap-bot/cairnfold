@@ -170,7 +170,7 @@ func _process(delta: float) -> void:
 	var late := is_late(elapsed * 1000.0)
 	var compiled := _compilations()
 	if late and not _was_late:
-		print("metrics: late frame %.1f ms, the engine frame it began in %s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y])
+		print("metrics: late frame %.1f ms, the engine frame it began in %s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads, at %.3f s" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y, now / 1e6])
 	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
 	var tags := _tags(elapsed)
 	for tag in tags:
