@@ -266,12 +266,12 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	w.rebuild(false)
 	var cells := Terrain.cells_around(0, -2.5, 6.0)
 	var before := terrain.read(cells)
-	var shared := terrain.read(Terrain.ALL)
+	var _shared := terrain.read(Terrain.ALL)
 	var dug := before.duplicate()
 	for n in dug.size():
 		dug[n] -= 1.0
 	terrain.write(cells, dug)
-	shared = PackedFloat32Array()
+	_shared = PackedFloat32Array()
 	for h in holds:
 		gate.post()
 	for h in holds:

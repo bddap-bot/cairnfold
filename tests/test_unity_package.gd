@@ -453,12 +453,12 @@ func _physics_runs_as_the_menu_switches_it() -> void:
 	for name: String in ["Chest", "Left", "Right", "Far"]:
 		sk.add_bone(name)
 		sk.set_bone_parent(sk.get_bone_count() - 1, 0 if name != "Chest" else -1)
-	var transform := func(id: int, go: int, father: int) -> Dictionary: return {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(father)}}}
+	var transform := func(go: int, father: int) -> Dictionary: return {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(father)}}}
 	var object := func(name: String, t: int, active := "1") -> Dictionary: return {"type": "GameObject", "data": {"m_Name": name, "m_IsActive": active, "m_Component": [{"component": {"fileID": str(t)}}]}}
 	var sphere := func(go: int, enabled: String, radius: String) -> Dictionary: return {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": enabled, "rootTransform": {"fileID": "0"}, "shapeType": "0", "insideBounds": "0", "radius": radius, "height": "0", "position": {"x": "0", "y": "0", "z": "0"}}}
 	var physbone := func(go: int, enabled: String, root: int, colliders: Array) -> Dictionary: return {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": enabled, "pull": "0.2", "rootTransform": {"fileID": str(root)}, "endpointPosition": {"x": "0", "y": "0.04", "z": "0"}, "colliders": colliders.map(func(c: int) -> Dictionary: return {"fileID": str(c)})}}
 	var objs := {
-		10: transform.call(10, 110, 0), 11: transform.call(11, 111, 10), 12: transform.call(12, 112, 10), 30: transform.call(30, 130, 10), 31: transform.call(31, 131, 10), 32: transform.call(32, 132, 31),
+		10: transform.call(110, 0), 11: transform.call(111, 10), 12: transform.call(112, 10), 30: transform.call(130, 10), 31: transform.call(131, 10), 32: transform.call(132, 31),
 		110: object.call("Chest", 10), 111: object.call("Left", 11), 112: object.call("Right", 12), 130: object.call("Hidden Sphere", 30, "0"), 131: object.call("Off Parent", 31, "0"), 132: object.call("Far", 32),
 		40: sphere.call(130, "1", "0.1"), 41: sphere.call(110, "0", "0.2"), 42: sphere.call(110, "1", "0.05"),
 		20: physbone.call(111, "1", 11, [40, 41, 42]), 21: physbone.call(112, "0", 12, []), 22: physbone.call(132, "1", 32, []),

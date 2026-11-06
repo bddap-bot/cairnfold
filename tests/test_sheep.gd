@@ -200,7 +200,7 @@ func _fences_draw_a_flock() -> void:
 	var g := await _glade(4)
 	g.run(300.0)
 	check(g.sheep().is_empty(), "a meadow without a fence draws no sheep")
-	var wall := _draw(g, Hand.Tool.WALLS, Vector3(-6, 0, -8), Vector3(6, 0, -8))
+	_draw(g, Hand.Tool.WALLS, Vector3(-6, 0, -8), Vector3(6, 0, -8))
 	g.run(120.0)
 	check(g.sheep().is_empty(), "a stone wall draws no sheep")
 	var short := _draw(g, Hand.Tool.FENCE, Vector3(-14, 0, -2), Vector3(-14, 0, 2))

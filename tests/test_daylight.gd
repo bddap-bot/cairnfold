@@ -433,8 +433,4 @@ func _in_the_glade() -> void:
 	check(sky_sun.is_equal_approx(Daylight.toward_sun(0.7)), "the sky catches up with the sun once it rests")
 	check(look.sun.sky_mode == DirectionalLight3D.SKY_MODE_LIGHT_ONLY, "moving the light leaves the sky's radiance alone")
 	_a_garden_kept_in_the_dark_starts_at_dusk()
-	_done()
-
-
-func _done() -> void:
 	finish()

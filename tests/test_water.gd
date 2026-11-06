@@ -174,7 +174,7 @@ func _a_level_it_is_near_changes_nothing() -> void:
 
 
 func _open_ground_holds_no_pond() -> void:
-	check(PondLayout.fill(_grid(func(i: int, j: int) -> float: return i * 0.05), WINDOW, Vector2i(10, 10)) == null, "a slope holds nothing")
+	check(PondLayout.fill(_grid(func(i: int, _j: int) -> float: return i * 0.05), WINDOW, Vector2i(10, 10)) == null, "a slope holds nothing")
 	check(PondLayout.fill(_grid(func(i: int, j: int) -> float: return Vector2(i - 10, j - 10).length() * 0.3), WINDOW, Vector2i(10, 10)) == null, "a basin wider than the window holds nothing")
 	for edge in [Vector2i(3, 10), Vector2i(17, 10), Vector2i(10, 17)]:
 		var cut := func(i: int, j: int) -> float: return _bowl(i, j, edge.x, edge.y)

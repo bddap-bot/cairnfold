@@ -105,7 +105,6 @@ func _is_the_canvas(path: String, e: Easels.Easel) -> void:
 	var exact_height := 0
 	var worst_height := 0
 	var painted := 0
-	var tall := 0
 	for y in Brushwork.SIZE.y:
 		for x in Brushwork.SIZE.x:
 			var w := tex[0].get_pixel(x, y)
@@ -130,7 +129,6 @@ func _is_the_canvas(path: String, e: Easels.Easel) -> void:
 			got_h = ((got_h & 0xFF) << 8) | (got_h >> 8)
 			exact_height += int(got_h == h)
 			worst_height = maxi(worst_height, absi(got_h - h))
-			tall += int(d.a > 0.0)
 	var n := Brushwork.SIZE.x * Brushwork.SIZE.y
 	print("canvas %d: %d of %d texels painted; colour exact on %d, at most %d/255 off, a value at most %.3f of a step from where its rounding turns; height exact on %d, at most %d/65535 off" % [e.id, painted, n, exact, worst, edge, exact_height, worst_height])
 	check(painted > n / 100, "the canvas is painted: %d texels" % painted)

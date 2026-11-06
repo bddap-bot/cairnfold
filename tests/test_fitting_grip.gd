@@ -170,7 +170,7 @@ func _run() -> void:
 	_lay()
 	check(added.size() == 3, "a chair, a ground piece and one at the house's foot placed: %s" % [added])
 	if added.size() != 3:
-		_done()
+		finish()
 		return
 	var chair: int = added[0]
 	var was: Dictionary = world.state.decorations[chair].duplicate()
@@ -221,7 +221,7 @@ func _run() -> void:
 	check(not Commands.clean({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": flags}}, world.state, false, world.terrain).is_empty(), "a peer takes a carried flag")
 
 	await _real_grip(wall)
-	_done()
+	finish()
 
 
 ## The grip button, pressed with the hand pointing at a lantern, takes the lantern rather than its wall; a second hand's
@@ -256,7 +256,3 @@ func _real_grip(wall: Wall) -> void:
 	check(absf(now.x - lantern.x) > 0.4 and absf(now.y - (lantern.y + 0.3)) < 0.06, "let go, the lantern hangs where the hand took it: %s from %s" % [now, lantern])
 	for h in [hand, other]:
 		h.held_still = false
-
-
-func _done() -> void:
-	finish()

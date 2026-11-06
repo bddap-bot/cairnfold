@@ -378,7 +378,7 @@ func _in_the_glade() -> void:
 	])
 	check(walls.size() == 4, "a wall, a house, a tower and a fence stand: %d" % walls.size())
 	if walls.size() != 4:
-		_done()
+		finish()
 		return
 	var wall := walls[0]
 	var house := walls[1]
@@ -540,7 +540,7 @@ func _in_the_glade() -> void:
 	check(cut.size() == 2 and PackedVector4Array(world.state.walls[wall.id].openings) == cut and reloaded.layout.archways().size() == 1, "a save keeps the cut arch")
 	await _a_ruin_flies_no_flag(fit, world)
 	_shared_opening_cap(reloaded)
-	_done()
+	finish()
 
 
 func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
@@ -652,7 +652,7 @@ func _drawn(w: Wall, step: String) -> Array:
 			return w._parts.duplicate(true)
 		await process_frame
 	check(false, "%s: the wall still lays %d frames on" % [step, SETTLE_FRAMES])
-	_done()
+	finish()
 	while true:
 		await process_frame
 	return []
@@ -669,10 +669,6 @@ func _each_fitting_stands_alone() -> void:
 		var laid: int = m.find_children("*", "MultiMeshInstance3D", true, false).reduce(func(n, mmi): return n + mmi.multimesh.instance_count, 0)
 		check(laid > 0, "the %s's model has its parts" % what)
 		m.free()
-
-
-func _done() -> void:
-	finish()
 
 
 func _every_flag_triangle_faces_its_normal() -> void:

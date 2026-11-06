@@ -120,7 +120,6 @@ func _plaster_wears_back_to_the_stones() -> void:
 		var c := w.course_height()
 		var above := func(st: Dictionary) -> bool: return st.y > c
 		var stones := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "block" and above.call(st))
-		var plaster := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "plaster" and above.call(st))
 		var mortar := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "mortar" and above.call(st))
 		var bare := 0.0
 		for m in mortar:

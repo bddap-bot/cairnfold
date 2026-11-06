@@ -21,7 +21,7 @@ func _run() -> void:
 	_the_ranges_read_as_far_from_anywhere_in_the_garden(verts)
 	_the_eye_and_the_sun_reach_past_them(verts)
 	_every_face_faces_the_garden(verts, normals, indices)
-	_slopes_shade_smoothly_and_ridges_crisply(verts, normals, indices)
+	_slopes_shade_smoothly_and_ridges_crisply(verts, indices)
 	_the_sun_rises_and_sets_through_a_pass()
 	print("mountains: %d triangles, %d vertices" % [indices.size() / 3, verts.size()])
 	_the_lake_stands_under_the_meadow_and_over_the_feet(verts)
@@ -70,7 +70,7 @@ func _every_face_faces_the_garden(verts: PackedVector3Array, normals: PackedVect
 
 ## Corners of faces folding sharper than the crease never share a normal, so the ridges and crags keep their edge,
 ## while most corners round a point share one, so the slopes between shade smoothly.
-func _slopes_shade_smoothly_and_ridges_crisply(verts: PackedVector3Array, normals: PackedVector3Array, indices: PackedInt32Array) -> void:
+func _slopes_shade_smoothly_and_ridges_crisply(verts: PackedVector3Array, indices: PackedInt32Array) -> void:
 	var crease := cos(deg_to_rad(Mountains.CREASE))
 	var corners_at := {}
 	for i in indices.size():

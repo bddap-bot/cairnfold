@@ -484,7 +484,7 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var first := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch on the only wall")
-	var second := _draw_wall(g.walls, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
+	_draw_wall(g.walls, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
 	await process_frame
 	await g.play(1.5)
 	check(g.wildlife.birds.sites.size() == 2, "a second wall to perch on, %d sites" % g.wildlife.birds.sites.size())

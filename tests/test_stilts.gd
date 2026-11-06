@@ -123,7 +123,7 @@ func _a_low_raise_stands_on_its_plinth() -> void:
 
 ## On a steep slope the uphill stilts are short, standing on the ground over the foundation's level.
 func _stilts_stand_on_the_ground_where_it_rises() -> void:
-	var steep := func(x: float, z: float) -> float: return x * 0.25
+	var steep := func(x: float, _z: float) -> float: return x * 0.25
 	var w := _raised(WallLayout.Foundation.POSTS, false, 1.5, steep)
 	var posts := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "post")
 	var heights := posts.map(func(st: Dictionary) -> float: return st.size.y)

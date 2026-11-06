@@ -462,7 +462,7 @@ func _in_the_glade() -> void:
 	])
 	check(walls.size() == 2, "two houses stand: %d" % walls.size())
 	if walls.size() != 2:
-		_done()
+		finish()
 		return
 	var house := walls[0]
 	var deck := walls[1]
@@ -529,8 +529,4 @@ func _in_the_glade() -> void:
 		var top: float = deck.layout.samples[0].y + deck.layout.height + WallLayout.CAP
 		check(absf(upper.layout.samples[0].y + WallLayout.SINK - top) < 0.01, "a platform on a platform: %.2f on %.2f" % [upper.layout.samples[0].y + WallLayout.SINK, top])
 		check(deck.roof.tiles.filter(func(t): return t.kind == "plank").size() > 20 and deck.layout.stones.any(func(s): return s.kind == "rail"), "the deck below stays a railed terrace round it")
-	_done()
-
-
-func _done() -> void:
 	finish()
