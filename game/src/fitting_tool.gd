@@ -516,8 +516,8 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.y = point.y - w.layout.point_at(best.s).y
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
-	var removable := path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else [])
-	var items := removable + (builder.world.decorations.targets() if builder.world.decorations != null else [])
+	var removable: Array = path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else [])
+	var items: Array = removable + (builder.world.decorations.targets() if builder.world.decorations != null else [])
 	for i in items.size():
 		var along := _along(items[i], origin, dir)
 		if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001 or i < removable.size() and removal(builder.world.state, items[i]).is_empty():

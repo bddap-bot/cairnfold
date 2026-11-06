@@ -254,8 +254,8 @@ static func deliver() -> void:
 
 
 static func _lay(root: Node3D, pieces: Array) -> void:
-	for piece: Array in pieces:
-		piece(root, piece[0], piece[1], piece[2])
+	for p: Array in pieces:
+		piece(root, p[0], p[1], p[2])
 
 
 static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finish, round: bool, boulder: bool, house: bool, fence: bool) -> Node3D:
