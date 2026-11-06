@@ -37,7 +37,7 @@ func _init() -> void:
 			for sign_x in [-1, 1]:
 				check(parts.any(func(p): return absf(p.s - (o.s + sign_x * (o.half + 0.1252))) < 0.01 and absf(p.xform.basis.x.normalized().y) > 0.99), "opening jamb stud follows resized opening")
 			for y: float in [o.head + 0.1252, o.sill - 0.1252]:
-				if y < w.course_height():
+				if y < WallLayout.COURSE:
 					continue
 				check(parts.any(func(p): return absf(p.y - y) < 0.01 and absf(p.s - o.s) < 0.01 and p.size.x >= o.half * 2.0), "opening head and sill rails follow resized opening")
 			for p in parts:

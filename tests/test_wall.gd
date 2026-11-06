@@ -120,7 +120,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				var inner := w.opening(y + 0.03, false, k)
 				var edge := maxf(w.opening(y - 0.03, false, k), w.opening(y + 0.03, false, k)) + 0.03
 				# A timber arch's jambs stand on the foot course, whose joints show at the reveal under them as a stone arch's do.
-				var jamb: float = w.arch_style().jamb * k if y < w.course_height() else 0.0
+				var jamb: float = w.arch_style().jamb * k if y < WallLayout.COURSE else 0.0
 				var reveal: bool = y < w.spring(k) and (w.arch_style().jamb == 0.0 or jamb > 0.0) and absf(d) < WallLayout.ARCH_HALF * k + jamb + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
 				var hit := near.any(func(st: Dictionary) -> bool:
@@ -139,7 +139,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		if w.arch_style().name == "timber":
 			check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
 
-		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4 or k != 1.0:
+		if w.height < WallLayout.DOOR_TALL + WallLayout.COURSE * 1.4 or k != 1.0:
 			continue
 		var door := w.inputs()
 		door.openings = [Vector4(a, 0.0, WallLayout.Family.COTTAGE, 1)]
@@ -154,7 +154,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 			var d := -1.6
 			while d <= 1.6:
 				# The jamb exposes course joints; above the lintel the wall must cover the whole band.
-				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + door.course_height() + 0.03:
+				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + WallLayout.COURSE + 0.03:
 					var p: Vector3 = door.frame_at(a + d).point + Vector3.UP * y
 					if not door.stones.any(func(st: Dictionary) -> bool:
 						return _holds(st, p)):
@@ -237,7 +237,7 @@ func _doors_and_windows_scale_from_where_they_stand() -> void:
 	w.height = 6.0
 	w.openings.assign([Vector4(3.0, 0.5, WallLayout.Family.COTTAGE, 1.5), Vector4(9.0, 2.0, WallLayout.Family.COTTAGE, 2.0)])
 	w.build(Terrain.flat)
-	var c := w.course_height()
+	var c := WallLayout.COURSE
 	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.Family.COTTAGE, 1.0))
 	check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
 	if w.apertures.size() != 2:

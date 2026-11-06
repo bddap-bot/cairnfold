@@ -147,7 +147,7 @@ func _doors_stand_their_height_over_the_floor() -> void:
 		check(lift > 0.3 and is_equal_approx(w.floor_lift(), lift), "up a slope the floor stands %.2f over the foot" % lift)
 		check(is_equal_approx(w.spring() - lift, WallLayout.SPRING), "the doorway arch springs its full height over the floor: %.2f" % (w.spring() - lift))
 		var door := w.opening_for(Vector4(1.5, 0.0, WallLayout.Family.COTTAGE, 1.0))
-		check(door.head - lift >= WallLayout.DOOR_TALL - w.course_height() * 0.5, "a door's head stands its height over the floor: %.2f" % (door.head - lift))
+		check(door.head - lift >= WallLayout.DOOR_TALL - WallLayout.COURSE * 0.5, "a door's head stands its height over the floor: %.2f" % (door.head - lift))
 		var pet := w.opening_for(Vector4(1.5, 0.0, WallLayout.Family.ARCHWAY, WallLayout.MIN_SIZE))
 		check(w.can_arch(WallLayout.MIN_SIZE) and pet.head - lift < 1.2, "a pet door still opens small over the floor: %.2f" % (pet.head - lift))
 		check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["block", "plaster"] and absf(st.s - 3.0) < WallLayout.ARCH_HALF - 0.1 and st.y > lift and st.y < w.spring()), "nothing of the wall stands in the doorway over the floor")
@@ -172,7 +172,7 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 					var walls := w.stones.filter(func(st: Dictionary) -> bool: return not st.kind in WallLayout.FLOOR_KINDS)
 					var open := []
 					var y := -w.plinth_at(3.0) + 0.05
-					while y < t - w.course_height():
+					while y < t - WallLayout.COURSE:
 						for d in [-0.4, 0.0, 0.4]:
 							var p: Vector3 = w.frame_at(3.0 + d).point + Vector3.UP * y
 							if not walls.any(func(st: Dictionary) -> bool: return _holds(st, p)):

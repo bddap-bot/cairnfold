@@ -394,7 +394,7 @@ func _a_path_into_a_house_opens_a_door_as_wide_as_it() -> void:
 	w.openings.assign(wall_high)
 	w.build(Terrain.flat)
 	var made := _doors(w)
-	check(made.size() == 1 and made[0].lights == 1 and made[0].half * 2.0 < 1.4 and made[0].head + w.course_height() <= w.height + 0.01, "a path a little wider than the tallest door the wall holds opens that door: %s" % [made])
+	check(made.size() == 1 and made[0].lights == 1 and made[0].half * 2.0 < 1.4 and made[0].head + WallLayout.COURSE <= w.height + 0.01, "a path a little wider than the tallest door the wall holds opens that door: %s" % [made])
 	var wide := _path([[-4.5, 7], [2.5, 0]], 3.0).meetings(w)
 	w.openings.assign(w.path_doors(wide[0].s, wide[0].span, none))
 	w.build(Terrain.flat)

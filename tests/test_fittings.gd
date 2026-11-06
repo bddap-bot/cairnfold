@@ -59,8 +59,8 @@ func _a_window_cuts_its_opening() -> void:
 		return
 	var o := w.apertures[0]
 	check(not o.door and o.lights == 1, "a window at 1.5 m is a single window")
-	check(o.sill > 0.6 and o.head <= w.height - w.course_height() + 0.01, "sill %.2f and head %.2f leave a lintel course under the top" % [o.sill, o.head])
-	check(is_equal_approx(fmod(o.sill + 1e-4, w.course_height()), 1e-4), "the sill sits on a course joint")
+	check(o.sill > 0.6 and o.head <= w.height - WallLayout.COURSE + 0.01, "sill %.2f and head %.2f leave a lintel course under the top" % [o.sill, o.head])
+	check(is_equal_approx(fmod(o.sill + 1e-4, WallLayout.COURSE), 1e-4), "the sill sits on a course joint")
 	check(_intruders(w, o).is_empty(), "no coursed stone fills the window")
 	for k in ["glass", "frame", "lintel", "sill", "plaster"]:
 		check(not _kind(w, k).is_empty(), "a window has a %s" % k)
@@ -147,9 +147,9 @@ func _the_lintel_course_is_cut() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
 	var o := w.apertures[0]
 	var reach: float = o.half + WallLayout.LINTEL_EAR
-	var under := w.stones.filter(func(s): return s.kind == "block" and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < reach + s.size.x * 0.5 - 0.02)
+	var under := w.stones.filter(func(s): return s.kind == "block" and s.y > o.head and s.y < o.head + WallLayout.COURSE and absf(s.s - o.s) < reach + s.size.x * 0.5 - 0.02)
 	check(under.is_empty(), "the lintel's course is cut for it, %d coursed stones in its way" % under.size())
-	var behind := w.stones.filter(func(s): return s.kind == "mortar" and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < o.half)
+	var behind := w.stones.filter(func(s): return s.kind == "mortar" and s.y > o.head and s.y < o.head + WallLayout.COURSE and absf(s.s - o.s) < o.half)
 	check(not behind.is_empty() and behind.all(func(s): return s.y - s.size.y * 0.5 >= o.head + WallLayout.JOINT - 0.001 and s.size.z < WallLayout.THICKNESS), "mortar runs on behind the lintel, inside it and off the head: %s" % [behind])
 
 

@@ -42,7 +42,7 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		var lo := corners[side]
 		var hi := corners[side + 1]
 		var mid := (lo + hi) * 0.5 if w.closed else INF
-		var foot := w.course_height()
+		var foot := WallLayout.COURSE
 		var eaves := w.height + WallLayout.CAP * 0.5 if w.cover == WallLayout.Cover.ROOF else w.height - WIDTH * 0.5
 		var corner := (WallLayout.THICKNESS - WIDTH) * 0.5
 		var near := lo - corner if w.closed or side > 0 else lo + WIDTH * 0.5

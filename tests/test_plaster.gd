@@ -56,7 +56,7 @@ func _init() -> void:
 			check(packed.stone.size() < old.stone.size() and packed.shadow.size() <= old.shadow.size(), "fewer stone vertices and shadow instances")
 			check(packed.mortar.size() <= old.mortar.size() * 2, "plaster splits from the footing's mortar, no finer")
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):
-				check(panel.y > plaster.course_height(), "stone base retained")
+				check(panel.y > WallLayout.COURSE, "stone base retained")
 				for o in plaster.apertures:
 					check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.Family.ARCHWAY else o.half)), "plaster does not fill an opening")
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])

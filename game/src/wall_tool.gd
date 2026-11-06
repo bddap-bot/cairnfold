@@ -707,7 +707,7 @@ static func _moved(was: Dictionary, at: Dictionary) -> bool:
 
 ## Where a house standing as `at` stands on the ground and which way it faces, as a frame.
 static func _footing(at: Dictionary) -> Transform3D:
-	return Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, 0.0, at.center.z))
+	return Transform3D(Basis(Vector3.UP, at.yaw), _flat(at.center))
 
 
 ## The reshape that carries build `d` by `x`, a turn about the vertical and a move along the ground: its wall line, and a
@@ -715,11 +715,11 @@ static func _footing(at: Dictionary) -> Transform3D:
 static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
 	var points := PackedVector3Array()
 	for p: Vector3 in d.points:
-		var q := x * Vector3(p.x, 0.0, p.z)
+		var q := x * _flat(p)
 		points.append(Vector3(q.x, p.y, q.z))
 	var out := {"points": points}
 	if d.has("roof"):
-		var c := x * Vector3(d.roof.center.x, 0.0, d.roof.center.z)
+		var c := x * _flat(d.roof.center)
 		out["roof"] = {"center": Vector3(c.x, d.roof.center.y, c.z)}
 	return out
 

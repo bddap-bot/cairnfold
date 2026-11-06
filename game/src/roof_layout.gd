@@ -1363,8 +1363,8 @@ func surface() -> PackedVector3Array:
 	if kind == Kind.CONE:
 		var seg := 16
 		for k in seg:
-			var a0 := Vector3(cos(TAU * k / seg), 0, sin(TAU * k / seg))
-			var a1 := Vector3(cos(TAU * (k + 1) / seg), 0, sin(TAU * (k + 1) / seg))
+			var a0 := _ring(k, seg)
+			var a1 := _ring(k + 1, seg)
 			for i in prof.size() - 1:
 				_quad(tris, f.mid, a0, a1, prof[i], prof[i + 1])
 		return tris
@@ -1378,14 +1378,19 @@ func surface() -> PackedVector3Array:
 	return tris
 
 
+## The direction of point `k` of `seg` evenly round a cone's eave.
+static func _ring(k: int, seg: int) -> Vector3:
+	return Vector3(cos(TAU * k / seg), 0, sin(TAU * k / seg))
+
+
 func _deck_surface() -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	var f := frame()
 	var n := PROFILE_STEPS
 	if kind == Kind.CONE:
 		for i in 16:
-			var a := Vector3(cos(TAU * i / 16.0), 0, sin(TAU * i / 16.0))
-			var b := Vector3(cos(TAU * (i + 1) / 16.0), 0, sin(TAU * (i + 1) / 16.0))
+			var a := _ring(i, 16)
+			var b := _ring(i + 1, 16)
 			for j in n:
 				var x := half_span() * j / n
 				var y := half_span() * (j + 1) / n
@@ -1472,8 +1477,8 @@ func torching() -> PackedVector3Array:
 	if kind == Kind.CONE:
 		var seg := maxi(16, ceili(TAU * eave() / TORCHING_PIECE))
 		for k in seg:
-			var a0 := Vector3(cos(TAU * k / seg), 0, sin(TAU * k / seg))
-			var a1 := Vector3(cos(TAU * (k + 1) / seg), 0, sin(TAU * (k + 1) / seg))
+			var a0 := _ring(k, seg)
+			var a1 := _ring(k + 1, seg)
 			for i in prof.size() - 1:
 				var p := prof[i]
 				var q := prof[i + 1]

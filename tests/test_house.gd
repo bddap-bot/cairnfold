@@ -736,7 +736,7 @@ func _the_budget_counts_each_gable_end_as_laid() -> void:
 				check(is_equal_approx(boards.get("wall_m2", 0.0) + boards.get("plaster_m2", 0.0), wall[face]) and is_equal_approx(boards.get("wall_m2", 0.0) - (0.0 if plaster else walls), wall[face] - walls), "boards count as stone wall over the same face")
 				d.gable_end = WallLayout.GableEnd.STEPS
 				var w: WallLayout = _gabled(plaster, curve, WallLayout.GableEnd.STEPS, d.points, pitch)[0]
-				var h := w.course_height()
+				var h := WallLayout.COURSE
 				var spans := {}
 				for s in _gable_pieces(w):
 					if s.kind in ["block", "mortar", "plaster"]:

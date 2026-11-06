@@ -60,9 +60,9 @@ func habitats() -> Dictionary:
 	return {}
 
 
-## Whether arrivals' waits count down now.
+## Whether arrivals' waits count down now: while the garden is awake.
 func active() -> bool:
-	return true
+	return not wildlife.asleep()
 
 
 ## One of the kind coming to `home`, or null where it finds no place there.

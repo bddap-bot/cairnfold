@@ -77,6 +77,11 @@ func habitats() -> Dictionary:
 	return out
 
 
+## Frogs come by night as by day.
+func active() -> bool:
+	return true
+
+
 ## One comes to a spot on the bank out of sight where there is one.
 func arrive(home: Object) -> One:
 	var spot := []

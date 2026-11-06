@@ -189,7 +189,7 @@ func _resting(s: Sheep) -> bool:
 
 func _crosses_a_wall(g: Glade, a: Vector3, b: Vector3) -> bool:
 	for w in g.walls.walls:
-		var pts := Wildlife._line(w.layout)
+		var pts := WallLayout.ground_line(w.layout.samples)
 		for i in pts.size() - 1:
 			if Geometry2D.segment_intersects_segment(Vector2(a.x, a.z), Vector2(b.x, b.z), pts[i], pts[i + 1]) != null:
 				return true
@@ -344,7 +344,7 @@ func _curved_walls_are_kept_off_where_they_curve() -> void:
 			worst = _off_line(chords, q)
 			at = q
 	check(worst > 0.1, "the curve strays %.2f m from its chords" % worst)
-	check(_off_line(Wildlife._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Wildlife._line(w), at))
+	check(_off_line(WallLayout.ground_line(w.samples), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(WallLayout.ground_line(w.samples), at))
 
 
 func _off_line(line: PackedVector2Array, q: Vector2) -> float:

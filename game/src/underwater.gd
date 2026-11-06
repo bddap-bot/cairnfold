@@ -43,20 +43,13 @@ func _init(ponds: Water, light: Look, player: Rig) -> void:
 
 func _enter_tree() -> void:
 	AudioServer.add_bus_effect(0, _muffle)
-	AudioServer.set_bus_effect_enabled(0, _muffle_index(), false)
+	AudioServer.set_bus_effect_enabled(0, Soundscape.effect_index(0, _muffle), false)
 
 
 func _exit_tree() -> void:
 	if visible:
 		_submerge(false)
-	AudioServer.remove_bus_effect(0, _muffle_index())
-
-
-func _muffle_index() -> int:
-	for i in AudioServer.get_bus_effect_count(0):
-		if AudioServer.get_bus_effect(0, i) == _muffle:
-			return i
-	return -1
+	AudioServer.remove_bus_effect(0, Soundscape.effect_index(0, _muffle))
 
 
 func _process(_delta: float) -> void:
@@ -93,7 +86,7 @@ static func into_water(way: Vector3) -> Vector3:
 func _submerge(on: bool) -> void:
 	visible = on
 	look.submerge(on)
-	var i := _muffle_index()
+	var i := Soundscape.effect_index(0, _muffle)
 	if i >= 0:
 		AudioServer.set_bus_effect_enabled(0, i, on)
 	if on:

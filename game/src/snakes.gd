@@ -90,10 +90,6 @@ func habitats() -> Dictionary:
 	return out
 
 
-func active() -> bool:
-	return not wildlife.asleep()
-
-
 ## One slips in at a spot in its pond's grass out of sight.
 func arrive(home: Object) -> One:
 	for attempt in 12:

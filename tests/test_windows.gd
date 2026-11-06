@@ -91,7 +91,7 @@ func _a_family_cuts_its_shape(family: WallLayout.Family) -> void:
 			check(wedges.all(func(v) -> bool: return v.size.y > WallLayout.THICKNESS), "%s: the ring stands proud of both faces" % name)
 			check(_kind(w, "lintel").is_empty(), "%s: a ring, not a lintel, heads it" % name)
 			check(_kind(w, "sill").size() == (0 if family == WallLayout.Family.ROUND else 1), "%s: an arched window sits on a sill, a round one on none" % name)
-			var infill := w.stones.filter(func(s) -> bool: return s.kind == "mortar" and s.has("ends") and Vector2(s.s - 4.0, s.y - middle).length() < o.pane + o.ring + w.course_height() + 0.05)
+			var infill := w.stones.filter(func(s) -> bool: return s.kind == "mortar" and s.has("ends") and Vector2(s.s - 4.0, s.y - middle).length() < o.pane + o.ring + WallLayout.COURSE + 0.05)
 			check(not infill.is_empty(), "%s: infill closes the courses' level cut behind the ring" % name)
 		WallLayout.Family.SLIT:
 			check(o.half < 0.1 and o.head - o.sill > 1.19, "a slit is tall and narrow: %s" % o)
@@ -144,7 +144,7 @@ func _a_course_below_a_ringed_sill_stays_whole() -> void:
 	for family in RINGED:
 		var w := _wall(family, [4.0])
 		var o := w.apertures[0]
-		var c := w.course_height()
+		var c := WallLayout.COURSE
 		check(WallLayout.light_cuts(o, o.sill - c, c).is_empty(), "%s: the course under its sill is not cut" % WallLayout.Family.find_key(family))
 		check(not WallLayout.light_cuts(o, o.sill, c).is_empty(), "%s: the course above its sill is" % WallLayout.Family.find_key(family))
 

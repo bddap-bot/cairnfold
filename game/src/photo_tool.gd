@@ -448,7 +448,7 @@ func stop() -> String:
 	_heard.append_array(_take_sound())
 	_queue.append({"sound": _heard, "repeats": _owed + maxi(roundi(_clip_time * VIDEO_FPS) - _clip_slot - 1, 0)})
 	_heard = PackedByteArray()
-	AudioServer.remove_bus_effect(0, _effect_index())
+	AudioServer.remove_bus_effect(0, Soundscape.effect_index(0, _sound))
 	_sound = null
 	while _writing != -1 or not _queue.is_empty():
 		await get_tree().process_frame
@@ -465,13 +465,6 @@ func stop() -> String:
 		print("video: ", path, " ", clip.frames, " frames")
 	recorded.emit(path)
 	return path
-
-
-func _effect_index() -> int:
-	for i in AudioServer.get_bus_effect_count(0):
-		if AudioServer.get_bus_effect(0, i) == _sound:
-			return i
-	return -1
 
 
 func _take_sound() -> PackedByteArray:

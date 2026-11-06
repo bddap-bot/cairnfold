@@ -86,10 +86,6 @@ func habitats() -> Dictionary:
 	return _trees
 
 
-func active() -> bool:
-	return not wildlife.asleep()
-
-
 static func height(trunk: Flora.Plant) -> float:
 	return trunk.xform.basis.y.length()
 

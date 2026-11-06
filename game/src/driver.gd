@@ -916,13 +916,7 @@ func _paint(s: Dictionary) -> void:
 		return
 	var path := _path(s)
 	b.meadow = FloraTool.paints_meadow(b.hand.tool, _along(path, 0.0), main.world.marks)
-	var t := 0.0
-	var seconds: float = s.get("seconds", 2.0)
-	while t < seconds:
-		await get_tree().process_frame
-		var dt := get_process_delta_time()
-		t += dt
-		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt)
+	await _over(s, 2.0, func(k: float) -> void: flora_tool.paint(b, _along(path, k), s.radius, get_process_delta_time()))
 	flora_tool.end_stroke(b)
 
 
@@ -952,14 +946,9 @@ func _sculpt(s: Dictionary) -> void:
 	var tool: GroundGrab = main.ground_grab
 	var hand := _hand(s)
 	tool.begin(hand, _spot(s, s.x, s.z), s.get("radius", GroundGrab.MIN_RADIUS))
-	var t := 0.0
-	var seconds: float = s.get("seconds", 1.0)
-	while t < seconds:
-		await get_tree().process_frame
-		var dt := get_process_delta_time()
-		t += dt
-		tool.pull(hand, s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
-		tool.follow(hand, dt)
+	await _over(s, 1.0, func(k: float) -> void:
+		tool.pull(hand, s.lift * smoothstep(0.0, 1.0, k))
+		tool.follow(hand, get_process_delta_time()))
 	tool.end_stroke(hand)
 
 
@@ -1915,12 +1904,7 @@ func _dial(s: Dictionary, hand: Hand, target: Dictionary, to: int) -> void:
 	tool.open(hand, target)
 	var from: int = tool.wheels[hand].dial.start
 	var turn := (to - from) * Dial.step(target.count)
-	var t := 0.0
-	var seconds: float = s.get("seconds", 1.0)
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		tool.twist(hand, turn * minf(t / seconds, 1.0))
+	await _over(s, 1.0, func(k: float) -> void: tool.twist(hand, turn * k))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.close(hand)
@@ -1950,15 +1934,11 @@ func _glide(s: Dictionary) -> void:
 	if pose.is_empty():
 		return
 	var from: Array[Vector3] = [_eye, _at]
-	var seconds: float = s.seconds
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		var k := smoothstep(0.0, 1.0, minf(t / seconds, 1.0))
-		_eye = from[0].lerp(pose[0], k)
-		_at = from[1].lerp(pose[1], k)
-		main.view(_eye, _at)
+	await _over(s, s.seconds, func(k: float) -> void:
+		var eased := smoothstep(0.0, 1.0, k)
+		_eye = from[0].lerp(pose[0], eased)
+		_at = from[1].lerp(pose[1], eased)
+		main.view(_eye, _at))
 
 
 ## A step's `eye` and `at`. With "subject", they are in the frame of the first node in that group (or its
@@ -2065,26 +2045,26 @@ func _take(s: Dictionary) -> void:
 		await _frames(2)
 		return
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
-	hand.held_still = true
-	var key := Controls.key("grab", hand.tracker)
-	Buttons.injected[key] = true
-	await _frames(2)
-	Buttons.injected.erase(key)
+	await _squeeze(hand)
 	await _frames(2)
 
 
 ## A grip by the hand holding a palette, wherever that hand is, sends the palette back to its rest on the tray; done
 ## once it rests there.
 func _set_down(s: Dictionary) -> void:
-	var hand := _hand(s)
+	await _squeeze(_hand(s))
+	while not main.easel_tool.returning.is_empty():
+		await _frames(1)
+	await _frames(1)
+
+
+## A grip by `hand` held still where it is, pressed for two frames and let go.
+func _squeeze(hand: Hand) -> void:
 	hand.held_still = true
 	var key := Controls.key("grab", hand.tracker)
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
-	while not main.easel_tool.returning.is_empty():
-		await _frames(1)
-	await _frames(1)
 
 
 ## Checks that `hand` holds `what` (as EaselTool.holding names it) once its brush has had time to show, and that
@@ -2883,13 +2863,7 @@ func _bird_smear(s: Dictionary) -> void:
 		approach += get_process_delta_time()
 		h.global_transform = from.interpolate_with(target, smoothstep(0.0, 0.6, approach))
 	await _frames(2)
-	var seconds: float = s.get("seconds", 3.0)
-	var t := 0.0
-	while t < seconds:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		var along := t / seconds
-		h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), along * 0.18, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
+	await _over(s, 3.0, func(along: float) -> void: h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), along * 0.18, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY)))
 	h.global_position += frame.basis.z * 0.2
 	await _frames(30)
 	print("conure: wet canvas smear submitted")
@@ -2971,9 +2945,14 @@ func _release_bird(s: Dictionary) -> void:
 	assert(h.carried == null, "bird must leave the hand when grip releases")
 
 
+## The avatar a spring step reaches for: with "remote", the other player's, else the wearer's own.
+func _spring_avatar(s: Dictionary) -> Avatar:
+	return main.session.avatars.values()[0] if s.get("remote", false) else main.rig.body
+
+
 func _spring_grab(s: Dictionary) -> void:
 	var remote: bool = s.get("remote", false)
-	var avatar: Avatar = main.session.avatars.values()[0] if remote and not main.session.avatars.is_empty() else main.rig.body
+	var avatar := _spring_avatar(s)
 	var chain := _chain(avatar, s)
 	if chain < 0:
 		_fail("spring: no chain to grab")
@@ -3159,7 +3138,7 @@ func _expression(s: Dictionary) -> void:
 ## other player's avatar with "remote", else the wearer's own, along that avatar's facing and on its left, where
 ## spring_view looks from, for "seconds", and fails unless the chain's tip moves.
 func _spring_poke(s: Dictionary) -> void:
-	var avatar: Avatar = main.session.avatars.values()[0] if s.get("remote", false) else main.rig.body
+	var avatar := _spring_avatar(s)
 	var index := _chain(avatar, s)
 	if index < 0:
 		_fail("spring: no chain to poke")

@@ -667,7 +667,6 @@ func _take_up(p: Painter, delta: float) -> void:
 func _clear_contact(p: Painter) -> void:
 	p.contact.reset()
 	p.contact_easel = null
-	p.contact_point = Vector3.INF
 	_off_paint(p)
 	p.bend = Vector3.ZERO
 	if not Brushwork.is_stick(p.brush):
@@ -676,6 +675,7 @@ func _clear_contact(p: Painter) -> void:
 
 
 func _off_paint(p: Painter) -> void:
+	p.contact_point = Vector3.INF
 	p.under = {}
 	p.soaked = 0.0
 	p.took = false
@@ -688,7 +688,6 @@ func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
 	if p.contact_easel != e or p.contact_palette != palette:
 		end_stroke(p)
 		_off_paint(p)
-		p.contact_point = Vector3.INF
 		if palette:
 			p.contact.fit(e.board.metres, Vector3(Easels.PALETTE_SIZE.x, Easels.PALETTE_SIZE.y, Easels.BOARD_TOP * 2.0), true)
 		else:
@@ -707,7 +706,6 @@ func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
 	if not contact.on or not e.open(palette, contact.uv):
 		end_stroke(p)
 		_off_paint(p)
-		p.contact_point = Vector3.INF
 		return contact.on
 	p.contact_point = contact.point
 	var surface := e.surface(palette)

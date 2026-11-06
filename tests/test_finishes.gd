@@ -117,7 +117,7 @@ func _plaster_wears_back_to_the_stones() -> void:
 		w.finish = WallLayout.Finish.PLASTER
 		w.wear = wear
 		w.build(Terrain.flat)
-		var c := w.course_height()
+		var c := WallLayout.COURSE
 		var above := func(st: Dictionary) -> bool: return st.y > c
 		var stones := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "block" and above.call(st))
 		var mortar := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "mortar" and above.call(st))
@@ -176,7 +176,7 @@ func _planks_lie_across_or_upright() -> void:
 		for closed in [false, true]:
 			var w := _built(finish, 0.0, closed)
 			var name := "%s %s" % ["house" if closed else "wall", WallLayout.Finish.keys()[finish]]
-			var c := w.course_height()
+			var c := WallLayout.COURSE
 			var boards := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board" and st.y < w.height)
 			check(not boards.is_empty(), "%s: planks are laid" % name)
 			var across := boards.all(func(b: Dictionary) -> bool: return b.size.y < WallLayout.BOARD.x) and boards.filter(func(b: Dictionary) -> bool: return b.size.x > b.size.y).size() > boards.size() * 0.9

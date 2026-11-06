@@ -49,7 +49,6 @@ func _exit_tree() -> void:
 	var bus := AudioServer.get_bus_index(BUS)
 	if bus == -1:
 		return
-	for i in AudioServer.get_bus_effect_count(bus):
-		if AudioServer.get_bus_effect(bus, i) == _capture:
-			AudioServer.remove_bus_effect(bus, i)
-			return
+	var i := Soundscape.effect_index(bus, _capture)
+	if i >= 0:
+		AudioServer.remove_bus_effect(bus, i)

@@ -139,9 +139,7 @@ static func _sides(points: PackedVector3Array, closed: bool) -> Array[Dictionary
 
 ## Which side of a closed loop of `points` looks out, as `WallLayout._normal` signs it: +1 or -1.
 static func _outward(points: PackedVector3Array, sides: Array[Dictionary]) -> float:
-	var outline := PackedVector2Array()
-	for p in points:
-		outline.append(Vector2(p.x, p.z))
+	var outline := WallLayout.ground_line(points)
 	var side: Dictionary = sides[0]
 	var along: Vector3 = (side.to - side.from).normalized()
 	var normal := along.cross(Vector3.UP)

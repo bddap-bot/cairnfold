@@ -869,10 +869,10 @@ func standable(p: Vector3) -> bool:
 	var q := Vector2(p.x, p.z)
 	for w in _walls():
 		var layout := w.layout
-		var clear := (0.1 if layout.fence else WallLayout.THICKNESS * 0.5) + WALL_CLEAR
+		var clear := layout.half_thickness() + WALL_CLEAR
 		if not layout.bounds.grow(clear).has_point(q):
 			continue
-		var pts := _line(layout)
+		var pts := WallLayout.ground_line(layout.samples)
 		for i in pts.size() - 1:
 			if Geometry2D.get_closest_point_to_segment(q, pts[i], pts[i + 1]).distance_to(q) < clear:
 				return false
@@ -890,7 +890,7 @@ func clear_way(a: Vector3, b: Vector3) -> bool:
 	for w in _walls():
 		if not w.layout.bounds.grow(0.5).intersects(span.grow(0.01)):
 			continue
-		var pts := _line(w.layout)
+		var pts := WallLayout.ground_line(w.layout.samples)
 		for i in pts.size() - 1:
 			if Geometry2D.segment_intersects_segment(p, q, pts[i], pts[i + 1]) != null:
 				return false
@@ -899,14 +899,6 @@ func clear_way(a: Vector3, b: Vector3) -> bool:
 
 func _walls() -> Array[Wall]:
 	return walls.walls if walls != null else ([] as Array[Wall])
-
-
-## A wall's centre line on the ground plane as laid, closed round a loop.
-static func _line(layout: WallLayout) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for p in layout.samples:
-		out.append(Vector2(p.x, p.z))
-	return out
 
 
 ## Whichever pond is over `at` or within a couple of metres of it.

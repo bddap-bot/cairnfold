@@ -138,6 +138,14 @@ func _meadow(delta: float) -> void:
 		_call(_hoots, head, dark)
 
 
+## Where `effect` stands on bus `bus`'s chain, or -1.
+static func effect_index(bus: int, effect: AudioEffect) -> int:
+	for i in AudioServer.get_bus_effect_count(bus):
+		if AudioServer.get_bus_effect(bus, i) == effect:
+			return i
+	return -1
+
+
 ## How fully the songbirds sing with the sun `elevation` degrees up and the head `above` metres over the ground.
 static func song_level(elevation: float, above: float, under: bool) -> float:
 	return 0.0 if under else smoothstep(DAWN.x, DAWN.y, elevation) * _low(above)

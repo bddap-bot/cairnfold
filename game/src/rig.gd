@@ -345,9 +345,8 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 				stand.y = g
 	aim_ground = Vector3(stand.x, g, stand.z)
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
-	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
-	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, self)
+	_landing.put(aim_ground + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, self)
 
 
 ## Whether a surface with outward normal `normal` is a side.

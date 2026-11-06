@@ -41,8 +41,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 	s.rise = layout.height + WallLayout.CAP
 	var half := WallLayout.THICKNESS * 0.5
 	if s.closed:
-		for p in layout.points:
-			s.line.append(Vector2(p.x, p.z))
+		s.line = WallLayout.ground_line(layout.points)
 		s.feet.append(layout.samples[0].y if layout.samples.size() > 0 else 0.0)
 		s.inner = Geometry2D.offset_polygon(s.line, -SLACK)
 		s.centre = [s.line]

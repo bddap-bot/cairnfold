@@ -516,21 +516,15 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.y = point.y - w.layout.point_at(best.s).y
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
-	for item in path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else []):
-		var along := _along(item, origin, dir)
-		if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001 or removal(builder.world.state, item).is_empty():
+	var removable := path_targets(builder.paths, builder.world.terrain.height_at) + (builder.held_clutter_targets() if held else [])
+	var items := removable + (builder.world.decorations.targets() if builder.world.decorations != null else [])
+	for i in items.size():
+		var along := _along(items[i], origin, dir)
+		if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001 or i < removable.size() and removal(builder.world.state, items[i]).is_empty():
 			continue
-		best = item.duplicate()
+		best = items[i].duplicate()
 		best.point = origin + dir * along
 		best.along = along
-	if builder.world.decorations != null:
-		for item in builder.world.decorations.targets():
-			var along := _along(item, origin, dir)
-			if is_inf(along) or along < 0.0 or along > best.get("along", INF) + 0.001:
-				continue
-			best = item.duplicate()
-			best.point = origin + dir * along
-			best.along = along
 	return best
 
 

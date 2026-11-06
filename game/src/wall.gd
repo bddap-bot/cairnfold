@@ -906,7 +906,7 @@ func footprint() -> Rect2:
 ## Distance from a ray to this wall's body, with the arc length it is nearest: the first stretch the ray passes
 ## through, so a ray into a house finds the side facing it, or else the stretch it passes nearest.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
-	var reach := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
+	var reach := layout.half_thickness()
 	var best_key := Vector2.INF
 	var best_d := INF
 	var best_i := 0
@@ -972,7 +972,7 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 		return _ruin_hit(origin, dir)
 	var best := {}
 	var n := layout.samples.size()
-	var half := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
+	var half := layout.half_thickness()
 	# A stretch's box stands on the strip `half` either side of it, so a ray passing further from that strip, seen
 	# from above, cannot meet it; arc length bounds how far apart two samples stand, so a sample far from the ray skips
 	# every stretch after it that cannot come near: a long wall costs a ray a few steps away from it.
@@ -1112,6 +1112,6 @@ func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 		if along < best.get("along", INF):
 			var normal: Vector3 = hit.normal if hit.normal.dot(dir) < 0.0 else -hit.normal
 			var s := layout.closest_s(hit.position)
-			var face: bool = i == 0 and hit.position.y < layout.frame_at(s).point.y + layout.standing(s) - layout.course_height() * 0.5
+			var face: bool = i == 0 and hit.position.y < layout.frame_at(s).point.y + layout.standing(s) - WallLayout.COURSE * 0.5
 			best = {"along": along, "point": hit.position, "s": s, "distance": 0.0, "rubble": i == 1, "side": face or Rig.side(normal)}
 	return best

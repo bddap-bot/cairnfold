@@ -45,9 +45,9 @@ func _standing_in(w: WallLayout, lo: float, hi: float, y: float) -> Array:
 func _a_ruin_leaves_its_gap_clear_to_the_ground() -> void:
 	var w := _wall(12.0, 2.7, [Vector2(5.0, 7.0)])
 	for k in w.courses():
-		var y := (k + 0.5) * w.course_height()
+		var y := (k + 0.5) * WallLayout.COURSE
 		check(_standing_in(w, 5.0, 7.0, y).is_empty(), "course %d stands clear of the gap" % k)
-	check(_standing_in(w, 0.0, 4.0, 0.5 * w.course_height()).size() > 0, "the foot stands either side")
+	check(_standing_in(w, 0.0, 4.0, 0.5 * WallLayout.COURSE).size() > 0, "the foot stands either side")
 	var fallen := w.stones.filter(func(s): return s.kind == "rubble")
 	check(fallen.size() >= 3 and fallen.all(func(s): return s.s >= 5.0 and s.s <= 7.0), "fallen stones lie in the gap: %d" % fallen.size())
 	check(w.stones.filter(func(s): return s.kind == "pier").size() >= 4, "both whole ends keep their piers")
@@ -73,7 +73,7 @@ func _a_ruins_ends_step_down() -> void:
 
 func _mortar_stays_behind_a_ruins_broken_stones() -> void:
 	var w := _wall(16.0, 4.2, [Vector2(7.0, 9.0)])
-	var ch := w.course_height()
+	var ch := WallLayout.COURSE
 	var bad := []
 	for m in w.stones.filter(func(s): return s.kind == "mortar"):
 		var lo: float = m.s - m.size.x * 0.5

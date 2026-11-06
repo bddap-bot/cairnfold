@@ -11,7 +11,7 @@ class EveryStretch extends Wall:
 			return _ruin_hit(origin, dir)
 		var best := {}
 		var n := layout.samples.size()
-		var half := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
+		var half := layout.half_thickness()
 		for i in n if layout.closed else n - 1:
 			var j := (i + 1) % n
 			var a := layout.samples[i]

@@ -401,7 +401,6 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	if closed and corners().is_empty():
 		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
 	var faces := _face_spans()
-	var course_h := course_height()
 	var bays := pillars()
 	var pillar_tops := PackedFloat32Array()
 	pillar_tops.resize(bays.size())
@@ -410,13 +409,13 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	for d in depths:
 		sink = maxf(sink, d)
 	var open := stilt_span(foundation, laid_rise) if stilted() else 0.0
-	for k in range(-ceili(sink / course_h), courses()):
-		var y0 := k * course_h
+	for k in range(-ceili(sink / COURSE), courses()):
+		var y0 := k * COURSE
 		if y0 < 0.0 and y0 > -open - 1e-4 and not (foundation == Foundation.PILLARS and k == -1):
 			continue
-		var h := minf(course_h, height - y0)
+		var h := minf(COURSE, height - y0)
 		var yc := y0 + h * 0.5
-		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
+		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - COURSE)
 		var lintels := PackedVector2Array()
 		for o in apertures:
 			if o.style == Family.ARCHWAY:
@@ -427,14 +426,14 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 			else:
 				for cut in light_cuts(o, y0, h):
 					spans = _cut(spans, cut.x, cut.y)
-				if o.ring == 0.0 and yc > o.head and yc < o.head + course_h:
+				if o.ring == 0.0 and yc > o.head and yc < o.head + COURSE:
 					lintels.append(Vector2(o.s - o.half, o.s + o.half))
 		var filled := spans
 		for l in lintels:
 			spans = _cut(spans, l.x - LINTEL_EAR, l.y + LINTEL_EAR)
 		for i in bays.size():
 			if yc < bays[i].top:
-				pillar_tops[i] = y0 + course_h
+				pillar_tops[i] = y0 + COURSE
 				spans = _cut(spans, bays[i].s - bays[i].half, bays[i].s + bays[i].half)
 				filled = _cut(filled, bays[i].s - bays[i].half, bays[i].s + bays[i].half)
 		for b in breaks[maxi(k, 0)]:
@@ -465,7 +464,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 		_lay_pillar(bays[i].s, bays[i].half, pillar_tops[i], rng, wet)
 	for i in apertures.size():
 		rng.seed = hash([seed, "opening", i])
-		_lay_opening(apertures[i], rng, -ceili(sink / course_h) * course_h)
+		_lay_opening(apertures[i], rng, -ceili(sink / COURSE) * COURSE)
 	rng.seed = hash([seed, "top"])
 	if not TimberFrame.applies(self):
 		_lay_top(rng)
@@ -479,7 +478,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 		rng.seed = hash([seed, "pier", i])
 		if not TimberFrame.applies(self) and not broken(s, PIER * 0.5):
 			var window := _corner_window(s)
-			_lay_pier(s, rng, wet, open if foundation == Foundation.POSTS else 0.0, Vector2(window.sill, window.head + course_h) if not window.is_empty() else Vector2.ZERO)
+			_lay_pier(s, rng, wet, open if foundation == Foundation.POSTS else 0.0, Vector2(window.sill, window.head + COURSE) if not window.is_empty() else Vector2.ZERO)
 	if open > 0.0:
 		_lay_stilts(open, wet)
 	_lay_rubble()
@@ -789,7 +788,7 @@ func standing(s: float) -> float:
 	for k in breaks.size():
 		for b in breaks[k]:
 			if absf(offset(s, (b.x + b.y) * 0.5)) < (b.y - b.x) * 0.5:
-				return k * course_height()
+				return k * COURSE
 	return height
 
 
@@ -863,7 +862,7 @@ func _level_floor(ground: Callable) -> void:
 	if outer.is_empty():
 		return
 	var foot := samples[0].y + SINK
-	floor_outline = Geometry2D.offset_polygon(_floor_line(), -THICKNESS * 0.5)[0]
+	floor_outline = Geometry2D.offset_polygon(ground_line(laid_points), -THICKNESS * 0.5)[0]
 	var lowest := foot
 	if supports.is_empty():
 		lowest = maxf(lowest, _highest_ground(outer, ground))
@@ -882,9 +881,15 @@ func floor_lift() -> float:
 	return floor_y - samples[0].y - SINK if floor_y != -INF else 0.0
 
 
-func _floor_line() -> PackedVector2Array:
+## How far the body reaches either side of its centre line, as rays and animals meet it.
+func half_thickness() -> float:
+	return 0.1 if fence else THICKNESS * 0.5
+
+
+## `points` on the ground plane, as (x, z).
+static func ground_line(points: Variant) -> PackedVector2Array:
 	var line := PackedVector2Array()
-	for p in laid_points:
+	for p: Vector3 in points:
 		line.append(Vector2(p.x, p.z))
 	return line
 
@@ -893,7 +898,7 @@ func _floor_line() -> PackedVector2Array:
 func _floor_bounds() -> PackedVector2Array:
 	if not floored() or samples.is_empty() or laid_points.size() < 3:
 		return PackedVector2Array()
-	var line := _floor_line()
+	var line := ground_line(laid_points)
 	var inner := Geometry2D.offset_polygon(line, -THICKNESS * 0.5)
 	var outer := Geometry2D.offset_polygon(line, FLOOR_REACH)
 	return outer[0] if not inner.is_empty() and not outer.is_empty() else PackedVector2Array()
@@ -907,7 +912,7 @@ func _lay_floor() -> void:
 		return
 	var foot := samples[0].y + SINK
 	var outer := _floor_bounds()
-	var line := _floor_line()
+	var line := ground_line(laid_points)
 	var along := (line[1] - line[0]).normalized()
 	var across := along.orthogonal()
 	var lo := INF
@@ -958,10 +963,7 @@ func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, a
 ## reaches past the inner faces into the walls, never out past them.
 static func floor_stamps(points: Array) -> PackedVector4Array:
 	var out := PackedVector4Array()
-	var line := PackedVector2Array()
-	for p: Vector3 in points:
-		line.append(Vector2(p.x, p.z))
-	var inside := Geometry2D.offset_polygon(line, -BARE_STAMP.y)
+	var inside := Geometry2D.offset_polygon(ground_line(points), -BARE_STAMP.y)
 	if inside.is_empty():
 		return out
 	var box := Rect2(inside[0][0], Vector2.ZERO)
@@ -1108,10 +1110,6 @@ static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: f
 	return out
 
 
-func course_height() -> float:
-	return COURSE
-
-
 ## The face normal at arc length `s`, pointing to the side ivy and lanterns call +1.
 func _normal(s: float) -> Vector3:
 	return frame_at(s).tangent.cross(Vector3.UP)
@@ -1135,7 +1133,7 @@ func inner_side() -> float:
 ## under the top of a wall that holds it on level ground. Each light is `pane` either side of its middle, `mullion`
 ## apart, and an arched or round one wears a `ring` of wedges.
 func opening_for(w: Vector4) -> Dictionary:
-	var c := course_height()
+	var c := COURSE
 	var k := w.w
 	var family := int(w.z)
 	if family == Family.ARCHWAY:
@@ -1250,7 +1248,7 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	if arched:
 		if not can_arch(o.size):
 			return false
-	elif fence or o.head + course_height() > height + 0.01 or (o.door and roundf(DOOR_TALL * o.size / course_height()) * course_height() + course_height() > height + 0.01):
+	elif fence or o.head + COURSE > height + 0.01 or (o.door and roundf(DOOR_TALL * o.size / COURSE) * COURSE + COURSE > height + 0.01):
 		return false
 	var edge := _edge(o)
 	var side: float = o.half + edge + PIER * 0.5
@@ -1265,7 +1263,7 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 			return false
 		if not turns.all(func(c): return own.call(c) or absf(offset(o.s, c)) > side):
 			return false
-	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != Family.ARCHWAY and (o.sill > e.head + e.ring + course_height() * 0.5 or e.sill > o.head + o.ring + course_height() * 0.5)))
+	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != Family.ARCHWAY and (o.sill > e.head + e.ring + COURSE * 0.5 or e.sill > o.head + o.ring + COURSE * 0.5)))
 
 
 ## How far past its opening an aperture's surround reaches along the wall: an arch's ring or a light's, else a lintel's ear.
@@ -1434,7 +1432,7 @@ func lantern_fits(s: float, y: float) -> bool:
 		return true
 	if broken(s, 0.3) or y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
 		return false
-	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + _edge(o) + (0.2 if o.style == Family.ARCHWAY else 0.15) or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
+	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + _edge(o) + (0.2 if o.style == Family.ARCHWAY else 0.15) or y > o.head + COURSE + 0.3 or y < o.sill - 0.3)
 
 
 func flag_fits(s: float) -> bool:
@@ -1455,7 +1453,7 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 	var s: float = o.s
 	var half: float = o.half
 	var tall: float = o.head - o.sill
-	var c := course_height()
+	var c := COURSE
 	var wood := boarded()
 	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel")
 	if not o.door:
@@ -1488,7 +1486,7 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 ## stone standing long and short in turn up each side, a course each.
 func _lay_slit(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var tall: float = o.head - o.sill
-	var c := course_height()
+	var c := COURSE
 	var dressed := stone_color(rng) * 1.12
 	for at in light_centres(o):
 		_part(at, o.sill + tall * 0.5, Vector3(o.pane * 2.0, tall, 0.02), glow() * rng.randf_range(0.9, 1.1), rng, "glass", inner_side() * THICKNESS * 0.3)
@@ -1564,7 +1562,7 @@ func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 				stones.append(st)
 				var high := sin(lerpf(arc[2], arc[3], float(j + 1) / pieces))
 				# Out a course past the ring, but never up through the wall's top.
-				var reach := ring + course_height() if high < 0.1 else minf(ring + course_height(), (height - middle) / high - r)
+				var reach := ring + COURSE if high < 0.1 else minf(ring + COURSE, (height - middle) / high - r)
 				var back := _voussoir(at, middle, side, arc, lerpf(arc[2], arc[3], float(j) / pieces), lerpf(arc[2], arc[3], float(j + 1) / pieces), 0.01, reach, fill, -0.02, mortared, rng)
 				back.color = PLASTER if plastered() else MORTAR
 				back.ao = 1.0 if plastered() else 0.8
@@ -1600,7 +1598,7 @@ func _lay_round_door(at: float, o: Dictionary, middle: float, rng: RandomNumberG
 ## A corner window: a light on each face of the corner, meeting at a stone post, each in the wall's middle; a lintel
 ## and a sill on each face, one of each running on over the corner.
 func _lay_corner_window(o: Dictionary, rng: RandomNumberGenerator) -> void:
-	var c := course_height()
+	var c := COURSE
 	var corner: float = o.s
 	var tall: float = o.head - o.sill
 	var wood := boarded()
@@ -2651,7 +2649,7 @@ func _lay_gables() -> void:
 	var ends := gable_spans()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, "gable"])
-	var h := course_height()
+	var h := COURSE
 	var base := height + CAP
 	for i in ends.size():
 		var end: Vector2 = ends[i]
@@ -2698,7 +2696,7 @@ func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[V
 ## courses): each as wide as the slope at its foot and tall enough to leave a tread, the top one tall enough to stand
 ## over the ridge. Steps above the first stand inside the corners, so every cap lies along the end wall.
 func crow_steps(hs: float) -> Array[Vector3]:
-	var h := course_height()
+	var h := COURSE
 	var steps: Array[Vector3] = []
 	var k := 0
 	var half := hs
@@ -2724,7 +2722,7 @@ func gable_face(hs: float) -> float:
 		return hs * gable.pitch * (1.0 + gable.curve / PI)
 	var out := 0.0
 	for st in crow_steps(hs):
-		out += 2.0 * st.x * st.z * course_height()
+		out += 2.0 * st.x * st.z * COURSE
 	return out
 
 
