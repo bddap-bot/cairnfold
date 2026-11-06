@@ -660,10 +660,9 @@ the Frame unworn with its standby pause off, the governor walking the ladder and
   1.9 M primitives. The runtime let a scene back only once it read under about 11 ms (a
   path stroke sat at half rate reading 11.2 to 11.6 ms, and left it once it read 7.9), and the governor's
   line is 11.1 ms, so it sat there without stepping. Turning SteamVR's motion smoothing off
-  mid-run took 2 ms off that reading and left the half rate as it was. The line is now
-  0.8 of the period, under the reading the runtime holds the half rate at, so the timer
-  over it steps down; every other refresh with the timer under it holds a step up and steps
-  nothing down, since the CPU or the runtime held those frames: counted as over budget from
+  mid-run took 2 ms off that reading and left the half rate as it was. Now an average over
+  the line steps down at any rate, and every other refresh with the timer under the line
+  holds a step up and steps nothing down, since the CPU or the runtime held those frames: counted as over budget from
   0.6 of the budget, a photo's frames (14.9 ms in scripts, the GPU at 8.2 ms) stepped a held
   phase of the stress scene down.
 - The governor waited for each step to arrive before judging the next, and flowers

@@ -134,6 +134,7 @@ func _a_missed_refresh_over_the_line_steps_down() -> void:
 	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
 	_feed(g, BUDGET * 0.9, Quality.Governor.SETTLE_FRAMES)
 	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
 	check(g.level == 2, "a miss reading no lower than the one that stepped down waits for the average: %d" % g.level)
 	g.step(BUDGET * 0.85, BUDGET, DT * 2.0)
 	check(g.level == 4, "one reading lower steps on: %d" % g.level)
@@ -284,7 +285,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 
 func _every_other_refresh_under_the_line_steps_neither_way() -> void:
 	var g := Quality.Governor.new(10, PackedInt32Array(), 3)
-	check(_feed_dt(g, BUDGET * UNDER_LINE, 36 * 15, DT * 2.0) == 3, "fifteen seconds at every other refresh, the timer under the line, step nothing down, nor up")
+	check(_feed_dt(g, BUDGET * 0.7, 36 * 15, DT * 2.0) == 3, "fifteen seconds at every other refresh, the timer under the line with room for a step up, step nothing down, nor up")
 	check(_feed_dt(g, BUDGET * 0.9, 3, DT * 2.0) == 5, "the timer over it, they step down two at once")
 
 

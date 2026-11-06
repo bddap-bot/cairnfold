@@ -285,7 +285,7 @@ func _process(delta: float) -> void:
 			var was := governor.level
 			governor.step(frame_ms, budget_ms, dt, _settled, not covered.call())
 			if governor.level != was:
-				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s, at %.3f s" % [was, governor.level, frame_ms, budget_ms, governor.why, Time.get_ticks_usec() / 1e6])
+				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s, at %.3f s" % [was, governor.level, frame_ms, budget_ms, governor.why, now / 1e6])
 	var n := _priming[_primed / PRIME_FRAMES] if priming() else step()
 	var at := ladder[n]
 	if _foveates and fresh and _warm > WARMUP and at.foveation > 0:
@@ -401,9 +401,7 @@ class Map:
 ## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when
 ## frames run over the budget or their average over the line, up only after a calm spell when the step up is
 ## expected to stay under it, and slower each time a step up had to be undone. The runtime holding the game at every
-## other refresh counts as over budget whatever the timer reads: there it reads high by the runtime's own work in
-## between, and on the Steam Frame the runtime let a scene back to 72 Hz only once it read under about 11 ms, which
-## the line alone never asked of it.
+## other refresh holds a step up.
 class Governor:
 	## Consecutive frames this far over budget take a step down.
 	const HOT := 1.05
@@ -419,6 +417,8 @@ class Governor:
 	## draws. Stepped down at 0.6 of the budget, a photo's frames on the Steam Frame, 14.9 ms in scripts and the GPU at
 	## 8.2 ms, took a held phase from step 3 to 4.
 	const HALVED := 1.5
+	## Every other refresh holds a step up only with the timer above this share of the budget: lower, the CPU held the
+	## frame, which a step up does not load.
 	const HALVED_GPU := 0.6
 	## A frame this far from the last, as a share of the refresh period or of the usual gap between the last GAPS
 	## frames if longer, followed a pause (the headset off the head) or a stall on the main thread (a build laid at
@@ -532,8 +532,8 @@ class Governor:
 				return i
 		return bottom
 
-	## `settled` is whether the knobs have reached the step: only frames over the budget or at every other refresh
-	## judge a step still under way. A frame the player does not `see` is judged as a pause is, and so are the
+	## `settled` is whether the knobs have reached the step: only frames over the budget or a missed refresh among
+	## frames over the line judge a step still under way. A frame the player does not `see` is judged as a pause is, and so are the
 	## first frames after it, whose timer still reads it.
 	func step(frame_ms: float, budget_ms: float, dt: float, settled := true, see := true) -> void:
 		var dt_ms := dt * 1000.0
