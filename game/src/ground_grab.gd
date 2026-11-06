@@ -160,18 +160,12 @@ func follow(hand: Hand, delta: float) -> void:
 		reshaped.emit(g.moved, false)
 
 
-## The heights `hand`'s stroke leaves, as a build command.
-func stroke(hand: Hand) -> Dictionary:
+## Sends the heights `hand`'s stroke leaves to the garden as one step; a tap that barely moved leaves the ground as it was.
+func end_stroke(hand: Hand) -> void:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
 	var cells := Terrain.cells_around(at.x, at.z, g.radius)
-	return {"op": "heights", "cells": cells, "values": world.terrain.raised(cells, g.slot)}
-
-
-## Sends `hand`'s stroke to the garden as one step; a tap that barely moved leaves the ground as it was.
-func end_stroke(hand: Hand) -> void:
-	var g := _grab(hand)
-	var cmd := stroke(hand)
+	var cmd := {"op": "heights", "cells": cells, "values": world.terrain.raised(cells, g.slot)}
 	g.at = null
 	g.gripped = false
 	if absf(g.lift) < 0.01:

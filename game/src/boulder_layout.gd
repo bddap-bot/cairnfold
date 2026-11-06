@@ -36,8 +36,6 @@ class Shape:
 	var cuts: Array[Vector4] = []
 	var pits := FastNoiseLite.new()
 	var grain := FastNoiseLite.new()
-	## How far below its centre its bed lies.
-	var bed := 0.0
 	## Points on its surface, any of which may be what it rests on.
 	var feet := PackedVector3Array()
 
@@ -110,8 +108,7 @@ static func shape(seed: int, style: int) -> Shape:
 		var along := 1.0 / sqrt(n.x * n.x / (s.axes.x * s.axes.x) + n.y * n.y / (s.axes.y * s.axes.y) + n.z * n.z / (s.axes.z * s.axes.z))
 		s.cuts.append(Vector4(n.x, n.y, n.z, along * rng.randf_range(0.5, 0.82)))
 	var down := Vector3(rng.randf_range(-0.12, 0.12), -1.0, rng.randf_range(-0.12, 0.12)).normalized()
-	s.bed = s.axes.y * rng.randf_range(0.55, 0.75)
-	s.cuts.append(Vector4(down.x, down.y, down.z, s.bed))
+	s.cuts.append(Vector4(down.x, down.y, down.z, s.axes.y * rng.randf_range(0.55, 0.75)))
 	s.pits.seed = rng.randi()
 	s.pits.frequency = rng.randf_range(1.6, 2.4)
 	s.pits.fractal_octaves = 2

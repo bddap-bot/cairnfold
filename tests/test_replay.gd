@@ -160,13 +160,13 @@ func _initialize() -> void:
 		if e.event == "start":
 			e.revision = "a later revision"
 		elif e.event == "input":
-			var raw := Replay.frames(e)
+			var raw := Replay.inflated(e.data, e.bytes)
 			for i in int(e.frames):
 				for h in Replay.HANDS.size():
 					var o := i * Replay.FRAME_BYTES + Replay.DELTA_BYTES + Replay.POSE_BYTES + h * Replay.HAND_BYTES + Replay.POSE_BYTES
 					for b in 10:
 						raw[o + b] = 0
-			e.data = Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+			e.data = Replay.deflated(raw)
 		return e)
 	replayed = _replay(later)
 	if not replayed.is_empty():
@@ -186,13 +186,13 @@ func _initialize() -> void:
 				if c.frame == flown:
 					c.physics = "0000000000000000"
 		elif e.event == "net":
-			var args: Array = bytes_to_var(Marshalls.base64_to_raw(e.data).decompress(int(e.bytes), FileAccess.COMPRESSION_DEFLATE))
+			var args: Array = bytes_to_var(Replay.inflated(e.data, e.bytes))
 			for a: Array in args:
 				if not a.is_empty() and a[0] is Dictionary and a[0].get("seq") == tree.seq:
 					a[0].seed += 1
 			var raw := var_to_bytes(args)
 			e.bytes = raw.size()
-			e.data = Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+			e.data = Replay.deflated(raw)
 		return e)
 	replayed = _replay(diverging)
 	if not replayed.is_empty():

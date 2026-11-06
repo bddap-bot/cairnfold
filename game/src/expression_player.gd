@@ -128,12 +128,12 @@ static func shows(outputs: Array[float], when: Array) -> bool:
 
 
 static func prepare(model: Node3D) -> void:
+	var data: Dictionary = model.get_meta("expressions", {})
 	var icons: Array[Texture2D] = []
-	for encoded: String in (model.get_meta("expressions", {}) as Dictionary).get("icons", []):
+	for encoded: String in data.get("icons", []):
 		var img := Image.new()
 		icons.append(ImageTexture.create_from_image(img) if img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) == OK else null)
 	model.set_meta("expression_icons", icons)
-	var data: Dictionary = model.get_meta("expressions", {})
 	var shrink: int = model.get_meta("texture_shrink", 1)
 	var decode := func(encoded: Variant, mipmapped: bool) -> Image:
 		var img := Image.new()

@@ -202,7 +202,6 @@ static func brush_radius(hand: Vector3, hit: Variant) -> float:
 	return clampf(hand.distance_to(hit) * RADIUS_PER_METRE, MIN_RADIUS, MAX_RADIUS)
 
 
-## Paints with the hand's tool.
 func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	if b.hand.tool == Hand.Tool.STONE:
 		_lay_ground(b, Ground.Kind.MEADOW if b.meadow else Ground.Kind.STONE, center, radius, delta)

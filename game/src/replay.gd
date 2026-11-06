@@ -97,14 +97,19 @@ static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	return out
 
 
-## The frames a record's "input" event holds, decoded back to the bytes `frame` wrote.
-static func frames(event: Dictionary) -> PackedByteArray:
-	return Marshalls.base64_to_raw(event.data).decompress(int(event.bytes), FileAccess.COMPRESSION_DEFLATE)
+## Bytes as a record holds them, deflated and in base64, which `inflated` reads back given their length.
+static func deflated(raw: PackedByteArray) -> String:
+	return Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+
+
+## The `bytes` long bytes `deflated` made `data` of: a record's "input" event's `data` is the frames `frame` wrote.
+static func inflated(data: String, bytes: Variant) -> PackedByteArray:
+	return Marshalls.base64_to_raw(data).decompress(int(bytes), FileAccess.COMPRESSION_DEFLATE)
 
 
 ## The messages a record's "net" event holds (PlayLog.heard), each [frame, from, whose, call, args].
 static func messages(event: Dictionary) -> Array:
-	var args: Array = bytes_to_var(Marshalls.base64_to_raw(event.data).decompress(int(event.bytes), FileAccess.COMPRESSION_DEFLATE))
+	var args: Array = bytes_to_var(inflated(event.data, event.bytes))
 	var out := []
 	for i in event.messages.size():
 		var m: Array = event.messages[i]
@@ -143,7 +148,7 @@ static func read(path: String, avatars := "") -> Dictionary:
 					out.inputs = e.input.inputs
 				"replay":
 					out.seeds = e.seeds
-					out.garden = bytes_to_var(Marshalls.base64_to_raw(e.save).decompress(int(e.save_bytes), FileAccess.COMPRESSION_DEFLATE))
+					out.garden = bytes_to_var(inflated(e.save, e.save_bytes))
 					if out.garden.get("format") != World.FORMAT:
 						return {"error": "%s began in a garden of format %s, this build reads format %d" % [path, out.garden.get("format"), World.FORMAT]}
 				"input":
@@ -160,7 +165,7 @@ static func read(path: String, avatars := "") -> Dictionary:
 	for e in inputs:
 		if int(e.first) * FRAME_BYTES != out.frames.size():
 			return {"error": "%s lost frames %d to %d" % [path, out.frames.size() / FRAME_BYTES, int(e.first) - 1]}
-		out.frames.append_array(frames(e))
+		out.frames.append_array(inflated(e.data, e.bytes))
 	for e in nets:
 		if int(e.first) != out.messages.size():
 			return {"error": "%s lost messages %d to %d" % [path, out.messages.size(), int(e.first) - 1]}

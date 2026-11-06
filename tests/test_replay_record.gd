@@ -60,7 +60,7 @@ func _initialize() -> void:
 	var replay: Array = events.filter(func(e) -> bool: return e.event == "replay")
 	check(replay.size() == 1, "the session's seeds and starting garden are written once")
 	check(replay[0].seeds == {"rng": str(main.rng_seed), "wildlife": str(main.wildlife.rng.seed)}, "with the seeds the session drew from")
-	var save: Variant = bytes_to_var(Marshalls.base64_to_raw(replay[0].save).decompress(int(replay[0].save_bytes), FileAccess.COMPRESSION_DEFLATE))
+	var save: Variant = bytes_to_var(Replay.inflated(replay[0].save, replay[0].save_bytes))
 	check(save == started and save.cmds.size() == 1, "and the garden it started in")
 
 	var inputs: Array = events.filter(func(e) -> bool: return e.event == "input")
@@ -69,7 +69,7 @@ func _initialize() -> void:
 	var raw := PackedByteArray()
 	for e in inputs:
 		check(int(e.first) * Replay.FRAME_BYTES == raw.size(), "input events follow on from each other")
-		var block := Replay.frames(e)
+		var block := Replay.inflated(e.data, e.bytes)
 		check(block.size() == int(e.frames) * Replay.FRAME_BYTES, "an input event holds the frames it counts")
 		raw.append_array(block)
 	var n := raw.size() / Replay.FRAME_BYTES

@@ -95,7 +95,7 @@ func begin(seeds: Dictionary, garden: Dictionary) -> void:
 
 func _write_replay(seeds: Dictionary, save: PackedByteArray) -> void:
 	_store({"event": "replay", "session": session_id, "seeds": seeds, "save_bytes": save.size(),
-		"save": Marshalls.raw_to_base64(save.compress(FileAccess.COMPRESSION_DEFLATE))})
+		"save": Replay.deflated(save)})
 
 
 ## Keeps this frame's input (Replay.frame) for the next write.
@@ -236,7 +236,7 @@ func _write_input(input: Dictionary) -> void:
 		return
 	var raw: PackedByteArray = input.raw
 	_store({"event": "input", "session": session_id, "first": input.first, "frames": input.frames, "bytes": raw.size(),
-		"data": Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))})
+		"data": Replay.deflated(raw)})
 
 
 ## The checks, each part's bytes digested here, off the main thread.
@@ -257,7 +257,7 @@ func _write_net(net: Dictionary) -> void:
 	var raw := var_to_bytes(net.messages.map(func(m: Array) -> Array: return _without_files(m[4])))
 	var index: Array = net.messages.map(func(m: Array) -> Array: return m.slice(0, 4))
 	_store({"event": "net", "session": session_id, "first": net.first, "messages": index, "bytes": raw.size(),
-		"data": Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))})
+		"data": Replay.deflated(raw)})
 
 
 ## A file a message carries, the only bytes any does (an avatar), is kept as its SHA-256 and length, never the file.

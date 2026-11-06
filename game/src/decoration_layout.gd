@@ -157,7 +157,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 			pictures.append(Transform3D(Basis().scaled(Vector3(5.5, 0.4, 5.5)), Vector3(-0.02, 0.346, 0.02)))
 		"Planter":
 			box(Vector3(0, 0.18, 0.33), Vector3(1.1, 0.32, 0.5), WOOD, "board")
-			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), Color(0.12, 0.09, 0.06), "")
+			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), SOIL, "")
 			for i in 5:
 				flower(Transform3D(Basis().scaled(Vector3.ONE * 1.2), Vector3((i - 2) * 0.19, 0.36, 0.33 + sin(i * 2.1) * 0.09)), seed)
 			bounds = bounds.expand(Vector3(0, 0.9, 0.6))
@@ -202,7 +202,6 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 				box(Vector3(0, 0.14 + i * 0.05, 0), Vector3(0.16, 0.16, 0.65), WOOD, "board", i * TAU / 3)
 			for i in 3:
 				flame(Vector3((i - 1) * 0.12, 0.38, 0), Vector3(0.14, 0.38 + i * 0.04, 0.14))
-
 		"Chair":
 			_chair(Vector3.ZERO, 0.0)
 		"Table":
@@ -335,7 +334,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 				box(Vector3(0, 0.2, 0), Vector3(0.44 - 0.06 * absi(i - 1), 0.36 + 0.04 * (1 - absi(i - 1)), 0.44 - 0.06 * absi(i - 1)), PUMPKIN.darkened(0.08 * i), "", i * PI / 6.0)
 			box(Vector3(0, 0.42, 0), Vector3(0.05, 0.1, 0.05), STALK, "", 0.3, 0.2)
 			for x in [-0.09, 0.09]:
-				box(Vector3(x, 0.26, 0.205), Vector3(0.07, 0.06, 0.02), CANDLE, "glass", 0.0, 0.0)
+				box(Vector3(x, 0.26, 0.205), Vector3(0.07, 0.06, 0.02), CANDLE, "glass")
 			box(Vector3(0, 0.14, 0.205), Vector3(0.2, 0.05, 0.02), CANDLE, "glass")
 		"Bird nest":
 			for i in 7:

@@ -10,6 +10,7 @@ const REGIONS := ["hue", "color", "tone", "look"]
 static func region(effect: Variant) -> String:
 	return effect.keys()[0] if effect is Dictionary and effect.size() == 1 and effect.keys()[0] in REGIONS else ""
 
+
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
 	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "menu", "icons"]:
@@ -64,8 +65,7 @@ static func valid(data: Dictionary) -> bool:
 		if not spring.get("joints") is Array or spring.joints.is_empty() or not spring.joints.all(_node):
 			return false
 	for collider: Dictionary in data.get("colliders", []):
-		var at: Variant = collider.get("collider")
-		if not _number(at) or float(at) != floorf(float(at)) or at < 0:
+		if not _whole(collider.get("collider")):
 			return false
 	return looks_valid(data.get("looks", {}))
 
@@ -93,12 +93,16 @@ static func _number(v: Variant) -> bool:
 	return (v is int or v is float) and is_finite(float(v))
 
 
+static func _whole(v: Variant) -> bool:
+	return _number(v) and float(v) == floorf(float(v)) and v >= 0
+
+
 static func _index(v: Variant, size: int) -> bool:
-	return _number(v) and float(v) == floorf(float(v)) and v >= 0 and v < size
+	return _whole(v) and v < size
 
 
 static func _node(v: Variant) -> bool:
-	return v is String or v is StringName or (_number(v) and float(v) == floorf(float(v)) and v >= 0)
+	return v is String or v is StringName or _whole(v)
 
 
 ## [time, value], or with Unity's in and out slopes (null where infinite), optionally followed by their weights.

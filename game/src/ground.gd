@@ -4,11 +4,10 @@ extends RefCounted
 ## What the ground is made of, one per World: one texel per TEXEL over the play area, shared with shaders as the global
 ## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, alpha is sand, none of them is meadow, and blue
 ## holds the style (StoneStyles) of the stroke that laid most of the stone there, and TILLED where a garden bed laid most
-## of the earth. Every path
-## and painted stroke is a mark that stamps soft discs onto it, and the mask is those marks replayed in
-## the order of their build commands' ids, so lifting any one (undo) leaves exactly what the rest made, and
-## every machine replays them alike. `laid` holds the garden's marks alone, for what build commands read;
-## the shown image adds a player's own strokes still being drawn or on their way.
+## of the earth. Every path and painted stroke is a mark that stamps soft discs onto it, and the mask is those marks
+## replayed in the order of their build commands' ids, so lifting any one (undo) leaves exactly what the rest made, and
+## every machine replays them alike. `laid` holds the garden's marks alone, for what build commands read; the shown
+## image adds a player's own strokes still being drawn or on their way.
 
 ## EARTH and SAND wear the ground to earth or sand over whatever was there; STONE lays stone over it, earth and sand
 ## included, and MEADOW takes back only stone, so a path under painted-out stone keeps its wear.
@@ -87,10 +86,7 @@ class Stroke:
 
 
 func install() -> void:
-	_marks.clear()
-	_ids.clear()
-	_held.clear()
-	rewear()
+	clear()
 	RenderingServer.global_shader_parameter_set(&"ground_mask", texture)
 
 
@@ -145,11 +141,12 @@ func lay(mark: Object, id: int) -> void:
 	var i := _ids.bsearch(id)
 	_ids.insert(i, id)
 	_marks.insert(i, mark)
-	if i == _marks.size() - 1 and not quiet:
-		_wait()
+	if quiet:
+		return
+	_wait()
+	if i == _marks.size() - 1:
 		_unworn.append(mark)
-	elif not quiet:
-		_wait()
+	else:
 		_stale.append(mark)
 
 
@@ -261,7 +258,7 @@ func replayed() -> Array:
 
 
 func settle() -> void:
-	if _unworn.is_empty() and not _unshown and _stale.is_empty():
+	if _caught_up():
 		return
 	_wear_unworn()
 	_wear_stale()
@@ -293,14 +290,19 @@ func _wear_unworn(budget_us := INF) -> bool:
 	return true
 
 
+## Whether `laid` and the shown image hold every mark and stroke.
+func _caught_up() -> bool:
+	return _unworn.is_empty() and not _unshown and _stale.is_empty()
+
+
 func _wait() -> void:
-	if _unworn.is_empty() and not _unshown and _stale.is_empty():
+	if _caught_up():
 		_unworn_since = Engine.get_process_frames()
 
 
 ## Settles what has waited since an earlier frame; called once a frame.
 func settle_due() -> void:
-	if Engine.get_process_frames() > _unworn_since and (not _unworn.is_empty() or _unshown or not _stale.is_empty()) and _wear_unworn(Budget.GROUND_WEAR_US):
+	if Engine.get_process_frames() > _unworn_since and not _caught_up() and _wear_unworn(Budget.GROUND_WEAR_US):
 		_wear_stale()
 		_show()
 

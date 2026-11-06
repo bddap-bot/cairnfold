@@ -187,7 +187,7 @@ func _process(delta: float) -> void:
 			_wave_time = -1.0
 	for s in 2:
 		var at_side := Transform3D(level, eyes.origin) * Avatar.AT_SIDES[s]
-		rig.hands[s].transform = eyes * (Transform3D(Basis(Vector3.FORWARD, deg_to_rad(_twist)), WHEEL_HELD) if wheel or rig.right.picking else Flat.held(rig.right.tool, pitch)) if raised and s == 1 else at_side
+		rig.hands[s].transform = eyes * (Transform3D(Basis(Vector3.FORWARD, deg_to_rad(_twist)), WHEEL_HELD) if wheel or rig.right.picking else held(rig.right.tool, pitch)) if raised and s == 1 else at_side
 		if _wave_time >= 0.0:
 			var hand := Transform3D(Basis(WAVE.rotation_track_interpolate(s * 2 + 1, _wave_time)), WAVE.position_track_interpolate(s * 2, _wave_time))
 			rig.hands[s].transform = Transform3D(level, eyes.origin) * hand
