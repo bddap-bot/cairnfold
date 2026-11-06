@@ -31,28 +31,38 @@ const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
 ## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
 const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
-## Whether work spread over frames stops once its share of the frame's time is spent (`over`). A headless test steps
-## frames with no deadline to keep, and work cut off by the host's clock would leave what a frame holds hanging on how
-## loaded the host is.
+## Whether work spread over frames stops at its share of a frame. A headless test steps frames with no deadline to
+## keep, and grows, wears, relays, scans and draws all of it in one.
 static var frame_deadline := true
 
 ## Main-thread time the Masonry spends a frame drawing chunks changed (a wall laid again or settled), in microseconds:
-## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls
-## have about a millisecond to spare; the rest wait for the frames after.
+## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls have
+## about a millisecond to spare; the rest wait for the frames after. Only drawing is metered by the clock, what game
+## logic reads by counts (docs/replay.md).
 const MASONRY_FLUSH_US := 300.0
-## Main-thread time a frame spends looking over painted flowers for where butterflies may come, in microseconds: about
-## fifty flowers on the Steam Frame; a path stroke wearing the ground every frame keeps them looking.
-const BUTTERFLY_SCAN_US := 300.0
-## Main-thread time a frame spends wearing a path just laid into the garden's ground, in microseconds: a few of its rows
-## on the Steam Frame; a 48 m path's hundred and more take the frames after.
-const GROUND_WEAR_US := 1000.0
 ## Main-thread time a frame spends giving one avatar's particle systems their new particles, in microseconds; births
 ## past it wait for the frames after, so a sub-emitter's burst of hundreds spreads rather than stalls one frame.
 const PARTICLE_BIRTHS_US := 500.0
-## Main-thread time a frame spends laying again builds the garden reshaped or that meet one, in microseconds: less than
-## one of the stress scene's two-storey houses takes on the Steam Frame, so a house let go there lays its upper storey
-## and the wings it joins in the frames after.
-const RELAY_US := 500.0
+## Painted flowers a frame looks over for where butterflies may come: about 300 microseconds on the Steam Frame; a path
+## stroke wearing the ground every frame keeps them looking.
+const BUTTERFLY_SCAN := 50
+## Marks, or rows of a path just laid, a frame wears into the garden's ground: about a millisecond on the Steam Frame;
+## a 48 m path's hundred and more rows take the frames after.
+const GROUND_WEAR_ROWS := 4
+## Plants of committed strokes a frame grows: about 1.5 ms on the Steam Frame, so a stroke of thousands grows over the
+## frames after the one its command applied in.
+const GROW_PLANTS := 12
+## Builds the garden reshaped, or that meet one, a frame lays again: one of the stress scene's two-storey houses is
+## about half a millisecond on the Steam Frame, so a house let go there lays its upper storey and the wings it joins in
+## the frames after.
+const RELAYS := 1
+## Frames after a garden wall's lay starts on a worker that the wall takes it (Work); a wall in hand, which game logic
+## does not read, takes its lay once done.
+const LAY_FRAMES := 3
+## Frames after a wall's perches start on a worker that its birds take them (Work).
+const PERCH_FRAMES := 3
+## Frames after a command's water starts on a worker that the command runs (Work, World._drain).
+const WATER_FRAMES := 6
 ## What a piece laid with a build's stones but apart from its courses counts as: wall courses lay roughly ten blocks a
 ## square metre. A path's treads and crops and every build's clutter (ClutterLayout) are charged so, a part a piece.
 const PIECE_M2 := 0.1

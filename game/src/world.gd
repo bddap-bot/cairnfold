@@ -124,8 +124,8 @@ var _meadow_units := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
 ## Commands waiting to be ordered (host) or applied (others), oldest first, as {cmd, by, run}: the first may wait for
-## its water to be worked out on another thread, and the rest wait behind it, so every machine still applies the same
-## commands in the same order.
+## its water to be worked out on another thread, Budget.WATER_FRAMES (Work), and the rest wait behind it, so every
+## machine still applies the same commands in the same order.
 var _queue: Array[Dictionary] = []
 var _ahead_task := -1
 ## Where the session's record keeps every message the network brings this garden and its Session, or null.
@@ -267,7 +267,7 @@ static func _set_or_erase(d: Dictionary, key: Variant, value: Dictionary) -> voi
 
 func _exit_tree() -> void:
 	if _ahead_task >= 0:
-		WorkerThreadPool.wait_for_task_completion(_ahead_task)
+		Work.take(_ahead_task)
 		_ahead_task = -1
 	flush()
 
@@ -299,9 +299,9 @@ func _drain(wait := false) -> void:
 		if not wait and _queue[0].get("swap", false) and not blackout.call():
 			return
 		if _ahead_task >= 0:
-			if not wait and not WorkerThreadPool.is_task_completed(_ahead_task):
+			if not wait and not Work.due(_ahead_task):
 				return
-			WorkerThreadPool.wait_for_task_completion(_ahead_task)
+			Work.take(_ahead_task)
 			_ahead_task = -1
 			_ready_refill = _ahead[0]
 			Water.know(_ahead[1])
@@ -320,13 +320,13 @@ func _drain(wait := false) -> void:
 		var checks: Dictionary = _queue[0].cmd.get("put", {}) if _queue[0].by >= 0 else {}
 		var box := [r, []]
 		_ahead = box
-		_ahead_task = WorkerThreadPool.add_task(func() -> void:
+		_ahead_task = Work.start(func() -> void:
 			r.work()
 			if water != null:
 				r.publish(before, written, owners, shown)
 			for g: Vector2i in checks:
 				var p: PondLayout.Pond = r.filled.get(g) if not r.fills.has(g) else PondLayout.fill(r.heights, Terrain.ALL, g, checks[g])
-				box[1].append([r.heights, g, checks[g], p]))
+				box[1].append([r.heights, g, checks[g], p]), Budget.WATER_FRAMES)
 
 
 ## Every waiting command run.

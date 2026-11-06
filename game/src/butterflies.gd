@@ -117,8 +117,8 @@ func tick(delta: float) -> void:
 	_upload()
 
 
-## Looks over the next few painted flowers, and once all have been seen, makes the patches of those standing
-## in bloom, above water and off paths, as the plant shader shows them.
+## Looks over the next Budget.BUTTERFLY_SCAN painted flowers, and once all have been seen, makes the patches of those
+## standing in bloom, above water and off paths, as the plant shader shows them.
 func _scan() -> void:
 	var pool := wildlife.flora.flowers
 	if _next > pool.size():
@@ -130,9 +130,8 @@ func _scan() -> void:
 		_filling = {}
 		_bloom = wildlife.palette.bloom()
 	_next = maxi(_next, pool.kept)
-	# As many flowers as Budget.BUTTERFLY_SCAN_US allows, at least one, so regrouping them never costs one frame much.
-	var start := Time.get_ticks_usec()
-	while _next < pool.size():
+	var until := mini(pool.size(), _next + Budget.BUTTERFLY_SCAN) if Budget.frame_deadline else pool.size()
+	while _next < until:
 		var i := _next
 		_next += 1
 		var p := pool.anchors[i]
@@ -142,8 +141,6 @@ func _scan() -> void:
 			if not _filling.has(key):
 				_filling[key] = PackedVector3Array()
 			_filling[key].append(Vector3(p.x, x.origin.y + x.basis.y.y * Meshes.FLOWER_HEIGHT, p.z))
-		if Budget.over(start, Budget.BUTTERFLY_SCAN_US):
-			return
 	if _next < pool.size():
 		return
 	_made_from = _scanning

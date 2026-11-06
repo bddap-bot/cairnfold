@@ -49,6 +49,7 @@ static func replay(by: Suite, chunk: String, avatars: String) -> Dictionary:
 
 func _initialize() -> void:
 	boot_main()
+	Budget.frame_deadline = "--deadline" in OS.get_cmdline_user_args()
 	var probe := watch(main)
 	await process_frame
 	await main.replayer.finished

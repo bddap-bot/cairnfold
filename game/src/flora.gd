@@ -40,9 +40,6 @@ const SOLID_CELL := 8.0
 ## The meadow's own trunks, crowns and bushes each bake into one MultiMesh, not one a square: the Quest 2 pays 7 to
 ## 19 µs a draw whatever it holds, more than their few thousand triangles cost off screen (docs/design.md, "Crowns").
 const SOLID_POOL_CELL := INF
-## How long a frame spends growing committed strokes: a stroke of thousands of plants grows over a few frames
-## rather than in the one its command applied in.
-const GROW_USEC := 1500
 
 ## When no committed stroke is left growing.
 signal grown
@@ -852,7 +849,7 @@ static func _plant_material(shader: String, roughness: float) -> ShaderMaterial:
 
 
 func _process(_delta: float) -> void:
-	_grow(GROW_USEC if Budget.frame_deadline else -1)
+	_grow(Budget.GROW_PLANTS if Budget.frame_deadline else -1)
 	_shade_crowns()
 	grass.cover.settle(grass)
 	var eye := get_viewport().get_camera_3d()
@@ -1225,11 +1222,11 @@ func growing() -> bool:
 	return not _growing.is_empty()
 
 
-## Grows the oldest strokes' plants for about `usec` microseconds of `clock`, or all of them for a negative `usec`.
-func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
+## Grows the oldest strokes' next `count` plants, or all of them for a negative `count`.
+func _grow(count: int) -> void:
 	if _growing.is_empty():
 		return
-	var start: int = clock.call()
+	var painted := 0
 	while not _growing.is_empty():
 		var g := _growing[0]
 		while g.next < g.spots.size():
@@ -1240,8 +1237,9 @@ func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
 					p.group = g.group
 					p.index = g.next
 				groups[g.group][g.next] = p
+				painted += 1
 			g.next += 1
-			if usec >= 0 and clock.call() - start > usec:
+			if count >= 0 and painted >= count:
 				return
 		_growing.pop_front()
 	grown.emit()

@@ -275,27 +275,27 @@ func settle() -> void:
 	_show()
 
 
-## Wears every unworn mark into `laid`, or with `budget_us` as many of a path's rows as fit that many microseconds (one
-## at least); whether none is left.
-func _wear_unworn(budget_us := INF) -> bool:
-	var start := Time.get_ticks_usec()
+## Wears every unworn mark into `laid`, or with `rows` that many of them, a path's row or another mark each; whether
+## none is left.
+func _wear_unworn(rows := -1) -> bool:
+	var worn := 0
 	while not _unworn.is_empty():
 		var m: Object = _unworn[0]
 		if m is PathLayout:
 			_wearing = _areas.get(m, Rect2i()) if _worn_rows > 0 else Rect2i()
-			while _worn_rows < m.row_ends.size():
+			while _worn_rows < m.row_ends.size() and (rows < 0 or worn < rows):
 				m.wear(laid, _worn_rows, _worn_rows + 1)
 				_worn_rows += 1
-				if Budget.over(start, budget_us):
-					break
+				worn += 1
 			_areas[m] = _wearing
 			if _worn_rows < m.row_ends.size():
 				return false
 		else:
 			_area_of(m, laid)
+			worn += 1
 		_unworn.pop_front()
 		_worn_rows = 0
-		if Budget.over(start, budget_us):
+		if rows >= 0 and worn >= rows:
 			return _unworn.is_empty()
 	return true
 
@@ -312,7 +312,8 @@ func _wait() -> void:
 
 ## Settles what has waited since an earlier frame; called once a frame.
 func settle_due() -> void:
-	if Engine.get_process_frames() > _unworn_since and not _caught_up() and _wear_unworn(Budget.GROUND_WEAR_US):
+	var rows := Budget.GROUND_WEAR_ROWS if Budget.frame_deadline else -1
+	if Engine.get_process_frames() > _unworn_since and not _caught_up() and _wear_unworn(rows):
 		_wear_stale()
 		_show()
 

@@ -81,12 +81,9 @@ func _a_stroke_grows_over_frames() -> void:
 	t.end_stroke(b)
 	var group: int = t.world.seq
 	check(t.flora.growing() and t.flora.grass.size() == before, "a committed stroke grows nothing in the frame it lands in")
-	var ticks := [0]
-	t.flora._grow(Flora.GROW_USEC, func() -> int:
-		ticks[0] += 100
-		return ticks[0])
+	t.flora._grow(Budget.GROW_PLANTS)
 	var grown := t.flora.grass.size() - before
-	check(grown > 0 and grown < ghost.size(), "a frame grows a share of its %d plants, %d" % [ghost.size(), grown])
+	check(grown > 0 and grown <= Budget.GROW_PLANTS and grown < ghost.size(), "a frame grows at most %d of its %d plants: %d" % [Budget.GROW_PLANTS, ghost.size(), grown])
 	check(ghost.all(func(p: Flora.Plant) -> bool: return p.shown()), "its ghost stands until it has grown")
 	t.world.submit({"op": "plant", "kind": "tree", "seed": 1, "at": t.world.terrain.ground(26, 20)})
 	check(t.flora.growing(), "a tree planted meanwhile leaves it growing")

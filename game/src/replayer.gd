@@ -61,6 +61,7 @@ func _poll() -> Error:
 	if _step == 0.0:
 		_step = _main.get_process_delta_time()
 		_main.get_tree().paused = true
+		Work.paused += 1
 		_pace()
 		return OK
 	_main.get_tree().paused = false

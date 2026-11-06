@@ -771,9 +771,10 @@ mask in one frame (59 ms); a wall laid again with a new arch drew every changed 
 being drawn keeps the samples, cell grid and wall meetings of its settled points and works only on its moving end; an
 index of the walls by grid cell names those it can meet; its ground wear and its arches go on alternate frames; the
 laid path keeps the arches its ghost showed (the ghost gives way after the command, as a painted stroke's does);
-Masonry draws changed chunks within `Budget.MASONRY_FLUSH_US` a frame and the ground wears a laid path within
-`Budget.GROUND_WEAR_US`; one arch cue plays for a stroke, not one per wall; swimmers look only in the cells their step
-meets; and the metrics' once-a-second GPU reading (up to 8 ms of procfs reads) runs on a thread of its own.
+Masonry draws changed chunks within `Budget.MASONRY_FLUSH_US` a frame and the ground wears a laid path
+`Budget.GROUND_WEAR_ROWS` rows a frame; one arch cue plays for a stroke, not one per wall; swimmers look only in the
+cells their step meets; and the metrics' once-a-second GPU reading (up to 8 ms of procfs reads) runs on a thread of
+its own.
 
 A visited garden past the build budget, as one came in a played co-op session (4.1 to
 4.7 times the room, 23,000 stones, 130,000 to 150,000 sprigs of ivy): `demo/visited-host.json`
@@ -3164,7 +3165,7 @@ checked the batch's budget twice, applied it, and in that same frame laid the ho
 twice (once for the batch, once as a build the house met), laid the wing it joins, played both settle sounds, and
 lifted and laid the house's worn floor, each redrawing and uploading the whole ground mask. Now the host checks a
 command once (a visitor checks before sending); a build the garden reshaped, or one meeting it, falls due
-(`Wall.due`) and is laid from the frame after, in tree order, `Budget.RELAY_US` a frame and one at least, its sound
+(`Wall.due`) and is laid from the frame after, in tree order, `Budget.RELAYS` a frame, its sound
 playing as it is laid; the ground wears a lifted mark's patch and a mark laid among older ones from the frame after,
 once, with the marks laid last; a lay meant to settle that lands after its inputs changed is not shown, since the
 lay replacing it settles, where showing it drew the house's stones apart from the glade's for a few frames (3 to 6

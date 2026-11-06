@@ -20,6 +20,20 @@ snapping of frames to physics ticks, which would move the step. In real time a f
 so deltas and whatever depends on them can differ. A hand played on its
 joints replays as a controller held at its palm, giving the same inputs. The game quits when the record runs out.
 
+What game logic reads never waits on the machine's timing, so a replay is the session again however loaded either
+machine was. A worker thread's work for it is taken at a frame the frames decide (`Work`): a garden wall's stones
+`Budget.LAY_FRAMES` after their lay began, its perches `Budget.PERCH_FRAMES` after, a command's water
+`Budget.WATER_FRAMES` after, waited for then if the worker is not done (Metrics notes the wait), frames counted without
+the replay's paused first one. Work spread over frames is metered by counts: a committed stroke grows
+`Budget.GROW_PLANTS` plants a frame, the ground wears `Budget.GROUND_WEAR_ROWS` marks or rows of a laid path a frame,
+the builds the garden reshaped lay again `Budget.RELAYS` a frame and butterflies look over `Budget.BUTTERFLY_SCAN`
+flowers a frame. Only drawing takes its workers' results as they finish and keeps time budgets
+(`Budget.MASONRY_FLUSH_US`, `Budget.PARTICLE_BIRTHS_US`). tests/test_replay_timing.gd records a session, metered as a
+game is, whose pond fills, whose walls go up and are laid again, whose trees and flowers grow and whose path wears the
+ground while threads spin beside the game and every command finds the worker pool held for a second; ducks and then
+birds come, and the player teleports to a wall's foot. Replayed with nothing else running, every check of the player and
+the wildlife holds.
+
 The garden is the record's: every build command replays as the host ordered it (`ordered` in a host's record,
 `_commit` in a visitor's; multiplayer.md), applied when the record says it came, and a proposal a host received is only
 the order that follows it. The tools still see the replayed input, draw their ghosts and submit what they make of it,
