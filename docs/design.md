@@ -660,9 +660,12 @@ the Frame unworn with its standby pause off, the governor walking the ladder and
   1.9 M primitives. The runtime let a scene back only once it read under about 11 ms (a
   path stroke sat at half rate reading 11.2 to 11.6 ms, and left it once it read 7.9), and the governor's
   line is 11.1 ms, so it sat there without stepping. Turning SteamVR's motion smoothing off
-  mid-run took 2 ms off that reading and left the half rate as it was. Now the runtime
-  holding the game at every other refresh counts as over budget whatever the timer reads,
-  as long as the timer is above 0.6 of the budget, below which the CPU held the frame.
+  mid-run took 2 ms off that reading and left the half rate as it was. The line is now
+  0.8 of the period, under the reading the runtime holds the half rate at, so the timer
+  over it steps down; every other refresh with the timer under it holds a step up and steps
+  nothing down, since the CPU or the runtime held those frames: counted as over budget from
+  0.6 of the budget, a photo's frames (14.9 ms in scripts, the GPU at 8.2 ms) stepped a held
+  phase of the stress scene down.
 - The governor waited for each step to arrive before judging the next, and flowers
   receding from 60 to 20 m take five seconds: a path stroke walked from step 4 to the bottom
   over 16 s at half rate. Frames over budget now step on while a step is under way, short of a
@@ -1744,9 +1747,9 @@ coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing el
 refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapchain's
 (see "Holding 72 Hz on the Frame"). A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
-is missed with the GPU over its line, or their average runs over the line, and back up only after a calm spell with room for what the step
-saved. The runtime holding the game at every other refresh counts as over budget, and frames
-over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
+is missed among frames over its line (a single one the next frame does not repeat steps nothing), or their average
+runs over the line, and back up only after a calm spell with room for what the step saved. The runtime holding the
+game at every other refresh holds a step up, and frames over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
 once) draw what it built, not the scene, so the governor starts its averages again rather than judge them. Every headset starts at the cheapest way of
 drawing the view with every reach whole (`Quality.START`) and settles on the prettiest step it
 holds at its own refresh rate. There are no per-headset presets, nothing reads which headset or
