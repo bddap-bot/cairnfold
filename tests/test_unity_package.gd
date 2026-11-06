@@ -1034,7 +1034,8 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	cell = materials.materials.colour.cell
 	var center := cell.position + cell.size / 2
 	check(materials.atlas.get_pixelv(center).r == 0.0 and raw.get_pixelv(center).r > 0.99, "animation can recover a channel that baking had removed")
-	check(is_equal_approx(raw.get_pixelv(center).a, materials.atlas.get_pixelv(center).a), "the original transparency is preserved")
+	var corner := Vector2i(raw.get_width() - 1, raw.get_height() - 1)
+	check(not cell.grow(Materials.PAD).has_point(corner) and raw.get_pixelv(corner) == Color.WHITE, "outside the cells a menu recolours the untinted colours are white, not a second albedo")
 	materials.color_regions.clear()
 	materials.materials.colour.shader = "Poiyomi Toon"
 	materials.materials.colour.properties = {"_MainGamma_Test": true}

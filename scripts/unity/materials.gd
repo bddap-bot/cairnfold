@@ -394,20 +394,18 @@ func hue_mask() -> String:
 	return "" if out == null else _layer(out, RESAMPLE)
 
 
+## The untinted colours of the materials a menu recolours, or swaps in where it recolours, in their cells and white
+## elsewhere: a renderer reads it only where a colour control draws, and a copy of the whole albedo would carry the atlas
+## twice.
 func color_atlas() -> String:
 	if color_regions.is_empty():
 		return ""
-	var out := atlas.duplicate() as Image
-	out.clear_mipmaps()
+	var out := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
+	out.fill(Color.WHITE)
 	for key: String in color_regions:
 		var m: Dictionary = materials[key]
 		var cell: Rect2i = m.cell
 		_blit_padded(out, _cell_image(m, cell), cell)
-	var data := out.get_data()
-	var original := atlas.get_data()
-	for i in range(3, data.size(), 4):
-		data[i] = original[i]
-	out.set_data(atlas_side, atlas_side, false, Image.FORMAT_RGBA8, data)
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 

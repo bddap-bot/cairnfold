@@ -751,6 +751,10 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 				binding = {"channel": channel, "color": [color.r, color.g, color.b]}
 				rest = color[channel]
 				materials.color_regions[key] = true
+				for m: Dictionary in meshes:
+					if renderer in m.renderers and m.has("swapped"):
+						for swapped: String in m.swapped:
+							materials.color_regions[swapped] = true
 			else:
 				var floats: Dictionary = material.get("floats", {})
 				if not floats.has(property):
@@ -1316,6 +1320,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			return kept_weights, {})}
 		if group.has("swap"):
 			part.swap = group.swap
+			part.swapped = group.choices
 			part.choices = (group.choices as Array).map(func(c: String) -> Array:
 				var m: Array = materials.moved(group.choices[0], c)
 				return [m[0].x, m[0].y, m[1].x, m[1].y])
