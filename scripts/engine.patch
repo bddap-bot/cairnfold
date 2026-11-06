@@ -537,3 +537,246 @@
  
  		RID blend_weights_buffer;
  		List<MeshInstance *>::Element *I = nullptr; //used to erase itself
+--- a/servers/rendering/renderer_rd/storage_rd/render_scene_buffers_rd.h
++++ b/servers/rendering/renderer_rd/storage_rd/render_scene_buffers_rd.h
+@@ -154,6 +154,8 @@
+ 	struct NamedTexture {
+ 		// Cache the data used to create our texture
+ 		RD::TextureFormat format;
++		RD::TextureView view;
++		bool is_view = false;
+ 		bool is_unique; // If marked as unique, we return it into our pool
+ 
+ 		// Our texture objects, slices are lazy (i.e. only created when requested).
+@@ -166,6 +168,17 @@
+ 	void update_sizes(NamedTexture &p_named_texture);
+ 	void free_named_texture(NamedTexture &p_named_texture);
+ 
++	// Textures a configuration change released, kept where the configuration asks (keep_released_textures) for a later
++	// one asking for the same texture: allocating a viewport's buffers, MSAA ones above all, costs tens of milliseconds of
++	// kernel time on some drivers, so a viewport switching back and forth between configurations allocates each once.
++	struct PooledTexture {
++		RD::TextureFormat format;
++		RD::TextureView view;
++		RID texture;
++	};
++	LocalVector<PooledTexture> texture_pool;
++	bool keep_released_textures = false;
++
+ 	// Data buffers
+ 	mutable HashMap<StringName, Ref<RenderBufferCustomDataRD>> data_buffers;
+ 
+--- a/servers/rendering/renderer_rd/storage_rd/render_scene_buffers_rd.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/render_scene_buffers_rd.cpp
+@@ -37,6 +37,7 @@
+ }
+ 
+ RenderSceneBuffersRD::~RenderSceneBuffersRD() {
++	keep_released_textures = false;
+ 	cleanup();
+ 
+ 	data_buffers.clear();
+@@ -126,11 +127,24 @@
+ 		E.value->free_data();
+ 	}
+ 
+-	// Clear our named textures
+ 	for (KeyValue<NTKey, NamedTexture> &E : named_textures) {
+-		free_named_texture(E.value);
++		NamedTexture &named_texture = E.value;
++		if (!keep_released_textures || named_texture.is_view || named_texture.texture.is_null()) {
++			free_named_texture(named_texture);
++			continue;
++		}
++		for (const KeyValue<NTSliceKey, RID> &slice : named_texture.slices) {
++			RD::get_singleton()->free_rid(slice.value);
++		}
++		texture_pool.push_back({ named_texture.format, named_texture.view, named_texture.texture });
+ 	}
+ 	named_textures.clear();
++	if (!keep_released_textures) {
++		for (const PooledTexture &pooled : texture_pool) {
++			RD::get_singleton()->free_rid(pooled.texture);
++		}
++		texture_pool.clear();
++	}
+ 
+ 	// Clear weight_buffer / blur textures.
+ 	for (WeightBuffers &weight_buffer : weight_buffers) {
+@@ -167,6 +181,7 @@
+ 	anisotropic_filtering_level = p_config->get_anisotropic_filtering_level();
+ 	use_taa = p_config->get_use_taa();
+ 	use_debanding = p_config->get_use_debanding();
++	keep_released_textures = p_config->get_keep_released_textures();
+ 
+ 	ERR_FAIL_COND_MSG(view_count == 0, "Must have at least 1 view");
+ 
+@@ -222,6 +237,7 @@
+ 	use_taa = false;
+ 	use_debanding = false;
+ 	view_count = 1;
++	keep_released_textures = false;
+ 
+ 	// cleanout any old buffers we had.
+ 	cleanup();
+@@ -334,8 +350,18 @@
+ 	// Add a new entry..
+ 	NamedTexture &named_texture = named_textures[key];
+ 	named_texture.format = p_texture_format;
++	named_texture.view = p_view;
+ 	named_texture.is_unique = p_unique;
+-	named_texture.texture = RD::get_singleton()->texture_create(p_texture_format, p_view);
++	for (uint32_t i = 0; i < texture_pool.size(); i++) {
++		if (texture_pool[i].format == p_texture_format && texture_pool[i].view == p_view) {
++			named_texture.texture = texture_pool[i].texture;
++			texture_pool.remove_at_unordered(i);
++			break;
++		}
++	}
++	if (named_texture.texture.is_null()) {
++		named_texture.texture = RD::get_singleton()->texture_create(p_texture_format, p_view);
++	}
+ 
+ 	Array arr = { p_context, p_texture_name };
+ 	RD::get_singleton()->set_resource_name(named_texture.texture, String("RenderBuffer {0}/{1}").format(arr));
+@@ -372,6 +398,7 @@
+ 	NamedTexture &view_texture = named_textures[view_key];
+ 
+ 	view_texture.format = named_texture.format;
++	view_texture.is_view = true;
+ 	view_texture.is_unique = named_texture.is_unique;
+ 
+ 	view_texture.texture = RD::get_singleton()->texture_create_shared(p_view, named_texture.texture);
+--- a/modules/openxr/openxr_api.h
++++ b/modules/openxr/openxr_api.h
+@@ -158,6 +158,11 @@
+ 		OPENXR_SWAPCHAIN_MAX
+ 	};
+ 
++	struct KeptSwapchains {
++		Size2i size;
++		OpenXRSwapChainInfo swapchains[OPENXR_SWAPCHAIN_MAX];
++	};
++
+ 	int64_t color_swapchain_format = 0;
+ 	int64_t depth_swapchain_format = 0;
+ 
+@@ -274,6 +279,7 @@
+ 	bool obtain_swapchain_formats();
+ 	bool create_main_swapchains(const Size2i &p_size);
+ 	void free_main_swapchains();
++	void keep_main_swapchains();
+ 	void destroy_session();
+ 
+ 	// action map
+@@ -378,6 +384,9 @@
+ 
+ 		Size2i main_swapchain_size;
+ 		OpenXRSwapChainInfo main_swapchains[OPENXR_SWAPCHAIN_MAX];
++		// Main swapchains of the sizes used before in the session, which a change of render target size switches back
++		// to: creating them stalls the frame that switches, and an app switches between a few sizes.
++		LocalVector<KeptSwapchains> kept_swapchains;
+ 	} render_state;
+ 
+ 	static void _allocate_view_buffers_rt(uint32_t p_view_count, bool p_submit_depth_buffer);
+--- a/modules/openxr/openxr_api.cpp
++++ b/modules/openxr/openxr_api.cpp
+@@ -1318,8 +1318,20 @@
+ 	render_state.main_swapchain_size = p_size;
+ 	uint32_t sample_count = 1;
+ 
++	bool kept = false;
++	for (uint32_t i = 0; i < render_state.kept_swapchains.size(); i++) {
++		if (render_state.kept_swapchains[i].size == p_size) {
++			for (int j = 0; j < OPENXR_SWAPCHAIN_MAX; j++) {
++				render_state.main_swapchains[j] = render_state.kept_swapchains[i].swapchains[j];
++			}
++			render_state.kept_swapchains.remove_at(i);
++			kept = true;
++			break;
++		}
++	}
++
+ 	// We start with our color swapchain...
+-	if (color_swapchain_format != 0) {
++	if (!kept && color_swapchain_format != 0) {
+ 		if (!render_state.main_swapchains[OPENXR_SWAPCHAIN_COLOR].create(0, XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT, color_swapchain_format, render_state.main_swapchain_size.width, render_state.main_swapchain_size.height, sample_count, view_configuration_views.size())) {
+ 			return false;
+ 		}
+@@ -1331,7 +1343,7 @@
+ 	// - we've enabled submitting depth buffer
+ 	// - we support our depth layer extension
+ 	// - we have our spacewarp extension (not yet implemented)
+-	if (depth_swapchain_format != 0 && submit_depth_buffer && OpenXRCompositionLayerDepthExtension::get_singleton()->is_available()) {
++	if (!kept && depth_swapchain_format != 0 && submit_depth_buffer && OpenXRCompositionLayerDepthExtension::get_singleton()->is_available()) {
+ 		if (!render_state.main_swapchains[OPENXR_SWAPCHAIN_DEPTH].create(0, XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, depth_swapchain_format, render_state.main_swapchain_size.width, render_state.main_swapchain_size.height, sample_count, view_configuration_views.size())) {
+ 			return false;
+ 		}
+@@ -2368,7 +2380,24 @@
+ void OpenXRAPI::free_main_swapchains() {
+ 	for (int i = 0; i < OPENXR_SWAPCHAIN_MAX; i++) {
+ 		render_state.main_swapchains[i].queue_free();
++		for (KeptSwapchains &kept : render_state.kept_swapchains) {
++			kept.swapchains[i].queue_free();
++		}
++	}
++	render_state.kept_swapchains.clear();
++}
++
++void OpenXRAPI::keep_main_swapchains() {
++	if (render_state.main_swapchains[OPENXR_SWAPCHAIN_COLOR].get_swapchain() == XR_NULL_HANDLE) {
++		return;
++	}
++	KeptSwapchains kept;
++	kept.size = render_state.main_swapchain_size;
++	for (int i = 0; i < OPENXR_SWAPCHAIN_MAX; i++) {
++		kept.swapchains[i] = render_state.main_swapchains[i];
++		render_state.main_swapchains[i] = OpenXRSwapChainInfo();
+ 	}
++	render_state.kept_swapchains.push_back(kept);
+ }
+ 
+ void OpenXRAPI::pre_render() {
+@@ -2386,8 +2415,8 @@
+ 
+ 	Size2i swapchain_size = get_recommended_target_size();
+ 	if (swapchain_size != render_state.main_swapchain_size) {
+-		// Out with the old.
+-		free_main_swapchains();
++		// Out with the old, kept to switch back to.
++		keep_main_swapchains();
+ 
+ 		// In with the new.
+ 		create_main_swapchains(swapchain_size);
+--- a/servers/rendering/storage/render_scene_buffers.h
++++ b/servers/rendering/storage/render_scene_buffers.h
+@@ -52,6 +52,7 @@
+ 	float texture_mipmap_bias = 0.0;
+ 	bool use_taa = false;
+ 	bool use_debanding = false;
++	bool keep_released_textures = false;
+ 
+ protected:
+ 	static void _bind_methods();
+@@ -93,6 +94,9 @@
+ 	bool get_use_debanding() const { return use_debanding; }
+ 	void set_use_debanding(bool p_use_debanding) { use_debanding = p_use_debanding; }
+ 
++	bool get_keep_released_textures() const { return keep_released_textures; }
++	void set_keep_released_textures(bool p_keep_released_textures) { keep_released_textures = p_keep_released_textures; }
++
+ 	RenderSceneBuffersConfiguration() {}
+ 	virtual ~RenderSceneBuffersConfiguration() {}
+ };
+--- a/servers/rendering/renderer_viewport.cpp
++++ b/servers/rendering/renderer_viewport.cpp
+@@ -282,6 +282,9 @@
+ 			rb_config.set_anisotropic_filtering_level(p_viewport->anisotropic_filtering_level);
+ 			rb_config.set_use_taa(use_taa);
+ 			rb_config.set_use_debanding(p_viewport->use_debanding);
++			// An XR viewport's sizes are the runtime's recommended size times its multiplier, a few an app switches
++			// between, never a window dragged through every size.
++			rb_config.set_keep_released_textures(p_viewport->use_xr);
+ 
+ 			p_viewport->render_buffers->configure(&rb_config);
+ 		}

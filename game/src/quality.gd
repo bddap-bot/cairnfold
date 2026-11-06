@@ -118,9 +118,10 @@ const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
 const WARMUP := 5.0
 ## Rendered frames drawn at each rung whose knobs switch pipelines (`primed`) as the session starts, among loading's
-## late frames, so the pipelines they draw with are compiled then. A 3D scale other than the swapchain's compiles every
-## pipeline afresh for its separate pass, and an MSAA level its own: on the Quest 2 that was a 110 to 180 ms frame the
-## first time the governor reached the last step, mid-play.
+## late frames, so the pipelines they draw with are compiled and the buffers and swapchains they draw into allocated
+## then, which the engine keeps (scripts/engine.patch). A 3D scale other than the swapchain's compiles every pipeline
+## afresh for its separate pass, and an MSAA level its own: on the Quest 2 that was a 110 to 180 ms frame the first time
+## the governor reached the last step, mid-play; allocating a 4x MSAA scene cost the Frame a 33 to 91 ms frame.
 const PRIME_FRAMES := 2
 
 ## The session's first walk down the primed rungs is over.
@@ -181,8 +182,8 @@ func _ready() -> void:
 
 
 ## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or people's own files
-## back, which shows at once across the whole view, or on everyone, or reallocates what it is drawn into: a governor
-## crossing that line back and forth would flicker every shadow, the horizon or the people, or drop a frame each time.
+## back, which shows at once across the whole view, or on everyone: a governor crossing that line back and forth
+## would flicker every shadow, the horizon or the people.
 static func popping() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for i in ladder.size() - 1:

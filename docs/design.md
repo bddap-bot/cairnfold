@@ -1766,15 +1766,21 @@ build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. 
   0.7, 0.8 and 1.0 rows of "Which knobs matter" at 0.27, a governed stress run on the Quest 2 climbed from 0.7 to
   0.85 at 7.3 ms and read 10.7, and stepped back within seven seconds), and is taken only when the average plus that stays under the line. A measured step
   takes its measured cost, as every step does.
-- Pops. The steps into 2x MSAA and each smaller swapchain reallocate what the view is drawn into, as the bottom
-  steps' shadows and 3D scale do (`Quality.popping`). Above the start the governor crosses them at the calm of any
-  step until the scene first asks for less; once a step down has crossed one, a step back up across it waits the
-  longest calm (64 s), and one undone within ten seconds waits twice that, then 256 s for each later undo: a single
-  halved second after a climb out of the bottom step must not hold a run at the bottom for the session.
+- Pops. The steps into 2x MSAA and each smaller swapchain change the whole view at once, as the bottom steps'
+  shadows and 3D scale do (`Quality.popping`), so a governor crossing one back and forth would show it. Above the
+  start the governor crosses them at the calm of any step until the scene first asks for less; once a step down has
+  crossed one, a step back up across it waits the longest calm (64 s), and one undone within ten seconds waits twice
+  that, then 256 s for each later undo: a single halved second after a climb out of the bottom step must not hold a
+  run at the bottom for the session.
 - Priming. Among loading's late frames, before the governor starts, the view is drawn for two frames each at the
-  bottom step and at every rung whose swapchain, MSAA or reflections differ, so their pipelines are compiled then
-  and not mid-play. Changing the render target size multiplier mid-session recreates the swapchain, which the
-  Quest 2's runtime takes in its stride (the log's `quality: step` lines and the compositor's swapchain lines).
+  bottom step and at every rung whose swapchain, MSAA or reflections differ, so their pipelines are compiled and
+  what they draw into allocated then, not mid-play. The engine keeps them (`scripts/engine.patch`): the scene
+  buffers an XR viewport's reconfiguration releases go to a pool a later configuration takes them back from, and
+  OpenXR's main swapchains are kept for each size used in the session. Allocating them mid-play stalled the main
+  thread: on the Frame two steps up into 4x MSAA spent 24 and 26 ms in the driver's `texture_create`, a step to the
+  full swapchain stalled 28 ms, and five pinned cycles of the ladder's steps each had a 33 to 91 ms frame at the step
+  into 4x MSAA. With both kept, three governed runs of the stress scene took 138 steps up and none made a late
+  frame, for about 310 MB more video memory at its peak (820 against 508 MB).
 - MSAA is never off: no rung has fewer than 2x samples, and a test holds every step to it.
 - Fixed foveation (`XR_FB_foveation`) is a knob only where the runtime supports it and the eyes are not tracked
   (`is_foveation_supported`, `is_eye_gaze_interaction_supported`); the view's VRS mode is XR only then. Elsewhere
@@ -1834,10 +1840,10 @@ only with a measured saving. Grass reach changes at no frame cost:
 whose second half the surviving clumps sink into the ground one at a time, and it moves toward
 each new step at 8 m a second, so the meadow thins rather than ends. Ruled out for any later knob
 because they reallocate or recompile mid-play: shadow atlas size and toggling glow
-(pipeline variants). MSAA level, the render-target multiplier (Godot frees and recreates the
-swapchain when it changes), the sun's shadows and `Viewport.scaling_3d_scale` (see below for
-the frame it cost on the Frame) are on the ladder only as pops, primed at load ("One ladder for
-every headset").
+(pipeline variants). MSAA level, the render-target multiplier, the sun's shadows and
+`Viewport.scaling_3d_scale` are on the ladder only as pops, primed at load; the scene buffers and
+swapchains the MSAA level, the multiplier and the 3D scale draw into are allocated then and kept
+("One ladder for every headset").
 
 On the Steam Frame the pixels are the cost. The houses phase of `demo/headset.json` (a tower
 and a house with two roofs 3 to 10 m from a floating eye) took the game's GPU time from 8.3 ms
