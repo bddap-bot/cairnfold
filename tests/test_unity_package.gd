@@ -201,7 +201,7 @@ func _model_objects_keep_their_bindings_and_transforms() -> void:
 			var bones := Yaml.list(object.data.get("m_Bones"))
 			check(not bones.is_empty(), "a model's skinned renderer retains its bone references")
 			for bone: Dictionary in bones:
-				check(model.objects.has(UnityAvatar._ref(bone)), "generated bone references resolve to source transforms")
+				check(model.objects.has(Yaml.file_id(bone)), "generated bone references resolve to source transforms")
 			bound += bones.size()
 	check(positioned > 0 and bound > 0, "the model fixture exercises both nonzero positions and skin bindings")
 	(model.scene as Node).free()
