@@ -124,7 +124,7 @@ func laid(d: Dictionary) -> DecorationLayout:
 func frame(d: Dictionary) -> Variant:
 	if d.mount == "span":
 		var run: Vector3 = d.to - d.at
-		return Transform3D(Basis(Vector3.UP, atan2(-run.z, run.x)), d.at)
+		return Transform3D(Basis(Vector3.UP, WallTool.angle(run)), d.at)
 	if d.wall < 0:
 		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, world.terrain.height_at(d.at.x, d.at.z), d.at.z))
 	var w := walls.find(d.wall)
@@ -136,7 +136,7 @@ func frame(d: Dictionary) -> Variant:
 			return null
 		var x := plan(w)
 		var p: Vector3 = x * Vector3(d.at.x, 0.0, d.at.z)
-		var turn: float = d.turn + atan2(-x.basis.x.z, x.basis.x.x)
+		var turn: float = d.turn + WallTool.angle(x.basis.x)
 		var l := w.layout
 		if mount == "deck":
 			if not w.roof.flat() or not w.roof.over(p.x, p.z):
@@ -170,8 +170,8 @@ static func plan(w: Wall) -> Transform3D:
 	return Transform3D(Basis(f.along * half.x, Vector3.UP, f.across * half.y), Vector3(f.mid.x, 0.0, f.mid.z))
 
 
-## Moves the decorations on `w` with its stones, as it is carried from where it was laid.
-func carry(_w: Wall) -> void:
+## Moves the decorations on a carried wall with its stones.
+func carry() -> void:
 	_place()
 
 

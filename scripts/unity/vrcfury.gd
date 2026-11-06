@@ -290,7 +290,7 @@ static func _full_controller(ex: Expressions, paths: Dictionary, f: Dictionary, 
 		var cache := ex._clips
 		ex._clips = {}
 		var first: int = ex.data.clips.size()
-		layers.append_array(ex._layers(guid, parameters))
+		layers.append_array(ex._layers(guid))
 		ex._clips = cache
 		for i in range(first, ex.data.clips.size()):
 			var kept := []

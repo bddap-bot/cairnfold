@@ -369,7 +369,7 @@ func hue_mask() -> String:
 		if out == null:
 			out = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 			out.fill(Color.WHITE)
-		var mask := _over_cell(m, source, property, Color.WHITE)
+		var mask := _over_cell(m, source, property)
 		if mobile:
 			var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
 			var data := mask.get_data()
@@ -458,10 +458,10 @@ func _decal_image(key: String, slot: int) -> int:
 	if size == Vector2i.ZERO:
 		size = Vector2i(1, 1)
 	var tint := _colour((m.get("colours", {}) as Dictionary).get("_DecalColor" + n), Color.WHITE)
-	var colour := _over(m, source, property, Color.WHITE, size, 0)
+	var colour := _over(m, source, property, size, 0)
 	var shift := str(m.floats.get("_DecalHueShiftEnabled" + n, "0")).to_float() != 0.0
 	if mask != null or tint != Color.WHITE or shift:
-		var cover := _over(m, mask, "_DecalMask", Color.WHITE, size, 0).get_data()
+		var cover := _over(m, mask, "_DecalMask", size, 0).get_data()
 		var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3) if mask != null else 3
 		var data := colour.get_data()
 		for i in range(0, data.size(), 4):
@@ -719,8 +719,8 @@ func looks() -> Dictionary:
 				matcap_masks = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				matcap_masks.fill(Color.WHITE)
 			var channel := clampi(str(m.floats.get(MATCAPS[slot] + "MaskChannel", "0")).to_int(), 0, 3)
-			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask", Color.WHITE).get_data()
-			var over := PackedByteArray() if global.is_empty() else _over_cell(m, _slot_image(m, global.property) if global.property != "" else null, global.property, Color.WHITE).get_data()
+			var source := _over_cell(m, mask, MATCAPS[slot] + "Mask").get_data()
+			var over := PackedByteArray() if global.is_empty() else _over_cell(m, _slot_image(m, global.property) if global.property != "" else null, global.property).get_data()
 			var blend := str(m.floats.get(MATCAPS[slot] + "MaskGlobalMaskBlendType", "2")).to_int()
 			var region := matcap_masks.get_region(padded)
 			var data := region.get_data()
@@ -733,7 +733,7 @@ func looks() -> Dictionary:
 			if glow == null:
 				glow = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				glow.fill(Color.BLACK)
-			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap", Color.WHITE), Rect2i(Vector2i.ZERO, padded.size), padded.position)
+			glow.blit_rect(_over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap"), Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		var cell := Rect2(m.cell)
 		entries.append({"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light})
 	if entries.is_empty():
@@ -762,17 +762,17 @@ func _slot_image(m: Dictionary, property: String) -> Image:
 	return _decoded(guid) if guid != "" else null
 
 
-## `source` (`blank` where null) as it lies over the material's cell, padded like the atlas.
-func _over_cell(m: Dictionary, source: Image, property: String, blank: Color) -> Image:
-	return _over(m, source, property, blank, (m.cell as Rect2i).size, PAD)
+## `source` (white where null) as it lies over the material's cell, padded like the atlas.
+func _over_cell(m: Dictionary, source: Image, property: String) -> Image:
+	return _over(m, source, property, (m.cell as Rect2i).size, PAD)
 
 
-## `source` (`blank` where null) as it lies over the material's own texture, `size` texels and `pad` more each side: the
+## `source` (white where null) as it lies over the material's own texture, `size` texels and `pad` more each side: the
 ## material's own texture fills it, so another texture slot of the same UV0 is read through both slots' tilings.
-func _over(m: Dictionary, source: Image, property: String, blank: Color, size: Vector2i, pad: int) -> Image:
+func _over(m: Dictionary, source: Image, property: String, size: Vector2i, pad: int) -> Image:
 	var out := Image.create_empty(size.x + 2 * pad, size.y + 2 * pad, false, Image.FORMAT_RGBA8)
 	if source == null:
-		out.fill(blank)
+		out.fill(Color.WHITE)
 		return out
 	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(property, {})
 	var scale := _vector2(entry.get("m_Scale"), Vector2.ONE)

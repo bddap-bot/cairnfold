@@ -375,7 +375,6 @@ func build(gable_inset := WallLayout.PLASTER_INSET) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var hue := rng.randf_range(-0.04, 0.04)
-	var f := frame()
 	if flat():
 		if deck == Deck.WOOD:
 			_lay_boards(rng)
@@ -1060,7 +1059,7 @@ func _lay_thatch(rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	if kind == Kind.GABLE:
 		for side in [-1.0, 1.0]:
-			_coat_liggers(f.mid, f.across * side, f.along, _coat_reach())
+			_coat_liggers(f.mid, f.across * side, _coat_reach())
 			_coat_slabs(f.mid, f.across * side, f.along, _coat_reach() * 2.0, straw)
 	else:
 		for k in 8:
@@ -1244,7 +1243,7 @@ func _knob(c: Coat, apex: Vector3) -> void:
 
 
 ## Two hazel liggers along a gable's band, a little proud of it, holding it down.
-func _coat_liggers(mid: Vector3, out: Vector3, along: Vector3, reach: float) -> void:
+func _coat_liggers(mid: Vector3, out: Vector3, reach: float) -> void:
 	for d in [0.16, BAND.y - 0.12]:
 		var x := _along(0.0, -d)
 		var basis := _slope_basis(out, slope_at(x))

@@ -233,9 +233,13 @@ func ducks() -> Array[Duck]:
 	return out
 
 
-## The kinds that keep their distance.
 func shy() -> Array[Shy]:
 	return [frogs, snakes, squirrels, owls]
+
+
+## The planted trees with a crown standing out of the water, each as Flora.placed lists it, trunk first.
+func dry_trees() -> Array:
+	return flora.placed("tree").filter(func(parts: Array) -> bool: return parts.size() > 1 and water.pond_at(parts[0].anchor.x, parts[0].anchor.z) == null)
 
 
 func _process(delta: float) -> void:

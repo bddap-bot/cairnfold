@@ -87,7 +87,7 @@ func look() -> void:
 				break
 
 
-## Whether the band stays: once not, it leaves.
+## Where a kind sends a band off once it should not stay.
 func _keep(_b: Band, _delta: float) -> void:
 	pass
 

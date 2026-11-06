@@ -3367,8 +3367,7 @@ it. The split, by how each aims:
 | Nothing | The controller | Sight at its front, only while it grabs the sky |
 
 The sight is a ring standing across the aim at the tool's tip, to look down the tool through, the same on both
-hands. It is one small unshaded mesh per hand in place of the old beam, with the same mark at the target, so the
-frame costs what the ray did: one draw each, under 200 triangles.
+hands. It is one small unshaded mesh per hand, with a mark at the target: one draw each, under 200 triangles.
 
 Other players see the held tool where the hand was: their avatar's hand folds away while it holds anything but a bird
 (`HeldItem.replaces_hand`), as the player's own body does in a selfie. `demo/held-aim.json` renders the held tools,
@@ -4544,9 +4543,8 @@ Every player action, from the code:
 
 Conure pulses follow `Conure.animation_event`, on the same clock as its shader motion.
 The tail shake and wing flit share one fluff-up and one pulse; breathing has none.
-The feeding timer no longer emits pulses or seed clicks. A perched conure leaves
-the hand above `Birds.HAND_FLICK`, 2.0 m/s of smoothed controller speed (formerly
-0.7 m/s); approaching other animals still uses the original calm threshold.
+The feeding timer emits no pulses or seed clicks. A perched conure leaves
+the hand above `Birds.HAND_FLICK`, 2.0 m/s of smoothed controller speed.
 The deciding head turn eases at 22/s while retaining its person-to-food glance.
 
 | Action | What it is | Why it has no entry |

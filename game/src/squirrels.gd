@@ -75,13 +75,11 @@ static func body() -> ArrayMesh:
 	return st.commit()
 
 
-## Planted trees standing out of the water, as conures find them, listed again on `Wildlife`'s looks.
+## The dry trees (`Wildlife.dry_trees`), listed again on `Wildlife`'s looks.
 func look() -> void:
 	_trees = {}
-	for parts: Array in wildlife.flora.placed("tree"):
-		var trunk: Flora.Plant = parts[0]
-		if parts.size() > 1 and wildlife.water.pond_at(trunk.anchor.x, trunk.anchor.z) == null:
-			_trees[trunk] = 1
+	for parts: Array in wildlife.dry_trees():
+		_trees[parts[0]] = 1
 
 
 func habitats() -> Dictionary:

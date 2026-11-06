@@ -56,7 +56,7 @@ func _edit(ground: Callable, round: bool, foundation: int, action: String, rise:
 				if piece.kind in ["block", "plaster", "pier", "pillar", "post"] and absf(after.offset(piece.s, station)) <= piece.size.x * 0.5 + 0.02:
 					lowest = minf(lowest, piece.xform.origin.y - piece.size.y * 0.5)
 			check(lowest <= ground.call(foot.x, foot.z) + 0.05, label + ": foundation reaches the terrain at every support station")
-	var nest := Vector4(0.5, 0.5, 0.0, ClutterLayout.style("Bird nest"))
+	var nest := Vector4(0.5, 0.5, 0.0, DecorationLayout.named("Bird nest"))
 	var perched: Transform3D = after.clutter_frame(nest, ground)
 	var nest_top := -INF
 	for part in ClutterLayout.parts(nest, perched, after.seed):
@@ -65,7 +65,7 @@ func _edit(ground: Callable, round: bool, foundation: int, action: String, rise:
 	check(absf(nest_top - after.roof_base()) < 0.001, label + ": the nest's top meets the walls' top when lifted")
 	for side in [-1.0, 1.0]:
 		for along in [0.5, before.length() * 0.4, before.length() * 0.8]:
-			var item := Vector4(along, side * 2.0, 0.0, ClutterLayout.style("Rain barrel"))
+			var item := Vector4(along, side * 2.0, 0.0, DecorationLayout.named("Rain barrel"))
 			var original: Variant = before.clutter_frame(item, ground)
 			var placed: Variant = after.clutter_frame(item, ground)
 			if placed == null:

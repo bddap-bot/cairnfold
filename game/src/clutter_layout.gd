@@ -29,11 +29,6 @@ const CLEAR := 1.1
 static var _shapes := {}
 
 
-## The style named `name` in DecorationLayout.
-static func style(name: String) -> int:
-	return DecorationLayout.named(name)
-
-
 ## Whether pieces of `style` sit up on a wall rather than on the ground at its foot.
 static func perched(style: int) -> bool:
 	return style == DecorationLayout.named("Bird nest")
@@ -64,12 +59,12 @@ static func of_wall(d: Dictionary) -> PackedVector4Array:
 				break
 		var grounded: bool = d.on.is_empty()
 		if grounded and front.run >= 3.0:
-			out.append(Vector4(door - 1.35, outward * 0.32, 0.0, style("Bench")))
+			out.append(Vector4(door - 1.35, outward * 0.32, 0.0, DecorationLayout.named("Bench")))
 			if rng.randf() < 0.5:
-				out.append(Vector4(door + 1.05, outward * 0.3, rng.randf_range(-0.4, 0.4), style("Carved pumpkin")))
-				out.append(Vector4(door + 1.45, outward * 0.34, rng.randf_range(-0.4, 0.4), style("Carved pumpkin")))
+				out.append(Vector4(door + 1.05, outward * 0.3, rng.randf_range(-0.4, 0.4), DecorationLayout.named("Carved pumpkin")))
+				out.append(Vector4(door + 1.45, outward * 0.34, rng.randf_range(-0.4, 0.4), DecorationLayout.named("Carved pumpkin")))
 			else:
-				out.append(Vector4(door + 1.3, outward * 0.24, 0.0, style("Flower box")))
+				out.append(Vector4(door + 1.3, outward * 0.24, 0.0, DecorationLayout.named("Flower box")))
 		if grounded:
 			for i in corners.size():
 				var side: Dictionary = sides[i]
@@ -77,28 +72,28 @@ static func of_wall(d: Dictionary) -> PackedVector4Array:
 					continue
 				var name: String = "Rain barrel" if rng.randf() < 0.5 else "Crates"
 				if _clear(out, side.start + 0.6, length):
-					out.append(Vector4(side.start + 0.6, outward * 0.4, rng.randf_range(-0.3, 0.3), style(name)))
+					out.append(Vector4(side.start + 0.6, outward * 0.4, rng.randf_range(-0.3, 0.3), DecorationLayout.named(name)))
 			var trade := rng.randf()
 			var back: Dictionary = sides[mini(2, sides.size() - 1)]
 			if trade < 0.25 and back.run >= 2.6:
-				out.append(Vector4(back.start + back.run * 0.5, outward * 0.75, 0.0, style("Market stall")))
+				out.append(Vector4(back.start + back.run * 0.5, outward * 0.75, 0.0, DecorationLayout.named("Market stall")))
 			elif trade < 0.45 and sides.size() > 1 and sides[1].run >= 1.8:
 				var end: Dictionary = sides[1]
-				out.append(Vector4(end.start + end.run * 0.45, outward * 0.75, rng.randf_range(-0.5, 0.5), style("Anvil")))
+				out.append(Vector4(end.start + end.run * 0.45, outward * 0.75, rng.randf_range(-0.5, 0.5), DecorationLayout.named("Anvil")))
 		var eave: Dictionary = sides[mini(2, sides.size() - 1)]
-		out.append(Vector4(eave.start + eave.run * rng.randf_range(0.25, 0.75), outward, 0.0, style("Bird nest")))
+		out.append(Vector4(eave.start + eave.run * rng.randf_range(0.25, 0.75), outward, 0.0, DecorationLayout.named("Bird nest")))
 		return out
 	var s := WALL_EVERY * rng.randf_range(0.3, 0.8)
 	while s < length - 0.6 and out.size() < GATHERED:
 		if rng.randf() < 0.6:
 			var name: String = ["Rain barrel", "Crates", "Flower box", "Bench"][rng.randi() % 4]
 			var side := 1.0 if rng.randf() < 0.5 else -1.0
-			out.append(Vector4(s, side * (0.3 if name != "Rain barrel" else 0.4), rng.randf_range(-0.25, 0.25), style(name)))
+			out.append(Vector4(s, side * (0.3 if name != "Rain barrel" else 0.4), rng.randf_range(-0.25, 0.25), DecorationLayout.named(name)))
 		s += WALL_EVERY * rng.randf_range(0.8, 1.2)
 	s = NEST_EVERY * rng.randf_range(0.3, 0.7)
 	while s < length - 0.3 and out.size() < GATHERED:
 		if rng.randf() < 0.7:
-			out.append(Vector4(s, 0.0, rng.randf() * TAU, style("Bird nest")))
+			out.append(Vector4(s, 0.0, rng.randf() * TAU, DecorationLayout.named("Bird nest")))
 		s += NEST_EVERY * rng.randf_range(0.8, 1.2)
 	return out
 
@@ -121,7 +116,7 @@ static func of_path(d: Dictionary) -> PackedVector4Array:
 	var s := PATH_FIRST
 	var side := 1.0 if rng.randf() < 0.5 else -1.0
 	while s <= length - PATH_CLEAR and out.size() < GATHERED:
-		out.append(Vector4(s, side * (_half_at(points, halves, s) + 0.55), PI, style(names[rng.randi() % names.size()])))
+		out.append(Vector4(s, side * (_half_at(points, halves, s) + 0.55), PI, DecorationLayout.named(names[rng.randi() % names.size()])))
 		side = -side
 		s += PATH_EVERY * rng.randf_range(0.85, 1.15)
 	return out

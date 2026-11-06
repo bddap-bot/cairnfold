@@ -672,7 +672,7 @@ func _place_laid(w: Wall, x: Transform3D) -> void:
 		return
 	w.transform = x
 	if world.decorations != null:
-		world.decorations.carry(w)
+		world.decorations.carry()
 
 
 ## Lets the house in hand go: it is set where and as it stands, one reshape with the builds on it carried along, and
@@ -951,7 +951,7 @@ static func reshape_line(d: Dictionary, to: Dictionary) -> Dictionary:
 ## Where a wall held from `start` stands once two hands move from poses `from` to `to`: drawn out or in along its line,
 ## about its middle, by the ratio of their spread, from a metre long to as long as a wall may run; drawn apart upright
 ## the hands make it taller, `gain` times as far as they are, a course at a time, a fence keeping its height.
-static func stretch_line(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain := 1.0) -> Dictionary:
+static func stretch_line(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> Dictionary:
 	var out := start.duplicate()
 	var span0 := _flat(from[1].origin - from[0].origin).length()
 	var run: float = start.run * start.length * _flat(to[1].origin - to[0].origin).length() / maxf(span0, 0.05)

@@ -640,30 +640,25 @@ static func _colour(json: Dictionary, means: Array) -> Color:
 				continue
 			var attributes: Variant = primitive.get("attributes")
 			var counted: Variant = primitive.get("indices", attributes.get("POSITION") if attributes is Dictionary else null)
-			var accessor: Variant = accessors[int(counted)] if _index(counted, accessors) else null
+			var accessor: Variant = accessors[int(counted)] if SpringDefinition.index(counted, accessors.size()) >= 0 else null
 			var n: Variant = accessor.get("count") if accessor is Dictionary else null
 			if not (n is int or n is float) or n <= 0:
 				continue
 			var c := Color.WHITE
-			var material: Variant = materials[int(primitive.material)] if _index(primitive.get("material"), materials) else null
+			var material: Variant = materials[int(primitive.material)] if SpringDefinition.index(primitive.get("material"), materials.size()) >= 0 else null
 			var pbr: Variant = material.get("pbrMetallicRoughness") if material is Dictionary else null
 			if pbr is Dictionary:
 				var f: Variant = pbr.get("baseColorFactor")
 				if f is Array and f.size() >= 3 and f.slice(0, 3).all(func(v: Variant) -> bool: return v is int or v is float):
 					c = Color(f[0], f[1], f[2])
 				var tex: Variant = pbr.get("baseColorTexture")
-				var texture: Variant = textures[int(tex.index)] if tex is Dictionary and _index(tex.get("index"), textures) else null
-				if texture is Dictionary and _index(texture.get("source"), means):
+				var texture: Variant = textures[int(tex.index)] if tex is Dictionary and SpringDefinition.index(tex.get("index"), textures.size()) >= 0 else null
+				if texture is Dictionary and SpringDefinition.index(texture.get("source"), means.size()) >= 0:
 					c *= (means[int(texture.source)] as Color).srgb_to_linear()
 			sum += Color(c.r * n, c.g * n, c.b * n, n)
 	if sum.a <= 0.0:
 		return Color.WHITE
 	return Color(sum.r / sum.a, sum.g / sum.a, sum.b / sum.a).linear_to_srgb()
-
-
-## Whether `i` is a whole number indexing `into`.
-static func _index(i: Variant, into: Array) -> bool:
-	return (i is int or (i is float and i == floorf(i))) and int(i) >= 0 and int(i) < into.size()
 
 
 ## Each skin is written binding every bone of its skeleton: a bone no skin binds would read back as a plain node, and

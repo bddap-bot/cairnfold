@@ -84,7 +84,7 @@ static func _mapping(lines: Array[String], at: Array, indent: int) -> Dictionary
 		if end < 0:
 			at[0] += 1
 			continue
-		var key := _scalar(text.left(end))
+		var key := scalar(text.left(end))
 		var rest := text.substr(end + 1).strip_edges()
 		at[0] += 1
 		if rest != "":
@@ -126,7 +126,7 @@ static func _value(text: String, lines: Array[String], at: Array, indent: int) -
 			var next := lines[at[0]].strip_edges()
 			text += ("\n" if next == "" else " ") + next
 			at[0] += 1
-		return _scalar(text)
+		return scalar(text)
 	while at[0] < lines.size() and _indent(lines[at[0]]) > indent and not lines[at[0]].strip_edges().begins_with("- "):
 		text += " " + lines[at[0]].strip_edges()
 		at[0] += 1
@@ -190,13 +190,13 @@ static func _flow_scalar(text: String, at: Array, stops: String) -> String:
 		while i < text.length() and not (text[i] == text[start] and not (text[start] == "'" and i + 1 < text.length() and text[i + 1] == "'")):
 			i += 2 if text[start] == "'" and text[i] == "'" else 1
 		at[0] = i + 1
-		return _scalar(text.substr(start, i + 1 - start))
+		return scalar(text.substr(start, i + 1 - start))
 	while at[0] < text.length() and not text[at[0]] in stops:
 		at[0] += 1
 	return text.substr(start, at[0] - start).strip_edges()
 
 
-static func _scalar(s: String) -> String:
+static func scalar(s: String) -> String:
 	s = s.strip_edges()
 	if s.length() >= 2 and s[0] == "'" and s[-1] == "'":
 		return s.substr(1, s.length() - 2).replace("''", "'")

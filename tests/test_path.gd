@@ -249,7 +249,6 @@ func _a_short_stroke_leaves_no_trace() -> void:
 func _chemistry_works_in_either_order() -> void:
 	var nodes := _setup()
 	var tool: WallTool = nodes[0]
-	var paths: Paths = nodes[1]
 	var first := _draw_wall(tool, Vector3(-8, 0, -12), Vector3(8, 0, -12))
 	_reshape(nodes, first, {"openings": PackedVector4Array()})
 	_lay(nodes, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
@@ -763,7 +762,6 @@ func _stringers_carry_the_flight(treads: Array, timbers: Array, ground: Callable
 			check(signf(a_end.z - b_start.z) <= 0.0, "consecutive stringer timbers overlap")
 	for tread in treads:
 		var x: Transform3D = tread.xform
-		var top := x.origin.y + x.basis.y.length() * 0.5
 		var edge := absf(x.origin.x) + x.basis.x.length() * 0.5
 		var beside := timbers.filter(func(p: Dictionary) -> bool: return absf(p.xform.origin.z - x.origin.z) < 0.3)
 		check(beside.any(func(p: Dictionary) -> bool: return absf(p.xform.origin.x) >= edge - 0.05), "a stringer runs beside every tread")

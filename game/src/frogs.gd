@@ -17,6 +17,7 @@ const SWIM_SPEED := 0.12
 const SIT_FOR := Vector2(4.0, 14.0)
 const SWIM_FOR := Vector2(6.0, 16.0)
 const UNDER_FOR := Vector2(8.0, 20.0)
+const BANK_REACH := 1.2
 ## A person coming toward one within FLIGHT, or moving suddenly within STARTLE, sends it into the water.
 const FLIGHT := 1.3
 const STARTLE := 2.2
@@ -97,13 +98,13 @@ func arrive(home: Object) -> One:
 
 ## A spot at the waterline of `p` and one a little out in the water off it, near `near` where given; empty where none
 ## is found.
-func _bank(p: PondWater, near := Vector3.INF, reach := 1.2) -> Array:
+func _bank(p: PondWater, near := Vector3.INF) -> Array:
 	var shore := p.pond.shore
 	var surface := p.surface_y()
 	var t := wildlife.terrain
 	for attempt in 12:
 		var s := Terrain.grid_xz(shore[rng.randi() % shore.size()])
-		if near != Vector3.INF and s.distance_to(Vector2(near.x, near.z)) > reach + Terrain.STEP:
+		if near != Vector3.INF and s.distance_to(Vector2(near.x, near.z)) > BANK_REACH + Terrain.STEP:
 			continue
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)].slice(rng.randi() % 4) + [Vector2i(1, 0), Vector2i(-1, 0)]:
 			var w := s + Vector2(d) * Terrain.STEP
@@ -122,7 +123,7 @@ func _bank(p: PondWater, near := Vector3.INF, reach := 1.2) -> Array:
 			if surface - t.height_at(wet.x, wet.y) < 0.06:
 				wet = w
 			var bank := t.ground(dry.x, dry.y)
-			if near != Vector3.INF and Vector2(bank.x - near.x, bank.z - near.z).length() > reach:
+			if near != Vector3.INF and Vector2(bank.x - near.x, bank.z - near.z).length() > BANK_REACH:
 				continue
 			if not wildlife._swims_clear(Vector3(wet.x, 0, wet.y), dry, p):
 				continue

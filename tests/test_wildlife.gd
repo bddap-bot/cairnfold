@@ -201,7 +201,7 @@ func _no_tool_places_an_animal() -> void:
 					check(not code.contains(part), "%s reaches no %s" % [f, what])
 		check(FileAccess.get_file_as_string("res://src/" + row[4]).count(row[5]) == 1, "%s alone makes the %s" % [row[4], what])
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way", "night", "asleep", "shy"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way", "night", "asleep", "shy", "dry_trees"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a

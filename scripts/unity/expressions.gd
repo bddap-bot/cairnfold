@@ -35,7 +35,7 @@ func _init(from: Assets, descriptor: Dictionary) -> void:
 	data = empty()
 	data.menu = _menu(menu, 0)
 	data.parameters = parameters
-	data.layers = _layers(controller, parameters)
+	data.layers = _layers(controller)
 
 
 ## Expressions with nothing in them yet.
@@ -103,7 +103,7 @@ func _parameters(list: String, controller: String) -> Array:
 	return out.values()
 
 
-func _layers(guid: String, parameters: Array) -> Array:
+func _layers(guid: String) -> Array:
 	var objs := _objects(guid)
 	var out := []
 	for o: Dictionary in objs.values():

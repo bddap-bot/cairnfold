@@ -202,8 +202,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		var q: Variant = bone.get("rotation")
 		if b >= 0 and q is Dictionary:
 			var rest := source.get_bone_rest(b)
-			var turn := Quaternion(str(q.x).to_float(), -str(q.y).to_float(), -str(q.z).to_float(), str(q.w).to_float()).normalized()
-			source.set_bone_rest(b, Transform3D(Basis(turn).scaled(rest.basis.get_scale()), rest.origin))
+			source.set_bone_rest(b, Transform3D(Basis(_turn(q)).scaled(rest.basis.get_scale()), rest.origin))
 	var scale := _world_scale(objs, _model_root(objs, main, found.transform))
 	var from := Transform3D.IDENTITY.scaled(Vector3.ONE * scale) * _in_model(source)
 	var k := from.basis.get_scale().y
@@ -721,7 +720,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	var go := Yaml.file_id(objs[transform].data.get("m_GameObject"))
 	var effect := {}
 	var rest := 1.0
-	var bone: int = (sk.get_meta("unity_bones", {}) as Dictionary).get(go, sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()))
+	var bone: int = (sk.get_meta("unity_bones", {}) as Dictionary).get(go, _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", ""))))
 	if c.attribute.begins_with("blendShape.") and c["class"] == "137":
 		var renderer := Prefabs.renderer_of(objs, go)
 		var shape: String = shapes.get(renderer, {}).get(c.attribute.trim_prefix("blendShape."), "")
@@ -805,12 +804,11 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if bone < 0 or (sk.get_meta("humanoid_bones", {}) as Dictionary).has(bone):
 			return -1
 		var data: Dictionary = objs[transform].data
-		var f := func(v: Variant, k: String, otherwise: float) -> float: return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
 		var q: Variant = data.get("m_LocalRotation")
-		var unity := Quaternion(f.call(q, "x", 0.0), f.call(q, "y", 0.0), f.call(q, "z", 0.0), f.call(q, "w", 1.0))
+		var unity := Quaternion(_num(q, "x"), _num(q, "y"), _num(q, "z"), _num(q, "w", 1.0))
 		if c.attribute.begins_with("m_LocalPosition."):
 			var axis := "xyz".find(c.attribute.right(1))
-			rest = f.call(data.get("m_LocalPosition"), c.attribute.right(1), 0.0)
+			rest = _num(data.get("m_LocalPosition"), c.attribute.right(1))
 			var along := Vector3.ZERO
 			along[axis] = -1.0 if axis == 0 else 1.0
 			var parent := sk.get_bone_parent(bone)
@@ -823,7 +821,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			var at: Vector3 = Basis(unity.normalized() if unity.length() > 0.0 else Quaternion.IDENTITY).get_euler(EULER_ORDER_YXZ) * 180.0 / PI
 			var hint: Variant = data.get("m_LocalEulerAnglesHint")
 			if hint is Dictionary:
-				at = Vector3(f.call(hint, "x", at.x), f.call(hint, "y", at.y), f.call(hint, "z", at.z))
+				at = Vector3(_num(hint, "x", at.x), _num(hint, "y", at.y), _num(hint, "z", at.z))
 			var values: Array = [at.x, at.y, at.z] if euler else [unity.x, unity.y, unity.z, unity.w]
 			var axis := ("xyz" if euler else "xyzw").find(c.attribute.right(1))
 			rest = values[axis]
@@ -944,9 +942,7 @@ static func _world_scale(objs: Dictionary, t: int) -> float:
 	var seen := {}
 	while objs.has(t) and not seen.has(t):
 		seen[t] = true
-		var l: Variant = objs[t].data.get("m_LocalScale")
-		if l is Dictionary:
-			s *= absf(str(l.get("y", "1")).to_float())
+		s *= absf(_num(objs[t].data.get("m_LocalScale"), "y", 1.0))
 		t = Yaml.file_id(objs[t].data.get("m_Father"))
 	return s
 
@@ -1734,14 +1730,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 		follow = Transform3D(rests[b].basis.orthonormalized(), rests[b].origin) * Transform3D(scene.basis.orthonormalized(), scene.origin).affine_inverse()
 	for i in range(path.size() - 1, -1, -1):
 		var world := follow * frame * _world_transform(objs, path[i])
-		var name: String = name_of.call(path[i]).validate_node_name()
-		while sk.find_bone(name) >= 0:
-			name += "_"
-		var added := sk.get_bone_count()
-		sk.add_bone(name)
-		sk.set_bone_parent(added, b)
-		sk.set_bone_rest(added, rests[b].affine_inverse() * world if b >= 0 else world)
-		sk.reset_bone_pose(added)
+		var added := _add_bone(sk, name_of.call(path[i]).validate_node_name(), b, rests[b].affine_inverse() * world if b >= 0 else world)
 		source_bones[go_of.call(path[i])] = added
 		rests.append(world)
 		b = added
@@ -1749,14 +1738,24 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 
 
 static func _local(d: Dictionary) -> Transform3D:
-	var f := func(v: Variant, k: String, otherwise: float) -> float:
-		return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
-	var p: Variant = d.get("m_LocalPosition")
-	var q: Variant = d.get("m_LocalRotation")
 	var sc: Variant = d.get("m_LocalScale")
-	var rot := Quaternion(f.call(q, "x", 0.0), -f.call(q, "y", 0.0), -f.call(q, "z", 0.0), f.call(q, "w", 1.0))
-	rot = rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
-	return Transform3D(Basis(rot).scaled_local(Vector3(f.call(sc, "x", 1.0), f.call(sc, "y", 1.0), f.call(sc, "z", 1.0))), Vector3(-f.call(p, "x", 0.0), f.call(p, "y", 0.0), f.call(p, "z", 0.0)))
+	return Transform3D(Basis(_turn(d.get("m_LocalRotation"))).scaled_local(Vector3(_num(sc, "x", 1.0), _num(sc, "y", 1.0), _num(sc, "z", 1.0))), _mirrored(d.get("m_LocalPosition")))
+
+
+## Field `k` of a Unity vector or quaternion `v`, `otherwise` where it has none.
+static func _num(v: Variant, k: String, otherwise := 0.0) -> float:
+	return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
+
+
+## A Unity rotation in Godot's axes (X mirrored), the identity where it has none.
+static func _turn(q: Variant) -> Quaternion:
+	var rot := Quaternion(_num(q, "x"), -_num(q, "y"), -_num(q, "z"), _num(q, "w", 1.0))
+	return rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
+
+
+## A Unity position in Godot's axes (X mirrored), the origin where it has none.
+static func _mirrored(v: Variant) -> Vector3:
+	return Vector3(-_num(v, "x"), _num(v, "y"), _num(v, "z"))
 
 
 ## The bones the Avatar definition maps, by index: [humanoid (VRM 1.0) name, the Unity bone it is]; empty, with the
@@ -1787,7 +1786,7 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 	var head: Vector3 = (rest.call("head") as Transform3D).origin
 	var view: Variant = descriptor.get("ViewPosition")
 	if view is Dictionary:
-		return Vector3(-str(view.get("x", "0")).to_float(), str(view.get("y", "0")).to_float(), str(view.get("z", "0")).to_float()) - head
+		return _mirrored(view) - head
 	if human.has("leftEye") and human.has("rightEye"):
 		return ((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0 - head
 	return Vector3(0, 0.06, 0)
@@ -1958,7 +1957,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
-		var endpoint := Vector3(-str(e.get("x", "0")).to_float(), str(e.get("y", "0")).to_float(), str(e.get("z", "0")).to_float()) if e is Dictionary else Vector3.ZERO
+		var endpoint := _mirrored(e)
 		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
 		var deepest := _deepest(children, ignored, root_t)
 		var kids_of := func(t: int) -> Array:
@@ -2022,7 +2021,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 					var offset := endpoint * _world_scale(objs, item[0])
 					if legacy:
 						offset = sk.get_bone_global_rest(bone).basis.inverse() * (held_by.basis * endpoint)
-					j["node"] = _endpoint(sk, bone, offset)
+					j["node"] = _add_bone(sk, "%s endpoint" % sk.get_bone_name(bone), bone, Transform3D(Basis.IDENTITY, offset))
 					joints.append(j)
 				if joints.size() >= 2:
 					springs.append({"joints": joints, "colliders": groups, "extras": touch})
@@ -2065,20 +2064,16 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 ## a capsule's length and a plane's normal there, `half` the distance from its middle to each end's centre (0 for a
 ## sphere). Empty for any other component.
 static func _collider(d: Dictionary) -> Dictionary:
-	var f := func(v: Variant, k: String) -> float: return str((v as Dictionary).get(k, "0")).to_float() if v is Dictionary else 0.0
-	var mirrored := func(v: Variant) -> Vector3: return Vector3(-f.call(v, "x"), f.call(v, "y"), f.call(v, "z"))
 	if d.has("shapeType") and d.has("insideBounds"):
-		var q: Variant = d.get("rotation")
-		var rot := Quaternion(f.call(q, "x"), -f.call(q, "y"), -f.call(q, "z"), f.call(q, "w")) if q is Dictionary else Quaternion.IDENTITY
-		rot = rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
+		var rot := _turn(d.get("rotation"))
 		var radius := str(d.get("radius", "0")).to_float()
 		var height := str(d.get("height", "0")).to_float()
 		var shape := str(d.shapeType)
-		return {"local": Transform3D(Basis(rot), mirrored.call(d.get("position"))), "axis": Vector3.UP, "radius": radius, "half": maxf(height / 2.0 - radius, 0.0) if shape == "1" else 0.0, "kind": "plane" if shape == "2" else "round", "inside": shape != "2" and str(d.insideBounds) == "1"}
+		return {"local": Transform3D(Basis(rot), _mirrored(d.get("position"))), "axis": Vector3.UP, "radius": radius, "half": maxf(height / 2.0 - radius, 0.0) if shape == "1" else 0.0, "kind": "plane" if shape == "2" else "round", "inside": shape != "2" and str(d.insideBounds) == "1"}
 	if d.has("m_Bound") and d.has("m_Direction") and d.has("m_Center"):
 		var axis: Vector3 = [Vector3.LEFT, Vector3.UP, Vector3.BACK][clampi(str(d.m_Direction).to_int(), 0, 2)]
 		var inside := str(d.m_Bound) == "1"
-		var local := Transform3D(Basis.IDENTITY, mirrored.call(d.m_Center))
+		var local := Transform3D(Basis.IDENTITY, _mirrored(d.m_Center))
 		if not d.has("m_Radius"):
 			return {"local": local, "axis": -axis if inside else axis, "radius": 0.0, "half": 0.0, "kind": "plane", "inside": false}
 		var radius := str(d.m_Radius).to_float()
@@ -2158,14 +2153,14 @@ static func _read_springs(springs: Dictionary, nodes: Array) -> Dictionary:
 	return chains
 
 
-static func _endpoint(sk: Skeleton3D, leaf: int, offset: Vector3) -> int:
-	var name := "%s endpoint" % sk.get_bone_name(leaf)
+## Adds a bone under `parent` at `rest`, named `name` or, where that is taken, `name` with underscores after it.
+static func _add_bone(sk: Skeleton3D, name: String, parent: int, rest: Transform3D) -> int:
 	while sk.find_bone(name) >= 0:
 		name += "_"
 	var b := sk.get_bone_count()
 	sk.add_bone(name)
-	sk.set_bone_parent(b, leaf)
-	sk.set_bone_rest(b, Transform3D(Basis.IDENTITY, offset))
+	sk.set_bone_parent(b, parent)
+	sk.set_bone_rest(b, rest)
 	sk.reset_bone_pose(b)
 	return b
 
@@ -2220,13 +2215,13 @@ static func avatar_definition(meta: String) -> Dictionary:
 		elif not line.begins_with("    "):
 			section = ""
 		elif section == "human" and s.begins_with("- boneName: "):
-			name = _scalar(s.trim_prefix("- boneName: "))
+			name = Yaml.scalar(s.trim_prefix("- boneName: "))
 		elif section == "human" and s.begins_with("humanName: "):
-			human[name] = _scalar(s.trim_prefix("humanName: "))
+			human[name] = Yaml.scalar(s.trim_prefix("humanName: "))
 		elif section == "skeleton" and s.begins_with("- name: "):
-			name = _scalar(s.trim_prefix("- name: "))
+			name = Yaml.scalar(s.trim_prefix("- name: "))
 		elif section == "skeleton" and s.begins_with("parentName:"):
-			parents[name] = _scalar(s.trim_prefix("parentName:").strip_edges())
+			parents[name] = Yaml.scalar(s.trim_prefix("parentName:"))
 	return {"human": human, "parents": parents}
 
 
@@ -2238,12 +2233,6 @@ static func vrm_bone(unity: String) -> String:
 			s = s.trim_suffix(k) + THUMB[k]
 			break
 	return s.left(1).to_lower() + s.substr(1)
-
-
-static func _scalar(s: String) -> String:
-	if s.length() >= 2 and s[0] in ["'", "\""] and s[-1] == s[0]:
-		return s.substr(1, s.length() - 2).replace("''", "'")
-	return s
 
 
 ## The skeleton bone of a Unity transform's name, as Godot's importer and then this converter name bones; -1 if none.
@@ -2328,6 +2317,6 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 
 
 static func _constraint_rotation(v: Dictionary) -> Dictionary:
-	var angles := Vector3(str(v.get("x", "0")).to_float(), str(v.get("y", "0")).to_float(), str(v.get("z", "0")).to_float()) * PI / 180.0
+	var angles := Vector3(_num(v, "x"), _num(v, "y"), _num(v, "z")) * PI / 180.0
 	var q := Quaternion.from_euler(angles)
 	return {"x": q.x, "y": q.y, "z": q.z, "w": q.w}

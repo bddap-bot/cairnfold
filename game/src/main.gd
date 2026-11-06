@@ -331,11 +331,6 @@ func _editing(hand: Hand = null) -> bool:
 	return _editors.any(func(e) -> bool: return e.busy(hand))
 
 
-## `Wildlife.feeding`, for a script to wait on: the driver reaches no animal.
-func fed(dish: bool) -> int:
-	return wildlife.feeding(dish)
-
-
 ## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.
 static func flat_wanted(launch: Dictionary, in_xr: bool, played: bool) -> bool:
 	return not in_xr and (launch.has("flat") or played and not launch.has("desktop"))

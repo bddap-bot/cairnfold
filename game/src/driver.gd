@@ -1684,7 +1684,7 @@ func _until(s: Dictionary) -> void:
 		var wearing: bool = not s.has("wearing") or (main.session.worn_key != "" and main.session.worn_key == main.session.files.get(s.wearing, {}).get("key", ""))
 		var digested_seq := _digested_seq(dir.path_join(s.seq_of + ".json")) if s.has("seq_of") else 0
 		var answered: bool = not s.get("answered", false) or w.answered()
-		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if files_ready and wearing and selected and digested_seq >= 0 and w.seq >= digested_seq and answered and w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.wildlife.feeding(s.fed == "dish") > 0) and (not s.get("frenzy", false) or _frenzied()) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		# A flock lands anywhere along its perch, maybe out of sight of the seeds, so one already full is left to come over.
@@ -1726,7 +1726,7 @@ func _digest(s: Dictionary) -> void:
 	out.avatar_choices.sort()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
 	out.postures = main.session.avatars.values().map(func(a: Avatar) -> String: return Posture.poses[a.posture.target].name)
-	out.fed = {"hand": main.fed(false), "dish": main.fed(true)}
+	out.fed = {"hand": main.wildlife.feeding(false), "dish": main.wildlife.feeding(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
 	out.frenzy = main.fish.frenzy()
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
