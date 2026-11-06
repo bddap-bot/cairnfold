@@ -75,6 +75,9 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
+## The quality step, whose `files` says whether players are drawn in their own files (`_files`, as last dressed).
+var quality: Quality
+var _files := true
 var _spring_buttons: Array[Buttons] = []
 var _spring_hands := [[], []]
 var _spring_holds := {}
@@ -317,6 +320,11 @@ func _process(delta: float) -> void:
 		_since_folder = 0.0
 		_look_in_folder()
 	_finish_jobs()
+	if quality != null and quality.files() != _files:
+		_files = quality.files()
+		for id: int in _wearing:
+			if _wearing[id] != "":
+				_dress(id, _scenes[_wearing[id]], _wearing[id])
 	var faces: Array[Vector3] = []
 	for a: Avatar in avatars.values():
 		if a.visible:
@@ -629,7 +637,7 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 
 ## Gives player `id` the avatar in `scene`, in their pose.
 func _dress(id: int, scene: PackedScene, key: String) -> void:
-	var a := Avatar.open(scene, _looks[id][1], key)
+	var a := Avatar.drawn(scene, _looks[id][1], key, _files, _looks[id][0])
 	a.simulate_springs = false
 	a.ground = func(p: Vector3) -> float: return rig.floor_under.call(p)
 	var old: Avatar = avatars.get(id)
@@ -869,7 +877,7 @@ func _spring_input(delta: float) -> void:
 			var nearest := 0.12
 			for id: int in choices:
 				var avatar: Avatar = choices[id]
-				if avatar.springs == null:
+				if avatar.springs == null or avatar.stand_in:
 					continue
 				for chain in avatar.springs.chains.size():
 					if (_spring_holds if id == mine else avatar.spring_holders).has(chain) or not avatar.springs.grabs(chain, SpringDefinition.WEARER if id == mine else SpringDefinition.OTHERS):

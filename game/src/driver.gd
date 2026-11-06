@@ -29,6 +29,10 @@ var _hidden := {}
 var _area := 1.0
 ## Players `figures` stood, posed again every frame as streamed poses pose another player.
 var _stood: Array[Avatar] = []
+## The model each figure wears, read from `_figure_path`, drawn as the quality step draws people (`_files`).
+var _figures_read: Array[PackedScene] = []
+var _figure_path := ""
+var _files := true
 ## Whether the figures hold Posture's poses, and the microseconds and frames their poses have taken.
 var _posing := false
 var _posed_usec := 0
@@ -1595,6 +1599,9 @@ func _figures(s: Dictionary) -> void:
 	_posed_frames = 0
 	var path: String = s.get("file", "")
 	var scene: PackedScene = Avatar.built_in(0)
+	_figure_path = path
+	_figures_read.clear()
+	_files = main.quality.files()
 	for i in s.spots.size():
 		var at: Array = s.spots[i]
 		if path and (s.get("apart", false) or i == 0):
@@ -1604,18 +1611,33 @@ func _figures(s: Dictionary) -> void:
 				await get_tree().process_frame
 			scene = result.scene
 		assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
-		var a := Avatar.open(scene, Color.WHITE, path)
+		_figures_read.append(scene)
 		var foot := main.world.terrain.ground(at[0], at[1])
-		a.transform = Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)
-		if _posing:
-			a.ground = func(w: Vector3) -> float: return main.rig.floor_under.call(w)
-		main.add_child(a)
-		_stood.append(a)
+		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)))
+
+
+## Figure `i` at `at` in its model, drawn as the quality step draws people.
+func _stand(i: int, at: Transform3D) -> Avatar:
+	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _files)
+	a.transform = at
+	if _posing:
+		a.ground = func(w: Vector3) -> float: return main.rig.floor_under.call(w)
+	main.add_child(a)
+	return a
 
 
 func _process(_delta: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
 	var start := Time.get_ticks_usec()
+	if not _stood.is_empty() and main.quality.files() != _files:
+		_files = main.quality.files()
+		print("driver: figures drawn %s, %.1f us per avatar pose before over %d frames" % ["in their file" if _files else "as built-in bodies", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
+		_posed_usec = 0
+		_posed_frames = 0
+		for i in _stood.size():
+			var was := _stood[i]
+			_stood[i] = _stand(i, was.transform)
+			was.queue_free()
 	for i in _stood.size():
 		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, _stood[i].eye_height, 0))
 		if _posing:

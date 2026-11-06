@@ -2265,6 +2265,38 @@ eye texture so resolution can change without reallocating it
 Meta's dynamic resolution, which scales the rendered viewport between a minimum and maximum
 by GPU utilisation (https://developers.meta.com/horizon/documentation/unity/dynamic-resolution-unity/).
 
+### People past the headset
+
+Directive (verbatim): "I do want cairnfold to be performant, so do optimize it, but an inefficient mesh isn't cairnfolds concern. And editing the mesh on import is not reasonably part of our importers scope."
+
+A player's own avatar file keeps every triangle, bone and blend shape its author made, so one can cost a headset more
+than it has. The ladder's last rung (`Step.files` false) then draws every other player's own file as a built-in avatar
+in that file's colour (`Avatar.drawn`), as VRChat draws an avatar past a Quest's limits as a fallback; built-in
+avatars and the wearer's own body are drawn as they are. The colour is the file's base colours averaged by
+primitive, each its material's factor times its base colour image's mean over the texels its alpha covers, read with the
+file (`Vrm._colour`). The stand-in drops the file's skinning, springs and expressions with its triangles, so it frees the
+CPU's share too, and its springs, not the file's, are no one's to grab.
+
+The governor reaches the rung only with frames still over below every other cut, as with any other step, so a headset
+with room, or one whose people wear lighter files, draws every file whole. Stepping back up redraws everyone at once,
+so it waits as a pop does.
+
+On a Quest 2, governed, with three figures of each of six converted avatar files standing 4 m off and the player wearing
+the same file (the `final-six` scene), the three heaviest held the frame near 20 fps on the rung above (frame p50 about
+50 ms, the GPU at 12.4 to 15.1 ms). With the rung all six hold 72 Hz:
+
+| File | Step | Frame p50 ms | GPU ms |
+| --- | --- | --- | --- |
+| 1 | 15 | 13.95 | 6.44 |
+| 2 | 15 | 13.95 | 9.21 |
+| 3 | 16 | 13.90 | 6.96 |
+| 4 | 16 | 13.95 | 6.58 |
+| 5 | 16 | 13.97 | 6.80 |
+| 6 | 16 | 13.85 | 6.64 |
+
+File 4 held 72 Hz on step 15 in the same scene without the rung; it follows file 3, and each file's 50 s is shorter than
+the 64 s calm a step back up waits for.
+
 ## Look on a mobile budget
 
 The original's look rests on soft global illumination, warm sun, painterly

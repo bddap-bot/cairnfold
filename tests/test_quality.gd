@@ -77,12 +77,14 @@ func _every_step_draws_less() -> void:
 		var a := steps[i]
 		var b := steps[i + 1]
 		var drawn_less := b.render_scale < a.render_scale or b.msaa < a.msaa or (a.reflections and not b.reflections) or b.foveation > a.foveation
-		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation, "step %d draws no more than step %d" % [i + 1, i])
-		check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d, "step %d draws less than step %d" % [i + 1, i])
+		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation and (a.files or not b.files), "step %d draws no more than step %d" % [i + 1, i])
+		check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d or (a.files and not b.files), "step %d draws less than step %d" % [i + 1, i])
 		check(not drawn_less or i < Quality.START, "only the steps above the start change how the view is drawn, step %d does" % (i + 1))
 	for i in steps.size():
 		check(steps[i].msaa != Viewport.MSAA_DISABLED, "step %d keeps anti-aliasing on" % i)
 		check(steps[i].grass_m * Flora.GRASS_SURVIVORS_FROM >= Flora.GRASS_LOD_BEGIN + Flora.GRASS_LOD_BAND, "step %d keeps its survivors until the rest have sunk away" % i)
+	for i in steps.size():
+		check(steps[i].files == (i < steps.size() - 1), "only the last step draws people without their own files: step %d" % i)
 	var q := Quality.new(null, null)
 	check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
 	q.pin = 99
@@ -419,7 +421,7 @@ func _frames_the_player_does_not_see_step_nothing_down() -> void:
 
 func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -> void:
 	var pops := Quality.popping()
-	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, shadows off and a lower 3D scale pop, got %s" % [pops])
+	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 4, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, shadows off, a lower 3D scale and people without their own files pop, got %s" % [pops])
 	var g := Quality.Governor.new(10, PackedInt32Array([0]))
 	_down(g)
 	check(_feed(g, BUDGET * 0.1, 72 * 30) == 1, "a step up that pops waits more than a calm spell")

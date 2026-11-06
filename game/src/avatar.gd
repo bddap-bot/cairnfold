@@ -161,6 +161,9 @@ var gait: Gait
 var ground := Callable()
 ## Which pose the body shows, read from the head and hands over `ground`; without a ground it only stands.
 var posture := Posture.new()
+## Whether it is a built-in body standing in for a file the headset does not draw (`drawn`): its springs are not the
+## file's, which the wearer streams and others grab by number.
+var stand_in := false
 var springs: SpringRuntime
 var simulate_springs := true
 var expressions: ExpressionPlayer
@@ -265,6 +268,7 @@ static func model(root: Node3D) -> PackedScene:
 	ExpressionPlayer.prepare(root)
 	var scene := PackedScene.new()
 	scene.pack(root)
+	scene.set_meta("colour", root.get_meta("colour", Color.WHITE))
 	root.free()
 	return scene
 
@@ -464,6 +468,17 @@ static func _merged(im: ImporterMesh) -> ImporterMesh:
 		var g: Array = groups[key]
 		out.add_surface(Mesh.PRIMITIVE_TRIANGLES, g[0], g[3], {}, key[0], g[2], g[1])
 	return out
+
+
+## Another player's avatar as this headset draws it: `scene` in `tint`, or, a player's own file (`from`) where the headset
+## draws none (`whole` false, Quality.files), built-in avatar `body` in the file's colour, as VRChat draws an avatar a
+## headset cannot afford. Either way it carries the file's identity.
+static func drawn(scene: PackedScene, tint: Color, from: String, whole: bool, body := 0) -> Avatar:
+	if whole or from == "":
+		return open(scene, tint, from)
+	var a := open(built_in(body), scene.get_meta("colour", Color.WHITE), from)
+	a.stand_in = true
+	return a
 
 
 static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:

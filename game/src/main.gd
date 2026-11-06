@@ -212,6 +212,7 @@ func _ready() -> void:
 	add_child(quality)
 	metrics.quality = quality
 	easels.quality = quality
+	session.quality = quality
 	metrics.head = rig.head
 	if metrics.info.xr:
 		metrics.xr = xr

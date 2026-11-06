@@ -31,6 +31,8 @@ func _run() -> void:
 			_fingers_curl_into_the_palm(scene, path)
 			_headless_leaves_the_eyes_clear(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
+	_a_colour_averages_the_triangles_base_colours()
+	_a_file_the_headset_does_not_draw_stands_in_a_built_in()
 	_both_versions_stand_alike()
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
@@ -54,6 +56,51 @@ func _run() -> void:
 	_blended_surfaces_stay_blended()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+## A model's colour weighs each primitive's base colour, its factor times its image's mean or glTF's white without a
+## material, by its indices.
+func _a_colour_averages_the_triangles_base_colours() -> void:
+	var json := {
+		"accessors": [{"count": 300}, {"count": 100}, {"count": 6}],
+		"textures": [{"source": 1}],
+		"materials": [{"pbrMetallicRoughness": {"baseColorFactor": [1, 0, 0, 1]}}, {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}],
+		"meshes": [{"primitives": [{"material": 0, "indices": 0}, {"material": 1, "indices": 1}]}, {"primitives": [{"attributes": {"POSITION": 2}}]}],
+	}
+	var blue := Color(0, 0, 1)
+	var c := Vrm._colour(json, [Color.WHITE, blue])
+	var want := (Color(306.0 / 406.0, 6.0 / 406.0, 106.0 / 406.0)).linear_to_srgb()
+	check(c.is_equal_approx(want), "a model's colour is its triangles' base colours averaged: %s, want %s" % [c, want])
+	check(Vrm._colour({}, []) == Color.WHITE, "a model with no materials is white")
+	var odd := {
+		"accessors": [{"count": 3}, 7, {"count": "x"}],
+		"textures": [{"source": "a"}, 4],
+		"materials": [{"pbrMetallicRoughness": {"baseColorFactor": [1, 0], "baseColorTexture": 3}}, 2, {"pbrMetallicRoughness": {"baseColorTexture": {"index": 1.5}}}],
+		"meshes": [{"primitives": [{"material": 0, "indices": 0}, {"material": 1, "indices": 1}, {"material": "m", "indices": 2}, {"material": 2, "indices": 0}, {"attributes": 5}, 9]}, 3, {"primitives": {}}],
+	}
+	check(Vrm._colour(odd, [blue]) == Color.WHITE, "a file's malformed materials, textures, accessors and meshes count as white or nothing")
+	var card := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+	card.fill(Color(0, 0, 0, 0))
+	card.set_pixel(0, 0, Color(1, 0, 0, 1))
+	var mean := Vrm._mean(card)
+	check(mean.is_equal_approx(Color.RED) and not card.has_mipmaps(), "an image's mean weighs texels by alpha and leaves the image as it was: %s" % mean)
+	var sample := Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm")))
+	var colour: Color = sample.get_meta("colour")
+	check(not colour.is_equal_approx(Color.WHITE) and colour.r > colour.b, "a sample's colour reads from its images: %s" % colour)
+
+
+## Where the headset draws no one's own file, a player's file stands as a built-in body in its colour, keeping its
+## identity; a built-in stands as itself.
+func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
+	var sample := Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm")))
+	var whole := Avatar.drawn(sample, Color.RED, "file", true, 1)
+	check(whole.scene == sample and whole.tint == Color.RED and whole.source == "file", "a file the headset draws stands as itself")
+	var stand_in := Avatar.drawn(sample, Color.RED, "file", false, 1)
+	check(not whole.stand_in and stand_in.stand_in and stand_in.scene == Avatar.built_in(1) and stand_in.tint == sample.get_meta("colour") and stand_in.source == "file", "a file it does not draw stands as built-in 1 in the file's colour")
+	var built_in := Avatar.drawn(Avatar.built_in(2), Color.RED, "", false, 1)
+	check(built_in.scene == Avatar.built_in(2) and built_in.tint == Color.RED, "a built-in stands as itself whatever the headset draws")
+	for a: Avatar in [whole, stand_in, built_in]:
+		a.free()
 
 
 ## A file naming images too large or too many is refused from their headers, before any is decoded: a beacon makes every

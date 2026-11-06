@@ -203,6 +203,7 @@ class Images extends GLTFDocumentExtension:
 		var image: Variant = state.get_additional_data(&"vrm_image")
 		if image is Callable and image.is_valid():
 			image.call(out)
+		(state.get_additional_data(&"vrm_means") as Array).append(Vrm._mean(out))
 		return OK
 
 
@@ -560,13 +561,75 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	state.set_additional_data(&"vrm_fits", fits)
 	state.set_additional_data(&"vrm_image", image)
 	state.set_additional_data(&"vrm_refused", false)
+	state.set_additional_data(&"vrm_means", [])
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
 	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused"):
 		return null
+	var colour := _colour(state.json, state.get_additional_data(&"vrm_means"))
 	if not shape.call(state):
 		return null
-	return doc.generate_scene(state) as Node3D
+	var root := doc.generate_scene(state) as Node3D
+	if root != null:
+		root.set_meta("colour", colour)
+	return root
+
+
+## An image's mean colour over its covered texels, each weighed by its alpha: a hair card's clear texels show nothing.
+static func _mean(img: Image) -> Color:
+	var m := img.duplicate() as Image
+	m.clear_mipmaps()
+	m.convert(Image.FORMAT_RGBA8)
+	m.premultiply_alpha()
+	m.generate_mipmaps()
+	var c := Image.create_from_data(1, 1, false, Image.FORMAT_RGBA8, m.get_data().slice(m.get_mipmap_offset(m.get_mipmap_count()))).get_pixel(0, 0)
+	return Color(c.r / c.a, c.g / c.a, c.b / c.a) if c.a > 0.0 else Color.WHITE
+
+
+## The model's colour: each primitive's base colour, its material's factor times the mean of its base colour image
+## (`means`, one for each of the file's images), averaged weighed by the primitive's indices, or vertices where it has
+## none. The file is a player's, so any part not shaped as glTF has it counts as white or nothing rather than failing.
+static func _colour(json: Dictionary, means: Array) -> Color:
+	var materials: Variant = json.get("materials")
+	var textures: Variant = json.get("textures")
+	var accessors: Variant = json.get("accessors")
+	var meshes: Variant = json.get("meshes")
+	if not (materials is Array and textures is Array and accessors is Array and meshes is Array):
+		return Color.WHITE
+	var sum := Color(0, 0, 0, 0)
+	for mesh: Variant in meshes:
+		var primitives: Variant = mesh.get("primitives") if mesh is Dictionary else null
+		if not primitives is Array:
+			continue
+		for primitive: Variant in primitives:
+			if not primitive is Dictionary:
+				continue
+			var attributes: Variant = primitive.get("attributes")
+			var counted: Variant = primitive.get("indices", attributes.get("POSITION") if attributes is Dictionary else null)
+			var accessor: Variant = accessors[int(counted)] if _index(counted, accessors) else null
+			var n: Variant = accessor.get("count") if accessor is Dictionary else null
+			if not (n is int or n is float) or n <= 0:
+				continue
+			var c := Color.WHITE
+			var material: Variant = materials[int(primitive.material)] if _index(primitive.get("material"), materials) else null
+			var pbr: Variant = material.get("pbrMetallicRoughness") if material is Dictionary else null
+			if pbr is Dictionary:
+				var f: Variant = pbr.get("baseColorFactor")
+				if f is Array and f.size() >= 3 and f.slice(0, 3).all(func(v: Variant) -> bool: return v is int or v is float):
+					c = Color(f[0], f[1], f[2])
+				var tex: Variant = pbr.get("baseColorTexture")
+				var texture: Variant = textures[int(tex.index)] if tex is Dictionary and _index(tex.get("index"), textures) else null
+				if texture is Dictionary and _index(texture.get("source"), means):
+					c *= (means[int(texture.source)] as Color).srgb_to_linear()
+			sum += Color(c.r * n, c.g * n, c.b * n, n)
+	if sum.a <= 0.0:
+		return Color.WHITE
+	return Color(sum.r / sum.a, sum.g / sum.a, sum.b / sum.a).linear_to_srgb()
+
+
+## Whether `i` is a whole number indexing `into`.
+static func _index(i: Variant, into: Array) -> bool:
+	return (i is int or (i is float and i == floorf(i))) and int(i) >= 0 and int(i) < into.size()
 
 
 ## Each skin is written binding every bone of its skeleton: a bone no skin binds would read back as a plain node, and

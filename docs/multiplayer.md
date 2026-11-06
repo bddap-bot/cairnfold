@@ -328,7 +328,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
-  surface is a draw call, one per material of each mesh, and the limit is 40. On a Quest 2
+  surface is a draw call, one per material of each mesh, and the limit is 40. A headset whose frame
+  still runs over at every other cut draws each other player's own file as a built-in avatar in the
+  file's colour ("People past the headset" in design.md). On a Quest 2
   at quality step 6, seven figures of Seed-san, the Unity sample package, at its full 45,058
   triangles in `demo/avatar-chain-cost.json`, all in view across the meadow, take 12.67 GPU
   ms against 8.73 with built-ins

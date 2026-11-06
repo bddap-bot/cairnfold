@@ -8,7 +8,8 @@ extends Node
 ## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond
 ## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
 ## `shadows` is whether the sun casts them; `scale_3d` is the share of the swapchain's resolution the 3D scene is drawn
-## at. The rest is how the view is drawn (DRAWN): `render_scale` is the share of each eye's width and height the
+## at; `files` is whether other people are drawn in their own avatar files rather than a built-in body (`Avatar.drawn`).
+## The rest is how the view is drawn (DRAWN): `render_scale` is the share of each eye's width and height the
 ## runtime is asked for (render_target_size_multiplier), `msaa` the view's MSAA, `reflections` whether surfaces take
 ## reflected light from the sky, and `foveation` the runtime's fixed foveation level (XR_FB_foveation, 0 to 3).
 ## `share` is what the rung costs over the next one down, as a share of the frame, until the governor measures it.
@@ -20,6 +21,7 @@ class Step:
 	var ivy_m: float
 	var shadows: bool
 	var scale_3d: float
+	var files: bool
 	var render_scale: float
 	var msaa: Viewport.MSAA
 	var reflections: bool
@@ -34,6 +36,7 @@ class Step:
 		ivy_m = flora[4]
 		shadows = flora[5] if flora.size() > 5 else true
 		scale_3d = flora[6] if flora.size() > 6 else 1.0
+		files = flora[7] if flora.size() > 7 else true
 		render_scale = drawn.render_scale
 		msaa = drawn.msaa
 		reflections = drawn.reflections
@@ -56,8 +59,10 @@ const DRAWN := [
 	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.0},
 ]
 ## What the ladder cuts below DRAWN's last rung, cheapest loss per millisecond saved first: grass, flowers and blob
-## detail, stones in full and ivy (`Step`'s first five), then the sun's shadows and the 3D scale. Flowers beyond 60 m are
-## under two pixels across on the Quest 2.
+## detail, stones in full and ivy (`Step`'s first five), then the sun's shadows and the 3D scale, and last other people's
+## own avatar files, which only a frame still over at every other cut gives up: on the Quest 2 three figures in some files
+## held the frame near 20 fps at the rung above ("People past the headset" in docs/design.md). Flowers beyond
+## 60 m are under two pixels across on the Quest 2.
 const FLORA := [
 	[60.0, 60.0, 2, 16.0, 35.0],
 	[48.0, 60.0, 2, 16.0, 35.0],
@@ -70,6 +75,7 @@ const FLORA := [
 	[24.0, 20.0, 1, 4.0, 12.0],
 	[24.0, 20.0, 1, 4.0, 12.0, false],
 	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78],
+	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, false],
 ]
 ## The rung every headset starts on: the cheapest way of drawing the view with every reach whole. The governor climbs
 ## from it as the frame shows room and steps down the rest of the ladder below it.
@@ -174,15 +180,15 @@ func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
 
-## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain or MSAA back, which
-## shows at once across the whole view or reallocates what it is drawn into: a governor crossing that line back and
-## forth would flicker every shadow or the horizon, or drop a frame each time.
+## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or people's own files
+## back, which shows at once across the whole view, or on everyone, or reallocates what it is drawn into: a governor
+## crossing that line back and forth would flicker every shadow, the horizon or the people, or drop a frame each time.
 static func popping() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for i in ladder.size() - 1:
 		var a := ladder[i]
 		var b := ladder[i + 1]
-		if a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa:
+		if a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files:
 			out.append(i)
 	return out
 
@@ -253,6 +259,11 @@ func held() -> bool:
 ## The step the knobs are heading to.
 func step() -> int:
 	return pin if pin >= 0 else governor.level
+
+
+## Whether other people are drawn in their own avatar files at the step.
+func files() -> bool:
+	return ladder[step()].files
 
 
 func _process(delta: float) -> void:
