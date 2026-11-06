@@ -555,9 +555,9 @@ func _store(path: String, encode: Callable) -> Error:
 	return await _on_worker(func() -> Error: return Main.write_bytes(file, encode.call()))
 
 
-## What `work` returns, run on a worker thread while frames go on.
-func _on_worker(work: Callable) -> Variant:
-	var result := [null]
+## What `work` returns, run on a worker thread while frames go on; ERR_BUG if it fails to.
+func _on_worker(work: Callable) -> Error:
+	var result := [ERR_BUG]
 	var task := WorkerThreadPool.add_task(func() -> void: result[0] = work.call())
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame

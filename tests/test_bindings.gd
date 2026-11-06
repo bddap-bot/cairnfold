@@ -43,7 +43,7 @@ func _no_two_actions_share_an_input() -> void:
 	var seen := {}
 	for action in Controls.ACTIONS:
 		for tracker in Controls.ACTIONS[action]:
-			var key := "%s/%s" % [tracker, Controls.input(action, tracker)]
+			var key := Controls.key(action, tracker)
 			check(not seen.has(key), "%s and %s share %s" % [seen.get(key, ""), action, key])
 			seen[key] = action
 

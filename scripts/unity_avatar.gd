@@ -539,7 +539,7 @@ static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
 
 
 ## Whether a target's curves hold each key until the next rather than blending: an on/off switch or a material swap.
-static func _steps(target: Dictionary) -> bool:
+static func _stepped(target: Dictionary) -> bool:
 	return target.effect is String or target.effect.has("material")
 
 
@@ -576,7 +576,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 					continue
 				by_curve[key] = target
 			var t: int = by_curve[key]
-			var curve := {"target": t, "step": _steps(targets[t])}
+			var curve := {"target": t, "step": _stepped(targets[t])}
 			if c.has("refs"):
 				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
@@ -690,7 +690,7 @@ static func _hold_unanimated(data: Dictionary, targets: Array, motion: Dictionar
 			continue
 		var clip: Dictionary = data.clips[c.motion.clip].duplicate(true) if c.motion.has("clip") else {"length": 0.0, "loop": false, "curves": []}
 		for t: int in held:
-			clip.curves.append({"target": t, "step": _steps(targets[t]), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
+			clip.curves.append({"target": t, "step": _stepped(targets[t]), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
 		data.clips.append(clip)
 		c.motion = c.motion.duplicate()
 		c.motion.clip = data.clips.size() - 1
@@ -1877,14 +1877,12 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			_as_bone(objs, t, sk, rests)
 		var placed := frame * _world_transform(objs, t) * (c.local as Transform3D)
 		var bone := -1
-		var at := t
 		var owner := t
-		var seen := {}
-		while objs.has(at) and not seen.has(at) and bone < 0:
-			seen[at] = true
+		for at: int in Prefabs.ancestors(objs, t):
 			bone = bone_of.call(at)
 			owner = at
-			at = Yaml.file_id(objs[at].data.get("m_Father"))
+			if bone >= 0:
+				break
 		if bone < 0:
 			dropped += 1
 			continue

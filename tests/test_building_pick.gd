@@ -186,7 +186,7 @@ func _grab(near: Wall, origin: Vector3) -> void:
 	tracker.set_pose(&"aim", main.rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(Vector3(0.0001, -1, 0)), origin), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 	for frame in 3:
 		await process_frame
-	Buttons.injected["%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]] = true
+	Buttons.injected[Controls.key("grab", hand.tracker)] = true
 	for frame in 3:
 		await process_frame
 	check(main.tool.held == near and main.tool.mason(hand).took_roof, "grip grabs the near roof, not the roof behind it")

@@ -54,8 +54,8 @@ func _init(player: Rig) -> void:
 	name = "Flat"
 	rig = player
 	process_priority = -20
-	_wheel_button = "%s/%s" % [rig.right.tracker, Controls.input("wheel", rig.right.tracker)]
-	_trigger = "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
+	_wheel_button = Controls.key("wheel", rig.right.tracker)
+	_trigger = Controls.key("tool", rig.right.tracker)
 	for h in rig.hands:
 		h.flat_only = true
 		h.tool = Hand.Tool.NONE

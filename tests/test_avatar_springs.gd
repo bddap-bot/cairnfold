@@ -16,7 +16,7 @@ func _run() -> void:
 	hand.tool = Hand.Tool.NONE
 	var body := main.rig.body
 	check(body.springs != null and not body.springs.chains.is_empty(), "wearer has a live spring chain")
-	var key := "right_hand/" + Controls.input("grab", "right_hand")
+	var key := Controls.key("grab", "right_hand")
 	hand.global_position = body.springs.tip(0)
 	Buttons.injected[key] = true
 	await frames(3)

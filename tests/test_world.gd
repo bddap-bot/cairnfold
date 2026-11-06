@@ -363,7 +363,7 @@ func _undo_sounds_only_when_a_step_comes_back() -> void:
 
 ## Presses `action` on `hand` for a frame, as a player does.
 func _press(action: String, hand: Hand) -> void:
-	var key := "%s/%s" % [hand.tracker, Controls.input(action, hand.tracker)]
+	var key := Controls.key(action, hand.tracker)
 	Buttons.injected[key] = true
 	await process_frame
 	Buttons.injected.erase(key)

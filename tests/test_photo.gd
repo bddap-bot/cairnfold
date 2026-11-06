@@ -302,7 +302,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	var shutter := ToolModels.button(rig.right.model(Hand.Tool.CAMERA))
 	var saved := []
 	tool.recorded.connect(func(path: String) -> void: saved.append(path))
-	var key := "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
+	var key := Controls.key("tool", rig.right.tracker)
 	Buttons.injected[key] = true
 	await create_timer(PhotoTool.HOLD * 0.3).timeout
 	Buttons.injected.erase(key)

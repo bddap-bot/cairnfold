@@ -138,12 +138,7 @@ func cancel(who: Object) -> void:
 
 
 func _orb() -> MeshInstance3D:
-	var sphere := SphereMesh.new()
-	sphere.radius = ORB_RADIUS
-	sphere.height = ORB_RADIUS * 2.0
-	var orb := MeshInstance3D.new()
-	orb.mesh = sphere
-	orb.material_override = Meshes.glow(TINT)
+	var orb := Meshes.ball(ORB_RADIUS, TINT)
 	orb.top_level = true
 	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(orb)

@@ -265,16 +265,6 @@ func _prop(tool: Hand.Tool, at: Vector3, scale_k := 1.0, yaw := 0.0) -> Node3D:
 	return m
 
 
-static func _ball(radius: float, colour: Color, see_through := true) -> MeshInstance3D:
-	var ball := SphereMesh.new()
-	ball.radius = radius
-	ball.height = radius * 2.0
-	var m := MeshInstance3D.new()
-	m.mesh = ball
-	m.material_override = Meshes.glow(colour, see_through)
-	return m
-
-
 static func _pop(k: float) -> float:
 	k = clampf(k, 0.0, 1.0)
 	return 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
@@ -427,10 +417,10 @@ func _play_hill(at: float) -> void:
 
 # Turning the sky: the grip on open sky holds it, and turning the pointer carries the sun along its arc.
 func _build_sky() -> void:
-	var sun := _ball(0.19, Color(1.0, 0.82, 0.4), false)
+	var sun := Meshes.ball(0.19, Color(1.0, 0.82, 0.4), false)
 	stage.add_child(sun)
 	_fx.sun = sun
-	sun.add_child(_ball(0.3, Color(1.0, 0.95, 0.7, 0.35)))
+	sun.add_child(Meshes.ball(0.3, Color(1.0, 0.95, 0.7, 0.35)))
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.3, 0, 0.2), 1.0, 0.4)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.1), 1.0)
 
@@ -563,12 +553,12 @@ func _build_wipe() -> void:
 	_prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(-0.4, 0, 0.3), 0.9, -0.3)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.45), 1.1)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(0.6, 0, -0.5), 0.8)
-	var orb := _ball(0.3, Color.WHITE)
+	var orb := Meshes.ball(0.3, Color.WHITE)
 	stage.add_child(orb)
 	_fx.orb = orb
 	_fx.puffs = []
 	for p in props:
-		var puff := _ball(0.12, Color(1.0, 0.95, 0.88, 0.0))
+		var puff := Meshes.ball(0.12, Color(1.0, 0.95, 0.88, 0.0))
 		puff.position = p.position + Vector3.UP * 0.08
 		puff.visible = false
 		stage.add_child(puff)

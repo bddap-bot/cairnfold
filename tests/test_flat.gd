@@ -135,7 +135,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.CAMERA, flat.pitch)), "raised before the eye")
 	check(PhotoTool.lens(rig.right).basis.z.dot(rig.head.global_basis.z) > 0.999, "its lens looking where the view does")
 	check(_near(rig.left.body.global_transform, level * Avatar.AT_SIDES[0]), "the other hand still at its side")
-	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
+	var trigger := Controls.key("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)
 	await frames(3)
 	check(flat.mouse_held and not Buttons.injected.has(trigger), "the click that takes the mouse takes no photo")
@@ -161,7 +161,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 
 func _the_trigger_reaches_only_a_raised_tool() -> void:
 	var rig := main.rig
-	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
+	var trigger := Controls.key("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)
 	await frames(2)
 	check(not Buttons.injected.has(trigger), "with empty hands a click pulls no trigger")

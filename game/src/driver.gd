@@ -158,7 +158,7 @@ func _pick(s: Dictionary) -> void:
 		await _pick_bare(s)
 		return
 	var hand: Hand = _hand(s)
-	var key := _control(hand, "wheel")
+	var key := Controls.key("wheel", hand.tracker)
 	var tree := hand.inventory()
 	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
 	if s.has("action"):
@@ -329,7 +329,7 @@ func _gesture(s: Dictionary) -> void:
 			hand.held_still = true
 			hand.global_transform = head * Lessons.frame(Lessons.pose(s, side, t))
 		for p in (s.press if not bare else []):
-			var key := _control(_side(p.hand), p.action)
+			var key := Controls.key(p.action, p.hand + "_hand")
 			if Lessons.held(s, p.hand, p.action, t):
 				Buttons.injected[key] = true
 			else:
@@ -340,7 +340,7 @@ func _gesture(s: Dictionary) -> void:
 			shots = shots.slice(1)
 		t += get_process_delta_time()
 	for p in s.press:
-		Buttons.injected.erase(_control(_side(p.hand), p.action))
+		Buttons.injected.erase(Controls.key(p.action, p.hand + "_hand"))
 	if bare:
 		for side in Lessons.hands(s):
 			var tracker := side + "_hand"
@@ -403,10 +403,6 @@ func _hand(s: Dictionary, side := "right") -> Hand:
 
 func _side(side: String) -> Hand:
 	return main.rig.left if side == "left" else main.rig.right
-
-
-func _control(hand: Hand, action: String) -> String:
-	return "%s/%s" % [hand.tracker, Controls.input(action, hand.tracker)]
 
 
 ## The step's hand, handed `tool` first, as a player picks it before using it.
@@ -1780,7 +1776,7 @@ func _photo(s: Dictionary) -> void:
 ## same edges the controller feeds, and waits until the file is written.
 func _video(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
-	var key := _control(hand, "tool")
+	var key := Controls.key("tool", hand.tracker)
 	Buttons.injected[key] = true
 	await get_tree().create_timer(s.seconds).timeout
 	Buttons.injected.erase(key)
@@ -1817,7 +1813,7 @@ func _sun(s: Dictionary) -> void:
 	var grab := -pose.basis.z
 	hand.held_still = true
 	hand.global_transform = pose
-	var grip := _control(hand, "grab")
+	var grip := Controls.key("grab", hand.tracker)
 	Buttons.injected[grip] = true
 	await _frames(2)
 	var seconds: float = s.get("seconds", 2.0)
@@ -2070,7 +2066,7 @@ func _take(s: Dictionary) -> void:
 		return
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
 	hand.held_still = true
-	var key := _control(hand, "grab")
+	var key := Controls.key("grab", hand.tracker)
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
@@ -2082,7 +2078,7 @@ func _take(s: Dictionary) -> void:
 func _set_down(s: Dictionary) -> void:
 	var hand := _hand(s)
 	hand.held_still = true
-	var key := _control(hand, "grab")
+	var key := Controls.key("grab", hand.tracker)
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
@@ -2224,7 +2220,7 @@ func _sheet(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
 	var frame := e.canvas_frame()
-	var key := _control(hand, "grab")
+	var key := Controls.key("grab", hand.tracker)
 	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
 	Buttons.injected[key] = true
@@ -2817,7 +2813,7 @@ func _befriend(s: Dictionary) -> void:
 	if bird.node.hand != h or bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED:
 		_fail("bird did not feed and trust hand")
 		return
-	Buttons.injected[_control(h, "grab")] = true
+	Buttons.injected[Controls.key("grab", h.tracker)] = true
 	await _frames(30)
 	if h.carried != bird.node:
 		_fail("grip did not pick up fed bird")
@@ -2970,7 +2966,7 @@ func _roamers(_s: Dictionary) -> void:
 
 func _release_bird(s: Dictionary) -> void:
 	var h := _hand(s)
-	Buttons.injected.erase(_control(h, "grab"))
+	Buttons.injected.erase(Controls.key("grab", h.tracker))
 	await _frames(2)
 	assert(h.carried == null, "bird must leave the hand when grip releases")
 
@@ -2987,7 +2983,7 @@ func _spring_grab(s: Dictionary) -> void:
 	hand.held_still = true
 	hand.global_position = avatar.springs.tip(chain)
 	await get_tree().create_timer(0.3).timeout
-	var key := _control(hand, "grab")
+	var key := Controls.key("grab", hand.tracker)
 	Buttons.injected[key] = true
 	var mine := [main.session.multiplayer.get_unique_id(), 1]
 	var deadline := Time.get_ticks_msec() + 5000
@@ -3115,7 +3111,7 @@ func _expression(s: Dictionary) -> void:
 		await _frames(2)
 		return
 	var hand := _hand(s)
-	var button := _control(hand, "wheel")
+	var button := Controls.key("wheel", hand.tracker)
 	var tree := hand.inventory()
 	Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	Buttons.injected[button] = true

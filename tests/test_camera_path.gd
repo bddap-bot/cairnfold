@@ -48,7 +48,7 @@ func _a_launch_with_a_camera_sees_from_it(path: String) -> void:
 		check(cam.global_transform.is_equal_approx(CameraPath.at(cam.keys, cam._t)), "it stands where its keys put it at its game time %.3f s" % cam._t)
 		check(cam._t > 0.0, "its clock runs with the game's")
 	var hand: Hand = main.rig.right
-	var button := "right_hand/" + Controls.input("wheel", "right_hand")
+	var button := Controls.key("wheel", "right_hand")
 	Buttons.injected[button] = true
 	await frames(2)
 	var head := main.rig.head

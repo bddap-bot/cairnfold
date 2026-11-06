@@ -360,7 +360,7 @@ static func _finite(v: Vector3) -> bool:
 	return v.is_finite() and Terrain.ROOM.has_point(v)
 
 
-static func _roof_point(c: Vector2) -> bool:
+static func _on_roof(c: Vector2) -> bool:
 	return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0
 
 
@@ -440,15 +440,15 @@ static func _wall(d: Variant) -> Variant:
 		if not _at_least(r.get("pitch"), 0.0) or not _at_least(r.get("curve"), -RoofLayout.CURVE) or r.curve > RoofLayout.CURVE:
 			return null
 		var chimneys: Variant = r.get("chimneys")
-		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(_roof_point) or typeof(r.get("flag")) != TYPE_BOOL:
+		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(_on_roof) or typeof(r.get("flag")) != TYPE_BOOL:
 			return null
 		var dormers: Variant = r.get("dormers")
-		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(_roof_point):
+		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(_on_roof):
 			return null
 		if r.kind == RoofLayout.Kind.CONE and not dormers.is_empty():
 			return null
 		var hatches: Variant = r.get("hatches")
-		if typeof(hatches) != TYPE_PACKED_VECTOR2_ARRAY or hatches.size() > MAX_HATCHES or not Array(hatches).all(_roof_point):
+		if typeof(hatches) != TYPE_PACKED_VECTOR2_ARRAY or hatches.size() > MAX_HATCHES or not Array(hatches).all(_on_roof):
 			return null
 		if not _at_least(r.get("overhang"), 0.0) or r.overhang > RoofLayout.MAX_OVERHANG:
 			return null

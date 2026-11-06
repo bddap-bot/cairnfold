@@ -90,7 +90,7 @@ func _run() -> void:
 
 ## Moves the hand itself through the tool paths in a wheel standing upright and facing the head.
 func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
-	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
+	var key := Controls.key("wheel", hand.tracker)
 	var toward: Vector3 = main.rig.head.global_position - at
 	toward.y = 0.0
 	var right := Vector3.UP.cross(toward.normalized())

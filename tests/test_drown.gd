@@ -81,7 +81,7 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	hand.held_still = true
 	hand.global_transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2), rim + Vector3.UP * 2.0)
 	var refused: int = Cues.asked.get(Cues.Act.REFUSED, 0)
-	var press := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
+	var press := Controls.key("tool", hand.tracker)
 	var brush := trees.brush(hand)
 	trees._handle(brush, 1.0 / 60.0)
 	brush.buttons.latch()

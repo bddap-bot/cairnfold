@@ -17,6 +17,17 @@ static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
 	return mat
 
 
+## A ball of `radius` drawn in `glow(colour, see_through)`.
+static func ball(radius: float, colour: Color, see_through := true) -> MeshInstance3D:
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	var m := MeshInstance3D.new()
+	m.mesh = sphere
+	m.material_override = glow(colour, see_through)
+	return m
+
+
 ## Draws everything under `node` in `look`.
 static func ghostly(node: Node, look: Material) -> void:
 	for g: GeometryInstance3D in node.find_children("*", "GeometryInstance3D", true, false):

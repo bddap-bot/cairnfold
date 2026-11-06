@@ -63,7 +63,7 @@ func _the_trigger_stands_it_and_puts_it_away() -> void:
 	root.add_child(tool)
 	await process_frame
 	check(not tool.standing() and tool._views.is_empty(), "put away, it stands nowhere and holds no view")
-	var key := "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
+	var key := Controls.key("tool", rig.right.tracker)
 	var press := func() -> void:
 		Buttons.injected[key] = true
 		await process_frame

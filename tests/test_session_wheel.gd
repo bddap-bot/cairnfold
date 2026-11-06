@@ -86,7 +86,7 @@ func _run() -> void:
 	session.avatar = (session.avatar + 1) % Avatar.BUILT_IN.size()
 	check(hand.people.signature("avatars") != worn, "the mirror is drawn again when the player changes who they are")
 	session.avatar = 0
-	var button := "right_hand/" + Controls.input("wheel", "right_hand")
+	var button := Controls.key("wheel", "right_hand")
 	await _open(hand, button, "avatars")
 	check(hand.dial != null and hand.picking and not hand._wheel_root.visible, "reaching the mirror turns the wheel into the avatars dial")
 	check(hand.dial.choices.size() == hand.people.choices("avatars").size() and hand.dial.pick == 0, "one dial of every avatar, starting on the one worn")

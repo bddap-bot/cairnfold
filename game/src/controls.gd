@@ -77,6 +77,11 @@ static func input(action: String, tracker: String) -> String:
 	return ACTIONS[action][tracker]
 
 
+## The `Buttons` key of `action` on the hand `tracker`.
+static func key(action: String, tracker: String) -> String:
+	return "%s/%s" % [tracker, input(action, tracker)]
+
+
 ## The `device`'s controls that do `action` on the hand `tracker`.
 static func bound(device: String, action: String, tracker: String) -> Array[String]:
 	var out: Array[String] = []

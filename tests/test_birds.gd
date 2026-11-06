@@ -602,7 +602,7 @@ func _carry() -> void:
 	check(b.affection == BirdCarry.TRUST, "feeding earns trust")
 	check(carry.take(h, b), "fed bird accepts gentle pickup")
 	check(h.carried == b.node and h.tool == Hand.Tool.NONE, "carry is not a wheel tool")
-	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
+	Buttons.injected[Controls.key("grab", h.tracker)] = true
 	h.global_position += Vector3(5, 2, 1)
 	for i in 120:
 		carry._process(STEP)
