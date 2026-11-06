@@ -115,7 +115,11 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, [jpg.call(1, side + 1)])) == null, "a JPEG taller than the limit is refused")
 	var cut: PackedByteArray = png.call(64, 64)
 	check(Avatar.read(_with_images(bytes, [cut.slice(0, cut.size() - 20)])) == null, "an image that does not decode is refused, not handed to other decoders")
-	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) == null, "an image that is neither PNG nor JPEG is refused")
+	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) != null, "a lossless WebP is read")
+	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGB8).save_webp_to_buffer(true)])) != null, "a lossy WebP is read")
+	var measured := _with_images(bytes, [png.call(64, 32), Image.create_empty(16, 8, false, Image.FORMAT_RGBA8).save_webp_to_buffer(), jpg.call(40, 20)])
+	check(Avatar.texture_bytes(measured, Vrm.images(measured)) == (64 * 32 + 16 * 8 + 40 * 20) * 4 * 4 / 3, "an avatar's texture memory is measured from its images' headers")
+	check(Avatar.read(_with_images(bytes, ["GIF89a".to_ascii_buffer() + cut])) == null, "an image that is neither PNG, JPEG nor WebP is refused")
 	var many := []
 	for i in Avatar.MAX_IMAGES:
 		many.append(png.call(1, 1))
@@ -127,36 +131,13 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
 
 
-## A file's base colour textures keep their size while their texels fit Avatar.MAX_TEXELS, and past it shrink alike to fit.
+## A file's images are each the one its headers were measured from, in its place, or it is refused: the texture
+## budget is set from those measurements before any image is decoded.
 func _textures_share_the_texel_limit() -> void:
 	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGBA8).save_png_to_buffer()
-	var side := Avatar.MAX_IMAGE_SIDE
-	var sizes := func(file: PackedByteArray) -> Array:
-		var scene := Avatar.read(file)
-		if scene == null:
-			return []
-		var a := scene.instantiate()
-		var out := {}
-		for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
-			for s in mi.mesh.get_surface_count():
-				var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
-				if m != null and m.albedo_texture != null:
-					out[m.albedo_texture.get_size()] = true
-		a.free()
-		return out.keys()
-	var full: PackedByteArray = png.call(side, side)
-	var whole := int(sqrt(float(Avatar.MAX_TEXELS)))
-	var fit: PackedByteArray = png.call(whole, whole)
-	check(sizes.call(_with_images(bytes, [fit, full, full])) == [Vector2(whole, whole)], "a base colour image of the texel limit keeps its every texel beside images no base colour samples")
-	var three := _with_images(bytes, [full, full, full])
-	var json := _gltf_json(three)
-	json.textures.append({"source": 1})
-	json.materials.append((json.materials[0] as Dictionary).duplicate(true))
-	json.materials[-1].pbrMetallicRoughness.baseColorTexture.index = json.textures.size() - 1
-	var shared: Array = sizes.call(_glb(json, three.slice(28 + three.decode_u32(12))))
-	var half := int(side * sqrt(float(Avatar.MAX_TEXELS) / (2 * side * side)))
-	check(shared == [Vector2(half, half)], "two base colour images at the side limit shrink alike to share the texel limit: %s" % [shared])
+	var three := _with_images(bytes, [png.call(64, 64), png.call(64, 64), png.call(64, 64)])
+	check(Avatar.read(three) != null, "a file whose images are all measured is read")
 	var hidden := _gltf_json(three)
 	hidden.images[2] = {"uri": "data:image/png;base64," + Marshalls.raw_to_base64(png.call(4, 4)), "mimeType": "image/png"}
 	check(Avatar.read(_glb(hidden, three.slice(28 + three.decode_u32(12)))) == null, "a file holding an image its headers were not measured from is refused")
@@ -705,11 +686,8 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
 	check(plain == materials, "%s draws its colour alone, sampled anisotropically, lit once a vertex, front faces only, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
-	var texels := 0
 	for tex: Texture2D in textures:
-		texels += tex.get_width() * tex.get_height()
 		check(tex.get_image().has_mipmaps(), "%s keeps its textures mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
-	check(texels <= Avatar.MAX_TEXELS, "%s keeps its textures within the texel limit (%d)" % [what, texels])
 	a.free()
 
 

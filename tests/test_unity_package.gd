@@ -52,6 +52,7 @@ func _run() -> void:
 	_a_decal_alpha_binds_its_atlas_layer()
 	_a_shrunk_texture_averages_what_its_cell_covers()
 	_the_atlas_widens_before_its_cells_shrink()
+	_a_decal_keeps_the_size_unity_imports()
 	_matcaps_and_emission_join_the_look()
 	_installed_packages_lend_only_missing_images()
 	_submeshes_take_slots_in_first_use_order()
@@ -1247,23 +1248,24 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 		check(region.node == "Body" and region.slot == 2 and region.field == "decal", "the region names its field and slot: %s" % [region])
 		check(data.clips[0].curves[0].keys == [[0.0, 1.0]] and not data.clips[0].curves[0].step, "decal alpha stays continuous")
 	var looks: Dictionary = data.get("looks", {})
-	check((looks.get("decals", []) as Array).size() == 3, "one layer per slot up to the highest drawn")
-	check(looks.get("materials", []) == [{"decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds each slot's saved alpha and blend: %s" % [looks.get("materials")])
 	var cell: Rect2i = materials.materials.skin.cell
-	if (looks.get("decals", []) as Array).size() == 3:
-		var layer := Image.new()
-		check(layer.load_png_from_buffer(Marshalls.base64_to_raw(looks.decals[2])) == OK, "the layer is a PNG")
-		var left := layer.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
-		var right := layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
-		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the layer carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
-		check(layer.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).a == 0.0, "outside the material the layer is clear")
+	var rect := [float(cell.position.x) / materials.atlas_side, float(cell.position.y) / materials.atlas_side, float(cell.end.x) / materials.atlas_side, float(cell.end.y) / materials.atlas_side]
+	check((looks.get("decals", []) as Array).size() == 1, "one image per decal drawn")
+	check(looks.get("materials", []) == [{"rect": rect, "decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true, "image": 0}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds its cell and each slot's saved alpha, blend and image: %s" % [looks.get("materials")])
+	if data.targets.size() == 1:
+		check(data.targets[0].effect.look[0].image == 0, "the region names its decal's image")
+	if (looks.get("decals", []) as Array).size() == 1:
+		var layer: Image = looks.decals[0]
+		var left := layer.get_pixel(layer.get_width() / 4, layer.get_height() / 2)
+		var right := layer.get_pixel(3 * layer.get_width() / 4, layer.get_height() / 2)
+		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the image carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
 	var index := Image.new()
 	check(index.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("index", ""))) == OK, "the look index is a PNG")
 	if not index.is_empty():
 		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).r8 == 0, "each texel names its material's look")
 	expressions.data.clips[0].curves.clear()
 	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
-	check(unbound.targets.is_empty() and (unbound.get("looks", {}).get("decals", []) as Array).size() == 3, "a decal no clip animates is still drawn at its saved alpha")
+	check(unbound.targets.is_empty() and (unbound.get("looks", {}).get("decals", []) as Array).size() == 1, "a decal no clip animates is still drawn at its saved alpha")
 	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalBlendAlpha2_Skin", "class": "137", "keys": [[0.0, 1.0]]})
 	materials.materials.skin.properties._DecalAlphaIntensity2_Skin = true
 	materials.materials.skin.floats._DecalAlphaIntensity2_Skin = "0"
@@ -1280,11 +1282,11 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	materials.materials.skin.floats.merge({"_DecalHueShiftEnabled2": "1", "_DecalHueShiftColorSpace2": "1", "_DecalHueShift2": "0", "_DecalHueShift2_Skin": "0.5"})
 	var hued := func() -> Color:
 		var bound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
-		if (bound.get("looks", {}).get("decals", []) as Array).size() != 3:
+		var drawn: Variant = bound.get("looks", {}).get("materials", [{}])[0].get("decals", [null, null, null])[2]
+		if drawn == null:
 			return Color(0, 0, 0, 0)
-		var layer := Image.new()
-		layer.load_png_from_buffer(Marshalls.base64_to_raw(bound.looks.decals[2]))
-		return layer.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
+		var layer: Image = bound.looks.decals[drawn.image]
+		return layer.get_pixel(3 * layer.get_width() / 4, layer.get_height() / 2)
 	var cyan: Color = hued.call()
 	check(cyan.a > 0.8 and cyan.r < 0.02 and absf(cyan.g - 0.9) < 0.02 and cyan.b > 0.98, "a decal at a fixed hue shift is drawn at it, by the shader-named value: linear orange half a turn round HSV is cyan, %s" % cyan)
 	materials.materials.skin.colours._DecalColor2 = {"r": 1, "g": 1, "b": 1, "a": 1}
@@ -1335,20 +1337,57 @@ func _a_shrunk_texture_averages_what_its_cell_covers() -> void:
 	materials.pack(["skin"])
 	var cell: Rect2i = materials.materials.skin.cell
 	var looks := materials.looks()
-	var decal := Image.new()
-	if (looks.get("decals", []) as Array).size() == 1:
-		decal.load_png_from_buffer(Marshalls.base64_to_raw(looks.decals[0]))
-	check(not decal.is_empty(), "the decal is drawn into its layer")
-	for named: Array in [["albedo", materials.atlas], ["decal", decal]]:
+	var decal: Image = looks.decals[0] if (looks.get("decals", []) as Array).size() == 1 else Image.new()
+	check(decal.get_width() == Materials.ATLAS, "a decal whose .meta names no import size keeps its texture's up to the atlas's widest, %d: %d" % [Materials.ATLAS, decal.get_width()])
+	for named: Array in [["albedo", materials.atlas, cell]]:
 		var img: Image = named[1]
+		var area: Rect2i = named[2]
 		if img.is_empty():
 			continue
 		var spread := Vector2(1, 0)
-		for y in range(cell.position.y + 3, cell.end.y - 3):
-			for x in range(cell.position.x + 3, cell.end.x - 3):
+		for y in range(area.position.y + 3, area.end.y - 3, 7):
+			for x in range(area.position.x + 3, area.end.x - 3):
 				var r := img.get_pixel(x, y).r
 				spread = Vector2(minf(spread.x, r), maxf(spread.y, r))
-		check(spread.x > 0.4 and spread.y < 0.6, "a 3000-texel texture of one-texel stripes shrunk into a %d-texel cell is the stripes' grey in the %s, not a moire of them: %s" % [cell.size.x, named[0], spread])
+		check(spread.x > 0.4 and spread.y < 0.6, "a 3000-texel texture of one-texel stripes shrunk to %d texels is the stripes' grey in the %s, not a moire of them: %s" % [area.size.x, named[0], spread])
+
+
+func _a_decal_keeps_the_size_unity_imports() -> void:
+	var dir := ProjectSettings.globalize_path("user://imported")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String, meta: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n%s" % [guid, meta])
+	write.call("skin.shader", "shader", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { } }', "")
+	write.call("skin.mat", "skin", """Material:
+  m_Shader: {guid: shader}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {guid: small}
+    - _DecalTexture:
+        m_Texture: {guid: tattoo}
+    m_Floats:
+    - _DecalEnabled: 1
+    m_Colors:
+    - _DecalPosition: {r: 0.5, g: 0.5, b: 0, a: 0}
+    - _DecalScale: {r: 1, g: 1, b: 1, a: 0}
+""", "")
+	Image.create_empty(16, 16, false, Image.FORMAT_RGBA8).save_png(dir.path_join("small.png"))
+	FileAccess.open(dir.path_join("small.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: small\n")
+	var tattoo := Image.create_empty(256, 256, false, Image.FORMAT_RGBA8)
+	tattoo.fill(Color(1, 0, 0, 1))
+	tattoo.save_png(dir.path_join("tattoo.png"))
+	var settings := func(default: int, standalone: int, overridden: int) -> String:
+		return "TextureImporter:\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: %d\n    overridden: 0\n  - serializedVersion: 3\n    buildTarget: Standalone\n    maxTextureSize: %d\n    overridden: %d\n" % [default, standalone, overridden]
+	for case: Array in [["", 256, "an unrestricted texture at its own size"], [settings.call(128, 32, 0), 128, "the default platform's size where the PC does not override it"], [settings.call(32, 128, 1), 128, "the PC's size where it overrides the default"], ["TextureImporter:\n  maxTextureSize: 2048\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: 128\n    overridden: 0\n", 128, "the default platform's size over a wider legacy field, as Unity imports it"]]:
+		FileAccess.open(dir.path_join("tattoo.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: tattoo\n" + case[0])
+		var materials := Materials.new(Assets.new(dir))
+		materials.use({"guid": "skin"}, Color.WHITE)
+		materials.pack(["skin"])
+		var looks := materials.looks()
+		var decal: Image = looks.decals[0] if (looks.get("decals", []) as Array).size() == 1 else Image.new()
+		check(materials.materials.skin.cell.size.x == 16 and decal.get_size() == Vector2i(case[1], case[1]), "a decal over a 16-texel cell keeps %s, %d: %s" % [case[2], case[1], decal.get_size()])
 
 
 func _the_atlas_widens_before_its_cells_shrink() -> void:

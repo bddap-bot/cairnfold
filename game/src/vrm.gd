@@ -179,22 +179,28 @@ class Skins extends GLTFDocumentExtension:
 		return [out, kept]
 
 
-## Measures each image from its PNG or JPEG header and, if the read's `fits` takes that size, decodes it as the format
-## measured and hands it to the read's `image` before it becomes a texture; anything else, or an image that does not
-## decode, marks the read refused and leaves Godot's decoders nothing to try. Registered ahead of Godot's own decoders, so it sees every image first, apart from Vrm, whose import
-## follows Godot's. Reading a texture back calls the rendering server, which answers a worker thread only from the main
-## thread, so a game quitting mid-read would wait on the read forever.
+## Measures each image from its PNG, JPEG or WebP header and, if the read's `fits` takes that size, decodes it as the
+## format measured and hands it to the read's `image` before it becomes a texture; anything else, or an image that does
+## not decode, marks the read refused and leaves Godot's decoders nothing to try. A decal image (VRCHAT_expressions'
+## looks) is kept aside as the image the definition names, and only a texel of it becomes a texture. Registered ahead of
+## Godot's own decoders, so it sees every image first, apart from Vrm, whose import follows Godot's. Reading a texture
+## back calls the rendering server, which answers a worker thread only from the main thread, so a game quitting
+## mid-read would wait on the read forever.
 class Images extends GLTFDocumentExtension:
 	func _parse_image_data(state: GLTFState, data: PackedByteArray, _mime: String, out: Image) -> Error:
 		var fits: Variant = state.get_additional_data(&"vrm_fits")
 		if not (fits is Callable and fits.is_valid()):
 			return OK
+		var at: int = state.get_additional_data(&"vrm_image_at")
+		state.set_additional_data(&"vrm_image_at", at + 1)
 		var size := Vrm._image_size(data)
 		if size.x > 0 and size.y > 0 and fits.call(size):
 			if data[0] == Vrm.PNG[0]:
 				out.load_png_from_buffer(data)
-			else:
+			elif data[0] == 0xFF:
 				out.load_jpg_from_buffer(data)
+			else:
+				out.load_webp_from_buffer(data)
 		if out.is_empty():
 			state.set_additional_data(&"vrm_refused", true)
 			out.set_data(1, 1, false, Image.FORMAT_L8, PackedByteArray([0]))
@@ -203,11 +209,14 @@ class Images extends GLTFDocumentExtension:
 		if image is Callable and image.is_valid():
 			image.call(out)
 		(state.get_additional_data(&"vrm_means") as Array).append(Vrm._mean(out))
+		if at in Vrm._decal_indices(state.json):
+			(state.get_additional_data(&"vrm_decals") as Dictionary)[at] = out.duplicate()
+			out.set_data(1, 1, false, Image.FORMAT_RGBA8, PackedByteArray([0, 0, 0, 0]))
 		return OK
 
 
 ## Each image of a binary glTF, in order, measured from its header before any is decoded: "size", zero for an image not
-## held in the file's own binary chunk, and "colour", whether a material's base colour samples it.
+## held in the file's own binary chunk.
 static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if glb.size() < 28:
@@ -216,12 +225,6 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	var json: Variant = JSON.parse_string(glb.slice(20, 20 + json_size).get_string_from_utf8())
 	if not json is Dictionary or not json.get("images") is Array or not json.get("bufferViews") is Array:
 		return out
-	var colour := {}
-	var textures: Variant = json.get("textures")
-	for m: Variant in (json.get("materials") if json.get("materials") is Array else []):
-		var t: Variant = _field(_field(_field(m, "pbrMetallicRoughness"), "baseColorTexture"), "index")
-		if t is float and textures is Array and t >= 0 and t < textures.size():
-			colour[_field(textures[int(t)], "source")] = true
 	var views: Array = json.bufferViews
 	var images: Array = json.images
 	for i in images.size():
@@ -230,14 +233,30 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 		if view is float and view >= 0 and view < views.size() and views[int(view)] is Dictionary and _number(views[int(view)].get("buffer", 0.0), -1, 1, -1) == 0:
 			var at := 28 + json_size + int(_number(views[int(view)].get("byteOffset", 0), 0, glb.size(), 0))
 			size = _image_size(glb.slice(at, at + int(_number(views[int(view)].get("byteLength", 0), 0, glb.size(), 0))))
-		out.append({"size": size, "colour": colour.has(float(i))})
+		out.append({"size": size})
 	return out
 
 
-## The width and height in the header of a PNG or a JPEG; zero if it is neither.
+## The glTF images VRCHAT_expressions' looks name as decals.
+static func _decal_indices(json: Dictionary) -> Array:
+	var decals: Variant = _field(_field(_field(json.get("extensions"), EXPRESSIONS), "looks"), "decals")
+	return (decals as Array).filter(func(k: Variant) -> bool: return k is float or k is int).map(func(k: Variant) -> int: return int(k)) if decals is Array else []
+
+
+## The width and height in the header of a PNG, a JPEG or a WebP; zero if it is none.
 static func _image_size(d: PackedByteArray) -> Vector2i:
 	if d.size() >= 24 and Array(d.slice(0, 8)) == PNG and d.slice(12, 16).get_string_from_ascii() == "IHDR":
 		return Vector2i(_u16(d, 16) << 16 | _u16(d, 18), _u16(d, 20) << 16 | _u16(d, 22))
+	if d.size() >= 32 and d.slice(0, 4).get_string_from_ascii() == "RIFF" and d.slice(8, 12).get_string_from_ascii() == "WEBP":
+		match d.slice(12, 16).get_string_from_ascii():
+			"VP8L":
+				var bits := d.decode_u32(21)
+				return Vector2i((bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1)
+			"VP8X":
+				return Vector2i((d.decode_u32(24) & 0xFFFFFF) + 1, (d.decode_u32(27) & 0xFFFFFF) + 1)
+			"VP8 ":
+				return Vector2i(d.decode_u16(26) & 0x3FFF, d.decode_u16(28) & 0x3FFF)
+		return Vector2i.ZERO
 	if d.size() < 4 or d[0] != 0xFF or d[1] != 0xD8:
 		return Vector2i.ZERO
 	var i := 2
@@ -477,6 +496,8 @@ func _export_post(state: GLTFState) -> Error:
 
 static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:
 	var out := expressions.duplicate(true)
+	if out.get("looks") is Dictionary and out.looks.has("decals"):
+		out.looks.decals = (out.looks.decals as Array).map(func(img: Image) -> int: return _add_image(state, img.save_webp_to_buffer()))
 	var nodes := state.get_nodes()
 	var morph := func(bind: Array) -> Array:
 		var mesh := nodes[index[bind[0]]].mesh
@@ -497,6 +518,23 @@ static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionar
 	for s: Dictionary in out.get("springs", []):
 		s.joints = s.joints.map(func(n: String) -> int: return index[n])
 	return out
+
+
+## Appends the encoded image `bytes` (lossless WebP) to the binary buffer as a glTF image no texture uses: its index.
+static func _add_image(state: GLTFState, bytes: PackedByteArray) -> int:
+	var buffers := state.get_buffers()
+	if buffers.is_empty():
+		buffers.append(PackedByteArray())
+	var data: PackedByteArray = buffers[0]
+	data.resize((data.size() + 3) & ~3)
+	var views: Array = state.json.get_or_add("bufferViews", [])
+	views.append({"buffer": 0, "byteOffset": data.size(), "byteLength": bytes.size()})
+	data.append_array(bytes)
+	buffers[0] = data
+	state.set_buffers(buffers)
+	var images: Array = state.json.get_or_add("images", [])
+	images.append({"bufferView": views.size() - 1, "mimeType": "image/webp"})
+	return images.size() - 1
 
 
 static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
@@ -525,6 +563,11 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 			region.node = name_of.call(region)
 	for shown: Dictionary in out.get("shown", []):
 		shown.node = name_of.call(shown)
+	var looks: Variant = out.get("looks")
+	if looks is Dictionary and looks.has("decals"):
+		var kept: Variant = state.get_additional_data(&"vrm_decals")
+		kept = kept if kept is Dictionary else {}
+		looks.decals = _decal_indices(state.json).map(func(k: int) -> Variant: return kept.get(k))
 	return out
 
 
@@ -551,6 +594,8 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	state.set_additional_data(&"vrm_image", image)
 	state.set_additional_data(&"vrm_refused", false)
 	state.set_additional_data(&"vrm_means", [])
+	state.set_additional_data(&"vrm_image_at", 0)
+	state.set_additional_data(&"vrm_decals", {})
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
 	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused"):
@@ -626,6 +671,7 @@ static func _index(i: Variant, into: Array) -> bool:
 static func write(root: Node3D, path: String) -> void:
 	var doc := _doc()
 	doc.visibility_mode = GLTFDocument.VISIBILITY_MODE_INCLUDE_OPTIONAL
+	doc.image_format = "Lossless WebP"
 	var state := GLTFState.new()
 	var worn := {}
 	var full := {}

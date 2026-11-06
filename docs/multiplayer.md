@@ -247,7 +247,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   default or Standalone `maxTextureSize`), the size the avatar shows it at. The atlas is 2048 px wide, widened in 256 px
   steps until every cell fits, up to 16383, the widest WebP image, or `--atlas` SIDE: a file a player wears asks for
   `Avatar.MAX_IMAGE_SIDE` (4096), the widest Cairnfold reads, and the converter says so of a wider `.vrm`; past that its cells shrink alike with a Lanczos filter. The expression
-  layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. A material blends when its shader's
+  layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. Each Poiyomi
+  decal a material draws is instead its own lossless WebP image over the material's cell, at the size Unity imports
+  its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
   writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
   over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the
@@ -307,16 +309,21 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent, so all players see the same avatar: at most 96 MB, surfaces merged per
+  it is sent, so all players see the same avatar: at most 100 MiB, surfaces merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
-  author made them, a file's base colour textures held to 8.4 million texels between them (half a 4096 px atlas),
-  shrunk alike past that, mipmapped and sampled anisotropically, its other images to 1024 px, and expression layers
-  to 2048 px. On a Quest 2, seven figures each reading their own copy of a heavy converted avatar with one 4096 px
-  atlas in `demo/avatar-chain-cost.json` peak at 4.9 GB of the game's resident and swapped memory against 3.9 GB with
-  textures held to 1024 px, the renderer's textures at 1.35 GB against 0.54; at 12.6 million texels they peak at
-  5.23 GB, the system thrashes and its shell takes the display, and at 16.8 million it kills the game while they
-  load. Neither the
-  texels nor anisotropic sampling moved the scene's GPU time by more than 0.1 ms in any phase. A heavy mesh is its
+  author made them. Its textures, decals and expression layers are mipmapped, base colours sampled anisotropically,
+  and all shrink alike, by halves, only until they fit the memory the device has available above 1.3 GB, shared
+  among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
+  is decoded: on a Quest 2 with about 1.6 GB available a heavy converted avatar's 4096 px atlas is held at 1024, on
+  a desktop the same file at full size. On a Quest 2, seven figures each reading their own copy of a heavy
+  converted avatar with one 4096 px atlas in `demo/avatar-chain-cost.json` peak at 4.9 GB of the game's resident
+  and swapped memory with 8.4 million base colour texels each against 3.9 GB at 1024 px, the renderer's textures
+  at 1.35 GB against 0.54; at 12.6 million texels they peak at 5.23 GB, the system thrashes and its shell takes the
+  display, and at 16.8 million it kills the game while they load; the floor leaves each of the seven about the
+  8.4 million that held. Neither the texels nor anisotropic sampling moved the scene's GPU time by more than 0.1 ms
+  in any phase. Two Quest 2 runs reading one 94 MiB avatar took 8.7 s on a worker each and fell from 2.55 and
+  1.66 GB available to lows of 0.72 and 0.49 GB, the low-memory killer taking background apps but never the game,
+  which sets the 100 MiB limit. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:

@@ -13,29 +13,31 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
-## Leaves headroom for a Unity avatar that carries every outfit its menu can show, in a 4096 atlas.
-const MAX_BYTES := 96 << 20
+## Two Quest 2 runs reading a 93.9 MiB file (perf/quest-2/avatar-cost) took 8.7 s on a worker each and fell from 2.55 and
+## 1.66 GB available to lows of 0.72 and 0.49 GB, Android's low-memory killer taking background apps but never the game;
+## at 15 bytes a file byte, 100 MiB keeps the tighter run near 0.4 GB.
+const MAX_BYTES := 100 << 20
 ## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
 ## "Skinned bodies").
 const MAX_SURFACES := 40
-## The texels a file's base colour textures are held in between them, all shrunk alike past it: half a MAX_IMAGE_SIDE
-## atlas's. A Quest 2 holds seven other players each wearing their own heavy converted avatar at this; at one and a half
-## times it, it runs out of memory (docs/multiplayer.md, "Limits").
-const MAX_TEXELS := MAX_IMAGE_SIDE * MAX_IMAGE_SIDE / 2
-## The widest an image no base colour samples is held while it is read; plain materials draw none of them.
-const MAX_OTHER_TEXTURE := 1024
-## The widest an expression layer (decals, untinted colours, hue mask) is held: a converted avatar's atlas-sized layers
-## at 4096 would hold four times a Quest 2's memory for them.
-const MAX_LAYER := 2048
 ## The cap of a flat material that has none, past any light the garden sheds.
 const UNCAPPED := 1e4
+## The widest the material index is held: it changes only at the edges of cells many texels wide.
+const INDEX_SIDE := 2048
+## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
+## besides their textures need of the 1.6 GB a Quest 2 has available, which leaves each the 8.4 million texels seven
+## such avatars ran at and not the twice that which ran it out of memory (docs/multiplayer.md, "Limits").
+const MEMORY_FLOOR := 1300 << 20
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
-const MAX_IMAGES := 32
+## Each image is a texture and a decoder call however few its pixels; a converted avatar carries one per decal besides
+## its atlas.
+const MAX_IMAGES := 256
 const MAX_IMAGE_SIDE := 4096
-const MAX_PIXELS := 4 * MAX_IMAGE_SIDE * MAX_IMAGE_SIDE
+## The Quest 2 decoded 164 Mpx in 8.7 s; this many keep a read near ten seconds.
+const MAX_PIXELS := 192 << 20
 ## Blend shapes times the vertices they move, summed over a file's meshes, past which it is refused before they are
 ## copied: a file of a few MB can name thousands of sparse blend shapes, each held whole once read.
 const MAX_BLEND_VERTICES := 4000000
@@ -221,22 +223,81 @@ static func read(bytes: PackedByteArray, widest := MAX_IMAGE_SIDE) -> PackedScen
 	if bytes.size() > MAX_BYTES * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE):
 		return null
 	var images := Vrm.images(bytes)
-	var colour := 0
-	for image in images:
-		colour += image.size.x * image.size.y if image.colour else 0
-	var scale := minf(1.0, sqrt(float(MAX_TEXELS) / maxi(colour, 1)))
 	var seen := {"images": 0, "pixels": 0}
-	# Each image decoded must be the one Vrm.images measured in its place, or the scale and the colour of an image
-	# would be another's.
+	# Each image decoded must be the one Vrm.images measured in its place, or the budget would be another file's.
 	var fits := func(size: Vector2i) -> bool:
 		seen.images += 1
 		seen.pixels += size.x * size.y
 		return maxi(size.x, size.y) <= widest and seen.images <= mini(MAX_IMAGES, images.size()) and seen.pixels <= MAX_PIXELS * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE) and size == images[seen.images - 1].size
-	var shrink := func(img: Image) -> void:
-		var big := maxi(img.get_width(), img.get_height())
-		_shrink(img, scale if images[seen.images - 1].colour else minf(1.0, float(MAX_OTHER_TEXTURE) / big))
-	var root := Vrm.read(bytes, fits, shape, shrink)
-	return model(root) if root != null else null
+	var start := Time.get_ticks_usec()
+	var textures := texture_bytes(bytes, images)
+	var budget := texture_budget()
+	var shrink := shrink_for(textures, budget)
+	var root := Vrm.read(bytes, fits, shape, func(img: Image) -> void: _shrink(img, shrink))
+	if root != null:
+		root.set_meta("texture_shrink", shrink)
+	var scene := model(root) if root != null else null
+	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, seen.images, seen.pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, available_memory() / 1048576.0])
+	return scene
+
+
+## The bytes one avatar's textures may hold here: the memory available now above MEMORY_FLOOR, shared among every other
+## player a session holds.
+static func texture_budget() -> int:
+	return maxi(available_memory() - MEMORY_FLOOR, 0) / (Session.MAX_PLAYERS - 1)
+
+
+## The bytes of memory available to the game now. Godot reports none on Android, so a Linux kernel's own count is read.
+static func available_memory() -> int:
+	var counted := meminfo_available()
+	return counted if counted >= 0 else int(OS.get_memory_info().get("available", 0))
+
+
+## MemAvailable in a Linux kernel's /proc/meminfo, -1 without one. The file reports no length, so a whole-file read or
+## a read to its end gets nothing; a fixed-size read gets it. Android lets no Godot file open it, so there Java reads it.
+static func meminfo_available() -> int:
+	var lines := PackedStringArray()
+	var f := FileAccess.open("/proc/meminfo", FileAccess.READ)
+	if f != null:
+		lines = f.get_buffer(1 << 16).get_string_from_utf8().split("\n")
+	else:
+		var java: JavaClass = JavaClassWrapper.wrap("java.io.RandomAccessFile")
+		var file: Variant = java.call("RandomAccessFile", "/proc/meminfo", "r") if java != null else null
+		while file != null:
+			var line: Variant = file.call("readLine")
+			if not line is String:
+				file.call("close")
+				break
+			lines.append(line)
+	for line in lines:
+		if line.begins_with("MemAvailable:"):
+			return line.split(" ", false)[1].to_int() * 1024
+	return -1
+
+
+## How many times narrower each of an avatar's textures is held, a power of two, so that `bytes` at full size fit
+## `budget`.
+static func shrink_for(bytes: int, budget: int) -> int:
+	var shrink := 1
+	while bytes / (shrink * shrink) > budget and shrink < MAX_IMAGE_SIDE:
+		shrink *= 2
+	return shrink
+
+
+## The bytes the textures of the VRM file `glb` take once read, mipmapped, from its `images` (Vrm.images) and the
+## expression layers its definition carries, each measured from its header before any is decoded.
+static func texture_bytes(glb: PackedByteArray, images: Array[Dictionary]) -> int:
+	var texels := 0
+	for image in images:
+		texels += image.size.x * image.size.y
+	var json: Variant = JSON.parse_string(glb.slice(20, 20 + glb.decode_u32(12)).get_string_from_utf8()) if glb.size() >= 20 else null
+	var definition: Variant = Vrm._field(Vrm._field(json, "extensions"), Vrm.EXPRESSIONS)
+	for layer: String in ["hueMask", "colorAtlas"]:
+		var encoded: Variant = Vrm._field(definition, layer)
+		if encoded is String:
+			var dims := Vrm._image_size(Marshalls.base64_to_raw((encoded as String).left(44)))
+			texels += dims.x * dims.y
+	return texels * 4 * 4 / 3
 
 
 ## An importer's scene as the avatar model to open, or null. The model is a scene of skinned meshes, shaped by `shape`,
@@ -358,7 +419,7 @@ static func shape(state: GLTFState) -> bool:
 
 
 ## Gives the meshes that show a material its looks light flat (ExpressionDefinition) copies of their materials carrying
-## the atlas's material index, nearest-sampled at most MAX_LAYER wide as each vertex reads it, and a row of each entry's
+## the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a row of each entry's
 ## lighting (red one where flat, green its cap), for the avatar's shader to light them by (ExpressionPlayer). A mesh
 ## shows a material where one of its vertices' texture coordinates falls in that material's cell.
 static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
@@ -379,8 +440,8 @@ static func _flat_lit(looks: Dictionary, meshes: Array) -> void:
 		return
 	index.convert(Image.FORMAT_L8)
 	var big := maxi(index.get_width(), index.get_height())
-	if big > MAX_LAYER:
-		index.resize(index.get_width() * MAX_LAYER / big, index.get_height() * MAX_LAYER / big, Image.INTERPOLATE_NEAREST)
+	if big > INDEX_SIDE:
+		index.resize(index.get_width() * INDEX_SIDE / big, index.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
 	var texels := index.get_data()
 	var size := index.get_size()
 	var lit_flat := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
@@ -433,9 +494,9 @@ static func _plain(m: BaseMaterial3D) -> void:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 
 
-static func _shrink(img: Image, scale: float) -> void:
-	if scale < 1.0:
-		img.resize(maxi(1, int(img.get_width() * scale)), maxi(1, int(img.get_height() * scale)), Image.INTERPOLATE_CUBIC)
+static func _shrink(img: Image, shrink: int) -> void:
+	if shrink > 1:
+		img.resize(maxi(1, img.get_width() / shrink), maxi(1, img.get_height() / shrink), Image.INTERPOLATE_LANCZOS)
 	if not img.has_mipmaps():
 		img.generate_mipmaps()
 

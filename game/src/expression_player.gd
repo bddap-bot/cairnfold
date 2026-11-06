@@ -11,7 +11,9 @@ var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
 
-const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": ["decals"]}
+const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": []}
+## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
+const DECAL_PAD := 8
 
 
 func _init(model: Node3D) -> void:
@@ -61,12 +63,16 @@ func _init(model: Node3D) -> void:
 					if mesh == null or (kind == "look" and not str(region.get("field", "")).begins_with("decal")):
 						continue
 					var mats := _material(mesh)
-					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region)}
+					var decals: Dictionary = model.get_meta("expression_decal_sets", {}).get(str(region.node), {})
+					var place: Array = decals.get("places", {}).get(int(region.get("image", -1)), [0, 0.0, 0.0, 0.0, 0.0])
+					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region, place[0]), "decal": place.slice(1)}
 					for mat in mats:
 						(_regions.get_or_add(mat, []) as Array).append(entry)
 						for uniform: String in TEXTURES[kind]:
 							if model.has_meta("expression_" + uniform):
 								mat.set_shader_parameter(uniform, model.get_meta("expression_" + uniform))
+						if decals.has("decals"):
+							mat.set_shader_parameter("decals", decals.decals)
 					binds.append(func(v: float) -> void:
 						entry.value = v
 						for mat in mats:
@@ -95,13 +101,14 @@ func apply() -> void:
 			_last[i] = v
 	for mat: ShaderMaterial in _dirty_regions:
 		var entries: Array = _regions[mat]
-		var image := Image.create(entries.size(), 3, false, Image.FORMAT_RGBAF)
+		var image := Image.create(entries.size(), 4, false, Image.FORMAT_RGBAF)
 		for k in entries.size():
 			var e: Dictionary = entries[k]
 			var s: Array = e.settings
 			image.set_pixel(k, 0, Color(e.rect[0], e.rect[1], e.rect[2], e.rect[3]))
 			image.set_pixel(k, 1, Color(e.value, e.kind, s[0], s[1]))
 			image.set_pixel(k, 2, Color(s[2], s[3], s[4], 0))
+			image.set_pixel(k, 3, Color(e.decal[0], e.decal[1], e.decal[2], e.decal[3]))
 		var texture := mat.get_shader_parameter("regions") as ImageTexture
 		if texture == null:
 			texture = ImageTexture.create_from_image(image)
@@ -127,14 +134,14 @@ static func prepare(model: Node3D) -> void:
 		icons.append(ImageTexture.create_from_image(img) if img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) == OK else null)
 	model.set_meta("expression_icons", icons)
 	var data: Dictionary = model.get_meta("expressions", {})
+	var shrink: int = model.get_meta("texture_shrink", 1)
 	var decode := func(encoded: Variant, mipmapped: bool) -> Image:
 		var img := Image.new()
 		if not encoded is String or img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) != OK:
 			return null
 		img.convert(Image.FORMAT_RGBA8)
-		var big := maxi(img.get_width(), img.get_height())
-		if big > Avatar.MAX_LAYER:
-			img.resize(img.get_width() * Avatar.MAX_LAYER / big, img.get_height() * Avatar.MAX_LAYER / big, Image.INTERPOLATE_LANCZOS)
+		if shrink > 1:
+			img.resize(maxi(1, img.get_width() / shrink), maxi(1, img.get_height() / shrink), Image.INTERPOLATE_LANCZOS)
 		if mipmapped:
 			img.generate_mipmaps()
 		return img
@@ -142,13 +149,30 @@ static func prepare(model: Node3D) -> void:
 		var img: Image = decode.call(data.get(pair[0]), pair[2])
 		if img != null:
 			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(img))
-	var layers: Array[Image] = []
-	for encoded: Variant in data.get("looks", {}).get("decals", []):
-		layers.append(decode.call(encoded, true))
-	if not layers.is_empty() and layers.all(func(l: Image) -> bool: return l != null and l.get_size() == layers[0].get_size()):
-		var decals := Texture2DArray.new()
-		if decals.create_from_images(layers) == OK:
-			model.set_meta("expression_decals", decals)
+	var looks: Dictionary = data.get("looks", {})
+	var decals: Array = looks.get("decals", [])
+	looks.erase("decals")
+	var by_node := {}
+	for target: Dictionary in data.get("targets", []):
+		var effect: Variant = target.get("effect")
+		if effect is Dictionary and effect.has("look"):
+			for region: Dictionary in effect.look:
+				var k := int(region.get("image", -1))
+				if str(region.get("field", "")).begins_with("decal") and k >= 0 and k < decals.size() and decals[k] is Image:
+					(by_node.get_or_add(str(region.node), {}) as Dictionary)[k] = decals[k]
+	var sets := {}
+	var laid := {}
+	for node: String in by_node:
+		var drawn: Dictionary = by_node[node]
+		var key := drawn.keys()
+		key.sort()
+		if not laid.has(key):
+			var pages := _pages(drawn)
+			var array := Texture2DArray.new()
+			laid[key] = {"decals": array, "places": pages.places} if array.create_from_images(pages.images) == OK else {}
+		if not laid[key].is_empty():
+			sets[node] = laid[key]
+	model.set_meta("expression_decal_sets", sets)
 
 
 ## Binds the material index and lighting table (Avatar._flat_lit) to the meshes whose materials carry them, the ones
@@ -174,7 +198,48 @@ func _light_flat(model: Node3D) -> void:
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 
 
-static func _settings(kind: String, region: Dictionary) -> Array:
+## The decals `drawn` (index to image) laid on pages as wide as the widest of them, each with DECAL_PAD clear texels round
+## it, tallest first along shelves: {"images": the pages, mipmapped, "places": each index to [page, its rect in the
+## page's UV]}.
+static func _pages(drawn: Dictionary) -> Dictionary:
+	var side := 1
+	for img: Image in drawn.values():
+		side = maxi(side, maxi(img.get_width(), img.get_height()) + 2 * DECAL_PAD)
+	var order := drawn.keys()
+	order.sort_custom(func(a: int, b: int) -> bool: return drawn[a].get_height() > drawn[b].get_height())
+	var pages: Array[Image] = []
+	var places := {}
+	var x := side
+	var y := 0
+	var row := 0
+	for k: int in order:
+		var img: Image = (drawn[k] as Image).duplicate()
+		img.clear_mipmaps()
+		img.convert(Image.FORMAT_RGBA8)
+		var w := img.get_width() + 2 * DECAL_PAD
+		var h := img.get_height() + 2 * DECAL_PAD
+		if x + w > side:
+			x = 0
+			y += row
+			row = 0
+		if pages.is_empty() or y + h > side:
+			var page := Image.create_empty(side, side, false, Image.FORMAT_RGBA8)
+			page.fill(Color(0, 0, 0, 0))
+			pages.append(page)
+			x = 0
+			y = 0
+			row = 0
+		var at := Vector2i(x + DECAL_PAD, y + DECAL_PAD)
+		pages[-1].blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), at)
+		places[k] = [pages.size() - 1, float(at.x) / side, float(at.y) / side, float(at.x + img.get_width()) / side, float(at.y + img.get_height()) / side]
+		x += w
+		row = maxi(row, h)
+	for page in pages:
+		page.generate_mipmaps()
+	return {"images": pages, "places": places}
+
+
+static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 	match kind:
 		"hue":
 			return [region.get("space", 0), region.get("shift", 1), 0, 0, 0]
@@ -183,7 +248,7 @@ static func _settings(kind: String, region: Dictionary) -> Array:
 			return [region.get("channel", 0), 0, c[0], c[1], c[2]]
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
-	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("field") == "decalIntensity" else 0, 0]
+	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), 1 if region.get("field") == "decalIntensity" else 0, page]
 
 
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
@@ -200,6 +265,7 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 		if not by_shader.has(shader):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
+			mat.set_shader_parameter("decals", _no_decals())
 			if base != null:
 				mat.set_shader_parameter("picture", base.albedo_texture)
 				mat.set_shader_parameter("colour", base.albedo_color)
@@ -211,3 +277,16 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	out.assign(by_shader.values())
 	_materials[mesh] = out
 	return out
+
+
+static var _clear: Texture2DArray
+
+
+## A material whose model draws no decals still binds a decal array: a sampler array left unbound fails the material's
+## whole uniform set, and the surface draws nothing.
+static func _no_decals() -> Texture2DArray:
+	if _clear == null:
+		var texel := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+		_clear = Texture2DArray.new()
+		_clear.create_from_images([texel])
+	return _clear

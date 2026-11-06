@@ -7,7 +7,9 @@ func _init() -> void:
 	_fx()
 	_bindings()
 	_roundtrip()
-	_wide_layers_shrink()
+	_layers_follow_the_budget()
+	_decals_share_pages()
+	_moving_targets_leave_regions_bound()
 	_lighting()
 	finish()
 
@@ -124,19 +126,48 @@ func _bindings() -> void:
 	root.free()
 
 
-func _wide_layers_shrink() -> void:
+func _layers_follow_the_budget() -> void:
 	var wide := Image.create_empty(4096, 4096, false, Image.FORMAT_RGBA8)
+	var full := 4096 * 4096 * 4 * 4 / 3
+	check(Avatar.shrink_for(full, full) == 1 and Avatar.shrink_for(full, full / 4) == 2 and Avatar.shrink_for(full, full / 5) == 4, "an avatar's textures shrink by halves only until they fit its budget: %d %d %d" % [Avatar.shrink_for(full, full), Avatar.shrink_for(full, full / 4), Avatar.shrink_for(full, full / 5)])
+	check(Avatar.meminfo_available() > 0 and Avatar.meminfo_available() <= OS.get_memory_info().physical, "the memory available is read from the kernel, as on Android where Godot reports none: %d of %d" % [Avatar.meminfo_available(), OS.get_memory_info().physical])
+	var free := Avatar.available_memory()
+	var budget := Avatar.texture_budget()
+	check(budget > 0 and absf(budget - (free - Avatar.MEMORY_FLOOR) / (Session.MAX_PLAYERS - 1)) < (64 << 20), "the budget is the memory available above the floor, shared among the other players: %d of %d" % [budget, free])
+	for shrink: int in [1, 4]:
+		var root := Node3D.new()
+		root.set_meta("texture_shrink", shrink)
+		root.set_meta("expressions", {"colorAtlas": Marshalls.raw_to_base64(wide.save_png_to_buffer())})
+		ExpressionPlayer.prepare(root)
+		var untinted: Texture2D = root.get_meta("expression_untinted", null)
+		check(untinted != null and untinted.get_width() == 4096 / shrink, "a 4096 expression layer shrunk %d times is held at %d: %s" % [shrink, 4096 / shrink, untinted.get_width() if untinted else null])
+		root.free()
+
+
+func _decals_share_pages() -> void:
+	var sized := func(side: int, colour: Color) -> Image:
+		var img := Image.create_empty(side, side, false, Image.FORMAT_RGBA8)
+		img.fill(colour)
+		return img
+	var region := func(image: int) -> Dictionary: return {"effect": {"look": [{"node": "Body", "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "image": image}]}}
 	var root := Node3D.new()
-	root.set_meta("expressions", {"colorAtlas": Marshalls.raw_to_base64(wide.save_png_to_buffer()), "looks": {"decals": [Marshalls.raw_to_base64(wide.save_png_to_buffer())]}})
+	root.set_meta("expressions", {"targets": [region.call(0), region.call(2), region.call(3)], "looks": {"decals": [sized.call(64, Color.RED), sized.call(4096, Color.WHITE), sized.call(16, Color.GREEN), sized.call(16, Color.BLUE)]}})
 	ExpressionPlayer.prepare(root)
-	var decals: Texture2DArray = root.get_meta("expression_decals", null)
-	var untinted: Texture2D = root.get_meta("expression_untinted", null)
-	check(decals != null and decals.get_width() == Avatar.MAX_LAYER and untinted != null and untinted.get_width() == Avatar.MAX_LAYER, "a 4096 expression layer is held at %d: %s %s" % [Avatar.MAX_LAYER, decals.get_width() if decals else null, untinted.get_width() if untinted else null])
+	var body: Dictionary = root.get_meta("expression_decal_sets", {}).get("Body", {})
+	var pages: Texture2DArray = body.get("decals")
+	var places: Dictionary = body.get("places", {})
+	check(pages != null and pages.get_layers() == 2 and pages.get_width() == 64 + 2 * ExpressionPlayer.DECAL_PAD, "the decals a mesh draws lie on pages as wide as the widest of them, an undrawn one on none: %s" % [[pages.get_layers(), pages.get_width()] if pages else null])
+	check(places.keys().size() == 3 and not places.has(1) and places[2][0] == places[3][0] and places[0][0] != places[2][0], "each drawn decal has its page, the small two sharing one: %s" % [places])
+	var laid := ExpressionPlayer._pages({0: sized.call(64, Color.RED), 3: sized.call(16, Color.BLUE)})
+	var place: Array = laid.places[3]
+	var centre := Vector2((place[1] + place[3]) / 2.0, (place[2] + place[4]) / 2.0) * 80
+	check((laid.images[place[0]] as Image).get_pixelv(Vector2i(centre)).is_equal_approx(Color.BLUE), "a decal's place on its page holds it")
+	check(not (root.get_meta("expressions").looks as Dictionary).has("decals"), "the decal images leave the model once laid on pages")
 	root.free()
 
 
 ## Looks that name materials carry each one's lighting or the file is refused. A mesh that shows a flat material
-## draws by the material index, held nearest-sampled at most MAX_LAYER wide, and the lighting table; one that shows only
+## draws by the material index, held nearest-sampled at most INDEX_SIDE wide, and the lighting table; one that shows only
 ## lit materials keeps its plain material.
 func _lighting() -> void:
 	var index := Image.create_empty(4096, 4096, false, Image.FORMAT_L8)
@@ -169,7 +200,7 @@ func _lighting() -> void:
 	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
 	var held: Texture2D = mat.get_shader_parameter("light_index") if mat else null
 	var table: Texture2D = mat.get_shader_parameter("lighting") if mat else null
-	check(held != null and held.get_width() == Avatar.MAX_LAYER and held.get_image().get_pixel(Avatar.MAX_LAYER / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.MAX_LAYER / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.MAX_LAYER)
+	check(held != null and held.get_width() == Avatar.INDEX_SIDE and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.INDEX_SIDE)
 	var rows := table.get_image() if table else null
 	check(rows != null and rows.get_width() == 3 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
 	check(shown[1].get_surface_override_material(0) == null and shown[1].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials keeps its plain material")
@@ -177,13 +208,43 @@ func _lighting() -> void:
 	root.free()
 
 
+func _moving_targets_leave_regions_bound() -> void:
+	var model := Node3D.new()
+	var hat := MeshInstance3D.new()
+	hat.name = "Hat"
+	hat.mesh = BoxMesh.new()
+	model.add_child(hat)
+	var colour := {"effect": {"color": [{"node": "Hat", "rect": [0, 0, 1, 1], "channel": 0, "color": [1, 1, 1]}]}, "default": 1.0}
+	var turn := {"effect": {"rotation": {"node": "Hat", "axis": 0, "rest": [0, 0, 0]}}, "default": 0.0}
+	model.set_meta("expressions", {"parameters": [], "targets": [turn, colour], "clips": [], "layers": [], "shown": [], "menu": []})
+	var player := ExpressionPlayer.new(model)
+	player.apply()
+	var mat := hat.get_surface_override_material(0) as ShaderMaterial
+	check(mat != null and mat.get_shader_parameter("region_count") == 1, "a rotation target before a colour region leaves the region bound")
+	check(mat != null and mat.get_shader_parameter("decals") is Texture2DArray, "a material whose model draws no decals still binds a decal array, which left unbound fails its uniform set and draws nothing")
+	player.free()
+	model.free()
+
+
 func _roundtrip() -> void:
 	var scene: PackedScene = preload("res://demo/expressions.gd").scene()
 	var model := scene.instantiate() as Node3D
 	model.set_meta("springs", {})
+	model.set_meta("expressions", preload("res://demo/expressions.gd").definition())
 	Vrm.write(model, "user://expressions.vrm")
 	model.free()
-	var reloaded := Avatar.read(FileAccess.get_file_as_bytes("user://expressions.vrm"))
+	var bytes := FileAccess.get_file_as_bytes("user://expressions.vrm")
+	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
+	var decals: Array = json.extensions.VRCHAT_expressions.looks.decals
+	check(decals.size() == 1 and json.images[int(decals[0])].mimeType == "image/webp" and (json.images as Array).all(func(i: Dictionary) -> bool: return i.mimeType == "image/webp"), "every image, the decal its own, is written as WebP: %s" % [json.images])
+	if decals.size() == 1:
+		var view: Dictionary = json.bufferViews[int(json.images[int(decals[0])].bufferView)]
+		var at := 28 + bytes.decode_u32(12) + int(view.get("byteOffset", 0))
+		var decal := Image.new()
+		decal.load_webp_from_buffer(bytes.slice(at, at + int(view.byteLength)))
+		check(decal.get_data() == preload("res://demo/expressions.gd").decal().get_data(), "the decal's WebP is lossless")
+		check(Vrm._image_size(bytes.slice(at, at + 32)) == decal.get_size(), "a WebP is measured from its header: %s" % Vrm._image_size(bytes.slice(at, at + 32)))
+	var reloaded := Avatar.read(bytes)
 	check(reloaded != null, "the expression fixture survives a VRM export and import")
 	if reloaded == null:
 		return
@@ -197,6 +258,9 @@ func _roundtrip() -> void:
 		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
 		var mat := hat.get_surface_override_material(0) as ShaderMaterial
 		check(mat != null and mat.get_shader_parameter("region_count") == 3 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone and decal regions and their layers to the hat")
+		var regions: Texture2D = mat.get_shader_parameter("regions") if mat != null else null
+		var pad := float(ExpressionPlayer.DECAL_PAD) / (preload("res://demo/expressions.gd").SIZE + 2 * ExpressionPlayer.DECAL_PAD)
+		check(regions != null and regions.get_image().get_pixel(2, 3).is_equal_approx(Color(pad, pad, 1.0 - pad, 1.0 - pad)), "the decal region names its decal's place on its page: %s" % [regions.get_image().get_pixel(2, 3) if regions else null])
 	avatar.free()
 
 

@@ -104,6 +104,8 @@ void fragment() {
 	vec2 uv = UV * atlas.xy + atlas.zw;
 	vec2 dx = dFdx(uv);
 	vec2 dy = dFdy(uv);
+	vec2 uv_dx = dFdx(UV);
+	vec2 uv_dy = dFdy(UV);
 	vec4 base = texture(picture, uv);
 	vec4 hue = vec4(0.0);
 	vec3 tint = vec3(-1.0);
@@ -111,6 +113,9 @@ void fragment() {
 	vec4 decal_alpha = vec4(-1.0);
 	vec4 decal_intensity = vec4(1.0);
 	vec4 decal_multiply = vec4(0.0);
+	vec4 decal_page = vec4(0.0);
+	vec4 decal_rect[4];
+	vec4 decal_cell[4];
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
@@ -127,6 +132,9 @@ void fragment() {
 			} else {
 				int slot = int(s.z);
 				decal_multiply[slot] = s.w;
+				decal_page[slot] = e.z;
+				decal_rect[slot] = texelFetch(regions, ivec2(i, 3), 0);
+				decal_cell[slot] = rect;
 				if (e.y > 0.5) {
 					decal_intensity[slot] = s.x;
 					if (decal_alpha[slot] < 0.0) { decal_alpha[slot] = e.x; }
@@ -152,7 +160,11 @@ void fragment() {
 	}
 	for (int slot = 0; slot < 4; slot++) {
 		if (decal_alpha[slot] >= 0.0) {
-			vec4 decal = textureGrad(decals, vec3(uv, float(slot)), dx, dy);
+			vec4 cell = decal_cell[slot];
+			vec4 place = decal_rect[slot];
+			vec2 to_page = (place.zw - place.xy) / (cell.zw - cell.xy);
+			vec2 at = place.xy + (clamp(UV, cell.xy, cell.zw) - cell.xy) * to_page;
+			vec4 decal = textureGrad(decals, vec3(at, decal_page[slot]), uv_dx * to_page, uv_dy * to_page);
 			float alpha = clamp(decal_intensity[slot] * decal.a * clamp(decal_alpha[slot], 0.0, 1.0), 0.0, 1.0);
 			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * decal.rgb : decal.rgb, alpha);
 		}
