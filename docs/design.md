@@ -1358,6 +1358,47 @@ the lanterns' phase reads under its walls' price, so `fitting` fits to nothing.
 The lake drowns the plants the cut made cheaper, so its view reads as before (9.56 ms App time) over a meadow 0.7 ms
 cheaper: a view full of water cost 1.99 ms, more than the room then, until the water itself was made cheaper ("Water").
 
+### The ground in chunks
+
+The ground drew all of its 51,200 triangles every frame wherever a camera looked. Profiled on one Quest 2 at the fit
+step, standing on the bare meadow, the ground cost 2.23 ms (shown over hidden). Variants of it measured against each
+other in one run: a vertex shader that reads nothing saved nothing; a fragment shader that only writes a colour saved
+1.0 ms, and leaving the ground unlit saved 0.9; drawing the same ground on a 2 m grid saved 1.1 ms, on a 4 m grid 1.4.
+So the triangles were the cost, not their vertices' work. Now `Meadow` draws the ground as 100 chunks 16 m on a side,
+each its own mesh, so a camera culls those out of view, and a chunk wholly past 24 m of the eye across the ground draws
+at a 2 m grid, past 48 m at 4 m (`Terrain.LODS`, `Meadow.LOD_M`). A chunk's edge keeps a vertex every metre at every
+step, each cell along it a fan round its centre, so chunks at different steps meet vertex for vertex with no crack.
+The ground cost 1.29 ms standing after that, and from the air 2.08 ms, where culling alone left 3.50.
+
+Before (ce65361) and after (827afd4) on one Quest 2, interleaved, App= milliseconds a frame at the fit step, each
+view's two stretches and the same view with the ground hidden (`demo/fill-profile.json`):
+
+| Standing among, at the full room | Before, shown | Before, ground hidden | After, shown | After, ground hidden |
+| --- | --- | --- | --- | --- |
+| four houses (`houses-100/all-among`, `all-among2`) | 9.14, 11.03 | 8.59 | 9.16, 8.29 | 8.08 |
+| walls (`walls-100/all-among`, `all-among2`) | 8.65, 7.32 | 6.65 | 7.65, 7.67 | 7.16 |
+
+The stretches of one view spread wider than the change, so among builds this pair resolves no saving either way; the
+bare meadow, below, does.
+
+The bare meadow in `demo/costs.json` on that headset: from the air 5.43 to 4.72 ms, standing 5.04 to 4.62, at dusk 5.17 to
+4.50, beside the eye 5.25 to 5.42; the meadow with its own plants from the air 5.83 to 5.80, standing 5.43 to 5.10.
+
+A second Quest 2 reads 1 to 1.8 ms a frame more than the first on the same build, and among four houses at the full
+room it falls to half rate on both builds, so its houses phases measure nothing. Among the walls it held: 9.31 and 9.39
+ms before, 8.73 and 8.77 after (two interleaved pairs). In `demo/fill.json` there the bare meadow standing fell 5.57 to 4.84 ms and four houses standing
+among them 10.27 to 9.73, while the meadow-centre views of gardens keeping the meadow's plants moved within ±0.3 ms either
+way: there the plants over the ground bind the frame, as they do the meadow's own view from the air above.
+
+Refitted per "Build budget" from the first headset's runs, each against `demo/meadow-flora.json` interleaved with it:
+the meadow less its trees and bushes from the air went 5.83 less 0.47 to 5.80 less 1.01, standing 5.43 less 0.55 to 5.10
+less 0.86, from the shore 5.49 less 0.48 to 5.12 less 0.52, and the dearest of the bare meadow's views 5.43 (from the
+air) to 5.42 (beside the eye, where every chunk in view draws at the 1 m grid). So the base's dearest view stands where
+it stood, 5.43 and 5.42 ms, and with the table's 0.39 ms of wildlife and each run's timewarp (1.16, 1.19) the room fits at 4.13 ms before and 4.11 after, both over
+the 3.99 the table carries: `Budget.CAPACITY_MS` stays 3.99, and `demo/fill.json` builds the same at its full room on
+either build, five walls (fill 0.968 and 0.964) and four houses (0.867 and 0.885). What is left of the ground's cost is
+its pixels: the room rises only once the ground's shading beside the eye costs less.
+
 ### Anti-aliasing on the Quest 2
 
 Anti-aliasing stays on every headset. `demo/antialias.json` (driver step `antialias`) holds each state for 5 s, three
