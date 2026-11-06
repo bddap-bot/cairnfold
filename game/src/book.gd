@@ -361,11 +361,6 @@ func _stack_top() -> float:
 	return leaves * LEAF_T
 
 
-## How thick the pages stand, all of them.
-static func leaves_t() -> float:
-	return ceili(Lessons.PAGES.size() / 2.0) * LEAF_T
-
-
 func _lay() -> void:
 	var turning: int = _turn.get("leaf", -1)
 	var left_n := 0

@@ -42,7 +42,6 @@ static func moss() -> ArrayMesh:
 	return st.commit()
 
 
-
 ## The lattice a finer rounded box carries as its level of detail.
 const LOD_SEGMENTS := 2
 

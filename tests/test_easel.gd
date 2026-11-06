@@ -122,7 +122,6 @@ func _a_stroke_lays_the_same_dabs_every_time() -> void:
 		check(constant, "a long stroke keeps its load in medium %d" % medium)
 
 
-
 func _strokes_are_kept_and_load_whole() -> void:
 	var path := dir.path_join("garden.save")
 	world.load_from(path)

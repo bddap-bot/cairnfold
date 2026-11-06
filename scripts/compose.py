@@ -22,7 +22,6 @@ QUALITY = {
     "m7": [0, 3, 7, 10], "m9": [0, 3, 7, 10, 14], "maj9": [0, 4, 7, 11, 14],
     "sus4": [0, 5, 7], "9": [0, 4, 7, 10, 14], "add9": [0, 4, 7, 14], "6": [0, 4, 7, 9],
 }
-B_MAJOR = [11, 1, 3, 4, 6, 8, 10]
 B_MINOR = [11, 1, 2, 4, 6, 7, 9]
 
 
@@ -530,10 +529,6 @@ def water():
 # Its own generator too: the action sounds Cues plays (game/src/cues.gd), soft like the stones and the music, nothing
 # bright above the low kHz.
 crng = np.random.default_rng(59)
-
-
-def _decay(seconds, rate):
-    return np.exp(-_t(seconds) * rate)
 
 
 def _band(x, lo, hi, order=2):

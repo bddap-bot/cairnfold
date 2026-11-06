@@ -24,14 +24,14 @@ func _init(from: Assets, descriptor: Dictionary) -> void:
 	assets = from
 	if str(descriptor.get("customExpressions", "0")) != "1":
 		return
-	var menu := _guid(descriptor.get("expressionsMenu"))
+	var menu := Yaml.guid(descriptor.get("expressionsMenu"))
 	var controller := ""
-	for layer: Variant in _list(descriptor.get("baseAnimationLayers")):
+	for layer: Variant in Yaml.list(descriptor.get("baseAnimationLayers")):
 		if layer is Dictionary and str(layer.get("type", "")) == FX and str(layer.get("isDefault", "1")) != "1":
-			controller = _guid(layer.get("animatorController"))
+			controller = Yaml.guid(layer.get("animatorController"))
 	if not assets.by_guid.has(menu) or not assets.by_guid.has(controller):
 		return
-	var parameters := _parameters(_guid(descriptor.get("expressionParameters")), controller)
+	var parameters := _parameters(Yaml.guid(descriptor.get("expressionParameters")), controller)
 	data = empty()
 	data.menu = _menu(menu, 0)
 	data.parameters = parameters
@@ -45,18 +45,6 @@ static func empty() -> Dictionary:
 
 func _count(kind: String) -> void:
 	dropped[kind] = dropped.get(kind, 0) + 1
-
-
-static func _list(v: Variant) -> Array:
-	return v if v is Array else []
-
-
-static func _guid(ref: Variant) -> String:
-	return str((ref as Dictionary).get("guid", "")) if ref is Dictionary else ""
-
-
-static func _id(ref: Variant) -> int:
-	return str((ref as Dictionary).get("fileID", "0")).to_int() if ref is Dictionary else 0
 
 
 static func _float(v: Variant, otherwise := 0.0) -> float:
@@ -78,17 +66,17 @@ func _asset(guid: String) -> Dictionary:
 
 func _menu(guid: String, depth: int) -> Array:
 	var out := []
-	for c: Variant in _list(_asset(guid).get("controls")):
+	for c: Variant in Yaml.list(_asset(guid).get("controls")):
 		if not c is Dictionary:
 			continue
 		var type: String = CONTROLS.get(str(c.get("type", "")), "")
 		if type == "":
 			_count("menu control of type %s" % c.get("type", ""))
 			continue
-		var control := {"name": str(c.get("name", "")), "type": type, "parameter": str((c.get("parameter", {}) as Dictionary).get("name", "")) if c.get("parameter") is Dictionary else "", "value": _float(c.get("value"), 1.0), "icon": _guid(c.get("icon"))}
-		control.axes = _list(c.get("subParameters")).map(func(p: Variant) -> String: return str((p as Dictionary).get("name", "")) if p is Dictionary else "")
+		var control := {"name": str(c.get("name", "")), "type": type, "parameter": str((c.get("parameter", {}) as Dictionary).get("name", "")) if c.get("parameter") is Dictionary else "", "value": _float(c.get("value"), 1.0), "icon": Yaml.guid(c.get("icon"))}
+		control.axes = Yaml.list(c.get("subParameters")).map(func(p: Variant) -> String: return str((p as Dictionary).get("name", "")) if p is Dictionary else "")
 		if type == "submenu":
-			var sub := _guid(c.get("subMenu"))
+			var sub := Yaml.guid(c.get("subMenu"))
 			if not assets.by_guid.has(sub) or depth >= MAX_MENU_DEPTH:
 				_count("submenu not in the package")
 				continue
@@ -102,12 +90,12 @@ func _parameters(list: String, controller: String) -> Array:
 	for o: Dictionary in _objects(controller).values():
 		if o.type != "AnimatorController":
 			continue
-		for p: Variant in _list(o.data.get("m_AnimatorParameters")):
+		for p: Variant in Yaml.list(o.data.get("m_AnimatorParameters")):
 			var name := str(p.get("m_Name", ""))
 			var type: String = ANIMATOR_TYPES.get(str(p.get("m_Type", "")), "float")
 			var value := _float(p.get("m_DefaultFloat")) if type == "float" else _float(p.get("m_DefaultInt")) if type == "int" else _float(p.get("m_DefaultBool"))
 			out[name] = {"name": name, "type": type, "default": BUILT_IN.get(name, value), "saved": false}
-	for p: Variant in _list(_asset(list).get("parameters")):
+	for p: Variant in Yaml.list(_asset(list).get("parameters")):
 		if not p is Dictionary or str(p.get("name", "")) == "":
 			continue
 		var name := str(p.name)
@@ -122,8 +110,8 @@ func _layers(guid: String, parameters: Array) -> Array:
 		if o.type != "AnimatorController":
 			continue
 		var first := true
-		for l: Variant in _list(o.data.get("m_AnimatorLayers")):
-			var machine := _id(l.get("m_StateMachine"))
+		for l: Variant in Yaml.list(o.data.get("m_AnimatorLayers")):
+			var machine := Yaml.file_id(l.get("m_StateMachine"))
 			if str(l.get("m_SyncedLayerIndex", "-1")) != "-1":
 				_count("synced layer")
 				continue
@@ -141,10 +129,10 @@ func _layers(guid: String, parameters: Array) -> Array:
 			var layer := {"weight": 1.0 if first else _float(l.get("m_DefaultWeight"), 1.0), "states": [], "any": [], "entry": [], "default": index.get(_default(objs, machine), 0)}
 			first = false
 			for m: int in machines:
-				for t: Variant in _list(objs[m].data.get("m_AnyStateTransitions")):
-					layer.any.append_array(_transition(objs, _id(t), index))
-			for t: Variant in _list(objs[machine].data.get("m_EntryTransitions")):
-				layer.entry.append_array(_transition(objs, _id(t), index))
+				for t: Variant in Yaml.list(objs[m].data.get("m_AnyStateTransitions")):
+					layer.any.append_array(_transition(objs, Yaml.file_id(t), index))
+			for t: Variant in Yaml.list(objs[machine].data.get("m_EntryTransitions")):
+				layer.entry.append_array(_transition(objs, Yaml.file_id(t), index))
 			for s: int in order:
 				var d: Dictionary = objs[s].data
 				var state := {"name": str(d.get("m_Name", "")), "speed": _float(d.get("m_Speed"), 1.0), "writeDefaults": str(d.get("m_WriteDefaultValues", "1")) == "1", "transitions": [], "drivers": []}
@@ -155,10 +143,10 @@ func _layers(guid: String, parameters: Array) -> Array:
 					state.motion.time = str(d.get("m_TimeParameter", ""))
 				if str(d.get("m_SpeedParameterActive", "0")) == "1":
 					_count("state speed parameter")
-				for t: Variant in _list(d.get("m_Transitions")):
-					state.transitions.append_array(_transition(objs, _id(t), index))
-				for b: Variant in _list(d.get("m_StateMachineBehaviours")):
-					state.drivers.append_array(_drivers(objs.get(_id(b), {}).get("data", {})))
+				for t: Variant in Yaml.list(d.get("m_Transitions")):
+					state.transitions.append_array(_transition(objs, Yaml.file_id(t), index))
+				for b: Variant in Yaml.list(d.get("m_StateMachineBehaviours")):
+					state.drivers.append_array(_drivers(objs.get(Yaml.file_id(b), {}).get("data", {})))
 				layer.states.append(state)
 			out.append(layer)
 	return out
@@ -168,16 +156,16 @@ static func _collect(objs: Dictionary, machine: int, states: Dictionary, machine
 	if machines.has(machine) or not objs.has(machine):
 		return
 	machines[machine] = true
-	for c: Variant in _list(objs[machine].data.get("m_ChildStates")):
-		var s := _id((c as Dictionary).get("m_State"))
+	for c: Variant in Yaml.list(objs[machine].data.get("m_ChildStates")):
+		var s := Yaml.file_id((c as Dictionary).get("m_State"))
 		if objs.has(s):
 			states[s] = true
-	for c: Variant in _list(objs[machine].data.get("m_ChildStateMachines")):
-		_collect(objs, _id((c as Dictionary).get("m_StateMachine")), states, machines)
+	for c: Variant in Yaml.list(objs[machine].data.get("m_ChildStateMachines")):
+		_collect(objs, Yaml.file_id((c as Dictionary).get("m_StateMachine")), states, machines)
 
 
 static func _default(objs: Dictionary, machine: int) -> int:
-	var d := _id(objs[machine].data.get("m_DefaultState"))
+	var d := Yaml.file_id(objs[machine].data.get("m_DefaultState"))
 	return d
 
 
@@ -189,14 +177,14 @@ func _transition(objs: Dictionary, id: int, index: Dictionary) -> Array:
 		return []
 	var to := -1
 	if str(d.get("m_IsExit", "0")) != "1":
-		var target := _id(d.get("m_DstState"))
-		if not index.has(target) and objs.has(_id(d.get("m_DstStateMachine"))):
-			target = _default(objs, _id(d.get("m_DstStateMachine")))
+		var target := Yaml.file_id(d.get("m_DstState"))
+		if not index.has(target) and objs.has(Yaml.file_id(d.get("m_DstStateMachine"))):
+			target = _default(objs, Yaml.file_id(d.get("m_DstStateMachine")))
 		if not index.has(target):
 			return []
 		to = index[target]
 	var conditions := []
-	for c: Variant in _list(d.get("m_Conditions")):
+	for c: Variant in Yaml.list(d.get("m_Conditions")):
 		var mode: String = CONDITIONS.get(str(c.get("m_ConditionMode", "")), "")
 		if mode == "":
 			_count("transition condition mode %s" % c.get("m_ConditionMode", ""))
@@ -216,17 +204,17 @@ func _drivers(d: Dictionary) -> Array:
 			_count("animator layer or tracking control")
 		return []
 	var out := []
-	for p: Variant in _list(d.get("parameters")):
+	for p: Variant in Yaml.list(d.get("parameters")):
 		var drive: int = clampi(str(p.get("type", "0")).to_int(), 0, 3)
 		out.append({"parameter": str(p.get("name", "")), "drive": DRIVES[drive], "value": _float(p.get("value")), "min": _float(p.get("valueMin")), "max": _float(p.get("valueMax"), 1.0), "chance": _float(p.get("chance"), 1.0), "source": str(p.get("source", ""))})
 	return out
 
 
 func _motion(document: String, ref: Variant, depth: int) -> Dictionary:
-	var guid := _guid(ref)
+	var guid := Yaml.guid(ref)
 	if guid == "":
 		guid = document
-	var id := _id(ref)
+	var id := Yaml.file_id(ref)
 	if id == 0 or depth > 8:
 		return {}
 	var objs := _objects(guid)
@@ -249,7 +237,7 @@ func _motion(document: String, ref: Variant, depth: int) -> Dictionary:
 	var tree := {"blend": blend, "parameters": [str(d.get("m_BlendParameter", "")), str(d.get("m_BlendParameterY", ""))], "children": []}
 	if blend == "direct" and str(d.get("m_NormalizedBlendValues", "0")) == "1":
 		tree.normalized = true
-	for c: Variant in _list(d.get("m_Childs")):
+	for c: Variant in Yaml.list(d.get("m_Childs")):
 		var child := {"motion": _motion(guid, c.get("m_Motion"), depth + 1), "threshold": _float(c.get("m_Threshold")), "parameter": str(c.get("m_DirectBlendParameter", "")), "speed": _float(c.get("m_TimeScale"), 1.0), "offset": _float(c.get("m_CycleOffset"))}
 		var at: Variant = c.get("m_Position")
 		child.position = [_float((at as Dictionary).get("x")), _float((at as Dictionary).get("y"))] if at is Dictionary else [0.0, 0.0]
@@ -262,20 +250,20 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 	if _clips.has(key):
 		return _clips[key]
 	var curves := []
-	for c: Variant in _list(d.get("m_FloatCurves")):
-		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "script": _guid(c.get("script")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"))})
+	for c: Variant in Yaml.list(d.get("m_FloatCurves")):
+		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "script": Yaml.guid(c.get("script")), "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"))})
 	for kind: String in ["m_ScaleCurves", "m_PositionCurves", "m_EulerCurves"]:
-		for c: Variant in _list(d.get(kind)):
+		for c: Variant in Yaml.list(d.get(kind)):
 			var attribute: String = {"m_ScaleCurves": "m_LocalScale", "m_PositionCurves": "m_LocalPosition", "m_EulerCurves": "localEulerAnglesRaw"}[kind]
 			for axis: String in ["x", "y", "z"]:
 				curves.append({"path": str(c.get("path", "")), "attribute": "%s.%s" % [attribute, axis], "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), axis)})
-	for c: Variant in _list(d.get("m_RotationCurves")):
+	for c: Variant in Yaml.list(d.get("m_RotationCurves")):
 		for axis: String in ["x", "y", "z", "w"]:
 			curves.append({"path": str(c.get("path", "")), "attribute": "m_LocalRotation.%s" % axis, "class": "4", "keys": _keys((c.get("curve", {}) as Dictionary).get("m_Curve"), axis)})
-	for c: Variant in _list(d.get("m_PPtrCurves")):
+	for c: Variant in Yaml.list(d.get("m_PPtrCurves")):
 		var refs := []
-		for k: Variant in _list(c.get("curve")):
-			refs.append([_float((k as Dictionary).get("time")), _guid((k as Dictionary).get("value"))])
+		for k: Variant in Yaml.list(c.get("curve")):
+			refs.append([_float((k as Dictionary).get("time")), Yaml.guid((k as Dictionary).get("value"))])
 		curves.append({"path": str(c.get("path", "")), "attribute": str(c.get("attribute", "")), "class": str(c.get("classID", "")), "refs": refs})
 	var settings: Dictionary = d.get("m_AnimationClipSettings", {}) if d.get("m_AnimationClipSettings") is Dictionary else {}
 	var length := maxf(_float(settings.get("m_StopTime")) - _float(settings.get("m_StartTime")), 0.0)
@@ -288,7 +276,7 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 ## weighted (an unweighted side keeps Unity's 1/3); an infinite (constant) slope is null.
 static func _keys(list: Variant, axis := "") -> Array:
 	var out := []
-	for k: Variant in _list(list):
+	for k: Variant in Yaml.list(list):
 		if k is Dictionary:
 			var of := func(field: String) -> Variant: return (k.get(field) as Dictionary).get(axis) if axis != "" and k.get(field) is Dictionary else k.get(field)
 			var key := [_float(k.get("time")), _float(of.call("value")), _slope(of.call("inSlope")), _slope(of.call("outSlope"))]

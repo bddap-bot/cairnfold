@@ -203,3 +203,15 @@ static func _scalar(s: String) -> String:
 	if s.length() >= 2 and s[0] == "\"" and s[-1] == "\"":
 		return s.substr(1, s.length() - 2).c_unescape()
 	return s
+
+
+static func list(v: Variant) -> Array:
+	return v if v is Array else []
+
+
+static func file_id(ref: Variant) -> int:
+	return str((ref as Dictionary).get("fileID", "0")).to_int() if ref is Dictionary else 0
+
+
+static func guid(ref: Variant) -> String:
+	return str((ref as Dictionary).get("guid", "")) if ref is Dictionary else ""

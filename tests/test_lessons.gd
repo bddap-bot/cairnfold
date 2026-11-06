@@ -201,7 +201,7 @@ func _shut_book_turns_nothing() -> void:
 	var rig: Rig = main.rig
 	rig.left.global_transform = rig.head.global_transform * held_book
 	await frames(30)
-	var cover := rig.left.global_transform * Book.local(0.0) * Vector3(Book.W * 0.5, Book.leaves_t() + 0.01, 0)
+	var cover := rig.left.global_transform * Book.local(0.0) * Vector3(Book.W * 0.5, book._stack_top() + 0.01, 0)
 	rig.right.global_transform = Transform3D(Basis.IDENTITY, cover + Vector3(0.3, 0.3, 0.3))
 	await frames(5)
 	check(book.at == 0, "a hand away from the shut book leaves it shut")

@@ -97,7 +97,6 @@ static func deepest(candidates: Array, level: float) -> PondLayout.Pond:
 	return best
 
 
-
 func clear() -> void:
 	show_ponds([])
 

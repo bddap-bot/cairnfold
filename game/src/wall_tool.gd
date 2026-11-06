@@ -662,7 +662,7 @@ func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
 		laid_at.pop_front()
 	var was: Dictionary = laid_at[0]
 	var lift: float = 0.0 if not at.grounded else _lowest(outline(at), world.terrain.shown_at) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round}), world.terrain.shown_at) + at.rise - was.rise
-	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
+	var from := _footing(was)
 	var to := Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, lift, at.center.z))
 	_place_laid(w, to * from.affine_inverse())
 

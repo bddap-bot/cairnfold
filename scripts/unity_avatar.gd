@@ -197,14 +197,14 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	# The model file's bind pose need not be a T-pose; the humanoid rests in the pose its Unity Avatar was configured in,
 	# mirrored across X as Godot's FBX importer mirrors Unity's.
 	var description: Dictionary = (assets.meta(main).get("ModelImporter", {}) as Dictionary).get("humanDescription", {})
-	for bone: Dictionary in Prefabs._list(description.get("skeleton")):
+	for bone: Dictionary in Yaml.list(description.get("skeleton")):
 		var b := source.find_bone(str(bone.get("name", "")))
 		var q: Variant = bone.get("rotation")
 		if b >= 0 and q is Dictionary:
 			var rest := source.get_bone_rest(b)
 			var turn := Quaternion(str(q.x).to_float(), -str(q.y).to_float(), -str(q.z).to_float(), str(q.w).to_float()).normalized()
 			source.set_bone_rest(b, Transform3D(Basis(turn).scaled(rest.basis.get_scale()), rest.origin))
-	var scale := _world_scale(objs, _model_root(objs, main, renderers, found.transform))
+	var scale := _world_scale(objs, _model_root(objs, main, found.transform))
 	var from := Transform3D.IDENTITY.scaled(Vector3.ONE * scale) * _in_model(source)
 	var k := from.basis.get_scale().y
 	var root := Node3D.new()
@@ -231,7 +231,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	for name: String in model_bones:
 		var bone := _find_bone(sk, name)
 		if bone >= 0:
-			source_bones[_ref(objs[model_bones[name]].data.get("m_GameObject"))] = bone
+			source_bones[Yaml.file_id(objs[model_bones[name]].data.get("m_GameObject"))] = bone
 	sk.set_meta("unity_bones", source_bones)
 	sk.set_meta("unity_top", found.transform)
 	sk.set_meta("unity_model", main)
@@ -244,7 +244,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	for i in clips.size():
 		for c: Dictionary in clips[i].curves:
 			if c.attribute.begins_with("blendShape.") and c["class"] == "137" and paths.has(c.path) and not c.has("refs"):
-				var renderer := Prefabs.renderer_of(objs, _ref(objs[paths[c.path]].data.get("m_GameObject")))
+				var renderer := Prefabs.renderer_of(objs, Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject")))
 				var shapes: Dictionary = animated.get_or_add(renderer, {})
 				(shapes.get_or_add(c.attribute.trim_prefix("blendShape."), []) as Array).append([i, c["keys"]])
 	var faced := {}
@@ -347,7 +347,7 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 			var o: Dictionary = objs[id]
 			if o.type != "MonoBehaviour" or not o.data.has("ViewPosition"):
 				continue
-			var go := _ref(o.data.get("m_GameObject"))
+			var go := Yaml.file_id(o.data.get("m_GameObject"))
 			if not objs.has(go):
 				continue
 			var name := str(objs[go].data.get("m_Name", ""))
@@ -377,16 +377,12 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	return {}
 
 
-static func _ref(v: Variant) -> int:
-	return str((v as Dictionary).get("fileID", "0")).to_int() if v is Dictionary else 0
-
-
 ## Every transform under `top`, itself included, with its GameObject: [[transform, go], ...] parents first.
 static func _under(objs: Dictionary, top: int) -> Array:
 	var children := {}
 	for id: int in objs:
 		if objs[id].type in ["Transform", "RectTransform"]:
-			children.get_or_add(_ref(objs[id].data.get("m_Father")), []).append(id)
+			children.get_or_add(Yaml.file_id(objs[id].data.get("m_Father")), []).append(id)
 	var out := []
 	var pending := [top]
 	var seen := {}
@@ -395,7 +391,7 @@ static func _under(objs: Dictionary, top: int) -> Array:
 		if seen.has(t):
 			continue
 		seen[t] = true
-		out.append([t, _ref(objs[t].data.get("m_GameObject"))])
+		out.append([t, Yaml.file_id(objs[t].data.get("m_GameObject"))])
 		pending.append_array(children.get(t, []))
 	return out
 
@@ -415,19 +411,19 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 		when.append([by[id], 1])
 	elif str(d.get("m_Enabled", "1")) != "1":
 		return null
-	var go := _ref(d.get("m_GameObject"))
+	var go := Yaml.file_id(d.get("m_GameObject"))
 	var t := Prefabs.transform_of(objs, go) if objs.has(go) else 0
 	var seen := {}
 	while objs.has(t) and not seen.has(t):
 		seen[t] = true
-		go = _ref(objs[t].data.get("m_GameObject"))
+		go = Yaml.file_id(objs[t].data.get("m_GameObject"))
 		if str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly":
 			return null
 		if by.has(go):
 			when.append([by[go], 1])
 		elif not _active(objs, go):
 			return null
-		t = _ref(objs[t].data.get("m_Father"))
+		t = Yaml.file_id(objs[t].data.get("m_Father"))
 	return when
 
 
@@ -444,7 +440,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 	for e: Array in _under(objs, top):
 		inside[e[0]] = true
 	for e: Array in _under(objs, top):
-		var father := _ref(objs[e[0]].data.get("m_Father"))
+		var father := Yaml.file_id(objs[e[0]].data.get("m_Father"))
 		var switched: bool = switches.has(e[1]) and str(objs.get(e[1], {}).get("data", {}).get("m_TagString", "")) != "EditorOnly"
 		var live: bool = (_active(objs, e[1]) or switched) and (e[0] == top or on.get(father, false))
 		on[e[0]] = live
@@ -452,8 +448,8 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 		placed[e[0]] = e[0] != top and (placed.get(father, false) or _constrained(objs, e[1], inside))
 		if not live or not objs.has(e[1]):
 			continue
-		for c: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
-			var id := _ref((c as Dictionary).get("component"))
+		for c: Variant in Yaml.list(objs[e[1]].data.get("m_Component")):
+			var id := Yaml.file_id((c as Dictionary).get("component"))
 			if not objs.has(id) or not objs[id].type in Prefabs.RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
 				continue
 			if placed[e[0]]:
@@ -473,7 +469,7 @@ static func _paths(objs: Dictionary, top: int) -> Dictionary:
 	for e: Array in _under(objs, top):
 		if e[0] == top:
 			continue
-		var parent: String = by_transform.get(_ref(objs[e[0]].data.get("m_Father")), "")
+		var parent: String = by_transform.get(Yaml.file_id(objs[e[0]].data.get("m_Father")), "")
 		var path := ("%s/%s" % [parent, objs.get(e[1], {}).get("data", {}).get("m_Name", "")]).trim_prefix("/")
 		by_transform[e[0]] = path
 		out.get_or_add(path, e[0])
@@ -493,7 +489,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
 			if out.by_curve.has(key) or not paths.has(c.path):
 				continue
-			var go := _ref(objs[paths[c.path]].data.get("m_GameObject"))
+			var go := Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject"))
 			if c.attribute == "m_IsActive" and c["class"] == "1":
 				out.by_curve[key] = _switch(out, go, 1.0 if str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" else 0.0)
 				continue
@@ -512,7 +508,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 				out.by_curve[key] = _switch(out, renderer, 1.0 if str(objs[renderer].data.get("m_Enabled", "1")) == "1" else 0.0)
 			elif c.attribute.begins_with("m_Materials.Array.data[") and c.has("refs"):
 				var slot: int = str(c.attribute).trim_prefix("m_Materials.Array.data[").trim_suffix("]").to_int()
-				var refs: Array = Prefabs._list(objs[renderer].data.get("m_Materials"))
+				var refs: Array = Yaml.list(objs[renderer].data.get("m_Materials"))
 				var at := "%d:%d" % [renderer, slot]
 				if not out.slots.has(at):
 					out.slots[at] = [_switch(out, at, 0.0), [refs[slot] if slot < refs.size() else {}]]
@@ -546,10 +542,10 @@ static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 
 ## The PhysBone, DynamicBone or collider on `go` that an m_Enabled curve naming `script` animates: Unity binds the first.
 static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
-	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
+	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		var d: Dictionary = objs.get(id, {}).get("data", {})
-		if str((d.get("m_Script", {}) as Dictionary).get("guid", "")) == script and (_spring_component(d) or not _collider(d).is_empty()):
+		if Yaml.guid(d.get("m_Script")) == script and (_spring_component(d) or not _collider(d).is_empty()):
 			return id
 	return 0
 
@@ -722,7 +718,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
 	var transform: int = paths[c.path]
-	var go := _ref(objs[transform].data.get("m_GameObject"))
+	var go := Yaml.file_id(objs[transform].data.get("m_GameObject"))
 	var effect := {}
 	var rest := 1.0
 	var bone: int = (sk.get_meta("unity_bones", {}) as Dictionary).get(go, sk.find_bone(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()))
@@ -747,10 +743,10 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "look" if not look.is_empty() else "hue"
 		var renderer := Prefabs.renderer_of(objs, go)
 		var regions := []
-		for ref: Variant in Prefabs._list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
+		for ref: Variant in Yaml.list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
 			if not ref is Dictionary:
 				continue
-			var key := str(ref.get("guid", ""))
+			var key := Yaml.guid(ref)
 			if not materials.materials.has(key):
 				continue
 			var material: Dictionary = materials.materials[key]
@@ -881,8 +877,8 @@ static func _controls(menu: Array) -> int:
 
 ## Script constraints without a runtime representation still exclude externally placed geometry.
 static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
-	for c: Variant in Prefabs._list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
+	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		if not objs.has(id):
 			continue
 		var d: Dictionary = objs[id].data
@@ -893,7 +889,7 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 					sources.append([d.Sources[k].get("SourceTransform"), d.Sources[k].get("Weight", "1")])
 		for e: Array in sources:
 			var ref: Dictionary = e[0] if e[0] is Dictionary else {}
-			if str(e[1]).to_float() > 0.0 and (ref.has("guid") or not inside.has(_ref(ref))):
+			if str(e[1]).to_float() > 0.0 and (ref.has("guid") or not inside.has(Yaml.file_id(ref))):
 				return true
 	return false
 
@@ -903,15 +899,15 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 static func _main_model(assets: Assets, prefabs: Prefabs, objs: Dictionary, go: int, renderers: Array) -> String:
 	var humanoid := func(g: String) -> bool:
 		return assets.by_guid.has(g) and assets.extension(g) in Prefabs.MODELS and not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty()
-	for c: Variant in Prefabs._list(objs[go].data.get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
+	for c: Variant in Yaml.list(objs[go].data.get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		if objs.has(id) and objs[id].type == "Animator":
-			var g := str((objs[id].data.get("m_Avatar", {}) as Dictionary).get("guid", ""))
+			var g := Yaml.guid(objs[id].data.get("m_Avatar"))
 			if humanoid.call(g) and not prefabs.model(g).is_empty():
 				return g
 	var counts := {}
 	for r: Array in renderers:
-		var g := _mesh_model(objs, r[0], objs[r[0]].type)
+		var g := Yaml.guid(_mesh_ref(objs, r[0]))
 		if humanoid.call(g):
 			counts[g] = counts.get(g, 0) + 1
 	var best := ""
@@ -921,23 +917,12 @@ static func _main_model(assets: Assets, prefabs: Prefabs, objs: Dictionary, go: 
 	return best if best == "" or not prefabs.model(best).is_empty() else ""
 
 
-static func _mesh_model(objs: Dictionary, renderer: int, type: String) -> String:
-	if type == "SkinnedMeshRenderer":
-		return str((objs[renderer].data.get("m_Mesh", {}) as Dictionary).get("guid", ""))
-	var go := _ref(objs[renderer].data.get("m_GameObject"))
-	for c: Variant in Prefabs._list(objs[go].data.get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
-		if objs.has(id) and objs[id].type == "MeshFilter":
-			return str((objs[id].data.get("m_Mesh", {}) as Dictionary).get("guid", ""))
-	return ""
-
-
 static func _mesh_ref(objs: Dictionary, renderer: int) -> Dictionary:
 	if objs[renderer].type == "SkinnedMeshRenderer":
 		return objs[renderer].data.get("m_Mesh", {})
-	var go := _ref(objs[renderer].data.get("m_GameObject"))
-	for c: Variant in Prefabs._list(objs[go].data.get("m_Component")):
-		var id := _ref((c as Dictionary).get("component"))
+	var go := Yaml.file_id(objs[renderer].data.get("m_GameObject"))
+	for c: Variant in Yaml.list(objs[go].data.get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		if objs.has(id) and objs[id].type == "MeshFilter":
 			return objs[id].data.get("m_Mesh", {})
 	return {}
@@ -945,7 +930,7 @@ static func _mesh_ref(objs: Dictionary, renderer: int) -> Dictionary:
 
 ## The transform of the main model's own GameObject in the avatar, or the avatar's where the model is not instanced
 ## whole (an unpacked scene).
-static func _model_root(objs: Dictionary, model: String, renderers: Array, top: int) -> int:
+static func _model_root(objs: Dictionary, model: String, top: int) -> int:
 	for e: Array in _under(objs, top):
 		var o: Dictionary = objs.get(e[1], {})
 		if o.get("guid", "") == model and not o.has("node"):
@@ -962,7 +947,7 @@ static func _world_scale(objs: Dictionary, t: int) -> float:
 		var l: Variant = objs[t].data.get("m_LocalScale")
 		if l is Dictionary:
 			s *= absf(str(l.get("y", "1")).to_float())
-		t = _ref(objs[t].data.get("m_Father"))
+		t = Yaml.file_id(objs[t].data.get("m_Father"))
 	return s
 
 
@@ -972,7 +957,7 @@ static func _world_transform(objs: Dictionary, t: int) -> Transform3D:
 	while objs.has(t) and not seen.has(t):
 		seen[t] = true
 		world = _local(objs[t].data) * world
-		t = _ref(objs[t].data.get("m_Father"))
+		t = Yaml.file_id(objs[t].data.get("m_Father"))
 	return world
 
 
@@ -981,12 +966,12 @@ static func _world_transform(objs: Dictionary, t: int) -> Transform3D:
 static func _model_bones(objs: Dictionary, top: int, model: String, renderers: Array) -> Dictionary:
 	var out := {}
 	for r: Array in renderers:
-		if _mesh_model(objs, r[0], objs[r[0]].type) != model:
+		if Yaml.guid(_mesh_ref(objs, r[0])) != model:
 			continue
-		for t: Variant in Prefabs._list(objs[r[0]].data.get("m_Bones")):
-			var go := _ref(objs.get(_ref(t), {}).get("data", {}).get("m_GameObject"))
+		for t: Variant in Yaml.list(objs[r[0]].data.get("m_Bones")):
+			var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
 			if objs.has(go):
-				out.get_or_add(str(objs[go].data.get("m_Name", "")), _ref(t))
+				out.get_or_add(str(objs[go].data.get("m_Name", "")), Yaml.file_id(t))
 	for e: Array in _under(objs, top):
 		var object: Dictionary = objs.get(e[1], {})
 		if object.get("guid", "") == model:
@@ -1012,25 +997,25 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 	var unlinked := []
 	for id: int in objs:
 		var d: Dictionary = objs[id].data
-		if objs[id].type != "MonoBehaviour" or not inside.has(_ref(d.get("m_GameObject"))):
+		if objs[id].type != "MonoBehaviour" or not inside.has(Yaml.file_id(d.get("m_GameObject"))):
 			continue
-		for entry: Dictionary in Prefabs._list(d.get("references", {}).get("RefIds")):
+		for entry: Dictionary in Yaml.list(d.get("references", {}).get("RefIds")):
 			if entry.get("type", {}).get("class", "") != "ArmatureLink":
 				continue
 			var link: Dictionary = entry.data
-			var go := _ref(link.get("propBone"))
+			var go := Yaml.file_id(link.get("propBone"))
 			if not objs.has(go):
 				continue
 			var from := Prefabs.transform_of(objs, go)
 			var to := 0
-			for target: Dictionary in Prefabs._list(link.get("linkTo")):
+			for target: Dictionary in Yaml.list(link.get("linkTo")):
 				if str(target.get("offset", "")) != "":
 					continue
 				var index := str(target.get("bone", "-1")).to_int()
 				if str(target.get("useBone", "0")) == "1" and index >= 0 and index < names.size():
 					to = targets.get(names[index], 0)
-				elif str(target.get("useObj", "0")) == "1" and objs.has(_ref(target.get("obj"))):
-					to = Prefabs.transform_of(objs, _ref(target.get("obj")))
+				elif str(target.get("useObj", "0")) == "1" and objs.has(Yaml.file_id(target.get("obj"))):
+					to = Prefabs.transform_of(objs, Yaml.file_id(target.get("obj")))
 				if to != 0:
 					break
 			if from == 0 or to == 0 or from == to:
@@ -1054,7 +1039,7 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 			data.m_LocalPosition = {"x": str(-local.origin.x), "y": str(local.origin.y), "z": str(local.origin.z)}
 			data.m_LocalRotation = {"x": str(rotation.x), "y": str(-rotation.y), "z": str(-rotation.z), "w": str(rotation.w)}
 			data.m_LocalScale = {"x": str(scale.x), "y": str(scale.y), "z": str(scale.z)}
-			links.append({"source_id": id, "from": go, "to": _ref(objs[to].data.get("m_GameObject"))})
+			links.append({"source_id": id, "from": go, "to": Yaml.file_id(objs[to].data.get("m_GameObject"))})
 	if not links.is_empty():
 		report["armature attachments"] = JSON.stringify(links)
 	if not unlinked.is_empty():
@@ -1109,12 +1094,12 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var o: Dictionary = objs[r[0]]
 		var go_name := str(objs[r[1]].data.get("m_Name", ""))
 		var ref := _mesh_ref(objs, r[0])
-		var model: Dictionary = prefabs.model(str(ref.get("guid", ""))) if prefabs.assets.by_guid.has(str(ref.get("guid", ""))) else {}
-		var mi := _mesh_node(model, str(ref.get("fileID", "0")).to_int())
+		var model: Dictionary = prefabs.model(Yaml.guid(ref)) if prefabs.assets.by_guid.has(Yaml.guid(ref)) else {}
+		var mi := _mesh_node(model, Yaml.file_id(ref))
 		if mi == null or mi.mesh == null:
 			skipped.append(go_name)
 			continue
-		var place := _binder(mi, sk, rests, scale, objs, r[0], model.objects.has(_ref(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
+		var place := _binder(mi, sk, rests, scale, objs, r[0], model.objects.has(Yaml.file_id(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
 		if place.is_empty():
 			skipped.append(go_name)
 			continue
@@ -1124,9 +1109,9 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var mesh: ArrayMesh = mi.mesh
 		# Unity winds a renderer that its transforms mirror the other way, so its faces still face out.
 		var mirrored := _world_transform(objs, Prefabs.transform_of(objs, r[1])).basis.determinant() < 0.0
-		var saved: Array = Prefabs._list(o.data.get("m_BlendShapeWeights"))
-		var refs: Array = Prefabs._list(o.data.get("m_Materials"))
-		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, str(ref.get("guid", ""))).get(_model_name(model, mi), []))
+		var saved: Array = Yaml.list(o.data.get("m_BlendShapeWeights"))
+		var refs: Array = Yaml.list(o.data.get("m_Materials"))
+		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
 		for s in mesh.get_surface_count():
 			if mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
 				continue
@@ -1406,7 +1391,7 @@ static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, arra
 static func _face(prefabs: Prefabs, objs: Dictionary, descriptor: Dictionary) -> Dictionary:
 	var expressions := {}
 	var used := []
-	var visemes := Prefabs._list(descriptor.get("VisemeBlendShapes")) if str(descriptor.get("lipSync", "")) == "3" else []
+	var visemes := Yaml.list(descriptor.get("VisemeBlendShapes")) if str(descriptor.get("lipSync", "")) == "3" else []
 	used.append_array(visemes)
 	for preset: String in VISEMES:
 		if VISEMES[preset] < visemes.size() and str(visemes[VISEMES[preset]]) != "":
@@ -1445,12 +1430,12 @@ static func _mood(clip: String) -> String:
 ## The blend shapes a descriptor's eye-look settings close, raise and lower the eyelids with, by name ("" for none):
 ## eyelidsBlendshapes indexes eyelidsSkinnedMesh's shapes, written as little-endian 32-bit integers in hex.
 static func _eyelid_shapes(prefabs: Prefabs, objs: Dictionary, eyes: Dictionary) -> Array:
-	var renderer := _ref(eyes.get("eyelidsSkinnedMesh"))
+	var renderer := Yaml.file_id(eyes.get("eyelidsSkinnedMesh"))
 	if not objs.has(renderer):
 		return []
 	var ref := _mesh_ref(objs, renderer)
-	var guid := str(ref.get("guid", ""))
-	var mi := _mesh_node(prefabs.model(guid) if prefabs.assets.by_guid.has(guid) else {}, str(ref.get("fileID", "0")).to_int())
+	var guid := Yaml.guid(ref)
+	var mi := _mesh_node(prefabs.model(guid) if prefabs.assets.by_guid.has(guid) else {}, Yaml.file_id(ref))
 	if mi == null or mi.mesh == null:
 		return []
 	var hex := str(eyes.get("eyelidsBlendshapes", ""))
@@ -1466,22 +1451,22 @@ static func _eyelid_shapes(prefabs: Prefabs, objs: Dictionary, eyes: Dictionary)
 static func _gesture_faces(assets: Assets, descriptor: Dictionary) -> Array:
 	var out := []
 	var seen := {}
-	for layer: Variant in Prefabs._list(descriptor.get("baseAnimationLayers")):
+	for layer: Variant in Yaml.list(descriptor.get("baseAnimationLayers")):
 		if not (layer is Dictionary and str(layer.get("type")) == "5" and layer.get("animatorController") is Dictionary):
 			continue
-		var controller := Yaml.objects(assets.text(str(layer.animatorController.get("guid", ""))))
+		var controller := Yaml.objects(assets.text(Yaml.guid(layer.animatorController)))
 		var trees := {}
 		for t: Dictionary in controller.values():
-			if t.type != "AnimatorStateTransition" or not Prefabs._list(t.data.get("m_Conditions")).any(func(c: Variant) -> bool: return c is Dictionary and str(c.get("m_ConditionEvent")) in ["GestureLeft", "GestureRight"]):
+			if t.type != "AnimatorStateTransition" or not Yaml.list(t.data.get("m_Conditions")).any(func(c: Variant) -> bool: return c is Dictionary and str(c.get("m_ConditionEvent")) in ["GestureLeft", "GestureRight"]):
 				continue
-			var pending := [controller.get(_ref(t.data.get("m_DstState")), {}).get("data", {}).get("m_Motion")]
+			var pending := [controller.get(Yaml.file_id(t.data.get("m_DstState")), {}).get("data", {}).get("m_Motion")]
 			while not pending.is_empty():
 				var motion: Variant = pending.pop_front()
-				var guid := str(motion.get("guid", "")) if motion is Dictionary else ""
+				var guid := Yaml.guid(motion)
 				if guid == "":
-					if not trees.has(_ref(motion)):
-						trees[_ref(motion)] = true
-						for child: Variant in Prefabs._list(controller.get(_ref(motion), {}).get("data", {}).get("m_Childs")):
+					if not trees.has(Yaml.file_id(motion)):
+						trees[Yaml.file_id(motion)] = true
+						for child: Variant in Yaml.list(controller.get(Yaml.file_id(motion), {}).get("data", {}).get("m_Childs")):
 							pending.append(child.get("m_Motion") if child is Dictionary else null)
 					continue
 				if seen.has(guid) or assets.extension(guid) != "anim":
@@ -1497,10 +1482,10 @@ static func _gesture_faces(assets: Assets, descriptor: Dictionary) -> Array:
 static func _clip_shapes(text: String) -> Dictionary:
 	var shapes := {}
 	for o: Dictionary in Yaml.objects(text).values():
-		for c: Variant in Prefabs._list(o.data.get("m_FloatCurves")):
+		for c: Variant in Yaml.list(o.data.get("m_FloatCurves")):
 			if not (c is Dictionary and str(c.get("classID")) == "137" and str(c.get("attribute")).begins_with("blendShape.")):
 				continue
-			var keys := Prefabs._list((c.get("curve", {}) as Dictionary).get("m_Curve")) if c.get("curve") is Dictionary else []
+			var keys := Yaml.list((c.get("curve", {}) as Dictionary).get("m_Curve")) if c.get("curve") is Dictionary else []
 			var w := clampf(str((keys[-1] as Dictionary).get("value", "0")).to_float() / 100.0, 0.0, 1.0) if not keys.is_empty() and keys[-1] is Dictionary else 0.0
 			var name := str(c.attribute).trim_prefix("blendShape.")
 			if w > 0.0:
@@ -1617,7 +1602,7 @@ static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array)
 				continue
 			var n: String = plain.call(names[s])
 			for i in refs.size():
-				var r: String = plain.call(assets.name(str((refs[i] as Dictionary).get("guid", ""))) if refs[i] is Dictionary else "")
+				var r: String = plain.call(assets.name(Yaml.guid(refs[i])) if refs[i] is Dictionary else "")
 				if taken.has(i) or r == "" or n == "":
 					continue
 				if r == n or (loose == 1 and (n.contains(r) or r.contains(n))):
@@ -1659,7 +1644,7 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 		return null
 	for id: int in model.objects:
 		var o: Dictionary = model.objects[id]
-		if o.type in Prefabs.RENDERERS and _ref(o.data.get("m_Mesh")) == file_id:
+		if o.type in Prefabs.RENDERERS and Yaml.file_id(o.data.get("m_Mesh")) == file_id:
 			var name := String((model.state as GLTFState).get_nodes()[o.node].resource_name)
 			var found := (model.scene as Node).find_children(name.validate_node_name(), "MeshInstance3D", true, false)
 			return found[0] if found.size() == 1 else null
@@ -1675,7 +1660,7 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 ## scaled by `scale`.
 static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D], scale: float, objs: Dictionary, renderer: int, own_model: bool, humanoid_bones: int) -> Dictionary:
 	var scaled := Transform3D.IDENTITY.scaled(Vector3.ONE * scale)
-	var same_model: bool = not sk.has_meta("unity_model") or _mesh_model(objs, renderer, objs[renderer].type) == sk.get_meta("unity_model")
+	var same_model: bool = not sk.has_meta("unity_model") or Yaml.guid(_mesh_ref(objs, renderer)) == sk.get_meta("unity_model")
 	var target := func(src: Skeleton3D, b: int) -> int:
 		while b >= 0:
 			var t := _find_bone(sk, src.get_bone_name(b))
@@ -1687,10 +1672,10 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 		var src: Skeleton3D = mi.get_node(mi.skeleton)
 		var at := scaled * _in_model(src)
 		var unity := {}
-		for t: Variant in Prefabs._list(objs[renderer].data.get("m_Bones")):
-			var go := _ref(objs.get(_ref(t), {}).get("data", {}).get("m_GameObject"))
+		for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
+			var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
 			var name := str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()
-			unity[name] = _ref(t)
+			unity[name] = Yaml.file_id(t)
 			var bone := _find_bone(sk, name)
 			if same_model and sk.has_meta("unity_bones") and bone >= 0 and bone < humanoid_bones:
 				sk.get_meta("unity_bones")[go] = bone
@@ -1710,7 +1695,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 			binds.append([t, rests[t].affine_inverse() * at * src.get_bone_global_rest(maxi(b, 0)) * mi.skin.get_bind_pose(i)])
 		return {"binds": binds, "remap": func(i: int) -> int: return i}
 	if not own_model:
-		var b := _as_bone(objs, Prefabs.transform_of(objs, _ref(objs[renderer].data.get("m_GameObject"))), sk, rests)
+		var b := _as_bone(objs, Prefabs.transform_of(objs, Yaml.file_id(objs[renderer].data.get("m_GameObject"))), sk, rests)
 		if b >= 0:
 			return {"binds": [[b, Transform3D.IDENTITY]], "remap": func(_i: int) -> int: return 0}
 	var n := mi.get_parent()
@@ -1725,7 +1710,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 
 static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Transform3D]) -> int:
 	var source_bones: Dictionary = sk.get_meta("unity_bones", {})
-	var go_of := func(at: int) -> int: return _ref(objs.get(at, {}).get("data", {}).get("m_GameObject"))
+	var go_of := func(at: int) -> int: return Yaml.file_id(objs.get(at, {}).get("data", {}).get("m_GameObject"))
 	var name_of := func(at: int) -> String:
 		return str(objs.get(go_of.call(at), {}).get("data", {}).get("m_Name", ""))
 	if source_bones.has(go_of.call(t)):
@@ -1736,7 +1721,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 	while objs.has(t) and not seen.has(t) and b < 0:
 		seen[t] = true
 		path.append(t)
-		t = _ref(objs[t].data.get("m_Father"))
+		t = Yaml.file_id(objs[t].data.get("m_Father"))
 		b = source_bones.get(go_of.call(t), -1) if sk.has_meta("unity_bones") else _find_bone(sk, name_of.call(t))
 	if b < 0 and (path.is_empty() or path.back() != sk.get_meta("unity_top", -1)):
 		return -1
@@ -1815,20 +1800,20 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 ## transforms the menu's curves move.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary, switches := {}, moved := {}) -> Dictionary:
 	var bone_of := func(t: int) -> int:
-		var go := _ref(objs.get(t, {}).get("data", {}).get("m_GameObject"))
+		var go := Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject"))
 		return sk.get_meta("unity_bones").get(go, -1) if sk.has_meta("unity_bones") else _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
 	var transforms := {}
 	for id: int in objs:
 		if objs[id].type == "Transform":
-			var go := _ref(objs[id].data.get("m_GameObject"))
+			var go := Yaml.file_id(objs[id].data.get("m_GameObject"))
 			if objs.has(go):
 				transforms[go] = id
 	var canonical := func(t: int) -> int:
-		return transforms.get(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")), t)
+		return transforms.get(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject")), t)
 	var children := {}
 	# Aliases name the same source transform; unweighted organizational roots still own spring branches.
 	for t: int in transforms.values():
-		children.get_or_add(canonical.call(_ref(objs[t].data.get("m_Father"))), []).append(t)
+		children.get_or_add(canonical.call(Yaml.file_id(objs[t].data.get("m_Father"))), []).append(t)
 	var colliders := []
 	var collider_index := {}
 	var springs := []
@@ -1837,14 +1822,14 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	var coverage := []
 	var live := {}
 	for e: Array in _under(objs, top):
-		live[_ref(objs[e[0]].data.get("m_GameObject"))] = true
+		live[Yaml.file_id(objs[e[0]].data.get("m_GameObject"))] = true
 	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
 	var ours := func(d: Dictionary) -> bool:
-		var t := _ref(d.get("rootTransform", d.get("m_Root")))
+		var t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
 		if t == 0:
-			var go := _ref(d.get("m_GameObject"))
+			var go := Yaml.file_id(d.get("m_GameObject"))
 			t = Prefabs.transform_of(objs, go) if objs.has(go) else 0
-		return live.has(_ref(objs.get(t, {}).get("data", {}).get("m_GameObject")))
+		return live.has(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject")))
 	var components := {}
 	var component_when := {}
 	var switched := {"springs": [], "colliders": []}
@@ -1861,9 +1846,9 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		components[id] = d
 		if not when.is_empty():
 			component_when[id] = when
-		var t := _ref(d.get("rootTransform", d.get("m_Root")))
+		var t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
 		if t == 0:
-			t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
+			t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
 		component_roots[canonical.call(t)] = true
 	var rests: Array[Transform3D] = []
 	var original_bones := sk.get_bone_count()
@@ -1879,7 +1864,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var bone: int = bone_of.call(t)
 		if bone < 0:
 			bone = _as_bone(objs, t, sk, rests)
-		var parent: int = bone_of.call(_ref(objs.get(t, {}).get("data", {}).get("m_Father")))
+		var parent: int = bone_of.call(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_Father")))
 		# An unweighted source parent may have been omitted while its weighted children survived.
 		if bone >= 0 and parent >= original_bones and bone != parent and not human.has(bone):
 			sk.set_bone_parent(bone, parent)
@@ -1900,9 +1885,9 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if when == null:
 			idle += 1
 			continue
-		var t := _ref(d.get("rootTransform"))
+		var t := Yaml.file_id(d.get("rootTransform"))
 		if t == 0:
-			t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
+			t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
 		# A collider the menu moves rides a bone of its own, which the menu's transform curves move.
 		if moved.has(t):
 			_as_bone(objs, t, sk, rests)
@@ -1915,7 +1900,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			seen[at] = true
 			bone = bone_of.call(at)
 			owner = at
-			at = _ref(objs[at].data.get("m_Father"))
+			at = Yaml.file_id(objs[at].data.get("m_Father"))
 		if bone < 0:
 			dropped += 1
 			continue
@@ -1951,12 +1936,12 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var legacy := d.has("m_Damping")
 		physbones += int(not legacy)
 		dynamicbones += int(legacy)
-		var root_t := _ref(d.get("rootTransform", d.get("m_Root")))
+		var root_t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
 		if root_t == 0:
-			root_t = Prefabs.transform_of(objs, _ref(d.get("m_GameObject")))
+			root_t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
 		root_t = canonical.call(root_t)
 		var root_bone: int = bone_of.call(root_t)
-		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(_ref(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
+		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(Yaml.file_id(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
 		coverage.append(component)
 		var first_chain := springs.size()
 		var ignored := {}
@@ -1964,12 +1949,12 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			for other: int in component_roots:
 				if other != root_t:
 					ignored[other] = true
-		for t: Variant in Prefabs._list(d.get("ignoreTransforms", d.get("m_Exclusions"))):
-			ignored[canonical.call(_ref(t))] = true
+		for t: Variant in Yaml.list(d.get("ignoreTransforms", d.get("m_Exclusions"))):
+			ignored[canonical.call(Yaml.file_id(t))] = true
 		# A PhysBone's negative gravity pulls up; a VRM gravityPower may not be negative, so its direction carries the sign.
 		var gravity := str(d.get("gravity", "0")).to_float()
 		# A DynamicBone sizes its radius and end offset by its own transform, wherever its root bone lies.
-		var holder := Prefabs.transform_of(objs, _ref(d.get("m_GameObject"))) if objs.has(_ref(d.get("m_GameObject"))) else 0
+		var holder := Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject"))) if objs.has(Yaml.file_id(d.get("m_GameObject"))) else 0
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
@@ -2010,9 +1995,9 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				j["extras"] = extras
 			return j
 		var groups := []
-		for c: Variant in Prefabs._list(d.get("colliders", d.get("m_Colliders"))):
-			if collider_index.has(_ref(c)):
-				groups.append(collider_index[_ref(c)])
+		for c: Variant in Yaml.list(d.get("colliders", d.get("m_Colliders"))):
+			if collider_index.has(Yaml.file_id(c)):
+				groups.append(collider_index[Yaml.file_id(c)])
 		var starts: Array = kids_of.call(root_t)
 		if starts.size() < 2 or str(d.get("multiChildType", "1" if legacy else "0")) == "1":
 			starts = [root_t]
@@ -2104,19 +2089,14 @@ static func _collider(d: Dictionary) -> Dictionary:
 ## How many transforms down from `root` its PhysBone reaches: VRChat's maxBoneChainIndex, over every transform below it
 ## the PhysBone does not ignore, bones of the output skeleton or not.
 static func _deepest(children: Dictionary, ignored: Dictionary, root: int) -> int:
-	var deepest := 0
+	var deepest := -1
 	var level: Array = [root]
-	while true:
-		level = level.reduce(func(next: Array, t: int) -> Array: return next + children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c)), [])
-		if level.is_empty():
-			return deepest
+	while not level.is_empty():
 		deepest += 1
+		level = level.reduce(func(next: Array, t: int) -> Array: return next + children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c)), [])
 	return deepest
 
 
-## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc
-## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; its radius at each end times that
-## end's entry in `scales`, so in the output's units.
 ## VRChat's CalcBoneRatio: where the bone `depth` transforms below the root lies down the chain, from 0 at the root to 1
 ## at the bone before the end.
 static func _along(depth: int, deepest: int, endpoint: bool) -> float:
@@ -2130,6 +2110,9 @@ static func _curved(d: Dictionary, field: String, t: float, value: float) -> flo
 	return (ExpressionCurves.sample(keys, t, false) if not keys.is_empty() else 1.0) * value
 
 
+## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc
+## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; its radius at each end times that
+## end's entry in `scales`, so in the output's units.
 static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, scales: Array) -> Dictionary:
 	var reach := deepest + (1 if endpoint else 0)
 	var along := _along(depth, deepest, endpoint)
@@ -2205,21 +2188,19 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 	var kinds := {}
 	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true, "ParentConstraint": true, "PositionConstraint": true, "LookAtConstraint": true}
 	for e: Array in _under(objs, top):
-		for c: Variant in Prefabs._list(objs.get(e[1], {}).get("data", {}).get("m_Component")):
-			var id := _ref((c as Dictionary).get("component"))
+		for c: Variant in Yaml.list(objs.get(e[1], {}).get("data", {}).get("m_Component")):
+			var id := Yaml.file_id((c as Dictionary).get("component"))
 			if not objs.has(id) or known.has(objs[id].type):
 				continue
 			var d: Dictionary = objs[id].data
 			var kind: String = objs[id].type
 			if kind == "MonoBehaviour":
-				if d.has("ViewPosition"):
-					continue
-				if d.has("pull") or d.has("insideBounds"):
+				if d.has("ViewPosition") or d.has("pull") or d.has("insideBounds"):
 					continue
 				kind = "Contact" if d.has("collisionTags") else "Constraint" if d.has("Sources") or d.has("sources") else "script"
 			kinds[kind] = kinds.get(kind, 0) + 1
-	if Prefabs._list(descriptor.get("VisemeBlendShapes")).size() > 0:
-		kinds["visemes"] = Prefabs._list(descriptor.get("VisemeBlendShapes")).size()
+	if Yaml.list(descriptor.get("VisemeBlendShapes")).size() > 0:
+		kinds["visemes"] = Yaml.list(descriptor.get("VisemeBlendShapes")).size()
 	return kinds
 
 
@@ -2296,12 +2277,12 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 	var out := []
 	var on := {}
 	for e: Array in _under(objs, top):
-		var father := _ref(objs[e[0]].data.get("m_Father"))
+		var father := Yaml.file_id(objs[e[0]].data.get("m_Father"))
 		on[e[0]] = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
 		if not on[e[0]] or not objs.has(e[1]):
 			continue
-		for component: Variant in Prefabs._list(objs[e[1]].data.get("m_Component")):
-			var o: Dictionary = objs.get(_ref(component.get("component")), {})
+		for component: Variant in Yaml.list(objs[e[1]].data.get("m_Component")):
+			var o: Dictionary = objs.get(Yaml.file_id(component.get("component")), {})
 			if not o.get("type", "") in ["ParentConstraint", "PositionConstraint", "LookAtConstraint"]:
 				continue
 			var d: Dictionary = o.data
@@ -2318,7 +2299,7 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 				c.rotation.append(str(d.get("m_AffectRotation" + axis, "1")) == "1")
 			c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
 			c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
-			var entries := Prefabs._list(d.get("m_Sources"))
+			var entries := Yaml.list(d.get("m_Sources"))
 			for i in entries.size():
 				var entry: Dictionary = entries[i]
 				var weight := str(entry.get("weight", "1")).to_float()
@@ -2330,16 +2311,16 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 					if not prefabs.assets.by_guid.has(str(ref.guid)):
 						return {"error": "constraint source asset is missing"}
 					var external := prefabs.flatten(str(ref.guid))
-					if not external.has(_ref(ref)):
+					if not external.has(Yaml.file_id(ref)):
 						return {"error": "constraint source transform is missing"}
-					source.world = _matrix(_world_transform(external, _ref(ref)))
+					source.world = _matrix(_world_transform(external, Yaml.file_id(ref)))
 				else:
-					var at := _as_bone(objs, _ref(ref), sk, rests)
+					var at := _as_bone(objs, Yaml.file_id(ref), sk, rests)
 					if at < 0:
 						return {"error": "constraint source has no output bone"}
 					source.node = at
-				var positions := Prefabs._list(d.get("m_TranslationOffsets"))
-				var rotations := Prefabs._list(d.get("m_RotationOffsets"))
+				var positions := Yaml.list(d.get("m_TranslationOffsets"))
+				var rotations := Yaml.list(d.get("m_RotationOffsets"))
 				source.offset = _matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
 				c.sources.append(source)
 			out.append(c)

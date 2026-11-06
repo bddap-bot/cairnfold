@@ -253,7 +253,6 @@ func _strung(along: Callable, thickness: float, rng: RandomNumberGenerator) -> v
 		_rope(along.call(float(i) / n), along.call(float(i + 1) / n), thickness, rng)
 
 
-
 ## The height of the tread or deck over `p`, or NAN beside the flight, landing or bridge. A ladder is climbed, not
 ## walked: NAN.
 func surface(p: Vector3) -> float:

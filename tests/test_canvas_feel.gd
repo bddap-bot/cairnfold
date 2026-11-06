@@ -44,7 +44,7 @@ func audio_stops() -> void:
 	Cues.canvas_contact(hand, Vector3.ZERO, false, true, 1.0, 0.2, 0.003, true)
 	check(contact.voices.all(func(v: AudioStreamPlayer3D) -> bool: return not v.playing), "brush remains silent even hard and moving")
 	Cues.canvas_contact(hand, Vector3.ZERO, true, true, 0.8, 0.2, 0.003, false)
-	Cues.canvas_leave(hand)
+	Cues.canvas_contact(hand, Vector3.ZERO, false, false, 0.0, 0.0, 0.0, false)
 	check(contact.voices.all(func(v: AudioStreamPlayer3D) -> bool: return not v.playing), "lifting stops grains immediately")
 	hand.queue_free()
 	cues.queue_free()

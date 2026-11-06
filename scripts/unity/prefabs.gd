@@ -60,16 +60,16 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 		for sid: int in copies:
 			_remap(copies[sid].data, id)
 		var mod: Dictionary = pi.get("m_Modification", {})
-		for m: Variant in _list(mod.get("m_Modifications")):
+		for m: Variant in Yaml.list(mod.get("m_Modifications")):
 			var t: Dictionary = m.get("target", {})
-			var sid := str(t.get("fileID", "0")).to_int()
+			var sid := Yaml.file_id(t)
 			if copies.has(sid):
 				_modify(copies[sid].data, str(m.get("propertyPath", "")), m.get("value", ""), m.get("objectReference", {}))
-		for r: Variant in _list(mod.get("m_RemovedComponents")):
-			copies.erase(str((r as Dictionary).get("fileID", "0")).to_int())
-		for r: Variant in _list(mod.get("m_RemovedGameObjects")):
-			copies.erase(str((r as Dictionary).get("fileID", "0")).to_int())
-		var parent := str((mod.get("m_TransformParent", {}) as Dictionary).get("fileID", "0")).to_int()
+		for r: Variant in Yaml.list(mod.get("m_RemovedComponents")):
+			copies.erase(Yaml.file_id(r))
+		for r: Variant in Yaml.list(mod.get("m_RemovedGameObjects")):
+			copies.erase(Yaml.file_id(r))
+		var parent := Yaml.file_id(mod.get("m_TransformParent"))
 		for sid: int in copies:
 			var c: Dictionary = copies[sid]
 			if c.type == "Transform" or c.type == "RectTransform":
@@ -82,8 +82,8 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 		if not o.stripped:
 			continue
 		var src: Dictionary = o.data.get("m_CorrespondingSourceObject", o.data.get("m_PrefabParentObject", {}))
-		var instance := str((o.data.get("m_PrefabInstance", o.data.get("m_PrefabInternal", {})) as Dictionary).get("fileID", "0")).to_int()
-		var key := (instance ^ str(src.get("fileID", "0")).to_int()) & MASK
+		var instance := Yaml.file_id(o.data.get("m_PrefabInstance", o.data.get("m_PrefabInternal")))
+		var key := (instance ^ Yaml.file_id(src)) & MASK
 		if out.has(key):
 			out[id] = out[key]
 	return out
@@ -143,14 +143,10 @@ static func _modify(data: Dictionary, path: String, value: Variant, reference: V
 			return
 
 
-static func _list(v: Variant) -> Array:
-	return v if v is Array else []
-
-
 ## The Transform of a GameObject in `objs`, or 0.
 static func transform_of(objs: Dictionary, go: int) -> int:
-	for c: Variant in _list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := _file_id((c as Dictionary).get("component"))
+	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		if objs.has(id) and objs[id].type in ["Transform", "RectTransform"]:
 			return id
 	return 0
@@ -158,15 +154,11 @@ static func transform_of(objs: Dictionary, go: int) -> int:
 
 ## The renderer on a GameObject in `objs`, or 0.
 static func renderer_of(objs: Dictionary, go: int) -> int:
-	for c: Variant in _list(objs.get(go, {}).get("data", {}).get("m_Component")):
-		var id := _file_id((c as Dictionary).get("component"))
+	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
+		var id := Yaml.file_id((c as Dictionary).get("component"))
 		if objs.has(id) and RENDERERS.has(objs[id].type):
 			return id
 	return 0
-
-
-static func _file_id(ref: Variant) -> int:
-	return str((ref as Dictionary).get("fileID", "0")).to_int() if ref is Dictionary else 0
 
 
 ## A model's objects as Unity's importer makes them: a GameObject and Transform for the model and each node in it, and
@@ -195,12 +187,12 @@ func model(guid: String) -> Dictionary:
 	var recycled := {}
 	for id: Variant in (importer.get("fileIDToRecycleName", {}) as Dictionary):
 		recycled[[str(id).to_int() / 100000, importer.fileIDToRecycleName[id]]] = str(id).to_int()
-	for e: Variant in _list(importer.get("internalIDToNameTable")):
+	for e: Variant in Yaml.list(importer.get("internalIDToNameTable")):
 		var first: Dictionary = (e as Dictionary).get("first", {})
 		for cls: Variant in first:
 			recycled[[str(cls).to_int(), str(e.get("second", ""))]] = str(first[cls]).to_int()
 	var remapped := {}
-	for e: Variant in _list(importer.get("externalObjects")):
+	for e: Variant in Yaml.list(importer.get("externalObjects")):
 		var first: Dictionary = (e as Dictionary).get("first", {})
 		if str(first.get("type", "")) == "UnityEngine:Material":
 			remapped[str(first.get("name", ""))] = e.get("second", {})

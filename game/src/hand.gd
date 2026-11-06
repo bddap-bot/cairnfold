@@ -699,10 +699,7 @@ func _select_input(delta: float) -> void:
 		_wheel_root.global_transform = Transform3D(ToolWheel.facing(global_position, head, forward), global_position)
 		_wheel_root.visible = true
 		Cues.play(Cues.Act.WHEEL_OPEN, global_position, self)
-	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
-	if p == Vector2.INF:
-		var local := _wheel_root.global_transform.affine_inverse() * global_position
-		p = Vector2(local.x, local.y)
+	var p := _wheel_point()
 	var was: Array = [_wheel.levels.size(), _wheel.levels[-1].hot]
 	_wheel.move(p)
 	if _wheel.levels[-1].hot >= 0 and [_wheel.levels.size(), _wheel.levels[-1].hot] != was:
@@ -871,10 +868,7 @@ func _expression_input(delta: float) -> void:
 	if _expression_latched:
 		_show_wheel(delta)
 		return
-	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
-	if p == Vector2.INF:
-		var local := _wheel_root.global_transform.affine_inverse() * global_position
-		p = Vector2(local.x, local.y)
+	var p := _wheel_point()
 	_wheel.move(p)
 	_show_wheel(delta)
 	var pick: Variant = _wheel.chosen()
@@ -902,3 +896,12 @@ func _end_expression_dial() -> void:
 			item.queue_free()
 		dial = null
 	_expression_dial = false
+
+
+## Where the hand stands on the wheel's face, or the point a script reaches for there.
+func _wheel_point() -> Vector2:
+	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
+	if p == Vector2.INF:
+		var local := _wheel_root.global_transform.affine_inverse() * global_position
+		p = Vector2(local.x, local.y)
+	return p

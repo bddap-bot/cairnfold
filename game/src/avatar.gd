@@ -786,7 +786,7 @@ func _stand_up(at: Transform3D, head: Transform3D, turn: Basis) -> void:
 	var model := Transform3D(bent * body, head.origin - bent * body * _head.rest.origin)
 	_place(_hips, model * _hips.rest)
 	for j in _body.slice(1):
-		j.at = _frame_of(j) * _skeleton.get_bone_pose(j.bone)
+		j.at = _get_joint(j)
 	if gait:
 		_stand(model, Transform3D(body, head.origin - body * _head.rest.origin), turn)
 

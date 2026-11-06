@@ -242,10 +242,6 @@ static func canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touch
 	_live._canvas_contact(hand, at, stick, touching, pressure, speed, distance, hard)
 
 
-static func canvas_leave(hand: XRController3D) -> void:
-	canvas_contact(hand, Vector3.ZERO, false, false, 0.0, 0.0, 0.0, false)
-
-
 func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool) -> void:
 	var key := hand.get_instance_id()
 	if not _canvas.has(key):

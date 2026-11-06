@@ -87,12 +87,11 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 			for k in mini(weights.size(), mi.get_blend_shape_count()):
 				mi.set_blend_shape_value(k, clampf(weights[k], 0.0, 1.0) if is_finite(weights[k]) else 0.0)
 	var binds := look_binds(state)
-	if not binds.is_empty():
-		for dir: String in binds:
-			for b: Array in binds[dir]:
-				var path: Variant = meshes.get(state.get_nodes()[b[0]].resource_name)
-				if path != null:
-					look.shapes.get_or_add(dir, []).append([path, b[1], b[2]])
+	for dir: String in binds:
+		for b: Array in binds[dir]:
+			var path: Variant = meshes.get(state.get_nodes()[b[0]].resource_name)
+			if path != null:
+				look.shapes.get_or_add(dir, []).append([path, b[1], b[2]])
 	var springs := SpringDefinition.read(state.json)
 	var spring_nodes := {}
 	for chain: Dictionary in springs.springs:
@@ -447,11 +446,11 @@ func _export_post(state: GLTFState) -> Error:
 		"lookAt": look_at,
 		"expressions": faces,
 	}
+	var indices := {}
+	for i in nodes.size():
+		indices[nodes[i].resource_name] = i
 	var springs: Dictionary = state.get_additional_data(&"springs")
 	if not springs.is_empty():
-		var indices := {}
-		for i in nodes.size():
-			indices[nodes[i].resource_name] = i
 		for chain: Dictionary in springs.springs:
 			if chain.has("center"):
 				chain.center = indices[chain.center]
@@ -463,9 +462,6 @@ func _export_post(state: GLTFState) -> Error:
 		exts["VRMC_springBone"] = springs
 	var constraints: Array = state.get_additional_data(&"constraints")
 	if not constraints.is_empty():
-		var indices := {}
-		for i in nodes.size():
-			indices[nodes[i].resource_name] = i
 		var encoded := constraints.duplicate(true)
 		for c: Dictionary in encoded:
 			c.node = indices[c.node]
@@ -475,16 +471,13 @@ func _export_post(state: GLTFState) -> Error:
 		exts["UNITY_constraints"] = {"constraints": encoded}
 	var expressions: Dictionary = state.get_additional_data(&"expressions")
 	if not expressions.is_empty():
-		exts[EXPRESSIONS] = _indexed(expressions, state)
+		exts[EXPRESSIONS] = _indexed(expressions, state, indices)
 	return OK
 
 
-static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
+static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:
 	var out := expressions.duplicate(true)
 	var nodes := state.get_nodes()
-	var index := {}
-	for i in nodes.size():
-		index[nodes[i].resource_name] = i
 	var morph := func(bind: Array) -> Array:
 		var mesh := nodes[index[bind[0]]].mesh
 		var shapes: ImporterMesh = state.get_meshes()[mesh].mesh
@@ -495,14 +488,10 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 		elif ExpressionDefinition.region(t.effect) != "":
 			for region: Dictionary in t.effect.values()[0]:
 				region.node = index[region.node]
-		elif t.effect is Dictionary and t.effect.has("scale"):
-			t.effect.scale.node = index[t.effect.scale.node]
-		elif t.effect is Dictionary and t.effect.has("rotation"):
-			t.effect.rotation.node = index[t.effect.rotation.node]
-		elif t.effect is Dictionary and t.effect.has("translation"):
-			t.effect.translation.node = index[t.effect.translation.node]
-		elif t.effect is Dictionary and t.effect.has("material"):
-			t.effect.material.node = index[t.effect.material.node]
+		elif t.effect is Dictionary:
+			for kind: String in ["scale", "rotation", "translation", "material"]:
+				if t.effect.has(kind):
+					t.effect[kind].node = index[t.effect[kind].node]
 	for s: Dictionary in out.shown:
 		s.node = index[s.node]
 	for s: Dictionary in out.get("springs", []):
@@ -513,6 +502,9 @@ static func _indexed(expressions: Dictionary, state: GLTFState) -> Dictionary:
 static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 	var out := definition.duplicate(true)
 	var nodes := state.get_nodes()
+	var name_of := func(ref: Dictionary) -> String:
+		var index := int(ref.get("node", -1))
+		return nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
 	for t: Dictionary in out.get("targets", []):
 		if not t.get("effect") is Dictionary:
 			continue
@@ -528,14 +520,11 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 			effect.morph = binds
 		for kind: String in ["scale", "material"]:
 			if effect.has(kind):
-				var index := int(effect[kind].get("node", -1))
-				effect[kind].node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
+				effect[kind].node = name_of.call(effect[kind])
 		for region: Dictionary in effect.values()[0] if ExpressionDefinition.region(effect) != "" else []:
-			var index := int(region.get("node", -1))
-			region.node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
+			region.node = name_of.call(region)
 	for shown: Dictionary in out.get("shown", []):
-		var index := int(shown.get("node", -1))
-		shown.node = nodes[index].resource_name if index >= 0 and index < nodes.size() else ""
+		shown.node = name_of.call(shown)
 	return out
 
 

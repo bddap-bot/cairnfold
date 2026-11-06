@@ -101,14 +101,9 @@ static func apply(mat: ShaderMaterial) -> void:
 	for i in ROOM:
 		var s: Dictionary = STYLES[mini(i, STYLES.size() - 1)]
 		look.append(Vector4(s.tile, s.moss, s.meadow, s.rough))
-		light.append(_linear(s.light))
-		dark.append(_linear(s.dark))
+		light.append(Look.linear(s.light))
+		dark.append(Look.linear(s.dark))
 	mat.set_shader_parameter("stone_patterns", patterns())
 	mat.set_shader_parameter("stone_look", look)
 	mat.set_shader_parameter("stone_light", light)
 	mat.set_shader_parameter("stone_dark", dark)
-
-
-static func _linear(c: Color) -> Vector3:
-	var l := c.srgb_to_linear()
-	return Vector3(l.r, l.g, l.b)

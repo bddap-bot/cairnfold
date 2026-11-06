@@ -203,17 +203,17 @@ func set_time(t: float) -> void:
 	_grade()
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 	RenderingServer.global_shader_parameter_set(&"sun_toward", toward)
-	RenderingServer.global_shader_parameter_set(&"sun_light", _linear(l.sun) * l.energy)
-	RenderingServer.global_shader_parameter_set(&"sky_zenith", _linear(l.zenith))
-	RenderingServer.global_shader_parameter_set(&"sky_horizon", _linear(l.horizon))
-	RenderingServer.global_shader_parameter_set(&"sky_haze", _linear(l.fog))
+	RenderingServer.global_shader_parameter_set(&"sun_light", linear(l.sun) * l.energy)
+	RenderingServer.global_shader_parameter_set(&"sky_zenith", linear(l.zenith))
+	RenderingServer.global_shader_parameter_set(&"sky_horizon", linear(l.horizon))
+	RenderingServer.global_shader_parameter_set(&"sky_haze", linear(l.fog))
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", l.ambient)
 	bounce.set_sun(toward, l.sun * l.energy)
 	interior.set_sun(toward)
 
 
 ## A colour as shaders that light themselves read it, as a source_color uniform would take it.
-static func _linear(c: Color) -> Vector3:
+static func linear(c: Color) -> Vector3:
 	var l := c.srgb_to_linear()
 	return Vector3(l.r, l.g, l.b)
 

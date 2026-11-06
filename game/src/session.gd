@@ -48,9 +48,6 @@ const MAX_THROW := 20.0
 const THROW_EVERY := 0.1
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
-## Peers or nearby gardens came or went.
-signal changed
-
 var world: World
 var rig: Rig
 ## Where every player's thrown seeds land, so each sees the same handfuls and what comes to eat them.
@@ -217,7 +214,6 @@ func join(address: String, at_port: int) -> bool:
 	multiplayer.multiplayer_peer = peer
 	visiting = {"address": address, "port": at_port}
 	world.hear("join", [address, at_port])
-	changed.emit()
 	return true
 
 
@@ -238,7 +234,6 @@ func go_home() -> void:
 	if not _home.is_empty():
 		world.swap(_home)
 	_home = {}
-	changed.emit()
 
 
 func _here() -> Vector3:
@@ -263,7 +258,6 @@ func _on_peer(id: int) -> void:
 	Cues.play(Cues.Act.PLAYER_JOINS, _here())
 	if not worn.is_empty():
 		_wear.rpc_id(id, worn, avatar)
-	changed.emit()
 
 
 func _on_gone(id: int) -> void:
@@ -283,7 +277,6 @@ func _on_gone(id: int) -> void:
 		if _spring_holds[chain][0] == id:
 			_spring_holds.erase(chain)
 	_prune()
-	changed.emit()
 
 
 func _drop_avatars() -> void:
@@ -426,7 +419,6 @@ static func read_beacon(raw: PackedByteArray) -> Dictionary:
 
 
 func _hear() -> void:
-	var before := nearby.keys()
 	for n in HEAR_PER_FRAME:
 		if _listen.get_available_packet_count() <= 0:
 			break
@@ -443,8 +435,6 @@ func _hear() -> void:
 	for key in nearby.keys():
 		if _clock - nearby[key].seen > FORGET_AFTER:
 			nearby.erase(key)
-	if nearby.keys() != before:
-		changed.emit()
 	_prune_previews()
 	for garden in nearby.values():
 		var wears: String = garden.get("wears", "")
@@ -546,7 +536,6 @@ func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted
 		return
 	if key == wanted and scene:
 		previews[wanted] = scene
-		changed.emit()
 	else:
 		_failed[wanted] = INF if key == wanted else _clock
 	print("session: a nearby garden's host wears %s%s" % [wanted, "" if previews.has(wanted) else ", which did not match or read"])

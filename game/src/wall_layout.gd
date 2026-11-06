@@ -77,7 +77,6 @@ const MIN_SIZE := 0.4
 ## The nearest an arch's ring stands to a wall's end, and so a doorway arch's centre.
 const END_CLEAR := 0.3
 const ARCH_END := ARCH_HALF + RING + END_CLEAR
-const MIN_ARCH_SPAN := 2.4
 const CORNER_TURN := deg_to_rad(35.0)
 const PIER := THICKNESS + 0.28
 ## Arches whose rings would touch cannot both open; arches nearer than ARCADE_GAP share a pillar.
@@ -2571,10 +2570,7 @@ func _face_spans() -> Array[Vector2]:
 func _lay_top(rng: RandomNumberGenerator) -> void:
 	var faces := _face_spans()
 	for face in faces.size():
-		var spans := [[faces[face].x, faces[face].y]]
-		if not breaks.is_empty():
-			for b in breaks[-1]:
-				spans = _cut(spans, b.x, b.y)
+		var spans := _standing([[faces[face].x, faces[face].y]])
 		for i in spans.size():
 			rng.seed = hash([seed, "top", face, i])
 			_lay_top_span(spans[i][0], spans[i][1], rng)
@@ -2619,10 +2615,7 @@ func _lay_walk(rng: RandomNumberGenerator) -> void:
 	var turns := corners()
 	var wide := THICKNESS + 0.16
 	for face in faces.size():
-		var spans := [[faces[face].x, faces[face].y]]
-		if not breaks.is_empty():
-			for b in breaks[-1]:
-				spans = _cut(spans, b.x, b.y)
+		var spans := _standing([[faces[face].x, faces[face].y]])
 		for i in spans.size():
 			rng.seed = hash([seed, "walk", face, i])
 			var a: float = spans[i][0]

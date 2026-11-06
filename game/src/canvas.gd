@@ -68,7 +68,6 @@ var _tiles := PackedInt32Array()
 var _wet_tiles := {}
 ## Strokes waiting to play: ["wait", ticks] and ["dabs", params, dabs], played in order.
 var _queue: Array = []
-var _queued_ticks := 0
 var _catching_up := false
 ## When the replay under way began, and the frames it has taken, for the log line its end writes.
 var _replay_from := 0
@@ -390,7 +389,6 @@ func rebuild(strokes: Array) -> void:
 	if (0 if from.is_empty() else from[1]) < strokes.size():
 		_freeze()
 	_queue.clear()
-	_queued_ticks = 0
 	_pending = 0
 	_open = false
 	_owed = 0.0
@@ -459,7 +457,6 @@ func _ended(stroke: Dictionary) -> void:
 func _wait(n: int) -> void:
 	if n > 0:
 		_queue.append(["wait", n])
-		_queued_ticks += n
 
 
 func _process(delta: float) -> void:
@@ -503,7 +500,6 @@ func _step(delta: float) -> void:
 		_tick()
 		if not _queue.is_empty():
 			_queue[0][1] -= 1
-			_queued_ticks -= 1
 			if _queue[0][1] <= 0:
 				_queue.pop_front()
 		elif not wet():

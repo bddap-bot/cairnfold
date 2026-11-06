@@ -198,7 +198,7 @@ func _model_objects_keep_their_bindings_and_transforms() -> void:
 			check(UnityAvatar._local(object.data).is_equal_approx(expected), "generated source transforms preserve the model's position and rotation")
 			positioned += int(not expected.origin.is_zero_approx())
 		if object.type == "SkinnedMeshRenderer":
-			var bones := Prefabs._list(object.data.get("m_Bones"))
+			var bones := Yaml.list(object.data.get("m_Bones"))
 			check(not bones.is_empty(), "a model's skinned renderer retains its bone references")
 			for bone: Dictionary in bones:
 				check(model.objects.has(UnityAvatar._ref(bone)), "generated bone references resolve to source transforms")

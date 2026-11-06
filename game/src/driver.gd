@@ -1553,7 +1553,6 @@ func _neighbours(s: Dictionary) -> void:
 		main.session.nearby["192.0.2.1:%d" % (Session.PORT + i)] = {"address": "192.0.2.1", "port": Session.PORT + i, "key": 9000 + i,
 			"avatar": i % Avatar.BUILT_IN.size(), "wears": "", "colour": Session.COLOURS[i % Session.COLOURS.size()],
 			"name": "Visitor %d" % (i + 1), "joins": unjoinable == 0 or (i + 1) % unjoinable != 0, "seen": INF}
-	main.session.changed.emit()
 	await get_tree().process_frame
 
 

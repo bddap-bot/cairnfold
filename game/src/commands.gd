@@ -152,7 +152,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 		"tree":
 			ok = _tree(cmd, state, out)
 		"heights":
-			ok = _heights(cmd, from_host, out) and _ponds(cmd, state, from_host, out)
+			ok = _heights(cmd, out) and _ponds(cmd, state, from_host, out)
 		"ponds":
 			var wet: Variant = cmd.get("wet", 0)
 			ok = _ponds(cmd, state, from_host, out) and (from_host or out.has("put") and _pointed(out.put, state, ground))
@@ -651,7 +651,7 @@ static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	return out.has("at") or out.has("turn") or out.has("species") or out.has("scale") or out.has("moss")
 
 
-static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:
+static func _heights(cmd: Dictionary, out: Dictionary) -> bool:
 	var cells: Variant = cmd.get("cells")
 	var values: Variant = cmd.get("values")
 	if typeof(cells) != TYPE_RECT2I or typeof(values) != TYPE_PACKED_FLOAT32_ARRAY:

@@ -5,7 +5,6 @@ extends "res://../tests/support/suite.gd"
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
 
 
-
 func _initialize() -> void:
 	_run.call_deferred()
 
@@ -30,7 +29,6 @@ func _run() -> void:
 		_poses_keep_head_and_hands_tracked(scenes[i], names[i])
 		_a_figure_only_stands(scenes[i], names[i])
 	finish()
-
 
 
 func _index(name: String) -> int:

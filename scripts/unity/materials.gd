@@ -63,7 +63,7 @@ func _init(from: Assets, atlas_widest := Avatar.MAX_IMAGE_SIDE) -> void:
 
 
 func use(ref: Dictionary, fallback: Color) -> String:
-	var guid := str(ref.get("guid", ""))
+	var guid := Yaml.guid(ref)
 	var key := guid if assets.by_guid.has(guid) and assets.extension(guid) == "mat" else "missing:" + str(ref.get("name", guid))
 	if materials.has(key):
 		return key
@@ -85,7 +85,7 @@ func _read(m: Dictionary, guid: String) -> void:
 	var shader: Dictionary = mat.get("m_Shader", {})
 	m.shader = _shader_name(shader)
 	m.properties = {}
-	var shader_guid := str(shader.get("guid", ""))
+	var shader_guid := Yaml.guid(shader)
 	var cull: Variant = ABSENT_CULL.get(shader_guid, "_Cull")
 	if assets.by_guid.has(shader_guid):
 		var source := assets.text(shader_guid)
@@ -139,7 +139,7 @@ func _read(m: Dictionary, guid: String) -> void:
 
 
 func _shader_name(ref: Dictionary) -> String:
-	var guid := str(ref.get("guid", ""))
+	var guid := Yaml.guid(ref)
 	if assets.by_guid.has(guid):
 		for line in assets.text(guid).split("\n", false, 8):
 			if line.strip_edges().begins_with("Shader \""):
@@ -606,7 +606,7 @@ static func toon_standard(m: Dictionary) -> bool:
 
 static func _texture_guid(m: Dictionary, property: String) -> String:
 	var entry: Variant = (m.get("textures", {}) as Dictionary).get(property)
-	return str(((entry as Dictionary).get("m_Texture", {}) as Dictionary).get("guid", "")) if entry is Dictionary else ""
+	return Yaml.guid((entry as Dictionary).get("m_Texture")) if entry is Dictionary else ""
 
 
 ## What each packed material lays over its albedo and adds to its light, and how it takes the light, for the renderer

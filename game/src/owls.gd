@@ -42,7 +42,6 @@ class Owl extends Shy.One:
 	var hooted := INF
 	## Where a drop to the grass goes back up to.
 	var back := Vector3.ZERO
-	var back_site: Birds.Site
 
 
 func _init(home: Wildlife, seed: int) -> void:

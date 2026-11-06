@@ -212,7 +212,6 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	return target
 
 
-
 static func _taken(cut: Dictionary) -> int:
 	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size() + cut.decorations.size() + cut.pieces.size()
 
