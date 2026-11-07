@@ -6,7 +6,6 @@ Downloads each recording once into scripts/.animals-cache; run under nix-shell."
 import json
 import pathlib
 import subprocess
-import sys
 import urllib.request
 import zipfile
 
@@ -98,4 +97,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

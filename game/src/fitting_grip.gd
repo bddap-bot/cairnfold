@@ -129,11 +129,9 @@ static func carried(d: Dictionary, w: Wall, by: Vector3, turn: float) -> Diction
 			out.to = d.to + flat
 			return out
 		_:
-			if flat.is_zero_approx():
-				out.turn = d.turn + turn
-				return out
-			var x := Decorations.plan(w)
-			var at: Vector3 = x.affine_inverse() * ((x * Vector3(d.at.x, 0.0, d.at.z)) + flat)
-			out.at = Vector3(at.x, d.at.y, at.z)
+			if not flat.is_zero_approx():
+				var x := Decorations.plan(w)
+				var at: Vector3 = x.affine_inverse() * ((x * Vector3(d.at.x, 0.0, d.at.z)) + flat)
+				out.at = Vector3(at.x, d.at.y, at.z)
 	out.turn = d.turn + turn
 	return out

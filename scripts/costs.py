@@ -51,7 +51,6 @@ for line in open(os.path.join(out, log), errors="replace"):
     m = re.search(r"budget: (\S+) units (\{.*?\}) ms .* flora (\{.*?\})", line)
     if m:
         units[m.group(1)] = json.loads(m.group(3)) or json.loads(m.group(2))
-units["base"] = {}
 
 d = json.load(open(os.path.join(out, "metrics.json")))
 record = json.load(open(os.path.join(out, "record.json")))["phases"]

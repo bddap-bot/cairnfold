@@ -17,7 +17,6 @@ const HANDFULS := 8
 signal threw(from: Vector3, velocity: Vector3, seed: int)
 
 var rig: Rig
-var ponds: Water
 var handfuls: Array[Handful] = []
 var rng := RandomNumberGenerator.new()
 var _buttons: Array[Buttons] = []
@@ -30,11 +29,10 @@ var _next := 0
 
 func _init(player: Rig, water: Water, terrain: Terrain) -> void:
 	rig = player
-	ponds = water
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 	for i in HANDFULS:
-		handfuls.append(Handful.new(ponds, terrain))
+		handfuls.append(Handful.new(water, terrain))
 		handfuls[i].splashed.connect(_splashed)
 		add_child(handfuls[i])
 

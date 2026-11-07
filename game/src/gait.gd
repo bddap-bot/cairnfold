@@ -34,7 +34,6 @@ class Foot:
 	var t := -1.0
 	var from := Vector3.ZERO
 	var from_yaw := 0.0
-	var to := Vector3.ZERO
 
 ## Steps for balance; false leaves only the distance and turn rule.
 var balance := true
@@ -92,13 +91,13 @@ func update(hips: Vector3, center: Vector3, yaw: float, places: Array[Vector3], 
 		f.down = false
 		f.t = -1.0
 		return
-	f.to = Vector3(place.x, g, place.z)
+	var to := Vector3(place.x, g, place.z)
 	f.t = minf(f.t + delta / STEP_TIME, 1.0)
 	var k := smoothstep(0.0, 1.0, f.t)
-	f.at = f.from.lerp(f.to, k) + Vector3.UP * LIFT * leg * sin(PI * f.t)
+	f.at = f.from.lerp(to, k) + Vector3.UP * LIFT * leg * sin(PI * f.t)
 	f.yaw = lerp_angle(f.from_yaw, yaw, k)
 	if f.t >= 1.0:
-		f.at = f.to
+		f.at = to
 		f.t = -1.0
 
 

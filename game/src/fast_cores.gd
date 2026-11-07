@@ -13,8 +13,7 @@ static func keep_this_thread() -> void:
 	if stat.is_empty() or allowed.is_empty():
 		return
 	var clocks := {}
-	var cpus := DirAccess.get_directories_at("/sys/devices/system/cpu")
-	for name in cpus:
+	for name in DirAccess.get_directories_at("/sys/devices/system/cpu"):
 		if name.begins_with("cpu") and name.substr(3).is_valid_int():
 			var hz := _line("/sys/devices/system/cpu/%s/cpufreq/cpuinfo_max_freq" % name)
 			if hz.is_valid_int():

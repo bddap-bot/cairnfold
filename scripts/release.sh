@@ -8,8 +8,7 @@
 # release.sh --rollback TAG  marks the published release TAG Latest, the way back to a build; the next release of
 #                           a higher rev takes Latest again.
 set -euo pipefail
-root=$(cd "$(dirname "$0")/.." && pwd)
-cd "$root"
+cd "$(dirname "$0")/.."
 . scripts/pins.sh
 
 # highest: the highest published tag, $tag included.

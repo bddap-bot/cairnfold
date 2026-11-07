@@ -100,9 +100,5 @@ static func ends(part: Dictionary) -> Vector2:
 	return e
 
 
-func count() -> int:
-	return _instance.multimesh.instance_count
-
-
 func reveal(count: int) -> void:
 	_instance.multimesh.visible_instance_count = count

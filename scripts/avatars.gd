@@ -248,7 +248,7 @@ func _tassel(root: Node3D) -> void:
 		joints.append({"node": i, "stiffness": 0.35, "drag": 0.25, "radius": 0.015, "gravity": Vector3(0, -0.08, 0)})
 	_bone(parent, nodes[3], Vector3(0, -0.09, 0))
 	joints.append({"node": 3, "stiffness": 1.0, "drag": 0.5, "radius": 0.0, "gravity": Vector3.ZERO})
-	var human: Dictionary = root.get_meta("humanoid", {})
+	var human := {}
 	for i in nodes.size():
 		human["spring_%d" % i] = NodePath("skeleton:" + nodes[i])
 	root.set_meta("humanoid", human)

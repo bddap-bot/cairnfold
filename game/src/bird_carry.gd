@@ -56,8 +56,6 @@ func take(h: Hand, b: Birds.Bird) -> bool:
 	p.hand = h
 	p.brush = Brushwork.Brush.FLAT
 	p.medium = Brushwork.Medium.SMEAR
-	p.colour = Vector3.ZERO
-	p.strength = 0.0
 	p.load = 1.0
 	held[h] = {"bird": b, "cup": palm, "painter": p}
 	return true
