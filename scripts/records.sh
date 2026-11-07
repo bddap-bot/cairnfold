@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
-# Fails when a perf record added since BASE (default origin/main) names a build whose game, scenes or engine and build
-# scripts differ from the working tree's: records.sh [BASE]. A record benched on a working commit and then rebased onto
-# a main that changed those, or followed by a commit that did, carries figures from a tree main never ran, so the bench
-# is re-taken on the tree that lands.
+# Fails when a perf record added since BASE (default origin/main) names a build main never ran: records.sh [BASE]. A
+# record of a commit BASE holds, landing with no change of its own to game, scenes, engine or build scripts, names what
+# was measured however main moved since, so a long bench of a landed commit lands beside other game landings. Any other
+# record's build must equal the working tree in those: one benched on a working commit and then rebased onto a main
+# that changed them, followed by a commit that did, or benched uncommitted and named for the commit under it, carries
+# figures from a tree main never ran, so the bench is re-taken.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 git rev-parse -q --verify "${1:-origin/main}^{commit}" >/dev/null || { echo "records: no ${1:-origin/main} to compare with"; exit 0; }
 measured=(game demo '*.nix' scripts/{engine,export,stage,android,package,render,bench,pins}.sh scripts/engine.patch)
+base=$(git merge-base "${1:-origin/main}" HEAD)
+unchanged=0
+git diff --quiet "$base" -- "${measured[@]}" && unchanged=1
 stale=0
 while read -r f; do
   [[ $f =~ ^perf/.*/[0-9]{8}T[0-9]{6}Z-([0-9a-f]{7,})\.json$ ]] || continue
   if ! built=$(git rev-parse -q --verify "${BASH_REMATCH[1]}^{commit}"); then
     echo "records: $f names ${BASH_REMATCH[1]}, which is no single commit here; bench the tree that lands"
     stale=1
-  elif ! git diff --quiet "$built" -- "${measured[@]}"; then
-    echo "records: $f measured $built, whose game, scenes or engine differ from the tree that lands; bench it"
+  elif ! { [ $unchanged = 1 ] && git merge-base --is-ancestor "$built" "${1:-origin/main}"; } &&
+    ! git diff --quiet "$built" -- "${measured[@]}"; then
+    echo "records: $f measured $built, whose game, scenes or engine differ from the tree that lands; bench that tree, or land the change and record a bench of it alone"
     stale=1
   fi
-done < <(git diff --name-only --no-renames --diff-filter=A "$(git merge-base "${1:-origin/main}" HEAD)" -- perf
+done < <(git diff --name-only --no-renames --diff-filter=A "$base" -- perf
   git ls-files --others --exclude-standard -- perf)
 exit "$stale"

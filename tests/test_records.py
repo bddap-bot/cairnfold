@@ -72,6 +72,24 @@ class Records(unittest.TestCase):
         self.rebase_onto('scripts/engine.patch')
         self.assertEqual(self.records().returncode, 1)
 
+    def test_record_of_a_main_build_passes_as_main_moves(self):
+        built = self.git('rev-parse', 'main')
+        self.git('checkout', '-q', '-b', 'job', 'main')
+        self.write(f'perf/frame/stress/20261102T000000Z-{built[:7]}.json', '{}\n')
+        self.commit('record')
+        self.rebase_onto('game/plants.gd')
+        self.assertEqual(self.records().returncode, 0)
+
+    def test_record_of_a_main_build_landing_with_a_change_fails(self):
+        built = self.git('rev-parse', 'main')
+        self.git('checkout', '-q', '-b', 'job', 'main')
+        self.write('game/world.gd', 'benched uncommitted\n')
+        self.write(f'perf/frame/stress/20261102T000000Z-{built[:7]}.json', '{}\n')
+        self.commit('change and record')
+        result = self.records()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(built, result.stdout)
+
     def test_rebase_onto_an_unrelated_change_passes(self):
         self.bench()
         self.rebase_onto('README.md')
