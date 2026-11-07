@@ -54,7 +54,7 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	if from == Vector3.INF or target.z > 0.0 and not solid(target):
 		from = target
 		if solid(from):
-			from.z = maxf(box.end.z, shaft_box.end.z if not stick else box.end.z) + maxf(0.0, -axis.z) + SKIN
+			from.z = (box.end.z if stick else maxf(box.end.z, shaft_box.end.z)) + maxf(0.0, -axis.z) + SKIN
 	elif solid(from):
 		# A rotation into the sheet keeps the last clear orientation until translation frees it.
 		local.basis = basis

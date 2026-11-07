@@ -74,7 +74,7 @@ static func swatch(element: Element, index: int) -> Color:
 
 ## What a laid part's custom data carries so its shader finds its material's tint: 0 for none.
 static func code(kind: String) -> float:
-	return KINDS[kind] if KINDS.has(kind) else 0.0
+	return KINDS.get(kind, 0)
 
 
 ## A build's paint as laid: every material on its first swatch. Indexed by Element; the meadow's entry stays 0.

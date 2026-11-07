@@ -51,7 +51,7 @@ func saved() -> Dictionary:
 
 func restore(saved_values: Dictionary) -> void:
 	for key: String in saved_values:
-		if definitions.has(key) and definitions[key].get("saved", false) and (saved_values[key] is float or saved_values[key] is int):
+		if definitions.get(key, {}).get("saved", false) and (saved_values[key] is float or saved_values[key] is int):
 			put(key, saved_values[key])
 
 

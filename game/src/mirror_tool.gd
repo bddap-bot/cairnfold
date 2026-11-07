@@ -118,10 +118,10 @@ func stand_at(foot: Vector3, toward: Vector3) -> void:
 	var facing := Basis.looking_at(-flat.normalized()) if flat.length() > 0.01 else stand.global_basis.orthonormalized()
 	stand.global_transform = Transform3D(facing.scaled(Vector3.ONE * STAND), foot)
 	stand.visible = true
-	var eyes := _eyes().size()
-	if _views.size() != maxi(eyes, 1):
+	var eyes := maxi(_eyes().size(), 1)
+	if _views.size() != eyes:
 		_close_views()
-		for i in maxi(eyes, 1):
+		for i in eyes:
 			_views.append(_view())
 	_glass.set_shader_parameter(&"left_eye", _views[0].get_texture())
 	_glass.set_shader_parameter(&"right_eye", _views[-1].get_texture())

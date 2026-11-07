@@ -27,6 +27,8 @@ const RADIUS := {Kind.DEER: 1.875, Kind.FOX: 2.3}
 const FADE := 0.35
 ## Slower than this, in metres a second, it keeps the clip it has rather than walking.
 const SHUFFLE := 0.05
+## The foremost point of each source mesh, in its head bone's rest space.
+const MUZZLE := {Kind.DEER: Vector3(-0.001205, 0.009126, 0.000092), Kind.FOX: Vector3(0.001293, 0.007014, 0.000461)}
 
 static var _shared := {}
 
@@ -120,11 +122,8 @@ func _init(of: Kind, scale_by: float, phase: float) -> void:
 
 
 func _ready() -> void:
-	var skeleton: Skeleton3D = find_children("*", "Skeleton3D", true, false)[0]
 	neck = NeckAim.new()
-	# The foremost point of each source mesh, in its head bone's rest space.
-	var muzzle := Vector3(-0.001205, 0.009126, 0.000092) if kind == Kind.DEER else Vector3(0.001293, 0.007014, 0.000461)
-	neck.configure(skeleton, muzzle)
+	neck.configure(find_children("*", "Skeleton3D", true, false)[0], MUZZLE[kind])
 
 
 func _process(_delta: float) -> void:

@@ -169,13 +169,12 @@ func _the_lake_reaches_past_the_first_ridge() -> void:
 
 func _the_water_mirrors_the_ridges_as_they_stand() -> void:
 	var img := Mountains.ridge_image()
-	var top: float = Mountains.RANGES[Mountains.RANGES.size() - 1].high
 	var worst := 0.0
 	for k in Mountains.RANGES.size():
 		var r: Dictionary = Mountains.RANGES[k]
 		var noise := Mountains.noise_for(r)
 		for i in range(0, Mountains.RIDGE_SAMPLES, 7):
 			var az := TAU * i / Mountains.RIDGE_SAMPLES
-			var mirrored: float = img.get_pixel(i, 0)[k] * top + Mountains.LAKE
+			var mirrored: float = img.get_pixel(i, 0)[k] * Mountains.TOP + Mountains.LAKE
 			worst = maxf(worst, absf(mirrored - Mountains.FOOT - Mountains.ridge(r, noise, az)))
 	check(worst < 0.05, "the mirrored ridge strays %.2f m from the ridge" % worst)

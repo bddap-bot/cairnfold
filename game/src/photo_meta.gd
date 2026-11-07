@@ -29,8 +29,8 @@ static func embed(png: PackedByteArray, about: Dictionary, world := PackedByteAr
 	var end := png.size() - 12
 	assert(png.slice(end + 4, end + 8).get_string_from_ascii() == "IEND", "a PNG ends with IEND")
 	var out := png.slice(0, end)
-	out.append_array(_chunk("tEXt", ("Software".to_ascii_buffer() + PackedByteArray([0]) + ("Cairnfold " + str(about.get("build", ""))).to_utf8_buffer())))
-	out.append_array(_chunk("iTXt", KEY.to_ascii_buffer() + PackedByteArray([0, 0, 0, 0, 0]) + JSON.stringify(about, "", false).to_utf8_buffer()))
+	out.append_array(_text("Software", "Cairnfold " + str(about.get("build", ""))))
+	out.append_array(_chunk("iTXt", _itxt_head() + JSON.stringify(about, "", false).to_utf8_buffer()))
 	if not packed.is_empty():
 		out.append_array(_chunk(WORLD_CHUNK, packed))
 	out.append_array(png.slice(end))
@@ -55,7 +55,7 @@ static func read(png: PackedByteArray) -> Dictionary:
 			continue
 		match type.get_string_from_ascii():
 			"iTXt":
-				var key := KEY.to_ascii_buffer() + PackedByteArray([0, 0, 0, 0, 0])
+				var key := _itxt_head()
 				if data.slice(0, key.size()) == key:
 					var about: Variant = JSON.parse_string(data.slice(key.size()).get_string_from_utf8())
 					if about is Dictionary:
@@ -88,7 +88,7 @@ static func gray16(size: Vector2i, samples: PackedByteArray, comment: String) ->
 		lines.append_array(samples.slice(y * row, (y + 1) * row))
 	var out := PackedByteArray(_SIGNATURE)
 	out.append_array(_chunk("IHDR", _u32(size.x) + _u32(size.y) + PackedByteArray([16, 0, 0, 0, 0])))
-	out.append_array(_chunk("tEXt", "Comment".to_ascii_buffer() + PackedByteArray([0]) + comment.to_utf8_buffer()))
+	out.append_array(_text("Comment", comment))
 	out.append_array(_chunk("IDAT", lines.compress(FileAccess.COMPRESSION_DEFLATE)))
 	out.append_array(_chunk("IEND", PackedByteArray()))
 	return out
@@ -97,6 +97,15 @@ static func gray16(size: Vector2i, samples: PackedByteArray, comment: String) ->
 static func _chunk(type: String, data: PackedByteArray) -> PackedByteArray:
 	var t := type.to_ascii_buffer()
 	return _u32(data.size()) + t + data + _u32(crc32(t + data))
+
+
+static func _text(keyword: String, text: String) -> PackedByteArray:
+	return _chunk("tEXt", keyword.to_ascii_buffer() + PackedByteArray([0]) + text.to_utf8_buffer())
+
+
+## An iTXt chunk's head up to its text: KEY, then no compression and no language or translated keyword.
+static func _itxt_head() -> PackedByteArray:
+	return KEY.to_ascii_buffer() + PackedByteArray([0, 0, 0, 0, 0])
 
 
 static func _u32(n: int) -> PackedByteArray:

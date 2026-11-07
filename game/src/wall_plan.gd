@@ -108,7 +108,6 @@ func arches_for(w: WallLayout) -> Array[float]:
 	if w.fence or not w.can_arch():
 		return out
 	var hi := w.length() - WallLayout.ARCH_END
-	var spacing := WallLayout.ARCADE_GAP
 	var box := w.bounds.grow(OBSTACLE_REACH)
 	var found: Array[float] = []
 	for o in obstacles:
@@ -120,7 +119,7 @@ func arches_for(w: WallLayout) -> Array[float]:
 			found.append(s)
 	found.sort()
 	for s in found:
-		if out.is_empty() or s - out[-1] >= spacing:
+		if out.is_empty() or s - out[-1] >= WallLayout.ARCADE_GAP:
 			out.append(s)
 	return out
 

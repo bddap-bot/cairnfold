@@ -75,9 +75,7 @@ func pick() -> void:
 			name = suggest(randi())
 	shared = true
 	if not keep.is_empty():
-		var f := FileAccess.open(keep, FileAccess.WRITE)
-		if f:
-			f.store_string(name)
+		Main.replace_file(keep, name.to_utf8_buffer())
 
 
 ## With Steam, lets this player's Steam friends match the garden announcing `key` to them.

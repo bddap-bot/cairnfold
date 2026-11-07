@@ -17,8 +17,7 @@ extends RefCounted
 ## Three tracked points do not tell sitting on the ground from crouching or kneeling: the head is low and upright in
 ## all three, and the legs are not tracked. Standing therefore takes every upright head from STAND_LOW up, whatever the
 ## hands do, and the recorded poses must be nearer than it by HYSTERESIS for DWELL: a head lowered for a moment to
-## work the ground keeps the standing body, as every avatar showed before these poses. A head held low and upright
-## sits; a head on its support lies.
+## work the ground keeps the standing body. A head held low and upright sits; a head on its support lies.
 
 const STANDING := 0
 ## An upright head at least this high over its support stands.

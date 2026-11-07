@@ -158,7 +158,7 @@ func figure(key: String) -> Node3D:
 	var tag := key.trim_prefix("join:") if key.begins_with("join:") else "name" if key == "name" else ""
 	if tag != "":
 		var info := _tag(tag)
-		_retag(root, info[0], info[1], info[2])
+		_name_tag(root, info[0], info[1], info[2])
 	return root
 
 
@@ -182,7 +182,8 @@ func _file(key: String) -> Dictionary:
 func _person(key: String) -> Avatar:
 	var garden := _garden(key)
 	var wears: String = garden.get("wears", "")
-	var scene: PackedScene = _file(key).get("scene") if _file(key).get("scene") != null else session.look(wears, garden.avatar)
+	var file := _file(key)
+	var scene: PackedScene = file.scene if file.get("scene") != null else session.look(wears, garden.avatar)
 	var a := Avatar.open(scene, garden.colour, wears if session.previews.has(wears) else "")
 	a.name = "Figure"
 	a.stand()
@@ -219,15 +220,10 @@ func _copied(key: int) -> bool:
 
 
 ## A name, after the picture when there is one, in a row centred under the figure and facing the player.
-func _retag(root: Node3D, who: String, picture: Texture2D, shown: bool) -> void:
-	var old := root.get_node_or_null("Tag")
-	if old:
-		root.remove_child(old)
-		old.queue_free()
+func _name_tag(root: Node3D, who: String, picture: Texture2D, shown: bool) -> void:
 	if who.is_empty():
 		return
 	var tag := Node3D.new()
-	tag.name = "Tag"
 	tag.position.y = -0.008
 	root.add_child(tag)
 	var label := Label3D.new()

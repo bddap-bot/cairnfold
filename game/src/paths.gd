@@ -132,7 +132,7 @@ func take(id: int) -> void:
 	_laying.erase(path)
 	marks.lift(path)
 	if masonry != null:
-		masonry.remove(-2000000 - id)
+		masonry.remove(Masonry.path_owner(id))
 	taken.emit(path)
 
 
@@ -252,7 +252,7 @@ func _place(all := false) -> void:
 		if is_same(_laying.get(path), job[2]):
 			_laying.erase(path)
 			if ids.has(path):
-				masonry.place(-2000000 - ids[path], job[2])
+				masonry.place(Masonry.path_owner(ids[path]), job[2])
 
 
 ## Whether path `id` is being laid again.

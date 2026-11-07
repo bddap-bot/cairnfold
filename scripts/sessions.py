@@ -17,6 +17,7 @@ With --replayed, the per-activity timing of the session a replay of it measured 
 as scripts/bench.sh CAIRNFOLD_REPLAY writes it) prints beside the session's own, recorded | replayed."""
 import argparse
 import base64
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
@@ -78,17 +79,17 @@ def frames(event, layout):
     """An "input" event's frames, each {delta, head, hands: [{pose, stick, palm, inputs, flags}]}, as layout lays them out."""
     raw = zlib.decompress(base64.b64decode(event["data"]))
     head_bytes, hand_bytes = struct.calcsize(layout["head"]), struct.calcsize(layout["hand"])
+    n = int(layout["hand"].lstrip("<").split("f")[0])
     out = []
     for at in range(0, len(raw), layout["frame_bytes"]):
         delta, *head = struct.unpack_from(layout["head"], raw, at)
         hands = []
         for i, tracker in enumerate(layout["hands"]):
             fields = struct.unpack_from(layout["hand"], raw, at + head_bytes + i * hand_bytes)
-            n = int(layout["hand"].lstrip("<").split("f")[0])
             pose, (sx, sy, held, flags), palm = list(fields[:n]), fields[n:n + 4], list(fields[n + 4:])
             hands.append({"pose": pose, "stick": [sx, sy], "palm": palm,
-                          "inputs": [n for b, n in enumerate(layout["inputs"][tracker]) if held >> b & 1],
-                          "flags": [n for b, n in enumerate(layout["flags"]) if flags >> b & 1]})
+                          "inputs": [name for b, name in enumerate(layout["inputs"][tracker]) if held >> b & 1],
+                          "flags": [name for b, name in enumerate(layout["flags"]) if flags >> b & 1]})
         out.append({"delta": delta, "head": head, "hands": hands})
     return out
 
@@ -121,17 +122,12 @@ def replay(s):
     }
 
 
-def messages(s):
-    """Every message the session heard, oldest first, as [frame, from, whose, call]."""
-    return [m for e in sorted(s["nets"], key=lambda e: e["first"]) for m in e["messages"]]
-
-
 def net(s):
     """What the network brought the session: how many of each call, the build commands each player made, and how many
     messages the ring lost."""
     if not s["nets"]:
         return None
-    heard = messages(s)
+    heard = [m for e in sorted(s["nets"], key=lambda e: e["first"]) for m in e["messages"]]
     calls, commands = {}, {}
     for _, _, whose, call in heard:
         calls[call] = calls.get(call, 0) + 1
@@ -166,7 +162,6 @@ def quantile(hist, q):
         seen += hist[b]
         if seen >= q * total:
             return (b + 1) / BINS_PER_MS
-    return (max(hist) + 1) / BINS_PER_MS
 
 
 def main_thread(rows):
@@ -237,10 +232,13 @@ def cells(a):
             f"{fmt(a['cpu_ms']):>6} {fmt(a['gpu_ms']):>6}")
 
 
+def heading(s):
+    return f"{s['where']} {s['device']} {(s['revision'] or '?')[:10]} {s['session']}"
+
+
 def beside(s, r):
     """The session's per-activity timing, recorded, with its replay's `r` beside it."""
-    rev = (s["revision"] or "?")[:10]
-    lines = [f"{s['where']} {s['device']} {rev} {s['session']}: {s['seconds']} s recorded | {r['seconds']} s replayed",
+    lines = [f"{heading(s)}: {s['seconds']} s recorded | {r['seconds']} s replayed",
              f"  {'':9} {COLUMNS} | {COLUMNS}"]
     for tag in ACTIVITIES:
         if tag in s["activity"] or tag in r["activity"]:
@@ -249,11 +247,9 @@ def beside(s, r):
 
 
 def text(s):
-    from datetime import datetime, timezone
     when = datetime.fromtimestamp(s["started"], timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ") if s["started"] else "?"
-    rev = (s["revision"] or "?")[:10]
     end = "" if s["ended"] else ", no end record"
-    lines = [f"{s['where']} {s['device']} {rev} {s['session']} {when}: {s['seconds']} s at {s['refresh_hz']} Hz, "
+    lines = [f"{heading(s)} {when}: {s['seconds']} s at {s['refresh_hz']} Hz, "
              f"{s['players']} player{'s' if s['players'] != 1 else ''}{end}"]
     lines.append(f"  {'':9} {COLUMNS}")
     for tag in ACTIVITIES:

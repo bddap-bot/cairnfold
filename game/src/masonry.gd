@@ -197,6 +197,17 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 	out[key] = have
 
 
+## The owner of path `id`'s pieces: negative, clear of the walls', which are their nodes' instance ids, and of the
+## stairs' while stair ids stay under a million.
+static func path_owner(id: int) -> int:
+	return -2000000 - id
+
+
+## The owner of stair `id`'s pieces, between the walls' and the paths'.
+static func stair_owner(id: int) -> int:
+	return -1000000 - id
+
+
 ## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before. Only
 ## the chunks whose pieces changed are drawn again, and the light is told only when its occluders changed.
 func place(owner: int, parts: Array[Dictionary]) -> void:

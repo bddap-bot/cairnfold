@@ -12,6 +12,8 @@ const RANGES := [
 	{"radius": 560.0, "depth": 300.0, "low": 70.0, "high": 200.0, "columns": 224, "seed": 5, "haze": 0.35, "snow": 0.0},
 	{"radius": 1300.0, "depth": 800.0, "low": 230.0, "high": 520.0, "columns": 192, "seed": 9, "haze": 0.55, "snow": 0.72},
 ]
+## The farthest range's highest, the scale its shader and the lake's read heights on.
+const TOP: float = RANGES[-1].high
 ## Rows from foot to ridge, each its share of the height; the last rows stand steep, a stone face over its talus.
 const ROWS := [0.0, 0.12, 0.3, 0.5, 0.68, 0.84, 1.0]
 const REACH := [0.0, 0.42, 0.66, 0.8, 0.88, 0.95, 1.0]
@@ -76,11 +78,13 @@ static func hides(from: Vector3, dir: Vector3) -> bool:
 	if flat.length() < 1e-6:
 		return false
 	var rise := dir.y / flat.length()
+	var start := Vector2(from.x, from.z)
+	var way := flat.normalized()
 	for r: Dictionary in RANGES:
-		var along := _crossing(Vector2(from.x, from.z), flat.normalized(), r.radius)
+		var along := _crossing(start, way, r.radius)
 		if is_nan(along):
 			continue
-		var at := Vector2(from.x, from.z) + flat.normalized() * along
+		var at := start + way * along
 		if from.y + rise * along < FOOT + ridge(r, noise_for(r), at.angle()):
 			return true
 	return false
@@ -207,10 +211,14 @@ static func _edge(corners: PackedVector3Array, colors: PackedColorArray) -> void
 	for k in bank.size():
 		var a := Vector3(bank[k].x, Terrain.BANK_FOOT, bank[k].y)
 		var b := Vector3(bank[(k + 1) % bank.size()].x, Terrain.BANK_FOOT, bank[(k + 1) % bank.size()].y)
-		var fa: Vector3 = Vector3(a.x, 0, a.z).normalized() * (r.radius - r.depth) + Vector3.UP * FOOT
-		var fb: Vector3 = Vector3(b.x, 0, b.z).normalized() * (r.radius - r.depth) + Vector3.UP * FOOT
+		var fa := _outward(a, r.radius - r.depth, FOOT)
+		var fb := _outward(b, r.radius - r.depth, FOOT)
 		_face(corners, colors, r, [a, fa, b])
 		_face(corners, colors, r, [b, fa, fb])
+
+
+static func _outward(p: Vector3, distance: float, y: float) -> Vector3:
+	return Vector3(p.x, 0, p.z).normalized() * distance + Vector3.UP * y
 
 
 ## The lake's surface: flat at LAKE from the meadow's edge out to LAKE_OUT.
@@ -221,8 +229,8 @@ static func lake_arrays() -> Array:
 	for k in range(0, shore.size(), every):
 		var a := Vector3(shore[k].x, LAKE, shore[k].y)
 		var b := Vector3(shore[(k + every) % shore.size()].x, LAKE, shore[(k + every) % shore.size()].y)
-		var fa := Vector3(a.x, 0, a.z).normalized() * LAKE_OUT + Vector3.UP * LAKE
-		var fb := Vector3(b.x, 0, b.z).normalized() * LAKE_OUT + Vector3.UP * LAKE
+		var fa := _outward(a, LAKE_OUT, LAKE)
+		var fb := _outward(b, LAKE_OUT, LAKE)
 		verts.append_array([a, b, fa, b, fb, fa])
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
@@ -239,12 +247,11 @@ static func lake_arrays() -> Array:
 static func ridge_image() -> Image:
 	var img := Image.create(RIDGE_SAMPLES, 1, false, Image.FORMAT_RGF)
 	var noises := RANGES.map(noise_for)
-	var top: float = RANGES[RANGES.size() - 1].high
 	for i in RIDGE_SAMPLES:
 		var a := TAU * i / RIDGE_SAMPLES
 		var h := [0.0, 0.0]
 		for k in RANGES.size():
-			h[k] = (FOOT - LAKE + ridge(RANGES[k], noises[k], a)) / top
+			h[k] = (FOOT - LAKE + ridge(RANGES[k], noises[k], a)) / TOP
 		img.set_pixel(i, 0, Color(h[0], h[1], 0))
 	return img
 
@@ -253,10 +260,9 @@ static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dict
 	var n: Vector3 = (tri[2] - tri[0]).cross(tri[1] - tri[0])
 	if n.dot(SEEN_FROM - tri[0]) < 0.0:
 		tri = [tri[0], tri[2], tri[1]]
-	var top: float = RANGES[RANGES.size() - 1].high
 	for p: Vector3 in tri:
 		corners.append(p)
-		colors.append(Color((p.y - FOOT) / top, r.haze, r.snow))
+		colors.append(Color((p.y - FOOT) / TOP, r.haze, r.snow))
 
 
 ## The ranges in `material`, and the lake's water in `water`.
@@ -264,7 +270,7 @@ static func build(material: ShaderMaterial, water: ShaderMaterial) -> Array[Mesh
 	water.set_shader_parameter("ridges", ImageTexture.create_from_image(ridge_image()))
 	water.set_shader_parameter("level", LAKE)
 	water.set_shader_parameter("radii", Vector2(RANGES[0].radius, RANGES[1].radius))
-	water.set_shader_parameter("top", RANGES[RANGES.size() - 1].high)
+	water.set_shader_parameter("top", TOP)
 	return [_instance(arrays(), material), _instance(lake_arrays(), water)]
 
 

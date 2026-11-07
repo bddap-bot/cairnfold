@@ -46,9 +46,7 @@ class Boulder:
 		turn = d.turn
 		sink = d.sink
 		held = false
-		# The stone shader tints a style by its paint as the swatch over the one stone is laid in.
-		var c := Palette.swatch(Palette.Element.STONE, d.paint[Palette.Element.STONE]) / Palette.swatch(Palette.Element.STONE, 0)
-		c.a = 1.0
+		var c := Palette.tint(Palette.Element.STONE, d.paint[Palette.Element.STONE])
 		for mesh: MultiMeshInstance3D in [near, far]:
 			mesh.multimesh.set_instance_color(0, c)
 			mesh.set_instance_shader_parameter("stone_style", d.style)
@@ -116,8 +114,9 @@ func put(id: int, data: Dictionary) -> Boulder:
 		b.id = id
 		b.name = "Boulder%d" % id
 		boulders[id] = b
-	b.data = data
-	b.appear(data)
+	else:
+		b.data = data
+		b.appear(data)
 	changes += 1
 	return b
 

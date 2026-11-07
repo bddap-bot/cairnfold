@@ -29,10 +29,8 @@ func _init(plants: Flora) -> void:
 
 
 func _ready() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
 	_ground()
-	_plants(rng)
+	_plants()
 
 
 func _ground() -> void:
@@ -88,7 +86,9 @@ func _process(_delta: float) -> void:
 			mi.mesh = c[2][level]
 
 
-func _plants(rng: RandomNumberGenerator) -> void:
+func _plants() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = SEED
 	for i in GRASS_CLUMPS:
 		flora.add_grass(_scatter(rng, GRASS_RADIUS), rng)
 	for i in FLOWERS:

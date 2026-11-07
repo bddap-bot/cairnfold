@@ -41,7 +41,7 @@ func _write_until_killed(into: String) -> void:
 	var gardens := [_garden(1), _garden(2)]
 	var n := 1
 	while true:
-		World._write(into.path_join("garden.save"), gardens[n % 2])
+		Main.replace_file(into.path_join("garden.save"), gardens[n % 2])
 		log._write({"unix": float(n)}, {}, {}, PackedVector2Array(), [])
 		if n % 3 == 0:
 			log._open()
@@ -52,7 +52,7 @@ func _run() -> void:
 	dir = OS.get_user_data_dir().path_join("cairnfold-kill-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
 	var path := dir.path_join("garden.save")
-	World._write(path, _garden(0))
+	Main.replace_file(path, _garden(0))
 	var cmdline := OS.get_cmdline_args()
 	var script: String = cmdline[cmdline.find("--script") + 1]
 	for round in ROUNDS:

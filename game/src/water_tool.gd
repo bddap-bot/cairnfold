@@ -26,17 +26,17 @@ var _boxes: Array[Array] = []
 ## Fills let in before their hand's preview had caught up, each worked out off the main thread: [hand, the pointed
 ## spot, its task, the box the task leaves its pond in].
 var _fires: Array[Array] = []
-var _ghost_material := Meshes.glow(Color(TINT, 0.45))
 
 
 func _init(player: Rig, garden: World) -> void:
 	rig = player
 	world = garden
-	_ghost_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var material := Meshes.glow(Color(TINT, 0.45))
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 		var ghost := MeshInstance3D.new()
-		ghost.material_override = _ghost_material
+		ghost.material_override = material
 		ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ghost.top_level = true
 		ghost.visible = false

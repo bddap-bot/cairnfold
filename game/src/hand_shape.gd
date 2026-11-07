@@ -23,10 +23,6 @@ const CHAINS := [[2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 
 const CLOSED := [PI * 0.5, PI * 1.3, PI * 1.3, PI * 1.3, PI * 1.3]
 
 
-static func reach(joints: Array) -> float:
-	return joints[WRIST].origin.distance_to(joints[MIDDLE_KNUCKLE].origin)
-
-
 ## How far each finger of `joints` curls, thumb to little, 0 straight to 1 closed.
 static func curls(joints: Array) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
@@ -43,7 +39,7 @@ static func curls(joints: Array) -> PackedFloat32Array:
 
 ## The gesture `joints` make, `held` being the one they made last.
 static func read(joints: Array, held: String) -> String:
-	var l := reach(joints)
+	var l: float = joints[WRIST].origin.distance_to(joints[MIDDLE_KNUCKLE].origin)
 	if l < 1e-3:
 		return ""
 	var curl := 0.0

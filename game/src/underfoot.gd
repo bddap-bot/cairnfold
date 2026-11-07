@@ -4,8 +4,6 @@ extends Node3D
 ## While the player floats, a soft shadow on the ground below, by height alone: standing on nothing tens of metres up
 ## is the classic trigger of fear of heights and of lost balance. Nothing marks the air at their feet.
 
-## Per-build: whether it shows at all.
-const SHOWN := true
 ## Floating this much over LIFTED shows it at full strength.
 const FULL_ABOVE := 1.0
 const SHADOW := 1.6
@@ -48,7 +46,7 @@ func _init() -> void:
 ## Shows it under `head`, the player's feet at `feet` over a floor at `floor_y`.
 func follow(head: Vector3, feet: float, floor_y: float) -> void:
 	var k := clampf((feet - floor_y - Rig.LIFTED) / FULL_ABOVE, 0.0, 1.0)
-	visible = SHOWN and k > 0.0
+	visible = k > 0.0
 	if not visible:
 		return
 	_shadow.global_position = Vector3(head.x, floor_y + RAISE, head.z)

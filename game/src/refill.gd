@@ -67,10 +67,8 @@ func matches(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary,
 func work() -> void:
 	for g: Vector2i in ponds:
 		var was: Array = fills.get(g, [])
-		if not was.is_empty() and was[0] == ponds[g] and not was[1].ground.intersects(ground):
-			filled[g] = was[1]
-		elif not was.is_empty() and was[0] == ponds[g]:
-			filled[g] = _refilled(g, ponds[g], was[1])
+		if not was.is_empty() and was[0] == ponds[g]:
+			filled[g] = _refilled(g, ponds[g], was[1]) if was[1].ground.intersects(ground) else was[1]
 		else:
 			filled[g] = PondLayout.fill(heights, Terrain.ALL, g, ponds[g], was[1].level if not was.is_empty() else -INF)
 	var order: Array = ponds.keys()

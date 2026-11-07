@@ -23,6 +23,8 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 		return []
 	if hand.carried is Conure:
 		return [Kind.BIRD, hand.carried.colouring, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]
+	if hand.tool == Hand.Tool.NONE:
+		return []
 	var kind := Kind.TOOL
 	var index := int(hand.tool)
 	var source: Node3D = hand.model(hand.tool)
@@ -30,8 +32,6 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	var load := 0.0
 	var detail := 0
 	var bend := Vector3.ZERO
-	if hand.tool == Hand.Tool.NONE:
-		return []
 	if hand.tool == Hand.Tool.EASEL:
 		if painting == null:
 			return []

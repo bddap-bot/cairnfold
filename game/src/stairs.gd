@@ -30,10 +30,8 @@ func clear() -> void:
 func take(id: int) -> void:
 	_data.erase(id)
 	layouts.erase(id)
-	if _growing.has(id):
-		_growing[id].node.queue_free()
-		_growing.erase(id)
-	masonry.remove(-1000000 - id)
+	_stop_growing(id)
+	masonry.remove(Masonry.stair_owner(id))
 
 func _process(delta: float) -> void:
 	for id: int in _growing.keys():
@@ -66,10 +64,15 @@ func _place(id: int) -> void:
 	var parts: Array[Dictionary] = []
 	for k in Wall.Part.size():
 		parts.append(packed.chunks.get(k, {}))
-	masonry.place(-1000000 - id, parts)
+	masonry.place(Masonry.stair_owner(id), parts)
+	_stop_growing(id)
+
+
+func _stop_growing(id: int) -> void:
 	if _growing.has(id):
 		_growing[id].node.queue_free()
 		_growing.erase(id)
+
 
 func laying() -> bool:
 	return not _growing.is_empty()

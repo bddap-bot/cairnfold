@@ -101,7 +101,8 @@ func call_out(kind: String, at: Vector3) -> bool:
 	v.play()
 	var heard: Array = played.get_or_add(kind, [0, 0.0])
 	heard[0] += 1
-	heard[1] = snappedf(viewer.global_position.distance_to(at), 0.1) if viewer != null and viewer.is_inside_tree() else -1.0
+	var off := _from_head(at)
+	heard[1] = snappedf(off, 0.1) if is_finite(off) else -1.0
 	return true
 
 
@@ -114,4 +115,8 @@ func now_and_then(kind: String, at: Vector3, every: float, delta: float) -> bool
 
 
 func calm(at: Vector3) -> bool:
-	return viewer != null and viewer.is_inside_tree() and viewer.global_position.distance_to(at) < NEAR
+	return _from_head(at) < NEAR
+
+
+func _from_head(at: Vector3) -> float:
+	return viewer.global_position.distance_to(at) if viewer != null and viewer.is_inside_tree() else INF

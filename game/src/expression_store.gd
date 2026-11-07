@@ -64,20 +64,8 @@ func _process(_delta: float) -> void:
 	_remember()
 	if loaded and _dirty and _task < 0:
 		_dirty = false
-		var snapshot := JSON.stringify(chosen)
-		_task = WorkerThreadPool.add_task(func() -> void: _write(snapshot))
-
-
-static func _write(snapshot: String) -> void:
-	var file := FileAccess.open(PATH + ".new", FileAccess.WRITE)
-	if file == null:
-		push_error("Cannot save avatar parameters: %s" % FileAccess.get_open_error())
-		return
-	file.store_string(snapshot)
-	file.close()
-	var error := DirAccess.rename_absolute(PATH + ".new", PATH)
-	if error != OK:
-		push_error("Cannot replace avatar parameters: %s" % error)
+		var snapshot := JSON.stringify(chosen).to_utf8_buffer()
+		_task = WorkerThreadPool.add_task(func() -> void: Main.replace_file(PATH, snapshot))
 
 
 func _exit_tree() -> void:
@@ -85,4 +73,4 @@ func _exit_tree() -> void:
 		WorkerThreadPool.wait_for_task_completion(_task)
 	_remember()
 	if _dirty:
-		_write(JSON.stringify(chosen))
+		Main.replace_file(PATH, JSON.stringify(chosen).to_utf8_buffer())

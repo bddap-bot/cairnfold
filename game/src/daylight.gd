@@ -87,7 +87,12 @@ static func moon_elevation(time: float) -> float:
 ## How fully the moon lights the garden at `time`: 0 while the sun lights it or the moon is down, 1 at full night
 ## with the moon well up.
 static func moonlit(time: float) -> float:
-	return smoothstep(HANDOVER, NIGHT, elevation(time)) * smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time))
+	return smoothstep(HANDOVER, NIGHT, elevation(time)) * _moonrise(time)
+
+
+## How far the moon has risen at `time`, from lighting nothing to lighting the garden whole.
+static func _moonrise(time: float) -> float:
+	return smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time))
 
 
 ## How fully the rooms' windows glow at `time`: 0 by day, 1 once the sun is down.
@@ -132,7 +137,7 @@ static func sun_at(degrees: float, rising: bool) -> float:
 ## Whether `time` falls in the dark with neither sun nor moon up: the sun past HANDOVER and the moon risen under
 ## MOONLESS of the way. The moon rides high at dusk, so it is the hours before dawn.
 static func moonless(time: float) -> bool:
-	return elevation(time) < HANDOVER and smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time)) < MOONLESS
+	return elevation(time) < HANDOVER and _moonrise(time) < MOONLESS
 
 
 ## Every light value for `time`, blended between the keys around the sun's elevation, then toward MOONLIT as far

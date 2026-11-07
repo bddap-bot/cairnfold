@@ -136,21 +136,17 @@ func tick(delta: float) -> void:
 	if not visible:
 		return
 	if flying > 0:
-		_fly(delta)
+		_carry += delta
+		while flying > 0 and _carry >= STEP:
+			_carry -= STEP
+			_step(STEP)
+		_place()
 		return
 	age += delta
 	if age >= lasts:
 		visible = false
 	elif _afloat or age > lasts - FADE:
 		_place()
-
-
-func _fly(delta: float) -> void:
-	_carry += delta
-	while flying > 0 and _carry >= STEP:
-		_carry -= STEP
-		_step(STEP)
-	_place()
 
 
 func _step(delta: float) -> void:

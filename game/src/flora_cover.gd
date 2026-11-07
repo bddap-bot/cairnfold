@@ -11,8 +11,7 @@ extends RefCounted
 ## How often a painted or mown clump reaches the texture: what changes is near the hand, inside the clumps' reach.
 const FLUSH_MSEC := 250
 
-var size := Terrain.VERTS
-var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+var image := Image.create(Terrain.VERTS, Terrain.VERTS, false, Image.FORMAT_RGBA8)
 var texture := ImageTexture.create_from_image(image)
 ## Each slot's texel, set as its clump is added.
 var looks := PackedColorArray()

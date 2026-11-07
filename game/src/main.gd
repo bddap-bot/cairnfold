@@ -473,6 +473,24 @@ static func player_path(name: String) -> String:
 	return "user://" + name
 
 
+## Written beside `path` and renamed over it, so a crash mid-write leaves the last one whole. Godot reports nothing of
+## a write the disk refused on close, so the file is measured before it replaces the old one.
+static func replace_file(path: String, bytes: PackedByteArray) -> void:
+	var f := FileAccess.open(path + ".new", FileAccess.WRITE)
+	if f == null:
+		push_error("cannot save %s: %s" % [path, error_string(FileAccess.get_open_error())])
+		return
+	var stored := f.store_buffer(bytes)
+	f.close()
+	if not stored or FileAccess.get_size(path + ".new") != bytes.size():
+		push_error("the disk did not take %s; the last one stays" % path)
+		DirAccess.remove_absolute(path + ".new")
+		return
+	var err := DirAccess.rename_absolute(path + ".new", path)
+	if err != OK:
+		push_error("cannot save %s: %s" % [path, error_string(err)])
+
+
 ## Writes `bytes` to `path`. On Android Godot's own files reach shared storage only in Download and Documents, so a
 ## photo is written through java.io, as scoped storage lets an app write its own pictures without a permission. It
 ## reaches flash SYNC_BYTES at a time: written whole, the kernel flushed a photo's 23 MB in one burst, and the engine's
