@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "2c28dbc52188c8fb3697bc9643f1d11786704aa8",
+  "commit": "92babbdc7487b27b6f24fddd48eae73d7495475e",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
@@ -9,7 +9,7 @@
     },
     "spring_definition.gd": {
       "source": "addons/avatar_workshop/spring_definition.gd",
-      "sha256": "acf64b33815c720c21045ffe91c02ca069570f0e9fbf9d52d03404d79990493c"
+      "sha256": "b69a326685f9f7ee3d81980cfa9c5d72b516d08ad2446dbdbcef40347f21fd8f"
     },
     "spring_runtime.gd": {
       "source": "addons/avatar_workshop/spring_runtime.gd",
@@ -53,7 +53,7 @@
     },
     "physbone.gd": {
       "source": "addons/avatar_workshop/physbone.gd",
-      "sha256": "1f9e3cf0da283de574c303a82008caa5b782648c950f621d51017f394261bc84"
+      "sha256": "c4dd2776249911ac941380e1893677b2ccc06ac3bdd1d429580347252ec8e707"
     },
     "physbone.gd.uid": {
       "source": "addons/avatar_workshop/physbone.gd.uid",
