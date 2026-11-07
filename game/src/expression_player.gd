@@ -226,10 +226,7 @@ static func prepare(model: Node3D) -> void:
 		if not encoded is String or img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) != OK:
 			return null
 		img.convert(Image.FORMAT_RGBA8)
-		if shrink > 1:
-			img.resize(maxi(1, img.get_width() / shrink), maxi(1, img.get_height() / shrink), Image.INTERPOLATE_LANCZOS)
-		if mipmapped:
-			img.generate_mipmaps()
+		Avatar.scale_down(img, shrink, mipmapped)
 		return img
 	var looks: Dictionary = data.get("looks", {})
 	for pair: Array in [[data.get("hueMask"), "hue_mask", false], [data.get("colorAtlas"), "untinted", true], [looks.get("emission"), "glow", true]]:

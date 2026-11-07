@@ -16,7 +16,7 @@ var _instance := Masonry.Kind.new(mesh(), small_material(), true, true, Geometry
 
 static func shared_material() -> ShaderMaterial:
 	if _material == null:
-		_material = _stone(preload("res://src/stone.gdshader"))
+		_material = stone(preload("res://src/stone.gdshader"))
 	return _material
 
 
@@ -24,18 +24,19 @@ static func shared_material() -> ShaderMaterial:
 ## they read the volumes once a vertex (Bounce's given_at), not once a fragment.
 static func small_material() -> ShaderMaterial:
 	if _small == null:
-		_small = _stone(preload("res://src/stone_small.gdshader"))
+		_small = stone(preload("res://src/stone_small.gdshader"))
 	return _small
 
 
 ## small_material for a baked far chunk (Masonry.bake).
 static func baked_material() -> ShaderMaterial:
 	if _baked == null:
-		_baked = _stone(preload("res://src/stone_far.gdshader"))
+		_baked = stone(preload("res://src/stone_far.gdshader"))
 	return _baked
 
 
-static func _stone(shader: Shader) -> ShaderMaterial:
+## A material of `shader` lit as masonry is, its windows glowing and glazed, in the stone styles; roof timber too.
+static func stone(shader: Shader) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = shader
 	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)

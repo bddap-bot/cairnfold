@@ -68,9 +68,7 @@ func tick(delta: float) -> void:
 			_think(b, a, delta)
 		_part(b, delta)
 		if _leaving(b) and _gone(b):
-			for a in b.animals:
-				wildlife.release(a)
-				a.queue_free()
+			_free(b)
 			bands.remove_at(i)
 
 
@@ -401,6 +399,12 @@ func _leave(b: Band) -> void:
 		a.hand = null
 		a.state = State.LEAVE
 		a.goal = wildlife._head_off(a.position, heading, rng)
+
+
+func _free(b: Band) -> void:
+	for a in b.animals:
+		wildlife.release(a)
+		a.queue_free()
 
 
 ## A leaving band is let go once every one is out of sight and some way off, as a duck family is; one that has

@@ -632,8 +632,7 @@ func _lay_gables(s: Dictionary) -> void:
 
 
 func _lift_wall(s: Dictionary) -> void:
-	var w := _wall_of(s)
-	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": float(s.height)}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": _wall_of(s).id, "data": {"height": float(s.height)}})
 
 
 ## Holds wall `index` (or the one under `at`), a house too, as two hands would, and draws them `metres` apart upright

@@ -239,9 +239,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	var images := Vrm.images(bytes)
 	if images.size() > MAX_IMAGES or images.any(func(image: Dictionary) -> bool: return maxi(image.size.x, image.size.y) > MAX_IMAGE_SIDE):
 		return null
-	var pixels := 0
-	for image in images:
-		pixels += image.size.x * image.size.y
+	var pixels := Vrm.pixels(images)
 	var heavy := weight(bytes.size(), pixels)
 	var held := memory_to_read(heavy) - READ_LOW
 	_reading_lock.lock()
@@ -260,7 +258,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	var start := Time.get_ticks_usec()
 	var textures := texture_bytes(bytes, images)
 	var shrink := shrink_for(textures, budget)
-	var root := Vrm.read(bytes, fits, shape, func(img: Image) -> void: _shrink(img, shrink))
+	var root := Vrm.read(bytes, fits, shape, func(img: Image) -> void: scale_down(img, shrink))
 	if root != null:
 		root.set_meta("texture_shrink", shrink)
 	var scene := model(root) if root != null else null
@@ -344,9 +342,7 @@ static func shrink_for(bytes: int, budget: int) -> int:
 ## The bytes the textures of the VRM file `glb` take once read, mipmapped, from its `images` (Vrm.images) and the
 ## expression layers its definition carries, each measured from its header before any is decoded.
 static func texture_bytes(glb: PackedByteArray, images: Array[Dictionary]) -> int:
-	var texels := 0
-	for image in images:
-		texels += image.size.x * image.size.y
+	var texels := Vrm.pixels(images)
 	var json: Variant = Vrm.json_chunk(glb) if glb.size() >= 20 else null
 	var definition: Variant = Vrm._field(Vrm._field(json, "extensions"), Vrm.EXPRESSIONS)
 	for encoded: Variant in [Vrm._field(definition, "hueMask"), Vrm._field(definition, "colorAtlas"), Vrm._field(Vrm._field(definition, "looks"), "emission")]:
@@ -556,10 +552,11 @@ static func _plain(m: BaseMaterial3D) -> void:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 
 
-static func _shrink(img: Image, shrink: int) -> void:
+## Holds `img` 1/`shrink` wide, mipmapped unless not `mipmapped`.
+static func scale_down(img: Image, shrink: int, mipmapped := true) -> void:
 	if shrink > 1:
 		img.resize(maxi(1, img.get_width() / shrink), maxi(1, img.get_height() / shrink), Image.INTERPOLATE_LANCZOS)
-	if not img.has_mipmaps():
+	if mipmapped and not img.has_mipmaps():
 		img.generate_mipmaps()
 
 
@@ -607,7 +604,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a.tint = tint
 	a._model = scene.instantiate()
 	a.add_child(a._model)
-	a._facing = FACING if (a._model.get_meta("forward", Vector3.BACK) as Vector3).z > 0.0 else Basis.IDENTITY
+	a._facing = FACING if (a._model.get_meta("forward") as Vector3).z > 0.0 else Basis.IDENTITY
 	var bones: Dictionary = a._model.get_meta("humanoid")
 	a._skeleton = a._model.get_node(str(bones.hips).get_slice(":", 0))
 	a._skeleton.reset_bone_poses()
@@ -803,7 +800,7 @@ func headless() -> Array[MeshInstance3D]:
 			continue
 		var skin: Skin = mi.skin.duplicate()
 		for i in skin.get_bind_count():
-			if head.has(bind_bone(skin, i)):
+			if head.has(Meshes.bind_bone(skin, i, _skeleton)):
 				skin.set_bind_bone(i, _head.bone)
 				skin.set_bind_name(i, _skeleton.get_bone_name(_head.bone))
 				skin.set_bind_pose(i, Transform3D(GONE, _eye_to_head.affine_inverse().origin))
@@ -817,21 +814,16 @@ func headless() -> Array[MeshInstance3D]:
 ## The meshes that only spring joints move, which the wearer sees swing and grips.
 func swaying() -> Array[MeshInstance3D]:
 	var swings := {}
-	for chain: Dictionary in _model.get_meta("springs", {"springs": []}).springs:
+	for chain: Dictionary in _model.get_meta("springs").springs:
 		for joint: Dictionary in chain.joints:
 			var j: Joint = _joints.get("spring_" + str(joint.node))
 			if j:
 				swings[_skeleton.get_bone_name(j.bone)] = true
 	var out: Array[MeshInstance3D] = []
 	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mi.skin and mi.skin.get_bind_count() > 0 and mi.get_node_or_null(mi.skeleton) == _skeleton and range(mi.skin.get_bind_count()).all(func(i: int) -> bool: return bind_bone(mi.skin, i) >= 0 and swings.has(_skeleton.get_bone_name(bind_bone(mi.skin, i)))):
+		if mi.skin and mi.skin.get_bind_count() > 0 and mi.get_node_or_null(mi.skeleton) == _skeleton and range(mi.skin.get_bind_count()).all(func(i: int) -> bool: return Meshes.bind_bone(mi.skin, i, _skeleton) >= 0 and swings.has(_skeleton.get_bone_name(Meshes.bind_bone(mi.skin, i, _skeleton)))):
 			out.append(mi)
 	return out
-
-
-## The skeleton bone a skin's bind `i` follows, by index or else by name.
-func bind_bone(skin: Skin, i: int) -> int:
-	return skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else _skeleton.find_bone(skin.get_bind_name(i))
 
 
 ## Tints the tint surfaces; avatars cast no shadow, since a shadow pass would double their draw calls.
@@ -887,7 +879,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 		for name: String in _joints:
 			if name.begins_with("spring_"):
 				nodes[int(name.trim_prefix("spring_"))] = SkeletonBone.new(_skeleton, _joints[name].bone)
-		springs = SpringRuntime.new(_model.get_meta("springs", {"springs": [], "colliders": []}), nodes)
+		springs = SpringRuntime.new(_model.get_meta("springs"), nodes)
 		if expressions != null:
 			expressions.springs = springs
 

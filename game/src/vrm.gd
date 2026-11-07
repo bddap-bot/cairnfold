@@ -93,16 +93,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 			if path != null:
 				look.shapes.get_or_add(dir, []).append([path, b[1], b[2]])
 	var springs := SpringDefinition.read(state.json)
-	var spring_nodes := {}
-	for chain: Dictionary in springs.springs:
-		for joint: Dictionary in chain.joints:
-			spring_nodes[joint.node] = true
-		if chain.center >= 0:
-			spring_nodes[chain.center] = true
-	for collider: Dictionary in springs.colliders:
-		if collider.node >= 0:
-			spring_nodes[collider.node] = true
-	for index: int in spring_nodes:
+	for index: int in spring_nodes(springs):
 		_bind(found, "spring_" + str(index), float(index), state, root)
 	if exts.get(EXPRESSIONS) is Dictionary and ExpressionDefinition.valid(exts[EXPRESSIONS]):
 		root.set_meta("expressions", _named(exts[EXPRESSIONS], state))
@@ -213,6 +204,29 @@ class Images extends GLTFDocumentExtension:
 ## The parsed JSON chunk of the binary glTF `glb`, which the caller has checked holds a header.
 static func json_chunk(glb: PackedByteArray) -> Variant:
 	return JSON.parse_string(glb.slice(20, 20 + glb.decode_u32(12)).get_string_from_utf8())
+
+
+## Every node a read spring `definition` (SpringDefinition.read) names: its joints, its chains' centres and its
+## colliders' nodes, each once.
+static func spring_nodes(definition: Dictionary) -> Array:
+	var out := {}
+	for chain: Dictionary in definition.springs:
+		for joint: Dictionary in chain.joints:
+			out[joint.node] = true
+		if chain.center >= 0:
+			out[chain.center] = true
+	for collider: Dictionary in definition.colliders:
+		if collider.node >= 0:
+			out[collider.node] = true
+	return out.keys()
+
+
+## How many pixels `images` (images()) hold together.
+static func pixels(images: Array[Dictionary]) -> int:
+	var out := 0
+	for image in images:
+		out += image.size.x * image.size.y
+	return out
 
 
 ## Each image of a binary glTF, in order, measured from its header before any is decoded: "size", zero for an image not
@@ -693,7 +707,7 @@ static func write(root: Node3D, path: String) -> void:
 static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
 	var bound := {}
 	for i in skin.get_bind_count():
-		bound[skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))] = true
+		bound[Meshes.bind_bone(skin, i, skeleton)] = true
 	var full := skin.duplicate() as Skin
 	for b in skeleton.get_bone_count():
 		if not bound.has(b):

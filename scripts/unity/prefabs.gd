@@ -33,7 +33,7 @@ func _init(from: Assets) -> void:
 ## document that defined it}.
 func flatten(guid: String) -> Dictionary:
 	if not _flat.has(guid):
-		_flat[guid] = _flatten_document(Yaml.objects(assets.text(guid)), guid) if not assets.extension(guid) in MODELS else _model_objects(guid)
+		_flat[guid] = _flatten_document(Yaml.objects(assets.text(guid)), guid) if not assets.extension(guid) in MODELS else model(guid).get("objects", {})
 	return _flat[guid]
 
 
@@ -181,15 +181,10 @@ static func renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
-## A model's objects as Unity's importer makes them: a GameObject and Transform for the model and each node in it, and
-## for each node with a mesh a SkinnedMeshRenderer (or MeshFilter and MeshRenderer for an unskinned one) whose
-## materials are those the model's .meta remaps, by name, or a material of that name in the package.
-func _model_objects(guid: String) -> Dictionary:
-	var model := model(guid)
-	return model.objects if not model.is_empty() else {}
-
-
-## The model with this GUID, imported once; empty if Godot cannot read it.
+## The model with this GUID, imported once; empty if Godot cannot read it. Its "objects" are as Unity's importer makes
+## them: a GameObject and Transform for the model and each node in it, and for each node with a mesh a
+## SkinnedMeshRenderer (or MeshFilter and MeshRenderer for an unskinned one) whose materials are those the model's .meta
+## remaps, by name, or a material of that name in the package.
 func model(guid: String) -> Dictionary:
 	if models.has(guid):
 		return models[guid]

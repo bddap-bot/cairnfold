@@ -1174,7 +1174,7 @@ func _sources_binding_one_bone_differently_share_one_bind() -> void:
 	var b := UnityAvatar._bind_once(second, skin, binds, rests)
 	var c := UnityAvatar._bind_once(askew, skin, binds, rests)
 	check(skin.get_bind_count() == 3 and a.bound == [0, 1] and b.bound == [1, 2] and c.bound == [0, 1], "a bone sources bind differently is one bind: %s %s %s" % [a.bound, b.bound, c.bound])
-	check(a.moves.all(func(m: Variant) -> bool: return m == Transform3D.IDENTITY), "the first source keeps its vertices where they are")
+	check(a.move == Transform3D.IDENTITY, "the first source keeps its vertices where they are")
 	var top := [[0, 1, 0, 0], [0.25, 0.75, 0.0, 0.0]]
 	var identity := func(i: int) -> int: return i
 	var vertex := Vector3(0.003, -0.0001, 0.0002)

@@ -15,7 +15,7 @@ def main():
     # Select separate active passages rather than repeat one tiny scratch.
     for name, cutoff in PROFILES.items():
         for i, start in enumerate((2, 5, 8, 11, 14, 18, 22, 26)):
-            x = recording[int(start * SR):int((start + 0.16) * SR)].copy()
+            x = recording[int(start * SR):int((start + 0.16) * SR)]
             x = _fft_lowpass(x - _fft_lowpass(x, 180, 4), cutoff, 6)
             x *= np.sin(np.linspace(0, np.pi, len(x))) ** 2
             rms = np.sqrt(np.mean(x * x))

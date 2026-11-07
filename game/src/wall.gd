@@ -15,7 +15,7 @@ static var _kinds: Array[Masonry.Kind] = []
 static var _plaster := _material("res://src/plaster.gdshader", WallLayout.PLASTER)
 static var _thatch := _material("res://src/thatch.gdshader")
 static var _lime := _material("res://src/torching.gdshader", WallLayout.PLASTER)
-static var _roof_wood := _wood()
+static var _roof_wood := Stones.stone(preload("res://src/roof_timber.gdshader"))
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -200,14 +200,6 @@ static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
 	if albedo != null:
 		var c: Color = albedo
 		m.set_shader_parameter("albedo", Vector3(c.r, c.g, c.b))
-	return m
-
-
-static func _wood() -> ShaderMaterial:
-	var m := _material("res://src/roof_timber.gdshader")
-	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
-	m.set_shader_parameter("glass_colour", Vector3(WallLayout.GLASS.r, WallLayout.GLASS.g, WallLayout.GLASS.b))
-	StoneStyles.apply(m)
 	return m
 
 

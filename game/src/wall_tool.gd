@@ -1709,9 +1709,7 @@ func _relay(w: Wall, data := {}) -> void:
 	var d := World.reshaped(world.state.walls[w.id], data)
 	w.set_data(d)
 	w.reshaped = data
-	_meet(w)
-	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
-	_reshaped(w)
+	_settle(w)
 	_open_paths(w, d.openings)
 	w.rebuild()
 
@@ -1988,9 +1986,7 @@ func reground(area: Rect2, settled: bool) -> void:
 		moved[w.id] = w
 		if not _held(w):
 			if settled and _meets_any(w):
-				_meet(w)
-				w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
-				_reshaped(w)
+				_settle(w)
 			elif not settled and not w.on.is_empty():
 				w.layout.supports = _shown_tops(w.on, moved, tops, height, water)
 		w.rebuild(settled)
@@ -2146,6 +2142,13 @@ func _below(on: PackedInt32Array) -> Dictionary:
 	return out
 
 
+## Sets `w` on the builds it meets and the ground as it now lies, and takes the room it then takes up.
+func _settle(w: Wall) -> void:
+	_meet(w)
+	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
+	_reshaped(w)
+
+
 ## The builds `w` meets: those it stands on, those standing on it, and the houses and towers it joins.
 func _meet(w: Wall) -> void:
 	var supports: Array[Massing] = []
@@ -2217,9 +2220,7 @@ func _meets_any(w: Wall) -> bool:
 func _lay_again(w: Wall, changed: Variant) -> void:
 	if _held(w) or not world.state.walls.has(w.id):
 		return
-	_meet(w)
-	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
-	_reshaped(w)
+	_settle(w)
 	if changed != null:
 		_open_paths(w)
 	w.rebuild()

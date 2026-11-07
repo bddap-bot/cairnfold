@@ -126,6 +126,15 @@ func _free(p: Vector3, me: Owl) -> bool:
 	return true
 
 
+## Flies to the perch `to` (_perch's), or away where there is none.
+func _perch_or_leave(o: Owl, to: Array) -> void:
+	if to.is_empty():
+		o.leaving = true
+		leave(o)
+	else:
+		_fly(o, to[0], to[1])
+
+
 func _fly(o: Owl, site: Birds.Site, to: Vector3) -> void:
 	o.state = State.FLY
 	o.site = site
@@ -140,20 +149,10 @@ func think(a: One, delta: float) -> void:
 	o.hooted += delta
 	if o.state == State.PERCH and not o.leaving:
 		if o.site == null or not o.site.listed or (int(o.clock) != int(o.clock - delta) and not o.site.points().has(o.goal)):
-			var to := _perch(o, o.position)
-			if to.is_empty():
-				leave(o)
-				o.leaving = true
-			else:
-				_fly(o, to[0], to[1])
+			_perch_or_leave(o, _perch(o, o.position))
 		var n := wary(o.position, FLIGHT, STARTLE)
 		if n != null:
-			var to := _perch(o, o.position, n.global_position)
-			if to.is_empty():
-				leave(o)
-				o.leaving = true
-			else:
-				_fly(o, to[0], to[1])
+			_perch_or_leave(o, _perch(o, o.position, n.global_position))
 	match o.state:
 		State.FLY:
 			o.t = minf(o.t + delta / o.span, 1.0)
@@ -192,12 +191,7 @@ func think(a: One, delta: float) -> void:
 		State.GROUND:
 			o.timer -= delta
 			if o.timer <= 0.0 or wary(o.position, FLIGHT, STARTLE) != null:
-				var to := _perch(o, o.back)
-				if to.is_empty():
-					leave(o)
-					o.leaving = true
-				else:
-					_fly(o, to[0], to[1])
+				_perch_or_leave(o, _perch(o, o.back))
 	o.head = lerp_angle(o.head, o.look, minf(delta * 5.0, 1.0)) if o.state == State.PERCH else move_toward(o.head, 0.0, delta * 3.0)
 	var hoot := sin(PI * o.hooted / HOOT_FOR) if o.hooted < HOOT_FOR else 0.0
 	o.basis = Basis(Vector3.UP, o.yaw) * Basis(Vector3.RIGHT, -0.9 * o.flying)

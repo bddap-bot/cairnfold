@@ -5,7 +5,6 @@ each, the meadow's wind, its birds and its night, the stone sounds, the water so
 import json
 import pathlib
 import subprocess
-import sys
 import tempfile
 
 import numpy as np
@@ -223,7 +222,7 @@ def ostinato(start, end, a, b, step=0.5):
 
 
 def sections():
-    D, Cs, Ds = 2, 1, 3
+    D, Ds = 2, 3
     out = []
 
     s = Section("first-light", 100, 32, ["B", "G#m", "E", "F#", "B", "D#m", "E", "F#sus4"])
@@ -604,7 +603,7 @@ def actions():
         _add(lift, np.exp(-_t(0.3) * 18) * np.sin(2 * np.pi * 72 * _t(0.3)) * 0.8, 0)
         fx[f"lift{i}"] = lift
     for i in range(4):
-        fx[f"scrape{i}"] = _grains(0.22, 14, 0.025, 100, 650, 1.0) * np.hanning(int(0.22 * SR))
+        fx[f"scrape{i}"] = _grains(0.22, 14, 0.025, 100, 650) * np.hanning(int(0.22 * SR))
     for i in range(3):
         fx[f"wood{i}"] = _knock(crng.uniform(260, 340))
     for i in range(3):
@@ -718,4 +717,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

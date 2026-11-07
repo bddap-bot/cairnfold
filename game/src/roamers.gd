@@ -96,9 +96,7 @@ func arrive(kind: Beast.Kind) -> void:
 func hold() -> void:
 	held = true
 	for b in bands:
-		for a in b.animals:
-			wildlife.release(a)
-			a.queue_free()
+		_free(b)
 	bands.clear()
 
 

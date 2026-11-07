@@ -4,7 +4,6 @@ lists: the first half second of each, low-passed at 1.8 kHz like every synthesis
 written at one peak, so their cue's level alone sets how loud they play. Run under nix-shell."""
 
 import json
-import sys
 
 import numpy as np
 
@@ -32,4 +31,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

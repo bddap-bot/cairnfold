@@ -142,7 +142,7 @@ func _read_limits_follow_memory() -> void:
 	var floor := _padded(sample, Avatar.FLOOR_BYTES)
 	check(Avatar.read(floor, false, 0) != null, "a file at the size floor is read with no memory to spare")
 	var past := _padded(sample, Avatar.FLOOR_BYTES + 4)
-	var needs := Avatar.memory_to_read(Avatar.weight(past.size(), Array(Vrm.images(past)).reduce(func(sum: int, image: Dictionary) -> int: return sum + image.size.x * image.size.y, 0)))
+	var needs := Avatar.memory_to_read(Avatar.weight(past.size(), Vrm.pixels(Vrm.images(past))))
 	check(Avatar.read(past, false, 0) == null, "a file past the size floor is refused with no memory to spare")
 	check(Avatar.read(past, false, needs) != null, "a file past the size floor is read where the memory it needs is available")
 	Avatar._reading = needs
@@ -503,7 +503,7 @@ func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> voi
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		var binds: Array[Transform3D] = []
 		for i in mi.skin.get_bind_count():
-			binds.append(at * sk.get_bone_global_pose(a.bind_bone(mi.skin, i)) * mi.skin.get_bind_pose(i))
+			binds.append(at * sk.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
 		for s in mi.mesh.get_surface_count():
 			var arrays := mi.mesh.surface_get_arrays(s)
 			var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -586,7 +586,7 @@ func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
 		var theirs := mi.get_node(mi.skeleton) as Skeleton3D
 		var joints: Array[Transform3D] = []
 		for i in mi.skin.get_bind_count():
-			var b := mi.skin.get_bind_bone(i) if mi.skin.get_bind_bone(i) >= 0 else theirs.find_bone(mi.skin.get_bind_name(i))
+			var b := Meshes.bind_bone(mi.skin, i, theirs)
 			joints.append(at * sk.get_bone_global_pose(sk.find_bone(theirs.get_bone_name(b).validate_node_name())) * mi.skin.get_bind_pose(i))
 		for s in mi.mesh.get_surface_count():
 			var arrays := mi.mesh.surface_get_arrays(s)
@@ -802,7 +802,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 		var p := _skinned(a, seen[k])
 		var binds: Array[Transform3D] = []
 		for i in mi.skin.get_bind_count():
-			binds.append(at * a._skeleton.get_bone_global_pose(a.bind_bone(mi.skin, i)) * mi.skin.get_bind_pose(i))
+			binds.append(at * a._skeleton.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
 		var n := 0
 		for s in mi.mesh.get_surface_count():
 			var arrays := mi.mesh.surface_get_arrays(s)
@@ -815,7 +815,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 				var w := 0.0
 				for c in stride:
 					var bind := bone[v * stride + c]
-					if not head.has(a.bind_bone(mi.skin, bind)):
+					if not head.has(Meshes.bind_bone(mi.skin, bind, a._skeleton)):
 						body += binds[bind] * vertex[v] * weight[v * stride + c]
 						w += weight[v * stride + c]
 				var q := p[n]
@@ -845,7 +845,7 @@ func _skinned(a: Avatar, mi: MeshInstance3D) -> PackedVector3Array:
 	var at := Avatar._space(a._skeleton, a._model)
 	var binds: Array[Transform3D] = []
 	for i in mi.skin.get_bind_count():
-		binds.append(at * a._skeleton.get_bone_global_pose(a.bind_bone(mi.skin, i)) * mi.skin.get_bind_pose(i))
+		binds.append(at * a._skeleton.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
 	var out := PackedVector3Array()
 	for s in mi.mesh.get_surface_count():
 		var arrays := mi.mesh.surface_get_arrays(s)

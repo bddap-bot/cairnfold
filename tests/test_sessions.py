@@ -11,11 +11,11 @@ import zlib
 READER = Path(__file__).resolve().parents[1] / "scripts/sessions.py"
 
 
-def tally(hist_ms, late=0, cpu=2.0, gpu=None):
+def tally(hist_ms, late=0, gpu=None):
     hist = {}
     for ms in hist_ms:
         hist[str(int(ms * 2))] = hist.get(str(int(ms * 2)), 0) + 1
-    return {"frames": len(hist_ms), "late": late, "max": max(hist_ms), "hist": hist, "cpu_ms": cpu * len(hist_ms),
+    return {"frames": len(hist_ms), "late": late, "max": max(hist_ms), "hist": hist, "cpu_ms": 2.0 * len(hist_ms),
             "gpu_ms": (gpu or 0.0) * len(hist_ms), "gpu_frames": len(hist_ms) if gpu else 0}
 
 
@@ -159,7 +159,7 @@ class Sessions(unittest.TestCase):
 
     def test_last_keeps_the_newest_and_an_empty_folder_fails(self):
         with tempfile.TemporaryDirectory() as d:
-            self.write(Path(d), "old", [{"unix": 1.0}], part=0)
+            self.write(Path(d), "old", [{"unix": 1.0}])
             self.write(Path(d), "new", [{"unix": 9.0}], part=5)
             self.assertEqual([s["session"] for s in json.loads(printed(d, "--last", "1", "--json"))], ["new"])
         with tempfile.TemporaryDirectory() as d:

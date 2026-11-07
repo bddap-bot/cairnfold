@@ -27,7 +27,6 @@ const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
-const ExpressionCurves = preload("res://src/expression_state.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
 ## The side, in pixels, of a menu icon as the model carries it: a board row's height.
@@ -72,9 +71,7 @@ func _init() -> void:
 			printerr("unity_avatar: Avatar.read refuses %s" % args[1])
 			quit(1)
 			return
-		var pixels := 0
-		for image in Vrm.images(bytes):
-			pixels += image.size.x * image.size.y
+		var pixels := Vrm.pixels(Vrm.images(bytes))
 		var heavy := Avatar.weight(bytes.size(), pixels)
 		if heavy > 1.0:
 			print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
@@ -286,14 +283,8 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	nodes.resize(sk.get_bone_count())
 	nodes.fill({})
 	var chains := _read_springs(springs, nodes) if not springs.is_empty() else {"springs": [], "colliders": []}
-	for chain: Dictionary in chains.springs:
-		for j: Dictionary in chain.joints:
-			human["spring_%d" % j.node] = bone_path.call(j.node)
-		if chain.center >= 0:
-			human["spring_%d" % chain.center] = bone_path.call(chain.center)
-	for c: Dictionary in chains.colliders:
-		if c.node >= 0:
-			human["spring_%d" % c.node] = bone_path.call(c.node)
+	for n: int in Vrm.spring_nodes(chains):
+		human["spring_%d" % n] = bone_path.call(n)
 	root.set_meta("humanoid", human)
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
@@ -414,6 +405,11 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	return when
 
 
+## A clip curve's one key, as each pass over the clips meets it.
+static func _curve_key(c: Dictionary) -> String:
+	return "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+
+
 ## The renderers that draw when the avatar is worn or its menu can show: every renderer, enabled or switched by
 ## `switches`, whose GameObject and its parents up to the avatar are active or switched, and not editor-only.
 ## [[renderer id, go, [[switch target, 1]...] each switch that must be on for it to draw], ...]
@@ -422,11 +418,12 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 	var when := {}
 	var placed := {}
 	var out := []
+	var under := _under(objs, top)
 	var left := []
 	var inside := {}
-	for e: Array in _under(objs, top):
+	for e: Array in under:
 		inside[e[0]] = true
-	for e: Array in _under(objs, top):
+	for e: Array in under:
 		var father := Yaml.file_id(objs[e[0]].data.get("m_Father"))
 		var switched: bool = switches.has(e[1]) and not Prefabs.editor_only(objs, e[1])
 		var live: bool = (_active(objs, e[1]) or switched) and (e[0] == top or on.get(father, false))
@@ -472,7 +469,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 		return out
 	for clip: Dictionary in expressions.data.clips:
 		for c: Dictionary in clip.curves:
-			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			var key := _curve_key(c)
 			if out.by_curve.has(key) or not paths.has(c.path):
 				continue
 			var go := Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject"))
@@ -501,7 +498,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 				out.by_curve[key] = out.slots[at][0]
 	for clip: Dictionary in expressions.data.clips:
 		for c: Dictionary in clip.curves:
-			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			var key := _curve_key(c)
 			if not c.has("refs") or not out.by_curve.has(key):
 				continue
 			for slot: String in out.slots:
@@ -564,7 +561,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	for clip: Dictionary in data.clips:
 		var curves := []
 		for c: Dictionary in clip.curves:
-			var key := "%s|%s|%s" % [c.path, c.attribute, c["class"]]
+			var key := _curve_key(c)
 			if not by_curve.has(key):
 				var target := _target(c, objs, paths, meshes, shapes, sk, targets, materials)
 				if target < 0:
@@ -1484,8 +1481,8 @@ static func _describe(m: Dictionary) -> String:
 
 
 ## A source's [[output bone, bind pose]...] bound into `skin`, which binds each output bone once (`binds`, bone to
-## index), as {"bound": each one's index in `skin`, "moves": each one's move of the source's vertices into that bind,
-## or null where its vertices blend "shared" and "own", each bind's (output rest * the skin's bind) and (output rest *
+## index), as {"bound": each one's index in `skin`, "move": the move of the source's vertices into those binds, or null
+## where its vertices blend "shared" and "own", each bind's (output rest * the skin's bind) and (output rest *
 ## the source's bind)}. A bone already bound keeps its bind; when the source binds such bones in other poses differing
 ## by one transform, as a second model of the package placed apart does, that transform moves its vertices and its new
 ## bones bind to match, which skins exactly in every pose.
@@ -1506,7 +1503,7 @@ static func _bind_once(source_binds: Array, skin: Skin, binds: Dictionary, rests
 		bound.append(binds[b[0]])
 		shared.append(rests[b[0]] * skin.get_bind_pose(binds[b[0]]))
 		own.append(rests[b[0]] * b[1])
-	return {"bound": bound, "moves": source_binds.map(func(_b: Array) -> Variant: return move if rigid else null), "shared": shared, "own": own}
+	return {"bound": bound, "move": move if rigid else null, "shared": shared, "own": own}
 
 
 ## Whether two binds' moves agree to within a tenth of a millimetre of a metre-scale bind, as an exporter's rounding does.
@@ -1518,9 +1515,8 @@ static func _same(a: Transform3D, b: Transform3D) -> bool:
 ## `_bind_once`): the source's one move when it has one, otherwise what puts the vertex where the source's binds do
 ## with the skeleton at rest.
 static func _at_rest(top: Array, bind: Dictionary, remap: Callable) -> Transform3D:
-	var move: Variant = bind.moves[remap.call(top[0][0])] if not bind.moves.is_empty() else null
-	if move != null:
-		return move
+	if bind.move != null:
+		return bind.move
 	return _blend(top, bind.shared, remap).affine_inverse() * _blend(top, bind.own, remap)
 
 
@@ -1666,9 +1662,7 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 				sk.get_meta("unity_bones")[go] = bone
 		var binds := []
 		for i in mi.skin.get_bind_count():
-			var b := mi.skin.get_bind_bone(i)
-			if b < 0:
-				b = src.find_bone(mi.skin.get_bind_name(i))
+			var b := Meshes.bind_bone(mi.skin, i, src)
 			var name := src.get_bone_name(maxi(b, 0)).validate_node_name()
 			var t := _find_bone(sk, name)
 			if unity.has(name) and (not same_model or t < 0 or t >= humanoid_bones):
@@ -2089,7 +2083,7 @@ static func _along(depth: int, deepest: int, endpoint: bool) -> float:
 ## `value` scaled by the PhysBone's `field`Curve at `t`; a missing or empty curve leaves it whole.
 static func _curved(d: Dictionary, field: String, t: float, value: float) -> float:
 	var keys := Expressions._keys((d.get(field + "Curve", {}) as Dictionary).get("m_Curve") if d.get(field + "Curve") is Dictionary else [])
-	return (ExpressionCurves.sample(keys, t, false) if not keys.is_empty() else 1.0) * value
+	return (ExpressionState.sample(keys, t, false) if not keys.is_empty() else 1.0) * value
 
 
 ## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc

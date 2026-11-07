@@ -15,8 +15,9 @@ if [ "${1:-}" = --tree ]; then
     { echo "records: this checkout's game, scenes or engine are not $2's; commit them, or bench $2's tree" >&2; exit 1; }
   exit 0
 fi
-git rev-parse -q --verify "${1:-origin/main}^{commit}" >/dev/null || { echo "records: no ${1:-origin/main} to compare with"; exit 0; }
-base=$(git merge-base "${1:-origin/main}" HEAD)
+ref=${1:-origin/main}
+git rev-parse -q --verify "$ref^{commit}" >/dev/null || { echo "records: no $ref to compare with"; exit 0; }
+base=$(git merge-base "$ref" HEAD)
 unchanged=0
 git diff --quiet "$base" -- "${measured[@]}" && unchanged=1
 stale=0
@@ -25,7 +26,7 @@ while read -r f; do
   if ! built=$(git rev-parse -q --verify "${BASH_REMATCH[1]}^{commit}"); then
     echo "records: $f names ${BASH_REMATCH[1]}, which is no single commit here; bench the tree that lands"
     stale=1
-  elif ! { [ $unchanged = 1 ] && git merge-base --is-ancestor "$built" "${1:-origin/main}"; } &&
+  elif ! { [ $unchanged = 1 ] && git merge-base --is-ancestor "$built" "$ref"; } &&
     ! git diff --quiet "$built" -- "${measured[@]}"; then
     echo "records: $f measured $built, whose game, scenes or engine differ from the tree that lands; bench that tree, or land the change and record a bench of it alone"
     stale=1

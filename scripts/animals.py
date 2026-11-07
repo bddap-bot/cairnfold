@@ -11,9 +11,9 @@ import zipfile
 
 import numpy as np
 
-from compose import SR, _fft_lowpass, write_ogg
+from compose import ROOT as AUDIO, SR, _fft_lowpass, write_ogg
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent / "game" / "audio" / "animals"
+ROOT = AUDIO / "animals"
 CACHE = pathlib.Path(__file__).resolve().parent / ".animals-cache"
 # Per kind: high-pass and low-pass corners in Hz and pitch ratio. A conure's chirps sit at 3–5 kHz, so they are
 # taken down three semitones, near the meadow bed's birds, and rolled off from 2.6 kHz with a steeper slope than the others;

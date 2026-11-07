@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parents[1]
 # run in wall time, so no wall-clock limit applies to a step. The joiner's strokes across the whole garden re-lay
 # everything on it on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
 QUIET_CPU = 150
-# Going home before these steps means a player lost the garden it was visiting.
 # The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
 SEQ = 35
 # After the final digest the joiner pulls the ground this far up in one stroke and then twice as far down, each
@@ -31,6 +30,7 @@ DROWN = (14, -14)
 AVATARS = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 # What a digest shows of the players and the moment rather than of the garden.
 LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
+# Going home before this cue means a player lost the garden it was visiting.
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 # A player still running this long after it began to quit is hung on its way out: a healthy exit takes seconds even on
 # a loaded machine, and a hang at 0 CPU never trips QUIET_CPU. A guard against a hang, not a timing assertion.

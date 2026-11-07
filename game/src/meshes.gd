@@ -7,6 +7,11 @@ const ROUND := 0.6
 const BLOB_LUMP := 0.35
 
 
+## The bone of `skeleton` a skin's bind `i` follows, by index or else by name.
+static func bind_bone(skin: Skin, i: int, skeleton: Skeleton3D) -> int:
+	return skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))
+
+
 ## A flat, unlit `colour`, blended by its alpha when `see_through`.
 static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
