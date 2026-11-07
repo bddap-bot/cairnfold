@@ -8,8 +8,9 @@ var definitions := {}
 var outputs: Array[float] = []
 var states: Array[int] = []
 var elapsed: Array[float] = []
+## Each layer's say over the targets: what its state writes, and, where a state keeps no defaults, what earlier states
+## wrote and it leaves alone.
 var _layer_values: Array[Dictionary] = []
-var _layer_targets: Array[Dictionary] = []
 var pulses := {}
 var _animated_parameters: Array[int] = []
 var opened: Array[Dictionary] = []
@@ -33,10 +34,6 @@ func _init(definition: Dictionary) -> void:
 		states.append(-1)
 		elapsed.append(0.0)
 		_layer_values.append({})
-		var targets := {}
-		for state: Dictionary in layer.states:
-			_targets(state.get("motion", {}), targets)
-		_layer_targets.append(targets)
 
 
 func put(key: String, value: float) -> void:
@@ -145,16 +142,13 @@ func advance(delta: float) -> void:
 		if next >= 0:
 			_enter(i, next)
 			state = layer.states[states[i]]
-		var motion: Dictionary = state.get("motion", {})
-		var sampled := _motion(motion, elapsed[i])
-		var writes_defaults: bool = state.get("writeDefaults", true)
-		# Unity's state without a motion writes nothing, so a later layer resting in one leaves an earlier layer's value.
-		if writes_defaults and motion.is_empty():
-			_layer_values[i].clear()
-			continue
-		for t: int in _layer_targets[i]:
-			if sampled.has(t) or writes_defaults:
-				_layer_values[i][t] = sampled.get(t, float(data.targets[t].get("default", 0.0)))
+		# A state writing defaults leaves what it does not animate to the layers below, as Unity's layers do: a toggle's
+		# later layer at rest does not undo an earlier layer's.
+		var sampled := _motion(state.get("motion", {}), elapsed[i])
+		if state.get("writeDefaults", true):
+			_layer_values[i] = sampled
+		else:
+			_layer_values[i].merge(sampled, true)
 	for t in outputs.size():
 		outputs[t] = float(data.targets[t].get("default", 0.0))
 	for i in states.size():
@@ -331,14 +325,6 @@ static func sample(keys: Array, time: float, stepped: bool) -> float:
 static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> float:
 	var r := 1.0 - s
 	return r * r * r * p0 + 3.0 * r * r * s * p1 + 3.0 * r * s * s * p2 + s * s * s * p3
-
-
-func _targets(motion: Dictionary, targets: Dictionary) -> void:
-	if motion.has("clip"):
-		for curve: Dictionary in data.clips[int(motion.clip)].get("curves", []):
-			targets[int(curve.target)] = true
-	for child: Dictionary in motion.get("children", []):
-		_targets(child.motion, targets)
 
 
 func _typed(key: String, value: float) -> float:

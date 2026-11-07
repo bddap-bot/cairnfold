@@ -84,6 +84,18 @@ func _fx() -> void:
 	state.put("Hat", 0)
 	state.advance(0.1)
 	check(state.outputs == [0.0], "turning the toggle off transitions back")
+	var layered := _definition()
+	layered.clips.append({"length": 1.0, "curves": []})
+	layered.layers.append({"weight": 1.0, "default": 0, "states": [
+		{"motion": {"clip": 2}, "transitions": [{"to": 1, "conditions": [{"parameter": "Down", "mode": "greater", "threshold": 0.5}]}]},
+		{"motion": {"clip": 0}, "transitions": [{"to": 0, "conditions": [{"parameter": "Down", "mode": "less", "threshold": 0.5}]}]}]})
+	state = ExpressionState.new(layered)
+	state.put("Hat", 1)
+	state.advance(0.1)
+	check(state.outputs == [1.0], "a later layer whose state writes defaults but not the target leaves an earlier layer's value")
+	state.put("Down", 1)
+	state.advance(0.1)
+	check(state.outputs == [0.0], "and overrides it once its state animates the target")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, false) == 0.25, "continuous curves interpolate")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, true) == 0.0, "switch curves stay stepped")
 	var timed := _definition()
