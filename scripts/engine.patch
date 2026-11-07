@@ -780,3 +780,206 @@
  
  			p_viewport->render_buffers->configure(&rb_config);
  		}
+--- a/doc/classes/Performance.xml
++++ b/doc/classes/Performance.xml
+@@ -91,6 +91,12 @@
+ 				Returns the [enum MonitorType] values of active custom monitors in an [Array].
+ 			</description>
+ 		</method>
++		<method name="get_frame_times" qualifiers="const">
++			<return type="Dictionary" />
++			<description>
++				Returns where the main thread's time went in the last whole frame, from its start to the next frame's, in seconds: [code]xr_wait[/code], blocked in OpenXR's [code]xrWaitFrame[/code]; [code]physics[/code], the physics servers' synchronization and steps; [code]scripts[/code], the scene tree's physics and idle processing, with the physics callbacks, deferred calls and navigation they run; [code]sync[/code] and [code]draw[/code], the [RenderingServer]'s; and [code]other[/code], the rest: input events, audio, the XR runtime's other work and the time between frames. Unlike [constant TIME_PROCESS], which reports the worst frame of the previous second, these are one frame's own, so read them every frame to see each. Every phase is [code]0[/code] until the first frame has ended.
++			</description>
++		</method>
+ 		<method name="get_monitor" qualifiers="const">
+ 			<return type="float" />
+ 			<param index="0" name="monitor" type="int" enum="Performance.Monitor" />
+--- a/main/main.cpp
++++ b/main/main.cpp
+@@ -4818,6 +4818,10 @@ bool Main::iteration() {
+ 
+ 	frame += ticks_elapsed;
+ 
++	// The frame that ended is whole only now: its length runs to this frame's start.
++	if (last_ticks > 0) {
++		performance->end_frame(ticks_elapsed);
++	}
+ 	last_ticks = ticks;
+ 
+ 	const int max_physics_steps = Engine::get_singleton()->get_user_max_physics_steps_per_frame();
+@@ -4846,6 +4850,8 @@ bool Main::iteration() {
+ 		Engine::get_singleton()->_physics_frames++;
+ 
+ 		uint64_t physics_begin = OS::get_singleton()->get_ticks_usec();
++		uint64_t physics_servers_usec = 0;
++		uint64_t servers_begin = 0;
+ 
+ 		// Prepare the fixed timestep interpolated nodes BEFORE they are updated
+ 		// by the physics server, otherwise the current and previous transforms
+@@ -4855,13 +4861,17 @@ bool Main::iteration() {
+ 
+ #ifndef PHYSICS_3D_DISABLED
+ 		GodotProfileZoneGrouped(_physics_zone, "PhysicsServer3D::sync");
++		servers_begin = OS::get_singleton()->get_ticks_usec();
+ 		PhysicsServer3D::get_singleton()->sync();
++		physics_servers_usec += OS::get_singleton()->get_ticks_usec() - servers_begin;
+ 		PhysicsServer3D::get_singleton()->flush_queries();
+ #endif // PHYSICS_3D_DISABLED
+ 
+ #ifndef PHYSICS_2D_DISABLED
+ 		GodotProfileZoneGrouped(_physics_zone, "PhysicsServer2D::sync");
++		servers_begin = OS::get_singleton()->get_ticks_usec();
+ 		PhysicsServer2D::get_singleton()->sync();
++		physics_servers_usec += OS::get_singleton()->get_ticks_usec() - servers_begin;
+ 		PhysicsServer2D::get_singleton()->flush_queries();
+ #endif // PHYSICS_2D_DISABLED
+ 
+@@ -4899,14 +4909,18 @@ bool Main::iteration() {
+ 
+ #ifndef PHYSICS_3D_DISABLED
+ 		GodotProfileZoneGrouped(_profile_zone, "3D physics");
++		servers_begin = OS::get_singleton()->get_ticks_usec();
+ 		PhysicsServer3D::get_singleton()->end_sync();
+ 		PhysicsServer3D::get_singleton()->step(physics_step * time_scale);
++		physics_servers_usec += OS::get_singleton()->get_ticks_usec() - servers_begin;
+ #endif // PHYSICS_3D_DISABLED
+ 
+ #ifndef PHYSICS_2D_DISABLED
+ 		GodotProfileZoneGrouped(_profile_zone, "2D physics");
++		servers_begin = OS::get_singleton()->get_ticks_usec();
+ 		PhysicsServer2D::get_singleton()->end_sync();
+ 		PhysicsServer2D::get_singleton()->step(physics_step * time_scale);
++		physics_servers_usec += OS::get_singleton()->get_ticks_usec() - servers_begin;
+ #endif // PHYSICS_2D_DISABLED
+ 
+ 		message_queue->flush();
+@@ -4915,6 +4929,8 @@ bool Main::iteration() {
+ 		OS::get_singleton()->get_main_loop()->iteration_end();
+ 
+ 		physics_process_ticks = MAX(physics_process_ticks, OS::get_singleton()->get_ticks_usec() - physics_begin); // keep the largest one for reference
++		performance->add_frame_phase_time(Performance::FRAME_PHYSICS, physics_servers_usec);
++		performance->add_frame_phase_time(Performance::FRAME_SCRIPTS, OS::get_singleton()->get_ticks_usec() - physics_begin - physics_servers_usec);
+ 		physics_process_max = MAX(OS::get_singleton()->get_ticks_usec() - physics_begin, physics_process_max);
+ 
+ 		Engine::get_singleton()->_in_physics = false;
+@@ -4941,9 +4957,15 @@ bool Main::iteration() {
+ 	NavigationServer3D::get_singleton()->process(process_step * time_scale);
+ #endif // NAVIGATION_3D_DISABLED
+ 
++	const uint64_t sync_begin = OS::get_singleton()->get_ticks_usec();
++	performance->add_frame_phase_time(Performance::FRAME_SCRIPTS, sync_begin - process_begin);
++
+ 	GodotProfileZoneGrouped(_profile_zone, "RenderingServer::sync");
+ 	RenderingServer::get_singleton()->sync(); //sync if still drawing from previous frames.
+ 
++	const uint64_t draw_begin = OS::get_singleton()->get_ticks_usec();
++	performance->add_frame_phase_time(Performance::FRAME_SYNC, draw_begin - sync_begin);
++
+ 	GodotProfileZoneGrouped(_profile_zone, "RenderingServer::draw");
+ 	const bool has_pending_resources_for_processing = RD::get_singleton() && RD::get_singleton()->has_pending_resources_for_processing();
+ 	bool wants_present = (DisplayServer::get_singleton()->can_any_window_draw() ||
+@@ -4964,6 +4986,7 @@ bool Main::iteration() {
+ 		}
+ 	}
+ 
++	performance->add_frame_phase_time(Performance::FRAME_DRAW, OS::get_singleton()->get_ticks_usec() - draw_begin);
+ 	process_ticks = OS::get_singleton()->get_ticks_usec() - process_begin;
+ 	process_max = MAX(process_ticks, process_max);
+ 	uint64_t frame_time = OS::get_singleton()->get_ticks_usec() - ticks;
+--- a/main/performance.cpp
++++ b/main/performance.cpp
+@@ -58,6 +58,7 @@ Performance *Performance::singleton = nullptr;
+ 
+ void Performance::_bind_methods() {
+ 	ClassDB::bind_method(D_METHOD("get_monitor", "monitor"), &Performance::get_monitor);
++	ClassDB::bind_method(D_METHOD("get_frame_times"), &Performance::get_frame_times);
+ 	ClassDB::bind_method(D_METHOD("add_custom_monitor", "id", "callable", "arguments", "type"), &Performance::add_custom_monitor, DEFVAL(Array()), DEFVAL(MONITOR_TYPE_QUANTITY));
+ 	ClassDB::bind_method(D_METHOD("remove_custom_monitor", "id"), &Performance::remove_custom_monitor);
+ 	ClassDB::bind_method(D_METHOD("has_custom_monitor", "id"), &Performance::has_custom_monitor);
+@@ -544,6 +545,30 @@ void Performance::set_navigation_process_time(double p_pt) {
+ 	_navigation_process_time = p_pt;
+ }
+ 
++void Performance::add_frame_phase_time(FramePhase p_phase, uint64_t p_usec) {
++	_frame_phase_usec[p_phase] += p_usec;
++}
++
++void Performance::end_frame(uint64_t p_frame_usec) {
++	for (int i = 0; i < FRAME_PHASE_MAX; i++) {
++		_last_frame_phase_usec[i] = _frame_phase_usec[i];
++		_frame_phase_usec[i] = 0;
++	}
++	_last_frame_usec = p_frame_usec;
++}
++
++Dictionary Performance::get_frame_times() const {
++	static const char *names[FRAME_PHASE_MAX] = { "xr_wait", "physics", "scripts", "sync", "draw" };
++	Dictionary times;
++	uint64_t spent = 0;
++	for (int i = 0; i < FRAME_PHASE_MAX; i++) {
++		times[names[i]] = USEC_TO_SEC(_last_frame_phase_usec[i]);
++		spent += _last_frame_phase_usec[i];
++	}
++	times["other"] = USEC_TO_SEC(_last_frame_usec - spent);
++	return times;
++}
++
+ void Performance::add_custom_monitor(const StringName &p_id, const Callable &p_callable, const Vector<Variant> &p_args, MonitorType p_type) {
+ 	ERR_FAIL_COND_MSG(has_custom_monitor(p_id), "Custom monitor with id '" + String(p_id) + "' already exists.");
+ 	_monitor_map.insert(p_id, MonitorCall(p_type, p_callable, p_args));
+--- a/main/performance.h
++++ b/main/performance.h
+@@ -57,6 +57,21 @@ class Performance : public Object {
+ 	double _physics_process_time;
+ 	double _navigation_process_time;
+ 
++public:
++	enum FramePhase {
++		FRAME_XR_WAIT,
++		FRAME_PHYSICS,
++		FRAME_SCRIPTS,
++		FRAME_SYNC,
++		FRAME_DRAW,
++		FRAME_PHASE_MAX,
++	};
++
++private:
++	uint64_t _frame_phase_usec[FRAME_PHASE_MAX] = {};
++	uint64_t _last_frame_phase_usec[FRAME_PHASE_MAX] = {};
++	uint64_t _last_frame_usec = 0;
++
+ public:
+ 	enum Monitor {
+ 		TIME_FPS,
+@@ -140,6 +155,10 @@ public:
+ 	void set_physics_process_time(double p_pt);
+ 	void set_navigation_process_time(double p_pt);
+ 
++	void add_frame_phase_time(FramePhase p_phase, uint64_t p_usec);
++	void end_frame(uint64_t p_frame_usec);
++	Dictionary get_frame_times() const;
++
+ 	void add_custom_monitor(const StringName &p_id, const Callable &p_callable, const Vector<Variant> &p_args, MonitorType p_type = MONITOR_TYPE_QUANTITY);
+ 	void remove_custom_monitor(const StringName &p_id);
+ 	bool has_custom_monitor(const StringName &p_id);
+--- a/modules/openxr/openxr_api.cpp
++++ b/modules/openxr/openxr_api.cpp
+@@ -38,6 +38,7 @@
+ #include "core/os/memory.h"
+ #include "core/profiling/profiling.h"
+ #include "core/version.h"
++#include "main/performance.h"
+ 
+ #include "openxr_platform_inc.h"
+ 
+@@ -2320,7 +2321,9 @@ bool OpenXRAPI::process() {
+ 	frame_state.predictedDisplayPeriod = 0;
+ 	frame_state.shouldRender = false;
+ 
++	const uint64_t wait_begin = OS::get_singleton()->get_ticks_usec();
+ 	XrResult result = xrWaitFrame(session, &frame_wait_info, &frame_state);
++	Performance::get_singleton()->add_frame_phase_time(Performance::FRAME_XR_WAIT, OS::get_singleton()->get_ticks_usec() - wait_begin);
+ 	if (XR_FAILED(result)) {
+ 		print_line("OpenXR: xrWaitFrame() was not successful [", get_error_string(result), "]");
+ 

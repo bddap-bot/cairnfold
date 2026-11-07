@@ -73,7 +73,7 @@ class BenchmarkRendering(unittest.TestCase):
                     self.assertIn("paths/stroke", result.stdout)
 
     def test_a_phases_stalls_are_kept_in_its_record(self):
-        stall = {"ms": 412.5, "tags": ["build"], "scripts_ms": 400.1, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
+        stall = {"ms": 412.5, "tags": ["build"], "main_ms": {"scripts": 400.1}, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
             (out / "metrics.json").write_text(json.dumps({

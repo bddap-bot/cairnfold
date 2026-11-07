@@ -7,7 +7,8 @@ player was doing.
 
 Sessions print oldest first, each with where its chunks were found, its device, build revision, id and length, then
 per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
-frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
+frame; then where the main thread's time went (Metrics.MAIN_PHASES), each phase's p50 and p95 in the median second;
+then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
 the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
 what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play, and the
 messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each,
@@ -19,6 +20,7 @@ import base64
 import json
 from pathlib import Path
 import re
+import statistics
 import struct
 import sys
 import zlib
@@ -26,6 +28,7 @@ import zlib
 METRICS = (Path(__file__).resolve().parents[1] / "game/src/metrics.gd").read_text()
 ACTIVITIES = json.loads(re.search(r"^const ACTIVITIES := (\[.*\])$", METRICS, re.M).group(1))
 BINS_PER_MS = int(re.search(r"^const BINS_PER_MS := (\d+)$", METRICS, re.M).group(1))
+MAIN_PHASES = json.loads(re.search(r"^const MAIN_PHASES := (\[.*\])$", METRICS, re.M).group(1))
 STALLS_SHOWN = 20
 
 
@@ -166,6 +169,15 @@ def quantile(hist, q):
     return (max(hist) + 1) / BINS_PER_MS
 
 
+def main_thread(rows):
+    """Each main-thread phase's p50 and p95 in the median second of the rows that split their frames."""
+    seconds = [row["main_ms"] for row in rows if row.get("main_ms")]
+    if not seconds:
+        return None
+    return {phase: {q: round(statistics.median(m[phase][q] for m in seconds), 2) for q in ("p50", "p95")}
+            for phase in MAIN_PHASES}
+
+
 def summarise(sid, start, ended, where, rows):
     activity = {}
     for tag, m in merge(rows).items():
@@ -195,6 +207,7 @@ def summarise(sid, start, ended, where, rows):
         "refresh_hz": rows[-1].get("refresh_hz") if rows else None,
         "players": max((row.get("context", {}).get("players", 1) for row in rows), default=1),
         "activity": activity,
+        "main_ms": main_thread(rows),
         "steps": {str(k): v for k, v in sorted(steps.items())},
         "fill": {"max": max(fills), "last": fills[-1]} if fills else None,
         "paused_s": round(sum(row.get("paused_s", 0.0) for row in rows), 1),
@@ -207,6 +220,13 @@ COLUMNS = f"{'frames':>7} {'late':>6} {'p50':>6} {'p99':>6} {'worst':>7} {'cpu':
 
 def fmt(v):
     return "-" if v is None else f"{v:.1f}"
+
+
+def phases_text(main):
+    """An engine frame's main-thread phases of a millisecond or more."""
+    if not main:
+        return "-"
+    return " ".join(f"{k} {v:.0f}" for k, v in main.items() if v >= 1.0) or "all under 1 ms"
 
 
 def cells(a):
@@ -239,6 +259,8 @@ def text(s):
     for tag in ACTIVITIES:
         if s["activity"].get(tag):
             lines.append(f"  {tag:9} {cells(s['activity'][tag])}")
+    if s["main_ms"]:
+        lines.append("  main thread, the median second's p50/p95 ms: " + ", ".join(f"{k} {v['p50']:.1f}/{v['p95']:.1f}" for k, v in s["main_ms"].items()))
     if s["steps"]:
         lines.append("  quality steps (s): " + ", ".join(f"{k}: {v}" for k, v in s["steps"].items()))
     if s["fill"]:
@@ -268,8 +290,8 @@ def text(s):
         lines.append(f"  stalls: {len(s['stalls'])}, the worst {len(worst)}:")
         for x in worst:
             noted = "; ".join(n["what"] + (f" {n['ms']:.0f} ms" if "ms" in n else "") for n in x.get("notes", [])) or "nothing noted"
-            lines.append(f"    {fmt(x['t']):>8} s {x['ms']:7.0f} ms  {','.join(x.get('tags', []))}  scripts {fmt(x.get('scripts_ms'))}/"
-                         f"{fmt(x.get('scripts_after_ms'))} ms, pipelines {'+'.join(str(c) for c in x.get('compiled', []))}: {noted}")
+            lines.append(f"    {fmt(x['t']):>8} s {x['ms']:7.0f} ms  {','.join(x.get('tags', []))}  {phases_text(x.get('main_ms'))} | "
+                         f"{phases_text(x.get('main_after_ms'))}, pipelines {'+'.join(str(c) for c in x.get('compiled', []))}: {noted}")
     return "\n".join(lines)
 
 

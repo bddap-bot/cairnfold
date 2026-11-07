@@ -2,7 +2,7 @@ class_name Metrics
 extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
-## clock it ran at, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
+## clock it ran at, where each frame's main-thread time went (MAIN_PHASES), the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
 ## lowest quality step the governor took (see Quality) and whether no governor walked it all second, the frames again
 ## by what the player was doing in each (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to
 ## JSON as it goes.
@@ -20,7 +20,17 @@ var checks: Callable
 ## Compares the state with the checks of the record a replay plays (Replayer.compare), here because the record took them
 ## here, at this point of the frame.
 var compare: Callable
+## Each frame's main-thread work (main_work_ms), in ms.
 var _cpu: PackedFloat32Array = []
+## The last whole frame's main-thread time in seconds by phase (Performance.get_frame_times): the engine's own, or a
+## test's.
+var frame_times := func() -> Dictionary: return Performance.get_frame_times()
+## Where a frame's main-thread time goes: blocked in xrWaitFrame, the physics servers, the scene tree's processing (every
+## script callback, deferred call and navigation), the renderer's sync and draw, and the rest (input, audio, the time
+## between frames).
+const MAIN_PHASES := ["xr_wait", "physics", "scripts", "sync", "draw", "other"]
+## This second's frames' times by phase, in ms.
+var _main := _no_phases()
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
 ## The microseconds a frame's length is read from: the host's clock, or a test's that moves only as its frames say.
@@ -152,22 +162,25 @@ func _process(delta: float) -> void:
 		_head_was = null
 		return
 	_deltas.append(elapsed * 1000.0)
-	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+	var split := main_split(frame_times.call())
+	for phase in MAIN_PHASES:
+		_main[phase].append(split[phase])
+	var cpu_ms := main_work_ms(split)
+	_cpu.append(cpu_ms)
 	var late := is_late(elapsed * 1000.0)
 	var compiled := _compilations()
 	if late and not _was_late:
-		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y])
-	var cpu_ms := _cpu[-1]
+		print("metrics: late frame %.1f ms, the engine frame it began in %s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y])
 	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
 	var tags := _tags(elapsed)
 	for tag in tags:
 		tally(_by_activity, tag, elapsed * 1000.0, late, cpu_ms, gpu_ms)
-	if not _stalls.is_empty() and not _stalls[-1].has("scripts_after_ms"):
-		# The engine reports a frame's script time once it has finished, so the stall's own may show only now.
-		_stalls[-1].scripts_after_ms = snappedf(cpu_ms, 0.1)
+	if not _stalls.is_empty() and not _stalls[-1].has("main_after_ms"):
+		# The engine reports a frame's split once it has finished, and this interval spans the end of one engine frame and
+		# the start of the next, so the next frame's split shows only now.
+		_stalls[-1].main_after_ms = rounded_split(split)
 	if elapsed * 1000.0 > STALL_MS and _stalls.size() < STALLS_A_SECOND:
-		_stalls.append({"ms": snappedf(elapsed * 1000.0, 0.1), "tags": tags, "scripts_ms": snappedf(cpu_ms, 0.1),
+		_stalls.append({"ms": snappedf(elapsed * 1000.0, 0.1), "tags": tags, "main_ms": rounded_split(split),
 			"compiled": [compiled.x - _compiled.x, compiled.y - _compiled.y], "notes": _notes.duplicate()})
 	_notes.clear()
 	_compiled = compiled
@@ -204,8 +217,8 @@ func _process(delta: float) -> void:
 		if _landing.s >= LANDING_S:
 			_close_landing()
 	_acc += elapsed
-	# A stall's script time shows only on the frame after it, so its second waits for that frame.
-	if _acc >= 1.0 and (_stalls.is_empty() or _stalls[-1].has("scripts_after_ms")):
+	# A stall's split shows whole only on the frame after it, so its second waits for that frame.
+	if _acc >= 1.0 and (_stalls.is_empty() or _stalls[-1].has("main_after_ms")):
 		var begin := Time.get_ticks_usec()
 		_finish_row()
 		var row := summary(_deltas)
@@ -256,6 +269,11 @@ func _process(delta: float) -> void:
 		_viewport_frames = 0
 		row.unix = Time.get_unix_time_from_system()
 		row.cpu_ms = distribution(_cpu)
+		var main_ms := {}
+		for phase in MAIN_PHASES:
+			main_ms[phase] = distribution(_main[phase])
+		row.main_ms = main_ms
+		_main = _no_phases()
 		row.gpu_frame_ms = distribution(_gpu)
 		row.refresh_hz = info.get("refresh_hz", Budget.REFRESH_HZ)
 		if context.is_valid():
@@ -467,6 +485,38 @@ func flush() -> void:
 	_file.store_string("\n], \"info\": %s}\n" % JSON.stringify(info))
 	_file.resize(_file.get_position())
 	_file.flush()
+
+
+static func _no_phases() -> Dictionary:
+	var by := {}
+	for phase in MAIN_PHASES:
+		by[phase] = PackedFloat32Array()
+	return by
+
+
+## A frame's main-thread split in ms by MAIN_PHASES from the engine's `times` in seconds.
+static func main_split(times: Dictionary) -> Dictionary:
+	var split := {}
+	for phase in MAIN_PHASES:
+		split[phase] = times[phase] * 1000.0
+	return split
+
+
+## The main thread's work in a frame's `split`: everything but the wait for the runtime and the time outside the engine's
+## own steps.
+static func main_work_ms(split: Dictionary) -> float:
+	return split.physics + split.scripts + split.sync + split.draw
+
+
+static func rounded_split(split: Dictionary) -> Dictionary:
+	var out := {}
+	for phase in split:
+		out[phase] = snappedf(split[phase], 0.1)
+	return out
+
+
+static func split_text(split: Dictionary) -> String:
+	return ", ".join(MAIN_PHASES.map(func(phase: String) -> String: return "%s %.1f ms" % [phase, split[phase]]))
 
 
 static func distribution(samples: PackedFloat32Array) -> Variant:

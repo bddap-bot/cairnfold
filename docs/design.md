@@ -147,8 +147,26 @@ the GPU time per frame neared the period, and the time followed the primitives d
 Over the session 637 seconds ran at half rate and 987 at 72 Hz; the quality ladder at its
 bottom step did not bring the finished garden under the period. Holding the refresh rate
 at a finished garden's density is open work. The first of each run of late frames is logged
-as it happens (`metrics: late frame`), with the time the frame before it took in
-scripts and on the GPU, between the script steps around it.
+as it happens (`metrics: late frame`), with the main-thread split of the engine frame it began in
+and its time on the GPU.
+
+Where the main thread's time goes on the Frame (each second's `main_ms`, see "Local play-session
+history"): `demo/headset.json` unworn with the standby pause off, its 413 seconds and 29,903 frames,
+all but 2 seconds with a frame time p50 at the 13.89 ms period, 79 frames late. The median second's p50 per frame:
+
+| Phase | ms per frame | Share of the frame |
+| --- | --- | --- |
+| Renderer's draw | 7.47 | 54% |
+| Wait in `xrWaitFrame` | 3.06 | 22% |
+| Scripts | 2.99 | 22% |
+| Rest (input, audio, between frames) | 0.26 | 2% |
+| Physics | 0.01 | 0.1% |
+| Renderer's sync | 0.00 | 0% |
+
+Of the main thread's own work (physics, scripts, sync and draw) scripts took 29% and physics
+0.1%. Scripts ran 2.5 to 3.4 ms in every phase, the most in the daylight, wildlife, dusk and
+camera phases; the draw's CPU time, 6.8 to 8.1 ms, held the most of every phase. Unworn, the
+3 ms the runtime held the thread in `xrWaitFrame` is slack: the frame's work fit the period.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
 and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
@@ -180,9 +198,8 @@ grass, two trees, ivy on the wall), unworn with the standby pause off:
 | Before (d9f8ec7), two runs | 1 (22 ms), 1 (28 ms) |
 | After | 0, 13.89 ms |
 
-A command that takes more than 4 ms to apply is logged (`world: applying path took 11.8 ms`):
-the late-frame line's script time leaves out what a demo script's driver runs, and it showed 3 ms
-for the frame the stroke cost 24 ms in.
+A command that takes more than 4 ms to apply is logged (`world: applying path took 11.8 ms`),
+naming which work a frame's script time holds.
 
 Building lays nothing on the main thread. A wall settling after a command, a roof being
 pulled and a wall top changing are laid on a worker thread while the stones standing stay in
@@ -5465,14 +5482,19 @@ Replaying a record, on the build that made it or a later one, and where a replay
 [replay.md](replay.md).
 
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
-reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
-summarizes available viewport GPU timer readings. Unsupported GPU readings are
+reprojection. `main_ms` splits each frame's main-thread time, read from the engine every frame
+(`Performance.get_frame_times`, added by `scripts/engine.patch`), into the wait in `xrWaitFrame`, the
+physics servers, the scene tree's processing (every script callback, deferred call and navigation), the
+renderer's sync and draw, and the rest (input events, audio, the time between frames), each phase's frames
+summarised per second (p50, p95, max); `cpu_ms` summarizes the main thread's work, the physics, scripts, sync and draw of
+each frame, leaving out the wait; `gpu_frame_ms` summarizes available viewport GPU timer readings. Unsupported GPU readings are
 null. Kernel fdinfo probes run only for explicit benchmark output, so ordinary
 local logging does no per-sample filesystem reads on the frame thread. Runtime dropped/reprojected counts are unavailable through this recorder;
 `late` is an application-cadence estimate, not a runtime dropped-frame counter.
 Context includes category counts, settled masonry instance counts, tools and
 visit/player state. A row lists each frame over `Metrics.STALL_MS` (50 ms) in `stalls`: its length, what the player was doing, the
-script time read on it and on the frame after (the engine reports a frame's script time once it has finished), the
+main-thread split of the engine frame read on it and of the one after (`main_ms` and `main_after_ms`: the engine
+reports a frame's split once it has finished, and the stall spans the end of one engine frame and the start of the next), the
 pipelines compiled, and what the game noted as running long in it (`Metrics.note`: a build command applying, a garden
 restored, a style wheel opening, a photo drawn at its finest, a wheel opened), so a stall in a played session is named
 from its record. Time the tree spent paused (the headset off, the app in the background) and the game's loading is

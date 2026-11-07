@@ -13,6 +13,8 @@ func _initialize() -> void:
 	await _a_landing_keeps_every_frame_of_its_window()
 	await _head_motion_is_moving()
 	_a_stall_names_what_ran_in_it()
+	_each_frame_splits_the_main_thread()
+	await _the_engine_splits_its_frames()
 	_a_pause_is_no_frame()
 	finish()
 
@@ -187,14 +189,14 @@ func _a_stall_names_what_ran_in_it() -> void:
 	Metrics.note("world: applying paint", 1.0)
 	m._acc = 1.0
 	frame.call(430.0)
-	check(m._seconds.is_empty(), "the stall's second waits for the frame after it, which reports its script time")
+	check(m._seconds.is_empty(), "the stall's second waits for the frame after it, which reports its split")
 	frame.call(13.9)
 	m._finish_row()
 	var row: Dictionary = m._seconds[-1]
 	var stalls: Array = row.get("stalls", [])
 	check(stalls.size() == 1 and stalls[0].ms >= 430.0 and stalls[0].ms < 435.0, "the stall is listed with its length: %s" % [stalls])
 	check(not stalls.is_empty() and stalls[0].notes == [{"what": "world: applying wipe", "ms": 420.0}], "with the long work noted in it and not the short: %s" % [stalls])
-	check(not stalls.is_empty() and stalls[0].has("scripts_after_ms") and stalls[0].tags == ["still"], "its script time after it, and what the player was doing")
+	check(not stalls.is_empty() and stalls[0].has("main_ms") and stalls[0].has("main_after_ms") and stalls[0].tags == ["still"], "the split of the engine frames it spans, and what the player was doing")
 	frame.call(13.9)
 	m._acc = 1.0
 	frame.call(13.9)
@@ -225,3 +227,35 @@ func _frame_mean() -> void:
 	var summary := metrics.summary(PackedFloat32Array([10.0, 10.0, 10.0, 30.0]))
 	check(summary.mean == 15.0 and summary.p50 == 10.0, "frame mean includes the long frame rather than reporting the median")
 	metrics.free()
+
+
+## Each second's row holds every frame's main-thread time by phase, and the main thread's work leaves the wait out.
+func _each_frame_splits_the_main_thread() -> void:
+	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-split-%d.json" % OS.get_process_id()))
+	m.info = {"refresh_hz": 72.0, "label": "-"}
+	var times := [{"xr_wait": 0.008, "physics": 0.001, "scripts": 0.002, "sync": 0.0, "draw": 0.002, "other": 0.0009}]
+	m.frame_times = func() -> Dictionary: return times[0]
+	var frame := _frames(m)
+	frame.call(13.9)
+	for i in 9:
+		frame.call(13.9)
+	times[0] = {"xr_wait": 0.0, "physics": 0.001, "scripts": 0.02, "sync": 0.0005, "draw": 0.004, "other": 0.0023}
+	m._acc = 1.0
+	frame.call(27.8)
+	m._finish_row()
+	var row: Dictionary = m._seconds[-1]
+	var main: Dictionary = row.get("main_ms", {})
+	check(main.keys() == Metrics.MAIN_PHASES, "every phase has its distribution: %s" % [main])
+	check(is_equal_approx(main.xr_wait.p50, 8.0) and is_equal_approx(main.xr_wait.max, 8.0) and is_equal_approx(main.scripts.max, 20.0) and is_equal_approx(main.scripts.p50, 2.0), "each phase's frames summarise apart: %s" % [main])
+	check(is_equal_approx(main.other.p50, 0.9) and is_equal_approx(main.other.max, 2.3), "and the rest of the frame: %s" % [main.other])
+	check(is_equal_approx(row.cpu_ms.max, 25.5) and is_equal_approx(row.cpu_ms.p50, 5.0), "the main thread's work leaves the runtime's wait out: %s" % [row.cpu_ms])
+	m.free()
+
+
+func _the_engine_splits_its_frames() -> void:
+	for i in 3:
+		await process_frame
+	var times := Performance.get_frame_times()
+	check(times.keys() == Metrics.MAIN_PHASES, "the engine reports every phase: %s" % [times])
+	var spent: float = times.values().reduce(func(a: float, b: float) -> float: return a + b, 0.0)
+	check(spent > 0.0 and times.values().all(func(t: float) -> bool: return t >= 0.0), "a frame's phases fill its length: %s" % [times])

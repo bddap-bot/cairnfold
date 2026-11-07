@@ -52,6 +52,7 @@ class Sessions(unittest.TestCase):
             self.assertEqual(moving["gpu_ms"], 10.0)
             self.assertEqual(s["steps"], {"0": 1, "1": 1})
             self.assertEqual(s["fill"], {"max": 0.5, "last": 0.5})
+            self.assertIsNone(s["main_ms"], "rows without a split have none")
             text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
             self.assertIn("/quest2 Quest 2 abc1234def s1", text)
             self.assertIn("moving", text)
@@ -99,7 +100,8 @@ class Sessions(unittest.TestCase):
 
     def test_stalls_and_pauses_are_listed(self):
         with tempfile.TemporaryDirectory() as d:
-            stall = {"ms": 437.0, "tags": ["still"], "scripts_ms": 12.0, "scripts_after_ms": 436.0, "compiled": [0, 2],
+            stall = {"ms": 437.0, "tags": ["still"], "main_ms": {"xr_wait": 0.0, "scripts": 12.0, "draw": 0.4},
+                     "main_after_ms": {"xr_wait": 0.2, "scripts": 436.0, "draw": 3.0}, "compiled": [0, 2],
                      "notes": [{"what": "world: applying wipe", "ms": 431.0}, {"what": "wheel: right opened"}]}
             self.write(Path(d), "s", [{"unix": 1.0, "t": 10.0, "paused_s": 52.5, "stalls": [stall]}, {"unix": 2.0, "t": 11.0, "paused_s": 1.0}])
             [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
@@ -107,7 +109,7 @@ class Sessions(unittest.TestCase):
             self.assertEqual(s["stalls"], [dict(stall, t=10.0)])
             text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
             self.assertIn("paused: 53.5 s", text)
-            self.assertIn("437 ms  still  scripts 12.0/436.0 ms, pipelines 0+2: world: applying wipe 431 ms; wheel: right opened", text)
+            self.assertIn("437 ms  still  scripts 12 | scripts 436 draw 3, pipelines 0+2: world: applying wipe 431 ms; wheel: right opened", text)
 
     def test_a_replay_prints_beside_its_session(self):
         with tempfile.TemporaryDirectory() as d:
@@ -133,6 +135,19 @@ class Sessions(unittest.TestCase):
             self.assertEqual(rows["building"].split(" | ")[1].strip(), "", "an activity the replay never reached is blank on its side")
             metrics.write_text(json.dumps({"info": {"replayed": "gone"}, "seconds": []}))
             self.assertNotEqual(subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics)], capture_output=True).returncode, 0)
+
+    def test_main_thread_phases_read_in_the_median_second(self):
+        phases = ["xr_wait", "physics", "scripts", "sync", "draw", "other"]
+        def second(unix, scripts):
+            return {"unix": unix, "main_ms": {k: {"p50": scripts if k == "scripts" else 1.0, "p95": 2 * scripts if k == "scripts" else 1.5, "max": 40.0} for k in phases}}
+        with tempfile.TemporaryDirectory() as d:
+            self.write(Path(d), "s", [second(1.0, 2.0), second(2.0, 9.0), second(3.0, 3.0), {"unix": 4.0}])
+            [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
+            self.assertEqual(list(s["main_ms"]), phases)
+            self.assertEqual(s["main_ms"]["scripts"], {"p50": 3.0, "p95": 6.0})
+            self.assertEqual(s["main_ms"]["xr_wait"], {"p50": 1.0, "p95": 1.5})
+            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            self.assertIn("main thread, the median second's p50/p95 ms: xr_wait 1.0/1.5, physics 1.0/1.5, scripts 3.0/6.0,", text)
 
     def test_last_keeps_the_newest_and_an_empty_folder_fails(self):
         with tempfile.TemporaryDirectory() as d:
