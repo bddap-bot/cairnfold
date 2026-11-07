@@ -1585,10 +1585,10 @@ func _flat(s: Dictionary) -> void:
 ## avatar a player wears does, unless "springs" is false, as another player's replays them, and plays its expressions
 ## unless "expressions" is false; with "still" each stands once and then holds, its pose, springs and expressions
 ## stopped, so only drawing it is left. Prices another player's avatar on one headset, with no network in the way, and
-## prints the main thread's microseconds per avatar pose when they go.
+## prints the main thread's microseconds per avatar pose, and per avatar solving its constraints, when they go.
 func _figures(s: Dictionary) -> void:
 	if not _stood.is_empty():
-		print("figures: %d %s avatars %s, %.1f us per avatar pose over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
+		print("figures: %d %s avatars %s, %.1f us per avatar pose and %.1f solving its constraints over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), float(Constraints.spent_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
 	for a in _stood:
 		a.queue_free()
 	_stood.clear()
@@ -1599,6 +1599,7 @@ func _figures(s: Dictionary) -> void:
 	_particles = s.get("particles", false)
 	_posed_usec = 0
 	_posed_frames = 0
+	Constraints.spent_usec = 0
 	var path: String = s.get("file", "")
 	var scene: PackedScene = Avatar.built_in(0)
 	_figure_path = path

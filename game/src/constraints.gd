@@ -29,6 +29,9 @@ class Constraint:
 	var offset := Transform3D.IDENTITY
 
 
+## Microseconds every solver has spent solving, for a bench to price them.
+static var spent_usec := 0
+
 var constraints: Array[Constraint] = []
 ## The weight an expression target gives every constraint on a bone, by bone, in place of the one the file saves.
 var weights := {}
@@ -73,6 +76,7 @@ static func of(skeleton: Skeleton3D) -> Constraints:
 
 
 func _process_modification_with_delta(_delta: float) -> void:
+	var start := Time.get_ticks_usec()
 	var sk := get_skeleton()
 	var body := sk.global_transform
 	for c in constraints:
@@ -135,6 +139,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 		sk.set_bone_pose_position(c.bone, at)
 		sk.set_bone_pose_rotation(c.bone, r.normalized())
 		_previous[c.bone] = parent * sk.get_bone_pose(c.bone)
+	spent_usec += Time.get_ticks_usec() - start
 
 
 ## The file's UNITY_constraints extension `extension` with each node index as the name of `nodes`' node, as the
