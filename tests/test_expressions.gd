@@ -6,6 +6,8 @@ func _init() -> void:
 	_controls()
 	_fx()
 	_bindings()
+	_bones_turn_and_shift()
+	_node_effects_roundtrip()
 	_roundtrip()
 	_layers_follow_the_budget()
 	_decals_share_pages()
@@ -231,6 +233,61 @@ func _moving_targets_leave_regions_bound() -> void:
 	check(mat != null and mat.get_shader_parameter("decals") is Texture2DArray, "a material whose model draws no decals still binds a decal array, which left unbound fails its uniform set and draws nothing")
 	player.free()
 	model.free()
+
+
+func _bones_turn_and_shift() -> void:
+	var root := Node3D.new()
+	var skeleton := Skeleton3D.new()
+	root.add_child(skeleton)
+	var rest := Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 0.5, 0))
+	for bone: String in ["wing", "tail"]:
+		skeleton.add_bone(bone)
+		skeleton.set_bone_rest(skeleton.find_bone(bone), rest)
+	skeleton.set_bone_parent(skeleton.find_bone("tail"), skeleton.find_bone("wing"))
+	skeleton.reset_bone_poses()
+	var tail := skeleton.find_bone("tail")
+	var held := Quaternion(Vector3.UP, 1.0)
+	skeleton.set_bone_pose_rotation(tail, held)
+	var definition := _definition()
+	for axis in 3:
+		definition.targets.append({"effect": {"rotation": {"node": "wing", "axis": axis, "rest": [0, 0, 0]}}, "default": [0.0, 90.0, 0.0][axis]})
+	definition.targets.append({"effect": {"translation": {"node": "tail", "direction": [0, 1, 0]}}, "default": 0.25})
+	root.set_meta("expressions", definition)
+	var player := ExpressionPlayer.new(root)
+	player.state.advance(0)
+	player.apply()
+	var wing := skeleton.get_bone_pose_rotation(skeleton.find_bone("wing"))
+	var expected := rest.basis.get_rotation_quaternion() * Quaternion(Vector3.UP, -PI / 2)
+	check(wing.is_equal_approx(expected) or wing.is_equal_approx(-expected), "a Unity turn of 90 degrees about Y turns the bone's glTF rotation from its rest by -90 degrees about Y: %s, expected %s" % [wing, expected])
+	check(skeleton.get_bone_pose_position(tail).is_equal_approx(Vector3(0, 0.75, 0)), "a translation moves the bone from its rest along its direction: %s" % skeleton.get_bone_pose_position(tail))
+	check(skeleton.get_bone_pose_rotation(tail).is_equal_approx(held), "a bone only translated keeps the rotation it was given")
+	var springs := ExpressionPlayer.SpringRuntime.new({"colliders": [], "springs": [{"colliders": [], "center": -1, "joints": [{"node": 0, "radius": 0.0, "stiffness": 1.0, "drag": 0.4, "gravity": Vector3.ZERO}, {"node": 1, "radius": 0.0, "stiffness": 1.0, "drag": 0.4, "gravity": Vector3.ZERO}]}]},
+		{0: ExpressionPlayer.SkeletonBone.new(skeleton, skeleton.find_bone("wing")), 1: ExpressionPlayer.SkeletonBone.new(skeleton, tail)})
+	check(springs.chains[0].joints[0].rest.basis.get_rotation_quaternion().is_equal_approx(expected), "a spring built after the player swings about the turned pose")
+	var swung := Quaternion(Vector3.FORWARD, 0.4)
+	springs.chains[0].joints[0].rest = rest
+	player.springs = springs
+	player.apply()
+	check(springs.chains[0].joints[0].rest.basis.get_rotation_quaternion().is_equal_approx(expected), "the player gives the spring its bone's turned pose as its rest")
+	skeleton.set_bone_pose_rotation(skeleton.find_bone("wing"), swung)
+	player.apply()
+	check(skeleton.get_bone_pose_rotation(skeleton.find_bone("wing")).is_equal_approx(swung), "the turned bone a spring swings keeps the spring's pose")
+	player.free()
+	root.free()
+
+
+func _node_effects_roundtrip() -> void:
+	var state := GLTFState.new()
+	var node := GLTFNode.new()
+	node.resource_name = "wing"
+	state.set_nodes([node])
+	var named := Vrm._named({"targets": [
+		{"effect": {"rotation": {"node": 0, "axis": 1, "rest": [0, 0, 0]}}, "default": 0.0},
+		{"effect": {"translation": {"node": 0, "direction": [0, 1, 0]}}, "default": 0.0},
+		{"effect": {"scale": {"node": 0, "axis": 0}}, "default": 1.0}]}, state)
+	check(named.targets.all(func(t: Dictionary) -> bool: return t.effect.values()[0].node == "wing"), "every node effect read from a VRM names its node: %s" % [named.targets])
+	var indexed := Vrm._indexed({"targets": named.targets, "shown": []}, state, {"wing": 0})
+	check(indexed.targets.all(func(t: Dictionary) -> bool: return t.effect.values()[0].node == 0), "every node effect written to a VRM indexes its node: %s" % [indexed.targets])
 
 
 func _roundtrip() -> void:

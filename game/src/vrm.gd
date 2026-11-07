@@ -494,6 +494,10 @@ func _export_post(state: GLTFState) -> Error:
 	return OK
 
 
+## The expression effects that name one node, written as its glTF index and read back as its name.
+const NODE_EFFECTS := ["scale", "rotation", "translation", "material"]
+
+
 static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:
 	var out := expressions.duplicate(true)
 	if out.get("looks") is Dictionary and out.looks.has("decals"):
@@ -510,7 +514,7 @@ static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionar
 			for region: Dictionary in t.effect.values()[0]:
 				region.node = index[region.node]
 		elif t.effect is Dictionary:
-			for kind: String in ["scale", "rotation", "translation", "material"]:
+			for kind: String in NODE_EFFECTS:
 				if t.effect.has(kind):
 					t.effect[kind].node = index[t.effect[kind].node]
 	for s: Dictionary in out.shown:
@@ -556,7 +560,7 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 						if int(b[1]) >= 0 and int(b[1]) < mesh.get_blend_shape_count():
 							binds.append([n.resource_name, str(mesh.get_blend_shape_name(int(b[1])))])
 			effect.morph = binds
-		for kind: String in ["scale", "material"]:
+		for kind: String in NODE_EFFECTS:
 			if effect.has(kind):
 				effect[kind].node = name_of.call(effect[kind])
 		for region: Dictionary in effect.values()[0] if ExpressionDefinition.region(effect) != "" else []:

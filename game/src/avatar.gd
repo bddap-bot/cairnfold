@@ -888,6 +888,8 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 			if name.begins_with("spring_"):
 				nodes[int(name.trim_prefix("spring_"))] = SkeletonBone.new(_skeleton, _joints[name].bone)
 		springs = SpringRuntime.new(_model.get_meta("springs", {"springs": [], "colliders": []}), nodes)
+		if expressions != null:
+			expressions.springs = springs
 
 
 ## The standing body: it hangs from the head, bent forward as far as the head looks down past LOOK and further as it

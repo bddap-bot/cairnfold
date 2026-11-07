@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/bddap-bot/avatar-workshop",
-  "commit": "9fb4fe0ef2ecfc7693b7cadb553fd4b1dc83e0af",
+  "commit": "2c28dbc52188c8fb3697bc9643f1d11786704aa8",
   "license": "MIT OR Apache-2.0",
   "files": {
     "expression_mixer.gd": {
@@ -13,7 +13,7 @@
     },
     "spring_runtime.gd": {
       "source": "addons/avatar_workshop/spring_runtime.gd",
-      "sha256": "66ce28ef732aa5cbb31ce2028e334aa1995ae0ab3883bca84d29d7b16e9de921"
+      "sha256": "3c3a3e750bfda3c43d3981ccf0e58f7760445534fa632f490678dc548bc79fdc"
     },
     "LICENSE-godot-vrm": {
       "source": "addons/avatar_workshop/LICENSE-godot-vrm",
@@ -53,7 +53,7 @@
     },
     "physbone.gd": {
       "source": "addons/avatar_workshop/physbone.gd",
-      "sha256": "ef3d084c2ad7821a53d59adac2615c2d657f817f2bf2ea0d63b564391297fe3b"
+      "sha256": "1f9e3cf0da283de574c303a82008caa5b782648c950f621d51017f394261bc84"
     },
     "physbone.gd.uid": {
       "source": "addons/avatar_workshop/physbone.gd.uid",

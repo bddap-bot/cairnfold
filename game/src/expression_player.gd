@@ -1,10 +1,22 @@
 class_name ExpressionPlayer
 extends Node
 
+const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
+const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
+
 var state: ExpressionState
 var icons: Array[Texture2D] = []
 var _bindings: Array = []
 var _scales := {}
+## Each bone a rotation or translation effect moves, [skeleton, bone], to its rest, the Unity local rotation its effects
+## set (`turn`) against the one they were authored from (`rest_turn`), each translation's offset, and the pose they make.
+var _moved := {}
+## The avatar's springs: a moved bone one of them swings is theirs to pose, about the pose its effects make.
+var springs: SpringRuntime:
+	set(value):
+		springs = value
+		for moved: Dictionary in _moved.values():
+			moved.sent = false
 var _shown: Array = []
 var _last: Array[float] = []
 var _materials := {}
@@ -37,16 +49,34 @@ func _init(model: Node3D) -> void:
 							binds.append(func(v: float) -> void: mesh.set_blend_shape_value(index, v))
 			elif effect.has("scale"):
 				_scales[_bindings.size()] = true
-				for n: Node in nodes.values():
-					if n is Skeleton3D:
-						var skeleton := n as Skeleton3D
-						var bone := skeleton.find_bone(str(effect.scale.node))
-						var axis := int(effect.scale.axis)
-						if bone >= 0:
+				for at: Array in _bones(nodes, effect.scale.node):
+					var skeleton: Skeleton3D = at[0]
+					var bone: int = at[1]
+					var axis := int(effect.scale.axis)
+					binds.append(func(v: float) -> void:
+						var s := skeleton.get_bone_pose_scale(bone)
+						s[axis] = v
+						skeleton.set_bone_pose_scale(bone, s))
+			elif effect.has("rotation") or effect.has("translation"):
+				for at: Array in _bones(nodes, effect.values()[0].node):
+					var rest: Transform3D = at[0].get_bone_rest(at[1])
+					var moved: Dictionary = _moved.get_or_add(at, {"rest": rest, "turn": [], "shift": {}, "pose": rest, "bone": SkeletonBone.new(at[0], at[1])})
+					var i := _bindings.size()
+					if effect.has("rotation"):
+						var axis := int(effect.rotation.axis)
+						if moved.turn.is_empty():
+							moved.turn = (effect.rotation.rest as Array).map(func(c: Variant) -> float: return float(c))
+							moved.rest_turn = moved.turn.duplicate()
+						# A bone turned both as Euler angles and as a quaternion takes the form its first effect has.
+						if (effect.rotation.rest as Array).size() == moved.turn.size():
 							binds.append(func(v: float) -> void:
-								var s := skeleton.get_bone_pose_scale(bone)
-								s[axis] = v
-								skeleton.set_bone_pose_scale(bone, s))
+								moved.turn[axis] = v
+								moved.dirty = true)
+					else:
+						var direction := Vector3(effect.translation.direction[0], effect.translation.direction[1], effect.translation.direction[2])
+						binds.append(func(v: float) -> void:
+							moved.shift[i] = direction * v
+							moved.dirty = true)
 			elif effect.has("material"):
 				var mesh: MeshInstance3D = nodes.get(str(effect.material.node))
 				if mesh != null:
@@ -85,6 +115,12 @@ func _init(model: Node3D) -> void:
 			_shown.append({"node": node, "when": shown.when})
 	_last.resize(state.outputs.size())
 	_last.fill(NAN)
+	for i in mini(_bindings.size(), state.outputs.size()):
+		var effect: Variant = data.get("targets", [])[i].get("effect")
+		if effect is Dictionary and (effect.has("rotation") or effect.has("translation")):
+			for bind: Callable in _bindings[i]:
+				bind.call(state.outputs[i])
+	_move_bones()
 
 
 func _process(delta: float) -> void:
@@ -99,6 +135,7 @@ func apply() -> void:
 			for bind: Callable in _bindings[i]:
 				bind.call(v)
 			_last[i] = v
+	_move_bones()
 	for mat: ShaderMaterial in _dirty_regions:
 		var entries: Array = _regions[mat]
 		var image := Image.create(entries.size(), 4, false, Image.FORMAT_RGBAF)
@@ -119,6 +156,55 @@ func apply() -> void:
 	_dirty_regions.clear()
 	for shown: Dictionary in _shown:
 		shown.node.visible = shows(state.outputs, shown.when)
+
+
+## Poses each moved bone as its effects set it. A bone a spring swings gets that pose as the rest it swings about, as
+## VRChat's PhysBones swing about the pose the animator left, and is left to the spring.
+func _move_bones() -> void:
+	for at: Array in _moved:
+		var moved: Dictionary = _moved[at]
+		if moved.get("dirty", false):
+			moved.dirty = false
+			moved.sent = false
+			var rest: Transform3D = moved.rest
+			var turned := rest.basis.get_rotation_quaternion()
+			if not moved.turn.is_empty():
+				turned = (turned * turn(moved.rest_turn, moved.turn)).normalized()
+			var shift := Vector3.ZERO
+			for offset: Vector3 in moved.shift.values():
+				shift += offset
+			moved.pose = Transform3D(Basis(turned).scaled_local(rest.basis.get_scale()), rest.origin + shift)
+		if springs != null and not moved.get("sent", false):
+			moved.sent = true
+			moved.sprung = springs.set_rest(moved.bone, moved.pose)
+		if not moved.get("sprung", false):
+			var pose: Transform3D = moved.pose
+			if not moved.turn.is_empty():
+				at[0].set_bone_pose_rotation(at[1], pose.basis.get_rotation_quaternion())
+			if not moved.shift.is_empty():
+				at[0].set_bone_pose_position(at[1], pose.origin)
+
+
+## The turn of a bone's glTF local rotation that takes a Unity local rotation from `from` to `to`, each its
+## localEulerAngles in degrees when three components, a quaternion when four.
+static func turn(from: Array, to: Array) -> Quaternion:
+	var delta := (_unity(from).inverse() * _unity(to)).normalized()
+	return Quaternion(delta.x, -delta.y, -delta.z, delta.w)
+
+
+static func _unity(c: Array) -> Quaternion:
+	if c.size() == 4:
+		return Quaternion(c[0], c[1], c[2], c[3]).normalized()
+	return Quaternion(Vector3.UP, deg_to_rad(c[1])) * Quaternion(Vector3.RIGHT, deg_to_rad(c[0])) * Quaternion(Vector3(0, 0, 1), deg_to_rad(c[2]))
+
+
+## Every [skeleton, bone] named `bone` among `nodes`.
+static func _bones(nodes: Dictionary, bone: Variant) -> Array:
+	var found := []
+	for n: Node in nodes.values():
+		if n is Skeleton3D and (n as Skeleton3D).find_bone(str(bone)) >= 0:
+			found.append([n, (n as Skeleton3D).find_bone(str(bone))])
+	return found
 
 
 ## Whether a mesh drawn under `when`, [[switch target, 1]...], draws at `outputs`. A direct blend tree sums its
