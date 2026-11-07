@@ -367,7 +367,7 @@ static func model(root: Node3D) -> PackedScene:
 			root.set_meta(key, DATA[key].duplicate(true) if DATA[key] is Dictionary else DATA[key])
 	_on_one_skeleton(root)
 	_switched_off(root)
-	_keep_longest(root.get_meta("springs"))
+	_keep_longest(root)
 	var bones: Dictionary = root.get_meta("humanoid")
 	var surfaces := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
@@ -418,16 +418,35 @@ static func _switched_off(root: Node3D) -> void:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
 
-## Keeps the longest spring chains within MAX_SPRING_JOINTS.
-static func _keep_longest(springs: Dictionary) -> void:
+## Keeps the root's longest spring chains within MAX_SPRING_JOINTS. A bone only the chains left out move rests at its
+## "settled" rotation, where the importer found its chain hangs (UnityAvatar.settle), as VRChat, running them all, shows it.
+static func _keep_longest(root: Node3D) -> void:
+	var springs: Dictionary = root.get_meta("springs")
 	var longest: Array = springs.springs.duplicate()
 	longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
 	var kept := []
+	var left := []
 	var joints := 0
+	var moving := {}
 	for chain: Dictionary in longest:
-		if joints + chain.joints.size() <= MAX_SPRING_JOINTS:
-			kept.append(chain)
-			joints += chain.joints.size()
+		if joints + chain.joints.size() > MAX_SPRING_JOINTS:
+			left.append(chain)
+			continue
+		kept.append(chain)
+		joints += chain.joints.size()
+		for joint: Dictionary in chain.joints:
+			moving[joint.node] = true
+	var bones: Dictionary = root.get_meta("humanoid")
+	for chain: Dictionary in left:
+		for joint: Dictionary in chain.joints:
+			var path: Variant = bones.get("spring_%d" % joint.node)
+			if moving.has(joint.node) or not joint.has("settled") or not path is NodePath:
+				continue
+			var sk := root.get_node_or_null(str(path).get_slice(":", 0)) as Skeleton3D
+			var bone := sk.find_bone((path as NodePath).get_concatenated_subnames()) if sk else -1
+			if bone >= 0:
+				var rest := sk.get_bone_rest(bone)
+				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 	springs.springs = kept
 
 

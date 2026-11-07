@@ -407,7 +407,10 @@ static func _spring_extension(root: Node) -> Dictionary:
 			var g: Vector3 = j.gravity
 			var joint := {"node": named.call(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
 			if j.has("extras"):
-				joint.extras = j.extras
+				joint.extras = j.extras.duplicate()
+			if j.has("settled"):
+				var q: Quaternion = j.settled
+				joint.get_or_add("extras", {})["settled"] = [q.x, q.y, q.z, q.w]
 			joints.append(joint)
 		if joints.any(func(j: Dictionary) -> bool: return j.node == ""):
 			continue

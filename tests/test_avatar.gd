@@ -36,6 +36,7 @@ func _run() -> void:
 	_both_versions_stand_alike()
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
+	_import_settles_each_spring_chain()
 	_switched_off_physics_stays_out()
 	_read_skins_bind_only_weighed_bones()
 	_hidden_avatars_pause()
@@ -386,11 +387,14 @@ func _rest_weights_survive_the_vrm() -> void:
 	model.free()
 
 
-## A model Vrm.read made writes, and reads back with the same springs on the same bones.
+## A model Vrm.read made writes, and reads back with the same springs on the same bones, settled rotations included.
 func _springs_survive_a_rewrite(file: String) -> void:
 	var path := ProjectSettings.globalize_path("user://rewritten.vrm")
 	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image) -> void: pass)
 	var first: Node3D = read.call(FileAccess.get_file_as_bytes(file))
+	for chain: Dictionary in first.get_meta("springs").springs:
+		for joint: Dictionary in chain.joints:
+			joint["settled"] = Quaternion(Vector3.RIGHT, 0.5)
 	var before := _springs_by_bone(first)
 	Vrm.write(first, path)
 	first.free()
@@ -638,18 +642,65 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 	a.free()
 
 
-## A file carrying more spring joints than an avatar simulates keeps its longest chains within the limit.
+## The importer records where each chain's PhysBone holds its bones in the rest pose, and leaves the bones at rest.
+func _import_settles_each_spring_chain() -> void:
+	var root := Node3D.new()
+	var sk := Skeleton3D.new()
+	sk.name = "Skeleton3D"
+	root.add_child(sk)
+	for b in 3:
+		sk.add_bone("b%d" % b)
+		sk.set_bone_parent(b, b - 1)
+	sk.set_bone_rest(2, Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1)))
+	sk.reset_bone_poses()
+	var physbone := {"version": "1.1", "integration": "simplified", "pull": 0.2, "spring": 0.2, "stiffness": 0.0, "gravity": 1.0, "immobileType": "allMotion"}
+	var springs := SpringDefinition.read({"nodes": [{}, {}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [{"node": 1, "extras": {"physbone": physbone}}, {"node": 2}]}]}}})
+	root.set_meta("springs", springs)
+	root.set_meta("humanoid", {"spring_1": NodePath("Skeleton3D:b1"), "spring_2": NodePath("Skeleton3D:b2")})
+	UnityAvatar.settle(root)
+	var settled: Quaternion = springs.springs[0].joints[0].get("settled", Quaternion.IDENTITY)
+	var hangs := settled * Vector3.BACK
+	check(hangs.y < -0.9, "a bone its gravity pulls settles hanging down: %s" % hangs)
+	check(sk.get_bone_pose_rotation(1).is_equal_approx(Quaternion.IDENTITY) and root.get_parent() == null, "the bones go back to rest and the root leaves the tree")
+	root.free()
+
+
+## A file carrying more spring joints than an avatar simulates keeps its longest chains within the limit; a bone only
+## the chains left out move rests at its settled rotation, one a kept chain moves keeps its own rest.
 func _simulates_the_longest_chains_within_the_limit() -> void:
-	var chain := func(length: int) -> Dictionary:
-		var joints := []
-		joints.resize(length)
-		return {"joints": joints}
-	var springs := {"springs": [chain.call(3), chain.call(Avatar.MAX_SPRING_JOINTS - 2), chain.call(2), chain.call(Avatar.MAX_SPRING_JOINTS)]}
-	Avatar._keep_longest(springs)
-	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS], "the longest chain fills the limit and the rest are not simulated")
-	springs = {"springs": [chain.call(3), chain.call(Avatar.MAX_SPRING_JOINTS - 2), chain.call(2)]}
-	Avatar._keep_longest(springs)
-	check(springs.springs.map(func(c: Dictionary) -> int: return c.joints.size()) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
+	var lengths := func(springs: Dictionary) -> Array: return springs.springs.map(func(c: Dictionary) -> int: return c.joints.size())
+	var setup := func(sizes: Array) -> Node3D:
+		var root := Node3D.new()
+		var sk := Skeleton3D.new()
+		sk.name = "Skeleton3D"
+		root.add_child(sk)
+		var human := {}
+		var chains := []
+		for size: int in sizes:
+			var joints := []
+			for i in size:
+				var b := sk.get_bone_count()
+				sk.add_bone("b%d" % b)
+				human["spring_%d" % b] = NodePath("Skeleton3D:b%d" % b)
+				joints.append({"node": b, "settled": Quaternion(Vector3.RIGHT, 0.5)})
+			chains.append({"joints": joints})
+		root.set_meta("humanoid", human)
+		root.set_meta("springs", {"springs": chains})
+		return root
+	var root: Node3D = setup.call([3, Avatar.MAX_SPRING_JOINTS - 2, 2, Avatar.MAX_SPRING_JOINTS])
+	var shared: Dictionary = root.get_meta("springs").springs[0].joints[0]
+	root.get_meta("springs").springs[3].joints[0] = shared.duplicate()
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [Avatar.MAX_SPRING_JOINTS], "the longest chain fills the limit and the rest are not simulated")
+	var sk: Skeleton3D = root.get_node("Skeleton3D")
+	var turned := func(bone: int) -> bool: return sk.get_bone_rest(bone).basis.get_rotation_quaternion().is_equal_approx(Quaternion(Vector3.RIGHT, 0.5))
+	check(turned.call(1) and turned.call(3 + Avatar.MAX_SPRING_JOINTS - 2), "a bone only chains left out move rests at its settled rotation")
+	check(not turned.call(0), "a bone a kept chain moves keeps its rest")
+	root.free()
+	root = setup.call([3, Avatar.MAX_SPRING_JOINTS - 2, 2])
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
+	root.free()
 
 
 ## A spring chain or collider the expressions' default state switches off is not simulated; one it leaves on is, also

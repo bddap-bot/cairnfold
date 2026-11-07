@@ -28,6 +28,8 @@ const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
+const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
+const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 ## The side, in pixels, of a menu icon as the model carries it: a board row's height.
 const ICON := 44.0
@@ -39,10 +41,19 @@ const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 const CONSTRAINTS := {"1773428102": "ParentConstraint", "1818360608": "PositionConstraint", "1183024399": "LookAtConstraint"}
 ## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
+## The longest each spring chain hangs in the rest pose for its settled pose (settle), and the most a bone may still
+## turn in a step once settled, after a first second in which a PhysBone may not yet have set off: VRChat runs every PhysBone, so a chain a runtime leaves still shows where its gravity,
+## pull and colliders hold it, not its bind pose.
+const SETTLE_SECONDS := 20.0
+const SETTLED_TURN := 1e-5
 static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
 
 
-func _init() -> void:
+func _initialize() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var packages := ""
 	var flag := args.find("--packages")
@@ -316,7 +327,46 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	if not materials.undecoded.is_empty():
 		report["textures not decoded"] = materials.undecoded.keys()
 	root.set_meta("report", report)
+	settle(root)
 	return root
+
+
+## Gives each joint of the root's springs the rotation its bone settles at, in its parent's axes ("settled"), once every
+## chain hanging from the rest pose under its gravity, pull and colliders stops turning; the bones go back to rest.
+## Runs in the scene tree, which the root joins meanwhile.
+static func settle(root: Node3D) -> void:
+	var human: Dictionary = root.get_meta("humanoid")
+	var tree := Engine.get_main_loop() as SceneTree
+	tree.root.add_child(root)
+	var nodes := {}
+	for key: String in human:
+		if key.begins_with("spring_"):
+			var path: NodePath = human[key]
+			var sk: Skeleton3D = root.get_node(str(path).get_slice(":", 0))
+			nodes[int(key.trim_prefix("spring_"))] = SkeletonBone.new(sk, sk.find_bone(path.get_concatenated_subnames()))
+	var springs := SpringRuntime.new(root.get_meta("springs"), nodes)
+	var turns := func() -> Array: return nodes.values().map(func(n: SkeletonBone) -> Quaternion: return n.transform.basis.get_rotation_quaternion())
+	var before: Array = turns.call()
+	# The steps the runtime takes each frame, without the native solver, which steps only in a frame's skeleton update.
+	for i in roundi(SETTLE_SECONDS / SpringRuntime.STEP):
+		springs._advance_physbones(1.0)
+		springs._step()
+		var now: Array = turns.call()
+		var most := 0.0
+		for k in now.size():
+			most = maxf(most, (now[k] as Quaternion).angle_to(before[k]))
+		before = now
+		if most < SETTLED_TURN and i >= roundi(1.0 / SpringRuntime.STEP):
+			break
+	for chain: Dictionary in root.get_meta("springs").springs:
+		for joint: Dictionary in chain.joints:
+			if nodes.has(joint.node):
+				joint["settled"] = (nodes[joint.node].transform as Transform3D).basis.get_rotation_quaternion()
+	for simulator: Node in springs._native:
+		simulator.free()
+	for sk: Skeleton3D in root.find_children("*", "Skeleton3D", true, false):
+		sk.reset_bone_poses()
+	tree.root.remove_child(root)
 
 
 ## The avatar to convert: {"objects" of the document it is in, "go", "transform", "name", "descriptor" (its fields, or
