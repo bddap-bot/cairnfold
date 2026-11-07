@@ -200,6 +200,9 @@ func _an_average_over_the_line_steps_down_before_frames_run_late() -> void:
 	check(_feed(g, BUDGET * 0.9, 40) == 1, "then frames under the budget but over the line step down")
 	check(_feed(g, BUDGET * 0.9, 36) == 1, "and wait a second to see what that saved")
 	check(_feed(g, BUDGET * 0.9, 50) == 2, "before stepping again")
+	g = Quality.Governor.new(10)
+	_feed(g, BUDGET * 4.0, 1)
+	check(_feed(g, BUDGET * 0.3, 72 * 2) == 0, "an average a burst left over the line, the frames now under it, steps nothing down")
 
 
 func _a_step_up_waits_for_room_for_what_the_step_down_saved() -> void:

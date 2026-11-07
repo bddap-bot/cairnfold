@@ -1747,7 +1747,7 @@ refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapcha
 (see "Holding 72 Hz on the Frame"). A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
 is missed among frames over its line (a single one the next frame does not repeat steps nothing), or their average
-runs over the line, and back up only after a calm spell with room for what the step saved. The runtime holding the
+runs over the line while the frame still reads over it, and back up only after a calm spell with room for what the step saved. The runtime holding the
 game at every other refresh holds a step up, and frames over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
 once) draw what it built, not the scene, so the governor starts its averages again rather than judge them. Every headset starts at the cheapest way of
 drawing the view with every reach whole (`Quality.START`) and settles on the prettiest step it

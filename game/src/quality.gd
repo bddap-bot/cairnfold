@@ -581,7 +581,10 @@ class Governor:
 		# the governor through the shadows and the 3D scale on single frames, and each pop crossed holds the longest calm.
 		var floor := bottom if settled and (_went_up or _measuring < 0) else _unpopped()
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
-		if (_hot >= HOT_FRAMES or missed or (settled and averaged and _average > line)) and level < floor:
+		# The average steps down only while the frame still reads over the line: started on the last of a canvas's
+		# restored strokes at 55 ms, it read 22.5 ms a second later with the frames at 3.9 ms, and took the Steam Frame
+		# from step 15 to 16 for load already gone.
+		if (_hot >= HOT_FRAMES or missed or (settled and averaged and _average > line and frame_ms > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
 				for i in range(level, _up_from):
 					_wait[i] = minf(maxf(_wait[i], CALM_SECONDS_MAX) * 2.0, REGRET_MAX) if _sticky.has(i) else minf(_wait[i] * 2.0, CALM_SECONDS_MAX)
