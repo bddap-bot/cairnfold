@@ -107,7 +107,10 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 		var a := rng.randf() * TAU
 		var x := center.x + cos(a) * r
 		var z := center.z + sin(a) * r
-		out.append(Vector3(x, ground.call(x, z) - SINK, z))
+		var spot := Vector3(x, 0, z)
+		# The ground is read at the spot as stored, in single precision, as the ghost reads it.
+		spot.y = ground.call(spot.x, spot.z) - SINK
+		out.append(spot)
 	return out
 
 
