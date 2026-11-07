@@ -13,6 +13,8 @@ var _layer_targets: Array[Dictionary] = []
 var pulses := {}
 var opened: Array[Dictionary] = []
 var revision := 0
+## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
+const EXIT := -2
 
 
 func _init(definition: Dictionary) -> void:
@@ -111,13 +113,14 @@ func advance(delta: float) -> void:
 		if layer.states.is_empty():
 			continue
 		if states[i] < 0:
-			var entry := _transition(layer.get("entry", []), -1, 0.0)
-			_enter(i, entry if entry >= 0 else int(layer.get("default", 0)))
+			_enter(i, _entered(layer))
 		var state: Dictionary = layer.states[states[i]]
 		elapsed[i] += delta * float(state.get("speed", 1.0))
 		var length := _length(state.get("motion", {}))
 		var normalized := elapsed[i] / length if length > 0 else elapsed[i]
 		var next := _transition(layer.get("any", []) + state.get("transitions", []), states[i], normalized)
+		if next == EXIT:
+			next = _entered(layer)
 		if next >= 0:
 			_enter(i, next)
 			state = layer.states[states[i]]
@@ -152,13 +155,22 @@ func _enter(layer: int, state: int) -> void:
 		put(d.parameter, v)
 
 
+## The state the first of `transitions` whose conditions hold leads to from `current` at normalized `time`, EXIT for one
+## to the state machine's exit, or -1 for none.
 func _transition(transitions: Array, current: int, time: float) -> int:
 	for t: Dictionary in transitions:
-		if t.to < 0 or (t.get("notToSelf", false) and t.to == current) or (t.has("exitTime") and time < t.exitTime):
+		if (t.get("notToSelf", false) and t.to == current) or (t.has("exitTime") and time < t.exitTime):
 			continue
 		if (t.get("conditions", []) as Array).all(_condition):
-			return int(t.to)
+			return EXIT if t.to < 0 else int(t.to)
 	return -1
+
+
+## The state `layer` enters, from its start or back through its exit: its first entry transition that holds, else its
+## default state.
+func _entered(layer: Dictionary) -> int:
+	var entry := _transition((layer.get("entry", []) as Array).filter(func(t: Dictionary) -> bool: return t.to >= 0), -1, 0.0)
+	return entry if entry >= 0 else int(layer.get("default", 0))
 
 
 func _condition(c: Dictionary) -> bool:

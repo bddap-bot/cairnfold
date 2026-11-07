@@ -105,6 +105,22 @@ func _fx() -> void:
 	for i in 100:
 		state.advance(0.1)
 	check(is_equal_approx(state.outputs[0], 0.5), "a half-weight layer stays half-weight over time")
+	definition = _definition()
+	definition.layers = [{"default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Hat"}]}], "states": [
+		{"transitions": []}, {"motion": {"clip": 1}, "transitions": [{"to": -1, "conditions": [{"mode": "ifNot", "parameter": "Hat"}]}]}]}]
+	state = ExpressionState.new(definition)
+	state.put("Hat", 1)
+	state.advance(0.1)
+	var on := state.outputs[0]
+	state.put("Hat", 0)
+	state.advance(0.1)
+	check(on == 1.0 and state.outputs[0] == 0.0 and state.states[0] == 0, "a toggle that leaves its state through the exit returns through the entry to the default state: %s, %s in %d" % [on, state.outputs[0], state.states[0]])
+	definition.layers[0].entry = [{"to": -1, "conditions": []}, {"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}]
+	definition.layers[0].any = []
+	state = ExpressionState.new(definition)
+	state.put("Pulse", 1)
+	state.advance(0.1)
+	check(state.states[0] == 1, "an entry transition to the exit is passed over for the next that holds: in %d" % state.states[0])
 
 
 func _bindings() -> void:
@@ -219,7 +235,8 @@ func _lighting() -> void:
 
 ## A clip moving a global theme colour's offset recolours the emission drawn in it on the meshes the clip names, through
 ## their own copy of the looks table, the rest keeping the colour at rest, and a material keeps its own offset while the
-## clip rests; a theme whose hue turns at rest turns on every mesh, as time passes.
+## clip rests, and at the value its FX default state animates; a theme whose hue turns at rest turns on every mesh, as
+## time passes.
 func _theme_recolours_the_emission() -> void:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
@@ -256,7 +273,8 @@ func _theme_recolours_the_emission() -> void:
 		shown.append(mi)
 	var region := func(field: String) -> Dictionary: return {"look": [{"node": "Suit", "rect": [0.0, 0.0, 0.5, 1.0], "field": field, "slot": 1}]}
 	var targets := [{"effect": region.call("themeHue"), "default": 0.5}, {"effect": region.call("themeSpeed"), "default": 0.0}, {"effect": region.call("themeValue"), "default": 0.0}]
-	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
+	var resting := {"length": 1.0, "curves": [{"target": 2, "keys": [[0, -0.5]]}]}
+	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [resting], "layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": []}]}], "shown": [], "menu": [], "looks": looks})
 	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
 	var entry := func(mesh: MeshInstance3D, column: int) -> Color:
@@ -268,6 +286,9 @@ func _theme_recolours_the_emission() -> void:
 		return (table as Texture2D).get_image().get_pixel(column, 1) if table is Texture2D else Color(-1, -1, -1, -1)
 	player.apply()
 	check(entry.call(shown[0], 1).is_equal_approx(Color(3.0, 0.0, 0.0, 0.25)), "while the clip rests at another material's offset, the theme keeps its own and glows as the converter left it, times its strength: %s" % [entry.call(shown[0], 1)])
+	player.state.advance(0.1)
+	player.apply()
+	check(entry.call(shown[0], 1).is_equal_approx(Color(1.5, 0.0, 0.0, 0.25)), "a theme offset the FX controller's default state animates glows at its animated value, not the one its material saves: %s" % [entry.call(shown[0], 1)])
 	player.state.outputs[0] = 1.0 / 3.0
 	player.state.outputs[2] = -0.5
 	player.apply()
