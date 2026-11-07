@@ -114,6 +114,7 @@ func _read(m: Dictionary, guid: String) -> void:
 	var floats := _properties(saved.get("m_Floats"))
 	m.floats = floats
 	var ints := _properties(saved.get("m_Ints"))
+	m.ints = ints
 	var colours := _properties(saved.get("m_Colors"))
 	m.colours = colours
 	for k: String in TEXTURES:
@@ -256,6 +257,7 @@ func pack(used: Array) -> void:
 		m.cell = cell
 		var img := _cell_image(m, cell)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod)
+		_detail(m, img)
 		_blit_padded(atlas, img, cell)
 
 
@@ -284,6 +286,66 @@ func packed(key: String) -> String:
 	var m: Dictionary = materials[key]
 	var source := "none" if m.image == null else "%dx%d" % [(m.image as Image).get_width(), (m.image as Image).get_height()]
 	return "%s: source %s, shown %s, packed %dx%d" % [m.name, source, m.get("shown", 0) if m.get("shown", 0) > 0 else "as source", (m.cell as Rect2i).size.x, (m.cell as Rect2i).size.y]
+
+
+## Toon Standard's detail map laid into `img`, the material's tinted texture at its cell's size, as the shader lays it
+## over the albedo before light. Nothing animates the detail, so the atlas holds it, at the albedo's size: a cell
+## widened to the detail's own would multiply the atlas (a corpus avatar's four detailed bodies took it from 2048 to
+## 4864 wide). A colour control's region takes it as part of the albedo; `hue_mask` keeps a hue shift off a blended
+## one, as the shader shifts the albedo before laying it, and on a multiplied one, which the shifted albedo shows through.
+func _detail(m: Dictionary, img: Image) -> void:
+	var layer := _detail_layer(m, img.get_size(), 0)
+	if layer == null:
+		return
+	var detail := layer.get_data()
+	var multiply := _number(m, "_DetailMode", DETAIL_BLEND) == DETAIL_MULTIPLY
+	var data := img.get_data()
+	for i in range(0, data.size(), 4):
+		var a := detail[i + 3] / 255.0
+		if a <= 0.0:
+			continue
+		for c in 3:
+			var under := _LINEAR[data[i + c]]
+			var over: float = under * _LINEAR[detail[i + c]] if multiply else _LINEAR[detail[i + c]]
+			data[i + c] = _ENCODED[clampi(roundi(lerpf(under, over, a) * 4095.0), 0, 4095)]
+	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
+
+
+## Toon Standard's _DetailMode values the atlas can hold: the detail blended in by its alpha, or multiplied in.
+const DETAIL_BLEND := 0.0
+const DETAIL_MULTIPLY := 2.0
+
+
+## The detail map over the material's texture at `size` texels and `pad` more each side: its colour, and in alpha how
+## far it covers the albedo, the mask's channel (times the detail's alpha where it blends by it). Null where the
+## material lays none the atlas can hold: off, missing, read through UV1, added, doubled or hue shifted.
+func _detail_layer(m: Dictionary, size: Vector2i, pad: int) -> Image:
+	var source := _slot_image(m, "_DetailAlbedoMap") if _lays_detail(m) else null
+	if source == null:
+		return null
+	var mode := _number(m, "_DetailMode", DETAIL_BLEND)
+	var layer := _over(m, source, "_DetailAlbedoMap", size, pad)
+	var cover := _over(m, _slot_image(m, "_DetailMask"), "_DetailMask", size, pad).get_data()
+	var channel := clampi(int(_number(m, "_DetailMaskChannel", 3.0)), 0, 3)
+	var data := layer.get_data()
+	for i in range(0, data.size(), 4):
+		data[i + 3] = cover[i + channel] if mode == DETAIL_MULTIPLY else roundi(data[i + 3] * cover[i + channel] / 255.0)
+	layer.set_data(layer.get_width(), layer.get_height(), false, Image.FORMAT_RGBA8, data)
+	return layer
+
+
+static func _lays_detail(m: Dictionary) -> bool:
+	var keywords: Array = m.get("keywords", [])
+	if not toon_standard(m) or "USE_DETAIL_MAPS" not in keywords or _texture_guid(m, "_DetailAlbedoMap") == "":
+		return false
+	if _number(m, "_DetailUV", 0.0) != 0.0 or _number(m, "_DetailMode", DETAIL_BLEND) not in [DETAIL_BLEND, DETAIL_MULTIPLY]:
+		return false
+	return "USE_HUE_SHIFT" not in keywords or _number(m, "_DetailHueShift", 0.0) == 0.0
+
+
+## The material's saved number `name`, from its ints (Unity's Int properties) or floats.
+static func _number(m: Dictionary, name: String, otherwise: float) -> float:
+	return str((m.get("ints", {}) as Dictionary).get(name, (m.get("floats", {}) as Dictionary).get(name, otherwise))).to_float()
 
 
 ## `mod` is Poiyomi's Alpha Mod, added to the alpha before it cuts or blends.
@@ -380,7 +442,8 @@ func hue_mask() -> String:
 		var mobile := toon_standard(m)
 		var property := "_HueShiftMask" if mobile else "_MainColorAdjustTexture"
 		var source := image(_texture_guid(m, property)) if _texture_guid(m, property) != "" else null
-		if source == null:
+		var detail := _detail_layer(m, (m.cell as Rect2i).size, PAD) if hue_masks.has(key) and _number(m, "_DetailMode", DETAIL_BLEND) == DETAIL_BLEND else null
+		if source == null and detail == null:
 			continue
 		if out == null:
 			out = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
@@ -389,8 +452,9 @@ func hue_mask() -> String:
 		if mobile:
 			var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
 			var data := mask.get_data()
+			var cover := PackedByteArray() if detail == null else detail.get_data()
 			for i in range(0, data.size(), 4):
-				data[i] = data[i + channel]
+				data[i] = data[i + channel] if cover.is_empty() else roundi(data[i + channel] * (255 - cover[i + 3]) / 255.0)
 				data[i + 1] = data[i]
 				data[i + 2] = data[i]
 				data[i + 3] = 255
@@ -410,7 +474,9 @@ func color_atlas() -> String:
 	for key: String in color_regions:
 		var m: Dictionary = materials[key]
 		var cell: Rect2i = m.cell
-		_blit_padded(out, _cell_image(m, cell), cell)
+		var img := _cell_image(m, cell)
+		_detail(m, img)
+		_blit_padded(out, img, cell)
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 

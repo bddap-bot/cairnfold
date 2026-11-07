@@ -53,6 +53,7 @@ func _run() -> void:
 	_a_shrunk_texture_averages_what_its_cell_covers()
 	_the_atlas_widens_before_its_cells_shrink()
 	_a_decal_keeps_the_size_unity_imports()
+	_a_toon_standard_detail_map_lies_in_the_atlas()
 	_matcaps_and_emission_join_the_look()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_installed_packages_lend_only_missing_images()
@@ -1390,6 +1391,70 @@ func _a_decal_keeps_the_size_unity_imports() -> void:
 		var looks := materials.looks()
 		var decal: Image = looks.decals[0] if (looks.get("decals", []) as Array).size() == 1 else Image.new()
 		check(materials.materials.skin.cell.size.x == 16 and decal.get_size() == Vector2i(case[1], case[1]), "a decal over a 16-texel cell keeps %s, %d: %s" % [case[2], case[1], decal.get_size()])
+
+
+func _a_toon_standard_detail_map_lies_in_the_atlas() -> void:
+	var dir := ProjectSettings.globalize_path("user://detail")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var png := func(name: String, colours: Array) -> void:
+		var img := Image.create_empty(colours.size(), 1, false, Image.FORMAT_RGBA8)
+		for x in colours.size():
+			img.set_pixel(x, 0, colours[x])
+		img.save_png(dir.path_join(name + ".png"))
+		FileAccess.open(dir.path_join(name + ".png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % name)
+	png.call("grey", [Color8(128, 128, 128), Color8(128, 128, 128), Color8(128, 128, 128), Color8(128, 128, 128)])
+	png.call("ink", [Color(1, 0, 0, 1), Color(1, 0, 0, 0), Color(1, 0, 0, 1), Color(1, 0, 0, 1)])
+	png.call("half", [Color(1, 1, 1, 1), Color(1, 1, 1, 1), Color(1, 1, 1, 0), Color(1, 1, 1, 1)])
+	var mat := func(mode: int, keywords: String, extra: String) -> String:
+		return """Material:
+  m_Shader: {guid: e765db0afa7ecfc44ade2e4e2491f65a}
+  m_ValidKeywords:
+%s
+  m_SavedProperties:
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {guid: grey}
+    - _DetailAlbedoMap:
+        m_Texture: {guid: ink}
+    - _DetailMask:
+        m_Texture: {guid: half}
+    m_Ints:
+    - _DetailMode: %d
+    m_Floats:
+%s
+""" % [keywords, mode, extra]
+	var packed := func(text: String) -> Materials:
+		write.call("skin.mat", "skin", text)
+		var materials := Materials.new(Assets.new(dir))
+		materials.use({"guid": "skin"}, Color.WHITE)
+		materials.pack(["skin"])
+		return materials
+	var texels := func(text: String) -> Array:
+		var materials: Materials = packed.call(text)
+		var cell: Rect2i = materials.materials.skin.cell
+		return range(4).map(func(x: int) -> Color: return materials.atlas.get_pixel(cell.position.x + x, cell.position.y))
+	var grey := Color8(128, 128, 128)
+	var near := func(texels: Array, wanted: Array) -> bool: return range(4).all(func(x: int) -> bool: return Vector3(texels[x].r - wanted[x].r, texels[x].g - wanted[x].g, texels[x].b - wanted[x].b).length() < 2.0 / 255.0)
+	var blended: Array = texels.call(mat.call(0, "  - USE_DETAIL_MAPS", ""))
+	check(near.call(blended, [Color(1, 0, 0), grey, grey, Color(1, 0, 0)]), "an alpha-blended detail covers the albedo where its alpha and the mask's channel, alpha unless saved otherwise, both do: %s" % [blended])
+	var multiplied: Array = texels.call(mat.call(2, "  - USE_DETAIL_MAPS", ""))
+	check(near.call(multiplied, [Color8(128, 0, 0), Color8(128, 0, 0), grey, Color8(128, 0, 0)]), "a multiplied detail darkens by its colour wherever the mask lets it, whatever its alpha: %s" % [multiplied])
+	for unseen: Array in [[mat.call(0, "  - USE_NORMAL_MAPS", ""), "without USE_DETAIL_MAPS"], [mat.call(0, "  - USE_DETAIL_MAPS", "    - _DetailUV: 1"), "read through UV1"], [mat.call(1, "  - USE_DETAIL_MAPS", ""), "added"], [mat.call(0, "  - USE_DETAIL_MAPS\n  - USE_HUE_SHIFT", "    - _DetailHueShift: 1"), "hue shifted"], [mat.call(0, "  - USE_DETAIL_MAPS", "").replace("guid: ink", "guid: absent"), "missing from the package"]]:
+		var plain: Array = texels.call(unseen[0])
+		check(near.call(plain, [grey, grey, grey, grey]), "a detail map %s leaves the albedo: %s" % [unseen[1], plain])
+	var shifted: Materials = packed.call(mat.call(0, "  - USE_DETAIL_MAPS\n  - USE_HUE_SHIFT", ""))
+	shifted.hue_masks.skin = true
+	var mask := Image.new()
+	mask.load_png_from_buffer(Marshalls.base64_to_raw(shifted.hue_mask()))
+	var at: Vector2i = (shifted.materials.skin.cell as Rect2i).position
+	var hues := [] if mask.is_empty() else range(4).map(func(x: int) -> int: return mask.get_pixel(at.x + x, at.y).r8)
+	check(hues == [0, 255, 255, 0], "an albedo hue shift spares a blended detail, which the shader lays after shifting: %s" % [hues])
+	var through: Materials = packed.call(mat.call(2, "  - USE_DETAIL_MAPS\n  - USE_HUE_SHIFT", ""))
+	through.hue_masks.skin = true
+	check(through.hue_mask() == "", "an albedo hue shift still shows through a multiplied detail")
 
 
 func _the_atlas_widens_before_its_cells_shrink() -> void:
