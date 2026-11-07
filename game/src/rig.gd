@@ -73,8 +73,8 @@ var hands: Array[Hand] = []
 var body: Avatar
 ## The body as the eyes see it (`Avatar.headless`), shown while both hands are empty.
 var _seen: Array[MeshInstance3D] = []
-## The controller profile each hand's wrist was last noted on (`_note_wrists`).
-var _wrists_noted: Array[String] = ["", ""]
+## What each hand's wrist was noted on (`_note_wrists`).
+var _wrists_noted := [{}, {}]
 var stature := Stature.new()
 
 ## The hand whose teleport ray is out, or null.
@@ -196,19 +196,26 @@ func pose_body() -> void:
 		mi.visible = bare()
 
 
-## Once for each controller profile a hand is measured on, the log notes how far, in real millimetres, the avatar's
-## wrist stands from the palm the grip pose gives, and from the controller's aim, where a hand held by its aim would
-## put it.
+## Once for each controller profile a hand is measured on, and again once the runtime shapes the hand round it, the log
+## notes in real millimetres the avatar's wrist from the palm it holds and, with the runtime's wrist, how far from that
+## the avatar's wrist and the controller's aim stand: where the wrist is drawn, and where it was drawn when the hand was
+## held at its aim.
 func _note_wrists() -> void:
 	for s in 2:
 		var h := hands[s]
-		if h._palm_noted == "" or h._palm_noted == _wrists_noted[s] or h.held_still or h.bare:
+		var key := h._palm_noted + (" shaped" if not h.shaped.is_empty() else "")
+		if h._palm_noted == "" or _wrists_noted[s].has(key) or h.held_still or h.bare:
 			continue
-		_wrists_noted[s] = h._palm_noted
+		_wrists_noted[s][key] = true
 		var wrist := body.bone(["leftHand", "rightHand"][s]).origin
 		var aim := h.body.global_transform
 		var palm := aim * h.palm
-		Metrics.note("wrist: %s on %s, %.0f mm from the palm, %.0f mm back along the hand; the aim %.0f mm from the wrist" % [h.tracker, h._palm_noted, 1000.0 * wrist.distance_to(palm.origin) / world_scale, 1000.0 * (wrist - palm.origin).dot(palm.basis.z.normalized()) / world_scale, 1000.0 * aim.origin.distance_to(wrist) / world_scale])
+		var mm := func(a: Vector3, b: Vector3) -> float: return 1000.0 * a.distance_to(b) / world_scale
+		var real := "no runtime wrist"
+		if not h.shaped.is_empty():
+			var joint: Vector3 = (h.shaped[HandShape.WRIST] as Transform3D).origin
+			real = "the runtime's wrist %.0f mm from the avatar's and %.0f mm from the aim" % [mm.call(joint, wrist), mm.call(joint, aim.origin)]
+		Metrics.note("wrist: %s on %s, %.0f mm from the palm; %s" % [h.tracker, h._palm_noted, mm.call(wrist, palm.origin), real])
 
 
 ## Whether both hands are empty, so the eyes see the player's own body.

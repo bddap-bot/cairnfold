@@ -81,23 +81,31 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	rig.left.held_still = false
 
 
-## The avatar's hand closes round the controller where the runtime's grip pose is, never at its aim, which stands out
-## ahead of the hand on every controller.
+## The avatar's hand closes round the controller where the runtime puts the palm, never at its aim, which stands out
+## ahead of the hand on every controller. Its grip_surface pose gives the palm whole; the grip pose only its centre, the
+## fingers then pointing as the aim does, since its axes follow the handle rather than the hand.
 func _the_avatar_holds_the_grip(rig: Rig, tracker: XRPositionalTracker) -> void:
 	var hand := rig.right
 	hand.tool = Hand.Tool.FLOWERS
 	var aim := Transform3D(Basis.looking_at(Vector3(0, -0.2, -1), Vector3.UP), Vector3(0.2, 1.2, -0.35))
 	var from_aim := Transform3D(Basis(Vector3.RIGHT, 0.6), Vector3(0, -0.03, 0.08))
+	var s := rig.world_scale
 	tracker.set_pose(&"aim", aim, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 	tracker.set_pose(&"grip", aim * from_aim, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 	await frames(3)
-	var s := rig.world_scale
-	var expected := Transform3D(from_aim.basis, from_aim.origin * s) * Hand.GRIP_TO_PALM
-	check(hand.palm.is_equal_approx(expected), "the palm stands where the grip pose is from the aim: %s, not %s" % [hand.palm.origin, expected.origin])
+	var expected := Transform3D(Basis(), from_aim.origin * s)
+	check(hand.palm.is_equal_approx(expected), "the palm stands at the grip pose's position, turned as the aim: %s, not %s" % [hand.palm, expected])
+	check(hand.palm_from == "grip", "and is read from the grip, not %s" % hand.palm_from)
 	var grip := rig.global_transform * Transform3D((aim * from_aim).basis, (aim * from_aim).origin * s)
-	var held := (rig.body.hands[1] * rig.body.palms[1]).origin
-	check(held.distance_to(grip.origin) < 0.001, "the avatar holds its palm at the grip, %.3f m from it" % held.distance_to(grip.origin))
+	var held := rig.body.hands[1] * rig.body.palms[1]
+	check(held.origin.distance_to(grip.origin) < 0.001, "the avatar holds its palm at the grip, %.3f m from it" % held.origin.distance_to(grip.origin))
 	check(rig.body.hands[1].origin.distance_to(hand.body.global_position) < 0.001, "and the hand it streams, and holds tools in, stays the controller's")
-	var fingers := -(grip.basis * Hand.GRIP_TO_PALM.basis).z
-	check(fingers.dot(-grip.basis.y) > 0.999, "its fingers run down the grip's -Y, round the handle")
-	tracker.set_pose(&"grip", Transform3D(), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_NONE)
+	check((-held.basis.z).dot(-rig.body.hands[1].basis.z) > 0.999, "its fingers point as the aim does")
+	var surface := Transform3D(Basis(Vector3.RIGHT, -0.3) * Basis(Vector3.UP, 0.1), Vector3(0.005, -0.02, 0.07))
+	tracker.set_pose(&"palm_pose", aim * surface, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	await frames(3)
+	expected = Transform3D(surface.basis, surface.origin * s)
+	check(hand.palm.is_equal_approx(expected), "with a grip_surface pose the palm is that pose from the aim: %s, not %s" % [hand.palm, expected])
+	check(hand.palm_from == "grip_surface", "read from the grip_surface, not %s" % hand.palm_from)
+	tracker.invalidate_pose(&"palm_pose")
+	tracker.invalidate_pose(&"grip")
