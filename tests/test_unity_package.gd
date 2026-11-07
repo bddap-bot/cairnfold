@@ -58,6 +58,7 @@ func _run() -> void:
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_installed_packages_lend_only_missing_images()
+	_an_edit_imports_with_its_base()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
@@ -187,7 +188,7 @@ GameObject:
 	var hat: int = 30 ^ (20 ^ 10)
 	check(objs.has(hat) and objs[hat].data.m_Name == "Cap" and objs[hat].data.m_IsActive == "0", "the inner GameObject takes both prefabs' modifications (%s)" % [objs.get(hat, {}).get("data")])
 	check(objs[hat].data.m_Component[0].component.fileID == str(30 ^ (20 ^ 11)), "its references take the scene's IDs")
-	check(prefabs.missing.is_empty(), "nothing missing")
+	check(prefabs.unread.is_empty(), "nothing missing")
 
 
 func _model_objects_keep_their_bindings_and_transforms() -> void:
@@ -2257,7 +2258,89 @@ func _installed_packages_lend_only_missing_images() -> void:
 	write.call("packages/shader", "shared.png", "shared", "package's")
 	write.call("packages/sdk", "other.prefab", "prefab", "package's")
 	var alone := Assets.new(root.path_join("avatar"))
-	var lent := Assets.new(root.path_join("avatar"), root.path_join("packages"))
+	var lent := Assets.new(root.path_join("avatar"), [], root.path_join("packages"))
 	check(not alone.by_guid.has("matcap") and lent.text("matcap") == "package's", "an image the package names but lacks is read from the installed packages")
 	check(lent.text("shared") == "avatar's" and lent.text("own") == "avatar's", "the package's own assets win")
 	check(not lent.by_guid.has("prefab"), "the installed packages lend images alone")
+
+
+## An edit sold without its base, a variant of the base's avatar prefab, imports with the base's package beside it,
+## its GUIDs resolved across both; alone it is refused, naming the base prefab's GUID it instances. Only a variant of a
+## lent package's avatar is one: a variant within one package is not a second avatar.
+func _an_edit_imports_with_its_base() -> void:
+	var root := ProjectSettings.globalize_path("user://edit")
+	var base := root.path_join("base")
+	var edit := root.path_join("edit")
+	DirAccess.make_dir_recursive_absolute(base.path_join("Models"))
+	DirAccess.make_dir_recursive_absolute(edit)
+	for f: String in ["new_seedsan_betterfbx.fbx", "new_seedsan_betterfbx.fbx.meta"]:
+		DirAccess.copy_absolute(avatar_file("seed-san/Models").path_join(f), base.path_join("Models").path_join(f))
+	var write := func(dir: String, name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var fbx: String = Assets.new(base).of(["fbx"])[0]
+	var probe := Prefabs.new(Assets.new(base))
+	var model := probe.flatten(fbx)
+	var top := 0
+	for id: int in model:
+		if model[id].type == "GameObject" and not model[id].has("node"):
+			top = id
+	(probe.models[fbx].scene as Node).free()
+	write.call(base, "Base.prefab", "ba5e", """--- !u!1001 &100
+PrefabInstance:
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: %d, guid: %s, type: 3}
+      propertyPath: m_Name
+      value: Base
+      objectReference: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: %s, type: 3}
+--- !u!1 &%d stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: %d, guid: %s, type: 3}
+  m_PrefabInstance: {fileID: 100}
+--- !u!114 &102
+MonoBehaviour:
+  m_GameObject: {fileID: %d}
+  m_Enabled: 1
+  ViewPosition: {x: 0, y: 1.3, z: 0.08}
+""" % [top, fbx, fbx, (100 ^ top) & Prefabs.MASK, top, fbx, (100 ^ top) & Prefabs.MASK])
+	write.call(base, "Variant.prefab", "7a71", """--- !u!1001 &300
+PrefabInstance:
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: %d, guid: ba5e, type: 3}
+      propertyPath: m_Name
+      value: Variant
+      objectReference: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: ba5e, type: 3}
+""" % ((100 ^ top) & Prefabs.MASK))
+	write.call(base, "shared.png", "shared", "base's")
+	write.call(edit, "shared.png", "shared", "edit's")
+	write.call(edit, "Edit.prefab", "ed17", """--- !u!1001 &200
+PrefabInstance:
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: %d, guid: ba5e, type: 3}
+      propertyPath: m_Name
+      value: Edit
+      objectReference: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: ba5e, type: 3}
+""" % ((100 ^ top) & Prefabs.MASK))
+	var alone := UnityAvatar.avatar_scene(base)
+	check(alone != null and alone.name == "Base", "a variant in the base's own package is no second avatar (%s)" % [alone.name if alone != null else null])
+	if alone != null:
+		alone.free()
+	var both := Assets.new(edit, [base])
+	check(both.text("shared") == "edit's" and both.text("ba5e").contains("ViewPosition"), "the edit's own assets win and the base lends the rest")
+	var imported := UnityAvatar.avatar_scene(edit, [base])
+	check(imported != null and imported.name == "Edit", "the edit imports over its base as the avatar its variant names (%s)" % [imported.name if imported != null else null])
+	if imported != null:
+		check((imported.get_meta("report")["renderers drawn"] as Array).size() == 5, "the base's model draws all five renderers under the edit")
+		check(Avatar.model(imported) != null, "the edit is an avatar model")
+	check(UnityAvatar.avatar_scene(edit) == null, "the edit alone imports as nothing")
+	var absent := UnityAvatar.absent_instances(Assets.new(edit))
+	check(absent == {"ba5e": "Edit.prefab"}, "the edit alone names its base's absent GUID and the file instancing it: %s" % absent)

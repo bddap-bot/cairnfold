@@ -1,6 +1,6 @@
 extends RefCounted
 
-## A Unity package's assets by GUID: an Assets folder with each asset's .meta beside it, or a .unitypackage unpacked
+## Unity packages' assets by GUID: each an Assets folder with each asset's .meta beside it, or a .unitypackage unpacked
 ## as Unity ships it, one folder per GUID holding `asset`, `asset.meta` and `pathname`.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
@@ -10,47 +10,53 @@ const IMAGES := ["png", "jpg", "jpeg", "tga", "bmp", "webp"]
 
 ## GUID to {"file": where its bytes are, "path": its path in the project, "meta": its .meta file}.
 var by_guid := {}
+## The GUIDs `dir` itself holds: where the avatar is looked for.
+var own := {}
 var _metas := {}
 
 
-## `packages`, a Unity project's Packages folder, lends the images `dir` names but lacks: a shader package's own
-## textures (Poiyomi's matcaps) are referenced by GUID and installed beside the avatar, never shipped with it. It lends
-## nothing else, so its prefabs and scenes cannot change which avatar converts.
-func _init(dir: String, packages := "") -> void:
-	_scan(dir)
+## `lent`, other packages imported beside `dir` (the base avatar an edit or outfit is made over), lend every asset
+## `dir` names but lacks, an earlier one's over a later's, as one project holds them all. `packages`, a Unity project's
+## Packages folder, lends only images: a shader package's own textures (Poiyomi's matcaps) are referenced by GUID and
+## installed beside the avatar, never shipped with it, and its prefabs and scenes must not change which avatar
+## converts.
+func _init(dir: String, lent: PackedStringArray = [], packages := "") -> void:
+	by_guid = _scan(dir)
+	own = by_guid.duplicate()
+	for other in lent:
+		by_guid.merge(_scan(other))
 	if packages == "":
 		return
-	var own := by_guid
-	by_guid = {}
-	_scan(packages)
-	for guid: String in by_guid.keys():
-		if own.has(guid) or extension(guid) not in IMAGES:
-			by_guid.erase(guid)
-	by_guid.merge(own)
+	var installed := _scan(packages)
+	for guid: String in installed:
+		if not by_guid.has(guid) and (installed[guid].path as String).get_extension().to_lower() in IMAGES:
+			by_guid[guid] = installed[guid]
 
 
-func _scan(dir: String) -> void:
+static func _scan(dir: String) -> Dictionary:
+	var out := {}
 	var pending := [dir]
 	while not pending.is_empty():
 		var at: String = pending.pop_back()
 		if FileAccess.file_exists(at.path_join("pathname")):
 			var path := FileAccess.get_file_as_string(at.path_join("pathname")).split("\n")[0].strip_edges()
-			_add(at.path_join("asset"), path, at.path_join("asset.meta"))
+			_add(out, at.path_join("asset"), path, at.path_join("asset.meta"))
 			continue
 		for sub in DirAccess.get_directories_at(at):
 			pending.append(at.path_join(sub))
 		for f in DirAccess.get_files_at(at):
 			if f.ends_with(".meta") and FileAccess.file_exists(at.path_join(f.trim_suffix(".meta"))):
 				var file := at.path_join(f.trim_suffix(".meta"))
-				_add(file, file.trim_prefix(dir).trim_prefix("/"), at.path_join(f))
+				_add(out, file, file.trim_prefix(dir).trim_prefix("/"), at.path_join(f))
+	return out
 
 
-func _add(file: String, path: String, meta: String) -> void:
+static func _add(out: Dictionary, file: String, path: String, meta: String) -> void:
 	if not FileAccess.file_exists(meta):
 		return
 	for line in FileAccess.get_file_as_string(meta).split("\n", false, 4):
 		if line.begins_with("guid: "):
-			by_guid[line.trim_prefix("guid: ").strip_edges()] = {"file": file, "path": path, "meta": meta}
+			out[line.trim_prefix("guid: ").strip_edges()] = {"file": file, "path": path, "meta": meta}
 			return
 
 

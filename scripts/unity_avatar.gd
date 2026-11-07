@@ -2,14 +2,19 @@ extends SceneTree
 
 ## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
 ## from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--packages DIR]
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--with PACKAGE]... [--packages DIR]
 ## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
 ## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
 ## to Avatar.MAX_IMAGE_SIDE, so every texture keeps the size Unity shows it at. DIR, a Unity project's Packages folder,
 ## lends the images PACKAGE names but leaves to the shader packages installed beside it (Poiyomi's matcaps); without it
 ## those draw as their shader's default, white.
-## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. The avatar is the GameObject
-## bearing a VRChat avatar descriptor (AVATAR names it where there are several), as its scene or prefab instantiates
+## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. Each --with PACKAGE is imported
+## beside it, as one Unity project holds them all: an edit or outfit sold without the avatar it is made over imports
+## with that base's package, whose assets it names by GUID. Where several hold one GUID the first named wins, PACKAGE
+## over every --with. Each prefab or model PACKAGE instances that no package holds is named by its GUID: as the reason
+## for a refusal where that leaves no avatar, as an edit without its base does, otherwise in the report. The avatar is
+## the GameObject in PACKAGE bearing a VRChat avatar descriptor, its own or one that a prefab it instances from a --with
+## package holds (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
 ## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
 ## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
@@ -47,6 +52,8 @@ const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBak
 const SETTLE_SECONDS := 20.0
 const SETTLED_TURN := 1e-5
 static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
+## The GUID of the prefab or model a prefab instance in a scene or prefab's text instances.
+static var SOURCE := RegEx.create_from_string("m_(?:SourcePrefab|ParentPrefab): \\{fileID: -?\\d+, guid: (\\w+)")
 
 
 func _initialize() -> void:
@@ -54,22 +61,33 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var args := OS.get_cmdline_user_args()
+	var given := OS.get_cmdline_user_args()
+	var args := PackedStringArray()
+	var lent := PackedStringArray()
 	var packages := ""
-	var flag := args.find("--packages")
-	if flag >= 0 and flag + 1 < args.size() and DirAccess.dir_exists_absolute(args[flag + 1]):
-		packages = args[flag + 1]
-		args = args.slice(0, flag) + args.slice(flag + 2)
-	if args.size() < 2 or args.size() > 3 or args.has("--packages"):
-		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--packages DIR]")
+	var i := 0
+	while i < given.size():
+		if given[i] == "--with" and i + 1 < given.size() and not given[i + 1].begins_with("--"):
+			lent.append(given[i + 1])
+			i += 2
+		elif given[i] == "--packages" and i + 1 < given.size() and DirAccess.dir_exists_absolute(given[i + 1]):
+			packages = given[i + 1]
+			i += 2
+		else:
+			args.append(given[i])
+			i += 1
+	if args.size() < 2 or args.size() > 3 or args.has("--packages") or args.has("--with"):
+		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--with PACKAGE]... [--packages DIR]")
 		quit(2)
 		return
-	var dir := unpacked(args[0])
-	if dir == "":
-		printerr("unity_avatar: cannot unpack %s" % args[0])
-		quit(1)
-		return
-	var root := avatar_scene(dir, args[2] if args.size() == 3 else "", packages)
+	var dirs := PackedStringArray()
+	for package: String in [args[0]] + Array(lent):
+		dirs.append(unpacked(package))
+		if dirs[-1] == "":
+			printerr("unity_avatar: cannot unpack %s" % package)
+			quit(1)
+			return
+	var root := avatar_scene(dirs[0], dirs.slice(1), args[2] if args.size() == 3 else "", packages)
 	if root == null:
 		quit(1)
 		return
@@ -172,15 +190,44 @@ class Unpacked:
 			OS.execute("rm", ["-rf", path])
 
 
-## The package's avatar as the scene and avatar data Avatar.model takes, its root also carrying "report" (what was kept
-## and dropped, by kind). Null, with the reason printed, if the package holds no avatar to convert.
-static func avatar_scene(dir: String, pick := "", packages := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
-	var prefabs := Prefabs.new(Assets.new(dir, packages))
+## The avatar in `dir`, over the assets `lent` lends it, as the scene and avatar data Avatar.model takes, its root also
+## carrying "report" (what was kept and dropped, by kind). Null, with the reason printed, if the package holds no avatar
+## to convert; the reason names each prefab or model GUID its scenes and prefabs instance that no package holds.
+static func avatar_scene(dir: String, lent: PackedStringArray = [], pick := "", packages := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
+	var prefabs := Prefabs.new(Assets.new(dir, lent, packages))
 	var root := _convert(prefabs, pick, widest)
 	for m: Dictionary in prefabs.models.values():
 		if m.has("scene"):
 			(m.scene as Node).free()
 	return root
+
+
+## Each prefab or model GUID that a scene or prefab of the avatar's own package instances, directly or through what it
+## instances, and that no package holds, to the path of a document instancing it, as their texts say.
+static func absent_instances(assets: Assets) -> Dictionary:
+	var absent := {}
+	var pending := assets.of(["unity", "prefab"]).filter(func(g: String) -> bool: return assets.own.has(g))
+	var seen := {}
+	while not pending.is_empty():
+		var guid: String = pending.pop_back()
+		if seen.has(guid):
+			continue
+		seen[guid] = true
+		for m: RegExMatch in SOURCE.search_all(assets.text(guid)):
+			var source := m.get_string(1)
+			if not assets.by_guid.has(source):
+				absent.get_or_add(source, assets.by_guid[guid].path)
+			elif assets.extension(source) in ["unity", "prefab"]:
+				pending.append(source)
+	return absent
+
+
+## What a refusal adds where the packages lack what the avatar's package instances: each such GUID, and the remedy.
+static func _lacking(assets: Assets) -> String:
+	var absent := absent_instances(assets)
+	if absent.is_empty():
+		return ""
+	return "; no package holds what these instance, by GUID: %s; name the package holding them, an edit's base avatar, with --with" % ", ".join(absent.keys().map(func(g: String) -> String: return "%s instances %s" % [absent[g], g]))
 
 
 static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
@@ -197,7 +244,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var renderers := _renderers(objs, found.transform, switches.by_object, report)
 	var main := _main_model(assets, prefabs, objs, found.go, renderers)
 	if main == "":
-		printerr("unity_avatar: %s: no renderer's model is a humanoid with a Unity Avatar definition" % found.name)
+		printerr("unity_avatar: %s: no renderer's model is a humanoid with a Unity Avatar definition%s" % [found.name, _lacking(assets)])
 		return null
 	var model: Dictionary = prefabs.model(main)
 	var skeletons: Array = (model.scene as Node).find_children("*", "Skeleton3D", true, false)
@@ -333,8 +380,11 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	root.set_meta("faces", face.expressions)
 	report["faces"] = (face.expressions as Dictionary).keys()
 	report["not translated"] = _untranslated(objs, found.transform, found.descriptor)
-	if not prefabs.missing.is_empty():
-		report["not in the package"] = prefabs.missing.keys()
+	var absent := absent_instances(assets)
+	if not absent.is_empty():
+		report["instanced and in no package"] = absent.keys()
+	if not prefabs.unread.is_empty():
+		report["models not read"] = prefabs.unread.keys()
 	if not materials.undecoded.is_empty():
 		report["textures not decoded"] = materials.undecoded.keys()
 	root.set_meta("report", report)
@@ -385,8 +435,10 @@ static func settle(root: Node3D) -> void:
 ## names none of them.
 static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionary:
 	var found := []
+	var bearing := {}
 	for guid: String in assets.of(["unity", "prefab"]):
-		if not assets.text(guid).contains("\n  ViewPosition:"):
+		var text := assets.text(guid) if assets.own.has(guid) else ""
+		if not text.contains("\n  ViewPosition:") and not SOURCE.search_all(text).any(func(m: RegExMatch) -> bool: return not assets.own.has(m.get_string(1)) and _bears_descriptor(assets, m.get_string(1), bearing)):
 			continue
 		var objs := prefabs.flatten(guid)
 		for id: int in objs:
@@ -412,15 +464,25 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	if pick != "":
 		printerr("unity_avatar: no avatar named %s" % pick)
 		return {}
-	var models := assets.of(Prefabs.MODELS).filter(func(g: String) -> bool: return not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty() and str((assets.meta(g).get("ModelImporter", {}) as Dictionary).get("animationType", "")) == "3")
+	var models := assets.of(Prefabs.MODELS).filter(func(g: String) -> bool: return assets.own.has(g) and not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty() and str((assets.meta(g).get("ModelImporter", {}) as Dictionary).get("animationType", "")) == "3")
 	if models.size() != 1:
-		printerr("unity_avatar: no avatar descriptor, and %d humanoid models, not one" % models.size())
+		printerr("unity_avatar: no avatar descriptor, and %d humanoid models, not one%s" % [models.size(), _lacking(assets)])
 		return {}
 	var objs := prefabs.flatten(models[0])
 	for id: int in objs:
 		if objs[id].type == "GameObject" and not objs[id].has("node"):
 			return {"objects": objs, "go": id, "transform": Prefabs.transform_of(objs, id), "name": assets.name(models[0]), "descriptor": {}}
 	return {}
+
+
+## Whether the scene or prefab with this GUID holds a VRChat avatar descriptor, its own or one in a prefab it instances,
+## as its text and theirs say without flattening them; `seen` caches the answers.
+static func _bears_descriptor(assets: Assets, guid: String, seen: Dictionary) -> bool:
+	if not seen.has(guid):
+		seen[guid] = false
+		var text := assets.text(guid) if assets.extension(guid) in ["unity", "prefab"] else ""
+		seen[guid] = text.contains("\n  ViewPosition:") or SOURCE.search_all(text).any(func(m: RegExMatch) -> bool: return _bears_descriptor(assets, m.get_string(1), seen))
+	return seen[guid]
 
 
 ## Every transform under `top`, itself included, with its GameObject: [[transform, go], ...] parents first.

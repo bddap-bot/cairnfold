@@ -220,13 +220,20 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **From a Unity package.** `scripts/unity_avatar.gd` imports the avatar in a Unity source
   package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) straight into the
   avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
-  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR] [--packages DIR]`.
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR] [--with PACKAGE]... [--packages DIR]`.
+  Each `--with` package is imported beside PACKAGE as one Unity project holds them, so an edit or outfit sold without
+  the avatar it is made over imports with its base's package: its variant of the base's prefab, and every texture, model
+  and material it names by GUID, resolve across them all, PACKAGE's own asset winning where two hold one GUID. The avatar
+  is looked for in PACKAGE alone. Each prefab or model PACKAGE instances that no package holds is named by its GUID
+  and the file instancing it: as the reason for a refusal where that leaves no avatar, as an edit without its base
+  does, otherwise in the report.
   Named `avatar.vrm`, the output is instead the file a player wears: the avatars folder reads
   only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
   `Avatar.read` reads it back into the same model. The `VRCHAT_expressions` extension carries
   creator menus, parameters, animation curves and supported material controls.
-  The avatar is the GameObject with a VRChat avatar descriptor (AVATAR names it where a package
-  holds several), instantiated as its scene or prefab does: prefab instances, nested ones too,
+  The avatar is the GameObject with a VRChat avatar descriptor, its own or one that a prefab it instances from a `--with`
+  package holds, as an edit's variant of its base does (AVATAR names it where a package holds several), instantiated as
+  its scene or prefab does: prefab instances, nested ones too,
   expand with their modifications, so the renderers it draws are those active there, with the
   materials and blend shape weights saved on them. Unity names a model's objects by fixed IDs
   from its `.meta` or, since 2019, by the XXH64 of each object's type and path, so the importer

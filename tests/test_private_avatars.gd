@@ -37,7 +37,7 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	var dir := UnityAvatar.unpacked(package)
 	check(dir != "", "%s unpacks" % label)
 	# A widest-atlas conversion of a heavy package passes the suite's 4 GB data limit.
-	var model := UnityAvatar.avatar_scene(dir, avatar, "", Materials.LAYER) if dir != "" else null
+	var model := UnityAvatar.avatar_scene(dir, [], avatar, "", Materials.LAYER) if dir != "" else null
 	check(model != null, "%s imports" % label)
 	if model == null:
 		return

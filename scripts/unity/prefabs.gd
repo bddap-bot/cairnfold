@@ -21,8 +21,8 @@ var assets: Assets
 ## Models by GUID: {"state": the FBXState, "scene": the scene Godot made of it, "objects": its Unity objects, "names": node index to its Unity name}.
 var models := {}
 var _flat := {}
-## What was met and not followed, each once: a prefab GUID missing from the package, a model Godot cannot read.
-var missing := {}
+## The paths of the models Godot cannot read.
+var unread := {}
 
 
 func _init(from: Assets) -> void:
@@ -51,7 +51,6 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 		var source: Dictionary = pi.get("m_SourcePrefab", pi.get("m_ParentPrefab", {}))
 		var sguid: String = source.get("guid", "")
 		if not assets.by_guid.has(sguid):
-			missing["prefab " + sguid] = true
 			continue
 		var inner := flatten(sguid)
 		var copies := {}
@@ -193,7 +192,7 @@ func model(guid: String) -> Dictionary:
 	state.create_animations = false
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_DISCARD_TEXTURES
 	if not assets.extension(guid) == "fbx" or doc.append_from_file(assets.by_guid[guid].file, state) != OK:
-		missing["model " + assets.by_guid[guid].path] = true
+		unread[assets.by_guid[guid].path] = true
 		models[guid] = {}
 		return {}
 	var scene := doc.generate_scene(state) as Node3D
