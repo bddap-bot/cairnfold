@@ -2183,7 +2183,7 @@ Grass and flowers are priced on 3eb6468, from both scenes' packed discs in two i
 | Flowers, 4,000 (pondweed) | from 3.2 m off | 5.95 / 5.96 ms | 12.34 / 12.69 ms | 1.597 / 1.682 µs |
 | Irises, 4,000 (pondweed) | from the shore | 6.16 / 6.16 ms | 10.90 / 11.43 ms | 1.185 / 1.317 µs |
 
-Each plant unit is charged its dearest view: a grass clump 0.591 µs and a flower 1.682 (`Budget.COSTS`). Every view
+Each plant unit is charged its dearest view: a grass clump 0.591 µs (0.55 since "Grass at the fit step") and a flower 1.682 (`Budget.COSTS`). Every view
 here keeps the frame rate (median frames 13.9 to 14.8 ms), so the costs fit takes its packed discs too. The whole 12,000-clump pool packed into the
 disc does not: there the frame rate halves and the GPU time read more than doubles, which is what the 1.7 to 2.5 µs a
 clump charged before measured. Packed beside the eye on this build
@@ -2261,8 +2261,12 @@ air less its trees and bushes, where a blade is a few pixels: 5.74 ms before and
 taken at the smaller of the two runs' readings there, 0.53 ms. A 0.09 ms move is inside a run's spread, so `Budget.CAPACITY_MS` stays 3.99 and
 `demo/fill.json` builds the same at its full room on either build: the houses scene lays five (fill 0.988 before, 0.995
 after) and the walls scene six (0.973, 0.985). Painted grass is cheaper: the packed 9,000-clump discs, which halved the frame rate on this Quest 2 before, hold 72 Hz
-after, and price at 0.412 µs a clump (costs) and 0.433 to 0.508 (pondweed's land disc, 0.379 to 0.387 its pondweed),
-under the 0.591 a clump is charged.
+after, and price at 0.412 µs a clump (costs) and 0.429 to 0.538 (pondweed's land disc over every run of the change on
+this headset, 0.337 to 0.392 its pondweed), so a clump is charged 0.55 µs, over the dearest, where it was 0.591. On main
+with the change landed the land disc read 0.359 and 0.353 µs on the first Quest 2, the one 0.591 was priced on
+([record](../perf/quest-2/pondweed/20261107T133645Z-4c697d8.json),
+[record](../perf/quest-2/pondweed/20261107T134049Z-4c697d8.json)); the comparison runs above were taken on the build
+before the change, which main has since moved past, so they are not kept as records.
 
 ### Crowns
 
