@@ -341,7 +341,7 @@ func let_go(who: Object) -> void:
 		var target: Dictionary = cut.single
 		var cmd := {}
 		if target.get("rubble", false):
-			if _standing(target.wall):
+			if is_instance_valid(target.wall) and _standing(target.wall):
 				cmd = {"op": "take", "of": "walls", "ids": PackedInt32Array([target.wall.id])}
 		else:
 			cmd = FittingTool.removal(world.state, target)

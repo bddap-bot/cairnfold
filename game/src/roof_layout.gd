@@ -266,11 +266,12 @@ func ridge_length() -> float:
 	return corners[0].distance_to(corners[1])
 
 
-## How far a flat deck reaches across from the ridge, and along it from the middle, tucked under the walls.
+## How far a flat deck reaches across from the ridge (or axis), tucked under the walls.
 func deck_reach() -> float:
 	return half_span() - WallLayout.THICKNESS + DECK_TUCK
 
 
+## How far a flat deck reaches along the ridge from its middle, tucked under the walls.
 func deck_length() -> float:
 	return ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
 

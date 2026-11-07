@@ -442,7 +442,9 @@ func close(hand: Hand, released := true) -> void:
 	var now := _now(w)
 	if now < 0:
 		return
-	if w.id >= 0 and w.target.tool == Hand.Tool.COLOUR:
+	if w.target.get("restyle") == Restyle.STONE:
+		Ground.style = w.dial.pick
+	elif w.id >= 0 and w.target.tool == Hand.Tool.COLOUR:
 		walls.paint[w.target.element] = w.dial.pick
 	elif w.id >= 0:
 		var option: Variant = w.target.get("options", range(w.target.count))[w.dial.pick]
@@ -473,10 +475,6 @@ func close(hand: Hand, released := true) -> void:
 			Restyle.DECORATION:
 				if world.state.decorations[w.id].mount == "span":
 					world.decorations.string_style = option
-			Restyle.STONE:
-				Ground.style = w.dial.pick
-	elif w.target.get("restyle") == Restyle.STONE:
-		Ground.style = w.dial.pick
 	if released and w.target.tool == Hand.Tool.COLOUR and w.dial.pick == w.dial.start and w.dial.held < TAP:
 		tap(hand, w.of, w.id)
 		return

@@ -141,7 +141,7 @@ func _read(m: Dictionary, guid: String) -> void:
 		m.depth = declared.call("_ZWrite") and _number(m, "_ZWrite", 0.0) != 0.0
 	elif queue >= 2450 or render_type == "TransparentCutout" or m.shader.contains("Cutout") or mode == 1:
 		m.alpha = Alpha.CUTOUT
-		m.cutoff = str(floats.get("_Cutoff", "0.5")).to_float()
+		m.cutoff = _float(m, "_Cutoff", 0.5)
 	if declared.call("_AlphaMod"):
 		m.alpha_mod = _number(m, "_AlphaMod", 0.0)
 	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
@@ -773,7 +773,7 @@ func _masked(m: Dictionary, property: String, invert: String, global: String) ->
 func _mask(m: Dictionary, property: String, channel: String, invert: String, global: String, blend: String) -> PackedByteArray:
 	var source := _over_cell(m, _slot_image(m, property), property).get_data()
 	var pick := clampi(int(_float(m, channel)), 0, 3)
-	var inverted: bool = _float(m, invert) != 0.0
+	var inverted := int(_float(m, invert)) != 0
 	var over_mask: Dictionary = global_mask(m, int(_float(m, global)))
 	var over := PackedByteArray() if over_mask.is_empty() else _over_cell(m, _slot_image(m, over_mask.property) if over_mask.property != "" else null, over_mask.property).get_data()
 	var type := int(_float(m, blend, 2.0))
