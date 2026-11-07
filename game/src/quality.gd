@@ -441,6 +441,11 @@ class Governor:
 	## The longest calm a step up waits for; as long under the line forgets what the step cost, which the scene may
 	## have outgrown, and which reads high when the step left frames already at every other refresh.
 	const CALM_SECONDS_MAX := 64.0
+	## A step up waits this long after a missed refresh, as a share of the refresh period or of the usual gap between the
+	## last GAPS frames if longer, so a steady rate the CPU holds does not count: a hitch is often a scene changing, which
+	## the average has not caught up with. On the Steam Frame a neck phase's opening frame, 30 ms with the GPU at 6.8 ms,
+	## came 0.6 s before a step up into the animals it brought.
+	const MISSED_SECONDS := 1.0
 	## What a step up not yet measured in this scene is taken to cost, as a share of the budget: half the gap between
 	## the line and the Steam Frame's cliff at 0.88. Taken as nothing, its full garden stepped up from 10.8 ms into a
 	## step that crossed the cliff and held every other refresh for six seconds.
@@ -466,9 +471,13 @@ class Governor:
 	var _since_up := INF
 	## Calm seconds needed to step up into each level.
 	var _wait := PackedFloat32Array()
-	## What the step up out of each level costs, in milliseconds, or -1 while unmeasured: the difference between the
-	## average before a step between it and the level above and the average over the AVERAGE_SECONDS after it settled.
+	## What the step up out of each level costs as a share of that level's frame, or -1 while unmeasured: the difference
+	## between the average before a step between it and the level above and the average over the AVERAGE_SECONDS after
+	## it settled, over the average at it. The knobs cost by the pixel, so their cost grows with the scene's: on the Steam
+	## Frame the sky's reflections, measured at under 0.7 ms on a 4.9 ms meadow and priced at that, were taken at 10.4 ms,
+	## and the next phases missed refreshes at the top step.
 	var _cost := PackedFloat32Array()
+	var _since_missed := INF
 	## Seconds averaged since the last step settled; the average steps down only once a whole one is in.
 	var _averaged := 0.0
 	var _before := 0.0
@@ -514,10 +523,10 @@ class Governor:
 			to -= 1
 		return to
 
-	## What the step up out of `at` is expected to cost, in milliseconds.
+	## What the step up out of `at` is expected to cost, in milliseconds, at the current frame.
 	func cost(at: int, budget_ms: float) -> float:
 		if _cost[at] >= 0.0:
-			return _cost[at]
+			return _average * _cost[at]
 		var share := 0.0
 		for i in range(up(at), at):
 			share += _shares[i]
@@ -546,6 +555,7 @@ class Governor:
 			_restart()
 			return
 		_since_up += dt
+		_since_missed = 0.0 if dt_ms > HALVED * maxf(budget_ms, Quality.median(_gaps)) else _since_missed + dt
 		if _settle > 0:
 			_settle -= 1
 			return
@@ -557,7 +567,9 @@ class Governor:
 			if _averaged >= AVERAGE_SECONDS and _measuring >= 0:
 				# A step out of every other refresh reads no saving, so a measurement only raises what a step costs.
 				var change := _average - _before if _went_up else _before - _average
-				_cost[_measuring] = maxf(_cost[_measuring], change)
+				var at := _before if _went_up else _average
+				if at > 0.0:
+					_cost[_measuring] = maxf(_cost[_measuring], change / at)
 				_measuring = -1
 		var line := budget_ms * LINE
 		_hot = _hot + 1 if frame_ms > budget_ms * HOT else 0
@@ -603,7 +615,7 @@ class Governor:
 			_took = frame_ms
 			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "average over the line", dt_ms, _average]
 			_move(to)
-		elif level > 0 and _calm >= _climb_wait():
+		elif level > 0 and _calm >= _climb_wait() and _since_missed >= MISSED_SECONDS:
 			_before = _average
 			_measuring = level
 			_went_up = true

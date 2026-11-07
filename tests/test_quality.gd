@@ -21,6 +21,9 @@ func _initialize() -> void:
 	_an_average_over_the_line_steps_down_before_frames_run_late()
 	_a_step_up_waits_for_room_for_what_the_step_down_saved()
 	_an_unmeasured_step_up_waits_for_room_for_an_estimate()
+	_a_measured_cost_follows_the_frame()
+	_a_step_up_waits_a_second_after_a_missed_refresh()
+	_every_other_refresh_held_by_the_cpu_still_climbs()
 	_a_step_up_into_every_other_refresh_is_not_retried()
 	_a_held_step_reaches_its_knobs()
 	_every_other_refresh_under_the_line_steps_neither_way()
@@ -225,6 +228,36 @@ func _an_unmeasured_step_up_waits_for_room_for_an_estimate() -> void:
 	var near := Quality.Governor.LINE - Quality.Governor.UNMEASURED / 2.0
 	check(_feed(g, BUDGET * near, int(72 * (Quality.Governor.CALM_SECONDS_MAX + 10.0))) == 1, "a cost forgotten is unmeasured, and no step up has less room than the estimate")
 	check(_feed(g, BUDGET * 0.5, 72 * 4) == 0, "until there is")
+
+
+## A step up measured on a light scene costs its share of a heavy one, not the milliseconds it read then.
+func _a_measured_cost_follows_the_frame() -> void:
+	var g := Quality.Governor.new(10)
+	_feed(g, BUDGET * 0.6, 72)
+	_feed(g, BUDGET * 1.1, 2)
+	_feed(g, BUDGET * 0.4, 72 + 2 * Quality.Governor.SETTLE_FRAMES)
+	var light := g.cost(1, BUDGET)
+	check(g.level == 1 and light > BUDGET * Quality.Governor.UNMEASURED, "a step down measures what it saved")
+	_feed(g, BUDGET * 0.58, 72 * 5)
+	check(absf(g.cost(1, BUDGET) / light - 0.58 / 0.4) < 0.02, "and costs that share of a heavier frame")
+	check(_feed(g, BUDGET * 0.58, 72 * 10) == 1, "which leaves no room under the line for it")
+
+
+func _a_step_up_waits_a_second_after_a_missed_refresh() -> void:
+	var g := Quality.Governor.new(10)
+	_down(g)
+	_feed(g, BUDGET * 0.1, int(72 * (Quality.Governor.CALM_SECONDS - 0.5)))
+	g.step(BUDGET * 0.1, BUDGET, DT * 2.0)
+	check(_feed(g, BUDGET * 0.1, int(72 * (Quality.Governor.MISSED_SECONDS - 0.1))) == 1, "a calm spell does not step up within a second of a missed refresh")
+	check(_feed(g, BUDGET * 0.1, 72) == 0, "it does once the second is past")
+
+
+func _every_other_refresh_held_by_the_cpu_still_climbs() -> void:
+	var g := Quality.Governor.new(10)
+	_down(g)
+	for i in 72 * 4:
+		g.step(BUDGET * 0.3, BUDGET, DT * 2.0)
+	check(g.level == 0, "a steady rate the CPU holds is no missed refresh")
 
 
 ## The Steam Frame's runtime keeps a game at every other refresh for seconds after a step up crossed its cliff, and its

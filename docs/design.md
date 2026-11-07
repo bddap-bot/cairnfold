@@ -1747,7 +1747,7 @@ refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapcha
 (see "Holding 72 Hz on the Frame"). A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
 is missed among frames over its line (a single one the next frame does not repeat steps nothing), or their average
-runs over the line while the frame still reads over it, and back up only after a calm spell with room for what the step saved. The runtime holding the
+runs over the line while the frame still reads over it, and back up only after a calm spell with room for what the step saved, and not within a second of a missed refresh against the usual cadence. The runtime holding the
 game at every other refresh holds a step up, and frames over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
 once) draw what it built, not the scene, so the governor starts its averages again rather than judge them. Every headset starts at the cheapest way of
 drawing the view with every reach whole (`Quality.START`) and settles on the prettiest step it
@@ -1784,7 +1784,8 @@ build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. 
   frame (the last column, from the Quest 2's measurements; the swapchain's is its pixels': first estimated from the
   0.7, 0.8 and 1.0 rows of "Which knobs matter" at 0.27, a governed stress run on the Quest 2 climbed from 0.7 to
   0.85 at 7.3 ms and read 10.7, and stepped back within seven seconds), and is taken only when the average plus that stays under the line. A measured step
-  takes its measured cost, as every step does.
+  takes its measured share: what it cost over the frame it was measured at, applied to the frame now, since the
+  knobs cost by the pixel. A cost that does not grow with the scene is overpriced in a heavy one, which errs low.
 - Pops. The steps into 2x MSAA and each smaller swapchain change the whole view at once, as the bottom steps'
   shadows and 3D scale do (`Quality.popping`), so a governor crossing one back and forth would show it. Above the
   start the governor crosses them at the calm of any step until the scene first asks for less; once a step down has
