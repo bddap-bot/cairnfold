@@ -64,6 +64,7 @@ func _run() -> void:
 	_an_unpacked_armature_still_takes_a_link()
 	_transform_and_physbone_curves_bind()
 	_vrcfury_toggles_join_the_menu()
+	_a_toggled_objects_constraints_and_their_bones_are_kept()
 	_vrcfury_full_controller_paths_resolve_from_their_object()
 	_a_udim_discard_tile_is_a_switch()
 	_a_radial_moving_nothing_is_cut_beside_a_live_one()
@@ -1067,19 +1068,19 @@ func _native_constraints_resolve_world_and_feedback() -> void:
 	prefabs._flat["anchor"] = {90: {"type": "Transform", "data": {"m_LocalPosition": {"x": "2", "y": "3", "z": "4"}}}}
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_IsActive": "1"}},
-		2: {"type": "GameObject", "data": {"m_Name": "World", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "20"}}]}},
-		3: {"type": "GameObject", "data": {"m_Name": "Follower", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "21"}}]}},
+		2: {"type": "GameObject", "data": {"m_Name": "World", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "11"}}, {"component": {"fileID": "20"}}]}},
+		3: {"type": "GameObject", "data": {"m_Name": "Follower", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "12"}}, {"component": {"fileID": "21"}}]}},
 		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Children": [{"fileID": "11"}]}},
 		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}, "m_Father": {"fileID": "10"}, "m_Children": [{"fileID": "12"}]}},
 		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "11"}}},
-		20: {"type": "ParentConstraint", "data": {"m_Active": "1", "m_Sources": [{"sourceTransform": {"guid": "anchor", "fileID": "90"}, "weight": "1"}]}},
-		21: {"type": "PositionConstraint", "data": {"m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "12"}, "weight": "1"}, {"sourceTransform": {"fileID": "10"}, "weight": "0.01"}]}},
+		20: {"type": "ParentConstraint", "data": {"m_GameObject": {"fileID": "2"}, "m_Active": "1", "m_Sources": [{"sourceTransform": {"guid": "anchor", "fileID": "90"}, "weight": "1"}]}},
+		21: {"type": "PositionConstraint", "data": {"m_GameObject": {"fileID": "3"}, "m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "12"}, "weight": "1"}, {"sourceTransform": {"fileID": "10"}, "weight": "0.01"}]}},
 	}
 	var sk := Skeleton3D.new()
 	sk.set_meta("unity_bones", {})
 	sk.set_meta("unity_top", 10)
 	var rests: Array[Transform3D] = []
-	var result := UnityAvatar._constraints(prefabs, objs, 10, sk, rests)
+	var result := UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests)
 	check(not result.has("error"), "active native constraints resolve")
 	if result.has("constraints"):
 		check(result.constraints.size() == 2, "both active native constraints exported")
@@ -1088,14 +1089,14 @@ func _native_constraints_resolve_world_and_feedback() -> void:
 		check(parent.sources[0].world.slice(12, 15) == [-2.0, 3.0, 4.0], "external prefab keeps its world coordinates with handedness conversion")
 		check(follower.sources[0].node == follower.node and is_equal_approx(follower.sources[1].weight, 0.01), "feedback reference and authored weight survive")
 	objs[21].data.m_Weight = "0"
-	var kept: Array = UnityAvatar._constraints(prefabs, objs, 10, sk, rests).get("constraints", [])
+	var kept: Array = UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).get("constraints", [])
 	check(kept.size() == 2 and kept[1].weight == 0.0, "a constraint saved at weight 0 is kept for a clip to engage: %s" % [kept])
 	objs[20].data.m_Weight = "0"
 	assets.by_guid.erase("anchor")
-	var unsolvable := UnityAvatar._constraints(prefabs, objs, 10, sk, rests)
+	var unsolvable := UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests)
 	check(not unsolvable.has("error") and unsolvable.constraints.size() == 1, "a constraint saved at weight 0 that cannot be solved is left out, not fatal: %s" % [unsolvable])
 	objs[20].data.m_Weight = "1"
-	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).has("error"), "an engaged constraint that cannot be solved still fails the import")
+	check(UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).has("error"), "an engaged constraint that cannot be solved still fails the import")
 	assets.by_guid["anchor"] = {}
 	sk.add_bone("Follower")
 	var targets := []
@@ -1103,9 +1104,9 @@ func _native_constraints_resolve_world_and_feedback() -> void:
 	check(at == 0 and targets[0].effect == {"constraint": {"node": "Follower"}} and targets[0].default == 0.0, "a clip moving a constraint's weight binds it at the saved weight: %s" % [targets])
 	check(UnityAvatar._target({"path": "f", "attribute": "m_Weight", "class": "1773428102"}, objs, {"f": 12}, [], {}, sk, [], null) == -1, "a weight curve on a constraint the object lacks binds nothing")
 	objs[21].data.m_Enabled = "0"
-	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).constraints.size() == 1, "disabled component remains disabled")
+	check(UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).constraints.size() == 1, "disabled component remains disabled")
 	objs[2].data.m_IsActive = "0"
-	check(UnityAvatar._constraints(prefabs, objs, 10, sk, rests).constraints.is_empty(), "inactive hierarchy remains inactive")
+	check(UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).constraints.is_empty(), "inactive hierarchy remains inactive")
 	sk.free()
 
 
@@ -2020,6 +2021,52 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	check(layer.states[0].transitions[0].conditions[0] == {"parameter": "VF0_Clothes/Hat", "mode": "if", "threshold": 0.0}, "the parameter enters the on state")
 	var switches := UnityAvatar._switches(expressions, objs, paths)
 	check(switches.by_object.has(3) and switches.targets[switches.by_object[3]].default == 0.0, "the hat is the menu's switch, resting off as its toggle starts though the scene shows it")
+
+
+## An object a VRCFury Toggle turns on rests off, as its toggle starts; the constraints on it and under it still run
+## once the menu shows it, so they are written, and so are the bones they place and aim at.
+func _a_toggled_objects_constraints_and_their_bones_are_kept() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "9"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}, "m_Children": [{"fileID": "4"}]}},
+		3: {"type": "GameObject", "data": {"m_Name": "Prop", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "4"}}, {"component": {"fileID": "7"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}, "m_Children": [{"fileID": "6"}]}},
+		5: {"type": "GameObject", "data": {"m_Name": "Aim", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "6"}}, {"component": {"fileID": "8"}}]}},
+		6: {"type": "Transform", "data": {"m_GameObject": {"fileID": "5"}, "m_Father": {"fileID": "4"}, "m_LocalPosition": {"x": "0", "y": "0", "z": "1"}}},
+		7: {"type": "LookAtConstraint", "data": {"m_GameObject": {"fileID": "3"}, "m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "6"}, "weight": "1"}]}},
+		8: {"type": "ParentConstraint", "data": {"m_GameObject": {"fileID": "5"}, "m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "2"}, "weight": "1"}]}},
+		11: {"type": "GameObject", "data": {"m_Name": "Spare", "m_IsActive": "0", "m_Component": [{"component": {"fileID": "12"}}, {"component": {"fileID": "13"}}]}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "11"}, "m_Father": {"fileID": "2"}}},
+		13: {"type": "ParentConstraint", "data": {"m_GameObject": {"fileID": "11"}, "m_Active": "1", "m_Sources": [{"sourceTransform": {"fileID": "2"}, "weight": "1"}]}},
+	}
+	(objs[2].data.m_Children as Array).append({"fileID": "12"})
+	var refs := [
+		{"rid": "1", "type": {"class": "Toggle"}, "data": {"name": "Prop", "defaultOn": "0", "state": {"actions": [{"rid": "2"}]}}},
+		{"rid": "2", "type": {"class": "ObjectToggleAction"}, "data": {"obj": {"fileID": "3"}, "mode": "0"}},
+	]
+	objs[9] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "1"}, "config": {"features": [{"rid": "1"}]}, "references": {"RefIds": refs}}}
+	var assets := Assets.new(ProjectSettings.globalize_path("user://"))
+	var expressions := Expressions.new(assets, {})
+	var paths := UnityAvatar._paths(objs, 2)
+	VRCFury.apply(expressions, objs, paths)
+	check(objs[3].data.m_IsActive == "0", "the toggled object rests off")
+	var switches := UnityAvatar._switches(expressions, objs, paths)
+	var sk := Skeleton3D.new()
+	sk.set_meta("unity_bones", {})
+	sk.set_meta("unity_top", 2)
+	var rests: Array[Transform3D] = []
+	var prefabs := Prefabs.new(assets)
+	var result := UnityAvatar._constraints(prefabs, objs, 2, switches, sk, rests)
+	var kinds: Array = result.get("constraints", []).map(func(c: Dictionary) -> String: return c.kind)
+	check(kinds == ["LookAt", "Parent"], "both constraints the menu can run are written, and not the one under an object nothing turns on: %s" % [result])
+	check(sk.find_bone("Prop") >= 0 and sk.find_bone("Aim") >= 0 and sk.find_bone("Spare") < 0, "the aimed-at and following bones are written: %s" % [range(sk.get_bone_count()).map(func(b: int) -> String: return sk.get_bone_name(b))])
+	check(UnityAvatar._constraints(prefabs, objs, 2, {}, sk, rests).get("constraints", []).is_empty(), "without the menu an object resting off runs none")
+	objs[7].data.m_UseUpObject = "1"
+	var unsolvable := UnityAvatar._constraints(prefabs, objs, 2, switches, sk, rests)
+	check(not unsolvable.has("error") and unsolvable.constraints.size() == 1, "a constraint only the menu turns on that cannot be solved is left out, not fatal: %s" % [unsolvable])
+	switches.targets[switches.by_object[3]].default = 1.0
+	check(UnityAvatar._constraints(prefabs, objs, 2, switches, sk, rests).has("error"), "one the menu switches that runs at rest and cannot be solved still fails the import")
+	sk.free()
 
 
 ## A FullController's bindings are below its object when that path is there, otherwise from the avatar's root; a

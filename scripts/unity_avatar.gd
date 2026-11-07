@@ -273,7 +273,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		root.free()
 		return null
 	sk.set_meta("humanoid_bones", named)
-	var constraints := _constraints(prefabs, objs, found.transform, sk, rests)
+	var constraints := _constraints(prefabs, objs, found.transform, switches, sk, rests)
 	if constraints.has("error"):
 		printerr("unity_avatar: " + str(constraints.error))
 		root.free()
@@ -2289,23 +2289,20 @@ static func _matrix(t: Transform3D) -> Array:
 	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, 0, t.basis.y.x, t.basis.y.y, t.basis.y.z, 0, t.basis.z.x, t.basis.z.y, t.basis.z.z, 0, t.origin.x, t.origin.y, t.origin.z, 1]
 
 
-static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
+static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, switches: Dictionary, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
 	var out := []
-	var on := {}
 	for e: Array in _under(objs, top):
-		var father := Yaml.file_id(objs[e[0]].data.get("m_Father"))
-		on[e[0]] = _active(objs, e[1]) and (e[0] == top or on.get(father, false))
-		if not on[e[0]] or not objs.has(e[1]):
-			continue
 		for id: int in Prefabs.components(objs, e[1]):
 			var o: Dictionary = objs.get(id, {})
 			if not o.get("type", "") in CONSTRAINTS.values():
 				continue
 			var d: Dictionary = o.data
-			if str(d.get("m_Enabled", "1")) != "1" or str(d.get("m_Active", "0")) != "1":
+			var when: Variant = _when(objs, id, d, switches)
+			if when == null or str(d.get("m_Active", "0")) != "1":
 				continue
 			var c := _constraint(prefabs, objs, o, e[0], sk, rests)
-			if c.has("error") and str(d.get("m_Weight", "1")).to_float() == 0.0:
+			var rests_off := (when as Array).any(func(w: Array) -> bool: return not is_equal_approx(switches.targets[w[0]].default, w[1]))
+			if c.has("error") and (str(d.get("m_Weight", "1")).to_float() == 0.0 or rests_off):
 				continue
 			if c.has("error"):
 				return c
@@ -2314,7 +2311,8 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, sk: Skele
 
 
 ## The constraint `o` on the Transform `transform` as the runtime solves it, or {"error"} where it cannot be: a constraint
-## saved at weight 0 that cannot is left out rather than failing the import, since only a clip engages it.
+## saved at weight 0, or under an object resting off that only the menu turns on, that cannot is left out rather than
+## failing the import, since only a clip engages it.
 static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, transform: int, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
 	var d: Dictionary = o.data
 	if o.type == "LookAtConstraint" and (str(d.get("m_UseUpObject", "0")) != "0" or str(d.get("m_Roll", "0")).to_float() != 0.0):
