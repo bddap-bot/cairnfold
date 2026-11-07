@@ -147,7 +147,7 @@ func think(a: One, delta: float) -> void:
 	var p := _pond(f)
 	if p == null:
 		f.fading = true
-		_settle(f, delta)
+		_settle(f)
 		return
 	var surface := p.surface_y()
 	f.croaked += delta
@@ -205,7 +205,7 @@ func think(a: One, delta: float) -> void:
 				f.state = State.SWIM
 				f.timer = 0.0
 				f.goal = f.launch
-	_settle(f, delta)
+	_settle(f)
 
 
 ## A point of `p` deep enough to swim in, near `from`, at swimming depth.
@@ -284,7 +284,7 @@ func _plop(f: Frog, p: PondWater) -> void:
 
 ## Its pose: on the ground or in the water, legs out through a hop or kicking as it swims, its throat swelling as it
 ## croaks.
-func _settle(f: Frog, _delta: float) -> void:
+func _settle(f: Frog) -> void:
 	var legs := 0.0
 	match f.state:
 		State.HOP:

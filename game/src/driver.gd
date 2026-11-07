@@ -305,9 +305,7 @@ func _gesture(s: Dictionary) -> void:
 	for side in s.get("tools", {}):
 		_side(side).tool = Lessons.tool(s.tools[side])
 	var head: Transform3D = main.rig.head.global_transform
-	var fwd := -head.basis.z
-	fwd.y = 0.0
-	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var fwd := _ahead()
 	var ground := main.world.terrain.ground(head.origin.x, head.origin.z)
 	var body := Transform3D(Basis(fwd.cross(Vector3.UP), Vector3.UP, -fwd), ground)
 	s = s.duplicate(true)
@@ -371,7 +369,7 @@ func _point(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	var beside := Vector3(0.18 if s.get("hand", "right") == "right" else -0.18, -0.25, -0.3)
 	var from := head * (Lessons._v(s.from) if s.has("from") else beside)
-	var at := Vector3(s.at[0], s.at[1], s.at[2])
+	var at := Lessons._v(s.at)
 	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
 	hand.held_still = true
 	await _frames(2)
@@ -433,7 +431,7 @@ func _gaze(s: Dictionary) -> void:
 
 
 static func aim_pose(head: Transform3D, dir: Array) -> Transform3D:
-	var along: Vector3 = head.basis * Vector3(dir[0], dir[1], dir[2])
+	var along: Vector3 = head.basis * Lessons._v(dir)
 	return Transform3D(Basis.looking_at(along, Vector3.UP), head * Vector3(-0.2, -0.35, -0.25))
 
 
@@ -717,7 +715,7 @@ func _carry(s: Dictionary) -> void:
 	await _over(s, 1.0, func(done: float) -> void:
 		var k := smoothstep(0.0, 1.0, done)
 		var basis := Basis.from_euler(Vector3(deg_to_rad(turn[0]), deg_to_rad(turn[1]), deg_to_rad(turn[2])) * k)
-		m.sizing.follow.call(m, Transform3D(basis, from.origin + Vector3(move[0], move[1], move[2]) * k)))
+		m.sizing.follow.call(m, Transform3D(basis, from.origin + Lessons._v(move) * k)))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.end_grow(m)
@@ -750,7 +748,7 @@ func _clutter(s: Dictionary) -> void:
 	var turn := deg_to_rad(float(s.get("turn", 0.0)))
 	await _over(s, 1.0, func(done: float) -> void:
 		var k := smoothstep(0.0, 1.0, done)
-		m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, turn * k), from.origin + Vector3(move[0], move[1], move[2]) * k)))
+		m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, turn * k), from.origin + Lessons._v(move) * k)))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.end_grow(m)
@@ -870,8 +868,8 @@ func _fit(s: Dictionary) -> void:
 		var at := w.layout.point_at(float(s.get("s", 0.0))) if w != null else Vector3(float(s.get("x", 0.0)), 0, float(s.get("z", 0.0)))
 		var target := {"what": "decoration", "wall": w, "point": at, "s": float(s.get("s", 0.0)), "side": float(s.get("side", 1.0)), "turn": float(s.get("turn", 0.0))}
 		if s.has("from"):
-			var eye := Vector3(s.from[0], s.from[1], s.from[2])
-			target = main.fitting_tool.aim(Hand.Tool.DECORATIONS, eye, (Vector3(s.at[0], s.at[1], s.at[2]) - eye).normalized())
+			var eye := Lessons._v(s.from)
+			target = main.fitting_tool.aim(Hand.Tool.DECORATIONS, eye, (Lessons._v(s.at) - eye).normalized())
 			if s.has("turn"):
 				target.turn = deg_to_rad(s.turn)
 		if s.has("style"):
@@ -893,7 +891,7 @@ func _fit(s: Dictionary) -> void:
 func _string(s: Dictionary) -> void:
 	var ends: Array[Dictionary] = []
 	for end: Array in [s.a, s.b]:
-		ends.append({"point": Vector3(end[0], end[1], end[2])} if end.size() == 3 else {"what": "decoration", "mount": "ground", "point": main.world.terrain.ground(end[0], end[1])})
+		ends.append({"point": Lessons._v(end)} if end.size() == 3 else {"what": "decoration", "mount": "ground", "point": main.world.terrain.ground(end[0], end[1])})
 	var cmd := main.fitting_tool.string_command(ends[0], ends[1], int(s.get("seed", 1)), DecorationLayout.named(s.get("style", "Lantern string")), int(s.get("lantern", 0)))
 	if cmd.is_empty():
 		print("string: none hangs from %s to %s" % [s.a, s.b])
@@ -1035,7 +1033,7 @@ func _wipe(s: Dictionary) -> void:
 	var shot := not s.has("capture")
 	while t < s.seconds:
 		var head: Transform3D = main.rig.head.global_transform
-		if not tool.charge(self, head * Vector3(0.2, -0.3, -0.3), head.basis * Vector3(d[0], d[1], d[2]), get_process_delta_time()):
+		if not tool.charge(self, head * Vector3(0.2, -0.3, -0.3), head.basis * Lessons._v(d), get_process_delta_time()):
 			break
 		if not shot and t >= s.get("capture_at", 0.0):
 			shot = true
@@ -1644,7 +1642,7 @@ func _face(s: Dictionary) -> void:
 	if s.get("player", false):
 		to = (main.session.avatars.values()[0] as Avatar).eyes.origin
 	else:
-		to = Vector3(s.at[0], s.at[1], s.at[2])
+		to = Lessons._v(s.at)
 	main.view(main.rig.head.global_position, to)
 	await _frames(2)
 
@@ -1774,8 +1772,7 @@ func _video(s: Dictionary) -> void:
 ## Throws a handful of seeds from the dish in `hand` (right by default), or from `from` ([x, height over the ground, z]),
 ## at `velocity`, as pulling its trigger while swinging the hand at `velocity` does.
 func _toss(s: Dictionary) -> void:
-	var a: Array = s.get("velocity", [0, 0, 0])
-	var v := Vector3(a[0], a[1], a[2])
+	var v := Lessons._v(s.get("velocity", [0, 0, 0]))
 	var f: Array = s.get("from", [])
 	if f.size() == 3:
 		main.feed_tool.throw(Vector3(f[0], f[1] + main.world.terrain.height_at(f[0], f[2]), f[2]), v)
@@ -1945,8 +1942,8 @@ func _glide(s: Dictionary) -> void:
 ## `at` is offset from the node in that group nearest the eye, so a view can turn to an animal that has moved
 ## without the eye moving.
 func _pose(s: Dictionary) -> Array[Vector3]:
-	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
-	var at := Vector3(s.at[0], s.at[1], s.at[2])
+	var eye := Lessons._v(s.eye)
+	var at := Lessons._v(s.at)
 	if s.has("subject"):
 		var found := get_tree().get_nodes_in_group(s.subject)
 		if found.is_empty():
@@ -1973,8 +1970,8 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 
 ## Moves the eye from `from` to `to` over `seconds`, looking `ahead` metres further along the way at `look` height.
 func _walk(s: Dictionary) -> void:
-	var from := Vector3(s.from[0], s.from[1], s.from[2])
-	var to := Vector3(s.to[0], s.to[1], s.to[2])
+	var from := Lessons._v(s.from)
+	var to := Lessons._v(s.to)
 	var dir := (to - from).normalized()
 	var t := 0.0
 	var seconds := float(s.seconds)
@@ -2096,7 +2093,7 @@ func _rests(s: Dictionary) -> void:
 func _hold(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	var hand := _hand(s)
-	hand.global_transform = Transform3D(e.global_basis, e.global_transform * Vector3(s.at[0], s.at[1], s.at[2]))
+	hand.global_transform = Transform3D(e.global_basis, e.global_transform * Lessons._v(s.at))
 	hand.held_still = true
 	await _frames(2)
 
@@ -2445,13 +2442,16 @@ func _quit(_s: Dictionary) -> void:
 func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	if not s.get("relative", false):
 		return main.world.terrain.ground(x, z)
-	var head: Node3D = main.rig.head
-	var fwd := -head.global_basis.z
-	fwd.y = 0.0
-	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	var right := fwd.cross(Vector3.UP)
-	var p := head.global_position + right * x + fwd * z
+	var fwd := _ahead()
+	var p := main.rig.head.global_position + fwd.cross(Vector3.UP) * x + fwd * z
 	return main.world.terrain.ground(p.x, p.z)
+
+
+## The level way the head faces.
+func _ahead() -> Vector3:
+	var fwd := -main.rig.head.global_basis.z
+	fwd.y = 0.0
+	return fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
 
 
 ## What an easel or the mirror turns toward: the ground under `facing`, else the head.
@@ -2587,8 +2587,8 @@ func _stairs(s: Dictionary) -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.STAIRS
 	main.world.stairs.rail = s.get("rail", "stone")
-	var a := Vector3(s.a[0], s.a[1], s.a[2])
-	var b := Vector3(s.b[0], s.b[1], s.b[2])
+	var a := Lessons._v(s.a)
+	var b := Lessons._v(s.b)
 	if s.get("ground", false):
 		a.y += main.world.terrain.height_at(a.x, a.z)
 		b.y += main.world.terrain.height_at(b.x, b.z)
@@ -2972,7 +2972,7 @@ func _spring_grab(s: Dictionary) -> void:
 		return
 	chain = held
 	var from := hand.global_position
-	var move := Vector3(s.move[0], s.move[1], s.move[2])
+	var move := Lessons._v(s.move)
 	var elapsed := 0.0
 	var seconds: float = s.get("seconds", 3.0)
 	var travelled := 0.0

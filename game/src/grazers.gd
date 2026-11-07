@@ -80,7 +80,7 @@ func look() -> void:
 			continue
 		for a in b.animals:
 			var moving: bool = a.state in [State.ENTER, State.WALK, State.FLEE] or (a.state == State.GRAZE and _off_goal(a))
-			if moving and not (wildlife.standable(a.goal) and wildlife.clear_way(a.position, a.goal)) or not moving and not wildlife.standable(a.position):
+			if moving and not _walkable(a, a.goal) or not moving and not wildlife.standable(a.position):
 				_walk_on(b, a)
 			if _leaving(b):
 				break

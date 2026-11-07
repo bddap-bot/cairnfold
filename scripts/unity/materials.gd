@@ -132,19 +132,18 @@ func _read(m: Dictionary, guid: String) -> void:
 	var tags: Variant = mat.get("stringTagMap")
 	var render_type := str((tags as Dictionary).get("RenderType", "")) if tags is Dictionary else ""
 	var mode := str(floats.get("_Mode", "0")).to_int()
-	var number := func(name: String, otherwise: float) -> float: return str(ints.get(name, floats.get(name, otherwise))).to_float()
 	var declared := func(name: String) -> bool: return m.properties.has(name) and (ints.has(name) or floats.has(name))
 	# A shader drawing `Blend [_SrcBlend] [_DstBlend]` blends exactly when its destination factor is not Zero, whatever
 	# queue or preset name the material carries; only without one are those the evidence.
-	var blended: bool = number.call("_DstBlend", 0.0) != 0.0 if declared.call("_DstBlend") else queue >= 3000 or render_type == "Transparent" or m.shader.contains("Transparent") or mode >= 2
+	var blended: bool = _number(m, "_DstBlend", 0.0) != 0.0 if declared.call("_DstBlend") else queue >= 3000 or render_type == "Transparent" or m.shader.contains("Transparent") or mode >= 2
 	if blended:
 		m.alpha = Alpha.BLEND
-		m.depth = declared.call("_ZWrite") and number.call("_ZWrite", 0.0) != 0.0
+		m.depth = declared.call("_ZWrite") and _number(m, "_ZWrite", 0.0) != 0.0
 	elif queue >= 2450 or render_type == "TransparentCutout" or m.shader.contains("Cutout") or mode == 1:
 		m.alpha = Alpha.CUTOUT
 		m.cutoff = str(floats.get("_Cutoff", "0.5")).to_float()
 	if declared.call("_AlphaMod"):
-		m.alpha_mod = number.call("_AlphaMod", 0.0)
+		m.alpha_mod = _number(m, "_AlphaMod", 0.0)
 	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
 
 
@@ -372,6 +371,11 @@ func _alpha_overrides(key: String, size: Vector2i) -> Array:
 	return out
 
 
+## The material's float `name`, from its floats alone.
+static func _float(m: Dictionary, name: String, otherwise := 0.0) -> float:
+	return str((m.get("floats", {}) as Dictionary).get(name, otherwise)).to_float()
+
+
 ## `mod` is Poiyomi's Alpha Mod, added to the alpha before its decals' `overrides` (`_alpha_overrides`) set it and it
 ## cuts or blends.
 static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: float, overrides: Array) -> void:
@@ -513,30 +517,28 @@ func color_atlas() -> String:
 ## by a fixed amount if at all, replacing or multiplying the albedo.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
-	var floats: Dictionary = m.get("floats", {})
 	var colours: Dictionary = m.get("colours", {})
 	var n := "" if slot == 0 else str(slot)
-	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
 	var vector := func(name: String) -> Color: return _colour(colours.get(name), Color(0, 0, 0, 0))
-	if not m.has("cell") or not poiyomi(m) or number.call("_DecalEnabled" + n) == 0.0:
+	if not m.has("cell") or not poiyomi(m) or _float(m, "_DecalEnabled" + n) == 0.0:
 		return {}
-	var blend: float = number.call("_DecalBlendType" + n)
+	var blend: float = _float(m, "_DecalBlendType" + n)
 	var position: Color = vector.call("_DecalPosition" + n)
 	var scale: Color = vector.call("_DecalScale" + n)
 	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
-	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return number.call(name) != 0.0):
+	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return _float(m, name) != 0.0):
 		return {}
-	if number.call("_DecalOverrideAlpha" + n) not in [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
+	if _float(m, "_DecalOverrideAlpha" + n) not in [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
 		return {}
-	if number.call("_DecalOverrideAlpha" + n) != 0.0 and number.call("_Decal%sOverrideAlphaMode" % slot) in [2.0, 3.0]:
+	if _float(m, "_DecalOverrideAlpha" + n) != 0.0 and _float(m, "_Decal%sOverrideAlphaMode" % slot) in [2.0, 3.0]:
 		return {}
-	if number.call("_DecalHueShiftEnabled" + n) != 0.0 and (number.call("_DecalHueShiftSpeed" + n) != 0.0 or number.call("_DecalHueAngleStrength" + n) != 0.0):
+	if _float(m, "_DecalHueShiftEnabled" + n) != 0.0 and (_float(m, "_DecalHueShiftSpeed" + n) != 0.0 or _float(m, "_DecalHueAngleStrength" + n) != 0.0):
 		return {}
 	if not position.is_equal_approx(Color(0.5, 0.5, 0, 0)) or not is_equal_approx(scale.r, 1.0) or not is_equal_approx(scale.g, 1.0) or vector.call("_DecalSideOffset" + n) != Color(0, 0, 0, 0) or vector.call("_DecalTexture%sPan" % n) != Color(0, 0, 0, 0):
 		return {}
 	var hue: Variant = null
 	if _turned(m, n):
-		hue = {"shift": _saved(m, "_DecalHueShift" + n, 0.0), "space": number.call("_DecalHueShiftColorSpace" + n), "select": str(floats.get("_DecalHueShiftSelectOrShift" + n, "1")).to_float()}
+		hue = {"shift": _saved(m, "_DecalHueShift" + n, 0.0), "space": _float(m, "_DecalHueShiftColorSpace" + n), "select": _float(m, "_DecalHueShiftSelectOrShift" + n, 1.0)}
 	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0, "image": _decal_image(key, slot), "hue": hue}
 
 
@@ -572,7 +574,7 @@ func _decal_image(key: String, slot: int) -> int:
 		size = Vector2i(1, 1)
 	var tint := _colour((m.get("colours", {}) as Dictionary).get("_DecalColor" + n), Color.WHITE)
 	var colour := _over(m, source, property, size, 0)
-	var shift := str(m.floats.get("_DecalHueShiftEnabled" + n, "0")).to_float() != 0.0 and not _turned(m, n)
+	var shift := _float(m, "_DecalHueShiftEnabled" + n) != 0.0 and not _turned(m, n)
 	if mask != null or tint != Color.WHITE or shift:
 		var cover := _over(m, mask, "_DecalMask", size, 0).get_data()
 		var channel := clampi(str(m.floats.get("_Decal%sMaskChannel" % slot, "0")).to_int(), 0, 3) if mask != null else 3
@@ -584,8 +586,8 @@ func _decal_image(key: String, slot: int) -> int:
 			data[i + 3] = mini(int(data[i + 3] * tint.a * cover[i + channel] / 255.0), 255)
 		if shift:
 			var by := _saved(m, "_DecalHueShift" + n, 0.0)
-			var space := str(m.floats.get("_DecalHueShiftColorSpace" + n, "0")).to_float()
-			var select := str(m.floats.get("_DecalHueShiftSelectOrShift" + n, "1")).to_float()
+			var space := _float(m, "_DecalHueShiftColorSpace" + n)
+			var select := _float(m, "_DecalHueShiftSelectOrShift" + n, 1.0)
 			for i in range(0, data.size(), 4):
 				var shifted := hue_shift(Color8(data[i], data[i + 1], data[i + 2]).srgb_to_linear(), by, space, select).clamp().linear_to_srgb()
 				data[i] = shifted.r8
@@ -630,7 +632,7 @@ static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 	for declared: String in m.get("properties", {}):
 		if declared.begins_with(name + "_") and floats.has(declared):
 			return str(floats[declared]).to_float()
-	return str(floats.get(name, otherwise)).to_float()
+	return _float(m, name, otherwise)
 
 
 ## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or {} where it is off or maps its matcap by a view
@@ -638,39 +640,37 @@ static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 ## or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain white.
 func matcap(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
-	var floats: Dictionary = m.get("floats", {})
 	var colours: Dictionary = m.get("colours", {})
 	var p: String = MATCAPS[slot]
-	var number := func(name: String, otherwise: float) -> float: return str(floats.get(name, otherwise)).to_float()
-	if not m.has("cell") or not poiyomi(m) or number.call(p + "Enable", 0.0) == 0.0:
+	if not m.has("cell") or not poiyomi(m) or _float(m, p + "Enable") == 0.0:
 		return {}
-	var mode: float = number.call(p + "UVMode", 1.0)
-	if mode not in [0.0, 1.0, 2.0] or number.call(p + "Rotation", 0.0) != 0.0 or _colour(colours.get(p + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
+	var mode: float = _float(m, p + "UVMode", 1.0)
+	if mode not in [0.0, 1.0, 2.0] or _float(m, p + "Rotation") != 0.0 or _colour(colours.get(p + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
 		return {}
-	if global_mask(m, int(number.call(p + "MaskGlobalMask", 0.0))) is bool:
+	if global_mask(m, int(_float(m, p + "MaskGlobalMask"))) is bool:
 		return {}
 	var colour := _colour(colours.get(p + "Color"), Color.WHITE).srgb_to_linear()
 	var hue: Variant = null
-	if number.call(p + "HueShiftEnabled", 0.0) != 0.0:
-		hue = {"shift": _saved(m, p + "HueShift", 0.0), "space": number.call(p + "HueShiftColorSpace", 0.0), "select": number.call(p + "HueSelectOrShift", 1.0)}
+	if _float(m, p + "HueShiftEnabled") != 0.0:
+		hue = {"shift": _saved(m, p + "HueShift", 0.0), "space": _float(m, p + "HueShiftColorSpace"), "select": _float(m, p + "HueSelectOrShift", 1.0)}
 	var circle: Variant = null
-	if slot == 0 and number.call("_Matcap0CircleMaskEnabled", 0.0) != 0.0:
-		circle = {"border": number.call("_Matcap0CircleMaskBorder", 0.5), "blur": number.call("_Matcap0CircleMaskBlur", 0.0)}
+	if slot == 0 and _float(m, "_Matcap0CircleMaskEnabled") != 0.0:
+		circle = {"border": _float(m, "_Matcap0CircleMaskBorder", 0.5), "blur": _float(m, "_Matcap0CircleMaskBlur")}
 	return {
 		"texture": _texture_guid(m, p),
 		"mode": "reflection" if mode == 2.0 else "normal",
-		"border": number.call(p + "Border", 0.43),
+		"border": _float(m, p + "Border", 0.43),
 		"color": [colour.r, colour.g, colour.b, colour.a],
 		"intensity": _saved(m, p + "Intensity", 1.0),
-		"baseMix": number.call(p + "BaseColorMix", 0.0),
+		"baseMix": _float(m, p + "BaseColorMix"),
 		"replace": _saved(m, p + "Replace", 1.0),
 		"multiply": _saved(m, p + "Multiply", 0.0),
 		"add": _saved(m, p + "Add", 0.0),
 		"screen": _saved(m, p + "Screen", 0.0),
 		"mixed": _saved(m, p + "Mixed", 0.0),
-		"lightAdd": number.call(p + "AddToLight", 0.0),
-		"emission": number.call(p + "EmissionStrength", 0.0),
-		"lightMask": number.call(p + "LightMask", 0.0),
+		"lightAdd": _float(m, p + "AddToLight"),
+		"emission": _float(m, p + "EmissionStrength"),
+		"lightMask": _float(m, p + "LightMask"),
 		"hue": hue,
 		"circle": circle,
 	}
@@ -680,16 +680,14 @@ func matcap(key: String, slot: int) -> Dictionary:
 ## texture's channel, with "property" "" where no texture fills it and it stays Poiyomi's whole 1, or false where it is
 ## drawn by more than one UV0 texture sample (split, panned or other-UV sampling, or a modifier).
 static func global_mask(m: Dictionary, index: int) -> Variant:
-	var floats: Dictionary = m.get("floats", {})
-	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
 	if index <= 0:
 		return {}
-	if number.call("_GlobalMaskOptionsEnable") != 0.0 or ["Backface", "Camera", "Distance", "Mirror"].any(func(kind: String) -> bool: return number.call("_GlobalMaskModifiers%sEnable" % kind) != 0.0):
+	if _float(m, "_GlobalMaskOptionsEnable") != 0.0 or ["Backface", "Camera", "Distance", "Mirror"].any(func(kind: String) -> bool: return _float(m, "_GlobalMaskModifiers%sEnable" % kind) != 0.0):
 		return false
 	var property := "_GlobalMaskTexture%d" % ((index - 1) / 4)
-	if number.call("_GlobalMaskTexturesEnable") == 0.0 or _texture_guid(m, property) == "":
+	if _float(m, "_GlobalMaskTexturesEnable") == 0.0 or _texture_guid(m, property) == "":
 		return {"property": "", "channel": 0}
-	if number.call(property + "UV") != 0.0 or number.call(property + "Split") != 0.0 or _colour((m.get("colours", {}) as Dictionary).get(property + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
+	if _float(m, property + "UV") != 0.0 or _float(m, property + "Split") != 0.0 or _colour((m.get("colours", {}) as Dictionary).get(property + "Pan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0):
 		return false
 	return {"property": property, "channel": (index - 1) % 4}
 
@@ -706,10 +704,9 @@ static func mask_blend(mask: float, value: float, type: int) -> float:
 ## "lit" for a surface shaded by the angle of its light.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
-	var floats: Dictionary = m.get("floats", {})
-	if poiyomi(m) and str(floats.get("_LightingMode", "")).to_float() == 5.0:
+	if poiyomi(m) and _float(m, "_LightingMode") == 5.0:
 		var flat := {"model": "flat"}
-		if str(floats.get("_LightingCapEnabled", "0")).to_float() != 0.0:
+		if _float(m, "_LightingCapEnabled") != 0.0:
 			flat.cap = _saved(m, "_LightingCap", 1.0)
 		return flat
 	if m.get("shader", "") == "VRChat/Mobile/Toon Lit":
@@ -725,16 +722,14 @@ func lighting(key: String) -> Dictionary:
 ## the atlas), and no modulation over time but AudioLink's, which leaves it at rest there.
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
-	var floats: Dictionary = m.get("floats", {})
-	var number := func(name: String) -> float: return str(floats.get(name, "0")).to_float()
 	if not m.has("cell"):
 		return {}
 	var colours: Dictionary = m.get("colours", {})
 	var colour := Color.BLACK
-	if toon_standard(m) and number.call("_EmissionUV") == 0.0:
+	if toon_standard(m) and _float(m, "_EmissionUV") == 0.0:
 		colour = _colour(colours.get("_EmissionColor"), Color.BLACK).srgb_to_linear()
-	elif poiyomi(m) and _saved(m, "_EnableEmission", 0.0) != 0.0 and ["_EmissionMapUV", "_EmissionMaskUV", "_EmissionBaseColorAsMap", "_EmissionCenterOutEnabled", "_ScrollingEmission", "_EmissionBlinkingEnabled", "_EmissionHueShiftEnabled", "_EnableGITDEmission"].all(func(name: String) -> bool: return number.call(name) == 0.0) and global_mask(m, int(number.call("_EmissionMask0GlobalMask"))) is Dictionary:
-		var theme := int(number.call("_EmissionColorThemeIndex"))
+	elif poiyomi(m) and _saved(m, "_EnableEmission", 0.0) != 0.0 and ["_EmissionMapUV", "_EmissionMaskUV", "_EmissionBaseColorAsMap", "_EmissionCenterOutEnabled", "_ScrollingEmission", "_EmissionBlinkingEnabled", "_EmissionHueShiftEnabled", "_EnableGITDEmission"].all(func(name: String) -> bool: return _float(m, name) == 0.0) and global_mask(m, int(_float(m, "_EmissionMask0GlobalMask"))) is Dictionary:
+		var theme := int(_float(m, "_EmissionColorThemeIndex"))
 		colour = _theme_colour(m, theme - 1) if theme >= 1 and theme <= 4 else _colour(colours.get("_EmissionColor"), Color.WHITE).srgb_to_linear()
 	if colour.r + colour.g + colour.b == 0.0:
 		return {}
@@ -769,22 +764,19 @@ func _glow(m: Dictionary) -> Image:
 ## Whether the material's mask in `property` covers anything less than all of its cell: a texture fills it, `invert`
 ## inverts it, or `global` blends a global mask into it.
 func _masked(m: Dictionary, property: String, invert: String, global: String) -> bool:
-	var floats: Dictionary = m.get("floats", {})
-	return _texture_guid(m, property) != "" or int(str(floats.get(invert, "0")).to_float()) != 0 or not (global_mask(m, int(str(floats.get(global, "0")).to_float())) as Dictionary).is_empty()
+	return _texture_guid(m, property) != "" or int(_float(m, invert)) != 0 or not (global_mask(m, int(_float(m, global))) as Dictionary).is_empty()
 
 
 ## The material's mask in `property` over its padded cell, one byte a texel: the channel `channel` names, inverted where
 ## `invert` is set, blended with the global mask `global` names by the blend `blend` names, as Poiyomi masks a matcap
 ## or an emission.
 func _mask(m: Dictionary, property: String, channel: String, invert: String, global: String, blend: String) -> PackedByteArray:
-	var floats: Dictionary = m.get("floats", {})
-	var number := func(name: String, otherwise: String) -> int: return int(str(floats.get(name, otherwise)).to_float())
 	var source := _over_cell(m, _slot_image(m, property), property).get_data()
-	var pick := clampi(number.call(channel, "0"), 0, 3)
-	var inverted: bool = number.call(invert, "0") != 0
-	var over_mask: Dictionary = global_mask(m, number.call(global, "0"))
+	var pick := clampi(int(_float(m, channel)), 0, 3)
+	var inverted: bool = _float(m, invert) != 0.0
+	var over_mask: Dictionary = global_mask(m, int(_float(m, global)))
 	var over := PackedByteArray() if over_mask.is_empty() else _over_cell(m, _slot_image(m, over_mask.property) if over_mask.property != "" else null, over_mask.property).get_data()
-	var type: int = number.call(blend, "2")
+	var type := int(_float(m, blend, 2.0))
 	var out := PackedByteArray()
 	out.resize(source.size() / 4)
 	for i in out.size():

@@ -116,7 +116,7 @@ func _run() -> void:
 		main.look.sun.shadow_blur = 1.5
 	for yaw in yaws:
 		var direction := Basis(Vector3.UP, deg_to_rad(float(yaw))) * facing
-		for frame in 45:
+		for _frame in 45:
 			main.view(eye, eye + direction)
 			await process_frame
 		effect.pending = true

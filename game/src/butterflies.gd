@@ -104,7 +104,6 @@ func arrive(key: Vector2i, from: Vector3) -> void:
 		b.phase = rng.randf() * TAU
 		b.at = start + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.3, 0.3), rng.randf_range(-0.6, 0.6))
 		_make_for(b, blooms[rng.randi() % blooms.size()])
-		b.state = State.ARRIVE
 		butterflies.append(b)
 
 

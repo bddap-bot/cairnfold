@@ -158,8 +158,7 @@ func _create() -> void:
 	for i in 2:
 		_wet.append(_rd.texture_create(fmt, RDTextureView.new()))
 	_dry = _rd.texture_create(fmt, RDTextureView.new())
-	for t in _wet + [_dry]:
-		_rd.texture_clear(t, Color(0, 0, 0, 0), 0, 1, 0, 1)
+	_clear()
 	var probe := RDTextureFormat.new()
 	probe.width = PROBE
 	probe.height = PROBE
@@ -713,8 +712,7 @@ func _dispatch_all(batches: Array) -> void:
 		for op: Array in b[0]:
 			match op[0]:
 				"clear":
-					for t in _wet + [_dry]:
-						_rd.texture_clear(t, Color(0, 0, 0, 0), 0, 1, 0, 1)
+					_clear()
 				"save":
 					while _slots.size() <= op[1]:
 						_slots.append([])
@@ -737,6 +735,11 @@ func _dispatch_all(batches: Array) -> void:
 						_rd.texture_copy(_wet[0], _wet[1], origin, origin, Vector3(region.size.x, region.size.y, 1), 0, 0, 0, 0)
 					var c: Vector3 = Brushwork.CHARCOAL if s.medium == Brushwork.Medium.CHARCOAL else s.colour
 					_dispatch(bundle[3], DAB, op[4], [op[2], op[3], s.brush], Vector4(c.x, c.y, c.z, s.strength), Vector4(s.medium, 0, 0, 0))
+
+
+func _clear() -> void:
+	for t in _wet + [_dry]:
+		_rd.texture_clear(t, Color(0, 0, 0, 0), 0, 1, 0, 1)
 
 
 func _copy(from: RID, to: RID) -> void:

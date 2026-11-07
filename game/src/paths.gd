@@ -183,14 +183,7 @@ func _process(delta: float) -> void:
 		_cut_due = true
 
 
-## Keep settled wear while rebuilding the moving tip, its arches cut at once.
-func _relay() -> void:
-	_wear_tip()
-	_cut_due = false
-	previewed.emit()
-
-
-## Plans the stroke again and wears it: what a relay shows first. Its arches follow the frame after, so the two
+## Plans the stroke again and wears it. Its arches follow the frame after, so the two
 ## don't spend one frame.
 func _wear_tip() -> void:
 	marks.settle()

@@ -4,6 +4,10 @@ extends RefCounted
 
 ## A volume solved on a worker: one solve at a time, the next started for whatever changed while it ran.
 
+var texture := ImageTexture3D.new()
+## The ground the volume follows, and its heights_revision the last solve stood on.
+var terrain: Terrain
+var _ground := -1
 var _task := -1
 var _out := {}
 
@@ -44,6 +48,14 @@ func stop() -> void:
 
 ## On the main thread, puts a finished solve's result in the volume.
 @abstract func _take(out: Dictionary) -> void
+
+
+## Whether the ground changed since the last call that asked.
+func _ground_moved() -> bool:
+	if _ground == terrain.heights_revision:
+		return false
+	_ground = terrain.heights_revision
+	return true
 
 
 func _collect() -> void:

@@ -24,13 +24,7 @@ func _run() -> void:
 	await frames(3)
 	var rig: Rig = main.rig
 	check(rig.left.tool == Hand.Tool.BOOK and main.book.at == 0, "the player starts with the book shut in the left hand")
-	for hand in rig.hands:
-		var tracker := XRControllerTracker.new()
-		tracker.name = hand.tracker
-		tracker.type = XRServer.TRACKER_CONTROLLER
-		tracker.set_pose("aim", Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-		XRServer.add_tracker(tracker)
-		trackers.append(tracker)
+	trackers = track_hands(rig)
 	_every_press_is_a_control()
 	for by_hand in [false, true]:
 		bare = by_hand

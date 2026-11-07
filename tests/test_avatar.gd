@@ -480,8 +480,6 @@ func _imported(fbx: String) -> Node3D:
 func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
-	var sk := a._skeleton
-	var at := Avatar._space(sk, a._model)
 	var eyes := Transform3D(Basis.IDENTITY, Vector3(0, 1.6, 0))
 	a.pose(eyes, Transform3D(), Transform3D())
 	var held: Array[Transform3D] = []
@@ -501,26 +499,16 @@ func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> voi
 	var unmatched := 0
 	var count := 0
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
-		var binds: Array[Transform3D] = []
-		for i in mi.skin.get_bind_count():
-			binds.append(at * sk.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
-		for s in mi.mesh.get_surface_count():
-			var arrays := mi.mesh.surface_get_arrays(s)
-			var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-			var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-			var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-			var stride := bone.size() / vertex.size()
-			for v in vertex.size():
-				var posed := Vector3.ZERO
-				for c in stride:
-					posed += binds[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
-				var there: Variant = want.get(vertex[v].snappedf(1e-5))
-				count += 1
-				if there == null:
-					unmatched += 1
-					continue
-				worst = maxf(worst, (there as Array).map(func(p: Vector3) -> float: return p.distance_to(posed)).min())
-				moved = maxf(moved, posed.distance_to(vertex[v]))
+		var skin := _skinned(a, mi)
+		for v in skin[0].size():
+			var posed: Vector3 = skin[1][v]
+			var there: Variant = want.get(skin[0][v].snappedf(1e-5))
+			count += 1
+			if there == null:
+				unmatched += 1
+				continue
+			worst = maxf(worst, (there as Array).map(func(p: Vector3) -> float: return p.distance_to(posed)).min())
+			moved = maxf(moved, posed.distance_to(skin[0][v]))
 	print("%s: %d vertices bent at elbows and knees, %.6f m from the source's skin at worst, moved up to %.2f m" % [what, count, worst, moved])
 	check(count > 0 and unmatched == 0, "%s: every vertex is one of the source's (%d of %d unmatched)" % [what, unmatched, count])
 	check(worst < 1e-3, "%s: bent at elbows and knees, every vertex sits where the source's skin puts it (%.6f m off at worst)" % [what, worst])
@@ -588,17 +576,9 @@ func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
 		for i in mi.skin.get_bind_count():
 			var b := Meshes.bind_bone(mi.skin, i, theirs)
 			joints.append(at * sk.get_bone_global_pose(sk.find_bone(theirs.get_bone_name(b).validate_node_name())) * mi.skin.get_bind_pose(i))
-		for s in mi.mesh.get_surface_count():
-			var arrays := mi.mesh.surface_get_arrays(s)
-			var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-			var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-			var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-			var stride := bone.size() / vertex.size()
-			for v in vertex.size():
-				var posed := Vector3.ZERO
-				for c in stride:
-					posed += joints[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
-				out.get_or_add(vertex[v].snappedf(1e-5), []).append(posed)
+		var skin := _skin(mi, joints)
+		for v in skin[0].size():
+			out.get_or_add(skin[0][v].snappedf(1e-5), []).append(skin[1][v])
 	return out
 
 
@@ -799,7 +779,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 	var meshes := whole.filter(func(mi: MeshInstance3D) -> bool: return mi.visible and mi not in swaying)
 	for k in seen.size():
 		var mi: MeshInstance3D = meshes[k]
-		var p := _skinned(a, seen[k])
+		var p := _skinned(a, seen[k])[1]
 		var binds: Array[Transform3D] = []
 		for i in mi.skin.get_bind_count():
 			binds.append(at * a._skeleton.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
@@ -829,7 +809,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 					reach[h] = minf(reach[h], q.distance_to(hands[h]))
 	var full := [INF, INF]
 	for mi: MeshInstance3D in whole:
-		for q in _skinned(a, mi):
+		for q in _skinned(a, mi)[1]:
 			for h in 2:
 				full[h] = minf(full[h], q.distance_to(hands[h]))
 	print("%s: %d meshes seen headless, %d vertices at the eyes, the rest %.5f rad off where the body puts them" % [what, seen.size(), gone, off])
@@ -840,13 +820,19 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Where a mesh's skin puts each of its vertices over the avatar's posed bones, in the avatar's space.
-func _skinned(a: Avatar, mi: MeshInstance3D) -> PackedVector3Array:
+## A mesh's vertices at rest and where its skin puts each over the avatar's posed bones, in the avatar's space.
+func _skinned(a: Avatar, mi: MeshInstance3D) -> Array[PackedVector3Array]:
 	var at := Avatar._space(a._skeleton, a._model)
 	var binds: Array[Transform3D] = []
 	for i in mi.skin.get_bind_count():
 		binds.append(at * a._skeleton.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))
-	var out := PackedVector3Array()
+	return _skin(mi, binds)
+
+
+## Each vertex of `mi`'s surfaces at rest, and where `joints`, one per bind, skin it.
+static func _skin(mi: MeshInstance3D, joints: Array[Transform3D]) -> Array[PackedVector3Array]:
+	var rest := PackedVector3Array()
+	var posed := PackedVector3Array()
 	for s in mi.mesh.get_surface_count():
 		var arrays := mi.mesh.surface_get_arrays(s)
 		var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -854,11 +840,12 @@ func _skinned(a: Avatar, mi: MeshInstance3D) -> PackedVector3Array:
 		var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
 		var stride := bone.size() / vertex.size()
 		for v in vertex.size():
-			var posed := Vector3.ZERO
+			var p := Vector3.ZERO
 			for c in stride:
-				posed += binds[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
-			out.append(posed)
-	return out
+				p += joints[bone[v * stride + c]] * vertex[v] * weight[v * stride + c]
+			rest.append(vertex[v])
+			posed.append(p)
+	return [rest, posed]
 
 
 ## The arms keep their length: each bends at the elbow to reach its hand, out and down from the body.

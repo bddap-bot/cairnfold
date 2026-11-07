@@ -19,13 +19,7 @@ func _run() -> void:
 	await play([{"op": "house", "at": [0, 0], "size": [6, 4], "seconds": 0.1}])
 	await frames(30)
 	var rig: Rig = main.rig
-	for hand in rig.hands:
-		var tracker := XRControllerTracker.new()
-		tracker.name = hand.tracker
-		tracker.type = XRServer.TRACKER_CONTROLLER
-		tracker.set_pose("aim", Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-		XRServer.add_tracker(tracker)
-		trackers.append(tracker)
+	trackers = track_hands(rig)
 	await _body_and_ridge()
 	await _eaves()
 	await _storeys_ride_along()

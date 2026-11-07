@@ -30,15 +30,11 @@ const DOOR := 0.2
 
 signal rooms_changed(rooms: Array[Room])
 
-var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
 var _lights := PackedColorArray()
 var _rooms: Array[Room] = []
 var _shells := []
-## The ground the probes follow, and its heights_revision the last solve stood on.
-var terrain: Terrain
-var _ground := -1
 var _dirty := false
 
 
@@ -183,9 +179,8 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 
 
 func _next() -> Callable:
-	if _ground != terrain.heights_revision:
-		_ground = terrain.heights_revision
-		_dirty = _dirty or not _flames.is_empty()
+	if _ground_moved() and not _flames.is_empty():
+		_dirty = true
 	if not _dirty:
 		return Callable()
 	_dirty = false

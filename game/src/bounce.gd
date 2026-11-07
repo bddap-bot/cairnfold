@@ -40,11 +40,7 @@ var _pending := {}
 var _rooms: Array[Lamps.Room] = []
 var _sun := Vector3.UP
 var _relight := false
-## The ground the probes follow, and its heights_revision the last solve stood on.
-var terrain: Terrain
-var _ground := -1
 var _layers: Array[Image] = []
-var texture := ImageTexture3D.new()
 
 
 func _init() -> void:
@@ -145,8 +141,7 @@ func enclose(rooms: Array[Lamps.Room]) -> void:
 
 
 func _next() -> Callable:
-	if _ground != terrain.heights_revision:
-		_ground = terrain.heights_revision
+	if _ground_moved():
 		_relight = true
 	if _pending.is_empty() and not _relight:
 		return Callable()

@@ -141,6 +141,19 @@ static func sphere_directions(n: int) -> Array[Vector3]:
 	return out
 
 
+## A tracked controller aiming ahead in each of `rig`'s hands, for the caller to remove from XRServer when done.
+static func track_hands(rig: Rig) -> Array[XRControllerTracker]:
+	var out: Array[XRControllerTracker] = []
+	for hand in rig.hands:
+		var tracker := XRControllerTracker.new()
+		tracker.name = hand.tracker
+		tracker.type = XRServer.TRACKER_CONTROLLER
+		tracker.set_pose("aim", Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+		XRServer.add_tracker(tracker)
+		out.append(tracker)
+	return out
+
+
 static func lay_walls(tool: WallTool) -> void:
 	for w in tool.walls:
 		w.lay_now()

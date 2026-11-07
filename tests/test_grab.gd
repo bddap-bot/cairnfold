@@ -368,13 +368,8 @@ func _run() -> void:
 	await play([{"op": "wall", "points": [[-3, 0], [3, 0]], "seconds": 0.2}])
 	var rig: Rig = main.rig
 	rig.left.tool = Hand.Tool.FLOWERS
+	trackers = track_hands(rig)
 	for hand in rig.hands:
-		var tracker := XRControllerTracker.new()
-		tracker.name = hand.tracker
-		tracker.type = XRServer.TRACKER_CONTROLLER
-		tracker.set_pose("aim", Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-		XRServer.add_tracker(tracker)
-		trackers.append(tracker)
 		var at := rig.head.global_position + Vector3(-0.35 if hand == rig.left else 0.35, -0.4, -0.5)
 		var target := Vector3(at.x, main.world.terrain.height_at(at.x, 0) + 1.0, 0)
 		hand.global_transform = Transform3D(Basis.looking_at(target - at), at)

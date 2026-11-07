@@ -238,12 +238,11 @@ func height_at(x: float, z: float) -> float:
 	var d := Vector3(x, 0.0, z) - Vector3(f.mid.x, 0.0, f.mid.z)
 	var out := d.length() if kind == Kind.CONE else absf(d.dot(f.across))
 	if flat():
-		var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
+		var reach := deck_reach()
 		var across := maxf(0.0, 1.0 - pow(out / reach, 2.0))
 		var along := 1.0
 		if kind == Kind.GABLE:
-			var length := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
-			along = maxf(0.0, 1.0 - pow(d.dot(f.along) / length, 2.0))
+			along = maxf(0.0, 1.0 - pow(d.dot(f.along) / deck_length(), 2.0))
 		return base + curve * reach * 0.25 * across * along
 	return base + rise(1.0 - out / half_span())
 
@@ -265,6 +264,15 @@ func half_span() -> float:
 
 func ridge_length() -> float:
 	return corners[0].distance_to(corners[1])
+
+
+## How far a flat deck reaches across from the ridge, and along it from the middle, tucked under the walls.
+func deck_reach() -> float:
+	return half_span() - WallLayout.THICKNESS + DECK_TUCK
+
+
+func deck_length() -> float:
+	return ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
 
 
 ## Ridge axis, across axis and the centre of the footprint, on the ground plane at the wall top.
@@ -439,19 +447,17 @@ func _lay_ceiling() -> void:
 	var turned := h.x < h.y
 	var along: Vector3 = f.across if turned else f.along
 	var across: Vector3 = -f.along if turned else f.across
-	var drop := CEILING_DROP
-	var board := CEILING_BOARD
-	var count := maxi(1, ceili(2.0 * wide / board))
+	var count := maxi(1, ceili(2.0 * wide / CEILING_BOARD))
 	for i in count:
 		var a := -wide + 2.0 * wide * i / count
 		var b := -wide + 2.0 * wide * (i + 1) / count
-		_ceiling_strip(across, -along, a, b, long, CEILING_DEPTH, drop)
+		_ceiling_strip(across, -along, a, b, long, CEILING_DEPTH, CEILING_DROP)
 	var depth := rafter_depth()
 	var width := depth * 0.55
 	count = maxi(1, ceili(2.0 * long / RAFTER_SPACING))
 	for i in count:
 		var x := -long + 2.0 * long * (i + 0.5) / count
-		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + CEILING_DEPTH)
+		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, CEILING_DROP + CEILING_DEPTH)
 
 
 ## Half the ceiling's reach along the ridge and across it.
@@ -505,7 +511,7 @@ func _fly_flag(foot: Vector3) -> void:
 ## rings round a tower.
 func _lay_deck(rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
+	var reach := deck_reach()
 	var y: float = f.mid.y - DECK_DROP - SLAB.y * 0.5
 	if kind == Kind.CONE:
 		_slab(Vector3(f.mid.x, y, f.mid.z), Basis(), Vector2(SLAB.z, SLAB.z), rng)
@@ -522,7 +528,7 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 				_slab(Vector3(f.mid.x, y, f.mid.z) + out * mid, Basis(Vector3.UP.cross(out), Vector3.UP, out), Vector2(width, depth), rng)
 			r += depth
 		return
-	var long := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
+	var long := deck_length()
 	var basis := Basis(f.along, Vector3.UP, f.across)
 	var z := -reach
 	var row := 0
@@ -544,8 +550,8 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 ## along a house's ridge (straight across a tower), staggered so no two rows' joints line up, cut at the walls.
 func _lay_boards(rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
-	var long := reach if kind == Kind.CONE else ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
+	var reach := deck_reach()
+	var long := reach if kind == Kind.CONE else deck_length()
 	var top: float = f.mid.y - DECK_DROP
 	var basis := Basis(f.along, Vector3.UP, f.across)
 	var j := -long + JOIST.x * 0.5
@@ -928,6 +934,11 @@ func slope_at(x: float) -> float:
 	return atan((rise(1.0 - (x - 0.01) / hs) - rise(1.0 - x / hs)) / 0.01)
 
 
+## The roof's surface `x` out along `out` from `mid` on the ridge (or axis).
+func _on_slope(mid: Vector3, out: Vector3, x: float) -> Vector3:
+	return mid + out * x + Vector3.UP * rise(1.0 - x / half_span())
+
+
 ## How far out from the ridge a point `d` up the slope from `x` lies (down it for negative `d`), no further in than the ridge.
 func _along(x: float, d: float) -> float:
 	var steps := maxi(1, ceili(absf(d) / 0.05))
@@ -1179,7 +1190,7 @@ func _coat_node(on: Vector3, out: Vector3, end: Vector3, along: float, x: float,
 	var s := slope_at(x)
 	var n := out * sin(s) + Vector3.UP * cos(s)
 	var fall := out * cos(s) - Vector3.UP * sin(s)
-	var base := on + out * x + Vector3.UP * rise(1.0 - x / half_span())
+	var base := _on_slope(on, out, x)
 	var depth := _depth(along, x, base, c)
 	if x == 0.0:
 		base -= fall * depth * minf(tan(s), CREST)
@@ -1198,7 +1209,7 @@ func _coat_node(on: Vector3, out: Vector3, end: Vector3, along: float, x: float,
 func _under_node(on: Vector3, out: Vector3, x: float) -> Array:
 	var s := slope_at(x)
 	var fall := out * cos(s) - Vector3.UP * sin(s)
-	var p := on + out * x + Vector3.UP * rise(1.0 - x / half_span())
+	var p := _on_slope(on, out, x)
 	return [p, -(out * sin(s) + Vector3.UP * cos(s)), fall, Color(STRAW.r * 0.45, STRAW.g * 0.45, STRAW.b * 0.45, 0.0)]
 
 
@@ -1244,7 +1255,7 @@ func _coat_liggers(mid: Vector3, out: Vector3, reach: float) -> void:
 	for d in [0.16, BAND.y - 0.12]:
 		var x := _along(0.0, -d)
 		var basis := _slope_basis(out, slope_at(x))
-		var at := mid + out * x + Vector3.UP * rise(1.0 - x / half_span()) + basis.y * (COAT + BAND.x + 0.01)
+		var at := _on_slope(mid, out, x) + basis.y * (COAT + BAND.x + 0.01)
 		_add(Transform3D(basis.scaled_local(Vector3(2.0 * reach - 0.3, 0.035, 0.035)), at), "ligger", HAZEL, 1.0)
 
 
@@ -1257,7 +1268,7 @@ func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, straw
 		var s := slope_at(x)
 		var basis := Basis(along.normalized(), out * sin(s) + Vector3.UP * cos(s), out * cos(s) - Vector3.UP * sin(s))
 		var length := (xs[i + 1] - xs[i]) / cos(s)
-		var at := mid + out * x + Vector3.UP * rise(1.0 - x / half_span()) + basis.y * COAT * 0.4
+		var at := _on_slope(mid, out, x) + basis.y * COAT * 0.4
 		var crown := at + basis.y * COAT * 0.4
 		at.y = minf(at.y, height_at(crown.x, crown.z) + COAT - LUMPS - basis.y.y * COAT * 0.4)
 		slabs.append({"xform": Transform3D(basis.scaled_local(Vector3(width, COAT * 0.8, length)), at), "color": straw, "kind": "thatch", "ao": 1.0})

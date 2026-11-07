@@ -280,8 +280,6 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 
 ## The build command a press on `target` sends, or {} where it does nothing.
 func command(target: Dictionary) -> Dictionary:
-	if target.has("fitting"):
-		return removal(world.state, target)
 	return _command(target, change(target))
 
 

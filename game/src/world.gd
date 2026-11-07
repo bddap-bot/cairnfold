@@ -217,9 +217,7 @@ func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
 		"heights", "ponds":
 			var wet: int = cmd.get("wet", 0)
-			for g in cmd.get("put", {}):
-				wet -= _wet(g)
-			for g in cmd.get("drop", []):
+			for g in cmd.get("put", {}).keys() + cmd.get("drop", []):
 				wet -= _wet(g)
 			if wet != 0:
 				out.pond_m2 = wet
@@ -918,7 +916,7 @@ func _keys(cmd: Dictionary) -> Array:
 				return ["p%d" % cmd.group]
 			# A move's inverse carries where it stood, so its undo entry keys both patches.
 			var at: Vector3 = cmd.get("at", flora.groups[0][cmd.index].anchor)
-			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
+			return [_meadow_key(at)]
 		"stairs":
 			return ["q%d" % cmd.id] + Array(cmd.stairs.on).map(func(id: int) -> String: return "w%d" % id)
 		"path", "ground", "restone":
@@ -954,8 +952,7 @@ func _keys(cmd: Dictionary) -> Array:
 					continue
 				var meadow: Array = flora.groups[0]
 				for i in cmd.plants[0]:
-					var at: Vector3 = meadow[i].anchor
-					out["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]] = true
+					out[_meadow_key(meadow[i].anchor)] = true
 			return out.keys()
 		"heights":
 			var r := Terrain.world_rect(cmd.cells)
@@ -970,6 +967,10 @@ func _keys(cmd: Dictionary) -> Array:
 
 static func _pond_keys(cmd: Dictionary) -> Array:
 	return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
+
+
+static func _meadow_key(at: Vector3) -> String:
+	return "m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]
 
 
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost
@@ -1105,8 +1106,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			for k: String in ["species", "scale", "moss"]:
 				if not cmd.has(k):
 					continue
-				inverse[k] = g[k].get(cmd.index, FloraLayout.Species.OAK if k == "species" else false if k == "moss" else 1.0)
-				if cmd[k] == (FloraLayout.Species.OAK if k == "species" else false if k == "moss" else 1.0):
+				var plain: Variant = FloraLayout.Species.OAK if k == "species" else false if k == "moss" else 1.0
+				inverse[k] = g[k].get(cmd.index, plain)
+				if cmd[k] == plain:
 					g[k].erase(cmd.index)
 				else:
 					g[k][cmd.index] = cmd[k]

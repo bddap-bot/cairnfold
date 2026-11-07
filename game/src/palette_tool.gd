@@ -444,29 +444,37 @@ func close(hand: Hand, released := true) -> void:
 		return
 	if w.id >= 0 and w.target.tool == Hand.Tool.COLOUR:
 		walls.paint[w.target.element] = w.dial.pick
-	elif w.id >= 0 and w.target.restyle == Restyle.GABLE:
-		walls.gable_end = w.dial.pick as WallLayout.GableEnd
-	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.dial.pick] in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]:
-		walls.deck = RoofLayout.Deck.WOOD if w.target.options[w.dial.pick] == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
-	elif w.id >= 0 and w.target.restyle == Restyle.ROOF:
-		walls.thatch = w.target.options[w.dial.pick] == WallTool.RoofStyle.THATCHED
-	elif w.id >= 0 and w.target.restyle == Restyle.FACE and w.target.wall.layout.fence:
-		walls.fence_finish = int(FACES[w.target.options[w.dial.pick]].x) as WallLayout.Finish
-	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
-		walls.finish = int(FACES[w.target.options[w.dial.pick]].x) as WallLayout.Finish
-		walls.wear = FACES[w.target.options[w.dial.pick]].y
-	elif w.id >= 0 and w.target.restyle == Restyle.FOUNDATION:
-		walls.foundation = w.dial.pick as WallLayout.Foundation
-	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
-		walls.planks = w.dial.pick == Floor.PLANKS
-	elif w.id >= 0 and w.target.restyle == Restyle.WINDOW:
-		walls.window_family = WallLayout.WINDOW_FAMILIES[w.target.options[w.dial.pick]]
-	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
-		world.stairs.rail = StairLayout.RAILS[w.dial.pick]
-	elif w.id >= 0 and w.target.restyle == Restyle.PATH:
-		world.paths.surface = w.dial.pick as PathLayout.Surface
-	elif w.id >= 0 and w.target.restyle == Restyle.DECORATION and world.state.decorations[w.id].mount == "span":
-		world.decorations.string_style = w.target.options[w.dial.pick]
+	elif w.id >= 0:
+		var option: Variant = w.target.get("options", range(w.target.count))[w.dial.pick]
+		match w.target.restyle:
+			Restyle.GABLE:
+				walls.gable_end = w.dial.pick as WallLayout.GableEnd
+			Restyle.ROOF:
+				if option in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]:
+					walls.deck = RoofLayout.Deck.WOOD if option == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
+				else:
+					walls.thatch = option == WallTool.RoofStyle.THATCHED
+			Restyle.FACE:
+				if w.target.wall.layout.fence:
+					walls.fence_finish = int(FACES[option].x) as WallLayout.Finish
+				else:
+					walls.finish = int(FACES[option].x) as WallLayout.Finish
+					walls.wear = FACES[option].y
+			Restyle.FOUNDATION:
+				walls.foundation = w.dial.pick as WallLayout.Foundation
+			Restyle.FLOOR:
+				walls.planks = w.dial.pick == Floor.PLANKS
+			Restyle.WINDOW:
+				walls.window_family = WallLayout.WINDOW_FAMILIES[option]
+			Restyle.RAIL:
+				world.stairs.rail = StairLayout.RAILS[w.dial.pick]
+			Restyle.PATH:
+				world.paths.surface = w.dial.pick as PathLayout.Surface
+			Restyle.DECORATION:
+				if world.state.decorations[w.id].mount == "span":
+					world.decorations.string_style = option
+			Restyle.STONE:
+				Ground.style = w.dial.pick
 	elif w.target.get("restyle") == Restyle.STONE:
 		Ground.style = w.dial.pick
 	if released and w.target.tool == Hand.Tool.COLOUR and w.dial.pick == w.dial.start and w.dial.held < TAP:

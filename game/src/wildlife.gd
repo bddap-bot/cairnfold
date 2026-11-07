@@ -367,7 +367,6 @@ func _arrive(p: PondWater) -> void:
 			var at := land + away * (reach + LENGTH * 1.5 * i)
 			f.ducks[i].position = terrain.ground(at.x, at.z)
 			_face(f.ducks[i], -away, 1.0)
-		f.state = State.ENTER
 	else:
 		f.goal.y = p.surface_y() - SINK
 		f.sky = _unseen_point(land, FLY_DISTANCE, FLY_HEIGHT)

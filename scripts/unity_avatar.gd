@@ -1813,13 +1813,11 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	var live := {}
 	for e: Array in _under(objs, top):
 		live[Yaml.file_id(objs[e[0]].data.get("m_GameObject"))] = true
-	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
-	var ours := func(d: Dictionary) -> bool:
+	var root_of := func(d: Dictionary) -> int:
 		var t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
-		if t == 0:
-			var go := Yaml.file_id(d.get("m_GameObject"))
-			t = Prefabs.transform_of(objs, go) if objs.has(go) else 0
-		return live.has(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject")))
+		return t if t != 0 else Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
+	# A component may sit outside the avatar (a tool merges it in at upload) while its root is a bone of it.
+	var ours := func(d: Dictionary) -> bool: return live.has(Yaml.file_id(objs.get(root_of.call(d), {}).get("data", {}).get("m_GameObject")))
 	var components := {}
 	var component_when := {}
 	var switched := {"springs": [], "colliders": []}
@@ -1836,10 +1834,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		components[id] = d
 		if not when.is_empty():
 			component_when[id] = when
-		var t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
-		if t == 0:
-			t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
-		component_roots[canonical.call(t)] = true
+		component_roots[canonical.call(root_of.call(d))] = true
 	var rests: Array[Transform3D] = []
 	var original_bones := sk.get_bone_count()
 	for bone in original_bones:
@@ -1924,10 +1919,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var legacy := d.has("m_Damping")
 		physbones += int(not legacy)
 		dynamicbones += int(legacy)
-		var root_t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
-		if root_t == 0:
-			root_t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
-		root_t = canonical.call(root_t)
+		var root_t: int = canonical.call(root_of.call(d))
 		var root_bone: int = bone_of.call(root_t)
 		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(Yaml.file_id(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
 		coverage.append(component)
