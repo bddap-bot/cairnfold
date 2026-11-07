@@ -935,7 +935,7 @@ func _lay_floor() -> void:
 			var middle := across * (z + depth * 0.5)
 			var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), floor_y - (PLANK.y if planks else FLAG.y) * 0.5)
 			if open.y - open.x > 0.05:
-				_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), floor_y, foot - SINK, along, planks, rng)
+				_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), floor_y, foot - SINK, along, rng)
 			x += size
 		z += depth
 		row += 1
@@ -944,7 +944,7 @@ func _lay_floor() -> void:
 ## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints. The bed's top lies
 ## BED_DEPTH under the pieces' tops, so a joint shows its bed from all but a grazing view: deeper, a joint seen off
 ## straight down shows its pieces' sides, lit as faces open to the horizon, and reads lighter than one seen from overhead.
-func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, along: Vector2, planks: bool, rng: RandomNumberGenerator) -> void:
+func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, along: Vector2, rng: RandomNumberGenerator) -> void:
 	var thick := PLANK.y if planks else FLAG.y
 	var centre := Vector3(at.x, top_y - thick * 0.5, at.y)
 	var x := Vector3(along.x, 0.0, along.y)
@@ -984,7 +984,7 @@ static func floor_stamps(points: Array) -> PackedVector4Array:
 func _floor_open(along: Vector2, row: Vector2, x0: float, x1: float, y: float) -> Vector2:
 	var hidden_at := func(x: float) -> bool:
 		var q := along * x + row
-		return _floor_hidden(Vector3(q.x, y, q.y))
+		return hidden(Vector3(q.x, y, q.y), older, resting)
 	var start: bool = hidden_at.call(x0)
 	if start == hidden_at.call(x1):
 		return Vector2(x0, x0) if start else Vector2(x0, x1)
@@ -997,16 +997,6 @@ func _floor_open(along: Vector2, row: Vector2, x0: float, x1: float, y: float) -
 		else:
 			hi = mid
 	return Vector2(hi, x1) if start else Vector2(x0, lo)
-
-
-func _floor_hidden(p: Vector3) -> bool:
-	for s in older:
-		if s.holds(p):
-			return true
-	for s in resting:
-		if s.covers(p):
-			return true
-	return false
 
 
 ## Where the line `across` = `z` crosses or touches `outline`, as the least and most along it: a row starting on the
@@ -1454,7 +1444,7 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 	var wood := boarded()
 	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel")
 	if not o.door:
-		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill")
+		_lay_sill(o, rng)
 	if o.style == Family.SLIT:
 		_lay_slit(o, rng)
 		return
@@ -1491,6 +1481,12 @@ func _lay_slit(o: Dictionary, rng: RandomNumberGenerator) -> void:
 			for side in [-1.0, 1.0]:
 				var w := 0.3 if (k + (1 if side > 0.0 else 0)) % 2 == 0 else 0.18
 				_part(at + side * (o.pane + w * 0.5), o.sill + c * (k + 0.5), Vector3(w, c - 0.02, THICKNESS * 1.03), dressed * rng.randf_range(0.95, 1.04), rng, "lintel")
+
+
+## The sill under window `o`, through the wall.
+func _lay_sill(o: Dictionary, rng: RandomNumberGenerator) -> void:
+	var wood := boarded()
+	_part(o.s, o.sill + 0.04, Vector3(o.half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill")
 
 
 ## An opening's head or sill: oak in a boarded wall, else stone.
@@ -1548,7 +1544,7 @@ func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var middle: float = (o.sill + o.head) * 0.5 if round else o.head - r
 	var tint := rng.randf_range(0.92, 1.06)
 	if not o.door and not round:
-		_part(o.s, o.sill + 0.04, Vector3(o.half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(boarded(), rng), rng, "beam" if boarded() else "sill")
+		_lay_sill(o, rng)
 	for at in light_centres(o):
 		var arc := [Vector2.ZERO, r, -PI * 0.5 if round else 0.0, PI * 0.5]
 		var pieces := 5 if round else 3
@@ -1560,11 +1556,7 @@ func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 				var high := sin(lerpf(arc[2], arc[3], float(j + 1) / pieces))
 				# Out a course past the ring, but never up through the wall's top.
 				var reach := ring + COURSE if high < 0.1 else minf(ring + COURSE, (height - middle) / high - r)
-				var back := _voussoir(at, middle, side, arc, lerpf(arc[2], arc[3], float(j) / pieces), lerpf(arc[2], arc[3], float(j + 1) / pieces), 0.01, reach, fill, -0.02, mortared, rng)
-				back.color = PLASTER if plastered() else MORTAR
-				back.ao = 1.0 if plastered() else 0.8
-				back.variant = 0
-				stones.append(back)
+				_lay_infill(_voussoir(at, middle, side, arc, lerpf(arc[2], arc[3], float(j) / pieces), lerpf(arc[2], arc[3], float(j + 1) / pieces), 0.01, reach, fill, -0.02, mortared, rng))
 		if o.door:
 			_lay_round_door(at, o, middle, rng)
 			continue
@@ -1826,11 +1818,7 @@ func _lay_washing(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void
 	var sag := Vector3.DOWN * 0.08
 	var mid := (ends[0] + ends[1]) * 0.5 + sag
 	for pair in [[ends[0], mid], [mid, ends[1]]]:
-		var a: Vector3 = pair[0]
-		var b: Vector3 = pair[1]
-		var x := (b - a).normalized()
-		var z := x.cross(Vector3.UP).normalized()
-		_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(a.distance_to(b), 0.012, 0.012)), (a + b) * 0.5), ROPE, "rope", o.s)
+		_between(pair[0], pair[1], Vector3(0.0, 0.012, 0.012), ROPE, "rope", o.s)
 	var pieces := maxi(2, roundi(reach * 2.0 / 0.5))
 	for k in pieces:
 		var t := (k + 0.5) / pieces
@@ -1896,9 +1884,7 @@ func _lay_flag_run(a: float, b: float) -> void:
 	for k in pieces:
 		var p := ends[0] + DecorationLayout.hang_at(span, float(k) / pieces)
 		var q := ends[0] + DecorationLayout.hang_at(span, float(k + 1) / pieces)
-		var x := (q - p).normalized()
-		var z := x.cross(Vector3.UP).normalized()
-		_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q), 0.014, 0.014)), (p + q) * 0.5), ROPE, "rope", a)
+		_between(p, q, Vector3(0.0, 0.014, 0.014), ROPE, "rope", a)
 	var along := (ends[1] - ends[0]).normalized()
 	var hang := Basis(Vector3.DOWN, along, Vector3.DOWN.cross(along)).scaled_local(Vector3(0.3, 0.2, 1.0))
 	var colours := [flag_color(seed, a), flag_color(seed, b)]
@@ -2047,6 +2033,14 @@ func _infill_depth() -> float:
 
 func _infill_kind() -> Dictionary:
 	return {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
+
+
+## Lays `st` as the wall's infill behind a ring, in its plaster or mortar.
+func _lay_infill(st: Dictionary) -> void:
+	st.color = PLASTER if plastered() else MORTAR
+	st.ao = 1.0 if plastered() else 0.8
+	st.variant = 0
+	stones.append(st)
 
 
 func boarded() -> bool:
@@ -2368,10 +2362,7 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	if crown[3] < PI * 0.5 - 1e-3:
 		infill.append(_crown_wedge(a, spring_y, crown, 0.0, arch_rise(0.0, size) + (inner + mortar) * 0.5, Vector3(0.0, mortar - inner, fill), -0.02, mortared, rng))
 	for st in infill:
-		st.color = PLASTER if plastered() else MORTAR
-		st.ao = 1.0 if plastered() else 0.8
-		st.variant = 0
-		stones.append(st)
+		_lay_infill(st)
 	parts.append(_crown_wedge(a, spring_y, crown, key_half, key_y, key, 0.0, style.merged({"kind": style.capstone}, true), rng))
 	for st in parts:
 		if style.has("color"):
@@ -2512,11 +2503,7 @@ func _lay_stilts(span: float, rng: RandomNumberGenerator) -> void:
 			continue
 		var base := minf(0.2, top - bottom)
 		_add(s, bottom + base * 0.5, Vector3(PILLAR + 0.12, base, PILLAR + 0.12), rng, "pillar", 0.02)
-		var y := bottom + base
-		while y < top - 0.05:
-			var h := minf(rng.randf_range(0.34, 0.46), top - y)
-			_add(s, y + h * 0.5, Vector3(PILLAR, h, PILLAR), rng, "pillar", 0.02)
-			y += h
+		_lay_footing(s, -bottom - base, Vector3(PILLAR, 0.0, PILLAR), "pillar", rng, top)
 
 
 ## Where piers stand: the two ends and the sharp bends of an open wall, the sharp corners of a loop.
@@ -2593,11 +2580,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			tall = not tall
 			s += l + 0.012
 		return
-	var s := a
-	while total - s > 0.001:
-		var l := minf(rng.randf_range(0.5, 0.95), total - s)
-		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + (0.0 if cover == Cover.ROOF else 0.16)), rng, "cap", 0.02)
-		s += l
+	_lay_row(a, total, height + CAP * 0.5, Vector2(0.5, 0.95), Vector2(CAP, THICKNESS + (0.0 if cover == Cover.ROOF else 0.16)), "cap", rng)
 	if style == Top.CAP and cover == Cover.DECK:
 		_lay_parapet(a, total, rng)
 	if style == Top.RAIL:
@@ -2645,8 +2628,6 @@ func gable_spans() -> Array[Vector2]:
 func _lay_gables() -> void:
 	var ends := gable_spans()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([seed, "gable"])
-	var h := COURSE
 	var base := height + CAP
 	for i in ends.size():
 		var end: Vector2 = ends[i]
@@ -2659,12 +2640,12 @@ func _lay_gables() -> void:
 				if not gable.thatch:
 					_lay_verge(mid, hs, base, rng, "board")
 			GableEnd.STEPS:
-				_lay_crow_steps(mid, hs, base, h, rng)
+				_lay_crow_steps(mid, hs, base, rng)
 			_:
 				var rows: Array[Vector2] = []
-				while not plastered() and gable.out_at((rows.size() + 1) * h, hs) >= 0.2:
-					rows.append(Vector2(rows.size(), gable.out_at((rows.size() + 1) * h, hs)))
-				_lay_gable_rows(mid, hs, base, h, rows, rng)
+				while not plastered() and gable.out_at((rows.size() + 1) * COURSE, hs) >= 0.2:
+					rows.append(Vector2(rows.size(), gable.out_at((rows.size() + 1) * COURSE, hs)))
+				_lay_gable_rows(mid, hs, base, rows, rng)
 				if not TimberFrame.applies(self) and not gable.thatch:
 					_lay_verge(mid, hs, base, rng, "cope")
 
@@ -2673,7 +2654,8 @@ func _lay_gables() -> void:
 ## wall's own courses carried on, bonded as the next ones up and set in its mortar, the roof's infill closing only what
 ## the slopes leave over them. Courses stop at the corners rather than turn down the side walls, filling each corner
 ## through its thickness.
-func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
+func _lay_gable_rows(mid: float, hs: float, base: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
+	var h := COURSE
 	var edge := hs - THICKNESS * 0.5
 	var inset := 0.0 if plastered() else JOINT
 	for row in rows:
@@ -2724,15 +2706,15 @@ func gable_face(hs: float) -> float:
 
 
 ## Crow steps, each capped where it shows.
-func _lay_crow_steps(mid: float, hs: float, base: float, h: float, rng: RandomNumberGenerator) -> void:
+func _lay_crow_steps(mid: float, hs: float, base: float, rng: RandomNumberGenerator) -> void:
 	var steps := crow_steps(hs)
 	var rows: Array[Vector2] = []
 	for st in steps:
 		for c in range(st.y, st.y + st.z):
 			rows.append(Vector2(c, st.x))
-	_lay_gable_rows(mid, hs, base, h, rows, rng)
+	_lay_gable_rows(mid, hs, base, rows, rng)
 	for i in steps.size():
-		var top := base + (steps[i].y + steps[i].z) * h + CAP * 0.5
+		var top := base + (steps[i].y + steps[i].z) * COURSE + CAP * 0.5
 		var outer := steps[i].x + 0.06
 		if i + 1 == steps.size():
 			_add(mid, top, Vector3(outer * 2.0, CAP, THICKNESS + 0.12), rng, "cap", 0.0)
@@ -2796,17 +2778,19 @@ func _standing(spans: Array) -> Array:
 func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	rng.seed = hash([rng.seed, "parapet"])
 	var y := height + CAP
-	var s := a
-	while total - s > 0.001:
-		var l := minf(rng.randf_range(0.4, 0.75), total - s)
-		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 0.02)
-		s += l
+	_lay_row(a, total, y + PARAPET * 0.5, Vector2(0.4, 0.75), Vector2(PARAPET, THICKNESS * 0.62), "block", rng)
 	_lay_mortar([[y, PARAPET, [[a, total]]]], THICKNESS * 0.62)
 	rng.seed = hash([rng.seed, "parapet-cap"])
-	s = a
-	while total - s > 0.001:
-		var l := minf(rng.randf_range(0.6, 1.0), total - s)
-		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.02)
+	_lay_row(a, total, y + PARAPET + CAP * 0.4, Vector2(0.6, 1.0), Vector2(CAP * 0.8, THICKNESS * 0.74), "cap", rng)
+
+
+## Stones of `kind` end to end from `a` to `b`, their middles `y` up, each as long as `run` allows and `size` tall and
+## deep.
+func _lay_row(a: float, b: float, y: float, run: Vector2, size: Vector2, kind: String, rng: RandomNumberGenerator) -> void:
+	var s := a
+	while b - s > 0.001:
+		var l := minf(rng.randf_range(run.x, run.y), b - s)
+		_add(s + l * 0.5, y, Vector3(l, size.x, size.y), rng, kind, 0.02)
 		s += l
 
 
@@ -2834,9 +2818,14 @@ func _lay_railing(a: float, total: float, rng: RandomNumberGenerator, inset := P
 func _rail(a: float, b: float, y: float, size: Vector3, color: Color, kind := "rail") -> void:
 	var p: Vector3 = frame_at(a).point + Vector3.UP * y
 	var q: Vector3 = frame_at(b).point + Vector3.UP * y
+	_between(p, q, size, color, kind, (a + b) * 0.5)
+
+
+## A part from `p` to `q` in world space, `size` its overrun past them, its depth and thickness, filed at arc length `s`.
+func _between(p: Vector3, q: Vector3, size: Vector3, color: Color, kind: String, s: float) -> void:
 	var x := (q - p).normalized()
 	var z := x.cross(Vector3.UP).normalized()
-	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, kind, (a + b) * 0.5)
+	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, kind, s)
 
 
 ## A corner pier from the bed up past the top; over posts, its footing stops `open` under the foot, at the foundation.

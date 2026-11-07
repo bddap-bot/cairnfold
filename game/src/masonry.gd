@@ -16,6 +16,7 @@ extends Node3D
 ## walls cost the Quest 2" in docs/design.md).
 const FINE := 8.0
 const COARSE := 16.0
+const FINE_PER_COARSE := int(COARSE / FINE)
 ## How tall a chunk's pieces are taken to stand when its draw distances allow for its size; a taller build's top
 ## swaps to its far mesh a little early.
 const TALL := 9.0
@@ -262,8 +263,7 @@ static func radius(cell: float) -> float:
 
 
 static func _coarse_key(key: Vector3i) -> Vector3i:
-	var n := roundi(COARSE / FINE)
-	return Vector3i(floori(float(key.x) / n), floori(float(key.y) / n), key.z)
+	return Vector3i(floori(float(key.x) / FINE_PER_COARSE), floori(float(key.y) / FINE_PER_COARSE), key.z)
 
 
 ## Instances placed, by kind: what the build costs to render.
@@ -421,15 +421,14 @@ func flush(budget_us := INF) -> void:
 				mm.buffer = buf
 		if c.far != null:
 			_coarse_dirty[_coarse_key(key)] = true
-	var n := roundi(COARSE / FINE)
 	for key: Vector3i in _coarse_dirty.keys():
 		if Budget.over(start, budget_us):
 			break
 		_coarse_dirty.erase(key)
 		var buf := PackedFloat32Array()
-		for x in n:
-			for z in n:
-				var c: Chunk = _chunks.get(Vector3i(key.x * n + x, key.y * n + z, key.z))
+		for x in FINE_PER_COARSE:
+			for z in FINE_PER_COARSE:
+				var c: Chunk = _chunks.get(Vector3i(key.x * FINE_PER_COARSE + x, key.y * FINE_PER_COARSE + z, key.z))
 				if c != null:
 					for part: PackedFloat32Array in c.parts.values():
 						buf.append_array(part)

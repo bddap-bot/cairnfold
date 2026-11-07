@@ -126,7 +126,6 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	vp.use_occlusion_culling = true
 	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	var cam := Camera3D.new()
-	cam.fov = FOV
 	cam.near = Rig.NEAR
 	cam.far = rig.far()
 	vp.add_child(cam)

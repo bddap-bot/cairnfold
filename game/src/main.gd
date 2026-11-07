@@ -381,7 +381,7 @@ func held(pause: bool) -> void:
 
 func _note_session() -> void:
 	metrics.info.available_hz = Array(xr.get_available_display_refresh_rates())
-	metrics.info.render_size = [xr.get_render_target_size().x, xr.get_render_target_size().y] if xr.has_method("get_render_target_size") else []
+	metrics.info.render_size = [xr.get_render_target_size().x, xr.get_render_target_size().y]
 	metrics.info.render_scale = xr.render_target_size_multiplier
 	metrics.info.eye_fov_deg = [_fov(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)), _fov(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))]
 	metrics.info.eye_gaze = xr.is_eye_gaze_interaction_supported()

@@ -42,8 +42,7 @@ var _sun_light := DirectionalLight3D.new()
 var _fx := {}
 
 
-## `see_through` draws the ghost controllers' shells half clear, so a pressed trigger shows through them.
-func _init(i: int, see_through := false) -> void:
+func _init(i: int) -> void:
 	index = i
 	page = Lessons.PAGES[i]
 	size = SIZE
@@ -78,7 +77,7 @@ func _init(i: int, see_through := false) -> void:
 	camera.current = true
 	_build_dish()
 	for side in Lessons.hands(page):
-		var pad := Pad.new(side == "right", see_through)
+		var pad := Pad.new(side == "right")
 		pad.scale = Vector3.ONE * GHOST
 		pad.hold(Lessons.tool(page.tools.get(side, "none")))
 		stage.add_child(pad)

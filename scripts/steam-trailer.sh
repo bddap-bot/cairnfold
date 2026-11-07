@@ -10,8 +10,7 @@ trap 'rm -rf "$frames"' EXIT
 # Movie time is fixed-step, so the render may run far slower than real time without changing a frame.
 CAIRNFOLD_QUIT_AFTER=200 CAIRNFOLD_TIMEOUT=7200 "$root/scripts/render.sh" "$root/demo/trailer.json" "$frames" \
   --resolution 1920x1080 --write-movie "$frames/frame.png" --fixed-fps 30
-seconds=$(python3 -c "import sys; print(int(sys.argv[1]) / 30)" "$(find "$frames" -name 'frame*.png' | wc -l)")
-end=$(python3 -c "import sys; print(float(sys.argv[1]) - 2)" "$seconds")
+read -r seconds end < <(python3 -c "import sys; s = int(sys.argv[1]) / 30; print(s, s - 2)" "$(find "$frames" -name 'frame*.png' | wc -l)")
 # Steam asks for H.264 + AAC at 5000 kbps or more; a fixed bitrate keeps calm shots above that floor.
 ffmpeg -y -loglevel error -framerate 30 -i "$frames/frame%08d.png" -i "$frames/frame.wav" -loop 1 -i "$root/steam/logo.png" \
   -filter_complex "[2]scale=960:-1,format=rgba,fade=in:st=$((${end%.*} - 3)):d=1:alpha=1[logo];

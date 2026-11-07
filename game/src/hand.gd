@@ -174,7 +174,10 @@ func _init(tracker_name: String, held: Tool) -> void:
 		m.visible = false
 		body.add_child(m)
 		_models.append(m)
-	_build_wheel()
+	_wheel_root = Node3D.new()
+	_wheel_root.top_level = true
+	_wheel_root.visible = false
+	add_child(_wheel_root)
 	_sight = Sight.new()
 	body.add_child(_sight)
 	_dot = MeshInstance3D.new()
@@ -184,13 +187,6 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
 	_buttons = Buttons.new(self).watch(["wheel", "tool"])
-
-
-func _build_wheel() -> void:
-	_wheel_root = Node3D.new()
-	_wheel_root.top_level = true
-	_wheel_root.visible = false
-	add_child(_wheel_root)
 
 
 ## Where hand `h` shows: this player's hand as its body, another player's hand or a dish as itself.

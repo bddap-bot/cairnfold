@@ -41,6 +41,7 @@ class Step:
 		msaa = drawn.msaa
 		reflections = drawn.reflections
 		foveation = drawn.foveation
+		share = drawn.share
 
 
 ## How the view is drawn, richest first, each rung dropping what loses least for what it saves, as measured on the
@@ -88,7 +89,6 @@ static func rungs() -> Array[Step]:
 	var out: Array[Step] = []
 	for d: Dictionary in DRAWN:
 		out.append(Step.new(FLORA[0], d))
-		out[-1].share = d.share
 	for i in range(1, FLORA.size()):
 		out.append(Step.new(FLORA[i], DRAWN[-1]))
 	return out

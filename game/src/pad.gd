@@ -23,23 +23,19 @@ var _tool: Node3D
 var _shown := -1
 
 
-## `right` false mirrors it for the left hand. `see_through` lets a pressed trigger's glow show through the shell.
-func _init(right: bool, see_through := false) -> void:
+## `right` false mirrors it for the left hand.
+func _init(right: bool) -> void:
 	side = 1.0 if right else -1.0
-	var head := _box(self, Vector3(0.06, 0.024, 0.066), Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.032)), SHELL, 3)
+	_box(self, Vector3(0.06, 0.024, 0.066), Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.032)), SHELL, 3)
 	var handle_at := Node3D.new()
 	handle_at.transform = Transform3D(Basis(Vector3.RIGHT, -0.5), Vector3(0, -0.008, 0.05))
 	add_child(handle_at)
-	var handle := _box(handle_at, Vector3(0.031, 0.1, 0.036), Transform3D(Basis.IDENTITY, Vector3(0, -0.047, 0)), SHELL, 5)
+	_box(handle_at, Vector3(0.031, 0.1, 0.036), Transform3D(Basis.IDENTITY, Vector3(0, -0.047, 0)), SHELL, 5)
 	_part("trigger_click", self, Vector3(0.017, 0.03, 0.012), Transform3D(Basis(Vector3.RIGHT, 0.25), Vector3(0, -0.025, 0.012)), 7)
 	_part("grip_click", handle_at, Vector3(0.012, 0.045, 0.014), Transform3D(Basis.IDENTITY, Vector3(0, -0.045, -0.022)), 9)
 	_part("primary", self, Vector3(0.019, 0.008, 0.019), Transform3D(Basis.IDENTITY, Vector3(-side * 0.012, 0.017, 0.03)), 11)
 	_part("ax_button", self, Vector3(0.012, 0.006, 0.012), Transform3D(Basis.IDENTITY, Vector3(side * 0.013, 0.016, 0.044)), 13)
 	_part("by_button", self, Vector3(0.012, 0.006, 0.012), Transform3D(Basis.IDENTITY, Vector3(side * 0.015, 0.016, 0.024)), 15)
-	if see_through:
-		for m: StandardMaterial3D in [head.material_override, handle.material_override]:
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-			m.albedo_color.a = 0.42
 
 
 ## Shows `tool` standing on the controller, as a hand holding it does.

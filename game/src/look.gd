@@ -49,8 +49,6 @@ var env: Environment
 var sky_mat: ShaderMaterial
 var disc: MeshInstance3D
 var moon_disc: MeshInstance3D
-var mountains_mat := ShaderMaterial.new()
-var lake_mat := ShaderMaterial.new()
 var bounce := Bounce.new()
 var interior := Interior.new()
 var terrain: Terrain
@@ -115,7 +113,6 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	sun.layers = Quality.LADDER_LAYER
 	look.photo_sun.layers = Quality.FULL_LAYER
 	look.photo_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	look.photo_sun.directional_shadow_max_distance = SHADOW_REACH
 	look.photo_sun.directional_shadow_blend_splits = true
 	sun.add_child(look.photo_sun)
 	look.env = env
@@ -125,10 +122,7 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	look.moon_disc = _disc(MOON_DISC, 1.0)
 	look.add_child(look.disc)
 	look.add_child(look.moon_disc)
-	look.mountains_mat.shader = load("res://src/mountains.gdshader")
-	look.lake_mat.shader = load("res://src/lake.gdshader")
-	var horizon := Mountains.build(look.mountains_mat, look.lake_mat)
-	for m in horizon:
+	for m in Mountains.build():
 		look.add_child(m)
 	look.bounce.install()
 	look.interior.install()

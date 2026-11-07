@@ -256,7 +256,7 @@ func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: b
 			voice.max_distance = 4.0
 			holder.add_child(voice)
 			voices.append(voice)
-		_canvas[key] = {"feel": CanvasFeel.new(), "voices": voices, "time": _clock, "grain_at": -INF, "grain": -1, "next": 0, "hand": hand}
+		_canvas[key] = {"feel": CanvasFeel.new(), "voices": voices, "time": _clock, "grain_at": -INF, "grain": -1, "next": 0}
 	var c: Dictionary = _canvas[key]
 	var was_hard: bool = c.feel.hard
 	var pulse: Vector2 = c.feel.step(stick, touching, pressure, speed, distance, hard, _clock - c.time)

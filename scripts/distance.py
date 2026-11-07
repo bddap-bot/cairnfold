@@ -38,9 +38,10 @@ for name in gpu:
 prices = {}
 for (kind, spot), ms in each.items():
     n = COUNT[kind](units[kind])
-    print(f"{kind:11} {spot:6} " + " ".join(f"{x:+6.2f}" for x in ms) + f" ms  -> {max(ms) * 1000 / n:8.3f} µs a unit of {n:.1f}")
-    if kind in UNIT and max(ms) * 1000 / n > prices.get(UNIT[kind], {"us": -1.0})["us"]:
-        prices[UNIT[kind]] = {"unit": UNIT[kind], "us": round(max(ms) * 1000 / n, 3), "at": f"{kind}/{spot}"}
+    us = max(ms) * 1000 / n
+    print(f"{kind:11} {spot:6} " + " ".join(f"{x:+6.2f}" for x in ms) + f" ms  -> {us:8.3f} µs a unit of {n:.1f}")
+    if kind in UNIT and us > prices.get(UNIT[kind], {"us": -1.0})["us"]:
+        prices[UNIT[kind]] = {"unit": UNIT[kind], "us": round(us, 3), "at": f"{kind}/{spot}"}
 record = json.load(open(sys.argv[2]))
 record["prices"] = {f"{k}@distance": v for k, v in prices.items()}
 with open(sys.argv[2], "w") as f:

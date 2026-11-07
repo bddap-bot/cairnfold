@@ -131,6 +131,13 @@ static func count(stroke: Dictionary) -> int:
 	return stroke.samples.size() / 2
 
 
+static func total(strokes: Array) -> int:
+	var n := 0
+	for s: Dictionary in strokes:
+		n += count(s)
+	return n
+
+
 ## A stroke as a command carries it, or null: every field in range, so a peer cannot hand a canvas anything a brush
 ## could not paint.
 static func clean(d: Variant) -> Variant:

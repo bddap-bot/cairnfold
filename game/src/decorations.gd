@@ -9,7 +9,7 @@ var walls: WallTool
 ## Each standing decoration's place as its build was laid (`xform`), which its build's carry moves it from (`carry`),
 ## its `bounds`, and its `flames` there.
 var placed := {}
-## The batches by key, a decoration's place and its lanterns' look (Lamps.lantern): its house's id, its ground cell, or,
+## The batches by key, a decoration's place and its lanterns' look (Lamps.light_of): its house's id, its ground cell, or,
 ## for one held or swept, its id as a String, so it stands alone; each its `node` and the `sig` it was laid from.
 var _batches := {}
 var _shown := {}
@@ -18,7 +18,7 @@ var _held := {}
 var _stamp := {}
 ## Decorations a delete sweep has taken, hidden until it lets go; the beam passes through them.
 var _swept := {}
-## Every decoration's flames where they burn, and the light each casts (Lamps.lantern).
+## Every decoration's flames where they burn, and the light each casts (Lamps.light_of).
 var flames := PackedVector3Array()
 var lights := PackedColorArray()
 ## The string a stroke of the decorations tool hangs: the one the style wheel let go on a string last.

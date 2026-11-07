@@ -210,11 +210,12 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta
 	var n := mini(int(b.owed), Commands.MAX_STROKE)
 	b.owed -= int(b.owed)
-	world.preview(b.hand, Budget.plants(kind, b.count if b.kind == kind else 0))
+	var painted := b.count if b.kind == kind else 0
+	world.preview(b.hand, Budget.plants(kind, painted))
 	if n == 0 or b.full:
 		return
 	# A hold paints up to the budget and no further: past it, plants stop coming and the hand feels why.
-	if not Budget.fits(world.units, Budget.plants(kind, (b.count if b.kind == kind else 0) + n)):
+	if not Budget.fits(world.units, Budget.plants(kind, painted + n)):
 		b.full = true
 		world.cap(b.hand)
 		return
@@ -356,7 +357,7 @@ func end_path(b: Brush) -> void:
 	planted.emit()
 
 
-func coat_tree(trunk: Flora.Plant, hand: Hand = null) -> void:
+func coat_tree(trunk: Flora.Plant, hand: Hand) -> void:
 	world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "moss": true}, Callable(), hand)
 
 

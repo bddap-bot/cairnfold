@@ -102,8 +102,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.FLOWERS:
 			_flowers(root)
 		Hand.Tool.MOSS:
-			var moss := piece(root, Meshes.moss(), Transform3D(Basis.from_scale(Vector3.ONE * 0.14), Vector3.ZERO), plain("moss", Color(0.3, 0.5, 0.08), {"roughness": 1.0}))
-			moss.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			piece(root, Meshes.moss(), Transform3D(Basis.from_scale(Vector3.ONE * 0.14), Vector3.ZERO), plain("moss", Color(0.3, 0.5, 0.08), {"roughness": 1.0}), true)
 		Hand.Tool.GRASS:
 			_grass(root)
 		Hand.Tool.TREES:
@@ -138,8 +137,12 @@ static func build(tool: Hand.Tool) -> Node3D:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	if tool in MASONRY:
-		_masonry[tool] = root.get_children().map(func(mi: MeshInstance3D) -> Array: return [mi.mesh, mi.transform, mi.material_override])
+		_masonry[tool] = _pieces(root)
 	return root
+
+
+static func _pieces(root: Node3D) -> Array:
+	return root.get_children().map(func(mi: MeshInstance3D) -> Array: return [mi.mesh, mi.transform, mi.material_override])
 
 
 ## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in its `finish`, a
@@ -226,9 +229,7 @@ static func _build_queued() -> void:
 		if key == null:
 			return
 		var built := _style(key[0], key[1], key[2], key[3], false, key[4], key[5])
-		var pieces := []
-		for mi: MeshInstance3D in built.get_children():
-			pieces.append([mi.mesh, mi.transform, mi.material_override])
+		var pieces := _pieces(built)
 		built.free()
 		_lock.lock()
 		_styled[key] = pieces
@@ -314,7 +315,6 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 		PaletteTool.Restyle.WINDOW:
 			_wall(root, WallLayout.Finish.BARE, WallLayout.Top.CAP, false, 0.0, WallLayout.WINDOW_FAMILIES[i])
 	if restyle in [PaletteTool.Restyle.PATH, PaletteTool.Restyle.STONE]:
-		# Turned from lying flat to face the eye, a little from above.
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis(Vector3.UP, PI * 0.2) if house else Basis()
@@ -426,7 +426,7 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 		stick.name = "tip"
 		return root
 	piece(root, cylinder(HANDLE_RADIUS, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), plain("brush_handle", Color(0.75, 0.28, 0.2)))
-	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
+	var flat := _flat(kind)
 	var ferrule := cylinder(0.0045 if kind == Brushwork.Brush.SMALL else 0.0075, 0.005, 0.03, 10)
 	piece(root, ferrule, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.04)), plain("ferrule", Color(0.78, 0.76, 0.7)))
 	var r: float = {Brushwork.Brush.SMALL: 0.003, Brushwork.Brush.BIG: 0.008, Brushwork.Brush.FLAT: 0.007}[kind]
@@ -436,9 +436,12 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 	return root
 
 
+static func _flat(kind: Brushwork.Brush) -> Basis:
+	return Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
+
+
 static func bend(model: Node3D, kind: Brushwork.Brush, offset: Vector3) -> void:
-	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
-	var along := Basis(Vector3.RIGHT, -PI * 0.5) * flat
+	var along := Basis(Vector3.RIGHT, -PI * 0.5) * _flat(kind)
 	along.y = (Vector3(0, 0, -0.026) + offset) / 0.026
 	var tip: Node3D = model.get_node("tip")
 	tip.transform = Transform3D(along, BRUSH_TIP + Vector3(0, 0, 0.013) + offset * 0.5)
@@ -620,16 +623,17 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	var y := SELFIE_LENS.y if selfie else CAMERA_LENS.y
 	var size := SELFIE_SCREEN if selfie else CAMERA_SCREEN
 	var screen_x := _SELFIE_SCREEN_X if selfie else 0.0
+	var barrel := Color(0.22, 0.2, 0.19)
 	var parts := [
 		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, y, 0)), Color(0.84, 0.76, 0.62)],
 		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(size.x + 0.006, size.y + 0.006, 0.002)), Vector3(screen_x, y, 0.013)), Color(0.16, 0.14, 0.13)],
-		[lens, Transform3D(facing, SELFIE_LENS - Vector3(0, 0, 0.0035) if selfie else Vector3(0, y, -0.021)), Color(0.22, 0.2, 0.19)],
+		[lens, Transform3D(facing, SELFIE_LENS - Vector3(0, 0, 0.0035) if selfie else Vector3(0, y, -0.021)), barrel],
 		[glass, Transform3D(facing, SELFIE_LENS if selfie else CAMERA_LENS), Color(0.08, 0.1, 0.16)],
 	]
 	for part in parts:
 		piece(root, part[0], part[1], plain("camera_%s" % part[2].to_html(), part[2], {"roughness": 0.35 if part[0] == glass else 0.7}))
 	if selfie:
-		piece(root, cylinder(0.006, 0.007, SELFIE_LIFT, 10), Transform3D(Basis(), Vector3(0, SELFIE_LIFT * 0.5, 0)), plain("camera_%s" % Color(0.22, 0.2, 0.19).to_html(), Color(0.22, 0.2, 0.19)))
+		piece(root, cylinder(0.006, 0.007, SELFIE_LIFT, 10), Transform3D(Basis(), Vector3(0, SELFIE_LIFT * 0.5, 0)), plain("camera_%s" % barrel.to_html(), barrel))
 	var shutter := StandardMaterial3D.new()
 	shutter.albedo_color = Color(0.72, 0.56, 0.3)
 	shutter.roughness = 0.7

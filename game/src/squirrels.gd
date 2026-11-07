@@ -267,7 +267,7 @@ func _place(s: Squirrel, trunk: Flora.Plant) -> void:
 	var foot := trunk.foot()
 	var out := Vector3(cos(s.round), 0, sin(s.round))
 	s.position = foot + Vector3.UP * s.up + out * (radius(trunk, s.up) + GRIP)
-	var dir := Vector3.UP if s.to_up >= s.up or s.state == State.CLING else Vector3.DOWN
+	var dir := Vector3.UP if s.to_up >= s.up else Vector3.DOWN
 	if s.state == State.CLING:
 		dir = (Vector3.UP + out.cross(Vector3.UP) * sin(s.clock * 0.3) * 0.4).normalized()
 	var back := -dir

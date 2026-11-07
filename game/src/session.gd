@@ -264,33 +264,30 @@ func _on_gone(id: int) -> void:
 	world.hear("peer_disconnected", [], id)
 	print("session: player %d left" % id)
 	Cues.play(Cues.Act.PLAYER_LEAVES, avatars[id].global_position if avatars.has(id) else _here())
-	if avatars.has(id):
-		avatars[id].queue_free()
-		avatars.erase(id)
-		_targets.erase(id)
-	_drop_dishes(id)
-	_looks.erase(id)
-	_wearing.erase(id)
-	_waiting.erase(id)
-	_thrown.erase(id)
 	for chain in _spring_holds.keys():
 		if _spring_holds[chain][0] == id:
 			_spring_holds.erase(chain)
-	_prune()
+	_forget(id)
 
 
 func _drop_avatars() -> void:
 	_spring_holds.clear()
 	_spring_hands = [[], []]
-	for a in avatars.values():
-		a.queue_free()
-	avatars.clear()
-	_targets.clear()
-	for id in _dishes.keys():
-		_drop_dishes(id)
-	_looks.clear()
-	_wearing.clear()
-	_waiting.clear()
+	for id in _looks.keys():
+		_forget(id)
+
+
+## Drops everything kept of remote player `id`; every table is keyed by the ids `_appear` files in `_looks`.
+func _forget(id: int) -> void:
+	if avatars.has(id):
+		avatars[id].queue_free()
+	avatars.erase(id)
+	_targets.erase(id)
+	_drop_dishes(id)
+	_looks.erase(id)
+	_wearing.erase(id)
+	_waiting.erase(id)
+	_thrown.erase(id)
 	_prune()
 
 

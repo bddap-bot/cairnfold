@@ -22,7 +22,7 @@ def read_image(path):
 
 
 def check(folder):
-    failures = []
+    failed = False
     for name, (xr, yr, z) in PATCHES.items():
         x, y = np.meshgrid(np.linspace(*xr, 120), np.linspace(yr[1], yr[0], 80))
         points = np.stack([x, y, np.full_like(x, z), np.ones_like(x)]).reshape(4, -1)
@@ -60,9 +60,8 @@ def check(folder):
             held = spread <= 2.5 and max(means) < (110 if name == "tree" else 100)
             print(f"{name} eye {eye}: brightness {min(means):.3f}..{max(means):.3f}/255; "
                   f"variation {spread:.3f} (limit 2.5): {'PASS' if held else 'FAIL'}")
-            if not held:
-                failures.append((name, eye))
-    return bool(failures)
+            failed |= not held
+    return failed
 
 
 if __name__ == "__main__":

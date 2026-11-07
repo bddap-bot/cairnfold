@@ -238,14 +238,13 @@ func grab(p: Painter) -> void:
 	var at := p.hand.global_position
 	if p.palette != null:
 		_set_down(p, true)
-		_note(p, true)
-		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
-		return
-	var choice := candidate(p)
-	if not choice.is_empty():
+	else:
+		var choice := candidate(p)
+		if choice.is_empty():
+			return
 		choice.take.call()
-		_note(p, true)
-		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
+	_note(p, true)
+	Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
 
 
 ## Whether a grip of `hand`'s is painting's: it holds a palette, paints, tears a sheet or reaches an implement, palette
@@ -637,9 +636,7 @@ func _take_up(p: Painter, delta: float) -> void:
 		return
 	p.soaked += delta
 	var s := p.stroke
-	var held := 0.0
-	if p.medium == Brushwork.Medium.OIL:
-		held = p.load
+	var held := p.load if p.medium == Brushwork.Medium.OIL else 0.0
 	var pace := 1.0 - exp(-TAKE_UP * p.soaked)
 	var gain := pace * maxf(under.height * SOAK - held, 0.0)
 	var stir := pace * STIR * minf(under.height, held)
@@ -766,10 +763,7 @@ func _room(e: Easels.Easel, palette: bool) -> bool:
 	if standing.is_empty():
 		return false
 	var strokes: Array = standing[Commands.surface({"palette": palette})]
-	var total := 0
-	for s: Dictionary in strokes:
-		total += Brushwork.count(s)
-	return strokes.size() < Brushwork.MAX_STROKES and total + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
+	return strokes.size() < Brushwork.MAX_STROKES and Brushwork.total(strokes) + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
 
 
 ## Sends the stroke under way, if any; the brush keeps what paint it has left.

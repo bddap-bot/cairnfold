@@ -263,8 +263,12 @@ static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dict
 		colors.append(Color((p.y - FOOT) / TOP, r.haze, r.snow))
 
 
-## The ranges in `material`, and the lake's water in `water`.
-static func build(material: ShaderMaterial, water: ShaderMaterial) -> Array[MeshInstance3D]:
+## The ranges, and the lake's water.
+static func build() -> Array[MeshInstance3D]:
+	var material := ShaderMaterial.new()
+	material.shader = load("res://src/mountains.gdshader")
+	var water := ShaderMaterial.new()
+	water.shader = load("res://src/lake.gdshader")
 	water.set_shader_parameter("ridges", ImageTexture.create_from_image(ridge_image()))
 	water.set_shader_parameter("level", LAKE)
 	water.set_shader_parameter("radii", Vector2(RANGES[0].radius, RANGES[1].radius))
