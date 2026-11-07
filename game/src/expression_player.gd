@@ -5,6 +5,7 @@ const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 
 var state: ExpressionState
+var contacts: Contacts
 var icons: Array[Texture2D] = []
 var _bindings: Array = []
 var _scales := {}
@@ -52,6 +53,9 @@ func _init(model: Node3D) -> void:
 	var nodes := {}
 	for n: Node in model.find_children("*", "", true, false):
 		nodes[str(n.name)] = n
+	contacts = Contacts.new(state.data.get("contacts", []), func(name: Variant) -> Array:
+		var found := _bones(nodes, name)
+		return found[0] if not found.is_empty() else [])
 	icons.assign(model.get_meta("expression_icons", []))
 	for target: Dictionary in data.get("targets", []):
 		var effect: Variant = target.get("effect")
@@ -178,6 +182,9 @@ func _init(model: Node3D) -> void:
 
 func _process(delta: float) -> void:
 	_seconds += delta
+	var body := get_parent() as Avatar
+	if contacts.receives() and body != null and body.is_in_group(Contacts.BODIES):
+		contacts.sense(state, Contacts.gather(get_tree()), body, body.local, delta)
 	state.advance(delta)
 	apply()
 

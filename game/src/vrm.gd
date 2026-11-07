@@ -538,6 +538,8 @@ static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionar
 		s.node = index[s.node]
 	for s: Dictionary in out.get("springs", []):
 		s.joints = s.joints.map(func(n: String) -> int: return index[n])
+	for c: Dictionary in out.get("contacts", []):
+		c.node = index[c.node]
 	return out
 
 
@@ -584,6 +586,9 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 			region.node = name_of.call(region)
 	for shown: Dictionary in out.get("shown", []):
 		shown.node = name_of.call(shown)
+	for c: Variant in out.get("contacts", []):
+		if c is Dictionary:
+			c.node = name_of.call(c)
 	var looks: Variant = out.get("looks")
 	if looks is Dictionary and looks.has("decals"):
 		var kept: Variant = state.get_additional_data(&"vrm_decals")

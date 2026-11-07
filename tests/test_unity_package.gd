@@ -72,6 +72,8 @@ func _run() -> void:
 	_a_radial_moving_nothing_is_cut_beside_a_live_one()
 	_a_blend_child_holds_what_its_sibling_animates_at_rest()
 	_a_full_controller_renames_its_layers_and_menu()
+	_contacts_keep_their_shape_tags_and_switch()
+	_a_clip_animating_a_parameter_binds_it()
 	finish()
 
 
@@ -2245,6 +2247,71 @@ func _a_full_controller_renames_its_layers_and_menu() -> void:
 	check(layers[0].entry[0].conditions[0].parameter == "VF3_Hat" and state.motion.parameters == ["VF3_Size", ""] and state.drivers[0] == {"parameter": "VF3_Hat", "source": "VF3_Size"}, "conditions, blend parameters and drivers take the new names: %s" % [layers])
 	check(state.transitions[0].conditions[0].parameter == "IsLocal", "VRChat's own parameter keeps its name")
 	check(menu[0].controls[0].parameter == "VF3_Hat" and menu[0].controls[1].axes == ["VF3_Size"], "the menu's controls take the new names: %s" % [menu])
+
+## A contact sits on its nearest bone as Unity places it, a capsule's ends its height less the caps apart along its Y;
+## a receiver keeps its type, parameter and parties, and waits on the switch its object hides behind. The descriptor's
+## colliders become the body's senders, a finger's running from its parent bone.
+func _contacts_keep_their_shape_tags_and_switch() -> void:
+	var sk := Skeleton3D.new()
+	for name: String in ["Chest", "Head", "Middle", "Tip"]:
+		sk.add_bone(name)
+	sk.set_bone_parent(1, 0)
+	sk.set_bone_parent(3, 2)
+	sk.set_bone_rest(0, Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)))
+	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(0, 0.5, 0)))
+	sk.set_bone_rest(3, Transform3D(Basis.IDENTITY, Vector3(0, 0.03, 0)))
+	sk.set_meta("unity_bones", {110: 0, 111: 1, 112: 2, 113: 3})
+	var v := func(x: float, y: float, z: float) -> Dictionary: return {"x": str(x), "y": str(y), "z": str(z)}
+	var transform := func(go: int, father: int, at: Dictionary) -> Dictionary: return {"type": "Transform", "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(father)}, "m_LocalPosition": at}}
+	var object := func(name: String, components: Array, active := "1") -> Dictionary: return {"type": "GameObject", "data": {"m_Name": name, "m_IsActive": active, "m_Component": components.map(func(c: int) -> Dictionary: return {"component": {"fileID": str(c)}})}}
+	var contact := func(go: int, fields: Dictionary) -> Dictionary:
+		var d := {"m_GameObject": {"fileID": str(go)}, "m_Enabled": "1", "rootTransform": {"fileID": "0"}, "shapeType": "0", "radius": "0.1", "height": "0", "position": v.call(0, 0, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}, "collisionTags": ["Hand"]}
+		d.merge(fields, true)
+		return {"type": "MonoBehaviour", "data": d}
+	var objs := {
+		10: transform.call(110, 0, v.call(0, 1, 0)), 11: transform.call(111, 10, v.call(0, 0.5, 0)), 12: transform.call(112, 10, v.call(0, 0, 0)), 13: transform.call(113, 12, v.call(0, 0.03, 0)),
+		30: transform.call(130, 11, v.call(0.2, 0, 0)), 31: transform.call(131, 10, v.call(0, 0, 0.1)),
+		110: object.call("Chest", [10]), 111: object.call("Head", [11]), 112: object.call("Middle", [12]), 113: object.call("Tip", [13]),
+		130: object.call("Boop", [30, 40], "0"), 131: object.call("Badge", [31, 41]),
+		40: contact.call(130, {"shapeType": "1", "height": "0.5", "receiverType": "2", "parameter": "Boop", "allowSelf": "0", "allowOthers": "1", "localOnly": "1", "minVelocity": "0.1"}),
+		41: contact.call(131, {"collisionTags": ["Badge", "Torso"]}),
+	}
+	var descriptor := {"collider_head": {"state": "1", "transform": {"fileID": "11"}, "radius": "0.07", "height": "0", "position": v.call(0, 0.06, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}},
+		"collider_fingerIndexL": {"state": "0", "transform": {"fileID": "13"}, "radius": "0.01", "height": "0.05", "position": v.call(0, 0, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}},
+		"collider_handL": {"state": "2", "transform": {"fileID": "10"}, "radius": "0.02", "height": "0.08", "position": v.call(0, 0, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}}}
+	var report := {}
+	var out := UnityAvatar._contacts(objs, 10, descriptor, sk, {"by_object": {130: 3}}, {}, report)
+	var by_tag := {}
+	for c: Dictionary in out:
+		by_tag[c.tags[0] if not c.get("body", false) else "body " + c.tags[-1]] = c
+	check(by_tag.keys().size() == 4 and not by_tag.has("body HandL"), "the receiver, the sender and the two colliders not disabled: %s" % [out])
+	var boop: Dictionary = by_tag.get("Hand", {})
+	check(boop.get("node") == "Head" and boop.get("when") == [[3, 1]], "the receiver rides its parent bone and waits on its hidden object: %s" % [boop])
+	check(boop.get("receiver") == {"type": "proximity", "parameter": "Boop", "self": false, "others": true, "local": true, "minVelocity": 0.1}, "and keeps its receiving: %s" % [boop.get("receiver")])
+	var ends: Array = [boop.shape.offset, boop.shape.tail].map(func(a: Array) -> Vector3: return Vector3(a[0], a[1], a[2]))
+	check(ends[0].is_equal_approx(Vector3(-0.2, -0.15, 0)) and ends[1].is_equal_approx(Vector3(-0.2, 0.15, 0)) and is_equal_approx(boop.shape.radius, 0.1), "its capsule runs its height less the caps along Y, X mirrored: %s" % [boop.shape])
+	var badge: Dictionary = by_tag.get("Badge", {})
+	check(badge.get("node") == "Chest" and not badge.has("receiver") and not badge.shape.has("tail") and badge.tags == ["Badge", "Torso"], "a sender keeps its tags and sphere: %s" % [badge])
+	var head: Dictionary = by_tag.get("body Head", {})
+	check(head.get("node") == "Head" and Vector3(head.shape.offset[0], head.shape.offset[1], head.shape.offset[2]).is_equal_approx(Vector3(0, 0.06, 0)) and is_equal_approx(head.shape.radius, 0.07), "the head collider sends as the head: %s" % [head])
+	var finger: Dictionary = by_tag.get("body FingerIndexL", {})
+	var from := Vector3(finger.shape.offset[0], finger.shape.offset[1], finger.shape.offset[2])
+	var to := Vector3(finger.shape.tail[0], finger.shape.tail[1], finger.shape.tail[2])
+	check(finger.get("node") == "Tip" and from.is_equal_approx(Vector3(0, -0.03, 0)) and to.is_equal_approx(Vector3(0, 0.02, 0)), "a finger runs from its parent to its height past it: %s" % [finger.shape])
+	check(str(report.get("contacts", "")).begins_with("1 receivers, 1 senders"), "the report counts them: %s" % [report])
+	sk.free()
+
+
+## A clip curve on one of the controller's parameters binds a target writing that parameter, starting at its default,
+## its keys as Unity has them; one naming a parameter the controller lacks binds nothing.
+func _a_clip_animating_a_parameter_binds_it() -> void:
+	var targets := []
+	var parameters := {"Wetness": {"name": "Wetness", "type": "float", "default": 0.25}}
+	var at := UnityAvatar._target({"path": "", "attribute": "Wetness", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters)
+	check(at == 0 and targets[0].effect == {"parameter": "Wetness"} and targets[0].default == 0.25, "the parameter becomes a target at its default: %s" % [targets])
+	check(UnityAvatar._target({"path": "", "attribute": "Wetness", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters) == 0, "a second curve shares it")
+	check(UnityAvatar._target({"path": "", "attribute": "Missing", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters) == -1, "an unknown parameter binds nothing")
+
 
 func _installed_packages_lend_only_missing_images() -> void:
 	var root := ProjectSettings.globalize_path("user://lend")

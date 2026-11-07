@@ -13,7 +13,7 @@ static func region(effect: Variant) -> String:
 
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
-	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "menu", "icons"]:
+	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "contacts", "menu", "icons"]:
 		if not data.get(key, []) is Array:
 			return false
 	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is String):
@@ -51,7 +51,7 @@ static func valid(data: Dictionary) -> bool:
 				for key: String in ["value", "min", "max", "chance"]:
 					if not _number(driver.get(key, 0.0)):
 						return false
-	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", [])
+	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", []) + data.get("contacts", [])
 	for s: Variant in switched:
 		if not s is Dictionary or not s.get("when") is Array:
 			return false
@@ -67,6 +67,8 @@ static func valid(data: Dictionary) -> bool:
 	for collider: Dictionary in data.get("colliders", []):
 		if not _whole(collider.get("collider")):
 			return false
+	if not data.get("contacts", []).all(_contact):
+		return false
 	return looks_valid(data.get("looks", {}))
 
 
@@ -110,6 +112,20 @@ static func _hue(region: Dictionary) -> bool:
 	if v == null:
 		return region.get("field") != "decalHue"
 	return v is Dictionary and _number(v.get("shift", 0.0)) and _number(v.get("space", 0.0)) and _number(v.get("select", 1.0))
+
+
+## A contact: its "node", a "shape" of an "offset", a "radius" and, for a capsule, a "tail", its "tags" and, for a
+## receiver, its "receiver" fields (Contacts).
+static func _contact(c: Dictionary) -> bool:
+	var shape: Variant = c.get("shape")
+	if not _node(c.get("node")) or not shape is Dictionary or not _numbers(shape.get("offset"), 3) or not _number(shape.get("radius")) or shape.radius < 0 or (shape.has("tail") and not _numbers(shape.tail, 3)):
+		return false
+	if not c.get("tags") is Array or not c.tags.all(func(t: Variant) -> bool: return t is String) or not c.get("body", false) is bool:
+		return false
+	if not c.has("receiver"):
+		return true
+	var r: Variant = c.receiver
+	return r is Dictionary and r.get("type") in Contacts.RECEIVERS and r.get("parameter") is String and _number(r.get("minVelocity")) and ["self", "others", "local"].all(func(k: String) -> bool: return r.get(k) is bool)
 
 
 static func _number(v: Variant) -> bool:
@@ -200,6 +216,8 @@ static func _effect(effect: Variant) -> bool:
 	if effect.has("rotation"):
 		var rest: Variant = effect.rotation.get("rest") if effect.rotation is Dictionary else null
 		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and _index(effect.rotation.get("axis"), rest.size())
+	if effect.has("parameter"):
+		return effect.parameter is String
 	if effect.has("constraint"):
 		return effect.constraint is Dictionary and _node(effect.constraint.get("node"))
 	if effect.has("translation"):

@@ -148,6 +148,11 @@ static func wearable(root: Node3D) -> void:
 	for key: String in bone_of:
 		if key in Vrm.BONES:
 			renamed[bone_of[key]] = key
+	var was := {}
+	for i: int in renamed:
+		was[sk.get_bone_name(i)] = renamed[i]
+	for c: Dictionary in root.get_meta("expressions", {}).get("contacts", []):
+		c.node = was.get(c.node, c.node)
 	# Two passes, so a bone may take the name another humanoid bone is about to give up.
 	for i: int in renamed:
 		sk.set_bone_name(i, "unity_avatar %d" % i)
@@ -344,6 +349,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 			if c["class"] == "4" and paths.has(c.path):
 				moved[paths[c.path]] = true
 	var springs := _springs(objs, found.transform, sk, named, k, report, switches, moved)
+	var contacts := _contacts(objs, found.transform, found.descriptor, sk, switches, moved, report)
 	var switched: Dictionary = springs.get("switched", {})
 	springs.erase("switched")
 	var human := {}
@@ -364,6 +370,8 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		for key: String in switched:
 			if not (switched[key] as Array).is_empty():
 				bound[key] = switched[key]
+		if not contacts.is_empty():
+			bound.contacts = contacts
 		root.set_meta("expressions", bound)
 	for name: String in face.expressions:
 		var binds := []
@@ -652,7 +660,7 @@ static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
 	for id: int in Prefabs.components(objs, go):
 		var d: Dictionary = objs.get(id, {}).get("data", {})
-		if Yaml.guid(d.get("m_Script")) == script and (_spring_component(d) or not _collider(d).is_empty()):
+		if Yaml.guid(d.get("m_Script")) == script and (_spring_component(d) or _contact_component(d) or not _collider(d).is_empty()):
 			return id
 	return 0
 
@@ -683,12 +691,15 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			targets[m.swap].effect = {"material": {"node": m.node, "choices": m.choices}}
 	var by_curve: Dictionary = switches.by_curve.duplicate()
 	var dropped := expressions.dropped.duplicate()
+	var parameters := {}
+	for p: Dictionary in data.parameters:
+		parameters[p.name] = p
 	for clip: Dictionary in data.clips:
 		var curves := []
 		for c: Dictionary in clip.curves:
 			var key := _curve_key(c)
 			if not by_curve.has(key):
-				var target := _target(c, objs, paths, meshes, shapes, sk, targets, materials)
+				var target := _target(c, objs, paths, meshes, shapes, sk, targets, materials, parameters)
 				if target < 0:
 					var kind := "shader property" if c.attribute.begins_with("material.") else "%s on class %s" % [c.attribute.get_slice(".", 0), c["class"]]
 					dropped[kind + " curve"] = dropped.get(kind + " curve", 0) + 1
@@ -712,6 +723,8 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = _scaled(c["keys"], 0.01)
+			elif targets[t].effect is Dictionary and targets[t].effect.has("parameter"):
+				curve.keys = c["keys"].duplicate(true)
 			else:
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0 if k[1] != 0.0 else 0.0])
 			curves.append(curve)
@@ -826,7 +839,16 @@ static func _animated(data: Dictionary, motion: Dictionary) -> Dictionary:
 	return out
 
 
-static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials) -> int:
+static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials, parameters := {}) -> int:
+	if c["class"] == VRCFury.ANIMATOR and c.path == "" and not c.has("refs"):
+		if not parameters.has(c.attribute):
+			return -1
+		var effect := {"parameter": c.attribute}
+		for i in targets.size():
+			if targets[i].effect is Dictionary and targets[i].effect == effect:
+				return i
+		targets.append({"effect": effect, "default": float(parameters[c.attribute].get("default", 0.0)), "rest": 1.0})
+		return targets.size() - 1
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
 	var transform: int = paths[c.path]
@@ -2164,6 +2186,116 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups, "switched": switched}
 
 
+## The avatar's VRChat contacts, each on the nearest kept bone at or above its root transform (its own bone where the menu
+## moves it), as the expressions' "contacts" take them: {"node": bone name, "shape": {"offset", "radius"} and a capsule's
+## "tail", in the bone's rest frame, "tags", "when" (the switches it runs under) and a receiver's "receiver": {"type",
+## "parameter", "self", "others", "local", "minVelocity"}}.
+static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Skeleton3D, switches: Dictionary, moved: Dictionary, report: Dictionary) -> Array:
+	var live := {}
+	for e: Array in _under(objs, top):
+		live[Yaml.file_id(objs[e[0]].data.get("m_GameObject"))] = true
+	var rests: Array[Transform3D] = []
+	for bone in sk.get_bone_count():
+		rests.append(sk.get_bone_global_rest(bone))
+	var bones: Dictionary = sk.get_meta("unity_bones", {})
+	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
+	var out := []
+	var counts := {"senders": 0, "receivers": 0, "idle": 0, "unplaced": 0, "unknown": 0}
+	for id: int in objs:
+		var d: Dictionary = objs[id].data
+		if objs[id].type != "MonoBehaviour" or not _contact_component(d):
+			continue
+		var go := Yaml.file_id(d.get("m_GameObject"))
+		var t := Yaml.file_id(d.get("rootTransform"))
+		if t == 0:
+			t = Prefabs.transform_of(objs, go) if objs.has(go) else 0
+		var when: Variant = _when(objs, id, d, switches)
+		if not live.has(go) or when == null:
+			counts.idle += 1
+			continue
+		if moved.has(t):
+			_as_bone(objs, t, sk, rests)
+		var bone := -1
+		var owner := t
+		for at: int in Prefabs.ancestors(objs, t):
+			bone = bones.get(Yaml.file_id(objs.get(at, {}).get("data", {}).get("m_GameObject")), -1)
+			owner = at
+			if bone >= 0:
+				break
+		if bone < 0:
+			counts.unplaced += 1
+			continue
+		var placed := frame * _world_transform(objs, t) * Transform3D(Basis(_turn(d.get("rotation"))), _mirrored(d.get("position")))
+		var held := sk.get_bone_global_rest(bone)
+		var unity_held := frame * _world_transform(objs, owner)
+		var local := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * (unity_held.affine_inverse() * placed)
+		var scale: Vector3 = placed.basis.get_scale().abs()
+		var radius := str(d.get("radius", "0")).to_float()
+		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
+		var shape := {"offset": v.call(local.origin), "radius": radius * scale[scale.max_axis_index()] / held.basis.get_scale().x}
+		var half := maxf(str(d.get("height", "0")).to_float() / 2.0 - radius, 0.0)
+		if str(d.get("shapeType", "0")) == "1" and half > 0.0:
+			shape.offset = v.call(local * (Vector3.DOWN * half))
+			shape.tail = v.call(local * (Vector3.UP * half))
+		var contact := {"node": sk.get_bone_name(bone), "shape": shape, "tags": Yaml.list(d.get("collisionTags")).map(func(tag: Variant) -> String: return str(tag)), "when": when}
+		if d.has("receiverType"):
+			var type := str(d.receiverType).to_int() if str(d.receiverType).is_valid_int() else -1
+			if type < 0 or type >= Contacts.RECEIVERS.size():
+				counts.unknown += 1
+				continue
+			contact.receiver = {"type": Contacts.RECEIVERS[type], "parameter": str(d.get("parameter", "")), "self": str(d.get("allowSelf", "1")) == "1", "others": str(d.get("allowOthers", "1")) == "1", "local": str(d.get("localOnly", "0")) == "1", "minVelocity": str(d.get("minVelocity", "0.05")).to_float()}
+			counts.receivers += 1
+		else:
+			counts.senders += 1
+		out.append(contact)
+	out.append_array(_body_contacts(objs, descriptor, sk))
+	if out.size() + counts.idle + counts.unplaced + counts.unknown > 0:
+		report["contacts"] = "%d receivers, %d senders, %d body senders (%d no menu turns on dropped, %d on no kept bone dropped, %d receivers of an unknown type dropped)" % [counts.receivers, counts.senders, out.size() - counts.receivers - counts.senders, counts.idle, counts.unplaced, counts.unknown]
+	return out
+
+
+## The senders VRChat makes on every humanoid avatar from its descriptor's colliders, as `_contacts` gives contacts, each
+## marked "body"; none where the descriptor has no colliders (Contacts.BODY then stands in). A finger's runs from its
+## parent's origin out along the bone, as VRChat's client builds it.
+static func _body_contacts(objs: Dictionary, descriptor: Dictionary, sk: Skeleton3D) -> Array:
+	var out := []
+	var bones: Dictionary = sk.get_meta("unity_bones", {})
+	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
+	for key: String in Contacts.BODY:
+		var c: Variant = descriptor.get("collider_" + key)
+		if not c is Dictionary or str(c.get("state", "0")) == "2":
+			continue
+		var t := Yaml.file_id(c.get("transform"))
+		var bone: int = bones.get(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject")), -1)
+		if bone < 0:
+			continue
+		var held := sk.get_bone_global_rest(bone)
+		var unity_held := frame * _world_transform(objs, t)
+		var into := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * unity_held.affine_inverse()
+		var scale := unity_held.basis.get_scale().abs()
+		var radius := minf(str(c.get("radius", "0")).to_float() * scale[scale.max_axis_index()], 3.0)
+		var height := str(c.get("height", "0")).to_float() * scale[scale.max_axis_index()]
+		var shape := {}
+		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
+		if key.begins_with("finger"):
+			var along := _mirrored(objs[t].data.get("m_LocalPosition"))
+			var parent := frame * _world_transform(objs, Yaml.file_id(objs[t].data.get("m_Father")))
+			shape = {"offset": v.call(into * parent.origin), "tail": v.call(into * (unity_held * (along.normalized() * maxf(height / scale[scale.max_axis_index()] - along.length(), 0.0)))), "radius": radius / held.basis.get_scale().x}
+		else:
+			var placed := unity_held * Transform3D(Basis(_turn(c.get("rotation"))), _mirrored(c.get("position")))
+			var half := maxf(height / 2.0 - radius, 0.0) / scale[scale.max_axis_index()]
+			shape = {"offset": v.call(into * (placed * (Vector3.DOWN * half))), "radius": radius / held.basis.get_scale().x}
+			if half > 0.0:
+				shape.tail = v.call(into * (placed * (Vector3.UP * half)))
+		out.append({"node": sk.get_bone_name(bone), "shape": shape, "tags": Contacts.BODY[key][0], "when": [], "body": true})
+	return out
+
+
+## Whether a component is a VRChat contact sender or receiver.
+static func _contact_component(d: Dictionary) -> bool:
+	return d.has("collisionTags") and d.has("shapeType")
+
+
 ## A PhysBone or DynamicBone collider in its transform's space (Unity's axes, X mirrored): `local` places it, `axis` is
 ## a capsule's length and a plane's normal there, `half` the distance from its middle to each end's centre (0 for a
 ## sphere). Empty for any other component.
@@ -2293,9 +2425,9 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 			var d: Dictionary = objs[id].data
 			var kind: String = objs[id].type
 			if kind == "MonoBehaviour":
-				if d.has("ViewPosition") or d.has("pull") or d.has("insideBounds"):
+				if d.has("ViewPosition") or d.has("pull") or d.has("insideBounds") or _contact_component(d):
 					continue
-				kind = "Contact" if d.has("collisionTags") else "Constraint" if d.has("Sources") or d.has("sources") else "script"
+				kind = "Constraint" if d.has("Sources") or d.has("sources") else "script"
 			kinds[kind] = kinds.get(kind, 0) + 1
 	if Yaml.list(descriptor.get("VisemeBlendShapes")).size() > 0:
 		kinds["visemes"] = Yaml.list(descriptor.get("VisemeBlendShapes")).size()

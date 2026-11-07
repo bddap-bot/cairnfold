@@ -179,6 +179,10 @@ var posture := Posture.new()
 var stand_in := false
 var springs: SpringRuntime
 var simulate_springs := true
+## Whether this is the player's own avatar, where alone its local-only contacts run.
+var local := false
+var _senders := []
+var _senders_frame := -1
 var expressions: ExpressionPlayer
 var spring_holders := {}
 var _model: Node3D
@@ -614,10 +618,9 @@ static func _merged(im: ImporterMesh) -> ImporterMesh:
 ## draws none (`whole` false, Quality.files), built-in avatar `body` in the file's colour, as VRChat draws an avatar a
 ## headset cannot afford. Either way it carries the file's identity.
 static func drawn(scene: PackedScene, tint: Color, from: String, whole: bool, body := 0) -> Avatar:
-	if whole or from == "":
-		return open(scene, tint, from)
-	var a := open(built_in(body), scene.get_meta("colour", Color.WHITE), from)
-	a.stand_in = true
+	var a := open(scene, tint, from) if whole or from == "" else open(built_in(body), scene.get_meta("colour", Color.WHITE), from)
+	a.stand_in = not (whole or from == "")
+	a.add_to_group(Contacts.BODIES)
 	return a
 
 
@@ -710,6 +713,24 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		a.expressions = ExpressionPlayer.new(a._model)
 		a.add_child(a.expressions)
 	return a
+
+
+## The contact senders this body carries in world space this frame (Contacts.BODIES): VRChat's built-in ones on its
+## humanoid bones (Contacts.BODY) unless its file gives its body's, and its expressions' own; none while it is hidden.
+func contact_senders() -> Array:
+	var frame := Engine.get_process_frames()
+	if frame == _senders_frame:
+		return _senders
+	_senders_frame = frame
+	_senders = []
+	if not is_visible_in_tree():
+		return _senders
+	var joint := func(name: String) -> Variant: return bone(name).origin if _joints.has(name) else null
+	if expressions == null or not expressions.contacts.carries_body:
+		_senders = Contacts.body_senders(joint, eye_height * global_transform.basis.get_scale().y, self)
+	if expressions != null:
+		_senders.append_array(expressions.contacts.senders(expressions.state.outputs, self))
+	return _senders
 
 
 ## Each finger of hand `side` the model has, its bones curling toward the palm, a thumb across it: a VRM rests palms down.

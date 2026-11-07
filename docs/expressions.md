@@ -27,7 +27,12 @@ clips and blend trees. Targets include visibility, blend shapes, bone scales,
 atlas material choices and hue regions. VRCFury features join the menu as
 VRCFury builds them at upload: each Toggle becomes a control, its parameter and
 a layer of its actions, and each FullController's FX controller, menus and
-parameters merge in before MoveMenuItem and SetIcon apply. A Poiyomi UDIM
+parameters merge in before MoveMenuItem and SetIcon apply. A clip that animates one of
+the controller's own parameters writes it every frame, as Unity's animator does. The
+avatar's VRChat contacts come along: each receiver sets its parameter from the tagged
+senders touching it (constant, on enter, or proximity), the wearer's hands and every
+other player among them, each body carrying the senders VRChat gives every avatar.
+A Poiyomi UDIM
 discard tile is a switch: its triangles draw while it is off. The importer reports controller features
 it cannot translate. Menu semantics follow the
 [VRChat Expressions Menu documentation](https://creators.vrchat.com/avatars/expression-menu-and-controls/).

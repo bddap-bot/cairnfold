@@ -15,6 +15,8 @@ const MENULESS := ["ArmatureLink", "BlendShapeLink", "BlendshapeOptimizer", "Fix
 const BUILT_IN := ["IsLocal", "Viseme", "Voice", "GestureLeft", "GestureRight", "GestureLeftWeight", "GestureRightWeight", "AngularY", "VelocityX", "VelocityY", "VelocityZ", "VelocityMagnitude", "Upright", "Grounded", "Seated", "AFK", "TrackingType", "VRMode", "MuteSelf", "InStation", "Earmuffs", "IsOnFriendsList", "AvatarVersion", "IsAnimatorEnabled", "ScaleModified", "ScaleFactor", "ScaleFactorInverse", "EyeHeightAsMeters", "EyeHeightAsPercent"]
 ## The most controls a VRChat menu shows; VRCFury pages the rest into a "Next" submenu.
 const MENU_SLOTS := 8
+## The Unity class ID of a clip curve on one of the controller's own parameters, which the merge renames with it.
+const ANIMATOR := "95"
 ## Toggle settings that change behaviour this translation does not reproduce.
 const TOGGLE_UNTRANSLATED := ["separateLocal", "hasTransition", "invertRestLogic", "exclusiveOffState", "securityEnabled"]
 
@@ -61,7 +63,7 @@ static func apply(ex: Expressions, objs: Dictionary, paths: Dictionary) -> void:
 			"Toggle":
 				_toggle(ex, objs, paths, path_of, f, exclusive)
 			"FullController":
-				_full_controller(ex, paths, f, own)
+				_full_controller(ex, objs, paths, f, own)
 			"MoveMenuItem", "SetIcon":
 				menu_edits.append(f)
 			var other:
@@ -239,8 +241,9 @@ static func _driver(parameter: String, value: float) -> Dictionary:
 
 ## A FullController merged as VRCFury merges one: its FX layers with clips of their own, bindings resolved from its
 ## object, its parameters renamed apart from every other's (but the global ones, VRChat's own and those the avatar's own
-## expression parameters name, which it shares), and its menus under their prefixes.
-static func _full_controller(ex: Expressions, paths: Dictionary, f: Dictionary, own: Dictionary) -> void:
+## expression parameters name, which it shares) on its layers, its clips and the contacts under its object, and its
+## menus under their prefixes.
+static func _full_controller(ex: Expressions, objs: Dictionary, paths: Dictionary, f: Dictionary, own: Dictionary) -> void:
 	var d: Dictionary = f.data
 	var rewrites := Yaml.list(d.get("rewriteBindings"))
 	var lists := []
@@ -295,6 +298,10 @@ static func _full_controller(ex: Expressions, paths: Dictionary, f: Dictionary, 
 		for i in range(first, ex.data.clips.size()):
 			var kept := []
 			for curve: Dictionary in ex.data.clips[i].curves:
+				if curve["class"] == ANIMATOR and curve.path == "":
+					curve.attribute = renamed.call(curve.attribute)
+					kept.append(curve)
+					continue
 				var path: Variant = _rewritten(rewrites, curve.path)
 				if path != null:
 					curve.path = _resolve(paths, f.at, path)
@@ -302,6 +309,11 @@ static func _full_controller(ex: Expressions, paths: Dictionary, f: Dictionary, 
 			ex.data.clips[i].curves = kept
 	_rename_layers(layers, renamed)
 	ex.data.layers.append_array(layers)
+	var top: int = paths.get(f.at, 0)
+	for id: int in objs:
+		var c: Dictionary = objs[id].data
+		if objs[id].type == "MonoBehaviour" and c.has("collisionTags") and c.has("parameter") and Prefabs.ancestors(objs, Prefabs.transform_of(objs, Yaml.file_id(c.get("m_GameObject")))).has(top):
+			c.parameter = renamed.call(str(c.get_or_add("unrenamed parameter", c.parameter)))
 	for m: Variant in Yaml.list(d.get("menus")):
 		if not m is Dictionary:
 			continue

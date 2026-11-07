@@ -167,6 +167,8 @@ func wear(a: Avatar) -> void:
 	if body != null:
 		body.queue_free()
 	body = a
+	a.local = true
+	a.add_to_group(Contacts.BODIES)
 	a.top_level = true
 	a.ground = func(p: Vector3) -> float: return floor_under.call(p)
 	a.visible = true

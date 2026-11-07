@@ -11,6 +11,7 @@ var elapsed: Array[float] = []
 var _layer_values: Array[Dictionary] = []
 var _layer_targets: Array[Dictionary] = []
 var pulses := {}
+var _animated_parameters: Array[int] = []
 var opened: Array[Dictionary] = []
 var revision := 0
 ## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
@@ -24,6 +25,8 @@ func _init(definition: Dictionary) -> void:
 		put(p.name, p.get("default", 0.0))
 	for t: Dictionary in data.get("targets", []):
 		outputs.append(float(t.get("default", 0.0)))
+		if t.effect is Dictionary and t.effect.has("parameter") and definitions.has(t.effect.parameter):
+			_animated_parameters.append(outputs.size() - 1)
 	for layer: Dictionary in data.get("layers", []):
 		states.append(-1)
 		elapsed.append(0.0)
@@ -133,6 +136,14 @@ func advance(delta: float) -> void:
 	for i in states.size():
 		for t: int in _layer_values[i]:
 			outputs[t] = lerpf(outputs[t], _layer_values[i][t], float(data.layers[i].get("weight", 1.0)))
+	# The animator writes a parameter its clips animate every frame, past the menu's range, so a driver or the menu
+	# setting it holds only until the next.
+	for t: int in _animated_parameters:
+		var key: String = data.targets[t].effect.parameter
+		var v := outputs[t] if definitions[key].type == "float" else roundf(outputs[t])
+		if values.get(key) != v:
+			values[key] = v
+			revision += 1
 	for i in opened.size():
 		var c := opened[i]
 		if c.get("parameter", "") != "" and not active(c):

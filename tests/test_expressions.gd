@@ -14,6 +14,8 @@ func _init() -> void:
 	_moving_targets_leave_regions_bound()
 	_lighting()
 	_theme_recolours_the_emission()
+	_animated_parameters()
+	_contacts()
 	finish()
 
 
@@ -457,3 +459,78 @@ func _malformed() -> void:
 	var state := ExpressionState.new({"layers": [{}]})
 	state.advance(0.1)
 	check(state.outputs.is_empty(), "malformed external data never enters the evaluator")
+
+
+## A clip animating a parameter writes it every frame, past the menu's range, and the layers read what it wrote.
+func _animated_parameters() -> void:
+	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0}, {"name": "Wetness", "type": "float", "default": 0.0}],
+		"targets": [{"effect": {"parameter": "Wetness"}, "default": 0.0}, {"effect": "switch", "default": 0.0}], "menu": [],
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 0], [1, 2000]]}]}, {"length": 0.0, "curves": [{"target": 1, "keys": [[0, 1]]}]}],
+		"layers": [{"states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Reset", "mode": "if"}]}]}, {"motion": {}, "transitions": []}]},
+			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Wetness", "mode": "greater", "threshold": 500.0}]}]}, {"motion": {"clip": 1}, "transitions": []}]}]}
+	check(ExpressionDefinition.valid(definition), "a parameter target is valid")
+	var state := ExpressionState.new(definition)
+	state.advance(0.5)
+	check(is_equal_approx(state.values.Wetness, 1000.0), "the clip writes the parameter beyond the menu's range: %s" % [state.values.Wetness])
+	state.put("Wetness", 0.0)
+	state.advance(0.0)
+	check(is_equal_approx(state.values.Wetness, 1000.0), "the animator overwrites what else set it")
+	state.advance(0.0)
+	check(state.outputs[1] == 1.0, "another layer reads the animated value")
+	state.put("Reset", 1.0)
+	state.advance(0.1)
+	check(state.values.Wetness == 0.0, "a state not animating it, writing defaults, returns it to its default")
+
+
+class Body:
+	extends RefCounted
+	var rows := []
+
+	func _init(r: Array) -> void:
+		rows = r
+
+
+## Receivers write their parameters from tagged senders touching them: constant while one does, on enter for the frame
+## one arrives fast enough, proximity by how near the centre the nearest surface reaches; self and others as allowed.
+func _contacts() -> void:
+	var sk := Skeleton3D.new()
+	sk.add_bone("Head")
+	sk.set_bone_rest(0, Transform3D(Basis.IDENTITY, Vector3(0, 1.5, 0)))
+	sk.reset_bone_poses()
+	var receiver := func(type: String, parameter: String, others := true, own := false) -> Dictionary:
+		return {"node": "Head", "shape": {"offset": [0, 0, 0], "radius": 0.2}, "tags": ["Hand"], "when": [], "receiver": {"type": type, "parameter": parameter, "self": own, "others": others, "local": false, "minVelocity": 1.0}}
+	var definition := {"parameters": [{"name": "Near", "type": "float", "default": 0.0}, {"name": "On", "type": "bool", "default": 0.0}, {"name": "Tap", "type": "bool", "default": 0.0}, {"name": "Mine", "type": "bool", "default": 0.0}],
+		"targets": [], "clips": [], "layers": [], "menu": [],
+		"contacts": [receiver.call("proximity", "Near"), receiver.call("constant", "On"), receiver.call("onEnter", "Tap"), receiver.call("constant", "Mine", false, true),
+			{"node": "Head", "shape": {"offset": [0, 0, 0.1], "radius": 0.05}, "tags": ["Hand"], "when": []}]}
+	check(ExpressionDefinition.valid(definition), "contacts are valid")
+	check(not ExpressionDefinition.valid({"contacts": [{"node": "Head", "shape": {"offset": [0, 0], "radius": 1}, "tags": [], "when": []}]}), "a contact without a point is refused")
+	var partial: Dictionary = definition.contacts[0].duplicate(true)
+	partial.receiver.erase("self")
+	check(not ExpressionDefinition.valid({"contacts": [partial]}), "a receiver missing a field is refused")
+	var state := ExpressionState.new(definition)
+	var contacts := Contacts.new(definition.contacts, func(_n: Variant) -> Array: return [sk, 0])
+	var me := Body.new([])
+	var other := Body.new([])
+	var hand := func(at: Vector3, tags := ["Hand"]) -> Array: return [at, at, 0.05, Contacts._tagged(tags), other, [other.get_instance_id(), "handL"]]
+	var head := Vector3(0, 1.5, 0)
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.35))], me, true, 1.0 / 60.0)
+	check(state.values.Near == 0.0 and state.values.On == 0.0, "a hand short of the receiver touches nothing")
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.15))], me, true, 1.0 / 60.0)
+	check(is_equal_approx(state.values.Near, 0.5) and state.values.On == 1.0 and state.values.Tap == 1.0, "inside, proximity reads from the hand's surface and the entry taps: %s" % [state.values])
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.15))], me, true, 1.0 / 60.0)
+	check(state.values.Tap == 0.0 and state.values.On == 1.0, "the tap lasts one frame; contact holds")
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.5))], me, true, 1.0 / 60.0)
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.49))], me, true, 1.0 / 60.0)
+	contacts.sense(state, [hand.call(head + Vector3(0, 0, 0.24))], me, true, 1.0)
+	check(state.values.Tap == 0.0 and state.values.On == 1.0, "an entry slower than its minimum velocity does not tap")
+	contacts.sense(state, [hand.call(head, ["Foot"])], me, true, 1.0 / 60.0)
+	check(state.values.On == 0.0, "a sender without a shared tag touches nothing")
+	var own := contacts.senders(state.outputs, me)
+	check(own.size() == 1 and (own[0][0] as Vector3).is_equal_approx(head + Vector3(0, 0, 0.1)) and own[0][4] == me, "the avatar's own sender is placed by its bone: %s" % [own])
+	contacts.sense(state, [own[0]], me, true, 1.0 / 60.0)
+	check(state.values.Mine == 1.0 and state.values.On == 0.0, "its own sender reaches only the receiver allowing self")
+	var body := Contacts.body_senders(func(b: String) -> Variant: return {"leftHand": Vector3(0.5, 1.2, 0), "leftMiddleProximal": Vector3(0.6, 1.2, 0), "leftFoot": Vector3.ZERO}.get(b), 1.5, me)
+	var keys := body.map(func(s: Array) -> String: return s[5][1])
+	check(keys == ["handL", "footL"] and (body[0][1] as Vector3).is_equal_approx(Vector3(0.6, 1.2, 0)) and is_equal_approx(body[0][2], 0.014 * 1.5), "a body without toes or a head sends from what it has, its foot from the foot: %s" % [body])
+	sk.free()
