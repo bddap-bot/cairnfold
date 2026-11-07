@@ -683,8 +683,8 @@ static func _colour(json: Dictionary, means: Array) -> Color:
 
 
 ## Each skin is written binding every bone of its skeleton: a bone no skin binds would read back as a plain node, and
-## a read skin keeps only the bones its vertices weigh (Skins).
-static func write(root: Node3D, path: String) -> void:
+## a read skin keeps only the bones its vertices weigh (Skins). `extras` become the file's asset extras.
+static func write(root: Node3D, path: String, extras := {}) -> void:
 	var doc := _doc()
 	doc.visibility_mode = GLTFDocument.VISIBILITY_MODE_INCLUDE_OPTIONAL
 	doc.image_format = "Lossless WebP"
@@ -704,7 +704,7 @@ static func write(root: Node3D, path: String) -> void:
 		mi.skin = worn[mi]
 	assert(err == OK, "vrm: cannot export %s" % root.name)
 	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_buffer(_positional(glb))
+	f.store_buffer(_positional(glb, extras))
 
 
 static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
@@ -723,7 +723,7 @@ static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
 ## tangents. Godot writes a target's normals and tangents as unit vectors rather than their change and keeps none an
 ## importer hands it, so its own would turn every normal of the mesh; a shape's normals follow from its moved surface, as
 ## Unity computes them by default.
-static func _positional(glb: PackedByteArray) -> PackedByteArray:
+static func _positional(glb: PackedByteArray, extras := {}) -> PackedByteArray:
 	var json_size := glb.decode_u32(12)
 	var json: Dictionary = json_chunk(glb)
 	var bin := glb.slice(28 + json_size, 28 + json_size + glb.decode_u32(20 + json_size))
@@ -788,6 +788,8 @@ static func _positional(glb: PackedByteArray) -> PackedByteArray:
 			r[0][r[1]] = renumbered[int(r[0][r[1]])]
 	json.bufferViews = out_views
 	json.buffers = [{"byteLength": out_bin.size()}]
+	if not extras.is_empty():
+		json.asset.extras = extras
 	var text := JSON.stringify(_whole(json), "", false, true).to_utf8_buffer()
 	while text.size() % 4 != 0:
 		text.append(0x20)

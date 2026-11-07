@@ -18,7 +18,7 @@ extends SceneTree
 ## spring chains, and its menu, parameters and FX controller, with what its VRCFury features add, become the model's
 ## "expressions" (VRCHAT_expressions in a VRM); its visemes, eyelid blink and the faces its FX layer makes for hand
 ## gestures become VRM expressions, "faces" on the root as Vrm.write takes them. No VRM lies between: VRM cannot carry what later importer work adds to the model.
-## The importer prints what it kept and dropped.
+## The importer prints what it kept and dropped. A VRM carries in its asset extras the "converter" source() that wrote it.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
@@ -77,7 +77,7 @@ func _run() -> void:
 	var vrm: bool = args[1].get_extension() == "vrm"
 	if vrm:
 		wearable(root)
-		Vrm.write(root, args[1])
+		Vrm.write(root, args[1], {"converter": source()})
 		root.free()
 		var bytes := FileAccess.get_file_as_bytes(args[1])
 		if Avatar.read(bytes, true) == null:
@@ -102,6 +102,17 @@ func _run() -> void:
 	for k: String in report:
 		print("unity_avatar: %s: %s" % [k, report[k]])
 	quit()
+
+
+## The commit of this checkout and whether its tracked files differ from it, as {"commit", "dirty"}: a file a dirty
+## tree or an unlanded commit wrote is one no landed converter reproduces.
+static func source() -> Dictionary:
+	var root := ProjectSettings.globalize_path("res://..")
+	var head := []
+	var status := []
+	var committed := OS.execute("git", ["-C", root, "rev-parse", "HEAD"], head) == 0
+	var clean := OS.execute("git", ["-C", root, "status", "--porcelain", "--untracked-files=no"], status) == 0 and str(status[0]).strip_edges() == ""
+	return {"commit": str(head[0]).strip_edges() if committed else "", "dirty": not clean}
 
 
 ## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, with the humanoid's
