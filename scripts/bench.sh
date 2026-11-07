@@ -15,9 +15,7 @@
 #                                             in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
-# On a Quest, exits 1 when a phase goes over budget. Only measuring are phases named "sweep/...", pricing phases, and
-# those whose label the scene marks "past_budget" while their garden is past the build budget (World.fill over 1), which
-# no player can build; a marked phase whose garden the budget admits is held.
+# On a Quest, exits 1 when a phase goes over budget, but for those scripts/past_budget.py lets past it.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured, benched on the tree that lands, or on a commit main holds, added by a commit that changes no build (records.sh).
@@ -299,8 +297,9 @@ fi
 scene=$(basename "${CAIRNFOLD_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 failed=
-python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1
+PYTHONPATH=$here python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1
 import bisect, json, os, re, sys
+from past_budget import past_budget
 out, device, record, players = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
@@ -309,7 +308,7 @@ for name in ["logcat.txt", "godot.log"]:
             if any("When supplying a custom region, it must be contained within the framebuffer rectangle" in line for line in log):
                 sys.exit(f"bench: invalid framebuffer region; rendering failed, see {name}")
 d = json.load(open(os.path.join(out, "metrics.json")))
-marked = {s["name"] for s in json.load(open(os.path.join(out, "stress.json"))) if s.get("op") == "label" and s.get("past_budget")}
+labels = {s["name"]: s for s in json.load(open(os.path.join(out, "stress.json"))) if s.get("op") == "label"}
 budget = d["info"]["budget"]
 phases = {}
 for s in d["seconds"]:
@@ -431,7 +430,7 @@ for name, secs in phases.items():
         if device == "frame":
             row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
         if device == "quest":
-            measured = name.startswith("sweep/") or (name in marked and fill > 1)
+            measured = past_budget(labels.get(name, {"name": name}), fill)
             if g <= budget["gpu_ms"]:
                 row += " holds"
             elif measured:
