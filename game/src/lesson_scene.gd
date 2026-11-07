@@ -95,7 +95,9 @@ func _init(i: int, see_through := false) -> void:
 	_mark.material_override = Meshes.glow(Color(1.0, 0.95, 0.8), false)
 	_mark.visible = false
 	stage.add_child(_mark)
-	call("_build_" + page.effect)
+	if has_method("_build_" + page.effect):
+		call("_build_" + page.effect)
+	_reset()
 
 
 ## Looks over the hands at what they act on: from behind them along the line to it, beside and under the acting
@@ -160,12 +162,16 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
+func _reset() -> void:
+	if has_method("_reset_" + page.effect):
+		call("_reset_" + page.effect)
+
+
 func advance(delta: float) -> void:
 	t += delta
 	if t >= page.length + REST:
 		t = 0.0
-		if has_method("_reset_" + page.effect):
-			call("_reset_" + page.effect)
+		_reset()
 	fade = 0.7 * (1.0 - minf(smoothstep(0.0, FADE_S, t), 1.0 - smoothstep(page.length + REST - FADE_S, page.length + REST, t)))
 	_pose(minf(t, page.length))
 
@@ -284,7 +290,6 @@ func _build_tool() -> void:
 		icon.position = Vector3(dirs[k].x, dirs[k].y, 0) * ToolWheel.RADIUS
 		wheel.add_child(icon)
 		_fx.icons.append(icon)
-	_reset_tool()
 
 
 func _reset_tool() -> void:
@@ -383,10 +388,6 @@ func _play_undo(at: float) -> void:
 
 
 # Shaping the ground: the grip takes the meadow where the hand points, and the hand raised pulls a hill.
-func _build_hill() -> void:
-	_fx.from = INF
-
-
 func _reset_hill() -> void:
 	_fx.from = INF
 
@@ -515,7 +516,6 @@ func _play_colour(at: float) -> void:
 # it taller as they draw apart upright.
 func _build_house() -> void:
 	_fx.house = _prop(Hand.Tool.HOUSE, _dish_at(), 1.0)
-	_reset_house()
 
 
 func _reset_house() -> void:

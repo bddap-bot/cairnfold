@@ -539,7 +539,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 ## The meadow's own group as it grows, every plant standing and every tree an oak, its trees and bushes charged as
 ## planted ones are.
 func _grow_meadow() -> void:
-	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}, "turns": {}}
+	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees, "bushes": flora.meadow_bushes, "species": {}, "scale": {}, "moss": {}, "places": {}, "turns": {}}
 	if _meadow_units.is_empty():
 		for p: Flora.Plant in flora.groups[0]:
 			if p != null:
@@ -1519,7 +1519,7 @@ func _rebuild(cmds: Array) -> int:
 ## Hides the meadow's own flowers, bushes and trees, leaving its grass.
 func _bare_meadow() -> void:
 	var hidden: Dictionary = state.groups[0].hidden
-	for i in flora.set_shown(0, flora.meadow_scenery(), false):
+	for i in flora.set_shown(0, flora.meadow_scenery, false):
 		hidden[i] = true
 		Budget.add(units, _unit(0, flora.groups[0][i]), -1.0)
 

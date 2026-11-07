@@ -426,3 +426,18 @@ static func join(into: Array, arrays: Array) -> void:
 			var joined: Variant = into[k]
 			joined.append_array(arrays[k])
 			into[k] = joined
+
+
+## An empty mesh with `im`'s name and blend shapes, to rebuild `im`'s surfaces into.
+static func shaped_like(im: ImporterMesh) -> ImporterMesh:
+	var out := ImporterMesh.new()
+	out.resource_name = im.resource_name
+	out.set_blend_shape_mode(im.get_blend_shape_mode())
+	for k in im.get_blend_shape_count():
+		out.add_blend_shape(im.get_blend_shape_name(k))
+	return out
+
+
+## Surface `i` of `im` as each of its blend shapes moves it.
+static func surface_shapes(im: ImporterMesh, i: int) -> Array:
+	return range(im.get_blend_shape_count()).map(func(k: int) -> Array: return im.get_surface_blend_shape_arrays(i, k))

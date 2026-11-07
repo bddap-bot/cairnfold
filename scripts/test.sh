@@ -52,11 +52,10 @@ for t in tests/test_*.gd; do
 done
 # The GPU checks compare what the compute shaders lay, so they run on the desktop renderer under a virtual display, as
 # scripts/render.sh does, one at a time.
-display=:$((100 + RANDOM % 800))
-Xvfb "$display" -screen 0 640x480x24 -nolisten tcp &
-xvfb=$!
-trap 'kill $xvfb ${gpu:-} 2>/dev/null || true; rm -rf "$runs"' EXIT
-for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
+# shellcheck source=scripts/xvfb.sh
+. scripts/xvfb.sh
+xvfb 640x480x24
+trap 'kill $xvfb_pid ${gpu:-} 2>/dev/null || true; rm -rf "$runs"' EXIT
 # Runs a command as `timeout` does, but its limit counts only the seconds the command has the GPU: a GPU shared with
 # other work holds a process at its driver's open until there is room, or stops it while the GPU is lent out, for as
 # long as that takes, and those seconds are not the check's.
@@ -82,7 +81,7 @@ gpu_errors='SCRIPT ERROR|Parameter "material" is null'
 for t in tests/gpu_*.gd; do
   log="$runs/$(basename "$t").log"
   code=0
-  DISPLAY=$display VK_ICD_FILENAMES=${CAIRNFOLD_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json} XDG_DATA_HOME=$(mktemp -d -p "$runs") \
+  VK_ICD_FILENAMES=$desktop_icd XDG_DATA_HOME=$(mktemp -d -p "$runs") \
     gpu_timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
   grep -E "^(tests|FAIL):|$gpu_errors" "$log" | sed "s|^|$t: |" || true
   if [ "$code" != 0 ] || grep -qE "$gpu_errors" "$log" || ! grep -q "^tests: ok" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi

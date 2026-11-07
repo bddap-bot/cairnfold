@@ -391,8 +391,7 @@ static func _under(objs: Dictionary, top: int) -> Array:
 
 
 static func _active(objs: Dictionary, go: int) -> bool:
-	var d: Dictionary = objs.get(go, {}).get("data", {})
-	return str(d.get("m_IsActive", "1")) == "1" and str(d.get("m_TagString", "")) != "EditorOnly"
+	return str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" and not Prefabs.editor_only(objs, go)
 
 
 ## The switches that must all be on for Unity to run a component (`id`, its fields `d`): its own enabled flag and the
@@ -408,7 +407,7 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	var go := Yaml.file_id(d.get("m_GameObject"))
 	for t: int in Prefabs.ancestors(objs, Prefabs.transform_of(objs, go) if objs.has(go) else 0):
 		go = Yaml.file_id(objs[t].data.get("m_GameObject"))
-		if str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly":
+		if Prefabs.editor_only(objs, go):
 			return null
 		if by.has(go):
 			when.append([by[go], 1])
@@ -431,7 +430,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 		inside[e[0]] = true
 	for e: Array in _under(objs, top):
 		var father := Yaml.file_id(objs[e[0]].data.get("m_Father"))
-		var switched: bool = switches.has(e[1]) and str(objs.get(e[1], {}).get("data", {}).get("m_TagString", "")) != "EditorOnly"
+		var switched: bool = switches.has(e[1]) and not Prefabs.editor_only(objs, e[1])
 		var live: bool = (_active(objs, e[1]) or switched) and (e[0] == top or on.get(father, false))
 		on[e[0]] = live
 		when[e[0]] = (when.get(father, []) as Array) + ([[switches[e[1]], 1]] if switched else [])

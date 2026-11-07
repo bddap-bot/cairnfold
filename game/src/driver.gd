@@ -685,7 +685,7 @@ func _grow(s: Dictionary) -> void:
 func _trunk(s: Dictionary) -> Flora.Plant:
 	var flora: Flora = main.flora_tool.flora
 	if s.has("tree"):
-		return flora.groups[0][flora.meadow_trees()[s.tree]]
+		return flora.groups[0][flora.meadow_trees[s.tree]]
 	var trunk: Flora.Plant
 	var spot := Vector3(s.x, 0.0, s.z)
 	for parts in flora.solids():

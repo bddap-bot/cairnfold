@@ -431,7 +431,7 @@ static func _renderer_path(objs: Dictionary, path_of: Dictionary, renderer: int)
 
 static func _editor_only(objs: Dictionary, t: int) -> bool:
 	for at: int in Prefabs.ancestors(objs, t):
-		if str(objs.get(Yaml.file_id(objs[at].data.get("m_GameObject")), {}).get("data", {}).get("m_TagString", "")) == "EditorOnly":
+		if Prefabs.editor_only(objs, Yaml.file_id(objs[at].data.get("m_GameObject"))):
 			return true
 	return false
 

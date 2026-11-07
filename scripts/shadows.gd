@@ -114,26 +114,25 @@ func _run() -> void:
 		main.look.sun.directional_shadow_split_1 = 6.0 / 45.0
 		main.look.sun.directional_shadow_fade_start = 0.8
 		main.look.sun.shadow_blur = 1.5
-	for shadow in ["current"]:
-		for yaw in yaws:
-			var direction := Basis(Vector3.UP, deg_to_rad(float(yaw))) * facing
-			for frame in 45:
-				main.view(eye, eye + direction)
-				await process_frame
-			effect.pending = true
-			var captured: Array = await effect.captured
-			var actual: Vector3 = main.rig.head.global_position
-			var metadata := {"matrices": captured[2], "head": [actual.x, actual.y, actual.z], "yaw": yaw, "shadow": shadow}
-			var meta := FileAccess.open(folder.path_join("shadow-%s-yaw-%d.json" % [shadow, yaw]), FileAccess.WRITE)
-			meta.store_string(JSON.stringify(metadata))
-			meta.close()
-			var images: Array = captured[0]
-			var size: Vector2i = captured[1]
-			for i in images.size():
-				var img := Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAF, images[i])
-				img.convert(Image.FORMAT_RGBA8)
-				img.linear_to_srgb()
-				img.save_png(folder.path_join("shadow-%s-yaw-%d-eye-%d.png" % [shadow, yaw, i]))
-			print("shadows: saved shadow=", shadow, " yaw=", yaw, " eye=", main.rig.head.global_transform)
+	for yaw in yaws:
+		var direction := Basis(Vector3.UP, deg_to_rad(float(yaw))) * facing
+		for frame in 45:
+			main.view(eye, eye + direction)
+			await process_frame
+		effect.pending = true
+		var captured: Array = await effect.captured
+		var actual: Vector3 = main.rig.head.global_position
+		var metadata := {"matrices": captured[2], "head": [actual.x, actual.y, actual.z], "yaw": yaw}
+		var meta := FileAccess.open(folder.path_join("shadow-yaw-%d.json" % yaw), FileAccess.WRITE)
+		meta.store_string(JSON.stringify(metadata))
+		meta.close()
+		var images: Array = captured[0]
+		var size: Vector2i = captured[1]
+		for i in images.size():
+			var img := Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAF, images[i])
+			img.convert(Image.FORMAT_RGBA8)
+			img.linear_to_srgb()
+			img.save_png(folder.path_join("shadow-yaw-%d-eye-%d.png" % [yaw, i]))
+		print("shadows: saved yaw=", yaw, " eye=", main.rig.head.global_transform)
 	main.rig.head.compositor = null
 	main.finish()

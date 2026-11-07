@@ -172,7 +172,8 @@ if [ "${2:-}" = --android ]; then
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
   # it warms.
-  saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
+  held_props="guardian_pause=1 cpuLevel=4 gpuLevel=4"
+  saved_props=$(for kv in $held_props; do printf '%s=%s ' "${kv%%=*}" "$(adb shell getprop "debug.oculus.${kv%%=*}" | tr -d '\r')"; done)
   logcat_pids=
   restore_headset() {
     local kv
@@ -186,9 +187,7 @@ if [ "${2:-}" = --android ]; then
     stop
   }
   trap restore_headset EXIT
-  adb shell setprop debug.oculus.guardian_pause 1
-  adb shell setprop debug.oculus.cpuLevel 4
-  adb shell setprop debug.oculus.gpuLevel 4
+  for kv in $held_props; do adb shell "setprop debug.oculus.${kv%%=*} ${kv#*=}"; done
   adb shell am broadcast -a com.oculus.vrpowermanager.prox_close > /dev/null
   for _ in $(seq 30); do
     shows vrpowermanager 'State: HEADSET_MOUNTED' && break
@@ -383,15 +382,16 @@ for s in d["seconds"]:
 print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}" + (f" {'MHz':>5} {'step':>4}" if device == "frame" else ""))
 over = []
 summary = {}
+mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
 for name, secs in phases.items():
     late = sum(s["late"] for s in secs)
     secs = secs[1:] or secs
-    mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
-    windows = [{"frames": len(w["frames_ms"]), "max": w["max"], "late": w["late"]} for w in landings.get(name, [])]
-    landed = f"{max(w['max'] for w in windows):8.2f} {sum(w['late'] for w in windows):9}" if windows else f"{'-':>8} {'-':>9}"
-    row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {late:5} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9} {landed}"
     summary[name] = {"p50": mid([s["p50"] for s in secs]), "p99": max(s["p99"] for s in secs), "late": late,
                      "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
+    windows = [{"frames": len(w["frames_ms"]), "max": w["max"], "late": w["late"]} for w in landings.get(name, [])]
+    landed = f"{max(w['max'] for w in windows):8.2f} {sum(w['late'] for w in windows):9}" if windows else f"{'-':>8} {'-':>9}"
+    t = summary[name]
+    row = f"{name:18} {t['p50']:9.2f} {t['p99']:7.2f} {late:5} {t['draws']:6} {t['prims']:9} {landed}"
     # A phase's median hides whole seconds at half rate, so its record keeps the second with the most late frames.
     worst = max(secs, key=lambda s: s["late"])
     summary[name]["worst"] = {"late": worst["late"], "p50": worst["p50"], "p99": worst["p99"]}

@@ -10,13 +10,12 @@ out=$(realpath -m "$1")
 avatar=${2:-0}
 mkdir -p "$out"
 rm -f "$out"/*.json "$out"/*.log "$out"/*.png
-display=:$((100 + RANDOM % 800))
-Xvfb "$display" -screen 0 2560x1024x24 -nolisten tcp &
-pids=($!)
+# shellcheck source=scripts/xvfb.sh
+. "$root/scripts/xvfb.sh"
+xvfb 2560x1024x24
+pids=("$xvfb_pid")
 trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT
-for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
-export DISPLAY=$display
-export VK_ICD_FILENAMES=${NESTCOMBE_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json}
+export VK_ICD_FILENAMES=$desktop_icd
 beacon=$((20000 + 4 * (RANDOM % 5000)))
 first=$((7480 + 8 * (RANDOM % 7)))
 wears=(--avatar "$avatar")

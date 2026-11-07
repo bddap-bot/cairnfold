@@ -196,11 +196,11 @@ func _a_fresh_meadow_has_room_for_small_stone_houses() -> void:
 
 func _counts_follow_placements_and_deletions() -> void:
 	var meadow := world.units.duplicate()
-	var stand := {"tree": world.flora.meadow_trees().size(), "bush": world.flora.meadow_bushes().size()}
+	var stand := {"tree": world.flora.meadow_trees.size(), "bush": world.flora.meadow_bushes.size()}
 	check(_same(meadow, stand), "the meadow's own trees and bushes count as planted ones, its grass and flowers nothing: %s" % meadow)
 	check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build: %.2f full" % world.fill())
 	check(_same(world.units, _recount()), "a fresh garden counts what it holds")
-	var oak: int = world.flora.meadow_trees()[0]
+	var oak: int = world.flora.meadow_trees[0]
 	world._order({"op": "tree", "group": 0, "index": oak, "scale": 2.0}, world.me())
 	check(_same(world.units, meadow), "a meadow tree counts one tree when resized: %s" % world.units)
 	world._order({"op": "undo"}, world.me())

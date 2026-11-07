@@ -159,11 +159,7 @@ class Skins extends GLTFDocumentExtension:
 			indices[i] = bindings[key]
 		if kept.get_bind_count() == skin.get_bind_count():
 			return [mesh, skin]
-		var out := ImporterMesh.new()
-		out.resource_name = mesh.resource_name
-		out.set_blend_shape_mode(mesh.get_blend_shape_mode())
-		for k in mesh.get_blend_shape_count():
-			out.add_blend_shape(mesh.get_blend_shape_name(k))
+		var out := Meshes.shaped_like(mesh)
 		for i in mesh.get_surface_count():
 			var arrays := mesh.get_surface_arrays(i).duplicate()
 			if arrays[Mesh.ARRAY_BONES] != null:
@@ -174,8 +170,7 @@ class Skins extends GLTFDocumentExtension:
 			var lods := {}
 			for l in mesh.get_surface_lod_count(i):
 				lods[mesh.get_surface_lod_size(i, l)] = mesh.get_surface_lod_indices(i, l)
-			var shapes := range(mesh.get_blend_shape_count()).map(func(k: int) -> Array: return mesh.get_surface_blend_shape_arrays(i, k))
-			out.add_surface(mesh.get_surface_primitive_type(i), arrays, shapes, lods, mesh.get_surface_material(i), mesh.get_surface_name(i), mesh.get_surface_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+			out.add_surface(mesh.get_surface_primitive_type(i), arrays, Meshes.surface_shapes(mesh, i), lods, mesh.get_surface_material(i), mesh.get_surface_name(i), mesh.get_surface_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
 		return [out, kept]
 
 

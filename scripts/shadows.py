@@ -29,13 +29,13 @@ def check(folder):
         for eye in range(2):
             means = []
             for yaw in YAW:
-                meta = json.loads((folder / f"shadow-current-yaw-{yaw}.json").read_text())
+                meta = json.loads((folder / f"shadow-yaw-{yaw}.json").read_text())
                 if not np.allclose(meta["head"], [0, 1.72953867912292, 20], atol=0.001):
                     raise ValueError("The sweep moved the head position")
                 matrix = np.array(meta["matrices"][eye]).T
                 ndc = matrix @ points
                 ndc = ndc[:2] / ndc[3]
-                img = read_image(folder / f"shadow-current-yaw-{yaw}-eye-{eye}.png")
+                img = read_image(folder / f"shadow-yaw-{yaw}-eye-{eye}.png")
                 h, w = img.shape[:2]
                 u = (ndc[0] + 1) * w / 2
                 # RenderSceneData supplies Vulkan's downward-positive image Y.

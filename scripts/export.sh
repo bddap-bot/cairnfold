@@ -7,15 +7,14 @@
 # driver is built against the host's C library, which the shell's Godot may predate.
 set -euo pipefail
 game=$1 preset=$2 out=$3 log=$4
-display=:$((100 + RANDOM % 800))
-Xvfb "$display" -screen 0 640x480x24 -nolisten tcp 2> /dev/null &
-xvfb=$!
-trap 'kill $xvfb 2> /dev/null || true' EXIT
-for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
+# shellcheck source=scripts/xvfb.sh
+. "$(dirname "$0")/xvfb.sh"
+xvfb 640x480x24 2> /dev/null
+trap 'kill $xvfb_pid 2> /dev/null || true' EXIT
 # Godot 4.5 and 4.6 segfault in about one cold import of twenty, in ClassDB's default-value cache while saving an
 # imported scene; the second attempt starts from the first one's import cache, so only a crash is retried.
 for attempt in 1 2; do
-  DISPLAY=$display VK_ICD_FILENAMES=$CAIRNFOLD_LAVAPIPE \
+  VK_ICD_FILENAMES=$CAIRNFOLD_LAVAPIPE \
     godot4 --path "$game" --export-release "$preset" "$out" > "$log" 2>&1 && [ -f "$out" ] && exit 0
   grep -v Fontconfig "$log" | tail -60 || true
   if [ "$attempt" = 2 ] || ! grep -q handle_crash "$log"; then exit 1; fi

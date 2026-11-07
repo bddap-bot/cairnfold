@@ -160,6 +160,11 @@ static func ancestors(objs: Dictionary, t: int) -> Array[int]:
 	return out
 
 
+## Whether GameObject `go` is tagged EditorOnly, which Unity strips from every build.
+static func editor_only(objs: Dictionary, go: int) -> bool:
+	return str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly"
+
+
 ## The Transform of a GameObject in `objs`, or 0.
 static func transform_of(objs: Dictionary, go: int) -> int:
 	for id: int in components(objs, go):

@@ -381,10 +381,13 @@ static func stairs(d: Dictionary) -> Dictionary:
 
 ## A stroke of stone ground: the texels of Ground's mask its discs reach, fade included. Other kinds count nothing.
 static func ground(d: Dictionary) -> Dictionary:
-	if d.kind != Ground.Kind.STONE:
-		return {}
+	return _stone_of(d.stamps) if d.kind == Ground.Kind.STONE else {}
+
+
+## The stone the discs `stamps` reach together, each texel counted once.
+static func _stone_of(stamps: Array) -> Dictionary:
 	var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
-	for st: Vector4 in d.stamps:
+	for st: Vector4 in stamps:
 		reach(st, reached)
 	return stone(reached)
 
@@ -435,10 +438,7 @@ static func path(d: Dictionary) -> Dictionary:
 		out = {"wall_m2": stones * PIECE_M2, "timber": timbers}
 	out.wall_m2 += ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
 	if layout.kind == Ground.Kind.STONE:
-		var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
-		for k in layout.row_ends.size():
-			reach(layout.disc(k), reached)
-		out.merge(stone(reached))
+		out.merge(_stone_of(range(layout.row_ends.size()).map(layout.disc)))
 	return out
 
 

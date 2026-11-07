@@ -536,11 +536,7 @@ static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 	var index := {}
 	var vertex := func(key: Vector2i) -> int:
 		if not index.has(key):
-			var x := -SIZE * 0.5 + key.x * STEP * 0.5
-			var z := -SIZE * 0.5 + key.y * STEP * 0.5
-			st.set_color(Color(FloraLayout.dryness(Vector3(x, 0, z)), 0, 0))
-			st.set_normal(Vector3.UP)
-			st.add_vertex(Vector3(x, 0, z))
+			_ground_vertex(st, Vector3(-SIZE * 0.5 + key.x * STEP * 0.5, 0, -SIZE * 0.5 + key.y * STEP * 0.5))
 			index[key] = index.size()
 		return index[key]
 	var i0 := ci * CHUNK
@@ -572,6 +568,13 @@ static func chunk_mesh(ci: int, cj: int, k: int) -> ArrayMesh:
 	return st.commit()
 
 
+## A ground vertex at `at`, tinted by how dry the ground lies under it.
+static func _ground_vertex(st: SurfaceTool, at: Vector3) -> void:
+	st.set_color(Color(FloraLayout.dryness(Vector3(at.x, 0, at.z)), 0, 0))
+	st.set_normal(Vector3.UP)
+	st.add_vertex(at)
+
+
 ## The ground at (x, z) as `chunk_mesh` draws it nearby: each cell two flat triangles split from its (i + 1, j) corner to its
 ## (i, j + 1), over `ground`'s grid heights. Within a cell it may stand above or below the bilinear `height_at`.
 static func drawn(x: float, z: float, ground: Callable) -> float:
@@ -593,15 +596,10 @@ static func bank_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rim := edge(0.0)
-	var foot := edge(BANK)
 	for p in rim:
-		st.set_color(Color(FloraLayout.dryness(Vector3(p.x, 0, p.y)), 0, 0))
-		st.set_normal(Vector3.UP)
-		st.add_vertex(Vector3(p.x, 0, p.y))
-	for p in foot:
-		st.set_color(Color(FloraLayout.dryness(Vector3(p.x, 0, p.y)), 0, 0))
-		st.set_normal(Vector3.UP)
-		st.add_vertex(Vector3(p.x, BANK_FOOT, p.y))
+		_ground_vertex(st, Vector3(p.x, 0, p.y))
+	for p in edge(BANK):
+		_ground_vertex(st, Vector3(p.x, BANK_FOOT, p.y))
 	var n := rim.size()
 	for k in n:
 		var a := k

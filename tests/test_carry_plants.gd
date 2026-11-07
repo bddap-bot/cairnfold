@@ -136,7 +136,7 @@ func _a_tree_turns_with_the_hand() -> void:
 	trunk = flora.groups[g][0]
 	check(var_to_str(world.digest()) == picture and is_equal_approx(flora.turn_of(trunk), turn), "a snapshot keeps its turn")
 	world.restore({"seq": 0, "cmds": []})
-	var oak: Flora.Plant = flora.groups[0][flora.meadow_trees()[1]]
+	var oak: Flora.Plant = flora.groups[0][flora.meadow_trees[1]]
 	m = tool.mason(main.rig.right)
 	hand = _take(oak)
 	m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, -turn), hand.origin))
@@ -151,7 +151,7 @@ func _a_tree_turns_with_the_hand() -> void:
 
 ## The meadow's own trees and bushes carry as planted ones do, and stand where they grew in a swapped garden.
 func _meadow_plants_are_carried() -> void:
-	for first: Flora.Plant in [flora.groups[0][flora.meadow_trees()[3]], flora.groups[0][flora.meadow_bushes()[2]]]:
+	for first: Flora.Plant in [flora.groups[0][flora.meadow_trees[3]], flora.groups[0][flora.meadow_bushes[2]]]:
 		var what := "tree" if first.pool == flora.trunks else "bush"
 		var home := _across(first.anchor)
 		_carry(first, Vector3(-1.0, 0.0, 1.0))
@@ -202,7 +202,7 @@ func _commands_are_checked() -> void:
 	var there := world.terrain.ground(5, 14)
 	check(_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
 	check(_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
-	var meadow_bush: int = flora.meadow_bushes()[0]
+	var meadow_bush: int = flora.meadow_bushes[0]
 	check(_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
 	check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false, world.terrain).is_empty(), "a bush takes no size")
 	check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false, world.terrain).is_empty(), "nor a species")

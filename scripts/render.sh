@@ -21,11 +21,9 @@ fi
 if [ -n "${CAIRNFOLD_AVATARS:-}" ]; then play+=(--avatars "$(realpath "$CAIRNFOLD_AVATARS")"); fi
 if [ -n "${CAIRNFOLD_CAMERA:-}" ]; then play+=(--camera "$(realpath "$CAIRNFOLD_CAMERA")"); fi
 cd "$(dirname "$0")/../game"
-display=:$((100 + RANDOM % 800))
-Xvfb "$display" -screen 0 3840x2160x24 -nolisten tcp &
-xvfb=$!
-trap 'kill $xvfb 2>/dev/null || true' EXIT
-for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
-export DISPLAY=$display
-export VK_ICD_FILENAMES=${CAIRNFOLD_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json}
+# shellcheck source=scripts/xvfb.sh
+. ../scripts/xvfb.sh
+xvfb 3840x2160x24
+trap 'kill $xvfb_pid 2>/dev/null || true' EXIT
+export VK_ICD_FILENAMES=$desktop_icd
 timeout "${CAIRNFOLD_TIMEOUT:-1800}" godot4 --path . --resolution 1600x1200 --xr-mode off "$@" -- --desktop "${play[@]}" --capture-dir "$out" --metrics "$out/metrics.json"

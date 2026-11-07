@@ -517,7 +517,7 @@ static func _merged(im: ImporterMesh) -> ImporterMesh:
 		var n: int = arrays[Mesh.ARRAY_VERTEX].size()
 		if arrays[Mesh.ARRAY_INDEX] == null:
 			arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(range(n))
-		var shapes := range(im.get_blend_shape_count()).map(func(k: int) -> Array: return im.get_surface_blend_shape_arrays(i, k))
+		var shapes := Meshes.surface_shapes(im, i)
 		var key := [im.get_surface_material(i), im.get_surface_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS, arrays.map(func(a: Variant) -> bool: return a == null)]
 		var at: Array = groups.get_or_add(key, [])
 		if at.is_empty():
@@ -526,11 +526,7 @@ static func _merged(im: ImporterMesh) -> ImporterMesh:
 		Meshes.join(at[0], arrays)
 		for k in shapes.size():
 			Meshes.join(at[3][k], shapes[k])
-	var out := ImporterMesh.new()
-	out.resource_name = im.resource_name
-	out.set_blend_shape_mode(im.get_blend_shape_mode())
-	for k in im.get_blend_shape_count():
-		out.add_blend_shape(im.get_blend_shape_name(k))
+	var out := Meshes.shaped_like(im)
 	for key: Array in groups:
 		var g: Array = groups[key]
 		out.add_surface(Mesh.PRIMITIVE_TRIANGLES, g[0], g[3], {}, key[0], g[2], g[1])

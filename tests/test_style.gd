@@ -252,7 +252,7 @@ func _trees_take_a_species() -> void:
 ## The meadow's own trees take a species as planted ones do, and go back to oaks with a swapped garden.
 func _meadow_trees_take_a_species() -> void:
 	var flora: Flora = main.flora_tool.flora
-	var i: int = flora.meadow_trees()[3]
+	var i: int = flora.meadow_trees[3]
 	var trunk: Flora.Plant = flora.groups[0][i]
 	world._order({"op": "tree", "group": 0, "index": i, "species": FloraLayout.Species.BEECH}, 2)
 	check(flora.species_of(trunk) == FloraLayout.Species.BEECH, "a meadow tree turns a copper beech")
@@ -335,7 +335,7 @@ func _trees_grow_by_the_grip() -> void:
 ## The meadow's own trees grow as planted ones do, and go back to their size with a swapped garden.
 func _meadow_trees_grow() -> void:
 	var flora: Flora = main.flora_tool.flora
-	var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[2]]
+	var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees[2]]
 	var top := flora.top_of(trunk)
 	world._order({"op": "tree", "group": 0, "index": trunk.index, "scale": 2.0}, 2)
 	check(is_equal_approx(flora.top_of(trunk), top * 2.0), "a meadow tree grows twice as tall")

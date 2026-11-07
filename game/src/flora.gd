@@ -186,7 +186,7 @@ class Pool:
 		if p == null:
 			p = Patch.new()
 			p.mm = MultiMesh.new()
-			_setup(p.mm, drawn, Patch.FIRST)
+			setup(p.mm, drawn, Patch.FIRST)
 			p.mm.visible_instance_count = 0
 			p.mmi = _show(p.mm)
 			p.mmi.set_instance_shader_parameter(&"planted", planted)
@@ -294,7 +294,7 @@ class Pool:
 
 	func _bake(slots: Array, drawn: Mesh) -> MultiMesh:
 		var m := MultiMesh.new()
-		_setup(m, drawn, slots.size())
+		setup(m, drawn, slots.size())
 		var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
 		for j in slots.size():
 			var i: int = slots[j]
@@ -481,7 +481,7 @@ class Pool:
 				p.layers = layers
 				p.mmi.layers = layers
 
-	func _setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
+	static func setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
 		m.use_colors = true
 		m.use_custom_data = true
@@ -491,7 +491,7 @@ class Pool:
 	## The distant layer is one draw per pool. Keeping it whole costs fewer draws than pairing every near cell.
 	func far_with(mat: ShaderMaterial) -> void:
 		far = MultiMesh.new()
-		_setup(far, Flora.far_mesh(), capacity)
+		setup(far, Flora.far_mesh(), capacity)
 		far.visible_instance_count = 0
 		terrain.lift(far, terrain.bounds())
 		far_live = _show(far)
@@ -616,10 +616,13 @@ var _shaded := -1
 ## Every tree and bush, meadow's own and planted, by its first part's pool and slot.
 var _solids := {}
 var _kept_solids := {}
-## The meadow never changes once kept, so which of its plants are which is worked out then, not on every wipe.
-var _meadow_trees := PackedInt32Array()
-var _meadow_bushes := PackedInt32Array()
-var _meadow_scenery := PackedInt32Array()
+## Where the meadow's own trees' trunks stand in its group. The meadow never changes once kept, so which of its plants
+## are which is worked out then, not on every wipe.
+var meadow_trees := PackedInt32Array()
+## Where the meadow's own bushes stand in its group.
+var meadow_bushes := PackedInt32Array()
+## The meadow's own flowers, bushes and trees: all of it but its grass.
+var meadow_scenery := PackedInt32Array()
 ## The keys of the solids whose circles reach into each SOLID_CELL square, so a beam tests only those it passes
 ## over; a key may linger where its slot's earlier tree stood.
 var _solid_cells := {}
@@ -722,11 +725,7 @@ func _init(ground: Terrain, laid: Ground) -> void:
 		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
 	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS, leaf_mat, false, SOLID_POOL_CELL)
 	bushes = Pool.new(self, _blobs[blob_detail], Meadow.BUSHES + PLACED_BUSHES, leaf_mat, false, SOLID_POOL_CELL)
-	crown_shade.transform_format = MultiMesh.TRANSFORM_3D
-	crown_shade.use_colors = true
-	crown_shade.use_custom_data = true
-	crown_shade.mesh = Meshes.blob(4, 1)
-	crown_shade.instance_count = Meadow.TREES + PLACED_TREES + Meadow.BUSHES + PLACED_BUSHES
+	Pool.setup(crown_shade, Meshes.blob(4, 1), Meadow.TREES + PLACED_TREES + Meadow.BUSHES + PLACED_BUSHES)
 	crown_shade.custom_aabb = terrain.bounds()
 	var shade := MultiMeshInstance3D.new()
 	shade.multimesh = crown_shade
@@ -802,14 +801,18 @@ func _shade_crowns() -> void:
 		if not first.shown() or not first.drawn or n == crown_shade.instance_count:
 			continue
 		solid.shade = n
-		crown_shade.set_instance_transform(n, shade_of(solid.parts))
-		crown_shade.set_instance_custom_data(n, Color(0, 0, first.anchor.x, first.anchor.z))
+		_place_shade(solid)
 		n += 1
 	crown_shade.visible_instance_count = n
 
 
 func _shade_seen() -> int:
 	return changes + trunks.draws + foliage.draws + bushes.draws
+
+
+func _place_shade(solid: Solid) -> void:
+	crown_shade.set_instance_transform(solid.shade, shade_of(solid.parts))
+	crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, solid.parts[0].anchor.x, solid.parts[0].anchor.z))
 
 
 ## Where the shade blob of a tree or bush (its parts) stands, fitted to the box around its blobs.
@@ -880,8 +883,8 @@ func add_tree(at: Vector3, seed: int, species := FloraLayout.Species.OAK) -> Arr
 
 ## The species of the tree whose trunk is `trunk`, or -1 for none standing in its slot.
 func species_of(trunk: Plant) -> int:
-	var solid: Solid = _solids.get(Vector2i(0, trunk.slot))
-	return solid.species if trunk.pool == trunks and trunk.current() and solid != null and solid.parts[0] == trunk else -1
+	var solid := _standing(trunk)
+	return solid.species if trunk.pool == trunks and solid != null else -1
 
 
 ## The scale of the tree whose trunk is `trunk`, or 0 for none standing in its slot.
@@ -921,9 +924,8 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 ## Moves the tree or bush whose first part is `first` to stand at `at` across the ground, as though it had grown
 ## there: its parts keep their shape and their heights above the ground, so nothing grows again.
 func move(first: Plant, at: Vector3) -> void:
-	var key := _key_of(first)
-	var solid: Solid = _solids.get(key)
-	if solid == null or solid.parts[0] != first or not first.current():
+	var solid := _standing(first)
+	if solid == null:
 		return
 	var by := Vector3(at.x - first.anchor.x, 0.0, at.z - first.anchor.z)
 	if by.is_zero_approx():
@@ -931,24 +933,29 @@ func move(first: Plant, at: Vector3) -> void:
 	var synced := _shade_seen() == _shaded
 	for p in solid.parts:
 		p.pool.shift(p, by, Color(1.0 if solid.moss and p.pool == trunks else 0.0, 0, 0, 0))
-	_refit(key, solid, synced)
+	_refit(_key_of(first), solid, synced)
 
 
 ## Turns the tree or bush whose first part is `first` to `yaw` radians about its foot from how it grew.
 func turn_to(first: Plant, yaw: float) -> void:
-	var key := _key_of(first)
-	var solid: Solid = _solids.get(key)
-	if solid == null or solid.parts[0] != first or not first.current() or is_equal_approx(yaw, solid.turn):
+	var solid := _standing(first)
+	if solid == null or is_equal_approx(yaw, solid.turn):
 		return
 	var synced := _shade_seen() == _shaded
 	_spin(solid, yaw - solid.turn)
-	_refit(key, solid, synced)
+	_refit(_key_of(first), solid, synced)
 
 
 ## How far the tree or bush whose first part is `first` is turned from how it grew.
 func turn_of(first: Plant) -> float:
+	var solid := _standing(first)
+	return solid.turn if solid != null else 0.0
+
+
+## The tree or bush whose first part is `first`, or null for none standing in its slot.
+func _standing(first: Plant) -> Solid:
 	var solid: Solid = _solids.get(_key_of(first))
-	return solid.turn if first.current() and solid != null and solid.parts[0] == first else 0.0
+	return solid if first.current() and solid != null and solid.parts[0] == first else null
 
 
 func _spin(solid: Solid, by: float) -> void:
@@ -967,9 +974,7 @@ func _refit(key: Vector2i, solid: Solid, synced: bool) -> void:
 	if synced:
 		_shaded = _shade_seen()
 		if solid.shade >= 0:
-			var first := solid.parts[0]
-			crown_shade.set_instance_transform(solid.shade, shade_of(solid.parts))
-			crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, first.anchor.x, first.anchor.z))
+			_place_shade(solid)
 
 
 ## Where the tree or bush whose first part is `first` stood as it grew, across the ground.
@@ -1018,23 +1023,9 @@ func keep() -> void:
 		p.keep()
 	_name(0, meadow)
 	_kept_solids = _solids.duplicate()
-	_meadow_trees = _meadow_where(func(p: Plant) -> bool: return p.pool == trunks)
-	_meadow_bushes = _meadow_where(func(p: Plant) -> bool: return p.pool == bushes)
-	_meadow_scenery = _meadow_where(func(p: Plant) -> bool: return p.pool != grass)
-
-
-## Where the meadow's own trees' trunks stand in its group.
-func meadow_trees() -> PackedInt32Array:
-	return _meadow_trees
-
-
-func meadow_bushes() -> PackedInt32Array:
-	return _meadow_bushes
-
-
-## The meadow's own flowers, bushes and trees: all of it but its grass.
-func meadow_scenery() -> PackedInt32Array:
-	return _meadow_scenery
+	meadow_trees = _meadow_where(func(p: Plant) -> bool: return p.pool == trunks)
+	meadow_bushes = _meadow_where(func(p: Plant) -> bool: return p.pool == bushes)
+	meadow_scenery = _meadow_where(func(p: Plant) -> bool: return p.pool != grass)
 
 
 func _meadow_where(take: Callable) -> PackedInt32Array:
@@ -1211,7 +1202,7 @@ func reset() -> void:
 			p.plants[at].set_shown(true)
 			at = p.anchors.find(Pool.GONE, at + 1)
 	groups = {0: groups[0]}
-	for i in _meadow_trees:
+	for i in meadow_trees:
 		set_moss(groups[0][i], false)
 	_solids = _kept_solids.duplicate()
 	_solid_cells.clear()
