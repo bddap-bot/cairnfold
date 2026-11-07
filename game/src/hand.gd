@@ -833,10 +833,7 @@ func _expression_input(delta: float) -> void:
 	var depth := expressions.player.state.opened.size()
 	var changed := depth < _expression_count
 	while depth < _expression_count:
-		if not expressions.puppet.is_empty():
-			expressions.puppet = {}
-		elif not expressions.parents.is_empty():
-			expressions.current = expressions.parents.pop_back()
+		expressions.unwind()
 		_expression_count -= 1
 	if changed:
 		_end_expression_dial()

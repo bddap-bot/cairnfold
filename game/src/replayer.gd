@@ -5,9 +5,6 @@ extends MultiplayerAPIExtension
 ## where the session it plays diverges from the one recorded; see docs/replay.md.
 signal finished
 
-## What a check compares, beside the garden: Replay.check's parts.
-const PARTS := ["player", "wildlife", "physics"]
-
 var record: Dictionary
 var _main: Main
 var _frame := 0
@@ -143,10 +140,10 @@ func compare() -> void:
 	while _check < checks.size() and checks[_check].frame <= _frame:
 		var c: Dictionary = checks[_check]
 		_check += 1
-		if not c.has(PARTS[0]):
+		if c.has("garden"):
 			continue
 		var now := Replay.check(_main)
-		for part in PARTS:
+		for part in now:
 			if Replay.digest(now[part]) != c[part]:
 				_diverge(part, c, "")
 

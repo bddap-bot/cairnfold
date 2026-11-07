@@ -172,6 +172,16 @@ func disc(k: int) -> Vector4:
 	return Vector4(f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1)
 
 
+## Row `row`'s start and end arc lengths, the last ending with the spine.
+func row_span(row: int) -> Vector2:
+	return Vector2(row_ends[row - 1] if row > 0 else 0.0, minf(row_ends[row], length()))
+
+
+## How many stones a tread of half-width `half` lays across.
+static func tread_columns(half: float) -> int:
+	return maxi(1, ceili(half * 2.0 / 0.5))
+
+
 ## The spine point, half-width and unit direction at arc length `s`.
 func frame_at(s: float) -> Dictionary:
 	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
@@ -376,8 +386,9 @@ func _treads(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void
 	rng.seed = seed
 	var flight: Array[Dictionary] = []
 	for row in row_ends.size():
-		var start := row_ends[row - 1] if row > 0 else 0.0
-		var end := minf(row_ends[row], length())
+		var span := row_span(row)
+		var start := span.x
+		var end := span.y
 		var a := frame_at(start).point as Vector3
 		var b := frame_at(end).point as Vector3
 		var run := Vector2(b.x - a.x, b.z - a.z).length()
@@ -393,7 +404,7 @@ func _treads(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void
 			var f := frame_at((from + to) * 0.5)
 			var along := Vector3(f.along.x, 0, f.along.z).normalized()
 			var side := along.cross(Vector3.UP)
-			var columns := maxi(1, ceili(f.half * 2.0 / 0.5))
+			var columns := tread_columns(f.half)
 			var depth := to - from + TREAD_LAP
 			var top := -INF
 			var low := INF

@@ -331,7 +331,7 @@ func _close_landing() -> void:
 		return
 	var frames: Array = _landing.frames_ms
 	_landings.append({"label": _landing.label, "frames_ms": frames, "max": frames.max(),
-		"late": frames.filter(func(ms: float) -> bool: return is_late(ms)).size()})
+		"late": frames.filter(is_late).size()})
 	_landing = {}
 
 
@@ -398,14 +398,9 @@ static func spread(lo: PackedFloat32Array, hi: PackedFloat32Array) -> float:
 func summary(d: PackedFloat32Array) -> Dictionary:
 	var ds := Array(d)
 	ds.sort()
-	var late := 0
-	for x in ds:
-		if is_late(x):
-			late += 1
-	return {"t": Time.get_ticks_msec() / 1000.0, "frames": ds.size(), "mean": ds.reduce(func(sum: float, ms: float) -> float: return sum + ms, 0.0) / ds.size(), "p50": _q(ds, 0.5), "p95": _q(ds, 0.95), "p99": _q(ds, 0.99), "max": ds[-1], "late": late, "label": info.get("label", "")}
+	return {"t": Time.get_ticks_msec() / 1000.0, "frames": ds.size(), "mean": ds.reduce(func(sum: float, ms: float) -> float: return sum + ms, 0.0) / ds.size(), "p50": _q(ds, 0.5), "p95": _q(ds, 0.95), "p99": _q(ds, 0.99), "max": ds[-1], "late": ds.filter(is_late).size(), "label": info.get("label", "")}
 
 
-## Whether a frame of `ms` ran over 1.5× the refresh period.
 func is_late(ms: float) -> bool:
 	var hz: float = info.get("refresh_hz", 0.0)
 	return hz > 0.0 and ms > 1500.0 / hz

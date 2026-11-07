@@ -60,7 +60,6 @@ static func classify(d: Dictionary) -> Kind:
 		return Kind.LANDING
 	return Kind.LADDER if rise > run * LADDER_SLOPE else Kind.FLIGHT
 
-## Whether stairs `d` lay railings.
 static func railed(d: Dictionary) -> bool:
 	return d.rail != "none" and can_rail(d)
 

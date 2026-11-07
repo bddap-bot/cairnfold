@@ -116,7 +116,6 @@ def easel_steps(name, names, seq):
                     {"op": "digest", "name": f"{name}-easel"}, barrier([f"{n}-easel" for n in names])]
 
 
-
 def held_steps(name, names, capture=False):
     steps = []
     tools = ["walls", "flowers", "grass", "trees", "delete", "pond", "fence", "windows", "decorations", "stone", "colour", "camera", "house", "seeds", "path", "style", "stairs", "tower", "arch", "book", "selfie", "bushes", "boulder", "moss", "none"]
@@ -412,9 +411,8 @@ def strip(digest):
     return digest
 
 
-def check_peers(out, count):
-    """Whether every peer of a run of count players ended with the same garden, each step of it as the scripts made it."""
-    names = list(scripts(count))
+def check_peers(out, names):
+    """Whether every peer named ended with the same garden, each step of it as the scripts made it."""
 
     def digest(n, phase):
         return json.load(open(f"{out}/{n}-{phase}.json"))
@@ -422,11 +420,9 @@ def check_peers(out, count):
     def peers(phase):
         return {n: strip(digest(n, phase)) for n in names}
     d = {n: digest(n, "final") for n in names}
-    seen = {n: g.pop("avatars") for n, g in d.items()}
-    worn = {n: sorted(g.pop("worn")) for n, g in d.items()}
-    for g in d.values():
-        g.pop("handfuls")
-        g.pop("frenzy")
+    seen = {n: g["avatars"] for n, g in d.items()}
+    worn = {n: sorted(g["worn"]) for n, g in d.items()}
+    d = {n: strip(g) for n, g in d.items()}
     own = {n: hashlib.sha256((ROOT / "tests/avatars" / AVATARS[i % len(AVATARS)]).read_bytes()).hexdigest() for i, n in enumerate(names[1:])}
     failed = []
 
@@ -497,7 +493,7 @@ def check_peers(out, count):
           f"the host's thrown seeds land alike for every player: {landed}")
     frenzy = {n: f["frenzy"] for n, f in fed.items()}
     check(all(f[1] > 0 and f[0] == f[1] for f in frenzy.values()), f"and every player sees every fish of the pond swarm them: {frenzy}")
-    home = strip(json.load(open(f"{out}/home.json")))
+    home = json.load(open(f"{out}/home.json"))
     check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["season"] == 1, "the visitor's own garden, one wall, is back when it goes home")
     check(seen == {n: len(names) - 1 for n in names}, f"each player sees all other avatars: {seen}")
     for n in names:
@@ -749,16 +745,10 @@ def run(out, count, mode="full", capture=False):
             xserver.terminate()
             xserver.wait()
     print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
-    if mode == "spawn":
-        check_spawn(out)
-        return
-    if mode == "flat":
-        check_flat(out)
-        return
-    if mode == "reshape":
-        check_reshape(out)
-        return
-    if not check_peers(out, count):
+    checks = {"spawn": check_spawn, "flat": check_flat, "reshape": check_reshape}
+    if mode in checks:
+        return checks[mode](out)
+    if not check_peers(out, list(generated)):
         raise SystemExit("coop: the peers' gardens differ")
     if not check_records(out, list(generated)):
         raise SystemExit("coop: a player's session record misses what the others did")

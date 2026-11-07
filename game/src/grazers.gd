@@ -19,6 +19,8 @@ const SIDLE := 0.3
 const NIBBLE_STEP := Vector2(0.2, 0.6)
 ## Seconds before a cornered animal looks again for a way to run.
 const RETRY := 1.0
+## The chance, once a spell of grazing ends, of walking on rather than looking up.
+const WALK_CHANCE := 0.45
 
 var wildlife: Wildlife
 var bands: Array[Band] = []
@@ -26,9 +28,8 @@ var rng := RandomNumberGenerator.new()
 ## How long a spell of grazing lasts, and how long a band rests where it is once one ends.
 var graze_for := Vector2(6.0, 16.0)
 var stand_for := Vector2(3.0, 8.0)
-## Chances, once a spell of grazing ends, of lying down and of walking on rather than looking up.
+## The chance, once a spell of grazing ends, of lying down rather than looking up.
 var lie_chance := 0.0
-var walk_chance := 0.45
 ## Fresh grass lies this far from where an animal is.
 var roam := Vector2(1.5, 4.5)
 ## How far a fright sends one.
@@ -247,9 +248,7 @@ func _come_for_food(a: Node3D) -> void:
 	var appetite := _appetite(a)
 	var reaches := func(o: Node3D) -> bool:
 		var spot := _eat_spot(a, o)
-		if a is Beast and Wildlife.in_hand(o) and not a.neck.reachable(a, o, spot.y):
-			return false
-		return wildlife.standable(spot) and wildlife.clear_way(a.position, spot)
+		return _neck_reaches(a, o, spot) and _walkable(a, spot)
 	var h := wildlife.offer_for(appetite, a.position, reaches)
 	if h == null:
 		return
@@ -268,11 +267,11 @@ func _eat(a: Node3D, delta: float) -> void:
 		return
 	var hand: Vector3 = NeckAim.food(a.hand) if Wildlife.in_hand(a.hand) else a.hand.global_position
 	var spot := _eat_spot(a, a.hand)
-	if a is Beast and Wildlife.in_hand(a.hand) and not a.neck.reachable(a, a.hand, spot.y):
+	if not _neck_reaches(a, a.hand, spot):
 		_back_off(a)
 		return
 	if Vector2(spot.x - a.goal.x, spot.z - a.goal.z).length() > (0.02 if a is Beast and Wildlife.in_hand(a.hand) else 0.15):
-		if not wildlife.standable(spot) or not wildlife.clear_way(a.position, spot):
+		if not _walkable(a, spot):
 			_fed(a)
 			return
 		a.goal = spot
@@ -299,9 +298,19 @@ func _back_off(a: Beast) -> void:
 	var to := a.position + away.normalized() * 0.4
 	to.y = wildlife.water.floor_at(to)
 	_fed(a)
-	if wildlife.standable(to) and wildlife.clear_way(a.position, to):
+	if _walkable(a, to):
 		a.goal = to
 		a.state = State.WALK
+
+
+## Whether a beast standing at `spot` can stretch its neck to food `h` in a hand; any other food or animal needs no
+## stretch.
+func _neck_reaches(a: Node3D, h: Node3D, spot: Vector3) -> bool:
+	return not (a is Beast and Wildlife.in_hand(h)) or a.neck.reachable(a, h, spot.y)
+
+
+func _walkable(a: Node3D, to: Vector3) -> bool:
+	return wildlife.standable(to) and wildlife.clear_way(a.position, to)
 
 
 func _eat_spot(a: Node3D, h: Node3D) -> Vector3:
@@ -334,7 +343,7 @@ func _next(b: Band, a: Node3D) -> void:
 	var roll := rng.randf()
 	if roll < lie_chance:
 		_lie(a)
-	elif roll < lie_chance + walk_chance:
+	elif roll < lie_chance + WALK_CHANCE:
 		_walk_on(b, a)
 	else:
 		a.state = State.STAND

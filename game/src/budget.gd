@@ -120,8 +120,9 @@ static func spread(units: Dictionary, points: Array) -> Dictionary:
 	for i in range(1, points.size()):
 		var a: Vector3 = points[i - 1]
 		var b: Vector3 = points[i]
-		var n := maxi(1, ceili(Vector2(b.x - a.x, b.z - a.z).length() / 0.5))
-		var step := Vector2(b.x - a.x, b.z - a.z).length() / n
+		var run := Vector2(b.x - a.x, b.z - a.z).length()
+		var n := maxi(1, ceili(run / 0.5))
+		var step := run / n
 		for j in n:
 			var c := cell(a.lerp(b, (j + 0.5) / n))
 			share[c] = share.get(c, 0.0) + step
@@ -428,11 +429,10 @@ static func path(d: Dictionary) -> Dictionary:
 		var stones := 0
 		var timbers := 0
 		for row in layout.row_ends.size():
-			var start := layout.row_ends[row - 1] if row > 0 else 0.0
-			var end := minf(layout.row_ends[row], layout.length())
+			var span := layout.row_span(row)
 			for i in PATH_TREADS_PER_ROW:
-				var f := layout.frame_at(lerpf(start, end, (i + 0.5) / PATH_TREADS_PER_ROW))
-				stones += maxi(1, ceili(f.half * 2.0 / 0.5))
+				var f := layout.frame_at(lerpf(span.x, span.y, (i + 0.5) / PATH_TREADS_PER_ROW))
+				stones += PathLayout.tread_columns(f.half)
 				# Stringers come to at most three timbers a tread, where every flight is two treads long.
 				timbers += 3
 		out = {"wall_m2": stones * PIECE_M2, "timber": timbers}

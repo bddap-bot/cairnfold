@@ -142,6 +142,10 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 	return {"tool": Hand.Tool.COLOUR, "element": element, "count": Palette.count(element), "point": point, "of": of, "id": id}
 
 
+func _unwalled_style_target(restyle: Restyle, point: Vector3, of := "", id := -1, also := {}) -> Dictionary:
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": styles(restyle), "point": point, "of": of, "id": id, "wall": null}.merged(also)
+
+
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
 ## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall, fence, path or painted stone it meets first,
 ## a roofless wall's top near it; ladders, single-rope bridges, bushes and the bare meadow have no style.
@@ -157,19 +161,19 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var ground: Variant = hits[World.Kind.GROUND].point if hits.has(World.Kind.GROUND) else null
 	var stroke := world.marks.mark_at(ground.x, ground.z) if ground != null and world.marks.laid_bare(ground.x, ground.z) > 0.5 else -1
 	if world.state.paths.has(stroke):
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.PATH, "count": styles(Restyle.PATH), "point": ground, "of": "paths", "id": stroke, "wall": null}
+		return _unwalled_style_target(Restyle.PATH, ground, "paths", stroke)
 	if world.state.grounds.has(stroke):
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
+		return _unwalled_style_target(Restyle.STONE, ground, "", -1, {"stroke": stroke})
 	if not rock.is_empty():
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": rock.point, "of": "boulders", "id": rock.boulder.id, "wall": null}
+		return _unwalled_style_target(Restyle.STONE, rock.point, "boulders", rock.boulder.id)
 	if not stair.is_empty():
 		if not StairLayout.can_rail(world.state.stairs[stair.stair]):
 			return {}
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
+		return _unwalled_style_target(Restyle.RAIL, stair.point, "stairs", stair.stair)
 	if not floor.is_empty():
 		return style_target(Restyle.FLOOR, floor.wall, floor.point)
 	if not solid.is_empty() and solid.plants[0].pool == walls.flora.trunks:
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
+		return _unwalled_style_target(Restyle.TREE, solid.point, "", -1, {"tree": solid.plants[0]})
 	if pick.get("what") == "opening" and int(pick.value.z) in WallLayout.WINDOW_FAMILIES:
 		return window_target(pick.wall, pick.value, pick.point)
 	if pick.has("decoration"):

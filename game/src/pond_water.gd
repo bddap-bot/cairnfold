@@ -34,14 +34,9 @@ static func prepare() -> void:
 	n.seed = 31
 	n.frequency = 0.03
 	n.fractal_octaves = 3
-	_waves = NoiseTexture2D.new()
-	_waves.width = 256
-	_waves.height = 256
-	_waves.seamless = true
+	_waves = Meshes.noise_texture(n, 256)
 	_waves.as_normal_map = true
 	_waves.bump_strength = 6.0
-	_waves.generate_mipmaps = true
-	_waves.noise = n
 	_lapping = load("res://audio/lap.ogg")
 	_lapping.loop = true
 

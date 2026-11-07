@@ -27,6 +27,11 @@ func choose(control: Dictionary) -> void:
 
 func back() -> bool:
 	player.state.back()
+	return unwind()
+
+
+## Steps the menu one level out, to match a state already stepped back; false at the top.
+func unwind() -> bool:
 	if not puppet.is_empty():
 		puppet = {}
 	elif not parents.is_empty():
@@ -55,18 +60,7 @@ func icon(control: Dictionary) -> Node3D:
 		picture.material_override = mat
 		out.add_child(picture)
 	else:
-		var mark := MeshInstance3D.new()
-		var shape := TorusMesh.new()
-		shape.inner_radius = 0.009
-		shape.outer_radius = 0.016
-		shape.rings = 16
-		shape.ring_segments = 8
-		mark.mesh = shape
-		mark.rotation.x = PI / 2
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.25, 0.4, 0.48)
-		mark.material_override = mat
-		out.add_child(mark)
+		out.add_child(_ring(0.009, 0.016, Color(0.25, 0.4, 0.48)))
 	if control.type in ["toggle", "button"]:
 		var on := MeshInstance3D.new()
 		on.name = "On"
@@ -92,17 +86,8 @@ func icon(control: Dictionary) -> Node3D:
 
 static func reset_icon() -> Node3D:
 	var out := Node3D.new()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.85, 0.55, 0.2)
-	var ring := MeshInstance3D.new()
-	var shape := TorusMesh.new()
-	shape.inner_radius = 0.012
-	shape.outer_radius = 0.018
-	shape.rings = 16
-	shape.ring_segments = 8
-	ring.mesh = shape
-	ring.rotation.x = PI / 2
-	ring.material_override = mat
+	var ring := _ring(0.012, 0.018, Color(0.85, 0.55, 0.2))
+	var mat: StandardMaterial3D = ring.material_override
 	out.add_child(ring)
 	var head := MeshInstance3D.new()
 	var arrow := PrismMesh.new()
@@ -113,3 +98,18 @@ static func reset_icon() -> Node3D:
 	head.material_override = mat
 	out.add_child(head)
 	return out
+
+
+static func _ring(inner: float, outer: float, colour: Color) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var shape := TorusMesh.new()
+	shape.inner_radius = inner
+	shape.outer_radius = outer
+	shape.rings = 16
+	shape.ring_segments = 8
+	ring.mesh = shape
+	ring.rotation.x = PI / 2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	ring.material_override = mat
+	return ring

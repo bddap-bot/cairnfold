@@ -101,11 +101,6 @@ class Room:
 		return r
 
 	func _portal(layout: WallLayout, o: Dictionary) -> void:
-		var f := layout.frame_at(o.s)
-		var out: Vector3 = f.tangent.cross(Vector3.UP)
-		var at: Vector3 = f.point + Vector3.UP * o.sill
-		if Massing.encloses(Vector2(at.x + out.x, at.z + out.z), inside):
-			out = -out
 		var head: float = o.head
 		var round := 0.0
 		if o.style == WallLayout.Family.ARCHWAY:
@@ -115,15 +110,21 @@ class Room:
 			round = o.half
 		elif o.style == WallLayout.Family.ROUND:
 			round = -o.half
-		portals.append({"at": at, "out": out, "half": o.half, "tall": head - o.sill, "depth": WallLayout.THICKNESS * 0.5, "round": round})
+		portals.append(_face(layout, o.s, o.sill).merged({"half": o.half, "tall": head - o.sill, "depth": WallLayout.THICKNESS * 0.5, "round": round}))
 
 	func _open(layout: WallLayout, s: float, y: float, gives: float, area: float) -> void:
+		var face := _face(layout, s, y)
+		var out: Vector3 = face.out
+		openings.append({"at": face.at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives, "area": area})
+
+	## The wall's point `s` along `layout` at height `y`, and the way out of the room there.
+	func _face(layout: WallLayout, s: float, y: float) -> Dictionary:
 		var f := layout.frame_at(s)
 		var out: Vector3 = f.tangent.cross(Vector3.UP)
 		var at: Vector3 = f.point + Vector3.UP * y
 		if Massing.encloses(Vector2(at.x + out.x, at.z + out.z), inside):
 			out = -out
-		openings.append({"at": at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives, "area": area})
+		return {"at": at, "out": out}
 
 	## Boundary probes supply the inside face through linear filtering; include their half-cell support, and `over`
 	## more above the ceiling.
@@ -236,16 +237,14 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 		var c := Bounce.column(f.x, f.z)
 		for j in range(maxi(c.y - r, 0), mini(c.y + r + 1, n)):
 			for i in range(maxi(c.x - r, 0), mini(c.x + r + 1, n)):
-				var x := -Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP
-				var z := -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP
-				var flat := Vector2(x - f.x, z - f.z).length_squared()
+				var flat := (Bounce.column_centre(i, j) - Vector2(f.x, f.z)).length_squared()
 				for k in Bounce.LAYERS:
 					var p := (k * n + j) * n + i
 					if within[p] != home:
 						continue
-					var y := ground[j * n + i] + k + 0.5
-					var d := sqrt(flat + pow(y - f.y, 2.0))
-					if d < REACH and not (home == 0 and near and _crosses(f, Vector3(x, y, z), within, ground)):
+					var at := Bounce.probe_centre(i, j, k, ground)
+					var d := sqrt(flat + pow(at.y - f.y, 2.0))
+					if d < REACH and not (home == 0 and near and _crosses(f, at, within, ground)):
 						var lit := _falloff(d)
 						sum[p * 3] += lit * g.r
 						sum[p * 3 + 1] += lit * g.g
@@ -311,11 +310,9 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Colo
 	var c := Bounce.column(at.x, at.z)
 	for j in range(maxi(c.y - r, 0), mini(c.y + r + 1, n)):
 		for i in range(maxi(c.x - r, 0), mini(c.x + r + 1, n)):
-			var x := -Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP
-			var z := -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP
 			for k in Bounce.LAYERS:
 				var p := (k * n + j) * n + i
-				var to := Vector3(x, ground[j * n + i] + k + 0.5, z) - at
+				var to := Bounce.probe_centre(i, j, k, ground) - at
 				var d := to.length()
 				var facing := to.dot(out)
 				if within[p] == home and facing > 0.0 and (home != 0 or to.y <= 0.0) and d < SPILL:
@@ -336,10 +333,8 @@ static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array, groups: Pa
 		var b := Bounce.column(bounds.end.x, bounds.end.y)
 		for j in range(maxi(a.y, 0), mini(b.y + 1, n)):
 			for i in range(maxi(a.x, 0), mini(b.x + 1, n)):
-				var x := -Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP
-				var z := -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP
 				for k in Bounce.LAYERS:
-					if rooms[r].holds(Vector3(x, ground[j * n + i] + k + 0.5, z), true):
+					if rooms[r].holds(Bounce.probe_centre(i, j, k, ground), true):
 						within[(k * n + j) * n + i] = groups[r]
 	return within
 

@@ -137,7 +137,7 @@ static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callabl
 	return at
 
 
-static func _sweep(from: Vector3, to: Vector3, solid: Callable, step := STEP) -> Vector3:
+static func _sweep(from: Vector3, to: Vector3, solid: Callable, step: float) -> Vector3:
 	var n := maxi(1, ceili(from.distance_to(to) / step))
 	for k in range(1, n + 1):
 		if not solid.call(from.lerp(to, float(k) / n)):
@@ -231,9 +231,8 @@ class Near:
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
 		if on != null:
 			near._walls_seen = _walls_reaching(on, box)
-			for w in on.walls:
-				if not w.pick_bounds.has_volume() or not w.pick_bounds.intersects(box):
-					continue
+			for seen in near._walls_seen:
+				var w: Wall = seen[0]
 				if w.roof != null:
 					near.roofs.append(w.roof)
 				near._add_wall(w.layout, flat)

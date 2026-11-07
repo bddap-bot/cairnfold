@@ -200,7 +200,6 @@ static func local(open_k: float) -> Transform3D:
 	return Transform3D(b, Vector3(0, 0.018, 0.01) + b * Vector3(lerpf(-W * 0.5, 0.0, open_k), 0.0, -H * 0.47))
 
 
-## Opens the book at its first page.
 func open() -> void:
 	if at == 0 and _turn.is_empty():
 		_begin(0, 1)

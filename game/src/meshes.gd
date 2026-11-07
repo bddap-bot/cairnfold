@@ -441,3 +441,14 @@ static func shaped_like(im: ImporterMesh) -> ImporterMesh:
 ## Surface `i` of `im` as each of its blend shapes moves it.
 static func surface_shapes(im: ImporterMesh, i: int) -> Array:
 	return range(im.get_blend_shape_count()).map(func(k: int) -> Array: return im.get_surface_blend_shape_arrays(i, k))
+
+
+## A seamless, mipmapped `side`-square texture of `n`.
+static func noise_texture(n: FastNoiseLite, side: int) -> NoiseTexture2D:
+	var t := NoiseTexture2D.new()
+	t.width = side
+	t.height = side
+	t.seamless = true
+	t.generate_mipmaps = true
+	t.noise = n
+	return t

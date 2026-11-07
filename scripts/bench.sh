@@ -66,9 +66,10 @@ if players > 1:
     steps.insert(first + 1, {"op": "until", "players": players, "seconds": 180})
 print(json.dumps(steps))
 PY
-# The game is stopped this long after it starts: twice the scene's own seconds, so no scene outgrows it.
-limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds", 0) for s in json.load(open(sys.argv[1])))))' "$out/stress.json")
-if [ -n "$replay" ]; then
+# The game is stopped this long after it starts: five minutes plus twice the run's own seconds, so no run outgrows it.
+if [ -z "$replay" ]; then
+  limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds", 0) for s in json.load(open(sys.argv[1])))))' "$out/stress.json")
+else
   session=$(basename "$replay" .jsonl)
   session=${session%-*}
   read -r limit < <(python3 "$here/sessions.py" "$(dirname "$replay")" --json | python3 -c '

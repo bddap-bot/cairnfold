@@ -69,6 +69,17 @@ static func column(x: float, z: float) -> Vector2i:
 	return Vector2i(floori((x + Terrain.SIZE * 0.5) / Terrain.STEP), floori((z + Terrain.SIZE * 0.5) / Terrain.STEP))
 
 
+## The middle of column `i`, `j`: the inverse of `column`.
+static func column_centre(i: int, j: int) -> Vector2:
+	return Vector2(-Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP, -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP)
+
+
+## Where the probe of layer `k` over column `i`, `j` sits, `ground` the columns' floors.
+static func probe_centre(i: int, j: int, k: int, ground: PackedFloat32Array) -> Vector3:
+	var c := column_centre(i, j)
+	return Vector3(c.x, ground[j * CELLS + i] + k + 0.5, c.y)
+
+
 ## What a probe holds: rgb bounce as stored, alpha sky seen.
 func probe(x: float, z: float, layer: int) -> Color:
 	var c := column(x, z)
@@ -217,7 +228,7 @@ static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms
 		for z in range(bounds.position.y, bounds.end.y):
 			for x in range(bounds.position.x, bounds.end.x):
 				for k in LAYERS:
-					var p := Vector3(-Terrain.SIZE * 0.5 + (x + 0.5) * Terrain.STEP, ground[z * CELLS + x] + k + 0.5, -Terrain.SIZE * 0.5 + (z + 0.5) * Terrain.STEP)
+					var p := probe_centre(x, z, k, ground)
 					var index := (k * CELLS + z) * CELLS + x
 					if visited.has(index) or not room.holds(p, true, OVER_ROOF):
 						continue

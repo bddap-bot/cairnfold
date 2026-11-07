@@ -63,37 +63,6 @@ var _exposure := 1.0
 var under := false
 
 
-## The noise surfaces break their flat colour up with (detail.gdshaderinc).
-static func detail_noise() -> NoiseTexture2D:
-	var n := FastNoiseLite.new()
-	n.seed = 3
-	n.frequency = 0.02
-	n.fractal_octaves = 4
-	var t := NoiseTexture2D.new()
-	t.width = 256
-	t.height = 256
-	t.seamless = true
-	t.generate_mipmaps = true
-	t.noise = n
-	return t
-
-
-static func cloud_noise() -> NoiseTexture2D:
-	var n := FastNoiseLite.new()
-	n.seed = 21
-	n.noise_type = FastNoiseLite.TYPE_PERLIN
-	n.frequency = 0.012
-	n.fractal_octaves = 5
-	n.fractal_gain = 0.55
-	var t := NoiseTexture2D.new()
-	t.width = 512
-	t.height = 512
-	t.seamless = true
-	t.generate_mipmaps = true
-	t.noise = n
-	return t
-
-
 static func build(parent: Node, ground: Terrain) -> Look:
 	var look := Look.new()
 	look.terrain = ground
@@ -101,7 +70,13 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	parent.add_child(look)
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://src/sky.gdshader")
-	sky_mat.set_shader_parameter("clouds", cloud_noise())
+	var clouds := FastNoiseLite.new()
+	clouds.seed = 21
+	clouds.noise_type = FastNoiseLite.TYPE_PERLIN
+	clouds.frequency = 0.012
+	clouds.fractal_octaves = 5
+	clouds.fractal_gain = 0.55
+	sky_mat.set_shader_parameter("clouds", Meshes.noise_texture(clouds, 512))
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_128
@@ -116,8 +91,6 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_energy = 1.0
-	for k in AIR_FOG:
-		env.set(k, AIR_FOG[k])
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.04
 	var we := WorldEnvironment.new()
@@ -146,6 +119,7 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	look.photo_sun.directional_shadow_blend_splits = true
 	sun.add_child(look.photo_sun)
 	look.env = env
+	look._set_fog(AIR_FOG)
 	look.sky_mat = sky_mat
 	look.disc = _disc(SUN_DISC, 0.0)
 	look.moon_disc = _disc(MOON_DISC, 1.0)
@@ -158,7 +132,11 @@ static func build(parent: Node, ground: Terrain) -> Look:
 		look.add_child(m)
 	look.bounce.install()
 	look.interior.install()
-	RenderingServer.global_shader_parameter_set(&"detail", detail_noise())
+	var detail := FastNoiseLite.new()
+	detail.seed = 3
+	detail.frequency = 0.02
+	detail.fractal_octaves = 4
+	RenderingServer.global_shader_parameter_set(&"detail", Meshes.noise_texture(detail, 256))
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
 	look._paint_sky()
@@ -201,7 +179,7 @@ func set_time(t: float) -> void:
 	env.adjustment_saturation = l.saturation
 	_exposure = l.exposure * night_adapted(l)
 	_grade()
-	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
+	_tint_fog(l)
 	RenderingServer.global_shader_parameter_set(&"sun_toward", toward)
 	RenderingServer.global_shader_parameter_set(&"sun_light", linear(l.sun) * l.energy)
 	RenderingServer.global_shader_parameter_set(&"sky_zenith", linear(l.zenith))
@@ -251,8 +229,11 @@ func submerge(on: bool) -> void:
 		_absorb.gradient = g
 	_set_fog(WATER_FOG if on else AIR_FOG.merged(fog_at_height(_lift)))
 	env.adjustment_color_correction = _absorb if on else null
-	var l := Daylight.light(time)
-	env.fog_light_color = UNDER_FOG * under_light(l) if on else l.fog
+	_tint_fog(Daylight.light(time))
+
+
+func _tint_fog(l: Dictionary) -> void:
+	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 
 
 func lift_to(lift: float) -> void:

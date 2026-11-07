@@ -178,14 +178,12 @@ func sample(row: Dictionary) -> void:
 	_task = WorkerThreadPool.add_task(_write.bind(snapshot, _take_input(), _take_heard(), _take_audio(), _take_checks()))
 
 
-## The checks kept since the last write.
 func _take_checks() -> Array:
 	var block := _checks
 	_checks = []
 	return block
 
 
-## The microphone frames kept since the last write.
 func _take_audio() -> PackedVector2Array:
 	var block := _audio
 	_audio = PackedVector2Array()

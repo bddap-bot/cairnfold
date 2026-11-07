@@ -123,6 +123,13 @@ class Kind:
 		mmi.lod_bias = size
 		return mmi
 
+	func far_instance() -> MultiMeshInstance3D:
+		var mmi := instance()
+		mmi.multimesh.mesh = far
+		if far_material != null:
+			mmi.material_override = far_material
+		return mmi
+
 
 ## One kind's pieces in one chunk.
 class Chunk:
@@ -278,10 +285,7 @@ func _chunk(key: Vector3i) -> Chunk:
 		c.instance = k.instance()
 		add_child(c.instance)
 		if k.far != null:
-			c.far = k.instance()
-			c.far.multimesh.mesh = k.far
-			if k.far_material != null:
-				c.far.material_override = k.far_material
+			c.far = k.far_instance()
 			add_child(c.far)
 			var parent := _coarse_far(_coarse_key(key))
 			c.far.visibility_parent = NodePath("../" + parent.name)
@@ -302,10 +306,7 @@ func _chunk(key: Vector3i) -> Chunk:
 func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
 	if not _coarse.has(key):
 		var k := kinds[key.z]
-		var far := k.instance()
-		far.multimesh.mesh = k.far
-		if k.far_material != null:
-			far.material_override = k.far_material
+		var far := k.far_instance()
 		far.layers = Quality.LADDER_LAYER
 		far.name = "Far_%d_%d_%d" % [key.x, key.y, key.z]
 		add_child(far)

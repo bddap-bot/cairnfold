@@ -262,9 +262,13 @@ func _take(f: One, meal: Array) -> void:
 ## Off to a deep spot away from where it fed, darting at first and slowing to a cruise.
 func _scatter(f: One) -> void:
 	f.feeding = false
+	_dart(f, _flee_spot(f, Vector2.from_angle(rng.randf() * TAU)))
+
+
+func _dart(f: One, to: Vector2) -> void:
+	f.goal = to
 	f.dart = DART_FOR
 	f.speed = DART
-	f.goal = _flee_spot(f, Vector2.from_angle(rng.randf() * TAU))
 
 
 ## After the ponds change: each fish stays with the pond now under it, or goes with the water it was in; each
@@ -326,9 +330,7 @@ func _swim(f: One, startling: Array[Vector3], delta: float) -> void:
 				var away := here - Vector2(n.x, n.z)
 				var spot := _flee_spot(f, away.normalized() if away.length() > 1e-3 else Vector2.from_angle(rng.randf() * TAU))
 				if spot != Vector2.INF:
-					f.goal = spot
-					f.dart = DART_FOR
-					f.speed = DART
+					_dart(f, spot)
 				break
 	f.dart -= delta
 	if f.dart <= 0.0:

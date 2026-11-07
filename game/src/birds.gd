@@ -397,9 +397,8 @@ func _watch(b: Bird, near: Node3D, delta: float) -> void:
 	if near != wildlife.viewer or (b.node.position + Conure.BODY).distance_to(at) >= SHUFFLE:
 		return
 	var best := Vector3.INF
-	for p in b.site.points():
-		var d := p.distance_to(b.spot)
-		if d > HOP.x and d < b.site.hop() and p.distance_to(at) > SHUFFLE * 2.0 and _clear(p, b) and d < best.distance_to(b.spot):
+	for p in _hops(b):
+		if p.distance_to(at) > SHUFFLE * 2.0 and p.distance_to(b.spot) < best.distance_to(b.spot):
 			best = p
 	if best != Vector3.INF:
 		_hop(b, best, State.PERCH)
@@ -407,12 +406,18 @@ func _watch(b: Bird, near: Node3D, delta: float) -> void:
 		_startle(b, at)
 
 
-func _hop_spot(b: Bird) -> Vector3:
+## The points of its site a bird can hop to from its spot, clear of the others.
+func _hops(b: Bird) -> Array[Vector3]:
 	var near: Array[Vector3] = []
 	for p in b.site.points():
 		var d := p.distance_to(b.spot)
 		if d > HOP.x and d < b.site.hop() and _clear(p, b):
 			near.append(p)
+	return near
+
+
+func _hop_spot(b: Bird) -> Vector3:
+	var near := _hops(b)
 	return near[rng.randi() % near.size()] if not near.is_empty() else Vector3.INF
 
 
