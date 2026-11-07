@@ -1,0 +1,1461 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "pond": {
+   "p50": 13.9060001373291,
+   "p99": 23.6439990997314,
+   "late": 8,
+   "draws": 63,
+   "prims": 80927,
+   "worst": {
+    "late": 3,
+    "p50": 13.9010000228882,
+    "p99": 22.5690002441406
+   },
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 3.84,
+   "timewarp_ms": 1.18
+  },
+  "bare/under": {
+   "p50": 13.9849996566772,
+   "p99": 51.0900001525879,
+   "late": 34,
+   "draws": 56,
+   "prims": 72293,
+   "worst": {
+    "late": 23,
+    "p50": 41.6920013427734,
+    "p99": 51.0900001525879
+   },
+   "landings": [
+    {
+     "frames": 20,
+     "max": 49.397,
+     "late": 12
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      13,
+      13
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 3.83,
+   "timewarp_ms": 1.18
+  },
+  "bare/above": {
+   "p50": 13.9020004272461,
+   "p99": 15.8549995422363,
+   "late": 0,
+   "draws": 88,
+   "prims": 78448,
+   "worst": {
+    "late": 0,
+    "p50": 13.8599996566772,
+    "p99": 15.6630001068115
+   },
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.176,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 6.27,
+   "timewarp_ms": 1.16
+  },
+  "bare/land-above": {
+   "p50": 13.9010000228882,
+   "p99": 15.5120000839233,
+   "late": 0,
+   "draws": 84,
+   "prims": 80723,
+   "worst": {
+    "late": 0,
+    "p50": 13.8290004730225,
+    "p99": 15.5120000839233
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.071,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 4.83,
+   "timewarp_ms": 1.18
+  },
+  "bare/land-low": {
+   "p50": 13.9230003356934,
+   "p99": 15.1499996185303,
+   "late": 0,
+   "draws": 81,
+   "prims": 74350,
+   "worst": {
+    "late": 0,
+    "p50": 13.9750003814697,
+    "p99": 15.0
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 14.779,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 4.9,
+   "timewarp_ms": 1.19
+  },
+  "bare/shore": {
+   "p50": 13.9029998779297,
+   "p99": 15.9449996948242,
+   "late": 0,
+   "draws": 88,
+   "prims": 85340,
+   "worst": {
+    "late": 0,
+    "p50": 13.8889999389648,
+    "p99": 15.46399974823
+   },
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.808,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 5.83,
+   "timewarp_ms": 1.18
+  },
+  "bare/bloom-shore": {
+   "p50": 13.8509998321533,
+   "p99": 15.3649997711182,
+   "late": 0,
+   "draws": 95,
+   "prims": 96480,
+   "worst": {
+    "late": 0,
+    "p50": 13.9119997024536,
+    "p99": 15.3649997711182
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.365,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.617,
+   "charges_ms": {
+    "bush": 0.283,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.6,
+    "textures": 570.6,
+    "video": 647.7
+   },
+   "gpu_ms": 5.78,
+   "timewarp_ms": 1.18
+  },
+  "planting": {
+   "p50": 13.9359998703003,
+   "p99": 51.5509986877441,
+   "late": 90,
+   "draws": 206,
+   "prims": 209532,
+   "worst": {
+    "late": 21,
+    "p50": 45.2179985046387,
+    "p99": 51.5400009155273
+   },
+   "landings": [
+    {
+     "frames": 37,
+     "max": 14.898,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 16.175,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.354,
+     "late": 0
+    },
+    {
+     "frames": 37,
+     "max": 14.991,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.861,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 16.657,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 51.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 53.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.669,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.072,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.9,
+    "textures": 622.1,
+    "video": 707.0
+   },
+   "gpu_ms": 5.79,
+   "timewarp_ms": 1.19
+  },
+  "shallows": {
+   "p50": 13.9219999313354,
+   "p99": 16.7980003356934,
+   "late": 0,
+   "draws": 209,
+   "prims": 222248,
+   "worst": {
+    "late": 0,
+    "p50": 13.9630002975464,
+    "p99": 15.5939998626709
+   },
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.489,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.54,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.665,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 42.9,
+    "textures": 622.1,
+    "video": 707.0
+   },
+   "gpu_ms": 4.28,
+   "timewarp_ms": 1.18
+  },
+  "weed-full": {
+   "p50": 13.8850002288818,
+   "p99": 15.7410001754761,
+   "late": 2,
+   "draws": 81,
+   "prims": 100083,
+   "worst": {
+    "late": 1,
+    "p50": 13.8850002288818,
+    "p99": 15.7410001754761
+   },
+   "stalls": [
+    {
+     "ms": 906.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 44.1,
+    "textures": 622.1,
+    "video": 708.2
+   },
+   "gpu_ms": 5.93,
+   "timewarp_ms": 1.16
+  },
+  "weed-full/under": {
+   "p50": 13.9490003585815,
+   "p99": 15.5799999237061,
+   "late": 0,
+   "draws": 166,
+   "prims": 269583,
+   "worst": {
+    "late": 0,
+    "p50": 13.9440002441406,
+    "p99": 15.0530004501343
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.362,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 44.1,
+    "textures": 622.1,
+    "video": 708.2
+   },
+   "gpu_ms": 6.55,
+   "timewarp_ms": 1.16
+  },
+  "weed-full/above": {
+   "p50": 13.9280004501343,
+   "p99": 22.8309993743896,
+   "late": 2,
+   "draws": 205,
+   "prims": 284836,
+   "worst": {
+    "late": 2,
+    "p50": 13.9940004348755,
+    "p99": 22.8309993743896
+   },
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.467,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 44.1,
+    "textures": 622.1,
+    "video": 708.2
+   },
+   "gpu_ms": 8.77,
+   "timewarp_ms": 1.18
+  },
+  "land-full": {
+   "p50": 14.121000289917,
+   "p99": 49.1510009765625,
+   "late": 14,
+   "draws": 100,
+   "prims": 141806,
+   "worst": {
+    "late": 13,
+    "p50": 14.121000289917,
+    "p99": 49.1510009765625
+   },
+   "stalls": [
+    {
+     "ms": 851.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.1,
+    "textures": 622.1,
+    "video": 709.2
+   },
+   "gpu_ms": 7.13,
+   "timewarp_ms": 1.22
+  },
+  "land-full/above": {
+   "p50": 13.9289999008179,
+   "p99": 15.0159997940063,
+   "late": 0,
+   "draws": 95,
+   "prims": 143927,
+   "worst": {
+    "late": 0,
+    "p50": 13.9350004196167,
+    "p99": 14.5559997558594
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.697,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.1,
+    "textures": 622.1,
+    "video": 709.2
+   },
+   "gpu_ms": 8.06,
+   "timewarp_ms": 1.17
+  },
+  "land-full/low": {
+   "p50": 13.9659996032715,
+   "p99": 15.6719999313354,
+   "late": 1,
+   "draws": 177,
+   "prims": 256822,
+   "worst": {
+    "late": 0,
+    "p50": 14.0,
+    "p99": 15.6719999313354
+   },
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.456,
+     "late": 0
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.1,
+    "textures": 622.1,
+    "video": 709.2
+   },
+   "gpu_ms": 7.74,
+   "timewarp_ms": 1.18
+  },
+  "iris-full": {
+   "p50": 13.878999710083,
+   "p99": 15.5059995651245,
+   "late": 2,
+   "draws": 86,
+   "prims": 131935,
+   "worst": {
+    "late": 1,
+    "p50": 13.878999710083,
+    "p99": 15.5059995651245
+   },
+   "stalls": [
+    {
+     "ms": 272.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.5,
+    "textures": 622.1,
+    "video": 709.6
+   },
+   "gpu_ms": 7.26,
+   "timewarp_ms": 1.22
+  },
+  "iris-full/shore": {
+   "p50": 49.9690017700195,
+   "p99": 55.8689994812012,
+   "late": 166,
+   "draws": 206,
+   "prims": 462972,
+   "worst": {
+    "late": 23,
+    "p50": 46.8479995727539,
+    "p99": 51.1790008544922
+   },
+   "landings": [
+    {
+     "frames": 33,
+     "max": 25.547,
+     "late": 5
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 51.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 55.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.5,
+    "textures": 622.1,
+    "video": 709.6
+   },
+   "gpu_ms": 13.07,
+   "timewarp_ms": 1.2
+  },
+  "bloom-land-full": {
+   "p50": 30.1849994659424,
+   "p99": 50.5340003967285,
+   "late": 38,
+   "draws": 96,
+   "prims": 223420,
+   "worst": {
+    "late": 22,
+    "p50": 30.1849994659424,
+    "p99": 50.5340003967285
+   },
+   "stalls": [
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.0,
+     "notes": [],
+     "compiled": [
+      1,
+      1
+     ]
+    },
+    {
+     "ms": 50.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.7,
+    "textures": 622.1,
+    "video": 709.8
+   },
+   "gpu_ms": 20.52,
+   "timewarp_ms": 1.19
+  },
+  "bloom-land-full/shore": {
+   "p50": 50.0040016174316,
+   "p99": 51.5929985046387,
+   "late": 177,
+   "draws": 216,
+   "prims": 473584,
+   "worst": {
+    "late": 21,
+    "p50": 50.0040016174316,
+    "p99": 51.2620010375977
+   },
+   "landings": [
+    {
+     "frames": 15,
+     "max": 51.644,
+     "late": 12
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 51.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.8,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 51.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "step": 16,
+   "pinned": true,
+   "fill": 0.695,
+   "charges_ms": {
+    "bush": 0.283,
+    "flower": 0.175,
+    "grass": 0.135,
+    "pond_m2": 0.954,
+    "tree": 1.225
+   },
+   "mem_mb": {
+    "buffers": 45.7,
+    "textures": 622.1,
+    "video": 709.8
+   },
+   "gpu_ms": 19.62,
+   "timewarp_ms": 1.2
+  }
+ },
+ "prices": {
+  "grass": {
+   "unit": "grass",
+   "us": 0.359
+  },
+  "pondweed": {
+   "unit": "grass",
+   "us": 0.302
+  }
+ }
+}
