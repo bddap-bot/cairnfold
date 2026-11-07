@@ -6,6 +6,7 @@ extends "res://../tests/support/suite.gd"
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm", "twist-1.0.vrm"]
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
+const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 
 
 func _initialize() -> void:
@@ -37,6 +38,7 @@ func _run() -> void:
 	_unweighted_children_keep_humanoid_bones()
 	_simulates_the_longest_chains_within_the_limit()
 	_import_settles_each_spring_chain()
+	_a_later_physbone_over_the_same_bones_is_shadowed()
 	_switched_off_physics_stays_out()
 	_read_skins_bind_only_weighed_bones()
 	_hidden_avatars_pause()
@@ -646,6 +648,22 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 	check((a._model.get_meta("eyes") as Vector3).is_equal_approx(Vector3(0, 0.12, 0.09)), "built-in %d carries its eye offset in the file" % i)
 	check(a._eyes.size() == 2 and a._model.get_meta("look").type == Vrm.BONE, "built-in %d looks by its eye bones" % i)
 	a.free()
+
+
+## The first chain over a set of bones moves them; a later one over the same bones is not simulated, and one that
+## reaches a bone of its own still is.
+func _a_later_physbone_over_the_same_bones_is_shadowed() -> void:
+	var chain := func(nodes: Array) -> Dictionary: return {"joints": nodes.map(func(n: int) -> Dictionary: return {"node": n, "physbone": {}})}
+	var first: Dictionary = chain.call([1, 2])
+	var further: Dictionary = chain.call([1, 2, 3])
+	var kept := SpringRuntime.unshadowed([first, chain.call([1, 2]), further])
+	check(kept.size() == 2 and kept[0] == first and kept[1] == further, "a later chain over the same bones is shadowed, one reaching further is not: %s" % [kept])
+	var root := Node3D.new()
+	root.set_meta("humanoid", {})
+	root.set_meta("springs", {"springs": [first, further]})
+	Avatar._keep_longest(root)
+	check(root.get_meta("springs").springs == [first, further], "the kept chains stay in the file's order, the first PhysBone on a bone first")
+	root.free()
 
 
 ## The importer records where each chain's PhysBone holds its bones in the rest pose, and leaves the bones at rest.

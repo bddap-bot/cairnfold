@@ -418,21 +418,24 @@ static func _switched_off(root: Node3D) -> void:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
 
-## Keeps the root's longest spring chains within MAX_SPRING_JOINTS. A bone only the chains left out move rests at its
+## Keeps the root's longest spring chains within MAX_SPRING_JOINTS, none of them one an earlier chain shadows
+## (SpringRuntime.unshadowed). A bone only the chains left out move rests at its
 ## "settled" rotation, where the importer found its chain hangs (UnityAvatar.settle), as VRChat, running them all, shows it.
 static func _keep_longest(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
-	var longest: Array = springs.springs.duplicate()
-	longest.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.joints.size() > b.joints.size())
-	var kept := []
+	var chains: Array = SpringRuntime.unshadowed(springs.springs)
+	var longest: Array = range(chains.size())
+	longest.sort_custom(func(a: int, b: int) -> bool: return chains[a].joints.size() > chains[b].joints.size())
+	var kept := {}
 	var left := []
 	var joints := 0
 	var moving := {}
-	for chain: Dictionary in longest:
+	for i: int in longest:
+		var chain: Dictionary = chains[i]
 		if joints + chain.joints.size() > MAX_SPRING_JOINTS:
 			left.append(chain)
 			continue
-		kept.append(chain)
+		kept[i] = true
 		joints += chain.joints.size()
 		for joint: Dictionary in chain.joints:
 			moving[joint.node] = true
@@ -447,7 +450,8 @@ static func _keep_longest(root: Node3D) -> void:
 			if bone >= 0:
 				var rest := sk.get_bone_rest(bone)
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
-	springs.springs = kept
+	# Kept in the file's order, so the runtime's own shadowing pass sees the first PhysBone on a bone first.
+	springs.springs = range(chains.size()).filter(func(i: int) -> bool: return kept.has(i)).map(func(i: int) -> Dictionary: return chains[i])
 
 
 ## Keeps the humanoid and spring bones that are bones of the skeleton holding the hips: a pose moves only those.
