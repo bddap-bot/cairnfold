@@ -246,8 +246,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   cutoff, or blended) take a cell of one atlas at the size Unity imports the texture at for a PC (its `.meta`'s
   default or Standalone `maxTextureSize`), the size the avatar shows it at. The atlas is 2048 px wide, widened in 256 px
   steps until every cell fits, up to `Avatar.MAX_IMAGE_SIDE` (16383, the widest WebP image), past which its cells
-  shrink alike with a Lanczos filter. Cairnfold reads the same file within the limits below, and the converter says so
-  of a `.vrm` past `MAX_BYTES` or `MAX_PIXELS`. The expression
+  shrink alike with a Lanczos filter. Cairnfold reads the same file within the limits below, and for a `.vrm` past
+  the floors every device reads the converter names the memory a device needs available to read it. The expression
   layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. Each Poiyomi
   decal a material draws is instead its own lossless WebP image over the material's cell, at the size Unity imports
   its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
@@ -310,7 +310,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent, so all players see the same avatar: at most 100 MiB, surfaces merged per
+  it is sent: every device reads one within 100 MiB and 192 Mpx of images, and a device with the memory reads a
+  heavier one (below), so players whose devices read a file see the same avatar, and the rest see its player as a
+  built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
   author made them. Its textures, decals and expression layers are mipmapped, base colours sampled anisotropically,
   and all shrink alike, by halves, only until they fit the memory the device has available above 1.3 GB, shared
@@ -327,7 +329,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   8.4 million that held. Neither the texels nor anisotropic sampling moved the scene's GPU time by more than 0.1 ms
   in any phase. Two Quest 2 runs reading one 94 MiB avatar took 8.7 s on a worker each and fell from 2.55 and
   1.66 GB available to lows of 0.72 and 0.49 GB, the low-memory killer taking background apps but never the game,
-  which sets the 100 MiB limit. A heavy mesh is its
+  which sets the 100 MiB floor; 192 Mpx keep that read near ten seconds. The worse run held 19.5 bytes a file byte,
+  so a file past the floors, weighing as many floor reads as its bytes or pixels are multiples of them, is read where
+  the memory available above 0.5 GB, less what reads under way hold, holds that many reads at 20 bytes a file byte
+  (`Avatar.reads`, `Avatar.weight`): a desktop with 24 GB available reads a 118 MiB, 259 Mpx corpus avatar, and a
+  Quest 2 with the 1.66 to 2.55 GB its runs had reads at the floors. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:

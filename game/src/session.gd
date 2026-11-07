@@ -441,7 +441,7 @@ func _hear() -> void:
 		if wears != "" and not previews.has(wears) and not _fetches.has(wears) and _fetches.size() < FETCHES and _clock - _failed.get(wears, -INF) > RETRY:
 			var peer := StreamPeerTCP.new()
 			if peer.connect_to_host(garden.address, garden.port) == OK:
-				_fetches[wears] = {"peer": peer, "got": PackedByteArray(), "since": _clock}
+				_fetches[wears] = {"peer": peer, "got": PackedByteArray(), "since": _clock, "most": Avatar.max_bytes()}
 			else:
 				_failed[wears] = _clock
 
@@ -519,7 +519,7 @@ func _fetch() -> void:
 		f.got = got
 		var want: int = got.decode_u32(0) + 4 if got.size() >= 4 else -1
 		var whole := got.size() == want
-		var failed: bool = status == StreamPeerTCP.STATUS_ERROR or (status == StreamPeerTCP.STATUS_NONE and not whole) or want > Avatar.MAX_BYTES + 4 or (want >= 0 and got.size() > want) or _clock - f.since > STALL
+		var failed: bool = status == StreamPeerTCP.STATUS_ERROR or (status == StreamPeerTCP.STATUS_NONE and not whole) or want > f.most + 4 or (want >= 0 and got.size() > want) or _clock - f.since > STALL
 		if failed:
 			_failed[key] = _clock
 		if failed or whole:
@@ -589,7 +589,7 @@ func _wear(bytes: PackedByteArray, look: int) -> void:
 	world.hear("_wear", [bytes, look])
 	var id := multiplayer.get_remote_sender_id()
 	print("session: player %d sent %d bytes of avatar%s" % [id, bytes.size(), "" if _looks.has(id) else " before appearing"])
-	if not _looks.has(id) or bytes.size() > Avatar.MAX_BYTES:
+	if not _looks.has(id):
 		return
 	_looks[id][0] = posmod(look, Avatar.BUILT_IN.size())
 	_waiting[id] = bytes
@@ -765,7 +765,7 @@ func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> v
 		var b := bytes
 		if path != "":
 			var f := FileAccess.open(path, FileAccess.READ)
-			b = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.MAX_BYTES else PackedByteArray()
+			b = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.max_bytes() else PackedByteArray()
 		out.merge({"key": sha256(b), "bytes": b, "scene": Avatar.read(b) if not b.is_empty() else null}))
 	_jobs.append({"task": task, "peer": peer, "done": done, "out": out})
 

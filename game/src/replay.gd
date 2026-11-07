@@ -176,8 +176,9 @@ static func read(path: String, avatars := "") -> Dictionary:
 		if m[3] != "look" or not m[4][0] is Dictionary:
 			continue
 		if held.is_empty() and avatars != "":
+			var most := Avatar.max_bytes()
 			for f in DirAccess.get_files_at(avatars):
-				if f.get_extension().to_lower() == "vrm" and FileAccess.get_size(avatars.path_join(f)) <= Avatar.MAX_BYTES:
+				if f.get_extension().to_lower() == "vrm" and FileAccess.get_size(avatars.path_join(f)) <= most:
 					var bytes := FileAccess.get_file_as_bytes(avatars.path_join(f))
 					held[Session.sha256(bytes)] = bytes
 		if not held.has(m[4][0].sha256):

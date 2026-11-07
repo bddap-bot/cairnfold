@@ -75,8 +75,9 @@ func _init() -> void:
 		var pixels := 0
 		for image in Vrm.images(bytes):
 			pixels += image.size.x * image.size.y
-		if bytes.size() > Avatar.MAX_BYTES or pixels > Avatar.MAX_PIXELS:
-			print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx Cairnfold reads of a player's file" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.MAX_BYTES >> 20, Avatar.MAX_PIXELS / 1e6])
+		var heavy := Avatar.weight(bytes.size(), pixels)
+		if heavy > 1.0:
+			print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
 	else:
 		var scene := Avatar.model(root)
 		if scene == null:

@@ -13,7 +13,7 @@ const STEP := 256
 ## and at a widened atlas's side each would hold as much memory as it.
 const LAYER := 4096
 ## The widest the emission map is carried at: it can hold a full colour texture over every glowing cell, which at LAYER
-## would weigh in a file as much as the atlas and push heavy avatars past Avatar.MAX_BYTES.
+## would weigh in a file as much as the atlas and push heavy avatars past Avatar.FLOOR_BYTES.
 const GLOW_LAYER := LAYER / 2
 const PAD := 4
 ## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels

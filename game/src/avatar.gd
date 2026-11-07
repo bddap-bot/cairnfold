@@ -14,9 +14,13 @@ const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
 ## Two Quest 2 runs reading a 93.9 MiB file (perf/quest-2/avatar-cost) took 8.7 s on a worker each and fell from 2.55 and
-## 1.66 GB available to lows of 0.72 and 0.49 GB, Android's low-memory killer taking background apps but never the game;
-## at 15 bytes a file byte, 100 MiB keeps the tighter run near 0.4 GB.
-const MAX_BYTES := 100 << 20
+## 1.66 GB available to lows of 0.72 and 0.49 GB, Android's low-memory killer taking background apps but never the game:
+## the worse run held 19.5 bytes a file byte. Every device reads a file within FLOOR_BYTES and FLOOR_PIXELS; one whose
+## memory available above READ_LOW holds more such reads at READ_BYTES_PER_BYTE reads a file that many times heavier
+## (`reads`, `weight`).
+const FLOOR_BYTES := 100 << 20
+const READ_BYTES_PER_BYTE := 20
+const READ_LOW := 512 << 20
 ## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
 ## "Skinned bodies").
 const MAX_SURFACES := 40
@@ -38,12 +42,12 @@ const MAX_IMAGES := 256
 ## The widest WebP image, the widest a converted avatar packs its atlas at, within the 16384 px a GPU texture may be;
 ## the memory budget, not this, sets the side each is held at.
 const MAX_IMAGE_SIDE := 16383
-## The pixels of a 4096 px square, the widest image the Quest 2 runs behind MAX_PIXELS and MEMORY_FLOOR decoded; a larger
+## The pixels of a 4096 px square, the widest image the Quest 2 runs behind FLOOR_PIXELS and MEMORY_FLOOR decoded; a larger
 ## image is whole in memory before it shrinks, so it is decoded only where it fits one avatar's texture budget
 ## (`decodes`).
 const UNGATED_DECODE_PIXELS := 4096 * 4096
-## The Quest 2 decoded 164 Mpx in 8.7 s; this many keep a read near ten seconds.
-const MAX_PIXELS := 192 << 20
+## The Quest 2 read 164 Mpx in 8.7 s; this many keep its read near ten seconds.
+const FLOOR_PIXELS := 192 << 20
 ## Blend shapes times the vertices they move, summed over a file's meshes, past which it is refused before they are
 ## copied: a file of a few MB can name thousands of sparse blend shapes, each held whole once read.
 const MAX_BLEND_VERTICES := 4000000
@@ -213,6 +217,8 @@ var _tints: Array[Material] = []
 
 
 static var _built_in := {}
+static var _reading := 0
+static var _reading_lock := Mutex.new()
 
 
 ## A built-in avatar, read once; every avatar of it shares its meshes.
@@ -224,19 +230,33 @@ static func built_in(i: int) -> PackedScene:
 
 
 ## A VRM file as an avatar model to open (`model`), textures shrunk, null if it is not one or is past the limits; only
-## the converter's check of a file for another renderer reads it `unlimited` by MAX_BYTES, MAX_PIXELS and the texture
-## budget. Takes tens to hundreds of milliseconds, so a player's file is read on a worker thread.
-static func read(bytes: PackedByteArray, unlimited := false) -> PackedScene:
-	if bytes.size() > MAX_BYTES and not unlimited:
+## the converter's check of a file for another renderer reads it `unlimited` by its weight and the texture budget.
+## Takes tens to hundreds of milliseconds, so a player's file is read on a worker thread; reads under way hold the
+## memory they need (`_reading`) against admitting the next past the floors.
+static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
+	if not unlimited and weight(bytes.size(), 0) > reads(available - _reading):
 		return null
 	var images := Vrm.images(bytes)
-	var seen := {"images": 0, "pixels": 0}
+	if images.size() > MAX_IMAGES or images.any(func(image: Dictionary) -> bool: return maxi(image.size.x, image.size.y) > MAX_IMAGE_SIDE):
+		return null
+	var pixels := 0
+	for image in images:
+		pixels += image.size.x * image.size.y
+	var heavy := weight(bytes.size(), pixels)
+	var held := memory_to_read(heavy) - READ_LOW
+	_reading_lock.lock()
+	var admitted := unlimited or heavy <= reads(available - _reading)
+	if admitted:
+		_reading += held
+	_reading_lock.unlock()
+	if not admitted:
+		return null
+	var decoded := [0]
 	var budget := texture_budget()
 	# Each image decoded must be the one Vrm.images measured in its place, or the budget would be another file's.
 	var fits := func(size: Vector2i) -> bool:
-		seen.images += 1
-		seen.pixels += size.x * size.y
-		return maxi(size.x, size.y) <= MAX_IMAGE_SIDE and seen.images <= mini(MAX_IMAGES, images.size()) and (unlimited or seen.pixels <= MAX_PIXELS and decodes(size, budget)) and size == images[seen.images - 1].size
+		decoded[0] += 1
+		return decoded[0] <= images.size() and (unlimited or decodes(size, budget)) and size == images[decoded[0] - 1].size
 	var start := Time.get_ticks_usec()
 	var textures := texture_bytes(bytes, images)
 	var shrink := shrink_for(textures, budget)
@@ -244,8 +264,32 @@ static func read(bytes: PackedByteArray, unlimited := false) -> PackedScene:
 	if root != null:
 		root.set_meta("texture_shrink", shrink)
 	var scene := model(root) if root != null else null
-	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, seen.images, seen.pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, available_memory() / 1048576.0])
+	_reading_lock.lock()
+	_reading -= held
+	_reading_lock.unlock()
+	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, images.size(), pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, available_memory() / 1048576.0])
 	return scene
+
+
+## How many reads of a file at FLOOR_BYTES and FLOOR_PIXELS `available` bytes of memory hold above READ_LOW, never
+## under one.
+static func reads(available: int) -> float:
+	return maxf(1.0, float(available - READ_LOW) / (READ_BYTES_PER_BYTE * FLOOR_BYTES))
+
+
+## How many reads at the floors a file of `size` bytes and `pixels` image pixels weighs as.
+static func weight(size: int, pixels: int) -> float:
+	return maxf(float(size) / FLOOR_BYTES, float(pixels) / FLOOR_PIXELS)
+
+
+## The largest file `available` bytes of memory read.
+static func max_bytes(available := available_memory()) -> int:
+	return int(reads(available) * FLOOR_BYTES)
+
+
+## The memory a device needs available to read a file of `weight` (`reads` it).
+static func memory_to_read(weight: float) -> int:
+	return ceili(weight * READ_BYTES_PER_BYTE * FLOOR_BYTES) + READ_LOW
 
 
 ## Whether an image of `size` is decoded under one avatar's texture `budget`: its RGBA bytes whole fit it, or it is

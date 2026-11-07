@@ -45,9 +45,7 @@ func _run() -> void:
 		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
 	_expressions_follow_the_look()
 	check(Avatar.read("not a vrm".to_utf8_buffer()) == null, "a file that is not glTF reads as nothing")
-	var big := PackedByteArray()
-	big.resize(Avatar.MAX_BYTES + 1)
-	check(Avatar.read(big) == null, "a file over the size limit is not read")
+	_read_limits_follow_memory()
 	_images_are_measured_before_decoding()
 	_textures_share_the_texel_limit()
 	_blend_shapes_are_bounded()
@@ -128,9 +126,42 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, many)) != null, "a file with as many images as the limit is read")
 	check(Avatar.read(_with_images(bytes, many + [png.call(1, 1)])) == null, "a file with more images than the limit is refused")
 	var full: PackedByteArray = png.call(4096, 4096)
-	var fill := Avatar.MAX_PIXELS / Avatar.UNGATED_DECODE_PIXELS
-	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full))) != null, "images filling the pixel limit are read")
-	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
+	var fill := Array(range(Avatar.FLOOR_PIXELS / Avatar.UNGATED_DECODE_PIXELS)).map(func(_i: int) -> PackedByteArray: return full)
+	check(Avatar.read(_with_images(bytes, fill), false, 0) != null, "images filling the pixel floor are read with no memory to spare")
+	var over := _with_images(bytes, fill + [png.call(1, 1)])
+	check(Avatar.read(over, false, 0) == null, "a file with more pixels than the floor is refused with no memory to spare")
+	check(Avatar.read(over, false, Avatar.memory_to_read(Avatar.weight(over.size(), Avatar.FLOOR_PIXELS + 1))) != null, "a file past the pixel floor is read where the memory it needs is available")
+
+
+## Every device reads a file within the floors; a heavier one is read exactly where the memory the converter names for
+## it is available, less what reads under way hold.
+func _read_limits_follow_memory() -> void:
+	check(Avatar.reads(0) == 1.0 and Avatar.reads(1660 << 20) == 1.0 and Avatar.reads(2432 << 20) == 1.0, "a device with a Quest 2's memory or less reads at the floors")
+	var heavy := 1.18
+	check(Avatar.reads(Avatar.memory_to_read(heavy)) >= heavy and Avatar.reads(Avatar.memory_to_read(heavy) - 1) < heavy, "a file past the floors is read exactly where the memory it needs is available")
+	var sample := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var floor := _padded(sample, Avatar.FLOOR_BYTES)
+	check(Avatar.read(floor, false, 0) != null, "a file at the size floor is read with no memory to spare")
+	var past := _padded(sample, Avatar.FLOOR_BYTES + 4)
+	var needs := Avatar.memory_to_read(Avatar.weight(past.size(), Array(Vrm.images(past)).reduce(func(sum: int, image: Dictionary) -> int: return sum + image.size.x * image.size.y, 0)))
+	check(Avatar.read(past, false, 0) == null, "a file past the size floor is refused with no memory to spare")
+	check(Avatar.read(past, false, needs) != null, "a file past the size floor is read where the memory it needs is available")
+	Avatar._reading = needs
+	check(Avatar.read(past, false, needs) == null, "memory a read under way holds is not counted available to another")
+	Avatar._reading = 0
+
+
+## `bytes`, a VRM file, grown to `size` bytes by a tail of its buffer that nothing refers to.
+func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:
+	var length := bytes.decode_u32(12)
+	var json := _gltf_json(bytes)
+	var bin := bytes.slice(28 + length, 28 + length + bytes.decode_u32(20 + length))
+	var out := _glb(json, bin)
+	while out.size() != size:
+		bin.resize(bin.size() + size - out.size())
+		json.buffers[0].byteLength = bin.size()
+		out = _glb(json, bin)
+	return out
 
 
 ## A file's images are each the one its headers were measured from, in its place, or it is refused: the texture
