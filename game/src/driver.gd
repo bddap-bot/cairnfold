@@ -2341,10 +2341,7 @@ func _markers(_s: Dictionary) -> void:
 		mat.albedo_color = c
 		var mi := MeshInstance3D.new()
 		if balls.size() < 3:
-			var sphere := SphereMesh.new()
-			sphere.radius = 0.035
-			sphere.height = 0.07
-			mi.mesh = sphere
+			mi.mesh = ToolModels.sphere(0.035, 0.07)
 		else:
 			var stalk := BoxMesh.new()
 			stalk.size = Vector3(0.012, 0.012, 0.2)

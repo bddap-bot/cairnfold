@@ -64,10 +64,7 @@ func icon(control: Dictionary) -> Node3D:
 	if control.type in ["toggle", "button"]:
 		var on := MeshInstance3D.new()
 		on.name = "On"
-		var sphere := SphereMesh.new()
-		sphere.radius = 0.004
-		sphere.height = 0.008
-		on.mesh = sphere
+		on.mesh = ToolModels.sphere(0.004, 0.008)
 		on.position = Vector3(0.025, 0.025, 0)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color(0.1, 0.65, 0.2)

@@ -119,8 +119,7 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 		add_child(p.ghost)
 		p.held = holding(p)
 		painters.append(p)
-	_show_paint.call_deferred(painters[0])
-	_show_paint.call_deferred(painters[1])
+		_show_paint.call_deferred(p)
 
 
 func _ghost() -> Node3D:
@@ -217,13 +216,13 @@ func _aim_ground(p: Painter) -> void:
 		place(hit, yaw, p.hand)
 
 
-func place(at: Vector3, yaw: float, hand: Hand = null) -> void:
+func place(at: Vector3, yaw: float, hand: Hand) -> void:
 	var why := Easels.crowded(at, world.state.easels)
 	if why.is_empty():
 		if world.fits({"op": "easel", "at": at, "yaw": yaw}):
 			Cues.play(Cues.Act.EASEL_PLACE, at, hand)
 		world.submit({"op": "easel", "at": at, "yaw": yaw}, Callable(), hand)
-	elif hand != null:
+	else:
 		_decline(hand, why)
 
 
@@ -483,9 +482,8 @@ func _pull_sheet(p: Painter, live: bool) -> void:
 	e.canvas_mesh.transform = Easels.canvas_local() * hinge
 
 
-func fresh_sheet(id: int, hand: Hand = null) -> void:
-	if hand != null:
-		Cues.play(Cues.Act.SHEET_TEAR, hand.global_position, hand)
+func fresh_sheet(id: int, hand: Hand) -> void:
+	Cues.play(Cues.Act.SHEET_TEAR, hand.global_position, hand)
 	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 

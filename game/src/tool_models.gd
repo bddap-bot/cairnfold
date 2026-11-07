@@ -334,11 +334,7 @@ static func _stairs(root: Node3D, rail: String) -> void:
 
 ## A painter's palette: a wooden board with a dab of each roof colour round its edge.
 static func _palette(root: Node3D) -> void:
-	var dab := SphereMesh.new()
-	dab.radius = 0.0055
-	dab.height = 0.004
-	dab.radial_segments = 10
-	dab.rings = 4
+	var dab := sphere(0.0055, 0.004, 10, 4)
 	var swatches: Array = Palette.SWATCHES[Palette.Element.ROOF]
 	var parts := [[cylinder(0.026, 0.026, 0.003, 24), Vector3(0, 0.0015, 0), Color(0.62, 0.46, 0.3)]]
 	for i in swatches.size():
@@ -403,11 +399,7 @@ static func _easel(root: Node3D) -> void:
 		mi.rotate_x(-0.2)
 	var tilt := Basis(Vector3.RIGHT, -0.17)
 	piece(root, box(Vector3(0.04, 0.03, 0.002)), Transform3D(tilt, Vector3(0, 0.036, 0.0)), plain("easel_canvas", Color(0.95, 0.93, 0.88)))
-	var dab := SphereMesh.new()
-	dab.radius = 0.006
-	dab.height = 0.002
-	dab.radial_segments = 10
-	dab.rings = 3
+	var dab := sphere(0.006, 0.002, 10, 3)
 	for d in [[Vector3(-0.009, 0.042, 0.0), 5], [Vector3(0.007, 0.037, 0.0), 1], [Vector3(-0.002, 0.029, 0.0), 6], [Vector3(0.011, 0.028, 0.0), 4]]:
 		piece(root, dab, Transform3D(tilt.scaled(Vector3(1, 1, 0.5)), tilt * (d[0] - Vector3(0, 0.036, 0)) + Vector3(0, 0.036, 0.0015)), plain("easel_dab%d" % d[1], Brushwork.PIGMENTS[d[1]]))
 
@@ -564,6 +556,16 @@ static func cylinder(top: float, bottom: float, height: float, segments: int) ->
 		c.radial_segments = segments
 		c.rings = 1
 		return c)
+
+
+static func sphere(radius: float, height: float, segments := 64, rings := 32) -> SphereMesh:
+	return shared("sphere %s %s %d %d" % [radius, height, segments, rings], func() -> SphereMesh:
+		var s := SphereMesh.new()
+		s.radius = radius
+		s.height = height
+		s.radial_segments = segments
+		s.rings = rings
+		return s)
 
 
 static func box(size: Vector3) -> BoxMesh:
@@ -985,13 +987,8 @@ static func _path(root: Node3D, surface := PathLayout.Surface.DIRT) -> void:
 	if surface != PathLayout.Surface.BED:
 		return
 	var sprout := shared("bed_sprout", func() -> ArrayMesh:
-		var ball := SphereMesh.new()
-		ball.radius = 0.004
-		ball.height = 0.005
-		ball.radial_segments = 8
-		ball.rings = 3
 		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ball.get_mesh_arrays())
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, sphere(0.004, 0.005, 8, 3).get_mesh_arrays())
 		return mesh)
 	var green := plain("bed_sprout", Color(0.36, 0.58, 0.22), {"roughness": 0.9})
 	for k in 7:

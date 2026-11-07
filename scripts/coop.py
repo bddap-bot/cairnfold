@@ -60,13 +60,16 @@ def barrier(names):
     return {"op": "until", "digests": names}
 
 
+def synced(name, names, key):
+    return [{"op": "digest", "name": f"{name}-{key}"}, barrier([f"{n}-{key}" for n in names])]
+
+
 def sample(name, names, count):
     phase = f"{count}-players"
     return [
         {"op": "until", "players": count, "worn": count - (1 if name == "host" else 2)},
         {"op": "wait", "seconds": 1},
-        {"op": "digest", "name": f"{name}-{phase}-ready"},
-        barrier([f"{n}-{phase}-ready" for n in names]),
+        *synced(name, names, f"{phase}-ready"),
         {"op": "network_sample", "name": f"{name}-{phase}-cost", "seconds": 4},
         barrier([f"{n}-{phase}-cost" for n in names]),
     ]
@@ -111,9 +114,9 @@ EASEL_COMMANDS = 6
 def easel_steps(name, names, seq):
     steps = []
     for i, phase in enumerate(EASEL_PHASES.get(name, [])):
-        steps += phase + [{"op": "digest", "name": f"{name}-easel-{i}"}, barrier([f"{n}-easel-{i}" for n in EASEL_PHASES])]
+        steps += phase + synced(name, EASEL_PHASES, f"easel-{i}")
     return steps + [{"op": "until", "seq": seq + EASEL_COMMANDS}, {"op": "wait", "seconds": 0.5},
-                    {"op": "digest", "name": f"{name}-easel"}, barrier([f"{n}-easel" for n in names])]
+                    *synced(name, names, "easel")]
 
 
 def held_steps(name, names, capture=False):
@@ -140,8 +143,7 @@ def held_steps(name, names, capture=False):
             if capture and name == "host" and i == len(tools) + 4:
                 steps += [{"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
                           {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"}]
-        steps += [{"op": "digest", "name": f"{name}-{key}-seen"},
-                  barrier([f"{n}-{key}-seen" for n in names])]
+        steps += synced(name, names, f"{key}-seen")
     return steps
 
 
@@ -176,12 +178,10 @@ def move_steps(name, names, seq):
                   {"op": "resize", "index": -2, "move": list(HOUSE_CARRY[:2]), "turn": HOUSE_CARRY[2], "seconds": 0.5},
                   {"op": "until", "seq": seq + 5},
                   {"op": "carry", "x": DROWN[0], "z": DROWN[1], "move": [2, 0, 0], "turn": [0, 90, 0], "seconds": 0.5}]
-    steps += [{"op": "until", "seq": seq + 6}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-moved"},
-              barrier([f"{n}-moved" for n in names])]
+    steps += [{"op": "until", "seq": seq + 6}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "moved")]
     if name == "join":
         steps += [{"op": "press", "button": "dpad_down"}]
-    steps += [{"op": "until", "seq": seq + 7}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-unmoved"},
-              barrier([f"{n}-unmoved" for n in names])]
+    steps += [{"op": "until", "seq": seq + 7}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "unmoved")]
     return steps
 
 
@@ -208,38 +208,31 @@ def scripts(count, capture=False):
         if name == "host":
             steps += [barrier([f"{n}-fish" for n in names]),
                       {"op": "toss", "from": [12, 1.2, 10], "velocity": [0.2, 0.5, 0.1]}, {"op": "digest", "name": "host-threw"}]
-        steps += [barrier(["host-threw"]), {"op": "until", "frenzy": True}, {"op": "digest", "name": f"{name}-fed"},
-                  barrier([f"{n}-fed" for n in names])]
-        steps += [{"op": "digest", "name": f"{name}-final"},
-                  barrier([f"{n}-final" for n in names])]
+        steps += [barrier(["host-threw"]), {"op": "until", "frenzy": True}, *synced(name, names, "fed")]
+        steps += synced(name, names, "final")
         last = SEQ + 2 * (count - 2)
         steps += easel_steps(name, names, last)
         last += EASEL_COMMANDS
         for k, (shape, lift) in enumerate([("peak", EXTREME), ("pit", -2 * EXTREME)]):
             if name == "join":
                 steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]
-            steps += [{"op": "until", "seq": last + 1 + k}, {"op": "digest", "name": f"{name}-{shape}"},
-                      barrier([f"{n}-{shape}" for n in names])]
+            steps += [{"op": "until", "seq": last + 1 + k}, *synced(name, names, shape)]
         if name == "host":
             steps += [{"op": "fit", "what": "decoration", "index": 0, "s": 0.5 + i * 0.25, "style": i} for i in range(7)]
             steps += [{"op": "fit", "what": "decoration", "x": 20 + i, "z": 20, "style": i} for i in (7, 8)]
             steps += [{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
-        steps += [{"op": "until", "seq": last + 13}, {"op": "digest", "name": f"{name}-decorations"},
-                  barrier([f"{n}-decorations" for n in names])]
+        steps += [{"op": "until", "seq": last + 13}, *synced(name, names, "decorations")]
         # The joiner holds delete at the sky until the garden is wiped, then undoes it; every peer digests both.
         for k, (phase, step) in enumerate([("wiped", {"op": "wipe", "seconds": 2.5}), ("unwiped", {"op": "press", "button": "dpad_down"})]):
             if name == "join":
                 steps += [step]
-            steps += [{"op": "until", "seq": last + 14 + k}, {"op": "digest", "name": f"{name}-{phase}"},
-                      barrier([f"{n}-{phase}" for n in names])]
+            steps += [{"op": "until", "seq": last + 14 + k}, *synced(name, names, phase)]
         # The joiner sets down a boulder twenty times the size a house could hide behind, the budget aside on every
         # peer, so what checks it is the command's own validation as it crosses the wire.
-        steps += [{"op": "budget", "bounded": False}, {"op": "digest", "name": f"{name}-unbounded"},
-                  barrier([f"{n}-unbounded" for n in names])]
+        steps += [{"op": "budget", "bounded": False}, *synced(name, names, "unbounded")]
         if name == "join":
             steps += [{"op": "boulder", "x": -30, "z": -30, "seed": 4242, "scale": 160.0}]
-        steps += [{"op": "until", "seq": last + 16}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-boulder"},
-                  barrier([f"{n}-boulder" for n in names])]
+        steps += [{"op": "until", "seq": last + 16}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "boulder")]
         if name == "host":
             steps += [{"op": "wipe", "seconds": 2.5}, {"op": "until", "seq": last + 17},
                       {"op": "easel", "x": -4, "z": 4}]
@@ -250,20 +243,16 @@ def scripts(count, capture=False):
             steps += [{"op": "sculpt", "x": DROWN[0], "z": DROWN[1], "lift": -1.0, "radius": 2.8, "seconds": 0.4},
                       {"op": "until", "seq": last + 19}, {"op": "tree", "x": DROWN[0], "z": DROWN[1], "seed": 4},
                       {"op": "until", "seq": last + 20}, {"op": "pond", "x": DROWN[0], "z": DROWN[1], "brim": 8.4}]
-        steps += [{"op": "until", "seq": last + 21}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-drowned"},
-                  barrier([f"{n}-drowned" for n in names])]
+        steps += [{"op": "until", "seq": last + 21}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "drowned")]
         if name == "join":
             steps += [{"op": "press", "button": "dpad_down"}]
-        steps += [{"op": "until", "seq": last + 22}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-undrowned"},
-                  barrier([f"{n}-undrowned" for n in names])]
+        steps += [{"op": "until", "seq": last + 22}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "undrowned")]
         steps += move_steps(name, names, last + 22)
         steps += held_steps(name, names, capture)
         steps += [{"op": "pick", "action": "avatar:2"},
-                  {"op": "digest", "name": f"{name}-avatar-picked"},
-                  barrier([f"{n}-avatar-picked" for n in names]),
+                  *synced(name, names, "avatar-picked"),
                   {"op": "until", "avatar": 2},
-                  {"op": "digest", "name": f"{name}-avatar-seen"},
-                  barrier([f"{n}-avatar-seen" for n in names])]
+                  *synced(name, names, "avatar-seen")]
         if name == "join":
             steps += [{"op": "visit", "home": True},
                       {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": "home"}]

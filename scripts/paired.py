@@ -17,15 +17,15 @@ unit it is charged as, and tests/test_prices.py holds every unit's charge to the
 import json
 import math
 import re
+import statistics
 import sys
 
 from trend import unpinned
 
 
 def stats(xs: list[float]) -> dict[str, float]:
-    mean = sum(xs) / len(xs)
-    se = math.sqrt(sum((x - mean) ** 2 for x in xs) / (len(xs) - 1) / len(xs)) if len(xs) > 1 else float("nan")
-    return {"mean": round(mean, 3), "se": round(se, 3)}
+    se = statistics.stdev(xs) / math.sqrt(len(xs)) if len(xs) > 1 else float("nan")
+    return {"mean": round(statistics.fmean(xs), 3), "se": round(se, 3)}
 
 
 def paired(record: str, d: dict) -> None:

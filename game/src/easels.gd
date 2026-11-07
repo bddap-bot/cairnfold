@@ -606,16 +606,8 @@ static func _oil_board() -> ArrayMesh:
 
 
 static func _oil_paint() -> ArrayMesh:
-	var blob := SphereMesh.new()
-	blob.radius = 0.015
-	blob.height = 0.012
-	blob.radial_segments = 12
-	blob.rings = 5
-	var curl := SphereMesh.new()
-	curl.radius = 0.007
-	curl.height = 0.009
-	curl.radial_segments = 8
-	curl.rings = 4
+	var blob := ToolModels.sphere(0.015, 0.012, 12, 5)
+	var curl := ToolModels.sphere(0.007, 0.009, 8, 4)
 	var paint: Array = []
 	for i in Brushwork.PIGMENTS.size():
 		var w := well(Brushwork.Medium.OIL, i)
@@ -632,14 +624,7 @@ static func watercolours() -> Node3D:
 	var mix := StandardMaterial3D.new()
 	mix.albedo_color = BOX_WHITE
 	mix.roughness = 0.35
-	var smear := ToolModels.shared("smear", func() -> SphereMesh:
-		var m := SphereMesh.new()
-		m.radius = 0.022
-		m.height = 0.006
-		m.radial_segments = 16
-		m.rings = 4
-		return m)
-	ToolModels.piece(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix)
+	ToolModels.piece(root, ToolModels.sphere(0.022, 0.006, 16, 4), Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix)
 	root.set_meta("mix", mix)
 	return root
 

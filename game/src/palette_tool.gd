@@ -319,12 +319,7 @@ static func _style(restyle: Restyle, i: int, wall: Wall, boulder := false) -> No
 
 static func _swatch(element: Palette.Element, i: int) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.011
-	ball.height = 0.022
-	ball.radial_segments = 12
-	ball.rings = 6
-	mi.mesh = ball
+	mi.mesh = ToolModels.sphere(0.011, 0.022, 12, 6)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Palette.swatch(element, i)
 	mat.roughness = 0.7

@@ -24,6 +24,7 @@ from pathlib import Path
 BASE = 3
 RISE = 1.25
 FLOOR_MS = 2.0
+ROSE = f"GPU time rose more than {RISE - 1:.0%} and {FLOOR_MS:g} ms: "
 RUN = re.compile(r"(\d{8}T\d{6}Z)-[0-9a-f]+\.json")
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../perf")
 
@@ -54,7 +55,6 @@ def report(rig, scene, folder):
     print(f"{rig} {scene}: {len(found)} runs, latest {latest_name}" + (f", {players} players" if players > 1 else ""))
     print(f"  {'phase':24} {'step':>4} {'latest':>7} {'base':>7} {'best':>7}")
     risen = []
-    show = lambda v: f"{v:7.2f}" if v is not None else f"{'-':>7}"
     for phase, row in latest["phases"].items():
         key = "gpu_ms" if "gpu_ms" in row else "p50"
         seen = [r[phase][key] for r in earlier if key in r.get(phase, {}) and r[phase].get("step") == row.get("step")]
@@ -63,8 +63,12 @@ def report(rig, scene, folder):
         rose = base is not None and rise(base, row[key])
         if rose and key == "gpu_ms":
             risen.append(phase)
-        print(f"  {phase:24} {row.get('step', '-'):>4} {show(row[key])} {show(base)} {show(best)}{' rose' if rose else ''}")
+        print(f"  {phase:24} {row.get('step', '-'):>4} {shown(row[key])} {shown(base)} {shown(best)}{' rose' if rose else ''}")
     return risen
+
+
+def shown(v):
+    return f"{v:7.2f}" if v is not None else f"{'-':>7}"
 
 
 def unpinned(phases):
@@ -88,7 +92,6 @@ def pair(control, candidate):
             print(f"  only in {side}: {', '.join(only)}")
     print(f"  {'phase':24} {'steps':>7} {'gpu ms':>15} {'frame p50':>15} {'worst second':>28}")
     risen, refused = [], []
-    show = lambda r, k: f"{r[k]:7.2f}" if k in r else f"{'-':>7}"
     worst = lambda r: (f"{r['worst']['late']:3} late p50 {r['worst']['p50']:5.1f} p99 {r['worst']['p99']:5.1f}"
                        if "worst" in r else f"{'-':>28}")
     for phase, new in b.items():
@@ -109,7 +112,7 @@ def pair(control, candidate):
         else:
             verdict = ""
         steps = f"{old.get('step', '-')}/{new.get('step', '-')}"
-        print(f"  {phase:24} {steps:>7} {show(old, 'gpu_ms')} {show(new, 'gpu_ms')} {show(old, 'p50')} {show(new, 'p50')}"
+        print(f"  {phase:24} {steps:>7} {shown(old.get('gpu_ms'))} {shown(new.get('gpu_ms'))} {shown(old.get('p50'))} {shown(new.get('p50'))}"
               f" {worst(old)} | {worst(new)} {verdict}".rstrip())
     return risen, refused
 
@@ -123,7 +126,7 @@ def main(want):
         for phase, why in refused:
             print(f"refused {phase}, not pinned at one step: {why}", file=sys.stderr)
         if risen:
-            print(f"GPU time rose more than {RISE - 1:.0%} and {FLOOR_MS:g} ms: " + ", ".join(risen), file=sys.stderr)
+            print(ROSE + ", ".join(risen), file=sys.stderr)
         return 1 if risen or refused else 0
 
     risen = []
@@ -136,7 +139,7 @@ def main(want):
                 continue
             risen += [f"{rig} {scene} {phase}" for phase in report(rig, scene, folder)]
     if risen and len(want) > 1:
-        print(f"GPU time rose more than {RISE - 1:.0%} and {FLOOR_MS:g} ms: " + ", ".join(risen), file=sys.stderr)
+        print(ROSE + ", ".join(risen), file=sys.stderr)
         return 1
     return 0
 

@@ -176,11 +176,8 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_build_wheel()
 	_sight = Sight.new()
 	body.add_child(_sight)
-	var dot := SphereMesh.new()
-	dot.radius = 0.05
-	dot.height = 0.1
 	_dot = MeshInstance3D.new()
-	_dot.mesh = dot
+	_dot.mesh = ToolModels.sphere(0.05, 0.1)
 	_dot.material_override = _sight.material_override
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
