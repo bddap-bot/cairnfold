@@ -34,35 +34,37 @@ func configure(skeleton: Skeleton3D, tip: Vector3) -> void:
 
 
 static func food(h: Node3D) -> Vector3:
-	var seen: Node3D = h.body if h is Hand else h
-	return seen.global_transform * (Hand.TOP + Vector3(0, 0.0155, 0))
+	return Hand.seen(h).global_transform * (Hand.TOP + Vector3(0, 0.0155, 0))
 
 
 static func target(h: Node3D) -> Vector3:
-	var seen: Node3D = h.body if h is Hand else h
-	return seen.global_transform * (Hand.TOP + Vector3(0, CLEARANCE, 0))
+	return Hand.seen(h).global_transform * (Hand.TOP + Vector3(0, CLEARANCE, 0))
 
 
 ## Keep some bend in the neck, reserving reach for a hand drifting while it eats.
 func stand_off(animal: Node3D, h: Node3D) -> float:
-	var s := get_skeleton()
-	var base := animal.to_local(s.to_global(rest_base))
-	var length := reach * s.global_basis.get_scale().x
+	var base := _base(animal)
 	var height := target(h).y - (animal.global_position.y + base.y)
-	var forward := sqrt(maxf(0.0, pow(length * 0.80, 2) - height * height))
+	var forward := sqrt(maxf(0.0, pow(_length() * 0.80, 2) - height * height))
 	return Vector2(base.x, base.z).length() + forward
 
 
 func reachable(animal: Node3D, h: Node3D, ground: float) -> bool:
-	var s := get_skeleton()
-	var base := animal.to_local(s.to_global(rest_base))
-	var seen: Node3D = h.body if h is Hand else h
-	return seen.global_basis.y.normalized().dot(Vector3.UP) > 0.35 and absf(target(h).y - ground - base.y) < reach * s.global_basis.get_scale().x * 0.85
+	return Hand.seen(h).global_basis.y.normalized().dot(Vector3.UP) > 0.35 and absf(target(h).y - ground - _base(animal).y) < _length() * 0.85
+
+
+## Where the neck's root stands in `animal`'s space.
+func _base(animal: Node3D) -> Vector3:
+	return animal.to_local(get_skeleton().to_global(rest_base))
+
+
+## The neck's reach at the animal's scale.
+func _length() -> float:
+	return reach * get_skeleton().global_basis.get_scale().x
 
 
 func touching(h: Node3D) -> bool:
-	var seen: Node3D = h.body if h is Hand else h
-	return amount > 0.99 and mouth.distance_to(target(h)) < CONTACT and seen.to_local(mouth).y > Hand.TOP.y + 0.015
+	return amount > 0.99 and mouth.distance_to(target(h)) < CONTACT and Hand.seen(h).to_local(mouth).y > Hand.TOP.y + 0.015
 
 
 func _process_modification() -> void:

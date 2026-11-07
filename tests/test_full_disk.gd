@@ -27,13 +27,11 @@ func _run() -> void:
 	var path := OS.get_user_data_dir().path_join("cairnfold-full-%d.save" % OS.get_process_id())
 	main.world.load_from(path)
 	await play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}, {"op": "tree", "x": 4, "z": 4}])
-	await process_frame
-	main.world.flush()
+	await flushed()
 	var kept := FileAccess.get_file_as_bytes(path)
 	var picture := var_to_str(main.world.digest())
 	await play([{"op": "sculpt", "x": 10, "z": 10, "lift": 1.5, "seconds": 0.3}])
-	await process_frame
-	main.world.flush()
+	await flushed()
 	check(var_to_bytes(main.world.snapshot()).size() > LIMIT_KB * 1024, "the grown garden outgrows the cap")
 	check(FileAccess.get_file_as_bytes(path) == kept and not FileAccess.file_exists(path + ".new"), "a save the disk refused leaves the last garden, and nothing beside it")
 	main.world.restore({"seq": 0, "cmds": []})

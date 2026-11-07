@@ -119,10 +119,7 @@ static func bare(page: Dictionary, side: String, head: Transform3D, t: float) ->
 
 ## Whether `hand` holds `action` on `page` at `t`.
 static func held(page: Dictionary, hand: String, action: String, t: float) -> bool:
-	for p in page.press:
-		if p.hand == hand and p.action == action and t >= p.from and t < p.to:
-			return true
-	return false
+	return since(page, hand, action, t) >= 0.0
 
 
 ## When `hand` began holding `action` on `page`, if it holds it at `t`; else -1.

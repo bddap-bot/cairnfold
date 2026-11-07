@@ -115,8 +115,6 @@ static func flight(a: Beast) -> float:
 
 
 func _alarm(b: Band, a: Node3D, _delta: float) -> void:
-	if a.state == State.ENTER or a.state == State.FLEE:
-		return
 	var eating: bool = a.state == State.FEED and Wildlife.in_hand(a.hand)
 	var runs_at := flight(a)
 	for n in wildlife._watched():
@@ -151,13 +149,7 @@ func _watch(a: Beast) -> void:
 ## once they are far enough off.
 func _other(_b: Band, a: Node3D, delta: float) -> void:
 	a.pose(Motion.IDLE, delta)
-	var near: Node3D = null
-	var d: float = WATCH[a.kind]
-	for n in wildlife._watched():
-		var off := Vector2(n.global_position.x - a.position.x, n.global_position.z - a.position.z).length()
-		if off < d:
-			d = off
-			near = n
+	var near := wildlife._nearest(a.position, WATCH[a.kind], true)
 	if near != null:
 		Wildlife._face(a, near.global_position - a.position, delta * TURN)
 	a.timer -= delta
@@ -167,7 +159,7 @@ func _other(_b: Band, a: Node3D, delta: float) -> void:
 		_graze(a)
 		return
 	a.calm += 1.0
-	if d < flight(a) * NOTICE:
+	if Vector2(near.global_position.x - a.position.x, near.global_position.z - a.position.z).length() < flight(a) * NOTICE:
 		a.timer = CALM_FOR
 	else:
 		_graze(a)

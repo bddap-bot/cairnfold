@@ -90,7 +90,7 @@ func look(delta: float) -> void:
 	to.z = move_toward(to.z, 0.0 if looking == Vector3.INF else 1.0, delta * GAZE_EASE)
 	if looking != Vector3.INF:
 		var l := transform.affine_inverse() * looking - NECK
-		to.x = clampf(atan2(-l.x, -l.z), -GAZE_TURN.x, GAZE_TURN.x)
+		to.x = clampf(Shy.heading(l), -GAZE_TURN.x, GAZE_TURN.x)
 		to.y = clampf(atan2(l.y, Vector2(l.x, l.z).length()), -GAZE_TURN.y, GAZE_TURN.y)
 	to.x = lerpf(_gaze.x, to.x, 1.0 - exp(-delta * GAZE_TURN_EASE))
 	to.y = lerpf(_gaze.y, to.y, 1.0 - exp(-delta * GAZE_TURN_EASE))

@@ -64,8 +64,8 @@ func _capture(name: String) -> void:
 		await main.capture(name)
 
 
-## What the garden holds and what any tool has under way, so a grip that made or started something shows.
-## The garden and what each tool is in the middle of, but for the parts of the garden named in `apart`.
+## What the garden holds, but for the parts named in `apart`, and what any tool has under way, so a grip that made or
+## started something shows.
 func _made(apart: Array = []) -> String:
 	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.held != null]
 	var state: Dictionary = main.world.state.duplicate()

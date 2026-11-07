@@ -206,7 +206,7 @@ func think(a: One, delta: float) -> void:
 
 ## Turns its head about now and then, or toward a person near.
 func _look(o: Owl, delta: float) -> void:
-	var n := nearest(o.position, WATCH)
+	var n := wildlife._nearest(o.position, WATCH, true)
 	if n != null:
 		var to := n.global_position - o.position
 		o.look = clampf(wrapf(heading(to) - o.yaw, -PI, PI), -LOOK_ROUND, LOOK_ROUND)

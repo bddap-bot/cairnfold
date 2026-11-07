@@ -106,8 +106,6 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 
 
 func _alarm(b: Band, a: Node3D, _delta: float) -> void:
-	if a.state == State.ENTER or a.state == State.FLEE:
-		return
 	var fright: Node3D = wildlife._startled(a.position + Vector3.UP * 0.55 * a.size, SCARE)
 	if fright != null:
 		if a.hand != null:

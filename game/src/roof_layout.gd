@@ -423,12 +423,9 @@ func build(gable_inset := WallLayout.PLASTER_INSET) -> void:
 func ceiling_units() -> int:
 	if not flat():
 		return 0
-	var wide := half_span() - WallLayout.THICKNESS * 0.5
-	var long := wide if kind == Kind.CONE else ridge_length() * 0.5
-	if long < wide:
-		var swap := long
-		long = wide
-		wide = swap
+	var h := _ceiling_halves()
+	var long := maxf(h.x, h.y)
+	var wide := minf(h.x, h.y)
 	return ceili(2.0 * wide / CEILING_BOARD) * ceili(2.0 * long / CEILING_PIECE) + ceili(2.0 * long / RAFTER_SPACING) * ceili(2.0 * wide / CEILING_PIECE)
 
 
@@ -436,16 +433,12 @@ func ceiling_units() -> int:
 ## merge exclusions use the same roof height and hiding queries as the covering above it.
 func _lay_ceiling() -> void:
 	var f := frame()
-	var wide := half_span() - WallLayout.THICKNESS * 0.5
-	var long := wide if kind == Kind.CONE else ridge_length() * 0.5
-	var along: Vector3 = f.along
-	var across: Vector3 = f.across
-	if long < wide:
-		var swap := long
-		long = wide
-		wide = swap
-		along = f.across
-		across = -f.along
+	var h := _ceiling_halves()
+	var long := maxf(h.x, h.y)
+	var wide := minf(h.x, h.y)
+	var turned := h.x < h.y
+	var along: Vector3 = f.across if turned else f.along
+	var across: Vector3 = -f.along if turned else f.across
 	var drop := CEILING_DROP
 	var board := CEILING_BOARD
 	var count := maxi(1, ceili(2.0 * wide / board))
@@ -461,12 +454,16 @@ func _lay_ceiling() -> void:
 		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + CEILING_DEPTH)
 
 
+## Half the ceiling's reach along the ridge and across it.
+func _ceiling_halves() -> Vector2:
+	var wide := half_span() - WallLayout.THICKNESS * 0.5
+	return Vector2(wide if kind == Kind.CONE else ridge_length() * 0.5, wide)
+
+
 ## Deeper over a wider span, the shorter of a flat roof's two.
 func rafter_depth() -> float:
-	var wide := half_span() - WallLayout.THICKNESS * 0.5
-	if kind == Kind.GABLE:
-		wide = minf(wide, ridge_length() * 0.5)
-	return clampf(2.0 * wide / 18.0, 0.14, 0.38)
+	var h := _ceiling_halves()
+	return clampf(2.0 * minf(h.x, h.y) / 18.0, 0.14, 0.38)
 
 
 ## Height of the rafters' undersides over the ground point (x, z).

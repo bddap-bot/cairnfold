@@ -814,11 +814,10 @@ func walk_under(p: Vector3) -> float:
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
 			for i: int in cells.get(c + Vector2i(dx, dz), []):
-				var a := Vector2(samples[i].x, samples[i].z)
-				var b := Vector2(samples[i + 1].x, samples[i + 1].z)
-				var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
-				if a.lerp(b, t).distance_to(at) > THICKNESS * 0.5:
+				var foot := _foot(at, i)
+				if foot.y > THICKNESS * 0.5:
 					continue
+				var t := foot.x
 				var stands := standing(lerpf(lengths[i], lengths[i + 1], t))
 				if stands <= 0.0:
 					continue
@@ -3144,14 +3143,19 @@ func _nearest_s(at: Vector2, segments: Array) -> float:
 	var best := INF
 	var best_s := 0.0
 	for i: int in segments:
-		var a := Vector2(samples[i].x, samples[i].z)
-		var b := Vector2(samples[i + 1].x, samples[i + 1].z)
-		var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
-		var d := a.lerp(b, t).distance_to(at)
-		if d < best:
-			best = d
-			best_s = lerpf(lengths[i], lengths[i + 1], t)
+		var foot := _foot(at, i)
+		if foot.y < best:
+			best = foot.y
+			best_s = lerpf(lengths[i], lengths[i + 1], foot.x)
 	return best_s
+
+
+## The fraction along sample segment `i` of its ground point nearest `at` (x), and that point's distance from `at` (y).
+func _foot(at: Vector2, i: int) -> Vector2:
+	var a := Vector2(samples[i].x, samples[i].z)
+	var b := Vector2(samples[i + 1].x, samples[i + 1].z)
+	var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+	return Vector2(t, a.lerp(b, t).distance_to(at))
 
 
 func segment_cells() -> Dictionary:

@@ -618,11 +618,12 @@ func _startled(p: Vector3, reach: float) -> Node3D:
 	return null
 
 
-## The nearest hand or head within `reach` of `p`, however it moves, or null.
-func _nearest(p: Vector3, reach: float) -> Node3D:
+## The head or the hand nearest `p` within `reach`, measured across the ground where `across_ground`, or null.
+func _nearest(p: Vector3, reach: float, across_ground := false) -> Node3D:
 	var best: Node3D = null
 	for n in _watched():
-		var d := p.distance_to(n.global_position)
+		var at := n.global_position
+		var d := Vector2(at.x - p.x, at.z - p.z).length() if across_ground else p.distance_to(at)
 		if d < reach:
 			reach = d
 			best = n
@@ -695,7 +696,7 @@ func feeds(h: Node3D, eater: Object) -> bool:
 ## Where an animal coming from `from` stands to eat from hand `h`: on the hand as seen, behind the seeds (`ON_HAND`
 ## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
-	var seen: Node3D = h.body if h is Hand else h
+	var seen := Hand.seen(h)
 	if appetite.eat == Eat.ON_HAND and in_hand(h):
 		return seen.global_transform * ON_HAND
 	var at := seen.global_position

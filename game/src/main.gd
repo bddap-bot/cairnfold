@@ -251,7 +251,7 @@ func _ready() -> void:
 		world.restore_whole(replayer.record.garden)
 	if args.has("photo"):
 		open_photo(args.photo)
-	if replayer == null and (get_tree().current_scene == self or args.has("record-sessions")):
+	if replayer == null and (get_tree().current_scene == self or args.has(PlayLog.SWITCH)):
 		var into := PlayLog.open_enabled(args)
 		if into != null:
 			record(into)

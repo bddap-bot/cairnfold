@@ -61,11 +61,6 @@ func _run() -> void:
 	finish()
 
 
-func _settled() -> void:
-	await process_frame
-	world.flush()
-
-
 func _easel() -> Dictionary:
 	return world.state.easels.values()[-1]
 
@@ -126,7 +121,7 @@ func _strokes_are_kept_and_load_whole() -> void:
 	var path := dir.path_join("garden.save")
 	world.load_from(path)
 	await _paint_some()
-	await _settled()
+	await flushed()
 	var e := _easel()
 	var media: Array = e.strokes.map(func(s: Dictionary) -> int: return s.medium)
 	check(media == [Brushwork.Medium.WATER, Brushwork.Medium.OIL, Brushwork.Medium.CHARCOAL], "a watercolour, an oil and a charcoal stroke are on the canvas: %s" % [media])
@@ -135,7 +130,7 @@ func _strokes_are_kept_and_load_whole() -> void:
 	check(not e.palette.is_empty() and e.palette.all(func(s: Dictionary) -> bool: return s.medium == Brushwork.Medium.OIL), "the oil painted onto the palette held in a hand is kept as strokes on the palette")
 	var picture := var_to_str(world.digest())
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "an empty garden holds no easel")
 	world.load_from(path)
 	check(var_to_str(world.digest()) == picture, "loading puts the easel back where it stood with every stroke as painted and its palette as mixed")
@@ -238,24 +233,24 @@ func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	for i in values.size():
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
-	await _settled()
+	await flushed()
 	check(absf(e.position.y - was - 1.5) < 0.05, "an easel rises with the ground raised under it (%.2f)" % (e.position.y - was))
 	for i in values.size():
 		values[i] -= 3.0
 	world.submit({"op": "heights", "cells": cells, "values": values})
-	await _settled()
+	await flushed()
 	check(absf(e.position.y - was + 1.5) < 0.05, "and sinks into the ground dug under it (%.2f)" % (e.position.y - was))
 	world.undo()
-	await _settled()
+	await flushed()
 	check(absf(e.position.y - was - 1.5) < 0.05, "undoing the digging lifts it back (%.2f)" % (e.position.y - was))
 	world.restore(world.snapshot())
-	await _settled()
+	await flushed()
 	e = main.easels.find(id)
 	check(e != null and absf(e.position.y - was - 1.5) < 0.05, "a garden loaded whole, as a joining peer gets it, stands it on the raised ground")
 	for i in values.size():
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
-	await _settled()
+	await flushed()
 	check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
 
 
@@ -340,7 +335,7 @@ func _the_tray_loads_the_brush() -> void:
 	await play([{"op": "rag_wipe"}])
 	check(is_equal_approx(p.load, 0.75), "one physical rag wipe lowers load once")
 	await play([{"op": "brush", "points": [[0.1, 0.5, 0.8], [0.9, 0.5, 0.8]], "seconds": 0.4}])
-	await _settled()
+	await flushed()
 	check(is_equal_approx(p.load, 0.75) and is_equal_approx(world.state.easels[e.id].strokes[-1].load, 0.75), "painting keeps the wiped load and sends it in the stroke command: brush=%s stroke=%s" % [p.load, world.state.easels[e.id].strokes[-1].load])
 
 	await play([{"op": "rag_wipe", "times": 2}])
@@ -620,20 +615,20 @@ func _a_tip_in_each_well_loads_its_colour() -> void:
 			if held:
 				await play([{"op": "set_down", "hand": "left"}])
 	await play([{"op": "brush", "points": [[0.3, 0.3, 0.8], [0.6, 0.32, 0.9]], "seconds": 0.2}])
-	await _settled()
+	await flushed()
 	var strokes: Array = world.state.easels[e.id].strokes
 	check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4 and strokes[-1].medium == Brushwork.Medium.OIL, "the stroke after paints in the last oil colour")
 
 
 func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	await play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}, {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}])
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	check(e.board.size == Easels.BOARD and e.board.metres.x > Easels.PALETTE_SIZE.x and e.board.metres.y > Easels.PALETTE_SIZE.y, "the board is a paint surface covering the palette: %s m" % e.board.metres)
 	await play([{"op": "mix", "points": [[-0.3, 0.0, 0.7], [0.1, 0.0, 0.7]], "seconds": 0.3}])
-	await _settled()
+	await flushed()
 	var laid: Array = _easel().palette
 	check(laid.size() == 1 and laid[0].medium == Brushwork.Medium.OIL and Vector3(laid[0].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[5])) < 1e-4 and Brushwork.count(laid[0]) >= 2, "blue painted onto the board is a stroke of it there: %d strokes" % laid.size())
 	check(_easel().strokes.is_empty(), "not on the canvas")
@@ -642,7 +637,7 @@ func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 	var uv := Vector2(dabs[0], dabs[1]) / Vector2(e.board.size)
 	check(uv.distance_to(Vector2(0.5 - 0.3 * Easels.PALETTE_SIZE.x * 0.5 / e.board.metres.x, 0.5)) < 0.02, "where the brush touched the board: %s" % uv)
 	await play([{"op": "take", "what": "small"}, {"op": "mix", "points": [[0.0, 0.0, 0.6], [0.02, 0.0, 0.6]], "seconds": 0.3}])
-	await _settled()
+	await flushed()
 	check(_easel().palette.size() == 1, "a clean brush lays nothing on it")
 	await play([{"op": "press", "button": "dpad_down"}])
 	check(_easel().palette.is_empty() and main.easels.easels.values()[-1].board.settled(), "undo takes the board's stroke off")
@@ -660,7 +655,7 @@ func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 ## samples, as far apart in metres, as hard and at the same angle. Charcoal marks the canvas's paper, not the board.
 func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	await play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}])
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var tool: EaselTool = main.easel_tool
@@ -729,7 +724,7 @@ func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
 ## trigger pressed; on either hand and either headset's controls. A press that sets none up says why.
 func _the_trigger_sets_one_up_or_says_why_not() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	var why: Array[String] = []
 	main.easel_tool.declined.connect(func(w: String) -> void: why.append(w))
 	var press := func(hand: String, device: String, at: Array) -> void:
@@ -739,7 +734,7 @@ func _the_trigger_sets_one_up_or_says_why_not() -> void:
 			{"op": "point", "tool": "easel", "hand": hand, "at": at},
 			{"op": "press", "button": hand + "_trigger", "device": device},
 		])
-		await _settled()
+		await flushed()
 	await play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.05}])
 	for t in [["right", "quest", [-6, 0, 0]], ["left", "quest", [6, 0, 0]], ["right", "frame", [0, 0, -2]], ["left", "frame", [-3, 0, -6]]]:
 		var before: int = world.state.easels.size()
@@ -873,7 +868,7 @@ func _preview_matches_the_grip() -> void:
 		main.easel_tool.grab(p)
 		check(p.brush == kind and p.palette == null, "grip takes the highlighted implement")
 	p.hand.global_position += Vector3.UP * 2.0
-	await _settled()
+	await flushed()
 	check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
 
 
@@ -1074,7 +1069,7 @@ func _held_brush_stops_with_its_hand() -> void:
 
 func _changing_canvases_ends_the_previous_stroke() -> void:
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	await play([{"op": "easel", "x": -3, "z": 0}, {"op": "easel", "x": 3, "z": 0}])
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	var stands: Array = main.easels.easels.values()

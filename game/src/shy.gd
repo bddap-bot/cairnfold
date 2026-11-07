@@ -154,15 +154,3 @@ func standing(at: Vector3, yaw: float) -> Basis:
 	var back := Basis(Vector3.UP, yaw).z
 	var right := up.cross(back).normalized()
 	return Basis(right, up, right.cross(up))
-
-
-## The head or the hand nearest `at` across the ground, or null beyond `reach`.
-func nearest(at: Vector3, reach: float) -> Node3D:
-	var best: Node3D = null
-	for n in wildlife._watched():
-		var p := n.global_position
-		var off := Vector2(p.x - at.x, p.z - at.z).length()
-		if off < reach:
-			reach = off
-			best = n
-	return best

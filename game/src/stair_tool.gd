@@ -54,9 +54,10 @@ func end(hand: Hand) -> void:
 		s.ghost.queue_free()
 		return
 	s.data.on = walls.stair_supports(s.data)
-	if world.fits({"op": "stairs", "stairs": s.data}):
+	var cmd := {"op": "stairs", "stairs": s.data}
+	if world.fits(cmd):
 		Cues.play(Cues.Act.STAIRS_SET, s.data.b, hand)
-	world.submit({"op": "stairs", "stairs": s.data}, func(): s.ghost.queue_free(), hand)
+	world.submit(cmd, func(): s.ghost.queue_free(), hand)
 
 func _cancel(hand: Hand) -> void:
 	if _strokes.has(hand):

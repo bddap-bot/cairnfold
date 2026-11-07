@@ -83,7 +83,6 @@ class Kind:
 	func radius() -> float:
 		return Masonry.radius(cell())
 
-	## Writes instance `n` of `buf`.
 	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0, material := 0.0, ends := Vector2.ZERO) -> void:
 		var i := n * stride()
 		var b := x.basis

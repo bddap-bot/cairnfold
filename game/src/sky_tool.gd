@@ -42,9 +42,9 @@ func _process(_delta: float) -> void:
 			var dir := -hand.global_basis.z
 			if holder == hand:
 				aim(dir)
-				hand.point(null, BEAM)
 			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and opens(hand.global_position, dir):
 				take(hand, dir)
+			if holder == hand:
 				hand.point(null, BEAM)
 		b.latch()
 

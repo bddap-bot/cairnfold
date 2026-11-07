@@ -195,6 +195,11 @@ func _build_wheel() -> void:
 	add_child(_wheel_root)
 
 
+## Where hand `h` shows: this player's hand as its body, another player's hand or a dish as itself.
+static func seen(h: Node3D) -> Node3D:
+	return h.body if h is Hand else h
+
+
 ## Draws every surface under `root` in the one icon look (icon.gdshaderinc), lit by nothing in the garden: a standard
 ## material gives its colour, picture and whether its vertex colours count (icon.gdshader); a shader material that paints
 ## its own surface names its twin in that look in its "icon_material" meta; any other draws its vertex colours, tinted

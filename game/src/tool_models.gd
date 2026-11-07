@@ -647,7 +647,7 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 ## the mirror that stands in the garden (MirrorTool). Returns the glass, an oval (`MIRROR_GLASS` its
 ## width and height about `MIRROR_CENTRE`) and faces +z.
 static func mirror(root: Node3D) -> MeshInstance3D:
-	var wood := plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
+	var wood := _mirror_wood()
 	var facing := Basis(Vector3.RIGHT, PI * 0.5)
 	var rim := MIRROR_GLASS * 0.5 + Vector2.ONE * MIRROR_RIM
 	piece(root, cylinder(0.0035, 0.0045, MIRROR_HANDLE, 10), Transform3D(Basis(), Vector3(0, MIRROR_HANDLE * 0.5, 0)), wood)
@@ -658,11 +658,16 @@ static func mirror(root: Node3D) -> MeshInstance3D:
 	return glass
 
 
+## The turned wood of the hand mirror and the garden gate.
+static func _mirror_wood() -> StandardMaterial3D:
+	return plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
+
+
 ## A garden gate standing on y = 0, `width` wide between its stone posts, under a wooden lintel, its picket leaf swung
 ## in on its left hinge so whoever stands behind it (-z) shows through.
 static func gate(root: Node3D, width: float) -> void:
 	var stone := plain("gate_stone", Color(0.52, 0.48, 0.42), {"roughness": 0.9})
-	var wood := plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
+	var wood := _mirror_wood()
 	var post := Vector3(0.007, 0.036, 0.007)
 	for side in [-1.0, 1.0]:
 		piece(root, box(post), Transform3D(Basis(), Vector3(side * (width + post.x) * 0.5, post.y * 0.5, 0)), stone)

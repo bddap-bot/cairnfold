@@ -128,7 +128,7 @@ func think(a: One, delta: float) -> void:
 		if not s.dashing:
 			wildlife.calls.call_out("chitter", s.position)
 		_dash_up(s, trunk, n)
-	elif s.wary > 0.0 and nearest(s.position, STARTLE) != null:
+	elif s.wary > 0.0 and wildlife._nearest(s.position, STARTLE, true) != null:
 		s.wary = maxf(s.wary, 2.0)
 	match s.state:
 		State.CLIMB:

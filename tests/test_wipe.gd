@@ -34,8 +34,7 @@ func _run() -> void:
 func _settled() -> void:
 	main.water_tool.settle()
 	await process_frame
-	await process_frame
-	world.flush()
+	await flushed()
 
 
 ## What the garden shows, whatever its sequence number.

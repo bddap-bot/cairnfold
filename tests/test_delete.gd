@@ -34,8 +34,7 @@ func _run() -> void:
 	await _mows()
 	_a_wide_swipe_mows_its_band_in_few_rays()
 	await _one_stroke()
-	await process_frame
-	world.flush()
+	await flushed()
 	world.restore(bytes_to_var(FileAccess.get_file_as_bytes(save)))
 	check(not _standing(tree) and not _standing(bush), "the spawned tree and bush stay gone in the saved garden")
 	check(flora.placed("tree").is_empty(), "the planted tree stays gone in the saved garden")

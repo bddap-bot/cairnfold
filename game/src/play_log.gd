@@ -43,7 +43,7 @@ var _wav: FileAccess
 
 
 static func enabled(args: Dictionary) -> bool:
-	return args.has("record-sessions") or FileAccess.file_exists(Main.player_path(SWITCH))
+	return args.has(SWITCH) or FileAccess.file_exists(Main.player_path(SWITCH))
 
 
 static func open_enabled(args: Dictionary) -> PlayLog:
@@ -65,7 +65,7 @@ static func open_enabled(args: Dictionary) -> PlayLog:
 		var saved := FileAccess.get_file_as_string(Main.player_path(SWITCH)).strip_edges()
 		if not saved.is_empty():
 			folder = saved
-	if args.has("record-sessions"):
+	if args.has(SWITCH):
 		folder = str(args.get("session-directory", folder))
 		var consent := FileAccess.open(Main.player_path(SWITCH), FileAccess.WRITE)
 		if consent != null:

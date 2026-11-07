@@ -30,8 +30,7 @@ func _a_command_mid_stroke_stands_on_the_garden() -> void:
 	check(is_equal_approx(terrain.shown_at(3, -2), garden + 2.0), "the shown ground carries the hump (%s)" % terrain.shown_at(3, -2))
 	check(terrain.revision == revision and terrain.shown_revision > shown, "a hump moves the shown ground, not the garden's")
 	world.submit({"op": "boulder", "at": Vector3(3, garden, -2), "turn": Quaternion.IDENTITY, "sink": 0.0, "seed": 17, "scale": 1.0, "paint": Palette.plain(), "style": 0})
-	await process_frame
-	world.flush()
+	await flushed()
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
 	check(is_equal_approx(b.ground.y, garden), "a boulder command applied mid-stroke seats on the garden, as every peer seats it (%s)" % b.ground.y)
 	main.ground_grab.drop()

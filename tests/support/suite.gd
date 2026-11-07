@@ -94,6 +94,13 @@ static func village_before(steps: Array, at: int) -> int:
 	return village
 
 
+## Lets a frame pass and writes the save it left due; saves are written on a worker thread, so this waits for the last
+## one to land.
+func flushed() -> void:
+	await process_frame
+	main.world.flush()
+
+
 ## Runs every command waiting on the world and waits until every wall and stair has laid what they hold.
 func laid() -> void:
 	main.world.settle()

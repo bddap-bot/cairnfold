@@ -35,12 +35,6 @@ func _run() -> void:
 	finish()
 
 
-## Saves are written on a worker thread; this waits for the last one to land.
-func _settled() -> void:
-	await process_frame
-	world.flush()
-
-
 func _picture() -> String:
 	return var_to_str(world.digest())
 
@@ -50,7 +44,7 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	world.load_from(path)
 	check(not FileAccess.file_exists(path), "with nothing kept yet, the meadow starts empty and nothing is written")
 	await play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}])
-	await _settled()
+	await flushed()
 	check(FileAccess.file_exists(path), "the first edit is kept")
 	var after_wall := FileAccess.get_file_as_bytes(path)
 	await play([
@@ -60,14 +54,14 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 		{"op": "erase", "points": [[3, -4], [5, -4]], "seconds": 0.2},
 		{"op": "sculpt", "x": 10, "z": 10, "lift": 1.5, "seconds": 0.3},
 	])
-	await _settled()
+	await flushed()
 	check(FileAccess.get_file_as_bytes(path) != after_wall, "each later edit rewrites it")
 	check(not FileAccess.file_exists(path + ".new"), "and leaves no half-written file")
 	var picture := _picture()
 	var walls: Dictionary = world.state.walls
 	check(walls.size() == 1 and not walls.values()[0].ruins.is_empty() and world.state.paths.size() == 1 and world.sculpted, "the garden holds a ruined wall, a path and shaped ground")
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	check(_picture() != picture, "an empty garden looks different")
 	world.load_from(path)
 	check(_picture() == picture, "loading rebuilds every wall, ruin, plant, path and height")
@@ -80,7 +74,7 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 ## Keeping copies the whole garden in its frame, so edits within World.KEEP_EVERY of the last keep wait to be kept together.
 func _a_burst_of_edits_is_kept_together() -> void:
 	var path := dir.path_join("garden.save")
-	await _settled()
+	await flushed()
 	var before := FileAccess.get_file_as_bytes(path)
 	var burst := []
 	for i in 6:
@@ -110,10 +104,10 @@ func _a_flat_roof_is_kept() -> void:
 		{"op": "roof", "index": 1, "pitch": 0.0},
 		{"op": "resize", "index": 0, "size": [4, 2.5], "rise": 0.9, "seconds": 0.2},
 	])
-	await _settled()
+	await flushed()
 	var picture := _picture()
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	world.load_from(path)
 	check(_picture() == picture, "a garden with flat roofs loads as it was kept")
 	var flat: Array = world.state.walls.values().filter(func(w): return w.has("roof") and w.roof.pitch == 0.0)
@@ -126,36 +120,36 @@ func _a_flat_roof_is_kept() -> void:
 func _a_placed_bush_counts_and_is_kept() -> void:
 	var path := dir.path_join("garden.save")
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	var flora: Flora = main.flora_tool.flora
 	var before := world.units.duplicate()
 	await play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}])
-	await _settled()
+	await flushed()
 	check(flora.placed("bush").size() == 2, "two placed bushes stand: %d" % flora.placed("bush").size())
 	check(world.units.get("bush", 0) == before.get("bush", 0) + 2, "each counts one bush: %s" % world.units)
 	check(Budget.cost_ms(world.units) - Budget.cost_ms(before) > 0.0, "and costs the frame")
 	var picture := _picture()
 	world.restore({"seq": 0, "cmds": []})
-	await _settled()
+	await flushed()
 	check(flora.placed("bush").is_empty(), "an empty garden has no placed bushes")
 	world.load_from(path)
-	await _settled()
+	await flushed()
 	check(flora.placed("bush").size() == 2 and _picture() == picture, "loading grows the kept bushes where they stood")
 	await play([{"op": "delete", "x": 3, "z": -6, "height": 2.0}])
-	await _settled()
+	await flushed()
 	check(flora.placed("bush").size() == 1 and world.units.get("bush", 0) == before.get("bush", 0) + 1, "deleting a bush frees what it counted: %s" % world.units)
 
 
 func _a_visited_garden_is_not_kept() -> void:
 	var path := dir.path_join("garden.save")
-	await _settled()
+	await flushed()
 	var home := FileAccess.get_file_as_bytes(path)
 	var real := main.multiplayer.multiplayer_peer
 	var client := ENetMultiplayerPeer.new()
 	client.create_client("127.0.0.1", 9)
 	main.multiplayer.multiplayer_peer = client
 	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
-	await _settled()
+	await flushed()
 	check(FileAccess.get_file_as_bytes(path) == home, "a garden we visit is not written over our own")
 	client.close()
 	main.multiplayer.multiplayer_peer = real
@@ -191,7 +185,7 @@ func _a_garden_read_in_part_is_moved_aside() -> void:
 	var bytes := var_to_bytes({"format": World.FORMAT, "seq": 9, "cmds": [tree, odd]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
 	world.load_from(path)
-	await _settled()
+	await flushed()
 	check(world.state.groups.has(5) and world.state.walls.is_empty(), "what can be read of a garden loads")
 	check(FileAccess.get_file_as_bytes(path + ".bad") == bytes, "and the file as it was is moved aside before the garden is saved again")
 	check(FileAccess.file_exists(path), "the part that loaded is saved in its place")

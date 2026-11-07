@@ -111,7 +111,7 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 	return null
 
 
-## What a fright does.
+## What a fright does to one neither entering nor fleeing.
 func _alarm(_b: Band, _a: Node3D, _delta: float) -> void:
 	pass
 
@@ -206,7 +206,8 @@ func _think(b: Band, a: Node3D, delta: float) -> void:
 		_fed(a)
 	a.full = maxf(a.full - delta, 0.0)
 	a.retry = maxf(a.retry - delta, 0.0)
-	_alarm(b, a, delta)
+	if a.state != State.ENTER and a.state != State.FLEE:
+		_alarm(b, a, delta)
 	if a.state in [State.GRAZE, State.STAND, State.WALK] and _appetite(a).tempted(a.full, delta, rng):
 		_come_for_food(a)
 	if _settled(a):
