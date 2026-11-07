@@ -335,7 +335,6 @@ static func cells_around(x: float, z: float, radius: float) -> Rect2i:
 	return Rect2i(lo, hi - lo + Vector2i.ONE).intersection(ALL)
 
 
-## The grid point nearest (x, z).
 static func grid_point(x: float, z: float) -> Vector2i:
 	return Vector2i(clampi(roundi((x + SIZE * 0.5) / STEP), 0, CELLS), clampi(roundi((z + SIZE * 0.5) / STEP), 0, CELLS))
 

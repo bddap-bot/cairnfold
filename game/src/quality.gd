@@ -186,11 +186,8 @@ func _ready() -> void:
 ## would flicker every shadow, the horizon or the people.
 static func popping() -> PackedInt32Array:
 	var out := PackedInt32Array()
-	for i in ladder.size() - 1:
-		var a := ladder[i]
-		var b := ladder[i + 1]
-		if a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files:
-			out.append(i)
+	for i in _changed(func(a: Step, b: Step) -> bool: return a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files):
+		out.append(i - 1)
 	return out
 
 
@@ -199,24 +196,23 @@ static func popping() -> PackedInt32Array:
 ## governor takes over. Foveation on or off is another framebuffer to draw into, as `Map` also switches it.
 static func primed() -> PackedInt32Array:
 	var out := PackedInt32Array([0])
-	for i in range(1, ladder.size()):
-		var a := ladder[i - 1]
-		var b := ladder[i]
-		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0):
-			out.append(i)
+	out.append_array(_changed(func(a: Step, b: Step) -> bool: return a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0)))
 	out.append(START)
 	return out
 
 
 ## The levels that change nothing over the one above where the runtime has no fixed foveation (`foveates` false).
 static func idle(foveates: bool) -> PackedInt32Array:
-	var out := PackedInt32Array()
 	if foveates:
-		return out
+		return PackedInt32Array()
+	return _changed(func(a: Step, b: Step) -> bool: return a.foveation != b.foveation and a.render_scale == b.render_scale and a.msaa == b.msaa and a.reflections == b.reflections)
+
+
+## The rungs that `differ` (the rung above, the rung) tells from the one above.
+static func _changed(differ: Callable) -> PackedInt32Array:
+	var out := PackedInt32Array()
 	for i in range(1, ladder.size()):
-		var a := ladder[i - 1]
-		var b := ladder[i]
-		if a.foveation != b.foveation and a.render_scale == b.render_scale and a.msaa == b.msaa and a.reflections == b.reflections:
+		if differ.call(ladder[i - 1], ladder[i]):
 			out.append(i)
 	return out
 

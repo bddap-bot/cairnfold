@@ -1135,7 +1135,6 @@ class Growth:
 	var next := 0
 
 
-## Grows every committed stroke now.
 func grow_now() -> void:
 	_grow(-1)
 
