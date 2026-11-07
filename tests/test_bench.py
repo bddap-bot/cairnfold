@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -14,7 +15,8 @@ import trend  # noqa: E402
 
 
 def report(out, device):
-    return subprocess.run([sys.executable, "-c", REPORT, str(out), device, str(out / "record.json"), "1"], capture_output=True, text=True)
+    return subprocess.run([sys.executable, "-c", REPORT, str(out), device, str(out / "record.json"), "1"], capture_output=True, text=True,
+                          env={**os.environ, "PYTHONPATH": str(SCRIPTS)})
 
 
 def bench(out, device, gpu_ms, seconds, stress="[]"):
@@ -115,6 +117,28 @@ class BenchmarkRendering(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("over budget: feature, buildable", result.stdout)
             self.assertIn("past the build budget (2.00)", result.stdout)
+
+    def test_pair_layer_pairs_each_phase_bench_lets_past_and_bench_judges_each_pair_as_its_phase(self):
+        scene = [{"op": "label", "name": "sweep/arches"}, {"op": "wait", "seconds": 1},
+                 {"op": "label", "name": "buildable", "past_budget": True}, {"op": "wait", "seconds": 1},
+                 {"op": "label", "name": "feature"}, {"op": "wait", "seconds": 1}, {"op": "label", "name": "-"}]
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "scene.json").write_text(json.dumps(scene))
+            paired = subprocess.run([sys.executable, str(SCRIPTS / "pair_layer.py"), str(out / "scene.json"), "masonry"],
+                                    capture_output=True, text=True, check=True).stdout
+            pairs = [s["name"] for s in json.loads(paired) if s["op"] == "label" and s["name"].startswith("pair/")]
+            self.assertEqual(sorted({p.rsplit("/", 2)[0] for p in pairs}), ["pair/buildable", "pair/sweep/arches"])
+            names = ["pair/sweep/arches/none/1", "pair/sweep/arches/1masonry/1", "pair/buildable/none/1", "pair/buildable/1masonry/1"]
+            game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
+            vrapi = '17923700{s}.000  6423  6717 I VrApi   : FPS=72/72,Prd=40ms,App=15.00ms,GPU%=0.5\n'
+            labels = {21 + 2 * i + k: name for i, name in enumerate(names) for k in (0, 1)}
+            (out / "logcat.txt").write_text(game.format(s=20, text="xr: session at 72.0 Hz") + "".join(vrapi.format(s=s) for s in labels)
+                                            + game.format(s=29, text="driver: done"))
+            result = bench(out, "quest", 11.111,
+                           [{"label": labels.get(s, "-"), "fill": 0.5, "unix": 1792370000 + s,
+                             "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000} for s in range(20, 30)], paired)
+            self.assertIn("over budget: pair/buildable/none/1, pair/buildable/1masonry/1\n", result.stdout)
 
     def test_a_phase_keeps_the_charges_of_its_fullest_second(self):
         with tempfile.TemporaryDirectory(dir=".") as folder:
