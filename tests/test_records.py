@@ -80,6 +80,42 @@ class Records(unittest.TestCase):
         self.rebase_onto('game/plants.gd')
         self.assertEqual(self.records().returncode, 0)
 
+    # botq land stacks other landings with the record's and checks the top: theirs are not the record's change.
+    def test_record_of_a_main_build_passes_stacked_with_other_game_landings(self):
+        built = self.git('rev-parse', 'main')
+        self.git('checkout', '-q', '-b', 'job', 'main')
+        self.write('game/plants.gd', 'landing below\n')
+        self.commit('another landing')
+        self.write(f'perf/frame/stress/20261102T000000Z-{built[:7]}.json', '{}\n')
+        self.commit('record')
+        self.write('game/world.gd', 'landing above\n')
+        self.commit('another landing')
+        self.assertEqual(self.records().returncode, 0)
+
+    def test_record_of_a_main_build_with_a_change_fails_stacked(self):
+        built = self.git('rev-parse', 'main')
+        self.git('checkout', '-q', '-b', 'job', 'main')
+        self.write('README.md', 'landing below\n')
+        self.commit('another landing')
+        self.write('game/world.gd', 'benched uncommitted\n')
+        self.write(f'perf/frame/stress/20261102T000000Z-{built[:7]}.json', '{}\n')
+        self.commit('change and record')
+        result = self.records()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(built, result.stdout)
+
+    def test_record_of_a_main_build_merged_in_with_a_change_fails(self):
+        built = self.git('rev-parse', 'main')
+        self.git('checkout', '-q', '-b', 'side', 'main')
+        self.write('README.md', 'side\n')
+        self.commit('side')
+        self.git('checkout', '-q', '-b', 'job', 'main')
+        self.git('merge', '-q', '--no-ff', '--no-commit', 'side')
+        self.write('game/world.gd', 'benched uncommitted\n')
+        self.write(f'perf/frame/stress/20261102T000000Z-{built[:7]}.json', '{}\n')
+        self.commit('merge with change and record')
+        self.assertEqual(self.records().returncode, 1)
+
     def test_record_of_a_main_build_landing_with_a_change_fails(self):
         built = self.git('rev-parse', 'main')
         self.git('checkout', '-q', '-b', 'job', 'main')

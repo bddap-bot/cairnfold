@@ -20,7 +20,7 @@
 # no player can build; a marked phase whose garden the budget admits is held.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
-# measured, benched on the tree that lands, or on a commit main holds in a landing that changes no build (records.sh).
+# measured, benched on the tree that lands, or on a commit main holds, added by a commit that changes no build (records.sh).
 # scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
 # CAIRNFOLD_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
