@@ -35,7 +35,13 @@ const MAX_SPRING_JOINTS := 60
 ## Each image is a texture and a decoder call however few its pixels; a converted avatar carries one per decal besides
 ## its atlas.
 const MAX_IMAGES := 256
-const MAX_IMAGE_SIDE := 4096
+## The widest WebP image, the widest a converted avatar packs its atlas at, within the 16384 px a GPU texture may be;
+## the memory budget, not this, sets the side each is held at.
+const MAX_IMAGE_SIDE := 16383
+## The pixels of a 4096 px square, the widest image the Quest 2 runs behind MAX_PIXELS and MEMORY_FLOOR decoded; a larger
+## image is whole in memory before it shrinks, so it is decoded only where it fits one avatar's texture budget
+## (`decodes`).
+const UNGATED_DECODE_PIXELS := 4096 * 4096
 ## The Quest 2 decoded 164 Mpx in 8.7 s; this many keep a read near ten seconds.
 const MAX_PIXELS := 192 << 20
 ## Blend shapes times the vertices they move, summed over a file's meshes, past which it is refused before they are
@@ -217,22 +223,22 @@ static func built_in(i: int) -> PackedScene:
 	return _built_in[path]
 
 
-## A VRM file as an avatar model to open (`model`), textures shrunk, null if it is not one or is past the limits, its
-## images' scaled to `widest`: only the converter's check of a file for another renderer passes a wider one. Takes tens
-## to hundreds of milliseconds, so a player's file is read on a worker thread.
-static func read(bytes: PackedByteArray, widest := MAX_IMAGE_SIDE) -> PackedScene:
-	if bytes.size() > MAX_BYTES * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE):
+## A VRM file as an avatar model to open (`model`), textures shrunk, null if it is not one or is past the limits; only
+## the converter's check of a file for another renderer reads it `unlimited` by MAX_BYTES, MAX_PIXELS and the texture
+## budget. Takes tens to hundreds of milliseconds, so a player's file is read on a worker thread.
+static func read(bytes: PackedByteArray, unlimited := false) -> PackedScene:
+	if bytes.size() > MAX_BYTES and not unlimited:
 		return null
 	var images := Vrm.images(bytes)
 	var seen := {"images": 0, "pixels": 0}
+	var budget := texture_budget()
 	# Each image decoded must be the one Vrm.images measured in its place, or the budget would be another file's.
 	var fits := func(size: Vector2i) -> bool:
 		seen.images += 1
 		seen.pixels += size.x * size.y
-		return maxi(size.x, size.y) <= widest and seen.images <= mini(MAX_IMAGES, images.size()) and seen.pixels <= MAX_PIXELS * widest * widest / (MAX_IMAGE_SIDE * MAX_IMAGE_SIDE) and size == images[seen.images - 1].size
+		return maxi(size.x, size.y) <= MAX_IMAGE_SIDE and seen.images <= mini(MAX_IMAGES, images.size()) and (unlimited or seen.pixels <= MAX_PIXELS and decodes(size, budget)) and size == images[seen.images - 1].size
 	var start := Time.get_ticks_usec()
 	var textures := texture_bytes(bytes, images)
-	var budget := texture_budget()
 	var shrink := shrink_for(textures, budget)
 	var root := Vrm.read(bytes, fits, shape, func(img: Image) -> void: _shrink(img, shrink))
 	if root != null:
@@ -240,6 +246,12 @@ static func read(bytes: PackedByteArray, widest := MAX_IMAGE_SIDE) -> PackedScen
 	var scene := model(root) if root != null else null
 	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, seen.images, seen.pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, available_memory() / 1048576.0])
 	return scene
+
+
+## Whether an image of `size` is decoded under one avatar's texture `budget`: its RGBA bytes whole fit it, or it is
+## no larger than UNGATED_DECODE_PIXELS.
+static func decodes(size: Vector2i, budget: int) -> bool:
+	return size.x * size.y <= UNGATED_DECODE_PIXELS or size.x * size.y * 4 <= budget
 
 
 ## The bytes one avatar's textures may hold here: the memory available now above MEMORY_FLOOR, shared among every other

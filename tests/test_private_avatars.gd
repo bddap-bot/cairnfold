@@ -7,6 +7,7 @@ extends "res://../tests/support/suite.gd"
 ## the only one). Without it the test says so and checks nothing.
 
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
+const Materials = preload("res://../scripts/unity/materials.gd")
 
 
 func _initialize() -> void:
@@ -35,7 +36,8 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	var started := Time.get_ticks_msec()
 	var dir := UnityAvatar.unpacked(package)
 	check(dir != "", "%s unpacks" % label)
-	var model := UnityAvatar.avatar_scene(dir, avatar) if dir != "" else null
+	# A widest-atlas conversion of a heavy package passes the suite's 4 GB data limit.
+	var model := UnityAvatar.avatar_scene(dir, avatar, "", Materials.LAYER) if dir != "" else null
 	check(model != null, "%s imports" % label)
 	if model == null:
 		return

@@ -9,9 +9,9 @@ const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 ## shows in Unity; past that every cell shrinks alike.
 const ATLAS := 2048
 const STEP := 256
-## The widest atlas expression layers other than the untinted colours are carried at, the widest image a player's file
-## carries: they mask or index the albedo, and at a widened atlas's side each would hold as much memory as it.
-const LAYER := Avatar.MAX_IMAGE_SIDE
+## The widest atlas expression layers other than the untinted colours are carried at: they mask or index the albedo,
+## and at a widened atlas's side each would hold as much memory as it.
+const LAYER := 4096
 ## The widest the emission map is carried at: it can hold a full colour texture over every glowing cell, which at LAYER
 ## would weigh in a file as much as the atlas and push heavy avatars past Avatar.MAX_BYTES.
 const GLOW_LAYER := LAYER / 2

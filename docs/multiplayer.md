@@ -220,7 +220,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **From a Unity package.** `scripts/unity_avatar.gd` imports the avatar in a Unity source
   package (a `.unitypackage`, or an `Assets` folder with its `.meta` files) straight into the
   avatar model (see "Skinned bodies") and writes it as a Godot scene: from `game/`,
-  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR] [--atlas SIDE]`.
+  `godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE avatar.scn [AVATAR] [--packages DIR]`.
   Named `avatar.vrm`, the output is instead the file a player wears: the avatars folder reads
   only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
   `Avatar.read` reads it back into the same model. The `VRCHAT_expressions` extension carries
@@ -245,8 +245,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   each material's saved colour texture, colour, tiling and alpha mode (opaque, cut out at its
   cutoff, or blended) take a cell of one atlas at the size Unity imports the texture at for a PC (its `.meta`'s
   default or Standalone `maxTextureSize`), the size the avatar shows it at. The atlas is 2048 px wide, widened in 256 px
-  steps until every cell fits, up to 16383, the widest WebP image, or `--atlas` SIDE: a file a player wears asks for
-  `Avatar.MAX_IMAGE_SIDE` (4096), the widest Cairnfold reads, and the converter says so of a wider `.vrm`; past that its cells shrink alike with a Lanczos filter. The expression
+  steps until every cell fits, up to `Avatar.MAX_IMAGE_SIDE` (16383, the widest WebP image), past which its cells
+  shrink alike with a Lanczos filter. Cairnfold reads the same file within the limits below, and the converter says so
+  of a `.vrm` past `MAX_BYTES` or `MAX_PIXELS`. The expression
   layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. Each Poiyomi
   decal a material draws is instead its own lossless WebP image over the material's cell, at the size Unity imports
   its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
@@ -315,7 +316,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   and all shrink alike, by halves, only until they fit the memory the device has available above 1.3 GB, shared
   among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
   is decoded: on a Quest 2 with about 1.6 GB available a heavy converted avatar's 4096 px atlas is held at 1024, on
-  a desktop the same file at full size. On a Quest 2, seven figures each reading their own copy of a heavy
+  a desktop the same file at full size. An image past a 4096 px square's pixels is whole in memory before it shrinks,
+  so it is decoded only where its RGBA bytes fit that one avatar's share (`Avatar.decodes`): a device whose share holds
+  a converted avatar's widened atlas reads it, and one whose share does not (a Quest 2's, about 43 MB) refuses the file
+  and draws the player as a built-in. On a Quest 2, seven figures each reading their own copy of a heavy
   converted avatar with one 4096 px atlas in `demo/avatar-chain-cost.json` peak at 4.9 GB of the game's resident
   and swapped memory with 8.4 million base colour texels each against 3.9 GB at 1024 px, the renderer's textures
   at 1.35 GB against 0.54; at 12.6 million texels they peak at 5.23 GB, the system thrashes and its shell takes the

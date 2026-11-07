@@ -113,6 +113,8 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, [png.call(side, 1), jpg.call(1, side)])) != null, "images at the side limit are read")
 	check(Avatar.read(_with_images(bytes, [png.call(side + 1, 1)])) == null, "a PNG wider than the limit is refused")
 	check(Avatar.read(_with_images(bytes, [jpg.call(1, side + 1)])) == null, "a JPEG taller than the limit is refused")
+	var square := Vector2i(4096, 4096)
+	check(Avatar.decodes(square, 0) and not Avatar.decodes(square + Vector2i(1, 0), square.x * square.y * 4) and Avatar.decodes(square + Vector2i(1, 0), (square.x + 1) * square.y * 4), "an image past a 4096 px square is decoded only where its RGBA bytes fit the texture budget")
 	var cut: PackedByteArray = png.call(64, 64)
 	check(Avatar.read(_with_images(bytes, [cut.slice(0, cut.size() - 20)])) == null, "an image that does not decode is refused, not handed to other decoders")
 	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) != null, "a lossless WebP is read")
@@ -125,8 +127,8 @@ func _images_are_measured_before_decoding() -> void:
 		many.append(png.call(1, 1))
 	check(Avatar.read(_with_images(bytes, many)) != null, "a file with as many images as the limit is read")
 	check(Avatar.read(_with_images(bytes, many + [png.call(1, 1)])) == null, "a file with more images than the limit is refused")
-	var full: PackedByteArray = png.call(side, side)
-	var fill := Avatar.MAX_PIXELS / (side * side)
+	var full: PackedByteArray = png.call(4096, 4096)
+	var fill := Avatar.MAX_PIXELS / Avatar.UNGATED_DECODE_PIXELS
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full))) != null, "images filling the pixel limit are read")
 	check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
 
