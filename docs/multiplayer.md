@@ -306,6 +306,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   A material's Poiyomi matcaps draw over its colour before it is lit, each looked up by the surface's own normal as the
   eye sees it (or by the view reflected in it), in Unity's handedness, and blended by its replace, multiply, add,
   screen and mixed strengths under its mask's channel, as Poiyomi blends them at rest.
+  lilToon (1.3.1 through 2.4.1), which VCC installs and a package never carries, is known by its shaders' GUIDs and
+  the properties they declare (`scripts/unity/liltoon.gd`), Lite by its own. Multi draws as its `_TransparentMode`
+  says, and only the features its keywords compile. The atlas holds its colour adjustment (a hue a clip turns left
+  unturned, masked by `_MainColorAdjustMask`), its 2nd and 3rd main textures drawn by UV0 before light and its alpha
+  mask; its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
+  "shade" and "shade2" layers, its rim, its first two matcaps and its emissions. A feature drawn in a way the looks
+  cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported among the material
+  features not drawn. An avatar without a menu still carries its materials' looks.
 
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.

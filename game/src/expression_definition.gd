@@ -86,16 +86,18 @@ static func valid(data: Dictionary) -> bool:
 
 ## Looks that name their materials give each its "lighting": "lit" by angle, through a "ramp" of at least two
 ## brightnesses with a numeric "shadowTint" where it has one, or "flat", lit alike whichever way it faces; a flat or
-## ramp-lit one is capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
-## "color", "strength" and, optionally, "replace" and "theme", the slot of the global theme colour it glows in among the
-## material's "themes" (unity/materials.gd `_theme`); an "outline" layer comes with its positive "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
-## rather than guessed at (Avatar.shape).
+## ramp-lit one is capped at "cap" when it has one, with a toon "shadow" null or its numbers (unity/materials.gd
+## lighting), an "emission" null or its linear "color", "strength" and, optionally, "replace" and "theme", the slot of
+## the global theme colour it glows in among the material's "themes" (unity/materials.gd `_theme`), and a "rim" null or
+## its linear "color" and numbers. A shadow draws by the looks' "shade" and "shade2" layers (Avatar.shape); an
+## "outline" layer comes with its positive "outlineWidth" in metres. A file whose looks predate lighting would draw flat
+## materials shaded twice, so it is refused rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		push_error("expressions: the looks are not a dictionary")
 		return false
-	if not looks.get("decals", []) is Array or (looks.has("emission") and not looks.emission is Image) or (looks.has("index") and not looks.index is Image):
-		push_error("expressions: the looks' decals, emission map or material index are not images")
+	if not looks.get("decals", []) is Array or ["emission", "index", "shade", "shade2"].any(func(k: String) -> bool: return looks.has(k) and not looks[k] is Image):
+		push_error("expressions: the looks' decals, emission map, material index or shade layers are not images")
 		return false
 	if not (looks.get("matcaps", []) is Array and looks.get("matcaps", []).all(func(t: Variant) -> bool: return t is Image)) or (looks.has("matcapMasks") and not looks.matcapMasks is Image):
 		push_error("expressions: the looks' matcaps or matcap masks are not images")
@@ -117,6 +119,10 @@ static func looks_valid(looks: Variant) -> bool:
 		if not ramp is Array or ramp.size() < 2 or not ramp.all(_number) or not _number(light.get("shadowTint", 0.0)):
 			push_error("expressions: a look's lighting ramp is not two or more numbers with a numeric shadow tint: %s" % [light])
 			return false
+		var shadow: Variant = light.get("shadow")
+		if shadow != null and not _shadow(shadow):
+			push_error("expressions: a look's shadow is not a border, blur and strength with a null or numeric second shade and edge: %s" % [shadow])
+			return false
 		var glow: Variant = m.get("emission")
 		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
 			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
@@ -130,6 +136,10 @@ static func looks_valid(looks: Variant) -> bool:
 			return false
 		if not _coat(m.get("clearcoat")):
 			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions or a map among the looks' %s" % [m.get("clearcoat")])
+			return false
+		var rim: Variant = m.get("rim")
+		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k)))):
+			push_error("expressions: a look's rim is not a colour of three numbers with a strength, main, border, blur, power, lit and shadowMask: %s" % [rim])
 			return false
 	return true
 
@@ -190,6 +200,16 @@ static func _blend(region: Dictionary) -> bool:
 		return true
 	var mode: Variant = region.get("colorBlend")
 	return _whole(mode) and int(mode) in DECAL_BLENDS
+
+
+## A toon shadow's numbers: its "border", "blur" and "strength", a "second" shade null or its "border", "blur" and
+## "weight", and an "edge" null or its "color" of three and "range".
+static func _shadow(v: Variant) -> bool:
+	if not v is Dictionary or not ["border", "blur", "strength"].all(func(k: String) -> bool: return _number(v.get(k))):
+		return false
+	var second: Variant = v.get("second")
+	var edge: Variant = v.get("edge")
+	return (second == null or second is Dictionary and ["border", "blur", "weight"].all(func(k: String) -> bool: return _number(second.get(k)))) and (edge == null or edge is Dictionary and _numbers(edge.get("color"), 3) and _number(edge.get("range")))
 
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives

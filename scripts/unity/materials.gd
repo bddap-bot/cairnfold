@@ -5,6 +5,7 @@ const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 const Toon = preload("res://../scripts/unity/toon_shaders.gd")
+const Liltoon = preload("res://../scripts/unity/liltoon.gd")
 
 ## The atlas starts this wide and widens by STEP, up to `widest`, until every material fits at the size its texture
 ## shows in Unity; past that every cell shrinks alike.
@@ -70,6 +71,8 @@ var strength_driven := {}
 ## map, the strength its peak stands for], worked out once; `looks` takes the map.
 var _glow_lists := {}
 var _folded_maps := {}
+## The material properties a clip animates on a renderer drawing the material, by material key: {property: true}.
+var animated := {}
 ## Each decal a material draws (`decal`), at the size Unity imports its texture, once however many slots draw it.
 var decal_images: Array[Image] = []
 var _decal_of := {}
@@ -125,10 +128,13 @@ func _read(m: Dictionary, guid: String) -> void:
 		m.outline_pass = Sdk.SHADERS[shader_guid].get("outline", false)
 	elif Toon.SHADERS.has(shader_guid):
 		m.outline_pass = Toon.SHADERS[shader_guid].outline
+		for name: String in Liltoon.properties(m.shader):
+			m.properties[name] = true
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
 	m.textures = textures
-	m.keywords = mat.get("m_ValidKeywords", [])
+	# Unity before 2021 saves the keywords as one string.
+	m.keywords = mat.get("m_ValidKeywords", Array(str(mat.get("m_ShaderKeywords", "")).split(" ", false)))
 	var floats := _properties(saved.get("m_Floats"))
 	m.floats = floats
 	var ints := _properties(saved.get("m_Ints"))
@@ -166,6 +172,8 @@ func _read(m: Dictionary, guid: String) -> void:
 	if declared.call("_AlphaMod"):
 		m.alpha_mod = _number(m, "_AlphaMod", 0.0)
 	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
+	if Liltoon.is_liltoon(m):
+		Liltoon.read(m)
 	m.outline = _outline(m)
 
 
@@ -279,6 +287,7 @@ func pack(used: Array) -> void:
 		var cell: Rect2i = cells[key]
 		m.cell = cell
 		var img := _cell_image(m, cell)
+		_adjust_main(key, img)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod, _alpha_overrides(key, img.get_size()))
 		_adjust(m, img)
 		_detail(m, img)
@@ -366,12 +375,16 @@ func packed(key: String) -> String:
 	return "%s: source %s, shown %s, packed %dx%d" % [m.name, source, m.get("shown", 0) if m.get("shown", 0) > 0 else "as source", (m.cell as Rect2i).size.x, (m.cell as Rect2i).size.y]
 
 
-## Toon Standard's detail map laid into `img`, the material's tinted texture at its cell's size, as the shader lays it
-## over the albedo before light. Nothing animates the detail, so the atlas holds it, at the albedo's size: a cell
-## widened to the detail's own would multiply the atlas (a corpus avatar's four detailed bodies took it from 2048 to
-## 4864 wide). A colour control's region takes it as part of the albedo; `hue_mask` keeps a hue shift off a blended
-## one, as the shader shifts the albedo before laying it, and on a multiplied one, which the shifted albedo shows through.
+## Toon Standard's detail map, or lilToon's 2nd and 3rd main textures (Liltoon.lay), laid into `img`, the material's
+## tinted texture at its cell's size, as the shader lays it over the albedo before light. Nothing animates the detail,
+## so the atlas holds it, at the albedo's size: a cell widened to the detail's own would multiply the atlas (a corpus
+## avatar's four detailed bodies took it from 2048 to 4864 wide). A colour control's region takes it as part of the
+## albedo; `hue_mask` keeps a hue shift off a blended one, as the shader shifts the albedo before laying it, and on a
+## multiplied one, which the shifted albedo shows through.
 func _detail(m: Dictionary, img: Image) -> void:
+	if Liltoon.is_liltoon(m):
+		Liltoon.lay(self, m, img)
+		return
 	var layer := _detail_layer(m, img.get_size(), 0)
 	if layer == null:
 		return
@@ -387,6 +400,14 @@ func _detail(m: Dictionary, img: Image) -> void:
 			var over: float = under * _LINEAR[detail[i + c]] if multiply else _LINEAR[detail[i + c]]
 			data[i + c] = _ENCODED[clampi(roundi(lerpf(under, over, a) * 4095.0), 0, 4095)]
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
+
+
+## lilToon's colour adjustment of the main texture laid into `img` at its cell's size before its colour tints it
+## (Liltoon.adjust), as Poiyomi's (`_adjust`) is after: its hue left unturned where a clip turns it, which the renderer
+## then turns.
+func _adjust_main(key: String, img: Image) -> void:
+	if Liltoon.is_liltoon(materials[key]):
+		Liltoon.adjust(self, materials[key], img, (animated.get(key, {}) as Dictionary).has(Liltoon.HUE))
 
 
 ## Toon Standard's _DetailMode values the atlas can hold: the detail blended in by its alpha, or multiplied in.
@@ -426,9 +447,11 @@ static func _number(m: Dictionary, name: String, otherwise: float) -> float:
 	return str((m.get("ints", {}) as Dictionary).get(name, (m.get("floats", {}) as Dictionary).get(name, otherwise))).to_float()
 
 
-## Poiyomi's decal Alpha Blend Modes of the material at `key`, in slot order, as [mode, each texel's decal alpha] at
-## `size`, its cell's: a decal spans its whole cell, so its bounds are the cell's.
+## Poiyomi's decal Alpha Blend Modes of the material at `key`, in slot order, or lilToon's alpha mask, as [mode, each
+## texel's alpha] at `size`, its cell's: a decal spans its whole cell, so its bounds are the cell's.
 func _alpha_overrides(key: String, size: Vector2i) -> Array:
+	if Liltoon.is_liltoon(materials[key]):
+		return Liltoon.alpha_overrides(self, materials[key], size)
 	var floats: Dictionary = materials[key].get("floats", {})
 	var out := []
 	for slot in 4:
@@ -567,28 +590,38 @@ func hue_mask() -> Image:
 	var out: Image
 	for key: String in keys:
 		var m: Dictionary = materials[key]
-		var mobile := toon_standard(m)
-		var property := "_HueShiftMask" if mobile else "_MainColorAdjustTexture"
-		var source := image(_texture_guid(m, property)) if _texture_guid(m, property) != "" else null
-		var detail := _detail_layer(m, (m.cell as Rect2i).size, PAD) if hue_masks.has(key) and _number(m, "_DetailMode", DETAIL_BLEND) == DETAIL_BLEND else null
-		if source == null and detail == null:
+		var mask := Liltoon.hue_mask(self, m) if Liltoon.is_liltoon(m) else _adjust_mask(key)
+		if mask == null:
 			continue
 		if out == null:
 			out = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 			out.fill(Color.WHITE)
-		var mask := _over_cell(m, source, property)
-		if mobile:
-			var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
-			var data := mask.get_data()
-			var cover := PackedByteArray() if detail == null else detail.get_data()
-			for i in range(0, data.size(), 4):
-				data[i] = data[i + channel] if cover.is_empty() else roundi(data[i + channel] * (255 - cover[i + 3]) / 255.0)
-				data[i + 1] = data[i]
-				data[i + 2] = data[i]
-				data[i + 3] = 255
-			mask.set_data(mask.get_width(), mask.get_height(), false, Image.FORMAT_RGBA8, data)
 		out.blit_rect(mask, Rect2i(Vector2i.ZERO, mask.get_size()), (m.cell as Rect2i).position - Vector2i(PAD, PAD))
 	return null if out == null else _layer(out, RESAMPLE)
+
+
+## The colour adjustment mask of the material at `key` over its padded cell, Poiyomi's or Toon Standard's (its chosen
+## channel, a blended detail spared), or null where it covers the whole cell.
+func _adjust_mask(key: String) -> Image:
+	var m: Dictionary = materials[key]
+	var mobile := toon_standard(m)
+	var property := "_HueShiftMask" if mobile else "_MainColorAdjustTexture"
+	var source := image(_texture_guid(m, property)) if _texture_guid(m, property) != "" else null
+	var detail := _detail_layer(m, (m.cell as Rect2i).size, PAD) if hue_masks.has(key) and _number(m, "_DetailMode", DETAIL_BLEND) == DETAIL_BLEND else null
+	if source == null and detail == null:
+		return null
+	var mask := _over_cell(m, source, property)
+	if mobile:
+		var channel := clampi(str(m.floats.get("_HueShiftMaskChannel", "1")).to_int(), 0, 3)
+		var data := mask.get_data()
+		var cover := PackedByteArray() if detail == null else detail.get_data()
+		for i in range(0, data.size(), 4):
+			data[i] = data[i + channel] if cover.is_empty() else roundi(data[i + channel] * (255 - cover[i + 3]) / 255.0)
+			data[i + 1] = data[i]
+			data[i + 2] = data[i]
+			data[i + 3] = 255
+		mask.set_data(mask.get_width(), mask.get_height(), false, Image.FORMAT_RGBA8, data)
+	return mask
 
 
 ## The untinted colours of the materials a menu recolours, or swaps in where it recolours: {} where it recolours none,
@@ -627,6 +660,7 @@ func untinted() -> Dictionary:
 	for key: String in keys:
 		var m: Dictionary = materials[key]
 		var img := _cell_image(m, m.cell)
+		_adjust_main(key, img)
 		_detail(m, img)
 		_blit_padded(out, img, laid[key])
 		cells.append(uv.call(m.cell, Vector2(atlas_side, atlas_side)) + uv.call(laid[key], Vector2(covered)))
@@ -757,12 +791,14 @@ static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 	return _float(m, name, otherwise)
 
 
-## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or {} where it is off or maps its matcap by a view
-## the renderer does not draw: those other than the normal's (0, which a headset draws as 1) and the reflection's (2),
-## or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain white; its "color" its global theme
-## colour's (`_theme`) where it takes one, "theme" then naming its slot.
+## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or lilToon's first two (Liltoon.matcap), or {} where
+## it is off or maps its matcap by a view the renderer does not draw: those other than the normal's (0, which a headset
+## draws as 1) and the reflection's (2), or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain
+## white; its "color" its global theme colour's (`_theme`) where it takes one, "theme" then naming its slot.
 func matcap(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
+	if m.has("cell") and Liltoon.is_liltoon(m):
+		return Liltoon.matcap(m, slot)
 	var colours: Dictionary = m.get("colours", {})
 	var p: String = MATCAPS[slot]
 	if not m.has("cell") or not poiyomi(m) or _float(m, p + "Enable") == 0.0:
@@ -906,14 +942,16 @@ static func mask_blend(mask: float, value: float, type: int) -> float:
 
 
 ## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
-## it faces (Poiyomi where `_flat_poiyomi`, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped),
-## "lit" for a surface shaded by the angle of its light.
+## it faces (Poiyomi where `_flat_poiyomi`, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped;
+## lilToon's, with its toon shadow, Liltoon.lighting), "lit" for a surface shaded by the angle of its light.
 ## VRChat's Toon Standard is lit through its shadow "ramp", the brightness its ramp texture gives (Shadow Boost added,
 ## at most 1) at RAMP evenly spaced points of its light's half-Lambert term from 0 to 1, with its Shadow Tint
 ## ("shadowTint") lending the albedo to the shade and the light capped at 1 where Limit Brightness is on, as the shader
 ## lights its forward base pass.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
+	if Liltoon.is_liltoon(m):
+		return Liltoon.lighting(m)
 	if poiyomi(m) and _flat_poiyomi(m):
 		var flat := {"model": "flat"}
 		if _capped(m):
@@ -997,14 +1035,16 @@ func _ramp(m: Dictionary) -> Array:
 
 ## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
 ## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission atlas
-## (`_glow`), and "theme", the slot of the global theme colour (`_theme`) it takes its colour from where it takes one, or
-## {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's (`_poiyomi_glows`). Poiyomi adds
-## its four emissions up, so those that glow in the drawn one's colour and override it as far fold into its map, each
-## weighted by its strength over the drawn one's; the others are left out.
+## (`_glow_and_peak`), and "theme", the slot of the global theme colour (`_theme`) it takes its colour from where it takes
+## one, or {} for one that glows by no emission drawn here: VRChat Toon Standard's, Poiyomi's (`_poiyomi_glows`) or
+## lilToon's (Liltoon.emission). Poiyomi adds its four emissions up, so those that glow in the drawn one's colour and
+## override it as far fold into its map, each weighted by its strength over the drawn one's; the others are left out.
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if not m.has("cell"):
 		return {}
+	if Liltoon.is_liltoon(m):
+		return Liltoon.emission(m)
 	if toon_standard(m):
 		if _float(m, "_EmissionUV") != 0.0:
 			return {}
@@ -1115,11 +1155,13 @@ static func _theme(m: Dictionary, index: int) -> Dictionary:
 
 ## The emission map over the material's padded cell, as `emission` reads it, and the strength its peak stands for over
 ## the drawn emission's: each folded emission's map times its mask (`_mask`), weighted by its strength and added up in
-## linear light, scaled down by its peak where that passes 1; or Toon Standard's map.
+## linear light, scaled down by its peak where that passes 1; or Toon Standard's map, or lilToon's (Liltoon.glow).
 func _glow_and_peak(key: String) -> Array:
 	if _folded_maps.has(key):
 		return _folded_maps[key]
 	var m: Dictionary = materials[key]
+	if Liltoon.is_liltoon(m):
+		return [Liltoon.glow(self, m, _albedo(m)), 1.0]
 	var folded := _folded(key) if poiyomi(m) else []
 	if folded.size() <= 1:
 		return [_glow_of(m, "" if folded.is_empty() or folded[0][0] == 0 else str(folded[0][0])), 1.0]
@@ -1174,6 +1216,18 @@ func _glow_of(m: Dictionary, n: String) -> Image:
 	return map
 
 
+## The atlas over the material's padded cell, without the mipmaps `atlas_materials` gives the atlas.
+func _albedo(m: Dictionary) -> Image:
+	var region := atlas.get_region(_padded(m))
+	region.clear_mipmaps()
+	return region
+
+
+## The material's cell and the PAD around it.
+static func _padded(m: Dictionary) -> Rect2i:
+	return (m.cell as Rect2i).grow(PAD)
+
+
 ## Whether the material's mask in `property` covers anything less than all of its cell: a texture fills it, `invert`
 ## inverts it, or `global` blends a global mask into it.
 func _masked(m: Dictionary, property: String, invert: String, global: String) -> bool:
@@ -1208,15 +1262,20 @@ func glows_in(key: String, slot: int) -> bool:
 	return emission(key).get("theme", -1) == slot
 
 
-## Whether the material at `key` draws the look `field` that an animated property drives in `slot`.
-func draws(key: String, look: Dictionary) -> bool:
+## Whether the material at `key` draws the look `field` that the animated `property` drives in `slot`: a lilToon
+## emission's only where `property` is the blend of the one emission its entry carries (Liltoon.emission).
+func draws(key: String, look: Dictionary, property: String) -> bool:
 	match look.field:
 		"decal", "decalIntensity":
 			return not decal(key, look.slot).is_empty()
 		"decalHue":
 			return decal(key, look.slot).get("hue") != null
 		"emission":
-			return not emission(key).is_empty() and (not poiyomi(materials[key]) or _drawn(key).slot == 0)
+			if emission(key).is_empty():
+				return false
+			if poiyomi(materials[key]):
+				return _drawn(key).slot == 0
+			return not Liltoon.is_liltoon(materials[key]) or Liltoon.blended_by(materials[key]) == property
 		"emissionHue":
 			return not emission(key).is_empty() and emission(key).shiftsHue
 		"themeHue", "themeSaturation", "themeValue", "themeSpeed":
@@ -1235,9 +1294,9 @@ func coat_uv(key: String) -> int:
 
 
 ## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, emission's strength or hue, a global theme
-## colour's offsets, which move the emission drawn in that theme (`_theme`), or a component (slot 0 to 3) of the clear
-## coat maps' tiling and offset.
+## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths (lilToon's blend its intensity), emission's
+## strength (lilToon's blend) or hue, a global theme colour's offsets, which move the emission drawn in that theme
+## (`_theme`), or a component (slot 0 to 3) of the clear coat maps' tiling and offset.
 static func field(property: String) -> Dictionary:
 	if property.begins_with(COAT_ST) and property.length() == COAT_ST.length() + 1:
 		var component := "xyzw".find(property.right(1))
@@ -1249,9 +1308,12 @@ static func field(property: String) -> Dictionary:
 	var matcap := _MATCAP_FIELD.search(property)
 	if matcap != null:
 		return {"field": "matcap" + matcap.get_string(2), "slot": maxi(matcap.get_string(1).to_int() - 1, 0)}
+	var blend := _MATCAP_BLEND_FIELD.search(property)
+	if blend != null:
+		return {"field": "matcapIntensity", "slot": int(blend.get_string(1) != "")}
 	var glow := _EMISSION_FIELD.search(property)
 	if glow != null:
-		return {"field": "emission" if glow.get_string(1) == "Strength" else "emissionHue", "slot": 0}
+		return {"field": "emissionHue" if glow.get_string(1) == "HueShift" else "emission", "slot": 0}
 	var theme := _THEME_FIELD.search(property)
 	if theme != null:
 		return {"field": "theme" + {"HueSpeed": "Speed"}.get(theme.get_string(1), theme.get_string(1)), "slot": theme.get_string(2).to_int()}
@@ -1261,7 +1323,8 @@ static func field(property: String) -> Dictionary:
 const COAT_ST := "_ClearCoatMaps_ST."
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
-static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift)(_|$)")
+static var _MATCAP_BLEND_FIELD := RegEx.create_from_string("^_MatCap(2nd)?Blend$")
+static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift|Blend|2ndBlend)(_|$)")
 static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(HueSpeed|Hue|Saturation|Value)([0-3])(_|$)")
 
 
@@ -1283,11 +1346,13 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## What each packed material lays over its albedo and adds to its light, and how it takes the light, for the renderer
 ## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
 ## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale image, each texel one plus
-## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps and
-## emission at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask
-## blended in) and "emission" map, the "matcaps" textures their entries name by position, and the "decals",
-## `decal_images`, each over its material's cell, which its decals name by "image"; and the `outline_layer`, which
-## spans the atlas, not the entries.
+## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps,
+## emission and rim at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
+## "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask blended in), "emission"
+## map and, where a material's lighting has a toon shadow, "shade" and "shade2" (its shade colours, Liltoon.shade, and
+## the albedo elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
+## over its material's cell, which its decals name by "image"; and the `outline_layer`, which spans the atlas, not the
+## entries.
 func looks() -> Dictionary:
 	var entries := []
 	var index := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_L8)
@@ -1296,6 +1361,7 @@ func looks() -> Dictionary:
 	var glow: Image
 	var coat_maps := {}
 	var coat_images: Array[Image] = []
+	var shaded := []
 	for key: String in materials:
 		var m: Dictionary = materials[key]
 		if not m.has("cell"):
@@ -1312,7 +1378,7 @@ func looks() -> Dictionary:
 		if entries.size() == 255:
 			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")
 			break
-		var padded := Rect2i((m.cell as Rect2i).position - Vector2i(PAD, PAD), (m.cell as Rect2i).size + 2 * Vector2i(PAD, PAD))
+		var padded := _padded(m)
 		index.fill_rect(padded, Color8(entries.size() + 1, entries.size() + 1, entries.size() + 1))
 		var drawn_matcaps := []
 		for slot in 4:
@@ -1330,13 +1396,12 @@ func looks() -> Dictionary:
 			if matcap_textures.has(c.texture):
 				drawn.texture = matcap_textures.keys().find(c.texture)
 			drawn_matcaps.append(drawn)
-			var p: String = MATCAPS[slot] + "Mask"
-			if not _masked(m, p, p + "Invert", p + "GlobalMask"):
+			var cover := _matcap_cover(m, slot)
+			if cover.is_empty():
 				continue
 			if matcap_masks == null:
 				matcap_masks = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				matcap_masks.fill(Color.WHITE)
-			var cover := _mask(m, p, p + "Channel", p + "Invert", p + "GlobalMask", p + "GlobalMaskBlendType")
 			var region := matcap_masks.get_region(padded)
 			var data := region.get_data()
 			for i in cover.size():
@@ -1350,6 +1415,8 @@ func looks() -> Dictionary:
 			glow.blit_rect(_glow_and_peak(key)[0], Rect2i(Vector2i.ZERO, padded.size), padded.position)
 			if _folded_maps.has(key):
 				_folded_maps[key][0] = null
+		if light.get("shadow") != null:
+			shaded.append(m)
 		var cell := Rect2(m.cell)
 		var entry := {"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
 		var themed: Array = drawn_matcaps.filter(func(c: Variant) -> bool: return c is Dictionary and c.theme != null).map(func(c: Dictionary) -> int: return c.theme)
@@ -1370,6 +1437,9 @@ func looks() -> Dictionary:
 					coat_images.append(packed_map)
 			drawn_coat.map = coat_maps.get(packing, -1)
 			entry.clearcoat = drawn_coat
+		var rim := Liltoon.rim(m) if Liltoon.is_liltoon(m) else {}
+		if not rim.is_empty():
+			entry.rim = rim
 		entries.append(entry)
 	var outlines := outline_layer()
 	if entries.is_empty():
@@ -1382,7 +1452,28 @@ func looks() -> Dictionary:
 		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
 	if not coat_images.is_empty():
 		out.clearcoatMaps = coat_images
+	for second: bool in [] if shaded.is_empty() else [false, true]:
+		var shade := atlas.duplicate() as Image
+		shade.clear_mipmaps()
+		var data := shade.get_data()
+		for i in range(3, data.size(), 4):
+			data[i] = 255
+		shade.set_data(atlas_side, atlas_side, false, Image.FORMAT_RGBA8, data)
+		for m: Dictionary in shaded:
+			shade.blit_rect(Liltoon.shade(self, m, _albedo(m), second), Rect2i(Vector2i.ZERO, _padded(m).size), _padded(m).position)
+		out["shade2" if second else "shade"] = _layer(shade, RESAMPLE, GLOW_LAYER)
 	return out
+
+
+## Matcap `slot`'s mask over the material's padded cell, one byte a texel, or empty where it covers the whole cell:
+## Poiyomi's chosen channel with its global mask blended in, or lilToon's blend mask (Liltoon.matcap_cover).
+func _matcap_cover(m: Dictionary, slot: int) -> PackedByteArray:
+	if Liltoon.is_liltoon(m):
+		return Liltoon.matcap_cover(self, m, slot)
+	var p: String = MATCAPS[slot] + "Mask"
+	if not _masked(m, p, p + "Invert", p + "GlobalMask"):
+		return PackedByteArray()
+	return _mask(m, p, p + "Channel", p + "Invert", p + "GlobalMask", p + "GlobalMaskBlendType")
 
 
 ## The layer `img`, shrunk in place to the at most `widest` an avatar file carries it at.
@@ -1433,6 +1524,30 @@ func _tiled(m: Dictionary, source: Image, scale: Vector2, offset: Vector2, size:
 			var uv := Vector2((clampi(x, 0, size.x - 1) + 0.5) / size.x, 1.0 - (clampi(y, 0, size.y - 1) + 0.5) / size.y)
 			uv = (uv - (m.offset as Vector2)) / (m.scale as Vector2) * scale + offset
 			out.set_pixel(x + pad, y + pad, _sample(source, uv))
+	return out
+
+
+## The saved value of the animatable shader property `property` of the material: a float or int, or a vector's
+## component as `_Name.x` (or `.r`) names it; null where the material saves none.
+static func value(m: Dictionary, property: String) -> Variant:
+	for kind: String in ["floats", "ints"]:
+		if (m.get(kind, {}) as Dictionary).has(property):
+			return str(m[kind][property]).to_float()
+	var axis := property.get_slice(".", 1) if property.contains(".") else ""
+	var component := maxi("xyzw".find(axis), "rgba".find(axis)) if axis.length() == 1 else -1
+	var vector: Variant = (m.get("colours", {}) as Dictionary).get(property.get_slice(".", 0))
+	if not vector is Dictionary or component < 0:
+		return null
+	return str((vector as Dictionary).get("rgba"[component], "0")).to_float()
+
+
+## What the packed materials draw from their shaders that the atlas and looks cannot, one line a material's feature.
+func losses() -> Array[String]:
+	var out: Array[String] = []
+	for m: Dictionary in materials.values():
+		if m.has("cell") and Liltoon.is_liltoon(m):
+			for feature: String in Liltoon.losses(m):
+				out.append("%s: %s" % [m.name, feature])
 	return out
 
 

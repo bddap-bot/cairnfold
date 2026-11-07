@@ -307,10 +307,16 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var clips: Array = expressions.data.get("clips", [])
 	for i in clips.size():
 		for c: Dictionary in clips[i].curves:
-			if c.attribute.begins_with("blendShape.") and c["class"] == "137" and paths.has(c.path) and not c.has("refs"):
-				var renderer := Prefabs.renderer_of(objs, Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject")))
+			if c["class"] != "137" or not paths.has(c.path) or c.has("refs"):
+				continue
+			var renderer := Prefabs.renderer_of(objs, Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject")))
+			if c.attribute.begins_with("blendShape."):
 				var shapes: Dictionary = animated.get_or_add(renderer, {})
 				(shapes.get_or_add(c.attribute.trim_prefix("blendShape."), []) as Array).append([i, c["keys"]])
+			elif c.attribute.begins_with("material."):
+				for ref: Variant in Yaml.list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
+					if ref is Dictionary:
+						(materials.animated.get_or_add(Yaml.guid(ref), {}) as Dictionary)[c.attribute.trim_prefix("material.")] = true
 	var faced := {}
 	for shape: String in face.shapes:
 		faced[shape] = true
@@ -404,6 +410,8 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		report["textures not decoded"] = materials.undecoded.keys()
 	if not materials.absent.is_empty():
 		report["textures in no package"] = materials.absent.keys()
+	if not materials.losses().is_empty():
+		report["material features not drawn"] = materials.losses()
 	root.set_meta("report", report)
 	settle(root)
 	return root
@@ -861,7 +869,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		var channel := "rgb".find(property.right(1)) if property in ["_Color.r", "_Color.g", "_Color.b"] else -1
 		var tone := ["MainGamma", "Saturation", "MainBrightness"].find(property.get_slice("_", 1))
 		var look := Materials.field(property)
-		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
+		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift", Materials.Liltoon.HUE] and not property.begins_with("_MainHueShift_"):
 			return -1
 		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "look" if not look.is_empty() else "hue"
 		var coat: bool = look.get("field") == "clearcoatST"
@@ -874,7 +882,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			if not materials.materials.has(key):
 				continue
 			var material: Dictionary = materials.materials[key]
-			if not material.has("cell") or not (material.get("properties", {}) as Dictionary).has("_Color" if channel >= 0 else "_ClearCoatMaps" if coat else property):
+			if not material.has("cell") or not (material.get("properties", {}) as Dictionary).has("_Color" if channel >= 0 else "_ClearCoatMaps" if coat else property.get_slice(".", 0)):
 				continue
 			var binding := {}
 			if channel >= 0:
@@ -887,16 +895,17 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 						for swapped: String in m.swapped:
 							materials.color_regions[swapped] = true
 			elif coat:
-				if not materials.draws(key, look):
+				if not materials.draws(key, look, property):
 					continue
 				binding = look.duplicate()
 				rest = materials.clearcoat(key).st[look.slot]
 			else:
 				var floats: Dictionary = material.get("floats", {})
-				if not floats.has(property):
+				var saved: Variant = Materials.value(material, property)
+				if saved == null:
 					continue
 				if not look.is_empty():
-					if not materials.draws(key, look):
+					if not materials.draws(key, look, property):
 						continue
 					if look.field.begins_with("emission") or look.field.begins_with("theme") and materials.glows_in(key, look.slot):
 						materials.glow_regions[key] = true
@@ -908,6 +917,11 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 						continue
 					binding = {"channel": tone}
 					materials.hue_masks[key] = true
+				elif property == Materials.Liltoon.HUE:
+					if not Materials.Liltoon.compiled(material, "colour adjustment"):
+						continue
+					binding = {"space": 1.0, "shift": 1.0}
+					materials.hue_masks[key] = true
 				else:
 					var mobile := property == "_HueShift" and Materials.toon_standard(material)
 					if mobile:
@@ -917,7 +931,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 						continue
 					binding = {"space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()}
 					materials.hue_masks[key] = true
-				rest = str(floats[property]).to_float()
+				rest = saved
 			var cell: Rect2 = Rect2(material.cell)
 			binding.rect = [cell.position.x / materials.atlas_side, cell.position.y / materials.atlas_side, cell.end.x / materials.atlas_side, cell.end.y / materials.atlas_side]
 			for m: Dictionary in meshes:

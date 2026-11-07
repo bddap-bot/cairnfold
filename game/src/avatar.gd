@@ -634,6 +634,9 @@ static func shape(state: GLTFState) -> bool:
 	if looks.has("materials") and not looks.get("index") is Image:
 		push_error("avatar: the looks name materials without the material index they are drawn by")
 		return false
+	if looks.get("materials", []).any(func(m: Dictionary) -> bool: return m.lighting.get("shadow") != null) and not (looks.get("shade") is Image and looks.get("shade2") is Image):
+		push_error("avatar: the looks give a material a toon shadow without the shade layers it is drawn by")
+		return false
 	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
 	return true
 

@@ -9,7 +9,7 @@ func _init() -> void:
 	_bones_turn_and_shift()
 	_node_effects_roundtrip()
 	_roundtrip()
-	_looks_need_their_index()
+	_looks_need_their_index_and_shades()
 	_layers_follow_the_budget()
 	_decals_share_pages()
 	_moving_targets_leave_regions_bound()
@@ -263,9 +263,10 @@ func _decals_share_pages() -> void:
 	root.free()
 
 
-## Looks that name materials carry each one's lighting, and any emission a colour and strength, or the file is
-## refused. A mesh that shows a flat or glowing material draws by the material index, held nearest-sampled at most
-## INDEX_SIDE wide, the looks table and the emission map; one that shows only lit materials, dark at rest, keeps its own.
+## Looks that name materials carry each one's lighting, any toon shadow its numbers over the shade layers, and any
+## emission a colour and strength and any rim a colour and its numbers, or the file is refused. A mesh that shows a flat
+## or glowing material draws by the material index, held nearest-sampled at most INDEX_SIDE wide, the looks table and
+## the emission map; one that shows only lit materials, dark at rest, keeps its own.
 func _lighting() -> void:
 	var index := Image.create_empty(4096, 4096, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2048, 4096), Color8(1, 1, 1))
@@ -279,6 +280,24 @@ func _lighting() -> void:
 	check(ExpressionDefinition.valid({"looks": looks}), "looks lighting each material are valid")
 	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [1.0]}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": "0.5"}}]}, {"index": "a PNG", "materials": []}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
 		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
+	var layer := glow
+	var shadow := {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": {"border": 0.15, "blur": 0.1, "weight": 0.5}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
+	var rim := {"color": [1.0, 0.5, 0.25], "strength": 1.0, "main": 0.0, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5}
+	var toon := func(light: Dictionary, edge: Variant, shade: Variant) -> Dictionary:
+		var out := {"index": encoded, "materials": [{"lighting": light, "rim": edge}, {"lighting": {"model": "flat", "cap": 1.0, "shadow": null}, "rim": null}]}
+		if shade != null:
+			out.shade = shade
+			out.shade2 = shade
+		return out
+	check(ExpressionDefinition.valid({"looks": toon.call({"model": "flat", "cap": 1.0, "shadow": shadow}, rim, layer)}), "a toon shadow over its shade layers and a rim are valid")
+	var unweighted := shadow.duplicate(true)
+	unweighted.second.weight = "0.5"
+	var unranged := shadow.duplicate(true)
+	unranged.edge = {"color": [1.0, 0.1]}
+	var powerless := rim.duplicate()
+	powerless.erase("power")
+	for bad: Dictionary in [toon.call({"model": "flat", "cap": 1.0, "shadow": unweighted}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": unranged}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": shadow}, null, "a PNG"), toon.call({"model": "flat", "cap": 1.0, "shadow": null}, powerless, null)]:
+		check(not ExpressionDefinition.valid({"looks": bad}), "a malformed shadow or rim, or shade layers that are not images, are refused: %s" % [bad.materials[0]])
 	var root := Node3D.new()
 	var meshes: Array[ImporterMesh] = []
 	for u: float in [0.25, 0.75, 0.88]:
@@ -535,8 +554,9 @@ func _node_effects_roundtrip() -> void:
 	check(indexed.targets.all(func(t: Dictionary) -> bool: return t.effect.values()[0].node == 0), "every node effect written to a VRM indexes its node: %s" % [indexed.targets])
 
 
-## A file whose looks name materials without the material index they are drawn by is refused.
-func _looks_need_their_index() -> void:
+## A file whose looks name materials without the material index they are drawn by, or give one a toon shadow without
+## the shade layers it is drawn by, is refused.
+func _looks_need_their_index_and_shades() -> void:
 	var model := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
 	model.set_meta("springs", {})
 	var definition: Dictionary = preload("res://demo/expressions.gd").definition()
@@ -545,6 +565,15 @@ func _looks_need_their_index() -> void:
 	Vrm.write(model, "user://unindexed.vrm")
 	model.free()
 	check(Avatar.read(FileAccess.get_file_as_bytes("user://unindexed.vrm")) == null, "a file whose looks name materials without their index is refused")
+	var shadowed := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
+	shadowed.set_meta("springs", {})
+	var shaded: Dictionary = preload("res://demo/expressions.gd").definition()
+	shaded.looks.index = Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	shaded.looks.materials = [{"lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": null, "edge": null}}}]
+	shadowed.set_meta("expressions", shaded)
+	Vrm.write(shadowed, "user://unshaded.vrm")
+	shadowed.free()
+	check(Avatar.read(FileAccess.get_file_as_bytes("user://unshaded.vrm")) == null, "a file whose looks give a material a toon shadow without the shade layers is refused")
 
 
 func _roundtrip() -> void:

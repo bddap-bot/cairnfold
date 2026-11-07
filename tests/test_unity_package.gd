@@ -64,6 +64,10 @@ func _run() -> void:
 	_skin_its_shade_reaches_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_a_colour_reads_as_its_shader_receives_it()
+	_a_liltoon_shader_the_package_omits_is_known()
+	_liltoon_looks_carry_its_shadow_rim_matcaps_and_emission()
+	_liltoon_layers_bake_into_the_atlas()
+	_liltoon_curves_bind_their_looks()
 	_installed_packages_lend_only_missing_images()
 	_a_texture_in_no_package_needs_the_packages_named()
 	_an_edit_imports_with_its_base()
@@ -2062,7 +2066,7 @@ func _poiyomi_emissions_in_one_colour_add_up() -> void:
 	materials.drive_strength("toggled")
 	materials.glow_regions["toggled"] = true
 	var toggled := materials.emission("toggled")
-	check(lit_alone.get("strength") == 0.5 and toggled.get("strength") == 0.0 and materials.draws("toggled", {"field": "emission", "slot": 0}), "a first emission dark at rest that a clip lights is drawn alone, the clip moving it; unlit, the other glows: %s %s" % [lit_alone, toggled])
+	check(lit_alone.get("strength") == 0.5 and toggled.get("strength") == 0.0 and materials.draws("toggled", {"field": "emission", "slot": 0}, "_EmissionStrength"), "a first emission dark at rest that a clip lights is drawn alone, the clip moving it; unlit, the other glows: %s %s" % [lit_alone, toggled])
 	var strong := materials.emission("strong")
 	check(strong.get("strength") == 6.0, "emissions adding past 1 over the drawn one carry their sum in the strength: %s" % [strong])
 	var suit := materials.emission("suit")
@@ -2074,7 +2078,7 @@ func _poiyomi_emissions_in_one_colour_add_up() -> void:
 	var looks := materials.looks()
 	materials.drive_strength("loud")
 	check(materials.emission("loud").get("strength") == 2.0, "a first emission's strength a clip sets rests at its saved value, as the clip's keys bind: %s" % [materials.emission("loud")])
-	check(materials.draws("suit", {"field": "emission", "slot": 0}) and not materials.draws("ears", {"field": "emission", "slot": 0}), "an animation of the first emission's strength moves only a drawn first emission")
+	check(materials.draws("suit", {"field": "emission", "slot": 0}, "_EmissionStrength") and not materials.draws("ears", {"field": "emission", "slot": 0}, "_EmissionStrength"), "an animation of the first emission's strength moves only a drawn first emission")
 	var glow: Image = looks.get("emission")
 	check(glow != null, "the emission map is an image")
 	if glow != null:
@@ -2257,6 +2261,248 @@ func _a_colour_reads_as_its_shader_receives_it() -> void:
 	check(is_equal_approx(hue.call("lockedmat"), saved.h) and is_equal_approx(hue.call("animatedmat"), saved.srgb_to_linear().h), "a locked theme colour keeps its saved hue, an animated one its hue in linear light: %s, %s" % [hue.call("lockedmat"), hue.call("animatedmat")])
 
 
+
+
+## lilToon's shader GUIDs a fixture names: a lilToon a package never carries.
+const LILTOON := "df12117ecd77c31469c224178886498e"
+const LILTOON_MULTI := "9294844b15dca184d914a632279b24e1"
+const LILTOON_TRANSPARENT := "165365ab7100a044ca85fc8c33548a62"
+const LILTOON_LITE := "381af8ba8e1740a41b9768ccfb0416c2"
+
+
+## A lilToon fixture's folder `name` holding each of `mats` (name to `_liltoon_mat` text) and of `images` (name to its
+## row of texels) under its name as GUID.
+static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary) -> Assets:
+	var dir := ProjectSettings.globalize_path("user://" + name)
+	DirAccess.make_dir_recursive_absolute(dir)
+	for file: String in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(file))
+	var meta := func(file: String, guid: String) -> void: FileAccess.open(dir.path_join(file + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	for key: String in mats:
+		FileAccess.open(dir.path_join(key + ".mat"), FileAccess.WRITE).store_string(mats[key])
+		meta.call(key + ".mat", key)
+	for key: String in images:
+		var row: Array = images[key]
+		var img := Image.create_empty(row.size(), 1, false, Image.FORMAT_RGBA8)
+		for x in row.size():
+			img.set_pixel(x, 0, row[x])
+		img.save_png(dir.path_join(key + ".png"))
+		meta.call(key + ".png", key)
+	return Assets.new(dir)
+
+
+## A lilToon material's text: its shader's GUID, its keywords (an Array as m_ValidKeywords lists them, a String as
+## older Unity's m_ShaderKeywords), floats, colours and vectors ({name: Color}) and textures ({name: GUID, or [GUID,
+## scale, offset]}).
+static func _liltoon_mat(shader: String, keywords: Variant, floats: Dictionary, colours := {}, textures := {}) -> String:
+	var text := "Material:\n  m_Shader: {fileID: 4800000, guid: %s, type: 3}\n" % shader
+	text += "  m_ShaderKeywords: %s\n" % keywords if keywords is String else "  m_ValidKeywords: [%s]\n" % ", ".join(keywords)
+	text += "  m_SavedProperties:\n    m_TexEnvs:\n"
+	for property: String in textures:
+		var tiling: Array = textures[property] if textures[property] is Array else [textures[property], Vector2.ONE, Vector2.ZERO]
+		text += "    - %s:\n        m_Texture: {fileID: 2800000, guid: %s, type: 3}\n        m_Scale: {x: %s, y: %s}\n        m_Offset: {x: %s, y: %s}\n" % [property, tiling[0], tiling[1].x, tiling[1].y, tiling[2].x, tiling[2].y]
+	text += "    m_Floats:\n"
+	for property: String in floats:
+		text += "    - %s: %s\n" % [property, floats[property]]
+	text += "    m_Colors:\n"
+	for property: String in colours:
+		var c: Color = colours[property]
+		text += "    - %s: {r: %s, g: %s, b: %s, a: %s}\n" % [property, c.r, c.g, c.b, c.a]
+	return text
+
+
+## The atlas texels of the material at `key`'s cell's first row.
+static func _row(materials: Materials, img: Image, key: String) -> Array:
+	var cell: Rect2i = materials.materials[key].cell
+	return range(cell.size.x).map(func(x: int) -> Color: return img.get_pixel(cell.position.x + x, cell.position.y))
+
+
+## Whether colours `a` and `b` agree to within `bytes` sRGB steps in every channel.
+static func _near(a: Color, b: Color, bytes := 2) -> bool:
+	return absi(a.r8 - b.r8) <= bytes and absi(a.g8 - b.g8) <= bytes and absi(a.b8 - b.b8) <= bytes and absi(a.a8 - b.a8) <= bytes
+
+
+## A material naming a lilToon shader by a GUID no package carries reads its name and declared properties, Lite's its
+## own; Multi draws as its _TransparentMode says and the other shaders as their blend state does, and a Multi whose
+## saved blend state disagrees with its mode is reported.
+func _a_liltoon_shader_the_package_omits_is_known() -> void:
+	var assets := _liltoon_fixture("liltoon-known", {
+		"veil": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_CLIP_RECT"], {"_TransparentMode": 2, "_SrcBlend": 1, "_DstBlend": 10, "_ZWrite": 1}),
+		"lace": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_ALPHACLIP"], {"_TransparentMode": 1, "_Cutoff": 0.3, "_DstBlend": 0}),
+		"sheer": _liltoon_mat(LILTOON_TRANSPARENT, [], {"_SrcBlend": 1, "_DstBlend": 10, "_ZWrite": 0}),
+		"plain": _liltoon_mat(LILTOON, [], {"_DstBlend": 0, "_TransparentMode": 2}),
+		"lite": _liltoon_mat(LILTOON_LITE, [], {"_UseShadow": 1}),
+		"odd": _liltoon_mat(LILTOON_MULTI, [], {"_TransparentMode": 0, "_DstBlend": 10}),
+	}, {})
+	var materials := Materials.new(assets)
+	var of := func(guid: String) -> Dictionary: return materials.materials[materials.use({"guid": guid}, Color.WHITE)]
+	check(of.call("veil").shader == "_lil/lilToonMulti" and of.call("veil").properties.has("_MainTexHSVG") and of.call("veil").properties.has("_Color"), "lilToon Multi is known by name with its declared properties: %s" % of.call("veil").shader)
+	check(Materials.pass_of(of.call("veil")) == Materials.Pass.BLENDED_DEPTH, "Multi in Transparent mode blends, writing depth")
+	check(of.call("lace").alpha == Materials.Alpha.CUTOUT and is_equal_approx(of.call("lace").cutoff, 0.3), "Multi in Cutout mode cuts at its _Cutoff")
+	check(of.call("sheer").shader == "Hidden/lilToonTransparent" and Materials.pass_of(of.call("sheer")) == Materials.Pass.BLENDED, "the Transparent variant blends by its _DstBlend, writing no depth")
+	check(of.call("plain").alpha == Materials.Alpha.OPAQUE, "a variant ignores the _TransparentMode it declares")
+	check(of.call("lite").properties.has("_Color") and not of.call("lite").properties.has("_MainTexHSVG"), "Lite declares its own properties")
+	materials.pack(["veil", "lace", "sheer", "plain", "lite", "odd"].map(func(key: String) -> String: return materials.use({"guid": key}, Color.WHITE)))
+	var losses := materials.losses()
+	check("lite: shadow (lilToon Lite)" in losses and "odd: render mode (_TransparentMode 0, but _DstBlend 10)" in losses and losses.size() == 2, "Lite's shadow and a Multi mode its blend state disagrees with are reported: %s" % [losses])
+
+
+## lilToon's flat light carries its toon shadow, whose shade colours lie in the shade layers over its cell, its rim,
+## its matcaps in slots one and two by blend mode, and its emissions; a Multi feature without its keyword is not drawn,
+## and one drawn in a way the looks cannot hold is reported.
+func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
+	var grey := Color8(128, 128, 128)
+	var assets := _liltoon_fixture("liltoon-looks", {
+		"skin": _liltoon_mat(LILTOON, [], {
+			"_UseShadow": 1, "_ShadowBorder": 0.4, "_ShadowBlur": 0.2, "_ShadowStrength": 0.9, "_LightMaxLimit": 1.5,
+			"_UseRim": 1, "_RimBorder": 0.6, "_RimFresnelPower": 2,
+			"_UseMatCap": 1, "_MatCapBlendMode": 1, "_MatCapEnableLighting": 0.25, "_MatCapBlend": 0.7, "_MatCapMainStrength": 0.5, "_MatCapShadowMask": 0.3,
+			"_UseMatCap2nd": 1, "_MatCap2ndBlendMode": 3,
+			"_UseEmission": 1, "_EmissionBlend": 0.6,
+		}, {"_ShadowColor": Color(0.5, 0.5, 0.5, 1), "_Shadow2ndColor": Color(1, 0, 0, 0.5), "_ShadowBorderColor": Color(0, 0, 0, 1), "_RimColor": Color(1, 0.5, 0.25, 0.8), "_EmissionColor": Color(1, 0.5, 0, 1), "_MainTex_ScrollRotate": Color(0, 0, 0, 0)},
+		{"_MainTex": "grey", "_ShadowStrengthMask": "half", "_MatCapTex": ["gold", Vector2(0.8, 0.8), Vector2.ZERO], "_MatCapBlendMask": "half", "_EmissionMap": "half"}),
+		"eye": _liltoon_mat(LILTOON_MULTI, "_EMISSION", {"_UseRim": 1, "_UseEmission": 1, "_UseEmission2nd": 1}, {"_EmissionMap_ScrollRotate": Color(0.5, 0, 0, 0)}, {"_MainTex": "grey"}),
+		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey"}),
+	}, {"grey": [grey, grey, grey, grey], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "gold": [Color(1, 0.8, 0.2, 1)]})
+	var materials := Materials.new(assets)
+	for key: String in ["skin", "eye", "glow"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["skin", "eye", "glow"])
+	materials.atlas_materials()
+	var looks := materials.looks()
+	var entries: Array = looks.get("materials", [])
+	check(entries.size() == 3, "every lilToon material has a look")
+	if entries.size() != 3:
+		return
+	var skin: Dictionary = entries[0]
+	check(skin.lighting == {"model": "flat", "cap": 1.5, "shadow": {"border": 0.4, "blur": 0.2, "strength": 0.9, "second": {"border": 0.15, "blur": 0.1, "weight": 0.5}, "edge": null}}, "lilToon lights flat, capped at its _LightMaxLimit, its shadow's border, blur, strength and second shade carried, a black edge left out: %s" % [skin.lighting])
+	check(entries[1].lighting.shadow == null and not entries[1].has("rim"), "a material without its shadow, and a Multi rim without its keyword, carry neither")
+	var rim := Color(1, 0.5, 0.25).srgb_to_linear()
+	check(skin.get("rim") == {"color": [rim.r, rim.g, rim.b], "strength": Color(0, 0, 0, 0.8).a, "main": 0.0, "border": 0.6, "blur": 0.65, "power": 2.0, "lit": 1.0, "shadowMask": 0.5}, "the rim carries its linear colour, strength and shape: %s" % [skin.get("rim")])
+	var shade: Variant = looks.get("shade")
+	var shade2: Variant = looks.get("shade2")
+	check(shade is Image and shade2 is Image, "the shade layers are images")
+	if shade is Image and shade2 is Image:
+		var albedo := Color(0.5, 0.5, 0.5).srgb_to_linear().r
+		var under := Color(grey.srgb_to_linear().r * albedo, 0, 0).linear_to_srgb().r
+		var first: Array = _row(materials, shade, "skin")
+		check(_near(first[0], Color(under, under, under, 1)) and _near(first[3], Color(under, under, under, 0)), "the first shade is the albedo times the shadow colour in linear light, its strength mask's red in alpha: %s" % [first])
+		var second: Array = _row(materials, shade2, "skin")
+		check(_near(second[0], Color(grey.r, 0, 0, 1)), "the second shade is the albedo times the second shadow colour, whole: %s" % [second])
+		var eye: Array = _row(materials, shade, "eye")
+		check(_near(eye[0], Color(grey.r, grey.g, grey.b, 1)), "a material without a shadow holds its albedo in the shade layer: %s" % [eye])
+	var expected := {0: {"replace": 1.0}, 1: {"add": 0.25, "emission": 0.75}, 2: {"screen": 1.0}, 3: {"multiply": 1.0}}
+	for mode: int in expected:
+		materials.materials.skin.floats._MatCapBlendMode = str(mode)
+		var matcap := materials.matcap("skin", 0)
+		var strengths := {}
+		for k: String in ["replace", "add", "emission", "screen", "multiply"]:
+			if matcap.get(k, 0.0) != 0.0:
+				strengths[k] = matcap[k]
+		check(strengths == expected[mode], "matcap blend mode %d takes the like strengths: %s" % [mode, strengths])
+	materials.materials.skin.floats._MatCapBlendMode = "1"
+	var gilt: Variant = skin.matcaps[0]
+	check(gilt is Dictionary and gilt.texture == 0 and gilt.mode == "normal" and is_equal_approx(gilt.border, 0.4) and gilt.intensity == 0.7 and gilt.baseMix == 0.5 and gilt.lightMask == 0.3 and gilt.hue == null and gilt.circle == null, "the first matcap fills slot one, its border scaled by its tiling: %s" % [gilt])
+	check(skin.matcaps[1] is Dictionary and skin.matcaps[1].multiply == 1.0 and skin.matcaps[2] == null and skin.matcaps[3] == null, "the second matcap fills slot two: %s" % [skin.matcaps])
+	var masks: Variant = looks.get("matcapMasks")
+	check(masks is Image, "the matcap masks are an image")
+	if masks is Image:
+		var row: Array = _row(materials, masks, "skin")
+		check(row[0].r > 0.9 and row[3].r < 0.1 and row[3].g == 1.0, "slot one's channel holds its blend mask's red, slot two's whole: %s" % [row])
+	var glows := Color(1, 0.5, 0).srgb_to_linear()
+	check(skin.emission == {"color": [glows.r, glows.g, glows.b], "strength": 0.6, "hue": 0.0, "shiftsHue": false, "replace": 0.0}, "the emission carries its linear colour and its blend as its strength: %s" % [skin.emission])
+	check(entries[1].emission == null, "a scrolling emission, and a Multi 2nd emission without its keyword, glow nowhere")
+	var hot := Color(2, 0, 0).srgb_to_linear().r
+	check(entries[2].emission == {"color": [1.0, 1.0, 1.0], "strength": hot, "hue": 0.0, "shiftsHue": false, "replace": 0.0}, "two emissions glow together at the brighter one's peak: %s" % [entries[2].emission])
+	var glow: Variant = looks.get("emission")
+	check(glow is Image, "the emission map is an image")
+	if glow is Image:
+		var lit: Array = _row(materials, glow, "skin")
+		check(lit[0].r > 0.9 and lit[0].g < 0.1 and lit[3].g > 0.9, "the emission map is the emission map over its cell: %s" % [lit])
+		var both: Array = _row(materials, glow, "glow")
+		check(_near(both[0], Color(1, 0, Color(0.5 / hot, 0, 0).linear_to_srgb().r, 1)), "two emissions lie in one map, each by its colour and blend over the peak: %s" % [both])
+	check(materials.losses().size() == 1 and materials.losses()[0] == "eye: emission (scrolling)", "a scrolling emission is reported, a feature Multi compiles out is not: %s" % [materials.losses()])
+
+
+## lilToon's colour adjustment, 2nd main texture and alpha mask bake into the atlas in linear light: a normal decal
+## clipped to where its tiling places it, a multiplied colour, each alpha mask mode before the material blends; a layer
+## Multi compiles out or one drawn unlit is not laid, the unlit one reported.
+func _liltoon_layers_bake_into_the_atlas() -> void:
+	var grey := Color8(128, 128, 128)
+	var images := {"grey": [grey, grey, grey, grey], "ink": [Color(1, 0, 0, 1)], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "ramp": [Color8(0, 0, 0), Color8(85, 0, 0), Color8(170, 0, 0), Color8(255, 0, 0)]}
+	var packed := func(text: String) -> Materials:
+		var materials := Materials.new(_liltoon_fixture("liltoon-layers", {"skin": text}, images))
+		materials.use({"guid": "skin"}, Color.WHITE)
+		materials.pack(["skin"])
+		return materials
+	var texels := func(text: String) -> Array:
+		var materials: Materials = packed.call(text)
+		return _row(materials, materials.atlas, "skin")
+	var g := grey.srgb_to_linear().r
+	var encoded := func(v: float) -> Color: return Color(v, 0, 0).linear_to_srgb()
+	var decal: Array = texels.call(_liltoon_mat(LILTOON_MULTI, ["_COLORADDSUBDIFF_ON"], {"_UseMain2ndTex": 1, "_Main2ndTexIsDecal": 1}, {}, {"_MainTex": "grey", "_Main2ndTex": ["ink", Vector2(2, 1), Vector2.ZERO]}))
+	check(_near(decal[0], Color(1, 0, 0)) and _near(decal[1], Color(1, 0, 0)) and _near(decal[2], grey) and _near(decal[3], grey), "a decal lies only where its tiling places it: %s" % [decal])
+	var multiplied: Array = texels.call(_liltoon_mat(LILTOON, [], {"_UseMain2ndTex": 1, "_Main2ndTexBlendMode": 3}, {"_Color2nd": Color(0.5, 0.5, 0.5, 1)}, {"_MainTex": "grey"}))
+	var darker: float = encoded.call(g * Color(0.5, 0, 0).srgb_to_linear().r).r
+	check(_near(multiplied[0], Color(darker, darker, darker)), "a multiplied layer darkens the albedo by its colour in linear light: %s" % [multiplied])
+	var unkeyed: Array = texels.call(_liltoon_mat(LILTOON_MULTI, [], {"_UseMain2ndTex": 1}, {"_Color2nd": Color(1, 0, 0, 1)}, {"_MainTex": "grey"}))
+	check(_near(unkeyed[0], grey), "a Multi layer without its keyword is not laid: %s" % [unkeyed])
+	var unlit: Materials = packed.call(_liltoon_mat(LILTOON, [], {"_UseMain2ndTex": 1, "_Main2ndEnableLighting": 0.5}, {"_Color2nd": Color(1, 0, 0, 1)}, {"_MainTex": "grey"}))
+	check(_near(_row(unlit, unlit.atlas, "skin")[0], grey) and unlit.losses().size() == 1 and unlit.losses()[0] == "skin: 2nd main texture (drawn unlit)", "a layer drawn partly unlit is not laid, and is reported: %s" % [unlit.losses()])
+	var value: Array = texels.call(_liltoon_mat(LILTOON, [], {}, {"_MainTexHSVG": Color(0, 1, 0.5, 1)}, {"_MainTex": "grey", "_MainColorAdjustMask": "half"}))
+	var halved: float = encoded.call(g * 0.5).r
+	check(_near(value[0], Color(halved, halved, halved)) and _near(value[3], grey), "the colour adjustment scales the value in linear light where its mask's red lets it: %s" % [value])
+	var masked := {1: [0.0, 85.0, 170.0, 255.0], 2: [0.0, 42.5, 85.0, 127.5], 3: [127.5, 212.5, 255.0, 255.0], 4: [127.5, 42.5, 0.0, 0.0]}
+	for mode: int in masked:
+		var alphas: Array = texels.call(_liltoon_mat(LILTOON_TRANSPARENT, [], {"_DstBlend": 10, "_AlphaMaskMode": mode}, {"_Color": Color(1, 1, 1, 0.5)}, {"_MainTex": "grey", "_AlphaMask": "ramp"})).map(func(c: Color) -> float: return c.a * 255.0)
+		check(range(4).all(func(x: int) -> bool: return absf(alphas[x] - masked[mode][x]) <= 2.0), "alpha mask mode %d sets the alpha from its red: %s" % [mode, alphas])
+	var opaque: Array = texels.call(_liltoon_mat(LILTOON, [], {"_AlphaMaskMode": 1}, {}, {"_MainTex": "grey", "_AlphaMask": "ramp"}))
+	check(opaque[0].a == 1.0, "an opaque material takes no alpha mask")
+
+
+## lilToon's emission blend, matcap blends, main hue and colour bind their looks, regions and channels; the atlas holds
+## the hue a clip turns unturned, its region masked by the colour adjustment mask's red; an emission blend binds only
+## while its emission alone is carried.
+func _liltoon_curves_bind_their_looks() -> void:
+	var assets := _liltoon_fixture("liltoon-curves", {
+		"suit": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 0.4, "_UseMatCap": 1, "_MatCapBlend": 0.7, "_UseMatCap2nd": 1, "_MatCap2ndBlend": 0.2}, {"_Color": Color(1, 0.5, 0.5, 1), "_MainTexHSVG": Color(0.25, 1, 1, 1)}, {"_MainTex": "red", "_MainColorAdjustMask": "half"}),
+	}, {"red": [Color(1, 0, 0, 1), Color(1, 0, 0, 1)], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)]})
+	var materials := Materials.new(assets)
+	materials.use({"guid": "suit"}, Color.WHITE)
+	materials.animated = {"suit": {Materials.Liltoon.HUE: true}}
+	materials.pack(["suit"])
+	var held: Array = _row(materials, materials.atlas, "suit")
+	check(held[0].r > 0.9 and held[0].g < 0.1, "the atlas holds the hue a clip turns unturned: %s" % [held])
+	var expressions := Expressions.new(assets, {})
+	var curves := ["material._EmissionBlend", "material._MatCapBlend", "material._MatCap2ndBlend", "material._MainTexHSVG.x", "material._Color.r"].map(func(a: String) -> Dictionary: return {"path": "", "attribute": a, "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]})
+	expressions.data = {
+		"menu": [{"name": "Look", "type": "radial", "parameter": "", "axes": ["Look"], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Look", "type": "float", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0, "time": "Look"}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 1, "loop": false, "curves": curves}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "suit"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	var bound: Array = data.targets.map(func(t: Dictionary) -> Array:
+		var kind: String = t.effect.keys()[0]
+		var region: Dictionary = t.effect[kind][0]
+		return [kind, region.get("field", region.get("channel", region.get("space"))), region.get("slot", region.get("shift")), "%.3f" % t.default])
+	check(bound == [["look", "emission", 0, "0.400"], ["look", "matcapIntensity", 0, "0.700"], ["look", "matcapIntensity", 1, "0.200"], ["hue", 1.0, 1.0, "0.250"], ["color", 0, null, "1.000"]], "emission and matcap blends, the main hue in HSV and the colour bind: %s" % [bound])
+	var mask: Variant = data.get("hueMask")
+	check(mask is Image, "the hue's mask is carried")
+	if mask is Image:
+		var row: Array = _row(materials, mask, "suit")
+		check(row[0].r > 0.9 and row[1].r < 0.1, "the hue mask is the colour adjustment mask's red: %s" % [row])
+	materials.materials.suit.floats._UseEmission2nd = "1"
+	var both := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	check(not both.targets.any(func(t: Dictionary) -> bool: return t.effect.has("look") and t.effect.look[0].field == "emission"), "an emission blend binds nothing while two emissions glow together")
+	sk.free()
 
 
 func _submeshes_take_slots_in_first_use_order() -> void:
