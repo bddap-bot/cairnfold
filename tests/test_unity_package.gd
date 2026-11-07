@@ -56,6 +56,7 @@ func _run() -> void:
 	_a_toon_standard_detail_map_lies_in_the_atlas()
 	_matcaps_and_emission_join_the_look()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
+	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_installed_packages_lend_only_missing_images()
 	_submeshes_take_slots_in_first_use_order()
 	_gesture_faces_become_expressions()
@@ -1747,6 +1748,70 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
 		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
 		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.blink.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
+
+## A clip moving a global theme colour's hue, saturation, value or hue speed, under a locked material's suffix, binds as
+## the look field of the emission or matcap drawn in that theme, at its saved offset; one moving a theme nothing is drawn
+## in binds nothing. The emission and the matcap carry their theme for the runtimes to recolour them by.
+func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
+	var dir := ProjectSettings.globalize_path("user://theme")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _GlobalThemeHue0_Suit ("Hue", Float) = 0 _GlobalThemeValue0_Suit ("Value", Float) = 0 _GlobalThemeHueSpeed0_Suit ("Speed", Float) = 0 _GlobalThemeHue1_Suit ("Hue", Float) = 0 _GlobalThemeHue2_Suit ("Hue", Float) = 0 } }')
+	write.call("suit.mat", "suit", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: 2
+    - _EmissionColorThemeIndex: 1
+    - _GlobalThemeHue0_Suit: 0.25
+    - _GlobalThemeValue0_Suit: 0
+    - _GlobalThemeHueSpeed0_Suit: 0
+    - _GlobalThemeHue1_Suit: 0
+    - _GlobalThemeHue2_Suit: 0
+    - _Matcap2Enable: 1
+    - _Matcap2UVMode: 1
+    - _Matcap2ColorThemeIndex: 2
+    m_Colors:
+    - _GlobalThemeColor0: {r: 1, g: 0, b: 0, a: 1}
+    - _GlobalThemeColor1: {r: 0, g: 0, b: 1, a: 1}
+    - _Matcap2Color: {r: 1, g: 1, b: 1, a: 0.5}
+""")
+	var assets := Assets.new(dir)
+	var materials := Materials.new(assets)
+	materials.use({"guid": "suit"}, Color.WHITE)
+	materials.pack(["suit"])
+	var expressions := Expressions.new(assets, {})
+	var curve := func(property: String) -> Dictionary: return {"path": "Suit", "attribute": "material." + property, "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]}
+	expressions.data = {
+		"menu": [{"name": "Hue", "type": "radial", "parameter": "Hue", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Hue", "type": "float", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 0, "loop": false, "curves": ["_GlobalThemeHue0_Suit", "_GlobalThemeValue0_Suit", "_GlobalThemeHueSpeed0_Suit", "_GlobalThemeHue1_Suit", "_GlobalThemeHue2_Suit"].map(curve)}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "suit"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var meshes := [{"node": "Suit", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}]
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Suit": 2}, sk, materials, {})
+	var fields: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].field, t.effect.look[0].slot, t.default])
+	check(fields == [["themeHue", 0, 0.25], ["themeValue", 0, 0.0], ["themeSpeed", 0, 0.0], ["themeHue", 1, 0.0]], "the offsets of the themes the emission and a matcap are drawn in bind at their saved values, a theme nothing is drawn in not: %s" % [fields])
+	var entries: Array = data.get("looks", {}).get("materials", [])
+	var glow: Variant = entries[0].emission if entries.size() == 1 else null
+	var themes: Variant = entries[0].get("themes") if entries.size() == 1 else null
+	check(glow is Dictionary and glow.get("theme") == 0, "the emission names the theme it is drawn in: %s" % [glow])
+	check(themes is Array and themes.size() == 4 and themes[0] == {"slot": 0, "hsv": [0.0, 1.0, 1.0], "exposure": 1.0, "hue": 0.25, "saturation": 0.0, "value": 0.0, "speed": 0.0} and themes[1] is Dictionary and is_equal_approx(themes[1].hsv[0], 2.0 / 3.0) and themes[2] == null and themes[3] == null, "the look carries each theme drawn in it once, by slot: its colour's hue, saturation and value below its exposure, and its offsets: %s" % [themes])
+	var matcap: Variant = entries[0].matcaps[1] if entries.size() == 1 else null
+	check(matcap is Dictionary and matcap.theme == 1 and matcap.color == [0.0, 0.0, 1.0, 0.5], "a matcap in a theme colour takes its colour, keeping its own alpha, and names the theme: %s" % [matcap])
+	if glow is Dictionary:
+		check(Color(glow.color[0], glow.color[1], glow.color[2]).is_equal_approx(Color.from_hsv(0.25, 1, 1)), "its colour at rest is the theme's turned a quarter: %s" % [glow.color])
+	sk.free()
+
 
 
 func _submeshes_take_slots_in_first_use_order() -> void:

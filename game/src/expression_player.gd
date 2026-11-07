@@ -23,6 +23,16 @@ var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
 var _turned := {}
+## This player's copies of the looks table (Avatar._lit_looks), which an imported scene shares with every avatar opened
+## from it, where Poiyomi global theme colours recolour the emission: by the mesh drawing with its own, one a clip moves
+## a theme on, or by the model for its other meshes', where a theme's hue turns at rest: {"table", "texture", "entries"
+## by column, each {"theme" (unity/materials.gd `_theme`), "strength", "replace"}, "dirty", "turning"}.
+var _glows := {}
+## The table entries of the materials whose theme turns at rest that no clip moves, by column, one each whichever tables
+## hold them, so each is coloured once a frame.
+var _resting := {}
+var _seconds := 0.0
+var _frame := 0
 
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
@@ -103,6 +113,17 @@ func _init(model: Node3D) -> void:
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
 					var mesh: MeshInstance3D = nodes.get(str(region.node))
+					if mesh != null and kind == "look" and str(region.get("field", "")).begins_with("theme"):
+						var glows: Dictionary = _glows.get_or_add(mesh, {"entries": {}, "dirty": true, "turning": false})
+						var entry := _glow(glows.entries, region, data.get("looks", {}))
+						if not entry.is_empty():
+							var offset := str(region.field).trim_prefix("theme").to_lower()
+							var rest: float = entry.theme[offset]
+							var resting := float(target.get("default", 0))
+							binds.append(func(v: float) -> void:
+								entry.theme[offset] = rest if v == resting else v
+								glows.dirty = true)
+						continue
 					if mesh == null or (kind == "look" and not str(region.get("field", "")).begins_with("decal")):
 						continue
 					var mats := _material(mesh)
@@ -121,7 +142,26 @@ func _init(model: Node3D) -> void:
 						for mat in mats:
 							_dirty_regions[mat] = true)
 		_bindings.append(binds)
-	_light_looks(model)
+	var shared: Variant = _light_looks(model)
+	var looks: Dictionary = data.get("looks", {})
+	if shared is ImageTexture:
+		var turning := {"entries": {}, "dirty": true, "turning": false}
+		_turning(turning.entries, looks, _resting)
+		if not turning.entries.is_empty():
+			_glows[model] = turning
+	for owner: Object in _glows.keys():
+		var glows: Dictionary = _glows[owner]
+		var mats: Array = _materials.values().reduce(func(all: Array, m: Array) -> Array: return all + m, []) if owner == model else _materials.get(owner, [])
+		var lighting: Variant = shared if owner == model else mats[0].get_shader_parameter("lighting") if not mats.is_empty() else null
+		if not lighting is ImageTexture or glows.entries.is_empty():
+			_glows.erase(owner)
+			continue
+		_turning(glows.entries, looks, _resting)
+		glows.table = (lighting as ImageTexture).get_image().duplicate() as Image
+		glows.texture = ImageTexture.create_from_image(glows.table)
+		for mat: ShaderMaterial in mats:
+			if mat.get_shader_parameter("lighting") == lighting:
+				mat.set_shader_parameter("lighting", glows.texture)
 	for shown: Dictionary in data.get("shown", []):
 		var node: Node3D = nodes.get(str(shown.node))
 		if node != null:
@@ -137,6 +177,7 @@ func _init(model: Node3D) -> void:
 
 
 func _process(delta: float) -> void:
+	_seconds += delta
 	state.advance(delta)
 	apply()
 
@@ -168,6 +209,20 @@ func apply() -> void:
 		else:
 			texture.update(image)
 	_dirty_regions.clear()
+	_frame += 1
+	for glows: Dictionary in _glows.values():
+		if glows.dirty:
+			glows.turning = glows.entries.values().any(func(e: Dictionary) -> bool: return e.theme.speed != 0.0)
+		if glows.dirty or glows.turning:
+			glows.dirty = false
+			for column: int in glows.entries:
+				var e: Dictionary = glows.entries[column]
+				if e.frame != _frame:
+					e.frame = _frame
+					var c := theme_colour(e.theme, _seconds) * float(e.strength)
+					e.colour = Color(c.r, c.g, c.b, e.replace)
+				glows.table.set_pixel(column, 1, e.colour)
+			glows.texture.update(glows.table)
 	for shown: Dictionary in _shown:
 		shown.node.visible = shows(state.outputs, shown.when)
 
@@ -274,8 +329,8 @@ static func prepare(model: Node3D) -> void:
 
 ## Binds the material index, looks table (Avatar._lit_looks) and emission map to the meshes whose materials carry them,
 ## the ones that show a flat or glowing material, and to every mesh already drawn animated, since a material swapped in
-## may be either.
-func _light_looks(model: Node3D) -> void:
+## may be either. Returns the looks table they share, or null for none.
+func _light_looks(model: Node3D) -> Variant:
 	var textures: Array = []
 	var looked := []
 	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
@@ -286,7 +341,7 @@ func _light_looks(model: Node3D) -> void:
 				looked.append(mesh)
 				break
 	if textures.is_empty():
-		return
+		return null
 	var glow: Texture2D = model.get_meta("expression_glow") if model.has_meta("expression_glow") else null
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
@@ -296,6 +351,7 @@ func _light_looks(model: Node3D) -> void:
 			mat.set_shader_parameter("lighting", textures[1])
 			mat.set_shader_parameter("glow", glow)
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
+	return textures[1]
 
 
 ## The decals `drawn` (index to image) laid on pages as wide as the widest of them, each with DECAL_PAD clear texels round
@@ -349,6 +405,46 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
 	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), DECAL_FIELDS.find(region.get("field", "decal")), page]
+
+
+## Among `entries`, by looks table column, the one of the material `region` recolours where it glows in the global theme
+## colour the region's slot names, added if new, or {} where it glows in none.
+static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) -> Dictionary:
+	var materials: Array = looks.get("materials", [])
+	for k in materials.size():
+		var rect: Array = materials[k].get("rect", [])
+		if _theme_of(materials[k]) is Dictionary and int(materials[k].emission.theme) == int(region.get("slot", 0)) and rect.size() == 4 and range(4).all(func(c: int) -> bool: return is_equal_approx(rect[c], region.rect[c])):
+			return entries.get_or_add(k + 1, _entry(materials[k]))
+	return {}
+
+
+## Adds to `entries` each material that glows in a global theme colour whose hue turns at rest, but those already there,
+## sharing its entry from `resting`.
+static func _turning(entries: Dictionary, looks: Dictionary, resting: Dictionary) -> void:
+	var materials: Array = looks.get("materials", [])
+	for k in materials.size():
+		var theme: Variant = _theme_of(materials[k])
+		if theme is Dictionary and theme.speed != 0.0 and not entries.has(k + 1):
+			entries[k + 1] = resting.get_or_add(k + 1, _entry(materials[k]))
+
+
+## The global theme colour a looks material's emission glows in, or null.
+static func _theme_of(look: Dictionary) -> Variant:
+	var glow: Variant = look.get("emission")
+	return look.themes[int(glow.theme)] if glow is Dictionary and glow.get("theme") != null else null
+
+
+static func _entry(look: Dictionary) -> Dictionary:
+	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "strength": look.emission.strength, "replace": float(look.emission.get("replace", 0.0)), "frame": -1, "colour": Color()}
+
+
+## The colour a Poiyomi global theme colour (unity/materials.gd `_theme`) shows `seconds` in, in linear light: its
+## colour moved by its offsets as Poiyomi's ModifyViaHSV moves it, the hue also turning `speed` times a Unity _Time.x,
+## a twentieth of a second, and its exposure put back.
+static func theme_colour(theme: Dictionary, seconds: float) -> Color:
+	var hsv: Array = theme.hsv
+	var moved := Color.from_hsv(fposmod(hsv[0] + fposmod(theme.hue + theme.speed * seconds / 20.0, 1.0), 1.0), clampf(hsv[1] + theme.saturation, 0.0, 1.0), clampf(hsv[2] + theme.value, 0.0, 1.0))
+	return Color(moved.r * theme.exposure, moved.g * theme.exposure, moved.b * theme.exposure)
 
 
 ## A decal's hue turn at rest as (shift, 1 + 2 * colour space + select or shift), or zero where its image holds its

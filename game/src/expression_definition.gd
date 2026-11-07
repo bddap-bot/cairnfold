@@ -72,7 +72,8 @@ static func valid(data: Dictionary) -> bool:
 
 ## Looks that name their materials give each its "lighting": "lit" by angle, or "flat", lit alike whichever way it
 ## faces and capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
-## "color", "strength" and, optionally, "replace". A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
+## "color", "strength" and, optionally, "replace" and "theme", the slot of the global theme colour it glows in among the
+## material's "themes" (unity/materials.gd `_theme`). A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
 ## rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
@@ -91,7 +92,15 @@ static func looks_valid(looks: Variant) -> bool:
 		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
 			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
 			return false
+		if glow != null and glow.get("theme") != null and not (_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
+			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
+			return false
 	return true
+
+
+## A global theme colour: its colour's "hsv" and "exposure", and its "hue", "saturation", "value" and "speed" offsets.
+static func _theme(v: Variant) -> bool:
+	return v is Dictionary and _numbers(v.get("hsv"), 3) and ["exposure", "hue", "saturation", "value", "speed"].all(func(k: String) -> bool: return _number(v.get(k)))
 
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives

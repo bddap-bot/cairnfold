@@ -637,7 +637,8 @@ static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 
 ## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or {} where it is off or maps its matcap by a view
 ## the renderer does not draw: those other than the normal's (0, which a headset draws as 1) and the reflection's (2),
-## or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain white.
+## or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain white; its "color" its global theme
+## colour's (`_theme`) where it takes one, "theme" then naming its slot.
 func matcap(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var colours: Dictionary = m.get("colours", {})
@@ -650,6 +651,11 @@ func matcap(key: String, slot: int) -> Dictionary:
 	if global_mask(m, int(_float(m, p + "MaskGlobalMask"))) is bool:
 		return {}
 	var colour := _colour(colours.get(p + "Color"), Color.WHITE).srgb_to_linear()
+	var index := int(_float(m, p + "ColorThemeIndex")) - 1
+	var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
+	if not theme.is_empty():
+		var themed := ExpressionPlayer.theme_colour(theme, 0.0)
+		colour = Color(themed.r, themed.g, themed.b, colour.a)
 	var hue: Variant = null
 	if _float(m, p + "HueShiftEnabled") != 0.0:
 		hue = {"shift": _saved(m, p + "HueShift", 0.0), "space": _float(m, p + "HueShiftColorSpace"), "select": _float(m, p + "HueSelectOrShift", 1.0)}
@@ -673,6 +679,7 @@ func matcap(key: String, slot: int) -> Dictionary:
 		"lightMask": _float(m, p + "LightMask"),
 		"hue": hue,
 		"circle": circle,
+		"theme": null if theme.is_empty() else theme.slot,
 	}
 
 
@@ -715,8 +722,9 @@ func lighting(key: String) -> Dictionary:
 
 
 ## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
-## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission
-## atlas (`_glow`), or {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's first
+## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission atlas
+## (`_glow`), and "theme", the slot of the global theme colour (`_theme`) it takes its colour from where it takes one, or
+## {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's first
 ## emission with its colour or theme colour (but the AudioLink themes, which keep its colour where no world sends
 ## AudioLink), map and mask read through UV0, not tinted by the base colour (which decals and hue shifts change after
 ## the atlas), and no modulation over time but AudioLink's, which leaves it at rest there.
@@ -726,24 +734,30 @@ func emission(key: String) -> Dictionary:
 		return {}
 	var colours: Dictionary = m.get("colours", {})
 	var colour := Color.BLACK
+	var theme := {}
 	if toon_standard(m) and _float(m, "_EmissionUV") == 0.0:
 		colour = _colour(colours.get("_EmissionColor"), Color.BLACK).srgb_to_linear()
 	elif poiyomi(m) and _saved(m, "_EnableEmission", 0.0) != 0.0 and ["_EmissionMapUV", "_EmissionMaskUV", "_EmissionBaseColorAsMap", "_EmissionCenterOutEnabled", "_ScrollingEmission", "_EmissionBlinkingEnabled", "_EmissionHueShiftEnabled", "_EnableGITDEmission"].all(func(name: String) -> bool: return _float(m, name) == 0.0) and global_mask(m, int(_float(m, "_EmissionMask0GlobalMask"))) is Dictionary:
-		var theme := int(_float(m, "_EmissionColorThemeIndex"))
-		colour = _theme_colour(m, theme - 1) if theme >= 1 and theme <= 4 else _colour(colours.get("_EmissionColor"), Color.WHITE).srgb_to_linear()
-	if colour.r + colour.g + colour.b == 0.0:
+		var index := int(_float(m, "_EmissionColorThemeIndex")) - 1
+		theme = _theme(m, index) if index >= 0 and index <= 3 else {}
+		colour = ExpressionPlayer.theme_colour(theme, 0.0) if not theme.is_empty() else _colour(colours.get("_EmissionColor"), Color.WHITE).srgb_to_linear()
+	if colour.r + colour.g + colour.b == 0.0 and theme.is_empty():
 		return {}
-	return {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0 if toon_standard(m) else 0.0), "hue": _saved(m, "_EmissionHueShift", 0.0) if toon_standard(m) else 0.0, "shiftsHue": toon_standard(m) and "USE_HUE_SHIFT" in m.get("keywords", []), "replace": 0.0 if toon_standard(m) else _saved(m, "_EmissionReplace0", 0.0)}
+	var out := {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0 if toon_standard(m) else 0.0), "hue": _saved(m, "_EmissionHueShift", 0.0) if toon_standard(m) else 0.0, "shiftsHue": toon_standard(m) and "USE_HUE_SHIFT" in m.get("keywords", []), "replace": 0.0 if toon_standard(m) else _saved(m, "_EmissionReplace0", 0.0)}
+	if not theme.is_empty():
+		out.theme = theme.slot
+	return out
 
 
-## Poiyomi global theme colour `index` (0 to 3) of the material in linear light at rest: its HDR colour's hue,
-## saturation and value moved by the theme's own offsets, as Poiyomi's ModifyViaHSV moves them below its exposure.
-static func _theme_colour(m: Dictionary, index: int) -> Color:
+## Poiyomi global theme colour `index` (0 to 3) of the material `m` at rest as {"slot": the index, "hsv": its HDR colour's
+## hue, saturation and value in linear light below its "exposure", and the theme's own "hue", "saturation", "value" and
+## hue "speed" offsets}, which clips move (`field`) and ExpressionPlayer.theme_colour applies.
+static func _theme(m: Dictionary, index: int) -> Dictionary:
 	var colour := _colour((m.get("colours", {}) as Dictionary).get("_GlobalThemeColor%d" % index), Color.WHITE).srgb_to_linear()
 	var exposure := maxf(maxf(colour.r, maxf(colour.g, colour.b)), 1.0)
 	colour = colour / exposure
-	var moved := Color.from_hsv(fposmod(colour.h + _saved(m, "_GlobalThemeHue%d" % index, 0.0), 1.0), clampf(colour.s + _saved(m, "_GlobalThemeSaturation%d" % index, 0.0), 0.0, 1.0), clampf(colour.v + _saved(m, "_GlobalThemeValue%d" % index, 0.0), 0.0, 1.0))
-	return Color(moved.r * exposure, moved.g * exposure, moved.b * exposure)
+	var offset := func(name: String) -> float: return _saved(m, "_GlobalTheme%s%d" % [name, index], 0.0)
+	return {"slot": index, "hsv": [colour.h, colour.s, colour.v], "exposure": exposure, "hue": offset.call("Hue"), "saturation": offset.call("Saturation"), "value": offset.call("Value"), "speed": offset.call("HueSpeed")}
 
 
 ## The emission map over the material's padded cell, as `emission` reads it: Poiyomi's map times its mask (`_mask`).
@@ -790,6 +804,11 @@ static var _LINEAR := PackedFloat32Array(range(256).map(func(v: int) -> float: r
 static var _ENCODED := PackedByteArray(range(4096).map(func(v: int) -> int: return roundi(Color(v / 4095.0, 0, 0).linear_to_srgb().r * 255.0)))
 
 
+## Whether the material at `key` glows in global theme colour `slot`.
+func glows_in(key: String, slot: int) -> bool:
+	return emission(key).get("theme", -1) == slot
+
+
 ## Whether the material at `key` draws the look `field` that an animated property drives in `slot`.
 func draws(key: String, look: Dictionary) -> bool:
 	match look.field:
@@ -801,13 +820,16 @@ func draws(key: String, look: Dictionary) -> bool:
 			return not emission(key).is_empty()
 		"emissionHue":
 			return not emission(key).is_empty() and emission(key).shiftsHue
+		"themeHue", "themeSaturation", "themeValue", "themeSpeed":
+			return glows_in(key, look.slot) or range(MATCAPS.size()).any(func(k: int) -> bool: return matcap(key, k).get("theme") == look.slot)
 		"matcapHueShift":
 			return matcap(key, look.slot).get("hue") != null
 	return not matcap(key, look.slot).is_empty()
 
 
 ## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, or emission's strength or hue.
+## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, emission's strength or hue, or a global theme
+## colour's offsets, which move the emission drawn in that theme (`_theme`).
 static func field(property: String) -> Dictionary:
 	var decal := _DECAL_FIELD.search(property)
 	if decal != null:
@@ -818,12 +840,16 @@ static func field(property: String) -> Dictionary:
 	var glow := _EMISSION_FIELD.search(property)
 	if glow != null:
 		return {"field": "emission" if glow.get_string(1) == "Strength" else "emissionHue", "slot": 0}
+	var theme := _THEME_FIELD.search(property)
+	if theme != null:
+		return {"field": "theme" + {"HueSpeed": "Speed"}.get(theme.get_string(1), theme.get_string(1)), "slot": theme.get_string(2).to_int()}
 	return {}
 
 
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
 static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift)(_|$)")
+static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(HueSpeed|Hue|Saturation|Value)([0-3])(_|$)")
 
 
 ## Whether the material draws by a Poiyomi shader: a material switched to another shader keeps Poiyomi's saved decal and
@@ -845,7 +871,7 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
 ## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale PNG, each texel one plus
 ## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps and
-## emission at rest and its "lighting", the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask
+## emission at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask
 ## blended in) and "emission" map, the "matcaps" textures their entries name by position, and the "decals",
 ## `decal_images`, each over its material's cell, which its decals name by "image".
 func looks() -> Dictionary:
@@ -906,7 +932,13 @@ func looks() -> Dictionary:
 				glow.fill(Color.BLACK)
 			glow.blit_rect(_glow(m), Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		var cell := Rect2(m.cell)
-		entries.append({"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light})
+		var entry := {"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
+		var themed: Array = drawn_matcaps.filter(func(c: Variant) -> bool: return c is Dictionary and c.theme != null).map(func(c: Dictionary) -> int: return c.theme)
+		if glows.get("theme") != null:
+			themed.append(glows.theme)
+		if not themed.is_empty():
+			entry.themes = range(4).map(func(slot: int) -> Variant: return _theme(m, slot) if slot in themed else null)
+		entries.append(entry)
 	if entries.is_empty():
 		return {}
 	var png := func(img: Image) -> String: return _layer(img, RESAMPLE)

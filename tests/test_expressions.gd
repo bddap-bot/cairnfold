@@ -13,6 +13,7 @@ func _init() -> void:
 	_decals_share_pages()
 	_moving_targets_leave_regions_bound()
 	_lighting()
+	_theme_recolours_the_emission()
 	finish()
 
 
@@ -215,6 +216,79 @@ func _lighting() -> void:
 	check(shown[2].get_surface_override_material(0) == null and shown[2].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials dark at rest keeps its plain material")
 	player.free()
 	root.free()
+
+## A clip moving a global theme colour's offset recolours the emission drawn in it on the meshes the clip names, through
+## their own copy of the looks table, the rest keeping the colour at rest, and a material keeps its own offset while the
+## clip rests; a theme whose hue turns at rest turns on every mesh, as time passes.
+func _theme_recolours_the_emission() -> void:
+	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
+	index.fill_rect(Rect2i(2, 0, 2, 4), Color8(2, 2, 2))
+	var glow := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	glow.fill(Color.WHITE)
+	var theme := {"slot": 1, "hsv": [0.0, 1.0, 1.0], "exposure": 2.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 0.0}
+	var turning := theme.merged({"slot": 0, "speed": 1.0}, true)
+	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "emission": Marshalls.raw_to_base64(glow.save_png_to_buffer()), "materials": [
+		{"rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.5, "hue": 0.0, "shiftsHue": false, "replace": 0.25, "theme": 1}, "themes": [null, theme, null, null]},
+		{"rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [turning, null, null, null]}]}
+	check(ExpressionDefinition.valid({"looks": looks}), "looks whose emissions name their themes are valid")
+	for bad: Variant in [[null, null, null, null], [null, {"slot": 1, "hsv": [0, 1]}, null, null], "themes"]:
+		var broken := looks.duplicate(true)
+		broken.materials[0].themes = bad
+		check(not ExpressionDefinition.valid({"looks": broken}), "an emission naming a theme its look does not carry whole is refused: %s" % [bad])
+	var root := Node3D.new()
+	var shown: Array[MeshInstance3D] = []
+	var meshes: Array[ImporterMesh] = []
+	for u: float in [0.2, 0.2, 0.7]:
+		var im := ImporterMesh.new()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.2), Vector2(u + 0.1, 0.2), Vector2(u, 0.8)])
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+		meshes.append(im)
+	Avatar._lit_looks(looks, meshes)
+	for n in 3:
+		var mi := MeshInstance3D.new()
+		mi.name = ["Suit", "Shoes", "Lamp"][n]
+		mi.mesh = meshes[n].get_mesh()
+		root.add_child(mi)
+		shown.append(mi)
+	var region := func(field: String) -> Dictionary: return {"look": [{"node": "Suit", "rect": [0.0, 0.0, 0.5, 1.0], "field": field, "slot": 1}]}
+	var targets := [{"effect": region.call("themeHue"), "default": 0.5}, {"effect": region.call("themeSpeed"), "default": 0.0}, {"effect": region.call("themeValue"), "default": 0.0}]
+	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
+	ExpressionPlayer.prepare(root)
+	var player := ExpressionPlayer.new(root)
+	var entry := func(mesh: MeshInstance3D, column: int) -> Color:
+		var mat := mesh.get_surface_override_material(0) as ShaderMaterial
+		var table: Variant = mat.get_shader_parameter("lighting") if mat else null
+		for glows: Dictionary in player._glows.values():
+			if glows.texture == table:
+				return glows.table.get_pixel(column, 1)
+		return (table as Texture2D).get_image().get_pixel(column, 1) if table is Texture2D else Color(-1, -1, -1, -1)
+	player.apply()
+	check(entry.call(shown[0], 1).is_equal_approx(Color(3.0, 0.0, 0.0, 0.25)), "while the clip rests at another material's offset, the theme keeps its own and glows as the converter left it, times its strength: %s" % [entry.call(shown[0], 1)])
+	player.state.outputs[0] = 1.0 / 3.0
+	player.state.outputs[2] = -0.5
+	player.apply()
+	check(entry.call(shown[0], 1).is_equal_approx(Color(0.0, 1.5, 0.0, 0.25)), "a third of a turn of hue and half its value make the red glow a darker green: %s" % [entry.call(shown[0], 1)])
+	check(entry.call(shown[1], 1).is_equal_approx(Color(3.0, 0.0, 0.0, 0.25)), "a mesh the clip does not name keeps the colour at rest: %s" % [entry.call(shown[1], 1)])
+	check(ExpressionPlayer.theme_colour(theme, 0.0).is_equal_approx(Color(2.0, 0.0, 0.0)), "a theme at rest shows its own colour")
+	player.state.outputs[0] = 0.5
+	player.state.outputs[1] = 1.0
+	player.state.outputs[2] = 0.0
+	player.apply()
+	player._seconds = 20.0 / 3.0
+	player.apply()
+	check(entry.call(shown[0], 1).is_equal_approx(Color(0.0, 3.0, 0.0, 0.25)), "a hue speed of one turns the hue once every twenty seconds, as Unity's _Time.x: %s" % [entry.call(shown[0], 1)])
+	for mesh: MeshInstance3D in [shown[0], shown[2]]:
+		check(entry.call(mesh, 2).is_equal_approx(Color(0.0, 2.0, 0.0, 0.0)), "a theme turning at rest turns on %s, which no clip names, and on a mesh with its own table: %s" % [mesh.name, entry.call(mesh, 2)])
+	var original: Texture2D = meshes[2].get_surface_material(0).get_meta("lighting")
+	var lamp := shown[2].get_surface_override_material(0) as ShaderMaterial
+	check(lamp != null and lamp.get_shader_parameter("lighting") != original, "the player turns its own copy of the looks table, never the one every avatar opened from the scene shares")
+	root.free()
+	player.free()
+
 
 
 func _moving_targets_leave_regions_bound() -> void:

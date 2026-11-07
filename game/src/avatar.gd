@@ -492,7 +492,8 @@ static func shape(state: GLTFState) -> bool:
 ## Gives the meshes that show a material its looks light flat or make glow (ExpressionDefinition) copies of their
 ## materials carrying the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a
 ## table of each entry's looks: row 0 its lighting (red one where flat, green its cap), row 1 its emission's linear
-## colour times its strength and, in alpha, how far it overrides the lit colour, for the avatar's shader to draw them by (ExpressionPlayer) over the looks' emission map. A
+## colour times its strength and, in alpha, how far it overrides the lit colour, for the avatar's shader to draw them by (ExpressionPlayer) over the looks' emission map;
+## an emission in a global theme colour is drawn even where it rests black, since a clip can light it. A
 ## mesh shows a material where one of its vertices' texture coordinates falls in that material's cell.
 static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var materials: Array = looks.get("materials", [])
@@ -506,7 +507,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
 		var glow: Variant = materials[k].get("emission")
 		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
-		if glows.r + glows.g + glows.b > 0.0:
+		if glows.r + glows.g + glows.b > 0.0 or glow is Dictionary and glow.get("theme") != null and looks.has("emission"):
 			drawn[k + 1] = 1
 			table.set_pixel(k + 1, 1, glows)
 	if drawn.count(1) == 0:

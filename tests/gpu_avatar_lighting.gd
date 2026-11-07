@@ -2,7 +2,8 @@ extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's flat material is lit alike on its side toward the light and its side away, and no brighter
 ## than its cap however strong the light; a lit one is shaded by angle; a glowing one glows its emission in the dark,
-## over its glow's own colour where it overrides its base colour. Needs a renderer, so scripts/test.sh runs it on
+## over its glow's own colour where it overrides its base colour, and one glowing in a theme colour turning over time
+## changes colour as it turns. Needs a renderer, so scripts/test.sh runs it on
 ## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
 
 const SIZE := 96
@@ -58,6 +59,15 @@ func _run() -> void:
 	env.ambient_light_color = Color.BLACK
 	shots["glow"] = await _sides(view)
 	glowing.queue_free()
+	var turning := _ball("theme")
+	view.add_child(turning)
+	await _sides(view)
+	var reds := []
+	for frame in 6:
+		await process_frame
+		await RenderingServer.frame_post_draw
+		reds.append(_mean(view.get_texture().get_image(), SIZE * 5 / 8))
+	turning.queue_free()
 	print(shots)
 	var flat_dim: Vector2 = shots["flat (0.5, 0.0)"]
 	var flat_bright: Vector2 = shots["flat (3.0, 0.0)"]
@@ -71,12 +81,14 @@ func _run() -> void:
 	check(lit.x > lit.y + 0.2, "a lit material is shaded by angle: %s" % lit)
 	var glow: Vector2 = shots["glow"]
 	check(absf(glow.x - 0.75) < 0.04 and absf(glow.y - 0.75) < 0.04, "a material glowing red 0.25 at strength 2 that overrides its base colour glows 0.5 over the half it replaces, 0.75, on both sides in the dark: %s" % glow)
+	check(reds.min() < 0.05 and reds.max() > 0.6, "a glow in a theme colour whose hue turns a third a frame goes from red to none and back: %s" % [reds])
 	view.queue_free()
 	finish()
 
 
 ## A white ball whose looks light its one material `model`, capped at 0.8, or for "glow" lit by angle and glowing red
-## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it.
+## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
+## that red is a global theme colour whose hue turns twenty times a second.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -94,9 +106,12 @@ func _ball(model: String) -> Node3D:
 	index.fill(Color8(1, 1, 1))
 	var light := {"model": "flat", "cap": 0.8} if model == "flat" else {"model": "lit"}
 	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "materials": [{"lighting": light}]}
-	if model == "glow":
+	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
 		looks.emission = Marshalls.raw_to_base64(picture.save_png_to_buffer())
+	if model == "theme":
+		looks.materials[0].emission.theme = 0
+		looks.materials[0].themes = [{"slot": 0, "hsv": [0.0, 1.0, 0.25], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 400.0}, null, null, null]
 	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)
