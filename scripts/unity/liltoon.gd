@@ -299,8 +299,8 @@ static func lighting(m: Dictionary) -> Dictionary:
 
 ## The material's first (or `second`) shade colour over its padded cell, from `albedo`, its padded atlas region:
 ## the albedo laid under the shadow colour texture by its alpha, tinted by the shadow colour and by the albedo as far as
-## _ShadowMainStrength says, sRGB-encoded; the first no brighter than the albedo, with _ShadowStrengthMask's red in
-## alpha, the second whole.
+## _ShadowMainStrength says, sRGB-encoded, with _ShadowStrengthMask's red in the first's alpha and the second's whole.
+## Neither is held below the albedo here: lilToon caps the shade after mixing the second into the first, as the renderer does.
 static func shade(materials: Materials, m: Dictionary, albedo: Image, second: bool) -> Image:
 	var n := "2nd" if second else ""
 	var size: Vector2i = (m.cell as Rect2i).size
@@ -316,7 +316,7 @@ static func shade(materials: Materials, m: Dictionary, albedo: Image, second: bo
 			var a: float = Materials._LINEAR[data[i + c]]
 			var x: float = (a if laid.is_empty() else lerpf(a, Materials._LINEAR[laid[i + c]], laid[i + 3] / 255.0)) * colour[c]
 			x = lerpf(x, x * a, main)
-			data[i + c] = _encoded(x if second else minf(x, a))
+			data[i + c] = _encoded(x)
 		data[i + 3] = 255 if strength.is_empty() else strength[i]
 	return Image.create_from_data(albedo.get_width(), albedo.get_height(), false, Image.FORMAT_RGBA8, data)
 
