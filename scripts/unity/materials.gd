@@ -4,6 +4,7 @@ extends RefCounted
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
+const Toon = preload("res://../scripts/unity/toon_shaders.gd")
 
 ## The atlas starts this wide and widens by STEP, up to `widest`, until every material fits at the size its texture
 ## shows in Unity; past that every cell shrinks alike.
@@ -85,7 +86,7 @@ func use(ref: Dictionary, fallback: Color) -> String:
 	var key := guid if assets.by_guid.has(guid) and assets.extension(guid) == "mat" else "missing:" + str(ref.get("name", guid))
 	if materials.has(key):
 		return key
-	var m := {"name": str(ref.get("name", key)), "shader": "", "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "alpha_mod": 0.0, "depth": false, "cull": Cull.BACK, "image": null}
+	var m := {"name": str(ref.get("name", key)), "shader": "", "outline_pass": false, "outline": {}, "outline_scale": 0.0, "texture": "", "colour": fallback, "scale": Vector2.ONE, "offset": Vector2.ZERO, "alpha": Alpha.OPAQUE, "cutoff": 0.5, "alpha_mod": 0.0, "depth": false, "cull": Cull.BACK, "image": null}
 	if key == guid:
 		_read(m, guid)
 	if m.texture != "":
@@ -113,9 +114,13 @@ func _read(m: Dictionary, guid: String) -> void:
 		var code := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/|\"[^\"\\n]*\"").sub(source, " ", true)
 		var directive := RegEx.create_from_string("(?i)\\bCull\\s+(?:\\[\\s*(\\w+)\\s*\\]|(Off|Front|Back)\\b)").search(code)
 		cull = Cull.BACK if directive == null else directive.get_string(1) if directive.get_string(1) != "" else ["off", "front", "back"].find(directive.get_string(2).to_lower())
+		m.outline_pass = OUTLINE_PASS.search(RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/").sub(source, " ", true)) != null
 	elif Sdk.SHADERS.has(shader_guid):
 		for name: String in Sdk.SHADERS[shader_guid].properties:
 			m.properties[name] = true
+		m.outline_pass = Sdk.SHADERS[shader_guid].get("outline", false)
+	elif Toon.SHADERS.has(shader_guid):
+		m.outline_pass = Toon.SHADERS[shader_guid].outline
 	var saved: Dictionary = mat.get("m_SavedProperties", {})
 	var textures := _properties(saved.get("m_TexEnvs"))
 	m.textures = textures
@@ -157,6 +162,7 @@ func _read(m: Dictionary, guid: String) -> void:
 	if declared.call("_AlphaMod"):
 		m.alpha_mod = _number(m, "_AlphaMod", 0.0)
 	m.cull = clampi(str(ints.get(cull, floats.get(cull, Cull.BACK))).to_int(), Cull.OFF, Cull.BACK) if cull is String else cull
+	m.outline = _outline(m)
 
 
 func _shader_name(ref: Dictionary) -> String:
@@ -168,6 +174,8 @@ func _shader_name(ref: Dictionary) -> String:
 		return assets.name(guid)
 	if Sdk.SHADERS.has(guid):
 		return Sdk.SHADERS[guid].name
+	if Toon.SHADERS.has(guid):
+		return Toon.SHADERS[guid].name
 	return "Standard" if str(ref.get("fileID", "")) == "46" else "not in package (%s)" % guid.left(8)
 
 
@@ -508,28 +516,43 @@ static func pass_of(m: Dictionary) -> Pass:
 	return Pass.SOLID if m.alpha != Alpha.BLEND else Pass.BLENDED_DEPTH if m.depth else Pass.BLENDED
 
 
-## The atlas as the material of the faces of each pass (Pass), drawing one side and then both: index `two_sided + 2 *
-## pass`. Depth written while blending goes as the material's glTF extras, since glTF has no word for it.
+## The atlas as the material of the faces of each pass (Pass), drawing one side and then both, without an outline and
+## then with one: index `slot`. Depth written while blending goes as the material's glTF extras, as does its outline,
+## since glTF has no word for either.
 func atlas_materials() -> Array[StandardMaterial3D]:
 	atlas.generate_mipmaps()
 	var texture := ImageTexture.create_from_image(atlas)
 	var cut := materials.values().any(func(m: Dictionary) -> bool: return m.has("cell") and m.alpha == Alpha.CUTOUT)
 	var out: Array[StandardMaterial3D] = []
-	for drawn_as in PASSES:
-		for two_sided: bool in [false, true]:
-			var drawn := StandardMaterial3D.new()
-			drawn.resource_name = "atlas" + (", two-sided" if two_sided else "") + ["", ", blended", ", blended, depth written"][drawn_as]
-			drawn.albedo_texture = texture
-			drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
-			if drawn_as != Pass.SOLID:
-				drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				drawn.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if drawn_as == Pass.BLENDED_DEPTH else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-				drawn.set_meta("extras", {"depthWrite": drawn_as == Pass.BLENDED_DEPTH})
-			elif cut:
-				drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-				drawn.alpha_scissor_threshold = 0.5
-			out.append(drawn)
+	for outlined: bool in [false, true]:
+		for drawn_as in PASSES:
+			for two_sided: bool in [false, true]:
+				var drawn := StandardMaterial3D.new()
+				drawn.resource_name = "atlas" + (", two-sided" if two_sided else "") + ["", ", blended", ", blended, depth written"][drawn_as] + (", outlined" if outlined else "")
+				drawn.albedo_texture = texture
+				drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
+				var extras := {}
+				if drawn_as != Pass.SOLID:
+					drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					drawn.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if drawn_as == Pass.BLENDED_DEPTH else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+					extras.depthWrite = drawn_as == Pass.BLENDED_DEPTH
+				elif cut:
+					drawn.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					drawn.alpha_scissor_threshold = 0.5
+				if outlined:
+					extras.outline = true
+				if not extras.is_empty():
+					drawn.set_meta("extras", extras)
+				out.append(drawn)
 	return out
+
+
+## The index in `atlas_materials` of the material drawing the faces of the material at `key`, outlined where it or
+## any material a switch swaps in for it (`choices`) is.
+func face_material(key: String, choices: Array = []) -> int:
+	var m: Dictionary = materials[key]
+	var outlined := ([key] + choices).any(func(k: String) -> bool: return _outline_metres(materials[k]) > 0.0)
+	return int(m.cull == Cull.OFF) + 2 * pass_of(m) + 2 * PASSES * int(outlined)
 
 
 func hue_mask() -> Image:
@@ -1246,7 +1269,8 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps and
 ## emission at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask
 ## blended in) and "emission" map, the "matcaps" textures their entries name by position, and the "decals",
-## `decal_images`, each over its material's cell, which its decals name by "image".
+## `decal_images`, each over its material's cell, which its decals name by "image"; and the `outline_layer`, which
+## spans the atlas, not the entries.
 func looks() -> Dictionary:
 	var entries := []
 	var index := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_L8)
@@ -1330,9 +1354,11 @@ func looks() -> Dictionary:
 			drawn_coat.map = coat_maps.get(packing, -1)
 			entry.clearcoat = drawn_coat
 		entries.append(entry)
+	var outlines := outline_layer()
 	if entries.is_empty():
-		return {}
+		return outlines
 	var out := {"index": _layer(index, Image.INTERPOLATE_NEAREST), "materials": entries, "decals": decal_images.duplicate(), "matcaps": matcap_textures.values()}
+	out.merge(outlines)
 	if matcap_masks != null:
 		out.matcapMasks = _layer(matcap_masks, RESAMPLE)
 	if glow != null:
@@ -1364,13 +1390,17 @@ func _over_cell(m: Dictionary, source: Image, property: String) -> Image:
 ## `source` (white where null) as it lies over the material's own texture, `size` texels and `pad` more each side: the
 ## material's own texture fills it, so another texture slot of the same UV0 is read through both slots' tilings.
 func _over(m: Dictionary, source: Image, property: String, size: Vector2i, pad: int) -> Image:
+	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(property, {})
+	return _tiled(m, source, _vector2(entry.get("m_Scale"), Vector2.ONE), _vector2(entry.get("m_Offset"), Vector2.ZERO), size, pad)
+
+
+## `source` (white where null) read through the tiling `scale` and `offset` of UV0, over the material's own texture as
+## `_over` lays it.
+func _tiled(m: Dictionary, source: Image, scale: Vector2, offset: Vector2, size: Vector2i, pad: int) -> Image:
 	var out := Image.create_empty(size.x + 2 * pad, size.y + 2 * pad, false, Image.FORMAT_RGBA8)
 	if source == null:
 		out.fill(Color.WHITE)
 		return out
-	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(property, {})
-	var scale := _vector2(entry.get("m_Scale"), Vector2.ONE)
-	var offset := _vector2(entry.get("m_Offset"), Vector2.ZERO)
 	if scale == m.scale and offset == m.offset:
 		var inner := source.duplicate() as Image
 		inner.resize(size.x, size.y, RESAMPLE)
@@ -1401,3 +1431,135 @@ static func _sample(source: Image, uv: Vector2) -> Color:
 	var fraction := pixel - pixel.floor()
 	var at := func(dx: int, dy: int) -> Color: return source.get_pixel(posmod(base.x + dx, source.get_width()), posmod(base.y + dy, source.get_height()))
 	return at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)
+
+
+## A shader pass drawing a toon outline: Poiyomi's and Unity-chan Toon Shader's "Outline", VRChat's and lilToon's
+## "FORWARD_OUTLINE", in the shader or used from another.
+static var OUTLINE_PASS := RegEx.create_from_string("(?i)\\bName\\s+\"(?:FORWARD_)?OUTLINE\"|\\bUsePass\\s+\"[^\"]*/FORWARD_OUTLINE\"")
+## The widest the outline layer is carried at: an outline is a line a few millimetres wide, so its colour and width
+## change only across many atlas texels.
+const OUTLINE_LAYER := 1024
+
+
+## The toon outline the material at `key` draws, its back faces pushed out along their normals, or {} for none.
+func outline(key: String) -> Dictionary:
+	return materials[key].outline
+
+
+## The toon outline `m` draws, by its shader family, as {"width" in metres, "world" where the width is the world's
+## rather than the object's, which the renderer's transform scales, "colour" linear, "texture" the property of a
+## texture it is multiplied by, "tint" how far it is multiplied by the albedo ("squared": twice), "toward" how far it is
+## replaced by the albedo, "mask" the property of the texture whose "channel" (-1: its brightest) scales the width, read
+## through UV0 tiled by "scale" and "offset"}. Each family's distance scaling is left out: within a metre or two of the
+## eye, where avatars are seen, it changes the width by a few percent at most. Every outline is lit flat up to white,
+## as each family's light colour, clamped at one and blind to the angle, lights it; VRChat's unlit one too, since an
+## avatar stands in the garden's light.
+func _outline(m: Dictionary) -> Dictionary:
+	if not m.outline_pass:
+		return {}
+	var colours: Dictionary = m.get("colours", {})
+	var shader: String = m.shader
+	var out := {"texture": "", "tint": 0.0, "squared": false, "toward": 0.0, "mask": "", "channel": 0, "world": false}
+	if poiyomi(m):
+		var old := shader.begins_with(".poiyomi/Toon/")
+		out.width = _saved(m, "_LineWidth", 0.0 if old else 1.0) / 100.0 * (_saved(m, "_EnableOutlines", 0.0) if m.properties.has("_EnableOutlines") else 1.0)
+		out.world = old or _float(m, "_OutlineSpace") != 0.0
+		out.colour = _colour(colours.get("_LineColor"), Color.WHITE)
+		out.texture = "_OutlineTexture"
+		out.tint = 0.0 if old else _saved(m, "_OutlineTintMix", 0.0)
+		out.mask = "_OutlineMask"
+		out.channel = -1 if old or shader.begins_with(".poiyomi/Poiyomi 8.0/") else int(_float(m, "_OutlineMaskChannel"))
+		if _float(m, "_OutlineMaskUV") != 0.0 or _float(m, "_OutlineTextureUV") != 0.0:
+			return {}
+	elif shader.containsn("lilToon"):
+		out.width = _float(m, "_OutlineWidth", 0.08) / 100.0
+		out.colour = _colour(colours.get("_OutlineColor"), Color(0.6, 0.56, 0.73))
+		out.texture = "_OutlineTex"
+		out.mask = "_OutlineWidthMask"
+		out.scale = m.scale
+		out.offset = m.offset
+	elif shader.begins_with("UnityChanToonShader/") or shader.begins_with("Toon/Toon"):
+		if "_DISABLE_OUTLINE" in m.get("keywords", []) or "_OUTLINE_POS" in m.get("keywords", []):
+			return {}
+		out.width = _float(m, "_Outline_Width") / 1000.0
+		out.colour = _colour(colours.get("_Outline_Color"), Color(0.5, 0.5, 0.5))
+		if _float(m, "_Is_OutlineTex") != 0.0:
+			out.texture = "_OutlineTex"
+		elif _float(m, "_Is_BlendBaseColor") != 0.0:
+			out.tint = 1.0
+			out.squared = true
+		out.mask = "_Outline_Sampler"
+	elif shader == "VRChat/Mobile/Toon Standard (Outline)":
+		out.width = _float(m, "_OutlineThickness", 0.05) / 100.0
+		out.world = true
+		out.colour = _colour(colours.get("_OutlineColor"), Color.BLACK)
+		out.toward = clampf(_float(m, "_OutlineFromAlbedo"), 0.0, 1.0)
+		out.mask = "_OutlineMask"
+		out.channel = int(_float(m, "_OutlineMaskChannel"))
+		out.scale = Vector2.ONE
+		out.offset = Vector2.ZERO
+	else:
+		return {}
+	if out.width <= 0.0:
+		return {}
+	if not out.has("scale"):
+		var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(out.mask, {})
+		out.scale = _vector2(entry.get("m_Scale"), Vector2.ONE)
+		out.offset = _vector2(entry.get("m_Offset"), Vector2.ZERO)
+	out.colour = (out.colour as Color).srgb_to_linear()
+	return out
+
+
+## The outline layer of the packed materials, {"outline": the PNG, "outlineWidth": its widest outline in metres}, or {}
+## where none draws one: each texel of a material that does holds its outline's colour, sRGB, and in alpha its width as
+## a share of the widest, mask and all; every other texel is clear. A material's width in object space is scaled by the
+## transform of the renderer drawing it (`outline_scale`, the largest where several do), as Unity scales its offset.
+func outline_layer() -> Dictionary:
+	var drawn := {}
+	var widest := 0.0
+	for key: String in materials:
+		var m: Dictionary = materials[key]
+		if _outline_metres(m) > 0.0 and m.has("cell"):
+			drawn[key] = _outline_metres(m)
+			widest = maxf(widest, drawn[key])
+	if drawn.is_empty():
+		return {}
+	var out := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
+	out.fill(Color(0, 0, 0, 0))
+	for key: String in drawn:
+		var m: Dictionary = materials[key]
+		var o: Dictionary = m.outline
+		var padded := Rect2i((m.cell as Rect2i).position - Vector2i(PAD, PAD), (m.cell as Rect2i).size + 2 * Vector2i(PAD, PAD))
+		var cell := atlas.get_region(padded)
+		cell.clear_mipmaps()
+		var albedo := cell.get_data()
+		var texture := _over_cell(m, _slot_image(m, o.texture) if o.texture != "" else null, o.texture).get_data()
+		var mask := _outline_mask(m, o)
+		var data := PackedByteArray()
+		data.resize(albedo.size())
+		var colour: Color = o.colour
+		var share: float = drawn[key] / widest
+		for i in range(0, data.size(), 4):
+			for c in 3:
+				var base := _LINEAR[albedo[i + c]]
+				var tinted: float = colour[c] * _LINEAR[texture[i + c]] * lerpf(1.0, base * base if o.squared else base, o.tint)
+				data[i + c] = _ENCODED[clampi(roundi(lerpf(tinted, base, o.toward) * 4095.0), 0, 4095)]
+			data[i + 3] = roundi(share * mask[i / 4])
+		out.blit_rect(Image.create_from_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data), Rect2i(Vector2i.ZERO, padded.size), padded.position)
+	return {"outline": _layer(out, RESAMPLE, OUTLINE_LAYER), "outlineWidth": widest}
+
+
+## The width of the outline `m` draws in metres, its object-space width scaled by `outline_scale`; 0 for none.
+static func _outline_metres(m: Dictionary) -> float:
+	return 0.0 if m.outline.is_empty() else m.outline.width * (1.0 if m.outline.world else m.outline_scale)
+
+
+## The outline `o`'s width mask over the material's padded cell, one byte a texel: its channel, or its brightest where
+## that is -1.
+func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
+	var texels := _tiled(m, _slot_image(m, o.mask) if o.mask != "" else null, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
+	var out := PackedByteArray()
+	out.resize(texels.size() / 4)
+	for i in out.size():
+		out[i] = maxi(texels[4 * i], maxi(texels[4 * i + 1], texels[4 * i + 2])) if o.channel < 0 else texels[4 * i + clampi(o.channel, 0, 3)]
+	return out

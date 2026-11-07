@@ -128,7 +128,9 @@ func _init(model: Node3D) -> void:
 					binds.append(func(v: float) -> void:
 						var uv: Array = choices[clampi(roundi(v), 0, choices.size() - 1)]
 						for mat in mats:
-							mat.set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3])))
+							mat.set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3]))
+							if mat.has_meta("hull"):
+								(mat.get_meta("hull") as ShaderMaterial).set_shader_parameter("atlas", Vector4(uv[0], uv[1], uv[2], uv[3])))
 			elif ExpressionDefinition.region(effect) != "":
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
@@ -530,7 +532,7 @@ static func shader_for(base: BaseMaterial3D, turned: bool, coated := false) -> S
 
 
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
-## blended writing depth, each front faces only or both sides as its material draws them. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
+## blended writing depth, each front faces only or both sides as its material draws them, outlined or not. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
 ## turn costs a Quest 2 a few milliseconds a frame on every surface, turned or not.
 func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
@@ -540,7 +542,8 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
 		var shader := shader_for(base, _turned.has(str(mesh.name)), coated)
-		if not by_shader.has(shader):
+		var key := [shader, base != null and base.has_meta("hull")]
+		if not by_shader.has(key):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
 			mat.set_shader_parameter("decals", _empty_array())
@@ -549,8 +552,10 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 				mat.set_shader_parameter("colour", base.albedo_color)
 				mat.set_shader_parameter("use_vertex", base.vertex_color_use_as_albedo)
 				mat.set_meta("icon_material", Hand._icon_material(base, mesh))
-			by_shader[shader] = mat
-		mesh.set_surface_override_material(i, by_shader[shader])
+				if base.has_meta("hull"):
+					Avatar.hulled(mat, base.get_meta("hull").duplicate())
+			by_shader[key] = mat
+		mesh.set_surface_override_material(i, by_shader[key])
 	var out: Array[ShaderMaterial] = []
 	out.assign(by_shader.values())
 	_materials[mesh] = out

@@ -88,7 +88,7 @@ static func valid(data: Dictionary) -> bool:
 ## brightnesses with a numeric "shadowTint" where it has one, or "flat", lit alike whichever way it faces; a flat or
 ## ramp-lit one is capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
 ## "color", "strength" and, optionally, "replace" and "theme", the slot of the global theme colour it glows in among the
-## material's "themes" (unity/materials.gd `_theme`). A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
+## material's "themes" (unity/materials.gd `_theme`); an "outline" layer comes with its positive "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
 ## rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
@@ -96,6 +96,9 @@ static func looks_valid(looks: Variant) -> bool:
 	if not looks.get("decals", []) is Array or (looks.has("emission") and not looks.emission is Image) or (looks.has("index") and not looks.index is Image):
 		return false
 	if not (looks.get("matcaps", []) is Array and looks.get("matcaps", []).all(func(t: Variant) -> bool: return t is Image)) or (looks.has("matcapMasks") and not looks.matcapMasks is Image):
+		return false
+	if looks.has("outline") and not (looks.outline is Image and _number(looks.get("outlineWidth")) and float(looks.outlineWidth) > 0.0):
+		push_error("expressions: looks carry an outline layer without a positive outlineWidth")
 		return false
 	if not looks.has("materials"):
 		return true

@@ -36,6 +36,7 @@ func _run() -> void:
 	_import_settles_each_spring_chain()
 	_a_later_physbone_over_the_same_bones_is_shadowed()
 	_switched_off_physics_stays_out()
+	_outlined_materials_draw_their_hull()
 	_read_skins_bind_only_weighed_bones()
 	_hidden_avatars_pause()
 	_unity_package_converts()
@@ -753,6 +754,39 @@ func _switched_off_physics_stays_out() -> void:
 	var ends := springs.map(func(c: Dictionary) -> int: return c.joints[-1].node)
 	check(ends == [6, 7], "the chain switched off is out; the one switched on stays, and so does one sharing the first bone of the one off: %s" % [ends])
 	check(springs.all(func(c: Dictionary) -> bool: return c.colliders == [1]), "the collider switched off presses on nothing: %s" % [springs])
+	root.free()
+
+
+## A material its glTF extras mark outlined draws its hull next, drawn whole or cut out as the material is, from the
+## looks' outline layer and width; one marked without a layer refuses the model.
+func _outlined_materials_draw_their_hull() -> void:
+	var root := Node3D.new()
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	var kinds: Array[StandardMaterial3D] = [StandardMaterial3D.new(), StandardMaterial3D.new(), StandardMaterial3D.new()]
+	kinds[0].set_meta("extras", {"outline": true})
+	kinds[1].set_meta("extras", {"outline": true})
+	kinds[1].transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	for m in kinds:
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, m)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	root.add_child(mi)
+	check(not Avatar._outlined(root), "a material marked outlined without an outline layer refuses the model")
+	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	root.set_meta("expressions", {"looks": {"outline": layer, "outlineWidth": 0.002}})
+	check(Avatar._outlined(root), "a model whose looks carry the layer is drawn")
+	var hull := kinds[0].next_pass as ShaderMaterial
+	check(hull != null and hull.shader == Avatar.OUTLINE and is_equal_approx(hull.get_shader_parameter("width"), 0.002), "an opaque outlined material draws its hull whole, as wide as the looks say")
+	check(kinds[1].next_pass is ShaderMaterial and (kinds[1].next_pass as ShaderMaterial).shader == Avatar.OUTLINE_CUT, "a cut-out one draws its hull cut out")
+	check(kinds[2].next_pass == null, "a material not marked draws no hull")
+	Avatar.show_outlines(false)
+	check(kinds[0].next_pass == null and kinds[1].next_pass == null, "a step without outlines draws no hull")
+	Avatar.show_outlines(true)
+	check(kinds[0].next_pass == hull, "a step with them draws it again")
 	root.free()
 
 

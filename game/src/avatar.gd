@@ -12,6 +12,9 @@ const ExpressionMixer = preload("res://addons/avatar_workshop/expression_mixer.g
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
+## An outline's hull, drawn whole, or cut out as the surface it outlines is.
+const OUTLINE := preload("res://src/avatar_outline.gdshader")
+const OUTLINE_CUT := preload("res://src/avatar_outline_cut.gdshader")
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
 ## Two Quest 2 runs reading a 93.9 MiB file (perf/quest-2/avatar-cost) took 8.7 s on a worker each and fell from 2.55 and
 ## 1.66 GB available to lows of 0.72 and 0.49 GB, Android's low-memory killer taking background apps but never the game:
@@ -21,8 +24,8 @@ const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acor
 const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
-## Draw calls: one a material of each skinned mesh shown; a mesh an avatar's menu hides draws nothing (docs/multiplayer.md,
-## "Skinned bodies").
+## Draw calls: one a material of each skinned mesh shown and one more for its outline; a mesh an avatar's menu hides draws
+## nothing (docs/multiplayer.md, "Skinned bodies").
 const MAX_SURFACES := 40
 ## The cap of a flat material that has none, past any light the garden sheds.
 const UNCAPPED := 1e4
@@ -395,10 +398,15 @@ static func model(root: Node3D) -> PackedScene:
 	_switched_off(root)
 	_keep_longest(root)
 	var bones: Dictionary = root.get_meta("humanoid")
+	if not _outlined(root):
+		root.free()
+		return null
 	var surfaces := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		if mi.visible:
-			surfaces += mi.mesh.get_surface_count()
+			for i in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(i)
+				surfaces += 2 if m != null and m.has_meta("hull") else 1
 	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES:
 		root.free()
 		return null
@@ -414,6 +422,58 @@ static func model(root: Node3D) -> PackedScene:
 	scene.set_meta("colour", root.get_meta("colour", Color.WHITE))
 	root.free()
 	return scene
+
+
+## Gives each material its glTF extras mark "outline" its hull (avatar_outline.gdshader) as the pass after it, drawn by
+## the looks' outline layer and width. False where a material
+## is marked and the looks carry no layer to draw it by.
+static func _outlined(root: Node3D) -> bool:
+	var marked: Array[BaseMaterial3D] = []
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i) as BaseMaterial3D
+			if m != null and (m.get_meta("extras", {}) as Dictionary).get("outline", false) and not m in marked:
+				marked.append(m)
+	if marked.is_empty():
+		return true
+	var looks: Variant = (root.get_meta("expressions", {}) as Dictionary).get("looks")
+	if not looks is Dictionary or not looks.get("outline") is Image:
+		push_error("avatar: a material is outlined but the looks carry no outline layer")
+		return false
+	var texture := ImageTexture.create_from_image(looks.outline)
+	for m in marked:
+		var hull := ShaderMaterial.new()
+		hull.shader = OUTLINE_CUT if m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED else OUTLINE
+		hull.set_shader_parameter("outline", texture)
+		hull.set_shader_parameter("width", float(looks.outlineWidth))
+		hull.set_shader_parameter("picture", m.albedo_texture)
+		hull.set_shader_parameter("colour", m.albedo_color)
+		hull.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
+		hulled(m, hull)
+	return true
+
+
+## Toon outlines draw while the quality ladder's step keeps them (Quality.Step.outlines): each hull costs a Quest 2
+## 0.57 to 0.73 ms for a heavy avatar in view (docs/design.md, "Toon outlines").
+static var outlines := true
+static var _hulled: Array[WeakRef] = []
+
+
+## Gives `m` its outline's `hull` as its next pass while `outlines` holds.
+static func hulled(m: Material, hull: ShaderMaterial) -> void:
+	m.set_meta("hull", hull)
+	m.next_pass = hull if outlines else null
+	_hulled = _hulled.filter(func(w: WeakRef) -> bool: return w.get_ref() != null)
+	_hulled.append(weakref(m))
+
+
+## Draws every avatar's outlines or none (`outlines`).
+static func show_outlines(on: bool) -> void:
+	outlines = on
+	for w in _hulled:
+		var m: Material = w.get_ref()
+		if m != null:
+			m.next_pass = m.get_meta("hull") if on else null
 
 
 ## Leaves out the spring chains and colliders that the expressions' default state switches off. A chain is off when

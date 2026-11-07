@@ -279,7 +279,7 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 
 ## Where VRCHAT_expressions names its images, each a lossless WebP glTF image no texture uses, by its index, or a list
 ## of them by theirs: each layer's path through the definition. Read, each is the Image itself.
-const LAYERS := {"icons": ["icons"], "hueMask": ["hueMask"], "untinted": ["untinted", "image"], "index": ["looks", "index"], "matcapMasks": ["looks", "matcapMasks"], "emission": ["looks", "emission"], "matcaps": ["looks", "matcaps"], "decals": ["looks", "decals"], "clearcoatMaps": ["looks", "clearcoatMaps"]}
+const LAYERS := {"icons": ["icons"], "hueMask": ["hueMask"], "untinted": ["untinted", "image"], "index": ["looks", "index"], "matcapMasks": ["looks", "matcapMasks"], "emission": ["looks", "emission"], "matcaps": ["looks", "matcaps"], "decals": ["looks", "decals"], "clearcoatMaps": ["looks", "clearcoatMaps"], "outline": ["looks", "outline"]}
 
 
 ## A copy of the expression `definition` with each of its layers (LAYERS) `f`(it, its layer), each of a list's alike.

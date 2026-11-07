@@ -8,7 +8,8 @@ extends Node
 ## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond
 ## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
 ## `shadows` is whether the sun casts them; `scale_3d` is the share of the swapchain's resolution the 3D scene is drawn
-## at; `files` is whether other people are drawn in their own avatar files rather than a built-in body (`Avatar.drawn`).
+## at; `files` is whether other people are drawn in their own avatar files rather than a built-in body (`Avatar.drawn`),
+## and `outlines` whether their toon outlines are (Avatar.show_outlines).
 ## The rest is how the view is drawn (DRAWN): `render_scale` is the share of each eye's width and height the
 ## runtime is asked for (render_target_size_multiplier), `msaa` the view's MSAA, `reflections` whether surfaces take
 ## reflected light from the sky, and `foveation` the runtime's fixed foveation level (XR_FB_foveation, 0 to 3).
@@ -22,6 +23,7 @@ class Step:
 	var shadows: bool
 	var scale_3d: float
 	var files: bool
+	var outlines: bool
 	var render_scale: float
 	var msaa: Viewport.MSAA
 	var reflections: bool
@@ -37,6 +39,7 @@ class Step:
 		shadows = flora[5] if flora.size() > 5 else true
 		scale_3d = flora[6] if flora.size() > 6 else 1.0
 		files = flora[7] if flora.size() > 7 else true
+		outlines = flora[8] if flora.size() > 8 else true
 		render_scale = drawn.render_scale
 		msaa = drawn.msaa
 		reflections = drawn.reflections
@@ -60,7 +63,8 @@ const DRAWN := [
 	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.0},
 ]
 ## What the ladder cuts below DRAWN's last rung, cheapest loss per millisecond saved first: grass, flowers and blob
-## detail, stones in full and ivy (`Step`'s first five), then the sun's shadows and the 3D scale, and last other people's
+## detail, stones in full and ivy (`Step`'s first five), then avatars' toon outlines (0.57 to 0.73 ms a heavy avatar on
+## the Quest 2, docs/design.md "Toon outlines"), the sun's shadows and the 3D scale, and last other people's
 ## own avatar files, which only a frame still over at every other cut gives up: on the Quest 2 three figures in some files
 ## held the frame near 20 fps at the rung above ("People past the headset" in docs/design.md). Flowers beyond
 ## 60 m are under two pixels across on the Quest 2.
@@ -74,9 +78,10 @@ const FLORA := [
 	[24.0, 20.0, 2, 8.0, 25.0],
 	[24.0, 20.0, 1, 8.0, 25.0],
 	[24.0, 20.0, 1, 4.0, 12.0],
-	[24.0, 20.0, 1, 4.0, 12.0, false],
-	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78],
-	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, false],
+	[24.0, 20.0, 1, 4.0, 12.0, true, 1.0, true, false],
+	[24.0, 20.0, 1, 4.0, 12.0, false, 1.0, true, false],
+	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, true, false],
+	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, false, false],
 ]
 ## The rung every headset starts on: the cheapest way of drawing the view with every reach whole. The governor climbs
 ## from it as the frame shows room and steps down the rest of the ladder below it.
@@ -181,12 +186,12 @@ func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
 
-## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or people's own files
-## back, which shows at once across the whole view, or on everyone: a governor crossing that line back and forth
-## would flicker every shadow, the horizon or the people.
+## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or people's own files or
+## outlines back, which shows at once across the whole view, or on everyone: a governor crossing that line back and
+## forth would flicker every shadow, the horizon or the people.
 static func popping() -> PackedInt32Array:
 	var out := PackedInt32Array()
-	for i in _changed(func(a: Step, b: Step) -> bool: return a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files):
+	for i in _changed(func(a: Step, b: Step) -> bool: return a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files or a.outlines != b.outlines):
 		out.append(i - 1)
 	return out
 
@@ -297,6 +302,8 @@ func _process(delta: float) -> void:
 	if n != _applied:
 		_apply(at, n)
 	_settled = _flora.approach(at, delta)
+	if Avatar.outlines != at.outlines:
+		Avatar.show_outlines(at.outlines)
 	if _look != null and _look.sun.shadow_enabled != at.shadows:
 		_look.sun.shadow_enabled = at.shadows
 	if not is_equal_approx(view.scaling_3d_scale, at.scale_3d):

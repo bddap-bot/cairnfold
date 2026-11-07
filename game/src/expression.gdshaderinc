@@ -1,6 +1,4 @@
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
-#include "res://src/daylight.gdshaderinc"
+#include "res://src/flat_light.gdshaderinc"
 
 uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 colour : source_color = vec4(1.0);
@@ -14,12 +12,6 @@ uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
-// The mirror's view, the one camera that sees just Quality.MIRROR_MASK, lit by the mirror's own light and ambient
-// (MirrorTool).
-uniform uint mirror_mask;
-global uniform vec3 mirror_toward;
-global uniform vec3 mirror_light;
-global uniform vec3 mirror_ambient;
 
 varying vec4 given;
 // One where the vertex's material is flat; then flat_light is the ambient and light given back it takes, capped.
@@ -44,14 +36,9 @@ varying vec3 coat_normal;
 uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
 #endif
 
-// A flat material, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it
-// faces, plus the ambient, capped: its texture's painted shading is the only shading. The ambient and the light given
-// back are added capped as emission, the engine's ambient left out; the main light stays the engine's, so the sun's
-// shadow still falls on it, through a normal turned toward the light and away by as much as keeps the whole under the
-// cap. The cap clips the ambient per channel and the main light by its brightest channel. A ramp-lit material, as
-// Toon Standard lights it, takes the same ambient and the main light scaled by its ramp at the half-Lambert term, and
-// the rest of the main light lent the albedo by its shadow tint in each pixel, under the same cap; that tint, added as
-// emission, takes no cast shadow, as Toon Standard's shade does under one.
+// A ramp-lit material, as Toon Standard lights it, takes the flat light's ambient and its main light scaled by its ramp
+// at the half-Lambert term (lit_flat), and the rest of the main light lent the albedo by its shadow tint in each pixel,
+// under the same cap; that tint, added as emission, takes no cast shadow, as Toon Standard's shade does under one.
 const int HEAD_ROWS = 2;
 const int RAMP = 16;
 #ifdef CLEAR_COAT
@@ -84,24 +71,16 @@ void vertex() {
 	tinted = vec4(0.0);
 	if (flat_lit > 0.5) {
 		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
-		vec3 ambient = (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
-		vec3 key = mirrored ? mirror_light : sun_light;
-		vec3 toward = mirrored ? mirror_toward : sun_toward;
-		flat_light = min(ambient + given.rgb, vec3(light.g));
-		float room = light.g - max(flat_light.r, max(flat_light.g, flat_light.b));
-		toward = length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0);
 		float level = 1.0;
 		if (light.r > 1.5) {
-			float x = clamp(dot(normal, toward) * 0.5 + 0.5, 0.0, 1.0) * float(RAMP - 1);
+			float x = clamp(dot(normal, key_toward(mirrored)) * 0.5 + 0.5, 0.0, 1.0) * float(RAMP - 1);
 			int i = min(int(x), RAMP - 2);
 			level = mix(texelFetch(lighting, looked + ivec2(0, HEAD_ROWS + i), 0).r, texelFetch(lighting, looked + ivec2(0, HEAD_ROWS + 1 + i), 0).r, x - float(i));
 		}
-		float brightest = max(max(key.r, max(key.g, key.b)), 1e-4);
-		float facing = clamp(min(level, room / brightest), 0.0, 1.0);
-		tinted = vec4((1.0 - level) * light.b * key, max(room - facing * brightest, 0.0));
-		vec3 across = vec3(0.0, 1.0, 0.0) - toward * toward.y;
-		across = dot(across, across) > 1e-6 ? normalize(across) : vec3(1.0, 0.0, 0.0);
-		NORMAL = normalize(transpose(mat3(MODEL_MATRIX)) * (facing * toward + sqrt(1.0 - facing * facing) * across));
+		vec3 key;
+		float spare;
+		flat_light = lit_flat(given, light.g, level, mirrored, MODEL_MATRIX, NORMAL, key, spare);
+		tinted = vec4((1.0 - level) * light.b * key, spare);
 	}
 }
 uniform sampler2D regions : filter_nearest, repeat_disable;

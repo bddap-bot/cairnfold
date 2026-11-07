@@ -368,13 +368,17 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	root.set_meta("humanoid", human)
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
-	if not expressions.data.is_empty():
-		var bound := _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, particles, report)
-		for key: String in switched:
-			if not (switched[key] as Array).is_empty():
-				bound[key] = switched[key]
-		if not contacts.is_empty():
-			bound.contacts = contacts
+	# An avatar with no menu or controller still carries the looks its materials draw.
+	var menuless := expressions.data.is_empty()
+	if menuless:
+		expressions.data = {"menu": [], "parameters": [], "layers": [], "clips": []}
+	var bound := _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, particles, report)
+	for key: String in switched:
+		if not (switched[key] as Array).is_empty():
+			bound[key] = switched[key]
+	if not contacts.is_empty():
+		bound.contacts = contacts
+	if not menuless or ["looks", "hueMask", "untinted", "contacts"].any(func(key: String) -> bool: return bound.has(key)) or not (bound.targets as Array).is_empty():
 		root.set_meta("expressions", bound)
 	for name: String in face.expressions:
 		var binds := []
@@ -1358,6 +1362,11 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				var top := _top4(src_bones, src_weights, i, per)
 				tops.append(top)
 				placed.append(_at_rest(top, bind, place.remap))
+			# An object-space outline is pushed out before the renderer's transform, which scales it.
+			if not placed.is_empty():
+				var object_scale := pow(absf(placed[0].basis.determinant()), 1.0 / 3.0)
+				for shown: String in [key] + swapped:
+					materials.materials[shown].outline_scale = maxf(materials.materials[shown].outline_scale, object_scale)
 			for k in surface_shapes.size():
 				var source := mesh.get_blend_shape_name(k)
 				var curves: Array = animated.get(r[0], {}).get(source, [])
@@ -1453,7 +1462,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		for t in range(0, indices.size(), 3):
 			if face_group.get(t, group_of[indices[t]]) == group.index:
 				var m: Dictionary = materials.materials[corners[indices[t]]]
-				faces[int(m.cull == Materials.Cull.OFF) + 2 * Materials.pass_of(m)].append(t)
+				faces[materials.face_material(corners[indices[t]], group.get("choices", []))].append(t)
 				if m.cull == Materials.Cull.FRONT:
 					reversed[t] = true
 		var surfaces := []

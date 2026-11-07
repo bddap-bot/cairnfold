@@ -56,6 +56,7 @@ func _run() -> void:
 	_matcaps_and_emission_join_the_look()
 	_a_clear_coat_joins_the_look_and_its_maps_offset_binds()
 	_clear_coat_maps_read_their_uv_channel()
+	_toon_outlines_join_the_look()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
@@ -307,7 +308,8 @@ func _materials_blend_as_their_shader_blends() -> void:
 		return materials.atlas.get_pixelv(cell.position + cell.size / 2).a
 	check(absf(alpha.call("veil") - 0.51) < 0.01 and absf(alpha.call("sheer") - 0.85) < 0.01, "the atlas keeps the blended alphas, Alpha Mod added: %.3f, %.3f" % [alpha.call("veil"), alpha.call("sheer")])
 	var drawn := materials.atlas_materials()
-	check(drawn.size() == 2 * Materials.PASSES, "one atlas material for each pass on each side")
+	check(drawn.size() == 4 * Materials.PASSES, "one atlas material for each pass on each side, outlined or not")
+	check(drawn.slice(2 * Materials.PASSES).all(func(m: StandardMaterial3D) -> bool: return m.get_meta("extras").outline) and drawn.slice(0, 2 * Materials.PASSES).all(func(m: StandardMaterial3D) -> bool: return not m.get_meta("extras", {}).has("outline")), "the outlined half says so in its glTF extras")
 	var blended := drawn[2 * Materials.Pass.BLENDED]
 	var depth := drawn[2 * Materials.Pass.BLENDED_DEPTH + 1]
 	check(blended.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and blended.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY and not blended.get_meta("extras").depthWrite, "blended faces draw blended, writing no depth")
@@ -1829,6 +1831,82 @@ func _matcaps_and_emission_join_the_look() -> void:
 		var eye: Rect2i = materials.materials.eye.cell
 		check(hue.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r < 0.2 and hue.get_pixel(eye.position.x + 3 * eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8, "the mask's chosen channel")
 	sk.free()
+
+
+## Each toon shader family's outline maps to its width in metres, its colour and its mask: Poiyomi's and Unity-chan Toon
+## Shader's from a shader the package carries with an outline pass, lilToon's and VRChat Toon Standard's from the outline
+## variant a package names by GUID. Object-space widths scale with their renderer, world-space ones do not.
+func _toon_outlines_join_the_look() -> void:
+	var dir := ProjectSettings.globalize_path("user://outline")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/abc" { Properties { _EnableOutlines ("Outlines", Float) = 0 } SubShader { Pass { Name "Base" } Pass { Name "Outline" Cull Front } } }')
+	write.call("poi_plain.shader", "poi_plain", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/def" { Properties { _EnableOutlines ("Outlines", Float) = 0 } SubShader { Pass { Name "Base" } // Pass { Name "Outline" }\n } }')
+	write.call("uts.shader", "uts", 'Shader "UnityChanToonShader/Toon_DoubleShadeWithFeather" { SubShader { Pass { Name "Outline" Cull Front } Pass { Name "FORWARD" } } }')
+	var mat := func(name: String, shader: String, floats: Dictionary, colours: Dictionary, textures: Dictionary) -> void:
+		var text := "Material:\n  m_Shader: {guid: %s}\n  m_SavedProperties:\n    m_TexEnvs:\n" % shader
+		for k: String in textures:
+			text += "    - %s:\n        m_Texture: {guid: %s}\n" % [k, textures[k]]
+		text += "    m_Floats:\n"
+		for k: String in floats:
+			text += "    - %s: %s\n" % [k, floats[k]]
+		text += "    m_Colors:\n"
+		for k: String in colours:
+			var c: Color = colours[k]
+			text += "    - %s: {r: %s, g: %s, b: %s, a: 1}\n" % [k, c.r, c.g, c.b]
+		write.call(name + ".mat", name, text)
+	mat.call("poiyomi", "poi", {"_EnableOutlines": 1, "_LineWidth": 0.5, "_OutlineTintMix": 1, "_OutlineMaskChannel": 1}, {"_LineColor": Color(0.5, 0.25, 0)}, {"_MainTex": "grey", "_OutlineMask": "half"})
+	mat.call("unlocked", "poi_plain", {"_EnableOutlines": 1, "_LineWidth": 0.5}, {}, {})
+	mat.call("lil", "51b2dee0ab07bd84d8147601ff89e511", {"_OutlineWidth": 0.2}, {"_OutlineColor": Color(0, 0, 0)}, {"_OutlineWidthMask": "half"})
+	mat.call("lil_plain", "9294844b15dca184d914a632279b24e1", {"_OutlineWidth": 0.2}, {}, {})
+	mat.call("unity_chan", "uts", {"_Outline_Width": 1, "_Is_BlendBaseColor": 1}, {"_Outline_Color": Color(1, 1, 1)}, {"_MainTex": "grey"})
+	mat.call("toon", "051a0ed2f2aedd741aa8186ae92f97e0", {"_OutlineThickness": 0.3, "_OutlineFromAlbedo": 0.5}, {"_OutlineColor": Color(0, 0, 1)}, {"_MainTex": "grey"})
+	mat.call("toon_plain", "e765db0afa7ecfc44ade2e4e2491f65a", {"_OutlineThickness": 0.3}, {}, {})
+	var half := Image.create_empty(8, 1, false, Image.FORMAT_RGBA8)
+	half.fill_rect(Rect2i(0, 0, 4, 1), Color(1, 0, 0, 1))
+	half.fill_rect(Rect2i(4, 0, 4, 1), Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var grey := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	grey.fill(Color(0.5, 0.5, 0.5, 1))
+	grey.save_png(dir.path_join("grey.png"))
+	FileAccess.open(dir.path_join("grey.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: grey\n")
+	var materials := Materials.new(Assets.new(dir))
+	var keys := ["poiyomi", "unlocked", "lil", "lil_plain", "unity_chan", "toon", "toon_plain"]
+	for key: String in keys:
+		materials.use({"guid": key}, Color.WHITE)
+		materials.materials[key].outline_scale = 2.0
+	check(["unlocked", "lil_plain", "toon_plain"].all(func(key: String) -> bool: return materials.outline(key).is_empty()), "a shader without an outline pass draws none, whatever outline its material saved")
+	var poiyomi := materials.outline("poiyomi")
+	check(is_equal_approx(poiyomi.get("width", 0.0), 0.005) and not poiyomi.world and poiyomi.tint == 1.0 and poiyomi.mask == "_OutlineMask" and poiyomi.channel == 1, "Poiyomi's width is centimetres in object space, its mask its chosen channel, tinted by the albedo: %s" % [poiyomi])
+	var lil := materials.outline("lil")
+	check(is_equal_approx(lil.get("width", 0.0), 0.002) and not lil.world and lil.mask == "_OutlineWidthMask" and lil.channel == 0 and lil.scale == materials.materials.lil.scale, "lilToon's width is centimetres in object space, masked by red through the albedo's tiling: %s" % [lil])
+	var unity_chan := materials.outline("unity_chan")
+	check(is_equal_approx(unity_chan.get("width", 0.0), 0.001) and unity_chan.squared and unity_chan.tint == 1.0 and unity_chan.mask == "_Outline_Sampler", "Unity-chan Toon Shader's width is millimetres, its colour blended with the albedo squared: %s" % [unity_chan])
+	var toon := materials.outline("toon")
+	check(is_equal_approx(toon.get("width", 0.0), 0.003) and toon.world and toon.scale == Vector2.ONE and toon.colour == Color(0, 0, 1), "Toon Standard's width is world centimetres, its mask read untiled: %s" % [toon])
+	materials.pack(keys)
+	var layer := materials.outline_layer()
+	check(is_equal_approx(layer.get("outlineWidth", 0.0), 0.01), "the widest outline is Poiyomi's, scaled by its renderer: %s" % [layer.get("outlineWidth")])
+	var img: Variant = layer.get("outline")
+	check(img is Image, "the outline layer is an image")
+	if not img is Image:
+		return
+	var at := func(key: String, x: float) -> Color:
+		var cell: Rect2i = materials.materials[key].cell
+		return img.get_pixel(int((cell.position.x + cell.size.x * x) * img.get_width() / materials.atlas_side), int((cell.position.y + cell.size.y / 2) * img.get_height() / materials.atlas_side))
+	var grey_linear := Color(0.5, 0, 0).srgb_to_linear().r
+	var tinted := Color(Color(0.5, 0.25, 0).srgb_to_linear().r * grey_linear, 0, 0).linear_to_srgb().r
+	check(at.call("poiyomi", 0.1).a < 0.1 and at.call("poiyomi", 0.9).a > 0.9 and absf(at.call("poiyomi", 0.9).r - tinted) < 0.02, "Poiyomi's outline takes its mask's green and its colour times the albedo: %s %s" % [at.call("poiyomi", 0.1), at.call("poiyomi", 0.9)])
+	check(absf(at.call("lil", 0.1).a - 0.4) < 0.02 and at.call("lil", 0.9).a < 0.02 and at.call("lil", 0.1).r == 0.0, "lilToon's takes its mask's red, at its share of the widest: %s" % [at.call("lil", 0.1)])
+	check(absf(at.call("unity_chan", 0.5).a - 0.2) < 0.02 and absf(at.call("unity_chan", 0.5).r - Color(grey_linear * grey_linear, 0, 0).linear_to_srgb().r) < 0.02, "Unity-chan Toon Shader's is its colour times the albedo twice: %s" % [at.call("unity_chan", 0.5)])
+	var halfway := Color(lerpf(0.0, grey_linear, 0.5), 0, lerpf(1.0, grey_linear, 0.5)).linear_to_srgb()
+	check(absf(at.call("toon", 0.5).a - 0.3) < 0.02 and absf(at.call("toon", 0.5).r - halfway.r) < 0.02 and absf(at.call("toon", 0.5).b - halfway.b) < 0.02, "Toon Standard's world width is not scaled by its renderer, its colour moved toward the albedo: %s" % [at.call("toon", 0.5)])
+	check(at.call("toon_plain", 0.5).a == 0.0, "a material drawing no outline is clear in the layer")
+	check(materials.face_material("toon") >= 2 * Materials.PASSES and materials.face_material("toon_plain") < 2 * Materials.PASSES, "outlined faces draw with an outlined atlas material")
+	check(materials.face_material("toon_plain", ["toon"]) >= 2 * Materials.PASSES, "faces a switch can swap an outlined material onto draw with an outlined atlas material")
 
 
 ## Poiyomi's first emission glows in its theme colour, its hue, saturation and value moved by the theme's offsets, over
