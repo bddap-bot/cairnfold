@@ -24,6 +24,7 @@ const THUMBS_0X := {"leftThumbProximal": "leftThumbMetacarpal", "leftThumbInterm
 const BONE := "bone"
 const EXPRESSIONS := "VRCHAT_expressions"
 const PARTICLES := "UNITY_particles"
+const CONSTRAINTS := "UNITY_constraints"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
@@ -101,6 +102,9 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 		root.set_meta("expressions", _named(expressions, state))
 	if exts.get(PARTICLES) is Dictionary:
 		root.set_meta("particles", _particles(exts[PARTICLES], state))
+	var constraints := Constraints.read(exts.get(CONSTRAINTS), state.get_nodes())
+	if not constraints.is_empty():
+		root.set_meta("constraints", constraints)
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
@@ -489,7 +493,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 		if (springs.colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
 			state.add_used_extension("VRMC_springBone_extended_collider", false)
 	if not constraints.is_empty():
-		state.add_used_extension("UNITY_constraints", false)
+		state.add_used_extension(CONSTRAINTS, false)
 	if not root.get_meta("particles", {}).is_empty():
 		state.add_used_extension(PARTICLES, false)
 	if not expressions.is_empty():
@@ -621,7 +625,7 @@ func _export_post(state: GLTFState) -> Error:
 			for source: Dictionary in c.sources:
 				if source.has("node"):
 					source.node = indices[source.node]
-		exts["UNITY_constraints"] = {"constraints": encoded}
+		exts[CONSTRAINTS] = {"constraints": encoded}
 	var particles: Dictionary = state.get_additional_data(&"particles")
 	if not particles.is_empty():
 		var encoded: Array = particles.systems.duplicate(true)

@@ -114,6 +114,12 @@ func _init(model: Node3D) -> void:
 						binds.append(func(v: float) -> void:
 							moved.shift[i] = direction * v
 							moved.dirty = true)
+			elif effect.has("constraint"):
+				for at: Array in _bones(nodes, effect.constraint.node):
+					var solver := Constraints.of(at[0])
+					if solver != null:
+						var bone: int = at[1]
+						binds.append(func(v: float) -> void: solver.weights[bone] = v)
 			elif effect.has("material"):
 				var mesh: MeshInstance3D = nodes.get(str(effect.material.node))
 				if mesh != null:

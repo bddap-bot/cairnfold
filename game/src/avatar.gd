@@ -377,7 +377,8 @@ static func texture_bytes(images: Array[Dictionary]) -> int:
 ## over the skeleton holding the hips, and its root's avatar data: "humanoid", each humanoid bone (Vrm.BONES) and
 ## "spring_N" for each node N the "springs" definition names, to its bone as the NodePath "skeleton:bone"; "eyes",
 ## where the eyes sit from the head bone; "forward", the way the model faces; "look", how it points its eyes (Vrm);
-## and "springs" (Avatar Workshop's spring definition), its longest chains within MAX_SPRING_JOINTS. DATA fills what the importer left unsaid. Null if the hips,
+## "springs" (Avatar Workshop's spring definition), its longest chains within MAX_SPRING_JOINTS; and any "constraints"
+## (Constraints.read), which Avatar.open solves on the skeleton. DATA fills what the importer left unsaid. Null if the hips,
 ## head and hands are not bones of one skeleton, or it is still too heavy; frees `root` either way.
 static func model(root: Node3D) -> PackedScene:
 	if root.has_meta("expressions") and not ExpressionDefinition.valid(root.get_meta("expressions")):
@@ -747,6 +748,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	var bones: Dictionary = a._model.get_meta("humanoid")
 	a._skeleton = a._model.get_node(str(bones.hips).get_slice(":", 0))
 	a._skeleton.reset_bone_poses()
+	if a._model.has_meta("constraints"):
+		a._skeleton.add_child(Constraints.new(a._model.get_meta("constraints"), a._skeleton))
 	var at := Meshes.relative(a._skeleton, a._model)
 	for b: String in bones:
 		var j := Joint.new()
@@ -1032,6 +1035,10 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 		springs = SpringRuntime.new(_model.get_meta("springs"), nodes)
 		if expressions != null:
 			expressions.springs = springs
+		# The native springs join the skeleton's modifiers; constraints solve after them.
+		var solver := Constraints.of(_skeleton)
+		if solver != null:
+			_skeleton.move_child(solver, -1)
 
 
 ## The standing body: it hangs from the head, bent forward as far as the head looks down past LOOK and further as it
