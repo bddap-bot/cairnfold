@@ -38,6 +38,8 @@ const COAT_ROWS := 6
 const MATCAP_ROWS := 6
 ## The most matcaps a look draws: Poiyomi's slots.
 const MATCAPS := 4
+## The looks table rows a toon shadow and rim take after the matcaps' (_lit_looks).
+const TOON_ROWS := 6
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -608,9 +610,10 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material, its
-## materials plain and those of meshes showing a flat-lit or glowing material carrying their looks (`_lit_looks`). False if
-## their blend shapes are past MAX_BLEND_VERTICES, a mesh merged keeps more materials than the renderer draws of one mesh
-## (RenderingServer.MAX_MESH_SURFACES, past which it drops the rest), or their looks lack lighting or the material index.
+## materials plain and those of meshes showing a flat-lit, glowing or toon material carrying their looks (`_lit_looks`),
+## at rest or swapped to it by a material effect. False if their blend shapes are past MAX_BLEND_VERTICES, a mesh merged
+## keeps more materials than the renderer draws of one mesh (RenderingServer.MAX_MESH_SURFACES, past which it drops the
+## rest), or their looks lack lighting, the material index or the shade layers a toon shadow is drawn by.
 static func shape(state: GLTFState) -> bool:
 	var blended := 0
 	for gm in state.get_meshes():
@@ -637,38 +640,56 @@ static func shape(state: GLTFState) -> bool:
 	if looks.get("materials", []).any(func(m: Dictionary) -> bool: return m.lighting.get("shadow") != null) and not (looks.get("shade") is Image and looks.get("shade2") is Image):
 		push_error("avatar: the looks give a material a toon shadow without the shade layers it is drawn by")
 		return false
-	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
+	var swaps := {}
+	var animated := {}
+	var nodes := state.get_nodes()
+	for target: Variant in expressions.get("targets", []) if expressions is Dictionary else []:
+		var effect: Variant = target.get("effect")
+		if effect is Dictionary and effect.has("material"):
+			var node := int(effect.material.node) if effect.material.node is float or effect.material.node is int else -1
+			if node >= 0 and node < nodes.size() and nodes[node].mesh >= 0:
+				(swaps.get_or_add(state.get_meshes()[nodes[node].mesh].mesh, []) as Array).append_array(effect.material.choices)
+		elif effect is Dictionary and effect.has("look"):
+			for region: Dictionary in effect.look:
+				animated[str(region.get("field", "decal"))] = true
+	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh), swaps, animated)
 	return true
 
 
-## Gives the meshes that show a material its looks light flat, make glow or clear coat (ExpressionDefinition) copies of
-## their materials carrying the atlas's material index (held as `hold` holds it) as each vertex reads it, and a table of
-## each entry's looks: row 0 its lighting (red one where flat, two where lit through a ramp; green its cap, blue its
-## shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the lit
-## colour, the RAMP rows after them its ramp, and, where any material has a clear coat or a matcap, six more its levels, maps'
-## tiling and offset, highlight tint and Fresnel, reflection tint and maps' layer, inversions, and antialiasing variance and
-## threshold; where any has a matcap, its matcaps (_matcap_rows), for the avatar's
-## shader to draw them by (ExpressionPlayer) over the looks' emission map; an emission in a global theme colour is drawn
-## even where it rests black, since a clip can light it. A mesh showing a clear coat has its copies marked "clearcoat",
-## so it alone draws with the shaders that draw one. A mesh shows a material where one of its vertices' texture
-## coordinates falls in that material's cell.
-static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
+## Gives the meshes that show a material its looks light flat, make glow, clear coat or draw a toon shadow or rim on
+## (ExpressionDefinition) copies of their materials carrying the atlas's material index (held as `hold` holds it) as each
+## vertex reads it, and a table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a
+## ramp; green its cap, blue its shadow tint) and in alpha its emission's strength, row 1 its emission's linear colour
+## and, in alpha, how far it overrides the lit colour, the RAMP rows after them its ramp, and, where any material has a
+## clear coat, a matcap or a toon look, six more its levels, maps' tiling and offset, highlight tint and Fresnel,
+## reflection tint and maps' layer, inversions, and antialiasing variance and threshold; where any has a matcap or a toon
+## look, its matcaps (_matcap_rows); and where any has a toon look, TOON_ROWS more (_toon_rows), for the avatar's shader
+## to draw them by (ExpressionPlayer) over the looks' emission map. An emission in a global theme colour, or one a look
+## field of `animated` (its name to true) may light, is drawn even where it rests black. A mesh showing a clear coat has
+## its copies marked "clearcoat", and one showing a toon look "toon", so it alone draws with the shaders that draw them.
+## A mesh shows a material where one of its vertices' texture coordinates falls in that material's cell, at rest or moved
+## by one of the material swaps in `swaps` (its importer mesh to their atlas choices).
+static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated := {}) -> void:
 	var materials: Array = looks.get("materials", [])
 	var drawn := PackedByteArray()
 	drawn.resize(256)
 	var coats := materials.filter(func(m: Dictionary) -> bool: return m.get("clearcoat") is Dictionary).size()
 	var maps: int = (looks.get("clearcoatMaps", []) as Array).size() if looks.get("clearcoatMaps") is Array else 0
 	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m).is_empty()).size()
-	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped > 0 else 0)
+	var tooned := materials.filter(_toon).size()
+	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped + tooned > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped + tooned > 0 else 0) + (TOON_ROWS if tooned > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
 	for k in materials.size():
 		if not _drawn_matcaps(materials[k]).is_empty():
-			drawn[k + 1] = maxi(drawn[k + 1], 1)
+			drawn[k + 1] |= LOOKED
 			_matcap_rows(table, k + 1, materials[k], textures)
+		if _toon(materials[k]):
+			drawn[k + 1] |= LOOKED | TOON
+			_toon_rows(table, k + 1, materials[k])
 		var coat: Variant = materials[k].get("clearcoat")
 		if coat is Dictionary:
-			drawn[k + 1] = 2
+			drawn[k + 1] |= LOOKED | COATED
 			var st: Array = coat.st
 			var inverts: Array = coat.inverts
 			var row := HEAD_ROWS + RAMP
@@ -679,22 +700,26 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			table.set_pixel(k + 1, row + 4, Color(float(inverts[0]), float(inverts[1]), float(inverts[2]), float(inverts[3])))
 			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], 0.0))
 		var light: Dictionary = materials[k].lighting
+		var head := Color(0, 0, 0, 0)
 		if light.model == "flat":
-			drawn[k + 1] = maxi(drawn[k + 1], 1)
-			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
+			drawn[k + 1] |= LOOKED
+			head = Color(1.0, float(light.get("cap", UNCAPPED)), 0.0)
 		elif light.has("ramp"):
-			drawn[k + 1] = maxi(drawn[k + 1], 1)
-			table.set_pixel(k + 1, 0, Color(2.0, float(light.get("cap", UNCAPPED)), float(light.get("shadowTint", 0.0))))
+			drawn[k + 1] |= LOOKED
+			head = Color(2.0, float(light.get("cap", UNCAPPED)), float(light.get("shadowTint", 0.0)))
 			var ramp: Array = light.ramp
 			for i in RAMP:
 				var at := i * (ramp.size() - 1) / (RAMP - 1.0)
 				table.set_pixel(k + 1, HEAD_ROWS + i, Color(lerpf(ramp[floori(at)], ramp[ceili(at)], at - floorf(at)), 0.0, 0.0))
-		var glow: Variant = materials[k].get("emission")
-		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
-		if glows.r + glows.g + glows.b > 0.0 or glow is Dictionary and glow.get("theme") != null and looks.has("emission"):
-			drawn[k + 1] = maxi(drawn[k + 1], 1)
-			table.set_pixel(k + 1, 1, glows)
-	if drawn.count(1) + drawn.count(2) == 0:
+		var glow: Variant = materials[k].get("emission") if looks.has("emission") else null
+		if glow is Dictionary:
+			head.a = float(glow.strength)
+			var lit: bool = glow.color.any(func(c: Variant) -> bool: return float(c) > 0.0) and (head.a > 0.0 or animated.has("emission"))
+			if lit or glow.get("theme") != null:
+				drawn[k + 1] |= LOOKED
+				table.set_pixel(k + 1, 1, Color(glow.color[0], glow.color[1], glow.color[2], float(glow.get("replace", 0.0))))
+		table.set_pixel(k + 1, 0, head)
+	if drawn.count(0) == drawn.size():
 		return
 	var index: Image = looks.index
 	var texels := index.get_data()
@@ -702,16 +727,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var looked := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
 	var copies := {}
 	for im: ImporterMesh in meshes:
-		var shows := 0
-		for i in im.get_surface_count():
-			var uvs: Variant = im.get_surface_arrays(i)[Mesh.ARRAY_TEX_UV]
-			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
-				var at := Vector2i((uv * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
-				shows = maxi(shows, drawn[texels[at.y * size.x + at.x]])
-				if shows == 2:
-					break
-			if shows == 2:
-				break
+		var shows := _shows(im, [[1, 1, 0, 0]] + swaps.get(im, []), drawn, texels, size)
 		if shows == 0:
 			continue
 		for i in im.get_surface_count():
@@ -723,10 +739,61 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 				var copy: Material = m.duplicate()
 				for key: String in looked:
 					copy.set_meta(key, looked[key])
-				if shows == 2:
+				if shows & COATED:
 					copy.set_meta("clearcoat", true)
+				if shows & TOON:
+					copy.set_meta("toon", true)
 				copies[drawn_as] = copy
 			im.set_surface_material(i, copies[drawn_as])
+
+
+## What an index entry's looks draw (`_lit_looks`): any look, a clear coat, a toon shadow or rim, as bits.
+const LOOKED := 1
+const COATED := 2
+const TOON := 4
+
+
+## The `drawn` bits (`_lit_looks`) of every entry of the material index's `texels`, `size` wide, that the texture
+## coordinates of `im`'s vertices fall in, each moved by each of `moves` (atlas scale and offset), together.
+static func _shows(im: ImporterMesh, moves: Array, drawn: PackedByteArray, texels: PackedByteArray, size: Vector2i) -> int:
+	var shows := 0
+	for i in im.get_surface_count():
+		var uvs: Variant = im.get_surface_arrays(i)[Mesh.ARRAY_TEX_UV]
+		for moved: Array in moves:
+			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
+				var at := Vector2i(((uv * Vector2(moved[0], moved[1]) + Vector2(moved[2], moved[3])) * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
+				shows |= drawn[texels[at.y * size.x + at.x]]
+				if shows == LOOKED | COATED | TOON:
+					return shows
+	return shows
+
+
+## Whether the look `m` draws a toon shadow (a flat one's) or a rim.
+static func _toon(m: Dictionary) -> bool:
+	var rim: Variant = m.get("rim")
+	return m.lighting.get("shadow") is Dictionary and m.lighting.model == "flat" or rim is Dictionary and float(rim.strength) > 0.0
+
+
+## Writes the toon shadow and rim of the look `m` into the looks table's column `column` (_lit_looks) from its first
+## toon row: its shadow's border, blur, strength and one where it has one; its second shade's border, blur and weight;
+## its shadow's edge colour and range; its rim's linear colour and strength; its rim's base mix, border, blur and Fresnel
+## power; and how far the light and the shadow reach its rim.
+static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
+	var row := HEAD_ROWS + RAMP + COAT_ROWS + 1 + MATCAPS * MATCAP_ROWS
+	var shadow: Variant = m.lighting.get("shadow")
+	if shadow is Dictionary and m.lighting.model == "flat":
+		table.set_pixel(column, row, Color(shadow.border, shadow.blur, shadow.strength, 1.0))
+		var second: Variant = shadow.get("second")
+		if second is Dictionary:
+			table.set_pixel(column, row + 1, Color(second.border, second.blur, second.weight, 0.0))
+		var edge: Variant = shadow.get("edge")
+		if edge is Dictionary:
+			table.set_pixel(column, row + 2, Color(edge.color[0], edge.color[1], edge.color[2], edge["range"]))
+	var rim: Variant = m.get("rim")
+	if rim is Dictionary:
+		table.set_pixel(column, row + 3, Color(rim.color[0], rim.color[1], rim.color[2], rim.strength))
+		table.set_pixel(column, row + 4, Color(rim.main, rim.border, rim.blur, rim.power))
+		table.set_pixel(column, row + 5, Color(rim.lit, rim.shadowMask, 0.0, 0.0))
 
 
 ## A matcap's strengths: one at zero in all of them leaves its material as it is.

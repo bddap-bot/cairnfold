@@ -301,11 +301,17 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the lanterns shed are added capped, and the main light falls on it through a normal turned toward it, tilted away by as
   much as keeps the whole under the cap, so the sun's shadow still falls on it. The cap clips the ambient per channel
   and the main light by its brightest channel. In the mirror, the mirror's light and ambient take the place of the sun's and the sky's. A file whose
-  looks name materials without their lighting is refused.
+  looks name materials without their lighting is refused. A flat material may also carry lilToon's toon shadow: where
+  its half Lambert toward the main light falls past the shadow's border it takes its first and second shade colours,
+  which the importer bakes per texel. A rim brightens a material's silhouette. Only the meshes that show a material
+  with either draw with the shaders that draw them, since compiled in they cost the Quest 2 GPU time on every pixel
+  those shaders cover. A clip moving an emission's strength or a matcap's intensity off its rest sets it for the
+  material it shows.
 
-  A material's Poiyomi matcaps draw over its colour before it is lit, each looked up by the surface's own normal as the
-  eye sees it (or by the view reflected in it), in Unity's handedness, and blended by its replace, multiply, add,
-  screen and mixed strengths under its mask's channel, as Poiyomi blends them at rest.
+  A material's Poiyomi matcaps, and lilToon's in their form, draw over its colour before it is lit, each looked up by
+  the surface's own normal as the eye sees it (or by the view reflected in it), in Unity's handedness, and blended by
+  its replace, multiply, add, screen and mixed strengths under its mask's channel, as Poiyomi blends them at rest.
+
   lilToon (1.3.1 through 2.4.1), which VCC installs and a package never carries, is known by its shaders' GUIDs and
   the properties they declare (`scripts/unity/liltoon.gd`), Lite by its own. Multi draws as its `_TransparentMode`
   says, and only the features its keywords compile. The atlas holds its colour adjustment (a hue a clip turns left

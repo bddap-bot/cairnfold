@@ -19,6 +19,8 @@ func _init() -> void:
 	_animated_parameters()
 	_contacts()
 	_clear_coat()
+	_toon()
+	_animated_looks()
 	finish()
 
 
@@ -324,7 +326,7 @@ func _lighting() -> void:
 	check(held != null and held.get_width() == Avatar.INDEX_SIDE and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.INDEX_SIDE)
 	var rows := table.get_image() if table else null
 	check(rows != null and rows.get_width() == 4 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
-	check(rows != null and rows.get_height() == 2 + Avatar.RAMP and rows.get_pixel(1, 1) == Color(0, 0, 0, 0) and rows.get_pixel(2, 1).is_equal_approx(Color(0.0, 1.0, 2.0, 0.5)), "the table's second row holds each entry's emission colour times its strength, and how far it overrides the lit colour")
+	check(rows != null and rows.get_height() == 2 + Avatar.RAMP and rows.get_pixel(1, 1) == Color(0, 0, 0, 0) and rows.get_pixel(2, 1).is_equal_approx(Color(0.0, 0.5, 1.0, 0.5)) and rows.get_pixel(2, 0).a == 2.0, "the table holds each entry's emission colour and how far it overrides the lit colour, its strength apart, and no toon rows where no entry draws one")
 	var lit := shown[1].get_surface_override_material(0) as ShaderMaterial
 	check(lit != null and lit.get_shader_parameter("glow") is Texture2D, "a mesh showing a glowing material draws by the looks with their emission map")
 	check(shown[2].get_surface_override_material(0) == null and shown[2].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials dark at rest keeps its plain material")
@@ -391,13 +393,16 @@ func _theme_recolours_the_emission() -> void:
 	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [resting], "layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": []}]}], "shown": [], "menu": [], "looks": looks})
 	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
+	var glowing := func(rows: Image, column: int) -> Color:
+		var c := rows.get_pixel(column, 1) * rows.get_pixel(column, 0).a
+		return Color(c.r, c.g, c.b, rows.get_pixel(column, 1).a)
 	var entry := func(mesh: MeshInstance3D, column: int) -> Color:
 		var mat := mesh.get_surface_override_material(0) as ShaderMaterial
 		var table: Variant = mat.get_shader_parameter("lighting") if mat else null
 		for glows: Dictionary in player._glows.values():
 			if glows.texture == table:
-				return glows.table.get_pixel(column, 1)
-		return (table as Texture2D).get_image().get_pixel(column, 1) if table is Texture2D else Color(-1, -1, -1, -1)
+				return glowing.call(glows.table, column)
+		return glowing.call((table as Texture2D).get_image(), column) if table is Texture2D else Color(-1, -1, -1, -1)
 	player.apply()
 	check(entry.call(shown[0], 1).is_equal_approx(Color(3.0, 0.0, 0.0, 0.25)), "while the clip rests at another material's offset, the theme keeps its own and glows as the converter left it, times its strength: %s" % [entry.call(shown[0], 1)])
 	player.state.advance(0.1)
@@ -477,6 +482,106 @@ func _clear_coat() -> void:
 	check(dry != null and dry.get_shader_parameter("region_count") in [null, 0], "and not a mesh that draws no coat")
 	player.free()
 	root.free()
+
+
+## The meshes, one a material, showing the looks entries of `looks`, each a triangle in its column of a four-column
+## index, `columns` wide, under `root`; and the importer meshes they were made from.
+func _shown(looks: Dictionary, columns: int, swaps := {}, animated := {}) -> Array:
+	var index := Image.create_empty(columns * 4, 4, false, Image.FORMAT_L8)
+	for k in columns:
+		index.fill_rect(Rect2i(k * 4, 0, 4, 4), Color8(k + 1, k + 1, k + 1))
+	looks.index = index
+	var meshes: Array[ImporterMesh] = []
+	for k in columns + swaps.size():
+		var u := (mini(k, columns - 1) + 0.25) / columns
+		var im := ImporterMesh.new()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.1), Vector2(u, 0.5), Vector2(u + 0.1 / columns, 0.9)])
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+		meshes.append(im)
+	var moved := {}
+	for k: int in swaps:
+		moved[meshes[columns + k]] = swaps[k]
+	Avatar._lit_looks(looks, meshes, moved, animated)
+	return meshes
+
+
+## A flat material with a toon shadow and a lit one with a rim write their looks to the table's toon rows, and only
+## meshes showing such a material, at rest or swapped to it, draw with the toon shaders; a mesh showing a matcap or only
+## a plain flat material keeps the shaders without them.
+func _toon() -> void:
+	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	layer.fill(Color.WHITE)
+	var shadow := {"border": 0.5, "blur": 0.1, "strength": 0.9, "second": {"border": 0.2, "blur": 0.05, "weight": 0.7}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
+	var rim := {"color": [0.6, 0.5, 0.4], "strength": 0.8, "main": 0.25, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5}
+	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 0.9, 0.8, 1.0], "intensity": 0.75, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 0.6, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.4, "lightMask": 1.0, "hue": null, "circle": null, "theme": null}
+	var looks := {"shade": layer, "shade2": layer, "matcaps": [layer], "materials": [
+		{"lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
+		{"lighting": {"model": "lit"}, "rim": rim},
+		{"lighting": {"model": "lit"}, "matcaps": [null, matcap, null, null]},
+		{"lighting": {"model": "flat", "cap": 1.0}}]}
+	for m: Dictionary in looks.materials:
+		check(ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [m]}), "a toon look in the shape the renderer draws is valid: %s" % [m])
+	for bad: Dictionary in [{"lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}]:
+		check(not ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [bad]}), "a malformed toon look is refused: %s" % [bad])
+	var meshes := _shown(looks, 4, {0: [[1, 1, -0.5, 0]]})
+	var table: Image = (meshes[0].get_surface_material(0).get_meta("lighting") as Texture2D).get_image()
+	var row := Avatar.HEAD_ROWS + Avatar.RAMP + Avatar.COAT_ROWS + 1 + Avatar.MATCAPS * Avatar.MATCAP_ROWS
+	check(table.get_height() == row + Avatar.TOON_ROWS, "a table with a toon entry holds its toon rows after the matcaps': %d" % table.get_height())
+	check(table.get_pixel(1, row).is_equal_approx(Color(0.5, 0.1, 0.9, 1.0)) and table.get_pixel(1, row + 1).is_equal_approx(Color(0.2, 0.05, 0.7, 0.0)) and table.get_pixel(1, row + 2).is_equal_approx(Color(1.0, 0.1, 0.0, 0.08)), "the shadow's border, blur and strength, its second shade and its edge fill the first three toon rows: %s %s %s" % [table.get_pixel(1, row), table.get_pixel(1, row + 1), table.get_pixel(1, row + 2)])
+	check(table.get_pixel(2, row + 3).is_equal_approx(Color(0.6, 0.5, 0.4, 0.8)) and table.get_pixel(2, row + 4).is_equal_approx(Color(0.25, 0.5, 0.65, 3.5)) and table.get_pixel(2, row + 5).is_equal_approx(Color(1.0, 0.5, 0.0, 0.0)) and table.get_pixel(1, row + 3).a == 0.0, "the rim's colour, strength, shape and reach fill the last three of its entry alone")
+	var root := Node3D.new()
+	var shown: Array[MeshInstance3D] = []
+	for im: ImporterMesh in meshes:
+		var mi := MeshInstance3D.new()
+		mi.mesh = im.get_mesh()
+		root.add_child(mi)
+		shown.append(mi)
+	root.set_meta("expressions", {"looks": looks})
+	ExpressionPlayer.prepare(root)
+	var player := ExpressionPlayer.new(root)
+	var shader := func(mi: MeshInstance3D) -> String: return (mi.get_surface_override_material(0) as ShaderMaterial).shader.resource_path.get_file() if mi.get_surface_override_material(0) is ShaderMaterial else ""
+	check([0, 1, 4].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader"), "meshes showing a shadow or a rim, or swapped to one, draw with the toon shader: %s" % [shown.map(shader)])
+	check(shader.call(shown[2]) == "expression.gdshader" and shader.call(shown[3]) == "expression.gdshader", "a mesh showing a matcap or only a plain flat material keeps the shader without toon looks: %s" % [shown.map(shader)])
+	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
+	check(mat.get_shader_parameter("shade") is Texture2D and mat.get_shader_parameter("shade2") is Texture2D, "a toon mesh binds the shade layers")
+	player.free()
+	root.free()
+	var dark := _shown({"emission": layer, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}, 1, {}, {"emission": true})
+	check(dark[0].get_surface_material(0).has_meta("lighting") and not dark[0].get_surface_material(0).has_meta("toon"), "an emission dark at rest draws by the looks where a clip may light it, without the toon shaders")
+	var unlit := _shown({"emission": layer, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}, 1)
+	check(not unlit[0].get_surface_material(0).has_meta("lighting"), "one no clip may light keeps its plain material")
+
+
+## Look regions driving an emission's strength or a matcap's intensity are bound to their mesh and reach the shader as
+## their field while the target is off its rest, and as at rest (-1), where each material keeps its own, otherwise.
+func _animated_looks() -> void:
+	var model := Node3D.new()
+	var hat := MeshInstance3D.new()
+	hat.name = "Hat"
+	hat.mesh = BoxMesh.new()
+	model.add_child(hat)
+	var region := func(field: String, slot: int) -> Dictionary: return {"effect": {"look": [{"node": "Hat", "rect": [0, 0, 1, 1], "field": field, "slot": slot}]}, "default": 0.0}
+	model.set_meta("expressions", {"parameters": [], "targets": [region.call("emission", 0), region.call("matcapIntensity", 1), region.call("matcapReplace", 0)], "clips": [], "layers": [], "shown": [], "menu": []})
+	var player := ExpressionPlayer.new(model)
+	player.apply()
+	var mat := hat.get_surface_override_material(0) as ShaderMaterial
+	var rows := func() -> Image: return (mat.get_shader_parameter("regions") as Texture2D).get_image()
+	check(mat != null and mat.get_shader_parameter("region_count") == 2, "the emission and matcap intensity regions are bound, the matcap replace one Cairnfold does not draw left out")
+	check(rows.call().get_pixel(0, 2).g == -1.0 and rows.call().get_pixel(1, 2).g == -1.0, "a look target at rest leaves each material its own value")
+	player.state.outputs[0] = 2.5
+	player.state.outputs[1] = 0.5
+	mat.set_shader_parameter("regions", null)
+	player.apply()
+	var moved: Image = rows.call()
+	var emission := ExpressionPlayer.LOOK_FIELDS.find("emission")
+	var intensity := ExpressionPlayer.LOOK_FIELDS.find("matcapIntensity")
+	check(moved.get_pixel(0, 1).r == 2.5 and moved.get_pixel(0, 2).g == emission and moved.get_pixel(1, 1).r == 0.5 and moved.get_pixel(1, 1).b == 1.0 and moved.get_pixel(1, 2).g == intensity, "a moved emission sets the strength and a moved matcap its slot's intensity: %s %s" % [moved.get_pixel(0, 1), moved.get_pixel(1, 2)])
+	player.free()
+	model.free()
+
 
 func _moving_targets_leave_regions_bound() -> void:
 	var model := Node3D.new()

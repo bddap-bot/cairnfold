@@ -1,179 +1,203 @@
 [gd_resource type="Resource" format=3]
 
-[ext_resource type="Shader" path="res://src/avatar_outline.gdshader" id="1_5mjgs"]
-[ext_resource type="Shader" path="res://src/avatar_outline_cut.gdshader" id="2_heoyh"]
-[ext_resource type="Shader" path="res://src/beast.gdshader" id="3_it7ro"]
-[ext_resource type="Shader" path="res://src/board.gdshader" id="4_tpgb2"]
-[ext_resource type="Shader" path="res://src/book.gdshader" id="5_4s722"]
-[ext_resource type="Shader" path="res://src/book_icon.gdshader" id="6_ces1f"]
-[ext_resource type="Shader" path="res://src/book_page.gdshader" id="7_3l3of"]
-[ext_resource type="Shader" path="res://src/book_paint.gdshader" id="8_p3t6d"]
-[ext_resource type="Shader" path="res://src/book_ribbon.gdshader" id="9_yxe4b"]
-[ext_resource type="Shader" path="res://src/bristles.gdshader" id="10_jy1ip"]
-[ext_resource type="Shader" path="res://src/budget_bar.gdshader" id="11_vlta5"]
-[ext_resource type="Shader" path="res://src/butterfly.gdshader" id="12_o70t5"]
-[ext_resource type="Shader" path="res://src/canvas.gdshader" id="13_vup16"]
-[ext_resource type="Shader" path="res://src/canvas_flat.gdshader" id="14_yvkh0"]
-[ext_resource type="Shader" path="res://src/cloth.gdshader" id="15_g42k8"]
-[ext_resource type="Shader" path="res://src/conure.gdshader" id="16_r1p1o"]
-[ext_resource type="Shader" path="res://src/disc.gdshader" id="17_h1edw"]
-[ext_resource type="Shader" path="res://src/duck.gdshader" id="18_xnuaw"]
-[ext_resource type="Shader" path="res://src/expression.gdshader" id="19_nb2sl"]
-[ext_resource type="Shader" path="res://src/expression_blended.gdshader" id="20_m6x0f"]
-[ext_resource type="Shader" path="res://src/expression_blended_coat.gdshader" id="21_3718t"]
-[ext_resource type="Shader" path="res://src/expression_blended_coat_two_sided.gdshader" id="22_1tfhe"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth.gdshader" id="23_ta3tb"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_coat.gdshader" id="24_cbrl4"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_coat_two_sided.gdshader" id="25_gfjbq"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_hue.gdshader" id="26_f85ym"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat.gdshader" id="27_hq2hk"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat_two_sided.gdshader" id="28_0twvu"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_two_sided.gdshader" id="29_jm4b7"]
-[ext_resource type="Shader" path="res://src/expression_blended_depth_two_sided.gdshader" id="30_7rh2u"]
-[ext_resource type="Shader" path="res://src/expression_blended_hue.gdshader" id="31_4ni34"]
-[ext_resource type="Shader" path="res://src/expression_blended_hue_coat.gdshader" id="32_oyu4c"]
-[ext_resource type="Shader" path="res://src/expression_blended_hue_coat_two_sided.gdshader" id="33_tngqv"]
-[ext_resource type="Shader" path="res://src/expression_blended_hue_two_sided.gdshader" id="34_2d7w4"]
-[ext_resource type="Shader" path="res://src/expression_blended_two_sided.gdshader" id="35_k4y70"]
-[ext_resource type="Shader" path="res://src/expression_coat.gdshader" id="36_488uc"]
-[ext_resource type="Shader" path="res://src/expression_coat_two_sided.gdshader" id="37_v3jv6"]
-[ext_resource type="Shader" path="res://src/expression_hue.gdshader" id="38_qd6ii"]
-[ext_resource type="Shader" path="res://src/expression_hue_coat.gdshader" id="39_q7jsq"]
-[ext_resource type="Shader" path="res://src/expression_hue_coat_two_sided.gdshader" id="40_ma1lj"]
-[ext_resource type="Shader" path="res://src/expression_hue_two_sided.gdshader" id="41_2mqp0"]
-[ext_resource type="Shader" path="res://src/expression_two_sided.gdshader" id="42_ldiye"]
-[ext_resource type="Shader" path="res://src/firefly.gdshader" id="43_lhlxd"]
-[ext_resource type="Shader" path="res://src/fish.gdshader" id="44_xhluq"]
-[ext_resource type="Shader" path="res://src/flame.gdshader" id="45_37vam"]
-[ext_resource type="Shader" path="res://src/flora_far.gdshader" id="46_svdyj"]
-[ext_resource type="Shader" path="res://src/flower.gdshader" id="47_4psi7"]
-[ext_resource type="Shader" path="res://src/frog.gdshader" id="48_826mm"]
-[ext_resource type="Shader" path="res://src/grass.gdshader" id="49_aujdd"]
-[ext_resource type="Shader" path="res://src/halo.gdshader" id="50_mhv5m"]
-[ext_resource type="Shader" path="res://src/icon.gdshader" id="51_ta630"]
-[ext_resource type="Shader" path="res://src/ivy.gdshader" id="52_83iss"]
-[ext_resource type="Shader" path="res://src/lake.gdshader" id="53_hrvgj"]
-[ext_resource type="Shader" path="res://src/leaf.gdshader" id="54_oono5"]
-[ext_resource type="Shader" path="res://src/lesson_dish.gdshader" id="55_seppb"]
-[ext_resource type="Shader" path="res://src/mirror.gdshader" id="56_x13lk"]
-[ext_resource type="Shader" path="res://src/moss.gdshader" id="57_yoa6w"]
-[ext_resource type="Shader" path="res://src/mountains.gdshader" id="58_xrdtr"]
-[ext_resource type="Shader" path="res://src/owl.gdshader" id="59_ret7y"]
-[ext_resource type="Shader" path="res://src/pad_ring.gdshader" id="60_s5bog"]
-[ext_resource type="Shader" path="res://src/particle_add.gdshader" id="61_ob12n"]
-[ext_resource type="Shader" path="res://src/particle_alpha.gdshader" id="62_qjilg"]
-[ext_resource type="Shader" path="res://src/particle_multiply.gdshader" id="63_micgd"]
-[ext_resource type="Shader" path="res://src/particle_opaque.gdshader" id="64_2lsad"]
-[ext_resource type="Shader" path="res://src/particle_premultiplied.gdshader" id="65_6iheq"]
-[ext_resource type="Shader" path="res://src/plant.gdshader" id="66_xt4k4"]
-[ext_resource type="Shader" path="res://src/plaster.gdshader" id="67_yvylo"]
-[ext_resource type="Shader" path="res://src/rag.gdshader" id="68_nbkq6"]
-[ext_resource type="Shader" path="res://src/roof_shadow.gdshader" id="69_6pcfn"]
-[ext_resource type="Shader" path="res://src/roof_timber.gdshader" id="70_f7odc"]
-[ext_resource type="Shader" path="res://src/sheep.gdshader" id="71_dbls3"]
-[ext_resource type="Shader" path="res://src/sky.gdshader" id="72_sl3wa"]
-[ext_resource type="Shader" path="res://src/smoke.gdshader" id="73_tultj"]
-[ext_resource type="Shader" path="res://src/snails.gdshader" id="74_a81hp"]
-[ext_resource type="Shader" path="res://src/snake.gdshader" id="75_mno7m"]
-[ext_resource type="Shader" path="res://src/squirrel.gdshader" id="76_w5h33"]
-[ext_resource type="Shader" path="res://src/stone.gdshader" id="77_7mtl1"]
-[ext_resource type="Shader" path="res://src/stone_disc.gdshader" id="78_umlxj"]
-[ext_resource type="Shader" path="res://src/stone_disc_icon.gdshader" id="79_0f5sn"]
-[ext_resource type="Shader" path="res://src/stone_far.gdshader" id="80_0vqef"]
-[ext_resource type="Shader" path="res://src/stone_small.gdshader" id="81_g3mpm"]
-[ext_resource type="Shader" path="res://src/terrain.gdshader" id="82_8n08j"]
-[ext_resource type="Shader" path="res://src/terrain_plain.gdshader" id="83_bocw1"]
-[ext_resource type="Shader" path="res://src/thatch.gdshader" id="84_abrik"]
-[ext_resource type="Shader" path="res://src/timber_far.gdshader" id="85_iayxm"]
-[ext_resource type="Shader" path="res://src/timber_far_baked.gdshader" id="86_p2muv"]
-[ext_resource type="Shader" path="res://src/torching.gdshader" id="87_ix0cy"]
-[ext_resource type="Shader" path="res://src/underwater.gdshader" id="88_xlpcq"]
-[ext_resource type="Shader" path="res://src/water.gdshader" id="89_ftjtg"]
+[ext_resource type="Shader" path="res://src/avatar_outline.gdshader" id="1_gfjbq"]
+[ext_resource type="Shader" path="res://src/avatar_outline_cut.gdshader" id="2_f85ym"]
+[ext_resource type="Shader" path="res://src/beast.gdshader" id="3_hq2hk"]
+[ext_resource type="Shader" path="res://src/board.gdshader" id="4_0twvu"]
+[ext_resource type="Shader" path="res://src/book.gdshader" id="5_jm4b7"]
+[ext_resource type="Shader" path="res://src/book_icon.gdshader" id="6_7rh2u"]
+[ext_resource type="Shader" path="res://src/book_page.gdshader" id="7_4ni34"]
+[ext_resource type="Shader" path="res://src/book_paint.gdshader" id="8_oyu4c"]
+[ext_resource type="Shader" path="res://src/book_ribbon.gdshader" id="9_tngqv"]
+[ext_resource type="Shader" path="res://src/bristles.gdshader" id="10_2d7w4"]
+[ext_resource type="Shader" path="res://src/budget_bar.gdshader" id="11_k4y70"]
+[ext_resource type="Shader" path="res://src/butterfly.gdshader" id="12_488uc"]
+[ext_resource type="Shader" path="res://src/canvas.gdshader" id="13_v3jv6"]
+[ext_resource type="Shader" path="res://src/canvas_flat.gdshader" id="14_qd6ii"]
+[ext_resource type="Shader" path="res://src/cloth.gdshader" id="15_q7jsq"]
+[ext_resource type="Shader" path="res://src/conure.gdshader" id="16_ma1lj"]
+[ext_resource type="Shader" path="res://src/disc.gdshader" id="17_2mqp0"]
+[ext_resource type="Shader" path="res://src/duck.gdshader" id="18_ldiye"]
+[ext_resource type="Shader" path="res://src/expression.gdshader" id="19_lhlxd"]
+[ext_resource type="Shader" path="res://src/expression_blended.gdshader" id="20_xhluq"]
+[ext_resource type="Shader" path="res://src/expression_blended_coat.gdshader" id="21_37vam"]
+[ext_resource type="Shader" path="res://src/expression_blended_coat_toon.gdshader" id="22_svdyj"]
+[ext_resource type="Shader" path="res://src/expression_blended_coat_toon_two_sided.gdshader" id="23_4psi7"]
+[ext_resource type="Shader" path="res://src/expression_blended_coat_two_sided.gdshader" id="24_826mm"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth.gdshader" id="25_aujdd"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_coat.gdshader" id="26_mhv5m"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_coat_toon.gdshader" id="27_ta630"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_coat_toon_two_sided.gdshader" id="28_83iss"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_coat_two_sided.gdshader" id="29_hrvgj"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue.gdshader" id="30_oono5"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat.gdshader" id="31_seppb"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat_toon.gdshader" id="32_x13lk"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat_toon_two_sided.gdshader" id="33_yoa6w"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_coat_two_sided.gdshader" id="34_xrdtr"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_toon.gdshader" id="35_ret7y"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_toon_two_sided.gdshader" id="36_s5bog"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_hue_two_sided.gdshader" id="37_ob12n"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_toon.gdshader" id="38_qjilg"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_toon_two_sided.gdshader" id="39_micgd"]
+[ext_resource type="Shader" path="res://src/expression_blended_depth_two_sided.gdshader" id="40_2lsad"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue.gdshader" id="41_6iheq"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_coat.gdshader" id="42_xt4k4"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_coat_toon.gdshader" id="43_yvylo"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_coat_toon_two_sided.gdshader" id="44_nbkq6"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_coat_two_sided.gdshader" id="45_6pcfn"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_toon.gdshader" id="46_f7odc"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_toon_two_sided.gdshader" id="47_dbls3"]
+[ext_resource type="Shader" path="res://src/expression_blended_hue_two_sided.gdshader" id="48_sl3wa"]
+[ext_resource type="Shader" path="res://src/expression_blended_toon.gdshader" id="49_tultj"]
+[ext_resource type="Shader" path="res://src/expression_blended_toon_two_sided.gdshader" id="50_a81hp"]
+[ext_resource type="Shader" path="res://src/expression_blended_two_sided.gdshader" id="51_mno7m"]
+[ext_resource type="Shader" path="res://src/expression_coat.gdshader" id="52_w5h33"]
+[ext_resource type="Shader" path="res://src/expression_coat_toon.gdshader" id="53_7mtl1"]
+[ext_resource type="Shader" path="res://src/expression_coat_toon_two_sided.gdshader" id="54_umlxj"]
+[ext_resource type="Shader" path="res://src/expression_coat_two_sided.gdshader" id="55_0f5sn"]
+[ext_resource type="Shader" path="res://src/expression_hue.gdshader" id="56_0vqef"]
+[ext_resource type="Shader" path="res://src/expression_hue_coat.gdshader" id="57_g3mpm"]
+[ext_resource type="Shader" path="res://src/expression_hue_coat_toon.gdshader" id="58_8n08j"]
+[ext_resource type="Shader" path="res://src/expression_hue_coat_toon_two_sided.gdshader" id="59_bocw1"]
+[ext_resource type="Shader" path="res://src/expression_hue_coat_two_sided.gdshader" id="60_abrik"]
+[ext_resource type="Shader" path="res://src/expression_hue_toon.gdshader" id="61_iayxm"]
+[ext_resource type="Shader" path="res://src/expression_hue_toon_two_sided.gdshader" id="62_p2muv"]
+[ext_resource type="Shader" path="res://src/expression_hue_two_sided.gdshader" id="63_ix0cy"]
+[ext_resource type="Shader" path="res://src/expression_toon.gdshader" id="64_xlpcq"]
+[ext_resource type="Shader" path="res://src/expression_toon_two_sided.gdshader" id="65_ftjtg"]
+[ext_resource type="Shader" path="res://src/expression_two_sided.gdshader" id="66_kdmav"]
+[ext_resource type="Shader" path="res://src/firefly.gdshader" id="67_njxd8"]
+[ext_resource type="Shader" path="res://src/fish.gdshader" id="68_v6hb3"]
+[ext_resource type="Shader" path="res://src/flame.gdshader" id="69_i034c"]
+[ext_resource type="Shader" path="res://src/flora_far.gdshader" id="70_3mawi"]
+[ext_resource type="Shader" path="res://src/flower.gdshader" id="71_03rrf"]
+[ext_resource type="Shader" path="res://src/frog.gdshader" id="72_kjtlx"]
+[ext_resource type="Shader" path="res://src/grass.gdshader" id="73_1yir2"]
+[ext_resource type="Shader" path="res://src/halo.gdshader" id="74_dl6mv"]
+[ext_resource type="Shader" path="res://src/icon.gdshader" id="75_32b5h"]
+[ext_resource type="Shader" path="res://src/ivy.gdshader" id="76_sy21w"]
+[ext_resource type="Shader" path="res://src/lake.gdshader" id="77_d551n"]
+[ext_resource type="Shader" path="res://src/leaf.gdshader" id="78_0d33h"]
+[ext_resource type="Shader" path="res://src/lesson_dish.gdshader" id="79_1mmfp"]
+[ext_resource type="Shader" path="res://src/mirror.gdshader" id="80_byl1w"]
+[ext_resource type="Shader" path="res://src/moss.gdshader" id="81_oes41"]
+[ext_resource type="Shader" path="res://src/mountains.gdshader" id="82_jb6s1"]
+[ext_resource type="Shader" path="res://src/owl.gdshader" id="83_srhdn"]
+[ext_resource type="Shader" path="res://src/pad_ring.gdshader" id="84_dtug4"]
+[ext_resource type="Shader" path="res://src/particle_add.gdshader" id="85_5cpin"]
+[ext_resource type="Shader" path="res://src/particle_alpha.gdshader" id="86_n6dac"]
+[ext_resource type="Shader" path="res://src/particle_multiply.gdshader" id="87_701be"]
+[ext_resource type="Shader" path="res://src/particle_opaque.gdshader" id="88_jrn3h"]
+[ext_resource type="Shader" path="res://src/particle_premultiplied.gdshader" id="89_6hsw0"]
+[ext_resource type="Shader" path="res://src/plant.gdshader" id="90_p0hrs"]
+[ext_resource type="Shader" path="res://src/plaster.gdshader" id="91_6q540"]
+[ext_resource type="Shader" path="res://src/rag.gdshader" id="92_dpjyh"]
+[ext_resource type="Shader" path="res://src/roof_shadow.gdshader" id="93_wf0kg"]
+[ext_resource type="Shader" path="res://src/roof_timber.gdshader" id="94_fefng"]
+[ext_resource type="Shader" path="res://src/sheep.gdshader" id="95_rcqeo"]
+[ext_resource type="Shader" path="res://src/sky.gdshader" id="96_3p7by"]
+[ext_resource type="Shader" path="res://src/smoke.gdshader" id="97_0jdx4"]
+[ext_resource type="Shader" path="res://src/snails.gdshader" id="98_uv4pc"]
+[ext_resource type="Shader" path="res://src/snake.gdshader" id="99_c7of4"]
+[ext_resource type="Shader" path="res://src/squirrel.gdshader" id="100_n8ymk"]
+[ext_resource type="Shader" path="res://src/stone.gdshader" id="101_rh4we"]
+[ext_resource type="Shader" path="res://src/stone_disc.gdshader" id="102_mlodn"]
+[ext_resource type="Shader" path="res://src/stone_disc_icon.gdshader" id="103_bjh2j"]
+[ext_resource type="Shader" path="res://src/stone_far.gdshader" id="104_o2ajl"]
+[ext_resource type="Shader" path="res://src/stone_small.gdshader" id="105_cmp37"]
+[ext_resource type="Shader" path="res://src/terrain.gdshader" id="106_lq1sj"]
+[ext_resource type="Shader" path="res://src/terrain_plain.gdshader" id="107_nn3tr"]
+[ext_resource type="Shader" path="res://src/thatch.gdshader" id="108_s258n"]
+[ext_resource type="Shader" path="res://src/timber_far.gdshader" id="109_k6jj1"]
+[ext_resource type="Shader" path="res://src/timber_far_baked.gdshader" id="110_liu3f"]
+[ext_resource type="Shader" path="res://src/torching.gdshader" id="111_1cs23"]
+[ext_resource type="Shader" path="res://src/underwater.gdshader" id="112_fepo4"]
+[ext_resource type="Shader" path="res://src/water.gdshader" id="113_de0q8"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kdmav"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_o66l5"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_njxd8"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_a1kdp"]
 vertex_color_use_as_albedo = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_v6hb3"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n23fp"]
 vertex_color_use_as_albedo = true
 vertex_color_is_srgb = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_i034c"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cv45o"]
 transparency = 1
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3mawi"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rj7sh"]
 transparency = 1
 vertex_color_use_as_albedo = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_03rrf"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1fd5a"]
 transparency = 1
 rim_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kjtlx"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8ikq3"]
 emission_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1yir2"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2ic3w"]
 cull_mode = 2
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dl6mv"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hgpsx"]
 cull_mode = 2
 vertex_color_use_as_albedo = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_32b5h"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pb0r3"]
 vertex_color_use_as_albedo = true
 backlight_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sy21w"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_miyq2"]
 shading_mode = 2
 texture_filter = 5
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_d551n"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g7umi"]
 shading_mode = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0d33h"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gacgg"]
 transparency = 1
 shading_mode = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1mmfp"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xo0sk"]
 transparency = 1
 no_depth_test = true
 shading_mode = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_byl1w"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lfmu6"]
 transparency = 1
 cull_mode = 2
 shading_mode = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_oes41"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vhfh8"]
 transparency = 1
 cull_mode = 2
 depth_draw_mode = 2
 shading_mode = 0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_jb6s1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8u3fq"]
 render_priority = 0
-shader = ExtResource("1_5mjgs")
+shader = ExtResource("1_gfjbq")
 shader_parameter/mirror_mask = null
 shader_parameter/width = null
 shader_parameter/atlas = null
 shader_parameter/colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_srhdn"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1omr1"]
 render_priority = 0
-shader = ExtResource("2_heoyh")
+shader = ExtResource("2_f85ym")
 shader_parameter/mirror_mask = null
 shader_parameter/width = null
 shader_parameter/atlas = null
 shader_parameter/colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dtug4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lnm1g"]
 render_priority = 0
-shader = ExtResource("3_it7ro")
+shader = ExtResource("3_hq2hk")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_5cpin"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_igfpj"]
 render_priority = 0
-shader = ExtResource("4_tpgb2")
+shader = ExtResource("4_0twvu")
 shader_parameter/impasto = null
 shader_parameter/grain = null
 shader_parameter/metres = null
@@ -182,9 +206,9 @@ shader_parameter/open = null
 shader_parameter/thumb = null
 shader_parameter/thumb_clear = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_n6dac"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_x6yr2"]
 render_priority = 0
-shader = ExtResource("5_4s722")
+shader = ExtResource("5_jm4b7")
 shader_parameter/kind = null
 shader_parameter/size = null
 shader_parameter/front = null
@@ -197,17 +221,17 @@ shader_parameter/gutter_bow = null
 shader_parameter/leaf_width = null
 shader_parameter/edge_paint = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_701be"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_brqem"]
 render_priority = 0
-shader = ExtResource("6_ces1f")
+shader = ExtResource("6_7rh2u")
 shader_parameter/size = null
 shader_parameter/front = null
 shader_parameter/cloth = null
 shader_parameter/leather = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_jrn3h"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_y6l0y"]
 render_priority = 0
-shader = ExtResource("7_3l3of")
+shader = ExtResource("7_4ni34")
 shader_parameter/width = null
 shader_parameter/paper = null
 shader_parameter/angle = null
@@ -222,8 +246,8 @@ shader_parameter/back_fade = null
 shader_parameter/front_seed = null
 shader_parameter/back_seed = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_6hsw0"]
-shader = ExtResource("8_p3t6d")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tlag0"]
+shader = ExtResource("8_oyu4c")
 shader_parameter/face_seed = null
 shader_parameter/face_drawn = null
 shader_parameter/back_face = null
@@ -233,69 +257,69 @@ shader_parameter/cloth = null
 shader_parameter/leather = null
 shader_parameter/paper = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_p0hrs"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5ifef"]
 render_priority = 0
-shader = ExtResource("9_yxe4b")
+shader = ExtResource("9_tngqv")
 shader_parameter/glow = null
 shader_parameter/colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_6q540"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2f0b6"]
 render_priority = 0
-shader = ExtResource("10_jy1ip")
+shader = ExtResource("10_2d7w4")
 shader_parameter/paint_colour = null
 shader_parameter/load = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dpjyh"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_03a1h"]
 render_priority = 0
-shader = ExtResource("11_vlta5")
+shader = ExtResource("11_k4y70")
 shader_parameter/fill = null
 shader_parameter/pending = null
 shader_parameter/over = null
 shader_parameter/size = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wf0kg"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xhd2v"]
 render_priority = 0
-shader = ExtResource("12_o70t5")
+shader = ExtResource("12_488uc")
 shader_parameter/wind_dir = null
 shader_parameter/wind_strength = null
 shader_parameter/gust_wavelength = null
 shader_parameter/gust_speed = null
 shader_parameter/body = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fefng"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4cd3d"]
 render_priority = 0
-shader = ExtResource("13_vup16")
+shader = ExtResource("13_v3jv6")
 shader_parameter/impasto = null
 shader_parameter/grain = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rcqeo"]
-shader = ExtResource("14_yvkh0")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_58h8x"]
+shader = ExtResource("14_qd6ii")
 shader_parameter/impasto = null
 shader_parameter/grain = null
 shader_parameter/height = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_3p7by"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mjnrk"]
 render_priority = 0
-shader = ExtResource("15_g42k8")
+shader = ExtResource("15_q7jsq")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_0jdx4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vt85q"]
 render_priority = 0
-shader = ExtResource("16_r1p1o")
+shader = ExtResource("16_ma1lj")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_uv4pc"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i86oh"]
 render_priority = 0
-shader = ExtResource("17_h1edw")
+shader = ExtResource("17_2mqp0")
 shader_parameter/tint = null
 shader_parameter/radius = null
 shader_parameter/moon = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_c7of4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_58h38"]
 render_priority = 0
-shader = ExtResource("18_xnuaw")
+shader = ExtResource("18_ldiye")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_n8ymk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b5tkf"]
 render_priority = 0
-shader = ExtResource("19_nb2sl")
+shader = ExtResource("19_lhlxd")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -303,9 +327,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rh4we"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_edhxl"]
 render_priority = 0
-shader = ExtResource("20_m6x0f")
+shader = ExtResource("20_xhluq")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -313,9 +337,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_mlodn"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wy1kg"]
 render_priority = 0
-shader = ExtResource("21_3718t")
+shader = ExtResource("21_37vam")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -323,9 +347,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bjh2j"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8siej"]
 render_priority = 0
-shader = ExtResource("22_1tfhe")
+shader = ExtResource("22_svdyj")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -333,9 +357,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_o2ajl"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sekem"]
 render_priority = 0
-shader = ExtResource("23_ta3tb")
+shader = ExtResource("23_4psi7")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -343,9 +367,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_cmp37"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v2o5c"]
 render_priority = 0
-shader = ExtResource("24_cbrl4")
+shader = ExtResource("24_826mm")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -353,9 +377,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_lq1sj"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fky2f"]
 render_priority = 0
-shader = ExtResource("25_gfjbq")
+shader = ExtResource("25_aujdd")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -363,9 +387,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_nn3tr"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_68r22"]
 render_priority = 0
-shader = ExtResource("26_f85ym")
+shader = ExtResource("26_mhv5m")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -373,9 +397,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_s258n"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wpjvb"]
 render_priority = 0
-shader = ExtResource("27_hq2hk")
+shader = ExtResource("27_ta630")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -383,9 +407,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_k6jj1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p37o5"]
 render_priority = 0
-shader = ExtResource("28_0twvu")
+shader = ExtResource("28_83iss")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -393,9 +417,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_liu3f"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v0seo"]
 render_priority = 0
-shader = ExtResource("29_jm4b7")
+shader = ExtResource("29_hrvgj")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -403,9 +427,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_1cs23"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3y6wp"]
 render_priority = 0
-shader = ExtResource("30_7rh2u")
+shader = ExtResource("30_oono5")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -413,9 +437,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fepo4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_77ftt"]
 render_priority = 0
-shader = ExtResource("31_4ni34")
+shader = ExtResource("31_seppb")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -423,9 +447,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_de0q8"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_x4qr8"]
 render_priority = 0
-shader = ExtResource("32_oyu4c")
+shader = ExtResource("32_x13lk")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -433,9 +457,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_o66l5"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8h3q4"]
 render_priority = 0
-shader = ExtResource("33_tngqv")
+shader = ExtResource("33_yoa6w")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -443,9 +467,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_a1kdp"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_p7cd5"]
 render_priority = 0
-shader = ExtResource("34_2d7w4")
+shader = ExtResource("34_xrdtr")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -453,9 +477,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_n23fp"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q0oli"]
 render_priority = 0
-shader = ExtResource("35_k4y70")
+shader = ExtResource("35_ret7y")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -463,9 +487,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_cv45o"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_higif"]
 render_priority = 0
-shader = ExtResource("36_488uc")
+shader = ExtResource("36_s5bog")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -473,9 +497,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rj7sh"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gugia"]
 render_priority = 0
-shader = ExtResource("37_v3jv6")
+shader = ExtResource("37_ob12n")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -483,9 +507,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_1fd5a"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ho3ty"]
 render_priority = 0
-shader = ExtResource("38_qd6ii")
+shader = ExtResource("38_qjilg")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -493,9 +517,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8ikq3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gogwg"]
 render_priority = 0
-shader = ExtResource("39_q7jsq")
+shader = ExtResource("39_micgd")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -503,9 +527,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_2ic3w"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mybbj"]
 render_priority = 0
-shader = ExtResource("40_ma1lj")
+shader = ExtResource("40_2lsad")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -513,9 +537,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_hgpsx"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jhh88"]
 render_priority = 0
-shader = ExtResource("41_2mqp0")
+shader = ExtResource("41_6iheq")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -523,9 +547,9 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pb0r3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_oo7x4"]
 render_priority = 0
-shader = ExtResource("42_ldiye")
+shader = ExtResource("42_xt4k4")
 shader_parameter/mirror_mask = null
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
@@ -533,27 +557,267 @@ shader_parameter/atlas = null
 shader_parameter/region_count = null
 shader_parameter/untinted_count = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_miyq2"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i31tr"]
 render_priority = 0
-shader = ExtResource("43_lhlxd")
+shader = ExtResource("43_yvylo")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_oweps"]
+render_priority = 0
+shader = ExtResource("44_nbkq6")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_au7ii"]
+render_priority = 0
+shader = ExtResource("45_6pcfn")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_amgj8"]
+render_priority = 0
+shader = ExtResource("46_f7odc")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xejms"]
+render_priority = 0
+shader = ExtResource("47_dbls3")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_owxfi"]
+render_priority = 0
+shader = ExtResource("48_sl3wa")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hcymn"]
+render_priority = 0
+shader = ExtResource("49_tultj")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_15obd"]
+render_priority = 0
+shader = ExtResource("50_a81hp")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cj44f"]
+render_priority = 0
+shader = ExtResource("51_mno7m")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_a5xwa"]
+render_priority = 0
+shader = ExtResource("52_w5h33")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_n7ifj"]
+render_priority = 0
+shader = ExtResource("53_7mtl1")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q5c4c"]
+render_priority = 0
+shader = ExtResource("54_umlxj")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vppht"]
+render_priority = 0
+shader = ExtResource("55_0f5sn")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ln5nj"]
+render_priority = 0
+shader = ExtResource("56_0vqef")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_stphq"]
+render_priority = 0
+shader = ExtResource("57_g3mpm")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5jkbp"]
+render_priority = 0
+shader = ExtResource("58_8n08j")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5x2bh"]
+render_priority = 0
+shader = ExtResource("59_bocw1")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lp0a8"]
+render_priority = 0
+shader = ExtResource("60_abrik")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pqv2k"]
+render_priority = 0
+shader = ExtResource("61_iayxm")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2w338"]
+render_priority = 0
+shader = ExtResource("62_p2muv")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6etwe"]
+render_priority = 0
+shader = ExtResource("63_ix0cy")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5vd3v"]
+render_priority = 0
+shader = ExtResource("64_xlpcq")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cgg2v"]
+render_priority = 0
+shader = ExtResource("65_ftjtg")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_34n2l"]
+render_priority = 0
+shader = ExtResource("66_kdmav")
+shader_parameter/mirror_mask = null
+shader_parameter/colour = null
+shader_parameter/use_vertex = null
+shader_parameter/atlas = null
+shader_parameter/region_count = null
+shader_parameter/untinted_count = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7nuqx"]
+render_priority = 0
+shader = ExtResource("67_njxd8")
 shader_parameter/clock = null
 shader_parameter/dusk = null
 shader_parameter/fade = null
 shader_parameter/tint = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_g7umi"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cnv2"]
 render_priority = 0
-shader = ExtResource("44_xhluq")
+shader = ExtResource("68_v6hb3")
 shader_parameter/shallow = null
 shader_parameter/deep = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_gacgg"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_oqlwi"]
 render_priority = 0
-shader = ExtResource("45_37vam")
+shader = ExtResource("69_i034c")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_xo0sk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hohb4"]
 render_priority = 0
-shader = ExtResource("46_svdyj")
+shader = ExtResource("70_3mawi")
 shader_parameter/draw_reach = null
 shader_parameter/draw_fade = null
 shader_parameter/lod_begin = null
@@ -563,9 +827,9 @@ shader_parameter/survivors_from = null
 shader_parameter/sink = null
 shader_parameter/stem = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_lfmu6"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g4g7h"]
 render_priority = 0
-shader = ExtResource("47_4psi7")
+shader = ExtResource("71_03rrf")
 shader_parameter/wind_dir = null
 shader_parameter/wind_strength = null
 shader_parameter/gust_wavelength = null
@@ -595,13 +859,13 @@ shader_parameter/pad_green = null
 shader_parameter/stalk = null
 shader_parameter/eye = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vhfh8"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rurdg"]
 render_priority = 0
-shader = ExtResource("48_826mm")
+shader = ExtResource("72_kjtlx")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8u3fq"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_31gts"]
 render_priority = 0
-shader = ExtResource("49_aujdd")
+shader = ExtResource("73_1yir2")
 shader_parameter/wind_dir = null
 shader_parameter/wind_strength = null
 shader_parameter/gust_wavelength = null
@@ -642,28 +906,28 @@ shader_parameter/weed_root = null
 shader_parameter/weed_tip = null
 shader_parameter/weed_deep = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_1omr1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_w31oq"]
 render_priority = 0
-shader = ExtResource("50_mhv5m")
+shader = ExtResource("74_dl6mv")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_lnm1g"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kale0"]
 render_priority = 0
-shader = ExtResource("51_ta630")
+shader = ExtResource("75_32b5h")
 shader_parameter/colour = null
 shader_parameter/use_vertex = null
 shader_parameter/uv_scale = null
 shader_parameter/uv_offset = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_igfpj"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kewmk"]
 render_priority = 0
-shader = ExtResource("52_83iss")
+shader = ExtResource("76_sy21w")
 shader_parameter/backlight = null
 shader_parameter/reach = null
 shader_parameter/full_layer = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_x6yr2"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1laok"]
 render_priority = 0
-shader = ExtResource("53_hrvgj")
+shader = ExtResource("77_d551n")
 shader_parameter/stone = null
 shader_parameter/slope = null
 shader_parameter/deep = null
@@ -671,9 +935,9 @@ shader_parameter/level = null
 shader_parameter/radii = null
 shader_parameter/top = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_brqem"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gfws2"]
 render_priority = 0
-shader = ExtResource("54_oono5")
+shader = ExtResource("78_0d33h")
 shader_parameter/wind_dir = null
 shader_parameter/wind_strength = null
 shader_parameter/gust_wavelength = null
@@ -682,9 +946,9 @@ shader_parameter/roughness = null
 shader_parameter/backlight = null
 shader_parameter/crown_lump = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_y6l0y"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g0kdp"]
 render_priority = 0
-shader = ExtResource("55_seppb")
+shader = ExtResource("79_1mmfp")
 shader_parameter/root_color = null
 shader_parameter/tip_lush = null
 shader_parameter/tip_dry = null
@@ -694,28 +958,28 @@ shader_parameter/hill_height = null
 shader_parameter/hill_radius = null
 shader_parameter/radius = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_tlag0"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bfaq0"]
 render_priority = 0
-shader = ExtResource("56_x13lk")
+shader = ExtResource("80_byl1w")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_5ifef"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_htx0h"]
 render_priority = 0
-shader = ExtResource("57_yoa6w")
+shader = ExtResource("81_oes41")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_2f0b6"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jqbvc"]
 render_priority = 0
-shader = ExtResource("58_xrdtr")
+shader = ExtResource("82_jb6s1")
 shader_parameter/stone = null
 shader_parameter/slope = null
 shader_parameter/snow = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_03a1h"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_80o2o"]
 render_priority = 0
-shader = ExtResource("59_ret7y")
+shader = ExtResource("83_srhdn")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_xhd2v"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tla5y"]
 render_priority = 0
-shader = ExtResource("60_s5bog")
+shader = ExtResource("84_dtug4")
 shader_parameter/colour = null
 shader_parameter/radius = null
 shader_parameter/width = null
@@ -724,9 +988,9 @@ shader_parameter/track = null
 shader_parameter/alpha = null
 shader_parameter/half_size = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_4cd3d"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5t4w4"]
 render_priority = 0
-shader = ExtResource("61_ob12n")
+shader = ExtResource("85_5cpin")
 shader_parameter/now = null
 shader_parameter/emitter = null
 shader_parameter/gravity = null
@@ -754,9 +1018,9 @@ shader_parameter/uv_transform = null
 shader_parameter/textured = null
 shader_parameter/cutoff = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_58h8x"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3wke5"]
 render_priority = 0
-shader = ExtResource("62_qjilg")
+shader = ExtResource("86_n6dac")
 shader_parameter/now = null
 shader_parameter/emitter = null
 shader_parameter/gravity = null
@@ -784,9 +1048,9 @@ shader_parameter/uv_transform = null
 shader_parameter/textured = null
 shader_parameter/cutoff = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_mjnrk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5pais"]
 render_priority = 0
-shader = ExtResource("63_micgd")
+shader = ExtResource("87_701be")
 shader_parameter/now = null
 shader_parameter/emitter = null
 shader_parameter/gravity = null
@@ -814,9 +1078,9 @@ shader_parameter/uv_transform = null
 shader_parameter/textured = null
 shader_parameter/cutoff = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vt85q"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_65hcb"]
 render_priority = 0
-shader = ExtResource("64_2lsad")
+shader = ExtResource("88_jrn3h")
 shader_parameter/now = null
 shader_parameter/emitter = null
 shader_parameter/gravity = null
@@ -844,9 +1108,9 @@ shader_parameter/uv_transform = null
 shader_parameter/textured = null
 shader_parameter/cutoff = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_i86oh"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2cy8e"]
 render_priority = 0
-shader = ExtResource("65_6iheq")
+shader = ExtResource("89_6hsw0")
 shader_parameter/now = null
 shader_parameter/emitter = null
 shader_parameter/gravity = null
@@ -874,29 +1138,29 @@ shader_parameter/uv_transform = null
 shader_parameter/textured = null
 shader_parameter/cutoff = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_58h38"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2jn5t"]
 render_priority = 0
-shader = ExtResource("66_xt4k4")
+shader = ExtResource("90_p0hrs")
 shader_parameter/roughness = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_b5tkf"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s47pc"]
 render_priority = 0
-shader = ExtResource("67_yvylo")
+shader = ExtResource("91_6q540")
 shader_parameter/albedo = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_edhxl"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ybtr6"]
 render_priority = 0
-shader = ExtResource("68_nbkq6")
+shader = ExtResource("92_dpjyh")
 shader_parameter/paint_colour = null
 shader_parameter/stained = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wy1kg"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xl6tq"]
 render_priority = 0
-shader = ExtResource("69_6pcfn")
+shader = ExtResource("93_wf0kg")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8siej"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qv1t2"]
 render_priority = 0
-shader = ExtResource("70_f7odc")
+shader = ExtResource("94_fefng")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -904,12 +1168,12 @@ shader_parameter/moss = null
 shader_parameter/window_glow = null
 shader_parameter/glass_colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sekem"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bxepe"]
 render_priority = 0
-shader = ExtResource("71_dbls3")
+shader = ExtResource("95_rcqeo")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_v2o5c"]
-shader = ExtResource("72_sl3wa")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1yy3i"]
+shader = ExtResource("96_3p7by")
 shader_parameter/zenith = null
 shader_parameter/horizon = null
 shader_parameter/ground_tint = null
@@ -921,9 +1185,9 @@ shader_parameter/moon_dir = null
 shader_parameter/moon_glow = null
 shader_parameter/stars = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fky2f"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_85eis"]
 render_priority = 0
-shader = ExtResource("73_tultj")
+shader = ExtResource("97_0jdx4")
 shader_parameter/wind_dir = null
 shader_parameter/wind_strength = null
 shader_parameter/gust_wavelength = null
@@ -931,21 +1195,21 @@ shader_parameter/gust_speed = null
 shader_parameter/rise = null
 shader_parameter/drift = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_68r22"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nolco"]
 render_priority = 0
-shader = ExtResource("74_a81hp")
+shader = ExtResource("98_uv4pc")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_wpjvb"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1bngs"]
 render_priority = 0
-shader = ExtResource("75_mno7m")
+shader = ExtResource("99_c7of4")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_p37o5"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sxdfu"]
 render_priority = 0
-shader = ExtResource("76_w5h33")
+shader = ExtResource("100_n8ymk")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_v0seo"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_opepg"]
 render_priority = 0
-shader = ExtResource("77_7mtl1")
+shader = ExtResource("101_rh4we")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -953,9 +1217,9 @@ shader_parameter/moss = null
 shader_parameter/window_glow = null
 shader_parameter/glass_colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_3y6wp"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5pulo"]
 render_priority = 0
-shader = ExtResource("78_umlxj")
+shader = ExtResource("102_mlodn")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -964,9 +1228,9 @@ shader_parameter/span = null
 shader_parameter/earth = null
 shader_parameter/meadow = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_77ftt"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hbbwr"]
 render_priority = 0
-shader = ExtResource("79_0f5sn")
+shader = ExtResource("103_bjh2j")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -975,9 +1239,9 @@ shader_parameter/span = null
 shader_parameter/earth = null
 shader_parameter/meadow = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_x4qr8"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_06gb0"]
 render_priority = 0
-shader = ExtResource("80_0vqef")
+shader = ExtResource("104_o2ajl")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -985,9 +1249,9 @@ shader_parameter/moss = null
 shader_parameter/window_glow = null
 shader_parameter/glass_colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8h3q4"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ltlmy"]
 render_priority = 0
-shader = ExtResource("81_g3mpm")
+shader = ExtResource("105_cmp37")
 shader_parameter/stone_look = null
 shader_parameter/stone_light = null
 shader_parameter/stone_dark = null
@@ -995,9 +1259,9 @@ shader_parameter/moss = null
 shader_parameter/window_glow = null
 shader_parameter/glass_colour = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_p7cd5"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qjcao"]
 render_priority = 0
-shader = ExtResource("82_8n08j")
+shader = ExtResource("106_lq1sj")
 shader_parameter/root_color = null
 shader_parameter/tip_lush = null
 shader_parameter/tip_dry = null
@@ -1026,9 +1290,9 @@ shader_parameter/rock_steep = null
 shader_parameter/far_grass = null
 shader_parameter/full_layer = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_q0oli"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_e5tiu"]
 render_priority = 0
-shader = ExtResource("83_bocw1")
+shader = ExtResource("107_nn3tr")
 shader_parameter/root_color = null
 shader_parameter/tip_lush = null
 shader_parameter/tip_dry = null
@@ -1057,36 +1321,36 @@ shader_parameter/rock_steep = null
 shader_parameter/far_grass = null
 shader_parameter/full_layer = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_higif"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_byn4j"]
 render_priority = 0
-shader = ExtResource("84_abrik")
+shader = ExtResource("108_s258n")
 shader_parameter/moss = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_gugia"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jq1ln"]
 render_priority = 0
-shader = ExtResource("85_iayxm")
+shader = ExtResource("109_k6jj1")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ho3ty"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glblb"]
 render_priority = 0
-shader = ExtResource("86_p2muv")
+shader = ExtResource("110_liu3f")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_gogwg"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_owrp7"]
 render_priority = 0
-shader = ExtResource("87_ix0cy")
+shader = ExtResource("111_1cs23")
 shader_parameter/albedo = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_mybbj"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7xx03"]
 render_priority = 0
-shader = ExtResource("88_xlpcq")
+shader = ExtResource("112_fepo4")
 shader_parameter/level = null
 shader_parameter/reach = null
 shader_parameter/ray = null
 shader_parameter/sun = null
 shader_parameter/ambient = null
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_jhh88"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xrxp7"]
 render_priority = 0
-shader = ExtResource("89_ftjtg")
+shader = ExtResource("113_de0q8")
 shader_parameter/level = null
 shader_parameter/drop = null
 shader_parameter/ripples = null
@@ -1097,4 +1361,4 @@ shader_parameter/foam_color = null
 shader_parameter/wave_strength = null
 
 [resource]
-metadata/materials = [SubResource("StandardMaterial3D_kdmav"), SubResource("StandardMaterial3D_njxd8"), SubResource("StandardMaterial3D_v6hb3"), SubResource("StandardMaterial3D_i034c"), SubResource("StandardMaterial3D_3mawi"), SubResource("StandardMaterial3D_03rrf"), SubResource("StandardMaterial3D_kjtlx"), SubResource("StandardMaterial3D_1yir2"), SubResource("StandardMaterial3D_dl6mv"), SubResource("StandardMaterial3D_32b5h"), SubResource("StandardMaterial3D_sy21w"), SubResource("StandardMaterial3D_d551n"), SubResource("StandardMaterial3D_0d33h"), SubResource("StandardMaterial3D_1mmfp"), SubResource("StandardMaterial3D_byl1w"), SubResource("StandardMaterial3D_oes41"), SubResource("ShaderMaterial_jb6s1"), SubResource("ShaderMaterial_srhdn"), SubResource("ShaderMaterial_dtug4"), SubResource("ShaderMaterial_5cpin"), SubResource("ShaderMaterial_n6dac"), SubResource("ShaderMaterial_701be"), SubResource("ShaderMaterial_jrn3h"), SubResource("ShaderMaterial_6hsw0"), SubResource("ShaderMaterial_p0hrs"), SubResource("ShaderMaterial_6q540"), SubResource("ShaderMaterial_dpjyh"), SubResource("ShaderMaterial_wf0kg"), SubResource("ShaderMaterial_fefng"), SubResource("ShaderMaterial_rcqeo"), SubResource("ShaderMaterial_3p7by"), SubResource("ShaderMaterial_0jdx4"), SubResource("ShaderMaterial_uv4pc"), SubResource("ShaderMaterial_c7of4"), SubResource("ShaderMaterial_n8ymk"), SubResource("ShaderMaterial_rh4we"), SubResource("ShaderMaterial_mlodn"), SubResource("ShaderMaterial_bjh2j"), SubResource("ShaderMaterial_o2ajl"), SubResource("ShaderMaterial_cmp37"), SubResource("ShaderMaterial_lq1sj"), SubResource("ShaderMaterial_nn3tr"), SubResource("ShaderMaterial_s258n"), SubResource("ShaderMaterial_k6jj1"), SubResource("ShaderMaterial_liu3f"), SubResource("ShaderMaterial_1cs23"), SubResource("ShaderMaterial_fepo4"), SubResource("ShaderMaterial_de0q8"), SubResource("ShaderMaterial_o66l5"), SubResource("ShaderMaterial_a1kdp"), SubResource("ShaderMaterial_n23fp"), SubResource("ShaderMaterial_cv45o"), SubResource("ShaderMaterial_rj7sh"), SubResource("ShaderMaterial_1fd5a"), SubResource("ShaderMaterial_8ikq3"), SubResource("ShaderMaterial_2ic3w"), SubResource("ShaderMaterial_hgpsx"), SubResource("ShaderMaterial_pb0r3"), SubResource("ShaderMaterial_miyq2"), SubResource("ShaderMaterial_g7umi"), SubResource("ShaderMaterial_gacgg"), SubResource("ShaderMaterial_xo0sk"), SubResource("ShaderMaterial_lfmu6"), SubResource("ShaderMaterial_vhfh8"), SubResource("ShaderMaterial_8u3fq"), SubResource("ShaderMaterial_1omr1"), SubResource("ShaderMaterial_lnm1g"), SubResource("ShaderMaterial_igfpj"), SubResource("ShaderMaterial_x6yr2"), SubResource("ShaderMaterial_brqem"), SubResource("ShaderMaterial_y6l0y"), SubResource("ShaderMaterial_tlag0"), SubResource("ShaderMaterial_5ifef"), SubResource("ShaderMaterial_2f0b6"), SubResource("ShaderMaterial_03a1h"), SubResource("ShaderMaterial_xhd2v"), SubResource("ShaderMaterial_4cd3d"), SubResource("ShaderMaterial_58h8x"), SubResource("ShaderMaterial_mjnrk"), SubResource("ShaderMaterial_vt85q"), SubResource("ShaderMaterial_i86oh"), SubResource("ShaderMaterial_58h38"), SubResource("ShaderMaterial_b5tkf"), SubResource("ShaderMaterial_edhxl"), SubResource("ShaderMaterial_wy1kg"), SubResource("ShaderMaterial_8siej"), SubResource("ShaderMaterial_sekem"), SubResource("ShaderMaterial_v2o5c"), SubResource("ShaderMaterial_fky2f"), SubResource("ShaderMaterial_68r22"), SubResource("ShaderMaterial_wpjvb"), SubResource("ShaderMaterial_p37o5"), SubResource("ShaderMaterial_v0seo"), SubResource("ShaderMaterial_3y6wp"), SubResource("ShaderMaterial_77ftt"), SubResource("ShaderMaterial_x4qr8"), SubResource("ShaderMaterial_8h3q4"), SubResource("ShaderMaterial_p7cd5"), SubResource("ShaderMaterial_q0oli"), SubResource("ShaderMaterial_higif"), SubResource("ShaderMaterial_gugia"), SubResource("ShaderMaterial_ho3ty"), SubResource("ShaderMaterial_gogwg"), SubResource("ShaderMaterial_mybbj"), SubResource("ShaderMaterial_jhh88")]
+metadata/materials = [SubResource("StandardMaterial3D_o66l5"), SubResource("StandardMaterial3D_a1kdp"), SubResource("StandardMaterial3D_n23fp"), SubResource("StandardMaterial3D_cv45o"), SubResource("StandardMaterial3D_rj7sh"), SubResource("StandardMaterial3D_1fd5a"), SubResource("StandardMaterial3D_8ikq3"), SubResource("StandardMaterial3D_2ic3w"), SubResource("StandardMaterial3D_hgpsx"), SubResource("StandardMaterial3D_pb0r3"), SubResource("StandardMaterial3D_miyq2"), SubResource("StandardMaterial3D_g7umi"), SubResource("StandardMaterial3D_gacgg"), SubResource("StandardMaterial3D_xo0sk"), SubResource("StandardMaterial3D_lfmu6"), SubResource("StandardMaterial3D_vhfh8"), SubResource("ShaderMaterial_8u3fq"), SubResource("ShaderMaterial_1omr1"), SubResource("ShaderMaterial_lnm1g"), SubResource("ShaderMaterial_igfpj"), SubResource("ShaderMaterial_x6yr2"), SubResource("ShaderMaterial_brqem"), SubResource("ShaderMaterial_y6l0y"), SubResource("ShaderMaterial_tlag0"), SubResource("ShaderMaterial_5ifef"), SubResource("ShaderMaterial_2f0b6"), SubResource("ShaderMaterial_03a1h"), SubResource("ShaderMaterial_xhd2v"), SubResource("ShaderMaterial_4cd3d"), SubResource("ShaderMaterial_58h8x"), SubResource("ShaderMaterial_mjnrk"), SubResource("ShaderMaterial_vt85q"), SubResource("ShaderMaterial_i86oh"), SubResource("ShaderMaterial_58h38"), SubResource("ShaderMaterial_b5tkf"), SubResource("ShaderMaterial_edhxl"), SubResource("ShaderMaterial_wy1kg"), SubResource("ShaderMaterial_8siej"), SubResource("ShaderMaterial_sekem"), SubResource("ShaderMaterial_v2o5c"), SubResource("ShaderMaterial_fky2f"), SubResource("ShaderMaterial_68r22"), SubResource("ShaderMaterial_wpjvb"), SubResource("ShaderMaterial_p37o5"), SubResource("ShaderMaterial_v0seo"), SubResource("ShaderMaterial_3y6wp"), SubResource("ShaderMaterial_77ftt"), SubResource("ShaderMaterial_x4qr8"), SubResource("ShaderMaterial_8h3q4"), SubResource("ShaderMaterial_p7cd5"), SubResource("ShaderMaterial_q0oli"), SubResource("ShaderMaterial_higif"), SubResource("ShaderMaterial_gugia"), SubResource("ShaderMaterial_ho3ty"), SubResource("ShaderMaterial_gogwg"), SubResource("ShaderMaterial_mybbj"), SubResource("ShaderMaterial_jhh88"), SubResource("ShaderMaterial_oo7x4"), SubResource("ShaderMaterial_i31tr"), SubResource("ShaderMaterial_oweps"), SubResource("ShaderMaterial_au7ii"), SubResource("ShaderMaterial_amgj8"), SubResource("ShaderMaterial_xejms"), SubResource("ShaderMaterial_owxfi"), SubResource("ShaderMaterial_hcymn"), SubResource("ShaderMaterial_15obd"), SubResource("ShaderMaterial_cj44f"), SubResource("ShaderMaterial_a5xwa"), SubResource("ShaderMaterial_n7ifj"), SubResource("ShaderMaterial_q5c4c"), SubResource("ShaderMaterial_vppht"), SubResource("ShaderMaterial_ln5nj"), SubResource("ShaderMaterial_stphq"), SubResource("ShaderMaterial_5jkbp"), SubResource("ShaderMaterial_5x2bh"), SubResource("ShaderMaterial_lp0a8"), SubResource("ShaderMaterial_pqv2k"), SubResource("ShaderMaterial_2w338"), SubResource("ShaderMaterial_6etwe"), SubResource("ShaderMaterial_5vd3v"), SubResource("ShaderMaterial_cgg2v"), SubResource("ShaderMaterial_34n2l"), SubResource("ShaderMaterial_7nuqx"), SubResource("ShaderMaterial_8cnv2"), SubResource("ShaderMaterial_oqlwi"), SubResource("ShaderMaterial_hohb4"), SubResource("ShaderMaterial_g4g7h"), SubResource("ShaderMaterial_rurdg"), SubResource("ShaderMaterial_31gts"), SubResource("ShaderMaterial_w31oq"), SubResource("ShaderMaterial_kale0"), SubResource("ShaderMaterial_kewmk"), SubResource("ShaderMaterial_1laok"), SubResource("ShaderMaterial_gfws2"), SubResource("ShaderMaterial_g0kdp"), SubResource("ShaderMaterial_bfaq0"), SubResource("ShaderMaterial_htx0h"), SubResource("ShaderMaterial_jqbvc"), SubResource("ShaderMaterial_80o2o"), SubResource("ShaderMaterial_tla5y"), SubResource("ShaderMaterial_5t4w4"), SubResource("ShaderMaterial_3wke5"), SubResource("ShaderMaterial_5pais"), SubResource("ShaderMaterial_65hcb"), SubResource("ShaderMaterial_2cy8e"), SubResource("ShaderMaterial_2jn5t"), SubResource("ShaderMaterial_s47pc"), SubResource("ShaderMaterial_ybtr6"), SubResource("ShaderMaterial_xl6tq"), SubResource("ShaderMaterial_qv1t2"), SubResource("ShaderMaterial_bxepe"), SubResource("ShaderMaterial_1yy3i"), SubResource("ShaderMaterial_85eis"), SubResource("ShaderMaterial_nolco"), SubResource("ShaderMaterial_1bngs"), SubResource("ShaderMaterial_sxdfu"), SubResource("ShaderMaterial_opepg"), SubResource("ShaderMaterial_5pulo"), SubResource("ShaderMaterial_hbbwr"), SubResource("ShaderMaterial_06gb0"), SubResource("ShaderMaterial_ltlmy"), SubResource("ShaderMaterial_qjcao"), SubResource("ShaderMaterial_e5tiu"), SubResource("ShaderMaterial_byn4j"), SubResource("ShaderMaterial_jq1ln"), SubResource("ShaderMaterial_glblb"), SubResource("ShaderMaterial_owrp7"), SubResource("ShaderMaterial_7xx03"), SubResource("ShaderMaterial_xrxp7")]

@@ -5,10 +5,10 @@ uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
-// flat and two where lit through a ramp, green its cap, blue its shadow tint; row 1 its emission's colour and strength
-// over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward the glow by its
-// brightest channel); the RAMP rows after those HEAD_ROWS its ramp. Unset, every texel is lit by angle and glows
-// nowhere.
+// flat and two where lit through a ramp, green its cap, blue its shadow tint, alpha its emission's strength; row 1 its
+// emission's colour over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward
+// the glow by its brightest channel); the RAMP rows after those HEAD_ROWS its ramp; from TOON_ROW its toon shadow and
+// rim, which the TOON shaders alone draw. Unset, every texel is lit by angle and glows nowhere.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -20,6 +20,7 @@ varying vec3 flat_light;
 // A ramp-lit vertex's main light its shadow tint lends the albedo, and the light its cap leaves room for.
 varying vec4 tinted;
 varying vec4 glow_colour;
+varying float glow_strength;
 // The looks table column of the vertex's material where it has a matcap (Avatar._lit_looks's rows from MATCAP), else
 // -1, and the surface's own normal in world space, which a matcap is looked up by.
 varying flat int matcap_entry;
@@ -35,6 +36,18 @@ varying flat int coat_entry;
 varying vec3 coat_normal;
 uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
 #endif
+#ifdef TOON
+// A flat material's shade colours (unity/liltoon.gd shade), and the albedo elsewhere.
+uniform sampler2D shade : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
+uniform sampler2D shade2 : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
+// The looks table column of the vertex's material where the table has toon rows, else -1; how far its true normal
+// faces the main light, lilToon's half Lambert; that normal in view space; and the whole light it takes, capped where
+// flat, which its rim takes where lit.
+varying flat int toon_entry;
+varying float toon_toward;
+varying vec3 toon_normal;
+varying vec3 toon_light;
+#endif
 
 // A ramp-lit material, as Toon Standard lights it, takes the flat light's ambient and its main light scaled by its ramp
 // at the half-Lambert term (lit_flat), and the rest of the main light lent the albedo by its shadow tint in each pixel,
@@ -48,11 +61,13 @@ const int COAT_ROWS = 6;
 const int MATCAP = HEAD_ROWS + RAMP + COAT_ROWS;
 const int MATCAP_ROWS = 6;
 const int MATCAPS = 4;
+const int TOON_ROW = MATCAP + 1 + MATCAPS * MATCAP_ROWS;
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
-	vec3 light = texelFetch(lighting, looked, 0).rgb;
+	vec4 light = texelFetch(lighting, looked, 0);
 	glow_colour = textureSize(lighting, 0).y > 1 ? texelFetch(lighting, looked + ivec2(0, 1), 0) : vec4(0.0);
+	glow_strength = light.a;
 #ifdef CLEAR_COAT
 	bool coated = texelFetch(lighting, looked + ivec2(0, COAT), 0).x > 0.0 || texelFetch(lighting, looked + ivec2(0, COAT + 4), 0).x > 0.5;
 	coat_entry = coated ? looked.x : -1;
@@ -63,6 +78,12 @@ void vertex() {
 	vec3 normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	matcap_entry = textureSize(lighting, 0).y > MATCAP && texelFetch(lighting, looked + ivec2(0, MATCAP), 0).r > 0.5 ? looked.x : -1;
 	matcap_normal = normal;
+	bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
+#ifdef TOON
+	toon_entry = textureSize(lighting, 0).y > TOON_ROW ? looked.x : -1;
+	toon_toward = dot(normal, key_toward(mirrored)) * 0.5 + 0.5;
+	toon_normal = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+#endif
 	// A flat or ramp-lit vertex reads the light around it a metre over its mesh's origin, the same place for every
 	// vertex: reading the volumes at each vertex of a dense avatar cost a Quest 2 more than its whole lighting.
 	vec3 lit_at = flat_lit > 0.5 ? NODE_POSITION_WORLD + vec3(0.0, 1.0, 0.0) : at;
@@ -70,7 +91,6 @@ void vertex() {
 	flat_light = vec3(0.0);
 	tinted = vec4(0.0);
 	if (flat_lit > 0.5) {
-		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 		float level = 1.0;
 		if (light.r > 1.5) {
 			float x = clamp(dot(normal, key_toward(mirrored)) * 0.5 + 0.5, 0.0, 1.0) * float(RAMP - 1);
@@ -82,6 +102,10 @@ void vertex() {
 		flat_light = lit_flat(given, light.g, level, mirrored, MODEL_MATRIX, NORMAL, key, spare);
 		tinted = vec4((1.0 - level) * light.b * key, spare);
 	}
+#ifdef TOON
+	vec3 key_light = mirrored ? mirror_light : sun_light;
+	toon_light = flat_lit > 0.5 ? min(flat_light + key_light, vec3(light.g)) : (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a + given.rgb + key_light;
+#endif
 }
 uniform sampler2D regions : filter_nearest, repeat_disable;
 // A region's kind (ExpressionDefinition.REGIONS, the rest a look) and a look's field (ExpressionPlayer.LOOK_FIELDS).
@@ -92,6 +116,8 @@ const int LOOK_DECAL = 0;
 const int LOOK_DECAL_INTENSITY = 1;
 const int LOOK_DECAL_HUE = 2;
 const int LOOK_CLEARCOAT_ST = 3;
+const int LOOK_EMISSION = 4;
+const int LOOK_MATCAP_INTENSITY = 5;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
@@ -194,10 +220,21 @@ vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tin
 }
 #endif
 
+#ifdef TOON
+// lilToon's toon step of `v` across `border`, `blur` wide, its low end `range` further down, antialiased over `width`,
+// how far `v` moves across a pixel.
+float toon(float v, float border, float blur, float range, float width) {
+	float low = clamp(border - 0.5 * blur - range, 0.0, 1.0);
+	float high = clamp(border + 0.5 * blur, 0.0, 1.0);
+	return clamp((v - low) / max(clamp(high - low + width, 0.0, 1.0), 1e-4), 0.0, 1.0);
+}
+#endif
+
 // Poiyomi's matcaps over `base`, the material's colour, each looked up by the world normal `n` as seen along `v` (toward
 // the eye) in Unity's left-handed axes, Godot's mirrored through X, and masked by its channel of `matcap_masks` at the
-// atlas's `uv`, by a circle where it has one, and where `light_mask` says by the lit side; returns the light they add.
-vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit) {
+// atlas's `uv`, by a circle where it has one, and where `light_mask` says by the lit side, each slot's intensity `at`
+// where `moved`; returns the light they add.
+vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit, vec4 moved, vec4 at) {
 	vec4 masks = textureGrad(matcap_masks, uv, dx, dy);
 	vec3 up = vec3(0.0, 1.0, 0.0) - v * v.y;
 	up = dot(up, up) > 1e-8 ? normalize(up) : vec3(0.0, 0.0, -sign(v.y));
@@ -215,8 +252,9 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 		vec4 hue = texelFetch(lighting, ivec2(entry, row + 4), 0);
 		vec2 mapped = (map.y > 0.5 ? vec2(-r.x, r.y) : vec2(dot(right, n), dot(up, n))) * map.z + 0.5;
 		vec4 sampled = (map.x >= 0.0 ? textureLod(matcaps, vec3(mapped.x, 1.0 - mapped.y, map.x), 0.0) : vec4(1.0)) * paint;
-		vec3 light = sampled.rgb * map.w;
-		float mask = masks[int(circle.a + 0.5)] * mix(1.0, lit, rest.w);
+		int own = int(circle.a + 0.5);
+		vec3 light = sampled.rgb * mix(map.w, at[own], moved[own]);
+		float mask = masks[own] * mix(1.0, lit, rest.w);
 		if (circle.r > 0.5) {
 			mask *= 1.0 - smoothstep(circle.y - 0.5 * circle.z, circle.y + 0.5 * circle.z, distance(mapped, vec2(0.5)));
 		}
@@ -260,6 +298,9 @@ void fragment() {
 	vec4 coat_moved = vec4(0.0);
 	vec4 coat_at = vec4(0.0);
 #endif
+	float strength = glow_strength;
+	vec4 matcap_moved = vec4(0.0);
+	vec4 matcap_at = vec4(0.0);
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
@@ -274,8 +315,19 @@ void fragment() {
 			} else if (kind == REGION_TONE) {
 				tone[int(s.z)] = s.x;
 			} else {
+				// Field -1 is a target at rest, where each material keeps its own (ExpressionPlayer.apply).
+				if (e.y < -0.5) { continue; }
 				int slot = int(s.z);
 				int field = int(e.y + 0.5);
+				if (field == LOOK_EMISSION) {
+					strength = s.x;
+					continue;
+				}
+				if (field == LOOK_MATCAP_INTENSITY) {
+					matcap_moved[slot] = 1.0;
+					matcap_at[slot] = s.x;
+					continue;
+				}
 #ifdef CLEAR_COAT
 				if (field == LOOK_CLEARCOAT_ST) {
 					coat_at[slot] = s.x;
@@ -345,18 +397,64 @@ void fragment() {
 			base.rgb = mix(base.rgb, decal_blend(base.rgb, laid, int(decal_mode[slot] + 0.5)), alpha);
 		}
 	}
+#ifdef TOON
+	// Taken before any branch on the entry, which differs within a quad along a material's edge.
+	float toward = clamp(toon_toward, 0.0, 1.0);
+	float toward_width = fwidth(toon_toward);
+	vec3 toon_n = normalize(toon_normal);
+	float facing = abs(dot(toon_n, VIEW));
+	float facing_width = fwidth(facing);
+	vec4 shade_texel = textureGrad(shade, uv, dx, dy);
+	vec3 albedo = base.rgb;
+	bool shadowed = false;
+	float shadowmix = 1.0;
+	vec3 rim_light = vec3(0.0);
+	if (toon_entry >= 0) {
+		vec4 shadow = texelFetch(lighting, ivec2(toon_entry, TOON_ROW), 0);
+		if (shadow.a > 0.5) {
+			vec4 second = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 1), 0);
+			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 2), 0);
+			vec3 dark = shade_texel.rgb;
+			if (second.z > 0.0) {
+				dark = mix(dark, textureGrad(shade2, uv, dx, dy).rgb, second.z * (1.0 - toon(toward, second.x, second.y, 0.0, toward_width)));
+			}
+			dark = min(dark, albedo);
+			dark = mix(dark, albedo, toon(toward, shadow.x, shadow.y, edge.a, toward_width) * edge.rgb);
+			shadowmix = toon(toward, shadow.x, shadow.y, 0.0, toward_width);
+			shadowed = true;
+			base.rgb = mix(dark, albedo, mix(1.0, shadowmix, shadow.z * shade_texel.a));
+		}
+	}
+#endif
 	vec3 matcap_light = vec3(0.0);
 	if (matcap_entry >= 0) {
 		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 		vec3 n = normalize(matcap_normal) * (FRONT_FACING ? 1.0 : -1.0);
 		vec3 toward = mirrored ? mirror_toward : sun_toward;
 		float lit = smoothstep(0.4, 0.6, dot(n, length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5);
-		matcap_light = matcapped(base.rgb, matcap_entry, uv, dx, dy, n, normalize(mat3(INV_VIEW_MATRIX) * VIEW), lit);
+#ifdef TOON
+		if (shadowed) { lit = shadowmix; }
+#endif
+		matcap_light = matcapped(base.rgb, matcap_entry, uv, dx, dy, n, normalize(mat3(INV_VIEW_MATRIX) * VIEW), lit, matcap_moved, matcap_at);
 	}
+#ifdef TOON
+	if (toon_entry >= 0) {
+		vec4 rim = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 3), 0);
+		if (rim.a > 0.0) {
+			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 4), 0);
+			vec4 reach = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 5), 0);
+			float fresnel = pow(1.0 - facing, edge.w);
+			float fresnel_width = edge.w * pow(max(1.0 - facing, 1e-4), edge.w - 1.0) * facing_width;
+			float r = toon(fresnel, edge.y, edge.z, 0.0, fresnel_width) * mix(1.0, shadowmix, reach.y) * rim.a;
+			rim_light = rim.rgb * mix(vec3(1.0), albedo, edge.x) * mix(vec3(1.0), toon_light, reach.x) * r;
+		}
+	}
+#endif
 	vec3 glowing = vec3(0.0);
 	float replaced = 0.0;
-	if (any(greaterThan(glow_colour.rgb, vec3(0.0)))) {
-		glowing = textureGrad(glow, uv, dx, dy).rgb * glow_colour.rgb;
+	vec3 glows = glow_colour.rgb * strength;
+	if (any(greaterThan(glows, vec3(0.0)))) {
+		glowing = textureGrad(glow, uv, dx, dy).rgb * glows;
 		replaced = clamp(max(glowing.r, max(glowing.g, glowing.b)) * glow_colour.a, 0.0, 1.0);
 	}
 	ALBEDO = base.rgb * (1.0 - replaced);
@@ -367,6 +465,9 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	AO = flat_lit > 0.5 ? 0.0 : given.a;
 	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light + min(tinted.rgb * base.rgb, vec3(tinted.a)) : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing + matcap_light;
+#ifdef TOON
+	EMISSION += rim_light;
+#endif
 #ifdef CLEAR_COAT
 	if (coat_entry >= 0) {
 		vec4 coat_level = texelFetch(lighting, ivec2(coat_entry, COAT), 0);

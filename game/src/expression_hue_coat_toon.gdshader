@@ -1,0 +1,7 @@
+shader_type spatial;
+render_mode diffuse_lambert, specular_disabled, vertex_lighting, cull_back;
+
+#define DECAL_HUE
+#define CLEAR_COAT
+#define TOON
+#include "res://src/expression.gdshaderinc"

@@ -27,17 +27,17 @@ var _turned := {}
 ## This player's copies of the looks table (Avatar._lit_looks), which an imported scene shares with every avatar opened
 ## from it, where Poiyomi global theme colours recolour the emission: by the mesh drawing with its own, one a clip moves
 ## a theme on, or by the model for its other meshes', where a theme's hue turns at rest: {"table", "texture", "entries"
-## by column, each {"theme" (unity/materials.gd `_theme`), "strength", "replace"}, "dirty", "turning"}.
+## by column, each {"theme" (unity/materials.gd `_theme`), "replace"}, "dirty", "turning"}.
 var _glows := {}
 var _seconds := 0.0
 var _frame := 0
-var _coats := {}
+var _marks := {}
 
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## The expression shaders by whether they turn decal hues (1) and draw a clear coat (2), then by whether they draw both
-## sides, each cut out, blended, and blended writing depth.
+## The expression shaders by whether they turn decal hues (1), draw a clear coat (2) and draw a toon shadow and rim (4),
+## then by whether they draw both sides, each cut out, blended, and blended writing depth.
 const SHADERS := [
 	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
 	[preload("res://src/expression_two_sided.gdshader"), preload("res://src/expression_blended_two_sided.gdshader"), preload("res://src/expression_blended_depth_two_sided.gdshader")]],
@@ -46,10 +46,21 @@ const SHADERS := [
 	[[preload("res://src/expression_coat.gdshader"), preload("res://src/expression_blended_coat.gdshader"), preload("res://src/expression_blended_depth_coat.gdshader")],
 	[preload("res://src/expression_coat_two_sided.gdshader"), preload("res://src/expression_blended_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_two_sided.gdshader")]],
 	[[preload("res://src/expression_hue_coat.gdshader"), preload("res://src/expression_blended_hue_coat.gdshader"), preload("res://src/expression_blended_depth_hue_coat.gdshader")],
-	[preload("res://src/expression_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_two_sided.gdshader")]]]
-## The look fields the shader reads from a region, in its order: those driving a decal, then a component of a clear
-## coat's maps' tiling and offset.
-const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST"]
+	[preload("res://src/expression_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_two_sided.gdshader")]],
+	[[preload("res://src/expression_toon.gdshader"), preload("res://src/expression_blended_toon.gdshader"), preload("res://src/expression_blended_depth_toon.gdshader")],
+	[preload("res://src/expression_toon_two_sided.gdshader"), preload("res://src/expression_blended_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_toon_two_sided.gdshader")]],
+	[[preload("res://src/expression_hue_toon.gdshader"), preload("res://src/expression_blended_hue_toon.gdshader"), preload("res://src/expression_blended_depth_hue_toon.gdshader")],
+	[preload("res://src/expression_hue_toon_two_sided.gdshader"), preload("res://src/expression_blended_hue_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_toon_two_sided.gdshader")]],
+	[[preload("res://src/expression_coat_toon.gdshader"), preload("res://src/expression_blended_coat_toon.gdshader"), preload("res://src/expression_blended_depth_coat_toon.gdshader")],
+	[preload("res://src/expression_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_toon_two_sided.gdshader")]],
+	[[preload("res://src/expression_hue_coat_toon.gdshader"), preload("res://src/expression_blended_hue_coat_toon.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon.gdshader")],
+	[preload("res://src/expression_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon_two_sided.gdshader")]]]
+## The look fields the shader reads from a region, in its order: those driving a decal, a component of a clear coat's
+## maps' tiling and offset, then an emission's strength and a matcap's intensity, which a region sets only while its
+## target is off its rest (`apply`).
+const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
+## The look fields a region sets only off its target's rest, where each material it covers otherwise keeps its own.
+const RESTING_FIELDS := ["emission", "matcapIntensity"]
 
 ## The main thread's microseconds every avatar's expressions took to advance and apply since the metrics last took them.
 static var process_us := 0
@@ -147,12 +158,14 @@ func _init(model: Node3D) -> void:
 								glows.dirty = true)
 						continue
 					var field := str(region.get("field", ""))
-					if mesh == null or (kind == "look" and not field.begins_with("decal") and not (field == "clearcoatST" and _coated(mesh))):
+					if mesh == null or (kind == "look" and not field.begins_with("decal") and field not in RESTING_FIELDS and not (field == "clearcoatST" and _marked(mesh, "clearcoat"))):
 						continue
 					var mats := _material(mesh)
 					var decals: Dictionary = model.get_meta("expression_decal_sets", {}).get(str(region.node), {})
 					var place: Array = decals.get("places", {}).get(int(region.get("image", -1)), [0, 0.0, 0.0, 0.0, 0.0])
 					var entry := {"rect": region.rect, "value": float(target.get("default", 0)), "kind": ExpressionDefinition.REGIONS.find(kind), "settings": _settings(kind, region, place[0]), "decal": place.slice(1), "turn": _turn(region)}
+					if kind == "look" and field in RESTING_FIELDS:
+						entry.rest = entry.value
 					for mat in mats:
 						(_regions.get_or_add(mat, []) as Array).append(entry)
 						for uniform: String in TEXTURES[kind]:
@@ -228,7 +241,7 @@ func apply() -> void:
 			var s: Array = e.settings
 			image.set_pixel(k, 0, Color(e.rect[0], e.rect[1], e.rect[2], e.rect[3]))
 			image.set_pixel(k, 1, Color(e.value, e.kind, s[0], s[1]))
-			image.set_pixel(k, 2, Color(s[2], s[3], s[4], e.turn.g))
+			image.set_pixel(k, 2, Color(s[2], -1 if e.get("rest") == e.value else s[3], s[4], e.turn.g))
 			image.set_pixel(k, 3, Color(e.decal[0], e.decal[1], e.decal[2], e.decal[3]))
 			image.set_pixel(k, 4, e.turn)
 		var texture := mat.get_shader_parameter("regions") as ImageTexture
@@ -249,7 +262,7 @@ func apply() -> void:
 				var e: Dictionary = glows.entries[column]
 				if e.frame != _frame:
 					e.frame = _frame
-					var c := theme_colour(e.theme, _seconds) * float(e.strength)
+					var c := theme_colour(e.theme, _seconds)
 					e.colour = Color(c.r, c.g, c.b, e.replace)
 				glows.table.set_pixel(column, 1, e.colour)
 			glows.texture.update(glows.table)
@@ -323,7 +336,7 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_icons", icons)
 	var looks: Dictionary = data.get("looks", {})
 	var untinted: Dictionary = data.get("untinted", {})
-	for pair: Array in [[data.get("hueMask"), "hue_mask"], [untinted.get("image"), "untinted"], [looks.get("emission"), "glow"]]:
+	for pair: Array in [[data.get("hueMask"), "hue_mask"], [untinted.get("image"), "untinted"], [looks.get("emission"), "glow"], [looks.get("shade"), "shade"], [looks.get("shade2"), "shade2"]]:
 		if pair[0] is Image:
 			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(pair[0]))
 	var cells: Array = untinted.get("cells", [])
@@ -366,9 +379,9 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_decal_sets", sets)
 
 
-## Binds the material index, looks table (Avatar._lit_looks) and emission map to the meshes whose materials carry them,
-## the ones that show a flat or glowing material, and to every mesh already drawn animated, since a material swapped in
-## may be either. Returns the looks table they share, or null for none.
+## Binds the material index, looks table (Avatar._lit_looks) and the looks' layers to the meshes whose materials carry
+## them, the ones that show a flat, glowing, coated or toon material, and to every mesh already drawn animated, since a
+## material swapped in may be any of them. Returns the looks table they share, or null for none.
 func _light_looks(model: Node3D) -> Variant:
 	var textures: Array = []
 	var looked := []
@@ -385,6 +398,7 @@ func _light_looks(model: Node3D) -> Variant:
 	var coat_maps: Texture2DArray = model.get_meta("expression_coat_maps") if model.has_meta("expression_coat_maps") else _empty_array()
 	var matcaps: Texture2DArray = model.get_meta("expression_matcaps") if model.has_meta("expression_matcaps") else _empty_array()
 	var masks: Texture2D = model.get_meta("expression_matcap_masks") if model.has_meta("expression_matcap_masks") else null
+	var shades: Array = ["shade", "shade2"].map(func(layer: String) -> Variant: return model.get_meta("expression_" + layer) if model.has_meta("expression_" + layer) else null)
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
@@ -395,6 +409,8 @@ func _light_looks(model: Node3D) -> Variant:
 			mat.set_shader_parameter("coat_maps", coat_maps)
 			mat.set_shader_parameter("matcaps", matcaps)
 			mat.set_shader_parameter("matcap_masks", masks)
+			mat.set_shader_parameter("shade", shades[0])
+			mat.set_shader_parameter("shade2", shades[1])
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 	return textures[1]
 
@@ -499,7 +515,7 @@ static func _theme_of(look: Dictionary) -> Variant:
 
 
 static func _entry(look: Dictionary) -> Dictionary:
-	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "strength": look.emission.strength, "replace": float(look.emission.get("replace", 0.0)), "frame": -1, "colour": Color()}
+	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "replace": float(look.emission.get("replace", 0.0)), "frame": -1, "colour": Color()}
 
 
 ## The colour a Poiyomi global theme colour (unity/materials.gd `_theme`) shows `seconds` in, in linear light: its
@@ -522,26 +538,29 @@ static func _turn(region: Dictionary) -> Color:
 
 
 ## The expression shader drawing `base` as it draws: cut out, blended or blended writing depth, front faces only or both
-## sides, turning decal hues where `turned`.
-static func shader_for(base: BaseMaterial3D, turned: bool, coated := false) -> Shader:
+## sides, turning decal hues where `turned`, drawing a clear coat where `coated` and a toon shadow and rim where `tooned`.
+static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, tooned := false) -> Shader:
 	var way := 0
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 		way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
 	var both := base != null and base.cull_mode == BaseMaterial3D.CULL_DISABLED
-	return SHADERS[(1 if turned else 0) + (2 if coated else 0)][1 if both else 0][way]
+	return SHADERS[(1 if turned else 0) + (2 if coated else 0) + (4 if tooned else 0)][1 if both else 0][way]
 
 
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
-## blended writing depth, each front faces only or both sides as its material draws them, outlined or not. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
-## turn costs a Quest 2 a few milliseconds a frame on every surface, turned or not.
+## blended writing depth, each front faces only or both sides as its material draws them, outlined or not. Only a mesh
+## with a decal whose hue turns draws with the shaders that turn it, and only one showing a clear coat or a toon look
+## (Avatar._lit_looks) with the shaders that draw it: compiled in, each costs a Quest 2 GPU time on every surface, drawn
+## or not.
 func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
 		return _materials[mesh]
 	var by_shader := {}
-	var coated := _coated(mesh)
+	var coated := _marked(mesh, "clearcoat")
+	var tooned := _marked(mesh, "toon")
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
-		var shader := shader_for(base, _turned.has(str(mesh.name)), coated)
+		var shader := shader_for(base, _turned.has(str(mesh.name)), coated, tooned)
 		var key := [shader, base != null and base.has_meta("hull")]
 		if not by_shader.has(key):
 			var mat := ShaderMaterial.new()
@@ -562,11 +581,12 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	return out
 
 
-## Whether `mesh` shows a material with a clear coat (Avatar._lit_looks).
-func _coated(mesh: MeshInstance3D) -> bool:
-	if not _coats.has(mesh):
-		_coats[mesh] = range(mesh.mesh.get_surface_count()).any(func(i: int) -> bool: return mesh.mesh.surface_get_material(i) != null and mesh.mesh.surface_get_material(i).has_meta("clearcoat"))
-	return _coats[mesh]
+## Whether `mesh` shows a material Avatar._lit_looks marked `mark`: "clearcoat" or "toon".
+func _marked(mesh: MeshInstance3D, mark: String) -> bool:
+	var key := [mesh, mark]
+	if not _marks.has(key):
+		_marks[key] = range(mesh.mesh.get_surface_count()).any(func(i: int) -> bool: return mesh.mesh.surface_get_material(i) != null and mesh.mesh.surface_get_material(i).has_meta(mark))
+	return _marks[key]
 
 
 static var _clear: Texture2DArray
