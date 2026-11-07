@@ -1,7 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's flat material is lit alike on its side toward the light and its side away, and no brighter
-## than its cap however strong the light; a lit one is shaded by angle; a glowing one glows its emission in the dark,
+## than its cap however strong the light; a lit one is shaded by angle, and one lit through a ramp by its ramp at the
+## half-Lambert term, its shade lent the albedo by its shadow tint; a glowing one glows its emission in the dark,
 ## over its glow's own colour where it overrides its base colour, and one glowing in a theme colour turning over time
 ## changes colour as it turns. Needs a renderer, so scripts/test.sh runs it on
 ## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
@@ -41,7 +42,7 @@ func _run() -> void:
 		RenderingServer.global_shader_parameter_set(name, Vector3.ONE)
 	RenderingServer.global_shader_parameter_set(&"sun_toward", Vector3.RIGHT)
 	var shots := {}
-	for model: String in ["flat", "lit"]:
+	for model: String in ["flat", "lit", "ramp", "tinted"]:
 		var avatar := _ball(model)
 		view.add_child(avatar)
 		for light: Vector2 in [Vector2(0.5, 0.0), Vector2(3.0, 0.0), Vector2(0.3, 0.2), Vector2(3.0, 0.2)]:
@@ -79,6 +80,10 @@ func _run() -> void:
 	check(absf(flat_ambient.x - 0.5) < 0.04 and absf(flat_ambient.x - flat_ambient.y) < 0.03, "a flat material takes light 0.3 and ambient 0.2 whole, either side: %s" % flat_ambient)
 	check(absf(flat_both.x - 0.8) < 0.06 and absf(flat_both.x - flat_both.y) < 0.03, "a flat material in light and ambient past its cap is lit at the cap: %s" % flat_both)
 	check(lit.x > lit.y + 0.2, "a lit material is shaded by angle: %s" % lit)
+	var ramp: Vector2 = shots["ramp (0.5, 0.0)"]
+	check(absf(ramp.x - 0.4) < 0.05 and absf(ramp.y - 0.1) < 0.05, "a material lit through a ramp rising from 0 to 1 takes 0.8 and 0.2 of a light of 0.5 where the half-Lambert term is 0.8 and 0.2: %s" % ramp)
+	var tinted: Vector2 = shots["tinted (0.5, 0.0)"]
+	check(absf(tinted.x - 0.5) < 0.04 and absf(tinted.y - 0.5) < 0.04, "a white material whose shadow tint is whole is lit whole on its shaded side too: %s" % tinted)
 	var glow: Vector2 = shots["glow"]
 	check(absf(glow.x - 0.75) < 0.04 and absf(glow.y - 0.75) < 0.04, "a material glowing red 0.25 at strength 2 that overrides its base colour glows 0.5 over the half it replaces, 0.75, on both sides in the dark: %s" % glow)
 	check(reds.min() < 0.05 and reds.max() > 0.6, "a glow in a theme colour whose hue turns a third a frame goes from red to none and back: %s" % [reds])
@@ -86,7 +91,8 @@ func _run() -> void:
 	finish()
 
 
-## A white ball whose looks light its one material `model`, capped at 0.8, or for "glow" lit by angle and glowing red
+## A white ball whose looks light its one material `model`, flat capped at 0.8, through a ramp rising from 0 to 1 with
+## no shadow tint ("ramp") or a whole one ("tinted"), or for "glow" lit by angle and glowing red
 ## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
 ## that red is a global theme colour whose hue turns twenty times a second.
 func _ball(model: String) -> Node3D:
@@ -104,7 +110,7 @@ func _ball(model: String) -> Node3D:
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sphere.get_mesh_arrays(), [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
-	var light := {"model": "flat", "cap": 0.8} if model == "flat" else {"model": "lit"}
+	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}}.get(model, {"model": "lit"})
 	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "materials": [{"lighting": light}]}
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}

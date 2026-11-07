@@ -1616,7 +1616,12 @@ func _matcaps_and_emission_join_the_look() -> void:
         m_Texture: {guid: half}
     - _HueShiftMask:
         m_Texture: {guid: half}
+    - _Ramp:
+        m_Texture: {guid: ramp}
     m_Floats:
+    - _ShadowBoost: 0.25
+    - _ShadowAlbedo: 0.3
+    - _LimitBrightness: 0
     - _EmissionStrength: 0.8
     - _EmissionHueShift: 0
     - _MatcapEnable: 1
@@ -1628,6 +1633,11 @@ func _matcaps_and_emission_join_the_look() -> void:
 	half.set_pixel(1, 0, Color(0, 1, 0, 1))
 	half.save_png(dir.path_join("half.png"))
 	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var ramp := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	ramp.set_pixel(0, 0, Color8(0, 0, 0))
+	ramp.set_pixel(1, 0, Color8(128, 128, 128))
+	ramp.save_png(dir.path_join("ramp.png"))
+	FileAccess.open(dir.path_join("ramp.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: ramp\nTextureImporter:\n  mipmaps:\n    sRGBTexture: 0\n")
 	var gold := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	gold.fill(Color(1, 0.8, 0.2, 1))
 	gold.save_png(dir.path_join("gold.png"))
@@ -1670,7 +1680,8 @@ func _matcaps_and_emission_join_the_look() -> void:
 	check(entries.size() == 3, "every material has a look, the plain Toon Lit one for its lighting alone")
 	if entries.size() == 3:
 		check(entries[0].lighting == {"model": "flat", "cap": 0.8}, "Poiyomi's Flat lighting carries its Max Brightness: %s" % [entries[0].lighting])
-		check(entries[1].lighting == {"model": "lit"}, "Toon Standard is lit by angle: %s" % [entries[1].lighting])
+		var ramped: Array = entries[1].lighting.get("ramp", [])
+		check(entries[1].lighting.model == "lit" and ramped.size() == Materials.RAMP and ramped.slice(0, Materials.RAMP / 2).all(func(v: float) -> bool: return v == 0.25) and ramped.slice(Materials.RAMP / 2).all(func(v: float) -> bool: return is_equal_approx(v, 128 / 255.0 + 0.25)) and entries[1].lighting.shadowTint == 0.3 and not entries[1].lighting.has("cap"), "Toon Standard is lit by angle through its linear ramp texture raised by its Shadow Boost, with its Shadow Tint, uncapped where Limit Brightness is off: %s" % [entries[1].lighting])
 		check(entries[2].lighting == {"model": "flat"} and entries[2].matcaps == [null, null, null, null], "Toon Lit lights flat, uncapped: %s" % [entries[2]])
 		var gilt: Variant = entries[0].matcaps[2]
 		check(entries[0].matcaps[1] == null, "a matcap mapped by a view the renderer does not draw is left out")

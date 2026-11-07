@@ -26,6 +26,8 @@ const READ_LOW := 512 << 20
 const MAX_SURFACES := 40
 ## The cap of a flat material that has none, past any light the garden sheds.
 const UNCAPPED := 1e4
+## The points a ramp-lit material's ramp is held at (`_lit_looks`), as many as the shader reads.
+const RAMP := 16
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -554,20 +556,28 @@ static func shape(state: GLTFState) -> bool:
 
 ## Gives the meshes that show a material its looks light flat or make glow (ExpressionDefinition) copies of their
 ## materials carrying the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a
-## table of each entry's looks: row 0 its lighting (red one where flat, green its cap), row 1 its emission's linear
-## colour times its strength and, in alpha, how far it overrides the lit colour, for the avatar's shader to draw them by (ExpressionPlayer) over the looks' emission map;
-## an emission in a global theme colour is drawn even where it rests black, since a clip can light it. A
-## mesh shows a material where one of its vertices' texture coordinates falls in that material's cell.
+## table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a ramp; green its cap,
+## blue its shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the
+## lit colour, and the RAMP rows after them its ramp, for the avatar's shader to draw them by (ExpressionPlayer) over the
+## looks' emission map; an emission in a global theme colour is drawn even where it rests black, since a clip can light
+## it. A mesh shows a material where one of its vertices' texture coordinates falls in that material's cell.
 static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var materials: Array = looks.get("materials", [])
 	var drawn := PackedByteArray()
 	drawn.resize(256)
-	var table := Image.create_empty(materials.size() + 1, 2, false, Image.FORMAT_RGBAF)
+	var table := Image.create_empty(materials.size() + 1, 2 + RAMP, false, Image.FORMAT_RGBAF)
 	for k in materials.size():
 		var light: Dictionary = materials[k].lighting
 		if light.model == "flat":
 			drawn[k + 1] = 1
 			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
+		elif light.has("ramp"):
+			drawn[k + 1] = 1
+			table.set_pixel(k + 1, 0, Color(2.0, float(light.get("cap", UNCAPPED)), float(light.get("shadowTint", 0.0))))
+			var ramp: Array = light.ramp
+			for i in RAMP:
+				var at := i * (ramp.size() - 1) / (RAMP - 1.0)
+				table.set_pixel(k + 1, 2 + i, Color(lerpf(ramp[floori(at)], ramp[ceili(at)], at - floorf(at)), 0.0, 0.0))
 		var glow: Variant = materials[k].get("emission")
 		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
 		if glows.r + glows.g + glows.b > 0.0 or glow is Dictionary and glow.get("theme") != null and looks.has("emission"):

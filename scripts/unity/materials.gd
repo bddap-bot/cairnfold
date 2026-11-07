@@ -716,6 +716,10 @@ static func mask_blend(mask: float, value: float, type: int) -> float:
 ## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
 ## it faces (Poiyomi's Flat lighting, or its Multilayer Math where that tints no shadow (`_untinted`), capped at its Max
 ## Brightness where that is on; VRChat's Toon Lit, uncapped), "lit" for a surface shaded by the angle of its light.
+## VRChat's Toon Standard is lit through its shadow "ramp", the brightness its ramp texture gives (Shadow Boost added,
+## at most 1) at RAMP evenly spaced points of its light's half-Lambert term from 0 to 1, with its Shadow Tint
+## ("shadowTint") lending the albedo to the shade and the light capped at 1 where Limit Brightness is on, as the shader
+## lights its forward base pass.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if poiyomi(m) and (_float(m, "_LightingMode") == 5.0 or _float(m, "_LightingMode") == 1.0 and _untinted(m)):
@@ -725,6 +729,11 @@ func lighting(key: String) -> Dictionary:
 		return flat
 	if m.get("shader", "") == "VRChat/Mobile/Toon Lit":
 		return {"model": "flat"}
+	if toon_standard(m):
+		var ramped := {"model": "lit", "ramp": _ramp(m), "shadowTint": _saved(m, "_ShadowAlbedo", 0.5)}
+		if _saved(m, "_LimitBrightness", 1.0) != 0.0:
+			ramped.cap = 1.0
+		return ramped
 	return {"model": "lit"}
 
 
@@ -742,6 +751,27 @@ static func _untinted(m: Dictionary) -> bool:
 		if tint.a > 0.0 and (tint.r != 1.0 or tint.g != 1.0 or tint.b != 1.0 or _texture_guid(m, "_Shadow%sColorTex" % layer) != ""):
 			return false
 	return true
+
+
+const RAMP := 16
+
+
+## Toon Standard's shadow ramp brightness (`lighting`), the mean of its texture's channels across the middle row, in
+## linear light, so a coloured ramp shades grey; white, the shader's default, where it has none.
+func _ramp(m: Dictionary) -> Array:
+	var guid := _texture_guid(m, "_Ramp")
+	var img := image(guid) if guid != "" else null
+	var linear := img == null or str(assets.meta(guid).get("TextureImporter", {}).get("mipmaps", {}).get("sRGBTexture", "1")) == "0"
+	var boost := _saved(m, "_ShadowBoost", 0.0)
+	var out := []
+	for i in RAMP:
+		var c := Color.WHITE
+		if img != null:
+			c = img.get_pixel(roundi(i * (img.get_width() - 1) / (RAMP - 1.0)), img.get_height() / 2)
+			if not linear:
+				c = c.srgb_to_linear()
+		out.append(minf((c.r + c.g + c.b) / 3.0 + boost, 1.0))
+	return out
 
 
 ## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
@@ -1028,7 +1058,7 @@ func looks() -> Dictionary:
 		if not glows.is_empty() and glows.strength == 0.0 and not glow_regions.has(key):
 			glows = {}
 		var light := lighting(key)
-		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light.model == "lit":
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"}:
 			continue
 		if entries.size() == 255:
 			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")

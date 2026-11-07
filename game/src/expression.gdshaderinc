@@ -7,9 +7,9 @@ uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
-// flat, green its cap; row 1 its emission's colour and strength over the emission map `glow`, alpha how far the glow
-// overrides the lit colour (Poiyomi's lerp toward the glow by its brightest channel). Unset, every texel is lit by
-// angle and glows nowhere.
+// flat and two where lit through a ramp, green its cap, blue its shadow tint; row 1 its emission's colour and strength
+// over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward the glow by its
+// brightest channel); rows 2 to RAMP + 1 its ramp. Unset, every texel is lit by angle and glows nowhere.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -24,22 +24,33 @@ varying vec4 given;
 // One where the vertex's material is flat; then flat_light is the ambient and light given back it takes, capped.
 varying float flat_lit;
 varying vec3 flat_light;
+// A ramp-lit vertex's main light its shadow tint lends the albedo, and the light its cap leaves room for.
+varying vec4 tinted;
 varying vec4 glow_colour;
 
 // A flat material, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it
 // faces, plus the ambient, capped: its texture's painted shading is the only shading. The ambient and the light given
 // back are added capped as emission, the engine's ambient left out; the main light stays the engine's, so the sun's
 // shadow still falls on it, through a normal turned toward the light and away by as much as keeps the whole under the
-// cap. The cap clips the ambient per channel and the main light by its brightest channel.
+// cap. The cap clips the ambient per channel and the main light by its brightest channel. A ramp-lit material, as
+// Toon Standard lights it, takes the same ambient and the main light scaled by its ramp at the half-Lambert term, and
+// the rest of the main light lent the albedo by its shadow tint in each pixel, under the same cap; that tint, added as
+// emission, takes no cast shadow, as Toon Standard's shade does under one.
+const int RAMP = 16;
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
-	vec2 light = texelFetch(lighting, looked, 0).rg;
+	vec3 light = texelFetch(lighting, looked, 0).rgb;
 	glow_colour = textureSize(lighting, 0).y > 1 ? texelFetch(lighting, looked + ivec2(0, 1), 0) : vec4(0.0);
 	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
 	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	given = given_over(at, flat_lit > 0.5 ? vec3(0.0) : normalize(mat3(MODEL_MATRIX) * NORMAL), ground_at(at.xz));
+	vec3 normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
+	// A flat or ramp-lit vertex reads the light around it a metre over its mesh's origin, the same place for every
+	// vertex: reading the volumes at each vertex of a dense avatar cost a Quest 2 more than its whole lighting.
+	vec3 lit_at = flat_lit > 0.5 ? NODE_POSITION_WORLD + vec3(0.0, 1.0, 0.0) : at;
+	given = given_over(lit_at, flat_lit > 0.5 ? vec3(0.0) : normal, ground_at(lit_at.xz));
 	flat_light = vec3(0.0);
+	tinted = vec4(0.0);
 	if (flat_lit > 0.5) {
 		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 		vec3 ambient = (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
@@ -47,8 +58,16 @@ void vertex() {
 		vec3 toward = mirrored ? mirror_toward : sun_toward;
 		flat_light = min(ambient + given.rgb, vec3(light.g));
 		float room = light.g - max(flat_light.r, max(flat_light.g, flat_light.b));
-		float facing = clamp(room / max(max(key.r, max(key.g, key.b)), 1e-4), 0.0, 1.0);
 		toward = length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0);
+		float level = 1.0;
+		if (light.r > 1.5) {
+			float x = clamp(dot(normal, toward) * 0.5 + 0.5, 0.0, 1.0) * float(RAMP - 1);
+			int i = min(int(x), RAMP - 2);
+			level = mix(texelFetch(lighting, looked + ivec2(0, 2 + i), 0).r, texelFetch(lighting, looked + ivec2(0, 3 + i), 0).r, x - float(i));
+		}
+		float brightest = max(max(key.r, max(key.g, key.b)), 1e-4);
+		float facing = clamp(min(level, room / brightest), 0.0, 1.0);
+		tinted = vec4((1.0 - level) * light.b * key, max(room - facing * brightest, 0.0));
 		vec3 across = vec3(0.0, 1.0, 0.0) - toward * toward.y;
 		across = dot(across, across) > 1e-6 ? normalize(across) : vec3(1.0, 0.0, 0.0);
 		NORMAL = normalize(transpose(mat3(MODEL_MATRIX)) * (facing * toward + sqrt(1.0 - facing * facing) * across));
@@ -220,5 +239,5 @@ void fragment() {
 #endif
 	ROUGHNESS = 1.0;
 	AO = flat_lit > 0.5 ? 0.0 : given.a;
-	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing;
+	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light + min(tinted.rgb * base.rgb, vec3(tinted.a)) : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing;
 }

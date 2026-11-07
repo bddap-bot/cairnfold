@@ -75,8 +75,9 @@ static func valid(data: Dictionary) -> bool:
 	return looks_valid(data.get("looks", {}))
 
 
-## Looks that name their materials give each its "lighting": "lit" by angle, or "flat", lit alike whichever way it
-## faces and capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
+## Looks that name their materials give each its "lighting": "lit" by angle, through a "ramp" of at least two
+## brightnesses with a numeric "shadowTint" where it has one, or "flat", lit alike whichever way it faces; a flat or
+## ramp-lit one is capped at "cap" when it has one (unity/materials.gd lighting), and an "emission" null or its linear
 ## "color", "strength" and, optionally, "replace" and "theme", the slot of the global theme colour it glows in among the
 ## material's "themes" (unity/materials.gd `_theme`). A file whose looks predate lighting would draw flat materials shaded twice, so it is refused
 ## rather than guessed at (Avatar.shape).
@@ -92,6 +93,10 @@ static func looks_valid(looks: Variant) -> bool:
 		var light: Variant = m.get("lighting") if m is Dictionary else null
 		if not light is Dictionary or light.get("model") not in ["lit", "flat"] or not _number(light.get("cap", 0.0)):
 			push_error("expressions: a look's material has no lighting (\"lit\" or \"flat\" with a numeric cap): %s; convert the avatar again" % [light])
+			return false
+		var ramp: Variant = light.get("ramp", [0.0, 1.0])
+		if not ramp is Array or ramp.size() < 2 or not ramp.all(_number) or not _number(light.get("shadowTint", 0.0)):
+			push_error("expressions: a look's lighting ramp is not two or more numbers with a numeric shadow tint: %s" % [light])
 			return false
 		var glow: Variant = m.get("emission")
 		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
