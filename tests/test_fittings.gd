@@ -535,7 +535,7 @@ func _in_the_glade() -> void:
 	check(fence.layout.archways().is_empty(), "undoing the path closes the gate")
 	var cut := PackedVector4Array(world.state.walls[wall.id].openings)
 	world.restore(world.snapshot())
-	_lay_walls()
+	lay_walls(main.tool)
 	var reloaded: Wall = main.tool.find(wall.id)
 	check(cut.size() == 2 and PackedVector4Array(world.state.walls[wall.id].openings) == cut and reloaded.layout.archways().size() == 1, "a save keeps the cut arch")
 	await _a_ruin_flies_no_flag(fit, world)
@@ -549,7 +549,7 @@ func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
 	for f in 3:
 		await process_frame
 	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]
-	_lay_walls()
+	lay_walls(main.tool)
 	check(ruin.layout.broken(4.0) and not ruin.layout.broken(9.5, 0.3), "the ruined wall stands, broken at 4 m and whole at 9.5 m")
 	check(not _fit(fit, {"what": "flag", "wall": ruin, "s": 4.0}) and Array(world.state.walls[ruin.id].flags).is_empty(), "a flag pressed onto a ruined stretch is refused, not stored unflown")
 	check(_fit(fit, {"what": "flag", "wall": ruin, "s": 9.5}) and Array(world.state.walls[ruin.id].flags).any(func(e): return is_equal_approx(e, 9.5)) and ruin.layout.cloths.size() == 1, "beside the ruin a flag flies as ever")
@@ -602,7 +602,7 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 ## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
 func _fit(fit: FittingTool, target: Dictionary) -> bool:
 	var placed := fit.fit(target)
-	_lay_walls()
+	lay_walls(main.tool)
 	return placed
 
 
@@ -634,12 +634,12 @@ func _chimney_ghost_is_the_chimney(fit: FittingTool, world: World, house: Wall) 
 
 func _undo(world: World) -> void:
 	world.undo()
-	_lay_walls()
+	lay_walls(main.tool)
 
 
 func _redo(world: World) -> void:
 	world.redo()
-	_lay_walls()
+	lay_walls(main.tool)
 
 
 ## Every buffer `w` draws once its stones and ivy are laid. A wall that lays on and on, as one a hand's preview keeps
@@ -656,11 +656,6 @@ func _drawn(w: Wall, step: String) -> Array:
 	while true:
 		await process_frame
 	return []
-
-
-func _lay_walls() -> void:
-	for w: Wall in main.tool.walls:
-		w.lay_now()
 
 
 func _each_fitting_stands_alone() -> void:

@@ -49,10 +49,14 @@ func _process(delta: float) -> void:
 	held += delta
 
 
-## The wrist's twist about the hand's pointing axis since the dial opened, unwound from the last twist so it turns on
-## past a half turn.
+## The wrist's twist about the hand's pointing axis since the dial opened.
 func wrist(hand: Node3D) -> float:
-	return degrees + wrapf(roll(frame, hand.global_basis) - degrees, -180.0, 180.0)
+	return unwound(degrees, frame, hand.global_basis)
+
+
+## The twist of `now` about `from`'s pointing axis nearest `last`, so it turns on past a half turn.
+static func unwound(last: float, from: Basis, now: Basis) -> float:
+	return last + wrapf(roll(from, now) - last, -180.0, 180.0)
 
 
 ## Turns to `by` degrees of twist from where it opened, clockwise positive; whether the choice at the top changed.

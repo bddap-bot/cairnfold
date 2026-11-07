@@ -19,8 +19,7 @@ func _initialize() -> void:
 
 
 func _lay() -> void:
-	for w: Wall in tool.walls:
-		w.lay_now()
+	lay_walls(tool)
 	world.decorations.sync()
 
 

@@ -188,7 +188,7 @@ GameObject:
 
 
 func _model_objects_keep_their_bindings_and_transforms() -> void:
-	var assets := Assets.new(ProjectSettings.globalize_path("res://../tests/avatars"))
+	var assets := Assets.new(avatar_file())
 	var prefabs := Prefabs.new(assets)
 	var model := prefabs.model(assets.of(["fbx"])[0])
 	var bound := 0
@@ -1634,7 +1634,7 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 func _submeshes_take_slots_in_first_use_order() -> void:
 	var geometry := {"children": [{"name": "LayerElementMaterial", "children": [{"name": "Materials", "props": [PackedInt32Array([2, 2, 0, 1, 0, 2])]}]}]}
 	check(FbxSlots._first_uses(geometry) == PackedInt32Array([2, 0, 1]), "slots follow the polygons' first use of each material")
-	var assets := Assets.new(ProjectSettings.globalize_path("res://../tests/avatars"))
+	var assets := Assets.new(avatar_file())
 	for guid: String in ["skin", "eye", "metal"]:
 		assets.by_guid[guid] = {"file": "", "path": "Assets/%s.mat" % guid.capitalize(), "meta": ""}
 	var mesh := ArrayMesh.new()

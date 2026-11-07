@@ -18,14 +18,7 @@ func _init() -> void:
 	_a_room_passes_on_the_light_it_lets_in()
 	_sky_stays_out_a_layer_over_the_roof()
 	_a_live_hump_solves_nothing()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 ## A 7×5 house on flat ground from x 0 to 7 and z -2.5 to 2.5, with an arched door in the middle of the wall at
@@ -143,7 +136,7 @@ func _merged_rooms_share_light() -> void:
 	for i in layouts.size():
 		rooms.append(Lamps.Room.of(layouts[i], Massing.of(layouts[i], null)))
 	var apart := Lamps.shine(flame, ground, rooms)
-	_check(_at(apart, 7.5, 0.5, 1) == 0.0, "overlapping outlines alone do not connect rooms without removed walls")
+	check(_at(apart, 7.5, 0.5, 1) == 0.0, "overlapping outlines alone do not connect rooms without removed walls")
 
 
 func _a_live_hump_solves_nothing() -> void:
@@ -154,7 +147,7 @@ func _a_live_hump_solves_nothing() -> void:
 	lamps.finish()
 	terrain.set_hump(0, 1.0, 0.0, 3.0, 1.0)
 	lamps.update()
-	_check(lamps._task < 0, "a stroke's live hump, which the light never stands on, starts no solve")
+	check(lamps._task < 0, "a stroke's live hump, which the light never stands on, starts no solve")
 	terrain.clear_hump(0)
 	lamps.finish()
 	var cells := Terrain.cells_around(1.0, 0.0, 3)
@@ -164,7 +157,7 @@ func _a_live_hump_solves_nothing() -> void:
 		raised[i] += 1.0
 	terrain.write(cells, raised)
 	lamps.update()
-	_check(lamps._task >= 0, "ground raised under a lantern solves its light again")
+	check(lamps._task >= 0, "ground raised under a lantern solves its light again")
 	lamps.stop()
 
 
@@ -174,11 +167,11 @@ func _openings_admit_exterior_light() -> void:
 	var lit := Lamps.shine(flame, ground, [room])
 	var near := _at(lit, 3.5, -1.5, 0)
 	var far := _at(lit, 3.5, 1.5, 0)
-	_check(near > 0.0 and far < near, "an exterior flame spills through the arch and fades with depth")
+	check(near > 0.0 and far < near, "an exterior flame spills through the arch and fades with depth")
 	room.openings.clear()
 	var closed := Lamps.shine(flame, ground, [room])
-	_check(_at(closed, 3.5, -1.5, 0) == 0.0, "closing the opening blocks that same flame")
-	_check(_at(closed, 3.5, -4.5, 0) > 0.0, "the exterior stays lit")
+	check(_at(closed, 3.5, -1.5, 0) == 0.0, "closing the opening blocks that same flame")
+	check(_at(closed, 3.5, -4.5, 0) > 0.0, "the exterior stays lit")
 
 
 ## The probes over and around `room` after it bounds them, the column bake having given every one `baked` and the
@@ -224,11 +217,11 @@ func _sky_stays_out_a_layer_over_the_roof() -> void:
 				var y := k + 0.5
 				if y >= over and y < over + Terrain.STEP * 0.5:
 					band += 1
-					_check(_sky(result, x, z, k) == 0, "a probe %.2f m over the roof at (%.1f, %.1f) stays dark" % [y - over + Terrain.STEP * 0.5, x, z])
+					check(_sky(result, x, z, k) == 0, "a probe %.2f m over the roof at (%.1f, %.1f) stays dark" % [y - over + Terrain.STEP * 0.5, x, z])
 				elif y >= over + Terrain.STEP * 1.5:
 					clear += 1
-					_check(_sky(result, x, z, k) == 255, "a probe a layer clear of the roof at (%.1f, %.1f) sees the sky" % [x, z])
-	_check(band > 0 and clear > 0, "the house has probes in and clear of the band over its roof")
+					check(_sky(result, x, z, k) == 255, "a probe a layer clear of the roof at (%.1f, %.1f) sees the sky" % [x, z])
+	check(band > 0 and clear > 0, "the house has probes in and clear of the band over its roof")
 
 
 ## Light let in through a room's openings lights its back corner and ceiling off its walls and floor: sunlight only
@@ -239,27 +232,27 @@ func _a_room_passes_on_the_light_it_lets_in() -> void:
 	var lit := _sky_result(room, before_door, Color(0.6, 0.6, 0.6), 0)
 	var behind := _sky_result(room, -before_door, Color(0.6, 0.6, 0.6), 0)
 	var dark := _sky_result(room, before_door, Color(0.2, 0.2, 0.2), 0)
-	_check(_bounce(lit, 0.5, 1.5, 2) > 0, "the sun through the door lights the back corner under the roof: %d" % _bounce(lit, 0.5, 1.5, 2))
-	_check(_bounce(lit, 0.5, 1.5, 2) > _bounce(behind, 0.5, 1.5, 2), "a sun behind the house lights less of its inside")
-	_check(_sky(behind, 0.5, 1.5, 2) > 0, "sky light let in still reaches the back corner under the roof")
-	_check(_bounce(dark, 0.5, 1.5, 2) < _bounce(lit, 0.5, 1.5, 2) and _sky(dark, 0.5, 1.5, 2) < _sky(lit, 0.5, 1.5, 2), "darker stone passes on less")
+	check(_bounce(lit, 0.5, 1.5, 2) > 0, "the sun through the door lights the back corner under the roof: %d" % _bounce(lit, 0.5, 1.5, 2))
+	check(_bounce(lit, 0.5, 1.5, 2) > _bounce(behind, 0.5, 1.5, 2), "a sun behind the house lights less of its inside")
+	check(_sky(behind, 0.5, 1.5, 2) > 0, "sky light let in still reaches the back corner under the roof")
+	check(_bounce(dark, 0.5, 1.5, 2) < _bounce(lit, 0.5, 1.5, 2) and _sky(dark, 0.5, 1.5, 2) < _sky(lit, 0.5, 1.5, 2), "darker stone passes on less")
 	room.openings.clear()
 	var sealed := _sky_result(room, before_door, Color(0.6, 0.6, 0.6), 0)
-	_check(_bounce(sealed, 0.5, 1.5, 2) == 0 and _sky(sealed, 0.5, 1.5, 2) == 0, "a sealed room passes on nothing")
+	check(_bounce(sealed, 0.5, 1.5, 2) == 0 and _sky(sealed, 0.5, 1.5, 2) == 0, "a sealed room passes on nothing")
 
 
 func _rooms_limit_sky() -> void:
 	var room := _house()
 	var result := _sky_result(room)
-	_check(_sky(result, 3.5, -1.5) > _sky(result, 0.5, 0.5), "daylight is stronger near an opening than in the back corner")
+	check(_sky(result, 3.5, -1.5) > _sky(result, 0.5, 0.5), "daylight is stronger near an opening than in the back corner")
 	room.openings.clear()
 	result = _sky_result(room)
-	_check(_sky(result, 3.5, -1.5) == 0, "a closed room sees no sky even if the column bake leaks")
+	check(_sky(result, 3.5, -1.5) == 0, "a closed room sees no sky even if the column bake leaks")
 	var at := Bounce.column(3.5, -1.5) - result.area.position as Vector2i
-	_check(result.layers[0][(at.y * result.area.size.x + at.x) * 4] == 0, "a sealed room receives no exterior bounced sunlight")
-	_check(room.holds(Vector3(7.0, 1.0, 0.0), true) and not room.holds(Vector3(7.0, 1.0, 0.0)), "boundary probes cover the inner face without classifying exterior lamps as inside")
-	_check(_sky(result, -1.5, 0.5) == 255, "exterior sky remains unchanged")
-	_check(_sky(result, -0.5, 0.5) == 0, "the boundary probe cannot interpolate sky onto the inside face")
+	check(result.layers[0][(at.y * result.area.size.x + at.x) * 4] == 0, "a sealed room receives no exterior bounced sunlight")
+	check(room.holds(Vector3(7.0, 1.0, 0.0), true) and not room.holds(Vector3(7.0, 1.0, 0.0)), "boundary probes cover the inner face without classifying exterior lamps as inside")
+	check(_sky(result, -1.5, 0.5) == 255, "exterior sky remains unchanged")
+	check(_sky(result, -0.5, 0.5) == 0, "the boundary probe cannot interpolate sky onto the inside face")
 	var yard := _house(WallLayout.Cover.OPEN)
 	yard.openings.clear()
-	_check(_sky(_sky_result(yard), 3.5, -1.5) == 255, "a roofless courtyard remains open to the sky")
+	check(_sky(_sky_result(yard), 3.5, -1.5) == 255, "a roofless courtyard remains open to the sky")

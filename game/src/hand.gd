@@ -853,9 +853,8 @@ func _expression_input(delta: float) -> void:
 		return
 	if not expressions.puppet.is_empty():
 		var rig := get_parent() as Rig
-		var twist := _expression_twist + wrapf(Dial.roll(_expression_frame, global_basis) - _expression_twist, -180.0, 180.0)
-		_expression_twist = twist
-		var value := clampf(expressions.radial_start + twist / 360.0, 0, 1)
+		_expression_twist = Dial.unwound(_expression_twist, _expression_frame, global_basis)
+		var value := clampf(expressions.radial_start + _expression_twist / 360.0, 0, 1)
 		expressions.player.state.puppet(expressions.puppet, rig.right.stick(), value)
 		if dial != null:
 			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.puppet.type == "radial" else rig.right.stick()

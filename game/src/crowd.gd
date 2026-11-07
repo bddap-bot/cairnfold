@@ -6,7 +6,7 @@ extends MultiMeshInstance3D
 ## buffer and uploaded in one call.
 
 var buffer := PackedFloat32Array()
-var stride := 16
+var stride: int
 
 
 func _init(terrain: Terrain, mesh: Mesh, cap: int, material: Material, colours := false) -> void:

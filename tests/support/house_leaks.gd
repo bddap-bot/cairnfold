@@ -51,16 +51,6 @@ func first(origin: Vector3, direction: Vector3) -> Dictionary:
 	return best
 
 
-static func directions(count: int) -> PackedVector3Array:
-	var out := PackedVector3Array()
-	for i in count:
-		var y := 1.0 - 2.0 * (i + 0.5) / count
-		var angle := i * PI * (3.0 - sqrt(5.0))
-		var radius := sqrt(1.0 - y * y)
-		out.append(Vector3(cos(angle) * radius, y, sin(angle) * radius))
-	return out
-
-
 ## Apertures are tested at the wall centre plane, with exact layout bounds (no enlarged picking margin).
 ## Only a crossing before the first hit can excuse a ray. Hidden merge seams are not apertures.
 static func aperture(w: Wall, origin: Vector3, direction: Vector3, limit: float) -> bool:

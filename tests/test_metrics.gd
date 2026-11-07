@@ -253,8 +253,7 @@ func _each_frame_splits_the_main_thread() -> void:
 
 
 func _the_engine_splits_its_frames() -> void:
-	for i in 3:
-		await process_frame
+	await frames(3)
 	var times := Performance.get_frame_times()
 	check(times.keys() == Metrics.MAIN_PHASES, "the engine reports every phase: %s" % [times])
 	var spent: float = times.values().reduce(func(a: float, b: float) -> float: return a + b, 0.0)

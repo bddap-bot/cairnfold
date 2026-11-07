@@ -12,7 +12,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await frames(3)
 	var session := main.session
-	var file := Avatar.read(FileAccess.get_file_as_bytes("res://../tests/avatars/crimsom-1.0.vrm"))
+	var file := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
 	session._looks[7] = [1, Color.GREEN]
 	session._wearing[7] = "file"
 	session._scenes["file"] = file

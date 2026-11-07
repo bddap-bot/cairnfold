@@ -37,17 +37,13 @@ func _init() -> void:
 	finish()
 
 
-func _blocks(w: WallLayout) -> Array:
-	return w.stones.filter(func(s): return s.kind == "block")
-
-
 func _straight_wall_fills_its_length() -> void:
 	var w := straight_wall(6.0, 2.4, [])
 	check(absf(w.length() - 6.0) < 0.01, "length %f" % w.length())
 	var courses := int(round(2.4 / WallLayout.COURSE))
 	for k in courses:
 		var covered := 0.0
-		for s in _blocks(w):
+		for s in blocks_of(w):
 			if absf(s.y - (k + 0.5) * 2.4 / courses) < 0.01:
 				covered += s.size.x
 		check(absf(covered - 6.0) < 0.02, "course %d covers %f of 6 m" % [k, covered])
@@ -124,7 +120,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				var reveal: bool = y < w.spring(k) and (w.arch_style().jamb == 0.0 or jamb > 0.0) and absf(d) < WallLayout.ARCH_HALF * k + jamb + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
 				var hit := near.any(func(st: Dictionary) -> bool:
-					return _holds(st, p))
+					return piece_holds(st, p))
 				if absf(d) < inner - 0.03 and hit:
 					blocked.append(Vector2(d, y))
 				elif absf(d) > edge and not reveal and not hit:
@@ -157,7 +153,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + WallLayout.COURSE + 0.03:
 					var p: Vector3 = door.frame_at(a + d).point + Vector3.UP * y
 					if not door.stones.any(func(st: Dictionary) -> bool:
-						return _holds(st, p)):
+						return piece_holds(st, p)):
 						gaps.append(Vector2(d, y))
 				d += 0.04
 			y += 0.04
@@ -187,16 +183,6 @@ func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 			var miss := _joint_miss(st, Vector2(8.0, w.spring(k) + st.xform.origin.y - st.y))
 			check(miss < 0.01, "size %.1f: a %s's joints run %.3f m wide of the arch's centre" % [k, st.kind, miss])
 		check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
-
-
-## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
-func _holds(st: Dictionary, p: Vector3) -> bool:
-	var x: Transform3D = st.xform
-	var q := x.affine_inverse() * p
-	var e: Vector2 = st.get("ends", Vector2.ZERO)
-	var axis := x.basis.y.normalized()
-	q.x -= q.z * x.basis.z.length() * tan(e.x if q.x < 0.0 else e.y) / (x.basis.x - axis * x.basis.x.dot(axis)).length()
-	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
 
 
 ## How far wide of `centre`, in the plane of a wall along x, the farther of a wedge's two joint lines runs, as the stone
@@ -301,7 +287,7 @@ func _raising_the_wall_adds_courses() -> void:
 			m = maxf(m, s.y + s.size.y * 0.5)
 		return m
 	check(top.call(high) > top.call(low) + 1.5, "raising 1.8 m adds height")
-	check(_blocks(high).size() > _blocks(low).size() * 1.6, "raising adds courses of stone")
+	check(blocks_of(high).size() > blocks_of(low).size() * 1.6, "raising adds courses of stone")
 
 
 func _point_at_follows_the_curve() -> void:

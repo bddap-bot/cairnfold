@@ -147,7 +147,7 @@ func _run() -> void:
 ## Each .vrm in the folder that reads is a choice of its own; the newest to arrive is worn, and the worn one removed, the
 ## built-in avatar is.
 func _every_file_in_the_folder_is_on_the_wheel(session: Session, hand: Hand) -> void:
-	var source := ProjectSettings.globalize_path("res://").path_join("../tests/avatars")
+	var source := avatar_file()
 	var vrms := Array(DirAccess.get_files_at(source)).filter(func(f: String) -> bool: return f.get_extension() == "vrm")
 	vrms.sort()
 	var folder := ProjectSettings.globalize_path("user://test-wheel-avatars")

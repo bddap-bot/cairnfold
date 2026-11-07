@@ -10,8 +10,7 @@ func _initialize() -> void:
 
 
 func _lay() -> void:
-	for w: Wall in main.tool.walls:
-		w.lay_now()
+	lay_walls(main.tool)
 	main.world.decorations.sync()
 
 
@@ -235,23 +234,18 @@ func _real_grip(wall: Wall) -> void:
 	for h in [hand, other]:
 		h.held_still = true
 		h.global_transform = Transform3D(Basis.looking_at(Vector3(0, 0, -1)), at + Vector3(0.1 if h == hand else -0.1, 0, 1.0))
-	for i in 3:
-		await process_frame
+	await frames(3)
 	Buttons.injected["right_hand/grip_click"] = true
-	for i in 3:
-		await process_frame
+	await frames(3)
 	check(main.tool.mason(hand).growing is FittingGrip and main.tool.held == null, "the grip button takes the lantern, not its wall")
 	Buttons.injected["left_hand/grip_click"] = true
-	for i in 3:
-		await process_frame
+	await frames(3)
 	check(main.tool.mason(other).growing == null and main.tool.mason(hand).partner == null, "the other hand's grip on a lantern does not size it")
 	Buttons.injected.erase("left_hand/grip_click")
 	hand.global_position += Vector3(-0.6, 0.3, 0)
-	for i in 3:
-		await process_frame
+	await frames(3)
 	Buttons.injected.erase("right_hand/grip_click")
-	for i in 3:
-		await process_frame
+	await frames(3)
 	var now: Vector3 = world.state.walls[wall.id].lanterns[0]
 	check(absf(now.x - lantern.x) > 0.4 and absf(now.y - (lantern.y + 0.3)) < 0.06, "let go, the lantern hangs where the hand took it: %s from %s" % [now, lantern])
 	for h in [hand, other]:

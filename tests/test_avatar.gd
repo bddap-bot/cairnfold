@@ -22,15 +22,15 @@ func _run() -> void:
 	for i in Avatar.BUILT_IN.size():
 		_headless_leaves_the_eyes_clear(Avatar.built_in(i), Avatar.BUILT_IN[i].get_file())
 	for path in SAMPLES:
-		var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample(path)))
+		var scene := Avatar.read(FileAccess.get_file_as_bytes(avatar_file(path)))
 		check(scene != null, "%s reads as an avatar" % path)
 		if scene != null:
-			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(_sample(path))))
+			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(avatar_file(path))))
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
 			_fingers_curl_into_the_palm(scene, path)
 			_headless_leaves_the_eyes_clear(scene, path)
-			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(_sample(path)), path))
+			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(avatar_file(path)), path))
 	_a_colour_averages_the_triangles_base_colours()
 	_a_file_the_headset_does_not_draw_stands_in_a_built_in()
 	_both_versions_stand_alike()
@@ -52,8 +52,7 @@ func _run() -> void:
 	_shape_normals_turn_with_the_shape()
 	_set_blend_shapes_are_written()
 	_blended_surfaces_stay_blended()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## A model's colour weighs each primitive's base colour, its factor times its image's mean or glTF's white without a
@@ -82,7 +81,7 @@ func _a_colour_averages_the_triangles_base_colours() -> void:
 	card.set_pixel(0, 0, Color(1, 0, 0, 1))
 	var mean := Vrm._mean(card)
 	check(mean.is_equal_approx(Color.RED) and not card.has_mipmaps(), "an image's mean weighs texels by alpha and leaves the image as it was: %s" % mean)
-	var sample := Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm")))
+	var sample := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
 	var colour: Color = sample.get_meta("colour")
 	check(not colour.is_equal_approx(Color.WHITE) and colour.r > colour.b, "a sample's colour reads from its images: %s" % colour)
 
@@ -90,7 +89,7 @@ func _a_colour_averages_the_triangles_base_colours() -> void:
 ## Where the headset draws no one's own file, a player's file stands as a built-in body in its colour, keeping its
 ## identity; a built-in stands as itself.
 func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
-	var sample := Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm")))
+	var sample := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
 	var whole := Avatar.drawn(sample, Color.RED, "file", true, 1)
 	check(whole.scene == sample and whole.tint == Color.RED and whole.source == "file", "a file the headset draws stands as itself")
 	var stand_in := Avatar.drawn(sample, Color.RED, "file", false, 1)
@@ -104,7 +103,7 @@ func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
 ## A file naming images too large or too many is refused from their headers, before any is decoded: a beacon makes every
 ## Quest nearby read the file it names.
 func _images_are_measured_before_decoding() -> void:
-	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_L8).save_png_to_buffer()
 	var jpg := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGB8).save_jpg_to_buffer()
 	var side := Avatar.MAX_IMAGE_SIDE
@@ -139,7 +138,7 @@ func _read_limits_follow_memory() -> void:
 	check(Avatar.reads(0) == 1.0 and Avatar.reads(1660 << 20) == 1.0 and Avatar.reads(2432 << 20) == 1.0, "a device with a Quest 2's memory or less reads at the floors")
 	var heavy := 1.18
 	check(Avatar.reads(Avatar.memory_to_read(heavy)) >= heavy and Avatar.reads(Avatar.memory_to_read(heavy) - 1) < heavy, "a file past the floors is read exactly where the memory it needs is available")
-	var sample := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var sample := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var floor := _padded(sample, Avatar.FLOOR_BYTES)
 	check(Avatar.read(floor, false, 0) != null, "a file at the size floor is read with no memory to spare")
 	var past := _padded(sample, Avatar.FLOOR_BYTES + 4)
@@ -167,7 +166,7 @@ func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:
 ## A file's images are each the one its headers were measured from, in its place, or it is refused: the texture
 ## budget is set from those measurements before any image is decoded.
 func _textures_share_the_texel_limit() -> void:
-	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGBA8).save_png_to_buffer()
 	var three := _with_images(bytes, [png.call(64, 64), png.call(64, 64), png.call(64, 64)])
 	check(Avatar.read(three) != null, "a file whose images are all measured is read")
@@ -180,7 +179,7 @@ func _textures_share_the_texel_limit() -> void:
 
 
 func _unweighted_children_keep_humanoid_bones() -> void:
-	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var json := _gltf_json(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	for bone: String in ["hips", "head"]:
@@ -191,7 +190,7 @@ func _unweighted_children_keep_humanoid_bones() -> void:
 
 
 func _blend_shapes_are_bounded() -> void:
-	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var json := _gltf_json(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	var prim: Dictionary = json.meshes[0].primitives[0]
@@ -311,15 +310,15 @@ func _glb(json: Dictionary, bin: PackedByteArray) -> PackedByteArray:
 ## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as a
 ## scene and read back, it opens, poses and bends as the engine's own import of the FBX does.
 func _unity_package_converts() -> void:
-	var model := UnityAvatar.avatar_scene(_sample("seed-san"))
+	var model := UnityAvatar.avatar_scene(avatar_file("seed-san"))
 	check(model != null, "the Unity package imports")
 	if model == null:
 		return
-	var avatar := UnityAvatar.avatar_definition(FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
+	var avatar := UnityAvatar.avatar_definition(FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
 	var human: Dictionary = model.get_meta("humanoid")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var bone_of := func(b: String) -> String: return (human[b] as NodePath).get_concatenated_subnames()
-	_rests_in_the_avatar_definitions_pose(sk, bone_of.call("leftUpperArm"), FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
+	_rests_in_the_avatar_definitions_pose(sk, bone_of.call("leftUpperArm"), FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
 	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool:
 		var as_bone := UnityAvatar.vrm_bone(avatar.human[b])
 		return human.has(as_bone) and sk.find_bone(bone_of.call(as_bone)) >= 0), "every bone the Avatar definition maps is a skeleton bone under its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
@@ -338,7 +337,7 @@ func _unity_package_converts() -> void:
 		return
 	_pose_puts_the_eyes_on_the_head(scene, "seed-san")
 	_arms_join_shoulders_to_hands(scene, "seed-san")
-	var fbx := _sample("seed-san/Models/new_seedsan_betterfbx.fbx")
+	var fbx := avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx")
 	var reference := _imported(fbx)
 	var skins := reference.find_children("*", "MeshInstance3D", true, false).filter(func(mi: MeshInstance3D) -> bool: return mi.skin != null)
 	var shapes := {}
@@ -350,8 +349,8 @@ func _unity_package_converts() -> void:
 	reference.free()
 	var lowered := ProjectSettings.globalize_path("user://seed-san-lowered/Models")
 	DirAccess.make_dir_recursive_absolute(lowered)
-	DirAccess.copy_absolute(_sample("seed-san/Models/new_seedsan_betterfbx.fbx"), lowered.path_join("new_seedsan_betterfbx.fbx"))
-	var meta := FileAccess.get_file_as_string(_sample("seed-san/Models/new_seedsan_betterfbx.fbx.meta"))
+	DirAccess.copy_absolute(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx"), lowered.path_join("new_seedsan_betterfbx.fbx"))
+	var meta := FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta"))
 	var entry := meta.find("    - name: upper_arm.L\n")
 	var start := meta.find("rotation: {", entry)
 	var end := meta.find("}", start) + 1
@@ -372,7 +371,7 @@ func _unity_package_converts() -> void:
 
 ## A blend shape the package saves at a weight, drawn so by Unity at rest, keeps its weight in the VRM a player wears.
 func _rest_weights_survive_the_vrm() -> void:
-	var model := UnityAvatar.avatar_scene(_sample("seed-san"))
+	var model := UnityAvatar.avatar_scene(avatar_file("seed-san"))
 	var mi: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false).filter(func(m: MeshInstance3D) -> bool: return m.get_blend_shape_count() > 1)[0]
 	var shape: StringName = mi.mesh.get_blend_shape_name(1)
 	mi.set_blend_shape_value(1, 0.6)
@@ -636,10 +635,6 @@ func _floats(json: Dictionary, bin: PackedByteArray, index: int) -> PackedFloat3
 ## The JSON chunk of a binary glTF.
 func _gltf_json(bytes: PackedByteArray) -> Dictionary:
 	return JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
-
-
-func _sample(name: String) -> String:
-	return ProjectSettings.globalize_path("res://").path_join("../tests/avatars").path_join(name)
 
 
 func _built_in_reads_as_humanoid(i: int) -> void:
@@ -936,7 +931,7 @@ func _both_versions_stand_alike() -> void:
 	var r := Transform3D(Basis(Vector3.UP, 0.4), Vector3(1.3, 1.1, 1.8))
 	var posed := []
 	for path in SAMPLES.slice(0, 2):
-		var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(_sample(path))), Color.WHITE)
+		var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(avatar_file(path))), Color.WHITE)
 		root.add_child(a)
 		a.pose(at, l, r)
 		posed.append([a.bone("hips").origin, a.bone("leftLowerArm").origin, a.bone("rightUpperArm").origin, a.bone("leftHand").origin])
@@ -976,7 +971,7 @@ func _eye_bones_follow_the_look(scene: PackedScene, what: String) -> void:
 
 ## A model that looks by expression weighs its look expressions: looking left sets lookLeft and none of the others.
 func _expressions_follow_the_look() -> void:
-	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm"))), Color.WHITE)
+	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))), Color.WHITE)
 	root.add_child(a)
 	check(a._look_type == Vrm.EXPRESSION and a._shapes.all(func(sets: Array) -> bool: return not sets.is_empty()), "godette looks by its four look expressions")
 	var at := Transform3D(Basis.IDENTITY, Vector3(0, 1.6, 0))
@@ -1068,7 +1063,7 @@ func _blended_surfaces_stay_blended() -> void:
 
 ## A figure kept under a closed wheel runs no expressions or springs until it is shown again.
 func _hidden_avatars_pause() -> void:
-	var scene := Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm")))
+	var scene := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm")))
 	var holder := Node3D.new()
 	holder.hide()
 	root.add_child(holder)
@@ -1100,7 +1095,7 @@ func _read_skins_bind_only_weighed_bones() -> void:
 				if arrays[Mesh.ARRAY_WEIGHTS][k] > 0.0:
 					used[arrays[Mesh.ARRAY_BONES][k]] = true
 		return used.size() == skin.get_bind_count()
-	var bytes := FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm"))
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))
 	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
 	var joints: int = (json.skins as Array).map(func(skin: Dictionary) -> int: return (skin.joints as Array).size()).max()
 	var model := Avatar.read(bytes).instantiate()

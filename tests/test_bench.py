@@ -13,31 +13,34 @@ sys.path.insert(0, str(SCRIPTS))
 import trend  # noqa: E402
 
 
+def report(out, device):
+    return subprocess.run([sys.executable, "-c", REPORT, str(out), device, str(out / "record.json"), "1"], capture_output=True, text=True)
+
+
+def bench(out, device, gpu_ms, seconds, stress="[]"):
+    (out / "metrics.json").write_text(json.dumps({"info": {"budget": {"gpu_ms": gpu_ms, "refresh_hz": 72}}, "seconds": seconds}))
+    (out / "stress.json").write_text(stress)
+    return report(out, device)
+
+
 class BenchmarkRendering(unittest.TestCase):
     def test_failed_rendering_cannot_pass_the_frame_budget(self):
-        report = REPORT
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
-            (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
-                "seconds": [{"label": "drag", "p50": 13.89, "p99": 13.89,
-                             "late": 0, "draws": 100, "prims": 1000}],
-            }))
-            (out / "stress.json").write_text("[]")
+            seconds = [{"label": "drag", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000}]
             for log in ["logcat.txt", "godot.log"]:
                 with self.subTest(log=log):
                     path = out / log
                     path.write_text('ERROR: When supplying a custom region, it must be contained within the framebuffer rectangle\n')
-                    result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+                    result = bench(out, "desktop", 11.111, seconds)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("invalid framebuffer region; rendering failed", result.stderr)
                     path.unlink()
-            result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            result = report(out, "desktop")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("drag", result.stdout)
 
     def test_a_quest_game_crash_is_named_a_crash(self):
-        report = REPORT
         game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
         vrapi = '17923700{s}.000  {pid}  6717 I VrApi   : FPS=72/72,Prd=40ms,App=10.00ms,GPU%=0.5\n'
         ran = (game.format(s=20, text="xr: session at 72.0 Hz")
@@ -57,18 +60,17 @@ class BenchmarkRendering(unittest.TestCase):
                              "late": 0, "draws": 100, "prims": 1000} for s in range(20, 26)],
             }))
             (out / "stress.json").write_text("[]")
-            run = lambda: subprocess.run([sys.executable, "-c", report, str(out), "quest", str(out / "record.json"), "1"], capture_output=True, text=True)
             for name, (log, message) in logs.items():
                 with self.subTest(log=name):
                     (out / "logcat.txt").write_text(log)
-                    result = run()
+                    result = report(out, "quest")
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn(message, result.stderr)
             for name, log in {"clean": ran + game.format(s=25, text="driver: done"),
                               "shell after quit": ran + game.format(s=25, text="driver: done") + vrapi.format(s=27, pid=5664)}.items():
                 with self.subTest(log=name):
                     (out / "logcat.txt").write_text(log)
-                    result = run()
+                    result = report(out, "quest")
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("paths/stroke", result.stdout)
 
@@ -76,13 +78,8 @@ class BenchmarkRendering(unittest.TestCase):
         stall = {"ms": 412.5, "tags": ["build"], "main_ms": {"scripts": 400.1}, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
-            (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
-                "seconds": [{"label": "wipe/village", "p50": 13.89, "p99": 13.89, "late": 1, "draws": 100, "prims": 1000,
-                             **({"stalls": [stall]} if i == 0 else {})} for i in range(3)],
-            }))
-            (out / "stress.json").write_text("[]")
-            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            result = bench(out, "desktop", 12.5, [{"label": "wipe/village", "p50": 13.89, "p99": 13.89, "late": 1, "draws": 100, "prims": 1000,
+                             **({"stalls": [stall]} if i == 0 else {})} for i in range(3)])
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["wipe/village"]
             self.assertEqual(phase["stalls"], [{"ms": 412.5, "notes": [{"what": "wipe", "ms": 390.0}], "compiled": [0, 2]}])
@@ -93,15 +90,9 @@ class BenchmarkRendering(unittest.TestCase):
         for case, (steps, pins, pinned) in cases.items():
             with self.subTest(case=case), tempfile.TemporaryDirectory(dir=".") as folder:
                 out = Path(folder)
-                (out / "metrics.json").write_text(json.dumps({
-                    "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
-                    "seconds": [{"label": "camera", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
+                result = bench(out, "desktop", 12.5, [{"label": "camera", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
                                  "step": step, **({} if pin is None else {"pinned": pin})}
-                                for step, pin in zip([6] + steps, [pins[0]] + pins)],
-                }))
-                (out / "stress.json").write_text("[]")
-                result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"],
-                                        capture_output=True, text=True)
+                                for step, pin in zip([6] + steps, [pins[0]] + pins)])
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(json.loads((out / "record.json").read_text())["phases"]["camera"].get("pinned"), pinned)
 
@@ -113,17 +104,14 @@ class BenchmarkRendering(unittest.TestCase):
         vrapi = '17923700{s}.000  6423  6717 I VrApi   : FPS=72/72,Prd=40ms,App=15.00ms,GPU%=0.5\n'
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
-            (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
-                "seconds": [{"label": labels.get(s, ("-", 0.0))[0], "fill": labels.get(s, ("-", 0.0))[1], "unix": 1792370000 + s,
-                             "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000} for s in range(20, 28)],
-            }))
-            (out / "stress.json").write_text(json.dumps([{"op": "label", "name": "pricing", "past_budget": True},
-                                                         {"op": "label", "name": "buildable", "past_budget": True},
-                                                         {"op": "label", "name": "feature"}]))
             (out / "logcat.txt").write_text(game.format(s=20, text="xr: session at 72.0 Hz") + "".join(vrapi.format(s=s) for s in labels)
                                             + game.format(s=27, text="driver: done"))
-            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "quest", str(out / "record.json"), "1"], capture_output=True, text=True)
+            result = bench(out, "quest", 11.111,
+                           [{"label": labels.get(s, ("-", 0.0))[0], "fill": labels.get(s, ("-", 0.0))[1], "unix": 1792370000 + s,
+                             "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000} for s in range(20, 28)],
+                           json.dumps([{"op": "label", "name": "pricing", "past_budget": True},
+                                       {"op": "label", "name": "buildable", "past_budget": True},
+                                       {"op": "label", "name": "feature"}]))
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("over budget: feature, buildable", result.stdout)
             self.assertIn("past the build budget (2.00)", result.stdout)
@@ -131,13 +119,8 @@ class BenchmarkRendering(unittest.TestCase):
     def test_a_phase_keeps_the_charges_of_its_fullest_second(self):
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
-            (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
-                "seconds": [{"label": "village", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
-                             "fill": f, "charges": {"wall_m2": f}} for f in (0.5, 2.0, 1.0)],
-            }))
-            (out / "stress.json").write_text("[]")
-            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            result = bench(out, "desktop", 12.5, [{"label": "village", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
+                             "fill": f, "charges": {"wall_m2": f}} for f in (0.5, 2.0, 1.0)])
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["village"]
             self.assertEqual((phase["fill"], phase["charges_ms"]), (2.0, {"wall_m2": 2.0}))
@@ -145,13 +128,8 @@ class BenchmarkRendering(unittest.TestCase):
     def test_a_phases_peak_memory_is_kept_in_its_record(self):
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
-            (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
-                "seconds": [{"label": "figures", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
-                             "mem_mb": {"textures": 100.0 + i, "buffers": 50.0 - i, "video": 300.0}} for i in range(3)],
-            }))
-            (out / "stress.json").write_text("[]")
-            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            result = bench(out, "desktop", 12.5, [{"label": "figures", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000,
+                             "mem_mb": {"textures": 100.0 + i, "buffers": 50.0 - i, "video": 300.0}} for i in range(3)])
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["figures"]
             self.assertEqual(phase["mem_mb"], {"textures": 102.0, "buffers": 49.0, "video": 300.0})
@@ -209,7 +187,7 @@ class Trend(unittest.TestCase):
                 out.mkdir()
                 (out / "metrics.json").write_text((tour / f"{name}.json").read_text())
                 (out / "stress.json").write_text("[]")
-                result = subprocess.run([sys.executable, "-c", REPORT, str(out), "frame", str(out / "record.json"), "1"], capture_output=True, text=True)
+                result = report(out, "frame")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 records[name] = json.loads((out / "record.json").read_text())
         self.assertEqual(records["gov-tip5"]["phases"]["r20/ground"]["worst"], {"late": 32, "p50": 27.52, "p99": 33.564})

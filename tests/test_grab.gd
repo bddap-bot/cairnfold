@@ -18,14 +18,14 @@ func _a_still_catch_is_felt(hand: Hand) -> void:
 	main.look.set_time(0.5)
 	for what: Array in [["ground", Vector3(0.1, -1, -0.6)], ["sky", Vector3(0.1, 1, -0.6)]]:
 		hand.global_basis = Basis.looking_at(what[1])
-		await _frames()
+		await frames(3)
 		var before: int = pulses.call()
 		Buttons.injected["right_hand/grip_click"] = true
-		await _frames()
+		await frames(3)
 		var took: bool = main.ground_grab.busy(hand) if what[0] == "ground" else main.sky_tool.holder == hand
 		check(took and pulses.call() > before, "a still grip on the %s takes it (%s) and is felt: %d pulses" % [what[0], took, pulses.call() - before])
 		Buttons.injected.erase("right_hand/grip_click")
-		await _frames()
+		await frames(3)
 		main.sky_tool.holder = null
 
 
@@ -39,18 +39,13 @@ func _the_mountains_are_not_sky(hand: Hand) -> void:
 		var flat := Vector3(cos(az), 0.0, sin(az))
 		var toward: Vector3 = (flat * float(r.radius) + Vector3.UP * (ridge - hand.global_position.y)).normalized()
 		hand.global_basis = Basis.looking_at(toward)
-		await _frames()
+		await frames(3)
 		Buttons.injected["right_hand/grip_click"] = true
-		await _frames()
+		await frames(3)
 		check(sky.holder != hand, "a grip on the mountains half up their ridge at %.0f° takes no sky" % rad_to_deg(az))
 		Buttons.injected.erase("right_hand/grip_click")
-		await _frames()
+		await frames(3)
 		sky.holder = null
-
-
-func _frames() -> void:
-	for i in 3:
-		await process_frame
 
 
 ## Waits for `w`'s stones, which a worker thread lays over however many frames it takes, and the apertures they cut.
@@ -80,20 +75,20 @@ func _grip_carries_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	for t in Hand.Tool.values():
 		hand.tool = t
 		hand.global_transform = at
-		await _frames()
+		await frames(3)
 		var wall: Wall = main.tool.walls[0]
 		var was: PackedVector3Array = main.world.state.walls[wall.id].points
 		Buttons.injected["right_hand/grip_click"] = true
-		await _frames()
+		await frames(3)
 		check(main.tool.held == wall and not main.ground_grab.busy(), "grip on the wall takes the wall, holding %s" % Hand.Tool.keys()[t])
 		hand.position.x += 0.3
-		await _frames()
+		await frames(3)
 		check(main.tool.held_at.center.distance_to(WallTool.line_of(main.world.state.walls[wall.id]).center) > 0.3, "and carries it, holding %s" % Hand.Tool.keys()[t])
 		Buttons.injected.erase("right_hand/grip_click")
-		await _frames()
+		await frames(3)
 		check(main.tool.held == null and main.world.state.walls[wall.id].points != was, "release sets it where it was carried, holding %s" % Hand.Tool.keys()[t])
 		main.world.undo()
-		await _frames()
+		await frames(3)
 	hand.tool = Hand.Tool.WALLS
 	hand.global_transform = at
 
@@ -111,21 +106,21 @@ func _grip_carries_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
 	for t in [Hand.Tool.TREES, Hand.Tool.WALLS, Hand.Tool.DELETE]:
 		hand.tool = t
 		hand.global_transform = Transform3D(Basis.looking_at(Vector3.FORWARD), crown + Vector3.BACK * 3.0)
-		await _frames()
+		await frames(3)
 		Buttons.injected["right_hand/grip_click"] = true
-		await _frames()
+		await frames(3)
 		check(main.tool.mason(hand).growing == trunk and not main.ground_grab.busy(), "grip on a tree takes the tree, holding %s" % Hand.Tool.keys()[t])
 		hand.position += Vector3(1.0, 1.0, 0.0)
-		await _frames()
+		await frames(3)
 		Buttons.injected.erase("right_hand/grip_click")
-		await _frames()
+		await frames(3)
 		var set: Vector3 = main.world.state.groups[g].places.get(0, spot)
 		check(main.tool.mason(hand).growing == null and set.x - spot.x >= 0.99 and absf(set.z - spot.z) < 0.01 and flora.scale_of(trunk) == 1.0, "moved and let go, it stands where it was carried, as tall, holding %s: %s from %s" % [Hand.Tool.keys()[t], set, spot])
 		main.world.undo()
-		await _frames()
+		await frames(3)
 		check(Vector2(trunk.anchor.x - spot.x, trunk.anchor.z - spot.z).length() < 0.01, "an undo sets it back, holding %s" % Hand.Tool.keys()[t])
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	hand.tool = Hand.Tool.WALLS
 	hand.global_transform = at
 
@@ -140,25 +135,25 @@ func _grip_shapes_the_ground_and_makes_nothing(hand: Hand) -> void:
 			hand.tool = t
 			hand.global_transform = at
 			hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
-			await _frames()
+			await frames(3)
 			var before := _made()
 			var ground: Variant = main.world.terrain.raycast(hand.global_position, -hand.global_basis.z)
 			var g: Vector3 = ground
 			Buttons.injected["right_hand/grip_click"] = true
-			await _frames()
+			await frames(3)
 			check(main.ground_grab.busy(), "grip takes the ground, holding %s" % name)
 			check(not hand.aiming() and not hand._dot.visible, "the ground in hand hides the pointer, holding %s" % name)
 			hand.position.y += lift
-			await _frames()
+			await frames(3)
 			var moved := main.world.terrain.shown_at(g.x, g.z) - g.y
 			check(moved * lift > 0.0 and absf(moved) > absf(lift) * 0.5, "moving the hand %+.1f moves the ground %+.2f, holding %s" % [lift, moved, name])
 			Buttons.injected.erase("right_hand/grip_click")
-			await _frames()
+			await frames(3)
 			check(not main.ground_grab.busy(), "release lets the ground go, holding %s" % name)
 			check(absf(main.world.terrain.height_at(g.x, g.z) - g.y - moved) < 0.05, "the ground stays where it was left, holding %s" % name)
 			check(_made() == before, "grip makes nothing else, holding %s" % name)
 			main.world.undo()
-			await _frames()
+			await frames(3)
 			check(absf(main.world.terrain.height_at(g.x, g.z) - g.y) < 1e-3, "undo puts the ground back, holding %s" % name)
 	hand.tool = Hand.Tool.WALLS
 	hand.global_transform = at
@@ -172,7 +167,7 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	var spot: Vector3 = main.world.terrain.raycast(hand.global_position, -hand.global_basis.z)
 	await play([{"op": "dig", "x": spot.x, "z": spot.z, "seconds": 1.5}])
 	hand.tool = Hand.Tool.FLOWERS
-	await _frames()
+	await frames(3)
 	while not main.world.idle():
 		await process_frame
 	var pond := water.pond_at(spot.x, spot.z)
@@ -181,21 +176,21 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 		var bed: Vector3 = main.world.terrain.raycast(hand.global_position, -hand.global_basis.z)
 		check(bed.y < spot.y - 0.3, "the grip's ray reaches the pond's bed under the water, %.2f below the meadow" % (spot.y - bed.y))
 		Buttons.injected["right_hand/grip_click"] = true
-		await _frames()
+		await frames(3)
 		check(main.ground_grab.busy(), "grip on the pond takes its bed")
 		hand.position.y += lift
-		await _frames()
+		await frames(3)
 		Buttons.injected.erase("right_hand/grip_click")
-		await _frames()
+		await frames(3)
 		var moved := main.world.terrain.height_at(bed.x, bed.z) - bed.y
 		check(moved * lift > 0.0, "moving the hand %+.1f moves the pond's bed %+.2f" % [lift, moved])
-		await _frames()
+		await frames(3)
 		check(water.pond_at(spot.x, spot.z) != null, "the pond still holds water after its bed moved %+.2f" % moved)
 		main.world.undo()
 		hand.position.y -= lift
-		await _frames()
+		await frames(3)
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	hand.tool = Hand.Tool.WALLS
 	hand.global_transform = at
 
@@ -219,33 +214,33 @@ func _two_hands_grab_the_ground_at_once(rig: Rig) -> void:
 	var right_at := rig.right.global_transform
 	var a := _ground_ahead(rig.left, -1.0)
 	var b := _ground_ahead(rig.right, 1.0)
-	await _frames()
+	await frames(3)
 	_grip(rig.left, true)
-	await _frames()
+	await frames(3)
 	_grip(rig.right, true)
-	await _frames()
+	await frames(3)
 	check(main.ground_grab.busy(rig.left) and main.ground_grab.busy(rig.right), "both grips hold the ground")
 	rig.left.position.y += 0.3
 	rig.right.position.y -= 0.3
-	await _frames()
+	await frames(3)
 	var up := main.world.terrain.shown_at(a.x, a.z) - a.y
 	var down := main.world.terrain.shown_at(b.x, b.z) - b.y
 	check(up > 0.15 and down < -0.15, "both pieces follow their own hands at once, %+.2f and %+.2f" % [up, down])
 	_grip(rig.left, false)
-	await _frames()
+	await frames(3)
 	check(not main.ground_grab.busy(rig.left) and main.ground_grab.busy(rig.right), "letting go of one keeps the other")
 	check(absf(main.world.terrain.height_at(a.x, a.z) - a.y - up) < 0.05 and absf(main.world.terrain.shown_at(b.x, b.z) - b.y - down) < 0.05, "and leaves both where they were")
 	_grip(rig.right, false)
-	await _frames()
+	await frames(3)
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	check(absf(main.world.terrain.height_at(b.x, b.z) - b.y) < 1e-3 and absf(main.world.terrain.height_at(a.x, a.z) - a.y - up) < 0.05, "undo puts back the last grab alone")
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	check(absf(main.world.terrain.height_at(a.x, a.z) - a.y) < 1e-3, "and undo again the first")
 	rig.left.global_transform = left_at
 	rig.right.global_transform = right_at
-	await _frames()
+	await frames(3)
 
 
 ## Holding the ground in one hand while the other carries a wall: both move, each its own step.
@@ -253,29 +248,29 @@ func _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig: Rig) -> void
 	var left_at := rig.left.global_transform
 	var right_at := rig.right.global_transform
 	var g := _ground_ahead(rig.left, -1.0)
-	await _frames()
+	await frames(3)
 	_grip(rig.left, true)
-	await _frames()
+	await frames(3)
 	var wall: Wall = main.tool.walls[0]
 	var was: PackedVector3Array = main.world.state.walls[wall.id].points
 	_grip(rig.right, true)
-	await _frames()
+	await frames(3)
 	check(main.ground_grab.busy(rig.left) and main.tool.held == wall, "the left grip holds the ground and the right the wall")
 	rig.left.position.y += 0.3
 	rig.right.position.x += 0.3
-	await _frames()
+	await frames(3)
 	var raised := main.world.terrain.shown_at(g.x, g.z) - g.y
 	check(raised > 0.15 and main.tool.held_at.center.distance_to(WallTool.line_of(main.world.state.walls[wall.id]).center) > 0.3, "both follow their hands, ground %+.2f" % raised)
 	_grip(rig.right, false)
 	_grip(rig.left, false)
-	await _frames()
+	await frames(3)
 	main.world.undo()
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	check(absf(main.world.terrain.height_at(g.x, g.z) - g.y) < 1e-3 and main.world.state.walls[wall.id].points == was, "two undos put both back")
 	rig.left.global_transform = left_at
 	rig.right.global_transform = right_at
-	await _frames()
+	await frames(3)
 
 
 ## A grip on the wall the other hand holds joins that hold to size the wall, taking neither the ground behind it nor
@@ -283,16 +278,16 @@ func _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig: Rig) -> void
 func _a_wall_held_by_one_hand_is_joined_by_the_other(rig: Rig) -> void:
 	var wall: Wall = main.tool.walls[0]
 	_grip(rig.right, true)
-	await _frames()
+	await frames(3)
 	check(main.tool.held == wall, "the right grip takes the wall")
 	_grip(rig.left, true)
-	await _frames()
+	await frames(3)
 	check(main.tool._holders.size() == 2 and not main.ground_grab.busy(rig.left) and main.sky_tool.holder == null, "the left grip on the same wall joins the hold and takes nothing else")
 	_grip(rig.left, false)
-	await _frames()
+	await frames(3)
 	check(main.tool.held == wall and main.tool._holders.size() == 1, "and letting it go leaves the wall in the right hand")
 	_grip(rig.right, false)
-	await _frames()
+	await frames(3)
 
 
 ## One hand's grab leaves the other free to use its tool: the left holds the ground while the right draws a wall.
@@ -302,22 +297,22 @@ func _a_grab_leaves_the_other_hand_its_tool(rig: Rig) -> void:
 	var g := _ground_ahead(rig.left, -1.0)
 	_ground_ahead(rig.right, 1.0)
 	rig.right.tool = Hand.Tool.WALLS
-	await _frames()
+	await frames(3)
 	_grip(rig.left, true)
-	await _frames()
+	await frames(3)
 	rig.left.position.y += 0.3
 	Buttons.injected["right_hand/trigger_click"] = true
-	await _frames()
+	await frames(3)
 	check(main.ground_grab.busy(rig.left) and main.tool.mason(rig.right).stroke != null, "the right draws a wall while the left holds the ground")
 	Buttons.injected.erase("right_hand/trigger_click")
 	_grip(rig.left, false)
-	await _frames()
+	await frames(3)
 	main.world.undo()
-	await _frames()
+	await frames(3)
 	check(absf(main.world.terrain.height_at(g.x, g.z) - g.y) < 1e-3, "undo puts the ground back")
 	rig.left.global_transform = left_at
 	rig.right.global_transform = right_at
-	await _frames()
+	await frames(3)
 
 
 ## A grip into an arch takes the arch, not the wall; the other hand's grip on it joins, and the pair pulled apart
@@ -338,12 +333,12 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var head: float = wall.layout.apertures[0].head
 	rig.right.global_transform = Transform3D(Basis.looking_at(-out), into + out + f.tangent * 0.2)
 	rig.left.global_transform = Transform3D(Basis.looking_at(-out), into + out - f.tangent * 0.2)
-	await _frames()
+	await frames(3)
 	Buttons.injected["right_hand/grip_click"] = true
-	await _frames()
+	await frames(3)
 	check(main.tool.mason(rig.right).growing is FittingGrip and main.tool.held == null, "a grip into the arch takes the arch, not the wall")
 	Buttons.injected["left_hand/grip_click"] = true
-	await _frames()
+	await frames(3)
 	check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
 	rig.left.global_position -= f.tangent * 0.4
 	await until(func() -> bool: return wall.layout.apertures.size() == 1 and absf(wall.layout.apertures[0].size - 2.0) < 0.05, "the sized window is laid")
@@ -351,12 +346,11 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var shown: Dictionary = wall.layout.apertures[0] if wall.layout.apertures.size() == 1 else {}
 	check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
 	Buttons.injected.erase("left_hand/grip_click")
-	await _frames()
+	await frames(3)
 	check(main.tool.mason(rig.right).growing is FittingGrip and Array(world.state.walls[wall.id].openings)[0].w == 1.0, "one hand let go, the other still holds it and the garden waits")
 	var steps: int = world.stacks[world.me()].undo.size()
 	Buttons.injected.erase("right_hand/grip_click")
-	for i in 30:
-		await process_frame
+	await frames(30)
 	var kept: Vector4 = Array(world.state.walls[wall.id].openings)[0]
 	check(absf(kept.w - 2.0) < 0.05 and world.stacks[world.me()].undo.size() == steps + 1, "let go, the garden keeps the grand arch, one undo step: %s" % kept)
 	world.undo()
@@ -367,7 +361,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	world.undo()
 	rig.right.global_transform = at_right
 	rig.left.global_transform = at_left
-	await _frames()
+	await frames(3)
 
 
 func _run() -> void:
@@ -384,11 +378,11 @@ func _run() -> void:
 		var at := rig.head.global_position + Vector3(-0.35 if hand == rig.left else 0.35, -0.4, -0.5)
 		var target := Vector3(at.x, main.world.terrain.height_at(at.x, 0) + 1.0, 0)
 		hand.global_transform = Transform3D(Basis.looking_at(target - at), at)
-	await _frames()
+	await frames(3)
 	var hand := rig.right
 	check(hand.aiming() and hand._dot.visible, "idle hand points at the wall")
 	Buttons.injected["right_hand/grip_click"] = true
-	await _frames()
+	await frames(3)
 	check(main.tool.held != null, "grip takes the wall")
 	check(not hand.aiming() and not hand._dot.visible, "wall grab hides sight and dot")
 	hand.point(Vector3.ZERO, Color.WHITE)
@@ -398,13 +392,13 @@ func _run() -> void:
 	var height: float = main.tool.walls[0].layout.height
 	var center: Vector3 = main.tool.held_at.center
 	hand.rotate_x(0.2)
-	await _frames()
+	await frames(3)
 	check(main.tool.held_at.center.is_equal_approx(center), "tipping a held wall's hand up does not move it")
 	hand.position.y += 0.2
-	await _frames()
+	await frames(3)
 	check(is_equal_approx(main.tool.walls[0].layout.height, height) and main.tool.held_at.center.is_equal_approx(center), "one hand raised neither lifts a wall nor raises it")
 	Buttons.injected.erase("right_hand/grip_click")
-	await _frames()
+	await frames(3)
 	check(main.tool.held == null, "release drops the wall")
 	check(hand.aiming(), "pointer returns on release")
 	await _capture("released")
@@ -422,36 +416,36 @@ func _run() -> void:
 	var made := _made(["ponds", "groups"])
 	var heights := main.world.terrain.read(Terrain.ALL)
 	Buttons.injected["right_hand/trigger_click"] = true
-	await _frames()
+	await frames(3)
 	check(_made(["ponds", "groups"]) == made and main.world.terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on the meadow never shapes the ground, only fills what its hollows hold")
 	check(not main.world.flora.solids().any(func(parts: Array) -> bool: return Water.drowned(main.world.terrain, parts[0].anchor)), "and takes out the trees and bushes its water covers")
 	check(hand.aiming() and hand._dot.visible, "the pond tool keeps its pointer")
 	Buttons.injected.erase("right_hand/trigger_click")
 	hand.tool = Hand.Tool.WALLS
-	await _frames()
+	await frames(3)
 	var sky: SkyTool = main.sky_tool
 	var time: float = main.look.time
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
 	var up := Daylight.toward_sun(time).rotated(axis, 0.2)
 	hand.global_basis = Basis.looking_at(up)
 	Buttons.injected["right_hand/grip_click"] = true
-	await _frames()
+	await frames(3)
 	check(sky.holder == hand, "grip on open sky takes the sky")
 	check(hand.aiming(), "the pointer stays while it turns the sky")
 	hand.position += -Daylight.RISE * 0.3
-	await _frames()
+	await frames(3)
 	check(is_equal_approx(main.look.time, time), "moving the hand without turning its aim leaves the sky")
 	hand.global_basis = Basis.looking_at(up.rotated(axis, 0.2))
-	await _frames()
+	await frames(3)
 	check(absf(Daylight.angle(main.look.time) - Daylight.angle(time) - 0.2) < 1e-3, "turning the pointer turns the sky as far")
 	var left := rig.left
 	left.global_basis = Basis.looking_at(up)
 	Buttons.injected["left_hand/grip_click"] = true
-	await _frames()
+	await frames(3)
 	check(sky.holder == hand, "the other hand's grip on the sky takes nothing")
 	Buttons.injected.erase("left_hand/grip_click")
 	Buttons.injected.erase("right_hand/grip_click")
-	await _frames()
+	await frames(3)
 	check(sky.holder == null, "release lets the sky go")
 	for t in [0.0, 0.22, 0.5, 0.78]:
 		for side in [1.0, -1.0]:
@@ -463,20 +457,20 @@ func _run() -> void:
 			var toward: Vector3 = Daylight.toward_sun(t) if side > 0.0 else Daylight.toward_moon(t)
 			var body := "sun" if side > 0.0 else "moon"
 			hand.global_basis = Basis.looking_at(toward)
-			await _frames()
+			await frames(3)
 			Buttons.injected["right_hand/grip_click"] = true
-			await _frames()
+			await frames(3)
 			check(sky.holder == hand and not main.ground_grab.busy(hand), "pointing straight at the %s at %.2f (%.0f° up) takes the sky, the ground in the way or not" % [body, t, rad_to_deg(asin(toward.y))])
 			hand.global_basis = Basis.looking_at(toward.rotated(axis, 0.1))
-			await _frames()
+			await frames(3)
 			check(absf(angle_difference(Daylight.angle(t), Daylight.angle(main.look.time)) - 0.1) < 1e-3, "and turns it with the pointer, from the %s at %.2f: now %.4f" % [body, t, main.look.time])
 			Buttons.injected.erase("right_hand/grip_click")
-			await _frames()
+			await frames(3)
 	await _the_mountains_are_not_sky(hand)
 	await _a_still_catch_is_felt(hand)
 	Hand.injected_sticks.clear()
 	Buttons.injected.clear()
-	await _frames()
+	await frames(3)
 	for tracker in trackers:
 		XRServer.remove_tracker(tracker)
 	finish()

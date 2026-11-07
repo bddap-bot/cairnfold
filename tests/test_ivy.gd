@@ -20,10 +20,6 @@ func _init() -> void:
 	finish()
 
 
-func _slope(x: float, z: float) -> float:
-	return x * 0.1 + z * 0.05
-
-
 func _ivy_climbs_both_faces() -> void:
 	var leaves := IvyLayout.grow(straight_wall(12.0, 2.7, []))
 	check(leaves.size() > 100, "a 12 m wall grows a good spread of ivy, got %d leaves" % leaves.size())
@@ -174,7 +170,7 @@ func _a_raised_house_roots_its_ivy_at_its_plinths_foot() -> void:
 		w.height = 2.7
 		w.seed = 6
 		w.rise = rise
-		w.build(_slope)
+		w.build(sloped_ground)
 		return w
 	for rise in [0.0, 1.2, 3.0]:
 		var w: WallLayout = house.call(rise)
@@ -185,16 +181,16 @@ func _a_raised_house_roots_its_ivy_at_its_plinths_foot() -> void:
 		var light_off := 0.0
 		for i in leaves.size():
 			var p: Vector3 = leaves[i].xform.origin
-			lowest = minf(lowest, p.y - _slope(p.x, p.z))
+			lowest = minf(lowest, p.y - sloped_ground(p.x, p.z))
 			var under: Vector3 = w.frame_at(leaves[i].s).point
-			light_off = maxf(light_off, absf(baked.buffer[i * 16 + 15] - _slope(under.x, under.z)))
+			light_off = maxf(light_off, absf(baked.buffer[i * 16 + 15] - sloped_ground(under.x, under.z)))
 		check(leaves.size() > 100, "a house raised %.1f m grows ivy, got %d leaves" % [rise, leaves.size()])
 		check(lowest < 0.15, "a house raised %.1f m roots its ivy where its plinth meets the ground: lowest leaf %.2f m above it" % [rise, lowest])
 		check(light_off < 1e-3, "and its sprigs read the light over the ground under the wall: %.3f m off" % light_off)
 	var tower: WallLayout = house.call(0.0)
 	var on: WallLayout = house.call(1.2)
 	on.supports = [Massing.of(tower, null)]
-	on.build(_slope)
+	on.build(sloped_ground)
 	var top := INF
 	for l in IvyLayout.grow(on.snapshot()):
 		top = minf(top, l.y)

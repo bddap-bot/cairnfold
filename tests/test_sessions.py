@@ -19,6 +19,17 @@ def tally(hist_ms, late=0, cpu=2.0, gpu=None):
             "gpu_ms": (gpu or 0.0) * len(hist_ms), "gpu_frames": len(hist_ms) if gpu else 0}
 
 
+def read(*args):
+    return subprocess.run([sys.executable, str(READER), *map(str, args)], capture_output=True, text=True)
+
+
+def printed(*args):
+    out = read(*args)
+    if out.returncode:
+        raise AssertionError(out.stderr)
+    return out.stdout
+
+
 class Sessions(unittest.TestCase):
     def write(self, folder, session, rows, part=0, end=True):
         start = {"schema": 1, "session": session, "started": 1000.0 + part, "revision": "abc1234def", "device": "Quest 2", "event": "start", "part": part + 1}
@@ -35,11 +46,9 @@ class Sessions(unittest.TestCase):
                                        "activity": {"moving": tally([13.9] * 96 + [30.0, 30.0, 30.0, 40.0], late=4, gpu=9.0), "still": tally([13.9] * 50)}}], end=False)
             self.write(folder, "s1", [{"unix": 2.0, "refresh_hz": 72, "step": 1, "fill": 0.5, "context": {"players": 2},
                                        "activity": {"moving": tally([13.9] * 100, gpu=11.0), "coop": tally([13.9] * 100)}}], part=1)
-            out = subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True)
-            [s] = json.loads(out.stdout)
+            [s] = json.loads(printed(d, "--json"))
             self.assertEqual(s["where"], f"{Path(d).resolve().name}/quest2")
-            one = subprocess.run([sys.executable, str(READER), str(folder), "--json"], capture_output=True, text=True, check=True)
-            self.assertEqual(json.loads(one.stdout)[0]["where"], "quest2", "a device's own folder is named by itself")
+            self.assertEqual(json.loads(printed(folder, "--json"))[0]["where"], "quest2", "a device's own folder is named by itself")
             self.assertEqual(s["seconds"], 2)
             self.assertEqual(s["players"], 2)
             self.assertEqual(s["ended"], 2000.0)
@@ -53,7 +62,7 @@ class Sessions(unittest.TestCase):
             self.assertEqual(s["steps"], {"0": 1, "1": 1})
             self.assertEqual(s["fill"], {"max": 0.5, "last": 0.5})
             self.assertIsNone(s["main_ms"], "rows without a split have none")
-            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            text = printed(d)
             self.assertIn("/quest2 Quest 2 abc1234def s1", text)
             self.assertIn("moving", text)
             self.assertIn("coop", text)
@@ -77,7 +86,7 @@ class Sessions(unittest.TestCase):
             lines = [start, {"event": "replay", "session": "s1", "seeds": {"rng": "1"}, "save": "", "save_bytes": 0},
                      event(0, 72), {"event": "frame", "session": "s1", "unix": 1.0}, event(144, 72), {"event": "end", "session": "s1", "ended": 1002.0}]
             (folder / "s1-0000.jsonl").write_text("".join(json.dumps(l) + "\n" for l in lines))
-            [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
+            [s] = json.loads(printed(d, "--json"))
             r = s["replay"]
             self.assertEqual((r["frames"], r["missing"], r["seconds"], r["start"]), (144, 72, 2.0, True))
             replay_bytes = sum(len(json.dumps(l)) + 1 for l in lines[1:3] + lines[4:5])
@@ -94,7 +103,7 @@ class Sessions(unittest.TestCase):
                 self.assertAlmostEqual(got, want, places=6)
             self.assertAlmostEqual(f1["head"][2], 0.01)
             self.assertAlmostEqual(f1["delta"], 1 / 72)
-            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            text = printed(d)
             self.assertIn("replay: 144 frames over 2.0 s", text)
             self.assertIn("72 frames lost to the ring", text)
 
@@ -104,10 +113,10 @@ class Sessions(unittest.TestCase):
                      "main_after_ms": {"xr_wait": 0.2, "scripts": 436.0, "draw": 3.0}, "compiled": [0, 2],
                      "notes": [{"what": "world: applying wipe", "ms": 431.0}, {"what": "wheel: right opened"}]}
             self.write(Path(d), "s", [{"unix": 1.0, "t": 10.0, "paused_s": 52.5, "stalls": [stall]}, {"unix": 2.0, "t": 11.0, "paused_s": 1.0}])
-            [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
+            [s] = json.loads(printed(d, "--json"))
             self.assertEqual(s["paused_s"], 53.5)
             self.assertEqual(s["stalls"], [dict(stall, t=10.0)])
-            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            text = printed(d)
             self.assertIn("paused: 53.5 s", text)
             self.assertIn("437 ms  still  scripts 12 | scripts 436 draw 3, pipelines 0+2: world: applying wipe 431 ms; wheel: right opened", text)
 
@@ -120,12 +129,11 @@ class Sessions(unittest.TestCase):
             metrics = Path(d) / "metrics.json"
             metrics.write_text(json.dumps({"info": {"replayed": "s1"}, "seconds": [
                 {"unix": 5.0, "activity": {"moving": tally([15.9] * 8, late=2, gpu=10.0), "wheel": tally([13.9] * 3)}}]}))
-            out = subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics), "--json"], capture_output=True, text=True, check=True)
-            both = json.loads(out.stdout)
+            both = json.loads(printed(folder, "--replayed", metrics, "--json"))
             self.assertEqual(both["recorded"]["session"], "s1")
             self.assertEqual(both["recorded"]["activity"]["moving"]["frames"], 10)
             self.assertEqual(both["replayed"]["activity"]["moving"], {"frames": 8, "late": 2, "p50_ms": 16.0, "p99_ms": 16.0, "worst_ms": 15.9, "cpu_ms": 2.0, "gpu_ms": 10.0})
-            lines = subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics)], capture_output=True, text=True, check=True).stdout.splitlines()
+            lines = printed(folder, "--replayed", metrics).splitlines()
             self.assertIn("s1: 1 s recorded | 1 s replayed", lines[0])
             rows = {line.split()[0]: line for line in lines[2:]}
             self.assertEqual(list(rows), ["moving", "building", "wheel"])
@@ -134,7 +142,7 @@ class Sessions(unittest.TestCase):
             self.assertEqual(replayed.split()[:3], ["8", "2", "16.0"])
             self.assertEqual(rows["building"].split(" | ")[1].strip(), "", "an activity the replay never reached is blank on its side")
             metrics.write_text(json.dumps({"info": {"replayed": "gone"}, "seconds": []}))
-            self.assertNotEqual(subprocess.run([sys.executable, str(READER), str(folder), "--replayed", str(metrics)], capture_output=True).returncode, 0)
+            self.assertNotEqual(read(folder, "--replayed", metrics).returncode, 0)
 
     def test_main_thread_phases_read_in_the_median_second(self):
         phases = ["xr_wait", "physics", "scripts", "sync", "draw", "other"]
@@ -142,18 +150,17 @@ class Sessions(unittest.TestCase):
             return {"unix": unix, "main_ms": {k: {"p50": scripts if k == "scripts" else 1.0, "p95": 2 * scripts if k == "scripts" else 1.5, "max": 40.0} for k in phases}}
         with tempfile.TemporaryDirectory() as d:
             self.write(Path(d), "s", [second(1.0, 2.0), second(2.0, 9.0), second(3.0, 3.0), {"unix": 4.0}])
-            [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
+            [s] = json.loads(printed(d, "--json"))
             self.assertEqual(list(s["main_ms"]), phases)
             self.assertEqual(s["main_ms"]["scripts"], {"p50": 3.0, "p95": 6.0})
             self.assertEqual(s["main_ms"]["xr_wait"], {"p50": 1.0, "p95": 1.5})
-            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            text = printed(d)
             self.assertIn("main thread, the median second's p50/p95 ms: xr_wait 1.0/1.5, physics 1.0/1.5, scripts 3.0/6.0,", text)
 
     def test_last_keeps_the_newest_and_an_empty_folder_fails(self):
         with tempfile.TemporaryDirectory() as d:
             self.write(Path(d), "old", [{"unix": 1.0}], part=0)
             self.write(Path(d), "new", [{"unix": 9.0}], part=5)
-            out = subprocess.run([sys.executable, str(READER), d, "--last", "1", "--json"], capture_output=True, text=True, check=True)
-            self.assertEqual([s["session"] for s in json.loads(out.stdout)], ["new"])
+            self.assertEqual([s["session"] for s in json.loads(printed(d, "--last", "1", "--json"))], ["new"])
         with tempfile.TemporaryDirectory() as d:
-            self.assertNotEqual(subprocess.run([sys.executable, str(READER), d], capture_output=True).returncode, 0)
+            self.assertNotEqual(read(d).returncode, 0)

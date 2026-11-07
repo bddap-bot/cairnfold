@@ -28,14 +28,6 @@ func _run() -> void:
 	finish()
 
 
-## A cleaned command as the host would send it on, checked again as a peer checks it.
-func _relayed(cmd: Dictionary, by: int) -> Dictionary:
-	var hosted := Commands.clean(cmd, world.state, false, world.terrain)
-	hosted.seq = world.seq + 1
-	hosted.by = by
-	return Commands.clean(hosted, world.state, true, world.terrain)
-
-
 func _across(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
@@ -200,10 +192,10 @@ func _commands_are_checked() -> void:
 	world._order({"op": "plant", "kind": "bush", "seed": 6, "at": world.terrain.ground(3, 12)}, world.me())
 	var bush := world.seq
 	var there := world.terrain.ground(5, 14)
-	check(_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
-	check(_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
+	check(peer_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
+	check(peer_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
 	var meadow_bush: int = flora.meadow_bushes[0]
-	check(_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
+	check(peer_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
 	check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false, world.terrain).is_empty(), "a bush takes no size")
 	check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false, world.terrain).is_empty(), "nor a species")
 	var grass := Array(flora.groups[0]).find_custom(func(p: Flora.Plant) -> bool: return p != null and p.pool == flora.grass)

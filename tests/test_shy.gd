@@ -170,7 +170,7 @@ func _squirrels() -> void:
 ## Owls come only at night, perch on the conures' perches and hoot; walked up to, one flies off; with the day they go.
 func _owls() -> void:
 	var owls := g.wildlife.owls
-	var wall := _draw_wall(Vector3(0, 0, -9), Vector3(5, 0, -10))
+	var wall := stroke_wall(g.walls, Vector3(0, 0, -9), Vector3(5, 0, -10))
 	await process_frame
 	check(wall.finished, "a finished wall")
 	g.run(120.0)
@@ -234,14 +234,3 @@ func _they_go_with_their_habitats() -> void:
 	check(g.wildlife.frogs.animals.is_empty(), "a pond filled in takes its frogs")
 	check(g.wildlife.snakes.animals.is_empty(), "and its snake")
 	check(g.wildlife.squirrels.animals.is_empty(), "a tree gone sends its squirrel off")
-
-
-func _draw_wall(a: Vector3, b: Vector3) -> Wall:
-	var m: WallTool.Mason = g.walls.masons[0]
-	var terrain := g.world.terrain
-	g.walls.begin_stroke(m, terrain.ground(a.x, a.z))
-	for i in 31:
-		var p := a.lerp(b, i / 30.0)
-		g.walls.extend_stroke(m, terrain.ground(p.x, p.z))
-	g.walls.end_stroke(m)
-	return g.walls.walls[-1]

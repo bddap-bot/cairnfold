@@ -38,8 +38,7 @@ func _run() -> void:
 			await _fresh()
 			if page.has("setup"):
 				await play(page.setup)
-				for w: Wall in main.tool.walls:
-					w.lay_now()
+				lay_walls(main.tool)
 			var before := _read(page)
 			await _replay(page)
 			await frames(30)

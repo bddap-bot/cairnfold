@@ -35,10 +35,6 @@ func _pose(origin: Vector3, dir: Vector3) -> Transform3D:
 	return Transform3D(Basis.looking_at(dir, Vector3.UP), origin)
 
 
-func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return wall_data({"points": points, "seed": 3})
-
-
 ## Aims at `at` from `from`, lands, and checks the player stands upright where the ray hit, on `surface`'s height.
 func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: String) -> void:
 	rig.aim(_pose(from, at - from))
@@ -79,7 +75,7 @@ func _stands(at: Vector3, up: float, want: float, what: String) -> void:
 
 
 func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-40, 30), main.world.terrain.ground(-34, 30), 4.0)))
+	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-40, 30), main.world.terrain.ground(-34, 30), 4.0)))
 	d.closed = true
 	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
@@ -111,7 +107,7 @@ func _onto_a_tree(rig: Rig, world: World) -> void:
 
 
 func _onto_a_wall_top(rig: Rig, world: World) -> void:
-	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([main.world.terrain.ground(10, -30), main.world.terrain.ground(16, -30)]))]}, 1)
+	world._order({"op": "wall", "walls": [seeded_wall(PackedVector3Array([main.world.terrain.ground(10, -30), main.world.terrain.ground(16, -30)]))]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
 	var mid := main.world.terrain.ground(13, -30)
@@ -124,7 +120,7 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 ## A ruined wall's face is its stones', each leaning a little and some standing proud of the one above: aims at it
 ## behave as at a plain wall's, at every height and all along it.
 func _onto_a_wall_face(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
+	var d := seeded_wall(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -153,7 +149,7 @@ func _onto_a_ruin_ledge(rig: Rig, world: World) -> void:
 
 
 func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
-	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
+	var d := seeded_wall(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	d.top = WallLayout.Top.CAP
 	d.seed = seed
 	d.ruins = PackedVector2Array([Vector2(5.0, 6.5)])
@@ -201,7 +197,7 @@ func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
 
 
 func _onto_a_raised_floor(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(30, 30), main.world.terrain.ground(36, 30), 4.0)))
+	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(30, 30), main.world.terrain.ground(36, 30), 4.0)))
 	d.closed = true
 	d.rise = 1.5
 	d.openings = PackedVector4Array([3.0].map(WallLayout.archway))
@@ -225,7 +221,7 @@ func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 
 
 func _on_a_wall_walk(rig: Rig, world: World) -> void:
-	var d := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
+	var d := seeded_wall(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	d.top = WallLayout.Top.CAP
 	d.ruins = PackedVector2Array([Vector2(8.5, 9.5)])
 	world._order({"op": "wall", "walls": [d]}, 1)
@@ -252,7 +248,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var step := l.point_at(at)
 	_stands(step, stepped + 0.5, step.y + stepped, "a point over a ruin's stepped end")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
-	var coped := _wall_data(PackedVector3Array([main.world.terrain.ground(-6, -18), main.world.terrain.ground(6, -18)]))
+	var coped := seeded_wall(PackedVector3Array([main.world.terrain.ground(-6, -18), main.world.terrain.ground(6, -18)]))
 	coped.top = WallLayout.Top.COPE
 	world._order({"op": "wall", "walls": [coped]}, 1)
 	w = main.tool.walls[-1]
@@ -264,7 +260,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	check(absf(coping - tallest) < 0.1, "a ray lands on a coping's tall stones: %.2f for %.2f" % [coping, tallest])
 	_stands(over + Vector3.UP * (coping - over.y), 0.3, coping, "a point over a coped wall's walk")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
-	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, -6), main.world.terrain.ground(2, -6), 4.0)))
+	var house := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, -6), main.world.terrain.ground(2, -6), 4.0)))
 	house.closed = true
 	house.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-1, -6), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [house]}, 1)
@@ -334,8 +330,8 @@ func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 
 
 func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
-	var left := _wall_data(PackedVector3Array([main.world.terrain.ground(-4, -4), main.world.terrain.ground(-4, 3)]))
-	var right := _wall_data(PackedVector3Array([main.world.terrain.ground(3, -4), main.world.terrain.ground(3, 3)]))
+	var left := seeded_wall(PackedVector3Array([main.world.terrain.ground(-4, -4), main.world.terrain.ground(-4, 3)]))
+	var right := seeded_wall(PackedVector3Array([main.world.terrain.ground(3, -4), main.world.terrain.ground(3, 3)]))
 	left.top = WallLayout.Top.CAP
 	right.top = WallLayout.Top.CAP
 	world._order({"op": "wall", "walls": [left, right]}, 1)

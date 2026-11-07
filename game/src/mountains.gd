@@ -140,9 +140,7 @@ static func _smooth(corners: PackedVector3Array, colors: PackedColorArray) -> Ar
 			faces.append((corners[f + 2] - corners[f]).cross(corners[f + 1] - corners[f]).normalized())
 		var p := corners[i]
 		angles.append((corners[f + (i + 1) % 3] - p).angle_to(corners[f + (i + 2) % 3] - p))
-		if not at.has(p):
-			at[p] = []
-		at[p].append(i)
+		at.get_or_add(p, []).append(i)
 	var crease := cos(deg_to_rad(CREASE))
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()

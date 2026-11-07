@@ -125,8 +125,7 @@ func _stone_ground_counts_its_square_metres() -> void:
 
 func _settled() -> void:
 	main.water_tool.settle()
-	for i in 3:
-		await process_frame
+	await frames(3)
 	main.flora_tool.flora.grow_now()
 
 
@@ -331,8 +330,7 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	for w: Dictionary in too_big:
 		Budget.add(change, Budget.wall(w))
 	var bar: BudgetBar = hand.body.get_children().filter(func(n: Node) -> bool: return n is BudgetBar)[0]
-	for i in 3:
-		await process_frame
+	await frames(3)
 	check(not bar.visible, "the budget bar hides while nothing is placed")
 	for i in 3:
 		world.preview(hand, {"flower": 1})
@@ -345,8 +343,7 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	check(hand.capped, "a preview that will not fit shows refused before it is let go")
 	check(bar.visible and bar.material_override.get_shader_parameter("over") > 0.5, "the bar shows it over the budget")
 	check(bar.scale.x > 1.0 + BudgetBar.SWELL * 0.5, "and swells")
-	for i in 3:
-		await process_frame
+	await frames(3)
 	check(not hand.capped, "and stops once nothing over is shown")
 	check(not bar.visible, "and the bar hides once the placement is gone")
 

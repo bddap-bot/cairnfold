@@ -75,9 +75,7 @@ func _slopes_shade_smoothly_and_ridges_crisply(verts: PackedVector3Array, indice
 	var corners_at := {}
 	for i in indices.size():
 		var p := verts[indices[i]]
-		if not corners_at.has(p):
-			corners_at[p] = []
-		corners_at[p].append(i)
+		corners_at.get_or_add(p, []).append(i)
 	var shared := 0
 	var crisp := 0
 	var blurred := 0

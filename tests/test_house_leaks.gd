@@ -82,7 +82,7 @@ func _contract() -> void:
 	var w := Wall.new(1, null, main.world.terrain)
 	w.id = 1
 	var room: Array[Wall] = [w]
-	for dir in Probe.directions(256):
+	for dir in sphere_directions(256):
 		check(probe.probe(Vector3.ZERO, dir, room).status == "shell", "a closed rendered box contains every ray")
 	probe.parts.clear()
 	var faces := box.get_faces()
@@ -189,8 +189,7 @@ func _house(seed_value: int, count: int) -> void:
 	for cmd in commands:
 		main.world._order(cmd, 1)
 	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
-		for w in main.tool.walls:
-			w.lay_now()
+		lay_walls(main.tool)
 	var room: Array[Wall] = main.tool.walls.duplicate()
 	check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
 	if room.is_empty():
@@ -258,7 +257,7 @@ func _house(seed_value: int, count: int) -> void:
 			for offset in [Vector2.ZERO, Vector2(-0.5, -0.5), Vector2(0.5, 0.5)]:
 				var origin := Vector3(center.x + offset.x, lerpf(floor_y, ceiling, 0.5), center.y + offset.y)
 				check(w.massing.holds(origin), "seed %d probe starts inside its room" % seed_value)
-				for direction in Probe.directions(count):
+				for direction in sphere_directions(count):
 					_trace(probe, origin, direction, room, w, record)
 		if seed_value == 8756:
 			# The cap-band regression needs near-wall rays: exterior timber can mask an inner cavity.

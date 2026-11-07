@@ -18,8 +18,8 @@ func _initialize() -> void:
 
 func _finish(rig: Rig) -> void:
 	rig.set_process(false)
-	var godette := Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm")))
-	var crimsom := Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm")))
+	var godette := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm")))
+	var crimsom := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
 	var short := _one_avatar_fits_any_wearer(rig, crimsom, "Crimsom", 1.45)
 	var tall := _one_avatar_fits_any_wearer(rig, crimsom, "Crimsom", 1.85)
 	check(short < 1.1 and absf(short - tall) < 0.01, "Crimsom's arm reaches as far whoever wears it: the forearm %.2f and %.2f times its length at a wearer's full reach" % [short, tall])
@@ -97,7 +97,3 @@ func _a_refit_waits_for_a_fade(rig: Rig, scene: PackedScene) -> void:
 	for i in int(2.0 * Rig.FADE / STEP) + 2:
 		rig._process(STEP)
 	check(absf(rig.world_scale - rig.body.eye_height / 1.6) < 0.01 and not rig._fade.visible, "and the view returns at the new avatar's scale: %.3f" % rig.world_scale)
-
-
-func _sample(name: String) -> String:
-	return ProjectSettings.globalize_path("res://").path_join("../tests/avatars").path_join(name)

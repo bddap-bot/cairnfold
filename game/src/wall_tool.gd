@@ -1749,11 +1749,7 @@ func _preview_crossings() -> void:
 		for p in paths.previews:
 			for c in p.segment_cells():
 				for w: Wall in walls_at.get(c, []):
-					if not met.has(w):
-						met[w] = {}
-					if not met[w].has(p):
-						met[w][p] = []
-					met[w][p].append(c)
+					met.get_or_add(w, {}).get_or_add(p, []).append(c)
 	_previewed_rev = walls_at_rev
 	_previewed_paths = paths.previews.duplicate()
 	for w: Wall in check:
@@ -1787,9 +1783,7 @@ func walls_by_cell() -> Dictionary:
 			_walls_at_from[w] = grid
 			walls_at_rev += 1
 			for c in grid:
-				if not _walls_at.has(c):
-					_walls_at[c] = []
-				_walls_at[c].append(w)
+				_walls_at.get_or_add(c, []).append(w)
 	return _walls_at
 
 
@@ -1811,9 +1805,7 @@ func relay_crossings(path: PathLayout) -> void:
 	var met := {}
 	for c in path.segment_cells():
 		for w: Wall in walls_at.get(c, []):
-			if not met.has(w):
-				met[w] = []
-			met[w].append(c)
+			met.get_or_add(w, []).append(c)
 	var eye := get_viewport().get_camera_3d()
 	var heard := Vector3.INF
 	# A stroke laid after every other path, its ghost the only preview: a wall whose preview is cut from the paths laid

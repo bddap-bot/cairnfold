@@ -422,28 +422,28 @@ func _a_path_and_a_house_make_a_door_in_either_order() -> void:
 	check(made.size() == 1 and made[0].lights == 1 and absf(made[0].half - 0.5) < 0.02, "a path laid into a house opens a door as wide as it: %s" % [made])
 	check(world.state.walls[house.id].openings.is_empty(), "the door is the path's: the house stores none")
 	world.undo()
-	_lay_walls(tool)
+	lay_walls(tool)
 	check(_doors(house.layout).is_empty() and world.state.paths.is_empty(), "undoing the path closes its door: %s" % [_doors(house.layout)])
 	world.redo()
-	_lay_walls(tool)
+	lay_walls(tool)
 	check(_doors(house.layout).size() == 1, "redo opens it again: %s" % [_doors(house.layout)])
 	_lay(nodes, Vector3(30.5, 0, 7), Vector3(30.5, 0, 0), 1.0)
 	var second := _put_house(nodes, Vector3(30, 0, 0))
 	made = _doors(second.layout)
 	check(made.size() == 1 and made[0].lights == 2 and absf(made[0].half - 1.0) < 0.04, "a house put up over a wide path opens a double door as wide as the path: %s" % [made])
 	world.undo()
-	_lay_walls(tool)
+	lay_walls(tool)
 	check(tool.find(second.id) == null, "undo takes the house")
 	world.redo()
-	_lay_walls(tool)
+	lay_walls(tool)
 	second = tool.find(second.id)
 	check(second != null and _doors(second.layout).size() == 1, "redo puts it back with its door: %s" % [_doors(second.layout) if second != null else []])
 	var path_id: int = world.state.paths.keys().max()
 	world.submit({"op": "take", "of": "paths", "ids": PackedInt32Array([path_id])})
-	_lay_walls(tool)
+	lay_walls(tool)
 	check(_doors(second.layout).is_empty(), "taking the path away closes the door: %s" % [_doors(second.layout)])
 	world.undo()
-	_lay_walls(tool)
+	lay_walls(tool)
 	check(_doors(second.layout).size() == 1, "undoing that opens it again")
 	_teardown(nodes)
 
@@ -455,7 +455,7 @@ func _put_house(nodes: Array, at: Vector3) -> Wall:
 	var b := world.terrain.ground(at.x + 4, at.z)
 	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": {"kind": RoofLayout.Kind.GABLE, "center": world.terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
 	world.submit({"op": "wall", "walls": [data]})
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	return nodes[0].walls[-1]
 
 
@@ -513,15 +513,15 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	for i in 41:
 		t.extend_path(world.terrain.ground(2, 54 + i * 0.3), 0.6)
 	t.end_path(b)
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	var paths: Paths = nodes[1]
 	check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "the path is laid and opens its arch: %s" % [w.layout.archways()])
 	world.undo()
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	check(paths.layouts.is_empty() and world.marks.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % world.marks.bare(2, 57))
 	check(w.layout.archways().is_empty(), "undo closes the arch the path opened: %s" % [w.layout.archways()])
 	world.redo()
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	world.marks.settle()
 	check(paths.layouts.size() == 1 and world.marks.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
 	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
@@ -529,10 +529,10 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	check(target.has("laid"), "Delete selects a path away from its wall crossing")
 	deleter.press(deleter, world.terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	deleter.let_go(deleter)
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	check(paths.layouts.is_empty() and w.layout.archways().is_empty(), "Delete lifts path and closes its arch")
 	world.undo()
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 	check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "undo restores deleted path and arch")
 	deleter.free()
 	t.free()
@@ -540,19 +540,9 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 
 
 func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
-	var m: WallTool.Mason = tool.masons[0]
-	tool.begin_stroke(m, tool.world.terrain.ground(a.x, a.z))
-	for i in 41:
-		var p := a.lerp(b, i / 40.0)
-		tool.extend_stroke(m, tool.world.terrain.ground(p.x, p.z))
-	tool.end_stroke(m)
-	_lay_walls(tool)
-	return tool.walls[-1]
-
-
-func _lay_walls(tool: WallTool) -> void:
-	for w in tool.walls:
-		w.lay_now()
+	var w := stroke_wall(tool, a, b, 40)
+	lay_walls(tool)
+	return w
 
 
 ## Draws a path and sends it to the garden, as the path tool does.
@@ -565,12 +555,12 @@ func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
 		paths.extend(world.terrain.ground(p.x, p.z), half)
 	var ghost := paths.end()
 	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 
 
 func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
 	(nodes[2] as World).submit({"op": "reshape", "of": "walls", "id": w.id, "data": data})
-	_lay_walls(nodes[0])
+	lay_walls(nodes[0])
 
 
 ## Relays look again only at the walls in the cells a stroke's moving end left or reached; what each wall shows is what
@@ -626,7 +616,7 @@ func _a_stroke_laid_keeps_the_arches_its_ghost_showed() -> void:
 	for i in 30:
 		paths.extend(world.terrain.ground(2, 38 + i * 0.4), 0.6)
 		paths._relay()
-	_lay_walls(tool)
+	lay_walls(tool)
 	var laid := walls.map(func(w: Wall) -> int: return w.layout.laid)
 	var ghost := paths.end()
 	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
@@ -916,9 +906,7 @@ func _a_bed_sprouts_rows_of_vegetables() -> void:
 	var rows := {}
 	for spot in spots:
 		var across := snappedf(spot.at.x, 0.01)
-		if not rows.has(across):
-			rows[across] = []
-		rows[across].append(spot)
+		rows.get_or_add(across, []).append(spot)
 	var offsets := rows.keys()
 	offsets.sort()
 	check(offsets.size() == 5, "a 2 m bed holds five rows: %s" % [offsets])

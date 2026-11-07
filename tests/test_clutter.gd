@@ -97,8 +97,7 @@ func _valid() -> void:
 
 
 func _lay() -> void:
-	for w: Wall in main.tool.walls:
-		w.lay_now()
+	lay_walls(main.tool)
 	main.tool.paths.lay_now()
 
 

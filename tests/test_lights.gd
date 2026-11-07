@@ -310,8 +310,7 @@ func _demo() -> void:
 	var steps := Driver.read("res://../demo/lights.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
 	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
 	var world: World = main.world
-	for w in main.tool.walls:
-		w.lay_now()
+	lay_walls(main.tool)
 	var garden: Array = world.state.decorations.values()
 	var strings := garden.filter(func(d: Dictionary) -> bool: return d.mount == "span")
 	check(strings.any(func(d: Dictionary) -> bool: return d.style == DecorationLayout.named("Lantern string")) and strings.any(func(d: Dictionary) -> bool: return d.style == DecorationLayout.named("Flag string")), "the demo hangs strings of lanterns and of flags")

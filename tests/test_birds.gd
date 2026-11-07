@@ -120,17 +120,6 @@ func _until_perched(g: Glade, seconds: float) -> void:
 			return
 
 
-func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
-	var m: WallTool.Mason = tool.masons[0]
-	var terrain := tool.world.terrain
-	tool.begin_stroke(m, terrain.ground(a.x, a.z))
-	for i in 31:
-		var p := a.lerp(b, i / 30.0)
-		tool.extend_stroke(m, terrain.ground(p.x, p.z))
-	tool.end_stroke(m)
-	return tool.walls[-1]
-
-
 ## Whether `at` is on top of a standing wall, or on the surface of a planted tree's crown and inside none of its blobs.
 func _on_perch(g: Glade, at: Vector3) -> bool:
 	for w in g.walls.walls:
@@ -159,7 +148,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	check(g.birds().is_empty(), "a garden without perches draws no conures")
 
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": g.world.terrain.ground(-2.5, -9)})
-	var wall := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	var wall := stroke_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
 	check(g.flora.placed("tree").size() == 1 and g.walls.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
 	check(g.rig.head.global_position.direction_to(g.world.terrain.ground(1, -8)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at them")
@@ -481,10 +470,10 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var g := await _glade(5)
 	g.wildlife.ducks_came = true
-	var first := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	var first := stroke_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch on the only wall")
-	_draw_wall(g.walls, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
+	stroke_wall(g.walls, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
 	await process_frame
 	await g.play(1.5)
 	check(g.wildlife.birds.sites.size() == 2, "a second wall to perch on, %d sites" % g.wildlife.birds.sites.size())
@@ -552,7 +541,7 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 	var g := await _glade(3)
 	g.wildlife.ducks_came = true
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": g.world.terrain.ground(-2.5, -9)})
-	_draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	stroke_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
@@ -629,7 +618,7 @@ func _torso_lags_the_head() -> void:
 ## it can be taken from there like any carried conure. Peers get it as a held model standing on the shoulder.
 func _shoulder() -> void:
 	var g := await _glade(31)
-	_draw_wall(g.walls, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
+	stroke_wall(g.walls, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
 	g.lay()
 	var flock := g.wildlife.birds
 	flock.look()
@@ -760,8 +749,7 @@ func _they_peck_on_open_ground() -> void:
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": tree})
 	g.world.submit({"op": "plant", "kind": "bush", "seed": 7, "at": bush})
 	await process_frame
-	for w in g.walls.walls:
-		w.lay_now()
+	lay_walls(g.walls)
 	check(g.walls.walls.size() == 2 and g.flora.placed("tree").size() == 1 and g.flora.placed("bush").size() == 1, "a ring wall, a house, a tree and a bush")
 	check(Array(g.flora.obstacles()).all(func(o: Vector3) -> bool: return Vector2(o.x - lawn.x, o.z - lawn.z).length() > 1.5), "nothing grows mid-lawn")
 	var birds := g.wildlife.birds

@@ -123,7 +123,7 @@ func _a_visitor_wipes() -> void:
 
 func _a_wipe_someone_built_on_stays() -> void:
 	world._order({"op": "wipe"}, 1)
-	var wall := _wall(2)
+	var wall := order_wall(2)
 	var seq := world.seq
 	world._order({"op": "undo"}, 1)
 	check(world.seq == seq and world.state.walls.keys() == [wall], "the host's undo leaves a wipe a visitor has since built on, and every step of theirs before it")
@@ -171,8 +171,3 @@ func _a_wipe_leaves_no_placed_thing_here_or_for_a_visitor() -> void:
 	await _nothing_placed_remains("a visitor")
 	client.close()
 	main.multiplayer.multiplayer_peer = real
-
-
-func _wall(by: int) -> int:
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([main.world.terrain.ground(0, -5), main.world.terrain.ground(4, -5)]), "seed": 3})]}, by)
-	return world.seq * Commands.MAX_PIECES

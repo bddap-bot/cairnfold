@@ -230,8 +230,7 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	check(low < standing - 0.5 and low < Wildlife.duck_appetite.reach, "the dish comes low enough for a duck: %.2f m from %.2f" % [low, standing])
 	check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "still level")
 	rig.right.tool = Hand.Tool.NONE
-	for i in 150:
-		await process_frame
+	await frames(150)
 	check(flat.stoop == 0.0 and absf(rig.head.position.y - Rig.EYE) < 1e-4, "put away, the player stands again")
 	flat.pitch = 0.0
 	await frames(1)

@@ -93,8 +93,7 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 	hand.held_still = true
 	main.view(at - dir * 8.0 + Vector3.UP * 2.0, at)
 	hand.global_transform = Transform3D(Basis.looking_at(dir), eye)
-	for i in 6:
-		await process_frame
+	await frames(6)
 	check(main.delete_tool._rings[1].visible, "live delete hover shows " + name)
 	if not OS.get_environment("DELETE_CAPTURE").is_empty():
 		await RenderingServer.frame_post_draw

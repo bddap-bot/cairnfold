@@ -45,12 +45,7 @@ func _glade(seed: int) -> Glade:
 func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	var m: WallTool.Mason = g.walls.masons[0]
 	m.hand.tool = tool
-	g.walls.begin_stroke(m, g.world.terrain.ground(a.x, a.z))
-	for i in 41:
-		var p := a.lerp(b, i / 40.0)
-		g.walls.extend_stroke(m, g.world.terrain.ground(p.x, p.z))
-	g.walls.end_stroke(m)
-	return g.walls.walls[-1]
+	return stroke_wall(g.walls, a, b, 40)
 
 
 ## Counts, over the frames it is called on, steps through a wall, frames in water, frames resting on ground

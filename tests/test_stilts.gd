@@ -18,11 +18,7 @@ func _init() -> void:
 	finish()
 
 
-func _slope(x: float, z: float) -> float:
-	return x * 0.1 + z * 0.05
-
-
-func _raised(kind: WallLayout.Foundation, round: bool, rise: float, ground := Callable(self, "_slope"), timbered := false, on: Array[Massing] = []) -> WallLayout:
+func _raised(kind: WallLayout.Foundation, round: bool, rise: float, ground := Callable(self, "sloped_ground"), timbered := false, on: Array[Massing] = []) -> WallLayout:
 	var w := WallLayout.new()
 	w.supports = on
 	w.finish = WallLayout.Finish.TIMBER if timbered else WallLayout.Finish.BARE
@@ -49,7 +45,7 @@ func _name(kind: WallLayout.Foundation, round: bool) -> String:
 ## Every station round the walls has a stilt standing under the wall's centre line, from the foundation or the ground
 ## up under the foot, and between them nothing of the walls is laid: the house stands on them.
 func _stilts_line_up_under_the_walls(kind: WallLayout.Foundation, round: bool, timbered := false) -> void:
-	var w := _raised(kind, round, 1.5, _slope, timbered)
+	var w := _raised(kind, round, 1.5, sloped_ground, timbered)
 	var name := _name(kind, round) + (" timber-framed" if timbered else "")
 	check(TimberFrame.applies(w) == timbered, "%s: framed as asked" % name)
 	var span := WallLayout.stilt_span(kind, 1.5)
@@ -115,7 +111,7 @@ func _a_low_raise_stands_on_its_plinth() -> void:
 	var plinth := _raised(WallLayout.Foundation.STONE, false, 0.6)
 	check(low.stones.size() == plinth.stones.size() and not low.stones.any(func(st: Dictionary) -> bool: return st.kind in ["post", "beam"]), "raised 0.6 m on posts, it stands on its plinth")
 	var on := _raised(WallLayout.Foundation.POSTS, false, 0.0)
-	var upper := _raised(WallLayout.Foundation.POSTS, false, 1.5, _slope, false, [Massing.of(on, null)])
+	var upper := _raised(WallLayout.Foundation.POSTS, false, 1.5, sloped_ground, false, [Massing.of(on, null)])
 	check(not upper.stilted() and not upper.stones.any(func(st: Dictionary) -> bool: return st.kind in ["post", "beam"]), "a house standing on a build stands on no stilts")
 	var none := _raised(WallLayout.Foundation.STONE, false, 1.5)
 	check(not none.stones.any(func(st: Dictionary) -> bool: return st.kind in ["post", "beam"] or (st.kind == "pillar")), "a plinth has no stilts")

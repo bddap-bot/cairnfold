@@ -1197,9 +1197,7 @@ func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 			fused.append(o)
 			continue
 		var key := Vector3i(roundi(o.sill * 100.0), roundi(o.size * 100.0), o.style)
-		if not courses_of.has(key):
-			courses_of[key] = []
-		courses_of[key].append(o)
+		courses_of.get_or_add(key, []).append(o)
 	for row in courses_of.values():
 		fused.append_array(_fuse(row))
 	fused.sort_custom(func(a, b): return a.style == Family.ARCHWAY if (a.style == Family.ARCHWAY) != (b.style == Family.ARCHWAY) else a.s < b.s)

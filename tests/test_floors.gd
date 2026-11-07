@@ -23,10 +23,6 @@ func _init() -> void:
 	finish()
 
 
-func _slope(x: float, z: float) -> float:
-	return x * 0.1 + z * 0.05
-
-
 func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4, planks := false) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
@@ -75,13 +71,13 @@ func _covered(w: WallLayout, level: float) -> float:
 
 
 func _a_house_is_floored_wall_to_wall_over_its_highest_ground() -> void:
-	var w := _house(_slope)
+	var w := _house(sloped_ground)
 	check(w.floor_y != -INF, "a house has one floor, got %s" % [w.floor_y])
 	var highest := -INF
 	for s in _pieces(w):
 		for c in [Vector3(-0.5, 0, -0.5), Vector3(0.5, 0, -0.5), Vector3(-0.5, 0, 0.5), Vector3(0.5, 0, 0.5)]:
 			var q: Vector3 = s.xform * c
-			highest = maxf(highest, _slope(q.x, q.z))
+			highest = maxf(highest, sloped_ground(q.x, q.z))
 	check(w.floor_y >= highest - 1e-4, "no ground under the floor, a doorway's included, rises through it: floor %.2f, ground up to %.2f" % [w.floor_y, highest])
 	check(w.floor_y > w.samples[0].y + WallLayout.SINK, "on a slope the floor stands over the foot, at the uphill ground")
 	check(_covered(w, w.floor_y) == 1.0, "the floor covers everything inside the walls: %.3f" % _covered(w, w.floor_y))
@@ -132,17 +128,17 @@ func _a_house_floor_stands_over_ground_peaking_past_its_walls() -> void:
 
 func _a_raised_house_floors_its_foot() -> void:
 	for rise in [0.9, 1.5, 3.0]:
-		var w := _house(_slope, rise)
+		var w := _house(sloped_ground, rise)
 		var lowest := INF
 		for p in w.points:
-			lowest = minf(lowest, _slope(p.x, p.z))
+			lowest = minf(lowest, sloped_ground(p.x, p.z))
 		check(is_equal_approx(w.floor_y, w.samples[0].y + WallLayout.SINK) and absf(w.floor_y - (lowest + rise)) < 0.05, "raised %.1f, the floor rides the foot: %.2f over ground %.2f" % [rise, w.floor_y, lowest])
 		check(_covered(w, w.floor_y) == 1.0, "raised %.1f, the floor still covers the room" % rise)
 
 
 func _doors_stand_their_height_over_the_floor() -> void:
 	for plaster in [false, true]:
-		var w := _house(_slope, 0.0, plaster, 4.8)
+		var w := _house(sloped_ground, 0.0, plaster, 4.8)
 		var lift := w.floor_y - w.samples[0].y - WallLayout.SINK
 		check(lift > 0.3 and is_equal_approx(w.floor_lift(), lift), "up a slope the floor stands %.2f over the foot" % lift)
 		check(is_equal_approx(w.spring() - lift, WallLayout.SPRING), "the doorway arch springs its full height over the floor: %.2f" % (w.spring() - lift))
@@ -156,7 +152,7 @@ func _doors_stand_their_height_over_the_floor() -> void:
 ## A doorway, arched or planked, opens from the floor: under it the wall stands whole down to the foundation's foot, on a
 ## slope, raised on a plinth, in stone, plaster or timber framing, so nothing under the floor shows through it.
 func _doors_and_arches_stop_at_the_floor() -> void:
-	for ground in [Terrain.flat, _slope]:
+	for ground in [Terrain.flat, sloped_ground]:
 		for rise in [0.0, 1.2]:
 			for finish in ["stone", "plaster", "timber"]:
 				for style in [WallLayout.Family.ARCHWAY, WallLayout.Family.COTTAGE]:
@@ -164,7 +160,7 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 					w.finish = {"stone": WallLayout.Finish.BARE, "plaster": WallLayout.Finish.PLASTER, "timber": WallLayout.Finish.TIMBER}[finish]
 					w.openings.assign([Vector4(3.0, 0.0, style, 1.0)])
 					w.build(ground)
-					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.Family.ARCHWAY else "door", finish, "up a slope" if ground == _slope else "on the flat", rise]
+					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.Family.ARCHWAY else "door", finish, "up a slope" if ground == sloped_ground else "on the flat", rise]
 					var t := w.threshold()
 					check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].sill, t), "%s: it opens from the floor at %.2f: %s" % [name, t, w.apertures])
 					var low := w.stones.filter(func(st: Dictionary) -> bool: return (st.kind in ["door", "iron"] or st.kind == "timber" and absf(absf(st.s - 3.0) - WallLayout.ARCH_HALF - TimberFrame.WIDTH * 0.5) < 0.01) and st.y - st.size.y * 0.5 < t - 0.01)
@@ -175,7 +171,7 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 					while y < t - WallLayout.COURSE:
 						for d in [-0.4, 0.0, 0.4]:
 							var p: Vector3 = w.frame_at(3.0 + d).point + Vector3.UP * y
-							if not walls.any(func(st: Dictionary) -> bool: return _holds(st, p)):
+							if not walls.any(func(st: Dictionary) -> bool: return piece_holds(st, p)):
 								open.append(Vector2(d, y))
 						y += 0.1
 					check(open.is_empty(), "%s: the wall stands whole under the floor, not at %s" % [name, open.slice(0, 6)])
@@ -185,7 +181,7 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 ## to fill it again.
 func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
 	for plaster in [false, true]:
-		var w := _house(_slope, 0.0, plaster, 4.8)
+		var w := _house(sloped_ground, 0.0, plaster, 4.8)
 		var placed: Array[Vector4] = []
 		placed.assign(w.openings)
 		check(w.threshold() > 0.3 and w.opening_fits(WallLayout.archway(13.0), placed), "an arch fits over a floor %.2f up" % w.threshold())
@@ -195,14 +191,14 @@ func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
 ## No joint in the walls shows the floor: every flag, plank and bed stays inside the walls' footprint, behind the face of
 ## the shallowest mortar laid, worn plaster's included, whatever the finish, rise or ground.
 func _the_floor_stays_behind_every_joint() -> void:
-	for ground in [Terrain.flat, _slope]:
+	for ground in [Terrain.flat, sloped_ground]:
 		for rise in [0.0, 1.2]:
 			for finish in [WallLayout.Finish.BARE, WallLayout.Finish.PLASTER]:
 				for planks in [false, true]:
 					var w := _house(ground, rise, false, 2.4, planks)
 					w.finish = finish
 					w.build(ground)
-					var name := "%s%s, raised %.1f%s" % ["plaster" if finish == WallLayout.Finish.PLASTER else "stone", " planked" if planks else "", rise, " up a slope" if ground == _slope else ""]
+					var name := "%s%s, raised %.1f%s" % ["plaster" if finish == WallLayout.Finish.PLASTER else "stone", " planked" if planks else "", rise, " up a slope" if ground == sloped_ground else ""]
 					var mortar := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "mortar")
 					check(not mortar.is_empty(), "%s: mortar is laid" % name)
 					var face := INF
@@ -219,16 +215,6 @@ func _the_floor_stays_behind_every_joint() -> void:
 							if not Geometry2D.is_point_in_polygon(Vector2(q.x, q.z), footprint):
 								out.append(Vector2(q.x, q.z))
 					check(out.is_empty(), "%s: the floor stays %.3f inside the walls' centre line, behind the mortar, not at %s" % [name, face, out.slice(0, 4)])
-
-
-## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
-func _holds(st: Dictionary, p: Vector3) -> bool:
-	var x: Transform3D = st.xform
-	var q := x.affine_inverse() * p
-	var e: Vector2 = st.get("ends", Vector2.ZERO)
-	var axis := x.basis.y.normalized()
-	q.x -= q.z * x.basis.z.length() * tan(e.x if q.x < 0.0 else e.y) / (x.basis.x - axis * x.basis.x.dot(axis)).length()
-	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
 
 
 ## Either face takes either floor, and the floor changes nothing of the walls. Planks lay about as many pieces as flags,
@@ -255,7 +241,7 @@ func _tower(planks: bool) -> WallLayout:
 	w.cover = WallLayout.Cover.ROOF
 	w.height = 4.5
 	w.planks = planks
-	w.build(_slope)
+	w.build(sloped_ground)
 	return w
 
 
@@ -287,7 +273,7 @@ func _a_round_tower_is_floored_too() -> void:
 func _flags_and_planks_lie_flush_and_apart() -> void:
 	for tower in [false, true]:
 		for planks in [false, true]:
-			var w := _tower(planks) if tower else _house(_slope, 0.0, false, 2.4, planks)
+			var w := _tower(planks) if tower else _house(sloped_ground, 0.0, false, 2.4, planks)
 			var name := "%s %s" % ["planked" if planks else "flagged", "tower" if tower else "house"]
 			var proud := 0.0
 			var feet: Array[PackedVector2Array] = []
@@ -366,7 +352,7 @@ func _open_walls_lay_no_floor() -> void:
 
 ## Joined across the side its rows start from, past its end, and corner to corner, on level and sloping ground.
 func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
-	for ground in [Terrain.flat, _slope]:
+	for ground in [Terrain.flat, sloped_ground]:
 		for at in [Vector3(4, 0, -1), Vector3(0, 0, 3.7), Vector3(2, 0, 3.7), Vector3(4.3, 0, 2.6)]:
 			var old := _house(ground)
 			var new := WallLayout.new()

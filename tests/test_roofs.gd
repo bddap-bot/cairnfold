@@ -33,16 +33,6 @@ func _gable(length: float, depth: float, pitch: float, curve := 0.0) -> RoofLayo
 	return r
 
 
-func _of(r: RoofLayout, kind: String) -> Array:
-	return r.tiles.filter(func(t): return t.kind == kind)
-
-
-## Whether the box `x` lays over the ground point `p`, seen from above.
-func _covers(x: Transform3D, p: Vector2) -> bool:
-	var inverse := x.affine_inverse()
-	return AABB(Vector3.ONE * -0.5, Vector3.ONE).intersects_ray(inverse * Vector3(p.x, x.origin.y + 10.0, p.y), inverse.basis * Vector3.DOWN) != null
-
-
 func _top_of(x: Transform3D) -> float:
 	return x.origin.y + absf(x.basis.y.y) * 0.5
 
@@ -58,9 +48,9 @@ func _a_wooden_deck_is_boards_on_joists() -> void:
 	var r := _gable(6.0, 4.0, 0.0)
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var boards := _of(r, "plank")
-	var joists := _of(r, "board")
-	check(boards.size() > 40 and _of(r, "deck").is_empty() and r.mortar.is_empty(), "a wooden deck lays boards, no flags or mortar: %d boards" % boards.size())
+	var boards := tiles_of(r, "plank")
+	var joists := tiles_of(r, "board")
+	check(boards.size() > 40 and tiles_of(r, "deck").is_empty() and r.mortar.is_empty(), "a wooden deck lays boards, no flags or mortar: %d boards" % boards.size())
 	check(boards.size() + joists.size() == r.tiles.size(), "a flat wooden roof is all boards and joists")
 	var inner := Vector2(3.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK, 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK)
 	var deck_top := r.base - RoofLayout.DECK_DROP
@@ -76,14 +66,14 @@ func _a_wooden_deck_is_boards_on_joists() -> void:
 	for i in 60:
 		for j in 40:
 			var p := Vector2(3.0 + (i / 59.0 - 0.5) * 2.0 * (inner.x - 0.05), (j / 39.0 - 0.5) * 2.0 * (inner.y - 0.05))
-			if not boards.any(func(t): return _covers(t.xform, p)):
+			if not boards.any(func(t): return box_covers(t.xform, p)):
 				open += 1
 	check(open < 2400 * 0.06, "boards cover the deck but for their joints: %d of 2400 points open" % open)
 	var t := r.ray_hit(Vector3(3, 10, 1), Vector3.DOWN)
 	check(absf(t - (10.0 - r.base)) < 0.01, "pointing at a wooden deck hits it")
 	var stone := _gable(6.0, 4.0, 0.0)
 	stone.build()
-	check(not _of(stone, "deck").is_empty() and _of(stone, "plank").is_empty(), "a stone deck stays flagged")
+	check(not tiles_of(stone, "deck").is_empty() and tiles_of(stone, "plank").is_empty(), "a stone deck stays flagged")
 
 
 func _a_tower_takes_a_wooden_deck_inside_its_ring() -> void:
@@ -95,7 +85,7 @@ func _a_tower_takes_a_wooden_deck_inside_its_ring() -> void:
 	r.pitch = 0.0
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var boards := _of(r, "plank")
+	var boards := tiles_of(r, "plank")
 	var reach := 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK
 	check(boards.size() > 20, "a tower's wooden deck lays %d boards" % boards.size())
 	var out := boards.filter(func(t):
@@ -111,7 +101,7 @@ func _a_tower_takes_a_wooden_deck_inside_its_ring() -> void:
 		for j in 10:
 			var a := TAU * i / 24.0
 			var rho := (reach - 0.12) * j / 10.0
-			if not boards.any(func(t): return _covers(t.xform, Vector2(1 + cos(a) * rho, 1 + sin(a) * rho))):
+			if not boards.any(func(t): return box_covers(t.xform, Vector2(1 + cos(a) * rho, 1 + sin(a) * rho))):
 				open += 1
 	check(open < 240 * 0.06, "the boards floor the tower's top: %d of 240 points open" % open)
 
@@ -120,7 +110,7 @@ func _a_curved_wooden_deck_follows_its_surface() -> void:
 	var r := _gable(6.0, 4.0, 0.0, 0.8)
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var off := _of(r, "plank").filter(func(t):
+	var off := tiles_of(r, "plank").filter(func(t):
 		var p: Vector3 = t.xform.origin
 		return absf(p.y + absf(t.xform.basis.y.length()) * 0.5 - (r.height_at(p.x, p.z) - RoofLayout.DECK_DROP)) > 0.03)
 	check(off.is_empty(), "a bowed wooden deck's boards ride its surface: %d off it" % off.size())
@@ -158,15 +148,7 @@ func _a_railing_rims_a_deck_and_tops_a_wall() -> void:
 	check(open.stones.any(func(s): return s.kind == "post") and not open.stones.any(func(s): return s.kind == "merlon"), "an open wall takes a railing as its top too")
 	var roofed := _house(6.0, 4.0, WallLayout.Top.RAIL, WallLayout.Cover.ROOF)
 	check(not roofed.stones.any(func(s): return s.kind in ["post", "rail"]), "under a pitched roof the railing goes")
-	check(WallLayout.Top.size() == 4 and Commands._wall(_wall_data(WallLayout.Top.RAIL)) != null, "the railing is a top the command takes")
-
-
-func _wall_data(top: int) -> Dictionary:
-	return {
-		"points": PackedVector3Array([Vector3.ZERO, Vector3(6, 0, 0)]), "height": 2.4, "rise": 0.0, "seed": 1, "closed": false, "top": top,
-		"fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(),
-		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-	}
+	check(WallLayout.Top.size() == 4 and Commands._wall(wall_data({"points": PackedVector3Array([Vector3.ZERO, Vector3(6, 0, 0)]), "top": WallLayout.Top.RAIL})) != null, "the railing is a top the command takes")
 
 
 func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := WallLayout.Top.CAP) -> Dictionary:
@@ -228,7 +210,7 @@ func _a_roof_still_being_laid_has_no_deck() -> void:
 
 func _the_eaves_reach_as_far_as_pulled() -> void:
 	var furthest := func(r: RoofLayout) -> float:
-		return _of(r, "tile").reduce(func(m, t): return maxf(m, absf(t.xform.origin.z)), 0.0)
+		return tiles_of(r, "tile").reduce(func(m, t): return maxf(m, absf(t.xform.origin.z)), 0.0)
 	var short := _gable(6.0, 4.0, 2.0)
 	short.overhang = 0.0
 	short.build()
@@ -238,7 +220,7 @@ func _the_eaves_reach_as_far_as_pulled() -> void:
 	var hs := short.half_span()
 	check(absf(short.eave() - hs) < 0.001 and absf(long.eave() - hs - 1.2) < 0.001, "the eave reaches its overhang past the walls")
 	check(furthest.call(short) < hs + 0.15 and furthest.call(long) > hs + 1.05 and furthest.call(long) < hs + 1.35, "tiles run out to the eave: %.2f and %.2f past %.2f" % [furthest.call(short), furthest.call(long), hs])
-	check(_of(long, "tile").size() > _of(short, "tile").size(), "a longer eave lays more tiles")
+	check(tiles_of(long, "tile").size() > tiles_of(short, "tile").size(), "a longer eave lays more tiles")
 	check(long.ray_hit(Vector3(3, 10, hs + 1.0), Vector3.DOWN) < INF and short.ray_hit(Vector3(3, 10, hs + 1.0), Vector3.DOWN) == INF, "pointing at the long eave hits it")
 	check(long.eave_way(Vector3(3, 4, -(hs + 0.5))).is_equal_approx(Vector3(0, 0, -1)) and long.eave_way(Vector3(3, 4, 0.5)) == Vector3.ZERO, "a grip past the walls pulls its own eave; over them, the ridge")
 	var cone := RoofLayout.new()
@@ -248,7 +230,7 @@ func _the_eaves_reach_as_far_as_pulled() -> void:
 	cone.base = 4.0
 	cone.overhang = 0.9
 	cone.build()
-	var ring: float = _of(cone, "tile").reduce(func(m, t): return maxf(m, Vector2(t.xform.origin.x, t.xform.origin.z).length()), 0.0)
+	var ring: float = tiles_of(cone, "tile").reduce(func(m, t): return maxf(m, Vector2(t.xform.origin.x, t.xform.origin.z).length()), 0.0)
 	check(ring > cone.half_span() + 0.8, "a cone's eave reaches its overhang too: %.2f" % ring)
 	check(_holds_eave(1.2) and not _holds_eave(0.3), "a build under the long eave stands under it")
 
@@ -280,7 +262,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	r.build()
 	check(r.eave() < r.half_span() + r.overhang - 0.1 and absf(r.eave() - r.half_span() - r.reach()) < 0.001, "a long overhang on low walls comes down to the ground")
 	check(absf(r.base + r.rise(1.0 - r.eave() / r.half_span()) - r.foot) < 0.01, "its eave meets the ground the walls stand on: %.2f at %.2f" % [r.base + r.rise(1.0 - r.eave() / r.half_span()), r.foot])
-	var tiles := _of(r, "tile")
+	var tiles := tiles_of(r, "tile")
 	var lowest: float = tiles.reduce(func(m, t): return minf(m, t.xform.origin.y), INF)
 	check(lowest > r.foot - 0.15 and lowest < r.foot + 0.25, "its lowest tiles lie on the ground, none under it: %.2f" % lowest)
 	check(r.eave() > r.half_span() + 0.8, "the slopes run on well past the walls, a tent: %.2f past" % (r.eave() - r.half_span()))
@@ -310,9 +292,9 @@ func _a_dormer_stands_out_of_the_slope() -> void:
 	bare.build()
 	var f := r.frame()
 	var hs := r.half_span()
-	check(_of(r, "glass").size() == 2 and _of(r, "frame").size() == 12, "each dormer has a cottage window: %d panes" % _of(r, "glass").size())
-	check(_of(r, "board").size() > 30, "dormers are boarded: %d boards" % _of(r, "board").size())
-	check(_of(r, "tile").size() > _of(bare, "tile").size() + 40, "and tiled over: %d tiles more" % (_of(r, "tile").size() - _of(bare, "tile").size()))
+	check(tiles_of(r, "glass").size() == 2 and tiles_of(r, "frame").size() == 12, "each dormer has a cottage window: %d panes" % tiles_of(r, "glass").size())
+	check(tiles_of(r, "board").size() > 30, "dormers are boarded: %d boards" % tiles_of(r, "board").size())
+	check(tiles_of(r, "tile").size() > tiles_of(bare, "tile").size() + 40, "and tiled over: %d tiles more" % (tiles_of(r, "tile").size() - tiles_of(bare, "tile").size()))
 	for i in r.dormers.size():
 		var spot := r.dormer_spot(r.dormers[i])
 		var room := r.dormer_bounds(r.dormers[i])
@@ -343,7 +325,7 @@ func _a_dormer_stands_out_of_the_slope() -> void:
 	thatched.thatch = true
 	thatched.dormers.assign([Vector2(0.0, 2.0)])
 	thatched.build()
-	var pane: Array = _of(thatched, "glass")
+	var pane: Array = tiles_of(thatched, "glass")
 	check(pane.size() == 1 and thatched.ray_hit(pane[0].xform.origin + f.across * 3.0, -f.across) > 2.5, "a dormer's window looks out over thatch, not into it")
 	var copy := r.inputs()
 	copy.dormers.clear()
@@ -439,15 +421,10 @@ func _the_style_tool_offers_both_decks() -> void:
 	check(WallTool.restyle_roof(pitched, WallTool.RoofStyle.BOARDED).is_empty(), "a pitched roof takes no deck")
 
 
-func _lay_walls() -> void:
-	for w: Wall in main.tool.walls:
-		w.lay_now()
-
-
 func _play(script: Array) -> void:
 	await play(script)
 	await frames(10)
-	_lay_walls()
+	lay_walls(main.tool)
 
 
 func _in_the_glade() -> void:
@@ -472,11 +449,11 @@ func _in_the_glade() -> void:
 	var aim := fit.aim(Hand.Tool.WINDOWS, slope + Vector3.UP * 6.0, Vector3.DOWN)
 	check(aim.get("what") == "dormer", "the windows tool pointed at a gable's slope opens a dormer: %s" % aim.get("what"))
 	world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"roof": {"chimneys": PackedVector2Array([Vector2(1.5, 0.0)])}}})
-	_lay_walls()
+	lay_walls(main.tool)
 	var stack: Vector3 = r.frame().mid + r.frame().along * 1.5 + Vector3.UP * (r.pitch + 1.2)
 	check(fit.aim(Hand.Tool.WINDOWS, stack + r.frame().across * 4.0, -r.frame().across).is_empty(), "the windows tool pointed at a chimney does nothing")
 	world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"roof": {"chimneys": PackedVector2Array()}}})
-	_lay_walls()
+	lay_walls(main.tool)
 	check(not fit.fit(aim), "a roof too low for one refuses it")
 	await _play([{"op": "roof", "index": 0, "pitch": 3.4}])
 	ridge = r.frame().mid + Vector3.UP * r.pitch
@@ -485,7 +462,7 @@ func _in_the_glade() -> void:
 	var steps := func() -> int: return world.stacks.get(world.me(), {"undo": []}).undo.size()
 	var before: int = steps.call()
 	check(fit.fit(aim), "on a steep roof a press opens a dormer")
-	_lay_walls()
+	lay_walls(main.tool)
 	var placed: PackedVector2Array = world.state.walls[house.id].roof.dormers
 	check(placed.size() == 1 and steps.call() == before + 1, "one dormer, one undo step: %d" % placed.size())
 	check(house.roof.tiles.any(func(t): return t.kind == "glass"), "the house lays it")
@@ -495,10 +472,10 @@ func _in_the_glade() -> void:
 		var at_it := fit.aim(Hand.Tool.WINDOWS, front, -room[0].basis.z)
 		check(at_it.get("what") == "dormer" and at_it.has("fitting"), "the windows tool pointed at a dormer picks it: %s" % at_it.get("what"))
 		check(fit.fit(at_it) and world.state.walls[house.id].roof.dormers.is_empty(), "a press on it takes it away")
-		_lay_walls()
+		lay_walls(main.tool)
 		check(fit.aim(Hand.Tool.DECORATIONS, front, -room[0].basis.z).get("what") != "dormer", "decorations never take a dormer")
 		world.undo()
-		_lay_walls()
+		lay_walls(main.tool)
 		check(world.state.walls[house.id].roof.dormers.size() == 1, "undo puts it back")
 	var tool: WallTool = main.tool
 	var hs := r.half_span()

@@ -325,8 +325,7 @@ func _in_the_glade() -> void:
 	])
 	var house := tool.walls[0]
 	var flat := tool.walls[1]
-	for w in tool.walls:
-		w.lay_now()
+	lay_walls(tool)
 	var l := house.layout
 	var corner := l.corners()[1]
 	var at := l.frame_at(corner - 0.25)

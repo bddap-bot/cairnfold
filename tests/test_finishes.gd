@@ -407,17 +407,10 @@ func _the_face_wheel_turns_every_finish() -> void:
 	var mid: Dictionary = f.layout.frame_at(4.0)
 	var aim := picker.aim_style(mid.point + Vector3.UP * 0.7 + mid.tangent.cross(Vector3.UP) * 3.0, -mid.tangent.cross(Vector3.UP))
 	check(aim.get("restyle") == PaletteTool.Restyle.FACE and aim.get("count") == 3, "a fence's face wheel offers rails and planks: %s" % aim.get("count"))
-	_turn(aim, 2)
+	turn_picker(aim, 2)
 	check(world.state.walls[fence].finish == WallLayout.Finish.BOARDS_UPRIGHT and main.tool.fence_finish == WallLayout.Finish.BOARDS_UPRIGHT, "the fence takes upright planks, and fences after")
 	check(main.tool.finish == walls_finish, "a fence's finish leaves walls' alone")
 	world.restore({"seq": 0, "cmds": []})
-
-
-func _turn(target: Dictionary, steps: int) -> void:
-	var picker: PaletteTool = main.palette_tool
-	picker.open(main.rig.right, target)
-	picker.twist(main.rig.right, Dial.step(target.count) * steps)
-	picker.close(main.rig.right)
 
 
 ## demo/finishes.json lays every finish on houses, walls and fences.

@@ -62,7 +62,6 @@ func pose(m: Grazers.Motion, delta: float) -> void:
 	blend(POSES[m], delta)
 
 
-## Advances the legs by `distance` walked, showing `m`.
 func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
 	if distance > 0.0:
 		gait = fposmod(gait + distance / (STRIDE * size) * TAU, TAU)

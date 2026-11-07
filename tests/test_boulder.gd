@@ -40,16 +40,6 @@ func _run() -> void:
 	finish()
 
 
-static func _directions(n: int) -> Array[Vector3]:
-	var out: Array[Vector3] = []
-	for i in n:
-		var y := 1.0 - 2.0 * (i + 0.5) / n
-		var a := i * PI * (3.0 - sqrt(5.0))
-		var r := sqrt(1.0 - y * y)
-		out.append(Vector3(cos(a) * r, y, sin(a) * r))
-	return out
-
-
 func _a_seed_grows_the_same_shape() -> void:
 	var a: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41, StoneStyles.MOSSY), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
 	var b: PackedVector3Array = BoulderLayout.arrays(BoulderLayout.shape(41, StoneStyles.MOSSY), BoulderLayout.NEAR)[Mesh.ARRAY_VERTEX]
@@ -57,7 +47,7 @@ func _a_seed_grows_the_same_shape() -> void:
 
 
 func _seeds_differ() -> void:
-	var dirs := _directions(200)
+	var dirs := sphere_directions(200)
 	var shapes := range(12).map(func(i: int) -> BoulderLayout.Shape: return BoulderLayout.shape(1000 + i * 7919, StoneStyles.MOSSY))
 	for i in shapes.size():
 		for j in range(i + 1, shapes.size()):
@@ -70,7 +60,7 @@ func _seeds_differ() -> void:
 ## A ball's radius barely changes from one direction to the next; a fractured stone's runs flat across a face, so its
 ## radius rises toward the face's edges as the secant of the angle off its middle, and its extremes lie far apart.
 func _a_boulder_is_faceted_not_a_ball() -> void:
-	var dirs := _directions(400)
+	var dirs := sphere_directions(400)
 	for seed in [3, 77, 1234, 99991]:
 		var s := BoulderLayout.shape(seed, StoneStyles.MOSSY)
 		var radii := dirs.map(func(u: Vector3) -> float: return s.radius(u))
@@ -88,7 +78,7 @@ func _a_boulder_is_faceted_not_a_ball() -> void:
 ## Water wore a river cobble round: above its middle its surface keeps to its ellipsoid with no fracture face, it lies flatter
 ## than a mossy block of the same seed, and nothing of it reaches past its reach.
 func _a_river_cobble_is_worn_smooth() -> void:
-	var dirs := _directions(400)
+	var dirs := sphere_directions(400)
 	for seed in [3, 77, 1234, 99991]:
 		var s := BoulderLayout.shape(seed, StoneStyles.RIVER_COBBLE)
 		var block := BoulderLayout.shape(seed, StoneStyles.MOSSY)

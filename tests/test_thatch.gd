@@ -44,10 +44,6 @@ func _towered(radius: float, pitch: float, curve := 0.0) -> Array:
 	return _built(WallLayout.circle(Vector3(1, 0, 1), radius), RoofLayout.Kind.CONE, pitch, curve, radius)
 
 
-func _of(r: RoofLayout, kind: String) -> Array:
-	return r.tiles.filter(func(t): return t.kind == kind)
-
-
 ## The coat's triangles, bucketed by the half-metre ground cells their bounds cross, for casting rays at it.
 class Coat:
 	var verts: PackedVector3Array
@@ -129,7 +125,7 @@ func _covered(r: RoofLayout, what: String) -> void:
 
 
 func _covered_by(r: RoofLayout, coat: Coat, what: String) -> void:
-	check(coat.verts.size() > 600 and _of(r, "tile").is_empty() and _of(r, "ridge").is_empty(), "%s: thatched in straw, no tiles: %d triangles" % [what, coat.verts.size() / 3])
+	check(coat.verts.size() > 600 and tiles_of(r, "tile").is_empty() and tiles_of(r, "ridge").is_empty(), "%s: thatched in straw, no tiles: %d triangles" % [what, coat.verts.size() / 3])
 	var thin := []
 	for p in _surface(r):
 		var d := coat.hit(p[0] + p[1] * 1.5, p[0] + p[1] * 0.01)
@@ -177,7 +173,7 @@ func _thatch_covers_every_roof_shape() -> void:
 		var built := _towered(c[0], c[1], c[2])
 		_covered(built[1], "a %.1f m cone at pitch %.1f, curve %.1f" % c)
 		_under_the_coat(built[0], built[1], "the %.1f m cone" % c[0])
-		var crown := _of(built[1], "finial")
+		var crown := tiles_of(built[1], "finial")
 		check(crown.size() == 1 and crown[0].xform.origin.y > built[1].base + c[1] + built[1].coat_rise(), "its finial stands clear of the straw")
 
 

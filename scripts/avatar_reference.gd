@@ -120,9 +120,10 @@ func _stage(camera: Dictionary) -> SubViewport:
 	_sun.basis = Basis.looking_at(_turn(camera.light_euler) * Vector3.BACK)
 	_root.add_child(_sun)
 	var ambient := _grey(camera.ambient).srgb_to_linear()
+	var sky := Vector3(ambient.r, ambient.g, ambient.b)
 	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE * _sun.light_energy)
-	RenderingServer.global_shader_parameter_set(&"sky_zenith", Vector3(ambient.r, ambient.g, ambient.b))
-	RenderingServer.global_shader_parameter_set(&"sky_horizon", Vector3(ambient.r, ambient.g, ambient.b))
+	RenderingServer.global_shader_parameter_set(&"sky_zenith", sky)
+	RenderingServer.global_shader_parameter_set(&"sky_horizon", sky)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 1.0)
 	return view
 

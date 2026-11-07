@@ -27,8 +27,7 @@ func _run() -> void:
 	check(main.look.sky_mat.get_shader_parameter("stars") == Daylight.light(0.0).stars, "paired measurement restores the time source")
 	var eye := main.world.terrain.ground(0, 12) + Vector3.UP * 0.2
 	main.view(eye, eye + Vector3(0, 10, -0.001))
-	for i in 60:
-		await process_frame
+	await frames(60)
 	check(main.rig.head.global_position.is_equal_approx(eye), "low head is neither recentered nor pushed")
 	check(not main.rig.under, "low head on dry terrain is not underwater")
 	check(not main.rig._fade.visible, "lying down does not trigger teleport fade")

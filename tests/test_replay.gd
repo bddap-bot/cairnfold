@@ -92,7 +92,7 @@ func _initialize() -> void:
 	var avatars := ProjectSettings.globalize_path(folder.path_join("avatars"))
 	_avatars = avatars
 	DirAccess.make_dir_recursive_absolute(avatars)
-	var file := FileAccess.get_file_as_bytes(ProjectSettings.globalize_path("res://").path_join("../tests/avatars/godette-0.x.vrm"))
+	var file := FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))
 	var out := FileAccess.open(avatars.path_join("mine.vrm"), FileAccess.WRITE)
 	out.store_buffer(file)
 	out.close()

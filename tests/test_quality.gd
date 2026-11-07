@@ -39,14 +39,7 @@ func _initialize() -> void:
 	_a_density_map_that_costs_the_frame_comes_off()
 	_a_density_map_that_saves_stays_on()
 	_the_density_map_is_tried_again_once_calm()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 ## Steps down one, then measures what the step saved over a second of frames just under the line.
@@ -55,7 +48,6 @@ func _down(g: Quality.Governor) -> void:
 	_feed(g, BUDGET * UNDER_LINE, 72)
 
 
-## Feeds `frames` frames of `ms` and returns the level after.
 func _feed(g: Quality.Governor, ms: float, frames: int) -> int:
 	for i in frames:
 		g.step(ms, BUDGET, DT)
@@ -198,8 +190,8 @@ func _every_pipeline_a_rung_draws_with_is_primed() -> void:
 		var s := Quality.ladder[n]
 		drawn[[s.render_scale, s.msaa, s.reflections, s.shadows, s.scale_3d, s.foveation > 0]] = true
 	for s in Quality.ladder:
-		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.shadows, s.scale_3d, s.foveation > 0]), "a rung's pipelines are primed")
-	_check(primed[-1] == Quality.START, "priming ends where the governor starts")
+		check(drawn.has([s.render_scale, s.msaa, s.reflections, s.shadows, s.scale_3d, s.foveation > 0]), "a rung's pipelines are primed")
+	check(primed[-1] == Quality.START, "priming ends where the governor starts")
 
 
 func _an_average_over_the_line_steps_down_before_frames_run_late() -> void:

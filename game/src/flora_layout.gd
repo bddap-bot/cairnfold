@@ -107,9 +107,7 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 		var a := rng.randf() * TAU
 		var x := center.x + cos(a) * r
 		var z := center.z + sin(a) * r
-		var spot := Vector3(x, 0, z)
-		spot.y = ground.call(spot.x, spot.z) - SINK
-		out.append(spot)
+		out.append(Vector3(x, ground.call(x, z) - SINK, z))
 	return out
 
 

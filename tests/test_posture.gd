@@ -23,7 +23,7 @@ func _run() -> void:
 		scenes.append(Avatar.built_in(i))
 		names.append("built-in %d" % i)
 	for path in SAMPLES:
-		scenes.append(Avatar.read(FileAccess.get_file_as_bytes(ProjectSettings.globalize_path("res://").path_join("../tests/avatars").path_join(path))))
+		scenes.append(Avatar.read(FileAccess.get_file_as_bytes(avatar_file(path))))
 		names.append(path)
 	for i in scenes.size():
 		_poses_keep_head_and_hands_tracked(scenes[i], names[i])

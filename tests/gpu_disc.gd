@@ -35,8 +35,7 @@ func _run() -> void:
 		for off: Vector2 in PLACES:
 			var toward := (Basis(Vector3.UP, deg_to_rad(-off.x)) * Basis(Vector3.RIGHT, deg_to_rad(off.y)) * Vector3.FORWARD).normalized()
 			disc.position = toward * Look.DISC_DISTANCE
-			for _i in 4:
-				await process_frame
+			await frames(4)
 			await RenderingServer.frame_post_draw
 			var image := view.get_texture().get_image()
 			var name := "%s_%d_%d" % [which[0], off.x, off.y]

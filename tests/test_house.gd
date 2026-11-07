@@ -38,20 +38,12 @@ func _init() -> void:
 	finish()
 
 
-func _slope(x: float, z: float) -> float:
-	return x * 0.1 + z * 0.05
-
-
-func _blocks(w: WallLayout) -> Array:
-	return w.stones.filter(func(s): return s.kind == "block")
-
-
 func _tower(radius: float) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.circle(Vector3(1, 0, 1), radius)
 	w.closed = true
 	w.height = 4.5
-	w.build(_slope)
+	w.build(sloped_ground)
 	return w
 
 
@@ -63,11 +55,11 @@ func _a_tower_is_a_level_ring_without_end_piers() -> void:
 	check(w.samples.all(func(p): return absf(p.y - foot) < 1e-4), "the tower stands level")
 	var lowest := INF
 	for p in w.samples:
-		lowest = minf(lowest, _slope(p.x, p.z))
+		lowest = minf(lowest, sloped_ground(p.x, p.z))
 	check(absf(foot - (lowest - 0.12)) < 1e-4, "the tower's foot is on its lowest ground")
 	check(w.corners().is_empty(), "a round tower has no piers")
 	check(w.stones.all(func(s): return s.kind != "pier"), "no pier stones on a tower")
-	for s in _blocks(w):
+	for s in blocks_of(w):
 		var p: Vector3 = s.xform.origin
 		var r := Vector2(p.x - 1, p.z - 1).length()
 		if absf(r - 2.0) > WallLayout.THICKNESS:
@@ -75,7 +67,7 @@ func _a_tower_is_a_level_ring_without_end_piers() -> void:
 			break
 	var courses := int(round(4.5 / WallLayout.COURSE))
 	var bottom := 0.0
-	for s in _blocks(w):
+	for s in blocks_of(w):
 		if absf(s.y - 4.5 / courses * 0.5) < 0.01:
 			bottom += s.size.x
 	check(absf(bottom - w.length()) < 0.05, "the bottom course covers %f of %f" % [bottom, w.length()])
@@ -230,14 +222,14 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	var low := _house(6.0, 4.0)
 	var w := _house(6.0, 4.0)
 	w.rise = 1.2
-	w.build(_slope)
-	low.build(_slope)
+	w.build(sloped_ground)
+	low.build(sloped_ground)
 	check(is_equal_approx(w.samples[0].y, low.samples[0].y + 1.2), "its foot stands 1.2 m above its lowest ground: %.2f" % (w.samples[0].y - low.samples[0].y))
 	var gap := _plinth_gap(w)
 	check(gap <= 1e-4, "its courses reach the ground all round, nowhere floating: %.2f m at most above it" % gap)
 	var tall := _house(6.0, 4.0)
 	tall.rise = 8.0
-	tall.build(_slope)
+	tall.build(sloped_ground)
 	check(is_equal_approx(tall.samples[0].y, low.samples[0].y + 8.0), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % (tall.samples[0].y - low.samples[0].y))
 	gap = _plinth_gap(tall)
 	check(gap <= 1e-4, "an 8 m plinth reaches the ground all round: %.2f m at most above it" % gap)
@@ -252,7 +244,7 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	supported.rise = 1.2
 	var under := Massing.of(low, null)
 	supported.supports = [under]
-	supported.build(_slope)
+	supported.build(sloped_ground)
 	check(is_equal_approx(supported.samples[0].y, under.rest(supported.points[0].x, supported.points[0].z) - WallLayout.SINK), "a house standing on a build stays on its top")
 	var d := {"points": PackedVector3Array(w.points), "height": 2.4, "rise": 1.2, "closed": true, "fence": false, "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
 	var flat := d.duplicate()
@@ -270,7 +262,7 @@ func _plinth_gap(w: WallLayout) -> float:
 		var lowest := INF
 		for st: Dictionary in under:
 			lowest = minf(lowest, st.xform.origin.y - st.size.y * 0.5)
-		gap = maxf(gap, lowest - _slope(q.x, q.z))
+		gap = maxf(gap, lowest - sloped_ground(q.x, q.z))
 	return gap
 
 
@@ -341,13 +333,9 @@ func _gable(length: float, depth: float, pitch: float, curve: float) -> RoofLayo
 	return r
 
 
-func _of(r: RoofLayout, kind: String) -> Array:
-	return r.tiles.filter(func(t): return t.kind == kind)
-
-
 func _gable_tiles_cover_the_footprint_under_the_ridge() -> void:
 	var r := _gable(6.0, 4.0, 1.8, 0.0)
-	var tiles := _of(r, "tile")
+	var tiles := tiles_of(r, "tile")
 	check(tiles.size() > 200, "a 6×4 roof has %d tiles" % tiles.size())
 	var reach := 2.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG + 0.2
 	var ends := 3.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.GABLE_OVERHANG + 0.2
@@ -365,14 +353,14 @@ func _gable_tiles_cover_the_footprint_under_the_ridge() -> void:
 		check(not near.is_empty(), "the slope on side %d reaches the ridge" % side)
 		var eave := tiles.filter(func(t): return t.xform.origin.z * side > 2.3)
 		check(not eave.is_empty(), "the slope on side %d overhangs the wall" % side)
-	check(_of(r, "ridge").size() >= 18, "ridge tiles along 6 m")
+	check(tiles_of(r, "ridge").size() >= 18, "ridge tiles along 6 m")
 	check(not r.gables().is_empty(), "gable ends close the roof")
 
 
 func _height_at(r: RoofLayout, z: float) -> float:
 	var best := INF
 	var y := 0.0
-	for t in _of(r, "tile"):
+	for t in tiles_of(r, "tile"):
 		var d := absf(absf(t.xform.origin.z) - z)
 		if d < best:
 			best = d
@@ -407,7 +395,7 @@ func _cone_tiles_ring_the_tower_up_to_the_finial() -> void:
 	r.base = 4.6
 	r.pitch = 3.2
 	r.build()
-	var tiles := _of(r, "tile")
+	var tiles := tiles_of(r, "tile")
 	check(tiles.size() > 150, "a 2 m cone has %d tiles" % tiles.size())
 	var eave := 2.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG
 	for t in tiles:
@@ -421,7 +409,7 @@ func _cone_tiles_ring_the_tower_up_to_the_finial() -> void:
 		if up.y < 0.3 or up.dot(out) < 0.0:
 			check(false, "a cone tile faces %s" % up)
 			break
-	check(_of(r, "finial").size() == 1, "one finial")
+	check(tiles_of(r, "finial").size() == 1, "one finial")
 	check(r.gables().is_empty(), "a cone has no gables")
 
 
@@ -497,7 +485,7 @@ func _flat_cone() -> RoofLayout:
 
 func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	var r := _gable(6.0, 4.0, 0.0, 0.6)
-	var deck := _of(r, "deck")
+	var deck := tiles_of(r, "deck")
 	check(not deck.is_empty() and deck.size() == r.tiles.size(), "a flat gable is all deck: %d of %d" % [deck.size(), r.tiles.size()])
 	check(r.gables().is_empty(), "a flat roof has no gable ends")
 	var inner := Vector2(3.0 - WallLayout.THICKNESS * 0.5, 2.0 - WallLayout.THICKNESS * 0.5)
@@ -517,7 +505,7 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	for i in 60:
 		for j in 40:
 			var p := Vector2(3.0 + (i / 59.0 - 0.5) * 2.0 * inner.x, (j / 39.0 - 0.5) * 2.0 * inner.y)
-			if not r.mortar.any(func(m): return _covers(m.xform, p)):
+			if not r.mortar.any(func(m): return box_covers(m.xform, p)):
 				open += 1
 	check(open == 0 and r.mortar.all(func(m): return m.xform.origin.y + m.xform.basis.y.length() * 0.5 < r.height_at(m.xform.origin.x, m.xform.origin.z) - RoofLayout.DECK_DROP), "a mortar bed under the flags leaves no joint open to the floor: %d of 2400 points open" % open)
 	check(_gable(6.0, 4.0, 2.0, 0.0).mortar.is_empty(), "a pitched roof lays no bed")
@@ -527,14 +515,14 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 		for j in 12:
 			var a := TAU * i / 24.0
 			var rho := (2.0 - WallLayout.THICKNESS * 0.5) * j / 12.0
-			if not round.mortar.any(func(m): return _covers(m.xform, Vector2(1 + cos(a) * rho, 1 + sin(a) * rho))):
+			if not round.mortar.any(func(m): return box_covers(m.xform, Vector2(1 + cos(a) * rho, 1 + sin(a) * rho))):
 				ring_open += 1
 	check(ring_open == 0, "a tower's deck bed leaves no joint open: %d of 288 points open" % ring_open)
 	r.chimneys.assign([Vector2(1.0, 1.0)])
 	r.build()
-	check(not _of(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
+	check(not tiles_of(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
 	var cone := _flat_cone()
-	var ring := _of(cone, "deck")
+	var ring := tiles_of(cone, "deck")
 	check(ring.size() > 10 and ring.size() == cone.tiles.size(), "a flat tower roof is all deck, no finial: %d" % ring.size())
 	var reach := 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK
 	check(ring.all(func(s): return Vector2(s.xform.origin.x - 1, s.xform.origin.z - 1).length() < reach), "the tower's deck stays inside its wall")
@@ -589,11 +577,6 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 				check(false, "pitch %.1f %s: torching faces down, under the tiles" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
 				break
 		check(r.tiles.all(func(t): return absf(t.xform.basis.determinant()) > 1e-6), "pitch %.1f: no flattened tiles" % r.pitch)
-
-
-func _covers(x: Transform3D, p: Vector2) -> bool:
-	var inverse := x.affine_inverse()
-	return AABB(Vector3.ONE * -0.5, Vector3.ONE).intersects_ray(inverse * Vector3(p.x, x.origin.y + 10.0, p.y), inverse.basis * Vector3.DOWN) != null
 
 
 func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, points := WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0), pitch := 2.0) -> Array:

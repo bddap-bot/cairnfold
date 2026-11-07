@@ -71,9 +71,7 @@ static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Di
 	var groups := Lamps._groups(rooms)
 	var rows := {}
 	for r in rooms.size():
-		if not rows.has(groups[r]):
-			rows[groups[r]] = []
-		rows[groups[r]].append(rooms[r])
+		rows.get_or_add(groups[r], []).append(rooms[r])
 	var field_floats := PackedFloat32Array()
 	if cells:
 		field_floats.resize(SIZE * SIZE * 4)
@@ -95,13 +93,13 @@ static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Di
 		row += 1
 		var at := row * WIDTH * 4
 		floats[at] = portals.size()
-		var texel := 1
 		if cells:
 			for m: Lamps.Room in members:
 				_fill(field_floats, m, row)
-		for crossed: Array in portals:
-			_put(floats, at + texel * 4, crossed)
-			texel += OPENING
+		for k in portals.size():
+			var crossed: Array = portals[k]
+			for i in crossed.size():
+				floats[at + (1 + k * OPENING) * 4 + i] = crossed[i]
 	return {"field": field_floats, "data": floats}
 
 
@@ -127,11 +125,6 @@ static func crossing(o: Dictionary, toward: Vector3) -> Array:
 	var at: Vector3 = o.at
 	return [across.x, across.y, across.z, -at.dot(across), up.x, up.y, up.z, -at.dot(up) - absf(shift.y),
 		n.x, n.z, at.dot(n) + depth, half, tall, minf(absf(o.round), half) * signf(o.round), 0.0, 0.0]
-
-
-static func _put(floats: PackedFloat32Array, at: int, values: Array) -> void:
-	for i in values.size():
-		floats[at + i] = values[i]
 
 
 ## Writes `room`'s field over the texels round it: how far inside its walls' centre line each lies (negative

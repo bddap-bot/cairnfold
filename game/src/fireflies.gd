@@ -30,8 +30,8 @@ var _since := INF
 
 
 class Habitat:
-	var points := PackedVector2Array()
-	var spread := 0.0
+	var points: PackedVector2Array
+	var spread: float
 
 	func _init(at: PackedVector2Array, reach: float) -> void:
 		points = at

@@ -35,21 +35,6 @@ func _run() -> void:
 	finish()
 
 
-## A cleaned command as the host would send it on, checked again as a peer checks it.
-func _relayed(cmd: Dictionary, by: int) -> Dictionary:
-	var hosted := Commands.clean(cmd, world.state, false, main.world.terrain)
-	hosted.seq = world.seq + 1
-	hosted.by = by
-	return Commands.clean(hosted, world.state, true, main.world.terrain)
-
-
-func _turn(target: Dictionary, steps: int) -> void:
-	var picker: PaletteTool = main.palette_tool
-	picker.open(main.rig.right, target)
-	picker.twist(main.rig.right, Dial.step(target.count) * steps)
-	picker.close(main.rig.right)
-
-
 ## Each species stands apart from the others in the shape of its crown and in its leaves.
 func _species_differ() -> void:
 	var looks := []
@@ -73,13 +58,13 @@ func _species_differ() -> void:
 ## The style tool turns a stone face to plaster through the host, which a peer takes, an undo puts back, a redo
 ## brings again and a save carries; the walls laid after are plaster too.
 func _faces_turn_to_plaster() -> void:
-	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-24, 20)]))]}, 1)
+	world._order({"op": "wall", "walls": [seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-24, 20)]))]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
 	check(target.count == PaletteTool.FACES.size(), "an open wall's face offers every finish")
-	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, 2)
+	var relayed := peer_relayed({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, 2)
 	check(relayed.get("data", {}).get("finish") == WallLayout.Finish.PLASTER, "a peer takes the host's turn of a face to plaster: %s" % relayed)
-	_turn(target, 1)
+	turn_picker(target, 1)
 	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER and main.tool.find(id).layout.finish == WallLayout.Finish.PLASTER, "a twist of the style tool turns the face to plaster")
 	main.tool.find(id).lay_now()
 	check(main.tool.find(id).layout.stones.any(func(s): return s.kind == "plaster"), "and it is laid in plaster panels")
@@ -90,13 +75,13 @@ func _faces_turn_to_plaster() -> void:
 	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER, "a redo brings the plaster again")
 	world.restore(world.snapshot())
 	check(main.tool.find(id).layout.finish == WallLayout.Finish.PLASTER, "a save carries it")
-	_turn(main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO), -1)
+	turn_picker(main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO), -1)
 	check(world.state.walls[id].finish == WallLayout.Finish.BARE and main.tool.finish == WallLayout.Finish.BARE, "a twist back turns it, and the walls after, to stone")
 	world.restore({"seq": 0, "cmds": []})
 
 
 func _foundations_turn_to_plaster() -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, 0), main.world.terrain.ground(4, 0), 6.0)))
+	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, 0), main.world.terrain.ground(4, 0), 6.0)))
 	d.closed = true
 	d.rise = 1.5
 	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
@@ -109,14 +94,14 @@ func _foundations_turn_to_plaster() -> void:
 	var origin: Vector3 = f.point + Vector3.DOWN * 0.6 + out * 2.0
 	var target: Dictionary = main.palette_tool.aim_style(origin, -out)
 	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION and target.get("count") == WallLayout.Foundation.size(), "a house's foundation offers stone, plaster, pillars and posts: %s" % target)
-	_turn(target, WallLayout.Foundation.PLASTER)
+	turn_picker(target, WallLayout.Foundation.PLASTER)
 	w.lay_now()
 	check(w.layout.stones.any(func(st): return st.kind == "plaster" and st.y < 0.0), "the foundation wheel lays plaster below the foot")
 	check(w.layout.finish == WallLayout.Finish.BARE, "styling a foundation leaves the upper wall stone")
 	check(main.tool.finish == WallLayout.Finish.BARE, "foundation style leaves the next wall's face unchanged")
 	check(w.layout.stones.filter(func(st): return st.kind == "plaster" and st.y < 0.0).all(func(st): return st.color == WallLayout.PLASTER), "foundation panels share the wall plaster colour")
 	check(main.palette_tool.aim(origin, -out).get("element") == Palette.Element.PLASTER, "the colour tool recognises the foundation's plaster")
-	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"foundation": WallLayout.Foundation.STONE}}, 2)
+	var relayed := peer_relayed({"op": "reshape", "of": "walls", "id": id, "data": {"foundation": WallLayout.Foundation.STONE}}, 2)
 	check(relayed.get("data", {}).get("foundation") == WallLayout.Foundation.STONE, "foundation style survives host and peer validation")
 	world._order({"op": "undo"}, world.me())
 	w.lay_now()
@@ -128,10 +113,10 @@ func _foundations_turn_to_plaster() -> void:
 	check(w.layout.foundation == WallLayout.Foundation.PLASTER and w.layout.finish == WallLayout.Finish.BARE, "redo and save preserve foundation style independently")
 	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, world.me())
 	w.lay_now()
-	_turn(main.palette_tool.aim_style(origin, -out), -1)
+	turn_picker(main.palette_tool.aim_style(origin, -out), -1)
 	w.lay_now()
 	check(w.layout.foundation == WallLayout.Foundation.STONE and w.layout.finish == WallLayout.Finish.PLASTER, "turning the foundation back to stone keeps the wall plastered")
-	_turn(main.palette_tool.aim_style(origin, -out), WallLayout.Foundation.POSTS)
+	turn_picker(main.palette_tool.aim_style(origin, -out), WallLayout.Foundation.POSTS)
 	w.lay_now()
 	check(world.state.walls[id].foundation == WallLayout.Foundation.POSTS and w.layout.stones.any(func(st): return st.kind == "post" and st.y < 0.0), "turned to posts, the raised house stands on timber posts")
 	check(main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, -out).get("mount") != "foundation", "nothing is set at a stilted foundation, with no face to back it")
@@ -147,7 +132,7 @@ func _foundations_turn_to_plaster() -> void:
 ## The style tool aimed at a floor offers flags or planks: turned, a peer takes it, an undo puts it back, a save as
 ## written to disk carries it, and houses laid after take it. The floor and the walls never move each other.
 func _floors_take_a_style() -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-14, 24), main.world.terrain.ground(-10, 24), 4.0)))
+	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-14, 24), main.world.terrain.ground(-10, 24), 4.0)))
 	d.closed = true
 	d.height = 2.6
 	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-12, 24), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
@@ -160,9 +145,9 @@ func _floors_take_a_style() -> void:
 	var target: Dictionary = main.palette_tool.aim_style(inside, down)
 	check(target.get("restyle") == PaletteTool.Restyle.FLOOR and target.get("count") == 2, "a house's floor offers flags and planks: %s" % target)
 	check(main.palette_tool.aim_style(inside, Vector3(1, -0.1, 0).normalized()).get("restyle") == PaletteTool.Restyle.FACE, "the wall beside the floor still takes its own style")
-	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"planks": true}}, 2)
+	var relayed := peer_relayed({"op": "reshape", "of": "walls", "id": id, "data": {"planks": true}}, 2)
 	check(relayed.get("data", {}).get("planks") == true, "a peer takes the host's turn of a floor to planks: %s" % relayed)
-	_turn(target, PaletteTool.Floor.PLANKS)
+	turn_picker(target, PaletteTool.Floor.PLANKS)
 	w.lay_now()
 	var floor_kinds := func(of: Wall) -> Array: return of.layout.stones.filter(func(st): return st.kind in ["flagstone", "plank"]).map(func(st): return st.kind)
 	check(world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a twist of the style tool boards the floor")
@@ -179,7 +164,7 @@ func _floors_take_a_style() -> void:
 	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, world.me())
 	w.lay_now()
 	check(w.layout.planks and w.layout.finish == WallLayout.Finish.PLASTER, "plastering the walls keeps the floor boarded")
-	_turn(main.palette_tool.aim_style(inside, down), -1)
+	turn_picker(main.palette_tool.aim_style(inside, down), -1)
 	w.lay_now()
 	check(not w.layout.planks and w.layout.finish == WallLayout.Finish.PLASTER, "turning the floor back to flags keeps the walls plastered")
 	check(not main.tool.planks, "and houses laid after are flagged again")
@@ -189,9 +174,9 @@ func _floors_take_a_style() -> void:
 ## The style tool only restyles: turned through every face of an open wall and of a house, shown and sent, it
 ## neither cuts an opening nor fills the arch standing.
 func _faces_cut_no_opening() -> void:
-	var open := _wall_data(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-22, 20)]))
+	var open := seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-22, 20)]))
 	open.openings = PackedVector4Array([2.0].map(WallLayout.archway))
-	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+	var house := seeded_wall(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 	house.closed = true
 	world._order({"op": "wall", "walls": [open, house]}, 1)
 	var picker: PaletteTool = main.palette_tool
@@ -210,10 +195,6 @@ func _faces_cut_no_opening() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return wall_data({"points": points, "seed": 3})
-
-
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,
 ## which a peer takes; an undo, a redo and a save follow it, and its slots are laid as that species.
 func _trees_take_a_species() -> void:
@@ -229,12 +210,12 @@ func _trees_take_a_species() -> void:
 	var models := ToolModels.style(PaletteTool.Restyle.TREE, FloraLayout.Species.FIR, WallLayout.Finish.BARE)
 	check(models.get_child_count() == 2, "each species has its miniature")
 	models.free()
-	var relayed := _relayed({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, 2)
+	var relayed := peer_relayed({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, 2)
 	check(relayed.get("species") == FloraLayout.Species.BIRCH and relayed.get("group") == g, "a peer takes the host's species: %s" % relayed)
 	check(Commands.clean({"op": "tree", "group": g, "index": 1, "species": 1}, world.state, false, main.world.terrain).is_empty(), "only a tree's trunk names it")
 	check(Commands.clean({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.size()}, world.state, false, main.world.terrain).is_empty(), "no species past the last")
 	var oak_top: float = flora.groups[g][1].xform.origin.y
-	_turn(target, FloraLayout.Species.POPLAR)
+	turn_picker(target, FloraLayout.Species.POPLAR)
 	check(world.state.groups[g].species.get(0) == FloraLayout.Species.POPLAR and flora.species_of(trunk) == FloraLayout.Species.POPLAR, "a twist of the wheel turns the tree a poplar")
 	check(flora.groups[g][-1].xform.origin.y > oak_top + 1.0, "and it grows tall as one")
 	check(flora.trunks.size() == flora.trunks.kept + 1, "in the slots it held")
@@ -304,7 +285,7 @@ func _trees_grow_by_the_grip() -> void:
 	check(flora.shade_of(flora.groups[g]).basis.get_scale().is_equal_approx(shade * grown), "its shade grows with it")
 	var high := at + Vector3(0, top * grown * 0.9, 6)
 	check(not flora.solid_hit(high, Vector3.FORWARD, 12.0).is_empty(), "and what strikes it, high on its new crown")
-	var relayed := _relayed({"op": "tree", "group": g, "index": 0, "scale": 2.5}, 2)
+	var relayed := peer_relayed({"op": "tree", "group": g, "index": 0, "scale": 2.5}, 2)
 	check(relayed.get("scale") == 2.5 and not relayed.has("species"), "a peer takes the host's scale: %s" % relayed)
 	for bad in [FloraLayout.SCALES.x - 0.01, FloraLayout.SCALES.y + 0.01, 2, NAN]:
 		check(Commands.clean({"op": "tree", "group": g, "index": 0, "scale": bad}, world.state, false, main.world.terrain).is_empty(), "no scale %s" % bad)
@@ -323,7 +304,7 @@ func _trees_grow_by_the_grip() -> void:
 	world._order({"op": "redo"}, world.me())
 	check(is_equal_approx(flora.scale_of(trunk), grown), "a redo grows it again")
 	var crown: Vector3 = flora.groups[g][1].xform.origin + Vector3.UP * main.world.terrain.height_at(at.x, at.z)
-	_turn(main.palette_tool.aim_style(crown + Vector3(0, 1, 12), (crown - (crown + Vector3(0, 1, 12))).normalized()), FloraLayout.Species.FIR)
+	turn_picker(main.palette_tool.aim_style(crown + Vector3(0, 1, 12), (crown - (crown + Vector3(0, 1, 12))).normalized()), FloraLayout.Species.FIR)
 	check(flora.species_of(trunk) == FloraLayout.Species.FIR and is_equal_approx(flora.scale_of(trunk), grown), "a new species keeps its size")
 	var picture := var_to_str(world.digest())
 	world.restore(world.snapshot())
@@ -348,7 +329,7 @@ func _meadow_trees_grow() -> void:
 
 
 func _timber_faces() -> void:
-	var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+	var data := seeded_wall(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 	data.closed = true
 	world._order({"op": "wall", "walls": [data]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
@@ -358,7 +339,7 @@ func _timber_faces() -> void:
 	var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
 	check(target.count == PaletteTool.FACES.size(), "a house's face wheel offers every finish")
 	var timber: int = target.options.find(PaletteTool.FACES.find(Vector2(WallLayout.Finish.TIMBER, 0.0)))
-	_turn(target, timber)
+	turn_picker(target, timber)
 	check(world.state.walls[id].finish == WallLayout.Finish.TIMBER, "face wheel commits timber")
 	wall.lay_now()
 	check(wall.layout.stones.any(func(p): return p.kind == "timber"), "selected timber face is rendered")
@@ -369,7 +350,7 @@ func _timber_faces() -> void:
 	world.restore(world.snapshot())
 	check(world.state.walls[id].finish == WallLayout.Finish.TIMBER, "save retains the pattern")
 	wall = main.tool.find(id)
-	_turn(picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO), 1 - timber)
+	turn_picker(picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO), 1 - timber)
 	wall.lay_now()
 	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER and world.state.walls[id].wear == 0.0, "plain plaster remains selectable on houses")
 	check(wall.layout.stones.all(func(p): return p.kind != "timber"), "plain plaster has no framing")
@@ -410,7 +391,7 @@ func _towers_keep_stone() -> void:
 		check(not wall.layout.stones.any(func(s): return s.kind == "plaster"), "tower geometry has no plaster panels")
 		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
 		check(target.count == 1, "every tower roof style offers only stone walls")
-		_turn(target, 1)
+		turn_picker(target, 1)
 		check(world.state.walls[id].finish == WallLayout.Finish.BARE, "turning the tower face wheel keeps stone")
 	world.restore({"seq": 0, "cmds": []})
 
@@ -434,10 +415,10 @@ func _stone_takes_a_style() -> void:
 		var model := ToolModels.style(PaletteTool.Restyle.STONE, i, WallLayout.Finish.BARE)
 		check(model.get_child_count() == 2, "%s has its miniature" % StoneStyles.STYLES[i].name)
 		model.free()
-	var relayed := _relayed({"op": "restone", "id": id, "style": 1}, 2)
+	var relayed := peer_relayed({"op": "restone", "id": id, "style": 1}, 2)
 	check(relayed.get("style") == 1 and relayed.get("id") == id, "a peer takes the host's style: %s" % relayed)
 	check(Commands.clean({"op": "restone", "id": id + 100, "style": 1}, world.state, false, main.world.terrain).is_empty(), "only a standing stroke is restyled")
-	_turn(target, 1)
+	turn_picker(target, 1)
 	check(world.state.grounds[id].style == 1 and _style_at(30.5, 30) == 1, "a twist of the wheel turns the stone the second style: %d" % _style_at(30.5, 30))
 	check(Ground.style == 1, "stone painted after takes it")
 	world._order({"op": "undo"}, world.me())
@@ -478,10 +459,10 @@ func _boulders_take_a_stone_style() -> void:
 			check(mesh == null or mesh != model.multimesh, "each style's boulder choice grows its own outline")
 			mesh = model.multimesh
 	picker.close(main.rig.right)
-	var relayed := _relayed({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}}, 2)
+	var relayed := peer_relayed({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}}, 2)
 	check(relayed.get("data", {}).get("style") == 1, "a peer takes the host's boulder style: %s" % relayed)
 	check(Commands.clean({"op": "reshape", "of": "boulders", "id": id, "data": {"style": -1}}, world.state, false, main.world.terrain).is_empty(), "no boulder style before the first")
-	_turn(target, 1)
+	turn_picker(target, 1)
 	var b: Boulders.Boulder = main.boulders.find(id)
 	check(world.state.boulders[id].style == 1 and b.near.get_instance_shader_parameter("stone_style") == 1 and b.far.get_instance_shader_parameter("stone_style") == 1 and b.shape.style == 1, "a twist of the wheel draws and grows the boulder in the second style")
 	check(Ground.style == 1, "boulders set down and stone painted after take it")
@@ -505,7 +486,7 @@ func _roof_choices_keep_shape() -> void:
 	var picker: PaletteTool = main.palette_tool
 	for pitch in [0.0, 2.0]:
 		for thatch in [false, true]:
-			var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+			var data := seeded_wall(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 			data.closed = true
 			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": thatch}
 			world._order({"op": "wall", "walls": [data]}, world.me())
@@ -527,7 +508,7 @@ func _roof_choices_keep_shape() -> void:
 			var boarded: bool = world.state.walls[id].roof.deck == RoofLayout.Deck.WOOD
 			var element := (Palette.Element.WOOD if boarded else Palette.Element.STONE) if pitch == 0.0 else Palette.Element.THATCH
 			check(colour.get("element") == element, "roof colour choices match the rendered covering")
-			_turn(colour, 1)
+			turn_picker(colour, 1)
 			check(world.state.walls[id].paint[element] == 1, "roof colour commits the covering's swatch")
 			check(world.state.walls[id].roof.pitch == pitch, "colour keeps the roof shape")
 			wall.lay_now()
@@ -557,11 +538,11 @@ func _paths_take_a_surface() -> void:
 		var model := ToolModels.style(PaletteTool.Restyle.PATH, i, WallLayout.Finish.BARE)
 		check(model.get_child_count() >= 1, "%s has its miniature" % PathLayout.Surface.find_key(i))
 		model.free()
-	var relayed := _relayed({"op": "reshape", "of": "paths", "id": id, "data": {"surface": PathLayout.Surface.SAND}}, 2)
+	var relayed := peer_relayed({"op": "reshape", "of": "paths", "id": id, "data": {"surface": PathLayout.Surface.SAND}}, 2)
 	check(relayed.get("data") == {"surface": PathLayout.Surface.SAND}, "a peer takes the host's surface: %s" % relayed)
 	check(Commands.clean({"op": "reshape", "of": "paths", "id": id, "data": {"surface": PathLayout.Surface.size()}}, world.state, false, main.world.terrain).is_empty(), "no surface past the last")
 	var crops := func() -> int: return world.paths.layout(id).pieces(Terrain.flat).filter(func(q: Dictionary) -> bool: return q.kind == "crop").size()
-	_turn(target, PathLayout.Surface.BED)
+	turn_picker(target, PathLayout.Surface.BED)
 	check(world.state.paths[id].surface == PathLayout.Surface.BED and tilled(world.marks, -27, 60), "a twist of the wheel turns the path to a bed")
 	check(crops.call() > 50, "the bed sprouts its crops")
 	check(world.paths.surface == PathLayout.Surface.BED, "paths laid after take it")

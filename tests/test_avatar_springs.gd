@@ -84,7 +84,7 @@ func _run() -> void:
 		avatar.stand()
 		check(avatar.springs.chains.size() > 0, "built-in %d imports a chain" % i)
 		avatar.queue_free()
-	var legacy := Avatar.read(FileAccess.get_file_as_bytes("res://../tests/avatars/godette-0.x.vrm"))
+	var legacy := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm")))
 	check(legacy != null, "legacy chained VRM reads as an avatar")
 	if legacy != null:
 		var avatar := Avatar.open(legacy, Color.WHITE)

@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_balance_steps_before_distance()
-	var models := {"the built-in": Avatar.built_in(0), "Crimsom": Avatar.read(FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))), "Seed-san": Avatar.model(UnityAvatar.avatar_scene(_sample("seed-san")))}
+	var models := {"the built-in": Avatar.built_in(0), "Crimsom": Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))), "Seed-san": Avatar.model(UnityAvatar.avatar_scene(avatar_file("seed-san")))}
 	for what: String in models:
 		var scene: PackedScene = models[what]
 		_sway_keeps_the_feet(scene, what)
@@ -208,7 +208,3 @@ func _two_players_see_one_pose(scene: PackedScene, what: String) -> void:
 	check(worst < 1e-5, "%s: two players solve the same legs from the same stream (%.6f m apart)" % [what, worst])
 	here.free()
 	there.free()
-
-
-func _sample(name: String) -> String:
-	return ProjectSettings.globalize_path("res://").path_join("../tests/avatars").path_join(name)

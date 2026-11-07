@@ -24,7 +24,6 @@ func _bin(eye_m: float) -> int:
 	return int(round((clampf(eye_m, LOWEST, HIGHEST) - LOWEST) / BIN))
 
 
-## The head held `eye_m` over the floor for `seconds`.
 func add(eye_m: float, seconds: float) -> void:
 	_time[_bin(eye_m)] += seconds
 	_total += seconds

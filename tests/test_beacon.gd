@@ -157,7 +157,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	await process_frame
 	var folder := "user://test-beacon-avatars"
 	DirAccess.make_dir_recursive_absolute(folder)
-	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://").path_join("../tests/avatars/crimsom-0.x.vrm"), ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))
+	DirAccess.copy_absolute(avatar_file("crimsom-0.x.vrm"), ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))
 	var beacons := 20000 + randi() % 20000
 	var sessions: Array[Session] = []
 	for i in 2:

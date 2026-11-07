@@ -73,8 +73,7 @@ func _settle() -> void:
 	for w in main.tool.walls:
 		w.ivy_age = INF
 	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
-		for w in main.tool.walls:
-			w.lay_now()
+		lay_walls(main.tool)
 	for id: int in world.stairs.layouts:
 		world.stairs.settle(id)
 	await process_frame

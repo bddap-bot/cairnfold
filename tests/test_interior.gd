@@ -9,8 +9,7 @@ func _init() -> void:
 	_an_open_loop_is_left_out()
 	_a_dormer_window_lets_the_sun_in()
 	_houses_apart_take_their_own_rows()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## A 7×5 house from x 0 to 7 and z -2.5 to 2.5, an archway in the middle of the wall at z -2.5 and a window in the
@@ -36,13 +35,13 @@ func _house(cover := WallLayout.Cover.ROOF, dormers: Array[Vector2] = [], at := 
 
 
 func _cell(packed: Dictionary, x: float, z: float) -> int:
-	var c := Vector2i(((Vector2(x, z) + Vector2.ONE * Terrain.SIZE * 0.5) / Interior.STEP).floor())
+	var c := Interior._texel_of(Vector2(x, z))
 	return int(packed.field[(c.y * Interior.SIZE + c.x) * 4 + 3])
 
 
 ## How far inside the room's walls' centre line the field puts (x, z).
 func _inside(packed: Dictionary, x: float, z: float) -> float:
-	var c := Vector2i(((Vector2(x, z) + Vector2.ONE * Terrain.SIZE * 0.5) / Interior.STEP).floor())
+	var c := Interior._texel_of(Vector2(x, z))
 	return packed.field[(c.y * Interior.SIZE + c.x) * 4]
 
 

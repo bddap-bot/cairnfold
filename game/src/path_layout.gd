@@ -230,9 +230,7 @@ func _resample() -> void:
 		for i in range(maxi(keep - 1, 0), samples.size() - 1):
 			for c in cells_along(_flat(samples[i]), _flat(samples[i + 1])):
 				moved[c] = true
-				if not _segment_cells.has(c):
-					_segment_cells[c] = []
-				_segment_cells[c].append(i)
+				_segment_cells.get_or_add(c, []).append(i)
 
 
 ## The arc lengths of the arches `met`, a path's `meetings` with a wall, open: an arcade where one runs long along it.
@@ -274,10 +272,9 @@ func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
 		for i: int in segment_cells()[c]:
 			if i < from:
 				continue
-			if not meets.has(i):
-				meets[i] = {}
+			var met: Dictionary = meets.get_or_add(i, {})
 			for j: int in js:
-				meets[i][j] = true
+				met[j] = true
 	var near := meets.keys()
 	near.sort()
 	near.append(samples.size())
@@ -331,9 +328,7 @@ static func segment_grid(points: Array[Vector3]) -> Dictionary:
 	var grid := {}
 	for i in points.size() - 1:
 		for c in cells_along(_flat(points[i]), _flat(points[i + 1])):
-			if not grid.has(c):
-				grid[c] = []
-			grid[c].append(i)
+			grid.get_or_add(c, []).append(i)
 	return grid
 
 

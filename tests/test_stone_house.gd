@@ -63,7 +63,7 @@ func _stones_shade_by_their_height_over_the_ground() -> void:
 	var low := _house(0.0)
 	var raised := _house(1.2)
 	for w in [low, raised]:
-		for st in w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "block"):
+		for st: Dictionary in blocks_of(w):
 			var over: float = st.y + w.depth_at(st.s)
 			var want := clampf(0.6 + over * 0.25, 0.6, 1.0)
 			if not is_equal_approx(st.ao, want):
