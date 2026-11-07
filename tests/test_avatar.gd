@@ -380,7 +380,11 @@ func _rest_weights_survive_the_vrm() -> void:
 	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
 	Vrm.write(model, path, {"converter": UnityAvatar.source()})
 	var stamp: Variant = _gltf_json(FileAccess.get_file_as_bytes(path)).asset.get("extras", {}).get("converter")
-	check(stamp is Dictionary and str(stamp.commit).length() == 40 and stamp.dirty is bool, "the VRM names the converter commit that wrote it: %s" % stamp)
+	var head := []
+	var status := []
+	OS.execute("git", ["-C", ProjectSettings.globalize_path("res://.."), "rev-parse", "HEAD"], head)
+	OS.execute("git", ["-C", ProjectSettings.globalize_path("res://.."), "status", "--porcelain", "--untracked-files=no"], status)
+	check(str(stamp) == str({"commit": str(head[0]).strip_edges(), "dirty": str(status[0]).strip_edges() != ""}), "the VRM names the converter checkout that wrote it: %s" % stamp)
 	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(path)), Color.WHITE)
 	var worn: Array = a.find_children(str(mi.name), "MeshInstance3D", true, false)
 	var at := -1.0 if worn.size() != 1 else (worn[0] as MeshInstance3D).get_blend_shape_value((worn[0] as MeshInstance3D).find_blend_shape_by_name(shape))
