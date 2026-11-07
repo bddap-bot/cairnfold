@@ -530,7 +530,7 @@ def _knock(fund, seconds=0.25, decay=38.0):
 
 def _grains(seconds, count, length, lo, hi, shape=1.0):
     out = np.zeros(int(seconds * SR))
-    for k in range(count):
+    for _ in range(count):
         g = _band(crng.standard_normal(int(length * SR)), lo, hi) * np.hanning(int(length * SR)) * crng.uniform(0.3, 1.0)
         _add(out, g, int(crng.uniform(0, 1) ** shape * (seconds - length) * SR))
     return out
