@@ -34,8 +34,8 @@ class Records(unittest.TestCase):
         self.git('commit', '-q', '-m', message)
         return self.git('rev-parse', 'HEAD')
 
-    def records(self):
-        return subprocess.run([self.repo / 'scripts/records.sh'], cwd=self.repo, capture_output=True, text=True)
+    def records(self, *args):
+        return subprocess.run([self.repo / 'scripts/records.sh', *args], cwd=self.repo, capture_output=True, text=True)
 
     # The job's branch: a change benched on its working commit, then the record committed after it.
     def bench(self, commit=True):
@@ -121,6 +121,24 @@ class Records(unittest.TestCase):
         self.write('perf/quest-2/stress/20261102T000000Z-deadbee.json', '{}\n')
         self.commit('record')
         self.assertEqual(self.records().returncode, 1)
+
+    def test_a_bench_of_a_clean_tree_runs(self):
+        self.write('README.md', 'notes\n')
+        self.assertEqual(self.records('--tree', 'HEAD').returncode, 0)
+
+    def test_a_bench_of_uncommitted_work_is_refused(self):
+        self.write('game/world.gd', 'experiment\n')
+        self.assertEqual(self.records('--tree', 'HEAD').returncode, 1)
+
+    def test_a_bench_with_a_new_untracked_scene_is_refused(self):
+        self.write('game/plants.gd', 'new\n')
+        self.assertEqual(self.records('--tree', 'HEAD').returncode, 1)
+
+    def test_a_bench_of_a_package_from_another_commit_is_refused(self):
+        packaged = self.git('rev-parse', 'HEAD')
+        self.write('game/world.gd', 'later\n')
+        self.commit('later')
+        self.assertEqual(self.records('--tree', packaged[:7]).returncode, 1)
 
     def test_without_origin_main_nothing_is_compared(self):
         self.bench()

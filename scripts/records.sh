@@ -5,10 +5,17 @@
 # record's build must equal the working tree in those: one benched on a working commit and then rebased onto a main
 # that changed them, followed by a commit that did, or benched uncommitted and named for the commit under it, carries
 # figures from a tree main never ran, so the bench is re-taken.
+# records.sh --tree REVISION fails when the checkout's game, scenes, engine or build scripts are not REVISION's, so a
+# bench refuses to run uncommitted work it would name for the commit under it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-git rev-parse -q --verify "${1:-origin/main}^{commit}" >/dev/null || { echo "records: no ${1:-origin/main} to compare with"; exit 0; }
 measured=(game demo '*.nix' scripts/{engine,export,stage,android,package,render,bench,pins}.sh scripts/engine.patch)
+if [ "${1:-}" = --tree ]; then
+  git diff --quiet "$2" -- "${measured[@]}" && [ -z "$(git ls-files --others --exclude-standard -- "${measured[@]}")" ] ||
+    { echo "records: this checkout's game, scenes or engine are not $2's; commit them, or bench $2's tree" >&2; exit 1; }
+  exit 0
+fi
+git rev-parse -q --verify "${1:-origin/main}^{commit}" >/dev/null || { echo "records: no ${1:-origin/main} to compare with"; exit 0; }
 base=$(git merge-base "${1:-origin/main}" HEAD)
 unchanged=0
 git diff --quiet "$base" -- "${measured[@]}" && unchanged=1

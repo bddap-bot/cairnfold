@@ -128,10 +128,13 @@ PYTHON
     guests+=($!)
   done
 }
-# same REVISION: the other players run this checkout, so the measured build must be its revision.
+# same REVISION: the record is named for the measured build and the scene is played from this checkout, so the two must
+# agree; the other players run this checkout too, so with them the measured build must be its revision. A replay
+# records nothing and plays whichever build recorded it.
 same() {
   local built=$1
   shift
+  [ -n "$replay" ] || "$here/records.sh" --tree "$built" || exit 1
   [ "$players" -eq 1 ] || { [ "$built" = "$(git -C "$here" rev-parse "${@:-HEAD}")" ] && git -C "$here" diff --quiet HEAD; } ||
     { echo "bench: the build is $built, this checkout $(git -C "$here" rev-parse HEAD); other players need one revision, committed" >&2; exit 1; }
 }
@@ -282,6 +285,7 @@ elif [ $# -ge 4 ]; then
   wait "$remote" || game=$?
   scp -rq "$2:cairnfold-bench/cairnfold/log/*" "$out/"
 else
+  same "$build"
   setsid env CAIRNFOLD_QUIT_AFTER="$limit" CAIRNFOLD_TIMEOUT=$((limit + 300)) "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1

@@ -6,7 +6,8 @@ Per phase, the GPU milliseconds a frame (the desktop, with no GPU target, its me
 beside its base, the median of the BASE runs before it with as many players and the phase on the same quality step, and
 the best run, marking a rise of more than RISE times and FLOOR_MS over the base. A phase the governor walks settles on
 whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
-Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp; any other file is no run. Given
+Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp, not by commit, so a late
+bench of an older commit is the latest run; any other file is no run. Given
 a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
 rerun once. A pair compares a phase only when both runs held it pinned at one step: a governed phase measures the
 governor, not the change, so the pair refuses it, naming its steps, and exits 1, as it does when a phase rose as a
