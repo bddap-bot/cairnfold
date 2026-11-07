@@ -511,9 +511,10 @@ func color_atlas() -> String:
 	return Marshalls.raw_to_base64(out.save_png_to_buffer())
 
 
-## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "multiply", "image"} at rest, baking its
-## image into `decal_images`, or {} where the decal draws in a way its image cannot hold: anything but the whole UV0 square, untiled, unrotated, its hue shifted
-## by a fixed amount if at all, replacing or multiplying the albedo.
+## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "colorBlend", "image", "hue"} at rest,
+## "colorBlend" its Color Blend Mode (ExpressionDefinition.DECAL_BLENDS), baking its image into `decal_images`, or {}
+## where the decal draws in a way its image cannot hold: anything but the whole UV0 square, untiled, unrotated, its hue
+## shifted by a fixed amount if at all.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var colours: Dictionary = m.get("colours", {})
@@ -525,7 +526,7 @@ func decal(key: String, slot: int) -> Dictionary:
 	var position: Color = vector.call("_DecalPosition" + n)
 	var scale: Color = vector.call("_DecalScale" + n)
 	var still := ["_DecalTexture%sUV" % n, "_DecalRotation" + n, "_DecalRotationSpeed" + n, "_DecalTiled" + n, "_DecalSymmetryMode" + n, "_DecalMirroredUVMode" + n, "_Decal%sGlobalMask" % slot, "_DecalFaceMask" + n, "_DecalDepth" + n]
-	if blend not in [0.0, 2.0] or still.any(func(name: String) -> bool: return _float(m, name) != 0.0):
+	if int(blend) not in ExpressionDefinition.DECAL_BLENDS or still.any(func(name: String) -> bool: return _float(m, name) != 0.0):
 		return {}
 	if _float(m, "_DecalOverrideAlpha" + n) not in [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]:
 		return {}
@@ -538,7 +539,7 @@ func decal(key: String, slot: int) -> Dictionary:
 	var hue: Variant = null
 	if _turned(m, n):
 		hue = {"shift": _saved(m, "_DecalHueShift" + n, 0.0), "space": _float(m, "_DecalHueShiftColorSpace" + n), "select": _float(m, "_DecalHueShiftSelectOrShift" + n, 1.0)}
-	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "multiply": blend == 2.0, "image": _decal_image(key, slot), "hue": hue}
+	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "colorBlend": int(blend), "image": _decal_image(key, slot), "hue": hue}
 
 
 ## Whether the decal suffixed `n` turns its hue by a value a clip can move, which its image then holds unturned: a locked

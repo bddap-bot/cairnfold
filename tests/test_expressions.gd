@@ -170,7 +170,7 @@ func _decals_share_pages() -> void:
 		var img := Image.create_empty(side, side, false, Image.FORMAT_RGBA8)
 		img.fill(colour)
 		return img
-	var region := func(image: int) -> Dictionary: return {"effect": {"look": [{"node": "Body", "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "image": image}]}}
+	var region := func(image: int) -> Dictionary: return {"effect": {"look": [{"node": "Body", "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "colorBlend": 0, "image": image}]}}
 	var root := Node3D.new()
 	root.set_meta("expressions", {"targets": [region.call(0), region.call(2), region.call(3)], "looks": {"decals": [sized.call(64, Color.RED), sized.call(4096, Color.WHITE), sized.call(16, Color.GREEN), sized.call(16, Color.BLUE)]}})
 	ExpressionPlayer.prepare(root)
@@ -418,7 +418,7 @@ func _roundtrip() -> void:
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
 		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
 		var mat := hat.get_surface_override_material(0) as ShaderMaterial
-		check(mat != null and mat.get_shader_parameter("region_count") == 4 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal and decal hue regions and their layers to the hat")
+		check(mat != null and mat.get_shader_parameter("region_count") == 7 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal, decal hue, darkening, lightening and screening decal regions and their layers to the hat")
 		check(mat != null and mat.shader.resource_path.ends_with("expression_hue.gdshader"), "the hat, whose decal turns its hue, draws with the shader that turns it")
 		var regions: Texture2D = mat.get_shader_parameter("regions") if mat != null else null
 		var pad := float(ExpressionPlayer.DECAL_PAD) / (preload("res://demo/expressions.gd").SIZE + 2 * ExpressionPlayer.DECAL_PAD)
@@ -432,8 +432,14 @@ func _malformed() -> void:
 		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}}]}), "an imported %s region is a valid target" % kind)
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4}]}}]}), "a decal region past the fourth slot is rejected")
-	var turned := {"node": 0, "rect": [0, 0, 1, 1], "field": "decalHue", "slot": 1, "alpha": 0.5, "hue": {"shift": 0.25, "space": 1.0, "select": 1.0}}
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4, "colorBlend": 0}]}}]}), "a decal region past the fourth slot is rejected")
+	var blended := {"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "colorBlend": 20.0}
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended]}}]}) and ExpressionPlayer._settings("look", blended, 0)[1] == 20.0, "a decal region's Color Blend Mode reaches the shader")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended.merged({"colorBlend": 3.0}, true)]}}]}), "a decal region naming a blend mode Poiyomi has not is rejected")
+	var unnamed := blended.duplicate()
+	unnamed.erase("colorBlend")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed.merged({"multiply": true})]}}]}), "a decal region converted before decals named their blend mode is rejected, not drawn replacing")
+	var turned := {"node": 0, "rect": [0, 0, 1, 1], "field": "decalHue", "slot": 1, "colorBlend": 0, "alpha": 0.5, "hue": {"shift": 0.25, "space": 1.0, "select": 1.0}}
 	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned]}}]}), "a decal region turning its hue is valid")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": {"shift": "a"}}, true)]}}]}), "a decal region with a malformed hue turn is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": null}, true)]}}]}), "a decal hue region without the turn it drives is rejected")

@@ -102,6 +102,19 @@ vec3 shift_hue(vec3 c, vec3 settings) {
 		dot(lms, vec3(-0.0041960863, -0.7034186147, 1.7076147010)));
 }
 
+// Poiyomi's decal Color Blend Modes by their _DecalBlendType numbers (its customBlend).
+vec3 decal_blend(vec3 base, vec3 laid, int mode) {
+	if (mode == 1) { return min(base, laid); }
+	if (mode == 2) { return base * laid; }
+	if (mode == 5) { return max(base, laid); }
+	if (mode == 6) { return 1.0 - (1.0 - base) * (1.0 - laid); }
+	if (mode == 7) { return max(base - laid, 0.0); }
+	if (mode == 8) { return base + laid; }
+	if (mode == 9) { return mix(2.0 * base * laid, 1.0 - 2.0 * (1.0 - base) * (1.0 - laid), step(0.5, base)); }
+	if (mode == 20) { return base + base * laid; }
+	return laid;
+}
+
 vec3 linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
@@ -118,7 +131,7 @@ void fragment() {
 	vec3 tone = vec3(1.0, 0.0, 0.0);
 	vec4 decal_alpha = vec4(-1.0);
 	vec4 decal_intensity = vec4(1.0);
-	vec4 decal_multiply = vec4(0.0);
+	vec4 decal_mode = vec4(0.0);
 	vec4 decal_page = vec4(0.0);
 	vec4 decal_rect[4];
 	vec4 decal_cell[4];
@@ -141,7 +154,7 @@ void fragment() {
 				tone[int(s.z)] = s.x;
 			} else {
 				int slot = int(s.z);
-				decal_multiply[slot] = s.w;
+				decal_mode[slot] = s.w;
 				decal_page[slot] = e.z;
 				decal_rect[slot] = texelFetch(regions, ivec2(i, 3), 0);
 				decal_cell[slot] = rect;
@@ -191,7 +204,7 @@ void fragment() {
 			}
 #endif
 			float alpha = clamp(decal_intensity[slot] * decal.a * clamp(decal_alpha[slot], 0.0, 1.0), 0.0, 1.0);
-			base.rgb = mix(base.rgb, decal_multiply[slot] > 0.5 ? base.rgb * laid : laid, alpha);
+			base.rgb = mix(base.rgb, decal_blend(base.rgb, laid, int(decal_mode[slot] + 0.5)), alpha);
 		}
 	}
 	vec3 glowing = vec3(0.0);

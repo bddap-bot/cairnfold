@@ -4,6 +4,9 @@ extends RefCounted
 ## Material properties a target animates over the atlas regions of the materials it names: docs/model.md "File", a clip
 ## curve's material property by name.
 const REGIONS := ["hue", "color", "tone", "look"]
+## Poiyomi's decal Color Blend Modes (_DecalBlendType) a decal region's "colorBlend" names: replace, darken, multiply,
+## lighten, screen, subtract, add, overlay and mixed (decal_blend in expression.gdshaderinc).
+const DECAL_BLENDS: Array[int] = [0, 1, 2, 5, 6, 7, 8, 9, 20]
 
 
 ## The region kind `effect` animates, or "" for any other effect.
@@ -107,6 +110,14 @@ static func _theme(v: Variant) -> bool:
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
 ## the turn names the colour space and mode it turns in, which the shader cannot guess.
+## A file converted before decals named their mode carries "multiply" in its place, and would draw those decals replacing.
+static func _blend(region: Dictionary) -> bool:
+	if not str(region.get("field", "")).begins_with("decal"):
+		return true
+	var mode: Variant = region.get("colorBlend")
+	return _whole(mode) and int(mode) in DECAL_BLENDS
+
+
 static func _hue(region: Dictionary) -> bool:
 	var v: Variant = region.get("hue")
 	if v == null:
@@ -224,5 +235,5 @@ static func _effect(effect: Variant) -> bool:
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
 	if kind in REGIONS and effect[kind] is Array:
-		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _hue(r))
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _blend(r) and _hue(r))
 	return false

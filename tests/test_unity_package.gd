@@ -1274,7 +1274,12 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	var cell: Rect2i = materials.materials.skin.cell
 	var rect := [float(cell.position.x) / materials.atlas_side, float(cell.position.y) / materials.atlas_side, float(cell.end.x) / materials.atlas_side, float(cell.end.y) / materials.atlas_side]
 	check((looks.get("decals", []) as Array).size() == 1, "one image per decal drawn")
-	check(looks.get("materials", []) == [{"rect": rect, "decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "multiply": true, "image": 0, "hue": null}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds its cell and each slot's saved alpha, blend and image: %s" % [looks.get("materials")])
+	check(looks.get("materials", []) == [{"rect": rect, "decals": [null, null, {"alpha": 0.25, "intensity": 1.0, "colorBlend": 2, "image": 0, "hue": null}, null], "matcaps": [null, null, null, null], "emission": null, "lighting": {"model": "lit"}}], "the look holds its cell and each slot's saved alpha, blend and image: %s" % [looks.get("materials")])
+	var blends := ["0", "1", "5", "6", "7", "8", "9", "20", "3", "21"].map(func(type: String) -> Variant:
+		materials.materials.skin.floats._DecalBlendType2 = type
+		return materials.decal("skin", 2).get("colorBlend"))
+	materials.materials.skin.floats._DecalBlendType2 = "2"
+	check(blends == [0, 1, 5, 6, 7, 8, 9, 20, null, null], "a decal carries each of Poiyomi's Color Blend Modes by number, and draws nowhere under a number its shader draws black: %s" % [blends])
 	if data.targets.size() == 1:
 		check(data.targets[0].effect.look[0].image == 0, "the region names its decal's image")
 	if (looks.get("decals", []) as Array).size() == 1:

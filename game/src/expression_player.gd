@@ -411,7 +411,7 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 			return [region.get("channel", 0), 0, c[0], c[1], c[2]]
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
-	return [region.get("slot", 0), 1 if region.get("multiply", false) else 0, region.get("alpha", 1), DECAL_FIELDS.find(region.get("field", "decal")), page]
+	return [region.get("slot", 0), region.colorBlend, region.get("alpha", 1), DECAL_FIELDS.find(region.get("field", "decal")), page]
 
 
 ## Among `entries`, by looks table column, the one of the material `region` recolours where it glows in the global theme
