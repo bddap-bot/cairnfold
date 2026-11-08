@@ -11,46 +11,8 @@ class EveryStretch extends Wall:
 			return _ruin_hit(origin, dir)
 		var best := {}
 		var n := layout.samples.size()
-		var half := layout.half_thickness()
 		for i in n if layout.closed else n - 1:
-			var j := (i + 1) % n
-			var a := layout.samples[i]
-			var b := layout.samples[j]
-			var edge := b - a
-			var length := Vector2(edge.x, edge.z).length()
-			if length < 1e-6:
-				continue
-			var x := Vector3(edge.x, 0, edge.z) / length
-			var z := x.cross(Vector3.UP)
-			var slope := edge.y / length
-			var offset := origin - a
-			var ox := offset.dot(x)
-			var dx := dir.dot(x)
-			var local := Vector3(ox, offset.y - slope * ox, offset.dot(z))
-			var direction := Vector3(dx, dir.y - slope * dx, dir.dot(z))
-			var under := maxf(layout.depths[i], layout.depths[j]) if layout.depths.size() == n else 0.0
-			var height := layout.height + layout.top_rise()
-			var box := AABB(Vector3(0, -under, -half), Vector3(length, height + under, half * 2.0))
-			var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
-			if hit == null:
-				continue
-			var t: float = (hit - local).dot(direction) / direction.length_squared()
-			if layout.hides(origin + dir * t):
-				continue
-			if t >= best.get("along", INF):
-				continue
-			var end := layout.lengths[j] if j > 0 else layout.length()
-			var arched := through_arches and _open(i, end, length, local + direction * t)
-			if arched:
-				var open := func(at: float) -> bool: return _open(i, end, length, local + direction * at)
-				t = _first_solid(open, t, _exit(box, local, direction))
-				if t == INF or layout.hides(origin + dir * t):
-					continue
-			if t < best.get("along", INF):
-				var at: Vector3 = local + direction * t
-				var face := Rig.box_normal(box, at)
-				var side := arched or Rig.side(x * face.x + (Vector3.UP - x * slope) * face.y + z * face.z)
-				best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(at.x / length, 0.0, 1.0)), "distance": 0.0, "side": side}
+			best = _stretch_hit(i, origin, dir, through_arches, best, Vector2.ZERO)
 		return best
 
 
