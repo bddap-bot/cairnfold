@@ -423,13 +423,28 @@ static func _switched_off(root: Node3D) -> void:
 
 
 ## Keeps the root's longest spring chains within MAX_SPRING_JOINTS, none of them one an earlier chain shadows
-## (SpringRuntime.unshadowed). A bone only the chains left out move rests at its
-## "settled" rotation, where the importer found its chain hangs (UnityAvatar.settle), as VRChat, running them all, shows it.
+## (SpringRuntime.unshadowed), those moving a mesh shown by default before the rest. Longest is metres from root to
+## tip at rest, the sway a joint buys: a skirt panel of four joints outranks a strand of ten that hangs a tenth as far.
+## A bone only the chains left out move rests at its "settled" rotation, where the importer found its chain hangs
+## (UnityAvatar.settle), as VRChat, running them all, shows it.
 static func _keep_longest(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var chains: Array = SpringRuntime.unshadowed(springs.springs)
+	var bones: Dictionary = root.get_meta("humanoid")
+	var sk := root.get_node_or_null(str(bones.get("hips", "")).get_slice(":", 0)) as Skeleton3D
+	var drawn := _drawn_bones(root, sk) if sk else {}
+	var shown := []
+	var length := []
+	for chain: Dictionary in chains:
+		var at: Array = chain.joints.map(func(j: Dictionary) -> int: return _bone(sk, bones.get("spring_%d" % j.node)))
+		shown.append(at.any(func(b: int) -> bool: return drawn.has(b)))
+		var metres: float = chain.get("end_length", 0.0)
+		for i in range(1, at.size()):
+			if at[i] >= 0 and at[i - 1] >= 0:
+				metres += sk.get_bone_global_rest(at[i]).origin.distance_to(sk.get_bone_global_rest(at[i - 1]).origin)
+		length.append(metres)
 	var longest: Array = range(chains.size())
-	longest.sort_custom(func(a: int, b: int) -> bool: return chains[a].joints.size() > chains[b].joints.size())
+	longest.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else length[x] > length[y])
 	var kept := {}
 	var left := []
 	var joints := 0
@@ -443,19 +458,52 @@ static func _keep_longest(root: Node3D) -> void:
 		joints += chain.joints.size()
 		for joint: Dictionary in chain.joints:
 			moving[joint.node] = true
-	var bones: Dictionary = root.get_meta("humanoid")
 	for chain: Dictionary in left:
 		for joint: Dictionary in chain.joints:
-			var path: Variant = bones.get("spring_%d" % joint.node)
-			if moving.has(joint.node) or not joint.has("settled") or not path is NodePath:
-				continue
-			var sk := root.get_node_or_null(str(path).get_slice(":", 0)) as Skeleton3D
-			var bone := sk.find_bone((path as NodePath).get_concatenated_subnames()) if sk else -1
-			if bone >= 0:
+			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
+			if not moving.has(joint.node) and joint.has("settled") and bone >= 0:
 				var rest := sk.get_bone_rest(bone)
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 	# Kept in the file's order, so the runtime's own shadowing pass sees the first PhysBone on a bone first.
 	springs.springs = range(chains.size()).filter(func(i: int) -> bool: return kept.has(i)).map(func(i: int) -> Dictionary: return chains[i])
+
+
+## The bone of `sk` that `path`, a "skeleton:bone" NodePath of the model's avatar data, names, or -1.
+static func _bone(sk: Skeleton3D, path: Variant) -> int:
+	return sk.find_bone((path as NodePath).get_concatenated_subnames()) if sk and path is NodePath else -1
+
+
+## The bones of `sk` whose turning moves a vertex of a mesh shown by default: each bone a shown mesh's skin binds or
+## a shown mesh rides on, and its ancestors. A file Vrm.read reads keeps in a skin only the binds its mesh weights
+## (Vrm.Skins); another may bind more, and its chains then rank by length alone.
+static func _drawn_bones(root: Node3D, sk: Skeleton3D) -> Dictionary:
+	var drawn := {}
+	var mark := func(bone: int) -> void:
+		while bone >= 0 and not drawn.has(bone):
+			drawn[bone] = true
+			bone = sk.get_bone_parent(bone)
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if not _shown(mi, root):
+			continue
+		if mi.skin != null and mi.get_node_or_null(mi.skeleton) == sk:
+			for bind in mi.skin.get_bind_count():
+				mark.call(Meshes.bind_bone(mi.skin, bind, sk))
+		var carrier := mi.get_parent()
+		while carrier != root and not (carrier is BoneAttachment3D and carrier.get_parent() == sk):
+			carrier = carrier.get_parent()
+		if carrier != root:
+			mark.call((carrier as BoneAttachment3D).bone_idx)
+	return drawn
+
+
+## Whether `node` and each ancestor below `root` is visible: the model is outside the scene tree, where
+## is_visible_in_tree is false.
+static func _shown(node: Node, root: Node) -> bool:
+	while node != root:
+		if node is Node3D and not (node as Node3D).visible:
+			return false
+		node = node.get_parent()
+	return true
 
 
 ## Keeps the humanoid and spring bones that are bones of the skeleton holding the hips: a pose moves only those.

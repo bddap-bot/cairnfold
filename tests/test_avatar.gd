@@ -689,41 +689,86 @@ func _import_settles_each_spring_chain() -> void:
 	root.free()
 
 
-## A file carrying more spring joints than an avatar simulates keeps its longest chains within the limit; a bone only
-## the chains left out move rests at its settled rotation, one a kept chain moves keeps its own rest.
+## A file carrying more spring joints than an avatar simulates keeps its longest chains, in metres, within the limit,
+## those moving a shown mesh first; a bone only the chains left out move rests at its settled rotation, one a kept
+## chain moves keeps its own rest.
 func _simulates_the_longest_chains_within_the_limit() -> void:
 	var lengths := func(springs: Dictionary) -> Array: return springs.springs.map(func(c: Dictionary) -> int: return c.joints.size())
-	var setup := func(sizes: Array) -> Node3D:
+	var setup := func(chains_of: Array) -> Node3D:
 		var root := Node3D.new()
 		var sk := Skeleton3D.new()
 		sk.name = "Skeleton3D"
 		root.add_child(sk)
 		var human := {}
 		var chains := []
-		for size: int in sizes:
+		for shape: Array in chains_of:
 			var joints := []
-			for i in size:
+			for i in shape[0]:
 				var b := sk.get_bone_count()
 				sk.add_bone("b%d" % b)
+				if i > 0:
+					sk.set_bone_parent(b, b - 1)
+					sk.set_bone_rest(b, Transform3D(Basis(), Vector3(0, -shape[1], 0)))
 				human["spring_%d" % b] = NodePath("Skeleton3D:b%d" % b)
 				joints.append({"node": b, "settled": Quaternion(Vector3.RIGHT, 0.5)})
 			chains.append({"joints": joints})
+		human["hips"] = NodePath("Skeleton3D:b0")
 		root.set_meta("humanoid", human)
 		root.set_meta("springs", {"springs": chains})
 		return root
-	var root: Node3D = setup.call([3, Avatar.MAX_SPRING_JOINTS - 2, 2, Avatar.MAX_SPRING_JOINTS])
+	var n := Avatar.MAX_SPRING_JOINTS
+	var root: Node3D = setup.call([[3, 0.1], [n - 2, 0.1], [2, 0.1], [n, 0.1]])
 	var shared: Dictionary = root.get_meta("springs").springs[0].joints[0]
 	root.get_meta("springs").springs[3].joints[0] = shared.duplicate()
 	Avatar._keep_longest(root)
-	check(lengths.call(root.get_meta("springs")) == [Avatar.MAX_SPRING_JOINTS], "the longest chain fills the limit and the rest are not simulated")
+	check(lengths.call(root.get_meta("springs")) == [n], "the longest chain fills the limit and the rest are not simulated")
 	var sk: Skeleton3D = root.get_node("Skeleton3D")
 	var turned := func(bone: int) -> bool: return sk.get_bone_rest(bone).basis.get_rotation_quaternion().is_equal_approx(Quaternion(Vector3.RIGHT, 0.5))
-	check(turned.call(1) and turned.call(3 + Avatar.MAX_SPRING_JOINTS - 2), "a bone only chains left out move rests at its settled rotation")
-	check(not turned.call(0), "a bone a kept chain moves keeps its rest")
+	check(turned.call(1) and turned.call(3 + n - 2), "a bone only chains left out move rests at its settled rotation")
+	check(not turned.call(0), "a bone a kept chain moves keeps its own rest")
 	root.free()
-	root = setup.call([3, Avatar.MAX_SPRING_JOINTS - 2, 2])
+	root = setup.call([[3, 0.1], [n - 2, 0.1], [2, 0.1]])
 	Avatar._keep_longest(root)
-	check(lengths.call(root.get_meta("springs")) == [Avatar.MAX_SPRING_JOINTS - 2, 2], "chains are kept longest first while they fit")
+	check(lengths.call(root.get_meta("springs")) == [n - 2, 2], "chains are kept longest first while they fit")
+	root.free()
+	root = setup.call([[4, 0.2], [10, 0.01], [n - 10, 0.01]])
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [4, n - 10], "a chain of few joints reaching far outranks one of many that reaches less")
+	root.free()
+	root = setup.call([[n - 20, 0.1], [30, 0.01]])
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	arrays[Mesh.ARRAY_BONES] = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+	arrays[Mesh.ARRAY_WEIGHTS] = PackedFloat32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	for chain in 2:
+		var skin := Skin.new()
+		skin.add_named_bind("b%d" % (0 if chain == 0 else n - 20), Transform3D())
+		var outfit := Node3D.new()
+		outfit.visible = chain == 1
+		root.add_child(outfit)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.skin = skin
+		outfit.add_child(mi)
+		mi.skeleton = mi.get_path_to(root.get_node("Skeleton3D"))
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [30], "a chain moving only a hidden mesh ranks after one moving a shown mesh")
+	root.free()
+	root = setup.call([[n - 20, 0.1], [30, 0.01]])
+	var carrier := BoneAttachment3D.new()
+	root.get_node("Skeleton3D").add_child(carrier)
+	carrier.bone_idx = n + 9
+	carrier.add_child(MeshInstance3D.new())
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [30], "a mesh riding a chain's tip unskinned shows that chain")
+	root.free()
+	root = setup.call([[2, 0.01], [n - 1, 0.005]])
+	root.get_meta("springs").springs[0].end_length = 0.5
+	Avatar._keep_longest(root)
+	check(lengths.call(root.get_meta("springs")) == [2], "a chain's tail past its last joint counts toward its length")
 	root.free()
 
 

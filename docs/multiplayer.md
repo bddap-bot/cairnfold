@@ -270,8 +270,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   grab them (allowCollision and allowGrabbing with their filters) kept as each spring's extras,
   and grab movement and posing dropped, and their
   colliders spring colliders, an inside or plane one through `VRMC_springBone_extended_collider`. The file keeps every chain;
-  an avatar simulates its longest within 60 joints, whatever file it came from (each one costs
-  the Quest 2's CPU every frame). The descriptor's view position places
+  an avatar simulates its longest, in metres from root to tip, within 60 joints, whatever file it came from (each
+  joint costs the Quest 2's CPU every frame), those moving a mesh shown by default first. Ranked by joint count, a
+  corpus avatar's ten-joint hair strands of 0.15 m took the budget from its leaf skirt's panels of four and five joints
+  and 0.4 m, so bent knees passed through a skirt resting in its settled pose; ranked in metres the panels and their
+  leg colliders are simulated. The descriptor's view position places
   the eyes. The importer reports untranslated curves and components, including Contacts,
   particles and scripts. A renderer
   that a constraint places from outside the avatar (a follower, a prop left in the world) is not
