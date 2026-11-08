@@ -23,13 +23,14 @@ status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
 # Tests run side by side, largest first so the longest start early; each gets its own user://. A test waits on what the
 # game's workers are doing, never on a frame count, and an until() still unmet after two minutes of the host's time
-# fails as the wait it names. The timeout catches any other hang, and stays an hour: test_house_leaks alone took 29
-# minutes in a full run on a loaded host, and the suite waits for it anyway, so a lower ceiling would only fail it.
+# fails as the wait it names. The timeout catches any other hang, and stays an hour of the test's own time:
+# test_house_leaks alone took 29 minutes in a full run on a loaded host, and the suite waits for it anyway, so a lower
+# ceiling would only fail it.
 # A make jobserver the caller advertises in MAKEFLAGS sets how many run at once, so suites and builds running beside
 # this one share the CPUs; without one, half the CPUs do.
 cat >"$runs/tests.mk" <<'MK'
 %.log.exit:
-	@XDG_DATA_HOME=$$(mktemp -d -p "$(@D)") timeout 3600 godot4 --headless --fixed-fps 60 --path game \
+	@XDG_DATA_HOME=$$(mktemp -d -p "$(@D)") scripts/timeout.sh 3600 godot4 --headless --fixed-fps 60 --path game \
 	  --script "../tests/$(basename $(basename $(@F)))" >"$(basename $@)" 2>&1; echo $$? >"$@"
 MK
 fifo=${MAKEFLAGS-}
@@ -56,33 +57,14 @@ done
 . scripts/xvfb.sh
 xvfb 640x480x24
 trap 'kill $xvfb_pid ${gpu:-} 2>/dev/null || true; rm -rf "$runs"' EXIT
-# Runs a command as `timeout` does, but its limit counts only the seconds the command has the GPU: a GPU shared with
-# other work holds a process at its driver's open until there is room, or stops it while the GPU is lent out, for as
-# long as that takes, and those seconds are not the check's.
-gpu_timeout() {
-  local limit=$1 used=0
-  shift
-  "$@" &
-  gpu=$!
-  local pid=$gpu
-  while kill -0 "$pid" 2>/dev/null; do
-    sleep 1
-    if ! cat /proc/"$pid"/task/*/wchan 2>/dev/null | grep -q fanotify && [ "$(cut -d' ' -f3 /proc/"$pid"/stat 2>/dev/null)" != T ]; then
-      used=$((used + 1))
-    fi
-    if [ "$used" = "$limit" ]; then kill "$pid"; fi
-  done
-  local code=0
-  wait "$pid" || code=$?
-  if [ "$used" -ge "$limit" ]; then return 124; fi
-  return "$code"
-}
 gpu_errors='SCRIPT ERROR|Parameter "material" is null'
 for t in tests/gpu_*.gd; do
   log="$runs/$(basename "$t").log"
   code=0
   VK_ICD_FILENAMES=$desktop_icd XDG_DATA_HOME=$(mktemp -d -p "$runs") \
-    gpu_timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
+    scripts/timeout.sh 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 &
+  gpu=$!
+  wait "$gpu" || code=$?
   grep -E "^(tests|FAIL):|$gpu_errors" "$log" | sed "s|^|$t: |" || true
   if [ "$code" != 0 ] || grep -qE "$gpu_errors" "$log" || ! grep -q "^tests: ok" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
 done
