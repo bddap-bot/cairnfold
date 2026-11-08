@@ -12,7 +12,9 @@ class EveryStretch extends Wall:
 		var best := {}
 		var n := layout.samples.size()
 		for i in n if layout.closed else n - 1:
-			best = _stretch_hit(i, origin, dir, through_arches, best, Vector2.ZERO)
+			var hit := _stretch_hit(i, origin, dir, through_arches, best.get("along", INF), layout.half_thickness(), layout.height + layout.top_rise())
+			if not hit.is_empty():
+				best = hit
 		return best
 
 

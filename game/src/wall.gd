@@ -991,27 +991,26 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 			if past > i:
 				next = past
 				continue
-		var hit := _stretch_hit(i, origin, dir, through_arches, best, across)
-		if hit != best:
+		var b := layout.samples[(i + 1) % n]
+		if across.dot(Vector2(a.x + b.x, a.z + b.z) * 0.5 - from) < -(Vector2(b.x - a.x, b.z - a.z).length() * 0.5 + half + 0.01):
+			continue
+		var hit := _stretch_hit(i, origin, dir, through_arches, best.get("along", INF), half, height)
+		if not hit.is_empty():
 			best = hit
 			clear = minf(clear, best.along * flat.length())
 	return best
 
 
-## The nearer of `best` and where the ray meets stretch `i`'s box; a stretch wholly behind the ray's start along
-## `across`, its direction seen from above, is not tested.
-func _stretch_hit(i: int, origin: Vector3, dir: Vector3, through_arches: bool, best: Dictionary, across: Vector2) -> Dictionary:
+## Where the ray meets stretch `i`'s box, `half` either side of it and `height` over its foot, nearer than
+## `nearer_than`, or empty.
+func _stretch_hit(i: int, origin: Vector3, dir: Vector3, through_arches: bool, nearer_than: float, half: float, height: float) -> Dictionary:
 	var n := layout.samples.size()
 	var j := (i + 1) % n
 	var a := layout.samples[i]
-	var b := layout.samples[j]
-	var half := layout.half_thickness()
-	var edge := b - a
+	var edge := layout.samples[j] - a
 	var length := Vector2(edge.x, edge.z).length()
 	if length < 1e-6:
-		return best
-	if across.dot(Vector2(a.x + b.x, a.z + b.z) * 0.5 - Vector2(origin.x, origin.z)) < -(length * 0.5 + half + 0.01):
-		return best
+		return {}
 	var x := Vector3(edge.x, 0, edge.z) / length
 	var z := x.cross(Vector3.UP)
 	var slope := edge.y / length
@@ -1021,20 +1020,20 @@ func _stretch_hit(i: int, origin: Vector3, dir: Vector3, through_arches: bool, b
 	var local := Vector3(ox, offset.y - slope * ox, offset.dot(z))
 	var direction := Vector3(dx, dir.y - slope * dx, dir.dot(z))
 	var under := maxf(layout.depths[i], layout.depths[j]) if layout.depths.size() == n else 0.0
-	var box := AABB(Vector3(0, -under, -half), Vector3(length, layout.height + layout.top_rise() + under, half * 2.0))
+	var box := AABB(Vector3(0, -under, -half), Vector3(length, height + under, half * 2.0))
 	var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
 	if hit == null:
-		return best
+		return {}
 	var t: float = (hit - local).dot(direction) / direction.length_squared()
-	if layout.hides(origin + dir * t) or t >= best.get("along", INF):
-		return best
+	if layout.hides(origin + dir * t) or t >= nearer_than:
+		return {}
 	var end := layout.lengths[j] if j > 0 else layout.length()
 	var arched := through_arches and _open(i, end, length, local + direction * t)
 	if arched:
 		var open := func(at: float) -> bool: return _open(i, end, length, local + direction * at)
 		t = _first_solid(open, t, _exit(box, local, direction))
-		if t == INF or layout.hides(origin + dir * t) or t >= best.get("along", INF):
-			return best
+		if t == INF or layout.hides(origin + dir * t) or t >= nearer_than:
+			return {}
 	var at: Vector3 = local + direction * t
 	var face := Rig.box_normal(box, at)
 	var side := arched or Rig.side(x * face.x + (Vector3.UP - x * slope) * face.y + z * face.z)

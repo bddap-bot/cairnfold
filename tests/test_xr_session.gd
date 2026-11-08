@@ -79,7 +79,7 @@ func _run() -> void:
 			guest._xr_state(OpenXRInterface.SESSION_STATE_IDLE)
 		else:
 			guest.xr.emit_signal(signal_name)
-		var frames := sim.frames
+		var stopped_at := sim.frames
 		var network_clock := guest.session._clock
 		var cue_clock := cues._clock
 		await frames(12)
@@ -89,7 +89,7 @@ func _run() -> void:
 				await process_frame
 				OS.delay_msec(10)
 			print("tests: co-op paused for %d ms with normal ENet timeouts" % (Time.get_ticks_msec() - started))
-		check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
+		check(paused and sim.frames == stopped_at and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
 		check(not guest.rig.left.visible and not guest.rig.right.visible, "%s hides the player's hands" % signal_name)
 		check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
 		check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)

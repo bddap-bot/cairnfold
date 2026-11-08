@@ -35,9 +35,6 @@ func _run() -> void:
 	check(target.get("what") == "lantern" and main.fitting_tool.fit(target), "the failing angle places a wall lantern")
 	w.lay_now()
 	check(w.layout.lanterns.size() == 1 and w.roof.chimneys.is_empty(), "a lantern is placed and no chimney is added")
-	main.rig.right.tool = Hand.Tool.DECORATIONS
-	main.rig.right.held_still = true
-	main.rig.right.global_transform = Transform3D(Basis.looking_at(dir), origin)
 	await _overlapping_roofs()
 	await _gable_ends_are_met_at_their_face()
 	finish()
@@ -79,15 +76,6 @@ func _gable_ends_are_met_at_their_face() -> void:
 				if roof.get("restyle") != PaletteTool.Restyle.ROOF:
 					missed.append("%s: roof %s" % [name, roof.get("restyle")])
 	check(missed.is_empty(), "every gable end, wall face and roof meets the ray at its face: %d missed, %s" % [missed.size(), missed.slice(0, 6)])
-	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"finish": WallLayout.Finish.BOARDS_UPRIGHT, "gable_end": WallLayout.GableEnd.BOARDS, "roof": {"thatch": false}}})
-	w.lay_now()
-	var f := w.roof.frame()
-	var on: Vector3 = f.mid + f.along * w.roof.ridge_length() * 0.5 + Vector3.UP * w.roof.rise(1.0) * 0.4
-	var hand: Vector3 = on + f.along * 3.0 + f.across * 0.6 + Vector3.DOWN * 0.4
-	main.rig.right.tool = Hand.Tool.STYLE
-	main.rig.right.held_still = true
-	main.rig.right.global_transform = Transform3D(Basis.looking_at(on - hand), hand)
-
 
 
 func _overlapping_roofs() -> void:

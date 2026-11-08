@@ -27,12 +27,12 @@ func _run() -> void:
 	var target := tool.aim(eye, -out)
 	check(not tool.aim(at - out * 12.0, out).has("fitting"), "the house body occludes the lamp on its far side")
 	check(target.has("fitting"), "delete identifies the lamp rather than its house")
-	await _capture("lamp-highlight", eye, -out, at)
+	await _hovers("lamp-highlight", eye, -out)
 	var body_eye: Vector3 = w.layout.frame_at(5).point + Vector3.UP * 1.6 + out * 3.0
 	var body := tool.aim(body_eye, -out)
 	check(body.get("wall") == w and not body.has("fitting"), "bare house body selects the house")
 	check(tool.target_bounds(body).size.length() > tool.target_bounds(target).size.length() * 5, "hover extent distinguishes house from lamp")
-	await _capture("house-highlight", body_eye, -out, at)
+	await _hovers("house-highlight", body_eye, -out)
 	tool.press(self, eye, -out)
 	for i in 3:
 		tool.hold(self, body_eye, -out)
@@ -86,11 +86,10 @@ func _run() -> void:
 	finish()
 
 
-func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
+func _hovers(name: String, eye: Vector3, dir: Vector3) -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.DELETE
 	hand.held_still = true
-	main.view(at - dir * 8.0 + Vector3.UP * 2.0, at)
 	hand.global_transform = Transform3D(Basis.looking_at(dir), eye)
 	await frames(6)
 	check(main.delete_tool._rings[1].visible, "live delete hover shows " + name)
