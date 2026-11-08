@@ -90,7 +90,7 @@ func arrive(fence: Wall) -> void:
 	if first == null:
 		f.side = -f.side
 		first = _spot(f, null)
-	var n := mini(rng.randi_range(FLOCK.x, FLOCK.y), CAP - count())
+	var n := mini(rng.randi_range(FLOCK.x, FLOCK.y), CAP - all().size())
 	if first == null or n <= 0:
 		return
 	_walk_in(f, first, n, WALK_FROM, 1.1, func() -> Sheep:
@@ -121,8 +121,7 @@ func _other(_b: Band, a: Node3D, delta: float) -> void:
 	a.pose(Motion.LIE, delta)
 	a.timer -= delta
 	if a.timer <= 0.0:
-		a.state = State.STAND
-		a.timer = rng.randf_range(stand_for.x, stand_for.y)
+		_stand(a)
 
 
 func _lie(a: Node3D) -> void:
@@ -130,7 +129,6 @@ func _lie(a: Node3D) -> void:
 	a.timer = rng.randf_range(LIE_FOR.x, LIE_FOR.y)
 
 
-## Whether the flock's fence still stands as a pasture.
 func _grazing(f: Flock) -> bool:
 	return is_instance_valid(f.fence) and pastures.has(f.fence)
 

@@ -27,7 +27,6 @@ const BIRD_DB := -24.0
 const NIGHT_DB := -28.0
 ## How fast the night bed follows its level, per second, so surfacing from a pond brings the crickets back gently.
 const NIGHT_EASE := 1.0
-const UNIT := 6.0
 
 var tool: WallTool
 var rig: Rig
@@ -91,7 +90,7 @@ func _init(builder: WallTool, flora_tool: FloraTool, player: Rig, land: Terrain,
 		_songs.append(load("res://audio/birds/song%d.ogg" % i))
 	for i in HOOTS:
 		_hoots.append(load("res://audio/birds/hoot%d.ogg" % i))
-	bird.unit_size = UNIT
+	bird.unit_size = Calls.UNIT
 	bird.max_db = 0.0
 	bird.max_distance = 60.0
 	add_child(bird)

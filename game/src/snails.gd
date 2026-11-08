@@ -24,9 +24,7 @@ class One extends Node3D:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/snails.gdshader")
-	crowd = Crowd.new(wildlife.terrain, body(), CAP, mat)
+	crowd = Crowd.new(wildlife.terrain, body(), CAP, "res://src/snails.gdshader")
 	add_child(crowd)
 
 static func body() -> ArrayMesh:

@@ -9,7 +9,7 @@ var buffer := PackedFloat32Array()
 var stride: int
 
 
-func _init(terrain: Terrain, mesh: Mesh, cap: int, material: Material, colours := false) -> void:
+func _init(terrain: Terrain, mesh: Mesh, cap: int, shader: String, colours := false) -> void:
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.use_colors = colours
@@ -20,6 +20,8 @@ func _init(terrain: Terrain, mesh: Mesh, cap: int, material: Material, colours :
 	terrain.lift(multimesh, terrain.bounds())
 	stride = 20 if colours else 16
 	buffer.resize(cap * stride)
+	var material := ShaderMaterial.new()
+	material.shader = load(shader)
 	material_override = material
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 

@@ -72,9 +72,7 @@ class Butterfly:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/butterfly.gdshader")
-	crowd = Crowd.new(wildlife.terrain, Meshes.butterfly(), CAP, mat, true)
+	crowd = Crowd.new(wildlife.terrain, Meshes.butterfly(), CAP, "res://src/butterfly.gdshader", true)
 	add_child(crowd)
 
 

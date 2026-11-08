@@ -52,13 +52,6 @@ func all() -> Array[Node3D]:
 	return out
 
 
-func count() -> int:
-	var n := 0
-	for b in bands:
-		n += b.animals.size()
-	return n
-
-
 func tick(delta: float) -> void:
 	for i in range(bands.size() - 1, -1, -1):
 		var b := bands[i]
@@ -329,8 +322,7 @@ func _fed(a: Node3D) -> void:
 	var appetite := _appetite(a)
 	a.full = rng.randf_range(appetite.full_for.x, appetite.full_for.y)
 	if a.state == State.FEED:
-		a.state = State.STAND
-		a.timer = rng.randf_range(stand_for.x, stand_for.y)
+		_stand(a)
 
 
 ## Whether a grazing animal is still stepping to the grass it chose.
@@ -345,8 +337,12 @@ func _next(b: Band, a: Node3D) -> void:
 	elif roll < lie_chance + WALK_CHANCE:
 		_walk_on(b, a)
 	else:
-		a.state = State.STAND
-		a.timer = rng.randf_range(stand_for.x, stand_for.y)
+		_stand(a)
+
+
+func _stand(a: Node3D) -> void:
+	a.state = State.STAND
+	a.timer = rng.randf_range(stand_for.x, stand_for.y)
 
 
 func _graze(a: Node3D) -> void:

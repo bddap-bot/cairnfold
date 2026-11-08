@@ -79,12 +79,11 @@ func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
 	var water: Shader = load("res://src/water.gdshader")
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/fish.gdshader")
+	crowd = Crowd.new(wildlife.terrain, body(), CAP, "res://src/fish.gdshader", true)
+	var mat: ShaderMaterial = crowd.material_override
 	for tint in ["shallow", "deep"]:
 		mat.set_shader_parameter(tint, RenderingServer.shader_get_parameter_default(water.get_rid(), tint))
 	mat.render_priority = 1
-	crowd = Crowd.new(wildlife.terrain, body(), CAP, mat, true)
 	add_child(crowd)
 
 

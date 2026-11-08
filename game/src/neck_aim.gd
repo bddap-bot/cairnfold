@@ -53,12 +53,10 @@ func reachable(animal: Node3D, h: Node3D, ground: float) -> bool:
 	return Hand.seen(h).global_basis.y.normalized().dot(Vector3.UP) > 0.35 and absf(target(h).y - ground - _base(animal).y) < _length() * 0.85
 
 
-## Where the neck's root stands in `animal`'s space.
 func _base(animal: Node3D) -> Vector3:
 	return animal.to_local(get_skeleton().to_global(rest_base))
 
 
-## The neck's reach at the animal's scale.
 func _length() -> float:
 	return reach * get_skeleton().global_basis.get_scale().x
 

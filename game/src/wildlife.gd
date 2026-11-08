@@ -291,9 +291,9 @@ func tick(delta: float) -> void:
 		birds.arrive()
 	birds.tick(delta)
 	herds.tick(delta)
-	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, day and herds.count() < Herds.CAP):
+	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, day and herds.all().size() < Herds.CAP):
 		_due_sheep.erase(fence)
-		if herds.count() < Herds.CAP:
+		if herds.all().size() < Herds.CAP:
 			herds.arrive(fence)
 	roamers.tick(delta)
 	for kind in shy():

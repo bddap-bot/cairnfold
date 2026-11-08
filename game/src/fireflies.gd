@@ -21,7 +21,7 @@ const SIZE := 0.22
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var crowd: Crowd
-var mat := ShaderMaterial.new()
+var mat: ShaderMaterial
 ## Spots by habitat key: each a Vector4 of position and the clock time it came, or went if negative.
 var spots := {}
 ## Starts a fade in, so a death back-dated to its fade-in's brightness still lies in the past.
@@ -43,9 +43,9 @@ func _init(home: Wildlife, seed: int) -> void:
 	rng.seed = seed
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
-	mat.shader = load("res://src/firefly.gdshader")
+	crowd = Crowd.new(wildlife.terrain, quad, CAP, "res://src/firefly.gdshader")
+	mat = crowd.material_override
 	mat.set_shader_parameter("fade", FADE)
-	crowd = Crowd.new(wildlife.terrain, quad, CAP, mat)
 	add_child(crowd)
 
 

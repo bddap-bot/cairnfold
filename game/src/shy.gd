@@ -49,9 +49,7 @@ func _init(home: Wildlife, seed: int, mesh: Mesh, shader: String, most: int, gro
 	kind = group
 	rng.seed = seed
 	cap = most
-	var mat := ShaderMaterial.new()
-	mat.shader = load(shader)
-	crowd = Crowd.new(wildlife.terrain, mesh, cap, mat)
+	crowd = Crowd.new(wildlife.terrain, mesh, cap, shader)
 	add_child(crowd)
 
 
