@@ -1965,7 +1965,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	var coverage := []
 	var live := {}
 	for e: Array in _under(objs, top):
-		live[Yaml.file_id(objs[e[0]].data.get("m_GameObject"))] = true
+		live[e[1]] = true
 	var root_of := func(d: Dictionary) -> int:
 		var t := Yaml.file_id(d.get("rootTransform", d.get("m_Root")))
 		return t if t != 0 else Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
@@ -2023,9 +2023,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if when == null:
 			idle += 1
 			continue
-		var t := Yaml.file_id(d.get("rootTransform"))
-		if t == 0:
-			t = Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
+		var t: int = root_of.call(d)
 		# A collider the menu moves rides a bone of its own, which the menu's transform curves move.
 		if moved.has(t):
 			_as_bone(objs, t, sk, rests)
@@ -2198,7 +2196,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Skeleton3D, switches: Dictionary, moved: Dictionary, report: Dictionary) -> Array:
 	var live := {}
 	for e: Array in _under(objs, top):
-		live[Yaml.file_id(objs[e[0]].data.get("m_GameObject"))] = true
+		live[e[1]] = true
 	var rests: Array[Transform3D] = []
 	for bone in sk.get_bone_count():
 		rests.append(sk.get_bone_global_rest(bone))

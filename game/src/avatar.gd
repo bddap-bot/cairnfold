@@ -939,10 +939,9 @@ func _dress(n: Node, tint: Color) -> void:
 
 ## Poses of the eyes and the two hands (Hand.body), their palms at `palms` from them, in this node's space (the world's, for a player), and where the
 ## eyes look in their own frame. Only the head and hands are tracked; the rest is solved from them as every player
-## sees it, since each solves the same pose from the same streamed one. Standing, the body hangs from the head, bent
-## forward as far as the head looks down past LOOK and further as it crouches; the feet stand planted on the floor
-## where `gait` sets them, each leg the one bend that joins its hip to its foot, and each arm the one that joins its
-## shoulder to its hand. Lying or sitting, as `posture` reads it, the body takes the recorded poses (`_lie`).
+## sees it, since each solves the same pose from the same streamed one: standing (`_stand_up`), each leg the one bend
+## that joins its hip to its foot and each arm the one that joins its shoulder to its hand; lying or sitting, as
+## `posture` reads it, the recorded poses (`_lie`).
 func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FORWARD) -> void:
 	eyes = at
 	hands[0] = l
