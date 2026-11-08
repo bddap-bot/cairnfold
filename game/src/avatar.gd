@@ -29,9 +29,10 @@ const UNCAPPED := 1e4
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
-## besides their textures need of the 1.6 GB a Quest 2 has available, which leaves each the 8.4 million texels seven
-## such avatars ran at and not the twice that which ran it out of memory (docs/multiplayer.md, "Limits").
-const MEMORY_FLOOR := 1300 << 20
+## besides their textures need of the 1.9 to 2.1 GB a Quest 2 has available as the game starts, which leaves each about
+## the 8.4 million texels seven such avatars ran at and not the twice that which ran it out of memory
+## (docs/multiplayer.md, "Limits").
+const MEMORY_FLOOR := 1700 << 20
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
@@ -220,6 +221,12 @@ var _shapes: Array = []
 var _tints: Array[Material] = []
 
 
+## The memory available as this script first loads, which the game's scene does as it starts, before its garden and any
+## avatar take theirs. MEMORY_FLOOR counts the game out of it: read later, the game's own memory counts against the
+## budget twice: a Quest 2 with 2 GB available at launch has under 0.7 GB left once its garden stands.
+static var launch_memory := available_memory()
+## The main thread's microseconds in every avatar's spring steps since the metrics last took them.
+static var springs_us := 0
 static var _built_in := {}
 static var _reading := 0
 static var _reading_lock := Mutex.new()
@@ -269,7 +276,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	_reading_lock.lock()
 	_reading -= held
 	_reading_lock.unlock()
-	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, images.size(), pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, available_memory() / 1048576.0])
+	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available at launch, %.0f MB now" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, images.size(), pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, launch_memory / 1048576.0, available_memory() / 1048576.0])
 	return scene
 
 
@@ -300,10 +307,10 @@ static func decodes(size: Vector2i, budget: int) -> bool:
 	return size.x * size.y <= UNGATED_DECODE_PIXELS or size.x * size.y * 4 <= budget
 
 
-## The bytes one avatar's textures may hold here: the memory available now above MEMORY_FLOOR, shared among every other
-## player a session holds.
+## The bytes one avatar's textures may hold here: the memory available as the game started above MEMORY_FLOOR, shared
+## among every other player a session holds.
 static func texture_budget() -> int:
-	return maxi(available_memory() - MEMORY_FLOOR, 0) / (Session.MAX_PLAYERS - 1)
+	return maxi(launch_memory - MEMORY_FLOOR, 0) / (Session.MAX_PLAYERS - 1)
 
 
 ## The bytes of memory available to the game now. Godot reports none on Android, so a Linux kernel's own count is read.
@@ -1062,7 +1069,13 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	_unposed += delta
 	if springs != null and simulate_springs:
-		springs.advance(delta)
+		step_springs(delta)
+
+
+func step_springs(delta: float) -> void:
+	var start := Time.get_ticks_usec()
+	springs.advance(delta)
+	springs_us += Time.get_ticks_usec() - start
 
 
 ## Points the eyes along `look` as the model's lookAt maps it: each angle off ahead, up to its range map's largest

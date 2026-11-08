@@ -415,6 +415,13 @@ for name, secs in phases.items():
     summary[name]["fill"] = fill
     if "charges" in fullest:
         summary[name]["charges_ms"] = fullest["charges"]
+    mains = [s["main_ms"] for s in secs if s.get("main_ms") and all(s["main_ms"].values())]
+    if mains:
+        summary[name]["main_ms"] = {k: round(mid([m[k]["p50"] for m in mains]), 3) for k in mains[0]}
+    for part in ("springs_ms", "expressions_ms"):
+        timed = [s[part] for s in secs if part in s]
+        if timed:
+            summary[name][part] = round(mid(timed), 3)
     mem = [s["mem_mb"] for s in secs if "mem_mb" in s]
     if mem:
         summary[name]["mem_mb"] = {k: max(m[k] for m in mem) for k in mem[0]}

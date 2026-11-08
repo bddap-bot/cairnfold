@@ -899,7 +899,7 @@ func _spring_input(delta: float) -> void:
 			_spring_holds.erase(chain)
 		else:
 			rig.body.springs.targets[chain] = hand
-	rig.body.springs.advance(delta)
+	rig.body.step_springs(delta)
 
 
 func _spring_hand(peer: int, side: int) -> Variant:

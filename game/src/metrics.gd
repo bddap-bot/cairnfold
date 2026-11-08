@@ -2,7 +2,7 @@ class_name Metrics
 extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
-## clock it ran at, where each frame's main-thread time went (MAIN_PHASES), the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
+## clock it ran at, where each frame's main-thread time went (MAIN_PHASES) and how much of it the avatars' spring steps and expressions took, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
 ## lowest quality step the governor took (see Quality) and whether no governor walked it all second, the frames again
 ## by what the player was doing in each (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to
 ## JSON as it goes.
@@ -236,6 +236,10 @@ func _process(delta: float) -> void:
 		Canvas.laid = 0.0
 		row.paint_cpu_ms = Canvas.cpu_us / 1000.0 / maxi(_deltas.size(), 1)
 		Canvas.cpu_us = 0
+		row.springs_ms = Avatar.springs_us / 1000.0 / maxi(_deltas.size(), 1)
+		Avatar.springs_us = 0
+		row.expressions_ms = ExpressionPlayer.process_us / 1000.0 / maxi(_deltas.size(), 1)
+		ExpressionPlayer.process_us = 0
 		row.paint_gpu_ms = Canvas.gpu_ms()
 		if not _eye_lo.is_empty():
 			row.eye_fov_spread_deg = spread(_eye_lo, _eye_hi)

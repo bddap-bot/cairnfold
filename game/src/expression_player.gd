@@ -45,6 +45,10 @@ const SHADERS := [
 ## The look fields that drive a decal, in the order the shader reads them.
 const DECAL_FIELDS := ["decal", "decalIntensity", "decalHue"]
 
+## The main thread's microseconds every avatar's expressions took to advance and apply since the metrics last took them.
+static var process_us := 0
+
+
 
 func _init(model: Node3D) -> void:
 	var data: Dictionary = model.get_meta("expressions", {})
@@ -181,12 +185,14 @@ func _init(model: Node3D) -> void:
 
 
 func _process(delta: float) -> void:
+	var start := Time.get_ticks_usec()
 	_seconds += delta
 	var body := get_parent() as Avatar
 	if contacts.receives() and body != null and body.is_in_group(Contacts.BODIES):
 		contacts.sense(state, Contacts.gather(get_tree()), body, body.local, delta)
 	state.advance(delta)
 	apply()
+	process_us += Time.get_ticks_usec() - start
 
 
 func apply() -> void:

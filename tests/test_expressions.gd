@@ -152,9 +152,10 @@ func _layers_follow_the_budget() -> void:
 	var full := 4096 * 4096 * 4 * 4 / 3
 	check(Avatar.shrink_for(full, full) == 1 and Avatar.shrink_for(full, full / 4) == 2 and Avatar.shrink_for(full, full / 5) == 4, "an avatar's textures shrink by halves only until they fit its budget: %d %d %d" % [Avatar.shrink_for(full, full), Avatar.shrink_for(full, full / 4), Avatar.shrink_for(full, full / 5)])
 	check(Avatar.meminfo_available() > 0 and Avatar.meminfo_available() <= OS.get_memory_info().physical, "the memory available is read from the kernel, as on Android where Godot reports none: %d of %d" % [Avatar.meminfo_available(), OS.get_memory_info().physical])
-	var free := Avatar.available_memory()
-	var budget := Avatar.texture_budget()
-	check(budget > 0 and absf(budget - (free - Avatar.MEMORY_FLOOR) / (Session.MAX_PLAYERS - 1)) < (64 << 20), "the budget is the memory available above the floor, shared among the other players: %d of %d" % [budget, free])
+	var held := Avatar.launch_memory
+	Avatar.launch_memory = Avatar.MEMORY_FLOOR + (Session.MAX_PLAYERS - 1) * (8 << 20)
+	check(Avatar.texture_budget() == 8 << 20, "the budget is the memory available at launch above the floor, shared among the other players, whatever is available now: %d" % Avatar.texture_budget())
+	Avatar.launch_memory = held
 	for shrink: int in [1, 4]:
 		var root := Node3D.new()
 		root.set_meta("texture_shrink", shrink)

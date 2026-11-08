@@ -32,6 +32,10 @@ var _stood: Array[Avatar] = []
 var _figures_read: Array[PackedScene] = []
 var _figure_path := ""
 var _files := true
+## Whether the figures step their springs and play their expressions, and whether they hold still (`_figures`).
+var _figure_springs := true
+var _figure_expressions := true
+var _still := false
 ## Whether the figures hold Posture's poses, and the microseconds and frames their poses have taken.
 var _posing := false
 var _posed_usec := 0
@@ -1574,11 +1578,15 @@ func _flat(s: Dictionary) -> void:
 
 
 ## Stands a player at each of `spots` [[x, z], ...], looking at the middle of the garden, in the VRM at `file`, a path
-## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its hands swaying, as another player's streamed
-## poses pose them; with "posture" each instead holds Posture's recorded poses in turn, a second and a fifth each, over
-## what is under it, as another player's avatar reads them; with "apart" each reads the file itself and holds its own
-## textures, as players each wearing their own file do; [] takes them away. Prices another player's avatar on one
-## headset, with no network in the way, and prints the main thread's microseconds per avatar pose when they go.
+## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its
+## hands swaying, as another player's streamed poses pose them; with "posture" each instead holds Posture's recorded
+## poses in turn, a second and a fifth each, over what is under it, as another player's avatar reads them; with "apart"
+## each reads the file itself and holds its own textures, as players each wearing their own file do, and a file past the
+## device's limits stands as a built-in, as its player would; [] takes them away. Each steps its own springs, as the
+## avatar a player wears does, unless "springs" is false, as another player's replays them, and plays its expressions
+## unless "expressions" is false; with "still" each stands once and then holds, its pose, springs and expressions
+## stopped, so only drawing it is left. Prices another player's avatar on one headset, with no network in the way, and
+## prints the main thread's microseconds per avatar pose when they go.
 func _figures(s: Dictionary) -> void:
 	if not _stood.is_empty():
 		print("figures: %d %s avatars %s, %.1f us per avatar pose over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
@@ -1586,6 +1594,9 @@ func _figures(s: Dictionary) -> void:
 		a.queue_free()
 	_stood.clear()
 	_posing = s.get("posture", false)
+	_figure_springs = s.get("springs", true)
+	_figure_expressions = s.get("expressions", true)
+	_still = s.get("still", false)
 	_posed_usec = 0
 	_posed_frames = 0
 	var path: String = s.get("file", "")
@@ -1601,7 +1612,10 @@ func _figures(s: Dictionary) -> void:
 			while not result.has("scene"):
 				await get_tree().process_frame
 			scene = result.scene
-		assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
+			if scene == null:
+				print("figures: %s is past this device's limits, so its figures stand as built-ins, as its player would" % path)
+				scene = Avatar.built_in(0)
+				_figure_path = ""
 		_figures_read.append(scene)
 		var foot := main.world.terrain.ground(at[0], at[1])
 		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)))
@@ -1611,9 +1625,15 @@ func _figures(s: Dictionary) -> void:
 func _stand(i: int, at: Transform3D) -> Avatar:
 	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _files)
 	a.transform = at
+	a.simulate_springs = _figure_springs and not _still
 	if _posing:
 		a.ground = func(w: Vector3) -> float: return main.rig.floor_under.call(w)
 	main.add_child(a)
+	if a.expressions != null and not (_figure_expressions and not _still):
+		a.expressions.process_mode = Node.PROCESS_MODE_DISABLED
+	if _still:
+		a.stand()
+		a.set_process(false)
 	return a
 
 
@@ -1629,6 +1649,8 @@ func _process(_delta: float) -> void:
 			var was := _stood[i]
 			_stood[i] = _stand(i, was.transform)
 			was.queue_free()
+	if _still:
+		return
 	for i in _stood.size():
 		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, _stood[i].eye_height, 0))
 		if _posing:

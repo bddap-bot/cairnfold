@@ -325,12 +325,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
   author made them. Its textures, decals and expression layers are mipmapped, base colours sampled anisotropically,
-  and all shrink alike, by halves, only until they fit the memory the device has available above 1.3 GB, shared
+  and all shrink alike, by halves, only until they fit the memory the device had available as the game started above 1.7 GB, shared
   among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
-  is decoded: on a Quest 2 with about 1.6 GB available a heavy converted avatar's 4096 px atlas is held at 1024, on
+  is decoded: on a Quest 2 with about 2 GB available at launch a heavy converted avatar's 4096 px atlas is held at 2048, on
   a desktop the same file at full size. An image past a 4096 px square's pixels is whole in memory before it shrinks,
   so it is decoded only where its RGBA bytes fit that one avatar's share (`Avatar.decodes`): a device whose share holds
-  a converted avatar's widened atlas reads it, and one whose share does not (a Quest 2's, about 43 MB) refuses the file
+  a converted avatar's widened atlas reads it, and one whose share does not (a Quest 2's, about 45 MB) refuses the file
   and draws the player as a built-in. On a Quest 2, seven figures each reading their own copy of a heavy
   converted avatar with one 4096 px atlas in `demo/avatar-chain-cost.json` peak at 4.9 GB of the game's resident
   and swapped memory with 8.4 million base colour texels each against 3.9 GB at 1024 px, the renderer's textures
