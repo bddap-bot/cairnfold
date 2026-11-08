@@ -4,9 +4,9 @@ extends SceneTree
 ## its compare.py to score: run under a display as
 ## godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT
 ## Each recorded frame places the avatar's root, poses the avatar from the recorded head and hands as a player's
-## headset and controllers would, and advances one 1/60 s step. OUT gets tips.tsv, the spring tips the runtime has,
-## in the root's Unity space; render/NNNN.png, each render the recording made, from its camera; menu.tsv, the menu
-## controls this runtime offers, empty since it has no expression runtime; and meta.json.
+## headset and controllers would, sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
+## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
+## made, from its camera; menu.tsv, left empty; and meta.json.
 
 const SIZE := Vector2i(384, 640)
 ## Unity's axes are Godot's mirrored through X; the recorded avatar faces +Z in both.
@@ -66,8 +66,6 @@ func _run() -> void:
 		if bone >= 0:
 			_tips[c[0]] = bone
 	FileAccess.open(_out.path_join("menu.tsv"), FileAccess.WRITE).close()
-	if steps.values().any(func(a: String) -> bool: return a != ""):
-		_notes.append("no expression runtime: assignments ignored")
 	_tips_file = FileAccess.open(_out.path_join("tips.tsv"), FileAccess.WRITE)
 	var last := -1
 	for row in track:
@@ -76,6 +74,9 @@ func _run() -> void:
 			_record(last)
 		last = int(row[0])
 		_drive(row)
+		if _avatar != null and _avatar.expressions != null and steps.has(last):
+			for assignment: String in str(steps[last]).split(",", false):
+				_avatar.expressions.state.put(assignment.get_slice("=", 0), assignment.get_slice("=", 1).to_float())
 		if renders.has(last):
 			view.render_target_update_mode = SubViewport.UPDATE_ONCE
 			await RenderingServer.frame_post_draw

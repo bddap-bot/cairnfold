@@ -693,6 +693,15 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	for p: Dictionary in data.parameters:
 		parameters[p.name] = p
 	for clip: Dictionary in data.clips:
+		for c: Dictionary in clip.curves:
+			var property := str(c.attribute).trim_prefix("material.")
+			if c["class"] == "137" and paths.has(c.path) and not c.has("refs") and Materials.field(property).get("field") == "emission":
+				var renderer := Prefabs.renderer_of(objs, Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject")))
+				for ref: Variant in Yaml.list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
+					var m: Dictionary = materials.materials.get(Yaml.guid(ref), {}) if ref is Dictionary else {}
+					if m.has("cell") and (m.get("properties", {}) as Dictionary).has(property) and (m.get("floats", {}) as Dictionary).has(property):
+						materials.drive_strength(Yaml.guid(ref))
+	for clip: Dictionary in data.clips:
 		var curves := []
 		for c: Dictionary in clip.curves:
 			var key := _curve_key(c)

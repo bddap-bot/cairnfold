@@ -56,6 +56,8 @@ func _run() -> void:
 	_a_toon_standard_detail_map_lies_in_the_atlas()
 	_matcaps_and_emission_join_the_look()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
+	_poiyomi_emissions_in_one_colour_add_up()
+	_untinted_multilayer_math_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_installed_packages_lend_only_missing_images()
 	_an_edit_imports_with_its_base()
@@ -1756,6 +1758,124 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
 		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
 		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.blink.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
+
+## Poiyomi adds its four emissions up: those in the drawn one's theme and override fold into its map, each mask weighted
+## by its strength over the drawn one's; one in another colour is left out. Where the first one moves over time, the
+## strongest other is drawn, and an animation of the first's strength moves nothing drawn. Where AudioLink's band
+## overrides are on, its strength add and multiplier apply at their levels. One whose first strength a clip moves draws
+## that one alone, and emissions adding past the drawn one's strength carry their sum in it.
+func _poiyomi_emissions_in_one_colour_add_up() -> void:
+	var dir := ProjectSettings.globalize_path("user://glows")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _EmissionStrength ("Strength", Range(0, 20)) = 0 } }')
+	var material := """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMask:
+        m_Texture: {guid: half}
+    - _EmissionMask1:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: 2
+    - _ScrollingEmission: %d
+    - _EmissionColorThemeIndex: 1
+    - _EnableEmission1: 1
+    - _EmissionStrength1: 0.5
+    - _EmissionMask1Channel: 1
+    - _EmissionColor1ThemeIndex: 1
+    - _EnableEmission2: 1
+    - _EmissionStrength2: 4
+    m_Colors:
+    - _EmissionColor2: {r: 1, g: 0, b: 0, a: 1}
+    - _GlobalThemeColor0: {r: 0, g: 0, b: 1, a: 1}
+"""
+	write.call("suit.mat", "suit", material % 0)
+	write.call("ears.mat", "ears", (material % 1).replace("    - _EnableEmission2: 1\n", ""))
+	write.call("toggled.mat", "toggled", (material % 0).replace("    - _EmissionStrength: 2\n", "    - _EmissionStrength: 0\n").replace("    - _EnableEmission2: 1\n", ""))
+	write.call("strong.mat", "strong", (material % 0).replace("    - _EmissionStrength: 2\n", "    - _EmissionStrength: 1\n").replace("    - _EmissionStrength1: 0.5\n", "    - _EmissionStrength1: 5\n").replace("    - _EmissionMask1Channel: 1\n", "").replace("    - _EnableEmission2: 1\n", ""))
+	write.call("driven.mat", "driven", (material % 0).replace("    - _EnableEmission2: 1\n", ""))
+	write.call("loud.mat", "loud", (material % 0).replace("    - _EnableEmission2: 1\n", "    - _EnableAudioLink: 1\n    - _AudioLinkBandOverridesEnabled: 1\n    - _EmissionAL0Enabled: 1\n    - _EmissionAL0StrengthBand: 2\n    - _EmissionAL0MultipliersBand: 2\n    - _EmissionAL1Enabled: 1\n").replace("    m_Colors:\n", "    m_Colors:\n    - _AudioLinkBandOverrideSliders: {r: 0, g: 0, b: 0.5, a: 0}\n    - _EmissionAL0StrengthMod: {r: 0, g: 2, b: 0, a: 0}\n    - _EmissionAL0Multipliers: {r: 1, g: 3, b: 0, a: 0}\n    - _EmissionAL1Multipliers: {r: 0, g: 0, b: 0, a: 0}\n"))
+	var half := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	half.set_pixel(0, 0, Color(1, 0, 0, 1))
+	half.set_pixel(1, 0, Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "suit"}, Color.WHITE)
+	materials.use({"guid": "ears"}, Color.WHITE)
+	materials.use({"guid": "loud"}, Color.WHITE)
+	materials.use({"guid": "toggled"}, Color.WHITE)
+	materials.use({"guid": "strong"}, Color.WHITE)
+	materials.use({"guid": "driven"}, Color.WHITE)
+	materials.pack(["suit", "ears", "loud", "toggled", "strong", "driven"])
+	materials.drive_strength("driven")
+	var lit_alone := materials.emission("toggled")
+	materials.drive_strength("toggled")
+	materials.glow_regions["toggled"] = true
+	var toggled := materials.emission("toggled")
+	check(lit_alone.get("strength") == 0.5 and toggled.get("strength") == 0.0 and materials.draws("toggled", {"field": "emission", "slot": 0}), "a first emission dark at rest that a clip lights is drawn alone, the clip moving it; unlit, the other glows: %s %s" % [lit_alone, toggled])
+	var strong := materials.emission("strong")
+	check(strong.get("strength") == 6.0, "emissions adding past 1 over the drawn one carry their sum in the strength: %s" % [strong])
+	var suit := materials.emission("suit")
+	check(suit.get("theme") == 0 and suit.get("strength") == 2.0, "the first emission is drawn, at its strength: %s" % [suit])
+	var ears := materials.emission("ears")
+	check(ears.get("theme") == 0 and ears.get("strength") == 0.5, "where the first moves over time, the other in its theme is drawn: %s" % [ears])
+	var loud := materials.emission("loud")
+	check(loud.get("strength") == 6.0, "AudioLink's band overrides add to the strength, then multiply it, at their levels: %s" % [loud])
+	var looks := materials.looks()
+	materials.drive_strength("loud")
+	check(materials.emission("loud").get("strength") == 2.0, "a first emission's strength a clip sets rests at its saved value, as the clip's keys bind: %s" % [materials.emission("loud")])
+	check(materials.draws("suit", {"field": "emission", "slot": 0}) and not materials.draws("ears", {"field": "emission", "slot": 0}), "an animation of the first emission's strength moves only a drawn first emission")
+	var glow := Image.new()
+	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
+	if not glow.is_empty():
+		var at := func(key: String, right: bool) -> float:
+			var cell: Rect2i = materials.materials[key].cell
+			return glow.get_pixel(cell.end.x - 1 if right else cell.position.x, cell.position.y + cell.size.y / 2).srgb_to_linear().r
+		check(is_equal_approx(snappedf(at.call("suit", false), 0.01), 1.0) and absf(at.call("suit", true) - 0.25) < 0.01, "the suit's map is its first mask's red plus its second's green at a quarter, the red emission left out: %s %s" % [at.call("suit", false), at.call("suit", true)])
+		check(is_equal_approx(snappedf(at.call("loud", false), 0.01), 1.0) and at.call("loud", true) < 0.01, "an emission AudioLink's overrides multiply to nothing folds nothing: %s %s" % [at.call("loud", false), at.call("loud", true)])
+		check(at.call("driven", false) > 0.99 and at.call("driven", true) < 0.01, "a first emission whose strength a clip moves folds nothing, which the clip would scale with it: %s %s" % [at.call("driven", false), at.call("driven", true)])
+		check(at.call("toggled", false) > 0.99 and at.call("toggled", true) < 0.01, "a first emission a clip lights folds nothing: %s %s" % [at.call("toggled", false), at.call("toggled", true)])
+		check(absf(at.call("strong", false) - 1.0) < 0.01, "the map peaks at 1 where the emissions add up most: %s" % [at.call("strong", false)])
+		check(at.call("ears", false) < 0.01 and absf(at.call("ears", true) - 1.0) < 0.01, "the ears' map is the drawn emission's mask alone, the moving one left out: %s %s" % [at.call("ears", false), at.call("ears", true)])
+
+
+## Poiyomi's Multilayer Math takes the direct light on its shadow side too where every shadow layer it draws is white,
+## so it lights flat, capped as Flat lighting is; a tinted shadow layer lights by angle.
+func _untinted_multilayer_math_lights_flat() -> void:
+	var dir := ProjectSettings.globalize_path("user://multilayer")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _LightingMode ("Lighting", Float) = 5 } }')
+	var material := """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_Floats:
+    - _LightingMode: 1
+    - _LightingCapEnabled: 1
+    - _LightingCap: 0.9
+    m_Colors:
+    - _ShadowColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Shadow2ndColor: %s
+"""
+	write.call("white.mat", "white", material % "{r: 1, g: 1, b: 1, a: 1}")
+	write.call("unused.mat", "unused", material % "{r: 0, g: 0, b: 0, a: 0}")
+	write.call("tinted.mat", "tinted", material % "{r: 0.5, g: 0.5, b: 0.6, a: 1}")
+	write.call("default.mat", "default", (material % "{r: 1, g: 1, b: 1, a: 1}").replace("    - _ShadowColor: {r: 1, g: 1, b: 1, a: 1}\n", ""))
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in ["white", "unused", "tinted", "default"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["white", "unused", "tinted", "default"])
+	var lit := ["white", "unused", "tinted", "default"].map(func(key: String) -> Dictionary: return materials.lighting(key))
+	check(lit == [{"model": "flat", "cap": 0.9}, {"model": "flat", "cap": 0.9}, {"model": "lit"}, {"model": "lit"}], "white shadow layers light flat, a tinted layer or Poiyomi's default tint by angle: %s" % [lit])
+
 
 ## A clip moving a global theme colour's hue, saturation, value or hue speed, under a locked material's suffix, binds as
 ## the look field of the emission or matcap drawn in that theme, at its saved offset; one moving a theme nothing is drawn

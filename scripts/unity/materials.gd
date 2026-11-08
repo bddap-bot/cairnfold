@@ -60,6 +60,13 @@ var hue_masks := {}
 var color_regions := {}
 ## The materials whose emission an animation drives: one dark at rest glows only if it is among them.
 var glow_regions := {}
+## The materials whose first emission's strength a clip animates, found before any binds: their first emission draws
+## alone, as the strength the clip sets is its own.
+var strength_driven := {}
+## Each material's drawable Poiyomi emissions (`_poiyomi_glows`), and each folded emission map (`_glow_and_peak`) as [the
+## map, the strength its peak stands for], worked out once; `looks` takes the map.
+var _glow_lists := {}
+var _folded_maps := {}
 ## Each decal a material draws (`decal`), at the size Unity imports its texture, once however many slots draw it.
 var decal_images: Array[Image] = []
 var _decal_of := {}
@@ -707,11 +714,11 @@ static func mask_blend(mask: float, value: float, type: int) -> float:
 
 
 ## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
-## it faces (Poiyomi's Flat lighting, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped),
-## "lit" for a surface shaded by the angle of its light.
+## it faces (Poiyomi's Flat lighting, or its Multilayer Math where that tints no shadow (`_untinted`), capped at its Max
+## Brightness where that is on; VRChat's Toon Lit, uncapped), "lit" for a surface shaded by the angle of its light.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
-	if poiyomi(m) and _float(m, "_LightingMode") == 5.0:
+	if poiyomi(m) and (_float(m, "_LightingMode") == 5.0 or _float(m, "_LightingMode") == 1.0 and _untinted(m)):
 		var flat := {"model": "flat"}
 		if _float(m, "_LightingCapEnabled") != 0.0:
 			flat.cap = _saved(m, "_LightingCap", 1.0)
@@ -721,32 +728,117 @@ func lighting(key: String) -> Dictionary:
 	return {"model": "lit"}
 
 
+## Whether Poiyomi's Multilayer Math lights the material `m` as its Flat lighting does: its shadow side takes the direct
+## light times a tint, and the tint is white where no shadow strength applies it, or where it ignores the ambient
+## colour, blends in none of the base colour and each shadow layer drawn is white without a texture.
+static func _untinted(m: Dictionary) -> bool:
+	if _saved(m, "_ShadowStrength", 1.0) == 0.0:
+		return true
+	if _saved(m, "_LightingIgnoreAmbientColor", 1.0) != 1.0 or _saved(m, "_ShadowMainStrength", 0.0) != 0.0:
+		return false
+	var colours: Dictionary = m.get("colours", {})
+	for layer: String in ["", "2nd", "3rd"]:
+		var tint := _colour(colours.get("_Shadow%sColor" % layer), Color(0.7, 0.75, 0.85, 1.0) if layer == "" else Color(0, 0, 0, 0))
+		if tint.a > 0.0 and (tint.r != 1.0 or tint.g != 1.0 or tint.b != 1.0 or _texture_guid(m, "_Shadow%sColorTex" % layer) != ""):
+			return false
+	return true
+
+
 ## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
 ## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission atlas
 ## (`_glow`), and "theme", the slot of the global theme colour (`_theme`) it takes its colour from where it takes one, or
-## {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's first
-## emission with its colour or theme colour (but the AudioLink themes, which keep its colour where no world sends
-## AudioLink), map and mask read through UV0, not tinted by the base colour (which decals and hue shifts change after
-## the atlas), and no modulation over time but AudioLink's, which leaves it at rest there.
+## {} for one that glows by no emission drawn here: VRChat Toon Standard's, or Poiyomi's (`_poiyomi_glows`). Poiyomi adds
+## its four emissions up, so those that glow in the drawn one's colour and override it as far fold into its map, each
+## weighted by its strength over the drawn one's; the others are left out.
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if not m.has("cell"):
 		return {}
-	var colours: Dictionary = m.get("colours", {})
-	var colour := Color.BLACK
-	var theme := {}
-	if toon_standard(m) and _float(m, "_EmissionUV") == 0.0:
-		colour = _colour(colours.get("_EmissionColor"), Color.BLACK).srgb_to_linear()
-	elif poiyomi(m) and _saved(m, "_EnableEmission", 0.0) != 0.0 and ["_EmissionMapUV", "_EmissionMaskUV", "_EmissionBaseColorAsMap", "_EmissionCenterOutEnabled", "_ScrollingEmission", "_EmissionBlinkingEnabled", "_EmissionHueShiftEnabled", "_EnableGITDEmission"].all(func(name: String) -> bool: return _float(m, name) == 0.0) and global_mask(m, int(_float(m, "_EmissionMask0GlobalMask"))) is Dictionary:
-		var index := int(_float(m, "_EmissionColorThemeIndex")) - 1
-		theme = _theme(m, index) if index >= 0 and index <= 3 else {}
-		colour = ExpressionPlayer.theme_colour(theme, 0.0) if not theme.is_empty() else _colour(colours.get("_EmissionColor"), Color.WHITE).srgb_to_linear()
-	if colour.r + colour.g + colour.b == 0.0 and theme.is_empty():
+	if toon_standard(m):
+		if _float(m, "_EmissionUV") != 0.0:
+			return {}
+		var colour := _colour((m.get("colours", {}) as Dictionary).get("_EmissionColor"), Color.BLACK).srgb_to_linear()
+		if colour.r + colour.g + colour.b == 0.0:
+			return {}
+		return {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0), "hue": _saved(m, "_EmissionHueShift", 0.0), "shiftsHue": "USE_HUE_SHIFT" in m.get("keywords", []), "replace": 0.0}
+	var drawn := _drawn(key)
+	if drawn.is_empty():
 		return {}
-	var out := {"color": [colour.r, colour.g, colour.b], "strength": _saved(m, "_EmissionStrength", 1.0 if toon_standard(m) else 0.0), "hue": _saved(m, "_EmissionHueShift", 0.0) if toon_standard(m) else 0.0, "shiftsHue": toon_standard(m) and "USE_HUE_SHIFT" in m.get("keywords", []), "replace": 0.0 if toon_standard(m) else _saved(m, "_EmissionReplace0", 0.0)}
-	if not theme.is_empty():
-		out.theme = theme.slot
+	var colour: Color = ExpressionPlayer.theme_colour(drawn.theme, 0.0) if not drawn.theme.is_empty() else drawn.colour
+	if colour.r + colour.g + colour.b == 0.0 and drawn.theme.is_empty():
+		return {}
+	var out := {"color": [colour.r, colour.g, colour.b], "strength": drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": drawn.replace}
+	if not drawn.theme.is_empty():
+		out.theme = drawn.theme.slot
 	return out
+
+
+## The Poiyomi emission of the material at `key` that `emission` draws (`_poiyomi_glows`), {} for none: the first,
+## where it glows at rest, a clip moves its strength or no other glows; otherwise the strongest.
+func _drawn(key: String) -> Dictionary:
+	var glows := _poiyomi_glows(key)
+	var lit := glows.filter(func(g: Dictionary) -> bool: return g.strength > 0.0)
+	if not glows.is_empty() and glows[0].slot == 0 and (glows[0].strength > 0.0 or strength_driven.has(key) or lit.is_empty()):
+		return glows[0]
+	return lit.reduce(func(strongest: Dictionary, g: Dictionary) -> Dictionary: return g if g.strength > strongest.strength else strongest, lit[0]) if not lit.is_empty() else {}
+
+
+## The emissions of the Poiyomi material `m` the map can draw, in slot order, each {"slot", "strength", "replace",
+## "theme" (`_theme`, {} for none), "colour" (linear)}: those on, with their colour or theme colour (but the AudioLink
+## themes, which keep their colour where no world sends AudioLink), map and mask read through UV0, not tinted by the base
+## colour (which decals and hue shifts change after the atlas), and no modulation over time but AudioLink's, at rest
+## where no world sends AudioLink (`_audio_link_strength`), but on a first emission whose strength a clip sets, which
+## the runtime takes as the clip's keys give it.
+func _poiyomi_glows(key: String) -> Array[Dictionary]:
+	if _glow_lists.has(key):
+		return _glow_lists[key]
+	var m: Dictionary = materials[key]
+	var out: Array[Dictionary] = []
+	_glow_lists[key] = out
+	if not poiyomi(m):
+		return out
+	for slot in 4:
+		var n := "" if slot == 0 else str(slot)
+		if _saved(m, "_EnableEmission" + n, 0.0) == 0.0:
+			continue
+		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionBaseColorAsMap" + n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionBlinkingEnabled" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
+		if not still.all(func(name: String) -> bool: return _float(m, name) == 0.0) or not global_mask(m, int(_float(m, "_EmissionMask%dGlobalMask" % slot))) is Dictionary:
+			continue
+		var index := int(_float(m, "_EmissionColor%sThemeIndex" % n)) - 1
+		var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
+		var colour := _colour((m.get("colours", {}) as Dictionary).get("_EmissionColor" + n), Color.WHITE).srgb_to_linear()
+		var strength := _saved(m, "_EmissionStrength" + n, 0.0)
+		out.append({"slot": slot, "strength": strength if slot == 0 and strength_driven.has(key) else _audio_link_strength(m, slot, strength), "replace": _saved(m, "_EmissionReplace%d" % slot, 0.0), "theme": theme, "colour": colour})
+	return out
+
+
+## Poiyomi emission `slot`'s `strength` as AudioLink leaves it where no world sends it: Poiyomi then takes AudioLink as
+## present only where its Band Overrides are on, at their sliders' levels (the volume band at 0), and adds to the
+## strength, then multiplies it, at its bands' levels; its center-out add reads the world's AudioLink history, which
+## holds nothing, so adds its minimum.
+static func _audio_link_strength(m: Dictionary, slot: int, strength: float) -> float:
+	if _float(m, "_EnableAudioLink") == 0.0 or _saved(m, "_AudioLinkAnimToggle", 1.0) == 0.0 or _float(m, "_AudioLinkBandOverridesEnabled") == 0.0 or _float(m, "_EmissionAL%dEnabled" % slot) == 0.0:
+		return strength
+	var colours: Dictionary = m.get("colours", {})
+	var sliders := _colour(colours.get("_AudioLinkBandOverrideSliders"), Color(0, 0, 0, 0))
+	var level := func(band: String) -> float: return [sliders.r, sliders.g, sliders.b, sliders.a, 0.0][clampi(int(_float(m, band)), 0, 4)]
+	var range_of := func(name: String, otherwise: Color) -> Color: return _colour(colours.get(name), otherwise)
+	var add: Color = range_of.call("_EmissionAL%dStrengthMod" % slot, Color(0, 0, 0, 0))
+	var times: Color = range_of.call("_EmissionAL%dMultipliers" % slot, Color(1, 1, 0, 0))
+	strength += lerpf(add.r, add.g, level.call("_EmissionAL%dStrengthBand" % slot))
+	strength *= lerpf(times.r, times.g, level.call("_EmissionAL%dMultipliersBand" % slot))
+	return strength + range_of.call("_AudioLinkEmission%dCenterOut" % slot, Color(0, 0, 0, 0)).r
+
+
+## The Poiyomi emissions of the material at `key` that fold into its drawn one (`_drawn`), in slot order, each as [its
+## slot, its strength over the drawn one's]: those glowing in the drawn one's theme, or its colour where it takes none,
+## and overriding the base colour as far. A drawn one dark at rest, or whose strength a clip moves, folds alone.
+func _folded(key: String) -> Array:
+	var drawn := _drawn(key)
+	if drawn.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
+		return [] if drawn.is_empty() else [[drawn.slot, 1.0]]
+	var alike := func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.strength > 0.0 and (g.theme.get("slot") == drawn.theme.slot if not drawn.theme.is_empty() else g.theme.is_empty() and g.colour.is_equal_approx(drawn.colour))
+	return _poiyomi_glows(key).filter(alike).map(func(g: Dictionary) -> Array: return [g.slot, g.strength / drawn.strength])
 
 
 ## Poiyomi global theme colour `index` (0 to 3) of the material `m` at rest as {"slot": the index, "hsv": its HDR colour's
@@ -760,13 +852,59 @@ static func _theme(m: Dictionary, index: int) -> Dictionary:
 	return {"slot": index, "hsv": [colour.h, colour.s, colour.v], "exposure": exposure, "hue": offset.call("Hue"), "saturation": offset.call("Saturation"), "value": offset.call("Value"), "speed": offset.call("HueSpeed")}
 
 
-## The emission map over the material's padded cell, as `emission` reads it: Poiyomi's map times its mask (`_mask`).
-func _glow(m: Dictionary) -> Image:
-	var map := _over_cell(m, _slot_image(m, "_EmissionMap"), "_EmissionMap")
-	var p := "_EmissionMask"
-	if not poiyomi(m) or not _masked(m, p, p + "Invert", p + "0GlobalMask"):
+## The emission map over the material's padded cell, as `emission` reads it, and the strength its peak stands for over
+## the drawn emission's: each folded emission's map times its mask (`_mask`), weighted by its strength and added up in
+## linear light, scaled down by its peak where that passes 1; or Toon Standard's map.
+func _glow_and_peak(key: String) -> Array:
+	if _folded_maps.has(key):
+		return _folded_maps[key]
+	var m: Dictionary = materials[key]
+	var folded := _folded(key) if poiyomi(m) else []
+	if folded.size() <= 1:
+		return [_glow_of(m, "" if folded.is_empty() or folded[0][0] == 0 else str(folded[0][0])), 1.0]
+	var sum := PackedFloat32Array()
+	var map: Image
+	var peak := 1.0
+	for fold: Array in folded:
+		var own := _glow_of(m, "" if fold[0] == 0 else str(fold[0]))
+		var data := own.get_data()
+		if map == null:
+			map = own
+			sum.resize(data.size())
+		for i in data.size():
+			if i % 4 != 3:
+				sum[i] += _LINEAR[data[i]] * fold[1]
+				peak = maxf(peak, sum[i])
+	var out := map.get_data()
+	for i in out.size():
+		if i % 4 != 3:
+			out[i] = _ENCODED[int(clampf(sum[i] / peak, 0.0, 1.0) * 4095.0)]
+	map.set_data(map.get_width(), map.get_height(), false, Image.FORMAT_RGBA8, out)
+	_folded_maps[key] = [map, peak]
+	return _folded_maps[key]
+
+
+## Marks the material at `key` as one whose first emission's strength a clip animates (`strength_driven`).
+func drive_strength(key: String) -> void:
+	strength_driven[key] = true
+	_glow_lists.erase(key)
+	_folded_maps.erase(key)
+
+
+## The strength the peak of the folded emission map of the material at `key` stands for, over the drawn emission's.
+func _peak(key: String) -> float:
+	return _glow_and_peak(key)[1] if _folded(key).size() > 1 else 1.0
+
+
+## The emission map of the material `m`'s emission suffixed `n` over its padded cell: Poiyomi's map times its mask
+## (`_mask`), or Toon Standard's map.
+func _glow_of(m: Dictionary, n: String) -> Image:
+	var map := _over_cell(m, _slot_image(m, "_EmissionMap" + n), "_EmissionMap" + n)
+	var p := "_EmissionMask" + n
+	var global := "_EmissionMask%dGlobalMask" % (0 if n == "" else n.to_int())
+	if not poiyomi(m) or not _masked(m, p, "_EmissionMaskInvert" + n, global):
 		return map
-	var cover := _mask(m, p, p + "Channel", p + "Invert", p + "0GlobalMask", p + "0GlobalMaskBlendType")
+	var cover := _mask(m, p, "_EmissionMask%sChannel" % n, "_EmissionMaskInvert" + n, global, global + "BlendType")
 	var data := map.get_data()
 	for i in cover.size():
 		for c in 3:
@@ -817,7 +955,7 @@ func draws(key: String, look: Dictionary) -> bool:
 		"decalHue":
 			return decal(key, look.slot).get("hue") != null
 		"emission":
-			return not emission(key).is_empty()
+			return not emission(key).is_empty() and (not poiyomi(materials[key]) or _drawn(key).slot == 0)
 		"emissionHue":
 			return not emission(key).is_empty() and emission(key).shiftsHue
 		"themeHue", "themeSaturation", "themeValue", "themeSpeed":
@@ -930,7 +1068,9 @@ func looks() -> Dictionary:
 			if glow == null:
 				glow = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 				glow.fill(Color.BLACK)
-			glow.blit_rect(_glow(m), Rect2i(Vector2i.ZERO, padded.size), padded.position)
+			glow.blit_rect(_glow_and_peak(key)[0], Rect2i(Vector2i.ZERO, padded.size), padded.position)
+			if _folded_maps.has(key):
+				_folded_maps[key][0] = null
 		var cell := Rect2(m.cell)
 		var entry := {"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
 		var themed: Array = drawn_matcaps.filter(func(c: Variant) -> bool: return c is Dictionary and c.theme != null).map(func(c: Dictionary) -> int: return c.theme)
