@@ -110,11 +110,13 @@ static func _theme(v: Variant) -> bool:
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
 ## the turn names the colour space and mode it turns in, which the shader cannot guess.
-## A file converted before decals named their mode carries "multiply" in its place, and would draw those decals replacing.
+## A file converted before decals named their mode carries "multiply" in its place, read as multiply or replace until
+## the catalog is republished.
 static func _blend(region: Dictionary) -> bool:
 	if not str(region.get("field", "")).begins_with("decal"):
 		return true
-	var mode: Variant = region.get("colorBlend")
+	var legacy: Variant = region.get("multiply")
+	var mode: Variant = region.get("colorBlend", (2 if legacy else 0) if legacy is bool else null)
 	return _whole(mode) and int(mode) in DECAL_BLENDS
 
 
