@@ -292,7 +292,7 @@ func _process(delta: float) -> void:
 		var was_on := map.on
 		map.step(frame_ms, budget_ms * Governor.LINE, delta)
 		if map.on != was_on:
-			print("quality: foveation map %s, the GPU at %.1f ms" % ["on" if map.on else "off", frame_ms])
+			print("quality: foveation map %s, the GPU at %.1f ms, %s" % ["on" if map.on else "off", frame_ms, map.why])
 			_applied = -1
 	if n != _applied:
 		_apply(at, n)
@@ -352,6 +352,7 @@ class Map:
 	const DEAR_FRAMES := 2
 
 	var on := true
+	var why := ""
 	var _recent := PackedFloat32Array()
 	var _settle := 0
 	var _trial := false
@@ -379,6 +380,7 @@ class Map:
 		var dear := _dear >= DEAR_FRAMES and _dear_s >= DEAR_SECONDS
 		if _trial and on and dear and frame_ms > maxf(_before, line_ms) * DEAR:
 			_settle_trial(frame_ms)
+			why = "dear with it on, %.1f ms against %.1f" % [frame_ms, _before]
 			return
 		if _settle > 0:
 			_settle -= 1
@@ -392,6 +394,7 @@ class Map:
 		if on and dear and (not _dear_failed or _since > RETRY_SECONDS):
 			_start(false, frame_ms)
 			_dear_trial = true
+			why = "tried off, dear"
 			return
 		if _recent.size() > TRIAL_FRAMES:
 			_recent.remove_at(0)
@@ -400,8 +403,10 @@ class Map:
 		_over = _over + dt if now > line_ms else 0.0
 		if on and _over >= TRIAL_SECONDS and _since > RETRY_SECONDS:
 			_start(false)
+			why = "tried off, over the line at %.1f ms" % _before
 		elif not on and (_calm >= _wait or _dear_off and _since > RETRY_SECONDS):
 			_start(true)
+			why = "tried on, %s" % ("calm" if _calm >= _wait else "rechecking a dear trial")
 
 	func _start(to: bool, before := -1.0) -> void:
 		_before = before if before >= 0.0 else Quality.median(_recent)
@@ -423,6 +428,7 @@ class Map:
 		if not on and read >= _before * SAVES:
 			_dear_failed = _dear_trial
 			on = true
+			why = "off saved nothing, %.1f ms against %.1f" % [read, _before]
 			_since = 0.0
 		elif not on:
 			# One dear frame judged this, which a spike the map had no part in can pass: it is tried on again later.
@@ -430,6 +436,7 @@ class Map:
 			_since = 0.0
 		elif on and read * SAVES > _before:
 			on = false
+			why = "on cost the frame, %.1f ms against %.1f" % [read, _before]
 			_wait = minf(_wait * 2.0, CALM_SECONDS_MAX)
 		_recent.clear()
 
