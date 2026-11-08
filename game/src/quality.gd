@@ -343,6 +343,13 @@ class Map:
 	const CALM_SECONDS_MAX := 64.0
 	## Seconds after a trial of the map off that saved nothing before the next.
 	const RETRY_SECONDS := 8.0
+	## The GPU this many times the line for this long, over more than one frame, since a single stalled frame is no view,
+	## tries the map off without waiting for the median, through the retry an ordinary trial left, and ends a trial of it
+	## on: at a few frames a second the median takes seconds to turn, and a trial taken just before the view jumped is
+	## judged by the old view's frames.
+	const DEAR := 3.0
+	const DEAR_SECONDS := 0.25
+	const DEAR_FRAMES := 2
 
 	var on := true
 	var _recent := PackedFloat32Array()
@@ -352,12 +359,27 @@ class Map:
 	var _before := 0.0
 	var _calm := 0.0
 	var _over := 0.0
+	var _dear := 0
+	var _dear_s := 0.0
+	var _dear_trial := false
+	var _dear_failed := false
+	var _dear_off := false
 	var _wait := CALM_SECONDS
 	var _since := INF
 
 	## `line_ms` is the governor's line.
 	func step(frame_ms: float, line_ms: float, dt: float) -> void:
 		_since += dt
+		if frame_ms > line_ms * DEAR:
+			_dear += 1
+			_dear_s += dt
+		else:
+			_dear = 0
+			_dear_s = 0.0
+		var dear := _dear >= DEAR_FRAMES and _dear_s >= DEAR_SECONDS
+		if _trial and on and dear and frame_ms > maxf(_before, line_ms) * DEAR:
+			_settle_trial(frame_ms)
+			return
 		if _settle > 0:
 			_settle -= 1
 			return
@@ -367,6 +389,10 @@ class Map:
 			if _recent.size() >= TRIAL_FRAMES and _trial_s >= TRIAL_SECONDS:
 				_settle_trial(Quality.median(_recent))
 			return
+		if on and dear and (not _dear_failed or _since > RETRY_SECONDS):
+			_start(false, frame_ms)
+			_dear_trial = true
+			return
 		if _recent.size() > TRIAL_FRAMES:
 			_recent.remove_at(0)
 		var now := Quality.median(_recent)
@@ -374,11 +400,14 @@ class Map:
 		_over = _over + dt if now > line_ms else 0.0
 		if on and _over >= TRIAL_SECONDS and _since > RETRY_SECONDS:
 			_start(false)
-		elif not on and _calm >= _wait:
+		elif not on and (_calm >= _wait or _dear_off and _since > RETRY_SECONDS):
 			_start(true)
 
-	func _start(to: bool) -> void:
-		_before = Quality.median(_recent)
+	func _start(to: bool, before := -1.0) -> void:
+		_before = before if before >= 0.0 else Quality.median(_recent)
+		_dear = 0
+		_dear_s = 0.0
+		_dear_trial = false
 		on = to
 		_recent.clear()
 		_trial = true
@@ -389,8 +418,15 @@ class Map:
 		_trial = false
 		_calm = 0.0
 		_over = 0.0
+		_dear_failed = false
+		_dear_off = false
 		if not on and read >= _before * SAVES:
+			_dear_failed = _dear_trial
 			on = true
+			_since = 0.0
+		elif not on:
+			# One dear frame judged this, which a spike the map had no part in can pass: it is tried on again later.
+			_dear_off = _dear_trial
 			_since = 0.0
 		elif on and read * SAVES > _before:
 			on = false

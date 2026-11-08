@@ -1512,15 +1512,21 @@ distance, a quarter of the pixels, read the same (67 against 63 ms), so it is no
 their crowns hide the walls before the binning pass sorts them into tiles. Near chunks, whose pieces change as walls are
 built, stay instanced, and a far chunk draws from its instances while its bake runs on a worker after any change.
 
-So whether the map is drawn is measured, not assumed (`Quality.Map`). While the frame on a foveated rung reads over
-the governor's line for half a second, the map is taken off for a trial. The trial reads the median of at least 12
-frames once four have let the timer catch up. The map stays off only if the frame reads under 0.8 of what it read with
-the map, and a trial that saves nothing waits 8 s before the next. Once the frame has been under the line for 2 s, the
-map goes back on for a trial. It stays on unless that cost a fifth of the frame or more, and after a failed trial the
-calm it waits for doubles, up to 64 s. Where the eyes are tracked there is no fixed map, so nothing changes on the
-Steam Frame. Played governed, the timber village from the air read 92 ms on main, the map always on, and 22 ms with
-`Quality.Map`. The same village with the tall trees in view held 72 Hz with the map on, 8.5 ms. A trial of the map off
-over that view saved nothing, so the map went back on.
+So whether the map is drawn is measured, not assumed (`Quality.Map`). While the frame on a foveated rung reads over the
+governor's line for half a second, the map is taken off for a trial. The trial reads the median of at least 12 frames
+once four have let the timer catch up. The map stays off only if the frame reads under 0.8 of what it read with the map,
+and a trial that saves nothing waits 8 s before the next. The GPU over three times the line for a quarter of a second,
+and at least two frames, tries the map off at once, judged against that frame, without waiting out a retry left by an
+ordinary trial, and ends a trial of the map on as a failure: at a few frames a second the median takes seconds to turn,
+and a trial taken just before the view jumped is judged by the old view's frames. A freshly built timber village from
+the air held the Quest 2 at 250 to 267 ms for five seconds after an ordinary trial taken just before the view jumped put
+the map back on. A trial of the map off begun this way that takes the map off is tried on again after the 8 s retry,
+since a spike the map had no part in can pass it; one that fails waits out the retry like any other. Once the frame has
+been under the line for 2 s, the map goes back on for a trial. It stays on unless that cost a fifth of the frame or
+more, and after a failed trial the calm it waits for doubles, up to 64 s. Where the eyes are tracked there is no fixed
+map, so nothing changes on the Steam Frame. Played governed, the timber village from the air read 92 ms on main, the map
+always on, and 22 ms with `Quality.Map`. The same village with the tall trees in view held 72 Hz with the map on, 8.5
+ms. A trial of the map off over that view saved nothing, so the map went back on.
 
 None of the meadow's plants cut out by alpha (`grass`, `flower`, `leaf` and `plant` shaders write no `ALPHA` and do
 not discard), so alpha-to-coverage has nothing to act on. FXAA and SMAA blur textures and cost more standing; temporal
