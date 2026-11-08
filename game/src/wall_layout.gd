@@ -2460,10 +2460,7 @@ func stilted() -> bool:
 ## Where a loop's stilts stand, by arc length in order round it: on its corners and evenly between them, at most
 ## STILT_SPACING apart, or evenly round a loop without corners.
 func stations() -> Array[float]:
-	var total := 0.0
-	var n := points.size()
-	for i in n:
-		total += Vector2(points[(i + 1) % n].x - points[i].x, points[(i + 1) % n].z - points[i].z).length()
+	var total := Commands.length(points + [points[0]])
 	var edges := corners()
 	if edges.is_empty():
 		edges.append(0.0)

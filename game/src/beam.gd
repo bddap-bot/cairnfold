@@ -5,13 +5,7 @@ extends MeshInstance3D
 var thick := 1.0
 
 func _init(color: Color) -> void:
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.004
-	cyl.bottom_radius = 0.004
-	cyl.height = 1.0
-	cyl.radial_segments = 5
-	cyl.rings = 1
-	mesh = cyl
+	mesh = ToolModels.cylinder(0.004, 0.004, 1.0, 5)
 	material_override = Meshes.glow(color)
 	top_level = true
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

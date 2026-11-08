@@ -882,10 +882,7 @@ static func _scaled(from: Dictionary, to: Dictionary, p: Vector3) -> Vector3:
 ## The point `s` along a closed wall line, measured as `WallLayout` lays a loop.
 static func _loop_point(points: Array[Vector3], s: float) -> Vector3:
 	var n := points.size()
-	var total := 0.0
-	for i in n:
-		total += _flat(points[(i + 1) % n] - points[i]).length()
-	s = fposmod(s, total)
+	s = fposmod(s, Commands.length(points + [points[0]]))
 	for i in n:
 		var a := points[i]
 		var b := points[(i + 1) % n]

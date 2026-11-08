@@ -238,18 +238,12 @@ func _unit(group: int, p: Flora.Plant) -> Dictionary:
 func _account(key: String, now: Dictionary, cells := {}) -> void:
 	Budget.add(units, _units_of.get(key, {}), -1.0)
 	Budget.add(units, now)
-	if now.is_empty():
-		_units_of.erase(key)
-	else:
-		_units_of[key] = now
+	_set_or_erase(_units_of, key, now)
 	if cells.is_empty() and not _cells_of.has(key):
 		return
 	_near.add(_cells_of.get(key, {}), -1.0)
 	_near.add(cells)
-	if cells.is_empty():
-		_cells_of.erase(key)
-	else:
-		_cells_of[key] = cells
+	_set_or_erase(_cells_of, key, cells)
 	Budget.add(units, _near_units, -1.0)
 	_near_units = _near.units()
 	Budget.add(units, _near_units)
@@ -257,12 +251,15 @@ func _account(key: String, now: Dictionary, cells := {}) -> void:
 
 static func _add_cells(into: Dictionary, cells: Dictionary, times := 1.0) -> Dictionary:
 	for c in cells:
-		var now: Dictionary = Budget.add(into.get(c, {}), cells[c], times)
-		if now.is_empty():
-			into.erase(c)
-		else:
-			into[c] = now
+		_set_or_erase(into, c, Budget.add(into.get(c, {}), cells[c], times))
 	return into
+
+
+static func _set_or_erase(d: Dictionary, key: Variant, value: Dictionary) -> void:
+	if value.is_empty():
+		d.erase(key)
+	else:
+		d[key] = value
 
 
 func _exit_tree() -> void:
@@ -667,14 +664,9 @@ func _order(proposed: Dictionary, by: int) -> void:
 		touched.get_or_add(k, {})[by] = seq
 	var mine: Dictionary = stacks.get_or_add(by, {"undo": [], "redo": []})
 	var entry := {"seq": seq, "inverse": inverse, "keys": keys}
-	match kind:
-		"undo":
-			_push(mine.redo, entry)
-		"redo":
-			_push(mine.undo, entry)
-		_:
-			_push(mine.undo, entry)
-			mine.redo.clear()
+	_push(mine.redo if kind == "undo" else mine.undo, entry)
+	if kind not in ["undo", "redo"]:
+		mine.redo.clear()
 
 
 ## A new house, wall or path gathers its own clutter here, on the host, so every machine lays the same.
@@ -773,8 +765,7 @@ func _refusal(sent: Dictionary) -> String:
 func _timed(cmd: Dictionary) -> Dictionary:
 	var start := Time.get_ticks_usec()
 	var inverse := _apply(cmd)
-	var ms := (Time.get_ticks_usec() - start) / 1000.0
-	Metrics.note("world: applying %s" % cmd.op, ms)
+	Metrics.note("world: applying %s" % cmd.op, (Time.get_ticks_usec() - start) / 1000.0)
 	return inverse
 
 

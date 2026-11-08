@@ -84,11 +84,6 @@ static func _build_marker() -> Node3D:
 	ray.bottom_radius = 0.002
 	ray.height = 20.0
 	ray.radial_segments = 4
-	for part in [[ray, Transform3D(Basis(Vector3.RIGHT, PI / 2), Vector3(0, 0, -10.0))], [ToolModels.sphere(0.008, 0.016), Transform3D(Basis(), Vector3(0, 0, -1.5))]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.material_override = mat
-		mi.transform = part[1]
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+	ToolModels.piece(root, ray, Transform3D(Basis(Vector3.RIGHT, PI / 2), Vector3(0, 0, -10.0)), mat)
+	ToolModels.piece(root, ToolModels.sphere(0.008, 0.016), Transform3D(Basis(), Vector3(0, 0, -1.5)), mat)
 	return root

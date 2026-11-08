@@ -460,12 +460,10 @@ func _prune_previews() -> void:
 	var named := {worn_key: true}
 	for g in nearby.values():
 		named[g.get("wears", "")] = true
-	for key in previews.keys():
-		if not named.has(key):
-			previews.erase(key)
-	for key in _failed.keys():
-		if not named.has(key):
-			_failed.erase(key)
+	for d: Dictionary in [previews, _failed]:
+		for key in d.keys():
+			if not named.has(key):
+				d.erase(key)
 	for key in _fetches.keys():
 		if not named.has(key) and not _fetches[key].is_empty():
 			_fetches[key].peer.disconnect_from_host()

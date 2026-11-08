@@ -219,9 +219,10 @@ func _aim_ground(p: Painter) -> void:
 func place(at: Vector3, yaw: float, hand: Hand) -> void:
 	var why := Easels.crowded(at, world.state.easels)
 	if why.is_empty():
-		if world.fits({"op": "easel", "at": at, "yaw": yaw}):
+		var cmd := {"op": "easel", "at": at, "yaw": yaw}
+		if world.fits(cmd):
 			Cues.play(Cues.Act.EASEL_PLACE, at, hand)
-		world.submit({"op": "easel", "at": at, "yaw": yaw}, Callable(), hand)
+		world.submit(cmd, Callable(), hand)
 	else:
 		_decline(hand, why)
 

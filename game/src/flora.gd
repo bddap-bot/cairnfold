@@ -737,13 +737,7 @@ func _init(ground: Terrain, laid: Ground) -> void:
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
 	moss.indexed = true
 	ghost_moss = Pool.new(self, moss.mesh, PAINTED_MOSS, moss_mat, false)
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.16
-	trunk.bottom_radius = 0.3
-	trunk.height = 1.0
-	trunk.radial_segments = 8
-	trunk.rings = 1
-	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", 1.0), true, SOLID_POOL_CELL)
+	trunks = Pool.new(self, ToolModels.cylinder(0.16, 0.3, 1.0, 8), Meadow.TREES + PLACED_TREES, _plant_material("plant", 1.0), true, SOLID_POOL_CELL)
 	var leaf_mat := _plant_material("leaf", 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)

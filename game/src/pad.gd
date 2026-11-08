@@ -132,13 +132,7 @@ func _ring(alpha: float, fill: float, track: float) -> MeshInstance3D:
 
 
 static func _box(parent: Node3D, size: Vector3, at: Transform3D, colour: Color, seed: int) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = Meshes.rounded_box(0.42, 3, seed)
-	mi.transform = at * Transform3D(Basis.from_scale(size), Vector3.ZERO)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = colour
 	mat.roughness = 0.55
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mi)
-	return mi
+	return ToolModels.piece(parent, Meshes.rounded_box(0.42, 3, seed), at * Transform3D(Basis.from_scale(size), Vector3.ZERO), mat)

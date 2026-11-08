@@ -36,11 +36,7 @@ func _init() -> void:
 	mat.albedo_color = Color(0.0, 0.0, 0.0)
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(SHADOW, SHADOW)
-	_shadow = MeshInstance3D.new()
-	_shadow.mesh = plane
-	_shadow.material_override = mat
-	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_shadow)
+	_shadow = ToolModels.piece(self, plane, Transform3D.IDENTITY, mat)
 
 
 ## Shows it under `head`, the player's feet at `feet` over a floor at `floor_y`.
