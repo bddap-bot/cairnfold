@@ -73,12 +73,12 @@ const MOSS_US := 7.001
 ## The Quest 2's measured room, over the meadow without its own trees and bushes, its wildlife and the compositor's
 ## timewarp; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
-const CAPACITY_MS := 3.99
+const CAPACITY_MS := 4.27
 ## Painted stone ground's paired Quest 2 cost a square metre over the bare meadow, and at most what a view full of it
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 0.55, "flower": 1.682, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.488, "thatch_m2": 3.834, "fitting": 15.187, "easel": 890.0, "boulder": 37.518, "water": 2570.0, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 3.761, "plaster_m2_near": 3.693, "fence_m2_near": 2.626, "roof_m2_near": 0.0, "thatch_m2_near": 7.159}
+const COSTS := {"grass": 0.55, "flower": 1.682, "tree": 26.628, "bush": 4.712, "wall_m2": 5.924, "plaster_m2": 1.752, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 18.613, "thatch_m2": 7.11, "fitting": 15.187, "easel": 890.0, "boulder": 37.518, "water": 2570.0, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 3.761, "plaster_m2_near": 3.883, "fence_m2_near": 2.626, "roof_m2_near": 0.0, "thatch_m2_near": 9.47}
 
 
 static func fit_step() -> int:

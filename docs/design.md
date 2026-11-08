@@ -1467,7 +1467,8 @@ reading 9.65 to 10.08 ms. So `Budget.COSTS` takes the larger of the after runs' 
 9.47; every other unit fit under its charge and keeps it. `demo/fill.json` on that table with a looser room, 5.03 ms (the same base
 with the 0.39 ms of wildlife the ponds alone once added), held 72 Hz in every phase: at the fit step its dearest view was four houses at their
 full room from the air, 7.52 ms, and with the governor freed the dearest was the typical garden standing, 9.48;
-some phases there dropped late frames as the ladder moved (35 at most), none fell below the refresh rate; so the 4.27 room holds with more to spare.
+some phases there dropped late frames as the ladder moved (35 at most), none fell below the refresh rate; so the 4.27 room holds with more to spare. The stress scene's lit houses (`lights/` in `demo/stress.json`)
+are 4 by 3 m, where 5 by 4 left room at these prices for no strings once their lanterns hung.
 
 ### Anti-aliasing on the Quest 2
 
