@@ -147,8 +147,10 @@ static func heading(dir: Vector3) -> float:
 
 ## Upright on the ground at `at`, facing `yaw`, leaning with the slope under it.
 func standing(at: Vector3, yaw: float) -> Basis:
-	var t := wildlife.terrain
-	var up := Vector3(t.height_at(at.x - 0.1, at.z) - t.height_at(at.x + 0.1, at.z), 0.2, t.height_at(at.x, at.z - 0.1) - t.height_at(at.x, at.z + 0.1)).normalized()
-	var back := Basis(Vector3.UP, yaw).z
+	return upright(wildlife.terrain.up_at(at, 0.1), Basis(Vector3.UP, yaw).z)
+
+
+## The basis whose y is `up`, its z as near `back` as that allows.
+static func upright(up: Vector3, back: Vector3) -> Basis:
 	var right := up.cross(back).normalized()
 	return Basis(right, up, right.cross(up))

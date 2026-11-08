@@ -89,6 +89,11 @@ static func base_heights() -> PackedFloat32Array:
 	return out
 
 
+## The ground's up at `at`, from its heights `e` metres either side.
+func up_at(at: Vector3, e: float) -> Vector3:
+	return Vector3(height_at(at.x - e, at.z) - height_at(at.x + e, at.z), 2.0 * e, height_at(at.x, at.z - e) - height_at(at.x, at.z + e)).normalized()
+
+
 ## Bilinear between the four grid heights around (x, z), as the GPU's filtered texture reads them; a
 ## live hump is sampled on the same grid points, so baking it moves nothing.
 func height_at(x: float, z: float) -> float:

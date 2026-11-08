@@ -108,10 +108,7 @@ func tick(delta: float) -> void:
 		else:
 			s.heading += PI * delta
 		# Match the local bed slope; the soft foot fills the small gap between samples.
-		var at := t.origin
-		var normal := Vector3(wildlife.terrain.height_at(at.x - 0.03, at.z) - wildlife.terrain.height_at(at.x + 0.03, at.z), 0.06, wildlife.terrain.height_at(at.x, at.z - 0.03) - wildlife.terrain.height_at(at.x, at.z + 0.03)).normalized()
-		var right := normal.cross(t.basis.z).normalized()
-		t.basis = Basis(right, normal, right.cross(normal))
+		t.basis = Shy.upright(wildlife.terrain.up_at(t.origin, 0.03), t.basis.z)
 		s.transform = t
 		s.shown = minf(s.shown + delta / 1.5, 1.0)
 		crowd.put(i, t, Color(s.phase, s.shown, 0, 0))

@@ -270,7 +270,5 @@ func _place(s: Squirrel, trunk: Flora.Plant) -> void:
 	var dir := Vector3.UP if s.to_up >= s.up else Vector3.DOWN
 	if s.state == State.CLING:
 		dir = (Vector3.UP + out.cross(Vector3.UP) * sin(s.clock * 0.3) * 0.4).normalized()
-	var back := -dir
-	var right := out.cross(back).normalized()
-	s.basis = Basis(right, out, right.cross(out))
+	s.basis = Shy.upright(out, -dir)
 	s.yaw = heading(out)
