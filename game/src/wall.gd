@@ -892,10 +892,7 @@ func _show_ivy(growing: bool) -> void:
 			return
 		_ivy = kinds()[Part.IVY].instance()
 		add_child(_ivy)
-	var mm := _ivy.multimesh
-	mm.instance_count = buf.size() / kinds()[Part.IVY].stride()
-	if mm.instance_count > 0:
-		mm.buffer = buf
+	kinds()[Part.IVY].fill(_ivy.multimesh, buf)
 
 
 func footprint() -> Rect2:

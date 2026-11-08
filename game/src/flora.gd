@@ -943,9 +943,7 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	var yaw := solid.turn
 	solid.turn = 0.0
 	_spin(solid, yaw)
-	solid.fit()
-	changes += 1
-	_index(key, solid)
+	_refit(key, solid, false)
 
 
 ## Moves the tree or bush whose first part is `first` to stand at `at` across the ground, as though it had grown
@@ -992,8 +990,8 @@ func _spin(solid: Solid, by: float) -> void:
 	solid.turn += by
 
 
-## Fits `solid` again after it moved. A carried tree moves every frame: only its own shade is fitted again, not every
-## crown's.
+## Fits `solid` again after it moved or changed. A carried tree moves every frame: only its own shade is fitted again,
+## not every crown's.
 func _refit(key: Vector2i, solid: Solid, synced: bool) -> void:
 	solid.fit()
 	_index(key, solid)

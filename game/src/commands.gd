@@ -466,7 +466,6 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	if d.is_empty():
 		return null
 	var out := {}
-	var trial := now.duplicate(true)
 	for name in d:
 		# `data.to = ` stores a StringName key; the garden keeps Strings.
 		if typeof(name) != TYPE_STRING and typeof(name) != TYPE_STRING_NAME:
@@ -474,7 +473,6 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 		var k := String(name)
 		if k in RESHAPES[of]:
 			out[k] = d[k]
-			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out[k] = {}
 			for field in d.roof:
@@ -484,17 +482,15 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 				if not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "hatches", "overhang", "deck", "flag", "thatch"]:
 					return null
 				out[k][r] = d.roof[r]
-				trial.roof[r] = d.roof[r]
 		elif k == "paint" and d.paint is Dictionary and not d.paint.is_empty():
 			out[k] = {}
-			trial.paint = PackedInt32Array(trial.paint)
 			for e in d.paint:
 				if typeof(e) != TYPE_INT or not Palette.SWATCHES.has(e) or typeof(d.paint[e]) != TYPE_INT:
 					return null
 				out[k][e] = d.paint[e]
-				trial.paint[e] = d.paint[e]
 		else:
 			return null
+	var trial := World.reshaped(now, out)
 	var cleaned: Variant = _whole(of, trial)
 	if cleaned == null:
 		return null

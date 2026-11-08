@@ -40,15 +40,15 @@ const CARRY_STEP := 0.12
 signal built
 
 
-## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
-## the command that sets it in the garden as shown ({} while it is as the garden has it); and what one hand alone does with it,
-## `take` holding it from where it stands now and `follow` moving it with the mason's hand from the pose it `took`: a
-## tree, bush, boulder, stairs or fitting is carried.
+## A thing a grip holds and two grips size by their span: how to read and show its scale (fixed at 1 unless set), the
+## range it may take, and the command that sets it in the garden as shown ({} while it is as the garden has it); and
+## what one hand alone does with it, `take` holding it from where it stands now and `follow` moving it with the mason's
+## hand from the pose it `took`: a tree, bush, boulder, stairs or fitting is carried.
 class Sizing:
-	var scale: Callable
-	var limits: Vector2
+	var scale: Callable = func() -> float: return 1.0
+	var limits := Vector2.ONE
 	var current: Callable
-	var show: Callable
+	var show: Callable = func(_size: float) -> void: pass
 	var command: Callable
 	var settle: Callable
 	var take: Callable
@@ -1154,8 +1154,9 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	var turned_to := func() -> float:
 		return world.state.groups.get(first.group, {}).get("turns", {}).get(first.index, 0.0)
 	var hold := {"from": Vector3.ZERO, "turn": 0.0}
-	s.scale = flora.scale_of.bind(first) if tree else func() -> float: return 1.0
-	s.limits = FloraLayout.SCALES if tree else Vector2.ONE
+	if tree:
+		s.scale = flora.scale_of.bind(first)
+		s.limits = FloraLayout.SCALES
 	s.current = first.current
 	s.show = func(scale: float) -> void:
 		if tree:
@@ -1316,8 +1317,6 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var start := {"at": was.at, "yaw": was.yaw}
 	var shown := start.duplicate()
 	var from := start.duplicate()
-	s.scale = func() -> float: return 1.0
-	s.limits = Vector2.ONE
 	s.current = func() -> bool:
 		var now: Dictionary = world.state.easels.get(grip.id, {})
 		return not now.is_empty() and now.at == start.at and now.yaw == start.yaw
@@ -1393,8 +1392,9 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		var now: Array = stored.call()
 		return now.size() > grip.index and now[grip.index] == start
 	s.current = current
-	s.scale = func() -> float: return shown.value.w if key == "openings" else 1.0
-	s.limits = Vector2(WallLayout.MIN_SIZE, INF) if key == "openings" else Vector2.ONE
+	if key == "openings":
+		s.scale = func() -> float: return shown.value.w
+		s.limits = Vector2(WallLayout.MIN_SIZE, INF)
 	s.show = func(size: float) -> void:
 		if key == "openings":
 			var at: Vector4 = shown.value
@@ -1436,8 +1436,6 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		if stood.call():
 			_hold_clutter(grip, of, id)
 	s.current = current
-	s.scale = func() -> float: return 1.0
-	s.limits = Vector2.ONE
 	s.show = func(_size: float) -> void: lay.call()
 	s.take = func() -> void:
 		hold.from = grip.shown
@@ -1617,9 +1615,6 @@ func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 	var hold := {"from": start}
 	var current := func() -> bool: return world.state.decorations.get(id) == start
 	s.current = current
-	s.scale = func() -> float: return 1.0
-	s.limits = Vector2.ONE
-	s.show = func(_size: float) -> void: pass
 	s.take = func() -> void: hold.from = shown.d
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
 		var step: Array = FittingGrip.step((hand.origin - m.took.origin) * m.gain, turned(m.took, hand))

@@ -812,7 +812,6 @@ func _open_expressions() -> void:
 		if hand != self and hand.expressions != null:
 			hand.close_wheel()
 	expressions = ExpressionMenu.new(rig.body.expressions)
-	_expression_count = 0
 	_expression_level()
 
 

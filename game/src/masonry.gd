@@ -69,6 +69,12 @@ class Kind:
 	func stride() -> int:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
 
+	## Draws the pieces in `buf` through `mm`.
+	func fill(mm: MultiMesh, buf: PackedFloat32Array) -> void:
+		mm.instance_count = buf.size() / stride()
+		if mm.instance_count > 0:
+			mm.buffer = buf
+
 	## Whether it is drawn only so far, or coarser beyond a distance.
 	func ranged() -> bool:
 		return far != null or reach > 0.0
@@ -415,10 +421,7 @@ func flush(budget_us := INF) -> void:
 		for mmi: MultiMeshInstance3D in [c.instance, c.far]:
 			if mmi == null:
 				continue
-			var mm := mmi.multimesh
-			mm.instance_count = buf.size() / kinds[key.z].stride()
-			if mm.instance_count > 0:
-				mm.buffer = buf
+			kinds[key.z].fill(mmi.multimesh, buf)
 		if c.far != null:
 			_coarse_dirty[_coarse_key(key)] = true
 	for key: Vector3i in _coarse_dirty.keys():
@@ -432,10 +435,7 @@ func flush(budget_us := INF) -> void:
 				if c != null:
 					for part: PackedFloat32Array in c.parts.values():
 						buf.append_array(part)
-		var mm: MultiMesh = _coarse[key].multimesh
-		mm.instance_count = buf.size() / kinds[key.z].stride()
-		if mm.instance_count > 0:
-			mm.buffer = buf
+		kinds[key.z].fill(_coarse[key].multimesh, buf)
 		if _baked(key) != null:
 			_show_baked(key, [])
 			if _baking.has(key):

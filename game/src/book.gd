@@ -211,7 +211,7 @@ func turn(way: int) -> void:
 		return
 	if way > 0 and at <= leaves:
 		_begin(at, 1)
-	elif way < 0 and at >= 1:
+	elif way < 0:
 		_begin(at - 1, -1)
 
 
