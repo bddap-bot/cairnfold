@@ -1122,7 +1122,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` is one fixed table in GPU microseconds per unit, and
-  `Budget.CAPACITY_MS` is one fixed 3.99 ms-equivalent capacity. Fill is
+  `Budget.CAPACITY_MS` is one fixed 4.27 ms-equivalent capacity. Fill is
   the cost of the garden divided by that capacity, on Frame, Quest, desktop and tests.
   Neither the running quality step, refresh rate nor the visitors present changes it.
   The host and visitor apply the same check; removing cost still works in older gardens
@@ -1164,20 +1164,18 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   Frame's 15.609 µs until then, fit to 3.852 in that run, under the Quest 2's, so the Frame no longer sets it. The prices
   themselves live only in `Budget.COSTS`; this document cites the runs they came from. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity is the Quest 2's room, every device priced on its table: the 72 Hz calibration
-  line of 11.111111111111111 ms less the Quest 2's 7.12 ms base, rounded down to 3.99 ms. The base is what
+  line of 11.111111111111111 ms less the Quest 2's 6.84 ms base, rounded down to 4.27 ms. The base is what
   `scripts/costs.py` defines, on the runtime's `App=` time (see "Bench repeatability on the Quest 2"): the dearest view
   of the meadow without its own trees and bushes, plus wildlife, plus the compositor's timewarp, from two costs runs of
-  a8dc2bc ([record](../perf/quest-2/costs/20261026T070527Z-a8dc2bc.json),
-  [record](../perf/quest-2/costs/20261026T073236Z-a8dc2bc.json)) and two runs of `demo/meadow-flora.json` interleaved
-  with them on one Quest 2 ([record](../perf/quest-2/meadow-flora/20261026T071237Z-a8dc2bc.json),
-  [record](../perf/quest-2/meadow-flora/20261026T073943Z-a8dc2bc.json), read by `scripts/layers.py`). The meadow, the
+  7353c19 ([record](../perf/quest-2/costs/20261108T152544Z-7353c19.json),
+  [record](../perf/quest-2/costs/20261108T160147Z-7353c19.json)) and two runs of `demo/meadow-flora.json` interleaved
+  with them on one Quest 2 ([record](../perf/quest-2/meadow-flora/20261108T153300Z-7353c19.json),
+  [record](../perf/quest-2/meadow-flora/20261108T160904Z-7353c19.json), read by `scripts/layers.py`). The meadow, the
   larger of each view, less the smaller of what the flora runs read its trees and bushes to cost there: from the air
-  5.90 less 0.37, standing 5.61 less 0.30, from the shore 5.57 less 0.22; the bare meadow's own views (`base/`, the
-  same meadow with them cleared) read at most 5.55 from the air, the dearest, so 5.55; plus the larger run's 0.39 of
-  wildlife (ponds) and 1.18 of timewarp. costs.py's own base, the meadow with its trees and bushes, was 7.40 and
-  7.42 in the two runs. The room was 4.68 ms until then, fitted on the governor's viewport timer, whose base (6.42 on
-  6a5692a) carried the timewarp only in the spells it fell inside a frame's span. The meadow's 46 trees and 60 bushes are charged
-  1.51 ms at the table's prices, at least the 0.37 the room gained for them.
+  5.55 less 1.21, standing 4.89 less 0.38, from the shore 4.87 less 0.67; the bare meadow's own views (`base/`, the
+  same meadow with them cleared) read at most 4.28, beside the eye; so standing, 4.51, is the dearest; plus the larger
+  run's 1.15 of wildlife (the wild flowers, trees, fences and ponds, each the most it adds over the bare meadow) and
+  1.18 of timewarp.
   The Frame's room below (1.77 ms,
   its own plants in the base, the ladder held at step 8) is no input: Directive (verbatim): "I'd like everything
   priced on the quest2 table."
@@ -1442,6 +1440,34 @@ grid steps of any grid point a pond stands over) draw in the full shader, the re
 the ground dearer than the base it was fitted on, while stone ground and water are charged by the square metre and
 pay for their tiles' shader. A tile keeps the full shader once stone has been painted out of it until the garden is
 worn afresh. Where the tiles meet, both programs place their vertices with the same code.
+
+Before (d269f4a, the commit under the change) and after (7353c19) on one Quest 2, interleaved B A, then A B, App=
+milliseconds a frame at the fit step. The ground's cost is `demo/ground-cost.json`'s median of four stretches shown
+less four hidden, in the same views as `demo/costs.json`'s ([before](../perf/quest-2/ground-cost/20261108T143251Z-d269f4a.json),
+[after](../perf/quest-2/ground-cost/20261108T143658Z-7353c19.json), [after](../perf/quest-2/ground-cost/20261108T153643Z-7353c19.json),
+[before](../perf/quest-2/ground-cost/20261108T154121Z-d269f4a.json)); beside it each view as `demo/costs.json` read it
+([before](../perf/quest-2/costs/20261108T145813Z-d269f4a.json), [after](../perf/quest-2/costs/20261108T152544Z-7353c19.json),
+[after](../perf/quest-2/costs/20261108T160147Z-7353c19.json), [before](../perf/quest-2/costs/20261108T163028Z-d269f4a.json)):
+
+| View | Ground, before | Ground, after | `demo/costs.json`, before | `demo/costs.json`, after |
+| --- | --- | --- | --- | --- |
+| Bare meadow beside the eye (`base/near`) | 1.31, 1.35 | 1.11, 1.09 | 4.47, 4.51 | 4.27, 4.28 |
+| Meadow from the air (`meadow/aerial`) | 2.47, 2.50 | 2.04, 1.74 | 5.84, 5.91 | 5.35, 5.55 |
+
+Refitted per "Build budget" on the after runs, the room is 4.27 ms (the derivation is there); the same rule on the
+before runs ([flora](../perf/quest-2/meadow-flora/20261108T150529Z-d269f4a.json),
+[flora](../perf/quest-2/meadow-flora/20261108T163746Z-d269f4a.json)) gives 3.32, under the 3.99 the table carried:
+since that was fitted, the meadow's own grass grew cheaper ("Grass clumps draw three blades"), so the base fell under
+the masonry, and the wild animals, charged once to the base, came to add 0.85 to 1.48 ms over it (the ponds' 0.74
+to 1.01 of it) where the ponds once added 0.39. The masonry the base fell under now costs more over it than the table
+charged: both builds' costs runs fit walls 5.6 to 5.9 µs a m² (4.293 charged), plaster 1.58 to 1.76 (1.105), tiled
+roof 17.8 to 20.8 (9.488), thatch 6.1 to 8.6 (3.834) and near thatch 8.5 to 10.0 (7.159), the hamlet from the air
+reading 9.65 to 10.08 ms. So `Budget.COSTS` takes the larger of the after runs' fits for each unit that fit over its charge:
+`wall_m2` 5.924, `plaster_m2` 1.752, `plaster_m2_near` 3.883, `roof_m2` 18.613, `thatch_m2` 7.11, `thatch_m2_near`
+9.47; every other unit fit under its charge and keeps it. `demo/fill.json` on that table with a looser room, 5.03 ms (the same base
+with the 0.39 ms of wildlife the ponds alone once added), held 72 Hz in every phase: at the fit step its dearest view was four houses at their
+full room from the air, 7.52 ms, and with the governor freed the dearest was the typical garden standing, 9.48;
+some phases there dropped late frames as the ladder moved (35 at most), none fell below the refresh rate; so the 4.27 room holds with more to spare.
 
 ### Anti-aliasing on the Quest 2
 
