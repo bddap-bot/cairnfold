@@ -43,7 +43,7 @@ func _straight_wall_fills_its_length() -> void:
 	var courses := int(round(2.4 / WallLayout.COURSE))
 	for k in courses:
 		var covered := 0.0
-		for s in blocks_of(w):
+		for s in of_kind(w, "block"):
 			if absf(s.y - (k + 0.5) * 2.4 / courses) < 0.01:
 				covered += s.size.x
 		check(absf(covered - 6.0) < 0.02, "course %d covers %f of 6 m" % [k, covered])
@@ -287,7 +287,7 @@ func _raising_the_wall_adds_courses() -> void:
 			m = maxf(m, s.y + s.size.y * 0.5)
 		return m
 	check(top.call(high) > top.call(low) + 1.5, "raising 1.8 m adds height")
-	check(blocks_of(high).size() > blocks_of(low).size() * 1.6, "raising adds courses of stone")
+	check(of_kind(high, "block").size() > of_kind(low, "block").size() * 1.6, "raising adds courses of stone")
 
 
 func _point_at_follows_the_curve() -> void:

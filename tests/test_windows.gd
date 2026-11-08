@@ -51,10 +51,6 @@ static func _house(openings: Array[Vector4], finish := WallLayout.Finish.BARE) -
 	return w
 
 
-static func _kind(w: WallLayout, kind: String) -> Array:
-	return w.stones.filter(func(s): return s.kind == kind)
-
-
 ## Coursed stones whose face covers some of a light of `o` at their own height.
 static func _intruders(w: WallLayout, o: Dictionary) -> Array:
 	return w.stones.filter(func(s):
@@ -78,24 +74,24 @@ func _a_family_cuts_its_shape(family: WallLayout.Family) -> void:
 		return
 	var o := w.apertures[0]
 	check(_intruders(w, o).is_empty(), "%s: no coursed stone stands in the light: %s" % [name, _intruders(w, o).map(func(s): return [s.kind, s.s, s.y, s.size])])
-	check(not _kind(w, "glass").is_empty(), "%s: the light is glazed" % name)
-	var glass: Array = _kind(w, "glass")
+	check(not of_kind(w, "glass").is_empty(), "%s: the light is glazed" % name)
+	var glass: Array = of_kind(w, "glass")
 	check(glass.all(func(g) -> bool: return absf(g.s - 4.0) < o.half and g.y > o.sill and g.y < o.head), "%s: its glass stands inside the opening" % name)
 	match family:
 		WallLayout.Family.ARCHED, WallLayout.Family.ROUND:
-			var wedges := _kind(w, "voussoir")
+			var wedges := of_kind(w, "voussoir")
 			check(wedges.size() == (10 if family == WallLayout.Family.ROUND else 6), "%s: a ring of wedges, %d" % [name, wedges.size()])
 			var middle: float = (o.sill + o.head) * 0.5 if family == WallLayout.Family.ROUND else o.head - o.pane
 			var round := wedges.all(func(v) -> bool: return absf(Vector2(v.s - 4.0, v.y - middle).length() - (o.pane + o.ring * 0.5)) < 0.03)
 			check(round, "%s: every wedge stands round the light's head, %.2f out" % [name, o.pane + o.ring * 0.5])
 			check(wedges.all(func(v) -> bool: return v.size.y > WallLayout.THICKNESS), "%s: the ring stands proud of both faces" % name)
-			check(_kind(w, "lintel").is_empty(), "%s: a ring, not a lintel, heads it" % name)
-			check(_kind(w, "sill").size() == (0 if family == WallLayout.Family.ROUND else 1), "%s: an arched window sits on a sill, a round one on none" % name)
+			check(of_kind(w, "lintel").is_empty(), "%s: a ring, not a lintel, heads it" % name)
+			check(of_kind(w, "sill").size() == (0 if family == WallLayout.Family.ROUND else 1), "%s: an arched window sits on a sill, a round one on none" % name)
 			var infill := w.stones.filter(func(s) -> bool: return s.kind == "mortar" and s.has("ends") and Vector2(s.s - 4.0, s.y - middle).length() < o.pane + o.ring + WallLayout.COURSE + 0.05)
 			check(not infill.is_empty(), "%s: infill closes the courses' level cut behind the ring" % name)
 		WallLayout.Family.SLIT:
 			check(o.half < 0.1 and o.head - o.sill > 1.19, "a slit is tall and narrow: %s" % o)
-			check(_kind(w, "lintel").size() > 4 and _kind(w, "sill").size() == 1, "a slit stands between dressed jambs under a lintel, on a sill")
+			check(of_kind(w, "lintel").size() > 4 and of_kind(w, "sill").size() == 1, "a slit stands between dressed jambs under a lintel, on a sill")
 			check(glass.size() == 1 and absf(glass[0].xform.origin.z) > WallLayout.THICKNESS * 0.25 or w.inner_side() == 0.0, "a slit's glass lies deep in it")
 
 
@@ -110,7 +106,7 @@ func _a_family_fuses(family: WallLayout.Family) -> void:
 	check(absf(o.s - 4.0) < 0.01 and is_equal_approx(c[1] - c[0], o.pane * 2.0 + o.mullion), "%s: the lights stand a light and a mullion apart about the middle" % name)
 	check(_intruders(w, o).is_empty(), "%s: neither fused light is filled" % name)
 	if family in RINGED:
-		check(_kind(w, "voussoir").size() == 2 * (10 if family == WallLayout.Family.ROUND else 6), "%s: each fused light wears its own ring" % name)
+		check(of_kind(w, "voussoir").size() == 2 * (10 if family == WallLayout.Family.ROUND else 6), "%s: each fused light wears its own ring" % name)
 		check(c[1] - c[0] - o.pane * 2.0 > o.ring * 2.0, "%s: neighbouring rings stay apart" % name)
 	var apart := _wall(family, [2.0, 6.0])
 	check(apart.apertures.size() == 2, "%s: far apart they stay two" % name)
@@ -131,7 +127,7 @@ func _low_on_the_wall() -> void:
 	if not arched.apertures.is_empty():
 		var o := arched.apertures[0]
 		var middle: float = o.head - o.pane
-		var planks := _kind(arched, "door")
+		var planks := of_kind(arched, "door")
 		check(planks.size() >= 3 and planks.all(func(p) -> bool: return p.y + p.size.y * 0.5 <= middle + sqrt(maxf(o.pane * o.pane - pow(maxf(absf(p.s - o.s) - p.size.x * 0.5 - 0.01, 0.0), 2.0), 0.0)) + 0.01), "its planks reach up into the round head and stop at it")
 		check(planks.any(func(p) -> bool: return p.y + p.size.y * 0.5 > middle + o.pane * 0.8), "the middle planks reach the crown")
 	for family in [WallLayout.Family.SLIT, WallLayout.Family.ROUND]:
@@ -158,11 +154,11 @@ func _a_corner_window_wraps_its_corner() -> void:
 	check(is_equal_approx(o.s, 6.0), "it snaps onto the corner: %.3f" % o.s)
 	var filled := w.stones.filter(func(s) -> bool: return s.kind in ["block", "mortar", "pier"] and absf(w.offset(s.s, 6.0)) < o.half - 0.05 and s.y > o.sill + 0.05 and s.y < o.head - 0.05)
 	check(filled.is_empty(), "no stone, pier or course, fills it on either face: %s" % [filled.map(func(s): return [s.kind, s.s, s.y])])
-	var glass := _kind(w, "glass")
+	var glass := of_kind(w, "glass")
 	check(glass.any(func(g) -> bool: return g.s < 6.0) and glass.any(func(g) -> bool: return g.s > 6.0), "a light on each face")
-	var piers := _kind(w, "pier").filter(func(s) -> bool: return absf(s.s - 6.0) < 0.01)
+	var piers := of_kind(w, "pier").filter(func(s) -> bool: return absf(s.s - 6.0) < 0.01)
 	check(piers.any(func(s) -> bool: return s.y < o.sill) and piers.any(func(s) -> bool: return s.y > o.head), "the corner's pier stands under and over it")
-	check(_kind(w, "lintel").size() == 2 and _kind(w, "sill").size() == 2 and _kind(w, "mullion").size() == 1, "a lintel and a sill on each face and a post at the corner")
+	check(of_kind(w, "lintel").size() == 2 and of_kind(w, "sill").size() == 2 and of_kind(w, "mullion").size() == 1, "a lintel and a sill on each face and a post at the corner")
 	var beside := _house([Vector4(6.0, 1.2, WallLayout.Family.CORNER, 1.0), Vector4(7.6, 1.35, WallLayout.Family.CORNER, 1.0), Vector4(4.3, 1.2, WallLayout.Family.COTTAGE, 1.0)])
 	check(beside.apertures.size() == 2 and beside.apertures.all(func(a) -> bool: return a.lights == 1), "a window beside a corner window keeps apart, and a second at the same corner does not open: %s" % [beside.apertures])
 
@@ -181,9 +177,9 @@ func _corner_windows_keep_to_corners() -> void:
 func _room_glass_glows_in_its_colour() -> void:
 	var house := _house([Vector4(3.0, 1.35, WallLayout.Family.COTTAGE, 1.0)])
 	var warm: Color = Palette.SWATCHES[Palette.Element.GLOW][0]
-	check(_kind(house, "glass").all(func(g) -> bool: return absf(g.color.r / warm.r - g.color.g / warm.g) < 0.01 and g.color.r > warm.r * 0.85), "a room's glass carries the glow's first swatch")
+	check(of_kind(house, "glass").all(func(g) -> bool: return absf(g.color.r / warm.r - g.color.g / warm.g) < 0.01 and g.color.r > warm.r * 0.85), "a room's glass carries the glow's first swatch")
 	var wall := _wall(WallLayout.Family.COTTAGE, [4.0])
-	check(_kind(wall, "glass").all(func(g) -> bool: return g.color.r == 0.0 and g.color.g == 0.0), "a wall standing open glows nothing")
+	check(of_kind(wall, "glass").all(func(g) -> bool: return g.color.r == 0.0 and g.color.g == 0.0), "a wall standing open glows nothing")
 	check(Palette.code("glass") == Palette.Element.GLOW and Palette.count(Palette.Element.GLOW) >= 6, "glass is painted by the glow's swatches")
 	check(Stones.glazed({"kind": "glass"}, Color.WHITE).a == 0.0 and Stones.glazed({"kind": "block"}, Color.WHITE).a == 1.0, "only glass is glazed")
 	var paint := Palette.plain()
@@ -198,23 +194,23 @@ func _lived_in_houses_dress_their_windows() -> void:
 	check(dressed.lived_in(), "a roofed house with a door is lived in")
 	var windows := dressed.apertures.filter(func(o) -> bool: return not o.door and o.style in [WallLayout.Family.COTTAGE, WallLayout.Family.ARCHED])
 	check(windows.size() == 4, "four of its windows take dressing: %d" % windows.size())
-	check(_kind(dressed, "curtain").size() == windows.size() * 3, "curtains drawn either side of every cottage and arched light, under a pelmet: %d" % _kind(dressed, "curtain").size())
+	check(of_kind(dressed, "curtain").size() == windows.size() * 3, "curtains drawn either side of every cottage and arched light, under a pelmet: %d" % of_kind(dressed, "curtain").size())
 	var out := -dressed.inner_side()
-	var faces_out := _kind(dressed, "planter").all(func(p) -> bool: return (p.xform.origin - dressed.frame_at(p.s).point).dot(dressed.frame_at(p.s).tangent.cross(Vector3.UP) * out) > WallLayout.THICKNESS * 0.5)
-	check(not _kind(dressed, "planter").is_empty() and faces_out, "flower boxes hang on the face looking out")
-	check(not _kind(dressed, "bloom").is_empty() and not _kind(dressed, "leaf").is_empty(), "the boxes are full of flowers")
-	check(dressed.cloths.size() >= 2 and _kind(dressed, "rope").size() == 2, "washing hangs on one line: %d pieces" % dressed.cloths.size())
+	var faces_out := of_kind(dressed, "planter").all(func(p) -> bool: return (p.xform.origin - dressed.frame_at(p.s).point).dot(dressed.frame_at(p.s).tangent.cross(Vector3.UP) * out) > WallLayout.THICKNESS * 0.5)
+	check(not of_kind(dressed, "planter").is_empty() and faces_out, "flower boxes hang on the face looking out")
+	check(not of_kind(dressed, "bloom").is_empty() and not of_kind(dressed, "leaf").is_empty(), "the boxes are full of flowers")
+	check(dressed.cloths.size() >= 2 and of_kind(dressed, "rope").size() == 2, "washing hangs on one line: %d pieces" % dressed.cloths.size())
 	check(dressed.cloths.all(func(c) -> bool: return c.xform.origin.y > 1.5), "the washing hangs well clear of the ground")
 	var empty := _house([Vector4(1.2, 1.35, WallLayout.Family.COTTAGE, 1.0)])
-	check(not empty.lived_in() and _kind(empty, "curtain").is_empty() and empty.cloths.is_empty(), "a house with no door stands empty")
+	check(not empty.lived_in() and of_kind(empty, "curtain").is_empty() and empty.cloths.is_empty(), "a house with no door stands empty")
 	var upper := _house([Vector4(1.2, 1.35, WallLayout.Family.COTTAGE, 1.0)])
 	upper.supports.assign([Massing.of(_house([]), null)])
 	upper.build(Terrain.flat)
-	check(upper.lived_in() and not _kind(upper, "curtain").is_empty(), "a room standing on another is lived in, reached from below")
+	check(upper.lived_in() and not of_kind(upper, "curtain").is_empty(), "a room standing on another is lived in, reached from below")
 	var open := _wall(WallLayout.Family.COTTAGE, [2.0, 6.0], 2.7)
 	open.openings.append(Vector4(4.0, 0.0, WallLayout.Family.COTTAGE, 1.0))
 	open.build(Terrain.flat)
-	check(not open.lived_in() and _kind(open, "curtain").is_empty(), "a wall with a door is no home")
+	check(not open.lived_in() and of_kind(open, "curtain").is_empty(), "a wall with a door is no home")
 	var again := _house(dressed.openings)
 	check(again.stones.size() == dressed.stones.size() and again.cloths.size() == dressed.cloths.size(), "the dressing is laid alike every time")
 
@@ -365,7 +361,7 @@ func _in_the_glade() -> void:
 	tool.window_family = WallLayout.Family.COTTAGE
 	check(fit.fit(fit.aim(Hand.Tool.WINDOWS, door_eye, -n)), "a door opens low on the wall")
 	house.lay_now()
-	check(l.lived_in() and not _kind(l, "curtain").is_empty(), "with a door the house is lived in, its windows curtained")
+	check(l.lived_in() and not of_kind(l, "curtain").is_empty(), "with a door the house is lived in, its windows curtained")
 
 	var f := flat.roof.frame()
 	var above: Vector3 = flat.transform * f.mid + Vector3.UP * 4.0

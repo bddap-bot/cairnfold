@@ -133,12 +133,10 @@ static func sloped_ground(x: float, z: float) -> float:
 	return x * 0.1 + z * 0.05
 
 
-static func tiles_of(r: RoofLayout, kind: String) -> Array:
-	return r.tiles.filter(func(t): return t.kind == kind)
-
-
-static func blocks_of(w: WallLayout) -> Array:
-	return w.stones.filter(func(s): return s.kind == "block")
+## The tiles of roof `build`, or the stones of any other, of `kind`.
+static func of_kind(build: Object, kind: String) -> Array:
+	var list: Array = build.tiles if build is RoofLayout else build.stones
+	return list.filter(func(s: Dictionary) -> bool: return s.kind == kind)
 
 
 ## Whether the box `x` lays over the ground point `p`, seen from above.

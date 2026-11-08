@@ -59,7 +59,7 @@ func _a_tower_is_a_level_ring_without_end_piers() -> void:
 	check(absf(foot - (lowest - 0.12)) < 1e-4, "the tower's foot is on its lowest ground")
 	check(w.corners().is_empty(), "a round tower has no piers")
 	check(w.stones.all(func(s): return s.kind != "pier"), "no pier stones on a tower")
-	for s in blocks_of(w):
+	for s in of_kind(w, "block"):
 		var p: Vector3 = s.xform.origin
 		var r := Vector2(p.x - 1, p.z - 1).length()
 		if absf(r - 2.0) > WallLayout.THICKNESS:
@@ -67,7 +67,7 @@ func _a_tower_is_a_level_ring_without_end_piers() -> void:
 			break
 	var courses := int(round(4.5 / WallLayout.COURSE))
 	var bottom := 0.0
-	for s in blocks_of(w):
+	for s in of_kind(w, "block"):
 		if absf(s.y - 4.5 / courses * 0.5) < 0.01:
 			bottom += s.size.x
 	check(absf(bottom - w.length()) < 0.05, "the bottom course covers %f of %f" % [bottom, w.length()])
@@ -335,7 +335,7 @@ func _gable(length: float, depth: float, pitch: float, curve: float) -> RoofLayo
 
 func _gable_tiles_cover_the_footprint_under_the_ridge() -> void:
 	var r := _gable(6.0, 4.0, 1.8, 0.0)
-	var tiles := tiles_of(r, "tile")
+	var tiles := of_kind(r, "tile")
 	check(tiles.size() > 200, "a 6×4 roof has %d tiles" % tiles.size())
 	var reach := 2.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG + 0.2
 	var ends := 3.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.GABLE_OVERHANG + 0.2
@@ -353,14 +353,14 @@ func _gable_tiles_cover_the_footprint_under_the_ridge() -> void:
 		check(not near.is_empty(), "the slope on side %d reaches the ridge" % side)
 		var eave := tiles.filter(func(t): return t.xform.origin.z * side > 2.3)
 		check(not eave.is_empty(), "the slope on side %d overhangs the wall" % side)
-	check(tiles_of(r, "ridge").size() >= 18, "ridge tiles along 6 m")
+	check(of_kind(r, "ridge").size() >= 18, "ridge tiles along 6 m")
 	check(not r.gables().is_empty(), "gable ends close the roof")
 
 
 func _height_at(r: RoofLayout, z: float) -> float:
 	var best := INF
 	var y := 0.0
-	for t in tiles_of(r, "tile"):
+	for t in of_kind(r, "tile"):
 		var d := absf(absf(t.xform.origin.z) - z)
 		if d < best:
 			best = d
@@ -395,7 +395,7 @@ func _cone_tiles_ring_the_tower_up_to_the_finial() -> void:
 	r.base = 4.6
 	r.pitch = 3.2
 	r.build()
-	var tiles := tiles_of(r, "tile")
+	var tiles := of_kind(r, "tile")
 	check(tiles.size() > 150, "a 2 m cone has %d tiles" % tiles.size())
 	var eave := 2.0 + WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG
 	for t in tiles:
@@ -409,7 +409,7 @@ func _cone_tiles_ring_the_tower_up_to_the_finial() -> void:
 		if up.y < 0.3 or up.dot(out) < 0.0:
 			check(false, "a cone tile faces %s" % up)
 			break
-	check(tiles_of(r, "finial").size() == 1, "one finial")
+	check(of_kind(r, "finial").size() == 1, "one finial")
 	check(r.gables().is_empty(), "a cone has no gables")
 
 
@@ -485,7 +485,7 @@ func _flat_cone() -> RoofLayout:
 
 func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	var r := _gable(6.0, 4.0, 0.0, 0.6)
-	var deck := tiles_of(r, "deck")
+	var deck := of_kind(r, "deck")
 	check(not deck.is_empty() and deck.size() == r.tiles.size(), "a flat gable is all deck: %d of %d" % [deck.size(), r.tiles.size()])
 	check(r.gables().is_empty(), "a flat roof has no gable ends")
 	var inner := Vector2(3.0 - WallLayout.THICKNESS * 0.5, 2.0 - WallLayout.THICKNESS * 0.5)
@@ -520,9 +520,9 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	check(ring_open == 0, "a tower's deck bed leaves no joint open: %d of 288 points open" % ring_open)
 	r.chimneys.assign([Vector2(1.0, 1.0)])
 	r.build()
-	check(not tiles_of(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
+	check(not of_kind(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
 	var cone := _flat_cone()
-	var ring := tiles_of(cone, "deck")
+	var ring := of_kind(cone, "deck")
 	check(ring.size() > 10 and ring.size() == cone.tiles.size(), "a flat tower roof is all deck, no finial: %d" % ring.size())
 	var reach := 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK
 	check(ring.all(func(s): return Vector2(s.xform.origin.x - 1, s.xform.origin.z - 1).length() < reach), "the tower's deck stays inside its wall")

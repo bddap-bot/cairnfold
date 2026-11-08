@@ -42,11 +42,6 @@ func _wall(length: float, height: float, windows: Array[Vector2], arches: Array[
 	return straight_wall(length, height, arches, 1, windows)
 
 
-func _kind(w: Variant, kind: String) -> Array:
-	var list: Array = w.stones if w is WallLayout else w.tiles
-	return list.filter(func(s): return s.kind == kind)
-
-
 ## Coursed stones that reach into an opening's clear span.
 func _intruders(w: WallLayout, o: Dictionary) -> Array:
 	return w.stones.filter(func(s): return (s.kind == "block" or s.kind == "mortar") and s.y > o.sill + 0.05 and s.y < o.head - 0.05 and absf(s.s - o.s) < o.half + s.size.x * 0.5 - 0.02)
@@ -63,20 +58,20 @@ func _a_window_cuts_its_opening() -> void:
 	check(is_equal_approx(fmod(o.sill + 1e-4, WallLayout.COURSE), 1e-4), "the sill sits on a course joint")
 	check(_intruders(w, o).is_empty(), "no coursed stone fills the window")
 	for k in ["glass", "frame", "lintel", "sill", "plaster"]:
-		check(not _kind(w, k).is_empty(), "a window has a %s" % k)
-	var lintel: Dictionary = _kind(w, "lintel")[0]
+		check(not of_kind(w, k).is_empty(), "a window has a %s" % k)
+	var lintel: Dictionary = of_kind(w, "lintel")[0]
 	check(lintel.size.x > o.half * 2.0 and lintel.y > o.head, "the lintel spans the opening above its head")
-	var set_back := (_kind(w, "glass") + _kind(w, "frame")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.12))
+	var set_back := (of_kind(w, "glass") + of_kind(w, "frame")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.12))
 	check(set_back, "the casement's glass, frame and bars lie in one plane, none sunk behind the glass")
 	var rect := func(p: Dictionary) -> Rect2: return Rect2(p.s - p.size.x * 0.5, p.y - p.size.y * 0.5, p.size.x, p.size.y)
-	var deep := _kind(w, "frame").filter(func(p): return is_equal_approx(p.size.z, 0.08))
+	var deep := of_kind(w, "frame").filter(func(p): return is_equal_approx(p.size.z, 0.08))
 	var crossing := 0
 	for i in deep.size():
 		for j in i:
 			if rect.call(deep[i]).intersection(rect.call(deep[j])).get_area() > 1e-6:
 				crossing += 1
 	check(deep.size() == 4 and crossing == 0, "the casement's stiles and rails meet without overlapping faces: %d of %d overlap" % [crossing, deep.size()])
-	var surround := _kind(w, "plaster").all(func(p): return is_equal_approx(absf(p.xform.origin.z) - p.size.z * 0.5, WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET))
+	var surround := of_kind(w, "plaster").all(func(p): return is_equal_approx(absf(p.xform.origin.z) - p.size.z * 0.5, WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET))
 	check(surround, "the plaster surround lies on a plastered face")
 
 
@@ -88,14 +83,14 @@ func _a_low_window_reaches_the_ground_as_a_door() -> void:
 	var o := w.apertures[0]
 	check(o.sill == 0.0 and o.head >= 1.9, "a door runs from the ground to %.2f" % o.head)
 	check(_intruders(w, o).is_empty(), "no coursed stone fills the door")
-	check(_kind(w, "door").size() >= 3 and _kind(w, "sill").is_empty(), "a door is planks with no sill")
-	check((_kind(w, "door") + _kind(w, "iron")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.15)), "a door's planks and straps lie in one plane")
+	check(of_kind(w, "door").size() >= 3 and of_kind(w, "sill").is_empty(), "a door is planks with no sill")
+	check((of_kind(w, "door") + of_kind(w, "iron")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.15)), "a door's planks and straps lie in one plane")
 
 
 func _neighbours_fuse() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(3.6, 1.5), Vector2(4.4, 1.5)])
 	check(w.apertures.size() == 1 and w.apertures[0].lights == 2, "two windows side by side fuse into one opening of two lights")
-	check(_kind(w, "mullion").size() == 1, "a mullion stands between the lights")
+	check(of_kind(w, "mullion").size() == 1, "a mullion stands between the lights")
 	if not w.apertures.is_empty():
 		check(absf(w.apertures[0].s - 4.0) < 0.01 and _intruders(w, w.apertures[0]).is_empty(), "the fused opening is clear around its middle")
 	var doors := _wall(8.0, 2.7, [Vector2(3.6, 0.8), Vector2(4.4, 0.8)])
@@ -223,7 +218,7 @@ func _lanterns_hang_off_the_face() -> void:
 		check(absf(f.origin.y - 1.6 - 0.055) < 0.2 and absf(f.origin.x - 2.5) < 0.01, "a flame at %s" % f.origin)
 	if w.flames.size() == 2:
 		check(signf(w.flames[0].origin.z) != signf(w.flames[1].origin.z), "the two lanterns are on opposite faces")
-	check(_kind(w, "iron").size() >= 4, "lanterns hang from iron arms")
+	check(of_kind(w, "iron").size() >= 4, "lanterns hang from iron arms")
 	var arched := _wall(8.0, 2.7, [], [4.0])
 	arched.lanterns = [Vector3(4.6, 1.6, 1.0)]
 	arched.build(Terrain.flat)
@@ -234,7 +229,7 @@ func _flags_fly_from_open_tops() -> void:
 	var w := _wall(8.0, 2.7, [])
 	w.flags = [4.0]
 	w.build(Terrain.flat)
-	check(w.cloths.size() == 1 and _kind(w, "pole").size() == 1, "a flag on the wall's top")
+	check(w.cloths.size() == 1 and of_kind(w, "pole").size() == 1, "a flag on the wall's top")
 	if w.cloths.size() == 1:
 		check(w.cloths[0].xform.origin.y > w.height + 1.0, "the cloth flies above the top, at %.2f" % w.cloths[0].xform.origin.y)
 	var h := _house()
@@ -256,11 +251,11 @@ func _fence(length: float, arches: Array[float] = []) -> WallLayout:
 
 func _a_fence_is_posts_and_rails() -> void:
 	var w := _fence(8.0)
-	check(_kind(w, "post").size() == 6, "an 8 m fence has 6 posts, got %d" % _kind(w, "post").size())
-	check(_kind(w, "rail").size() == 10, "two rails in each of 5 bays, got %d" % _kind(w, "rail").size())
-	check(_kind(w, "block").is_empty() and _kind(w, "pier").is_empty() and _kind(w, "cap").is_empty(), "no stone in a fence")
+	check(of_kind(w, "post").size() == 6, "an 8 m fence has 6 posts, got %d" % of_kind(w, "post").size())
+	check(of_kind(w, "rail").size() == 10, "two rails in each of 5 bays, got %d" % of_kind(w, "rail").size())
+	check(of_kind(w, "block").is_empty() and of_kind(w, "pier").is_empty() and of_kind(w, "cap").is_empty(), "no stone in a fence")
 	check(w.apertures.is_empty(), "no windows in a fence")
-	for p in _kind(w, "post"):
+	for p in of_kind(w, "post"):
 		var top: float = p.xform.origin.y + p.size.y * 0.5
 		check(top > WallLayout.FENCE_HEIGHT - 0.1 and top < WallLayout.FENCE_HEIGHT + 0.15, "a post's top at %.2f" % top)
 	w.lanterns = [Vector3(3.0, 1.0, 1.0)]
@@ -274,11 +269,11 @@ func _a_fence_is_posts_and_rails() -> void:
 func _a_gate_in_a_fence() -> void:
 	var w := _fence(8.0, [4.0])
 	check(w.archways() == [4.0], "a crossing opens a gate in the fence")
-	var tall := _kind(w, "post").filter(func(p): return p.size.y > WallLayout.FENCE_HEIGHT + 0.5)
+	var tall := of_kind(w, "post").filter(func(p): return p.size.y > WallLayout.FENCE_HEIGHT + 0.5)
 	check(tall.size() == 2, "two tall gate posts, got %d" % tall.size())
-	check(_kind(w, "gate").size() == 9, "a bent wooden arch over the gate")
-	check(_kind(w, "rail").all(func(r): return absf(r.s - 4.0) > WallLayout.ARCH_HALF), "no rail across the gate")
-	check(_kind(w, "post").all(func(p): return absf(p.s - 4.0) > WallLayout.ARCH_HALF), "no post in the gate")
+	check(of_kind(w, "gate").size() == 9, "a bent wooden arch over the gate")
+	check(of_kind(w, "rail").all(func(r): return absf(r.s - 4.0) > WallLayout.ARCH_HALF), "no rail across the gate")
+	check(of_kind(w, "post").all(func(p): return absf(p.s - 4.0) > WallLayout.ARCH_HALF), "no post in the gate")
 	check(_fence(8.0, [0.6]).archways().is_empty(), "no gate at a fence's very end")
 
 
@@ -305,11 +300,11 @@ func _chimneys_clear_the_ridge() -> void:
 	var r := _gable()
 	r.chimneys = [Vector2(2.0, 1.2), Vector2(40.0, -40.0)]
 	r.build()
-	var stack := _kind(r, "chimney")
+	var stack := of_kind(r, "chimney")
 	check(stack.size() > 8, "two chimneys of stacked stones, %d stones" % stack.size())
 	var top: float = stack.reduce(func(m, s): return maxf(m, s.xform.origin.y), 0.0)
 	check(top > r.base + r.pitch + 0.6, "a chimney clears the ridge: top %.2f over ridge %.2f" % [top, r.base + r.pitch])
-	check(_kind(r, "pot").size() == 4, "two pots on each chimney")
+	check(of_kind(r, "pot").size() == 4, "two pots on each chimney")
 	var spot := r.chimney_spot(Vector2(40.0, -40.0))
 	check(absf(spot.x) <= r.ridge_length() * 0.5 - RoofLayout.STACK_WIDTH + 0.001 and absf(spot.y) <= r.half_span() - RoofLayout.STACK_WIDTH + 0.001, "a chimney placed off the roof is pulled back onto it: %s" % spot)
 	var f := r.frame()
@@ -324,10 +319,10 @@ func _a_tower_flies_a_flag() -> void:
 	r.base = 4.5
 	r.pitch = 3.0
 	r.build()
-	check(r.cloths.is_empty() and _kind(r, "pole").is_empty(), "a bare cone has a finial and no flag")
+	check(r.cloths.is_empty() and of_kind(r, "pole").is_empty(), "a bare cone has a finial and no flag")
 	r.flag = true
 	r.build()
-	check(r.cloths.size() == 1 and _kind(r, "pole").size() == 1, "a flagged cone flies one flag")
+	check(r.cloths.size() == 1 and of_kind(r, "pole").size() == 1, "a flagged cone flies one flag")
 	if r.cloths.size() == 1:
 		check(r.cloths[0].xform.origin.y > r.base + r.pitch + 1.0, "the flag flies above the cone's tip")
 
@@ -516,18 +511,18 @@ func _in_the_glade() -> void:
 	await play([{"op": "house", "at": [30.0, -30.0], "size": [6.0, 4.0], "turn": 30, "seconds": 0.2}])
 	_chimney_ghost_is_the_chimney(fit, world, walls[-1])
 	_fit(fit, {"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
-	check(house.roof.chimneys.size() == 1 and not _kind(house.roof, "chimney").is_empty(), "a chimney stands on the house")
+	check(house.roof.chimneys.size() == 1 and not of_kind(house.roof, "chimney").is_empty(), "a chimney stands on the house")
 	house.layout.height += WallLayout.COURSE * 2.0
 	house.rebuild()
 	house.lay_now()
-	check(not _kind(house.roof, "chimney").is_empty() and _kind(house.roof, "chimney").reduce(func(m, s): return maxf(m, s.xform.origin.y), 0.0) > house.roof.base + house.roof.pitch, "raising the house carries its chimney up with the roof")
+	check(not of_kind(house.roof, "chimney").is_empty() and of_kind(house.roof, "chimney").reduce(func(m, s): return maxf(m, s.xform.origin.y), 0.0) > house.roof.base + house.roof.pitch, "raising the house carries its chimney up with the roof")
 	_fit(fit, {"what": "tower_flag", "wall": tower})
 	check(tower.roof.flag and tower.roof.cloths.size() == 1, "a flag flies from the tower")
 	_undo(world)
 	check(not tower.roof.flag, "undo lowers it")
 
 	await play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
-	check(fence.layout.archways().size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
+	check(fence.layout.archways().size() == 1 and of_kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
 	var gate: Vector3 = fence.layout.point_at(fence.layout.archways()[0]) + Vector3.UP * 0.8
 	check(not _fit(fit, {"what": "opening", "style": WallLayout.Family.ARCHWAY, "y": 0.0, "wall": fence, "s": fence.layout.archways()[0], "point": gate}) and fence.layout.archways().size() == 1, "the arch leaves a path's gate to the path")
 	_undo(world)

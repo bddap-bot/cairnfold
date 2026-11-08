@@ -46,9 +46,9 @@ func _a_wooden_deck_is_boards_on_joists() -> void:
 	var r := _gable(6.0, 4.0, 0.0)
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var boards := tiles_of(r, "plank")
-	var joists := tiles_of(r, "board")
-	check(boards.size() > 40 and tiles_of(r, "deck").is_empty() and r.mortar.is_empty(), "a wooden deck lays boards, no flags or mortar: %d boards" % boards.size())
+	var boards := of_kind(r, "plank")
+	var joists := of_kind(r, "board")
+	check(boards.size() > 40 and of_kind(r, "deck").is_empty() and r.mortar.is_empty(), "a wooden deck lays boards, no flags or mortar: %d boards" % boards.size())
 	check(boards.size() + joists.size() == r.tiles.size(), "a flat wooden roof is all boards and joists")
 	var inner := Vector2(3.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK, 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK)
 	var deck_top := r.base - RoofLayout.DECK_DROP
@@ -71,7 +71,7 @@ func _a_wooden_deck_is_boards_on_joists() -> void:
 	check(absf(t - (10.0 - r.base)) < 0.01, "pointing at a wooden deck hits it")
 	var stone := _gable(6.0, 4.0, 0.0)
 	stone.build()
-	check(not tiles_of(stone, "deck").is_empty() and tiles_of(stone, "plank").is_empty(), "a stone deck stays flagged")
+	check(not of_kind(stone, "deck").is_empty() and of_kind(stone, "plank").is_empty(), "a stone deck stays flagged")
 
 
 func _a_tower_takes_a_wooden_deck_inside_its_ring() -> void:
@@ -83,7 +83,7 @@ func _a_tower_takes_a_wooden_deck_inside_its_ring() -> void:
 	r.pitch = 0.0
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var boards := tiles_of(r, "plank")
+	var boards := of_kind(r, "plank")
 	var reach := 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK
 	check(boards.size() > 20, "a tower's wooden deck lays %d boards" % boards.size())
 	var out := boards.filter(func(t):
@@ -108,7 +108,7 @@ func _a_curved_wooden_deck_follows_its_surface() -> void:
 	var r := _gable(6.0, 4.0, 0.0, 0.8)
 	r.deck = RoofLayout.Deck.WOOD
 	r.build()
-	var off := tiles_of(r, "plank").filter(func(t):
+	var off := of_kind(r, "plank").filter(func(t):
 		var p: Vector3 = t.xform.origin
 		return absf(p.y + absf(t.xform.basis.y.length()) * 0.5 - (r.height_at(p.x, p.z) - RoofLayout.DECK_DROP)) > 0.03)
 	check(off.is_empty(), "a bowed wooden deck's boards ride its surface: %d off it" % off.size())
@@ -208,7 +208,7 @@ func _a_roof_still_being_laid_has_no_deck() -> void:
 
 func _the_eaves_reach_as_far_as_pulled() -> void:
 	var furthest := func(r: RoofLayout) -> float:
-		return tiles_of(r, "tile").reduce(func(m, t): return maxf(m, absf(t.xform.origin.z)), 0.0)
+		return of_kind(r, "tile").reduce(func(m, t): return maxf(m, absf(t.xform.origin.z)), 0.0)
 	var short := _gable(6.0, 4.0, 2.0)
 	short.overhang = 0.0
 	short.build()
@@ -218,7 +218,7 @@ func _the_eaves_reach_as_far_as_pulled() -> void:
 	var hs := short.half_span()
 	check(absf(short.eave() - hs) < 0.001 and absf(long.eave() - hs - 1.2) < 0.001, "the eave reaches its overhang past the walls")
 	check(furthest.call(short) < hs + 0.15 and furthest.call(long) > hs + 1.05 and furthest.call(long) < hs + 1.35, "tiles run out to the eave: %.2f and %.2f past %.2f" % [furthest.call(short), furthest.call(long), hs])
-	check(tiles_of(long, "tile").size() > tiles_of(short, "tile").size(), "a longer eave lays more tiles")
+	check(of_kind(long, "tile").size() > of_kind(short, "tile").size(), "a longer eave lays more tiles")
 	check(long.ray_hit(Vector3(3, 10, hs + 1.0), Vector3.DOWN) < INF and short.ray_hit(Vector3(3, 10, hs + 1.0), Vector3.DOWN) == INF, "pointing at the long eave hits it")
 	check(long.eave_way(Vector3(3, 4, -(hs + 0.5))).is_equal_approx(Vector3(0, 0, -1)) and long.eave_way(Vector3(3, 4, 0.5)) == Vector3.ZERO, "a grip past the walls pulls its own eave; over them, the ridge")
 	var cone := RoofLayout.new()
@@ -228,7 +228,7 @@ func _the_eaves_reach_as_far_as_pulled() -> void:
 	cone.base = 4.0
 	cone.overhang = 0.9
 	cone.build()
-	var ring: float = tiles_of(cone, "tile").reduce(func(m, t): return maxf(m, Vector2(t.xform.origin.x, t.xform.origin.z).length()), 0.0)
+	var ring: float = of_kind(cone, "tile").reduce(func(m, t): return maxf(m, Vector2(t.xform.origin.x, t.xform.origin.z).length()), 0.0)
 	check(ring > cone.half_span() + 0.8, "a cone's eave reaches its overhang too: %.2f" % ring)
 	check(_holds_eave(1.2) and not _holds_eave(0.3), "a build under the long eave stands under it")
 
@@ -260,7 +260,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	r.build()
 	check(r.eave() < r.half_span() + r.overhang - 0.1 and absf(r.eave() - r.half_span() - r.reach()) < 0.001, "a long overhang on low walls comes down to the ground")
 	check(absf(r.base + r.rise(1.0 - r.eave() / r.half_span()) - r.foot) < 0.01, "its eave meets the ground the walls stand on: %.2f at %.2f" % [r.base + r.rise(1.0 - r.eave() / r.half_span()), r.foot])
-	var tiles := tiles_of(r, "tile")
+	var tiles := of_kind(r, "tile")
 	var lowest: float = tiles.reduce(func(m, t): return minf(m, t.xform.origin.y), INF)
 	check(lowest > r.foot - 0.15 and lowest < r.foot + 0.25, "its lowest tiles lie on the ground, none under it: %.2f" % lowest)
 	check(r.eave() > r.half_span() + 0.8, "the slopes run on well past the walls, a tent: %.2f past" % (r.eave() - r.half_span()))
@@ -290,9 +290,9 @@ func _a_dormer_stands_out_of_the_slope() -> void:
 	bare.build()
 	var f := r.frame()
 	var hs := r.half_span()
-	check(tiles_of(r, "glass").size() == 2 and tiles_of(r, "frame").size() == 12, "each dormer has a cottage window: %d panes" % tiles_of(r, "glass").size())
-	check(tiles_of(r, "board").size() > 30, "dormers are boarded: %d boards" % tiles_of(r, "board").size())
-	check(tiles_of(r, "tile").size() > tiles_of(bare, "tile").size() + 40, "and tiled over: %d tiles more" % (tiles_of(r, "tile").size() - tiles_of(bare, "tile").size()))
+	check(of_kind(r, "glass").size() == 2 and of_kind(r, "frame").size() == 12, "each dormer has a cottage window: %d panes" % of_kind(r, "glass").size())
+	check(of_kind(r, "board").size() > 30, "dormers are boarded: %d boards" % of_kind(r, "board").size())
+	check(of_kind(r, "tile").size() > of_kind(bare, "tile").size() + 40, "and tiled over: %d tiles more" % (of_kind(r, "tile").size() - of_kind(bare, "tile").size()))
 	for i in r.dormers.size():
 		var spot := r.dormer_spot(r.dormers[i])
 		var room := r.dormer_bounds(r.dormers[i])
@@ -323,7 +323,7 @@ func _a_dormer_stands_out_of_the_slope() -> void:
 	thatched.thatch = true
 	thatched.dormers.assign([Vector2(0.0, 2.0)])
 	thatched.build()
-	var pane: Array = tiles_of(thatched, "glass")
+	var pane: Array = of_kind(thatched, "glass")
 	check(pane.size() == 1 and thatched.ray_hit(pane[0].xform.origin + f.across * 3.0, -f.across) > 2.5, "a dormer's window looks out over thatch, not into it")
 	var copy := r.inputs()
 	copy.dormers.clear()
