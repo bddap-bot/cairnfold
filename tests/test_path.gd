@@ -545,16 +545,9 @@ func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	return w
 
 
-## Draws a path and sends it to the garden, as the path tool does.
+## Draws a path and sends it to the garden, as the path tool does, then lays every wall.
 func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
-	var world: World = nodes[2]
-	var paths: Paths = nodes[1]
-	paths.begin(world.terrain.ground(a.x, a.z), half)
-	for i in 41:
-		var p := a.lerp(b, i / 40.0)
-		paths.extend(world.terrain.ground(p.x, p.z), half)
-	var ghost := paths.end()
-	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	stroke_path(nodes[1], nodes[2], a, b, half)
 	lay_walls(nodes[0])
 
 

@@ -77,6 +77,28 @@ static func straight_wall(length: float, height: float, arches: Array[float] = [
 	return w
 
 
+## A 7×5 house from x 0 to 7 and z -2.5 to 2.5, an archway in the middle of the wall at z -2.5 and a window in the
+## middle of the wall at z 2.5, its roof bearing `dormers`.
+static func lit_house(cover := WallLayout.Cover.ROOF, dormers: Array[Vector2] = [], at := Vector3.ZERO) -> Lamps.Room:
+	var w := WallLayout.new()
+	w.points = WallLayout.rectangle(at, at + Vector3(7, 0, 0), 5)
+	w.closed = true
+	w.cover = cover
+	w.top = WallLayout.Top.CAP
+	w.height = 2.4
+	w.openings.assign([3.5].map(WallLayout.archway))
+	w.openings.append_array([Vector4(15.5, 1.6, 0, 1)])
+	w.build(Terrain.flat)
+	var roof: RoofLayout = null
+	if cover == WallLayout.Cover.ROOF:
+		roof = RoofLayout.new()
+		roof.pitch = 2.5
+	var massing := Massing.of(w, roof)
+	if massing.roof != null:
+		massing.roof.dormers = dormers
+	return Lamps.Room.of(w, massing, massing.roof)
+
+
 ## The data a wall sends: `with`'s fields, the rest as a fresh Wall has them.
 static func wall_data(with: Dictionary) -> Dictionary:
 	var w := Wall.new(0, null, Terrain.new())
@@ -174,6 +196,18 @@ static func stroke_wall(tool: WallTool, a: Vector3, b: Vector3, samples := 30) -
 		tool.extend_stroke(m, terrain.ground(p.x, p.z))
 	tool.end_stroke(m)
 	return tool.walls[-1]
+
+
+## Draws a path from `a` to `b` with `paths` as a hand does, in 40 steps, submits it to `world` and returns the
+## world's sequence number after it.
+static func stroke_path(paths: Paths, world: World, a: Vector3, b: Vector3, half: float) -> int:
+	paths.begin(world.terrain.ground(a.x, a.z), half)
+	for i in 41:
+		var p := a.lerp(b, i / 40.0)
+		paths.extend(world.terrain.ground(p.x, p.z), half)
+	var ghost := paths.end()
+	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	return world.seq
 
 
 ## Lets a frame pass and writes the save it left due; saves are written on a worker thread, so this waits for the last

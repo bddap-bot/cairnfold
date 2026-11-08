@@ -40,19 +40,6 @@ func _setup() -> Array:
 	return [tool, paths, world, flora]
 
 
-## Draws a path and sends it to the garden, as the path tool does; returns its id.
-func _lay(nodes: Array, a: Vector2, b: Vector2, half: float) -> int:
-	var paths: Paths = nodes[1]
-	var world: World = nodes[2]
-	paths.begin(world.terrain.ground(a.x, a.y), half)
-	for i in 41:
-		var p := a.lerp(b, i / 40.0)
-		paths.extend(world.terrain.ground(p.x, p.y), half)
-	var ghost := paths.end()
-	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
-	return world.seq
-
-
 func _teardown(nodes: Array) -> void:
 	for n in nodes:
 		n.queue_free()
@@ -170,7 +157,7 @@ func _meadow_takes_back_stone_but_not_a_path() -> void:
 	var marks: Ground = (nodes[2] as World).marks
 	var t: FloraTool = nodes[0]
 	var world: World = nodes[2]
-	_lay(nodes, Vector2(-6, 40), Vector2(6, 40), 0.8)
+	stroke_path(nodes[1], nodes[2], Vector3(-6, 0, 40), Vector3(6, 0, 40), 0.8)
 	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 1.5)
 	check(marks.stone(0, 40) > 0.99, "stone laid over the path covers it (%.2f)" % marks.stone(0, 40))
 	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 2.5)
@@ -187,7 +174,7 @@ func _lifting_a_path_keeps_the_stone_laid_after_it() -> void:
 	var nodes := _setup()
 	var marks: Ground = (nodes[2] as World).marks
 	var world: World = nodes[2]
-	var path := _lay(nodes, Vector2(-6, 50), Vector2(6, 50), 0.8)
+	var path := stroke_path(nodes[1], nodes[2], Vector3(-6, 0, 50), Vector3(6, 0, 50), 0.8)
 	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(0, 46), Vector2(0, 54), 1.5)
 	world._order({"op": "take", "of": "paths", "ids": PackedInt32Array([path])}, world.me())
 	check(marks.stone(0, 50) > 0.99, "stone laid over a path stays when the path is lifted (%.2f)" % marks.stone(0, 50))

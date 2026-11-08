@@ -21,32 +21,13 @@ func _init() -> void:
 	finish()
 
 
-## A 7×5 house on flat ground from x 0 to 7 and z -2.5 to 2.5, with an arched door in the middle of the wall at
-## z -2.5 and a window in the middle of the wall at z 2.5.
-func _house(cover := WallLayout.Cover.ROOF) -> Lamps.Room:
-	var w := WallLayout.new()
-	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(7, 0, 0), 5)
-	w.closed = true
-	w.cover = cover
-	w.top = WallLayout.Top.CAP
-	w.height = 2.4
-	w.openings.assign([3.5].map(WallLayout.archway))
-	w.openings.append_array([Vector4(15.5, 1.6, 0, 1)])
-	w.build(Terrain.flat)
-	var roof: RoofLayout = null
-	if cover == WallLayout.Cover.ROOF:
-		roof = RoofLayout.new()
-		roof.pitch = 2.5
-	return Lamps.Room.of(w, Massing.of(w, roof))
-
-
 func _at(layers: Array[PackedByteArray], x: float, z: float, layer: int) -> float:
 	var c := Bounce.column(x, z)
 	return layers[layer][(c.y * Bounce.CELLS + c.x) * 4] / 255.0 * Lamps.ENCODE
 
 
 func _a_house_keeps_its_light_in() -> void:
-	var house := _house()
+	var house := lit_house()
 	var flame := PackedVector3Array([Vector3(1.0, 1.8, 0.0)])
 	var open := Lamps.shine(flame, ground)
 	var held := Lamps.shine(flame, ground, [house])
@@ -57,7 +38,7 @@ func _a_house_keeps_its_light_in() -> void:
 
 
 func _windows_and_doors_let_it_out() -> void:
-	var house := _house()
+	var house := lit_house()
 	var held := Lamps.shine(PackedVector3Array([Vector3(3.5, 1.8, 0.0)]), ground, [house])
 	var window := _at(held, 3.5, 4.5, 0)
 	var door := _at(held, 3.5, -4.5, 0)
@@ -68,7 +49,7 @@ func _windows_and_doors_let_it_out() -> void:
 
 
 func _a_house_keeps_light_out() -> void:
-	var house := _house()
+	var house := lit_house()
 	var flame := PackedVector3Array([Vector3(7.8, 1.8, 0.5)])
 	var held := Lamps.shine(flame, ground, [house])
 	check(_at(held, 3.5, 0.5, 1) == 0.0, "a lantern outside lights nothing inside")
@@ -77,7 +58,7 @@ func _a_house_keeps_light_out() -> void:
 
 
 func _window_strength_does_not_brighten_the_room() -> void:
-	var house := _house()
+	var house := lit_house()
 	var flames := PackedVector3Array([Vector3(3.5, 1.8, 0.0)])
 	var bright := Lamps.shine(flames, ground, [house])
 	for o in house.openings:
@@ -94,7 +75,7 @@ func _window_strength_does_not_brighten_the_room() -> void:
 
 
 func _an_open_loop_lets_light_up() -> void:
-	var yard := _house(WallLayout.Cover.OPEN)
+	var yard := lit_house(WallLayout.Cover.OPEN)
 	var held := Lamps.shine(PackedVector3Array([Vector3(1.0, 1.8, 0.0)]), ground, [yard])
 	check(_at(held, 3.5, 0.5, 4) > 0.0, "over a loop without a roof the light goes up")
 	check(_at(held, -1.5, 0.5, 1) == 0.0, "its walls still hold it in")
@@ -162,7 +143,7 @@ func _a_live_hump_solves_nothing() -> void:
 
 
 func _openings_admit_exterior_light() -> void:
-	var room := _house()
+	var room := lit_house()
 	var flame := PackedVector3Array([Vector3(3.5, 1.2, -4.5)])
 	var lit := Lamps.shine(flame, ground, [room])
 	var near := _at(lit, 3.5, -1.5, 0)
@@ -205,7 +186,7 @@ func _sky(result: Dictionary, x: float, z: float, layer := 0) -> int:
 ## A face under the roof reads the volume half a metre out, between layers a metre apart: a sealed room's probes less
 ## than a layer over its roof stay dark, and those clear of that band keep the sky for the roof's own covering.
 func _sky_stays_out_a_layer_over_the_roof() -> void:
-	var room := _house()
+	var room := lit_house()
 	room.openings.clear()
 	var result := _sky_result(room)
 	var band := 0
@@ -227,7 +208,7 @@ func _sky_stays_out_a_layer_over_the_roof() -> void:
 ## Light let in through a room's openings lights its back corner and ceiling off its walls and floor: sunlight only
 ## while the sun stands before an opening, sky light always, and less off darker stone.
 func _a_room_passes_on_the_light_it_lets_in() -> void:
-	var room := _house()
+	var room := lit_house()
 	var before_door := Vector3(0.0, 0.5, -1.0).normalized()
 	var lit := _sky_result(room, before_door, Color(0.6, 0.6, 0.6), 0)
 	var behind := _sky_result(room, -before_door, Color(0.6, 0.6, 0.6), 0)
@@ -242,7 +223,7 @@ func _a_room_passes_on_the_light_it_lets_in() -> void:
 
 
 func _rooms_limit_sky() -> void:
-	var room := _house()
+	var room := lit_house()
 	var result := _sky_result(room)
 	check(_sky(result, 3.5, -1.5) > _sky(result, 0.5, 0.5), "daylight is stronger near an opening than in the back corner")
 	room.openings.clear()
@@ -253,6 +234,6 @@ func _rooms_limit_sky() -> void:
 	check(room.holds(Vector3(7.0, 1.0, 0.0), true) and not room.holds(Vector3(7.0, 1.0, 0.0)), "boundary probes cover the inner face without classifying exterior lamps as inside")
 	check(_sky(result, -1.5, 0.5) == 255, "exterior sky remains unchanged")
 	check(_sky(result, -0.5, 0.5) == 0, "the boundary probe cannot interpolate sky onto the inside face")
-	var yard := _house(WallLayout.Cover.OPEN)
+	var yard := lit_house(WallLayout.Cover.OPEN)
 	yard.openings.clear()
 	check(_sky(_sky_result(yard), 3.5, -1.5) == 255, "a roofless courtyard remains open to the sky")
