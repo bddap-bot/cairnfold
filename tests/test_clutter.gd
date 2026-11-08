@@ -30,7 +30,7 @@ static func _house(at: Vector3, size: Vector2, on := PackedInt32Array()) -> Dict
 	var stance := WallTool.stance(at, 0.0, false)
 	stance.size = size
 	var d := wall_data({"points": PackedVector3Array(WallTool.outline(stance)), "closed": true, "seed": 5, "on": on})
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": at, "radius": size.x * 0.5, "pitch": 1.5, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": 0.3, "deck": 0, "flag": false, "thatch": false}
+	d.roof = roof_data({"center": at, "radius": size.x * 0.5, "pitch": 1.5, "seed": 5})
 	return d
 
 

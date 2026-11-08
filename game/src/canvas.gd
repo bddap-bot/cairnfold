@@ -489,13 +489,14 @@ func _step(delta: float) -> void:
 			continue
 		if _owed < 1.0:
 			break
-		var cost := _tick_cost()
+		var rect := _wet_rect(ticks)
+		var cost := float(rect.get_area()) * 2.0
 		if cost > budget and _backlog > 0.0:
 			break
 		budget -= cost
 		laid += cost
 		_owed -= 1.0
-		_tick()
+		_tick(rect)
 		if not _queue.is_empty():
 			_queue[0][1] -= 1
 			if _queue[0][1] <= 0:
@@ -524,10 +525,6 @@ func _share() -> float:
 	return steps / maxi(_flowing + (0 if _was_flowing else 1), 1)
 
 
-func _tick_cost() -> float:
-	return float(_wet_rect(ticks).get_area()) * 2.0
-
-
 ## The tiles wet at `tick`, as one rectangle of texels.
 func _wet_rect(tick: int) -> Rect2i:
 	var r := Rect2i()
@@ -538,8 +535,7 @@ func _wet_rect(tick: int) -> Rect2i:
 	return r
 
 
-func _tick() -> void:
-	var rect := _wet_rect(ticks)
+func _tick(rect: Rect2i) -> void:
 	if rect.size != Vector2i.ZERO:
 		_ops.append(["flow", ticks, rect, 0])
 		_ops.append(["flow", ticks, rect, 1])

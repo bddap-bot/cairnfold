@@ -77,7 +77,7 @@ func _stands(at: Vector3, up: float, want: float, what: String) -> void:
 func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
 	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-40, 30), main.world.terrain.ground(-34, 30), 4.0)))
 	d.closed = true
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = roof_data({"center": main.world.terrain.ground(-37, 30), "pitch": 1.6, "seed": 4})
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -201,7 +201,7 @@ func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 	d.closed = true
 	d.rise = 1.5
 	d.openings = PackedVector4Array([3.0].map(WallLayout.archway))
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(33, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = roof_data({"center": main.world.terrain.ground(33, 30), "pitch": 1.6, "seed": 4})
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -262,7 +262,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 	var house := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, -6), main.world.terrain.ground(2, -6), 4.0)))
 	house.closed = true
-	house.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-1, -6), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	house.roof = roof_data({"center": main.world.terrain.ground(-1, -6), "pitch": 1.6, "seed": 4})
 	world._order({"op": "wall", "walls": [house]}, 1)
 	w = main.tool.walls[-1]
 	w.lay_now()

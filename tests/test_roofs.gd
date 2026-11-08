@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-const SETTLE_FRAMES := 3600
-
 
 func _initialize() -> void:
 	check(RoofLayout.new().deck_under(Vector3.ZERO) == -INF, "a pitched roof offers no deck before its footprint is laid")
@@ -169,7 +167,7 @@ func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := Wa
 func _lay(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
 	w.build(Terrain.flat)
-	h.roof.base = w.samples[0].y + w.height + WallLayout.CAP
+	h.roof.base = w.roof_base()
 	h.roof.foot = w.stands_at()
 	h.roof.build()
 	w.hide_roof(h.roof)
@@ -257,7 +255,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	r.corners = w.points
 	r.pitch = 2.6
 	r.overhang = RoofLayout.MAX_OVERHANG
-	r.base = w.samples[0].y + w.height + WallLayout.CAP
+	r.base = w.roof_base()
 	r.foot = w.stands_at()
 	r.build()
 	check(r.eave() < r.half_span() + r.overhang - 0.1 and absf(r.eave() - r.half_span() - r.reach()) < 0.001, "a long overhang on low walls comes down to the ground")
@@ -362,7 +360,7 @@ func _house_data(pitch: float) -> Dictionary:
 		"points": points, "height": 2.4, "rise": 0.0, "seed": 3, "closed": true, "top": WallLayout.Top.CAP,
 		"fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(),
 		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3(3.5, 0, 0), "radius": 2.0, "pitch": pitch, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
+		"roof": roof_data({"center": Vector3(3.5, 0, 0), "pitch": pitch, "seed": 3}),
 	}
 
 
@@ -503,7 +501,7 @@ func _in_the_glade() -> void:
 	if walls.size() == 3:
 		var upper := walls[2]
 		await _play([{"op": "roof", "index": 2, "pitch": 0.0}])
-		var top: float = deck.layout.samples[0].y + deck.layout.height + WallLayout.CAP
+		var top: float = deck.layout.roof_base()
 		check(absf(upper.layout.samples[0].y + WallLayout.SINK - top) < 0.01, "a platform on a platform: %.2f on %.2f" % [upper.layout.samples[0].y + WallLayout.SINK, top])
 		check(deck.roof.tiles.filter(func(t): return t.kind == "plank").size() > 20 and deck.layout.stones.any(func(s): return s.kind == "rail"), "the deck below stays a railed terrace round it")
 	finish()

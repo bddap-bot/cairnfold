@@ -96,12 +96,12 @@ func _openings_keep_their_courses() -> void:
 	var w := straight_wall(8.0, 3.0, [], 17)
 	w.openings.assign([2.0].map(WallLayout.archway))
 	w.openings.append_array([Vector4(5.5, 1.65, 0, 1)])
-	w.build(func(_x, _z): return 0.0)
+	w.build(Terrain.flat)
 	var opening := w.apertures.duplicate(true)
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir" or s.kind == "keystone")
 	w.height = 3.15
 	w.points[1].x = 8.2
-	w.build(func(_x, _z): return 0.0)
+	w.build(Terrain.flat)
 	check(w.apertures == opening, "a window stays on its course when the wall grows")
 	for stone in ring:
 		check(w.stones.any(func(s): return s.kind == stone.kind and s.color == stone.color and s.variant == stone.variant and s.xform.is_equal_approx(stone.xform)), "growth elsewhere cannot reshuffle an arch ring")
@@ -112,10 +112,10 @@ func _wall_tops_keep_their_pieces() -> void:
 		var a := straight_wall(5.0, 2.4, [], 17)
 		a.top = WallLayout.Top.CAP if deck else WallLayout.Top.CRENEL
 		a.cover = WallLayout.Cover.DECK if deck else WallLayout.Cover.OPEN
-		a.build(func(_x, _z): return 0.0)
+		a.build(Terrain.flat)
 		var b := a.inputs()
 		b.points[1].x = 6.0
-		b.build(func(_x, _z): return 0.0)
+		b.build(Terrain.flat)
 		for stone in a.stones:
 			if stone.y > a.height and stone.s < 3.0:
 				check(b.stones.any(func(s): return s.kind == stone.kind and s.color == stone.color and s.xform.is_equal_approx(stone.xform)), "extending the wall preserves its interior top pieces")
@@ -123,11 +123,11 @@ func _wall_tops_keep_their_pieces() -> void:
 		var kind := "merlon" if style == WallLayout.Top.CRENEL else "cope"
 		var previous := straight_wall(5.0, 2.4, [], 17)
 		previous.top = style
-		previous.build(func(_x, _z): return 0.0)
+		previous.build(Terrain.flat)
 		for i in 40:
 			var next := straight_wall(5.0 + (i + 1) * 0.02, 2.4, [], 17)
 			next.top = style
-			next.build(func(_x, _z): return 0.0)
+			next.build(Terrain.flat)
 			for stone in next.stones:
 				if stone.kind != kind:
 					continue
@@ -144,7 +144,7 @@ func _house_faces_keep_their_stones() -> void:
 		w.points = WallLayout.rectangle(Vector3.ZERO, Vector3(length, 0, 0), 4.5)
 		w.closed = true
 		w.height = 2.4
-		w.build(func(_x, _z): return 0.0)
+		w.build(Terrain.flat)
 		layouts.append(w)
 	var checked := 0
 	for stone in layouts[0].stones:

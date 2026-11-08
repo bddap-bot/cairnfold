@@ -72,8 +72,7 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 		for sid: int in copies:
 			var c: Dictionary = copies[sid]
 			if c.type == "Transform" or c.type == "RectTransform":
-				var father: Dictionary = c.data.get("m_Father", {})
-				if str(father.get("fileID", "0")) == "0":
+				if Yaml.file_id(c.data.get("m_Father", {})) == 0:
 					c.data["m_Father"] = {"fileID": str(parent)}
 			out[(id ^ sid) & MASK] = c
 	for id: int in objs:
@@ -107,11 +106,10 @@ static func _remap(data: Variant, instance: int) -> void:
 static func _modify(data: Dictionary, path: String, value: Variant, reference: Variant) -> void:
 	var parts := path.replace(".Array.data[", ".[").split(".")
 	var at: Variant = data
+	var v: Variant = reference if Yaml.file_id(reference) != 0 else value
 	for i in parts.size():
 		var p := parts[i]
 		var last := i == parts.size() - 1
-		var ref := reference is Dictionary and str((reference as Dictionary).get("fileID", "0")) != "0"
-		var v: Variant = reference if ref else value
 		if p == "Array" and i + 1 < parts.size() and parts[i + 1] == "size":
 			return
 		if p.begins_with("[") and at is Array:

@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## The sun stays out of a sealed house: looking up at its gable from inside at noon, with every light but the sun's
 ## direct light taken away, the view is black, and stays black with the sun's shadows off, as the ladder's lowest steps
@@ -9,25 +9,9 @@ extends SceneTree
 ## headset's eye draws them two metres away: 64 pixels across, the view takes the stones' far level of detail, which
 ## doubles those specks.
 
-var failures := 0
-var main: Node
-
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
-func _steps(s: Array) -> void:
-	var d := Driver.new(main, s)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 
 
 func _mean() -> float:
@@ -46,7 +30,7 @@ func _run() -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await process_frame
-	await _steps([{"op": "place", "x": 0, "z": 12}, {"op": "house", "at": [0, 0], "size": [7, 5], "seed": 1, "seconds": 0.1}])
+	await play([{"op": "place", "x": 0, "z": 12}, {"op": "house", "at": [0, 0], "size": [7, 5], "seed": 1, "seconds": 0.1}])
 	main.world.submit({"op": "sky", "time": 0.5})
 	await create_timer(1.0).timeout
 	main.look.bounce.finish()
@@ -58,17 +42,16 @@ func _run() -> void:
 	main.look.env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
 	main.look.env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	main.look.env.fog_enabled = false
-	await _steps([{"op": "view", "eye": [-6, 1.8, 7], "at": [0, 1.2, 0], "ground": true}])
+	await play([{"op": "view", "eye": [-6, 1.8, 7], "at": [0, 1.2, 0], "ground": true}])
 	var outside := await _mean()
 	check(outside > 20.0, "the sun lights the house from outside: %.2f" % outside)
-	await _steps([{"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
+	await play([{"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
 	var inside := await _mean()
 	check(inside < 0.5, "no sun reaches under the sealed roof: %.3f" % inside)
-	await _steps([{"op": "layer", "name": "shadows", "mode": "off"}, {"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
+	await play([{"op": "layer", "name": "shadows", "mode": "off"}, {"op": "view", "eye": [-2.2, 1.6, 0], "at": [2, 2.6, 0], "ground": true}])
 	var unshadowed := await _mean()
 	check(unshadowed < 0.5, "nor with the sun's shadows off: %.3f" % unshadowed)
-	await _steps([{"op": "view", "eye": [-6, 1.8, 7], "at": [0, 1.2, 0], "ground": true}])
+	await play([{"op": "view", "eye": [-6, 1.8, 7], "at": [0, 1.2, 0], "ground": true}])
 	var outside_unshadowed := await _mean()
 	check(outside_unshadowed > 20.0, "while it still lights the house from outside: %.2f" % outside_unshadowed)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

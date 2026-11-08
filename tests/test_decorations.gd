@@ -134,14 +134,11 @@ func _run() -> void:
 
 
 func _on_a_build() -> void:
-	var driver := Driver.new(main, [
+	await play([
 		{"op": "house", "at": [30, -30], "size": [9, 7], "seconds": 0.2},
 		{"op": "roof", "index": -1, "pitch": 0},
 		{"op": "house", "at": [30, -30], "size": [4, 3], "seconds": 0.2, "on": true},
 	])
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
 	var upper: Wall = main.tool.walls[-1]
 	upper.lay_now()
 	var f := upper.layout.frame_at(1.5)

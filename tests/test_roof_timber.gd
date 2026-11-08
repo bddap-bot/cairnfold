@@ -34,11 +34,11 @@ func _run() -> void:
 	a.closed = true
 	a.height = 3.0
 	a.points = WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)
-	a.resample(func(_x: float, _z: float): return 0.0)
+	a.resample(Terrain.flat)
 	var r := RoofLayout.new()
 	r.corners = a.points
 	r.pitch = 0.0
-	r.base = a.samples[0].y + a.height + WallLayout.CAP
+	r.base = a.roof_base()
 	r.build()
 	var other := Massing.of(a, r)
 	a.joined = [other]
@@ -56,7 +56,7 @@ func _run() -> void:
 	wing.closed = true
 	wing.height = a.height + 0.08
 	wing.points = WallLayout.rectangle(Vector3(3, 0, -1), Vector3(6, 0, -1), 4.0)
-	wing.resample(func(_x: float, _z: float): return 0.0)
+	wing.resample(Terrain.flat)
 	var higher := Massing.of(wing, null)
 	a.joined = [higher]
 	a.older = []

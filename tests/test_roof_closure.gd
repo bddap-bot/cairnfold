@@ -48,7 +48,7 @@ func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: b
 	w.cover = WallLayout.Cover.DECK if r.flat() else WallLayout.Cover.ROOF
 	w.gable_end = end_style
 	w.gable = r
-	w.build(func(_x: float, _z: float) -> float: return 0.0)
+	w.build(Terrain.flat)
 	var kinds := Wall.kinds()
 	var roof := Wall.pack_roof(w, r, kinds, Palette.plain())
 	var packed := Wall.pack(w, kinds, Palette.plain())

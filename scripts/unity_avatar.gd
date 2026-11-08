@@ -278,14 +278,12 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	sk.name = "Skeleton3D"
 	root.add_child(sk)
 	var rests: Array[Transform3D] = []
-	var taken := {}
 	for b in source.get_bone_count():
 		rests.append(from * source.get_bone_global_rest(b) * Transform3D.IDENTITY.scaled(Vector3.ONE / k))
 		# Bones become glTF nodes, which Godot names as it would name nodes.
 		var name := source.get_bone_name(b).validate_node_name()
-		while taken.has(name):
+		while sk.find_bone(name) >= 0:
 			name += "_"
-		taken[name] = true
 		sk.add_bone(name)
 	for b in source.get_bone_count():
 		var p := source.get_bone_parent(b)
@@ -513,7 +511,7 @@ static func _under(objs: Dictionary, top: int) -> Array:
 
 
 static func _active(objs: Dictionary, go: int) -> bool:
-	return str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" and not Prefabs.editor_only(objs, go)
+	return Yaml.on(objs.get(go, {}).get("data", {}), "m_IsActive") and not Prefabs.editor_only(objs, go)
 
 
 ## The switches that must all be on for Unity to run a component (`id`, its fields `d`): its own enabled flag and the
@@ -524,7 +522,7 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	var when := []
 	if by.has(id):
 		when.append([by[id], 1])
-	elif str(d.get("m_Enabled", "1")) != "1":
+	elif not Yaml.on(d, "m_Enabled"):
 		return null
 	var go := Yaml.file_id(d.get("m_GameObject"))
 	for t: int in Prefabs.ancestors(objs, Prefabs.transform_of(objs, go) if objs.has(go) else 0):
@@ -566,7 +564,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 		if not live or not objs.has(e[1]):
 			continue
 		for id: int in Prefabs.components(objs, e[1]):
-			if not objs.has(id) or not objs[id].type in Prefabs.RENDERERS or not (str(objs[id].data.get("m_Enabled", "1")) == "1" or switches.has(id)):
+			if not objs.has(id) or not objs[id].type in Prefabs.RENDERERS or not (Yaml.on(objs[id].data, "m_Enabled") or switches.has(id)):
 				continue
 			if placed[e[0]]:
 				left.append(str(objs[e[1]].data.get("m_Name", "")))
@@ -607,12 +605,12 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 				continue
 			var go := Yaml.file_id(objs[paths[c.path]].data.get("m_GameObject"))
 			if c.attribute == "m_IsActive" and c["class"] == "1":
-				out.by_curve[key] = _switch(out, go, 1.0 if str(objs.get(go, {}).get("data", {}).get("m_IsActive", "1")) == "1" else 0.0)
+				out.by_curve[key] = _switch(out, go, 1.0 if Yaml.on(objs.get(go, {}).get("data", {}), "m_IsActive") else 0.0)
 				continue
 			if c.attribute == "m_Enabled" and c["class"] == "114":
 				var physics := _physics_of(objs, go, str(c.get("script", "")))
 				if physics != 0:
-					out.by_curve[key] = _switch(out, physics, 1.0 if str(objs[physics].data.get("m_Enabled", "1")) == "1" else 0.0)
+					out.by_curve[key] = _switch(out, physics, 1.0 if Yaml.on(objs[physics].data, "m_Enabled") else 0.0)
 				continue
 			var renderer := Prefabs.renderer_of(objs, go)
 			if renderer == 0 or not c["class"] in Prefabs.RENDERERS.values():
@@ -621,7 +619,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 			if tile != null:
 				out.by_curve[key] = _switch(out, _udim_key(renderer, tile.get_string(1).to_int(), tile.get_string(2).to_int()), 0.0)
 			elif c.attribute == "m_Enabled":
-				out.by_curve[key] = _switch(out, renderer, 1.0 if str(objs[renderer].data.get("m_Enabled", "1")) == "1" else 0.0)
+				out.by_curve[key] = _switch(out, renderer, 1.0 if Yaml.on(objs[renderer].data, "m_Enabled") else 0.0)
 			elif c.attribute.begins_with("m_Materials.Array.data[") and c.has("refs"):
 				var slot: int = str(c.attribute).trim_prefix("m_Materials.Array.data[").trim_suffix("]").to_int()
 				var refs: Array = Yaml.list(objs[renderer].data.get("m_Materials"))
@@ -1840,6 +1838,12 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 	return {"binds": [[bone, rests[bone].affine_inverse() * scaled * _in_model(mi)]], "remap": func(_i: int) -> int: return 0}
 
 
+## The bone of the GameObject transform `t` belongs to: the one import recorded for it, or else the bone of its name.
+static func _transform_bone(objs: Dictionary, t: int, sk: Skeleton3D) -> int:
+	var go := Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject"))
+	return sk.get_meta("unity_bones").get(go, -1) if sk.has_meta("unity_bones") else _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
+
+
 static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Transform3D]) -> int:
 	var source_bones: Dictionary = sk.get_meta("unity_bones", {})
 	var go_of := func(at: int) -> int: return Yaml.file_id(objs.get(at, {}).get("data", {}).get("m_GameObject"))
@@ -1854,7 +1858,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 		seen[t] = true
 		path.append(t)
 		t = Yaml.file_id(objs[t].data.get("m_Father"))
-		b = source_bones.get(go_of.call(t), -1) if sk.has_meta("unity_bones") else _find_bone(sk, name_of.call(t))
+		b = _transform_bone(objs, t, sk)
 	if b < 0 and (path.is_empty() or path.back() != sk.get_meta("unity_top", -1)):
 		return -1
 	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
@@ -1925,7 +1929,7 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 		return _mirrored(view) - head
 	if human.has("leftEye") and human.has("rightEye"):
 		return ((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0 - head
-	return Vector3(0, 0.06, 0)
+	return Avatar.DATA.eyes
 
 
 ## VRM ends a spring at a node, so authored endpoints become bones beyond the leaves.
@@ -1934,9 +1938,6 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 ## the menu switches, a PhysBone's joints or a collider's index with the switches it runs under. `moved` holds the
 ## transforms the menu's curves move.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary, switches := {}, moved := {}) -> Dictionary:
-	var bone_of := func(t: int) -> int:
-		var go := Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject"))
-		return sk.get_meta("unity_bones").get(go, -1) if sk.has_meta("unity_bones") else _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
 	var transforms := {}
 	for id: int in objs:
 		if objs[id].type == "Transform":
@@ -1991,10 +1992,10 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if visited.has(t):
 			continue
 		visited[t] = true
-		var bone: int = bone_of.call(t)
+		var bone: int = _transform_bone(objs, t, sk)
 		if bone < 0:
 			bone = _as_bone(objs, t, sk, rests)
-		var parent: int = bone_of.call(Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_Father")))
+		var parent: int = _transform_bone(objs, Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_Father")), sk)
 		# An unweighted source parent may have been omitted while its weighted children survived.
 		if bone >= 0 and parent >= original_bones and bone != parent and not human.has(bone):
 			sk.set_bone_parent(bone, parent)
@@ -2025,7 +2026,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var bone := -1
 		var owner := t
 		for at: int in Prefabs.ancestors(objs, t):
-			bone = bone_of.call(at)
+			bone = _transform_bone(objs, at, sk)
 			owner = at
 			if bone >= 0:
 				break
@@ -2065,7 +2066,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		physbones += int(not legacy)
 		dynamicbones += int(legacy)
 		var root_t: int = canonical.call(root_of.call(d))
-		var root_bone: int = bone_of.call(root_t)
+		var root_bone: int = _transform_bone(objs, root_t, sk)
 		var component := {"source_id": id, "kind": "DynamicBone" if legacy else "PhysBone", "root": str(objs.get(Yaml.file_id(objs.get(root_t, {}).get("data", {}).get("m_GameObject")), {}).get("data", {}).get("m_Name", "")), "chains": [], "simulated_joints": 0, "reason": "root absent from output skeleton" if root_bone < 0 else ""}
 		coverage.append(component)
 		var first_chain := springs.size()
@@ -2087,7 +2088,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
 		var deepest := _deepest(children, ignored, root_t)
 		var kids_of := func(t: int) -> Array:
-			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and bone_of.call(c) >= 0)
+			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and _transform_bone(objs, c, sk) >= 0)
 		# A PhysBone's limit keeps each bone's swing inside a cone (Angle), an arc in one plane (Hinge) or an elliptical
 		# cone (Polar) about the frame VRChat's CalcLimitAxis builds: Y turned to the bone's direction, after
 		# limitRotation's Euler angles about X, then Y, then Z; its angles and turn each scaled by their curves at the
@@ -2129,7 +2130,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var pending := starts.map(func(t: int) -> Array: return [t, [], 0 if t == root_t else 1])
 		while not pending.is_empty():
 			var item: Array = pending.pop_back()
-			var bone: int = bone_of.call(item[0])
+			var bone: int = _transform_bone(objs, item[0], sk)
 			var joints: Array = (item[1] as Array).duplicate()
 			if bone >= 0 and not human.has(bone) and not ignored.has(item[0]):
 				var j := joint.duplicate()
@@ -2410,7 +2411,7 @@ static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
 		"2":
 			var f: Variant = d.get(filter, {})
 			var by: Dictionary = f if f is Dictionary else {}
-			return (["wearer"] if str(by.get("allowSelf", "1")) == "1" else []) + (["others"] if str(by.get("allowOthers", "1")) == "1" else [])
+			return (["wearer"] if Yaml.on(by, "allowSelf") else []) + (["others"] if Yaml.on(by, "allowOthers") else [])
 	return ["wearer", "others"]
 
 
@@ -2473,8 +2474,8 @@ static func _find_bone(sk: Skeleton3D, unity: String) -> int:
 
 
 ## The skeleton bone a Unity transform name is. Unity gives a transform named like another in the model a " 1", " 2"...
-## suffix (Seed-san's head bone is "head 1" beside its "head" mesh), which Godot's importer does not, so a name the
-## skeleton lacks is matched without its suffix, under the bone its Unity parent is.
+## suffix, which Godot's importer does not, so a name the skeleton lacks is matched without its suffix, under the bone
+## its Unity parent is.
 static func _bone_of(sk: Skeleton3D, unity: String, parents: Dictionary) -> int:
 	var b := _find_bone(sk, unity)
 	if b >= 0:
@@ -2527,8 +2528,8 @@ static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, trans
 		return {"error": "constraint target has no output bone"}
 	var c := {"kind": str(o.type).trim_suffix("Constraint"), "node": bone, "weight": str(d.get("m_Weight", "1")).to_float(), "sources": [], "translation": [], "rotation": []}
 	for axis: String in ["X", "Y", "Z"]:
-		c.translation.append(str(d.get("m_AffectTranslation" + axis, "1")) == "1")
-		c.rotation.append(str(d.get("m_AffectRotation" + axis, "1")) == "1")
+		c.translation.append(Yaml.on(d, "m_AffectTranslation" + axis))
+		c.rotation.append(Yaml.on(d, "m_AffectRotation" + axis))
 	c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
 	c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
 	var entries := Yaml.list(d.get("m_Sources"))

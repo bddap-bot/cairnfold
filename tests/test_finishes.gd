@@ -336,7 +336,7 @@ func _commands_check_finishes() -> void:
 		var fence := d.merged({"fence": true, "finish": finish, "wear": 0.0}, true)
 		var ok: bool = finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]
 		check((Commands._wall(fence) != null) == ok, "a fence %s %s" % ["takes" if ok else "turns down", WallLayout.Finish.keys()[finish]])
-	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": roof_data({"kind": RoofLayout.Kind.CONE, "pitch": 1.5})})
 	var cone: Variant = Commands._wall(tower)
 	check(cone != null and cone.finish == WallLayout.Finish.BARE and cone.wear == 0.0, "a coned tower stays stone")
 
@@ -384,8 +384,7 @@ func _budget_charges_each_finish() -> void:
 ## The style tool's face wheel on an open wall offers every finish, worn plaster at each amount; on a fence rails and
 ## planks; turned, the garden takes it, walls laid after take it and an undo puts it back.
 func _the_face_wheel_turns_every_finish() -> void:
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-22, 20)]), "seed": 3})]}, 1)
-	var id := world.seq * Commands.MAX_PIECES
+	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-22, 20)]))], 1)
 	var picker: PaletteTool = main.palette_tool
 	var target := picker.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
 	check(target.count == PaletteTool.FACES.size(), "an open wall offers every finish: %d" % target.count)
@@ -400,8 +399,7 @@ func _the_face_wheel_turns_every_finish() -> void:
 	var before: Vector2 = PaletteTool.FACES[target.options[target.count - 2]]
 	check(world.state.walls[id].finish == int(before.x), "an undo puts the finish before back")
 	var walls_finish := main.tool.finish
-	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([world.terrain.ground(-30, 26), world.terrain.ground(-22, 26)]), "seed": 4, "fence": true, "height": WallLayout.FENCE_HEIGHT})]}, 1)
-	var fence := world.seq * Commands.MAX_PIECES
+	var fence := order_walls([wall_data({"points": PackedVector3Array([world.terrain.ground(-30, 26), world.terrain.ground(-22, 26)]), "seed": 4, "fence": true, "height": WallLayout.FENCE_HEIGHT})], 1)
 	var f: Wall = main.tool.find(fence)
 	f.lay_now()
 	var mid: Dictionary = f.layout.frame_at(4.0)

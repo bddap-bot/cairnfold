@@ -564,7 +564,7 @@ func _read_palm() -> void:
 		return
 	if held_still:
 		return
-	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var t := _pose_tracker()
 	var aim := t.get_pose(&"aim") if t != null else null
 	if aim == null or not aim.has_tracking_data:
 		return
@@ -587,6 +587,10 @@ func _read_palm() -> void:
 
 func _hand_tracker() -> XRHandTracker:
 	return XRServer.get_tracker("/user/hand_tracker/" + ("left" if tracker == &"left_hand" else "right")) as XRHandTracker
+
+
+func _pose_tracker() -> XRPositionalTracker:
+	return XRServer.get_tracker(tracker) as XRPositionalTracker
 
 
 ## Whether `t`'s joints are the hand's own rather than shaped from the controller it holds.
@@ -636,7 +640,7 @@ func _sensors() -> PackedFloat32Array:
 
 
 func _controller_posed() -> bool:
-	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var t := _pose_tracker()
 	var p := t.get_pose(&"aim") if t != null else null
 	return p != null and p.has_tracking_data
 
@@ -663,7 +667,7 @@ func _flick_input() -> void:
 ## The interaction profile the runtime bound this hand to, logged with the wheel's input on each change, so a
 ## device's log shows which of its controls the controls table landed on.
 func _log_profile() -> void:
-	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var t := _pose_tracker()
 	var bound := t.profile if t != null else ""
 	if bound != _profile:
 		_profile = bound

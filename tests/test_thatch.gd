@@ -208,7 +208,7 @@ func _thatch_follows_a_resized_house() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
 	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "height": 2.4, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.68, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": true}}
+		"roof": roof_data({"pitch": 1.68, "thatch": true})}
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(2.4, 2.4), Vector2(14, 7)]:
 		var to := WallTool.house_of(d)
 		to.size = size
@@ -221,7 +221,7 @@ func _thatch_follows_a_resized_house() -> void:
 		_covered(built[1], "a house resized to %s" % size)
 	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "height": 4.5, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": true}}
+		"roof": roof_data({"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "pitch": 3.2, "thatch": true})}
 	var wider := WallTool.house_of(tower)
 	wider.size = Vector2(6, 6)
 	var grown: Dictionary = tower.roof.merged(WallTool.reshape_house(tower, wider).roof, true)
@@ -242,7 +242,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 	var copy := r.inputs()
 	copy.thatch = true
 	check(not copy.same_inputs(r), "a thatched roof is another roof")
-	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4, "seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4, "seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "roof": roof_data({"seed": 3})})
 	check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
 	check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")

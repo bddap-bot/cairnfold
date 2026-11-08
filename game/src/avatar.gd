@@ -284,9 +284,9 @@ static func weight(size: int, pixels: int) -> float:
 	return maxf(float(size) / FLOOR_BYTES, float(pixels) / FLOOR_PIXELS)
 
 
-## The largest file `available` bytes of memory read.
-static func max_bytes(available := available_memory()) -> int:
-	return int(reads(available) * FLOOR_BYTES)
+## The largest file the memory available now reads.
+static func max_bytes() -> int:
+	return int(reads(available_memory()) * FLOOR_BYTES)
 
 
 ## The memory a device needs available to read a file of `weight` (`reads` it).
@@ -866,7 +866,7 @@ func swaying() -> Array[MeshInstance3D]:
 				swings[_skeleton.get_bone_name(j.bone)] = true
 	var out: Array[MeshInstance3D] = []
 	for mi: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
-		if mi.skin and mi.skin.get_bind_count() > 0 and mi.get_node_or_null(mi.skeleton) == _skeleton and range(mi.skin.get_bind_count()).all(func(i: int) -> bool: return Meshes.bind_bone(mi.skin, i, _skeleton) >= 0 and swings.has(_skeleton.get_bone_name(Meshes.bind_bone(mi.skin, i, _skeleton)))):
+		if mi.skin and mi.skin.get_bind_count() > 0 and mi.get_node_or_null(mi.skeleton) == _skeleton and range(mi.skin.get_bind_count()).map(func(i: int) -> int: return Meshes.bind_bone(mi.skin, i, _skeleton)).all(func(b: int) -> bool: return b >= 0 and swings.has(_skeleton.get_bone_name(b))):
 			out.append(mi)
 	return out
 

@@ -360,11 +360,13 @@ static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFSta
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
 	var springs := _spring_extension(root)
+	var constraints: Array = root.get_meta("constraints", [])
+	var expressions: Dictionary = root.get_meta("expressions", {})
 	state.set_additional_data(&"springs", springs)
-	state.set_additional_data(&"constraints", root.get_meta("constraints", []))
-	state.set_additional_data(&"eyes", root.get_meta("eyes", Vector3(0, 0.06, 0)))
+	state.set_additional_data(&"constraints", constraints)
+	state.set_additional_data(&"eyes", root.get_meta("eyes", Avatar.DATA.eyes))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
-	state.set_additional_data(&"expressions", root.get_meta("expressions", {}))
+	state.set_additional_data(&"expressions", expressions)
 	state.set_additional_data(&"faces", root.get_meta("faces", {}))
 	state.set_additional_data(&"weights", {})
 	state.add_used_extension("VRMC_vrm", false)
@@ -372,9 +374,9 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 		state.add_used_extension("VRMC_springBone", false)
 		if (springs.colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
 			state.add_used_extension("VRMC_springBone_extended_collider", false)
-	if not root.get_meta("constraints", []).is_empty():
+	if not constraints.is_empty():
 		state.add_used_extension("UNITY_constraints", false)
-	if not root.get_meta("expressions", {}).is_empty():
+	if not expressions.is_empty():
 		state.add_used_extension(EXPRESSIONS, false)
 	return OK
 

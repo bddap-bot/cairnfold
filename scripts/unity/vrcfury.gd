@@ -89,7 +89,7 @@ static func _paged(menu: Array) -> void:
 	if menu.size() > MENU_SLOTS:
 		var rest := menu.slice(MENU_SLOTS - 1)
 		menu.resize(MENU_SLOTS - 1)
-		menu.append({"name": "Next", "type": "submenu", "parameter": "", "value": 1.0, "axes": [], "icon": "", "controls": rest})
+		menu.append(_folder("Next", rest))
 	for c: Dictionary in menu:
 		if c.type == "submenu":
 			_paged(c.controls)
@@ -151,7 +151,7 @@ static func _action(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 				ex._count("VRCFury action on an object outside the avatar")
 				return
 			var mode := str(a.get("mode", "0")).to_int()
-			var shown := str(objs[go].data.get("m_IsActive", "1")) == "1"
+			var shown := Yaml.on(objs[go].data, "m_IsActive")
 			var value := 0.0 if mode == 1 or (mode == 2 and shown) else 1.0
 			constant.call(on, path_of[t], "m_IsActive", "1", value)
 			# Turning an object on or off sets it the other way while off; a flip leaves it as the scene has it.
@@ -258,7 +258,7 @@ static func _full_controller(ex: Expressions, objs: Dictionary, paths: Dictionar
 	for list: String in lists:
 		for p: Variant in Yaml.list(ex._asset(list).get("parameters")):
 			if p is Dictionary:
-				synced[str(p.get("name", ""))] = str(p.get("networkSynced", "1")) == "1"
+				synced[str(p.get("name", ""))] = Yaml.on(p, "networkSynced")
 	var renamed := func(n: String) -> String:
 		if n == "" or own.has(n) or (global.has("*") and not global.has("!" + n)) or global.has(n) or n in BUILT_IN or Expressions.BUILT_IN.has(n) or (nonsynced_global and not synced.get(n, false)):
 			return n
@@ -376,6 +376,11 @@ static func _resolve(paths: Dictionary, base: String, path: String) -> String:
 	return below if base != "" and paths.has(below) else path
 
 
+## A submenu `name` holding `controls`.
+static func _folder(name: String, controls: Array) -> Dictionary:
+	return {"name": name, "type": "submenu", "parameter": "", "value": 1.0, "axes": [], "icon": "", "controls": controls}
+
+
 ## The controls of the submenu at `segments` under `menu`, each missing submenu made.
 static func _submenu(menu: Array, segments: Array) -> Array:
 	var at := menu
@@ -386,7 +391,7 @@ static func _submenu(menu: Array, segments: Array) -> Array:
 				found = c
 				break
 		if found == null:
-			found = {"name": s, "type": "submenu", "parameter": "", "value": 1.0, "axes": [], "icon": "", "controls": []}
+			found = _folder(s, [])
 			at.append(found)
 		at = found.controls
 	return at

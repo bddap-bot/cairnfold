@@ -1,18 +1,10 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## A build style's miniature never waits on its build: the wheel gets it at once and the worker fills it.
-
-var failures := 0
 
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -21,8 +13,8 @@ func _run() -> void:
 	root.add_child(roof)
 	check(roof.get_child_count() == 0, "the first roof miniature comes back before its build")
 	# Frames run unthrottled here, faster than the worker builds; the limit only turns a deadlock into a failure.
-	var until := Time.get_ticks_msec() + 60000
-	while roof.get_child_count() == 0 and Time.get_ticks_msec() < until:
+	var deadline := Time.get_ticks_msec() + 60000
+	while roof.get_child_count() == 0 and Time.get_ticks_msec() < deadline:
 		await process_frame
 	var made := ToolModels._style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, WallLayout.Finish.BARE, false, false, false, false)
 	check(roof.get_child_count() > 0 and roof.get_child_count() == made.get_child_count(), "the worker fills it with the pieces a build on the frame lays")
@@ -37,5 +29,4 @@ func _run() -> void:
 		await process_frame
 	ToolModels.stop_styles()
 	roof.queue_free()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

@@ -209,6 +209,11 @@ static func list(v: Variant) -> Array:
 	return v if v is Array else []
 
 
+## Whether Unity's boolean `field` of `data` is on, as an absent one is.
+static func on(data: Dictionary, field: String) -> bool:
+	return str(data.get(field, "1")) == "1"
+
+
 static func file_id(ref: Variant) -> int:
 	return str((ref as Dictionary).get("fileID", "0")).to_int() if ref is Dictionary else 0
 

@@ -252,7 +252,7 @@ func _a_trapdoor_lies_in_a_flat_roof() -> void:
 
 func _commands_carry_families_and_trapdoors() -> void:
 	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "closed": true, "seed": 2})
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 0.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array([Vector2(0.5, 0.0)]), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = roof_data({"pitch": 0.0, "hatches": PackedVector2Array([Vector2(0.5, 0.0)])})
 	d.openings = PackedVector4Array([Vector4(6.0, 1.2, WallLayout.Family.CORNER, 1.0), Vector4(2.0, 1.35, WallLayout.Family.ROUND, 1.0)])
 	var ok: Variant = Commands._wall(d)
 	check(ok != null and ok.roof.hatches.size() == 1, "a house with a corner window, a round one and a trapdoor is a build")
@@ -274,7 +274,7 @@ func _commands_carry_families_and_trapdoors() -> void:
 
 func _the_budget_counts_rings_dressing_and_trapdoors() -> void:
 	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "closed": true, "seed": 2})
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 0.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = roof_data({"pitch": 0.0})
 	d.openings = PackedVector4Array([Vector4(2.0, 1.35, WallLayout.Family.COTTAGE, 1.0)])
 	var bare: int = Budget.wall(d).get("fitting", 0)
 	d.openings = PackedVector4Array([Vector4(2.0, 1.35, WallLayout.Family.ROUND, 1.0)])

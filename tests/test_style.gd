@@ -58,8 +58,7 @@ func _species_differ() -> void:
 ## The style tool turns a stone face to plaster through the host, which a peer takes, an undo puts back, a redo
 ## brings again and a save carries; the walls laid after are plaster too.
 func _faces_turn_to_plaster() -> void:
-	world._order({"op": "wall", "walls": [seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-24, 20)]))]}, 1)
-	var id := world.seq * Commands.MAX_PIECES
+	var id := order_walls([seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-24, 20)]))], 1)
 	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
 	check(target.count == PaletteTool.FACES.size(), "an open wall's face offers every finish")
 	var relayed := peer_relayed({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, 2)
@@ -84,9 +83,8 @@ func _foundations_turn_to_plaster() -> void:
 	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, 0), main.world.terrain.ground(4, 0), 6.0)))
 	d.closed = true
 	d.rise = 1.5
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
-	world._order({"op": "wall", "walls": [d]}, world.me())
-	var id := world.seq * Commands.MAX_PIECES
+	d.roof = roof_data({"center": main.world.terrain.ground(0, 0), "radius": 3.0, "seed": 4})
+	var id := order_walls([d], world.me())
 	var w: Wall = main.tool.find(id)
 	w.lay_now()
 	var f := w.layout.frame_at(2.0)
@@ -135,9 +133,8 @@ func _floors_take_a_style() -> void:
 	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-14, 24), main.world.terrain.ground(-10, 24), 4.0)))
 	d.closed = true
 	d.height = 2.6
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": main.world.terrain.ground(-12, 24), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
-	world._order({"op": "wall", "walls": [d]}, 1)
-	var id := world.seq * Commands.MAX_PIECES
+	d.roof = roof_data({"center": main.world.terrain.ground(-12, 24), "seed": 4})
+	var id := order_walls([d], 1)
 	var w: Wall = main.tool.find(id)
 	w.lay_now()
 	var inside := Vector3(-12.3, w.layout.floor_y + 1.6, 24.2)
@@ -331,8 +328,7 @@ func _meadow_trees_grow() -> void:
 func _timber_faces() -> void:
 	var data := seeded_wall(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 	data.closed = true
-	world._order({"op": "wall", "walls": [data]}, 1)
-	var id := world.seq * Commands.MAX_PIECES
+	var id := order_walls([data], 1)
 	var wall: Wall = main.tool.find(id)
 	wall.lay_now()
 	var picker: PaletteTool = main.palette_tool
@@ -488,9 +484,8 @@ func _roof_choices_keep_shape() -> void:
 		for thatch in [false, true]:
 			var data := seeded_wall(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 			data.closed = true
-			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": thatch}
-			world._order({"op": "wall", "walls": [data]}, world.me())
-			var id := world.seq * Commands.MAX_PIECES
+			data.roof = roof_data({"pitch": pitch, "curve": 0.4, "seed": 3, "thatch": thatch})
+			var id := order_walls([data], world.me())
 			var wall: Wall = main.tool.find(id)
 			var target := picker.style_target(PaletteTool.Restyle.ROOF, wall, Vector3.ZERO)
 			check(target.count == 2 and target.options == WallTool.roof_options(pitch), "roof offers only coverings for its shape")

@@ -70,6 +70,10 @@ static func _things(state: Dictionary) -> int:
 	return n
 
 
+static func _supports(on: Variant) -> bool:
+	return typeof(on) == TYPE_PACKED_INT32_ARRAY and on.size() <= MAX_SUPPORTS and _unique(on)
+
+
 static func _unique(ids: PackedInt32Array) -> bool:
 	var seen := {}
 	for id in ids:
@@ -415,7 +419,7 @@ static func _wall(d: Variant) -> Variant:
 	if not ruins.is_empty() and (d.fence or d.has("roof")):
 		return null
 	var on: Variant = d.get("on")
-	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
+	if not _supports(on):
 		return null
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
@@ -704,6 +708,6 @@ static func _stairs(d: Variant) -> Variant:
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null
 	var on: Variant = d.get("on")
-	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
+	if not _supports(on):
 		return null
 	return {"a": d.a, "b": d.b, "width": d.width, "sag": d.sag, "seed": d.seed, "rail": d.rail, "paint": d.paint, "on": on}

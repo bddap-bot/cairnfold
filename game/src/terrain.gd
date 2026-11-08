@@ -422,11 +422,6 @@ func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 			_floor = minf(_floor, values[n])
 			_crest = maxf(_crest, values[n])
 			n += 1
-	# A point's normal is from its neighbours' heights, so it changes a step around the edit too.
-	var around := cells.grow(1).intersection(ALL)
-	for j in range(around.position.y, around.end.y):
-		for i in range(around.position.x, around.end.x):
-			_steep[j * VERTS + i] = 1.0 - _normal(i, j).y
 	_raise_tops(cells)
 	revision += 1
 	heights_revision += 1
@@ -495,17 +490,20 @@ func _normal(i: int, j: int) -> Vector3:
 
 
 func _sync(cells: Rect2i) -> void:
-	if _image == null:
-		return
-	# The normal is each point's from its neighbours' heights, so it changes a step around the edit too.
+	var shown := _image != null
+	# A point's normal is from its neighbours' heights, so it changes a step around the edit too.
 	var around := cells.grow(1).intersection(ALL)
 	for j in range(around.position.y, around.end.y):
 		for i in range(around.position.x, around.end.x):
-			var h := _heights[j * VERTS + i]
-			_half.encode_half(0, h)
-			var hi := _half.decode_half(0)
 			var n := _normal(i, j)
-			_image.set_pixel(i, j, Color(hi, n.x, h - hi, n.z))
+			_steep[j * VERTS + i] = 1.0 - n.y
+			if shown:
+				var h := _heights[j * VERTS + i]
+				_half.encode_half(0, h)
+				var hi := _half.decode_half(0)
+				_image.set_pixel(i, j, Color(hi, n.x, h - hi, n.z))
+	if not shown:
+		return
 	_texture.update(_image)
 	if _water_image == null:
 		return

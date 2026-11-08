@@ -125,8 +125,7 @@ func _read(m: Dictionary, guid: String) -> void:
 			break
 	for k: String in COLOURS:
 		if colours.get(k) is Dictionary:
-			var c: Dictionary = colours[k]
-			m.colour = Color(str(c.get("r", "1")).to_float(), str(c.get("g", "1")).to_float(), str(c.get("b", "1")).to_float(), str(c.get("a", "1")).to_float())
+			m.colour = _colour(colours[k], Color.WHITE)
 			break
 	var queue := str(mat.get("m_CustomRenderQueue", "-1")).to_int()
 	var tags: Variant = mat.get("stringTagMap")
@@ -545,7 +544,7 @@ func decal(key: String, slot: int) -> Dictionary:
 ## Whether the decal suffixed `n` turns its hue by a value a clip can move, which its image then holds unturned: a locked
 ## Poiyomi shader declares an animated property under the material's suffix.
 static func _turned(m: Dictionary, n: String) -> bool:
-	if str((m.get("floats", {}) as Dictionary).get("_DecalHueShiftEnabled" + n, "0")).to_float() == 0.0:
+	if _float(m, "_DecalHueShiftEnabled" + n) == 0.0:
 		return false
 	return (m.get("properties", {}) as Dictionary).keys().any(func(declared: String) -> bool: return declared.begins_with("_DecalHueShift" + n + "_"))
 

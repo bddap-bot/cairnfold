@@ -32,7 +32,7 @@ func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Di
 func _lay(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
 	w.build(Terrain.flat)
-	h.roof.base = w.samples[0].y + w.height + WallLayout.CAP
+	h.roof.base = w.roof_base()
 	h.roof.build()
 	w.hide_roof(h.roof)
 

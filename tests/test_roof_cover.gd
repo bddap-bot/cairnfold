@@ -35,7 +35,7 @@ func _case(size: Vector2, pitch: float, curve: float, seed_value: int) -> int:
 	w.height = 2.4
 	w.cover = WallLayout.Cover.ROOF
 	w.gable = r
-	w.build(func(_x: float, _z: float) -> float: return 0.0)
+	w.build(Terrain.flat)
 	var kinds := Wall.kinds()
 	var packed := Wall.pack_roof(w, r, kinds, Palette.plain())
 	var tiles := TriangleMesh.new()

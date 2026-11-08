@@ -26,9 +26,8 @@ func _demo() -> void:
 		if step.op == "capture":
 			continue
 		await play([step])
+	lay_walls(main.tool)
 	var walls: Array[Wall] = main.tool.walls
-	for w in walls:
-		w.lay_now()
 	var kinds := {}
 	for w in walls:
 		if _stilted(w):

@@ -453,7 +453,7 @@ func _put_house(nodes: Array, at: Vector3) -> Wall:
 	var world: World = nodes[2]
 	var a := world.terrain.ground(at.x - 4, at.z)
 	var b := world.terrain.ground(at.x + 4, at.z)
-	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": {"kind": RoofLayout.Kind.GABLE, "center": world.terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": roof_data({"center": world.terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "seed": 4})})
 	world.submit({"op": "wall", "walls": [data]})
 	lay_walls(nodes[0])
 	return nodes[0].walls[-1]

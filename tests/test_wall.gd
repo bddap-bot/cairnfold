@@ -534,17 +534,13 @@ func _bowl(x: float, _z: float) -> float:
 	return -1.0 if x > 3.0 and x < 9.0 else 0.08
 
 
-func _surface(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _wet(width: float, height: float) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 	w.height = height
 	var lo := 6.0 - width * 0.5
 	var hi := 6.0 + width * 0.5
-	w.build(func(x: float, _z: float) -> float: return -1.0 if x > lo and x < hi else 0.08, _surface)
+	w.build(func(x: float, _z: float) -> float: return -1.0 if x > lo and x < hi else 0.08, Terrain.flat)
 	return w
 
 
@@ -600,7 +596,7 @@ func _a_wall_over_water_stands_on_its_bed() -> void:
 	check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
 	var again := WallLayout.new()
 	again.points = w.points
-	again.build(func(x: float, _z: float) -> float: return -1.0 if x > 3.0 and x < 9.0 else 0.08, _surface)
+	again.build(func(x: float, _z: float) -> float: return -1.0 if x > 3.0 and x < 9.0 else 0.08, Terrain.flat)
 	check(var_to_str(again.stones) == var_to_str(w.stones), "the same ground and water lay the same stones")
 
 
@@ -626,13 +622,13 @@ func _a_swimmer_is_stopped_as_by_every_segment() -> void:
 	var bent := WallLayout.new()
 	bent.points = [Vector3(-6, 0, -1), Vector3(0, 0, 2), Vector3(5, 0, -2), Vector3(9, 0, 3)]
 	bent.height = 2.6
-	bent.build(_bowl, _surface)
+	bent.build(_bowl, Terrain.flat)
 	var loop := WallLayout.new()
 	for k in 7:
 		loop.points.append(Vector3(cos(k * TAU / 7) * 4.0 + 6.0, 0, sin(k * TAU / 7) * 4.0))
 	loop.closed = true
 	loop.height = 2.6
-	loop.build(_bowl, _surface)
+	loop.build(_bowl, Terrain.flat)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	var differ := 0
@@ -673,13 +669,13 @@ func _ducks_pass_only_under_arches() -> void:
 	ruin.points = w.points
 	ruin.ruins = [Vector2(4.0, 8.0)]
 	ruin.height = 1.2
-	ruin.build(_bowl, _surface)
+	ruin.build(_bowl, Terrain.flat)
 	check(not ruin.blocks_swim(Vector2(6, -2), Vector2(6, 2)), "a duck swims through a ruin's gap")
 	var f := WallLayout.new()
 	f.points = w.points
 	f.fence = true
 	f.height = WallLayout.FENCE_HEIGHT
-	f.build(_bowl, _surface)
+	f.build(_bowl, Terrain.flat)
 	check(not f.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "a fence's rails stand over the water")
 	var post := f.stones.filter(func(st): return st.kind == "post" and absf(st.s - 6.0) < 1.0)
 	check(not post.is_empty() and post.all(func(st): return absf(st.y - st.size.y * 0.5 + 0.88) < 0.1), "its posts stand on the bed")
@@ -689,7 +685,7 @@ func _a_path_arch_beside_a_pond_stays_open() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 	w.openings.assign([2.6].map(WallLayout.archway))
-	w.build(_bowl, _surface)
+	w.build(_bowl, Terrain.flat)
 	check(w.archways().any(func(a): return is_equal_approx(a, 2.6)), "a path's arch beside the water stays open: %s" % [w.archways()])
 	check(w.archways().size() >= 3, "and arches still cross the water")
 

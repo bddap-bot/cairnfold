@@ -58,8 +58,8 @@ func _run() -> void:
 	for round in ROUNDS:
 		var before := _read(path)
 		var pid := OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"), "--script", script, "--", "writer", dir])
-		var until := Time.get_ticks_msec() + 60000
-		while _read(path) == before and Time.get_ticks_msec() < until:
+		var deadline := Time.get_ticks_msec() + 60000
+		while _read(path) == before and Time.get_ticks_msec() < deadline:
 			OS.delay_msec(5)
 		OS.delay_msec(randi_range(10, 150))
 		OS.kill(pid)

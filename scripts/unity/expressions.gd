@@ -27,7 +27,7 @@ func _init(from: Assets, descriptor: Dictionary) -> void:
 	var menu := Yaml.guid(descriptor.get("expressionsMenu"))
 	var controller := ""
 	for layer: Variant in Yaml.list(descriptor.get("baseAnimationLayers")):
-		if layer is Dictionary and str(layer.get("type", "")) == FX and str(layer.get("isDefault", "1")) != "1":
+		if layer is Dictionary and str(layer.get("type", "")) == FX and not Yaml.on(layer, "isDefault"):
 			controller = Yaml.guid(layer.get("animatorController"))
 	if not assets.by_guid.has(menu) or not assets.by_guid.has(controller):
 		return
@@ -98,7 +98,7 @@ func _parameters(list: String, controller: String) -> Array:
 		if not p is Dictionary or str(p.get("name", "")) == "":
 			continue
 		var name := str(p.name)
-		out[name] = {"name": name, "type": VALUE_TYPES[clampi(str(p.get("valueType", "0")).to_int(), 0, 2)], "default": _float(p.get("defaultValue")), "saved": str(p.get("saved", "1")) == "1"}
+		out[name] = {"name": name, "type": VALUE_TYPES[clampi(str(p.get("valueType", "0")).to_int(), 0, 2)], "default": _float(p.get("defaultValue")), "saved": Yaml.on(p, "saved")}
 	return out.values()
 
 
@@ -134,7 +134,7 @@ func _layers(guid: String) -> Array:
 				layer.entry.append_array(_transition(objs, Yaml.file_id(t), index))
 			for s: int in order:
 				var d: Dictionary = objs[s].data
-				var state := {"name": str(d.get("m_Name", "")), "speed": _float(d.get("m_Speed"), 1.0), "writeDefaults": str(d.get("m_WriteDefaultValues", "1")) == "1", "transitions": [], "drivers": []}
+				var state := {"name": str(d.get("m_Name", "")), "speed": _float(d.get("m_Speed"), 1.0), "writeDefaults": Yaml.on(d, "m_WriteDefaultValues"), "transitions": [], "drivers": []}
 				var motion := _motion(guid, d.get("m_Motion"), 0)
 				if not motion.is_empty():
 					state.motion = motion
@@ -164,8 +164,7 @@ static func _collect(objs: Dictionary, machine: int, states: Dictionary, machine
 
 
 static func _default(objs: Dictionary, machine: int) -> int:
-	var d := Yaml.file_id(objs[machine].data.get("m_DefaultState"))
-	return d
+	return Yaml.file_id(objs[machine].data.get("m_DefaultState"))
 
 
 func _transition(objs: Dictionary, id: int, index: Dictionary) -> Array:
@@ -192,7 +191,7 @@ func _transition(objs: Dictionary, id: int, index: Dictionary) -> Array:
 	var out := {"to": to, "conditions": conditions}
 	if str(d.get("m_HasExitTime", "0")) == "1":
 		out.exitTime = _float(d.get("m_ExitTime"), 1.0)
-	if str(d.get("m_CanTransitionToSelf", "1")) != "1":
+	if not Yaml.on(d, "m_CanTransitionToSelf"):
 		out.notToSelf = true
 	return [out]
 

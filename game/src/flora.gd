@@ -1047,10 +1047,15 @@ func unit_of(p: Plant) -> String:
 	return {grass: "grass", flowers: "flower", trunks: "tree", bushes: "bush", moss: "moss"}.get(p.pool, "")
 
 
+## Every pool the garden's own plants stand in, the ghosts apart.
+func _pools() -> Array[Pool]:
+	return [grass, flowers, trunks, foliage, bushes, moss]
+
+
 ## The plants so far are the meadow's own: group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []
-	for p: Pool in [grass, flowers, trunks, foliage, bushes, moss]:
+	for p: Pool in _pools():
 		meadow.append_array(p.plants.slice(0, p.size()))
 		p.keep()
 	_name(0, meadow)
@@ -1223,7 +1228,7 @@ func reset() -> void:
 	if growing():
 		_growing.clear()
 		grown.emit()
-	for p: Pool in [grass, flowers, trunks, foliage, bushes, moss]:
+	for p: Pool in _pools():
 		p.reset()
 		# Only the taken are stood again, found natively: visiting each of the meadow's tens of thousands of plants
 		# in script held a Quest's frame for hundreds of milliseconds. A plant a tool shows taken is the tool's to
@@ -1337,5 +1342,5 @@ func obstacles() -> PackedVector3Array:
 ## Pools and their plants point at each other; the cycle is cut here so both are freed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for p in [grass, flowers, trunks, foliage, bushes, moss, ghost_grass, ghost_flowers, ghost_moss]:
+		for p: Pool in _pools() + [ghost_grass, ghost_flowers, ghost_moss]:
 			p.plants.clear()

@@ -160,7 +160,7 @@ func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
 	var key := Controls.key("wheel", hand.tracker)
 	var tree := hand.inventory()
-	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
+	var leaf: Variant = _tool(s)
 	if s.has("action"):
 		leaf = SessionWheel.LEAVES.filter(func(l: String) -> bool: return hand.people.choices(l).has(s.action)).front()
 	var path: Array[int] = ToolWheel.paths(tree).get(leaf, [] as Array[int])
@@ -228,7 +228,7 @@ func _pick_bare(s: Dictionary) -> void:
 	var left: bool = hand == main.rig.left
 	var head: Transform3D = main.rig.head.global_transform
 	var palm := head * Lessons.frame({"at": Vector3(-0.2 if left else 0.2, -0.3, -0.4), "aim": Vector3(0, -0.35, -1), "roll": 0.0})
-	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
+	var leaf: Variant = _tool(s)
 	var path: Array[int] = ToolWheel.paths(hand.inventory()).get(leaf, [] as Array[int])
 	Hand.injected_joints[hand.tracker] = HandShape.make(palm, left, "")
 	await _frames(2)
@@ -380,6 +380,11 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+func _shot(s: Dictionary) -> void:
+	if s.has("capture"):
+		await main.capture(s.capture)
+
+
 ## Calls `step` after each frame of `seconds` (the step's own, else `default`) with the share of them done, ending on
 ## the frame nearest `seconds`, at 1.
 func _over(s: Dictionary, default: float, step: Callable) -> void:
@@ -397,6 +402,10 @@ func _over(s: Dictionary, default: float, step: Callable) -> void:
 
 func _hand(s: Dictionary, side := "right") -> Hand:
 	return _side(s.get("hand", side))
+
+
+static func _tool(s: Dictionary) -> Hand.Tool:
+	return Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
 
 
 func _side(side: String) -> Hand:
@@ -448,8 +457,7 @@ func _aim(s: Dictionary) -> void:
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
 	if s.has("watch"):
 		await _view(s.watch)
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	Hand.injected_sticks.erase(rig.left.tracker)
 	await get_tree().create_timer(s.get("settle", 2.0)).timeout
 
@@ -672,8 +680,7 @@ func _grow(s: Dictionary) -> void:
 	await _over(s, 1.0, func(k: float) -> void:
 		var half: float = 1.0 + s.metres * 0.5 * smoothstep(0.0, 1.0, k)
 		tool.drag_pair(left, mid + Vector3.RIGHT * half, mid + Vector3.LEFT * half))
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	tool.end_grow(left)
 	tool.end_grow(right)
 
@@ -716,8 +723,7 @@ func _carry(s: Dictionary) -> void:
 		var k := smoothstep(0.0, 1.0, done)
 		var basis := Basis.from_euler(Vector3(deg_to_rad(turn[0]), deg_to_rad(turn[1]), deg_to_rad(turn[2])) * k)
 		m.sizing.follow.call(m, Transform3D(basis, from.origin + Lessons._v(move) * k)))
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	tool.end_grow(m)
 
 
@@ -749,8 +755,7 @@ func _clutter(s: Dictionary) -> void:
 	await _over(s, 1.0, func(done: float) -> void:
 		var k := smoothstep(0.0, 1.0, done)
 		m.sizing.follow.call(m, Transform3D(Basis(Vector3.UP, turn * k), from.origin + Lessons._v(move) * k)))
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	tool.end_grow(m)
 	if m != first:
 		tool.end_grow(first)
@@ -953,8 +958,7 @@ func _sculpt(s: Dictionary) -> void:
 func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = _spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1]
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	main.flora_tool.stand_in = Flora.NO_HAND
 
 
@@ -1696,10 +1700,16 @@ func _frenzied() -> bool:
 	return f[1] > 0 and f[0] == f[1]
 
 
+## Writes `out` to `name`.json in the capture directory, returning its path.
+func _write_capture(name: String, out: Dictionary) -> String:
+	var path: String = main.capture_path(name + ".json")
+	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
+	return path
+
+
 ## Writes `World.digest`, where the sun stands, how many other players' avatars stand here, the hashes of their own files and the poses they show, and how many eat from held dishes, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
-	var path: String = main.capture_path(s.name + ".json")
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
 		var h: Vector3 = main.rig.head.global_position
@@ -1714,8 +1724,7 @@ func _digest(s: Dictionary) -> void:
 	out.fed = {"hand": main.wildlife.feeding(false), "dish": main.wildlife.feeding(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
 	out.frenzy = main.wildlife.fish.frenzy()
-	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
-	print("driver: digest ", path)
+	print("driver: digest ", _write_capture(s.name, out))
 
 
 ## Samples a connected, settled session; ENet counters exclude discovery and IP/UDP headers.
@@ -1743,9 +1752,7 @@ func _network_sample(s: Dictionary) -> void:
 		"tx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA) / seconds,
 		"rx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA) / seconds,
 		"process_ms_frame": process_ms / frames, "physics_ms_frame": physics_ms / frames}
-	var path: String = main.capture_path(s.name + ".json")
-	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
-	print("driver: network sample ", path)
+	print("driver: network sample ", _write_capture(s.name, out))
 
 
 ## Takes a photo with the camera in `hand` (right by default), or with `tool` "selfie" the selfie camera, wherever its lens
@@ -1901,8 +1908,7 @@ func _dial(s: Dictionary, hand: Hand, target: Dictionary, to: int) -> void:
 	var from: int = tool.wheels[hand].dial.start
 	var turn := (to - from) * Dial.step(target.count)
 	await _over(s, 1.0, func(k: float) -> void: tool.twist(hand, turn * k))
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	tool.close(hand)
 	await get_tree().process_frame
 
@@ -2208,8 +2214,7 @@ func _sheet(s: Dictionary) -> void:
 	await _over(s, 0.6, func(k: float) -> void:
 		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * k)))
 	await _frames(1)
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	Buttons.injected.erase(key)
 	await _frames(2)
 
@@ -2745,8 +2750,7 @@ func _held_cost(s: Dictionary) -> void:
 		# Every item's models are built in one frame, which no player does, and the runtime runs at half rate for a
 		# moment after it.
 		await get_tree().create_timer(1.0).timeout
-		if s.has("capture"):
-			await main.capture(s.capture)
+		await _shot(s)
 		var name := HeldItem.label(state)
 		var label := {"op": "label", "name": s.get("label", "held/" + name.replace(" ", "-"))}
 		print("driver: ", label)
@@ -3117,8 +3121,7 @@ func _expression(s: Dictionary) -> void:
 	if s.has("label"):
 		main.metrics.info.label = s.label
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
-	if s.has("capture"):
-		await main.capture(s.capture)
+	await _shot(s)
 	if puppet:
 		Buttons.injected[button] = true
 		await _frames(2)

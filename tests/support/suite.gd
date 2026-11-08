@@ -86,6 +86,11 @@ static func wall_data(with: Dictionary) -> Dictionary:
 	return d
 
 
+## The roof a wall sends: `with`'s fields, the rest as a fresh RoofLayout has them.
+static func roof_data(with: Dictionary) -> Dictionary:
+	return RoofLayout.new().data().merged(with, true)
+
+
 ## The index of the `village` step that `steps[at]` looks over: the last one before it.
 static func village_before(steps: Array, at: int) -> int:
 	var village := at
@@ -211,7 +216,13 @@ func peer_relayed(cmd: Dictionary, by: int) -> Dictionary:
 	return Commands.clean(hosted, world.state, true, world.terrain)
 
 
-func order_wall(by: int, x := 0.0) -> int:
+## Orders `walls` built as `by`, and the id the first of them takes.
+func order_walls(walls: Array, by: int) -> int:
 	var world := main.world
-	world._order({"op": "wall", "walls": [seeded_wall(PackedVector3Array([world.terrain.ground(x, -5), world.terrain.ground(x + 4, -5)]))]}, by)
+	world._order({"op": "wall", "walls": walls}, by)
 	return world.seq * Commands.MAX_PIECES
+
+
+func order_wall(by: int, x := 0.0) -> int:
+	var terrain := main.world.terrain
+	return order_walls([seeded_wall(PackedVector3Array([terrain.ground(x, -5), terrain.ground(x + 4, -5)]))], by)

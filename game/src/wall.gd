@@ -240,7 +240,7 @@ func data() -> Dictionary:
 		"ruins": PackedVector2Array(layout.ruins), "finish": int(layout.finish), "wear": layout.wear, "foundation": int(layout.foundation), "planks": layout.planks, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
-		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "hatches": PackedVector2Array(roof.hatches), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
+		d.roof = roof.data()
 	return d
 
 

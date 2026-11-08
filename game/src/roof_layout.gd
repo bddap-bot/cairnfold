@@ -172,6 +172,11 @@ func same_inputs(other: RoofLayout) -> bool:
 	return true
 
 
+## The roof as a build command carries it.
+func data() -> Dictionary:
+	return {"kind": int(kind), "center": center, "radius": radius, "pitch": pitch, "curve": curve, "seed": seed, "chimneys": PackedVector2Array(chimneys), "dormers": PackedVector2Array(dormers), "hatches": PackedVector2Array(hatches), "overhang": overhang, "deck": int(deck), "flag": flag, "thatch": thatch}
+
+
 ## Takes a build command's roof.
 func set_data(d: Dictionary) -> void:
 	for k in ["center", "radius", "pitch", "curve", "seed", "overhang", "flag", "thatch"]:
@@ -832,11 +837,11 @@ func dormer_windows() -> Array[Dictionary]:
 	# A roof not yet laid over its walls has no corners to stand a dormer on.
 	if corners.size() < 4:
 		return out
+	var f := frame()
 	for c in dormers:
 		var spot := dormer_spot(c)
 		if is_nan(spot.x):
 			continue
-		var f := frame()
 		var facing: Vector3 = f.across * signf(spot.y)
 		var x := absf(spot.y)
 		var foot := rise(1.0 - x / half_span()) + (COAT if thatched() else 0.0)
@@ -948,11 +953,16 @@ func _along(x: float, d: float) -> float:
 	return x
 
 
+## How far the tiles run along the ridge: over the walls and out past both gable ends.
+func _tiled_length() -> float:
+	return ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+
+
 ## A row of tiles down both slopes, `under` beneath its line: the eave row lies on an under-course staggered
 ## against it, as nothing else lies under its joints.
 func _lay_gable_row(row: float, stagger: float, hue: float, rng: RandomNumberGenerator, under := 0.0) -> void:
 	var f := frame()
-	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+	var length := _tiled_length()
 	var bed := _bed(row)
 	var state := rng.state
 	for side in [-1.0, 1.0]:
@@ -991,7 +1001,7 @@ static func _slope_basis(out: Vector3, slope: float) -> Basis:
 
 func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+	var length := _tiled_length()
 	var x := 0.0
 	while x < length - 0.001:
 		var width := minf(0.32, length - x)
@@ -1082,6 +1092,11 @@ func _coat_reach() -> float:
 	return ridge_length() * 0.5 + (0.0 if stepped else WallLayout.THICKNESS * 0.5 + THATCH_VERGE)
 
 
+## How far out from the ridge (or axis) the coat's underside runs its rows, from inside the walls to past the eave.
+func _under_rows(step: float) -> PackedFloat32Array:
+	return _spaced(half_span() - 0.1, eave() + THATCH_EAVE, step * 2.0)
+
+
 ## A gable's coat: each slope a grid from the ridge to past the eave and past both verges, its edges rounded under, then
 ## the ridge's roll.
 func _coat_gable(c: Coat) -> void:
@@ -1089,14 +1104,14 @@ func _coat_gable(c: Coat) -> void:
 	var reach := _coat_reach()
 	var ts := _edged(_spaced(-reach, reach, c.step))
 	var xs := _coat_rows(c.step)
+	var under := _under_rows(c.step)
+	var ends := _spaced(0.0, eave() + THATCH_EAVE, c.step * 2.0)
+	var lengthwise := _spaced(-reach, reach, c.step * 2.0)
 	for side in [-1.0, 1.0]:
 		var out: Vector3 = f.across * side
 		c.grid(ts.size(), xs.size(), func(i: int, j: int) -> Array:
 			var t: float = ts[i].x
 			return _coat_node(f.mid + f.along * t, out, f.along * signf(t), t, xs[j].x, ts[i].y, xs[j].y, c))
-		var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, c.step * 2.0)
-		var ends := _spaced(0.0, eave() + THATCH_EAVE, c.step * 2.0)
-		var lengthwise := _spaced(-reach, reach, c.step * 2.0)
 		c.grid(lengthwise.size(), under.size(), func(i: int, j: int) -> Array:
 			return _under_node(f.mid + f.along * lengthwise[i], out, under[j]))
 		for end in ([] if stepped else [-1.0, 1.0]):
@@ -1115,7 +1130,7 @@ func _coat_cone(c: Coat) -> void:
 		var a := TAU * i / n
 		var out := Vector3(cos(a), 0.0, sin(a))
 		return _coat_node(f.mid, out, Vector3.ZERO, float(i) / n * points * POINT.x, xs[j].x, 0.0, xs[j].y, c))
-	var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, c.step * 2.0)
+	var under := _under_rows(c.step)
 	c.grid(n + 1, under.size(), func(i: int, j: int) -> Array:
 		var a := TAU * i / n
 		return _under_node(f.mid, Vector3(cos(a), 0.0, sin(a)), under[j]))
