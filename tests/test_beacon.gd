@@ -182,8 +182,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 		await process_frame
 	var unreachable := "%s:%d" % [NOBODY, Session.PORT + 9]
 	viewer.nearby[unreachable] = viewer.nearby[where].merged({"address": NOBODY, "port": Session.PORT + 9, "wears": "cd".repeat(32), "name": "", "seen": INF}, true)
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(_worn_by(tool, unreachable) == "", "until a host's file arrives they stand in a built-in avatar")
 	viewer.nearby.erase(unreachable)
 	while viewer.previewing():
@@ -210,8 +209,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 		await process_frame
 	check(not viewer.previews.has(junk_key) and viewer._failed.has(junk_key), "a file that is the one named but does not read is not shown")
 	viewer._clock += Session.RETRY + 1.0
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(not viewer._fetches.has(junk_key) and viewer._failed.get(junk_key) == INF, "and while its beacon names it, it is not fetched again")
 	host._shelved = shelved
 	viewer.nearby.erase("127.0.0.1:1")

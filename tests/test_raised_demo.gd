@@ -20,11 +20,9 @@ func _stilted(w: Wall) -> bool:
 ## `demo/raised.json` stands long and round houses on pillars and posts, and the style tool turns a plinth to pillars.
 func _demo() -> void:
 	for step: Dictionary in Driver.read("res://../demo/raised.json"):
-		if step.op in ["quit"]:
+		if step.op in ["capture", "quit"]:
 			continue
 		step.erase("capture")
-		if step.op == "capture":
-			continue
 		await play([step])
 	lay_walls(main.tool)
 	var walls: Array[Wall] = main.tool.walls
@@ -44,7 +42,7 @@ func _stress_ring() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "raised/ground"), "the stress scene has raised/aerial and raised/ground phases")
 	if first < 0:
 		return
-	var village := village_before(steps, first)
+	var village := step_before(steps, first, "village")
 	await play([steps[0], steps[village]])
 	var walls: Array[Wall] = main.tool.walls
 	var round := 0

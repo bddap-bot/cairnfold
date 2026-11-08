@@ -488,8 +488,7 @@ func _in_the_glade() -> void:
 	var out: Array[Vector3] = [-across, across]
 	tool.stand_build(WallTool.pull_eaves(tool.held_at, from, to, out, 1.0, house.roof.reach()))
 	tool.end_build()
-	for f in 4:
-		await process_frame
+	await frames(4)
 	var pulled: float = world.state.walls[house.id].roof.overhang
 	check(absf(pulled - (RoofLayout.OVERHANG + 0.8)) < 0.06 and world.state.walls[house.id].roof.pitch == pitch, "both eaves pulled out, they reach further and the pitch stays: %.2f" % pulled)
 	await _play([{"op": "roof", "index": 1, "pitch": 0.0, "deck": "wood"}, {"op": "top", "index": 1, "style": "rail"}])

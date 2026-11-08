@@ -43,8 +43,7 @@ func _held_preview() -> void:
 		for k in 12:
 			var at: Vector3 = sweep[1] + Vector3(0.07 * k, 0.0, 0.0)
 			hand.global_transform = Transform3D(Basis.looking_at(at - sweep[0]), sweep[0])
-			await process_frame
-			await process_frame
+			await frames(2)
 			var ghost: Node3D = fit._ghosts[i].get("decoration")
 			if ghost == null or not ghost.visible:
 				check(false, "a present is shown aimed at %s" % at)

@@ -28,8 +28,7 @@ func _pause_drops_the_aim(game: Main) -> void:
 	var rig := game.rig
 	rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), rig.head.global_position + Vector3(0, -0.4, -0.3))
 	Hand.injected_sticks["left_hand"] = Vector2(0, 1)
-	for frame in 4:
-		await process_frame
+	await frames(4)
 	check(rig.aim_hand == rig.left and rig._landing.visible, "the left stick aims a teleport")
 	var at := rig.global_position
 	game.xr.session_visible.emit()
@@ -38,8 +37,7 @@ func _pause_drops_the_aim(game: Main) -> void:
 	Hand.injected_sticks.clear()
 	await process_frame
 	game.xr.session_focussed.emit()
-	for frame in 12:
-		await process_frame
+	await frames(12)
 	check(rig.global_position == at, "the stick let go during the pause teleports nowhere")
 
 
@@ -84,8 +82,7 @@ func _run() -> void:
 		var frames := sim.frames
 		var network_clock := guest.session._clock
 		var cue_clock := cues._clock
-		for frame in 12:
-			await process_frame
+		await frames(12)
 		if signal_name == "idle":
 			var started := Time.get_ticks_msec()
 			while Time.get_ticks_msec() - started < 35000:
@@ -102,8 +99,7 @@ func _run() -> void:
 	var undos: int = Cues.asked.get(Cues.Act.UNDO, 0)
 	guest.xr.session_focussed.emit()
 	var before := sim.frames
-	for frame in 12:
-		await process_frame
+	await frames(12)
 	check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
 	check(Cues.asked.get(Cues.Act.UNDO, 0) == undos, "a button pressed in the system menu and still held fires nothing on return")
 	Buttons.injected.clear()
@@ -113,7 +109,6 @@ func _run() -> void:
 	guest.args["script"] = "demo/costs.json"
 	guest.xr.session_visible.emit()
 	before = sim.frames
-	for frame in 12:
-		await process_frame
+	await frames(12)
 	check(not paused and sim.frames > before, "a scripted game plays on without focus")
 	finish()

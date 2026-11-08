@@ -69,8 +69,7 @@ func run() -> void:
 	for mode in 2:
 		wall.visible = mode == 0
 		g.visible = mode != 0
-		for frame in 12:
-			await process_frame
+		await frames(12)
 		await RenderingServer.frame_post_draw
 		var pic := root.get_texture().get_image()
 		var pixel := pic.get_pixel(128, 128)

@@ -34,13 +34,11 @@ func _meshes(model: Node) -> Array:
 ## Holds the wheel button and sweeps `hand` to the people leaf `leaf`, where its dial opens.
 func _open(hand: Hand, button: String, leaf: String) -> void:
 	Buttons.injected[button] = true
-	await process_frame
-	await process_frame
+	await frames(2)
 	var tree := hand.inventory()
 	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)[leaf]):
 		Hand.injected_reach[hand.tracker] = at
-		await process_frame
-		await process_frame
+		await frames(2)
 	Hand.injected_reach.erase(hand.tracker)
 
 
@@ -105,8 +103,7 @@ func _run() -> void:
 	check(hand.dial.pick == 2 and session.avatar == 0, "twisting turns the dial two avatars on, wearing nothing yet")
 	check(hand.dial.choices[2].scale.x > hand.dial.choices[0].scale.x, "the avatar at the top stands larger")
 	Buttons.injected.erase(button)
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(session.avatar == 2 and hand.dial == null and not hand.picking, "letting go wears the avatar at the top")
 	check(hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "letting go leaves no figure shown")
 	var body := main.rig.body
@@ -114,8 +111,7 @@ func _run() -> void:
 	check(hand.dial.pick == 2, "the avatars dial opens again on the one now worn")
 	check(dialled.all(func(n: Node3D) -> bool: return hand.dial.choices.has(n)), "opening the dial again builds no built-in figure again")
 	Buttons.injected.erase(button)
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(session.avatar == 2 and main.rig.body == body, "letting go where it opened changes no one")
 	await _open(hand, button, "friends")
 	check(hand.dial.choices.size() == 13 and hand.dial.pick == 0, "reaching the gate turns the wheel into the friends dial, starting at home")

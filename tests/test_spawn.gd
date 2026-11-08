@@ -56,8 +56,7 @@ func _spawns_on_open_ground() -> void:
 func _a_swap_happens_in_the_dark() -> void:
 	var rig := main.rig
 	var world := main.world
-	for frame in 30:
-		await process_frame
+	await frames(30)
 	var before := world.seq
 	var seen := []
 	world.loaded.connect(func() -> void: seen.append(rig._fade.visible and rig._fade_mat.albedo_color.a == 1.0), CONNECT_ONE_SHOT)
@@ -68,14 +67,12 @@ func _a_swap_happens_in_the_dark() -> void:
 		if not seen.is_empty():
 			break
 	check(seen == [true] and world.seq == before + 5, "the garden swaps under a black view: %s" % [seen])
-	for frame in 30:
-		await process_frame
+	await frames(30)
 	check(not rig._fade.visible, "the view fades in again")
 	before = world.seq
 	world.swap({"seq": before + 1, "cmds": []})
 	world.swap({"seq": before + 2, "cmds": []})
-	for frame in 60:
-		await process_frame
+	await frames(60)
 	check(world.seq == before + 2 and not rig._fade.visible and world._queue.is_empty(), "two swaps in a row each go dark and the second lands: seq %d of %d" % [world.seq, before + 2])
 
 

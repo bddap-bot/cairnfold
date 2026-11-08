@@ -98,8 +98,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 	for tool in [Hand.Tool.DELETE, Hand.Tool.GRASS, Hand.Tool.MOSS]:
 		hand.global_position = at
 		Buttons.injected[key] = true
-		await process_frame
-		await process_frame
+		await frames(2)
 		var from := at
 		for point: Vector2 in ToolWheel.sweep(Hand.TREE, paths[tool]):
 			var to := at + right * point.x + Vector3.UP * point.y
@@ -108,8 +107,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 				await process_frame
 			from = to
 		Buttons.injected.erase(key)
-		await process_frame
-		await process_frame
+		await frames(2)
 		check(hand.tool == tool, "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[tool], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
 ## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"

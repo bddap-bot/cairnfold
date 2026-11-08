@@ -478,8 +478,7 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	await g.play(1.5)
 	check(g.wildlife.birds.sites.size() == 2, "a second wall to perch on, %d sites" % g.wildlife.birds.sites.size())
 	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([first.id])})
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(not is_instance_valid(first), "the first wall is gone")
 	g.wildlife.tick(STEP)
 	check(g.birds().all(func(b: Birds.Bird) -> bool: return b.site == null or b.site.standing()), "from the next frame no conure counts on the wall taken away")

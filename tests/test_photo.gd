@@ -125,8 +125,7 @@ func _the_lens_sees_the_body_and_the_wearer_sees_springs() -> void:
 	rig.right.transform = Transform3D(Basis(Vector3.UP, PI), Vector3(0.6, 1.3, -0.4))
 	rig.right.tool = Hand.Tool.CAMERA
 	rig.left.tool = Hand.Tool.NONE
-	for i in PhotoTool.PREVIEW_EVERY:
-		await process_frame
+	await frames(PhotoTool.PREVIEW_EVERY)
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
 	check(rig.body.visible and cam.cull_mask & Quality.SELF_LAYER != 0, "the lens sees the avatar while the camera is held")
 	var seen: Vector3 = rig.body.bone("head") * rig.body._eye_to_head.affine_inverse().origin
@@ -168,8 +167,7 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	rig.head.position = Vector3(0, 1.6, 0)
 	rig.right.transform = Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0.15, 1.5, -0.55))
 	rig.right.tool = Hand.Tool.SELFIE
-	for i in PhotoTool.PREVIEW_EVERY:
-		await process_frame
+	await frames(PhotoTool.PREVIEW_EVERY)
 	var lens := PhotoTool.lens(rig.right)
 	var to_head := (rig.head.global_position - lens.origin).normalized()
 	check(to_head.dot(-lens.basis.z) > 0.8, "held out, its lens looks back at the holder's head: %.2f" % to_head.dot(-lens.basis.z))
@@ -306,8 +304,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	Buttons.injected[key] = true
 	await create_timer(PhotoTool.HOLD * 0.3).timeout
 	Buttons.injected.erase(key)
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(tool._clip == null and saved.is_empty(), "a tap of the trigger takes a photo, not a video")
 	Buttons.injected[key] = true
 	await create_timer(PhotoTool.HOLD * 1.5).timeout

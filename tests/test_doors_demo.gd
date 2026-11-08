@@ -49,7 +49,7 @@ func _stress_village() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "doors/ground"), "the stress scene has doors/aerial and doors/ground phases")
 	if first < 0:
 		return
-	var village := village_before(steps, first)
+	var village := step_before(steps, first, "village")
 	check(steps.slice(village, first).all(func(s: Dictionary) -> bool: return s.op != "clear"), "the doors phases look over that village")
 	await play([steps[0], steps[village]])
 	var fronts := 0

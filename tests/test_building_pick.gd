@@ -38,7 +38,6 @@ func _run() -> void:
 	main.rig.right.tool = Hand.Tool.DECORATIONS
 	main.rig.right.held_still = true
 	main.rig.right.global_transform = Transform3D(Basis.looking_at(dir), origin)
-	await _capture("wall-lantern", origin + Vector3.UP * 0.35, origin + dir * 3.0)
 	await _overlapping_roofs()
 	await _gable_ends_are_met_at_their_face()
 	finish()
@@ -88,27 +87,14 @@ func _gable_ends_are_met_at_their_face() -> void:
 	main.rig.right.tool = Hand.Tool.STYLE
 	main.rig.right.held_still = true
 	main.rig.right.global_transform = Transform3D(Basis.looking_at(on - hand), hand)
-	await _capture("wooden-gable", hand + f.across * 1.2 + f.along * 1.5 + Vector3.UP * 0.5, on)
 
-
-func _capture(name: String, eye: Vector3, at: Vector3) -> void:
-	if OS.get_environment("PICK_CAPTURE").is_empty():
-		return
-	var hand: Transform3D = main.rig.right.global_transform
-	main.view(eye, at)
-	main.rig.right.global_transform = hand
-	for frame in 6:
-		await process_frame
-	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png(OS.get_environment("PICK_CAPTURE").path_join(name + ".png"))
 
 
 func _overlapping_roofs() -> void:
 	await play([{"op": "house", "at": [1, 0], "size": [6, 5], "foundation": "stone", "seconds": 0.2}])
 	var near: Wall = main.tool.walls[-1]
 	main.world.submit({"op": "reshape", "of": "walls", "id": near.id, "data": {"height": 6.0}})
-	for wall: Wall in main.tool.walls:
-		wall.lay_now()
+	lay_walls(main.tool)
 	var far: Wall = main.tool.walls[0]
 	var f := near.roof.frame()
 	var spot: Vector3 = f.mid - f.along * (near.roof.ridge_length() * 0.5 + 0.4) + f.across * 0.8
@@ -127,7 +113,6 @@ func _overlapping_roofs() -> void:
 	var erased: Dictionary = main.delete_tool.aim(origin, dir)
 	check(erased.get("wall") == near and erased.get("point", Vector3.INF).distance_to(origin + dir * near_t) < 0.01, "delete stops at the near roof surface")
 	await _grab(near, origin)
-	await _capture("overlapping-roofs", f.mid + Vector3(9, 7, 10), f.mid - Vector3.UP * 2.0)
 	_foundation_and_deck(near)
 	await _thatched_eave(near, far)
 
@@ -153,8 +138,7 @@ func _foundation_and_deck(w: Wall) -> void:
 func _thatched_eave(near: Wall, far: Wall) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": far.id, "data": {"points": PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-4, 0), main.world.terrain.ground(4, 0), 8.0))}})
 	main.world.submit({"op": "reshape", "of": "walls", "id": near.id, "data": {"roof": {"thatch": true}}})
-	for wall: Wall in main.tool.walls:
-		wall.lay_now()
+	lay_walls(main.tool)
 	var roof := near.roof
 	var f := roof.frame()
 	var origin: Vector3 = f.mid + f.across * (roof.eave() + RoofLayout.THATCH_EAVE * 0.5) + Vector3.UP * 5.0
@@ -172,7 +156,6 @@ func _thatched_eave(near: Wall, far: Wall) -> void:
 	var teleported: Dictionary = main.rig.solid_hit.call(origin, Vector3.DOWN, 30.0)
 	check(not teleported.is_empty() and teleported.point.distance_to(visible.position) < 0.01, "teleport stops on the visible thatch")
 	await _grab(near, origin)
-	await _capture("thatch-overlapping-roofs", f.mid + Vector3(10, 6, 12), f.mid - Vector3.UP * 2.0)
 
 
 func _grab(near: Wall, origin: Vector3) -> void:
@@ -184,13 +167,10 @@ func _grab(near: Wall, origin: Vector3) -> void:
 	tracker.name = &"right_hand"
 	XRServer.add_tracker(tracker)
 	tracker.set_pose(&"aim", main.rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(Vector3(0.0001, -1, 0)), origin), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-	for frame in 3:
-		await process_frame
+	await frames(3)
 	Buttons.injected[Controls.key("grab", hand.tracker)] = true
-	for frame in 3:
-		await process_frame
+	await frames(3)
 	check(main.tool.held == near and main.tool.mason(hand).took_roof, "grip grabs the near roof, not the roof behind it")
 	Buttons.injected.clear()
-	for frame in 3:
-		await process_frame
+	await frames(3)
 	XRServer.remove_tracker(tracker)

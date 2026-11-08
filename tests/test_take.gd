@@ -92,8 +92,7 @@ func _session(folder: String, tone: AudioStreamWAV) -> PlayLog:
 		return writes[0] >= 3 and (log.take.is_empty() or held > 44 + 3 * AudioServer.get_mix_rate()), "the session's seconds written")
 	check(not heard[0], "nothing on the take's bus leaves it to be played")
 	main.metrics.close()
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(main.get_children().all(func(n: Node) -> bool: return not n is Take) and not _microphone_open(main), "nothing listens once the record has ended")
 	main.queue_free()
 	await process_frame

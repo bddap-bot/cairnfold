@@ -137,13 +137,11 @@ func _each_control_does_its_action_alone() -> void:
 				var b: Buttons = watching[tracker]
 				for control in Controls.bound(device, action, tracker):
 					Driver.hold(device, control, true)
-					await process_frame
-					await process_frame
+					await frames(2)
 					var also: Array = b._was.keys().filter(func(a: String) -> bool: return a != action and b.held(a))
 					check(b.held(action) and also.is_empty(), "%s's %s holds %s alone, held %s, also %s" % [device, control, action, b.held(action), also])
 					Driver.hold(device, control, false)
-					await process_frame
-					await process_frame
+					await frames(2)
 					check(not b.held(action), "letting go of %s's %s lets go of %s" % [device, control, action])
 	for h in hands.values():
 		h.free()

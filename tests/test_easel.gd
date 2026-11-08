@@ -1053,11 +1053,9 @@ func _held_brush_stops_with_its_hand() -> void:
 	var frame := e.canvas_frame()
 	p.hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, 0.1) - frame.basis * ToolModels.BRUSH_TIP)
 	p.hand.held_still = true
-	await process_frame
-	await process_frame
+	await frames(2)
 	p.hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, -0.3) - frame.basis * ToolModels.BRUSH_TIP)
-	await process_frame
-	await process_frame
+	await frames(2)
 	var tracked := e.on_canvas(p.hand.global_transform * ToolModels.BRUSH_TIP)
 	var visible := e.on_canvas(p.hand.body.global_transform * ToolModels.BRUSH_TIP)
 	check(tracked.z < -0.29 and visible.z >= -CanvasContact.BEND - 0.001, "tracked hand passes the canvas while visible brush and hand stop: %s / %s" % [tracked, visible])

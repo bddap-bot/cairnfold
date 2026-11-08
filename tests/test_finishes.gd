@@ -414,11 +414,9 @@ func _the_face_wheel_turns_every_finish() -> void:
 ## demo/finishes.json lays every finish on houses, walls and fences.
 func _demo() -> void:
 	for step: Dictionary in Driver.read("res://../demo/finishes.json"):
-		if step.op == "quit":
+		if step.op in ["capture", "quit"]:
 			continue
 		step.erase("capture")
-		if step.op == "capture":
-			continue
 		await play([step])
 	var seen := {}
 	for w: Wall in main.tool.walls:
@@ -438,7 +436,7 @@ func _stress_village() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "finishes/ground"), "the stress scene has finishes/aerial and finishes/ground phases")
 	if first < 0:
 		return
-	var village := village_before(steps, first)
+	var village := step_before(steps, first, "village")
 	var costs := {}
 	for face: Vector2 in PaletteTool.FACES:
 		if face.x == WallLayout.Finish.BARE:

@@ -274,10 +274,8 @@ func _the_demo_and_the_stress_scene_carry_and_copy() -> void:
 	check(at > 0 and not steps[at].get("past_budget", false), "the stress scene has a move/carry phase, held to the frame budget")
 	if at < 0:
 		return
-	var village := village_before(steps, at)
-	var bounded := village
-	while steps[bounded].op != "budget":
-		bounded -= 1
+	var village := step_before(steps, at, "village")
+	var bounded := step_before(steps, village, "budget")
 	check(steps[bounded].bounded and steps[village].get("storeys", 1) == 2 and steps[village].get("wings", false), "in a village of two storeys and wings, as dense as the budget lets a player build: %s" % steps[village])
 	var carry: Dictionary = steps[at + 1]
 	check(carry.op == "resize" and carry.get("largest", false) and Vector2(carry.move[0], carry.move[1]).length() >= 2.0 * steps[village].radius, "it carries the largest house across it: %s" % carry)

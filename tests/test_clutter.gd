@@ -377,9 +377,7 @@ func _stress() -> void:
 	check(aerial >= 0 and ["clutter/ground", "clutter/carry", "clutter/copy"].all(func(name: String) -> bool: return steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == name)), "the stress scene has clutter/aerial, clutter/ground, clutter/carry and clutter/copy phases")
 	if aerial < 0:
 		return
-	var wiped := aerial
-	while steps[wiped].op != "bare":
-		wiped -= 1
+	var wiped := step_before(steps, aerial, "bare")
 	var built := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "house", "wall", "pave", "cluttered"])
 	check(built.any(func(s: Dictionary) -> bool: return s.op == "cluttered"), "the village is cluttered")
 	main.world.limit = 1.0

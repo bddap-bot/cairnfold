@@ -47,7 +47,7 @@ func _stress_wall_walk() -> void:
 	check(first >= 0, "the stress scene has standing/* phases")
 	if first < 0:
 		return
-	var village := village_before(steps, first)
+	var village := step_before(steps, first, "village")
 	await play([{"op": "clear"}])
 	await play([steps[0]])
 	var views := 0

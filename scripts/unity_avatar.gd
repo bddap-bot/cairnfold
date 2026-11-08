@@ -525,7 +525,7 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	elif not Yaml.on(d, "m_Enabled"):
 		return null
 	var go := Yaml.file_id(d.get("m_GameObject"))
-	for t: int in Prefabs.ancestors(objs, Prefabs.transform_of(objs, go) if objs.has(go) else 0):
+	for t: int in Prefabs.ancestors(objs, Prefabs.transform_of(objs, go)):
 		go = Yaml.file_id(objs[t].data.get("m_GameObject"))
 		if Prefabs.editor_only(objs, go):
 			return null
@@ -726,12 +726,10 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 					var moved := k.duplicate()
 					moved[1] = k[1] - rest
 					return moved)
-			elif (targets[t].effect is Dictionary and targets[t].effect.has("rotation")) or ExpressionDefinition.region(targets[t].effect) != "":
+			elif (targets[t].effect is Dictionary and (targets[t].effect.has("rotation") or targets[t].effect.has("parameter"))) or ExpressionDefinition.region(targets[t].effect) != "":
 				curve.keys = c["keys"].duplicate(true)
 			elif targets[t].effect is Dictionary and targets[t].effect.has("morph"):
 				curve.keys = _scaled(c["keys"], 0.01)
-			elif targets[t].effect is Dictionary and targets[t].effect.has("parameter"):
-				curve.keys = c["keys"].duplicate(true)
 			else:
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0 if k[1] != 0.0 else 0.0])
 			curves.append(curve)
@@ -2089,7 +2087,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		# A PhysBone's negative gravity pulls up; a VRM gravityPower may not be negative, so its direction carries the sign.
 		var gravity := str(d.get("gravity", "0")).to_float()
 		# A DynamicBone sizes its radius and end offset by its own transform, wherever its root bone lies.
-		var holder := Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject"))) if objs.has(Yaml.file_id(d.get("m_GameObject"))) else 0
+		var holder := Prefabs.transform_of(objs, Yaml.file_id(d.get("m_GameObject")))
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
@@ -2166,14 +2164,14 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 				pending.append([kids[i], joints if i == 0 else [], item[2] + 1])
 		var driven := []
 		for index in range(first_chain, springs.size()):
-			driven.append_array(springs[index].joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
-		if component_when.has(id) and not driven.is_empty():
-			switched.springs.append({"joints": driven, "when": component_when[id]})
-		for index in range(first_chain, springs.size()):
 			var joints: Array = springs[index].joints
-			component.chains.append(joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node)))
+			var names := joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node))
+			component.chains.append(names)
+			driven.append_array(names)
 			for index_in_chain in range(1, joints.size()):
 				component.simulated_joints += int(sk.get_bone_rest(joints[index_in_chain].node).origin != Vector3.ZERO)
+		if component_when.has(id) and not driven.is_empty():
+			switched.springs.append({"joints": driven, "when": component_when[id]})
 		if component.chains.is_empty() and component.reason == "":
 			component.reason = "no segment after source exclusions, humanoid bones and endpoint are applied"
 		elif not component.chains.is_empty():
@@ -2185,13 +2183,10 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	var groups := []
 	var out_springs := []
 	for s: Dictionary in springs:
-		var g := -1
-		if not (s.colliders as Array).is_empty():
-			g = groups.size()
-			groups.append({"colliders": s.colliders})
 		var spring := {"joints": s.joints, "extras": s.extras}
-		if g >= 0:
-			spring["colliderGroups"] = [g]
+		if not (s.colliders as Array).is_empty():
+			spring["colliderGroups"] = [groups.size()]
+			groups.append({"colliders": s.colliders})
 		out_springs.append(spring)
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups, "switched": switched}
 
@@ -2218,7 +2213,7 @@ static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Sk
 		var go := Yaml.file_id(d.get("m_GameObject"))
 		var t := Yaml.file_id(d.get("rootTransform"))
 		if t == 0:
-			t = Prefabs.transform_of(objs, go) if objs.has(go) else 0
+			t = Prefabs.transform_of(objs, go)
 		var when: Variant = _when(objs, id, d, switches)
 		if not live.has(go) or when == null:
 			counts.idle += 1

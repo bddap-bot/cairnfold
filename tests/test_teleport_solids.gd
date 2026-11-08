@@ -12,7 +12,6 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await process_frame
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
 	main.world.limit = INF
 	await process_frame
 	var rig: Rig = main.rig

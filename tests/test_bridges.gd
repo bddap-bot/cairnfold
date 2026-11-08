@@ -228,9 +228,7 @@ func _stress() -> void:
 	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "bridges/ground"), "the stress scene has bridges/aerial and bridges/ground phases")
 	if aerial < 0:
 		return
-	var wiped := aerial
-	while steps[wiped].op != "bare":
-		wiped -= 1
+	var wiped := step_before(steps, aerial, "bare")
 	await play([steps[0]] + steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "dig", "wait", "stairs"]))
 	var world: World = main.world
 	var digs := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op == "dig")

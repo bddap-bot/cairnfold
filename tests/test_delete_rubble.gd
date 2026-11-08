@@ -29,15 +29,20 @@ func _run() -> void:
 	var target := tool.aim(eye, Vector3.DOWN)
 	check(target.get("rubble", false) and target.get("wall") == w, "the beam identifies fallen stones and their owner")
 	check(tool.target_bounds(target) == w.pick_bounds, "rubble highlights the whole wall")
-	await _capture("01-partial", w, eye, false)
-	await _capture("02-rubble-highlight", w, eye, true)
+	var hand := main.rig.right
+	hand.tool = Hand.Tool.DELETE
+	hand.held_still = true
+	hand.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), eye)
+	await frames(8)
+	check(main.delete_tool._rings[1].visible, "live rubble hover shows whole-wall highlight")
+	check(hand.aiming(), "live rubble hover shows the sight")
+	hand.tool = Hand.Tool.NONE
 	var seq: int = main.world.seq
 	tool.press(self, eye, Vector3.DOWN)
 	tool.hold(self, at + Vector3(0, 0, 4), Vector3.FORWARD)
 	tool.let_go(self)
 	check(not main.world.state.walls.has(id), "rubble deletes the whole wall even when held ray moves")
 	check(main.world.seq == seq + 1, "rubble removal is one command")
-	await _capture("03-removed", null, eye, true)
 	main.world.undo()
 	check(main.world.state.walls.get(id) == before, "one undo restores the exact ruined wall")
 	w = main.tool.find(id)
@@ -56,8 +61,7 @@ func _run() -> void:
 	var cmd := {"op": "take", "of": "walls", "ids": PackedInt32Array([id])}
 	check(not Commands.clean(cmd, main.world.state, false, main.world.terrain).is_empty(), "host accepts rubble removal through an existing take")
 	main.world._order(cmd, 42)
-	await process_frame
-	await process_frame
+	await frames(2)
 	seq = main.world.seq
 	check(tool.hold(self, eye, Vector3.DOWN).is_empty(), "peer removal clears the held hover target")
 	tool.let_go(self)
@@ -65,20 +69,3 @@ func _run() -> void:
 	main.world._order({"op": "undo"}, 42)
 	check(main.world.state.walls.get(id) == before, "peer undo restores the exact ruined wall")
 	finish()
-
-func _capture(label: String, w: Wall, eye: Vector3, highlight: bool) -> void:
-	if OS.get_environment("RUBBLE_CAPTURE").is_empty():
-		return
-	main.view(Vector3(7, 5, 10), Vector3(0, 1, 0))
-	main.rig.right.tool = Hand.Tool.DELETE if highlight else Hand.Tool.NONE
-	main.rig.right.held_still = true
-	main.rig.right.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), eye)
-	if w != null:
-		w.lay_now()
-	for frame in 8:
-		await process_frame
-	if highlight and w != null:
-		check(main.delete_tool._rings[1].visible, "live rubble hover shows whole-wall highlight")
-		check(main.rig.right.aiming(), "live rubble hover shows the sight")
-	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png(OS.get_environment("RUBBLE_CAPTURE").path_join(label + ".png"))

@@ -2,7 +2,6 @@ extends SpringBoneSimulator3D
 
 var chains: Array = []
 var components: Array = []
-var _collisions: Array = []
 
 
 func configure(bound: Array, colliders: Array) -> void:
@@ -38,7 +37,6 @@ func configure(bound: Array, colliders: Array) -> void:
 		for index: int in chains[i].colliders:
 			if collisions[index] != null:
 				kept.append(collisions[index])
-		_collisions.append(kept)
 		set_collision_count(i, kept.size())
 		for j in kept.size():
 			set_collision_path(i, j, get_path_to(kept[j]))

@@ -68,9 +68,7 @@ func _stress() -> void:
 	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "materials/ground"), "the stress scene has materials/aerial and materials/ground phases")
 	if aerial < 0:
 		return
-	var wiped := aerial
-	while steps[wiped].op != "bare":
-		wiped -= 1
+	var wiped := step_before(steps, aerial, "bare")
 	var paves := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op == "pave")
 	await play([steps[0], {"op": "budget", "bounded": true}] + steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "dig", "pave"]))
 	await until(func() -> bool: return main.water.ponds.size() > 0, "the stress pond fills")

@@ -66,8 +66,7 @@ func _the_trigger_stands_it_and_puts_it_away() -> void:
 	var key := Controls.key("tool", rig.right.tracker)
 	var press := func() -> void:
 		Buttons.injected[key] = true
-		await process_frame
-		await process_frame
+		await frames(2)
 		Buttons.injected.erase(key)
 		await process_frame
 	rig.right.tool = Hand.Tool.MIRROR

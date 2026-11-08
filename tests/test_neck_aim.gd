@@ -74,8 +74,7 @@ func _live(kind: Beast.Kind) -> void:
 		if frame > 30:
 			check(a.neck.touching(h), "live modifier keeps contact after the authored clip evaluates")
 	a.hand = null
-	for frame in 30:
-		await process_frame
+	await frames(30)
 	check(a.neck.amount == 0.0, "neck blends fully out after the offer ends")
 	a.free()
 	h.free()

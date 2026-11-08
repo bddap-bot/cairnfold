@@ -25,8 +25,7 @@ func _run() -> void:
 	var gone := ToolModels.style(PaletteTool.Restyle.TOP, 0, WallLayout.Finish.PLASTER)
 	gone.free()
 	ToolModels.prepare_styles()
-	for i in 10:
-		await process_frame
+	await frames(10)
 	ToolModels.stop_styles()
 	roof.queue_free()
 	finish()

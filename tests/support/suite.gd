@@ -91,12 +91,12 @@ static func roof_data(with: Dictionary) -> Dictionary:
 	return RoofLayout.new().data().merged(with, true)
 
 
-## The index of the `village` step that `steps[at]` looks over: the last one before it.
-static func village_before(steps: Array, at: int) -> int:
-	var village := at
-	while steps[village].op != "village":
-		village -= 1
-	return village
+## The index of the last step at or before `steps[at]` whose op is `op`.
+static func step_before(steps: Array, at: int, op: String) -> int:
+	var i := at
+	while steps[i].op != op:
+		i -= 1
+	return i
 
 
 static func seeded_wall(points: PackedVector3Array) -> Dictionary:

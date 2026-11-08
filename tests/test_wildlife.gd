@@ -376,8 +376,7 @@ func _ducks_come_only_to_ponds() -> void:
 
 	for step in 4:
 		world.undo()
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(water.ponds.is_empty(), "the pond drains")
 	var flying := GladeBase.watch_vanishing(self, flier, flier.ducks, "duck")
 	flying.call()

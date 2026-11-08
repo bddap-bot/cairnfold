@@ -359,7 +359,6 @@ func _fittings_are_deterministic() -> void:
 ## Through the tools, in the glade.
 func _in_the_glade() -> void:
 	await process_frame
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
 	main.world.limit = INF
 	var walls: Array[Wall] = main.tool.walls
 	var fit: FittingTool = main.fitting_tool
@@ -546,8 +545,7 @@ func _in_the_glade() -> void:
 func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
 	var stood: Array = world.state.walls.keys()
 	world.submit({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([terrain.ground(-14, -30), terrain.ground(-2, -30)]), "seed": 3, "ruins": PackedVector2Array([Vector2(3.0, 5.0)])})]})
-	for f in 3:
-		await process_frame
+	await frames(3)
 	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]
 	lay_walls(main.tool)
 	check(ruin.layout.broken(4.0) and not ruin.layout.broken(9.5, 0.3), "the ruined wall stands, broken at 4 m and whole at 9.5 m")
@@ -645,8 +643,7 @@ func _redo(world: World) -> void:
 ## Every buffer `w` draws once its stones and ivy are laid. A wall that lays on and on, as one a hand's preview keeps
 ## reshaping does, fails `step` and ends the run where it stalled.
 func _drawn(w: Wall, step: String) -> Array:
-	for f in 3:
-		await process_frame
+	await frames(3)
 	for f in SETTLE_FRAMES:
 		if not w.laying() and w._ivy_task < 0:
 			return w._parts.duplicate(true)

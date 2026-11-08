@@ -339,9 +339,7 @@ func _stress() -> void:
 	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "lights/ground"), "the stress scene has lights/aerial and lights/ground phases")
 	if aerial < 0:
 		return
-	var wiped := aerial
-	while steps[wiped].op != "bare":
-		wiped -= 1
+	var wiped := step_before(steps, aerial, "bare")
 	var lit := steps.slice(wiped, aerial).filter(func(s: Dictionary) -> bool: return s.op in ["bare", "house", "lights", "sun"])
 	check(lit.any(func(s: Dictionary) -> bool: return s.op == "sun" and s.time > 0.75 and s.time < 0.8), "at dusk")
 	await play([steps[0]] + lit)

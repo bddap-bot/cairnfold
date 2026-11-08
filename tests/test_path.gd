@@ -693,8 +693,7 @@ func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void
 	world.marks.rewear()
 	check(world.marks.laid.get_data() == worn, "worn a few rows a frame, the mask is the one worn whole")
 	_lay(nodes, Vector3(-40, 0, 75), Vector3(-10, 0, 85), 0.8)
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(world.marks.laid_bare(-25, 80) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % world.marks.laid_bare(-25, 80))
 	worn = world.marks.laid.get_data()
 	world.marks.rewear()

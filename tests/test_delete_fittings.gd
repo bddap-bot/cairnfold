@@ -8,7 +8,6 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await process_frame
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
 	main.world.limit = INF
 	await play([{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
@@ -95,9 +94,6 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 	hand.global_transform = Transform3D(Basis.looking_at(dir), eye)
 	await frames(6)
 	check(main.delete_tool._rings[1].visible, "live delete hover shows " + name)
-	if not OS.get_environment("DELETE_CAPTURE").is_empty():
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png(OS.get_environment("DELETE_CAPTURE").path_join(name + ".png"))
 	hand.tool = Hand.Tool.WALLS
 
 

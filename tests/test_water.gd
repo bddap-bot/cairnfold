@@ -303,8 +303,7 @@ func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 	var effects := AudioServer.get_bus_effect_count(0)
 	var fog_keys: Array = Look.WATER_FOG.keys() + ["fog_light_color", "adjustment_color_correction"]
 	rig.head.global_position = Vector3(3, pond.surface_y() + 0.1, -4)
-	await process_frame
-	await process_frame
+	await frames(2)
 	var air := {}
 	for k in fog_keys:
 		air[k] = look.env.get(k)
@@ -318,8 +317,7 @@ func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 	check(AudioServer.is_bus_effect_enabled(0, effects - 1) and AudioServer.get_bus_volume_db(0) < 0.0, "its mix is muffled")
 
 	rig.head.global_position.y = pond.surface_y() + 0.1
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(not under.visible and not look.under, "coming up leaves the water")
 	for k in fog_keys:
 		check(look.env.get(k) == air[k], "coming up restores %s" % k)

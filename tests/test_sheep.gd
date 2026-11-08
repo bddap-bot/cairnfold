@@ -294,8 +294,7 @@ func _fences_draw_a_flock() -> void:
 
 	for step in 6:
 		g.world.undo()
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(not is_instance_valid(fence), "the fence is erased")
 	g.run(1.0, vanishing)
 	check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
@@ -441,8 +440,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	g.wildlife.viewer = outside
 	g.run(1.0, see)
 	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([fence.id])})
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(not is_instance_valid(fence), "the fence is erased")
 	g.run(1.0, see)
 	var herds := g.wildlife.herds

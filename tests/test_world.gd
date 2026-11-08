@@ -100,8 +100,7 @@ func _foot(id: int) -> float:
 
 ## Waits out the frame's ripple and the worker laying the build again.
 func _laid(id: int) -> void:
-	await process_frame
-	await process_frame
+	await frames(2)
 	main.tool.find(id).lay_now()
 
 

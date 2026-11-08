@@ -57,8 +57,7 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	var rim := Vector3(AT.x, Water.brim(ground, AT.x, AT.y, 2.8 * GroundGrab.SPREAD), AT.y)
 	tool.fill(hand, rim)
 	tool.settle()
-	await process_frame
-	await process_frame
+	await frames(2)
 	check(water.pond_at(AT.x, AT.y) != null and Water.drowned(ground, tree[0][0].anchor), "the pond covers the tree's root")
 	check(tree[0].all(func(p: Flora.Plant) -> bool: return not p.shown()) and not bush[0][0].shown(), "the pond takes out the tree, every blob, and the bush")
 	check(flora.placed("tree").is_empty() and flora.placed("bush").is_empty() and flora.solids().size() == standing - 2, "neither stands among the solids the beam, shade and animals find")

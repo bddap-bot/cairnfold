@@ -68,8 +68,7 @@ func _every_table_says_what_it_stands_on() -> void:
 
 ## Lets the frame's relaying and the workers finish, every build laid and its ivy grown.
 func _settle() -> void:
-	await process_frame
-	await process_frame
+	await frames(2)
 	for w in main.tool.walls:
 		w.ivy_age = INF
 	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
