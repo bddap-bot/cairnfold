@@ -31,6 +31,7 @@
 # streaming their heads and hands. CAIRNFOLD_WAVE=1 makes them flat-screen players repeatedly waving. CAIRNFOLD_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
 # which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
+# CAIRNFOLD_CONTROL_AVATAR=FILE.vrm is pushed beside it as bench/control.vrm, for a scene pairing the two (demo/avatar-look-cost.json).
 # CAIRNFOLD_REPLAY=CHUNK.jsonl replays the session that chunk of a record belongs to, its other chunks beside it, on a
 # Quest in place of a scene (--replay), on the given APK, whichever build recorded it (docs/replay.md), and prints its
 # per-activity timing beside the session's own (scripts/sessions.py --replayed); phases are a scene's, so no budget is
@@ -170,6 +171,7 @@ if [ "${2:-}" = --android ]; then
     for chunk in "$(dirname "$replay")/$session"-*.jsonl; do adb push "$chunk" "$files/replay/${chunk##*/}" > /dev/null; done
   fi
   [ -z "${CAIRNFOLD_GUEST_AVATAR:-}" ] || adb push "$CAIRNFOLD_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
+  [ -z "${CAIRNFOLD_CONTROL_AVATAR:-}" ] || adb push "$CAIRNFOLD_CONTROL_AVATAR" "$dir/control.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
