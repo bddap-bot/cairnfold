@@ -586,13 +586,7 @@ static func chunk_parts(ci: int, cj: int, k: int) -> Array:
 	var tiles: Array[PackedInt32Array] = []
 	for list in lists:
 		tiles.append(PackedInt32Array(list))
-	var normals := PackedVector3Array()
-	normals.resize(vertices.size())
-	normals.fill(Vector3.UP)
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
+	var arrays := Meshes.level(vertices)
 	arrays[Mesh.ARRAY_COLOR] = colors
 	return [arrays, tiles]
 

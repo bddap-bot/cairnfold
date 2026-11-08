@@ -12,7 +12,7 @@ static func bind_bone(skin: Skin, i: int, skeleton: Skeleton3D) -> int:
 	return skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))
 
 
-## Surface arrays for triangles `verts`, every normal up.
+## Surface arrays for `verts`, every normal up.
 static func level(verts: PackedVector3Array) -> Array:
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
