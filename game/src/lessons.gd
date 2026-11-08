@@ -117,7 +117,6 @@ static func bare(page: Dictionary, side: String, head: Transform3D, t: float) ->
 	return HandShape.pressing(head * frame(pose(page, side, t)), side == "left", input, head.basis, push)
 
 
-## Whether `hand` holds `action` on `page` at `t`.
 static func held(page: Dictionary, hand: String, action: String, t: float) -> bool:
 	return since(page, hand, action, t) >= 0.0
 

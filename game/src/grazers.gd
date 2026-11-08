@@ -372,8 +372,11 @@ func _walk_on(b: Band, a: Node3D) -> bool:
 	return false
 
 
-## Off from a fright at `from` to ground it may run to; cornered, it stands where it is and looks again in a while.
+## Off from a fright at `from`, leaving any food, to ground it may run to; cornered, it stands where it is and looks
+## again in a while.
 func _flee(b: Band, a: Node3D, from: Vector3) -> void:
+	if a.hand != null:
+		_fed(a)
 	if a.retry > 0.0:
 		return
 	var away := _away(a, from)

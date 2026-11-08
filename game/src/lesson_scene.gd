@@ -319,12 +319,8 @@ func _play_tool(at: float) -> void:
 	var p := Vector2(local.x, local.y)
 	var hot := -1
 	if p.length() > ToolWheel.DEAD:
-		var best := -1.0
-		for k in ToolWheel.SLOTS:
-			var d := p.normalized().dot(ToolWheel.ring_dirs()[k])
-			if d > best:
-				best = d
-				hot = k
+		var dirs := ToolWheel.ring_dirs().map(func(d: Vector2) -> float: return p.normalized().dot(d))
+		hot = dirs.find(dirs.max())
 	var open_k := clampf(Lessons.since(page, "right", "wheel", at) / 0.15, 0.0, 1.0)
 	for k in _fx.icons.size():
 		var s := (Hand.HOT if k == hot else Hand.IDLE) * _pop(open_k)

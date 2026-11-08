@@ -231,7 +231,6 @@ func _process(delta: float) -> void:
 		_buttons[i].latch()
 
 
-## The screen of `hand`'s camera model for `tool`.
 static func screen(hand: Hand, tool: Hand.Tool) -> StandardMaterial3D:
 	return ToolModels.screen(hand.model(tool))
 

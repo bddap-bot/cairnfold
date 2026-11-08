@@ -23,6 +23,8 @@ const MAX_PLAYERS := 8
 const POSE_EVERY := 1.0 / 30.0
 ## A streamed palm farther than this from its hand, in metres of the sender's scaled world, is refused.
 const PALM_REACH := 2.0
+## Where another player's sent head, hands or throws may be: any further off is a corrupt or hostile packet.
+const ROAM := AABB(Terrain.ROOM.position - Vector3.ONE * 40.0, Terrain.ROOM.size + Vector3.ONE * 80.0)
 ## How fast a remote avatar closes on its latest pose, per second.
 const FOLLOW := 18.0
 ## How often the avatar folder is looked at, in seconds.
@@ -323,7 +325,7 @@ func _process(delta: float) -> void:
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
-		var items := [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book), HeldItem.perched(rig, 0), HeldItem.perched(rig, 1)]
+		var items := held_items()
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
@@ -788,10 +790,15 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if feed == null or not avatars.has(id) or _clock - _thrown.get(id, -INF) < THROW_EVERY:
 		return
-	if not (from.is_finite() and Terrain.ROOM.grow(40.0).has_point(from) and velocity.is_finite() and velocity.length() < MAX_THROW):
+	if not (from.is_finite() and ROAM.has_point(from) and velocity.is_finite() and velocity.length() < MAX_THROW):
 		return
 	_thrown[id] = _clock
 	feed.toss(from, velocity, seed)
+
+
+## What this player holds in each hand and carries on each shoulder, as `HeldItem.describe` and `perched` give them.
+func held_items() -> Array:
+	return [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book), HeldItem.perched(rig, 0), HeldItem.perched(rig, 1)]
 
 
 ## A player's head, hands and where their eyes look, in their head's frame, and each hand's palm from it.
@@ -799,9 +806,8 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}, fingers := PackedFloat32Array(), left_palm := Transform3D(), right_palm := Transform3D()) -> void:
 	world.hear("_pose", [eyes, left, right, look, springs, holders, fingers, left_palm, right_palm])
 	var id := multiplayer.get_remote_sender_id()
-	var room := Terrain.ROOM.grow(40.0)
 	for t in [eyes, left, right]:
-		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and room.has_point(t.origin)):
+		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and ROAM.has_point(t.origin)):
 			return
 	for t in [left_palm, right_palm]:
 		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and t.origin.length() < PALM_REACH):
@@ -818,7 +824,7 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 			return
 	avatar.spring_holders = holders
 	for point in springs:
-		if not point.is_finite() or not room.has_point(point):
+		if not point.is_finite() or not ROAM.has_point(point):
 			return
 	if fingers.size() != 10 or not Array(fingers).all(func(c: float) -> bool: return c >= 0.0 and c <= 1.0):
 		fingers = PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])

@@ -666,7 +666,7 @@ func _fly_to(b: Bird, site: Site, to: Vector3, state: State) -> void:
 	b.spot = to
 	b.flight = 0.0
 	b.duration = maxf(b.from.distance_to(to) / SPEED, 0.5)
-	b.lift = 0.0 if state == State.ARRIVE else minf(0.3 + b.from.distance_to(to) * 0.15, 1.5)
+	b.lift = 0.0 if state in [State.ARRIVE, State.LEAVE] else minf(0.3 + b.from.distance_to(to) * 0.15, 1.5)
 	b.state = state
 	b.then = State.PERCH
 
@@ -687,14 +687,7 @@ func _resettle(b: Bird) -> void:
 func _leave(b: Bird) -> void:
 	wildlife.release(b)
 	b.node.hand = null
-	var at := b.node.position
-	b.from = at
-	b.to = wildlife._unseen_point(at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
-	b.flight = 0.0
-	b.duration = at.distance_to(b.to) / SPEED
-	b.lift = 0.0
-	b.site = null
-	b.state = State.LEAVE
+	_fly_to(b, null, wildlife._unseen_point(b.node.position, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng), State.LEAVE)
 
 
 ## A point of `site` no other bird stands on or makes for, away from `near` when given, else at random.

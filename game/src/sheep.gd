@@ -12,7 +12,6 @@ const FACE := Color(0.24, 0.22, 0.22)
 const MUZZLE := Color(0.31, 0.28, 0.28)
 const LEG := Color(0.15, 0.13, 0.13)
 const EYE := Color(0.03, 0.025, 0.03)
-const SHINE := Color(1.0, 1.0, 1.0)
 ## Wool tints a sheep's fleece may lean toward, a little.
 const TINTS := [Color(1.0, 0.95, 0.86), Color(0.93, 0.92, 0.9), Color(1.0, 0.98, 0.95)]
 const SIZE := Vector2(0.88, 1.08)
@@ -107,7 +106,7 @@ static func build() -> ArrayMesh:
 		Meshes.ellipsoid(st, ear, FACE_AT + Vector3(s * 0.13, 0.03, 0.04), Vector3(0.072, 0.02, 0.036), FACE, 3, 5, _ear_shape.bind(s))
 		var eye := FACE_AT + Vector3(s * 0.064, 0.025, -0.082)
 		Meshes.ellipsoid(st, Part.HEAD, eye, Vector3.ONE * 0.02, EYE, 3, 5)
-		Meshes.ellipsoid(st, Part.HEAD, eye + Vector3(s * 0.006, 0.008, -0.014), Vector3.ONE * 0.007, SHINE, 2, 4)
+		Meshes.ellipsoid(st, Part.HEAD, eye + Vector3(s * 0.006, 0.008, -0.014), Vector3.ONE * 0.007, Color.WHITE, 2, 4)
 	for leg in [Part.LEG_FL, Part.LEG_FR, Part.LEG_BL, Part.LEG_BR]:
 		Meshes.ellipsoid(st, leg, hip(leg) - Vector3(0, HIP * 0.5, 0), Vector3(0.04, HIP * 0.5 + 0.01, 0.04), LEG, 3, 5)
 	st.index()

@@ -363,12 +363,10 @@ func _rack() -> void:
 				e.palettes[kit].visible = not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit))
 
 
-## Whether a painter holds easel `e`'s `kit` palette.
 func _palette_in_hand(e: Easels.Easel, kit: Brushwork.Medium) -> bool:
 	return painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit)
 
 
-## Whether `p`'s hand shows a brush taken from an easel.
 static func _shows_brush(p: Painter) -> bool:
 	return p.brush_from > 0 and p.hand.tool == Hand.Tool.EASEL and p.palette == null and p.peel == null
 

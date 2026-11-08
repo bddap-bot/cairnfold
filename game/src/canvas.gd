@@ -339,7 +339,6 @@ func catching_up() -> bool:
 	return _catching_up
 
 
-## Whether any paint on the canvas is still wet.
 func wet() -> bool:
 	return not _wet_tiles.is_empty()
 

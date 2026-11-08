@@ -108,8 +108,6 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 	var fright: Node3D = wildlife._startled(a.position + Vector3.UP * 0.55 * a.size, SCARE)
 	if fright != null:
-		if a.hand != null:
-			_fed(a)
 		_flee(b, a, fright.global_position)
 
 

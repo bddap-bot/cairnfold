@@ -274,8 +274,7 @@ func _act(s: Dictionary) -> void:
 	var up := func(t: float, a: float, b: float, c: float, d: float) -> float: return smoothstep(a, b, t) * (1.0 - smoothstep(c, d, t))
 	var t := 0.0
 	while t < ACT_SECONDS:
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 		var side: float = 0.07 * sin(TAU * (t - 2.0) / 2.0) * up.call(t, 2.0, 2.5, 7.5, 8.0)
 		var lean: float = up.call(t, 8.0, 9.0, 10.5, 11.5)
 		var crouch: float = up.call(t, 12.0, 13.5, 15.0, 16.5)
@@ -380,6 +379,12 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+## The seconds the next frame took, once it has.
+func _tick() -> float:
+	await get_tree().process_frame
+	return get_process_delta_time()
+
+
 func _shot(s: Dictionary) -> void:
 	if s.has("capture"):
 		await main.capture(s.capture)
@@ -391,8 +396,7 @@ func _over(s: Dictionary, default: float, step: Callable) -> void:
 	var seconds: float = s.get("seconds", default)
 	var t := 0.0
 	while true:
-		await get_tree().process_frame
-		var dt := get_process_delta_time()
+		var dt := await _tick()
 		t += dt
 		if seconds - t < dt * 0.5:
 			await step.call(1.0)
@@ -999,8 +1003,7 @@ func _wade(s: Dictionary) -> void:
 	while t < seconds:
 		var p := _along(path, minf(t / seconds, 1.0))
 		main.rig.right.global_position = Vector3(p.x, y, p.z)
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 	main.rig.right.position = Vector3.ZERO
 
 
@@ -1042,8 +1045,7 @@ func _wipe(s: Dictionary) -> void:
 		if not shot and t >= s.get("capture_at", 0.0):
 			shot = true
 			await main.capture(s.capture)
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 	tool.cancel(self)
 	await get_tree().process_frame
 
@@ -1067,8 +1069,7 @@ func _erase(s: Dictionary) -> void:
 			var point := path[i].lerp(path[i + 1], t / duration)
 			point.y = main.world.terrain.height_at(point.x, point.z)
 			tool.hold(self, point + up, Vector3.DOWN)
-			await get_tree().process_frame
-			t += get_process_delta_time()
+			t += await _tick()
 		# A late frame must not skip a turn in the scripted gesture.
 		tool.hold(self, path[i + 1] + up, Vector3.DOWN)
 		t -= duration
@@ -1682,8 +1683,7 @@ func _until(s: Dictionary) -> void:
 			for o in main.wildlife.offers():
 				if o is Dish if s.fed == "dish" else o is Hand:
 					_flock_near(o.global_position, Birds.appetite.notice)
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 	_waiting = {}
 	_fail("until %s timed out" % s)
 
@@ -1812,8 +1812,7 @@ func _sun(s: Dictionary) -> void:
 	var seconds: float = s.get("seconds", 2.0)
 	var t := 0.0
 	while t < seconds:
-		await get_tree().process_frame
-		t += minf(get_process_delta_time(), seconds / 8.0)
+		t += minf(await _tick(), seconds / 8.0)
 		hand.global_basis = Basis.looking_at(grab.rotated(axis, turn * smoothstep(0.0, 1.0, minf(t / seconds, 1.0))))
 	await _frames(2)
 	Buttons.injected.erase(grip)
@@ -1988,8 +1987,7 @@ func _walk(s: Dictionary) -> void:
 		at.y = float(s.get("look", 0.0)) + main.world.terrain.height_at(at.x, at.z)
 		eye.y += main.world.terrain.height_at(eye.x, eye.z)
 		main.view(eye, at)
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 
 
 ## Sets an easel up at `x`, `z`, facing the head (or the ground point `facing`), as the easel tool's trigger does.
@@ -2327,8 +2325,7 @@ func _posture(s: Dictionary) -> void:
 			rig.hands[i].held_still = true
 		if k >= 1.0:
 			break
-		await get_tree().process_frame
-		t += get_process_delta_time()
+		t += await _tick()
 	await _frames(2)
 
 
@@ -2657,8 +2654,7 @@ func _neck_cost(s: Dictionary) -> void:
 	var samples: Array[float] = []
 	var solving: bool = s.get("solve", true)
 	while elapsed < s.get("seconds", 10.0):
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		for dish in dishes:
 			dish.position.z = sin(elapsed * 0.7) * 0.02
 		var start := Time.get_ticks_usec()
@@ -2676,7 +2672,7 @@ func _neck_cost(s: Dictionary) -> void:
 
 func _held_snapshot(s: Dictionary) -> void:
 	await get_tree().create_timer(Hand.POP * 3.0).timeout
-	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book), HeldItem.perched(main.rig, 0), HeldItem.perched(main.rig, 1)]
+	var items := main.session.held_items()
 	if s.get("loaded", false):
 		assert(items[1].size() == 8 and items[1][0] == HeldItem.Kind.BRUSH and items[1][4] > 0.0, "capture holds a loaded brush")
 	var path: String = main.capture_path(s.name)
@@ -2689,8 +2685,7 @@ func _remote_holds(s: Dictionary) -> void:
 	var expected: Array = FileAccess.open(path + ".held", FileAccess.READ).get_var()
 	var elapsed := 0.0
 	while elapsed < 30.0:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		if not main.session.held.has(expected[0]):
 			continue
 		var pair: Array = main.session.held[expected[0]]
@@ -2716,6 +2711,8 @@ func _remote_holds(s: Dictionary) -> void:
 
 
 static func held_states(birds: bool = false) -> Array:
+	if birds:
+		return [[HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]]
 	var states: Array = []
 	for tool in Hand.Tool.values():
 		if tool not in Hand.UNMODELLED:
@@ -2725,8 +2722,6 @@ static func held_states(birds: bool = false) -> Array:
 	for brush in Brushwork.Brush.values():
 		states.append([HeldItem.Kind.BRUSH, brush, Transform3D(), Color(0.15, 0.3, 0.65), 1.0, 0, false, Vector3.ZERO])
 	states.append([HeldItem.Kind.BOOK, 1, Book.local(1.0), Color.WHITE, 0.0, 0, false, Vector3.ZERO])
-	if birds:
-		states = [[HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]]
 	return states
 
 
@@ -2770,23 +2765,20 @@ func _befriend(s: Dictionary) -> void:
 	var flock: Birds = main.wildlife.birds
 	var elapsed := 0.0
 	while flock.birds.is_empty() and elapsed < 240.0:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 	assert(not flock.birds.is_empty(), "no conure arrived")
 	var available := flock.birds.filter(func(b: Birds.Bird) -> bool: return not b.carried)
 	assert(not available.is_empty(), "no free bird")
 	var bird: Birds.Bird = available[0]
 	while bird.state != Birds.State.PERCH and elapsed < 260.0:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 	assert(bird.state == Birds.State.PERCH, "bird did not land")
 	h.tool = Hand.Tool.SEEDS
 	h.held_still = true
 	h.global_transform = Transform3D(Basis.IDENTITY, bird.node.global_position + Vector3(0.2, -0.15, 0.2))
 	elapsed = 0.0
 	while elapsed < 90.0:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		var fed := flock.birds.filter(func(b: Birds.Bird) -> bool: return b.node.hand == h and b.state == Birds.State.FEED and b.affection >= BirdCarry.TRUST)
 		if not fed.is_empty():
 			bird = fed[0]
@@ -2823,8 +2815,7 @@ func _shoulder_bird(s: Dictionary) -> void:
 				main.rig.head.transform.basis = Basis.from_euler(Vector3(-0.6, yaw + Torso.TURN * (1.0 if side == 0 else -1.0), 0))
 			return
 		var was := elapsed
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		if was < 20.0 and elapsed >= 20.0:
 			for b in flock.birds:
 				print("conure: %s, affection %.2f, away %.1f s, %.1f m off, asleep %s, head under water %s" % [Birds.State.keys()[b.state], b.affection, b.away, b.node.position.distance_to(main.rig.head.global_position), main.wildlife.asleep(), main.rig.under])
@@ -2860,8 +2851,7 @@ func _bird_smear(s: Dictionary) -> void:
 	var target := Transform3D(basis, frame * Vector3(-0.25, 0, 0.09) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
 	var approach := 0.0
 	while approach < 0.6:
-		await get_tree().process_frame
-		approach += get_process_delta_time()
+		approach += await _tick()
 		h.global_transform = from.interpolate_with(target, smoothstep(0.0, 0.6, approach))
 	await _frames(2)
 	await _over(s, 3.0, func(along: float) -> void: h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), along * 0.18, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY)))
@@ -2982,8 +2972,7 @@ func _spring_grab(s: Dictionary) -> void:
 	var seconds: float = s.get("seconds", 3.0)
 	var travelled := 0.0
 	while elapsed < seconds:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		hand.global_position = from + move * sin(minf(elapsed / seconds, 1.0) * PI * 0.5)
 		travelled = maxf(travelled, from.distance_to(avatar.springs.tip(chain)))
 	Buttons.injected.erase(key)
@@ -3025,8 +3014,7 @@ func _spring_sway(s: Dictionary) -> void:
 	var elapsed := 0.0
 	var seconds: float = s.get("seconds", 3.0)
 	while elapsed < seconds:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		var offset := Vector3(sin(elapsed * TAU) * 0.3, 0, 0)
 		main.view(eye + offset, eye + offset + ahead)
 		for c: int in springs.chains.size():
@@ -3154,8 +3142,7 @@ func _spring_poke(s: Dictionary) -> void:
 	var moved := 0.0
 	while elapsed < seconds:
 		hand.global_position = through - avatar.eyes.basis.x * 0.03 - avatar.eyes.basis.z * 0.15 * cos(elapsed / seconds * 2.0 * TAU)
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
+		elapsed += await _tick()
 		moved = maxf(moved, rest.distance_to(avatar.springs.tip(index)))
 	hand.global_position = through - avatar.eyes.basis.x * 0.4
 	await get_tree().create_timer(1.0).timeout

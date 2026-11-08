@@ -10,7 +10,6 @@ const WHITE := Color(1.0, 0.97, 0.90)
 const WING := Color(0.90, 0.88, 0.83)
 const BILL := Color(1.0, 0.42, 0.04)
 const EYE := Color(0.05, 0.04, 0.05)
-const SHINE := Color(1.0, 1.0, 1.0)
 const CHICK := Color(1.0, 0.84, 0.36)
 const CHICK_WING := Color(0.98, 0.78, 0.30)
 const CHICK_SIZE := 0.6
@@ -74,7 +73,7 @@ static func build(chick: bool) -> ArrayMesh:
 	for s in [-1.0, 1.0]:
 		var eye := head + Vector3(s * head_r * 0.7, head_r * 0.12, -head_r * 0.64)
 		Meshes.ellipsoid(st, Part.HEAD, eye, Vector3.ONE * head_r * 0.21, EYE, 3, 6)
-		Meshes.ellipsoid(st, Part.HEAD, eye + Vector3(s * head_r * 0.08, head_r * 0.09, -head_r * 0.13), Vector3.ONE * head_r * 0.075, SHINE, 2, 4)
+		Meshes.ellipsoid(st, Part.HEAD, eye + Vector3(s * head_r * 0.08, head_r * 0.09, -head_r * 0.13), Vector3.ONE * head_r * 0.075, Color.WHITE, 2, 4)
 		var w := Part.WING_L if s < 0 else Part.WING_R
 		Meshes.ellipsoid(st, w, Vector3(s * 0.088, 0.2, 0.045), Vector3(0.026, 0.06, 0.12), wing, 4, 7, _wing_shape)
 		var f := Part.FOOT_L if s < 0 else Part.FOOT_R

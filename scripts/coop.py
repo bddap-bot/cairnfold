@@ -119,7 +119,7 @@ def easel_steps(name, names, seq):
                     *synced(name, names, "easel")]
 
 
-def held_steps(name, names, capture=False):
+def held_steps(name, names):
     steps = []
     tools = ["walls", "flowers", "grass", "trees", "delete", "pond", "fence", "windows", "decorations", "stone", "colour", "camera", "house", "seeds", "path", "style", "stairs", "tower", "arch", "book", "selfie", "bushes", "boulder", "moss", "none"]
     phases = [[{"op": "pick", "tool": t}] for t in tools]
@@ -140,9 +140,6 @@ def held_steps(name, names, capture=False):
         steps += [barrier([key])]
         if name != "join":
             steps += [{"op": "remote_holds", "name": key}]
-            if capture and name == "host" and i == len(tools) + 4:
-                steps += [{"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
-                          {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"}]
         steps += synced(name, names, f"{key}-seen")
     return steps
 
@@ -185,7 +182,7 @@ def move_steps(name, names, seq):
     return steps
 
 
-def scripts(count, capture=False):
+def scripts(count):
     names = ["host", "join"] + [f"late-{i}" for i in range(2, count)]
     result = {}
     for name in names:
@@ -248,7 +245,7 @@ def scripts(count, capture=False):
             steps += [{"op": "press", "button": "dpad_down"}]
         steps += [{"op": "until", "seq": last + 22}, {"op": "wait", "seconds": 0.5}, *synced(name, names, "undrowned")]
         steps += move_steps(name, names, last + 22)
-        steps += held_steps(name, names, capture)
+        steps += held_steps(name, names)
         steps += [{"op": "pick", "action": "avatar:2"},
                   *synced(name, names, "avatar-picked"),
                   {"op": "until", "avatar": 2},
@@ -264,7 +261,7 @@ def scripts(count, capture=False):
     return result
 
 
-def spawn_scripts(capture=False):
+def spawn_scripts():
     result = {
         "host": [
             {"op": "sculpt", "x": 0, "z": 4, "lift": 12, "radius": 9, "seconds": 0.5},
@@ -276,16 +273,6 @@ def spawn_scripts(capture=False):
             {"op": "digest", "name": "joined", "ground": True},
         ],
     }
-
-    if capture:
-        result["host"] += [
-            {"op": "until", "players": 2, "worn": 1},
-            {"op": "wait", "seconds": 1},
-            {"op": "view", "eye": [6, 15, 11], "at": [0, 12.5, 4]},
-            {"op": "capture", "name": "joiner-on-mountain"},
-            {"op": "digest", "name": "captured"},
-        ]
-        result["join"] += [barrier(["captured"])]
     # The joiner goes home before the host may quit, so the host leaving never sends it home unasked.
     result["host"] += [barrier(["home"]), {"op": "quit"}]
     result["join"] += [{"op": "visit", "home": True}, {"op": "digest", "name": "home"}, {"op": "quit"}]
@@ -564,14 +551,14 @@ def check_records(out, names):
     return not failed
 
 
-def run(out, count, mode="full", capture=False):
+def run(out, count, mode="full"):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
     for folder in ("sessions", "user"):
         shutil.rmtree(out / folder, ignore_errors=True)
     full = mode == "full"
-    generated = {"full": lambda: scripts(count, capture), "spawn": lambda: spawn_scripts(capture),
+    generated = {"full": lambda: scripts(count), "spawn": spawn_scripts,
                  "flat": flat_scripts, "reshape": reshape_scripts}[mode]()
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
@@ -600,9 +587,8 @@ def run(out, count, mode="full", capture=False):
     first = 7480 + 8 * random.randrange(7)
 
     def launch(name, port):
-        rendered = mode == "flat" or capture and name == "host"
         args = ["godot4", "--path", str(ROOT / "game"), "--xr-mode", "off"]
-        args += ["--resolution", "1200x900"] if mode == "flat" else [] if rendered else ["--headless"]
+        args += ["--resolution", "1200x900"] if mode == "flat" else ["--headless"]
         args += ["--", "--desktop", "--script", str(out / f"script-{name}.json"),
                  "--capture-dir", str(out), "--host-port", str(port),
                  "--beacon-port", str(beacon), "--port", str(port if name == "host" else first),
@@ -628,9 +614,8 @@ def run(out, count, mode="full", capture=False):
         logs.append(log)
         # Each player's own player folder, so the opt-in --record-sessions writes stays out of the one this machine plays in.
         env = dict(os.environ, XDG_DATA_HOME=str(out / "user" / name))
-        if rendered:
-            env["DISPLAY"] = display
         if mode == "flat":
+            env["DISPLAY"] = display
             env["VK_ICD_FILENAMES"] = os.environ.get("CAIRNFOLD_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
         processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env, preexec_fn=traceable)
 
@@ -689,11 +674,10 @@ def run(out, count, mode="full", capture=False):
             time.sleep(0.1)
 
     try:
-        if capture or mode == "flat":
+        if mode == "flat":
             # The flat-screen run puts both players' windows side by side.
-            screen = "2560x1024x24" if mode == "flat" else "1600x1200x24"
             reader, writer = os.pipe()
-            xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", screen, "-nolisten", "tcp"], pass_fds=(writer,))
+            xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", "2560x1024x24", "-nolisten", "tcp"], pass_fds=(writer,))
             os.close(writer)
             with os.fdopen(reader) as ready:
                 display = ":" + ready.readline().strip()
@@ -763,7 +747,6 @@ if __name__ == "__main__":
     parser.add_argument("out", type=Path)
     parser.add_argument("players", type=int, nargs="?", default=4)
     parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
-    parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
     parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
     parser.add_argument("--reshape", action="store_true", help="only a host reshaping houses while a visitor edits beside them")
     args = parser.parse_args()
@@ -773,7 +756,7 @@ if __name__ == "__main__":
         if getattr(args, only):
             run(args.out.resolve(), 2, only)
             raise SystemExit(0)
-    run(args.out.resolve() / "spawn", 2, "spawn", capture=args.capture)
+    run(args.out.resolve() / "spawn", 2, "spawn")
     if not args.spawn:
         run(args.out.resolve() / "reshape", 2, "reshape")
-        run(args.out.resolve(), args.players, capture=args.capture)
+        run(args.out.resolve(), args.players)

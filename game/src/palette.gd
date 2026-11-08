@@ -111,7 +111,6 @@ static func globals(index: int) -> Dictionary:
 	return out
 
 
-## The share of flowers in bloom this season.
 func bloom() -> float:
 	return SEASONS[season].bloom
 

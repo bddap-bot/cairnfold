@@ -58,18 +58,13 @@ func _run(g: Glade, seconds: float, each := Callable()) -> void:
 
 
 ## Every animal that disappears was out of the viewer's sight in its last frame, and none stands where it may not.
-func _watch(g: Glade, seen: Dictionary) -> Callable:
+func _watch(g: Glade) -> Callable:
+	var vanishing := GladeBase.watch_vanishing(self, g.wildlife, g.wildlife.roamers.all, "roaming animal")
 	return func() -> void:
-		var now := {}
 		for b in g.wildlife.roamers.all():
-			now[b] = g.wildlife._in_sight(b.position)
 			if b.state != Grazers.State.ENTER and b.state != Grazers.State.LEAVE and not g.wildlife.standable(b.position):
 				check(false, "a %s stands where it may not, %s" % [Beast.Kind.keys()[b.kind], b.position])
-		for b in seen:
-			if not now.has(b) and seen[b]:
-				check(false, "an animal vanished in sight")
-		seen.clear()
-		seen.merge(now)
+		vanishing.call()
 
 
 func _arrived(g: Glade) -> void:
@@ -180,8 +175,7 @@ func _each_is_one_draw_call() -> void:
 
 func _deer_then_a_fox_come_out_of_sight() -> void:
 	var g := await _glade(7)
-	var seen := {}
-	var each := _watch(g, seen)
+	var each := _watch(g)
 	var first := {}
 	var t := 0.0
 	for i in int((Roamers.FIRST[Beast.Kind.FOX].y + 10.0) / STEP):
@@ -317,8 +311,7 @@ func _a_wall_drawn_under_one_moves_it() -> void:
 
 func _they_leave_out_of_sight_and_come_again() -> void:
 	var g := await _glade(17)
-	var seen := {}
-	var each := _watch(g, seen)
+	var each := _watch(g)
 	await _arrived(g)
 	for b in g.wildlife.roamers.bands:
 		b.stay = 0.0

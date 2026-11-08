@@ -389,7 +389,6 @@ func _note_session() -> void:
 	print("xr: session at ", xr.display_refresh_rate, " Hz, eye gaze ", metrics.info.eye_gaze)
 
 
-## Left, right, down and up half-angles of an eye's frustum.
 static func _fov(p: Projection) -> Array:
 	return Array(Metrics.eye_half_angles(p)).map(func(d: float) -> float: return snappedf(d, 0.1))
 

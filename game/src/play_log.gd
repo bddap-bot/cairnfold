@@ -124,7 +124,6 @@ func heard(from: int, whose: int, call: String, args: Array) -> void:
 		_heard.append([frames(), from, whose, call, args.duplicate(true)])
 
 
-## The frames recorded so far.
 func frames() -> int:
 	return _frames + _input.size() / Replay.FRAME_BYTES
 

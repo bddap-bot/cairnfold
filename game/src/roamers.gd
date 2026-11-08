@@ -122,8 +122,6 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 		var startled: bool = sudden and d < STARTLE[a.kind] * (EATING_STARTLE if eating else 1.0)
 		var pressed := not eating and wildlife.approaching(n, a.position) and d < runs_at
 		if startled or pressed:
-			if a.hand != null:
-				_fed(a)
 			a.calm = 0.0
 			_flee(b, a, at)
 			if a.state != State.FLEE:

@@ -226,9 +226,4 @@ func _drop(o: Owl) -> void:
 
 func leave(a: One) -> void:
 	var o: Owl = a
-	o.site = null
-	o.from = o.position
-	o.goal = wildlife._unseen_point(o.position, FROM_DISTANCE, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
-	o.t = 0.0
-	o.span = o.from.distance_to(o.goal) / SPEED
-	o.state = State.FLY
+	_fly(o, null, wildlife._unseen_point(o.position, FROM_DISTANCE, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng))

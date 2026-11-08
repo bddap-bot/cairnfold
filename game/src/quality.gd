@@ -434,7 +434,7 @@ class Map:
 			# One dear frame judged this, which a spike the map had no part in can pass: it is tried on again later.
 			_dear_off = _dear_trial
 			_since = 0.0
-		elif on and read * SAVES > _before:
+		elif read * SAVES > _before:
 			on = false
 			why = "on cost the frame, %.1f ms against %.1f" % [read, _before]
 			_wait = minf(_wait * 2.0, CALM_SECONDS_MAX)
