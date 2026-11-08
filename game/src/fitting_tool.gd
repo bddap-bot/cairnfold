@@ -118,9 +118,7 @@ func _process(delta: float) -> void:
 func _let_go(i: int, hand: Hand, stroke: Dictionary, target: Dictionary) -> void:
 	_starts[i] = null
 	if not stroke.is_empty():
-		if world.fits(stroke):
-			Cues.play(Cues.Act.FITTING, stroke.to, hand)
-		world.submit(stroke, Callable(), hand)
+		world.submit_cued(stroke, Cues.Act.FITTING, stroke.to, hand)
 	elif not fit(target, hand):
 		_refused(i, hand)
 		return
@@ -256,9 +254,7 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 		world.submit(cmd, Callable(), hand)
 		return true
 	if target.has("path"):
-		if world.fits(cmd):
-			Cues.play(Cues.Act.FITTING_OFF, target.point, hand)
-		world.submit(cmd, Callable(), hand)
+		world.submit_cued(cmd, Cues.Act.FITTING_OFF, target.point, hand)
 		return true
 	var w: Wall = target.wall
 	var key: String = cmd.data.roof.keys()[0] if cmd.data.has("roof") else cmd.data.keys()[0]

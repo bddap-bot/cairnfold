@@ -644,6 +644,17 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false, backing
 	return st.commit()
 
 
+## Loose `stones`, plainly coloured, as masonry parts indexed by Part. Reads nothing but its arguments.
+static func stone_parts(stones: Array[Dictionary], ks: Array[Masonry.Kind]) -> Array[Dictionary]:
+	var wall := WallLayout.new()
+	wall.stones = stones
+	var packed := pack(wall, ks, Palette.plain())
+	var parts: Array[Dictionary] = []
+	for k in Part.size():
+		parts.append(packed.chunks.get(k, {}))
+	return parts
+
+
 ## A built layout's stones as instance buffers by Part, and the box enclosing them. Reads nothing but its
 ## arguments, so it runs on a worker thread.
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:

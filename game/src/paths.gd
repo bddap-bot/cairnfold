@@ -233,11 +233,7 @@ func _lay(path: PathLayout) -> void:
 static func _pack(data: Dictionary, height: Callable, water: Callable, kinds: Array[Masonry.Kind], out: Array[Dictionary]) -> void:
 	var layout := PathLayout.of(data)
 	layout.plan()
-	var wall := WallLayout.new()
-	wall.stones = layout.pieces(height, water)
-	var packed := Wall.pack(wall, kinds, Palette.plain())
-	for k in Wall.Part.size():
-		out.append(packed.chunks.get(k, {}))
+	out.append_array(Wall.stone_parts(layout.pieces(height, water), kinds))
 
 
 ## Places what finished workers laid, each path's latest only; with `all`, waits for every one first.

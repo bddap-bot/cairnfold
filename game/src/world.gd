@@ -536,6 +536,13 @@ func hear(call: String, args: Array, whose := -1) -> void:
 		play_log.heard(from, from if whose < 0 else whose, call, args)
 
 
+## Submits `cmd`, sounding `act` at `at` first if the budget has room for it.
+func submit_cued(cmd: Dictionary, act: Cues.Act, at: Vector3, hand: XRController3D, done := Callable()) -> void:
+	if fits(cmd):
+		Cues.play(act, at, hand)
+	submit(cmd, done, hand)
+
+
 ## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot. One that would
 ## take the garden past its frame budget is turned down, by a visitor before it is sent; `hand`, the one whose tool
 ## made it, feels a turned-down command.

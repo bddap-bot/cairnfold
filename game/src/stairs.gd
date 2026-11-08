@@ -58,13 +58,7 @@ func show_reshaped(id: int, data: Dictionary) -> void:
 	_place(id)
 
 func _place(id: int) -> void:
-	var wall := WallLayout.new()
-	wall.stones = layouts[id].stones
-	var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
-	var parts: Array[Dictionary] = []
-	for k in Wall.Part.size():
-		parts.append(packed.chunks.get(k, {}))
-	masonry.place(Masonry.stair_owner(id), parts)
+	masonry.place(Masonry.stair_owner(id), Wall.stone_parts(layouts[id].stones, Wall.kinds()))
 	_stop_growing(id)
 
 

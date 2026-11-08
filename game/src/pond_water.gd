@@ -111,15 +111,8 @@ static func quads(p: PondLayout.Pond) -> PackedVector3Array:
 
 ## The surface `quads` lays, flat at height 0.
 static func sheet(verts: PackedVector3Array) -> ArrayMesh:
-	var normals := PackedVector3Array()
-	normals.resize(verts.size())
-	normals.fill(Vector3.UP)
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
 	var m := ArrayMesh.new()
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, Meshes.level(verts))
 	return m
 
 

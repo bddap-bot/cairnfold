@@ -7,32 +7,30 @@ const FLIPS: Array[Basis] = [Basis.IDENTITY, Basis(Vector3.UP, PI), Basis(Vector
 
 static var _mesh: ArrayMesh
 static var _far_mesh: ArrayMesh
-static var _material: ShaderMaterial
-static var _small: ShaderMaterial
-static var _baked: ShaderMaterial
+static var _materials := {}
 
 var _instance := Masonry.Kind.new(mesh(), small_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
 
 
 static func shared_material() -> ShaderMaterial:
-	if _material == null:
-		_material = stone(preload("res://src/stone.gdshader"))
-	return _material
+	return _made(preload("res://src/stone.gdshader"))
 
 
 ## shared_material for pieces small enough that the light volumes do not vary over a triangle, stones and tiles:
 ## they read the volumes once a vertex (Bounce's given_at), not once a fragment.
 static func small_material() -> ShaderMaterial:
-	if _small == null:
-		_small = stone(preload("res://src/stone_small.gdshader"))
-	return _small
+	return _made(preload("res://src/stone_small.gdshader"))
 
 
 ## small_material for a baked far chunk (Masonry.bake).
 static func baked_material() -> ShaderMaterial:
-	if _baked == null:
-		_baked = stone(preload("res://src/stone_far.gdshader"))
-	return _baked
+	return _made(preload("res://src/stone_far.gdshader"))
+
+
+static func _made(shader: Shader) -> ShaderMaterial:
+	if not _materials.has(shader):
+		_materials[shader] = stone(shader)
+	return _materials[shader]
 
 
 ## A material of `shader` lit as masonry is, its windows glowing and glazed, in the stone styles; roof timber too.

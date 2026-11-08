@@ -142,12 +142,9 @@ func _init(ground: Terrain) -> void:
 func _build_markers() -> void:
 	add_child(_landing)
 	add_child(_underfoot)
-	_fade_mat = StandardMaterial3D.new()
-	_fade_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_fade_mat = Meshes.glow(Color(0, 0, 0, 0))
 	_fade_mat.no_depth_test = true
 	_fade_mat.render_priority = 100
-	_fade_mat.albedo_color = Color(0, 0, 0, 0)
 	_fade = MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(2, 2)

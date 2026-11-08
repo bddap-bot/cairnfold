@@ -12,6 +12,18 @@ static func bind_bone(skin: Skin, i: int, skeleton: Skeleton3D) -> int:
 	return skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))
 
 
+## Surface arrays for triangles `verts`, every normal up.
+static func level(verts: PackedVector3Array) -> Array:
+	var normals := PackedVector3Array()
+	normals.resize(verts.size())
+	normals.fill(Vector3.UP)
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	out[Mesh.ARRAY_VERTEX] = verts
+	out[Mesh.ARRAY_NORMAL] = normals
+	return out
+
+
 ## A flat, unlit `colour`, blended by its alpha when `see_through`.
 static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()

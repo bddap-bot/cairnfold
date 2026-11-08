@@ -220,9 +220,7 @@ func place(at: Vector3, yaw: float, hand: Hand) -> void:
 	var why := Easels.crowded(at, world.state.easels)
 	if why.is_empty():
 		var cmd := {"op": "easel", "at": at, "yaw": yaw}
-		if world.fits(cmd):
-			Cues.play(Cues.Act.EASEL_PLACE, at, hand)
-		world.submit(cmd, Callable(), hand)
+		world.submit_cued(cmd, Cues.Act.EASEL_PLACE, at, hand)
 	else:
 		_decline(hand, why)
 

@@ -408,7 +408,5 @@ func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float, sink := 0
 
 func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:
 	var cmd := {"op": "plant", "kind": kind, "seed": shape, "at": at}
-	if world.fits(cmd):
-		Cues.play(Cues.Act.TREE_PLANT, at, hand)
-	world.submit(cmd, Callable(), hand)
+	world.submit_cued(cmd, Cues.Act.TREE_PLANT, at, hand)
 	planted.emit()

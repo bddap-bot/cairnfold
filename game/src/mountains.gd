@@ -230,14 +230,7 @@ static func lake_arrays() -> Array:
 		var fa := _outward(a, LAKE_OUT, LAKE)
 		var fb := _outward(b, LAKE_OUT, LAKE)
 		verts.append_array([a, b, fa, b, fb, fa])
-	var normals := PackedVector3Array()
-	normals.resize(verts.size())
-	normals.fill(Vector3.UP)
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
-	out[Mesh.ARRAY_VERTEX] = verts
-	out[Mesh.ARRAY_NORMAL] = normals
-	return out
+	return Meshes.level(verts)
 
 
 ## Each range's ridge over the lake round the circle, so the water mirrors the ranges without drawing them twice:
