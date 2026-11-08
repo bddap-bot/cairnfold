@@ -438,8 +438,7 @@ func _malformed() -> void:
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended.merged({"colorBlend": 3.0}, true)]}}]}), "a decal region naming a blend mode Poiyomi has not is rejected")
 	var unnamed := blended.duplicate()
 	unnamed.erase("colorBlend")
-	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed.merged({"multiply": true})]}}]}) and ExpressionPlayer._settings("look", unnamed.merged({"multiply": true}), 0)[1] == 2, "a decal region converted before decals named their blend mode still multiplies")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed]}}]}), "a decal region naming no blend mode is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed.merged({"multiply": true})]}}]}), "a decal region converted before decals named their blend mode is rejected, not drawn replacing")
 	var turned := {"node": 0, "rect": [0, 0, 1, 1], "field": "decalHue", "slot": 1, "colorBlend": 0, "alpha": 0.5, "hue": {"shift": 0.25, "space": 1.0, "select": 1.0}}
 	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned]}}]}), "a decal region turning its hue is valid")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": {"shift": "a"}}, true)]}}]}), "a decal region with a malformed hue turn is rejected")
