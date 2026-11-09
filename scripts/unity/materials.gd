@@ -741,17 +741,17 @@ static func mask_blend(mask: float, value: float, type: int) -> float:
 
 
 ## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
-## it faces (Poiyomi's Flat lighting, or its Multilayer Math where that tints no shadow (`_untinted`), capped at its Max
-## Brightness where that is on; VRChat's Toon Lit, uncapped), "lit" for a surface shaded by the angle of its light.
+## it faces (Poiyomi where `_flat_poiyomi`, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped),
+## "lit" for a surface shaded by the angle of its light.
 ## VRChat's Toon Standard is lit through its shadow "ramp", the brightness its ramp texture gives (Shadow Boost added,
 ## at most 1) at RAMP evenly spaced points of its light's half-Lambert term from 0 to 1, with its Shadow Tint
 ## ("shadowTint") lending the albedo to the shade and the light capped at 1 where Limit Brightness is on, as the shader
 ## lights its forward base pass.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
-	if poiyomi(m) and (_float(m, "_LightingMode") == 5.0 or _float(m, "_LightingMode") == 1.0 and _untinted(m)):
+	if poiyomi(m) and _flat_poiyomi(m):
 		var flat := {"model": "flat"}
-		if _float(m, "_LightingCapEnabled") != 0.0:
+		if _capped(m):
 			flat.cap = _saved(m, "_LightingCap", 1.0)
 		return flat
 	if m.get("shader", "") == "VRChat/Mobile/Toon Lit":
@@ -764,12 +764,41 @@ func lighting(key: String) -> Dictionary:
 	return {"model": "lit"}
 
 
-## Whether Poiyomi's Multilayer Math lights the material `m` as its Flat lighting does: its shadow side takes the direct
-## light times a tint, and the tint is white where no shadow strength applies it, or where it ignores the ambient
-## colour, blends in none of the base colour and each shadow layer drawn is white without a texture.
-static func _untinted(m: Dictionary) -> bool:
+static func _capped(m: Dictionary) -> bool:
+	return _saved(m, "_LightingCapEnabled", 1.0) != 0.0
+
+
+## Whether Poiyomi lights the material `m` as its Flat lighting does: Flat itself, or Multilayer Math or Skin, whose
+## shade takes the place of the direct light only by Shadow Strength, where that is none or the shade keeps the light
+## whole (`_untinted`, `_skin_shade_covers_light`).
+static func _flat_poiyomi(m: Dictionary) -> bool:
+	var mode := _float(m, "_LightingMode")
+	if mode == 5.0:
+		return true
+	if mode != 1.0 and mode != 3.0:
+		return false
 	if _saved(m, "_ShadowStrength", 1.0) == 0.0:
 		return true
+	return _untinted(m) if mode == 1.0 else _skin_shade_covers_light(m)
+
+
+## Skin's shade is the lesser of the light and its Shadow Tint, times the indirect light unless Ignore Indirect Shadow
+## Color drops it, darkened by occlusion, plus the light its skin scatters. Unlike Multilayer Math's tint it is no
+## fraction of the light but a floor of its own, so it keeps the light whole only under a Max Brightness it reaches.
+static func _skin_shade_covers_light(m: Dictionary) -> bool:
+	if _saved(m, "_LightingIgnoreAmbientColor", 1.0) != 1.0 or not _capped(m):
+		return false
+	if _texture_guid(m, "_LightingAOMaps") != "" or _float(m, "_LightDataAOGlobalMaskR") != 0.0:
+		return false
+	var cap := _saved(m, "_LightingCap", 1.0)
+	var tint := _colour((m.get("colours", {}) as Dictionary).get("_LightingShadowColor"), Color.WHITE)
+	return tint.r >= cap and tint.g >= cap and tint.b >= cap
+
+
+## Whether Poiyomi's Multilayer Math lights the material `m` as its Flat lighting does: its shadow side takes the direct
+## light times a tint, and the tint is white where it ignores the ambient colour, blends in none of the base colour and
+## each shadow layer drawn is white without a texture.
+static func _untinted(m: Dictionary) -> bool:
 	if _saved(m, "_LightingIgnoreAmbientColor", 1.0) != 1.0 or _saved(m, "_ShadowMainStrength", 0.0) != 0.0:
 		return false
 	var colours: Dictionary = m.get("colours", {})

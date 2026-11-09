@@ -59,6 +59,7 @@ func _run() -> void:
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
+	_skin_its_shade_reaches_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_installed_packages_lend_only_missing_images()
 	_a_texture_in_no_package_needs_the_packages_named()
@@ -1963,6 +1964,43 @@ func _untinted_multilayer_math_lights_flat() -> void:
 	materials.pack(["white", "unused", "tinted", "default"])
 	var lit := ["white", "unused", "tinted", "default"].map(func(key: String) -> Dictionary: return materials.lighting(key))
 	check(lit == [{"model": "flat", "cap": 0.9}, {"model": "flat", "cap": 0.9}, {"model": "lit"}, {"model": "lit"}], "white shadow layers light flat, a tinted layer or Poiyomi's default tint by angle: %s" % [lit])
+
+
+## Poiyomi's Skin keeps the light whole where its shade, a floor of its own, reaches the capped light.
+func _skin_its_shade_reaches_lights_flat() -> void:
+	var dir := ProjectSettings.globalize_path("user://skin")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _LightingMode ("Lighting", Float) = 3 } }')
+	var cases := {
+		"default": ["", "", ""],
+		"one channel tinted": ["", "", "    - _LightingShadowColor: {r: 1, g: 1, b: 0.8, a: 1}\n"],
+		"ambient": ["", "    - _LightingIgnoreAmbientColor: 0\n", ""],
+		"occluded": ["    - _LightingAOMaps:\n        m_Texture: {fileID: 2800000, guid: ao, type: 3}\n", "", ""],
+		"globally occluded": ["", "    - _LightDataAOGlobalMaskR: 1\n", ""],
+		"uncapped": ["", "    - _LightingCapEnabled: 0\n", ""],
+		"capped over the tint": ["", "    - _LightingCap: 1.5\n", ""],
+		"capped under the tint": ["", "    - _LightingCap: 0.8\n", "    - _LightingShadowColor: {r: 0.9, g: 0.9, b: 0.9, a: 1}\n"],
+		"unshadowed": ["", "    - _ShadowStrength: 0\n    - _LightingIgnoreAmbientColor: 0\n", "    - _LightingShadowColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}\n"],
+	}
+	for key: String in cases:
+		var saved: Array = cases[key]
+		write.call(key + ".mat", key, "Material:\n  m_Shader: {guid: poi}\n  m_SavedProperties:\n    m_TexEnvs:\n%s    m_Floats:\n    - _LightingMode: 3\n%s    m_Colors:\n%s" % saved)
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in cases:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(cases.keys())
+	var lit := {}
+	for key: String in cases:
+		lit[key] = materials.lighting(key)
+	var flat := {"model": "flat", "cap": 1.0}
+	var want := {"default": flat, "one channel tinted": {"model": "lit"}, "ambient": {"model": "lit"}, "occluded": {"model": "lit"},
+		"globally occluded": {"model": "lit"}, "uncapped": {"model": "lit"}, "capped over the tint": {"model": "lit"},
+		"capped under the tint": {"model": "flat", "cap": 0.8}, "unshadowed": flat}
+	for key: String in cases:
+		check(lit[key] == want[key], "a skin material %s lights %s: %s" % [key, want[key], lit[key]])
 
 
 ## A clip moving a global theme colour's hue, saturation, value or hue speed, under a locked material's suffix, binds as
