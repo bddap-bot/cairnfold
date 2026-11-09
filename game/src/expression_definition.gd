@@ -116,6 +116,9 @@ static func looks_valid(looks: Variant) -> bool:
 		if glow != null and glow.get("theme") != null and not (_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
 			return false
+		if not _coat(m.get("clearcoat")):
+			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions or a map among the looks' %s" % [m.get("clearcoat")])
+			return false
 	return true
 
 
@@ -136,6 +139,22 @@ static func _untinted(untinted: Variant) -> bool:
 ## A cell's albedo rect then its rect in the untinted colours' image, each [x0, y0, x1, y1] in UV, none empty.
 static func _cell(c: Variant) -> bool:
 	return c is Array and c.size() == 8 and c.all(_number) and c[0] < c[2] and c[1] < c[3] and c[4] < c[6] and c[5] < c[7]
+
+
+## A look's "clearcoat": null, or its "strength", "smoothness", "reflection", "specular" and "fresnel", its
+## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
+## its four "inverts" and its "map", -1
+## or an index among the looks' "clearcoatMaps"; an index past them draws as none.
+static func _coat(coat: Variant) -> bool:
+	if coat == null:
+		return true
+	if not coat is Dictionary or not ["strength", "smoothness", "reflection", "specular", "fresnel"].all(func(k: String) -> bool: return _number(coat.get(k))):
+		return false
+	if not (_numbers(coat.get("specularTint"), 3) and _numbers(coat.get("reflectionTint"), 3) and _numbers(coat.get("st"), 4) and _numbers(coat.get("gsaa"), 2)):
+		return false
+	if not (coat.get("inverts") is Array and coat.inverts.size() == 4 and coat.inverts.all(func(v: Variant) -> bool: return v is bool)):
+		return false
+	return _number(coat.get("map")) and (float(coat.map) == -1.0 or _whole(coat.map))
 
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives

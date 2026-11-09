@@ -27,6 +27,15 @@ varying vec3 flat_light;
 // A ramp-lit vertex's main light its shadow tint lends the albedo, and the light its cap leaves room for.
 varying vec4 tinted;
 varying vec4 glow_colour;
+#ifdef CLEAR_COAT
+// The looks table column of the vertex's material where it has a clear coat (Avatar._lit_looks's rows after its ramp),
+// else -1: a fragment reads the coat's rows only where it draws one, since carrying them as varyings cost a Quest 2 as
+// much as drawing the coat over the whole of every mesh showing one. Its maps are read through UV2.
+varying flat int coat_entry;
+// The surface's own normal in view space: a flat material's NORMAL is turned to light it.
+varying vec3 coat_normal;
+uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
+#endif
 
 // A flat material, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it
 // faces, plus the ambient, capped: its texture's painted shading is the only shading. The ambient and the light given
@@ -37,11 +46,19 @@ varying vec4 glow_colour;
 // the rest of the main light lent the albedo by its shadow tint in each pixel, under the same cap; that tint, added as
 // emission, takes no cast shadow, as Toon Standard's shade does under one.
 const int RAMP = 16;
+#ifdef CLEAR_COAT
+const int COAT = 2 + RAMP;
+#endif
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
 	vec3 light = texelFetch(lighting, looked, 0).rgb;
 	glow_colour = textureSize(lighting, 0).y > 1 ? texelFetch(lighting, looked + ivec2(0, 1), 0) : vec4(0.0);
+#ifdef CLEAR_COAT
+	bool coated = texelFetch(lighting, looked + ivec2(0, COAT), 0).x > 0.0 || texelFetch(lighting, looked + ivec2(0, COAT + 4), 0).x > 0.5;
+	coat_entry = coated ? looked.x : -1;
+	coat_normal = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+#endif
 	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
 	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
@@ -141,6 +158,41 @@ vec3 linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
 
+#ifdef CLEAR_COAT
+float pow5(float x) {
+	float x2 = x * x;
+	return x2 * x2 * x;
+}
+
+// Poiyomi's clear coat (poiClearCoat) at levels `level` (mask, smoothness, reflection, specular), each a vector in
+// view space: Unity's GGX highlight of the main light `key` coming from `l` and a reflection of the sky, each through
+// the coat's Fresnel, masked, to add over the lit colour. The sky stands in for the reflection probe Unity reads,
+// blurred toward its mean as the coat roughens. Poiyomi takes N.L twice, in the highlight and in its light's
+// attenuation, and its dielectric reflectance is gamma space's in linear space too.
+vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tint, vec3 n, vec3 v, vec3 l, vec3 key, vec3 sky_reflected) {
+	const float dielectric = 0.220916301;
+	float rough = max(perceptual * perceptual, 0.002);
+	vec3 h = normalize(l + v);
+	float nl = clamp(dot(n, l), 0.0, 1.0);
+	float nv = clamp(dot(n, v), 0.0, 1.0);
+	float nh = clamp(dot(n, h), 0.0, 1.0);
+	float lh = clamp(dot(l, h), 0.0, 1.0);
+	float ggx = 0.0;
+	if (nl > 0.0) {
+		float r2 = rough * rough;
+		float visible = 0.5 / (nl * (nv * (1.0 - rough) + rough) + nv * (nl * (1.0 - rough) + rough) + 1e-5);
+		float d = (nh * r2 - nh) * nh + 1.0;
+		ggx = visible * r2 / (d * d + 1e-7);
+	}
+	float fresnel = dielectric + (1.0 - dielectric) * pow5(1.0 - lh);
+	vec3 highlight = key * max(0.0, ggx * max(1e-5, nl)) * fresnel * level.w * specular.rgb * nl;
+	float grazing = clamp(level.y + 0.04, 0.0, 1.0);
+	float glancing = mix(dielectric, grazing, pow5(1.0 - nv));
+	vec3 reflection = sky_reflected / (rough * rough + 1.0) * mix(1.0, glancing, specular.a) * reflection_tint * level.z;
+	return clamp((highlight + reflection) * level.x, 0.0, 1.0);
+}
+#endif
+
 void fragment() {
 	vec2 uv = UV * atlas.xy + atlas.zw;
 	vec2 dx = dFdx(uv);
@@ -161,6 +213,10 @@ void fragment() {
 	vec4 decal_shift = vec4(0.0);
 	vec4 decal_turn = vec4(0.0);
 #endif
+#ifdef CLEAR_COAT
+	vec4 coat_moved = vec4(0.0);
+	vec4 coat_at = vec4(0.0);
+#endif
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
@@ -176,11 +232,18 @@ void fragment() {
 				tone[int(s.z)] = s.x;
 			} else {
 				int slot = int(s.z);
+				int field = int(e.y + 0.5);
+#ifdef CLEAR_COAT
+				if (field == 3) {
+					coat_at[slot] = s.x;
+					coat_moved[slot] = 1.0;
+					continue;
+				}
+#endif
 				decal_mode[slot] = s.w;
 				decal_page[slot] = e.z;
 				decal_rect[slot] = texelFetch(regions, ivec2(i, 3), 0);
 				decal_cell[slot] = rect;
-				int field = int(e.y + 0.5);
 #ifdef DECAL_HUE
 				if (decal_turn[slot] < 0.5 && e.w > 0.5) {
 					decal_turn[slot] = e.w;
@@ -253,4 +316,38 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	AO = flat_lit > 0.5 ? 0.0 : given.a;
 	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light + min(tinted.rgb * base.rgb, vec3(tinted.a)) : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing;
+#ifdef CLEAR_COAT
+	if (coat_entry >= 0) {
+		vec4 coat_level = texelFetch(lighting, ivec2(coat_entry, COAT), 0);
+		vec4 st = mix(texelFetch(lighting, ivec2(coat_entry, COAT + 1), 0), coat_at, coat_moved);
+		vec4 specular = texelFetch(lighting, ivec2(coat_entry, COAT + 2), 0);
+		vec4 reflection = texelFetch(lighting, ivec2(coat_entry, COAT + 3), 0);
+		vec4 invert = texelFetch(lighting, ivec2(coat_entry, COAT + 4), 0);
+		vec2 gsaa = texelFetch(lighting, ivec2(coat_entry, COAT + 5), 0).xy;
+		vec3 coat_n = normalize(coat_normal) * (FRONT_FACING ? 1.0 : -1.0);
+		vec3 coat_dx = dFdx(coat_n);
+		vec3 coat_dy = dFdy(coat_n);
+		vec4 maps = vec4(1.0);
+		if (reflection.a >= 0.0) {
+			vec2 at = vec2(UV2.x, 1.0 - UV2.y) * st.xy + st.zw;
+			maps = texture(coat_maps, vec3(at.x, 1.0 - at.y, reflection.a));
+		}
+		vec4 level = coat_level * maps;
+		level = mix(level, 1.0 - level, invert);
+		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
+		vec3 toward = (VIEW_MATRIX * vec4(mirrored ? mirror_toward : sun_toward, 0.0)).xyz;
+		toward = length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0);
+		vec3 n = coat_n;
+		vec3 r = (INV_VIEW_MATRIX * vec4(reflect(-VIEW, n), 0.0)).xyz;
+		float perceptual = 1.0 - level.y;
+		vec3 mean = mix(sky_horizon, sky_zenith, 0.5);
+		vec3 sky = mix(mix(sky_horizon, sky_zenith, clamp(r.y, 0.0, 1.0)), mean, perceptual * (1.7 - 0.7 * perceptual));
+		// Poiyomi's geometric specular antialiasing (Filament's): the highlight roughens where the normal turns fast
+		// across a pixel, which spreads a near-mirror coat's highlight over a curved surface.
+		float kernel = min(2.0 * gsaa.x * (dot(coat_dx, coat_dx) + dot(coat_dy, coat_dy)), gsaa.y);
+		float squared = perceptual * perceptual;
+		float widened = sqrt(sqrt(clamp(squared * squared + kernel, 0.0, 1.0)));
+		EMISSION += clear_coat(level, widened, specular, reflection.rgb, n, VIEW, toward, mirrored ? mirror_light : sun_light, (mirrored ? mirror_ambient : sky * sky_ambient));
+	}
+#endif
 }

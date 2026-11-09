@@ -893,6 +893,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift"] and not property.begins_with("_MainHueShift_"):
 			return -1
 		var kind := "color" if channel >= 0 else "tone" if tone >= 0 else "look" if not look.is_empty() else "hue"
+		var coat: bool = look.get("field") == "clearcoatST"
 		var renderer := Prefabs.renderer_of(objs, go)
 		var regions := []
 		for ref: Variant in Yaml.list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
@@ -902,7 +903,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			if not materials.materials.has(key):
 				continue
 			var material: Dictionary = materials.materials[key]
-			if not material.has("cell") or not (material.get("properties", {}) as Dictionary).has("_Color" if channel >= 0 else property):
+			if not material.has("cell") or not (material.get("properties", {}) as Dictionary).has("_Color" if channel >= 0 else "_ClearCoatMaps" if coat else property):
 				continue
 			var binding := {}
 			if channel >= 0:
@@ -914,6 +915,11 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					if renderer in m.renderers and m.has("swapped"):
 						for swapped: String in m.swapped:
 							materials.color_regions[swapped] = true
+			elif coat:
+				if not materials.draws(key, look):
+					continue
+				binding = look.duplicate()
+				rest = materials.clearcoat(key).st[look.slot]
 			else:
 				var floats: Dictionary = material.get("floats", {})
 				if not floats.has(property):
@@ -1261,6 +1267,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var coat_uvs := {}
 	var bones := PackedInt32Array()
 	var weights := PackedFloat32Array()
 	var indices := PackedInt32Array()
@@ -1337,7 +1344,12 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			var swapped: Array = choices.map(func(c: Variant) -> String: return materials.use(c if c is Dictionary else mref, fallback))
 			if not swap.is_empty():
 				key = swapped[0]
-			var tiles := _udim_tiles(switches, r[0], materials.materials[key], arrays, report)
+			var tiles := _udim_tiles(switches, r[0], materials.materials[key], mesh, s, arrays, report)
+			var coat_channel := -1
+			for k: String in [key] + swapped:
+				if coat_channel < 0:
+					coat_channel = materials.coat_uv(k)
+			var coat_uv := _uv_channel(mesh, s, arrays, coat_channel, report, "clear coat maps") if coat_channel >= 0 else PackedVector2Array()
 			var group_for := func(extra: Array) -> Dictionary:
 				var g: Dictionary = groups.get_or_add("%s|%s|%s" % [r[2], swap, extra], {"index": groups.size(), "when": (r[2] as Array) + extra, "renderers": {}})
 				g.renderers[r[0]] = true
@@ -1384,6 +1396,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 				var normal := placed[i].basis * n[i]
 				normals.append(normal.normalized() if not normal.is_zero_approx() else Vector3.UP)
 				uvs.append(uv[i])
+				if not coat_uv.is_empty():
+					coat_uvs[base + i] = coat_uv[i]
 				group_of.append(group.index)
 				corners[base + i] = key
 				var top: Array = tops[i]
@@ -1459,6 +1473,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			var gv := PackedVector3Array()
 			var gn := PackedVector3Array()
 			var gu := PackedVector2Array()
+			var gc := PackedVector2Array()
+			var coated := false
 			var gb := PackedInt32Array()
 			var gw := PackedFloat32Array()
 			for t in faces[slot]:
@@ -1471,6 +1487,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 						gv.append(verts[i])
 						gn.append(normals[i])
 						gu.append(uvs[i])
+						gc.append(coat_uvs.get(i, Vector2.ZERO))
+						coated = coated or coat_uvs.has(i)
 						gb.append_array(bones.slice(4 * i, 4 * i + 4))
 						gw.append_array(weights.slice(4 * i, 4 * i + 4))
 					gi.append(remap[i])
@@ -1479,6 +1497,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 			arrays[Mesh.ARRAY_VERTEX] = gv
 			arrays[Mesh.ARRAY_NORMAL] = gn
 			arrays[Mesh.ARRAY_TEX_UV] = gu
+			if coated:
+				arrays[Mesh.ARRAY_TEX_UV2] = gc
 			arrays[Mesh.ARRAY_BONES] = gb
 			arrays[Mesh.ARRAY_WEIGHTS] = gw
 			arrays[Mesh.ARRAY_INDEX] = gi
@@ -1555,7 +1575,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 ## A surface's Poiyomi UDIM discard: {"vertex": each vertex's tile "row:column", and each tile some switch discards,
 ## to the `when` drawing it: its switch off}; empty when the material discards no tile. A tile discarded at rest that the
 ## menu never changes takes a switch of its own that stays on, so its triangles are kept but never drawn.
-static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, arrays: Array, report: Dictionary) -> Dictionary:
+static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, mesh: ArrayMesh, s: int, arrays: Array, report: Dictionary) -> Dictionary:
 	var floats: Dictionary = m.get("floats", {})
 	if str(floats.get("_EnableUDIMDiscardOptions", "0")).to_float() == 0.0:
 		return {}
@@ -1572,14 +1592,12 @@ static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, arra
 			out["%d:%d" % [row, column]] = [[t, 0]]
 	if out.is_empty():
 		return {}
-	var channel := str(floats.get("_UDIMDiscardUV", "0")).to_int()
-	var uv: Variant = arrays[Mesh.ARRAY_TEX_UV] if channel == 0 else arrays[Mesh.ARRAY_TEX_UV2] if channel == 1 else null
-	if not uv is PackedVector2Array:
-		report["UDIM discard on a UV channel the model lacks"] = report.get("UDIM discard on a UV channel the model lacks", 0) + 1
+	var uv := _uv_channel(mesh, s, arrays, str(floats.get("_UDIMDiscardUV", "0")).to_int(), report, "UDIM discard")
+	if uv.is_empty():
 		return {}
 	# Godot's model importer flips V; the tile row counts Unity's V.
 	var tile_of := []
-	for at: Vector2 in uv as PackedVector2Array:
+	for at: Vector2 in uv:
 		tile_of.append("%d:%d" % [floori(1.0 - at.y), floori(at.x)])
 	out.vertex = tile_of
 	return out
@@ -1772,6 +1790,30 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 		w[0] = 1.0
 		sum = 1.0
 	return [b, w.map(func(x: float) -> float: return x / sum)]
+
+
+## The texture coordinates of the mesh's surface `s` (`arrays`) in Unity UV channel `channel` (0 to 3), as Godot's model
+## importer flips them: UV0 and UV1 its two UV arrays, UV2 and UV3 the first and second pair of its first custom array.
+## Empty, and reported as `what` on a channel the model lacks, where it lacks the channel.
+static func _uv_channel(mesh: ArrayMesh, s: int, arrays: Array, channel: int, report: Dictionary, what: String) -> PackedVector2Array:
+	if channel < 0:
+		pass
+	elif channel < 2:
+		var uv: Variant = arrays[Mesh.ARRAY_TEX_UV if channel == 0 else Mesh.ARRAY_TEX_UV2]
+		if uv is PackedVector2Array:
+			return uv
+	else:
+		var custom: Variant = arrays[Mesh.ARRAY_CUSTOM0]
+		var format := (mesh.surface_get_format(s) >> Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) & Mesh.ARRAY_FORMAT_CUSTOM_MASK
+		var stride := {Mesh.ARRAY_CUSTOM_RG_FLOAT: 2, Mesh.ARRAY_CUSTOM_RGBA_FLOAT: 4}.get(format, 0) as int
+		if custom is PackedFloat32Array and 2 * (channel - 1) <= stride:
+			var out := PackedVector2Array()
+			for at in range(2 * (channel - 2), (custom as PackedFloat32Array).size(), stride):
+				out.append(Vector2(custom[at], custom[at + 1]))
+			return out
+	var line := what + " on a UV channel the model lacks"
+	report[line] = report.get(line, 0) + 1
+	return PackedVector2Array()
 
 
 ## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons

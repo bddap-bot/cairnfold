@@ -717,6 +717,82 @@ func matcap(key: String, slot: int) -> Dictionary:
 	}
 
 
+## Poiyomi's clear coat on the material at `key` at rest, or {} where it is off, a global mask shapes it, or its maps are
+## panned or read by a view other than a UV channel: its "strength", "smoothness", "reflection" and "specular" levels,
+## its linear "specularTint" and "reflectionTint", its "fresnel", its geometric specular antialiasing ("gsaa", Poiyomi's
+## variance and threshold, zero where off), its packed maps' "texture" GUID ("" for none, which reads
+## as white), the UV channel ("uv") and tiling and offset ("st", Unity's [scale x, scale y, offset x, offset y]) they
+## are read through, the source channel ("channels", 4 for white) of each level and whether each level is inverted
+## ("inverts"). Its light adds over the lit colour, as Poiyomi's does.
+func clearcoat(key: String) -> Dictionary:
+	var m: Dictionary = materials[key]
+	var floats: Dictionary = m.get("floats", {})
+	var colours: Dictionary = m.get("colours", {})
+	var number := func(name: String, otherwise: float) -> float: return str(floats.get(name, otherwise)).to_float()
+	if not poiyomi(m) or _saved(m, "_ClearCoatBRDF", 0.0) == 0.0:
+		return {}
+	if COAT_GLOBAL_MASKS.any(func(p: String) -> bool: return number.call(p, 0.0) != 0.0):
+		return {}
+	var map := _texture_guid(m, "_ClearCoatMaps")
+	var uv := int(number.call("_ClearCoatMapsUV", 0.0))
+	if map != "" and (uv > 3 or _colour(colours.get("_ClearCoatMapsPan"), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0)):
+		return {}
+	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get("_ClearCoatMaps", {})
+	var pair := func(v: Variant, otherwise: float) -> Array: return [str(v.get("x", otherwise)).to_float(), str(v.get("y", otherwise)).to_float()] if v is Dictionary else [otherwise, otherwise]
+	var tint := func(property: String) -> Array:
+		var theme := int(number.call(property + "ThemeIndex", 0.0))
+		var c: Color = ExpressionPlayer.theme_colour(_theme(m, theme - 1), 0.0) if theme >= 1 and theme <= 4 else _colour(colours.get(property), Color.WHITE).srgb_to_linear()
+		return [c.r, c.g, c.b]
+	return {
+		"strength": _saved(m, "_ClearCoatStrength", 1.0),
+		"smoothness": _saved(m, "_ClearCoatSmoothness", 1.0),
+		"reflection": _saved(m, "_ClearCoatReflectionStrength", 1.0),
+		"specular": _saved(m, "_ClearCoatSpecularStrength", 1.0),
+		"specularTint": tint.call("_ClearCoatSpecularTint"),
+		"reflectionTint": tint.call("_ClearCoatReflectionTint"),
+		"fresnel": _saved(m, "_ClearcoatFresnel", 1.0),
+		"gsaa": [number.call("_ClearCoatGSAAVariance", 0.15), number.call("_ClearCoatGSAAThreshold", 0.1)] if number.call("_ClearCoatGSAAEnabled", 1.0) != 0.0 else [0.0, 0.0],
+		"texture": map,
+		"uv": uv,
+		"st": pair.call(entry.get("m_Scale"), 1.0) + pair.call(entry.get("m_Offset"), 0.0),
+		"channels": COAT_CHANNELS.map(func(c: Array) -> int: return int(number.call(c[0], c[1]))),
+		"inverts": COAT_INVERTS.map(func(p: String) -> bool: return number.call(p, 0.0) != 0.0),
+	}
+
+
+## For each clear coat level (mask, smoothness, reflection, specular, the order `coat_map` repacks the maps' channels
+## in): the global mask blended into it, the packed maps' channel it reads (with Poiyomi's default) and its inversion.
+const COAT_GLOBAL_MASKS := ["_ClearCoatGlobalMask", "_ClearCoatSmoothnessGlobalMask", "_ClearCoatReflectionStrengthGlobalMask", "_ClearCoatSpecularStrengthGlobalMask"]
+const COAT_CHANNELS := [["_ClearCoatMapsClearCoatMaskChannel", 0.0], ["_ClearCoatMapsRoughnessChannel", 1.0], ["_ClearCoatMapsReflectionMaskChannel", 2.0], ["_ClearCoatMapsSpecularMaskChannel", 3.0]]
+const COAT_INVERTS := ["_ClearCoatMaskInvert", "_ClearCoatSmoothnessMapInvert", "_ClearCoatReflectionMaskInvert", "_ClearCoatSpecularMaskInvert"]
+## The widest a clear coat's packed maps are carried at: they mask a highlight and a reflection, not a colour.
+const COAT_MAP := 512
+
+
+## The packed maps of clear coat `coat` (`clearcoat`) as the renderer reads them, at most COAT_MAP wide: red its mask,
+## green its smoothness, blue its reflection and alpha its specular level, each from the channel the material names
+## (white where it names none) and in linear light. Null where its texture does not decode.
+func coat_map(coat: Dictionary) -> Image:
+	var source := _decoded(coat.texture)
+	if source == null:
+		return null
+	var side := mini(COAT_MAP, shown(coat.texture)) if shown(coat.texture) > 0 else COAT_MAP
+	if source.get_width() > side or source.get_height() > side:
+		var big := maxi(source.get_width(), source.get_height())
+		source.resize(maxi(1, source.get_width() * side / big), maxi(1, source.get_height() * side / big), RESAMPLE)
+	var srgb := str((assets.meta(coat.texture).get("TextureImporter", {}) as Dictionary).get("sRGBTexture", "1")) != "0"
+	var data := source.get_data()
+	var out := PackedByteArray()
+	out.resize(data.size())
+	var channels := PackedInt32Array(coat.channels)
+	for i in data.size() / 4:
+		for level in 4:
+			var c := channels[level]
+			var byte: int = 255 if c > 3 else data[4 * i + c]
+			out[4 * i + level] = roundi(_LINEAR[byte] * 255.0) if srgb and c < 3 else byte
+	return Image.create_from_data(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8, out)
+
+
 ## Poiyomi global mask `index` (one-based; 0 for none) of the material: {} for none, {"property", "channel"} for a
 ## texture's channel, with "property" "" where no texture fills it and it stays Poiyomi's whole 1, or false where it is
 ## drawn by more than one UV0 texture sample (split, panned or other-UV sampling, or a modifier).
@@ -1048,13 +1124,26 @@ func draws(key: String, look: Dictionary) -> bool:
 			return glows_in(key, look.slot) or range(MATCAPS.size()).any(func(k: int) -> bool: return matcap(key, k).get("theme") == look.slot)
 		"matcapHueShift":
 			return matcap(key, look.slot).get("hue") != null
+		"clearcoatST":
+			return coat_uv(key) >= 0
 	return not matcap(key, look.slot).is_empty()
 
 
+## The UV channel the clear coat of the material at `key` reads its packed maps through, or -1 where it has no maps.
+func coat_uv(key: String) -> int:
+	var coat := clearcoat(key)
+	return coat.uv if not coat.is_empty() and coat.texture != "" else -1
+
+
 ## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, emission's strength or hue, or a global theme
-## colour's offsets, which move the emission drawn in that theme (`_theme`).
+## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths, emission's strength or hue, a global theme
+## colour's offsets, which move the emission drawn in that theme (`_theme`), or a component (slot 0 to 3) of the clear
+## coat maps' tiling and offset.
 static func field(property: String) -> Dictionary:
+	if property.begins_with(COAT_ST) and property.length() == COAT_ST.length() + 1:
+		var component := "xyzw".find(property.right(1))
+		if component >= 0:
+			return {"field": "clearcoatST", "slot": component}
 	var decal := _DECAL_FIELD.search(property)
 	if decal != null:
 		return {"field": {"BlendAlpha": "decal", "AlphaIntensity": "decalIntensity", "HueShift": "decalHue"}[decal.get_string(1)], "slot": decal.get_string(2).to_int()}
@@ -1070,6 +1159,7 @@ static func field(property: String) -> Dictionary:
 	return {}
 
 
+const COAT_ST := "_ClearCoatMaps_ST."
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
 static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift)(_|$)")
@@ -1104,6 +1194,8 @@ func looks() -> Dictionary:
 	var matcap_textures := {}
 	var matcap_masks: Image
 	var glow: Image
+	var coat_maps := {}
+	var coat_images: Array[Image] = []
 	for key: String in materials:
 		var m: Dictionary = materials[key]
 		if not m.has("cell"):
@@ -1114,7 +1206,8 @@ func looks() -> Dictionary:
 		if not glows.is_empty() and glows.strength == 0.0 and not glow_regions.has(key):
 			glows = {}
 		var light := lighting(key)
-		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"}:
+		var coat := clearcoat(key)
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"} and coat.is_empty():
 			continue
 		if entries.size() == 255:
 			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")
@@ -1164,6 +1257,19 @@ func looks() -> Dictionary:
 			themed.append(glows.theme)
 		if not themed.is_empty():
 			entry.themes = range(4).map(func(slot: int) -> Variant: return _theme(m, slot) if slot in themed else null)
+		if not coat.is_empty():
+			var drawn_coat := coat.duplicate()
+			drawn_coat.erase("channels")
+			drawn_coat.erase("uv")
+			drawn_coat.erase("texture")
+			var packing := "%s|%s" % [coat.texture, coat.channels]
+			if coat.texture != "" and not coat_maps.has(packing):
+				var packed_map := coat_map(coat)
+				coat_maps[packing] = coat_images.size() if packed_map != null else -1
+				if packed_map != null:
+					coat_images.append(packed_map)
+			drawn_coat.map = coat_maps.get(packing, -1)
+			entry.clearcoat = drawn_coat
 		entries.append(entry)
 	if entries.is_empty():
 		return {}
@@ -1172,6 +1278,8 @@ func looks() -> Dictionary:
 		out.matcapMasks = _layer(matcap_masks, RESAMPLE)
 	if glow != null:
 		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
+	if not coat_images.is_empty():
+		out.clearcoatMaps = coat_images
 	return out
 
 

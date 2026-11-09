@@ -4,7 +4,8 @@ extends "res://../tests/support/suite.gd"
 ## than its cap however strong the light; a lit one is shaded by angle, and one lit through a ramp by its ramp at the
 ## half-Lambert term, its shade lent the albedo by its shadow tint; a glowing one glows its emission in the dark,
 ## over its glow's own colour where it overrides its base colour, and one glowing in a theme colour turning over time
-## changes colour as it turns. Needs a renderer, so scripts/test.sh runs it on
+## changes colour as it turns; a clear coat adds a highlight toward the light where its map, moved by a region, does
+## not mask it off. Needs a renderer, so scripts/test.sh runs it on
 ## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
 
 const SIZE := 96
@@ -52,6 +53,15 @@ func _run() -> void:
 			env.ambient_light_color = Color.WHITE * light.y
 			shots["%s %s" % [model, light]] = await _sides(view)
 		avatar.queue_free()
+	sun.light_energy = 1.0
+	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE)
+	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
+	env.ambient_light_color = Color.BLACK
+	for model: String in ["coat", "masked", "unmasked"]:
+		var coated := _ball(model)
+		view.add_child(coated)
+		shots[model] = await _sides(view)
+		coated.queue_free()
 	var glowing := _ball("glow")
 	view.add_child(glowing)
 	sun.light_energy = 0.0
@@ -87,6 +97,11 @@ func _run() -> void:
 	var glow: Vector2 = shots["glow"]
 	check(absf(glow.x - 0.75) < 0.04 and absf(glow.y - 0.75) < 0.04, "a material glowing red 0.25 at strength 2 that overrides its base colour glows 0.5 over the half it replaces, 0.75, on both sides in the dark: %s" % glow)
 	check(reds.min() < 0.05 and reds.max() > 0.6, "a glow in a theme colour whose hue turns a third a frame goes from red to none and back: %s" % [reds])
+	var masked: Vector2 = shots["masked"]
+	var coat: Vector2 = shots["coat"]
+	check(coat.x > masked.x + 0.03 and absf(coat.y - masked.y) < 0.01, "a clear coat adds a highlight on the side toward the light and nothing away from it: %s over %s, its map masking it off" % [coat, masked])
+	var unmasked: Vector2 = shots["unmasked"]
+	check(unmasked.x > masked.x + 0.03 and absf(unmasked.y - masked.y) < 0.01, "a region moving the map's offset onto its unmasked texel draws the coat: %s" % unmasked)
 	view.queue_free()
 	finish()
 
@@ -94,7 +109,8 @@ func _run() -> void:
 ## A white ball whose looks light its one material `model`, flat capped at 0.8, through a ramp rising from 0 to 1 with
 ## no shadow tint ("ramp") or a whole one ("tinted"), or for "glow" lit by angle and glowing red
 ## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
-## that red is a global theme colour whose hue turns twenty times a second.
+## that red is a global theme colour whose hue turns twenty times a second; for "coat" lit by angle under a clear coat,
+## "masked" reading its map's black texel, "unmasked" moved by a region onto its white one.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -107,7 +123,9 @@ func _ball(model: String) -> Node3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = ImageTexture.create_from_image(picture)
 	var im := ImporterMesh.new()
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sphere.get_mesh_arrays(), [], {}, mat)
+	var arrays := sphere.get_mesh_arrays()
+	arrays[Mesh.ARRAY_TEX_UV2] = arrays[Mesh.ARRAY_TEX_UV]
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
 	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}}.get(model, {"model": "lit"})
@@ -118,12 +136,23 @@ func _ball(model: String) -> Node3D:
 	if model == "theme":
 		looks.materials[0].emission.theme = 0
 		looks.materials[0].themes = [{"slot": 0, "hsv": [0.0, 1.0, 0.25], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 400.0}, null, null, null]
+	var expressions := {"looks": looks}
+	if model in ["coat", "masked", "unmasked"]:
+		var map := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+		map.set_pixel(0, 0, Color8(0, 255, 255, 255))
+		map.set_pixel(1, 0, Color.WHITE)
+		looks.clearcoatMaps = [map]
+		looks.materials[0].clearcoat = {"strength": 1.0, "smoothness": 0.8, "reflection": 0.0, "specular": 1.0, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 1.0, 1.0], "st": [1.0, 1.0, 0.0, 0.0] if model == "coat" else [0.0, 0.0, 0.25, 0.5], "inverts": [false, false, false, false], "map": 0}
+		if model == "unmasked":
+			expressions.merge({"parameters": [], "clips": [], "layers": [], "shown": [], "menu": [], "targets": [{"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": "clearcoatST", "slot": 2}]}, "default": 0.75}]})
 	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)
-	ball.set_meta("expressions", {"looks": looks})
+	ball.set_meta("expressions", expressions)
 	ExpressionPlayer.prepare(ball)
-	ball.add_child(ExpressionPlayer.new(ball))
+	var player := ExpressionPlayer.new(ball)
+	player.apply()
+	ball.add_child(player)
 	return ball
 
 

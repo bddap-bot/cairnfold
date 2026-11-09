@@ -8,7 +8,6 @@ extends SceneTree
 ## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
 ## made, from its camera; menu.tsv, left empty; and meta.json.
 
-const SIZE := Vector2i(384, 640)
 ## Unity's axes are Godot's mirrored through X; the recorded avatar faces +Z in both.
 const MIRROR := Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK)
 ## A player's pose space looks down -Z, so the avatar stands turned around in the recorded root.
@@ -97,7 +96,7 @@ func _run() -> void:
 ## The viewport the recording's camera sees through, lit as the reference harness lights its renders.
 func _stage(camera: Dictionary) -> SubViewport:
 	var view := SubViewport.new()
-	view.size = SIZE
+	view.size = Vector2i(int(camera.width), int(camera.height))
 	view.own_world_3d = true
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	root.add_child(view)

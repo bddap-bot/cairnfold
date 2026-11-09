@@ -31,19 +31,25 @@ var _turned := {}
 var _glows := {}
 var _seconds := 0.0
 var _frame := 0
+var _coats := {}
 
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## The expression shaders by whether they turn decal hues, then by whether they draw both sides, each cut out, blended,
-## and blended writing depth.
+## The expression shaders by whether they turn decal hues (1) and draw a clear coat (2), then by whether they draw both
+## sides, each cut out, blended, and blended writing depth.
 const SHADERS := [
 	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
 	[preload("res://src/expression_two_sided.gdshader"), preload("res://src/expression_blended_two_sided.gdshader"), preload("res://src/expression_blended_depth_two_sided.gdshader")]],
 	[[preload("res://src/expression_hue.gdshader"), preload("res://src/expression_blended_hue.gdshader"), preload("res://src/expression_blended_depth_hue.gdshader")],
-	[preload("res://src/expression_hue_two_sided.gdshader"), preload("res://src/expression_blended_hue_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_two_sided.gdshader")]]]
-## The look fields that drive a decal, in the order the shader reads them.
-const DECAL_FIELDS := ["decal", "decalIntensity", "decalHue"]
+	[preload("res://src/expression_hue_two_sided.gdshader"), preload("res://src/expression_blended_hue_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_two_sided.gdshader")]],
+	[[preload("res://src/expression_coat.gdshader"), preload("res://src/expression_blended_coat.gdshader"), preload("res://src/expression_blended_depth_coat.gdshader")],
+	[preload("res://src/expression_coat_two_sided.gdshader"), preload("res://src/expression_blended_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_two_sided.gdshader")]],
+	[[preload("res://src/expression_hue_coat.gdshader"), preload("res://src/expression_blended_hue_coat.gdshader"), preload("res://src/expression_blended_depth_hue_coat.gdshader")],
+	[preload("res://src/expression_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_two_sided.gdshader")]]]
+## The look fields the shader reads from a region, in its order: those driving a decal, then a component of a clear
+## coat's maps' tiling and offset.
+const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST"]
 
 ## The main thread's microseconds every avatar's expressions took to advance and apply since the metrics last took them.
 static var process_us := 0
@@ -132,7 +138,8 @@ func _init(model: Node3D) -> void:
 								entry.theme[offset] = rest if v == resting else v
 								glows.dirty = true)
 						continue
-					if mesh == null or (kind == "look" and not str(region.get("field", "")).begins_with("decal")):
+					var field := str(region.get("field", ""))
+					if mesh == null or (kind == "look" and not field.begins_with("decal") and not (field == "clearcoatST" and _coated(mesh))):
 						continue
 					var mats := _material(mesh)
 					var decals: Dictionary = model.get_meta("expression_decal_sets", {}).get(str(region.node), {})
@@ -319,6 +326,9 @@ static func prepare(model: Node3D) -> void:
 			table.set_pixel(k, 1, Color(cells[k][4], cells[k][5], cells[k][6], cells[k][7]))
 		model.set_meta("expression_untinted_cells", ImageTexture.create_from_image(table))
 		model.set_meta("expression_untinted_count", cells.size())
+	var maps: Array = looks.get("clearcoatMaps", []).map(func(img: Variant) -> Image: return img if img is Image else Image.create_empty(1, 1, false, Image.FORMAT_RGBA8))
+	if not maps.is_empty():
+		model.set_meta("expression_coat_maps", _coat_maps(maps))
 	var decals: Array = looks.get("decals", [])
 	Vrm.drop_layers(data)
 	var by_node := {}
@@ -352,7 +362,7 @@ func _light_looks(model: Node3D) -> Variant:
 	var looked := []
 	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		for i in mesh.mesh.get_surface_count():
-			var m := mesh.get_active_material(i)
+			var m := mesh.mesh.surface_get_material(i)
 			if m != null and m.has_meta("light_index"):
 				textures = [m.get_meta("light_index"), m.get_meta("lighting")]
 				looked.append(mesh)
@@ -360,6 +370,7 @@ func _light_looks(model: Node3D) -> Variant:
 	if textures.is_empty():
 		return null
 	var glow: Texture2D = model.get_meta("expression_glow") if model.has_meta("expression_glow") else null
+	var coat_maps: Texture2DArray = model.get_meta("expression_coat_maps") if model.has_meta("expression_coat_maps") else _empty_array()
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
@@ -367,6 +378,7 @@ func _light_looks(model: Node3D) -> Variant:
 			mat.set_shader_parameter("light_index", textures[0])
 			mat.set_shader_parameter("lighting", textures[1])
 			mat.set_shader_parameter("glow", glow)
+			mat.set_shader_parameter("coat_maps", coat_maps)
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 	return textures[1]
 
@@ -412,6 +424,25 @@ static func _pages(drawn: Dictionary) -> Dictionary:
 	return {"images": pages, "places": places}
 
 
+## The clear coats' packed maps (unity/materials.gd coat_map) as one array, each layer as wide as the widest of them,
+## mipmapped: a coat's maps are read wrapping round, by the material's tiling and offset.
+static func _coat_maps(maps: Array) -> Texture2DArray:
+	var side := 1
+	for img: Image in maps:
+		side = maxi(side, maxi(img.get_width(), img.get_height()))
+	var layers: Array[Image] = []
+	for img: Image in maps:
+		var layer := img.duplicate() as Image
+		layer.clear_mipmaps()
+		layer.convert(Image.FORMAT_RGBA8)
+		layer.resize(side, side, Image.INTERPOLATE_LANCZOS)
+		layer.generate_mipmaps()
+		layers.append(layer)
+	var out := Texture2DArray.new()
+	out.create_from_images(layers)
+	return out
+
+
 static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 	match kind:
 		"hue":
@@ -421,7 +452,7 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 			return [region.get("channel", 0), 0, c[0], c[1], c[2]]
 		"tone":
 			return [region.get("channel", 0), 0, 0, 0, 0]
-	return [region.get("slot", 0), region.colorBlend, region.get("alpha", 1), DECAL_FIELDS.find(region.get("field", "decal")), page]
+	return [region.get("slot", 0), region.get("colorBlend", 0), region.get("alpha", 1), LOOK_FIELDS.find(region.get("field", "decal")), page]
 
 
 ## Among `entries`, by looks table column, the one of the material `region` recolours where it glows in the global theme
@@ -476,12 +507,12 @@ static func _turn(region: Dictionary) -> Color:
 
 ## The expression shader drawing `base` as it draws: cut out, blended or blended writing depth, front faces only or both
 ## sides, turning decal hues where `turned`.
-static func shader_for(base: BaseMaterial3D, turned: bool) -> Shader:
+static func shader_for(base: BaseMaterial3D, turned: bool, coated := false) -> Shader:
 	var way := 0
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 		way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
 	var both := base != null and base.cull_mode == BaseMaterial3D.CULL_DISABLED
-	return SHADERS[1 if turned else 0][1 if both else 0][way]
+	return SHADERS[(1 if turned else 0) + (2 if coated else 0)][1 if both else 0][way]
 
 
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
@@ -491,13 +522,14 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
 		return _materials[mesh]
 	var by_shader := {}
+	var coated := _coated(mesh)
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
-		var shader := shader_for(base, _turned.has(str(mesh.name)))
+		var shader := shader_for(base, _turned.has(str(mesh.name)), coated)
 		if not by_shader.has(shader):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
-			mat.set_shader_parameter("decals", _no_decals())
+			mat.set_shader_parameter("decals", _empty_array())
 			if base != null:
 				mat.set_shader_parameter("picture", base.albedo_texture)
 				mat.set_shader_parameter("colour", base.albedo_color)
@@ -511,12 +543,19 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	return out
 
 
+## Whether `mesh` shows a material with a clear coat (Avatar._lit_looks).
+func _coated(mesh: MeshInstance3D) -> bool:
+	if not _coats.has(mesh):
+		_coats[mesh] = range(mesh.mesh.get_surface_count()).any(func(i: int) -> bool: return mesh.mesh.surface_get_material(i) != null and mesh.mesh.surface_get_material(i).has_meta("clearcoat"))
+	return _coats[mesh]
+
+
 static var _clear: Texture2DArray
 
 
-## A material whose model draws no decals still binds a decal array: a sampler array left unbound fails the material's
-## whole uniform set, and the surface draws nothing.
-static func _no_decals() -> Texture2DArray:
+## A material whose model draws no decals or coat maps still binds an array for each: a sampler array left unbound
+## fails the material's whole uniform set, and the surface draws nothing.
+static func _empty_array() -> Texture2DArray:
 	if _clear == null:
 		var texel := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
 		_clear = Texture2DArray.new()

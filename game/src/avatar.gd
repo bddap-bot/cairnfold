@@ -30,6 +30,8 @@ const UNCAPPED := 1e4
 const RAMP := 16
 ## The side, in pixels, of a menu icon as the model carries and holds it: a board row's height.
 const ICON_SIDE := 44.0
+## The looks table rows each clear coat takes after the ramp (_lit_looks).
+const COAT_ROWS := 6
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -566,25 +568,42 @@ static func shape(state: GLTFState) -> bool:
 	return true
 
 
-## Gives the meshes that show a material its looks light flat or make glow (ExpressionDefinition) copies of their
-## materials carrying the atlas's material index (held as `hold` holds it) as each vertex reads it, and a
-## table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a ramp; green its cap,
-## blue its shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the
-## lit colour, and the RAMP rows after them its ramp, for the avatar's shader to draw them by (ExpressionPlayer) over the
-## looks' emission map; an emission in a global theme colour is drawn even where it rests black, since a clip can light
-## it. A mesh shows a material where one of its vertices' texture coordinates falls in that material's cell.
+## Gives the meshes that show a material its looks light flat, make glow or clear coat (ExpressionDefinition) copies of
+## their materials carrying the atlas's material index (held as `hold` holds it) as each vertex reads it, and a table of
+## each entry's looks: row 0 its lighting (red one where flat, two where lit through a ramp; green its cap, blue its
+## shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the lit
+## colour, the RAMP rows after them its ramp, and, where any material has a clear coat, six more its levels, maps'
+## tiling and offset, highlight tint and Fresnel, reflection tint and maps' layer, inversions, and antialiasing variance and threshold, for the avatar's
+## shader to draw them by (ExpressionPlayer) over the looks' emission map; an emission in a global theme colour is drawn
+## even where it rests black, since a clip can light it. A mesh showing a clear coat has its copies marked "clearcoat",
+## so it alone draws with the shaders that draw one. A mesh shows a material where one of its vertices' texture
+## coordinates falls in that material's cell.
 static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var materials: Array = looks.get("materials", [])
 	var drawn := PackedByteArray()
 	drawn.resize(256)
-	var table := Image.create_empty(materials.size() + 1, 2 + RAMP, false, Image.FORMAT_RGBAF)
+	var coats := materials.filter(func(m: Dictionary) -> bool: return m.get("clearcoat") is Dictionary).size()
+	var maps: int = (looks.get("clearcoatMaps", []) as Array).size() if looks.get("clearcoatMaps") is Array else 0
+	var table := Image.create_empty(materials.size() + 1, 2 + RAMP + (COAT_ROWS if coats > 0 else 0), false, Image.FORMAT_RGBAF)
 	for k in materials.size():
+		var coat: Variant = materials[k].get("clearcoat")
+		if coat is Dictionary:
+			drawn[k + 1] = 2
+			var st: Array = coat.st
+			var inverts: Array = coat.inverts
+			var row := 2 + RAMP
+			table.set_pixel(k + 1, row, Color(coat.strength, coat.smoothness, coat.reflection, coat.specular))
+			table.set_pixel(k + 1, row + 1, Color(st[0], st[1], st[2], st[3]))
+			table.set_pixel(k + 1, row + 2, Color(coat.specularTint[0], coat.specularTint[1], coat.specularTint[2], coat.fresnel))
+			table.set_pixel(k + 1, row + 3, Color(coat.reflectionTint[0], coat.reflectionTint[1], coat.reflectionTint[2], coat.map if coat.map < maps else -1))
+			table.set_pixel(k + 1, row + 4, Color(float(inverts[0]), float(inverts[1]), float(inverts[2]), float(inverts[3])))
+			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], 0.0))
 		var light: Dictionary = materials[k].lighting
 		if light.model == "flat":
-			drawn[k + 1] = 1
+			drawn[k + 1] = maxi(drawn[k + 1], 1)
 			table.set_pixel(k + 1, 0, Color(1.0, float(light.get("cap", UNCAPPED)), 0.0))
 		elif light.has("ramp"):
-			drawn[k + 1] = 1
+			drawn[k + 1] = maxi(drawn[k + 1], 1)
 			table.set_pixel(k + 1, 0, Color(2.0, float(light.get("cap", UNCAPPED)), float(light.get("shadowTint", 0.0))))
 			var ramp: Array = light.ramp
 			for i in RAMP:
@@ -593,9 +612,9 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 		var glow: Variant = materials[k].get("emission")
 		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
 		if glows.r + glows.g + glows.b > 0.0 or glow is Dictionary and glow.get("theme") != null and looks.has("emission"):
-			drawn[k + 1] = 1
+			drawn[k + 1] = maxi(drawn[k + 1], 1)
 			table.set_pixel(k + 1, 1, glows)
-	if drawn.count(1) == 0:
+	if drawn.count(1) + drawn.count(2) == 0:
 		return
 	var index: Image = looks.index
 	var texels := index.get_data()
@@ -603,28 +622,31 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var looked := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
 	var copies := {}
 	for im: ImporterMesh in meshes:
-		var shows := false
+		var shows := 0
 		for i in im.get_surface_count():
 			var uvs: Variant = im.get_surface_arrays(i)[Mesh.ARRAY_TEX_UV]
 			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
 				var at := Vector2i((uv * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
-				if drawn[texels[at.y * size.x + at.x]] == 1:
-					shows = true
+				shows = maxi(shows, drawn[texels[at.y * size.x + at.x]])
+				if shows == 2:
 					break
-			if shows:
+			if shows == 2:
 				break
-		if not shows:
+		if shows == 0:
 			continue
 		for i in im.get_surface_count():
 			var m := im.get_surface_material(i)
 			if m == null:
 				continue
-			if not copies.has(m):
+			var drawn_as := [m, shows]
+			if not copies.has(drawn_as):
 				var copy: Material = m.duplicate()
 				for key: String in looked:
 					copy.set_meta(key, looked[key])
-				copies[m] = copy
-			im.set_surface_material(i, copies[m])
+				if shows == 2:
+					copy.set_meta("clearcoat", true)
+				copies[drawn_as] = copy
+			im.set_surface_material(i, copies[drawn_as])
 
 
 ## Draws a material with its colour texture alone, lit once a vertex, front faces only unless its glTF doubleSided draws

@@ -18,6 +18,7 @@ func _init() -> void:
 	_theme_recolours_the_emission()
 	_animated_parameters()
 	_contacts()
+	_clear_coat()
 	finish()
 
 
@@ -355,6 +356,58 @@ func _theme_recolours_the_emission() -> void:
 	player.free()
 
 
+
+## A look's clear coat carries its levels, tints, maps' tiling and offset, inversions and a map among the looks', or
+## the file is refused. Only a mesh showing a coated material draws with the shaders that draw a coat, by the looks
+## table's coat rows and the coat maps; a region moving its maps' offset reaches that mesh alone.
+func _clear_coat() -> void:
+	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
+	index.fill_rect(Rect2i(2, 0, 2, 4), Color8(2, 2, 2))
+	var map := Image.create_empty(2, 2, false, Image.FORMAT_RGBA8)
+	map.fill(Color.WHITE)
+	var coat := {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0}
+	Avatar.hold(index, "index", 1)
+	var looks := {"index": index, "clearcoatMaps": [map], "materials": [{"lighting": {"model": "lit"}, "clearcoat": coat}, {"lighting": {"model": "flat", "cap": 1.0}}]}
+	check(ExpressionDefinition.valid({"looks": looks}), "looks with a clear coat are valid")
+	for bad: Variant in [{"strength": 1.0}, coat.merged({"map": 0.5}, true), coat.merged({"st": [1, 1, 0]}, true), coat.merged({"inverts": [0, 0, 0, 0]}, true), coat.merged({"specularTint": "white"}, true), coat.merged({"gsaa": [0.15]}, true)]:
+		var broken := looks.duplicate(true)
+		broken.materials[0].clearcoat = bad
+		check(not ExpressionDefinition.valid({"looks": broken}), "a malformed clear coat is refused: %s" % [bad])
+	var root := Node3D.new()
+	var meshes: Array[ImporterMesh] = []
+	for u: float in [0.2, 0.7]:
+		var im := ImporterMesh.new()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.1), Vector2(u, 0.5), Vector2(u + 0.1, 0.9)])
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+		meshes.append(im)
+	Avatar._lit_looks(looks, meshes)
+	var shown: Array[MeshInstance3D] = []
+	for k in meshes.size():
+		var mi := MeshInstance3D.new()
+		mi.name = ["Wet", "Dry"][k]
+		mi.mesh = meshes[k].get_mesh()
+		root.add_child(mi)
+		shown.append(mi)
+	var wet := {"effect": {"look": [{"node": "Wet", "rect": [0, 0, 0.5, 1], "field": "clearcoatST", "slot": 3}, {"node": "Dry", "rect": [0, 0, 0.5, 1], "field": "clearcoatST", "slot": 3}]}, "default": 0.22}
+	root.set_meta("expressions", {"looks": looks, "parameters": [], "targets": [wet], "clips": [], "layers": [], "shown": [], "menu": []})
+	ExpressionPlayer.prepare(root)
+	var player := ExpressionPlayer.new(root)
+	player.apply()
+	var coated := shown[0].get_surface_override_material(0) as ShaderMaterial
+	var dry := shown[1].get_surface_override_material(0) as ShaderMaterial
+	check(coated != null and coated.shader.resource_path.ends_with("expression_coat.gdshader"), "a mesh showing a coated material draws with the shader that draws a coat")
+	check(dry != null and dry.shader.resource_path.ends_with("expression.gdshader"), "one showing none draws as it did")
+	var rows: Image = (coated.get_shader_parameter("lighting") as Texture2D).get_image() if coated else null
+	check(rows != null and rows.get_height() == 2 + Avatar.RAMP + Avatar.COAT_ROWS and rows.get_pixel(1, 2 + Avatar.RAMP).is_equal_approx(Color(0.87, 0.92, 1.0, 0.5)) and rows.get_pixel(1, 3 + Avatar.RAMP).is_equal_approx(Color(1, 1, 0, 0.22)) and rows.get_pixel(1, 5 + Avatar.RAMP).is_equal_approx(Color(1, 0.5, 1, 0)) and rows.get_pixel(1, 6 + Avatar.RAMP) == Color(0, 0, 0, 1), "the looks table carries the coat's levels, tiling and offset, reflection tint with its map's layer, and inversions")
+	check(coated != null and coated.get_shader_parameter("coat_maps") is Texture2DArray and (coated.get_shader_parameter("coat_maps") as Texture2DArray).get_layers() == 1, "the coat maps are bound as one layer each")
+	check(coated != null and coated.get_shader_parameter("region_count") == 1, "a region moving the coat maps' offset reaches the coated mesh")
+	check(dry != null and dry.get_shader_parameter("region_count") in [null, 0], "and not a mesh that draws no coat")
+	player.free()
+	root.free()
 
 func _moving_targets_leave_regions_bound() -> void:
 	var model := Node3D.new()

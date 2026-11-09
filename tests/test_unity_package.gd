@@ -57,6 +57,8 @@ func _run() -> void:
 	_a_decal_keeps_the_size_unity_imports()
 	_a_toon_standard_detail_map_lies_in_the_atlas()
 	_matcaps_and_emission_join_the_look()
+	_a_clear_coat_joins_the_look_and_its_maps_offset_binds()
+	_clear_coat_maps_read_their_uv_channel()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
@@ -2434,13 +2436,14 @@ func _a_udim_discard_tile_is_a_switch() -> void:
 	arrays[Mesh.ARRAY_TEX_UV2] = PackedVector2Array([Vector2(0.5, -0.5), Vector2(2.5, 0.5), Vector2(0.5, 0.5)])
 	var floats := {"_EnableUDIMDiscardOptions": "1", "_UDIMDiscardUV": "1", "_UDIMDiscardRow1_0": "1", "_UDIMDiscardRow0_2": "1"}
 	var report := {}
-	var tiles := UnityAvatar._udim_tiles(switches, 5, {"floats": floats}, arrays, report)
+	var mesh := ArrayMesh.new()
+	var tiles := UnityAvatar._udim_tiles(switches, 5, {"floats": floats}, mesh, 0, arrays, report)
 	check(tiles.get("vertex", []) == ["1:0", "0:2", "0:0"], "each vertex lies in its Unity tile: %s" % [tiles])
 	var still: int = switches.by_object.get(UnityAvatar._udim_key(5, 0, 2), -1)
 	check(tiles.get("1:0") == [[animated, 0]] and switches.targets[animated].default == 1.0, "the animated tile draws while its switch is off, discarded at rest")
 	check(still >= 0 and tiles.get("0:2") == [[still, 0]] and switches.targets[still].default == 1.0, "a tile only discarded at rest is a switch that stays on")
 	check(not tiles.has("0:0"), "a tile nothing discards needs no switch")
-	check(UnityAvatar._udim_tiles(switches, 5, {"floats": {}}, arrays, report).is_empty(), "a material that discards nothing splits nothing")
+	check(UnityAvatar._udim_tiles(switches, 5, {"floats": {}}, mesh, 0, arrays, report).is_empty(), "a material that discards nothing splits nothing")
 
 
 ## A 1D blend tree reads no second parameter, so a live one makes no radial effective: a radial whose own layer moves
@@ -2884,3 +2887,113 @@ ParticleSystem:
 	check(effects[4] == {"system": 0, "field": "material"} and particles.choice(0, "pm2") == 1, "a material swap chooses among the renderer's materials: %s" % [effects[4]])
 	var targets := []
 	check(UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and targets[0].default == 0.0, "a curve's target is added once, at the saved value: %s" % [targets])
+
+
+## A Poiyomi clear coat joins its material's look with its levels, tints and maps (repacked to mask, smoothness,
+## reflection and specular), and a clip moving its maps' offset binds as that component of the look; a material
+## whose coat is off, or a property the shader does not declare, leaves the clip moving nothing, as in VRChat.
+func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
+	var dir := ProjectSettings.globalize_path("user://coat")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _ClearCoatMaps ("Maps", 2D) = "white" { } } }')
+	write.call("wet.mat", "wet", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _ClearCoatMaps:
+        m_Texture: {guid: band}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0.22}
+    m_Floats:
+    - _ClearCoatBRDF: 1
+    - _ClearCoatStrength: 0.87
+    - _ClearCoatSmoothness: 0.92
+    - _ClearCoatMapsUV: 2
+    - _ClearCoatMapsRoughnessChannel: 4
+    - _ClearCoatSpecularMaskInvert: 1
+    - _ClearcoatFresnel: 0.5
+    m_Colors:
+    - _ClearCoatReflectionTint: {r: 1, g: 0.5, b: 1, a: 1}
+""")
+	var band := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	band.set_pixel(0, 0, Color8(0, 10, 20, 30))
+	band.set_pixel(1, 0, Color8(255, 40, 50, 60))
+	band.save_png(dir.path_join("band.png"))
+	FileAccess.open(dir.path_join("band.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: band\nTextureImporter:\n  sRGBTexture: 0\n")
+	write.call("dry.mat", "dry", "Material:\n  m_Shader: {guid: poi}\n  m_SavedProperties:\n    m_Floats:\n    - _ClearCoatBRDF: 0\n")
+	write.call("glaze.mat", "glaze", (FileAccess.get_file_as_string(dir.path_join("wet.mat")) as String).replace("    - _ClearCoatBRDF: 1", "    - _ClearCoatBRDF: 1\n    - _ClearCoatMapsClearCoatMaskChannel: 1"))
+	var assets := Assets.new(dir)
+	var materials := Materials.new(assets)
+	for key: String in ["wet", "dry"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["wet", "dry"])
+	check(materials.clearcoat("dry").is_empty() and materials.coat_uv("dry") == -1, "a material with its clear coat off has none")
+	materials.materials.wet.floats._ClearCoatGSAAEnabled = "0"
+	check(materials.clearcoat("wet").gsaa == [0.0, 0.0], "a coat with its antialiasing off carries none")
+	materials.materials.wet.floats.erase("_ClearCoatGSAAEnabled")
+	check(materials.coat_uv("wet") == 2, "a coat's maps are read through the UV channel the material names")
+	var expressions := Expressions.new(assets, {})
+	var clip := func(attribute: String) -> Dictionary: return {"length": 0, "loop": false, "curves": [{"path": "", "attribute": attribute, "class": "137", "keys": [[0.0, -0.23]]}]}
+	expressions.data = {
+		"menu": [{"name": "Wet", "type": "toggle", "parameter": "Wet", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Wet", "type": "bool", "default": 0}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [clip.call("material._ClearCoatMaps_ST.w")],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "wet"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	check(data.targets.size() == 1 and is_equal_approx(data.targets[0].default, 0.22), "a clip moving the coat maps' V offset binds at the saved offset: %s" % [data.targets])
+	if data.targets.size() == 1:
+		var region: Dictionary = data.targets[0].effect.look[0]
+		check(region.node == "Body" and region.field == "clearcoatST" and region.slot == 3, "the region names the offset's component: %s" % [region])
+	var looks: Dictionary = data.get("looks", {})
+	var entry: Dictionary = (looks.get("materials", [{}]) as Array)[0]
+	var coat: Dictionary = entry.get("clearcoat", {})
+	check(is_equal_approx(coat.get("strength", 0.0), 0.87) and is_equal_approx(coat.get("smoothness", 0.0), 0.92) and coat.get("reflection") == 1.0 and coat.get("specular") == 1.0 and coat.get("fresnel") == 0.5 and coat.get("gsaa") == [0.15, 0.1], "the look holds the coat's levels, Fresnel and antialiasing: %s" % [coat])
+	check(coat.get("st") == [1.0, 1.0, 0.0, 0.22] and coat.get("inverts") == [false, false, false, true] and coat.get("map") == 0, "and its maps' tiling, offset, inversions and image: %s" % [coat])
+	var tint: Array = coat.get("reflectionTint", [])
+	check(tint.size() == 3 and tint[0] == 1.0 and is_equal_approx(tint[1], Color(0.5, 0, 0).srgb_to_linear().r) and coat.get("specularTint") == [1.0, 1.0, 1.0], "tints are carried in linear light: %s" % [tint])
+	var maps: Array = looks.get("clearcoatMaps", [])
+	check(maps.size() == 1 and maps[0] is Image, "the coat's maps travel as one image")
+	if maps.size() == 1:
+		var right: Color = (maps[0] as Image).get_pixel(1, 0)
+		check(right.r8 == 255 and right.g8 == 255 and right.b8 == 50 and right.a8 == 60 and (maps[0] as Image).get_pixel(0, 0).r8 == 0, "the maps are repacked with white where a level names no channel: %s" % [right])
+	materials.use({"guid": "glaze"}, Color.WHITE)
+	materials.pack(["wet", "dry", "glaze"])
+	var both: Array = materials.looks().get("clearcoatMaps", [])
+	check(both.size() == 2 and (both[1] as Image).get_pixel(1, 0).r8 == 40, "a texture two coats read through different channels is packed once for each: %s" % [both.map(func(m: Image) -> Color: return m.get_pixel(1, 0))])
+	for unbound: String in ["material._ClearcoatMap_ST.w", "material._ClearCoatMaps_ST.q"]:
+		expressions.data.clips = [clip.call(unbound)]
+		check(UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {}).targets.is_empty(), "%s moves nothing" % unbound)
+	expressions.data.clips = [clip.call("material._ClearCoatMaps_ST.w")]
+	objs[3].data.m_Materials = [{"guid": "dry"}]
+	var dry := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	check(dry.targets.is_empty(), "the offset of a material whose coat is off moves nothing, as in VRChat")
+	sk.free()
+
+
+## The converter reads a coat's maps through UV0 and UV1 from Godot's two UV arrays and UV2 and UV3 from its first
+## custom array, where Godot's model importer leaves a model's third and fourth.
+func _clear_coat_maps_read_their_uv_channel() -> void:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0.1, 0.1), Vector2(0.2, 0.2), Vector2(0.3, 0.3)])
+	arrays[Mesh.ARRAY_CUSTOM0] = PackedFloat32Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	var read := mesh.surface_get_arrays(0)
+	var report := {}
+	check(UnityAvatar._uv_channel(mesh, 0, read, 0, report, "maps") == arrays[Mesh.ARRAY_TEX_UV], "UV0 is the first UV array")
+	check(UnityAvatar._uv_channel(mesh, 0, read, 2, report, "maps") == PackedVector2Array([Vector2(1, 2), Vector2(5, 6), Vector2(9, 10)]), "UV2 is the custom array's first pair")
+	check(UnityAvatar._uv_channel(mesh, 0, read, 3, report, "maps") == PackedVector2Array([Vector2(3, 4), Vector2(7, 8), Vector2(11, 12)]), "UV3 its second")
+	check(report.is_empty() and UnityAvatar._uv_channel(mesh, 0, read, 1, report, "maps").is_empty() and report.keys() == ["maps on a UV channel the model lacks"], "a channel the model lacks reads nothing and is reported")
