@@ -442,13 +442,19 @@ class Map:
 
 
 ## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when
-## frames run over the budget or their average over the line, up only after a calm spell when the step up is
+## frames run over the runtime's cliff or their average over the line, up only after a calm spell when the step up is
 ## expected to stay under it, and slower each time a step up had to be undone. The runtime holding the game at every
 ## other refresh holds a step up.
 class Governor:
-	## Consecutive frames this far over budget take a step down.
-	const HOT := 1.05
+	## Consecutive frames this far into the budget take a step down: the Steam Frame's runtime drops the game to every
+	## other refresh once its GPU time nears 0.88 of the period, which this timer reads about 0.3 ms under. Waiting for
+	## the average, after a step up into the sky's reflections the timer read 13.2 to 13.9 ms of 13.9 for eight frames
+	## until one missed, and the runtime then held every other refresh for 21 frames.
+	const CLIFF := 0.86
 	const HOT_FRAMES := 2
+	## Frames this far over the budget step on from a step down whose second is not yet in. Frames under it do not: the
+	## timer jitters by a millisecond, and after a village was laid at once it read 12.6 to 14.3 ms at every step.
+	const HOT := 1.05
 	## Frames this far over the budget take two steps instead.
 	const SEVERE := 1.25
 	## Frames ignored after any step while the GPU timer catches up with the change. Six, from when a step down's
@@ -502,7 +508,7 @@ class Governor:
 	## 0 is full quality; each step down the ladder adds one.
 	var level := 0
 	var bottom: int
-	var _hot := 0
+	var _past_cliff := 0
 	## Consecutive frames over the line, and whether one of them missed a refresh.
 	var _over := 0
 	var _late := false
@@ -566,13 +572,15 @@ class Governor:
 			to -= 1
 		return to
 
-	## What the step up out of `at` is expected to cost, in milliseconds, at the current frame.
+	## What the step up out of `at` is expected to cost, in milliseconds, at the current frame: its measured share, never
+	## under the levels' `shares`, since what is in view changes it too. Priced at their share measured on the Steam
+	## Frame's meadow, under 0.07, the sky's reflections were taken at 10.4 ms among butterflies, where they cost 0.29.
 	func cost(at: int, budget_ms: float) -> float:
-		if _cost[at] >= 0.0:
-			return _average * _cost[at]
 		var share := 0.0
 		for i in range(up(at), at):
 			share += _shares[i]
+		if _cost[at] >= 0.0:
+			return _average * maxf(_cost[at], share)
 		return maxf(budget_ms * UNMEASURED, _average * share)
 
 	## The lowest level a step down may reach while the step under way has not shown what it saves: the next pop below.
@@ -584,7 +592,7 @@ class Governor:
 				return i
 		return bottom
 
-	## `settled` is whether the knobs have reached the step: only frames over the budget or a missed refresh among
+	## `settled` is whether the knobs have reached the step: only frames over the cliff or a missed refresh among
 	## frames over the line judge a step still under way. A frame the player does not `see` is judged as a pause is, and so are the
 	## first frames after it, whose timer still reads it.
 	func step(frame_ms: float, budget_ms: float, dt: float, settled := true, see := true) -> void:
@@ -615,12 +623,12 @@ class Governor:
 					_cost[_measuring] = maxf(_cost[_measuring], change / at)
 				_measuring = -1
 		var line := budget_ms * LINE
-		_hot = _hot + 1 if frame_ms > budget_ms * HOT else 0
+		_past_cliff = _past_cliff + 1 if frame_ms > budget_ms * CLIFF else 0
 		_quiet = _quiet + dt if _average < line else 0.0
 		if _quiet >= CALM_SECONDS_MAX:
 			_cost[level] = -1.0
 		var halved := averaged and _interval > budget_ms * HALVED and _average > budget_ms * HALVED_GPU
-		# The Quest 2 misses refreshes from about 0.84 of the period, short of HOT: walking into a budget-full garden
+		# The Quest 2 misses refreshes from about 0.84 of the period, short of CLIFF: walking into a budget-full garden
 		# there dropped 36 frames while the average stepped down once a second. A missed refresh among HOT_FRAMES
 		# frames over the line steps down two at once, as a frame far over budget does. A single one the frames after
 		# do not repeat does not: on the Steam Frame one 14.8 ms frame as the view went under water took 5 to 7.
@@ -630,7 +638,9 @@ class Governor:
 		# A refresh missed after a step down, before the average shows what it saved, at no lower a reading than the one
 		# that took it, reads what the ladder does not draw: on the Steam Frame, after a village was laid at once, the
 		# timer read 12.6 to 14.3 ms at every step from 5 to 16 while each miss took two more.
-		missed = missed and (averaged or _went_up or frame_ms < _took)
+		var shown := averaged or _went_up or _measuring < 0
+		missed = missed and (shown or frame_ms < _took)
+		var hot := _past_cliff >= HOT_FRAMES and (shown or frame_ms > budget_ms * HOT)
 		# A step still under way, or a step down whose second is not yet in, has not shown what it saves, so it may not be followed
 		# into one that pops: on the Steam Frame two seconds of a village and the garden it replaced drawn at once took
 		# the governor through the shadows and the 3D scale on single frames, and each pop crossed holds the longest calm.
@@ -639,13 +649,13 @@ class Governor:
 		# The average steps down only while the frame still reads over the line: started on the last of a canvas's
 		# restored strokes at 55 ms, it read 22.5 ms a second later with the frames at 3.9 ms, and took the Steam Frame
 		# from step 15 to 16 for load already gone.
-		if (_hot >= HOT_FRAMES or missed or (settled and averaged and _average > line and frame_ms > line)) and level < floor:
+		if (hot or missed or (settled and averaged and _average > line and frame_ms > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
 				for i in range(level, _up_from):
 					_wait[i] = minf(maxf(_wait[i], CALM_SECONDS_MAX) * 2.0, REGRET_MAX) if _sticky.has(i) else minf(_wait[i] * 2.0, CALM_SECONDS_MAX)
 			_since_up = INF
 			# A step down before the last one's second was in leaves the average from before both.
-			if averaged or _went_up or _measuring < 0:
+			if shown:
 				_before = _average
 			var to := mini(level + (2 if missed or frame_ms > budget_ms * SEVERE else 1), floor)
 			while _idle.has(to) and to < floor:
@@ -656,7 +666,7 @@ class Governor:
 			_measuring = to
 			_went_up = false
 			_took = frame_ms
-			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "average over the line", dt_ms, _average]
+			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over the cliff" if hot else "missed" if missed else "average over the line", dt_ms, _average]
 			_move(to)
 		elif level > 0 and _calm >= _climb_wait() and _since_missed >= MISSED_SECONDS:
 			_before = _average
@@ -681,7 +691,7 @@ class Governor:
 		_restart()
 
 	func _restart() -> void:
-		_hot = 0
+		_past_cliff = 0
 		_over = 0
 		_late = false
 		_average = 0.0

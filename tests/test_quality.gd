@@ -6,11 +6,16 @@ const BUDGET := 12.5
 const DT := 1.0 / 72.0
 ## A share of the budget just under the governor's line.
 const UNDER_LINE := Quality.Governor.LINE - 0.01
+## A share of the budget over the line and short of the cliff.
+const OVER_LINE := (Quality.Governor.LINE + Quality.Governor.CLIFF) / 2.0
+## A share of the budget past the cliff and short of the budget.
+const PAST_CLIFF := (Quality.Governor.CLIFF + 1.0) / 2.0
 
 
 func _initialize() -> void:
 	_every_step_draws_less()
 	_frames_over_budget_step_down_at_once()
+	_frames_past_the_cliff_step_down_at_once()
 	_a_badly_late_frame_steps_down_two()
 	_one_late_frame_is_not_enough()
 	_a_missed_refresh_over_the_line_steps_down()
@@ -22,12 +27,13 @@ func _initialize() -> void:
 	_a_step_up_waits_for_room_for_what_the_step_down_saved()
 	_an_unmeasured_step_up_waits_for_room_for_an_estimate()
 	_a_measured_cost_follows_the_frame()
+	_a_measured_cost_is_never_under_the_estimate()
 	_a_step_up_waits_a_second_after_a_missed_refresh()
 	_every_other_refresh_held_by_the_cpu_still_climbs()
 	_a_step_up_into_every_other_refresh_is_not_retried()
 	_a_held_step_reaches_its_knobs()
 	_every_other_refresh_under_the_line_steps_neither_way()
-	_a_step_under_way_is_judged_only_by_frames_over_budget()
+	_a_step_under_way_is_judged_only_by_frames_past_the_cliff()
 	_a_pause_is_not_every_other_refresh()
 	_the_frames_after_a_stall_are_not_judged()
 	_frames_steadily_four_refreshes_apart_step_down()
@@ -95,6 +101,31 @@ func _frames_over_budget_step_down_at_once() -> void:
 	check(_feed(g, BUDGET * 1.1, 2) == 2, "still over budget, it keeps stepping down")
 
 
+## The Steam Frame's runtime holds every other refresh once its GPU time nears the period, short of the budget.
+func _frames_past_the_cliff_step_down_at_once() -> void:
+	var g := Quality.Governor.new(10)
+	_feed(g, BUDGET * 0.5, 72)
+	check(_feed(g, BUDGET * PAST_CLIFF, 2) == 1, "two frames past the cliff step down one")
+	_feed(g, BUDGET * PAST_CLIFF, Quality.Governor.SETTLE_FRAMES)
+	for i in 60:
+		g.step(BUDGET * (PAST_CLIFF + 0.06 - 0.002 * i), BUDGET, DT)
+	check(g.level == 1, "frames past it falling as they jitter take no more before the step's second is in: %d" % g.level)
+	check(_feed(g, BUDGET * PAST_CLIFF, 20) == 2, "they do once it is")
+	_feed(g, BUDGET * 1.1, Quality.Governor.SETTLE_FRAMES)
+	check(_feed(g, BUDGET * 1.1, 2) == 3, "and frames over budget step on before it")
+	g = Quality.Governor.new(10)
+	check(_feed(g, BUDGET * PAST_CLIFF, 2) == 1, "from the first frames too")
+	_feed(g, BUDGET * 0.5, 72 * 2)
+	g.step(BUDGET * 0.5, BUDGET, 2.0)
+	_feed(g, BUDGET * 0.5, Quality.Governor.SETTLE_FRAMES)
+	check(_feed(g, BUDGET * PAST_CLIFF, 2) == 2, "and the first after a pause")
+	g = Quality.Governor.new(10)
+	_feed(g, BUDGET * 0.5, 72)
+	for i in 72:
+		g.step(BUDGET * (PAST_CLIFF if i % 2 == 0 else OVER_LINE), BUDGET, DT)
+	check(g.level == 0, "frames past the cliff one at a time leave the ladder alone")
+
+
 func _a_badly_late_frame_steps_down_two() -> void:
 	var g := Quality.Governor.new(10)
 	check(_feed(g, BUDGET * 1.5, 2) == 2, "frames a quarter over budget step down two")
@@ -110,38 +141,38 @@ func _one_late_frame_is_not_enough() -> void:
 func _a_missed_refresh_over_the_line_steps_down() -> void:
 	var g := Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
 	check(_feed(g, BUDGET * 0.5, 72 * 2) == 0, "a single refresh missed with the GPU over the line, the frames after under it, leaves the ladder alone")
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	g.step(BUDGET * 0.9, BUDGET, DT)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT)
 	check(g.level == 2, "one the next frame repeats over the line steps down two at once: %d" % g.level)
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
-	g.step(BUDGET * 0.9, BUDGET, DT)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
 	check(g.level == 2, "as does one after a frame over the line: %d" % g.level)
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * 0.5, 72)
 	g.step(BUDGET * 0.5, BUDGET, DT * 2.0)
 	check(g.level == 0, "one the CPU held leaves the ladder alone")
 	_feed(g, BUDGET * 0.5, 36)
-	_feed(g, BUDGET * 0.9, 2)
+	_feed(g, BUDGET * OVER_LINE, 2)
 	check(g.level == 0, "nor counts with frames over the line after the frames under it")
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	g.step(BUDGET * 0.9, BUDGET, 2.0)
-	_feed(g, BUDGET * 0.9, Quality.Governor.SETTLE_FRAMES + 2)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, 2.0)
+	_feed(g, BUDGET * OVER_LINE, Quality.Governor.SETTLE_FRAMES + 2)
 	check(g.level == 0, "a miss before a pause does not count with frames over the line after it")
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * UNDER_LINE, 72)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	_feed(g, BUDGET * 0.9, Quality.Governor.SETTLE_FRAMES)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
-	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
+	_feed(g, BUDGET * OVER_LINE, Quality.Governor.SETTLE_FRAMES)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
+	g.step(BUDGET * OVER_LINE, BUDGET, DT * 2.0)
 	check(g.level == 2, "a miss reading no lower than the one that stepped down waits for the average: %d" % g.level)
-	g.step(BUDGET * 0.85, BUDGET, DT * 2.0)
+	g.step(BUDGET * (Quality.Governor.LINE + 0.01), BUDGET, DT * 2.0)
 	check(g.level == 4, "one reading lower steps on: %d" % g.level)
 
 
@@ -151,8 +182,8 @@ func _calm_steps_back_up_after_a_spell() -> void:
 	check(_feed(g, BUDGET * UNDER_LINE, 72 * 5) == 1, "near the line it holds its step")
 	check(_feed(g, BUDGET * 0.1, int(72 * 1.7)) == 1, "a short calm is not enough")
 	check(_feed_until(g, BUDGET * 0.1, 72, 0) == 0, "two calm seconds step back up")
-	check(_feed(g, BUDGET * 0.9, 6 + 36) == 0, "a step up gets a second's average")
-	check(_feed(g, BUDGET * 0.9, 50) == 1, "before frames over the line step down again")
+	check(_feed(g, BUDGET * OVER_LINE, 6 + 36) == 0, "a step up gets a second's average")
+	check(_feed(g, BUDGET * OVER_LINE, 50) == 1, "before frames over the line step down again")
 
 
 func _an_undone_step_up_waits_twice_as_long() -> void:
@@ -200,10 +231,10 @@ func _every_pipeline_a_rung_draws_with_is_primed() -> void:
 
 func _an_average_over_the_line_steps_down_before_frames_run_late() -> void:
 	var g := Quality.Governor.new(10)
-	check(_feed(g, BUDGET * 0.9, 36) == 0, "the first second sets the average")
-	check(_feed(g, BUDGET * 0.9, 40) == 1, "then frames under the budget but over the line step down")
-	check(_feed(g, BUDGET * 0.9, 36) == 1, "and wait a second to see what that saved")
-	check(_feed(g, BUDGET * 0.9, 50) == 2, "before stepping again")
+	check(_feed(g, BUDGET * OVER_LINE, 36) == 0, "the first second sets the average")
+	check(_feed(g, BUDGET * OVER_LINE, 40) == 1, "then frames under the budget but over the line step down")
+	check(_feed(g, BUDGET * OVER_LINE, 36) == 1, "and wait a second to see what that saved")
+	check(_feed(g, BUDGET * OVER_LINE, 50) == 2, "before stepping again")
 	g = Quality.Governor.new(10)
 	_feed(g, BUDGET * 4.0, 1)
 	check(_feed(g, BUDGET * 0.3, 72 * 2) == 0, "an average a burst left over the line, the frames now under it, steps nothing down")
@@ -211,13 +242,13 @@ func _an_average_over_the_line_steps_down_before_frames_run_late() -> void:
 
 func _a_step_up_waits_for_room_for_what_the_step_down_saved() -> void:
 	var g := Quality.Governor.new(10)
-	_feed(g, BUDGET * 1.0, 36)
+	_feed(g, BUDGET * OVER_LINE, 36)
 	_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
 	_feed(g, BUDGET * 0.75, 72)
 	check(_feed(g, BUDGET * 0.75, 72 * 10) == 1, "no step up the saving would take back over the line")
 	check(_feed(g, BUDGET * 0.5, 72 * 4) == 0, "until the scene leaves room for it")
 	var h := Quality.Governor.new(10)
-	_feed(h, BUDGET * 1.0, 36)
+	_feed(h, BUDGET * OVER_LINE, 36)
 	_feed(h, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
 	_feed(h, BUDGET * 0.75, 72)
 	check(_feed(h, BUDGET * 0.75, int(72 * (Quality.Governor.CALM_SECONDS_MAX + Quality.Governor.CALM_SECONDS + 1.0))) == 0, "or the saving was measured long ago")
@@ -244,6 +275,18 @@ func _a_measured_cost_follows_the_frame() -> void:
 	check(_feed(g, BUDGET * 0.58, 72 * 10) == 1, "which leaves no room under the line for it")
 
 
+## A step's cost depends on what is in view as well as on the frame, so one measured in a view it cost little in is
+## priced at no less than its estimate in another.
+func _a_measured_cost_is_never_under_the_estimate() -> void:
+	var shares := PackedFloat32Array([0.25])
+	var g := Quality.Governor.new(10, PackedInt32Array(), 0, shares)
+	_feed(g, BUDGET * 0.4, 72)
+	_feed(g, BUDGET * 1.1, 2)
+	_feed(g, BUDGET * 0.4, 72 + 2 * Quality.Governor.SETTLE_FRAMES)
+	check(g.level == 1 and g._cost[1] >= 0.0 and g._cost[1] < 0.25, "a step down in a light view measures a small share: %.3f" % g._cost[1])
+	check(_feed(g, BUDGET * 0.7, 72 * 10) == 1, "which leaves no room under the line for it")
+
+
 func _a_step_up_waits_a_second_after_a_missed_refresh() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
@@ -267,8 +310,8 @@ func _a_step_up_into_every_other_refresh_is_not_retried() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
 	check(_feed_until(g, BUDGET * 0.4, 72 * 4, 0) == 0, "a step up with room for what the step down saved")
-	check(_feed(g, BUDGET * 0.95, Quality.Governor.SETTLE_FRAMES + 72 + 36) == 1, "lands at every other refresh and steps back down")
-	_feed(g, BUDGET * 0.95, Quality.Governor.SETTLE_FRAMES + 72)
+	check(_feed(g, BUDGET * OVER_LINE, Quality.Governor.SETTLE_FRAMES + 72 + 36) == 1, "lands at every other refresh and steps back down")
+	_feed(g, BUDGET * OVER_LINE, Quality.Governor.SETTLE_FRAMES + 72)
 	check(_feed(g, BUDGET * 0.6, 72 * 30) == 1, "which reads no saving, yet the step up is not taken again")
 
 
@@ -324,7 +367,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 func _every_other_refresh_under_the_line_steps_neither_way() -> void:
 	var g := Quality.Governor.new(10, PackedInt32Array(), 3)
 	check(_feed_dt(g, BUDGET * 0.7, 36 * 15, DT * 2.0) == 3, "fifteen seconds at every other refresh, the timer under the line with room for a step up, step nothing down, nor up")
-	check(_feed_dt(g, BUDGET * 0.9, 3, DT * 2.0) == 5, "the timer over it, they step down two at once")
+	check(_feed_dt(g, BUDGET * OVER_LINE, 3, DT * 2.0) == 5, "the timer over it, they step down two at once")
 
 
 ## Every headset runs the one ladder: nothing in the game reads which headset or build it is to choose what it draws.
@@ -400,14 +443,14 @@ func _an_unsettled_step_is_not_followed_into_one_that_pops() -> void:
 	check(g.level > 3, "once its second is in, it is")
 
 
-func _a_step_under_way_is_judged_only_by_frames_over_budget() -> void:
+func _a_step_under_way_is_judged_only_by_frames_past_the_cliff() -> void:
 	var g := Quality.Governor.new(10)
 	for i in 72 * 3:
 		g.step(BUDGET * (Quality.Governor.LINE + 0.05), BUDGET, DT, false)
 	check(g.level == 0, "an average over the line while the knobs still move leaves the step alone")
 	for i in 2:
-		g.step(BUDGET * 1.1, BUDGET, DT, false)
-	check(g.level == 1, "frames over budget step down even so")
+		g.step(BUDGET * PAST_CLIFF, BUDGET, DT, false)
+	check(g.level == 1, "frames past the cliff step down even so")
 	_feed(g, BUDGET * 1.1, Quality.Governor.SETTLE_FRAMES)
 	for i in 72 * 5:
 		g.step(BUDGET * 0.1, BUDGET, DT, false)

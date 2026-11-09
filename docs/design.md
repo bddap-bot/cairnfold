@@ -1803,7 +1803,7 @@ and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, t
 coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing else held the
 refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapchain's
 (see "Holding 72 Hz on the Frame"). A governor reads each
-frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
+frame's GPU time and steps down the ladder at once when frames run past the runtime's cliff (0.86 of the period), a refresh
 is missed among frames over its line (a single one the next frame does not repeat steps nothing), or their average
 runs over the line while the frame still reads over it, and back up only after a calm spell with room for what the step saved, and not within a second of a missed refresh against the usual cadence. The runtime holding the
 game at every other refresh holds a step up, and frames over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
@@ -1843,7 +1843,15 @@ build budget, fitted at the bottom step (`Budget.fit_step`), prices that frame. 
   0.7, 0.8 and 1.0 rows of "Which knobs matter" at 0.27, a governed stress run on the Quest 2 climbed from 0.7 to
   0.85 at 7.3 ms and read 10.7, and stepped back within seven seconds), and is taken only when the average plus that stays under the line. A measured step
   takes its measured share: what it cost over the frame it was measured at, applied to the frame now, since the
-  knobs cost by the pixel. A cost that does not grow with the scene is overpriced in a heavy one, which errs low.
+  knobs cost by the pixel, and never less than its estimated share, since what is in view changes it too: the sky's
+  reflections, measured on the Frame's meadow at under 0.07 of a 5.1 ms frame, cost 0.29 of a 10.4 ms frame
+  among the butterflies, and the step up into them missed a refresh. A cost that does not grow with the scene is
+  overpriced in a heavy one, which errs low.
+- The cliff. The Frame's runtime holds the game at every other refresh for a moment once a frame misses, so two
+  frames running at 0.86 of the period or over step down at once rather than wait for the average, or
+  once the second after a step down is in: after that step up
+  into the reflections the timer read 13.2 to 13.9 ms of 13.9 for eight frames until one missed, and the runtime then
+  held every other refresh for 21 frames.
 - Pops. The steps into 2x MSAA and each smaller swapchain change the whole view at once, as the bottom steps'
   shadows and 3D scale do (`Quality.popping`), so a governor crossing one back and forth would show it. Above the
   start the governor crosses them at the calm of any step until the scene first asks for less; once a step down has
