@@ -29,7 +29,19 @@ static func scene() -> PackedScene:
 	hat.set_surface_override_material(0, mat)
 	attachment.add_child(hat)
 	model.set_meta("expressions", definition())
+	var sparks := particles()
+	sparks.systems[0].node = (bones.head as NodePath).get_concatenated_subnames()
+	model.set_meta("particles", sparks)
 	return Avatar.model(model)
+
+
+## Sparks rising round the hat while it is worn, as an avatar's root holds them (ParticleDefinition.read).
+static func particles() -> Dictionary:
+	var constant := func(v: float) -> Dictionary: return {"min": [1.0], "max": [1.0], "scale": [v, v]}
+	return {"images": [], "meshes": [], "systems": [{"node": "head", "duration": 1.0, "loop": true, "max": 60, "lifetime": constant.call(1.0), "speed": constant.call(0.3), "size": constant.call(0.03), "rate": constant.call(40.0),
+		"color": {"min": [[1.0, 0.8, 0.3, 1.0]], "max": [[1.0, 0.8, 0.3, 1.0]]}, "colorOverLife": {"min": [[1, 1, 1, 1], [1, 1, 1, 0]], "max": [[1, 1, 1, 1], [1, 1, 1, 0]]},
+		"shape": {"type": "circle", "radius": 0.2, "thickness": 0.0, "matrix": [1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0.18, 0, 1]},
+		"renderer": {"draw": true, "mode": "billboard", "materials": [{"color": [1, 1, 1, 1], "blend": "add"}]}}]}
 
 
 static func definition() -> Dictionary:
@@ -45,7 +57,7 @@ static func definition() -> Dictionary:
 	var nested: Dictionary = control.call("Shape", "submenu", "Menu")
 	nested.controls = [radial, two, four]
 	var data := {"parameters": parameters, "menu": [toggle, control.call("Flash", "button", "Pulse"), nested], "icons": [],
-		"targets": [{"effect": "switch", "default": 0.0}], "shown": [{"node": "ExpressionHat", "when": [[0, 1]]}],
+		"targets": [{"effect": "switch", "default": 0.0}], "shown": [{"node": "ExpressionHat", "when": [[0, 1]]}], "particles": [{"system": 0, "when": [[0, 1]]}],
 		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": true, "keys": [[0, 0]]}]},
 			{"length": 1.0, "curves": [{"target": 0, "step": true, "keys": [[0, 1]]}]}],
 		"layers": [{"default": 0, "weight": 1.0, "states": [

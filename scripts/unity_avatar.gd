@@ -36,6 +36,7 @@ const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
+const Particles = preload("res://../scripts/unity/particles.gd")
 
 ## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
 const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
@@ -274,7 +275,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		var q: Variant = bone.get("rotation")
 		if b >= 0 and q is Dictionary:
 			var rest := source.get_bone_rest(b)
-			source.set_bone_rest(b, Transform3D(Basis(_turn(q)).scaled(rest.basis.get_scale()), rest.origin))
+			source.set_bone_rest(b, Transform3D(Basis(Prefabs.turn(q)).scaled(rest.basis.get_scale()), rest.origin))
 	var scale := _world_scale(objs, _model_root(objs, main, found.transform))
 	var from := Transform3D.IDENTITY.scaled(Vector3.ONE * scale) * _in_model(source)
 	var k := from.basis.get_scale().y
@@ -347,6 +348,10 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		return null
 	root.set_meta("constraints", constraints.get("constraints", []))
 	report["active transform constraints"] = constraints.get("constraints", []).size()
+	var particles := Particles.new(prefabs, materials, objs, _particle_systems(objs, found.transform, switches, sk, rests), paths, clips)
+	if not particles.systems.is_empty():
+		root.set_meta("particles", {"systems": particles.systems, "meshes": particles.meshes, "images": particles.images})
+		report["particle systems"] = particles.systems.size()
 	var moved := {}
 	for clip: Dictionary in clips:
 		for c: Dictionary in clip.curves:
@@ -370,7 +375,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	root.set_meta("eyes", _eyes(sk, found.descriptor, human))
 	root.set_meta("springs", chains)
 	if not expressions.data.is_empty():
-		var bound := _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, report)
+		var bound := _bound(expressions, switches, merged.meshes, merged.shapes, objs, paths, sk, materials, particles, report)
 		for key: String in switched:
 			if not (switched[key] as Array).is_empty():
 				bound[key] = switched[key]
@@ -689,7 +694,7 @@ static func _scaled(keys: Array, by: float) -> Array:
 		return out)
 
 
-static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, shapes: Dictionary, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, report: Dictionary) -> Dictionary:
+static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array, shapes: Dictionary, objs: Dictionary, paths: Dictionary, sk: Skeleton3D, materials: Materials, particles: Particles, report: Dictionary) -> Dictionary:
 	var data: Dictionary = expressions.data.duplicate(true)
 	var targets: Array = switches.targets.duplicate(true)
 	for m: Dictionary in meshes:
@@ -714,7 +719,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 		for c: Dictionary in clip.curves:
 			var key := _curve_key(c)
 			if not by_curve.has(key):
-				var target := _target(c, objs, paths, meshes, shapes, sk, targets, materials, parameters)
+				var target := _particle_target(c, particles, targets) if c["class"] in ["198", "199"] else _target(c, objs, paths, meshes, shapes, sk, targets, materials, parameters)
 				if target < 0:
 					var kind := "shader property" if c.attribute.begins_with("material.") else "%s on class %s" % [c.attribute.get_slice(".", 0), c["class"]]
 					dropped[kind + " curve"] = dropped.get(kind + " curve", 0) + 1
@@ -722,7 +727,10 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 				by_curve[key] = target
 			var t: int = by_curve[key]
 			var curve := {"target": t, "step": _stepped(targets[t])}
-			if c.has("refs"):
+			if targets[t].effect is Dictionary and targets[t].effect.has("particle"):
+				var particle: Dictionary = targets[t].effect.particle
+				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(particles.choice(particle.system, k[1]), 0)]) if c.has("refs") else c["keys"].map(func(k: Array) -> Array: return _particle_key(particles, particle, k))
+			elif c.has("refs"):
 				var choices: Array = switches.slots.values().filter(func(s: Array) -> bool: return s[0] == t)[0][1]
 				curve.keys = c.refs.map(func(k: Array) -> Array: return [k[0], maxi(choices.find_custom(func(m: Variant) -> bool: return m is Dictionary and m.get("guid", "") == k[1]), 0)])
 			elif targets[t].effect is Dictionary and targets[t].effect.has("scale"):
@@ -808,6 +816,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	if not untinted.is_empty():
 		data.untinted = untinted
 	data.targets = targets
+	data.particles = range(particles.when.size()).filter(func(i: int) -> bool: return not (particles.when[i] as Array).is_empty()).map(func(i: int) -> Dictionary: return {"system": i, "when": particles.when[i]})
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
 	if not dropped.is_empty():
@@ -965,10 +974,10 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			return -1
 		var data: Dictionary = objs[transform].data
 		var q: Variant = data.get("m_LocalRotation")
-		var unity := Quaternion(_num(q, "x"), _num(q, "y"), _num(q, "z"), _num(q, "w", 1.0))
+		var unity := Quaternion(Prefabs.number(q, "x"), Prefabs.number(q, "y"), Prefabs.number(q, "z"), Prefabs.number(q, "w", 1.0))
 		if c.attribute.begins_with("m_LocalPosition."):
 			var axis := "xyz".find(c.attribute.right(1))
-			rest = _num(data.get("m_LocalPosition"), c.attribute.right(1))
+			rest = Prefabs.number(data.get("m_LocalPosition"), c.attribute.right(1))
 			var along := Vector3.ZERO
 			along[axis] = -1.0 if axis == 0 else 1.0
 			var parent := sk.get_bone_parent(bone)
@@ -981,7 +990,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			var at: Vector3 = Basis(unity.normalized() if unity.length() > 0.0 else Quaternion.IDENTITY).get_euler(EULER_ORDER_YXZ) * 180.0 / PI
 			var hint: Variant = data.get("m_LocalEulerAnglesHint")
 			if hint is Dictionary:
-				at = Vector3(_num(hint, "x", at.x), _num(hint, "y", at.y), _num(hint, "z", at.z))
+				at = Vector3(Prefabs.number(hint, "x", at.x), Prefabs.number(hint, "y", at.y), Prefabs.number(hint, "z", at.z))
 			var values: Array = [at.x, at.y, at.z] if euler else [unity.x, unity.y, unity.z, unity.w]
 			var axis := ("xyz" if euler else "xyzw").find(c.attribute.right(1))
 			rest = values[axis]
@@ -998,6 +1007,46 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 		default = 0.0
 	targets.append({"effect": effect, "default": default, "rest": rest if effect.has("scale") or effect.has("translation") else 1.0})
 	return targets.size() - 1
+
+
+## Each ParticleSystem under `top` that Unity runs, as Particles reads them: [id, its Transform, its GameObject, the
+## switches it runs under (_when), its Transform's output bone's name], those whose Transform has no bone left out.
+static func _particle_systems(objs: Dictionary, top: int, switches: Dictionary, sk: Skeleton3D, rests: Array[Transform3D]) -> Array:
+	var out := []
+	for e: Array in _under(objs, top):
+		for id: int in Prefabs.components(objs, e[1]):
+			if objs.get(id, {}).get("type", "") != "ParticleSystem":
+				continue
+			var when: Variant = _when(objs, id, objs[id].data, switches)
+			var bone := _as_bone(objs, e[0], sk, rests) if when != null else -1
+			if bone >= 0:
+				out.append([id, e[0], e[1], when, sk.get_bone_name(bone)])
+	return out
+
+
+## The target of a clip curve on a particle system or its renderer, added where no target has its effect; -1 where
+## the curve moves nothing a runtime draws.
+static func _particle_target(c: Dictionary, particles: Particles, targets: Array) -> int:
+	var particle := particles.effect(c)
+	if particle.is_empty():
+		return -1
+	var effect := {"particle": particle}
+	for i in targets.size():
+		if targets[i].effect is Dictionary and targets[i].effect == effect:
+			return i
+	targets.append({"effect": effect, "default": particles.rest(particle), "rest": 1.0})
+	return targets.size() - 1
+
+
+## Clip key `k` of a particle effect's curve in the file's terms (Particles.value), its slopes through the same map.
+static func _particle_key(particles: Particles, effect: Dictionary, k: Array) -> Array:
+	var out := k.duplicate()
+	out[1] = particles.value(effect, k[1])
+	var rate: float = (particles.value(effect, k[1] + 1e-3) - out[1]) / 1e-3
+	for i in range(2, mini(out.size(), 4)):
+		if out[i] != null:
+			out[i] *= rate
+	return out
 
 
 ## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon an
@@ -1095,7 +1144,7 @@ static func _model_root(objs: Dictionary, model: String, top: int) -> int:
 static func _world_scale(objs: Dictionary, t: int) -> float:
 	var s := 1.0
 	for at: int in Prefabs.ancestors(objs, t):
-		s *= absf(_num(objs[at].data.get("m_LocalScale"), "y", 1.0))
+		s *= absf(Prefabs.number(objs[at].data.get("m_LocalScale"), "y", 1.0))
 	return s
 
 
@@ -1925,23 +1974,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 
 static func _local(d: Dictionary) -> Transform3D:
 	var sc: Variant = d.get("m_LocalScale")
-	return Transform3D(Basis(_turn(d.get("m_LocalRotation"))).scaled_local(Vector3(_num(sc, "x", 1.0), _num(sc, "y", 1.0), _num(sc, "z", 1.0))), _mirrored(d.get("m_LocalPosition")))
-
-
-## Field `k` of a Unity vector or quaternion `v`, `otherwise` where it has none.
-static func _num(v: Variant, k: String, otherwise := 0.0) -> float:
-	return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
-
-
-## A Unity rotation in Godot's axes (X mirrored), the identity where it has none.
-static func _turn(q: Variant) -> Quaternion:
-	var rot := Quaternion(_num(q, "x"), -_num(q, "y"), -_num(q, "z"), _num(q, "w", 1.0))
-	return rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
-
-
-## A Unity position in Godot's axes (X mirrored), the origin where it has none.
-static func _mirrored(v: Variant) -> Vector3:
-	return Vector3(-_num(v, "x"), _num(v, "y"), _num(v, "z"))
+	return Transform3D(Basis(Prefabs.turn(d.get("m_LocalRotation"))).scaled_local(Vector3(Prefabs.number(sc, "x", 1.0), Prefabs.number(sc, "y", 1.0), Prefabs.number(sc, "z", 1.0))), Prefabs.mirrored(d.get("m_LocalPosition")))
 
 
 ## The bones the Avatar definition maps, by index: [humanoid (VRM 1.0) name, the Unity bone it is]; empty, with the
@@ -1972,7 +2005,7 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 	var head: Vector3 = (rest.call("head") as Transform3D).origin
 	var view: Variant = descriptor.get("ViewPosition")
 	if view is Dictionary:
-		return _mirrored(view) - head
+		return Prefabs.mirrored(view) - head
 	if human.has("leftEye") and human.has("rightEye"):
 		return ((rest.call("leftEye") as Transform3D).origin + (rest.call("rightEye") as Transform3D).origin) / 2.0 - head
 	return Avatar.DATA.eyes
@@ -2128,7 +2161,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var held_by := frame * _world_transform(objs, holder if holder != 0 else root_t)
 		var joint := {"stiffness": 4.0 * str(d.get("pull", d.get("m_Elasticity", "0.2"))).to_float() * (1.0 + str(d.get("stiffness", d.get("m_Stiffness", "0"))).to_float()), "dragForce": clampf(str(d.m_Damping).to_float() if legacy else 1.0 - str(d.get("spring", "0.2")).to_float(), 0.0, 1.0), "gravityPower": absf(gravity), "gravityDir": [0, 1 if gravity < 0.0 else -1, 0], "hitRadius": str(d.get("radius", d.get("m_Radius", "0"))).to_float() * (held_by.basis.get_scale().x if legacy else k)}
 		var e: Variant = d.get("endpointPosition", d.get("m_EndOffset"))
-		var endpoint := _mirrored(e)
+		var endpoint := Prefabs.mirrored(e)
 		var touch := {"collide": _filter(d, "allowCollision", "collisionFilter"), "grab": _filter(d, "allowGrabbing", "grabFilter")}
 		var deepest := _deepest(children, ignored, root_t)
 		var kids_of := func(t: int) -> Array:
@@ -2267,7 +2300,7 @@ static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Sk
 		if bone < 0:
 			counts.unplaced += 1
 			continue
-		var placed := frame * _world_transform(objs, t) * Transform3D(Basis(_turn(d.get("rotation"))), _mirrored(d.get("position")))
+		var placed := frame * _world_transform(objs, t) * Transform3D(Basis(Prefabs.turn(d.get("rotation"))), Prefabs.mirrored(d.get("position")))
 		var held := sk.get_bone_global_rest(bone)
 		var unity_held := frame * _world_transform(objs, owner)
 		var local := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * (unity_held.affine_inverse() * placed)
@@ -2320,11 +2353,11 @@ static func _body_contacts(objs: Dictionary, descriptor: Dictionary, sk: Skeleto
 		var shape := {}
 		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
 		if key.begins_with("finger"):
-			var along := _mirrored(objs[t].data.get("m_LocalPosition"))
+			var along := Prefabs.mirrored(objs[t].data.get("m_LocalPosition"))
 			var parent := frame * _world_transform(objs, Yaml.file_id(objs[t].data.get("m_Father")))
 			shape = {"offset": v.call(into * parent.origin), "tail": v.call(into * (unity_held * (along.normalized() * maxf(height / scale[scale.max_axis_index()] - along.length(), 0.0)))), "radius": radius / held.basis.get_scale().x}
 		else:
-			var placed := unity_held * Transform3D(Basis(_turn(c.get("rotation"))), _mirrored(c.get("position")))
+			var placed := unity_held * Transform3D(Basis(Prefabs.turn(c.get("rotation"))), Prefabs.mirrored(c.get("position")))
 			var half := maxf(height / 2.0 - radius, 0.0) / scale[scale.max_axis_index()]
 			shape = {"offset": v.call(into * (placed * (Vector3.DOWN * half))), "radius": radius / held.basis.get_scale().x}
 			if half > 0.0:
@@ -2343,15 +2376,15 @@ static func _contact_component(d: Dictionary) -> bool:
 ## sphere). Empty for any other component.
 static func _collider(d: Dictionary) -> Dictionary:
 	if d.has("shapeType") and d.has("insideBounds"):
-		var rot := _turn(d.get("rotation"))
+		var rot := Prefabs.turn(d.get("rotation"))
 		var radius := str(d.get("radius", "0")).to_float()
 		var height := str(d.get("height", "0")).to_float()
 		var shape := str(d.shapeType)
-		return {"local": Transform3D(Basis(rot), _mirrored(d.get("position"))), "axis": Vector3.UP, "radius": radius, "half": maxf(height / 2.0 - radius, 0.0) if shape == "1" else 0.0, "kind": "plane" if shape == "2" else "round", "inside": shape != "2" and str(d.insideBounds) == "1"}
+		return {"local": Transform3D(Basis(rot), Prefabs.mirrored(d.get("position"))), "axis": Vector3.UP, "radius": radius, "half": maxf(height / 2.0 - radius, 0.0) if shape == "1" else 0.0, "kind": "plane" if shape == "2" else "round", "inside": shape != "2" and str(d.insideBounds) == "1"}
 	if d.has("m_Bound") and d.has("m_Direction") and d.has("m_Center"):
 		var axis: Vector3 = [Vector3.LEFT, Vector3.UP, Vector3.BACK][clampi(str(d.m_Direction).to_int(), 0, 2)]
 		var inside := str(d.m_Bound) == "1"
-		var local := Transform3D(Basis.IDENTITY, _mirrored(d.m_Center))
+		var local := Transform3D(Basis.IDENTITY, Prefabs.mirrored(d.m_Center))
 		if not d.has("m_Radius"):
 			return {"local": local, "axis": -axis if inside else axis, "radius": 0.0, "half": 0.0, "kind": "plane", "inside": false}
 		var radius := str(d.m_Radius).to_float()
@@ -2534,10 +2567,6 @@ static func _bone_of(sk: Skeleton3D, unity: String, parents: Dictionary) -> int:
 	return b if sk.get_bone_parent(b) == _bone_of(sk, parents[unity], parents) else -1
 
 
-static func _matrix(t: Transform3D) -> Array:
-	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, 0, t.basis.y.x, t.basis.y.y, t.basis.y.z, 0, t.basis.z.x, t.basis.z.y, t.basis.z.z, 0, t.origin.x, t.origin.y, t.origin.z, 1]
-
-
 static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, switches: Dictionary, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
 	var out := []
 	for e: Array in _under(objs, top):
@@ -2573,8 +2602,8 @@ static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, trans
 	for axis: String in ["X", "Y", "Z"]:
 		c.translation.append(Yaml.on(d, "m_AffectTranslation" + axis))
 		c.rotation.append(Yaml.on(d, "m_AffectRotation" + axis))
-	c.rest = _matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
-	c.offset = _matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
+	c.rest = Prefabs.matrix(_local({"m_LocalPosition": d.get("m_TranslationAtRest", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationAtRest", {}))}))
+	c.offset = Prefabs.matrix(_local({"m_LocalPosition": d.get("m_TranslationOffset", {}), "m_LocalRotation": _constraint_rotation(d.get("m_RotationOffset", {}))}))
 	var entries := Yaml.list(d.get("m_Sources"))
 	for i in entries.size():
 		var entry: Dictionary = entries[i]
@@ -2589,7 +2618,7 @@ static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, trans
 			var external := prefabs.flatten(str(ref.guid))
 			if not external.has(Yaml.file_id(ref)):
 				return {"error": "constraint source transform is missing"}
-			source.world = _matrix(_world_transform(external, Yaml.file_id(ref)))
+			source.world = Prefabs.matrix(_world_transform(external, Yaml.file_id(ref)))
 		else:
 			var at := _as_bone(objs, Yaml.file_id(ref), sk, rests)
 			if at < 0:
@@ -2597,12 +2626,12 @@ static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, trans
 			source.node = at
 		var positions := Yaml.list(d.get("m_TranslationOffsets"))
 		var rotations := Yaml.list(d.get("m_RotationOffsets"))
-		source.offset = _matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
+		source.offset = Prefabs.matrix(_local({"m_LocalPosition": positions[i] if i < positions.size() else {}, "m_LocalRotation": _constraint_rotation(rotations[i] if i < rotations.size() else {})}))
 		c.sources.append(source)
 	return c
 
 
 static func _constraint_rotation(v: Dictionary) -> Dictionary:
-	var angles := Vector3(_num(v, "x"), _num(v, "y"), _num(v, "z")) * PI / 180.0
+	var angles := Vector3(Prefabs.number(v, "x"), Prefabs.number(v, "y"), Prefabs.number(v, "z")) * PI / 180.0
 	var q := Quaternion.from_euler(angles)
 	return {"x": q.x, "y": q.y, "z": q.z, "w": q.w}

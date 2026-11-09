@@ -24,7 +24,8 @@ and icon decoding happens during avatar import.
 
 The runtime consumes the imported FX states, conditions, parameter drivers,
 clips and blend trees. Targets include visibility, blend shapes, bone scales,
-atlas material choices and hue regions. VRCFury features join the menu as
+atlas material choices, hue regions and particle systems, switched, recoloured or
+given another material ([particles](particles.md)). VRCFury features join the menu as
 VRCFury builds them at upload: each Toggle becomes a control, its parameter and
 a layer of its actions, and each FullController's FX controller, menus and
 parameters merge in before MoveMenuItem and SetIcon apply. A clip that animates one of

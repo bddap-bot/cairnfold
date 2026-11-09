@@ -39,6 +39,12 @@ const INDEX_SIDE := 2048
 const MEMORY_FLOOR := 1700 << 20
 ## Counts definition joints, including terminal nodes, rather than only bones that rotate.
 const MAX_SPRING_JOINTS := 60
+## The most particle systems an avatar runs, and the particles they hold at once and the vertices those draw: a file
+## asking for more has every system's share cut alike (ParticleDefinition.read). A corpus avatar's footstep effects
+## and sparks hold 8,000 particles drawing 180,000 vertices.
+const MAX_PARTICLE_SYSTEMS := 64
+const MAX_PARTICLES := 10000
+const MAX_PARTICLE_VERTICES := 250000
 ## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
 ## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
 ## Each image is a texture and a decoder call however few its pixels; a converted avatar carries one per decal besides
@@ -189,6 +195,7 @@ var local := false
 var _senders := []
 var _senders_frame := -1
 var expressions: ExpressionPlayer
+var particles: AvatarParticles
 var spring_holders := {}
 var _model: Node3D
 var _skeleton: Skeleton3D
@@ -393,6 +400,11 @@ static func model(root: Node3D) -> PackedScene:
 	for n in root.find_children("*", "", true, false):
 		n.owner = root
 	ExpressionPlayer.prepare(root)
+	# The particles as files carry them become the form they run in; only the run form is kept.
+	var particles := ParticleDefinition.read(root.get_meta("particles", {}))
+	root.remove_meta("particles")
+	if not particles.is_empty():
+		root.set_meta("particle_systems", particles)
 	var scene := PackedScene.new()
 	scene.pack(root)
 	scene.set_meta("colour", root.get_meta("colour", Color.WHITE))
@@ -792,6 +804,9 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	if a._model.has_meta("expressions"):
 		a.expressions = ExpressionPlayer.new(a._model)
 		a.add_child(a.expressions)
+	if a._model.has_meta("particle_systems"):
+		a.particles = AvatarParticles.new(a._model.get_meta("particle_systems"), a._skeleton, a.expressions)
+		a.add_child(a.particles)
 	return a
 
 

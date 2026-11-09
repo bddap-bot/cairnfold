@@ -11,6 +11,7 @@ const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SerializedMesh = preload("res://../scripts/unity/serialized_mesh.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
+const Particles = preload("res://../scripts/unity/particles.gd")
 const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
@@ -80,6 +81,7 @@ func _run() -> void:
 	_a_full_controller_renames_its_layers_and_menu()
 	_contacts_keep_their_shape_tags_and_switch()
 	_a_clip_animating_a_parameter_binds_it()
+	_a_particle_system_keeps_its_modules_and_clips()
 	finish()
 
 
@@ -919,7 +921,7 @@ BlendTree:
 	var drawn := UnityAvatar._renderers(objs, 2, switches.by_object, {})
 	check(drawn.size() == 1 and drawn[0][0] == 5 and drawn[0][2] == [[0, 1]], "its inactive renderer draws while the switch is on: %s" % [drawn])
 	var sk := Skeleton3D.new()
-	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], {}, objs, paths, sk, Materials.new(Assets.new(dir)), {})
+	var data := UnityAvatar._bound(expressions, switches, [{"node": "Body 1", "when": [[0, 1]], "renderers": [5], "weights": {}, "mesh": ArrayMesh.new()}], {}, objs, paths, sk, Materials.new(Assets.new(dir)), Particles.new(null, null, {}, [], {}, []), {})
 	check(data.menu.size() == 1 and data.menu[0].name == "Hat", "the toggle that moves nothing is cut: %s" % [data.menu])
 	check(data.shown == [{"node": "Body 1", "when": [[0, 1]]}] and data.clips[0].curves[0] == {"target": 0, "step": true, "keys": [[0.0, 1.0]]}, "the hat's mesh shows under its switch, which the clip sets: %s %s" % [data.shown, data.clips])
 	sk.free()
@@ -962,7 +964,7 @@ func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
 		var switches := UnityAvatar._switches(expressions, objs, paths)
 		var meshes := UnityAvatar._renderers(objs, 2, switches.by_object, {}).map(func(r: Array) -> Dictionary: return {"node": "Body %d" % r[0], "when": r[2], "renderers": [r[0]], "weights": {}, "mesh": ArrayMesh.new()})
 		var sk := Skeleton3D.new()
-		var data := UnityAvatar._bound(expressions, switches, meshes, {}, objs, paths, sk, Materials.new(Assets.new(dir)), {})
+		var data := UnityAvatar._bound(expressions, switches, meshes, {}, objs, paths, sk, Materials.new(Assets.new(dir)), Particles.new(null, null, {}, [], {}, []), {})
 		sk.free()
 		check(data.layers[0].states[0].motion.get("normalized", false) == (normalized == 1), "the direct tree reads its normalized blend values flag as %d" % normalized)
 		var state := ExpressionState.new(data)
@@ -1006,14 +1008,14 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(data.menu.size() == 1 and data.targets.size() == 1, "a hue radial survives binding")
 	if data.targets.size() == 1:
 		var target: Dictionary = data.targets[0]
 		check(target.default == 0.25 and target.effect.hue[0].node == "Body" and target.effect.hue[0].space == 1.0 and target.effect.hue[0].shift == 0.0, "the saved colour space, mode and default survive")
 		check(data.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]] and not data.clips[0].curves[0].step, "hue remains continuous instead of becoming a switch")
 	materials.materials.colour.properties.clear()
-	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var absent := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(absent.targets.is_empty(), "a stale saved property not declared by the shader has no binding")
 	materials.materials.colour.shader = "VRChat/Mobile/Toon Standard"
 	materials.materials.colour.properties = {"_HueShift": true}
@@ -1026,7 +1028,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials._images.mask = mask
 	expressions.data.clips[0].curves[0].attribute = "material._HueShift"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, TAU]]
-	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(mobile.targets.size() == 1 and mobile.targets[0].effect.hue[0].space == 2.0, "Toon Standard binds RGB-axis hue")
 	check(mobile.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, TAU]], "the shader's angle stays in radians")
 	var packed: Image = mobile.get("hueMask")
@@ -1034,7 +1036,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var cell: Rect2i = materials.materials.colour.cell
 	check(packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2).r < 0.2 and packed.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2).r > 0.8, "the selected green mask channel follows the atlas region")
 	materials.materials.colour.keywords.clear()
-	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var disabled := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(disabled.targets.is_empty(), "a disabled shader feature does not create a hue binding")
 	materials.hue_masks.clear()
 	materials.materials.colour.properties = {"_Color": true}
@@ -1044,7 +1046,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.atlas_materials()
 	expressions.data.clips[0].curves[0].attribute = "material._Color.r"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, 1.0]]
-	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(colored.targets.size() == 1 and colored.targets[0].default == 0.0 and colored.targets[0].effect.color[0].channel == 0, "RGB curves bind even when the saved channel is black")
 	check(colored.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]], "RGB stays continuous")
 	var untinted: Dictionary = colored.get("untinted", {})
@@ -1066,7 +1068,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.textures = {"_MainColorAdjustTexture": {"m_Texture": {"guid": "mask"}}}
 	expressions.data.clips[0].curves[0].attribute = "material._MainGamma_Test"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 1.0], [1.0, 2.0]]
-	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(toned.targets.size() == 1 and toned.targets[0].default == 1.0 and toned.targets[0].effect.tone[0].channel == 0, "gamma keeps its material region and neutral default")
 	check(toned.clips[0].curves[0].keys == [[0.0, 1.0], [1.0, 2.0]], "tone curves remain continuous")
 	packed = toned.get("hueMask")
@@ -1074,7 +1076,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var first := packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 	check(first.r > 0.8 and first.g < 0.2 and first.b < 0.2 and first.a > 0.99, "the adjustment mask retains independent RGBA channels")
 	materials.materials.colour.floats._MainColorAdjustToggle = "0"
-	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(off.targets.is_empty(), "disabled color adjustment does not bind tone curves")
 
 	sk.free()
@@ -1351,7 +1353,7 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(data.targets.size() == 1 and data.targets[0].default == 0.25, "a decal alpha binds with its saved alpha: %s" % [data.targets])
 	if data.targets.size() == 1:
 		var region: Dictionary = data.targets[0].effect.look[0]
@@ -1379,23 +1381,23 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 	if index != null:
 		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).r8 == 0, "each texel names its material's look")
 	expressions.data.clips[0].curves.clear()
-	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(unbound.targets.is_empty() and (unbound.get("looks", {}).get("decals", []) as Array).size() == 1, "a decal no clip animates is still drawn at its saved alpha")
 	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalBlendAlpha2_Skin", "class": "137", "keys": [[0.0, 1.0]]})
 	materials.materials.skin.properties._DecalAlphaIntensity2_Skin = true
 	materials.materials.skin.floats._DecalAlphaIntensity2_Skin = "0"
 	expressions.data.clips[0].curves.append({"path": "", "attribute": "material._DecalAlphaIntensity2_Skin", "class": "137", "keys": [[0.0, 3.0]]})
-	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var intense := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(intense.targets.size() == 2 and intense.targets[1].effect.look[0].field == "decalIntensity" and intense.targets[1].default == 0.0, "an animated alpha intensity binds as its slot's second factor: %s" % [intense.targets])
 	check(intense.looks.materials[0].decals[2].intensity == 0.0, "the look holds the saved intensity under its declared name")
 	expressions.data.clips[0].curves.pop_back()
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.25, "g": 0.5, "b": 0, "a": 0}
-	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+	var moved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(moved.targets.is_empty() and not moved.has("looks"), "a decal placed off the whole texture is neither bound nor drawn")
 	materials.materials.skin.colours._DecalPosition2 = {"r": 0.5, "g": 0.5, "b": 0, "a": 0}
 	materials.materials.skin.floats.merge({"_DecalHueShiftEnabled2": "1", "_DecalHueShiftColorSpace2": "1", "_DecalHueShift2": "0.5"})
 	var drawn_decal := func() -> Dictionary:
-		var bound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
+		var bound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 		var drawn: Variant = bound.get("looks", {}).get("materials", [{}])[0].get("decals", [null, null, null])[2]
 		if drawn == null:
 			return {"texel": Color(0, 0, 0, 0), "hue": null, "bound": bound}
@@ -1755,7 +1757,7 @@ func _matcaps_and_emission_join_the_look() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var meshes := [{"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}, {"node": "Eyes", "when": [], "renderers": [6], "weights": {}, "mesh": ArrayMesh.new()}]
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Body": 2, "Eyes": 5}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Body": 2, "Eyes": 5}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	var fields: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].node, t.effect.look[0].field, t.effect.look[0].slot])
 	check(fields == [["Body", "matcapHueShift", 2], ["Eyes", "emissionHue", 0]], "matcap hue and emission hue bind to their looks: %s" % [fields])
 	var looks: Dictionary = data.get("looks", {})
@@ -2057,7 +2059,7 @@ func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
 	}
 	var sk := Skeleton3D.new()
 	var meshes := [{"node": "Suit", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}]
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Suit": 2}, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, meshes, {}, objs, {"Suit": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	var fields: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].field, t.effect.look[0].slot, t.default])
 	check(fields == [["themeHue", 0, 0.25], ["themeValue", 0, 0.0], ["themeSpeed", 0, 0.0], ["themeHue", 1, 0.0]], "the offsets of the themes the emission and a matcap are drawn in bind at their saved values, a theme nothing is drawn in not: %s" % [fields])
 	var entries: Array = data.get("looks", {}).get("materials", [])
@@ -2205,7 +2207,7 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 		"clips": [{"length": 0, "loop": false, "curves": [{"path": "R0", "attribute": "blendShape.Shorts", "class": "137", "keys": [[0.0, 50.0]]}]}],
 	}
 	merged.meshes[0].node = "Body"
-	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, {})
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
 	root.free()
 	sk.free()
@@ -2262,7 +2264,7 @@ func _transform_and_physbone_curves_bind() -> void:
 	var paths := {"": 2, "Tail": 4}
 	var switches := UnityAvatar._switches(expressions, objs, paths)
 	check(switches.by_object.keys() == [5], "the PhysBone's flag is a switch, the other script's is not: %s" % [switches.by_object])
-	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), report)
+	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), Particles.new(null, null, {}, [], {}, []), report)
 	var effects: Array = data.targets.map(func(t: Variant) -> Variant: return t.effect)
 	check(effects.size() == 3, "the PhysBone switch, rotation and position bind: %s" % [effects])
 	if effects.size() == 3:
@@ -2272,7 +2274,7 @@ func _transform_and_physbone_curves_bind() -> void:
 		check(effects[2] == {"translation": {"node": "Tail", "direction": [-0.5, 0.0, 0.0]}} and data.targets[2].default == 0.0, "position moves along the mirrored X, in the parent's output units: %s" % [effects[2]])
 		check(data.clips[0].curves[1].keys == [[0.0, 0.0, 0.0, 0.0], [1.0, 0.25, 0.0, 0.0]], "position keys are offsets from rest, tangents kept: %s" % [data.clips[0].curves[1].keys])
 	sk.set_meta("unity_bones", {3: 0})
-	var humanoid := UnityAvatar._bound(expressions, UnityAvatar._switches(expressions, objs, paths), [], {}, objs, paths, sk, Materials.new(expressions.assets), {})
+	var humanoid := UnityAvatar._bound(expressions, UnityAvatar._switches(expressions, objs, paths), [], {}, objs, paths, sk, Materials.new(expressions.assets), Particles.new(null, null, {}, [], {}, []), {})
 	check(humanoid.targets.size() == 1 and humanoid.targets[0].effect == "switch", "transform curves on a humanoid bone are left to the muscles")
 	sk.free()
 
@@ -2466,7 +2468,7 @@ func _a_radial_moving_nothing_is_cut_beside_a_live_one() -> void:
 	var paths := {"": 2, "Tail": 4}
 	var switches := UnityAvatar._switches(expressions, objs, paths)
 	var sk := Skeleton3D.new()
-	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), {})
+	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), Particles.new(null, null, {}, [], {}, []), {})
 	sk.free()
 	check((data.menu as Array).map(func(c: Dictionary) -> String: return c.name) == ["Live"], "only the radial that moves something stays: %s" % [data.menu])
 
@@ -2695,3 +2697,190 @@ PrefabInstance:
 	check(UnityAvatar.avatar_scene(edit) == null, "the edit alone imports as nothing")
 	var absent := UnityAvatar.absent_instances(Assets.new(edit))
 	check(absent == {"ba5e": "Edit.prefab"}, "the edit alone names its base's absent GUID and the file instancing it: %s" % absent)
+
+
+## A ParticleSystem keeps the modules it runs, in the avatar's axes and at its transform's scale, its sub-emitter, its
+## renderer's materials with those a clip swaps in, and the clip curves that toggle, recolour and swap it.
+func _a_particle_system_keeps_its_modules_and_clips() -> void:
+	var dir := ProjectSettings.globalize_path("user://particles")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var material := "Material:\n  m_Shader: {fileID: 211, guid: 0000000000000000f000000000000000, type: 0}\n  m_SavedProperties:\n    m_Floats:\n    - _SrcBlend: 5\n    - _DstBlend: %d\n    - _EmissionEnabled: 1\n    m_Colors:\n    - _Color: {r: 1, g: 0.5, b: 1, a: 1}\n    - _EmissionColor: {r: 0, g: 0.5, b: 4, a: 1}\n"
+	write.call("spark.mat", "pm1", material % 1)
+	write.call("soft.mat", "pm2", material % 10)
+	var objs := Yaml.objects("""--- !u!1 &1
+GameObject:
+  m_Name: Avatar
+  m_Component:
+  - component: {fileID: 2}
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &3
+GameObject:
+  m_Name: Sparks
+  m_IsActive: 1
+  m_Component:
+  - component: {fileID: 4}
+  - component: {fileID: 5}
+  - component: {fileID: 6}
+--- !u!4 &4
+Transform:
+  m_GameObject: {fileID: 3}
+  m_Father: {fileID: 2}
+  m_LocalScale: {x: 2, y: 2, z: 2}
+--- !u!198 &5
+ParticleSystem:
+  m_GameObject: {fileID: 3}
+  lengthInSec: 2
+  looping: 1
+  playOnAwake: 1
+  moveWithTransform: 1
+  scalingMode: 0
+  InitialModule:
+    enabled: 1
+    startLifetime:
+      minMaxState: 3
+      scalar: 2
+      minScalar: 1
+    startSpeed:
+      minMaxState: 1
+      scalar: 3
+      maxCurve:
+        m_Curve:
+        - time: 0
+          value: 0
+          inSlope: 1
+          outSlope: 1
+        - time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 1
+    startSize:
+      minMaxState: 0
+      scalar: 0.1
+    startRotation:
+      minMaxState: 0
+      scalar: 0.5
+    startColor:
+      minMaxState: 0
+      maxColor: {r: 0.25, g: 0.5, b: 1, a: 1}
+    maxNumParticles: 300
+  ShapeModule:
+    enabled: 1
+    type: 4
+    angle: 30
+    radiusThickness: 1
+    m_Rotation: {x: -90, y: 0, z: 0}
+    m_Position: {x: 0.5, y: 0, z: 0}
+    radius:
+      value: 0.25
+  EmissionModule:
+    enabled: 1
+    rateOverDistance:
+      minMaxState: 0
+      scalar: 0
+    m_Bursts:
+    - time: 0.5
+      countCurve:
+        minMaxState: 0
+        scalar: 6
+      cycleCount: 2
+      repeatInterval: 0.25
+      probability: 1
+  ColorModule:
+    enabled: 1
+    gradient:
+      minMaxState: 1
+      maxGradient:
+        key0: {r: 1, g: 1, b: 1, a: 1}
+        key1: {r: 1, g: 1, b: 1, a: 0}
+        ctime0: 0
+        ctime1: 65535
+        atime0: 0
+        atime1: 65535
+        m_Mode: 0
+        m_NumColorKeys: 2
+        m_NumAlphaKeys: 2
+  NoiseModule:
+    enabled: 0
+  SubModule:
+    enabled: 1
+    subEmitters:
+    - emitter: {fileID: 9}
+      type: 0
+      properties: 1
+--- !u!199 &6
+ParticleSystemRenderer:
+  m_GameObject: {fileID: 3}
+  m_Enabled: 1
+  m_RenderMode: 1
+  m_LengthScale: 0
+  m_VelocityScale: 0.02
+  m_Materials:
+  - {fileID: 2100000, guid: pm1, type: 2}
+--- !u!1 &7
+GameObject:
+  m_Name: Burst
+  m_IsActive: 1
+  m_Component:
+  - component: {fileID: 8}
+  - component: {fileID: 9}
+--- !u!4 &8
+Transform:
+  m_GameObject: {fileID: 7}
+  m_Father: {fileID: 4}
+--- !u!198 &9
+ParticleSystem:
+  m_GameObject: {fileID: 7}
+  looping: 0
+  InitialModule:
+    enabled: 1
+""")
+	var paths := UnityAvatar._paths(objs, 2)
+	var clips := [{"curves": [
+		{"path": "Sparks", "attribute": "EmissionModule.rateOverDistance.scalar", "class": "198", "keys": [[0.0, 0.0], [0.0167, 180.0]]},
+		{"path": "Sparks", "attribute": "InitialModule.startColor.maxColor.r", "class": "198", "keys": [[0.0, 0.25]]},
+		{"path": "Sparks", "attribute": "InitialModule.startLifetime.minScalar", "class": "198", "keys": [[0.0, 0.5]]},
+		{"path": "Sparks", "attribute": "material._EmissionColor.b", "class": "199", "keys": [[0.0, 2.0]]},
+		{"path": "Sparks", "attribute": "m_Materials.Array.data[0]", "class": "199", "refs": [[0.0, "pm2"]]}]}]
+	var sk := Skeleton3D.new()
+	sk.add_bone("emitter")
+	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
+	sk.set_meta("unity_bones", {1: 0})
+	var found := UnityAvatar._particle_systems(objs, 2, {}, sk, rests)
+	check(found.size() == 2 and found[0][3] == [], "both systems run, switched by nothing: %s" % [found])
+	var particles := Particles.new(Prefabs.new(Assets.new(dir)), Materials.new(Assets.new(dir)), objs, found, paths, clips)
+	sk.free()
+	check(particles.systems.size() == 2, "both systems read: %d" % particles.systems.size())
+	if particles.systems.size() != 2:
+		return
+	var s: Dictionary = particles.systems[0]
+	check(s.world and s.loop and s.duration == 2.0 and s.max == 300 and s.node == "Sparks", "the main module reads, on a bone for its transform: %s" % [s])
+	check(s.lifetime == {"min": [1.0], "max": [1.0], "scale": [1.0, 2.0]}, "a range of two constants keeps both ends: %s" % [s.lifetime])
+	check(s.speed.max.size() == Particles.SAMPLES and is_equal_approx(s.speed.max[-1], 1.0) and s.speed.scale == [3.0, 3.0], "a curve is sampled, its multiplier its scale: %s" % [s.speed])
+	check(is_equal_approx(s.size.scale[0], 0.2), "the size takes its transform's scale: %s" % [s.size])
+	check(is_equal_approx(s.rotation.scale[0], -0.5), "a turn about the view axis runs the other way in mirrored axes: %s" % [s.rotation])
+	check(s.color.min == [[0.25, 0.5, 1.0, 1.0]] and s.colorOverLife.max[-1][3] == 0.0, "the start colour and its fade over life read: %s %s" % [s.color, s.colorOverLife.max[-1]])
+	check(s.bursts.size() == 1 and s.bursts[0].time == 0.5 and s.bursts[0].cycles == 2 and s.bursts[0].count.scale == [6.0, 6.0], "a burst reads: %s" % [s.bursts])
+	var place: Array = s.shape.matrix
+	check(s.shape.type == "cone" and is_equal_approx(s.shape.angle, deg_to_rad(30.0)) and is_equal_approx(s.shape.radius, 0.25), "the cone reads: %s" % [s.shape])
+	check(Vector3(place[8], place[9], place[10]).is_equal_approx(Vector3(0, 2, 0)) and is_equal_approx(place[12], -1.0), "turned -90 about X the cone opens up, at its position mirrored and scaled: %s" % [place])
+	check(not s.has("noise"), "a module switched off is left out")
+	check(s.subEmitters == [{"system": 1, "on": "birth", "inherit": ["color"]}], "the sub-emitter names its system: %s" % [s.subEmitters])
+	var r: Dictionary = s.renderer
+	check(r.mode == "stretched" and r.draw and r.velocityScale == 0.02, "the renderer reads: %s" % [r])
+	check(r.materials.size() == 2 and r.materials[0].blend == "add" and r.materials[1].blend == "alpha", "its own material blends additively and the one a clip swaps in by alpha: %s" % [r.materials])
+	check(r.materials[0].emission == [0.0, 0.5, 4.0] and r.materials[0].color == [1.0, 0.5, 1.0, 1.0], "its tint and emission read: %s" % [r.materials[0]])
+	var effects: Array = clips[0].curves.map(func(c: Dictionary) -> Dictionary: return particles.effect(c))
+	check(effects[0] == {"system": 0, "field": "distance", "end": "both"} and particles.rest(effects[0]) == 0.0, "the emission toggle sets the distance rate: %s" % [effects[0]])
+	check(effects[1] == {"system": 0, "field": "color", "end": "both", "channel": 0}, "a lone start colour's red is the whole start colour's: %s" % [effects[1]])
+	check(effects[2] == {"system": 0, "field": "lifetime", "end": "min"} and particles.rest(effects[2]) == 1.0, "a range's lower end moves alone: %s" % [effects[2]])
+	check(is_equal_approx(particles.value({"system": 0, "field": "size", "end": "both"}, 0.1), 0.2), "a clip's size takes the scale import gave the system's")
+	check(effects[3] == {"system": 0, "field": "emission", "channel": 2} and particles.rest(effects[3]) == 4.0, "the renderer's emission colour binds by channel: %s" % [effects[3]])
+	check(effects[4] == {"system": 0, "field": "material"} and particles.choice(0, "pm2") == 1, "a material swap chooses among the renderer's materials: %s" % [effects[4]])
+	var targets := []
+	check(UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and targets[0].default == 0.0, "a curve's target is added once, at the saved value: %s" % [targets])

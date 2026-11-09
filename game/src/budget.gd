@@ -46,6 +46,9 @@ const BUTTERFLY_SCAN_US := 300.0
 ## Main-thread time a frame spends wearing a path just laid into the garden's ground, in microseconds: a few of its rows
 ## on the Steam Frame; a 48 m path's hundred and more take the frames after.
 const GROUND_WEAR_US := 1000.0
+## Main-thread time a frame spends giving one avatar's particle systems their new particles, in microseconds; births
+## past it wait for the frames after, so a sub-emitter's burst of hundreds spreads rather than stalls one frame.
+const PARTICLE_BIRTHS_US := 500.0
 ## Main-thread time a frame spends laying again builds the garden reshaped or that meet one, in microseconds: less than
 ## one of the stress scene's two-storey houses takes on the Steam Frame, so a house let go there lays its upper storey
 ## and the wings it joins in the frames after.

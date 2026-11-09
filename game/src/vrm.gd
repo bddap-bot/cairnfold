@@ -23,6 +23,7 @@ const BONES := ["hips", "spine", "chest", "upperChest", "neck", "head", "leftEye
 const THUMBS_0X := {"leftThumbProximal": "leftThumbMetacarpal", "leftThumbIntermediate": "leftThumbProximal", "rightThumbProximal": "rightThumbMetacarpal", "rightThumbIntermediate": "rightThumbProximal"}
 const BONE := "bone"
 const EXPRESSIONS := "VRCHAT_expressions"
+const PARTICLES := "UNITY_particles"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
@@ -34,7 +35,7 @@ const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
 
 func _get_supported_extensions() -> PackedStringArray:
-	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone", EXPRESSIONS])
+	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone", EXPRESSIONS, PARTICLES])
 
 
 ## Files come from other players, so every field is checked for its type before use.
@@ -98,6 +99,8 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	var expressions: Variant = expressions(state)
 	if expressions is Dictionary and ExpressionDefinition.valid(expressions):
 		root.set_meta("expressions", _named(expressions, state))
+	if exts.get(PARTICLES) is Dictionary:
+		root.set_meta("particles", _particles(exts[PARTICLES], state))
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
@@ -297,7 +300,8 @@ static func _layer_parent(definition: Dictionary, layer: String) -> Dictionary:
 	return parent if parent is Dictionary else {}
 
 
-## Each glTF image index the expression definition in `json` names as a layer (LAYERS), to that layer.
+## Each glTF image index the expression definition in `json` names as a layer (LAYERS), to that layer, and each a particle
+## material draws, to "particles".
 static func _layer_names(json: Variant) -> Dictionary:
 	var out := {}
 	var definition: Variant = _field(_field(json, "extensions"), EXPRESSIONS)
@@ -306,6 +310,8 @@ static func _layer_names(json: Variant) -> Dictionary:
 			if k is float or k is int:
 				out[int(k)] = layer
 			return k)
+	for k: int in _particle_indices(json):
+		out[k] = "particles"
 	return out
 
 
@@ -318,6 +324,45 @@ static func expressions(state: GLTFState) -> Variant:
 	var kept: Variant = state.get_additional_data(&"vrm_kept")
 	kept = kept if kept is Dictionary else {}
 	return _layered(definition, func(k: Variant, _layer: String) -> Variant: return kept.get(int(k)) if k is float or k is int else null)
+
+
+## UNITY_particles as an avatar's root holds it: each system's node by name and each material's image an index into
+## "images", the images the file kept aside. ParticleDefinition.read checks the rest.
+static func _particles(ext: Dictionary, state: GLTFState) -> Dictionary:
+	var out := ext.duplicate(true)
+	var nodes := state.get_nodes()
+	var kept: Variant = state.get_additional_data(&"vrm_kept")
+	kept = kept if kept is Dictionary else {}
+	var images := []
+	var at := {}
+	for s: Variant in out.get("systems") if out.get("systems") is Array else []:
+		if not s is Dictionary:
+			continue
+		var node: Variant = s.get("node")
+		s.node = nodes[int(node)].resource_name if (node is float or node is int) and node >= 0 and node < nodes.size() else ""
+		for m: Variant in _field(_field(s, "renderer"), "materials") if _field(_field(s, "renderer"), "materials") is Array else []:
+			var k: Variant = _field(m, "image")
+			if (k is float or k is int) and kept.get(int(k)) is Image:
+				if not at.has(int(k)):
+					at[int(k)] = images.size()
+					images.append(kept[int(k)])
+				m.image = at[int(k)]
+			elif m is Dictionary and m.has("image"):
+				m.image = -1
+	out.images = images
+	return out
+
+
+## The images particle materials draw, which no glTF texture names.
+static func _particle_indices(json: Variant) -> Array:
+	var systems: Variant = _field(_field(_field(json, "extensions"), PARTICLES), "systems")
+	var out := []
+	for s: Variant in systems if systems is Array else []:
+		for m: Variant in _field(_field(s, "renderer"), "materials") if _field(_field(s, "renderer"), "materials") is Array else []:
+			var k: Variant = _field(m, "image")
+			if k is float or k is int:
+				out.append(int(k))
+	return out
 
 
 ## The width and height in the header of a PNG, a JPEG or a WebP; zero if it is none.
@@ -427,6 +472,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	var expressions: Dictionary = root.get_meta("expressions", {})
 	state.set_additional_data(&"springs", springs)
 	state.set_additional_data(&"constraints", constraints)
+	state.set_additional_data(&"particles", root.get_meta("particles", {}))
 	state.set_additional_data(&"eyes", root.get_meta("eyes", Avatar.DATA.eyes))
 	state.set_additional_data(&"look", root.get_meta("look", {}))
 	state.set_additional_data(&"expressions", expressions)
@@ -439,6 +485,8 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 			state.add_used_extension("VRMC_springBone_extended_collider", false)
 	if not constraints.is_empty():
 		state.add_used_extension("UNITY_constraints", false)
+	if not root.get_meta("particles", {}).is_empty():
+		state.add_used_extension(PARTICLES, false)
 	if not expressions.is_empty():
 		state.add_used_extension(EXPRESSIONS, false)
 	return OK
@@ -570,6 +618,16 @@ func _export_post(state: GLTFState) -> Error:
 				if source.has("node"):
 					source.node = indices[source.node]
 		exts["UNITY_constraints"] = {"constraints": encoded}
+	var particles: Dictionary = state.get_additional_data(&"particles")
+	if not particles.is_empty():
+		var encoded: Array = particles.systems.duplicate(true)
+		var added: Array = (particles.images as Array).map(func(img: Image) -> int: return _add_image(state, img.save_webp_to_buffer()))
+		for system: Dictionary in encoded:
+			system.node = indices[system.node]
+			for m: Dictionary in system.renderer.materials:
+				if m.has("image"):
+					m.image = added[m.image]
+		exts[PARTICLES] = {"systems": encoded, "meshes": particles.meshes}
 	var expressions: Dictionary = state.get_additional_data(&"expressions")
 	if not expressions.is_empty():
 		exts[EXPRESSIONS] = _indexed(expressions, state, indices)

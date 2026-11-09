@@ -8,6 +8,10 @@ const REGIONS := ["hue", "color", "tone", "look"]
 ## lighten, screen, subtract, add, overlay and mixed (decal_blend in expression.gdshaderinc).
 const DECAL_BLENDS: Array[int] = [0, 1, 2, 5, 6, 7, 8, 9, 20]
 
+## What a "particle" effect sets on its system (docs/particles.md): a curve's scale, a start colour channel, the material
+## its renderer draws, or that material's tint or emission channel.
+const PARTICLE_FIELDS := ["rate", "distance", "speed", "size", "lifetime", "gravity", "color", "material", "tint", "emission"]
+
 
 ## The region kind `effect` animates, or "" for any other effect.
 static func region(effect: Variant) -> String:
@@ -16,7 +20,7 @@ static func region(effect: Variant) -> String:
 
 ## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
-	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "contacts", "menu", "icons"]:
+	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "contacts", "particles", "menu", "icons"]:
 		if not data.get(key, []) is Array:
 			return false
 	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is Image):
@@ -56,7 +60,7 @@ static func valid(data: Dictionary) -> bool:
 				for key: String in ["value", "min", "max", "chance"]:
 					if not _number(driver.get(key, 0.0)):
 						return false
-	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", []) + data.get("contacts", [])
+	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", []) + data.get("contacts", []) + data.get("particles", [])
 	for s: Variant in switched:
 		if not s is Dictionary or not s.get("when") is Array:
 			return false
@@ -74,6 +78,9 @@ static func valid(data: Dictionary) -> bool:
 			return false
 	if not data.get("contacts", []).all(_contact):
 		return false
+	for particle: Dictionary in data.get("particles", []):
+		if not _whole(particle.get("system")):
+			return false
 	return looks_valid(data.get("looks", {}))
 
 
@@ -254,6 +261,9 @@ static func _effect(effect: Variant) -> bool:
 		return effect.parameter is String
 	if effect.has("constraint"):
 		return effect.constraint is Dictionary and _node(effect.constraint.get("node"))
+	if effect.has("particle"):
+		var p: Variant = effect.particle
+		return p is Dictionary and _whole(p.get("system")) and p.get("field") in PARTICLE_FIELDS and p.get("end", "both") in ["min", "max", "both"] and _index(p.get("channel", 0), 3 if p.field == "emission" else 4)
 	if effect.has("translation"):
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]

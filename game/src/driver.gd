@@ -39,6 +39,8 @@ var _files := true
 var _figure_springs := true
 var _figure_expressions := true
 var _still := false
+## Whether the figures run every particle system their files have (AvatarParticles.unswitched).
+var _particles := false
 ## Whether the figures hold Posture's poses, and the microseconds and frames their poses have taken.
 var _posing := false
 var _posed_usec := 0
@@ -1584,7 +1586,8 @@ func _flat(s: Dictionary) -> void:
 ## hands swaying, as another player's streamed poses pose them; with "posture" each instead holds Posture's recorded
 ## poses in turn, a second and a fifth each, over what is under it, as another player's avatar reads them; with "apart"
 ## each reads the file itself and holds its own textures, as players each wearing their own file do, and a file past the
-## device's limits stands as a built-in, as its player would; [] takes them away. Each steps its own springs, as the
+## device's limits stands as a built-in, as its player would; with "particles" each runs every particle system its file
+## has, whatever its switches (AvatarParticles.unswitched); [] takes them away. Each steps its own springs, as the
 ## avatar a player wears does, unless "springs" is false, as another player's replays them, and plays its expressions
 ## unless "expressions" is false; with "still" each stands once and then holds, its pose, springs and expressions
 ## stopped, so only drawing it is left. Prices another player's avatar on one headset, with no network in the way, and
@@ -1599,6 +1602,7 @@ func _figures(s: Dictionary) -> void:
 	_figure_springs = s.get("springs", true)
 	_figure_expressions = s.get("expressions", true)
 	_still = s.get("still", false)
+	_particles = s.get("particles", false)
 	_posed_usec = 0
 	_posed_frames = 0
 	var path: String = s.get("file", "")
@@ -1630,6 +1634,8 @@ func _stand(i: int, at: Transform3D) -> Avatar:
 	a.simulate_springs = _figure_springs and not _still
 	if _posing:
 		a.ground = func(w: Vector3) -> float: return main.rig.floor_under.call(w)
+	if a.particles != null:
+		a.particles.unswitched = _particles
 	main.add_child(a)
 	if a.expressions != null and not (_figure_expressions and not _still):
 		a.expressions.process_mode = Node.PROCESS_MODE_DISABLED

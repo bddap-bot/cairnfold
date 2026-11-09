@@ -291,3 +291,24 @@ func model(guid: String) -> Dictionary:
 		objects[renderer].data["m_Bones"] = bones
 	models[guid] = {"state": state, "scene": scene, "objects": objects, "names": names}
 	return models[guid]
+
+
+## Field `k` of a Unity vector or quaternion `v`, `otherwise` where it has none.
+static func number(v: Variant, k: String, otherwise := 0.0) -> float:
+	return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
+
+
+## A Unity rotation in Godot's axes (X mirrored), the identity where it has none.
+static func turn(q: Variant) -> Quaternion:
+	var rot := Quaternion(number(q, "x"), -number(q, "y"), -number(q, "z"), number(q, "w", 1.0))
+	return rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
+
+
+## A Unity position in Godot's axes (X mirrored), the origin where it has none.
+static func mirrored(v: Variant) -> Vector3:
+	return Vector3(-number(v, "x"), number(v, "y"), number(v, "z"))
+
+
+## A transform as glTF's column-major matrix.
+static func matrix(t: Transform3D) -> Array:
+	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, 0, t.basis.y.x, t.basis.y.y, t.basis.y.z, 0, t.basis.z.x, t.basis.z.y, t.basis.z.z, 0, t.origin.x, t.origin.y, t.origin.z, 1]
