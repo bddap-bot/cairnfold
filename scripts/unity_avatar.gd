@@ -7,7 +7,7 @@ extends SceneTree
 ## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
 ## to Avatar.MAX_IMAGE_SIDE, so every texture keeps the size Unity shows it at. DIR, a Unity project's Packages folder,
 ## lends the images PACKAGE names but leaves to the shader packages installed beside it (Poiyomi's matcaps); without it
-## those draw as their shader's default, white.
+## a PACKAGE naming an image no package holds is refused, since those would draw as their shader's default, white.
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. Each --with PACKAGE is imported
 ## beside it, as one Unity project holds them all: an edit or outfit sold without the avatar it is made over imports
 ## with that base's package, whose assets it names by GUID. Where several hold one GUID the first named wins, PACKAGE
@@ -196,13 +196,20 @@ class Unpacked:
 
 ## The avatar in `dir`, over the assets `lent` lends it, as the scene and avatar data Avatar.model takes, its root also
 ## carrying "report" (what was kept and dropped, by kind). Null, with the reason printed, if the package holds no avatar
-## to convert; the reason names each prefab or model GUID its scenes and prefabs instance that no package holds.
+## to convert; the reason names each prefab or model GUID its scenes and prefabs instance that no package holds. Null too
+## where its materials name a texture no package holds and no `packages` folder was named: such a texture is mostly a
+## shader package's, and converting without it draws a look its shader never shows.
 static func avatar_scene(dir: String, lent: PackedStringArray = [], pick := "", packages := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
 	var prefabs := Prefabs.new(Assets.new(dir, lent, packages))
 	var root := _convert(prefabs, pick, widest)
 	for m: Dictionary in prefabs.models.values():
 		if m.has("scene"):
 			(m.scene as Node).free()
+	var absent: Array = root.get_meta("report").get("textures in no package", []) if root != null else []
+	if packages == "" and not absent.is_empty():
+		printerr("unity_avatar: %s names textures no package holds, by GUID: %s; a shader package installed beside it holds such textures (Poiyomi's matcaps), which would draw as their shader's default; name the Unity project's Packages folder with --packages, an empty folder if it has none" % [root.name, ", ".join(absent)])
+		root.free()
+		return null
 	return root
 
 
@@ -392,6 +399,8 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		report["models not read"] = prefabs.unread.keys()
 	if not materials.undecoded.is_empty():
 		report["textures not decoded"] = materials.undecoded.keys()
+	if not materials.absent.is_empty():
+		report["textures in no package"] = materials.absent.keys()
 	root.set_meta("report", report)
 	settle(root)
 	return root

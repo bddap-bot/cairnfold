@@ -56,6 +56,8 @@ var atlas: Image
 var atlas_side := ATLAS
 var widest: int
 var undecoded := {}
+## The texture GUIDs a material names that no package holds.
+var absent := {}
 var hue_masks := {}
 var color_regions := {}
 ## The materials whose emission an animation drives: one dark at rest glows only if it is among them.
@@ -194,7 +196,7 @@ func image(guid: String) -> Image:
 
 func _decoded(guid: String) -> Image:
 	if not assets.by_guid.has(guid):
-		undecoded["not in the package: " + guid] = true
+		absent[guid] = true
 		return null
 	var bytes := FileAccess.get_file_as_bytes(assets.by_guid[guid].file)
 	var img := Image.new()

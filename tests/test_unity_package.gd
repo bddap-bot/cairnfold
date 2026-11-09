@@ -61,6 +61,7 @@ func _run() -> void:
 	_untinted_multilayer_math_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
 	_installed_packages_lend_only_missing_images()
+	_a_texture_in_no_package_needs_the_packages_named()
 	_an_edit_imports_with_its_base()
 	_submeshes_take_slots_in_first_use_order()
 	_a_serialized_mesh_reads_as_its_model_would()
@@ -2542,6 +2543,34 @@ func _installed_packages_lend_only_missing_images() -> void:
 	check(lent.text("shared") == "avatar's" and lent.text("own") == "avatar's", "the package's own assets win")
 	check(not lent.by_guid.has("prefab"), "the installed packages lend images alone")
 
+
+
+## A material naming a texture no package holds converts only with the project's packages named: there it is lent, or,
+## named and absent there too, reported; never silently drawn as its shader's default.
+func _a_texture_in_no_package_needs_the_packages_named() -> void:
+	var root := ProjectSettings.globalize_path("user://absent")
+	var avatar := root.path_join("avatar")
+	DirAccess.make_dir_recursive_absolute(avatar.path_join("Models"))
+	for f: String in ["new_seedsan_betterfbx.fbx", "new_seedsan_betterfbx.fbx.meta"]:
+		DirAccess.copy_absolute(avatar_file("seed-san/Models").path_join(f), avatar.path_join("Models").path_join(f))
+	FileAccess.open(avatar.path_join("arm.mat"), FileAccess.WRITE).store_string("Material:\n  m_SavedProperties:\n    m_TexEnvs:\n    - _MainTex:\n        m_Texture: {guid: lent}\n")
+	FileAccess.open(avatar.path_join("arm.mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: 9944e5c5d9dbd7b4abf64ada4fc9db53\n")
+	var none := root.path_join("none")
+	var shader := root.path_join("packages/shader")
+	DirAccess.make_dir_recursive_absolute(none)
+	DirAccess.make_dir_recursive_absolute(shader)
+	var texture := Image.create_empty(2, 2, false, Image.FORMAT_RGBA8)
+	texture.fill(Color.RED)
+	texture.save_png(shader.path_join("lent.png"))
+	FileAccess.open(shader.path_join("lent.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: lent\n")
+	check(UnityAvatar.avatar_scene(avatar) == null, "a material naming a texture no package holds is refused without the packages named")
+	var bare := UnityAvatar.avatar_scene(avatar, [], "", none)
+	check(bare != null and bare.get_meta("report").get("textures in no package") == ["lent"], "named packages lacking it convert and report it: %s" % [bare.get_meta("report") if bare != null else null])
+	var lent := UnityAvatar.avatar_scene(avatar, [], "", root.path_join("packages"))
+	check(lent != null and not lent.get_meta("report").has("textures in no package"), "the packages holding it lend it")
+	for scene: Node3D in [bare, lent]:
+		if scene != null:
+			scene.free()
 
 ## An edit sold without its base, a variant of the base's avatar prefab, imports with the base's package beside it,
 ## its GUIDs resolved across both; alone it is refused, naming the base prefab's GUID it instances. Only a variant of a

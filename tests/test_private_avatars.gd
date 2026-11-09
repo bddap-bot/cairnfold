@@ -36,8 +36,11 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	var started := Time.get_ticks_msec()
 	var dir := UnityAvatar.unpacked(package)
 	check(dir != "", "%s unpacks" % label)
-	# A widest-atlas conversion of a heavy package passes the suite's 4 GB data limit.
-	var model := UnityAvatar.avatar_scene(dir, [], avatar, "", Materials.LAYER) if dir != "" else null
+	# A widest-atlas conversion of a heavy package passes the suite's 4 GB data limit. The corpus holds no shader
+	# packages, and this checks fit, not looks.
+	var none := ProjectSettings.globalize_path("user://no-packages")
+	DirAccess.make_dir_recursive_absolute(none)
+	var model := UnityAvatar.avatar_scene(dir, [], avatar, none, Materials.LAYER) if dir != "" else null
 	check(model != null, "%s imports" % label)
 	if model == null:
 		return
