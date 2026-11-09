@@ -10,7 +10,7 @@ per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst fr
 frame; then where the main thread's time went (Metrics.MAIN_PHASES), each phase's p50 and p95 in the median second;
 then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
 the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
-what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play, and the
+what its replay record holds: the frames of input (Replay), any the record lost, and its size an hour of play, and the
 messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each,
 and for a performance take (PlayLog.ARM) its microphone WAV, how long it runs and the input frame it begins at.
 With --replayed, the per-activity timing of the session a replay of it measured (the --metrics file of a --replay run,
@@ -124,7 +124,7 @@ def replay(s):
 
 def net(s):
     """What the network brought the session: how many of each call, the build commands each player made, and how many
-    messages the ring lost."""
+    messages the record lost."""
     if not s["nets"]:
         return None
     heard = [m for e in sorted(s["nets"], key=lambda e: e["first"]) for m in e["messages"]]
@@ -265,18 +265,18 @@ def text(s):
         lines.append(f"  paused: {s['paused_s']} s")
     if s["replay"]:
         r = s["replay"]
-        lost = f", {r['missing']} frames lost to the ring" if r["missing"] else ""
-        begun = "" if r["start"] else ", its start lost to the ring"
+        lost = f", {r['missing']} frames lost" if r["missing"] else ""
+        begun = "" if r["start"] else ", its start lost"
         lines.append(f"  replay: {r['frames']} frames over {r['seconds']} s, {r['bytes'] / 1e6:.2f} MB, "
                      f"{r['mb_per_hour']} MB an hour{lost}{begun}")
     if s["take"]:
         t = s["take"]
         length = "not pulled" if t["seconds"] is None else f"{t['seconds']} s"
-        begun = "its start lost to the ring" if t["frame"] is None else f"from input frame {t['frame']}"
+        begun = "its start lost" if t["frame"] is None else f"from input frame {t['frame']}"
         lines.append(f"  take: {t['file']}, {length} at {t['rate']} Hz, {begun}")
     if s["net"]:
         n = s["net"]
-        lost = f", {n['missing']} lost to the ring" if n["missing"] else ""
+        lost = f", {n['missing']} lost" if n["missing"] else ""
         lines.append(f"  network: {n['messages']} messages, {n['bytes'] / 1e6:.2f} MB{lost}: "
                      + ", ".join(f"{k} {v}" for k, v in n["calls"].items()))
         if n["commands"]:

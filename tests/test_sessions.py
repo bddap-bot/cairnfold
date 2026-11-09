@@ -105,7 +105,7 @@ class Sessions(unittest.TestCase):
             self.assertAlmostEqual(f1["delta"], 1 / 72)
             text = printed(d)
             self.assertIn("replay: 144 frames over 2.0 s", text)
-            self.assertIn("72 frames lost to the ring", text)
+            self.assertIn("72 frames lost", text)
 
     def test_stalls_and_pauses_are_listed(self):
         with tempfile.TemporaryDirectory() as d:

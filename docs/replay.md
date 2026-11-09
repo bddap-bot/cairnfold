@@ -63,7 +63,7 @@ frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
 
 Every chunk's start record names its build revision and its `schema` (`PlayLog.SCHEMA`): the events a record holds and
 how a frame lays out. A record of another schema, or one whose starting garden is of another `World.FORMAT`, is
-refused with the reason, as is one with frames the ring dropped; one from another revision replays. A frame's inputs
+refused with the reason, as is one missing frames; one from another revision replays. A frame's inputs
 are read by the names the record lists, so a later controls table that reads other inputs presses none it lost.
 
 What a later build changes, a replay of an earlier record shows the session under: the same head, hands, inputs,

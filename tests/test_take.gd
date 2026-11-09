@@ -47,7 +47,7 @@ func _initialize() -> void:
 	stale.finish()
 	FileAccess.open(folder.path_join("1-2-3.wav"), FileAccess.WRITE).close()
 	PlayLog.new(folder).finish()
-	check(not FileAccess.file_exists(folder.path_join("1-2-3.wav")), "a take whose session the ring dropped goes with it")
+	check(FileAccess.file_exists(folder.path_join("1-2-3.wav")), "a take outlives its chunks: only the host knows it has copied it")
 	_clear(folder)
 
 	_arm(0)

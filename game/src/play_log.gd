@@ -4,8 +4,10 @@ extends RefCounted
 ## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
 ## by a dev tool on a device of ours, never by the game unasked. It may name another folder to record into.
 ## Beside each second's metrics row it keeps every frame's input (Replay), every message the network brought, what the
-## session's state came to every Replay.CHECK_EVERY frames and the garden as World keeps it, so the ring holds hours of
-## all of them.
+## session's state came to every Replay.CHECK_EVERY frames and the garden as World keeps it. The game deletes no chunk or
+## take: only the host knows what it has copied, so its collector deletes each once copied and closed
+## (scripts/deletable.py). A device away from the host for long ends its session's record, as `finish` does, once its
+## storage has less than MIN_FREE left.
 const SWITCH := "record-sessions"
 ## A take's arm, a file a dev tool puts in the player folder beside the switch for one acted session: that session's
 ## record keeps the microphone too (`take`). The session that finds it removes it as it starts, so it arms one session
@@ -16,12 +18,14 @@ const ARM_SECONDS := 600
 ## The record's format: the events it holds and how a frame lays out (Replay). A record of another replays on no build.
 const SCHEMA := 4
 const MAX_BYTES := 4194304
-const MAX_FILES := 64
+const MIN_FREE := 1 << 30
 var directory: String
 var session_id: String
-## The armed session's microphone take, a mono 16-bit WAV beside its chunks and outside the ring; "" for any other.
+## The armed session's microphone take, a mono 16-bit WAV beside its chunks; "" for any other.
 var take := ""
 var metadata: Dictionary
+## The storage left below which no next chunk opens (MIN_FREE, or a test's).
+var min_free := MIN_FREE
 var _file: FileAccess
 var _part := 0
 var _ended := false
@@ -141,28 +145,30 @@ func kept(seq: int, garden: PackedByteArray) -> void:
 
 
 func _open() -> void:
-	_file = null
-	var files := Array(DirAccess.get_files_at(directory)).filter(func(f): return f.ends_with(".jsonl"))
-	files.sort()
-	while files.size() >= MAX_FILES:
-		DirAccess.remove_absolute(directory.path_join(files.pop_front()))
-	for wav in Array(DirAccess.get_files_at(directory)).filter(func(f): return f.ends_with(".wav")):
-		if not files.any(func(f: String) -> bool: return f.begins_with(wav.get_basename() + "-")):
-			DirAccess.remove_absolute(directory.path_join(wav))
-	_part += 1
-	# Renamed into place holding its start record, so no reader meets a chunk without one.
+	var dir := DirAccess.open(directory)
+	if dir == null or dir.get_space_left() < min_free:
+		push_warning("session recording stops: %s has under %d bytes left" % [directory, min_free])
+		_end({"stopped": "storage"})
+		return
+	# Renamed into place holding its start record, so no reader meets a chunk without one, and only once the last is
+	# closed, so a later part tells the host the last is whole.
 	var fresh := directory.path_join("chunk.new")
 	var start := FileAccess.open(fresh, FileAccess.WRITE)
 	if start == null:
+		_end({"stopped": "storage"})
 		return
-	start.store_line(JSON.stringify(metadata.merged({"event": "start", "part": _part})))
+	start.store_line(JSON.stringify(metadata.merged({"event": "start", "part": _part + 1})))
 	start.close()
-	var chunk := directory.path_join("%s-%04d.jsonl" % [session_id, _part - 1])
-	if DirAccess.rename_absolute(fresh, chunk) != OK:
+	_file = null
+	if DirAccess.rename_absolute(fresh, directory.path_join("%s-%04d.jsonl" % [session_id, _part])) != OK:
+		_ended = true
 		return
-	_file = FileAccess.open(chunk, FileAccess.READ_WRITE)
-	if _file != null:
-		_file.seek_end()
+	_part += 1
+	_file = FileAccess.open(directory.path_join("%s-%04d.jsonl" % [session_id, _part - 1]), FileAccess.READ_WRITE)
+	if _file == null:
+		_ended = true
+		return
+	_file.seek_end()
 
 
 func sample(row: Dictionary) -> void:
@@ -268,7 +274,7 @@ static func _without_files(args: Array) -> Array:
 ## Appends `audio` to the take as mono 16-bit samples, opening it on the first, when a `take` record notes the input
 ## frame its first sample came in before. Each write leaves the header whole, so a killed session's take still plays.
 func _write_audio(audio: PackedVector2Array) -> void:
-	if audio.is_empty():
+	if audio.is_empty() or _ended:
 		return
 	if _wav == null:
 		_wav = FileAccess.open(take, FileAccess.WRITE)
@@ -324,11 +330,16 @@ func finish() -> void:
 	_write_net(_take_heard())
 	_write_checks(_take_checks())
 	_write_audio(_take_audio())
+	_end({})
+
+
+## Closes the take, then the chunk on its `end` record, the line the host's collector takes as both closed.
+func _end(why: Dictionary) -> void:
 	if _wav != null:
 		_wav.close()
 		_wav = null
 	_ended = true
 	if _file != null:
-		_file.store_line(JSON.stringify({"event": "end", "session": session_id, "ended": Time.get_unix_time_from_system()}))
+		_file.store_line(JSON.stringify(why.merged({"event": "end", "session": session_id, "ended": Time.get_unix_time_from_system()})))
 		_file.close()
 		_file = null

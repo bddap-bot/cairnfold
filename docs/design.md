@@ -5611,8 +5611,9 @@ bus of its own, so it is never heard, and hands what it captures to the record; 
 16-bit WAV at the mix rate, `SESSION.wav`, beside the chunks, its header whole after every write. Every chunk's start
 record names the take and its rate, and a `take` record the input frame its first sample came in before. When the
 record ends `Take` frees itself and its capture; the muted bus stays, since the microphone's last buffer, fading
-out, would play on the master bus if its own were gone. A take goes from the device when the ring drops the last
-of its session's chunks. The project enables audio input, which opens no device until a take plays the microphone.
+out, would play on the master bus if its own were gone. A take goes from the device once the host has copied it
+whole and its session's end record (`scripts/deletable.py`). The project enables audio input, which opens no
+device until a take plays the microphone.
 The APKs our headsets run declare the microphone permission and the store and Steam ones do not
 (`scripts/android.sh` checks both). Android grants it only by asking the wearer, and once granted the engine keeps the
 microphone open past the take, so `Take` never asks: the dev tool that arms a take grants it beforehand

@@ -158,7 +158,7 @@ static func read(path: String, avatars := "") -> Dictionary:
 				"checks":
 					out.checks.append_array(e.checks)
 	if not out.has("seeds"):
-		return {"error": "%s holds no seeds and starting garden: the ring dropped them, or it is no record" % path}
+		return {"error": "%s holds no seeds and starting garden: a chunk is missing, or it is no record" % path}
 	inputs.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	nets.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	out.checks.sort_custom(func(a, b) -> bool: return a.frame < b.frame)
