@@ -2518,16 +2518,20 @@ by GPU utilisation (https://developers.meta.com/horizon/documentation/unity/dyna
 Directive (verbatim): "I do want cairnfold to be performant, so do optimize it, but an inefficient mesh isn't cairnfolds concern. And editing the mesh on import is not reasonably part of our importers scope."
 
 A player's own avatar file keeps every triangle, bone and blend shape its author made, so one can cost a headset more
-than it has. The ladder's last rung (`Step.files` false) then draws every other player's own file as a built-in avatar
-in that file's colour (`Avatar.drawn`), as VRChat draws an avatar past a Quest's limits as a fallback; built-in
+than it has. Each file is priced as it loads (`Quality.admit`): the triangles it draws, at the GPU time per primitive
+the last frames measured, against the headroom those frames leave under the governor's line, less what files let in
+too lately for those frames to show take. A file past it stands as a built-in avatar in that file's colour
+(`Avatar.drawn`) until it is dressed again, as VRChat draws an avatar past a Quest's limits as a fallback. The
+headroom is the step's own, so a file that would fit only with the garden cut is not let in. The ladder's last rung
+(`Step.files` false) draws every other player's own file that way; built-in
 avatars and the wearer's own body are drawn as they are. The colour is the file's base colours averaged by
 primitive, each its material's factor times its base colour image's mean over the texels its alpha covers, read with the
 file (`Vrm._colour`). The stand-in drops the file's skinning, springs and expressions with its triangles, so it frees the
 CPU's share too, and its springs, not the file's, are no one's to grab.
 
-The governor reaches the rung only with frames still over below every other cut, as with any other step, so a headset
-with room, or one whose people wear lighter files, draws every file whole. Stepping back up redraws everyone at once,
-so it waits as a pop does.
+The rung corrects a file let in at a price that proved low: the governor reaches it only with frames still over
+below every other cut, as with any other step. Stepping back up prices and redraws everyone at once, so it waits as a
+pop does.
 
 On a Quest 2, governed, with three figures of each of six converted avatar files standing 4 m off and the player wearing
 the same file (the `final-six` scene), the three heaviest held the frame near 20 fps on the rung above (frame p50 about

@@ -401,6 +401,10 @@ static func model(root: Node3D) -> PackedScene:
 	_switched_off(root)
 	_keep_longest(root)
 	var bones: Dictionary = root.get_meta("humanoid")
+	var drawn := 0
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if _shown(mi, root):
+			drawn += triangles(mi.mesh as ArrayMesh)
 	var missing := NEEDS.filter(func(b: String) -> bool: return not bones.has(b))
 	if not missing.is_empty() or not _outlined(root):
 		if not missing.is_empty():
@@ -417,8 +421,21 @@ static func model(root: Node3D) -> PackedScene:
 	var scene := PackedScene.new()
 	scene.pack(root)
 	scene.set_meta("colour", root.get_meta("colour", Color.WHITE))
+	scene.set_meta("triangles", drawn)
 	root.free()
 	return scene
+
+
+## The triangles `mesh` draws; none for a mesh not built from arrays.
+static func triangles(mesh: ArrayMesh) -> int:
+	var n := 0
+	if mesh == null:
+		return n
+	for i in mesh.get_surface_count():
+		if mesh.surface_get_primitive_type(i) == Mesh.PRIMITIVE_TRIANGLES:
+			var indices := mesh.surface_get_array_index_len(i)
+			n += (indices if indices > 0 else mesh.surface_get_array_len(i)) / 3
+	return n
 
 
 ## Gives each material its glTF extras mark "outline" (`_marked`) its hull (avatar_outline.gdshader) as the pass after
@@ -939,7 +956,7 @@ static func _merged(im: ImporterMesh) -> ImporterMesh:
 
 
 ## Another player's avatar as this headset draws it: `scene` in `tint`, or, a player's own file (`from`) where the headset
-## draws none (`whole` false, Quality.files), built-in avatar `body` in the file's colour, as VRChat draws an avatar a
+## draws none (`whole` false, Quality.admit), built-in avatar `body` in the file's colour, as VRChat draws an avatar a
 ## headset cannot afford. Either way it carries the file's identity.
 static func drawn(scene: PackedScene, tint: Color, from: String, whole: bool, body := 0) -> Avatar:
 	var a := open(scene, tint, from) if whole or from == "" else open(built_in(body), scene.get_meta("colour", Color.WHITE), from)

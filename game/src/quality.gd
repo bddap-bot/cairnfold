@@ -140,6 +140,7 @@ signal rungs_primed
 
 var governor: Governor
 var map := Map.new()
+var people := People.new()
 ## The step held instead of the governor's, for measuring; -1 while governed.
 var pin := -1:
 	set(n):
@@ -269,9 +270,21 @@ func step() -> int:
 	return pin if pin >= 0 else governor.level
 
 
-## Whether other people are drawn in their own avatar files at the step.
+## Whether other people are drawn in their own avatar files: the step draws them and, in a headset, the frames that
+## price them are measured (People).
 func files() -> bool:
-	return ladder[step()].files
+	return ladder[step()].files and (_xr == null or people.measured())
+
+
+## Whether another player's own avatar file `scene`, loading now, is drawn whole, which lets it in (People.admit).
+## Past the headroom the player stands as a built-in body (Avatar.drawn).
+func admit(scene: PackedScene) -> bool:
+	if _xr == null or not files():
+		return files()
+	var triangles: int = scene.get_meta("triangles")
+	var whole := people.admit(triangles, budget_ms * Governor.LINE)
+	print("quality: a file of %d triangles drawn %s, %s" % [triangles, "whole" if whole else "as a built-in body", people.why])
+	return whole
 
 
 func _process(delta: float) -> void:
@@ -288,6 +301,8 @@ func _process(delta: float) -> void:
 		# The runtime may report the shell's rate for the first frames, so the budget follows it every frame.
 		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
 		budget_ms = 1000.0 / hz
+		if _warm > WARMUP and not priming() and not covered.call():
+			people.measure(frame_ms, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 		_warm += delta
 		_primed += 1
 		if _primed == _priming.size() * PRIME_FRAMES:
@@ -336,6 +351,48 @@ func _apply(at: Step, n: int) -> void:
 		# The Mobile renderer reads the runtime's foveation map only with the view's VRS mode at XR.
 		view.vrs_mode = Viewport.VRS_XR if at.foveation > 0 and map.on else Viewport.VRS_DISABLED
 		_xr.foveation_level = at.foveation
+
+
+## What other people's own avatar files may add to the GPU's frame, priced as each loads: a file is drawn whole only
+## where the headroom its frames measure under the governor's line holds its drawn triangles at the time those frames
+## take per primitive, so a heavy mesh is its author's cost and a headset with room draws it ("People past the headset"
+## in docs/design.md). The headroom is the step's own: a file that fits only by cutting the garden is not let in, since
+## the walk down to find out ran at a third of the refresh rate on the Quest 2.
+class People:
+	const FRAMES := 36
+	## A file let in counts against the headroom until the median of the frames holds it.
+	const SHOWN_FRAMES := FRAMES / 2 + 1
+
+	var why := ""
+	var _ms := PackedFloat32Array()
+	var _primitives := PackedFloat32Array()
+	## The cost of each file let in, in milliseconds, and the frames measured since.
+	var _let_in: Array[Vector2] = []
+
+	func measured() -> bool:
+		return _ms.size() == FRAMES
+
+	func measure(ms: float, primitives: int) -> void:
+		_ms.append(ms)
+		_primitives.append(primitives)
+		if _ms.size() > FRAMES:
+			_ms.remove_at(0)
+			_primitives.remove_at(0)
+		for i in _let_in.size():
+			_let_in[i].y += 1.0
+		_let_in = _let_in.filter(func(l: Vector2) -> bool: return l.y < SHOWN_FRAMES)
+
+	func admit(triangles: int, line_ms: float) -> bool:
+		var frame := Quality.median(_ms)
+		var cost := triangles * frame / maxf(Quality.median(_primitives), 1.0)
+		var room := line_ms - frame
+		for l in _let_in:
+			room -= l.x
+		why = "%.2f ms of %.2f ms headroom, the GPU at %.2f ms of a %.2f ms line" % [cost, room, frame, line_ms]
+		if cost > room:
+			return false
+		_let_in.append(Vector2(cost, 0.0))
+		return true
 
 
 ## Whether a foveated rung draws with the runtime's density map, by what the map costs the scene as measured. On the

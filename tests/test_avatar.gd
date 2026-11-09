@@ -92,6 +92,19 @@ func _a_colour_averages_the_triangles_base_colours() -> void:
 ## identity; a built-in stands as itself.
 func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
 	var sample := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP, Vector3.ONE])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	arrays[Mesh.ARRAY_INDEX] = null
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
+	check(Avatar.triangles(mesh) == 3, "a mesh's triangles are its indexed and unindexed ones, lines aside: %d" % Avatar.triangles(mesh))
+	check(sample.get_meta("triangles") > 0, "a file records the triangles it draws, which the headset prices it by: %d" % sample.get_meta("triangles"))
 	var whole := Avatar.drawn(sample, Color.RED, "file", true, 1)
 	check(whole.scene == sample and whole.tint == Color.RED and whole.source == "file", "a file the headset draws stands as itself")
 	var stand_in := Avatar.drawn(sample, Color.RED, "file", false, 1)

@@ -1585,7 +1585,6 @@ func _figures(s: Dictionary) -> void:
 	var scene: PackedScene = Avatar.built_in(0)
 	_figure_path = path
 	_figures_read.clear()
-	_files = main.quality.files()
 	for i in s.spots.size():
 		var at: Array = s.spots[i]
 		if path and (s.get("apart", false) or i == 0):
@@ -1600,12 +1599,14 @@ func _figures(s: Dictionary) -> void:
 				_figure_path = ""
 		_figures_read.append(scene)
 		var foot := main.world.terrain.ground(at[0], at[1])
+		# Read after the file is: the step may start drawing files while it reads, and figures stood then are priced once.
+		_files = main.quality.files()
 		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)))
 
 
 ## Figure `i` at `at` in its model, drawn as the quality step draws people.
 func _stand(i: int, at: Transform3D) -> Avatar:
-	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _files)
+	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _figure_path != "" and main.quality.admit(_figures_read[i]))
 	a.transform = at
 	a.simulate_springs = _figure_springs and not _still
 	if _posing:
@@ -1626,7 +1627,7 @@ func _process(_delta: float) -> void:
 	var start := Time.get_ticks_usec()
 	if not _stood.is_empty() and main.quality.files() != _files:
 		_files = main.quality.files()
-		print("driver: figures drawn %s, %.1f us per avatar pose before over %d frames" % ["in their file" if _files else "as built-in bodies", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
+		print("driver: figures stood again, %s, %.1f us per avatar pose before over %d frames" % ["each in its file where the headroom takes it" if _files else "as built-in bodies", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
 		_posed_usec = 0
 		_posed_frames = 0
 		for i in _stood.size():

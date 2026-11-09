@@ -74,7 +74,8 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
-## The quality step, whose `files` says whether players are drawn in their own files (`_files`, as last dressed).
+## The quality step, which says whether players are drawn in their own files (`_files`, as last dressed) and lets
+## each in as it is dressed (Quality.admit).
 var quality: Quality
 var _files := true
 var _spring_hands := [[], []]
@@ -616,7 +617,7 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 
 ## Gives player `id` the avatar in `scene`, in their pose.
 func _dress(id: int, scene: PackedScene, key: String) -> void:
-	var a := Avatar.drawn(scene, _looks[id][1], key, _files, _looks[id][0])
+	var a := Avatar.drawn(scene, _looks[id][1], key, key != "" and (quality == null or quality.admit(scene)), _looks[id][0])
 	a.simulate_springs = false
 	a.ground = func(p: Vector3) -> float: return rig.floor_under.call(p)
 	var old: Avatar = avatars.get(id)

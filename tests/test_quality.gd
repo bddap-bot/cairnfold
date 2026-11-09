@@ -49,6 +49,7 @@ func _initialize() -> void:
 	_a_density_map_that_saves_stays_on()
 	_the_density_map_is_tried_again_once_calm()
 	_a_map_suddenly_dear_comes_off_at_once()
+	_a_file_is_drawn_whole_only_within_the_measured_headroom()
 	finish()
 
 
@@ -615,3 +616,26 @@ func _a_map_suddenly_dear_comes_off_at_once() -> void:
 		toggles += int(m.on != was)
 		was = m.on
 	check(toggles <= 8, "a frame as dear without the map tries it off at most once a retry wait: %d switches in four" % toggles)
+
+
+## A file loading is priced at the frame's measured time per primitive against the headroom under the line: the
+## record's empty scene (9.6 ms, 221,591 primitives under an 11.1 ms line) has room for 30,000 triangles and not
+## 40,000, and a file just let in takes its share of the room until the frames' median holds it.
+func _a_file_is_drawn_whole_only_within_the_measured_headroom() -> void:
+	var line := 1000.0 / 72.0 * Quality.Governor.LINE
+	var p := Quality.People.new()
+	for i in Quality.People.FRAMES - 1:
+		p.measure(9.6, 221591)
+	check(not p.measured(), "one frame short of the window nothing is priced")
+	p.measure(9.6, 221591)
+	check(p.measured(), "a full window prices files")
+	check(not p.admit(40000, line), "a file past the headroom stands as a built-in: %s" % p.why)
+	check(p.admit(30000, line), "a file within it is drawn whole: %s" % p.why)
+	for i in Quality.People.SHOWN_FRAMES - 1:
+		p.measure(9.6, 221591)
+	check(not p.admit(30000, line), "a file just let in takes its share of the room: %s" % p.why)
+	p.measure(9.6, 221591)
+	check(p.admit(30000, line), "once the median holds it the room is the frames' to measure: %s" % p.why)
+	var q := Quality.new(null, null)
+	check(q.files() and q.admit(PackedScene.new()), "with no headset nothing is priced and every file is drawn whole")
+	q.free()
