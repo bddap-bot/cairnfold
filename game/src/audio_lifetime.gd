@@ -24,10 +24,10 @@ func _sync_mixer() -> void:
 ## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
 ## even through stop().
 func finish(code := 0) -> void:
-	var tree := get_tree()
 	if _quitting:
 		return
 	_quitting = true
+	var tree := get_tree()
 	var marker := AudioStreamPlayer.new()
 	marker.stream = AudioStreamGenerator.new()
 	tree.root.add_child(marker)

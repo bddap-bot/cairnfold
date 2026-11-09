@@ -26,7 +26,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	far = _head.far
-	global_transform = CameraPath.at(keys, _t)
+	global_transform = at(keys, _t)
 
 
 ## The keys in the file at `path`, ordered by time, or why it holds none a camera can follow.

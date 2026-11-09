@@ -42,6 +42,7 @@ var carries_body := false
 var _entering := false
 static var _gathered := []
 static var _gathered_frame := -1
+static var _TAGS := _body_tags()
 
 
 ## The contacts of an avatar's expressions, each placed on the bone `bone.call(node name)` answers as [skeleton, bone
@@ -136,9 +137,6 @@ static func body_senders(joint: Callable, height: float, owner: Object) -> Array
 		var to: Variant = _first(joint, b[2])
 		out.append([from, to if to != null else from, b[3] * height, _TAGS[key], owner, [owner.get_instance_id(), key]])
 	return out
-
-
-static var _TAGS := _body_tags()
 
 
 static func _body_tags() -> Dictionary:

@@ -21,22 +21,22 @@ func _init(controller: Hand) -> void:
 
 func pressed(action: String) -> bool:
 	_resumed()
-	return _down(action) and not _was.get(action, false)
+	return held(action) and not _was.get(action, false)
 
 
 func held(action: String) -> bool:
-	return _down(action)
+	return down(hand, Controls.input(action, hand.tracker))
 
 
 func released(action: String) -> bool:
 	_resumed()
-	return not _down(action) and _was.get(action, false)
+	return not held(action) and _was.get(action, false)
 
 
 func latch() -> void:
 	_resumes = resumes
 	for a in _was.keys():
-		_was[a] = _down(a)
+		_was[a] = held(a)
 
 
 func _resumed() -> void:
@@ -48,10 +48,6 @@ func watch(actions: Array) -> Buttons:
 	for a in actions:
 		_was[a] = false
 	return self
-
-
-func _down(action: String) -> bool:
-	return down(hand, Controls.input(action, hand.tracker))
 
 
 ## Whether `controller`'s `input` is held: a button pressed, or the stick flicked that way.

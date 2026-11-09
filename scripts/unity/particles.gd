@@ -173,7 +173,8 @@ func _system(objs: Dictionary, id: int, renderer: int, transform: int, refs: Arr
 
 
 func _shape(s: Dictionary, scale: float) -> Dictionary:
-	var kind: Array = SHAPES.get(_int(s, "type", 4), ["point", -1.0])
+	var type := _int(s, "type", 4)
+	var kind: Array = SHAPES.get(type, ["point", -1.0])
 	var radius: Dictionary = s.get("radius", {}) if s.get("radius") is Dictionary else {}
 	var arc: Dictionary = s.get("arc", {}) if s.get("arc") is Dictionary else {}
 	var thickness: float = kind[1] if kind[1] >= 0.0 else Prefabs.number(s, "radiusThickness", 1.0)
@@ -184,7 +185,7 @@ func _shape(s: Dictionary, scale: float) -> Dictionary:
 	var sc: Variant = s.get("m_Scale")
 	var place := Transform3D(Basis(Prefabs.turn({"x": unity.x, "y": unity.y, "z": unity.z, "w": unity.w})).scaled_local(Vector3(Prefabs.number(sc, "x", 1.0), Prefabs.number(sc, "y", 1.0), Prefabs.number(sc, "z", 1.0)) * scale), Prefabs.mirrored(s.get("m_Position")) * scale)
 	var out := {"type": kind[0], "radius": Prefabs.number(radius, "value", Prefabs.number(s, "radius", 1.0)), "thickness": thickness, "angle": deg_to_rad(Prefabs.number(s, "angle", 25.0)), "arc": deg_to_rad(Prefabs.number(arc, "value", Prefabs.number(s, "arc", 360.0))), "matrix": Prefabs.matrix(place), "randomDirection": Prefabs.number(s, "randomDirectionAmount"), "spherical": Prefabs.number(s, "sphericalDirectionAmount"), "randomPosition": Prefabs.number(s, "randomPositionAmount")}
-	if _int(s, "type", 4) in [8, 9]:
+	if type in [8, 9]:
 		out.length = Prefabs.number(s, "length", 5.0)
 	return out
 
@@ -254,11 +255,11 @@ func _image(guid: String, img: Image) -> int:
 
 ## The mesh a mesh-mode renderer draws, from its model, as arrays; -1 if the model has no such mesh.
 func _mesh(ref: Dictionary) -> int:
-	var key := "%s:%s" % [Yaml.guid(ref), Yaml.file_id(ref)]
+	var guid := Yaml.guid(ref)
+	var key := "%s:%s" % [guid, Yaml.file_id(ref)]
 	if _mesh_of.has(key):
 		return _mesh_of[key]
 	_mesh_of[key] = -1
-	var guid := Yaml.guid(ref)
 	if not _prefabs.assets.by_guid.has(guid):
 		return -1
 	var model := _prefabs.model(guid)
@@ -332,13 +333,8 @@ func effect(c: Dictionary) -> Dictionary:
 
 ## A clip's value `v` for effect `e` as the file holds that field: scaled as import scaled it, a legacy tint doubled.
 func value(e: Dictionary, v: float) -> float:
-	match e.field:
-		"tint":
-			if not _legacy_tint[e.system][0]:
-				return v
-			return _doubled(v) if e.channel < 3 else minf(v * 2.0, 1.0)
-		"material", "emission", "color":
-			return v
+	if e.field == "tint" and _legacy_tint[e.system][0]:
+		return _doubled(v) if e.channel < 3 else minf(v * 2.0, 1.0)
 	return v * float((_factors[e.system] as Dictionary).get(e.field, 1.0))
 
 

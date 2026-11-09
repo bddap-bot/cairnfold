@@ -139,17 +139,12 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		out.colorOverLife = _gradient(s.get("colorOverLife"))
 	if s.has("spin"):
 		out.spin = _axes(s.get("spin"), ZERO)
-	for key: String in ["sizeBySpeed", "colorBySpeed"]:
-		var by: Variant = s.get(key)
-		if by is Dictionary:
-			var r: Variant = by.get("range")
-			var low := _number(r[0], 0.0) if r is Array and r.size() == 2 else 0.0
-			var high := _number(r[1], 1.0) if r is Array and r.size() == 2 else 1.0
-			out[key] = {"range": [low, high if high > low else low + 1.0]}
-			if key == "sizeBySpeed":
-				out[key].size = _curve(by.get("size"), ONE)
-			else:
-				out[key].color = _gradient(by.get("color"))
+	var size_by: Variant = s.get("sizeBySpeed")
+	if size_by is Dictionary:
+		out.sizeBySpeed = {"range": _range(size_by.get("range")), "size": _curve(size_by.get("size"), ONE)}
+	var colour_by: Variant = s.get("colorBySpeed")
+	if colour_by is Dictionary:
+		out.colorBySpeed = {"range": _range(colour_by.get("range")), "color": _gradient(colour_by.get("color"))}
 	var subs := []
 	for sub: Variant in s.get("subEmitters", []) if s.get("subEmitters") is Array else []:
 		if sub is Dictionary and ExpressionDefinition._index(sub.get("system"), systems) and sub.get("on") in ["birth", "death"] and subs.size() < MAX_SUB_EMITTERS:
@@ -194,10 +189,21 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 	return out
 
 
+## A by-speed range of two speeds, the upper above the lower.
+static func _range(r: Variant) -> Array:
+	var low := _number(r[0], 0.0) if r is Array and r.size() == 2 else 0.0
+	var high := _number(r[1], 1.0) if r is Array and r.size() == 2 else 1.0
+	return [low, high if high > low else low + 1.0]
+
+
+## Whether `a` is a curve's or gradient's list of samples, each one `sample` accepts.
+static func _samples(a: Variant, sample: Callable) -> bool:
+	return a is Array and a.size() >= 1 and a.size() <= MAX_SAMPLES and a.all(sample)
+
+
 ## A curve, its samples floats and its scale two numbers; `otherwise` where it is malformed.
 static func _curve(v: Variant, otherwise: Dictionary) -> Dictionary:
-	var ok := func(a: Variant) -> bool: return a is Array and a.size() >= 1 and a.size() <= MAX_SAMPLES and a.all(_finite)
-	if not v is Dictionary or not ok.call(v.get("min")) or not ok.call(v.get("max")) or not (v.get("scale") is Array and v.scale.size() == 2 and v.scale.all(_finite)):
+	if not v is Dictionary or not _samples(v.get("min"), _finite) or not _samples(v.get("max"), _finite) or not (v.get("scale") is Array and v.scale.size() == 2 and v.scale.all(_finite)):
 		v = otherwise
 	return {"min": PackedFloat32Array(v.min), "max": PackedFloat32Array(v.max), "scale": [float(v.scale[0]), float(v.scale[1])]}
 
@@ -211,8 +217,8 @@ static func _axes(v: Variant, otherwise: Dictionary) -> Array:
 
 ## A gradient's two ends, each linear colours.
 static func _gradient(v: Variant) -> Dictionary:
-	var ok := func(a: Variant) -> bool: return a is Array and a.size() >= 1 and a.size() <= MAX_SAMPLES and a.all(func(c: Variant) -> bool: return c is Array and c.size() == 4 and c.all(_finite))
-	if not v is Dictionary or not ok.call(v.get("min")) or not ok.call(v.get("max")):
+	var rgba := func(c: Variant) -> bool: return c is Array and c.size() == 4 and c.all(_finite)
+	if not v is Dictionary or not _samples(v.get("min"), rgba) or not _samples(v.get("max"), rgba):
 		v = WHITE
 	var linear := func(samples: Array) -> PackedColorArray:
 		return PackedColorArray(samples.map(func(c: Array) -> Color: return _colour(c, Color.WHITE)))

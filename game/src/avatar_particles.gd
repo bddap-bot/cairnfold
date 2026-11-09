@@ -147,11 +147,11 @@ func _build(s: System, meshes: Array) -> void:
 	s.instance.visible = false
 	add_child(s.instance)
 	var curves := ImageTexture.create_from_image(_curves(d))
+	var by_size: Array = d.sizeBySpeed.range if d.has("sizeBySpeed") else [0.0, 1.0]
+	var by_colour: Array = d.colorBySpeed.range if d.has("colorBySpeed") else [0.0, 1.0]
 	for m: Dictionary in r.materials:
 		var mat := ShaderMaterial.new()
 		mat.shader = SHADERS[m.blend]
-		var by_size: Array = d.sizeBySpeed.range if d.has("sizeBySpeed") else [0.0, 1.0]
-		var by_colour: Array = d.colorBySpeed.range if d.has("colorBySpeed") else [0.0, 1.0]
 		var tint: Color = m.color
 		var glow: Color = m.emission
 		var uniforms := {
@@ -332,10 +332,8 @@ func _follow(s: System, delta: float) -> void:
 		var died := age >= s.lives[parent]
 		if f.on == "death":
 			if died:
-				var fired := PackedInt32Array()
-				fired.resize((child.definition.bursts as Array).size())
 				# A death's burst is whole whatever the frame's budget: nothing would give it later.
-				for k in mini(_bursts(child.definition.bursts, fired, 0.0), child.definition.max):
+				for k in mini(_bursts(child.definition.bursts, f.bursts_fired, 0.0), child.definition.max):
 					_emit(child, Transform3D(child.frame.basis, position), Vector3.ZERO, 0.0, s, parent, f.inherit)
 			else:
 				kept.append(f)

@@ -50,11 +50,13 @@ func lay(flames: Array[Transform3D], cloths: Array[Dictionary], burning := 0) ->
 	var strength: float = Lamps.STRENGTHS[look % Lamps.STRENGTHS.size()]
 	var flame := Basis().scaled(Vector3.ONE * pow(strength, 0.25))
 	var halo := Basis().scaled(Vector3.ONE * sqrt(strength))
+	var colour := Palette.swatch(Palette.Element.LANTERN, look)
+	var glow := Color(Palette.GLOWS[look / Lamps.STRENGTHS.size()], sqrt(strength) * 0.5)
 	for i in flames.size():
 		fm.set_instance_transform(i, Transform3D(flame * flames[i].basis, flames[i].origin))
-		fm.set_instance_color(i, Palette.swatch(Palette.Element.LANTERN, look))
+		fm.set_instance_color(i, colour)
 		hm.set_instance_transform(i, Transform3D(halo, flames[i].origin))
-		hm.set_instance_color(i, Color(Palette.GLOWS[look / Lamps.STRENGTHS.size()], sqrt(strength) * 0.5))
+		hm.set_instance_color(i, glow)
 	var cm := _cloths.multimesh
 	cm.instance_count = cloths.size()
 	for i in cloths.size():

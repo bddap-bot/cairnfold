@@ -45,8 +45,8 @@ static func _scan(dir: String) -> Dictionary:
 		for sub in DirAccess.get_directories_at(at):
 			pending.append(at.path_join(sub))
 		for f in DirAccess.get_files_at(at):
-			if f.ends_with(".meta") and FileAccess.file_exists(at.path_join(f.trim_suffix(".meta"))):
-				var file := at.path_join(f.trim_suffix(".meta"))
+			var file := at.path_join(f.trim_suffix(".meta"))
+			if f.ends_with(".meta") and FileAccess.file_exists(file):
 				_add(out, file, file.trim_prefix(dir).trim_prefix("/"), at.path_join(f))
 	return out
 
