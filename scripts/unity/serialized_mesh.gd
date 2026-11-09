@@ -7,6 +7,7 @@ extends RefCounted
 ## bind poses, skinned to a Skeleton3D whose bone i is the renderer's bone i, resting where its bind pose puts it.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
+const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 
 ## Bytes per component, by Unity's VertexAttributeFormat.
 const SIZES := [4, 2, 1, 1, 2, 2, 1, 1, 2, 2, 4, 4]
@@ -94,7 +95,7 @@ static func read(mesh: Dictionary, bones: PackedStringArray) -> Variant:
 		var deltas := {}
 		for k in n:
 			var e: Dictionary = shape_vertices[first + k]
-			deltas[str(e.get("index", "0")).to_int()] = [_mirrored(e.get("vertex")) * by, _mirrored(e.get("normal")) * by]
+			deltas[str(e.get("index", "0")).to_int()] = [Prefabs.mirrored(e.get("vertex")) * by, Prefabs.mirrored(e.get("normal")) * by]
 		morphs.append([str(c.get("name", "")), deltas])
 	var am := ArrayMesh.new()
 	am.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_NORMALIZED
@@ -223,12 +224,6 @@ static func _uv(column: PackedFloat32Array, first: int, n: int) -> PackedVector2
 	for i in n:
 		out[i] = Vector2(column[(first + i) * 2], 1.0 - column[(first + i) * 2 + 1])
 	return out
-
-
-## A Unity {x, y, z} in Godot's axes.
-static func _mirrored(v: Variant) -> Vector3:
-	var get := func(k: String) -> float: return str((v as Dictionary).get(k, "0")).to_float() if v is Dictionary else 0.0
-	return MIRROR * Vector3(get.call("x"), get.call("y"), get.call("z"))
 
 
 ## A Unity Matrix4x4 ({e00 ... e33}, row then column) in Godot's axes.

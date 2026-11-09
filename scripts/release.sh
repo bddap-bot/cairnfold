@@ -11,7 +11,6 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/pins.sh
 
-# highest: the highest published tag, $tag included.
 highest() {
   gh release list --exclude-drafts --limit 100000 --json tagName --jq \
     "[.[].tagName, \"$tag\" | select(test(\"^r[0-9]+$\")) | ltrimstr(\"r\") | tonumber] | max | \"r\(.)\""

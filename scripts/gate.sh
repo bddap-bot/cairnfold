@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs what AGENTS.md says a change owes before it lands, for the diff from BASE (default origin/main) to the working
 # tree: gate.sh [BASE]. Every change owes test.sh, a changed shell script shellcheck, a change to World, Commands or a
-# tool coop.sh, a change to what scripts/android.sh builds from both APKs, and a change to what scripts/package.sh builds
+# tool coop.py, a change to what scripts/android.sh builds from both APKs, and a change to what scripts/package.sh builds
 # from its three packages.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,8 +21,8 @@ if [ ${#shells[@]} -gt 0 ]; then
   nix-shell --run "shellcheck ${shells[*]}"
 fi
 if owes '^game/src/(world|commands|[a-z_]+_tool)\.gd$'; then
-  echo "gate: scripts/coop.sh"
-  nix-shell --run "scripts/coop.sh $out/coop"
+  echo "gate: scripts/coop.py"
+  nix-shell --run "scripts/coop.py $out/coop"
 fi
 if owes '^(android\.nix|godot\.nix|nixpkgs\.nix|scripts/with-jobs|scripts/(android|engine|export|notices|pins|stage)\.sh|scripts/(android-notices\.gradle|engine\.patch|notices\.py)|game/(project\.godot|export_presets\.cfg|android/.*))$'; then
   for target in quest lepton; do

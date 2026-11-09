@@ -14,7 +14,7 @@ trap 'rm -rf "$shots"' EXIT
 CAIRNFOLD_QUIT_AFTER=400 "$root/scripts/render.sh" "$root/demo/steam.json" "$shots" --resolution 3840x2160
 
 # Two players: this render hosts, a headless instance visits it and stays until the host's digest says it has its
-# shot. Ports of their own, as in coop.sh.
+# shot. Ports of their own, as in coop.py.
 port=$((7480 + 8 * (RANDOM % 7)))
 (cd "$root/game" && exec timeout "${CAIRNFOLD_TIMEOUT:-1800}" godot4 --headless --path . --xr-mode off -- --desktop \
   --script "$root/demo/steam-coop-join.json" --capture-dir "$shots" --host-port "$port" --port $((port + 8)) --avatar 1 \

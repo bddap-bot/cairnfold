@@ -913,7 +913,12 @@ static func _positional(glb: PackedByteArray, extras := {}) -> PackedByteArray:
 	json.buffers = [{"byteLength": out_bin.size()}]
 	if not extras.is_empty():
 		json.asset.extras = extras
-	var text := JSON.stringify(_whole(json), "", false, true).to_utf8_buffer()
+	return glb(_whole(json), out_bin)
+
+
+## A binary glTF of `json` and its binary chunk `bin`.
+static func glb(json: Dictionary, bin: PackedByteArray) -> PackedByteArray:
+	var text := JSON.stringify(json, "", false, true).to_utf8_buffer()
 	while text.size() % 4 != 0:
 		text.append(0x20)
 	var out := PackedByteArray()
@@ -924,9 +929,9 @@ static func _positional(glb: PackedByteArray, extras := {}) -> PackedByteArray:
 	out.encode_u32(16, 0x4E4F534A)
 	for i in text.size():
 		out[20 + i] = text[i]
-	out.encode_u32(20 + text.size(), out_bin.size())
+	out.encode_u32(20 + text.size(), bin.size())
 	out.encode_u32(24 + text.size(), 0x004E4942)
-	out.append_array(out_bin)
+	out.append_array(bin)
 	out.encode_u32(8, out.size())
 	return out
 

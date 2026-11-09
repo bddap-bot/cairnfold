@@ -1,6 +1,6 @@
 # Sample avatars
 
-Public VRM files the avatar tests and `scripts/coop.sh` read. None ships with the game.
+Public VRM files the avatar tests and `scripts/coop.py` read. None ships with the game.
 
 - `crimsom-0.x.vrm`: "Crimsom", avatar 001 of 100Avatars by Polygonal Mind, CC0
   (https://github.com/kourtincat/100Avatars, `100Avatars_001/100Avatars_001_Crimsom.vrm`).

@@ -260,7 +260,7 @@ static func _full_controller(ex: Expressions, objs: Dictionary, paths: Dictionar
 			if p is Dictionary:
 				synced[str(p.get("name", ""))] = Yaml.on(p, "networkSynced")
 	var renamed := func(n: String) -> String:
-		if n == "" or own.has(n) or (global.has("*") and not global.has("!" + n)) or global.has(n) or n in BUILT_IN or Expressions.BUILT_IN.has(n) or (nonsynced_global and not synced.get(n, false)):
+		if n == "" or own.has(n) or (global.has("*") and not global.has("!" + n)) or global.has(n) or n in BUILT_IN or (nonsynced_global and not synced.get(n, false)):
 			return n
 		return "VF%d_%s" % [f.index, n]
 	var layers := []

@@ -39,17 +39,19 @@ if [ -p "${fifo%% *}" ]; then jobs=(); else jobs=(-j "$(( $(nproc) / 2 ))"); fi
 # shellcheck disable=SC2046,SC2012
 make -s -k -f "$runs/tests.mk" "${jobs[@]}" $(ls -S tests/test_*.gd | sed "s|^tests/\(.*\)|$runs/\1.log.exit|")
 errors='SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter "material" is null|Parameter "mem|must be normalized'
+# verdict TEST LOG EXIT_CODE ERRORS
+verdict() {
+  local failed=0
+  if [ "$3" != 0 ]; then echo "$1: exited $3"; failed=1; fi
+  grep -E "^(tests|FAIL):|$4" "$2" | sed "s|^|$1: |" || true
+  # A test that stops short of its end, however it exits, never prints its verdict.
+  if grep -qE "$4" "$2" || ! grep -q "^tests: ok" "$2"; then failed=1; fi
+  # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
+  if [ "$failed" = 1 ]; then tail -n 60 "$2" | sed "s|^|$1: |"; status=1; fi
+}
 for t in tests/test_*.gd; do
   log="$runs/$(basename "$t").log"
-  code=$(cat "$log.exit")
-  failed=0
-  if [ "$code" != 0 ]; then echo "$t: exited $code"; failed=1; fi
-  grep -E "^(tests|FAIL):|$errors" "$log" | sed "s|^|$t: |" || true
-  if grep -qE "$errors" "$log"; then failed=1; fi
-  # A test that stops short of its end, however it exits, never prints its verdict.
-  if ! grep -q "^tests: ok" "$log"; then failed=1; fi
-  # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
-  if [ "$failed" = 1 ]; then tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
+  verdict "$t" "$log" "$(cat "$log.exit")" "$errors"
 done
 # The GPU checks compare what the compute shaders lay, so they run on the desktop renderer under a virtual display, as
 # scripts/render.sh does, one at a time.
@@ -65,8 +67,7 @@ for t in tests/gpu_*.gd; do
     scripts/timeout.sh 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 &
   gpu=$!
   wait "$gpu" || code=$?
-  grep -E "^(tests|FAIL):|$gpu_errors" "$log" | sed "s|^|$t: |" || true
-  if [ "$code" != 0 ] || grep -qE "$gpu_errors" "$log" || ! grep -q "^tests: ok" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
+  verdict "$t" "$log" "$code" "$gpu_errors"
 done
 if ! wait "$python"; then status=1; fi
 cat "$runs/python.log"

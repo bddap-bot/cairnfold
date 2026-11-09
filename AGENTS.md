@@ -88,4 +88,4 @@ controls and the build order.
     an opted-in device, its session record.
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
-  `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.sh out'` must pass too.
+  `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.py out'` must pass too.

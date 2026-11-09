@@ -181,7 +181,7 @@ func _roundtrip() -> void:
 	Vrm.write(model, "user://particles.vrm")
 	model.free()
 	var bytes := FileAccess.get_file_as_bytes("user://particles.vrm")
-	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var written: Dictionary = json.extensions.get(Vrm.PARTICLES, {})
 	check((written.get("systems", []) as Array).size() == 2 and written.systems[0].node is float, "the systems are written with their node's index")
 	var index := int(written.systems[0].renderer.materials[0].get("image", -1)) if not written.is_empty() else -1

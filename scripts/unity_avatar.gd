@@ -142,8 +142,9 @@ static func wearable(root: Node3D) -> void:
 	var bone_of := {}
 	for key: String in human:
 		var path: NodePath = human[key]
-		if str(path).get_slice(":", 0) == skeleton and sk.find_bone(path.get_concatenated_subnames()) >= 0:
-			bone_of[key] = sk.find_bone(path.get_concatenated_subnames())
+		var bone := sk.find_bone(path.get_concatenated_subnames())
+		if str(path).get_slice(":", 0) == skeleton and bone >= 0:
+			bone_of[key] = bone
 	var renamed := {}
 	for key: String in bone_of:
 		if key in Vrm.BONES:
@@ -865,12 +866,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	if c["class"] == VRCFury.ANIMATOR and c.path == "" and not c.has("refs"):
 		if not parameters.has(c.attribute):
 			return -1
-		var effect := {"parameter": c.attribute}
-		for i in targets.size():
-			if targets[i].effect is Dictionary and targets[i].effect == effect:
-				return i
-		targets.append({"effect": effect, "default": float(parameters[c.attribute].get("default", 0.0)), "rest": 1.0})
-		return targets.size() - 1
+		return _target_of(targets, {"parameter": c.attribute}, float(parameters[c.attribute].get("default", 0.0)), 1.0)
 	if not paths.has(c.path) or c.has("refs"):
 		return -1
 	var transform: int = paths[c.path]
@@ -997,15 +993,20 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 			effect = {"rotation": {"node": sk.get_bone_name(bone), "axis": axis, "rest": values}}
 	else:
 		return -1
-	for i in targets.size():
-		if targets[i].effect is Dictionary and targets[i].effect == effect:
-			return i
 	var default := 1.0
 	if effect.has("morph") or ExpressionDefinition.region(effect) != "" or effect.has("rotation") or effect.has("constraint"):
 		default = rest
 	elif effect.has("translation"):
 		default = 0.0
-	targets.append({"effect": effect, "default": default, "rest": rest if effect.has("scale") or effect.has("translation") else 1.0})
+	return _target_of(targets, effect, default, rest if effect.has("scale") or effect.has("translation") else 1.0)
+
+
+## The index of the target in `targets` with `effect`, appended with `default` and `rest` where none has it.
+static func _target_of(targets: Array, effect: Dictionary, default: float, rest: float) -> int:
+	for i in targets.size():
+		if targets[i].effect is Dictionary and targets[i].effect == effect:
+			return i
+	targets.append({"effect": effect, "default": default, "rest": rest})
 	return targets.size() - 1
 
 
@@ -1030,12 +1031,7 @@ static func _particle_target(c: Dictionary, particles: Particles, targets: Array
 	var particle := particles.effect(c)
 	if particle.is_empty():
 		return -1
-	var effect := {"particle": particle}
-	for i in targets.size():
-		if targets[i].effect is Dictionary and targets[i].effect == effect:
-			return i
-	targets.append({"effect": effect, "default": particles.rest(particle), "rest": 1.0})
-	return targets.size() - 1
+	return _target_of(targets, {"particle": particle}, particles.rest(particle), 1.0)
 
 
 ## Clip key `k` of a particle effect's curve in the file's terms (Particles.value), its slopes through the same map.

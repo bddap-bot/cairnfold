@@ -26,7 +26,7 @@ func _run() -> void:
 		var scene := Avatar.read(FileAccess.get_file_as_bytes(avatar_file(path)))
 		check(scene != null, "%s reads as an avatar" % path)
 		if scene != null:
-			_within_limits(scene, path, _gltf_json(FileAccess.get_file_as_bytes(avatar_file(path))))
+			_within_limits(scene, path, Vrm.json_chunk(FileAccess.get_file_as_bytes(avatar_file(path))))
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
 			_fingers_curl_into_the_palm(scene, path)
@@ -156,13 +156,13 @@ func _read_limits_follow_memory() -> void:
 ## `bytes`, a VRM file, grown to `size` bytes by a tail of its buffer that nothing refers to.
 func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
-	var json := _gltf_json(bytes)
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + length, 28 + length + bytes.decode_u32(20 + length))
-	var out := _glb(json, bin)
+	var out := Vrm.glb(json, bin)
 	while out.size() != size:
 		bin.resize(bin.size() + size - out.size())
 		json.buffers[0].byteLength = bin.size()
-		out = _glb(json, bin)
+		out = Vrm.glb(json, bin)
 	return out
 
 
@@ -173,28 +173,28 @@ func _textures_share_the_texel_limit() -> void:
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGBA8).save_png_to_buffer()
 	var three := _with_images(bytes, [png.call(64, 64), png.call(64, 64), png.call(64, 64)])
 	check(Avatar.read(three) != null, "a file whose images are all measured is read")
-	var hidden := _gltf_json(three)
+	var hidden: Dictionary = Vrm.json_chunk(three)
 	hidden.images[2] = {"uri": "data:image/png;base64," + Marshalls.raw_to_base64(png.call(4, 4)), "mimeType": "image/png"}
-	check(Avatar.read(_glb(hidden, three.slice(28 + three.decode_u32(12)))) == null, "a file holding an image its headers were not measured from is refused")
-	var lying := _gltf_json(three)
+	check(Avatar.read(Vrm.glb(hidden, three.slice(28 + three.decode_u32(12)))) == null, "a file holding an image its headers were not measured from is refused")
+	var lying: Dictionary = Vrm.json_chunk(three)
 	lying.images.push_front({})
-	check(Avatar.read(_glb(lying, three.slice(28 + three.decode_u32(12)))) == null, "a file whose images decode out of the places they were measured in is refused")
+	check(Avatar.read(Vrm.glb(lying, three.slice(28 + three.decode_u32(12)))) == null, "a file whose images decode out of the places they were measured in is refused")
 
 
 func _unweighted_children_keep_humanoid_bones() -> void:
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
-	var json := _gltf_json(bytes)
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	for bone: String in ["hips", "head"]:
 		var node := int(json.extensions.VRMC_vrm.humanoid.humanBones[bone].node)
 		json.nodes[node].get_or_add("children", []).append(json.nodes.size())
 		json.nodes.append({"name": bone + " unweighted child", "translation": [0, 0.1, 0]})
-	check(Avatar.read(_glb(json, bin)) != null, "unweighted children leave hips and head bound to their skeleton bones")
+	check(Avatar.read(Vrm.glb(json, bin)) != null, "unweighted children leave hips and head bound to their skeleton bones")
 
 
 func _blend_shapes_are_bounded() -> void:
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
-	var json := _gltf_json(bytes)
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	var prim: Dictionary = json.meshes[0].primitives[0]
 	var vertices: int = json.accessors[int(prim.attributes.POSITION)].count
@@ -206,7 +206,7 @@ func _blend_shapes_are_bounded() -> void:
 	prim.targets = many
 	json.meshes[0].erase("weights")
 	json.meshes[0].get("extras", {}).erase("targetNames")
-	check(Avatar.read(_glb(json, bin)) == null, "a file of %d blend shapes over %d vertices is refused" % [many.size(), vertices])
+	check(Avatar.read(Vrm.glb(json, bin)) == null, "a file of %d blend shapes over %d vertices is refused" % [many.size(), vertices])
 
 
 ## A written blend shape turns the normals of the surface it tilts, and only those: a flat grid whose x > 0 half a shape
@@ -252,7 +252,7 @@ func _shape_normals_turn_with_the_shape() -> void:
 	check(doc.append_from_scene(root, state) == OK, "a ramp shape exports")
 	root.free()
 	var glb := Vrm._positional(doc.generate_buffer(state))
-	var json := _gltf_json(glb)
+	var json: Dictionary = Vrm.json_chunk(glb)
 	var bin := glb.slice(28 + glb.decode_u32(12))
 	var data: Array = json.bufferViews.map(func(v: Dictionary) -> PackedByteArray: return bin.slice(int(v.get("byteOffset", 0)), int(v.get("byteOffset", 0)) + int(v.byteLength)))
 	var primitive: Dictionary = json.meshes[0].primitives[0]
@@ -276,7 +276,7 @@ func _shape_normals_turn_with_the_shape() -> void:
 ## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.
 func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
-	var json := _gltf_json(bytes)
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + length, 28 + length + bytes.decode_u32(20 + length))
 	json.images = []
 	for image: PackedByteArray in images:
@@ -286,27 +286,7 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 		while bin.size() % 4:
 			bin.append(0)
 	json.buffers[0].byteLength = bin.size()
-	return _glb(json, bin)
-
-
-## A binary glTF of `json` and its binary chunk `bin`.
-func _glb(json: Dictionary, bin: PackedByteArray) -> PackedByteArray:
-	var text := JSON.stringify(json).to_utf8_buffer()
-	while text.size() % 4:
-		text.append(0x20)
-	var out := PackedByteArray()
-	out.resize(20)
-	out.encode_u32(0, 0x46546C67)
-	out.encode_u32(4, 2)
-	out.encode_u32(8, 28 + text.size() + bin.size())
-	out.encode_u32(12, text.size())
-	out.encode_u32(16, 0x4E4F534A)
-	out.append_array(text)
-	var head := PackedByteArray()
-	head.resize(8)
-	head.encode_u32(0, bin.size())
-	head.encode_u32(4, 0x004E4942)
-	return out + head + bin
+	return Vrm.glb(json, bin)
 
 
 ## The Unity sample package imports as the avatar model straight from its FBX and .meta: its skeleton, skin and blend
@@ -381,7 +361,7 @@ func _rest_weights_survive_the_vrm() -> void:
 	UnityAvatar.wearable(model)
 	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
 	Vrm.write(model, path, {"converter": UnityAvatar.source()})
-	var stamp: Variant = _gltf_json(FileAccess.get_file_as_bytes(path)).asset.get("extras", {}).get("converter")
+	var stamp: Variant = Vrm.json_chunk(FileAccess.get_file_as_bytes(path)).asset.get("extras", {}).get("converter")
 	var head := []
 	var status := []
 	OS.execute("git", ["-C", ProjectSettings.globalize_path("res://.."), "rev-parse", "HEAD"], head)
@@ -455,7 +435,7 @@ func _writes_expressions(model: Node3D) -> void:
 	var vrm := ProjectSettings.globalize_path("user://seed-san.vrm")
 	Vrm.write(worn, vrm)
 	worn.free()
-	var json := _gltf_json(FileAccess.get_file_as_bytes(vrm))
+	var json: Dictionary = Vrm.json_chunk(FileAccess.get_file_as_bytes(vrm))
 	var used: Array = json.get("extensionsUsed", [])
 	check((json.extensions as Dictionary).keys().all(func(e: String) -> bool: return used.has(e)), "the file lists the extensions it carries: %s of %s" % [used, (json.extensions as Dictionary).keys()])
 	var expressions: Dictionary = json.extensions.VRMC_vrm.expressions
@@ -531,7 +511,7 @@ func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> voi
 ## Where a binary glTF's own skins put each vertex over the posed avatar's bones, by rest position; its joints are
 ## checked to rest where the file's nodes do.
 func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
-	var json := _gltf_json(bytes)
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	var sk := a._skeleton
 	var at := Meshes.relative(sk, a._model)
@@ -622,11 +602,6 @@ func _floats(json: Dictionary, bin: PackedByteArray, index: int) -> PackedFloat3
 			var o := start + i * stride + c * size
 			out[i * width + c] = bin.decode_float(o) if size == 4 else (bin[o] if size == 1 else bin.decode_u16(o)) / scale
 	return out
-
-
-## The JSON chunk of a binary glTF.
-func _gltf_json(bytes: PackedByteArray) -> Dictionary:
-	return JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
 
 
 func _built_in_reads_as_humanoid(i: int) -> void:
@@ -1118,7 +1093,7 @@ func _set_blend_shapes_are_written() -> void:
 	var path := ProjectSettings.globalize_path("user://shaped.vrm")
 	Vrm.write(root, path)
 	root.free()
-	var json := _gltf_json(FileAccess.get_file_as_bytes(path))
+	var json: Dictionary = Vrm.json_chunk(FileAccess.get_file_as_bytes(path))
 	var weights: Array = json.meshes[0].get("weights", [])
 	check(weights.size() == 2 and is_equal_approx(weights[0], 0.75) and is_zero_approx(weights[1]), "a set blend shape is written as its mesh's weight: %s" % [weights])
 
@@ -1212,7 +1187,7 @@ func _read_skins_bind_only_weighed_bones() -> void:
 					used[arrays[Mesh.ARRAY_BONES][k]] = true
 		return used.size() == skin.get_bind_count()
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))
-	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var joints: int = (json.skins as Array).map(func(skin: Dictionary) -> int: return (skin.joints as Array).size()).max()
 	var model := Avatar.read(bytes).instantiate()
 	var skinned := model.find_children("*", "MeshInstance3D", true, false).filter(func(mi: MeshInstance3D) -> bool: return mi.skin != null)

@@ -1019,6 +1019,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					now[k] = cmd.data[k]
 			if cmd.of == "walls":
 				wall_tool.restyle(cmd.id, cmd.data.keys())
+				_floor_mark(cmd.id)
 			elif cmd.of == "stairs":
 				stairs.settle(cmd.id)
 			elif cmd.of == "decorations":
@@ -1032,8 +1033,6 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			elif boulders != null:
 				boulders.put(cmd.id, now)
 			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
-			if cmd.of == "walls":
-				_floor_mark(cmd.id)
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs":
 			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
@@ -1461,12 +1460,10 @@ func _hushed(change: Callable) -> Variant:
 func _clear() -> void:
 	for h in holders:
 		h.call(&"clear")
-	for id in _strokes:
-		marks.lift(_strokes[id])
-	_strokes.clear()
-	for id in _floor_marks:
-		marks.lift(_floor_marks[id])
-	_floor_marks.clear()
+	for d: Dictionary in [_strokes, _floor_marks]:
+		for id in d:
+			marks.lift(d[id])
+		d.clear()
 	state = blank()
 	_fills.clear()
 	units = {}

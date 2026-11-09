@@ -592,7 +592,7 @@ Only a game a player launched beacons on the network. One started with `--script
 `--join` or `--port`, or built inside a test, sends its beacon to this machine's loopback address only
 and listens there only, so a player never sees a scripted or test instance on the wheel.
 Scripts can select a private four-port discovery range with `--beacon-port BASE`.
-`coop.sh` reserves a separate range for each run, so unrelated headless instances
+`coop.py` reserves a separate range for each run, so unrelated headless instances
 cannot take its listeners. Player launches still use ports 7469–7472.
 Scripts on one machine still find each other by beacon, and scripts that play with another
 machine (the bench's players) connect with `--join`. `tests/test_beacon.gd` fails if a
@@ -600,7 +600,7 @@ scripted or test instance beacons past loopback.
 
 ## Proof
 
-`scripts/coop.sh OUT [N]` plays N headless instances on one machine (four by default,
+`scripts/coop.py OUT [N]` plays N headless instances on one machine (four by default,
 two through eight supported):
 1. One hosts; a second discovers its beacon and joins through the inventory wheel wearing
    a custom VRM 1.0 avatar.
@@ -634,7 +634,7 @@ checks the VRM keeps its skins, blend shapes and every bone of its Avatar defini
 joint, and
 that it reads, poses and reaches as the VRM samples do. `tests/test_posture.gd` checks that each recorded pose, held at any heading over ground at any height, reads as itself, that crouches stand, that a ledge needs a drop ahead, the dwell and blend, and that every built-in and sample avatar keeps its eyes and hands on their tracked points through every pose and blend while its body bones turn as the recording's did.
 
-`scripts/coop.sh OUT --flat` renders a host and a flat-screen player (`--flat`) on one machine,
+`scripts/coop.py OUT --flat` renders a host and a flat-screen player (`--flat`) on one machine,
 each wearing a sample avatar from its own avatars folder: the flat-screen player hears the
 host's beacon, opens the shared inventory wheel and picks the host's figure (in
 the host's file), walks up to the host and takes a photo of it into `OUT/photos`; the
@@ -666,7 +666,7 @@ the same run ([record](../perf/quest-2/stress/20261027T191500Z-d62d7e6.json)). F
 
 ### Headless co-op CPU and traffic
 
-`coop.sh` writes `costs.json`, raw `*-cost.json` ENet samples and
+`coop.py` writes `costs.json`, raw `*-cost.json` ENet samples and
 `process-cpu.json` process-counter samples alongside the gardens and logs. Each
 phase lasts four wall-clock seconds after all peers have loaded the other avatars
 and the garden has settled. The two-player phase precedes the N-player phase in

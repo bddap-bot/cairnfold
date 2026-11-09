@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Drive the existing build gestures with N peers, then check every peer's view and every peer's session record."""
 import argparse
 import ctypes
@@ -746,7 +747,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out", type=Path)
     parser.add_argument("players", type=int, nargs="?", default=4)
-    parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
     parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
     parser.add_argument("--reshape", action="store_true", help="only a host reshaping houses while a visitor edits beside them")
     args = parser.parse_args()
@@ -757,6 +757,5 @@ if __name__ == "__main__":
             run(args.out.resolve(), 2, only)
             raise SystemExit(0)
     run(args.out.resolve() / "spawn", 2, "spawn")
-    if not args.spawn:
-        run(args.out.resolve() / "reshape", 2, "reshape")
-        run(args.out.resolve(), args.players)
+    run(args.out.resolve() / "reshape", 2, "reshape")
+    run(args.out.resolve(), args.players)

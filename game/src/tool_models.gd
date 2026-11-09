@@ -49,7 +49,6 @@ const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1
 
 static var _mats := {}
 static var _meshes := {}
-static var _stars := {}
 static var _boulder_previews := {}
 ## The pieces of each build style's miniature, by `_style_key`, built on a worker thread: laid out on the frame, a
 ## Quest 2's first roof wheel held it 214 ms. `_lock` guards these and every cache the worker fills.
@@ -368,27 +367,23 @@ static func tip(tool: Hand.Tool) -> Vector3:
 
 
 ## A flat star of `points` points, `outer` to their tips and `inner` to the notches between, 3 mm thick.
-static func _star(points: int, outer: float, inner: float) -> ArrayMesh:
-	var key := "%d_%s_%s" % [points, outer, inner]
-	if _stars.has(key):
-		return _stars[key]
-	var rim: Array[Vector3] = []
-	for i in points * 2:
-		var a := PI * i / points
-		rim.append(Vector3(sin(a), 0, -cos(a)) * (outer if i % 2 == 0 else inner))
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var up := Vector3(0, 0.0015, 0)
-	for i in rim.size():
-		var a := rim[i]
-		var b := rim[(i + 1) % rim.size()]
-		for tri in [[up, a + up, b + up], [-up, b - up, a - up], [a + up, b - up, b + up], [a + up, a - up, b - up]]:
-			for v in tri:
-				st.add_vertex(v)
-	st.generate_normals()
-	var mesh := st.commit()
-	_stars[key] = mesh
-	return mesh
+static func _star(points: int, outer: float, inner: float) -> Mesh:
+	return shared("star %d %s %s" % [points, outer, inner], func() -> ArrayMesh:
+		var rim: Array[Vector3] = []
+		for i in points * 2:
+			var a := PI * i / points
+			rim.append(Vector3(sin(a), 0, -cos(a)) * (outer if i % 2 == 0 else inner))
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var up := Vector3(0, 0.0015, 0)
+		for i in rim.size():
+			var a := rim[i]
+			var b := rim[(i + 1) % rim.size()]
+			for tri in [[up, a + up, b + up], [-up, b - up, a - up], [a + up, b - up, b + up], [a + up, a - up, b - up]]:
+				for v in tri:
+					st.add_vertex(v)
+		st.generate_normals()
+		return st.commit())
 
 
 ## A little easel holding a painted canvas.
@@ -1091,7 +1086,7 @@ static func _boulders(root: Node3D) -> void:
 		var shape := BoulderLayout.shape(b[0], StoneStyles.MOSSY)
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoulderLayout.arrays(shape, BoulderLayout.FAR + 1))
-		piece(root, mesh, BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, func(_x: float, _z: float) -> float: return b[1].y), stone)
+		piece(root, mesh, BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, Terrain.flat), stone)
 
 
 ## A garden spade held blade ahead: it digs things up.

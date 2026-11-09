@@ -11,8 +11,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 measured=(game demo '*.nix' scripts/{engine,export,stage,android,package,render,bench,pins}.sh scripts/engine.patch)
+# tree_is REVISION: the working tree, untracked files included, holds REVISION's measured files.
+tree_is() {
+  git diff --quiet "$1" -- "${measured[@]}" && [ -z "$(git ls-files --others --exclude-standard -- "${measured[@]}")" ]
+}
 if [ "${1:-}" = --tree ]; then
-  git diff --quiet "$2" -- "${measured[@]}" && [ -z "$(git ls-files --others --exclude-standard -- "${measured[@]}")" ] ||
+  tree_is "$2" ||
     { echo "records: this checkout's game, scenes or engine are not $2's; commit them, or bench $2's tree" >&2; exit 1; }
   exit 0
 fi
@@ -23,10 +27,11 @@ own_change() {
   local added
   added=$(git log -1 --diff-merges=first-parent --no-patch --diff-filter=A --format=%H "$base..HEAD" -- "$1")
   if [ -n "$added" ]; then
-    ! git diff --quiet "$added^" "$added" -- "${measured[@]}"
+    git diff --quiet "$added^" "$added" -- "${measured[@]}" && return 1
   else
-    ! git diff --quiet HEAD -- "${measured[@]}" || [ -n "$(git ls-files --others --exclude-standard -- "${measured[@]}")" ]
+    tree_is HEAD && return 1
   fi
+  return 0
 }
 stale=0
 while read -r f; do

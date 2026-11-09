@@ -3247,7 +3247,7 @@ it, so nothing under the floor shows through (over stilts, the course or beams u
 Report (verbatim): "the arch should terminate at the foundation of the building." The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above, and under a house or tower stone pillars or timber posts (see "Stilts" below), on its own foundation wheel. The plaster is laid in the face's panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
 and a grip on it holds the house as one on its walls does. `demo/raise.json` raises a stone house on a slope and a
 timber-framed one, and places a third raised; `tests/test_house.gd` checks the rule and the plinth,
-`tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.sh`
+`tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.py`
 that every player sees the joiner's raised wing.
 
 ### Stilts
@@ -4953,7 +4953,7 @@ the oldest. A throw is where it left the dish, its velocity and a random seed fo
 other player (`Session`), whose game throws the same handful, so every player sees the same seeds land in the same
 places and the fish swarm them; a player's throws reach the others at most ten a second. The animals are each
 player's own, so which grain each fish takes, and when, can differ a little from one player to the next.
-`scripts/coop.sh` checks that a handful the host throws on the joiner's pond lands within 3 cm alike for every
+`scripts/coop.py` checks that a handful the host throws on the joiner's pond lands within 3 cm alike for every
 player and draws every fish of that pond on each.
 
 Butterflies and fireflies eat nothing from a hand. Fish eat only thrown seeds lying on their water. A held seed dish
@@ -5590,7 +5590,7 @@ focus and coming back (`paused`, `resumed`). A `checks` record keeps what the se
 come to every `Replay.CHECK_EVERY` frames, and the garden's digest whenever it is kept, for a replay to compare
 (replay.md). An
 avatar file a message carries is kept as its SHA-256 and length, never the file. Every networked method records what it
-hears before anything else (tests/test_net_record.gd holds them to it). `scripts/coop.sh` records every player's session
+hears before anything else (tests/test_net_record.gd holds them to it). `scripts/coop.py` records every player's session
 and checks that each record holds every build command the host ordered after that player came, every player's among
 them, and every other player's poses. Nearby gardens' beacons and the avatar previews fetched from them are not kept. Sixty-four chunks of at most 4 MiB retain recent history;
 rotation can discard the beginning of a long session, and `scripts/sessions.py` counts the frames lost. Each chunk repeats the

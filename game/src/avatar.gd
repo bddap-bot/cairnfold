@@ -281,8 +281,6 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	var textures := texture_bytes(images)
 	var shrink := shrink_for(textures, budget)
 	var root := Vrm.read(bytes, fits, shape, func(img: Image, layer: String) -> void: hold(img, layer, shrink))
-	if root != null:
-		root.set_meta("texture_shrink", shrink)
 	var scene := model(root) if root != null else null
 	_reading_lock.lock()
 	_reading -= held
@@ -400,7 +398,6 @@ static func model(root: Node3D) -> PackedScene:
 	for n in root.find_children("*", "", true, false):
 		n.owner = root
 	ExpressionPlayer.prepare(root)
-	# The particles as files carry them become the form they run in; only the run form is kept.
 	var particles := ParticleDefinition.read(root.get_meta("particles", {}))
 	root.remove_meta("particles")
 	if not particles.is_empty():

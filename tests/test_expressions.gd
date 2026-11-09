@@ -408,7 +408,7 @@ func _roundtrip() -> void:
 	Vrm.write(model, "user://expressions.vrm")
 	model.free()
 	var bytes := FileAccess.get_file_as_bytes("user://expressions.vrm")
-	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
+	var json: Dictionary = Vrm.json_chunk(bytes)
 	var decals: Array = json.extensions.VRCHAT_expressions.looks.decals
 	var untinted: Variant = json.extensions.VRCHAT_expressions.untinted.image
 	check(decals.size() == 1 and json.images[int(decals[0])].mimeType == "image/webp" and untinted is float and json.images[int(untinted)].mimeType == "image/webp" and (json.images as Array).all(func(i: Dictionary) -> bool: return i.mimeType == "image/webp"), "every image, the decal and the untinted colours each their own, is written as WebP: %s" % [json.images])

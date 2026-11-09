@@ -18,7 +18,7 @@ const MODELS := ["fbx", "obj", "dae", "blend", "gltf", "glb"]
 const RENDERERS := {"SkinnedMeshRenderer": "137", "MeshRenderer": "23"}
 
 var assets: Assets
-## Models by GUID: {"state": the FBXState, "scene": the scene Godot made of it, "objects": its Unity objects, "names": node index to its Unity name}.
+## Models by GUID: {"state": the FBXState, "scene": the scene Godot made of it, "objects": its Unity objects}.
 var models := {}
 var _flat := {}
 ## The paths of the models Godot cannot read.
@@ -222,7 +222,6 @@ func model(guid: String) -> Dictionary:
 		by_name.get_or_add(assets.name(m), m)
 	var nodes := state.get_nodes()
 	var objects := {}
-	var names := {}
 	var used := {}
 	var dupes := {}
 	var id_of := func(cls: int, type: String, unity_path: String, name: String) -> int:
@@ -250,7 +249,6 @@ func model(guid: String) -> Dictionary:
 		var node := nodes[item[0]]
 		var name := node.original_name if node.original_name != "" else String(node.resource_name)
 		var unity_path: String = item[2] + "/" + name
-		names[item[0]] = name
 		var go: int = id_of.call(1, "GameObject", unity_path, name)
 		var tf: int = id_of.call(4, "Transform", unity_path + "/Transform", name)
 		transforms[item[0]] = tf
@@ -289,7 +287,7 @@ func model(guid: String) -> Dictionary:
 		for joint in state.get_skins()[renderer_skins[renderer]].joints_original:
 			bones.append({"fileID": str(transforms[joint])})
 		objects[renderer].data["m_Bones"] = bones
-	models[guid] = {"state": state, "scene": scene, "objects": objects, "names": names}
+	models[guid] = {"state": state, "scene": scene, "objects": objects}
 	return models[guid]
 
 
