@@ -8,6 +8,7 @@ const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
+const SerializedMesh = preload("res://../scripts/unity/serialized_mesh.gd")
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
@@ -62,6 +63,7 @@ func _run() -> void:
 	_installed_packages_lend_only_missing_images()
 	_an_edit_imports_with_its_base()
 	_submeshes_take_slots_in_first_use_order()
+	_a_serialized_mesh_reads_as_its_model_would()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
 	_curves_keep_their_unity_tangents()
@@ -1151,6 +1153,58 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	check(target.get_bone_global_rest(1).origin.is_equal_approx(Vector3(-1, 0, 0)), "same-named prop bone retains its authored position")
 	root.free()
 	target.free()
+
+
+## A Mesh a build tool saved as a text asset reads as Godot's importer makes a model's: X mirrored, UVs from the top,
+## winding kept, each vertex stream where Unity aligns it, a submesh with no triangles leaving its slot unused, a blend
+## shape at its full weight and the bind pose in Godot's axes.
+func _a_serialized_mesh_reads_as_its_model_would() -> void:
+	var data := PackedByteArray()
+	data.resize(48 + 3 * 8 + 8 + 3 * 32)
+	var corners := [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)]
+	for i in 3:
+		for k in 3:
+			data.encode_float(i * 12 + k * 4, corners[i][k])
+		data.encode_float(48 + i * 8, 0.25 * i)
+		data.encode_float(48 + i * 8 + 4, 0.25)
+		data.encode_float(80 + i * 32, 1.0)
+		data.encode_u32(80 + i * 32 + 16, 0)
+	var off := {"stream": "0", "offset": "0", "format": "0", "dimension": "0"}
+	var channels := []
+	for c in 14:
+		channels.append(off)
+	channels[0] = {"stream": "0", "offset": "0", "format": "0", "dimension": "3"}
+	channels[4] = {"stream": "1", "offset": "0", "format": "0", "dimension": "2"}
+	channels[12] = {"stream": "2", "offset": "0", "format": "0", "dimension": "4"}
+	channels[13] = {"stream": "2", "offset": "16", "format": "10", "dimension": "4"}
+	var bind := {"e00": "1", "e11": "1", "e22": "1", "e33": "1", "e03": "2", "e01": "0.5"}
+	var mesh := {
+		"m_Name": "Prop",
+		"m_SubMeshes": [{"firstByte": "0", "indexCount": "0", "topology": "0"}, {"firstByte": "0", "indexCount": "3", "topology": "0", "firstVertex": "0", "vertexCount": "3"}],
+		"m_Shapes": {"vertices": [{"vertex": {"x": "0", "y": "0.5", "z": "0"}, "normal": {"x": "0", "y": "0", "z": "0"}, "index": "1"}], "shapes": [{"firstVertex": "0", "vertexCount": "1"}], "channels": [{"name": "Up", "frameIndex": "0", "frameCount": "1"}], "fullWeights": ["50"]},
+		"m_BindPose": [bind],
+		"m_IndexFormat": "0",
+		"m_IndexBuffer": "000001000200",
+		"m_MeshCompression": "0",
+		"m_VertexData": {"serializedVersion": "3", "m_VertexCount": "3", "m_Channels": channels, "_typelessdata": data.hex_encode()},
+	}
+	var mi: Variant = SerializedMesh.read(mesh, PackedStringArray(["Hand"]))
+	check(mi is MeshInstance3D, "the serialized mesh reads: %s" % [mi])
+	if not mi is MeshInstance3D:
+		return
+	var am: ArrayMesh = (mi as MeshInstance3D).mesh
+	var a := am.surface_get_arrays(0)
+	check(am.get_surface_count() == 1 and am.get_meta("slots") == [1], "the triangle draws with its own submesh's slot")
+	check((a[Mesh.ARRAY_VERTEX] as PackedVector3Array)[0] == Vector3(-1, 0, 0), "X mirrors into Godot's axes")
+	check((a[Mesh.ARRAY_TEX_UV] as PackedVector2Array)[1].is_equal_approx(Vector2(0.25, 0.75)), "UVs read from the top")
+	check(a[Mesh.ARRAY_INDEX] == PackedInt32Array([0, 1, 2]), "the winding stays Unity's")
+	var shape: PackedVector3Array = am.surface_get_blend_shape_arrays(0)[0][Mesh.ARRAY_VERTEX]
+	check(am.get_blend_shape_name(0) == &"Up" and shape[1].is_equal_approx(Vector3(0, 2, 0)), "the blend shape moves its vertex as at weight 100")
+	var sk: Skeleton3D = (mi as MeshInstance3D).get_node((mi as MeshInstance3D).skeleton)
+	var pose := (mi as MeshInstance3D).skin.get_bind_pose(0)
+	check(sk.get_bone_name(0) == "Hand" and pose.origin == Vector3(-2, 0, 0) and pose.basis.y.x == -0.5, "the bind pose binds the renderer's bone in Godot's axes")
+	check((a[Mesh.ARRAY_WEIGHTS] as PackedFloat32Array).slice(0, 4) == PackedFloat32Array([1, 0, 0, 0]), "weights read from their aligned stream")
+	(mi as MeshInstance3D).get_parent().free()
 
 
 ## A model's bone named as Blender numbers a duplicate ("Wing.001") binds its own Unity transform, not its parent's:

@@ -29,6 +29,7 @@ const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
+const SerializedMesh = preload("res://../scripts/unity/serialized_mesh.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
@@ -1229,12 +1230,14 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var o: Dictionary = objs[r[0]]
 		var go_name := str(objs[r[1]].data.get("m_Name", ""))
 		var ref := _mesh_ref(objs, r[0])
-		var model: Dictionary = prefabs.model(Yaml.guid(ref)) if prefabs.assets.by_guid.has(Yaml.guid(ref)) else {}
-		var mi := _mesh_node(model, Yaml.file_id(ref))
-		if mi == null or mi.mesh == null:
-			skipped.append(go_name)
+		var serialized := prefabs.assets.extension(Yaml.guid(ref)) == "asset"
+		var model: Dictionary = prefabs.model(Yaml.guid(ref)) if prefabs.assets.by_guid.has(Yaml.guid(ref)) and not serialized else {}
+		var read: Variant = _serialized_mesh(prefabs.assets, objs, r[0], ref) if serialized else _mesh_node(model, Yaml.file_id(ref))
+		if not read is MeshInstance3D or (read as MeshInstance3D).mesh == null:
+			skipped.append(go_name if not read is String else "%s (%s)" % [go_name, read])
 			continue
-		var place := _binder(mi, sk, rests, scale, objs, r[0], model.objects.has(Yaml.file_id(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
+		var mi: MeshInstance3D = read
+		var place := _binder(mi, sk, rests, scale, objs, r[0], model.get("objects", {}).has(Yaml.file_id(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
 		if place.is_empty():
 			skipped.append(go_name)
 			continue
@@ -1246,7 +1249,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var mirrored := _world_transform(objs, Prefabs.transform_of(objs, r[1])).basis.determinant() < 0.0
 		var saved: Array = Yaml.list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Yaml.list(o.data.get("m_Materials"))
-		var slot_of := _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
+		var slot_of: Array = mesh.get_meta("slots") if serialized else _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
 		for s in mesh.get_surface_count():
 			if mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
 				continue
@@ -1771,6 +1774,25 @@ static func _model_name(model: Dictionary, mi: MeshInstance3D) -> String:
 		if String(state.get_nodes()[i].resource_name).validate_node_name() == String(mi.name):
 			return state.get_nodes()[i].original_name
 	return String(mi.name)
+
+
+static var _serialized_cache := {}
+
+
+## The MeshInstance3D of the Mesh object `ref` names in a serialized asset (SerializedMesh), skinned to the renderer's
+## bones by their GameObjects' names, or why it cannot be drawn.
+static func _serialized_mesh(assets: Assets, objs: Dictionary, renderer: int, ref: Dictionary) -> Variant:
+	var guid := Yaml.guid(ref)
+	if not _serialized_cache.has(guid):
+		_serialized_cache[guid] = Yaml.objects(assets.text(guid))
+	var object: Dictionary = _serialized_cache[guid].get(Yaml.file_id(ref), {})
+	if object.get("type", "") != "Mesh":
+		return "no Mesh in its asset"
+	var bones := PackedStringArray()
+	for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
+		var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
+		bones.append(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
+	return SerializedMesh.read(object.data, bones)
 
 
 ## The MeshInstance3D Godot made of the model's node whose mesh has this file ID, or null.
