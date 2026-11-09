@@ -107,6 +107,8 @@ var _expression_dial := false
 var _expression_latched := false
 var _expression_frame := Basis()
 var _expression_twist := 0.0
+## The radial's value as its dial opened, which the twist turns from.
+var _expression_start := 0.0
 var _expression_count := 0
 var _wheel: ToolWheel
 ## The dial a people leaf opened (SessionWheel.choices), turned by the wrist while the wheel button stays held.
@@ -836,7 +838,7 @@ func _expression_input(delta: float) -> void:
 			return
 		var control: Variant = _wheel.chosen() if _wheel != null else null
 		if control is Dictionary and control.type in ["toggle", "button"]:
-			expressions.choose(control)
+			expressions.player.state.activate(control)
 		close_wheel()
 		return
 	if expressions.player.state.opened.size() < _expression_count:
@@ -853,7 +855,7 @@ func _expression_input(delta: float) -> void:
 	if not expressions.puppet.is_empty():
 		var rig := get_parent() as Rig
 		_expression_twist = Dial.unwound(_expression_twist, _expression_frame, global_basis)
-		var value := clampf(expressions.radial_start + _expression_twist / 360.0, 0, 1)
+		var value := clampf(_expression_start + _expression_twist / 360.0, 0, 1)
 		expressions.player.state.puppet(expressions.puppet, rig.right.stick(), value)
 		if dial != null:
 			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.puppet.type == "radial" else rig.right.stick()
@@ -867,13 +869,15 @@ func _expression_input(delta: float) -> void:
 	_show_wheel(delta)
 	var pick: Variant = _wheel.chosen()
 	if pick is Dictionary and pick.type not in ["toggle", "button"] and p.length() >= ToolWheel.ENTER:
-		expressions.choose(pick)
+		expressions.player.state.activate(pick)
 		_expression_count = expressions.player.state.opened.size()
 		if pick.type == "submenu":
 			_expression_level()
 		else:
 			_expression_frame = global_basis.orthonormalized()
 			_expression_twist = 0.0
+			var axes: Array = pick.get("axes", [])
+			_expression_start = expressions.player.state.values.get(axes[0], 0.0) if not axes.is_empty() else 0.0
 			_hide_wheel()
 			var figure := _make_icon(pick)
 			dial = Dial.new()

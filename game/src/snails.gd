@@ -43,7 +43,7 @@ func habitats() -> Dictionary:
 	var ponds := wildlife.water.ponds
 	var out := {}
 	for p: PondWater in ponds:
-		if p.surface_y() >= p.pond.level - 0.001:
+		if p.full():
 			out[p] = Wildlife._pond_quota(p, ponds.size(), CAP, CELLS_EACH, PER_POND)
 	return out
 
@@ -53,17 +53,23 @@ func active() -> bool:
 	return true
 
 
+## One comes to a wet point of the bed, out of sight where it finds one there.
 func arrive(home: Object) -> One:
+	var spot := Vector3.INF
 	for attempt in 8:
 		var xz := Terrain.grid_xz(home.pond.cells[rng.randi() % home.pond.cells.size()])
 		var at := wildlife.terrain.ground(xz.x, xz.y)
 		if _wet(home, at):
-			var s := One.new()
-			s.position = at
-			s.yaw = rng.randf() * TAU
-			s.clock = rng.randf() * TAU
-			return s
-	return null
+			spot = at
+			if not wildlife._in_sight(at):
+				break
+	if spot == Vector3.INF:
+		return null
+	var s := One.new()
+	s.position = spot
+	s.yaw = rng.randf() * TAU
+	s.clock = rng.randf() * TAU
+	return s
 
 
 func _wet(p: PondWater, at: Vector3) -> bool:

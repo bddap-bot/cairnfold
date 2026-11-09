@@ -15,18 +15,10 @@ var puppet: Dictionary:
 	get:
 		var opened := player.state.opened
 		return opened.back() if not opened.is_empty() and opened.back().type != "submenu" else {}
-var radial_start := 0.0
 
 
 func _init(expressions: ExpressionPlayer) -> void:
 	player = expressions
-
-
-func choose(control: Dictionary) -> void:
-	player.state.activate(control)
-	if control.type in ["radial", "twoAxis", "fourAxis"]:
-		var axes: Array = control.get("axes", [])
-		radial_start = player.state.values.get(axes[0], 0.0) if not axes.is_empty() else 0.0
 
 
 ## Steps the menu one level out; false at the top.

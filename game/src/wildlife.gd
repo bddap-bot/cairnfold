@@ -8,11 +8,11 @@ extends Node3D
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
 ## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), fish to the ponds (`Fish`), conures,
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`); deer
-## and a fox come out of the trees round the meadow (`Roamers`). Frogs, grass snakes, squirrels and owls keep their
-## distance (`Shy`).
+## and a fox come out of the trees round the meadow (`Roamers`). Frogs, grass snakes, squirrels, owls and pond snails keep
+## their distance (`Shy`).
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
 ## those that eat from it, each kind as its `Appetite` says. At night the day's animals rest: no new ones come but
-## the fireflies and the owls, butterflies stay settled on their flowers, conures roost and only murmur, ducks rest
+## the fireflies, owls, frogs and snails, butterflies stay settled on their flowers, conures roost and only murmur, ducks rest
 ## quietly, snakes lie still, squirrels keep to their crowns, and the frogs croak.
 
 ## How long after its habitat appears a duck, a pond's fish, or a flock of conures, comes.

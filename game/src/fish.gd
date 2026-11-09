@@ -147,7 +147,7 @@ func tick(delta: float) -> void:
 				f.leaving = true
 			else:
 				have[f.pond] = have.get(f.pond, 0) + 1
-	var waiting := _want.keys().filter(func(p: PondWater) -> bool: return not _came.has(p) and p.surface_y() >= p.pond.level - 1e-3)
+	var waiting := _want.keys().filter(func(p: PondWater) -> bool: return not _came.has(p) and p.full())
 	for p in wildlife._ripe(_due, waiting, Wildlife.ARRIVE_AFTER, delta, true, rng):
 		_due.erase(p)
 		_came[p] = true

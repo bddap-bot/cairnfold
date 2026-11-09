@@ -152,3 +152,8 @@ func ripple(at: Vector3, strength: float) -> void:
 
 func surface_y() -> float:
 	return position.y
+
+
+## Whether it has filled to its level.
+func full() -> bool:
+	return surface_y() >= pond.level - 0.001

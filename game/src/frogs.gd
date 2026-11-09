@@ -72,7 +72,7 @@ func habitats() -> Dictionary:
 	var ponds := wildlife.water.ponds
 	var out := {}
 	for p: PondWater in ponds:
-		if p.pond.cells.size() >= Wildlife.MIN_POND and p.surface_y() >= p.pond.level - 0.001:
+		if p.pond.cells.size() >= Wildlife.MIN_POND and p.full():
 			out[p] = Wildlife._pond_quota(p, ponds.size(), CAP, CELLS_EACH, PER_POND)
 	return out
 
