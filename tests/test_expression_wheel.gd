@@ -45,7 +45,7 @@ func _run() -> void:
 	await frames(1)
 	Hand.injected_reach[hand.tracker] = Vector2.ZERO
 	await frames(2)
-	check(hand.expressions.current.size() == 3 and avatar.expressions.state.values.Menu == 1.0, "a submenu opens another wheel and sets its gate")
+	check(hand.expressions.state.controls().size() == 3 and avatar.expressions.state.values.Menu == 1.0, "a submenu opens another wheel and sets its gate")
 	Hand.injected_reach[hand.tracker] = ToolWheel.ring_dirs()[1] * ToolWheel.RADIUS
 	await frames(1)
 	Hand.injected_reach[hand.tracker] = Vector2.ZERO

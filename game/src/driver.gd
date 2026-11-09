@@ -3000,7 +3000,7 @@ func _spring_grab(s: Dictionary) -> void:
 	var deadline := Time.get_ticks_msec() + 5000
 	var held: Variant = null
 	while held == null and Time.get_ticks_msec() < deadline:
-		held = (avatar.spring_holders if remote else main.session._spring_holds).find_key(mine)
+		held = avatar.spring_holders.find_key(mine)
 		await get_tree().process_frame
 	if held == null:
 		Buttons.injected.erase(key)
@@ -3031,7 +3031,7 @@ func _spring_watch(s: Dictionary) -> void:
 	var first := Vector3.ZERO
 	while Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
-		var active := main.session._spring_holds.values().any(func(holder: Array) -> bool: return holder[0] != main.session.multiplayer.get_unique_id())
+		var active := main.rig.body.spring_holders.values().any(func(holder: Array) -> bool: return holder[0] != main.session.multiplayer.get_unique_id())
 		if active:
 			var tip: Vector3 = main.rig.body.springs.tip(0)
 			if not held:
@@ -3137,7 +3137,7 @@ func _expression(s: Dictionary) -> void:
 		if hand.expressions != null and (hand._wheel == null or hand._wheel.chosen() == null):
 			Hand.injected_reach[hand.tracker] = Vector2.ZERO
 		await _frames(2)
-	var puppet := hand.expressions != null and not hand.expressions.puppet.is_empty()
+	var puppet := hand.expressions != null and not hand.expressions.state.turning().is_empty()
 	if puppet:
 		Buttons.injected.erase(button)
 		await _frames(2)

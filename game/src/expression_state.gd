@@ -84,9 +84,25 @@ func activate(control: Dictionary) -> void:
 			put(key, value)
 
 
-func back() -> void:
-	if not opened.is_empty():
-		put(opened.pop_back().get("parameter", ""), 0.0)
+## Steps the menu one level out; false at the top.
+func back() -> bool:
+	if opened.is_empty():
+		return false
+	put(opened.pop_back().get("parameter", ""), 0.0)
+	return true
+
+
+## The controls of the innermost submenu open, or the top menu's.
+func controls() -> Array:
+	for c in range(opened.size() - 1, -1, -1):
+		if opened[c].type == "submenu":
+			return opened[c].controls
+	return data.get("menu", [])
+
+
+## The radial or axis control open, or empty.
+func turning() -> Dictionary:
+	return opened.back() if not opened.is_empty() and opened.back().type != "submenu" else {}
 
 
 func close() -> void:

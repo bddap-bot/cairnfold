@@ -144,12 +144,6 @@ func layout(id: int) -> PathLayout:
 	return null
 
 
-## Lays path `id` again as `data`, the garden's entry after a reshape.
-func resurface(id: int, data: Dictionary) -> void:
-	_garden[id] = data
-	settle(id)
-
-
 ## Shows path `id` in the surface and with the clutter a reshape with `data` would give it, here alone, until `settle`.
 func show_reshaped(id: int, data: Dictionary) -> void:
 	var path := layout(id)

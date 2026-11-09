@@ -1029,7 +1029,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				if easels != null:
 					easels.stand(cmd.id, now.at, now.yaw)
 			elif cmd.of == "paths":
-				paths.resurface(cmd.id, now)
+				paths.settle(cmd.id)
 			elif boulders != null:
 				boulders.put(cmd.id, now)
 			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))

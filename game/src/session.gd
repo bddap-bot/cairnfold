@@ -79,7 +79,6 @@ var quality: Quality
 var _files := true
 var _spring_buttons: Array[Buttons] = []
 var _spring_hands := [[], []]
-var _spring_holds := {}
 ## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them. A leaving
 ## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
 var dishes: Array[Dish] = []
@@ -266,14 +265,11 @@ func _on_gone(id: int) -> void:
 	world.hear("peer_disconnected", [], id)
 	print("session: player %d left" % id)
 	Cues.play(Cues.Act.PLAYER_LEAVES, avatars[id].global_position if avatars.has(id) else _here())
-	for chain in _spring_holds.keys():
-		if _spring_holds[chain][0] == id:
-			_spring_holds.erase(chain)
 	_forget(id)
 
 
 func _drop_avatars() -> void:
-	_spring_holds.clear()
+	rig.body.spring_holders.clear()
 	_spring_hands = [[], []]
 	for id in _looks.keys():
 		_forget(id)
@@ -329,7 +325,7 @@ func _process(delta: float) -> void:
 		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), _spring_holds, rig.left.curls + rig.right.curls, rig.left.palm, rig.right.palm)
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, rig.body.springs.state() if rig.body.springs != null else PackedVector3Array(), rig.body.spring_holders, rig.left.curls + rig.right.curls, rig.left.palm, rig.right.palm)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
@@ -728,7 +724,6 @@ func _have_file(key: String, bytes: PackedByteArray, scene: PackedScene, f: Stri
 
 
 func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
-	_spring_holds.clear()
 	worn = bytes
 	if not world.replayed:
 		put_on.call_deferred(scene, key, bytes, avatar, colour)
@@ -869,7 +864,7 @@ func _spring_input(delta: float) -> void:
 				if avatar.springs == null or avatar.stand_in:
 					continue
 				for chain in avatar.springs.chains.size():
-					if (_spring_holds if id == mine else avatar.spring_holders).has(chain) or not avatar.springs.grabs(chain, SpringDefinition.WEARER if id == mine else SpringDefinition.OTHERS):
+					if avatar.spring_holders.has(chain) or not avatar.springs.grabs(chain, SpringDefinition.WEARER if id == mine else SpringDefinition.OTHERS):
 						continue
 					var distance := avatar.springs.tip(chain).distance_to(hand.global_position)
 					if distance < nearest:
@@ -892,11 +887,11 @@ func _spring_input(delta: float) -> void:
 		if avatars[id].visible:
 			for side in 2:
 				rig.body.springs.hands.append_array(Hand.touching((avatars[id] as Avatar).hands[side], "%d/%d" % [id, side], SpringDefinition.OTHERS))
-	for chain: int in _spring_holds.keys():
-		var holder: Array = _spring_holds[chain]
+	for chain: int in rig.body.spring_holders.keys():
+		var holder: Array = rig.body.spring_holders[chain]
 		var hand: Variant = _spring_hand(holder[0], holder[1])
 		if hand == null or chain >= rig.body.springs.chains.size():
-			_spring_holds.erase(chain)
+			rig.body.spring_holders.erase(chain)
 		else:
 			rig.body.springs.targets[chain] = hand
 	rig.body.step_springs(delta)
@@ -924,11 +919,11 @@ func _grab_spring(side: int, chain: int) -> void:
 func _hold_spring(peer: int, side: int, chain: int) -> void:
 	if side < 0 or side > 1:
 		return
-	for held in _spring_holds.keys():
-		if _spring_holds[held] == [peer, side]:
-			_spring_holds.erase(held)
-	if chain < 0 or rig.body.springs == null or chain >= rig.body.springs.chains.size() or _spring_holds.has(chain) or not rig.body.springs.grabs(chain, SpringDefinition.WEARER if peer == multiplayer.get_unique_id() else SpringDefinition.OTHERS):
+	for held in rig.body.spring_holders.keys():
+		if rig.body.spring_holders[held] == [peer, side]:
+			rig.body.spring_holders.erase(held)
+	if chain < 0 or rig.body.springs == null or chain >= rig.body.springs.chains.size() or rig.body.spring_holders.has(chain) or not rig.body.springs.grabs(chain, SpringDefinition.WEARER if peer == multiplayer.get_unique_id() else SpringDefinition.OTHERS):
 		return
 	var hand: Variant = _spring_hand(peer, side)
 	if hand != null and hand.distance_to(rig.body.springs.tip(chain)) < 0.2:
-		_spring_holds[chain] = [peer, side]
+		rig.body.spring_holders[chain] = [peer, side]

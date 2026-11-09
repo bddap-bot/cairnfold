@@ -102,7 +102,8 @@ var people: SessionWheel:
 		people = v
 		_prepare_icons(-1)
 		_warming = 2
-var expressions: ExpressionMenu
+## The worn avatar's expressions while the wheel shows their menu, else null.
+var expressions: ExpressionPlayer
 var _expression_dial := false
 var _expression_latched := false
 var _expression_frame := Basis()
@@ -254,9 +255,9 @@ func close_wheel() -> void:
 		var by := get_stack().slice(1, 3).map(func(f: Dictionary) -> String: return "%s:%d" % [f.function, f.line])
 		Metrics.note("wheel: %s closed under the held button by %s" % [tracker, by])
 	_end_expression_dial()
-	if expressions != null:
-		expressions.close()
-		expressions = null
+	if is_instance_valid(expressions):
+		expressions.state.close()
+	expressions = null
 	_expression_latched = false
 	picking = false
 	_hide_wheel()
@@ -756,7 +757,7 @@ func _show_wheel(delta: float) -> void:
 		if e.item is Dictionary and expressions != null:
 			var on := node.get_child(1).get_node_or_null("On") as Node3D
 			if on != null:
-				on.visible = expressions.player.state.active(e.item)
+				on.visible = expressions.state.active(e.item)
 		var target := 0.0
 		if path.size() == levels.size() and path.slice(0, -1) == opened:
 			target = HOT if levels[-1].hot == path[-1] else IDLE
@@ -796,12 +797,78 @@ func _show_tool(delta: float) -> void:
 
 func _draw_item(item: Variant) -> Node3D:
 	if item is Dictionary and expressions != null:
-		return expressions.icon(item)
+		return _expression_icon(item)
 	if item is String and item == "expressions":
 		return ToolModels.build(Tool.STYLE)
 	if item is String and item == "reset":
-		return ExpressionMenu.reset_icon()
+		return _reset_icon()
 	return people.icon(item) if people != null else null
+
+
+func _expression_icon(control: Dictionary) -> Node3D:
+	var out := Node3D.new()
+	var index := int(control.get("icon", -1))
+	if index >= 0 and index < expressions.icons.size() and expressions.icons[index] != null:
+		var picture := MeshInstance3D.new()
+		var plane := QuadMesh.new()
+		plane.size = Vector2.ONE * 0.045
+		picture.mesh = plane
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = expressions.icons[index]
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		picture.material_override = mat
+		out.add_child(picture)
+	else:
+		out.add_child(_ring(0.009, 0.016, Color(0.25, 0.4, 0.48)))
+	if control.type in ["toggle", "button"]:
+		var on := MeshInstance3D.new()
+		on.name = "On"
+		on.mesh = ToolModels.sphere(0.004, 0.008)
+		on.position = Vector3(0.025, 0.025, 0)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.1, 0.65, 0.2)
+		on.material_override = mat
+		on.visible = expressions.state.active(control)
+		out.add_child(on)
+	var label := Label3D.new()
+	label.text = control.get("name", "")
+	label.font_size = 32
+	label.pixel_size = 0.00018
+	label.position.y = -0.028
+	label.no_depth_test = false
+	out.add_child(label)
+	return out
+
+
+static func _reset_icon() -> Node3D:
+	var out := Node3D.new()
+	var ring := _ring(0.012, 0.018, Color(0.85, 0.55, 0.2))
+	var mat: StandardMaterial3D = ring.material_override
+	out.add_child(ring)
+	var head := MeshInstance3D.new()
+	var arrow := PrismMesh.new()
+	arrow.size = Vector3(0.014, 0.012, 0.006)
+	head.mesh = arrow
+	head.position = Vector3(0, 0.015, 0)
+	head.rotation.z = -PI / 2
+	head.material_override = mat
+	out.add_child(head)
+	return out
+
+
+static func _ring(inner: float, outer: float, colour: Color) -> MeshInstance3D:
+	var ring := MeshInstance3D.new()
+	var shape := TorusMesh.new()
+	shape.inner_radius = inner
+	shape.outer_radius = outer
+	shape.rings = 16
+	shape.ring_segments = 8
+	ring.mesh = shape
+	ring.rotation.x = PI / 2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	ring.material_override = mat
+	return ring
 
 
 func _open_expressions() -> void:
@@ -809,56 +876,56 @@ func _open_expressions() -> void:
 	for hand in rig.hands:
 		if hand != self and hand.expressions != null:
 			hand.close_wheel()
-	expressions = ExpressionMenu.new(rig.body.expressions)
+	expressions = rig.body.expressions
 	_expression_level()
 
 
 func _expression_level() -> void:
 	_clear_icons()
-	_wheel = ToolWheel.new(expressions.current)
+	_wheel = ToolWheel.new(expressions.state.controls())
 	_wheel_root.global_position = global_position
 	_wheel_root.visible = true
-	_expression_count = expressions.player.state.opened.size()
+	_expression_count = expressions.state.opened.size()
 
 
 func _expression_input(delta: float) -> void:
-	if not is_instance_valid(expressions.player) or not tracked():
+	if not is_instance_valid(expressions) or not tracked():
 		close_wheel()
 		return
 	if _buttons.pressed("wheel") and _expression_latched:
 		_expression_latched = false
-		if not expressions.puppet.is_empty():
-			expressions.back()
+		if not expressions.state.turning().is_empty():
+			expressions.state.back()
 			_end_expression_dial()
 		_expression_level()
 		return
 	if _buttons.released("wheel"):
-		if not expressions.puppet.is_empty():
+		if not expressions.state.turning().is_empty():
 			_expression_latched = true
 			return
 		var control: Variant = _wheel.chosen() if _wheel != null else null
 		if control is Dictionary and control.type in ["toggle", "button"]:
-			expressions.player.state.activate(control)
+			expressions.state.activate(control)
 		close_wheel()
 		return
-	if expressions.player.state.opened.size() < _expression_count:
+	if expressions.state.opened.size() < _expression_count:
 		_end_expression_dial()
 		_expression_level()
 	if _buttons.pressed("tool"):
 		_expression_latched = not _buttons.held("wheel")
-		if not expressions.back():
+		if not expressions.state.back():
 			close_wheel()
 			return
 		_end_expression_dial()
 		_expression_level()
 		return
-	if not expressions.puppet.is_empty():
+	if not expressions.state.turning().is_empty():
 		var rig := get_parent() as Rig
 		_expression_twist = Dial.unwound(_expression_twist, _expression_frame, global_basis)
 		var value := clampf(_expression_start + _expression_twist / 360.0, 0, 1)
-		expressions.player.state.puppet(expressions.puppet, rig.right.stick(), value)
+		expressions.state.puppet(expressions.state.turning(), rig.right.stick(), value)
 		if dial != null:
-			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.puppet.type == "radial" else rig.right.stick()
+			dial.cursor = Vector2(sin(value * TAU), cos(value * TAU)) if expressions.state.turning().type == "radial" else rig.right.stick()
 			dial.follow(self)
 		return
 	if _expression_latched:
@@ -869,15 +936,15 @@ func _expression_input(delta: float) -> void:
 	_show_wheel(delta)
 	var pick: Variant = _wheel.chosen()
 	if pick is Dictionary and pick.type not in ["toggle", "button"] and p.length() >= ToolWheel.ENTER:
-		expressions.player.state.activate(pick)
-		_expression_count = expressions.player.state.opened.size()
+		expressions.state.activate(pick)
+		_expression_count = expressions.state.opened.size()
 		if pick.type == "submenu":
 			_expression_level()
 		else:
 			_expression_frame = global_basis.orthonormalized()
 			_expression_twist = 0.0
 			var axes: Array = pick.get("axes", [])
-			_expression_start = expressions.player.state.values.get(axes[0], 0.0) if not axes.is_empty() else 0.0
+			_expression_start = expressions.state.values.get(axes[0], 0.0) if not axes.is_empty() else 0.0
 			_hide_wheel()
 			var figure := _make_icon(pick)
 			dial = Dial.new()
