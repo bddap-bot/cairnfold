@@ -245,6 +245,11 @@ static func floats(x: Vector3) -> Array:
 	return [x.x, x.y, x.z]
 
 
+## A glTF column-major 4x4 as the affine transform it holds.
+static func transform(m: Array) -> Transform3D:
+	return Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
+
+
 ## How many pixels `images` (images()) hold together, but the UNDRAWN layers, which are never decoded.
 static func pixels(images: Array[Dictionary]) -> int:
 	var out := 0

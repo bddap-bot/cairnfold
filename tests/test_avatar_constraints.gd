@@ -1,5 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
+const Prefabs = preload("res://../scripts/unity/prefabs.gd")
+
 const RIGHT_ANGLE := Basis(Vector3.UP, PI / 2)
 const TIP := Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.05))
 
@@ -80,14 +82,14 @@ func _fixture() -> Node3D:
 	skeleton.set_bone_parent(skeleton.find_bone("tip"), skeleton.find_bone("prop"))
 	skeleton.set_bone_rest(skeleton.find_bone("tip"), TIP)
 	skeleton.reset_bone_poses()
-	var identity := _matrix(Transform3D.IDENTITY)
+	var identity := Prefabs.matrix(Transform3D.IDENTITY)
 	var every := [true, true, true]
 	model.set_meta("constraints", [
-		{"kind": "Parent", "node": "prop", "weight": 0.0, "translation": every, "rotation": every, "rest": _matrix(Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(0, 0.2, 0))), "offset": identity,
-			"sources": [{"node": "anchor", "weight": 1.0, "offset": _matrix(Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1)))}]},
-		{"kind": "Position", "node": "follower", "weight": 0.5, "translation": [true, false, true], "rotation": every, "rest": identity, "offset": _matrix(Transform3D(Basis.IDENTITY, Vector3(0.05, 0, 0))),
-			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}, {"world": _matrix(Transform3D(Basis.IDENTITY, Vector3(0.4, 1.1, -0.2))), "weight": 3.0, "offset": identity}]},
-		{"kind": "Rotation", "node": "turner", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": _matrix(Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3.ZERO)),
+		{"kind": "Parent", "node": "prop", "weight": 0.0, "translation": every, "rotation": every, "rest": Prefabs.matrix(Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(0, 0.2, 0))), "offset": identity,
+			"sources": [{"node": "anchor", "weight": 1.0, "offset": Prefabs.matrix(Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1)))}]},
+		{"kind": "Position", "node": "follower", "weight": 0.5, "translation": [true, false, true], "rotation": every, "rest": identity, "offset": Prefabs.matrix(Transform3D(Basis.IDENTITY, Vector3(0.05, 0, 0))),
+			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}, {"world": Prefabs.matrix(Transform3D(Basis.IDENTITY, Vector3(0.4, 1.1, -0.2))), "weight": 3.0, "offset": identity}]},
+		{"kind": "Rotation", "node": "turner", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": Prefabs.matrix(Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3.ZERO)),
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]},
 		{"kind": "LookAt", "node": "pointer", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": identity,
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]}])
@@ -106,15 +108,14 @@ func _malformed() -> void:
 	var node := GLTFNode.new()
 	node.resource_name = "prop"
 	var nodes: Array[GLTFNode] = [node]
-	var identity := _matrix(Transform3D.IDENTITY)
+	var identity := Prefabs.matrix(Transform3D.IDENTITY)
 	var good := {"kind": "Parent", "node": 0.0, "weight": 1.0, "translation": [true, true, true], "rotation": [true, true, true], "rest": identity, "offset": identity, "sources": [{"world": identity, "weight": 1.0, "offset": identity}]}
 	check(Constraints.read({"constraints": [good]}, nodes).size() == 1, "a well-formed constraint reads, its node named")
-	for bad: Dictionary in [{"kind": "Aim"}, {"node": 1.0}, {"weight": 2.0}, {"rotation": [true, true]}, {"rest": identity.slice(1)}, {"offset": identity.map(func(_x: float) -> float: return 0.0)}, {"sources": [{"node": 4.0, "weight": 1.0, "offset": identity}]}, {"sources": [{"weight": 1.0, "offset": identity}]}, {"sources": [{"world": identity, "weight": -1.0, "offset": identity}]}]:
+	var projective := identity.duplicate()
+	projective[3] = 1.0
+	for bad: Dictionary in [{"kind": "Aim"}, {"rest": projective}, {"node": 1.0}, {"weight": 2.0}, {"rotation": [true, true]}, {"rest": identity.slice(1)}, {"offset": identity.map(func(_x: float) -> float: return 0.0)}, {"sources": [{"node": 4.0, "weight": 1.0, "offset": identity}]}, {"sources": [{"weight": 1.0, "offset": identity}]}, {"sources": [{"world": identity, "weight": -1.0, "offset": identity}]}]:
 		check(Constraints.read({"constraints": [good, good.merged(bad, true)]}, nodes).is_empty(), "a file with a malformed constraint keeps none: %s" % [bad])
 
-
-static func _matrix(t: Transform3D) -> Array:
-	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, 0.0, t.basis.y.x, t.basis.y.y, t.basis.y.z, 0.0, t.basis.z.x, t.basis.z.y, t.basis.z.z, 0.0, t.origin.x, t.origin.y, t.origin.z, 1.0]
 
 
 static func _near(a: Transform3D, b: Transform3D) -> bool:

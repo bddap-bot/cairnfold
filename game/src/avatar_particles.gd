@@ -31,6 +31,8 @@ const SLOT_SEARCH := 16
 const CLOCK_SPAN := 3600.0
 
 var _skeleton: Skeleton3D
+## The skeleton's constraint solver, which places a system on a bone it moves.
+var _solver: Constraints
 var _expressions: ExpressionPlayer
 var _systems: Array[System] = []
 var _now := 0.0
@@ -83,6 +85,7 @@ class System:
 func _init(definition: Dictionary, skeleton: Skeleton3D, expressions: ExpressionPlayer) -> void:
 	name = "Particles"
 	_skeleton = skeleton
+	_solver = Constraints.of(skeleton)
 	_expressions = expressions
 	process_priority = 2
 	var data: Dictionary = expressions.state.data if expressions != null else {}
@@ -194,7 +197,7 @@ func _process(delta: float) -> void:
 		var s := _systems[k]
 		if s.bone < 0:
 			continue
-		var pose := origin * _skeleton.get_bone_global_pose(s.bone)
+		var pose := _solver.placed(s.bone) if _solver != null else origin * _skeleton.get_bone_global_pose(s.bone)
 		var frame := Transform3D(pose.basis.orthonormalized(), pose.origin)
 		s.velocity = (frame.origin - s.frame.origin) / delta if s.placed and delta > 0.0 else Vector3.ZERO
 		moved[k] = frame.origin.distance_to(s.frame.origin) if s.placed else 0.0

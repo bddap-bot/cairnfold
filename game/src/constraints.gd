@@ -40,11 +40,11 @@ var _previous := {}
 ## Each constrained bone's pose from the skeleton as the last solve left it.
 var _solved := {}
 ## By bone, the nearest of itself and its ancestors a constraint places, or -1.
-var _below := PackedInt32Array()
+var _carrier := PackedInt32Array()
 
 
-## The constraints `definitions` (the "constraints" meta Constraints.read makes) on `skeleton`'s bones, each left out
-## whose bone or source bone the skeleton lacks.
+## The constraints `definitions` (the "constraints" meta Constraints.read makes) on `skeleton`'s bones; none if the
+## skeleton lacks a bone one of them names, as Constraints.read keeps none of a malformed file.
 func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 	for d: Dictionary in definitions:
 		var c := Constraint.new()
@@ -53,31 +53,33 @@ func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 		c.weight = d.weight
 		c.translation.assign(d.translation)
 		c.rotation.assign(d.rotation)
-		c.rest = matrix(d.rest)
-		c.offset = matrix(d.offset)
+		c.rest = Vrm.transform(d.rest)
+		c.offset = Vrm.transform(d.offset)
 		for e: Dictionary in d.sources:
 			var s := Source.new()
 			s.weight = e.weight
-			s.offset = matrix(e.offset)
+			s.offset = Vrm.transform(e.offset)
 			if e.has("node"):
 				s.bone = skeleton.find_bone(str(e.node))
 				if s.bone < 0:
 					c.bone = -1
 			else:
-				s.world = matrix(e.world)
+				s.world = Vrm.transform(e.world)
 			if s.weight > 0.0:
 				c.sources.append(s)
-		if c.bone >= 0:
-			constraints.append(c)
-	_below.resize(skeleton.get_bone_count())
-	_below.fill(-1)
+		if c.bone < 0:
+			constraints.clear()
+			break
+		constraints.append(c)
+	var constrained := {}
 	for c in constraints:
-		_below[c.bone] = c.bone
-	# A parent bone's index is below its children's, so each bone finds its parent's answer settled.
+		constrained[c.bone] = true
+	_carrier.resize(skeleton.get_bone_count())
 	for b in skeleton.get_bone_count():
-		var up := skeleton.get_bone_parent(b)
-		if _below[b] < 0 and up >= 0:
-			_below[b] = _below[up]
+		var up := b
+		while up >= 0 and not constrained.has(up):
+			up = skeleton.get_bone_parent(up)
+		_carrier[b] = up
 
 
 ## Where `bone` stands in the world as the frame draws it: the skeleton's pose of it, carried by the place its nearest
@@ -86,7 +88,7 @@ func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 func placed(bone: int) -> Transform3D:
 	var sk := get_skeleton()
 	var pose := sk.get_bone_global_pose(bone)
-	var k := _below[bone]
+	var k := _carrier[bone]
 	if k >= 0 and _solved.has(k):
 		pose = _solved[k] * sk.get_bone_global_pose(k).affine_inverse() * pose
 	return sk.global_transform * pose
@@ -166,6 +168,8 @@ func _process_modification_with_delta(_delta: float) -> void:
 		sk.set_bone_pose_position(c.bone, at)
 		sk.set_bone_pose_rotation(c.bone, r.normalized())
 		_previous[c.bone] = parent * sk.get_bone_pose(c.bone)
+	# After the loop: a constraint later in the file may move an earlier one's bone.
+	for c in constraints:
 		_solved[c.bone] = sk.get_bone_global_pose(c.bone)
 	spent_usec += Time.get_ticks_usec() - start
 
@@ -178,7 +182,7 @@ static func read(extension: Variant, nodes: Array[GLTFNode]) -> Array:
 	if not list is Array:
 		return []
 	var out := []
-	var node := func(i: Variant) -> String: return nodes[int(i)].resource_name if i is float and i == floorf(i) and i >= 0 and i < nodes.size() else ""
+	var node := func(i: Variant) -> String: return nodes[int(i)].resource_name if (i is float or i is int) and i == floorf(i) and i >= 0 and i < nodes.size() else ""
 	var mask := func(m: Variant) -> bool: return m is Array and m.size() == 3 and m.all(func(b: Variant) -> bool: return b is bool)
 	for c: Variant in list:
 		if not (c is Dictionary and KINDS.has(c.get("kind")) and node.call(c.get("node")) != "" and _weight(c.get("weight", 1.0), 1.0)
@@ -204,14 +208,13 @@ static func read(extension: Variant, nodes: Array[GLTFNode]) -> Array:
 
 
 static func _weight(w: Variant, most: float) -> bool:
-	return w is float and is_finite(w) and w >= 0.0 and w <= most
+	return _number(w) and w >= 0.0 and w <= most
 
 
-## Whether `m` is a column-major 4x4 of finite numbers whose 3x3 part inverts.
+static func _number(x: Variant) -> bool:
+	return (x is float or x is int) and is_finite(float(x))
+
+
+## Whether `m` is a column-major 4x4 of finite numbers whose 3x3 part inverts and whose last row is glTF's (0, 0, 0, 1).
 static func _matrix(m: Variant) -> bool:
-	return m is Array and m.size() == 16 and m.all(func(x: Variant) -> bool: return x is float and is_finite(x)) and absf(matrix(m).basis.determinant()) >= 1e-9
-
-
-## A column-major 4x4 as the affine transform it holds.
-static func matrix(m: Array) -> Transform3D:
-	return Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
+	return m is Array and m.size() == 16 and m.all(_number) and [float(m[3]), float(m[7]), float(m[11]), float(m[15])] == [0.0, 0.0, 0.0, 1.0] and absf(Vrm.transform(m).basis.determinant()) >= 1e-9

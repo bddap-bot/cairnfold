@@ -253,7 +253,7 @@ static func _mesh(m: Variant) -> ArrayMesh:
 static func _matrix(v: Variant) -> Transform3D:
 	if not (v is Array and v.size() == 16 and v.all(_finite)):
 		return Transform3D.IDENTITY
-	return Transform3D(Vector3(v[0], v[1], v[2]), Vector3(v[4], v[5], v[6]), Vector3(v[8], v[9], v[10]), Vector3(v[12], v[13], v[14]))
+	return Vrm.transform(v)
 
 
 static func _vector(v: Variant) -> Vector3:
