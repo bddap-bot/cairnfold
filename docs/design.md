@@ -147,8 +147,8 @@ the GPU time per frame neared the period, and the time followed the primitives d
 Over the session 637 seconds ran at half rate and 987 at 72 Hz; the quality ladder at its
 bottom step did not bring the finished garden under the period. Holding the refresh rate
 at a finished garden's density is open work. The first of each run of late frames is logged
-as it happens (`metrics: late frame`), with the main-thread split of the engine frame it began in
-and its time on the GPU.
+a frame later (`metrics: late frame`), with the main-thread split of the engine frame it began in
+and of the one it ended in, where its wait for the runtime and processing fall, and its time on the GPU.
 
 Where the main thread's time goes on the Frame (each second's `main_ms`, see "Local play-session
 history"): `demo/headset.json` unworn with the standby pause off, its 413 seconds and 29,903 frames,

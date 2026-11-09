@@ -7,6 +7,9 @@ extends Node
 
 signal finished
 
+## How long a phase's label waits for the frames to hold the refresh rate (see `_label`), and the most it waits.
+const SETTLED_S := 1.0
+const SETTLE_MAX_S := 5.0
 ## How long `act` acts.
 const ACT_SECONDS := 33.0
 ## Flow texel-steps a frame while `painting` replays: a thousand times Budget.PAINT_STEPS, under a second on a Quest 2.
@@ -2543,8 +2546,27 @@ func _antialias(s: Dictionary) -> void:
 		vp.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if s.unshaded else Viewport.DEBUG_DRAW_DISABLED
 
 
+## Opens the phase `name` once the frames have held the refresh rate for SETTLED_S, SETTLE_MAX_S at most: after a
+## late frame the runtime keeps every other refresh for a while, and a phase opened on that is measuring the setup
+## before it (a whole village laid at once, which no player does), not its own frames.
 func _label(s: Dictionary) -> void:
-	main.metrics.info.label = s.name
+	var metrics: Metrics = main.metrics
+	if s.name != "-" and metrics.late_at_us >= 0:
+		var start: int = metrics.clock.call()
+		var now := start
+		while now - metrics.late_at_us < SETTLED_S * 1e6 and now - start < SETTLE_MAX_S * 1e6:
+			await get_tree().process_frame
+			now = metrics.clock.call()
+		if now > start:
+			print("driver: %s opens after %.1f s waiting for on-time frames%s" % [s.name, (now - start) / 1e6, "" if now - metrics.late_at_us >= SETTLED_S * 1e6 else ", still late"])
+	metrics.info.label = s.name
+
+
+## A label an op opens itself, logged as a scene's own label step is.
+func _logged_label(name: String) -> void:
+	var label := {"op": "label", "name": name}
+	print("driver: ", label)
+	await _label(label)
 
 
 ## Lays the `build` steps over the bare meadow as large as this headset holds them: while the dearest of `views` reads
@@ -2649,7 +2671,9 @@ func _stair_field(_s: Dictionary) -> void:
 	assert(false, "stair field did not fill the budget")
 
 
-## Four rigged eaters (the largest visiting band), with the same clips on both sides of the CPU measurement.
+## Four rigged eaters (the largest visiting band), with the same clips on both sides of the CPU measurement, measured
+## as the phase `label`. They are built a second before it opens: all four in one frame is a late frame no visiting
+## band makes, since animals come one at a time.
 func _neck_cost(s: Dictionary) -> void:
 	var animals: Array[Beast] = []
 	var dishes: Array[Dish] = []
@@ -2670,6 +2694,8 @@ func _neck_cost(s: Dictionary) -> void:
 		animal.neck.amount = 1.0
 		animals.append(animal)
 		dishes.append(dish)
+	await get_tree().create_timer(1.0).timeout
+	await _logged_label(s.label)
 	var elapsed := 0.0
 	var samples: Array[float] = []
 	var solving: bool = s.get("solve", true)
@@ -2684,6 +2710,7 @@ func _neck_cost(s: Dictionary) -> void:
 		samples.append((Time.get_ticks_usec() - start) / 1000.0)
 	samples.sort()
 	print("neck_cost: solve=%s, four animals, %d frames, CPU median %.4f ms, p95 %.4f ms, max %.4f ms" % [solving, samples.size(), samples[samples.size() / 2], samples[int(samples.size() * 0.95)], samples[-1]])
+	await _logged_label("-")
 	for animal in animals:
 		animal.queue_free()
 	for dish in dishes:
@@ -2768,13 +2795,9 @@ func _held_cost(s: Dictionary) -> void:
 		await get_tree().create_timer(1.0).timeout
 		await _shot(s)
 		var name := HeldItem.label(state)
-		var label := {"op": "label", "name": s.get("label", "held/" + name.replace(" ", "-"))}
-		print("driver: ", label)
-		await _label(label)
+		await _logged_label(s.get("label", "held/" + name.replace(" ", "-")))
 		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
-		var end := {"op": "label", "name": "-"}
-		print("driver: ", end)
-		await _label(end)
+		await _logged_label("-")
 	for item in items:
 		item.queue_free()
 
@@ -3128,7 +3151,7 @@ func _expression(s: Dictionary) -> void:
 	if s.has("stick"):
 		Hand.injected_sticks["right_hand"] = Vector2(s.stick[0], s.stick[1])
 	if s.has("label"):
-		main.metrics.info.label = s.label
+		await _label({"name": s.label})
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
 	await _shot(s)
 	if puppet:

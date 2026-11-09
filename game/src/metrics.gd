@@ -55,6 +55,12 @@ var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
 ## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
 var _was_late := false
+## The first of a run of late frames, logged a frame later: its interval runs from this node's processing in one engine
+## frame to its processing in the next, and the engine reports a frame's split once it has ended, so the second frame's,
+## where the interval's wait and processing fall, shows only then.
+var _late_line := ""
+## When the last late frame ended, on `clock`; -1 before any.
+var late_at_us := -1
 var _gpu_ns := -1
 var _gpu_cycles := -1
 var _gpu_counted_ns := 0
@@ -158,6 +164,7 @@ func _process(delta: float) -> void:
 	if _unplayed:
 		_unplayed = false
 		_paused_s += elapsed
+		_late_line = ""
 		_notes.clear()
 		_head_was = null
 		return
@@ -169,8 +176,11 @@ func _process(delta: float) -> void:
 	_cpu.append(cpu_ms)
 	var late := is_late(elapsed * 1000.0)
 	var compiled := _compilations()
+	if not _late_line.is_empty():
+		print(_late_line % split_text(split))
+		_late_line = ""
 	if late and not _was_late:
-		print("metrics: late frame %.1f ms, the engine frame it began in %s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads, at %.3f s" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y, now / 1e6])
+		_late_line = "metrics: late frame %.1f ms, the engine frame it began in %s, the one it ended in %%s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads, at %.3f s" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y, now / 1e6]
 	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
 	var tags := _tags(elapsed)
 	for tag in tags:
@@ -185,6 +195,8 @@ func _process(delta: float) -> void:
 	_notes.clear()
 	_compiled = compiled
 	_was_late = late
+	if late:
+		late_at_us = now
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:

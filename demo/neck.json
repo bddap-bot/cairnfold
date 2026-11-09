@@ -22,38 +22,26 @@
     "seconds": 10
   },
   {
-    "op": "label",
-    "name": "neck/clips0"
-  },
-  {
     "op": "neck_cost",
+    "label": "neck/clips0",
     "solve": false,
     "seconds": 15
   },
   {
-    "op": "label",
-    "name": "neck/feeding0"
-  },
-  {
     "op": "neck_cost",
+    "label": "neck/feeding0",
     "solve": true,
     "seconds": 15
   },
   {
-    "op": "label",
-    "name": "neck/clips1"
-  },
-  {
     "op": "neck_cost",
+    "label": "neck/clips1",
     "solve": false,
     "seconds": 15
   },
   {
-    "op": "label",
-    "name": "neck/feeding1"
-  },
-  {
     "op": "neck_cost",
+    "label": "neck/feeding1",
     "solve": true,
     "seconds": 15
   },
