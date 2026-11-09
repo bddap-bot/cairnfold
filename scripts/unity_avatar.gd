@@ -42,7 +42,7 @@ const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": [
 ## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
 ## The constraints whose weight a clip can move, by the Unity class ID its curves name.
-const CONSTRAINTS := {"1773428102": "ParentConstraint", "1818360608": "PositionConstraint", "1183024399": "LookAtConstraint"}
+const CONSTRAINTS := {"1773428102": "ParentConstraint", "1818360608": "PositionConstraint", "1818360609": "RotationConstraint", "1183024399": "LookAtConstraint"}
 ## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
 ## The longest each spring chain hangs in the rest pose for its settled pose (settle), and the most a bone may still
@@ -2450,7 +2450,9 @@ static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
 ## The kinds of component under the avatar this converter does not translate, with how many of each.
 static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) -> Dictionary:
 	var kinds := {}
-	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true, "ParentConstraint": true, "PositionConstraint": true, "LookAtConstraint": true}
+	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true}
+	for kind: String in CONSTRAINTS.values():
+		known[kind] = true
 	for e: Array in _under(objs, top):
 		for id: int in Prefabs.components(objs, e[1]):
 			if not objs.has(id) or known.has(objs[id].type):

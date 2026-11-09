@@ -1102,6 +1102,12 @@ func _native_constraints_resolve_world_and_feedback() -> void:
 		var follower: Dictionary = result.constraints[1]
 		check(parent.sources[0].world.slice(12, 15) == [-2.0, 3.0, 4.0], "external prefab keeps its world coordinates with handedness conversion")
 		check(follower.sources[0].node == follower.node and is_equal_approx(follower.sources[1].weight, 0.01), "feedback reference and authored weight survive")
+	objs[21].type = "RotationConstraint"
+	objs[21].data.m_RotationOffset = {"x": "0", "y": "30", "z": "0"}
+	var turned: Array = UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).get("constraints", [])
+	check(turned.size() == 2 and turned[1].kind == "Rotation" and not is_equal_approx(turned[1].offset[0], 1.0), "a rotation constraint exports as one the runtime solves, with its offset: %s" % [turned])
+	objs[21].type = "PositionConstraint"
+	objs[21].data.erase("m_RotationOffset")
 	objs[21].data.m_Weight = "0"
 	var kept: Array = UnityAvatar._constraints(prefabs, objs, 10, {}, sk, rests).get("constraints", [])
 	check(kept.size() == 2 and kept[1].weight == 0.0, "a constraint saved at weight 0 is kept for a clip to engage: %s" % [kept])
