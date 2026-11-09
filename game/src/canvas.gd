@@ -140,16 +140,12 @@ static func metres_of(texels: Vector2i) -> Vector2:
 	return Vector2(texels) * Brushwork.METRES / Vector2(Brushwork.SIZE)
 
 
-static func _compile(rd: RenderingDevice) -> void:
+func _create() -> void:
 	if not _shader.is_valid():
 		var file: RDShaderFile = preload("res://src/paint.glsl")
-		_shader = rd.shader_create_from_spirv(file.get_spirv())
-		_sampler = rd.sampler_create(RDSamplerState.new())
-		_pipeline = rd.compute_pipeline_create(_shader)
-
-
-func _create() -> void:
-	_compile(_rd)
+		_shader = _rd.shader_create_from_spirv(file.get_spirv())
+		_sampler = _rd.sampler_create(RDSamplerState.new())
+		_pipeline = _rd.compute_pipeline_create(_shader)
 	var fmt := RDTextureFormat.new()
 	fmt.width = size.x
 	fmt.height = size.y

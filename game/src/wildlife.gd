@@ -531,7 +531,8 @@ func _walk_away(f: Family, at: Vector3, heading: Vector3) -> void:
 ## `at` itself with none clear, to stand there until it can be let go.
 func _head_off(at: Vector3, heading: Vector3, random := rng) -> Vector3:
 	for attempt in 6:
-		var to := _onward(at, heading)
+		var to := at + heading * WALK_AWAY
+		to = terrain.ground(clampf(to.x, -EDGE, EDGE), clampf(to.z, -EDGE, EDGE))
 		if clear_way(at, to):
 			return to
 		heading = _unseen_direction(at, WALK_AWAY, 0.0, LEAVE_SIGHT, random)
@@ -702,12 +703,6 @@ func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	var off := Vector3(from.x - at.x, 0, from.z - at.z)
 	at += off.normalized() * appetite.mouth if off.length() > 1e-3 else Vector3.ZERO
 	return Vector3(at.x, water.floor_at(at), at.z)
-
-
-## WALK_AWAY further along `heading`, kept on the terrain.
-func _onward(at: Vector3, heading: Vector3) -> Vector3:
-	var to := at + heading * WALK_AWAY
-	return terrain.ground(clampf(to.x, -EDGE, EDGE), clampf(to.z, -EDGE, EDGE))
 
 
 ## Along an arc between `sky` and the water, steep near the sky and flattening to a glide.

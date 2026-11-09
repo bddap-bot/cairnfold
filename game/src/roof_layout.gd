@@ -179,13 +179,10 @@ func data() -> Dictionary:
 
 ## Takes a build command's roof.
 func set_data(d: Dictionary) -> void:
-	for k in ["center", "radius", "pitch", "curve", "seed", "overhang", "flag", "thatch"]:
+	for k in ["kind", "center", "radius", "pitch", "curve", "seed", "overhang", "deck", "flag", "thatch"]:
 		set(k, d[k])
-	kind = d.kind as Kind
-	deck = d.deck as Deck
-	chimneys.assign(Array(d.chimneys))
-	dormers.assign(Array(d.dormers))
-	hatches.assign(Array(d.hatches))
+	for k in ["chimneys", "dormers", "hatches"]:
+		(get(k) as Array).assign(Array(d[k]))
 
 
 ## Takes what `built` laid, as if `build` had run here.

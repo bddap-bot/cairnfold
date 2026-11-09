@@ -2937,23 +2937,10 @@ func same_inputs(other: WallLayout) -> bool:
 
 ## Takes the wall's part of a build command.
 func set_data(d: Dictionary) -> void:
-	points.assign(Array(d.points))
-	height = d.height
-	rise = d.rise
-	seed = d.seed
-	closed = d.closed
-	top = d.top as Top
-	fence = d.fence
-	finish = d.finish as Finish
-	wear = d.wear
-	foundation = d.foundation as Foundation
-	planks = d.planks
-	gable_end = d.gable_end as GableEnd
-	openings.assign(Array(d.openings))
-	lanterns.assign(Array(d.lanterns))
-	flags.assign(Array(d.flags))
-	clutter.assign(Array(d.get("clutter", PackedVector4Array())))
-	ruins.assign(Array(d.ruins))
+	for k in ["height", "rise", "seed", "closed", "top", "fence", "finish", "wear", "foundation", "planks", "gable_end"]:
+		set(k, d[k])
+	for k in ["points", "openings", "lanterns", "flags", "clutter", "ruins"]:
+		(get(k) as Array).assign(Array(d[k]))
 
 
 ## Takes what `built` laid, as if `build` had run here.

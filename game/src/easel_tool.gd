@@ -470,17 +470,13 @@ func _pull_sheet(p: Painter, live: bool) -> void:
 		e.canvas_mesh.transform = Easels.canvas_local()
 		p.peel = null
 		if pulled >= PEEL:
-			fresh_sheet(e.id, p.hand)
+			Cues.play(Cues.Act.SHEET_TEAR, p.hand.global_position, p.hand)
+			world.submit({"op": "sheet", "easel": e.id, "strokes": []}, Callable(), p.hand)
 		return
 	var half := Brushwork.METRES.y * 0.5
 	var curl := atan2(minf(pulled, PEEL * 1.5), Brushwork.METRES.y)
 	var hinge := Transform3D(Basis(), Vector3(0, half, 0)) * Transform3D(Basis(Vector3.RIGHT, curl), Vector3(0, -half, 0.002))
 	e.canvas_mesh.transform = Easels.canvas_local() * hinge
-
-
-func fresh_sheet(id: int, hand: Hand) -> void:
-	Cues.play(Cues.Act.SHEET_TEAR, hand.global_position, hand)
-	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 
 func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:

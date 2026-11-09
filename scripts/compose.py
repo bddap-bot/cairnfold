@@ -505,8 +505,8 @@ def water():
 crng = np.random.default_rng(59)
 
 
-def _band(x, lo, hi, order=2):
-    return _fft_lowpass(x, hi, order) - _fft_lowpass(x, lo, order)
+def _band(x, lo, hi):
+    return _fft_lowpass(x, hi) - _fft_lowpass(x, lo)
 
 
 def _convolve(x, ir):
