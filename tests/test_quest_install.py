@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import shlex
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -11,10 +12,10 @@ import zipfile
 script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
 # A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
-# erases that package's external files folder, a push makes no folder, and only the game's start makes the folders it
-# uses: avatars/ always, sessions/ once record-sessions is there. FAKE_FAIL names the adb call that fails; with
-# FAKE_REFUSE=N the first N pushes are refused as a freshly installed app's folder refuses them. Off the head the
-# Guardian's dialog holds every start while debug.oculus.guardian_pause is not 1.
+# erases that package's external files folder, and a push makes the folders its files need and no empty one, closed to
+# the game as a Quest 3's shell makes them. The shell runs on the host, with no `am`: a restore that starts the game
+# fails. FAKE_FAIL names the adb call that fails, or with `corrupt` a push that lands other bytes; with FAKE_REFUSE=N
+# the first N pushes are refused as a freshly installed app's folder refuses them.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -43,28 +44,28 @@ FAKE_ADB = textwrap.dedent('''\
             with open(refused, 'a') as f:
                 f.write('x')
             sys.exit('adb: error: failed to copy: remote secure_mkdirs failed: Operation not permitted')
-        shutil.copy(args[1], on_device(args[2]))
-    elif args[0] == 'shell' and args[1] == 'getprop':
-        prop = root + '/props/' + args[2]
-        print(open(prop).read() if os.path.exists(prop) else '')
-    elif args[0] == 'shell' and args[1] == 'setprop':
-        os.makedirs(root + '/props', exist_ok=True)
-        with open(root + '/props/' + args[2], 'w') as f:
-            f.write(args[3].strip("'"))
-    elif args[0] == 'shell' and args[1:3] == ['am', 'start']:
-        if fail == 'start':
-            sys.exit(1)
-        prop = root + '/props/debug.oculus.guardian_pause'
-        if not os.path.exists(prop) or open(prop).read() != '1':
-            sys.exit(0)
-        files = files_of(args[4].split('/')[0])
-        os.makedirs(files + '/avatars', exist_ok=True)
-        if os.path.exists(files + '/record-sessions'):
-            os.makedirs(files + '/sessions', exist_ok=True)
-        with open(files + '/garden.save', 'w') as f:
-            f.write('a fresh garden')
-    elif args[0] == 'shell' and args[1:3] == ['am', 'force-stop']:
-        pass
+        source, target = args[1], on_device(args[2])
+        if target.endswith('/'):
+            target += os.path.basename(source)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        if os.path.isdir(source):
+            for at, folders, names in os.walk(source):
+                for name in names:
+                    to = os.path.join(target, os.path.relpath(os.path.join(at, name), source))
+                    os.makedirs(os.path.dirname(to), exist_ok=True)
+                    shutil.copy(os.path.join(at, name), to)
+            for at, folders, names in os.walk(target):
+                os.chmod(at, 0o2770)
+                for name in names:
+                    os.chmod(os.path.join(at, name), 0o640)
+        else:
+            shutil.copy(source, target)
+            os.chmod(target, 0o640)
+        if fail == 'corrupt':
+            for at, folders, names in os.walk(target) if os.path.isdir(target) else [('', [], [target])]:
+                for name in names:
+                    with open(os.path.join(at, name), 'ab') as f:
+                        f.write(b'!')
     elif args[0] == 'shell' and (fail == 'shell' or fail == 'shell-after-uninstall' and 'uninstall' in open(root + '/adb.log').read()):
         sys.exit('error: closed')
     elif args[0] == 'shell':
@@ -108,8 +109,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.quest = self.root / 'quest'
         self.files = self.quest / 'sdcard/Android/data/io.github.bddapbot.cairnfold/files'
         (self.files / 'avatars').mkdir(parents=True)
-        (self.quest / 'props').mkdir()
-        (self.quest / 'props/debug.oculus.guardian_pause').write_text('0')
+        self.game_made = {self.files / 'avatars'}
         (self.files / 'bench').mkdir()
         (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
         (self.files / 'garden.save.bad').write_bytes(b'an unreadable garden')
@@ -148,38 +148,59 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         run = subprocess.run([str(script), '--package', str(apk(self.root / 'x.apk', 'a.b.c'))], capture_output=True, text=True)
         self.assertEqual(run.stdout.strip(), 'a.b.c', run.stderr)
 
-    def test_an_install_that_uninstalls_puts_the_saves_back(self):
-        run = self.install()
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn('uninstall', (self.quest / 'adb.log').read_text())
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
-        self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'vrm')
-        self.assertEqual((self.quest / 'props/debug.oculus.guardian_pause').read_text(), '0')
-        for shell_made in 'bench', 'check', 'launch.args':
-            self.assertFalse((self.files / shell_made).exists(), shell_made)
-        copy = next(self.saves.iterdir())
-        self.assertEqual(sorted(p.name for p in copy.iterdir()), ['avatars', 'garden.save', 'garden.save.bad'])
-        self.assertEqual((self.files / 'garden.save.bad').read_bytes(), b'an unreadable garden')
+    def start_game(self):
+        """What the game's start does, as a Quest 3 lets it: it may read a file or write in a folder it made, or one the
+        shell opened to all; the start makes its files folder its own. It reads every save, replaces the garden, adds
+        to each folder and records a session where record-sessions asks it to."""
+        def opened(path, bit):
+            return path in self.game_made or path.stat().st_mode & bit
+        self.files.mkdir(parents=True, exist_ok=True)
+        self.game_made.add(self.files)
+        for path in self.files.rglob('*'):
+            if path.is_file():
+                self.assertTrue(opened(path, 0o004), f'the game cannot read {path}')
+            else:
+                self.assertTrue(opened(path, 0o002), f'the game cannot write into {path}')
+                (path / 'new').write_bytes(b'')
+        (self.files / 'garden.save.new').write_bytes(b'a garden')
+        (self.files / 'garden.save.new').rename(self.files / 'garden.save')
+        if (self.files / 'record-sessions').exists():
+            if not (self.files / 'sessions').exists():
+                (self.files / 'sessions').mkdir()
+            (self.files / 'sessions/9-9-9-0000.jsonl').write_text('{}')
 
-    def test_recorded_sessions_go_back_into_the_folder_the_game_makes_for_them(self):
-        (self.files / 'record-sessions').write_text('')
-        (self.files / 'sessions').mkdir()
-        (self.files / 'sessions/1-2-3.jsonl').write_text('{}')
-        run = self.install()
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual((self.files / 'sessions/1-2-3.jsonl').read_text(), '{}')
-        self.assertEqual((self.quest / 'adb.log').read_text().count('am start'), 2)
-        self.assertLess(len((self.root / 'sleeps').read_text().splitlines()), 15)
-
-    def test_sessions_without_record_sessions_stay_in_the_copy(self):
-        (self.files / 'sessions').mkdir()
-        (self.files / 'sessions/1-2-3.jsonl').write_text('{}')
-        run = self.install()
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertFalse((self.files / 'sessions').exists())
-        copy = next(self.saves.iterdir())
-        self.assertEqual((copy / 'sessions/1-2-3.jsonl').read_text(), '{}')
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+    def test_an_install_that_uninstalls_puts_back_every_shape_of_saves(self):
+        sessions = {'sessions/1-2-3-0000.jsonl': b'{}', 'sessions/1-2-3-0001.jsonl': b'{"part":2}'}
+        shapes = {
+            'sessions only': sessions,
+            'record-sessions': {'record-sessions': b'', **sessions},
+            'empty': {},
+            'full': {'garden.save': b'the players\x00 garden', 'garden.save.bad': b'an unreadable garden',
+                     'avatars/Fairy.vrm': b'vrm', "avatars/a folder's/Moth.vrm": b'moth', 'record-sessions': b'', **sessions},
+        }
+        for shape, saves in shapes.items():
+            with self.subTest(shape=shape):
+                self.tearDown()
+                self.setUp()
+                for p in list(self.files.iterdir()):
+                    if p.name not in ('bench', 'check', 'launch.args'):
+                        shutil.rmtree(p) if p.is_dir() else p.unlink()
+                (self.files / 'avatars/empty').mkdir(parents=True)
+                for rel, data in saves.items():
+                    (self.files / rel).parent.mkdir(parents=True, exist_ok=True)
+                    self.game_made.add((self.files / rel).parent)
+                    (self.files / rel).write_bytes(data)
+                run = self.install()
+                self.assertEqual(run.returncode, 0, run.stderr)
+                log = (self.quest / 'adb.log').read_text()
+                self.assertIn('uninstall', log)
+                self.assertNotIn('am start', log)
+                on_device = {str(p.relative_to(self.files)): p.read_bytes() for p in self.files.rglob('*') if p.is_file()}
+                self.assertEqual(on_device, saves)
+                copy = next(self.saves.iterdir())
+                self.assertEqual({str(p.relative_to(copy)): p.read_bytes() for p in copy.rglob('*') if p.is_file()}, saves)
+                self.game_made = set()
+                self.start_game()
 
     def test_a_restore_of_a_copy_holding_shell_pushed_folders_puts_back_only_the_saves(self):
         copy = self.root / 'copy'
@@ -191,6 +212,21 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual((self.files / 'garden.save').read_bytes(), b'kept')
         self.assertFalse((self.files / 'check').exists())
+
+    def test_a_restore_onto_saves_that_have_grown_puts_the_copy_back(self):
+        copy = self.root / 'copy'
+        (copy / 'avatars').mkdir(parents=True)
+        (copy / 'avatars/Fairy.vrm').write_bytes(b'an older fairy')
+        (self.files / 'avatars/Moth.vrm').write_bytes(b'a newer moth')
+        run = subprocess.run([str(script), '--restore', str(copy)], env=self.env, capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'an older fairy')
+        self.assertEqual((self.files / 'avatars/Moth.vrm').read_bytes(), b'a newer moth')
+
+    def test_a_restore_of_a_copy_that_is_not_there_fails(self):
+        run = subprocess.run([str(script), '--restore', str(self.root / 'nowhere')], env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn('no copy of saves', run.stderr)
 
     def test_a_copy_shares_files_identical_to_an_earlier_one(self):
         earlier = self.saves / '20000101T000000Z/garden.save'
@@ -226,21 +262,20 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual((self.files / 'sessions/1-2-3.jsonl').read_text(), '{}')
 
     def test_a_restore_that_does_not_land_fails_loudly(self):
-        run = self.install(FAKE_FAIL='push')
-        self.assertNotEqual(run.returncode, 0)
-        self.assertIn('--restore', run.stderr)
-        copy = next(self.saves.iterdir())
-        self.assertEqual((copy / 'garden.save').read_bytes(), b'the players\x00 garden')
+        for fail in 'push', 'corrupt':
+            with self.subTest(fail=fail):
+                run = self.install(FAKE_FAIL=fail)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertIn('--restore', run.stderr)
+                copy = next(self.saves.iterdir())
+                self.assertEqual((copy / 'garden.save').read_bytes(), b'the players\x00 garden')
+                self.tearDown()
+                self.setUp()
 
     def test_an_adb_failure_during_the_restore_names_the_copy_to_restore(self):
         run = self.install(FAKE_FAIL='shell-after-uninstall')
         self.assertNotEqual(run.returncode, 0)
         self.assertIn('--restore', run.stderr)
-
-    def test_a_restore_that_dies_starting_the_game_leaves_the_guardian_as_it_was(self):
-        run = self.install(FAKE_FAIL='start')
-        self.assertNotEqual(run.returncode, 0)
-        self.assertEqual((self.quest / 'props/debug.oculus.guardian_pause').read_text(), '0')
 
     def test_the_restore_a_renamed_build_names_acts_on_that_build(self):
         package = 'io.github.bddapbot.nestbisect'

@@ -86,82 +86,42 @@ backup() {
   echo "quest-install: saves copied to $dir" >&2
 }
 
-# push_verified DIR REL: DIR/REL to the same place under files, failing unless the device then holds it byte for byte.
-push_verified() {
-  adb push "$1/$2" "$files/$2" > /dev/null < /dev/null &&
-    [ "$(adb shell sha256sum "'$files/$2'" < /dev/null | cut -d' ' -f1)" = "$(sha256sum "$1/$2" | cut -d' ' -f1)" ]
+# stranded DIR: from here on, a run that dies names the command that puts DIR back.
+stranded() {
+  unrestored="quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$1" ${apk:+"$(realpath "$apk")"})"
+  trap 'echo "$unrestored" >&2' EXIT
 }
 
-# The game must make every folder the saves go in, its files folder and avatars/: on a Quest 3 it cannot write into one
-# the shell made, and the shell may not make one inside the game's. sessions/ appears only once record-sessions has gone
-# back, so the game starts again while a pushed file brings it a folder still missing; without record-sessions the game
-# never makes it, and the sessions stay in the copy. Each start is waited on until every folder is there or, with one
-# there to push into, five seconds pass without another. Off the head the Guardian puts up a dialog the shell holds every
-# launch behind, so it is held paused through each start.
-# A freshly installed app's files folder refuses the shell's pushes for a while after the game has made it
-# (secure_mkdirs: Operation not permitted), so a restore retries refused pushes for thirty seconds in all.
+# A restore never starts the game, so an unworn headset's Guardian or standby cannot hold it: each save goes back by
+# one push, which makes the folders it needs, and what the push made is opened to the game. On a Quest 3 a folder or
+# file the shell makes stays the shell's, which the game may not write; the game's start makes files/ and
+# Android/data/<package> its own. The device's hashes of the copy's files must then match the copy's.
+# A freshly installed app's files folder refuses the shell's writes for a while (secure_mkdirs: Operation not
+# permitted), so a restore retries refused ones for thirty seconds in all.
 restore() {
-  local dir=$1 rel ok=1 pending=() left=() folders there n last still entry retries=30
-  paused=
-  unpause() {
-    [ -z "$paused" ] || adb shell setprop debug.oculus.guardian_pause "'${paused#-}'" < /dev/null
-    paused=
-  }
+  local dir=$1 entry entries=() listed tries=30
+  [ -d "$dir" ] || { echo "quest-install: no copy of saves at $dir" >&2; exit 1; }
   for entry in $game_paths; do
-    [ -e "$dir/$entry" ] || continue
-    if [ "$entry" = sessions ] && [ ! -e "$dir/record-sessions" ]; then
-      echo "quest-install: recorded sessions without record-sessions stay in $dir/sessions" >&2
-      continue
-    fi
-    while IFS= read -r rel; do pending+=("$rel"); done < <(cd "$dir" && find "$entry" -type f)
+    [ -z "$(find "$dir/$entry" -type f -print -quit 2> /dev/null)" ] || entries+=("$entry")
   done
-  [ ${#pending[@]} -gt 0 ] || return 0
-  unrestored="quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$dir" ${apk:+"$(realpath "$apk")"})"
-  trap 'echo "$unrestored" >&2; unpause' EXIT
-  made() {
-    adb shell "for d in $(tr '\n' ' ' <<< "$folders"); do [ -d \$d ] && echo y || echo n; done" < /dev/null |
-      paste -d' ' - <(cat <<< "$folders") | sed -n 's/^y //p'
-  }
-  while [ ${#pending[@]} -gt 0 ]; do
-    folders=$(printf "$files/%s\n" "${pending[@]}" | sed 's|/[^/]*$||' | sort -u)
-    if [ "$(made | wc -l)" -lt "$(wc -l <<< "$folders")" ]; then
-      # The dash marks a pause taken, so an unset value is put back too.
-      paused=-$(adb shell getprop debug.oculus.guardian_pause < /dev/null | tr -d '\r')
-      adb shell setprop debug.oculus.guardian_pause 1 < /dev/null
-      adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
-      last=0 still=0
-      for _ in $(seq 60); do
-        n=$(made | wc -l)
-        [ "$n" -lt "$(wc -l <<< "$folders")" ] || break
-        if [ "$n" -gt 0 ] && [ "$n" -eq "$last" ]; then
-          still=$((still + 1))
-          [ $still -lt 5 ] || break
-        else
-          still=0
-        fi
-        last=$n
-        sleep 1
-      done
-    fi
-    adb shell am force-stop "$pkg"
-    unpause
-    there=$(made)
-    left=()
-    for rel in "${pending[@]}"; do
-      if ! grep -qxF "$(dirname "$files/$rel")" <<< "$there"; then
-        left+=("$rel")
-      else
-        until push_verified "$dir" "$rel"; do
-          retries=$((retries - 1))
-          [ $retries -gt 0 ] || { ok=; break; }
-          sleep 1
-        done
-      fi
+  [ ${#entries[@]} -gt 0 ] || { trap - EXIT; return 0; }
+  stranded "$dir"
+  retried() {
+    until "$@"; do
+      tries=$((tries - 1))
+      [ $tries -gt 0 ] || return 1
+      sleep 1
     done
-    [ ${#left[@]} -lt ${#pending[@]} ] || break
-    pending=("${left[@]}")
+  }
+  retried adb shell "mkdir -p $files" < /dev/null || exit 1
+  for entry in "${entries[@]}"; do
+    retried adb push "$dir/$entry" "$files/" > /dev/null < /dev/null || exit 1
   done
-  [ -n "$ok" ] && [ ${#left[@]} -eq 0 ] || exit 1
+  retried adb shell "cd $files && find ${entries[*]} -user \$(id -u) -exec chmod a+rwX {} +" < /dev/null || exit 1
+  listed=$(cd "$dir" && find "${entries[@]}" -type f | sed "s/'/'\\\\''/g; s/.*/'&'/" | tr '\n' ' ')
+  sums() { tr -d '\r' | LC_ALL=C sort; }
+  [ "$(adb shell "cd $files && sha256sum $listed" < /dev/null | sums)" = \
+    "$(cd "$dir" && find "${entries[@]}" -type f -exec sha256sum {} + | sums)" ] || exit 1
   trap - EXIT
   echo "quest-install: saves restored from $dir" >&2
 }
@@ -178,6 +138,7 @@ case $failed in
     saves=${CAIRNFOLD_QUEST_SAVES:-$HOME/.local/state/cairnfold/quest-saves}/$(date -u +%Y%m%dT%H%M%SZ)
     backup "$saves"
     hardlink -q -t "${saves%/*}" > /dev/null || echo "quest-install: copies of the saves left unlinked" >&2
+    stranded "$saves"
     adb uninstall "$pkg" > /dev/null
     adb install -g "$1" > /dev/null
     restore "$saves" ;;
