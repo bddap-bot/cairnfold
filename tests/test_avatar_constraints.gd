@@ -25,9 +25,9 @@ func _run() -> void:
 	avatar.transform = Transform3D(Basis(Vector3.UP, 0.7).scaled(Vector3.ONE * 1.5), Vector3(3, 0.2, -2))
 	root.add_child(avatar)
 	var skeleton := avatar.find_child("Skeleton3D", true, false) as Skeleton3D
-	check(Constraints.of(skeleton) != null and Constraints.of(skeleton).constraints.size() == 3, "every constraint the file names solves on the skeleton")
+	check(Constraints.of(skeleton) != null and Constraints.of(skeleton).constraints.size() == 4, "every constraint the file names solves on the skeleton")
 	skeleton.skeleton_updated.connect(func() -> void:
-		for bone: String in [_hips, "anchor", "prop", "follower", "pointer"]:
+		for bone: String in [_hips, "anchor", "prop", "follower", "pointer", "turner"]:
 			_seen[bone] = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(bone)))
 	await frames(3)
 	var hips: Transform3D = _seen[_hips]
@@ -56,19 +56,23 @@ func _run() -> void:
 	check(pointer.origin.is_equal_approx(hips * Vector3(0, 0.5, 0)), "a look-at constraint leaves its bone where it stands")
 	check(pointer.basis.z.normalized().is_equal_approx((anchor.origin - pointer.origin).normalized()), "and turns its forward toward its source: %s, expected %s" % [pointer.basis.z.normalized(), (anchor.origin - pointer.origin).normalized()])
 	check(is_zero_approx(pointer.basis.x.normalized().y), "keeping its side level under the world's up")
+	var turner: Transform3D = _seen.turner
+	check(turner.origin.is_equal_approx(hips * Vector3(0.1, 0.4, 0)), "a rotation constraint leaves its bone where it stands")
+	var turned := anchor.basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, 0.3)
+	check(turner.basis.get_rotation_quaternion().is_equal_approx(turned) or turner.basis.get_rotation_quaternion().is_equal_approx(-turned), "and turns it as its source turns, by its offset: %s, expected %s" % [turner.basis.get_rotation_quaternion(), turned])
 	avatar.free()
 	finish()
 
 
-## Cairnfold's built-in avatar with three props on its hips: one a toggle hands to an anchor, one following a weighted
-## anchor and world point on two axes, one looking at the anchor.
+## Cairnfold's built-in avatar with props on its hips: one a toggle hands to an anchor, carrying a contact on its tip,
+## one following a weighted anchor and world point on two axes, one turning as the anchor turns, one looking at it.
 func _fixture() -> Node3D:
 	var model := Avatar.built_in(0).instantiate() as Node3D
 	var bones: Dictionary = model.get_meta("humanoid")
 	var skeleton := model.get_node(str(bones.hips).get_slice(":", 0)) as Skeleton3D
 	var hips := skeleton.find_bone((bones.hips as NodePath).get_concatenated_subnames())
 	_hips = skeleton.get_bone_name(hips)
-	for bone: Array in [["anchor", Transform3D(RIGHT_ANGLE, Vector3(0.4, 0.1, 0))], ["prop", Transform3D(Basis.IDENTITY, Vector3(0, 0.3, 0))], ["follower", Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.2))], ["pointer", Transform3D(Basis.IDENTITY, Vector3(0, 0.5, 0))]]:
+	for bone: Array in [["anchor", Transform3D(RIGHT_ANGLE, Vector3(0.4, 0.1, 0))], ["prop", Transform3D(Basis.IDENTITY, Vector3(0, 0.3, 0))], ["follower", Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.2))], ["pointer", Transform3D(Basis.IDENTITY, Vector3(0, 0.5, 0))], ["turner", Transform3D(Basis.IDENTITY, Vector3(0.1, 0.4, 0))]]:
 		skeleton.add_bone(bone[0])
 		skeleton.set_bone_parent(skeleton.find_bone(bone[0]), hips)
 		skeleton.set_bone_rest(skeleton.find_bone(bone[0]), bone[1])
@@ -83,6 +87,8 @@ func _fixture() -> Node3D:
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": _matrix(Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1)))}]},
 		{"kind": "Position", "node": "follower", "weight": 0.5, "translation": [true, false, true], "rotation": every, "rest": identity, "offset": _matrix(Transform3D(Basis.IDENTITY, Vector3(0.05, 0, 0))),
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}, {"world": _matrix(Transform3D(Basis.IDENTITY, Vector3(0.4, 1.1, -0.2))), "weight": 3.0, "offset": identity}]},
+		{"kind": "Rotation", "node": "turner", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": _matrix(Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3.ZERO)),
+			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]},
 		{"kind": "LookAt", "node": "pointer", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": identity,
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]}])
 	model.set_meta("expressions", {"parameters": [{"name": "Hold", "type": "bool", "default": 0.0, "saved": true}],

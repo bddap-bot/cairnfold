@@ -5,9 +5,9 @@ extends SkeletonModifier3D
 ## animator: each places a bone from the weighted sources it names, in the file's order, every one seeing those before
 ## it. A skeleton modifier, so it runs once the frame's pose and springs have set the bones; Avatar keeps it the last.
 
-enum Kind { PARENT, POSITION, LOOK_AT }
+enum Kind { PARENT, POSITION, ROTATION, LOOK_AT }
 
-const KINDS := {"Parent": Kind.PARENT, "Position": Kind.POSITION, "LookAt": Kind.LOOK_AT}
+const KINDS := {"Parent": Kind.PARENT, "Position": Kind.POSITION, "Rotation": Kind.ROTATION, "LookAt": Kind.LOOK_AT}
 
 
 class Source:
@@ -135,6 +135,8 @@ func _process_modification_with_delta(_delta: float) -> void:
 				Kind.PARENT:
 					to = position
 					toward = turn
+				Kind.ROTATION:
+					toward = turn * c.offset.basis.get_rotation_quaternion()
 				Kind.LOOK_AT:
 					var forward := position - current.origin
 					var right := Vector3.UP.cross(forward)
@@ -145,16 +147,16 @@ func _process_modification_with_delta(_delta: float) -> void:
 						right = right.normalized()
 						toward = Basis(right, forward.cross(right), forward).get_rotation_quaternion() * c.offset.basis.get_rotation_quaternion()
 		var placed := Transform3D(Basis(current_turn if c.kind == Kind.POSITION else rest_turn.slerp(toward, weight)).scaled_local(current.basis.get_scale()),
-			current.origin if c.kind == Kind.LOOK_AT else rest.origin.lerp(to, weight))
+			current.origin if c.kind in [Kind.LOOK_AT, Kind.ROTATION] else rest.origin.lerp(to, weight))
 		var local := parent.affine_inverse() * placed
 		var at := local.origin
 		var r := local.basis.get_rotation_quaternion()
-		if c.kind != Kind.LOOK_AT:
+		if c.kind not in [Kind.LOOK_AT, Kind.ROTATION]:
 			var held := sk.get_bone_pose_position(c.bone)
 			for axis in 3:
 				if not c.translation[axis]:
 					at[axis] = held[axis]
-		if c.kind == Kind.PARENT and c.rotation.has(false):
+		if c.kind in [Kind.PARENT, Kind.ROTATION] and c.rotation.has(false):
 			var angles := Basis(r).get_euler(EULER_ORDER_YXZ)
 			var held := Basis(sk.get_bone_pose_rotation(c.bone)).get_euler(EULER_ORDER_YXZ)
 			for axis in 3:
