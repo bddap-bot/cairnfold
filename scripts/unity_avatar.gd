@@ -36,8 +36,6 @@ const Yaml = preload("res://../scripts/unity/yaml.gd")
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
-## The side, in pixels, of a menu icon as the model carries it: a board row's height.
-const ICON := 44.0
 ## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
 const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
 ## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
@@ -993,7 +991,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 
 
 ## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon an
-## image of at most ICON pixels a side in `icons`, by index.
+## image of at most Avatar.ICON_SIDE pixels a side in `icons`, by index.
 static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: Materials, icons: Array, indices: Dictionary) -> Array:
 	var out := []
 	for c: Dictionary in menu:
@@ -1003,9 +1001,7 @@ static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: M
 			var image := materials.image(icon)
 			if image != null:
 				var small := image.duplicate() as Image
-				var side := maxf(small.get_width(), small.get_height())
-				if side > ICON:
-					small.resize(maxi(roundi(small.get_width() * ICON / side), 1), maxi(roundi(small.get_height() * ICON / side), 1), Image.INTERPOLATE_LANCZOS)
+				Avatar.hold(small, "icons", 1)
 				indices[icon] = icons.size()
 				icons.append(small)
 		if indices.has(icon):

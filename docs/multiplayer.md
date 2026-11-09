@@ -330,7 +330,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
   author made them. Its textures and expression layers but the hue mask, material index and menu icons are mipmapped, base colours sampled anisotropically.
-  The material index is held at most 2048 px wide and the menu icons as they come; the matcaps and their masks,
+  The material index is held at most 2048 px wide and the menu icons at most 44 px; the matcaps and their masks,
   which nothing here draws, are never decoded. Everything else shrinks alike, by halves, only until it fits the memory the device had available as the game started above 1.7 GB, shared
   among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
   is decoded: on a Quest 2 with about 2 GB available at launch a heavy converted avatar's 4096 px atlas is held at 2048, on

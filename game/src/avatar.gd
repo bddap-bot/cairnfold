@@ -28,6 +28,8 @@ const MAX_SURFACES := 40
 const UNCAPPED := 1e4
 ## The points a ramp-lit material's ramp is held at (`_lit_looks`), as many as the shader reads.
 const RAMP := 16
+## The side, in pixels, of a menu icon as the model carries and holds it: a board row's height.
+const ICON_SIDE := 44.0
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -641,14 +643,18 @@ static func _plain(m: BaseMaterial3D) -> void:
 
 ## Holds `img`, a texture where `layer` is "" or else that expression layer's image (Vrm.LAYERS), as the avatar draws
 ## it at 1/`shrink` of its width: the material index greyscale, nearest-sampled at most INDEX_SIDE wide, and the icons
-## as they come (UNSHRUNK); the hue mask unmipmapped; the rest mipmapped.
+## at most ICON_SIDE wide (UNSHRUNK); the hue mask unmipmapped; the rest mipmapped.
 static func hold(img: Image, layer: String, shrink: int) -> void:
 	if layer == "index":
 		img.convert(Image.FORMAT_L8)
 		var big := maxi(img.get_width(), img.get_height())
 		if big > INDEX_SIDE:
 			img.resize(img.get_width() * INDEX_SIDE / big, img.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
-	elif layer != "icons":
+	elif layer == "icons":
+		var side := maxf(img.get_width(), img.get_height())
+		if side > ICON_SIDE:
+			img.resize(maxi(roundi(img.get_width() * ICON_SIDE / side), 1), maxi(roundi(img.get_height() * ICON_SIDE / side), 1), Image.INTERPOLATE_LANCZOS)
+	else:
 		if layer != "":
 			img.convert(Image.FORMAT_RGBA8)
 		scale_down(img, shrink, layer != "hueMask")

@@ -581,7 +581,7 @@ const NODE_EFFECTS := ["scale", "rotation", "translation", "material", "constrai
 
 
 static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:
-	var out := _layered(expressions, func(img: Image, _layer: String) -> int: return _add_image(state, img.save_webp_to_buffer()))
+	var out := _layered(expressions, func(img: Variant, _layer: String) -> Variant: return _add_image(state, img.save_webp_to_buffer()) if img is Image else null)
 	var nodes := state.get_nodes()
 	var morph := func(bind: Array) -> Array:
 		var mesh := nodes[index[bind[0]]].mesh
