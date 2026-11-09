@@ -86,6 +86,17 @@ func _fx() -> void:
 	check(state.outputs == [0.0], "turning the toggle off transitions back")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, false) == 0.25, "continuous curves interpolate")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, true) == 0.0, "switch curves stay stepped")
+	var timed := _definition()
+	timed.clips = [{"length": 0.06666667, "curves": [{"target": 0, "step": true, "keys": [[0, 0], [0.016666668, 1], [0.033333335, 2], [0.05, 3]]}]}]
+	timed.layers = [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0, "time": "X"}, "transitions": []}]}]
+	var tone := ExpressionState.new(timed)
+	var picked: Array[float] = []
+	for at: float in [0.0, 0.25, 0.5, 0.75]:
+		tone.put("X", at)
+		tone.advance(0.1)
+		picked.append(tone.outputs[0])
+	check(picked == [0.0, 1.0, 2.0, 3.0], "a motion-time radial over a four-frame clip picks each key at its quarter, as Unity does: %s" % [picked])
+	check(ExpressionState.sample([[0, 0], [1, 1]], 1.0 - 1e-6, true) == 0.0, "a time a microsecond short of a key is before it")
 	var unity: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/unity-curves.json"))
 	for name: String in unity:
 		var samples: Array = unity[name].unity

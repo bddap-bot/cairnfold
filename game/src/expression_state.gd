@@ -16,6 +16,8 @@ var opened: Array[Dictionary] = []
 var revision := 0
 ## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
 const EXIT := -2
+## The relative gap between neighbouring single-precision floats, 2^-23.
+const SINGLE_STEP := 1.0 / 8388608.0
 
 
 func _init(definition: Dictionary) -> void:
@@ -289,11 +291,14 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 
 ## Unity's AnimationCurve.Evaluate: each key pair is a cubic Bezier through the keys' slopes and weights (a plain
 ## Hermite at the default third), held at the left key where either facing slope is infinite, clamped past the ends.
-## Keys without slopes interpolate linearly.
+## Keys without slopes interpolate linearly. Unity keeps times in single precision, so a time short of a key by less
+## than SINGLE_STEP of it is at it: a quarter of a four-frame motion-time clip lands on its second key in Unity, and a
+## hair before it in double precision.
 static func sample(keys: Array, time: float, stepped: bool) -> float:
 	var after := keys.size()
 	for i in keys.size():
-		if time < float(keys[i][0]):
+		var key := float(keys[i][0])
+		if time < key - absf(key) * SINGLE_STEP:
 			after = i
 			break
 	if after == 0:
