@@ -127,9 +127,15 @@ func advance(delta: float) -> void:
 		if next >= 0:
 			_enter(i, next)
 			state = layer.states[states[i]]
-		var sampled := _motion(state.get("motion", {}), elapsed[i])
+		var motion: Dictionary = state.get("motion", {})
+		var sampled := _motion(motion, elapsed[i])
+		var writes_defaults: bool = state.get("writeDefaults", true)
+		# Unity's state without a motion writes nothing, so a later layer resting in one leaves an earlier layer's value.
+		if writes_defaults and motion.is_empty():
+			_layer_values[i].clear()
+			continue
 		for t: int in _layer_targets[i]:
-			if sampled.has(t) or state.get("writeDefaults", true):
+			if sampled.has(t) or writes_defaults:
 				_layer_values[i][t] = sampled.get(t, float(data.targets[t].get("default", 0.0)))
 	for t in outputs.size():
 		outputs[t] = float(data.targets[t].get("default", 0.0))

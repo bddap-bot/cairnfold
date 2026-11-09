@@ -118,6 +118,30 @@ func _fx() -> void:
 	state.put("Hat", 0)
 	state.advance(0.1)
 	check(on == 1.0 and state.outputs[0] == 0.0 and state.states[0] == 0, "a toggle that leaves its state through the exit returns through the entry to the default state: %s, %s in %d" % [on, state.outputs[0], state.states[0]])
+	definition.layers.append({"default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}], "states": [
+		{"transitions": []}, {"motion": {"clip": 0}, "transitions": [{"to": -1, "conditions": [{"mode": "ifNot", "parameter": "Pulse"}]}]}]})
+	state = ExpressionState.new(definition)
+	state.put("Hat", 1)
+	state.advance(0.1)
+	on = state.outputs[0]
+	state.put("Hat", 0)
+	state.advance(0.1)
+	check(on == 1.0 and state.outputs[0] == 0.0, "a later layer resting in a state without a motion leaves an earlier layer's toggle on, and its own reset off: %s, %s" % [on, state.outputs[0]])
+	state.put("Hat", 1)
+	state.put("Pulse", 1)
+	state.advance(0.1)
+	check(state.outputs[0] == 0.0, "a later layer playing its clip overrides the earlier one: %s" % state.outputs[0])
+	definition.layers.pop_back()
+	definition.layers[0].states[0].writeDefaults = false
+	definition.layers[0].states[1].writeDefaults = false
+	state = ExpressionState.new(definition)
+	state.put("Hat", 1)
+	state.advance(0.1)
+	state.put("Hat", 0)
+	state.advance(0.1)
+	check(state.outputs[0] == 1.0 and state.states[0] == 0, "a state without a motion that writes no defaults holds what the layer last wrote: %s" % state.outputs[0])
+	definition.layers[0].states[0].erase("writeDefaults")
+	definition.layers[0].states[1].erase("writeDefaults")
 	definition.layers[0].entry = [{"to": -1, "conditions": []}, {"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}]
 	definition.layers[0].any = []
 	state = ExpressionState.new(definition)
