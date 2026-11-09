@@ -8,6 +8,10 @@ extends SceneTree
 ## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
 ## made, from its camera; menu.tsv, left empty; and meta.json.
 
+## How long the view stays unchanged before `_warm` takes every pipeline the avatar draws as compiled.
+const WARM_MS := 3000
+## The longest `_warm` draws a view that keeps changing.
+const WARM_CAP_MS := 60000
 ## Unity's axes are Godot's mirrored through X; the recorded avatar faces +Z in both.
 const MIRROR := Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK)
 ## A player's pose space looks down -Z, so the avatar stands turned around in the recorded root.
@@ -57,6 +61,7 @@ func _run() -> void:
 		_notes.append("avatar refused: Avatar.read returned null")
 	else:
 		_wear(scene)
+		await _warm(view)
 	var matched := []
 	var unmatched := []
 	for c in _rows(ref.path_join("chains.tsv")).slice(1):
@@ -91,6 +96,36 @@ func _run() -> void:
 	var meta := {"runtime": "Cairnfold", "source_revision": str(git[0]).strip_edges() if not git.is_empty() else "", "avatar": args[1], "matched_tips": matched, "unmatched_tips": unmatched, "notes": _notes}
 	FileAccess.open(_out.path_join("meta.json"), FileAccess.WRITE).store_string(JSON.stringify(meta, "\t") + "\n")
 	quit()
+
+
+## Draws the whole avatar, every node shown and the scene held still, until `view` has not changed for WARM_MS, or
+## WARM_CAP_MS have passed. Godot compiles a surface's pipeline in the background the first time it is drawn and leaves
+## the surface out until it is ready, so without this a render soon after a toggle first shows a piece would miss it,
+## as the first render of all would miss the avatar.
+func _warm(view: SubViewport) -> void:
+	var hidden: Array[Node3D] = []
+	for node: Node3D in _avatar.find_children("*", "Node3D", true, false):
+		if not node.visible:
+			node.visible = true
+			hidden.append(node)
+	var held := _root.process_mode
+	_root.process_mode = Node.PROCESS_MODE_DISABLED
+	var last := PackedByteArray()
+	var start := Time.get_ticks_msec()
+	var still := start
+	while Time.get_ticks_msec() - still < WARM_MS:
+		if Time.get_ticks_msec() - start > WARM_CAP_MS:
+			_notes.append("warm-up still changing after %d ms" % WARM_CAP_MS)
+			break
+		view.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var drawn := view.get_texture().get_image().get_data()
+		if drawn != last:
+			last = drawn
+			still = Time.get_ticks_msec()
+	_root.process_mode = held
+	for node in hidden:
+		node.visible = false
 
 
 ## The viewport the recording's camera sees through, lit as the reference harness lights its renders.
