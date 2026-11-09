@@ -335,7 +335,7 @@ elif device == "quest":
     # game's own label prints among them.
     ends = [s["unix"] for s in d["seconds"]]
     at = lambda t: d["seconds"][bisect.bisect_left(ends, t)]["label"] if t <= ends[-1] else "-"
-    phase, game_pid, crash, done = "-", None, None, False
+    phase, step, game_pid, crash, done = "-", None, None, None, False
     shared, hands, handed = {}, set(), set()
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
         m = re.match(r"\s*(\d+\.\d+)\s+(\d+)\s+\d+\s+\w\s+(\S+)", line)
@@ -354,9 +354,14 @@ elif device == "quest":
             handed.add(label)
         if pid == game_pid and "driver: done" in line:
             done = True
+        # A crash leaves its last seconds without metrics rows, so the phase they give may be one already over; the
+        # driver's own print of the step it began places the crash.
+        if pid == game_pid and "driver: {" in line:
+            step = line.split("driver: ", 1)[1].strip()
         m = re.search(r"Fatal signal \d+ \(\w+\).*", line)
         if m and pid == game_pid and crash is None:
-            crash = f"bench: the game crashed during {phase}: {m.group(0).strip()}; see logcat.txt"
+            where = f"in its step {step}, its last recorded phase {phase}" if step else f"in its last recorded phase {phase}"
+            crash = f"bench: the game crashed {where}: {m.group(0).strip()}; see logcat.txt"
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))

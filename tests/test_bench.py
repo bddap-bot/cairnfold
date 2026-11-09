@@ -50,7 +50,7 @@ class BenchmarkRendering(unittest.TestCase):
         crashed = ran + ('1792370023.000  6423  6467 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), '
                          'fault addr 0x10 in tid 6467 (VkThread), pid 6423 (pbot.nestbisect)\n') + vrapi.format(s=24, pid=5664)
         logs = {
-            "crash": (crashed, "the game crashed during paths/stroke: Fatal signal 11 (SIGSEGV)"),
+            "crash": (crashed, "the game crashed in its last recorded phase paths/stroke: Fatal signal 11 (SIGSEGV)"),
             "death": (ran + vrapi.format(s=24, pid=5664), "the game died during paths/stroke before its script ended"),
             "shell": (ran + vrapi.format(s=23, pid=5664) + game.format(s=25, text="driver: done"), "another process rendered during paths/stroke"),
         }
@@ -75,6 +75,25 @@ class BenchmarkRendering(unittest.TestCase):
                     result = report(out, "quest")
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("paths/stroke", result.stdout)
+
+    def test_a_crash_names_the_step_it_was_in(self):
+        game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
+        vrapi = '17923700{s}.000  6423  6717 I VrApi   : FPS=72/72,Prd=40ms,App=10.00ms,GPU%=0.5\n'
+        log = (game.format(s=20, text="xr: session at 72.0 Hz") + vrapi.format(s=21) + vrapi.format(s=22)
+               + game.format(s=23, text='driver: { "op": "figures", "file": "bench/guest.vrm" }')
+               + '1792370024.000  6423  6467 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x170 in tid 6467 (VkThread)\n')
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({
+                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
+                "seconds": [{"label": "sweep/built-in/away" if s < 23 else "-", "unix": 1792370000 + s, "p50": 13.89, "p99": 13.89,
+                             "late": 0, "draws": 100, "prims": 1000} for s in range(20, 26)],
+            }))
+            (out / "stress.json").write_text("[]")
+            (out / "logcat.txt").write_text(log)
+            result = report(out, "quest")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('the game crashed in its step { "op": "figures", "file": "bench/guest.vrm" }, its last recorded phase sweep/built-in/away: Fatal signal 11', result.stderr)
 
     def test_a_phases_stalls_are_kept_in_its_record(self):
         stall = {"ms": 412.5, "tags": ["build"], "main_ms": {"scripts": 400.1}, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
