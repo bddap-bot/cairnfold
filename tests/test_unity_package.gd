@@ -1188,23 +1188,33 @@ func _a_serialized_mesh_reads_as_its_model_would() -> void:
 		"m_MeshCompression": "0",
 		"m_VertexData": {"serializedVersion": "3", "m_VertexCount": "3", "m_Channels": channels, "_typelessdata": data.hex_encode()},
 	}
-	var mi: Variant = SerializedMesh.read(mesh, PackedStringArray(["Hand"]))
-	check(mi is MeshInstance3D, "the serialized mesh reads: %s" % [mi])
-	if not mi is MeshInstance3D:
+	var read: Variant = SerializedMesh.read(mesh, PackedStringArray(["Hand"]))
+	check(read is Dictionary, "the serialized mesh reads: %s" % [read])
+	if not read is Dictionary:
 		return
-	var am: ArrayMesh = (mi as MeshInstance3D).mesh
+	var mi: MeshInstance3D = read.node
+	var am: ArrayMesh = mi.mesh
 	var a := am.surface_get_arrays(0)
-	check(am.get_surface_count() == 1 and am.get_meta("slots") == [1], "the triangle draws with its own submesh's slot")
+	check(am.get_surface_count() == 1 and read.slots == [1], "the triangle draws with its own submesh's slot")
 	check((a[Mesh.ARRAY_VERTEX] as PackedVector3Array)[0] == Vector3(-1, 0, 0), "X mirrors into Godot's axes")
 	check((a[Mesh.ARRAY_TEX_UV] as PackedVector2Array)[1].is_equal_approx(Vector2(0.25, 0.75)), "UVs read from the top")
 	check(a[Mesh.ARRAY_INDEX] == PackedInt32Array([0, 1, 2]), "the winding stays Unity's")
 	var shape: PackedVector3Array = am.surface_get_blend_shape_arrays(0)[0][Mesh.ARRAY_VERTEX]
 	check(am.get_blend_shape_name(0) == &"Up" and shape[1].is_equal_approx(Vector3(0, 2, 0)), "the blend shape moves its vertex as at weight 100")
-	var sk: Skeleton3D = (mi as MeshInstance3D).get_node((mi as MeshInstance3D).skeleton)
-	var pose := (mi as MeshInstance3D).skin.get_bind_pose(0)
+	var sk: Skeleton3D = mi.get_node(mi.skeleton)
+	var pose := mi.skin.get_bind_pose(0)
 	check(sk.get_bone_name(0) == "Hand" and pose.origin == Vector3(-2, 0, 0) and pose.basis.y.x == -0.5, "the bind pose binds the renderer's bone in Godot's axes")
 	check((a[Mesh.ARRAY_WEIGHTS] as PackedFloat32Array).slice(0, 4) == PackedFloat32Array([1, 0, 0, 0]), "weights read from their aligned stream")
-	(mi as MeshInstance3D).get_parent().free()
+	mi.get_parent().free()
+	check(SerializedMesh.read(mesh, PackedStringArray()) is String, "bind poses past the renderer's bones are refused, not bound to bone 0")
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "End"}},
+		2: {"type": "GameObject", "data": {"m_Name": "End"}},
+		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}}},
+		20: {"type": "SkinnedMeshRenderer", "data": {"m_Bones": [{"fileID": "10"}, {"fileID": "11"}]}},
+	}
+	check(UnityAvatar._bone_names(objs, 20) == PackedStringArray(["End", "End2"]), "two bones of one name keep a bone each")
 
 
 ## A model's bone named as Blender numbers a duplicate ("Wing.001") binds its own Unity transform, not its parent's:

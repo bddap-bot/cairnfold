@@ -1224,19 +1224,25 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	var live := {}
 	var drawn := []
 	var skipped := []
+	var built := []
 	var tiled := {}
 	var humanoid_bones := sk.get_bone_count()
 	for r: Array in renderers:
 		var o: Dictionary = objs[r[0]]
 		var go_name := str(objs[r[1]].data.get("m_Name", ""))
 		var ref := _mesh_ref(objs, r[0])
-		var serialized := prefabs.assets.extension(Yaml.guid(ref)) == "asset"
-		var model: Dictionary = prefabs.model(Yaml.guid(ref)) if prefabs.assets.by_guid.has(Yaml.guid(ref)) and not serialized else {}
-		var read: Variant = _serialized_mesh(prefabs.assets, objs, r[0], ref) if serialized else _mesh_node(model, Yaml.file_id(ref))
-		if not read is MeshInstance3D or (read as MeshInstance3D).mesh == null:
-			skipped.append(go_name if not read is String else "%s (%s)" % [go_name, read])
+		var asset: Dictionary = prefabs.flatten(Yaml.guid(ref)).get(Yaml.file_id(ref), {}) if prefabs.assets.by_guid.has(Yaml.guid(ref)) and not prefabs.assets.extension(Yaml.guid(ref)) in Prefabs.MODELS else {}
+		var serialized: Variant = SerializedMesh.read(asset.data, _bone_names(objs, r[0])) if asset.get("type", "") == "Mesh" else null
+		if serialized is String:
+			skipped.append("%s (%s)" % [go_name, serialized])
 			continue
-		var mi: MeshInstance3D = read
+		if serialized is Dictionary:
+			built.append((serialized.node as Node).get_parent())
+		var model: Dictionary = prefabs.model(Yaml.guid(ref)) if prefabs.assets.by_guid.has(Yaml.guid(ref)) and serialized == null else {}
+		var mi: MeshInstance3D = serialized.node if serialized is Dictionary else _mesh_node(model, Yaml.file_id(ref))
+		if mi == null or mi.mesh == null:
+			skipped.append(go_name)
+			continue
 		var place := _binder(mi, sk, rests, scale, objs, r[0], model.get("objects", {}).has(Yaml.file_id(objs[r[0]].data.get("m_GameObject"))), humanoid_bones)
 		if place.is_empty():
 			skipped.append(go_name)
@@ -1249,7 +1255,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var mirrored := _world_transform(objs, Prefabs.transform_of(objs, r[1])).basis.determinant() < 0.0
 		var saved: Array = Yaml.list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Yaml.list(o.data.get("m_Materials"))
-		var slot_of: Array = mesh.get_meta("slots") if serialized else _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
+		var slot_of: Array = serialized.slots if serialized is Dictionary else _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
 		for s in mesh.get_surface_count():
 			if mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
 				continue
@@ -1342,6 +1348,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 						face_group[indices.size()] = (group_for.call(extra) as Dictionary).index
 				for c: int in [0, 2, 1] if mirrored else [0, 1, 2]:
 					indices.append(base + idx[t + c])
+	for n: Node in built:
+		n.free()
 	if indices.is_empty():
 		return {}
 	var used := {}
@@ -1776,23 +1784,20 @@ static func _model_name(model: Dictionary, mi: MeshInstance3D) -> String:
 	return String(mi.name)
 
 
-static var _serialized_cache := {}
-
-
-## The MeshInstance3D of the Mesh object `ref` names in a serialized asset (SerializedMesh), skinned to the renderer's
-## bones by their GameObjects' names, or why it cannot be drawn.
-static func _serialized_mesh(assets: Assets, objs: Dictionary, renderer: int, ref: Dictionary) -> Variant:
-	var guid := Yaml.guid(ref)
-	if not _serialized_cache.has(guid):
-		_serialized_cache[guid] = Yaml.objects(assets.text(guid))
-	var object: Dictionary = _serialized_cache[guid].get(Yaml.file_id(ref), {})
-	if object.get("type", "") != "Mesh":
-		return "no Mesh in its asset"
-	var bones := PackedStringArray()
+## The names of the renderer's bones' GameObjects as node names, one bone per name: a name an earlier bone already has
+## is numbered, as Godot names a node's duplicate sibling.
+static func _bone_names(objs: Dictionary, renderer: int) -> PackedStringArray:
+	var out := PackedStringArray()
 	for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
 		var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
-		bones.append(str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name())
-	return SerializedMesh.read(object.data, bones)
+		var name := str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()
+		var unique := name if name != "" else "Bone"
+		var n := 1
+		while unique in out:
+			n += 1
+			unique = "%s%d" % [name if name != "" else "Bone", n]
+		out.append(unique)
+	return out
 
 
 ## The MeshInstance3D Godot made of the model's node whose mesh has this file ID, or null.
@@ -1829,11 +1834,12 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 		var src: Skeleton3D = mi.get_node(mi.skeleton)
 		var at := scaled * _in_model(src)
 		var unity := {}
-		for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
-			var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
-			var name := str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()
-			unity[name] = Yaml.file_id(t)
-			var bone := _find_bone(sk, name)
+		var names := _bone_names(objs, renderer)
+		var refs := Yaml.list(objs[renderer].data.get("m_Bones"))
+		for k in refs.size():
+			var go := Yaml.file_id(objs.get(Yaml.file_id(refs[k]), {}).get("data", {}).get("m_GameObject"))
+			unity[names[k]] = Yaml.file_id(refs[k])
+			var bone := _find_bone(sk, names[k])
 			if same_model and sk.has_meta("unity_bones") and bone >= 0 and bone < humanoid_bones:
 				sk.get_meta("unity_bones")[go] = bone
 		var binds := []
