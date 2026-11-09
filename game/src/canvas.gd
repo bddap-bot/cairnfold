@@ -319,7 +319,6 @@ func probe(rect: Rect2i, done: Callable) -> bool:
 	return true
 
 
-## Whether `probe` can read the paint back: only with a RenderingDevice.
 func reads_back() -> bool:
 	return _rd != null
 

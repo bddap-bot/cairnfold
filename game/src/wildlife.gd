@@ -909,9 +909,14 @@ func _pond_near(at: Vector3) -> PondWater:
 
 
 func _in_sight(at: Vector3, cone := SIGHT) -> bool:
+	return _gaze(at) > cone
+
+
+## How near `at` lies to the middle of the viewer's gaze, as the cosine of the angle between; -INF with no viewer.
+func _gaze(at: Vector3) -> float:
 	if viewer == null or not viewer.is_inside_tree():
-		return false
-	return (at - viewer.global_position).normalized().dot(-viewer.global_basis.z) > cone
+		return -INF
+	return (at - viewer.global_position).normalized().dot(-viewer.global_basis.z)
 
 
 ## The point `reach` away from `at` along `_unseen_direction`, and `height` up.
@@ -927,9 +932,9 @@ func _unseen_direction(at: Vector3, reach: float, height: float, cone := SIGHT, 
 	for attempt in 12:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, random.randf() * TAU)
 		var to := at + dir * reach + Vector3.UP * height
-		if not _in_sight(to, cone):
+		var dot := _gaze(to)
+		if dot <= cone:
 			return dir
-		var dot := (to - viewer.global_position).normalized().dot(-viewer.global_basis.z)
 		if dot < best_dot:
 			best_dot = dot
 			best = dir

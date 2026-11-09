@@ -177,7 +177,6 @@ func _handle(p: Painter, delta: float) -> void:
 	if holding and not live and p.buttons.pressed("tool"):
 		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
 	if not holding or not live or p.peel != null:
-		end_stroke(p)
 		_clear_contact(p)
 		return
 	var tip := held_brush(p) * ToolModels.BRUSH_TIP
@@ -486,7 +485,6 @@ func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:
 	if not on:
 		p.rag = null
 		return false
-	end_stroke(p)
 	if p.rag != e:
 		p.rag = e
 		p.wipe_start = local
@@ -663,6 +661,7 @@ func _clear_contact(p: Painter) -> void:
 
 
 func _off_paint(p: Painter) -> void:
+	end_stroke(p)
 	p.contact_point = Vector3.INF
 	p.under = {}
 	p.soaked = 0.0
@@ -674,7 +673,6 @@ func _off_paint(p: Painter) -> void:
 ## touches.
 func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
 	if p.contact_easel != e or p.contact_palette != palette:
-		end_stroke(p)
 		_off_paint(p)
 		if palette:
 			p.contact.fit(e.board.metres, Vector3(Easels.PALETTE_SIZE.x, Easels.PALETTE_SIZE.y, Easels.BOARD_TOP * 2.0), true)
@@ -692,7 +690,6 @@ func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
 	var distance: float = contact.point.distance_to(p.contact_point) if contact.on and p.contact_point != Vector3.INF else 0.0
 	canvas_contact.emit(p.hand, contact.point, stick, contact.on, contact.pressure, distance / maxf(delta, 1e-6), distance, contact.hard)
 	if not contact.on or not e.open(palette, contact.uv):
-		end_stroke(p)
 		_off_paint(p)
 		return contact.on
 	p.contact_point = contact.point
@@ -752,11 +749,8 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 
 ## Whether easel `e`'s canvas, or with `palette` its oil palette's board, takes another stroke.
 func _room(e: Easels.Easel, palette: bool) -> bool:
-	var standing: Dictionary = world.state.easels.get(e.id, {})
-	if standing.is_empty():
-		return false
-	var strokes: Array = standing[Commands.surface({"palette": palette})]
-	return strokes.size() < Brushwork.MAX_STROKES and Brushwork.total(strokes) + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
+	var strokes: Variant = _strokes(e.id, palette)
+	return strokes != null and strokes.size() < Brushwork.MAX_STROKES and Brushwork.total(strokes) + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
 
 
 ## Sends the stroke under way, if any; the brush keeps what paint it has left.
@@ -777,11 +771,16 @@ func end_stroke(p: Painter) -> void:
 
 ## A stroke the garden turned down leaves the canvas or board as the garden has it.
 func _settled(id: int, data: Dictionary, palette: bool) -> void:
-	var standing: Dictionary = world.state.easels.get(id, {})
-	if standing.is_empty():
+	var strokes: Variant = _strokes(id, palette)
+	if strokes == null:
 		return
-	var strokes: Array = standing[Commands.surface({"palette": palette})]
 	for i in range(strokes.size() - 1, maxi(strokes.size() - 16, 0) - 1, -1):
 		if strokes[i].samples == data.samples:
 			return
 	easels.repaint(id, strokes, palette)
+
+
+## The garden's strokes on easel `id`'s canvas, or with `palette` its oil palette's board; null once it stands no more.
+func _strokes(id: int, palette: bool) -> Variant:
+	var standing: Dictionary = world.state.easels.get(id, {})
+	return null if standing.is_empty() else standing[Commands.surface({"palette": palette})]

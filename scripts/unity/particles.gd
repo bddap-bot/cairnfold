@@ -29,7 +29,6 @@ var images: Array[Image] = []
 var by_path := {}
 ## Each system's switch conditions, for the expressions' "particles".
 var when := []
-var _by_id := {}
 ## Each system's material choices by GUID, as its renderer's "materials" list them.
 var _choices := []
 ## What import multiplied each system's fields by (its transform's scale and simulation speed), which a clip's values
@@ -50,6 +49,7 @@ func _init(prefabs: Prefabs, materials: Materials, objs: Dictionary, found: Arra
 	_prefabs = prefabs
 	_materials = materials
 	var path_of := {}
+	var by_id := {}
 	for p: String in paths:
 		path_of[paths[p]] = p
 	var swaps := {}
@@ -70,7 +70,7 @@ func _init(prefabs: Prefabs, materials: Materials, objs: Dictionary, found: Arra
 			if not refs.any(func(r: Variant) -> bool: return r is Dictionary and Yaml.guid(r) == swap.guid):
 				refs.append(swap)
 		_choices.append(refs.map(func(r: Variant) -> String: return Yaml.guid(r)))
-		_by_id[f[0]] = systems.size()
+		by_id[f[0]] = systems.size()
 		by_path[path] = systems.size()
 		var system := _system(objs, f[0], renderer, f[1], refs)
 		system.node = f[4]
@@ -78,7 +78,7 @@ func _init(prefabs: Prefabs, materials: Materials, objs: Dictionary, found: Arra
 		when.append(f[3])
 	for s: Dictionary in systems:
 		for sub: Dictionary in s.get("subEmitters", []):
-			sub.system = _by_id.get(sub.system, -1)
+			sub.system = by_id.get(sub.system, -1)
 		s.subEmitters = s.get("subEmitters", []).filter(func(sub: Dictionary) -> bool: return sub.system >= 0)
 		if (s.subEmitters as Array).is_empty():
 			s.erase("subEmitters")

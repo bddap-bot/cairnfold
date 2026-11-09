@@ -688,7 +688,6 @@ func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
 				bent = maxf(bent, p.bend.length())
 				if not p.stroke.is_empty():
 					data = p.stroke.data
-			tool.end_stroke(p)
 			tool._clear_contact(p)
 			world.flush()
 			runs.append({"deepest": deepest, "bent": bent, "data": data, "metres": e.surface(palette).metres, "felt": felt[1 if palette else 0]})

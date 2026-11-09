@@ -186,7 +186,6 @@ func dry_water() -> void:
 	shown_revision += 1
 
 
-## The pond surface at every grid point, NO_WATER where none is.
 func water_levels() -> PackedFloat32Array:
 	return _water.duplicate()
 
@@ -624,7 +623,6 @@ func wet_tiles() -> PackedByteArray:
 	return out
 
 
-## A ground vertex at `at`, tinted by how dry the ground lies under it.
 static func _ground_vertex(st: SurfaceTool, at: Vector3) -> void:
 	st.set_color(_dryness(at.x, at.z))
 	st.set_normal(Vector3.UP)

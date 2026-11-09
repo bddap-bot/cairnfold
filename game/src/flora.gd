@@ -902,7 +902,7 @@ func add_tree(at: Vector3, seed: int, species := FloraLayout.Species.OAK) -> Arr
 		var blob := foliage.add(b[0], b[1], at)
 		if blob != null:
 			parts.append(blob)
-	var solid := _solid(Vector2i(0, trunk.slot), parts)
+	var solid := _solid(_key_of(trunk), parts)
 	solid.seed = seed
 	solid.species = species
 	return parts
@@ -916,13 +916,13 @@ func species_of(trunk: Plant) -> int:
 
 ## The scale of the tree whose trunk is `trunk`, or 0 for none standing in its slot.
 func scale_of(trunk: Plant) -> float:
-	return _solids[Vector2i(0, trunk.slot)].scale if species_of(trunk) >= 0 else 0.0
+	return _solids[_key_of(trunk)].scale if species_of(trunk) >= 0 else 0.0
 
 
 ## How high over the ground the tree whose trunk is `trunk` reaches.
 func top_of(trunk: Plant) -> float:
 	var top := 0.0
-	for p in _solids[Vector2i(0, trunk.slot)].parts:
+	for p in _solids[_key_of(trunk)].parts:
 		top = maxf(top, (p.xform * p.pool.mesh.get_aabb()).end.y)
 	return top
 
@@ -932,7 +932,7 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	var was := species_of(trunk)
 	if was < 0 or was == species and is_equal_approx(scale_of(trunk), scale):
 		return
-	var key := Vector2i(0, trunk.slot)
+	var key := _key_of(trunk)
 	var solid: Solid = _solids[key]
 	var t := FloraLayout.tree(trunk.foot(), solid.seed, species, scale)
 	trunks.repose(trunk, t.trunk, t.bark)
@@ -1098,7 +1098,7 @@ func add_moss(p: Vector3, rng: RandomNumberGenerator, pool := moss) -> Plant:
 func set_moss(trunk: Plant, on: bool) -> void:
 	if species_of(trunk) < 0:
 		return
-	_solids[Vector2i(0, trunk.slot)].moss = on
+	_solids[_key_of(trunk)].moss = on
 	trunks.set_custom(trunk.slot, Color(1.0 if on else 0.0, 0, trunk.anchor.x, trunk.anchor.z))
 
 

@@ -515,7 +515,7 @@ def _convolve(x, ir):
     return np.fft.irfft(np.fft.rfft(x, size, axis=0) * np.fft.rfft(ir, size, axis=0), size, axis=0)[: len(x)]
 
 
-def _body(modes, seconds=0.4):
+def _body(modes, seconds):
     """A small wooden body: decaying modes, as (Hz, decay per second, level)."""
     t = _t(seconds)
     return sum(a * np.exp(-t * d) * np.sin(2 * np.pi * f * t + crng.uniform(0, 6.28)) for f, d, a in modes)
@@ -526,6 +526,13 @@ def _knock(fund, seconds=0.25, decay=38.0):
     out = _body([(fund, decay, 1.0), (fund * 2.57, decay * 1.6, 0.35), (fund * 4.1, decay * 2.4, 0.12)], seconds)
     thud = np.exp(-t * 55) * np.sin(2 * np.pi * fund * 0.38 * t)
     return (out + 0.6 * thud) * (1 - np.exp(-t / 0.0015))
+
+
+def _knocks(seconds, first, second, gap):
+    out = np.zeros(int(seconds * SR))
+    _add(out, first, 0)
+    _add(out, second, int(gap * SR))
+    return out
 
 
 def _grains(seconds, count, length, lo, hi, shape=1.0):
@@ -636,11 +643,7 @@ def actions():
         tear = _band(crng.standard_normal(n), 220, 900) * (0.3 + crackle * 4) * np.linspace(1, 0.3, n)
         fx[f"tear{i}"] = tear * (1 - np.exp(-_t(0.4) / 0.01))
     for i in range(2):
-        x = np.zeros(int(0.25 * SR))
-        a, b = _knock(crng.uniform(380, 420), 0.1, 80.0), _knock(crng.uniform(300, 330), 0.12, 70.0) * 0.7
-        _add(x, a, 0)
-        _add(x, b, int(0.07 * SR))
-        fx[f"shutter{i}"] = x
+        fx[f"shutter{i}"] = _knocks(0.25, _knock(crng.uniform(380, 420), 0.1, 80.0), _knock(crng.uniform(300, 330), 0.12, 70.0) * 0.7, 0.07)
     for i in range(3):
         fx[f"scatter{i}"] = _grains(0.4, 18, 0.008, 320, 880, 1.6) + _band(crng.standard_normal(int(0.4 * SR)), 150, 600) * np.exp(-_t(0.4) * 9) * 0.3
     for i in range(3):
@@ -661,11 +664,7 @@ def actions():
         swish = _band(crng.standard_normal(n), 200, 850) * np.sin(np.pi * _t(0.32) / 0.32) ** 3
         fx[f"page{i}"] = swish + _grains(0.32, 6, 0.012, 250, 750, 0.7) * 0.3
     for name, (a, b) in (("roll0", (440, 560)), ("cut0", (560, 440))):
-        x = np.zeros(int(0.22 * SR))
-        first, second = _knock(a, 0.1, 80.0), _knock(b, 0.1, 80.0) * 0.8
-        _add(x, first, 0)
-        _add(x, second, int(0.08 * SR))
-        fx[name] = x
+        fx[name] = _knocks(0.22, _knock(a, 0.1, 80.0), _knock(b, 0.1, 80.0) * 0.8, 0.08)
     return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
 
 
@@ -698,21 +697,14 @@ def main():
         print(f"music: {name} {s.beats * 60 / s.bpm:.1f} s at {s.bpm} bpm")
     (ROOT / "music.json").write_text(json.dumps(manifest, indent=1) + "\n")
     write_ogg(ROOT / "meadow.ogg", meadow(), 2)
-    fx = ROOT / "fx"
-    fx.mkdir(exist_ok=True)
-    for name, x in effects().items():
-        write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.8)
-    for name, x in water().items():
-        write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.6)
-    for name, x in actions().items():
-        write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.7)
-    (ROOT / "birds").mkdir(exist_ok=True)
-    for name, x in birds().items():
-        write_ogg(ROOT / "birds" / f"{name}.ogg", x / np.abs(x).max() * 0.7)
-    crickets = night()
-    write_ogg(ROOT / "night.ogg", crickets / np.abs(crickets).max() * 0.5, 2)
-    lap = lapping()
-    write_ogg(ROOT / "lap.ogg", lap / np.abs(lap).max() * 0.6, 2)
+    for folder, sounds, peak in ((ROOT / "fx", effects, 0.8), (ROOT / "fx", water, 0.6), (ROOT / "fx", actions, 0.7),
+                                 (ROOT / "birds", birds, 0.7)):
+        folder.mkdir(exist_ok=True)
+        for name, x in sounds().items():
+            write_ogg(folder / f"{name}.ogg", x / np.abs(x).max() * peak)
+    for name, sound, peak in (("night", night, 0.5), ("lap", lapping, 0.6)):
+        x = sound()
+        write_ogg(ROOT / f"{name}.ogg", x / np.abs(x).max() * peak, 2)
     print(f"audio: {ROOT}")
 
 

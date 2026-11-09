@@ -244,13 +244,14 @@ func _process(delta: float) -> void:
 				row.landings = _landings
 				_landings = []
 		row.prims = _prims
-		row.paint_steps = roundi(Canvas.laid / maxi(_deltas.size(), 1))
+		var frames := maxi(_deltas.size(), 1)
+		row.paint_steps = roundi(Canvas.laid / frames)
 		Canvas.laid = 0.0
-		row.paint_cpu_ms = Canvas.cpu_us / 1000.0 / maxi(_deltas.size(), 1)
+		row.paint_cpu_ms = Canvas.cpu_us / 1000.0 / frames
 		Canvas.cpu_us = 0
-		row.springs_ms = Avatar.springs_us / 1000.0 / maxi(_deltas.size(), 1)
+		row.springs_ms = Avatar.springs_us / 1000.0 / frames
 		Avatar.springs_us = 0
-		row.expressions_ms = ExpressionPlayer.process_us / 1000.0 / maxi(_deltas.size(), 1)
+		row.expressions_ms = ExpressionPlayer.process_us / 1000.0 / frames
 		ExpressionPlayer.process_us = 0
 		row.paint_gpu_ms = Canvas.gpu_ms()
 		if not _eye_lo.is_empty():

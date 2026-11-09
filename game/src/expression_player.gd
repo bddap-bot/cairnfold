@@ -29,9 +29,6 @@ var _turned := {}
 ## a theme on, or by the model for its other meshes', where a theme's hue turns at rest: {"table", "texture", "entries"
 ## by column, each {"theme" (unity/materials.gd `_theme`), "strength", "replace"}, "dirty", "turning"}.
 var _glows := {}
-## The table entries of the materials whose theme turns at rest that no clip moves, by column, one each whichever tables
-## hold them, so each is coloured once a frame.
-var _resting := {}
 var _seconds := 0.0
 var _frame := 0
 
@@ -152,9 +149,11 @@ func _init(model: Node3D) -> void:
 		_bindings.append(binds)
 	var shared: Variant = _light_looks(model)
 	var looks: Dictionary = data.get("looks", {})
+	# One entry per column whichever tables hold it, so each is coloured once a frame.
+	var resting := {}
 	if shared is ImageTexture:
 		var turning := {"entries": {}, "dirty": true, "turning": false}
-		_turning(turning.entries, looks, _resting)
+		_turning(turning.entries, looks, resting)
 		if not turning.entries.is_empty():
 			_glows[model] = turning
 	for owner: Object in _glows.keys():
@@ -164,7 +163,7 @@ func _init(model: Node3D) -> void:
 		if not lighting is ImageTexture or glows.entries.is_empty():
 			_glows.erase(owner)
 			continue
-		_turning(glows.entries, looks, _resting)
+		_turning(glows.entries, looks, resting)
 		glows.table = (lighting as ImageTexture).get_image().duplicate() as Image
 		glows.texture = ImageTexture.create_from_image(glows.table)
 		for mat: ShaderMaterial in mats:
