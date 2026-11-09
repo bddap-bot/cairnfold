@@ -2,11 +2,12 @@ class_name Shy
 extends Node3D
 
 ## Small animals that keep their distance: frogs at the ponds (`Frogs`), grass snakes in the grass beside them
-## (`Snakes`), squirrels at planted trees (`Squirrels`) and owls on the perches at night (`Owls`). Each kind comes to
-## habitats of its own, a while after one appears and where nobody is looking, and goes when its habitat does. One that
-## a person comes toward within its `flight`, or moves suddenly near within its `startle`, gets away its own way; a
-## person standing still, or teleporting, sends none off. A kind is one `Crowd`, its motions in its vertex shader, each
-## animal's pose written as four numbers of custom data. Part of `Wildlife`.
+## (`Snakes`), squirrels at planted trees (`Squirrels`), owls on the perches at night (`Owls`) and snails on the pond
+## beds (`Snails`), too slow to get away from anyone. Each kind comes to habitats of its own, a while after one appears
+## and where nobody is looking, and goes when its habitat does. One that a person comes toward within its `flight`, or
+## moves suddenly near within its `startle`, gets away its own way; a person standing still, or teleporting, sends none
+## off. A kind is one `Crowd`, its motions in its vertex shader, each animal's pose written as four numbers of custom
+## data. Part of `Wildlife`.
 
 ## How long one takes to grow in as it comes, or to fade as it goes where it cannot walk off.
 const FADE := 1.5

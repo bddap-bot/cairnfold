@@ -206,8 +206,6 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 	add_child(butterflies)
 	fireflies = Fireflies.new(self, rng.seed + 3)
 	add_child(fireflies)
-	snails = Snails.new(self, rng.seed + 8)
-	add_child(snails)
 	fish = Fish.new(self, rng.seed + 6)
 	add_child(fish)
 	birds = Birds.new(self, rng.seed + 2)
@@ -220,6 +218,7 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 	snakes = Snakes.new(self, rng.seed + 10)
 	squirrels = Squirrels.new(self, rng.seed + 11)
 	owls = Owls.new(self, rng.seed + 12)
+	snails = Snails.new(self, rng.seed + 8)
 	for kind in shy():
 		add_child(kind)
 	calls = Calls.new(eyes, rng.seed + 5)
@@ -234,7 +233,7 @@ func ducks() -> Array[Duck]:
 
 
 func shy() -> Array[Shy]:
-	return [frogs, snakes, squirrels, owls]
+	return [frogs, snakes, squirrels, owls, snails]
 
 
 ## The planted trees with a crown standing out of the water, each as Flora.placed lists it, trunk first.
@@ -272,7 +271,6 @@ func tick(delta: float) -> void:
 	butterflies.tick(delta)
 	fireflies.tick(delta)
 	fish.tick(delta)
-	snails.tick(delta)
 	_since_look += delta
 	if is_inf(_since_look):
 		_since_look = 0.0

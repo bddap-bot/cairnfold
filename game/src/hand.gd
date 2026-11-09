@@ -839,12 +839,7 @@ func _expression_input(delta: float) -> void:
 			expressions.choose(control)
 		close_wheel()
 		return
-	var depth := expressions.player.state.opened.size()
-	var changed := depth < _expression_count
-	while depth < _expression_count:
-		expressions.unwind()
-		_expression_count -= 1
-	if changed:
+	if expressions.player.state.opened.size() < _expression_count:
 		_end_expression_dial()
 		_expression_level()
 	if _buttons.pressed("tool"):

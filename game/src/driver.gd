@@ -2922,7 +2922,7 @@ func _view_held(s: Dictionary) -> void:
 	await _frames(30)
 
 
-## Brings every frog, snake, squirrel and owl their habitats draw now, as each kind would in its own time, so the views
+## Brings every frog, snake, squirrel, owl and snail their habitats draw now, as each kind would in its own time, so the views
 ## of them do not hang on when they happen to come.
 func _shy(_s: Dictionary) -> void:
 	main.wildlife.birds.look()

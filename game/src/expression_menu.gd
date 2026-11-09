@@ -3,41 +3,37 @@ extends RefCounted
 
 ## The avatar's controls as leaves for Hand's ToolWheel, sharing the player's parameter state.
 var player: ExpressionPlayer
-var current: Array
-var parents: Array = []
-var puppet: Dictionary = {}
+## The controls of the innermost submenu open, or the top menu's.
+var current: Array:
+	get:
+		for c in range(player.state.opened.size() - 1, -1, -1):
+			if player.state.opened[c].type == "submenu":
+				return player.state.opened[c].controls
+		return player.state.data.get("menu", [])
+## The radial or axis control open, or empty.
+var puppet: Dictionary:
+	get:
+		var opened := player.state.opened
+		return opened.back() if not opened.is_empty() and opened.back().type != "submenu" else {}
 var radial_start := 0.0
 
 
 func _init(expressions: ExpressionPlayer) -> void:
 	player = expressions
-	current = player.state.data.get("menu", [])
 
 
 func choose(control: Dictionary) -> void:
 	player.state.activate(control)
-	if control.type == "submenu":
-		parents.append(current)
-		current = control.controls
-	elif control.type in ["radial", "twoAxis", "fourAxis"]:
-		puppet = control
+	if control.type in ["radial", "twoAxis", "fourAxis"]:
 		var axes: Array = control.get("axes", [])
 		radial_start = player.state.values.get(axes[0], 0.0) if not axes.is_empty() else 0.0
 
 
+## Steps the menu one level out; false at the top.
 func back() -> bool:
-	player.state.back()
-	return unwind()
-
-
-## Steps the menu one level out, to match a state already stepped back; false at the top.
-func unwind() -> bool:
-	if not puppet.is_empty():
-		puppet = {}
-	elif not parents.is_empty():
-		current = parents.pop_back()
-	else:
+	if player.state.opened.is_empty():
 		return false
+	player.state.back()
 	return true
 
 

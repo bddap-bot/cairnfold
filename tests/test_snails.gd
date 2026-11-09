@@ -15,7 +15,7 @@ func _initialize() -> void:
 	wildlife.set_process(false)
 	var snails := wildlife.snails
 	snails.tick(1.0)
-	check(snails.crawling.is_empty(), "no pond means no snails")
+	check(snails.animals.is_empty(), "no pond means no snails")
 	var ponds: Array[PondLayout.Pond] = []
 	for spot in [Vector2(-15, -8), Vector2(-5, -8), Vector2(5, -8), Vector2(15, -8), Vector2(-15, 8), Vector2(-5, 8), Vector2(5, 8), Vector2(15, 8)]:
 		var centre := Terrain.grid_point(spot.x, spot.y)
@@ -30,31 +30,34 @@ func _initialize() -> void:
 	for p in water.ponds:
 		p._process(PondWater.FILL)
 	snails.tick(0.01)
-	check(snails.crawling.is_empty(), "arrival waits for the pond")
-	for i in 2400:
+	check(snails.animals.is_empty(), "arrival waits for the pond")
+	for i in 30 * 600:
 		snails.tick(1.0 / 30.0)
-	check(not snails.crawling.is_empty(), "snails arrive through wildlife")
-	check(snails.crawling.size() == Snails.CAP, "global cap")
-	print("snail_population: %d ponds; %d snails; cells %s" % [water.ponds.size(), snails.crawling.size(), water.ponds.map(func(p: PondWater) -> int: return p.pond.cells.size())])
+		if snails.animals.size() == Snails.CAP:
+			break
+	check(not snails.animals.is_empty(), "snails arrive through wildlife")
+	check(snails.animals.size() == Snails.CAP, "global cap")
+	print("snail_population: %d ponds; %d snails; cells %s" % [water.ponds.size(), snails.animals.size(), water.ponds.map(func(p: PondWater) -> int: return p.pond.cells.size())])
 	for p in water.ponds:
-		check(snails.crawling.filter(func(s: Snails.One) -> bool: return s.pond == p).size() == Wildlife._pond_quota(p, water.ponds.size(), Snails.CAP, Snails.CELLS_EACH, Snails.PER_POND), "pond size determines population")
+		check(snails.animals.filter(func(s: Shy.One) -> bool: return s.home == p).size() == Wildlife._pond_quota(p, water.ponds.size(), Snails.CAP, Snails.CELLS_EACH, Snails.PER_POND), "pond size determines population")
 	var moved := 0.0
 	var elapsed := 0
 	for i in 3600:
-		var before := snails.crawling[0].position
+		var before := snails.animals[0].position
 		var start := Time.get_ticks_usec()
 		snails.tick(1.0 / 72.0)
 		elapsed += Time.get_ticks_usec() - start
-		moved += before.distance_to(snails.crawling[0].position)
-		for s in snails.crawling:
+		moved += before.distance_to(snails.animals[0].position)
+		for s in snails.animals:
 			check(absf(s.position.y - terrain.height_at(s.position.x, s.position.z)) < 0.0001, "foot stays on bed")
-			check(snails._wet(s.pond, s.position), "stays submerged")
+			check(snails._wet(s.home, s.position), "stays submerged")
 	check(moved > 0.2 and moved < 1.0, "slow sustained crawl: %.3f m" % moved)
-	print("snail_cost: %d animals; 3600 ticks simulation only: %.3f ms/tick; %d triangles/animal; one draw; travel %.3f m" % [snails.crawling.size(), elapsed / 3600000.0, snails.crowd.multimesh.mesh.get_surface_count() * snails.crowd.multimesh.mesh.surface_get_array_len(0) / 3, moved])
+	print("snail_cost: %d animals; 3600 ticks simulation only: %.3f ms/tick; %d triangles/animal; one draw; travel %.3f m" % [snails.animals.size(), elapsed / 3600000.0, snails.crowd.multimesh.mesh.get_surface_count() * snails.crowd.multimesh.mesh.surface_get_array_len(0) / 3, moved])
 	water.clear()
 	await process_frame
-	snails.tick(0.1)
-	check(snails.crawling.is_empty(), "pond removal removes snails")
+	for i in 30 * 2:
+		snails.tick(1.0 / 30.0)
+	check(snails.animals.is_empty(), "pond removal removes snails")
 	for n in [wildlife, water, flora]:
 		n.queue_free()
 	await process_frame

@@ -1,31 +1,17 @@
 class_name Snails
-extends Node3D
+extends Shy
 
-## Pond-bed grazers, drawn as one MultiMesh sharing one mesh and material.
+## Pond-bed grazers gliding along the bed of a filled pond, turning at its banks and walls.
 const CAP := 24
 const PER_POND := 7
 const CELLS_EACH := 8
 const SPEED := 0.012
 const DEPTH := 0.12
-var wildlife: Wildlife
-var rng := RandomNumberGenerator.new()
-var crawling: Array[One] = []
-var crowd: Crowd
-var _due := {}
-var _came := {}
 
-class One extends Node3D:
-	var pond: PondWater
-	var heading := 0.0
-	var turn := 0.0
-	var phase := 0.0
-	var shown := 0.0
 
 func _init(home: Wildlife, seed: int) -> void:
-	wildlife = home
-	rng.seed = seed
-	crowd = Crowd.new(wildlife.terrain, body(), CAP, "res://src/snails.gdshader")
-	add_child(crowd)
+	super(home, seed, body(), "res://src/snails.gdshader", CAP, "snails")
+
 
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
@@ -52,64 +38,57 @@ static func body() -> ArrayMesh:
 		Meshes.ellipsoid(st, 2, Vector3(side * 0.013, 0.064, -0.044), Vector3.ONE * 0.004, Color("313f32"), 5, 8)
 	return st.commit()
 
+
+func habitats() -> Dictionary:
+	var ponds := wildlife.water.ponds
+	var out := {}
+	for p: PondWater in ponds:
+		if p.surface_y() >= p.pond.level - 0.001:
+			out[p] = Wildlife._pond_quota(p, ponds.size(), CAP, CELLS_EACH, PER_POND)
+	return out
+
+
+## Snails come by night as by day.
+func active() -> bool:
+	return true
+
+
+func arrive(home: Object) -> One:
+	for attempt in 8:
+		var xz := Terrain.grid_xz(home.pond.cells[rng.randi() % home.pond.cells.size()])
+		var at := wildlife.terrain.ground(xz.x, xz.y)
+		if _wet(home, at):
+			var s := One.new()
+			s.position = at
+			s.yaw = rng.randf() * TAU
+			s.clock = rng.randf() * TAU
+			return s
+	return null
+
+
 func _wet(p: PondWater, at: Vector3) -> bool:
 	return wildlife.water.pond_at(at.x, at.z) == p and p.surface_y() - wildlife.terrain.height_at(at.x, at.z) >= DEPTH
 
-func tick(delta: float) -> void:
-	var ponds := wildlife.water.ponds
-	for p in _came.keys():
-		if not is_instance_valid(p) or not ponds.has(p):
-			_came.erase(p)
-	var have := {}
-	for i in range(crawling.size() - 1, -1, -1):
-		var s := crawling[i]
-		var at := s.position
-		s.pond = wildlife.water.pond_at(at.x, at.z)
-		var count: int = have.get(s.pond, 0)
-		if s.pond == null or s.pond.surface_y() - wildlife.terrain.height_at(at.x, at.z) < DEPTH or count >= Wildlife._pond_quota(s.pond, ponds.size(), CAP, CELLS_EACH, PER_POND):
-			crawling.remove_at(i)
-			s.queue_free()
-		else:
-			have[s.pond] = count + 1
-			_came[s.pond] = true
-	var waiting := ponds.filter(func(p: PondWater) -> bool: return not _came.has(p) and p.surface_y() >= p.pond.level - 0.001)
-	for p in wildlife._ripe(_due, waiting, Wildlife.ARRIVE_AFTER, delta, true, rng):
-		_came[p] = true
-	for p: PondWater in ponds:
-		if not _came.has(p) or have.get(p, 0) >= Wildlife._pond_quota(p, ponds.size(), CAP, CELLS_EACH, PER_POND) or crawling.size() >= CAP:
-			continue
-		for attempt in 8:
-			var xz := Terrain.grid_xz(p.pond.cells[rng.randi() % p.pond.cells.size()])
-			var at := wildlife.terrain.ground(xz.x, xz.y)
-			if not _wet(p, at):
-				continue
-			var s := One.new()
-			s.pond = p
-			s.position = at
-			s.heading = rng.randf() * TAU
-			s.phase = rng.randf() * TAU
-			s.add_to_group("snails")
-			add_child(s)
-			crawling.append(s)
-			break
-	for i in crawling.size():
-		var s := crawling[i]
-		s.phase += delta
-		s.turn -= delta
-		if s.turn <= 0.0:
-			s.turn = rng.randf_range(4.0, 10.0)
-			s.heading += rng.randf_range(-0.6, 0.6)
-		s.rotation.y = lerp_angle(s.rotation.y, s.heading, minf(delta, 1.0))
-		var t := s.transform
-		var next := t.origin - t.basis.z * SPEED * delta
-		var bed := wildlife.terrain.height_at(next.x, next.z)
-		if _wet(s.pond, next) and wildlife._swims_clear(t.origin, Vector2(next.x, next.z), s.pond):
-			t.origin = Vector3(next.x, bed, next.z)
-		else:
-			s.heading += PI * delta
-		# Match the local bed slope; the soft foot fills the small gap between samples.
-		t.basis = Shy.upright(wildlife.terrain.up_at(t.origin, 0.03), t.basis.z)
-		s.transform = t
-		s.shown = minf(s.shown + delta / 1.5, 1.0)
-		crowd.put(i, t, Color(s.phase, s.shown, 0, 0))
-	crowd.upload(crawling.size())
+
+func think(s: One, delta: float) -> void:
+	s.pose = Color(s.clock, s.shown, 0, 0)
+	if s.leaving:
+		return
+	if not _wet(s.home, s.position):
+		s.leaving = true
+		leave(s)
+		return
+	s.timer -= delta
+	if s.timer <= 0.0:
+		s.timer = rng.randf_range(4.0, 10.0)
+		s.yaw += rng.randf_range(-0.6, 0.6)
+	s.rotation.y = lerp_angle(s.rotation.y, s.yaw, minf(delta, 1.0))
+	var t := s.transform
+	var next := t.origin - t.basis.z * SPEED * delta
+	if _wet(s.home, next) and wildlife._swims_clear(t.origin, Vector2(next.x, next.z), s.home):
+		t.origin = Vector3(next.x, wildlife.terrain.height_at(next.x, next.z), next.z)
+	else:
+		s.yaw += PI * delta
+	# Match the local bed slope; the soft foot fills the small gap between samples.
+	t.basis = upright(wildlife.terrain.up_at(t.origin, 0.03), t.basis.z)
+	s.transform = t
