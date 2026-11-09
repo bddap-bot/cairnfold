@@ -35,7 +35,7 @@ var _resting := {}
 var _seconds := 0.0
 var _frame := 0
 
-const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted"], "tone": ["hue_mask"], "look": []}
+const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
 ## The expression shaders by whether they turn decal hues, each cut out, blended, and blended writing depth.
@@ -298,25 +298,27 @@ static func shows(outputs: Array[float], when: Array) -> bool:
 static func prepare(model: Node3D) -> void:
 	var data: Dictionary = model.get_meta("expressions", {})
 	var icons: Array[Texture2D] = []
-	for encoded: String in data.get("icons", []):
-		var img := Image.new()
-		icons.append(ImageTexture.create_from_image(img) if img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) == OK else null)
+	var made := {}
+	for img: Image in data.get("icons", []):
+		if not made.has(img):
+			made[img] = ImageTexture.create_from_image(img)
+		icons.append(made[img])
 	model.set_meta("expression_icons", icons)
-	var shrink: int = model.get_meta("texture_shrink", 1)
-	var decode := func(encoded: Variant, mipmapped: bool) -> Image:
-		var img := Image.new()
-		if not encoded is String or img.load_png_from_buffer(Marshalls.base64_to_raw(encoded)) != OK:
-			return null
-		img.convert(Image.FORMAT_RGBA8)
-		Avatar.scale_down(img, shrink, mipmapped)
-		return img
 	var looks: Dictionary = data.get("looks", {})
-	for pair: Array in [[data.get("hueMask"), "hue_mask", false], [data.get("colorAtlas"), "untinted", true], [looks.get("emission"), "glow", true]]:
-		var img: Image = decode.call(pair[0], pair[2])
-		if img != null:
-			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(img))
+	var untinted: Dictionary = data.get("untinted", {})
+	for pair: Array in [[data.get("hueMask"), "hue_mask"], [untinted.get("image"), "untinted"], [looks.get("emission"), "glow"]]:
+		if pair[0] is Image:
+			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(pair[0]))
+	var cells: Array = untinted.get("cells", [])
+	if not cells.is_empty():
+		var table := Image.create_empty(cells.size(), 2, false, Image.FORMAT_RGBAF)
+		for k in cells.size():
+			table.set_pixel(k, 0, Color(cells[k][0], cells[k][1], cells[k][2], cells[k][3]))
+			table.set_pixel(k, 1, Color(cells[k][4], cells[k][5], cells[k][6], cells[k][7]))
+		model.set_meta("expression_untinted_cells", ImageTexture.create_from_image(table))
+		model.set_meta("expression_untinted_count", cells.size())
 	var decals: Array = looks.get("decals", [])
-	looks.erase("decals")
+	Vrm.drop_layers(data)
 	var by_node := {}
 	for target: Dictionary in data.get("targets", []):
 		var effect: Variant = target.get("effect")

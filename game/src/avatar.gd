@@ -269,9 +269,9 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 		decoded[0] += 1
 		return decoded[0] <= images.size() and (unlimited or decodes(size, budget)) and size == images[decoded[0] - 1].size
 	var start := Time.get_ticks_usec()
-	var textures := texture_bytes(bytes, images)
+	var textures := texture_bytes(images)
 	var shrink := shrink_for(textures, budget)
-	var root := Vrm.read(bytes, fits, shape, func(img: Image) -> void: scale_down(img, shrink))
+	var root := Vrm.read(bytes, fits, shape, func(img: Image, layer: String) -> void: hold(img, layer, shrink))
 	if root != null:
 		root.set_meta("texture_shrink", shrink)
 	var scene := model(root) if root != null else null
@@ -352,17 +352,16 @@ static func shrink_for(bytes: int, budget: int) -> int:
 	return shrink
 
 
-## The bytes the textures of the VRM file `glb` take once read, mipmapped, from its `images` (Vrm.images) and the
-## expression layers its definition carries, each measured from its header before any is decoded.
-static func texture_bytes(glb: PackedByteArray, images: Array[Dictionary]) -> int:
-	var texels := Vrm.pixels(images)
-	var json: Variant = Vrm.json_chunk(glb) if glb.size() >= 20 else null
-	var definition: Variant = Vrm._field(Vrm._field(json, "extensions"), Vrm.EXPRESSIONS)
-	for encoded: Variant in [Vrm._field(definition, "hueMask"), Vrm._field(definition, "colorAtlas"), Vrm._field(Vrm._field(definition, "looks"), "emission")]:
-		if encoded is String:
-			var dims := Vrm._image_size(Marshalls.base64_to_raw((encoded as String).left(44)))
-			texels += dims.x * dims.y
-	return texels * 4 * 4 / 3
+## The expression layers (Vrm.LAYERS) held at their own size whatever the avatar's shrink (`hold`).
+const UNSHRUNK := ["icons", "index"]
+
+
+## The bytes the textures of a VRM file's `images` (Vrm.images) take once read, mipmapped, each measured from its header
+## before any is decoded, but the expression layers that do not shrink with them.
+static func texture_bytes(images: Array[Dictionary]) -> int:
+	var shrunk: Array[Dictionary] = []
+	shrunk.assign(images.filter(func(image: Dictionary) -> bool: return image.layer not in UNSHRUNK))
+	return Vrm.pixels(shrunk) * 4 * 4 / 3
 
 
 ## An importer's scene as the avatar model to open, or null. The model is a scene of skinned meshes, shaped by `shape`,
@@ -532,7 +531,7 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material, its
 ## materials plain and those of meshes showing a flat-lit or glowing material carrying their looks (`_lit_looks`). False, leaving
-## them as they were, if their blend shapes are past MAX_BLEND_VERTICES or their looks lack lighting.
+## them as they were, if their blend shapes are past MAX_BLEND_VERTICES or their looks lack lighting or the material index.
 static func shape(state: GLTFState) -> bool:
 	var blended := 0
 	for gm in state.get_meshes():
@@ -545,17 +544,19 @@ static func shape(state: GLTFState) -> bool:
 	for m in state.get_materials():
 		if m is BaseMaterial3D:
 			_plain(m)
-	var extensions: Variant = state.json.get("extensions", {})
-	var expressions: Variant = extensions.get(Vrm.EXPRESSIONS, {}) if extensions is Dictionary else {}
+	var expressions: Variant = Vrm.expressions(state)
 	var looks: Variant = expressions.get("looks", {}) if expressions is Dictionary else {}
 	if not ExpressionDefinition.looks_valid(looks):
+		return false
+	if looks.has("materials") and not looks.get("index") is Image:
+		push_error("avatar: the looks name materials without the material index they are drawn by")
 		return false
 	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh))
 	return true
 
 
 ## Gives the meshes that show a material its looks light flat or make glow (ExpressionDefinition) copies of their
-## materials carrying the atlas's material index, nearest-sampled at most INDEX_SIDE wide as each vertex reads it, and a
+## materials carrying the atlas's material index (held as `hold` holds it) as each vertex reads it, and a
 ## table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a ramp; green its cap,
 ## blue its shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the
 ## lit colour, and the RAMP rows after them its ramp, for the avatar's shader to draw them by (ExpressionPlayer) over the
@@ -585,14 +586,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			table.set_pixel(k + 1, 1, glows)
 	if drawn.count(1) == 0:
 		return
-	var index := Image.new()
-	if index.load_png_from_buffer(Marshalls.base64_to_raw(looks.index)) != OK:
-		push_error("avatar: the looks' material index is no PNG; its flat materials draw lit by angle, its glowing ones dark")
-		return
-	index.convert(Image.FORMAT_L8)
-	var big := maxi(index.get_width(), index.get_height())
-	if big > INDEX_SIDE:
-		index.resize(index.get_width() * INDEX_SIDE / big, index.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
+	var index: Image = looks.index
 	var texels := index.get_data()
 	var size := index.get_size()
 	var looked := {"light_index": ImageTexture.create_from_image(index), "lighting": ImageTexture.create_from_image(table)}
@@ -643,6 +637,21 @@ static func _plain(m: BaseMaterial3D) -> void:
 		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS if (m.get_meta("extras", {}) as Dictionary).get("depthWrite", false) else BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	elif m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+
+
+## Holds `img`, a texture where `layer` is "" or else that expression layer's image (Vrm.LAYERS), as the avatar draws
+## it at 1/`shrink` of its width: the material index greyscale, nearest-sampled at most INDEX_SIDE wide, and the icons
+## as they come (UNSHRUNK); the hue mask unmipmapped; the rest mipmapped.
+static func hold(img: Image, layer: String, shrink: int) -> void:
+	if layer == "index":
+		img.convert(Image.FORMAT_L8)
+		var big := maxi(img.get_width(), img.get_height())
+		if big > INDEX_SIDE:
+			img.resize(img.get_width() * INDEX_SIDE / big, img.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
+	elif layer != "icons":
+		if layer != "":
+			img.convert(Image.FORMAT_RGBA8)
+		scale_down(img, shrink, layer != "hueMask")
 
 
 ## Holds `img` 1/`shrink` wide, mipmapped unless not `mipmapped`.

@@ -111,10 +111,10 @@ func _ball(model: String) -> Node3D:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
 	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}}.get(model, {"model": "lit"})
-	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "materials": [{"lighting": light}]}
+	var looks := {"index": index, "materials": [{"lighting": light}]}
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
-		looks.emission = Marshalls.raw_to_base64(picture.save_png_to_buffer())
+		looks.emission = picture
 	if model == "theme":
 		looks.materials[0].emission.theme = 0
 		looks.materials[0].themes = [{"slot": 0, "hsv": [0.0, 1.0, 0.25], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 400.0}, null, null, null]

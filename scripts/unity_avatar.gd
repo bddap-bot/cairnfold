@@ -794,11 +794,11 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	if not looks.is_empty():
 		data.looks = looks
 	var hue_mask := materials.hue_mask()
-	if hue_mask != "":
+	if hue_mask != null:
 		data.hueMask = hue_mask
-	var color_atlas := materials.color_atlas()
-	if color_atlas != "":
-		data.colorAtlas = color_atlas
+	var untinted := materials.untinted()
+	if not untinted.is_empty():
+		data.untinted = untinted
 	data.targets = targets
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
@@ -992,8 +992,8 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	return targets.size() - 1
 
 
-## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon a
-## Base64 PNG of at most ICON pixels a side in `icons`, by index.
+## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon an
+## image of at most ICON pixels a side in `icons`, by index.
 static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: Materials, icons: Array, indices: Dictionary) -> Array:
 	var out := []
 	for c: Dictionary in menu:
@@ -1007,7 +1007,7 @@ static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: M
 				if side > ICON:
 					small.resize(maxi(roundi(small.get_width() * ICON / side), 1), maxi(roundi(small.get_height() * ICON / side), 1), Image.INTERPOLATE_LANCZOS)
 				indices[icon] = icons.size()
-				icons.append(Marshalls.raw_to_base64(small.save_png_to_buffer()))
+				icons.append(small)
 		if indices.has(icon):
 			c.icon = indices[icon]
 		if c.type == "submenu":

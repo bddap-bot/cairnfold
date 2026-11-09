@@ -120,7 +120,7 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) != null, "a lossless WebP is read")
 	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGB8).save_webp_to_buffer(true)])) != null, "a lossy WebP is read")
 	var measured := _with_images(bytes, [png.call(64, 32), Image.create_empty(16, 8, false, Image.FORMAT_RGBA8).save_webp_to_buffer(), jpg.call(40, 20)])
-	check(Avatar.texture_bytes(measured, Vrm.images(measured)) == (64 * 32 + 16 * 8 + 40 * 20) * 4 * 4 / 3, "an avatar's texture memory is measured from its images' headers")
+	check(Avatar.texture_bytes(Vrm.images(measured)) == (64 * 32 + 16 * 8 + 40 * 20) * 4 * 4 / 3, "an avatar's texture memory is measured from its images' headers")
 	check(Avatar.read(_with_images(bytes, ["GIF89a".to_ascii_buffer() + cut])) == null, "an image that is neither PNG, JPEG nor WebP is refused")
 	var many := []
 	for i in Avatar.MAX_IMAGES:
@@ -398,7 +398,7 @@ func _rest_weights_survive_the_vrm() -> void:
 ## A model Vrm.read made writes, and reads back with the same springs on the same bones, settled rotations included.
 func _springs_survive_a_rewrite(file: String) -> void:
 	var path := ProjectSettings.globalize_path("user://rewritten.vrm")
-	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image) -> void: pass)
+	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image, _layer: String) -> void: pass)
 	var first: Node3D = read.call(FileAccess.get_file_as_bytes(file))
 	for chain: Dictionary in first.get_meta("springs").springs:
 		for joint: Dictionary in chain.joints:

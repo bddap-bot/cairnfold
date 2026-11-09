@@ -9,6 +9,7 @@ func _init() -> void:
 	_bones_turn_and_shift()
 	_node_effects_roundtrip()
 	_roundtrip()
+	_looks_need_their_index()
 	_layers_follow_the_budget()
 	_decals_share_pages()
 	_moving_targets_leave_regions_bound()
@@ -157,13 +158,11 @@ func _layers_follow_the_budget() -> void:
 	check(Avatar.texture_budget() == 8 << 20, "the budget is the memory available at launch above the floor, shared among the other players, whatever is available now: %d" % Avatar.texture_budget())
 	Avatar.launch_memory = held
 	for shrink: int in [1, 4]:
-		var root := Node3D.new()
-		root.set_meta("texture_shrink", shrink)
-		root.set_meta("expressions", {"colorAtlas": Marshalls.raw_to_base64(wide.save_png_to_buffer())})
-		ExpressionPlayer.prepare(root)
-		var untinted: Texture2D = root.get_meta("expression_untinted", null)
-		check(untinted != null and untinted.get_width() == 4096 / shrink, "a 4096 expression layer shrunk %d times is held at %d: %s" % [shrink, 4096 / shrink, untinted.get_width() if untinted else null])
-		root.free()
+		for layer: String in Vrm.LAYERS.keys().filter(func(l: String) -> bool: return l not in Vrm.UNDRAWN):
+			var held := wide.duplicate() as Image
+			Avatar.hold(held, layer, shrink)
+			var side := Avatar.INDEX_SIDE if layer == "index" else 4096 if layer in Avatar.UNSHRUNK else 4096 / shrink
+			check(held.get_width() == side and held.has_mipmaps() == (layer not in Avatar.UNSHRUNK and layer != "hueMask"), "a 4096 %s shrunk %d times is held at %d: %d" % [layer, shrink, side, held.get_width()])
 
 
 func _decals_share_pages() -> void:
@@ -196,12 +195,13 @@ func _lighting() -> void:
 	index.fill_rect(Rect2i(0, 0, 2048, 4096), Color8(1, 1, 1))
 	index.fill_rect(Rect2i(2048, 0, 1536, 4096), Color8(2, 2, 2))
 	index.fill_rect(Rect2i(3584, 0, 512, 4096), Color8(3, 3, 3))
-	var encoded := Marshalls.raw_to_base64(index.save_png_to_buffer())
+	var encoded := index.duplicate() as Image
+	Avatar.hold(encoded, "index", 1)
 	var glow := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	glow.fill(Color.WHITE)
-	var looks := {"index": encoded, "emission": Marshalls.raw_to_base64(glow.save_png_to_buffer()), "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}, "emission": {"color": [0.0, 0.5, 1.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 0.5}}, {"lighting": {"model": "lit"}, "emission": {"color": [1.0, 1.0, 1.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}
+	var looks := {"index": encoded, "emission": glow, "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}, "emission": {"color": [0.0, 0.5, 1.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 0.5}}, {"lighting": {"model": "lit"}, "emission": {"color": [1.0, 1.0, 1.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks lighting each material are valid")
-	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [1.0]}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": "0.5"}}]}, {"materials": []}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
+	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [1.0]}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": "0.5"}}]}, {"index": "a PNG", "materials": []}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
 		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
 	var root := Node3D.new()
 	var meshes: Array[ImporterMesh] = []
@@ -248,7 +248,7 @@ func _theme_recolours_the_emission() -> void:
 	glow.fill(Color.WHITE)
 	var theme := {"slot": 1, "hsv": [0.0, 1.0, 1.0], "exposure": 2.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 0.0}
 	var turning := theme.merged({"slot": 0, "speed": 1.0}, true)
-	var looks := {"index": Marshalls.raw_to_base64(index.save_png_to_buffer()), "emission": Marshalls.raw_to_base64(glow.save_png_to_buffer()), "materials": [
+	var looks := {"index": index, "emission": glow, "materials": [
 		{"rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.5, "hue": 0.0, "shiftsHue": false, "replace": 0.25, "theme": 1}, "themes": [null, theme, null, null]},
 		{"rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [turning, null, null, null]}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks whose emissions name their themes are valid")
@@ -388,6 +388,18 @@ func _node_effects_roundtrip() -> void:
 	check(indexed.targets.all(func(t: Dictionary) -> bool: return t.effect.values()[0].node == 0), "every node effect written to a VRM indexes its node: %s" % [indexed.targets])
 
 
+## A file whose looks name materials without the material index they are drawn by is refused.
+func _looks_need_their_index() -> void:
+	var model := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
+	model.set_meta("springs", {})
+	var definition: Dictionary = preload("res://demo/expressions.gd").definition()
+	definition.looks.materials = [{"lighting": {"model": "flat"}}]
+	model.set_meta("expressions", definition)
+	Vrm.write(model, "user://unindexed.vrm")
+	model.free()
+	check(Avatar.read(FileAccess.get_file_as_bytes("user://unindexed.vrm")) == null, "a file whose looks name materials without their index is refused")
+
+
 func _roundtrip() -> void:
 	var scene: PackedScene = preload("res://demo/expressions.gd").scene()
 	var model := scene.instantiate() as Node3D
@@ -398,7 +410,8 @@ func _roundtrip() -> void:
 	var bytes := FileAccess.get_file_as_bytes("user://expressions.vrm")
 	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + bytes.decode_u32(12)).get_string_from_utf8())
 	var decals: Array = json.extensions.VRCHAT_expressions.looks.decals
-	check(decals.size() == 1 and json.images[int(decals[0])].mimeType == "image/webp" and (json.images as Array).all(func(i: Dictionary) -> bool: return i.mimeType == "image/webp"), "every image, the decal its own, is written as WebP: %s" % [json.images])
+	var untinted: Variant = json.extensions.VRCHAT_expressions.untinted.image
+	check(decals.size() == 1 and json.images[int(decals[0])].mimeType == "image/webp" and untinted is float and json.images[int(untinted)].mimeType == "image/webp" and (json.images as Array).all(func(i: Dictionary) -> bool: return i.mimeType == "image/webp"), "every image, the decal and the untinted colours each their own, is written as WebP: %s" % [json.images])
 	if decals.size() == 1:
 		var view: Dictionary = json.bufferViews[int(json.images[int(decals[0])].bufferView)]
 		var at := 28 + bytes.decode_u32(12) + int(view.get("byteOffset", 0))
@@ -419,8 +432,10 @@ func _roundtrip() -> void:
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
 		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
 		var mat := hat.get_surface_override_material(0) as ShaderMaterial
-		check(mat != null and mat.get_shader_parameter("region_count") == 7 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal, decal hue, darkening, lightening and screening decal regions and their layers to the hat")
+		check(mat != null and mat.get_shader_parameter("region_count") == 7 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("untinted_count") == 1 and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal, decal hue, darkening, lightening and screening decal regions and their layers to the hat")
 		check(mat != null and mat.shader.resource_path.ends_with("expression_hue.gdshader"), "the hat, whose decal turns its hue, draws with the shader that turns it")
+		var cells: Texture2D = mat.get_shader_parameter("untinted_cells") if mat != null else null
+		check(cells != null and cells.get_image().get_pixel(0, 0).is_equal_approx(Color(0, 0, 1, 1)) and cells.get_image().get_pixel(0, 1).is_equal_approx(Color(1.0 / 6, 1.0 / 6, 5.0 / 6, 5.0 / 6)), "the hat's cell names its place in the untinted colours: %s" % [cells.get_image().get_pixel(0, 1) if cells else null])
 		var regions: Texture2D = mat.get_shader_parameter("regions") if mat != null else null
 		var pad := float(ExpressionPlayer.DECAL_PAD) / (preload("res://demo/expressions.gd").SIZE + 2 * ExpressionPlayer.DECAL_PAD)
 		check(regions != null and regions.get_image().get_pixel(2, 3).is_equal_approx(Color(pad, pad, 1.0 - pad, 1.0 - pad)), "the decal region names its decal's place on its page: %s" % [regions.get_image().get_pixel(2, 3) if regions else null])

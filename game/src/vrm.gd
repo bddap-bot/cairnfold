@@ -95,8 +95,9 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	var springs := SpringDefinition.read(state.json)
 	for index: int in spring_nodes(springs):
 		_bind(found, "spring_" + str(index), float(index), state, root)
-	if exts.get(EXPRESSIONS) is Dictionary and ExpressionDefinition.valid(exts[EXPRESSIONS]):
-		root.set_meta("expressions", _named(exts[EXPRESSIONS], state))
+	var expressions: Variant = expressions(state)
+	if expressions is Dictionary and ExpressionDefinition.valid(expressions):
+		root.set_meta("expressions", _named(expressions, state))
 	root.set_meta("springs", springs)
 	root.set_meta("humanoid", found)
 	root.set_meta("look", look)
@@ -166,12 +167,12 @@ class Skins extends GLTFDocumentExtension:
 
 
 ## Measures each image from its PNG, JPEG or WebP header and, if the read's `fits` takes that size, decodes it as the
-## format measured and hands it to the read's `image` before it becomes a texture; anything else, or an image that does
-## not decode, marks the read refused and leaves Godot's decoders nothing to try. A decal image (VRCHAT_expressions'
-## looks) is kept aside as the image the definition names, and only a texel of it becomes a texture. Registered ahead of
-## Godot's own decoders, so it sees every image first, apart from Vrm, whose import follows Godot's. Reading a texture
-## back calls the rendering server, which answers a worker thread only from the main thread, so a game quitting
-## mid-read would wait on the read forever.
+## format measured and hands it to the read's `image`, with the expression layer it is (LAYERS) or "", before it becomes
+## a texture; anything else, or an image that does not decode, marks the read refused and leaves Godot's decoders
+## nothing to try. A layer is kept aside as the image the definition names, and only a texel of it becomes a texture;
+## an UNDRAWN one is measured but never decoded. Registered ahead of Godot's own decoders, so it sees every image first,
+## apart from Vrm, whose import follows Godot's. Reading a texture back calls the rendering server, which answers a
+## worker thread only from the main thread, so a game quitting mid-read would wait on the read forever.
 class Images extends GLTFDocumentExtension:
 	func _parse_image_data(state: GLTFState, data: PackedByteArray, _mime: String, out: Image) -> Error:
 		var fits: Variant = state.get_additional_data(&"vrm_fits")
@@ -179,8 +180,19 @@ class Images extends GLTFDocumentExtension:
 			return OK
 		var at: int = state.get_additional_data(&"vrm_image_at")
 		state.set_additional_data(&"vrm_image_at", at + 1)
+		var layers: Variant = state.get_additional_data(&"vrm_layers")
+		if not layers is Dictionary:
+			layers = Vrm._layer_names(state.json)
+			state.set_additional_data(&"vrm_layers", layers)
+		var layer: String = layers.get(at, "")
+		var means: Array = state.get_additional_data(&"vrm_means")
 		var size := Vrm._image_size(data)
-		if size.x > 0 and size.y > 0 and fits.call(size):
+		var fit: bool = size.x > 0 and size.y > 0 and fits.call(size)
+		if fit and layer in Vrm.UNDRAWN:
+			means.append(Color.WHITE)
+			out.set_data(1, 1, false, Image.FORMAT_RGBA8, PackedByteArray([0, 0, 0, 0]))
+			return OK
+		if fit:
 			if data[0] == Vrm.PNG[0]:
 				out.load_png_from_buffer(data)
 			elif data[0] == 0xFF:
@@ -193,10 +205,10 @@ class Images extends GLTFDocumentExtension:
 			return OK
 		var image: Variant = state.get_additional_data(&"vrm_image")
 		if image is Callable and image.is_valid():
-			image.call(out)
-		(state.get_additional_data(&"vrm_means") as Array).append(Vrm._mean(out))
-		if at in Vrm._decal_indices(state.json):
-			(state.get_additional_data(&"vrm_decals") as Dictionary)[at] = out.duplicate()
+			image.call(out, layer)
+		means.append(Vrm._mean(out) if layer == "" else Color.WHITE)
+		if layer != "":
+			(state.get_additional_data(&"vrm_kept") as Dictionary)[at] = out.duplicate()
 			out.set_data(1, 1, false, Image.FORMAT_RGBA8, PackedByteArray([0, 0, 0, 0]))
 		return OK
 
@@ -221,16 +233,17 @@ static func spring_nodes(definition: Dictionary) -> Array:
 	return out.keys()
 
 
-## How many pixels `images` (images()) hold together.
+## How many pixels `images` (images()) hold together, but the UNDRAWN layers, which are never decoded.
 static func pixels(images: Array[Dictionary]) -> int:
 	var out := 0
 	for image in images:
-		out += image.size.x * image.size.y
+		if image.layer not in UNDRAWN:
+			out += image.size.x * image.size.y
 	return out
 
 
 ## Each image of a binary glTF, in order, measured from its header before any is decoded: "size", zero for an image not
-## held in the file's own binary chunk.
+## held in the file's own binary chunk, and the expression "layer" it is (LAYERS), or "".
 static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if glb.size() < 28:
@@ -241,20 +254,70 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 		return out
 	var views: Array = json.bufferViews
 	var images: Array = json.images
+	var layers := _layer_names(json)
 	for i in images.size():
 		var view: Variant = _field(images[i], "bufferView")
 		var size := Vector2i.ZERO
 		if view is float and view >= 0 and view < views.size() and views[int(view)] is Dictionary and _number(views[int(view)].get("buffer", 0.0), -1, 1, -1) == 0:
 			var at := 28 + json_size + int(_number(views[int(view)].get("byteOffset", 0), 0, glb.size(), 0))
 			size = _image_size(glb.slice(at, at + int(_number(views[int(view)].get("byteLength", 0), 0, glb.size(), 0))))
-		out.append({"size": size})
+		out.append({"size": size, "layer": layers.get(i, "")})
 	return out
 
 
-## The glTF images VRCHAT_expressions' looks name as decals.
-static func _decal_indices(json: Dictionary) -> Array:
-	var decals: Variant = _field(_field(_field(json.get("extensions"), EXPRESSIONS), "looks"), "decals")
-	return (decals as Array).filter(func(k: Variant) -> bool: return k is float or k is int).map(func(k: Variant) -> int: return int(k)) if decals is Array else []
+## Where VRCHAT_expressions names its images, each a lossless WebP glTF image no texture uses, by its index, or a list
+## of them by theirs: each layer's path through the definition. Read, each is the Image itself.
+const LAYERS := {"icons": ["icons"], "hueMask": ["hueMask"], "untinted": ["untinted", "image"], "index": ["looks", "index"], "matcapMasks": ["looks", "matcapMasks"], "emission": ["looks", "emission"], "matcaps": ["looks", "matcaps"], "decals": ["looks", "decals"]}
+## The layers nothing here draws, carried for other renderers: read as null.
+const UNDRAWN := ["matcaps", "matcapMasks"]
+
+
+## A copy of the expression `definition` with each of its layers (LAYERS) `f`(it, its layer), each of a list's alike.
+static func _layered(definition: Dictionary, f: Callable) -> Dictionary:
+	var out := definition.duplicate(true)
+	for layer: String in LAYERS:
+		var parent := _layer_parent(out, layer)
+		if parent.has(LAYERS[layer][-1]):
+			var v: Variant = parent[LAYERS[layer][-1]]
+			parent[LAYERS[layer][-1]] = (v as Array).map(f.bind(layer)) if v is Array else f.call(v, layer)
+	return out
+
+
+## Takes every layer (LAYERS) out of the expression `definition`, once the model's textures hold them.
+static func drop_layers(definition: Dictionary) -> void:
+	for layer: String in LAYERS:
+		_layer_parent(definition, layer).erase(LAYERS[layer][-1])
+
+
+## The dictionary of `definition` that holds `layer`, or an empty one where there is none.
+static func _layer_parent(definition: Dictionary, layer: String) -> Dictionary:
+	var parent: Variant = definition
+	for key: String in LAYERS[layer].slice(0, -1):
+		parent = _field(parent, key)
+	return parent if parent is Dictionary else {}
+
+
+## Each glTF image index the expression definition in `json` names as a layer (LAYERS), to that layer.
+static func _layer_names(json: Variant) -> Dictionary:
+	var out := {}
+	var definition: Variant = _field(_field(json, "extensions"), EXPRESSIONS)
+	if definition is Dictionary:
+		_layered(definition, func(k: Variant, layer: String) -> Variant:
+			if k is float or k is int:
+				out[int(k)] = layer
+			return k)
+	return out
+
+
+## The parsed file's expression definition with each layer the Image read for it (Images), null where none was; null
+## if the file has none.
+static func expressions(state: GLTFState) -> Variant:
+	var definition: Variant = _field(_field(state.json, "extensions"), EXPRESSIONS)
+	if not definition is Dictionary:
+		return null
+	var kept: Variant = state.get_additional_data(&"vrm_kept")
+	kept = kept if kept is Dictionary else {}
+	return _layered(definition, func(k: Variant, _layer: String) -> Variant: return kept.get(int(k)) if k is float or k is int else null)
 
 
 ## The width and height in the header of a PNG, a JPEG or a WebP; zero if it is none.
@@ -518,9 +581,7 @@ const NODE_EFFECTS := ["scale", "rotation", "translation", "material", "constrai
 
 
 static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionary) -> Dictionary:
-	var out := expressions.duplicate(true)
-	if out.get("looks") is Dictionary and out.looks.has("decals"):
-		out.looks.decals = (out.looks.decals as Array).map(func(img: Image) -> int: return _add_image(state, img.save_webp_to_buffer()))
+	var out := _layered(expressions, func(img: Image, _layer: String) -> int: return _add_image(state, img.save_webp_to_buffer()))
 	var nodes := state.get_nodes()
 	var morph := func(bind: Array) -> Array:
 		var mesh := nodes[index[bind[0]]].mesh
@@ -591,11 +652,6 @@ static func _named(definition: Dictionary, state: GLTFState) -> Dictionary:
 	for c: Variant in out.get("contacts", []):
 		if c is Dictionary:
 			c.node = name_of.call(c)
-	var looks: Variant = out.get("looks")
-	if looks is Dictionary and looks.has("decals"):
-		var kept: Variant = state.get_additional_data(&"vrm_decals")
-		kept = kept if kept is Dictionary else {}
-		looks.decals = _decal_indices(state.json).map(func(k: int) -> Variant: return kept.get(k))
 	return out
 
 
@@ -612,7 +668,8 @@ static func _doc() -> GLTFDocument:
 
 
 ## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `fits`, given each image's size
-## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, and
+## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, given the
+## expression layer it is or "" (Images), and
 ## `shape`, given the parsed state, its meshes and materials before the scene is made, refuses the file by answering
 ## false. Null if the file is not one.
 static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image: Callable) -> Node3D:
@@ -623,7 +680,8 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	state.set_additional_data(&"vrm_refused", false)
 	state.set_additional_data(&"vrm_means", [])
 	state.set_additional_data(&"vrm_image_at", 0)
-	state.set_additional_data(&"vrm_decals", {})
+	state.set_additional_data(&"vrm_kept", {})
+	state.set_additional_data(&"vrm_layers", null)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
 	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused"):

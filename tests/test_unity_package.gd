@@ -1020,8 +1020,8 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(mobile.targets.size() == 1 and mobile.targets[0].effect.hue[0].space == 2.0, "Toon Standard binds RGB-axis hue")
 	check(mobile.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, TAU]], "the shader's angle stays in radians")
-	var packed := Image.new()
-	check(packed.load_png_from_buffer(Marshalls.base64_to_raw(mobile.hueMask)) == OK, "the hue mask is carried in expression metadata")
+	var packed: Image = mobile.get("hueMask")
+	check(packed != null, "the hue mask is carried in expression metadata")
 	var cell: Rect2i = materials.materials.colour.cell
 	check(packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2).r < 0.2 and packed.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2).r > 0.8, "the selected green mask channel follows the atlas region")
 	materials.materials.colour.keywords.clear()
@@ -1038,13 +1038,18 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var colored := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(colored.targets.size() == 1 and colored.targets[0].default == 0.0 and colored.targets[0].effect.color[0].channel == 0, "RGB curves bind even when the saved channel is black")
 	check(colored.clips[0].curves[0].keys == [[0.0, 0.0], [1.0, 1.0]], "RGB stays continuous")
-	var raw := Image.new()
-	check(raw.load_png_from_buffer(Marshalls.base64_to_raw(colored.colorAtlas)) == OK, "untinted colors are carried in the expression metadata")
+	var untinted: Dictionary = colored.get("untinted", {})
+	var raw: Image = untinted.get("image")
+	var cells: Array = untinted.get("cells", [])
+	check(raw != null and cells.size() == 1, "untinted colors are carried in the expression metadata, one cell for the one material recoloured: %s" % [cells])
 	cell = materials.materials.colour.cell
-	var center := cell.position + cell.size / 2
-	check(materials.atlas.get_pixelv(center).r == 0.0 and raw.get_pixelv(center).r > 0.99, "animation can recover a channel that baking had removed")
-	var corner := Vector2i(raw.get_width() - 1, raw.get_height() - 1)
-	check(not cell.grow(Materials.PAD).has_point(corner) and raw.get_pixelv(corner) == Color.WHITE, "outside the cells a menu recolours the untinted colours are white, not a second albedo")
+	check(raw != null and raw.get_size() == cell.grow(Materials.PAD).size and raw.get_size().x < materials.atlas_side, "the untinted colours hold only the recoloured cell and its padding, not a second albedo: %s" % [raw.get_size() if raw else null])
+	if raw != null and cells.size() == 1:
+		var grown := Rect2(cell.grow(Materials.PAD))
+		var side := float(materials.atlas_side)
+		check(cells[0] == [grown.position.x / side, grown.position.y / side, grown.end.x / side, grown.end.y / side, 0.0, 0.0, 1.0, 1.0], "the cell maps its padded rect in the atlas onto its rect in the image: %s" % [cells[0]])
+		var center := cell.position + cell.size / 2
+		check(materials.atlas.get_pixelv(center).r == 0.0 and raw.get_pixelv(center - cell.grow(Materials.PAD).position).r > 0.99, "animation can recover a channel that baking had removed")
 	materials.color_regions.clear()
 	materials.materials.colour.shader = "Poiyomi Toon"
 	materials.materials.colour.properties = {"_MainGamma_Test": true}
@@ -1055,7 +1060,8 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	var toned := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
 	check(toned.targets.size() == 1 and toned.targets[0].default == 1.0 and toned.targets[0].effect.tone[0].channel == 0, "gamma keeps its material region and neutral default")
 	check(toned.clips[0].curves[0].keys == [[0.0, 1.0], [1.0, 2.0]], "tone curves remain continuous")
-	check(packed.load_png_from_buffer(Marshalls.base64_to_raw(toned.hueMask)) == OK, "the color adjustment mask is carried")
+	packed = toned.get("hueMask")
+	check(packed != null, "the color adjustment mask is carried")
 	var first := packed.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 	check(first.r > 0.8 and first.g < 0.2 and first.b < 0.2 and first.a > 0.99, "the adjustment mask retains independent RGBA channels")
 	materials.materials.colour.floats._MainColorAdjustToggle = "0"
@@ -1289,9 +1295,9 @@ func _a_decal_alpha_binds_its_atlas_layer() -> void:
 		var left := layer.get_pixel(layer.get_width() / 4, layer.get_height() / 2)
 		var right := layer.get_pixel(3 * layer.get_width() / 4, layer.get_height() / 2)
 		check(left.a < 0.2 and right.a > 0.8 and is_equal_approx(right.r, 1.0) and right.g > 0.45 and right.g < 0.55, "the image carries the decal colour under the mask's chosen channel: %s %s" % [left, right])
-	var index := Image.new()
-	check(index.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("index", ""))) == OK, "the look index is a PNG")
-	if not index.is_empty():
+	var index: Image = looks.get("index")
+	check(index != null, "the look index is an image")
+	if index != null:
 		check(index.get_pixelv(cell.get_center()).r8 == 1 and index.get_pixel(materials.atlas_side - 1, materials.atlas_side - 1).r8 == 0, "each texel names its material's look")
 	expressions.data.clips[0].curves.clear()
 	var unbound := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, {})
@@ -1511,14 +1517,13 @@ func _a_toon_standard_detail_map_lies_in_the_atlas() -> void:
 		check(near.call(plain, [grey, grey, grey, grey]), "a detail map %s leaves the albedo: %s" % [unseen[1], plain])
 	var shifted: Materials = packed.call(mat.call(0, "  - USE_DETAIL_MAPS\n  - USE_HUE_SHIFT", ""))
 	shifted.hue_masks.skin = true
-	var mask := Image.new()
-	mask.load_png_from_buffer(Marshalls.base64_to_raw(shifted.hue_mask()))
+	var mask := shifted.hue_mask()
 	var at: Vector2i = (shifted.materials.skin.cell as Rect2i).position
-	var hues := [] if mask.is_empty() else range(4).map(func(x: int) -> int: return mask.get_pixel(at.x + x, at.y).r8)
+	var hues := [] if mask == null else range(4).map(func(x: int) -> int: return mask.get_pixel(at.x + x, at.y).r8)
 	check(hues == [0, 255, 255, 0], "an albedo hue shift spares a blended detail, which the shader lays after shifting: %s" % [hues])
 	var through: Materials = packed.call(mat.call(2, "  - USE_DETAIL_MAPS\n  - USE_HUE_SHIFT", ""))
 	through.hue_masks.skin = true
-	check(through.hue_mask() == "", "an albedo hue shift still shows through a multiplied detail")
+	check(through.hue_mask() == null, "an albedo hue shift still shows through a multiplied detail")
 
 
 func _the_atlas_widens_before_its_cells_shrink() -> void:
@@ -1561,8 +1566,7 @@ func _the_atlas_widens_before_its_cells_shrink() -> void:
 	unset.pack(["m0"])
 	check((unset.materials["m0"].cell as Rect2i).size == Vector2i(256, 256), "a Standalone size not overridden does not count: %s" % (unset.materials["m0"].cell as Rect2i).size)
 	var wide := Image.create_empty(Materials.LAYER + 512, Materials.LAYER + 512, false, Image.FORMAT_L8)
-	var carried := Image.new()
-	carried.load_png_from_buffer(Marshalls.base64_to_raw(Materials._layer(wide, Image.INTERPOLATE_NEAREST)))
+	var carried := Materials._layer(wide, Image.INTERPOLATE_NEAREST)
 	check(carried.get_size() == Vector2i(Materials.LAYER, Materials.LAYER), "a layer of a widened atlas is carried %d wide: %s" % [Materials.LAYER, carried.get_size()])
 
 
@@ -1692,21 +1696,21 @@ func _matcaps_and_emission_join_the_look() -> void:
 	check((looks.get("matcaps", []) as Array).size() == 1, "each matcap texture is carried once")
 	check(Materials.global_mask({"floats": {"_GlobalMaskTexturesEnable": "0"}}, 3) == {"property": "", "channel": 0} and Materials.mask_blend(0.7, 1.0, 1) == 0.0, "a global mask no texture fills is Poiyomi's whole 1, which a subtract blend still takes away")
 	check(Materials.global_mask({"floats": {"_GlobalMaskTexturesEnable": "1", "_GlobalMaskModifiersDistanceEnable": "1"}}, 3) is bool, "a global mask a modifier sets is one the atlas cannot hold")
-	var masks := Image.new()
-	check(masks.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("matcapMasks", ""))) == OK, "the matcap masks are a PNG")
-	if not masks.is_empty():
+	var masks: Image = looks.get("matcapMasks")
+	check(masks != null, "the matcap masks are an image")
+	if masks != null:
 		var cell: Rect2i = materials.materials.body.cell
 		var left := masks.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		var right := masks.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		check(left.b < 0.2 and absf(right.b - 0.5) < 0.05 and left.r == 1.0, "slot three's channel holds its mask's chosen channel times its global mask: %s %s" % [left, right])
-	var glow := Image.new()
-	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
-	if not glow.is_empty():
+	var glow: Image = looks.get("emission")
+	check(glow != null, "the emission map is an image")
+	if glow != null:
 		var eye: Rect2i = materials.materials.eye.cell
 		check(glow.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8 and glow.get_pixelv(materials.materials.body.cell.get_center()) == Color.BLACK, "the emission map lies over the glowing material only")
-	var hue := Image.new()
-	check(hue.load_png_from_buffer(Marshalls.base64_to_raw(data.get("hueMask", ""))) == OK, "a shifting emission carries its hue mask")
-	if not hue.is_empty():
+	var hue: Image = data.get("hueMask")
+	check(hue != null, "a shifting emission carries its hue mask")
+	if hue != null:
 		var eye: Rect2i = materials.materials.eye.cell
 		check(hue.get_pixel(eye.position.x + eye.size.x / 4, eye.position.y + eye.size.y / 2).r < 0.2 and hue.get_pixel(eye.position.x + 3 * eye.size.x / 4, eye.position.y + eye.size.y / 2).r > 0.8, "the mask's chosen channel")
 	sk.free()
@@ -1762,9 +1766,9 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 	check(materials.emission("tinted").is_empty(), "an emission tinted by the base colour, which decals and hue shifts change after the atlas, is left out")
 	var looks := materials.looks()
 	check((looks.get("materials", []) as Array).map(func(e: Dictionary) -> bool: return e.emission != null) == [true], "a material dark at rest that no animation lights draws no look")
-	var glow := Image.new()
-	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
-	if not glow.is_empty():
+	var glow: Image = looks.get("emission")
+	check(glow != null, "the emission map is an image")
+	if glow != null:
 		var cell: Rect2i = materials.materials.suit.cell
 		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
 		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
@@ -1842,9 +1846,9 @@ func _poiyomi_emissions_in_one_colour_add_up() -> void:
 	materials.drive_strength("loud")
 	check(materials.emission("loud").get("strength") == 2.0, "a first emission's strength a clip sets rests at its saved value, as the clip's keys bind: %s" % [materials.emission("loud")])
 	check(materials.draws("suit", {"field": "emission", "slot": 0}) and not materials.draws("ears", {"field": "emission", "slot": 0}), "an animation of the first emission's strength moves only a drawn first emission")
-	var glow := Image.new()
-	check(glow.load_png_from_buffer(Marshalls.base64_to_raw(looks.get("emission", ""))) == OK, "the emission map is a PNG")
-	if not glow.is_empty():
+	var glow: Image = looks.get("emission")
+	check(glow != null, "the emission map is an image")
+	if glow != null:
 		var at := func(key: String, right: bool) -> float:
 			var cell: Rect2i = materials.materials[key].cell
 			return glow.get_pixel(cell.end.x - 1 if right else cell.position.x, cell.position.y + cell.size.y / 2).srgb_to_linear().r

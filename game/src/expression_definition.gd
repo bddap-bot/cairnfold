@@ -19,7 +19,9 @@ static func valid(data: Dictionary) -> bool:
 	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "contacts", "menu", "icons"]:
 		if not data.get(key, []) is Array:
 			return false
-	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is String):
+	if not _menu(data.get("menu", [])) or not data.get("icons", []).all(func(v: Variant) -> bool: return v is Image):
+		return false
+	if (data.has("hueMask") and not data.hueMask is Image) or not _untinted(data.get("untinted", {})):
 		return false
 	for p: Variant in data.get("parameters", []):
 		if not p is Dictionary or not p.get("name") is String or p.get("type") not in ["float", "int", "bool"] or not _number(p.get("default", 0.0)):
@@ -84,10 +86,12 @@ static func valid(data: Dictionary) -> bool:
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		return false
-	if not looks.has("materials") and not looks.has("index"):
+	if not looks.get("decals", []) is Array or (looks.has("emission") and not looks.emission is Image) or (looks.has("index") and not looks.index is Image):
+		return false
+	if not looks.has("materials"):
 		return true
-	if not looks.get("index") is String or not looks.get("materials") is Array or looks.materials.size() > 255:
-		push_error("expressions: looks name materials without both an index and at most 255 materials")
+	if not looks.materials is Array or looks.materials.size() > 255:
+		push_error("expressions: looks name more than 255 materials")
 		return false
 	for m: Variant in looks.materials:
 		var light: Variant = m.get("lighting") if m is Dictionary else null
@@ -111,6 +115,20 @@ static func looks_valid(looks: Variant) -> bool:
 ## A global theme colour: its colour's "hsv" and "exposure", and its "hue", "saturation", "value" and "speed" offsets.
 static func _theme(v: Variant) -> bool:
 	return v is Dictionary and _numbers(v.get("hsv"), 3) and ["exposure", "hue", "saturation", "value", "speed"].all(func(k: String) -> bool: return _number(v.get(k)))
+
+
+## The untinted colours: the "image" holding them cell by cell, gone once the model's texture holds it, and the "cells"
+## a colour control draws from it, at most 255, since the shader looks through them for each texel it recolours.
+static func _untinted(untinted: Variant) -> bool:
+	if not untinted is Dictionary:
+		return false
+	var cells: Variant = untinted.get("cells", [])
+	return (not untinted.has("image") or untinted.image is Image) and cells is Array and cells.size() <= 255 and cells.all(_cell)
+
+
+## A cell's albedo rect then its rect in the untinted colours' image, each [x0, y0, x1, y1] in UV, none empty.
+static func _cell(c: Variant) -> bool:
+	return c is Array and c.size() == 8 and c.all(_number) and c[0] < c[2] and c[1] < c[3] and c[4] < c[6] and c[5] < c[7]
 
 
 ## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives

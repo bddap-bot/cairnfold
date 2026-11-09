@@ -254,9 +254,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   default or Standalone `maxTextureSize`), the size the avatar shows it at. The atlas is 2048 px wide, widened in 256 px
   steps until every cell fits, up to `Avatar.MAX_IMAGE_SIDE` (16383, the widest WebP image), past which its cells
   shrink alike with a Lanczos filter. Cairnfold reads the same file within the limits below, and for a `.vrm` past
-  the floors every device reads the converter names the memory a device needs available to read it. The expression
-  layers other than the untinted colours are carried at most 4096 px wide whatever the atlas's width. Each Poiyomi
-  decal a material draws is instead its own lossless WebP image over the material's cell, at the size Unity imports
+  the floors every device reads the converter names the memory a device needs available to read it. Every expression
+  layer (menu icons, hue mask, untinted colours, material index, matcaps and their masks, emission, decals) is a
+  lossless WebP image of the file that no texture uses, which `VRCHAT_expressions` names by its glTF image index, so
+  a reader decodes and bounds it as it does the atlas. The layers that mask or index the atlas are carried at most
+  4096 px wide whatever the atlas's width. The untinted colours hold only the cells a colour control recolours, each
+  padded as in the atlas and laid on shelves of their own image, with each cell's rect in the atlas and in that
+  image, so no second albedo travels or is held. Each Poiyomi
+  decal a material draws is its own image over the material's cell, at the size Unity imports
   its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
   writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
@@ -286,7 +291,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   alone do not identify features a shader implements. Toon Standard's enabled hue
   feature carries its radian curve and selected texture-mask channel in expression
   metadata. The runtime samples that mask independently of the colour atlas. RGB colour
-  curves carry an untinted atlas and their saved channel values, preserving the original
+  curves carry the untinted colours of the cells they recolour and their saved channel values, preserving the original
   transparency; a black saved channel can therefore become visible when animated.
   Enabled colour adjustment also carries gamma, saturation and brightness curves, with
   the RGBA adjustment mask retaining each channel independently.
@@ -320,12 +325,13 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent: every device reads one within 100 MiB and 192 Mpx of images, and a device with the memory reads a
+  it is sent: every device reads one within 100 MiB and 192 Mpx of images, its expression layers but the undecoded matcaps included, and a device with the memory reads a
   heavier one (below), so players whose devices read a file see the same avatar, and the rest see its player as a
   built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
-  author made them. Its textures, decals and expression layers are mipmapped, base colours sampled anisotropically,
-  and all shrink alike, by halves, only until they fit the memory the device had available as the game started above 1.7 GB, shared
+  author made them. Its textures and expression layers but the hue mask, material index and menu icons are mipmapped, base colours sampled anisotropically.
+  The material index is held at most 2048 px wide and the menu icons as they come; the matcaps and their masks,
+  which nothing here draws, are never decoded. Everything else shrinks alike, by halves, only until it fits the memory the device had available as the game started above 1.7 GB, shared
   among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
   is decoded: on a Quest 2 with about 2 GB available at launch a heavy converted avatar's 4096 px atlas is held at 2048, on
   a desktop the same file at full size. An image past a 4096 px square's pixels is whole in memory before it shrinks,

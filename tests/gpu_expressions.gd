@@ -49,7 +49,7 @@ func _run() -> void:
 	var screened := await _shot(view, player, 1, "Screen", out)
 	print("rest %s, colour %s, tone %s, decal %s, turned %s, darken %s, lighten %s, screen %s" % [rest, colour, tone, decal, turned, darker, lighter, screened])
 	check(rest.r > rest.g * 3.0 and rest.r > rest.b * 3.0, "the hat rests red: %s" % rest)
-	check(colour.b > rest.b * 3.0 and absf(colour.r - rest.r) < 0.1, "the colour target raises the hat's blue channel: %s" % colour)
+	check(colour.b > rest.b * 3.0 and absf(colour.r - rest.r) < 0.02, "the colour target raises the hat's blue channel, its red what its cell's untinted colours give: %s" % colour)
 	check(absf(tone.r - tone.g) < 0.05 and absf(tone.r - tone.b) < 0.05, "the tone target takes the hat's saturation away: %s" % tone)
 	check(decal.b > rest.b * 3.0 and decal.r < rest.r * 0.8, "the decal target lays its blue stripes over the hat: %s" % decal)
 	check(darker.r < rest.r * 0.8 and darker.b < decal.b * 0.5, "a darkening decal keeps the darker of hat and stripe in each channel, taking red without laying blue: %s" % darker)

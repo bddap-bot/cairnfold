@@ -77,6 +77,9 @@ uniform sampler2D regions : filter_nearest, repeat_disable;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
+// Each recoloured cell, padding included: row 0 its rect in the atlas, row 1 its rect in `untinted`.
+uniform sampler2D untinted_cells : filter_nearest, repeat_disable;
+uniform int untinted_count = 0;
 uniform sampler2DArray decals : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 
 vec3 hsv(vec3 c) {
@@ -195,7 +198,17 @@ void fragment() {
 		}
 	}
 	if (tint.x >= 0.0) {
-		base.rgb = textureGrad(untinted, uv, dx, dy).rgb * linear(clamp(tint, 0.0, 1.0));
+		vec3 raw = vec3(1.0);
+		for (int i = 0; i < untinted_count; i++) {
+			vec4 cell = texelFetch(untinted_cells, ivec2(i, 0), 0);
+			if (all(greaterThanEqual(uv, cell.xy)) && all(lessThanEqual(uv, cell.zw))) {
+				vec4 place = texelFetch(untinted_cells, ivec2(i, 1), 0);
+				vec2 to = (place.zw - place.xy) / (cell.zw - cell.xy);
+				raw = textureGrad(untinted, place.xy + (uv - cell.xy) * to, dx * to, dy * to).rgb;
+				break;
+			}
+		}
+		base.rgb = raw * linear(clamp(tint, 0.0, 1.0));
 	}
 	base *= colour;
 	if (use_vertex) { base *= COLOR; }

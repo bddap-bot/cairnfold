@@ -76,7 +76,9 @@ static func definition() -> Dictionary:
 	var blends: Dictionary = control.call("Blends", "submenu", "Menu")
 	blends.controls = data.menu.slice(-3)
 	data.menu = data.menu.slice(0, -3) + [blends]
-	data.colorAtlas = Marshalls.raw_to_base64(untinted().save_png_to_buffer())
+	var packed := Image.create_empty(SIZE * 3 / 2, SIZE * 3 / 2, false, Image.FORMAT_RGBA8)
+	packed.blit_rect(untinted(), Rect2i(0, 0, SIZE, SIZE), Vector2i(SIZE / 4, SIZE / 4))
+	data.untinted = {"image": packed, "cells": [[0, 0, 1, 1, 1.0 / 6, 1.0 / 6, 5.0 / 6, 5.0 / 6]]}
 	data.looks = {"decals": [decal()]}
 	return data
 

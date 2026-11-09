@@ -471,7 +471,7 @@ func atlas_materials() -> Array[StandardMaterial3D]:
 	return out
 
 
-func hue_mask() -> String:
+func hue_mask() -> Image:
 	var keys := hue_masks.keys()
 	keys.append_array(materials.keys().filter(func(key: String) -> bool: return not hue_masks.has(key) and not emission(key).is_empty() and emission(key).shiftsHue))
 	var out: Image
@@ -498,24 +498,49 @@ func hue_mask() -> String:
 				data[i + 3] = 255
 			mask.set_data(mask.get_width(), mask.get_height(), false, Image.FORMAT_RGBA8, data)
 		out.blit_rect(mask, Rect2i(Vector2i.ZERO, mask.get_size()), (m.cell as Rect2i).position - Vector2i(PAD, PAD))
-	return "" if out == null else _layer(out, RESAMPLE)
+	return null if out == null else _layer(out, RESAMPLE)
 
 
-## The untinted colours of the materials a menu recolours, or swaps in where it recolours, in their cells and white
-## elsewhere: a renderer reads it only where a colour control draws, and a copy of the whole albedo would carry the atlas
-## twice.
-func color_atlas() -> String:
+## The untinted colours of the materials a menu recolours, or swaps in where it recolours: {} where it recolours none,
+## else the "image" holding each one's cell padded as the atlas pads it, laid on shelves (`_shelves`) of the narrowest
+## square that holds them, cropped to what they cover, and the "cells", each its padded rect in the atlas then in the
+## image, in UV. Only the cells a colour control draws travel and are held, not a second albedo.
+func untinted() -> Dictionary:
 	if color_regions.is_empty():
-		return ""
-	var out := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
+		return {}
+	var keys := color_regions.keys()
+	var sizes := {}
+	var area := 0
+	var side := 1
+	for key: String in keys:
+		var size: Vector2i = (materials[key].cell as Rect2i).size
+		sizes[key] = size
+		area += (size.x + 2 * PAD) * (size.y + 2 * PAD)
+		side = maxi(side, maxi(size.x, size.y) + 2 * PAD)
+	side = mini(maxi(side, ceili(sqrt(area))), atlas_side)
+	var laid := _shelves(keys, sizes, 1.0, side)
+	while laid.is_empty() and side < atlas_side:
+		side = mini(side + STEP, atlas_side)
+		laid = _shelves(keys, sizes, 1.0, side)
+	if laid.is_empty():
+		for key: String in keys:
+			laid[key] = materials[key].cell
+	var covered := Vector2i.ONE
+	for key: String in keys:
+		covered = covered.max((laid[key] as Rect2i).end + Vector2i(PAD, PAD))
+	var out := Image.create_empty(covered.x, covered.y, false, Image.FORMAT_RGBA8)
 	out.fill(Color.WHITE)
-	for key: String in color_regions:
+	var uv := func(r: Rect2i, size: Vector2) -> Array:
+		var g := Rect2(r.grow(PAD))
+		return [g.position.x / size.x, g.position.y / size.y, g.end.x / size.x, g.end.y / size.y]
+	var cells := []
+	for key: String in keys:
 		var m: Dictionary = materials[key]
-		var cell: Rect2i = m.cell
-		var img := _cell_image(m, cell)
+		var img := _cell_image(m, m.cell)
 		_detail(m, img)
-		_blit_padded(out, img, cell)
-	return Marshalls.raw_to_base64(out.save_png_to_buffer())
+		_blit_padded(out, img, laid[key])
+		cells.append(uv.call(m.cell, Vector2(atlas_side, atlas_side)) + uv.call(laid[key], Vector2(covered)))
+	return {"image": out, "cells": cells}
 
 
 ## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "colorBlend", "image", "hue"} at rest,
@@ -1037,7 +1062,7 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 
 ## What each packed material lays over its albedo and adds to its light, and how it takes the light, for the renderer
 ## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
-## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale PNG, each texel one plus
+## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale image, each texel one plus
 ## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps and
 ## emission at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask
 ## blended in) and "emission" map, the "matcaps" textures their entries name by position, and the "decals",
@@ -1111,21 +1136,19 @@ func looks() -> Dictionary:
 		entries.append(entry)
 	if entries.is_empty():
 		return {}
-	var png := func(img: Image) -> String: return _layer(img, RESAMPLE)
-	var out := {"index": _layer(index, Image.INTERPOLATE_NEAREST), "materials": entries, "decals": decal_images.duplicate(), "matcaps": matcap_textures.values().map(png)}
+	var out := {"index": _layer(index, Image.INTERPOLATE_NEAREST), "materials": entries, "decals": decal_images.duplicate(), "matcaps": matcap_textures.values()}
 	if matcap_masks != null:
-		out.matcapMasks = png.call(matcap_masks)
+		out.matcapMasks = _layer(matcap_masks, RESAMPLE)
 	if glow != null:
 		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
 	return out
 
 
-## The layer as the PNG an avatar file carries, at most `widest` wide.
-static func _layer(img: Image, resample: Image.Interpolation, widest := LAYER) -> String:
+## The layer `img`, shrunk in place to the at most `widest` an avatar file carries it at.
+static func _layer(img: Image, resample: Image.Interpolation, widest := LAYER) -> Image:
 	if img.get_width() > widest:
-		img = img.duplicate() as Image
 		img.resize(widest, widest * img.get_height() / img.get_width(), resample)
-	return Marshalls.raw_to_base64(img.save_png_to_buffer())
+	return img
 
 
 ## The texture in the material's `property` slot, decoded afresh: looks read each once, and holding them all would
