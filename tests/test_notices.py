@@ -1,14 +1,13 @@
 import io
-import importlib.util
 from pathlib import Path
+import sys
 import tarfile
 import tempfile
 import unittest
 import zipfile
 
-spec = importlib.util.spec_from_file_location('notices', Path(__file__).parents[1] / 'scripts/notices.py')
-notices = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(notices)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+import notices  # noqa: E402
 
 
 class PackageNotices(unittest.TestCase):

@@ -374,7 +374,7 @@ nrng = np.random.default_rng(47)
 def _bird():
     notes = []
     base = brng.uniform(1700, 2400)
-    for k in range(brng.integers(2, 5)):
+    for _ in range(brng.integers(2, 5)):
         t = _t(brng.uniform(0.07, 0.14))
         f = base * (1 + 0.25 * np.sin(np.pi * t / t[-1])) * brng.uniform(0.9, 1.1)
         notes.append(np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / t[-1]) ** 2)
@@ -416,7 +416,7 @@ def night(seconds=40.0):
     n = int(seconds * SR)
     t = np.arange(n) / SR
     out = np.zeros((n, 2))
-    for v in range(7):
+    for _ in range(7):
         carrier = nrng.uniform(1800, 2300)
         tone = np.sin(2 * np.pi * carrier * t + nrng.uniform(0, 6.28))
         gate = np.zeros(n)

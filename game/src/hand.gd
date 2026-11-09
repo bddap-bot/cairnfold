@@ -535,7 +535,7 @@ func _read_hand(delta: float) -> void:
 	var joints: Array = injected_joints.get(tracker, [])
 	var own := not joints.is_empty()
 	if joints.is_empty() and not held_still:
-		var t := _hand_tracker()
+		var t := XRServer.get_tracker("/user/hand_tracker/" + ("left" if tracker == &"left_hand" else "right")) as XRHandTracker
 		joints = _runtime_joints(t)
 		own = not joints.is_empty() and _own(t)
 	shaped = [] if own else joints
@@ -583,10 +583,6 @@ func _read_palm() -> void:
 		_palm_noted = _profile + " " + palm_from
 		var s := (get_parent() as XROrigin3D).world_scale if get_parent() is XROrigin3D else 1.0
 		Metrics.note("palm: %s on %s, %s m from the aim, turned %.0f degrees" % [tracker, _palm_noted, palm.origin / s, rad_to_deg(palm.basis.get_rotation_quaternion().get_angle())])
-
-
-func _hand_tracker() -> XRHandTracker:
-	return XRServer.get_tracker("/user/hand_tracker/" + ("left" if tracker == &"left_hand" else "right")) as XRHandTracker
 
 
 func _pose_tracker() -> XRPositionalTracker:

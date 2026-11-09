@@ -297,7 +297,7 @@ func _unity_package_converts() -> void:
 	check(model != null, "the Unity package imports")
 	if model == null:
 		return
-	var avatar := UnityAvatar.avatar_definition(FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
+	var avatar := UnityAvatar.avatar_definition(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta"))
 	var human: Dictionary = model.get_meta("humanoid")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var bone_of := func(b: String) -> String: return (human[b] as NodePath).get_concatenated_subnames()

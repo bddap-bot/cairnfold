@@ -263,21 +263,19 @@ def scripts(count):
 
 
 def spawn_scripts():
-    result = {
+    # The joiner goes home before the host may quit, so the host leaving never sends it home unasked.
+    return {
         "host": [
             {"op": "sculpt", "x": 0, "z": 4, "lift": 12, "radius": 9, "seconds": 0.5},
             {"op": "digest", "name": "raised"},
-            barrier(["joined"]),
+            barrier(["joined"]), barrier(["home"]), {"op": "quit"},
         ],
         "join": [
             barrier(["raised"]), {"op": "join"},
             {"op": "digest", "name": "joined", "ground": True},
+            {"op": "visit", "home": True}, {"op": "digest", "name": "home"}, {"op": "quit"},
         ],
     }
-    # The joiner goes home before the host may quit, so the host leaving never sends it home unasked.
-    result["host"] += [barrier(["home"]), {"op": "quit"}]
-    result["join"] += [{"op": "visit", "home": True}, {"op": "digest", "name": "home"}, {"op": "quit"}]
-    return result
 
 
 def check_spawn(out):

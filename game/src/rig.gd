@@ -455,16 +455,12 @@ func place(ground: Vector3, lift_m: float) -> void:
 	var s := fit()
 	var h := global_transform * (head.position * s / world_scale)
 	if s != world_scale:
-		_rescale_head.call_deferred(s / world_scale)
+		(func(by: float) -> void: head.position *= by).call_deferred(s / world_scale)
 	world_scale = s
 	head.near = NEAR * s
 	_floor_y = maxf(ground.y, terrain.shown_at(ground.x, ground.z))
 	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)
 	placed.emit()
-
-
-func _rescale_head(by: float) -> void:
-	head.position *= by
 
 
 func snap_turn(angle: float, hand: Hand) -> void:

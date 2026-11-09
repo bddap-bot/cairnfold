@@ -1,32 +1,17 @@
-import json
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import unittest
 
-
-class CoopChoreography(unittest.TestCase):
-    def test_players_leave_on_an_event_not_a_timer(self):
-        # A timer only holds while every other player keeps pace, which a busy machine does not promise.
-        for script in sorted((Path(__file__).resolve().parents[1] / "demo").glob("coop-*.json")):
-            ops = [step["op"] for step in json.loads(script.read_text())]
-            for before, op in zip(ops, ops[1:]):
-                if op in ("visit", "quit"):
-                    with self.subTest(script=script.name, op=op):
-                        self.assertNotEqual(before, "wait")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import coop  # noqa: E402
 
 
 class CoopPlayers(unittest.TestCase):
-    @staticmethod
-    def harness():
-        import importlib.util
-        path = Path(__file__).resolve().parents[1] / "scripts/coop.py"
-        spec = importlib.util.spec_from_file_location("coop", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-
     def test_every_peer_waits_for_every_view_before_leaving(self):
         for count in (2, 3, 4, 8):
-            scripts = self.harness().scripts(count)
+            scripts = coop.scripts(count)
             expected = {f"{name}-final" for name in scripts}
             self.assertEqual(len(scripts), count)
             for name, steps in scripts.items():
@@ -41,8 +26,8 @@ class CoopPlayers(unittest.TestCase):
 
     def test_waits_have_no_time_limit(self):
         # A late peer starts, imports and builds after the others, as fast as the machine allows.
-        runs = {count: self.harness().scripts(count) for count in (2, 4, 8)}
-        runs["reshape"] = self.harness().reshape_scripts()
+        runs = {count: coop.scripts(count) for count in (2, 4, 8)}
+        runs["reshape"] = coop.reshape_scripts()
         for run, scripts in runs.items():
             for name, steps in scripts.items():
                 for step in steps:
@@ -51,10 +36,6 @@ class CoopPlayers(unittest.TestCase):
                             self.assertNotIn("seconds", step)
 
     def test_a_player_hung_at_exit_leaves_its_threads_and_dies(self):
-        import subprocess
-        import sys
-        import tempfile
-        coop = self.harness()
         hung = subprocess.Popen([sys.executable, "-c", "import time; print('ready', flush=True); time.sleep(600)"],
                                 stdout=subprocess.PIPE, preexec_fn=coop.traceable)
         hung.stdout.readline()

@@ -264,7 +264,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	if skeletons.size() != 1:
 		printerr("unity_avatar: %s has %d skeletons, not one" % [assets.by_guid[main].path, skeletons.size()])
 		return null
-	var definition := avatar_definition(FileAccess.get_file_as_string(assets.by_guid[main].meta))
+	var definition := avatar_definition(assets.by_guid[main].meta)
 	var model_bones := _model_bones(objs, found.transform, main, renderers)
 	_attach_armatures(objs, found.transform, model_bones, definition, report)
 	var source: Skeleton3D = skeletons[0]
@@ -484,7 +484,7 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	if pick != "":
 		printerr("unity_avatar: no avatar named %s" % pick)
 		return {}
-	var models := assets.of(Prefabs.MODELS).filter(func(g: String) -> bool: return assets.own.has(g) and not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty() and str((assets.meta(g).get("ModelImporter", {}) as Dictionary).get("animationType", "")) == "3")
+	var models := assets.of(Prefabs.MODELS).filter(func(g: String) -> bool: return assets.own.has(g) and not avatar_definition(assets.by_guid[g].meta).human.is_empty() and str((assets.meta(g).get("ModelImporter", {}) as Dictionary).get("animationType", "")) == "3")
 	if models.size() != 1:
 		printerr("unity_avatar: no avatar descriptor, and %d humanoid models, not one%s" % [models.size(), _lacking(assets)])
 		return {}
@@ -1098,7 +1098,7 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 ## renderers draw from.
 static func _main_model(assets: Assets, prefabs: Prefabs, objs: Dictionary, go: int, renderers: Array) -> String:
 	var humanoid := func(g: String) -> bool:
-		return assets.by_guid.has(g) and assets.extension(g) in Prefabs.MODELS and not avatar_definition(FileAccess.get_file_as_string(assets.by_guid[g].meta)).human.is_empty()
+		return assets.by_guid.has(g) and assets.extension(g) in Prefabs.MODELS and not avatar_definition(assets.by_guid[g].meta).human.is_empty()
 	for id: int in Prefabs.components(objs, go):
 		if objs.has(id) and objs[id].type == "Animator":
 			var g := Yaml.guid(objs[id].data.get("m_Avatar"))
@@ -2096,33 +2096,24 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		if moved.has(t):
 			_as_bone(objs, t, sk, rests)
 		var placed := frame * _world_transform(objs, t) * (c.local as Transform3D)
-		var bone := -1
-		var owner := t
-		for at: int in Prefabs.ancestors(objs, t):
-			bone = _transform_bone(objs, at, sk)
-			owner = at
-			if bone >= 0:
-				break
-		if bone < 0:
+		var kept := _kept(objs, t, sk)
+		if kept.is_empty():
 			dropped += 1
 			continue
-		var held := sk.get_bone_global_rest(bone)
-		# The collider rides its bone as Unity places it there; the output rest may pose the bone elsewhere.
-		var unity_held := frame * _world_transform(objs, owner)
-		var local := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * (unity_held.affine_inverse() * placed)
+		var bone: int = kept.bone
+		var local: Transform3D = kept.into * placed
 		var scale: Vector3 = placed.basis.get_scale().abs()
-		var radius: float = c.radius * maxf(scale.x, maxf(scale.y, scale.z)) / held.basis.get_scale().x
+		var radius: float = c.radius * maxf(scale.x, maxf(scale.y, scale.z)) / sk.get_bone_global_rest(bone).basis.get_scale().x
 		var axis: Vector3 = c.axis
-		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
-		var offset: Array = v.call(local.origin)
+		var offset: Array = Vrm.floats(local.origin)
 		var geometry := {"offset": offset, "radius": radius}
 		var kind := "sphere"
 		if c.kind == "plane":
 			kind = "plane"
-			geometry = {"offset": offset, "normal": v.call((local.basis.inverse().transposed() * axis).normalized())}
+			geometry = {"offset": offset, "normal": Vrm.floats((local.basis.inverse().transposed() * axis).normalized())}
 		elif c.half > 0.0:
 			kind = "capsule"
-			geometry = {"offset": v.call(local * (-axis * c.half)), "tail": v.call(local * (axis * c.half)), "radius": radius}
+			geometry = {"offset": Vrm.floats(local * (-axis * c.half)), "tail": Vrm.floats(local * (axis * c.half)), "radius": radius}
 		var collider := {"node": bone, "shape": {kind: geometry}}
 		# VRM's own shapes cannot keep a joint inside or behind a plane; readers without the extension see a point.
 		if c.inside or kind == "plane":
@@ -2257,6 +2248,22 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups, "switched": switched}
 
 
+## The nearest kept bone at or above transform `t` and the map from the avatar's world into that bone's rest frame, as
+## {"bone", "into"}; empty where no ancestor is kept.
+static func _kept(objs: Dictionary, t: int, sk: Skeleton3D) -> Dictionary:
+	for at: int in Prefabs.ancestors(objs, t):
+		var bone := _transform_bone(objs, at, sk)
+		if bone >= 0:
+			return {"bone": bone, "into": _into(sk.get_meta("unity_frame", Transform3D.IDENTITY) * _world_transform(objs, at), sk.get_bone_global_rest(bone))}
+	return {}
+
+
+## Into the rest frame `held` of a bone Unity places at `unity_held`: what rides the bone keeps Unity's placement on it,
+## where the output rest may pose the bone elsewhere.
+static func _into(unity_held: Transform3D, held: Transform3D) -> Transform3D:
+	return Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * unity_held.affine_inverse()
+
+
 ## The avatar's VRChat contacts, each on the nearest kept bone at or above its root transform (its own bone where the menu
 ## moves it), as the expressions' "contacts" take them: {"node": bone name, "shape": {"offset", "radius"} and a capsule's
 ## "tail", in the bone's rest frame, "tags", "when" (the switches it runs under) and a receiver's "receiver": {"type",
@@ -2268,7 +2275,6 @@ static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Sk
 	var rests: Array[Transform3D] = []
 	for bone in sk.get_bone_count():
 		rests.append(sk.get_bone_global_rest(bone))
-	var bones: Dictionary = sk.get_meta("unity_bones", {})
 	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
 	var out := []
 	var counts := {"senders": 0, "receivers": 0, "idle": 0, "unplaced": 0, "unknown": 0}
@@ -2286,28 +2292,20 @@ static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Sk
 			continue
 		if moved.has(t):
 			_as_bone(objs, t, sk, rests)
-		var bone := -1
-		var owner := t
-		for at: int in Prefabs.ancestors(objs, t):
-			bone = bones.get(Yaml.file_id(objs.get(at, {}).get("data", {}).get("m_GameObject")), -1)
-			owner = at
-			if bone >= 0:
-				break
-		if bone < 0:
+		var kept := _kept(objs, t, sk)
+		if kept.is_empty():
 			counts.unplaced += 1
 			continue
+		var bone: int = kept.bone
 		var placed := frame * _world_transform(objs, t) * Transform3D(Basis(Prefabs.turn(d.get("rotation"))), Prefabs.mirrored(d.get("position")))
-		var held := sk.get_bone_global_rest(bone)
-		var unity_held := frame * _world_transform(objs, owner)
-		var local := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * (unity_held.affine_inverse() * placed)
+		var local: Transform3D = kept.into * placed
 		var scale: Vector3 = placed.basis.get_scale().abs()
 		var radius := str(d.get("radius", "0")).to_float()
-		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
-		var shape := {"offset": v.call(local.origin), "radius": radius * scale[scale.max_axis_index()] / held.basis.get_scale().x}
+		var shape := {"offset": Vrm.floats(local.origin), "radius": radius * scale[scale.max_axis_index()] / sk.get_bone_global_rest(bone).basis.get_scale().x}
 		var half := maxf(str(d.get("height", "0")).to_float() / 2.0 - radius, 0.0)
 		if str(d.get("shapeType", "0")) == "1" and half > 0.0:
-			shape.offset = v.call(local * (Vector3.DOWN * half))
-			shape.tail = v.call(local * (Vector3.UP * half))
+			shape.offset = Vrm.floats(local * (Vector3.DOWN * half))
+			shape.tail = Vrm.floats(local * (Vector3.UP * half))
 		var contact := {"node": sk.get_bone_name(bone), "shape": shape, "tags": Yaml.list(d.get("collisionTags")).map(func(tag: Variant) -> String: return str(tag)), "when": when}
 		if d.has("receiverType"):
 			var type := str(d.receiverType).to_int() if str(d.receiverType).is_valid_int() else -1
@@ -2342,22 +2340,21 @@ static func _body_contacts(objs: Dictionary, descriptor: Dictionary, sk: Skeleto
 			continue
 		var held := sk.get_bone_global_rest(bone)
 		var unity_held := frame * _world_transform(objs, t)
-		var into := Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * unity_held.affine_inverse()
+		var into := _into(unity_held, held)
 		var scale := unity_held.basis.get_scale().abs()
 		var radius := minf(str(c.get("radius", "0")).to_float() * scale[scale.max_axis_index()], 3.0)
 		var height := str(c.get("height", "0")).to_float() * scale[scale.max_axis_index()]
 		var shape := {}
-		var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
 		if key.begins_with("finger"):
 			var along := Prefabs.mirrored(objs[t].data.get("m_LocalPosition"))
 			var parent := frame * _world_transform(objs, Yaml.file_id(objs[t].data.get("m_Father")))
-			shape = {"offset": v.call(into * parent.origin), "tail": v.call(into * (unity_held * (along.normalized() * maxf(height / scale[scale.max_axis_index()] - along.length(), 0.0)))), "radius": radius / held.basis.get_scale().x}
+			shape = {"offset": Vrm.floats(into * parent.origin), "tail": Vrm.floats(into * (unity_held * (along.normalized() * maxf(height / scale[scale.max_axis_index()] - along.length(), 0.0)))), "radius": radius / held.basis.get_scale().x}
 		else:
 			var placed := unity_held * Transform3D(Basis(Prefabs.turn(c.get("rotation"))), Prefabs.mirrored(c.get("position")))
 			var half := maxf(height / 2.0 - radius, 0.0) / scale[scale.max_axis_index()]
-			shape = {"offset": v.call(into * (placed * (Vector3.DOWN * half))), "radius": radius / held.basis.get_scale().x}
+			shape = {"offset": Vrm.floats(into * (placed * (Vector3.DOWN * half))), "radius": radius / held.basis.get_scale().x}
 			if half > 0.0:
-				shape.tail = v.call(into * (placed * (Vector3.UP * half)))
+				shape.tail = Vrm.floats(into * (placed * (Vector3.UP * half)))
 		out.append({"node": sk.get_bone_name(bone), "shape": shape, "tags": Contacts.BODY[key][0], "when": [], "body": true})
 	return out
 
@@ -2507,14 +2504,14 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 	return kinds
 
 
-## The Unity Avatar definition in a model's .meta text: "human", each mapped bone's name to its HumanBodyBones name, and
-## "parents", each of the model's transforms by name to its parent's.
+## The Unity Avatar definition in a model's .meta file at `meta`: "human", each mapped bone's name to its HumanBodyBones
+## name, and "parents", each of the model's transforms by name to its parent's.
 static func avatar_definition(meta: String) -> Dictionary:
 	var human := {}
 	var parents := {}
 	var section := ""
 	var name := ""
-	for line in meta.split("\n"):
+	for line in FileAccess.get_file_as_string(meta).split("\n"):
 		var s := line.strip_edges()
 		if line.begins_with("    human:"):
 			section = "human"

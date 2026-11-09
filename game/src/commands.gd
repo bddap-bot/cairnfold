@@ -14,7 +14,6 @@ const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
 const MAX_POINTS := 2048
-const MAX_PATH_POINTS := 2048
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
 const MIN_ROOF_RADIUS := 0.5
@@ -369,11 +368,16 @@ static func _at_least(x: Variant, low: float) -> bool:
 	return typeof(x) == TYPE_FLOAT and is_finite(x) and x >= low
 
 
+## Whether a wall's or path's points are a line a hand could draw.
+static func _stroke(points: Variant) -> bool:
+	return typeof(points) == TYPE_PACKED_VECTOR3_ARRAY and points.size() >= 2 and points.size() <= MAX_POINTS and Array(points).all(_finite) and length(points) <= MAX_LENGTH
+
+
 static func _wall(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
 	var points: Variant = d.get("points")
-	if typeof(points) != TYPE_PACKED_VECTOR3_ARRAY or points.size() < 2 or points.size() > MAX_POINTS or not Array(points).all(_finite) or length(points) > MAX_LENGTH:
+	if not _stroke(points):
 		return null
 	if not _at_least(d.get("height"), WallLayout.MIN_HEIGHT) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
 		return null
@@ -528,7 +532,7 @@ static func _path(d: Variant) -> Variant:
 		return null
 	var points: Variant = d.get("points")
 	var halves: Variant = d.get("half_widths")
-	if typeof(points) != TYPE_PACKED_VECTOR3_ARRAY or points.size() < 2 or points.size() > MAX_PATH_POINTS or not Array(points).all(_finite) or length(points) > MAX_LENGTH:
+	if not _stroke(points):
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null

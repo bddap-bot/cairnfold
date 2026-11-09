@@ -206,7 +206,9 @@ func _process(delta: float) -> void:
 			if on and s.definition.awake:
 				_play(s)
 			elif not on:
-				_stop(s)
+				# A GameObject switched off hides its particles at once; its sub-emitters follow none of them.
+				s.playing = false
+				_clear(s)
 	# A parent's particles that died this frame give their death bursts before births take their slots.
 	for s in _systems:
 		_follow(s, delta)
@@ -269,13 +271,6 @@ func _play(s: System) -> void:
 	s.pending = 0.0
 	s.bursts_fired.resize((s.definition.bursts as Array).size())
 	s.bursts_fired.fill(0)
-
-
-## Stops `s` and clears its particles, as a GameObject switched off hides its own at once; its sub-emitters follow none
-## of them.
-func _stop(s: System) -> void:
-	s.playing = false
-	_clear(s)
 
 
 ## Clears every particle of `s`, so no slot holds a birth time the clock could come round to again.

@@ -27,25 +27,20 @@ class Sample:
 
 def read(path: str) -> list[Sample]:
     out: list[Sample] = []
-    cur: Sample | None = None
     for line in open(path, errors="replace"):
         s = line.strip()
         if s == "sample:":
-            if cur is not None:
-                out.append(cur)
-            cur = Sample()
-        elif cur is None:
+            out.append(Sample())
+        elif not out:
             continue
         elif s.startswith("time:"):
-            cur.time = int(s.split()[1])
+            out[-1].time = int(s.split()[1])
         elif s.startswith("event_count:"):
-            cur.count = int(s.split()[1])
+            out[-1].count = int(s.split()[1])
         elif s.startswith("thread_name:"):
-            cur.thread = s.split(":", 1)[1].strip()
+            out[-1].thread = s.split(":", 1)[1].strip()
         elif s.startswith("symbol:"):
-            cur.symbols.append(s.split(":", 1)[1].strip())
-    if cur is not None:
-        out.append(cur)
+            out[-1].symbols.append(s.split(":", 1)[1].strip())
     return out
 
 

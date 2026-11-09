@@ -236,6 +236,11 @@ static func spring_nodes(definition: Dictionary) -> Array:
 	return out.keys()
 
 
+## A vector as glTF writes one.
+static func floats(x: Vector3) -> Array:
+	return [x.x, x.y, x.z]
+
+
 ## How many pixels `images` (images()) hold together, but the UNDRAWN layers, which are never decoded.
 static func pixels(images: Array[Dictionary]) -> int:
 	var out := 0
@@ -502,10 +507,9 @@ static func _spring_extension(root: Node) -> Dictionary:
 		if not path is NodePath:
 			return ""
 		return (path as NodePath).get_concatenated_subnames() if (path as NodePath).get_subname_count() > 0 else String(root.get_node(path).name)
-	var v := func(x: Vector3) -> Array: return [x.x, x.y, x.z]
 	var colliders := []
 	for c: Dictionary in definition.get("colliders", []):
-		var collider := {"shape": {"capsule": {"offset": v.call(c.offset), "tail": v.call(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": v.call(c.offset), "radius": c.radius}}}
+		var collider := {"shape": {"capsule": {"offset": floats(c.offset), "tail": floats(c.tail), "radius": c.radius}} if c.offset != c.tail else {"sphere": {"offset": floats(c.offset), "radius": c.radius}}}
 		var node: String = named.call(c.node)
 		if node != "":
 			collider.node = node
@@ -518,7 +522,7 @@ static func _spring_extension(root: Node) -> Dictionary:
 		var joints := []
 		for j: Dictionary in chain.joints:
 			var g: Vector3 = j.gravity
-			var joint := {"node": named.call(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": v.call(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
+			var joint := {"node": named.call(j.node), "stiffness": j.stiffness, "dragForce": j.drag, "hitRadius": j.radius, "gravityPower": g.length(), "gravityDir": floats(g.normalized() if g.length() > 0.0 else Vector3.DOWN)}
 			if j.has("extras"):
 				joint.extras = j.extras.duplicate()
 			if j.has("settled"):

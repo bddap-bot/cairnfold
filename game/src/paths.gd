@@ -56,7 +56,7 @@ func begin(p: Vector3, half: float) -> void:
 ## Carries the drawn stroke on to `p`; whether that laid a new point.
 func extend(p: Vector3, half: float) -> bool:
 	var pts := drawing.points
-	if Commands.length(pts) >= Commands.STROKE_LENGTH or pts.size() >= Commands.MAX_PATH_POINTS:
+	if Commands.length(pts) >= Commands.STROKE_LENGTH or pts.size() >= Commands.MAX_POINTS:
 		return false
 	_dirty = true
 	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < WallTool.POINT_SPACING:

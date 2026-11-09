@@ -1977,7 +1977,7 @@ func reground(area: Rect2, settled: bool) -> void:
 			continue
 		moved[w.id] = w
 		if not _held(w):
-			if settled and _meets_any(w):
+			if settled and w.massing != null and walls.any(func(o: Wall) -> bool: return _meets(w, o, w.massing)):
 				_settle(w)
 			elif not settled and not w.on.is_empty():
 				w.layout.supports = _shown_tops(w.on, moved, tops, height, water)
@@ -2189,9 +2189,8 @@ func _stir(w: Wall, s: Massing) -> void:
 	if s == null:
 		return
 	for o in walls:
-		if o != w and o.massing != null and o.massing.rect.intersects(s.rect) and _related(w, o):
-			if not o.due.is_valid():
-				o.due = _lay_again.bind(o, null)
+		if _meets(w, o, s) and not o.due.is_valid():
+			o.due = _lay_again.bind(o, null)
 
 
 ## Whether two builds meet: one stands on the other, or one of them is a house or tower they join.
@@ -2199,11 +2198,9 @@ func _related(a: Wall, b: Wall) -> bool:
 	return a.massing.closed or b.massing.closed or _below(a.on).has(b.id) or _below(b.on).has(a.id)
 
 
-func _meets_any(w: Wall) -> bool:
-	for o in walls:
-		if o != w and o.massing != null and w.massing != null and o.massing.rect.intersects(w.massing.rect) and _related(w, o):
-			return true
-	return false
+## Whether `o` meets `w` shaped as `s`.
+func _meets(w: Wall, o: Wall, s: Massing) -> bool:
+	return o != w and o.massing != null and o.massing.rect.intersects(s.rect) and _related(w, o)
 
 
 ## Lays `w` again, due, on its supports as they now stand, if the garden still has it: `changed` null for a build laid
