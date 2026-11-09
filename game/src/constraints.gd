@@ -37,6 +37,10 @@ var constraints: Array[Constraint] = []
 var weights := {}
 ## Each constrained bone's world transform as the last solve left it, which a constraint sourcing its own bone follows.
 var _previous := {}
+## Each constrained bone's pose from the skeleton as the last solve left it.
+var _solved := {}
+## By bone, the nearest of itself and its ancestors a constraint places, or -1.
+var _below := PackedInt32Array()
 
 
 ## The constraints `definitions` (the "constraints" meta Constraints.read makes) on `skeleton`'s bones, each left out
@@ -65,6 +69,27 @@ func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 				c.sources.append(s)
 		if c.bone >= 0:
 			constraints.append(c)
+	_below.resize(skeleton.get_bone_count())
+	_below.fill(-1)
+	for c in constraints:
+		_below[c.bone] = c.bone
+	# A parent bone's index is below its children's, so each bone finds its parent's answer settled.
+	for b in skeleton.get_bone_count():
+		var up := skeleton.get_bone_parent(b)
+		if _below[b] < 0 and up >= 0:
+			_below[b] = _below[up]
+
+
+## Where `bone` stands in the world as the frame draws it: the skeleton's pose of it, carried by the place its nearest
+## constrained ancestor took in the last solve. A modifier's pose is undone once the frame is drawn, so code reading
+## bones outside the solve, as contacts do, reads them here.
+func placed(bone: int) -> Transform3D:
+	var sk := get_skeleton()
+	var pose := sk.get_bone_global_pose(bone)
+	var k := _below[bone]
+	if k >= 0 and _solved.has(k):
+		pose = _solved[k] * sk.get_bone_global_pose(k).affine_inverse() * pose
+	return sk.global_transform * pose
 
 
 ## The solver among `skeleton`'s modifiers, or null.
@@ -139,6 +164,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 		sk.set_bone_pose_position(c.bone, at)
 		sk.set_bone_pose_rotation(c.bone, r.normalized())
 		_previous[c.bone] = parent * sk.get_bone_pose(c.bone)
+		_solved[c.bone] = sk.get_bone_global_pose(c.bone)
 	spent_usec += Time.get_ticks_usec() - start
 
 

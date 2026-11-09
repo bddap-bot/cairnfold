@@ -1,6 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
 const RIGHT_ANGLE := Basis(Vector3.UP, PI / 2)
+const TIP := Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.05))
 
 var _seen := {}
 var _hips := ""
@@ -37,6 +38,9 @@ func _run() -> void:
 	await frames(3)
 	var gripped := anchor * Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.1))
 	check(_near(_seen.prop, gripped), "the clip a toggle plays engages it, and its bone follows its source by the source's offset: %s, expected %s" % [_seen.prop, gripped])
+	var sent: Array = avatar.expressions.contacts.senders(avatar.expressions.state.outputs, avatar)
+	var at: Vector3 = sent[0][0] if sent.size() == 1 else Vector3.INF
+	check(at.distance_to((gripped * TIP).origin) < 1e-4, "a contact on a bone the constraint carries goes with it: %s, expected %s" % [at, (gripped * TIP).origin])
 	avatar.expressions.state.put("Hold", 0)
 	await frames(3)
 	check(_near(_seen.prop, held), "toggled off, it rests again")
@@ -68,6 +72,9 @@ func _fixture() -> Node3D:
 		skeleton.add_bone(bone[0])
 		skeleton.set_bone_parent(skeleton.find_bone(bone[0]), hips)
 		skeleton.set_bone_rest(skeleton.find_bone(bone[0]), bone[1])
+	skeleton.add_bone("tip")
+	skeleton.set_bone_parent(skeleton.find_bone("tip"), skeleton.find_bone("prop"))
+	skeleton.set_bone_rest(skeleton.find_bone("tip"), TIP)
 	skeleton.reset_bone_poses()
 	var identity := _matrix(Transform3D.IDENTITY)
 	var every := [true, true, true]
@@ -80,6 +87,7 @@ func _fixture() -> Node3D:
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]}])
 	model.set_meta("expressions", {"parameters": [{"name": "Hold", "type": "bool", "default": 0.0, "saved": true}],
 		"menu": [{"name": "Hold", "type": "toggle", "parameter": "Hold", "value": 1.0}], "icons": [], "shown": [],
+		"contacts": [{"node": "tip", "shape": {"offset": [0.0, 0.0, 0.0], "radius": 0.01}, "tags": ["Finger"], "when": []}],
 		"targets": [{"effect": {"constraint": {"node": "prop"}}, "default": 0.0}],
 		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 0]]}]}, {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 1]]}]}],
 		"layers": [{"weight": 1.0, "default": 0, "states": [

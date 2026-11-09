@@ -46,14 +46,14 @@ static var _TAGS := _body_tags()
 
 
 ## The contacts of an avatar's expressions, each placed on the bone `bone.call(node name)` answers as [skeleton, bone
-## index]; one whose bone the model lacks is left out.
+## index], where the skeleton's constraints put it; one whose bone the model lacks is left out.
 func _init(contacts: Array, bone: Callable) -> void:
 	for c: Dictionary in contacts:
 		var at: Array = bone.call(c.node)
 		if at.is_empty():
 			continue
 		var shape: Dictionary = c.shape
-		var entry := {"at": at, "from": _vector(shape.offset), "to": _vector(shape.get("tail", shape.offset)), "radius": float(shape.radius), "tags": _tagged(c.tags), "when": c.when}
+		var entry := {"at": at, "solver": Constraints.of(at[0]), "from": _vector(shape.offset), "to": _vector(shape.get("tail", shape.offset)), "radius": float(shape.radius), "tags": _tagged(c.tags), "when": c.when}
 		if c.has("receiver"):
 			entry.merge(c.receiver)
 			_entering = _entering or c.receiver.type == "onEnter"
@@ -156,7 +156,7 @@ static func _first(joint: Callable, bones: Array) -> Variant:
 
 func _placed(c: Dictionary) -> Array:
 	var sk: Skeleton3D = c.at[0]
-	var t := sk.global_transform * sk.get_bone_global_pose(c.at[1])
+	var t: Transform3D = c.solver.placed(c.at[1]) if c.solver != null else sk.global_transform * sk.get_bone_global_pose(c.at[1])
 	return [t * (c.from as Vector3), t * (c.to as Vector3), float(c.radius) * t.basis.get_scale().x]
 
 
