@@ -1,5 +1,5 @@
 class_name Interior
-extends RefCounted
+extends Bake
 
 ## Sun and moon reach inside a house or tower only through its openings (interior.gdshaderinc). The shell's shadow
 ## boxes leave gaps a shadow-map texel wide at every joint, and the ladder's lowest steps draw no sun shadows at all;
@@ -34,6 +34,9 @@ var masked := true:
 var _unmasked := ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBAH))
 var _rooms: Array[Lamps.Room] = []
 var _toward := Vector3.UP
+## Whether the next solve packs the field too, and the light the last one packed rows from.
+var _cells := false
+var _solved_toward := Vector3.UP
 
 
 func _init() -> void:
@@ -48,11 +51,7 @@ func install() -> void:
 
 func enclose(rooms: Array[Lamps.Room]) -> void:
 	_rooms = rooms.duplicate()
-	var packed := pack(_rooms, _toward)
-	var img := Image.create_from_data(SIZE, SIZE, false, Image.FORMAT_RGBAF, packed.field.to_byte_array())
-	img.convert(Image.FORMAT_RGBAH)
-	field.update(img)
-	data.update(Image.create_from_data(WIDTH, GROUPS, false, Image.FORMAT_RGBAF, packed.data.to_byte_array()))
+	_cells = true
 
 
 ## The light now comes from `toward`, the way to the sun or moon.
@@ -60,8 +59,30 @@ func set_sun(toward: Vector3) -> void:
 	if toward.is_equal_approx(_toward):
 		return
 	_toward = toward
-	if not _rooms.is_empty():
-		data.update(Image.create_from_data(WIDTH, GROUPS, false, Image.FORMAT_RGBAF, pack(_rooms, _toward, false).data.to_byte_array()))
+
+
+func _next() -> Callable:
+	if not _cells and (_rooms.is_empty() or _toward.is_equal_approx(_solved_toward)):
+		return Callable()
+	var job := {"rooms": _rooms, "toward": _toward, "cells": _cells}
+	_cells = false
+	_solved_toward = _toward
+	return _work.bind(job)
+
+
+static func _work(job: Dictionary) -> Dictionary:
+	var packed := pack(job.rooms, job.toward, job.cells)
+	var out := {"data": Image.create_from_data(WIDTH, GROUPS, false, Image.FORMAT_RGBAF, packed.data.to_byte_array())}
+	if job.cells:
+		out.field = Image.create_from_data(SIZE, SIZE, false, Image.FORMAT_RGBAF, packed.field.to_byte_array())
+		out.field.convert(Image.FORMAT_RGBAH)
+	return out
+
+
+func _take(out: Dictionary) -> void:
+	if out.has("field"):
+		field.update(out.field)
+	data.update(out.data)
 
 
 ## The textures' contents for `rooms` lit from `toward`: room_field's floats, unless `cells` is false, and room_data's

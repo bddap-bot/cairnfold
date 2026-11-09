@@ -30,6 +30,7 @@ const HANGING := 0.5
 ## covering reads over them (bounce_over_cover).
 const OVER_ROOF := 0.5
 
+var texture := ImageTexture3D.new()
 ## Owner id -> the columns it fills: column -> [bottom, top, colour]. Worker-side while a solve runs.
 var _owners := {}
 var _bottoms := PackedFloat32Array()

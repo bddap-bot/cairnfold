@@ -35,6 +35,7 @@ func _run() -> void:
 	await create_timer(1.0).timeout
 	main.look.bounce.finish()
 	main.fitting_tool.lamps.finish()
+	main.look.interior.finish()
 	await create_timer(3.0).timeout
 	main.look.set_process(false)
 	RenderingServer.global_shader_parameter_set("lamp_light", Vector3.ZERO)

@@ -9,6 +9,7 @@ func _init() -> void:
 	_an_open_loop_is_left_out()
 	_a_dormer_window_lets_the_sun_in()
 	_houses_apart_take_their_own_rows()
+	_changes_coalesce_into_one_pack()
 	finish()
 
 
@@ -86,3 +87,21 @@ func _houses_apart_take_their_own_rows() -> void:
 	var b := lit_house(WallLayout.Cover.ROOF, [], Vector3(20, 0, 0))
 	var packed := Interior.pack([a, b], OVER_ARCH)
 	check(_cell(packed, 3.5, 0.0) == 1 and _cell(packed, 23.5, 0.0) == 2, "apart, each house has its own row")
+
+
+## A village's field takes the Frame 12 to 17 ms, so it packs on a worker.
+func _changes_coalesce_into_one_pack() -> void:
+	var interior := Interior.new()
+	check(not interior._next().is_valid(), "nothing to pack before any room")
+	interior.enclose([lit_house()])
+	interior.set_sun(OVER_ARCH)
+	var solve := interior._next()
+	check(solve.is_valid() and not interior._next().is_valid(), "rooms and light changed between solves pack once")
+	var out: Dictionary = solve.call() if solve.is_valid() else {}
+	var c := Interior._texel_of(Vector2(3.5, 0.0))
+	check(out.has("field") and out.field.get_format() == Image.FORMAT_RGBAH and out.field.get_pixel(c.x, c.y).a == 1.0, "the solve fills the house's row into the field")
+	check(out.has("data") and out.data.get_pixel(0, 1).r == 1.0, "and its archway into the data, lit from the sun set after")
+	interior.set_sun(Vector3.UP)
+	solve = interior._next()
+	out = solve.call() if solve.is_valid() else {}
+	check(out.has("data") and not out.has("field"), "the light moving alone packs the rows, not the field")

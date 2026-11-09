@@ -260,6 +260,7 @@ func _grade() -> void:
 
 func _exit_tree() -> void:
 	bounce.stop()
+	interior.stop()
 
 
 func _process(delta: float) -> void:
@@ -271,6 +272,7 @@ func _process(delta: float) -> void:
 		lift_to(at.y - terrain.shown_at(at.x, at.z))
 		adapt(bounce.sky_at(at), delta)
 	bounce.update()
+	interior.update()
 	_since_sky += delta
 	if _sky_time != time and _since_sky >= SKY_EVERY:
 		_paint_sky()

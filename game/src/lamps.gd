@@ -30,6 +30,7 @@ const DOOR := 0.2
 
 signal rooms_changed(rooms: Array[Room])
 
+var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
 var _lights := PackedColorArray()

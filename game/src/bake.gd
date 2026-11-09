@@ -2,10 +2,9 @@
 class_name Bake
 extends RefCounted
 
-## A volume solved on a worker: one solve at a time, the next started for whatever changed while it ran.
+## What the shaders read, solved on a worker: one solve at a time, the next started for whatever changed while it ran.
 
-var texture := ImageTexture3D.new()
-## The ground the volume follows, and its heights_revision the last solve stood on.
+## The ground it follows, if any, and its heights_revision the last solve stood on.
 var terrain: Terrain
 var _ground := -1
 var _task := -1
@@ -46,7 +45,7 @@ func stop() -> void:
 @abstract func _next() -> Callable
 
 
-## On the main thread, puts a finished solve's result in the volume.
+## On the main thread, puts a finished solve's result where the shaders read it.
 @abstract func _take(out: Dictionary) -> void
 
 
