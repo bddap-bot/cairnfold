@@ -257,8 +257,8 @@ func _pick_bare(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye,
-## then turned `turn` degrees about the vertical (180 points them back at the head) and rolled `roll` degrees.
+## Holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye and
+## rolled `roll` degrees.
 func _hands(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	for side in ["left", "right"]:
@@ -268,7 +268,6 @@ func _hands(s: Dictionary) -> void:
 		var at: Vector3 = head * Vector3(s[side][0], s[side][1], s[side][2])
 		var fwd := -head.basis.z
 		var b := Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0)))
-		b = Basis(Vector3.UP, deg_to_rad(s.get("turn", 0.0))) * b
 		hand.global_transform = Transform3D(b * Basis(Vector3.BACK, deg_to_rad(s.get("roll", 0.0))), at)
 		hand.held_still = true
 	await get_tree().process_frame
@@ -575,7 +574,7 @@ func _house(s: Dictionary) -> void:
 
 ## Holds the built house `index` (or under `at`) as hands would and over `seconds` moves it by `move` [x, z] metres,
 ## turns it `turn` degrees, sizes it to `size` [along its ridge, across it] (a tower to `size[0]` across), raises it
-## `rise` metres onto its plinth, its walls to `height` and its roof to `pitch`, `curve` and `overhang`; then lets go.
+## `rise` metres onto its plinth and its walls to `height`; then lets go.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	tool.take_build(_wall_of(s))
@@ -586,7 +585,7 @@ func _resize(s: Dictionary) -> void:
 	end.yaw = start.yaw + deg_to_rad(s.get("turn", 0.0))
 	if s.has("size"):
 		end.size = Vector2(s.size[0], s.size[0] if start.round else s.size[1])
-	var keys := ["rise", "height", "pitch", "curve", "overhang"].filter(func(k: String) -> bool: return start.has(k))
+	var keys := ["rise", "height"].filter(func(k: String) -> bool: return start.has(k))
 	for k: String in keys:
 		end[k] = s.get(k, start[k])
 	await _over(s, 1.0, func(k: float) -> void:
@@ -608,8 +607,8 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 
 
 ## Shapes the roof of the build `_wall_of` names: its `pitch` and `curve` as a grip pulls them, its eaves `overhang`
-## metres past the walls, its `deck` ("stone" or "wood"), its `dormers` and its `hatches`, each [metres along the
-## ridge, across it].
+## metres past the walls, its `deck` ("stone" or "wood") and its `hatches`, each [metres along the ridge,
+## across it].
 func _roof(s: Dictionary) -> void:
 	var w := _wall_of(s)
 	var r := w.roof
@@ -619,9 +618,8 @@ func _roof(s: Dictionary) -> void:
 	var roof := {"pitch": r.pitch, "curve": r.curve, "overhang": r.overhang}
 	if s.has("deck"):
 		roof["deck"] = int(RoofLayout.Deck[s.deck.to_upper()])
-	for key in ["dormers", "hatches"]:
-		if s.has(key):
-			roof[key] = PackedVector2Array(s[key].map(func(d: Array) -> Vector2: return Vector2(d[0], d[1])))
+	if s.has("hatches"):
+		roof["hatches"] = PackedVector2Array(s.hatches.map(func(d: Array) -> Vector2: return Vector2(d[0], d[1])))
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
@@ -712,13 +710,13 @@ func _trunk(s: Dictionary) -> Flora.Plant:
 
 
 ## Grips the boulder placed `boulder` before the last (0 the last) from 1.5 metres off, or with
-## "tree" or `x`, `z` a tree's trunk as `grow` finds it, as a hand does, and over `seconds` moves the hand by `move`
+## `x`, `z` a tree's trunk as `grow` finds it, as a hand does, and over `seconds` moves the hand by `move`
 ## [x, y, z] metres while turning it by `turn` [x, y, z] degrees, then lets go; "capture" saves the view before letting go.
 func _carry(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_hand(s))
 	var from: Transform3D
-	if s.has("tree") or s.has("x"):
+	if s.has("x"):
 		var trunk := _trunk(s)
 		var at := trunk.foot() + Vector3.UP * 1.2
 		from = Transform3D(Basis(), at + Vector3.BACK * 1.5)
@@ -739,7 +737,7 @@ func _carry(s: Dictionary) -> void:
 	tool.end_grow(m)
 
 
-## Takes hold of a piece of clutter as a hand within reach of it does: piece `piece` (or the first of `style`) of wall
+## Takes hold of a piece of clutter as a hand within reach of it does: piece `piece` of wall
 ## `wall` (an index into the walls, -1 the last), or of path `path` (likewise into the paths). Over `seconds` the hand
 ## moves by `move` [x, y, z] metres while turning by `turn` degrees about the vertical, then lets go; with `copy` the
 ## other hand grips it too and carries a copy off instead; with `take` a press of the decorations tool takes it away.
@@ -785,8 +783,6 @@ func _clutter_target(s: Dictionary) -> Dictionary:
 		var w: Wall = main.tool.walls[s.get("wall", -1)]
 		w.lay_now()
 		targets.assign(FittingTool.targets(w).filter(func(t: Dictionary) -> bool: return t.what == "clutter"))
-	if s.has("style"):
-		targets.assign(targets.filter(func(t: Dictionary) -> bool: return int(t.value.w) == DecorationLayout.named(s.style)))
 	var k: int = s.get("piece", 0)
 	return targets[k] if k < targets.size() else {}
 
@@ -916,10 +912,8 @@ func _string(s: Dictionary) -> void:
 	main.world.submit(cmd)
 
 
-## A stroke of `tool` along `points`; stone in `style` (StoneStyles' index) when given, as if the style wheel last let go there.
+## A stroke of `tool` along `points`.
 func _paint(s: Dictionary) -> void:
-	if s.has("style"):
-		Ground.style = s.style
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(_hand(s, "left"))
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]
@@ -1431,7 +1425,7 @@ func _village(s: Dictionary) -> void:
 				var round: bool = entry.get("round", false)
 				var stance := WallTool.stance(at, yaw, round)
 				stance.size = Vector2.ONE * size.y if round else size
-				stance.height = s.get("height", WallTool.HOUSE_HEIGHT)
+				stance.height = WallTool.HOUSE_HEIGHT
 				stance.curve = s.get("curve", 0.0)
 				stance.rise = entry.get("rise", 0.0) if on.is_empty() else 0.0
 				stance.pitch = entry.get("pitch", s.get("pitch", WallTool.pitch_for(stance)))
@@ -1902,20 +1896,18 @@ func _tap(s: Dictionary) -> void:
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
 ## (`restyle` names what that must be: a PaletteTool.Restyle, such as gable, roof, top, face or foundation), twisted round to choice `pick` over
-## `seconds` and let go, as `colour` does. A wall named by `index` or `largest` is held at `s` along it (its middle by
-## default) and `y` up (half its height), as the build lays it now.
-## With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from `side` metres away.
+## `seconds` and let go, as `colour` does. A wall named by `index` is held at the middle of its face, as the build lays
+## it now. With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from 6 metres away.
 func _style(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var restyle: PaletteTool.Restyle = PaletteTool.Restyle[s.restyle.to_upper()]
 	var target := tool.aim_style(_dial_from(s), _dial_dir(s)) if s.has("at") else {}
-	if s.has("index") or s.has("largest"):
+	if s.has("index"):
 		var w := _wall_of(s)
-		var along: float = s.get("s", w.layout.length() * 0.5)
-		target = tool.style_target(restyle, w, w.layout.point_at(along) + Vector3.UP * float(s.get("y", w.layout.height * 0.5)))
+		target = tool.style_target(restyle, w, w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height * 0.5)
 	if s.has("tree"):
 		var crown := _trunk(s).foot() + Vector3.UP * 2.5
-		var from := crown + Vector3(0, 1, s.get("side", 6.0))
+		var from := crown + Vector3(0, 1, 6)
 		target = tool.aim_style(from, (crown - from).normalized())
 	if target.get("restyle") != restyle:
 		_fail("style aimed at %s, not %s" % [target, s.restyle])
