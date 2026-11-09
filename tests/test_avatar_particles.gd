@@ -72,6 +72,9 @@ func _malformed_files_are_refused() -> void:
 	many.systems[0].max = 1e9
 	var capped: Array = read(many).systems
 	check(capped[0].max + capped[1].max <= Avatar.MAX_PARTICLES and capped[0].max > 9000, "an avatar's particles are capped, each system's share cut alike: %d" % capped[0].max)
+	var many_subs := file()
+	many_subs.systems[0].subEmitters = range(8).map(func(_k: int) -> Dictionary: return {"system": 1, "on": "birth", "inherit": []})
+	check((read(many_subs).systems[0].subEmitters as Array).size() == 8, "a system keeps the eight sub-emitters a footstep effect names")
 	var looped := file()
 	looped.systems[1].subEmitters = [{"system": 0, "on": "birth", "inherit": []}]
 	var unlooped: Array = read(looped).systems

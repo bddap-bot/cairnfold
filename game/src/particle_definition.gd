@@ -10,7 +10,7 @@ const ALIGNS := ["view", "world", "local", "facing", "velocity"]
 ## The most curve samples, bursts and sub-emitters a system may name, and vertices a mesh may have.
 const MAX_SAMPLES := 64
 const MAX_BURSTS := 8
-const MAX_SUB_EMITTERS := 4
+const MAX_SUB_EMITTERS := 16
 const MAX_VERTICES := 4096
 ## Past this a number would overflow the 32-bit floats the GPU reads.
 const LARGEST := 1e9

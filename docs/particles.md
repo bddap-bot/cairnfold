@@ -38,7 +38,7 @@ A **system**:
 | `sizeOverLife`, `spin` | a curve or three over life, multiplying size or turning at radians per second |
 | `colorOverLife` | a gradient over life, multiplying the colour |
 | `sizeBySpeed`, `colorBySpeed` | `{"size" or "color", "range": [low, high]}` over speed in m/s |
-| `subEmitters` | up to four `[{"system", "on": "birth" or "death", "inherit": ["color", "size", "rotation", "lifetime"]}]`; a system another names emits only through it, and a name leading back to the system naming it is dropped |
+| `subEmitters` | up to sixteen `[{"system", "on": "birth" or "death", "inherit": ["color", "size", "rotation", "lifetime"]}]`; a system another names emits only through it, and a name leading back to the system naming it is dropped |
 | `renderer` | how it draws (below) |
 
 Shapes face +Z. A cone opens about +Z, a box emits along +Z, a circle lies in XY and emits

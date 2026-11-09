@@ -149,6 +149,9 @@ static func _unity(field: String) -> Transform3D:
 ## its hand bones turn from the controllers' aim poses.
 func _wear(scene: PackedScene) -> void:
 	_avatar = Avatar.open(scene, Color.WHITE)
+	# Worn as a player wears their own, so its contacts touch its own senders as they do in the recording.
+	_avatar.local = true
+	_avatar.add_to_group(Contacts.BODIES)
 	_avatar.transform = TURN
 	_root.add_child(_avatar)
 	_avatar.stand()

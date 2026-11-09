@@ -38,8 +38,8 @@ var _now := 0.0
 var _effects := []
 ## The value each target had when its effects last set it.
 var _applied: Array[float] = []
-## When this frame's births began, which spend Budget.PARTICLE_BIRTHS_US of it.
-var _births_from := 0
+## When this frame's first birth began, -1 before it: births alone spend Budget.PARTICLE_BIRTHS_US of the frame.
+var _births_from := -1
 ## Runs every system whatever its switches, playing again each that stops: the most an avatar's particles cost, which
 ## a bench prices.
 var unswitched := false
@@ -181,7 +181,7 @@ func _process(delta: float) -> void:
 		for s in _systems:
 			s.alive_until = 0.0
 			_clear(s)
-	_births_from = Time.get_ticks_usec()
+	_births_from = -1
 	var outputs: Array[float] = []
 	if _expressions != null:
 		outputs = _expressions.state.outputs
@@ -349,6 +349,9 @@ func _follow(s: System, delta: float) -> void:
 		var t: float = f.time + delta
 		f.time = t
 		if died or (not cd.loop and t > cd.duration):
+			# Births a frame's budget put off are still owed once their parent is gone.
+			for k in mini(int(f.pending), cd.max):
+				_emit(child, Transform3D(child.frame.basis, position), Vector3.ZERO, 1.0, s, parent, f.inherit)
 			continue
 		var cycle := fmod(t, cd.duration) if cd.loop else t
 		var u: float = cycle / cd.duration
@@ -362,6 +365,8 @@ func _follow(s: System, delta: float) -> void:
 ## Calls `emit` up to `count` times, while this frame's births have time left: how many it called.
 func _emit_up_to(count: int, emit: Callable) -> int:
 	var made := 0
+	if count > 0 and _births_from < 0:
+		_births_from = Time.get_ticks_usec()
 	while made < count and not Budget.over(_births_from, Budget.PARTICLE_BIRTHS_US):
 		emit.call()
 		made += 1

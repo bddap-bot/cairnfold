@@ -137,7 +137,7 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	vec3 world;
 	if (mode != 4) {
 		// Unity holds a quad's size to its share of the view at the particle's distance.
-		size = min(size, vec3(max_size * 2.0 * length(to_eye) / projection[1][1]));
+		size = min(size, vec3(max_size * 2.0 * length(to_eye) / abs(projection[1][1])));
 	}
 	mat3 frame = align == 4 && speed > 1e-6 ? look_along(world_velocity) : align == 2 ? turn : align == 1 ? mat3(1.0) : align == 3 ? look_along(to_eye) : mat3(inv_view);
 	if (mode == 4) {
