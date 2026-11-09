@@ -3110,14 +3110,16 @@ command once (a visitor checks before sending); a build the garden reshaped, or 
 playing as it is laid; the ground wears a lifted mark's patch and a mark laid among older ones from the frame after,
 once, with the marks laid last; a lay meant to settle that lands after its inputs changed is not shown, since the
 lay replacing it settles, where showing it drew the house's stones apart from the glade's for a few frames (3 to 6
-ms); and a hold lets its build and the storeys on it go from the glade in one flush. On the Frame, the move section
-played after a village has been built once, as the stress scene plays it (records in `perf/frame/stress-move/`,
-governed, and `perf/frame/stress-move-pinned/`, at step 0): the let-go and the phase's first second made no late
-frame governed in three runs and pinned in two of three; the third pinned run made one 21.6 ms frame as the house was
-let go, with 12.2 ms of scripts and physics and 10.2 ms on the GPU in the frame before it. The let-go's own frame now
-spends about 2.3 ms on the command (cleaning, pricing and applying it), the frames after about 2 ms each laying one
-build or wearing the ground. Governed, the ladder stepping from 3 to 1 at once during or after the carry (the GPU from
-7.2 to about 10 ms) makes 25 to 34 late frames before it steps back.
+ms); and a hold lets its build and the storeys on it go from the glade in one flush. That left one late frame at
+the let-go in some runs, 0.1 to 0.2 s after it, when the lantern light's next pass found the house's room moved and the
+room field (`Interior`, every room's walls over the play area at 0.25 m) was packed on the main thread: 12 to 17 ms
+on the Frame for this village. The field and its rows now pack on a worker as the lantern and bounce volumes do
+(`Bake`), and the main thread only uploads them. On the Frame, the move section played after a village has been
+built once, as the stress scene plays it (records in `perf/frame/stress-move/`, governed, and
+`perf/frame/stress-move-pinned/`, at step 0), made no late frame in the phase in three governed and three pinned
+runs; the longest frame at the let-go was 16.9 to 19.4 ms of the 20.8 ms line. Governed, the ladder stepping from 3
+to 1 at once during or after the carry (the GPU from 7.2 to about 10 ms) makes 25 to 34 late frames before it steps
+back.
 
 ## Moving a fitting
 
