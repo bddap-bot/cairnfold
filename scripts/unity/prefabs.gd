@@ -84,6 +84,15 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 		var key := (instance ^ Yaml.file_id(src)) & MASK
 		if out.has(key):
 			out[id] = out[key]
+	# A component this document adds to an instanced object names the object, whose own list holds only its source's.
+	for id: int in objs:
+		var o: Dictionary = objs[id]
+		var go := Yaml.file_id(o.data.get("m_GameObject"))
+		if o.stripped or o.class == 1001 or not objs.has(go) or not objs[go].stripped or not out.has(go):
+			continue
+		var listed := Yaml.list(out[go].data.get("m_Component"))
+		listed.append({"component": {"fileID": str(id)}})
+		out[go].data["m_Component"] = listed
 	return out
 
 

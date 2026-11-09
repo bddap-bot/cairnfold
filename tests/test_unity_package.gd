@@ -190,12 +190,17 @@ PrefabInstance:
 GameObject:
   m_CorrespondingSourceObject: {fileID: %d, guid: b2, type: 3}
   m_PrefabInstance: {fileID: 30}
-""" % [20 ^ 10, 30 ^ (20 ^ 10), 20 ^ 10])
+--- !u!1818360609 &40
+RotationConstraint:
+  m_GameObject: {fileID: %d}
+""" % [20 ^ 10, 30 ^ (20 ^ 10), 20 ^ 10, 30 ^ (20 ^ 10)])
 	var prefabs := Prefabs.new(Assets.new(dir))
 	var objs := prefabs.flatten("c3")
 	var hat: int = 30 ^ (20 ^ 10)
 	check(objs.has(hat) and objs[hat].data.m_Name == "Cap" and objs[hat].data.m_IsActive == "0", "the inner GameObject takes both prefabs' modifications (%s)" % [objs.get(hat, {}).get("data")])
 	check(objs[hat].data.m_Component[0].component.fileID == str(30 ^ (20 ^ 11)), "its references take the scene's IDs")
+	check(Prefabs.components(objs, hat) == [30 ^ (20 ^ 11), 40], "a component the scene adds to it is among its components: %s" % [Prefabs.components(objs, hat)])
+	check(Prefabs.components(prefabs.flatten("b2"), 20 ^ 10) == [20 ^ 11], "the prefab it instances keeps its own components")
 	check(prefabs.unread.is_empty(), "nothing missing")
 
 
