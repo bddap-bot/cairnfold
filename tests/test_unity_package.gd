@@ -1212,9 +1212,11 @@ func _a_serialized_mesh_reads_as_its_model_would() -> void:
 		2: {"type": "GameObject", "data": {"m_Name": "End"}},
 		10: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
 		11: {"type": "Transform", "data": {"m_GameObject": {"fileID": "2"}}},
-		20: {"type": "SkinnedMeshRenderer", "data": {"m_Bones": [{"fileID": "10"}, {"fileID": "11"}]}},
+		3: {"type": "GameObject", "data": {"m_Name": "End2"}},
+		12: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}}},
+		20: {"type": "SkinnedMeshRenderer", "data": {"m_Bones": [{"fileID": "10"}, {"fileID": "11"}, {"fileID": "12"}]}},
 	}
-	check(UnityAvatar._bone_names(objs, 20) == PackedStringArray(["End", "End2"]), "two bones of one name keep a bone each")
+	check(UnityAvatar._bone_names(objs, 20) == PackedStringArray(["End", "End3", "End2"]), "two bones of one name keep a bone each, and no other bone's name")
 
 
 ## A model's bone named as Blender numbers a duplicate ("Wing.001") binds its own Unity transform, not its parent's:

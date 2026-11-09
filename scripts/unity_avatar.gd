@@ -1785,17 +1785,23 @@ static func _model_name(model: Dictionary, mi: MeshInstance3D) -> String:
 
 
 ## The names of the renderer's bones' GameObjects as node names, one bone per name: a name an earlier bone already has
-## is numbered, as Godot names a node's duplicate sibling.
+## is numbered past every name the bones have, as Godot names a node's duplicate sibling.
 static func _bone_names(objs: Dictionary, renderer: int) -> PackedStringArray:
-	var out := PackedStringArray()
+	var names := PackedStringArray()
 	for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
 		var go := Yaml.file_id(objs.get(Yaml.file_id(t), {}).get("data", {}).get("m_GameObject"))
 		var name := str(objs.get(go, {}).get("data", {}).get("m_Name", "")).validate_node_name()
-		var unique := name if name != "" else "Bone"
+		names.append(name if name != "" else "Bone")
+	var taken := {}
+	for name in names:
+		taken[name] = true
+	var out := PackedStringArray()
+	for name in names:
+		var unique := name
 		var n := 1
-		while unique in out:
+		while unique in out or (unique != name and taken.has(unique)):
 			n += 1
-			unique = "%s%d" % [name if name != "" else "Bone", n]
+			unique = "%s%d" % [name, n]
 		out.append(unique)
 	return out
 
