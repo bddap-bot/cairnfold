@@ -38,8 +38,7 @@ func _demo() -> void:
 ## The stress scene's `raised/*` phases look over a ring of raised houses, long and round, every one on stilts.
 func _stress_ring() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var first := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "raised/aerial")
-	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "raised/ground"), "the stress scene has raised/aerial and raised/ground phases")
+	var first := aerial_at(steps, "raised")
 	if first < 0:
 		return
 	var village := step_before(steps, first, "village")

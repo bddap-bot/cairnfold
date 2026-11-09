@@ -534,7 +534,7 @@ func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
 	var json := _gltf_json(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	var sk := a._skeleton
-	var at := Avatar._space(sk, a._model)
+	var at := Meshes.relative(sk, a._model)
 	# Godot's glTF reader names a bone after its node, with the characters a bone name cannot hold made underscores.
 	var bone := func(name: String) -> int: return sk.find_bone(name.replace(":", "_").replace("/", "_"))
 	var world := []
@@ -578,7 +578,7 @@ func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
 ## hold them), by rest position.
 func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
 	var sk := a._skeleton
-	var at := Avatar._space(sk, a._model)
+	var at := Meshes.relative(sk, a._model)
 	var out := {}
 	for mi: MeshInstance3D in source.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null:
@@ -891,7 +891,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 			up = a._skeleton.get_bone_parent(up)
 		if up >= 0:
 			head[b] = true
-	var at := Avatar._space(a._skeleton, a._model)
+	var at := Meshes.relative(a._skeleton, a._model)
 	var hands := [a.bone("leftHand").origin, a.bone("rightHand").origin]
 	var gone := 0
 	var off := 0.0
@@ -942,7 +942,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 
 ## A mesh's vertices at rest and where its skin puts each over the avatar's posed bones, in the avatar's space.
 func _skinned(a: Avatar, mi: MeshInstance3D) -> Array[PackedVector3Array]:
-	var at := Avatar._space(a._skeleton, a._model)
+	var at := Meshes.relative(a._skeleton, a._model)
 	var binds: Array[Transform3D] = []
 	for i in mi.skin.get_bind_count():
 		binds.append(at * a._skeleton.get_bone_global_pose(Meshes.bind_bone(mi.skin, i, a._skeleton)) * mi.skin.get_bind_pose(i))

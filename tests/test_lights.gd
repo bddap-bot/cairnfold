@@ -335,8 +335,7 @@ func _demo() -> void:
 ## in rows across the meadow, until the frame budget is full.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "lights/aerial")
-	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "lights/ground"), "the stress scene has lights/aerial and lights/ground phases")
+	var aerial := aerial_at(steps, "lights")
 	if aerial < 0:
 		return
 	var wiped := step_before(steps, aerial, "bare")

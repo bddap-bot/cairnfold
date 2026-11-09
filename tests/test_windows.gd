@@ -291,15 +291,13 @@ func _windows_glow_after_sunset() -> void:
 ## demo/windows.json shows every family by day and by night, and the stress scene's windows/* phases look over a
 ## village whose every house opens windows of a family, lit by night.
 func _the_demos_show_them() -> void:
-	var demo: Array = JSON.parse_string(FileAccess.get_file_as_string("res://../demo/windows.json"))
+	var demo := Driver.read("res://../demo/windows.json")
 	var families := demo.filter(func(s: Dictionary) -> bool: return s.op == "house" and s.has("windows")).map(func(s: Dictionary) -> int: return int(s.windows))
 	check(range(WallLayout.WINDOW_FAMILIES.size()).all(func(k: int) -> bool: return k in families), "demo/windows.json puts up a house of each family")
 	var night := demo.find_custom(func(s: Dictionary) -> bool: return s.op == "sun" and Daylight.lit(s.time) == 1.0)
 	check(night > 0 and demo.slice(0, night).any(func(s: Dictionary) -> bool: return s.op == "capture") and demo.slice(night).any(func(s: Dictionary) -> bool: return s.op == "capture"), "it captures them by day and by night")
-	var stress: Array = JSON.parse_string(FileAccess.get_file_as_string("res://../demo/stress.json"))
-	var at := stress.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "windows/aerial")
-	check(at > 0 and stress.any(func(s: Dictionary) -> bool: return s.get("name", "") == "windows/ground"), "the stress scene has windows/aerial and windows/ground phases")
-	var before := stress.slice(0, at)
+	var stress := Driver.read("res://../demo/stress.json")
+	var before := stress.slice(0, aerial_at(stress, "windows"))
 	var village: int = before.rfind_custom(func(s: Dictionary) -> bool: return s.op == "village")
 	var dark: int = before.rfind_custom(func(s: Dictionary) -> bool: return s.op == "sun")
 	check(village >= 0 and before[village].get("windows", false) and dark > village and Daylight.lit(before[dark].time) == 1.0, "they look over a village opening windows in every house, by night")

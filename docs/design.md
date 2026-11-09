@@ -4603,7 +4603,7 @@ house scrapes every 0.12 m it moves, painting rustles at most seven times a seco
 
 The new sounds are synthesised beside the stones and water by `actions()` in `scripts/compose.py`, from noise,
 small wooden bodies and the music's own felt pluck in B major, and low-passed at 1.8 kHz. `tests/test_cues.py`
-holds every clip's energy above 2, 3 and 4 kHz to no more than the stone and water sounds' (`Cues.REFERENCE`)
+holds every clip's energy above 2, 3 and 4 kHz to no more than the stone and water sounds' (`REFERENCE` in tests/test_cues.py)
 and its spectral centroid to under one and a half times theirs. Stretching a building creaks like a cartoon wooden bow:
 stick-slip pulses quickening through a small wooden body, its pitch rising with how far the stretch has gone
 (`Cues.stretch`: doubling is all the way), and the pulse in the hand tightening with it. A swung boulder pushes air: half-second

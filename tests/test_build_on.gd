@@ -29,14 +29,6 @@ func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Di
 	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
 
 
-func _lay(h: Dictionary) -> void:
-	var w: WallLayout = h.wall
-	w.build(Terrain.flat)
-	h.roof.base = w.roof_base()
-	h.roof.build()
-	w.hide_roof(h.roof)
-
-
 func _tower(center: Vector3, radius: float, on: Array[Massing] = []) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.circle(center, radius)
@@ -83,8 +75,8 @@ func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
 	var top: float = lower.massing.feet[0] + lower.massing.rise
 	check(absf(upper.wall.samples[0].y - (top - WallLayout.SINK)) < 0.001, "the storey stands on the house's top (%f, top %f)" % [upper.wall.samples[0].y, top])
 	lower.wall.resting.assign([upper.massing])
-	_lay(lower)
-	_lay(upper)
+	lay_house(lower)
+	lay_house(upper)
 	var above: Array = lower.wall.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.y > top)
 	check(above.is_empty(), "nothing of the house's own stones pokes up into the storey: %d" % above.size())
 	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Massing.encloses(Vector2(t.xform.origin.x, t.xform.origin.z), upper.massing.inner))
@@ -150,11 +142,11 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 	var a := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
 	var b := _house(Vector3(4, 0, -1), Vector3(4, 0, 6), 3.6)
 	var lone := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
-	_lay(lone)
+	lay_house(lone)
 	a.wall.joined.assign([b.massing])
 	b.wall.joined.assign([a.massing])
-	_lay(a)
-	_lay(b)
+	lay_house(a)
+	lay_house(b)
 	for pair in [[a, b], [b, a]]:
 		var inside: Array = _walls(pair[0].wall).filter(func(s: Dictionary) -> bool: return pair[1].massing.holds(s.xform.origin))
 		check(inside.is_empty(), "no wall stands inside the other house: %d stones" % inside.size())
@@ -198,6 +190,6 @@ func _builds_meeting_nothing_lay_as_before() -> void:
 	var a := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	var b := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	b.wall.joined.assign([_house(Vector3(20, 0, 0), Vector3(26, 0, 0), 4.0).massing])
-	_lay(a)
-	_lay(b)
+	lay_house(a)
+	lay_house(b)
 	check(a.wall.stones.size() == b.wall.stones.size() and a.roof.tiles.size() == b.roof.tiles.size(), "a far build takes nothing away")

@@ -224,8 +224,7 @@ func _demo() -> void:
 ## The bridges/* phases follow the last wipe: a bridge over every pond of the stress scene.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "bridges/aerial")
-	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "bridges/ground"), "the stress scene has bridges/aerial and bridges/ground phases")
+	var aerial := aerial_at(steps, "bridges")
 	if aerial < 0:
 		return
 	var wiped := step_before(steps, aerial, "bare")

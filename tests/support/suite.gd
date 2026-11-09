@@ -113,6 +113,25 @@ static func roof_data(with: Dictionary) -> Dictionary:
 	return RoofLayout.new().data().merged(with, true)
 
 
+## Lays `h`'s walls on flat ground and seats its roof on them, as a garden's wall does.
+static func lay_house(h: Dictionary) -> void:
+	var w: WallLayout = h.wall
+	w.build(Terrain.flat)
+	w.seat(h.roof)
+	h.roof.build()
+	w.hide_roof(h.roof)
+
+
+## Where the stress scene's `<phase>/aerial` view stands in `steps`, -1 when it has none; its `<phase>/<view>` views are
+## checked to stand too.
+func aerial_at(steps: Array, phase: String, views: Array[String] = ["ground"]) -> int:
+	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == phase + "/aerial")
+	check(at >= 0, "the stress scene has a %s/aerial phase" % phase)
+	for v in views:
+		check(steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "%s/%s" % [phase, v]), "the stress scene has a %s/%s phase" % [phase, v])
+	return at
+
+
 ## The index of the last step at or before `steps[at]` whose op is `op`.
 static func step_before(steps: Array, at: int, op: String) -> int:
 	var i := at

@@ -45,8 +45,7 @@ func _demo() -> void:
 ## The stress scene's doors/* phases look over a village where every house a path runs into opens a door there.
 func _stress_village() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var first := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "doors/aerial")
-	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "doors/ground"), "the stress scene has doors/aerial and doors/ground phases")
+	var first := aerial_at(steps, "doors")
 	if first < 0:
 		return
 	var village := step_before(steps, first, "village")

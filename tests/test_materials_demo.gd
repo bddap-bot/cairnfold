@@ -64,8 +64,7 @@ func _demo() -> void:
 ## stepping stones and full beds.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "materials/aerial")
-	check(aerial >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "materials/ground"), "the stress scene has materials/aerial and materials/ground phases")
+	var aerial := aerial_at(steps, "materials")
 	if aerial < 0:
 		return
 	var wiped := step_before(steps, aerial, "bare")

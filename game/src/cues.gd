@@ -108,9 +108,6 @@ const SOUNDS := {
 	"pick": 3, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
 	"bye": 1, "flutter": 3, "grunt": 2, "thud": 3, "whoosh": 3, "page": 3, "roll": 1, "cut": 1,
 }
-## The sounds there were before this table; every other one is checked for band energy against them
-## (tests/test_cues.py).
-const REFERENCE := ["stone", "settle", "arch", "crumble", "dip", "fill"]
 ## The voices sounds share: a sound past these takes the voice that started longest ago.
 const VOICES := 12
 ## The most any sound's level reaches, however hard or heavy what made it, in dB.

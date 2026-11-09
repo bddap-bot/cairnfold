@@ -584,12 +584,10 @@ func _shared_opening_cap(w: Wall) -> void:
 
 ## A tower as a garden built before keeps one: no tool draws one any more.
 static func _tower(center: Vector3, radius: float) -> Dictionary:
-	return {
-		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5,
-		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
-		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "rise": 0.0, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
+	return wall_data({
+		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5, "closed": true, "top": WallLayout.Top.CAP,
 		"roof": roof_data({"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "seed": 5}),
-	}
+	})
 
 
 ## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.

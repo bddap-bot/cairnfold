@@ -153,7 +153,7 @@ func _pillars_carry_a_course_and_posts_beams() -> void:
 
 func _wall_data(kind: WallLayout.Foundation, rise: float, round := false) -> Dictionary:
 	var points := WallLayout.circle(Vector3(1, 0, 1), 2.0) if round else WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 4.0)
-	return {"points": PackedVector3Array(points), "height": 2.4, "rise": rise, "closed": true, "fence": false, "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": kind, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
+	return wall_data({"points": PackedVector3Array(points), "height": 2.4, "rise": rise, "closed": true, "foundation": kind})
 
 
 ## Stilts are charged as they are laid: pillars and their course as stone wall, posts and beams as timbers, and only the
@@ -175,7 +175,7 @@ func _the_budget_counts_stilts_as_laid() -> void:
 ## A house's stilts come through the garden's command, which turns them down on an open wall or a fence.
 func _the_garden_keeps_stilts() -> void:
 	var d := _wall_data(WallLayout.Foundation.POSTS, 1.5)
-	d.merge({"seed": 1, "top": WallLayout.Top.CAP, "gable_end": 0, "openings": PackedVector4Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()})
+	d.top = WallLayout.Top.CAP
 	var kept: Variant = Commands._wall(d)
 	check(kept != null and kept.foundation == WallLayout.Foundation.POSTS, "a house's stilts pass the garden's check")
 	var open := d.duplicate()

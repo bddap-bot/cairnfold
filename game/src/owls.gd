@@ -126,7 +126,6 @@ func _free(p: Vector3, me: Owl) -> bool:
 	return true
 
 
-## Flies to the perch `to` (_perch's), or away where there is none.
 func _perch_or_leave(o: Owl, to: Array) -> void:
 	if to.is_empty():
 		o.leaving = true

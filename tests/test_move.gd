@@ -36,7 +36,7 @@ func _run() -> void:
 		{"op": "house", "round": true, "at": [14, 0], "size": [3.4, 3.4], "seconds": 0.3},
 		{"op": "house", "at": [4, 10], "size": [5, 4], "seconds": 0.3},
 	])
-	await _settled()
+	await laid()
 	await _a_wall_carries_its_fittings_and_ivy()
 	await _a_fence_is_carried_and_turned()
 	await _a_house_carries_its_roof_fittings_and_ivy()
@@ -45,10 +45,6 @@ func _run() -> void:
 	await _a_look_goes_as_far_as_a_build_takes_it()
 	await _the_demo_and_the_stress_scene_carry_and_copy()
 	finish()
-
-
-func _settled() -> void:
-	await until(func() -> bool: return not tool.walls.any(func(w: Wall) -> bool: return w.laying()), "every wall laid")
 
 
 func _wall(i: int) -> Wall:
@@ -63,7 +59,7 @@ func _carry(w: Wall, move: Vector3, degrees: float) -> void:
 	var to := Transform3D(Basis(Vector3.UP, deg_to_rad(degrees)), from.origin + move)
 	tool.stand_build(WallTool.carry(start, from, to, 1.0))
 	tool.end_build()
-	await _settled()
+	await laid()
 
 
 ## Where `p` stands once carried by `move` and turned `degrees` about `middle`, across the ground.
@@ -125,10 +121,10 @@ func _a_wall_carries_its_fittings_and_ivy() -> void:
 	check(_kept(now) == _kept(was), "its window, lantern, flag, seed and paint go along unchanged")
 	check(_ivy(w) == ivy and w.ivy_age >= 1000.0, "its ivy climbs where it did along it and stays grown")
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[w.id].points == was.points and _ivy(w) == ivy, "one undo puts it back where it stood")
 	world._order({"op": "redo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[w.id].points == now.points, "a redo carries it again")
 
 
@@ -142,7 +138,7 @@ func _a_fence_is_carried_and_turned() -> void:
 	await _carry(w, move, -45.0)
 	check(_all_moved(was.points, world.state.walls[w.id].points, middle, move, -45.0) and _kept(world.state.walls[w.id]) == _kept(was), "a fence is carried and turned 45° as a wall is")
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[w.id].points == was.points, "one undo puts it back")
 
 
@@ -162,7 +158,7 @@ func _a_house_carries_its_roof_fittings_and_ivy() -> void:
 	check(_kept(now) == _kept(was), "its window, lantern and chimney keep their places on it, its roof its shape")
 	check(_alike(_ivy(w), ivy), "its ivy climbs where it did on its walls")
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[w.id] == was, "one undo puts it back")
 
 
@@ -181,7 +177,7 @@ func _a_tower_turns_about_its_middle() -> void:
 	var to := _moved(middle, middle, move, 30.0)
 	check(Vector2(centre.x, centre.z).distance_to(to) < 1e-3 and Vector2(now.roof.center.x, now.roof.center.z).distance_to(to) < 1e-3 and is_equal_approx(now.roof.radius, was.roof.radius), "a tower is carried and turned, its cone with it: %s from %s, %s from %s" % [now.points, was.points, now.roof.center, was.roof.center])
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[w.id] == was, "one undo puts it back")
 
 
@@ -199,7 +195,7 @@ func _a_tap_copies_a_look() -> void:
 	var a := _wall(2)
 	var b := _wall(4)
 	world._order({"op": "reshape", "of": "walls", "id": a.id, "data": {"finish": WallLayout.Finish.PLASTER, "wear": 0.25, "gable_end": WallLayout.GableEnd.STEPS, "top": WallLayout.Top.COPE, "planks": true, "paint": {Palette.Element.PLASTER: 2, Palette.Element.ROOF: 3, Palette.Element.THATCH: 4, Palette.Element.STONE: 5}, "roof": {"thatch": true}}}, world.me())
-	await _settled()
+	await laid()
 	var source: Dictionary = world.state.walls[a.id].duplicate(true)
 	var target: Dictionary = world.state.walls[b.id].duplicate(true)
 	check(_look(source) != _look(target), "two houses of different looks")
@@ -209,17 +205,17 @@ func _a_tap_copies_a_look() -> void:
 	check(world.state.walls[a.id] == source, "and changes nothing")
 	var seq := world.seq
 	await play([{"op": "tap", "hand": "right", "from": [4, 1.5, 14], "at": [4, 1.2, 12]}])
-	await _settled()
+	await laid()
 	var copied: Dictionary = world.state.walls[b.id]
 	check(world.seq == seq + 1, "a tap on the second lays it as one command")
 	check(_look(copied) == _look(source), "the second house takes the first's paint, face, top, gable ends, floor and thatch: %s" % _look(copied))
 	check(copied.points == target.points and copied.openings == target.openings and copied.roof.pitch == target.roof.pitch, "and keeps its own place, size, fittings and roof's shape")
 	check(world.state.walls[a.id] == source and palette.looks.has(hand), "the first is as it was, and the look stays in the hand")
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 	check(world.state.walls[b.id] == target, "one undo gives the second its own look back")
 	world._order({"op": "redo"}, world.me())
-	await _settled()
+	await laid()
 	check(_look(world.state.walls[b.id]) == _look(source), "a redo lays it again")
 	seq = world.seq
 	await play([{"op": "tap", "hand": "right", "from": [4, 1.5, 14], "at": [4, 1.2, 12]}])
@@ -238,7 +234,7 @@ func _a_tap_copies_a_look() -> void:
 	await process_frame
 	check(not palette.looks.has(hand), "and so does putting the colour tool down")
 	world._order({"op": "undo"}, world.me())
-	await _settled()
+	await laid()
 
 
 ## A house's look laid on a wall gives it the house's paint and face, a roofless wall taking no covering; laid on a
@@ -280,7 +276,7 @@ func _the_demo_and_the_stress_scene_carry_and_copy() -> void:
 	var carry: Dictionary = steps[at + 1]
 	check(carry.op == "resize" and carry.get("largest", false) and Vector2(carry.move[0], carry.move[1]).length() >= 2.0 * steps[village].radius, "it carries the largest house across it: %s" % carry)
 	await play([{"op": "bare"}, steps[bounded], steps[village]])
-	await _settled()
+	await laid()
 	var house := Driver.largest(tool)
 	var id := house.id
 	var was: Dictionary = world.state.walls[id].duplicate(true)
@@ -290,7 +286,7 @@ func _the_demo_and_the_stress_scene_carry_and_copy() -> void:
 	var quick := carry.duplicate()
 	quick.seconds = 0.5
 	await play([quick])
-	await _settled()
+	await laid()
 	var middle: Vector3 = was.roof.center
 	var to := Vector3(carry.move[0], 0, carry.move[1])
 	check(world.seq == seq + 1 and _all_moved(was.points, world.state.walls[id].points, middle, to, carry.turn), "the garden takes the carry across the village, turned round: %d commands, %s from %s" % [world.seq - seq, world.state.walls[id].points, was.points])

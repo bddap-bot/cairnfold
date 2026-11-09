@@ -373,8 +373,7 @@ static func _uncaptured(s: Dictionary) -> Dictionary:
 ## until the budget is full or their feet are.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var aerial := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "clutter/aerial")
-	check(aerial >= 0 and ["clutter/ground", "clutter/carry", "clutter/copy"].all(func(name: String) -> bool: return steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == name)), "the stress scene has clutter/aerial, clutter/ground, clutter/carry and clutter/copy phases")
+	var aerial := aerial_at(steps, "clutter", ["ground", "carry", "copy"])
 	if aerial < 0:
 		return
 	var wiped := step_before(steps, aerial, "bare")

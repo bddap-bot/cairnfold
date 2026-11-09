@@ -1191,14 +1191,6 @@ static func picture(tool: Hand.Tool) -> ArrayMesh:
 			pending.append_array(n.get_children())
 			if n is MeshInstance3D:
 				var mi := n as MeshInstance3D
-				parts.append([mi.mesh, _within(model, mi), (mi.material_override as BaseMaterial3D).albedo_color])
+				parts.append([mi.mesh, Meshes.relative(mi, model), (mi.material_override as BaseMaterial3D).albedo_color])
 		model.free()
 		return bake(parts))
-
-
-static func _within(root: Node3D, n: Node3D) -> Transform3D:
-	var x := Transform3D.IDENTITY
-	while n != root:
-		x = n.transform * x
-		n = n.get_parent()
-	return x

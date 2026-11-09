@@ -164,15 +164,6 @@ func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := Wa
 	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
 
 
-func _lay(h: Dictionary) -> void:
-	var w: WallLayout = h.wall
-	w.build(Terrain.flat)
-	h.roof.base = w.roof_base()
-	h.roof.foot = w.stands_at()
-	h.roof.build()
-	w.hide_roof(h.roof)
-
-
 func _flat_roofs_stack_into_terraces() -> void:
 	var ground := _storey(Vector3(0, 0, 0), Vector3(8, 0, 0), 6.0, [])
 	var middle := _storey(Vector3(1.5, 0, 0), Vector3(6.5, 0, 0), 3.6, [ground.massing], WallLayout.Top.RAIL)
@@ -184,7 +175,7 @@ func _flat_roofs_stack_into_terraces() -> void:
 	ground.wall.resting.assign([middle.massing])
 	middle.wall.resting.assign([upper.massing])
 	for h in [ground, middle, upper]:
-		_lay(h)
+		lay_house(h)
 	var parapet := func(h: Dictionary, inside: Massing) -> Array:
 		var top: float = h.massing.feet[0] + h.massing.rise
 		return h.wall.stones.filter(func(s): return s.kind == "block" and s.xform.origin.y > top and (inside == null or Massing.encloses(Vector2(s.xform.origin.x, s.xform.origin.z), inside.outer)))
@@ -252,11 +243,9 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	w.height = WallLayout.MIN_HEIGHT
 	w.build(Terrain.flat)
 	var r := RoofLayout.new()
-	r.corners = w.points
 	r.pitch = 2.6
 	r.overhang = RoofLayout.MAX_OVERHANG
-	r.base = w.roof_base()
-	r.foot = w.stands_at()
+	w.seat(r)
 	r.build()
 	check(r.eave() < r.half_span() + r.overhang - 0.1 and absf(r.eave() - r.half_span() - r.reach()) < 0.001, "a long overhang on low walls comes down to the ground")
 	check(absf(r.base + r.rise(1.0 - r.eave() / r.half_span()) - r.foot) < 0.01, "its eave meets the ground the walls stand on: %.2f at %.2f" % [r.base + r.rise(1.0 - r.eave() / r.half_span()), r.foot])
@@ -355,13 +344,10 @@ func _a_dormer_needs_room() -> void:
 
 
 func _house_data(pitch: float) -> Dictionary:
-	var points := PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 5.0))
-	return {
-		"points": points, "height": 2.4, "rise": 0.0, "seed": 3, "closed": true, "top": WallLayout.Top.CAP,
-		"fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(),
-		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": roof_data({"center": Vector3(3.5, 0, 0), "pitch": pitch, "seed": 3}),
-	}
+	return wall_data({
+		"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 5.0)), "height": 2.4, "seed": 3, "closed": true,
+		"top": WallLayout.Top.CAP, "roof": roof_data({"center": Vector3(3.5, 0, 0), "pitch": pitch, "seed": 3}),
+	})
 
 
 func _the_budget_counts_eaves_and_dormers() -> void:

@@ -289,7 +289,7 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	await play([{"op": "pick", "hand": "right", "tool": "style"}])
 	var picker: PaletteTool = main.palette_tool
 	var restyle := func(steps: int) -> void:
-		var roof := _centre(w) + Vector3.UP * w.layout.height
+		var roof := Driver._middle(PackedVector3Array(w.layout.points)) + Vector3.UP * w.layout.height
 		var at := roof + Vector3(0, 8, 6)
 		var aim := Basis.looking_at(roof - at, Vector3.UP)
 		var pose := func(b: Basis) -> void:
@@ -318,13 +318,6 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	check(not w.roof.thatch and not coat.call() and round.call(), "and the next tiles it again")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
-
-
-static func _centre(w: Wall) -> Vector3:
-	var sum := Vector3.ZERO
-	for p in w.layout.points:
-		sum += p
-	return sum / w.layout.points.size()
 
 
 ## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"

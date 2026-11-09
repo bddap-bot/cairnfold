@@ -69,7 +69,6 @@ class Kind:
 	func stride() -> int:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
 
-	## Draws the pieces in `buf` through `mm`.
 	func fill(mm: MultiMesh, buf: PackedFloat32Array) -> void:
 		mm.instance_count = buf.size() / stride()
 		if mm.instance_count > 0:

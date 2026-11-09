@@ -21,7 +21,6 @@ func _house(rise: float, gabled := false) -> WallLayout:
 	w.finish = WallLayout.Finish.BARE
 	if gabled:
 		var r := RoofLayout.new()
-		r.corners = w.points
 		r.pitch = 2.0
 		w.gable = r
 	w.build(Terrain.flat)

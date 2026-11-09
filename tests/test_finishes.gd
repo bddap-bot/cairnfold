@@ -200,7 +200,6 @@ func _planks_lie_across_or_upright() -> void:
 				var gabled := w.inputs()
 				gabled.gable_end = WallLayout.GableEnd.STEPS
 				var r := RoofLayout.new()
-				r.corners = gabled.points
 				r.pitch = 2.0
 				gabled.gable = r
 				gabled.build(Terrain.flat)
@@ -432,8 +431,7 @@ func _demo() -> void:
 ## most for (the bare stone village stands in its village/* phases).
 func _stress_village() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
-	var first := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "finishes/aerial")
-	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "finishes/ground"), "the stress scene has finishes/aerial and finishes/ground phases")
+	var first := aerial_at(steps, "finishes")
 	if first < 0:
 		return
 	var village := step_before(steps, first, "village")

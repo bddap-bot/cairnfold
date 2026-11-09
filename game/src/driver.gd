@@ -383,7 +383,6 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
-## The seconds the next frame took, once it has.
 func _tick() -> float:
 	await get_tree().process_frame
 	return get_process_delta_time()
@@ -1723,7 +1722,6 @@ func _frenzied() -> bool:
 	return f[1] > 0 and f[0] == f[1]
 
 
-## Writes `out` to `name`.json in the capture directory, returning its path.
 func _write_capture(name: String, out: Dictionary) -> String:
 	var path: String = main.capture_path(name + ".json")
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))

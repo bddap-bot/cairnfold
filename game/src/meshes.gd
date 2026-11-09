@@ -42,7 +42,15 @@ static func ball(radius: float, colour: Color, see_through := true) -> MeshInsta
 	return m
 
 
-## Draws everything under `node` in `look`.
+## A node's transform relative to `root`, whether or not it is in the tree.
+static func relative(n: Node3D, root: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	while n != root:
+		t = n.transform * t
+		n = n.get_parent()
+	return t
+
+
 static func ghostly(node: Node, look: Material) -> void:
 	for g: GeometryInstance3D in node.find_children("*", "GeometryInstance3D", true, false):
 		g.material_override = look

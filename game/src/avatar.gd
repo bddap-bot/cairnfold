@@ -715,7 +715,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	var bones: Dictionary = a._model.get_meta("humanoid")
 	a._skeleton = a._model.get_node(str(bones.hips).get_slice(":", 0))
 	a._skeleton.reset_bone_poses()
-	var at := _space(a._skeleton, a._model)
+	var at := Meshes.relative(a._skeleton, a._model)
 	for b: String in bones:
 		var j := Joint.new()
 		j.bone = a._skeleton.find_bone((bones[b] as NodePath).get_concatenated_subnames())
@@ -868,16 +868,7 @@ func _find_base(j: Joint, placed: Array[Joint]) -> void:
 				return
 		t = _skeleton.get_bone_rest(b) * t
 		b = _skeleton.get_bone_parent(b)
-	j.offset = _space(_skeleton, _model) * t
-
-
-## A node's transform relative to `root`, whether or not it is in the tree.
-static func _space(n: Node3D, root: Node3D) -> Transform3D:
-	var t := Transform3D.IDENTITY
-	while n != root:
-		t = n.transform * t
-		n = n.get_parent()
-	return t
+	j.offset = Meshes.relative(_skeleton, _model) * t
 
 
 ## A basis whose X runs along `along` and Y toward `toward`.

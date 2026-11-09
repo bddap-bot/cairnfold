@@ -9,6 +9,8 @@ import numpy as np
 ROOT = Path(__file__).parents[1]
 FX = ROOT / 'game/audio/fx'
 CUES = (ROOT / 'game/src/cues.gd').read_text()
+# The stone and water sounds every other one is held to: no brighter in any band than they are.
+REFERENCE = ['stone', 'settle', 'arch', 'crumble', 'dip', 'fill']
 
 
 def _families() -> dict[str, list[Path]]:
@@ -33,12 +35,11 @@ def _bands(clip: Path) -> dict[str, float]:
 
 class ActionSounds(unittest.TestCase):
     def test_every_new_sound_is_no_brighter_than_the_stones_and_water(self) -> None:
-        reference = json.loads(re.search(r'const REFERENCE := (\[.*?\])', CUES).group(1))
         families = _families()
         measured = {name: [_bands(c) for c in clips] for name, clips in families.items()}
-        ceiling = {k: max(b[k] for name in reference for b in measured[name]) for k in measured[reference[0]][0]}
+        ceiling = {k: max(b[k] for name in REFERENCE for b in measured[name]) for k in measured[REFERENCE[0]][0]}
         rows = []
-        for name in sorted(set(families) - set(reference)):
+        for name in sorted(set(families) - set(REFERENCE)):
             for clip, b in zip(families[name], measured[name]):
                 rows.append(f"{clip.stem:10s} centroid {b['centroid']:5.0f} Hz  >2 kHz {b['above 2000']:.4%}  "
                             f">3 kHz {b['above 3000']:.4%}  >4 kHz {b['above 4000']:.4%}")
