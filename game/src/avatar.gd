@@ -627,10 +627,11 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			im.set_surface_material(i, copies[m])
 
 
-## Draws a material with its colour texture alone, lit once a vertex, front faces only, blended where its file blends
-## it (writing depth where its glTF extras say depthWrite, as Unity's ZWrite On) and otherwise cut out where it is
-## see-through. Lighting each pixel, normal maps, emission and both sides each cost the Quest 2 GPU time over every
-## pixel an avatar covers (docs/multiplayer.md, "A player's own avatar").
+## Draws a material with its colour texture alone, lit once a vertex, front faces only unless its glTF doubleSided draws
+## both (as Unity's Cull Off: a strap modelled facing inward shows only so), blended where its file blends it (writing
+## depth where its glTF extras say depthWrite, as Unity's ZWrite On) and otherwise cut out where it is see-through.
+## Lighting each pixel, normal maps and emission each cost the Quest 2 GPU time over every pixel an avatar covers
+## (docs/multiplayer.md, "A player's own avatar").
 static func _plain(m: BaseMaterial3D) -> void:
 	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
 	if m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
@@ -641,7 +642,7 @@ static func _plain(m: BaseMaterial3D) -> void:
 	m.normal_texture = null
 	m.emission_enabled = false
 	m.emission_texture = null
-	m.cull_mode = BaseMaterial3D.CULL_BACK
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED if m.cull_mode == BaseMaterial3D.CULL_DISABLED else BaseMaterial3D.CULL_BACK
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	if m.transparency in [BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS]:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

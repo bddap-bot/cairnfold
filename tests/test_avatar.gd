@@ -770,6 +770,9 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 			authored += int(json.accessors[int(p.get("indices", p.attributes.POSITION))].count) / 3
 	_keeps_skins_and_shapes(scene, what, targets)
 	var a := Avatar.open(scene, Color.WHITE)
+	var both_sides := {}
+	for m: Dictionary in json.get("materials", []):
+		both_sides[m.get("name", "")] = m.get("doubleSided", false)
 	var triangles := 0
 	var surfaces := 0
 	var plain := 0
@@ -782,12 +785,12 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 			if m != null and m.albedo_texture != null:
 				textures[m.albedo_texture] = true
 			if m != null:
-				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and m.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, BaseMaterial3D.TRANSPARENCY_ALPHA] else 0
+				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and m.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC and not m.normal_enabled and not m.emission_enabled and m.cull_mode == (BaseMaterial3D.CULL_DISABLED if both_sides.get(m.resource_name, false) else BaseMaterial3D.CULL_BACK) and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, BaseMaterial3D.TRANSPARENCY_ALPHA] else 0
 				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 	check(triangles == authored, "%s keeps every triangle its file has (%d of %d)" % [what, triangles, authored])
 	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
-	check(plain == materials, "%s draws its colour alone, sampled anisotropically, lit once a vertex, front faces only, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
+	check(plain == materials, "%s draws its colour alone, sampled anisotropically, lit once a vertex, both sides only where its file says, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
 	for tex: Texture2D in textures:
 		check(tex.get_image().has_mipmaps(), "%s keeps its textures mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])

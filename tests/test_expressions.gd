@@ -14,6 +14,7 @@ func _init() -> void:
 	_decals_share_pages()
 	_moving_targets_leave_regions_bound()
 	_lighting()
+	_sides()
 	_theme_recolours_the_emission()
 	_animated_parameters()
 	_contacts()
@@ -259,6 +260,22 @@ func _lighting() -> void:
 	check(shown[2].get_surface_override_material(0) == null and shown[2].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials dark at rest keeps its plain material")
 	player.free()
 	root.free()
+
+## An animated surface draws the sides its plain material draws: both where its file is double-sided, front faces only
+## where it is not, whether cut out, blended or blended writing depth, its decal hues turned or not.
+func _sides() -> void:
+	for turned: bool in [false, true]:
+		for blend: Array in [[BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, true]]:
+			for cull: int in [BaseMaterial3D.CULL_BACK, BaseMaterial3D.CULL_DISABLED]:
+				var m := StandardMaterial3D.new()
+				m.cull_mode = cull
+				m.transparency = blend[0]
+				m.set_meta("extras", {"depthWrite": blend[1]})
+				Avatar._plain(m)
+				var code := ExpressionPlayer.shader_for(m, turned).code
+				var mode := "cull_disabled" if cull == BaseMaterial3D.CULL_DISABLED else "cull_back"
+				check(mode in code and ("BLENDED" in code) == (blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA) and ("depth_draw_always" in code) == blend[1] and ("DECAL_HUE" in code) == turned, "a %s material, blended %s writing depth %s, hues turned %s, animates with %s" % ["two-sided" if cull == BaseMaterial3D.CULL_DISABLED else "one-sided", blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA, blend[1], turned, mode])
+
 
 ## A clip moving a global theme colour's offset recolours the emission drawn in it on the meshes the clip names, through
 ## their own copy of the looks table, the rest keeping the colour at rest, and a material keeps its own offset while the

@@ -35,10 +35,13 @@ var _frame := 0
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## The expression shaders by whether they turn decal hues, each cut out, blended, and blended writing depth.
+## The expression shaders by whether they turn decal hues, then by whether they draw both sides, each cut out, blended,
+## and blended writing depth.
 const SHADERS := [
-	[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
-	[preload("res://src/expression_hue.gdshader"), preload("res://src/expression_blended_hue.gdshader"), preload("res://src/expression_blended_depth_hue.gdshader")]]
+	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
+	[preload("res://src/expression_two_sided.gdshader"), preload("res://src/expression_blended_two_sided.gdshader"), preload("res://src/expression_blended_depth_two_sided.gdshader")]],
+	[[preload("res://src/expression_hue.gdshader"), preload("res://src/expression_blended_hue.gdshader"), preload("res://src/expression_blended_depth_hue.gdshader")],
+	[preload("res://src/expression_hue_two_sided.gdshader"), preload("res://src/expression_blended_hue_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_two_sided.gdshader")]]]
 ## The look fields that drive a decal, in the order the shader reads them.
 const DECAL_FIELDS := ["decal", "decalIntensity", "decalHue"]
 
@@ -471,8 +474,18 @@ static func _turn(region: Dictionary) -> Color:
 	return Color(float(hue.get("shift", 0)), 1 + 2 * float(hue.get("space", 0)) + float(hue.get("select", 1)), 0, 0)
 
 
+## The expression shader drawing `base` as it draws: cut out, blended or blended writing depth, front faces only or both
+## sides, turning decal hues where `turned`.
+static func shader_for(base: BaseMaterial3D, turned: bool) -> Shader:
+	var way := 0
+	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+		way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
+	var both := base != null and base.cull_mode == BaseMaterial3D.CULL_DISABLED
+	return SHADERS[1 if turned else 0][1 if both else 0][way]
+
+
 ## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
-## blended writing depth. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
+## blended writing depth, each front faces only or both sides as its material draws them. Only a mesh with a decal whose hue turns draws with the shaders that turn it: compiled in, the
 ## turn costs a Quest 2 a few milliseconds a frame on every surface, turned or not.
 func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
@@ -480,10 +493,7 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	var by_shader := {}
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
-		var way := 0
-		if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
-			way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
-		var shader: Shader = SHADERS[1 if _turned.has(str(mesh.name)) else 0][way]
+		var shader := shader_for(base, _turned.has(str(mesh.name)))
 		if not by_shader.has(shader):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader

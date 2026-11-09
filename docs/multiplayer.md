@@ -384,7 +384,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the same step.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
   colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
-  front faces only, and is blended where its file blends it (writing depth where its glTF
+  front faces only unless its glTF `doubleSided` draws both (as Unity's Cull Off: a strap
+  modelled facing inward shows only so), and is blended where its file blends it (writing depth where its glTF
   extras say `depthWrite`, as Unity's ZWrite On) and cut out where else it is see-through;
   normal maps and emission are dropped. Unlit (toon) surfaces are lit like the rest of the garden, so an
   avatar darkens at dusk instead of glowing.
