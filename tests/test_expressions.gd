@@ -159,10 +159,10 @@ func _layers_follow_the_budget() -> void:
 	Avatar.launch_memory = held
 	for shrink: int in [1, 4]:
 		for layer: String in Vrm.LAYERS.keys().filter(func(l: String) -> bool: return l not in Vrm.UNDRAWN):
-			var held := wide.duplicate() as Image
-			Avatar.hold(held, layer, shrink)
+			var layered := wide.duplicate() as Image
+			Avatar.hold(layered, layer, shrink)
 			var side := Avatar.INDEX_SIDE if layer == "index" else int(Avatar.ICON_SIDE) if layer == "icons" else 4096 / shrink
-			check(held.get_width() == side and held.has_mipmaps() == (layer not in Avatar.UNSHRUNK and layer != "hueMask"), "a 4096 %s shrunk %d times is held at %d: %d" % [layer, shrink, side, held.get_width()])
+			check(layered.get_width() == side and layered.has_mipmaps() == (layer not in Avatar.UNSHRUNK and layer != "hueMask"), "a 4096 %s shrunk %d times is held at %d: %d" % [layer, shrink, side, layered.get_width()])
 
 
 func _decals_share_pages() -> void:
