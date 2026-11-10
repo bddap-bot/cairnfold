@@ -20,6 +20,8 @@ const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "st
 
 var main: Main
 var steps: Array
+## Whether the frame budget has turned anything down, as `all_fit` reads.
+var _capped := false
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
 var failed := false
@@ -76,7 +78,20 @@ static func read(path: String) -> Array:
 
 
 func _ready() -> void:
+	main.world.capped.connect(_on_capped)
 	_run()
+
+
+func _on_capped(_hand: XRController3D) -> void:
+	_capped = true
+
+
+## Fails the run if the frame budget has turned down anything so far: the steps before it are what the scene must build,
+## and those after it may build until the budget stops them.
+func _all_fit(_s: Dictionary) -> void:
+	await _until({"answered": true})
+	if _capped:
+		_fail("the frame budget turned down a step before all_fit")
 
 
 func _run() -> void:
@@ -1436,6 +1451,7 @@ func _village(s: Dictionary) -> void:
 					_open_windows(house, k + storey, on.is_empty())
 				if not main.world.fits({"op": "wall", "walls": [house.data()]}):
 					house.free()
+					main.world.cap(null)
 					break
 				tool.build([house])
 				if s.has("doors") and on.is_empty():
@@ -1457,6 +1473,7 @@ func _village(s: Dictionary) -> void:
 					tool.walls[-1].ivy_age = INF
 				else:
 					wing_house.free()
+					main.world.cap(null)
 	for n in fronts.size():
 		var f := fronts[n]
 		var path := PathLayout.new()

@@ -241,7 +241,7 @@ func laid() -> void:
 
 
 ## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
-func play(steps: Array) -> void:
+func play(steps: Array) -> Driver:
 	var d := Driver.new(main, steps)
 	var ran := [false]
 	d.finished.connect(func() -> void: ran[0] = true)
@@ -249,6 +249,7 @@ func play(steps: Array) -> void:
 	if not ran[0]:
 		await d.finished
 	d.queue_free()
+	return d
 
 
 func turn_picker(target: Dictionary, steps: int) -> void:
