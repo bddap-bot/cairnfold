@@ -194,11 +194,6 @@ func take(id: int) -> void:
 	b.queue_free()
 
 
-func clear() -> void:
-	for id in boulders.keys():
-		take(id)
-
-
 func find(id: int) -> Boulder:
 	return boulders.get(id)
 

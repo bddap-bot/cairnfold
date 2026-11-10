@@ -1327,9 +1327,8 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		shown.merge(carry_easel(from, m.took, hand, m.gain, world.terrain.height_at), true)
 		stands.stand(grip.id, shown.at, shown.yaw)
 	s.settle = func() -> void:
-		var now: Dictionary = world.state.easels.get(grip.id, {})
-		if not now.is_empty() and not in_hand.call():
-			stands.stand(grip.id, now.at, now.yaw)
+		if not in_hand.call():
+			stands.settle(grip.id)
 	return s
 
 

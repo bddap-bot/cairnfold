@@ -127,7 +127,7 @@ func _ready() -> void:
 	mirror_tool = MirrorTool.new(rig, world.terrain)
 	add_child(mirror_tool)
 	world.attach(tool, flora, paths, ground_grab, water, easels, boulders)
-	world.holders.append_array([world.stairs, mirror_tool])
+	world.holders.append(mirror_tool)
 	for h in rig.hands:
 		h.world = world
 		h.body.add_child(BudgetBar.new(world, h))

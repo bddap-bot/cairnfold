@@ -420,12 +420,7 @@ func _show(w: Wheel, pick: int) -> void:
 		Palette.preview(pick)
 		return
 	if world.state[w.of].has(w.id):
-		_builder(w.of).show_reshaped(w.id, _data(w, pick) if w.target.tool == Hand.Tool.COLOUR else w.data[pick])
-
-
-## What lays the builds of the garden's table `of`: each shows a reshape before it is sent and `settle`s back.
-func _builder(of: String) -> Object:
-	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders, "decorations": world.decorations, "paths": world.paths}[of]
+		world.views[w.of].show_reshaped(w.id, _data(w, pick) if w.target.tool == Hand.Tool.COLOUR else w.data[pick])
 
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another
@@ -567,7 +562,7 @@ func _settled(w: Wheel) -> void:
 		elif w.id < 0 or w.target.tool == Hand.Tool.COLOUR:
 			_show(w, _now(w))
 		else:
-			_builder(w.of).settle(w.id)).call_deferred()
+			world.views[w.of].settle(w.id)).call_deferred()
 
 
 func _drop(hand: Hand) -> void:

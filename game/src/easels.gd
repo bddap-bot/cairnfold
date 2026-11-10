@@ -196,6 +196,8 @@ class Easel:
 	extends Node3D
 
 	var id := -1
+	## Its entry in the garden's table, which a reshape changes in place.
+	var data: Dictionary
 	var canvas: Canvas
 	var canvas_mesh: MeshInstance3D
 	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
@@ -263,6 +265,7 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.id = id
 	e.name = "Easel%d" % id
 	e.add_to_group("easel")
+	e.data = data
 	e.transform = on_ground(data.at, data.yaw)
 	e.visible = true
 	easels[id] = e
@@ -280,11 +283,6 @@ func take(id: int) -> void:
 	remove_child(e)
 	e.queue_free()
 	_restock()
-
-
-func clear() -> void:
-	for id in easels.keys():
-		take(id)
 
 
 ## A stroke from the garden on easel `id`'s canvas, or with `palette` its oil palette's board: the painter's own is
@@ -308,6 +306,12 @@ func stand(id: int, at: Vector3, yaw: float) -> void:
 	var e := find(id)
 	if e != null:
 		e.transform = on_ground(at, yaw)
+
+
+func settle(id: int) -> void:
+	var e := find(id)
+	if e != null:
+		stand(id, e.data.at, e.data.yaw)
 
 
 ## Stands each easel over the ground reshaped in `area` on it again, as this player now sees it.

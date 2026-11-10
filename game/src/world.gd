@@ -16,6 +16,9 @@ const KEYS := {"walls": "w", "stairs": "q", "paths": "q", "grounds": "q", "easel
 const RATE := 20.0
 const BURST := 60.0
 const COMMAND_BYTES := 4096
+## The tables whose views put and take each build themselves: walls' commands carry more, and decorations are laid from
+## their table at each sync.
+const LAID := ["stairs", "paths", "easels", "boulders"]
 ## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
@@ -53,8 +56,12 @@ var water: Water
 var easels: Easels
 var boulders: Boulders
 var decorations: Decorations
-## Everything that stands what players place, each emptied by its `clear()` when the garden goes, so a wipe or a
-## swap takes whatever anyone can place, the player's own mirror included.
+## What shows the garden's tables of builds, by table: each settles a build back to what the garden has.
+var views: Dictionary:
+	get:
+		return {"walls": wall_tool, "stairs": stairs, "paths": paths, "easels": easels, "boulders": boulders, "decorations": decorations}
+## What keeps more than the garden's tables record, each emptied by its `clear()` when the garden goes: walls still in
+## hand, the ponds shown, the player's own mirror.
 var holders: Array[Node] = []
 ## The garden's ground: its heights and ponds, and the marks paths and painted strokes wear into it.
 var terrain := Terrain.new()
@@ -508,7 +515,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	water = ponds
 	easels = stands
 	boulders = rocks
-	holders.assign([walls, ways, ponds, stands, rocks].filter(func(h: Node) -> bool: return h != null))
+	holders.assign([walls, ponds].filter(func(h: Node) -> bool: return h != null))
 	if flora != null and flora.groups.has(0):
 		_grow_meadow()
 
@@ -1020,28 +1027,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			if cmd.of == "walls":
 				wall_tool.restyle(cmd.id, cmd.data.keys())
 				_floor_mark(cmd.id)
-			elif cmd.of == "stairs":
-				stairs.settle(cmd.id)
-			elif cmd.of == "decorations":
-				if decorations != null:
-					decorations.settle(cmd.id)
-			elif cmd.of == "easels":
-				if easels != null:
-					easels.stand(cmd.id, now.at, now.yaw)
-			elif cmd.of == "paths":
-				paths.settle(cmd.id)
-			elif boulders != null:
-				boulders.put(cmd.id, now)
+			elif views[cmd.of] != null:
+				views[cmd.of].settle(cmd.id)
 			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs":
-			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
-			stairs.put(cmd.id, state.stairs[cmd.id])
-			inverse = _built("stairs", PackedInt32Array([cmd.id]))
+			inverse = _add("stairs", cmd.id, cmd.stairs.duplicate(true))
 		"path":
-			state.paths[cmd.id] = cmd.path.duplicate(true)
-			paths.put(cmd.id, state.paths[cmd.id])
-			inverse = _built("paths", PackedInt32Array([cmd.id]))
+			inverse = _add("paths", cmd.id, cmd.path.duplicate(true))
 		"ground":
 			state.grounds[cmd.id] = _ground(cmd)
 			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind, cmd.get("style", 0))
@@ -1153,10 +1146,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				_clear()
 				_rebuild(cmd.cmds))
 		"easel":
-			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "palette": cmd.palette.duplicate()}
-			if easels != null:
-				easels.put(cmd.id, state.easels[cmd.id])
-			inverse = _built("easels", PackedInt32Array([cmd.id]))
+			inverse = _add("easels", cmd.id, {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "palette": cmd.palette.duplicate()})
 		"paint":
 			state.easels[cmd.easel][Commands.surface(cmd)].append(cmd.stroke)
 			if easels != null:
@@ -1173,13 +1163,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
 		"decoration":
-			state.decorations[cmd.id] = Commands._decoration(cmd)
-			inverse = _built("decorations", PackedInt32Array([cmd.id]))
+			inverse = _add("decorations", cmd.id, Commands._decoration(cmd))
 		"boulder":
-			state.boulders[cmd.id] = Commands._boulder(cmd)
-			if boulders != null:
-				boulders.put(cmd.id, state.boulders[cmd.id])
-			inverse = _built("boulders", PackedInt32Array([cmd.id]))
+			inverse = _add("boulders", cmd.id, Commands._boulder(cmd))
 	if cmd.op in DROWNING and flora != null:
 		var back := _drown()
 		if not back.is_empty():
@@ -1268,20 +1254,11 @@ func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 		for id: int in gone.get(table, {}):
 			back.append(_put(table, id))
 			state[table].erase(id)
-			match table:
-				"stairs":
-					stairs.take(id)
-				"paths":
-					paths.take(id)
-				"grounds":
-					marks.lift(_strokes[id])
-					_strokes.erase(id)
-				"easels":
-					if easels != null:
-						easels.take(id)
-				"boulders":
-					if boulders != null:
-						boulders.take(id)
+			if table == "grounds":
+				marks.lift(_strokes[id])
+				_strokes.erase(id)
+			elif _laid(table):
+				views[table].take(id)
 			_account("%s%d" % [KEYS[table], id], {})
 	walls.reverse()
 	for id: int in walls:
@@ -1290,6 +1267,17 @@ func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 		_account("w%d" % id, {})
 		_floor_mark(id)
 	return back[0] if back.size() == 1 else {"op": "batch", "cmds": back}
+
+
+func _laid(of: String) -> bool:
+	return of in LAID and views[of] != null
+
+
+func _add(of: String, id: int, entry: Dictionary) -> Dictionary:
+	state[of][id] = entry
+	if _laid(of):
+		views[of].put(id, entry)
+	return _built(of, PackedInt32Array([id]))
 
 
 ## Counts the builds `ids` just put in the garden's table `of` in the frame budget; returns what takes them away.
@@ -1460,6 +1448,10 @@ func _hushed(change: Callable) -> Variant:
 func _clear() -> void:
 	for h in holders:
 		h.call(&"clear")
+	for table: String in LAID:
+		if _laid(table):
+			for id: int in state[table].keys():
+				views[table].take(id)
 	for d: Dictionary in [_strokes, _floor_marks]:
 		for id in d:
 			marks.lift(d[id])
