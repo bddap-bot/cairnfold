@@ -194,8 +194,6 @@ var springs: SpringRuntime
 var simulate_springs := true
 ## Whether this is the player's own avatar, where alone its local-only contacts run.
 var local := false
-var _senders := []
-var _senders_frame := -1
 var expressions: ExpressionPlayer
 var particles: AvatarParticles
 var spring_holders := {}
@@ -422,7 +420,7 @@ static func _switched_off(root: Node3D) -> void:
 	var bones := func(s: Dictionary) -> Dictionary:
 		var out := {}
 		for j: Variant in s.joints:
-			out[j if j is String else int(j)] = true
+			out[int(j)] = true
 		return out
 	var switched: Array = data.get("springs", [])
 	var stopped: Array = switched.filter(off).map(bones)
@@ -836,19 +834,15 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 ## The contact senders this body carries in world space this frame (Contacts.BODIES): VRChat's built-in ones on its
 ## humanoid bones (Contacts.BODY) unless its file gives its body's, and its expressions' own; none while it is hidden.
 func contact_senders() -> Array:
-	var frame := Engine.get_process_frames()
-	if frame == _senders_frame:
-		return _senders
-	_senders_frame = frame
-	_senders = []
+	var senders := []
 	if not is_visible_in_tree():
-		return _senders
+		return senders
 	var joint := func(name: String) -> Variant: return bone(name).origin if _joints.has(name) else null
 	if expressions == null or not expressions.contacts.carries_body:
-		_senders = Contacts.body_senders(joint, eye_height * global_transform.basis.get_scale().y, self)
+		senders = Contacts.body_senders(joint, eye_height * global_transform.basis.get_scale().y, self)
 	if expressions != null:
-		_senders.append_array(expressions.contacts.senders(expressions.state.outputs, self))
-	return _senders
+		senders.append_array(expressions.contacts.senders(expressions.state.outputs, self))
+	return senders
 
 
 ## Each finger of hand `side` the model has, its bones curling toward the palm, a thumb across it: a VRM rests palms down.

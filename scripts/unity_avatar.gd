@@ -1,10 +1,9 @@
 extends SceneTree
 
-## Imports the avatar in a Unity source package as the avatar model (Avatar.model) and writes it as a Godot scene: run
-## from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.scn [AVATAR] [--with PACKAGE]... [--packages DIR]
-## OUT.vrm writes it instead as the VRM a player wears: the avatars folder reads only VRM, since a worn file travels to
-## every player met and a Godot scene can run code; Avatar.read reads it back into the same model. The atlas widens up
+## Imports the avatar in a Unity source package and writes it as the VRM a player wears: run from game/ as
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR]
+## The avatars folder reads only VRM, since a worn file travels to every player met and a Godot scene can run code;
+## Avatar.read reads it into the avatar model (Avatar.model). The atlas widens up
 ## to Avatar.MAX_IMAGE_SIDE, so every texture keeps the size Unity shows it at. DIR, a Unity project's Packages folder,
 ## lends the images PACKAGE names but leaves to the shader packages installed beside it (Poiyomi's matcaps); without it
 ## a PACKAGE naming an image no package holds is refused, since those would draw as their shader's default, white.
@@ -22,7 +21,7 @@ extends SceneTree
 ## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones become
 ## spring chains, and its menu, parameters and FX controller, with what its VRCFury features add, become the model's
 ## "expressions" (VRCHAT_expressions in a VRM); its visemes, eyelid blink and the faces its FX layer makes for hand
-## gestures become VRM expressions, "faces" on the root as Vrm.write takes them. No VRM lies between: VRM cannot carry what later importer work adds to the model.
+## gestures become VRM expressions, "faces" on the root as Vrm.write takes them.
 ## The importer prints what it kept and dropped. A VRM carries in its asset extras the "converter" source() that wrote it.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -76,8 +75,8 @@ func _run() -> void:
 		else:
 			args.append(given[i])
 			i += 1
-	if args.size() < 2 or args.size() > 3 or args.has("--packages") or args.has("--with"):
-		printerr("usage: unity_avatar.gd PACKAGE OUT.scn [AVATAR] [--with PACKAGE]... [--packages DIR]")
+	if args.size() < 2 or args.size() > 3 or args.has("--packages") or args.has("--with") or args[1].get_extension() != "vrm":
+		printerr("usage: unity_avatar.gd PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR]")
 		quit(2)
 		return
 	var dirs := PackedStringArray()
@@ -92,30 +91,15 @@ func _run() -> void:
 		quit(1)
 		return
 	var report: Dictionary = root.get_meta("report")
-	var vrm: bool = args[1].get_extension() == "vrm"
-	if vrm:
-		wearable(root)
-		Vrm.write(root, args[1], {"converter": source()})
-		root.free()
-		var bytes := FileAccess.get_file_as_bytes(args[1])
-		if Avatar.read(bytes, true) == null:
-			printerr("unity_avatar: Avatar.read refuses %s" % args[1])
-			quit(1)
-			return
-		var pixels := Vrm.pixels(Vrm.images(bytes))
-		var heavy := Avatar.weight(bytes.size(), pixels)
-		if heavy > 1.0:
-			print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
-	else:
-		var scene := Avatar.model(root)
-		if scene == null:
-			printerr("unity_avatar: Avatar.model refuses it: it needs %s as bones of one skeleton and at most %d surfaces" % [Avatar.NEEDS, Avatar.MAX_SURFACES])
-			quit(1)
-			return
-		if ResourceSaver.save(scene, args[1]) != OK:
-			printerr("unity_avatar: cannot write %s" % args[1])
-			quit(1)
-			return
+	var bytes := write(root, args[1], {"converter": source()})
+	if Avatar.read(bytes, true) == null:
+		printerr("unity_avatar: Avatar.read refuses %s: it needs %s as bones of one skeleton and at most %d surfaces" % [args[1], Avatar.NEEDS, Avatar.MAX_SURFACES])
+		quit(1)
+		return
+	var pixels := Vrm.pixels(Vrm.images(bytes))
+	var heavy := Avatar.weight(bytes.size(), pixels)
+	if heavy > 1.0:
+		print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
 	report["file bytes"] = FileAccess.get_size(args[1])
 	for k: String in report:
 		print("unity_avatar: %s: %s" % [k, report[k]])
@@ -133,9 +117,18 @@ static func source() -> Dictionary:
 	return {"commit": str(head[0]).strip_edges() if committed else "", "dirty": not clean}
 
 
+## Writes the avatar's `root` as the file a player wears at `path`, made `_wearable` and with `extras` in the file's
+## asset extras (Vrm.write); frees `root` and returns the file's bytes.
+static func write(root: Node3D, path: String, extras := {}) -> PackedByteArray:
+	_wearable(root)
+	Vrm.write(root, path, extras)
+	root.free()
+	return FileAccess.get_file_as_bytes(path)
+
+
 ## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, with the humanoid's
 ## paths and the constraints kept on their bones.
-static func wearable(root: Node3D) -> void:
+static func _wearable(root: Node3D) -> void:
 	var human: Dictionary = root.get_meta("humanoid")
 	var skeleton := str(human.hips).get_slice(":", 0)
 	var sk: Skeleton3D = root.get_node(skeleton)
@@ -196,7 +189,7 @@ class Unpacked:
 			OS.execute("rm", ["-rf", path])
 
 
-## The avatar in `dir`, over the assets `lent` lends it, as the scene and avatar data Avatar.model takes, its root also
+## The avatar in `dir`, over the assets `lent` lends it, as the scene and avatar data `write` takes, its root also
 ## carrying "report" (what was kept and dropped, by kind). Null, with the reason printed, if the package holds no avatar
 ## to convert; the reason names each prefab or model GUID its scenes and prefabs instance that no package holds. Null too
 ## where its materials name a texture no package holds and no `packages` folder was named: such a texture is mostly a

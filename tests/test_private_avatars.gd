@@ -48,27 +48,22 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	for chain: Dictionary in (model.get_meta("springs") as Dictionary).springs:
 		carried += (chain.joints as Array).size()
 	print("%s: %d ms, %d spring joints, %s" % [label, Time.get_ticks_msec() - started, carried, model.get_meta("report")])
-	var worn: Node3D = model.duplicate()
-	UnityAvatar.wearable(worn)
-	var vrm := ProjectSettings.globalize_path("user://corpus.vrm")
-	Vrm.write(worn, vrm)
-	worn.free()
-	check(Avatar.read(FileAccess.get_file_as_bytes(vrm)) != null, "%s's VRM, the file a player wears, reads into the avatar model" % label)
-	var packed := Avatar.model(model)
-	check(packed != null, "%s is an avatar model within the limits" % label)
-	if packed == null:
-		return
-	var path := ProjectSettings.globalize_path("user://corpus.scn")
-	check(ResourceSaver.save(packed, path) == OK, "%s writes" % label)
-	var scene := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
-	check(scene != null, "%s reads back" % label)
+	var running := _running(model)
+	var scene := Avatar.read(UnityAvatar.write(model, ProjectSettings.globalize_path("user://corpus.vrm")))
+	check(scene != null, "%s's VRM, the file a player wears, reads into the avatar model within the limits" % label)
 	if scene == null:
 		return
 	var held := scene.instantiate()
+	var human: Dictionary = held.get_meta("humanoid")
 	var joints := 0
+	var off := []
 	for chain: Dictionary in (held.get_meta("springs") as Dictionary).springs:
 		joints += (chain.joints as Array).size()
+		var bones: Array = chain.joints.map(func(j: Dictionary) -> String: return (human["spring_%d" % j.node] as NodePath).get_concatenated_subnames())
+		if not running.has(bones):
+			off.append(bones)
 	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s simulates %d spring joints, within the limit" % [label, joints])
+	check(off.is_empty(), "%s simulates no spring chain its menu switches off by default: %d of them" % [label, off.size()])
 	held.free()
 	var a := Avatar.open(scene, Color.WHITE, label)
 	root.add_child(a)
@@ -77,3 +72,21 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	var gap := a.bone("head").origin.distance_to(eyes.origin)
 	check(gap < 0.5, "%s: the head bone is %.2f m from the eyes" % [label, gap])
 	a.free()
+
+
+## The bones of each spring chain of the converter's `model` that its menu's default state leaves running, as the worn
+## file's reader decides that over bone indices (Avatar._switched_off).
+func _running(model: Node3D) -> Dictionary:
+	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
+	var expressions: Dictionary = model.get_meta("expressions", {}).duplicate(true)
+	for s: Dictionary in expressions.get("springs", []):
+		s.joints = s.joints.map(func(n: String) -> int: return sk.find_bone(n))
+	var probe := Node3D.new()
+	probe.set_meta("expressions", expressions)
+	probe.set_meta("springs", (model.get_meta("springs") as Dictionary).duplicate(true))
+	Avatar._switched_off(probe)
+	var out := {}
+	for chain: Dictionary in probe.get_meta("springs").springs:
+		out[chain.joints.map(func(j: Dictionary) -> String: return sk.get_bone_name(j.node))] = true
+	probe.free()
+	return out

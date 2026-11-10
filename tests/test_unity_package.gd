@@ -2696,7 +2696,7 @@ PrefabInstance:
 	check(imported != null and imported.name == "Edit", "the edit imports over its base as the avatar its variant names (%s)" % [imported.name if imported != null else null])
 	if imported != null:
 		check((imported.get_meta("report")["renderers drawn"] as Array).size() == 5, "the base's model draws all five renderers under the edit")
-		check(Avatar.model(imported) != null, "the edit is an avatar model")
+		check(Avatar.read(UnityAvatar.write(imported, ProjectSettings.globalize_path("user://edit.vrm")), true) != null, "the edit is an avatar a player wears")
 	check(UnityAvatar.avatar_scene(edit) == null, "the edit alone imports as nothing")
 	var absent := UnityAvatar.absent_instances(Assets.new(edit))
 	check(absent == {"ba5e": "Edit.prefab"}, "the edit alone names its base's absent GUID and the file instancing it: %s" % absent)

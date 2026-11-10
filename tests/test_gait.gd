@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_balance_steps_before_distance()
-	var models := {"the built-in": Avatar.built_in(0), "Crimsom": Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))), "Seed-san": Avatar.model(UnityAvatar.avatar_scene(avatar_file("seed-san")))}
+	var models := {"the built-in": Avatar.built_in(0), "Crimsom": Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))), "Seed-san": Avatar.read(UnityAvatar.write(UnityAvatar.avatar_scene(avatar_file("seed-san")), ProjectSettings.globalize_path("user://seed-san.vrm")), true)}
 	for what: String in models:
 		var scene: PackedScene = models[what]
 		_sway_keeps_the_feet(scene, what)

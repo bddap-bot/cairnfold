@@ -291,8 +291,8 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 
 
 ## The Unity sample package imports as the avatar model straight from its FBX and .meta: its skeleton, skin and blend
-## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as a
-## scene and read back, it opens, poses and bends as the engine's own import of the FBX does.
+## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as the
+## VRM a player wears and read back, it opens, poses and bends as the engine's own import of the FBX does.
 func _unity_package_converts() -> void:
 	var model := UnityAvatar.avatar_scene(avatar_file("seed-san"))
 	check(model != null, "the Unity package imports")
@@ -302,21 +302,24 @@ func _unity_package_converts() -> void:
 	var human: Dictionary = model.get_meta("humanoid")
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var bone_of := func(b: String) -> String: return (human[b] as NodePath).get_concatenated_subnames()
-	_rests_in_the_avatar_definitions_pose(sk, bone_of.call("leftUpperArm"), FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
+	var upper_arm: String = bone_of.call("leftUpperArm")
+	_rests_in_the_avatar_definitions_pose(sk, upper_arm, FileAccess.get_file_as_string(avatar_file("seed-san/Models/new_seedsan_betterfbx.fbx.meta")))
 	check(human.size() == avatar.human.size() and avatar.human.keys().all(func(b: String) -> bool:
 		var as_bone := UnityAvatar.vrm_bone(avatar.human[b])
 		return human.has(as_bone) and sk.find_bone(bone_of.call(as_bone)) >= 0), "every bone the Avatar definition maps is a skeleton bone under its humanoid name (%d of %d)" % [human.size(), avatar.human.size()])
 	check(bone_of.call("hips") == "hips" and bone_of.call("head") == "head" and bone_of.call("leftThumbMetacarpal") == "thumb_01_L", "the bones keep Unity's names, made fit for nodes: its de-duplicated head is the skeleton's head, its thumb proximal VRM's metacarpal")
-	var path := ProjectSettings.globalize_path("user://seed-san.scn")
+	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
 	var report: Dictionary = model.get_meta("report")
 	check((report["renderers drawn"] as Array).size() == 5, "all five of the model's renderers draw (%s)" % [report["renderers drawn"]])
 	_writes_expressions(model)
+	var vrm_names := {}
+	for b: String in human:
+		if b in Vrm.BONES:
+			vrm_names[bone_of.call(b)] = b
 	var started := Time.get_ticks_usec()
-	var packed := Avatar.model(model)
-	check(packed != null and ResourceSaver.save(packed, path) == OK, "the model packs and saves as a scene")
-	var scene := load(path) as PackedScene
-	print("unity package: modelled and written in %.0f ms" % ((Time.get_ticks_usec() - started) / 1000.0))
-	check(scene != null, "the written scene reads back as the avatar model")
+	var scene := Avatar.read(UnityAvatar.write(model, path), true)
+	print("unity package: written and read in %.0f ms" % ((Time.get_ticks_usec() - started) / 1000.0))
+	check(scene != null, "the written VRM reads back as the avatar model")
 	if scene == null:
 		return
 	_pose_puts_the_eyes_on_the_head(scene, "seed-san")
@@ -329,7 +332,7 @@ func _unity_package_converts() -> void:
 		shapes[mi.mesh] = mi.mesh.get_blend_shape_count()
 	check(skins.size() == 5 and shapes.values().has(43), "the engine's import of the FBX has five skinned meshes and the face's 43 blend shapes")
 	_keeps_skins_and_shapes(scene, "seed-san", shapes.values().reduce(func(n: int, k: int) -> int: return n + k, 0))
-	_skin_bends_as(scene, "seed-san", _scene_skin.bind(reference))
+	_skin_bends_as(scene, "seed-san", _scene_skin.bind(reference, vrm_names))
 	reference.free()
 	var lowered := ProjectSettings.globalize_path("user://seed-san-lowered/Models")
 	DirAccess.make_dir_recursive_absolute(lowered)
@@ -345,7 +348,7 @@ func _unity_package_converts() -> void:
 	check(moved != null, "the package with its Avatar's arm turned imports")
 	if moved != null:
 		var moved_sk: Skeleton3D = moved.find_children("*", "Skeleton3D", true, false)[0]
-		_rests_in_the_avatar_definitions_pose(moved_sk, bone_of.call("leftUpperArm"), meta)
+		_rests_in_the_avatar_definitions_pose(moved_sk, upper_arm, meta)
 		moved.free()
 	var empty := ProjectSettings.globalize_path("user://no-humanoid")
 	DirAccess.make_dir_recursive_absolute(empty)
@@ -359,21 +362,19 @@ func _rest_weights_survive_the_vrm() -> void:
 	var mi: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false).filter(func(m: MeshInstance3D) -> bool: return m.get_blend_shape_count() > 1)[0]
 	var shape: StringName = mi.mesh.get_blend_shape_name(1)
 	mi.set_blend_shape_value(1, 0.6)
-	UnityAvatar.wearable(model)
-	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
-	Vrm.write(model, path, {"converter": UnityAvatar.source()})
-	var stamp: Variant = Vrm.json_chunk(FileAccess.get_file_as_bytes(path)).asset.get("extras", {}).get("converter")
+	var worn_name := str(mi.name)
+	var bytes := UnityAvatar.write(model, ProjectSettings.globalize_path("user://seed-san.vrm"), {"converter": UnityAvatar.source()})
+	var stamp: Variant = Vrm.json_chunk(bytes).asset.get("extras", {}).get("converter")
 	var head := []
 	var status := []
 	OS.execute("git", ["-C", ProjectSettings.globalize_path("res://.."), "rev-parse", "HEAD"], head)
 	OS.execute("git", ["-C", ProjectSettings.globalize_path("res://.."), "status", "--porcelain", "--untracked-files=no"], status)
 	check(str(stamp) == str({"commit": str(head[0]).strip_edges(), "dirty": str(status[0]).strip_edges() != ""}), "the VRM names the converter checkout that wrote it: %s" % stamp)
-	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(path)), Color.WHITE)
-	var worn: Array = a.find_children(str(mi.name), "MeshInstance3D", true, false)
+	var a := Avatar.open(Avatar.read(bytes), Color.WHITE)
+	var worn: Array = a.find_children(worn_name, "MeshInstance3D", true, false)
 	var at := -1.0 if worn.size() != 1 else (worn[0] as MeshInstance3D).get_blend_shape_value((worn[0] as MeshInstance3D).find_blend_shape_by_name(shape))
 	check(is_equal_approx(at, 0.6), "a shape saved at 0.6 is worn at 0.6, not %f" % at)
 	a.free()
-	model.free()
 
 
 ## A model Vrm.read made writes, and reads back with the same springs on the same bones, settled rotations included.
@@ -432,11 +433,7 @@ func _writes_expressions(model: Node3D) -> void:
 	var mi: MeshInstance3D = worn.find_children("*", "MeshInstance3D", true, false)[0]
 	var shape: String = mi.mesh.get_blend_shape_name(mi.mesh.get_blend_shape_count() - 1)
 	worn.set_meta("faces", {"happy": [{"node": mi.name, "shape": shape, "weight": 0.5}], "wink": [{"node": mi.name, "shape": shape, "weight": 1.0}], "none": [{"node": mi.name, "shape": "no such shape", "weight": 1.0}]})
-	UnityAvatar.wearable(worn)
-	var vrm := ProjectSettings.globalize_path("user://seed-san.vrm")
-	Vrm.write(worn, vrm)
-	worn.free()
-	var json: Dictionary = Vrm.json_chunk(FileAccess.get_file_as_bytes(vrm))
+	var json: Dictionary = Vrm.json_chunk(UnityAvatar.write(worn, ProjectSettings.globalize_path("user://seed-san.vrm")))
 	var used: Array = json.get("extensionsUsed", [])
 	check((json.extensions as Dictionary).keys().all(func(e: String) -> bool: return used.has(e)), "the file lists the extensions it carries: %s of %s" % [used, (json.extensions as Dictionary).keys()])
 	var expressions: Dictionary = json.extensions.VRMC_vrm.expressions
@@ -556,8 +553,8 @@ func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
 
 
 ## Where an importer's own scene's skins put each vertex over the posed avatar's bones of the same names (as node names
-## hold them), by rest position.
-func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
+## hold them, each in `renamed` by the name the worn file gives it), by rest position.
+func _scene_skin(a: Avatar, source: Node3D, renamed: Dictionary) -> Dictionary:
 	var sk := a._skeleton
 	var at := Meshes.relative(sk, a._model)
 	var out := {}
@@ -568,7 +565,8 @@ func _scene_skin(a: Avatar, source: Node3D) -> Dictionary:
 		var joints: Array[Transform3D] = []
 		for i in mi.skin.get_bind_count():
 			var b := Meshes.bind_bone(mi.skin, i, theirs)
-			joints.append(at * sk.get_bone_global_pose(sk.find_bone(theirs.get_bone_name(b).validate_node_name())) * mi.skin.get_bind_pose(i))
+			var name := theirs.get_bone_name(b).validate_node_name()
+			joints.append(at * sk.get_bone_global_pose(sk.find_bone(renamed.get(name, name))) * mi.skin.get_bind_pose(i))
 		var skin := _skin(mi, joints)
 		for v in skin[0].size():
 			out.get_or_add(skin[0][v].snappedf(1e-5), []).append(skin[1][v])
