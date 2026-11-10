@@ -263,8 +263,7 @@ func laid() -> void:
 	await until(func() -> bool: return not main.world.stairs.laying() and not main.tool.walls.any(func(w: Wall) -> bool: return w.laying()), "every build lays")
 
 
-## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
-## Demo `path`'s steps as a test plays them: none that captures or quits, and none capturing as it ends.
+## Demo `path`'s steps as a test plays them: no capture or quit step, and no step's own captures.
 static func demo(path: String) -> Array:
 	var steps := Driver.read(path).filter(func(s: Dictionary) -> bool: return s.op not in ["capture", "quit"])
 	for s: Dictionary in steps:
@@ -272,6 +271,7 @@ static func demo(path: String) -> Array:
 	return steps
 
 
+## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
 func play(steps: Array) -> Driver:
 	var d := Driver.new(main, steps)
 	var ran := [false]
