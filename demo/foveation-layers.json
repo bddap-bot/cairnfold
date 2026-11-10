@@ -20,9 +20,7 @@
   "radius": 20,
   "spacing": 7,
   "storeys": 2,
-  "wings": true,
-  "plaster": true,
-  "timber_style": 0
+  "wings": true
  },
  {
   "op": "wait",

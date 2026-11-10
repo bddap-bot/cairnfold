@@ -93,6 +93,10 @@ func _all_fit(_s: Dictionary) -> void:
 
 
 func _run() -> void:
+	for step: Dictionary in steps:
+		for s: Dictionary in [step] + step.get("build", []):
+			if not has_method("_" + s.op):
+				_fail("no op %s" % s.op)
 	await _drawing()
 	if main.get_viewport().use_xr:
 		for s in HELD:
@@ -400,10 +404,12 @@ func _hand(s: Dictionary, side := "right") -> Hand:
 
 
 static func _tool(s: Dictionary) -> Hand.Tool:
-	return Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
+	return Lessons.tool(s.get("tool", "none"))
 
 
 func _side(side: String) -> Hand:
+	if side not in ["left", "right"]:
+		_fail("no hand %s" % side)
 	return main.rig.left if side == "left" else main.rig.right
 
 
@@ -2416,6 +2422,8 @@ func _book(s: Dictionary) -> void:
 			b.turn(1)
 		"back":
 			b.turn(-1)
+		_:
+			_fail("book: no %s" % s.do)
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
 
 

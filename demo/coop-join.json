@@ -1,7 +1,6 @@
 [
   {"op": "place", "x": 2, "z": 9},
   {"op": "wall", "points": [[-2, 14], [3, 14]], "seconds": 0.3},
-  {"op": "until", "nearby": 1},
   {"op": "until", "heard": true},
   {"op": "visit"},
   {"op": "wall", "points": [[1, -3], [6, -2]], "seconds": 0.4},

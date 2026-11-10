@@ -747,8 +747,7 @@
   },
   {
     "op": "befriend",
-    "hand": "right",
-    "index": 1
+    "hand": "right"
   },
   {
     "op": "view",
