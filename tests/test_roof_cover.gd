@@ -4,7 +4,7 @@ extends "res://../tests/support/suite.gd"
 ## from above, from the side and slantwise along the ridge meet a tile first, on small and middling houses at steep
 ## pitches with the slopes bowed and sagged as far as a pull takes them.
 
-const Closure = preload("res://../tests/test_roof_closure.gd")
+const HouseLeaks = preload("res://../tests/support/house_leaks.gd")
 const VIEWS := [Vector3(0, 1, 0), Vector3(0, 0.5, 1), Vector3(0, 0.5, -1), Vector3(1, 0.3, 0), Vector3(1, 0.3, 0.5), Vector3(1, 0.3, -0.5)]
 
 
@@ -35,7 +35,7 @@ func _case(size: Vector2, pitch: float, curve: float, seed_value: int) -> int:
 	var kinds := Wall.kinds()
 	var packed := Wall.pack_roof(w, r, kinds, Palette.plain())
 	var tiles := TriangleMesh.new()
-	assert(tiles.create_from_faces(Closure._instances(packed.tiles, kinds[Wall.Part.TILE])))
+	assert(tiles.create_from_faces(HouseLeaks.instances(packed.tiles, kinds[Wall.Part.TILE])))
 	var torching := TriangleMesh.new()
 	assert(torching.create_from_faces(r.torching_faces))
 	var f := r.frame()
