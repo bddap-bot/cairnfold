@@ -68,8 +68,7 @@ void vertex() {
 		}
 		local_pos = VERTEX;
 		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
-		room_row = room_row_at(world_pos);
-		room_in = room_in_at(room_row, world_pos, world_nrm);
+		ROOM_HERE;
 #ifdef ROOF_TIMBER
 		occlusion = 0.85;
 		material = 5.0;
@@ -151,14 +150,10 @@ void fragment() {
 	}
 	ROUGHNESS = style >= 0 ? stone_look[style].w : 0.92;
 	SPECULAR = 0.25;
-	float sun_share = interior_light(world_pos, world_nrm, room_row, room_in);
-	vec2 ao = interior_ao(sun_share, bounce.a);
-	AO = ao.x;
-	AO_LIGHT_AFFECT = ao.y;
 #ifdef GIVEN_PER_VERTEX
 	EMISSION = ALBEDO * given.rgb + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #else
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #endif
-	EMISSION += ALBEDO * interior_ambient(sun_share, bounce.a, world_nrm);
+	TAKE_ROOM(bounce.a);
 }

@@ -20,8 +20,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float ground = ground_at(world_pos.xz);
-	room_row = room_row_at(world_pos);
-	room_in = room_in_at(room_row, world_pos, world_nrm);
+	ROOM_HERE;
 	// The probes beside it stand among the tiles; the floor's see what the room does through its doors. A gable's
 	// outer backing shows where its courses stop short of the apex, so it reads the air outside as their stones do.
 	bool outside = COLOR.r > 0.5 && !within_walls(world_pos.xz + world_nrm.xz * 0.5);
@@ -37,10 +36,6 @@ void fragment() {
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 	vec4 bounce = texture(bounce_volume, bounce_at);
-	float sun_share = interior_light(world_pos, world_nrm, room_row, room_in);
-	vec2 ao = interior_ao(sun_share, bounce.a);
-	AO = ao.x;
-	AO_LIGHT_AFFECT = ao.y;
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
-	EMISSION += ALBEDO * interior_ambient(sun_share, bounce.a, world_nrm);
+	TAKE_ROOM(bounce.a);
 }

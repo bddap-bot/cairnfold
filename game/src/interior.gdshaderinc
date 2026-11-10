@@ -1,8 +1,9 @@
 // Sun and moon inside a house or tower come in only through its openings (Interior): a shell shader lights a point
 // in a room only where the way to the light leaves through a door, window, arch or dormer window, so no gap in the
 // shadow map, and no ladder step drawing no sun shadows, lets light in anywhere else. Include after
-// bounce.gdshaderinc; vertex() sets room_row and room_in, and fragment() takes interior_light's share of the light
-// through interior_ao and interior_ambient.
+// bounce.gdshaderinc. ROOM_HERE follows vertex()'s last write to world_pos and world_nrm; TAKE_ROOM(sky) follows
+// fragment()'s EMISSION, `sky` the share of the sky the surface sees (Bounce). Each is several statements, so needs
+// braces under an if.
 // room_field twice over: filtered for how far inside a room a point lies and its floor and ceiling, nearest for the
 // row its alpha names.
 global uniform sampler2D room_field : filter_linear, repeat_disable;
@@ -28,6 +29,9 @@ const float ROOM_READ = 1.0;
 // centre line asks again per fragment.
 varying flat int room_row;
 varying float room_in;
+
+#define ROOM_HERE room_row = room_row_at(world_pos); room_in = room_in_at(room_row, world_pos, world_nrm)
+#define TAKE_ROOM(sky) float sun_share = interior_light(world_pos, world_nrm, room_row, room_in); vec2 room_ao = interior_ao(sun_share, sky); AO = room_ao.x; AO_LIGHT_AFFECT = room_ao.y; EMISSION += ALBEDO * interior_ambient(sun_share, sky, world_nrm)
 
 int room_row_at(vec3 p) {
 	ivec2 size = textureSize(room_nearest, 0);

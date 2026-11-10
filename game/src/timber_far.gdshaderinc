@@ -19,8 +19,7 @@ void vertex() {
 		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
 		world_nrm = normalize(mat3(piece) * NORMAL);
 		occlusion = PIECE_CUSTOM.x;
-		room_row = room_row_at(world_pos);
-		room_in = room_in_at(room_row, world_pos, world_nrm);
+		ROOM_HERE;
 		float ground = ground_at(world_pos.xz);
 		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm), ground), lamp_over(world_pos, world_nrm, ground));
 #ifdef BAKED
@@ -34,10 +33,6 @@ void fragment() {
 	ALBEDO = COLOR.rgb * occlusion;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
-	float sun_share = interior_light(world_pos, world_nrm, room_row, room_in);
-	vec2 ao = interior_ao(sun_share, given.a);
-	AO = ao.x;
-	AO_LIGHT_AFFECT = ao.y;
 	EMISSION = ALBEDO * given.rgb;
-	EMISSION += ALBEDO * interior_ambient(sun_share, given.a, world_nrm);
+	TAKE_ROOM(given.a);
 }

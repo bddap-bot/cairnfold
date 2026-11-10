@@ -20,8 +20,7 @@ varying vec3 lamp_at;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	room_row = room_row_at(world_pos);
-	room_in = room_in_at(room_row, world_pos, world_nrm);
+	ROOM_HERE;
 	fall = normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz);
 	float ground = ground_at(world_pos.xz);
 	bounce_at = volume_coord(room_read(room_row, read_over_cover(world_pos, world_nrm), world_nrm), ground);
@@ -41,10 +40,6 @@ void fragment() {
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.15;
 	vec4 bounce = texture(bounce_volume, bounce_at);
-	float sun_share = interior_light(world_pos, world_nrm, room_row, room_in);
-	vec2 ao = interior_ao(sun_share, bounce.a);
-	AO = ao.x;
-	AO_LIGHT_AFFECT = ao.y;
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
-	EMISSION += ALBEDO * interior_ambient(sun_share, bounce.a, world_nrm);
+	TAKE_ROOM(bounce.a);
 }

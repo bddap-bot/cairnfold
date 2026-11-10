@@ -653,7 +653,7 @@ func _place_laid(w: Wall, x: Transform3D) -> void:
 		return
 	w.transform = x
 	if world.decorations != null:
-		world.decorations.carry()
+		world.decorations.place()
 
 
 ## Lets the house in hand go: it is set where and as it stands, one reshape with the builds on it carried along, and

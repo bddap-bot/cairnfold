@@ -82,11 +82,11 @@ func sync() -> void:
 		n.visible = not (key[0] is String and _swept.has(int(key[0])))
 		add_child(n)
 		_batches[key] = {"node": n, "sig": groups[key]}
-	_place()
+	place()
 
 
 ## Stands each batch where its house now is, a decoration standing alone where it is, and gathers their flames.
-func _place() -> void:
+func place() -> void:
 	for key in _batches:
 		var w: Wall = walls.find(key[0]) if key[0] is int else null
 		_batches[key].node.transform = world_xform(int(key[0])) if key[0] is String else w.transform if w != null else Transform3D.IDENTITY
@@ -170,11 +170,6 @@ static func plan(w: Wall) -> Transform3D:
 	return Transform3D(Basis(f.along * half.x, Vector3.UP, f.across * half.y), Vector3(f.mid.x, 0.0, f.mid.z))
 
 
-## Moves the decorations on a carried wall with its stones.
-func carry() -> void:
-	_place()
-
-
 ## Whether decoration `id` burns a flame.
 func lit(id: int) -> bool:
 	return placed.has(id) and not placed[id].flames.is_empty()
@@ -212,7 +207,7 @@ func show_held(id: int, d: Dictionary) -> void:
 	var was: Transform3D = placed[id].xform
 	placed[id].flames = PackedVector3Array(Array(placed[id].flames).map(func(f: Vector3) -> Vector3: return x * (was.affine_inverse() * f)))
 	placed[id].xform = x
-	_place()
+	place()
 
 
 func sweep(id: int) -> void:

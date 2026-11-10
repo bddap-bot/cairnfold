@@ -884,16 +884,22 @@ static func _decor(root: Node3D) -> void:
 ## at `spot`, or one through a small roof's ridge.
 static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO, index := 0) -> Node3D:
 	var laid := fitting_parts(what, on, spot, index)
-	var root := Node3D.new()
-	var stones := Stones.new()
-	stones.lay(laid.parts)
-	root.add_child(stones)
-	if not laid.flames.is_empty() or not laid.cloths.is_empty():
-		var lit := Fittings.new()
-		lit.lay(laid.flames, laid.cloths)
-		root.add_child(lit)
+	var root := _laid(laid.parts, laid.flames, laid.cloths)
 	for g in root.find_children("*", "GeometryInstance3D", true, false):
 		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return root
+
+
+## Stones laid as `parts`, with Fittings for any flames, burning in `look`, and cloths.
+static func _laid(parts: Array[Dictionary], flames: Array[Transform3D], cloths: Array[Dictionary], look := 0) -> Node3D:
+	var root := Node3D.new()
+	var stones := Stones.new()
+	stones.lay(parts)
+	root.add_child(stones)
+	if not flames.is_empty() or not cloths.is_empty():
+		var lit := Fittings.new()
+		lit.lay(flames, cloths, look)
+		root.add_child(lit)
 	return root
 
 
@@ -1146,14 +1152,7 @@ static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> Stand
 
 ## A decoration as `layout` lays it, its flames burning in `look` (a Palette.Element.LANTERN swatch).
 static func decoration(layout: DecorationLayout, look := 0) -> Node3D:
-	var root := Node3D.new()
-	var stones := Stones.new()
-	stones.lay(layout.parts)
-	root.add_child(stones)
-	if not layout.flames.is_empty():
-		var fire := Fittings.new()
-		fire.lay(layout.flames, [], look)
-		root.add_child(fire)
+	var root := _laid(layout.parts, layout.flames, [], look)
 	if not layout.flowers.is_empty():
 		var surface := SurfaceTool.new()
 		surface.begin(Mesh.PRIMITIVE_TRIANGLES)

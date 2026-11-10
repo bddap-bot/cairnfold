@@ -10,8 +10,6 @@ signal finished
 ## How long a phase's label waits for the frames to hold the refresh rate (see `_label`), and the most it waits.
 const SETTLED_S := 1.0
 const SETTLE_MAX_S := 5.0
-## How long `act` acts.
-const ACT_SECONDS := 33.0
 ## Flow texel-steps a frame while `painting` replays: a thousand times Budget.PAINT_STEPS, under a second on a Quest 2.
 const SETUP_STEPS := 3.0e8
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
@@ -286,35 +284,6 @@ func _hands(s: Dictionary) -> void:
 		hand.global_transform = Transform3D(b * Basis(Vector3.BACK, deg_to_rad(s.get("roll", 0.0))), at)
 		hand.held_still = true
 	await get_tree().process_frame
-
-
-## Acts out with the head and hands, in real seconds, what a player without full-body tracking does: stands, sways,
-## leans over to look down, crouches, turns round and back, then walks 2.4 metres ahead, turns, walks back and turns
-## again, standing at `at` [x, z] facing `yaw` degrees, the eyes the worn avatar's height over the ground under them.
-func _act(s: Dictionary) -> void:
-	var start := Vector3(s.at[0], 0.0, s.at[1])
-	var facing := deg_to_rad(s.get("yaw", 0.0))
-	var up := func(t: float, a: float, b: float, c: float, d: float) -> float: return smoothstep(a, b, t) * (1.0 - smoothstep(c, d, t))
-	var t := 0.0
-	while t < ACT_SECONDS:
-		t += await _tick()
-		var side: float = 0.07 * sin(TAU * (t - 2.0) / 2.0) * up.call(t, 2.0, 2.5, 7.5, 8.0)
-		var lean: float = up.call(t, 8.0, 9.0, 10.5, 11.5)
-		var crouch: float = up.call(t, 12.0, 13.5, 15.0, 16.5)
-		var turn: float = deg_to_rad(120.0) * up.call(t, 17.0, 19.0, 20.0, 22.0)
-		var ahead := 2.4 * (smoothstep(23.0, 26.0, t) - smoothstep(27.5, 30.5, t))
-		turn += PI * (smoothstep(26.0, 27.5, t) - smoothstep(30.5, 32.0, t))
-		var body := Basis(Vector3.UP, facing)
-		var p := start + body * Vector3(side, 0.0, -ahead - 0.25 * lean)
-		var yaw := Basis(Vector3.UP, facing + turn)
-		var eye := Vector3(p.x, main.world.terrain.height_at(p.x, p.z) + main.rig.body.eye_height * (1.0 - 0.45 * crouch), p.z)
-		var head := Transform3D(yaw * Basis(Vector3.RIGHT, -deg_to_rad(40.0) * lean), eye)
-		main.view(eye, eye + head.basis * Vector3.FORWARD)
-		var level := Transform3D(yaw, eye)
-		for i in 2:
-			var hand: Hand = main.rig.hands[i]
-			hand.global_transform = level * Avatar.AT_SIDES[i]
-			hand.held_still = true
 
 
 ## Plays both hands through a script in the picture book's form (Lessons.PAGES: `keys` posing each hand in head space
@@ -1556,17 +1525,6 @@ func _arrived(arrived: Array) -> void:
 		await get_tree().process_frame
 
 
-## Hears `count` made-up gardens near, from documentation addresses no game answers on, each in a built-in avatar and
-## colour under "Visitor <n>", every `unjoinable`th one from another build: the friends dial full without as many games.
-func _neighbours(s: Dictionary) -> void:
-	for i in int(s.count):
-		var unjoinable := int(s.get("unjoinable", 0))
-		main.session.nearby["192.0.2.1:%d" % (Session.PORT + i)] = {"address": "192.0.2.1", "port": Session.PORT + i, "key": 9000 + i,
-			"avatar": i % Avatar.BUILT_IN.size(), "wears": "", "colour": Session.COLOURS[i % Session.COLOURS.size()],
-			"name": "Visitor %d" % (i + 1), "joins": unjoinable == 0 or (i + 1) % unjoinable != 0, "seen": INF}
-	await get_tree().process_frame
-
-
 ## Joins through the same wheel sweep and release as a player.
 func _visit(s: Dictionary) -> void:
 	var home: bool = s.get("home", false)
@@ -2446,17 +2404,6 @@ func _page_cost(s: Dictionary) -> void:
 	views.sort()
 	print("page_cost: %d frames, %d page renders, %.3f ms GPU a page render (median), %.3f ms a frame for the pages, the garden's view %.3f ms (median)" % [frames, renders.size(),
 		renders[renders.size() / 2] if not renders.is_empty() else 0.0, total / maxi(frames, 1), views[views.size() / 2] if not views.is_empty() else 0.0])
-
-
-## Looks at the held book's middle from `eye`, metres from it along the player's right, up and back.
-func _view_book(s: Dictionary) -> void:
-	var b: Book = main.book
-	var shut := b.at == 0 and b._turn.is_empty()
-	var mid := b.global_transform * Vector3(Book.W * 0.5 if shut else 0.0, 0.0, 0.0)
-	_eye = mid + main.rig.global_basis * Lessons._v(s.eye)
-	_at = mid
-	main.view(_eye, _at)
-	await get_tree().process_frame
 
 
 ## The picture book in the hand holding it: "open" it, "turn" a leaf on or "back", then wait `seconds`.

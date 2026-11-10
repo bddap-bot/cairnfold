@@ -777,17 +777,14 @@ func _recolour() -> void:
 	var ks := kinds()
 	var parts := {}
 	for p in PAINTED:
-		parts[p] = [_parts[p], _chunked[p], ks[p].stride()]
+		parts[p] = [_parts[p], ks[p]]
 	var out := {"laid": _laid, "to": paint.duplicate()}
 	_recoloured = out
 	set_process(true)
 	_recolour_task = WorkerThreadPool.add_task(func():
 		for p in parts:
-			var stride: int = parts[p][2]
-			var chunks := {}
-			for key in parts[p][1]:
-				chunks[key] = Wall._scaled(parts[p][1][key], stride, scale)
-			out[p] = [Wall._scaled(parts[p][0], stride, scale), chunks])
+			var flat := Wall._scaled(parts[p][0], parts[p][1].stride(), scale)
+			out[p] = [flat, Masonry.split(flat, parts[p][1])])
 
 
 func _land_recolour() -> void:
