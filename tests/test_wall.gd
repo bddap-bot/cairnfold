@@ -23,6 +23,7 @@ func _init() -> void:
 	_far_pieces_reach_the_near_pieces_faces()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
+	_only_settled_stones_occlude()
 	_grown_ivy_moves_to_the_glade_in_one_frame()
 	_a_chunk_draws_again_only_the_pieces_that_changed()
 	_a_wall_over_water_stands_on_its_bed()
@@ -491,6 +492,28 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	glade.flush()
 	w._process(0.0)
 	check(w._drawn == null, "then the wall's own Masonry goes")
+	w.free()
+	glade.free()
+
+
+## A wall laid while it still changes occludes nothing until it settles, then occludes with the stones it settled on.
+func _only_settled_stones_occlude() -> void:
+	var glade := Masonry.new(Wall.kinds())
+	root.add_child(glade)
+	var w := Wall.new(1, glade, Terrain.new())
+	root.add_child(w)
+	w.layout.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	w.layout.height = 2.0
+	var occluding := func() -> bool: return not (w._occluder.occluder as ArrayOccluder3D).vertices.is_empty()
+	w.rebuild(true)
+	w.lay_now()
+	check(occluding.call(), "a settled wall occludes")
+	w.rebuild(false)
+	w.lay_now()
+	check(not occluding.call(), "a changing wall occludes nothing")
+	w.rebuild(true)
+	w.lay_now()
+	check(occluding.call(), "settled again, it occludes")
 	w.free()
 	glade.free()
 

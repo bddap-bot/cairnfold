@@ -328,6 +328,7 @@ func _land() -> void:
 		_settle()
 	else:
 		_put_shown()
+		_occlude(PackedVector3Array(), PackedInt32Array())
 		_sync()
 
 
@@ -464,6 +465,7 @@ func _settle() -> void:
 	_settled = finished
 	_settle_on_land = false
 	_put_shown()
+	_occlude(_shown.out.occluder[0], _shown.out.occluder[1])
 	if _settled and not layout.fence:
 		_layout_ivy()
 	_sync()
@@ -825,11 +827,19 @@ func _take(packed: Dictionary) -> void:
 		_chunked[part] = packed.chunks[part]
 	pick_bounds = packed.bounds
 	_ruin_pick = packed.ruin_pick
+
+
+## Only a settling lay occludes, and a moving wall none: its occluder would trail its stones, and every occluder change
+## has the renderer rebuild the scene's occlusion BVH, which a sculpt relaying every wall on the ground turned into
+## frames spent waiting on the last rebuild.
+func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 	if _occluder == null:
 		_occluder = OccluderInstance3D.new()
 		_occluder.occluder = ArrayOccluder3D.new()
 		add_child(_occluder)
-	(_occluder.occluder as ArrayOccluder3D).set_arrays(packed.occluder[0], packed.occluder[1])
+	var occluder := _occluder.occluder as ArrayOccluder3D
+	if not (vertices.is_empty() and occluder.vertices.is_empty()):
+		occluder.set_arrays(vertices, indices)
 
 
 ## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it. The
