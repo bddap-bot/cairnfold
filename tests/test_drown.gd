@@ -83,11 +83,11 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	var press := Controls.key("tool", hand.tracker)
 	var brush := trees.brush(hand)
 	trees._handle(brush, 1.0 / 60.0)
-	brush.buttons.latch()
 	Buttons.injected[press] = true
+	brush.hand.buttons.sample()
 	trees._handle(brush, 1.0 / 60.0)
 	Buttons.injected.erase(press)
-	brush.buttons.latch()
+	brush.hand.buttons.sample()
 	check(Cues.asked.get(Cues.Act.REFUSED, 0) == refused + 1, "a tree aimed into the water is refused, not silently dropped")
 	await process_frame
 	check(flora.placed("tree").is_empty(), "and none is planted there")

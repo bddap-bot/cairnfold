@@ -21,7 +21,7 @@ func _run() -> void:
 	joints.hand = XRPositionalTracker.TRACKER_HAND_RIGHT
 	XRServer.add_tracker(joints)
 	var palm := Transform3D(Basis.IDENTITY, Vector3(0.2, 1.3, -0.3))
-	var pressed := Buttons.new(right).watch(["tool"])
+	var pressed := Buttons.new(right)
 
 	_shape(joints, palm, "index", XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER)
 	await frames(2)

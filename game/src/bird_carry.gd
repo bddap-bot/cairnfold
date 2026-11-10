@@ -7,7 +7,7 @@ const HOLD := Transform3D(Basis.IDENTITY, Vector3(0, 0.018, 0.025))
 
 var birds: Birds
 var painting: EaselTool
-var grips: Array[Buttons] = []
+var hands: Array[Hand] = []
 var held := {}
 
 
@@ -15,13 +15,12 @@ func _init(rig: Rig, flock: Birds, paint: EaselTool) -> void:
 	birds = flock
 	painting = paint
 	process_priority = -5
-	for h in rig.hands:
-		grips.append(Buttons.new(h).watch(["grab"]))
+	hands = rig.hands
 
 
 func _process(delta: float) -> void:
-	for buttons in grips:
-		var h := buttons.hand
+	for h in hands:
+		var buttons := h.buttons
 		if held.has(h):
 			if not buttons.held("grab") or not h.tracked():
 				release(h)
@@ -34,7 +33,6 @@ func _process(delta: float) -> void:
 			for b in birds.birds:
 				if take(h, b):
 					break
-		buttons.latch()
 
 
 func take(h: Hand, b: Birds.Bird) -> bool:

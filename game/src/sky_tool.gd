@@ -20,7 +20,6 @@ var _start := 0.0
 var _turned := 0.0
 var _last := 0.0
 var _ticked := 0
-var _grips: Array[Buttons] = []
 
 
 func _init(player: Rig, sky: Look, garden: World, busy: Callable) -> void:
@@ -28,13 +27,11 @@ func _init(player: Rig, sky: Look, garden: World, busy: Callable) -> void:
 	look = sky
 	world = garden
 	editing = busy
-	for h in rig.hands:
-		_grips.append(Buttons.new(h).watch(["grab"]))
 
 
 func _process(_delta: float) -> void:
-	for b in _grips:
-		var hand: Hand = b.hand
+	for hand in rig.hands:
+		var b := hand.buttons
 		if holder == hand and (b.released("grab") or not hand.tracked()):
 			holder = null
 			world.submit({"op": "sky", "time": look.time}, func() -> void: look.set_time(world.time))
@@ -46,7 +43,6 @@ func _process(_delta: float) -> void:
 				take(hand, dir)
 			if holder == hand:
 				hand.point(null, BEAM)
-		b.latch()
 
 
 ## Whether a grip along `dir` from `from` grabs the sky: at the sun or the moon, or at open sky clear of the ground and

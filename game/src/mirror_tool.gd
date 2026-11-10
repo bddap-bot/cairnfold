@@ -24,14 +24,11 @@ var _seen: VisibleOnScreenNotifier3D
 var _light: DirectionalLight3D
 var _env := Environment.new()
 var _views: Array[SubViewport] = []
-var _buttons: Array[Buttons] = []
 
 
 func _init(player: Rig, ground: Terrain) -> void:
 	rig = player
 	terrain = ground
-	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = BACKDROP
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -88,11 +85,9 @@ func standing() -> bool:
 
 
 func _process(_delta: float) -> void:
-	for i in rig.hands.size():
-		var h: Hand = rig.hands[i]
+	for h in rig.hands:
 		if h.tool == Hand.Tool.MIRROR and h.tracked() and not h.picking and not h.taken() and rig.aim_hand != h:
-			_aim(h, _buttons[i].pressed("tool"))
-		_buttons[i].latch()
+			_aim(h, h.buttons.pressed("tool"))
 	_reflect()
 
 

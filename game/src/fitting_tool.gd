@@ -20,7 +20,6 @@ const SHAKE := 0.35
 var rig: Rig
 var walls: WallTool
 var world: World
-var _buttons: Array[Buttons] = []
 ## Per hand: each fitting's ghost by ToolModels.FITTING_PARTS key, and how long since a refused press.
 var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
@@ -49,7 +48,6 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	lamps.terrain = world.terrain
 	lamps.install()
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 		var ghosts := {}
 		for what in ToolModels.FITTING_PARTS:
 			if what == "window":
@@ -69,9 +67,9 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 func _process(delta: float) -> void:
 	world.decorations.sync()
 	var shown := {}
-	for i in _buttons.size():
-		var b := _buttons[i]
-		var hand: Hand = b.hand
+	for i in rig.hands.size():
+		var hand := rig.hands[i]
+		var b := hand.buttons
 		var ghost := {}
 		if hand.tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH, Hand.Tool.DECORATIONS] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
@@ -102,7 +100,6 @@ func _process(delta: float) -> void:
 		if hand.tool != Hand.Tool.DECORATIONS or not b.held("tool"):
 			_starts[i] = null
 		_show_ghost(i, ghost, delta)
-		b.latch()
 	for id in _sent:
 		if _sent[id].has("openings") and not shown.get(id, {}).has("openings"):
 			shown.get_or_add(id, {}).openings = PackedVector4Array(_sent[id].openings)

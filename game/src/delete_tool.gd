@@ -32,7 +32,6 @@ var rig: Rig
 var walls: WallTool
 var flora: Flora
 var world: World
-var _buttons: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
 ## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, easels,
 ## boulders, ray}.
@@ -58,7 +57,6 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 		for who in _charges.keys():
 			cancel(who))
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 		_rings.append(FloraTool.ring(TINT))
 		add_child(_rings[-1])
 
@@ -71,9 +69,9 @@ func busy(hand: Hand = null) -> bool:
 
 
 func _process(delta: float) -> void:
-	for k in _buttons.size():
-		var b := _buttons[k]
-		var hand: Hand = b.hand
+	for k in rig.hands.size():
+		var hand := rig.hands[k]
+		var b := hand.buttons
 		_rings[k].visible = false
 		var live := hand.tool == Hand.Tool.DELETE and rig.aim_hand != hand and hand.tracked()
 		var t := hand.global_transform
@@ -99,7 +97,6 @@ func _process(delta: float) -> void:
 				var target := aim(t.origin, -t.basis.z)
 				hand.point(target.get("point"), TINT)
 				show_target(_rings[k], target, rig.head.global_position)
-		b.latch()
 
 
 func sky(dir: Vector3) -> bool:

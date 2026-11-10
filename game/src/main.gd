@@ -9,8 +9,6 @@ var xr: OpenXRInterface
 var rig: Rig
 var world: World
 var session: Session
-var _undo: Buttons
-var _redo: Buttons
 var tool: WallTool
 var stair_tool: StairTool
 var flora_tool: FloraTool
@@ -145,8 +143,6 @@ func _ready() -> void:
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
-	_undo = Buttons.new(rig.left).watch(["undo"])
-	_redo = Buttons.new(rig.right).watch(["redo"])
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
@@ -316,12 +312,10 @@ func open_photo(path: String) -> bool:
 
 func _process(_delta: float) -> void:
 	if not _editing():
-		if _undo.pressed("undo"):
+		if rig.left.buttons.pressed("undo"):
 			world.undo(rig.left)
-		if _redo.pressed("redo"):
+		if rig.right.buttons.pressed("redo"):
 			world.redo(rig.right)
-	_undo.latch()
-	_redo.latch()
 
 
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.

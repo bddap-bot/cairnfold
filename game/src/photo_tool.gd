@@ -63,7 +63,6 @@ var easels: Easels
 ## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot's bytes or none},
 ## taken when the shutter is pressed: the garden changes on while the photo is drawn and written.
 var scene := func() -> Dictionary: return {"about": {}, "world": PackedByteArray()}
-var _buttons: Array[Buttons] = []
 ## Per hand that has held a camera, its preview's view.
 var _previews := {}
 var _photo: SubViewport
@@ -100,7 +99,6 @@ var _writing := -1
 func _init(player: Rig) -> void:
 	rig = player
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 		_pressed_for.append(-1.0)
 
 
@@ -212,7 +210,7 @@ func _process(delta: float) -> void:
 				_grab(preview)
 	for h in held:
 		var i := rig.hands.find(h)
-		var b := _buttons[i]
+		var b := h.buttons
 		if b.pressed("tool"):
 			_pressed_for[i] = 0.0
 		elif b.held("tool") and _pressed_for[i] >= 0.0:
@@ -225,10 +223,9 @@ func _process(delta: float) -> void:
 			elif _pressed_for[i] < HOLD and not _busy:
 				shoot(h)
 			_pressed_for[i] = -1.0
-	for i in _buttons.size():
-		if not _buttons[i].held("tool"):
+	for i in rig.hands.size():
+		if not rig.hands[i].buttons.held("tool"):
 			_pressed_for[i] = -1.0
-		_buttons[i].latch()
 
 
 static func screen(hand: Hand, tool: Hand.Tool) -> StandardMaterial3D:

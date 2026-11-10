@@ -7,15 +7,12 @@ const WIDTH := 1.2
 var rig: Rig
 var walls: WallTool
 var world: World
-var _buttons: Array[Buttons] = []
 var _strokes := {}
 
 func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
 	walls = builder
 	world = garden
-	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 	world.restored.connect(func():
 		for hand in _strokes.keys():
 			_cancel(hand))
@@ -63,8 +60,8 @@ func _cancel(hand: Hand) -> void:
 		_strokes.erase(hand)
 
 func _process(_delta: float) -> void:
-	for buttons in _buttons:
-		var hand := buttons.hand as Hand
+	for hand in rig.hands:
+		var buttons := hand.buttons
 		if hand.tool != Hand.Tool.STAIRS or rig.aim_hand == hand:
 			_cancel(hand)
 		elif hand.tracked():
@@ -77,7 +74,6 @@ func _process(_delta: float) -> void:
 				extend(hand, hit.point)
 			if buttons.released("tool"):
 				end(hand)
-		buttons.latch()
 
 
 func aim(origin: Vector3, direction: Vector3) -> Dictionary:

@@ -23,7 +23,6 @@ signal planted
 
 class Brush:
 	var hand: Hand
-	var buttons: Buttons
 	var ring: MeshInstance3D
 	## What the current trigger hold has painted, one build command on release: its ghost plants, and
 	## the seed and dabs every machine grows the same plants from.
@@ -77,7 +76,6 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	for h in rig.hands:
 		var b := Brush.new()
 		b.hand = h
-		b.buttons = Buttons.new(h).watch(["tool"])
 		b.ring = ring(Color(1, 1, 1, 0.6))
 		add_child(b.ring)
 		brushes.append(b)
@@ -124,19 +122,18 @@ func _process(delta: float) -> void:
 	flora.part(rig.left.global_position if rig.left.tracked() else stand_in, _reach(rig.right))
 	for b in brushes:
 		_handle(b, delta)
-		b.buttons.latch()
 
 
 func _handle(b: Brush, delta: float) -> void:
 	var held := b.hand.tool
 	b.ring.visible = false
 	# A stroke no button holds is a demo script's: the hand's own aim neither extends nor ends it.
-	if busy(b.hand) and not b.buttons.held("tool") and not b.buttons.released("tool"):
+	if busy(b.hand) and not b.hand.buttons.held("tool") and not b.hand.buttons.released("tool"):
 		return
 	if not TINTS.has(held) or rig.aim_hand == b.hand:
 		end_stroke(b)
 		return
-	if b.buttons.released("tool"):
+	if b.hand.buttons.released("tool"):
 		end_stroke(b)
 	if not b.hand.tracked():
 		return
@@ -150,7 +147,7 @@ func _handle(b: Brush, delta: float) -> void:
 		if not solid.is_empty() and solid.plants[0].pool == flora.trunks:
 			b.hand.point(solid.point, TINTS[held])
 			end_stroke(b)
-			if b.buttons.pressed("tool"):
+			if b.hand.buttons.pressed("tool"):
 				coat_tree(solid.plants[0], b.hand)
 			return
 	var drowned: bool = hit != null and PLACES.has(held) and Water.drowned(world.terrain, hit)
@@ -159,17 +156,17 @@ func _handle(b: Brush, delta: float) -> void:
 		end_stroke(b)
 		return
 	if drowned:
-		if b.buttons.pressed("tool"):
+		if b.hand.buttons.pressed("tool"):
 			Cues.play(Cues.Act.REFUSED, hit, b.hand)
 		return
 	if PLACES.has(held):
 		world.preview(b.hand, Budget.plants(PLACES[held], 1))
-		if b.buttons.pressed("tool"):
+		if b.hand.buttons.pressed("tool"):
 			place(PLACES[held], hit, b.hand)
 		return
 	if held == Hand.Tool.BOULDER:
 		world.preview(b.hand, {"boulder": Budget.boulder(1.0)})
-		if b.buttons.pressed("tool"):
+		if b.hand.buttons.pressed("tool"):
 			take_boulder(b, hit)
 		return
 	var radius := brush_radius(hand.origin, hit)
@@ -177,12 +174,12 @@ func _handle(b: Brush, delta: float) -> void:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	put_ring(b.ring, hit, radius)
 	if held == Hand.Tool.PATH:
-		if b.buttons.pressed("tool") and not paths.busy() and not _ground_held():
+		if b.hand.buttons.pressed("tool") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
-		elif b.buttons.held("tool") and b.drawing_path:
+		elif b.hand.buttons.held("tool") and b.drawing_path:
 			extend_path(hit, radius, b.hand)
-	elif b.buttons.held("tool"):
-		if b.buttons.pressed("tool"):
+	elif b.hand.buttons.held("tool"):
+		if b.hand.buttons.pressed("tool"):
 			b.meadow = paints_meadow(held, hit, world.marks)
 		paint(b, hit, radius, delta)
 

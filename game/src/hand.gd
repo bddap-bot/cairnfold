@@ -135,7 +135,7 @@ var _stick_from := Vector3.ZERO
 var curls := PackedFloat32Array([0, 0, 0, 0, 0])
 var _curled_by := ""
 var _sensed := {}
-var _buttons: Buttons
+var buttons: Buttons
 ## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
 var body := Node3D.new()
 var _shown := -1
@@ -189,7 +189,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
-	_buttons = Buttons.new(self).watch(["wheel", "tool"])
+	buttons = Buttons.new(self)
 
 
 ## Where hand `h` shows: this player's hand as its body, another player's hand or a dish as itself.
@@ -251,7 +251,7 @@ func inventory() -> Array:
 
 
 func close_wheel() -> void:
-	if picking and _buttons.held("wheel"):
+	if picking and buttons.held("wheel"):
 		var by := get_stack().slice(1, 3).map(func(f: Dictionary) -> String: return "%s:%d" % [f.function, f.line])
 		Metrics.note("wheel: %s closed under the held button by %s" % [tracker, by])
 	_end_expression_dial()
@@ -359,7 +359,7 @@ func _open_dial(leaf: String) -> void:
 ## The open dial turns with the wrist; letting go of the wheel button does what the person at its top means, unless
 ## that is where it started.
 func _dial_input() -> void:
-	if not _buttons.held("wheel"):
+	if not buttons.held("wheel"):
 		var key: String = _dial_keys[dial.pick]
 		var moved := dial.pick != dial.start
 		close_wheel()
@@ -522,13 +522,13 @@ func _process(delta: float) -> void:
 	_read_palm()
 	_log_profile()
 	_flick_input()
+	buttons.sample()
 	_holding = false
 	clear_pointer()
 	if world != null:
 		var with := world.fill(self)
 		capped = with > 1.0 and with > world.fill() + 0.0001
 	_select_input(delta)
-	_buttons.latch()
 	_show_tool(delta)
 
 
@@ -688,7 +688,7 @@ func _select_input(delta: float) -> void:
 	if _wheel == null:
 		if _warming > 0:
 			_warm()
-		if not _buttons.pressed("wheel"):
+		if not buttons.pressed("wheel"):
 			_since_prepared += delta
 			if _since_prepared >= PREPARE_EVERY:
 				_since_prepared = 0.0
@@ -719,7 +719,7 @@ func _select_input(delta: float) -> void:
 		_open_dial(pick)
 		return
 	_show_wheel(delta)
-	if _buttons.released("wheel"):
+	if buttons.released("wheel"):
 		if pick is String and pick == "reset":
 			(get_parent() as Rig).expression_store.reset()
 		elif not pick is String:
@@ -892,14 +892,14 @@ func _expression_input(delta: float) -> void:
 	if not is_instance_valid(expressions) or not tracked():
 		close_wheel()
 		return
-	if _buttons.pressed("wheel") and _expression_latched:
+	if buttons.pressed("wheel") and _expression_latched:
 		_expression_latched = false
 		if not expressions.state.turning().is_empty():
 			expressions.state.back()
 			_end_expression_dial()
 		_expression_level()
 		return
-	if _buttons.released("wheel"):
+	if buttons.released("wheel"):
 		if not expressions.state.turning().is_empty():
 			_expression_latched = true
 			return
@@ -911,8 +911,8 @@ func _expression_input(delta: float) -> void:
 	if expressions.state.opened.size() < _expression_count:
 		_end_expression_dial()
 		_expression_level()
-	if _buttons.pressed("tool"):
-		_expression_latched = not _buttons.held("wheel")
+	if buttons.pressed("tool"):
+		_expression_latched = not buttons.held("wheel")
 		if not expressions.state.back():
 			close_wheel()
 			return

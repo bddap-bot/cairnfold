@@ -91,8 +91,6 @@ var floor_under := func(p: Vector3) -> float: return terrain.shown_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
 ## {point, side}, `side` whether it struck a side; or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
-## The left stick's flicks and click.
-var _stick: Buttons
 var _fade_t := -1.0
 ## The view is held black for a garden swap until `respawn` (`blackout`).
 var _covered := false
@@ -135,7 +133,6 @@ func _init(ground: Terrain) -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-	_stick = Buttons.new(left).watch(["teleport", "turn_left", "turn_right", "turn_round"])
 	_build_markers()
 
 
@@ -247,7 +244,6 @@ func far() -> float:
 func _process(delta: float) -> void:
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
-	_stick.latch()
 	_fade_step(delta)
 	_underfoot.follow(head.global_position, global_position.y, _floor_y)
 	_refit(delta)
@@ -271,7 +267,7 @@ func _refit(delta: float) -> void:
 func _locomotion_input(delta: float) -> void:
 	if _covered:
 		return
-	if aim_hand == null and _stick.held("teleport"):
+	if aim_hand == null and left.buttons.held("teleport"):
 		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
 		end_aim()
@@ -289,7 +285,7 @@ func _locomotion_input(delta: float) -> void:
 		aim(_steadied(aim_hand.global_transform, delta), reach_scale(_aim_trail[0][1]))
 		return
 	for turn: String in TURNS:
-		if _stick.pressed(turn):
+		if left.buttons.pressed(turn):
 			snap_turn(TURNS[turn], left)
 
 

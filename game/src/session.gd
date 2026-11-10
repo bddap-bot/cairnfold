@@ -77,7 +77,6 @@ var avatars := {}
 ## The quality step, whose `files` says whether players are drawn in their own files (`_files`, as last dressed).
 var quality: Quality
 var _files := true
-var _spring_buttons: Array[Buttons] = []
 var _spring_hands := [[], []]
 ## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them. A leaving
 ## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
@@ -175,8 +174,6 @@ func _ready() -> void:
 			break
 	me.offer(_key)
 	rig.wear(Avatar.open(Avatar.built_in(avatar), colour))
-	for hand in rig.hands:
-		_spring_buttons.append(Buttons.new(hand).watch(["grab"]))
 	host()
 
 
@@ -847,9 +844,9 @@ func _held(items: Array) -> void:
 func _spring_input(delta: float) -> void:
 	var mine := multiplayer.get_unique_id()
 	var active := not get_tree().paused
-	for side in _spring_buttons.size():
-		var buttons := _spring_buttons[side]
-		var hand := buttons.hand
+	for side in rig.hands.size():
+		var hand := rig.hands[side]
+		var buttons := hand.buttons
 		var selected: Array = _spring_hands[side]
 		if not selected.is_empty() and (not active or not buttons.held("grab") or not hand.tracked() or hand.picking or hand.tool != Hand.Tool.NONE):
 			_spring_request(selected[0], side, -1)
@@ -875,7 +872,6 @@ func _spring_input(delta: float) -> void:
 				_spring_request(selected[0], side, selected[1])
 		if not selected.is_empty():
 			hand.hold()
-		buttons.latch()
 	if rig.body.springs == null:
 		return
 	rig.body.springs.targets.clear()

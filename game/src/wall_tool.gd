@@ -67,7 +67,6 @@ class EaselGrip:
 
 class Mason:
 	var hand: Hand
-	var buttons: Buttons
 	var stroke: Stroke
 	## Whether its grip on the house in hand took the roof, and on the eave, past the walls, the way out from them
 	## there; zero on its walls or the roof over them.
@@ -195,7 +194,6 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
-		m.buttons = Buttons.new(h).watch(["tool", "grab"])
 		masons.append(m)
 
 
@@ -238,7 +236,6 @@ func _process(delta: float) -> void:
 		if m.growing != null or m in _holders:
 			m.hand.hold()
 		_preview(m)
-		m.buttons.latch()
 
 
 func _handle(m: Mason) -> void:
@@ -248,9 +245,9 @@ func _handle(m: Mason) -> void:
 	if rig.aim_hand == m.hand:
 		_let_go(m)
 		return
-	if m.stroke != null and (not draws(m.hand) or m.buttons.released("tool")):
+	if m.stroke != null and (not draws(m.hand) or m.hand.buttons.released("tool")):
 		end_stroke(m)
-	if m.buttons.released("grab") and m.growing != null:
+	if m.hand.buttons.released("grab") and m.growing != null:
 		end_grow(m)
 	if not m.hand.tracked():
 		return
@@ -264,12 +261,12 @@ func _handle(m: Mason) -> void:
 		m.pick = pick_building(origin, dir)
 		m.gable = m.pick if m.pick.get("surface") == "gable" else {}
 		m.hand.point(m.ground if m.pick.is_empty() else m.pick.point, TINT)
-		if m.buttons.pressed("tool") and m.ground != null and not busy(m.hand):
+		if m.hand.buttons.pressed("tool") and m.ground != null and not busy(m.hand):
 			begin_stroke(m, m.ground, m.on)
-		elif m.buttons.held("tool") and m.stroke != null and m.ground != null:
+		elif m.hand.buttons.held("tool") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
-	if m.buttons.pressed("grab") and not m.hand.taken() and not busy(m.hand) and not painting.call(m.hand):
+	if m.hand.buttons.pressed("grab") and not m.hand.taken() and not busy(m.hand) and not painting.call(m.hand):
 		var on_held := _held_hit(origin, dir) if held != null else {}
 		var ground: Variant = world.terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
@@ -302,7 +299,7 @@ func _handle(m: Mason) -> void:
 				var roof: bool = pick.get("surface") == "roof"
 				take_build(pick.wall)
 				_join_build(m, roof, pick.wall.roof.eave_way(pick.point) if roof else Vector3.ZERO)
-	elif m.buttons.held("grab") and m.growing != null:
+	elif m.hand.buttons.held("grab") and m.growing != null:
 		if m.partner == null:
 			m.sizing.follow.call(m, hand)
 		elif m.pair_span > 0.0:
@@ -457,7 +454,7 @@ func _place_input() -> void:
 			continue
 		var aimed := aim(m.hand.global_position, -m.hand.global_basis.z)
 		m.hand.point(aimed.get("point"), TINT)
-		if not m.buttons.pressed("tool") or busy(m.hand):
+		if not m.hand.buttons.pressed("tool") or busy(m.hand):
 			continue
 		var at: Variant = aimed.get("point")
 		if at == null:
@@ -573,7 +570,7 @@ func _restart_hold() -> void:
 func _hold_build() -> void:
 	if _holders.is_empty():
 		return
-	var holding := _holders.filter(func(m: Mason) -> bool: return m.buttons.held("grab") and m.hand.tracked() and rig.aim_hand != m.hand)
+	var holding := _holders.filter(func(m: Mason) -> bool: return m.hand.buttons.held("grab") and m.hand.tracked() and rig.aim_hand != m.hand)
 	if holding.is_empty():
 		end_build(_holders[0].hand)
 		return

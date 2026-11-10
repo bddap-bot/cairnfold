@@ -34,7 +34,7 @@ func _place(origin: Vector3, at: Vector3, mount: String, wall: Wall) -> int:
 func _held_preview() -> void:
 	var hand: Hand = main.rig.right
 	var fit: FittingTool = main.fitting_tool
-	var i: int = fit._buttons.find_custom(func(b: Buttons) -> bool: return b.hand == hand)
+	var i: int = main.rig.hands.find(hand)
 	hand.tool = Hand.Tool.DECORATIONS
 	hand.held_still = true
 	var shapes := {}

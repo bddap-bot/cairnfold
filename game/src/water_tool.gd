@@ -14,7 +14,6 @@ const FOLLOW := 0.05
 
 var rig: Rig
 var world: World
-var _buttons: Array[Buttons] = []
 ## Per hand: the water shown, the ground point it is shown for and the pond it shows, and the point being worked
 ## out off the main thread, with its task and the box the task leaves its pond in.
 var _ghosts: Array[MeshInstance3D] = []
@@ -34,7 +33,6 @@ func _init(player: Rig, garden: World) -> void:
 	var material := Meshes.glow(Color(TINT, 0.45))
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 		var ghost := MeshInstance3D.new()
 		ghost.material_override = material
 		ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -59,9 +57,8 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
-	for i in _buttons.size():
+	for i in rig.hands.size():
 		_handle(i)
-		_buttons[i].latch()
 	while not _fires.is_empty() and WorkerThreadPool.is_task_completed(_fires[0][2]):
 		_let_in(_fires.pop_front())
 
@@ -79,8 +76,8 @@ func settle() -> void:
 
 
 func _handle(i: int) -> void:
-	var b := _buttons[i]
-	var hand: Hand = b.hand
+	var hand := rig.hands[i]
+	var b := hand.buttons
 	if hand.tool != Hand.Tool.POND or rig.aim_hand == hand or not hand.tracked():
 		_show(i, null)
 		return

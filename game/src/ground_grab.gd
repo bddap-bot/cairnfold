@@ -26,7 +26,6 @@ signal reshaped(area: Rect2, settled: bool)
 class Grab:
 	var hand: Hand
 	var slot := 0
-	var grip: Buttons
 	var ring: MeshInstance3D
 	var at: Variant = null
 	## The grip holds this stroke; a stroke begun by a script is moved by it.
@@ -70,7 +69,6 @@ func _init(player: Rig, garden: World, busy: Callable = func(_hand: Hand) -> boo
 		var g := Grab.new()
 		g.hand = h
 		g.slot = _grabs.size()
-		g.grip = Buttons.new(h).watch(["grab"])
 		g.ring = FloraTool.ring(TINT, 48, 0.97)
 		add_child(g.ring)
 		_grabs.append(g)
@@ -88,7 +86,6 @@ func _grab(hand: Hand) -> Grab:
 func _process(delta: float) -> void:
 	for g in _grabs:
 		_handle(g, delta)
-		g.grip.latch()
 		if g.gripped:
 			g.hand.hold()
 
@@ -97,7 +94,7 @@ func _handle(g: Grab, delta: float) -> void:
 	var hand := g.hand
 	g.ring.visible = false
 	if g.gripped:
-		if rig.aim_hand == hand or hand.taken() or not g.grip.held("grab"):
+		if rig.aim_hand == hand or hand.taken() or not hand.buttons.held("grab"):
 			end_stroke(hand)
 			return
 		FloraTool.put_ring(g.ring, g.at, g.radius, 0.05)
@@ -107,7 +104,7 @@ func _handle(g: Grab, delta: float) -> void:
 		follow(hand, delta)
 		_tick(g)
 		return
-	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.tracked() or editing.call(hand):
+	if not hand.buttons.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.tracked() or editing.call(hand):
 		return
 	var dir := -hand.global_basis.z
 	var hit: Variant = world.terrain.raycast(hand.global_position, dir)

@@ -52,15 +52,12 @@ var world: World
 var wheels := {}
 ## The look each hand's colour tool took with a tap, as `look_of` gives it.
 var looks := {}
-var _buttons: Array[Buttons] = []
 
 
 func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
 	walls = builder
 	world = garden
-	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 	world.restored.connect(func() -> void:
 		looks.clear()
 		for hand in wheels.keys():
@@ -74,8 +71,8 @@ func busy(hand: Hand = null) -> bool:
 
 
 func _process(_delta: float) -> void:
-	for b in _buttons:
-		var hand: Hand = b.hand
+	for hand in rig.hands:
+		var b := hand.buttons
 		var wheel: Wheel = wheels.get(hand)
 		if hand.tool != Hand.Tool.COLOUR:
 			looks.erase(hand)
@@ -89,7 +86,6 @@ func _process(_delta: float) -> void:
 			hand.point(target.get("point", null), _beam(looks.get(hand, {})))
 			if b.pressed("tool") and not target.is_empty() and not busy():
 				open(hand, target)
-		b.latch()
 	for hand in wheels:
 		hand.hold()
 		wheels[hand].dial.follow(hand)

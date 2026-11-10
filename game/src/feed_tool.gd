@@ -19,7 +19,6 @@ signal threw(from: Vector3, velocity: Vector3, seed: int)
 var rig: Rig
 var handfuls: Array[Handful] = []
 var rng := RandomNumberGenerator.new()
-var _buttons: Array[Buttons] = []
 ## Per hand: where the dish was last frame and how fast it has been swinging, in the rig's space, so a teleport or a
 ## snap turn throws nothing.
 var _was := {}
@@ -29,8 +28,6 @@ var _next := 0
 
 func _init(player: Rig, water: Water, terrain: Terrain) -> void:
 	rig = player
-	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["tool"]))
 	for i in HANDFULS:
 		handfuls.append(Handful.new(water, terrain))
 		handfuls[i].splashed.connect(_splashed)
@@ -46,10 +43,9 @@ func _process(delta: float) -> void:
 			var moved: Vector3 = (at - _was.get(h, at)) / delta
 			_velocity[h] = _velocity.get(h, Vector3.ZERO).lerp(moved, 1.0 - exp(-delta * EASE))
 		_was[h] = at
-		if _buttons[i].pressed("tool") and h.holds_seeds() and rig.aim_hand != h:
+		if h.buttons.pressed("tool") and h.holds_seeds() and rig.aim_hand != h:
 			Cues.play(Cues.Act.SEEDS_THROW, dish(h), h)
 			throw(dish(h), launch(h, rig.global_basis * _velocity.get(h, Vector3.ZERO)))
-		_buttons[i].latch()
 
 
 func dish(h: Hand) -> Vector3:

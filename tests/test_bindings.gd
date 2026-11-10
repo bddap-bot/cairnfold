@@ -130,7 +130,7 @@ func _each_control_does_its_action_alone() -> void:
 	var hands := _hands()
 	var watching := {}
 	for tracker in hands:
-		watching[tracker] = Buttons.new(hands[tracker]).watch(Controls.ACTIONS.keys().filter(func(a: String) -> bool: return Controls.ACTIONS[a].has(tracker)))
+		watching[tracker] = Buttons.new(hands[tracker])
 	for device in Controls.DEVICES:
 		for action in Controls.ACTIONS:
 			for tracker in Controls.ACTIONS[action]:
@@ -138,7 +138,7 @@ func _each_control_does_its_action_alone() -> void:
 				for control in Controls.bound(device, action, tracker):
 					Driver.hold(device, control, true)
 					await frames(2)
-					var also: Array = b._was.keys().filter(func(a: String) -> bool: return a != action and b.held(a))
+					var also: Array = b._now.keys().filter(func(a: String) -> bool: return a != action and b.held(a))
 					check(b.held(action) and also.is_empty(), "%s's %s holds %s alone, held %s, also %s" % [device, control, action, b.held(action), also])
 					Driver.hold(device, control, false)
 					await frames(2)
@@ -151,15 +151,15 @@ func _each_control_does_its_action_alone() -> void:
 func _a_flick_is_one_way() -> void:
 	var hands := _hands()
 	var left: Hand = hands.left_hand
-	var b := Buttons.new(left).watch(["turn_right"])
+	var b := Buttons.new(left)
 	var turns := 0
 	var seen: Array[String] = []
 	for at in [Vector2(1, 0), Vector2(0.6, -0.5), Vector2(0.3, -0.75), Vector2(0, -0.9), Vector2.ZERO, Vector2(0.9, 0.2), Vector2.ZERO]:
 		Hand.injected_sticks["left_hand"] = at
 		await process_frame
+		b.sample()
 		turns += int(b.pressed("turn_right"))
 		seen.append(left.flick)
-		b.latch()
 	Hand.injected_sticks.clear()
 	check(turns == 2 and seen == ["primary_right", "primary_right", "primary_right", "primary_right", "", "primary_right", ""], "a flick right drifting down stays right until the stick comes back: %d turns, %s" % [turns, seen])
 	for h in hands.values():

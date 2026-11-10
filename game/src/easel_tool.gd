@@ -36,7 +36,6 @@ const PAINTS := {Brushwork.Medium.WATER: "pan", Brushwork.Medium.OIL: "oil"}
 ## One hand's brush and what it is doing.
 class Painter:
 	var hand: Hand
-	var buttons: Buttons
 	var brush := Brushwork.Brush.BIG
 	## The id of the easel the brush was taken from, which lacks it while this hand shows it, and whether it showed it
 	## last frame.
@@ -105,7 +104,6 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 	for h in rig.hands:
 		var p := Painter.new()
 		p.hand = h
-		p.buttons = Buttons.new(h).watch(["tool", "grab"])
 		p.tip = ToolModels.bristle_material()
 		for kind in Brushwork.Brush.values():
 			var m := ToolModels.brush(kind)
@@ -159,7 +157,6 @@ func _process(delta: float) -> void:
 	for p in painters:
 		_handle(p, delta)
 		_note(p)
-		p.buttons.latch()
 
 
 func _handle(p: Painter, delta: float) -> void:
@@ -168,13 +165,13 @@ func _handle(p: Painter, delta: float) -> void:
 	p.ghost.visible = false
 	_hold_palette(p)
 	_pull_sheet(p, live)
-	if live and p.buttons.pressed("grab") and not hand.taken() and p.peel == null:
+	if live and hand.buttons.pressed("grab") and not hand.taken() and p.peel == null:
 		grab(p)
 	if p.palette != null or p.peel != null:
 		hand.hold()
 	var holding := hand.tool == Hand.Tool.EASEL and p.palette == null
 	_show_brush(p, holding, delta)
-	if holding and not live and p.buttons.pressed("tool"):
+	if holding and not live and hand.buttons.pressed("tool"):
 		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
 	if not holding or not live or p.peel != null:
 		_clear_contact(p)
@@ -193,7 +190,7 @@ func _handle(p: Painter, delta: float) -> void:
 			return
 	if e == null or Easels._flat(e.global_position, hand.global_position) > PLACE_CLEAR:
 		_aim_ground(p)
-	elif p.buttons.pressed("tool"):
+	elif hand.buttons.pressed("tool"):
 		_decline(hand, "the hand is within %.1f m of an easel" % PLACE_CLEAR)
 
 
@@ -204,14 +201,14 @@ func _aim_ground(p: Painter) -> void:
 	p.hand.point(hit, TINT)
 	var why := "it points at no ground" if hit == null else Easels.crowded(hit, world.state.easels)
 	if not why.is_empty():
-		if p.buttons.pressed("tool"):
+		if p.hand.buttons.pressed("tool"):
 			_decline(p.hand, why)
 		return
 	var yaw := Easels.facing(hit, rig.head.global_position)
 	p.ghost.visible = true
 	p.ghost.global_transform = easels.on_ground(hit, yaw)
 	world.preview(p.hand, {"easel": 1})
-	if p.buttons.pressed("tool"):
+	if p.hand.buttons.pressed("tool"):
 		place(hit, yaw, p.hand)
 
 
@@ -465,7 +462,7 @@ func _pull_sheet(p: Painter, live: bool) -> void:
 		p.peel = null
 		return
 	var pulled := maxf(e.on_canvas(p.hand.global_position).z, 0.0)
-	if not live or not p.buttons.held("grab"):
+	if not live or not p.hand.buttons.held("grab"):
 		e.canvas_mesh.transform = Easels.canvas_local()
 		p.peel = null
 		if pulled >= PEEL:
