@@ -414,7 +414,7 @@ func load_from(path: String) -> void:
 	if snap is Dictionary and snap.get("format") != FORMAT:
 		why = "was saved in format %s and this game reads format %d" % [snap.get("format"), FORMAT]
 	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
-	push_error("world: %s %s; moved it to .bad (%s)" % [path, why, error_string(err)])
+	push_error("world: %s %s; moving it to .bad: %s" % [path, why, error_string(err)])
 	if err != OK:
 		save_path = ""
 

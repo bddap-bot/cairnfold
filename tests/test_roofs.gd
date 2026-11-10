@@ -16,7 +16,7 @@ func _initialize() -> void:
 	_the_budget_counts_eaves_and_dormers()
 	_the_command_carries_decks_eaves_and_dormers()
 	_the_style_tool_offers_both_decks()
-	_a_roof_still_being_laid_has_no_deck()
+	_a_flat_roof_is_stood_on_over_its_walls_only()
 	boot_main()
 	_in_the_glade.call_deferred()
 
@@ -175,11 +175,15 @@ func _flat_roofs_stack_into_terraces() -> void:
 	check(absf(r.deck_under(Vector3(4.0, second + 0.2, 1.0)) - r.height_at(4.0, 1.0)) < 0.001, "a stacked platform is stood on at its deck")
 
 
-## A house's roof is laid off the main thread; until then it has its inputs but no corners, and nothing stands on it.
-func _a_roof_still_being_laid_has_no_deck() -> void:
-	var r := RoofLayout.new()
-	r.pitch = 0.0
-	check(r.deck_under(Vector3(0, 3, 0)) == -INF, "a flat roof still being laid has no deck to stand on")
+func _a_flat_roof_is_stood_on_over_its_walls_only() -> void:
+	var r := _gable(6.0, 4.0, 0.0)
+	var f := r.frame()
+	var up := Vector3.UP * 0.2
+	check(is_equal_approx(r.deck_under(f.mid + up), r.base), "a flat roof is stood on over its walls")
+	var past_end: Vector3 = f.mid + f.along * (r.ridge_length() * 0.5 + 0.5) + up
+	var past_side: Vector3 = f.mid + f.across * (r.half_span() + 0.5) + up
+	check(not r.over(past_end.x, past_end.z) and r.deck_under(past_end) == -INF, "past its gable end a flat roof is not stood on")
+	check(not r.over(past_side.x, past_side.z) and r.deck_under(past_side) == -INF, "past its side walls a flat roof is not stood on")
 
 
 func _the_eaves_reach_as_far_as_pulled() -> void:

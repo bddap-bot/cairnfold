@@ -391,6 +391,7 @@ func _floors_are_stood_on_and_hit() -> void:
 	var t := w.floor_hit(from, dir)
 	check(t < INF and absf((from + dir * t).y - w.floor_y) < 0.01, "a ray down from inside meets the floor under it: %.2f" % t)
 	check(w.floor_hit(mid + Vector3.UP * (w.floor_y + 1.6), Vector3.UP) == INF, "a ray upward meets no floor's top")
+	check(w.floor_hit(mid + Vector3.UP * (w.floor_y - 0.5), Vector3.DOWN) == INF, "a ray down from under the floor meets no floor's top")
 
 
 func _the_meadow_is_worn_bare_inside_the_walls_only() -> void:

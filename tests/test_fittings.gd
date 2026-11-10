@@ -544,6 +544,8 @@ func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
 	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]
 	lay_walls(main.tool)
 	check(ruin.layout.broken(4.0) and not ruin.layout.broken(9.5, 0.3), "the ruined wall stands, broken at 4 m and whole at 9.5 m")
+	var gap: Vector2 = ruin.layout.breaks[-1][0]
+	check(ruin.layout.broken(gap.y + 0.2, 0.3) and not ruin.layout.broken(gap.y + 0.2), "a margin reaches past the ruin's end, and only a margin does")
 	check(not _fit(fit, {"what": "flag", "wall": ruin, "s": 4.0}) and Array(world.state.walls[ruin.id].flags).is_empty(), "a flag pressed onto a ruined stretch is refused, not stored unflown")
 	check(_fit(fit, {"what": "flag", "wall": ruin, "s": 9.5}) and Array(world.state.walls[ruin.id].flags).any(func(e): return is_equal_approx(e, 9.5)) and ruin.layout.cloths.size() == 1, "beside the ruin a flag flies as ever")
 

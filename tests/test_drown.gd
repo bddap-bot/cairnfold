@@ -7,8 +7,21 @@ const AT := Vector2(3, -4)
 
 func _initialize() -> void:
 	await process_frame
+	_drowning_starts_past_its_depth()
 	await _a_pond_takes_out_what_it_covers()
 	finish()
+
+
+func _drowning_starts_past_its_depth() -> void:
+	var ground := Terrain.new()
+	ground.dry_water()
+	var heights := ground.read(Terrain.ALL)
+	for deep in [0.5, 1.5]:
+		var levels := PackedFloat32Array()
+		for h in heights:
+			levels.append(h + deep * Water.DROWNS)
+		ground.set_water(levels, Terrain.depth_image(levels, heights, PackedInt32Array()))
+		check(Water.drowned(ground, Vector3(AT.x, 0, AT.y)) == (deep > 1.0), "water %.1f times DROWNS deep drowns: %s" % [deep, deep > 1.0])
 
 
 func _a_pond_takes_out_what_it_covers() -> void:
