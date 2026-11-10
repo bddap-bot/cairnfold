@@ -51,6 +51,7 @@ func _run() -> void:
 	_a_menu_toggle_switches_a_hidden_renderer()
 	_a_direct_tree_sums_its_toggles_unnormalized()
 	_a_hue_radial_keeps_its_material_binding()
+	_poiyomi_colour_adjust_lies_in_the_atlas()
 	_a_decal_alpha_binds_its_atlas_layer()
 	_a_shrunk_texture_averages_what_its_cell_covers()
 	_the_atlas_widens_before_its_cells_shrink()
@@ -974,6 +975,32 @@ func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
 		return data.shown.map(func(s: Dictionary) -> bool: return ExpressionPlayer.shows(state.outputs, s.when))
 	check(shown.call(0) == [true, true, false], "each toggle a direct tree sums at its full weight shows as its default says: %s" % [shown.call(0)])
 	check(shown.call(1) == [false, false, false], "normalized blend values share the tree's weight among its toggles: %s" % [shown.call(1)])
+
+
+## Poiyomi's Color Adjust at rest lies in the atlas, in linear space after the colour's tint: saturation -1 greys the
+## tinted (255, 127, 63) to its luminance 0.431 and brightness 1 doubles it to 0.861, sRGB 238. A property Thry's lock
+## keeps animatable is left to its clips: animated saturation leaves the colour, so only the brightness doubles it.
+func _poiyomi_colour_adjust_lies_in_the_atlas() -> void:
+	var dir := ProjectSettings.globalize_path("user://adjust")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poiyomi.shader", "shader", 'Shader ".poiyomi/Poiyomi Toon" { Properties { _Color ("Color", Color) = (1, 1, 1, 1) _Saturation ("Saturation", Float) = 0 _MainBrightness ("Brightness", Float) = 0 } }')
+	var material := "Material:\n  m_Shader: {guid: shader}\n  stringTagMap:\n    %s\n  m_SavedProperties:\n    m_Floats:\n    - _MainColorAdjustToggle: 1\n    - _Saturation: -1\n    - _MainBrightness: 1\n    m_Colors:\n    - _Color: {r: 1, g: 0.5, b: 0.25, a: 1}\n"
+	write.call("still.mat", "still", material % "RenderType: Opaque")
+	write.call("animated.mat", "animated", material % "_SaturationAnimated: 1")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "still"}, Color.WHITE)
+	materials.use({"guid": "animated"}, Color.WHITE)
+	materials.pack(["still", "animated"])
+	var at := func(key: String) -> Color:
+		var cell: Rect2i = materials.materials[key].cell
+		return materials.atlas.get_pixel(cell.position.x + cell.size.x / 2, cell.position.y + cell.size.y / 2)
+	var still: Color = at.call("still")
+	var animated: Color = at.call("animated")
+	check(absi(still.r8 - 238) <= 2 and absi(still.g8 - 238) <= 2 and absi(still.b8 - 238) <= 2, "a colour greyed by saturation -1 and doubled by brightness 1 is sRGB 238: %s" % still.to_html())
+	check(animated.r8 == 255 and absi(animated.g8 - 173) <= 2 and absi(animated.b8 - 89) <= 2, "an animatable saturation is left to its clips while the brightness doubles the colour: %s" % animated.to_html())
 
 
 func _a_hue_radial_keeps_its_material_binding() -> void:

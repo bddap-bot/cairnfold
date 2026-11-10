@@ -139,6 +139,10 @@ func _read(m: Dictionary, guid: String) -> void:
 	var queue := str(mat.get("m_CustomRenderQueue", "-1")).to_int()
 	var tags: Variant = mat.get("stringTagMap")
 	var render_type := str((tags as Dictionary).get("RenderType", "")) if tags is Dictionary else ""
+	m.animated = {}
+	for tag: String in (tags as Dictionary if tags is Dictionary else {}):
+		if tag.ends_with("Animated") and str(tags[tag]).to_float() > 0.0:
+			m.animated[tag.trim_suffix("Animated")] = true
 	var mode := str(floats.get("_Mode", "0")).to_int()
 	var declared := func(name: String) -> bool: return m.properties.has(name) and (ints.has(name) or floats.has(name))
 	# A shader drawing `Blend [_SrcBlend] [_DstBlend]` blends exactly when its destination factor is not Zero, whatever
@@ -264,8 +268,47 @@ func pack(used: Array) -> void:
 		m.cell = cell
 		var img := _cell_image(m, cell)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod, _alpha_overrides(key, img.get_size()))
+		_adjust(m, img)
 		_detail(m, img)
 		_blit_padded(atlas, img, cell)
+
+
+## Poiyomi's Color Adjust at rest laid into `img`, the material `m`'s tinted texture at its cell's size, as its base pass
+## adjusts the base colour in linear space under its adjust mask's channels: hue shift (red), gamma (alpha), saturation
+## (blue), then brightness (green), clamped. A property its locked shader keeps animatable (Thry's `Animated` tag) is
+## left to the clips that move it, and a hue that turns over time is left unshifted.
+func _adjust(m: Dictionary, img: Image) -> void:
+	if not poiyomi(m) or _float(m, "_MainColorAdjustToggle") == 0.0:
+		return
+	var live: Dictionary = m.get("animated", {})
+	var shifted := _float(m, "_MainHueShiftToggle") != 0.0 and not live.has("_MainHueShift") and _float(m, "_MainHueShiftSpeed") == 0.0
+	var shift := _saved(m, "_MainHueShift", 0.0) if shifted else 0.0
+	var space := _float(m, "_MainHueShiftColorSpace")
+	var select := _float(m, "_MainHueShiftSelectOrShift", 1.0)
+	var replace := _float(m, "_MainHueShiftReplace", 1.0) != 0.0
+	var gamma := 1.0 if live.has("_MainGamma") else _saved(m, "_MainGamma", 1.0)
+	var saturation := 0.0 if live.has("_Saturation") else _saved(m, "_Saturation", 0.0)
+	var brightness := 0.0 if live.has("_MainBrightness") else _saved(m, "_MainBrightness", 0.0)
+	if not shifted and gamma == 1.0 and saturation == 0.0 and brightness == 0.0:
+		return
+	var masks := _over(m, _slot_image(m, "_MainColorAdjustTexture"), "_MainColorAdjustTexture", img.get_size(), 0)
+	masks.convert(Image.FORMAT_RGBA8)
+	var mask := masks.get_data()
+	var data := img.get_data()
+	for i in range(0, data.size(), 4):
+		var c := Color8(data[i], data[i + 1], data[i + 2]).srgb_to_linear()
+		if shifted:
+			var cover := mask[i] / 255.0
+			c = c.lerp(hue_shift(c, shift, space, select), cover) if replace else hue_shift(c, fposmod(shift - (1.0 - cover), 1.0), space, select)
+		var gammaed := Color(pow(absf(c.r), gamma), pow(absf(c.g), gamma), pow(absf(c.b), gamma))
+		c = c.lerp(gammaed, mask[i + 3] / 255.0)
+		var grey := 0.3 * c.r + 0.59 * c.g + 0.11 * c.b
+		c = c.lerp(Color(grey, grey, grey), -saturation * mask[i + 2] / 255.0)
+		c = c.lerp(c * (brightness + 1.0), mask[i + 1] / 255.0).clamp().linear_to_srgb()
+		data[i] = roundi(c.r * 255.0)
+		data[i + 1] = roundi(c.g * 255.0)
+		data[i + 2] = roundi(c.b * 255.0)
+	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
 ## The material `m`'s texture, or white where it has none, at the size of its `cell`.
