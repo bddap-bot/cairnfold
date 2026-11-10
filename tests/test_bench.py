@@ -52,7 +52,6 @@ class BenchmarkRendering(unittest.TestCase):
         logs = {
             "crash": (crashed, "the game crashed in its last recorded phase paths/stroke: Fatal signal 11 (SIGSEGV)"),
             "death": (ran + vrapi.format(s=24, pid=5664), "the game died during paths/stroke before its script ended"),
-            "shell": (ran + vrapi.format(s=23, pid=5664) + game.format(s=25, text="driver: done"), "another process rendered during paths/stroke"),
         }
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
@@ -69,7 +68,8 @@ class BenchmarkRendering(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn(message, result.stderr)
             for name, log in {"clean": ran + game.format(s=25, text="driver: done"),
-                              "shell after quit": ran + game.format(s=25, text="driver: done") + vrapi.format(s=27, pid=5664)}.items():
+                              "shell after quit": ran + game.format(s=25, text="driver: done") + vrapi.format(s=27, pid=5664),
+                              "shell through": ran + "".join(vrapi.format(s=s, pid=5664) for s in range(21, 26)) + game.format(s=25, text="driver: done")}.items():
                 with self.subTest(log=name):
                     (out / "logcat.txt").write_text(log)
                     result = report(out, "quest")
@@ -94,6 +94,63 @@ class BenchmarkRendering(unittest.TestCase):
             result = report(out, "quest")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('the game crashed in its step { "op": "figures", "file": "bench/guest.vrm" }, its last recorded phase sweep/built-in/away: Fatal signal 11', result.stderr)
+
+    def test_a_foreign_runtime_line_costs_only_the_seconds_it_shares(self):
+        """The shell prints one runtime line in the first second of a phase: the seconds of both phases it overlaps
+        leave them, the rest measure, and the record names the process."""
+        game = '{t:.3f}  6423  6467 I godot   : {text}\n'
+        vrapi = '{t:.3f}  {pid}  6717 I VrApi   : FPS=72/72,Prd=40ms,App={ms:.2f}ms,GPU%=0.5,TW=1.00ms\n'
+        base = 1792370000.4
+        labels = {s: "-" if s in (20, 30) else "settle" if s < 24 else "aim" for s in range(20, 31)}
+        hit = (23, 24)
+        log = (game.format(t=base + 20, text="xr: session at 72.0 Hz")
+               + "".join(vrapi.format(t=base + s - 0.2, pid=6423, ms=30.0 if s in hit else 10.0) for s in range(21, 30))
+               + vrapi.format(t=base + 23.5, pid=1795, ms=13.5) + game.format(t=base + 30, text="driver: done")
+               + vrapi.format(t=base + 31, pid=1795, ms=13.5))
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({
+                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
+                "seconds": [{"label": labels[s], "unix": base + s, "p50": 13.89, "p99": 40.0 if s in hit else 20.0 if s == 25 else 13.89,
+                             "late": 9 if s in hit else 0, "draws": 100, "prims": 1000} for s in range(20, 31)],
+            }))
+            (out / "stress.json").write_text("[]")
+            (out / "logcat.txt").write_text(log)
+            result = report(out, "quest")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("pid 1795 rendered, 1 s left out", result.stdout)
+            phases = json.loads((out / "record.json").read_text())["phases"]
+            for name, p99 in (("settle", 13.89), ("aim", 20.0)):
+                with self.subTest(phase=name):
+                    phase = phases[name]
+                    self.assertEqual((phase["gpu_ms"], phase["timewarp_ms"], phase["late"], phase["p99"]), (10.0, 1.0, 0, p99))
+                    self.assertEqual(phase["foreign"], {"pids": ["1795"], "dropped_s": 1})
+
+    def test_a_phase_with_only_foreign_seconds_past_its_first_keeps_them_and_never_its_first(self):
+        """The first second takes the phase's edits, so it is never what is left; and the game's own line before its
+        first godot line, which logcat can drop, names no other process."""
+        game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
+        vrapi = '17923700{s}.500  {pid}  6717 I VrApi   : FPS=72/72,Prd=40ms,App=10.00ms,GPU%=0.5,TW=1.00ms\n'
+        seconds = [{"label": "-" if s in (22, 25) else "edit", "unix": 1792370000 + s, "p50": 200.0 if s == 23 else 13.0, "p99": 200.0 if s == 23 else 13.0,
+                    "late": 50 if s == 23 else 0, "draws": 100, "prims": 1000} for s in (22, 23, 24, 25)]
+        logs = {
+            "foreign": (vrapi.format(s=22, pid=6423) + game.format(s=23, text="xr: session at 72.0 Hz") + vrapi.format(s=23, pid=6423)
+                        + vrapi.format(s=24, pid=1795) + game.format(s=26, text="driver: done"),
+                        {"pids": ["1795"], "dropped_s": 0}),
+            "own line": (vrapi.format(s=22, pid=6423) + game.format(s=23, text="xr: session at 72.0 Hz") + vrapi.format(s=23, pid=6423)
+                         + game.format(s=26, text="driver: done"), None),
+        }
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "stress.json").write_text("[]")
+            (out / "metrics.json").write_text(json.dumps({"info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}}, "seconds": seconds}))
+            for name, (log, foreign) in logs.items():
+                with self.subTest(log=name):
+                    (out / "logcat.txt").write_text(log)
+                    result = report(out, "quest")
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    phase = json.loads((out / "record.json").read_text())["phases"]["edit"]
+                    self.assertEqual((phase["p99"], phase.get("foreign")), (13.0, foreign))
 
     def test_a_phases_stalls_are_kept_in_its_record(self):
         stall = {"ms": 412.5, "tags": ["build"], "main_ms": {"scripts": 400.1}, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}

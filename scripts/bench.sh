@@ -329,13 +329,14 @@ if device == "frame" and not d["info"].get("xr"):
     sys.exit("bench: the game ran without an XR session; see the game's log")
 # Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second, its
 # compositor's TW= beside it.
-gpu, timewarp = {}, {}
+gpu, timewarp, dropped, foreign = {}, {}, set(), {}
 if device == "frame":
     for name, secs in phases.items():
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
 elif device == "quest":
-    # Only the game's process counts, the one printing as godot. Another process rendering during a phase, as the
-    # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
+    # Only the game's process counts, the one printing as godot. Another process rendering, as the shell does for a
+    # moment mid-phase or under an open panel, shares the GPU with the game, so no time of a second it renders in is
+    # the game's alone: those seconds are left out of their phase, which keeps them only when it has no other.
     # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
     # Once the script is done the game quits and the shell takes the compositor back, outside every phase.
     # A hand the headset's cameras track, someone's near it, is drawn by the game with its tool and the tool's
@@ -345,12 +346,13 @@ elif device == "quest":
     ends = [s["unix"] for s in d["seconds"]]
     at = lambda t: d["seconds"][bisect.bisect_left(ends, t)]["label"] if t <= ends[-1] else "-"
     phase, step, game_pid, crash, done = "-", None, None, None, False
-    shared, hands, handed = {}, set(), set()
+    lines, others, hands, handed = {}, [], set(), set()
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
         m = re.match(r"\s*(\d+\.\d+)\s+(\d+)\s+\d+\s+\w\s+(\S+)", line)
         if not m:
             continue
-        label, pid = at(float(m.group(1))), m.group(2)
+        t, pid = float(m.group(1)), m.group(2)
+        label = at(t)
         # The idle headset's own game may still print as it gives way; the launched one's engine banner names it.
         if m.group(3).startswith("godot") and (game_pid is None or "Godot Engine v" in line):
             game_pid = pid
@@ -373,22 +375,27 @@ elif device == "quest":
             crash = f"bench: the game crashed {where}: {m.group(0).strip()}; see logcat.txt"
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
-            gpu.setdefault(label, []).append(float(m.group(2)))
-            m = re.search(r"TW=([\d.]+)ms", line)
-            if m:
-                timewarp.setdefault(label, []).append(float(m.group(1)))
-        elif m and label != "-" and not done:
-            shared.setdefault(label, set()).add(pid)
+            tw = re.search(r"TW=([\d.]+)ms", line)
+            lines.setdefault(label, []).append((t, float(m.group(2)), tw and float(tw.group(1))))
+        elif m and not done:
+            others.append((t, pid))
     if crash or (game_pid and not done):
         sys.exit(crash or f"bench: the game died during {phase} before its script ended; see logcat.txt")
-    if shared:
-        sys.exit("bench: another process rendered during " + ", ".join(f"{k} (pid {', '.join(sorted(v))})" for k, v in shared.items()) + "; see logcat.txt")
     if handed:
         sys.exit("bench: the headset tracked a hand during " + ", ".join(sorted(handed)) + ", which the game drew; see logcat.txt")
+    # A runtime line and a metrics second each cover the second up to their time, so two overlap within a second.
+    near = lambda x: {pid for t, pid in others if pid != game_pid and abs(x - t) < 1}
+    for name, secs in phases.items():
+        for s in secs:
+            if near(s["unix"]):
+                dropped.add(id(s))
+                foreign.setdefault(name, set()).update(near(s["unix"]))
     # A phase's first second takes its edits; a phase of one second, as a put lands, keeps it.
-    for v in gpu.values():
-        if len(v) > 1:
-            v.pop(0)
+    for label, v in lines.items():
+        v = v[1:] or v
+        v = [g for g in v if not near(g[0])] or v
+        gpu[label] = [g[1] for g in v]
+        timewarp[label] = [g[2] for g in v if g[2] is not None]
     unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]
     if unmeasured:
         sys.exit("bench: no runtime GPU time for " + ", ".join(unmeasured) + "; see logcat.txt")
@@ -402,8 +409,11 @@ over = []
 summary = {}
 mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
 for name, secs in phases.items():
-    late = sum(s["late"] for s in secs)
-    secs = secs[1:] or secs
+    tail = secs[1:] or secs
+    kept = [s for s in tail if id(s) not in dropped] or tail
+    left_out = [s for s in secs if id(s) in dropped and s not in kept]
+    late = sum(s["late"] for s in secs if s not in left_out)
+    secs = kept
     summary[name] = {"p50": mid([s["p50"] for s in secs]), "p99": max(s["p99"] for s in secs), "late": late,
                      "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
     windows = [{"frames": len(w["frames_ms"]), "max": w["max"], "late": w["late"]} for w in landings.get(name, [])]
@@ -415,6 +425,8 @@ for name, secs in phases.items():
     summary[name]["worst"] = {"late": worst["late"], "p50": worst["p50"], "p99": worst["p99"]}
     if windows:
         summary[name]["landings"] = windows
+    if name in foreign:
+        summary[name]["foreign"] = {"pids": sorted(foreign[name]), "dropped_s": len(left_out)}
     stalls = [{k: st[k] for k in ("ms", "notes", "compiled")} for s in phases[name] for st in s.get("stalls", [])]
     if stalls:
         summary[name]["stalls"] = stalls
@@ -459,6 +471,8 @@ for name, secs in phases.items():
             else:
                 row += " OVER"
                 over.append(name)
+    if name in foreign:
+        row += f"  pid {', '.join(sorted(foreign[name]))} rendered, {len(left_out)} s left out"
     print(row)
 os.makedirs(os.path.dirname(record), exist_ok=True)
 for path in (record, os.path.join(out, "record.json")):

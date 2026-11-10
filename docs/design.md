@@ -2177,7 +2177,7 @@ Measuring this, one trap. The headset's system shell keeps
 rendering beside the game while a Store or Library panel is open, or, unworn, while the
 Guardian's dialog is up, taking GPU time the game's own `App=` line does not show.
 `bench.sh --android` closes the panels, restarts the shell and holds the Guardian paused
-before each run, and fails if another process renders during a measured phase.
+before each run, and leaves the seconds another process renders in out of their phase, the record naming it.
 
 ### Cheaper flora
 
