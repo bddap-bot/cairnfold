@@ -64,6 +64,7 @@ func _run() -> void:
 	_installed_packages_lend_only_missing_images()
 	_a_texture_in_no_package_needs_the_packages_named()
 	_an_edit_imports_with_its_base()
+	_a_model_rests_at_its_saved_shape_percents()
 	_submeshes_take_slots_in_first_use_order()
 	_a_serialized_mesh_reads_as_its_model_would()
 	_gesture_faces_become_expressions()
@@ -2650,6 +2651,47 @@ func _a_texture_in_no_package_needs_the_packages_named() -> void:
 	for scene: Node3D in [bare, lent]:
 		if scene != null:
 			scene.free()
+
+## A model's renderer rests at the percent its FBX saves for each blend shape, as Unity imports it.
+func _a_model_rests_at_its_saved_shape_percents() -> void:
+	var dir := ProjectSettings.globalize_path("user://shape_percents")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var fbx := dir.path_join("model.fbx")
+	var meta := FileAccess.get_file_as_string(avatar_file("seed-san/Models").path_join("new_seedsan_betterfbx.fbx.meta"))
+	FileAccess.open(fbx + ".meta", FileAccess.WRITE).store_string(meta)
+	var bytes := FileAccess.get_file_as_bytes(avatar_file("seed-san/Models").path_join("new_seedsan_betterfbx.fbx"))
+	var tag := PackedByteArray([13]) + "DeformPercentD".to_ascii_buffer()
+	var at := bytes.find(13)
+	while at >= 0 and bytes.slice(at, at + tag.size()) != tag:
+		at = bytes.find(13, at + 1)
+	var kind := PackedByteArray([0, 1]) + "SubDeformer".to_ascii_buffer()
+	var end := at
+	while end > 0 and bytes.slice(end, end + kind.size()) != kind:
+		end -= 1
+	var start := end
+	while start > 5 and not (bytes[start - 5] == 83 and bytes.decode_u32(start - 4) == end + kind.size() - start):
+		start -= 1
+	check(at >= 0 and start > 5, "the fixture saves a percent per named shape channel")
+	if at < 0 or start <= 5:
+		return
+	var channel := bytes.slice(start, end).get_string_from_utf8()
+	bytes.encode_double(at + tag.size(), 62.0)
+	FileAccess.open(fbx, FileAccess.WRITE).store_buffer(bytes)
+	var assets := Assets.new(dir)
+	var prefabs := Prefabs.new(assets)
+	var model := prefabs.model(assets.of(["fbx"])[0])
+	var saved := []
+	for id: int in model.objects:
+		var object: Dictionary = model.objects[id]
+		if object.type == "SkinnedMeshRenderer":
+			var mesh: ImporterMesh = (model.state as GLTFState).get_meshes()[(model.state as GLTFState).get_nodes()[object.node].mesh].mesh
+			var weights := Yaml.list(object.data.get("m_BlendShapeWeights"))
+			for k in weights.size():
+				if str(weights[k]).to_float() != 0.0:
+					saved.append([mesh.get_blend_shape_name(k), str(weights[k]).to_float()])
+	check(saved == [[channel, 62.0]], "only the patched shape, %s, rests off zero, at its percent: %s" % [channel, saved])
+	(prefabs.models[assets.of(["fbx"])[0]].scene as Node).free()
+
 
 ## An edit sold without its base, a variant of the base's avatar prefab, imports with the base's package beside it,
 ## its GUIDs resolved across both; alone it is refused, naming the base prefab's GUID it instances. Only a variant of a

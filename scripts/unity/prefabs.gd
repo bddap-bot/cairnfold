@@ -272,7 +272,7 @@ func model(guid: String) -> Dictionary:
 			var r: int = id_of.call(137 if skinned else 23, type, unity_path + "/" + type, name)
 			var mesh_id: int = id_of.call(43, "Mesh", name, name)
 			components.append({"component": {"fileID": str(r)}})
-			objects[r] = {"type": type, "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": "1", "m_Mesh": {"fileID": str(mesh_id), "guid": guid}, "m_Materials": materials, "m_BlendShapeWeights": []}}
+			objects[r] = {"type": type, "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Enabled": "1", "m_Mesh": {"fileID": str(mesh_id), "guid": guid}, "m_Materials": materials, "m_BlendShapeWeights": Array(gm.get_blend_weights()).map(func(w: float) -> String: return str(snappedf(w * 100.0, 1e-4)))}}
 			if node.skin >= 0:
 				renderer_skins[r] = node.skin
 			if not skinned:
