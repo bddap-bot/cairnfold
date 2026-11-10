@@ -1110,8 +1110,11 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	check(off.targets.is_empty(), "disabled color adjustment does not bind tone curves")
 	materials.materials.colour.floats._MainColorAdjustToggle = "1"
 	materials.materials.colour.animated = {}
+	var unmoved := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	check(unmoved.targets.size() == 1, "a clip on a Color Adjust property the atlas left unchanged still binds")
+	materials.materials.colour.floats._MainGamma_Test = "2"
 	var laid := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
-	check(laid.targets.is_empty(), "a clip moving a Color Adjust property the locked shader holds fixed, laid into the atlas, binds nothing")
+	check(laid.targets.is_empty(), "a clip on a Color Adjust property the atlas holds moved binds nothing, so it is not applied over itself")
 
 	sk.free()
 

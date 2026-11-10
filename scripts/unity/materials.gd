@@ -273,8 +273,8 @@ func pack(used: Array) -> void:
 		_blit_padded(atlas, img, cell)
 
 
-## The Poiyomi Color Adjust properties, in the order its base pass applies them.
-const ADJUSTS := ["_MainHueShift", "_MainGamma", "_Saturation", "_MainBrightness"]
+## The Poiyomi Color Adjust properties, in the order its base pass applies them, each with the value that changes nothing.
+const ADJUSTS := {"_MainHueShift": 0.0, "_MainGamma": 1.0, "_Saturation": 0.0, "_MainBrightness": 0.0}
 
 
 ## Whether the import lays the material `m`'s Color Adjust property `name` (ADJUSTS) into the atlas (`_adjust`): where
@@ -286,19 +286,25 @@ static func adjust_laid(m: Dictionary, name: String) -> bool:
 	return name != "_MainHueShift" or _float(m, "_MainHueShiftToggle") != 0.0 and _float(m, "_MainHueShiftSpeed") == 0.0
 
 
+## Whether the atlas holds the material `m`'s Color Adjust property `name` moved from the value that changes nothing, so
+## a clip binding the property would apply it over itself.
+static func adjust_baked(m: Dictionary, name: String) -> bool:
+	return adjust_laid(m, name) and _saved(m, name, ADJUSTS[name]) != ADJUSTS[name]
+
+
 ## Poiyomi's Color Adjust at rest laid into `img`, the material `m`'s tinted texture at its cell's size, as its base pass
 ## adjusts the base colour in linear space under its adjust mask's channels: hue shift (red), gamma (alpha), saturation
 ## (blue), then brightness (green), clamped; each property `adjust_laid` lays, the rest left to the clips that move them.
 func _adjust(m: Dictionary, img: Image) -> void:
-	var at := func(name: String, rest: float) -> float: return _saved(m, name, rest) if adjust_laid(m, name) else rest
+	var at := func(name: String) -> float: return _saved(m, name, ADJUSTS[name]) if adjust_laid(m, name) else ADJUSTS[name]
 	var shifted := adjust_laid(m, "_MainHueShift")
-	var shift: float = at.call("_MainHueShift", 0.0)
+	var shift: float = at.call("_MainHueShift")
 	var space := _float(m, "_MainHueShiftColorSpace")
 	var select := _float(m, "_MainHueShiftSelectOrShift", 1.0)
 	var replace := _float(m, "_MainHueShiftReplace", 1.0) != 0.0
-	var gamma: float = at.call("_MainGamma", 1.0)
-	var saturation: float = at.call("_Saturation", 0.0)
-	var brightness: float = at.call("_MainBrightness", 0.0)
+	var gamma: float = at.call("_MainGamma")
+	var saturation: float = at.call("_Saturation")
+	var brightness: float = at.call("_MainBrightness")
 	if not shifted and gamma == 1.0 and saturation == 0.0 and brightness == 0.0:
 		return
 	var masks := _over(m, _slot_image(m, "_MainColorAdjustTexture"), "_MainColorAdjustTexture", img.get_size(), 0)
