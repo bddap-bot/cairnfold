@@ -1094,6 +1094,7 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.shader = "Poiyomi Toon"
 	materials.materials.colour.properties = {"_MainGamma_Test": true}
 	materials.materials.colour.floats = {"_MainGamma_Test": "1", "_MainColorAdjustToggle": "1"}
+	materials.materials.colour.animated = {"_MainGamma": true}
 	materials.materials.colour.textures = {"_MainColorAdjustTexture": {"m_Texture": {"guid": "mask"}}}
 	expressions.data.clips[0].curves[0].attribute = "material._MainGamma_Test"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 1.0], [1.0, 2.0]]
@@ -1107,6 +1108,10 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.floats._MainColorAdjustToggle = "0"
 	var off := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(off.targets.is_empty(), "disabled color adjustment does not bind tone curves")
+	materials.materials.colour.floats._MainColorAdjustToggle = "1"
+	materials.materials.colour.animated = {}
+	var laid := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
+	check(laid.targets.is_empty(), "a clip moving a Color Adjust property the locked shader holds fixed, laid into the atlas, binds nothing")
 
 	sk.free()
 
