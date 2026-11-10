@@ -9,7 +9,8 @@ uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 instance uniform int stone_style = -1;
 // A wheel boulder keeps full-size surface detail while its lighting stays in the garden.
 instance uniform bool miniature = false;
-varying vec3 surface_pos;
+// In the piece's frame, where its shadow's box (Wall.kinds) spans -0.5 to 0.5.
+varying vec3 local_pos;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -37,6 +38,9 @@ varying vec3 pane;
 varying flat int style;
 // A styled boulder's tone within its style, its own from where it stands.
 varying flat float tone;
+varying flat vec3 box_sun;
+// In metres: less than a wall's thickness, so a grazing sun does not throw a point past what stands before it.
+const float FACE_REACH = 0.5;
 
 void vertex() {
 	mat4 piece = PIECE_MATRIX;
@@ -62,8 +66,8 @@ void vertex() {
 				NORMAL = transpose(mat3(piece)) * world_nrm;
 			}
 		}
+		local_pos = VERTEX;
 		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
-		surface_pos = miniature ? VERTEX : world_pos;
 		room_row = room_row_at(world_pos);
 		room_in = room_in_at(room_row, world_pos, world_nrm);
 #ifdef ROOF_TIMBER
@@ -72,6 +76,13 @@ void vertex() {
 #else
 		occlusion = PIECE_CUSTOM.x;
 		material = PIECE_CUSTOM.y;
+#endif
+		box_sun = vec3(0.0);
+#if !defined(BAKED) && !defined(ROOF_TIMBER)
+		// A far chunk's stones stand on their flat faces, a roof's ceiling is no piece, and a boulder casts its own shape.
+		if (stone_style < 0 && abs(material - 2.0) >= 0.5) {
+			box_sun = inverse(mat3(piece)) * sun_toward;
+		}
 #endif
 		float ground = ground_at(world_pos.xz);
 		// Palette.Element ROOF: the covering.
@@ -100,6 +111,16 @@ void fragment() {
 	if (abs(material - 2.0) < 0.5) {
 		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
 	}
+	// A piece's shadow is a plain box holding a rounded stone's rim and hollows, so a point on a face toward the sun reads
+	// it from where its ray crosses that face's plane: leaving by any other side would land it in a joint, under the
+	// neighbouring box.
+	vec3 side = abs(local_pos);
+	vec3 face = side.x >= max(side.y, side.z) ? vec3(sign(local_pos.x), 0.0, 0.0) : side.y >= side.z ? vec3(0.0, sign(local_pos.y), 0.0) : vec3(0.0, 0.0, sign(local_pos.z));
+	float toward = dot(face, box_sun);
+	if (toward > 0.0) {
+		float lift = min(max(0.5 - dot(face, local_pos), 0.0) / toward, FACE_REACH);
+		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * lift, 0.0)).xyz;
+	}
 #ifdef GIVEN_PER_VERTEX
 	vec4 bounce = given;
 #else
@@ -108,6 +129,7 @@ void fragment() {
 	if (abs(material - 4.0) < 0.5) {
 		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
+		vec3 surface_pos = miniature ? local_pos : world_pos;
 		vec3 p = surface_pos * 1.7;
 		vec3 an = abs(world_nrm);
 		float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
