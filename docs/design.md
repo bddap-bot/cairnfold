@@ -2545,10 +2545,9 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
 - **Eye adaptation:** exposure follows the sky the eye sees, read on the CPU from the probe volume
   (`Bounce.sky_at`, `Look.adapt`): under a roof it rises toward 1.8 times the garden's over about 0.7 s,
   so a house's inside comes up out of the dark once entered and its doorway glows, and it falls back
-  on the way out. One texel read a frame and no GPU pass. The eye adapts to the night too (`Look.night_adapted`, a
-  per-build option, `Look.NIGHT_ADAPT`): under a sky darker than 0.12 luminance the exposure rises with the dark, up
-  to 4 times, so in the moonless hours before dawn (00:24 to 05:18) the builds still read while the sky, stars and
-  meadow stay night-dark; with the moon or the sun up it changes nothing. It is set with the hour, nothing a frame.
+  on the way out. One texel read a frame and no GPU pass. The eye adapts to the night too (`Look.night_adapted`):
+  under a sky darker than 0.12 luminance the exposure rises with the dark, up to 4 times, so in the moonless hours
+  before dawn (00:24 to 05:18) the builds still read while the sky, stars and meadow stay night-dark; with the moon or the sun up it changes nothing. It is set with the hour, nothing a frame.
   On the desktop renderer at 02:24 the view of a house and a wall averages 0.2 of 255 without it, 4.0 with it.
 - **Grading:** AgX tonemapping, mild saturation and contrast lift. No glow: its
   extra passes cost the Quest 2 9 ms of its 13.9 (see "Quest 2 measurements").

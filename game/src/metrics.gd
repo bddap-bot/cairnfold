@@ -50,8 +50,6 @@ var _landings: Array = []
 var _moved := false
 var _step := 0
 var _pinned := true
-var _viewport_ms := 0.0
-var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
 ## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
 var _was_late := false
@@ -203,8 +201,6 @@ func _process(delta: float) -> void:
 		_step = maxi(_step, quality.step())
 		_pinned = _pinned and quality.held()
 		_gpu.append(quality.frame_ms)
-		_viewport_ms += quality.frame_ms
-		_viewport_frames += 1
 	if xr != null and xr.is_initialized():
 		var now_eyes := eye_half_angles(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)) + eye_half_angles(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))
 		if _eye_lo.is_empty():
@@ -274,16 +270,17 @@ func _process(delta: float) -> void:
 			row.charges = charges
 		_draws = 0
 		_prims = 0
-		if _viewport_frames > 0:
-			row.viewport_gpu_ms = _viewport_ms / _viewport_frames
+		if not _gpu.is_empty():
+			var sum := 0.0
+			for ms in _gpu:
+				sum += ms
+			row.viewport_gpu_ms = sum / _gpu.size()
 			row.step = _step
 			row.pinned = _pinned
 			if quality.budget_ms > 0.0:
 				row.budget_ms = quality.budget_ms
 		_step = quality.step() if quality != null else 0
 		_pinned = true
-		_viewport_ms = 0.0
-		_viewport_frames = 0
 		row.unix = Time.get_unix_time_from_system()
 		row.cpu_ms = distribution(_cpu)
 		var main_ms := {}

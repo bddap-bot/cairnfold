@@ -147,10 +147,6 @@ static func _cell(c: Variant) -> bool:
 	return c is Array and c.size() == 8 and c.all(_number) and c[0] < c[2] and c[1] < c[3] and c[4] < c[6] and c[5] < c[7]
 
 
-## A look's "clearcoat": null, or its "strength", "smoothness", "reflection", "specular" and "fresnel", its
-## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
-## its four "inverts" and its "map", -1
-## or an index among the looks' "clearcoatMaps"; an index past them draws as none.
 ## A look's matcap slot: null, or its "mode" ("normal" or "reflection"), its "texture" (an index among the looks'
 ## "matcaps", or null for plain white), its linear "color", its "border", "intensity", "baseMix", "replace", "multiply",
 ## "add", "screen", "mixed", "lightAdd", "emission" and "lightMask", its "hue" (null, or its "shift", "space" and
@@ -167,6 +163,9 @@ static func _matcap(c: Variant) -> bool:
 	return (hue == null or hue is Dictionary and ["shift", "space", "select"].all(func(k: String) -> bool: return _number(hue.get(k)))) and (circle == null or circle is Dictionary and _number(circle.get("border")) and _number(circle.get("blur")))
 
 
+## A look's "clearcoat": null, or its "strength", "smoothness", "reflection", "specular" and "fresnel", its
+## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
+## its four "inverts" and its "map", -1 or an index among the looks' "clearcoatMaps"; an index past them draws as none.
 static func _coat(coat: Variant) -> bool:
 	if coat == null:
 		return true
@@ -179,9 +178,7 @@ static func _coat(coat: Variant) -> bool:
 	return _number(coat.get("map")) and (float(coat.map) == -1.0 or _whole(coat.map))
 
 
-## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
-## the turn names the colour space and mode it turns in, which the shader cannot guess.
-## A file converted before decals named their mode carries "multiply" in its place, and would draw those decals replacing.
+## A decal region names its "colorBlend", one of DECAL_BLENDS.
 static func _blend(region: Dictionary) -> bool:
 	if not str(region.get("field", "")).begins_with("decal"):
 		return true
@@ -189,6 +186,8 @@ static func _blend(region: Dictionary) -> bool:
 	return _whole(mode) and int(mode) in DECAL_BLENDS
 
 
+## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
+## the turn names the colour space and mode it turns in, which the shader cannot guess.
 static func _hue(region: Dictionary) -> bool:
 	var v: Variant = region.get("hue")
 	if v == null:

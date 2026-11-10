@@ -33,10 +33,9 @@ const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 ## and its doorway glows.
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
-## Per-build: the eye's night adaptation. Under a sky darker than NIGHT_FLOOR the exposure rises with the dark, up to
+## The eye's night adaptation: under a sky darker than NIGHT_FLOOR the exposure rises with the dark, up to
 ## NIGHT_MOST times, so builds read before dawn; the night's sky and light keep their keys (Daylight.KEYS), and only
 ## what the eye makes of them changes.
-const NIGHT_ADAPT := true
 const NIGHT_FLOOR := 0.12
 const NIGHT_MOST := 4.0
 
@@ -192,8 +191,6 @@ static func linear(c: Color) -> Vector3:
 
 ## How many times the night's dark raises the exposure at the hour's `l` (Daylight.light).
 static func night_adapted(l: Dictionary) -> float:
-	if not NIGHT_ADAPT:
-		return 1.0
 	var sky: Color = l.horizon
 	return clampf(NIGHT_FLOOR / maxf(sky.get_luminance(), 1e-4), 1.0, NIGHT_MOST)
 

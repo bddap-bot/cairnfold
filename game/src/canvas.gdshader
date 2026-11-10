@@ -7,7 +7,6 @@ uniform sampler2D wet : filter_linear, repeat_disable;
 uniform sampler2D dry : filter_linear, repeat_disable;
 uniform sampler2D paper : filter_linear, repeat_disable;
 uniform sampler2D relief : filter_linear_mipmap_anisotropic, repeat_disable;
-uniform vec2 metres;
 
 void vertex() {
 	GIVE_HERE;
