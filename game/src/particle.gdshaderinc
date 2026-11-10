@@ -168,12 +168,26 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	normal = mat3(view) * normal;
 }
 
-vec4 particle_fragment(vec4 particle_color, vec2 uv) {
+varying vec4 particle_color;
+
+void vertex() {
+	particle_color = COLOR;
+	particle_vertex(VERTEX, NORMAL, particle_color, MODEL_MATRIX, INSTANCE_CUSTOM, VIEW_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX);
+}
+
+// A cutout (CUTOUT) drops what is under its cutoff rather than blending.
+void fragment() {
 	vec4 c = particle_color * tint;
 	if (textured) {
-		vec2 unity = vec2(uv.x, 1.0 - uv.y) * uv_transform.xy + uv_transform.zw;
+		vec2 unity = vec2(UV.x, 1.0 - UV.y) * uv_transform.xy + uv_transform.zw;
 		c *= texture(albedo, vec2(unity.x, 1.0 - unity.y));
 	}
-	c.rgb += emission;
-	return c;
+	ALBEDO = c.rgb + emission;
+#ifdef CUTOUT
+	if (c.a < cutoff) {
+		discard;
+	}
+#else
+	ALPHA = c.a;
+#endif
 }
