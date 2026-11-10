@@ -2126,7 +2126,7 @@ func _below(on: PackedInt32Array) -> Dictionary:
 ## Sets `w` on the builds it meets and the ground as it now lies, and takes the room it then takes up.
 func _settle(w: Wall) -> void:
 	_meet(w)
-	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision)
+	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision())
 	_reshaped(w)
 
 

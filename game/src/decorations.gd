@@ -36,7 +36,7 @@ func sync() -> void:
 	# A garden with none to show, and none shown, has nothing for a wall's change to move.
 	if world.state.decorations.is_empty() and _shown.is_empty() and _held.is_empty() and _swept.is_empty() and _batches.is_empty() and placed.is_empty():
 		return
-	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision, _shown.duplicate(true), _held.keys(), _swept.keys()]
+	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision(), _shown.duplicate(true), _held.keys(), _swept.keys()]
 	for w in walls.walls:
 		stamp.append([w.id, w.layout.laid, w.paint.duplicate()])
 	if _stamp.get("value") == stamp:

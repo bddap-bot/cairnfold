@@ -81,8 +81,6 @@ var flick := ""
 var picking := false
 ## The garden whose frame budget the hand's tool previews against.
 var world: World
-## What the hand's tool shows would not fit the frame budget: its sight shows it refused.
-var capped := false
 ## The model held while the hand holds `t`.
 func model(t: Tool) -> Node3D:
 	return _models[t]
@@ -482,13 +480,21 @@ func holds_seeds() -> bool:
 	return tool == Tool.SEEDS and tracked() and not picking
 
 
+## What the hand's tool shows would not fit the frame budget: its sight shows it refused.
+func capped() -> bool:
+	if world == null:
+		return false
+	var with := world.fill(self)
+	return with > 1.0 and with > world.fill() + 0.0001
+
+
 ## Tools call this each frame they point: the held tool's sight shows, and a mark where it meets `hit`. Both hide on
 ## frames nobody does.
 func point(hit: Variant, tint: Color) -> void:
 	if not tracked() or _holding:
 		return
 	_sight.visible = true
-	_sight.tint(REFUSED if capped else tint)
+	_sight.tint(REFUSED if capped() else tint)
 	_dot.visible = hit != null
 	if hit != null:
 		var cam := get_viewport().get_camera_3d()
@@ -525,9 +531,6 @@ func _process(delta: float) -> void:
 	buttons.sample()
 	_holding = false
 	clear_pointer()
-	if world != null:
-		var with := world.fill(self)
-		capped = with > 1.0 and with > world.fill() + 0.0001
 	_select_input(delta)
 	_show_tool(delta)
 

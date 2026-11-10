@@ -160,7 +160,7 @@ func _scan() -> void:
 ## Everything a pass reads that can change: the flowers, the season's bloom, the marks, and the ground and water (`revision`).
 func _inputs() -> Array:
 	var pool := wildlife.flora.flowers
-	return [pool.anchored, pool.size(), pool.kept, wildlife.palette.bloom(), wildlife.marks.rewears, wildlife.terrain.revision]
+	return [pool.anchored, pool.size(), pool.kept, wildlife.palette.bloom(), wildlife.marks.rewears, wildlife.terrain.revision()]
 
 
 ## Whether the bloom a butterfly makes for, or sits on, still stands in its patch.

@@ -32,14 +32,11 @@ var _steep := _steeps()
 ## Shaders add them through ground_humps' columns, so a stroke moves the ground without rewriting the grid every frame.
 var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
 const NO_HUMPS: Array[Vector4] = []
-## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
-var revision := 0
 ## Counts changes to the water alone, for what keys on where ponds reach.
 var water_revision := 0
 ## Counts changes to the heights alone, for light that falls on the ground whatever water stands on it.
 var heights_revision := 0
-## The same, and every move of a live hump: what work following the shown ground keys on.
-var shown_revision := 0
+var _hump_moves := 0
 ## The highest grid height in each BLOCK by BLOCK of cells, its edge vertices shared with the next, so a ray can pass
 ## over a block it stays above without sampling it.
 const BLOCK := 8
@@ -172,6 +169,16 @@ static func _no_water() -> PackedFloat32Array:
 	return out
 
 
+## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
+func revision() -> int:
+	return heights_revision + water_revision
+
+
+## `revision`, and every move of a live hump: what work following the shown ground keys on.
+func shown_revision() -> int:
+	return revision() + _hump_moves
+
+
 ## Every pond gone. Shaders read the water as its depth over the ground (the global water_depth,
 ## water.gdshaderinc), one texel per grid point: depth filters smoothly into the dry ground around a pond, where
 ## a level would fall off a cliff to NO_WATER.
@@ -181,9 +188,7 @@ func dry_water() -> void:
 	_water_image.fill(Color(DRY, 0, 0))
 	_water_texture = ImageTexture.create_from_image(_water_image)
 	RenderingServer.global_shader_parameter_set(&"water_depth", _water_texture)
-	revision += 1
 	water_revision += 1
-	shown_revision += 1
 
 
 func water_levels() -> PackedFloat32Array:
@@ -195,9 +200,7 @@ func set_water(levels: PackedFloat32Array, image: Image) -> void:
 	_water = levels
 	_water_image = image
 	_water_texture.update(_water_image)
-	revision += 1
 	water_revision += 1
-	shown_revision += 1
 
 
 ## What shaders read of the water at `levels` over the ground at `heights`, both at every grid point, as a texture's
@@ -385,7 +388,7 @@ static func _lift(hump: Vector4, i: int, j: int) -> float:
 
 func set_hump(slot: int, x: float, z: float, radius: float, lift: float) -> void:
 	_humps[slot] = Vector4(x, z, maxf(radius, STEP), lift)
-	shown_revision += 1
+	_hump_moves += 1
 	_fit()
 	_share_humps()
 
@@ -431,9 +434,7 @@ func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 			_crest = maxf(_crest, values[n])
 			n += 1
 	_raise_tops(cells)
-	revision += 1
 	heights_revision += 1
-	shown_revision += 1
 	_fit()
 	_sync(cells)
 

@@ -95,8 +95,9 @@ var _strokes := {}
 ## The meadow worn bare under each house's or tower's floor on the ground, by its wall's id, so no grass shows through.
 var _floor_marks := {}
 var _resending := {}
-## What to do when each of our sent commands is settled, by token.
-var _done := {}
+## Each of our sent commands until it is settled, by token: its `op`, for the log line when one is turned down, the
+## `hand` its tool was in, which feels it turned down, and, if given, what to do once it is settled (`done`).
+var _sent := {}
 ## Where this garden is saved between sessions, or "" to save nothing (see `load_from`).
 var save_path := ""
 var _keep_due := false
@@ -122,10 +123,6 @@ var _fills := {}
 var _meadow_units := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
-## The hand each of our sent commands came from, by token, so the one turned down feels it.
-var _hands := {}
-## The op of each of our sent commands, by token, for the log line when one is turned down.
-var _ops := {}
 ## Commands waiting to be ordered (host) or applied (others), oldest first, as {cmd, by, run}: the first may wait for
 ## its water to be worked out on another thread, and the rest wait behind it, so every machine still applies the same
 ## commands in the same order.
@@ -562,11 +559,9 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		return
 	_next_token += 1
 	cmd.token = _next_token
+	_sent[_next_token] = {"op": cmd.get("op"), "hand": hand}
 	if done.is_valid():
-		_done[_next_token] = done
-	if hand != null:
-		_hands[_next_token] = hand
-	_ops[_next_token] = cmd.get("op")
+		_sent[_next_token].done = done
 	if multiplayer.is_server():
 		_enqueue(cmd, me(), _order.bind(cmd, me()))
 	elif cmd.get("op") in ["undo", "redo"] or fits(cmd):
@@ -577,16 +572,14 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 
 ## Whether the host has answered every command this player sent.
 func answered() -> bool:
-	return _ops.is_empty()
+	return _sent.is_empty()
 
 
 func _settle(token: int) -> void:
-	var done: Callable = _done.get(token, Callable())
-	_done.erase(token)
-	_hands.erase(token)
-	_ops.erase(token)
-	if done.is_valid():
-		done.call()
+	var sent: Dictionary = _sent.get(token, {})
+	_sent.erase(token)
+	if sent.get("done", Callable()).is_valid():
+		sent.done.call()
 
 
 ## Takes back our latest step; `hand` hears it come back, or feels it refused when there is none.
@@ -720,8 +713,9 @@ func _capped(token: int) -> void:
 
 
 func _turned_down(token: int, why: String) -> void:
-	print("world: %s turned down: %s" % [_ops.get(token), why])
-	var hand: XRController3D = _hands.get(token)
+	var sent: Dictionary = _sent.get(token, {})
+	print("world: %s turned down: %s" % [sent.get("op"), why])
+	var hand: XRController3D = sent.get("hand")
 	if hand != null and not is_instance_valid(hand):
 		hand = null
 	if why == OVER:
@@ -977,10 +971,11 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	var last: bool = cmd.op in ["sky", "path"] or cmd.op == "plant" and not cmd.kind in Flora.PLACED
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
-	var handed := mine and _done.has(cmd.token)
-	var op: Variant = _ops.get(cmd.token) if mine else null
+	var sent: Dictionary = _sent.get(cmd.token, {}) if mine else {}
+	var handed := sent.has("done")
+	var op: Variant = sent.get("op")
 	if op in ["undo", "redo"]:
-		var hand: XRController3D = _hands.get(cmd.token)
+		var hand: XRController3D = sent.hand
 		if hand != null and is_instance_valid(hand):
 			Cues.play(Cues.Act.UNDO if op == "undo" else Cues.Act.REDO, hand.global_position, hand)
 	if mine and not last:
@@ -1388,7 +1383,7 @@ func _restore(snap: Dictionary) -> int:
 		flora.clear_ghosts()
 		stacks.clear()
 		touched.clear()
-		for t in _ops.keys():
+		for t in _sent.keys():
 			_settle(t)
 		restored.emit()
 		return _rebuild(snap.cmds))

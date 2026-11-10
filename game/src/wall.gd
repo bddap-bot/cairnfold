@@ -448,7 +448,7 @@ func stand_in(preview: Wall) -> void:
 
 ## Whether lay `b` was laid from this wall's inputs as they stand, on the ground as it stands.
 func _laid_from(b: Dictionary) -> bool:
-	if b.is_empty() or b.revision != terrain.shown_revision or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
+	if b.is_empty() or b.revision != terrain.shown_revision() or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
 		return false
 	return roof == null or b.roof.same_inputs(roof)
 
@@ -545,12 +545,12 @@ func _lay() -> void:
 	var roof_job := roof.inputs() if roof != null else null
 	job.gable = roof_job
 	var out := {}
-	_build = {"job": job, "roof": roof_job, "revision": terrain.shown_revision, "out": out}
+	_build = {"job": job, "roof": roof_job, "revision": terrain.shown_revision(), "out": out}
 	var ks := kinds()
 	var litter := _sweep()
 	var height := terrain.held_height(true)
 	var water := terrain.held_water(true)
-	var revision := terrain.shown_revision
+	var revision := terrain.shown_revision()
 	var colours := paint.duplicate()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)

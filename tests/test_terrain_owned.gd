@@ -17,13 +17,13 @@ func _a_command_mid_stroke_stands_on_the_garden() -> void:
 	var terrain := world.terrain
 	world.restore({"seq": 0, "cmds": []})
 	var garden := terrain.height_at(3, -2)
-	var revision := terrain.revision
-	var shown := terrain.shown_revision
+	var revision := terrain.revision()
+	var shown := terrain.shown_revision()
 	main.ground_grab.begin(main.rig.right, Vector3(3, garden, -2), 3.0)
 	main.ground_grab.pull(main.rig.right, 2.0)
 	check(is_equal_approx(terrain.height_at(3, -2), garden), "a height query reads the garden, not the live hump")
 	check(is_equal_approx(terrain.shown_at(3, -2), garden + 2.0), "the shown ground carries the hump (%s)" % terrain.shown_at(3, -2))
-	check(terrain.revision == revision and terrain.shown_revision > shown, "a hump moves the shown ground, not the garden's")
+	check(terrain.revision() == revision and terrain.shown_revision() > shown, "a hump moves the shown ground, not the garden's")
 	world.submit({"op": "boulder", "at": Vector3(3, garden, -2), "turn": Quaternion.IDENTITY, "sink": 0.0, "seed": 17, "scale": 1.0, "paint": Palette.plain(), "style": 0})
 	await flushed()
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]

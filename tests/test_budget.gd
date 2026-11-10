@@ -330,16 +330,16 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	for i in 3:
 		world.preview(hand, {"flower": 1})
 		await process_frame
-	check(bar.visible and not hand.capped, "a placement that fits shows the bar")
+	check(bar.visible and not hand.capped(), "a placement that fits shows the bar")
 	check(bar.scale.x < 1.0 + BudgetBar.SWELL * 0.5, "unswollen")
 	for i in 30:
 		world.preview(hand, change)
 		await process_frame
-	check(hand.capped, "a preview that will not fit shows refused before it is let go")
+	check(hand.capped(), "a preview that will not fit shows refused before it is let go")
 	check(bar.visible and bar.material_override.get_shader_parameter("over") > 0.5, "the bar shows it over the budget")
 	check(bar.scale.x > 1.0 + BudgetBar.SWELL * 0.5, "and swells")
 	await frames(3)
-	check(not hand.capped, "and stops once nothing over is shown")
+	check(not hand.capped(), "and stops once nothing over is shown")
 	check(not bar.visible, "and the bar hides once the placement is gone")
 
 
