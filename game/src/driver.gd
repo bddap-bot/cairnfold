@@ -1464,7 +1464,7 @@ func _village(s: Dictionary) -> void:
 		for i in 9:
 			var p: Vector3 = f.at + f.out * lerpf(2.2, -1.0, i / 8.0)
 			path.add(main.world.terrain.ground(p.x, p.z), f.half)
-		main.world.submit({"op": "path", "path": path.data()})
+		main.world.submit(path.data().merged({"op": "path"}))
 	print("village: %d buildings in %.0f ms" % [tool.walls.size() - stood, (Time.get_ticks_usec() - start) / 1000.0])
 
 
@@ -2661,10 +2661,10 @@ func _stair_field(_s: Dictionary) -> void:
 				d.b = a + Vector3(0, 3, -1)
 			elif col % 3 == 2:
 				d.b = a + Vector3(0, 0, -4)
-			if not Budget.fits(main.world.units, main.world.change_of({"op": "stairs", "stairs": d})):
+			if not Budget.fits(main.world.units, main.world.change_of(d.merged({"op": "stairs"}))):
 				print("stairs: budget full at %d builds, fill %.3f" % [placed, main.world.fill()])
 				return
-			main.world.submit({"op": "stairs", "stairs": d})
+			main.world.submit(d.merged({"op": "stairs"}))
 			placed += 1
 			await get_tree().process_frame
 	assert(false, "stair field did not fill the budget")

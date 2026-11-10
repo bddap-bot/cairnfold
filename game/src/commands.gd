@@ -51,6 +51,8 @@ const STANDS_ON := {"walls": "on", "stairs": "on", "decorations": "wall", "paths
 
 ## Per table of the garden holding builds, the command that puts one back, in the order a snapshot rebuilds them.
 const PUTS := {"stairs": "stairs", "paths": "path", "grounds": "ground", "walls": "wall", "easels": "easel", "decorations": "decoration", "boulders": "boulder"}
+## What a put command carries besides its build's own fields.
+const ENVELOPE := ["op", "seq", "by", "token", "id"]
 
 ## Length of a stroke along the ground.
 static func length(points: Variant) -> float:
@@ -69,8 +71,21 @@ static func _things(state: Dictionary) -> int:
 	return n
 
 
+## The fields of the build a `cmd` that passed `clean` puts.
+static func build_of(cmd: Dictionary) -> Dictionary:
+	var out := cmd.duplicate(true)
+	for k in ENVELOPE:
+		out.erase(k)
+	return out
+
+
 static func _supports(on: Variant) -> bool:
 	return typeof(on) == TYPE_PACKED_INT32_ARRAY and on.size() <= MAX_SUPPORTS and _unique(on)
+
+
+## Of the builds `on` stands on, those still in the garden: what went while a player's command was on its way is dropped.
+static func _standing(on: PackedInt32Array, state: Dictionary) -> PackedInt32Array:
+	return PackedInt32Array(Array(on).filter(func(o: int) -> bool: return state.walls.has(o)))
 
 
 static func _unique(ids: PackedInt32Array) -> bool:
@@ -100,11 +115,13 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 		return {}
 	var ok := false
 	match op:
-		"stairs":
-			out.stairs = _stairs(cmd.get("stairs"))
-			ok = out.stairs != null
-			if ok and not from_host:
-				out.stairs.on = PackedInt32Array(Array(out.stairs.on).filter(func(o: int) -> bool: return state.walls.has(o)))
+		"stairs", "path", "decoration", "boulder":
+			var entry: Variant = _whole(PUTS.find_key(op), cmd)
+			ok = entry != null and (from_host or op != "decoration" or entry.wall < 0 or state.walls.has(entry.wall) and _holds(state.walls[entry.wall], entry.mount))
+			if ok:
+				out.merge(entry)
+				if op == "stairs" and not from_host:
+					out.on = _standing(out.on, state)
 		"wall":
 			var ws: Variant = cmd.get("walls")
 			ok = ws is Array and ws.size() >= 1 and ws.size() <= MAX_PIECES
@@ -120,7 +137,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 					ok = ok and Array(out.walls[i].on).all(func(o: int) -> bool: return o < ids[i])
 			elif ok:
 				for w: Dictionary in out.walls:
-					w.on = PackedInt32Array(Array(w.on).filter(func(o: int) -> bool: return state.walls.has(o)))
+					w.on = _standing(w.on, state)
 		"take":
 			var of: Variant = cmd.get("of")
 			var ids: Variant = cmd.get("ids")
@@ -138,9 +155,6 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 				var others: Dictionary = state.easels.duplicate()
 				others.erase(cmd.id)
 				ok = Easels.room_at(out.data.get("at", state.easels[cmd.id].at), others)
-		"path":
-			out.path = _path(cmd.get("path"))
-			ok = out.path != null
 		"ground":
 			ok = _ground(cmd, out)
 		"restone":
@@ -194,16 +208,6 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 				out.easel = e
 				out.strokes = _strokes(cmd.get("strokes"))
 				ok = out.strokes != null and (from_host or out.strokes.is_empty())
-		"decoration":
-			var d: Variant = _decoration(cmd)
-			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall) and _holds(state.walls[d.wall], d.mount))
-			if ok:
-				out.merge(d)
-		"boulder":
-			var b: Variant = _boulder(cmd)
-			ok = b != null
-			if ok:
-				out.merge(b)
 	return out if ok else {}
 
 
@@ -521,8 +525,8 @@ static func _whole(of: String, d: Dictionary) -> Variant:
 	return _boulder(d)
 
 
-static func _path(d: Variant) -> Variant:
-	if not d is Dictionary or d.size() != (5 if d.has("clutter") else 4) or typeof(d.get("seed")) != TYPE_INT:
+static func _path(d: Dictionary) -> Variant:
+	if typeof(d.get("seed")) != TYPE_INT:
 		return null
 	var clutter: Variant = _clutter(d)
 	if clutter == null:
@@ -696,9 +700,7 @@ static func _pointed(put: Dictionary, state: Dictionary, ground: Terrain) -> boo
 	return (state.ponds.has(g) or state.ponds.size() < MAX_PONDS) and Water.fill(ground, g, put[g]) != null
 
 
-static func _stairs(d: Variant) -> Variant:
-	if not d is Dictionary:
-		return null
+static func _stairs(d: Dictionary) -> Variant:
 	for key in ["a", "b"]:
 		if not _finite(d.get(key)):
 			return null

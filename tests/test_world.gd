@@ -177,7 +177,7 @@ func _bad_commands_are_dropped() -> void:
 		"no pond": {"op": "ponds", "put": {}},
 		"a pond taking another out": {"op": "ponds", "put": {Vector2i(80, 80): 1.0}, "drop": [Vector2i(81, 80)]},
 		"heights of a backwards box": {"op": "heights", "cells": Rect2i(160, 160, -160, -160), "values": PackedFloat32Array()},
-		"path longer than any stroke": {"op": "path", "path": {"points": PackedVector3Array(range(100).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))), "half_widths": PackedFloat32Array(range(100).map(func(_i: int) -> float: return 1.0)), "seed": 1, "surface": PathLayout.Surface.DIRT}},
+		"path longer than any stroke": {"op": "path", "points": PackedVector3Array(range(100).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))), "half_widths": PackedFloat32Array(range(100).map(func(_i: int) -> float: return 1.0)), "seed": 1, "surface": PathLayout.Surface.DIRT},
 		"show of no group": {"op": "show", "plants": {9999: PackedInt32Array([0])}, "on": false},
 		"show past a group's end": {"op": "show", "plants": {0: PackedInt32Array([999999])}, "on": false},
 		"plant of a rock": {"op": "plant", "kind": "rock", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, 3]]},
@@ -199,6 +199,7 @@ func _bad_commands_are_dropped() -> void:
 	check(not Commands.clean({"op": "wall", "ids": PackedInt32Array([world.seq * 8 + 40]), "walls": [good]}, world.state, false, main.world.terrain).has("ids"), "a player cannot choose a new wall's id")
 	var extra := Commands.clean({"op": "take", "of": "walls", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false, main.world.terrain)
 	check(extra.keys().map(str) == ["op", "of", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
+	check(Commands.build_of({"op": "boulder", "seq": 1, "by": 1, "token": 1, "id": 1, "at": 2}) == {"at": 2}, "a put command's build is what it carries besides its envelope")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
 

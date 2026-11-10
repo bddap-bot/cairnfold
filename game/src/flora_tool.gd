@@ -350,7 +350,7 @@ func end_path(b: Brush) -> void:
 	b.drawing_path = false
 	var ghost := paths.end()
 	if not ghost.is_empty():
-		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost), b.hand)
+		world.submit(ghost.data.merged({"op": "path"}), paths.drop.bind(ghost), b.hand)
 	planted.emit()
 
 

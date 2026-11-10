@@ -40,7 +40,7 @@ func extend(hand: Hand, at: Vector3) -> void:
 		s.steps = layout.treads.size()
 		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
 	s.ghost.lay(layout.stones)
-	world.preview(hand, world.change_of({"op": "stairs", "stairs": s.data}))
+	world.preview(hand, world.change_of(s.data.merged({"op": "stairs"})))
 
 func end(hand: Hand) -> void:
 	if not _strokes.has(hand):
@@ -51,7 +51,7 @@ func end(hand: Hand) -> void:
 		s.ghost.queue_free()
 		return
 	s.data.on = walls.stair_supports(s.data)
-	var cmd := {"op": "stairs", "stairs": s.data}
+	var cmd: Dictionary = s.data.merged({"op": "stairs"})
 	world.submit_cued(cmd, Cues.Act.STAIRS_SET, s.data.b, hand, func(): s.ghost.queue_free())
 
 func _cancel(hand: Hand) -> void:

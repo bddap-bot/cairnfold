@@ -522,7 +522,7 @@ func _paths_take_a_surface() -> void:
 	for q in [Vector3(-30, 0, 60), Vector3(-24, 0, 60)]:
 		p.add(world.terrain.ground(q.x, q.z), 0.8)
 	var data := p.data()
-	world._order({"op": "path", "path": data}, world.me())
+	world._order(data.merged({"op": "path"}), world.me())
 	var id := world.seq
 	world.marks.settle()
 	var at := world.terrain.ground(-27, 60)

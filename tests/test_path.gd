@@ -612,7 +612,7 @@ func _a_stroke_laid_keeps_the_arches_its_ghost_showed() -> void:
 	lay_walls(tool)
 	var laid := walls.map(func(w: Wall) -> int: return w.layout.laid)
 	var ghost := paths.end()
-	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	world.submit(ghost.data.merged({"op": "path"}), paths.drop.bind(ghost))
 	check(walls.all(func(w: Wall) -> bool: return not w.laying()) and walls.map(func(w: Wall) -> int: return w.layout.laid) == laid, "laying the stroke lays no wall again")
 	var differ := 0
 	for w in walls:
@@ -718,7 +718,7 @@ func _dirt_wears_without_stones() -> void:
 	marks.settle()
 	check(marks.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.style = "invalid"
-	check(Commands._path(data) == null, "extra path fields are rejected")
+	check(not Commands._path(data).has("style"), "a path keeps only the fields it defines")
 	paths.free()
 
 

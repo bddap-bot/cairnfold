@@ -223,7 +223,7 @@ static func stroke_path(paths: Paths, world: World, a: Vector3, b: Vector3, half
 		var p := a.lerp(b, i / 40.0)
 		paths.extend(world.terrain.ground(p.x, p.z), half)
 	var ghost := paths.end()
-	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	world.submit(ghost.data.merged({"op": "path"}), paths.drop.bind(ghost))
 	return world.seq
 
 

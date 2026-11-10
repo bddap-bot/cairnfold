@@ -175,9 +175,10 @@ func _painted_and_styled(main: Node) -> void:
 	var stone := Palette.Element.STONE
 	world.submit({"op": "wipe"})
 	var a := world.terrain.ground(10, 0)
-	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys()[0]
+	check(Commands.ENVELOPE.all(func(k: String) -> bool: return not world.state.stairs[id].has(k)), "the garden keeps a build without its command's envelope: %s" % [world.state.stairs[id].keys()])
 	var over := a + Vector3(0, 6, -2)
 	var laid: Color = world.stairs.layouts[id].stones[0].color
 	hand.tool = Hand.Tool.COLOUR
@@ -227,7 +228,7 @@ func _painted_and_styled(main: Node) -> void:
 	var fresh: Dictionary = world.state.stairs[world.state.stairs.keys().max()]
 	check(fresh.rail == "wood" and fresh.paint[stone] == 3, "new stairs take the last swatch and railings")
 	var ladder := world.terrain.ground(0, 10)
-	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()})
 	world.stairs._process(10.0)
 	var facing := ladder + Vector3(0.6, 1.5, 3)
 	check(not world.stairs.pick(facing, Vector3.FORWARD, 10.0).is_empty() and picker.aim_style(facing, Vector3.FORWARD).is_empty(), "a ladder has no style")
@@ -242,7 +243,7 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	var flat := original.duplicate()
 	flat.fill(0.0)
 	world.submit({"op": "heights", "cells": cells, "values": flat})
-	world.submit({"op": "path", "path": {"points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42, "surface": PathLayout.Surface.DIRT}})
+	world.submit({"op": "path", "points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42, "surface": PathLayout.Surface.DIRT})
 	var id: int = world.state.paths.keys().max()
 	world.submit({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": PackedVector4Array()}})
 	var owner := Masonry.path_owner(id)
@@ -271,7 +272,7 @@ func _gripped(main: Node) -> void:
 	var world: World = main.world
 	var tool: WallTool = main.tool
 	var g := world.terrain.ground(6, -6)
-	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()}})
+	world.submit({"op": "stairs", "a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys().filter(func(k: int) -> bool: return world.state.stairs[k].seed == 9)[0]
 	var was: Dictionary = world.state.stairs[id].duplicate()

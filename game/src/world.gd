@@ -24,7 +24,7 @@ const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one.
-const FORMAT := 10
+const FORMAT := 11
 ## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"
@@ -193,10 +193,9 @@ func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 				Budget.add(out, _units("walls", w))
 				_add_cells(cells, _spread("walls", w))
 		"stairs", "path", "ground", "easel", "decoration", "boulder":
-			# Stairs and a path carry their build in the field their op names; the rest are their build.
 			var of: String = Commands.PUTS.find_key(cmd.op)
-			Budget.add(out, _units(of, cmd.get(cmd.op, cmd)))
-			_add_cells(cells, _spread(of, cmd.get(cmd.op, cmd)))
+			Budget.add(out, _units(of, cmd))
+			_add_cells(cells, _spread(of, cmd))
 		"take":
 			for id in cmd.ids:
 				var key := "%s%d" % [KEYS[cmd.of], id]
@@ -692,7 +691,7 @@ static func _gather(cmd: Dictionary) -> void:
 		for w: Dictionary in cmd.walls:
 			w.clutter = ClutterLayout.of_wall(w)
 	elif cmd.op == "path":
-		cmd.path.clutter = ClutterLayout.of_path(cmd.path)
+		cmd.clutter = ClutterLayout.of_path(cmd)
 
 
 func _refuse(by: int, proposed: Dictionary, why: String) -> void:
@@ -882,24 +881,12 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 	return {"boulder": Budget.boulder(d.scale)}
 
 
-## A ground stroke as the garden keeps it, from its command.
-static func _ground(d: Dictionary) -> Dictionary:
-	var out := {"kind": d.kind, "stamps": d.stamps}
-	if d.has("style"):
-		out.style = d.style
-	return out
-
-
 ## The command that puts build `id` of the garden's table `of` back as it stands (Commands.PUTS).
 func _put(of: String, id: int) -> Dictionary:
 	var d: Dictionary = state[of][id]
-	var op: String = Commands.PUTS[of]
-	match of:
-		"walls":
-			return {"op": op, "ids": PackedInt32Array([id]), "walls": [d]}
-		"stairs", "paths":
-			return {"op": op, "id": id, op: d}
-	return d.merged({"op": op, "id": id})
+	if of == "walls":
+		return {"op": "wall", "ids": PackedInt32Array([id]), "walls": [d]}
+	return d.merged({"op": Commands.PUTS[of], "id": id})
 
 
 ## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
@@ -926,7 +913,7 @@ func _keys(cmd: Dictionary) -> Array:
 			var at: Vector3 = cmd.get("at", flora.groups[0][cmd.index].anchor)
 			return [_meadow_key(at)]
 		"stairs":
-			return ["q%d" % cmd.id] + Array(cmd.stairs.on).map(func(id: int) -> String: return "w%d" % id)
+			return ["q%d" % cmd.id] + Array(cmd.on).map(func(id: int) -> String: return "w%d" % id)
 		"path", "ground", "restone":
 			return ["q%d" % cmd.id]
 		"season":
@@ -1034,25 +1021,20 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				views[cmd.of].show_reshaped(cmd.id)
 			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
-		"stairs":
-			inverse = _add("stairs", cmd.id, cmd.stairs.duplicate(true))
-		"path":
-			inverse = _add("paths", cmd.id, cmd.path.duplicate(true))
+		"stairs", "path", "easel", "decoration", "boulder":
+			inverse = _add(Commands.PUTS.find_key(cmd.op), cmd.id, Commands.build_of(cmd))
 		"ground":
-			state.grounds[cmd.id] = _ground(cmd)
 			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind, cmd.get("style", 0))
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
 			marks.lay(stroke, cmd.id)
-			inverse = _built("grounds", PackedInt32Array([cmd.id]))
+			inverse = _add("grounds", cmd.id, Commands.build_of(cmd))
 		"restone":
 			inverse = {"op": "restone", "id": cmd.id, "style": state.grounds[cmd.id].style}
 			state.grounds[cmd.id].style = cmd.style
 			marks.restyle(cmd.id, cmd.style)
 		"plant":
-			var g := cmd.duplicate(true)
-			for k in ["op", "seq", "by", "token", "id"]:
-				g.erase(k)
+			var g := Commands.build_of(cmd)
 			var plants := flora.grow(cmd.id, g)
 			g.size = plants.size()
 			g.hidden = {}
@@ -1148,8 +1130,6 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_hushed(func() -> void:
 				_clear()
 				_rebuild(cmd.cmds))
-		"easel":
-			inverse = _add("easels", cmd.id, {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "palette": cmd.palette.duplicate()})
 		"paint":
 			state.easels[cmd.easel][Commands.surface(cmd)].append(cmd.stroke)
 			if easels != null:
@@ -1165,10 +1145,6 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
-		"decoration":
-			inverse = _add("decorations", cmd.id, Commands._decoration(cmd))
-		"boulder":
-			inverse = _add("boulders", cmd.id, Commands._boulder(cmd))
 	if cmd.op in DROWNING and flora != null:
 		var back := _drown()
 		if not back.is_empty():
