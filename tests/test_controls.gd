@@ -1,12 +1,7 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of the Steam Frame's controls, the tool wheel and the shared undo history, all pressed
 ## through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_controls.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

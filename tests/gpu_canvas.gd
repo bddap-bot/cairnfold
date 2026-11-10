@@ -7,10 +7,6 @@ extends "res://../tests/support/suite.gd"
 const N := 40
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		check(false, "no RenderingDevice; run on the desktop renderer")

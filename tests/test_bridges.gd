@@ -5,10 +5,6 @@ extends "res://../tests/support/suite.gd"
 ## scene's bridges/* phases: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bridges.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_hangs()
 	_sag()

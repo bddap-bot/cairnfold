@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## The oil palette's board on the GPU: strokes painted onto it are laid by the canvas's own paint (an oil stroke stands
 ## as high and as coloured on the board as on the canvas), a brush touching it takes up the paint under it and paints
@@ -8,11 +8,6 @@ extends "res://../tests/support/suite.gd"
 ## ../tests/gpu_palette.gd
 
 var folder := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

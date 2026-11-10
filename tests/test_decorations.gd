@@ -1,13 +1,8 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 var terrain: Terrain:
 	get:
 		return main.world.terrain
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

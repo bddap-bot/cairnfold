@@ -4,10 +4,6 @@ extends "res://../tests/support/suite.gd"
 ## player's game does when it quits mid-read: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_avatar_worker.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))
 	var out := {}

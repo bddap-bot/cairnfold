@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "sag": 0.0, "rail": "stone", "seed": 8, "paint": Palette.plain(), "on": PackedInt32Array()}
 	var stairs := StairLayout.new()

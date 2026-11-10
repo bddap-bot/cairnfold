@@ -5,10 +5,6 @@ extends "res://../tests/support/suite.gd"
 ## godot4 --path game --xr-mode off --script ../tests/gpu_flora.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		check(false, "no RenderingDevice; run on the desktop renderer")

@@ -1,9 +1,4 @@
-extends "res://../tests/support/suite.gd"
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
+extends "res://../tests/support/booted.gd"
 
 
 func _run() -> void:

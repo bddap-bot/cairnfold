@@ -12,10 +12,6 @@ const PROFILES := {"frame": "/interaction_profiles/valve/frame_controller_valve"
 const TOUCH_LATER := ["/interaction_profiles/meta/touch_plus_controller", "/interaction_profiles/meta/touch_pro_controller"]
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_every_action_is_reachable_on_every_device()
 	_no_two_actions_share_an_input()

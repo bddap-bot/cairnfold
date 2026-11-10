@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of wall finishes: worn plaster, timber framing on an open wall, planks across and upright on walls
 ## and houses, and planked fences, laid around windows, doors and arches; through the style tool's face wheel and the
@@ -8,11 +8,6 @@ extends "res://../tests/support/suite.gd"
 const FACE_KINDS := ["block", "plaster", "mortar", "board", "timber"]
 
 var world: World
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

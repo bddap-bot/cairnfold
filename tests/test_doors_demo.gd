@@ -4,10 +4,6 @@ extends "res://../tests/support/suite.gd"
 ## village opens one in every house a path runs into: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_doors_demo.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	boot_main()
 	await process_frame

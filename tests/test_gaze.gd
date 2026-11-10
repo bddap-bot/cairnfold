@@ -1,13 +1,8 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Where a player's eyes look, and how others see it: the tracked gaze or a natural look stands in, steadied, and
 ## travels to the other players' copies of their avatar:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_gaze.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

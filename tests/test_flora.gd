@@ -3,10 +3,6 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of flora placement and the flower and grass brushes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_flora.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_brush_fills_its_disc()
 	_painting_again_thickens()

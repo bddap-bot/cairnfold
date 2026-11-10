@@ -1,12 +1,7 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## A hand the runtime reports joints for is played by them only when they are the hand's own, and its pinch reads as the
 ## trigger: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hand_tracking.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

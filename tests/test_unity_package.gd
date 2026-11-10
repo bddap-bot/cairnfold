@@ -16,10 +16,6 @@ const VRCFury = preload("res://../scripts/unity/vrcfury.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_xxhash_matches_the_reference()
 	_the_view_is_given_in_the_models_axes()

@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of which thing a ray takes when two meet it at once, a hand inside both: a grip takes a fitting over
 ## a plant and joins the build it holds over that build's own fitting, and the ground in front stops it; a delete
@@ -11,11 +11,6 @@ var flora: Flora
 var terrain: Terrain:
 	get:
 		return main.world.terrain
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _lay() -> void:

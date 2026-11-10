@@ -3,10 +3,6 @@ extends "res://../tests/support/suite.gd"
 ## A build style's miniature never waits on its build: the wheel gets it at once and the worker fills it.
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	root.add_child(Warmup.new([]))
 	var roof := ToolModels.style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, WallLayout.Finish.BARE)

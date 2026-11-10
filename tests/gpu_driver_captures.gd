@@ -5,10 +5,6 @@ extends "res://../tests/support/suite.gd"
 ## desktop renderer.
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	var dir := OS.get_user_data_dir().path_join("driver-captures/fresh")

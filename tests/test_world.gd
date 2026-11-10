@@ -1,14 +1,9 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of the garden's command log and per-player undo, with two players' commands fed to the
 ## host directly: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_world.gd
 
 var world: World
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

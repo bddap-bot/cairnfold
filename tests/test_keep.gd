@@ -1,15 +1,10 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of keeping the garden: autosaved after edits, loaded whole, and unreadable files
 ## reported: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_keep.gd
 
 var world: World
 var dir := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

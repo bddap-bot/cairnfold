@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of boulders: each seed grows its own worn, faceted shape and the same one every time; a placed
 ## boulder is a build command kept with the garden, sized and painted by a reshape, taken back by undo, struck by the delete tool's
@@ -9,11 +9,6 @@ var world: World
 var terrain: Terrain:
 	get:
 		return main.world.terrain
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

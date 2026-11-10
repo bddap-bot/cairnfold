@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## A photo of easels saves each canvas it is of beside itself, pixel for pixel the canvas's own paint at its full size,
 ## flat, and its height off the board; a wide shot with the canvases small in it, and a shot of neither, save the photo
@@ -6,11 +6,6 @@ extends "res://../tests/support/suite.gd"
 ## godot4 --path game --xr-mode off --script ../tests/gpu_photo_canvas.gd
 
 var folder := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

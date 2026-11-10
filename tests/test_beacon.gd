@@ -8,10 +8,6 @@ extends "res://../tests/support/suite.gd"
 const NOBODY := "192.0.2.1"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_scripts_are_not_players()
 	_names_are_clean_and_short()

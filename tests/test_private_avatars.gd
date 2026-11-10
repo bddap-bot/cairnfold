@@ -10,10 +10,6 @@ const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var dir := OS.get_environment("CAIRNFOLD_PRIVATE_AVATARS")
 	if dir == "":

@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of easels: strokes painted through the brush are build commands, kept with the garden and loaded
 ## back whole, taken back and put back by undo and redo, cleared by a fresh sheet, carried by a deleted easel's undo,
@@ -6,11 +6,6 @@ extends "res://../tests/support/suite.gd"
 
 var world: World
 var dir := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

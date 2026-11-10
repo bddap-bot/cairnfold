@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	for kind in RoofLayout.Kind.values():
 		for curve in [-1.0, 0.0, 1.0]:

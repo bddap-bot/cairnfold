@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 ## Every subtree's icon in `tree` draws its items as their own icons draw them, so none shows what its menu lacks.
 func _check_icons(tree: Array, people: SessionWheel) -> void:
 	for item in tree:

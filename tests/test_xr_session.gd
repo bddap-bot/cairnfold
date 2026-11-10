@@ -8,10 +8,6 @@ class Simulation:
 		frames += 1
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _game(label: String) -> Main:
 	var branch := Node.new()
 	branch.name = label

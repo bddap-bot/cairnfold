@@ -1,13 +1,8 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks that the teleport ray lands on whatever solid it meets in the garden, a pitched roof, a tree, a
 ## wall's top, and that what the player stands on and hovers over is the top surface beneath: a wall walk, a flat
 ## roof, a platform, stairs and a bridge; and that a wall's face, struck low, lands at its foot and, struck high, floats there, while a ruin's stepped ledge, pointed at, is stood on: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

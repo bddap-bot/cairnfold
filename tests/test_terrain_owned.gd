@@ -1,13 +1,8 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks that the ground belongs to its World: a stroke's live hump is this player's preview, which no
 ## default query sees and which counts no change to the garden, and two Worlds in one process keep their own heights
 ## and marks: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain_owned.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

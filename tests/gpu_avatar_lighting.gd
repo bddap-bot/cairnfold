@@ -12,10 +12,6 @@ extends "res://../tests/support/suite.gd"
 const SIZE := 96
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var view := SubViewport.new()
 	view.size = Vector2i(SIZE, SIZE)

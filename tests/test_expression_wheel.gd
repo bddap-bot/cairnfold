@@ -3,10 +3,6 @@ extends "res://../tests/support/suite.gd"
 const Fixture = preload("res://demo/expressions.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _open(hand: Hand, slot := "expressions") -> void:
 	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected["%s/by_button" % hand.tracker] = true

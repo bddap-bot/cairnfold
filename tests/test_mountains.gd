@@ -9,10 +9,6 @@ const STEREO_FAR := 140.0
 var terrain := Terrain.new()
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var a := Mountains.arrays()
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]

@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Each picture-book page's script (Lessons.PAGES), played through the real hands into a garden, does what its
 ## picture shows, and every action it presses is still a control: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_lessons.gd
@@ -10,11 +10,6 @@ var trackers: Array[XRControllerTracker] = []
 var effects := {}
 ## Pages play through bare hands (`Lessons.bare`), not by controller.
 var bare := false
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

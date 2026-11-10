@@ -7,10 +7,6 @@ var terrain := Terrain.new()
 var marks := Ground.new()
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	marks.install()
 	_steep_paths_lay_level_treads()

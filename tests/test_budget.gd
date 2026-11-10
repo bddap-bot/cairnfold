@@ -1,15 +1,10 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of the frame budget: what the garden counts follows every placement and deletion, an edit that
 ## would take it past the budget is turned down whole, and deleting makes room again:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_budget.gd
 
 var world: World
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

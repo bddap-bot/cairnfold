@@ -1,12 +1,7 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## A grip carries a placed fitting along the surface it stands on and sets it where let go, one reshape and one undo step:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fitting_grip.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _lay() -> void:

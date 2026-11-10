@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
@@ -34,11 +34,6 @@ const SEALED_RAYS := {
 var started := Time.get_ticks_msec()
 var inventory: Array = []
 var ground_part: Dictionary
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

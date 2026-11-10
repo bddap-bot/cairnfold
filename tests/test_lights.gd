@@ -7,10 +7,6 @@ extends "res://../tests/support/suite.gd"
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_lights.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_looks()
 	_baked()

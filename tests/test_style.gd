@@ -1,14 +1,9 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of the style tool's plaster faces, tree species and painted stone's and boulders' styles, through the host as a player's turn of the
 ## wheel goes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_style.gd
 
 var world: World
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

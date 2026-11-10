@@ -7,10 +7,6 @@ extends "res://../tests/support/suite.gd"
 const SIZE := 128
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if not args.is_empty() else ""

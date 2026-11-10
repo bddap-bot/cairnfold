@@ -15,6 +15,12 @@ static func _static_init() -> void:
 	Budget.frame_deadline = false
 
 
+## Runs a test's `_run` once the tree is up; a test without one starts itself.
+func _initialize() -> void:
+	if has_method("_run"):
+		call_deferred("_run")
+
+
 func check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1

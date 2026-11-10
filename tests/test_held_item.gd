@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var item := HeldItem.new()
 	item.terrain = Terrain.new()

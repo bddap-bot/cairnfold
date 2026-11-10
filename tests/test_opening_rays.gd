@@ -1,12 +1,7 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks that the teleport and placement rays pass through a wall's or fence's open arch to what lies beyond
 ## it and still stop on the stone round it, while a grip or a delete into the arch takes the arch: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_opening_rays.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

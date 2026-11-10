@@ -12,10 +12,6 @@ const FOV := 100.0
 const PLACES := [Vector2(0, 0), Vector2(42, 0), Vector2(30, -30)]
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if not args.is_empty() else ""

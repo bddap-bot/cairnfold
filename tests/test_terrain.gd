@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of shaping the ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain.gd
 
@@ -6,11 +6,6 @@ var tool: GroundGrab
 var terrain: Terrain:
 	get:
 		return main.world.terrain
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

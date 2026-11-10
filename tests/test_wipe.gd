@@ -1,15 +1,10 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of wiping the garden: the delete tool held at the sky empties every layer in one step, undo
 ## brings back the garden as it was kept, and a visitor's wipe is the host's: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
 
 var world: World
 var dir := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

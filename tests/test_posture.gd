@@ -5,10 +5,6 @@ extends "res://../tests/support/suite.gd"
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_each_recorded_pose_reads_as_itself()
 	_standing_takes_upright_heads()

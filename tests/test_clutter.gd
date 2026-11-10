@@ -1,14 +1,9 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Clutter: where houses, walls and paths gather their small things, each laid with its build and charged as its
 ## stones; a hand moving, turning, copying and taking one away, each one reshape and one undo step; birds on nests,
 ## lanterns and flags; demo/clutter.json and the stress scene's clutter/* phases:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_clutter.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

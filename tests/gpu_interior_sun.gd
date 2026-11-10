@@ -10,10 +10,6 @@ extends "res://../tests/support/suite.gd"
 ## doubles those specks.
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _mean() -> float:
 	await create_timer(1.0).timeout
 	await RenderingServer.frame_post_draw

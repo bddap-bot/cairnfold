@@ -6,10 +6,6 @@ extends "res://../tests/support/suite.gd"
 var book: Book
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	book = Book.new(false)
 	book.set_process(false)

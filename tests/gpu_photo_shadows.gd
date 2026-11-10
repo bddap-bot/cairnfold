@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## A photo taken while the headset's rung has the sun's shadows off still has its own sun's cast shadows: shot from the
 ## same spot, it is darker where a shadow falls than the same shot with the photo sun's shadows off. Needs a
@@ -7,11 +7,6 @@ extends "res://../tests/support/suite.gd"
 
 ## The share of the photo a cast shadow must darken.
 const SHADED := 0.02
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

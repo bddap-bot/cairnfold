@@ -3,10 +3,6 @@ extends "res://../tests/support/suite.gd"
 ## Headless checks of the ground mask and stone ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ground.gd
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_a_stroke_lays_stone_with_a_soft_edge()
 	_grass_and_flowers_skip_stone()

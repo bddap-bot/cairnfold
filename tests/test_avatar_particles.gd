@@ -5,10 +5,6 @@ extends "res://../tests/support/suite.gd"
 const STEP := 1.0 / 60.0
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_malformed_files_are_refused()
 	_bursts_feed_birth_sub_emitters()

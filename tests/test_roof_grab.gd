@@ -1,15 +1,10 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Hands on a built house: one on its roof carries the house, two upright raise its ridge, two across bow its slopes and
 ## two on its eaves pull them out; what stands on it goes with it, and edits made to it meanwhile stay:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roof_grab.gd
 
 var trackers: Array[XRControllerTracker] = []
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

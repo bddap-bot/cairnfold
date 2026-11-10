@@ -8,10 +8,6 @@ const Closure = preload("res://../tests/test_roof_closure.gd")
 const VIEWS := [Vector3(0, 1, 0), Vector3(0, 0.5, 1), Vector3(0, 0.5, -1), Vector3(1, 0.3, 0), Vector3(1, 0.3, 0.5), Vector3(1, 0.3, -0.5)]
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	var probes := 0
 	for size in [Vector2(3, 2), Vector2(4, 3)]:

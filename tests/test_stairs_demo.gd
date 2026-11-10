@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 ## The demo's teleport onto the bridge must land there for any head pose an unworn headset settles in: its aim once
 ## grazed the deck's far edge, so a millimetre of head tracking decided between the deck and the grass 16 m beyond.
 func _run() -> void:

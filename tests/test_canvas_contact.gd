@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func pose(tip: Vector3, basis := Basis()) -> Transform3D:
 	return Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP)
 

@@ -8,10 +8,6 @@ extends "res://../tests/support/suite.gd"
 const LIST := "res://shaders.tres"
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	boot_main()
 	await frames(4)

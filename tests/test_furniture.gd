@@ -1,13 +1,8 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Furniture through the one decoration path: a present on a house's floor or a flat roof's deck, which the style
 ## tool turns into any decoration.
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_furniture.gd
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 ## Where decoration `id` stands, or null where it stands down.

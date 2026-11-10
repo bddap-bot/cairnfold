@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of a grip carrying trees and bushes, planted and the meadow's own: one hand moves one along the
 ## ground, farther for a far one, and turns it about its foot as the hand turns; let go, it is set as one `tree` command,
@@ -8,11 +8,6 @@ extends "res://../tests/support/suite.gd"
 var world: World
 var flora: Flora
 var tool: WallTool
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

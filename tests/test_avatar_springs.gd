@@ -3,10 +3,6 @@ extends "res://../tests/support/suite.gd"
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	boot_main()
 	await frames(3)

@@ -9,10 +9,6 @@ const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	for i in Avatar.BUILT_IN.size():
 		_built_in_reads_as_humanoid(i)

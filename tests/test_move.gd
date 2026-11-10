@@ -1,4 +1,4 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks of moving and copying builds: a grip carries and turns a wall, a fence, a house and a tower, each one
 ## reshape that takes its fittings and ivy along and one undo puts back; a tap of the colour tool takes one build's look
@@ -8,11 +8,6 @@ extends "res://../tests/support/suite.gd"
 var world: World
 var tool: WallTool
 var palette: PaletteTool
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

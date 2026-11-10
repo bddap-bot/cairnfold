@@ -9,10 +9,6 @@ var _seen := {}
 var _hips := ""
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_malformed()
 	var model := _fixture()

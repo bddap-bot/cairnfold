@@ -1,15 +1,10 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 ## Headless checks that deleting a house takes everything belonging to it, in the scene, the saved garden and on a
 ## peer, and that undo brings all of it back: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_house_delete.gd
 
 var world: World
 var save := ""
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 func _run() -> void:

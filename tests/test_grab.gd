@@ -1,11 +1,6 @@
-extends "res://../tests/support/suite.gd"
+extends "res://../tests/support/booted.gd"
 
 var trackers: Array[XRControllerTracker] = []
-
-
-func _initialize() -> void:
-	boot_main()
-	_run.call_deferred()
 
 
 ## A grip that takes the ground or the sky, held still, pulses in the hand at once, so a far catch reads from a miss.

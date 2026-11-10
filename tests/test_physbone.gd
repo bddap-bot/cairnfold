@@ -8,10 +8,6 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	_native_never_takes_a_physbone()
 	_limit_holds_the_swing()

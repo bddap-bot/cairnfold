@@ -6,10 +6,6 @@ var triangles := 0
 var instances := 0
 
 
-func _initialize() -> void:
-	_run.call_deferred()
-
-
 func _run() -> void:
 	for finish_kind in WallLayout.Finish.values():
 		for pitch in [0.0, 1.2, 4.0]:
