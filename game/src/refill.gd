@@ -29,7 +29,7 @@ var found: Array[PondLayout.Pond] = []
 ## What `publish` leaves for `Water`: the level at every grid point, the index into `found` of the pond over each
 ## (-1 where none is), the grid points written, the depth texture's image and the grid points whose level changed.
 var levels := PackedFloat32Array()
-var owner := PackedInt32Array()
+var owners := PackedInt32Array()
 var written := PackedInt32Array()
 var image: Image
 var changed := Rect2i()
@@ -135,15 +135,15 @@ func publish(before: PackedFloat32Array, was_written: PackedInt32Array, was_owne
 	levels = before.duplicate()
 	for k in was_written:
 		levels[k] = Terrain.NO_WATER
-	owner.resize(Terrain.VERTS * Terrain.VERTS)
-	owner.fill(-1)
+	owners.resize(Terrain.VERTS * Terrain.VERTS)
+	owners.fill(-1)
 	for i in found.size():
 		var p := found[i]
 		PondWater.quads(p)
 		for g in p.cells + p.shore:
 			var k := g.y * Terrain.VERTS + g.x
 			levels[k] = p.level
-			owner[k] = i
+			owners[k] = i
 			written.append(k)
 	var lo := Vector2i(Terrain.VERTS, Terrain.VERTS)
 	var hi := Vector2i(-1, -1)

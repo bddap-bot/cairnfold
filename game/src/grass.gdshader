@@ -1,10 +1,9 @@
 shader_type spatial;
 render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
-#include "res://src/ground.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
 #include "res://src/meadow.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
@@ -42,8 +41,6 @@ varying float tip;
 varying vec3 top;
 varying float gust;
 varying float far;
-// Bounce and lantern light at the blade's root, read once a vertex: grass is the most overdrawn thing drawn.
-varying vec4 given;
 varying float weed;
 
 vec3 parted(vec3 v, vec3 root, vec3 hand) {
@@ -116,6 +113,5 @@ void fragment() {
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;
 	ROUGHNESS = 0.9;
 	BACKLIGHT = top * backlight * t * (1.0 - 0.5 * far) * (1.0 - weed);
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

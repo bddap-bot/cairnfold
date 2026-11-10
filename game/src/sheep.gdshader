@@ -1,11 +1,8 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/turn.gdshaderinc"
-
-varying vec4 given;
 
 // x idle, y graze, z walk, w lie: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
@@ -70,13 +67,12 @@ void vertex() {
 		VERTEX.y += walk * 0.018 * cos(2.0 * gait);
 	}
 	VERTEX.y -= lie * 0.2;
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {
 	ALBEDO = COLOR.rgb * mix(vec3(1.0), wool, fleece);
 	ROUGHNESS = COLOR.r < 0.1 ? 0.25 : 0.9;
 	SPECULAR = COLOR.r < 0.1 ? 0.6 : 0.2;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

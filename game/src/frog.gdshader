@@ -1,11 +1,9 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 
 // INSTANCE_CUSTOM: x its clock, y how far it has grown in, z how far its hind legs reach out behind (a hop, a kick),
 // w how far its throat swells (a croak).
-varying vec4 given;
 
 void vertex() {
 	int part = int(UV2.x + 0.5);
@@ -25,7 +23,7 @@ void vertex() {
 		VERTEX.y += legs * 0.006;
 	}
 	VERTEX *= INSTANCE_CUSTOM.y;
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {
@@ -33,6 +31,5 @@ void fragment() {
 	ALBEDO = pow(COLOR.rgb, vec3(2.2));
 	ROUGHNESS = eye ? 0.2 : 0.55;
 	SPECULAR = eye ? 0.6 : 0.25;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

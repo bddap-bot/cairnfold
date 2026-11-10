@@ -1,17 +1,15 @@
 shader_type spatial;
 render_mode skip_vertex_transform, cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
-#include "res://src/ground.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
 
 uniform float stem;
 // One triangle as large as the square it stands in for.
 const float PATCH_SCALE = 1.41421356;
 varying vec3 tint;
-varying vec4 given;
 
 void vertex() {
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
@@ -43,6 +41,5 @@ void fragment() {
 	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	ALBEDO = tint;
 	ROUGHNESS = 0.9;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

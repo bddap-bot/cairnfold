@@ -6,8 +6,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 // book_paint.gdshader), and in its window a live picture (`*_picture`, a LessonScene) inked over a painted backdrop.
 // `wash_*` is the picture's sky, `horizon_*` where its horizon lies, `fade` its loop's fade.
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
 uniform float width = 0.15;
@@ -30,8 +29,6 @@ uniform float back_fade = 0.0;
 uniform float front_seed = 0.0;
 uniform float back_seed = 1.0;
 
-varying vec4 given;
-
 void vertex() {
 	float x = VERTEX.x;
 	float k = bend * sin(angle) / width;
@@ -42,7 +39,7 @@ void vertex() {
 	vec2 up_ = vec2(-sin(angle), cos(angle)) * (angle > PI * 0.5 ? -1.0 : 1.0);
 	VERTEX = vec3(at.x + up_.x * rise, at.y + up_.y * rise + VERTEX.y, VERTEX.z);
 	NORMAL = normalize(vec3(-sin(a), cos(a), 0.0) - vec3(cos(angle), sin(angle), 0.0) * slope);
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 // The painted world behind a page's picture: a watercolour sky of the page's `wash` over the horizon at `horizon`

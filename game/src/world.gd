@@ -317,8 +317,8 @@ func _drain(wait := false) -> void:
 			_queue.pop_front().run.call()
 			continue
 		var before := terrain.water_levels()
-		var written := water.written() if water != null else PackedInt32Array()
-		var owners := water.owners() if water != null else PackedInt32Array()
+		var written := water.written if water != null else PackedInt32Array()
+		var owners := water.owners if water != null else PackedInt32Array()
 		var shown: Array[PondLayout.Pond] = water.shown() if water != null else []
 		var checks: Dictionary = _queue[0].cmd.get("put", {}) if _queue[0].by >= 0 else {}
 		var box := [r, []]

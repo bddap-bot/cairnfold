@@ -35,7 +35,7 @@ const OVER_ARCH := Vector3(0.0, 0.8, -0.6)
 
 
 func _a_house_packs_its_shape_and_openings() -> void:
-	var packed := Interior.pack([lit_house()], OVER_ARCH)
+	var packed := Interior.pack(Lamps.Rooms.new([lit_house()]), OVER_ARCH)
 	check(_cell(packed, 3.5, 0.0) == 1 and _cell(packed, 0.1, -2.4) == 1, "the house's cells name its row")
 	check(_cell(packed, 3.5, 6.0) == 0 and _cell(packed, -4.0, 0.0) == 0, "the meadow round it names none")
 	check(_texel(packed, 1, 0).x == 1.0, "of its two openings only the archway faces the sun: %s" % _texel(packed, 1, 0))
@@ -48,7 +48,7 @@ func _a_house_packs_its_shape_and_openings() -> void:
 	var lit := _lit(packed, Vector3(3.5, 1.0, -2.5) - OVER_ARCH * 1.2)
 	var dark := _lit(packed, Vector3(1.0, 0.3, 1.5))
 	check(lit < 0.0 and dark > 0.0, "a point on the floor whose way to the sun leaves through the archway is lit, one at the back is not: %.2f, %.2f" % [lit, dark])
-	check(Interior.pack([lit_house()], Vector3.UP).data[Interior.WIDTH * 4] == 0.0, "a sun straight overhead comes through no opening")
+	check(Interior.pack(Lamps.Rooms.new([lit_house()]), Vector3.UP).data[Interior.WIDTH * 4] == 0.0, "a sun straight overhead comes through no opening")
 
 
 ## The archway's edge distance for `p` as interior.gdshaderinc reckons it, negative inside its outline.
@@ -67,7 +67,7 @@ func _lit(packed: Dictionary, p: Vector3) -> float:
 
 
 func _an_open_loop_is_left_out() -> void:
-	var packed := Interior.pack([lit_house(WallLayout.Cover.OPEN)], OVER_ARCH)
+	var packed := Interior.pack(Lamps.Rooms.new([lit_house(WallLayout.Cover.OPEN)]), OVER_ARCH)
 	check(_cell(packed, 3.5, 0.0) == 0, "a loop open to the sky masks no sun")
 
 
@@ -78,7 +78,7 @@ func _a_dormer_window_lets_the_sun_in() -> void:
 	if windows.is_empty():
 		return
 	var toward: Vector3 = (windows[0].out + Vector3.UP).normalized()
-	var packed := Interior.pack([room], toward)
+	var packed := Interior.pack(Lamps.Rooms.new([room]), toward)
 	check(_texel(packed, 1, 0).x >= 1.0, "a sun before its front comes in through its window: %s" % _texel(packed, 1, 0))
 	check(windows[0].at.y > room.roof.base, "up in the roof: %s" % windows[0].at)
 
@@ -86,7 +86,7 @@ func _a_dormer_window_lets_the_sun_in() -> void:
 func _houses_apart_take_their_own_rows() -> void:
 	var a := lit_house()
 	var b := lit_house(WallLayout.Cover.ROOF, [], Vector3(20, 0, 0))
-	var packed := Interior.pack([a, b], OVER_ARCH)
+	var packed := Interior.pack(Lamps.Rooms.new([a, b]), OVER_ARCH)
 	check(_cell(packed, 3.5, 0.0) == 1 and _cell(packed, 23.5, 0.0) == 2, "apart, each house has its own row")
 
 
@@ -98,7 +98,7 @@ func _a_stack_of_storeys_tops_at_its_highest_ceiling() -> void:
 	upper.roof = null
 	upper.floor += 3.0
 	upper.top += 3.0
-	var packed := Interior.pack([lower, upper], OVER_ARCH)
+	var packed := Interior.pack(Lamps.Rooms.new([lower, upper]), OVER_ARCH)
 	var inside := Interior._texel_of(Vector2(3.5, 0.0))
 	var outside := Interior._texel_of(Vector2(-4.0, 0.0))
 	check(is_equal_approx(packed.top[inside.y * Interior.SIZE + inside.x], upper.top), "a column inside the storeys tops at the upper's ceiling")
@@ -108,15 +108,15 @@ func _a_stack_of_storeys_tops_at_its_highest_ceiling() -> void:
 func _changes_coalesce_into_one_pack() -> void:
 	var interior := Interior.new()
 	check(not interior._next().is_valid(), "nothing to pack before any room")
-	interior.enclose([lit_house()])
-	interior.set_sun(OVER_ARCH)
+	interior.enclose(Lamps.Rooms.new([lit_house()]))
+	interior.to_light = OVER_ARCH
 	var solve := interior._next()
 	check(solve.is_valid() and not interior._next().is_valid(), "rooms and light changed between solves pack once")
 	var out: Dictionary = solve.call() if solve.is_valid() else {}
 	var c := Interior._texel_of(Vector2(3.5, 0.0))
 	check(out.has("field") and out.field.get_format() == Image.FORMAT_RGBAH and out.field.get_pixel(c.x, c.y).a == 1.0, "the solve fills the house's row into the field")
 	check(out.has("data") and out.data.get_pixel(0, 1).r == 1.0, "and its archway into the data, lit from the sun set after")
-	interior.set_sun(Vector3.UP)
+	interior.to_light = Vector3.UP
 	solve = interior._next()
 	out = solve.call() if solve.is_valid() else {}
 	check(out.has("data") and not out.has("field"), "the light moving alone packs the rows, not the field")

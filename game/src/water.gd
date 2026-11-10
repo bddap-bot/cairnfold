@@ -18,9 +18,9 @@ var hands: Array[Node3D] = []
 var terrain: Terrain
 var ponds: Array[PondWater] = []
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
-var _owner := PackedInt32Array()
-## The grid points `_owner` and the levels were last written at.
-var _written := PackedInt32Array()
+var owners := PackedInt32Array()
+## The grid points `owners` and the levels were last written at.
+var written := PackedInt32Array()
 var _wet := {}
 ## Fills worked out ahead of a command on another thread, as [heights, grid point, level, pond], for `fill`.
 static var _known: Array = []
@@ -36,8 +36,8 @@ class Wade:
 func _init(ground: Terrain, touching: Array[Node3D]) -> void:
 	terrain = ground
 	hands = touching
-	_owner.resize(Terrain.VERTS * Terrain.VERTS)
-	_owner.fill(-1)
+	owners.resize(Terrain.VERTS * Terrain.VERTS)
+	owners.fill(-1)
 	terrain.dry_water()
 
 
@@ -100,21 +100,11 @@ func _process(delta: float) -> void:
 			_wade(h, delta)
 
 
-## What `Refill.publish` works out from: the ponds shown, the grid points their levels were written at and the index
-## of the one over each grid point.
 func shown() -> Array[PondLayout.Pond]:
 	var out: Array[PondLayout.Pond] = []
 	for w in ponds:
 		out.append(w.pond)
 	return out
-
-
-func written() -> PackedInt32Array:
-	return _written
-
-
-func owners() -> PackedInt32Array:
-	return _owner
 
 
 ## Shows `found` as the ponds, as `refill` worked out when it has (Refill.publish). A pond that covers water already
@@ -124,7 +114,7 @@ func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 		refill = Refill.new()
 		refill.found = found
 		refill.heights = terrain.read(Terrain.ALL)
-		refill.publish(terrain.water_levels(), _written, _owner, shown())
+		refill.publish(terrain.water_levels(), written, owners, shown())
 	var was := ponds
 	var old := ponds.duplicate()
 	ponds = []
@@ -142,8 +132,8 @@ func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 		ponds.append(w)
 	for w in old:
 		w.queue_free()
-	_owner = refill.owner
-	_written = refill.written
+	owners = refill.owners
+	written = refill.written
 	terrain.set_water(refill.levels, refill.image)
 	if refill.changed.has_area():
 		refilled.emit(Terrain.world_rect(refill.changed.grow_individual(0, 0, 1, 1)))
@@ -162,7 +152,7 @@ func floor_at(p: Vector3) -> float:
 ## The pond whose water is over (x, z), or null.
 func pond_at(x: float, z: float) -> PondWater:
 	var g := Terrain.grid_point(x, z)
-	var i := _owner[g.y * Terrain.VERTS + g.x]
+	var i := owners[g.y * Terrain.VERTS + g.x]
 	if i < 0 or terrain.height_at(x, z) >= ponds[i].pond.level:
 		return null
 	return ponds[i]
@@ -187,7 +177,7 @@ func crosses(a: Vector2, b: Vector2) -> bool:
 			if absf(dir[axis]) > 1e-6:
 				out = minf(out, (centre[axis] + signf(dir[axis]) * Terrain.STEP * 0.5 - p[axis]) / dir[axis])
 		var end := minf(t + maxf(out, 0.0) + 1e-3, length)
-		if _owner[g.y * Terrain.VERTS + g.x] < 0:
+		if owners[g.y * Terrain.VERTS + g.x] < 0:
 			dry = true
 		else:
 			var s := t

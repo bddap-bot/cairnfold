@@ -1,10 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
-
-varying vec4 given;
+#include "res://src/given.gdshaderinc"
 
 instance uniform float floor_height = 0.0;
 // A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
@@ -93,6 +90,5 @@ void fragment() {
 	ROUGHNESS = mix(COLOR.r < 0.1 ? 0.15 : 0.55, 0.85, plume);
 	SPECULAR = mix(COLOR.r < 0.1 ? 0.8 : 0.35, 0.25, plume);
 	BACKLIGHT = feather * 0.25 * plume;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

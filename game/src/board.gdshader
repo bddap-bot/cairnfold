@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
 uniform sampler2D wet : filter_linear, repeat_disable;
@@ -15,10 +14,8 @@ uniform float open;
 uniform vec2 thumb;
 uniform float thumb_clear;
 
-varying vec4 given;
-
 void vertex() {
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {

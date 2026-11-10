@@ -1,7 +1,6 @@
 shader_type spatial;
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
 uniform sampler2D wet : filter_linear, repeat_disable;
@@ -10,10 +9,8 @@ uniform sampler2D paper : filter_linear, repeat_disable;
 uniform sampler2D relief : filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec2 metres;
 
-varying vec4 given;
-
 void vertex() {
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {
@@ -27,6 +24,5 @@ void fragment() {
 	float oil = smoothstep(0.02, 0.2, d.a);
 	ROUGHNESS = paint_filtered_roughness(paint_roughness(oil, damp), mean_normal);
 	SPECULAR = paint_specular(oil, damp);
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

@@ -1,12 +1,10 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/turn.gdshaderinc"
 
 // INSTANCE_CUSTOM: x its clock, y how far it has grown in, z how far it flies, its wings out and beating, or below 0 how
 // far through a hoot it is, perched; w how far its head turns from the way it faces, left positive.
-varying vec4 given;
 
 void vertex() {
 	int part = int(UV2.x + 0.5);
@@ -36,7 +34,7 @@ void vertex() {
 		VERTEX.xz *= 1.0 + 0.012 * sin(t * 1.7) + 0.05 * hoot * smoothstep(0.12, 0.17, VERTEX.y) * step(VERTEX.z, 0.0);
 	}
 	VERTEX *= INSTANCE_CUSTOM.y;
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {
@@ -44,6 +42,5 @@ void fragment() {
 	ALBEDO = pow(COLOR.rgb, vec3(2.2));
 	ROUGHNESS = eye ? 0.15 : 0.85;
 	SPECULAR = eye ? 0.7 : 0.15;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

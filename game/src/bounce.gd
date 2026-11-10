@@ -38,7 +38,7 @@ var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
 ## Owner id -> its pieces' instance buffers and their strides, placed since the last solve began.
 var _pending := {}
-var _rooms: Array[Lamps.Room] = []
+var _rooms := Lamps.Rooms.new()
 var _sun := Vector3.UP
 var _relight := false
 var _layers: Array[Image] = []
@@ -136,8 +136,8 @@ func set_sun(toward_sun: Vector3, light: Color) -> void:
 
 ## Share the rooms already derived for lantern occlusion; the column approximation cannot distinguish a
 ## roof and wall in one cell, so it must not invent sky through that solid shell.
-func enclose(rooms: Array[Lamps.Room]) -> void:
-	_rooms = rooms.duplicate()
+func enclose(rooms: Lamps.Rooms) -> void:
+	_rooms = rooms
 	_relight = true
 
 
@@ -146,7 +146,7 @@ func _next() -> Callable:
 		_relight = true
 	if _pending.is_empty() and not _relight:
 		return Callable()
-	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL), "rooms": _rooms.duplicate()}
+	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL), "rooms": _rooms}
 	_pending = {}
 	_relight = false
 	return _work.bind(job)
@@ -193,53 +193,38 @@ func _work(job: Dictionary) -> Dictionary:
 ## Bound sky and exterior bounced sunlight by each opening's projected solid angle; the column height field
 ## cannot distinguish the inside of a shell from its sunlit outside. What comes in through the openings then lights
 ## the room evenly off its walls, floor and ceiling (interreflected).
-static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Array[Lamps.Room], colors: PackedColorArray, sun: Vector3) -> void:
-	var groups := Lamps._groups(rooms)
-	var portals := {}
-	var members := {}
-	var open_groups := {}
-	for r in rooms.size():
-		if not portals.has(groups[r]):
-			portals[groups[r]] = []
-			members[groups[r]] = []
-		portals[groups[r]].append_array(rooms[r].openings)
-		members[groups[r]].append(rooms[r])
-		if rooms[r].roof == null and is_inf(rooms[r].top):
-			open_groups[groups[r]] = true
-	var fills := {}
-	for g in members:
-		if not open_groups.has(g):
-			fills[g] = interreflected(members[g], colors, sun)
+static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Lamps.Rooms, colors: PackedColorArray, sun: Vector3) -> void:
 	var area: Rect2i = result.area
 	var visited := {}
-	for r in rooms.size():
-		var room: Lamps.Room = rooms[r]
-		if open_groups.has(groups[r]):
-			continue
-		var fill: Color = fills[groups[r]]
-		var footprint := room.rect.grow(Terrain.STEP * 0.5)
-		var a := column(footprint.position.x, footprint.position.y)
-		var b := column(footprint.end.x, footprint.end.y)
-		var bounds := Rect2i(a, b - a + Vector2i.ONE).intersection(area)
-		for z in range(bounds.position.y, bounds.end.y):
-			for x in range(bounds.position.x, bounds.end.x):
-				for k in LAYERS:
-					var p := probe_centre(x, z, k, ground)
-					var index := (k * CELLS + z) * CELLS + x
-					if visited.has(index) or not room.holds(p, true, OVER_ROOF):
-						continue
-					visited[index] = true
-					var sky := 0.0
-					for o: Dictionary in portals[groups[r]]:
-						var to: Vector3 = o.at - p
-						var d := maxf(to.length(), 0.1)
-						sky += o.area * maxf(to.dot(o.out) / d, 0.0) / (TAU * d * d)
-					var px: PackedByteArray = result.layers[k]
-					var offset := ((z - area.position.y) * area.size.x + x - area.position.x) * 4
-					var visibility := clampf(sky, 0.0, 1.0)
-					px[offset + 3] = mini(255, mini(px[offset + 3], roundi(visibility * 255.0)) + roundi(fill.a * 255.0))
-					for channel in 3:
-						px[offset + channel] = mini(255, roundi(px[offset + channel] * visibility + fill[channel] * ENCODE * 255.0))
+	for members: Array in rooms.covered:
+		var portals := []
+		for m: Lamps.Room in members:
+			portals.append_array(m.openings)
+		var fill := interreflected(members, colors, sun)
+		for room: Lamps.Room in members:
+			var footprint := room.rect.grow(Terrain.STEP * 0.5)
+			var a := column(footprint.position.x, footprint.position.y)
+			var b := column(footprint.end.x, footprint.end.y)
+			var bounds := Rect2i(a, b - a + Vector2i.ONE).intersection(area)
+			for z in range(bounds.position.y, bounds.end.y):
+				for x in range(bounds.position.x, bounds.end.x):
+					for k in LAYERS:
+						var p := probe_centre(x, z, k, ground)
+						var index := (k * CELLS + z) * CELLS + x
+						if visited.has(index) or not room.holds(p, true, OVER_ROOF):
+							continue
+						visited[index] = true
+						var sky := 0.0
+						for o: Dictionary in portals:
+							var to: Vector3 = o.at - p
+							var d := maxf(to.length(), 0.1)
+							sky += o.area * maxf(to.dot(o.out) / d, 0.0) / (TAU * d * d)
+						var px: PackedByteArray = result.layers[k]
+						var offset := ((z - area.position.y) * area.size.x + x - area.position.x) * 4
+						var visibility := clampf(sky, 0.0, 1.0)
+						px[offset + 3] = mini(255, mini(px[offset + 3], roundi(visibility * 255.0)) + roundi(fill.a * 255.0))
+						for channel in 3:
+							px[offset + channel] = mini(255, roundi(px[offset + channel] * visibility + fill[channel] * ENCODE * 255.0))
 
 
 ## The light a closed room's surfaces pass between them, the same everywhere in it (split flux): what enters through

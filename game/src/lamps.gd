@@ -28,13 +28,13 @@ const OUT := 0.5
 ## How much of the light in a doorway gets out: a doorway spills a little, so a lit house reads by its windows.
 const DOOR := 0.2
 
-signal rooms_changed(rooms: Array[Room])
+signal rooms_changed(rooms: Rooms)
 
 var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
 var _lights := PackedColorArray()
-var _rooms: Array[Room] = []
+var _rooms := Rooms.new()
 var _shells := []
 var _dirty := false
 
@@ -62,6 +62,8 @@ class Room:
 	var probe_inside: Array[PackedVector2Array] = []
 	var massing: Massing
 	var joined: Array[Massing] = []
+	## Set by the Rooms holding it, from 1.
+	var group := 0
 	var rect := Rect2()
 	var floor := 0.0
 	## Under a flat deck or a wall's top; a loop without a cover is open to the sky.
@@ -153,6 +155,36 @@ class Room:
 		return false
 
 
+## A garden's rooms and their groups: rooms whose joined masses open into each other. Never changed once made: solves on
+## other threads share it, and each Room belongs to one.
+class Rooms:
+	var all: Array[Room] = []
+	## Each group's rooms, for the groups none of whose rooms is open to the sky.
+	var covered: Array[Array] = []
+
+	func _init(rooms: Array[Room] = []) -> void:
+		all = rooms
+		for i in rooms.size():
+			rooms[i].group = i + 1
+		for i in rooms.size():
+			# This runs on the main thread, where a garden of rooms joined to nothing should cost next to nothing.
+			if rooms[i].joined.is_empty():
+				continue
+			for j in i:
+				if rooms[i].group == rooms[j].group or not rooms[i].connects(rooms[j]):
+					continue
+				var old := rooms[i].group
+				for r in rooms:
+					if r.group == old:
+						r.group = rooms[j].group
+		var members := {}
+		for r in rooms:
+			members.get_or_add(r.group, []).append(r)
+		for g: int in members:
+			if members[g].all(func(r: Room) -> bool: return r.roof != null or is_finite(r.top)):
+				covered.append(members[g])
+
+
 ## The lanterns hung on `walls`, and `extra` burning in `extra_lights`, and the rooms of the houses and towers among
 ## them, wherever they stand now.
 func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedColorArray()) -> void:
@@ -168,9 +200,10 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 			shells.append([w, w.massing, w.layout.laid, w.roof.dormers.duplicate() if w.roof != null else []])
 	if shells != _shells:
 		_shells = shells
-		_rooms.clear()
+		var rooms: Array[Room] = []
 		for s in shells:
-			_rooms.append(Room.of(s[0].layout, s[1], s[0].roof))
+			rooms.append(Room.of(s[0].layout, s[1], s[0].roof))
+		_rooms = Rooms.new(rooms)
 		rooms_changed.emit(_rooms)
 		_dirty = true
 	if flames != _flames or lights != _lights:
@@ -187,7 +220,7 @@ func _next() -> Callable:
 	_dirty = false
 	var flames := _flames
 	var lights := _lights
-	var rooms := _rooms.duplicate()
+	var rooms := _rooms
 	var heights := terrain.read(Terrain.ALL)
 	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms, lights)}
 
@@ -209,15 +242,14 @@ func _take(out: Dictionary) -> void:
 ## given), with the ground at each column's middle `ground`: falling off with distance and gone at REACH, as Godot
 ## fades an omni light. A flame in one of `rooms` lights only that room, and its openings shine outward with the light
 ## at them; exterior flames spill inward through openings.
-static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms: Array[Room] = [], lights := PackedColorArray()) -> Array[PackedByteArray]:
+static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms := Rooms.new(), lights := PackedColorArray()) -> Array[PackedByteArray]:
 	var n := Bounce.CELLS
 	var sum := PackedFloat32Array()
 	sum.resize(n * n * Bounce.LAYERS * 3)
 	if lights.is_empty():
 		lights.resize(flames.size())
 		lights.fill(light_of(0))
-	var groups := _groups(rooms)
-	var within := _rooms_at(rooms, ground, groups)
+	var within := _rooms_at(rooms, ground)
 	var homes := PackedInt32Array()
 	var r := ceili(REACH / Terrain.STEP)
 	for fi in flames.size():
@@ -225,10 +257,10 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 		var g := lights[fi]
 		var home := 0
 		var near := false
-		for k in rooms.size():
-			if rooms[k].holds(f):
-				home = groups[k]
-			near = near or rooms[k].rect.grow(REACH).has_point(Vector2(f.x, f.z))
+		for room in rooms.all:
+			if room.holds(f):
+				home = room.group
+			near = near or room.rect.grow(REACH).has_point(Vector2(f.x, f.z))
 		homes.append(home)
 		var c := Bounce.column(f.x, f.z)
 		for j in range(maxi(c.y - r, 0), mini(c.y + r + 1, n)):
@@ -245,13 +277,13 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 						sum[p * 3] += lit * g.r
 						sum[p * 3 + 1] += lit * g.g
 						sum[p * 3 + 2] += lit * g.b
-	for k in rooms.size():
-		for o in rooms[k].openings:
+	for room in rooms.all:
+		for o in room.openings:
 			var inner: Vector3 = o.at - o.out * (WallLayout.THICKNESS + OUT)
 			var lit := Color(0, 0, 0)
 			var entering := Color(0, 0, 0)
 			for f in flames.size():
-				if homes[f] == groups[k]:
+				if homes[f] == room.group:
 					lit += lights[f] * _falloff(flames[f].distance_to(inner))
 				elif homes[f] == 0:
 					var entrance: Vector3 = o.at - o.out * OUT
@@ -259,7 +291,7 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 					if to.dot(o.out) > 0.0 and not _crosses(flames[f], entrance, within, ground):
 						entering += lights[f] * _falloff(to.length()) * to.normalized().dot(o.out)
 			if entering.r + entering.g + entering.b > 0.0:
-				_spill(sum, inner, -o.out, entering, within, ground, groups[k])
+				_spill(sum, inner, -o.out, entering, within, ground, room.group)
 			if lit.r + lit.g + lit.b > 0.0:
 				_spill(sum, o.at, o.out, lit * o.gives, within, ground)
 	var layers: Array[PackedByteArray] = []
@@ -272,23 +304,6 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 			px[p * 4 + 3] = 255
 		layers.append(px)
 	return layers
-
-
-## Transitive rooms come from the same joined masses that remove their internal walls.
-static func _groups(rooms: Array[Room]) -> PackedInt32Array:
-	var groups := PackedInt32Array()
-	for i in rooms.size():
-		groups.append(i + 1)
-	for i in rooms.size():
-		for j in i:
-			if groups[i] == groups[j] or not rooms[i].connects(rooms[j]):
-				continue
-			var old := groups[i]
-			var to := groups[j]
-			for k in groups.size():
-				if groups[k] == old:
-					groups[k] = to
-	return groups
 
 
 static func _falloff(d: float) -> float:
@@ -319,19 +334,19 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Colo
 
 
 ## Per probe, its connected room group, or 0 outside every room.
-static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array, groups: PackedInt32Array) -> PackedInt32Array:
+static func _rooms_at(rooms: Rooms, ground: PackedFloat32Array) -> PackedInt32Array:
 	var n := Bounce.CELLS
 	var within := PackedInt32Array()
 	within.resize(n * n * Bounce.LAYERS)
-	for r in rooms.size():
-		var bounds := rooms[r].rect.grow(Terrain.STEP * 0.5)
+	for room in rooms.all:
+		var bounds := room.rect.grow(Terrain.STEP * 0.5)
 		var a := Bounce.column(bounds.position.x, bounds.position.y)
 		var b := Bounce.column(bounds.end.x, bounds.end.y)
 		for j in range(maxi(a.y, 0), mini(b.y + 1, n)):
 			for i in range(maxi(a.x, 0), mini(b.x + 1, n)):
 				for k in Bounce.LAYERS:
-					if rooms[r].holds(Bounce.probe_centre(i, j, k, ground), true):
-						within[(k * n + j) * n + i] = groups[r]
+					if room.holds(Bounce.probe_centre(i, j, k, ground), true):
+						within[(k * n + j) * n + i] = room.group
 	return within
 
 

@@ -21,7 +21,7 @@ class Shaders(unittest.TestCase):
                 continue
             body = text.split('void vertex()', 1)[-1]
             with self.subTest(shader=path.name):
-                self.assertTrue(re.search(r'given_(back|at|over|read)\(', body) and re.search(r'EMISSION\s*\+?=', body))
+                self.assertTrue(re.search(r'GIVE_HERE|given_(back|at|over|read)\(', body) and re.search(r'TAKE_GIVEN|EMISSION\s*\+?=', body))
 
 
 if __name__ == '__main__':

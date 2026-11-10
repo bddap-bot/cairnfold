@@ -181,7 +181,7 @@ func set_time(t: float) -> void:
 	RenderingServer.global_shader_parameter_set(&"sky_haze", linear(l.fog))
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", l.ambient)
 	bounce.set_sun(toward, l.sun * l.energy)
-	interior.set_sun(toward)
+	interior.to_light = toward
 
 
 ## A colour as shaders that light themselves read it, as a source_color uniform would take it.

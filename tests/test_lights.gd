@@ -52,12 +52,12 @@ func _baked() -> void:
 	var ground := Bounce.grounds(Terrain.new().read(Terrain.ALL))
 	var flame := PackedVector3Array([Vector3(0.5, 1.8, 0.5)])
 	var lit := _rgb(Lamps.shine(flame, ground), 0.5, 2.5, 0)
-	var plain := _rgb(Lamps.shine(flame, ground, [], PackedColorArray([Lamps.light_of(0)])), 0.5, 2.5, 0)
+	var plain := _rgb(Lamps.shine(flame, ground, Lamps.Rooms.new(), PackedColorArray([Lamps.light_of(0)])), 0.5, 2.5, 0)
 	check(lit.is_equal_approx(plain), "a lantern given no light burns lit in the first colour")
-	var bright := _rgb(Lamps.shine(flame, ground, [], PackedColorArray([Lamps.light_of(1)])), 0.5, 2.5, 0)
-	var dim := _rgb(Lamps.shine(flame, ground, [], PackedColorArray([Lamps.light_of(2)])), 0.5, 2.5, 0)
+	var bright := _rgb(Lamps.shine(flame, ground, Lamps.Rooms.new(), PackedColorArray([Lamps.light_of(1)])), 0.5, 2.5, 0)
+	var dim := _rgb(Lamps.shine(flame, ground, Lamps.Rooms.new(), PackedColorArray([Lamps.light_of(2)])), 0.5, 2.5, 0)
 	check(bright.x > lit.x * 1.8 and dim.x < lit.x * 0.6 and dim.x > 0.0, "the light baked grows with brightness: dim %.2f, lit %.2f, bright %.2f" % [dim.x, lit.x, bright.x])
-	var blue := _rgb(Lamps.shine(flame, ground, [], PackedColorArray([Lamps.light_of(6 * 3)])), 0.5, 2.5, 0)
+	var blue := _rgb(Lamps.shine(flame, ground, Lamps.Rooms.new(), PackedColorArray([Lamps.light_of(6 * 3)])), 0.5, 2.5, 0)
 	check(blue.z > blue.x and lit.x > lit.z, "a blue lantern lights the ground blue where an amber one lights it amber: %s, %s" % [blue, lit])
 
 

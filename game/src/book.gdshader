@@ -5,8 +5,7 @@ render_mode diffuse_lambert_wrap;
 // corners and edges, the front stamped in foil with a nest of three eggs in a ring of leaves; a block of pages
 // (`kind` 1) shows leaf lines on its sides and a painted fore-edge. `size` is the box's size in metres.
 
-#include "res://src/ground.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
 uniform int kind = 0;
@@ -28,7 +27,6 @@ uniform vec3 edge_paint : source_color = vec3(0.86, 0.6, 0.32);
 
 varying vec3 local;
 varying vec3 local_n;
-varying vec4 given;
 
 void vertex() {
 	if (VERTEX.y > 0.0) {
@@ -36,7 +34,7 @@ void vertex() {
 	}
 	local = VERTEX;
 	local_n = NORMAL;
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	GIVE_HERE;
 }
 
 void fragment() {
@@ -70,6 +68,5 @@ void fragment() {
 		ROUGHNESS = 0.95;
 	}
 	SPECULAR = 0.2;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 }

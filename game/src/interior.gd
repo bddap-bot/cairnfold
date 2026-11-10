@@ -34,8 +34,9 @@ var masked := true:
 		RenderingServer.global_shader_parameter_set(&"room_field", field if masked else _unmasked)
 		RenderingServer.global_shader_parameter_set(&"room_nearest", field if masked else _unmasked)
 var _unmasked := ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBAH))
-var _rooms: Array[Lamps.Room] = []
-var _toward := Vector3.UP
+var _rooms := Lamps.Rooms.new()
+## The way to the sun or moon.
+var to_light := Vector3.UP
 ## Whether the next solve packs the field too, and the light the last one packed rows from.
 var _cells := false
 var _solved_toward := Vector3.UP
@@ -53,24 +54,17 @@ func install() -> void:
 	RenderingServer.global_shader_parameter_set(&"room_top", top)
 
 
-func enclose(rooms: Array[Lamps.Room]) -> void:
-	_rooms = rooms.duplicate()
+func enclose(rooms: Lamps.Rooms) -> void:
+	_rooms = rooms
 	_cells = true
 
 
-## The light now comes from `toward`, the way to the sun or moon.
-func set_sun(toward: Vector3) -> void:
-	if toward.is_equal_approx(_toward):
-		return
-	_toward = toward
-
-
 func _next() -> Callable:
-	if not _cells and (_rooms.is_empty() or _toward.is_equal_approx(_solved_toward)):
+	if not _cells and (_rooms.all.is_empty() or to_light.is_equal_approx(_solved_toward)):
 		return Callable()
-	var job := {"rooms": _rooms, "toward": _toward, "cells": _cells}
+	var job := {"rooms": _rooms, "toward": to_light, "cells": _cells}
 	_cells = false
-	_solved_toward = _toward
+	_solved_toward = to_light
 	return _work.bind(job)
 
 
@@ -93,13 +87,8 @@ func _take(out: Dictionary) -> void:
 
 
 ## The textures' contents for `rooms` lit from `toward`: room_field's floats, unless `cells` is false, and room_data's
-## floats. A group with a room open to the sky is left out, as Bounce leaves it; past GROUPS - 1 groups, or a row's
-## WIDTH, the rest go unmasked.
-static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Dictionary:
-	var groups := Lamps._groups(rooms)
-	var rows := {}
-	for r in rooms.size():
-		rows.get_or_add(groups[r], []).append(rooms[r])
+## floats. Only covered groups are packed; past GROUPS - 1 of them, or a row's WIDTH, the rest go unmasked.
+static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictionary:
 	var field_floats := PackedFloat32Array()
 	var tops := PackedFloat32Array()
 	if cells:
@@ -108,10 +97,7 @@ static func pack(rooms: Array[Lamps.Room], toward: Vector3, cells := true) -> Di
 	var floats := PackedFloat32Array()
 	floats.resize(WIDTH * GROUPS * 4)
 	var row := 0
-	for g in rows:
-		var members: Array = rows[g]
-		if members.any(func(m: Lamps.Room) -> bool: return m.roof == null and is_inf(m.top)):
-			continue
+	for members: Array in rooms.covered:
 		var portals := []
 		for m: Lamps.Room in members:
 			for o: Dictionary in m.portals:

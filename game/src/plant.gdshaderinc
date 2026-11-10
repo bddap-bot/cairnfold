@@ -1,7 +1,6 @@
-#include "res://src/ground.gdshaderinc"
+#include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
-#include "res://src/bounce.gdshaderinc"
 
 uniform float roughness = 1.0;
 #ifdef BACKLIT
@@ -56,7 +55,6 @@ float water_form(float placed, float depth) {
 varying float moss_coat;
 varying vec2 bark_uv;
 #endif
-varying vec4 given;
 #ifdef FLOWER
 varying float far_head;
 varying float lily;
@@ -152,8 +150,7 @@ void fragment() {
 	}
 #endif
 	ROUGHNESS = roughness;
-	AO = given.a;
-	EMISSION = ALBEDO * given.rgb;
+	TAKE_GIVEN;
 #ifdef BACKLIT
 	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif
