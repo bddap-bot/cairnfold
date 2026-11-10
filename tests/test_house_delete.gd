@@ -74,7 +74,7 @@ func _settle() -> void:
 	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
 		lay_walls(main.tool)
 	for id: int in world.stairs.layouts:
-		world.stairs.settle(id)
+		world.stairs.show_reshaped(id)
 	await process_frame
 	await until(func() -> bool: return main.tool.walls.all(func(w: Wall) -> bool: return w._ivy_task < 0 and not w.laying()), "every wall and its ivy laid")
 	world.decorations.sync()

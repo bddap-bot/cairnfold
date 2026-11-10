@@ -228,7 +228,7 @@ func show_reshaped(shown: Dictionary) -> void:
 			continue
 		var w := walls.find(id)
 		if w != null and w.reshaped == _previewed[id]:
-			walls.settle(id)
+			walls.show_reshaped(id)
 		_previewed.erase(id)
 	for id in shown:
 		var w := walls.find(id)

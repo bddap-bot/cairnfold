@@ -85,6 +85,7 @@ const WATER := Color(0.38, 0.62, 0.86, 0.75)
 
 
 var terrain: Terrain
+var world: World
 var quality: Quality
 ## A whole easel, hidden, the next placement stands rather than make one in its frame; none while the garden holds
 ## its MAX, so no more canvases are ever on the GPU than that.
@@ -196,8 +197,6 @@ class Easel:
 	extends Node3D
 
 	var id := -1
-	## Its entry in the garden's table, which a reshape changes in place.
-	var data: Dictionary
 	var canvas: Canvas
 	var canvas_mesh: MeshInstance3D
 	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
@@ -265,7 +264,6 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.id = id
 	e.name = "Easel%d" % id
 	e.add_to_group("easel")
-	e.data = data
 	e.transform = on_ground(data.at, data.yaw)
 	e.visible = true
 	easels[id] = e
@@ -308,10 +306,11 @@ func stand(id: int, at: Vector3, yaw: float) -> void:
 		e.transform = on_ground(at, yaw)
 
 
-func settle(id: int) -> void:
-	var e := find(id)
-	if e != null:
-		stand(id, e.data.at, e.data.yaw)
+## Stands easel `id` as a reshape with `data` would leave it.
+func show_reshaped(id: int, data := {}) -> void:
+	if find(id) != null:
+		var shown := World.reshaped(world.state.easels[id], data)
+		stand(id, shown.at, shown.yaw)
 
 
 ## Stands each easel over the ground reshaped in `area` on it again, as this player now sees it.

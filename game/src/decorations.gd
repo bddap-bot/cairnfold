@@ -192,8 +192,13 @@ func targets() -> Array[Dictionary]:
 	return out
 
 
-func show_reshaped(id: int, data: Dictionary) -> void:
-	_shown[id] = data
+## Shows decoration `id` as a reshape with `data` would leave it; with no `data`, as the garden has it, in no hand.
+func show_reshaped(id: int, data := {}) -> void:
+	if data.is_empty():
+		_held.erase(id)
+		_shown.erase(id)
+	else:
+		_shown[id] = data
 	sync()
 
 
@@ -218,12 +223,6 @@ func sweep(id: int) -> void:
 ## Shows a swept decoration again on the next sync, by when the garden has taken it or kept it.
 func unsweep(id: int) -> void:
 	_swept.erase(id)
-
-
-func settle(id: int) -> void:
-	_held.erase(id)
-	_shown.erase(id)
-	sync()
 
 
 func rise(d: Dictionary) -> float:

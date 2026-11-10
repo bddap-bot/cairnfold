@@ -400,7 +400,7 @@ func let_go(who: Object) -> void:
 			cmds.append({"op": "take", "of": "boulders", "ids": PackedInt32Array([id])})
 	var settle := func() -> void:
 		for id in swept:
-			walls.settle(id)
+			walls.show_reshaped(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
 		for e: Node3D in cut.easels.values() + cut.boulders.values():

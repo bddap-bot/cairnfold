@@ -56,7 +56,7 @@ var water: Water
 var easels: Easels
 var boulders: Boulders
 var decorations: Decorations
-## What shows the garden's tables of builds, by table: each settles a build back to what the garden has.
+## What shows the garden's tables of builds, by table: each shows a build as a reshape would leave it, or with none as the garden has it.
 var views: Dictionary:
 	get:
 		return {"walls": wall_tool, "stairs": stairs, "paths": paths, "easels": easels, "boulders": boulders, "decorations": decorations}
@@ -515,6 +515,9 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	water = ponds
 	easels = stands
 	boulders = rocks
+	for view in [ways, stands, rocks]:
+		if view != null:
+			view.world = self
 	holders.assign([walls, ponds].filter(func(h: Node) -> bool: return h != null))
 	if flora != null and flora.groups.has(0):
 		_grow_meadow()
@@ -1028,7 +1031,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				wall_tool.restyle(cmd.id, cmd.data.keys())
 				_floor_mark(cmd.id)
 			elif views[cmd.of] != null:
-				views[cmd.of].settle(cmd.id)
+				views[cmd.of].show_reshaped(cmd.id)
 			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs":

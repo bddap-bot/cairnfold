@@ -34,7 +34,6 @@ class Boulder:
 	var size := 1.0
 	## Whether a hand has it, so it is shown where the hand holds it, not resting on the ground.
 	var held := false
-	var data: Dictionary
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
@@ -97,6 +96,7 @@ class Boulder:
 
 
 var terrain: Terrain
+var world: World
 var boulders := {}
 ## Counts every put, take and resize, so what caches their shapes knows to look again.
 var changes := 0
@@ -115,7 +115,6 @@ func put(id: int, data: Dictionary) -> Boulder:
 		b.name = "Boulder%d" % id
 		boulders[id] = b
 	else:
-		b.data = data
 		b.appear(data)
 	changes += 1
 	return b
@@ -126,7 +125,6 @@ func ghost(data: Dictionary) -> Boulder:
 	var b := Boulder.new()
 	b.terrain = terrain
 	add_child(b)
-	b.data = data
 	b.appear(data)
 	return b
 
@@ -162,16 +160,11 @@ static func impact(fall: float) -> float:
 
 
 ## Shows boulder `id` as a reshape with `data` would leave it, here alone.
-func show_reshaped(id: int, data: Dictionary) -> void:
+func show_reshaped(id: int, data := {}) -> void:
 	var b: Boulder = boulders.get(id)
 	if b != null:
-		b.appear(World.reshaped(b.data, data))
+		b.appear(World.reshaped(world.state.boulders[id], data))
 		changes += 1
-
-
-## Shows boulder `id` as the garden has it again.
-func settle(id: int) -> void:
-	show_reshaped(id, {})
 
 
 static func _instance(shape: BoulderLayout.Shape, subdiv: int) -> MultiMeshInstance3D:

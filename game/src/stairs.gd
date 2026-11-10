@@ -6,13 +6,13 @@ var layouts := {}
 ## The railings new flights and landings are laid with: the style last turned to on this machine.
 var rail := "stone"
 var _growing := {}
-var _data := {}
+var world: World
 
-func _init(shared: Masonry) -> void:
+func _init(shared: Masonry, garden: World) -> void:
 	masonry = shared
+	world = garden
 
 func put(id: int, data: Dictionary) -> void:
-	_data[id] = data
 	var layout := StairLayout.new()
 	layout.build(data)
 	layouts[id] = layout
@@ -23,7 +23,6 @@ func put(id: int, data: Dictionary) -> void:
 	_growing[id] = {"node": shown, "count": 0.0, "shown": -1}
 
 func take(id: int) -> void:
-	_data.erase(id)
 	layouts.erase(id)
 	_stop_growing(id)
 	masonry.remove(Masonry.stair_owner(id))
@@ -41,14 +40,10 @@ func _process(delta: float) -> void:
 		if n == layout.stones.size():
 			_place(id)
 
-## Lays stairs as the garden has them again, whole at once.
-func settle(id: int) -> void:
-	show_reshaped(id, {})
-
 ## Lays stairs whole as a reshape with `data` would leave them, through the layout that lays the reshape itself.
-func show_reshaped(id: int, data: Dictionary) -> void:
+func show_reshaped(id: int, data := {}) -> void:
 	var layout := StairLayout.new()
-	layout.build(World.reshaped(_data[id], data))
+	layout.build(World.reshaped(world.state.stairs[id], data))
 	layouts[id] = layout
 	_place(id)
 

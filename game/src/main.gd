@@ -85,7 +85,7 @@ func _ready() -> void:
 	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
 	paths.masonry = tool.masonry
-	world.stairs = Stairs.new(tool.masonry)
+	world.stairs = Stairs.new(tool.masonry, world)
 	builds.add_child(world.stairs)
 	stair_tool = StairTool.new(rig, tool, world)
 	add_child(stair_tool)

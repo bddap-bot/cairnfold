@@ -500,7 +500,7 @@ func tap(hand: Hand, of: String, id: int) -> void:
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
 	walls.show_reshaped(id, data)
-	world.submit({"op": "reshape", "of": "walls", "id": id, "data": data}, func() -> void: walls.settle.call_deferred(id), hand)
+	world.submit({"op": "reshape", "of": "walls", "id": id, "data": data}, func() -> void: walls.show_reshaped.call_deferred(id), hand)
 
 
 ## The look of a wall, house, tower or fence with garden data `d`: its paint, face, top, foundation, floor, gable ends
@@ -562,7 +562,7 @@ func _settled(w: Wheel) -> void:
 		elif w.id < 0 or w.target.tool == Hand.Tool.COLOUR:
 			_show(w, _now(w))
 		else:
-			world.views[w.of].settle(w.id)).call_deferred()
+			world.views[w.of].show_reshaped(w.id)).call_deferred()
 
 
 func _drop(hand: Hand) -> void:

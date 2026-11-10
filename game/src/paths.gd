@@ -18,8 +18,7 @@ var layouts: Array[PathLayout] = []
 var ids := {}
 ## The surface this machine's player lays paths in: the one they last turned the style wheel to on a path.
 var surface := PathLayout.Surface.DIRT
-## Each laid path's entry in the garden, by build command id.
-var _garden := {}
+var world: World
 ## Pieces being laid on workers (`_lay`), each [task, path, what it laid], and each path's latest lay.
 var _jobs: Array[Array] = []
 var _laying := {}
@@ -106,7 +105,6 @@ func put(id: int, data: Dictionary) -> void:
 	for ghost in previews:
 		if ghost != drawing and ghost.same_stroke(path):
 			path.share_meetings(ghost)
-	_garden[id] = data
 	ids[path] = id
 	var i := 0
 	while i < layouts.size() and ids[layouts[i]] < id:
@@ -123,7 +121,6 @@ func take(id: int) -> void:
 		return
 	layouts.erase(path)
 	ids.erase(path)
-	_garden.erase(id)
 	_laying.erase(path)
 	marks.lift(path)
 	if masonry != null:
@@ -139,12 +136,12 @@ func layout(id: int) -> PathLayout:
 	return null
 
 
-## Shows path `id` in the surface and with the clutter a reshape with `data` would give it, here alone, until `settle`.
-func show_reshaped(id: int, data: Dictionary) -> void:
+## Shows path `id` in the surface and with the clutter a reshape with `data` would give it, here alone.
+func show_reshaped(id: int, data := {}) -> void:
 	var path := layout(id)
 	if path == null:
 		return
-	var shown := World.reshaped(_garden[id], data)
+	var shown := World.reshaped(world.state.paths[id], data)
 	var surfaced: bool = path.surface != shown.surface
 	if not surfaced and PackedVector4Array(path.clutter) == shown.clutter:
 		return
@@ -153,11 +150,6 @@ func show_reshaped(id: int, data: Dictionary) -> void:
 	if surfaced:
 		marks.rewear_mark(path)
 	_lay(path)
-
-
-## Shows path `id` as the garden has it.
-func settle(id: int) -> void:
-	show_reshaped(id, {})
 
 
 func _process(delta: float) -> void:

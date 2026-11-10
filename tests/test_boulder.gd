@@ -148,7 +148,7 @@ func _a_placed_boulder_sizes_undoes_and_reloads() -> void:
 	var b: Boulders.Boulder = main.boulders.find(id)
 	check(is_equal_approx(b.size, 6.0) and is_equal_approx(b.transform.basis.get_scale().x, 6.0), "a resize grows it where it stands")
 	check(is_equal_approx(world.units.boulder * Budget.COSTS.boulder, Budget.BOULDER_MOST_US), "a boulder six times as wide costs the most one does (%s)" % world.units.boulder)
-	check(b.data.paint[Palette.Element.STONE] == 4, "it takes a stone swatch from the colour wheel")
+	check(world.state.boulders[id].paint[Palette.Element.STONE] == 4, "it takes a stone swatch from the colour wheel")
 	check(b.far.visibility_range_begin > b.near.visibility_range_end - 0.01 and b.near.visibility_range_end > 100.0, "its detail reaches farther as it grows")
 	world.undo()
 	await flushed()

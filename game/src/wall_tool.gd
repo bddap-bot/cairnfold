@@ -1213,7 +1213,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 			b.landed(from_y)
 	s.command = func() -> Dictionary:
 		var d: Dictionary = data.call()
-		var was := b.data
+		var was: Dictionary = world.state.boulders[b.id]
 		if is_equal_approx(d.scale, was.scale) and d.turn.is_equal_approx(was.turn) and is_equal_approx(d.sink, was.sink) and is_equal_approx(d.at.x, was.at.x) and is_equal_approx(d.at.z, was.at.z):
 			return {}
 		return {"op": "reshape", "of": "boulders", "id": b.id, "data": d}
@@ -1223,7 +1223,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 		rocks.show_held(b.id, grip.pose, grip.scale)
 	s.settle = func() -> void:
 		if standing.call() and not in_hand.call():
-			rocks.settle(b.id)
+			rocks.show_reshaped(b.id)
 	return s
 
 
@@ -1255,7 +1255,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		stairs.show_reshaped(grip.id, shown)
 	s.settle = func() -> void:
 		if world.state.stairs.has(grip.id) and not in_hand.call():
-			stairs.settle(grip.id)
+			stairs.show_reshaped(grip.id)
 	return s
 
 
@@ -1328,7 +1328,7 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		stands.stand(grip.id, shown.at, shown.yaw)
 	s.settle = func() -> void:
 		if not in_hand.call():
-			stands.settle(grip.id)
+			stands.show_reshaped(grip.id)
 	return s
 
 
@@ -1410,7 +1410,7 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	s.command = func() -> Dictionary: return {} if shown.value == start else {"op": "reshape", "of": "walls", "id": w.id, "data": data.call(shown.value)}
 	s.settle = func() -> void:
 		if current.call() and not in_hand.call():
-			settle(w.id)
+			show_reshaped(w.id)
 	return s
 
 
@@ -1626,7 +1626,7 @@ func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 		return {} if d == start else {"op": "reshape", "of": "decorations", "id": id, "data": data}
 	s.settle = func() -> void:
 		if not in_hand.call():
-			decorations.settle(id)
+			decorations.show_reshaped(id)
 	return s
 
 
@@ -1670,17 +1670,10 @@ func standing_openings(w: Wall, own: Array) -> Array[Vector4]:
 	return standing
 
 
-## A pulled height, roof or erased stretch shows as pulled until its command comes back, or goes back if it is
-## turned down.
-func settle(id: int) -> void:
-	var w := find(id)
-	if w != null and not _held(w):
-		_relay(w)
-
-
 ## Lays a wall as a reshape with `data` would leave it, through the path that lays the reshape itself, so what a
-## tool shows of an edit is what the edit builds; `settle` lays it as the garden has it again.
-func show_reshaped(id: int, data: Dictionary) -> void:
+## tool shows of an edit is what the edit builds. A pulled height, roof or erased
+## stretch shows as pulled until its command comes back, or goes back if it is turned down.
+func show_reshaped(id: int, data := {}) -> void:
 	var w := find(id)
 	if w == null or _held(w):
 		return
