@@ -333,7 +333,7 @@ static func _overlap(a: Transform3D, b: Transform3D) -> float:
 
 
 func _demo() -> void:
-	var steps := Driver.read("res://../demo/clutter.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
+	var steps := demo("res://../demo/clutter.json")
 	main.world.limit = 1.0
 	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
 	_lay()
@@ -351,17 +351,11 @@ func _demo() -> void:
 	var before: PackedVector4Array = world.state.walls[houses[0].id].clutter.duplicate()
 	var path_before: int = world.state.paths.values()[0].clutter.size()
 	var edits := steps.slice(steps.find_custom(func(s: Dictionary) -> bool: return s.op == "clutter")).filter(func(s: Dictionary) -> bool: return s.op in ["view", "clutter", "wait"])
-	await play(edits.map(_uncaptured))
+	await play(edits)
 	var after: PackedVector4Array = world.state.walls[houses[0].id].clutter
 	check(after.size() == before.size() + 1 and after[0] != before[0], "it moves one, copies another")
 	check(world.state.paths.values()[0].clutter.size() == path_before - 1, "and takes one away")
 	await play([{"op": "bare"}])
-
-
-static func _uncaptured(s: Dictionary) -> Dictionary:
-	var out := s.duplicate()
-	out.erase("capture")
-	return out
 
 
 ## The clutter/* phases: two houses, a wall and a path, with what they gathered and things copied round their walls

@@ -303,7 +303,7 @@ func _smoking() -> void:
 
 
 func _demo() -> void:
-	var steps := Driver.read("res://../demo/lights.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
+	var steps := demo("res://../demo/lights.json")
 	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
 	var world: World = main.world
 	lay_walls(main.tool)

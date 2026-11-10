@@ -83,12 +83,6 @@ class Mason:
 	var pair_span := 0.0
 	var lift_start := 0.0
 	var lift_at := Vector3.ZERO
-	var pick := {}
-	## The gable end the hand points at before any roof, as `pick_building` gives it.
-	var gable := {}
-	## Where the hand points to build, and the id of the build it points at, or -1 on the ground.
-	var ground: Variant = null
-	var on := -1
 
 
 ## A stroke being drawn and the walls it builds, shown as it grows and kept on release.
@@ -239,9 +233,6 @@ func _process(delta: float) -> void:
 
 
 func _handle(m: Mason) -> void:
-	m.pick = {}
-	m.gable = {}
-	m.ground = null
 	if rig.aim_hand == m.hand:
 		_let_go(m)
 		return
@@ -256,15 +247,13 @@ func _handle(m: Mason) -> void:
 	var dir := -hand.basis.z
 	if draws(m.hand):
 		var aimed := aim(origin, dir) if m.stroke == null or is_nan(m.stroke.level) else _at_level(origin, dir, m.stroke.level)
-		m.ground = aimed.get("point")
-		m.on = aimed.get("on", -1)
-		m.pick = pick_building(origin, dir)
-		m.gable = m.pick if m.pick.get("surface") == "gable" else {}
-		m.hand.point(m.ground if m.pick.is_empty() else m.pick.point, TINT)
-		if m.hand.buttons.pressed("tool") and m.ground != null and not busy(m.hand):
-			begin_stroke(m, m.ground, m.on)
-		elif m.hand.buttons.held("tool") and m.stroke != null and m.ground != null:
-			extend_stroke(m, m.ground)
+		var at: Variant = aimed.get("point")
+		var building := pick_building(origin, dir)
+		m.hand.point(at if building.is_empty() else building.point, TINT)
+		if m.hand.buttons.pressed("tool") and at != null and not busy(m.hand):
+			begin_stroke(m, at, aimed.get("on", -1))
+		elif m.hand.buttons.held("tool") and m.stroke != null and at != null:
+			extend_stroke(m, at)
 
 	if m.hand.buttons.pressed("grab") and not m.hand.taken() and not busy(m.hand) and not painting.call(m.hand):
 		var on_held := _held_hit(origin, dir) if held != null else {}
@@ -1664,7 +1653,7 @@ func standing_openings(w: Wall, own: Array) -> Array[Vector4]:
 	var shown := w.layout.openings.duplicate()
 	w.layout.openings.assign(own)
 	for p in paths.layouts:
-		_cut_crossings(w, p)
+		_cut_meetings(w, p.meetings(w.layout))
 	var standing := w.layout.openings.duplicate()
 	w.layout.openings = shown
 	return standing
@@ -1698,10 +1687,10 @@ func _relay(w: Wall, data := {}) -> void:
 func _open_paths(w: Wall, own: Variant = null) -> void:
 	w.layout.openings.assign(Array(w.reshaped.get("openings", world.state.walls[w.id].openings) if own == null else own))
 	for p in paths.layouts:
-		_cut_crossings(w, p)
+		_cut_meetings(w, p.meetings(w.layout))
 	_path_openings[w.id] = w.layout.openings.duplicate()
 	for p in paths.previews:
-		_cut_crossings(w, p)
+		_cut_meetings(w, p.meetings(w.layout))
 
 
 ## Cuts the paths in hand into the walls, looking only in the grid cells each shares with a wall, so a long stroke
@@ -1815,26 +1804,19 @@ func relay_crossings(path: PathLayout) -> void:
 		_sound(Cues.Act.ARCH, heard)
 
 
-## Adds the openings `path` makes in `w` and returns where they stand. Into a house or tower each crossing opens a
-## door as wide as the path (WallLayout.path_doors). Through any other wall it opens an arch: a crossing already inside
-## an opening needs none; one whose ring would overlap an arch there stands a pitch from it as an arcade instead, on
-## the crossing's side if that fits, else the other, so no opening closes.
-func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
-	return _cut_meetings(w, path.meetings(w.layout))
-
-
-## As `_cut_crossings`, from the path's `meetings` with the wall.
-func _cut_meetings(w: Wall, meetings: Array[Dictionary]) -> Array[float]:
-	var opened: Array[float] = []
+## Adds the openings a path meeting `w` at `meetings` (PathLayout.meetings) makes in it. Into a house or tower each
+## crossing opens a door as wide as the path (WallLayout.path_doors). Through any other wall it opens an arch: a crossing
+## already inside an opening needs none; one whose ring would overlap an arch there stands a pitch from it as an arcade
+## instead, on the crossing's side if that fits, else the other, so no opening closes.
+func _cut_meetings(w: Wall, meetings: Array[Dictionary]) -> void:
 	var layout := w.layout
 	if layout.floored():
 		for m in meetings:
 			for door in layout.path_doors(layout.wrap(m.s), m.span, layout.openings):
 				layout.openings.append(door)
-				opened.append(door.x)
-		return opened
+		return
 	if not layout.can_arch():
-		return opened
+		return
 	var placed := layout.openings.duplicate()
 	for a in PathLayout.arches(meetings):
 		a = layout.wrap(a)
@@ -1856,9 +1838,7 @@ func _cut_meetings(w: Wall, meetings: Array[Dictionary]) -> Array[float]:
 			if placed.size() < Commands.MAX_FITTINGS and layout.opening_fits(WallLayout.archway(t), placed):
 				placed.append(WallLayout.archway(t))
 				layout.openings.append(WallLayout.archway(t))
-				opened.append(t)
 				break
-	return opened
 
 
 func _sound(act: Cues.Act, at: Vector3, hand: Hand = null) -> void:

@@ -16,19 +16,9 @@ func add_faces(faces: PackedVector3Array, label: String, owner: int) -> void:
 func add_wall(w: Wall) -> void:
 	var kinds := Wall.kinds()
 	for part in [Wall.Part.STONE, Wall.Part.MORTAR, Wall.Part.TILE, Wall.Part.TIMBER, Wall.Part.FLOOR]:
-		var kind := kinds[part]
-		var source := kind.mesh.get_faces()
-		var buffer: PackedFloat32Array = w._parts[part]
-		var faces := PackedVector3Array()
-		for i in range(0, buffer.size(), kind.stride()):
-			var x := Transform3D(Basis(Vector3(buffer[i], buffer[i + 4], buffer[i + 8]), Vector3(buffer[i + 1], buffer[i + 5], buffer[i + 9]), Vector3(buffer[i + 2], buffer[i + 6], buffer[i + 10])), Vector3(buffer[i + 3], buffer[i + 7], buffer[i + 11]))
-			for v in source:
-				# stone.gdshaderinc mitres panels in the vertex shader, before MODEL_MATRIX.
-				if kind.custom:
-					var turn := buffer[i + (18 if v.x < 0.0 else 19)]
-					if turn != 0.0:
-						v.x += v.z * x.basis.z.length() * tan(turn) / Vector2(x.basis.x.x, x.basis.x.z).length()
-				faces.append(w.transform * (x * v))
+		var faces := instances(w._parts[part], kinds[part])
+		for i in faces.size():
+			faces[i] = w.transform * faces[i]
 		add_faces(faces, "%d/%s" % [w.id, Wall.Part.keys()[part]], w.id)
 	for pair in [[w._gables, "gable"], [w._coat, "thatch"], [w._torching, "torching"]]:
 		var node: MeshInstance3D = pair[0]
@@ -123,3 +113,19 @@ func neighbours(p: Vector3) -> Array:
 		distances.append([closest, part.label])
 	distances.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	return distances.slice(0, 2).map(func(d: Array) -> String: return d[1])
+
+
+## The faces of instances `buffer` of `kind` as drawn, with the panel mitres stone.gdshaderinc applies before
+## MODEL_MATRIX.
+static func instances(buffer: PackedFloat32Array, kind: Masonry.Kind) -> PackedVector3Array:
+	var faces := PackedVector3Array()
+	var source := kind.mesh.get_faces()
+	for i in range(0, buffer.size(), kind.stride()):
+		var x := Transform3D(Basis(Vector3(buffer[i], buffer[i + 4], buffer[i + 8]), Vector3(buffer[i + 1], buffer[i + 5], buffer[i + 9]), Vector3(buffer[i + 2], buffer[i + 6], buffer[i + 10])), Vector3(buffer[i + 3], buffer[i + 7], buffer[i + 11]))
+		for v in source:
+			if kind.custom:
+				var turn := buffer[i + (18 if v.x < 0.0 else 19)]
+				if turn != 0.0:
+					v.x += v.z * x.basis.z.length() * tan(turn) / Vector2(x.basis.x.x, x.basis.x.z).length()
+			faces.append(x * v)
+	return faces

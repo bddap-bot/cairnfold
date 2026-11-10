@@ -407,10 +407,7 @@ func _the_face_wheel_turns_every_finish() -> void:
 
 ## demo/finishes.json lays every finish on houses, walls and fences.
 func _demo() -> void:
-	for step: Dictionary in Driver.read("res://../demo/finishes.json"):
-		if step.op in ["capture", "quit"]:
-			continue
-		step.erase("capture")
+	for step: Dictionary in demo("res://../demo/finishes.json"):
 		await play([step])
 	var seen := {}
 	for w: Wall in main.tool.walls:

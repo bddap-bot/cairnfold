@@ -8,10 +8,9 @@ func _run() -> void:
 	await process_frame
 	# The bridge fixture exceeds capacity; this test checks its teleport landing.
 	main.world.limit = INF
-	var steps := Driver.read("res://../demo/stairs.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
+	var steps := demo("res://../demo/stairs.json")
 	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.op == "aim")
 	var aim: Dictionary = steps[at]
-	aim.erase("capture")
 	await play(steps.slice(0, at))
 	var house: Dictionary = main.world.state.stairs.values().filter(func(s: Dictionary) -> bool: return s.rail == "wood")[0]
 	var foot: Vector3 = house.a if house.a.y < house.b.y else house.b

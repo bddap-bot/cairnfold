@@ -9,10 +9,6 @@ var folder := ""
 
 
 func _run() -> void:
-	if RenderingServer.get_rendering_device() == null:
-		check(false, "no RenderingDevice; run on the desktop renderer")
-		finish()
-		return
 	folder = OS.get_user_data_dir().path_join("photo-canvas-%d" % OS.get_process_id())
 	main.photo_tool.folder = folder
 	await play([

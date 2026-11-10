@@ -10,10 +10,6 @@ const SHADED := 0.02
 
 
 func _run() -> void:
-	if RenderingServer.get_rendering_device() == null:
-		check(false, "no RenderingDevice; run on the desktop renderer")
-		finish()
-		return
 	await play([
 		{"op": "place", "x": 0, "z": 14},
 		{"op": "house", "at": [0, 0], "size": [6, 4], "seconds": 0.3},

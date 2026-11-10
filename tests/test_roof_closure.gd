@@ -1,5 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
+const HouseLeaks = preload("res://../tests/support/house_leaks.gd")
+
 var probes := 0
 var cases := 0
 var triangles := 0
@@ -55,7 +57,7 @@ func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: b
 	rendered._pack_roof(roof)
 	var faces := PackedVector3Array()
 	for part in [Wall.Part.STONE, Wall.Part.MORTAR, Wall.Part.TIMBER, Wall.Part.TILE]:
-		faces.append_array(_instances(rendered._parts[part], kinds[part]))
+		faces.append_array(HouseLeaks.instances(rendered._parts[part], kinds[part]))
 		instances += rendered._parts[part].size() / kinds[part].stride()
 	for node in [rendered._gables, rendered._torching, rendered._coat, rendered._ceiling]:
 		if node.mesh != null:
@@ -107,17 +109,3 @@ func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: b
 	if leaks > 0:
 		print("FAIL: closure kind=%d end=%d finish=%d pitch=%.1f curve=%.2f thatch=%s raised=%.1f: %d leaks" % [kind, end_style, finish_kind, pitch, curve, thatch, raised, leaks])
 
-
-## Reproduce the rendered instance transforms, including the panel mitres in stone.gdshaderinc.
-static func _instances(buffer: PackedFloat32Array, kind: Masonry.Kind) -> PackedVector3Array:
-	var faces := PackedVector3Array()
-	var source := kind.mesh.get_faces()
-	for i in range(0, buffer.size(), kind.stride()):
-		var x := Transform3D(Basis(Vector3(buffer[i], buffer[i + 4], buffer[i + 8]), Vector3(buffer[i + 1], buffer[i + 5], buffer[i + 9]), Vector3(buffer[i + 2], buffer[i + 6], buffer[i + 10])), Vector3(buffer[i + 3], buffer[i + 7], buffer[i + 11]))
-		for v in source:
-			if kind.custom:
-				var turn := buffer[i + (18 if v.x < 0.0 else 19)]
-				if turn != 0.0:
-					v.x += v.z * x.basis.z.length() * tan(turn) / Vector2(x.basis.x.x, x.basis.x.z).length()
-			faces.append(x * v)
-	return faces

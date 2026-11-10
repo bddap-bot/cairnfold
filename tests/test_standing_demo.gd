@@ -14,10 +14,7 @@ func _run() -> void:
 func _tour() -> void:
 	var rig: Rig = main.rig
 	var aims := 0
-	for step: Dictionary in Driver.read("res://../demo/standing.json"):
-		if step.op in ["capture", "quit"]:
-			continue
-		step.erase("capture")
+	for step: Dictionary in demo("res://../demo/standing.json"):
 		await play([step])
 		if step.op != "aim":
 			continue

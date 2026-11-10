@@ -183,9 +183,8 @@ func _arch_over_water(l: WallLayout) -> bool:
 
 
 func _demo() -> void:
-	var steps := Driver.read("res://../demo/bridges.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
+	var steps := demo("res://../demo/bridges.json")
 	var aim := steps.find_custom(func(s: Dictionary) -> bool: return s.op == "aim")
-	steps[aim].erase("capture")
 	await play(steps.slice(0, aim))
 	await until(func() -> bool: return main.water.ponds.size() >= 2, "the demo's ponds fill")
 	var world: World = main.world

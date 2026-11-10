@@ -8,10 +8,6 @@ const N := 40
 
 
 func _run() -> void:
-	if RenderingServer.get_rendering_device() == null:
-		check(false, "no RenderingDevice; run on the desktop renderer")
-		finish()
-		return
 	await _relief()
 	await _smear()
 	await _charcoal_contact()

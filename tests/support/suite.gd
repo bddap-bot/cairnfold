@@ -119,6 +119,23 @@ static func roof_data(with: Dictionary) -> Dictionary:
 	return RoofLayout.new().data().merged(with, true)
 
 
+## A rectangular storey from `a` to `b`, `depth` deep, on the builds `on`, unlaid: {wall, roof, massing}; a roof cover
+## is pitched, any other flat.
+static func storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = [], cover := WallLayout.Cover.ROOF, top := WallLayout.Top.CAP) -> Dictionary:
+	var w := WallLayout.new()
+	w.points = WallLayout.rectangle(a, b, depth)
+	w.closed = true
+	w.top = top
+	w.cover = cover
+	w.height = 2.4
+	w.supports = on
+	w.resample(Terrain.flat)
+	var r := RoofLayout.new()
+	r.corners = w.points
+	r.pitch = depth * 0.42 if cover == WallLayout.Cover.ROOF else 0.0
+	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
+
+
 ## Lays `h`'s walls on flat ground and seats its roof on them, as a garden's wall does.
 static func lay_house(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
@@ -247,6 +264,14 @@ func laid() -> void:
 
 
 ## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
+## Demo `path`'s steps as a test plays them: none that captures or quits, and none capturing as it ends.
+static func demo(path: String) -> Array:
+	var steps := Driver.read(path).filter(func(s: Dictionary) -> bool: return s.op not in ["capture", "quit"])
+	for s: Dictionary in steps:
+		s.erase("capture")
+	return steps
+
+
 func play(steps: Array) -> Driver:
 	var d := Driver.new(main, steps)
 	var ran := [false]

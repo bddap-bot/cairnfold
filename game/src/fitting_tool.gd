@@ -488,13 +488,9 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 		for item in targets(w):
 			if through_arches and item.what == "opening" and item.value.z == WallLayout.Family.ARCHWAY:
 				continue
-			var box: AABB = item.box
-			var local: Vector3 = item.inverse * origin
-			var direction: Vector3 = item.inverse.basis * dir
-			var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
-			if hit == null or removal(builder.world.state, item).is_empty():
+			var along := 0.0 if item.box.has_point(item.inverse * origin) else _along(item, origin, dir)
+			if is_inf(along) or removal(builder.world.state, item).is_empty():
 				continue
-			var along: float = (hit - local).dot(direction) / direction.length_squared()
 			var point := origin + dir * along
 			if w.layout.hides(point):
 				continue

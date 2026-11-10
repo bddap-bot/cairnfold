@@ -26,11 +26,11 @@ func _beds_full(paths: Array[PathLayout]) -> bool:
 
 
 func _demo() -> void:
-	var steps := Driver.read("res://../demo/paths.json")
+	var steps := demo("res://../demo/paths.json")
 	var from := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "materials")
 	var to := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == "floating")
 	check(from >= 0 and to > from, "demo/paths.json has a materials section")
-	await play(steps.slice(from, to).filter(func(s: Dictionary) -> bool: return s.op != "capture"))
+	await play(steps.slice(from, to))
 	await until(func() -> bool: return main.water.ponds.size() > 0, "the demo's pond fills")
 	var paths: Array[PathLayout] = main.tool.paths.layouts
 	var surfaces := {}

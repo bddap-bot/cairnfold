@@ -14,21 +14,6 @@ func _init() -> void:
 	finish()
 
 
-func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Dictionary:
-	var w := WallLayout.new()
-	w.points = WallLayout.rectangle(a, b, depth)
-	w.closed = true
-	w.top = WallLayout.Top.CAP
-	w.cover = WallLayout.Cover.ROOF
-	w.height = 2.4
-	w.supports = on
-	w.resample(Terrain.flat)
-	var r := RoofLayout.new()
-	r.corners = w.points
-	r.pitch = depth * 0.42
-	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
-
-
 func _tower(center: Vector3, radius: float, on: Array[Massing] = []) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.circle(center, radius)
@@ -64,14 +49,14 @@ func _a_wall_top_holds_what_stands_on_it() -> void:
 	var top := -WallLayout.SINK + w.height + WallLayout.CAP
 	check(is_equal_approx(s.rest(1.0, 0.2), top), "a wall's top holds at %f, not %f" % [s.rest(1.0, 0.2), top])
 	check(s.rest(1.0, 1.2) == -INF, "a metre off its face is not on it")
-	var h := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	var h := storey(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	check(is_equal_approx(h.massing.rest(3.0, 0.5), -WallLayout.SINK + 2.4 + WallLayout.CAP), "a house's top holds anywhere over it")
 	check(h.massing.rest(3.0, 3.0) == -INF, "and nowhere beside it")
 
 
 func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
-	var lower := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	var upper := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0, [lower.massing])
+	var lower := storey(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	var upper := storey(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0, [lower.massing])
 	var top: float = lower.massing.feet[0] + lower.massing.rise
 	check(absf(upper.wall.samples[0].y - (top - WallLayout.SINK)) < 0.001, "the storey stands on the house's top (%f, top %f)" % [upper.wall.samples[0].y, top])
 	lower.wall.resting.assign([upper.massing])
@@ -114,7 +99,7 @@ func _a_house_on_a_wall_reaches_no_lower_than_the_wall_top() -> void:
 	var w := _wall(Vector3(0, 0, -6), Vector3(0, 0, 6))
 	var ws := Massing.of(w, null)
 	var top: float = ws.feet[0] + ws.rise
-	for h: Dictionary in [_house(Vector3(-3, 0, 0), Vector3(3, 0, 0), 3.6, [ws]), _tower(Vector3(0, 0, 0), 1.6, [ws])]:
+	for h: Dictionary in [storey(Vector3(-3, 0, 0), Vector3(3, 0, 0), 3.6, [ws]), _tower(Vector3(0, 0, 0), 1.6, [ws])]:
 		var l: WallLayout = h.wall
 		check(absf(l.samples[0].y - (top - WallLayout.SINK)) < 0.01, "it stands on the wall's top (%f, top %f)" % [l.samples[0].y, top])
 		l.build(Terrain.flat)
@@ -139,9 +124,9 @@ func _walls(w: WallLayout) -> Array:
 
 
 func _two_houses_joined_are_one_room_under_one_roof() -> void:
-	var a := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
-	var b := _house(Vector3(4, 0, -1), Vector3(4, 0, 6), 3.6)
-	var lone := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
+	var a := storey(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
+	var b := storey(Vector3(4, 0, -1), Vector3(4, 0, 6), 3.6)
+	var lone := storey(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
 	lay_house(lone)
 	a.wall.joined.assign([b.massing])
 	b.wall.joined.assign([a.massing])
@@ -187,9 +172,9 @@ func _a_wall_into_a_tower_stops_inside_it() -> void:
 
 
 func _builds_meeting_nothing_lay_as_before() -> void:
-	var a := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	var b := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	b.wall.joined.assign([_house(Vector3(20, 0, 0), Vector3(26, 0, 0), 4.0).massing])
+	var a := storey(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	var b := storey(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	b.wall.joined.assign([storey(Vector3(20, 0, 0), Vector3(26, 0, 0), 4.0).massing])
 	lay_house(a)
 	lay_house(b)
 	check(a.wall.stones.size() == b.wall.stones.size() and a.roof.tiles.size() == b.roof.tiles.size(), "a far build takes nothing away")

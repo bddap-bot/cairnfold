@@ -23,9 +23,7 @@ func _path_doors(w: Wall) -> Array:
 ## `demo/paths.json` runs a narrow path into one house, a single door its width, and puts another up over a wide path,
 ## a double door.
 func _demo() -> void:
-	for step: Dictionary in Driver.read("res://../demo/paths.json"):
-		if step.op in ["quit", "capture"]:
-			continue
+	for step: Dictionary in demo("res://../demo/paths.json"):
 		await play([step])
 	var houses: Array[Wall] = []
 	houses.assign(main.tool.walls.filter(func(w: Wall) -> bool: return w.layout.floored()))

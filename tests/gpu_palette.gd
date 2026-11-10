@@ -11,10 +11,6 @@ var folder := ""
 
 
 func _run() -> void:
-	if RenderingServer.get_rendering_device() == null:
-		check(false, "no RenderingDevice; run on the desktop renderer")
-		finish()
-		return
 	main.world.limit = INF
 	await _one_stroke_lies_alike_on_board_and_canvas()
 	await _the_brush_takes_up_what_it_touches()

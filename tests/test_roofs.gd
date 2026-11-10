@@ -149,25 +149,10 @@ func _a_railing_rims_a_deck_and_tops_a_wall() -> void:
 	check(WallLayout.Top.size() == 4 and Commands._wall(wall_data({"points": PackedVector3Array([Vector3.ZERO, Vector3(6, 0, 0)]), "top": WallLayout.Top.RAIL})) != null, "the railing is a top the command takes")
 
 
-func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := WallLayout.Top.CAP) -> Dictionary:
-	var w := WallLayout.new()
-	w.points = WallLayout.rectangle(a, b, depth)
-	w.closed = true
-	w.top = top
-	w.cover = WallLayout.Cover.DECK
-	w.height = 2.4
-	w.supports = on
-	w.resample(Terrain.flat)
-	var r := RoofLayout.new()
-	r.corners = w.points
-	r.pitch = 0.0
-	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
-
-
 func _flat_roofs_stack_into_terraces() -> void:
-	var ground := _storey(Vector3(0, 0, 0), Vector3(8, 0, 0), 6.0, [])
-	var middle := _storey(Vector3(1.5, 0, 0), Vector3(6.5, 0, 0), 3.6, [ground.massing], WallLayout.Top.RAIL)
-	var upper := _storey(Vector3(2.5, 0, 0), Vector3(5.5, 0, 0), 2.4, [middle.massing])
+	var ground := storey(Vector3(0, 0, 0), Vector3(8, 0, 0), 6.0, [], WallLayout.Cover.DECK)
+	var middle := storey(Vector3(1.5, 0, 0), Vector3(6.5, 0, 0), 3.6, [ground.massing], WallLayout.Cover.DECK, WallLayout.Top.RAIL)
+	var upper := storey(Vector3(2.5, 0, 0), Vector3(5.5, 0, 0), 2.4, [middle.massing], WallLayout.Cover.DECK)
 	var first: float = ground.massing.feet[0] + ground.massing.rise
 	var second: float = middle.massing.feet[0] + middle.massing.rise
 	check(absf(middle.wall.samples[0].y - (first - WallLayout.SINK)) < 0.001, "a platform stands on the deck below")

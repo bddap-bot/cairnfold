@@ -347,7 +347,9 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		var tower := Wall.new(1, nodes[0].masonry, nodes[2].terrain)
 		tower.layout = t
 		nodes[0].walls.append(tower)
-		var opened: Array[float] = nodes[0]._cut_crossings(tower, _path([[-1, 0.15], [4, 0.15]], 0.5))
+		var path := _path([[-1, 0.15], [4, 0.15]], 0.5)
+		nodes[0]._cut_meetings(tower, path.meetings(t))
+		var opened := t.openings.slice(1).map(func(o: Vector4) -> float: return o.x)
 		check(opened.size() == 1 and absf(t.offset(opened[0], w.wrap(a - 1.0))) > WallLayout.ARCH_SPACING - 0.01, "a crossing beside an arch across the seam stands a pitch from it: %s beside %.2f" % [opened, w.wrap(a - 1.0)])
 		t.build(Terrain.flat)
 		check(t.pillars().size() == 1, "the pair across the seam shares a pillar: %s" % [t.pillars()])
@@ -580,7 +582,7 @@ func _a_stroke_over_many_walls_previews_as_one_cut_whole() -> void:
 			var shown := w.layout.openings.duplicate()
 			w.layout.openings.assign(tool._path_openings[w.id])
 			for p in paths.previews:
-				tool._cut_crossings(w, p)
+				tool._cut_meetings(w, p.meetings(w.layout))
 			if w.layout.openings != shown:
 				differ += 1
 			w.layout.openings = shown

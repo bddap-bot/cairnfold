@@ -15,10 +15,7 @@ func _stilted(w: Wall) -> bool:
 
 ## `demo/raised.json` stands long and round houses on pillars and posts, and the style tool turns a plinth to pillars.
 func _demo() -> void:
-	for step: Dictionary in Driver.read("res://../demo/raised.json"):
-		if step.op in ["capture", "quit"]:
-			continue
-		step.erase("capture")
+	for step: Dictionary in demo("res://../demo/raised.json"):
 		await play([step])
 	lay_walls(main.tool)
 	var walls: Array[Wall] = main.tool.walls
