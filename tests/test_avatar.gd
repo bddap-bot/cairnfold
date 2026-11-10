@@ -47,6 +47,7 @@ func _run() -> void:
 	for i in Avatar.BUILT_IN.size():
 		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
 	_expressions_follow_the_look()
+	_a_worn_avatar_frees_its_animated_materials()
 	check(Avatar.read("not a vrm".to_utf8_buffer()) == null, "a file that is not glTF reads as nothing")
 	_read_limits_follow_memory()
 	_images_are_measured_before_decoding()
@@ -1070,6 +1071,27 @@ func _expressions_follow_the_look() -> void:
 	check(Vrm.LOOKS.all(func(dir: String) -> bool:
 		var b: Array = a._shapes[Vrm.LOOKS.find(dir)][0]
 		return (b[0] as MeshInstance3D).get_blend_shape_value(b[1]) == 0.0), "looking ahead weighs none")
+	a.free()
+
+
+## An avatar put in the world and freed in the same frame frees its animated materials without the renderer reading one
+## already freed, which scripts/test.sh fails as a null material. The first mesh freed flushes every instance's queued
+## update: the hat, the only holder of its animated material, is re-added so it is the last child its skeleton added,
+## which a node frees first.
+func _a_worn_avatar_frees_its_animated_materials() -> void:
+	var model: Node3D = preload("res://demo/expressions.gd").scene().instantiate()
+	model.set_meta("springs", {})
+	model.set_meta("expressions", preload("res://demo/expressions.gd").definition())
+	Vrm.write(model, "user://worn.vrm")
+	model.free()
+	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes("user://worn.vrm")), Color.WHITE)
+	var hat := a.find_child("ExpressionHat", true, false) as MeshInstance3D
+	var holder := hat.get_parent()
+	var skeleton := holder.get_parent()
+	skeleton.remove_child(holder)
+	skeleton.add_child(holder)
+	root.add_child(a)
+	check(hat.get_surface_override_material(0) is ShaderMaterial, "the worn avatar's hat draws with its own animated material")
 	a.free()
 
 

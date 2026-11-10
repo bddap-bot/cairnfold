@@ -60,7 +60,7 @@ func _wears(label: String, package: String, avatar: String) -> void:
 		return
 	var path := ProjectSettings.globalize_path("user://corpus.scn")
 	check(ResourceSaver.save(packed, path) == OK, "%s writes" % label)
-	var scene := load(path) as PackedScene
+	var scene := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
 	check(scene != null, "%s reads back" % label)
 	if scene == null:
 		return
@@ -76,4 +76,4 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	a.pose(eyes, eyes * Avatar.AT_SIDES[0], eyes * Avatar.AT_SIDES[1])
 	var gap := a.bone("head").origin.distance_to(eyes.origin)
 	check(gap < 0.5, "%s: the head bone is %.2f m from the eyes" % [label, gap])
-	a.queue_free()
+	a.free()
