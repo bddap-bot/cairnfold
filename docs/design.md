@@ -1146,9 +1146,9 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   200 m²) held 72 Hz from the air and standing and measured 3.42 ms from the air, its dearest view; it is charged
   3.60 ms, where the per-square-metre table before (wall 8.84, roof 22.09, both from their densest views) charged it
   6.75 ms, 144% of the capacity. A default stone house alone (53 m² of wall, 40 of roof) takes 20.0% of the capacity
-  where it took 28.9%; each more one out of its near chunks takes 12.9%. `demo/full.json` filled to 100.0% on this
+  where it took 28.9%; each more one out of its near chunks takes 12.9%. `demo/full.json` filled to 99.9% on this
   table held 72 Hz from the air, standing, among the walls and by the house
-  ([record](../perf/quest-2/full/20261024T042238Z-6833585.json): 9.62, 7.83, 9.30 and 9.17 ms).
+  ([record](../perf/quest-2/full/20261110T160556Z-b3dbd29.json): 7.87, 5.85, 7.12 and 7.16 ms).
 - The fixed table takes the larger measured price for each unit from the Quest 2 and
   Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
@@ -1282,20 +1282,14 @@ so every build was turned down on a Quest.
 
 A garden filled to the budget through the tools (`demo/full.json`: six trees, a flower
 stroke, a path, a pond, a house, walls until they were turned down, then a flower stroke that
-paints until the budget stops it), played with the ladder free. The script lays most of the
-garden within a second, so the ladder starts from the top and walks down over the next
-seconds; the frames late there are that walk, which a garden built by hand never makes.
-Once the ladder settles (step 10 on both):
+paints until the budget stops it), played with the ladder free. Its `all_fit` step, after the house, fails the run
+if the budget has turned down anything before it. Once the ladder settles, at step 14:
 
 | Headset, share of the budget | From the air | Standing | Among the walls | By the house |
 | --- | --- | --- | --- | --- |
-| Quest 2, 99.9 to 100% (four runs) | 72 fps, 9.7 to 9.8 ms App | 72 fps, 7.6 ms | 72 fps, 8.0 to 8.1 ms | 72 fps, 7.9 to 8.0 ms |
-| Steam Frame, 97.7% (the next wall turned down) | 72 to 73 fps, 7.5 ms viewport | 72 to 73 fps, 5.9 ms | 72 to 73 fps, 5.6 ms | 72 to 73 fps, 6.0 ms |
+| Quest 2, 99.9% ([record](../perf/quest-2/full/20261110T160556Z-b3dbd29.json)) | 72 fps, 7.87 ms App | 72 fps, 5.85 ms | 72 fps, 7.12 ms | 72 fps, 7.16 ms |
 
-Both are held to the 11.1 ms line, the Quest 2 in App time and the Frame in viewport time; at the
-limit the Quest 2 keeps 1.4 ms and the Frame 3.6 ms. In the first two or three seconds from the
-air, while the ladder walked down, the Quest 2 ran 52 to 70 fps and the Frame, from the top
-step, half rate for about ten seconds.
+Held to the 11.11 ms line in App time, the Quest 2 keeps 3.24 ms at the limit.
 
 ### Bench repeatability on the Quest 2
 
