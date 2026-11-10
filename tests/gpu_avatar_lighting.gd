@@ -106,7 +106,7 @@ func _run() -> void:
 	var matcap: Vector2 = shots["matcap"]
 	check(matcap.x < 0.1 and matcap.y > 0.9, "a flat white material under a matcap multiplying it by black on the view's right and white on its left draws black on the right only: %s" % matcap)
 	var matcap_masked: Vector2 = shots["matcap masked"]
-	check(matcap_masked.x > 0.9 and matcap_masked.y > 0.9, "a matcap its mask masks off leaves the material white: %s" % matcap_masked)
+	check(matcap_masked.x > 0.9 and matcap_masked.y > 0.9, "a matcap its slot's mask channel masks off leaves the material white whatever the other channels: %s" % matcap_masked)
 	view.queue_free()
 	finish()
 
@@ -116,8 +116,8 @@ func _run() -> void:
 ## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
 ## that red is a global theme colour whose hue turns twenty times a second; for "coat" lit by angle under a clear coat,
 ## "masked" reading its map's black texel, "unmasked" moved by a region onto its white one; for "matcap" flat and
-## multiplied whole by a matcap white on its left half and black on its right, and "matcap masked" the same with its
-## mask black.
+## multiplied whole by a matcap in slot 1 white on its left half and black on its right under its mask's green channel,
+## and "matcap masked" the same with that channel black and the others white.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -157,10 +157,10 @@ func _ball(model: String) -> Node3D:
 		texture.set_pixel(0, 0, Color.WHITE)
 		texture.set_pixel(1, 0, Color.BLACK)
 		var mask := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
-		mask.fill(Color.BLACK if model == "matcap masked" else Color.WHITE)
+		mask.fill(Color(1, 0, 1, 1) if model == "matcap masked" else Color(0, 1, 0, 1))
 		looks.matcaps = [texture]
 		looks.matcapMasks = mask
-		looks.materials[0].matcaps = [{"mode": "normal", "texture": 0, "color": [1.0, 1.0, 1.0, 1.0], "border": 0.5, "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 1.0, "add": 0.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null}, null, null, null]
+		looks.materials[0].matcaps = [null, {"mode": "normal", "texture": 0, "color": [1.0, 1.0, 1.0, 1.0], "border": 0.5, "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 1.0, "add": 0.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null}, null, null]
 	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)

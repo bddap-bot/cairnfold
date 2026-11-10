@@ -32,7 +32,7 @@ const RAMP := 16
 const ICON_SIDE := 44.0
 ## The looks table rows each clear coat takes after the ramp (_lit_looks).
 const COAT_ROWS := 6
-## The looks table rows each matcap slot takes after the clear coats' (_lit_looks), past one row marking the materials that have any.
+## The looks table rows each matcap a material draws takes after the clear coats' and a row counting them (_lit_looks).
 const MATCAP_ROWS := 6
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
@@ -575,8 +575,7 @@ static func shape(state: GLTFState) -> bool:
 ## shadow tint), row 1 its emission's linear colour times its strength and, in alpha, how far it overrides the lit
 ## colour, the RAMP rows after them its ramp, and, where any material has a clear coat or a matcap, six more its levels, maps'
 ## tiling and offset, highlight tint and Fresnel, reflection tint and maps' layer, inversions, and antialiasing variance and
-## threshold; where any has a matcap, a row whose red is one where it has one, then MATCAP_ROWS for each of its four slots
-## (_matcap_rows), for the avatar's
+## threshold; where any has a matcap, its matcaps (_matcap_rows), for the avatar's
 ## shader to draw them by (ExpressionPlayer) over the looks' emission map; an emission in a global theme colour is drawn
 ## even where it rests black, since a clip can light it. A mesh showing a clear coat has its copies marked "clearcoat",
 ## so it alone draws with the shaders that draw one. A mesh shows a material where one of its vertices' texture
@@ -587,14 +586,14 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	drawn.resize(256)
 	var coats := materials.filter(func(m: Dictionary) -> bool: return m.get("clearcoat") is Dictionary).size()
 	var maps: int = (looks.get("clearcoatMaps", []) as Array).size() if looks.get("clearcoatMaps") is Array else 0
-	var matcapped := materials.filter(func(m: Dictionary) -> bool: return _matcaps_drawn(m)).size()
+	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m).is_empty()).size()
 	var rows := 2 + RAMP + (COAT_ROWS if coats + matcapped > 0 else 0) + (1 + 4 * MATCAP_ROWS if matcapped > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
 	for k in materials.size():
-		if _matcaps_drawn(materials[k]):
+		if not _drawn_matcaps(materials[k]).is_empty():
 			drawn[k + 1] = maxi(drawn[k + 1], 1)
-			_matcap_rows(table, k + 1, materials[k].matcaps, textures)
+			_matcap_rows(table, k + 1, materials[k], textures)
 		var coat: Variant = materials[k].get("clearcoat")
 		if coat is Dictionary:
 			drawn[k + 1] = 2
@@ -658,36 +657,35 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			im.set_surface_material(i, copies[drawn_as])
 
 
-## Whether the look `m` has a matcap that changes how it draws.
-static func _matcaps_drawn(m: Dictionary) -> bool:
-	return (m.get("matcaps", []) as Array).any(func(c: Variant) -> bool: return c is Dictionary and DRAWN_BY.any(func(f: String) -> bool: return c[f] != 0.0))
-
-
 ## A matcap's strengths: one at zero in all of them leaves its material as it is.
 const DRAWN_BY := ["replace", "multiply", "add", "screen", "mixed", "lightAdd", "emission"]
 
 
-## Writes the four matcap slots `matcaps` (ExpressionDefinition._matcap) of the looks table's column `column`
-## (_lit_looks) from its first matcap row: that row's red one, then for each slot drawn its colour; its texture among
+## The slots of the look `m`'s matcaps that change how it draws, in order.
+static func _drawn_matcaps(m: Dictionary) -> Array:
+	var matcaps: Array = m.get("matcaps", [])
+	return range(matcaps.size()).filter(func(k: int) -> bool: return matcaps[k] is Dictionary and DRAWN_BY.any(func(f: String) -> bool: return matcaps[k][f] != 0.0))
+
+
+## Writes the matcaps (ExpressionDefinition._matcap) the look `m` draws into the looks table's column `column`
+## (_lit_looks) from its first matcap row: that row's red how many, then MATCAP_ROWS each: its colour; its texture among
 ## the `textures` (-1 for plain white or one past them), one where it maps by the reflected view, its border and
 ## intensity; its replace, multiply, add and screen strengths; its mixed strength, base colour mix, light added and
-## emission together, and light mask; its hue shift, space and selection, alpha one where it shifts hue; and alpha one,
-## with red one where a circle masks it and green and blue that circle's border and blur.
-static func _matcap_rows(table: Image, column: int, matcaps: Array, textures: int) -> void:
+## emission together, and light mask; its hue shift, space and selection, alpha one where it shifts hue; and red one
+## where a circle masks it, green and blue that circle's border and blur, alpha its slot, the mask channel it reads.
+static func _matcap_rows(table: Image, column: int, m: Dictionary, textures: int) -> void:
 	var row := 2 + RAMP + COAT_ROWS
-	table.set_pixel(column, row, Color(1.0, 0.0, 0.0, 0.0))
-	for slot in matcaps.size():
-		var c: Variant = matcaps[slot]
-		if c == null:
-			continue
-		var at := row + 1 + slot * MATCAP_ROWS
-		var texture: Variant = c.texture
+	var slots := _drawn_matcaps(m)
+	table.set_pixel(column, row, Color(slots.size(), 0.0, 0.0, 0.0))
+	for k in slots.size():
+		var c: Dictionary = m.matcaps[slots[k]]
+		var at := row + 1 + k * MATCAP_ROWS
 		table.set_pixel(column, at, Color(c.color[0], c.color[1], c.color[2], c.color[3]))
-		table.set_pixel(column, at + 1, Color(float(texture) if texture != null and texture < textures else -1.0, 1.0 if c.mode == "reflection" else 0.0, c.border, c.intensity))
+		table.set_pixel(column, at + 1, Color(float(c.texture) if c.texture != null and c.texture < textures else -1.0, 1.0 if c.mode == "reflection" else 0.0, c.border, c.intensity))
 		table.set_pixel(column, at + 2, Color(c.replace, c.multiply, c.add, c.screen))
 		table.set_pixel(column, at + 3, Color(c.mixed, c.baseMix, c.lightAdd + c.emission, c.lightMask))
 		table.set_pixel(column, at + 4, Color(c.hue.shift, c.hue.space, c.hue.select, 1.0) if c.hue != null else Color(0, 0, 0, 0))
-		table.set_pixel(column, at + 5, Color(1.0, c.circle.border, c.circle.blur, 1.0) if c.circle != null else Color(0.0, 0.0, 0.0, 1.0))
+		table.set_pixel(column, at + 5, Color(1.0, c.circle.border, c.circle.blur, slots[k]) if c.circle != null else Color(0, 0, 0, slots[k]))
 
 
 ## Draws a material with its colour texture alone, lit once a vertex, front faces only unless its glTF doubleSided draws

@@ -273,22 +273,32 @@ func pack(used: Array) -> void:
 		_blit_padded(atlas, img, cell)
 
 
+## The Poiyomi Color Adjust properties, in the order its base pass applies them.
+const ADJUSTS := ["_MainHueShift", "_MainGamma", "_Saturation", "_MainBrightness"]
+
+
+## Whether the import lays the material `m`'s Color Adjust property `name` (ADJUSTS) into the atlas (`_adjust`): where
+## its adjust is on and its locked shader holds the property fixed, as one does any it does not keep animatable (Thry's
+## `Animated` tag), so the clips that would move it move nothing, as in Unity; a hue that turns over time is not laid.
+static func adjust_laid(m: Dictionary, name: String) -> bool:
+	if not poiyomi(m) or _float(m, "_MainColorAdjustToggle") == 0.0 or (m.get("animated", {}) as Dictionary).has(name):
+		return false
+	return name != "_MainHueShift" or _float(m, "_MainHueShiftToggle") != 0.0 and _float(m, "_MainHueShiftSpeed") == 0.0
+
+
 ## Poiyomi's Color Adjust at rest laid into `img`, the material `m`'s tinted texture at its cell's size, as its base pass
 ## adjusts the base colour in linear space under its adjust mask's channels: hue shift (red), gamma (alpha), saturation
-## (blue), then brightness (green), clamped. A property its locked shader keeps animatable (Thry's `Animated` tag) is
-## left to the clips that move it, and a hue that turns over time is left unshifted.
+## (blue), then brightness (green), clamped; each property `adjust_laid` lays, the rest left to the clips that move them.
 func _adjust(m: Dictionary, img: Image) -> void:
-	if not poiyomi(m) or _float(m, "_MainColorAdjustToggle") == 0.0:
-		return
-	var live: Dictionary = m.get("animated", {})
-	var shifted := _float(m, "_MainHueShiftToggle") != 0.0 and not live.has("_MainHueShift") and _float(m, "_MainHueShiftSpeed") == 0.0
-	var shift := _saved(m, "_MainHueShift", 0.0) if shifted else 0.0
+	var at := func(name: String, rest: float) -> float: return _saved(m, name, rest) if adjust_laid(m, name) else rest
+	var shifted := adjust_laid(m, "_MainHueShift")
+	var shift: float = at.call("_MainHueShift", 0.0)
 	var space := _float(m, "_MainHueShiftColorSpace")
 	var select := _float(m, "_MainHueShiftSelectOrShift", 1.0)
 	var replace := _float(m, "_MainHueShiftReplace", 1.0) != 0.0
-	var gamma := 1.0 if live.has("_MainGamma") else _saved(m, "_MainGamma", 1.0)
-	var saturation := 0.0 if live.has("_Saturation") else _saved(m, "_Saturation", 0.0)
-	var brightness := 0.0 if live.has("_MainBrightness") else _saved(m, "_MainBrightness", 0.0)
+	var gamma: float = at.call("_MainGamma", 1.0)
+	var saturation: float = at.call("_Saturation", 0.0)
+	var brightness: float = at.call("_MainBrightness", 0.0)
 	if not shifted and gamma == 1.0 and saturation == 0.0 and brightness == 0.0:
 		return
 	var masks := _over(m, _slot_image(m, "_MainColorAdjustTexture"), "_MainColorAdjustTexture", img.get_size(), 0)

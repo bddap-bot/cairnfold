@@ -208,16 +208,15 @@ vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tin
 // atlas's `uv`, by a circle where it has one, and where `light_mask` says by the lit side; returns the light they add.
 vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit) {
 	vec4 masks = textureGrad(matcap_masks, uv, dx, dy);
-	vec3 up = normalize(vec3(0.0, 1.0, 0.0) - v * v.y);
+	vec3 up = vec3(0.0, 1.0, 0.0) - v * v.y;
+	up = dot(up, up) > 1e-8 ? normalize(up) : vec3(0.0, 0.0, -sign(v.y));
 	vec3 right = cross(up, v);
 	vec3 r = reflect(-v, n);
 	vec3 added = vec3(0.0);
-	for (int slot = 0; slot < 4; slot++) {
+	int count = min(int(texelFetch(lighting, ivec2(entry, MATCAP), 0).r + 0.5), 4);
+	for (int slot = 0; slot < count; slot++) {
 		int row = MATCAP + 1 + slot * MATCAP_ROWS;
 		vec4 circle = texelFetch(lighting, ivec2(entry, row + 5), 0);
-		if (circle.a < 0.5) {
-			continue;
-		}
 		vec4 paint = texelFetch(lighting, ivec2(entry, row), 0);
 		vec4 map = texelFetch(lighting, ivec2(entry, row + 1), 0);
 		vec4 strengths = texelFetch(lighting, ivec2(entry, row + 2), 0);
@@ -226,7 +225,7 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 		vec2 mapped = (map.y > 0.5 ? vec2(-r.x, r.y) : vec2(dot(right, n), dot(up, n))) * map.z + 0.5;
 		vec4 sampled = (map.x >= 0.0 ? textureLod(matcaps, vec3(mapped.x, 1.0 - mapped.y, map.x), 0.0) : vec4(1.0)) * paint;
 		vec3 light = sampled.rgb * map.w;
-		float mask = masks[slot] * mix(1.0, lit, rest.w);
+		float mask = masks[int(circle.a + 0.5)] * mix(1.0, lit, rest.w);
 		if (circle.r > 0.5) {
 			mask *= 1.0 - smoothstep(circle.y - 0.5 * circle.z, circle.y + 0.5 * circle.z, distance(mapped, vec2(0.5)));
 		}

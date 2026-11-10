@@ -926,7 +926,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					if look.field.begins_with("decal"):
 						binding.merge(materials.decal(key, look.slot))
 				elif tone >= 0:
-					if str(floats.get("_MainColorAdjustToggle", "0")).to_float() == 0.0:
+					if str(floats.get("_MainColorAdjustToggle", "0")).to_float() == 0.0 or Materials.adjust_laid(material, Materials.ADJUSTS[tone + 1]):
 						continue
 					binding = {"channel": tone}
 					materials.hue_masks[key] = true
@@ -935,7 +935,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					if mobile:
 						if not "USE_HUE_SHIFT" in material.get("keywords", []):
 							continue
-					elif property == "_HueShift" or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0:
+					elif property == "_HueShift" or str(floats.get("_MainHueShiftToggle", "0")).to_float() == 0.0 or Materials.adjust_laid(material, "_MainHueShift"):
 						continue
 					binding = {"space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()}
 					materials.hue_masks[key] = true
