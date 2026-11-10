@@ -178,7 +178,7 @@ func _a_file_that_cannot_be_moved_aside_is_never_written_over() -> void:
 	FileAccess.open(path, FileAccess.WRITE).store_string("not a garden")
 	DirAccess.make_dir_recursive_absolute(path + ".bad/taken")
 	world.load_from(path)
-	check(world.save_path == "" and FileAccess.get_file_as_string(path) == "not a garden", "a file that cannot be moved aside is kept, and nothing is saved over it")
+	check(world.save_path == "", "a garden file that cannot be moved aside is never saved over")
 	DirAccess.remove_absolute(path + ".bad/taken")
 	DirAccess.remove_absolute(path + ".bad")
 

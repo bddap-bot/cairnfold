@@ -20,7 +20,7 @@ func _drowning_starts_past_its_depth() -> void:
 		var levels := PackedFloat32Array()
 		for h in heights:
 			levels.append(h + deep * Water.DROWNS)
-		ground.set_water(levels, Terrain.depth_image(levels, heights, PackedInt32Array()))
+		ground.set_water(levels, Terrain.depth_image(levels, heights, PackedInt32Array(range(levels.size()))))
 		check(Water.drowned(ground, Vector3(AT.x, 0, AT.y)) == (deep > 1.0), "water %.1f times DROWNS deep drowns: %s" % [deep, deep > 1.0])
 
 
