@@ -5,7 +5,8 @@ extends "res://../tests/support/suite.gd"
 ## half-Lambert term, its shade lent the albedo by its shadow tint; a glowing one glows its emission in the dark,
 ## over its glow's own colour where it overrides its base colour, and one glowing in a theme colour turning over time
 ## changes colour as it turns; a clear coat adds a highlight toward the light where its map, moved by a region, does
-## not mask it off. Needs a renderer, so scripts/test.sh runs it on
+## not mask it off; a matcap multiplies the colour by its texture where the view sees the surface's normal, on the
+## view's right as Unity maps it, where its mask does not mask it off. Needs a renderer, so scripts/test.sh runs it on
 ## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
 
 const SIZE := 96
@@ -57,7 +58,7 @@ func _run() -> void:
 	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
 	env.ambient_light_color = Color.BLACK
-	for model: String in ["coat", "masked", "unmasked"]:
+	for model: String in ["coat", "masked", "unmasked", "matcap", "matcap masked"]:
 		var coated := _ball(model)
 		view.add_child(coated)
 		shots[model] = await _sides(view)
@@ -102,6 +103,10 @@ func _run() -> void:
 	check(coat.x > masked.x + 0.03 and absf(coat.y - masked.y) < 0.01, "a clear coat adds a highlight on the side toward the light and nothing away from it: %s over %s, its map masking it off" % [coat, masked])
 	var unmasked: Vector2 = shots["unmasked"]
 	check(unmasked.x > masked.x + 0.03 and absf(unmasked.y - masked.y) < 0.01, "a region moving the map's offset onto its unmasked texel draws the coat: %s" % unmasked)
+	var matcap: Vector2 = shots["matcap"]
+	check(matcap.x < 0.1 and matcap.y > 0.9, "a flat white material under a matcap multiplying it by black on the view's right and white on its left draws black on the right only: %s" % matcap)
+	var matcap_masked: Vector2 = shots["matcap masked"]
+	check(matcap_masked.x > 0.9 and matcap_masked.y > 0.9, "a matcap its mask masks off leaves the material white: %s" % matcap_masked)
 	view.queue_free()
 	finish()
 
@@ -110,7 +115,9 @@ func _run() -> void:
 ## no shadow tint ("ramp") or a whole one ("tinted"), or for "glow" lit by angle and glowing red
 ## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
 ## that red is a global theme colour whose hue turns twenty times a second; for "coat" lit by angle under a clear coat,
-## "masked" reading its map's black texel, "unmasked" moved by a region onto its white one.
+## "masked" reading its map's black texel, "unmasked" moved by a region onto its white one; for "matcap" flat and
+## multiplied whole by a matcap white on its left half and black on its right, and "matcap masked" the same with its
+## mask black.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -128,7 +135,7 @@ func _ball(model: String) -> Node3D:
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
-	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}}.get(model, {"model": "lit"})
+	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "matcap": {"model": "flat", "cap": 1.0}, "matcap masked": {"model": "flat", "cap": 1.0}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}}.get(model, {"model": "lit"})
 	var looks := {"index": index, "materials": [{"lighting": light}]}
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
@@ -145,6 +152,15 @@ func _ball(model: String) -> Node3D:
 		looks.materials[0].clearcoat = {"strength": 1.0, "smoothness": 0.8, "reflection": 0.0, "specular": 1.0, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 1.0, 1.0], "st": [1.0, 1.0, 0.0, 0.0] if model == "coat" else [0.0, 0.0, 0.25, 0.5], "inverts": [false, false, false, false], "map": 0}
 		if model == "unmasked":
 			expressions.merge({"parameters": [], "clips": [], "layers": [], "shown": [], "menu": [], "targets": [{"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": "clearcoatST", "slot": 2}]}, "default": 0.75}]})
+	if model.begins_with("matcap"):
+		var texture := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+		texture.set_pixel(0, 0, Color.WHITE)
+		texture.set_pixel(1, 0, Color.BLACK)
+		var mask := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+		mask.fill(Color.BLACK if model == "matcap masked" else Color.WHITE)
+		looks.matcaps = [texture]
+		looks.matcapMasks = mask
+		looks.materials[0].matcaps = [{"mode": "normal", "texture": 0, "color": [1.0, 1.0, 1.0, 1.0], "border": 0.5, "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 1.0, "add": 0.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null}, null, null, null]
 	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)

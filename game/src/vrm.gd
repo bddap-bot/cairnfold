@@ -176,8 +176,8 @@ class Skins extends GLTFDocumentExtension:
 ## Measures each image from its PNG, JPEG or WebP header and, if the read's `fits` takes that size, decodes it as the
 ## format measured and hands it to the read's `image`, with the expression layer it is (LAYERS) or "", before it becomes
 ## a texture; anything else, or an image that does not decode, marks the read refused and leaves Godot's decoders
-## nothing to try. A layer is kept aside as the image the definition names, and only a texel of it becomes a texture;
-## an UNDRAWN one is measured but never decoded. Registered ahead of Godot's own decoders, so it sees every image first,
+## nothing to try. A layer is kept aside as the image the definition names, and only a texel of it becomes a texture.
+## Registered ahead of Godot's own decoders, so it sees every image first,
 ## apart from Vrm, whose import follows Godot's. Reading a texture back calls the rendering server, which answers a
 ## worker thread only from the main thread, so a game quitting mid-read would wait on the read forever.
 class Images extends GLTFDocumentExtension:
@@ -195,10 +195,6 @@ class Images extends GLTFDocumentExtension:
 		var means: Array = state.get_additional_data(&"vrm_means")
 		var size := Vrm._image_size(data)
 		var fit: bool = size.x > 0 and size.y > 0 and fits.call(size)
-		if fit and layer in Vrm.UNDRAWN:
-			means.append(Color.WHITE)
-			out.set_data(1, 1, false, Image.FORMAT_RGBA8, PackedByteArray([0, 0, 0, 0]))
-			return OK
 		if fit:
 			if data[0] == Vrm.PNG[0]:
 				out.load_png_from_buffer(data)
@@ -250,12 +246,11 @@ static func transform(m: Array) -> Transform3D:
 	return Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
 
 
-## How many pixels `images` (images()) hold together, but the UNDRAWN layers, which are never decoded.
+## How many pixels `images` (images()) hold together.
 static func pixels(images: Array[Dictionary]) -> int:
 	var out := 0
 	for image in images:
-		if image.layer not in UNDRAWN:
-			out += image.size.x * image.size.y
+		out += image.size.x * image.size.y
 	return out
 
 
@@ -285,8 +280,6 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 ## Where VRCHAT_expressions names its images, each a lossless WebP glTF image no texture uses, by its index, or a list
 ## of them by theirs: each layer's path through the definition. Read, each is the Image itself.
 const LAYERS := {"icons": ["icons"], "hueMask": ["hueMask"], "untinted": ["untinted", "image"], "index": ["looks", "index"], "matcapMasks": ["looks", "matcapMasks"], "emission": ["looks", "emission"], "matcaps": ["looks", "matcaps"], "decals": ["looks", "decals"], "clearcoatMaps": ["looks", "clearcoatMaps"]}
-## The layers nothing here draws, carried for other renderers: read as null.
-const UNDRAWN := ["matcaps", "matcapMasks"]
 
 
 ## A copy of the expression `definition` with each of its layers (LAYERS) `f`(it, its layer), each of a list's alike.

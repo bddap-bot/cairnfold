@@ -334,7 +334,11 @@ static func prepare(model: Node3D) -> void:
 		model.set_meta("expression_untinted_count", cells.size())
 	var maps: Array = looks.get("clearcoatMaps", []).map(func(img: Variant) -> Image: return img if img is Image else Image.create_empty(1, 1, false, Image.FORMAT_RGBA8))
 	if not maps.is_empty():
-		model.set_meta("expression_coat_maps", _coat_maps(maps))
+		model.set_meta("expression_coat_maps", _layers(maps))
+	if not looks.get("matcaps", []).is_empty():
+		model.set_meta("expression_matcaps", _layers(looks.matcaps))
+	if looks.get("matcapMasks") is Image:
+		model.set_meta("expression_matcap_masks", ImageTexture.create_from_image(looks.matcapMasks))
 	var decals: Array = looks.get("decals", [])
 	Vrm.drop_layers(data)
 	var by_node := {}
@@ -377,6 +381,8 @@ func _light_looks(model: Node3D) -> Variant:
 		return null
 	var glow: Texture2D = model.get_meta("expression_glow") if model.has_meta("expression_glow") else null
 	var coat_maps: Texture2DArray = model.get_meta("expression_coat_maps") if model.has_meta("expression_coat_maps") else _empty_array()
+	var matcaps: Texture2DArray = model.get_meta("expression_matcaps") if model.has_meta("expression_matcaps") else _empty_array()
+	var masks: Texture2D = model.get_meta("expression_matcap_masks") if model.has_meta("expression_matcap_masks") else null
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
@@ -385,6 +391,8 @@ func _light_looks(model: Node3D) -> Variant:
 			mat.set_shader_parameter("lighting", textures[1])
 			mat.set_shader_parameter("glow", glow)
 			mat.set_shader_parameter("coat_maps", coat_maps)
+			mat.set_shader_parameter("matcaps", matcaps)
+			mat.set_shader_parameter("matcap_masks", masks)
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 	return textures[1]
 
@@ -430,9 +438,9 @@ static func _pages(drawn: Dictionary) -> Dictionary:
 	return {"images": pages, "places": places}
 
 
-## The clear coats' packed maps (unity/materials.gd coat_map) as one array, each layer as wide as the widest of them,
-## mipmapped: a coat's maps are read wrapping round, by the material's tiling and offset.
-static func _coat_maps(maps: Array) -> Texture2DArray:
+## `maps`, the clear coats' packed maps (unity/materials.gd coat_map) or the matcaps, as one array, each layer as wide
+## as the widest of them, mipmapped.
+static func _layers(maps: Array) -> Texture2DArray:
 	var side := 1
 	for img: Image in maps:
 		side = maxi(side, maxi(img.get_width(), img.get_height()))

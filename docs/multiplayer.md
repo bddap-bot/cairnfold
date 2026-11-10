@@ -303,6 +303,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   and the main light by its brightest channel. In the mirror, the mirror's light and ambient take the place of the sun's and the sky's. A file whose
   looks name materials without their lighting is refused.
 
+  A material's Poiyomi matcaps draw over its colour before it is lit, each looked up by the surface's own normal as the
+  eye sees it (or by the view reflected in it), in Unity's handedness, and blended by its replace, multiply, add,
+  screen and mixed strengths under its mask's channel, as Poiyomi blends them at rest.
+
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
   `scripts/avatar_reference.gd` replays a reference recording made by Avatar Workshop's reference
@@ -324,13 +328,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent: every device reads one within 100 MiB and 192 Mpx of images, its expression layers but the undecoded matcaps included, and a device with the memory reads a
+  it is sent: every device reads one within 100 MiB and 192 Mpx of images, its expression layers included, and a device with the memory reads a
   heavier one (below), so players whose devices read a file see the same avatar, and the rest see its player as a
   built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
   author made them. Its textures and expression layers but the hue mask, material index and menu icons are mipmapped, base colours sampled anisotropically.
-  The material index is held at most 2048 px wide and the menu icons at most 44 px; the matcaps and their masks,
-  which nothing here draws, are never decoded. Everything else shrinks alike, by halves, only until it fits the memory the device had available as the game started above 1.7 GB, shared
+  The material index is held at most 2048 px wide and the menu icons at most 44 px. Everything else shrinks alike, by halves, only until it fits the memory the device had available as the game started above 1.7 GB, shared
   among the session's seven other players (`Avatar.texture_budget`), measured from the images' headers before any
   is decoded: on a Quest 2 with about 2 GB available at launch a heavy converted avatar's 4096 px atlas is held at 2048, on
   a desktop the same file at full size. An image past a 4096 px square's pixels is whole in memory before it shrinks,

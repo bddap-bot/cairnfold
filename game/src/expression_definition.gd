@@ -95,6 +95,8 @@ static func looks_valid(looks: Variant) -> bool:
 		return false
 	if not looks.get("decals", []) is Array or (looks.has("emission") and not looks.emission is Image) or (looks.has("index") and not looks.index is Image):
 		return false
+	if not (looks.get("matcaps", []) is Array and looks.get("matcaps", []).all(func(t: Variant) -> bool: return t is Image)) or (looks.has("matcapMasks") and not looks.matcapMasks is Image):
+		return false
 	if not looks.has("materials"):
 		return true
 	if not looks.materials is Array or looks.materials.size() > 255:
@@ -115,6 +117,10 @@ static func looks_valid(looks: Variant) -> bool:
 			return false
 		if glow != null and glow.get("theme") != null and not (_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
+			return false
+		var matcaps: Variant = m.get("matcaps", [])
+		if not (matcaps is Array and matcaps.size() <= 4 and matcaps.all(_matcap)):
+			push_error("expressions: a look's matcaps are not four slots, each none or a mapping, colour, texture, strengths, hue and circle: %s" % [matcaps])
 			return false
 		if not _coat(m.get("clearcoat")):
 			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions or a map among the looks' %s" % [m.get("clearcoat")])
@@ -145,6 +151,22 @@ static func _cell(c: Variant) -> bool:
 ## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
 ## its four "inverts" and its "map", -1
 ## or an index among the looks' "clearcoatMaps"; an index past them draws as none.
+## A look's matcap slot: null, or its "mode" ("normal" or "reflection"), its "texture" (an index among the looks'
+## "matcaps", or null for plain white), its linear "color", its "border", "intensity", "baseMix", "replace", "multiply",
+## "add", "screen", "mixed", "lightAdd", "emission" and "lightMask", its "hue" (null, or its "shift", "space" and
+## "select") and its "circle" (null, or its "border" and "blur").
+static func _matcap(c: Variant) -> bool:
+	if c == null:
+		return true
+	if not c is Dictionary or c.get("mode") not in ["normal", "reflection"] or not (c.get("texture") == null or _whole(c.get("texture"))) or not _numbers(c.get("color"), 4):
+		return false
+	if not ["border", "intensity", "baseMix", "replace", "multiply", "add", "screen", "mixed", "lightAdd", "emission", "lightMask"].all(func(k: String) -> bool: return _number(c.get(k))):
+		return false
+	var hue: Variant = c.get("hue")
+	var circle: Variant = c.get("circle")
+	return (hue == null or hue is Dictionary and ["shift", "space", "select"].all(func(k: String) -> bool: return _number(hue.get(k)))) and (circle == null or circle is Dictionary and _number(circle.get("border")) and _number(circle.get("blur")))
+
+
 static func _coat(coat: Variant) -> bool:
 	if coat == null:
 		return true
