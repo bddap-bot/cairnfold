@@ -474,11 +474,12 @@ func _clear_coat() -> void:
 	index.fill_rect(Rect2i(2, 0, 2, 4), Color8(2, 2, 2))
 	var map := Image.create_empty(2, 2, false, Image.FORMAT_RGBA8)
 	map.fill(Color.WHITE)
-	var coat := {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0}
+	var coat := {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0, "fallback": 0, "litFallback": false, "forceFallback": true, "fresnelStrength": 0.5, "exposureOcclusion": 0.25}
+	var fallback := Image.create_empty(256, 896, false, Image.FORMAT_RGBA8)
 	Avatar.hold(index, "index", 1)
-	var looks := {"index": index, "clearcoatMaps": [map], "materials": [{"lighting": {"model": "lit"}, "clearcoat": coat}, {"lighting": {"model": "flat", "cap": 1.0}}]}
+	var looks := {"index": index, "clearcoatMaps": [map], "clearcoatFallbacks": [fallback], "materials": [{"lighting": {"model": "lit"}, "clearcoat": coat}, {"lighting": {"model": "flat", "cap": 1.0}}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks with a clear coat are valid")
-	for bad: Variant in [{"strength": 1.0}, coat.merged({"map": 0.5}, true), coat.merged({"st": [1, 1, 0]}, true), coat.merged({"inverts": [0, 0, 0, 0]}, true), coat.merged({"specularTint": "white"}, true), coat.merged({"gsaa": [0.15]}, true)]:
+	for bad: Variant in [{"strength": 1.0}, coat.merged({"map": 0.5}, true), coat.merged({"st": [1, 1, 0]}, true), coat.merged({"inverts": [0, 0, 0, 0]}, true), coat.merged({"specularTint": "white"}, true), coat.merged({"gsaa": [0.15]}, true), coat.merged({"fallback": 0.5}, true), coat.merged({"litFallback": 1}, true), coat.merged({"forceFallback": null}, true), coat.merged({"fresnelStrength": "half"}, true), coat.merged({"exposureOcclusion": null}, true), {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0, "fallback": 0, "litFallback": false, "forceFallback": true, "exposureOcclusion": 0.25}]:
 		var broken := looks.duplicate(true)
 		broken.materials[0].clearcoat = bad
 		check(not ExpressionDefinition.valid({"looks": broken}), "a malformed clear coat is refused: %s" % [bad])
@@ -507,11 +508,12 @@ func _clear_coat() -> void:
 	player.apply()
 	var coated := shown[0].get_surface_override_material(0) as ShaderMaterial
 	var dry := shown[1].get_surface_override_material(0) as ShaderMaterial
-	check(coated != null and coated.shader.resource_path.ends_with("expression_coat.gdshader"), "a mesh showing a coated material draws with the shader that draws a coat")
+	check(coated != null and coated.shader == ExpressionPlayer.fallback_shader(preload("res://src/expression_coat.gdshader")) and coated.shader.code.contains("#define COAT_FALLBACK"), "a mesh showing a coated material that forces its fallback draws with the coat shader that reflects one")
 	check(dry != null and dry.shader.resource_path.ends_with("expression.gdshader"), "one showing none draws as it did")
 	var rows: Image = (coated.get_shader_parameter("lighting") as Texture2D).get_image() if coated else null
-	check(rows != null and rows.get_height() == 2 + Avatar.RAMP + Avatar.COAT_ROWS and rows.get_pixel(1, 2 + Avatar.RAMP).is_equal_approx(Color(0.87, 0.92, 1.0, 0.5)) and rows.get_pixel(1, 3 + Avatar.RAMP).is_equal_approx(Color(1, 1, 0, 0.22)) and rows.get_pixel(1, 5 + Avatar.RAMP).is_equal_approx(Color(1, 0.5, 1, 0)) and rows.get_pixel(1, 6 + Avatar.RAMP) == Color(0, 0, 0, 1), "the looks table carries the coat's levels, tiling and offset, reflection tint with its map's layer, and inversions")
+	check(rows != null and rows.get_height() == 2 + Avatar.RAMP + Avatar.COAT_ROWS and rows.get_pixel(1, 2 + Avatar.RAMP).is_equal_approx(Color(0.87, 0.92, 1.0, 0.5)) and rows.get_pixel(1, 3 + Avatar.RAMP).is_equal_approx(Color(1, 1, 0, 0.22)) and rows.get_pixel(1, 5 + Avatar.RAMP).is_equal_approx(Color(1, 0.5, 1, 0)) and rows.get_pixel(1, 6 + Avatar.RAMP) == Color(0, 0, 0, 1) and rows.get_pixel(1, 7 + Avatar.RAMP).is_equal_approx(Color(0.15, 0.1, Avatar.DIELECTRIC + lerpf(Avatar.DIELECTRIC, 1.0, 0.5) * 0.5, 0.25)) and rows.get_pixel(1, 8 + Avatar.RAMP) == Color(0, 0, 1), "the looks table carries the coat's levels, tiling and offset, reflection tint with its map's layer, inversions, and its fallback's layer, lighting and forcing")
 	check(coated != null and coated.get_shader_parameter("coat_maps") is Texture2DArray and (coated.get_shader_parameter("coat_maps") as Texture2DArray).get_layers() == 1, "the coat maps are bound as one layer each")
+	check(coated != null and coated.get_shader_parameter("coat_fallbacks") is Texture2DArray and (coated.get_shader_parameter("coat_fallbacks") as Texture2DArray).get_layers() == 1, "and the fallback cubemaps")
 	check(coated != null and coated.get_shader_parameter("region_count") == 1, "a region moving the coat maps' offset reaches the coated mesh")
 	check(dry != null and dry.get_shader_parameter("region_count") in [null, 0], "and not a mesh that draws no coat")
 	player.free()

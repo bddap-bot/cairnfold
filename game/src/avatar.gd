@@ -33,13 +33,21 @@ const RAMP := 16
 ## The side, in pixels, of a menu icon as the model carries and holds it: a board row's height.
 const ICON_SIDE := 44.0
 ## The looks table rows each clear coat takes after the ramp (_lit_looks).
-const COAT_ROWS := 6
+const COAT_ROWS := 7
 ## The looks table rows each matcap a material draws takes after the clear coats' and a row counting them (_lit_looks).
 const MATCAP_ROWS := 6
 ## The most matcaps a look draws: Poiyomi's slots.
 const MATCAPS := 4
 ## The looks table rows a toon shadow, rim and rim shade take after the matcaps' (_lit_looks).
 const TOON_ROWS := 8
+## The reflectance Poiyomi's clear coat has face on: Unity's dielectric specular, gamma space's value.
+const DIELECTRIC := 0.220916301
+## A clear coat's fallback cubemap as a file carries it ("clearcoatFallbacks"): FALLBACK_LEVELS latitude-longitude
+## levels FALLBACK_SIDE wide and half as tall, stacked top to bottom, each texel's linear light its red, green and blue
+## times its alpha times FALLBACK_RANGE, which keeps a lamp far past white in eight bits.
+const FALLBACK_SIDE := 256
+const FALLBACK_LEVELS := 7
+const FALLBACK_RANGE := 128.0
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -712,12 +720,15 @@ static func shape(state: GLTFState) -> bool:
 ## vertex reads it, and a table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a
 ## ramp; green its cap, blue its shadow tint) and in alpha its emission's strength, row 1 its emission's linear colour
 ## and, in alpha, how far it overrides the lit colour, the RAMP rows after them its ramp, and, where any material has a
-## clear coat, a matcap or a toon look, six more its levels, maps' tiling and offset, highlight tint and Fresnel,
-## reflection tint and maps' layer, inversions, and antialiasing variance and threshold; where any has a matcap or a toon
+## clear coat, a matcap or a toon look, seven more its levels, maps' tiling and offset, highlight tint and Fresnel,
+## reflection tint and maps' layer, inversions, antialiasing variance and threshold with Poiyomi 9.2's grazing
+## reflectance (-1 for an earlier one) and exposure occlusion, and its fallback cubemap's layer (-1 for Unity's grey),
+## whether its light lights it and whether it is always reflected; where any has a matcap or a toon
 ## look, its matcaps (_matcap_rows); and where any has a toon look, TOON_ROWS more (_toon_rows), for the avatar's shader
 ## to draw them by (ExpressionPlayer) over the looks' emission map. An emission in a global theme colour, or one a look
 ## field of `animated` (its name to true) may light, is drawn even where it rests black. A mesh showing a clear coat has
-## its copies marked "clearcoat", and one showing a toon look "toon", so it alone draws with the shaders that draw them.
+## its copies marked "clearcoat" (and "coat_forces_fallback" where one forces its fallback), and one showing a toon look
+## "toon", so it alone draws with the shaders that draw them.
 ## A mesh shows a material where one of its vertices' texture coordinates falls in that material's cell, at rest or moved
 ## by one of the material swaps in `swaps` (its importer mesh to their atlas choices).
 static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated := {}) -> void:
@@ -731,6 +742,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped + tooned > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped + tooned > 0 else 0) + (TOON_ROWS if tooned > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
+	var fallbacks: int = (looks.get("clearcoatFallbacks", []) as Array).size() if looks.get("clearcoatFallbacks") is Array else 0
 	for k in materials.size():
 		if not _drawn_matcaps(materials[k]).is_empty():
 			drawn[k + 1] |= LOOKED
@@ -740,7 +752,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			_toon_rows(table, k + 1, materials[k])
 		var coat: Variant = materials[k].get("clearcoat")
 		if coat is Dictionary:
-			drawn[k + 1] |= LOOKED | COATED
+			drawn[k + 1] |= LOOKED | COATED | (FORCES_FALLBACK if coat.forceFallback else 0)
 			var st: Array = coat.st
 			var inverts: Array = coat.inverts
 			var row := HEAD_ROWS + RAMP
@@ -749,7 +761,9 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			table.set_pixel(k + 1, row + 2, Color(coat.specularTint[0], coat.specularTint[1], coat.specularTint[2], coat.fresnel))
 			table.set_pixel(k + 1, row + 3, Color(coat.reflectionTint[0], coat.reflectionTint[1], coat.reflectionTint[2], coat.map if coat.map < maps else -1))
 			table.set_pixel(k + 1, row + 4, Color(float(inverts[0]), float(inverts[1]), float(inverts[2]), float(inverts[3])))
-			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], 0.0))
+			var strength: Variant = coat.fresnelStrength
+			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], -1.0 if strength == null else DIELECTRIC + lerpf(DIELECTRIC, 1.0, strength) * 0.5, coat.exposureOcclusion))
+			table.set_pixel(k + 1, row + 6, Color(coat.fallback if coat.fallback < fallbacks else -1, float(coat.litFallback), float(coat.forceFallback)))
 		var light: Dictionary = materials[k].lighting
 		var head := Color(0, 0, 0, 0)
 		if light.model == "flat":
@@ -794,14 +808,18 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 					copy.set_meta("clearcoat", true)
 				if shows & TOON:
 					copy.set_meta("toon", true)
+				if shows & FORCES_FALLBACK:
+					copy.set_meta("coat_forces_fallback", true)
 				copies[drawn_as] = copy
 			im.set_surface_material(i, copies[drawn_as])
 
 
-## What an index entry's looks draw (`_lit_looks`): any look, a clear coat, a toon look, as bits.
+## What an index entry's looks draw (`_lit_looks`): any look, a clear coat, a toon look, a coat that reflects its
+## fallback whatever the world, as bits.
 const LOOKED := 1
 const COATED := 2
 const TOON := 4
+const FORCES_FALLBACK := 8
 
 
 ## The `drawn` bits (`_lit_looks`) of every entry of the material index's `texels`, `size` wide, that the texture
@@ -814,7 +832,7 @@ static func _shows(im: ImporterMesh, moves: Array, drawn: PackedByteArray, texel
 			for uv: Vector2 in uvs if uvs is PackedVector2Array else PackedVector2Array():
 				var at := Vector2i(((uv * Vector2(moved[0], moved[1]) + Vector2(moved[2], moved[3])) * Vector2(size)).floor()).clamp(Vector2i.ZERO, size - Vector2i.ONE)
 				shows |= drawn[texels[at.y * size.x + at.x]]
-				if shows == LOOKED | COATED | TOON:
+				if shows == LOOKED | COATED | TOON | FORCES_FALLBACK:
 					return shows
 	return shows
 

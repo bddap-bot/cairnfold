@@ -5,8 +5,9 @@ extends RefCounted
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
-## The images a package may name from the shader packages its creator installs beside it, which it does not carry.
-const IMAGES := ["png", "jpg", "jpeg", "tga", "bmp", "webp"]
+## The images a package may name from the shader packages its creator installs beside it, which it does not carry:
+## Poiyomi's matcaps, and its clear coat's fallback cubemap, a high dynamic range panorama.
+const IMAGES := ["png", "jpg", "jpeg", "tga", "bmp", "webp", "exr", "hdr"]
 
 ## GUID to {"file": where its bytes are, "path": its path in the project, "meta": its .meta file}.
 var by_guid := {}

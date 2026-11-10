@@ -164,6 +164,8 @@ func _stage(camera: Dictionary) -> SubViewport:
 	RenderingServer.global_shader_parameter_set(&"sky_zenith", sky)
 	RenderingServer.global_shader_parameter_set(&"sky_horizon", sky)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 1.0)
+	# The harness clears to a colour with no skybox, so Unity has no reflection probe to give a clear coat.
+	ExpressionPlayer.world_reflects = false
 	return view
 
 

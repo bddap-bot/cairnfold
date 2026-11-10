@@ -384,6 +384,9 @@ static func prepare(model: Node3D) -> void:
 		model.set_meta("expression_matcaps", _layers(looks.matcaps))
 	if looks.get("matcapMasks") is Image:
 		model.set_meta("expression_matcap_masks", ImageTexture.create_from_image(looks.matcapMasks))
+	var fallbacks: Array = looks.get("clearcoatFallbacks", [])
+	if not fallbacks.is_empty():
+		model.set_meta("expression_coat_fallbacks", coat_fallbacks(fallbacks))
 	var decals: Array = looks.get("decals", [])
 	Vrm.drop_layers(data)
 	var by_node := {}
@@ -429,6 +432,7 @@ func _light_looks(model: Node3D) -> Variant:
 	var matcaps: Texture2DArray = model.get_meta("expression_matcaps") if model.has_meta("expression_matcaps") else _empty_array()
 	var masks: Texture2D = model.get_meta("expression_matcap_masks") if model.has_meta("expression_matcap_masks") else null
 	var layers: Array = ["shade", "shade2", "rim_tint"].map(func(layer: String) -> Variant: return model.get_meta("expression_" + layer) if model.has_meta("expression_" + layer) else null)
+	var coat_fallbacks: Texture2DArray = model.get_meta("expression_coat_fallbacks") if model.has_meta("expression_coat_fallbacks") else _empty_array()
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
@@ -442,6 +446,7 @@ func _light_looks(model: Node3D) -> Variant:
 			mat.set_shader_parameter("shade", layers[0])
 			mat.set_shader_parameter("shade2", layers[1])
 			mat.set_shader_parameter("rim_tint", layers[2])
+			mat.set_shader_parameter("coat_fallbacks", coat_fallbacks)
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 	return textures[1]
 
@@ -485,6 +490,27 @@ static func _pages(drawn: Dictionary) -> Dictionary:
 	for page in pages:
 		page.generate_mipmaps()
 	return {"images": pages, "places": places}
+
+
+## The fallback cubemaps `stacks` (Avatar.FALLBACK_SIDE) in linear light, a layer each, so the shader's filtering blends
+## light and not its encoding; one that is no such image is Unity's default grey, which keeps the rest at their layers.
+static func coat_fallbacks(stacks: Array) -> Texture2DArray:
+	var size := Vector2i(Avatar.FALLBACK_SIDE, Avatar.FALLBACK_SIDE / 2 * Avatar.FALLBACK_LEVELS)
+	var layers: Array[Image] = []
+	for stack: Variant in stacks:
+		var layer := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBH)
+		layer.fill(Color(0.214, 0.214, 0.214))
+		if stack is Image and (stack as Image).get_size() == size:
+			var encoded := (stack as Image).duplicate() as Image
+			encoded.convert(Image.FORMAT_RGBA8)
+			for y in size.y:
+				for x in size.x:
+					var c := encoded.get_pixel(x, y)
+					layer.set_pixel(x, y, Color(c.r, c.g, c.b) * (c.a * Avatar.FALLBACK_RANGE))
+		layers.append(layer)
+	var out := Texture2DArray.new()
+	out.create_from_images(layers)
+	return out
 
 
 ## `maps`, the clear coats' packed maps (unity/materials.gd coat_map) or the matcaps, as one array, each layer as wide
@@ -592,6 +618,8 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	for i in mesh.mesh.get_surface_count():
 		var base := mesh.get_active_material(i) as BaseMaterial3D
 		var shader := shader_for(base, _turned.has(str(mesh.name)), coated, tooned)
+		if coated and (not world_reflects or _marked(mesh, "coat_forces_fallback")):
+			shader = fallback_shader(shader)
 		var key := [shader, base != null and base.has_meta("hull")]
 		if not by_shader.has(key):
 			var mat := ShaderMaterial.new()
@@ -614,12 +642,32 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	return out
 
 
-## Whether `mesh` shows a material Avatar._lit_looks marked `mark`: "clearcoat" or "toon".
+## Whether `mesh` shows a material Avatar._lit_looks marked `mark`: "clearcoat", "coat_forces_fallback" or "toon".
 func _marked(mesh: MeshInstance3D, mark: String) -> bool:
 	var key := [mesh, mark]
 	if not _marks.has(key):
 		_marks[key] = range(mesh.mesh.get_surface_count()).any(func(i: int) -> bool: return mesh.mesh.surface_get_material(i) != null and mesh.mesh.surface_get_material(i).has_meta(mark))
 	return _marks[key]
+
+
+## Whether the world has a reflection probe for a clear coat to reflect, as the garden's sky is; the reference replay,
+## whose harness has none, clears it before it loads an avatar, and coats then reflect their fallback cubemaps.
+static var world_reflects := true:
+	set(v):
+		world_reflects = v
+		RenderingServer.global_shader_parameter_set(&"world_reflects", v)
+
+static var _fallback_shaders := {}
+
+
+## The clear coat shader `coat` with a coat's fallback cubemap compiled in, made once from its source.
+static func fallback_shader(coat: Shader) -> Shader:
+	if not _fallback_shaders.has(coat):
+		var shader := Shader.new()
+		shader.code = coat.code.replace("#define CLEAR_COAT", "#define CLEAR_COAT\n#define COAT_FALLBACK")
+		assert(shader.code != coat.code)
+		_fallback_shaders[coat] = shader
+	return _fallback_shaders[coat]
 
 
 static var _clear: Texture2DArray

@@ -58,6 +58,7 @@ func _run() -> void:
 	_clear_coat_maps_read_their_uv_channel()
 	_toon_outlines_join_the_look()
 	_an_outline_mask_weighs_as_its_shader_reads_it()
+	_a_clear_coat_carries_its_fallback_cubemap()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
@@ -3527,6 +3528,13 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	var entry: Dictionary = (looks.get("materials", [{}]) as Array)[0]
 	var coat: Dictionary = entry.get("clearcoat", {})
 	check(is_equal_approx(coat.get("strength", 0.0), 0.87) and is_equal_approx(coat.get("smoothness", 0.0), 0.92) and coat.get("reflection") == 1.0 and coat.get("specular") == 1.0 and coat.get("fresnel") == 0.5 and coat.get("gsaa") == [0.15, 0.1], "the look holds the coat's levels, Fresnel and antialiasing: %s" % [coat])
+	check(coat.has("fresnelStrength") and coat.fresnelStrength == null and coat.get("exposureOcclusion") == 0.0, "a shader that declares no Fresnel strength is an earlier Poiyomi's: %s" % [coat])
+	materials.materials.wet.properties._ClearcoatFresnelStrength = true
+	materials.materials.wet.floats._ClearcoatFresnelStrength = "0.25"
+	materials.materials.wet.floats._ClearcoatExposureOcclusion = "0.5"
+	var recent := materials.clearcoat("wet")
+	check(recent.fresnelStrength == 0.25 and recent.fresnel == 1.0 and recent.exposureOcclusion == 0.5, "one that declares it carries Poiyomi 9.2's Fresnel strength and exposure occlusion, its Fresnel whole: %s" % [recent])
+	materials.materials.wet.properties.erase("_ClearcoatFresnelStrength")
 	check(coat.get("st") == [1.0, 1.0, 0.0, 0.22] and coat.get("inverts") == [false, false, false, true] and coat.get("map") == 0, "and its maps' tiling, offset, inversions and image: %s" % [coat])
 	var tint: Array = coat.get("reflectionTint", [])
 	check(tint.size() == 3 and tint[0] == 1.0 and is_equal_approx(tint[1], Color(0.5, 0, 0).srgb_to_linear().r) and coat.get("specularTint") == [1.0, 1.0, 1.0], "tints are carried in linear light: %s" % [tint])
@@ -3547,6 +3555,52 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	var dry := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(dry.targets.is_empty(), "the offset of a material whose coat is off moves nothing, as in VRChat")
 	sk.free()
+
+
+## A clear coat carries the cubemap Poiyomi reflects where the world has no reflection probe: an installed shader
+## package's high dynamic range panorama, as seven levels each blurred as Unity's specular convolution blurs its mips,
+## each in RGBM keeping light far past white, with whether its light lights it and whether it is always reflected; a
+## texture that is no 2:1 panorama is reported and reflects Unity's grey default, as does a coat naming none.
+func _a_clear_coat_carries_its_fallback_cubemap() -> void:
+	var dir := ProjectSettings.globalize_path("user://coat_fallback")
+	var packages := ProjectSettings.globalize_path("user://coat_fallback_packages")
+	for d in [dir, packages]:
+		DirAccess.make_dir_recursive_absolute(d)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _ClearCoatFallback ("Fallback", Cube) = "" { } } }')
+	var coated := func(cube: String, floats: String) -> String:
+		return "Material:\n  m_Shader: {guid: poi}\n  m_SavedProperties:\n    m_TexEnvs:\n    - _ClearCoatFallback:\n        m_Texture: {guid: %s}\n    m_Floats:\n    - _ClearCoatBRDF: 1\n%s" % [cube, floats]
+	write.call("hall.mat", "hall", coated.call("hall_cube", "    - _ClearCoatLitFallback: 0\n    - _ClearCoatForceFallback: 1\n"))
+	write.call("square.mat", "square", coated.call("square_cube", ""))
+	write.call("plain.mat", "plain", coated.call("", ""))
+	write.call("lost.mat", "lost", coated.call("lost_cube", ""))
+	var hall := Image.create_empty(256, 128, false, Image.FORMAT_RGBF)
+	hall.fill_rect(Rect2i(124, 60, 8, 8), Color(50.0, 50.0, 50.0))
+	hall.save_exr(packages.path_join("hall.exr"))
+	Image.create_empty(64, 64, false, Image.FORMAT_RGBF).save_exr(packages.path_join("square.exr"))
+	for pair: Array in [["hall.exr", "hall_cube"], ["square.exr", "square_cube"]]:
+		FileAccess.open(packages.path_join(pair[0] + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\nTextureImporter:\n  generateCubemap: 6\n  textureShape: 2\n" % pair[1])
+	var materials := Materials.new(Assets.new(dir, [], packages))
+	for key: String in ["hall", "square", "plain", "lost"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["hall", "square", "plain", "lost"])
+	var looks := materials.looks()
+	var coats: Array = looks.get("materials", []).map(func(m: Dictionary) -> Dictionary: return m.get("clearcoat", {}))
+	check(coats.size() == 4 and coats[0].get("fallback") == 0 and not coats[0].has("fallbackTexture") and coats[0].get("litFallback") == false and coats[0].get("forceFallback") == true, "a coat names its fallback, unlit and forced as its material says: %s" % [coats])
+	check(coats.size() == 4 and coats[1].get("fallback") == -1 and coats[2].get("fallback") == -1 and coats[3].get("fallback") == -1 and coats[2].get("litFallback") == true and coats[2].get("forceFallback") == false, "one whose cubemap is no panorama, or that names none, reflects the grey default, lit and unforced by default: %s" % [coats])
+	check(materials.undecoded.keys().any(func(p: String) -> bool: return p.ends_with("square.exr")) and materials.absent.has("lost_cube"), "the texture that is no panorama is reported, and the one no package holds: %s, %s" % [materials.undecoded, materials.absent])
+	var levels: Array = looks.get("clearcoatFallbacks", [])
+	check(levels.size() == 1 and (levels[0] as Image).get_size() == Vector2i(256, 896), "the fallback travels as one image of seven 256 by 128 levels: %s" % [levels])
+	if levels.size() == 1:
+		var light := func(x: int, y: int) -> float:
+			var c: Color = (levels[0] as Image).get_pixel(x, y)
+			return c.r * c.a * 128.0
+		check(absf(light.call(127, 63) - 50.0) < 1.0 and light.call(0, 63) < 0.01, "the sharpest level keeps the patch's light of 50, far past white, where Unity's +X looks, and none behind: %s, %s" % [light.call(127, 63), light.call(0, 63)])
+		var spread: Array = range(7).map(func(level: int) -> float: return light.call(127, level * 128 + 63))
+		check(range(6).all(func(level: int) -> bool: return spread[level + 1] < spread[level]) and spread[1] > 10.0 and spread[6] < 1.0, "each level spreads it wider than the last, the first barely and the roughest over the whole side: %s" % [spread])
+		check(light.call(160, 6 * 128 + 63) > 0.5 * spread[6] and light.call(160, 2 * 128 + 63) < 0.01 * spread[2], "the roughest reaches a texel 45 degrees aside that the third does not: %s, %s" % [light.call(160, 6 * 128 + 63), light.call(160, 2 * 128 + 63)])
 
 
 ## The converter reads a coat's maps through UV0 and UV1 from Godot's two UV arrays and UV2 and UV3 from its first

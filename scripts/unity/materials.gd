@@ -866,11 +866,13 @@ func matcap(key: String, slot: int) -> Dictionary:
 
 ## Poiyomi's clear coat on the material at `key` at rest, or {} where it is off, a global mask shapes it, or its maps are
 ## panned or read by a view other than a UV channel: its "strength", "smoothness", "reflection" and "specular" levels,
-## its linear "specularTint" and "reflectionTint", its "fresnel", its geometric specular antialiasing ("gsaa", Poiyomi's
+## its linear "specularTint" and "reflectionTint", its "fresnel", or for a Poiyomi 9.2 shader, which declares it, its
+## "fresnelStrength" (else null) and "exposureOcclusion", its geometric specular antialiasing ("gsaa", Poiyomi's
 ## variance and threshold, zero where off), its packed maps' "texture" GUID ("" for none, which reads
 ## as white), the UV channel ("uv") and tiling and offset ("st", Unity's [scale x, scale y, offset x, offset y]) they
-## are read through, the source channel ("channels", 4 for white) of each level and whether each level is inverted
-## ("inverts"). Its light adds over the lit colour, as Poiyomi's does.
+## are read through, the source channel ("channels", 4 for white) of each level, whether each level is inverted
+## ("inverts"), and the cubemap it reflects where the world has no reflection probe or it forces it ("fallback" GUID, ""
+## for Unity's grey default; "litFallback", "forceFallback"). Its light adds over the lit colour, as Poiyomi's does.
 func clearcoat(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var floats: Dictionary = m.get("floats", {})
@@ -886,6 +888,7 @@ func clearcoat(key: String) -> Dictionary:
 		return {}
 	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get("_ClearCoatMaps", {})
 	var pair := func(v: Variant, otherwise: float) -> Array: return [str(v.get("x", otherwise)).to_float(), str(v.get("y", otherwise)).to_float()] if v is Dictionary else [otherwise, otherwise]
+	var recent := (m.properties as Dictionary).has("_ClearcoatFresnelStrength")
 	var tint := func(property: String) -> Array:
 		var theme := int(number.call(property + "ThemeIndex", 0.0))
 		var c: Color = ExpressionPlayer.theme_colour(_theme(m, theme - 1), 0.0) if theme >= 1 and theme <= 4 else shader_colour(m, property, Color.WHITE)
@@ -897,13 +900,18 @@ func clearcoat(key: String) -> Dictionary:
 		"specular": _saved(m, "_ClearCoatSpecularStrength", 1.0),
 		"specularTint": tint.call("_ClearCoatSpecularTint"),
 		"reflectionTint": tint.call("_ClearCoatReflectionTint"),
-		"fresnel": _saved(m, "_ClearcoatFresnel", 1.0),
+		"fresnel": 1.0 if recent else _saved(m, "_ClearcoatFresnel", 1.0),
+		"fresnelStrength": _saved(m, "_ClearcoatFresnelStrength", 0.5) if recent else null,
+		"exposureOcclusion": _saved(m, "_ClearcoatExposureOcclusion", 0.0) if recent else 0.0,
 		"gsaa": [number.call("_ClearCoatGSAAVariance", 0.15), number.call("_ClearCoatGSAAThreshold", 0.1)] if number.call("_ClearCoatGSAAEnabled", 1.0) != 0.0 else [0.0, 0.0],
 		"texture": map,
 		"uv": uv,
 		"st": pair.call(entry.get("m_Scale"), 1.0) + pair.call(entry.get("m_Offset"), 0.0),
 		"channels": COAT_CHANNELS.map(func(c: Array) -> int: return int(number.call(c[0], c[1]))),
 		"inverts": COAT_INVERTS.map(func(p: String) -> bool: return number.call(p, 0.0) != 0.0),
+		"fallbackTexture": _texture_guid(m, "_ClearCoatFallback"),
+		"litFallback": number.call("_ClearCoatLitFallback", 1.0) != 0.0,
+		"forceFallback": number.call("_ClearCoatForceFallback", 0.0) != 0.0,
 	}
 
 
@@ -914,6 +922,123 @@ const COAT_CHANNELS := [["_ClearCoatMapsClearCoatMaskChannel", 0.0], ["_ClearCoa
 const COAT_INVERTS := ["_ClearCoatMaskInvert", "_ClearCoatSmoothnessMapInvert", "_ClearCoatReflectionMaskInvert", "_ClearCoatSpecularMaskInvert"]
 ## The widest a clear coat's packed maps are carried at: they mask a highlight and a reflection, not a colour.
 const COAT_MAP := 512
+
+
+## A clear coat's fallback cubemap as a file carries it (Avatar.FALLBACK_SIDE): level k Unity's mip k of the cube it
+## imports with specular convolution, which Poiyomi reads at its roughness times six. Its azimuth runs as Unity's
+## panoramic skybox's in Unity's axes. Null where the texture is absent, is not a cube Unity imports from a 2:1
+## panorama, or does not decode, each of which is reported.
+func coat_fallback(guid: String) -> Image:
+	if not assets.by_guid.has(guid):
+		absent[guid] = true
+		return null
+	var importer: Dictionary = assets.meta(guid).get("TextureImporter", {})
+	var panorama := str(importer.get("textureShape", "")) == "2" and str(importer.get("generateCubemap", "")) in ["2", "6"]
+	var source: Image = _hdr_image(guid) if panorama else null
+	if source == null or source.get_width() != 2 * source.get_height() or source.get_width() < Avatar.FALLBACK_SIDE:
+		undecoded[assets.by_guid[guid].path] = true
+		return null
+	source.decompress()
+	source.convert(Image.FORMAT_RGBF)
+	var side := Avatar.FALLBACK_SIDE
+	var out := Image.create_empty(side, side / 2 * Avatar.FALLBACK_LEVELS, false, Image.FORMAT_RGBA8)
+	var panoramas := {}
+	for level in Avatar.FALLBACK_LEVELS:
+		# Unity's mip k halves the cube's faces, and its lobe widens faster: each level is integrated at the size
+		# that samples its lobe, over the texels its lobe reaches, then drawn at the size the stack holds.
+		var w: int = [side, side, side / 2, side / 4, side / 4, side / 4, side / 4][level]
+		var from_w: int = w if level < 4 else w / 2
+		for width: int in [w, from_w]:
+			if not panoramas.has(width):
+				panoramas[width] = _panorama(source, width)
+		var at: Dictionary = panoramas[w]
+		var from: Dictionary = panoramas[from_w]
+		var h := w / 2
+		var from_h := from_w / 2
+		var rough := level / (Avatar.FALLBACK_LEVELS - 1.0)
+		var perceptual := (1.7 - sqrt(2.89 - 2.8 * rough)) / 1.4
+		var a2 := pow(perceptual, 4.0)
+		# Past this angle the lobe has fallen to a thousandth of its peak.
+		var reach := acos(clampf(1.0 - 61.2 * a2 / (1.0 - a2 + 1e-9), -1.0, 1.0)) if level > 0 else 0.0
+		var rows := ceili(reach / PI * from_h)
+		var toward: PackedVector3Array = from.toward
+		var light: PackedVector3Array = from.light
+		var angle: PackedFloat32Array = from.angle
+		var drawn := Image.create_empty(w, h, false, Image.FORMAT_RGBF)
+		for i in w * h:
+			var c: Vector3 = at.light[i]
+			if level > 0:
+				var n: Vector3 = at.toward[i]
+				var row := (i / w) * from_h / h
+				var column := (i % w) * from_w / w
+				var nearest := minf(sin(PI * (clampi(row - rows, 0, from_h - 1) + 0.5) / from_h), sin(PI * (clampi(row + rows, 0, from_h - 1) + 0.5) / from_h))
+				var columns := from_w / 2 if row - rows < 0 or row + rows >= from_h else mini(from_w / 2, ceili(reach / (TAU * nearest) * from_w))
+				var sum := Vector3.ZERO
+				var weight := 0.0
+				for y in range(maxi(row - rows, 0), mini(row + rows, from_h - 1) + 1):
+					for dx in range(-columns, columns + (0 if 2 * columns == from_w else 1)):
+						var k := y * from_w + posmod(column + dx, from_w)
+						var nl := n.dot(toward[k])
+						if nl <= 0.0:
+							continue
+						var d := (1.0 + nl) * 0.5 * (a2 - 1.0) + 1.0
+						var share := nl * angle[k] / (d * d)
+						sum += light[k] * share
+						weight += share
+				c = sum / maxf(weight, 1e-12)
+			drawn.set_pixel(i % w, i / w, Color(c.x, c.y, c.z))
+		drawn.resize(side, side / 2, Image.INTERPOLATE_BILINEAR)
+		for y in side / 2:
+			for x in side:
+				var c := drawn.get_pixel(x, y)
+				var m := ceilf(clampf(maxf(c.r, maxf(c.g, c.b)) / Avatar.FALLBACK_RANGE, 1.0 / 255.0, 1.0) * 255.0) / 255.0
+				var scale := 1.0 / (m * Avatar.FALLBACK_RANGE)
+				out.set_pixel(x, level * side / 2 + y, Color(minf(c.r * scale, 1.0), minf(c.g * scale, 1.0), minf(c.b * scale, 1.0), m))
+	return out
+
+
+## The texture `guid`, an .exr or .hdr, keeping its high dynamic range: only Image.load_from_file decodes those, and it
+## picks its decoder by the file's extension, which an unpacked .unitypackage's `asset` lacks. Null where it does not
+## decode.
+func _hdr_image(guid: String) -> Image:
+	var file: String = assets.by_guid[guid].file
+	var kind := assets.extension(guid)
+	if kind not in ["exr", "hdr"]:
+		return null
+	if file.get_extension().to_lower() == kind:
+		return Image.load_from_file(file)
+	var named := OS.get_temp_dir().path_join("unity_avatar_%d_%s.%s" % [OS.get_process_id(), guid, kind])
+	if DirAccess.copy_absolute(file, named) != OK:
+		return null
+	var img := Image.load_from_file(named)
+	DirAccess.remove_absolute(named)
+	return img
+
+
+## The panorama `source` averaged down to `w` by half that, texel by texel: the direction it lies "toward" in Unity's
+## axes, as Unity's panoramic skybox reads one (u = 0.5 - atan2(z, x) / 2π, the top row straight up), its "light", and
+## the solid "angle" it covers, relative to the others'.
+static func _panorama(source: Image, w: int) -> Dictionary:
+	var h := w / 2
+	var light := PackedVector3Array()
+	light.resize(w * h)
+	var counts := PackedInt32Array()
+	counts.resize(w * h)
+	for y in source.get_height():
+		for x in source.get_width():
+			var c := source.get_pixel(x, y)
+			var i := (y * h / source.get_height()) * w + x * w / source.get_width()
+			light[i] += Vector3(c.r, c.g, c.b)
+			counts[i] += 1
+	var toward := PackedVector3Array()
+	var angle := PackedFloat32Array()
+	for i in w * h:
+		light[i] /= counts[i]
+		var azimuth := (0.5 - (i % w + 0.5) / w) * TAU
+		var polar := PI * (i / w + 0.5) / h
+		toward.append(Vector3(sin(polar) * cos(azimuth), cos(polar), sin(polar) * sin(azimuth)))
+		angle.append(sin(polar))
+	return {"toward": toward, "light": light, "angle": angle}
 
 
 ## The packed maps of clear coat `coat` (`clearcoat`) as the renderer reads them, at most COAT_MAP wide: red its mask,
@@ -1391,6 +1516,8 @@ func looks() -> Dictionary:
 	var coat_images: Array[Image] = []
 	var shaded := []
 	var second_shaded := false
+	var fallbacks := {}
+	var fallback_images: Array[Image] = []
 	for key: String in materials:
 		var m: Dictionary = materials[key]
 		if not m.has("cell"):
@@ -1466,6 +1593,13 @@ func looks() -> Dictionary:
 				if packed_map != null:
 					coat_images.append(packed_map)
 			drawn_coat.map = coat_maps.get(packing, -1)
+			drawn_coat.erase("fallbackTexture")
+			if coat.fallbackTexture != "" and not fallbacks.has(coat.fallbackTexture):
+				var reflected := coat_fallback(coat.fallbackTexture)
+				fallbacks[coat.fallbackTexture] = fallback_images.size() if reflected != null else -1
+				if reflected != null:
+					fallback_images.append(reflected)
+			drawn_coat.fallback = fallbacks.get(coat.fallbackTexture, -1)
 			entry.clearcoat = drawn_coat
 		var rim := Liltoon.rim(m) if Liltoon.is_liltoon(m) else {}
 		if not rim.is_empty():
@@ -1503,6 +1637,8 @@ func looks() -> Dictionary:
 		for m: Dictionary in shaded:
 			shade.blit_rect(Liltoon.shade(self, m, _albedo(m), second), Rect2i(Vector2i.ZERO, _padded(m).size), _padded(m).position)
 		out["shade2" if second else "shade"] = _layer(shade, RESAMPLE, GLOW_LAYER)
+	if not fallback_images.is_empty():
+		out.clearcoatFallbacks = fallback_images
 	return out
 
 

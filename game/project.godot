@@ -148,6 +148,10 @@ sky_ambient={
 "type": "float",
 "value": 0.7
 }
+world_reflects={
+"type": "bool",
+"value": true
+}
 season_bloom={
 "type": "float",
 "value": 1.0

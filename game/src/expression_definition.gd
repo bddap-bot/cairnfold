@@ -139,7 +139,7 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's matcaps are not four slots, each none or a mapping, colour, texture, strengths, hue and circle: %s" % [matcaps])
 			return false
 		if not _coat(m.get("clearcoat")):
-			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions or a map among the looks' %s" % [m.get("clearcoat")])
+			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions, a map or a fallback among the looks' %s" % [m.get("clearcoat")])
 			return false
 		var rim: Variant = m.get("rim")
 		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k))) and rim.get("backface") is bool):
@@ -189,7 +189,12 @@ static func _matcap(c: Variant) -> bool:
 
 ## A look's "clearcoat": null, or its "strength", "smoothness", "reflection", "specular" and "fresnel", its
 ## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
-## its four "inverts" and its "map", -1 or an index among the looks' "clearcoatMaps"; an index past them draws as none.
+## its four "inverts", its "map", -1 or an index among the looks' "clearcoatMaps", and its "fallback", -1 or an index
+## among the looks' "clearcoatFallbacks", with whether its light lights it ("litFallback") and whether it is reflected
+## even where the world has a reflection probe ("forceFallback"); an index past them draws as none. Its
+## "fresnelStrength" is Poiyomi 9.2's, null for an earlier Poiyomi, whose "fresnel" then weighs a grazing reflectance
+## that follows its smoothness; 9.2 also blurs what it reflects by its antialiased roughness and dims it by its
+## "exposureOcclusion".
 static func _coat(coat: Variant) -> bool:
 	if coat == null:
 		return true
@@ -199,7 +204,11 @@ static func _coat(coat: Variant) -> bool:
 		return false
 	if not (coat.get("inverts") is Array and coat.inverts.size() == 4 and coat.inverts.all(func(v: Variant) -> bool: return v is bool)):
 		return false
-	return _number(coat.get("map")) and (float(coat.map) == -1.0 or _whole(coat.map))
+	if not (coat.get("litFallback") is bool and coat.get("forceFallback") is bool and _number(coat.get("exposureOcclusion"))):
+		return false
+	if not (coat.has("fresnelStrength") and (coat.fresnelStrength == null or _number(coat.fresnelStrength))):
+		return false
+	return [coat.get("map"), coat.get("fallback")].all(func(v: Variant) -> bool: return _number(v) and (float(v) == -1.0 or _whole(v)))
 
 
 ## A decal region names its "colorBlend", one of DECAL_BLENDS.

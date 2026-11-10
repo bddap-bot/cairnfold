@@ -35,6 +35,15 @@ uniform sampler2D matcap_masks : hint_default_white, filter_linear_mipmap, repea
 // much as drawing the coat over the whole of every mesh showing one. Its maps are read through UV2.
 varying flat int coat_entry;
 uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
+#ifdef COAT_FALLBACK
+// Each a clear coat's fallback cubemap (ExpressionPlayer.coat_fallbacks): seven latitude-longitude levels, Unity's
+// mips at roughness times six, stacked top to bottom, in linear light. Poiyomi reflects a coat's where it forces it or
+// the world, like the reference harness's, has no reflection probe (world_reflects false). Compiled only into the
+// shaders of meshes that can (ExpressionPlayer.fallback_shader): a Quest 2 pays for the lookup on every coated
+// fragment where it is compiled in, taken or not.
+uniform sampler2DArray coat_fallbacks : hint_default_black, filter_linear, repeat_enable;
+global uniform bool world_reflects;
+#endif
 #endif
 #ifdef TOON
 // A flat material's shade colours (unity/liltoon.gd shade), and the albedo elsewhere.
@@ -58,7 +67,7 @@ const int RAMP = 16;
 #ifdef CLEAR_COAT
 const int COAT = HEAD_ROWS + RAMP;
 #endif
-const int COAT_ROWS = 6;
+const int COAT_ROWS = 7;
 const int MATCAP = HEAD_ROWS + RAMP + COAT_ROWS;
 const int MATCAP_ROWS = 6;
 const int MATCAPS = 4;
@@ -195,12 +204,30 @@ float pow5(float x) {
 	return x2 * x2 * x;
 }
 
+#ifdef COAT_FALLBACK
+// Unity's mip `lod` of fallback cubemap `layer` in direction `d` of the avatar's model space (Unity's axes with X
+// mirrored), as Unity's panoramic skybox reads a latitude-longitude image; Unity's default grey cube where none.
+vec3 coat_fallback(float layer, vec3 d, float lod) {
+	if (layer < 0.0) {
+		return vec3(0.214);
+	}
+	float u = abs(d.y) > 0.99999 ? 0.0 : 0.5 - atan(d.z, -d.x) / TAU;
+	float v = clamp(acos(clamp(d.y, -1.0, 1.0)) / PI, 0.5 / 128.0, 1.0 - 0.5 / 128.0);
+	float k = clamp(lod, 0.0, 6.0);
+	float below = floor(k);
+	vec3 a = texture(coat_fallbacks, vec3(u, (below + v) / 7.0, layer)).rgb;
+	vec3 b = texture(coat_fallbacks, vec3(u, (min(below + 1.0, 6.0) + v) / 7.0, layer)).rgb;
+	return mix(a, b, k - below);
+}
+#endif
+
 // Poiyomi's clear coat (poiClearCoat) at levels `level` (mask, smoothness, reflection, specular), each a vector in
-// view space: Unity's GGX highlight of the main light `key` coming from `l` and a reflection of the sky, each through
-// the coat's Fresnel, masked, to add over the lit colour. The sky stands in for the reflection probe Unity reads,
-// blurred toward its mean as the coat roughens. Poiyomi takes N.L twice, in the highlight and in its light's
-// attenuation, and its dielectric reflectance is gamma space's in linear space too.
-vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tint, vec3 n, vec3 v, vec3 l, vec3 key, vec3 sky_reflected) {
+// view space: Unity's GGX highlight of the main light `key` coming from `l` and a reflection of `reflected` (the world's
+// or the coat's fallback), each through the coat's Fresnel, masked, to add over the lit colour. Poiyomi takes N.L
+// twice, in the highlight and in its light's attenuation, and its dielectric reflectance is gamma space's in linear
+// space too. `glance` is Poiyomi 9.2's grazing reflectance and exposure occlusion, the first negative for an earlier
+// Poiyomi, whose grazing reflectance follows the coat's smoothness.
+vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tint, vec2 glance, vec3 n, vec3 v, vec3 l, vec3 key, vec3 reflected) {
 	const float dielectric = 0.220916301;
 	float rough = max(perceptual * perceptual, 0.002);
 	vec3 h = normalize(l + v);
@@ -217,9 +244,14 @@ vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tin
 	}
 	float fresnel = dielectric + (1.0 - dielectric) * pow5(1.0 - lh);
 	vec3 highlight = key * max(0.0, ggx * max(1e-5, nl)) * fresnel * level.w * specular.rgb * nl;
-	float grazing = clamp(level.y + 0.04, 0.0, 1.0);
+	float grazing = glance.x >= 0.0 ? glance.x : clamp(level.y + 0.04, 0.0, 1.0);
 	float glancing = mix(dielectric, grazing, pow5(1.0 - nv));
-	vec3 reflection = sky_reflected / (rough * rough + 1.0) * mix(1.0, glancing, specular.a) * reflection_tint * level.z;
+	float visible = 1.0;
+	if (glance.y > 0.0) {
+		float lit = clamp(length(key) / glance.y, 0.0, 1.0);
+		visible = clamp(pow(nv + lit, exp2(-16.0 * rough - 1.0)) - 1.0 + lit, 0.0, 1.0);
+	}
+	vec3 reflection = reflected / (rough * rough + 1.0) * mix(1.0, glancing, specular.a) * visible * reflection_tint * level.z;
 	return clamp((highlight + reflection) * level.x, 0.0, 1.0);
 }
 #endif
@@ -511,7 +543,7 @@ void fragment() {
 		vec4 specular = texelFetch(lighting, ivec2(coat_entry, COAT + 2), 0);
 		vec4 reflection = texelFetch(lighting, ivec2(coat_entry, COAT + 3), 0);
 		vec4 invert = texelFetch(lighting, ivec2(coat_entry, COAT + 4), 0);
-		vec2 gsaa = texelFetch(lighting, ivec2(coat_entry, COAT + 5), 0).xy;
+		vec4 gsaa = texelFetch(lighting, ivec2(coat_entry, COAT + 5), 0);
 		vec3 coat_n = normalize(mat3(VIEW_MATRIX) * world_normal) * (FRONT_FACING ? 1.0 : -1.0);
 		vec3 coat_dx = dFdx(coat_n);
 		vec3 coat_dy = dFdy(coat_n);
@@ -528,14 +560,27 @@ void fragment() {
 		vec3 n = coat_n;
 		vec3 r = (INV_VIEW_MATRIX * vec4(reflect(-VIEW, n), 0.0)).xyz;
 		float perceptual = 1.0 - level.y;
-		vec3 mean = mix(sky_horizon, sky_zenith, 0.5);
-		vec3 sky = mix(mix(sky_horizon, sky_zenith, clamp(r.y, 0.0, 1.0)), mean, perceptual * (1.7 - 0.7 * perceptual));
-		// Poiyomi's geometric specular antialiasing (Filament's): the highlight roughens where the normal turns fast
+		// Poiyomi's geometric specular antialiasing (Filament's): the coat roughens where the normal turns fast
 		// across a pixel, which spreads a near-mirror coat's highlight over a curved surface.
 		float kernel = min(2.0 * gsaa.x * (dot(coat_dx, coat_dx) + dot(coat_dy, coat_dy)), gsaa.y);
 		float squared = perceptual * perceptual;
 		float widened = sqrt(sqrt(clamp(squared * squared + kernel, 0.0, 1.0)));
-		EMISSION += clear_coat(level, widened, specular, reflection.rgb, n, VIEW, toward, mirrored ? mirror_light : sun_light, (mirrored ? mirror_ambient : sky * sky_ambient));
+		// Poiyomi 9.2 (a grazing reflectance of its own) blurs what it reflects by that roughness; earlier ones by
+		// Unity's curve of the coat's own.
+		float blur = gsaa.z >= 0.0 ? widened : perceptual * (1.7 - 0.7 * perceptual);
+		vec3 key = mirrored ? mirror_light : sun_light;
+		vec3 environment = (mirrored ? mirror_ambient : mix(mix(sky_horizon, sky_zenith, clamp(r.y, 0.0, 1.0)), mix(sky_horizon, sky_zenith, 0.5), blur) * sky_ambient);
+#ifdef COAT_FALLBACK
+		vec4 fallback = texelFetch(lighting, ivec2(coat_entry, COAT + 6), 0);
+		if (fallback.z > 0.5 || !world_reflects) {
+			// Godot adds the key light and, to a material lit by angle, the ambient after this shader: the key by
+			// NORMAL, which a flat or ramp-lit vertex has turned to take its share of it, taken here the same way.
+			vec3 lit = flat_lit > 0.5 ? flat_light + min(tinted.rgb, vec3(tinted.a)) : given.rgb + (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
+			lit += key * max(dot(normalize(NORMAL), toward), 0.0);
+			environment = coat_fallback(fallback.x, normalize(transpose(mat3(MODEL_MATRIX)) * r), blur * 6.0) * (fallback.y > 0.5 ? lit : vec3(1.0));
+		}
+#endif
+		EMISSION += clear_coat(level, widened, specular, reflection.rgb, gsaa.zw, n, VIEW, toward, key, environment);
 	}
 #endif
 }
