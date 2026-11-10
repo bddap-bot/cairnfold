@@ -78,7 +78,32 @@
  
 --- a/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.cpp
 +++ b/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.cpp
-@@ -1119,7 +1119,9 @@
+@@ -795,6 +795,16 @@
+ 	}
+ }
+ 
++static Color _encode_scene_color(const Color &p_linear, float p_inverse_luminance_multiplier, bool p_scene_encoded) {
++	Color c = p_linear * p_inverse_luminance_multiplier;
++	if (p_scene_encoded) {
++		c.r = Math::sqrt(MAX(c.r, 0.0f));
++		c.g = Math::sqrt(MAX(c.g, 0.0f));
++		c.b = Math::sqrt(MAX(c.b, 0.0f));
++	}
++	return c;
++}
++
+ void RenderForwardMobile::_render_scene(RenderDataRD *p_render_data, const Color &p_default_bg_color) {
+ 	RendererRD::LightStorage *light_storage = RendererRD::LightStorage::get_singleton();
+ 	RendererRD::TextureStorage *texture_storage = RendererRD::TextureStorage::get_singleton();
+@@ -1026,6 +1036,7 @@
+ 	bool draw_sky_fog_only = false;
+ 	// We invert luminance_multiplier for sky so that we can combine it with exposure value.
+ 	float inverse_luminance_multiplier = 1.0 / rb->get_luminance_multiplier();
++	bool scene_encoded = rb->get_luminance_multiplier() != 1.0 && !is_reflection_probe;
+ 	float sky_luminance_multiplier = 1.0 / 2.0; // Hardcoded since sky always uses LDR in the mobile renderer
+ 	float sky_brightness_multiplier = 1.0;
+ 
+@@ -1119,7 +1130,9 @@
  	// We don't have access to any rendered buffers but we may be able to effect mesh data...
  	_process_compositor_effects(RS::COMPOSITOR_EFFECT_CALLBACK_TYPE_PRE_OPAQUE, p_render_data);
  
@@ -88,7 +113,42 @@
  
  	SceneShaderForwardMobile::ShaderSpecialization base_specialization = scene_shader.default_specialization;
  
-@@ -1360,6 +1362,11 @@
+@@ -1146,6 +1159,7 @@
+ 		base_specialization.scene_use_reflection_cubemap = use_reflection_cubemap;
+ 		base_specialization.scene_roughness_limiter_enabled = p_render_data->render_buffers.is_valid() && screen_space_roughness_limiter_is_active();
+ 		base_specialization.luminance_multiplier = p_render_data->render_buffers.is_valid() ? p_render_data->render_buffers->get_luminance_multiplier() : 1.0;
++		base_specialization.scene_encoded = scene_encoded;
+ 	}
+ 
+ 	{
+@@ -1200,7 +1214,7 @@
+ 		// Set clear colors.
+ 		Vector<Color> c;
+ 		if (!load_color) {
+-			Color cc = clear_color.srgb_to_linear() * inverse_luminance_multiplier;
++			Color cc = _encode_scene_color(clear_color.srgb_to_linear(), inverse_luminance_multiplier, scene_encoded);
+ 			if (rb_data.is_valid()) {
+ 				cc.a = 0; // For transparent viewport backgrounds.
+ 			}
+@@ -1208,7 +1222,7 @@
+ 			c.push_back(cc); // Our render buffer.
+ 			if (rb_data.is_valid()) {
+ 				if (use_msaa) {
+-					c.push_back(clear_color.srgb_to_linear() * inverse_luminance_multiplier); // Our resolve buffer.
++					c.push_back(_encode_scene_color(clear_color.srgb_to_linear(), inverse_luminance_multiplier, scene_encoded)); // Our resolve buffer.
+ 				}
+ 				if (using_subpass_post_process) {
+ 					c.push_back(Color()); // Our 2D buffer we're copying into.
+@@ -1245,7 +1259,7 @@
+ 
+ 			// Note, sky.setup should have been called up above and setup stuff we need.
+ 
+-			sky.draw_sky(draw_list, rb, p_render_data->environment, framebuffer, time, inverse_luminance_multiplier, sky_brightness_multiplier);
++			sky.draw_sky(draw_list, rb, p_render_data->environment, framebuffer, time, inverse_luminance_multiplier, sky_brightness_multiplier, scene_encoded);
+ 
+ 			RD::get_singleton()->draw_command_end_label(); // Draw Sky
+ 		}
+@@ -1360,6 +1374,11 @@
  	}
  
  	_render_buffers_debug_draw(p_render_data);
@@ -100,7 +160,7 @@
  }
  
  /* these are being called from RendererSceneRenderRD::_pre_opaque_render */
-@@ -2454,6 +2461,7 @@
+@@ -2454,6 +2473,7 @@
  		RID index_array_rd;
  		const uint32_t ubershader_iterations = 2;
  		bool pipeline_valid = false;
@@ -108,7 +168,7 @@
  		while (pipeline_key.ubershader < ubershader_iterations) {
  			// Skeleton and blend shape.
  			uint64_t input_mask = shader->get_vertex_input_mask(pipeline_key.version, pipeline_key.ubershader);
-@@ -2477,7 +2485,10 @@
+@@ -2477,7 +2497,10 @@
  
  			if (shader != prev_shader || pipeline_hash != prev_pipeline_hash) {
  				RS::PipelineSource pipeline_source = pipeline_key.ubershader ? RS::PIPELINE_SOURCE_DRAW : RS::PIPELINE_SOURCE_SPECIALIZATION;
@@ -120,7 +180,7 @@
  
  				if (pipeline_rd.is_valid()) {
  					pipeline_valid = true;
-@@ -2494,6 +2505,11 @@
+@@ -2494,6 +2517,11 @@
  			}
  		}
  
@@ -132,7 +192,7 @@
  		if (pipeline_valid) {
  			if (!emulate_point_size) {
  				index_array_rd = mesh_storage->mesh_surface_get_index_array(mesh_surface, element_info.lod_index);
-@@ -3196,6 +3212,10 @@
+@@ -3196,6 +3224,10 @@
  void RenderForwardMobile::_mesh_compile_pipeline_for_surface(SceneShaderForwardMobile::ShaderData *p_shader, void *p_mesh_surface, bool p_instanced_surface, RS::PipelineSource p_source, SceneShaderForwardMobile::ShaderData::PipelineKey &r_pipeline_key, Vector<ShaderPipelinePair> *r_pipeline_pairs) {
  	RendererRD::MeshStorage *mesh_storage = RendererRD::MeshStorage::get_singleton();
  	uint64_t input_mask = p_shader->get_vertex_input_mask(r_pipeline_key.version, true);
@@ -143,7 +203,7 @@
  	bool emulate_point_size = p_shader->uses_point_size && scene_shader.emulate_point_size;
  	r_pipeline_key.vertex_format_id = mesh_storage->mesh_surface_get_vertex_format(p_mesh_surface, input_mask, p_instanced_surface, false, emulate_point_size);
  	r_pipeline_key.ubershader = true;
-@@ -3469,6 +3489,8 @@
+@@ -3469,6 +3501,8 @@
  	const bool root_hdr_render_target = GLOBAL_GET("rendering/viewport/hdr_2d");
  	global_pipeline_data_required.use_hdr_render_target = root_hdr_render_target;
  	global_pipeline_data_required.use_ldr_render_target = !root_hdr_render_target;
@@ -393,6 +453,17 @@
 +						shadow = mix(shadow, half(1.0), half(smoothstep(directional_lights.data[i].fade_from, directional_lights.data[i].fade_to, SHADOW_FADE_Z)));
  #ifdef USE_LIGHTMAP
  					}
+ #endif
+@@ -2265,9 +2271,7 @@
+ 	out_color.rgb = mix(out_color.rgb, fog.rgb, fog.a);
+ #endif // !FOG_DISABLED
+ 
+-	// On mobile we use a UNORM buffer with 10bpp which results in a range from 0.0 - 1.0 resulting in HDR breaking
+-	// We divide by sc_luminance_multiplier to support a range from 0.0 - 2.0 both increasing precision on bright and darker images
+-	out_color.rgb = out_color.rgb / sc_luminance_multiplier();
++	out_color.rgb = scene_encode(out_color.rgb);
+ #ifdef PREMUL_ALPHA_USED
+ 	out_color.rgb *= premul_alpha;
  #endif
 --- a/servers/rendering/dummy/storage/material_storage.h
 +++ b/servers/rendering/dummy/storage/material_storage.h
@@ -996,3 +1067,339 @@
 +		}
 +	}
  }
+--- a/servers/rendering/shader_compiler.cpp
++++ b/servers/rendering/shader_compiler.cpp
+@@ -1371,7 +1371,7 @@
+ 						if (RS::get_singleton()->is_low_end()) {
+ 							code = "(" + code + " / vec4(vec3(scene_data_block.data.luminance_multiplier), 1.0))";
+ 						} else {
+-							code = "(" + code + " * vec4(vec3(sc_luminance_multiplier()), 1.0))";
++							code = "scene_decode(" + code + ")";
+ 						}
+ 					}
+ 					if (is_normal_roughness_texture && !texture_func_returns_data) {
+--- a/servers/rendering/renderer_rd/forward_mobile/scene_shader_forward_mobile.h
++++ b/servers/rendering/renderer_rd/forward_mobile/scene_shader_forward_mobile.h
+@@ -108,7 +108,7 @@
+ 				uint32_t scene_use_ambient_cubemap : 1;
+ 				uint32_t scene_use_reflection_cubemap : 1;
+ 				uint32_t scene_roughness_limiter_enabled : 1;
+-				uint32_t padding_0 : 1;
++				uint32_t scene_encoded : 1;
+ 
+ 				uint32_t soft_shadow_samples : 6;
+ 				uint32_t penumbra_shadow_samples : 6;
+--- a/servers/rendering/renderer_rd/shaders/forward_mobile/scene_forward_mobile_inc.glsl
++++ b/servers/rendering/renderer_rd/shaders/forward_mobile/scene_forward_mobile_inc.glsl
+@@ -216,6 +216,21 @@
+ 	return half(sc_packed_2());
+ }
+ 
++// A unorm scene buffer stores the square root of its 0-2 range: stored linearly, its 10-bit steps in dim light come out
++// two to three codes apart once tonemapped. Reflection probes keep theirs linear for the shaders that sample them.
++bool sc_scene_encoded() {
++	return ((sc_packed_0() >> 19) & 1U) != 0;
++}
++
++hvec3 scene_encode(hvec3 color) {
++	color /= sc_luminance_multiplier();
++	return sc_scene_encoded() ? sqrt(max(color, hvec3(0.0))) : color;
++}
++
++vec4 scene_decode(vec4 color) {
++	return vec4((sc_scene_encoded() ? color.rgb * color.rgb : color.rgb) * float(sc_luminance_multiplier()), color.a);
++}
++
+ layout(constant_id = 3) const bool sc_emulate_point_size = false;
+ 
+ #ifdef POINT_SIZE_USED
+--- a/servers/rendering/renderer_rd/shaders/effects/tonemap_mobile.glsl
++++ b/servers/rendering/renderer_rd/shaders/effects/tonemap_mobile.glsl
+@@ -183,6 +183,10 @@
+ 	return mix(s, t, lessThan(x, vec3(awp_crossover_point)));
+ }
+ 
++vec3 scene_decode(vec3 color) {
++	return params.luminance_multiplier == 1.0 ? color : color * color * params.luminance_multiplier;
++}
++
+ // This is an approximation and simplification of EaryChow's AgX implementation that is used by Blender.
+ // This code is based off of the script that generates the AgX_Base_sRGB.cube LUT that Blender uses.
+ // Source: https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBasesRGB.py
+@@ -418,10 +422,10 @@
+ 	const float SUBPIXEL_QUALITY = 0.75;
+ 
+ #ifdef USE_MULTIVIEW
+-	float lumaUp = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(0, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaDown = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(0, -1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaLeft = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, 0)).xyz * exposure * params.luminance_multiplier);
+-	float lumaRight = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, 0)).xyz * exposure * params.luminance_multiplier);
++	float lumaUp = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(0, 1)).xyz) * exposure);
++	float lumaDown = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(0, -1)).xyz) * exposure);
++	float lumaLeft = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, 0)).xyz) * exposure);
++	float lumaRight = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, 0)).xyz) * exposure);
+ 
+ 	float lumaCenter = rgb2luma(color);
+ 
+@@ -434,10 +438,10 @@
+ 		return color;
+ 	}
+ 
+-	float lumaDownLeft = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, -1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaUpRight = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaUpLeft = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaDownRight = rgb2luma(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, -1)).xyz * exposure * params.luminance_multiplier);
++	float lumaDownLeft = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, -1)).xyz) * exposure);
++	float lumaUpRight = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, 1)).xyz) * exposure);
++	float lumaUpLeft = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(-1, 1)).xyz) * exposure);
++	float lumaDownRight = rgb2luma(scene_decode(textureLodOffset(source_color, vec3(uv_interp, ViewIndex), 0.0, ivec2(1, -1)).xyz) * exposure);
+ 
+ 	float lumaDownUp = lumaDown + lumaUp;
+ 	float lumaLeftRight = lumaLeft + lumaRight;
+@@ -482,8 +486,8 @@
+ 	vec3 uv1 = vec3(currentUv - offset * QUALITY(0), ViewIndex);
+ 	vec3 uv2 = vec3(currentUv + offset * QUALITY(0), ViewIndex);
+ 
+-	float lumaEnd1 = rgb2luma(textureLod(source_color, uv1, 0.0).xyz * exposure * params.luminance_multiplier);
+-	float lumaEnd2 = rgb2luma(textureLod(source_color, uv2, 0.0).xyz * exposure * params.luminance_multiplier);
++	float lumaEnd1 = rgb2luma(scene_decode(textureLod(source_color, uv1, 0.0).xyz) * exposure);
++	float lumaEnd2 = rgb2luma(scene_decode(textureLod(source_color, uv2, 0.0).xyz) * exposure);
+ 	lumaEnd1 -= lumaLocalAverage;
+ 	lumaEnd2 -= lumaLocalAverage;
+ 
+@@ -501,11 +505,11 @@
+ 	if (!reachedBoth) {
+ 		for (int i = 2; i < ITERATIONS; i++) {
+ 			if (!reached1) {
+-				lumaEnd1 = rgb2luma(textureLod(source_color, uv1, 0.0).xyz * exposure * params.luminance_multiplier);
++				lumaEnd1 = rgb2luma(scene_decode(textureLod(source_color, uv1, 0.0).xyz) * exposure);
+ 				lumaEnd1 = lumaEnd1 - lumaLocalAverage;
+ 			}
+ 			if (!reached2) {
+-				lumaEnd2 = rgb2luma(textureLod(source_color, uv2, 0.0).xyz * exposure * params.luminance_multiplier);
++				lumaEnd2 = rgb2luma(scene_decode(textureLod(source_color, uv2, 0.0).xyz) * exposure);
+ 				lumaEnd2 = lumaEnd2 - lumaLocalAverage;
+ 			}
+ 			reached1 = abs(lumaEnd1) >= gradientScaled;
+@@ -558,14 +562,14 @@
+ 		finalUv.x += finalOffset * stepLength;
+ 	}
+ 
+-	vec3 finalColor = textureLod(source_color, finalUv, 0.0).xyz * exposure * params.luminance_multiplier;
++	vec3 finalColor = scene_decode(textureLod(source_color, finalUv, 0.0).xyz) * exposure;
+ 	return finalColor;
+ 
+ #else
+-	float lumaUp = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(0, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaDown = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(0, -1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaLeft = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, 0)).xyz * exposure * params.luminance_multiplier);
+-	float lumaRight = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, 0)).xyz * exposure * params.luminance_multiplier);
++	float lumaUp = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(0, 1)).xyz) * exposure);
++	float lumaDown = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(0, -1)).xyz) * exposure);
++	float lumaLeft = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, 0)).xyz) * exposure);
++	float lumaRight = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, 0)).xyz) * exposure);
+ 
+ 	float lumaCenter = rgb2luma(color);
+ 
+@@ -578,10 +582,10 @@
+ 		return color;
+ 	}
+ 
+-	float lumaDownLeft = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, -1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaUpRight = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaUpLeft = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, 1)).xyz * exposure * params.luminance_multiplier);
+-	float lumaDownRight = rgb2luma(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, -1)).xyz * exposure * params.luminance_multiplier);
++	float lumaDownLeft = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, -1)).xyz) * exposure);
++	float lumaUpRight = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, 1)).xyz) * exposure);
++	float lumaUpLeft = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(-1, 1)).xyz) * exposure);
++	float lumaDownRight = rgb2luma(scene_decode(textureLodOffset(source_color, uv_interp, 0.0, ivec2(1, -1)).xyz) * exposure);
+ 
+ 	float lumaDownUp = lumaDown + lumaUp;
+ 	float lumaLeftRight = lumaLeft + lumaRight;
+@@ -626,8 +630,8 @@
+ 	vec2 uv1 = currentUv - offset * QUALITY(0);
+ 	vec2 uv2 = currentUv + offset * QUALITY(0);
+ 
+-	float lumaEnd1 = rgb2luma(textureLod(source_color, uv1, 0.0).xyz * exposure * params.luminance_multiplier);
+-	float lumaEnd2 = rgb2luma(textureLod(source_color, uv2, 0.0).xyz * exposure * params.luminance_multiplier);
++	float lumaEnd1 = rgb2luma(scene_decode(textureLod(source_color, uv1, 0.0).xyz) * exposure);
++	float lumaEnd2 = rgb2luma(scene_decode(textureLod(source_color, uv2, 0.0).xyz) * exposure);
+ 	lumaEnd1 -= lumaLocalAverage;
+ 	lumaEnd2 -= lumaLocalAverage;
+ 
+@@ -645,11 +649,11 @@
+ 	if (!reachedBoth) {
+ 		for (int i = 2; i < ITERATIONS; i++) {
+ 			if (!reached1) {
+-				lumaEnd1 = rgb2luma(textureLod(source_color, uv1, 0.0).xyz * exposure * params.luminance_multiplier);
++				lumaEnd1 = rgb2luma(scene_decode(textureLod(source_color, uv1, 0.0).xyz) * exposure);
+ 				lumaEnd1 = lumaEnd1 - lumaLocalAverage;
+ 			}
+ 			if (!reached2) {
+-				lumaEnd2 = rgb2luma(textureLod(source_color, uv2, 0.0).xyz * exposure * params.luminance_multiplier);
++				lumaEnd2 = rgb2luma(scene_decode(textureLod(source_color, uv2, 0.0).xyz) * exposure);
+ 				lumaEnd2 = lumaEnd2 - lumaLocalAverage;
+ 			}
+ 			reached1 = abs(lumaEnd1) >= gradientScaled;
+@@ -702,7 +706,7 @@
+ 		finalUv.x += finalOffset * stepLength;
+ 	}
+ 
+-	vec3 finalColor = textureLod(source_color, finalUv, 0.0).xyz * exposure * params.luminance_multiplier;
++	vec3 finalColor = scene_decode(textureLod(source_color, finalUv, 0.0).xyz) * exposure;
+ 	return finalColor;
+ 
+ #endif
+@@ -739,7 +743,7 @@
+ #else
+ 	vec4 color = textureLod(source_color, uv_interp, 0.0f);
+ #endif
+-	color.rgb *= params.luminance_multiplier;
++	color.rgb = scene_decode(color.rgb);
+ 
+ 	// Exposure
+ 
+--- a/servers/rendering/renderer_rd/shaders/effects/blur_raster.glsl
++++ b/servers/rendering/renderer_rd/shaders/effects/blur_raster.glsl
+@@ -43,6 +43,12 @@
+ 
+ layout(set = 0, binding = 0) uniform sampler2D source_color;
+ 
++#ifdef MODE_GLOW_GATHER
++vec4 scene_decode(vec4 color) {
++	return blur.luminance_multiplier == 1.0 ? color : vec4(color.rgb * color.rgb, color.a) * blur.luminance_multiplier;
++}
++#endif
++
+ #ifdef MODE_GLOW_UPSAMPLE
+ // When upsampling this is original downsampled texture, not the blended upsampled texture.
+ layout(set = 1, binding = 0) uniform sampler2D blend_color;
+@@ -187,19 +193,16 @@
+ 
+ 	// We skipped a level, so gather 16 closest samples now.
+ 
+-	vec4 color = textureLod(source_color, (block_pos + vec2(1.0, 1.0)) * blur.source_pixel_size, 0.0);
+-	color += textureLod(source_color, (block_pos + vec2(1.0, 3.0)) * blur.source_pixel_size, 0.0);
+-	color += textureLod(source_color, (block_pos + vec2(3.0, 1.0)) * blur.source_pixel_size, 0.0);
+-	color += textureLod(source_color, (block_pos + vec2(3.0, 3.0)) * blur.source_pixel_size, 0.0);
++	vec4 color = scene_decode(textureLod(source_color, (block_pos + vec2(1.0, 1.0)) * blur.source_pixel_size, 0.0));
++	color += scene_decode(textureLod(source_color, (block_pos + vec2(1.0, 3.0)) * blur.source_pixel_size, 0.0));
++	color += scene_decode(textureLod(source_color, (block_pos + vec2(3.0, 1.0)) * blur.source_pixel_size, 0.0));
++	color += scene_decode(textureLod(source_color, (block_pos + vec2(3.0, 3.0)) * blur.source_pixel_size, 0.0));
+ 	frag_color = color * 0.25;
+ 
+ 	// Apply strength a second time since it usually gets added at each level.
+ 	frag_color *= blur.glow_strength;
+ 	frag_color *= blur.glow_strength;
+ 
+-	// In the first pass bring back to correct color range else we're applying the wrong threshold
+-	// in subsequent passes we can use it as is as we'd just be undoing it right after.
+-	frag_color *= blur.luminance_multiplier;
+ 	frag_color *= blur.glow_exposure;
+ 
+ 	float luminance = max(frag_color.r, max(frag_color.g, frag_color.b));
+--- a/servers/rendering/renderer_rd/shaders/effects/copy_to_fb.glsl
++++ b/servers/rendering/renderer_rd/shaders/effects/copy_to_fb.glsl
+@@ -191,5 +191,8 @@
+ 	}
+ 
+ 	frag_color = color / params.luminance_multiplier;
++	if (params.luminance_multiplier != 1.0) {
++		frag_color.rgb = sqrt(max(frag_color.rgb, vec3(0.0)));
++	}
+ #endif // MODE_SET_COLOR
+ }
+--- a/servers/rendering/renderer_rd/shaders/environment/sky.glsl
++++ b/servers/rendering/renderer_rd/shaders/environment/sky.glsl
+@@ -14,6 +14,7 @@
+ 	vec2 pad;
+ 	float luminance_multiplier;
+ 	float brightness_multiplier;
++	uint scene_encoded;
+ }
+ params;
+ 
+@@ -48,6 +49,7 @@
+ 	vec2 border_size;
+ 	float luminance_multiplier;
+ 	float brightness_multiplier;
++	uint scene_encoded;
+ }
+ params;
+ 
+@@ -299,6 +301,9 @@
+ 	// For mobile renderer we're multiplying by 0.5 as we're using a UNORM buffer.
+ 	// For both mobile and clustered, we also bake in the exposure value for the environment and camera.
+ 	frag_color.rgb = frag_color.rgb * params.luminance_multiplier;
++	if (params.scene_encoded != 0) {
++		frag_color.rgb = sqrt(max(frag_color.rgb, vec3(0.0)));
++	}
+ 
+ 	// Blending is disabled for Sky, so alpha doesn't blend.
+ 	// Alpha is used for subsurface scattering so make sure it doesn't get applied to Sky.
+--- a/servers/rendering/renderer_rd/environment/sky.h
++++ b/servers/rendering/renderer_rd/environment/sky.h
+@@ -103,6 +103,8 @@
+ 		float border_size[2]; // 8 - 88
+ 		float luminance_multiplier; // 4 - 92
+ 		float brightness_multiplier; // 4 - 96
++		uint32_t scene_encoded; // 4 - 100
++		uint32_t pad[3]; // 12 - 112
+ 		// 128 is the max size of a push constant. We can replace "pad" but we can't add any more.
+ 	};
+ 
+@@ -134,7 +136,7 @@
+ 		virtual ~SkyShaderData();
+ 	};
+ 
+-	void _render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, const Projection &p_projection, const Basis &p_orientation, const Vector3 &p_position, float p_luminance_multiplier, float p_brightness_modifier, float p_border_size = 0.0);
++	void _render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, const Projection &p_projection, const Basis &p_orientation, const Vector3 &p_position, float p_luminance_multiplier, float p_brightness_modifier, float p_border_size = 0.0, bool p_scene_encoded = false);
+ 
+ public:
+ 	struct SkySceneState {
+@@ -305,7 +307,7 @@
+ 	void setup_sky(const RenderDataRD *p_render_data, const Size2i p_screen_size);
+ 	void update_radiance_buffers(Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, const Vector3 &p_global_pos, double p_time, float p_luminance_multiplier = 1.0, float p_brightness_multiplier = 1.0);
+ 	void update_res_buffers(Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, double p_time, float p_luminance_multiplier = 1.0, float p_brightness_multiplier = 1.0);
+-	void draw_sky(RD::DrawListID p_draw_list, Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, RID p_fb, double p_time, float p_luminance_multiplier = 1.0, float p_brightness_multiplier = 1.0);
++	void draw_sky(RD::DrawListID p_draw_list, Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, RID p_fb, double p_time, float p_luminance_multiplier = 1.0, float p_brightness_multiplier = 1.0, bool p_scene_encoded = false);
+ 
+ 	void invalidate_sky(Sky *p_sky);
+ 	void update_dirty_skys();
+--- a/servers/rendering/renderer_rd/environment/sky.cpp
++++ b/servers/rendering/renderer_rd/environment/sky.cpp
+@@ -215,7 +215,7 @@
+ 	p_array[11] = 0;
+ }
+ 
+-void SkyRD::_render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, const Projection &p_projection, const Basis &p_orientation, const Vector3 &p_position, float p_luminance_multiplier, float p_brightness_multiplier, float p_border_size) {
++void SkyRD::_render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, const Projection &p_projection, const Basis &p_orientation, const Vector3 &p_position, float p_luminance_multiplier, float p_brightness_multiplier, float p_border_size, bool p_scene_encoded) {
+ 	SkyPushConstant sky_push_constant;
+ 
+ 	memset(&sky_push_constant, 0, sizeof(SkyPushConstant));
+@@ -234,6 +234,7 @@
+ 	sky_push_constant.border_size[1] = 1.0f - p_border_size * 2.0;
+ 	sky_push_constant.luminance_multiplier = p_luminance_multiplier;
+ 	sky_push_constant.brightness_multiplier = p_brightness_multiplier;
++	sky_push_constant.scene_encoded = p_scene_encoded;
+ 	store_transform_3x3(p_orientation, sky_push_constant.orientation);
+ 
+ 	RenderingDevice::FramebufferFormatID fb_format = RD::get_singleton()->framebuffer_get_format(p_fb);
+@@ -1448,7 +1449,7 @@
+ 	RD::get_singleton()->draw_command_end_label(); // Setup Sky resolution buffers
+ }
+ 
+-void SkyRD::draw_sky(RD::DrawListID p_draw_list, Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, RID p_fb, double p_time, float p_luminance_multiplier, float p_brightness_multiplier) {
++void SkyRD::draw_sky(RD::DrawListID p_draw_list, Ref<RenderSceneBuffersRD> p_render_buffers, RID p_env, RID p_fb, double p_time, float p_luminance_multiplier, float p_brightness_multiplier, bool p_scene_encoded) {
+ 	ERR_FAIL_COND(p_render_buffers.is_null());
+ 	RendererRD::MaterialStorage *material_storage = RendererRD::MaterialStorage::get_singleton();
+ 	ERR_FAIL_COND(p_env.is_null());
+@@ -1506,7 +1507,7 @@
+ 		texture_uniform_set = sky_scene_state.fog_only_texture_uniform_set;
+ 	}
+ 
+-	_render_sky(p_draw_list, p_time, p_fb, pipeline, material->uniform_set, texture_uniform_set, projection, sky_transform, sky_scene_state.cam_transform.origin, p_luminance_multiplier, p_brightness_multiplier);
++	_render_sky(p_draw_list, p_time, p_fb, pipeline, material->uniform_set, texture_uniform_set, projection, sky_transform, sky_scene_state.cam_transform.origin, p_luminance_multiplier, p_brightness_multiplier, 0.0, p_scene_encoded);
+ }
+ 
+ void SkyRD::invalidate_sky(Sky *p_sky) {
