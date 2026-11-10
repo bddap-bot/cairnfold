@@ -90,7 +90,16 @@ void vertex() {
 		}
 #endif
 		float ground = ground_at(world_pos.xz);
-		vec3 at = volume_coord(room_read(room_row, abs(material - ELEMENT_ROOF) < 0.5 ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm), world_nrm), ground);
+		// A tile lies on the roof over the room it is no part of, however low it reaches.
+		bool cover = abs(material - ELEMENT_ROOF) < 0.5;
+		vec3 q = cover ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm);
+		vec3 lowest = piece[3].xyz - vec3(0.0, 0.5 * (abs(piece[0].y) + abs(piece[1].y) + abs(piece[2].y)), 0.0);
+#ifdef ROOF_TIMBER
+		float reach = 0.0;
+#else
+		float reach = cover ? 0.0 : ROOM_STONE_REACH;
+#endif
+		vec3 at = volume_coord(room_read(room_row, q, world_nrm, cover ? q : lowest, reach), ground);
 #ifdef GIVEN_PER_VERTEX
 		given = given_read(at, lamp_over(world_pos, world_nrm, ground));
 #else

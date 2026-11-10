@@ -21,7 +21,7 @@ void vertex() {
 		occlusion = PIECE_CUSTOM.x;
 		ROOM_HERE;
 		float ground = ground_at(world_pos.xz);
-		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm), ground), lamp_over(world_pos, world_nrm, ground));
+		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm, piece[3].xyz, 0.0), ground), lamp_over(world_pos, world_nrm, ground));
 #ifdef BAKED
 		VERTEX = world_pos;
 		NORMAL = world_nrm;

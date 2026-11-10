@@ -9,7 +9,8 @@ func _init() -> void:
 	_an_open_loop_is_left_out()
 	_a_dormer_window_lets_the_sun_in()
 	_houses_apart_take_their_own_rows()
-	_a_stack_of_storeys_tops_at_its_highest_ceiling()
+	_a_stack_of_storeys_spans_its_lowest_floor_to_its_highest_ceiling()
+	_an_opening_is_marked_across_the_wall()
 	_changes_coalesce_into_one_pack()
 	finish()
 
@@ -90,8 +91,7 @@ func _houses_apart_take_their_own_rows() -> void:
 	check(_cell(packed, 3.5, 0.0) == 1 and _cell(packed, 23.5, 0.0) == 2, "apart, each house has its own row")
 
 
-## A village's field takes the Frame 12 to 17 ms, so it packs on a worker.
-func _a_stack_of_storeys_tops_at_its_highest_ceiling() -> void:
+func _a_stack_of_storeys_spans_its_lowest_floor_to_its_highest_ceiling() -> void:
 	var lower := lit_house()
 	var upper := lit_house()
 	lower.roof = null
@@ -99,12 +99,41 @@ func _a_stack_of_storeys_tops_at_its_highest_ceiling() -> void:
 	upper.floor += 3.0
 	upper.top += 3.0
 	var packed := Interior.pack(Lamps.Rooms.new([lower, upper]), OVER_ARCH)
-	var inside := Interior._texel_of(Vector2(3.5, 0.0))
-	var outside := Interior._texel_of(Vector2(-4.0, 0.0))
-	check(is_equal_approx(packed.top[inside.y * Interior.SIZE + inside.x], upper.top), "a column inside the storeys tops at the upper's ceiling")
-	check(packed.top[outside.y * Interior.SIZE + outside.x] == 0.0, "the meadow round them tops at nothing")
+	var inside := Interior._texel_of(Vector2(3.5, 0.0)).y * Interior.SIZE + Interior._texel_of(Vector2(3.5, 0.0)).x
+	check(is_equal_approx(packed.field[inside * 4 + 2], upper.top), "a column inside the storeys tops at the upper's ceiling")
+	check(is_equal_approx(packed.field[inside * 4 + 1], lower.floor - Interior.BELOW), "and starts under the lower's floor")
+	var set_in := lit_house(WallLayout.Cover.ROOF, [], Vector3(2.0, 0.0, 0.0))
+	set_in.roof = null
+	set_in.floor += 3.0
+	set_in.top += 3.0
+	packed = Interior.pack(Lamps.Rooms.new([lower, set_in]), OVER_ARCH)
+	check(not (is_equal_approx(packed.field[inside * 4 + 2], set_in.top) and is_equal_approx(packed.field[inside * 4 + 1], lower.floor - Interior.BELOW)), "a storey set in from the walls below keeps its own height")
 
 
+func _an_opening_is_marked_across_the_wall() -> void:
+	var room := lit_house()
+	check(not room.portals.is_empty(), "the house has an opening")
+	if room.portals.is_empty():
+		return
+	var at: Vector3 = room.portals[0].at
+	var out: Vector3 = room.portals[0].out
+	var packed := Interior.pack(Lamps.Rooms.new([room]), OVER_ARCH)
+	check(_mark(packed, Vector2(at.x, at.z)) > 0.0, "the wall at the opening is marked")
+	var side := Vector2(-out.z, out.x)
+	var half: float = room.portals[0].half
+	check(_mark(packed, Vector2(at.x, at.z) + side * half) > 0.0, "out to its jambs")
+	check(_mark(packed, Vector2(at.x, at.z) + side * (half + Interior.STEP * 2.5)) == 0.0, "and no further along the wall")
+	var t := Interior._texel_of(Vector2(at.x, at.z))
+	check(roundi(packed.field[(t.y * Interior.SIZE + t.x) * 4 + 3]) == 1, "the mark leaves its row")
+
+
+func _mark(packed: Dictionary, p: Vector2) -> float:
+	var t := Interior._texel_of(p)
+	var a: float = packed.field[(t.y * Interior.SIZE + t.x) * 4 + 3]
+	return a - floorf(a)
+
+
+## A village's field takes the Frame 12 to 17 ms, so it packs on a worker.
 func _changes_coalesce_into_one_pack() -> void:
 	var interior := Interior.new()
 	check(not interior._next().is_valid(), "nothing to pack before any room")

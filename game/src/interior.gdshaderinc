@@ -9,7 +9,6 @@
 global uniform sampler2D room_field : filter_linear, repeat_disable;
 global uniform sampler2D room_nearest : filter_nearest, repeat_disable;
 global uniform sampler2D room_data : filter_nearest, repeat_disable;
-global uniform sampler2D room_top : filter_linear, repeat_disable;
 global uniform vec3 sky_zenith;
 global uniform vec3 sky_horizon;
 global uniform float sky_ambient;
@@ -27,6 +26,17 @@ const float ROOM_READ = 1.0;
 const int OPENING = 4;
 // The room_data row no room uses (Interior.NO_ROOM).
 const int NO_ROOM = 0;
+// Layers lie a metre apart and a read filters a column toward the wall, where a pitched roof comes down a metre lower, so a
+// read this far under the ceiling stays in the layers of the room.
+const float ROOM_UNDER = 1.5;
+// How far past a wall's centre line a stone's read may start and still be the room's: the stone's own half of the wall and
+// part of the half metre it reads out, short of a wall's outer face's read.
+const float ROOM_STONE_REACH = 0.7;
+// How far past a wall's centre line a stone of the room's own wall stands at most: its middle lies no further out, and a
+// face looking out of the room lies further out than its middle by this.
+const float ROOM_MIDDLE = 0.35;
+// How far past the centre line torching still lies over the wall below it, inside the wall's outer face.
+const float ROOM_TORCHING_REACH = 0.3;
 
 // The room_data row over a vertex, NO_ROOM for none, and whether it lies in that room: a triangle whose corners all do is
 // in it everywhere, one whose corners all lie out of every room is out everywhere, and only one across the walls'
@@ -66,28 +76,65 @@ bool within_walls(vec2 xz) {
 	return room_at(xz).x > 0.0;
 }
 
-// Where a shell's face facing `n` over room_data row `row` reads the bounce volume instead of `q`: under the rooms
-// over it, ROOM_READ from the nearest wall's centre line. A face looking at the nearest wall is the outside of a storey
-// set in from the walls below it. The step along the field's slope is over the slope's square because the slope
-// shortens along a corner's bisector, where the nearest wall changes.
-vec3 room_read(int row, vec3 q, vec3 n) {
+// Whether `xz` lies across one of the room's openings (Interior._mark_openings).
+bool room_across_opening(vec2 xz) {
+	ivec2 size = textureSize(room_nearest, 0);
+	ivec2 cell = ivec2(floor((xz - bounce_grid.x) / bounce_grid.y * vec2(size)));
+	if (any(lessThan(cell, ivec2(0))) || any(greaterThanEqual(cell, size))) {
+		return false;
+	}
+	return fract(texelFetch(room_nearest, cell, 0).a) > 0.0;
+}
+
+vec2 room_slope(vec2 xz, float texel) {
+	return vec2(
+		room_at(xz + vec2(texel, 0.0)).x - room_at(xz - vec2(texel, 0.0)).x,
+		room_at(xz + vec2(0.0, texel)).x - room_at(xz - vec2(0.0, texel)).x) / (2.0 * texel);
+}
+
+// Whether a piece standing at `xz` faces out of its room along `n`: its middle lies past the wall it would be part of,
+// or its face looks further out than its middle stands. Asked of its middle, as a stone's rounded corners lean past
+// its face and a corner's nearest wall changes along it.
+bool room_looks_out(vec2 xz, vec2 n) {
+	float at = room_at(xz).x;
+	return at < -ROOM_MIDDLE || room_at(xz + n * ROOM_MIDDLE).x < at - ROOM_MIDDLE * 0.3;
+}
+
+// Where a shell's face facing `n` over room_data row `row` reads the bounce volume instead of `q`: in the rooms over
+// it, ROOM_READ from the nearest wall's centre line and ROOM_UNDER below the ceiling, so a filtered read takes no probe
+// of the open air round the shell. `anchor` says whether the face is in the room at all, a stone answering for its
+// lowest point at its middle so one rising through the ceiling stays whole where its corners would disagree. A read
+// up to `reach` past the centre line belongs to the room unless it looks out of it (judged at `anchor`, as a stone's
+// rounded corners lean past its face) or it is a reveal's, across an opening. The step along the field's slope is
+// over the slope's square because the slope shortens along a corner's bisector, where the nearest wall changes.
+vec3 room_read(int row, vec3 q, vec3 n, vec3 anchor, float reach) {
 	if (row == NO_ROOM) {
 		return q;
 	}
-	float inside = room_at(q.xz).x;
-	if (inside <= 0.0 || inside >= ROOM_READ || q.y >= textureLod(room_top, (q.xz - bounce_grid.x) / bounce_grid.y, 0.0).r) {
+	vec4 room = room_at(q.xz);
+	if (room.x <= -reach || room.x >= ROOM_READ || anchor.y >= room_at(anchor.xz).z) {
 		return q;
 	}
 	float texel = bounce_grid.y / float(textureSize(room_field, 0).x);
-	vec2 slope = vec2(
-		room_at(q.xz + vec2(texel, 0.0)).x - room_at(q.xz - vec2(texel, 0.0)).x,
-		room_at(q.xz + vec2(0.0, texel)).x - room_at(q.xz - vec2(0.0, texel)).x) / (2.0 * texel);
+	vec2 slope = room_slope(q.xz, texel);
 	float steep = dot(slope, slope);
 	// Where two joined rooms' fields meet the slope flattens, and both sides of the old wall are dark already.
-	if (steep < 0.25 || dot(n.xz, slope) < -0.5) {
+	if (steep < 0.25 || (room.x <= 0.0 && (room_looks_out(anchor.xz, n.xz) || room_across_opening(q.xz)))) {
 		return q;
 	}
-	q.xz += slope * (ROOM_READ - inside) / steep;
+	q.xz += slope * (ROOM_READ - room.x) / steep;
+	// A step from outside the centre line falls short where the field bends, at a corner or a stack's set-in walls.
+	float landed = room_at(q.xz).x;
+	vec2 again = room_slope(q.xz, texel);
+	if (landed < ROOM_READ && dot(again, again) >= 0.25) {
+		q.xz += again * (ROOM_READ - landed) / dot(again, again);
+	}
+	// A face of the outer half reads at its own height, which Bounce keeps dark a layer over the roof; held under the
+	// ceiling as well, a reveal's would read the room's darker layers.
+	if (room.x > 0.0) {
+		vec4 over = room_at(q.xz);
+		q.y = max(min(q.y, over.z - ROOM_UNDER), over.y + ROOM_UNDER);
+	}
 	return q;
 }
 

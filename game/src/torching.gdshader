@@ -24,7 +24,7 @@ void vertex() {
 	// The probes beside it stand among the tiles; the floor's see what the room does through its doors. A gable's
 	// outer backing shows where its courses stop short of the apex, so it reads the air outside as their stones do.
 	bool outside = COLOR.r > 0.5 && !within_walls(world_pos.xz + world_nrm.xz * 0.5);
-	bounce_at = outside ? bounce_over(world_pos, world_nrm, ground) : bounce_on_ground(room_read(room_row, world_pos, world_nrm).xz);
+	bounce_at = outside ? bounce_over(world_pos, world_nrm, ground) : bounce_on_ground(room_read(room_row, world_pos, world_nrm, world_pos, ROOM_TORCHING_REACH).xz);
 	lamp_at = lamp_over(world_pos, world_nrm, ground);
 }
 

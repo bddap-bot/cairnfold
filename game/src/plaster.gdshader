@@ -26,7 +26,7 @@ void vertex() {
 	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	world_nrm = n;
 	ROOM_HERE;
-	vec3 q = room_read(room_row, world_pos + n, n);
+	vec3 q = room_read(room_row, world_pos + n, n, world_pos, 0.0);
 	float ground = ground_at(q.xz);
 	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground, LOW) / bounce_grid.z);
 	lamp_at = volume_coord(q, ground);

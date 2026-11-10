@@ -2657,15 +2657,18 @@ The same footprint, roof and openings used by `Lamps.Room` also bound the sky an
 bounced sunlight in covered rooms. Each opening contributes its projected area
 with inverse-square falloff into the room; sealed rooms contribute none. Boundary
 probes include half a cell around the shell, and a face inside a room reads the
-volume a metre from the nearest wall's centre line, moved straight away from it (`room_read`), so linear filtering never brings the outside column's
-sky onto a ceiling's edge or a wall's top. Over the roof they reach a full
+volume a metre from the nearest wall's centre line and a metre and a half under its ceiling (`room_read`), so linear
+filtering never brings the outside column's sky onto a ceiling's edge, a wall's top, a stone at a corner or a gable's
+top course. A stone is in the room by its lowest point at its middle, so one rising through the roof stays whole, and
+a read that starts just past the centre line stays in the room unless it looks out of it or lies across an opening,
+whose reveals keep the light of the outer half; a roof's covering and its rafters never count as the room's. Over the roof they reach a full
 layer further: a gable or ceiling face reads half a metre out between layers a
 metre apart, so any probe less than a layer over the roof would bring the sky
 onto it. A roof's covering (tiles, thatch) reads the volume over that band instead,
 so its outer face keeps the sky. Joined rooms share their openings;
 a joined roofless courtyard keeps the height-field solution. This runs on the
-bake worker; the shader side costs a vertex nearer the walls than that metre five
-reads of `room_field` and one of `room_top`, the highest ceiling over each column.
+bake worker; the shader side costs a vertex nearer the walls than that metre a dozen
+reads of `room_field`, and one standing past the centre line two more and one of `room_nearest`.
 
 A roof's covering (tiles, thatch) casts its shadow from boxes pulled half a metre
 toward the light (`roof_shadow.gdshader`), and its own faces take their shadows
@@ -2721,7 +2724,7 @@ the way to the light leaves its room through a door, window, arch or dormer wind
 answer whatever the shadow map holds; the shadow map still shapes the patch that does come in.
 
 The rooms are `Lamps.Room`'s, sent as two textures: `room_field`, over the play area every quarter metre, how far
-inside its walls' centre line a point lies, the floor and ceiling there and its group's row, remade when the rooms
+inside its walls' centre line a point lies, the lowest floor and highest ceiling of storeys stacked flush there and its group's row, marked across each opening, remade when the rooms
 change; and `room_data`, a row per group of the openings facing the light (`Interior.crossing`), remade when the light
 moves too. Each opening is stored as the light crosses it from inside: across and up from the middle of its sill as two
 affine functions of the point, narrowed by how far the ray runs through the wall's depth so a deep reveal narrows a low
