@@ -19,6 +19,7 @@ func _init() -> void:
 	_open_walls_lay_no_floor()
 	_a_newer_house_yields_its_floor_to_an_older_one_it_joins()
 	_floors_are_stood_on_and_hit()
+	_a_coping_is_walked_on_at_its_stones()
 	_the_meadow_is_worn_bare_inside_the_walls_only()
 	finish()
 
@@ -392,6 +393,27 @@ func _floors_are_stood_on_and_hit() -> void:
 	check(t < INF and absf((from + dir * t).y - w.floor_y) < 0.01, "a ray down from inside meets the floor under it: %.2f" % t)
 	check(w.floor_hit(mid + Vector3.UP * (w.floor_y + 1.6), Vector3.UP) == INF, "a ray upward meets no floor's top")
 	check(w.floor_hit(mid + Vector3.UP * (w.floor_y - 0.5), Vector3.DOWN) == INF, "a ray down from under the floor meets no floor's top")
+	var ring := WallLayout.new()
+	ring.points = w.points
+	ring.closed = true
+	ring.fence = true
+	ring.cover = WallLayout.Cover.DECK
+	check(w.floored() and not ring.floored(), "a ring of fence under a deck is no house, and takes no floor")
+
+
+func _a_coping_is_walked_on_at_its_stones() -> void:
+	var w := WallLayout.new()
+	w.points.assign([Vector3(0, 0, 0), Vector3(8, 0, 0)])
+	w.top = WallLayout.Top.COPE
+	w.height = 1.2
+	w.build(Terrain.flat)
+	var tall := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "cope" and absf(st.xform.basis.y.y) >= WallLayout.COPE_TALL.x - 0.001)
+	var tops := 0.0
+	for st: Dictionary in tall:
+		tops += st.xform.origin.y + absf(st.xform.basis.y.y) * 0.5
+	var mid: Vector3 = w.frame_at(w.length() * 0.5).point
+	var walk := w.walk_under(mid + Vector3.UP * 5.0)
+	check(tall.size() > 20 and absf(walk - tops / tall.size()) < 0.02, "a coped wall is walked on at its tall stones' tops: %.3f, %d stones averaging %.3f" % [walk, tall.size(), tops / maxf(tall.size(), 1)])
 
 
 func _the_meadow_is_worn_bare_inside_the_walls_only() -> void:
