@@ -230,7 +230,16 @@ if [ "${2:-}" = --android ]; then
     adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
     sleep 15
     shows "activity activities" ResumedActivity "$pkg" && break
-    [ "$try" -lt 3 ] || { adb pull "$log" "$out/logcat.txt" > /dev/null; echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
+    if [ "$try" = 3 ]; then
+      adb pull "$log" "$out/logcat.txt" > /dev/null
+      adb shell dumpsys activity activities > "$out/activities.txt"
+      if awk -v pkg="$pkg" '/Hist / { mine = index($0, " " pkg "/") > 0 } mine && /^ *app=null/ { found = 1 } END { exit !found }' "$out/activities.txt"; then
+        echo "bench: the system holds the game's activity unbound to its running process, which restarting the shell does not clear: reboot the headset and rerun; see $out/activities.txt" >&2
+      else
+        echo "bench: the game would not start; see $out/logcat.txt" >&2
+      fi
+      exit 1
+    fi
     echo "bench: launch $try did not hold, restarting the shell" >&2
     fresh_shell
   done
