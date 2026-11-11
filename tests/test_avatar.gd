@@ -117,6 +117,9 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, [cut.slice(0, cut.size() - 20)])) == null, "an image that does not decode is refused, not handed to other decoders")
 	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) != null, "a lossless WebP is read")
 	check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGB8).save_webp_to_buffer(true)])) != null, "a lossy WebP is read")
+	# cwebp -exact -lossless -z 9 of one clear pixel: a lossless WebP states its size within its first 25 bytes.
+	var smallest := PackedByteArray([0x52, 0x49, 0x46, 0x46, 0x14, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4c, 0x08, 0, 0, 0, 0x2f, 0, 0, 0, 0x10, 0x88, 0x88, 0x08])
+	check(Vrm._image_size(smallest) == Vector2i(1, 1) and Avatar.read(_with_images(bytes, [smallest])) != null, "a lossless WebP shorter than any other header is measured and read: %s" % Vrm._image_size(smallest))
 	var measured := _with_images(bytes, [png.call(64, 32), Image.create_empty(16, 8, false, Image.FORMAT_RGBA8).save_webp_to_buffer(), jpg.call(40, 20)])
 	check(Avatar.texture_bytes(Vrm.images(measured)) == (64 * 32 + 16 * 8 + 40 * 20) * 4 * 4 / 3, "an avatar's texture memory is measured from its images' headers")
 	check(Avatar.read(_with_images(bytes, ["GIF89a".to_ascii_buffer() + cut])) == null, "an image that is neither PNG, JPEG nor WebP is refused")

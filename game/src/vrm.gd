@@ -203,6 +203,7 @@ class Images extends GLTFDocumentExtension:
 			else:
 				out.load_webp_from_buffer(data)
 		if out.is_empty():
+			print("vrm: refused: image %d (%d bytes) %s" % [at, data.size(), "at %s is past the texture budget or not the size its file measured" % size if size.x > 0 and size.y > 0 and not fit else "does not decode" if fit else "has no size this reads"])
 			state.set_additional_data(&"vrm_refused", true)
 			out.set_data(1, 1, false, Image.FORMAT_L8, PackedByteArray([0]))
 			return OK
@@ -376,14 +377,14 @@ static func _particle_indices(json: Variant) -> Array:
 static func _image_size(d: PackedByteArray) -> Vector2i:
 	if d.size() >= 24 and Array(d.slice(0, 8)) == PNG and d.slice(12, 16).get_string_from_ascii() == "IHDR":
 		return Vector2i(_u16(d, 16) << 16 | _u16(d, 18), _u16(d, 20) << 16 | _u16(d, 22))
-	if d.size() >= 32 and d.slice(0, 4).get_string_from_ascii() == "RIFF" and d.slice(8, 12).get_string_from_ascii() == "WEBP":
+	if d.size() >= 16 and d.slice(0, 4).get_string_from_ascii() == "RIFF" and d.slice(8, 12).get_string_from_ascii() == "WEBP":
 		match d.slice(12, 16).get_string_from_ascii():
-			"VP8L":
+			"VP8L" when d.size() >= 25:
 				var bits := d.decode_u32(21)
 				return Vector2i((bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1)
-			"VP8X":
+			"VP8X" when d.size() >= 31:
 				return Vector2i((d.decode_u32(24) & 0xFFFFFF) + 1, (d.decode_u32(27) & 0xFFFFFF) + 1)
-			"VP8 ":
+			"VP8 " when d.size() >= 30:
 				return Vector2i(d.decode_u16(26) & 0x3FFF, d.decode_u16(28) & 0x3FFF)
 		return Vector2i.ZERO
 	if d.size() < 4 or d[0] != 0xFF or d[1] != 0xD8:
@@ -748,14 +749,19 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	state.set_additional_data(&"vrm_layers", null)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
-	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused"):
+	var parsed := doc.append_from_buffer(bytes, "", state)
+	if parsed != OK or state.get_additional_data(&"vrm_refused"):
+		if parsed != OK:
+			print("vrm: refused: not a glTF this reads (%s)" % error_string(parsed))
 		return null
 	var colour := _colour(state.json, state.get_additional_data(&"vrm_means"))
 	if not shape.call(state):
 		return null
 	var root := doc.generate_scene(state) as Node3D
-	if root != null:
-		root.set_meta("colour", colour)
+	if root == null:
+		print("vrm: refused: its scene could not be made")
+		return null
+	root.set_meta("colour", colour)
 	return root
 
 

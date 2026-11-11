@@ -266,9 +266,11 @@ static func built_in(i: int) -> PackedScene:
 ## memory they need (`_reading`) against admitting the next past the floors.
 static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
 	if not unlimited and weight(bytes.size(), 0) > reads(available - _reading):
+		print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, (available - _reading) / 1048576.0])
 		return null
 	var images := Vrm.images(bytes)
 	if images.size() > MAX_IMAGES or images.any(func(image: Dictionary) -> bool: return maxi(image.size.x, image.size.y) > MAX_IMAGE_SIDE):
+		print("avatar: refused: %d images, past %d or one wider than %d" % [images.size(), MAX_IMAGES, MAX_IMAGE_SIDE])
 		return null
 	var pixels := Vrm.pixels(images)
 	var heavy := weight(bytes.size(), pixels)
@@ -279,6 +281,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 		_reading += held
 	_reading_lock.unlock()
 	if not admitted:
+		print("avatar: refused: %.1f MB and %.1f Mpx are past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, pixels / 1e6, (available - _reading) / 1048576.0])
 		return null
 	var decoded := [0]
 	var budget := texture_budget()
@@ -389,6 +392,7 @@ static func texture_bytes(images: Array[Dictionary]) -> int:
 ## head and hands are not bones of one skeleton, or it is still too heavy; frees `root` either way.
 static func model(root: Node3D) -> PackedScene:
 	if root.has_meta("expressions") and not ExpressionDefinition.valid(root.get_meta("expressions")):
+		print("avatar: refused: its expressions are not ones this reads")
 		root.free()
 		return null
 	for key: String in DATA:
@@ -405,7 +409,12 @@ static func model(root: Node3D) -> PackedScene:
 			for i in mi.mesh.get_surface_count():
 				surfaces += 1
 				hulls += int(_marked(mi.mesh.surface_get_material(i)))
-	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES or not _outlined(root, surfaces + hulls <= MAX_SURFACES):
+	var missing := NEEDS.filter(func(b: String) -> bool: return not bones.has(b))
+	if not missing.is_empty() or surfaces > MAX_SURFACES or not _outlined(root, surfaces + hulls <= MAX_SURFACES):
+		if not missing.is_empty():
+			print("avatar: refused: no %s bone on its skeleton" % ", ".join(missing))
+		elif surfaces > MAX_SURFACES:
+			print("avatar: refused: %d surfaces, past %d" % [surfaces, MAX_SURFACES])
 		root.free()
 		return null
 	for n in root.find_children("*", "", true, false):
@@ -623,6 +632,7 @@ static func shape(state: GLTFState) -> bool:
 		for i in gm.mesh.get_surface_count():
 			blended += gm.mesh.get_blend_shape_count() * (gm.mesh.get_surface_arrays(i)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	if blended > MAX_BLEND_VERTICES:
+		print("avatar: refused: blend shapes over %d vertices, past %d" % [blended, MAX_BLEND_VERTICES])
 		return false
 	for gm in state.get_meshes():
 		gm.mesh = _merged(gm.mesh)
