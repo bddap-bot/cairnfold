@@ -868,7 +868,7 @@ func coat_map(coat: Dictionary) -> Image:
 	if source.get_width() > side or source.get_height() > side:
 		var big := maxi(source.get_width(), source.get_height())
 		source.resize(maxi(1, source.get_width() * side / big), maxi(1, source.get_height() * side / big), RESAMPLE)
-	var srgb := str((assets.meta(coat.texture).get("TextureImporter", {}) as Dictionary).get("sRGBTexture", "1")) != "0"
+	var srgb := _srgb(coat.texture)
 	var data := source.get_data()
 	var out := PackedByteArray()
 	out.resize(data.size())
@@ -981,7 +981,7 @@ const RAMP := 16
 func _ramp(m: Dictionary) -> Array:
 	var guid := _texture_guid(m, "_Ramp")
 	var img := image(guid) if guid != "" else null
-	var linear := img == null or str(assets.meta(guid).get("TextureImporter", {}).get("mipmaps", {}).get("sRGBTexture", "1")) == "0"
+	var linear := img == null or not _srgb(guid)
 	var boost := _saved(m, "_ShadowBoost", 0.0)
 	var out := []
 	for i in RAMP:
@@ -1573,9 +1573,19 @@ static func _outline_metres(m: Dictionary) -> float:
 ## The outline `o`'s width mask over the material's padded cell, one byte a texel: its channel, or its brightest where
 ## that is -1.
 func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
-	var texels := _tiled(m, _slot_image(m, o.mask) if o.mask != "" else null, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
+	var guid := _texture_guid(m, o.mask) if o.mask != "" else ""
+	var texels := _tiled(m, _decoded(guid) if guid != "" else null, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
+	var channel: int = clampi(o.channel, 0, 3)
+	var srgb: bool = guid != "" and _srgb(guid) and (o.channel < 0 or channel < 3)
 	var out := PackedByteArray()
 	out.resize(texels.size() / 4)
 	for i in out.size():
-		out[i] = maxi(texels[4 * i], maxi(texels[4 * i + 1], texels[4 * i + 2])) if o.channel < 0 else texels[4 * i + clampi(o.channel, 0, 3)]
+		var byte: int = maxi(texels[4 * i], maxi(texels[4 * i + 1], texels[4 * i + 2])) if o.channel < 0 else texels[4 * i + channel]
+		out[i] = roundi(_LINEAR[byte] * 255.0) if srgb else byte
 	return out
+
+
+## Whether a shader sampling the texture `guid` reads it decoded from sRGB, as its importer sets: a mask's bytes then
+## weigh what their linear light does.
+func _srgb(guid: String) -> bool:
+	return str(((assets.meta(guid).get("TextureImporter", {}) as Dictionary).get("mipmaps", {}) as Dictionary).get("sRGBTexture", "1")) != "0"

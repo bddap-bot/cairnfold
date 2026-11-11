@@ -57,6 +57,7 @@ func _run() -> void:
 	_a_clear_coat_joins_the_look_and_its_maps_offset_binds()
 	_clear_coat_maps_read_their_uv_channel()
 	_toon_outlines_join_the_look()
+	_an_outline_mask_weighs_as_its_shader_reads_it()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
@@ -1900,7 +1901,7 @@ func _toon_outlines_join_the_look() -> void:
 		return img.get_pixel(int((cell.position.x + cell.size.x * x) * img.get_width() / materials.atlas_side), int((cell.position.y + cell.size.y / 2) * img.get_height() / materials.atlas_side))
 	var grey_linear := Color(0.5, 0, 0).srgb_to_linear().r
 	var tinted := Color(Color(0.5, 0.25, 0).srgb_to_linear().r * grey_linear, 0, 0).linear_to_srgb().r
-	check(at.call("poiyomi", 0.1).a < 0.1 and at.call("poiyomi", 0.9).a > 0.9 and absf(at.call("poiyomi", 0.9).r - tinted) < 0.02, "Poiyomi's outline takes its mask's green and its colour times the albedo: %s %s" % [at.call("poiyomi", 0.1), at.call("poiyomi", 0.9)])
+	check(at.call("poiyomi", 0.1).a < 0.1 and at.call("poiyomi", 0.9).a > 0.85 and absf(at.call("poiyomi", 0.9).r - tinted) < 0.02, "Poiyomi's outline takes its mask's green and its colour times the albedo: %s %s" % [at.call("poiyomi", 0.1), at.call("poiyomi", 0.9)])
 	check(absf(at.call("lil", 0.1).a - 0.4) < 0.02 and at.call("lil", 0.9).a < 0.02 and at.call("lil", 0.1).r == 0.0, "lilToon's takes its mask's red, at its share of the widest: %s" % [at.call("lil", 0.1)])
 	check(absf(at.call("unity_chan", 0.5).a - 0.2) < 0.02 and absf(at.call("unity_chan", 0.5).r - Color(grey_linear * grey_linear, 0, 0).linear_to_srgb().r) < 0.02, "Unity-chan Toon Shader's is its colour times the albedo twice: %s" % [at.call("unity_chan", 0.5)])
 	var halfway := Color(lerpf(0.0, grey_linear, 0.5), 0, lerpf(1.0, grey_linear, 0.5)).linear_to_srgb()
@@ -1909,6 +1910,36 @@ func _toon_outlines_join_the_look() -> void:
 	check(materials.face_material("toon") >= 2 * Materials.PASSES and materials.face_material("toon_plain") < 2 * Materials.PASSES, "outlined faces draw with an outlined atlas material")
 	check(materials.face_material("toon_plain", ["toon"]) >= 2 * Materials.PASSES, "faces a switch can swap an outlined material onto draw with an outlined atlas material")
 
+
+## An outline's width mask scales the width by what its shader samples: a texture Unity imports as sRGB is decoded to
+## linear light first, so a byte of 160 pushes the hull out 0.35 of its width, not 0.63; one imported linear by its byte.
+func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
+	var dir := ProjectSettings.globalize_path("user://outline_mask")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var grey := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	grey.fill(Color8(160, 160, 160))
+	for mask: String in ["srgb", "linear"]:
+		grey.save_png(dir.path_join(mask + ".png"))
+		var importer := "TextureImporter:\n  mipmaps:\n    sRGBTexture: %d\n" % int(mask == "srgb")
+		FileAccess.open(dir.path_join(mask + ".png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n%s" % [mask, importer])
+		var text := "Material:\n  m_Shader: {guid: 51b2dee0ab07bd84d8147601ff89e511}\n  m_SavedProperties:\n    m_TexEnvs:\n    - _OutlineWidthMask:\n        m_Texture: {guid: %s}\n    m_Floats:\n    - _OutlineWidth: 0.2\n" % mask
+		FileAccess.open(dir.path_join(mask + ".mat"), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(mask + ".mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s_mat\n" % mask)
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in ["srgb_mat", "linear_mat"]:
+		materials.use({"guid": key}, Color.WHITE)
+		materials.materials[key].outline_scale = 1.0
+	materials.pack(["srgb_mat", "linear_mat"])
+	var img: Variant = materials.outline_layer().get("outline")
+	check(img is Image, "the outline layer is an image")
+	if not img is Image:
+		return
+	var share := func(key: String) -> float:
+		var cell: Rect2i = materials.materials[key].cell
+		return img.get_pixel(int((cell.position.x + cell.size.x / 2) * img.get_width() / materials.atlas_side), int((cell.position.y + cell.size.y / 2) * img.get_height() / materials.atlas_side)).a
+	var decoded := Color(160 / 255.0, 0, 0).srgb_to_linear().r
+	check(absf(share.call("srgb_mat") - decoded) < 0.01, "an sRGB mask weighs its byte's linear light: %f against %f" % [share.call("srgb_mat"), decoded])
+	check(absf(share.call("linear_mat") - 160 / 255.0) < 0.01, "a linear mask weighs its byte: %f" % share.call("linear_mat"))
 
 ## Poiyomi's first emission glows in its theme colour, its hue, saturation and value moved by the theme's offsets, over
 ## its map times its mask's channel; one that blinks over time or takes the base colour glows nowhere the atlas could
@@ -3110,7 +3141,7 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	band.set_pixel(0, 0, Color8(0, 10, 20, 30))
 	band.set_pixel(1, 0, Color8(255, 40, 50, 60))
 	band.save_png(dir.path_join("band.png"))
-	FileAccess.open(dir.path_join("band.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: band\nTextureImporter:\n  sRGBTexture: 0\n")
+	FileAccess.open(dir.path_join("band.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: band\nTextureImporter:\n  mipmaps:\n    sRGBTexture: 0\n")
 	write.call("dry.mat", "dry", "Material:\n  m_Shader: {guid: poi}\n  m_SavedProperties:\n    m_Floats:\n    - _ClearCoatBRDF: 0\n")
 	write.call("glaze.mat", "glaze", (FileAccess.get_file_as_string(dir.path_join("wet.mat")) as String).replace("    - _ClearCoatBRDF: 1", "    - _ClearCoatBRDF: 1\n    - _ClearCoatMapsClearCoatMaskChannel: 1"))
 	var assets := Assets.new(dir)

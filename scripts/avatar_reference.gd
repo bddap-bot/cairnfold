@@ -133,6 +133,9 @@ func _stage(camera: Dictionary) -> SubViewport:
 	var view := SubViewport.new()
 	view.size = Vector2i(int(camera.width), int(camera.height))
 	view.own_world_3d = true
+	# The reference harness draws with MSAA, as a headset does, so a sub-pixel edge such as a toon outline's shades what
+	# it covers instead of whole pixels: 4x, as lavapipe draws no 2x.
+	view.msaa_3d = Viewport.MSAA_4X
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	root.add_child(view)
 	var env := Environment.new()
