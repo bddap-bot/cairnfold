@@ -104,13 +104,17 @@ func _read(m: Dictionary, guid: String) -> void:
 	var shader: Dictionary = mat.get("m_Shader", {})
 	m.shader = _shader_name(shader)
 	m.properties = {}
+	m.colour_attributes = {}
 	var shader_guid := Yaml.guid(shader)
 	var cull: Variant = ABSENT_CULL.get(shader_guid, "_Cull")
 	if assets.by_guid.has(shader_guid):
 		var source := assets.text(shader_guid)
-		var property := RegEx.create_from_string("(_[A-Za-z0-9_]+)\\s*\\(\\s*\"")
+		var property := RegEx.create_from_string("((?:\\[[^\\]\\n]*\\]\\s*)*)(_[A-Za-z0-9_]+)\\s*\\(\\s*\"")
 		for found in property.search_all(source):
-			m.properties[found.get_string(1)] = true
+			m.properties[found.get_string(2)] = true
+			var attributes := found.get_string(1).to_lower()
+			if "[gamma]" in attributes or "[hdr]" in attributes:
+				m.colour_attributes[found.get_string(2)] = {"hdr": "[hdr]" in attributes, "gamma": "[gamma]" in attributes}
 		var code := RegEx.create_from_string("//[^\\n]*|/\\*[\\s\\S]*?\\*/|\"[^\"\\n]*\"").sub(source, " ", true)
 		var directive := RegEx.create_from_string("(?i)\\bCull\\s+(?:\\[\\s*(\\w+)\\s*\\]|(Off|Front|Back)\\b)").search(code)
 		cull = Cull.BACK if directive == null else directive.get_string(1) if directive.get_string(1) != "" else ["off", "front", "back"].find(directive.get_string(2).to_lower())
@@ -768,7 +772,7 @@ func matcap(key: String, slot: int) -> Dictionary:
 		return {}
 	if global_mask(m, int(_float(m, p + "MaskGlobalMask"))) is bool:
 		return {}
-	var colour := _colour(colours.get(p + "Color"), Color.WHITE).srgb_to_linear()
+	var colour := shader_colour(m, p + "Color", Color.WHITE)
 	var index := int(_float(m, p + "ColorThemeIndex")) - 1
 	var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
 	if not theme.is_empty():
@@ -825,7 +829,7 @@ func clearcoat(key: String) -> Dictionary:
 	var pair := func(v: Variant, otherwise: float) -> Array: return [str(v.get("x", otherwise)).to_float(), str(v.get("y", otherwise)).to_float()] if v is Dictionary else [otherwise, otherwise]
 	var tint := func(property: String) -> Array:
 		var theme := int(number.call(property + "ThemeIndex", 0.0))
-		var c: Color = ExpressionPlayer.theme_colour(_theme(m, theme - 1), 0.0) if theme >= 1 and theme <= 4 else _colour(colours.get(property), Color.WHITE).srgb_to_linear()
+		var c: Color = ExpressionPlayer.theme_colour(_theme(m, theme - 1), 0.0) if theme >= 1 and theme <= 4 else shader_colour(m, property, Color.WHITE)
 		return [c.r, c.g, c.b]
 	return {
 		"strength": _saved(m, "_ClearCoatStrength", 1.0),
@@ -1052,7 +1056,7 @@ func _poiyomi_glows(key: String) -> Array[Dictionary]:
 			continue
 		var index := int(_float(m, "_EmissionColor%sThemeIndex" % n)) - 1
 		var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
-		var colour := _colour((m.get("colours", {}) as Dictionary).get("_EmissionColor" + n), Color.WHITE).srgb_to_linear()
+		var colour := shader_colour(m, "_EmissionColor" + n, Color.WHITE)
 		var strength := _saved(m, "_EmissionStrength" + n, 0.0)
 		out.append({"slot": slot, "strength": strength if slot == 0 and strength_driven.has(key) else _audio_link_strength(m, slot, strength), "replace": _saved(m, "_EmissionReplace%d" % slot, 0.0), "theme": theme, "colour": colour})
 	return out
@@ -1087,11 +1091,21 @@ func _folded(key: String) -> Array:
 	return _poiyomi_glows(key).filter(alike).map(func(g: Dictionary) -> Array: return [g.slot, g.strength / drawn.strength])
 
 
+## The saved colour `name` of the material `m` as its shader reads it, in linear light, in a linear-light project as
+## VRChat's are: Unity converts every colour it hands a shader, but a locked shader (Thry's) holds a colour no clip
+## animates as a literal that keeps the saved value where it is declared [HDR] or [Gamma] but not both.
+static func shader_colour(m: Dictionary, name: String, otherwise: Color) -> Color:
+	var colour := _colour((m.get("colours", {}) as Dictionary).get(name), otherwise)
+	var flags: Dictionary = (m.get("colour_attributes", {}) as Dictionary).get(name, {})
+	var inlined := str(m.get("shader", "")).begins_with("Hidden/Locked/") and not (m.get("animated", {}) as Dictionary).has(name)
+	return colour if inlined and flags.get("hdr", false) != flags.get("gamma", false) else colour.srgb_to_linear()
+
+
 ## Poiyomi global theme colour `index` (0 to 3) of the material `m` at rest as {"slot": the index, "hsv": its HDR colour's
 ## hue, saturation and value in linear light below its "exposure", and the theme's own "hue", "saturation", "value" and
 ## hue "speed" offsets}, which clips move (`field`) and ExpressionPlayer.theme_colour applies.
 static func _theme(m: Dictionary, index: int) -> Dictionary:
-	var colour := _colour((m.get("colours", {}) as Dictionary).get("_GlobalThemeColor%d" % index), Color.WHITE).srgb_to_linear()
+	var colour := shader_colour(m, "_GlobalThemeColor%d" % index, Color.WHITE)
 	var exposure := maxf(maxf(colour.r, maxf(colour.g, colour.b)), 1.0)
 	colour = colour / exposure
 	var offset := func(name: String) -> float: return _saved(m, "_GlobalTheme%s%d" % [name, index], 0.0)

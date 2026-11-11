@@ -62,6 +62,7 @@ func _run() -> void:
 	_untinted_multilayer_math_lights_flat()
 	_skin_its_shade_reaches_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
+	_a_colour_reads_as_its_shader_receives_it()
 	_installed_packages_lend_only_missing_images()
 	_a_texture_in_no_package_needs_the_packages_named()
 	_an_edit_imports_with_its_base()
@@ -2184,6 +2185,42 @@ func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
 	if glow is Dictionary:
 		check(Color(glow.color[0], glow.color[1], glow.color[2]).is_equal_approx(Color.from_hsv(0.25, 1, 1)), "its colour at rest is the theme's turned a quarter: %s" % [glow.color])
 	sk.free()
+
+## Unity converts every saved colour to linear light for the shader; a locked shader holds a colour no clip animates as a
+## literal, which keeps the saved value where it is declared [HDR] or [Gamma] but not both, and a theme colour so held
+## keeps its saved hue.
+func _a_colour_reads_as_its_shader_receives_it() -> void:
+	var dir := ProjectSettings.globalize_path("user://colours")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var properties := '[HDR]_GlobalThemeColor0 ("Theme", Color) = (1, 1, 1, 1) [HDR][Gamma]_RimColor ("Rim", Color) = (1, 1, 1, 1) [Gamma] _Tint ("Tint", Color) = (1, 1, 1, 1) _MatcapColor ("Matcap", Color) = (1, 1, 1, 1)'
+	write.call("locked.shader", "locked", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/abc" { Properties { %s } }' % properties)
+	write.call("open.shader", "open", 'Shader ".poiyomi/Poiyomi Toon" { Properties { %s } }' % properties)
+	var colours := """    m_Colors:
+    - _GlobalThemeColor0: {r: 0, g: 0.5, b: 1, a: 1}
+    - _RimColor: {r: 0, g: 0.5, b: 1, a: 1}
+    - _Tint: {r: 0, g: 0.5, b: 1, a: 1}
+    - _MatcapColor: {r: 0, g: 0.5, b: 1, a: 1}
+"""
+	write.call("locked.mat", "lockedmat", "Material:\n  m_Shader: {guid: locked}\n  m_SavedProperties:\n" + colours)
+	write.call("animated.mat", "animatedmat", "Material:\n  m_Shader: {guid: locked}\n  stringTagMap:\n    _GlobalThemeColor0Animated: 1\n  m_SavedProperties:\n" + colours)
+	write.call("open.mat", "openmat", "Material:\n  m_Shader: {guid: open}\n  m_SavedProperties:\n" + colours)
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in ["lockedmat", "animatedmat", "openmat"]:
+		materials.use({"guid": key}, Color.WHITE)
+	var saved := Color(0, 0.5, 1)
+	var g := func(key: String, name: String) -> float: return Materials.shader_colour(materials.materials[key], name, Color.WHITE).g
+	var linear := saved.srgb_to_linear().g
+	var got := {"locked": [g.call("lockedmat", "_GlobalThemeColor0"), g.call("lockedmat", "_RimColor"), g.call("lockedmat", "_Tint"), g.call("lockedmat", "_MatcapColor")],
+		"animated": [g.call("animatedmat", "_GlobalThemeColor0")], "open": [g.call("openmat", "_GlobalThemeColor0"), g.call("openmat", "_RimColor"), g.call("openmat", "_Tint"), g.call("openmat", "_MatcapColor")]}
+	check(got.locked == [0.5, linear, 0.5, linear], "a locked shader keeps an HDR or a Gamma colour as saved, one both or neither in linear light: %s" % [got.locked])
+	check(got.animated == [linear], "a colour a clip animates stays the locked shader's uniform, in linear light: %s" % [got.animated])
+	check(got.open == [linear, linear, linear, linear], "an unlocked shader reads every colour in linear light: %s" % [got.open])
+	var hue := func(key: String) -> float: return Materials._theme(materials.materials[key], 0).hsv[0]
+	check(is_equal_approx(hue.call("lockedmat"), saved.h) and is_equal_approx(hue.call("animatedmat"), saved.srgb_to_linear().h), "a locked theme colour keeps its saved hue, an animated one its hue in linear light: %s, %s" % [hue.call("lockedmat"), hue.call("animatedmat")])
+
 
 
 
