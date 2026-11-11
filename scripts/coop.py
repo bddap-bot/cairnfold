@@ -16,6 +16,7 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+SESSION = {name: int(value) for name, value in re.findall(r"^const (\w+) := (\d+)$", (ROOT / "game/src/session.gd").read_text(), re.M)}
 # A stuck run is one where no player takes a step while together they spend this much CPU; a busy machine only slows the
 # run in wall time, so no wall-clock limit applies to a step. The joiner's strokes across the whole garden re-lay
 # everything on it on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
@@ -582,8 +583,8 @@ def run(out, count, mode="full"):
 
     sampler = threading.Thread(target=monitor)
     sampler.start()
-    # One of Session's blocks of PORTS = 8 host ports in its PORT_RANGE from 7480, so runs side by side spread out.
-    first = 7480 + 8 * random.randrange(7)
+    # One of Session's blocks of PORTS host ports in its PORT_RANGE, so runs side by side spread out.
+    first = SESSION["PORT"] + SESSION["PORTS"] * random.randrange(SESSION["PORT_RANGE"] // SESSION["PORTS"])
 
     def launch(name, port):
         args = ["godot4", "--path", str(ROOT / "game"), "--xr-mode", "off"]
@@ -748,8 +749,8 @@ if __name__ == "__main__":
     parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
     parser.add_argument("--reshape", action="store_true", help="only a host reshaping houses while a visitor edits beside them")
     args = parser.parse_args()
-    if not 2 <= args.players <= 8:
-        parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
+    if not 2 <= args.players <= SESSION["MAX_PLAYERS"]:
+        parser.error(f"players must be 2..{SESSION['MAX_PLAYERS']} (Session.MAX_PLAYERS)")
     for only in ("flat", "reshape"):
         if getattr(args, only):
             run(args.out.resolve(), 2, only)

@@ -9,7 +9,8 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
-uniform float width = 0.15;
+uniform float width;
+uniform vec3 paper : source_color;
 uniform float angle = 0.0;
 uniform float bend = 0.0;
 // How high a resting leaf bows up out of the gutter, as a bound page does.
@@ -60,7 +61,7 @@ vec3 backdrop(vec2 uv, vec3 wash, float horizon, float seed, float grain) {
 		float patch_ = noise(uv * 6.0 + seed);
 		c = mix(meadow * 0.9, meadow * 1.12 + vec3(0.04, 0.03, 0.0), noise(vec2(uv.x * 9.0, uv.y * 55.0) + seed));
 		c = mix(c, vec3(0.9, 0.8, 0.46), smoothstep(0.5, 0.8, patch_) * 0.6);
-		c = mix(c, srgb_to_linear(PAPER), smoothstep(0.3, 0.12, patch_) * 0.5);
+		c = mix(c, paper, smoothstep(0.3, 0.12, patch_) * 0.5);
 		c *= mix(0.82, 1.0, smoothstep(1.0, horizon + 0.1, uv.y));
 		float near = horizon - 0.02 - 0.06 * noise(vec2(uv.x * 3.7 + seed * 1.3, 4.0));
 		vec3 hills_far = vec3(0.66, 0.74, 0.74);

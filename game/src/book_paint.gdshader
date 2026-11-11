@@ -14,9 +14,10 @@ uniform float face_seed = 0.0;
 uniform bool face_drawn = false;
 uniform bool back_face = false;
 uniform int part = 0;
-uniform vec3 board = vec3(0.155, 0.0042, 0.16);
+uniform vec3 board;
 uniform vec3 cloth;
 uniform vec3 leather;
+uniform vec3 paper;
 
 vec3 encoded(vec3 c) {
 	c = clamp(c, 0.0, 1.0);
@@ -66,7 +67,7 @@ vec4 sprig(vec2 p, vec2 root, float dir, float seed, vec3 bloom) {
 
 vec3 page(vec2 p, bool drawn, vec3 picture, float seed, float spine_dist) {
 	float grain = noise(p * 140.0 + seed) * 0.7 + noise(p * 300.0 + seed) * 0.3;
-	vec3 c = srgb_to_linear(PAPER) * (0.95 + 0.06 * grain);
+	vec3 c = srgb_to_linear(paper) * (0.95 + 0.06 * grain);
 	c *= mix(0.5, 1.0, smoothstep(0.0, 0.2, spine_dist)) * mix(0.85, 1.0, smoothstep(0.0, 0.06, spine_dist));
 	float edge_dist = min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y));
 	c *= mix(0.86, 1.0, smoothstep(0.0, 0.025 + 0.01 * noise(p * 40.0), edge_dist));

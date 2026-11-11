@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import unittest
 from test_cues import _bands
+from sources import script_const
 
 ROOT = Path(__file__).parents[1]
 
@@ -13,9 +14,10 @@ class CharcoalRecording(unittest.TestCase):
         self.assertIn('CC0', source['licence'])
         self.assertTrue(source['page'].startswith('https://'))
         self.assertTrue(source['author'])
+        [grains] = script_const('cues.gd', 'CHARCOAL_GRAINS')
         for profile in ('soft', 'paper', 'dark'):
             clips = sorted(folder.glob(f'{profile}*.ogg'))
-            self.assertEqual(len(clips), 8)
+            self.assertEqual(len(clips), grains)
             for clip in clips:
                 bands = _bands(clip)
                 self.assertLess(bands['above 2000'], 0.005, clip.name)

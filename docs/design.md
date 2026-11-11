@@ -696,9 +696,7 @@ and held the governor two steps up for the rest of the run. On the Quest 2 the b
 meadow took 16.5 ms of App GPU time from the air and 14.2 standing at full swapchain size, so
 the Quest 2 draws a smaller swapchain (below). Without the resolution step the village from the air stayed
 at every other refresh at the shadows-off step (14.7 ms). Every step up out of them in a
-governed run of the stress scene cost no late frame (the longest 18.8 ms). A garden within the
-build budget never reaches them on the Frame: its `Budget.COSTS` are fitted at step 8, the last
-with the sun's shadows and the full resolution (`Budget.fit_step`).
+governed run of the stress scene cost no late frame (the longest 18.8 ms).
 
 Every phase of the stress scene on the Frame: GPU ms a frame (fdinfo, the median of the
 phase's seconds after its first, or of its last 15 s where governed) and frames a second over

@@ -7,6 +7,7 @@ global uniform mat4 ground_humps;
 // What the ground is made of (Ground): red trodden earth, green stone, alpha sand, none of them meadow; blue the stone's
 // style in its low bits and Ground.TILLED, its top bit, where a garden bed's earth.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
+const int TILLED = 128;
 
 // The texture coordinate of `xz` in a one-texel-per-grid-point texture.
 vec2 grid_uv(vec2 xz) {
@@ -65,7 +66,7 @@ vec4 ground_cover(vec2 xz) {
 int ground_style(vec2 xz, vec2 jitter) {
 	ivec2 size = textureSize(ground_mask, 0);
 	vec2 t = (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)) * vec2(size) + jitter;
-	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5) & 127;
+	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5) & (TILLED - 1);
 }
 
 // How bare of plants the ground is, as Ground.bare reads it: 1 on earth, sand or stone.

@@ -13,7 +13,7 @@ build order.
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
 fences, windows, arches, houses, towers, decorations, stairs, dirt paths, stone, flowers, grass, moss, trees,
-bushes, boulders, pond, colour, style, camera, selfie camera, seeds, easel, the picture book or delete. The wheel
+bushes, boulders, pond, colour, style, camera, selfie camera, hand mirror, seeds, easel, the picture book or delete. The wheel
 also holds the people: avatars to wear, and nearby gardens to join.
 
 - Hold the upper face button (B on the right, Y on the left; on the Steam Frame B

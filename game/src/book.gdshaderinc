@@ -1,9 +1,9 @@
 #include "res://src/noise.gdshaderinc"
 
-// The picture book's paint, shared by its shaders and the bake (book_paint.gdshader, Book): the paper, ink and cover
+// The picture book's paint, shared by its shaders and the bake (book_paint.gdshader, Book): the ink and cover
 // colours (sRGB), where a page's picture window sits in the page's coordinates (x from the spine, y down the page),
-// and a cover's stamp; the cover's cloth and leather are Book's (CLOTH, LEATHER), which the wheel's icon draws too.
-const vec3 PAPER = vec3(0.97, 0.91, 0.78);
+// and a cover's stamp; the paper and the cover's cloth and leather are Book's (PAPER, CLOTH, LEATHER), which the
+// wheel's icon draws too.
 const vec3 INK = vec3(0.33, 0.3, 0.24);
 const vec3 LEAF = vec3(0.47, 0.6, 0.41);
 const vec3 FOIL = vec3(0.86, 0.71, 0.44);

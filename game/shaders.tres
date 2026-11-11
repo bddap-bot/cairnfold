@@ -191,6 +191,7 @@ shader_parameter/leather = null
 render_priority = 0
 shader = ExtResource("5_it7ro")
 shader_parameter/width = null
+shader_parameter/paper = null
 shader_parameter/angle = null
 shader_parameter/bend = null
 shader_parameter/gutter_bow = null
@@ -212,6 +213,7 @@ shader_parameter/part = null
 shader_parameter/board = null
 shader_parameter/cloth = null
 shader_parameter/leather = null
+shader_parameter/paper = null
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_dtug4"]
 render_priority = 0
@@ -247,7 +249,6 @@ render_priority = 0
 shader = ExtResource("11_yxe4b")
 shader_parameter/impasto = null
 shader_parameter/grain = null
-shader_parameter/metres = null
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_6hsw0"]
 shader = ExtResource("12_jy1ip")

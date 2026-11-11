@@ -120,7 +120,7 @@ void vertex() {
 	given = given_over(VERTEX, NORMAL, ground);
 #ifdef PARTED
 	// The meadow's flowers drown; a tree or bush never stands in water (World._drown).
-	if (depth > 0.02 && wet == 0.0) {
+	if (depth > DROWNS && wet == 0.0) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
 #endif

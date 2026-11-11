@@ -55,7 +55,8 @@ const int RAMP = 16;
 #ifdef CLEAR_COAT
 const int COAT = 2 + RAMP;
 #endif
-const int MATCAP = 2 + RAMP + 6;
+const int COAT_ROWS = 6;
+const int MATCAP = 2 + RAMP + COAT_ROWS;
 const int MATCAP_ROWS = 6;
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;

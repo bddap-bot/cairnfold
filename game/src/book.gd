@@ -15,11 +15,11 @@ const H := 0.15
 const LEAF_T := 0.0028
 const COVER_T := 0.0042
 const OVER := 0.005
-## The cover's cloth and the leather at its spine and corners, the pages' edges and the ribbon (sRGB), for its shaders
+## The cover's cloth and the leather at its spine and corners, the pages' paper and the ribbon (sRGB), for its shaders
 ## and the wheel's icon alike.
 const CLOTH := Color(0.27, 0.42, 0.33)
 const LEATHER := Color(0.36, 0.21, 0.12)
-const PAPER := Color(0.96, 0.9, 0.77)
+const PAPER := Color(0.97, 0.91, 0.78)
 const RIBBON := Color(0.55, 0.08, 0.16)
 const TILT := deg_to_rad(68.0)
 const OPEN_S := 0.85
@@ -143,6 +143,7 @@ func _bake() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book_paint.gdshader")
 	mat.set_shader_parameter("board", BOARD)
+	mat.set_shader_parameter("paper", PAPER)
 	_bind(mat)
 	rect.material = mat
 	vp.size = Vector2i.ONE * PAINT_PX
@@ -493,6 +494,7 @@ func _sheet() -> MeshInstance3D:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book_page.gdshader")
 	mat.set_shader_parameter("width", W)
+	mat.set_shader_parameter("paper", PAPER)
 	mat.render_priority = Layer.SHEET
 	mi.material_override = mat
 	mi.extra_cull_margin = W

@@ -8,7 +8,7 @@ extends Node3D
 
 ## The shader each blend draws with.
 const SHADERS := {"alpha": preload("res://src/particle_alpha.gdshader"), "add": preload("res://src/particle_add.gdshader"), "premultiplied": preload("res://src/particle_premultiplied.gdshader"), "multiply": preload("res://src/particle_multiply.gdshader"), "opaque": preload("res://src/particle_opaque.gdshader"), "cutout": preload("res://src/particle_opaque.gdshader")}
-## particle.gdshaderinc's curve rows, each the low end of a range, the high end the row after.
+## particle.gdshaderinc's curve rows (its ROW_*), each the low end of a range, the high end the row after.
 const ROW_COLOUR := 0
 const ROW_SIZE := 2
 const ROW_PATH := 4

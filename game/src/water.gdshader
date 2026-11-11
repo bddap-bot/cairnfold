@@ -13,7 +13,8 @@ render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
 uniform sampler2D waves : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform float level;
 uniform float drop = 0.0;
-uniform vec4 ripples[12];
+#define RIPPLES 12
+uniform vec4 ripples[RIPPLES];
 uniform bool rippling = false;
 uniform vec3 shallow : source_color = vec3(0.30, 0.68, 0.58);
 uniform vec3 deep : source_color = vec3(0.03, 0.19, 0.29);
@@ -41,7 +42,7 @@ void fragment() {
 	vec2 slope = (texture(waves, s * 0.21 + TIME * vec2(0.019, 0.011)).xy
 		+ texture(waves, s * 0.33 - TIME * vec2(0.012, 0.021)).xy - 1.0) * wave_strength;
 	if (rippling) {
-		for (int i = 0; i < 12; i++) {
+		for (int i = 0; i < RIPPLES; i++) {
 			vec4 r = ripples[i];
 			if (r.w > 0.0) {
 				vec2 dv = s - r.xy;

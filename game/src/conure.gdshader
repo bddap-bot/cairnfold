@@ -24,7 +24,7 @@ uniform sampler2D palette : filter_nearest;
 const int PATCHES = 9;
 const int BILL = 8;
 
-// The perched body's frame: X across, L along the body (up and forward), D out of the back. Matches conure.gd.
+// The perched body's frame: X across, L along the body (up and forward), D out of the back; conure.gd's ALONG and OUT.
 const vec3 X = vec3(1.0, 0.0, 0.0);
 const vec3 L = vec3(0.0, 0.8192, -0.5736);
 const vec3 D = vec3(0.0, 0.5736, 0.8192);

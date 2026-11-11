@@ -2,17 +2,19 @@
 // DRY everywhere else. Depth rather than level, so it filters smoothly into the dry ground around a pond.
 // Include after ground.gdshaderinc, whose grid it shares.
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
+// Water deeper than this drowns what grows there (Water.DROWNS).
+const float DROWNS = 0.02;
 
 float water_depth_at(vec2 xz) {
 	return textureLod(water_depth, grid_uv(xz), 0.0).r;
 }
 
 float planted_water(float planted, float depth) {
-	return planted * step(0.02, depth);
+	return planted * step(DROWNS, depth);
 }
 
 bool drowned(vec2 xz) {
-	return water_depth_at(xz) > 0.02;
+	return water_depth_at(xz) > DROWNS;
 }
 
 // 1 on the bare bank and bed of a pond at this depth, 0 on meadow.

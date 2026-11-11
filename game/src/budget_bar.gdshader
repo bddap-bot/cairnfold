@@ -3,7 +3,7 @@ render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 uniform float fill = 0.0;
 uniform float pending = 0.0;
 uniform float over = 0.0;
-uniform vec2 size = vec2(0.036, 0.0065);
+uniform vec2 size;
 const vec3 TRACK = vec3(0.16, 0.14, 0.12);
 const vec3 CALM = vec3(0.52, 0.74, 0.42);
 const vec3 NEAR = vec3(0.95, 0.68, 0.28);

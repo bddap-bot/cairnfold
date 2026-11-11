@@ -11,7 +11,7 @@ or are refused, naming their steps: a governed phase measures the governor, not 
 
 With --price, each FULL=EMPTY names a phase holding COUNT of KIND and the same view without them. The price is the
 most any pair gives a unit, in microseconds; a FULL and EMPTY not pinned at one step are refused as views are, and a
-phase whose median frame took over 1.5 refresh periods, the frame
+phase whose median frame took over 1.5 times the record's budget_gpu_ms, the frame
 rate halved, is refused: its GPU time is not the scene's (scripts/costs.py leaves such views out too). It is added to the record under "prices", KIND's entry naming the Budget
 unit it is charged as, and tests/test_prices.py holds every unit's charge to the latest price recorded for it."""
 import json

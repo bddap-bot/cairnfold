@@ -23,6 +23,8 @@ const float ROOM_EDGE = 0.02;
 // to half a metre past that line and a read filters in probes a metre apart, so a read nearer the walls than this takes
 // in the open sky of a column outside, wherever the walls run across the grid.
 const float ROOM_READ = 1.0;
+// Texels each opening takes in a room_data row, after the row's count (Interior.OPENING).
+const int OPENING = 4;
 
 // The room_data row over a vertex, 0 for none, and whether it lies in that room: a triangle whose corners all do is
 // in it everywhere, one whose corners all lie out of every room is out everywhere, and only one across the walls'
@@ -127,7 +129,7 @@ float interior_light(vec3 p, vec3 n, int vertex_row, float vertex_in) {
 	int openings = int(counts.x);
 	float lit = 0.0;
 	for (int i = 0; i < openings; i++) {
-		int texel = first + 4 * i;
+		int texel = first + OPENING * i;
 		vec4 plane = texelFetch(room_data, ivec2(texel + 2, row), 0);
 		if (p.x * plane.x + p.z * plane.y > plane.z) {
 			continue;

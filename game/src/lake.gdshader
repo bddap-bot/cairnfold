@@ -6,9 +6,9 @@ render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 uniform vec3 deep : source_color = vec3(0.08, 0.27, 0.34);
 // Mountains.ridge_image: each range's ridge over the water round the circle.
 uniform sampler2D ridges : filter_linear, repeat_enable;
-uniform float level = 3.5;
-uniform vec2 radii = vec2(560.0, 1300.0);
-uniform float top = 520.0;
+uniform float level;
+uniform vec2 radii;
+uniform float top;
 
 varying vec3 wp;
 

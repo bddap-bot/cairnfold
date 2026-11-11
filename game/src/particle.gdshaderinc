@@ -42,6 +42,16 @@ float random(float seed, float k) {
 	return fract(sin(seed * 12.9898 + k * 78.233) * 43758.5453);
 }
 
+// The curve rows (AvatarParticles.ROW_*).
+const int ROW_COLOUR = 0;
+const int ROW_SIZE = 2;
+const int ROW_PATH = 4;
+const int ROW_VELOCITY = 6;
+const int ROW_SPIN_PATH = 8;
+const int ROW_NOISE_LIMIT = 10;
+const int ROW_COLOUR_BY_SPEED = 12;
+const int ROW_SIZE_BY_SPEED = 14;
+
 // Row pair `r` at share `u` of the life, blended from its low row to its high one by `k`.
 vec4 life_curve(int r, float u, float k) {
 	int samples = textureSize(curves, 0).x;
@@ -87,7 +97,7 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	vec3 moved = v0 * age;
 	vec3 velocity = v0;
 	if (has_limit) {
-		float limit = life_curve(10, 0.0, 0.5).y;
+		float limit = life_curve(ROW_NOISE_LIMIT, 0.0, 0.5).y;
 		float speed = length(v0);
 		if (speed > limit && damping > 0.0) {
 			vec3 held = v0 / speed * limit;
@@ -100,15 +110,15 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	velocity += down * custom.w * age;
 	if (has_velocity) {
 		float k = random(seed, 1.0);
-		vec3 path = life * life_curve(4, u, k).xyz;
-		vec3 now_v = life_curve(6, u, k).xyz;
+		vec3 path = life * life_curve(ROW_PATH, u, k).xyz;
+		vec3 now_v = life_curve(ROW_VELOCITY, u, k).xyz;
 		bool other = velocity_in_world != world_space;
 		mat3 into = world_space ? turn : transpose(turn);
 		moved += other ? into * path : path;
 		velocity += other ? into * now_v : now_v;
 	}
 	if (has_noise) {
-		float strength = life_curve(10, u, random(seed, 5.0)).x;
+		float strength = life_curve(ROW_NOISE_LIMIT, u, random(seed, 5.0)).x;
 		float w = 6.2831853 * max(noise_frequency, 0.05);
 		vec3 phase = vec3(random(seed, 6.0), random(seed, 7.0), random(seed, 8.0)) * 6.2831853;
 		moved += strength / w * (cos(phase) - cos(w * age + phase));
@@ -118,19 +128,19 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	vec3 world_at = world_space ? at : (emitter * vec4(at, 1.0)).xyz;
 	vec3 world_velocity = world_space ? velocity : turn * velocity;
 	float speed = length(world_velocity);
-	vec3 size = model[2].xyz * life_curve(2, u, random(seed, 2.0)).xyz;
+	vec3 size = model[2].xyz * life_curve(ROW_SIZE, u, random(seed, 2.0)).xyz;
 	if (has_size_by_speed) {
-		size *= life_curve(14, (speed - speed_ranges.x) / (speed_ranges.y - speed_ranges.x), random(seed, 9.0)).xyz;
+		size *= life_curve(ROW_SIZE_BY_SPEED, (speed - speed_ranges.x) / (speed_ranges.y - speed_ranges.x), random(seed, 9.0)).xyz;
 	}
 	vec3 spun = model[3].xyz;
 	if (has_spin) {
-		spun += life * life_curve(8, u, random(seed, 3.0)).xyz;
+		spun += life * life_curve(ROW_SPIN_PATH, u, random(seed, 3.0)).xyz;
 	}
 	if (has_colour_over_life) {
-		particle_color *= life_curve(0, u, random(seed, 10.0));
+		particle_color *= life_curve(ROW_COLOUR, u, random(seed, 10.0));
 	}
 	if (has_colour_by_speed) {
-		particle_color *= life_curve(12, (speed - speed_ranges.z) / (speed_ranges.w - speed_ranges.z), random(seed, 11.0));
+		particle_color *= life_curve(ROW_COLOUR_BY_SPEED, (speed - speed_ranges.z) / (speed_ranges.w - speed_ranges.z), random(seed, 11.0));
 	}
 	vec3 eye = inv_view[3].xyz;
 	vec3 to_eye = eye - world_at;
