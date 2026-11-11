@@ -407,10 +407,10 @@ func _a_coping_is_walked_on_at_its_stones() -> void:
 	w.top = WallLayout.Top.COPE
 	w.height = 1.2
 	w.build(Terrain.flat)
-	var tall := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "cope" and absf(st.xform.basis.y.y) >= WallLayout.COPE_TALL.x - 0.001)
+	var tall := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "cope" and st.size.y >= WallLayout.COPE_TALL.x)
 	var tops := 0.0
 	for st: Dictionary in tall:
-		tops += st.xform.origin.y + absf(st.xform.basis.y.y) * 0.5
+		tops += st.xform.origin.y + st.size.y * 0.5
 	var mid: Vector3 = w.frame_at(w.length() * 0.5).point
 	var walk := w.walk_under(mid + Vector3.UP * 5.0)
 	check(tall.size() > 20 and absf(walk - tops / tall.size()) < 0.02, "a coped wall is walked on at its tall stones' tops: %.3f, %d stones averaging %.3f" % [walk, tall.size(), tops / maxf(tall.size(), 1)])

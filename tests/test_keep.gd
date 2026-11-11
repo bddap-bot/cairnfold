@@ -174,7 +174,7 @@ func _a_garden_of_another_format_is_moved_aside() -> void:
 	var unordered := var_to_bytes({"format": World.FORMAT, "cmds": [tree]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(unordered)
 	world.load_from(path)
-	check(world.state.groups.keys() == [0] and FileAccess.get_file_as_bytes(path + ".bad") == unordered, "a garden with no sequence number grows nothing and is moved aside")
+	check(world.state.groups.keys() == [0] and FileAccess.get_file_as_bytes(path + ".bad") == unordered and not FileAccess.file_exists(path), "a garden with no sequence number grows nothing and is moved aside")
 	world.save_path = ""
 
 
