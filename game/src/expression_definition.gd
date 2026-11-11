@@ -89,9 +89,10 @@ static func valid(data: Dictionary) -> bool:
 ## ramp-lit one is capped at "cap" when it has one, with a toon "shadow" null or its numbers (unity/materials.gd
 ## lighting), an "emission" null or its linear "color", "strength" and, optionally, "replace" and "theme", the slot of
 ## the global theme colour it glows in among the material's "themes" (unity/materials.gd `_theme`), and a "rim" null or
-## its linear "color" and numbers. A shadow draws by the looks' "shade" and "shade2" layers (Avatar.shape); an
-## "outline" layer comes with its positive "outlineWidth" in metres. A file whose looks predate lighting would draw flat
-## materials shaded twice, so it is refused rather than guessed at (Avatar.shape).
+## its linear "color", numbers and whether it draws on back faces, "backface". A shadow draws by the looks' "shade"
+## layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
+## "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is
+## refused rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		push_error("expressions: the looks are not a dictionary")
@@ -138,8 +139,8 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's clear coat lacks its levels, tints, Fresnel, antialiasing, tiling and offset, inversions or a map among the looks' %s" % [m.get("clearcoat")])
 			return false
 		var rim: Variant = m.get("rim")
-		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k)))):
-			push_error("expressions: a look's rim is not a colour of three numbers with a strength, main, border, blur, power, lit and shadowMask: %s" % [rim])
+		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k))) and rim.get("backface") is bool):
+			push_error("expressions: a look's rim is not a colour of three numbers with a strength, main, border, blur, power, lit and shadowMask, and a backface flag: %s" % [rim])
 			return false
 	return true
 

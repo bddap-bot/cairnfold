@@ -637,7 +637,8 @@ static func shape(state: GLTFState) -> bool:
 	if looks.has("materials") and not looks.get("index") is Image:
 		push_error("avatar: the looks name materials without the material index they are drawn by")
 		return false
-	if looks.get("materials", []).any(func(m: Dictionary) -> bool: return m.lighting.get("shadow") != null) and not (looks.get("shade") is Image and looks.get("shade2") is Image):
+	var shadows: Array = looks.get("materials", []).map(func(m: Dictionary) -> Variant: return m.lighting.get("shadow")).filter(func(shadow: Variant) -> bool: return shadow != null)
+	if not shadows.is_empty() and not looks.get("shade") is Image or shadows.any(func(shadow: Dictionary) -> bool: return shadow.second != null) and not looks.get("shade2") is Image:
 		push_error("avatar: the looks give a material a toon shadow without the shade layers it is drawn by")
 		return false
 	var swaps := {}
@@ -777,7 +778,7 @@ static func _toon(m: Dictionary) -> bool:
 ## Writes the toon shadow and rim of the look `m` into the looks table's column `column` (_lit_looks) from its first
 ## toon row: its shadow's border, blur, strength and one where it has one; its second shade's border, blur and weight;
 ## its shadow's edge colour and range; its rim's linear colour and strength; its rim's base mix, border, blur and Fresnel
-## power; and how far the light and the shadow reach its rim.
+## power; and how far the light and the shadow reach its rim and whether it draws on back faces.
 static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
 	var row := HEAD_ROWS + RAMP + COAT_ROWS + 1 + MATCAPS * MATCAP_ROWS
 	var shadow: Variant = m.lighting.get("shadow")
@@ -793,7 +794,7 @@ static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
 	if rim is Dictionary:
 		table.set_pixel(column, row + 3, Color(rim.color[0], rim.color[1], rim.color[2], rim.strength))
 		table.set_pixel(column, row + 4, Color(rim.main, rim.border, rim.blur, rim.power))
-		table.set_pixel(column, row + 5, Color(rim.lit, rim.shadowMask, 0.0, 0.0))
+		table.set_pixel(column, row + 5, Color(rim.lit, rim.shadowMask, float(rim.backface), 0.0))
 
 
 ## A matcap's strengths: one at zero in all of them leaves its material as it is.

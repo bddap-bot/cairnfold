@@ -284,7 +284,7 @@ func _lighting() -> void:
 		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
 	var layer := glow
 	var shadow := {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": {"border": 0.15, "blur": 0.1, "weight": 0.5}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
-	var rim := {"color": [1.0, 0.5, 0.25], "strength": 1.0, "main": 0.0, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5}
+	var rim := {"color": [1.0, 0.5, 0.25], "strength": 1.0, "main": 0.0, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5, "backface": false}
 	var toon := func(light: Dictionary, edge: Variant, shade: Variant) -> Dictionary:
 		var out := {"index": encoded, "materials": [{"lighting": light, "rim": edge}, {"lighting": {"model": "flat", "cap": 1.0, "shadow": null}, "rim": null}]}
 		if shade != null:
@@ -298,7 +298,9 @@ func _lighting() -> void:
 	unranged.edge = {"color": [1.0, 0.1]}
 	var powerless := rim.duplicate()
 	powerless.erase("power")
-	for bad: Dictionary in [toon.call({"model": "flat", "cap": 1.0, "shadow": unweighted}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": unranged}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": shadow}, null, "a PNG"), toon.call({"model": "flat", "cap": 1.0, "shadow": null}, powerless, null)]:
+	var faceless := rim.duplicate()
+	faceless.erase("backface")
+	for bad: Dictionary in [toon.call({"model": "flat", "cap": 1.0, "shadow": unweighted}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": unranged}, null, layer), toon.call({"model": "flat", "cap": 1.0, "shadow": shadow}, null, "a PNG"), toon.call({"model": "flat", "cap": 1.0, "shadow": null}, powerless, null), toon.call({"model": "flat", "cap": 1.0, "shadow": null}, faceless, null)]:
 		check(not ExpressionDefinition.valid({"looks": bad}), "a malformed shadow or rim, or shade layers that are not images, are refused: %s" % [bad.materials[0]])
 	var root := Node3D.new()
 	var meshes: Array[ImporterMesh] = []
@@ -515,7 +517,7 @@ func _toon() -> void:
 	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	layer.fill(Color.WHITE)
 	var shadow := {"border": 0.5, "blur": 0.1, "strength": 0.9, "second": {"border": 0.2, "blur": 0.05, "weight": 0.7}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
-	var rim := {"color": [0.6, 0.5, 0.4], "strength": 0.8, "main": 0.25, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5}
+	var rim := {"color": [0.6, 0.5, 0.4], "strength": 0.8, "main": 0.25, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5, "backface": true}
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 0.9, 0.8, 1.0], "intensity": 0.75, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 0.6, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.4, "lightMask": 1.0, "hue": null, "circle": null, "theme": null}
 	var looks := {"shade": layer, "shade2": layer, "matcaps": [layer], "materials": [
 		{"lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
@@ -531,7 +533,7 @@ func _toon() -> void:
 	var row := Avatar.HEAD_ROWS + Avatar.RAMP + Avatar.COAT_ROWS + 1 + Avatar.MATCAPS * Avatar.MATCAP_ROWS
 	check(table.get_height() == row + Avatar.TOON_ROWS, "a table with a toon entry holds its toon rows after the matcaps': %d" % table.get_height())
 	check(table.get_pixel(1, row).is_equal_approx(Color(0.5, 0.1, 0.9, 1.0)) and table.get_pixel(1, row + 1).is_equal_approx(Color(0.2, 0.05, 0.7, 0.0)) and table.get_pixel(1, row + 2).is_equal_approx(Color(1.0, 0.1, 0.0, 0.08)), "the shadow's border, blur and strength, its second shade and its edge fill the first three toon rows: %s %s %s" % [table.get_pixel(1, row), table.get_pixel(1, row + 1), table.get_pixel(1, row + 2)])
-	check(table.get_pixel(2, row + 3).is_equal_approx(Color(0.6, 0.5, 0.4, 0.8)) and table.get_pixel(2, row + 4).is_equal_approx(Color(0.25, 0.5, 0.65, 3.5)) and table.get_pixel(2, row + 5).is_equal_approx(Color(1.0, 0.5, 0.0, 0.0)) and table.get_pixel(1, row + 3).a == 0.0, "the rim's colour, strength, shape and reach fill the last three of its entry alone")
+	check(table.get_pixel(2, row + 3).is_equal_approx(Color(0.6, 0.5, 0.4, 0.8)) and table.get_pixel(2, row + 4).is_equal_approx(Color(0.25, 0.5, 0.65, 3.5)) and table.get_pixel(2, row + 5).is_equal_approx(Color(1.0, 0.5, 1.0, 0.0)) and table.get_pixel(1, row + 3).a == 0.0, "the rim's colour, strength, shape, reach and back faces fill the last three of its entry alone")
 	var root := Node3D.new()
 	var shown: Array[MeshInstance3D] = []
 	for im: ImporterMesh in meshes:
@@ -660,7 +662,7 @@ func _node_effects_roundtrip() -> void:
 
 
 ## A file whose looks name materials without the material index they are drawn by, or give one a toon shadow without
-## the shade layers it is drawn by, is refused.
+## the shade layers it is drawn by, is refused: the first shade layer for any shadow, the second for a second shade.
 func _looks_need_their_index_and_shades() -> void:
 	var model := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
 	model.set_meta("springs", {})
@@ -679,6 +681,20 @@ func _looks_need_their_index_and_shades() -> void:
 	Vrm.write(shadowed, "user://unshaded.vrm")
 	shadowed.free()
 	check(Avatar.read(FileAccess.get_file_as_bytes("user://unshaded.vrm")) == null, "a file whose looks give a material a toon shadow without the shade layers is refused")
+	var shade := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	shade.fill(Color.GRAY)
+	for second: Variant in [null, {"border": 0.15, "blur": 0.1, "weight": 1.0}]:
+		var single := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
+		single.set_meta("springs", {})
+		var layered: Dictionary = preload("res://demo/expressions.gd").definition()
+		layered.looks.index = Image.create_empty(4, 4, false, Image.FORMAT_L8)
+		layered.looks.shade = shade
+		layered.looks.materials = [{"lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": second, "edge": null}}}]
+		single.set_meta("expressions", layered)
+		Vrm.write(single, "user://single-shade.vrm")
+		single.free()
+		var read := Avatar.read(FileAccess.get_file_as_bytes("user://single-shade.vrm"))
+		check((read != null) == (second == null), "a file with the first shade layer alone reads where no material has a second shade and is refused where one does: %s" % [second])
 
 
 func _roundtrip() -> void:

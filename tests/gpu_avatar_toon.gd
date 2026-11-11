@@ -1,10 +1,12 @@
 extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's toon looks as lilToon draws them: a flat grey ball lit from +X takes its first shade past its
-## shadow's border and its second past the second's, the border where the border's half Lambert puts it; a rim
-## brightens its silhouette alone; and an added matcap lays its top half where the ball faces up and its right half
-## where it faces right, as Unity maps one, and a clip moving its intensity to nothing and its emission's strength off
-## nothing takes the matcap away and lights the emission. Needs a renderer, so scripts/test.sh runs it on the desktop one:
+## shadow's border and its second past the second's, the border where the border's half Lambert puts it, both turned by
+## a menu's hue and moved by its colour as the albedo is; a rim brightens its silhouette alone, and on back faces only
+## where it says so; an added matcap lays its top half where the ball faces up and its right half where it faces right,
+## as Unity maps one, and a clip moving its intensity to nothing and its emission's strength off nothing takes the
+## matcap away and lights the emission; and a reflection matcap lays its left half where the ball faces right, as
+## Poiyomi reflects the view in Unity's axes, Godot's mirrored through X. Needs a renderer, so scripts/test.sh runs it on the desktop one:
 ## godot4 --path game --xr-mode off --script ../tests/gpu_avatar_toon.gd [-- OUT_DIR], which keeps each shot there.
 
 const SIZE := 96
@@ -47,32 +49,42 @@ func _run() -> void:
 	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
 	var shadow := {"border": BORDER, "blur": 0.1, "strength": 1.0, "second": {"border": SECOND_BORDER, "blur": 0.1, "weight": 1.0}, "edge": null}
-	var rim := {"color": [0.0, 1.0, 0.0], "strength": 0.5, "main": 0.0, "border": 0.3, "blur": 0.2, "power": 1.5, "lit": 0.0, "shadowMask": 0.0}
+	var rim := {"color": [0.0, 1.0, 0.0], "strength": 0.5, "main": 0.0, "border": 0.3, "blur": 0.2, "power": 1.5, "lit": 0.0, "shadowMask": 0.0, "backface": false}
+	var rest := BASE.linear_to_srgb()
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 1.0, 1.0, 1.0], "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 1.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null, "theme": null}
 	var shots := {}
-	for look: String in ["shadow", "rim", "plain", "matcap"]:
+	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]]}
+	for look: String in ["shadow", "rim", "plain", "matcap", "reflection", "turned", "recoloured", "inside", "inside hidden", "inside shown"]:
 		var entry := {"lighting": {"model": "flat", "cap": 1.0}}
-		if look in ["shadow", "rim"]:
+		if look in ["shadow", "rim", "turned", "recoloured", "inside", "inside hidden", "inside shown"]:
 			entry.lighting.shadow = shadow
-		if look == "rim":
+		if look in ["rim", "inside hidden"]:
 			entry.rim = rim
+		if look == "inside shown":
+			entry.rim = rim.merged({"backface": true}, true)
 		var targets := []
 		if look == "matcap":
 			entry.matcaps = [matcap, null, null, null]
 			entry.emission = {"color": [0.0, 0.0, 0.5], "strength": 0.0, "hue": 0.0, "shiftsHue": false}
 			for field: String in ["matcapIntensity", "emission"]:
 				targets.append({"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": field, "slot": 0}]}, "default": 1.0 if field == "matcapIntensity" else 0.0})
-		var ball := _ball(entry, targets)
+		if look == "reflection":
+			entry.matcaps = [matcap.merged({"mode": "reflection"}, true), null, null, null]
+		if look == "turned":
+			targets.append({"effect": {"hue": [{"node": "Ball", "rect": [0, 0, 1, 1], "space": 1, "shift": 1}]}, "default": 0.0})
+		if look == "recoloured":
+			targets.append({"effect": {"color": [{"node": "Ball", "rect": [0, 0, 1, 1], "channel": 0, "color": [rest.r, rest.g, rest.b]}]}, "default": rest.r})
+		var ball := _ball(entry, targets, look.begins_with("inside"))
 		view.add_child(ball)
 		shots[look] = await _shot(view)
-		if look == "matcap":
+		if moves.has(look):
 			var player: ExpressionPlayer = ball.get_child(1)
 			player.set_process(false)
-			player.state.outputs.assign([0.0, 1.0])
+			player.state.outputs.assign(moves[look][1])
 			player.apply()
 			await process_frame
 			await RenderingServer.frame_post_draw
-			shots.moved = view.get_texture().get_image()
+			shots[moves[look][0]] = view.get_texture().get_image()
 		ball.queue_free()
 	for look: String in shots:
 		if not OS.get_cmdline_user_args().is_empty():
@@ -96,7 +108,21 @@ func _run() -> void:
 	var moved: Image = shots.moved
 	var still := _mean(moved, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
 	var glowing := _mean(moved, -0.7, -0.5, 0.0).b - _mean(plain, -0.7, -0.5, 0.0).b
-	print("lit %s, first shade %s, second shade %s, border at x %.3f: %.1f degrees from the light (expected %.1f); rim at the silhouette +%s green, mid-ball %+.4f; matcap red up %+.3f down %+.3f, blue right %+.3f left %+.3f; moved: red up %+.3f, blue left %+.3f" % [lit, first, second, crossing, measured, expected, edge, middle, up, down, right, left, still, glowing])
+	var reflected: Image = shots.reflection
+	var reflected_up := _mean(reflected, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
+	var reflected_right := _mean(reflected, 0.5, 0.7, 0.0).b - _mean(plain, 0.5, 0.7, 0.0).b
+	var reflected_left := _mean(reflected, -0.7, -0.5, 0.0).b - _mean(plain, -0.7, -0.5, 0.0).b
+	var turned: Image = shots.turned
+	var turned_lit := _mean(turned, 0.4, 0.7, 0.0)
+	var turned_first := _mean(turned, -0.3, 0.0, 0.0)
+	var turned_second := _mean(turned, -0.9, -0.7, 0.0)
+	var recoloured: Image = shots.recoloured
+	var recoloured_lit := _mean(recoloured, 0.4, 0.7, 0.0)
+	var recoloured_first := _mean(recoloured, -0.3, 0.0, 0.0)
+	var inside: Image = shots.inside
+	var hidden := [_mean(shots["inside hidden"], 0.88, 0.95, 0.0).g - _mean(inside, 0.88, 0.95, 0.0).g, _mean(shots["inside hidden"], -0.95, -0.88, 0.0).g - _mean(inside, -0.95, -0.88, 0.0).g]
+	var shown := [_mean(shots["inside shown"], 0.88, 0.95, 0.0).g - _mean(inside, 0.88, 0.95, 0.0).g, _mean(shots["inside shown"], -0.95, -0.88, 0.0).g - _mean(inside, -0.95, -0.88, 0.0).g]
+	print("lit %s, first shade %s, second shade %s, border at x %.3f: %.1f degrees from the light (expected %.1f); rim at the silhouette +%s green, mid-ball %+.4f; matcap red up %+.3f down %+.3f, blue right %+.3f left %+.3f; moved: red up %+.3f, blue left %+.3f; reflection: red up %+.3f, blue right %+.3f left %+.3f; hue turned: lit %s, first %s, second %s; red raised: lit %s, first %s; back faces: hidden rim %s, shown %s" % [lit, first, second, crossing, measured, expected, edge, middle, up, down, right, left, still, glowing, reflected_up, reflected_right, reflected_left, turned_lit, turned_first, turned_second, recoloured_lit, recoloured_first, hidden, shown])
 	check(_near(lit, BASE, 0.04), "the side toward the light keeps the base colour: %s" % lit)
 	check(_near(first, FIRST, 0.04), "past the shadow's border the ball takes the first shade: %s" % first)
 	check(_near(second, SECOND, 0.04), "past the second border it takes the second shade: %s" % second)
@@ -104,13 +130,18 @@ func _run() -> void:
 	check(edge.all(func(g: float) -> bool: return g > 0.3) and absf(middle) < 0.01, "the rim brightens the silhouette, %s, and leaves the middle, %+.4f" % [edge, middle])
 	check(up > 0.3 and absf(down) < 0.02 and right > 0.3 and absf(left) < 0.02, "the matcap's top half lies where the ball faces up and its right half where it faces right: up %+.3f, down %+.3f, right %+.3f, left %+.3f" % [up, down, right, left])
 	check(absf(still) < 0.02 and absf(glowing - 0.5) < 0.04, "a clip taking the matcap's intensity to nothing takes it away, %+.3f, and one setting the emission's strength to one lights it 0.5 blue, %+.3f" % [still, glowing])
+	check(reflected_up > 0.3 and reflected_left > 0.3 and absf(reflected_right) < 0.02, "a reflection matcap lays its top half where the ball faces up and its left half where it faces right: up %+.3f, right %+.3f, left %+.3f" % [reflected_up, reflected_right, reflected_left])
+	check(_near(turned_lit, BASE, 0.04) and _near(turned_first, Color(FIRST.b, FIRST.g, FIRST.r), 0.04) and _near(turned_second, Color(SECOND.g, SECOND.r, SECOND.b), 0.04), "a menu hue turn of a third turns the shades as the albedo, blue to red and red to green: lit %s, first %s, second %s" % [turned_lit, turned_first, turned_second])
+	check(_near(recoloured_lit, Color(1.0, BASE.g, BASE.b), 0.04) and _near(recoloured_first, Color(FIRST.r * 2.0, FIRST.g, FIRST.b), 0.04), "a menu colour doubling the albedo's red doubles the shade's: lit %s, first %s" % [recoloured_lit, recoloured_first])
+	check(hidden.all(func(g: float) -> bool: return absf(g) < 0.01) and shown.all(func(g: float) -> bool: return g > 0.3), "a rim hidden on back faces leaves an inside-out ball's silhouette, %s, and one drawn there brightens it, %s" % [hidden, shown])
 	view.queue_free()
 	finish()
 
 
 ## A grey ball whose one material's looks entry is `entry`, its shade layers the two shades, its matcap red over its
-## top half and blue over its right and its emission map white, animated by `targets`, as the avatar runtime opens it.
-func _ball(entry: Dictionary, targets: Array) -> Node3D:
+## top half and blue over its right, its emission map and untinted colours white, animated by `targets`, as the avatar
+## runtime opens it; `inverted`, drawn two-sided with its faces turned in, so the side in view is its back faces.
+func _ball(entry: Dictionary, targets: Array, inverted := false) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Ball"
@@ -119,6 +150,7 @@ func _ball(entry: Dictionary, targets: Array) -> Node3D:
 	sphere.height = 2.0
 	sphere.radial_segments = 48
 	sphere.rings = 24
+	sphere.flip_faces = inverted
 	var filled := func(c: Color) -> Image:
 		var img := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 		img.fill(c.linear_to_srgb())
@@ -129,6 +161,8 @@ func _ball(entry: Dictionary, targets: Array) -> Node3D:
 			matcap.set_pixel(x, y, Color(1.0 if y < 8 else 0.0, 0.0, 1.0 if x >= 8 else 0.0))
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = ImageTexture.create_from_image(filled.call(BASE))
+	if inverted:
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var im := ImporterMesh.new()
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sphere.get_mesh_arrays(), [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
@@ -136,12 +170,12 @@ func _ball(entry: Dictionary, targets: Array) -> Node3D:
 	var looks := {"index": index, "materials": [entry], "shade": filled.call(FIRST), "shade2": filled.call(SECOND), "matcaps": [matcap], "emission": filled.call(Color.WHITE)}
 	check(ExpressionDefinition.looks_valid(looks), "the ball's looks are valid")
 	var animated := {}
-	for target: Dictionary in targets:
+	for target: Dictionary in targets.filter(func(t: Dictionary) -> bool: return t.effect.has("look")):
 		animated[target.effect.look[0].field] = true
 	Avatar._lit_looks(looks, [im], {}, animated)
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)
-	ball.set_meta("expressions", {"looks": looks, "parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": []})
+	ball.set_meta("expressions", {"looks": looks, "parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "untinted": {"image": filled.call(Color.WHITE), "cells": [[0, 0, 1, 1, 0, 0, 1, 1]]}})
 	ExpressionPlayer.prepare(ball)
 	ball.add_child(ExpressionPlayer.new(ball))
 	return ball

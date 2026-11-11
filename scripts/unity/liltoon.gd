@@ -322,7 +322,8 @@ static func shade(materials: Materials, m: Dictionary, albedo: Image, second: bo
 
 
 ## The rim light as the looks carry it, what of it they cannot hold, or null where it is off: a fresnel rim added after
-## light, not one coloured by a texture, shaped by the light's direction or blended other than by adding.
+## light, on back faces too ("backface") only where _RimBackfaceMask is 0, as lilToon hides it there at any mask above;
+## not one coloured by a texture, shaped by the light's direction or blended other than by adding.
 static func _rim(m: Dictionary) -> Variant:
 	if not _on(m, "_UseRim", "rim"):
 		return null
@@ -334,7 +335,7 @@ static func _rim(m: Dictionary) -> Variant:
 	if mode != 1:
 		return "blend mode %d" % mode
 	var c := _colour(m, "_RimColor", Color(0.66, 0.5, 0.48, 1))
-	return {"color": [c.r, c.g, c.b], "strength": c.a, "main": Materials._float(m, "_RimMainStrength"), "border": Materials._float(m, "_RimBorder", 0.5), "blur": Materials._float(m, "_RimBlur", 0.65), "power": Materials._float(m, "_RimFresnelPower", 3.5), "lit": Materials._float(m, "_RimEnableLighting", 1.0), "shadowMask": Materials._float(m, "_RimShadowMask", 0.5)}
+	return {"color": [c.r, c.g, c.b], "strength": c.a, "main": Materials._float(m, "_RimMainStrength"), "border": Materials._float(m, "_RimBorder", 0.5), "blur": Materials._float(m, "_RimBlur", 0.65), "power": Materials._float(m, "_RimFresnelPower", 3.5), "lit": Materials._float(m, "_RimEnableLighting", 1.0), "shadowMask": Materials._float(m, "_RimShadowMask", 0.5), "backface": Materials._float(m, "_RimBackfaceMask", 1.0) <= 0.0}
 
 
 static func rim(m: Dictionary) -> Dictionary:
@@ -366,7 +367,8 @@ static func _matcap(m: Dictionary, slot: int) -> Variant:
 
 
 ## Matcap `slot` as Materials.matcap gives Poiyomi's: its blend mode (normal, add, screen, multiply) as the strength of
-## the like Poiyomi blend, an added one's lit share added and the rest glowing; {} where `_matcap` draws none.
+## the like Poiyomi blend, an added one's lit share added and the rest glowing, masked by the shadow only where one is
+## drawn (lilToon's shadow mix is one without its shadow); {} where `_matcap` draws none.
 static func matcap(m: Dictionary, slot: int) -> Dictionary:
 	var drawn: Variant = _matcap(m, slot)
 	if not drawn is Dictionary:
@@ -389,7 +391,7 @@ static func matcap(m: Dictionary, slot: int) -> Dictionary:
 		"mixed": 0.0,
 		"lightAdd": 0.0,
 		"emission": 1.0 - lit if mode == 1 else 0.0,
-		"lightMask": Materials._float(m, p + "ShadowMask"),
+		"lightMask": Materials._float(m, p + "ShadowMask") if _shadow(m) is Dictionary else 0.0,
 		"hue": null,
 		"circle": null,
 		"theme": null,

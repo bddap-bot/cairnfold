@@ -1349,8 +1349,8 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps,
 ## emission and rim at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
 ## "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask blended in), "emission"
-## map and, where a material's lighting has a toon shadow, "shade" and "shade2" (its shade colours, Liltoon.shade, and
-## the albedo elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
+## map and, where a material's lighting has a toon shadow, "shade" and, where one has a second shade, "shade2" (its
+## shade colours, Liltoon.shade, and the albedo elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
 ## over its material's cell, which its decals name by "image"; and the `outline_layer`, which spans the atlas, not the
 ## entries.
 func looks() -> Dictionary:
@@ -1362,6 +1362,7 @@ func looks() -> Dictionary:
 	var coat_maps := {}
 	var coat_images: Array[Image] = []
 	var shaded := []
+	var second_shaded := false
 	for key: String in materials:
 		var m: Dictionary = materials[key]
 		if not m.has("cell"):
@@ -1417,6 +1418,7 @@ func looks() -> Dictionary:
 				_folded_maps[key][0] = null
 		if light.get("shadow") != null:
 			shaded.append(m)
+			second_shaded = second_shaded or light.shadow.second != null
 		var cell := Rect2(m.cell)
 		var entry := {"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
 		var themed: Array = drawn_matcaps.filter(func(c: Variant) -> bool: return c is Dictionary and c.theme != null).map(func(c: Dictionary) -> int: return c.theme)
@@ -1452,7 +1454,7 @@ func looks() -> Dictionary:
 		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
 	if not coat_images.is_empty():
 		out.clearcoatMaps = coat_images
-	for second: bool in [] if shaded.is_empty() else [false, true]:
+	for second: bool in [false, true].slice(0, 0 if shaded.is_empty() else 2 if second_shaded else 1):
 		var shade := atlas.duplicate() as Image
 		shade.clear_mipmaps()
 		var data := shade.get_data()

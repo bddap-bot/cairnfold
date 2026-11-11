@@ -317,9 +317,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   says, and only the features its keywords compile. The atlas holds its colour adjustment (a hue a clip turns left
   unturned, masked by `_MainColorAdjustMask`), its 2nd and 3rd main textures drawn by UV0 before light and its alpha
   mask; its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
-  "shade" and "shade2" layers, its rim, its first two matcaps and its emissions. A feature drawn in a way the looks
-  cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported among the material
-  features not drawn. An avatar without a menu still carries its materials' looks.
+  "shade" layer ("shade2" for a second shade) and turn with the menu's hue, tone and colour as the albedo does, its
+  rim (on back faces only where `_RimBackfaceMask` is 0), its first two matcaps and its emissions. A feature drawn in
+  a way the looks cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported
+  among the material features not drawn. An avatar without a menu still carries its materials' looks.
 
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.

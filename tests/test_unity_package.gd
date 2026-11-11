@@ -2362,7 +2362,7 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 		}, {"_ShadowColor": Color(0.5, 0.5, 0.5, 1), "_Shadow2ndColor": Color(1, 0, 0, 0.5), "_ShadowBorderColor": Color(0, 0, 0, 1), "_RimColor": Color(1, 0.5, 0.25, 0.8), "_EmissionColor": Color(1, 0.5, 0, 1), "_MainTex_ScrollRotate": Color(0, 0, 0, 0)},
 		{"_MainTex": "grey", "_ShadowStrengthMask": "half", "_MatCapTex": ["gold", Vector2(0.8, 0.8), Vector2.ZERO], "_MatCapBlendMask": "half", "_EmissionMap": "half"}),
 		"eye": _liltoon_mat(LILTOON_MULTI, "_EMISSION", {"_UseRim": 1, "_UseEmission": 1, "_UseEmission2nd": 1}, {"_EmissionMap_ScrollRotate": Color(0.5, 0, 0, 0)}, {"_MainTex": "grey"}),
-		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey"}),
+		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5, "_UseRim": 1, "_RimBackfaceMask": 0, "_UseMatCap": 1, "_MatCapShadowMask": 0.6}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey"}),
 	}, {"grey": [grey, grey, grey, grey], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "gold": [Color(1, 0.8, 0.2, 1)]})
 	var materials := Materials.new(assets)
 	for key: String in ["skin", "eye", "glow"]:
@@ -2378,7 +2378,8 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	check(skin.lighting == {"model": "flat", "cap": 1.5, "shadow": {"border": 0.4, "blur": 0.2, "strength": 0.9, "second": {"border": 0.15, "blur": 0.1, "weight": 0.5}, "edge": null}}, "lilToon lights flat, capped at its _LightMaxLimit, its shadow's border, blur, strength and second shade carried, a black edge left out: %s" % [skin.lighting])
 	check(entries[1].lighting.shadow == null and not entries[1].has("rim"), "a material without its shadow, and a Multi rim without its keyword, carry neither")
 	var rim := Color(1, 0.5, 0.25).srgb_to_linear()
-	check(skin.get("rim") == {"color": [rim.r, rim.g, rim.b], "strength": Color(0, 0, 0, 0.8).a, "main": 0.0, "border": 0.6, "blur": 0.65, "power": 2.0, "lit": 1.0, "shadowMask": 0.5}, "the rim carries its linear colour, strength and shape: %s" % [skin.get("rim")])
+	check(skin.get("rim") == {"color": [rim.r, rim.g, rim.b], "strength": Color(0, 0, 0, 0.8).a, "main": 0.0, "border": 0.6, "blur": 0.65, "power": 2.0, "lit": 1.0, "shadowMask": 0.5, "backface": false}, "the rim carries its linear colour, strength and shape, hidden on back faces by default: %s" % [skin.get("rim")])
+	check(entries[2].get("rim", {}).get("backface") == true, "a rim whose back face mask is none draws on back faces: %s" % [entries[2].get("rim")])
 	var shade: Variant = looks.get("shade")
 	var shade2: Variant = looks.get("shade2")
 	check(shade is Image and shade2 is Image, "the shade layers are images")
@@ -2403,6 +2404,7 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	materials.materials.skin.floats._MatCapBlendMode = "1"
 	var gilt: Variant = skin.matcaps[0]
 	check(gilt is Dictionary and gilt.texture == 0 and gilt.mode == "normal" and is_equal_approx(gilt.border, 0.4) and gilt.intensity == 0.7 and gilt.baseMix == 0.5 and gilt.lightMask == 0.3 and gilt.hue == null and gilt.circle == null, "the first matcap fills slot one, its border scaled by its tiling: %s" % [gilt])
+	check(entries[2].matcaps[0] is Dictionary and entries[2].matcaps[0].lightMask == 0.0, "a matcap's shadow mask masks nothing on a material without its shadow, as lilToon's shadow mix is one there: %s" % [entries[2].matcaps[0]])
 	check(skin.matcaps[1] is Dictionary and skin.matcaps[1].multiply == 1.0 and skin.matcaps[2] == null and skin.matcaps[3] == null, "the second matcap fills slot two: %s" % [skin.matcaps])
 	var masks: Variant = looks.get("matcapMasks")
 	check(masks is Image, "the matcap masks are an image")
@@ -2422,6 +2424,9 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 		var both: Array = _row(materials, glow, "glow")
 		check(_near(both[0], Color(1, 0, Color(0.5 / hot, 0, 0).linear_to_srgb().r, 1)), "two emissions lie in one map, each by its colour and blend over the peak: %s" % [both])
 	check(materials.losses().size() == 1 and materials.losses()[0] == "eye: emission (scrolling)", "a scrolling emission is reported, a feature Multi compiles out is not: %s" % [materials.losses()])
+	materials.materials.skin.colours._Shadow2ndColor = {"r": "1", "g": "0", "b": "0", "a": "0"}
+	var single := materials.looks()
+	check(single.get("shade") is Image and not single.has("shade2"), "without a second shade on any material the looks carry the first shade layer alone: %s" % [single.keys()])
 
 
 ## lilToon's colour adjustment, 2nd main texture and alpha mask bake into the atlas in linear light: a normal decal

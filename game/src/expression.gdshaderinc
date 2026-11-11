@@ -274,6 +274,20 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 	return added;
 }
 
+// The menu's hue turn `hue` and tone `tone` of `c` where the hue mask `adjust` lets them, as the albedo and its shades
+// both take them.
+vec3 adjusted(vec3 c, vec4 hue, vec3 tone, vec4 adjust) {
+	if (hue.w > 0.5) {
+		c = mix(c, shift_hue(c, hue.xyz), adjust.r);
+	}
+	if (tone != vec3(1.0, 0.0, 0.0)) {
+		c = mix(c, sign(c) * pow(abs(c), vec3(tone.x)), adjust.a);
+		c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), -tone.y * adjust.b);
+		c = mix(c, c * (tone.z + 1.0), adjust.g);
+	}
+	return c;
+}
+
 void fragment() {
 	vec2 uv = UV * atlas.xy + atlas.zw;
 	vec2 dx = dFdx(uv);
@@ -355,6 +369,8 @@ void fragment() {
 			}
 		}
 	}
+	// How far a colour region moves each channel of the albedo, which a shade made from it moves alike.
+	vec3 recolour = vec3(1.0);
 	if (tint.x >= 0.0) {
 		vec3 raw = vec3(1.0);
 		for (int i = 0; i < untinted_count; i++) {
@@ -366,19 +382,14 @@ void fragment() {
 				break;
 			}
 		}
-		base.rgb = raw * linear(clamp(tint, 0.0, 1.0));
+		vec3 recoloured = raw * linear(clamp(tint, 0.0, 1.0));
+		recolour = recoloured / max(base.rgb, vec3(1e-4));
+		base.rgb = recoloured;
 	}
 	base *= colour;
 	if (use_vertex) { base *= COLOR; }
 	vec4 adjust = texture(hue_mask, UV);
-	if (hue.w > 0.5) {
-		base.rgb = mix(base.rgb, shift_hue(base.rgb, hue.xyz), adjust.r);
-	}
-	if (tone != vec3(1.0, 0.0, 0.0)) {
-		base.rgb = mix(base.rgb, sign(base.rgb) * pow(abs(base.rgb), vec3(tone.x)), adjust.a);
-		base.rgb = mix(base.rgb, vec3(dot(base.rgb, vec3(0.3, 0.59, 0.11))), -tone.y * adjust.b);
-		base.rgb = mix(base.rgb, base.rgb * (tone.z + 1.0), adjust.g);
-	}
+	base.rgb = adjusted(base.rgb, hue, tone, adjust);
 	for (int slot = 0; slot < 4; slot++) {
 		if (decal_alpha[slot] >= 0.0) {
 			vec4 cell = decal_cell[slot];
@@ -414,9 +425,11 @@ void fragment() {
 		if (shadow.a > 0.5) {
 			vec4 second = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 1), 0);
 			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 2), 0);
-			vec3 dark = shade_texel.rgb;
+			vec3 own = recolour * colour.rgb * (use_vertex ? COLOR.rgb : vec3(1.0));
+			vec3 dark = adjusted(shade_texel.rgb * own, hue, tone, adjust);
 			if (second.z > 0.0) {
-				dark = mix(dark, textureGrad(shade2, uv, dx, dy).rgb, second.z * (1.0 - toon(toward, second.x, second.y, 0.0, toward_width)));
+				vec3 deeper = adjusted(textureGrad(shade2, uv, dx, dy).rgb * own, hue, tone, adjust);
+				dark = mix(dark, deeper, second.z * (1.0 - toon(toward, second.x, second.y, 0.0, toward_width)));
 			}
 			dark = min(dark, albedo);
 			dark = mix(dark, albedo, toon(toward, shadow.x, shadow.y, edge.a, toward_width) * edge.rgb);
@@ -440,9 +453,9 @@ void fragment() {
 #ifdef TOON
 	if (toon_entry >= 0) {
 		vec4 rim = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 3), 0);
-		if (rim.a > 0.0) {
+		vec4 reach = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 5), 0);
+		if (rim.a > 0.0 && (FRONT_FACING || reach.z > 0.5)) {
 			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 4), 0);
-			vec4 reach = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 5), 0);
 			float fresnel = pow(1.0 - facing, edge.w);
 			float fresnel_width = edge.w * pow(max(1.0 - facing, 1e-4), edge.w - 1.0) * facing_width;
 			float r = toon(fresnel, edge.y, edge.z, 0.0, fresnel_width) * mix(1.0, shadowmix, reach.y) * rim.a;
