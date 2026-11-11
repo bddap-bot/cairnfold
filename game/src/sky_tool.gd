@@ -16,8 +16,7 @@ var world: World
 ## Whether a hand is in the middle of an edit, which its grip may have started this frame.
 var editing: Callable
 var holder: Hand
-## The sky's angle less the pointer's turn as the grip took it, which every aim adds its own turn to: the time wraps
-## round the day, so a pointer that crosses the arc's seam need not be unwound.
+## The time wraps round the day, so a pointer that crosses the arc's seam need not be unwound.
 var _offset := 0.0
 var _ticked := 0
 

@@ -136,7 +136,7 @@ func _every_page_shows_in_order() -> void:
 		var right: int = b._sheets[1].get_meta("front", -1) if b._sheets[1].visible else -1
 		spreads.append([left, right])
 		var first := 2 * at - 3
-		expected.append([first, first + 1 if first + 1 < Lessons.PAGES.size() else -1])
+		expected.append([first if first < Lessons.PAGES.size() else -1, first + 1 if first + 1 < Lessons.PAGES.size() else -1])
 	check(spreads == expected, "each spread shows the next two pages, the last one too: %s, not %s" % [spreads, expected])
 	b.queue_free()
 

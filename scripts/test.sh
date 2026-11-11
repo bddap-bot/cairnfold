@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The repo's checks: perf records added since origin/main measured what lands (records.sh), scripts compile, then every
-# headless test; a script error, a failed allocation, an engine math call given an unnormalized axis, a resource left in
-# use or an object leaked at exit, or an engine call given a freed object or a null material fails it.
+# headless test; a script or shader error, a failed allocation, an engine math call given an unnormalized axis, a
+# resource left in use or an object leaked at exit, or an engine call given a freed object or a null material fails it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/records.sh
@@ -38,7 +38,7 @@ fifo=${fifo##*--jobserver-auth=fifo:}
 if [ -p "${fifo%% *}" ]; then jobs=(); else jobs=(-j "$(( $(nproc) / 2 ))"); fi
 # shellcheck disable=SC2046,SC2012
 make -s -k -f "$runs/tests.mk" "${jobs[@]}" $(ls -S tests/test_*.gd | sed "s|^tests/\(.*\)|$runs/\1.log.exit|")
-errors='SCRIPT ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter "material" is null|Parameter "mem|must be normalized'
+errors='SCRIPT ERROR|SHADER ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter "material" is null|Parameter "mem|must be normalized'
 # verdict TEST LOG EXIT_CODE ERRORS
 verdict() {
   local failed=0
@@ -59,7 +59,7 @@ done
 . scripts/xvfb.sh
 xvfb 640x480x24
 trap 'kill $xvfb_pid ${gpu:-} 2>/dev/null || true; rm -rf "$runs"' EXIT
-gpu_errors='SCRIPT ERROR|Parameter "material" is null'
+gpu_errors='SCRIPT ERROR|SHADER ERROR|Parameter "material" is null'
 for t in tests/gpu_*.gd; do
   log="$runs/$(basename "$t").log"
   code=0

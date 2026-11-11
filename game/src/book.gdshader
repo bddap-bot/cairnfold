@@ -10,7 +10,7 @@ render_mode diffuse_lambert_wrap;
 
 const int KIND_COVER = 0;
 const int KIND_BLOCK = 1;
-uniform int kind = KIND_COVER;
+uniform int kind = 0;
 uniform vec3 size = vec3(0.16, 0.003, 0.16);
 uniform bool front = false;
 // The front's top face baked (Book): albedo with metal in alpha, and roughness.

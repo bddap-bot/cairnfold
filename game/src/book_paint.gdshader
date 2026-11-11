@@ -17,7 +17,7 @@ const int PART_FACE_PAINT = 0;
 const int PART_FACE_GRAIN = 1;
 const int PART_COVER_PAINT = 2;
 const int PART_COVER_ROUGH = 3;
-uniform int part = PART_FACE_PAINT;
+uniform int part = 0;
 uniform vec3 board;
 uniform vec3 cloth;
 uniform vec3 leather;

@@ -211,17 +211,16 @@ func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
 		for s: Dictionary in strokes.slice(3, 3 + Canvas.CHECKPOINTS):
 			var was := canvas.last_end
 			canvas.play(s, 1)
-			while canvas.last_end == was:
-				await process_frame
+			await until(func() -> bool: return canvas.last_end != was, "a stroke played to its end")
 		var slots: Array = canvas._checkpoints.map(func(c: Array) -> int: return c[5])
-		check(slots.size() == Canvas.CHECKPOINTS and slots.all(func(s: int) -> bool: return s < Canvas.CHECKPOINTS),
+		slots.sort()
+		check(slots == range(Canvas.CHECKPOINTS),
 			"%d strokes ended one by one keep %d checkpoints, each in a slot: %s" % [Canvas.CHECKPOINTS, Canvas.CHECKPOINTS, slots])
 		var kept_before := canvas._checkpoints.duplicate()
 		canvas.lay(strokes[0], PackedFloat32Array())
 		var was := canvas.last_end
 		canvas.play(strokes[1], 1)
-		while canvas.last_end == was:
-			await process_frame
+		await until(func() -> bool: return canvas.last_end != was, "another's stroke played to its end")
 		check(canvas._checkpoints == kept_before, "another's stroke ending while the painter's own is under way keeps no checkpoint")
 		canvas.queue_free()
 
