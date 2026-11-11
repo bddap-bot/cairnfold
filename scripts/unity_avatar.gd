@@ -93,7 +93,7 @@ func _run() -> void:
 	var report: Dictionary = root.get_meta("report")
 	var bytes := write(root, args[1], {"converter": source()})
 	if Avatar.read(bytes, true) == null:
-		printerr("unity_avatar: Avatar.read refuses %s: it needs %s as bones of one skeleton and at most %d surfaces" % [args[1], Avatar.NEEDS, Avatar.MAX_SURFACES])
+		printerr("unity_avatar: Avatar.read refuses %s: it needs %s as bones of one skeleton" % [args[1], Avatar.NEEDS])
 		quit(1)
 		return
 	var pixels := Vrm.pixels(Vrm.images(bytes))

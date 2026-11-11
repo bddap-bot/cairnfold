@@ -363,9 +363,14 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   shoulders, elbows and knees bend continuously. Where a hand is held past the arm's reach,
   the hand still goes to the controller and the forearm's skin stretches after it. The
   built-in avatars are skinned the same way, each part wholly weighed to its bone. Each
-  surface is a draw call, one per material of each mesh, and the limit is 40. A headset whose frame
-  still runs over at every other cut draws each other player's own file as a built-in avatar in the
-  file's colour ("People past the headset" in design.md). On a Quest 2
+  surface is a draw call, one per material of each mesh, and each outline one more. A file with a
+  mesh of more materials than Godot's renderer draws of one mesh (256) is refused. A headset whose
+  frame runs over drops outlines on the quality ladder, and one whose frame still runs over at every other cut draws each other player's own file as a built-in avatar in the
+  file's colour ("People past the headset" in design.md). On a Quest 2 at step 5, three figures in
+  `demo/avatar-draws.json` of a corpus avatar of 73 surfaces take 14.8 GPU ms close and 17.1 across
+  (`corpus/close`, `corpus/across`) against 10.1 and 10.8 for three built-ins in the same runs, two
+  runs each; left to the governor, it reaches the last step 2.5 s after the file is read and holds
+  the frame. On a Quest 2
   at quality step 6, seven figures of Seed-san, the Unity sample package, at its full 45,058
   triangles in `demo/avatar-chain-cost.json`, all in view across the meadow, take 12.67 GPU
   ms against 8.73 with built-ins

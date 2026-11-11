@@ -37,6 +37,7 @@ func _run() -> void:
 	_a_later_physbone_over_the_same_bones_is_shadowed()
 	_switched_off_physics_stays_out()
 	_outlined_materials_draw_their_hull()
+	_many_surfaces_draw_with_their_outlines()
 	_read_skins_bind_only_weighed_bones()
 	_hidden_avatars_pause()
 	_unity_package_converts()
@@ -778,23 +779,65 @@ func _outlined_materials_draw_their_hull() -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	root.add_child(mi)
-	check(not Avatar._outlined(root, true), "a material marked outlined without an outline layer refuses the model")
+	check(not Avatar._outlined(root), "a material marked outlined without an outline layer refuses the model")
 	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	root.set_meta("expressions", {"looks": {"outline": layer, "outlineWidth": 0.002}})
-	check(Avatar._outlined(root, true), "a model whose looks carry the layer is drawn")
+	check(Avatar._outlined(root), "a model whose looks carry the layer is drawn")
 	var hull := kinds[0].next_pass as ShaderMaterial
 	check(hull != null and hull.shader == Avatar.OUTLINE and is_equal_approx(hull.get_shader_parameter("width"), 0.002), "an opaque outlined material draws its hull whole, as wide as the looks say")
 	check(kinds[1].next_pass is ShaderMaterial and (kinds[1].next_pass as ShaderMaterial).shader == Avatar.OUTLINE_CUT, "a cut-out one draws its hull cut out")
 	check(kinds[2].next_pass == null, "a material not marked draws no hull")
-	var past := StandardMaterial3D.new()
-	past.set_meta("extras", {"outline": true})
-	mesh.surface_set_material(2, past)
-	check(Avatar._outlined(root, false) and past.next_pass == null, "an avatar whose hulls would pass the draw limit draws without them")
 	Avatar.show_outlines(false)
 	check(kinds[0].next_pass == null and kinds[1].next_pass == null, "a step without outlines draws no hull")
 	Avatar.show_outlines(true)
 	check(kinds[0].next_pass == hull, "a step with them draws it again")
 	root.free()
+
+
+## However many surfaces a model draws, it loads with every outline its materials mark; only a mesh past what the renderer
+## draws of one mesh is refused.
+func _many_surfaces_draw_with_their_outlines() -> void:
+	var root := Node3D.new()
+	var sk := Skeleton3D.new()
+	sk.name = "Skeleton3D"
+	root.add_child(sk)
+	var human := {}
+	for bone in Avatar.NEEDS:
+		human[bone] = NodePath("Skeleton3D:%s" % bone)
+		sk.add_bone(bone)
+	root.set_meta("humanoid", human)
+	root.set_meta("expressions", {"looks": {"outline": Image.create_empty(4, 4, false, Image.FORMAT_RGBA8), "outlineWidth": 0.002}})
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	var surfaces := 120
+	for i in surfaces:
+		var m := StandardMaterial3D.new()
+		m.set_meta("extras", {"outline": true})
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(i, m)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	sk.add_child(mi)
+	var scene := Avatar.model(root)
+	check(scene != null, "a model of %d outlined surfaces loads" % surfaces)
+	if scene == null:
+		return
+	var a := Avatar.open(scene, Color.WHITE)
+	var hulled := 0
+	for each: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
+		for i in each.mesh.get_surface_count():
+			hulled += int(each.mesh.surface_get_material(i).next_pass is ShaderMaterial)
+	check(hulled == surfaces, "each of its %d surfaces draws its outline (%d)" % [surfaces, hulled])
+	a.free()
+	var state := GLTFState.new()
+	var gm := GLTFMesh.new()
+	gm.mesh = ImporterMesh.new()
+	for i in RenderingServer.MAX_MESH_SURFACES + 1:
+		gm.mesh.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+	state.set_meshes([gm])
+	check(not Avatar.shape(state), "a mesh of more materials than the renderer draws of one mesh is refused, not drawn in part")
 
 
 func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
@@ -810,12 +853,10 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	for m: Dictionary in json.get("materials", []):
 		both_sides[m.get("name", "")] = m.get("doubleSided", false)
 	var triangles := 0
-	var surfaces := 0
 	var plain := 0
 	var materials := 0
 	var textures := {}
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
-		surfaces += mi.mesh.get_surface_count()
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
 			if m != null and m.albedo_texture != null:
@@ -825,7 +866,6 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 	check(triangles == authored, "%s keeps every triangle its file has (%d of %d)" % [what, triangles, authored])
-	check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
 	check(plain == materials, "%s draws its colour alone, sampled anisotropically, lit once a vertex, both sides only where its file says, cut out or blended where see-through (%d of %d)" % [what, plain, materials])
 	check(not textures.is_empty(), "%s keeps its textures" % what)
 	for tex: Texture2D in textures:

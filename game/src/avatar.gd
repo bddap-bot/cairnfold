@@ -24,9 +24,6 @@ const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acor
 const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
-## Draw calls: one a material of each skinned mesh shown and one more for its outline; a mesh an avatar's menu hides draws
-## nothing (docs/multiplayer.md, "Skinned bodies").
-const MAX_SURFACES := 40
 ## The cap of a flat material that has none, past any light the garden sheds.
 const UNCAPPED := 1e4
 ## The looks table rows before a ramp-lit material's ramp (_lit_looks).
@@ -402,19 +399,10 @@ static func model(root: Node3D) -> PackedScene:
 	_switched_off(root)
 	_keep_longest(root)
 	var bones: Dictionary = root.get_meta("humanoid")
-	var surfaces := 0
-	var hulls := 0
-	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
-		if mi.visible:
-			for i in mi.mesh.get_surface_count():
-				surfaces += 1
-				hulls += int(_marked(mi.mesh.surface_get_material(i)))
 	var missing := NEEDS.filter(func(b: String) -> bool: return not bones.has(b))
-	if not missing.is_empty() or surfaces > MAX_SURFACES or not _outlined(root, surfaces + hulls <= MAX_SURFACES):
+	if not missing.is_empty() or not _outlined(root):
 		if not missing.is_empty():
 			print("avatar: refused: no %s bone on its skeleton" % ", ".join(missing))
-		elif surfaces > MAX_SURFACES:
-			print("avatar: refused: %d surfaces, past %d" % [surfaces, MAX_SURFACES])
 		root.free()
 		return null
 	for n in root.find_children("*", "", true, false):
@@ -432,10 +420,9 @@ static func model(root: Node3D) -> PackedScene:
 
 
 ## Gives each material its glTF extras mark "outline" (`_marked`) its hull (avatar_outline.gdshader) as the pass after
-## it, drawn by the looks' outline layer and width, where `drawn`: the hulls keep the avatar within MAX_SURFACES, past
-## which it draws without outlines rather than not at all. False where a material is marked and the looks carry no
-## layer to draw it by.
-static func _outlined(root: Node3D, drawn: bool) -> bool:
+## it, drawn by the looks' outline layer and width. False where a material is marked and the looks carry no layer to draw
+## it by.
+static func _outlined(root: Node3D) -> bool:
 	var marked: Array[BaseMaterial3D] = []
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
@@ -448,9 +435,6 @@ static func _outlined(root: Node3D, drawn: bool) -> bool:
 	if not looks is Dictionary or not looks.get("outline") is Image:
 		push_error("avatar: a material is outlined but the looks carry no outline layer")
 		return false
-	if not drawn:
-		print("avatar: its outlines would take it past %d draws, so it draws without them" % MAX_SURFACES)
-		return true
 	var texture := ImageTexture.create_from_image(looks.outline)
 	for m in marked:
 		var hull := ShaderMaterial.new()
@@ -624,8 +608,9 @@ static func _on_one_skeleton(model: Node3D) -> void:
 
 
 ## Shapes an importer's parsed meshes and materials before it makes the scene: each mesh merged by material, its
-## materials plain and those of meshes showing a flat-lit or glowing material carrying their looks (`_lit_looks`). False, leaving
-## them as they were, if their blend shapes are past MAX_BLEND_VERTICES or their looks lack lighting or the material index.
+## materials plain and those of meshes showing a flat-lit or glowing material carrying their looks (`_lit_looks`). False if
+## their blend shapes are past MAX_BLEND_VERTICES, a mesh merged keeps more materials than the renderer draws of one mesh
+## (RenderingServer.MAX_MESH_SURFACES, past which it drops the rest), or their looks lack lighting or the material index.
 static func shape(state: GLTFState) -> bool:
 	var blended := 0
 	for gm in state.get_meshes():
@@ -636,6 +621,9 @@ static func shape(state: GLTFState) -> bool:
 		return false
 	for gm in state.get_meshes():
 		gm.mesh = _merged(gm.mesh)
+		if gm.mesh.get_surface_count() > RenderingServer.MAX_MESH_SURFACES:
+			print("avatar: refused: a mesh of %d materials, past the %d one mesh draws" % [gm.mesh.get_surface_count(), RenderingServer.MAX_MESH_SURFACES])
+			return false
 	for m in state.get_materials():
 		if m is BaseMaterial3D:
 			_plain(m)

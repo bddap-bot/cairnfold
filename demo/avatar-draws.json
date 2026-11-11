@@ -1,0 +1,232 @@
+[
+ {
+  "op": "quality",
+  "step": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 30
+ },
+ {
+  "op": "figures",
+  "spots": [
+   [
+    6,
+    6
+   ],
+   [
+    10,
+    2
+   ],
+   [
+    14,
+    -2
+   ]
+  ]
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   3,
+   1.65,
+   4
+  ],
+  "at": [
+   6,
+   1.5,
+   6
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "built-in/close"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   -4,
+   1.65,
+   0
+  ],
+  "at": [
+   10,
+   1.5,
+   2
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "built-in/across"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "figures",
+  "file": "bench/guest.vrm",
+  "spots": [
+   [
+    6,
+    6
+   ],
+   [
+    10,
+    2
+   ],
+   [
+    14,
+    -2
+   ]
+  ]
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 5
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   3,
+   1.65,
+   4
+  ],
+  "at": [
+   6,
+   1.5,
+   6
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "corpus/close"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   -4,
+   1.65,
+   0
+  ],
+  "at": [
+   10,
+   1.5,
+   2
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "label",
+  "name": "corpus/across"
+ },
+ {
+  "op": "wait",
+  "seconds": 15
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   4.6,
+   1.5,
+   4.8
+  ],
+  "at": [
+   6,
+   1.2,
+   6
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "capture",
+  "name": "corpus-near"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   3,
+   1.65,
+   4
+  ],
+  "at": [
+   6,
+   1.5,
+   6
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "capture",
+  "name": "corpus-close"
+ },
+ {
+  "op": "quit"
+ }
+]
