@@ -1367,6 +1367,28 @@ the lanterns' phase reads under its walls' price, so `fitting` fits to nothing.
 The lake drowns the plants the cut made cheaper, so its view reads as before (9.56 ms App time) over a meadow 0.7 ms
 cheaper: a view full of water cost 1.99 ms, more than the room then, until the water itself was made cheaper ("Water").
 
+### Toon outlines
+
+An avatar material whose Unity shader draws a toon outline (Poiyomi, lilToon's outline variants, Unity-chan Toon
+Shader, VRChat Toon Standard (Outline)) draws it as an inverted hull: its back faces again, pushed out along their
+normals by the width the importer laid in the avatar's outline layer, so a hull costs about what its surface's vertices
+cost again. `CAIRNFOLD_SCENE=demo/avatar-cost.json CAIRNFOLD_GUEST_AVATAR=FILE bench.sh OUT --android APK` at step 5,
+the free ZONe Zonko package (71 k triangles, outlines on 15 of 20 materials, its atlas held 4096 wide so the Quest 2
+decodes it) converted without and with outlines, interleaved, GPU ms in the governor's signal:
+
+| Phase | Without | With | Per avatar |
+| --- | --- | --- | --- |
+| sweep/vrm/close, 3 in view | 9.62, 9.63 | 11.42, 11.44 | 0.60 |
+| sweep/vrm/across, 3 in view | 10.47, 10.55 | 12.92, 12.88 | 0.80 |
+| sweep/vrm/away, none in view | 8.69, 8.70 | 8.64, 8.65 | 0 |
+| sweep/eight-vrm-standing | 14.32, 14.30 | 19.37, 19.19 | 0.62 |
+
+Records: [without](../perf/quest-2/avatar-cost/20261111T083506Z-849abd1.json),
+[with](../perf/quest-2/avatar-cost/20261111T084210Z-849abd1.json),
+[without](../perf/quest-2/avatar-cost/20261111T084841Z-849abd1.json),
+[with](../perf/quest-2/avatar-cost/20261111T085558Z-849abd1.json). Three such avatars take the frame past the budget,
+so outlines are a rung of the quality ladder (Quality.FLORA): the first cut after the flora's, before the sun's shadows.
+
 ### The ground in chunks
 
 The ground drew all of its 51,200 triangles every frame wherever a camera looked. Profiled on one Quest 2 at the fit
