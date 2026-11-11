@@ -398,16 +398,14 @@ static func model(root: Node3D) -> PackedScene:
 	_switched_off(root)
 	_keep_longest(root)
 	var bones: Dictionary = root.get_meta("humanoid")
-	if not _outlined(root):
-		root.free()
-		return null
 	var surfaces := 0
+	var hulls := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		if mi.visible:
 			for i in mi.mesh.get_surface_count():
-				var m := mi.mesh.surface_get_material(i)
-				surfaces += 2 if m != null and m.has_meta("hull") else 1
-	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES:
+				surfaces += 1
+				hulls += int(_marked(mi.mesh.surface_get_material(i)))
+	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES or not _outlined(root, surfaces + hulls <= MAX_SURFACES):
 		root.free()
 		return null
 	for n in root.find_children("*", "", true, false):
@@ -424,15 +422,16 @@ static func model(root: Node3D) -> PackedScene:
 	return scene
 
 
-## Gives each material its glTF extras mark "outline" its hull (avatar_outline.gdshader) as the pass after it, drawn by
-## the looks' outline layer and width. False where a material
-## is marked and the looks carry no layer to draw it by.
-static func _outlined(root: Node3D) -> bool:
+## Gives each material its glTF extras mark "outline" (`_marked`) its hull (avatar_outline.gdshader) as the pass after
+## it, drawn by the looks' outline layer and width, where `drawn`: the hulls keep the avatar within MAX_SURFACES, past
+## which it draws without outlines rather than not at all. False where a material is marked and the looks carry no
+## layer to draw it by.
+static func _outlined(root: Node3D, drawn: bool) -> bool:
 	var marked: Array[BaseMaterial3D] = []
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(i) as BaseMaterial3D
-			if m != null and (m.get_meta("extras", {}) as Dictionary).get("outline", false) and not m in marked:
+			if _marked(m) and not m in marked:
 				marked.append(m)
 	if marked.is_empty():
 		return true
@@ -440,6 +439,9 @@ static func _outlined(root: Node3D) -> bool:
 	if not looks is Dictionary or not looks.get("outline") is Image:
 		push_error("avatar: a material is outlined but the looks carry no outline layer")
 		return false
+	if not drawn:
+		print("avatar: its outlines would take it past %d draws, so it draws without them" % MAX_SURFACES)
+		return true
 	var texture := ImageTexture.create_from_image(looks.outline)
 	for m in marked:
 		var hull := ShaderMaterial.new()
@@ -451,6 +453,11 @@ static func _outlined(root: Node3D) -> bool:
 		hull.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 		hulled(m, hull)
 	return true
+
+
+## Whether `m` draws a toon outline, by its glTF extras.
+static func _marked(m: Material) -> bool:
+	return m is BaseMaterial3D and (m.get_meta("extras", {}) as Dictionary).get("outline", false)
 
 
 ## Toon outlines draw while the quality ladder's step keeps them (Quality.Step.outlines): each hull costs a Quest 2
