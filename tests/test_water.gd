@@ -25,6 +25,7 @@ func _initialize() -> void:
 	check((load("res://src/water.gdshader") as Shader).code.contains("#define RIPPLES %d\n" % PondWater.RIPPLES), "the shader takes every ripple slot")
 	await _ponds_in_the_glade()
 	await _a_lake_is_worked_out_off_the_main_thread()
+	await _a_way_over_a_bank_into_the_next_pond_goes_into_water()
 	_ground_dug_deep_stays_dry()
 	finish()
 
@@ -245,6 +246,45 @@ func _same_as_on_the_spot(world: World, what: String) -> void:
 	none.fill(-1)
 	r.publish(dry, PackedInt32Array(), none, [])
 	check(r.levels == world.terrain.water_levels() and r.image.get_data() == world.terrain._water_image.get_data(), "%s shows the levels and depths working it out on the spot shows" % what)
+
+
+## Two hollows side by side, a bank one grid point wide between them: every grid square from one to the other is a
+## pond's, so only the bank's dry ground between tells a way out of the first that it has left the water.
+func _a_way_over_a_bank_into_the_next_pond_goes_into_water() -> void:
+	var world := World.new()
+	world.terrain.install()
+	var rig := Rig.new(world.terrain)
+	root.add_child(rig)
+	world.limit = INF
+	root.add_child(world)
+	var grab := GroundGrab.new(rig, world)
+	root.add_child(grab)
+	var water := Water.new(world.terrain, [])
+	root.add_child(water)
+	var tool := WaterTool.new(rig, world)
+	root.add_child(tool)
+	world.attach(null, null, null, grab, water)
+	await process_frame
+	var g0 := Terrain.grid_point(3, -4)
+	var h0 := world.terrain.height_at(3, -4)
+	var cells := Rect2i(g0 - Vector2i(4, 2), Vector2i(9, 5))
+	var heights := PackedFloat32Array()
+	for j in range(cells.position.y, cells.end.y):
+		for i in range(cells.position.x, cells.end.x):
+			var d := Vector2i(i, j) - g0
+			heights.append(h0 - 1.0 if absi(d.y) <= 1 and d.x != 0 and absi(d.x) <= 3 else h0 + 0.5)
+	world.submit({"op": "heights", "cells": cells, "values": heights})
+	world.settle()
+	await process_frame
+	var o := Terrain.grid_xz(g0)
+	for side in [-1, 1]:
+		tool.fill(rig.left, world.terrain.ground(o.x + side * 2, o.y + 1.4))
+		tool.settle()
+		await process_frame
+	var a := o + Vector2(-2, 0)
+	var b := o + Vector2(2, 0)
+	check(water.ponds.size() == 2 and not null in [water.pond_at(a.x, a.y), water.pond_at(b.x, b.y)] and water.pond_at(a.x, a.y) != water.pond_at(b.x, b.y) and water.pond_at(o.x, o.y) == null, "both hollows fill, the bank between them dry, %d ponds" % water.ponds.size())
+	check(water.crosses(a, b) and not water.crosses(a, a + Vector2(0, 1)), "a way out of one pond over the bank goes into the next, one within the pond it starts in into none")
 
 
 ## Ground dug further down than NO_WATER once read as under water, so a wall over it stood at that level and laid

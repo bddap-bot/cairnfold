@@ -173,6 +173,13 @@ func _fx() -> void:
 	state.put("Pulse", 1)
 	state.advance(0.1)
 	check(state.states[0] == 1, "an entry transition to the exit is passed over for the next that holds: in %d" % state.states[0])
+	definition = _definition()
+	definition.layers[0].states[0].transitions = [{"to": 1, "exitTime": 0.5}]
+	state = ExpressionState.new(definition)
+	state.advance(0.25)
+	var early := state.states[0]
+	state.advance(0.5)
+	check(early == 0 and state.states[0] == 1, "a transition with an exit time waits for its state to play that far: in %d, then %d" % [early, state.states[0]])
 
 
 func _bindings() -> void:
@@ -487,6 +494,9 @@ func _bones_turn_and_shift() -> void:
 	skeleton.set_bone_pose_rotation(skeleton.find_bone("wing"), swung)
 	player.apply()
 	check(skeleton.get_bone_pose_rotation(skeleton.find_bone("wing")).is_equal_approx(swung), "the turned bone a spring swings keeps the spring's pose")
+	player.state.outputs[definition.targets.size() - 3] = 0.0
+	player.apply()
+	check(springs.chains[0].joints[0].rest.basis.get_rotation_quaternion().is_equal_approx(rest.basis.get_rotation_quaternion()), "an expression turning that bone back moves the rest its spring swings about")
 	player.free()
 	root.free()
 

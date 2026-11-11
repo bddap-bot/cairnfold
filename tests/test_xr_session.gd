@@ -37,18 +37,37 @@ func _pause_drops_the_aim(game: Main) -> void:
 	check(rig.global_position == at, "the stick let go during the pause teleports nowhere")
 
 
+## Seeds the guest throws land in the host's garden too.
+func _a_guest_s_throw_lands_for_the_host(host: Main, guest: Main) -> void:
+	var from := guest.rig.head.global_position + Vector3(0, 0, -0.5)
+	guest.feed_tool.throw(from, Vector3(0, 1, -1))
+	await until(func() -> bool: return host.feed_tool.handfuls.any(func(h: Handful) -> bool: return h.position == from), "the host sees the guest's handful thrown")
+
+
+## Going home brings the guest's own garden back, and the host lets the guest's avatar go.
+func _the_guest_goes_home(host: Main, guest: Main, home: Dictionary) -> void:
+	guest.session.go_home()
+	await until(func() -> bool: return guest.world.snapshot() == home, "the guest's own garden comes back when they go home")
+	await until(func() -> bool: return host.session.avatars.is_empty(), "the host lets the guest's avatar go")
+
+
 func _run() -> void:
 	var host := _game("Host")
 	var guest := _game("Guest")
 	host.session.first_port = Session.PORT + 48
 	host.session.host()
 	check(host.session.port != 0, "host opens a local co-op session")
+	host.world.submit({"op": "plant", "kind": "tree", "seed": 4, "at": host.world.terrain.ground(2, 2)})
+	await until(func() -> bool: return host.world.seq > 0, "the host plants a tree the guest's garden lacks")
+	var home := guest.world.snapshot()
 	guest.session.join("127.0.0.1", host.session.port)
 	for frame in 600:
 		await process_frame
 		if host.session.players() == 2 and guest.session.avatars.has(1):
 			break
 	check(host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
+	await until(func() -> bool: return guest.world.seq == host.world.seq, "the guest is given the host's garden")
+	await _a_guest_s_throw_lands_for_the_host(host, guest)
 	var peer := guest.multiplayer.multiplayer_peer
 	var ids := host.multiplayer.get_peers()
 	# This pause must survive a played session's timeouts, not the scripted co-op exemption.
@@ -107,4 +126,5 @@ func _run() -> void:
 	before = sim.frames
 	await frames(12)
 	check(not paused and sim.frames > before, "a scripted game plays on without focus")
+	await _the_guest_goes_home(host, guest, home)
 	finish()

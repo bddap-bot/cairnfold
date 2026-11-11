@@ -10,6 +10,7 @@ func _run() -> void:
 	_bursts_feed_birth_sub_emitters()
 	_switches_and_effects_drive_a_system()
 	_rate_and_distance_emit_as_the_emitter_runs()
+	_slots_and_the_end_of_a_system()
 	_roundtrip()
 	finish()
 
@@ -157,6 +158,39 @@ func _rate_and_distance_emit_as_the_emitter_runs() -> void:
 	check(live(p, 0) == 10, "moved a tenth of a metre at a hundred a metre, it emits ten: %d" % live(p, 0))
 	var s: AvatarParticles.System = p._systems[0]
 	check(s.starts[0].distance_to(Vector3(0.1, 0, 0)) < 0.06, "a world-space particle starts where the emitter is: %s" % s.starts[0])
+	sk.free()
+
+
+## A full system's dead particles give their slots to new ones, and one that does not loop emits nothing once its
+## duration has run, however its emitter moves.
+func _slots_and_the_end_of_a_system() -> void:
+	var f := file()
+	f.systems[0].loop = true
+	f.systems[0].bursts = []
+	f.systems[0].subEmitters = []
+	f.systems[0].distance = {"min": [1.0], "max": [1.0], "scale": [100.0, 100.0]}
+	f.systems[0].max = 10
+	var sk := skeleton()
+	var p := AvatarParticles.new(read(f), sk, null)
+	sk.add_child(p)
+	p._process(STEP)
+	sk.position = Vector3(0.1, 0, 0)
+	p._process(STEP)
+	for k in 150:
+		p._process(STEP)
+	sk.position = Vector3(0.2, 0, 0)
+	p._process(STEP)
+	check(live(p, 0) == 10, "a full system's dead particles give their slots to new ones: %d" % live(p, 0))
+	sk.free()
+	f.systems[0].loop = false
+	sk = skeleton()
+	p = AvatarParticles.new(read(f), sk, null)
+	sk.add_child(p)
+	for k in 90:
+		p._process(STEP)
+	sk.position = Vector3(0.1, 0, 0)
+	p._process(STEP)
+	check(live(p, 0) == 0, "a system that does not loop emits nothing once its duration has run")
 	sk.free()
 
 

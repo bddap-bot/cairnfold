@@ -15,6 +15,7 @@ func _run() -> void:
 	_a_step_someone_built_on_is_skipped()
 	_redo_waits_on_the_same_condition()
 	_bad_commands_are_dropped()
+	_a_player_is_held_to_the_garden_limits()
 	_commands_cost_by_size()
 	_ground_undo_waits_on_overlapping_ground()
 	_a_palette_undo_waits_on_its_easel()
@@ -196,6 +197,18 @@ func _bad_commands_are_dropped() -> void:
 	check(extra.keys().map(str) == ["op", "of", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
 	check(Commands.build_of({"op": "boulder", "seq": 1, "by": 1, "token": 1, "id": 1, "at": 2}) == {"at": 2}, "a put command's build is what it carries besides its envelope")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
+
+
+## A player's command one past a garden's limits is refused: a new build in a garden holding MAX_THINGS, a batch of
+## one command more than MAX_BATCH, and any whole garden, which only the host sends.
+func _a_player_is_held_to_the_garden_limits() -> void:
+	var state := World.blank()
+	for id in Commands.MAX_THINGS:
+		state.boulders[id] = {}
+	check(Commands.clean({"op": "easel", "at": world.terrain.ground(10, 10), "yaw": 0.0}, state, false, world.terrain).is_empty(), "a full garden takes no new build from a player")
+	var takes := range(Commands.MAX_BATCH + 1).map(func(id: int) -> Dictionary: return {"op": "take", "of": "boulders", "ids": PackedInt32Array([id])})
+	check(Commands.clean({"op": "batch", "cmds": takes}, state, false, world.terrain).is_empty(), "a player's batch holds at most MAX_BATCH commands")
+	check(Commands.clean({"op": "garden", "cmds": []}, state, false, world.terrain).is_empty(), "a player sends no whole garden")
 
 
 ## A house's gable ends travel as any other reshape: a player turns them, the host's cleaned command passes a peer's

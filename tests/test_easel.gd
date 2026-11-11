@@ -757,6 +757,7 @@ func _easels_keep_their_distance_and_number() -> void:
 	for i in Easels.MAX - 1:
 		state.easels[i + 2] = {"at": world.terrain.ground(-20 + i * 5, -20), "yaw": 0.0, "strokes": []}
 	check(Commands.clean({"op": "easel", "at": world.terrain.ground(20, 20), "yaw": 0.0}, state, false, world.terrain).is_empty(), "nor one more than a garden holds")
+	check(not Commands.clean({"op": "easel", "at": at, "yaw": 0.0, "id": Easels.MAX + 1, "seq": 1, "by": 1}, state, true, world.terrain).is_empty(), "the host puts one back however crowded the garden stands")
 	check(Commands.clean({"op": "easel", "at": world.terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false, world.terrain).is_empty(), "a player's new easel brings no painting with it")
 
 

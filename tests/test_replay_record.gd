@@ -88,6 +88,9 @@ func _initialize() -> void:
 		pushed += int(left.stick.y > 0.5)
 	check(mismatched == 0, "each frame holds its delta, head and hand poses, stick and buttons as the game read them: %d differ" % mismatched)
 	check(pressed > 0 and pushed > 0, "the script's trigger press and teleport aim are in the record")
+	var palm := Transform3D(Basis(Vector3.UP, 0.7), Vector3(0.1, -0.2, 0.3))
+	main.rig.right.palm = palm
+	check(Replay.unpack(Replay.frame(0.0, main.rig.head, main.rig.hands), 0).hands[1].palm.is_equal_approx(palm), "a frame gives back the palm it was written with")
 	var ends := events.filter(func(e) -> bool: return e.event == "end")
 	check(ends.size() == 1, "the session ends its record")
 	var out := []
