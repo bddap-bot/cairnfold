@@ -111,8 +111,7 @@ func _process(delta: float) -> void:
 	var building := tool.busy() or since_edit < QUIET_AFTER
 	var target: Array = BUILDING if building else IDLE
 	for j in STEMS.size():
-		var rate := 1.5 if target[j] < gains[j] else 0.25
-		var g: float = lerpf(gains[j], target[j], 1.0 - exp(-rate * delta))
+		var g := eased(gains[j], target[j], delta)
 		if absf(g - gains[j]) > 0.01:
 			gains[j] = g
 			for s in sections:
@@ -135,6 +134,12 @@ func _meadow(delta: float) -> void:
 		_call(_songs, head, day)
 	elif rng.randf() < delta * dark / HOOT_EVERY:
 		_call(_hoots, head, dark)
+
+
+## A stem's gain in dB `delta` seconds on toward `target`: down quickly as building starts, back up slowly after.
+static func eased(gain: float, target: float, delta: float) -> float:
+	var rate := 1.5 if target < gain else 0.25
+	return lerpf(gain, target, 1.0 - exp(-rate * delta))
 
 
 ## Where `effect` stands on bus `bus`'s chain, or -1.

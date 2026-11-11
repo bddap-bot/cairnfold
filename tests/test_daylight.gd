@@ -411,7 +411,11 @@ func _in_the_glade() -> void:
 	for k in range(12, -1, -1):
 		sky.aim(grab.rotated(axis, 0.3 + k * 0.5))
 	check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "and the grabbed point is under the pointer again when it comes back")
-	sky.holder = null
+	var still := main.rig.right.held_still
+	main.rig.right.held_still = false
+	await until(func() -> bool: return absf(main.world.time - look.time) < 1e-4, "the sky the hand held kept by every player")
+	check(sky.holder == null, "a hand that loses tracking lets the sky go, and the garden keeps where it left it")
+	main.rig.right.held_still = still
 	await play([{"op": "sun", "time": 0.7, "seconds": 0.2}])
 	check(absf(look.time - 0.7) < 1e-4, "the sky is turned to late afternoon")
 	check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.7)), "the sunlight shines from where the sun stands")
@@ -419,6 +423,8 @@ func _in_the_glade() -> void:
 	await play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
 	check(absf(look.time - 0.02) < 1e-4, "turned on past midnight the day starts again: %.4f" % look.time)
 	check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and is_equal_approx(look.sun.light_energy, Daylight.light(0.02).energy), "at night the light comes from the moon, as strong as it stands high")
+	await until(func() -> bool: return main.sound._dark > 0.5, "the night sounds rising")
+	check(not main.sound.night.stream_paused, "and the crickets play")
 	var hand := main.rig.head.global_transform * (Driver.SKY_SPOTS[0] as Vector3)
 	var aim := Daylight.toward_sun(0.5).rotated(Daylight.RISE, Driver.SKY_OFF_ARC[0])
 	var over := hand + aim * (3.5 - hand.y) / aim.y

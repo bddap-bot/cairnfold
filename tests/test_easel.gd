@@ -179,7 +179,8 @@ func _a_sheet_step_that_grips_nothing_fails() -> void:
 
 ## Undo's cost does not grow with the painting: the canvas goes back to the checkpoint the stroke before kept, at its
 ## tick, with nothing left to replay, at 10 strokes as at 200; a stroke further back replays only those after the
-## nearest checkpoint.
+## nearest checkpoint, and as many strokes ending otherwise replay the one that differs. It keeps no more checkpoints
+## than it has slots for, and none while the painter's own stroke is under way.
 func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
 	for n in [10, 200]:
 		var canvas := Canvas.new()
@@ -201,6 +202,27 @@ func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
 			await process_frame
 		canvas.rebuild(strokes.slice(0, 3))
 		check(canvas.catching_up() and canvas._pending == 1, "the stroke after a checkpoint is all that replays: %d" % canvas._pending)
+		while canvas.catching_up():
+			await process_frame
+		canvas.rebuild(strokes.slice(0, 2) + [strokes[n]])
+		check(canvas.catching_up() and canvas._pending == 1, "as many strokes, the last another, replay that one: %d" % canvas._pending)
+		while canvas.catching_up():
+			await process_frame
+		for s: Dictionary in strokes.slice(3, 3 + Canvas.CHECKPOINTS):
+			var was := canvas.last_end
+			canvas.play(s, 1)
+			while canvas.last_end == was:
+				await process_frame
+		var slots: Array = canvas._checkpoints.map(func(c: Array) -> int: return c[5])
+		check(slots.size() == Canvas.CHECKPOINTS and slots.all(func(s: int) -> bool: return s < Canvas.CHECKPOINTS),
+			"%d strokes ended one by one keep %d checkpoints, each in a slot: %s" % [Canvas.CHECKPOINTS, Canvas.CHECKPOINTS, slots])
+		var kept_before := canvas._checkpoints.duplicate()
+		canvas.lay(strokes[0], PackedFloat32Array())
+		var was := canvas.last_end
+		canvas.play(strokes[1], 1)
+		while canvas.last_end == was:
+			await process_frame
+		check(canvas._checkpoints == kept_before, "another's stroke ending while the painter's own is under way keeps no checkpoint")
 		canvas.queue_free()
 
 

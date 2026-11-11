@@ -287,9 +287,19 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 		g.run(STEP, each)
 	var hand: Node3D = g.rig.hands[0]
 	var at := b.node.position
+	var startled := at + Vector3(0.3, 0.1, 0)
+	var farthest := at
+	for site in g.wildlife.birds.sites:
+		for p in site.points():
+			var d := p.distance_to(at)
+			if d <= Birds.STARTLE_TO.y and p.distance_to(startled) >= Birds.STARTLE * 1.5 and d > farthest.distance_to(at):
+				farthest = p
+	# Looking down from just over the farthest perch it could fly to, the eye sees that one and none nearer.
+	var eye := g.rig.head.global_transform
+	g.rig.head.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), farthest + Vector3.UP * 0.5)
 	hand.global_position = at + Vector3(1.2, 0.2, 0)
 	g.run(1.0, each)
-	_move(g, hand, hand.global_position, at + Vector3(0.3, 0.1, 0), 3.0, each)
+	_move(g, hand, hand.global_position, startled, 3.0, each)
 	g.run(STEP * 2, each)
 	check(b.state == Birds.State.FLY, "a sudden hand startles it up, state %s" % Birds.State.keys()[b.state])
 	var from := hand.global_position
@@ -297,7 +307,8 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 	var moved := b.node.position.distance_to(at)
 	check(b.state != Birds.State.LEAVE and b in g.birds(), "it stays in the garden")
 	check(moved <= Birds.STARTLE_TO.y + 0.01 and b.node.position.distance_to(from) > Birds.STARTLE, "a short way off, %.2f m, out of reach" % moved)
-	check(g.wildlife._in_sight(b.node.position), "and in sight")
+	check(g.wildlife._in_sight(b.node.position), "and in sight, though perches out of it lie nearer: %.2f m from the perch in sight" % b.node.position.distance_to(farthest))
+	g.rig.head.global_transform = eye
 	hand.global_position = AWAY
 	g.run(1.0, each)
 

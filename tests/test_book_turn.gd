@@ -1,7 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
 ## Sweeps the hand paths that read the picture book: a pass through a page from behind it to in front, at every
-## speed, angle and tracking rate a player would make it, turns that page once; brushes and hovers turn none.
+## speed, angle and tracking rate a player would make it, turns that page once; brushes and hovers turn none. Every
+## page shows in order, the last too, and a turn either way, or a prop's, lifts the leaf it turns. A live book renders
+## every page on its first frame, so none compiles its pipelines as it first opens.
 
 var book: Book
 
@@ -60,6 +62,9 @@ func _run() -> void:
 	shut.open()
 	check(heard.call("WHEEL_HOVER") == hover and heard.call("BOOK_PAGE") == page + 1, "the book opens with its own page sound, not the tool wheel's tick")
 	shut.queue_free()
+	_every_page_shows_in_order()
+	_a_turn_lifts_the_leaf_it_turns()
+	_every_page_renders_on_the_first_frame()
 	book.queue_free()
 	await process_frame
 	finish()
@@ -114,3 +119,62 @@ func _feel(path: Array[Vector3]) -> int:
 			book.at = book._turn.to
 			book._turn.clear()
 	return way
+
+
+## Open at each leaf in turn, the spread shows the next two pages, the left one first, until the last page and the back
+## cover's endpaper.
+func _every_page_shows_in_order() -> void:
+	var b := Book.new(false)
+	b.set_process(false)
+	root.add_child(b)
+	var spreads := []
+	var expected := []
+	for at in range(1, b.leaves + 2):
+		b.at = at
+		b._lay()
+		var left: int = b._sheets[0].get_meta("back", -1) if b._sheets[0].visible else -1
+		var right: int = b._sheets[1].get_meta("front", -1) if b._sheets[1].visible else -1
+		spreads.append([left, right])
+		var first := 2 * at - 3
+		expected.append([first, first + 1 if first + 1 < Lessons.PAGES.size() else -1])
+	check(spreads == expected, "each spread shows the next two pages, the last one too: %s, not %s" % [spreads, expected])
+	b.queue_free()
+
+
+## Turning on lifts the leaf on the right, turning back the one last turned, and a prop sent a leaf away does the same;
+## the last leaf turns, and nothing past it.
+func _a_turn_lifts_the_leaf_it_turns() -> void:
+	var b := Book.new(false)
+	b.set_process(false)
+	root.add_child(b)
+	var lifted := func(at: int, way: int) -> Array:
+		b._turn.clear()
+		b.at = at
+		b.turn(way)
+		return [b._turn.get("leaf", -1), b._turn.get("to", -1)]
+	check(lifted.call(2, 1) == [2, 3], "turning on from leaf 2 lifts leaf 2: %s" % [lifted.call(2, 1)])
+	check(lifted.call(2, -1) == [1, 1], "turning back from leaf 2 lifts leaf 1: %s" % [lifted.call(2, -1)])
+	check(lifted.call(b.leaves, 1) == [b.leaves, b.leaves + 1], "the last leaf turns, showing the page on its back: %s" % [lifted.call(b.leaves, 1)])
+	check(lifted.call(b.leaves + 1, 1) == [-1, -1], "past the last leaf nothing turns: %s" % [lifted.call(b.leaves + 1, 1)])
+	b._turn.clear()
+	b.at = 2
+	b.turn_to(3)
+	var on := [b._turn.get("leaf", -1), b._turn.get("to", -1)]
+	b.turn_to(2)
+	var back := [b._turn.get("leaf", -1), b._turn.get("to", -1)]
+	check(on == [2, 3] and back == [2, 2], "a prop sent a leaf on lifts the leaf on its right, and sent back the one it just turned: %s %s" % [on, back])
+	b.queue_free()
+
+
+func _every_page_renders_on_the_first_frame() -> void:
+	var b := Book.new()
+	b.set_process(false)
+	root.add_child(b)
+	b._process(0.0)
+	var first: Array = b.scenes.values().map(func(s: LessonScene) -> bool: return s.render_target_update_mode == SubViewport.UPDATE_ONCE)
+	b._process(0.0)
+	b._process(0.0)
+	var later: Array = b.scenes.values().map(func(s: LessonScene) -> bool: return s.render_target_update_mode == SubViewport.UPDATE_ONCE)
+	check(first.size() == Lessons.PAGES.size() and first.all(func(on: bool) -> bool: return on) and not later.any(func(on: bool) -> bool: return on),
+		"a live book renders every page on its first frame, and none it does not show after: %s then %s" % [first, later])
+	b.queue_free()

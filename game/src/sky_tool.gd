@@ -16,9 +16,9 @@ var world: World
 ## Whether a hand is in the middle of an edit, which its grip may have started this frame.
 var editing: Callable
 var holder: Hand
-var _start := 0.0
-var _turned := 0.0
-var _last := 0.0
+## The sky's angle less the pointer's turn as the grip took it, which every aim adds its own turn to: the time wraps
+## round the day, so a pointer that crosses the arc's seam need not be unwound.
+var _offset := 0.0
 var _ticked := 0
 
 
@@ -53,20 +53,15 @@ func opens(from: Vector3, dir: Vector3) -> bool:
 
 func take(hand: Hand, dir: Vector3) -> void:
 	holder = hand
-	_start = Daylight.angle(look.time)
-	_turned = 0.0
-	_last = Daylight.turn_of(dir)
+	_offset = Daylight.angle(look.time) - Daylight.turn_of(dir)
 	_ticked = floori(look.time / TICK)
 	Cues.play(Cues.Act.SKY_TAKE, hand.global_position, hand)
 
 
-## Turns the sky by however far `dir` went round the arc's axis since the last aim, so the point grabbed
-## stays under the pointer.
+## Turns the sky by however far `dir` went round the arc's axis since the grip, so the point grabbed stays under the
+## pointer.
 func aim(dir: Vector3) -> void:
-	var now := Daylight.turn_of(dir)
-	_turned += wrapf(now - _last, -PI, PI)
-	_last = now
-	look.set_time(Daylight.time_at(_start + _turned))
+	look.set_time(Daylight.time_at(_offset + Daylight.turn_of(dir)))
 	var tick := floori(look.time / TICK)
 	if tick != _ticked:
 		Cues.play(Cues.Act.SKY_TURN, holder.global_position, holder)

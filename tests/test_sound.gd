@@ -9,6 +9,7 @@ func _init() -> void:
 	_every_section_has_its_stems()
 	_every_effect_loads()
 	_birds_keep_the_hour_and_the_ground()
+	_the_tune_recedes_quickly_and_returns_slowly()
 	finish()
 
 
@@ -60,3 +61,9 @@ func _birds_keep_the_hour_and_the_ground() -> void:
 			check(away >= Soundscape.AWAY.x - 0.01 and away <= Soundscape.AWAY.y + 0.01, "a bird %.1f m off across the ground" % away)
 			check(over >= Soundscape.PERCH.x - 0.01 and over <= Soundscape.PERCH.y + 0.01, "a bird %.1f m over the ground" % over)
 	check(Soundscape.song_level(noon, 12.0, false) > 0.2 and Soundscape.song_level(noon, 12.0, false) < 0.9, "fainter 12 m up")
+
+
+func _the_tune_recedes_quickly_and_returns_slowly() -> void:
+	var lead: float = Soundscape.BUILDING[1]
+	check(Soundscape.eased(0.0, lead, 1.0) < lead * 0.7 and Soundscape.eased(lead, 0.0, 1.0) < lead * 0.7,
+		"the tune recedes within a second of building and comes back over several: %.1f dB, then %.1f dB" % [Soundscape.eased(0.0, lead, 1.0), Soundscape.eased(lead, 0.0, 1.0)])
