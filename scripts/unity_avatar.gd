@@ -748,11 +748,9 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 				curve.keys = c["keys"].map(func(k: Array) -> Array: return [k[0], 1.0 if k[1] != 0.0 else 0.0])
 			curves.append(curve)
 		clip.curves = curves
+	_rest_where_marked(data, targets)
 	for t: Dictionary in targets:
 		t.erase("rest")
-	for layer: Dictionary in data.layers:
-		for state: Dictionary in layer.states:
-			_hold_unanimated(data, targets, state.get("motion", {}))
 	var moving := func(motion: Dictionary, recurse: Callable) -> bool:
 		return (motion.has("clip") and not (data.clips[motion.clip].curves as Array).is_empty()) or (motion.get("children", []) as Array).any(func(c: Dictionary) -> bool: return recurse.call(c.motion, recurse))
 	var read_by := func(layer: Dictionary) -> Dictionary:
@@ -822,41 +820,17 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
-## A 1D or 2D blend's children each sample every target one of them animates, as Unity blends a tree: a child leaving
-## a target its sibling (or an enclosing tree's) animates holds it at its default, so the blend runs from rest, not from
-## zero. A direct blend's children add up and hold nothing.
-static func _hold_unanimated(data: Dictionary, targets: Array, motion: Dictionary, around := {}) -> void:
-	var children: Array = motion.get("children", [])
-	var blended: bool = motion.get("blend", "") in ["1d", "2d"]
-	var all := around.duplicate() if blended else {}
-	if blended:
-		for c: Dictionary in children:
-			all.merge(_animated(data, c.motion))
-	for c: Dictionary in children:
-		if c.motion.has("children"):
-			_hold_unanimated(data, targets, c.motion, all)
+## A clip marked `rests` with another's index writes each target that other animates and it does not at the target's
+## default.
+static func _rest_where_marked(data: Dictionary, targets: Array) -> void:
+	for clip: Dictionary in data.clips:
+		if not clip.has("rests"):
 			continue
-		var own := _animated(data, c.motion)
-		var held := all.keys().filter(func(t: int) -> bool: return not own.has(t))
-		if held.is_empty():
-			continue
-		var clip: Dictionary = data.clips[c.motion.clip].duplicate(true) if c.motion.has("clip") else {"length": 0.0, "loop": false, "curves": []}
-		for t: int in held:
-			clip.curves.append({"target": t, "step": _stepped(targets[t]), "keys": [[0.0, float(targets[t].default), 0.0, 0.0]]})
-		data.clips.append(clip)
-		c.motion = c.motion.duplicate()
-		c.motion.clip = data.clips.size() - 1
-
-
-## The targets a motion's clips animate, its subtrees' included.
-static func _animated(data: Dictionary, motion: Dictionary) -> Dictionary:
-	var out := {}
-	if motion.has("clip"):
-		for curve: Dictionary in data.clips[motion.clip].curves:
-			out[curve.target] = true
-	for c: Dictionary in motion.get("children", []):
-		out.merge(_animated(data, c.motion))
-	return out
+		var own := (clip.curves as Array).map(func(c: Dictionary) -> int: return c.target)
+		for c: Dictionary in data.clips[clip.rests].curves:
+			if not own.has(c.target):
+				clip.curves.append({"target": c.target, "step": c.step, "keys": [[0.0, float(targets[c.target].default), 0.0, 0.0]]})
+		clip.erase("rests")
 
 
 static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials, parameters := {}) -> int:

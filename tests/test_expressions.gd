@@ -134,6 +134,26 @@ func _fx() -> void:
 		state.advance(0.1)
 	check(is_equal_approx(state.outputs[0], 0.5), "a half-weight layer stays half-weight over time")
 	definition = _definition()
+	definition.targets[0].default = 0.5
+	definition.clips.append({"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 2]]}]})
+	definition.clips.append({"length": 1.0, "curves": []})
+	definition.layers = [{"default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 1}, "transitions": []}]}, {"default": 0, "entry": [], "any": [], "states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
+		{"motion": {"clip": 3}, "threshold": 0, "parameter": ""}, {"motion": {"clip": 2}, "threshold": 1, "parameter": ""}]}, "transitions": []}]}]
+	state = ExpressionState.new(definition)
+	state.advance(0.1)
+	var resting := state.outputs[0]
+	state.put("X", 0.5)
+	state.advance(0.1)
+	check(resting == 1.0 and is_equal_approx(state.outputs[0], 1.25), "a 1D tree leaves a target only its child at no weight animates to the layer below, and blends one its playing child animates from the default: %s, %s" % [resting, state.outputs[0]])
+	definition.layers[1].states[0].motion.blend = "direct"
+	definition.layers[1].states[0].motion.children[0].parameter = "Y"
+	definition.layers[1].states[0].motion.children[1].parameter = "X"
+	state = ExpressionState.new(definition)
+	state.put("Y", 1)
+	state.put("X", 0.25)
+	state.advance(0.1)
+	check(is_equal_approx(state.outputs[0], 0.5), "a direct tree's playing child that keys nothing adds nothing: %s" % state.outputs[0])
+	definition = _definition()
 	definition.layers = [{"default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Hat"}]}], "states": [
 		{"transitions": []}, {"motion": {"clip": 1}, "transitions": [{"to": -1, "conditions": [{"mode": "ifNot", "parameter": "Hat"}]}]}]}]
 	state = ExpressionState.new(definition)

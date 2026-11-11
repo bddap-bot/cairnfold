@@ -80,7 +80,6 @@ func _run() -> void:
 	_vrcfury_full_controller_paths_resolve_from_their_object()
 	_a_udim_discard_tile_is_a_switch()
 	_a_radial_moving_nothing_is_cut_beside_a_live_one()
-	_a_blend_child_holds_what_its_sibling_animates_at_rest()
 	_a_full_controller_renames_its_layers_and_menu()
 	_contacts_keep_their_shape_tags_and_switch()
 	_a_clip_animating_a_parameter_binds_it()
@@ -2523,6 +2522,11 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	check(hat_parameter.size() == 1 and hat_parameter[0].type == "bool" and hat_parameter[0].saved and hat_parameter[0].default == 0.0, "the hat's parameter is a saved bool, off: %s" % [hat_parameter])
 	var size: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF2_Body/Size")
 	check(size.size() == 1 and size[0].type == "float" and size[0].default == 0.25, "the slider's parameter is a float at its default")
+	var slider: Dictionary = expressions.data.layers.filter(func(l: Dictionary) -> bool: return l.states[0].motion.get("blend", "") == "1d")[0].states[0].motion
+	check(expressions.data.clips[slider.children[0].motion.clip].get("rests") == slider.children[1].motion.clip, "the slider's 0 rests what its 1 moves")
+	var data := {"clips": [{"curves": [], "rests": 1}, {"curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
+	UnityAvatar._rest_where_marked(data, [{"default": 0.5}])
+	check(data.clips[0] == {"curves": [{"target": 0, "step": false, "keys": [[0.0, 0.5, 0.0, 0.0]]}]}, "a resting clip writes the default of what the other moves: %s" % [data.clips[0]])
 	var layer: Dictionary = expressions.data.layers[0]
 	var curves: Array = expressions.data.clips[layer.states[1].motion.clip].curves
 	check(curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "m_IsActive" and c["class"] == "1" and c["keys"][0][1] == 1.0) and curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "blendShape.Squash" and c["keys"][0][1] == 40.0), "the on state turns the hat on and sets the shape: %s" % [curves])
@@ -2657,26 +2661,6 @@ func _a_radial_moving_nothing_is_cut_beside_a_live_one() -> void:
 	var data := UnityAvatar._bound(expressions, switches, [], {}, objs, paths, sk, Materials.new(expressions.assets), Particles.new(null, null, {}, [], {}, []), {})
 	sk.free()
 	check((data.menu as Array).map(func(c: Dictionary) -> String: return c.name) == ["Live"], "only the radial that moves something stays: %s" % [data.menu])
-
-
-## A 1D blend child that leaves a target its sibling animates holds that target at its default, so the blend leaves
-## rest as Unity's does rather than growing from zero; a direct blend is left as it is.
-func _a_blend_child_holds_what_its_sibling_animates_at_rest() -> void:
-	var child := func(motion: Dictionary, threshold: float) -> Dictionary: return {"motion": motion, "threshold": threshold, "parameter": "", "speed": 1.0, "offset": 0.0, "position": [0.0, 0.0]}
-	var data := {"clips": [{"length": 0.0, "loop": false, "curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
-	var tree := {"blend": "1d", "parameters": ["Size", ""], "children": [child.call({}, 0.0), child.call({"clip": 0}, 1.0)]}
-	var direct := {"blend": "direct", "parameters": ["", ""], "children": [child.call({}, 0.0), child.call({"clip": 0}, 1.0)]}
-	var targets := [{"effect": {"scale": {"node": "Tail", "axis": 0}}, "default": 0.5}]
-	UnityAvatar._hold_unanimated(data, targets, tree)
-	UnityAvatar._hold_unanimated(data, targets, direct)
-	var rest: Variant = tree.children[0].motion.get("clip")
-	check(rest is int and data.clips[rest].curves == [{"target": 0, "step": false, "keys": [[0.0, 0.5, 0.0, 0.0]]}], "the empty child holds the scale at its default: %s" % [data.clips])
-	check(tree.children[1].motion.clip == 0 and data.clips[0].curves.size() == 1, "the animating child is unchanged")
-	check(direct.children[0].motion.is_empty(), "a direct blend's children are left alone")
-	var nested := {"blend": "1d", "parameters": ["Outer", ""], "children": [child.call({"clip": 0}, 0.0), child.call({"blend": "1d", "parameters": ["Inner", ""], "children": [child.call({}, 0.0)]}, 1.0)]}
-	UnityAvatar._hold_unanimated(data, targets, nested)
-	var inner: Variant = nested.children[1].motion.children[0].motion.get("clip")
-	check(inner is int and data.clips[inner].curves[0]["keys"][0][1] == 0.5, "a subtree's child holds what the enclosing tree's sibling animates")
 
 
 ## A FullController's parameter names change everywhere its layers and menu read or set them.

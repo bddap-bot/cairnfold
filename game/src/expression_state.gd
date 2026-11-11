@@ -273,13 +273,23 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 	var total: float = weights.reduce(func(a: float, b: float) -> float: return a + b, 0.0)
 	# Unity sums a direct tree's children unless it normalizes its blend values.
 	var divisor := total if total > 0.0 and (motion.get("blend") != "direct" or motion.get("normalized", false)) else 1.0
+	var blended: bool = motion.get("blend", "") in ["1d", "2d"]
+	var share := 0.0
+	var keyed := {}
 	for i in children.size():
 		if weights[i] <= 0.0:
 			continue
 		var child: Dictionary = children[i]
 		var sample_values := _motion(child.motion, time * float(child.get("speed", 1.0)) + float(child.get("offset", 0.0)) * _length(child.motion))
+		var w := weights[i] / divisor
+		share += w
 		for t: int in sample_values:
-			out[t] = out.get(t, 0.0) + sample_values[t] * weights[i] / divisor
+			out[t] = out.get(t, 0.0) + sample_values[t] * w
+			keyed[t] = keyed.get(t, 0.0) + w
+	# Unity blends a 1D or 2D tree from rest, yet a target only children at no weight animate is left to the layers below.
+	if blended:
+		for t: int in keyed:
+			out[t] += float(data.targets[t].get("default", 0.0)) * (share - keyed[t])
 	return out
 
 

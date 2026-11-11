@@ -123,6 +123,8 @@ static func _toggle(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 	var layer := {"weight": 1.0, "any": [], "entry": [], "default": 0}
 	if slider:
 		var child := func(motion: Dictionary, threshold: float) -> Dictionary: return {"motion": motion, "threshold": threshold, "parameter": "", "speed": 1.0, "offset": 0.0, "position": [0.0, 0.0]}
+		# VRCFury's slider at 0 writes what its actions move at rest.
+		off.rests = ex.data.clips.size() + 1
 		layer.states = [{"name": name, "speed": 1.0, "writeDefaults": true, "transitions": [], "drivers": [], "motion": {"blend": "1d", "parameters": [parameter, ""], "children": [child.call(clip.call(off), 0.0), child.call(clip.call(on), 1.0)]}}]
 	else:
 		layer.states = [
