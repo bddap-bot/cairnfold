@@ -1901,7 +1901,7 @@ func _toon_outlines_join_the_look() -> void:
 		return img.get_pixel(int((cell.position.x + cell.size.x * x) * img.get_width() / materials.atlas_side), int((cell.position.y + cell.size.y / 2) * img.get_height() / materials.atlas_side))
 	var grey_linear := Color(0.5, 0, 0).srgb_to_linear().r
 	var tinted := Color(Color(0.5, 0.25, 0).srgb_to_linear().r * grey_linear, 0, 0).linear_to_srgb().r
-	check(at.call("poiyomi", 0.1).a < 0.1 and at.call("poiyomi", 0.9).a > 0.85 and absf(at.call("poiyomi", 0.9).r - tinted) < 0.02, "Poiyomi's outline takes its mask's green and its colour times the albedo: %s %s" % [at.call("poiyomi", 0.1), at.call("poiyomi", 0.9)])
+	check(at.call("poiyomi", 0.1).a < 0.1 and at.call("poiyomi", 0.9).a > 0.9 and absf(at.call("poiyomi", 0.9).r - tinted) < 0.02, "Poiyomi's outline takes its mask's green and its colour times the albedo: %s %s" % [at.call("poiyomi", 0.1), at.call("poiyomi", 0.9)])
 	check(absf(at.call("lil", 0.1).a - 0.4) < 0.02 and at.call("lil", 0.9).a < 0.02 and at.call("lil", 0.1).r == 0.0, "lilToon's takes its mask's red, at its share of the widest: %s" % [at.call("lil", 0.1)])
 	check(absf(at.call("unity_chan", 0.5).a - 0.2) < 0.02 and absf(at.call("unity_chan", 0.5).r - Color(grey_linear * grey_linear, 0, 0).linear_to_srgb().r) < 0.02, "Unity-chan Toon Shader's is its colour times the albedo twice: %s" % [at.call("unity_chan", 0.5)])
 	var halfway := Color(lerpf(0.0, grey_linear, 0.5), 0, lerpf(1.0, grey_linear, 0.5)).linear_to_srgb()
@@ -1912,12 +1912,13 @@ func _toon_outlines_join_the_look() -> void:
 
 
 ## An outline's width mask scales the width by what its shader samples: a texture Unity imports as sRGB is decoded to
-## linear light first, so a byte of 160 pushes the hull out 0.35 of its width, not 0.63; one imported linear by its byte.
+## linear light first, so a byte of 160 pushes the hull out 0.35 of its width, not 0.63; one imported linear by its byte,
+## and an alpha channel, which no import decodes, by its byte too.
 func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
 	var dir := ProjectSettings.globalize_path("user://outline_mask")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var grey := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
-	grey.fill(Color8(160, 160, 160))
+	grey.fill(Color8(160, 160, 160, 160))
 	for mask: String in ["srgb", "linear"]:
 		grey.save_png(dir.path_join(mask + ".png"))
 		var importer := "TextureImporter:\n  mipmaps:\n    sRGBTexture: %d\n" % int(mask == "srgb")
@@ -1925,11 +1926,14 @@ func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
 		var text := "Material:\n  m_Shader: {guid: 51b2dee0ab07bd84d8147601ff89e511}\n  m_SavedProperties:\n    m_TexEnvs:\n    - _OutlineWidthMask:\n        m_Texture: {guid: %s}\n    m_Floats:\n    - _OutlineWidth: 0.2\n" % mask
 		FileAccess.open(dir.path_join(mask + ".mat"), FileAccess.WRITE).store_string(text)
 		FileAccess.open(dir.path_join(mask + ".mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s_mat\n" % mask)
+	var alpha := "Material:\n  m_Shader: {guid: 051a0ed2f2aedd741aa8186ae92f97e0}\n  m_SavedProperties:\n    m_TexEnvs:\n    - _OutlineMask:\n        m_Texture: {guid: srgb}\n    m_Floats:\n    - _OutlineThickness: 0.2\n    - _OutlineMaskChannel: 3\n"
+	FileAccess.open(dir.path_join("alpha.mat"), FileAccess.WRITE).store_string(alpha)
+	FileAccess.open(dir.path_join("alpha.mat.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: alpha_mat\n")
 	var materials := Materials.new(Assets.new(dir))
-	for key: String in ["srgb_mat", "linear_mat"]:
+	for key: String in ["srgb_mat", "linear_mat", "alpha_mat"]:
 		materials.use({"guid": key}, Color.WHITE)
 		materials.materials[key].outline_scale = 1.0
-	materials.pack(["srgb_mat", "linear_mat"])
+	materials.pack(["srgb_mat", "linear_mat", "alpha_mat"])
 	var img: Variant = materials.outline_layer().get("outline")
 	check(img is Image, "the outline layer is an image")
 	if not img is Image:
@@ -1940,6 +1944,7 @@ func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
 	var decoded := Color(160 / 255.0, 0, 0).srgb_to_linear().r
 	check(absf(share.call("srgb_mat") - decoded) < 0.01, "an sRGB mask weighs its byte's linear light: %f against %f" % [share.call("srgb_mat"), decoded])
 	check(absf(share.call("linear_mat") - 160 / 255.0) < 0.01, "a linear mask weighs its byte: %f" % share.call("linear_mat"))
+	check(absf(share.call("alpha_mat") - 160 / 255.0) < 0.01, "an sRGB mask's alpha weighs its byte: %f" % share.call("alpha_mat"))
 
 ## Poiyomi's first emission glows in its theme colour, its hue, saturation and value moved by the theme's offsets, over
 ## its map times its mask's channel; one that blinks over time or takes the base colour glows nowhere the atlas could

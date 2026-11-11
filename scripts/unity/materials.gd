@@ -864,11 +864,12 @@ func coat_map(coat: Dictionary) -> Image:
 	var source := _decoded(coat.texture)
 	if source == null:
 		return null
+	if _srgb(coat.texture):
+		source.srgb_to_linear()
 	var side := mini(COAT_MAP, shown(coat.texture)) if shown(coat.texture) > 0 else COAT_MAP
 	if source.get_width() > side or source.get_height() > side:
 		var big := maxi(source.get_width(), source.get_height())
 		source.resize(maxi(1, source.get_width() * side / big), maxi(1, source.get_height() * side / big), RESAMPLE)
-	var srgb := _srgb(coat.texture)
 	var data := source.get_data()
 	var out := PackedByteArray()
 	out.resize(data.size())
@@ -877,7 +878,7 @@ func coat_map(coat: Dictionary) -> Image:
 		for level in 4:
 			var c := channels[level]
 			var byte: int = 255 if c > 3 else data[4 * i + c]
-			out[4 * i + level] = roundi(_LINEAR[byte] * 255.0) if srgb and c < 3 else byte
+			out[4 * i + level] = byte
 	return Image.create_from_data(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8, out)
 
 
@@ -1574,18 +1575,18 @@ static func _outline_metres(m: Dictionary) -> float:
 ## that is -1.
 func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
 	var guid := _texture_guid(m, o.mask) if o.mask != "" else ""
-	var texels := _tiled(m, _decoded(guid) if guid != "" else null, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
-	var channel: int = clampi(o.channel, 0, 3)
-	var srgb: bool = guid != "" and _srgb(guid) and (o.channel < 0 or channel < 3)
+	var source := _decoded(guid) if guid != "" else null
+	if source != null and _srgb(guid):
+		source.srgb_to_linear()
+	var texels := _tiled(m, source, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
 	var out := PackedByteArray()
 	out.resize(texels.size() / 4)
 	for i in out.size():
-		var byte: int = maxi(texels[4 * i], maxi(texels[4 * i + 1], texels[4 * i + 2])) if o.channel < 0 else texels[4 * i + channel]
-		out[i] = roundi(_LINEAR[byte] * 255.0) if srgb else byte
+		out[i] = maxi(texels[4 * i], maxi(texels[4 * i + 1], texels[4 * i + 2])) if o.channel < 0 else texels[4 * i + clampi(o.channel, 0, 3)]
 	return out
 
 
-## Whether a shader sampling the texture `guid` reads it decoded from sRGB, as its importer sets: a mask's bytes then
-## weigh what their linear light does.
+## Whether a shader sampling the texture `guid` reads it decoded from sRGB, as its importer sets: a GPU decodes each
+## texel before it filters, so a mask or map is decoded before it is resized.
 func _srgb(guid: String) -> bool:
 	return str(((assets.meta(guid).get("TextureImporter", {}) as Dictionary).get("mipmaps", {}) as Dictionary).get("sRGBTexture", "1")) != "0"
