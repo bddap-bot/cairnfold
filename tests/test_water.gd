@@ -22,7 +22,7 @@ func _initialize() -> void:
 	_a_level_it_is_near_changes_nothing()
 	_open_ground_holds_no_pond()
 	_shallow_basin_holds_no_pond()
-	check((load("res://src/water.gdshader") as Shader).code.contains("ripples[%d]" % PondWater.RIPPLES), "the shader takes every ripple slot")
+	check((load("res://src/water.gdshader") as Shader).code.contains("#define RIPPLES %d\n" % PondWater.RIPPLES), "the shader takes every ripple slot")
 	await _ponds_in_the_glade()
 	await _a_lake_is_worked_out_off_the_main_thread()
 	_ground_dug_deep_stays_dry()

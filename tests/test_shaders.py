@@ -33,7 +33,6 @@ class Shaders(unittest.TestCase):
             ('conure.gdshader', 'BODY', script_const('conure.gd', 'BODY')),
             ('conure.gdshader', 'BILL', [enum_members('conure.gd', 'Patch').index('BILL')]),
             ('conure.gdshader', 'PATCHES', [len(enum_members('conure.gd', 'Patch'))]),
-            ('water.gdshader', 'RIPPLES', script_const('pond_water.gd', 'RIPPLES')),
             ('water.gdshaderinc', 'DROWNS', script_const('water.gd', 'DROWNS')),
             ('interior.gdshaderinc', 'OPENING', script_const('interior.gd', 'OPENING')),
             ('ground.gdshaderinc', 'TILLED', script_const('ground.gd', 'TILLED')),
