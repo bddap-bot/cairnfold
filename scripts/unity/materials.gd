@@ -528,8 +528,8 @@ func atlas_materials() -> Array[StandardMaterial3D]:
 		for drawn_as in PASSES:
 			for two_sided: bool in [false, true]:
 				var drawn := StandardMaterial3D.new()
-				# An outlined pass keeps its pass's name: its extras say it is outlined, and a catalog's file guard reads a
-				# renamed material as one lost.
+				# An outlined pass takes its pass's name, which the glTF export suffixes with a number where the plain
+				# pass is drawn too: its extras say it is outlined.
 				drawn.resource_name = "atlas" + (", two-sided" if two_sided else "") + ["", ", blended", ", blended, depth written"][drawn_as]
 				drawn.albedo_texture = texture
 				drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
