@@ -56,14 +56,14 @@ func _run() -> void:
 	check(is_zero_approx(pointer.basis.x.normalized().y), "keeping its side level under the world's up")
 	var turner: Transform3D = _seen.turner
 	check(turner.origin.is_equal_approx(hips * Vector3(0.1, 0.4, 0)), "a rotation constraint leaves its bone where it stands")
-	var turned := anchor.basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, 0.3)
-	check(turner.basis.get_rotation_quaternion().is_equal_approx(turned) or turner.basis.get_rotation_quaternion().is_equal_approx(-turned), "and turns it as its source turns, by its offset: %s, expected %s" % [turner.basis.get_rotation_quaternion(), turned])
+	var turned := anchor.basis.get_rotation_quaternion().slerp(Quaternion(Vector3.UP, 0.8), 0.75) * Quaternion(Vector3.RIGHT, 0.3)
+	check(turner.basis.get_rotation_quaternion().is_equal_approx(turned) or turner.basis.get_rotation_quaternion().is_equal_approx(-turned), "and turns it to its sources' weighted turn, by its offset: %s, expected %s" % [turner.basis.get_rotation_quaternion(), turned])
 	avatar.free()
 	finish()
 
 
 ## Cairnfold's built-in avatar with props on its hips: one a toggle hands to an anchor, carrying a contact on its tip,
-## one following a weighted anchor and world point on two axes, one turning as the anchor turns, one looking at it.
+## one following a weighted anchor and world point on two axes, one turning between the anchor and a fixed turn, one looking at it.
 func _fixture() -> Node3D:
 	var model := Avatar.built_in(0).instantiate() as Node3D
 	var bones: Dictionary = model.get_meta("humanoid")
@@ -86,7 +86,7 @@ func _fixture() -> Node3D:
 		{"kind": "Position", "node": "follower", "weight": 0.5, "translation": [true, false, true], "rotation": every, "rest": identity, "offset": Prefabs.matrix(Transform3D(Basis.IDENTITY, Vector3(0.05, 0, 0))),
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}, {"world": Prefabs.matrix(Transform3D(Basis.IDENTITY, Vector3(0.4, 1.1, -0.2))), "weight": 3.0, "offset": identity}]},
 		{"kind": "Rotation", "node": "turner", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": Prefabs.matrix(Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3.ZERO)),
-			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]},
+			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}, {"world": Prefabs.matrix(Transform3D(Basis(Vector3.UP, 0.8), Vector3.ZERO)), "weight": 3.0, "offset": identity}]},
 		{"kind": "LookAt", "node": "pointer", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": identity,
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]}])
 	model.set_meta("expressions", {"parameters": [{"name": "Hold", "type": "bool", "default": 0.0, "saved": true}],

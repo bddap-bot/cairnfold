@@ -27,6 +27,7 @@ func _run() -> void:
 	await _no_strike_through_hills()
 	await _takes_marks()
 	await _mows()
+	await _mowing_beside_a_path_leaves_what_it_parts()
 	_a_wide_swipe_mows_its_band_in_few_rays()
 	await _one_stroke()
 	await flushed()
@@ -115,6 +116,20 @@ func _mows() -> void:
 	check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
 	await play([{"op": "press", "button": "A"}])
 	check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
+
+
+## A ring reaching over a path beside its ray leaves the meadow the path parts, so lifting the path brings it back.
+func _mowing_beside_a_path_leaves_what_it_parts() -> void:
+	await play([{"op": "pave", "points": [[-6, -32], [0, -32]], "radius": 0.8, "seconds": 0.4}])
+	var under := world.terrain.ground(-3, -32)
+	var parted := flora.plants_near(under, 0.3).size()
+	var up := Vector3.UP * 14.0
+	tool.press(self, world.terrain.ground(-6, -30.9) + up, Vector3.DOWN)
+	tool.hold(self, world.terrain.ground(0, -30.9) + up, Vector3.DOWN)
+	check(world.state.paths.size() == 1, "a sweep beside a path leaves the path")
+	tool.let_go(self)
+	await play([{"op": "delete", "x": -3, "z": -32}])
+	check(parted > 0 and flora.plants_near(under, 0.3).size() == parted, "lifting it stands the meadow it parted back up: %d of %d" % [flora.plants_near(under, 0.3).size(), parted])
 
 
 ## One held sweep across two trees, a wall, a path and the meadow takes them all, and one undo puts them all back.

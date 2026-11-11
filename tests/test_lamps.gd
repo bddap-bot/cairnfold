@@ -149,6 +149,8 @@ func _openings_admit_exterior_light() -> void:
 	var near := _at(lit, 3.5, -1.5, 0)
 	var far := _at(lit, 3.5, 1.5, 0)
 	check(near > 0.0 and far < near, "an exterior flame spills through the arch and fades with depth")
+	var with_doorway := Lamps.shine(PackedVector3Array([flame[0], Vector3(3.5, 1.2, -2.5)]), ground, Lamps.Rooms.new([room]))
+	check(_at(with_doorway, 3.5, -1.5, 0) >= near, "a second flame standing in the doorway takes none of it away: %.2f, %.2f alone" % [_at(with_doorway, 3.5, -1.5, 0), near])
 	room.openings.clear()
 	var closed := Lamps.shine(flame, ground, Lamps.Rooms.new([room]))
 	check(_at(closed, 3.5, -1.5, 0) == 0.0, "closing the opening blocks that same flame")

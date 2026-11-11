@@ -6,6 +6,7 @@ extends "res://../tests/support/suite.gd"
 func _run() -> void:
 	_brush_fills_its_disc()
 	_painting_again_thickens()
+	_a_stroke_past_one_command_lands_whole()
 	_a_stroke_grows_over_frames()
 	_brush_grows_with_distance()
 	_tree_stands_on_its_spot()
@@ -118,6 +119,19 @@ func _painting_again_thickens() -> void:
 	b.hand.tool = Hand.Tool.GRASS
 	t.paint(b, at, 1.0, 1.0)
 	check(t.flora.ghost_grass.size() > once, "the grass brush paints grass, denser than flowers")
+
+
+func _a_stroke_past_one_command_lands_whole() -> void:
+	var t := _tool()
+	var b := t.brushes[0]
+	b.hand.tool = Hand.Tool.GRASS
+	var before := t.flora.grass.size()
+	for i in 360:
+		t.paint(b, t.world.terrain.ground(-20, 20), FloraTool.MAX_RADIUS, 1.0 / 60.0)
+	var painted := t.flora.ghost_grass.size()
+	t.end_stroke(b)
+	t.flora.grow_now()
+	check(painted > Commands.MAX_STROKE and t.flora.grass.size() - before == painted, "a hold painting more than one command takes grows it all, %d of %d" % [t.flora.grass.size() - before, painted])
 
 
 func _brush_grows_with_distance() -> void:

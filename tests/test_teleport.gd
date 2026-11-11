@@ -40,9 +40,21 @@ func _finish(rig: Rig) -> void:
 	await _preview_is_the_landing(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
+	_snap_turns_about_the_head(rig)
 	_landing_sounds(rig)
 	_floating_shows_what_is_underfoot(rig)
 	finish()
+
+
+## A snap turn turns the player where they stand: their head stays put, wherever in the play space it is.
+func _snap_turns_about_the_head(rig: Rig) -> void:
+	rig.head.position = Vector3(0.6, Rig.EYE, -0.4)
+	var h := rig.head.global_position
+	var ahead := -rig.head.global_basis.z
+	rig.snap_turn(Rig.SNAP, rig.left)
+	check(rig.head.global_position.distance_to(h) < 1e-4, "a snap turn leaves the head where it stood: %s, was %s" % [rig.head.global_position, h])
+	check(absf(ahead.signed_angle_to(-rig.head.global_basis.z, Vector3.UP) - Rig.SNAP) < 1e-4, "and turns the view by SNAP")
+	rig.head.transform = Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
 
 
 ## A teleport swishes; one past MARKER_NEAR that stands the player on the ground or something on it sounds as a landing.
@@ -520,6 +532,9 @@ func _floating_shows_what_is_underfoot(rig: Rig) -> void:
 	rig.place(g, 0.0)
 	rig._process(STEP)
 	check(not rig._underfoot.visible, "standing shows nothing underfoot")
+	rig.place(g, Rig.LIFTED * 0.9)
+	rig._process(STEP)
+	check(not rig._underfoot.visible, "nor does a lift short of LIFTED, which lands as standing")
 	rig.place(g, 12.0)
 	rig._process(STEP)
 	var h := rig.head.global_position
