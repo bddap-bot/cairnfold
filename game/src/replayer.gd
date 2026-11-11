@@ -187,7 +187,8 @@ func _let_go() -> void:
 
 ## A message as the network gave it, and each build command as the host ordered it: the garden is the record's, never
 ## the tools' (World.replayed), so a proposal is only the order that follows it. What else this machine did itself is
-## the input's to do again, but for its peers coming and going and its host dropping it, which the network decided.
+## the input's to do again, but for its peers coming and going, the id its host gave it, and its host dropping it,
+## which the network decided.
 func _deliver(m: Array) -> void:
 	var whose: int = m[2]
 	match m[3]:
@@ -210,6 +211,7 @@ func _deliver(m: Array) -> void:
 		"paused", "resumed":
 			_main.held(m[3] == "paused")
 		"connected":
+			_id = whose
 			connected_to_server.emit()
 		"dropped":
 			server_disconnected.emit()
@@ -224,28 +226,14 @@ static func _unfiled(a: Variant) -> Variant:
 	return PackedByteArray() if a is Dictionary and a.has("sha256") and a.size() == 2 else a
 
 
-## A garden this game sets out to join is never reached: it stands for the player the record says this machine
-## became there.
+## A garden this game sets out to join is never reached.
 func _set_multiplayer_peer(peer: MultiplayerPeer) -> void:
 	_peers.clear()
 	_id = 1
 	if peer is ENetMultiplayerPeer:
-		if peer.get_unique_id() != 1:
-			_id = _joined_as(peer.get_unique_id())
 		peer.close()
 		peer = OfflineMultiplayerPeer.new()
 	_peer = peer
-
-
-## The id the host gave this machine when this join connected, else `otherwise`.
-func _joined_as(otherwise: int) -> int:
-	for i in range(_next, record.messages.size()):
-		match record.messages[i][3]:
-			"connected":
-				return record.messages[i][2]
-			"join", "dropped", "home":
-				break
-	return otherwise
 
 
 func _get_multiplayer_peer() -> MultiplayerPeer:

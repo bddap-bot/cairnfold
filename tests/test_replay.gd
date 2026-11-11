@@ -133,7 +133,7 @@ func _initialize() -> void:
 	var gardens: Array = record.checks.filter(func(c: Dictionary) -> bool: return c.has("garden"))
 	check(record.checks.size() > 5 and gardens.size() >= 2 and gardens[-1].seq == garden.seq,
 		"the record took %d checks, %d of them of the garden, the last at command %s" % [record.checks.size(), gardens.size(), gardens[-1].seq if not gardens.is_empty() else -1])
-	var replayed := _replay(chunk)
+	var replayed := Replayed.replay(self, chunk, _avatars)
 	if not replayed.is_empty():
 		check(replayed.diverged.is_empty(), "replayed on the build that recorded it, every check holds: %s" % [replayed.diverged])
 		check(replayed.heads.size() == recorded and recorded > 300, "the replay plays every one of the %d frames recorded: %d" % [recorded, replayed.heads.size()])
@@ -168,7 +168,7 @@ func _initialize() -> void:
 						raw[o + b] = 0
 			e.data = Replay.deflated(raw)
 		return e)
-	replayed = _replay(later)
+	replayed = Replayed.replay(self, later, _avatars)
 	if not replayed.is_empty():
 		check(replayed.garden == garden, "on a later build that makes nothing of the input the garden still comes out as recorded, from the record's commands")
 		var player: Dictionary = replayed.diverged.get("player", {})
@@ -194,7 +194,7 @@ func _initialize() -> void:
 			e.bytes = raw.size()
 			e.data = Replay.deflated(raw)
 		return e)
-	replayed = _replay(diverging)
+	replayed = Replayed.replay(self, diverging, _avatars)
 	if not replayed.is_empty():
 		var caught: Dictionary = gardens.filter(func(c: Dictionary) -> bool: return c.seq >= tree.seq)[0]
 		var before: Array = gardens.filter(func(c: Dictionary) -> bool: return c.seq < tree.seq)
@@ -232,19 +232,3 @@ func _copy(chunk: String, name: String, change: Callable) -> String:
 		f.close()
 	return into.path_join(chunk.get_file())
 
-
-## What tests/support/replayed.gd makes of replaying `chunk` in a fresh game; {} when it fails.
-func _replay(chunk: String) -> Dictionary:
-	var out := ProjectSettings.globalize_path(chunk.get_base_dir().path_join("replayed"))
-	DirAccess.remove_absolute(out)
-	var said := []
-	var code := OS.execute(OS.get_executable_path(), ["--headless", "--fixed-fps", "64", "--path", ProjectSettings.globalize_path("res://"),
-		"--script", "../tests/support/replayed.gd", "--", "--replay", ProjectSettings.globalize_path(chunk), "--out", out,
-		"--avatars", _avatars], said, true)
-	check(code == 0 and FileAccess.file_exists(out), "the replay of %s runs: exit %d\n%s" % [chunk.get_base_dir().get_file(), code, said[0].right(4000)])
-	if not FileAccess.file_exists(out):
-		return {}
-	var f := FileAccess.open(out, FileAccess.READ)
-	var replayed: Dictionary = f.get_var()
-	f.close()
-	return replayed

@@ -1,7 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Synthetic PhysBone chains stepped by the spring runtime: each check holds to something VRChat's PhysBone step does and
-## a VRM spring does not.
+## Synthetic spring chains stepped by the spring runtime: each PhysBone check holds to something VRChat's PhysBone step
+## does and a VRM spring does not; the last holds a VRM spring's drag.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
@@ -15,6 +15,7 @@ func _run() -> void:
 	_steady_motion_leaves_the_tail_at_rest()
 	_collider_squishes_but_never_stretches()
 	_release_sets_off_from_the_grip()
+	_drag_spends_the_swing()
 	finish()
 
 
@@ -141,3 +142,32 @@ func _release_sets_off_from_the_grip() -> void:
 	var released: Vector3 = made[0].tip(0)
 	check(released.distance_to(held) < 0.01, "release sets off from the grip, not from where the grip began: %.4f m" % released.distance_to(held))
 	made[1].free()
+
+
+## A VRM spring (the script's step: plain nodes, no native solver) with neither stiffness nor gravity, its anchor carried
+## aside and stopped: under full drag the tail stops where it was left; under none it swings on.
+func _drag_spends_the_swing() -> void:
+	for drag in [1.0, 0.0]:
+		var anchor := Node3D.new()
+		root.add_child(anchor)
+		var bone := Node3D.new()
+		anchor.add_child(bone)
+		var tail := Node3D.new()
+		tail.position = Vector3(0, 0, 0.1)
+		bone.add_child(tail)
+		var joint := {"node": 0, "stiffness": 0.0, "dragForce": drag, "gravityPower": 0.0, "hitRadius": 0.0}
+		var definition := SpringDefinition.read({"nodes": [{}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [joint, {"node": 1}]}]}}})
+		var springs := SpringRuntime.new(definition, {0: bone, 1: tail})
+		for i in 10:
+			anchor.position.x += 0.01
+			springs.advance(1.0 / 60.0)
+		springs.advance(1.0 / 60.0)
+		var left: Vector3 = springs.tip(0)
+		for i in 10:
+			springs.advance(1.0 / 60.0)
+		var moved: float = springs.tip(0).distance_to(left)
+		if drag == 1.0:
+			check(moved < 1e-4, "under full drag the tail stops a step after its anchor does: %.5f m on" % moved)
+		else:
+			check(moved > 0.005, "under no drag it swings on: %.5f m" % moved)
+		anchor.free()

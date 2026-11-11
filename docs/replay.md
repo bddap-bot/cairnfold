@@ -10,7 +10,7 @@ it. The game starts from the record's seeds and garden, and `Replayer` takes the
 at the start of every frame, before anything else runs, and there it delivers each message the record says came in
 before that frame, as from the peer that sent it, then puts the head and hands where the record has them and presses
 the inputs the record has held. Peers come and go as the record says; a join reaches no one, and the game takes the id
-the host gave it then; what the game sends goes nowhere. Each frame is scaled to its recorded delta: the run's first
+the host gave it where the record says it connected; what the game sends goes nowhere. Each frame is scaled to its recorded delta: the run's first
 frame plays none of the record, with the tree paused, and gives the engine's step, and under `--fixed-fps` every frame
 then takes its recorded delta, the first one's too (a headset's, a load long, feeds how tall the player is measured).
 At a rate that is a power of two (`--fixed-fps 64`) every delta is exact and the replay is the session again, bit for
@@ -39,7 +39,9 @@ are.
 tests/test_replay.gd records a scripted session in which a visiting player proposes a tree, the headset leaves focus
 mid-aim, the player puts on a file of their own and is refitted to it, and some frames run at half speed; it replays it
 in a fresh game, and finds every frame's delta and head pose and the final garden equal, and every check the record
-took holding.
+took holding. tests/test_replay_visit.gd records a player who plants at home and then joins a garden at the same
+command; its replay compares the visited garden once it is restored whole, not halfway, and plays as the id the host
+gave.
 
 In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
 under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session
@@ -81,8 +83,8 @@ the session:
   played through this build's aiming and the ground under it, so a changed teleport stands the player elsewhere, and
   every later head pose with it.
 - What reads the input. A tool, wheel or menu that reads the same input differently does something else; only its
-  ghosts and sounds show it, since its commands go nowhere. A join is input too: a menu that changed may not join the
-  garden the session did, while the messages from that garden still arrive.
+  ghosts and sounds show it, since its commands go nowhere. A replay hears no gardens near (it listens for no
+  beacons), so its menu never joins one; the messages from the garden the session joined arrive all the same.
 
 A replay says where it diverged. Every `Replay.CHECK_EVERY` (60) frames the session keeps a check (`Replay.check`): a
 digest of where the play space stands (`player`), of every node under the wildlife and every generator held there as
