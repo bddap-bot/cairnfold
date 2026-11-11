@@ -126,8 +126,8 @@ func _mowing_beside_a_path_leaves_what_it_parts() -> void:
 	var up := Vector3.UP * 14.0
 	tool.press(self, world.terrain.ground(-6, -30.9) + up, Vector3.DOWN)
 	tool.hold(self, world.terrain.ground(0, -30.9) + up, Vector3.DOWN)
-	check(world.state.paths.size() == 1, "a sweep beside a path leaves the path")
 	tool.let_go(self)
+	check(world.state.paths.size() == 1, "a sweep beside a path leaves the path")
 	await play([{"op": "delete", "x": -3, "z": -32}])
 	check(parted > 0 and flora.plants_near(under, 0.3).size() == parted, "lifting it stands the meadow it parted back up: %d of %d" % [flora.plants_near(under, 0.3).size(), parted])
 

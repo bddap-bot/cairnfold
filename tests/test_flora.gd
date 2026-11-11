@@ -121,6 +121,7 @@ func _painting_again_thickens() -> void:
 	check(t.flora.ghost_grass.size() > once, "the grass brush paints grass, denser than flowers")
 
 
+## A hold painting more than one command can carry sends it as several, and the garden grows every plant painted.
 func _a_stroke_past_one_command_lands_whole() -> void:
 	var t := _tool()
 	var b := t.brushes[0]
