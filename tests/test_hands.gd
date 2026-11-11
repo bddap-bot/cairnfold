@@ -70,10 +70,35 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	await frames(5)
 	check(rig.aim_hand == rig.left and rig._landing.visible, "the stick aims a teleport and its preview shows where it lands")
 	check(not rig.left.aiming() and not rig.left._dot.visible, "a teleport draws no ray from the hand")
+	rig.left.tool = Hand.Tool.SEEDS
+	var thrown: int = Cues.asked.get(Cues.Act.SEEDS_THROW, 0)
+	await _tap(rig.left)
+	check(Cues.asked.get(Cues.Act.SEEDS_THROW, 0) == thrown, "a hand aiming a teleport throws no seeds")
+	rig.left.tool = Hand.Tool.FLOWERS
 	Hand.injected_sticks[rig.left.tracker] = Vector2.ZERO
 	await frames(3)
 	Hand.injected_sticks.erase(rig.left.tracker)
+	rig.left.tool = Hand.Tool.SEEDS
+	rig.left.picking = true
+	var unthrown: int = Cues.asked.get(Cues.Act.SEEDS_THROW, 0)
+	await _tap(rig.left)
+	rig.left.picking = false
+	check(Cues.asked.get(Cues.Act.SEEDS_THROW, 0) == unthrown, "a hand picking from the wheel throws no seeds")
+	rig.left.tool = Hand.Tool.FLOWERS
 	rig.left.held_still = false
+	rig.left.bare = true
+	check(rig.left.tracked(), "a bare hand the runtime follows by its joints is tracked")
+	rig.left.bare = false
+	Hand.injected_sticks[rig.right.tracker] = Vector2(0, 0.9)
+	await frames(2)
+	var flicked := rig.right.flick
+	Hand.injected_sticks[rig.right.tracker] = Vector2(0, 0.5)
+	await frames(2)
+	check(flicked == "primary_up" and rig.right.flick == flicked, "a flicked stick eased back short of the push stays one flick")
+	Hand.injected_sticks[rig.right.tracker] = Vector2.ZERO
+	await frames(2)
+	check(rig.right.flick == "", "and lets go back near the middle")
+	Hand.injected_sticks.erase(rig.right.tracker)
 
 
 ## The avatar's hand closes round the controller where the runtime puts the palm, never at its aim, which stands out
@@ -104,3 +129,10 @@ func _the_avatar_holds_the_grip(rig: Rig, tracker: XRPositionalTracker) -> void:
 	check(hand.palm_from == "grip_surface", "read from the grip_surface, not %s" % hand.palm_from)
 	tracker.invalidate_pose(&"palm_pose")
 	tracker.invalidate_pose(&"grip")
+
+
+func _tap(hand: Hand) -> void:
+	Buttons.injected[Controls.key("tool", hand.tracker)] = true
+	await frames(3)
+	Buttons.injected.erase(Controls.key("tool", hand.tracker))
+	await frames(2)

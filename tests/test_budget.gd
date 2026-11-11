@@ -341,6 +341,13 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	await frames(3)
 	check(not hand.capped(), "and stops once nothing over is shown")
 	check(not bar.visible, "and the bar hides once the placement is gone")
+	var units := world.units.duplicate()
+	Budget.add(world.units, change)
+	for i in 3:
+		world.preview(hand, {"flower": -1})
+		await process_frame
+	check(world.fill() > 1.0 and not hand.capped(), "a garden already over the budget shows no refusal on an edit that takes from it")
+	world.units = units
 
 
 func _painting_stops_at_the_budget() -> void:

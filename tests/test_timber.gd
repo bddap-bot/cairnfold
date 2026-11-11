@@ -73,6 +73,20 @@ func _init() -> void:
 	var timber := {"kind": "timber", "color": TimberFrame.OAK}
 	check(Wall._painted_as(timber, paint).is_equal_approx(Palette.swatch(Palette.Element.TIMBER, 3)), "timber uses its own oak family")
 	check(PaletteTool.FACES.any(func(f: Vector2) -> bool: return f == Vector2(WallLayout.Finish.TIMBER, 0.0)) and PaletteTool.FACES.any(func(f: Vector2) -> bool: return f == Vector2(WallLayout.Finish.PLASTER, 0.0)), "plain plaster and timber are selectable")
+	var arched := Wall.new(2, null, Terrain.new())
+	arched.layout.points = [Vector3.ZERO, Vector3(6, 0, 0)]
+	arched.layout.finish = WallLayout.Finish.TIMBER
+	arched.layout.height = 3.0
+	arched.layout.openings = [WallLayout.archway(3.0)]
+	arched.layout.build(Terrain.flat)
+	var wedges := arched.layout.stones.filter(func(p: Dictionary) -> bool: return p.kind == "timber" and p.has("ends"))
+	check(not wedges.is_empty(), "a timber wall's archway is ringed in timber wedges")
+	var one := WallLayout.new()
+	var missed := wedges.filter(func(p: Dictionary) -> bool:
+		one.stones.assign([p])
+		return not PaletteTool._on_timber(one, p.xform * Vector3(0, 0.5, 0)) or PaletteTool._on_timber(one, p.xform * Vector3(0, 0.5, 2.0)))
+	check(missed.is_empty(), "the colour tool finds each of an arch's timber wedges on its face and not on the wall past its ring: %d of %d missed" % [missed.size(), wedges.size()])
+	arched.free()
 	wall.free()
 	finish()
 

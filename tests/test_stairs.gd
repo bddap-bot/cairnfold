@@ -20,6 +20,7 @@ func _run() -> void:
 	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "sag": 0.0, "rail": "wood", "seed": 4, "paint": Palette.plain()})
 	check(is_nan(stairs.surface(Vector3(2, 1, -2))), "nothing to stand on beside the flight")
 	check(is_nan(stairs.surface(Vector3(0, 1, 1))), "nothing to stand on before its foot")
+	check(is_nan(stairs.surface(Vector3(0.9, 1, -2))) and not is_nan(stairs.surface(Vector3(0.5, 1, -2))), "a flight's treads end at its sides")
 	var first := stairs.stones.duplicate(true)
 	stairs.build(d)
 	check(stairs.stones == first, "same command lays identical stones")
@@ -76,6 +77,12 @@ func _run() -> void:
 	laid.build(main.stair_tool._strokes[main.rig.left].data)
 	check(Cues.asked.get(Cues.Act.STAIRS_LAY, 0) - clicks == laid.treads.size() - 1, "drawing a flight clicks once per tread: %d clicks, %d treads" % [Cues.asked.get(Cues.Act.STAIRS_LAY, 0) - clicks, laid.treads.size()])
 	main.stair_tool._cancel(main.rig.left)
+	var refused: int = Cues.asked.get(Cues.Act.REFUSED, 0)
+	main.stair_tool.begin(main.rig.right, foot)
+	main.stair_tool.extend(main.rig.right, foot + Vector3(0, 0.1, -0.15))
+	main.stair_tool.end(main.rig.right)
+	world.settle()
+	check(world.state.stairs.is_empty() and Cues.asked.get(Cues.Act.REFUSED, 0) == refused, "a tap too short for a step lays nothing and is not refused")
 	d.a.y = 2.0
 	d.b.y = 2.0
 	var units_before := world.units.duplicate(true)
@@ -120,6 +127,17 @@ func _run() -> void:
 	check(world.state.stairs.is_empty(), "eraser takes the whole bridge")
 	world.undo()
 	check(world.state.stairs.size() == 1, "erased stairs return on undo")
+	var eye := Vector3(0, 1.0, -10)
+	var under_deck := Vector3(0, span.surface(Vector3(0, 3, -2)) - 0.02, -2)
+	check(main.stair_tool.aim(eye, (under_deck - eye).normalized()).get("stair", -1) == id, "the tool aims at the bridge's deck from past its end")
+	var mound := Terrain.cells_around(0, -7, 1.0)
+	var raised := world.terrain.read(mound)
+	for i in raised.size():
+		raised[i] += 3.0
+	world.submit({"op": "heights", "cells": mound, "values": raised})
+	world.settle()
+	check(main.stair_tool.aim(eye, (under_deck - eye).normalized()).get("stair", -1) < 0, "ground in front hides the bridge behind it")
+	world.undo()
 	_painted_and_styled(main)
 	_gripped(main)
 	finish()

@@ -26,6 +26,8 @@ func _run() -> void:
 	_stone_takes_a_style()
 	_boulders_take_a_stone_style()
 	_paths_take_a_surface()
+	await _one_wheel_at_a_time()
+	_a_face_a_peer_turned_from_is_let_be()
 	finish()
 
 
@@ -492,6 +494,8 @@ func _roof_choices_keep_shape() -> void:
 				check(wall.roof.pitch == pitch and wall.roof.curve == 0.4, "preview preserves pitch and curve")
 				picker.close(main.rig.right)
 				check(world.state.walls[id].roof.pitch == pitch and world.state.walls[id].roof.curve == 0.4, "committed covering preserves pitch and curve")
+				var roof: Dictionary = world.state.walls[id].roof
+				check(main.tool.deck == roof.deck if pitch == 0.0 else main.tool.thatch == roof.thatch, "roofs laid after take the covering just chosen")
 			wall.lay_now()
 			var colour := picker.aim(wall.roof.frame().mid + Vector3.UP * 10.0, Vector3.DOWN)
 			var boarded: bool = world.state.walls[id].roof.deck == RoofLayout.Deck.WOOD
@@ -545,4 +549,47 @@ func _paths_take_a_surface() -> void:
 	world.marks.settle()
 	check(world.state.paths[id].surface == PathLayout.Surface.BED and tilled(world.marks, -27, 60), "a save carries it")
 	world.paths.surface = PathLayout.Surface.DIRT
+	world.restore({"seq": 0, "cmds": []})
+
+
+## While one hand turns a wheel, the other's trigger opens no second one.
+func _one_wheel_at_a_time() -> void:
+	var picker: PaletteTool = main.palette_tool
+	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-24, 20)]))], 1)
+	var wall: Wall = main.tool.find(id)
+	var right: Hand = main.rig.right
+	var left: Hand = main.rig.left
+	var tools := [left.tool, right.tool]
+	right.tool = Hand.Tool.STYLE
+	picker.open(right, picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(3.0) + Vector3.UP))
+	var above := wall.layout.point_at(3.0) + Vector3.UP * (wall.layout.height + 2.0)
+	left.tool = Hand.Tool.COLOUR
+	left.held_still = true
+	left.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), above)
+	await frames(3)
+	check(not picker.aim(above, Vector3.DOWN).is_empty(), "the other hand aims at something to colour")
+	Buttons.injected[Controls.key("tool", left.tracker)] = true
+	await frames(3)
+	Buttons.injected.erase(Controls.key("tool", left.tracker))
+	check(picker.busy(right) and not picker.busy(left), "a trigger opens no second wheel while one is turning")
+	picker.close(right)
+	left.held_still = false
+	left.tool = tools[0]
+	right.tool = tools[1]
+	await frames(3)
+	world.restore({"seq": 0, "cmds": []})
+
+
+## A wheel let go on the face the wall had when it opened, which a peer has since turned it from, sends nothing and is
+## not refused.
+func _a_face_a_peer_turned_from_is_let_be() -> void:
+	var picker: PaletteTool = main.palette_tool
+	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-24, 20)]))], 1)
+	var wall: Wall = main.tool.find(id)
+	picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(3.0) + Vector3.UP))
+	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, 2)
+	var refused: int = Cues.asked.get(Cues.Act.REFUSED, 0)
+	picker.close(main.rig.right)
+	world.settle()
+	check(Cues.asked.get(Cues.Act.REFUSED, 0) == refused and world.state.walls[id].finish == WallLayout.Finish.PLASTER, "a face a peer turned the wall from, let go on, sends nothing and is not refused")
 	world.restore({"seq": 0, "cmds": []})

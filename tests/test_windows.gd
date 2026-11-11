@@ -360,6 +360,9 @@ func _in_the_glade() -> void:
 	check(fit.fit(fit.aim(Hand.Tool.WINDOWS, door_eye, -n)), "a door opens low on the wall")
 	house.lay_now()
 	check(l.lived_in() and not of_kind(l, "curtain").is_empty(), "with a door the house is lived in, its windows curtained")
+	var door: Dictionary = l.apertures.filter(func(a: Dictionary) -> bool: return a.door and a.style != WallLayout.Family.ARCHWAY)[0]
+	var leaf_at: Vector3 = l.frame_at(door.s).point + Vector3.UP * (door.sill + door.head) * 0.5
+	check(palette.aim(leaf_at + n * 2.5, -n).get("element") == Palette.Element.WOOD, "the colour tool on a door picks its wood, not a window's glow")
 
 	var f := flat.roof.frame()
 	var above: Vector3 = flat.transform * f.mid + Vector3.UP * 4.0

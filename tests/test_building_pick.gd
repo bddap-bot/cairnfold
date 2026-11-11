@@ -32,6 +32,7 @@ func _run() -> void:
 	check(w.layout.lanterns.size() == 1 and w.roof.chimneys.is_empty(), "a lantern is placed and no chimney is added")
 	await _overlapping_roofs()
 	await _gable_ends_are_met_at_their_face()
+	_a_fence_foot_takes_no_foundation_decoration()
 	finish()
 
 
@@ -157,3 +158,14 @@ func _grab(near: Wall, origin: Vector3) -> void:
 	Buttons.injected.clear()
 	await frames(3)
 	XRServer.remove_tracker(tracker)
+
+
+func _a_fence_foot_takes_no_foundation_decoration() -> void:
+	var terrain := main.world.terrain
+	var id := order_walls([wall_data({"points": PackedVector3Array([terrain.ground(-20, 20), terrain.ground(-14, 20)]), "seed": 3, "fence": true})], main.world.me())
+	var fence: Wall = main.tool.find(id)
+	fence.lay_now()
+	var f := fence.layout.frame_at(0.06)
+	var out: Vector3 = f.tangent.cross(Vector3.UP)
+	var hit: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, f.point + out * 0.5 + Vector3.UP * 0.2, -out)
+	check(hit.get("wall") == fence and hit.get("mount") != "foundation", "a fence's foot takes no foundation decoration: %s %s" % [hit.get("what"), hit.get("mount")])

@@ -402,6 +402,21 @@ func _ponds_in_the_glade() -> void:
 	tool.set_process(false)
 	await _preview(tool, rim)
 	check(tool._ghosts[0].visible and absf(tool._ghosts[0].position.y - brim) < 0.05, "the tool shows the water pointing at the rim would hold")
+	tool.fill(rig.left, lower)
+	tool.fill(rig.left, rim)
+	tool.settle()
+	await process_frame
+	check(absf(pond.pond.level - brim) < 1e-4, "fills land in the order they were let in, the one shown waiting behind one still worked out")
+	await _preview(tool, rim)
+	var edited: int = world.stacks[world.me()].undo.size()
+	await _press(terrain, -20, 20, 0.3)
+	tool.fill(rig.left, rim)
+	check(tool.pouring(), "after an edit to the garden, what a fill holds is worked out again rather than taken from the preview")
+	tool.settle()
+	while world.stacks[world.me()].undo.size() > edited:
+		world.undo()
+		world.settle()
+	await process_frame
 	var dry := world.terrain.ground(3, -4) + Vector3.UP * 0.05
 	await _preview(tool, dry)
 	check(not tool._ghosts[0].visible and tool._ponds[0] == null, "and nothing where no hollow holds any")

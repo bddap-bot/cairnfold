@@ -332,6 +332,17 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	await until(func() -> bool: return saved.size() == 2, "a second hold's video is saved")
 	Buttons.injected.erase(key)
 	check(saved.size() == 2 and tool._clip == null and saved[1] != saved[0] and FileAccess.file_exists(saved[1]), "putting the camera away stops and saves the video")
+	rig.right.tool = Hand.Tool.CAMERA
+	await process_frame
+	var shots: int = Cues.asked.get(Cues.Act.PHOTO, 0)
+	tool._busy = true
+	Buttons.injected[key] = true
+	await create_timer(PhotoTool.HOLD * 0.3).timeout
+	Buttons.injected.erase(key)
+	await frames(2)
+	tool._busy = false
+	check(Cues.asked.get(Cues.Act.PHOTO, 0) == shots, "a tap while the camera is still drawing takes no second photo")
+	rig.right.tool = Hand.Tool.WALLS
 	for f in saved:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 	rig.queue_free()
