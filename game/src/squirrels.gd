@@ -7,6 +7,8 @@ extends Shy
 ## crown and keep still there.
 
 enum State { CLIMB, CLING, RUN, FORAGE }
+## Part ids ride in UV2.x so the shader knows how each vertex moves.
+enum Part { BODY, HEAD, TAIL, HIND, FORE }
 
 const CAP := 4
 const CLIMB_SPEED := 0.55
@@ -54,24 +56,23 @@ static func body() -> ArrayMesh:
 	var cream := Color("eadcbc")
 	var dark := Color("140f0c")
 	var hunch := Basis(Vector3.RIGHT, 0.25)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.055, 0.012), Vector3(0.034, 0.034, 0.06), coat, 6, 10, Callable(), hunch)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.047, -0.008), Vector3(0.027, 0.028, 0.044), cream, 5, 8, Callable(), hunch)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.08, -0.062), Vector3(0.027, 0.025, 0.031), coat, 6, 10)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.071, -0.072), Vector3(0.02, 0.016, 0.022), cream, 4, 8)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.077, -0.094), Vector3.ONE * 0.0045, Color("4a2e26"), 3, 6)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.055, 0.012), Vector3(0.034, 0.034, 0.06), coat, 6, 10, Callable(), hunch)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.047, -0.008), Vector3(0.027, 0.028, 0.044), cream, 5, 8, Callable(), hunch)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.08, -0.062), Vector3(0.027, 0.025, 0.031), coat, 6, 10)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.071, -0.072), Vector3(0.02, 0.016, 0.022), cream, 4, 8)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.077, -0.094), Vector3.ONE * 0.0045, Color("4a2e26"), 3, 6)
 	for side in [-1.0, 1.0]:
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.018, 0.088, -0.081), Vector3.ONE * 0.0062, dark, 4, 6)
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.0205, 0.0905, -0.0855), Vector3.ONE * 0.0016, Color.WHITE, 2, 4)
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.015, 0.106, -0.055), Vector3(0.0065, 0.015, 0.005), coat, 3, 6, Callable(), Basis(Vector3.FORWARD, side * 0.2))
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.016, 0.121, -0.055), Vector3(0.003, 0.008, 0.003), deep, 2, 4)
-		var hind := 3
-		Meshes.ellipsoid(st, hind, Vector3(side * 0.027, 0.03, 0.04), Vector3(0.015, 0.025, 0.03), coat, 4, 8)
-		Meshes.ellipsoid(st, hind, Vector3(side * 0.024, 0.006, 0.02), Vector3(0.01, 0.006, 0.03), deep, 3, 6)
-		Meshes.ellipsoid(st, 4, Vector3(side * 0.017, 0.02, -0.038), Vector3(0.008, 0.021, 0.008), coat, 3, 6)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.018, 0.088, -0.081), Vector3.ONE * 0.0062, dark, 4, 6)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.0205, 0.0905, -0.0855), Vector3.ONE * 0.0016, Color.WHITE, 2, 4)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.015, 0.106, -0.055), Vector3(0.0065, 0.015, 0.005), coat, 3, 6, Callable(), Basis(Vector3.FORWARD, side * 0.2))
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.016, 0.121, -0.055), Vector3(0.003, 0.008, 0.003), deep, 2, 4)
+		Meshes.ellipsoid(st, Part.HIND, Vector3(side * 0.027, 0.03, 0.04), Vector3(0.015, 0.025, 0.03), coat, 4, 8)
+		Meshes.ellipsoid(st, Part.HIND, Vector3(side * 0.024, 0.006, 0.02), Vector3(0.01, 0.006, 0.03), deep, 3, 6)
+		Meshes.ellipsoid(st, Part.FORE, Vector3(side * 0.017, 0.02, -0.038), Vector3(0.008, 0.021, 0.008), coat, 3, 6)
 	var curl := [Vector3(0, 0.05, 0.075), Vector3(0, 0.075, 0.105), Vector3(0, 0.115, 0.12), Vector3(0, 0.155, 0.115), Vector3(0, 0.185, 0.095), Vector3(0, 0.198, 0.07)]
 	for i in curl.size():
 		var r := 0.024 + 0.012 * sin(PI * (i + 0.5) / curl.size())
-		Meshes.ellipsoid(st, 2, curl[i], Vector3(r * 0.9, r, r), deep if i == curl.size() - 1 else coat, 4, 8, Callable(), Basis(), 0.12)
+		Meshes.ellipsoid(st, Part.TAIL, curl[i], Vector3(r * 0.9, r, r), deep if i == curl.size() - 1 else coat, 4, 8, Callable(), Basis(), 0.12)
 	return st.commit()
 
 

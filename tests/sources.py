@@ -20,4 +20,23 @@ def script_const(path, name):
 
 
 def enum_members(path, enum):
-    return [m.strip() for m in re.search(rf'^enum {enum} \{{([^}}]*)\}}', (SRC / path).read_text(), re.M).group(1).split(',')]
+    return list(enum_values(path, enum))
+
+
+def enum_values(path, enum):
+    values, value = {}, 0
+    for member in re.search(rf'^enum {enum} \{{([^}}]*)\}}', (SRC / path).read_text(), re.M).group(1).split(','):
+        name, _, given = member.partition('=')
+        value = int(given) if given.strip() else value
+        values[name.strip()] = value
+        value += 1
+    return values
+
+
+def script_strings(path, name):
+    return re.findall(r'"([^"]*)"', re.search(rf'^const {name}\b[^=]*= (\[.*\])$', (SRC / path).read_text(), re.M).group(1))
+
+
+def shader_named(path, prefix):
+    """The shader's compiled-in constants named `prefix` + a name, by that name."""
+    return {m[0]: float(m[1]) for m in re.findall(rf'^const \w+ {prefix}(\w+) = (-?[\d.]+);$', (SRC / path).read_text(), re.M)}

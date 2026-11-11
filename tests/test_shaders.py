@@ -1,7 +1,7 @@
 import re
 import unittest
 
-from sources import SRC, enum_members, script_const, shader_const
+from sources import SRC, enum_members, enum_values, script_const, script_strings, shader_const, shader_named
 
 
 def expanded(path):
@@ -28,6 +28,8 @@ class Shaders(unittest.TestCase):
             ('expression.gdshaderinc', 'RAMP', script_const('avatar.gd', 'RAMP')),
             ('expression.gdshaderinc', 'COAT_ROWS', script_const('avatar.gd', 'COAT_ROWS')),
             ('expression.gdshaderinc', 'MATCAP_ROWS', script_const('avatar.gd', 'MATCAP_ROWS')),
+            ('expression.gdshaderinc', 'HEAD_ROWS', script_const('avatar.gd', 'HEAD_ROWS')),
+            ('expression.gdshaderinc', 'MATCAPS', script_const('avatar.gd', 'MATCAPS')),
             ('conure.gdshader', 'L', script_const('conure.gd', 'ALONG')),
             ('conure.gdshader', 'D', script_const('conure.gd', 'OUT')),
             ('conure.gdshader', 'BODY', script_const('conure.gd', 'BODY')),
@@ -49,6 +51,37 @@ class Shaders(unittest.TestCase):
         for shader, name, source in pairs:
             with self.subTest(shader=shader, name=name):
                 self.assertEqual(shader_const(shader, name), source)
+
+    def test_shader_codes_match_their_scripts(self):
+        # A code a script writes and a shader branches on, named on both sides: each name the shader gives is the
+        # script's member of that name, whose index or value is the code.
+        snake = lambda name: re.sub(r'(?<=[a-z])(?=[A-Z])', '_', name).upper()
+        sides = [
+            ('stone.gdshaderinc', 'ELEMENT_', enum_values('palette.gd', 'Element')),
+            ('particle.gdshaderinc', 'MODE_', [m.upper() for m in script_strings('particle_definition.gd', 'MODES')]),
+            ('particle.gdshaderinc', 'ALIGN_', [a.upper() for a in script_strings('particle_definition.gd', 'ALIGNS')]),
+            ('expression.gdshaderinc', 'REGION_', [r.upper() for r in script_strings('expression_definition.gd', 'REGIONS')]),
+            ('expression.gdshaderinc', 'LOOK_', [snake(f) for f in script_strings('expression_player.gd', 'LOOK_FIELDS')]),
+        ]
+        animals = {'duck': 'duck.gd', 'sheep': 'sheep.gd', 'conure': 'conure.gd', 'owl': 'owls.gd', 'frog': 'frogs.gd', 'squirrel': 'squirrels.gd', 'snake': 'snakes.gd'}
+        sides += [(f'{shader}.gdshader', 'PART_', enum_values(script, 'Part')) for shader, script in animals.items()]
+        for shader, prefix, members in sides:
+            codes = members if isinstance(members, dict) else {name: i for i, name in enumerate(members)}
+            named = shader_named(shader, prefix)
+            with self.subTest(shader=shader, prefix=prefix):
+                self.assertTrue(named)
+                self.assertEqual(named, {name: float(codes[name]) for name in named if name in codes})
+        bare = [(f'{shader}.gdshader', r'\bpart [=!<>]=? \d') for shader in animals]
+        bare += [('stone.gdshaderinc', r'material - \d'), ('particle.gdshaderinc', r'\b(mode|align) [=!]= \d'), ('expression.gdshaderinc', r'\b(kind|field) == \d')]
+        for shader, code in bare:
+            with self.subTest(shader=shader):
+                self.assertNotRegex((SRC / shader).read_text(), code)
+
+    def test_decal_blends_match_the_definition(self):
+        blend = re.search(r'vec3 decal_blend\(.*?\n}', (SRC / 'expression.gdshaderinc').read_text(), re.S).group(0)
+        [listed] = [re.findall(r'\d+', l) for l in re.findall(r'^const DECAL_BLENDS.*$', (SRC / 'expression_definition.gd').read_text(), re.M)]
+        # Blend 0, replace, is the shader's fall-through.
+        self.assertEqual(['0'] + re.findall(r'mode == (\d+)', blend), listed)
 
 
 if __name__ == '__main__':

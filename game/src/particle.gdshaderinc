@@ -14,6 +14,15 @@ uniform sampler2D curves : filter_nearest;
 // ParticleDefinition.MODES and ALIGNS, by index.
 uniform int mode;
 uniform int align;
+const int MODE_STRETCHED = 1;
+const int MODE_HORIZONTAL = 2;
+const int MODE_VERTICAL = 3;
+const int MODE_MESH = 4;
+const int ALIGN_VIEW = 0;
+const int ALIGN_WORLD = 1;
+const int ALIGN_LOCAL = 2;
+const int ALIGN_FACING = 3;
+const int ALIGN_VELOCITY = 4;
 uniform vec3 pivot;
 uniform float length_scale;
 uniform float velocity_scale;
@@ -145,33 +154,33 @@ void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_c
 	vec3 eye = inv_view[3].xyz;
 	vec3 to_eye = eye - world_at;
 	vec3 world;
-	if (mode != 4) {
+	if (mode != MODE_MESH) {
 		// Unity holds a quad's size to its share of the view at the particle's distance.
 		size = min(size, vec3(max_size * 2.0 * length(to_eye) / abs(projection[1][1])));
 	}
-	mat3 frame = align == 4 && speed > 1e-6 ? look_along(world_velocity) : align == 2 ? turn : align == 1 ? mat3(1.0) : align == 3 ? look_along(to_eye) : mat3(inv_view);
-	if (mode == 4) {
+	mat3 frame = align == ALIGN_VELOCITY && speed > 1e-6 ? look_along(world_velocity) : align == ALIGN_LOCAL ? turn : align == ALIGN_WORLD ? mat3(1.0) : align == ALIGN_FACING ? look_along(to_eye) : mat3(inv_view);
+	if (mode == MODE_MESH) {
 		world = world_at + frame * (euler(spun) * ((vertex + pivot) * size));
 		normal = frame * euler(spun) * normal;
-	} else if (mode == 1 && length(world_velocity - dot(world_velocity, normalize(to_eye)) * normalize(to_eye)) > 1e-6) {
+	} else if (mode == MODE_STRETCHED && length(world_velocity - dot(world_velocity, normalize(to_eye)) * normalize(to_eye)) > 1e-6) {
 		vec3 along = normalize(world_velocity - dot(world_velocity, normalize(to_eye)) * normalize(to_eye));
 		vec3 across = normalize(cross(along, normalize(to_eye)));
 		float stretch = size.x * length_scale + speed * velocity_scale;
 		world = world_at + across * vertex.x * size.x + along * (vertex.y - 0.5) * stretch;
 		normal = normalize(to_eye);
-	} else if (mode == 2) {
+	} else if (mode == MODE_HORIZONTAL) {
 		float c = cos(spun.z), s = sin(spun.z);
 		vec2 turned = mat2(vec2(c, s), vec2(-s, c)) * (vertex.xy * size.xy);
 		world = world_at + vec3(turned.x, 0.0, -turned.y);
 		normal = vec3(0.0, 1.0, 0.0);
-	} else if (mode == 3) {
+	} else if (mode == MODE_VERTICAL) {
 		float c = cos(spun.z), s = sin(spun.z);
 		vec2 turned = mat2(vec2(c, s), vec2(-s, c)) * (vertex.xy * size.xy);
 		vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), length(to_eye.xz) > 1e-6 ? vec3(to_eye.x, 0.0, to_eye.z) : vec3(0.0, 0.0, 1.0)));
 		world = world_at + right * turned.x + vec3(0.0, turned.y, 0.0);
 		normal = normalize(to_eye);
 	} else {
-		world = world_at + frame * (euler(align == 0 ? vec3(0.0, 0.0, spun.z) : spun) * vec3(vertex.xy * size.xy, 0.0));
+		world = world_at + frame * (euler(align == ALIGN_VIEW ? vec3(0.0, 0.0, spun.z) : spun) * vec3(vertex.xy * size.xy, 0.0));
 		normal = frame[2];
 	}
 	vertex = (view * vec4(world, 1.0)).xyz;

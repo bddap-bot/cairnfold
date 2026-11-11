@@ -9,7 +9,8 @@ uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
 // flat and two where lit through a ramp, green its cap, blue its shadow tint; row 1 its emission's colour and strength
 // over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward the glow by its
-// brightest channel); rows 2 to RAMP + 1 its ramp. Unset, every texel is lit by angle and glows nowhere.
+// brightest channel); the RAMP rows after those HEAD_ROWS its ramp. Unset, every texel is lit by angle and glows
+// nowhere.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -51,13 +52,15 @@ uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, rep
 // Toon Standard lights it, takes the same ambient and the main light scaled by its ramp at the half-Lambert term, and
 // the rest of the main light lent the albedo by its shadow tint in each pixel, under the same cap; that tint, added as
 // emission, takes no cast shadow, as Toon Standard's shade does under one.
+const int HEAD_ROWS = 2;
 const int RAMP = 16;
 #ifdef CLEAR_COAT
-const int COAT = 2 + RAMP;
+const int COAT = HEAD_ROWS + RAMP;
 #endif
 const int COAT_ROWS = 6;
-const int MATCAP = 2 + RAMP + COAT_ROWS;
+const int MATCAP = HEAD_ROWS + RAMP + COAT_ROWS;
 const int MATCAP_ROWS = 6;
+const int MATCAPS = 4;
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
@@ -91,7 +94,7 @@ void vertex() {
 		if (light.r > 1.5) {
 			float x = clamp(dot(normal, toward) * 0.5 + 0.5, 0.0, 1.0) * float(RAMP - 1);
 			int i = min(int(x), RAMP - 2);
-			level = mix(texelFetch(lighting, looked + ivec2(0, 2 + i), 0).r, texelFetch(lighting, looked + ivec2(0, 3 + i), 0).r, x - float(i));
+			level = mix(texelFetch(lighting, looked + ivec2(0, HEAD_ROWS + i), 0).r, texelFetch(lighting, looked + ivec2(0, HEAD_ROWS + 1 + i), 0).r, x - float(i));
 		}
 		float brightest = max(max(key.r, max(key.g, key.b)), 1e-4);
 		float facing = clamp(min(level, room / brightest), 0.0, 1.0);
@@ -102,6 +105,14 @@ void vertex() {
 	}
 }
 uniform sampler2D regions : filter_nearest, repeat_disable;
+// A region's kind (ExpressionDefinition.REGIONS, the rest a look) and a look's field (ExpressionPlayer.LOOK_FIELDS).
+const int REGION_HUE = 0;
+const int REGION_COLOR = 1;
+const int REGION_TONE = 2;
+const int LOOK_DECAL = 0;
+const int LOOK_DECAL_INTENSITY = 1;
+const int LOOK_DECAL_HUE = 2;
+const int LOOK_CLEARCOAT_ST = 3;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
@@ -214,7 +225,7 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 	vec3 right = cross(up, v);
 	vec3 r = reflect(-v, n);
 	vec3 added = vec3(0.0);
-	int count = min(int(texelFetch(lighting, ivec2(entry, MATCAP), 0).r + 0.5), 4);
+	int count = min(int(texelFetch(lighting, ivec2(entry, MATCAP), 0).r + 0.5), MATCAPS);
 	for (int slot = 0; slot < count; slot++) {
 		int row = MATCAP + 1 + slot * MATCAP_ROWS;
 		vec4 circle = texelFetch(lighting, ivec2(entry, row + 5), 0);
@@ -276,18 +287,18 @@ void fragment() {
 			vec4 s = texelFetch(regions, ivec2(i, 1), 0);
 			vec4 e = texelFetch(regions, ivec2(i, 2), 0);
 			int kind = int(s.y);
-			if (kind == 0) {
+			if (kind == REGION_HUE) {
 				hue = vec4(s.x, s.z, s.w, 1.0);
-			} else if (kind == 1) {
+			} else if (kind == REGION_COLOR) {
 				if (tint.x < 0.0) { tint = e.xyz; }
 				tint[int(s.z)] = s.x;
-			} else if (kind == 2) {
+			} else if (kind == REGION_TONE) {
 				tone[int(s.z)] = s.x;
 			} else {
 				int slot = int(s.z);
 				int field = int(e.y + 0.5);
 #ifdef CLEAR_COAT
-				if (field == 3) {
+				if (field == LOOK_CLEARCOAT_ST) {
 					coat_at[slot] = s.x;
 					coat_moved[slot] = 1.0;
 					continue;
@@ -302,12 +313,12 @@ void fragment() {
 					decal_turn[slot] = e.w;
 					decal_shift[slot] = texelFetch(regions, ivec2(i, 4), 0).x;
 				}
-				if (field == 2) { decal_shift[slot] = s.x; }
+				if (field == LOOK_DECAL_HUE) { decal_shift[slot] = s.x; }
 #endif
-				if (field == 0) {
+				if (field == LOOK_DECAL) {
 					decal_alpha[slot] = s.x;
 				} else {
-					if (field == 1) { decal_intensity[slot] = s.x; }
+					if (field == LOOK_DECAL_INTENSITY) { decal_intensity[slot] = s.x; }
 					if (decal_alpha[slot] < 0.0) { decal_alpha[slot] = e.x; }
 				}
 			}

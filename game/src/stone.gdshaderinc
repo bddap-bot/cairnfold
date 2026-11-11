@@ -41,6 +41,13 @@ varying flat float tone;
 varying flat vec3 box_sun;
 // In metres: less than a wall's thickness, so a grazing sun does not throw a point past what stands before it.
 const float FACE_REACH = 0.5;
+// The Palette.Element codes a piece's material carries (Palette.code).
+const float ELEMENT_MEADOW = 0.0;
+const float ELEMENT_ROOF = 2.0;
+const float ELEMENT_WOOD = 3.0;
+const float ELEMENT_PLASTER = 4.0;
+const float ELEMENT_TIMBER = 5.0;
+const float ELEMENT_GLOW = 7.0;
 
 void vertex() {
 	mat4 piece = PIECE_MATRIX;
@@ -71,7 +78,7 @@ void vertex() {
 		ROOM_HERE;
 #ifdef ROOF_TIMBER
 		occlusion = 0.85;
-		material = 5.0;
+		material = ELEMENT_TIMBER;
 #else
 		occlusion = PIECE_CUSTOM.x;
 		material = PIECE_CUSTOM.y;
@@ -79,13 +86,12 @@ void vertex() {
 		box_sun = vec3(0.0);
 #if !defined(BAKED) && !defined(ROOF_TIMBER)
 		// A far chunk's stones stand on their flat faces, a roof's ceiling is no piece, and a boulder casts its own shape.
-		if (stone_style < 0 && abs(material - 2.0) >= 0.5) {
+		if (stone_style < 0 && abs(material - ELEMENT_ROOF) >= 0.5) {
 			box_sun = inverse(mat3(piece)) * sun_toward;
 		}
 #endif
 		float ground = ground_at(world_pos.xz);
-		// Palette.Element ROOF: the covering.
-		vec3 at = volume_coord(room_read(room_row, abs(material - 2.0) < 0.5 ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm), world_nrm), ground);
+		vec3 at = volume_coord(room_read(room_row, abs(material - ELEMENT_ROOF) < 0.5 ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm), world_nrm), ground);
 #ifdef GIVEN_PER_VERTEX
 		given = given_read(at, lamp_over(world_pos, world_nrm, ground));
 #else
@@ -107,7 +113,7 @@ void vertex() {
 }
 
 void fragment() {
-	if (abs(material - 2.0) < 0.5) {
+	if (abs(material - ELEMENT_ROOF) < 0.5) {
 		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
 	}
 	// A piece's shadow is a plain box holding a rounded stone's rim and hollows, so a point on a face toward the sun reads
@@ -125,7 +131,7 @@ void fragment() {
 #else
 	vec4 bounce = texture(bounce_volume, bounce_at);
 #endif
-	if (abs(material - 4.0) < 0.5) {
+	if (abs(material - ELEMENT_PLASTER) < 0.5) {
 		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
 		vec3 surface_pos = miniature ? local_pos : world_pos;
@@ -133,9 +139,9 @@ void fragment() {
 		vec3 an = abs(world_nrm);
 		float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
 		vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
-		// Moss takes stone out under the sky: a floor under its roof, woodwork (Palette.Element WOOD, TIMBER), glass (GLOW)
-		// and parts with no paint (iron, curtains, flowers) stay bare.
-		float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5) + step(material, 0.5) + step(abs(material - 7.0), 0.5);
+		// Moss takes stone out under the sky: a floor under its roof, woodwork, glass and parts
+		// with no paint (iron, curtains, flowers) stay bare.
+		float wood = step(abs(material - ELEMENT_WOOD), 0.5) + step(abs(material - ELEMENT_TIMBER), 0.5) + step(material, ELEMENT_MEADOW + 0.5) + step(abs(material - ELEMENT_GLOW), 0.5);
 		float patch = texture(detail, surface_pos.xz * 0.3).r;
 		float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
 		if (style >= 0) {

@@ -40,6 +40,12 @@ vec3 rotated(vec4 q, vec3 v) {
 	return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
 }
 
+const int PART_HEAD = 1;
+const int PART_WING_L = 2;
+const int PART_WING_R = 3;
+const int PART_TAIL = 4;
+const int PART_FEET = 5;
+
 void vertex() {
 	int area = COLOR.a > 0.75 ? int(COLOR.b * float(PATCHES) + 0.5) : BILL;
 	tint = texelFetch(palette, ivec2(area, plumage), 0).rgb;
@@ -47,23 +53,23 @@ void vertex() {
 	float fly = shift_feet.w;
 	vec4 turn = turn_body;
 	vec3 shift = shift_body.xyz;
-	if (part == 5) {
+	if (part == PART_FEET) {
 		VERTEX = mix(VERTEX, BODY - L * 0.03, fly * 0.7);
 		turn = turn_feet;
 		shift = shift_feet.xyz;
 	} else {
 		VERTEX = BODY + (VERTEX - BODY) * shift_body.w;
 	}
-	if (part == 1) {
+	if (part == PART_HEAD) {
 		turn = turn_head;
 		shift = shift_head;
-	} else if (part == 2 || part == 3) {
+	} else if (part == PART_WING_L || part == PART_WING_R) {
 		// Flight draws the wing out along the body before it beats.
-		vec3 shoulder = BODY + L * 0.03 + D * 0.012 + X * (part == 2 ? -0.026 : 0.026);
+		vec3 shoulder = BODY + L * 0.03 + D * 0.012 + X * (part == PART_WING_L ? -0.026 : 0.026);
 		VERTEX += L * dot(VERTEX - shoulder, L) * fly * 0.9;
-		turn = part == 2 ? turn_wing_l : turn_wing_r;
-		shift = part == 2 ? shift_wing_l : shift_wing_r;
-	} else if (part == 4) {
+		turn = part == PART_WING_L ? turn_wing_l : turn_wing_r;
+		shift = part == PART_WING_L ? shift_wing_l : shift_wing_r;
+	} else if (part == PART_TAIL) {
 		turn = turn_tail;
 		shift = shift_tail;
 	}

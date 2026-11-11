@@ -6,6 +6,8 @@ extends Shy
 ## water and plops in, stays under a while, and comes up to swim back to the bank.
 
 enum State { SIT, HOP, SWIM, UNDER }
+## Part ids ride in UV2.x so the shader knows how each vertex moves.
+enum Part { BODY, HEAD, THROAT, HIND_L, HIND_R, FORE }
 
 const CAP := 12
 const PER_POND := 4
@@ -51,20 +53,20 @@ static func body() -> ArrayMesh:
 	var dark := Color("52713a")
 	var pale := Color("dcd8a4")
 	var sit := Basis(Vector3.RIGHT, 0.3)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.03, 0.006), Vector3(0.031, 0.023, 0.043), green, 6, 10, Callable(), sit)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.022, -0.002), Vector3(0.027, 0.017, 0.036), pale, 5, 8, Callable(), sit)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.03, 0.006), Vector3(0.031, 0.023, 0.043), green, 6, 10, Callable(), sit)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.022, -0.002), Vector3(0.027, 0.017, 0.036), pale, 5, 8, Callable(), sit)
 	for spot: Vector3 in [Vector3(0.012, 0.049, 0.012), Vector3(-0.014, 0.046, 0.022), Vector3(0.0, 0.052, -0.004)]:
-		Meshes.ellipsoid(st, 0, spot, Vector3(0.007, 0.003, 0.009), dark, 3, 6)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.044, -0.034), Vector3(0.027, 0.017, 0.024), green, 5, 10)
-	Meshes.ellipsoid(st, 2, Vector3(0, 0.032, -0.046), Vector3(0.017, 0.009, 0.012), pale, 4, 8)
+		Meshes.ellipsoid(st, Part.BODY, spot, Vector3(0.007, 0.003, 0.009), dark, 3, 6)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.044, -0.034), Vector3(0.027, 0.017, 0.024), green, 5, 10)
+	Meshes.ellipsoid(st, Part.THROAT, Vector3(0, 0.032, -0.046), Vector3(0.017, 0.009, 0.012), pale, 4, 8)
 	for side in [-1.0, 1.0]:
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.016, 0.058, -0.041), Vector3.ONE * 0.0095, Color("b9a548"), 5, 8)
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.02, 0.061, -0.047), Vector3.ONE * 0.0055, Color("15140f"), 4, 6)
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.021, 0.064, -0.051), Vector3.ONE * 0.0016, Color.WHITE, 2, 4)
-		var hind := 3 if side < 0 else 4
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.016, 0.058, -0.041), Vector3.ONE * 0.0095, Color("b9a548"), 5, 8)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.02, 0.061, -0.047), Vector3.ONE * 0.0055, Color("15140f"), 4, 6)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.021, 0.064, -0.051), Vector3.ONE * 0.0016, Color.WHITE, 2, 4)
+		var hind := Part.HIND_L if side < 0 else Part.HIND_R
 		Meshes.ellipsoid(st, hind, Vector3(side * 0.031, 0.018, 0.022), Vector3(0.012, 0.012, 0.027), green, 4, 8)
 		Meshes.ellipsoid(st, hind, Vector3(side * 0.036, 0.005, 0.0), Vector3(0.011, 0.004, 0.024), dark, 3, 6)
-		Meshes.ellipsoid(st, 5, Vector3(side * 0.019, 0.011, -0.031), Vector3(0.006, 0.012, 0.006), green, 3, 6)
+		Meshes.ellipsoid(st, Part.FORE, Vector3(side * 0.019, 0.011, -0.031), Vector3(0.006, 0.012, 0.006), green, 3, 6)
 	return st.commit()
 
 

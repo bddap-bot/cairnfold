@@ -8,6 +8,8 @@ extends Shy
 ## furthest from them, or away if none is far enough. They leave, out of sight, when the light comes back.
 
 enum State { FLY, PERCH, GROUND }
+## Part ids ride in UV2.x so the shader knows how each vertex moves.
+enum Part { BODY, HEAD, WING_L, WING_R, FEET, EYES }
 
 const CAP := 2
 const AFTER := Vector2(15.0, 45.0)
@@ -49,7 +51,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	after = AFTER
 
 
-## Standing on its perch facing -Z; its head is part 1 and turns about the neck, its wings parts 2 and 3.
+## Standing on its perch facing -Z.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -58,18 +60,18 @@ static func body() -> ArrayMesh:
 	var disc := Color("d6bd96")
 	var wing := Color("6c4e31")
 	var dark := Color("120e0b")
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.125, 0.005), Vector3(0.082, 0.115, 0.076), brown, 7, 12, Callable(), Basis(), 0.04)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.115, -0.028), Vector3(0.066, 0.095, 0.054), chest, 6, 10, Callable(), Basis(), 0.04)
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.035, 0.065), Vector3(0.038, 0.012, 0.05), wing, 3, 8, Callable(), Basis(Vector3.RIGHT, -0.5))
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.25, 0), Vector3(0.074, 0.064, 0.068), brown, 6, 12, Callable(), Basis(), 0.03)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.245, -0.045), Vector3(0.06, 0.053, 0.026), disc, 5, 12)
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.232, -0.072), Vector3(0.007, 0.012, 0.008), Color("cdbb8c"), 3, 6)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.125, 0.005), Vector3(0.082, 0.115, 0.076), brown, 7, 12, Callable(), Basis(), 0.04)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.115, -0.028), Vector3(0.066, 0.095, 0.054), chest, 6, 10, Callable(), Basis(), 0.04)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.035, 0.065), Vector3(0.038, 0.012, 0.05), wing, 3, 8, Callable(), Basis(Vector3.RIGHT, -0.5))
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.25, 0), Vector3(0.074, 0.064, 0.068), brown, 6, 12, Callable(), Basis(), 0.03)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.245, -0.045), Vector3(0.06, 0.053, 0.026), disc, 5, 12)
+	Meshes.ellipsoid(st, Part.HEAD, Vector3(0, 0.232, -0.072), Vector3(0.007, 0.012, 0.008), Color("cdbb8c"), 3, 6)
 	for side in [-1.0, 1.0]:
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.026, 0.282, -0.06), Vector3(0.026, 0.008, 0.012), Color("5b4129"), 3, 6, Callable(), Basis(Vector3.FORWARD, side * 0.35))
-		Meshes.ellipsoid(st, 5, Vector3(side * 0.026, 0.255, -0.066), Vector3.ONE * 0.0165, dark, 5, 8)
-		Meshes.ellipsoid(st, 5, Vector3(side * 0.031, 0.262, -0.08), Vector3.ONE * 0.0035, Color.WHITE, 2, 4)
-		Meshes.ellipsoid(st, 2 if side < 0 else 3, Vector3(side * 0.072, 0.135, 0.012), Vector3(0.026, 0.098, 0.07), wing, 5, 8, Callable(), Basis(), 0.06)
-		Meshes.ellipsoid(st, 4, Vector3(side * 0.024, 0.008, -0.022), Vector3(0.013, 0.008, 0.02), Color("b39d6e"), 3, 6)
+		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.026, 0.282, -0.06), Vector3(0.026, 0.008, 0.012), Color("5b4129"), 3, 6, Callable(), Basis(Vector3.FORWARD, side * 0.35))
+		Meshes.ellipsoid(st, Part.EYES, Vector3(side * 0.026, 0.255, -0.066), Vector3.ONE * 0.0165, dark, 5, 8)
+		Meshes.ellipsoid(st, Part.EYES, Vector3(side * 0.031, 0.262, -0.08), Vector3.ONE * 0.0035, Color.WHITE, 2, 4)
+		Meshes.ellipsoid(st, Part.WING_L if side < 0 else Part.WING_R, Vector3(side * 0.072, 0.135, 0.012), Vector3(0.026, 0.098, 0.07), wing, 5, 8, Callable(), Basis(), 0.06)
+		Meshes.ellipsoid(st, Part.FEET, Vector3(side * 0.024, 0.008, -0.022), Vector3(0.013, 0.008, 0.02), Color("b39d6e"), 3, 6)
 	return st.commit()
 
 

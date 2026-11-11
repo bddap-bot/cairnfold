@@ -12,20 +12,27 @@ instance uniform float pace = 1.0;
 // Eating from a hand: the head dips again and again toward the seeds.
 instance uniform float peck = 0.0;
 
+const int PART_HEAD = 1;
+const int PART_WING_L = 2;
+const int PART_WING_R = 3;
+const int PART_FOOT_L = 4;
+const int PART_FOOT_R = 5;
+const int PART_TAIL = 6;
+
 void vertex() {
 	int part = int(UV2.x + 0.5);
 	float t = TIME + phase;
 	float idle = mode.x, paddle = mode.y, waddle = mode.z, fly = mode.w;
 	float c = t * TAU * 1.5 * pace;
-	bool foot = part == 4 || part == 5;
-	float side = part == 4 ? -1.0 : 1.0;
+	bool foot = part == PART_FOOT_L || part == PART_FOOT_R;
+	float side = part == PART_FOOT_L ? -1.0 : 1.0;
 
 	// Idle: breathe, look around with a curious tilt, now and then ruffle the wings and wag.
 	float burst = pow(max(sin(t * 0.8 + 1.3), 0.0), 30.0);
 	if (!foot) {
 		VERTEX.xz *= 1.0 + idle * 0.012 * sin(t * 2.4);
 	}
-	if (part == 1) {
+	if (part == PART_HEAD) {
 		vec3 neck = vec3(0.0, 0.22, -0.09);
 		float yaw = idle * (0.5 * sin(t * 0.55) + 0.2 * sin(t * 1.7 + 0.4));
 		float tilt = idle * 0.28 * smoothstep(0.3, 0.9, sin(t * 0.37 + 2.0));
@@ -33,13 +40,13 @@ void vertex() {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.345, -0.13), rot(vec3(0.0, 0.0, 1.0), tilt));
 		turn(VERTEX, NORMAL, neck, rot(vec3(0.0, 1.0, 0.0), yaw) * rot(vec3(1.0, 0.0, 0.0), nod));
 	}
-	if (part == 2 || part == 3) {
-		float s = part == 2 ? -1.0 : 1.0;
+	if (part == PART_WING_L || part == PART_WING_R) {
+		float s = part == PART_WING_L ? -1.0 : 1.0;
 		float lift = idle * burst * 0.9 * (0.6 + 0.4 * sin(t * 30.0));
 		float flap = fly * (0.5 + 0.9 * sin(t * TAU * 3.5));
 		turn(VERTEX, NORMAL, vec3(s * 0.08, 0.24, -0.04), rot(vec3(0.0, 0.0, 1.0), s * (lift + flap)));
 	}
-	if (part == 6) {
+	if (part == PART_TAIL) {
 		float wag = idle * burst * 0.5 * sin(t * 28.0) + paddle * 0.15 * sin(t * 3.1) + waddle * 0.25 * sin(c);
 		turn(VERTEX, NORMAL, vec3(0.0, 0.22, 0.14), rot(vec3(0.0, 1.0, 0.0), wag));
 	}

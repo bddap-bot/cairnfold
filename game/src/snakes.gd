@@ -6,6 +6,8 @@ extends Shy
 ## quickly the other way through the grass. They come by day; at night they lie still.
 
 enum State { SLITHER, BASK, FLEE, LEAVE }
+## Part ids ride in UV2.x so the shader knows how each vertex moves.
+enum Part { BODY, TONGUE }
 
 const CAP := 3
 const SPEED := {State.SLITHER: 0.2, State.FLEE: 0.65, State.LEAVE: 0.35}
@@ -74,11 +76,11 @@ static func body() -> ArrayMesh:
 				st.set_uv2(Vector2.ZERO)
 				st.set_normal(v[1])
 				st.add_vertex(v[0])
-	Meshes.ellipsoid(st, 0, Vector3(0, 0.011, -0.022), Vector3(0.0115, 0.0085, 0.015), olive, 4, 8)
+	Meshes.ellipsoid(st, Part.BODY, Vector3(0, 0.011, -0.022), Vector3(0.0115, 0.0085, 0.015), olive, 4, 8)
 	for side in [-1.0, 1.0]:
-		Meshes.ellipsoid(st, 0, Vector3(side * 0.0095, 0.0145, -0.026), Vector3.ONE * 0.0032, Color("120f0c"), 3, 6)
-		Meshes.ellipsoid(st, 1, Vector3(side * 0.002, 0.008, -0.046), Vector3(0.0012, 0.0008, 0.007), Color("5a2228"), 2, 4, Callable(), Basis(Vector3.UP, side * 0.25))
-	Meshes.ellipsoid(st, 1, Vector3(0, 0.008, -0.039), Vector3(0.0014, 0.0009, 0.006), Color("5a2228"), 2, 4)
+		Meshes.ellipsoid(st, Part.BODY, Vector3(side * 0.0095, 0.0145, -0.026), Vector3.ONE * 0.0032, Color("120f0c"), 3, 6)
+		Meshes.ellipsoid(st, Part.TONGUE, Vector3(side * 0.002, 0.008, -0.046), Vector3(0.0012, 0.0008, 0.007), Color("5a2228"), 2, 4, Callable(), Basis(Vector3.UP, side * 0.25))
+	Meshes.ellipsoid(st, Part.TONGUE, Vector3(0, 0.008, -0.039), Vector3(0.0014, 0.0009, 0.006), Color("5a2228"), 2, 4)
 	return st.commit()
 
 

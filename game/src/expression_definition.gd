@@ -119,7 +119,7 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
 			return false
 		var matcaps: Variant = m.get("matcaps", [])
-		if not (matcaps is Array and matcaps.size() <= 4 and matcaps.all(_matcap)):
+		if not (matcaps is Array and matcaps.size() <= Avatar.MATCAPS and matcaps.all(_matcap)):
 			push_error("expressions: a look's matcaps are not four slots, each none or a mapping, colour, texture, strengths, hue and circle: %s" % [matcaps])
 			return false
 		if not _coat(m.get("clearcoat")):

@@ -26,6 +26,8 @@ const READ_LOW := 512 << 20
 const MAX_SURFACES := 40
 ## The cap of a flat material that has none, past any light the garden sheds.
 const UNCAPPED := 1e4
+## The looks table rows before a ramp-lit material's ramp (_lit_looks).
+const HEAD_ROWS := 2
 ## The points a ramp-lit material's ramp is held at (`_lit_looks`), as many as the shader reads.
 const RAMP := 16
 ## The side, in pixels, of a menu icon as the model carries and holds it: a board row's height.
@@ -34,6 +36,8 @@ const ICON_SIDE := 44.0
 const COAT_ROWS := 6
 ## The looks table rows each matcap a material draws takes after the clear coats' and a row counting them (_lit_looks).
 const MATCAP_ROWS := 6
+## The most matcaps a look draws: Poiyomi's slots.
+const MATCAPS := 4
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -587,7 +591,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 	var coats := materials.filter(func(m: Dictionary) -> bool: return m.get("clearcoat") is Dictionary).size()
 	var maps: int = (looks.get("clearcoatMaps", []) as Array).size() if looks.get("clearcoatMaps") is Array else 0
 	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m).is_empty()).size()
-	var rows := 2 + RAMP + (COAT_ROWS if coats + matcapped > 0 else 0) + (1 + 4 * MATCAP_ROWS if matcapped > 0 else 0)
+	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
 	for k in materials.size():
@@ -599,7 +603,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			drawn[k + 1] = 2
 			var st: Array = coat.st
 			var inverts: Array = coat.inverts
-			var row := 2 + RAMP
+			var row := HEAD_ROWS + RAMP
 			table.set_pixel(k + 1, row, Color(coat.strength, coat.smoothness, coat.reflection, coat.specular))
 			table.set_pixel(k + 1, row + 1, Color(st[0], st[1], st[2], st[3]))
 			table.set_pixel(k + 1, row + 2, Color(coat.specularTint[0], coat.specularTint[1], coat.specularTint[2], coat.fresnel))
@@ -616,7 +620,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array) -> void:
 			var ramp: Array = light.ramp
 			for i in RAMP:
 				var at := i * (ramp.size() - 1) / (RAMP - 1.0)
-				table.set_pixel(k + 1, 2 + i, Color(lerpf(ramp[floori(at)], ramp[ceili(at)], at - floorf(at)), 0.0, 0.0))
+				table.set_pixel(k + 1, HEAD_ROWS + i, Color(lerpf(ramp[floori(at)], ramp[ceili(at)], at - floorf(at)), 0.0, 0.0))
 		var glow: Variant = materials[k].get("emission")
 		var glows := Color(glow.color[0] * glow.strength, glow.color[1] * glow.strength, glow.color[2] * glow.strength, float(glow.get("replace", 0.0))) if glow is Dictionary and looks.has("emission") else Color(0, 0, 0, 0)
 		if glows.r + glows.g + glows.b > 0.0 or glow is Dictionary and glow.get("theme") != null and looks.has("emission"):
@@ -674,7 +678,7 @@ static func _drawn_matcaps(m: Dictionary) -> Array:
 ## emission together, and light mask; its hue shift, space and selection, alpha one where it shifts hue; and red one
 ## where a circle masks it, green and blue that circle's border and blur, alpha its slot, the mask channel it reads.
 static func _matcap_rows(table: Image, column: int, m: Dictionary, textures: int) -> void:
-	var row := 2 + RAMP + COAT_ROWS
+	var row := HEAD_ROWS + RAMP + COAT_ROWS
 	var slots := _drawn_matcaps(m)
 	table.set_pixel(column, row, Color(slots.size(), 0.0, 0.0, 0.0))
 	for k in slots.size():

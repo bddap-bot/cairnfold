@@ -8,6 +8,8 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 const float WAVE = 15.0;
 const float SWAY = 0.03;
 
+const int PART_TONGUE = 1;
+
 void vertex() {
 	int part = int(UV2.x + 0.5);
 	float s = max(VERTEX.z, 0.0);
@@ -17,7 +19,7 @@ void vertex() {
 	VERTEX.x += sway * sin(WAVE * (travel - s)) - head * (1.0 - smoothstep(0.0, 0.12, s)) * 0.5;
 	VERTEX.x -= INSTANCE_CUSTOM.z * 0.35 * s * s;
 	VERTEX.y += 0.004 * (1.0 + sin(WAVE * (travel - s) * 2.0)) * smoothstep(0.05, 0.3, s);
-	if (part == 1) {
+	if (part == PART_TONGUE) {
 		VERTEX.z += 0.016 * (1.0 - INSTANCE_CUSTOM.w);
 		VERTEX.x += 0.0015 * sin(TIME * 40.0) * INSTANCE_CUSTOM.w;
 	}
