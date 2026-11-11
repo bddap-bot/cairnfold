@@ -9,10 +9,11 @@ build that recorded it or a later one, from the player's head or an authored cam
 it. The game starts from the record's seeds and garden, and `Replayer` takes the place of the network: Godot polls it
 at the start of every frame, before anything else runs, and there it delivers each message the record says came in
 before that frame, as from the peer that sent it, then puts the head and hands where the record has them and presses
-the inputs the record has held. Peers come and go as the record says; a join reaches no one, and the game takes the id
-the host gave it where the record says it connected; what the game sends goes nowhere. Each frame is scaled to its recorded delta: the run's first
-frame plays none of the record, with the tree paused, and gives the engine's step, and under `--fixed-fps` every frame
-then takes its recorded delta, the first one's too (a headset's, a load long, feeds how tall the player is measured).
+the inputs the record has held. Peers come and go as the record says; a join reaches no one, and from where the
+record joins a garden to where it leaves it the game plays as the id the record says it joined as; what the game
+sends goes nowhere. Each frame is scaled to its recorded delta: the run's first frame plays none of the record, with
+the tree paused, and gives the engine's step, and under `--fixed-fps` every frame then takes its recorded delta, the
+first one's too (a headset's, a load long, feeds how tall the player is measured).
 At a rate that is a power of two (`--fixed-fps 64`) every delta is exact and the replay is the session again, bit for
 bit, however the session ran; at another a few deltas miss by their last bit. The replay turns off the engine's
 snapping of frames to physics ticks, which would move the step. In real time a frame's length is only known after it,
@@ -40,8 +41,8 @@ tests/test_replay.gd records a scripted session in which a visiting player propo
 mid-aim, the player puts on a file of their own and is refitted to it, and some frames run at half speed; it replays it
 in a fresh game, and finds every frame's delta and head pose and the final garden equal, and every check the record
 took holding. tests/test_replay_visit.gd records a player who plants at home and then joins a garden at the same
-command; its replay compares the visited garden once it is restored whole, not halfway, and plays as the id the host
-gave.
+command; its replay compares the visited garden once it is restored whole, not halfway, and plays as the id it joined
+as.
 
 In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
 under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session

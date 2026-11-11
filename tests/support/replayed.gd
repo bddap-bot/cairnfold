@@ -2,7 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 ## Replays the record --replay names in a fresh game and writes to --out what tests/test_replay.gd compares with the
 ## session it recorded: each frame's delta and the head's pose, the garden once the replay ends and every command
-## is in, the id it plays as at the end, and where the replay diverged from the record (Replayer.diverged).
+## is in, the id it played as each frame, and where the replay diverged from the record (Replayer.diverged).
 
 const Suite := preload("res://../tests/support/suite.gd")
 
@@ -12,10 +12,12 @@ class Probe:
 	var main: Main
 	var deltas: Array[float] = []
 	var heads: Array[Transform3D] = []
+	var ids: Array[int] = []
 
 	func _process(delta: float) -> void:
 		deltas.append(delta)
 		heads.append(main.rig.head.global_transform)
+		ids.append(main.multiplayer.get_unique_id())
 
 
 ## Watches `main`'s head each frame from the one it boots in, after every node has moved it.
@@ -52,7 +54,7 @@ func _initialize() -> void:
 	await main.replayer.finished
 	main.world.settle()
 	var out := FileAccess.open(main.args.out, FileAccess.WRITE)
-	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot(), "id": main.multiplayer.get_unique_id(), "diverged": main.replayer.diverged})
+	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot(), "ids": probe.ids.duplicate(), "diverged": main.replayer.diverged})
 	out.close()
 	main.queue_free()
 	await process_frame
