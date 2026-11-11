@@ -43,6 +43,10 @@ const PAGE_HZ_DIVIDER := 2
 ## what lies under it, the blocks under the leaves, the endpaper and the boards, fails the depth test unshaded: drawn
 ## in any order they cost the open book about a millisecond of a Quest 2's frame.
 enum Layer { SHEET = 1, BLOCK, INSIDE, BOARD }
+## What book.gdshader draws: a board or a block of pages.
+enum Kind { COVER, BLOCK }
+## What book_paint.gdshader bakes: a face's paint and its paper's grain, the front cover's top and its roughness.
+enum Part { FACE_PAINT, FACE_GRAIN, COVER_PAINT, COVER_ROUGH }
 ## Pages render only while the book lies within this angle's cosine of where the head faces.
 const LOOK_COS := 0.5
 ## Each face's fixed paint bakes once at this many pixels a side.
@@ -150,10 +154,10 @@ func _bake() -> void:
 	rect.size = vp.size
 	vp.add_child(rect)
 	add_child(vp)
-	var parts := {COVER: [2, 3]}
+	var parts := {COVER: [Part.COVER_PAINT, Part.COVER_ROUGH]}
 	for page in range(-1, Lessons.PAGES.size()):
 		for back in ([0, 1] if page < 0 else [page % 2]):
-			parts[Vector2i(page, back)] = [0, 1]
+			parts[Vector2i(page, back)] = [Part.FACE_PAINT, Part.FACE_GRAIN]
 	for key in parts:
 		if key is Vector2i:
 			mat.set_shader_parameter("face_seed", float(key.x) * 1.7 + 0.3)
@@ -530,7 +534,7 @@ func _block() -> MeshInstance3D:
 	mi.mesh = _block_mesh
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
-	mat.set_shader_parameter("kind", 1)
+	mat.set_shader_parameter("kind", Kind.BLOCK)
 	mat.set_shader_parameter("paper", PAPER)
 	mat.set_shader_parameter("leaf_width", W)
 	mat.render_priority = Layer.BLOCK

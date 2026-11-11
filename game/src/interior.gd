@@ -19,8 +19,9 @@ const SIZE := int(Terrain.SIZE / STEP)
 const BELOW := 0.5
 ## Texels in a room_data row: the count, then OPENING per opening.
 const WIDTH := 256
-## Rows, the first unused: room_field's alpha names the row.
+## Rows: room_field's alpha names the row, NO_ROOM where no room is.
 const GROUPS := 256
+const NO_ROOM := 0
 const OPENING := 4
 
 var field := ImageTexture.new()
@@ -96,7 +97,7 @@ static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictiona
 		tops.resize(SIZE * SIZE)
 	var floats := PackedFloat32Array()
 	floats.resize(WIDTH * GROUPS * 4)
-	var row := 0
+	var row := NO_ROOM
 	for members: Array in rooms.covered:
 		var portals := []
 		for m: Lamps.Room in members:

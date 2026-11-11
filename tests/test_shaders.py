@@ -37,6 +37,7 @@ class Shaders(unittest.TestCase):
             ('conure.gdshader', 'PATCHES', [len(enum_members('conure.gd', 'Patch'))]),
             ('water.gdshaderinc', 'DROWNS', script_const('water.gd', 'DROWNS')),
             ('interior.gdshaderinc', 'OPENING', script_const('interior.gd', 'OPENING')),
+            ('interior.gdshaderinc', 'NO_ROOM', script_const('interior.gd', 'NO_ROOM')),
             ('ground.gdshaderinc', 'TILLED', script_const('ground.gd', 'TILLED')),
             ('stone_ground.gdshaderinc', 'STONE_ROOM', script_const('stone_styles.gd', 'ROOM')),
             ('budget_bar.gdshader', 'NO', script_const('hand.gd', 'REFUSED')[:3]),
@@ -65,6 +66,7 @@ class Shaders(unittest.TestCase):
         ]
         animals = {'duck': 'duck.gd', 'sheep': 'sheep.gd', 'conure': 'conure.gd', 'owl': 'owls.gd', 'frog': 'frogs.gd', 'squirrel': 'squirrels.gd', 'snake': 'snakes.gd'}
         sides += [(f'{shader}.gdshader', 'PART_', enum_values(script, 'Part')) for shader, script in animals.items()]
+        sides += [('book.gdshader', 'KIND_', enum_values('book.gd', 'Kind')), ('book_paint.gdshader', 'PART_', enum_values('book.gd', 'Part'))]
         for shader, prefix, members in sides:
             codes = members if isinstance(members, dict) else {name: i for i, name in enumerate(members)}
             named = shader_named(shader, prefix)
@@ -73,6 +75,7 @@ class Shaders(unittest.TestCase):
                 self.assertEqual(named, {name: float(codes[name]) for name in named if name in codes})
         bare = [(f'{shader}.gdshader', r'\bpart [=!<>]=? \d') for shader in animals]
         bare += [('stone.gdshaderinc', r'material - \d'), ('particle.gdshaderinc', r'\b(mode|align) [=!]= \d'), ('expression.gdshaderinc', r'\b(kind|field) == \d')]
+        bare += [('book.gdshader', r'\bkind [=!]= \d'), ('book_paint.gdshader', r'\bpart [=!]= \d'), ('interior.gdshaderinc', r'\brow [=!<>]=? \d|return 0;')]
         for shader, code in bare:
             with self.subTest(shader=shader):
                 self.assertNotRegex((SRC / shader).read_text(), code)

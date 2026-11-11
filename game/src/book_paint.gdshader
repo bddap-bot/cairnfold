@@ -2,18 +2,22 @@ shader_type canvas_item;
 render_mode blend_disabled;
 
 // The picture book's fixed paint, which Book bakes once so the book in the hand reads textures rather than painting
-// every pixel each frame. `part` 0 is a page's face (`face_seed`, `face_drawn`, `back_face` putting the spine on its
-// right): warm paper, a deckled window with an inked frame and painted sprigs, or with no picture an endpaper of little
-// leaves. The face is affine in what its window shows, so the bake keeps it as paint + weight * picture: rgb the paint
-// (sRGB), alpha the weight. Part 1 is the paper's grain, which the window's painted backdrop reads. Parts 2 and 3 are
-// the front cover's top (`board` its size): its albedo (sRGB) with metal in alpha, then its roughness.
+// every pixel each frame, one `part` (Book.Part) at a time. A face's paint (`face_seed`, `face_drawn`, `back_face`
+// putting the spine on its right): warm paper, a deckled window with an inked frame and painted sprigs, or with no
+// picture an endpaper of little leaves. The face is affine in what its window shows, so the bake keeps it as paint +
+// weight * picture: rgb the paint (sRGB), alpha the weight. Its grain, which the window's painted backdrop reads. The
+// front cover's top (`board` its size): its albedo (sRGB) with metal in alpha, then its roughness.
 
 #include "res://src/book.gdshaderinc"
 
 uniform float face_seed = 0.0;
 uniform bool face_drawn = false;
 uniform bool back_face = false;
-uniform int part = 0;
+const int PART_FACE_PAINT = 0;
+const int PART_FACE_GRAIN = 1;
+const int PART_COVER_PAINT = 2;
+const int PART_COVER_ROUGH = 3;
+uniform int part = PART_FACE_PAINT;
 uniform vec3 board;
 uniform vec3 cloth;
 uniform vec3 leather;
@@ -109,15 +113,15 @@ vec3 page(vec2 p, bool drawn, vec3 picture, float seed, float spine_dist) {
 
 void fragment() {
 	float spine_dist = back_face ? 1.0 - UV.x : UV.x;
-	if (part == 0) {
+	if (part == PART_FACE_PAINT) {
 		vec3 paint = page(UV, face_drawn, vec3(0.0), face_seed, spine_dist);
 		COLOR = vec4(encoded(paint), face_drawn ? page(UV, face_drawn, vec3(1.0), face_seed, spine_dist).r - paint.r : 0.0);
-	} else if (part == 1) {
+	} else if (part == PART_FACE_GRAIN) {
 		COLOR = vec4(noise(UV * 140.0 + face_seed) * 0.7 + noise(UV * 300.0 + face_seed) * 0.3, 0.0, 0.0, 1.0);
 	} else {
 		float rough;
 		float metal;
 		vec3 c = cover(vec3(UV.x - 0.5, 0.0, UV.y - 0.5) * board, vec3(0.0, 1.0, 0.0), board, true, cloth, leather, rough, metal);
-		COLOR = part == 2 ? vec4(encoded(c), metal) : vec4(rough, 0.0, 0.0, 1.0);
+		COLOR = part == PART_COVER_PAINT ? vec4(encoded(c), metal) : vec4(rough, 0.0, 0.0, 1.0);
 	}
 }

@@ -1,14 +1,16 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap;
 
-// The picture book's binding and the edges of its pages. A cover (`kind` 0) is cloth over board, worn pale at its
-// corners and edges, the front stamped in foil with a nest of three eggs in a ring of leaves; a block of pages
-// (`kind` 1) shows leaf lines on its sides and a painted fore-edge. `size` is the box's size in metres.
+// The picture book's binding and the edges of its pages (`kind`, Book.Kind). A cover is cloth over board, worn pale at
+// its corners and edges, the front stamped in foil with a nest of three eggs in a ring of leaves; a block of pages
+// shows leaf lines on its sides and a painted fore-edge. `size` is the box's size in metres.
 
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
-uniform int kind = 0;
+const int KIND_COVER = 0;
+const int KIND_BLOCK = 1;
+uniform int kind = KIND_COVER;
 uniform vec3 size = vec3(0.16, 0.003, 0.16);
 uniform bool front = false;
 // The front's top face baked (Book): albedo with metal in alpha, and roughness.
@@ -39,7 +41,7 @@ void vertex() {
 
 void fragment() {
 	vec3 n = normalize(local_n);
-	if (kind == 0) {
+	if (kind == KIND_COVER) {
 		float rough;
 		float metal;
 		vec3 c;

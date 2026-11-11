@@ -25,8 +25,10 @@ const float ROOM_EDGE = 0.02;
 const float ROOM_READ = 1.0;
 // Texels each opening takes in a room_data row, after the row's count (Interior.OPENING).
 const int OPENING = 4;
+// The room_data row no room uses (Interior.NO_ROOM).
+const int NO_ROOM = 0;
 
-// The room_data row over a vertex, 0 for none, and whether it lies in that room: a triangle whose corners all do is
+// The room_data row over a vertex, NO_ROOM for none, and whether it lies in that room: a triangle whose corners all do is
 // in it everywhere, one whose corners all lie out of every room is out everywhere, and only one across the walls'
 // centre line asks again per fragment.
 varying flat int room_row;
@@ -39,11 +41,11 @@ int room_row_at(vec3 p) {
 	ivec2 size = textureSize(room_nearest, 0);
 	// A scene with no Look installs no rooms, and an unset global reads as a 1x1 default texture.
 	if (size.x < 2) {
-		return 0;
+		return NO_ROOM;
 	}
 	ivec2 cell = ivec2(floor((p.xz - bounce_grid.x) / bounce_grid.y * vec2(size)));
 	if (any(lessThan(cell, ivec2(0))) || any(greaterThanEqual(cell, size))) {
-		return 0;
+		return NO_ROOM;
 	}
 	return int(texelFetch(room_nearest, cell, 0).a + 0.5);
 }
@@ -69,7 +71,7 @@ bool within_walls(vec2 xz) {
 // set in from the walls below it. The step along the field's slope is over the slope's square because the slope
 // shortens along a corner's bisector, where the nearest wall changes.
 vec3 room_read(int row, vec3 q, vec3 n) {
-	if (row == 0) {
+	if (row == NO_ROOM) {
 		return q;
 	}
 	float inside = room_at(q.xz).x;
@@ -90,7 +92,7 @@ vec3 room_read(int row, vec3 q, vec3 n) {
 }
 
 float room_in_at(int row, vec3 p, vec3 n) {
-	return row > 0 && room_holds(p, n) ? 1.0 : 0.0;
+	return row != NO_ROOM && room_holds(p, n) ? 1.0 : 0.0;
 }
 
 // Signed distance from the opening's outline to `at`, metres across from its middle and up from its sill: `half` wide
@@ -120,7 +122,7 @@ float interior_light(vec3 p, vec3 n, int vertex_row, float vertex_in) {
 	}
 	if (vertex_in < 0.999) {
 		row = room_row_at(p);
-		if (row == 0 || !room_holds(p, n)) {
+		if (row == NO_ROOM || !room_holds(p, n)) {
 			return 1.0;
 		}
 	}
