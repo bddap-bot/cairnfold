@@ -338,5 +338,5 @@ static func _effect(effect: Variant) -> bool:
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
 	if kind in REGIONS and effect[kind] is Array:
-		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _blend(r) and _hue(r))
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 4 if kind == "tone" else 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _blend(r) and _hue(r))
 	return false

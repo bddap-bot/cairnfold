@@ -780,13 +780,13 @@ func _roundtrip() -> void:
 		check(avatar.find_child("ExpressionHat", true, false).visible, "VRM node indices resolve to the runtime target")
 		var hat := avatar.find_child("ExpressionHat", true, false) as MeshInstance3D
 		var mat := hat.get_surface_override_material(0) as ShaderMaterial
-		check(mat != null and mat.get_shader_parameter("region_count") == 7 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("untinted_count") == 1 and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, decal, decal hue, darkening, lightening and screening decal regions and their layers to the hat")
+		check(mat != null and mat.get_shader_parameter("region_count") == 8 and mat.get_shader_parameter("untinted") != null and mat.get_shader_parameter("untinted_count") == 1 and mat.get_shader_parameter("decals") is Texture2DArray, "VRM import binds the colour, tone, HSV saturation, decal, decal hue, darkening, lightening and screening decal regions and their layers to the hat")
 		check(mat != null and mat.shader.resource_path.ends_with("expression_hue.gdshader"), "the hat, whose decal turns its hue, draws with the shader that turns it")
 		var cells: Texture2D = mat.get_shader_parameter("untinted_cells") if mat != null else null
 		check(cells != null and cells.get_image().get_pixel(0, 0).is_equal_approx(Color(0, 0, 1, 1)) and cells.get_image().get_pixel(0, 1).is_equal_approx(Color(1.0 / 6, 1.0 / 6, 5.0 / 6, 5.0 / 6)), "the hat's cell names its place in the untinted colours: %s" % [cells.get_image().get_pixel(0, 1) if cells else null])
 		var regions: Texture2D = mat.get_shader_parameter("regions") if mat != null else null
 		var pad := float(ExpressionPlayer.DECAL_PAD) / (preload("res://demo/expressions.gd").SIZE + 2 * ExpressionPlayer.DECAL_PAD)
-		check(regions != null and regions.get_image().get_pixel(2, 3).is_equal_approx(Color(pad, pad, 1.0 - pad, 1.0 - pad)), "the decal region names its decal's place on its page: %s" % [regions.get_image().get_pixel(2, 3) if regions else null])
+		check(regions != null and regions.get_image().get_pixel(3, 3).is_equal_approx(Color(pad, pad, 1.0 - pad, 1.0 - pad)), "the decal region names its decal's place on its page: %s" % [regions.get_image().get_pixel(3, 3) if regions else null])
 	avatar.free()
 
 
@@ -796,6 +796,7 @@ func _malformed() -> void:
 		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}}]}), "an imported %s region is a valid target" % kind)
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}) and not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 4}]}}]}), "a tone region reaches lilToon's HSV saturation and no further")
 	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4, "colorBlend": 0}]}}]}), "a decal region past the fourth slot is rejected")
 	var blended := {"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "colorBlend": 20.0}
 	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended]}}]}) and ExpressionPlayer._settings("look", blended, 0)[1] == 20.0, "a decal region's Color Blend Mode reaches the shader")

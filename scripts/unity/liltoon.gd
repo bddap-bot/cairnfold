@@ -12,6 +12,8 @@ const PROPERTIES := ["_AAStrength", "_AlphaBoostFA", "_AlphaMask", "_AlphaMaskMo
 const LITE_PROPERTIES := ["_AAStrength", "_AlphaBoostFA", "_AlphaToMask", "_AsUnlit", "_BackfaceForceShadow", "_BaseColor", "_BaseColorMap", "_BaseMap", "_BeforeExposureLimit", "_BlendOp", "_BlendOpAlpha", "_BlendOpAlphaFA", "_BlendOpFA", "_Color", "_ColorMask", "_Cull", "_Cutoff", "_DstBlend", "_DstBlendAlpha", "_DstBlendAlphaFA", "_DstBlendFA", "_EmissionBlink", "_EmissionColor", "_EmissionMap", "_EmissionMap_ScrollRotate", "_EmissionMap_UVMode", "_FlipNormal", "_Invisible", "_LightDirectionOverride", "_LightMaxLimit", "_LightMinLimit", "_MainTex", "_MainTex_ScrollRotate", "_MatCapBlendUV1", "_MatCapMul", "_MatCapPerspective", "_MatCapTex", "_MatCapVRParallaxStrength", "_MatCapZRotCancel", "_MonochromeLighting", "_OffsetFactor", "_OffsetUnits", "_OutlineAlphaToMask", "_OutlineBlendOp", "_OutlineBlendOpAlpha", "_OutlineBlendOpAlphaFA", "_OutlineBlendOpFA", "_OutlineColor", "_OutlineColorMask", "_OutlineCull", "_OutlineDeleteMesh", "_OutlineDstBlend", "_OutlineDstBlendAlpha", "_OutlineDstBlendAlphaFA", "_OutlineDstBlendFA", "_OutlineEnableLighting", "_OutlineFixWidth", "_OutlineOffsetFactor", "_OutlineOffsetUnits", "_OutlineSrcBlend", "_OutlineSrcBlendAlpha", "_OutlineSrcBlendAlphaFA", "_OutlineSrcBlendFA", "_OutlineStencilComp", "_OutlineStencilFail", "_OutlineStencilPass", "_OutlineStencilReadMask", "_OutlineStencilRef", "_OutlineStencilWriteMask", "_OutlineStencilZFail", "_OutlineTex", "_OutlineTex_ScrollRotate", "_OutlineVertexR2Width", "_OutlineWidth", "_OutlineWidthMask", "_OutlineZBias", "_OutlineZClip", "_OutlineZTest", "_OutlineZWrite", "_PreAlphaToMask", "_PreBlendOp", "_PreBlendOpAlpha", "_PreBlendOpAlphaFA", "_PreBlendOpFA", "_PreColor", "_PreColorMask", "_PreCull", "_PreCutoff", "_PreDstBlend", "_PreDstBlendAlpha", "_PreDstBlendAlphaFA", "_PreDstBlendFA", "_PreOffsetFactor", "_PreOffsetUnits", "_PreOutType", "_PreSrcBlend", "_PreSrcBlendAlpha", "_PreSrcBlendAlphaFA", "_PreSrcBlendFA", "_PreStencilComp", "_PreStencilFail", "_PreStencilPass", "_PreStencilReadMask", "_PreStencilRef", "_PreStencilWriteMask", "_PreStencilZFail", "_PreZClip", "_PreZTest", "_PreZWrite", "_RimBlur", "_RimBorder", "_RimColor", "_RimFresnelPower", "_RimShadowMask", "_Shadow2ndBlur", "_Shadow2ndBorder", "_Shadow2ndColorTex", "_ShadowBlur", "_ShadowBorder", "_ShadowBorderColor", "_ShadowBorderRange", "_ShadowColorTex", "_ShadowEnvStrength", "_ShiftBackfaceUV", "_SrcBlend", "_SrcBlendAlpha", "_SrcBlendAlphaFA", "_SrcBlendFA", "_StencilComp", "_StencilFail", "_StencilPass", "_StencilReadMask", "_StencilRef", "_StencilWriteMask", "_StencilZFail", "_SubpassCutoff", "_TriMask", "_UseEmission", "_UseMatCap", "_UseRim", "_UseShadow", "_VertexLightStrength", "_ZClip", "_ZTest", "_ZWrite", "_lilDirectionalLightStrength", "_lilShadowCasterBias", "_lilToonVersion"]
 ## The vector component a clip turns the main texture's hue by.
 const HUE := "_MainTexHSVG.x"
+## The vector component a clip scales the main texture's HSV saturation by.
+const SATURATION := "_MainTexHSVG.y"
 ## The keyword lilToon Multi compiles each feature under.
 const KEYWORDS := {
 	"colour adjustment": "EFFECT_HUE_VARIATION",
@@ -107,14 +109,16 @@ static func read(m: Dictionary) -> void:
 
 
 ## lilToon's colour adjustment of the main texture in `img` at its cell's size, in linear light as a linear project
-## draws it: raised to its gamma, its hue turned (but where `hue_held`), saturation and value scaled, as far as
-## _MainColorAdjustMask's red says.
-static func adjust(materials: Materials, m: Dictionary, img: Image, hue_held: bool) -> void:
+## draws it: raised to its gamma, its hue turned and saturation scaled (but where a clip moves them, by the properties
+## `animated` names, which the renderer then applies), value scaled, as far as _MainColorAdjustMask's red says.
+static func adjust(materials: Materials, m: Dictionary, img: Image, animated: Dictionary) -> void:
 	if not compiled(m, "colour adjustment"):
 		return
 	var hsvg := _vector(m, "_MainTexHSVG", Color(0, 1, 1, 1))
-	if hue_held:
+	if animated.has(HUE):
 		hsvg.r = 0.0
+	if animated.has(SATURATION):
+		hsvg.g = 1.0
 	if hsvg == Color(0, 1, 1, 1):
 		return
 	var cover := materials._tiled(m, materials._slot_image(m, "_MainColorAdjustMask"), m.scale, m.offset, img.get_size(), 0).get_data()

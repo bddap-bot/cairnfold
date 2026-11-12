@@ -1,6 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A colour, a tone, a decal, a decal hue and a darkening, lightening and screening decal target each change what the expression fixture's hat looks like, as their
+## A colour, a tone, an HSV saturation, a decal, a decal hue and a darkening, lightening and screening decal target each change what the expression fixture's hat looks like, as their
 ## material properties would in VRChat. Needs a renderer, so scripts/test.sh runs it on the desktop one:
 ## godot4 --path game --xr-mode off --script ../tests/gpu_expressions.gd [-- OUT_DIR]
 
@@ -38,15 +38,17 @@ func _run() -> void:
 	var rest := await _shot(view, player, 1, "", out)
 	var colour := await _shot(view, player, 1, "Colour", out)
 	var tone := await _shot(view, player, 1, "Tone", out)
+	var saturation := await _shot(view, player, 1, "Saturation", out)
 	var decal := await _shot(view, player, 1, "Decal", out)
 	var turned := await _shot(view, player, 1, "Decal", out, "DecalHue")
 	var darker := await _shot(view, player, 1, "Darken", out)
 	var lighter := await _shot(view, player, 1, "Lighten", out)
 	var screened := await _shot(view, player, 1, "Screen", out)
-	print("rest %s, colour %s, tone %s, decal %s, turned %s, darken %s, lighten %s, screen %s" % [rest, colour, tone, decal, turned, darker, lighter, screened])
+	print("rest %s, colour %s, tone %s, saturation %s, decal %s, turned %s, darken %s, lighten %s, screen %s" % [rest, colour, tone, saturation, decal, turned, darker, lighter, screened])
 	check(rest.r > rest.g * 3.0 and rest.r > rest.b * 3.0, "the hat rests red: %s" % rest)
 	check(colour.b > rest.b * 3.0 and absf(colour.r - rest.r) < 0.02, "the colour target raises the hat's blue channel, its red what its cell's untinted colours give: %s" % colour)
 	check(absf(tone.r - tone.g) < 0.05 and absf(tone.r - tone.b) < 0.05, "the tone target takes the hat's saturation away: %s" % tone)
+	check(absf(saturation.r - saturation.g) < 0.05 and absf(saturation.r - saturation.b) < 0.05 and saturation.r > rest.r * 0.9, "the HSV saturation target greys the hat at its red's value: %s" % saturation)
 	check(decal.b > rest.b * 3.0 and decal.r < rest.r * 0.8, "the decal target lays its blue stripes over the hat: %s" % decal)
 	check(darker.r < rest.r * 0.8 and darker.b < decal.b * 0.5, "a darkening decal keeps the darker of hat and stripe in each channel, taking red without laying blue: %s" % darker)
 	check(lighter.b > rest.b * 3.0 and lighter.r > decal.r * 1.2, "a lightening decal keeps the lighter in each channel, laying blue and keeping the red: %s" % lighter)
@@ -60,7 +62,7 @@ func _run() -> void:
 ## drives up.
 func _shot(view: SubViewport, player: ExpressionPlayer, hat: int, parameter: String, out: String, also := "") -> Color:
 	player.state.put("Hat", hat)
-	for p: String in ["Colour", "Tone", "Decal", "DecalHue", "Darken", "Lighten", "Screen"]:
+	for p: String in ["Colour", "Tone", "Saturation", "Decal", "DecalHue", "Darken", "Lighten", "Screen"]:
 		player.state.put(p, 1.0 if p in [parameter, also] else 0.0)
 	player.state.advance(0)
 	player.apply()

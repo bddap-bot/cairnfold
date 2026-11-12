@@ -406,11 +406,11 @@ func _detail(key: String, img: Image) -> void:
 
 
 ## lilToon's colour adjustment of the main texture laid into `img` at its cell's size before its colour tints it
-## (Liltoon.adjust), as Poiyomi's (`_adjust`) is after: its hue left unturned where a clip turns it, which the renderer
-## then turns.
+## (Liltoon.adjust), as Poiyomi's (`_adjust`) is after: its hue and saturation left as they are where a clip moves them,
+## which the renderer then applies.
 func _adjust_main(key: String, img: Image) -> void:
 	if Liltoon.is_liltoon(materials[key]):
-		Liltoon.adjust(self, materials[key], img, (animated.get(key, {}) as Dictionary).has(Liltoon.HUE))
+		Liltoon.adjust(self, materials[key], img, animated.get(key, {}))
 
 
 ## Toon Standard's _DetailMode values the atlas can hold: the detail blended in by its alpha, or multiplied in.

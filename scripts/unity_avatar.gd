@@ -866,7 +866,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	elif c.attribute.begins_with("material.") and c["class"] == "137":
 		var property: String = c.attribute.trim_prefix("material.")
 		var channel := "rgb".find(property.right(1)) if property in ["_Color.r", "_Color.g", "_Color.b"] else -1
-		var tone := ["MainGamma", "Saturation", "MainBrightness"].find(property.get_slice("_", 1))
+		var tone := 3 if property == Materials.Liltoon.SATURATION else ["MainGamma", "Saturation", "MainBrightness"].find(property.get_slice("_", 1))
 		var look := Materials.field(property)
 		if channel < 0 and tone < 0 and look.is_empty() and property not in ["_MainHueShift", "_HueShift", Materials.Liltoon.HUE] and not property.begins_with("_MainHueShift_"):
 			return -1
@@ -911,15 +911,15 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					binding = look.duplicate()
 					if look.field.begins_with("decal"):
 						binding.merge(materials.decal(key, look.slot))
+				elif property in [Materials.Liltoon.HUE, Materials.Liltoon.SATURATION]:
+					if not Materials.Liltoon.compiled(material, "colour adjustment"):
+						continue
+					binding = {"channel": tone} if tone >= 0 else {"space": 1.0, "shift": 1.0}
+					materials.hue_masks[key] = true
 				elif tone >= 0:
 					if str(floats.get("_MainColorAdjustToggle", "0")).to_float() == 0.0 or Materials.adjust_baked(material, Materials.ADJUSTS.keys()[tone + 1]):
 						continue
 					binding = {"channel": tone}
-					materials.hue_masks[key] = true
-				elif property == Materials.Liltoon.HUE:
-					if not Materials.Liltoon.compiled(material, "colour adjustment"):
-						continue
-					binding = {"space": 1.0, "shift": 1.0}
 					materials.hue_masks[key] = true
 				else:
 					var mobile := property == "_HueShift" and Materials.toon_standard(material)

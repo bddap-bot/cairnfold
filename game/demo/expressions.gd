@@ -46,7 +46,7 @@ static func particles() -> Dictionary:
 
 static func definition() -> Dictionary:
 	var parameters := []
-	for key: String in ["Hat", "Size", "Horizontal", "Vertical", "Up", "Right", "Down", "Left", "Pulse", "Menu", "Puppet", "Colour", "Tone", "Decal", "DecalHue", "Darken", "Lighten", "Screen"]:
+	for key: String in ["Hat", "Size", "Horizontal", "Vertical", "Up", "Right", "Down", "Left", "Pulse", "Menu", "Puppet", "Colour", "Tone", "Saturation", "Decal", "DecalHue", "Darken", "Lighten", "Screen"]:
 		parameters.append({"name": key, "type": "bool" if key == "Hat" else "float", "default": 0.5 if key == "Size" else 0.0, "saved": key not in ["Pulse", "Menu", "Puppet"]})
 	var control := func(name: String, kind: String, parameter: String, axes: Array = []) -> Dictionary:
 		return {"name": name, "type": kind, "parameter": parameter, "value": 1.0, "axes": axes}
@@ -74,20 +74,27 @@ static func definition() -> Dictionary:
 	var region := {"node": "ExpressionHat", "rect": [0, 0, 1, 1]}
 	var drives := [
 		["Colour", {"color": [region.merged({"channel": 2, "color": [HAT.r, HAT.g, HAT.b]})]}, HAT.b, 1.0],
-		["Tone", {"tone": [region.merged({"channel": 1})]}, 0.0, -1.0],
+		["Tone", {"tone": [region.merged({"channel": 1})]}, 0.0, -1.0, "Tones"],
+		["Saturation", {"tone": [region.merged({"channel": 3})]}, 1.0, 0.0, "Tones"],
 		["Decal", {"look": [region.merged({"field": "decal", "slot": 0, "colorBlend": 0, "alpha": 0.0, "image": 0, "hue": {"shift": 0.0, "space": 1.0, "select": 1.0}})]}, 0.0, 1.0],
 		["DecalHue", {"look": [region.merged({"field": "decalHue", "slot": 0, "colorBlend": 0, "alpha": 0.0, "image": 0, "hue": {"shift": 0.0, "space": 1.0, "select": 1.0}})]}, 0.0, 0.5],
-		["Darken", {"look": [region.merged({"field": "decal", "slot": 1, "colorBlend": 1, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0],
-		["Lighten", {"look": [region.merged({"field": "decal", "slot": 2, "colorBlend": 5, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0],
-		["Screen", {"look": [region.merged({"field": "decal", "slot": 3, "colorBlend": 6, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0]]
+		["Darken", {"look": [region.merged({"field": "decal", "slot": 1, "colorBlend": 1, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0, "Blends"],
+		["Lighten", {"look": [region.merged({"field": "decal", "slot": 2, "colorBlend": 5, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0, "Blends"],
+		["Screen", {"look": [region.merged({"field": "decal", "slot": 3, "colorBlend": 6, "alpha": 0.0, "image": 0, "hue": null})]}, 0.0, 1.0, "Blends"]]
+	var submenus := {}
 	for drive: Array in drives:
-		data.menu.append(control.call(drive[0], "toggle", drive[0]))
+		var drive_toggle: Dictionary = control.call(drive[0], "toggle", drive[0])
+		if drive.size() > 4:
+			if not submenus.has(drive[4]):
+				submenus[drive[4]] = control.call(drive[4], "submenu", "Menu")
+				submenus[drive[4]].controls = []
+			submenus[drive[4]].controls.append(drive_toggle)
+		else:
+			data.menu.append(drive_toggle)
 		data.targets.append({"effect": drive[1], "default": drive[2]})
 		data.clips.append({"length": 1.0, "curves": [{"target": data.targets.size() - 1, "step": false, "keys": [[0, drive[2]], [1, drive[3]]]}]})
 		data.layers.append({"weight": 1.0, "default": 0, "states": [{"writeDefaults": false, "motion": {"clip": data.clips.size() - 1, "time": drive[0]}}]})
-	var blends: Dictionary = control.call("Blends", "submenu", "Menu")
-	blends.controls = data.menu.slice(-3)
-	data.menu = data.menu.slice(0, -3) + [blends]
+	data.menu.append_array(submenus.values())
 	var packed := Image.create_empty(SIZE * 3 / 2, SIZE * 3 / 2, false, Image.FORMAT_RGBA8)
 	packed.blit_rect(untinted(), Rect2i(0, 0, SIZE, SIZE), Vector2i(SIZE / 4, SIZE / 4))
 	data.untinted = {"image": packed, "cells": [[0, 0, 1, 1, 1.0 / 6, 1.0 / 6, 5.0 / 6, 5.0 / 6]]}

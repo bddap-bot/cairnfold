@@ -2474,21 +2474,27 @@ func _liltoon_layers_bake_into_the_atlas() -> void:
 	check(opaque[0].a == 1.0, "an opaque material takes no alpha mask")
 
 
-## lilToon's emission blend, matcap blends, main hue and colour bind their looks, regions and channels; the atlas holds
-## the hue a clip turns unturned, its region masked by the colour adjustment mask's red; an emission blend binds only
+## lilToon's emission blend, matcap blends, main hue, main saturation and colour bind their looks, regions and channels;
+## the atlas holds the hue a clip turns unturned and the saturation it scales unscaled, its region masked by the colour adjustment mask's red; an emission blend binds only
 ## while its emission alone is carried.
 func _liltoon_curves_bind_their_looks() -> void:
 	var assets := _liltoon_fixture("liltoon-curves", {
-		"suit": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 0.4, "_UseMatCap": 1, "_MatCapBlend": 0.7, "_UseMatCap2nd": 1, "_MatCap2ndBlend": 0.2}, {"_Color": Color(1, 0.5, 0.5, 1), "_MainTexHSVG": Color(0.25, 1, 1, 1)}, {"_MainTex": "red", "_MainColorAdjustMask": "half"}),
+		"suit": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 0.4, "_UseMatCap": 1, "_MatCapBlend": 0.7, "_UseMatCap2nd": 1, "_MatCap2ndBlend": 0.2}, {"_Color": Color(1, 0.5, 0.5, 1), "_MainTexHSVG": Color(0.25, 0.5, 1, 1)}, {"_MainTex": "red", "_MainColorAdjustMask": "half"}),
 	}, {"red": [Color(1, 0, 0, 1), Color(1, 0, 0, 1)], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)]})
 	var materials := Materials.new(assets)
 	materials.use({"guid": "suit"}, Color.WHITE)
 	materials.animated = {"suit": {Materials.Liltoon.HUE: true}}
 	materials.pack(["suit"])
+	var paled: Array = _row(materials, materials.atlas, "suit")
+	check(paled[0].r > 0.9 and paled[0].g > 0.3 and absf(paled[0].g - paled[0].b) < 0.02, "the atlas scales the saturation no clip moves: %s" % [paled])
+	materials = Materials.new(assets)
+	materials.use({"guid": "suit"}, Color.WHITE)
+	materials.animated = {"suit": {Materials.Liltoon.HUE: true, Materials.Liltoon.SATURATION: true}}
+	materials.pack(["suit"])
 	var held: Array = _row(materials, materials.atlas, "suit")
-	check(held[0].r > 0.9 and held[0].g < 0.1, "the atlas holds the hue a clip turns unturned: %s" % [held])
+	check(held[0].r > 0.9 and held[0].g < 0.1 and held[0].b < 0.1, "the atlas holds the hue a clip turns unturned and the saturation it scales unscaled: %s" % [held])
 	var expressions := Expressions.new(assets, {})
-	var curves := ["material._EmissionBlend", "material._MatCapBlend", "material._MatCap2ndBlend", "material._MainTexHSVG.x", "material._Color.r"].map(func(a: String) -> Dictionary: return {"path": "", "attribute": a, "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]})
+	var curves := ["material._EmissionBlend", "material._MatCapBlend", "material._MatCap2ndBlend", "material._MainTexHSVG.x", "material._MainTexHSVG.y", "material._Color.r"].map(func(a: String) -> Dictionary: return {"path": "", "attribute": a, "class": "137", "keys": [[0.0, 0.0], [1.0, 1.0]]})
 	expressions.data = {
 		"menu": [{"name": "Look", "type": "radial", "parameter": "", "axes": ["Look"], "value": 1, "icon": ""}],
 		"parameters": [{"name": "Look", "type": "float", "default": 0}],
@@ -2507,7 +2513,7 @@ func _liltoon_curves_bind_their_looks() -> void:
 		var kind: String = t.effect.keys()[0]
 		var region: Dictionary = t.effect[kind][0]
 		return [kind, region.get("field", region.get("channel", region.get("space"))), region.get("slot", region.get("shift")), "%.3f" % t.default])
-	check(bound == [["look", "emission", 0, "0.400"], ["look", "matcapIntensity", 0, "0.700"], ["look", "matcapIntensity", 1, "0.200"], ["hue", 1.0, 1.0, "0.250"], ["color", 0, null, "1.000"]], "emission and matcap blends, the main hue in HSV and the colour bind: %s" % [bound])
+	check(bound == [["look", "emission", 0, "0.400"], ["look", "matcapIntensity", 0, "0.700"], ["look", "matcapIntensity", 1, "0.200"], ["hue", 1.0, 1.0, "0.250"], ["tone", 3, null, "0.500"], ["color", 0, null, "1.000"]], "emission and matcap blends, the main hue in HSV, its saturation and the colour bind: %s" % [bound])
 	var mask: Variant = data.get("hueMask")
 	check(mask is Image, "the hue's mask is carried")
 	if mask is Image:

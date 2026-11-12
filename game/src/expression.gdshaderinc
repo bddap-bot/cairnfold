@@ -279,12 +279,15 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 }
 
 // The menu's hue turn `hue` and tone `tone` of `c` where the hue mask `adjust` lets them, as the albedo and its shades
-// both take them.
-vec3 adjusted(vec3 c, vec4 hue, vec3 tone, vec4 adjust) {
+// both take them. The tone at rest is (1, 0, 0, 1): Poiyomi's gamma, saturation and brightness under the mask's alpha,
+// blue and green, then lilToon's HSV saturation scale under its red, as lilToon's own mask is.
+vec3 adjusted(vec3 c, vec4 hue, vec4 tone, vec4 adjust) {
 	if (hue.w > 0.5) {
 		c = mix(c, shift_hue(c, hue.xyz), adjust.r);
 	}
-	if (tone != vec3(1.0, 0.0, 0.0)) {
+	if (tone != vec4(1.0, 0.0, 0.0, 1.0)) {
+		vec3 scaled = hsv(c);
+		c = mix(c, rgb(vec3(scaled.x, clamp(scaled.y * tone.w, 0.0, 1.0), scaled.z)), adjust.r);
 		c = mix(c, sign(c) * pow(abs(c), vec3(tone.x)), adjust.a);
 		c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), -tone.y * adjust.b);
 		c = mix(c, c * (tone.z + 1.0), adjust.g);
@@ -301,7 +304,7 @@ void fragment() {
 	vec4 base = texture(picture, uv);
 	vec4 hue = vec4(0.0);
 	vec3 tint = vec3(-1.0);
-	vec3 tone = vec3(1.0, 0.0, 0.0);
+	vec4 tone = vec4(1.0, 0.0, 0.0, 1.0);
 	vec4 decal_alpha = vec4(-1.0);
 	vec4 decal_intensity = vec4(1.0);
 	vec4 decal_mode = vec4(0.0);
