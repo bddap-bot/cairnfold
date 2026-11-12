@@ -20,6 +20,7 @@ func _run() -> void:
 	check(rig.left.tool == Hand.Tool.BOOK and main.book.at == 0, "the player starts with the book shut in the left hand")
 	trackers = track_hands(rig)
 	_every_press_is_a_control()
+	_a_timed_hold_fills_its_ring()
 	for by_hand in [false, true]:
 		bare = by_hand
 		for page in Lessons.PAGES:
@@ -112,6 +113,19 @@ func _replay(page: Dictionary) -> void:
 			var h: Hand = main.rig.hands[i]
 			trackers[i].set_pose("aim", h.transform, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 		Hand.injected_joints.clear()
+
+
+func _a_timed_hold_fills_its_ring() -> void:
+	var pad := Pad.new(true)
+	root.add_child(pad)
+	var ring: MeshInstance3D = pad._rings.trigger_click
+	pad.show_input("trigger_click", 0.5)
+	check(not ring.visible, "a press that is not timed shows no ring")
+	pad.show_input("trigger_click", 0.5, 2.0)
+	check(ring.visible and is_equal_approx(ring.material_override.get_shader_parameter("fill"), 0.25), "a quarter of the way through a timed hold its ring is a quarter full")
+	pad.show_input("trigger_click", -1.0, 2.0)
+	check(not ring.visible, "let go, the ring goes")
+	pad.free()
 
 
 func _hand(side: String) -> Hand:

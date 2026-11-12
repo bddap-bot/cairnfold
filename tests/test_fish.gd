@@ -216,3 +216,33 @@ func _they_swim_in_the_ponds() -> void:
 	check(fish.swimming.any(func(f: Fish.One) -> bool: return f.pond == water.ponds[-1]), "a second pond has its own fish a while after")
 	check(_in_water(fish, water), "every fish in water")
 	check(fish.swimming.size() <= Fish.CAP, "never more than the cap, %d" % fish.swimming.size())
+
+	var pond := water.ponds[0]
+	var shallow := Vector2.INF
+	for cell: Vector2i in pond.pond.cells:
+		for k in 81:
+			var xz := Terrain.grid_xz(cell) + Vector2(k % 9 - 4, k / 9 - 4) * 0.1
+			var depth := pond.pond.level - world.terrain.height_at(xz.x, xz.y)
+			if water.pond_at(xz.x, xz.y) == pond and depth > 0.03 and depth < Fish.MIN_DEPTH - 0.03:
+				shallow = xz
+	check(shallow != Vector2.INF, "the pond has water too shallow to swim")
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	# A throw scatters its grains wider than the shallows, so every grain is set down there by hand.
+	var seeds := Handful.new(water, world.terrain)
+	feed.add_child(seeds)
+	seeds.toss(Vector3(mid.x, pond.pond.level, mid.y), Vector3.ZERO, 5)
+	seeds.flying = 0
+	for i in Handful.GRAINS:
+		seeds._at[i] = Vector3(shallow.x, pond.pond.level, shallow.y)
+	feed.handfuls.append(seeds)
+	var drawn := [0]
+	_run(wildlife, 6.0, null, func() -> void: drawn[0] += fish.swimming.filter(func(f: Fish.One) -> bool: return f.feeding).size())
+	check(drawn[0] == 0, "seeds lying where the water is too shallow to swim draw no fish: %d fish-ticks" % drawn[0])
+	# Ducks that have come for the seeds hold the handful: it goes as an eaten one does.
+	seeds.visible = false
+
+	var had := fish.swimming.filter(func(f: Fish.One) -> bool: return f.pond == pond and not f.leaving).size()
+	fish._want[pond] = had - 1
+	_run(wildlife, Fish.FADE + 0.5)
+	var stay := fish.swimming.filter(func(f: Fish.One) -> bool: return f.pond == pond).size()
+	check(had >= 1 and stay == had - 1, "a pond that comes to want one fish fewer lets one go: %d of %d left" % [stay, had])

@@ -16,15 +16,10 @@ func _run() -> void:
 
 	var steps := Canvas.steps
 	Canvas.steps = 1.0e9
-	var few := strokes.slice(0, 8)
-	var whole := await _canvas()
-	whole.rebuild(few)
-	var unsplit := await _dried(whole)
-	Canvas.steps = 200000.0
-	var slow := await _canvas()
-	slow.rebuild(few)
-	check(await _dried(slow) == unsplit, "flow run a few rows a frame dries to what it dries to run whole")
-	Canvas.steps = 1.0e9
+	await _runs_down()
+	await _relief_undone()
+	check(await _dries_alike(strokes.slice(0, 8)), "flow run a few rows a frame dries to what it dries to run whole")
+	check(await _dries_alike(_crowd()), "more dabs than a batch holds, on tiles wet again after drying, dry the same run whole or a few rows a frame")
 
 	var fresh := await _canvas()
 	fresh.rebuild(kept)
@@ -37,10 +32,11 @@ func _run() -> void:
 	var at := undone.last_end
 	while undone.last_end == at:
 		await process_frame
+	RenderingServer.call_on_render_thread(_spoil.bind(undone))
 	undone.rebuild(kept)
 	check(not undone.catching_up(), "the undo is a checkpoint, with nothing to replay")
 	var got := await _dried(undone)
-	check(got == want, "undone through a checkpoint, the canvas dries to what a fresh replay dries to")
+	check(got == want, "undone through a checkpoint, whatever its scratch texture held, the canvas dries to what a fresh replay dries to")
 
 	var resumed := await _canvas()
 	resumed.rebuild(strokes.slice(0, N - 3))
@@ -51,6 +47,103 @@ func _run() -> void:
 	Canvas.steps = steps
 
 	finish()
+
+
+## Fills the canvas's scratch texture with paint that was never laid: nothing a flow step or a smear leaves may come of
+## it. The paint is finite, since a smear weighs what it reads there by nothing, and nothing times infinity is not a number.
+func _spoil(c: Canvas) -> void:
+	c._rd.texture_clear(c._wet[1], Color(9, 9, 9, 9), 0, 1, 0, 1)
+
+
+## Thin strokes over the same tiles, the last a drying time after the rest: replayed in one frame, the rest are more
+## dabs than one batch has room for, and the last wets tiles that have dried since the frame's batch began.
+func _crowd() -> Array:
+	var out := []
+	var dabs := 0
+	for k in 14:
+		var samples := PackedInt32Array()
+		for i in 15:
+			samples.append_array(Brushwork.pack(Vector2(0.2 + 0.02 * i, 0.4 + 0.005 * k), 0.1, 0.0, 0 if i == 0 else 2))
+		var stroke := {"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.SMALL, "colour": Brushwork.absorbance(Brushwork.PIGMENTS[1 + k % 4]), "strength": 0.8, "load": 1.0, "gap": Brushwork.DRY_TICKS if k == 13 else 0, "samples": samples}
+		if k < 13:
+			var s := Brushwork.Stroker.new(stroke)
+			for i in 15:
+				dabs += s.add(Brushwork.unpack(samples, i)).size() / Brushwork.DAB
+		out.append(stroke)
+	check(dabs > Canvas.DAB_ROOM, "the strokes before the last are more dabs than a batch holds: %d" % dabs)
+	return out
+
+
+## Whether `strokes` dry to the same paint replayed whole, in one frame, and a few rows a frame.
+func _dries_alike(strokes: Array) -> bool:
+	var whole := await _canvas()
+	whole.rebuild(strokes)
+	var want := await _dried(whole)
+	check(whole._replay_frames == 1, "a replay run whole takes one frame: %d" % whole._replay_frames)
+	Canvas.steps = 200000.0
+	var slow := await _canvas()
+	slow.rebuild(strokes)
+	var alike := await _dried(slow) == want
+	Canvas.steps = 1.0e9
+	whole.queue_free()
+	slow.queue_free()
+	await process_frame
+	return alike
+
+
+## The row the dried pigment of four very wet strokes along one line balances on, on a canvas standing up or lying flat.
+func _balance(upright: bool) -> float:
+	var c := await _canvas()
+	c.upright = upright
+	var samples := PackedInt32Array()
+	for i in 15:
+		samples.append_array(Brushwork.pack(Vector2(0.3 + 0.02 * i, 0.3), 1.0, 0.0, 0 if i == 0 else 1))
+	var strokes := []
+	for k in 4:
+		strokes.append({"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(Brushwork.PIGMENTS[5]), "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples})
+	c.rebuild(strokes)
+	var im := Image.create_from_data(c.size.x, c.size.y, false, Image.FORMAT_RGBAH, (await _dried(c))[1])
+	var mass := 0.0
+	var moment := 0.0
+	var row := int(0.3 * c.size.y)
+	for y in range(row - 100, row + 100):
+		for x in range(c.size.x / 5, c.size.x * 2 / 3, 4):
+			var density := im.get_pixel(x, y).r
+			mass += density
+			moment += density * y
+	c.queue_free()
+	await process_frame
+	return moment / mass
+
+
+func _runs_down() -> void:
+	var standing := await _balance(true)
+	var lying := await _balance(false)
+	check(standing > lying + 0.3, "very wet paint runs down a canvas standing up, and not one lying flat: balanced on rows %.2f and %.2f" % [standing, lying])
+
+
+func _relief_undone() -> void:
+	var daubs := Driver.daubs(2)
+	var fresh := await _canvas()
+	fresh.rebuild([daubs[0]])
+	await _dried(fresh)
+	var want := await _normal_pixels(fresh)
+	var undone := await _canvas()
+	undone.rebuild([daubs[0]])
+	await _caught_up(undone)
+	var at := undone.last_end
+	undone.play(daubs[1], 0)
+	while undone.last_end == at:
+		await process_frame
+	await _dried(undone)
+	check(await _normal_pixels(undone) != want, "the second daub stands in the relief")
+	undone.rebuild([daubs[0]])
+	check(not undone.catching_up(), "the undo is a checkpoint")
+	await _dried(undone)
+	check(await _normal_pixels(undone) == want, "undone through a checkpoint, the relief is what a fresh replay leaves")
+	for c: Canvas in [fresh, undone]:
+		c.queue_free()
+	await process_frame
 
 
 func _canvas() -> Canvas:
@@ -137,7 +230,8 @@ func _smear() -> void:
 	RenderingServer.call_on_render_thread(func() -> void:
 		var initial := rd.texture_create(rd.texture_get_format(c._wet[0]), RDTextureView.new(), [image.get_data()])
 		c._copy(initial, c._wet[0])
-		rd.free_rid(initial))
+		rd.free_rid(initial)
+		_spoil(c))
 	var before := await _pixels(c)
 	var stroke := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.5, 0.5), 1.0, 0.0, 0)}
 	check(Brushwork.clean(stroke) != null, "smear stroke validates")

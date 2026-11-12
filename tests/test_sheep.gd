@@ -292,6 +292,18 @@ func _fences_draw_a_flock() -> void:
 		check(worst.crossed == 0 and worst.wet == 0, "fleeing, it keeps out of water and walls")
 		await _seeds_held_low_draw_a_sheep(g, watch)
 
+	var stray: Sheep = g.sheep()[0]
+	var by: Vector3 = fence.layout.frame_at(fence.layout.closest_s(stray.position)).point
+	var beyond := by + ((stray.position - by) * Vector3(1, 0, 1)).normalized() * (Herds.BAND.y + 1.5)
+	var walked := 0
+	for trial in 8:
+		stray.position = g.world.terrain.ground(beyond.x, beyond.z)
+		stray.state = Herds.State.STAND
+		stray.timer = 0.0
+		g.run(STEP)
+		walked += int(stray.state == Herds.State.WALK)
+	check(walked == 8, "a sheep stood beyond its fence's grass walks back to it, never grazing there: %d times of 8" % walked)
+
 	for step in 6:
 		g.world.undo()
 	await frames(2)

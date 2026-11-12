@@ -33,10 +33,47 @@ func _initialize() -> void:
 	_squirrels()
 	await _owls()
 	_cost()
+	_a_habitat_wanting_fewer_sends_the_rest_off()
+	_the_nearest_is_nearest()
 	await _they_go_with_their_habitats()
 	look.queue_free()
 	await g.teardown()
 	finish()
+
+
+## A kind whose one habitat wants as many as the test says.
+class Few extends Shy:
+	var homes := {}
+
+	func habitats() -> Dictionary:
+		return homes
+
+	func arrive(_home: Object) -> One:
+		return One.new()
+
+
+func _a_habitat_wanting_fewer_sends_the_rest_off() -> void:
+	var few := Few.new(g.wildlife, 1, Frogs.body(), "res://src/frog.gdshader", 4, "few")
+	root.add_child(few)
+	few.homes = {self: 3}
+	few.fill()
+	few.tick(STEP)
+	check(few.animals.size() == 3 and not few.animals.any(func(a: Shy.One) -> bool: return a.leaving), "three come to a habitat that wants three")
+	few.homes = {self: 2}
+	for i in int(Shy.FADE / STEP) + 2:
+		few.tick(STEP)
+	check(few.animals.size() == 2 and not few.animals.any(func(a: Shy.One) -> bool: return a.leaving), "wanting two, it sends one of its three off and keeps two: %d" % few.animals.size())
+	few.free()
+
+
+func _the_nearest_is_nearest() -> void:
+	var p := Vector3(-8, 0, 8)
+	var hands := g.rig.hands
+	for near in 2:
+		hands[near].global_position = p + Vector3(1, 1, 0)
+		hands[1 - near].global_position = p + Vector3(0, 1, 3)
+		check(g.wildlife._nearest(p, 5.0, true) == hands[near], "the hand a metre off is nearer than the one three off (hand %d)" % near)
+	_rest_hands()
 
 
 ## Holds a hand at `from` and walks it toward `at` at a calm pace, as a person stepping up, for `seconds`.
@@ -87,8 +124,16 @@ func _frogs() -> void:
 		sitting = frogs.animals.filter(func(a: Shy.One) -> bool: return a.state == Frogs.State.SIT)
 	check(not sitting.is_empty(), "one sits")
 	var f: Frogs.Frog = sitting[0]
-	var plops: int = Cues.asked.get(Cues.Act.PLOP, 0)
 	var hand := g.rig.hands[0]
+	var back := ((f.position - f.launch) * Vector3(1, 0, 1)).normalized()
+	var beside := f.position + back * Frogs.FLIGHT * 0.4 + Vector3.UP
+	var bolted := [false]
+	f.timer = 60.0
+	_rest_hands()
+	_approach(hand, beside, beside + back, 1.5, func() -> void: bolted[0] = bolted[0] or f.fleeing)
+	check(not bolted[0], "a hand beside one, walking away from it, leaves it be")
+	_rest_hands()
+	var plops: int = Cues.asked.get(Cues.Act.PLOP, 0)
 	var under := [false]
 	var start := f.position + (f.position - f.launch).normalized() * 2.0 + Vector3.UP * 1.0
 	_approach(hand, start, f.position, 4.0, func() -> void: under[0] = under[0] or f.state == Frogs.State.UNDER)
@@ -98,6 +143,19 @@ func _frogs() -> void:
 	_rest_hands()
 	g.run(Frogs.UNDER_FOR.y + 30.0)
 	check(f.state != Frogs.State.UNDER, "and comes up again")
+	for i in 3000:
+		if f.state == Frogs.State.SIT:
+			break
+		g.run(STEP)
+	back = ((f.position - f.launch) * Vector3(1, 0, 1)).normalized()
+	var grass := g.world.terrain.ground(f.position.x + back.x * 0.5, f.position.z + back.z * 0.5)
+	check(f.state == Frogs.State.SIT and g.water.pond_at(grass.x, grass.z) == null, "it sits by dry grass")
+	frogs._hop_to(f, grass, Frogs.State.SWIM)
+	for i in int(3.0 / STEP):
+		if f.state != Frogs.State.HOP:
+			break
+		g.run(STEP)
+	check(f.state == Frogs.State.SIT, "a frog whose way in has gone dry sits where it lands: state %d" % f.state)
 	var croaks: int = g.wildlife.calls.played.get("croak", [0])[0]
 	check(croaks == 0, "no croaks by day")
 	look.set_time(0.0)
@@ -160,7 +218,18 @@ func _squirrels() -> void:
 	_approach(hand, q.position + Vector3(2.4, 1.0, 1.0), q.position, 6.0, func() -> void: high[0] = maxf(high[0], q.up if q.state in [Squirrels.State.CLIMB, Squirrels.State.CLING] else 0.0))
 	check(high[0] > Squirrels.height(trunk) * 0.5, "walked up to, it races up its trunk: %.2f m" % high[0])
 	_rest_hands()
-	look.set_time(0.0)
+	var home := 0
+	var foot := trunk.foot()
+	for trial in 6:
+		look.set_time(Daylight.DEFAULT)
+		for i in 20000:
+			g.run(STEP)
+			if q.state == Squirrels.State.FORAGE:
+				break
+		look.set_time(0.0)
+		g.run(STEP)
+		home += int(q.state == Squirrels.State.RUN and Vector2(q.goal.x - foot.x, q.goal.z - foot.z).length() < Squirrels.radius(trunk, 0.0) + 0.01)
+	check(home == 6, "at nightfall a foraging squirrel makes straight for its trunk: %d times of 6" % home)
 	g.run(60.0)
 	check(q.state == Squirrels.State.CLING and q.up > Squirrels.height(trunk) * 0.85, "at night it keeps up in its crown")
 	look.set_time(Daylight.DEFAULT)
@@ -199,6 +268,20 @@ func _owls() -> void:
 	_approach(g.rig.hands[0], o.position + Vector3(2.0, -o.position.y + g.world.terrain.height_at(o.position.x, o.position.z) + 1.5, 1.5), o.position, 3.0, func() -> void: flew[0] = flew[0] or o.state == Owls.State.FLY)
 	check(flew[0], "walked up to, an owl flies off")
 	_rest_hands()
+	var down: Owls.Owl
+	for i in 30000:
+		var on: Array = owls.animals.filter(func(a: Owls.Owl) -> bool: return a.state == Owls.State.GROUND and not a.leaving)
+		if not on.is_empty():
+			down = on[0]
+			break
+		g.run(STEP)
+	check(down != null, "an owl drops to the grass")
+	if down != null:
+		down.timer = 60.0
+		var up := [false]
+		_approach(g.rig.hands[0], down.position + Vector3(2.0, 1.5, 1.5), down.position, 3.0, func() -> void: up[0] = up[0] or down.state == Owls.State.FLY)
+		check(up[0], "walked up to on the grass, it flies up")
+		_rest_hands()
 	look.set_time(Daylight.DEFAULT)
 	g.run(120.0)
 	check(owls.animals.is_empty(), "with the day they go")

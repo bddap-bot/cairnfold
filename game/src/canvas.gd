@@ -713,16 +713,14 @@ func _dispatch_all(batches: Array) -> void:
 					_copy(_dry, _slots[op[1]][1])
 				"restore":
 					_copy(_slots[op[1]][0], _wet[0])
-					_copy(_slots[op[1]][0], _wet[1])
 					_copy(_slots[op[1]][1], _dry)
 				"flow":
 					_dispatch(bundle[2 + op[3]], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 1.0 if upright else 0.0, op[1], op[3]))
 				"dabs":
 					var s: Dictionary = op[1]
 					if s.medium == Brushwork.Medium.SMEAR:
-						var region: Rect2i = op[4].grow(12).intersection(Rect2i(Vector2i.ZERO, size))
-						var origin := Vector3(region.position.x, region.position.y, 0)
-						_rd.texture_copy(_wet[0], _wet[1], origin, origin, Vector3(region.size.x, region.size.y, 1), 0, 0, 0, 0)
+						var origin := Vector3(op[4].position.x, op[4].position.y, 0)
+						_rd.texture_copy(_wet[0], _wet[1], origin, origin, Vector3(op[4].size.x, op[4].size.y, 1), 0, 0, 0, 0)
 					var c: Vector3 = Brushwork.CHARCOAL if s.medium == Brushwork.Medium.CHARCOAL else s.colour
 					_dispatch(bundle[3], DAB, op[4], [op[2], op[3], s.brush], Vector4(c.x, c.y, c.z, s.strength), Vector4(s.medium, 0, 0, 0))
 
