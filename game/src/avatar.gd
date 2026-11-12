@@ -671,7 +671,7 @@ static func shape(state: GLTFState) -> bool:
 		push_error("avatar: the looks name materials without the material index they are drawn by")
 		return false
 	var shadows: Array = looks.get("materials", []).map(func(m: Dictionary) -> Variant: return m.lighting.get("shadow")).filter(func(shadow: Variant) -> bool: return shadow != null)
-	if not shadows.is_empty() and not looks.get("shade") is Image or shadows.any(func(shadow: Dictionary) -> bool: return shadow.second != null) and not looks.get("shade2") is Image:
+	if not shadows.is_empty() and not looks.get("shade") is Image or shadows.any(func(shadow: Dictionary) -> bool: return shadow.get("second") != null) and not looks.get("shade2") is Image:
 		push_error("avatar: the looks give a material a toon shadow without the shade layers it is drawn by")
 		return false
 	var swaps := {}
