@@ -16,6 +16,7 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	_samples_keep_what_the_brush_did()
 	_a_stroke_lays_the_same_dabs_every_time()
+	_dabs_ease_from_sample_to_sample()
 	await _strokes_are_kept_and_load_whole()
 	await _undo_takes_back_a_stroke_and_redo_paints_it_again()
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
@@ -110,6 +111,41 @@ func _a_stroke_lays_the_same_dabs_every_time() -> void:
 			for d in range(5, dabs.size(), Brushwork.DAB):
 				constant = constant and is_equal_approx(dabs[d], 0.4)
 		check(constant, "a long stroke keeps its load in medium %d" % medium)
+
+
+## A peer's samples arrive far apart; what fills between them is the mark every machine lays.
+func _dabs_ease_from_sample_to_sample() -> void:
+	var stroke := {"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "load": 1.0}
+	var to := Vector2(0.6, 0.5)
+	for ends in [Vector2(0.1, 1.0), Vector2(1.0, 0.1)]:
+		var st := Brushwork.Stroker.new(stroke)
+		var laid := st.add([Vector2(0.4, 0.5), ends.x, 0.0, 0, 0.0]) + st.add([to, ends.y, 1.0, 2, 0.0])
+		var eases := laid.size() > 3 * Brushwork.DAB
+		var gap := 0.0
+		for k in range(Brushwork.DAB, laid.size(), Brushwork.DAB):
+			eases = eases and signf(laid[k + 3] - laid[k - Brushwork.DAB + 3]) == signf(ends.y - ends.x) and laid[k + 7] > laid[k - Brushwork.DAB + 7]
+			gap = maxf(gap, Vector2(laid[k], laid[k + 1]).distance_to(Vector2(laid[k - Brushwork.DAB], laid[k - Brushwork.DAB + 1])))
+		var lighter := minf(laid[2], laid[-Brushwork.DAB + 2])
+		check(eases, "pressure and footprint angle ease from %.1f to %.1f pressure" % [ends.x, ends.y])
+		check(gap <= lighter * Brushwork.SPACING + 1e-3, "dabs lie SPACING of the lighter end's radius apart: %.2f texels at most, radius %.2f" % [gap, lighter])
+		check(Vector2(laid[-Brushwork.DAB], laid[-Brushwork.DAB + 1]).distance_to(to * Vector2(Brushwork.SIZE)) < 1e-3, "the last dab lies where the brush is")
+		check(Vector2.from_angle(laid[-Brushwork.DAB + 4]).dot(Vector2.RIGHT) > 0.999, "dabs head the way the brush moves, so a smear pushes paint along")
+	var still := Brushwork.Stroker.new(stroke)
+	still.add([to, 1.0, 0.0, 0, 0.0])
+	check(still.add([to, 1.0, 0.0, 2, 0.0]).size() == Brushwork.DAB, "a brush held still lays a dab a sample")
+	var dryness := func(medium: Brushwork.Medium, paint: float, ticks: int) -> float:
+		var s := Brushwork.Stroker.new({"medium": medium, "brush": Brushwork.Brush.BIG, "load": paint})
+		s.add([Vector2(0.5, 0.5), 1.0, 0.0, 0, 0.0])
+		return s.add([Vector2(0.52, 0.5), 1.0, 0.0, ticks, 0.0])[6]
+	var wet: float = dryness.call(Brushwork.Medium.WATER, 1.0, 1)
+	check(dryness.call(Brushwork.Medium.WATER, 1.0, 0) == wet, "a sample in the same tick as the last skims as one a tick later: %.3f" % wet)
+	check(dryness.call(Brushwork.Medium.WATER, 1.0, 2) < wet, "a slower stroke skims less")
+	check(dryness.call(Brushwork.Medium.WATER, 0.4, 1) > wet, "a brush low on paint skims more")
+	check(dryness.call(Brushwork.Medium.OIL, 1.0, 1) < wet, "oil skims less than watercolour")
+	var stick := Brushwork.Stroker.new({"medium": Brushwork.Medium.CHARCOAL, "brush": Brushwork.Brush.STICK, "load": 1.0})
+	stick.add([Vector2(0.5, 0.5), 0.5, 0.0, 0, 0.0])
+	var lowered := stick.add([Vector2(0.5, 0.5), 0.5, 1.0, 1, 1.0])
+	check(lowered.size() > 2 * Brushwork.DAB and lowered[2] < lowered[-Brushwork.DAB + 2], "a stick turning as it lowers onto its side lays a mark widening as it goes")
 
 
 func _strokes_are_kept_and_load_whole() -> void:
@@ -784,19 +820,43 @@ func _easels_keep_their_distance_and_number() -> void:
 
 func _bad_strokes_are_dropped() -> void:
 	var good := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.FLAT, "colour": Vector3(1, 2, 3), "strength": 1.0, "load": 0.5, "gap": 3, "samples": Brushwork.pack(Vector2(0.5, 0.5), 0.5, 0.0, 0) + Brushwork.pack(Vector2(0.6, 0.5), 0.5, 0.0, 2)}
-	check(Brushwork.clean(good) != null, "a stroke a brush could paint is kept")
+	check(Brushwork.clean(good) == good, "a stroke a brush could paint is kept as it was painted")
+	var smear := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0}
+	var fine := {
+		"a gap of a whole drying": {"gap": Brushwork.DRY_TICKS},
+		"as many samples as a stroke holds": {"samples": _many(Brushwork.MAX_SAMPLES)},
+		"a smear's own brush and paint": smear,
+	}
+	for what in fine:
+		var s := good.duplicate()
+		s.merge(fine[what], true)
+		check(Brushwork.clean(s) != null, "a stroke with %s is kept" % what)
 	var bad := {
 		"no samples": {"samples": PackedInt32Array()},
 		"half a sample": {"samples": PackedInt32Array([1, 2, 3])},
 		"too many samples": {"samples": _many(Brushwork.MAX_SAMPLES + 1)},
-		"an unknown medium": {"medium": 7},
+		"a negative medium": {"medium": -1},
+		"the medium past the last": {"medium": Brushwork.Medium.size()},
+		"a negative brush": {"brush": -1},
+		"the brush past the last": {"brush": Brushwork.Brush.size()},
+		"a brush named by a float": {"brush": float(Brushwork.Brush.FLAT)},
 		"charcoal on a brush": {"medium": Brushwork.Medium.CHARCOAL},
 		"a stick dipped in oil": {"brush": Brushwork.Brush.STICK},
-		"a colour past any pigment": {"colour": Vector3(0, 0, 99)},
+		"a blue past any pigment": {"colour": Vector3(0, 0, 99)},
+		"a green past any pigment": {"colour": Vector3(1, 99, 3)},
+		"a negative colour": {"colour": Vector3(-1, 2, 3)},
 		"a colour not a number": {"colour": Vector3(NAN, 0, 0)},
 		"more paint than a brush holds": {"load": 1.5},
+		"less than no paint": {"load": -0.5},
+		"a load not a float": {"load": 1},
+		"strength past full": {"strength": 1.5},
+		"a negative gap": {"gap": -1},
 		"a gap past drying": {"gap": Brushwork.DRY_TICKS + 1},
 		"a float for samples": {"samples": PackedFloat32Array([0.5, 0.5])},
+		"a smear with a round brush": smear.merged({"brush": Brushwork.Brush.BIG}, true),
+		"a smear carrying pigment": smear.merged({"colour": Vector3(0, 0, 1)}, true),
+		"a smear with strength": smear.merged({"strength": 0.5}, true),
+		"a smear from a dry brush": smear.merged({"load": 0.5}, true),
 	}
 	for what in bad:
 		var s := good.duplicate()

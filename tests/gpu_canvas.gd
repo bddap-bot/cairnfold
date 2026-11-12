@@ -414,10 +414,6 @@ func _smear() -> void:
 		_spoil(c))
 	var before := await _pixels(c)
 	var stroke := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.5, 0.5), 1.0, 0.0, 0)}
-	check(Brushwork.clean(stroke) != null, "smear stroke validates")
-	var forged := stroke.duplicate()
-	forged.colour = Vector3.ONE
-	check(Brushwork.clean(forged) == null, "smear cannot introduce pigment")
 	c.lay(stroke, Brushwork.Stroker.new(stroke).add(Brushwork.unpack(stroke.samples, 0)))
 	c._process(0.0)
 	var after := await _pixels(c)
