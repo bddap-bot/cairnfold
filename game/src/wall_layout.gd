@@ -126,7 +126,7 @@ const PLASTER := Color(0.86, 0.8, 0.68)
 const STONE := Color(0.66, 0.61, 0.53)
 const MORTAR := Color(0.32, 0.29, 0.25)
 ## Multiplies the top course's stone so the top reads apart from the wall below.
-const TOP_TONE := Color(0.40, 0.42, 0.47)
+const TOP_TONE := Color(0.30, 0.32, 0.37)
 const TOP_KINDS: Array[String] = ["cap", "cope", "merlon"]
 ## How far mortar stands back from the stones' faces.
 const JOINT := 0.07
@@ -2604,6 +2604,7 @@ func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator,
 		y += h
 	if cover != Cover.ROOF:
 		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.0)
+		stones[-1].color *= TOP_TONE
 
 
 func _lay_footing(s: float, depth: float, size: Vector3, kind: String, rng: RandomNumberGenerator, top := 0.0) -> void:

@@ -60,7 +60,7 @@ const CLAY := Color(0.72, 0.4, 0.28)
 const STRAW := Color(0.6, 0.45, 0.25)
 const WEATHERED := Color(0.42, 0.38, 0.32)
 ## Sets a deck's flags apart from the walls' stone and their dark top course.
-const DECK_TONE := Color(0.86, 0.72, 0.56)
+const DECK_TONE := Color(1.0, 0.84, 0.62)
 const COAT := 0.32
 const LUMPS := 0.05
 const THATCH_EAVE := 0.25

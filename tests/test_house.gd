@@ -543,6 +543,13 @@ func _a_deck_is_rimmed_by_the_top_style() -> void:
 	check(rim.filter(func(s): return s.kind == "block").reduce(func(m, s): return m + s.size.x, 0.0) > w.length() - 0.1, "the parapet runs all the way round")
 	var piers := w.stones.filter(func(s): return s.kind == "pier")
 	check(piers.reduce(func(m, s): return maxf(m, s.y), 0.0) > top + WallLayout.PARAPET, "corner piers rise past the parapet")
+	var luma := func(stones: Array) -> float: return stones.reduce(func(m, s): return m + s.color.get_luminance(), 0.0) / stones.size()
+	var course: float = luma.call(rim.filter(func(s): return s.kind == "cap"))
+	var flags: float = luma.call(of_kind(_gable(6.0, 4.0, 0.0, 0.6), "deck"))
+	var wall: float = luma.call(w.stones.filter(func(s): return s.kind == "block"))
+	check(course < flags * 0.6 and flags < wall * 0.9, "a deck's flags sit between the dark top course and the wall: %.2f, %.2f, %.2f" % [course, flags, wall])
+	var head: Dictionary = piers.reduce(func(m, s): return s if s.y > m.y else m)
+	check(head.color.get_luminance() < flags * 0.6, "a corner pier's head is as dark as the top course: %.2f" % head.color.get_luminance())
 	w.top = WallLayout.Top.CRENEL
 	w.build(Terrain.flat)
 	check(w.stones.any(func(s): return s.kind == "merlon") and not w.stones.any(func(s): return s.kind == "block" and s.y > top), "a crenellated top rims a deck with merlons, no parapet")
