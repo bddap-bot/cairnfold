@@ -73,6 +73,7 @@ func _run() -> void:
 	_an_edit_imports_with_its_base()
 	_a_model_rests_at_its_saved_shape_percents()
 	_submeshes_take_slots_in_first_use_order()
+	_a_model_surface_draws_its_own_material()
 	_a_serialized_mesh_reads_as_its_model_would()
 	_gesture_faces_become_expressions()
 	_a_shape_name_keeps_each_renderers_weight()
@@ -2537,6 +2538,41 @@ func _submeshes_take_slots_in_first_use_order() -> void:
 	check(slots == [2, 0, 1], "a slot past the last submesh, a second pass over it, leaves the first-use pairing: %s" % [slots])
 
 
+
+## Each surface of a model instance's renderer draws its own material: the renderer lists them in Unity's slot order,
+## the order its polygons first use them, which _slot_of pairs surfaces by. In the fixture models' first polygons use
+## another material than Godot's first surface does.
+func _a_model_surface_draws_its_own_material() -> void:
+	var dir := ProjectSettings.globalize_path("user://slot_order")
+	DirAccess.make_dir_recursive_absolute(dir)
+	for f: String in ["new_seedsan_betterfbx.fbx", "new_seedsan_betterfbx.fbx.meta"]:
+		DirAccess.copy_absolute(avatar_file("seed-san/Models").path_join(f), dir.path_join(f))
+	var assets := Assets.new(dir)
+	var prefabs := Prefabs.new(assets)
+	var fbx: String = assets.of(["fbx"])[0]
+	var model := prefabs.model(fbx)
+	var state: GLTFState = model.state
+	var remapped := {}
+	for e: Variant in Yaml.list((assets.meta(fbx).get("ModelImporter", {}) as Dictionary).get("externalObjects")):
+		remapped[str(e.first.name)] = Yaml.guid(e.second)
+	var reordered := 0
+	for id: int in model.objects:
+		var object: Dictionary = model.objects[id]
+		if not object.type in Prefabs.RENDERERS:
+			continue
+		var node := state.get_nodes()[object.node]
+		var mesh: ArrayMesh = state.get_meshes()[node.mesh].mesh.get_mesh()
+		var surfaces := Prefabs.surface_names(mesh)
+		var order: Array = model.slots.get(node.original_name, [])
+		reordered += int(order.size() > 1 and order != surfaces)
+		var refs := Yaml.list(object.data.get("m_Materials"))
+		var drawn := UnityAvatar._slot_of(mesh, refs, assets, order).map(func(slot: int) -> String: return str(refs[slot].get("name", Yaml.guid(refs[slot]))))
+		var own := surfaces.map(func(n: String) -> String: return remapped.get(n, n))
+		check(drawn == own, "%s draws each surface with its own material %s: %s" % [node.original_name, own, drawn])
+	check(reordered > 0, "the fixture has a model whose surfaces Godot orders otherwise than its slots")
+	(prefabs.models[fbx].scene as Node).free()
+
+
 ## The descriptor's visemes and the FX layer's gesture faces become expressions: a face named for a mood takes that
 ## preset once, a later one of the same mood and any other keeps its own name; a clip no gesture plays, and a shape a
 ## face sets to zero, are no expression. Their shapes come first, visemes ahead of faces.
@@ -2626,7 +2662,6 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var prefabs := Prefabs.new(Assets.new(dir))
 	prefabs.assets.by_guid["model"] = {"file": "", "path": "model.fbx", "meta": ""}
 	prefabs.models["model"] = {"scene": root, "state": state, "objects": objects}
-	UnityAvatar._slot_cache["model"] = {}
 	var sk := Skeleton3D.new()
 	sk.add_bone("Hips")
 	var rests: Array[Transform3D] = [Transform3D.IDENTITY]

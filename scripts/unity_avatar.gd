@@ -27,7 +27,6 @@ extends SceneTree
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
-const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 const SerializedMesh = preload("res://../scripts/unity/serialized_mesh.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
@@ -1301,7 +1300,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 		var mirrored := _world_transform(objs, Prefabs.transform_of(objs, r[1])).basis.determinant() < 0.0
 		var saved: Array = Yaml.list(o.data.get("m_BlendShapeWeights"))
 		var refs: Array = Yaml.list(o.data.get("m_Materials"))
-		var slot_of: Array = serialized.slots if serialized is Dictionary else _slot_of(mesh, refs, prefabs.assets, _slots(prefabs, Yaml.guid(ref)).get(_model_name(model, mi), []))
+		var slot_of: Array = serialized.slots if serialized is Dictionary else _slot_of(mesh, refs, prefabs.assets, (model.get("slots", {}) as Dictionary).get(_model_name(model, mi), []))
 		for s in mesh.get_surface_count():
 			if mesh.surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
 				continue
@@ -1811,10 +1810,7 @@ static func _uv_channel(mesh: ArrayMesh, s: int, arrays: Array, channel: int, re
 ## submesh only draw it again, so they leave the pairing alone. Otherwise a surface takes the slot whose material is
 ## named like its FBX material ("Head" for "Head.003", "Eye" for "Eye Left"), and the rest pair in order.
 static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array) -> Array:
-	var names := []
-	for s in mesh.get_surface_count():
-		var m := mesh.surface_get_material(s)
-		names.append(String(m.resource_name) if m != null else "")
+	var names := Prefabs.surface_names(mesh)
 	var out := []
 	for s in names.size():
 		var i := order.find(names[s])
@@ -1850,15 +1846,6 @@ static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array)
 			taken[i] = true
 	return out
 
-
-static var _slot_cache := {}
-
-
-## The model's material slots by FBX model name (FbxSlots), read once.
-static func _slots(prefabs: Prefabs, guid: String) -> Dictionary:
-	if not _slot_cache.has(guid):
-		_slot_cache[guid] = FbxSlots.slots(prefabs.assets.by_guid[guid].file) if prefabs.assets.by_guid.has(guid) else {}
-	return _slot_cache[guid]
 
 
 ## The FBX name of the model node Godot made `mi` of.

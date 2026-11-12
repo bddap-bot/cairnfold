@@ -9,6 +9,7 @@ extends RefCounted
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
 const XXHash = preload("res://../scripts/unity/xxhash.gd")
+const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 
 const MASK := 0x7FFFFFFFFFFFFFFF
 ## The path Unity's model importer hashes the model's own GameObject by; its nodes' paths extend it.
@@ -187,10 +188,20 @@ static func renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
+## The names of the materials on `mesh`'s surfaces (an ArrayMesh or ImporterMesh), in surface order; "" for none.
+static func surface_names(mesh: Variant) -> Array:
+	var names := []
+	for i: int in mesh.get_surface_count():
+		var m: Material = mesh.surface_get_material(i) if mesh is Mesh else mesh.get_surface_material(i)
+		names.append(String(m.resource_name) if m != null else "")
+	return names
+
+
 ## The model with this GUID, imported once; empty if Godot cannot read it. Its "objects" are as Unity's importer makes
 ## them: a GameObject and Transform for the model and each node in it, and for each node with a mesh a
 ## SkinnedMeshRenderer (or MeshFilter and MeshRenderer for an unskinned one) whose materials are those the model's .meta
-## remaps, by name, or a material of that name in the package.
+## remaps, by name, or a material of that name in the package, in Unity's slot order: the order the node's polygons first
+## use them, which Godot's surfaces need not keep. Its "slots" are that order by FBX model name (FbxSlots).
 func model(guid: String) -> Dictionary:
 	if models.has(guid):
 		return models[guid]
@@ -217,6 +228,7 @@ func model(guid: String) -> Dictionary:
 		var first: Dictionary = (e as Dictionary).get("first", {})
 		if str(first.get("type", "")) == "UnityEngine:Material":
 			remapped[str(first.get("name", ""))] = e.get("second", {})
+	var slots := FbxSlots.slots(assets.by_guid[guid].file)
 	var by_name := {}
 	for m: String in assets.of(["mat"]):
 		by_name.get_or_add(assets.name(m), m)
@@ -259,10 +271,11 @@ func model(guid: String) -> Dictionary:
 		objects[tf] = {"type": "Transform", "guid": guid, "node": item[0], "data": {"m_GameObject": {"fileID": str(go)}, "m_Father": {"fileID": str(item[1])}, "m_LocalPosition": {"x": str(-p.x), "y": str(p.y), "z": str(p.z)}, "m_LocalRotation": {"x": str(q.x), "y": str(-q.y), "z": str(-q.z), "w": str(q.w)}, "m_LocalScale": {"x": str(s.x), "y": str(s.y), "z": str(s.z)}}}
 		if node.mesh >= 0:
 			var gm := state.get_meshes()[node.mesh]
+			var surfaces := surface_names(gm.mesh)
+			var order: Array = slots.get(name, [])
+			var listed: Array = order if not order.is_empty() and surfaces.all(func(n: String) -> bool: return n in order) else surfaces
 			var materials := []
-			for i in gm.mesh.get_surface_count():
-				var mat := gm.mesh.get_surface_material(i)
-				var mname := String(mat.resource_name) if mat != null else ""
+			for mname: String in listed:
 				var ref: Dictionary = remapped.get(mname, {})
 				if ref.is_empty() and by_name.has(mname):
 					ref = {"fileID": "2100000", "guid": by_name[mname]}
@@ -287,7 +300,7 @@ func model(guid: String) -> Dictionary:
 		for joint in state.get_skins()[renderer_skins[renderer]].joints_original:
 			bones.append({"fileID": str(transforms[joint])})
 		objects[renderer].data["m_Bones"] = bones
-	models[guid] = {"state": state, "scene": scene, "objects": objects}
+	models[guid] = {"state": state, "scene": scene, "objects": objects, "slots": slots}
 	return models[guid]
 
 
