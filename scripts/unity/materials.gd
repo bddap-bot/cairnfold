@@ -1350,7 +1350,8 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## emission and rim at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
 ## "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask blended in), "emission"
 ## map and, where a material's lighting has a toon shadow, "shade" and, where one has a second shade, "shade2" (its
-## shade colours, Liltoon.shade, and the albedo elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
+## shade colours, Liltoon.shade, and the albedo elsewhere) and, where a rim has a colour texture, "rimTint"
+## (Liltoon.rim_tint, white elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
 ## over its material's cell, which its decals name by "image"; and the `outline_layer`, which spans the atlas, not the
 ## entries.
 func looks() -> Dictionary:
@@ -1359,6 +1360,7 @@ func looks() -> Dictionary:
 	var matcap_textures := {}
 	var matcap_masks: Image
 	var glow: Image
+	var rim_tints: Image
 	var coat_maps := {}
 	var coat_images: Array[Image] = []
 	var shaded := []
@@ -1442,6 +1444,12 @@ func looks() -> Dictionary:
 		var rim := Liltoon.rim(m) if Liltoon.is_liltoon(m) else {}
 		if not rim.is_empty():
 			entry.rim = rim
+			var tint := Liltoon.rim_tint(self, m)
+			if tint != null:
+				if rim_tints == null:
+					rim_tints = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
+					rim_tints.fill(Color.WHITE)
+				rim_tints.blit_rect(tint, Rect2i(Vector2i.ZERO, padded.size), padded.position)
 		entries.append(entry)
 	var outlines := outline_layer()
 	if entries.is_empty():
@@ -1452,6 +1460,8 @@ func looks() -> Dictionary:
 		out.matcapMasks = _layer(matcap_masks, RESAMPLE)
 	if glow != null:
 		out.emission = _layer(glow, RESAMPLE, GLOW_LAYER)
+	if rim_tints != null:
+		out.rimTint = _layer(rim_tints, RESAMPLE, GLOW_LAYER)
 	if not coat_images.is_empty():
 		out.clearcoatMaps = coat_images
 	for second: bool in [false, true].slice(0, 0 if shaded.is_empty() else 2 if second_shaded else 1):

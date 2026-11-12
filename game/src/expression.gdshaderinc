@@ -40,6 +40,8 @@ uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, rep
 // A flat material's shade colours (unity/liltoon.gd shade), and the albedo elsewhere.
 uniform sampler2D shade : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 uniform sampler2D shade2 : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
+// A rim's colour texture times its alpha (unity/liltoon.gd rim_tint), white where none tints it.
+uniform sampler2D rim_tint : source_color, hint_default_white, filter_linear_mipmap, repeat_disable;
 // The looks table column of the vertex's material where the table has toon rows, else -1; how far its true normal
 // faces the main light, lilToon's half Lambert; and the whole light it takes, capped where flat, which its rim takes
 // where lit.
@@ -456,7 +458,7 @@ void fragment() {
 			float fresnel = pow(1.0 - facing, edge.w);
 			float fresnel_width = edge.w * pow(max(1.0 - facing, 1e-4), edge.w - 1.0) * facing_width;
 			float r = toon(fresnel, edge.y, edge.z, 0.0, fresnel_width) * mix(1.0, shadowmix, reach.y) * rim.a;
-			rim_light = rim.rgb * mix(vec3(1.0), albedo, edge.x) * mix(vec3(1.0), toon_light, reach.x) * r;
+			rim_light = rim.rgb * textureGrad(rim_tint, uv, dx, dy).rgb * mix(vec3(1.0), albedo, edge.x) * mix(vec3(1.0), toon_light, reach.x) * r;
 		}
 	}
 #endif

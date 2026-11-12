@@ -318,7 +318,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   unturned, masked by `_MainColorAdjustMask`), its 2nd and 3rd main textures drawn by UV0 before light and its alpha
   mask; its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
   "shade" layer ("shade2" for a second shade) and turn with the menu's hue, tone and colour as the albedo does, its
-  rim (on back faces only where `_RimBackfaceMask` is 0), its first two matcaps and its emissions. A feature drawn in
+  rim (on back faces only where `_RimBackfaceMask` is 0, tinted by its colour texture, which lies in the "rimTint"
+  layer), its first two matcaps and its emissions. A feature drawn in
   a way the looks cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported
   among the material features not drawn. An avatar without a menu still carries its materials' looks.
 

@@ -322,13 +322,12 @@ static func shade(materials: Materials, m: Dictionary, albedo: Image, second: bo
 
 
 ## The rim light as the looks carry it, what of it they cannot hold, or null where it is off: a fresnel rim added after
-## light, on back faces too ("backface") only where _RimBackfaceMask is 0, as lilToon hides it there at any mask above;
-## not one coloured by a texture, shaped by the light's direction or blended other than by adding.
+## light, on back faces too ("backface") only where _RimBackfaceMask is 0, as lilToon hides it there at any mask above,
+## tinted by its colour texture in the looks' "rimTint" layer (`rim_tint`); not one shaped by the light's direction or
+## blended other than by adding.
 static func _rim(m: Dictionary) -> Variant:
 	if not _on(m, "_UseRim", "rim"):
 		return null
-	if Materials._texture_guid(m, "_RimColorTex") != "":
-		return "colour texture"
 	if compiled(m, "rim direction") and Materials._float(m, "_RimDirStrength") != 0.0:
 		return "light direction"
 	var mode := int(Materials._float(m, "_RimBlendMode", 1.0))
@@ -341,6 +340,26 @@ static func _rim(m: Dictionary) -> Variant:
 static func rim(m: Dictionary) -> Dictionary:
 	var drawn: Variant = _rim(m)
 	return drawn if drawn is Dictionary else {}
+
+
+## The rim's colour texture over the material's padded cell, sRGB-encoded, its colour times its alpha in linear light
+## (the rim adds both as factors), read through the main texture's tiling and then its own, as lilToon samples it at the
+## main UV; null where the rim draws none.
+static func rim_tint(materials: Materials, m: Dictionary) -> Image:
+	var source := materials._slot_image(m, "_RimColorTex") if _rim(m) is Dictionary else null
+	if source == null:
+		return null
+	var srgb := materials._srgb(Materials._texture_guid(m, "_RimColorTex"))
+	var tiling := _through_main(m, "_RimColorTex")
+	var tint := materials._tiled(m, source, tiling[0], tiling[1], (m.cell as Rect2i).size, Materials.PAD)
+	var data := tint.get_data()
+	for i in range(0, data.size(), 4):
+		var a := data[i + 3] / 255.0
+		for c in 3:
+			data[i + c] = _encoded((Materials._LINEAR[data[i + c]] if srgb else data[i + c] / 255.0) * a)
+		data[i + 3] = 255
+	tint.set_data(tint.get_width(), tint.get_height(), false, Image.FORMAT_RGBA8, data)
+	return tint
 
 
 ## Matcap `slot` (0 the first, 1 the second) as {"scale", "mode"}, what of it the looks cannot hold, or null where it is

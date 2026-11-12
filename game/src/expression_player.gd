@@ -336,7 +336,7 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_icons", icons)
 	var looks: Dictionary = data.get("looks", {})
 	var untinted: Dictionary = data.get("untinted", {})
-	for pair: Array in [[data.get("hueMask"), "hue_mask"], [untinted.get("image"), "untinted"], [looks.get("emission"), "glow"], [looks.get("shade"), "shade"], [looks.get("shade2"), "shade2"]]:
+	for pair: Array in [[data.get("hueMask"), "hue_mask"], [untinted.get("image"), "untinted"], [looks.get("emission"), "glow"], [looks.get("shade"), "shade"], [looks.get("shade2"), "shade2"], [looks.get("rimTint"), "rim_tint"]]:
 		if pair[0] is Image:
 			model.set_meta("expression_" + pair[1], ImageTexture.create_from_image(pair[0]))
 	var cells: Array = untinted.get("cells", [])
@@ -398,7 +398,7 @@ func _light_looks(model: Node3D) -> Variant:
 	var coat_maps: Texture2DArray = model.get_meta("expression_coat_maps") if model.has_meta("expression_coat_maps") else _empty_array()
 	var matcaps: Texture2DArray = model.get_meta("expression_matcaps") if model.has_meta("expression_matcaps") else _empty_array()
 	var masks: Texture2D = model.get_meta("expression_matcap_masks") if model.has_meta("expression_matcap_masks") else null
-	var shades: Array = ["shade", "shade2"].map(func(layer: String) -> Variant: return model.get_meta("expression_" + layer) if model.has_meta("expression_" + layer) else null)
+	var layers: Array = ["shade", "shade2", "rim_tint"].map(func(layer: String) -> Variant: return model.get_meta("expression_" + layer) if model.has_meta("expression_" + layer) else null)
 	for mesh: MeshInstance3D in looked:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
@@ -409,8 +409,9 @@ func _light_looks(model: Node3D) -> Variant:
 			mat.set_shader_parameter("coat_maps", coat_maps)
 			mat.set_shader_parameter("matcaps", matcaps)
 			mat.set_shader_parameter("matcap_masks", masks)
-			mat.set_shader_parameter("shade", shades[0])
-			mat.set_shader_parameter("shade2", shades[1])
+			mat.set_shader_parameter("shade", layers[0])
+			mat.set_shader_parameter("shade2", layers[1])
+			mat.set_shader_parameter("rim_tint", layers[2])
 			mat.set_shader_parameter("mirror_mask", Quality.MIRROR_MASK)
 	return textures[1]
 

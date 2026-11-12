@@ -2360,10 +2360,10 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 			"_UseMatCap2nd": 1, "_MatCap2ndBlendMode": 3,
 			"_UseEmission": 1, "_EmissionBlend": 0.6,
 		}, {"_ShadowColor": Color(0.5, 0.5, 0.5, 1), "_Shadow2ndColor": Color(1, 0, 0, 0.5), "_ShadowBorderColor": Color(0, 0, 0, 1), "_RimColor": Color(1, 0.5, 0.25, 0.8), "_EmissionColor": Color(1, 0.5, 0, 1), "_MainTex_ScrollRotate": Color(0, 0, 0, 0)},
-		{"_MainTex": "grey", "_ShadowStrengthMask": "half", "_MatCapTex": ["gold", Vector2(0.8, 0.8), Vector2.ZERO], "_MatCapBlendMask": "half", "_EmissionMap": "half"}),
+		{"_MainTex": "grey", "_ShadowStrengthMask": "half", "_MatCapTex": ["gold", Vector2(0.8, 0.8), Vector2.ZERO], "_MatCapBlendMask": "half", "_EmissionMap": "half", "_RimColorTex": "tint"}),
 		"eye": _liltoon_mat(LILTOON_MULTI, "_EMISSION", {"_UseRim": 1, "_UseEmission": 1, "_UseEmission2nd": 1}, {"_EmissionMap_ScrollRotate": Color(0.5, 0, 0, 0)}, {"_MainTex": "grey"}),
 		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5, "_UseRim": 1, "_RimBackfaceMask": 0, "_UseMatCap": 1, "_MatCapShadowMask": 0.6}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey"}),
-	}, {"grey": [grey, grey, grey, grey], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "gold": [Color(1, 0.8, 0.2, 1)]})
+	}, {"grey": [grey, grey, grey, grey], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "gold": [Color(1, 0.8, 0.2, 1)], "tint": [Color(1, 0.5, 0, 0.5)]})
 	var materials := Materials.new(assets)
 	for key: String in ["skin", "eye", "glow"]:
 		materials.use({"guid": key}, Color.WHITE)
@@ -2380,6 +2380,13 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	var rim := Color(1, 0.5, 0.25).srgb_to_linear()
 	check(skin.get("rim") == {"color": [rim.r, rim.g, rim.b], "strength": Color(0, 0, 0, 0.8).a, "main": 0.0, "border": 0.6, "blur": 0.65, "power": 2.0, "lit": 1.0, "shadowMask": 0.5, "backface": false}, "the rim carries its linear colour, strength and shape, hidden on back faces by default: %s" % [skin.get("rim")])
 	check(entries[2].get("rim", {}).get("backface") == true, "a rim whose back face mask is none draws on back faces: %s" % [entries[2].get("rim")])
+	var tint: Variant = looks.get("rimTint")
+	check(tint is Image, "a rim colour texture lies in the rim tint layer")
+	if tint is Image:
+		var tinted: Array = _row(materials, tint, "skin")
+		var half := Color(0.5 * Color(0.5, 0, 0).srgb_to_linear().r, 0, 0).linear_to_srgb().r
+		check(tinted.all(func(c: Color) -> bool: return _near(c, Color(Color(0.5, 0, 0).linear_to_srgb().r, half, 0, 1))), "the rim tint is its texture's colour times its alpha in linear light over the rim's cell: %s" % [tinted])
+		check(_row(materials, tint, "glow").all(func(c: Color) -> bool: return _near(c, Color.WHITE)), "a rim without a colour texture lies under white: %s" % [_row(materials, tint, "glow")])
 	var shade: Variant = looks.get("shade")
 	var shade2: Variant = looks.get("shade2")
 	check(shade is Image and shade2 is Image, "the shade layers are images")

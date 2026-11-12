@@ -89,22 +89,25 @@ static func valid(data: Dictionary) -> bool:
 ## ramp-lit one is capped at "cap" when it has one, with a toon "shadow" null or its numbers (unity/materials.gd
 ## lighting), an "emission" null or its linear "color", "strength" and, optionally, "replace" and "theme", the slot of
 ## the global theme colour it glows in among the material's "themes" (unity/materials.gd `_theme`), and a "rim" null or
-## its linear "color", numbers and whether it draws on back faces, "backface". A shadow draws by the looks' "shade"
-## layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
+## its linear "color", numbers and whether it draws on back faces, "backface", tinted by the looks' "rimTint" layer where
+## they carry one. A shadow draws by the looks' "shade" layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
 ## "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is
 ## refused rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		push_error("expressions: the looks are not a dictionary")
 		return false
-	if not looks.get("decals", []) is Array or ["emission", "index", "shade", "shade2"].any(func(k: String) -> bool: return looks.has(k) and not looks[k] is Image):
-		push_error("expressions: the looks' decals, emission map, material index or shade layers are not images")
+	if not looks.get("decals", []) is Array or ["emission", "index", "shade", "shade2", "rimTint"].any(func(k: String) -> bool: return looks.has(k) and not looks[k] is Image):
+		push_error("expressions: the looks' decals, emission map, material index, shade layers or rim tint are not images")
 		return false
 	if not (looks.get("matcaps", []) is Array and looks.get("matcaps", []).all(func(t: Variant) -> bool: return t is Image)) or (looks.has("matcapMasks") and not looks.matcapMasks is Image):
 		push_error("expressions: the looks' matcaps or matcap masks are not images")
 		return false
 	if looks.has("outline") and not (looks.outline is Image and _number(looks.get("outlineWidth")) and float(looks.outlineWidth) > 0.0):
 		push_error("expressions: looks carry an outline layer without a positive outlineWidth")
+		return false
+	if looks.has("rimTint") and not (looks.get("materials") is Array and looks.materials.any(func(m: Variant) -> bool: return m is Dictionary and m.get("rim") is Dictionary)):
+		push_error("expressions: looks carry a rim tint where no material draws a rim")
 		return false
 	if not looks.has("materials"):
 		return true

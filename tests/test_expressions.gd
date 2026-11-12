@@ -519,7 +519,7 @@ func _toon() -> void:
 	var shadow := {"border": 0.5, "blur": 0.1, "strength": 0.9, "second": {"border": 0.2, "blur": 0.05, "weight": 0.7}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
 	var rim := {"color": [0.6, 0.5, 0.4], "strength": 0.8, "main": 0.25, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5, "backface": true}
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 0.9, 0.8, 1.0], "intensity": 0.75, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 0.6, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.4, "lightMask": 1.0, "hue": null, "circle": null, "theme": null}
-	var looks := {"shade": layer, "shade2": layer, "matcaps": [layer], "materials": [
+	var looks := {"shade": layer, "shade2": layer, "rimTint": layer, "matcaps": [layer], "materials": [
 		{"lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
 		{"lighting": {"model": "lit"}, "rim": rim},
 		{"lighting": {"model": "lit"}, "matcaps": [null, matcap, null, null]},
@@ -528,6 +528,8 @@ func _toon() -> void:
 		check(ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [m]}), "a toon look in the shape the renderer draws is valid: %s" % [m])
 	for bad: Dictionary in [{"lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}]:
 		check(not ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [bad]}), "a malformed toon look is refused: %s" % [bad])
+	check(not ExpressionDefinition.looks_valid({"index": layer, "rimTint": "a PNG", "materials": [looks.materials[1]]}), "a rim tint that is not an image is refused")
+	check(ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[1]]}) and not ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[0]]}), "a rim tint is valid beside a rim and refused where no material draws one")
 	var meshes := _shown(looks, 4, {0: [[1, 1, -0.5, 0]]})
 	var table: Image = (meshes[0].get_surface_material(0).get_meta("lighting") as Texture2D).get_image()
 	var row := Avatar.HEAD_ROWS + Avatar.RAMP + Avatar.COAT_ROWS + 1 + Avatar.MATCAPS * Avatar.MATCAP_ROWS
@@ -548,7 +550,7 @@ func _toon() -> void:
 	check([0, 1, 4].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader"), "meshes showing a shadow or a rim, or swapped to one, draw with the toon shader: %s" % [shown.map(shader)])
 	check(shader.call(shown[2]) == "expression.gdshader" and shader.call(shown[3]) == "expression.gdshader", "a mesh showing a matcap or only a plain flat material keeps the shader without toon looks: %s" % [shown.map(shader)])
 	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
-	check(mat.get_shader_parameter("shade") is Texture2D and mat.get_shader_parameter("shade2") is Texture2D, "a toon mesh binds the shade layers")
+	check(mat.get_shader_parameter("shade") is Texture2D and mat.get_shader_parameter("shade2") is Texture2D and mat.get_shader_parameter("rim_tint") is Texture2D, "a toon mesh binds the shade layers and the rim tint")
 	Avatar.show_toon(false)
 	check(shown.all(func(mi: MeshInstance3D) -> bool: return shader.call(mi) == "expression.gdshader"), "a step without toon shading draws every toon mesh with the shader without it: %s" % [shown.map(shader)])
 	check(mat.get_shader_parameter("lighting") is Texture2D and mat.get_shader_parameter("light_index") is Texture2D, "and keeps its looks bound")
