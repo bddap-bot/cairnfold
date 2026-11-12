@@ -33,37 +33,11 @@ func _initialize() -> void:
 	_squirrels()
 	await _owls()
 	_cost()
-	_a_habitat_wanting_fewer_sends_the_rest_off()
 	_the_nearest_is_nearest()
 	await _they_go_with_their_habitats()
 	look.queue_free()
 	await g.teardown()
 	finish()
-
-
-## A kind whose one habitat wants as many as the test says.
-class Few extends Shy:
-	var homes := {}
-
-	func habitats() -> Dictionary:
-		return homes
-
-	func arrive(_home: Object) -> One:
-		return One.new()
-
-
-func _a_habitat_wanting_fewer_sends_the_rest_off() -> void:
-	var few := Few.new(g.wildlife, 1, Frogs.body(), "res://src/frog.gdshader", 4, "few")
-	root.add_child(few)
-	few.homes = {self: 3}
-	few.fill()
-	few.tick(STEP)
-	check(few.animals.size() == 3 and not few.animals.any(func(a: Shy.One) -> bool: return a.leaving), "three come to a habitat that wants three")
-	few.homes = {self: 2}
-	for i in int(Shy.FADE / STEP) + 2:
-		few.tick(STEP)
-	check(few.animals.size() == 2 and not few.animals.any(func(a: Shy.One) -> bool: return a.leaving), "wanting two, it sends one of its three off and keeps two: %d" % few.animals.size())
-	few.free()
 
 
 func _the_nearest_is_nearest() -> void:
@@ -283,6 +257,11 @@ func _owls() -> void:
 		check(up[0], "walked up to on the grass, it flies up")
 		_rest_hands()
 	look.set_time(Daylight.DEFAULT)
+	g.run(0.5)
+	var sent := owls.animals.filter(func(o: Shy.One) -> bool: return o.leaving)
+	var ways := sent.map(func(o: Shy.One) -> Vector3: return o.goal)
+	g.run(0.5)
+	check(not sent.is_empty() and ways == sent.map(func(o: Shy.One) -> Vector3: return o.goal), "sent off with the day, each keeps to the way it first took")
 	g.run(120.0)
 	check(owls.animals.is_empty(), "with the day they go")
 

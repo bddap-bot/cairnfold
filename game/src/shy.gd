@@ -101,12 +101,9 @@ func tick(delta: float) -> void:
 	_moving.assign(wildlife._watched().filter(func(n: Node3D) -> bool: return not wildlife.still(n)))
 	var homes := habitats()
 	var have := {}
-	for a in animals:
-		if not a.leaving and (not homes.has(a.home) or have.get(a.home, 0) >= homes[a.home]):
-			a.leaving = true
-			leave(a)
-		if not a.leaving:
-			have[a.home] = have.get(a.home, 0) + 1
+	for a: One in Wildlife._surplus(animals, &"home", homes, have):
+		a.leaving = true
+		leave(a)
 	var short := homes.keys().filter(func(h: Object) -> bool: return have.get(h, 0) < homes[h])
 	for h in wildlife._ripe(_due, short, after, delta, active() and animals.size() < cap, rng):
 		_due.erase(h)

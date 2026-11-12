@@ -141,12 +141,8 @@ func tick(delta: float) -> void:
 			if wildlife.sudden(n):
 				startling.append(n.global_position)
 	var have := {}
-	for f in swimming:
-		if not f.leaving:
-			if have.get(f.pond, 0) >= _want.get(f.pond, 0):
-				f.leaving = true
-			else:
-				have[f.pond] = have.get(f.pond, 0) + 1
+	for f: One in Wildlife._surplus(swimming, &"pond", _want, have):
+		f.leaving = true
 	var waiting := _want.keys().filter(func(p: PondWater) -> bool: return not _came.has(p) and p.full())
 	for p in wildlife._ripe(_due, waiting, Wildlife.ARRIVE_AFTER, delta, true, rng):
 		_due.erase(p)

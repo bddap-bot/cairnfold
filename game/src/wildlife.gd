@@ -787,6 +787,20 @@ static func _pond_quota(p: PondWater, ponds: int, cap: int, each: int, most: int
 	return clampi(p.pond.cells.size() / each, mini(1, share), mini(most, share))
 
 
+## Counts into `have`, by the habitat each one's `key` names, the `animals` that stay, and returns the ones to send
+## off: those beyond the count `want` gives their habitat, or whose habitat it does not name.
+static func _surplus(animals: Array, key: StringName, want: Dictionary, have: Dictionary) -> Array:
+	var over := []
+	for a in animals:
+		# Untyped: a habitat that has gone is a freed object, which a typed variable refuses.
+		var h: Variant = a.get(key)
+		if not a.leaving and have.get(h, 0) < want.get(h, 0):
+			have[h] = have.get(h, 0) + 1
+		elif not a.leaving:
+			over.append(a)
+	return over
+
+
 func _swims_clear(from: Vector3, to: Vector2, pond: PondWater = null) -> bool:
 	if walls == null or from == Vector3.INF:
 		return true
