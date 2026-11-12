@@ -53,7 +53,8 @@ signal grown
 ## `survivors` also bakes, per cell, the plants whose rank (colour alpha) is under it, and draws those instead of the
 ## whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill `capacity`
 ## in order and, once it is full, replace the oldest; each is drawn in a Patch, a growing MultiMesh per `cell`
-## square, so painted plants off screen or past reach cost nothing either. Every tree has the same number of
+## square, so painted plants off screen or past reach cost nothing either, and a patch past `sparse_from` draws its
+## survivors alone as a cell does. Every tree has the same number of
 ## blobs, so the trunk and foliage pools recycle in step.
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
@@ -191,17 +192,31 @@ class Pool:
 			p.mm.visible_instance_count = 0
 			p.mmi = _show(p.mm)
 			p.mmi.set_instance_shader_parameter(&"planted", planted)
+			if survivors > 0.0:
+				p.few = MultiMesh.new()
+				setup(p.few, drawn, Patch.FIRST)
+				p.few.visible_instance_count = 0
+				p.few_mmi = _show(p.few)
+				p.few_mmi.set_instance_shader_parameter(&"planted", planted)
+				p.few_mmi.layers = Quality.LADDER_LAYER
+				p.few_mmi.visible = false
 			_patches[key] = p
 		var n := p.slots.size()
 		if n == p.mm.instance_count:
 			p.mm.instance_count = n * 2
 			terrain.lift(p.mm, p.box)
+			if p.few != null:
+				p.few.instance_count = n * 2
+				p.few.visible_instance_count = p.survivors
+				terrain.lift(p.few, p.box)
 			for k in n:
 				_write(p, k, p.slots[k])
 		var box := _over_ground(_xforms[i] * mesh.get_aabb())
 		if n == 0 or not p.box.encloses(box):
 			p.box = box if n == 0 else p.box.merge(box)
 			terrain.lift(p.mm, p.box)
+			if p.few != null:
+				terrain.lift(p.few, p.box)
 		p.slots.append(i)
 		p.water_plants = (n > 0 and p.water_plants) or water_plants_further and _water_plant(i)
 		p.mm.visible_instance_count = n + 1
@@ -209,28 +224,50 @@ class Pool:
 		_patch_of[j] = p
 		_index_in_patch[j] = n
 		_write(p, n, i)
+		if _colors[i].a < survivors:
+			_swap(p, n, p.survivors)
+			p.survivors += 1
+			if p.few != null:
+				p.few.visible_instance_count = p.survivors
 
-	## Takes painted slot `j` out of its patch, its last instance moving into the gap.
+	## Takes painted slot `j` out of its patch, its last instance moving into the gap; its survivors stay first.
 	func _unpatch(j: int) -> void:
 		var p := _patch_of[j]
 		if p == null:
 			return
 		var k := _index_in_patch[j]
 		var end: int = p.slots.size() - 1
-		if k != end:
-			var moved: int = p.slots[end]
-			p.slots[k] = moved
-			_index_in_patch[moved - kept] = k
-			_write(p, k, moved)
+		if k < p.survivors:
+			p.survivors -= 1
+			_swap(p, k, p.survivors)
+			k = p.survivors
+			if p.few != null:
+				p.few.visible_instance_count = p.survivors
+		_swap(p, k, end)
 		p.slots.resize(end)
 		p.mm.visible_instance_count = end
 		p.mmi.visible = end > 0
 		_patch_of[j] = null
 
+	func _swap(p: Patch, a: int, b: int) -> void:
+		if a == b:
+			return
+		var i: int = p.slots[a]
+		p.slots[a] = p.slots[b]
+		p.slots[b] = i
+		_index_in_patch[p.slots[a] - kept] = a
+		_index_in_patch[i - kept] = b
+		_write(p, a, p.slots[a])
+		_write(p, b, i)
+
 	func _write(p: Patch, k: int, i: int) -> void:
 		p.mm.set_instance_transform(k, _xforms[i])
 		p.mm.set_instance_color(k, _colors[i])
 		p.mm.set_instance_custom_data(k, _customs[i])
+		if p.few != null and _colors[i].a < survivors:
+			p.few.set_instance_transform(k, _xforms[i])
+			p.few.set_instance_color(k, _colors[i])
+			p.few.set_instance_custom_data(k, _customs[i])
 
 	static func square(at: Vector3) -> Vector2i:
 		return Vector2i(floori(at.x / GRID), floori(at.z / GRID))
@@ -290,6 +327,8 @@ class Pool:
 				_sparse_cells.append(mmi)
 		for p: Patch in _patches.values():
 			p.mmi.free()
+			if p.few_mmi != null:
+				p.few_mmi.free()
 		_patches = {}
 		capacity -= kept
 		_count = 0
@@ -327,8 +366,11 @@ class Pool:
 			stamps[i] += 1
 		for p: Patch in _patches.values():
 			p.slots.clear()
+			p.survivors = 0
 			p.mm.visible_instance_count = 0
 			p.mmi.visible = false
+			if p.few != null:
+				p.few.visible_instance_count = 0
 		_patch_of.fill(null)
 		_count = 0
 		if far != null:
@@ -460,6 +502,8 @@ class Pool:
 			c.multimesh.mesh = m
 		for p: Patch in _patches.values():
 			p.mm.mesh = m
+			if p.few != null:
+				p.few.mesh = m
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
 	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo. A patch holding
@@ -479,11 +523,14 @@ class Pool:
 		for p: Patch in _patches.values():
 			var lo := Vector2(p.box.position.x, p.box.position.z) - Vector2(eye.x, eye.z)
 			var hi := Vector2(p.box.end.x, p.box.end.z) - Vector2(eye.x, eye.z)
-			var gap := Vector2(maxf(maxf(lo.x, -hi.x), 0.0), maxf(maxf(lo.y, -hi.y), 0.0))
-			var layers := 1 if gap.length() < (water_reach if p.water_plants else reach) else Quality.FULL_LAYER
+			var gap := Vector2(maxf(maxf(lo.x, -hi.x), 0.0), maxf(maxf(lo.y, -hi.y), 0.0)).length()
+			var end := water_reach if p.water_plants else reach
+			var layers := 1 if gap < minf(sparse_from, end) else Quality.FULL_LAYER
 			if layers != p.layers:
 				p.layers = layers
 				p.mmi.layers = layers
+			if p.few != null:
+				p.few_mmi.visible = p.survivors > 0 and gap >= sparse_from and gap < end
 
 	## Finds again which patches crossing `area` hold a water plant, as the ponds and the ground there now lie.
 	func rewet(area: Rect2) -> void:
@@ -537,6 +584,11 @@ class Patch:
 	const FIRST := 64
 	var mm: MultiMesh
 	var mmi: MultiMeshInstance3D
+	## In a pool with `survivors`, `few` draws the patch's first `survivors` instances, its plants ranked under the
+	## pool's share, in place of `mm` once the patch lies wholly beyond `sparse_from`.
+	var few: MultiMesh
+	var few_mmi: MultiMeshInstance3D
+	var survivors := 0
 	var slots := PackedInt32Array()
 	## The layers `Pool.cull` last gave `mmi`.
 	var layers := 1

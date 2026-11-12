@@ -18,6 +18,7 @@ func _run() -> void:
 	_flowers_vary_by_patch()
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
+	_painted_grass_thins_with_distance()
 	_painted_plants_are_drawn_by_the_square()
 	_painted_flowers_draw_to_the_water_reach()
 	_ground_paints_far_grass()
@@ -204,6 +205,9 @@ func _only_placed_plants_grow_under_water() -> void:
 	var placed := []
 	for pool: Flora.Pool in [t.flora.grass, t.flora.ghost_grass, t.flora.flowers, t.flora.ghost_flowers]:
 		placed.append_array(pool.patches())
+		for p: Flora.Patch in pool._patches.values():
+			if p.few_mmi != null:
+				placed.append(p.few_mmi)
 	var cells := 0
 	for mmi: MultiMeshInstance3D in t.flora.get_children():
 		if mmi.material_override not in [t.flora.grass_mat, t.flora.flower_mat]:
@@ -366,6 +370,45 @@ func _grass_thins_with_distance() -> void:
 	# A dummy renderer keeps no instance transforms, so where taking a plant out writes is checked instead.
 	check(g._cell_of[1] == g._cell_of[2] and g._index_in_cell[1] != g._index_in_cell[2], "each clump of a cell has its own place in it")
 	check(g._sparse_cell_of[1] != null and g._sparse_cell_of[2] == null, "and a survivor its place in the sparse cell too")
+	flora.queue_free()
+
+
+## Painted grass past sparse_from draws its survivors alone, as the meadow's cells do; a photo still draws every clump.
+func _painted_grass_thins_with_distance() -> void:
+	var flora := Flora.new(Terrain.new(), Ground.new())
+	root.add_child(flora)
+	flora.keep()
+	var g := flora.grass
+	var rng := _rng(14)
+	var mid := Vector3(g.sparse_from + g.cell * 1.5, 0, 0.5)
+	for i in 200:
+		flora.add_grass(mid + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)), rng)
+	var p: Flora.Patch = g._patch_of[0]
+	var ranked := func(patch: Flora.Patch) -> Array:
+		return Array(patch.slots).map(func(i: int) -> bool: return g._colors[i].a < g.survivors)
+	var survivors: int = ranked.call(p).count(true)
+	check(survivors > 0 and survivors < 200, "some painted clumps survive: %d" % survivors)
+	check(p.survivors == survivors and not ranked.call(p).slice(0, survivors).has(false), "a patch keeps its survivors first")
+	g.cull(Vector3.ZERO, flora.grass_reach)
+	check(p.few_mmi.visible and p.few_mmi.layers & Quality.VIEW_MASK, "a patch past sparse_from draws its survivors")
+	check(p.few.visible_instance_count == survivors, "and them alone: %d" % p.few.visible_instance_count)
+	check(not p.mmi.layers & Quality.VIEW_MASK and p.mmi.layers & Quality.PHOTO_MASK, "its every clump only for a photo")
+	check(not p.few_mmi.layers & Quality.PHOTO_MASK, "which does not draw the survivors twice")
+	for j in range(0, 200, 3):
+		g.place(g.kept + j, Transform3D(Basis.IDENTITY, mid + Vector3(g.cell, 0, 0)))
+	var q: Flora.Patch = g._patch_of[0]
+	for patch: Flora.Patch in [p, q]:
+		var left: Array = ranked.call(patch)
+		check(patch.survivors == left.count(true) and not left.slice(0, patch.survivors).has(false), "moving clumps out keeps each patch's survivors first")
+		check(patch.few.visible_instance_count == patch.survivors, "and draws them all")
+		for k in patch.slots.size():
+			check(g._index_in_patch[patch.slots[k] - g.kept] == k, "each clump knows its place")
+			if g._index_in_patch[patch.slots[k] - g.kept] != k:
+				break
+	g.cull(Vector3(mid.x, 0, 0), flora.grass_reach)
+	check(not p.few_mmi.visible and p.mmi.layers & Quality.VIEW_MASK, "near, a patch draws every clump")
+	g.reset()
+	check(p.survivors == 0 and p.few.visible_instance_count == 0, "reset empties the survivors too")
 	flora.queue_free()
 
 
