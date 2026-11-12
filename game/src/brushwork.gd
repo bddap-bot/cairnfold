@@ -45,8 +45,14 @@ const PIGMENTS := [
 const CHARCOAL := Vector3(2.3, 2.25, 2.1)
 const MAX_DENSITY := 8.0
 const MAX_SAMPLES := 512
+## Most dabs one stroke lays (`dabs`), what laying it costs every machine that replays it. The longest stroke in the
+## recorded sessions laid 15561; the easel tool ends a stroke here as it does at MAX_SAMPLES, so none it paints is
+## refused.
+const MAX_DABS := 32768
 ## Most samples one canvas holds across its strokes; past it the canvas takes no more until a fresh sheet.
 const MAX_TOTAL := 120000
+## Most dabs one canvas lays across its strokes: MAX_TOTAL samples at the densest recorded canvas's 32 dabs a sample.
+const MAX_LAID := MAX_TOTAL * 32
 const MAX_STROKES := 4000
 ## Floats per dab: x, y, major radius, pressure; heading (charcoal minor radius), load, dryness, footprint angle.
 const DAB := 8
@@ -131,15 +137,40 @@ static func count(stroke: Dictionary) -> int:
 	return stroke.samples.size() / 2
 
 
-static func total(strokes: Array) -> int:
-	var n := 0
+## Whether a surface keeps clean `strokes` and `more` strokes besides, of `samples` samples laying `dabs` dabs.
+static func holds(strokes: Array, more := 0, samples := 0, dabs := 0) -> bool:
 	for s: Dictionary in strokes:
-		n += count(s)
+		samples += count(s)
+		dabs += s.dabs
+	return strokes.size() + more <= MAX_STROKES and samples <= MAX_TOTAL and dabs <= MAX_LAID
+
+
+## `brush`'s radius in texels pressed `pressure`.
+static func radius(brush: Brush, pressure: float) -> float:
+	var r := radii(brush)
+	return lerpf(r.x, r.y, pow(pressure, 0.7))
+
+
+## How `stroke`'s brush moves from sample `prev` to sample `s` (as `unpack` gives them) on a surface `texels` large:
+## how many dabs it lays between them (none for a stick that only lifts or lowers), how far its points go on average,
+## and how far apart its dabs lie.
+static func span(stroke: Dictionary, prev: Array, s: Array, texels := Vector2(SIZE)) -> Vector3:
+	var swept := sweep(stroke.brush, prev[0] * texels, prev[2], s[0] * texels, s[2], maxf(prev[4], s[4]))
+	var spacing := maxf(minf(radius(stroke.brush, prev[1]), radius(stroke.brush, s[1])) * SPACING, 0.5)
+	var n := 0 if stroke.medium == Medium.CHARCOAL and swept.y < 1e-5 else maxi(ceili(swept.x / spacing), 1)
+	return Vector3(n, swept.y, spacing)
+
+
+## How many dabs `stroke` lays on a canvas, counted without laying them.
+static func dabs(stroke: Dictionary) -> int:
+	var n := 1
+	for i in range(1, count(stroke)):
+		n += int(span(stroke, unpack(stroke.samples, i - 1), unpack(stroke.samples, i)).x)
 	return n
 
 
-## A stroke as a command carries it, or null: every field in range, so a peer cannot hand a canvas anything a brush
-## could not paint.
+## A stroke as a command carries it, with the dabs it lays, or null: every field in range, so a peer cannot hand a
+## canvas anything a brush could not paint.
 static func clean(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
@@ -164,7 +195,9 @@ static func clean(d: Variant) -> Variant:
 	var s: Variant = d.get("samples")
 	if typeof(s) != TYPE_PACKED_INT32_ARRAY or s.size() < 2 or s.size() % 2 != 0 or s.size() > MAX_SAMPLES * 2:
 		return null
-	return {"medium": medium, "brush": brush, "colour": c, "strength": d.strength, "load": d.load, "gap": gap, "samples": s}
+	var out := {"medium": medium, "brush": brush, "colour": c, "strength": d.strength, "load": d.load, "gap": gap, "samples": s}
+	out.dabs = dabs(out)
+	return out if out.dabs <= MAX_DABS else null
 
 
 ## Lays a stroke's dabs sample by sample: between each sample and the one before, dabs a fifth of a radius apart,
@@ -184,37 +217,28 @@ class Stroker:
 	## line, so it lays by how far that line sweeps, turning about its middle as much as moving it.
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
+		var last := _last
+		_last = s
 		var to: Vector2 = s[0] * _texels
-		var side: float = s[4]
 		var charcoal: bool = stroke.medium == Medium.CHARCOAL
-		if _last.is_empty():
-			_dab(out, to, s[1], s[2], 0.0, 0.015 if charcoal else 1.0, side)
-			_last = [to, s[1], s[2], side]
+		if last.is_empty():
+			_dab(out, to, s[1], s[2], 0.0, 0.015 if charcoal else 1.0, s[4])
 			return out
-		var from: Vector2 = _last[0]
+		var from: Vector2 = last[0] * _texels
 		var run := from.distance_to(to)
 		if run > 0.01:
 			_heading = (to - from).angle()
-		var turned := Brushwork.turn(_last[2], s[2])
-		var swept := Brushwork.sweep(stroke.brush, from, _last[2], to, s[2], maxf(_last[3], side))
-		if charcoal and swept.y < 1e-5:
-			_last = [to, s[1], s[2], side]
-			return out
+		var span := Brushwork.span(stroke, last, s, _texels)
+		var n := int(span.x)
+		var turned := Brushwork.turn(last[2], s[2])
 		var speed := run / maxf(float(s[3]), 1.0)
-		var r := minf(_radius(_last[1]), _radius(s[1]))
-		var n := clampi(ceili(swept.x / maxf(r * SPACING, 0.5)), 1, 4096)
 		for k in range(1, n + 1):
 			var t := float(k) / n
-			_dab(out, from.lerp(to, t), lerpf(_last[1], s[1], t), _last[2] + turned * t, speed, swept.y / n / maxf(r * SPACING, 0.5) if charcoal else 1.0, lerpf(_last[3], side, t))
-		_last = [to, s[1], s[2], side]
+			_dab(out, from.lerp(to, t), lerpf(last[1], s[1], t), last[2] + turned * t, speed, span.y / n / span.z if charcoal else 1.0, lerpf(last[4], s[4], t))
 		return out
 
-	func _radius(pressure: float) -> float:
-		var r := Brushwork.radii(stroke.brush)
-		return lerpf(r.x, r.y, pow(pressure, 0.7))
-
 	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float, travel := 1.0, side := 0.0) -> void:
-		var r := _radius(pressure)
+		var r := Brushwork.radius(stroke.brush, pressure)
 		var load: float = stroke.load
 		var dryness: float = clampf(speed / SKIM, 0.0, 1.0) * SKIMS[stroke.medium] + (1.0 - load) * 0.45
 		var major := maxf(r, Brushwork.side_reach(stroke.brush, side)) if stroke.medium == Medium.CHARCOAL else r

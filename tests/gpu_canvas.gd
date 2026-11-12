@@ -165,7 +165,7 @@ func _water_fills_no_more_than_full() -> void:
 	await process_frame
 
 
-## A wash flows and dries without making pigment, settles more of it into the paper's pits than onto its
+## A wash flows and dries without making or losing pigment, settles more of it into the paper's pits than onto its
 ## peaks, and a clean wet brush over it once dry lifts some back into the water.
 func _a_wash() -> void:
 	var c := await _canvas()
@@ -177,7 +177,7 @@ func _a_wash() -> void:
 	var wet_laid := _density(laid[0], c.size, region)
 	var dry_laid := _density(laid[1], c.size, region)
 	var after := _density(dried[1], c.size, region)
-	check(wet_laid > 100.0 and after <= (wet_laid + dry_laid) * 1.02, "a wash makes no pigment as it flows and dries: %.1f laid, %.1f dried" % [wet_laid + dry_laid, after])
+	check(wet_laid > 100.0 and absf(after - wet_laid - dry_laid) <= (wet_laid + dry_laid) * 0.02, "a wash neither makes nor loses pigment as it flows and dries: %.1f laid, %.1f dried" % [wet_laid + dry_laid, after])
 	var paper := []
 	RenderingServer.call_on_render_thread(func() -> void: paper.append(c._rd.texture_get_data(c._paper, 0)))
 	while paper.is_empty():

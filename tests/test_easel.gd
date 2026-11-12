@@ -44,6 +44,7 @@ func _run() -> void:
 	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
 	await _oil_paints_onto_the_board_as_onto_the_canvas()
+	await _a_stroke_ends_at_what_it_costs_to_lay()
 	await _a_touch_paints_the_board_as_it_paints_the_canvas()
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
@@ -702,6 +703,29 @@ func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 	check(not Easels.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Easels.open_at(Easels.PALETTE_SIZE * 0.5) and Easels.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
 
 
+## A brush swept to and fro across the canvas faster than any stroke kept in a recorded session ends each stroke at
+## the dabs one may lay, as it ends one at the samples one may hold, so every stroke it paints is one the garden keeps.
+func _a_stroke_ends_at_what_it_costs_to_lay() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await flushed()
+	await play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}, {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}])
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var tool: EaselTool = main.easel_tool
+	var p: EaselTool.Painter = tool.painter(main.rig.right)
+	var touches := 120
+	for i in touches:
+		tool.touch(p, e, Vector2(0.1, 0.1).lerp(Vector2(0.9, 0.9), i % 2), 0.0, 0.0)
+	tool.end_stroke(p)
+	await flushed()
+	var strokes: Array = _easel().strokes
+	var samples := 0
+	var most := 0
+	for s: Dictionary in strokes:
+		samples += Brushwork.count(s)
+		most = maxi(most, s.dabs)
+	check(strokes.size() > 1 and samples == touches and most <= Brushwork.MAX_DABS, "every touch is kept, in %d strokes laying at most %d dabs each" % [strokes.size(), most])
+
+
 ## The same touch, in each surface's own frame, on the canvas and on the oil palette's board: each brush and the
 ## charcoal stop at the face, the bristles bend as far, the hand feels it alike, and a brush's stroke keeps the same
 ## samples, as far apart in metres, as hard and at the same angle. Charcoal marks the canvas's paper, not the board.
@@ -820,7 +844,14 @@ func _easels_keep_their_distance_and_number() -> void:
 
 func _bad_strokes_are_dropped() -> void:
 	var good := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.FLAT, "colour": Vector3(1, 2, 3), "strength": 1.0, "load": 0.5, "gap": 3, "samples": Brushwork.pack(Vector2(0.5, 0.5), 0.5, 0.0, 0) + Brushwork.pack(Vector2(0.6, 0.5), 0.5, 0.0, 2)}
-	check(Brushwork.clean(good) == good, "a stroke a brush could paint is kept as it was painted")
+	check(Brushwork.clean(good) == good.merged({"dabs": Brushwork.dabs(good)}), "a stroke a brush could paint is kept as it was painted, with the dabs it lays")
+	for brush: Brushwork.Brush in [Brushwork.Brush.SMALL, Brushwork.Brush.FLAT, Brushwork.Brush.STICK]:
+		var stroke := {"medium": Brushwork.medium_of(brush, Brushwork.Medium.WATER), "brush": brush, "load": 1.0, "samples": Brushwork.pack(Vector2(0.2, 0.3), 0.1, 0.0, 0) + Brushwork.pack(Vector2(0.4, 0.35), 0.9, 1.0, 3, 0.5) + Brushwork.pack(Vector2(0.41, 0.6), 0.3, 2.0, 1, 1.0)}
+		var st := Brushwork.Stroker.new(stroke)
+		var laid := 0
+		for i in Brushwork.count(stroke):
+			laid += st.add(Brushwork.unpack(stroke.samples, i)).size() / Brushwork.DAB
+		check(Brushwork.dabs(stroke) == laid, "a %s stroke counts the %d dabs it lays: %d" % [Brushwork.Brush.keys()[brush], laid, Brushwork.dabs(stroke)])
 	var smear := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0}
 	var fine := {
 		"a gap of a whole drying": {"gap": Brushwork.DRY_TICKS},
@@ -835,6 +866,7 @@ func _bad_strokes_are_dropped() -> void:
 		"no samples": {"samples": PackedInt32Array()},
 		"half a sample": {"samples": PackedInt32Array([1, 2, 3])},
 		"too many samples": {"samples": _many(Brushwork.MAX_SAMPLES + 1)},
+		"a zigzag across the canvas no hand could paint": {"samples": _zigzag(Brushwork.MAX_SAMPLES)},
 		"a negative medium": {"medium": -1},
 		"the medium past the last": {"medium": Brushwork.Medium.size()},
 		"a negative brush": {"brush": -1},
@@ -871,12 +903,24 @@ func _bad_strokes_are_dropped() -> void:
 	for i in Brushwork.MAX_TOTAL / Brushwork.MAX_SAMPLES:
 		var s := good.duplicate()
 		s.samples = each
-		full.append(s)
+		full.append(Brushwork.clean(s))
 	var rest := good.duplicate()
 	rest.samples = _many(Brushwork.MAX_TOTAL % Brushwork.MAX_SAMPLES)
-	full.append(rest)
+	full.append(Brushwork.clean(rest))
 	state.easels[4].strokes = full
 	check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false, world.terrain).is_empty(), "a full canvas takes no more")
+	var heavy := good.duplicate()
+	heavy.samples = _zigzag(2)
+	while Brushwork.dabs(heavy) <= Brushwork.MAX_DABS:
+		heavy.samples = _zigzag(Brushwork.count(heavy) + 1)
+	heavy.samples = _zigzag(Brushwork.count(heavy) - 1)
+	var dear: Array = []
+	dear.resize(Brushwork.MAX_LAID / Brushwork.dabs(heavy))
+	dear.fill(heavy)
+	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": dear, "seq": 1, "by": 0}, state, true, world.terrain).size() > 0, "a sheet laying as many dabs as a canvas holds is kept")
+	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": dear + [heavy], "seq": 1, "by": 0}, state, true, world.terrain).is_empty(), "but not one laying more, however few its samples")
+	state.easels[4].strokes = Commands.clean({"op": "sheet", "easel": 4, "strokes": dear, "seq": 1, "by": 0}, state, true, world.terrain).strokes
+	check(Commands.clean({"op": "paint", "easel": 4, "stroke": heavy}, state, false, world.terrain).is_empty(), "nor a stroke past what the canvas lays")
 
 
 ## Each demo script's dips name the jar or a palette's paint, so none plays a dip the driver cannot place.
@@ -889,6 +933,14 @@ func _every_demo_dips_into_something_on_the_tray() -> void:
 		for step: Dictionary in JSON.parse_string(FileAccess.get_file_as_string(demos.path_join(f))):
 			if step.get("op") == "dip":
 				check(step.what in known, "%s dips into %s, which is on no tray" % [f, step.what])
+
+
+## `n` samples from one corner of the canvas to the other and back, at the lightest touch, all in one tick.
+func _zigzag(n: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i in n:
+		out.append_array(Brushwork.pack(Vector2.ONE * (i % 2), 0.0, 0.0, 0))
+	return out
 
 
 func _many(n: int) -> PackedInt32Array:

@@ -198,7 +198,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 			if ok:
 				out.stroke = Brushwork.clean(cmd.get("stroke"))
 				var strokes: Array = state.easels[out.easel][surface(out)]
-				ok = out.stroke != null and strokes.size() < Brushwork.MAX_STROKES and Brushwork.total(strokes) + Brushwork.count(out.stroke) <= Brushwork.MAX_TOTAL
+				ok = out.stroke != null and Brushwork.holds(strokes, 1, Brushwork.count(out.stroke), out.stroke.dabs)
 		"unpaint":
 			ok = _surface(cmd, state, out) and not state.easels[out.easel][surface(out)].is_empty()
 		"sheet":
@@ -315,7 +315,7 @@ static func _strokes(d: Variant) -> Variant:
 		if kept == null:
 			return null
 		out.append(kept)
-	return out if Brushwork.total(out) <= Brushwork.MAX_TOTAL else null
+	return out if Brushwork.holds(out) else null
 
 
 ## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and

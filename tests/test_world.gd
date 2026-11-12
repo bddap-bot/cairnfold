@@ -296,6 +296,7 @@ func _a_palette_undo_waits_on_its_easel() -> void:
 	samples.append_array(Brushwork.pack(Vector2(0.6, 0.5), 0.8, 0.0, 4))
 	var stroke := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.BIG, "colour": Vector3(2, 1, 0.2), "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples}
 	world._order({"op": "paint", "easel": id, "palette": true, "stroke": stroke}, 31)
+	stroke = Brushwork.clean(stroke)
 	check(world.state.easels[id].palette == [stroke] and world.state.easels[id].strokes.is_empty(), "a stroke on the palette lies on the palette, not the canvas")
 	world._order({"op": "take", "of": "easels", "ids": PackedInt32Array([id])}, 32)
 	var before := world.seq

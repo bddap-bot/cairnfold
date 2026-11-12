@@ -14,6 +14,14 @@ layout(rgba16f, set = 0, binding = 2) uniform restrict image2D dry;
 layout(rgba8, set = 0, binding = 3) uniform restrict image2D paper;
 layout(set = 0, binding = 6) uniform sampler2D paper_in;
 
+// The half float nearest `v`, which every store to `wet_out` and `dry` goes through: how a store rounds a float it
+// cannot keep is the driver's choice, and one that rounds toward zero loses a fifth of a wash's pigment as it dries.
+vec4 nearest_half(vec4 v) {
+	uvec4 bits = floatBitsToUint(v);
+	vec4 normal = uintBitsToFloat((bits + 0xFFFu + ((bits >> 13u) & 1u)) & 0xFFFFE000u);
+	return mix(normal, round(v * 16777216.0) / 16777216.0, lessThan(abs(v), vec4(6.103515625e-5)));
+}
+
 struct Dab {
 	vec4 a; // x, y, radius, pressure
 	vec4 b; // heading, load, dryness, flat angle
@@ -185,7 +193,7 @@ void smear(ivec2 p) {
 			change -= here * min(f, feathers(d, vec2(destination) + 0.5)) * amount;
 		}
 	}
-	imageStore(wet_out, p, here + change);
+	imageStore(wet_out, p, nearest_half(here + change));
 }
 
 void lay(ivec2 p) {
@@ -256,8 +264,8 @@ void lay(ivec2 p) {
 		}
 	}
 	if (touched) {
-		imageStore(wet_out, p, w);
-		imageStore(dry, p, laid);
+		imageStore(wet_out, p, nearest_half(w));
+		imageStore(dry, p, nearest_half(laid));
 	}
 }
 
@@ -334,9 +342,9 @@ void flow(ivec2 p) {
 	p_new = max(p_new - laid_now, vec3(0.0));
 	if (any(greaterThan(laid_now, vec3(0.0)))) {
 		vec4 laid = imageLoad(dry, p);
-		imageStore(dry, p, vec4(min(laid.rgb + laid_now, vec3(8.0)), laid.a));
+		imageStore(dry, p, nearest_half(vec4(min(laid.rgb + laid_now, vec3(8.0)), laid.a)));
 	}
-	imageStore(wet_out, p, vec4(p_new, w_new));
+	imageStore(wet_out, p, nearest_half(vec4(p_new, w_new)));
 }
 
 void main() {

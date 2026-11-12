@@ -725,7 +725,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 		if p.load <= 0.01 or not _room(e, palette):
 			return
 		var data := {"medium": p.medium, "brush": p.brush, "colour": p.colour, "strength": p.strength, "load": p.load, "gap": clampi(canvas.ticks - canvas.last_end, 0, Brushwork.DRY_TICKS), "samples": PackedInt32Array()}
-		p.stroke = {"easel": e, "palette": palette, "data": data, "stroker": Brushwork.Stroker.new(data, canvas.size), "last": [], "at": canvas.ticks, "began": Time.get_ticks_msec()}
+		p.stroke = {"easel": e, "palette": palette, "data": data, "stroker": Brushwork.Stroker.new(data, canvas.size), "last": [], "dabs": 0, "at": canvas.ticks, "began": Time.get_ticks_msec()}
 	var s := p.stroke
 	if not s.last.is_empty():
 		var r: float = Brushwork.radii(p.brush).y * pressure
@@ -736,10 +736,18 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 		if moved < maxf(r * 0.15, 1.0) and absf(pressure - s.last[1]) < 0.05 and canvas.ticks - s.at < STILL_TICKS:
 			return
 	var packed := Brushwork.pack(uv, pressure, angle, canvas.ticks - s.at if not s.last.is_empty() else 0, side)
+	var sample := Brushwork.unpack(packed, 0)
+	var n := Brushwork.count(s.data)
+	var dabs := 1 if n == 0 else int(Brushwork.span(s.data, Brushwork.unpack(s.data.samples, n - 1), sample).x)
+	if s.dabs + dabs > Brushwork.MAX_DABS:
+		end_stroke(p)
+		touch(p, e, uv, pressure, angle, side, palette)
+		return
+	s.dabs += dabs
 	s.data.samples.append_array(packed)
 	s.at = canvas.ticks
 	s.last = [uv, pressure, angle, side]
-	canvas.lay(s.data, s.stroker.add(Brushwork.unpack(packed, 0)))
+	canvas.lay(s.data, s.stroker.add(sample))
 	if Brushwork.count(s.data) >= Brushwork.MAX_SAMPLES:
 		end_stroke(p)
 
@@ -747,7 +755,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 ## Whether easel `e`'s canvas, or with `palette` its oil palette's board, takes another stroke.
 func _room(e: Easels.Easel, palette: bool) -> bool:
 	var strokes: Variant = _strokes(e.id, palette)
-	return strokes != null and strokes.size() < Brushwork.MAX_STROKES and Brushwork.total(strokes) + Brushwork.MAX_SAMPLES <= Brushwork.MAX_TOTAL
+	return strokes != null and Brushwork.holds(strokes, 1, Brushwork.MAX_SAMPLES, Brushwork.MAX_DABS)
 
 
 ## Sends the stroke under way, if any; the brush keeps what paint it has left.
