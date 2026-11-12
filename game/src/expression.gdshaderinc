@@ -525,8 +525,12 @@ void fragment() {
 		replaced = clamp(max(glowing.r, max(glowing.g, glowing.b)) * glow_colour.a, 0.0, 1.0);
 	}
 	ALBEDO = base.rgb * (1.0 - replaced);
+#ifdef BLENDED
+	// The scene buffer holds square roots and blends them: 1 - sqrt(1 - a) lets through sqrt((1 - a) * behind), so a dark
+	// see-through piece lets through what a linear blend would.
+	ALPHA = 1.0 - sqrt(1.0 - clamp(base.a, 0.0, 1.0));
+#else
 	ALPHA = base.a;
-#ifndef BLENDED
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 #endif
 	ROUGHNESS = 1.0;

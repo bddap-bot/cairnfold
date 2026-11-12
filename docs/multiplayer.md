@@ -269,7 +269,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Linear colour space VRChat projects use, mixes in linear light: at alpha a over a colour d, a colour s comes out
   a(1 - a)(√s - √d)² of linear light darker than Unity draws it, so
   white at alpha 0.5 over black reads sRGB 137 where Unity's reads 188; a viewport with `use_hdr_2d` keeps a linear
-  buffer and mixes as Unity does. Its faces draw blended
+  buffer and mixes as Unity does. A blended face drawn through the expression shaders, on every mesh an avatar's
+  expressions or flat, glowing, coated or toon looks reach, blends with alpha 1 - √(1 - a) in place of a, which lets through
+  √(1 - a)√d as Unity's linear mix does: a black piece over anything mixes exactly (`tests/gpu_sheer.gd`), and a light
+  piece over black darkens further, white at alpha 0.5 reading sRGB 83. Over the corpus avatars' recorded renders this
+  left fewer pixels apart from Unity than the plain mix or a premultiplied one, whose light-over-light error went the
+  other way; other blended faces keep the plain mix. Its faces draw blended
   over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
