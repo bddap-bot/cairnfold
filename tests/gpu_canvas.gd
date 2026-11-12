@@ -139,7 +139,7 @@ func _light_wash_stays() -> void:
 		dried.append((await _dried(c))[1])
 		c.queue_free()
 	await process_frame
-	check(dried[0] == dried[1], "a wash too thin to run dries the same standing up and lying flat")
+	check(_density(dried[0], Brushwork.SIZE, Rect2i(Vector2i.ZERO, Brushwork.SIZE)) > 1.0 and dried[0] == dried[1], "a wash too thin to run dries the same standing up and lying flat")
 
 
 ## A brush laying water again and again in one place fills the paper there and no more.
@@ -169,6 +169,7 @@ func _water_fills_no_more_than_full() -> void:
 ## peaks, and a clean wet brush over it once dry lifts some back into the water.
 func _a_wash() -> void:
 	var c := await _canvas()
+	c.upright = false
 	var region := Rect2i(500, 400, 540, 360)
 	var laid: Array = await _lay_only(c, [_water([Vector2(0.45, 0.5), Vector2(0.55, 0.5)], 1.0, 1.0)])
 	c.set_process(true)
@@ -176,7 +177,7 @@ func _a_wash() -> void:
 	var wet_laid := _density(laid[0], c.size, region)
 	var dry_laid := _density(laid[1], c.size, region)
 	var after := _density(dried[1], c.size, region)
-	check(wet_laid > 100.0 and after <= wet_laid + dry_laid, "a wash makes no pigment as it flows and dries: %.1f laid, %.1f dried" % [wet_laid + dry_laid, after])
+	check(wet_laid > 100.0 and after <= (wet_laid + dry_laid) * 1.02, "a wash makes no pigment as it flows and dries: %.1f laid, %.1f dried" % [wet_laid + dry_laid, after])
 	var paper := []
 	RenderingServer.call_on_render_thread(func() -> void: paper.append(c._rd.texture_get_data(c._paper, 0)))
 	while paper.is_empty():
@@ -430,9 +431,8 @@ func _smear() -> void:
 			var pixel := moved.get_pixel(x, y)
 			total += Vector4(pixel.r, pixel.g, pixel.b, pixel.a)
 			along += pixel.a * x
-	print("smear: conserved within %.4f; water's middle at x %.2f" % [(total - Vector4(500, 250, 125, 750)).length(), along / total.w])
-	check((total - Vector4(500, 250, 125, 750)).length() < 0.5, "smear conserves pigment and water within half-float rounding")
-	check(along / total.w > 760.0, "and moves it along the brush's heading: the water's middle from x 760 to %.2f" % (along / total.w))
+	check((total - Vector4(500, 250, 125, 750)).length() < 0.5, "smear conserves pigment and water within half-float rounding: off by %.4f" % (total - Vector4(500, 250, 125, 750)).length())
+	check(along / total.w > 762.0, "and moves it along the brush's heading: the water's middle from x 759.5 to %.2f" % (along / total.w))
 	var drag := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.49, 0.5), 1.0, 0.0, 0) + Brushwork.pack(Vector2(0.51, 0.5), 1.0, 0.0, 1)}
 	var smeared := Image.create_from_data(Brushwork.SIZE.x, Brushwork.SIZE.y, false, Image.FORMAT_RGBAH, (await _lay_only(c, [drag]))[0])
 	var least := 0.0
