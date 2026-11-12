@@ -271,7 +271,7 @@ float give(float wi, float wj, float hj, ivec2 dir) {
 		return 0.0;
 	}
 	float level = wi - wj + GRAVITY * pc.more.y * float(dir.y) * max(wi - RUNS, 0.0);
-	return clamp(FLOW_RATE * level, 0.0, wi * 0.24);
+	return max(FLOW_RATE * level, 0.0);
 }
 
 bool damp(ivec2 q, int tick) {
