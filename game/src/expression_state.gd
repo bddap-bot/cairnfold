@@ -13,6 +13,21 @@ var elapsed: Array[float] = []
 var _layer_values: Array[Dictionary] = []
 var pulses := {}
 var _animated_parameters: Array[int] = []
+## Each target's layers whose states may animate it, in order.
+var _writers: Array[Array] = []
+## Each layer's states by whether their motion samples the same at every time.
+var _timeless: Array[Array] = []
+## Whether each layer took no transition since a parameter it reads last changed, and the normalized time of its next
+## exit time: until either moves it samples and transitions as it did, so it is passed over.
+var _settled: Array[bool] = []
+var _until: Array[float] = []
+## Each layer's state's speed and length, which the pass over a settled layer reads in place of its state.
+var _speed: Array[float] = []
+var _lengths: Array[float] = []
+## Each parameter's layers that read it.
+var _readers := {}
+## Whether the next advance builds every output again, the layers having started over.
+var _rebuild := false
 var opened: Array[Dictionary] = []
 var revision := 0
 ## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
@@ -28,21 +43,44 @@ func _init(definition: Dictionary) -> void:
 		put(p.name, p.get("default", 0.0))
 	for t: Dictionary in data.get("targets", []):
 		outputs.append(float(t.get("default", 0.0)))
+		_writers.append([])
 		if t.effect is Dictionary and t.effect.has("parameter") and definitions.has(t.effect.parameter):
 			_animated_parameters.append(outputs.size() - 1)
 	for layer: Dictionary in data.get("layers", []):
+		var i := states.size()
 		states.append(-1)
 		elapsed.append(0.0)
 		_layer_values.append({})
+		_settled.append(layer.states.is_empty())
+		_until.append(INF)
+		_speed.append(0.0)
+		_lengths.append(0.0)
+		var targets := {}
+		var timeless := []
+		for state: Dictionary in layer.states:
+			_targets(state.get("motion", {}), targets)
+			timeless.append(_timeless_motion(state.get("motion", {})))
+		_timeless.append(timeless)
+		for t: int in targets:
+			_writers[t].append(i)
+		var reads := {}
+		_reads(layer, reads)
+		for key: String in reads:
+			(_readers.get_or_add(key, []) as Array).append(i)
 
 
 func put(key: String, value: float) -> void:
 	if not definitions.has(key) or not is_finite(value):
 		return
-	value = _typed(key, value)
+	_write(key, _typed(key, value))
+
+
+func _write(key: String, value: float) -> void:
 	if values.get(key) != value:
 		values[key] = value
 		revision += 1
+		for i: int in _readers.get(key, []):
+			_settled[i] = false
 
 
 func saved() -> Dictionary:
@@ -64,8 +102,11 @@ func restore(saved_values: Dictionary) -> void:
 			put(key, saved_values[key])
 	states.fill(-1)
 	elapsed.fill(0.0)
+	_speed.fill(0.0)
 	for i in _layer_values.size():
 		_layer_values[i] = {}
+		_settled[i] = (data.layers[i].states as Array).is_empty()
+	_rebuild = true
 
 
 func reset() -> void:
@@ -135,42 +176,61 @@ func advance(delta: float) -> void:
 		if pulses[key] <= 0.0:
 			put(key, 0.0)
 			pulses.erase(key)
+	var changed := {}
+	if _rebuild:
+		_rebuild = false
+		for t in outputs.size():
+			changed[t] = true
 	for i in states.size():
+		elapsed[i] += delta * _speed[i]
+		if _settled[i] and (elapsed[i] / _lengths[i] if _lengths[i] > 0 else elapsed[i]) < _until[i]:
+			continue
 		var layer: Dictionary = data.layers[i]
 		if layer.states.is_empty():
 			continue
 		if states[i] < 0:
 			_enter(i, _entered(layer))
+			elapsed[i] = delta * _speed[i]
 		var state: Dictionary = layer.states[states[i]]
-		elapsed[i] += delta * float(state.get("speed", 1.0))
-		var length := _length(state.get("motion", {}))
-		var normalized := elapsed[i] / length if length > 0 else elapsed[i]
-		var next := _transition(layer.get("any", []) + state.get("transitions", []), states[i], normalized)
+		var normalized := elapsed[i] / _lengths[i] if _lengths[i] > 0 else elapsed[i]
+		var transitions: Array = layer.get("any", []) + state.get("transitions", [])
+		var next := _transition(transitions, states[i], normalized)
 		if next == EXIT:
 			next = _entered(layer)
 		if next >= 0:
 			_enter(i, next)
 			state = layer.states[states[i]]
+			_settled[i] = false
+		elif _timeless[i][states[i]]:
+			_settled[i] = true
+			_until[i] = INF
+			for t: Dictionary in transitions:
+				if t.has("exitTime") and normalized < t.exitTime:
+					_until[i] = minf(_until[i], t.exitTime)
 		# A state writing defaults leaves what it does not animate to the layers below, as Unity's layers do: a toggle's
 		# later layer at rest does not undo an earlier layer's.
 		var sampled := _motion(state.get("motion", {}), elapsed[i])
+		var held := _layer_values[i]
+		for t: int in sampled:
+			if held.get(t) != sampled[t]:
+				changed[t] = true
 		if state.get("writeDefaults", true):
+			for t: int in held:
+				if not sampled.has(t):
+					changed[t] = true
 			_layer_values[i] = sampled
 		else:
-			_layer_values[i].merge(sampled, true)
-	for t in outputs.size():
+			held.merge(sampled, true)
+	for t: int in changed:
 		outputs[t] = float(data.targets[t].get("default", 0.0))
-	for i in states.size():
-		for t: int in _layer_values[i]:
-			outputs[t] = lerpf(outputs[t], _layer_values[i][t], float(data.layers[i].get("weight", 1.0)))
+		for i: int in _writers[t]:
+			if _layer_values[i].has(t):
+				outputs[t] = lerpf(outputs[t], _layer_values[i][t], float(data.layers[i].get("weight", 1.0)))
 	# The animator writes a parameter its clips animate every frame, past the menu's range, so a driver or the menu
 	# setting it holds only until the next.
 	for t: int in _animated_parameters:
 		var key: String = data.targets[t].effect.parameter
-		var v := outputs[t] if definitions[key].type == "float" else roundf(outputs[t])
-		if values.get(key) != v:
-			values[key] = v
-			revision += 1
+		_write(key, outputs[t] if definitions[key].type == "float" else roundf(outputs[t]))
 	for i in opened.size():
 		var c := opened[i]
 		if c.get("parameter", "") != "" and not active(c):
@@ -182,6 +242,9 @@ func advance(delta: float) -> void:
 func _enter(layer: int, state: int) -> void:
 	states[layer] = state
 	elapsed[layer] = 0.0
+	var motion: Dictionary = data.layers[layer].states[state].get("motion", {})
+	_speed[layer] = float(data.layers[layer].states[state].get("speed", 1.0))
+	_lengths[layer] = _length(motion)
 	for d: Dictionary in data.layers[layer].states[state].get("drivers", []):
 		var v: float = d.get("value", 0.0)
 		match d.get("drive", "set"):
@@ -304,9 +367,10 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 
 ## Unity's AnimationCurve.Evaluate: each key pair is a cubic Bezier through the keys' slopes and weights (a plain
 ## Hermite at the default third), held at the left key where either facing slope is infinite, clamped past the ends.
-## Keys without slopes interpolate linearly. Unity keeps times in single precision, so a time short of a key by less
-## than SINGLE_STEP of it is at it: a quarter of a four-frame motion-time clip lands on its second key in Unity, and a
-## hair before it in double precision.
+## Equal keys with flat facing slopes hold exactly, where the Bezier lands a unit in the last place off from frame to
+## frame and a layer resting there would not. Keys without slopes interpolate linearly. Unity keeps times in single
+## precision, so a time short of a key by less than SINGLE_STEP of it is at it: a quarter of a four-frame motion-time
+## clip lands on its second key in Unity, and a hair before it in double precision.
 static func sample(keys: Array, time: float, stepped: bool) -> float:
 	var after := keys.size()
 	for i in keys.size():
@@ -326,7 +390,7 @@ static func sample(keys: Array, time: float, stepped: bool) -> float:
 	var p := (time - float(a[0])) / span
 	if a.size() < 4 or b.size() < 4:
 		return lerpf(float(a[1]), float(b[1]), p)
-	if a[3] == null or b[2] == null:
+	if a[3] == null or b[2] == null or (float(a[1]) == float(b[1]) and float(a[3]) == 0.0 and float(b[2]) == 0.0):
 		return float(a[1])
 	var wa := clampf(float(a[5]), 0.0, 1.0) if a.size() == 6 else 1.0 / 3.0
 	var wb := clampf(float(b[4]), 0.0, 1.0) if b.size() == 6 else 1.0 / 3.0
@@ -344,6 +408,45 @@ static func sample(keys: Array, time: float, stepped: bool) -> float:
 static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> float:
 	var r := 1.0 - s
 	return r * r * r * p0 + 3.0 * r * r * s * p1 + 3.0 * r * s * s * p2 + s * s * s * p3
+
+
+## Whether `motion` samples the same at every time: each clip it plays holds its curves flat or is played by a
+## parameter, not by time.
+func _timeless_motion(motion: Dictionary) -> bool:
+	if motion.has("clip"):
+		return motion.has("time") or (data.clips[int(motion.clip)].get("curves", []) as Array).all(func(c: Dictionary) -> bool: return _flat(c.keys))
+	return (motion.get("children", []) as Array).all(func(child: Dictionary) -> bool: return _timeless_motion(child.motion))
+
+
+## Whether a curve's keys sample one value everywhere: one key, or keys of one value whose slopes are flat or held.
+static func _flat(keys: Array) -> bool:
+	return keys.all(func(k: Array) -> bool: return float(k[1]) == float(keys[0][1]) and (k.size() < 4 or ((k[2] == null or float(k[2]) == 0.0) and (k[3] == null or float(k[3]) == 0.0))))
+
+
+func _targets(motion: Dictionary, targets: Dictionary) -> void:
+	if motion.has("clip"):
+		for curve: Dictionary in data.clips[int(motion.clip)].get("curves", []):
+			targets[int(curve.target)] = true
+	for child: Dictionary in motion.get("children", []):
+		_targets(child.motion, targets)
+
+
+## Adds to `reads` every parameter a layer's transitions, motions and drivers name; a driver's own target only wakes the
+## layer needlessly, so it is left in rather than told apart.
+static func _reads(of: Variant, reads: Dictionary) -> void:
+	if of is Dictionary:
+		for key: String in of:
+			var v: Variant = of[key]
+			if v is String and key in ["parameter", "time", "source"]:
+				reads[v] = true
+			elif key == "parameters" and v is Array:
+				for p: Variant in v:
+					reads[str(p)] = true
+			else:
+				_reads(v, reads)
+	elif of is Array:
+		for v: Variant in of:
+			_reads(v, reads)
 
 
 func _typed(key: String, value: float) -> float:

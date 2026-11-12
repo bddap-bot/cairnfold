@@ -18,6 +18,7 @@ func _run() -> void:
 	_sides()
 	_theme_recolours_the_emission()
 	_animated_parameters()
+	_settled_layers()
 	_contacts()
 	_clear_coat()
 	_toon()
@@ -845,6 +846,40 @@ func _animated_parameters() -> void:
 	state.put("Reset", 1.0)
 	state.advance(0.1)
 	check(state.values.Wetness == 0.0, "a state not animating it, writing defaults, returns it to its default")
+
+
+## A layer resting in a state whose clips hold still is passed over until it reaches an exit time or a parameter it
+## reads changes, and plays as though it had been sampled every frame.
+func _settled_layers() -> void:
+	var definition := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0}],
+		"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 1], [1, 1]]}]}, {"length": 1.0, "curves": [{"target": 0, "keys": [[0, 2]]}]},
+			{"length": 1.0, "curves": [{"target": 1, "keys": [[0, 1]]}]}],
+		"layers": [{"states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "exitTime": 0.5, "conditions": []}]}, {"motion": {"clip": 1}, "transitions": []}]},
+			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]}, {"motion": {"clip": 2}, "transitions": []}]}]}
+	check(ExpressionDefinition.valid(definition), "settling layers are valid")
+	var state := ExpressionState.new(definition)
+	state.advance(0.2)
+	state.advance(0.2)
+	check(state.outputs == [1.0, 0.0] and state._settled == [true, true], "both layers rest in still states: %s" % [state.outputs])
+	state.advance(0.2)
+	check(state.outputs[0] == 2.0, "a resting layer leaves at its exit time: %s" % [state.outputs])
+	state.put("Hat", 1.0)
+	state.advance(0.0)
+	check(state.outputs == [2.0, 1.0], "a resting layer follows the parameter it reads: %s" % [state.outputs])
+	var settling := ExpressionState.new(definition)
+	var sampled := ExpressionState.new(definition)
+	var same := true
+	for f in 120:
+		if f % 17 == 0:
+			settling.put("Hat", float(f % 2))
+			sampled.put("Hat", float(f % 2))
+		sampled._settled.fill(false)
+		settling.advance(1.0 / 72.0)
+		sampled.advance(1.0 / 72.0)
+		same = same and settling.outputs == sampled.outputs and settling.states == sampled.states and settling.elapsed == sampled.elapsed
+	check(same, "passing resting layers over plays as sampling every layer every frame does")
+	check(range(97).all(func(k: int) -> bool: return ExpressionState.sample([[0, 1, 0, 0], [1, 1, 0, 0]], k / 96.0, false) == 1.0), "a flat span between equal keys holds their value exactly")
 
 
 class Body:

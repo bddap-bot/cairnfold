@@ -19,6 +19,9 @@ var springs: SpringRuntime:
 		for moved: Dictionary in _moved.values():
 			moved.sent = false
 var _shown: Array = []
+## Each target's indices in _shown whose meshes it shows or hides, and the value each target last showed them at.
+var _shown_by: Array[Array] = []
+var _shown_at: Array[float] = []
 var _last: Array[float] = []
 var _materials := {}
 var _regions := {}
@@ -102,9 +105,11 @@ func _init(model: Node3D) -> void:
 					var bone: int = at[1]
 					var axis := int(effect.scale.axis)
 					binds.append(func(v: float) -> void:
-						var s := skeleton.get_bone_pose_scale(bone)
+						var was := skeleton.get_bone_pose_scale(bone)
+						var s := was
 						s[axis] = v
-						skeleton.set_bone_pose_scale(bone, s))
+						if s != was:
+							skeleton.set_bone_pose_scale(bone, s))
 			elif effect.has("rotation") or effect.has("translation"):
 				for at: Array in _bones(nodes, effect.values()[0].node):
 					var rest: Transform3D = at[0].get_bone_rest(at[1])
@@ -200,9 +205,14 @@ func _init(model: Node3D) -> void:
 		for mat: ShaderMaterial in mats:
 			if mat.get_shader_parameter("lighting") == lighting:
 				mat.set_shader_parameter("lighting", glows.texture)
+	_shown_by.resize(state.outputs.size())
+	_shown_at.resize(state.outputs.size())
+	_shown_at.fill(NAN)
 	for shown: Dictionary in data.get("shown", []):
 		var node: Node3D = nodes.get(str(shown.node))
 		if node != null:
+			for w: Array in shown.when:
+				_shown_by[int(w[0])].append(_shown.size())
 			_shown.append({"node": node, "when": shown.when})
 	_last.resize(state.outputs.size())
 	_last.fill(NAN)
@@ -233,12 +243,20 @@ func _process(delta: float) -> void:
 
 
 func apply() -> void:
+	var showing := {}
+	if _frame == 0:
+		for k in _shown.size():
+			showing[k] = true
 	for i in state.outputs.size():
 		var v := state.outputs[i]
 		if _scales.has(i) or not is_equal_approx(v, _last[i]):
 			for bind: Callable in _bindings[i]:
 				bind.call(v)
 			_last[i] = v
+		if v != _shown_at[i] and not _shown_by[i].is_empty():
+			_shown_at[i] = v
+			for k: int in _shown_by[i]:
+				showing[k] = true
 	_move_bones()
 	for mat: ShaderMaterial in _dirty_regions:
 		var entries: Array = _regions[mat]
@@ -273,8 +291,8 @@ func apply() -> void:
 					e.colour = Color(c.r, c.g, c.b, e.replace)
 				glows.table.set_pixel(column, 1, e.colour)
 			glows.texture.update(glows.table)
-	for shown: Dictionary in _shown:
-		shown.node.visible = shows(state.outputs, shown.when)
+	for k: int in showing:
+		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
 
 
 ## Poses each moved bone as its effects set it. A bone a spring swings gets that pose as the rest it swings about, as
