@@ -1,0 +1,45 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "move/carry": {
+   "p50": 13.9429998397827,
+   "p99": 16.9740009307861,
+   "late": 0,
+   "draws": 343,
+   "prims": 335018,
+   "worst": {
+    "late": 0,
+    "p50": 13.8640003204346,
+    "p99": 15.8319997787476
+   },
+   "step": 3,
+   "pinned": false,
+   "fill": 0.987,
+   "charges_ms": {
+    "bush": 0.283,
+    "roof_m2": 1.578,
+    "roof_m2_near": 0.0,
+    "tree": 1.225,
+    "wall_m2": 0.784,
+    "wall_m2_near": 0.346
+   },
+   "main_ms": {
+    "draw": 4.965,
+    "other": 0.37,
+    "physics": 0.015,
+    "scripts": 4.37,
+    "sync": 0.0,
+    "xr_wait": 4.034
+   },
+   "springs_ms": 0.083,
+   "expressions_ms": 0.0,
+   "mem_mb": {
+    "buffers": 45.0,
+    "textures": 748.0,
+    "video": 827.5
+   },
+   "gpu_mhz": 900.0,
+   "gpu_ms": 6.537
+  }
+ }
+}

@@ -3158,9 +3158,9 @@ on the Frame for this village. The field and its rows now pack on a worker as th
 (`Bake`), and the main thread only uploads them. On the Frame, the move section played after a village has been
 built once, as the stress scene plays it (records in `perf/frame/stress-move/`, governed, and
 `perf/frame/stress-move-pinned/`, at step 0), made no late frame in the phase in three governed and three pinned
-runs; the longest frame at the let-go was 16.9 to 19.4 ms of the 20.8 ms line. Governed, the ladder stepping from 3
-to 1 at once during or after the carry (the GPU from 7.2 to about 10 ms) makes 25 to 34 late frames before it steps
-back.
+runs; the longest frame at the let-go was 16.9 to 19.4 ms of the 20.8 ms line. Governed, the ladder climbs 4 to 3 to 1 to 0
+during the carry, 3 s apart, the GPU averaging 6.2 ms at step 3 and 7.7 to 7.8 ms at step 1, with no late frame in the
+phase in three runs on 4ccf5cf; on 4b5187e the same climb from 3 to 1 landed at 9 to 10 ms and made 1 to 34.
 
 ## Moving a fitting
 
