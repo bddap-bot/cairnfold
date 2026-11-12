@@ -180,6 +180,11 @@ vec3 decal_blend(vec3 base, vec3 laid, int mode) {
 	return laid;
 }
 
+float shaded_by(vec3 dim, vec3 lit) {
+	const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+	return clamp((dot(dim, LUMA) + 0.02) / (dot(lit, LUMA) + 0.02), 0.0, 1.0);
+}
+
 vec3 linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
@@ -389,6 +394,7 @@ void fragment() {
 	if (use_vertex) { base *= COLOR; }
 	vec4 adjust = texture(hue_mask, UV);
 	base.rgb = adjusted(base.rgb, hue, tone, adjust);
+	vec3 undecaled = base.rgb;
 	for (int slot = 0; slot < 4; slot++) {
 		if (decal_alpha[slot] >= 0.0) {
 			vec4 cell = decal_cell[slot];
@@ -425,9 +431,13 @@ void fragment() {
 			vec4 second = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 1), 0);
 			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 2), 0);
 			vec3 own = recolour * colour.rgb * (use_vertex ? COLOR.rgb : vec3(1.0));
+			// The shade maps are made from the atlas albedo, which lacks the decals: a decal's change to the albedo is
+			// shaded by how far the shade darkens the albedo's luminance under it, which stays defined over black.
 			vec3 dark = adjusted(shade_texel.rgb * own, hue, tone, adjust);
+			dark = max(dark + (albedo - undecaled) * shaded_by(dark, undecaled), 0.0);
 			if (second.z > 0.0) {
 				vec3 deeper = adjusted(textureGrad(shade2, uv, dx, dy).rgb * own, hue, tone, adjust);
+				deeper = max(deeper + (albedo - undecaled) * shaded_by(deeper, undecaled), 0.0);
 				dark = mix(dark, deeper, second.z * (1.0 - toon(toward, second.x, second.y, 0.0, toward_width)));
 			}
 			dark = min(dark, albedo);

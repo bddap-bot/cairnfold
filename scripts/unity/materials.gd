@@ -77,6 +77,7 @@ var animated := {}
 var decal_images: Array[Image] = []
 var _decal_of := {}
 var _decal_index := {}
+var _layer_decals := {}
 
 
 func _init(from: Assets, atlas_widest := Avatar.MAX_IMAGE_SIDE) -> void:
@@ -290,7 +291,7 @@ func pack(used: Array) -> void:
 		_adjust_main(key, img)
 		_tint(img, m.colour, m.alpha, m.cutoff, m.alpha_mod, _alpha_overrides(key, img.get_size()))
 		_adjust(m, img)
-		_detail(m, img)
+		_detail(key, img)
 		_blit_padded(atlas, img, cell)
 
 
@@ -375,15 +376,17 @@ func packed(key: String) -> String:
 	return "%s: source %s, shown %s, packed %dx%d" % [m.name, source, m.get("shown", 0) if m.get("shown", 0) > 0 else "as source", (m.cell as Rect2i).size.x, (m.cell as Rect2i).size.y]
 
 
-## Toon Standard's detail map, or lilToon's 2nd and 3rd main textures (Liltoon.lay), laid into `img`, the material's
-## tinted texture at its cell's size, as the shader lays it over the albedo before light. Nothing animates the detail,
-## so the atlas holds it, at the albedo's size: a cell widened to the detail's own would multiply the atlas (a corpus
-## avatar's four detailed bodies took it from 2048 to 4864 wide). A colour control's region takes it as part of the
+## Toon Standard's detail map, or lilToon's 2nd and 3rd main textures (Liltoon.lay) but those a clip fades, which the
+## renderer lays (Liltoon.faded), laid into `img`, the tinted texture of the material at `key` at its cell's size, as
+## the shader lays it over the albedo before light. Nothing animates the detail, so the atlas holds it, at the albedo's size: a cell
+## widened to the detail's own would multiply the atlas (a corpus avatar's four detailed bodies took it from 2048 to
+## 4864 wide). A colour control's region takes it as part of the
 ## albedo; `hue_mask` keeps a hue shift off a blended one, as the shader shifts the albedo before laying it, and on a
 ## multiplied one, which the shifted albedo shows through.
-func _detail(m: Dictionary, img: Image) -> void:
+func _detail(key: String, img: Image) -> void:
+	var m: Dictionary = materials[key]
 	if Liltoon.is_liltoon(m):
-		Liltoon.lay(self, m, img)
+		Liltoon.lay(self, m, img, Liltoon.faded(m, animated.get(key, {})))
 		return
 	var layer := _detail_layer(m, img.get_size(), 0)
 	if layer == null:
@@ -590,7 +593,7 @@ func hue_mask() -> Image:
 	var out: Image
 	for key: String in keys:
 		var m: Dictionary = materials[key]
-		var mask := Liltoon.hue_mask(self, m) if Liltoon.is_liltoon(m) else _adjust_mask(key)
+		var mask := Liltoon.hue_mask(self, m, Liltoon.faded(m, animated.get(key, {}))) if Liltoon.is_liltoon(m) else _adjust_mask(key)
 		if mask == null:
 			continue
 		if out == null:
@@ -661,7 +664,7 @@ func untinted() -> Dictionary:
 		var m: Dictionary = materials[key]
 		var img := _cell_image(m, m.cell)
 		_adjust_main(key, img)
-		_detail(m, img)
+		_detail(key, img)
 		_blit_padded(out, img, laid[key])
 		cells.append(uv.call(m.cell, Vector2(atlas_side, atlas_side)) + uv.call(laid[key], Vector2(covered)))
 	return {"image": out, "cells": cells}
@@ -673,6 +676,8 @@ func untinted() -> Dictionary:
 ## shifted by a fixed amount if at all.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
+	if Liltoon.is_liltoon(m):
+		return _layer_decal(key, slot)
 	var colours: Dictionary = m.get("colours", {})
 	var n := "" if slot == 0 else str(slot)
 	var vector := func(name: String) -> Color: return _colour(colours.get(name), Color(0, 0, 0, 0))
@@ -696,6 +701,19 @@ func decal(key: String, slot: int) -> Dictionary:
 	if _turned(m, n):
 		hue = {"shift": _saved(m, "_DecalHueShift" + n, 0.0), "space": _float(m, "_DecalHueShiftColorSpace" + n), "select": _float(m, "_DecalHueShiftSelectOrShift" + n, 1.0)}
 	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "colorBlend": int(blend), "image": _decal_image(key, slot), "hue": hue}
+
+
+## lilToon's 2nd (`slot` 0) or 3rd (1) main texture as `decal` gives a Poiyomi decal, where the renderer lays it
+## (Liltoon.faded), or {}.
+func _layer_decal(key: String, slot: int) -> Dictionary:
+	var m: Dictionary = materials[key]
+	if not m.has("cell") or slot >= Liltoon.LAYERS.size() or Liltoon.LAYERS[slot] not in Liltoon.faded(m, animated.get(key, {})):
+		return {}
+	var n := Liltoon.LAYERS[slot]
+	if not _layer_decals.has([key, n]):
+		var laid := Liltoon.layer_decal(self, m, n, Liltoon.layer(m, n), (m.cell as Rect2i).size)
+		_layer_decals[[key, n]] = {"alpha": laid.alpha, "intensity": 1.0, "colorBlend": laid.colorBlend, "image": _baked_decal(laid.image), "hue": null}
+	return _layer_decals[[key, n]]
 
 
 ## Whether the decal suffixed `n` turns its hue by a value a clip can move, which its image then holds unturned: a locked
@@ -750,14 +768,19 @@ func _decal_image(key: String, slot: int) -> int:
 				data[i + 1] = shifted.g8
 				data[i + 2] = shifted.b8
 		colour.set_data(size.x, size.y, false, Image.FORMAT_RGBA8, data)
-	var baked := colour.get_data()
-	var alike: Array = _decal_index.get_or_add([size, hash(baked)], [])
+	_decal_of[settings] = _baked_decal(colour)
+	return _decal_of[settings]
+
+
+## The index in `decal_images` of `image`, added unless an identical one is there.
+func _baked_decal(image: Image) -> int:
+	var baked := image.get_data()
+	var alike: Array = _decal_index.get_or_add([image.get_size(), hash(baked)], [])
 	var found: int = alike.reduce(func(at: int, k: int) -> int: return k if at < 0 and decal_images[k].get_data() == baked else at, -1)
 	if found < 0:
 		found = decal_images.size()
 		alike.append(found)
-		decal_images.append(colour)
-	_decal_of[settings] = found
+		decal_images.append(image)
 	return found
 
 
@@ -1294,14 +1317,17 @@ func coat_uv(key: String) -> int:
 
 
 ## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## alpha, alpha intensity or hue shift, a matcap's hue shift or strengths (lilToon's blend its intensity), emission's
-## strength (lilToon's blend) or hue, a global theme colour's offsets, which move the emission drawn in that theme
-## (`_theme`), or a component (slot 0 to 3) of the clear coat maps' tiling and offset.
+## (lilToon's 2nd and 3rd main textures' colour alpha, as decal slots 0 and 1), alpha intensity or hue shift, a
+## matcap's hue shift or strengths (lilToon's blend its intensity), emission's strength (lilToon's blend) or hue, a
+## global theme colour's offsets, which move the emission drawn in that theme (`_theme`), or a component (slot 0 to 3)
+## of the clear coat maps' tiling and offset.
 static func field(property: String) -> Dictionary:
 	if property.begins_with(COAT_ST) and property.length() == COAT_ST.length() + 1:
 		var component := "xyzw".find(property.right(1))
 		if component >= 0:
 			return {"field": "clearcoatST", "slot": component}
+	if property in LAYER_ALPHAS:
+		return {"field": "decal", "slot": LAYER_ALPHAS.find(property)}
 	var decal := _DECAL_FIELD.search(property)
 	if decal != null:
 		return {"field": {"BlendAlpha": "decal", "AlphaIntensity": "decalIntensity", "HueShift": "decalHue"}[decal.get_string(1)], "slot": decal.get_string(2).to_int()}
@@ -1321,6 +1347,8 @@ static func field(property: String) -> Dictionary:
 
 
 const COAT_ST := "_ClearCoatMaps_ST."
+## lilToon's layers' colour alphas, by the decal slot Liltoon.faded lays each in.
+static var LAYER_ALPHAS: Array = Liltoon.LAYERS.map(func(n: String) -> String: return "_Color%s.a" % n)
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
 static var _MATCAP_BLEND_FIELD := RegEx.create_from_string("^_MatCap(2nd)?Blend$")

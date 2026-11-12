@@ -68,6 +68,7 @@ func _run() -> void:
 	_liltoon_looks_carry_its_shadow_rim_matcaps_and_emission()
 	_liltoon_layers_bake_into_the_atlas()
 	_liltoon_curves_bind_their_looks()
+	_liltoon_faded_layers_draw_as_decals()
 	_installed_packages_lend_only_missing_images()
 	_a_texture_in_no_package_needs_the_packages_named()
 	_an_edit_imports_with_its_base()
@@ -2515,6 +2516,57 @@ func _liltoon_curves_bind_their_looks() -> void:
 	materials.materials.suit.floats._UseEmission2nd = "1"
 	var both := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(not both.targets.any(func(t: Dictionary) -> bool: return t.effect.has("look") and t.effect.look[0].field == "emission"), "an emission blend binds nothing while two emissions glow together")
+	sk.free()
+
+
+## A lilToon main texture whose colour's alpha a clip moves leaves the atlas for a decal slot (2nd 0, 3rd 1) at its
+## saved alpha and blend, out of the hue mask's sparing too; its alpha curve binds that slot, and a lilToon decal-alpha
+## curve, a Poiyomi property, binds none.
+func _liltoon_faded_layers_draw_as_decals() -> void:
+	var grey := Color8(128, 128, 128)
+	var assets := _liltoon_fixture("liltoon-faded", {
+		"face": _liltoon_mat(LILTOON, [], {"_UseMain2ndTex": 1, "_UseMain3rdTex": 1, "_Main3rdTexBlendMode": 1}, {"_Color2nd": Color(1, 0, 0, 1), "_Color3rd": Color(0, 1, 0, 0.6)}, {"_MainTex": "grey"}),
+	}, {"grey": [grey, grey, grey, grey]})
+	var packed := func(animated: Dictionary) -> Materials:
+		var materials := Materials.new(assets)
+		materials.use({"guid": "face"}, Color.WHITE)
+		materials.animated = {"face": animated}
+		materials.hue_masks = {"face": true}
+		materials.pack(["face"])
+		return materials
+	var still: Materials = packed.call({})
+	check(_near(_row(still, still.atlas, "face")[0], Color(1, Color(0.6, 0.6, 0.6).linear_to_srgb().g, 0)) and still.decal("face", 0).is_empty() and still.decal("face", 1).is_empty(), "layers no clip fades bake into the atlas: %s" % [_row(still, still.atlas, "face")])
+	var third: Materials = packed.call({"_Color3rd.a": true})
+	var laid: Dictionary = third.decal("face", 1)
+	check(_near(_row(third, third.atlas, "face")[0], Color(1, 0, 0)) and third.decal("face", 0).is_empty(), "a faded 3rd leaves the atlas, the 2nd under it stays: %s" % [_row(third, third.atlas, "face")])
+	check(is_equal_approx(laid.get("alpha", 0.0), 0.6) and laid.get("colorBlend") == 8 and laid.get("intensity") == 1.0, "the 3rd lays at its saved alpha, added: %s" % [laid])
+	if laid.has("image"):
+		var texel: Color = third.decal_images[laid.image].get_pixel(0, 0)
+		check(_near(texel, Color(0, 1, 0)) and texel.a == 1.0, "its image holds its colour, its alpha left to the slot: %s" % [texel])
+	var second: Materials = packed.call({"_Color2nd.a": true})
+	check(_near(_row(second, second.atlas, "face")[0], Color(grey.srgb_to_linear().r, grey.srgb_to_linear().g + 0.6, grey.srgb_to_linear().b).linear_to_srgb()) and second.decal("face", 0).get("colorBlend") == 0 and second.decal("face", 1).is_empty(), "a faded 2nd leaves the atlas, the 3rd stays: %s" % [_row(second, second.atlas, "face")])
+	check((third.looks().materials[0].decals as Array).map(func(d: Variant) -> bool: return d != null) == [false, true, false, false], "the look carries the faded layer in its slot")
+	var spared := func(materials: Materials) -> int:
+		var mask := materials.hue_mask()
+		return 255 if mask == null else _row(materials, mask, "face")[0].r8
+	check(spared.call(still) == 0 and spared.call(second) == 255, "the hue mask spares the albedo under a layer the atlas lays normally, not one the renderer lays: %d %d" % [spared.call(still), spared.call(second)])
+	var expressions := Expressions.new(assets, {})
+	expressions.data = {
+		"menu": [{"name": "Makeup", "type": "toggle", "parameter": "Makeup", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Makeup", "type": "bool", "default": 1}],
+		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
+		"clips": [{"length": 1, "loop": false, "curves": [{"path": "", "attribute": "material._Color3rd.a", "class": "137", "keys": [[0.0, 0.0]]}, {"path": "", "attribute": "material._DecalBlendAlpha1", "class": "137", "keys": [[0.0, 0.0]]}]}],
+	}
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "face"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var mesh := {"node": "Body", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}
+	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, third, Particles.new(null, null, {}, [], {}, []), {})
+	var bound: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].field, t.effect.look[0].slot, t.effect.look[0].colorBlend, "%.2f" % t.default] if t.effect.has("look") else [t.effect])
+	check(bound == [["decal", 1, 8, "0.60"]], "the 3rd's alpha curve binds its decal slot at its saved alpha: %s" % [bound])
 	sk.free()
 
 

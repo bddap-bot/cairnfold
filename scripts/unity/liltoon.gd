@@ -172,12 +172,27 @@ static func layer(m: Dictionary, n: String) -> Variant:
 	return {"colour": _colour(m, "_Color" + n, Color.WHITE), "mode": mode, "angle": Materials._float(m, p + "Angle"), "decal": Materials._float(m, p + "IsDecal") != 0.0, "copy": Materials._float(m, p + "ShouldCopy") != 0.0, "flip": Materials._float(m, p + "ShouldFlipCopy") != 0.0}
 
 
-## The 2nd and 3rd main textures blended into `img`, the tinted albedo at its cell's size, in linear light by their
-## blend modes (normal, add, screen, multiply), as lilToon blends them before light.
-static func lay(materials: Materials, m: Dictionary, img: Image) -> void:
-	for n: String in ["2nd", "3rd"]:
+## The layers over the main texture, in the order lilToon lays them; the renderer lays one a clip fades as decal slot
+## its position here (Materials.LAYER_ALPHAS).
+const LAYERS: Array[String] = ["2nd", "3rd"]
+## The decal blend (ExpressionDefinition.DECAL_BLENDS) of each layer blend mode: normal, add, screen, multiply.
+const LAYER_BLENDS: Array[int] = [0, 8, 6, 2]
+
+
+## The LAYERS on whose colour's alpha a clip moves (a property of `animated`), which the renderer lays as decals: one
+## left in the atlas under a faded one stays under it where they overlap.
+static func faded(m: Dictionary, animated: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	out.assign(LAYERS.filter(func(n: String) -> bool: return animated.has("_Color%s.a" % n) and layer(m, n) is Dictionary))
+	return out
+
+
+## The 2nd and 3rd main textures but those `faded` blended into `img`, the tinted albedo at its cell's size, in linear
+## light by their blend modes (normal, add, screen, multiply), as lilToon blends them before light.
+static func lay(materials: Materials, m: Dictionary, img: Image, faded: Array[String]) -> void:
+	for n: String in LAYERS:
 		var l: Variant = layer(m, n)
-		if not l is Dictionary:
+		if not l is Dictionary or n in faded:
 			continue
 		var over := _layer_image(materials, m, n, l, img.get_size(), 0).get_data()
 		var data := img.get_data()
@@ -190,6 +205,14 @@ static func lay(materials: Materials, m: Dictionary, img: Image) -> void:
 				var s: float = Materials._LINEAR[over[i + c]]
 				data[i + c] = _encoded(lerpf(d, [s, d + s, maxf(d + s - d * s, d), d * s][l.mode], a))
 		img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
+
+
+## Layer `l`, main texture `n` of `m`, as the renderer lays it, a decal over the material's cell at the cell's size
+## `size`: {"alpha", "colorBlend", "image"}, its image coloured by its colour but its alpha, which "alpha" holds.
+static func layer_decal(materials: Materials, m: Dictionary, n: String, l: Dictionary, size: Vector2i) -> Dictionary:
+	var opaque := l.duplicate()
+	opaque.colour = Color(l.colour, 1.0)
+	return {"alpha": (l.colour as Color).a, "colorBlend": LAYER_BLENDS[l.mode], "image": _layer_image(materials, m, n, opaque, size, 0)}
 
 
 ## Layer `l`, the main texture `n`, over the material's texture at `size` texels and `pad` more each side: its colour
@@ -518,10 +541,11 @@ static func glow(materials: Materials, m: Dictionary, albedo: Image) -> Image:
 
 
 ## The material's colour adjustment mask over its padded cell, as hue_mask carries it: _MainColorAdjustMask's red,
-## spared where a 2nd or 3rd main texture laid over the adjusted texture covers it normally; null where it covers all.
-static func hue_mask(materials: Materials, m: Dictionary) -> Image:
+## spared where a 2nd or 3rd main texture the atlas lays over the adjusted texture (all but those `faded`, which the
+## renderer lays after adjusting) covers it normally; null where it covers all.
+static func hue_mask(materials: Materials, m: Dictionary, faded: Array[String]) -> Image:
 	var source := materials._slot_image(m, "_MainColorAdjustMask")
-	var over := ["2nd", "3rd"].filter(func(n: String) -> bool: return layer(m, n) is Dictionary and layer(m, n).mode == 0)
+	var over := LAYERS.filter(func(n: String) -> bool: return n not in faded and layer(m, n) is Dictionary and layer(m, n).mode == 0)
 	if source == null and over.is_empty():
 		return null
 	var size: Vector2i = (m.cell as Rect2i).size
