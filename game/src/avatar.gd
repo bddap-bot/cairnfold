@@ -456,26 +456,59 @@ static func _marked(m: Material) -> bool:
 
 
 ## Toon outlines draw while the quality ladder's step keeps them (Quality.Step.outlines): each hull costs a Quest 2
-## 0.57 to 0.73 ms for a heavy avatar in view (docs/design.md, "Toon outlines").
+## 0.6 to 0.8 ms for a heavy avatar in view (docs/design.md, "Toon outlines"); toon shading likewise
+## (Quality.Step.toon), 1.65 to 4.28 ms an avatar (docs/design.md, "Toon shading").
 static var outlines := true
-static var _hulled: Array[WeakRef] = []
+static var toon := true
+static var _cuts: Array[WeakRef] = []
 
 
 ## Gives `m` its outline's `hull` as its next pass while `outlines` holds.
 static func hulled(m: Material, hull: ShaderMaterial) -> void:
 	m.set_meta("hull", hull)
-	m.next_pass = hull if outlines else null
-	_hulled = _hulled.filter(func(w: WeakRef) -> bool: return w.get_ref() != null)
-	_hulled.append(weakref(m))
+	_cuttable(m)
+
+
+## Draws `m`, an expression material drawing a toon shadow and rim, with `plain`, its shader without them, while
+## `toon` does not hold.
+static func tooned(m: ShaderMaterial, plain: Shader) -> void:
+	m.set_meta("shaders", [plain, m.shader])
+	_cuttable(m)
+
+
+static func _cuttable(m: Material) -> void:
+	_cut(m)
+	_cuts = _cuts.filter(func(w: WeakRef) -> bool: return w.get_ref() != null and w.get_ref() != m)
+	_cuts.append(weakref(m))
+
+
+## Draws `m` with what the step keeps of it: its hull while `outlines` holds, its toon shader while `toon` does.
+static func _cut(m: Material) -> void:
+	if m.has_meta("hull"):
+		m.next_pass = m.get_meta("hull") if outlines else null
+	if m.has_meta("shaders"):
+		var shader: Shader = m.get_meta("shaders")[1 if toon else 0]
+		if (m as ShaderMaterial).shader != shader:
+			(m as ShaderMaterial).shader = shader
 
 
 ## Draws every avatar's outlines or none (`outlines`).
 static func show_outlines(on: bool) -> void:
 	outlines = on
-	for w in _hulled:
+	_cut_all()
+
+
+## Draws every avatar's toon shading or none (`toon`).
+static func show_toon(on: bool) -> void:
+	toon = on
+	_cut_all()
+
+
+static func _cut_all() -> void:
+	for w in _cuts:
 		var m: Material = w.get_ref()
 		if m != null:
-			m.next_pass = m.get_meta("hull") if on else null
+			_cut(m)
 
 
 ## Leaves out the spring chains and colliders that the expressions' default state switches off. A chain is off when

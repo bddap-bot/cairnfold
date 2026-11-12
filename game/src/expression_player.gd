@@ -565,6 +565,8 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 		if not by_shader.has(key):
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
+			if tooned:
+				Avatar.tooned(mat, shader_for(base, _turned.has(str(mesh.name)), coated))
 			mat.set_shader_parameter("decals", _empty_array())
 			if base != null:
 				mat.set_shader_parameter("picture", base.albedo_texture)

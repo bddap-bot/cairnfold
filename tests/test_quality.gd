@@ -79,8 +79,8 @@ func _every_step_draws_less() -> void:
 		var a := steps[i]
 		var b := steps[i + 1]
 		var drawn_less := b.render_scale < a.render_scale or b.msaa < a.msaa or (a.reflections and not b.reflections) or b.foveation > a.foveation
-		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation and (a.files or not b.files) and (a.outlines or not b.outlines), "step %d draws no more than step %d" % [i + 1, i])
-		check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d or (a.files and not b.files) or (a.outlines and not b.outlines), "step %d draws less than step %d" % [i + 1, i])
+		check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation and (a.files or not b.files) and (a.outlines or not b.outlines) and (a.toon or not b.toon), "step %d draws no more than step %d" % [i + 1, i])
+		check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d or (a.files and not b.files) or (a.outlines and not b.outlines) or (a.toon and not b.toon), "step %d draws less than step %d" % [i + 1, i])
 		check(not drawn_less or i < Quality.START, "only the steps above the start change how the view is drawn, step %d does" % (i + 1))
 	for i in steps.size():
 		check(steps[i].msaa != Viewport.MSAA_DISABLED, "step %d keeps anti-aliasing on" % i)
@@ -345,6 +345,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
 	check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
 	check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED, "the step's MSAA, without reflections")
+	check(Avatar.outlines == bottom.outlines and Avatar.toon == bottom.toon, "avatars' outlines and toon shading as the step keeps them")
 	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
 	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
 	check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and stone.far.get_instance_shader_parameter(&"piece_range").x == bottom.stone_near_m, "a chunk already standing takes the step's reaches")
@@ -357,6 +358,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
 	check(sun.shadow_enabled and q.view.scaling_3d_scale == 1.0, "and so do the shadows and the full 3D resolution")
 	check(q.view.msaa_3d == Viewport.MSAA_4X and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_SKY, "and 4x MSAA and the sky's reflections")
+	check(Avatar.outlines and Avatar.toon, "and avatars' outlines and toon shading")
 	look.free()
 	q.view.free()
 	q.free()
@@ -508,7 +510,7 @@ func _frames_the_player_does_not_see_step_nothing_down() -> void:
 
 func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -> void:
 	var pops := Quality.popping()
-	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 5, Quality.ladder.size() - 4, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, outlines off, shadows off, a lower 3D scale and people without their own files pop, got %s" % [pops])
+	check(pops == PackedInt32Array([Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 6, Quality.ladder.size() - 5, Quality.ladder.size() - 4, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, toon shading off, outlines off, shadows off, a lower 3D scale and people without their own files pop, got %s" % [pops])
 	var g := Quality.Governor.new(10, PackedInt32Array([0]))
 	_down(g)
 	check(_feed(g, BUDGET * 0.1, 72 * 30) == 1, "a step up that pops waits more than a calm spell")

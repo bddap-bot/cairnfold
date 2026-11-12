@@ -103,7 +103,7 @@ func _run() -> void:
 	elif scene == "tree":
 		eye = Vector3(-6, terrain.height_at(-6, -20) + 1.4, -20)
 		facing = Vector3(-6, terrain.height_at(-6, -25) + 4, -25) - eye
-		main.quality.pin = 14
+		main.quality.pin = 15
 		yaws = [-20, 0, 20]
 	var folder := OS.get_environment("CAIRNFOLD_SHADOW_OUT")
 	assert(not folder.is_empty(), "Set CAIRNFOLD_SHADOW_OUT to the capture directory")
