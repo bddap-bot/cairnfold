@@ -224,6 +224,10 @@ func _bindings() -> void:
 	player.state.advance(0)
 	player.apply()
 	check(hat.visible, "the imported switch shows the actual node")
+	player.state.put("Hat", 0)
+	player.state.advance(0)
+	player.apply(player.state.moved.keys())
+	check(not hat.visible and player.state.moved.is_empty(), "binding only the targets the controller moved hides it again")
 	player.free()
 	root.free()
 
@@ -879,6 +883,17 @@ func _settled_layers() -> void:
 		sampled.advance(1.0 / 72.0)
 		same = same and settling.outputs == sampled.outputs and settling.states == sampled.states and settling.elapsed == sampled.elapsed
 	check(same, "passing resting layers over plays as sampling every layer every frame does")
+	var looping := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0}], "targets": [{"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 1]]}]}],
+		"layers": [{"any": [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "ifNot"}]}], "states": [{"motion": {"clip": 0}, "transitions": []}]}]}
+	var again := ExpressionState.new(looping)
+	again.advance(0.1)
+	again.advance(0.1)
+	check(again._settled == [true] and again.elapsed == [0.0] and again.outputs == [1.0], "a layer re-entering its own still state every frame rests at no time elapsed: %s" % [again.elapsed])
+	again.advance(0.1)
+	again.put("Hat", 1.0)
+	again.advance(0.1)
+	check(not again._reenter[0] and is_equal_approx(again.elapsed[0], 0.1), "once its transition no longer holds, its time runs again: %s" % [again.elapsed])
 	check(range(97).all(func(k: int) -> bool: return ExpressionState.sample([[0, 1, 0, 0], [1, 1, 0, 0]], k / 96.0, false) == 1.0), "a flat span between equal keys holds their value exactly")
 
 

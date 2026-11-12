@@ -15,12 +15,17 @@ var pulses := {}
 var _animated_parameters: Array[int] = []
 ## Each target's layers whose states may animate it, in order.
 var _writers: Array[Array] = []
-## Each layer's states by whether their motion samples the same at every time.
+## Each layer's states by whether their motion samples the same at every time, and by whether re-entering one plays
+## as the last re-entry did: a transition back into its own state re-enters it every frame its conditions hold, as
+## Unity's any state does, and a still state with no drivers and no exit times to reach plays the same each time.
 var _timeless: Array[Array] = []
+var _repeats: Array[Array] = []
 ## Whether each layer took no transition since a parameter it reads last changed, and the normalized time of its next
 ## exit time: until either moves it samples and transitions as it did, so it is passed over.
 var _settled: Array[bool] = []
 var _until: Array[float] = []
+## Whether each settled layer settled re-entering its state every frame, which leaves it at no time elapsed.
+var _reenter: Array[bool] = []
 ## Each layer's state's speed and length, which the pass over a settled layer reads in place of its state.
 var _speed: Array[float] = []
 var _lengths: Array[float] = []
@@ -28,6 +33,8 @@ var _lengths: Array[float] = []
 var _readers := {}
 ## Whether the next advance builds every output again, the layers having started over.
 var _rebuild := false
+## The targets whose outputs advancing changed since a player last bound them.
+var moved := {}
 var opened: Array[Dictionary] = []
 var revision := 0
 ## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
@@ -53,14 +60,18 @@ func _init(definition: Dictionary) -> void:
 		_layer_values.append({})
 		_settled.append(layer.states.is_empty())
 		_until.append(INF)
+		_reenter.append(false)
 		_speed.append(0.0)
 		_lengths.append(0.0)
 		var targets := {}
 		var timeless := []
+		var repeats := []
 		for state: Dictionary in layer.states:
 			_targets(state.get("motion", {}), targets)
 			timeless.append(_timeless_motion(state.get("motion", {})))
+			repeats.append(timeless[-1] and (state.get("drivers", []) as Array).is_empty() and (layer.get("any", []) + state.get("transitions", [])).all(func(t: Dictionary) -> bool: return not t.has("exitTime")))
 		_timeless.append(timeless)
+		_repeats.append(repeats)
 		for t: int in targets:
 			_writers[t].append(i)
 		var reads := {}
@@ -184,6 +195,8 @@ func advance(delta: float) -> void:
 	for i in states.size():
 		elapsed[i] += delta * _speed[i]
 		if _settled[i] and (elapsed[i] / _lengths[i] if _lengths[i] > 0 else elapsed[i]) < _until[i]:
+			if _reenter[i]:
+				elapsed[i] = 0.0
 			continue
 		var layer: Dictionary = data.layers[i]
 		if layer.states.is_empty():
@@ -193,20 +206,23 @@ func advance(delta: float) -> void:
 			elapsed[i] = delta * _speed[i]
 		var state: Dictionary = layer.states[states[i]]
 		var normalized := elapsed[i] / _lengths[i] if _lengths[i] > 0 else elapsed[i]
-		var transitions: Array = layer.get("any", []) + state.get("transitions", [])
-		var next := _transition(transitions, states[i], normalized)
+		var next := _transition(layer.get("any", []), states[i], normalized)
+		if next == -1:
+			next = _transition(state.get("transitions", []), states[i], normalized)
 		if next == EXIT:
 			next = _entered(layer)
+		var again: bool = next == states[i] and _repeats[i][next]
 		if next >= 0:
 			_enter(i, next)
 			state = layer.states[states[i]]
-			_settled[i] = false
-		elif _timeless[i][states[i]]:
-			_settled[i] = true
-			_until[i] = INF
-			for t: Dictionary in transitions:
-				if t.has("exitTime") and normalized < t.exitTime:
-					_until[i] = minf(_until[i], t.exitTime)
+		_settled[i] = again or (next < 0 and _timeless[i][states[i]])
+		_reenter[i] = again
+		_until[i] = INF
+		if next < 0:
+			for transitions: Array in [layer.get("any", []), state.get("transitions", [])]:
+				for t: Dictionary in transitions:
+					if t.has("exitTime") and normalized < t.exitTime:
+						_until[i] = minf(_until[i], t.exitTime)
 		# A state writing defaults leaves what it does not animate to the layers below, as Unity's layers do: a toggle's
 		# later layer at rest does not undo an earlier layer's.
 		var sampled := _motion(state.get("motion", {}), elapsed[i])
@@ -221,6 +237,7 @@ func advance(delta: float) -> void:
 			_layer_values[i] = sampled
 		else:
 			held.merge(sampled, true)
+	moved.merge(changed)
 	for t: int in changed:
 		outputs[t] = float(data.targets[t].get("default", 0.0))
 		for i: int in _writers[t]:
@@ -262,7 +279,12 @@ func _transition(transitions: Array, current: int, time: float) -> int:
 	for t: Dictionary in transitions:
 		if (t.get("notToSelf", false) and t.to == current) or (t.has("exitTime") and time < t.exitTime):
 			continue
-		if (t.get("conditions", []) as Array).all(_condition):
+		var holds := true
+		for c: Dictionary in t.get("conditions", []):
+			if not _condition(c):
+				holds = false
+				break
+		if holds:
 			return EXIT if t.to < 0 else int(t.to)
 	return -1
 
@@ -431,13 +453,15 @@ func _targets(motion: Dictionary, targets: Dictionary) -> void:
 		_targets(child.motion, targets)
 
 
-## Adds to `reads` every parameter a layer's transitions, motions and drivers name; a driver's own target only wakes the
-## layer needlessly, so it is left in rather than told apart.
+## Adds to `reads` every parameter a layer's transitions and motions name; its drivers read only as it enters a state,
+## which a settled layer does not.
 static func _reads(of: Variant, reads: Dictionary) -> void:
 	if of is Dictionary:
 		for key: String in of:
 			var v: Variant = of[key]
-			if v is String and key in ["parameter", "time", "source"]:
+			if key == "drivers":
+				continue
+			if v is String and key in ["parameter", "time"]:
 				reads[v] = true
 			elif key == "parameters" and v is Array:
 				for p: Variant in v:

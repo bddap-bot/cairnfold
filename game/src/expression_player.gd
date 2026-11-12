@@ -8,7 +8,7 @@ var state: ExpressionState
 var contacts: Contacts
 var icons: Array[Texture2D] = []
 var _bindings: Array = []
-var _scales := {}
+var _scales: Array[int] = []
 ## Each bone a rotation or translation effect moves, [skeleton, bone], to its rest, the Unity local rotation its effects
 ## set (`turn`) against the one they were authored from (`rest_turn`), each translation's offset, and the pose they make.
 var _moved := {}
@@ -99,7 +99,7 @@ func _init(model: Node3D) -> void:
 						if index >= 0:
 							binds.append(func(v: float) -> void: mesh.set_blend_shape_value(index, v))
 			elif effect.has("scale"):
-				_scales[_bindings.size()] = true
+				_scales.append(_bindings.size())
 				for at: Array in _bones(nodes, effect.scale.node):
 					var skeleton: Skeleton3D = at[0]
 					var bone: int = at[1]
@@ -238,16 +238,21 @@ func _process(delta: float) -> void:
 	if contacts.receives() and body != null and body.is_in_group(Contacts.BODIES):
 		contacts.sense(state, Contacts.gather(get_tree()), body, body.local, delta)
 	state.advance(delta)
-	apply()
+	var targets := state.moved.keys()
+	targets.append_array(_scales)
+	apply(targets)
 	process_us += Time.get_ticks_usec() - start
 
 
-func apply() -> void:
+## Binds the outputs of `targets`, those the controller moved since the last, or every output where null.
+func apply(targets: Variant = null) -> void:
 	var showing := {}
 	if _frame == 0:
+		targets = null
 		for k in _shown.size():
 			showing[k] = true
-	for i in state.outputs.size():
+	state.moved.clear()
+	for i: int in range(state.outputs.size()) if targets == null else targets:
 		var v := state.outputs[i]
 		if _scales.has(i) or not is_equal_approx(v, _last[i]):
 			for bind: Callable in _bindings[i]:
