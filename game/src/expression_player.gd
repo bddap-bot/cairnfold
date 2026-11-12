@@ -214,6 +214,13 @@ func _init(model: Node3D) -> void:
 	_move_bones()
 
 
+## Entered here, after its saved values are restored and before it is first drawn, so a body that never processes, a
+## still figure's, shows the look its controller starts in.
+func _ready() -> void:
+	state.advance(0.0)
+	apply()
+
+
 func _process(delta: float) -> void:
 	var start := Time.get_ticks_usec()
 	_seconds += delta

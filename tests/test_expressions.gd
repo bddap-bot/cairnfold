@@ -1,11 +1,12 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _init() -> void:
+func _run() -> void:
 	_malformed()
 	_controls()
 	_fx()
 	_bindings()
+	_unprocessed_bodies_start_dressed()
 	_bones_turn_and_shift()
 	_node_effects_roundtrip()
 	_roundtrip()
@@ -223,6 +224,41 @@ func _bindings() -> void:
 	player.apply()
 	check(hat.visible, "the imported switch shows the actual node")
 	player.free()
+	root.free()
+
+
+func _unprocessed_bodies_start_dressed() -> void:
+	var root := Node3D.new()
+	var ears := Node3D.new()
+	ears.name = "Ears"
+	ears.visible = false
+	root.add_child(ears)
+	var definition := _definition()
+	definition.clips[0].curves[0].keys = [[0, 1]]
+	definition.shown = [{"node": "Ears", "when": [[0, 1]]}]
+	root.set_meta("expressions", definition)
+	var player := ExpressionPlayer.new(root)
+	root.add_child(player)
+	get_root().add_child(root)
+	check(ears.visible, "a body that never processes, a still figure's, wears what its controller's first state turns on")
+	root.free()
+	root = Node3D.new()
+	ears = Node3D.new()
+	ears.name = "Ears"
+	root.add_child(ears)
+	definition = _definition()
+	definition.clips[1].curves[0].keys = [[0, 1]]
+	definition.layers[0].states.map(func(s: Dictionary) -> void: s.transitions = [])
+	definition.layers[0].entry = [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]
+	definition.shown = [{"node": "Ears", "when": [[0, 1]]}]
+	root.set_meta("expressions", definition)
+	player = ExpressionPlayer.new(root)
+	root.add_child(player)
+	get_root().add_child(root)
+	player.state.restore({"Hat": 1.0})
+	player.state.advance(0)
+	player.apply()
+	check(ears.visible, "saved values read after the controller first entered still choose the state it enters")
 	root.free()
 
 

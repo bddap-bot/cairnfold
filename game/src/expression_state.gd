@@ -53,10 +53,19 @@ func saved() -> Dictionary:
 	return out
 
 
+## Starts again from the creator's defaults with `saved_values` over them, so each layer enters reading what was saved
+## even when the saved values are read after it first entered.
 func restore(saved_values: Dictionary) -> void:
+	pulses.clear()
+	for key: String in definitions:
+		put(key, definitions[key].get("default", 0.0))
 	for key: String in saved_values:
 		if definitions.get(key, {}).get("saved", false) and (saved_values[key] is float or saved_values[key] is int):
 			put(key, saved_values[key])
+	states.fill(-1)
+	elapsed.fill(0.0)
+	for i in _layer_values.size():
+		_layer_values[i] = {}
 
 
 func reset() -> void:
