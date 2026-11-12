@@ -158,5 +158,7 @@
   {"op": "wait", "seconds": 1},
   {"op": "label", "name": "pair/across/3look/6"},
   {"op": "wait", "seconds": 8},
-  {"op": "label", "name": "-"}
+  {"op": "label", "name": "-"},
+  {"op": "figures", "spots": []},
+  {"op": "quit"}
 ]
