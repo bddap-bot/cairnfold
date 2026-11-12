@@ -22,9 +22,11 @@ varying vec4 tinted;
 varying vec4 glow_colour;
 varying float glow_strength;
 // The looks table column of the vertex's material where it has a matcap (Avatar._lit_looks's rows from MATCAP), else
-// -1, and the surface's own normal in world space, which a matcap is looked up by.
+// -1, and the surface's own normal in world space, since a flat material's NORMAL is turned to light it: a matcap is
+// looked up by it, and a coat and a toon shade take it turned into view space, a Quest 2 having no room for a varying
+// of each (tests/test_varyings.gd).
 varying flat int matcap_entry;
-varying vec3 matcap_normal;
+varying vec3 world_normal;
 uniform sampler2DArray matcaps : source_color, hint_default_white, filter_linear_mipmap, repeat_disable;
 uniform sampler2D matcap_masks : hint_default_white, filter_linear_mipmap, repeat_disable;
 #ifdef CLEAR_COAT
@@ -32,8 +34,6 @@ uniform sampler2D matcap_masks : hint_default_white, filter_linear_mipmap, repea
 // else -1: a fragment reads the coat's rows only where it draws one, since carrying them as varyings cost a Quest 2 as
 // much as drawing the coat over the whole of every mesh showing one. Its maps are read through UV2.
 varying flat int coat_entry;
-// The surface's own normal in view space: a flat material's NORMAL is turned to light it.
-varying vec3 coat_normal;
 uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
 #endif
 #ifdef TOON
@@ -41,11 +41,10 @@ uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, rep
 uniform sampler2D shade : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 uniform sampler2D shade2 : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 // The looks table column of the vertex's material where the table has toon rows, else -1; how far its true normal
-// faces the main light, lilToon's half Lambert; that normal in view space; and the whole light it takes, capped where
-// flat, which its rim takes where lit.
+// faces the main light, lilToon's half Lambert; and the whole light it takes, capped where flat, which its rim takes
+// where lit.
 varying flat int toon_entry;
 varying float toon_toward;
-varying vec3 toon_normal;
 varying vec3 toon_light;
 #endif
 
@@ -71,18 +70,16 @@ void vertex() {
 #ifdef CLEAR_COAT
 	bool coated = texelFetch(lighting, looked + ivec2(0, COAT), 0).x > 0.0 || texelFetch(lighting, looked + ivec2(0, COAT + 4), 0).x > 0.5;
 	coat_entry = coated ? looked.x : -1;
-	coat_normal = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 #endif
 	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
 	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	matcap_entry = textureSize(lighting, 0).y > MATCAP && texelFetch(lighting, looked + ivec2(0, MATCAP), 0).r > 0.5 ? looked.x : -1;
-	matcap_normal = normal;
+	world_normal = normal;
 	bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 #ifdef TOON
 	toon_entry = textureSize(lighting, 0).y > TOON_ROW ? looked.x : -1;
 	toon_toward = dot(normal, key_toward(mirrored)) * 0.5 + 0.5;
-	toon_normal = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 #endif
 	// A flat or ramp-lit vertex reads the light around it a metre over its mesh's origin, the same place for every
 	// vertex: reading the volumes at each vertex of a dense avatar cost a Quest 2 more than its whole lighting.
@@ -412,7 +409,7 @@ void fragment() {
 	// Taken before any branch on the entry, which differs within a quad along a material's edge.
 	float toward = clamp(toon_toward, 0.0, 1.0);
 	float toward_width = fwidth(toon_toward);
-	vec3 toon_n = normalize(toon_normal);
+	vec3 toon_n = normalize(mat3(VIEW_MATRIX) * world_normal);
 	float facing = abs(dot(toon_n, VIEW));
 	float facing_width = fwidth(facing);
 	vec4 shade_texel = textureGrad(shade, uv, dx, dy);
@@ -442,7 +439,7 @@ void fragment() {
 	vec3 matcap_light = vec3(0.0);
 	if (matcap_entry >= 0) {
 		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
-		vec3 n = normalize(matcap_normal) * (FRONT_FACING ? 1.0 : -1.0);
+		vec3 n = normalize(world_normal) * (FRONT_FACING ? 1.0 : -1.0);
 		vec3 toward = mirrored ? mirror_toward : sun_toward;
 		float lit = smoothstep(0.4, 0.6, dot(n, length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5);
 #ifdef TOON
@@ -489,7 +486,7 @@ void fragment() {
 		vec4 reflection = texelFetch(lighting, ivec2(coat_entry, COAT + 3), 0);
 		vec4 invert = texelFetch(lighting, ivec2(coat_entry, COAT + 4), 0);
 		vec2 gsaa = texelFetch(lighting, ivec2(coat_entry, COAT + 5), 0).xy;
-		vec3 coat_n = normalize(coat_normal) * (FRONT_FACING ? 1.0 : -1.0);
+		vec3 coat_n = normalize(mat3(VIEW_MATRIX) * world_normal) * (FRONT_FACING ? 1.0 : -1.0);
 		vec3 coat_dx = dFdx(coat_n);
 		vec3 coat_dy = dFdy(coat_n);
 		vec4 maps = vec4(1.0);

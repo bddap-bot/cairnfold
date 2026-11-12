@@ -12,7 +12,6 @@ instance uniform bool miniature = false;
 // In the piece's frame, where its shadow's box (Wall.kinds) spans -0.5 to 0.5.
 varying vec3 local_pos;
 
-varying vec3 world_pos;
 varying vec3 world_nrm;
 #include "res://src/interior.gdshaderinc"
 varying float occlusion;
@@ -74,7 +73,7 @@ void vertex() {
 			}
 		}
 		local_pos = VERTEX;
-		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
+		vec3 world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
 		ROOM_HERE;
 #ifdef ROOF_TIMBER
 		occlusion = 0.85;
@@ -113,6 +112,8 @@ void vertex() {
 }
 
 void fragment() {
+	// Taken from the view rather than carried, a Quest 2 having no room for its varying (tests/test_varyings.gd).
+	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	if (abs(material - ELEMENT_ROOF) < 0.5) {
 		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
 	}
