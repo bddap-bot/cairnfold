@@ -2205,7 +2205,13 @@ Quest 2 0.09 to 0.11 µs a clump and now measures within noise of nothing, and a
 ([before](../perf/quest-2/flora-distance/20261024T104945Z-5148129.json),
 [after](../perf/quest-2/flora-distance/20261024T165227Z-d3fbae0.json)). With every painted pool full
 over the stress scene's 20 m disc, flora/aerial fell from 14.6-15.3 to 13.6 ms and flora/ground from
-12.3 to 11.8. Both reaches move at 8 m a second. The blob detail changes by
+12.3 to 11.8. A painted grass patch wholly past `sparse_from` draws its survivors alone, from a second MultiMesh
+mirroring the patch's survivors, which it keeps first, as the meadow's cells do: the clumps the shader has sunk to a
+point there still cost the binning pass their vertices. With the whole 12,000-clump pool painted over a 15 m disc and
+seen from 22 m out (`demo/grass-band.json`), the pool cost a Quest 2 1.58 and 1.49 ms a frame before and 0.88 and
+1.00 after, in two interleaved pairs, and its primitives fell from 29,625 to 11,034
+([before](../perf/quest-2/grass-band/20261112T234451Z-e3128ca.json),
+[after](../perf/quest-2/grass-band/20261112T234756Z-8043c90.json)). Both reaches move at 8 m a second. The blob detail changes by
 swapping the mesh the foliage's MultiMeshes draw, kept for both details from the start:
 switching it back and forth six times over 12 s, from the air, left the slowest frame of
 each second at 14.8 to 16.7 ms, as in the seconds around the switches: switching causes no stall.
