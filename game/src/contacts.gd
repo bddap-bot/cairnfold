@@ -28,8 +28,9 @@ const BODY := {
 	"fingerLittleL": [["Finger", "FingerL", "FingerLittle", "FingerLittleL"], ["leftLittleIntermediate"], ["leftLittleDistal"], 0.0065],
 	"fingerLittleR": [["Finger", "FingerR", "FingerLittle", "FingerLittleR"], ["rightLittleIntermediate"], ["rightLittleDistal"], 0.0065],
 }
-## The scene group of the players' bodies, each giving `contact_senders()`: Array of [from, to, radius, tags (a Dictionary
-## of them), body, a key naming the sender from frame to frame] in world space.
+## The scene group of the players' bodies, each giving `contact_senders(tags)`: Array of [from, to, radius, tags (a
+## Dictionary of them), body, a key naming the sender from frame to frame] in world space, those sharing a tag with
+## `tags`, or all where null; and `listened()`, the tags its own receivers listen for.
 const BODIES := &"contact_bodies"
 
 var _receivers: Array[Dictionary] = []
@@ -70,23 +71,45 @@ func receives() -> bool:
 
 
 ## This avatar's own senders that `outputs` switch on, in world space, as BODIES members give them.
-func senders(outputs: Array[float], owner: Object) -> Array:
+func senders(outputs: Array[float], owner: Object, tags: Variant = null) -> Array:
 	var out := []
 	for s: Dictionary in _senders:
-		if ExpressionPlayer.shows(outputs, s.when):
+		if (tags == null or _shares(s.tags, tags)) and ExpressionPlayer.shows(outputs, s.when):
 			out.append(_placed(s) + [s.tags, owner, [owner.get_instance_id(), s.key]])
 	return out
 
 
-## Every sender of every body in `tree` this frame.
+## Every sender of every body in `tree` this frame that a shown receiver of any of them listens for (listened): placing
+## a sender no receiver listens for is most of what contacts cost.
 static func gather(tree: SceneTree) -> Array:
 	var frame := Engine.get_process_frames()
 	if frame != _gathered_frame:
 		_gathered_frame = frame
 		_gathered = []
-		for b: Node in tree.get_nodes_in_group(BODIES):
-			_gathered.append_array(b.contact_senders())
+		var bodies := tree.get_nodes_in_group(BODIES)
+		var tags: Variant = {}
+		for b: Node in bodies:
+			var heard: Variant = b.listened()
+			if heard == null:
+				tags = null
+				break
+			tags.merge(heard)
+		if tags == null or not tags.is_empty():
+			for b: Node in bodies:
+				_gathered.append_array(b.contact_senders(tags))
 	return _gathered
+
+
+## The tags of the receivers `outputs` switch on, those of local-only ones only where `local`, or null for every tag
+## while one counts entries, which reads where every sender was a frame ago.
+func listened(outputs: Array[float], local: bool) -> Variant:
+	if _entering:
+		return null
+	var out := {}
+	for r: Dictionary in _receivers:
+		if ExpressionPlayer.shows(outputs, r.when) and (local or not r.local):
+			out.merge(r.tags)
+	return out
 
 
 ## Writes each receiver's parameter into `state` from the `senders` (gather) touching it, `owner` being its own body;
@@ -127,9 +150,11 @@ func sense(state: ExpressionState, senders: Array, owner: Object, local: bool, d
 
 ## A humanoid body's VRChat senders (BODY) in world space: `joint.call(bone)` gives a humanoid bone's world origin, or
 ## null where the body has none; `height` its eyes' height.
-static func body_senders(joint: Callable, height: float, owner: Object) -> Array:
+static func body_senders(joint: Callable, height: float, owner: Object, tags: Variant = null) -> Array:
 	var out := []
 	for key: String in BODY:
+		if tags != null and not _shares(_TAGS[key], tags):
+			continue
 		var b: Array = BODY[key]
 		var from: Variant = _first(joint, b[1])
 		if from == null:

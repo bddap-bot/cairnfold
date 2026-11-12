@@ -1044,17 +1044,23 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	return a
 
 
+## The tags this body's shown receivers listen for (Contacts.listened), or none without receivers.
+func listened() -> Variant:
+	return expressions.contacts.listened(expressions.state.outputs, local) if expressions != null and expressions.contacts.receives() else {}
+
+
 ## The contact senders this body carries in world space this frame (Contacts.BODIES): VRChat's built-in ones on its
-## humanoid bones (Contacts.BODY) unless its file gives its body's, and its expressions' own; none while it is hidden.
-func contact_senders() -> Array:
+## humanoid bones (Contacts.BODY) unless its file gives its body's, and its expressions' own, those sharing a tag
+## with `tags` or all where null; none while it is hidden.
+func contact_senders(tags: Variant = null) -> Array:
 	var senders := []
 	if not is_visible_in_tree():
 		return senders
 	var joint := func(name: String) -> Variant: return bone(name).origin if _joints.has(name) else null
 	if expressions == null or not expressions.contacts.carries_body:
-		senders = Contacts.body_senders(joint, eye_height * global_transform.basis.get_scale().y, self)
+		senders = Contacts.body_senders(joint, eye_height * global_transform.basis.get_scale().y, self, tags)
 	if expressions != null:
-		senders.append_array(expressions.contacts.senders(expressions.state.outputs, self))
+		senders.append_array(expressions.contacts.senders(expressions.state.outputs, self, tags))
 	return senders
 
 
