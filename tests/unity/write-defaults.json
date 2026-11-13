@@ -1,0 +1,3071 @@
+{
+ "after_off_empty": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K:fe",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0
+    }
+   }
+  ]
+ },
+ "after_off_null": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K:f-",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   }
+  ]
+ },
+ "after_off_unrel": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "after_off_w0": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K*0:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0
+    }
+   }
+  ]
+ },
+ "allon": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   }
+  ]
+ },
+ "before_off_unrel": {
+  "layers": "K:fVictory=50;TA:de|dHat=1;TS:d-|dSmile=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "both_sides": {
+  "layers": "TS:d-|dSmile=100;K:fVictory=50;TS2*0.5:d-|dSmile=20",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS2": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 60.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 20.0000763,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS2": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 20.0000763,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "detour": {
+  "layers": "TA:de|dHat=1;M:d-|fGun=100|d-|f-",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "M": 2.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 3.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   }
+  ]
+ },
+ "gesture_off": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K@G:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "halfw": {
+  "layers": "TA*0.5:de|dHat=1;TS*0.5:d-|dSmile=100;K:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 50.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 50.0,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "halfw_allon": {
+  "layers": "TA*0.5:de|dHat=1;TS*0.5:d-|dSmile=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0
+    }
+   }
+  ]
+ },
+ "koff_half": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K*0.5:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 25.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 25.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 25.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 25.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 9.536743e-05,
+     "Victory": 25.0
+    }
+   }
+  ]
+ },
+ "mode": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;M:de|fVictory=50|fe|f-|dRock=50|fSmile=30",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 2.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 3.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 4.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 0.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 5.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "M": 5.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0,
+     "Victory": 50.0,
+     "Rock": 50.0
+    }
+   },
+   {
+    "set": {
+     "M": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 0.0
+    }
+   }
+  ]
+ },
+ "nonactive_off": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K:dVictory=50|fRock=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Rock": 0.0
+    }
+   }
+  ]
+ },
+ "null_empty_clip": {
+  "layers": "TA:de|dHat=1;TN:f-|fe",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0
+    }
+   }
+  ]
+ },
+ "null_first": {
+  "layers": "TN:f-|fGun=100;TA:de|dHat=1",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   }
+  ]
+ },
+ "null_from_on": {
+  "layers": "TA:de|dHat=1;TN:f-|dGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   }
+  ]
+ },
+ "null_half": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;TN*0.5:f-|fGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Gun": 50.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Gun": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 50.0,
+     "Gun": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 50.0,
+     "Gun": 50.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 50.0,
+     "Gun": 50.0
+    }
+   }
+  ]
+ },
+ "null_later": {
+  "layers": "TN:f-|fGun=100;TP:de|dPout=100;TA:de|dHat=1",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TP": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TP": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TP": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TP": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   }
+  ]
+ },
+ "null_on_from_off": {
+  "layers": "TA:de|dHat=1;TN:d-|fGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   }
+  ]
+ },
+ "null_snapshot": {
+  "layers": "TA:de|dHat=1;TN:f-|fGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   }
+  ]
+ },
+ "null_three": {
+  "layers": "TA:de|dHat=1;TN:f-|fGun=100;TP:de|dPout=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TP": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TP": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0,
+     "Pout": 0.0
+    }
+   }
+  ]
+ },
+ "nulloff": {
+  "layers": "TA:de|dHat=1;TN:f-|fGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 0.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Gun": 100.0
+    }
+   }
+  ]
+ },
+ "off_first_hold_mid": {
+  "layers": "K*0.5:fVictory=50;TS:d-|dSmile=100;TS2*0.5:d-|dSmile=20",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Smile": 0.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS2": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 60.0,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 20.0000381,
+     "Victory": 50.0
+    }
+   },
+   {
+    "set": {
+     "TS2": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 20.0000381,
+     "Victory": 50.0
+    }
+   }
+  ]
+ },
+ "off_weights_hi_lo": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K1*0.75:fVictory=50;K2*0.25:fRock=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 37.5,
+     "Rock": 28.5714264
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 37.5,
+     "Rock": 28.5714264
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 37.5,
+     "Rock": 28.5714264
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 37.5,
+     "Rock": 28.5714264
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.3171212,
+     "Victory": 37.5,
+     "Rock": 28.5714264
+    }
+   }
+  ]
+ },
+ "off_weights_lo_hi": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K1*0.25:fVictory=50;K2*0.75:fRock=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 12.5,
+     "Rock": 40.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 12.5,
+     "Rock": 40.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 12.5,
+     "Rock": 40.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 12.5,
+     "Rock": 40.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 9.094947e-11,
+     "Victory": 12.5,
+     "Rock": 40.0
+    }
+   }
+  ]
+ },
+ "offstate_clip": {
+  "layers": "TA:de|dHat=1;TS:dSmile=0|dSmile=100;TP:de|dPout=100;K:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Victory": 50.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TP": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TP": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 50.0,
+     "Pout": 100.0
+    }
+   }
+  ]
+ },
+ "same_after": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K:fSmile=30",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   }
+  ]
+ },
+ "same_before": {
+  "layers": "K:fSmile=30;TA:de|dHat=1;TS:d-|dSmile=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 30.0
+    }
+   }
+  ]
+ },
+ "self": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;TO:fe|fPout=100;TM1:de|fFist=100;TM2:fe|dOpen=100;TE:fPoint=0|fPoint=100;TN:f-|fGun=100",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 0.0
+    }
+   },
+   {
+    "set": {
+     "TO": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TO": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 0.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TM1": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TM1": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 0.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TM2": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TM2": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TE": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 100.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TE": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 0.0,
+     "Gun": 0.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   },
+   {
+    "set": {
+     "TN": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 100.0,
+     "Fist": 100.0,
+     "Open": 100.0,
+     "Point": 0.0,
+     "Gun": 100.0,
+     "Pout": 100.0
+    }
+   }
+  ]
+ },
+ "two_off_half": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K1*0.5:fVictory=50;K2*0.5:fRock=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 25.0,
+     "Rock": 33.3333321
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 25.0,
+     "Rock": 33.3333321
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 25.0,
+     "Rock": 33.3333321
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 25.0,
+     "Rock": 33.3333321
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 9.536743e-05,
+     "Victory": 25.0,
+     "Rock": 33.3333321
+    }
+   }
+  ]
+ },
+ "types": {
+  "layers": "TC:de|dColor=0.1;TR:de|dHatR=0;TA:de|dHat=1;K:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 50.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TC": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 50.0,
+     "HatR": 1.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TC": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 50.0,
+     "HatR": 1.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TR": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 50.0,
+     "HatR": 0.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TR": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 50.0,
+     "HatR": 0.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Victory": 50.0,
+     "HatR": 0.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Victory": 50.0,
+     "HatR": 0.0,
+     "Color": 0.1
+    }
+   }
+  ]
+ },
+ "types_allon": {
+  "layers": "TC:de|dColor=0.1;TR:de|dHatR=0;TA:de|dHat=1",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TC": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 1.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TC": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TR": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 0.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TR": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   }
+  ]
+ },
+ "types_half": {
+  "layers": "TC:de|dColor=0.1;TR:de|dHatR=0;TA:de|dHat=1;K*0.5:fVictory=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TC": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.1
+    }
+   },
+   {
+    "set": {
+     "TC": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.8999992
+    }
+   },
+   {
+    "set": {
+     "TR": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 0.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TR": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Victory": 25.0,
+     "HatR": 1.0,
+     "Color": 0.9
+    }
+   }
+  ]
+ },
+ "w0_holder_first": {
+  "layers": "TA:de|dHat=1;TS:d-|dSmile=100;K0*0:fVictory=50;K*0.5:fRock=50",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 25.0
+    }
+   },
+   {
+    "set": {
+     "TA": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 1.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 25.0
+    }
+   },
+   {
+    "set": {
+     "TA": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 0.0,
+     "Victory": 0.0,
+     "Rock": 25.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 100.0,
+     "Victory": 0.0,
+     "Rock": 25.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Hat": 0.0,
+     "Smile": 9.536743e-05,
+     "Victory": 0.0,
+     "Rock": 25.0
+    }
+   }
+  ]
+ },
+ "w0_writer": {
+  "layers": "TS:d-|dSmile=100;W*0:de|dSmile=40;K:fe",
+  "steps": [
+   {
+    "set": {},
+    "frames": 90,
+    "values": {
+     "Smile": 0.0
+    }
+   },
+   {
+    "set": {
+     "TS": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "W": 1.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "TS": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0
+    }
+   },
+   {
+    "set": {
+     "W": 0.0
+    },
+    "frames": 20,
+    "values": {
+     "Smile": 100.0
+    }
+   }
+  ]
+ }
+}

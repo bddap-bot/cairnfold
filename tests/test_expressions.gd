@@ -19,6 +19,7 @@ func _run() -> void:
 	_theme_recolours_the_emission()
 	_animated_parameters()
 	_settled_layers()
+	_write_defaults_as_unity()
 	_contacts()
 	_clear_coat()
 	_toon()
@@ -181,16 +182,6 @@ func _fx() -> void:
 	state.advance(0.1)
 	check(state.outputs[0] == 0.0, "a later layer playing its clip overrides the earlier one: %s" % state.outputs[0])
 	definition.layers.pop_back()
-	definition.layers[0].states[0].writeDefaults = false
-	definition.layers[0].states[1].writeDefaults = false
-	state = ExpressionState.new(definition)
-	state.put("Hat", 1)
-	state.advance(0.1)
-	state.put("Hat", 0)
-	state.advance(0.1)
-	check(state.outputs[0] == 1.0 and state.states[0] == 0, "a state without a motion that writes no defaults holds what the layer last wrote: %s" % state.outputs[0])
-	definition.layers[0].states[0].erase("writeDefaults")
-	definition.layers[0].states[1].erase("writeDefaults")
 	definition.layers[0].entry = [{"to": -1, "conditions": []}, {"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}]
 	definition.layers[0].any = []
 	state = ExpressionState.new(definition)
@@ -907,6 +898,80 @@ class Body:
 
 	func _init(r: Array) -> void:
 		rows = r
+
+
+## Plays each case of tests/unity/write-defaults.json, Unity's own run of a controller built from the case's layers
+## (tests/unity/write_defaults.py), and reads every property its layers animate on each step's last frame.
+func _write_defaults_as_unity() -> void:
+	var cases: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/write-defaults.json"))
+	check(not cases.is_empty(), "the recorded write-defaults cases are read")
+	for name: String in cases:
+		var built := _layers_of(cases[name].layers)
+		var state := ExpressionState.new(built.definition)
+		check(not state.data.is_empty(), "%s: its layers make a valid definition" % name)
+		var wrong: Array[String] = []
+		for step: Dictionary in cases[name].steps:
+			for key: String in step.set:
+				state.put(key, step.set[key])
+			for _f in int(step.frames):
+				state.advance(1.0 / 60.0)
+			for property: String in built.targets:
+				var unity: float = step.values[property]
+				var ours: float = state.outputs[built.targets[property]]
+				# Unity turns an object or renderer on above a thousandth: a flag fading by halves from 1 reads on for
+				# nine frames, to 2^-9.
+				if property in ["Hat", "HatR"]:
+					ours = float(ours > 0.001)
+				if absf(ours - unity) > 1e-5 * maxf(1.0, absf(unity)):
+					wrong.append("%s after %s: %s, Unity %s" % [property, step.set, ours, unity])
+		check(wrong.is_empty(), "%s (%s) reads as Unity's recording at every step: %s" % [name, cases[name].layers, wrong])
+		var kept := state.outputs.duplicate()
+		state.restore({})
+		var fresh := ExpressionState.new(built.definition)
+		for _f in 3:
+			state.advance(1.0 / 60.0)
+			fresh.advance(1.0 / 60.0)
+		check(state.outputs == fresh.outputs, "%s: restoring forgets what its states kept (%s): %s, afresh %s" % [name, kept, state.outputs, fresh.outputs])
+
+
+## The definition the reference harness's write-defaults fixture builds from `spec` in its FX controller, and each
+## property's target: layers `Name[*weight]:state|state`, a state `d` (writes defaults) or `f`, then `-` (no motion), `e`
+## (an empty clip) or `Property=value+...`; two states switch on the bool `Name`, more on the int `Name`. A layer marked
+## `@` plays in another controller.
+func _layers_of(spec: String) -> Dictionary:
+	var definition := {"parameters": [], "targets": [], "shown": [], "menu": [], "clips": [{"length": 1.0, "curves": []}], "layers": []}
+	var targets := {}
+	for text: String in spec.split(";"):
+		var head := text.get_slice(":", 0)
+		if "@" in head:
+			continue
+		var name := head.get_slice("*", 0)
+		var states := text.get_slice(":", 1).split("|")
+		var layer := {"weight": 1.0 if definition.layers.is_empty() or not "*" in head else head.get_slice("*", 1).to_float(), "default": 0, "any": [], "entry": [], "states": []}
+		if states.size() > 1:
+			definition.parameters.append({"name": name, "type": "bool" if states.size() == 2 else "int", "default": 0.0, "saved": false})
+		for i in states.size():
+			var state := {"writeDefaults": states[i][0] == "d", "transitions": []}
+			var motion := states[i].substr(1)
+			if motion == "e":
+				state.motion = {"clip": 0}
+			elif motion != "-":
+				var curves := []
+				for pair: String in motion.split("+"):
+					var property := pair.get_slice("=", 0)
+					if not targets.has(property):
+						targets[property] = definition.targets.size()
+						definition.targets.append({"effect": "switch", "default": {"Color": 0.9, "HatR": 1.0}.get(property, 0.0)})
+					curves.append({"target": targets[property], "step": false, "keys": [[0, pair.get_slice("=", 1).to_float()]]})
+				state.motion = {"clip": definition.clips.size()}
+				definition.clips.append({"length": 1.0 / 60.0, "curves": curves})
+			if states.size() == 2:
+				state.transitions.append({"to": 1 - i, "conditions": [{"parameter": name, "mode": "if" if i == 0 else "ifNot"}]})
+			elif states.size() > 2:
+				layer.any.append({"to": i, "notToSelf": true, "conditions": [{"parameter": name, "mode": "equals", "threshold": float(i)}]})
+			layer.states.append(state)
+		definition.layers.append(layer)
+	return {"definition": definition, "targets": targets}
 
 
 ## Receivers write their parameters from tagged senders touching them: constant while one does, on enter for the frame

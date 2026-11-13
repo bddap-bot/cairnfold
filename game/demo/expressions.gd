@@ -69,7 +69,7 @@ static func definition() -> Dictionary:
 
 	data.targets.append({"effect": {"scale": {"node": "head", "axis": 0}}, "default": 1.0})
 	data.clips.append({"length": 1.0, "curves": [{"target": 1, "step": false, "keys": [[0, 0.7], [1, 1.3]]}]})
-	data.layers.append({"weight": 1.0, "default": 0, "states": [{"writeDefaults": false, "motion": {"clip": 2, "time": "Size"}}]})
+	data.layers.append({"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 2, "time": "Size"}}]})
 
 	var region := {"node": "ExpressionHat", "rect": [0, 0, 1, 1]}
 	var drives := [
@@ -93,7 +93,7 @@ static func definition() -> Dictionary:
 			data.menu.append(drive_toggle)
 		data.targets.append({"effect": drive[1], "default": drive[2]})
 		data.clips.append({"length": 1.0, "curves": [{"target": data.targets.size() - 1, "step": false, "keys": [[0, drive[2]], [1, drive[3]]]}]})
-		data.layers.append({"weight": 1.0, "default": 0, "states": [{"writeDefaults": false, "motion": {"clip": data.clips.size() - 1, "time": drive[0]}}]})
+		data.layers.append({"weight": 1.0, "default": 0, "states": [{"motion": {"clip": data.clips.size() - 1, "time": drive[0]}}]})
 	data.menu.append_array(submenus.values())
 	var packed := Image.create_empty(SIZE * 3 / 2, SIZE * 3 / 2, false, Image.FORMAT_RGBA8)
 	packed.blit_rect(untinted(), Rect2i(0, 0, SIZE, SIZE), Vector2i(SIZE / 4, SIZE / 4))

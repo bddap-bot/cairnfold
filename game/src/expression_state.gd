@@ -8,9 +8,21 @@ var definitions := {}
 var outputs: Array[float] = []
 var states: Array[int] = []
 var elapsed: Array[float] = []
-## Each layer's say over the targets: what its state writes, and, where a state keeps no defaults, what earlier states
-## wrote and it leaves alone.
+## Each layer's say over the targets: what its state's motion writes. A state with no motion that writes defaults says
+## nothing; one that writes none repeats what the layer said when a motion last played in it, and, where that motion's
+## state wrote no defaults either, every other target as it was then kept.
 var _layer_values: Array[Dictionary] = []
+## Whether the motion each layer last played was of a state that writes no defaults.
+var _holding: Array[bool] = []
+## The first layer with any weight whose state plays a motion and writes no defaults, or -1. It gives a target no
+## layer up to it has written this frame `_kept`, by its weight over the default, whichever layer last wrote the
+## target: Unity's animator, measured in tests/unity/write-defaults.json.
+var _holder := -1
+## Each target's value when a layer last wrote it; returning to its default leaves it.
+var _kept: Array[float] = []
+## The targets whose kept value moved under the holder in the last advance, which the next builds again: a kept value
+## feeds what is built from it, until a holder of part weight has faded it to the default.
+var _refeed := {}
 var pulses := {}
 var _animated_parameters: Array[int] = []
 ## Each target's layers whose states may animate it, in order.
@@ -50,6 +62,7 @@ func _init(definition: Dictionary) -> void:
 		put(p.name, p.get("default", 0.0))
 	for t: Dictionary in data.get("targets", []):
 		outputs.append(float(t.get("default", 0.0)))
+		_kept.append(outputs[-1])
 		_writers.append([])
 		if t.effect is Dictionary and t.effect.has("parameter") and definitions.has(t.effect.parameter):
 			_animated_parameters.append(outputs.size() - 1)
@@ -58,6 +71,7 @@ func _init(definition: Dictionary) -> void:
 		states.append(-1)
 		elapsed.append(0.0)
 		_layer_values.append({})
+		_holding.append(false)
 		_settled.append(layer.states.is_empty())
 		_until.append(INF)
 		_reenter.append(false)
@@ -72,7 +86,9 @@ func _init(definition: Dictionary) -> void:
 			repeats.append(timeless[-1] and (state.get("drivers", []) as Array).is_empty() and (layer.get("any", []) + state.get("transitions", [])).all(func(t: Dictionary) -> bool: return not t.has("exitTime")))
 		_timeless.append(timeless)
 		_repeats.append(repeats)
-		for t: int in targets:
+		# A state with no motion that writes no defaults may repeat every target.
+		var all: bool = layer.states.any(func(state: Dictionary) -> bool: return not state.has("motion") and not state.get("writeDefaults", true))
+		for t in _writers.size() if all else targets.keys():
 			_writers[t].append(i)
 		var reads := {}
 		_reads(layer, reads)
@@ -116,7 +132,12 @@ func restore(saved_values: Dictionary) -> void:
 	_speed.fill(0.0)
 	for i in _layer_values.size():
 		_layer_values[i] = {}
+		_holding[i] = false
 		_settled[i] = (data.layers[i].states as Array).is_empty()
+	for t in _kept.size():
+		_kept[t] = float(data.targets[t].get("default", 0.0))
+	_refeed.clear()
+	_holder = -1
 	_rebuild = true
 
 
@@ -187,7 +208,8 @@ func advance(delta: float) -> void:
 		if pulses[key] <= 0.0:
 			put(key, 0.0)
 			pulses.erase(key)
-	var changed := {}
+	var changed := _refeed
+	_refeed = {}
 	if _rebuild:
 		_rebuild = false
 		for t in outputs.size():
@@ -223,26 +245,59 @@ func advance(delta: float) -> void:
 				for t: Dictionary in transitions:
 					if t.has("exitTime") and normalized < t.exitTime:
 						_until[i] = minf(_until[i], t.exitTime)
-		# A state writing defaults leaves what it does not animate to the layers below, as Unity's layers do: a toggle's
-		# later layer at rest does not undo an earlier layer's.
-		var sampled := _motion(state.get("motion", {}), elapsed[i])
-		var held := _layer_values[i]
-		for t: int in sampled:
-			if held.get(t) != sampled[t]:
-				changed[t] = true
-		if state.get("writeDefaults", true):
-			for t: int in held:
+		var said := _layer_values[i]
+		if state.has("motion"):
+			var sampled := _motion(state.motion, elapsed[i])
+			for t: int in sampled:
+				if said.get(t) != sampled[t]:
+					changed[t] = true
+			for t: int in said:
 				if not sampled.has(t):
 					changed[t] = true
 			_layer_values[i] = sampled
-		else:
-			held.merge(sampled, true)
+			_holding[i] = not state.get("writeDefaults", true)
+		elif state.get("writeDefaults", true):
+			for t: int in said:
+				changed[t] = true
+			_layer_values[i] = {}
+			_holding[i] = false
+		elif _holding[i]:
+			_holding[i] = false
+			var all := {}
+			for t in outputs.size():
+				all[t] = said.get(t, _kept[t])
+				changed[t] = true
+			_layer_values[i] = all
+	var holder := -1
+	for i in states.size():
+		if _holding[i] and float(data.layers[i].get("weight", 1.0)) > 0.0:
+			holder = i
+			break
+	if holder != _holder:
+		_holder = holder
+		for t in outputs.size():
+			changed[t] = true
 	moved.merge(changed)
 	for t: int in changed:
-		outputs[t] = float(data.targets[t].get("default", 0.0))
+		var value := float(data.targets[t].get("default", 0.0))
+		var held := lerpf(value, _kept[t], float(data.layers[holder].get("weight", 1.0))) if holder >= 0 else value
+		var written := false
 		for i: int in _writers[t]:
-			if _layer_values[i].has(t):
-				outputs[t] = lerpf(outputs[t], _layer_values[i][t], float(data.layers[i].get("weight", 1.0)))
+			var weight := float(data.layers[i].get("weight", 1.0))
+			if weight <= 0.0 or not _layer_values[i].has(t):
+				continue
+			if not written and i > holder:
+				value = held
+			value = lerpf(value, _layer_values[i][t], weight)
+			written = true
+		if not written and holder >= 0:
+			value = held
+			written = true
+		outputs[t] = value
+		if written and _kept[t] != value:
+			_kept[t] = value
+			if holder >= 0:
+				_refeed[t] = true
 	# The animator writes a parameter its clips animate every frame, past the menu's range, so a driver or the menu
 	# setting it holds only until the next.
 	for t: int in _animated_parameters:

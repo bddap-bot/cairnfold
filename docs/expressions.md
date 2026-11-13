@@ -38,6 +38,19 @@ discard tile is a switch: its triangles draw while it is off. The importer repor
 it cannot translate. Menu semantics follow the
 [VRChat Expressions Menu documentation](https://creators.vrchat.com/avatars/expression-menu-and-controls/).
 
+A state with Write Defaults off plays as Unity's animator plays it, which is not
+per layer. While some layer is in such a state and the state has a motion, a
+property that neither it nor a layer before it animates does not return to its
+default: it keeps the value it last had while any layer animated it, blended over
+the default by the weight of the first such layer. So one layer of that kind
+leaves every toggle in the controller on after it is turned off, unless the
+toggle's off state animates the property back. A state with Write Defaults off
+and no motion repeats what its layer played last, and, where that was a state
+with Write Defaults off too, every other property at the value then kept.
+Transitions here are instant: Unity leaves a property part-way through a timed
+transition when one ends under such a state, and that remainder is not reproduced.
+`tests/unity/write-defaults.json` holds the Unity runs this follows.
+
 `tests/test_expressions.gd` checks parameters, controller evaluation, malformed
 input and a VRM round trip. `tests/test_expression_wheel.gd` exercises the actual
 wheel inputs, visible avatar changes, puppet operation with the menu button
