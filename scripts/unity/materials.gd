@@ -920,11 +920,9 @@ const COAT_MAP := 512
 ## green its smoothness, blue its reflection and alpha its specular level, each from the channel the material names
 ## (white where it names none) and in linear light. Null where its texture does not decode.
 func coat_map(coat: Dictionary) -> Image:
-	var source := _decoded(coat.texture)
+	var source := _sampled(coat.texture)
 	if source == null:
 		return null
-	if _srgb(coat.texture):
-		source.srgb_to_linear()
 	var side := mini(COAT_MAP, shown(coat.texture)) if shown(coat.texture) > 0 else COAT_MAP
 	if source.get_width() > side or source.get_height() > side:
 		var big := maxi(source.get_width(), source.get_height())
@@ -1530,6 +1528,21 @@ func _slot_image(m: Dictionary, property: String) -> Image:
 	return _decoded(guid) if guid != "" else null
 
 
+## The texture in the material's `property` slot as a shader samples it (`_sampled`).
+func _slot_sampled(m: Dictionary, property: String) -> Image:
+	var guid := _texture_guid(m, property)
+	return _sampled(guid) if guid != "" else null
+
+
+## The texture `guid` as a shader samples it, in linear light where its importer says so (`_srgb`): decoded afresh, so
+## no other reader sees the change.
+func _sampled(guid: String) -> Image:
+	var source := _decoded(guid)
+	if source != null and _srgb(guid):
+		source.srgb_to_linear()
+	return source
+
+
 ## `source` (white where null) as it lies over the material's cell, padded like the atlas.
 func _over_cell(m: Dictionary, source: Image, property: String) -> Image:
 	return _over(m, source, property, (m.cell as Rect2i).size, PAD)
@@ -1729,11 +1742,7 @@ static func _outline_metres(m: Dictionary) -> float:
 ## The outline `o`'s width mask over the material's padded cell, one byte a texel: its channel, or its brightest where
 ## that is -1.
 func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
-	var guid := _texture_guid(m, o.mask) if o.mask != "" else ""
-	var source := _decoded(guid) if guid != "" else null
-	if source != null and _srgb(guid):
-		source.srgb_to_linear()
-	var texels := _tiled(m, source, o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
+	var texels := _tiled(m, _slot_sampled(m, o.mask), o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
 	var out := PackedByteArray()
 	out.resize(texels.size() / 4)
 	for i in out.size():

@@ -2274,12 +2274,12 @@ const LILTOON_LITE := "381af8ba8e1740a41b9768ccfb0416c2"
 
 ## A lilToon fixture's folder `name` holding each of `mats` (name to `_liltoon_mat` text) and of `images` (name to its
 ## row of texels) under its name as GUID.
-static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary) -> Assets:
+static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary, linear: Array[String] = []) -> Assets:
 	var dir := ProjectSettings.globalize_path("user://" + name)
 	DirAccess.make_dir_recursive_absolute(dir)
 	for file: String in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(file))
-	var meta := func(file: String, guid: String) -> void: FileAccess.open(dir.path_join(file + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	var meta := func(file: String, guid: String, importer := "") -> void: FileAccess.open(dir.path_join(file + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n%s" % [guid, importer])
 	for key: String in mats:
 		FileAccess.open(dir.path_join(key + ".mat"), FileAccess.WRITE).store_string(mats[key])
 		meta.call(key + ".mat", key)
@@ -2289,7 +2289,7 @@ static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary)
 		for x in row.size():
 			img.set_pixel(x, 0, row[x])
 		img.save_png(dir.path_join(key + ".png"))
-		meta.call(key + ".png", key)
+		meta.call(key + ".png", key, "TextureImporter:\n  mipmaps:\n    sRGBTexture: 0\n" if key in linear else "")
 	return Assets.new(dir)
 
 
@@ -2439,13 +2439,14 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 
 
 ## lilToon's colour adjustment, 2nd main texture and alpha mask bake into the atlas in linear light: a normal decal
-## clipped to where its tiling places it, a multiplied colour, each alpha mask mode before the material blends; a layer
-## Multi compiles out or one drawn unlit is not laid, the unlit one reported.
+## clipped to where its tiling places it, a multiplied colour, each alpha mask mode before the material blends, the mask
+## weighing what its shader samples (an sRGB import's byte decoded, so 170 covers 0.40; a linear import's as it is); a layer Multi compiles out or one drawn unlit is not laid, the unlit one reported.
 func _liltoon_layers_bake_into_the_atlas() -> void:
 	var grey := Color8(128, 128, 128)
-	var images := {"grey": [grey, grey, grey, grey], "ink": [Color(1, 0, 0, 1)], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "ramp": [Color8(0, 0, 0), Color8(85, 0, 0), Color8(170, 0, 0), Color8(255, 0, 0)]}
+	const RAMP := [Color8(0, 0, 0), Color8(85, 0, 0), Color8(170, 0, 0), Color8(255, 0, 0)]
+	var images := {"grey": [grey, grey, grey, grey], "ink": [Color(1, 0, 0, 1)], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "ramp": RAMP, "flat": RAMP}
 	var packed := func(text: String) -> Materials:
-		var materials := Materials.new(_liltoon_fixture("liltoon-layers", {"skin": text}, images))
+		var materials := Materials.new(_liltoon_fixture("liltoon-layers", {"skin": text}, images, ["flat"]))
 		materials.use({"guid": "skin"}, Color.WHITE)
 		materials.pack(["skin"])
 		return materials
@@ -2466,10 +2467,12 @@ func _liltoon_layers_bake_into_the_atlas() -> void:
 	var value: Array = texels.call(_liltoon_mat(LILTOON, [], {}, {"_MainTexHSVG": Color(0, 1, 0.5, 1)}, {"_MainTex": "grey", "_MainColorAdjustMask": "half"}))
 	var halved: float = encoded.call(g * 0.5).r
 	check(_near(value[0], Color(halved, halved, halved)) and _near(value[3], grey), "the colour adjustment scales the value in linear light where its mask's red lets it: %s" % [value])
-	var masked := {1: [0.0, 85.0, 170.0, 255.0], 2: [0.0, 42.5, 85.0, 127.5], 3: [127.5, 212.5, 255.0, 255.0], 4: [127.5, 42.5, 0.0, 0.0]}
-	for mode: int in masked:
-		var alphas: Array = texels.call(_liltoon_mat(LILTOON_TRANSPARENT, [], {"_DstBlend": 10, "_AlphaMaskMode": mode}, {"_Color": Color(1, 1, 1, 0.5)}, {"_MainTex": "grey", "_AlphaMask": "ramp"})).map(func(c: Color) -> float: return c.a * 255.0)
-		check(range(4).all(func(x: int) -> bool: return absf(alphas[x] - masked[mode][x]) <= 2.0), "alpha mask mode %d sets the alpha from its red: %s" % [mode, alphas])
+	for mask: String in ["ramp", "flat"]:
+		var by: Array = RAMP.map(func(c: Color) -> float: return (c if mask == "flat" else c.srgb_to_linear()).r * 255.0)
+		var masked := {1: by, 2: by.map(func(v: float) -> float: return v * 0.5), 3: by.map(func(v: float) -> float: return minf(127.5 + v, 255.0)), 4: by.map(func(v: float) -> float: return maxf(127.5 - v, 0.0))}
+		for mode: int in masked:
+			var alphas: Array = texels.call(_liltoon_mat(LILTOON_TRANSPARENT, [], {"_DstBlend": 10, "_AlphaMaskMode": mode}, {"_Color": Color(1, 1, 1, 0.5)}, {"_MainTex": "grey", "_AlphaMask": mask})).map(func(c: Color) -> float: return c.a * 255.0)
+			check(range(4).all(func(x: int) -> bool: return absf(alphas[x] - masked[mode][x]) <= 2.0), "alpha mask mode %d sets the alpha from its red as its %s import reads: %s against %s" % [mode, "linear" if mask == "flat" else "sRGB", alphas, masked[mode]])
 	var opaque: Array = texels.call(_liltoon_mat(LILTOON, [], {"_AlphaMaskMode": 1}, {}, {"_MainTex": "grey", "_AlphaMask": "ramp"}))
 	check(opaque[0].a == 1.0, "an opaque material takes no alpha mask")
 

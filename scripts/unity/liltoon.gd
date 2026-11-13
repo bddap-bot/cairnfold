@@ -273,13 +273,13 @@ static func alpha_mask(m: Dictionary) -> Variant:
 
 
 ## The alpha mask as Materials._tint overrides the albedo's alpha by it, before it cuts or blends: [mode, each
-## texel's mask] at `size`, the cell's, its red scaled and offset.
+## texel's mask] at `size`, the cell's: its red as the shader samples it, scaled and offset.
 static func alpha_overrides(materials: Materials, m: Dictionary, size: Vector2i) -> Array:
 	var mode: Variant = alpha_mask(m)
 	if not mode is int:
 		return []
 	var tiling := _through_main(m, "_AlphaMask")
-	var cover := materials._tiled(m, materials._slot_image(m, "_AlphaMask"), tiling[0], tiling[1], size, 0).get_data()
+	var cover := materials._tiled(m, materials._slot_sampled(m, "_AlphaMask"), tiling[0], tiling[1], size, 0).get_data()
 	var scale := Materials._float(m, "_AlphaMaskScale", 1.0)
 	var value := Materials._float(m, "_AlphaMaskValue")
 	var alphas := PackedFloat32Array()
