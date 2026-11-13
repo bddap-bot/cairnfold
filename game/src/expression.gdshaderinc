@@ -189,9 +189,12 @@ vec3 decal_blend(vec3 base, vec3 laid, int mode) {
 	return laid;
 }
 
-float shaded_by(vec3 dim, vec3 lit) {
-	const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
-	return clamp((dot(dim, LUMA) + 0.02) / (dot(lit, LUMA) + 0.02), 0.0, 1.0);
+// The shade `dim` of the albedo `lit` once the albedo is `drawn`. The shade maps are made from the albedo at rest and
+// lilToon shades the albedo it draws, so what the menu's hue and tone and the decals add to a channel is shaded by the
+// share of it the shade keeps, and by the share of the whole colour where the channel is too dark to tell its own.
+vec3 shade_of(vec3 dim, vec3 lit, vec3 drawn) {
+	float whole = (dim.r + dim.g + dim.b + 0.006) / (lit.r + lit.g + lit.b + 0.006);
+	return max(dim + (drawn - lit) * (dim + 0.002 * whole) / (lit + 0.002), 0.0);
 }
 
 vec3 linear(vec3 c) {
@@ -317,9 +320,9 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 	return added;
 }
 
-// The menu's hue turn `hue` and tone `tone` of `c` where the hue mask `adjust` lets them, as the albedo and its shades
-// both take them. The tone at rest is (1, 0, 0, 1): Poiyomi's gamma, saturation and brightness under the mask's alpha,
-// blue and green, then lilToon's HSV saturation scale under its red, as lilToon's own mask is.
+// The menu's hue turn `hue` and tone `tone` of `c` where the hue mask `adjust` lets them. The tone at rest is
+// (1, 0, 0, 1): Poiyomi's gamma, saturation and brightness under the mask's alpha, blue and green, then lilToon's HSV
+// saturation scale under its red, as lilToon's own mask is.
 vec3 adjusted(vec3 c, vec4 hue, vec4 tone, vec4 adjust) {
 	if (hue.w > 0.5) {
 		c = mix(c, shift_hue(c, hue.xyz), adjust.r);
@@ -435,8 +438,8 @@ void fragment() {
 	base *= colour;
 	if (use_vertex) { base *= COLOR; }
 	vec4 adjust = texture(hue_mask, UV);
+	vec3 unadjusted = base.rgb;
 	base.rgb = adjusted(base.rgb, hue, tone, adjust);
-	vec3 undecaled = base.rgb;
 	for (int slot = 0; slot < 4; slot++) {
 		if (decal_alpha[slot] >= 0.0) {
 			vec4 cell = decal_cell[slot];
@@ -474,13 +477,9 @@ void fragment() {
 			vec4 second = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 1), 0);
 			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 2), 0);
 			vec3 own = recolour * colour.rgb * (use_vertex ? COLOR.rgb : vec3(1.0));
-			// The shade maps are made from the atlas albedo, which lacks the decals: a decal's change to the albedo is
-			// shaded by how far the shade darkens the albedo's luminance under it, which stays defined over black.
-			vec3 dark = adjusted(shade_texel.rgb * own, hue, tone, adjust);
-			dark = max(dark + (albedo - undecaled) * shaded_by(dark, undecaled), 0.0);
+			vec3 dark = shade_of(shade_texel.rgb * own, unadjusted, albedo);
 			if (second.z > 0.0) {
-				vec3 deeper = adjusted(textureGrad(shade2, uv, dx, dy).rgb * own, hue, tone, adjust);
-				deeper = max(deeper + (albedo - undecaled) * shaded_by(deeper, undecaled), 0.0);
+				vec3 deeper = shade_of(textureGrad(shade2, uv, dx, dy).rgb * own, unadjusted, albedo);
 				dark = mix(dark, deeper, second.z * (1.0 - toon(toward, second.x, second.y, 0.0, toward_width)));
 			}
 			dark = min(dark, albedo);

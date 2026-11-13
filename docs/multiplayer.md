@@ -322,7 +322,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   says, and only the features its keywords compile. The atlas holds its colour adjustment (a hue a clip turns left
   unturned, masked by `_MainColorAdjustMask`), its 2nd and 3rd main textures drawn by UV0 before light and its alpha
   mask, its red as the shader samples it (decoded where Unity imports the mask as sRGB); its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
-  "shade" layer ("shade2" for a second shade) and turn with the menu's hue, tone and colour as the albedo does, its
+  "shade" layer ("shade2" for a second shade), move with the menu's colour as the albedo does and follow its hue, its
+  tone and a decal in proportion to the albedo, channel by channel, its
   rim (on back faces only where `_RimBackfaceMask` is 0, tinted by its colour texture, which lies in the "rimTint"
   layer), its rim shade (not one a mask texture thins), its first two matcaps and its emissions. A feature drawn in
   a way the looks cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported

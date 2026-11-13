@@ -1,8 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's toon looks as lilToon draws them: a flat grey ball lit from +X takes its first shade past its
-## shadow's border and its second past the second's, the border where the border's half Lambert puts it, both turned by
-## a menu's hue and moved by its colour as the albedo is; a rim shade darkens its silhouette alone; a rim brightens its
+## shadow's border and its second past the second's, the border where the border's half Lambert puts it, both moved by
+## a menu's colour as the albedo is; an orange ball's shades follow a menu's hue turn and a decal by the share of each
+## channel they keep of the albedo, and a menu's saturation leaves them under a decal that covers it; a rim shade darkens its silhouette alone; a rim brightens its
 ## silhouette alone, tinted by its rim tint layer, and on back faces only where it says so; an added matcap lays its top
 ## half where the ball faces up and its right half where it faces right,
 ## as Unity maps one, and a clip moving its intensity to nothing and its emission's strength off nothing takes the
@@ -18,6 +19,12 @@ const FIRST := Color(0.1, 0.1, 0.4)
 const SECOND := Color(0.4, 0.1, 0.1)
 const BORDER := 0.6
 const SECOND_BORDER := 0.25
+const GREY: Array[Color] = [BASE, FIRST, SECOND]
+## The "turned" and "decaled" balls' albedo, without blue, and their shades: a half and a quarter of its red and an
+## eighth and a half of its green.
+const WARM: Array[Color] = [Color(0.8, 0.4, 0.0), Color(0.4, 0.05, 0.0), Color(0.2, 0.2, 0.0)]
+## The opaque decal of the "decaled" ball, in linear light.
+const DECAL := Color(0.4, 0.8, 0.4)
 ## Where the eye stands, which the view toward it is taken from.
 const EYE := Vector3(0, 0, 3)
 ## The rim shade of the "rim shade" balls, its band partly crossed 0.8 of the way out to the silhouette.
@@ -60,10 +67,10 @@ func _run() -> void:
 	var rest := BASE.linear_to_srgb()
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 1.0, 1.0, 1.0], "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 1.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null, "theme": null}
 	var shots := {}
-	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]]}
-	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "reflection", "turned", "recoloured", "inside", "inside hidden", "inside shown", "inside rim shade"]:
+	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]], "decaled": ["greyed", [1.0, 0.0]]}
+	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "reflection", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 		var entry := {"lighting": {"model": "flat", "cap": 1.0}}
-		if look in ["shadow", "rim", "tinted rim", "rim shade", "turned", "recoloured", "inside", "inside hidden", "inside shown", "inside rim shade"]:
+		if look in ["shadow", "rim", "tinted rim", "rim shade", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 			entry.lighting.shadow = shadow
 		if look in ["rim", "tinted rim", "inside hidden"]:
 			entry.rim = rim
@@ -83,7 +90,10 @@ func _run() -> void:
 			targets.append({"effect": {"hue": [{"node": "Ball", "rect": [0, 0, 1, 1], "space": 1, "shift": 1}]}, "default": 0.0})
 		if look == "recoloured":
 			targets.append({"effect": {"color": [{"node": "Ball", "rect": [0, 0, 1, 1], "channel": 0, "color": [rest.r, rest.g, rest.b]}]}, "default": rest.r})
-		var ball := _ball(entry, targets, look.begins_with("inside"), TINT if look == "tinted rim" else Color.WHITE)
+		if look == "decaled":
+			targets.append({"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "colorBlend": 0, "alpha": 1.0, "image": 0, "hue": null}]}, "default": 1.0})
+			targets.append({"effect": {"tone": [{"node": "Ball", "rect": [0, 0, 1, 1], "channel": 3}]}, "default": 1.0})
+		var ball := _ball(entry, targets, look.begins_with("inside"), TINT if look == "tinted rim" else Color.WHITE, WARM if look in ["turned", "decaled"] else GREY)
 		view.add_child(ball)
 		shots[look] = await _shot(view)
 		if moves.has(look):
@@ -135,6 +145,9 @@ func _run() -> void:
 	var recoloured: Image = shots.recoloured
 	var recoloured_lit := _mean(recoloured, 0.4, 0.7, 0.0)
 	var recoloured_first := _mean(recoloured, -0.3, 0.0, 0.0)
+	# The first shade is read clear of the middle column, where the ball's UV seam shows the decal's edge.
+	var decaled := [_mean(shots.decaled, 0.4, 0.7, 0.0), _mean(shots.decaled, -0.3, -0.1, 0.0), _mean(shots.decaled, -0.9, -0.7, 0.0)]
+	var greyed := [_mean(shots.greyed, 0.4, 0.7, 0.0), _mean(shots.greyed, -0.3, -0.1, 0.0), _mean(shots.greyed, -0.9, -0.7, 0.0)]
 	var inside: Image = shots.inside
 	var hidden := [_mean(shots["inside hidden"], 0.88, 0.95, 0.0).g - _mean(inside, 0.88, 0.95, 0.0).g, _mean(shots["inside hidden"], -0.95, -0.88, 0.0).g - _mean(inside, -0.95, -0.88, 0.0).g]
 	var shown := [_mean(shots["inside shown"], 0.88, 0.95, 0.0).g - _mean(inside, 0.88, 0.95, 0.0).g, _mean(shots["inside shown"], -0.95, -0.88, 0.0).g - _mean(inside, -0.95, -0.88, 0.0).g]
@@ -150,7 +163,14 @@ func _run() -> void:
 	check(up > 0.3 and absf(down) < 0.02 and right > 0.3 and absf(left) < 0.02, "the matcap's top half lies where the ball faces up and its right half where it faces right: up %+.3f, down %+.3f, right %+.3f, left %+.3f" % [up, down, right, left])
 	check(absf(still) < 0.02 and absf(glowing - 0.5) < 0.04, "a clip taking the matcap's intensity to nothing takes it away, %+.3f, and one setting the emission's strength to one lights it 0.5 blue, %+.3f" % [still, glowing])
 	check(reflected_up > 0.3 and reflected_left > 0.3 and absf(reflected_right) < 0.02, "a reflection matcap lays its top half where the ball faces up and its left half where it faces right: up %+.3f, right %+.3f, left %+.3f" % [reflected_up, reflected_right, reflected_left])
-	check(_near(turned_lit, BASE, 0.04) and _near(turned_first, Color(FIRST.b, FIRST.g, FIRST.r), 0.04) and _near(turned_second, Color(SECOND.g, SECOND.r, SECOND.b), 0.04), "a menu hue turn of a third turns the shades as the albedo, blue to red and red to green: lit %s, first %s, second %s" % [turned_lit, turned_first, turned_second])
+	# Of a channel the albedo lacks a shade keeps its share of the whole colour.
+	var share := func(shade: Color, drawn: Color) -> Color:
+		var whole := (shade.r + shade.g + shade.b) / (WARM[0].r + WARM[0].g + WARM[0].b)
+		return Color(drawn.r * shade.r / WARM[0].r, drawn.g * shade.g / WARM[0].g, drawn.b * whole)
+	var third := Color(WARM[0].b, WARM[0].r, WARM[0].g)
+	check(_near(turned_lit, third, 0.04) and _near(turned_first, share.call(WARM[1], third), 0.02) and _near(turned_second, share.call(WARM[2], third), 0.02), "a menu hue turn of a third turns the orange albedo green, and each shade keeps of each channel the share it kept of it at rest: lit %s, first %s, second %s" % [turned_lit, turned_first, turned_second])
+	check(_near(decaled[0], DECAL, 0.04) and _near(decaled[1], share.call(WARM[1], DECAL), 0.02) and _near(decaled[2], share.call(WARM[2], DECAL), 0.02), "under an opaque decal each shade keeps of the decal the share of each channel it keeps of the albedo: lit %s, first %s, second %s" % decaled)
+	check(range(3).all(func(k: int) -> bool: return _near(greyed[k], decaled[k], 0.01)), "a menu saturation of nothing greys the albedo under the decal, and the decal and its shades stay: %s after %s" % [greyed, decaled])
 	check(_near(recoloured_lit, Color(1.0, BASE.g, BASE.b), 0.04) and _near(recoloured_first, Color(FIRST.r * 2.0, FIRST.g, FIRST.b), 0.04), "a menu colour doubling the albedo's red doubles the shade's: lit %s, first %s" % [recoloured_lit, recoloured_first])
 	check(hidden.all(func(g: float) -> bool: return absf(g) < 0.01) and shown.all(func(g: float) -> bool: return g > 0.3), "a rim hidden on back faces leaves an inside-out ball's silhouette, %s, and one drawn there brightens it, %s" % [hidden, shown])
 	view.queue_free()
@@ -169,11 +189,11 @@ static func _rim_shade_band(x: float) -> float:
 	return RIM_SHADE.strength * clampf((pow(turned.call(x), power) - low) / (RIM_SHADE.blur + width), 0.0, 1.0)
 
 
-## A grey ball whose one material's looks entry is `entry`, its shade layers the two shades, its matcap red over its
-## top half and blue over its right, its emission map and untinted colours white, animated by `targets`, as the avatar
+## A ball of the albedo `colours[0]` whose one material's looks entry is `entry`, its shade layers `colours[1]` and
+## `colours[2]`, its matcap red over its top half and blue over its right, its emission map and untinted colours white, animated by `targets`, as the avatar
 ## runtime opens it; `inverted`, drawn two-sided with its faces turned in, so the side in view is its back faces; its
 ## rim tint layer `tint` where its entry draws a rim.
-func _ball(entry: Dictionary, targets: Array, inverted: bool, tint: Color) -> Node3D:
+func _ball(entry: Dictionary, targets: Array, inverted: bool, tint: Color, colours: Array[Color]) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Ball"
@@ -192,14 +212,19 @@ func _ball(entry: Dictionary, targets: Array, inverted: bool, tint: Color) -> No
 		for x in 16:
 			matcap.set_pixel(x, y, Color(1.0 if y < 8 else 0.0, 0.0, 1.0 if x >= 8 else 0.0))
 	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = ImageTexture.create_from_image(filled.call(BASE))
+	mat.albedo_texture = ImageTexture.create_from_image(filled.call(colours[0]))
 	if inverted:
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var im := ImporterMesh.new()
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sphere.get_mesh_arrays(), [], {}, mat)
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
-	var looks := {"index": index, "materials": [entry], "shade": filled.call(FIRST), "shade2": filled.call(SECOND), "matcaps": [matcap], "emission": filled.call(Color.WHITE)}
+	var looks := {"index": index, "materials": [entry], "shade": filled.call(colours[1]), "shade2": filled.call(colours[2]), "matcaps": [matcap], "emission": filled.call(Color.WHITE)}
+	if targets.any(func(t: Dictionary) -> bool: return t.effect.has("look") and t.effect.look[0].field == "decal"):
+		# Wide enough that the clear texels a decal page pads it with stay out of view.
+		var decal := Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+		decal.fill(DECAL.linear_to_srgb())
+		looks.decals = [decal]
 	if entry.has("rim"):
 		looks.rimTint = filled.call(tint)
 	check(ExpressionDefinition.looks_valid(looks), "the ball's looks are valid")
