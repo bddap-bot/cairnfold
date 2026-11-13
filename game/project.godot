@@ -152,6 +152,10 @@ season_bloom={
 "type": "float",
 "value": 1.0
 }
+season_winter={
+"type": "float",
+"value": 0.0
+}
 detail={
 "type": "sampler2D",
 "value": ""

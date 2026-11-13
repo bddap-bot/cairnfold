@@ -75,6 +75,8 @@ also holds the people: avatars to wear, and nearby gardens to join.
   tool; with others, each player undoes only their own steps.
 - Animals come on their own, drawn by what you make: ducks and fish to a pond, butterflies
   to painted flowers, and fireflies at dusk over both.
+- Lilypads float on a pond deep enough. In the meadow's winter the ponds freeze, snow lies on
+  roofs, wall tops and the ground, and the broadleaved trees stand bare.
 - Your garden is saved after every edit and is back when the game starts again.
 
 ## Running

@@ -165,9 +165,11 @@ func frenzy() -> Array[int]:
 	return [by.filter(func(f: One) -> bool: return f.feeding).size(), by.size()]
 
 
-## PondWater -> its landed handfuls.
+## PondWater -> its landed handfuls; none while frozen, the ice keeping the seeds from the fish.
 func _food() -> Dictionary:
 	var out := {}
+	if Palette.wintry():
+		return out
 	for h: Handful in wildlife.handfuls:
 		if h.landed():
 			var p := wildlife.water.pond_at(h.position.x, h.position.z)

@@ -46,6 +46,8 @@ float water_form(float placed, float depth) {
 #endif
 
 #ifdef BARK
+// Meshes.BOUGH_FROM.
+uniform float bough_from;
 varying float moss_coat;
 varying vec2 bark_uv;
 #endif
@@ -58,6 +60,14 @@ void vertex() {
 #ifdef BARK
 	moss_coat = INSTANCE_CUSTOM.r;
 	bark_uv = UV;
+	// A bare tree's boughs (Meshes.bare_trunk) are every vertex over its trunk's top: the trunk's transform stands them
+	// as wide as the trunk is thick, and they reach out COLOR.a trunk heights instead (FloraLayout.BOUGH_SPREAD).
+	vec3 axis = MODEL_MATRIX[1].xyz;
+	vec3 from_trunk = VERTEX - MODEL_MATRIX[3].xyz;
+	float along = dot(from_trunk, axis) / dot(axis, axis);
+	if (along > bough_from) {
+		VERTEX += (from_trunk - axis * along) * (length(axis) * COLOR.a / length(MODEL_MATRIX[0].xyz) - 1.0);
+	}
 #endif
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
@@ -119,6 +129,10 @@ void vertex() {
 #endif
 #ifdef BACKLIT
 	COLOR.rgb = seasoned(COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
+	// A broadleaf's blob (FloraLayout.SHED in its colour's alpha) is shed for the winter.
+	if (COLOR.a < 0.5 && season_winter > 0.5) {
+		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
+	}
 #endif
 }
 

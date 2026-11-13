@@ -87,6 +87,8 @@ class Pool:
 	var _grid := {}
 	var soil := false
 	var water_plants_further := false
+	## How far its plants are drawn past their mesh, in the heights their transforms scale it to: a bare trunk's boughs.
+	var overhang := 0.0
 
 	func _init(parent: Flora, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
 		terrain = parent.terrain
@@ -179,7 +181,7 @@ class Pool:
 				terrain.lift(p.few, p.box)
 			for k in n:
 				_write(p, k, p.slots[k])
-		var box := _over_ground(_xforms[i] * mesh.get_aabb())
+		var box := _over_ground(_box(_xforms[i]))
 		if n == 0 or not p.box.encloses(box):
 			p.box = box if n == 0 else p.box.merge(box)
 			terrain.lift(p.mm, p.box)
@@ -302,13 +304,13 @@ class Pool:
 	func _bake(slots: Array, drawn: Mesh) -> MultiMesh:
 		var m := MultiMesh.new()
 		setup(m, drawn, slots.size())
-		var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
+		var box: AABB = _box(plants[slots[0]].xform)
 		for j in slots.size():
 			var i: int = slots[j]
 			m.set_instance_transform(j, _drawn_as(plants[i].xform, plants[i].rock))
 			m.set_instance_color(j, _colors[i])
 			m.set_instance_custom_data(j, _customs[i])
-			box = box.merge(plants[i].xform * mesh.get_aabb())
+			box = box.merge(_box(plants[i].xform))
 		terrain.lift(m, _over_ground(box))
 		return m
 
@@ -365,11 +367,11 @@ class Pool:
 		anchored += 1
 		if p.shown():
 			place(p.slot, xform)
+		_colors[p.slot] = color
 		if p.slot < kept:
 			_cell_of[p.slot].set_instance_color(_index_in_cell[p.slot], color)
 			_cover_cell(p.slot)
 		else:
-			_colors[p.slot] = color
 			_write(_patch_of[p.slot - kept], _index_in_patch[p.slot - kept], p.slot)
 		if far != null:
 			far.set_instance_color(p.slot, color)
@@ -444,7 +446,14 @@ class Pool:
 
 	func _cover_cell(slot: int) -> void:
 		var cell := _cell_of[slot]
-		cell.custom_aabb = cell.custom_aabb.merge(_over_ground(plants[slot].xform * mesh.get_aabb()))
+		cell.custom_aabb = cell.custom_aabb.merge(_over_ground(_box(plants[slot].xform)))
+
+	func colour_of(slot: int) -> Color:
+		return _colors[slot]
+
+	## The box a plant standing at `xform` is drawn within.
+	func _box(xform: Transform3D) -> AABB:
+		return (xform * mesh.get_aabb()).grow(overhang * xform.basis.y.length())
 
 	## The shaders add the ground's height; the margin is for wind and hands bending blades.
 	func _over_ground(box: AABB) -> AABB:
@@ -629,6 +638,9 @@ var foliage: Pool
 var bushes: Pool
 ## Each crown casts the sun's shade as one coarse blob, so its blobs do not shade one another in patches.
 var crown_shade := MultiMesh.new()
+## Drawn for the trunks while the season on show is a winter (Palette.wintry).
+var _bare_trunk: ArrayMesh
+var _bare := false
 var _shaded := -1
 var _solids := {}
 var _kept_solids := {}
@@ -719,6 +731,13 @@ func _init(ground: Terrain, laid: Ground) -> void:
 	moss.indexed = true
 	ghost_moss = Pool.new(self, moss.mesh, PAINTED_MOSS, moss_mat, false)
 	trunks = Pool.new(self, ToolModels.cylinder(0.16, 0.3, 1.0, 8), Meadow.TREES + PLACED_TREES, _plant_material(preload("res://src/plant.gdshader"), 1.0), true, SOLID_POOL_CELL)
+	trunks.material.set_shader_parameter("bough_from", Meshes.BOUGH_FROM)
+	_bare_trunk = Meshes.bare_trunk(trunks.mesh)
+	var out := 0.0
+	for v: Vector3 in _bare_trunk.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		out = maxf(out, Vector2(v.x, v.z).length())
+	var spread: float = FloraLayout.BOUGH_SPREAD.values().max()
+	trunks.overhang = maxf(_bare_trunk.get_aabb().end.y - trunks.mesh.get_aabb().end.y, out * spread)
 	var leaf_mat := _plant_material(preload("res://src/leaf.gdshader"), 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
@@ -779,6 +798,9 @@ static func _plant_material(shader: Shader, roughness: float) -> ShaderMaterial:
 
 func _process(_delta: float) -> void:
 	_grow(Budget.GROW_PLANTS if Budget.frame_deadline else -1)
+	if Palette.wintry() != _bare:
+		_bare = Palette.wintry()
+		trunks.draw_with(_bare_trunk if _bare else trunks.mesh)
 	_shade_crowns()
 	grass.cover.settle(grass)
 	var eye := get_viewport().get_camera_3d()
@@ -811,6 +833,8 @@ func _shade_seen() -> int:
 func _place_shade(solid: Solid) -> void:
 	crown_shade.set_instance_transform(solid.shade, shade_of(solid.parts))
 	crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, solid.parts[0].anchor.x, solid.parts[0].anchor.z))
+	var blob: Plant = solid.parts[-1]
+	crown_shade.set_instance_color(solid.shade, Color(Color.WHITE, blob.pool.colour_of(blob.slot).a))
 
 
 func shade_of(parts: Array) -> Transform3D:

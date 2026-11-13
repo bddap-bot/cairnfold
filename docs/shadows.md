@@ -17,7 +17,7 @@ Copy the output directory back, then run:
 nix-shell --run 'python3 scripts/shadows.py out/shadows'
 ```
 
-The script builds a wall, house and tree in winter, holds the head position and
+The script builds a wall, house and tree, holds the head position and
 quality level fixed, and turns through nine yaw angles. A diagnostic compositor
 reads both complete eye buffers before tonemapping, using the same linear-to-sRGB
 conversion for every capture. It records the actual per-eye projection matrices.
@@ -30,7 +30,7 @@ are errors.
 Set `CAIRNFOLD_SHADOW_BASELINE=1` to restore the previous two splits, 45 m reach,
 6 m near split and 0.8 fade start in the diagnostic only. This is the negative
 control: the same rendered check must fail. `CAIRNFOLD_SHADOW_SCENE=hill` captures
-the snowy hillside; `CAIRNFOLD_SHADOW_SCENE=tree` captures a close canopy at the
+the hillside; `CAIRNFOLD_SHADOW_SCENE=tree` captures a close canopy at the
 coarsest quality step. Those alternate views are for visual comparison, not the
 fixed-region checker.
 

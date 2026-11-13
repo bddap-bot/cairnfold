@@ -5,6 +5,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/roof_shadow.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 // Its build's thatch swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
@@ -36,9 +37,15 @@ void fragment() {
 	// COLOR.a: how weathered the roof is.
 	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.5, 0.75, texture(detail, world_pos.xz * 0.3).r) * COLOR.a;
 	ALBEDO = mix(base, moss * (0.62 + straw * 0.7), mossy * 0.35);
+	float snowy = 0.0;
+	if (season_winter > 0.0) {
+		snowy = snow_cover(world_nrm.y, 1.0 - room_in, straw);
+		ALBEDO = mix(ALBEDO, SNOW, snowy);
+	}
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.15;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	EMISSION = ALBEDO * given_back(lamp_at, bounce);
 	TAKE_ROOM(bounce.a);
+	EMISSION += ALBEDO * snowy * (1.0 - bounce.a) * sky_ambient * mix(sky_horizon, sky_zenith, 0.8);
 }

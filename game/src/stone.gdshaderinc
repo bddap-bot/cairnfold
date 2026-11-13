@@ -3,6 +3,7 @@
 #include "res://src/piece.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 // StoneStyles index, or -1 for stone in its own colour.
@@ -106,6 +107,16 @@ void vertex() {
 #ifdef ROOF_TIMBER
 		COLOR = vec4(timber_color, 1.0);
 #endif
+		// COLOR.a, read here as the glass mark, carries on to the fragment how much snow lies on the piece, worked out a
+		// vertex at a time: the Quest 2 pays for every instruction a stone's fragment adds. A frame stretched unevenly
+		// leans a normal it carries as is, so the face's own normal takes its inverse transpose. Snow fills a roof's
+		// laps, so the lip of a tile takes some too.
+		COLOR.a = 0.0;
+		if (season_winter > 0.0) {
+			float up = normalize(transpose(inverse(mat3(piece))) * NORMAL).y;
+			up = mix(up, up * 0.5 + 0.5, step(abs(material - ELEMENT_ROOF), 0.5));
+			COLOR.a = snow_cover(up, 1.0 - room_in, 0.5) * (1.0 - glass);
+		}
 		style = stone_style;
 		tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
 #ifdef BAKED
@@ -135,6 +146,7 @@ void fragment() {
 #else
 	vec4 bounce = texture(bounce_volume, bounce_at);
 #endif
+	float drift = 0.5;
 	if (abs(material - ELEMENT_PLASTER) < 0.5) {
 		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
@@ -146,6 +158,7 @@ void fragment() {
 		// Unpainted parts (ELEMENT_MEADOW: iron, curtains, flowers) stay bare.
 		float wood = step(abs(material - ELEMENT_WOOD), 0.5) + step(abs(material - ELEMENT_TIMBER), 0.5) + step(material, ELEMENT_MEADOW + 0.5) + step(abs(material - ELEMENT_GLOW), 0.5);
 		float patch = texture(detail, surface_pos.xz * 0.3).r;
+		drift = patch;
 		float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
 		if (style >= 0) {
 			// The styles' tones are linear, stone's own colours not, so they convert before COLOR tints them (Boulders).
@@ -155,6 +168,13 @@ void fragment() {
 		}
 		ALBEDO = mix(mix(base, moss, mossy * 0.8), glass_colour, glass) * occlusion;
 	}
+	float snowy = 0.0;
+	if (COLOR.a > 0.0) {
+		// The amount a vertex carries blends down a rounded stone's face; the face's own slope keeps it on the top.
+		float face_up = mix(smoothstep(0.3, 0.6, world_nrm.y), 1.0, step(abs(material - ELEMENT_ROOF), 0.5));
+		snowy = clamp(COLOR.a * (0.7 + 0.6 * drift) * face_up, 0.0, 1.0);
+		ALBEDO = mix(ALBEDO, SNOW, snowy);
+	}
 	ROUGHNESS = style >= 0 ? stone_look[style].w : 0.92;
 	SPECULAR = 0.25;
 #ifdef GIVEN_PER_VERTEX
@@ -163,4 +183,8 @@ void fragment() {
 	EMISSION = ALBEDO * given_back(lamp_at, bounce) + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #endif
 	TAKE_ROOM(bounce.a);
+	// Snow lies under the open sky, whatever the builds around hide of it from the probe the face reads (thatch too).
+	if (snowy > 0.0) {
+		EMISSION += ALBEDO * snowy * (1.0 - bounce.a) * sky_ambient * mix(sky_horizon, sky_zenith, 0.8);
+	}
 }

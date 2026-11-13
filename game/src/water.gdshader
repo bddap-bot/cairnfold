@@ -7,6 +7,7 @@ render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
 #include "res://src/water.gdshaderinc"
 #include "res://src/daylight.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 // Depth from ground heights, not the depth buffer: reading that back costs a tiled GPU a full-frame resolve per eye.
 uniform sampler2D waves : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -38,7 +39,8 @@ void fragment() {
 	}
 	vec2 slope = (texture(waves, s * 0.21 + TIME * vec2(0.019, 0.011)).xy
 		+ texture(waves, s * 0.33 - TIME * vec2(0.012, 0.021)).xy - 1.0) * wave_strength;
-	if (rippling) {
+	slope *= 1.0 - season_winter;
+	if (rippling && season_winter < 0.5) {
 		for (int i = 0; i < RIPPLES; i++) {
 			vec4 r = ripples[i];
 			if (r.w > 0.0) {
@@ -82,13 +84,27 @@ void fragment() {
 
 		float fresnel = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);
 		alpha = mix(alpha, 0.95, fresnel * 0.7);
+		float gloss = 1.0;
+		if (season_winter > 0.0) {
+			// Ice: clear and dark over deep water, frosted white in patches and toward the shore, where snow has drifted
+			// onto it; fine cracks run where two noises cross. It mirrors the sky more dully than water.
+			float frost = texture(detail, s * 0.11).r;
+			float cloud = smoothstep(0.5, 0.85, frost + (1.0 - body) * 0.35);
+			float crack = smoothstep(0.012, 0.0, abs(frost - texture(detail, s * 0.17 + 0.4).r)) * smoothstep(0.1, 0.3, depth);
+			vec3 sheet = mix(mix(col, ICE, 0.5), FROST, max(cloud * 0.65, crack * 0.7));
+			sheet = mix(sheet, SNOW, smoothstep(0.22, 0.04, depth + (texture(detail, s * 0.6).r - 0.5) * 0.12));
+			col = mix(col, sheet, season_winter);
+			alpha = mix(alpha, 0.9, season_winter);
+			foam *= 1.0 - season_winter;
+			gloss = mix(1.0, 0.45 * (1.0 - cloud * 0.7), season_winter);
+		}
 		col = mix(col, foam_color, foam);
 		alpha = max(alpha, foam * 0.9) * smoothstep(0.0, 0.07, depth);
 
 		vec3 lit = col * (sun_light * max(dot(n, sun_toward), 0.0) + mix(sky_horizon, sky_zenith, 0.6) * sky_ambient * 0.65);
 		vec3 sky = mix(sky_horizon, sky_zenith, pow(clamp(r.y, 0.0, 1.0), 0.55));
-		lit = mix(lit, sky, (0.04 + 0.96 * fresnel) * (1.0 - foam));
-		lit += sun_light * pow(max(dot(r, sun_toward), 0.0), 1500.0) * 4.0 * (1.0 - foam);
+		lit = mix(lit, sky, (0.04 + 0.96 * fresnel) * (1.0 - foam) * gloss);
+		lit += sun_light * pow(max(dot(r, sun_toward), 0.0), 1500.0) * 4.0 * (1.0 - foam) * gloss;
 
 		ALBEDO = lit;
 		ALPHA = alpha;

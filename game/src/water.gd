@@ -14,11 +14,14 @@ signal refilled(area: Rect2)
 var hands: Array[Node3D] = []
 var terrain: Terrain
 var ponds: Array[PondWater] = []
+var pads: Pads
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
 var owners := PackedInt32Array()
 ## The grid points `owners` and the levels were last written at.
 var written := PackedInt32Array()
 var _wet := {}
+## Whether the ponds lie under ice (Palette.wintry): a hand finds no water to ripple, and nothing laps.
+var _frozen := false
 ## Fills worked out ahead of a command on another thread, as [heights, grid point, level, pond], for `fill`.
 static var _known: Array = []
 
@@ -35,6 +38,8 @@ func _init(ground: Terrain, touching: Array[Node3D]) -> void:
 	owners.resize(Terrain.VERTS * Terrain.VERTS)
 	owners.fill(-1)
 	terrain.dry_water()
+	pads = Pads.new(self)
+	add_child(pads)
 
 
 ## Null when `at` holds no pond up to `level`.
@@ -87,7 +92,11 @@ func clear() -> void:
 
 
 func _process(delta: float) -> void:
-	if not ponds.is_empty():
+	if Palette.wintry() != _frozen:
+		_frozen = Palette.wintry()
+		for w in ponds:
+			w.freeze(_frozen)
+	if not ponds.is_empty() and not _frozen:
 		for h in hands:
 			_wade(h, delta)
 
@@ -126,6 +135,7 @@ func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 	owners = refill.owners
 	written = refill.written
 	terrain.set_water(refill.levels, refill.image)
+	pads.lay(ponds)
 	if refill.changed.has_area():
 		refilled.emit(Terrain.world_rect(refill.changed.grow_individual(0, 0, 1, 1)))
 

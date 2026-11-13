@@ -25,6 +25,8 @@ const float FACTOR_RANGE = 2.0;
 uniform bool far_grass = true;
 // Quality.FULL_LAYER: a camera seeing it draws every clump whole, so the ground paints none.
 uniform uint full_layer;
+// The share of its snow a path or paving is trodden clear of.
+const mediump float TRODDEN = 0.65;
 
 varying highp vec2 world_xz;
 varying mediump float steep;
@@ -118,6 +120,8 @@ void fragment() {
 	vec4 cover = ground_cover(world_xz);
 	float rocky = smoothstep(rock_steep.x, rock_steep.y, s);
 	float paved = 0.0;
+	// Snow lies on the ground down to a pond's edge, the ice covering the bed.
+	mediump float lying = 1.0;
 #ifndef PLAIN
 	if (cover.g > 0.0) {
 		float grit = texture(detail, world_xz * 3.7).r;
@@ -144,6 +148,7 @@ void fragment() {
 		if (under > DRY + 0.1) {
 			under = grid_smooth(water_depth, world_xz);
 		}
+		lying = smoothstep(0.02, -0.04, under);
 		mediump float shore = bank(under + (d - 0.5) * 0.12 + (fine - 0.5) * 0.06);
 		if (shore > 0.0) {
 			mediump float pebble = texture(detail, world_xz * 2.3).r;
@@ -157,6 +162,9 @@ void fragment() {
 	c = mix(c, worn, smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	// Slabs stay over the sand; a slope's own rock goes under it.
 	ALBEDO = mix(c, sand * (0.92 + fine * 0.16), smoothstep(0.1, 0.7, cover.a * (1.0 - cover.g) + (d - 0.5) * 0.3));
+	if (season_winter > 0.0) {
+		ALBEDO = mix(ALBEDO, SNOW * (0.94 + fine * 0.06), snow_cover(1.0 - s, sky_seen, d) * lying * (1.0 - TRODDEN * clamp(max(cover.r, max(cover.g, cover.a)), 0.0, 1.0)));
+	}
 	ROUGHNESS = 1.0;
 	AO = sky_seen;
 	EMISSION = ALBEDO * given;

@@ -4,6 +4,12 @@ extends RefCounted
 const ROUND := 0.6
 ## In blob radii.
 const BLOB_LUMP := 0.35
+## A bare trunk's boughs: how many ring its top, the sides of each tube, how many times over each forks into twigs,
+## and the height over the trunk's middle, in trunk heights, past which a vertex is a bough's.
+const BOUGHS := 5
+const BOUGH_SIDES := 3
+const BOUGH_TWIGS := 2
+const BOUGH_FROM := 0.51
 
 
 static func bind_bone(skin: Skin, i: int, skeleton: Skeleton3D) -> int:
@@ -284,6 +290,68 @@ static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+
+## A tree's trunk, a cylinder one high about its middle, with the boughs it stands bare under in winter: a leader
+## and BOUGHS boughs from its top, each forking into twigs BOUGH_TWIGS times over, as three-sided tubes. Each leaves the
+## trunk from its axis, inside its top; every other bough vertex lies over BOUGH_FROM, and is one unit out where its
+## bough is to reach the crown's edge: the plant shader spreads them by that.
+static func bare_trunk(trunk: PrimitiveMesh) -> ArrayMesh:
+	var arrays := trunk.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	# [from, to, radius at from, radius at to]
+	var tubes := []
+	var crook := Vector3(0.03, 0.8, 0.02)
+	tubes.append([Vector3(0, 0.45, 0), crook, 0.035, 0.035])
+	_limb(tubes, crook, Vector3(-0.03, 1.16, -0.04), 0.035, BOUGH_TWIGS, rng)
+	for b in BOUGHS:
+		var a := (b + rng.randf_range(-0.25, 0.25)) * TAU / BOUGHS
+		var out := Vector3(cos(a), 0, sin(a))
+		var elbow := out * rng.randf_range(0.36, 0.46) + Vector3.UP * rng.randf_range(0.64, 0.72)
+		tubes.append([Vector3(0, rng.randf_range(0.36, 0.46), 0), elbow, 0.03, 0.03])
+		_limb(tubes, elbow, out.rotated(Vector3.UP, rng.randf_range(-0.25, 0.25)) + Vector3.UP * rng.randf_range(0.84, 1.0), 0.03, BOUGH_TWIGS, rng)
+	for t: Array in tubes:
+		var along: Vector3 = (t[1] - t[0]).normalized()
+		var side := along.cross(Vector3.UP if absf(along.y) < 0.9 else Vector3.RIGHT).normalized()
+		var first := verts.size()
+		for end in 2:
+			for s in BOUGH_SIDES:
+				var n := side.rotated(along, s * TAU / BOUGH_SIDES)
+				verts.append(t[end] + n * t[2 + end])
+				normals.append(n)
+				uvs.append(Vector2(0.5, 0.5))
+		for s in BOUGH_SIDES:
+			var next := (s + 1) % BOUGH_SIDES
+			indices.append_array([first + s, first + BOUGH_SIDES + s, first + next, first + next, first + BOUGH_SIDES + s, first + BOUGH_SIDES + next])
+	var out_arrays := []
+	out_arrays.resize(Mesh.ARRAY_MAX)
+	out_arrays[Mesh.ARRAY_VERTEX] = verts
+	out_arrays[Mesh.ARRAY_NORMAL] = normals
+	out_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	out_arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out_arrays)
+	return mesh
+
+
+## Adds to `tubes` a limb from `a` to `b`, `radius` thick at `a` and tapering to a point's, and `forks` times over
+## the two twigs forking from along it, each turned out to a side and up.
+static func _limb(tubes: Array, a: Vector3, b: Vector3, radius: float, forks: int, rng: RandomNumberGenerator) -> void:
+	tubes.append([a, b, radius, 0.004])
+	if forks == 0:
+		return
+	var run := b - a
+	var flat := Vector3(run.x, 0, run.z)
+	for side in [-1.0, 1.0]:
+		var t := rng.randf_range(0.35, 0.65)
+		var from := a.lerp(b, t)
+		var to := from + flat.rotated(Vector3.UP, side * rng.randf_range(0.5, 0.9)) * 0.62 + Vector3.UP * maxf(run.y, flat.length() * 0.4) * rng.randf_range(0.45, 0.75)
+		_limb(tubes, from, to, lerpf(radius, 0.004, t) * 0.75, forks - 1, rng)
 
 
 static func icosphere(subdiv: int) -> Array:

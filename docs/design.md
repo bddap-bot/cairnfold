@@ -3022,6 +3022,7 @@ Stage numbers refer to the build order at the end.
 | Boulders | Not in Tiny Glade | The boulder tool's trigger sets one down where it points, each a new shape from its own seed (`BoulderLayout`): a squat ellipsoid cut by six to ten fracture planes and a flat bed, its edges worn round by a soft minimum and its faces pitted by noise, so no two are alike and none is a ball. The seed alone is stored, with where it stands and its turn, so a boulder loads and networks the same everywhere. One hand's grip carries it, turning it every way with the hand, and two size it by their span, from 0.08 times up without bound (`WallTool.Sizing`, as for trees and openings, each of which one hand carries); its far-mesh distance grows with it. Directive (verbatim): "During that grab and move, boulders position and 3D orientation both map to the boulder, not just position and 2D orientation like when placing houses." Wherever it is let go over the ground it drops straight down until some point of it meets the ground, then sinks a fifth of how far it reaches below its centre (`BoulderLayout.rest`), so it rests whichever way it is turned; pushed into the ground it stays as deep as it was let go, down to the depth that leaves 15% of its height showing, so a ray still finds it to grip, delete or restyle and a mostly buried one still reads as a stone (directive (verbatim): "Let's allow players to mostly bury a boulder. It need not snap up after placing it halfway underground."); its depth is stored with it, and a ray meeting its buried part through the ground meets nothing; it rides the ground as it is reshaped, rising on a hill pulled under it and sinking into a hollow, and undoing the ground edit sets it back; the colour tool paints it any stone swatch, and the style tool gives it any of painted stone's styles (see "Ground materials"). It draws in wall stone, near as 1280 triangles and past 30 m times its scale as 80; the delete beam, the teleport ray and a hand stop at its own surface, and a player over it stands on its top. The budget counts a boulder by its scale squared (a metre-wide one a unit, a pebble a quarter) up to `Budget.BOULDER_MOST_US`, the most one costs however large (see "Boulder cost by size"), so the room alone bounds how many giants a garden holds, never how big one grows. A unit costs `Budget.COSTS.boulder`, the Quest 2's crowd price `demo/costs.json` fits (its records under "Build budget"), charged the same on every device as every budget cost is | 7 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool fills the hollow beside the point it is aimed at up to that point's height, at most to just below its rim, with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
+| Water life and winter | Fish and lilypads in ponds; in winter ponds freeze, snow lies on roofs, wall tops and the ground, and trees stand bare | Fish come to every pond deep enough (see "Wildlife") and lilypads float on it in rafts, placed by the pond's own ground. The meadow's winter swatch freezes ponds to still, frosted ice with the fish dim under it, lays snow on whatever faces up under the open sky (roofs, wall tops, sills, benches, the ground, less on paths) and bares the broadleaved trees to their boughs; firs and bushes keep their leaves (see "Water life and winter") | 24 (done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | One stabilized shadow map across the garden; occlusion darkening at wall feet and corners from the probe volume | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun and moon glow, stars, cloud light, fog colour, exposure and saturation follow the sun's elevation through one timeline of keys (`Daylight`), night included | 1 (done), 8 (done) |
@@ -4243,6 +4244,8 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 20. Bridges: plank-and-rope bridges hung between high points with a railing style, a single rope at the least width; walls arching over ponds. (Done.)
 21. Lights, strings and smoke: lanterns standing on the ground, in colours and three brightnesses; strings of lanterns or flags hung by a stroke; flags joining into runs along a wall; smoking chimneys. (Done.)
 22. Clutter: houses, walls and paths gathering benches, barrels, crates, market stalls, anvils, flower boxes, carved pumpkins and bird nests that a hand moves, turns, copies or takes away; birds perching on nests, lanterns and flags. (Done.)
+23. Move and copy: a grip carries and turns a wall, house, tower, fence or tree with its fittings and ivy; the colour tool copies one structure's look onto another. (Done.)
+24. Water life and winter: fish and lilypads in ponds; in winter frozen ponds, snow on roofs, wall tops and the ground, and bare trees. (Done.)
 
 ## Water
 
@@ -4284,7 +4287,7 @@ needs (`Pond.ground`), and only an edit there fills that pond again. Measured he
 CPU (`demo/lake.json`'s lake against the largest pond the 24-point limit allowed before, a 46 m dish:
 1,237 wet points then, 2,439 now): frames stay at 0.2 ms of script with either; filling the bowl
 takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it, work done off the main thread
-(below). Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
+(below). Fish (`Fish.CAP`), lilypads (`PadLayout.CAP`), ripples and the lapping sound are capped per garden or per pond already.
 
 What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`CAIRNFOLD_SCENE=demo/costs.json
 bench.sh OUT --android APK`), viewport GPU milliseconds a frame as `scripts/costs.py` reads them (the median of the
@@ -4505,6 +4508,57 @@ deep water and irises in the shallows.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
+
+## Water life and winter
+
+Fish are under "Wildlife". Lilypads float on every pond deep enough, and the fifth season, winter, freezes the ponds,
+lays snow and bares the trees. `demo/winter.json` builds a wall, a house, a fence, trees and a pond, waits for the
+fish, and looks at the glade and the pond in summer, then in winter at the pond, the glade, the roof from its shaded
+and its sunlit side, the wall's top, a tree and the whole from the air ([summer and winter, the glade, the pond, then
+the winter roof and wall top](winter.jpg)).
+
+- **Lilypads** (`PadLayout`, `Pads`): a pad for every two wet grid points, up to 12 a pond and 96 in all, shared among
+  the ponds in the order the garden holds them. They lie in rafts of three to five, each raft begun where a slow swell over the
+  ground (a few metres across) is highest and kept 2.2 m from the next, then singly where the rafts leave a pond
+  short of its share, every pad over at least 20 cm of water, whole on the surface and clear of the others. The spots
+  a pad may take hang only on the ground points they lie by and the pond's own ground and level, so a pond dug wider
+  keeps most of its pads, every player lays the same ones and nothing is stored or sent. They open out over 1.5 s once
+  their pond has filled and rock a little on the water. One MultiMesh of 10 triangles a pad, lit like the stone around
+  it, no shadow cast. Laying a pond's pads again after an edit to it took 0.7 ms for a pond of 25 wet points, 1.5 ms
+  for one of 261 and 3.6 ms for a lake of 11,793, which tries a share of its points (a desktop CPU, headless); ponds an
+  edit left alone keep theirs. A flower painted into deep water floats as a lily with a bloom (see "Water plants"),
+  beside these.
+- **One switch:** a season marked `winter` (`Palette.SEASONS`) sets the shader global `season_winter` to 1, every
+  other season to 0, and `Palette.wintry()` says the same of the season on show, so turning the colour wheel through
+  winter previews all of it. Everything below hangs on those two; no command, save field or message is new.
+- **Snow** lies by one rule (`snow_cover`, `palette.gdshaderinc`): on what faces up under the open sky, its edge broken
+  by noise. The ground asks it with its slope and the sky it sees past the builds around, so the foot of a wall or
+  the ground under an arcade keeps less; it stops at a pond's edge, and a path or paving is trodden clear of 65% of
+  it, so paths still read. A build's pieces (stones, tiles, slabs, woodwork) and thatch ask it with how far up the
+  face looks and whether it lies inside a room: roofs, wall tops, merlons, sills, benches and rails take snow, a floor
+  under its roof none. A piece works its snow out a vertex at a time, from its normal under the inverse transpose of
+  its frame (a frame stretched unevenly leans a normal carried as is), and hands it to the fragment in its colour's
+  alpha, so a stone's fragment adds only a blend, and none where no snow lies. A snowed face of either is lit by the whole sky whatever the
+  light probe beside it sees, so a snowed roof in shade reads pale blue, not grey. Grass, leaves and ivy whiten by the
+  season's own tint.
+- **Ice:** a frozen pond lies still (no waves, ripples or shore foam): clear dark ice over the deep, frosted in patches
+  and toward the shore, with fine cracks, snow drifted onto its edge, and a duller mirror of the sky. A hand rings no
+  ripple from it and its lapping stops. The fish swim on under it, dimmer, and seeds thrown on it bring none up to
+  feed. Pads stay, frozen in and frosted.
+- **Bare trees:** an oak, poplar, birch or copper beech sheds its foliage (`FloraLayout.SHED` in a blob's colour
+  alpha, folded away by the leaf shader) and its shade blob with it, and stands as its trunk under boughs
+  (`Meshes.bare_trunk`: a leader and five boughs, each forking twice, 288 triangles over the trunk's own); the trunks draw that mesh while
+  the season on show is a winter and the plain cylinder otherwise, so no other season draws a bough. The bark shader
+  spreads the boughs as wide as the species' crown (`FloraLayout.BOUGH_SPREAD`, in the trunk colour's alpha): a poplar's
+  stay upright, a beech's reach wide. A fir keeps its needles, and bushes their leaves, whitened.
+- **In the stress scene:** `winter/aerial` and `winter/ground` look at the scene's seven ponds (its eight digs, two
+  of which meet) frozen, each of 8 to 12 wet grid points with its whole share of both, 36 pads and 13 fish in all, and
+  the meadow's trees bare; `winter/village-aerial` looks down on the plaster village, past the build budget like its
+  summer phases, under snow among the scene's bare trees. On a Quest 2 (`scripts/bench.sh --android`, stress scene)
+  `winter/aerial` drew 7.86 ms of GPU a frame, `winter/ground` 7.24 and `ponds/ground` 8.09, all within the budget;
+  across the scene's phases the median change against the build without this stage was +0.06 ms. The phases past the
+  build budget that look down on a dense village cost more: `doors/aerial` 47.6 ms against 39.8, `windows/aerial` 37.5
+  against 35.2, one run each.
 
 ## Ground materials
 
@@ -5627,7 +5681,8 @@ at a perched one from in front and from the side;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
 `demo/horizon.json` looks at the mountains from the meadow, the rim and the air, at morning, dusk and dawn;
 `demo/daylight.json` drags the sun from dawn to dusk and on to midnight, looks at the moon high at dusk, the moonlit midnight and the dark before dawn, opens the colour wheel, recolours a roof, a wall's stone,
-a fence and a gable, and walks the meadow through the seasons; `demo/paint.json` paints two walls and two houses
+a fence and a gable, and walks the meadow through the seasons; `demo/winter.json` looks at a pond with its fish and
+lilypads, a house, a wall and trees in summer and then frozen, snowed on and bare in winter; `demo/paint.json` paints two walls and two houses
 each in colours of their own; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
 run with the same `--garden FILE` loads it back and writes a digest equal to the first run's `redone`.

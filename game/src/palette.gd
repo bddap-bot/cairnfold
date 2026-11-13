@@ -7,13 +7,14 @@ extends RefCounted
 ## Each value is also the parts' custom-data code a repaint scales by; MEADOW's 0 means kept as laid.
 enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6, GLOW = 7, LANTERN = 8 }
 
-## `meadow`, `foliage`: rgb the plants turn toward, a how far. `bloom`: the share of flowers in bloom.
+## `meadow`, `foliage`: rgb the plants turn toward, a how far. `bloom`: the share of flowers in bloom. `winter`: ponds
+## freeze, snow lies under the open sky and broadleaved trees stand bare.
 const SEASONS := [
-	{"name": "spring", "swatch": Color(0.50, 0.74, 0.30), "meadow": Color(0.46, 0.72, 0.22, 0.35), "foliage": Color(0.42, 0.66, 0.2, 0.4), "bloom": 1.0, "fireflies": true},
-	{"name": "summer", "swatch": Color(0.40, 0.60, 0.18), "meadow": Color(0, 0, 0, 0), "foliage": Color(0, 0, 0, 0), "bloom": 1.0, "fireflies": true},
-	{"name": "late summer", "swatch": Color(0.70, 0.66, 0.26), "meadow": Color(0.66, 0.6, 0.24, 0.5), "foliage": Color(0.42, 0.44, 0.16, 0.3), "bloom": 0.55, "fireflies": true},
-	{"name": "autumn", "swatch": Color(0.80, 0.42, 0.14), "meadow": Color(0.6, 0.48, 0.2, 0.6), "foliage": Color(0.82, 0.36, 0.1, 0.85), "bloom": 0.15, "fireflies": false},
-	{"name": "winter", "swatch": Color(0.86, 0.89, 0.93), "meadow": Color(0.84, 0.87, 0.92, 0.85), "foliage": Color(0.86, 0.88, 0.92, 0.7), "bloom": 0.0, "fireflies": false},
+	{"name": "spring", "swatch": Color(0.50, 0.74, 0.30), "meadow": Color(0.46, 0.72, 0.22, 0.35), "foliage": Color(0.42, 0.66, 0.2, 0.4), "bloom": 1.0, "fireflies": true, "winter": false},
+	{"name": "summer", "swatch": Color(0.40, 0.60, 0.18), "meadow": Color(0, 0, 0, 0), "foliage": Color(0, 0, 0, 0), "bloom": 1.0, "fireflies": true, "winter": false},
+	{"name": "late summer", "swatch": Color(0.70, 0.66, 0.26), "meadow": Color(0.66, 0.6, 0.24, 0.5), "foliage": Color(0.42, 0.44, 0.16, 0.3), "bloom": 0.55, "fireflies": true, "winter": false},
+	{"name": "autumn", "swatch": Color(0.80, 0.42, 0.14), "meadow": Color(0.6, 0.48, 0.2, 0.6), "foliage": Color(0.82, 0.36, 0.1, 0.85), "bloom": 0.15, "fireflies": false, "winter": false},
+	{"name": "winter", "swatch": Color(0.86, 0.89, 0.93), "meadow": Color(0.84, 0.87, 0.92, 0.85), "foliage": Color(0.86, 0.88, 0.92, 0.7), "bloom": 0.0, "fireflies": false, "winter": true},
 ]
 const SUMMER := 1
 
@@ -54,6 +55,8 @@ const KINDS := {
 }
 
 var season := SUMMER
+## The season on show: the garden's, or the one the colour wheel is turned to.
+static var shown := SUMMER
 
 
 static func count(element: Element) -> int:
@@ -97,7 +100,12 @@ static func globals(index: int) -> Dictionary:
 		var t: Color = SEASONS[index][key]
 		out["season_" + key] = Vector4(t.r, t.g, t.b, t.a)
 	out["season_bloom"] = SEASONS[index].bloom
+	out["season_winter"] = 1.0 if SEASONS[index].winter else 0.0
 	return out
+
+
+static func wintry() -> bool:
+	return SEASONS[shown].winter
 
 
 func bloom() -> float:
@@ -113,6 +121,7 @@ func apply() -> void:
 
 
 static func preview(index: int) -> void:
+	shown = index
 	var g := globals(index)
 	for name in g:
 		RenderingServer.global_shader_parameter_set(name, g[name])

@@ -78,8 +78,6 @@ func _run() -> void:
 	compositor.compositor_effects = [effect]
 	main.rig.head.compositor = compositor
 	await create_timer(3).timeout
-	main.world.submit({"op": "season", "index": 4})
-	assert(main.world.palette.season == 4, "The shadow fixture must be winter")
 	var steps := [
 		{"op": "wall", "points": [[-8, -18], [8, -18]], "seconds": 1.0},
 		{"op": "house", "at": [9, -24], "size": [6, 4], "turn": 0, "seconds": 1.0},

@@ -36,12 +36,12 @@ static func flower_color(p: Vector3) -> Color:
 
 ## A flower blooms while this is under the season's share in bloom (plant.gdshaderinc reads it per instance).
 static func bloom_rank(p: Vector3) -> float:
-	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.BLOOM)
+	return hashed(floori(p.x * 64.0), floori(p.z * 64.0), Trait.BLOOM)
 
 
 ## Higher-ranked clumps thin out nearer the eye (grass.gdshader reads it per instance).
 static func thin_rank(p: Vector3) -> float:
-	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.THIN)
+	return hashed(floori(p.x * 64.0), floori(p.z * 64.0), Trait.THIN)
 
 
 static func flowery(p: Vector3) -> bool:
@@ -58,7 +58,7 @@ static func clump(p: Vector3, size: float) -> Vector3:
 	var best_d := INF
 	for j in range(cj - 1, cj + 2):
 		for i in range(ci - 1, ci + 2):
-			var c := Vector3((i + _hash(i, j, Trait.X)) * size, 0.0, (j + _hash(i, j, Trait.Z)) * size)
+			var c := Vector3((i + hashed(i, j, Trait.X)) * size, 0.0, (j + hashed(i, j, Trait.Z)) * size)
 			var d := Vector2(p.x - c.x, p.z - c.z).length_squared()
 			if d < best_d:
 				best_d = d
@@ -68,10 +68,10 @@ static func clump(p: Vector3, size: float) -> Vector3:
 
 ## `size` must be the one `centre` came from.
 static func clump_trait(centre: Vector3, t: Trait, size: float) -> float:
-	return _hash(floori(centre.x / size), floori(centre.z / size), t)
+	return hashed(floori(centre.x / size), floori(centre.z / size), t)
 
 
-static func _hash(i: int, j: int, k: int) -> float:
+static func hashed(i: int, j: int, k: int) -> float:
 	return fposmod(sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453, 1.0)
 
 
@@ -111,10 +111,16 @@ enum Species { OAK, FIR, POPLAR, BIRCH, BEECH }
 ## Scale range: below it a crown sinks into the grass, past it a blob's facets read as flat plates.
 const SCALES := Vector2(0.4, 3.0)
 const BARK := {Species.OAK: Color(0.36, 0.27, 0.2), Species.FIR: Color(0.3, 0.21, 0.16), Species.POPLAR: Color(0.42, 0.38, 0.3), Species.BIRCH: Color(0.86, 0.84, 0.79), Species.BEECH: Color(0.47, 0.46, 0.43)}
+## How far a bare tree's boughs reach out from its trunk, in trunk heights, carried in its bark colour's alpha: as wide
+## as its crown, and none on a fir, which keeps its needles.
+const BOUGH_SPREAD := {Species.OAK: 0.5, Species.FIR: 0.0, Species.POPLAR: 0.13, Species.BIRCH: 0.5, Species.BEECH: 0.85}
+## A foliage blob's colour alpha: SHED on a broadleaf, whose leaves fall for the winter, KEPT on a fir or a bush.
+const SHED := 0.0
+const KEPT := 1.0
 const LEAVES := {Species.FIR: Color(0.06, 0.19, 0.12), Species.POPLAR: Color(0.36, 0.5, 0.08), Species.BIRCH: Color(0.46, 0.6, 0.2), Species.BEECH: Color(0.32, 0.09, 0.1)}
 
 
-## {trunk: unit-height cylinder's transform, bark: Color, blobs: [[Transform3D, Color]]}.
+## {trunk: unit-height cylinder's transform, bark: Color (alpha the boughs' reach, BOUGH_SPREAD), blobs: [[Transform3D, Color (alpha SHED or KEPT)]]}.
 static func tree(at: Vector3, seed: int, species := Species.OAK, scale := 1.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -139,7 +145,7 @@ static func tree(at: Vector3, seed: int, species := Species.OAK, scale := 1.0) -
 				var t := b / float(BLOBS - 1)
 				var r := h * lerpf(0.34, 0.06, t) * rng.randf_range(0.9, 1.1)
 				var off := Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * r * 0.08
-				blobs.append(_blob(rng, Vector3(r, r * 0.45 + h * 0.04, r), base + Vector3.UP * h * lerpf(0.42, 1.12, t) + off, LEAVES[species]))
+				blobs.append(_blob(rng, Vector3(r, r * 0.45 + h * 0.04, r), base + Vector3.UP * h * lerpf(0.42, 1.12, t) + off, LEAVES[species], KEPT))
 		Species.POPLAR:
 			h = rng.randf_range(5.0, 7.0)
 			girth = 0.6
@@ -169,13 +175,13 @@ static func tree(at: Vector3, seed: int, species := Species.OAK, scale := 1.0) -
 	var grown := Transform3D(Basis.from_scale(Vector3.ONE * scale), at * (1.0 - scale))
 	for b in blobs:
 		b[0] = grown * b[0]
-	return {"trunk": grown * Transform3D(Basis().scaled(Vector3(girth, h, girth)), base + Vector3.UP * h * 0.5), "bark": BARK[species], "blobs": blobs}
+	return {"trunk": grown * Transform3D(Basis().scaled(Vector3(girth, h, girth)), base + Vector3.UP * h * 0.5), "bark": Color(BARK[species], BOUGH_SPREAD[species]), "blobs": blobs}
 
 
-static func _blob(rng: RandomNumberGenerator, scale: Vector3, at: Vector3, green: Color) -> Array:
-	return [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(scale), at), green * rng.randf_range(0.9, 1.1)]
+static func _blob(rng: RandomNumberGenerator, scale: Vector3, at: Vector3, green: Color, leaves := SHED) -> Array:
+	return [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(scale), at), Color(green * rng.randf_range(0.9, 1.1), leaves)]
 
 
 static func bush(at: Vector3, rng: RandomNumberGenerator) -> Array:
 	var s := rng.randf_range(0.4, 0.9)
-	return [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.7, s)), at + Vector3.UP * 0.1), GREENS[rng.randi() % GREENS.size()] * 0.95]
+	return [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.7, s)), at + Vector3.UP * 0.1), Color(GREENS[rng.randi() % GREENS.size()] * 0.95, KEPT)]

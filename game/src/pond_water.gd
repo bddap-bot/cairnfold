@@ -54,7 +54,15 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	_lap.play(randf() * _lap.stream.get_length())
+	freeze(Palette.wintry())
+
+
+## Ice stills the lapping.
+func freeze(on: bool) -> void:
+	if on:
+		_lap.stop()
+	elif not _lap.playing:
+		_lap.play(randf() * _lap.stream.get_length())
 
 
 func show_pond(p: PondLayout.Pond) -> void:
