@@ -56,9 +56,18 @@ const GROW_PLANTS := 12
 ## about half a millisecond on the Steam Frame, so a house let go there lays its upper storey and the wings it joins in
 ## the frames after.
 const RELAYS := 1
-## Frames after a garden wall's lay starts on a worker that the wall takes it (Work); a wall in hand, which game logic
+## The fewest frames after a lay starts on a worker that a garden wall takes it (Work); a wall in hand, which game logic
 ## does not read, takes its lay once done.
 const LAY_FRAMES := 3
+## A garden wall's lay on a Quest 2 worker, in milliseconds: LAY_BASE_MS and a rate for each unit Budget.wall counts,
+## the least squares fit at or over zero to the lays the stress scene and demo/lays.json take in their phases. The same
+## lay runs up to twice as long while another lays beside it (Budget.WALL_LAYS), and longer again while a sculpt works
+## the ground, so it is given LAY_MARGIN times its price, in frames at REFRESH_HZ: at 2.5, a wall laid again under the
+## stress scene's stroke over the hills still kept a Quest 2's frame waiting a whole frame.
+const LAY_BASE_MS := 11.0
+const LAY_MS := {"wall_m2": 0.33, "plaster_m2": 0.0, "fence_m2": 0.0, "roof_m2": 2.25, "thatch_m2": 11.3, "timber": 0.18,
+	"arch": 0.0, "fitting": 0.95}
+const LAY_MARGIN := 3.0
 ## Frames after a wall's perches start on a worker that its birds take them (Work).
 const PERCH_FRAMES := 3
 ## Frames after a command's water starts on a worker that the command runs (Work, World._drain).
@@ -256,6 +265,14 @@ static func add(into: Dictionary, units: Dictionary, times := 1.0) -> Dictionary
 		else:
 			into[k] = v
 	return into
+
+
+## Frames a garden wall's lay is given: priced from what it lays, LAY_MS, so it fits them on the Quest 2.
+static func lay_frames(units: Dictionary) -> int:
+	var ms := LAY_BASE_MS
+	for k: String in units:
+		ms += LAY_MS[k] * units[k]
+	return maxi(LAY_FRAMES, ceili(LAY_MARGIN * ms * REFRESH_HZ / 1000.0))
 
 
 ## A wall as its build command carries it.

@@ -271,7 +271,7 @@ func _process(delta: float) -> void:
 		_queued = false
 		_lay()
 	var done := _build_task >= 0 and WorkerThreadPool.is_task_completed(_build_task)
-	if _build_task >= 0 and (Work.due(_build_task) or done and not finished):
+	if _build_task >= 0 and (Work.due(_build_task) if finished else done):
 		_land()
 	if _recolour_task >= 0 and WorkerThreadPool.is_task_completed(_recolour_task):
 		_land_recolour()
@@ -375,8 +375,8 @@ static func reap(all := false) -> void:
 
 ## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
 ## milliseconds for a long wall, so once the stones are laid again it is done on a worker thread (Work), and not while a
-## newer preview is being laid; until it is taken, Budget.PERCH_FRAMES later, the old ones stand. With `now` the stones
-## are laid and their perches worked out before it returns, for a caller stepping time without frames.
+## newer preview is being laid; until it is taken, Budget.PERCH_FRAMES later, the old ones stand. With `now` the
+## stones are laid and their perches worked out before it returns, for a caller stepping time without frames.
 func perches(now := false) -> PackedVector3Array:
 	if now:
 		lay_now()
@@ -424,9 +424,9 @@ func _layout_ivy() -> void:
 
 
 ## Lays the stones again on a worker thread (Work), since a long wall takes several frames' worth of main-thread time;
-## the stones standing show until the new ones are taken, Budget.LAY_FRAMES later. Without `settle` while a stroke, a
-## grip lift, a roof pull or a house footprint is still moving; with it the wall then settles into the Masonry with its
-## ivy.
+## the stones standing show until the new ones are taken, the frames Budget.lay_frames prices later. Without `settle`
+## while a stroke, a grip lift, a roof pull or a house footprint is still moving; with it the wall then settles into
+## the Masonry with its ivy.
 func rebuild(settle := true) -> void:
 	_settle_on_land = settle
 	if not settle:
@@ -501,9 +501,10 @@ func _lay_due() -> void:
 	_due_laid += 1
 
 
-## Lays on worker threads, as the frames they come due at: a lay holds its slot until then, however soon it is taken.
-## They run at high priority so pipeline compiles do not hold them back; a sculpt relays every wall on the ground at
-## once, and unbounded they take every worker while the frame waits on the pool.
+## Garden walls' lays on worker threads, as the frames they come due at: a lay holds its slot until then, however soon
+## it is taken. A wall in hand, taken whenever its worker finishes, holds none, so it cannot move when a garden wall's
+## lay starts. A sculpt relays every wall on the ground at once, and unbounded they take every worker while the frame
+## waits on the pool.
 static var _lays := PackedInt32Array()
 
 
@@ -516,7 +517,7 @@ func _build_live() -> void:
 		return
 	if _queued:
 		return
-	if not _slot_free():
+	if finished and not _slot_free():
 		_queued = true
 		return
 	_lay()
@@ -545,13 +546,15 @@ func _lay() -> void:
 	var water := terrain.held_water(true)
 	var revision := terrain.shown_revision()
 	var colours := paint.duplicate()
+	var frames := Budget.lay_frames(Budget.wall(data())) if finished else Budget.LAY_FRAMES
 	_build_task = Work.start(func():
 		_drop(litter)
 		job.build(height, water, revision)
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks, colours)
-		out.merge(Wall.pack(job, ks, colours)), Budget.LAY_FRAMES, true)
-	_lays.append(Work.now() + Budget.LAY_FRAMES)
+		out.merge(Wall.pack(job, ks, colours)), frames)
+	if finished:
+		_lays.append(Work.now() + frames)
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on

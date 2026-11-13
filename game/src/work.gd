@@ -11,9 +11,10 @@ static var _due := {}
 static var paused := 0
 
 
-## Starts `job` on the worker pool, to be taken `frames` frames from now.
-static func start(job: Callable, frames: int, high_priority := false) -> int:
-	var task := WorkerThreadPool.add_task(job, high_priority)
+## Starts `job` on the worker pool, to be taken `frames` frames from now. It runs at high priority, since the frame
+## waits for it then: at normal priority the pool's other work held a Quest 2's perches back for seconds.
+static func start(job: Callable, frames: int) -> int:
+	var task := WorkerThreadPool.add_task(job, true)
 	_due[task] = now() + frames
 	return task
 

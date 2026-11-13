@@ -23,6 +23,7 @@ func _run() -> void:
 	_masonry_near_one_eye_is_charged_once()
 	_stone_ground_counts_its_square_metres()
 	_a_boulder_costs_no_more_once_it_fills_the_view()
+	await _a_garden_walls_lay_is_given_the_frames_its_size_prices()
 	finish()
 
 
@@ -400,3 +401,22 @@ func _a_boulder_costs_no_more_once_it_fills_the_view() -> void:
 	var most := Budget.cost_ms({"boulder": Budget.boulder(80.0)})
 	check(is_equal_approx(most, Budget.BOULDER_MOST_US / 1000.0), "a boulder 80 metres wide costs the most one does")
 	check(Budget.fits({}, {"boulder": Budget.boulder(1000.0)}), "an empty garden takes a boulder of any size")
+
+
+## A lay game logic reads is taken a fixed count of frames after it starts, so it is given the frames what it lays
+## costs a Quest 2's worker, and no fewer than Budget.LAY_FRAMES.
+func _a_garden_walls_lay_is_given_the_frames_its_size_prices() -> void:
+	check(Budget.lay_frames({}) == Budget.LAY_FRAMES, "a wall with nothing to lay is given %d frames" % Budget.LAY_FRAMES)
+	var tiled := Budget.lay_frames({"wall_m2": 50.0, "roof_m2": 31.6})
+	var thatched := Budget.lay_frames({"wall_m2": 50.0, "thatch_m2": 31.6})
+	check(tiled > Budget.LAY_FRAMES and thatched > tiled, "a house is given more frames, and under thatch more again: %d, %d" % [tiled, thatched])
+	check(await _build([_wall(Vector2(-6, -24), Vector2(6, -24), 3.0)]), "the wall goes up")
+	var w: Wall = main.tool.walls.filter(func(x: Wall) -> bool: return x.finished).back()
+	await frames(Budget.lay_frames(Budget.wall(w.data())) + 1)
+	w.rebuild(false)
+	check(w._build_task >= 0, "the wall lays again at once")
+	if w._build_task >= 0:
+		var given: int = Work._due[w._build_task] - Work.now()
+		check(given == Budget.lay_frames(Budget.wall(w.data())) and given > Budget.LAY_FRAMES, "its lay is given the %d frames its size prices" % given)
+	world.undo()
+	await _settled()

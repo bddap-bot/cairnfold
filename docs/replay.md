@@ -22,7 +22,8 @@ joints replays as a controller held at its palm, giving the same inputs. The gam
 
 What game logic reads never waits on the machine's timing, so a replay is the session again however loaded either
 machine was. A worker thread's work for it is taken at a frame the frames decide (`Work`): a garden wall's stones
-`Budget.LAY_FRAMES` after their lay began, its perches `Budget.PERCH_FRAMES` after, a command's water
+the frames `Budget.lay_frames` prices from what it lays after their lay began, so the lay fits them on a Quest 2, its
+perches `Budget.PERCH_FRAMES` after, a command's water
 `Budget.WATER_FRAMES` after, waited for then if the worker is not done (Metrics notes the wait), frames counted without
 the replay's paused first one. Work spread over frames is metered by counts: a committed stroke grows
 `Budget.GROW_PLANTS` plants a frame, the ground wears `Budget.GROUND_WEAR_ROWS` marks or rows of a laid path a frame,
