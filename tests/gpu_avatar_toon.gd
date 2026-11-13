@@ -2,8 +2,9 @@ extends "res://../tests/support/suite.gd"
 
 ## A converted avatar's toon looks as lilToon draws them: a flat grey ball lit from +X takes its first shade past its
 ## shadow's border and its second past the second's, the border where the border's half Lambert puts it, both turned by
-## a menu's hue and moved by its colour as the albedo is; a rim brightens its silhouette alone, tinted by its rim tint
-## layer, and on back faces only where it says so; an added matcap lays its top half where the ball faces up and its right half where it faces right,
+## a menu's hue and moved by its colour as the albedo is; a rim shade darkens its silhouette alone; a rim brightens its
+## silhouette alone, tinted by its rim tint layer, and on back faces only where it says so; an added matcap lays its top
+## half where the ball faces up and its right half where it faces right,
 ## as Unity maps one, and a clip moving its intensity to nothing and its emission's strength off nothing takes the
 ## matcap away and lights the emission; and a reflection matcap lays its left half where the ball faces right, as
 ## Poiyomi reflects the view in Unity's axes, Godot's mirrored through X. Needs a renderer, so scripts/test.sh runs it on the desktop one:
@@ -17,6 +18,10 @@ const FIRST := Color(0.1, 0.1, 0.4)
 const SECOND := Color(0.4, 0.1, 0.1)
 const BORDER := 0.6
 const SECOND_BORDER := 0.25
+## Where the eye stands, which the view toward it is taken from.
+const EYE := Vector3(0, 0, 3)
+## The rim shade of the "rim shade" balls, its band partly crossed 0.8 of the way out to the silhouette.
+const RIM_SHADE := {"color": [0.5, 0.2, 1.0], "strength": 0.8, "border": 0.5, "blur": 0.6, "power": 2.0}
 ## The rim tint layer of the "tinted rim" ball, in linear light.
 const TINT := Color(1.0, 0.25, 1.0)
 
@@ -39,7 +44,7 @@ func _run() -> void:
 	var eye := Camera3D.new()
 	eye.projection = Camera3D.PROJECTION_ORTHOGONAL
 	eye.size = 2.4
-	eye.position = Vector3(0, 0, 3)
+	eye.position = EYE
 	eye.cull_mask = Quality.VIEW_MASK
 	view.add_child(eye)
 	var sun := DirectionalLight3D.new()
@@ -56,14 +61,16 @@ func _run() -> void:
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 1.0, 1.0, 1.0], "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 1.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null, "theme": null}
 	var shots := {}
 	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]]}
-	for look: String in ["shadow", "rim", "tinted rim", "plain", "matcap", "reflection", "turned", "recoloured", "inside", "inside hidden", "inside shown"]:
+	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "reflection", "turned", "recoloured", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 		var entry := {"lighting": {"model": "flat", "cap": 1.0}}
-		if look in ["shadow", "rim", "tinted rim", "turned", "recoloured", "inside", "inside hidden", "inside shown"]:
+		if look in ["shadow", "rim", "tinted rim", "rim shade", "turned", "recoloured", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 			entry.lighting.shadow = shadow
 		if look in ["rim", "tinted rim", "inside hidden"]:
 			entry.rim = rim
 		if look == "inside shown":
 			entry.rim = rim.merged({"backface": true}, true)
+		if look in ["rim shade", "inside rim shade"]:
+			entry.rimShade = RIM_SHADE
 		var targets := []
 		if look == "matcap":
 			entry.matcaps = [matcap, null, null, null]
@@ -102,6 +109,12 @@ func _run() -> void:
 	var edge := [_mean(rimmed, 0.88, 0.95, 0.0).g - _mean(shaded, 0.88, 0.95, 0.0).g, _mean(rimmed, -0.95, -0.88, 0.0).g - _mean(shaded, -0.95, -0.88, 0.0).g]
 	var middle := _mean(rimmed, -0.4, 0.4, 0.0).g - _mean(shaded, -0.4, 0.4, 0.0).g
 	var tinted := [_mean(shots["tinted rim"], 0.88, 0.95, 0.0).g - _mean(shaded, 0.88, 0.95, 0.0).g, _mean(shots["tinted rim"], -0.95, -0.88, 0.0).g - _mean(shaded, -0.95, -0.88, 0.0).g]
+	var rim_shaded: Image = shots["rim shade"]
+	var darkened := [_mean(rim_shaded, 0.79, 0.81, 0.0), _mean(rim_shaded, -0.81, -0.79, 0.0)]
+	var under := [_mean(shaded, 0.79, 0.81, 0.0), _mean(shaded, -0.81, -0.79, 0.0)]
+	var kept := _mean(rim_shaded, -0.4, 0.4, 0.0)
+	var band := _rim_shade_band(0.8)
+	var behind := _mean(shots["inside rim shade"], 0.96, 0.98, 0.0).g / _mean(shots.inside, 0.96, 0.98, 0.0).g
 	var plain: Image = shots.plain
 	var mapped: Image = shots.matcap
 	var up := _mean(mapped, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
@@ -132,6 +145,8 @@ func _run() -> void:
 	check(absf(measured - expected) < 3.0, "the border falls %.1f degrees from the light, its half Lambert's %.1f" % [measured, expected])
 	check(edge.all(func(g: float) -> bool: return g > 0.3) and absf(middle) < 0.01, "the rim brightens the silhouette, %s, and leaves the middle, %+.4f" % [edge, middle])
 	check(range(2).all(func(k: int) -> bool: return absf(tinted[k] - edge[k] * TINT.g) < 0.03), "a rim tint layer scales the rim by its texel, %s against %s times %.2f" % [tinted, edge, TINT.g])
+	check(range(2).all(func(k: int) -> bool: return _near(darkened[k], Color(under[k].r * lerpf(1.0, RIM_SHADE.color[0], band), under[k].g * lerpf(1.0, RIM_SHADE.color[1], band), under[k].b * lerpf(1.0, RIM_SHADE.color[2], band)), 0.02)) and _near(kept, _mean(shaded, -0.4, 0.4, 0.0), 0.01), "a rim shade multiplies the colour toward its own by %.3f where its band is partly crossed, %s over %s, and leaves the middle, %s" % [band, darkened, under, kept])
+	check(behind < 0.9, "a rim shade darkens back faces turning from the view too: %.3f of the green without it" % behind)
 	check(up > 0.3 and absf(down) < 0.02 and right > 0.3 and absf(left) < 0.02, "the matcap's top half lies where the ball faces up and its right half where it faces right: up %+.3f, down %+.3f, right %+.3f, left %+.3f" % [up, down, right, left])
 	check(absf(still) < 0.02 and absf(glowing - 0.5) < 0.04, "a clip taking the matcap's intensity to nothing takes it away, %+.3f, and one setting the emission's strength to one lights it 0.5 blue, %+.3f" % [still, glowing])
 	check(reflected_up > 0.3 and reflected_left > 0.3 and absf(reflected_right) < 0.02, "a reflection matcap lays its top half where the ball faces up and its left half where it faces right: up %+.3f, right %+.3f, left %+.3f" % [reflected_up, reflected_right, reflected_left])
@@ -140,6 +155,18 @@ func _run() -> void:
 	check(hidden.all(func(g: float) -> bool: return absf(g) < 0.01) and shown.all(func(g: float) -> bool: return g > 0.3), "a rim hidden on back faces leaves an inside-out ball's silhouette, %s, and one drawn there brightens it, %s" % [hidden, shown])
 	view.queue_free()
 	finish()
+
+
+## How far RIM_SHADE darkens the ball `x` of the way out along its middle row: its strength times its band of the
+## Fresnel term there, antialiased over the term's change across a pixel.
+static func _rim_shade_band(x: float) -> float:
+	var turned := func(at: float) -> float:
+		var on := Vector3(at, 0.0, sqrt(1.0 - at * at))
+		return 1.0 - on.dot((EYE - on).normalized())
+	var power: float = RIM_SHADE.power
+	var width := power * pow(turned.call(x), power - 1.0) * absf(turned.call(x + 0.5 / RADIUS) - turned.call(x - 0.5 / RADIUS))
+	var low: float = RIM_SHADE.border - 0.5 * RIM_SHADE.blur
+	return RIM_SHADE.strength * clampf((pow(turned.call(x), power) - low) / (RIM_SHADE.blur + width), 0.0, 1.0)
 
 
 ## A grey ball whose one material's looks entry is `entry`, its shade layers the two shades, its matcap red over its

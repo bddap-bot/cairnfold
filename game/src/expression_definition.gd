@@ -90,7 +90,7 @@ static func valid(data: Dictionary) -> bool:
 ## lighting), an "emission" null or its linear "color", "strength" and, optionally, "replace" and "theme", the slot of
 ## the global theme colour it glows in among the material's "themes" (unity/materials.gd `_theme`), and a "rim" null or
 ## its linear "color", numbers and whether it draws on back faces, "backface", tinted by the looks' "rimTint" layer where
-## they carry one. A shadow draws by the looks' "shade" layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
+## they carry one, and a "rimShade" null or its linear "color" and numbers. A shadow draws by the looks' "shade" layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
 ## "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is
 ## refused rather than guessed at (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
@@ -144,6 +144,10 @@ static func looks_valid(looks: Variant) -> bool:
 		var rim: Variant = m.get("rim")
 		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k))) and rim.get("backface") is bool):
 			push_error("expressions: a look's rim is not a colour of three numbers with a strength, main, border, blur, power, lit and shadowMask, and a backface flag: %s" % [rim])
+			return false
+		var rim_shade: Variant = m.get("rimShade")
+		if rim_shade != null and not (rim_shade is Dictionary and _numbers(rim_shade.get("color"), 3) and ["strength", "border", "blur", "power"].all(func(k: String) -> bool: return _number(rim_shade.get(k))) and float(rim_shade.power) > 0.0):
+			push_error("expressions: a look's rim shade is not a colour of three numbers with a strength, border, blur and positive power: %s" % [rim_shade])
 			return false
 	return true
 

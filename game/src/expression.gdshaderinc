@@ -7,8 +7,8 @@ uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
 // flat and two where lit through a ramp, green its cap, blue its shadow tint, alpha its emission's strength; row 1 its
 // emission's colour over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward
-// the glow by its brightest channel); the RAMP rows after those HEAD_ROWS its ramp; from TOON_ROW its toon shadow and
-// rim, which the TOON shaders alone draw. Unset, every texel is lit by angle and glows nowhere.
+// the glow by its brightest channel); the RAMP rows after those HEAD_ROWS its ramp; from TOON_ROW its toon shadow, rim
+// and rim shade, which the TOON shaders alone draw. Unset, every texel is lit by angle and glows nowhere.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -232,6 +232,13 @@ float toon(float v, float border, float blur, float range, float width) {
 	float high = clamp(border + 0.5 * blur, 0.0, 1.0);
 	return clamp((v - low) / max(clamp(high - low + width, 0.0, 1.0), 1e-4), 0.0, 1.0);
 }
+
+// lilToon's Fresnel band: how far the surface turns from the view, `facing` its normal's share along it and
+// `facing_width` how far that moves across a pixel, raised to `power` and stepped across `border`, `blur` wide.
+float fresnel_band(float facing, float facing_width, float power, float border, float blur) {
+	float turned = max(1.0 - facing, 0.0);
+	return toon(pow(turned, power), border, blur, 0.0, power * pow(max(turned, 1e-4), power - 1.0) * facing_width);
+}
 #endif
 
 // Poiyomi's matcaps over `base`, the material's colour, each looked up by the world normal `n` as seen along `v` (toward
@@ -428,6 +435,7 @@ void fragment() {
 	bool shadowed = false;
 	float shadowmix = 1.0;
 	vec3 rim_light = vec3(0.0);
+	vec4 reach = vec4(0.0);
 	if (toon_entry >= 0) {
 		vec4 shadow = texelFetch(lighting, ivec2(toon_entry, TOON_ROW), 0);
 		if (shadow.a > 0.5) {
@@ -449,6 +457,12 @@ void fragment() {
 			shadowed = true;
 			base.rgb = mix(dark, albedo, mix(1.0, shadowmix, shadow.z * shade_texel.a));
 		}
+		reach = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 5), 0);
+		if (reach.a > 0.0) {
+			vec4 rim_shade = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 6), 0);
+			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 7), 0);
+			base.rgb *= mix(vec3(1.0), rim_shade.rgb, fresnel_band(facing, facing_width, rim_shade.a, edge.x, edge.y) * reach.a);
+		}
 	}
 #endif
 	vec3 matcap_light = vec3(0.0);
@@ -465,12 +479,9 @@ void fragment() {
 #ifdef TOON
 	if (toon_entry >= 0) {
 		vec4 rim = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 3), 0);
-		vec4 reach = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 5), 0);
 		if (rim.a > 0.0 && (FRONT_FACING || reach.z > 0.5)) {
 			vec4 edge = texelFetch(lighting, ivec2(toon_entry, TOON_ROW + 4), 0);
-			float fresnel = pow(1.0 - facing, edge.w);
-			float fresnel_width = edge.w * pow(max(1.0 - facing, 1e-4), edge.w - 1.0) * facing_width;
-			float r = toon(fresnel, edge.y, edge.z, 0.0, fresnel_width) * mix(1.0, shadowmix, reach.y) * rim.a;
+			float r = fresnel_band(facing, facing_width, edge.w, edge.y, edge.z) * mix(1.0, shadowmix, reach.y) * rim.a;
 			rim_light = rim.rgb * textureGrad(rim_tint, uv, dx, dy).rgb * mix(vec3(1.0), albedo, edge.x) * mix(vec3(1.0), toon_light, reach.x) * r;
 		}
 	}

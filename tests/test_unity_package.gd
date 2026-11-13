@@ -2358,13 +2358,14 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 		"skin": _liltoon_mat(LILTOON, [], {
 			"_UseShadow": 1, "_ShadowBorder": 0.4, "_ShadowBlur": 0.2, "_ShadowStrength": 0.9, "_LightMaxLimit": 1.5,
 			"_UseRim": 1, "_RimBorder": 0.6, "_RimFresnelPower": 2,
+			"_UseRimShade": 1, "_RimShadeBorder": 0.4, "_RimShadeBlur": 0.3, "_RimShadeFresnelPower": 2,
 			"_UseMatCap": 1, "_MatCapBlendMode": 1, "_MatCapEnableLighting": 0.25, "_MatCapBlend": 0.7, "_MatCapMainStrength": 0.5, "_MatCapShadowMask": 0.3,
 			"_UseMatCap2nd": 1, "_MatCap2ndBlendMode": 3,
 			"_UseEmission": 1, "_EmissionBlend": 0.6,
-		}, {"_ShadowColor": Color(0.5, 0.5, 0.5, 1), "_Shadow2ndColor": Color(1, 0, 0, 0.5), "_ShadowBorderColor": Color(0, 0, 0, 1), "_RimColor": Color(1, 0.5, 0.25, 0.8), "_EmissionColor": Color(1, 0.5, 0, 1), "_MainTex_ScrollRotate": Color(0, 0, 0, 0)},
+		}, {"_ShadowColor": Color(0.5, 0.5, 0.5, 1), "_Shadow2ndColor": Color(1, 0, 0, 0.5), "_ShadowBorderColor": Color(0, 0, 0, 1), "_RimColor": Color(1, 0.5, 0.25, 0.8), "_RimShadeColor": Color(0.5, 1, 0.25, 0.75), "_EmissionColor": Color(1, 0.5, 0, 1), "_MainTex_ScrollRotate": Color(0, 0, 0, 0)},
 		{"_MainTex": "grey", "_ShadowStrengthMask": "half", "_MatCapTex": ["gold", Vector2(0.8, 0.8), Vector2.ZERO], "_MatCapBlendMask": "half", "_EmissionMap": "half", "_RimColorTex": "tint"}),
-		"eye": _liltoon_mat(LILTOON_MULTI, "_EMISSION", {"_UseRim": 1, "_UseEmission": 1, "_UseEmission2nd": 1}, {"_EmissionMap_ScrollRotate": Color(0.5, 0, 0, 0)}, {"_MainTex": "grey"}),
-		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5, "_UseRim": 1, "_RimBackfaceMask": 0, "_UseMatCap": 1, "_MatCapShadowMask": 0.6}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey"}),
+		"eye": _liltoon_mat(LILTOON_MULTI, "_EMISSION EFFECT_BUMP", {"_UseRim": 1, "_UseRimShade": 1, "_UseBumpMap": 1, "_UseBump2ndMap": 1, "_UseEmission": 1, "_UseEmission2nd": 1}, {"_EmissionMap_ScrollRotate": Color(0.5, 0, 0, 0)}, {"_MainTex": "grey", "_BumpMap": "half", "_Bump2ndMap": "half"}),
+		"glow": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 1, "_UseEmission2nd": 1, "_Emission2ndBlend": 0.5, "_UseRim": 1, "_RimBackfaceMask": 0, "_UseRimShade": 1, "_UseBumpMap": 1, "_UseBump2ndMap": 1, "_UseMatCap": 1, "_MatCapShadowMask": 0.6}, {"_EmissionColor": Color(2, 0, 0, 1), "_Emission2ndColor": Color(0, 0, 1, 1)}, {"_MainTex": "grey", "_RimShadeMask": "half", "_BumpMap": "half"}),
 	}, {"grey": [grey, grey, grey, grey], "half": [Color(1, 0, 0, 1), Color(0, 1, 0, 1)], "gold": [Color(1, 0.8, 0.2, 1)], "tint": [Color(1, 0.5, 0, 0.5)]})
 	var materials := Materials.new(assets)
 	for key: String in ["skin", "eye", "glow"]:
@@ -2382,6 +2383,11 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	var rim := Color(1, 0.5, 0.25).srgb_to_linear()
 	check(skin.get("rim") == {"color": [rim.r, rim.g, rim.b], "strength": Color(0, 0, 0, 0.8).a, "main": 0.0, "border": 0.6, "blur": 0.65, "power": 2.0, "lit": 1.0, "shadowMask": 0.5, "backface": false}, "the rim carries its linear colour, strength and shape, hidden on back faces by default: %s" % [skin.get("rim")])
 	check(entries[2].get("rim", {}).get("backface") == true, "a rim whose back face mask is none draws on back faces: %s" % [entries[2].get("rim")])
+	var rim_shade := Color(0.5, 1, 0.25).srgb_to_linear()
+	check(skin.get("rimShade") == {"color": [rim_shade.r, rim_shade.g, rim_shade.b], "strength": 0.75, "border": 0.4, "blur": 0.3, "power": 2.0}, "the rim shade carries its linear colour, strength and shape: %s" % [skin.get("rimShade")])
+	check(not entries[1].has("rimShade") and not entries[2].has("rimShade"), "a Multi rim shade without its keyword and one thinned by a mask texture are not carried")
+	var shaded := {"_UseRimShade": 1}
+	check(not Materials.Liltoon.rim_shade({"shader": "Hidden/lilToon", "floats": shaded}).is_empty() and Materials.Liltoon.rim_shade({"shader": "Hidden/lilToonGem", "floats": shaded}).is_empty() and Materials.Liltoon.rim_shade({"shader": "Hidden/lilToonMulti", "keywords": ["AUTO_KEY_VALUE"], "floats": {"_UseRimShade": 1, "_TransparentMode": 6}}).is_empty() and Materials.Liltoon.rim_shade({"shader": "Hidden/lilToonMulti", "keywords": ["AUTO_KEY_VALUE"], "floats": shaded}).get("blur") == 1.0, "a gem, whose pass draws no rim shade, carries none; Multi with its keyword carries it at lilToon's defaults")
 	var tint: Variant = looks.get("rimTint")
 	check(tint is Image, "a rim colour texture lies in the rim tint layer")
 	if tint is Image:
@@ -2432,7 +2438,7 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 		check(lit[0].r > 0.9 and lit[0].g < 0.1 and lit[3].g > 0.9, "the emission map is the emission map over its cell: %s" % [lit])
 		var both: Array = _row(materials, glow, "glow")
 		check(_near(both[0], Color(1, 0, Color(0.5 / hot, 0, 0).linear_to_srgb().r, 1)), "two emissions lie in one map, each by its colour and blend over the peak: %s" % [both])
-	check(materials.losses().size() == 1 and materials.losses()[0] == "eye: emission (scrolling)", "a scrolling emission is reported, a feature Multi compiles out is not: %s" % [materials.losses()])
+	check(materials.losses() == ["eye: emission (scrolling)", "eye: 2nd normal map", "glow: rim shade (mask texture)", "glow: normal map"], "a scrolling emission, a masked rim shade and a normal map with its texture are reported, a feature Multi compiles out or a normal map without a texture is not: %s" % [materials.losses()])
 	materials.materials.skin.colours._Shadow2ndColor = {"r": "1", "g": "0", "b": "0", "a": "0"}
 	var single := materials.looks()
 	check(single.get("shade") is Image and not single.has("shade2"), "without a second shade on any material the looks carry the first shade layer alone: %s" % [single.keys()])

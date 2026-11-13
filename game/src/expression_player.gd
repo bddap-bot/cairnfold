@@ -39,7 +39,7 @@ var _marks := {}
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## The expression shaders by whether they turn decal hues (1), draw a clear coat (2) and draw a toon shadow and rim (4),
+## The expression shaders by whether they turn decal hues (1), draw a clear coat (2) and draw toon looks (4),
 ## then by whether they draw both sides, each cut out, blended, and blended writing depth.
 const SHADERS := [
 	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
@@ -569,7 +569,7 @@ static func _turn(region: Dictionary) -> Color:
 
 
 ## The expression shader drawing `base` as it draws: cut out, blended or blended writing depth, front faces only or both
-## sides, turning decal hues where `turned`, drawing a clear coat where `coated` and a toon shadow and rim where `tooned`.
+## sides, turning decal hues where `turned`, drawing a clear coat where `coated` and toon looks where `tooned`.
 static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, tooned := false) -> Shader:
 	var way := 0
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:

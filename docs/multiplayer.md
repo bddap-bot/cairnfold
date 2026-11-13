@@ -308,8 +308,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   and the main light by its brightest channel. In the mirror, the mirror's light and ambient take the place of the sun's and the sky's. A file whose
   looks name materials without their lighting is refused. A flat material may also carry lilToon's toon shadow: where
   its half Lambert toward the main light falls past the shadow's border it takes its first and second shade colours,
-  which the importer bakes per texel. A rim brightens a material's silhouette. Only the meshes that show a material
-  with either draw with the shaders that draw them, since compiled in they cost the Quest 2 GPU time on every pixel
+  which the importer bakes per texel. A rim brightens a material's silhouette and a rim shade darkens it. Only the meshes that show a material
+  with any of these draw with the shaders that draw them, since compiled in they cost the Quest 2 GPU time on every pixel
   those shaders cover. A clip moving an emission's strength or a matcap's intensity off its rest sets it for the
   material it shows.
 
@@ -324,7 +324,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   mask, its red as the shader samples it (decoded where Unity imports the mask as sRGB); its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
   "shade" layer ("shade2" for a second shade) and turn with the menu's hue, tone and colour as the albedo does, its
   rim (on back faces only where `_RimBackfaceMask` is 0, tinted by its colour texture, which lies in the "rimTint"
-  layer), its first two matcaps and its emissions. A feature drawn in
+  layer), its rim shade (not one a mask texture thins), its first two matcaps and its emissions. A feature drawn in
   a way the looks cannot hold (scrolling, read through another UV, a lookup-table shadow and the like) is reported
   among the material features not drawn. An avatar without a menu still carries its materials' looks.
 

@@ -551,32 +551,35 @@ func _shown(looks: Dictionary, columns: int, swaps := {}, animated := {}) -> Arr
 	return meshes
 
 
-## A flat material with a toon shadow and a lit one with a rim write their looks to the table's toon rows, and only
-## meshes showing such a material, at rest or swapped to it, draw with the toon shaders; a mesh showing a matcap or only
-## a plain flat material keeps the shaders without them.
+## A flat material with a toon shadow, a lit one with a rim and a flat one with a rim shade write their looks to the
+## table's toon rows, and only meshes showing such a material, at rest or swapped to it, draw with the toon shaders; a
+## mesh showing a matcap or only a plain flat material keeps the shaders without them.
 func _toon() -> void:
 	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	layer.fill(Color.WHITE)
 	var shadow := {"border": 0.5, "blur": 0.1, "strength": 0.9, "second": {"border": 0.2, "blur": 0.05, "weight": 0.7}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
 	var rim := {"color": [0.6, 0.5, 0.4], "strength": 0.8, "main": 0.25, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5, "backface": true}
+	var rim_shade := {"color": [0.9, 0.8, 0.7], "strength": 0.6, "border": 0.4, "blur": 0.2, "power": 1.5}
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 0.9, 0.8, 1.0], "intensity": 0.75, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 0.6, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.4, "lightMask": 1.0, "hue": null, "circle": null, "theme": null}
 	var looks := {"shade": layer, "shade2": layer, "rimTint": layer, "matcaps": [layer], "materials": [
 		{"lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
 		{"lighting": {"model": "lit"}, "rim": rim},
 		{"lighting": {"model": "lit"}, "matcaps": [null, matcap, null, null]},
+		{"lighting": {"model": "flat", "cap": 1.0}, "rimShade": rim_shade},
 		{"lighting": {"model": "flat", "cap": 1.0}}]}
 	for m: Dictionary in looks.materials:
 		check(ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [m]}), "a toon look in the shape the renderer draws is valid: %s" % [m])
-	for bad: Dictionary in [{"lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}]:
+	for bad: Dictionary in [{"lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}, {"lighting": {"model": "lit"}, "rimShade": {"color": [0.9, 0.8, 0.7], "strength": 0.6, "border": 0.4, "blur": 0.2}}, {"lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"color": [0.9, 0.8]}, true)}, {"lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"power": 0.0}, true)}, {"lighting": {"model": "lit"}, "rimShade": [0.9, 0.8, 0.7]}]:
 		check(not ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [bad]}), "a malformed toon look is refused: %s" % [bad])
 	check(not ExpressionDefinition.looks_valid({"index": layer, "rimTint": "a PNG", "materials": [looks.materials[1]]}), "a rim tint that is not an image is refused")
 	check(ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[1]]}) and not ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[0]]}), "a rim tint is valid beside a rim and refused where no material draws one")
-	var meshes := _shown(looks, 4, {0: [[1, 1, -0.5, 0]]})
+	var meshes := _shown(looks, 5, {0: [[1, 1, -0.5, 0]]})
 	var table: Image = (meshes[0].get_surface_material(0).get_meta("lighting") as Texture2D).get_image()
 	var row := Avatar.HEAD_ROWS + Avatar.RAMP + Avatar.COAT_ROWS + 1 + Avatar.MATCAPS * Avatar.MATCAP_ROWS
 	check(table.get_height() == row + Avatar.TOON_ROWS, "a table with a toon entry holds its toon rows after the matcaps': %d" % table.get_height())
 	check(table.get_pixel(1, row).is_equal_approx(Color(0.5, 0.1, 0.9, 1.0)) and table.get_pixel(1, row + 1).is_equal_approx(Color(0.2, 0.05, 0.7, 0.0)) and table.get_pixel(1, row + 2).is_equal_approx(Color(1.0, 0.1, 0.0, 0.08)), "the shadow's border, blur and strength, its second shade and its edge fill the first three toon rows: %s %s %s" % [table.get_pixel(1, row), table.get_pixel(1, row + 1), table.get_pixel(1, row + 2)])
-	check(table.get_pixel(2, row + 3).is_equal_approx(Color(0.6, 0.5, 0.4, 0.8)) and table.get_pixel(2, row + 4).is_equal_approx(Color(0.25, 0.5, 0.65, 3.5)) and table.get_pixel(2, row + 5).is_equal_approx(Color(1.0, 0.5, 1.0, 0.0)) and table.get_pixel(1, row + 3).a == 0.0, "the rim's colour, strength, shape, reach and back faces fill the last three of its entry alone")
+	check(table.get_pixel(2, row + 3).is_equal_approx(Color(0.6, 0.5, 0.4, 0.8)) and table.get_pixel(2, row + 4).is_equal_approx(Color(0.25, 0.5, 0.65, 3.5)) and table.get_pixel(2, row + 5).is_equal_approx(Color(1.0, 0.5, 1.0, 0.0)) and table.get_pixel(1, row + 3).a == 0.0, "the rim's colour, strength, shape, reach and back faces fill the next three of its entry alone")
+	check(table.get_pixel(4, row + 5).is_equal_approx(Color(0.0, 0.0, 0.0, 0.6)) and table.get_pixel(4, row + 6).is_equal_approx(Color(0.9, 0.8, 0.7, 1.5)) and table.get_pixel(4, row + 7).is_equal_approx(Color(0.4, 0.2, 0.0, 0.0)), "the rim shade's strength lies beside the rim's reach, its colour, power, border and blur in the last two rows of its entry alone: %s %s %s" % [table.get_pixel(4, row + 5), table.get_pixel(4, row + 6), table.get_pixel(4, row + 7)])
 	var root := Node3D.new()
 	var shown: Array[MeshInstance3D] = []
 	for im: ImporterMesh in meshes:
@@ -588,8 +591,8 @@ func _toon() -> void:
 	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
 	var shader := func(mi: MeshInstance3D) -> String: return (mi.get_surface_override_material(0) as ShaderMaterial).shader.resource_path.get_file() if mi.get_surface_override_material(0) is ShaderMaterial else ""
-	check([0, 1, 4].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader"), "meshes showing a shadow or a rim, or swapped to one, draw with the toon shader: %s" % [shown.map(shader)])
-	check(shader.call(shown[2]) == "expression.gdshader" and shader.call(shown[3]) == "expression.gdshader", "a mesh showing a matcap or only a plain flat material keeps the shader without toon looks: %s" % [shown.map(shader)])
+	check([0, 1, 3, 5].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader"), "meshes showing a shadow, a rim or a rim shade, or swapped to one, draw with the toon shader: %s" % [shown.map(shader)])
+	check(shader.call(shown[2]) == "expression.gdshader" and shader.call(shown[4]) == "expression.gdshader", "a mesh showing a matcap or only a plain flat material keeps the shader without toon looks: %s" % [shown.map(shader)])
 	var mat := shown[0].get_surface_override_material(0) as ShaderMaterial
 	check(mat.get_shader_parameter("shade") is Texture2D and mat.get_shader_parameter("shade2") is Texture2D and mat.get_shader_parameter("rim_tint") is Texture2D, "a toon mesh binds the shade layers and the rim tint")
 	Avatar.show_toon(false)
@@ -598,7 +601,7 @@ func _toon() -> void:
 	var later := ExpressionPlayer.new(root)
 	check(shader.call(shown[1]) == "expression.gdshader", "a toon mesh drawn while the step cuts it draws without it")
 	Avatar.show_toon(true)
-	check([0, 1, 4].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader") and shader.call(shown[2]) == "expression.gdshader", "a step with it draws them with the toon shader again, and the rest as they were: %s" % [shown.map(shader)])
+	check([0, 1, 3, 5].all(func(k: int) -> bool: return shader.call(shown[k]) == "expression_toon.gdshader") and shader.call(shown[2]) == "expression.gdshader", "a step with it draws them with the toon shader again, and the rest as they were: %s" % [shown.map(shader)])
 	later.free()
 	player.free()
 	root.free()

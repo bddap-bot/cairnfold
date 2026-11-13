@@ -38,8 +38,8 @@ const COAT_ROWS := 6
 const MATCAP_ROWS := 6
 ## The most matcaps a look draws: Poiyomi's slots.
 const MATCAPS := 4
-## The looks table rows a toon shadow and rim take after the matcaps' (_lit_looks).
-const TOON_ROWS := 6
+## The looks table rows a toon shadow, rim and rim shade take after the matcaps' (_lit_looks).
+const TOON_ROWS := 8
 ## The widest the material index is held: it changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## The memory no avatar's textures may take (`texture_budget`): what the game and seven other players' heavy avatars
@@ -486,7 +486,7 @@ static func hulled(m: Material, hull: ShaderMaterial) -> void:
 	_cuttable(m)
 
 
-## Draws `m`, an expression material drawing a toon shadow and rim, with `plain`, its shader without them, while
+## Draws `m`, an expression material drawing toon looks, with `plain`, its shader without them, while
 ## `toon` does not hold.
 static func tooned(m: ShaderMaterial, plain: Shader) -> void:
 	m.set_meta("shaders", [plain, m.shader])
@@ -707,7 +707,7 @@ static func shape(state: GLTFState) -> bool:
 	return true
 
 
-## Gives the meshes that show a material its looks light flat, make glow, clear coat or draw a toon shadow or rim on
+## Gives the meshes that show a material its looks light flat, make glow, clear coat or draw a toon look on
 ## (ExpressionDefinition) copies of their materials carrying the atlas's material index (held as `hold` holds it) as each
 ## vertex reads it, and a table of each entry's looks: row 0 its lighting (red one where flat, two where lit through a
 ## ramp; green its cap, blue its shadow tint) and in alpha its emission's strength, row 1 its emission's linear colour
@@ -798,7 +798,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			im.set_surface_material(i, copies[drawn_as])
 
 
-## What an index entry's looks draw (`_lit_looks`): any look, a clear coat, a toon shadow or rim, as bits.
+## What an index entry's looks draw (`_lit_looks`): any look, a clear coat, a toon look, as bits.
 const LOOKED := 1
 const COATED := 2
 const TOON := 4
@@ -819,16 +819,18 @@ static func _shows(im: ImporterMesh, moves: Array, drawn: PackedByteArray, texel
 	return shows
 
 
-## Whether the look `m` draws a toon shadow (a flat one's) or a rim.
+## Whether the look `m` draws a toon shadow (a flat one's), a rim or a rim shade.
 static func _toon(m: Dictionary) -> bool:
 	var rim: Variant = m.get("rim")
-	return m.lighting.get("shadow") is Dictionary and m.lighting.model == "flat" or rim is Dictionary and float(rim.strength) > 0.0
+	var rim_shade: Variant = m.get("rimShade")
+	return m.lighting.get("shadow") is Dictionary and m.lighting.model == "flat" or rim is Dictionary and float(rim.strength) > 0.0 or rim_shade is Dictionary and float(rim_shade.strength) > 0.0
 
 
-## Writes the toon shadow and rim of the look `m` into the looks table's column `column` (_lit_looks) from its first
-## toon row: its shadow's border, blur, strength and one where it has one; its second shade's border, blur and weight;
+## Writes the toon shadow, rim and rim shade of the look `m` into the looks table's column `column` (_lit_looks) from
+## its first toon row: its shadow's border, blur, strength and one where it has one; its second shade's border, blur and weight;
 ## its shadow's edge colour and range; its rim's linear colour and strength; its rim's base mix, border, blur and Fresnel
-## power; and how far the light and the shadow reach its rim and whether it draws on back faces.
+## power; how far the light and the shadow reach its rim, whether it draws on back faces and its rim shade's strength;
+## its rim shade's linear colour and Fresnel power; and its rim shade's border and blur.
 static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
 	var row := HEAD_ROWS + RAMP + COAT_ROWS + 1 + MATCAPS * MATCAP_ROWS
 	var shadow: Variant = m.lighting.get("shadow")
@@ -841,10 +843,16 @@ static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
 		if edge is Dictionary:
 			table.set_pixel(column, row + 2, Color(edge.color[0], edge.color[1], edge.color[2], edge["range"]))
 	var rim: Variant = m.get("rim")
+	var rim_shade: Variant = m.get("rimShade")
+	var reach := Color(0.0, 0.0, 0.0, rim_shade.strength if rim_shade is Dictionary else 0.0)
 	if rim is Dictionary:
 		table.set_pixel(column, row + 3, Color(rim.color[0], rim.color[1], rim.color[2], rim.strength))
 		table.set_pixel(column, row + 4, Color(rim.main, rim.border, rim.blur, rim.power))
-		table.set_pixel(column, row + 5, Color(rim.lit, rim.shadowMask, float(rim.backface), 0.0))
+		reach = Color(rim.lit, rim.shadowMask, float(rim.backface), reach.a)
+	table.set_pixel(column, row + 5, reach)
+	if rim_shade is Dictionary:
+		table.set_pixel(column, row + 6, Color(rim_shade.color[0], rim_shade.color[1], rim_shade.color[2], rim_shade.power))
+		table.set_pixel(column, row + 7, Color(rim_shade.border, rim_shade.blur, 0.0, 0.0))
 
 
 ## A matcap's strengths: one at zero in all of them leaves its material as it is.

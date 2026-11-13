@@ -1373,7 +1373,7 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 ## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
 ## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale image, each texel one plus
 ## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps,
-## emission and rim at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
+## emission, rim and rim shade at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
 ## "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask blended in), "emission"
 ## map and, where a material's lighting has a toon shadow, "shade" and, where one has a second shade, "shade2" (its
 ## shade colours, Liltoon.shade, and the albedo elsewhere) and, where a rim has a colour texture, "rimTint"
@@ -1476,6 +1476,9 @@ func looks() -> Dictionary:
 					rim_tints = Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
 					rim_tints.fill(Color.WHITE)
 				rim_tints.blit_rect(tint, Rect2i(Vector2i.ZERO, padded.size), padded.position)
+		var rim_shade := Liltoon.rim_shade(m) if Liltoon.is_liltoon(m) else {}
+		if not rim_shade.is_empty():
+			entry.rimShade = rim_shade
 		entries.append(entry)
 	var outlines := outline_layer()
 	if entries.is_empty():

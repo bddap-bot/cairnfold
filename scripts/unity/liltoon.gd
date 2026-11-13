@@ -29,6 +29,8 @@ const KEYWORDS := {
 	"matcap": "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A",
 	"2nd matcap": "_SPECULARHIGHLIGHTS_OFF",
 	"matcap normal map": "GEOM_TYPE_MESH",
+	"normal map": "_NORMALMAP",
+	"2nd normal map": "EFFECT_BUMP",
 	"rim": "_METALLICGLOSSMAP",
 	"rim direction": "GEOM_TYPE_LEAF",
 	"backlight": "ANTI_FLICKER",
@@ -42,7 +44,9 @@ const KEYWORDS := {
 	"dissolve": "GEOM_TYPE_BRANCH_DETAIL",
 }
 ## The features the looks carry nothing of, by the toggle that draws each.
-const UNDRAWN := {"backlight": "_UseBacklight", "rim shade": "_UseRimShade", "glitter": "_UseGlitter", "reflection": "_UseReflection", "anisotropy": "_UseAnisotropy", "parallax": "_UseParallax", "AudioLink": "_UseAudioLink", "dither": "_UseDither"}
+const UNDRAWN := {"backlight": "_UseBacklight", "glitter": "_UseGlitter", "reflection": "_UseReflection", "anisotropy": "_UseAnisotropy", "parallax": "_UseParallax", "AudioLink": "_UseAudioLink", "dither": "_UseDither"}
+## The normal maps, which the looks carry nothing of, by the toggle that draws each and its texture.
+const UNDRAWN_MAPS := {"normal map": ["_UseBumpMap", "_BumpMap"], "2nd normal map": ["_UseBump2ndMap", "_Bump2ndMap"]}
 ## Lite's features, by the toggle that draws each.
 const LITE_FEATURES := {"shadow": "_UseShadow", "matcap": "_UseMatCap", "rim": "_UseRim", "emission": "_UseEmission"}
 const NONE := Color(0, 0, 0, 0)
@@ -369,6 +373,23 @@ static func rim(m: Dictionary) -> Dictionary:
 	return drawn if drawn is Dictionary else {}
 
 
+## The rim shade as the looks carry it, what of it they cannot hold, or null where it is off or the material is a gem,
+## whose pass draws none: the lit colour multiplied toward its linear "color" by a fresnel band, on both faces; not one
+## a mask texture thins.
+static func _rim_shade(m: Dictionary) -> Variant:
+	if not _on(m, "_UseRimShade", "rim shade") or str(m.shader).contains("Gem") or _multi(m) and int(Materials._float(m, "_TransparentMode")) == 6:
+		return null
+	if Materials._texture_guid(m, "_RimShadeMask") != "":
+		return "mask texture"
+	var c := _colour(m, "_RimShadeColor", Color(0.5, 0.5, 0.5, 1))
+	return {"color": [c.r, c.g, c.b], "strength": c.a, "border": Materials._float(m, "_RimShadeBorder", 0.5), "blur": Materials._float(m, "_RimShadeBlur", 1.0), "power": Materials._float(m, "_RimShadeFresnelPower", 1.0)}
+
+
+static func rim_shade(m: Dictionary) -> Dictionary:
+	var drawn: Variant = _rim_shade(m)
+	return drawn if drawn is Dictionary else {}
+
+
 ## The rim's colour texture over the material's padded cell, sRGB-encoded, its colour times its alpha in linear light
 ## (the rim adds both as factors), read through the main texture's tiling and then its own, as lilToon samples it at the
 ## main UV; null where the rim draws none.
@@ -575,7 +596,7 @@ static func losses(m: Dictionary) -> Array[String]:
 			if Materials._float(m, LITE_FEATURES[feature]) != 0.0:
 				out.append("%s (lilToon Lite)" % feature)
 		return out
-	var readings := {"2nd main texture": layer(m, "2nd"), "3rd main texture": layer(m, "3rd"), "alpha mask": alpha_mask(m), "shadow": _shadow(m), "matcap": _matcap(m, 0), "2nd matcap": _matcap(m, 1), "rim": _rim(m), "emission": _emission(m, ""), "2nd emission": _emission(m, "2nd")}
+	var readings := {"2nd main texture": layer(m, "2nd"), "3rd main texture": layer(m, "3rd"), "alpha mask": alpha_mask(m), "shadow": _shadow(m), "matcap": _matcap(m, 0), "2nd matcap": _matcap(m, 1), "rim": _rim(m), "rim shade": _rim_shade(m), "emission": _emission(m, ""), "2nd emission": _emission(m, "2nd")}
 	for feature: String in readings:
 		if readings[feature] is String:
 			out.append("%s (%s)" % [feature, readings[feature]])
@@ -597,6 +618,9 @@ static func losses(m: Dictionary) -> Array[String]:
 		out.append("main texture (rotated)")
 	for feature: String in UNDRAWN:
 		if _on(m, UNDRAWN[feature], feature):
+			out.append(feature)
+	for feature: String in UNDRAWN_MAPS:
+		if _on(m, UNDRAWN_MAPS[feature][0], feature) and Materials._texture_guid(m, UNDRAWN_MAPS[feature][1]) != "":
 			out.append(feature)
 	if compiled(m, "dissolve") and _vector(m, "_DissolveParams").r != 0.0:
 		out.append("dissolve")

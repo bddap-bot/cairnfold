@@ -1392,9 +1392,9 @@ before the sun's shadows.
 
 ### Toon shading
 
-A material whose looks give it a toon shadow or a rim (lilToon's, Avatar._lit_looks marking its meshes "toon") draws
-with the expression shaders' toon variants, which add the shadow's bands over the shade layers and the rim to every
-fragment of the mesh. `CAIRNFOLD_SCENE=demo/avatar-look-cost.json CAIRNFOLD_GUEST_AVATAR=FILE
+A material whose looks give it a toon shadow, a rim or a rim shade (lilToon's, Avatar._lit_looks marking its meshes
+"toon") draws with the expression shaders' toon variants, which add the shadow's bands over the shade layers, the rim
+shade and the rim to every fragment of the mesh. `CAIRNFOLD_SCENE=demo/avatar-look-cost.json CAIRNFOLD_GUEST_AVATAR=FILE
 CAIRNFOLD_CONTROL_AVATAR=FILE bench.sh OUT --android APK`, pinned at step 6, three figures of one lilToon avatar
 converted with its toon shading (guest) and the same file without it, flat-lit as it is otherwise drawn (control), six
 pairs a view, interleaved, GPU ms in the governor's signal by `scripts/paired.py`:
@@ -1406,10 +1406,10 @@ pairs a view, interleaved, GPU ms in the governor's signal by `scripts/paired.py
 
 For scale, the same avatar in plain materials took 14.07 ms close: its flat-lit looks cost 18.5 ms over them, the toon
 shading 12.8 ms more. Toon shading is a rung of the quality ladder (Quality.Step.toon) the rung before outlines: a
-figure without its shadow bands and rim still draws its colours, emission, matcaps and decals in flat light, a loss
+figure without its shadow bands, rim shade and rim still draws its colours, emission, matcaps and decals in flat light, a loss
 about the size of losing its outline, for two to seven times the saving (1.65 to 4.28 ms an avatar against 0.60 to
 0.80), so it is the cheaper loss per millisecond and goes first. While a step cuts it, every material marked "toon"
-draws with the variant of its shader without the toon shadow and rim (Avatar.show_toon), and takes it back when the
+draws with the variant of its shader without them (Avatar.show_toon), and takes it back when the
 ladder steps up; the switch shows on everyone at once, so the step up waits as the other popping ones do
 (Quality.popping).
 
