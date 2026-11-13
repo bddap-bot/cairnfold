@@ -316,7 +316,7 @@ func _process(delta: float) -> void:
 	var at := ladder[n]
 	if _foveates and fresh and _warm > WARMUP and at.foveation > 0:
 		var was_on := map.on
-		map.step(frame_ms, budget_ms * Governor.LINE, delta)
+		map.step(frame_ms, budget_ms, delta)
 		if map.on != was_on:
 			print("quality: foveation map %s, the GPU at %.1f ms, %s" % ["on" if map.on else "off", frame_ms, map.why])
 			_applied = -1
@@ -398,13 +398,15 @@ class People:
 ## Whether a foveated rung draws with the runtime's density map, by what the map costs the scene as measured. On the
 ## Quest 2 the map can cost a scene five times its frame: with it, some views' tiles each run every vertex of the
 ## walls in view, 1.46 M a tile, against 15 k without it or in other views with it ("Fixed foveation on the Quest 2" in
-## docs/design.md). Which views do is the driver's choice and is not known ahead, so while the frame runs over the line
-## the map is taken off for a trial, and stays off only if that saved a share of the frame; it goes back on for a
-## trial once the frame has been calm, and stays on only if that cost no more than the share.
+## docs/design.md). Which views do is the driver's choice and is not known ahead, so while the frame runs over the
+## refresh period the map is taken off for a trial, and stays off only if that saved a share of the frame; it goes back
+## on for a trial once the frame has been calm, and stays on only if that cost no more than the share. Under the period
+## the frame makes every refresh, and taking the map off there pushes it past the period, which on the Quest 2 leaves
+## the runtime at a lower rate ("Fixed foveation on the Quest 2").
 class Map:
 	## A trial reads the median of at least this many frames over at least this long, once its first frames have let
 	## the timer catch up: at five frames a second, a time average of half a second was mostly the frames before the
-	## switch. The frame's median runs over the line this long before the map is tried off.
+	## switch. The frame's median runs over the period this long before the map is tried off.
 	const TRIAL_FRAMES := 12
 	const TRIAL_SECONDS := 0.5
 	const SETTLE_FRAMES := 4
@@ -440,8 +442,9 @@ class Map:
 	var _wait := CALM_SECONDS
 	var _since := INF
 
-	## `line_ms` is the governor's line.
-	func step(frame_ms: float, line_ms: float, dt: float) -> void:
+	## `period_ms` is the refresh period, the budget the governor's line is a share of.
+	func step(frame_ms: float, period_ms: float, dt: float) -> void:
+		var line_ms := period_ms * Governor.LINE
 		_since += dt
 		if frame_ms > line_ms * DEAR:
 			_dear += 1
@@ -472,10 +475,10 @@ class Map:
 			_recent.remove_at(0)
 		var now := Quality.median(_recent)
 		_calm = _calm + dt if now < line_ms else 0.0
-		_over = _over + dt if now > line_ms else 0.0
+		_over = _over + dt if now > period_ms else 0.0
 		if on and _over >= TRIAL_SECONDS and _since > RETRY_SECONDS:
 			_start(false)
-			why = "tried off, over the line at %.1f ms" % _before
+			why = "tried off, over the period at %.1f ms" % _before
 		elif not on and (_calm >= _wait or _dear_off and _since > RETRY_SECONDS):
 			_start(true)
 			why = "tried on, %s" % ("calm" if _calm >= _wait else "rechecking a dear trial")

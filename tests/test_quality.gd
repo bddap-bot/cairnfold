@@ -47,6 +47,7 @@ func _initialize() -> void:
 	_every_pipeline_a_rung_draws_with_is_primed()
 	_a_density_map_that_costs_the_frame_comes_off()
 	_a_density_map_that_saves_stays_on()
+	_a_frame_that_makes_every_refresh_keeps_the_map()
 	_the_density_map_is_tried_again_once_calm()
 	_a_map_suddenly_dear_comes_off_at_once()
 	_a_file_is_drawn_whole_only_within_the_measured_headroom()
@@ -533,7 +534,7 @@ func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -
 ## map is on after.
 func _feed_map(m: Quality.Map, on_ms: float, off_ms: float, seconds: float) -> bool:
 	for i in int(seconds * 72):
-		m.step(on_ms if m.on else off_ms, BUDGET * Quality.Governor.LINE, DT)
+		m.step(on_ms if m.on else off_ms, BUDGET, DT)
 	return m.on
 
 
@@ -545,9 +546,23 @@ func _a_density_map_that_costs_the_frame_comes_off() -> void:
 
 func _a_density_map_that_saves_stays_on() -> void:
 	var m := Quality.Map.new()
-	check(_feed_map(m, 15.0, 16.0, 30.0), "a map that saves stays on, however long the frame runs over the line")
+	check(_feed_map(m, 15.0, 16.0, 30.0), "a map that saves stays on, however long the frame runs over the period")
 	m = Quality.Map.new()
 	check(_feed_map(m, 15.0, 13.0, 30.0), "as does one that costs less than a fifth of the frame")
+
+
+## The measured case: on a Quest 2 a frame over the line and under the period made every refresh with the map on, and
+## one trial of it off put the runtime at every fourth refresh, which it held while the frame stayed over the line.
+func _a_frame_that_makes_every_refresh_keeps_the_map() -> void:
+	var line := BUDGET * Quality.Governor.LINE
+	var m := Quality.Map.new()
+	var switches := 0
+	for i in 60 * 72:
+		var was := m.on
+		m.step(lerpf(line, BUDGET, 0.9) if m.on else BUDGET * 1.1, BUDGET, DT)
+		switches += int(m.on != was)
+	check(m.on and switches == 0, "a frame over the line and under the period is never tried without the map: %d switches in a minute" % switches)
+	check(not _feed_map(m, BUDGET * 1.02, BUDGET * 0.7, 2.0), "just past the period, a map that makes the frame dearer comes off")
 
 
 func _the_density_map_is_tried_again_once_calm() -> void:
@@ -568,51 +583,50 @@ func _a_map_suddenly_dear_comes_off_at_once() -> void:
 	_feed_map(m, 15.0, 16.0, 2.0)
 	check(m.on, "a map whose trial saved nothing is back on")
 	var dt := 1.0 / 6.0
-	var line := BUDGET * Quality.Governor.LINE
 	var seconds := 0.0
 	while m.on and seconds < 5.0:
-		m.step(170.0, line, dt)
+		m.step(170.0, BUDGET, dt)
 		seconds += dt
 	check(not m.on and seconds <= 0.5, "frames many times the line take it off within half a second: %.2f s" % seconds)
 	for i in 30:
-		m.step(170.0 if m.on else 25.0, line, dt)
+		m.step(170.0 if m.on else 25.0, BUDGET, dt)
 	check(not m.on, "and it stays off once that saved most of the frame")
 	check(_feed_map(m, 5.0, 5.0, Quality.Map.CALM_SECONDS + 2.0), "and goes back on once the frame is calm")
 	m = Quality.Map.new()
 	for i in 2:
-		m.step(40.0, line, DT)
+		m.step(40.0, BUDGET, DT)
 	check(_feed_map(m, 8.0, 9.0, 1.0), "dear frames for less than a quarter of a second leave a map that saves on")
 	m = Quality.Map.new()
-	m.step(170.0, line, 0.4)
+	m.step(170.0, BUDGET, 0.4)
 	check(_feed_map(m, 8.0, 9.0, 1.0), "as does one stalled frame, however long")
 	m = Quality.Map.new()
-	_feed_map(m, 12.0, 16.0, 2.0)
+	_feed_map(m, 13.0, 16.0, 2.0)
 	for i in 2:
-		m.step(170.0, line, dt)
-	check(_feed_map(m, 12.0, 16.0, 30.0), "a spike after a trial that saved nothing leaves a map that saves on")
+		m.step(170.0, BUDGET, dt)
+	check(_feed_map(m, 13.0, 16.0, 30.0), "a spike after a trial that saved nothing leaves a map that saves on")
 	m = Quality.Map.new()
 	_feed_map(m, 100.0, 5.0, 2.0)
 	check(not m.on, "a map five times dearer is off")
 	var waited := 0.0
 	while not m.on and waited < Quality.Map.CALM_SECONDS_MAX:
-		m.step(5.0, line, dt)
+		m.step(5.0, BUDGET, dt)
 		waited += dt
 	var held := 0.0
 	while m.on and held < 5.0:
-		m.step(250.0, line, dt)
+		m.step(250.0, BUDGET, dt)
 		held += dt
 	check(not m.on and held <= 0.5, "tried back on once calm, it comes off within half a second: %.2f s" % held)
 	m = Quality.Map.new()
 	var on_steps := 0
 	for i in int(60.0 / dt):
-		m.step(250.0 if m.on else 100.0, line, dt)
+		m.step(250.0 if m.on else 100.0, BUDGET, dt)
 		on_steps += int(m.on)
 	check(on_steps * dt < 6.0, "a map that costs most of a frame still dear without it stays off: on %.1f s of 60" % (on_steps * dt))
 	m = Quality.Map.new()
 	var toggles := 0
 	var was := m.on
 	for i in int(4.0 * Quality.Map.RETRY_SECONDS / dt):
-		m.step(170.0, line, dt)
+		m.step(170.0, BUDGET, dt)
 		toggles += int(m.on != was)
 		was = m.on
 	check(toggles <= 8, "a frame as dear without the map tries it off at most once a retry wait: %d switches in four" % toggles)

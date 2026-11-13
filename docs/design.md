@@ -1750,6 +1750,13 @@ Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/c
 fitted them alone (`perf/frame/costs/`), its bare meadow 7.62 ms from the air and 5.67 standing: the easels read 8.05
 and 7.91 ms, 0.62 ms an easel.
 
+The map is tried off only once the frame runs over the refresh period, not the governor's line. On a Quest 2 with the
+quality step pinned, a frame between the two made every refresh with the map on, and a trial of it off pushed the
+frame past the period. The runtime then held the game at every fourth refresh, its GPU idle most of each frame, for as
+long as the runtime's App GPU time stayed at 0.78 of the period or more: the trial was one way in, and a bare off-and-on
+of the map at that GPU time did the same with no trial at all. At 0.72 of the period and under, the game came back to
+every refresh at once; a one-frame stall on the main thread at the higher GPU time did not stop it there.
+
 ### Near masonry a piece at a time
 
 At the build budget's full room, standing among four default stone houses (`demo/fill-profile.json`, fill 0.875),
