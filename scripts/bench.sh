@@ -7,6 +7,8 @@
 #     restored after even if its caller dies. Its GPU times leave out a worn session's eye tracking and passthrough.
 #   bench.sh OUT_DIR --android APK       the Quest adb reaches, its proximity sensor held closed
 # Records go to perf/RIG/SCENE/, committed with the tree they measured (records.sh).
+# A phase whose head stood further than OFF_VIEW_M from where the scene's view put it fails the run, records nothing
+# under perf/, and carries its view_off_m in OUT_DIR/record.json.
 # Env: CAIRNFOLD_SCENE=SCRIPT.json; on a Quest CAIRNFOLD_ARGS (game args, one per word), CAIRNFOLD_COLD=1 (a fresh
 # install: data cleared, saves kept, every unbaked shader compiled in the run) and CAIRNFOLD_REPLAY=CHUNK.jsonl (no budget, no record); CAIRNFOLD_PLAYERS=N adds N-1 headless
 # players in view, CAIRNFOLD_WAVE=1 makes them flat-screen wavers; CAIRNFOLD_GUEST_AVATAR=FILE.vrm
@@ -296,6 +298,8 @@ for s in d["seconds"]:
         phases.setdefault(s["label"], []).append(s)
 if not phases:
     sys.exit("bench: the run measured no phase; see the game's log")
+OFF_VIEW_M = 0.1
+off_view = {name: max(s["view_off_m"] for s in secs if "view_off_m" in s) for name, secs in phases.items() if any(s.get("view_off_m", 0) > OFF_VIEW_M for s in secs)}
 if device == "frame" and not d["info"].get("xr"):
     sys.exit("bench: the game ran without an XR session; see the game's log")
 gpu, timewarp, dropped, foreign = {}, {}, set(), {}
@@ -451,14 +455,21 @@ for name, secs in phases.items():
                 over.append(name)
     if name in foreign:
         row += f"  pid {', '.join(sorted(foreign[name]))} rendered, {len(left_out)} s left out"
+    if name in off_view:
+        summary[name]["view_off_m"] = off_view[name]
+        row += f"  INVALID: head {off_view[name]:.2f} m off the scene's view"
     print(row)
-os.makedirs(os.path.dirname(record), exist_ok=True)
-for path in (record, os.path.join(out, "record.json")):
+if not off_view:
+    os.makedirs(os.path.dirname(record), exist_ok=True)
+for path in [os.path.join(out, "record.json")] + ([] if off_view else [record]):
     with open(path, "w") as f:
         json.dump({"budget_gpu_ms": budget["gpu_ms"], **({"players": players} if players > 1 else {}), "phases": summary}, f, indent=1)
-print(f"recorded {os.path.relpath(record)}")
 if over:
     print("over budget: " + ", ".join(over))
+if off_view:
+    sys.exit("bench: the head stood off the scene's view in " + ", ".join(f"{n} ({m:.2f} m)" for n, m in off_view.items()) + "; nothing recorded under perf/")
+print(f"recorded {os.path.relpath(record)}")
+if over:
     sys.exit(1)
 PY
 [ ! -f "$record" ] || python3 "$here/trend.py" "$rig" "$scene" || failed=1

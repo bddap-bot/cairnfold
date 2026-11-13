@@ -224,6 +224,7 @@ func _ready() -> void:
 		world.replayed = true
 		metrics.compare = replayer.compare
 		replayer.watch(world)
+	metrics.view_off = func() -> Variant: return null if rig.view_eye == null else rig.head.global_position.distance_to(rig.view_eye)
 	metrics.context = func():
 		var counts := {}
 		for category in ["walls", "paths", "grounds", "groups", "easels", "boulders"]:
@@ -406,6 +407,7 @@ func view(eye: Vector3, at: Vector3) -> void:
 		flat.face(at)
 	elif metrics.info.xr:
 		rig.global_transform = want * rig.head.transform.affine_inverse()
+		rig.view_eye = eye
 	else:
 		rig.head.global_transform = want
 

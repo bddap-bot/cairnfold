@@ -189,6 +189,25 @@ class BenchmarkRendering(unittest.TestCase):
             phase = json.loads((out / "record.json").read_text())["phases"]["wipe/village"]
             self.assertEqual(phase["stalls"], [{"ms": 412.5, "notes": [{"what": "wipe", "ms": 390.0}], "compiled": [0, 2]}])
 
+    def test_a_phase_whose_head_left_its_view_fails_the_run_and_is_marked_in_its_record(self):
+        second = {"p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000}
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            perf = out / "perf" / "run.json"
+            (out / "metrics.json").write_text(json.dumps({"info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}}, "seconds": [
+                *({"label": "one", "view_off_m": 0.002, **second} for _ in range(3)),
+                *({"label": "grass", "view_off_m": 4.13 if i else 0.0, **second} for i in range(3))]}))
+            (out / "stress.json").write_text("[]")
+            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(perf), "1"], capture_output=True, text=True,
+                                    env={**os.environ, "PYTHONPATH": str(SCRIPTS)})
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("head stood off the scene's view in grass (4.13 m)", result.stderr)
+            self.assertIn("INVALID", next(line for line in result.stdout.splitlines() if line.startswith("grass")))
+            phases = json.loads((out / "record.json").read_text())["phases"]
+            self.assertEqual(phases["grass"]["view_off_m"], 4.13)
+            self.assertNotIn("view_off_m", phases["one"])
+            self.assertFalse(perf.parent.exists())
+
     def test_a_phase_is_pinned_only_when_every_second_held_one_step(self):
         cases = {"held": ([6, 6, 6], [True] * 3, True), "governed once": ([6, 6, 6], [True, True, False], False),
                  "re-pinned": ([6, 6, 14], [True] * 3, False), "unrecorded": ([6, 6, 6], [None] * 3, None)}

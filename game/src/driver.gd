@@ -377,6 +377,7 @@ func _holding(s: Dictionary, tool: Hand.Tool) -> Hand:
 
 
 func _place(s: Dictionary) -> void:
+	main.rig.view_eye = null
 	main.rig.place(_spot(s, s.x, s.z), s.get("lift", 0.0))
 
 

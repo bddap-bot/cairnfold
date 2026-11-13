@@ -5,6 +5,9 @@ var path: String
 var info := {}
 var play_log: PlayLog
 var context: Callable
+## How far the head stands from where a scripted view put it, or null with no view to hold it to.
+var view_off: Callable
+var _view_off := -1.0
 ## This frame's ACTIVITIES tags other than "moving", which `_tags` takes from the head.
 var activity: Callable
 var input: Callable
@@ -176,6 +179,9 @@ func _process(delta: float) -> void:
 		for i in now_eyes.size():
 			_eye_lo[i] = minf(_eye_lo[i], now_eyes[i])
 			_eye_hi[i] = maxf(_eye_hi[i], now_eyes[i])
+	var off: Variant = view_off.call() if view_off.is_valid() else null
+	if off != null:
+		_view_off = maxf(_view_off, off)
 	if head != null:
 		var o := head.get_parent_node_3d().global_transform
 		var moved := o != _origin
@@ -266,6 +272,9 @@ func _process(delta: float) -> void:
 			var forward := -head.global_basis.z.normalized()
 			row.head_position = [pos.x, pos.y, pos.z]
 			row.view_direction = [forward.x, forward.y, forward.z]
+			if _view_off >= 0.0:
+				row.view_off_m = snappedf(_view_off, 0.001)
+			_view_off = -1.0
 		row.logging_us = _logging_us
 		row.mem_mb = memory_mb()
 		_cpu_ms.clear()

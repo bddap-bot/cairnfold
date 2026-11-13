@@ -81,6 +81,8 @@ var _fade_s := FADE
 var inside := false
 var _dim := 0.0
 var _pending: Variant = null
+## Where a script's view (`Main.view`) last stood the tracked head, or null once the player moved themselves since.
+var view_eye: Variant = null
 var _aim_clock := 0.0
 ## [time, forward deflection] over the last RELEASE_LOOKBACK, oldest first.
 var _aim_trail: Array = []
@@ -227,8 +229,7 @@ func fit() -> float:
 func _refit(delta: float) -> void:
 	stature.add(head.position.y / world_scale, delta)
 	if _fade_t < 0.0 and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
-		var h := head.global_position
-		_cut(Vector3(h.x, _floor_y, h.z), global_position.y - _floor_y)
+		_cut(null, 0.0)
 
 
 func _locomotion_input(delta: float) -> void:
@@ -333,13 +334,16 @@ func hide_markers() -> void:
 
 ## A cut, not a glide: in a headset any view motion the head did not make is uncomfortable.
 func teleport(ground: Vector3, lift_m: float) -> void:
+	view_eye = null
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
 	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR_M
 	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left if aim_hand == null else aim_hand)
 	_cut(ground, lift_m)
 
 
-func _cut(ground: Vector3, lift_m: float) -> void:
+## With no `ground`, sets the player down where the head stands once the view is black, at the height it stands at
+## then: a scripted view taken during the fade holds.
+func _cut(ground: Variant, lift_m: float) -> void:
 	_pending = [ground, lift_m]
 	_fade_s = FADE
 	_fade_t = 0.0
@@ -356,6 +360,7 @@ func blackout() -> bool:
 
 func respawn() -> void:
 	_pending = null
+	view_eye = null
 	place(spawn(), 0.0)
 	uncover()
 
@@ -407,6 +412,7 @@ func place(ground: Vector3, lift_m: float) -> void:
 
 
 func snap_turn(angle: float, hand: Hand) -> void:
+	view_eye = null
 	var pivot := head.global_position
 	var turn := Basis(Vector3.UP, angle)
 	global_transform = Transform3D(turn * global_transform.basis, pivot + turn * (global_position - pivot))
@@ -423,7 +429,11 @@ func _fade_step(delta: float) -> void:
 			_fade_t = minf(_fade_t, _fade_s)
 		a = clampf(1.0 - absf(_fade_t / _fade_s - 1.0), 0.0, 1.0)
 		if _pending != null and _fade_t >= _fade_s:
-			place(_pending[0], _pending[1])
+			var h := head.global_position
+			if _pending[0] == null:
+				place(Vector3(h.x, _floor_y, h.z), global_position.y - _floor_y)
+			else:
+				place(_pending[0], _pending[1])
 			_pending = null
 			jumped.emit()
 		if _fade_t >= _fade_s * 2.0:
