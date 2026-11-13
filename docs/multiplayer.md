@@ -263,7 +263,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   decal a material draws is its own image over the material's cell, at the size Unity imports
   its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
-  writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. Its faces draw blended
+  writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. A blended face mixes with what lies
+  behind it in the scene buffer's square-root encoding (`scene_encode`, `scripts/engine.patch`), where Unity, in the
+  Linear colour space VRChat projects use, mixes in linear light: at alpha a over a colour d, a colour s comes out
+  a(1 - a)(√s - √d)² of linear light darker than Unity draws it, so
+  white at alpha 0.5 over black reads sRGB 137 where Unity's reads 188; a viewport with `use_hdr_2d` keeps a linear
+  buffer and mixes as Unity does. Its faces draw blended
   over the atlas, so a sheer sleeve or a translucent wing stays see-through. A renderer's material slots follow the
   FBX's materials in their connections' order where the slots match them one for one;
   otherwise a surface takes the slot whose material is named like its own. PhysBones become
@@ -316,7 +321,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the properties they declare (`scripts/unity/liltoon.gd`), Lite by its own. Multi draws as its `_TransparentMode`
   says, and only the features its keywords compile. The atlas holds its colour adjustment (a hue a clip turns left
   unturned, masked by `_MainColorAdjustMask`), its 2nd and 3rd main textures drawn by UV0 before light and its alpha
-  mask; its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
+  mask, its red as the shader samples it (decoded where Unity imports the mask as sRGB); its looks carry its flat light capped at `_LightMaxLimit` with its toon shadow, whose shade colours lie in the
   "shade" layer ("shade2" for a second shade) and turn with the menu's hue, tone and colour as the albedo does, its
   rim (on back faces only where `_RimBackfaceMask` is 0, tinted by its colour texture, which lies in the "rimTint"
   layer), its first two matcaps and its emissions. A feature drawn in
