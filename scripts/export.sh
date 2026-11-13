@@ -9,7 +9,7 @@ set -euo pipefail
 game=$1 preset=$2 out=$3 log=$4
 # shellcheck source=scripts/xvfb.sh
 . "$(dirname "$0")/xvfb.sh"
-xvfb 640x480x24 2> /dev/null
+xvfb 640x480x24 2> /dev/null || { echo "export: Xvfb started no display" >&2; exit 1; }
 trap 'kill $xvfb_pid 2> /dev/null || true' EXIT
 # Godot 4.5 and 4.6 segfault in about one cold import of twenty, in ClassDB's default-value cache while saving an
 # imported scene; the second attempt starts from the first one's import cache, so only a crash is retried.
