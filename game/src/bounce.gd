@@ -8,16 +8,16 @@ extends Bake
 ## closed room both also hold what its walls, floor and ceiling pass on of the light its openings let in.
 ##
 ## The builds are read as a height field: per column the bottom and top of the pieces over it and their mean
-## colour. Walls, towers and houses stand straight up, so a span per column holds them, a tower on a wall
-## included, whose overhang leaves the air under it open; it makes a probe's view a run of occluded bands per
-## direction: REACH columns walked in each of AZIMUTHS directions.
+## colour. Walls, towers and houses stand straight up, so one span per column holds them, a tower on a wall included,
+## its overhang leaving the air under it open. A probe's view is then a run of occluded bands per direction: REACH
+## columns walked in each of AZIMUTHS directions.
 
 const LAYERS := 12
 const CELLS := Terrain.CELLS
 const AREA := Rect2i(0, 0, CELLS, CELLS)
 const AZIMUTHS := 8
 const REACH := 6
-## How many columns toward the sun are walked to find whether a face is in shadow.
+## Columns walked toward the sun to find whether a face is in shadow.
 const SUN_WALK := 12
 ## Stones are grey before the palette tints them; light off them is taken this bright.
 const ALBEDO := 0.75
@@ -36,7 +36,7 @@ var _owners := {}
 var _bottoms := PackedFloat32Array()
 var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
-## Owner id -> its pieces' instance buffers and their strides, placed since the last solve began.
+## Owner id -> [instance buffers, strides], placed since the last solve began.
 var _pending := {}
 var _rooms := Lamps.Rooms.new()
 var _sun := Vector3.UP
@@ -66,24 +66,22 @@ static func column(x: float, z: float) -> Vector2i:
 	return Vector2i(floori((x + Terrain.SIZE * 0.5) / Terrain.STEP), floori((z + Terrain.SIZE * 0.5) / Terrain.STEP))
 
 
-## The middle of column `i`, `j`: the inverse of `column`.
+## The inverse of `column`.
 static func column_centre(i: int, j: int) -> Vector2:
 	return Vector2(-Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP, -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP)
 
 
-## Where the probe of layer `k` over column `i`, `j` sits, `ground` the columns' floors.
 static func probe_centre(i: int, j: int, k: int, ground: PackedFloat32Array) -> Vector3:
 	var c := column_centre(i, j)
 	return Vector3(c.x, ground[j * CELLS + i] + k + 0.5, c.y)
 
 
-## What a probe holds: rgb bounce as stored, alpha sky seen.
+## rgb bounce as stored (times ENCODE), alpha sky seen.
 func probe(x: float, z: float, layer: int) -> Color:
 	var c := column(x, z)
 	return _layers[layer].get_pixel(c.x, c.y)
 
 
-## How much of the sky a point sees, between 0 and 1, from the probe it stands in; all of it outside the play area.
 func sky_at(p: Vector3) -> float:
 	var c := column(p.x, p.z)
 	if not AREA.has_point(c):
@@ -119,13 +117,12 @@ static func columns(buffers: Array[PackedFloat32Array], strides: PackedInt32Arra
 	return cols
 
 
-## What `owner` stands in the garden, as Masonry places it; no pieces once it is gone.
+## `owner`'s pieces as Masonry places them; empty once it is gone.
 func place(owner: int, buffers: Array[PackedFloat32Array], strides: PackedInt32Array) -> void:
 	_pending[owner] = [buffers, strides]
 
 
-## Light comes from `toward_sun` in `light` (colour times strength); bounce off faces is taken again when it
-## moves.
+## `light` is colour times strength; bounce off faces is solved again only when the sun moves.
 func set_sun(toward_sun: Vector3, light: Color) -> void:
 	RenderingServer.global_shader_parameter_set(&"bounce_light", light / ENCODE)
 	if toward_sun.is_equal_approx(_sun):
@@ -161,8 +158,8 @@ func _take(out: Dictionary) -> void:
 		texture.update(_layers)
 
 
-## On the worker: the height field takes the pending owners, then every probe that could see a change is
-## solved again: a probe sees columns REACH out, whose faces are shaded by columns SUN_WALK beyond them.
+## On the worker. A probe sees columns REACH out, whose faces are shaded by columns SUN_WALK beyond them, so every
+## probe that near a change is solved again.
 func _work(job: Dictionary) -> Dictionary:
 	var changed := {}
 	for owner: int in job.pending:
@@ -287,7 +284,6 @@ func _refill(c: Vector2i) -> void:
 	_colors[i] = sum / n if n > 0 else Color(0, 0, 0)
 
 
-## The ground's height at each column's middle, from Terrain's heights at the grid points.
 static func grounds(heights: PackedFloat32Array) -> PackedFloat32Array:
 	var g := PackedFloat32Array()
 	g.resize(CELLS * CELLS)
@@ -299,8 +295,7 @@ static func grounds(heights: PackedFloat32Array) -> PackedFloat32Array:
 	return g
 
 
-## The probes over `area`, one byte array per layer, from the builds' `bottoms`, `tops` and `colors` per column,
-## the ground under each and the sun.
+## The probes over `area`: one RGBA8 byte array per layer.
 static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors: PackedColorArray, ground: PackedFloat32Array, sun: Vector3, area: Rect2i) -> Dictionary:
 	var sun_flat := Vector2(sun.x, sun.z)
 	var sun_rise := sun.y / maxf(sun_flat.length(), 0.05)
@@ -429,8 +424,7 @@ static func _hide(hidden: PackedVector2Array, band: Vector2) -> float:
 	return maxf(seen, 0.0)
 
 
-## Per built column a probe in `area` can see, whether the sun reaches its faces at their middle height
-## past the builds between it and the sun.
+## Per built column a probe in `area` can see: 1 where the sun reaches its faces at their middle height, else 0.
 static func _lit(bottoms: PackedFloat32Array, tops: PackedFloat32Array, sun_flat: Vector2, sun_rise: float, area: Rect2i) -> PackedFloat32Array:
 	var lit := PackedFloat32Array()
 	lit.resize(CELLS * CELLS)

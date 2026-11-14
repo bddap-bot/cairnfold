@@ -1,40 +1,19 @@
 class_name PaletteTool
 extends Node3D
 
-## The colour and style pickers, for whichever hand holds one: the trigger on a thing opens a wheel of its
-## choices over the controller, and twisting the wrist turns the wheel like a dial, showing each choice live
-## on this machine; letting go sends the choice at the top to the garden, so everyone building sees it, and it
-## is one undo step. The colour tool's choices are swatches of the material pointed at: a build's stone, roof
-## tiles, woodwork (fences, window frames, doors, wooden railings, ladders) or plaster, as a `reshape` of its paint
-## (builds laid after take the swatch let go last), or on the meadow the garden's season. The style tool's are
-## miniatures of the styles of what it points at: a gable end's, a roof's covering (stone when flat, tile or thatch when pitched, a house's or a
-## tower's), a roofless wall's top, a wall's face (stone, plaster worn back to the stone by a chosen amount, timber
-## framing, or planks across or upright) or a fence's (rails or planks; builds laid after take the finish let go last),
-## a foundation (stone or plaster, or under a house or tower stone pillars or timber posts
-## for it to stand on when raised; houses laid after take it), a house's or tower's floor (flags or planks, apart from its walls; houses laid after take
-## it), a flight's or landing's railings (stairs laid after take them), a tree's species, or a stroke of painted
-## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
-## the style let go last), a path's surface (dirt, sand, cobbles, flagstones or a garden bed; paths laid after take it),
-## or a window's family (cottage, arched, arrow slit or round; a door's cottage or arched, the
-## lights fused with it alike; windows opened after take it), a decoration's (the strings' between a string of lanterns
-## and one of flags; strings hung after take it). It only restyles: openings are the windows' and the arch's, and a
-## corner window is the windows' at a corner. The colour tool on a room's window picks the colour its glass glows at
-## night, and on a lantern, or a decoration with a flame, its colour and brightness: a wall's lanterns all burn alike.
-## A tap of the colour tool's trigger on a wall, house, tower or fence takes its look into the hand (`look_of`), and each
-## tap on another after lays that look on it (`look_onto`), one undo step each; a tap anywhere else lets the look go.
+## A turning wheel shows its choice on this machine only; letting go sends one command, one undo step.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
-## The longest press of the colour tool's trigger, in seconds, that leaves its wheel where it opened and is a tap.
+## Seconds: the longest press of the colour tool's trigger, wheel unturned, that is a tap.
 const TAP := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
-## The face wheel's choices, each a WallLayout.Finish and how worn its plaster is.
+## Per choice: (WallLayout.Finish, plaster wear).
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
 enum Floor { FLAGS, PLANKS }
 
-## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
-## none; a boulder's is "boulders"), tree (its trunk; null for none) or stone stroke (-1 for none), and the dial of its
-## choices. One on none of them is on the meadow.
+## `of` and `id`: the build's garden table and id, "" and -1 for none; `stroke` -1 for none. On none of a build,
+## tree or stroke, it is on the meadow.
 class Wheel:
 	var of := ""
 	var id := -1
@@ -42,7 +21,6 @@ class Wheel:
 	var stroke := -1
 	var target: Dictionary
 	var dial := Dial.new()
-	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it.
 	var data: Array[Dictionary] = []
 
 
@@ -50,7 +28,7 @@ var rig: Rig
 var walls: WallTool
 var world: World
 var wheels := {}
-## The look each hand's colour tool took with a tap, as `look_of` gives it.
+## Per hand, the look its colour tool took with a tap (`look_of`).
 var looks := {}
 
 
@@ -64,8 +42,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 			_drop(hand))
 
 
-## Whether `hand`, or with none any hand, holds a wheel open. One wheel at a time, so two hands never pick for one
-## material from stale starts.
+## `hand` null: any. One wheel at a time, so two hands never pick for one material from stale starts.
 func busy(hand: Hand = null) -> bool:
 	return wheels.has(hand) if hand != null else not wheels.is_empty()
 
@@ -91,8 +68,6 @@ func _process(_delta: float) -> void:
 		wheels[hand].dial.follow(hand)
 
 
-## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
-## table `of` and `id` ("" and -1 on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var hits := world.pick(origin, dir, {World.Kind.BUILDING: INF, World.Kind.TARGET: INF, World.Kind.GROUND: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF})
 	var fitting: Dictionary = hits.get(World.Kind.TARGET, {})
@@ -142,9 +117,7 @@ func _unwalled_style_target(restyle: Restyle, point: Vector3, of := "", id := -1
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": styles(restyle), "point": point, "of": of, "id": id, "wall": null}.merged(also)
 
 
-## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall, fence, path or painted stone it meets first,
-## a roofless wall's top near it; ladders, single-rope bridges, bushes and the bare meadow have no style.
+## Ladders, single-rope bridges, bushes and the bare meadow have no style: empty.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var hits := world.pick(origin, dir, {World.Kind.TARGET: INF, World.Kind.PLANT: DeleteTool.REACH, World.Kind.FLOOR: INF, World.Kind.STAIRS: INF, World.Kind.BOULDER: INF, World.Kind.GROUND: INF})
 	var pick: Dictionary = hits.get(World.Kind.TARGET, {})
@@ -198,16 +171,13 @@ func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
-## The style tool on window `opening` of `wall`: a wheel of the families (indices into WallLayout.WINDOW_FAMILIES) its
-## opening, every light fused into it alike, still opens in where it stands.
 func window_target(wall: Wall, opening: Vector4, point: Vector3) -> Dictionary:
 	var options := range(WallLayout.WINDOW_FAMILIES.size()).filter(func(k: int) -> bool: return not _refamilied(wall, opening, WallLayout.WINDOW_FAMILIES[k]).is_empty())
 	return {"tool": Hand.Tool.STYLE, "restyle": Restyle.WINDOW, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall, "opening": opening}
 
 
-## The openings of `wall` as the garden has them with every placed window making the opening `opening` makes put in
-## `family`, or empty where they no longer open as one opening of that family, a door as a door and a window as a
-## window, or `opening` is gone.
+## Empty where the refamilied windows no longer open as one opening of `family`, a door as a door and a window as
+## a window, or `opening` is gone.
 func _refamilied(wall: Wall, opening: Vector4, family: int) -> PackedVector4Array:
 	var placed: Array[Vector4] = []
 	placed.assign(Array(world.state.walls.get(wall.id, {}).get("openings", [])))
@@ -261,8 +231,6 @@ static func styles(restyle: Restyle) -> int:
 	return FACES.size()
 
 
-## Whether `wall` can take `finish`: what suits a fence or a wall, but a round tower under a cone stone alone, and a
-## loop framed in timber only with a house's four corners.
 static func _faces(wall: Wall, finish: WallLayout.Finish) -> bool:
 	if not WallLayout.suits(finish, wall.layout.fence):
 		return false
@@ -271,7 +239,7 @@ static func _faces(wall: Wall, finish: WallLayout.Finish) -> bool:
 	return finish != WallLayout.Finish.TIMBER or not wall.layout.closed or wall.layout.corners().size() == 4
 
 
-## Of the face wheel's `options` (indices into FACES), the one nearest a face of `finish` worn by `wear`, or -1.
+## Index into `options` of the face nearest `finish` worn by `wear`, -1 for none.
 static func face_choice(options: Array, finish: int, wear: float) -> int:
 	var best := -1
 	for i in options.size():
@@ -281,8 +249,7 @@ static func face_choice(options: Array, finish: int, wear: float) -> int:
 	return best
 
 
-## Opens the wheel for `target` (as `aim` or `aim_style` gives it) over `hand`, turning from its choice in the
-## garden. While the trigger is held the hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
+## The driver, holding no trigger, turns it with `twist`.
 func open(hand: Hand, target: Dictionary) -> void:
 	var start := Time.get_ticks_usec()
 	var w := Wheel.new()
@@ -303,7 +270,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	Metrics.note("style wheel: opened on %s" % Restyle.find_key(target.get("restyle", -1)) if target.tool == Hand.Tool.STYLE else "colour wheel: opened", (Time.get_ticks_usec() - start) / 1000.0)
 
 
-## A style's miniature smaller than it stands on a controller, so the wheel's choices stay apart.
+## Scaled down so the wheel's choices stay apart.
 static func _style(restyle: Restyle, i: int, wall: Wall, boulder := false) -> Node3D:
 	var holder := Node3D.new()
 	var house := restyle == Restyle.FACE and wall != null and wall.layout.closed and wall.layout.corners().size() == 4
@@ -324,15 +291,14 @@ static func _swatch(element: Palette.Element, i: int) -> MeshInstance3D:
 	return mi
 
 
-## Turns `hand`'s wheel to `degrees` of twist from where it opened, clockwise positive, showing its swatch
-## on this machine only.
+## `degrees` from where it opened, clockwise positive; shown on this machine only.
 func twist(hand: Hand, degrees: float) -> void:
 	var w: Wheel = wheels[hand]
 	if w.dial.twist(hand, degrees):
 		_show(w, w.dial.pick)
 
 
-## The choice `w` would send as the garden has it now, or -1 once its build or tree is gone.
+## -1 once its build or tree is gone.
 func _now(w: Wheel) -> int:
 	if w.tree != null:
 		var group: Dictionary = world.state.groups.get(w.tree.group, {})
@@ -373,7 +339,7 @@ func _now(w: Wheel) -> int:
 	return face_choice(w.target.options, d.finish, d.wear)
 
 
-## The `reshape` data that gives `w`'s build choice `pick`; empty for one that cannot stand.
+## Empty for a choice that cannot stand.
 func _data(w: Wheel, pick: int) -> Dictionary:
 	if w.target.tool == Hand.Tool.COLOUR:
 		return {"lantern": pick} if w.of == "decorations" else {"paint": {w.target.element: pick}}
@@ -408,7 +374,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 	return data
 
 
-## Shows `w`'s build, tree or the meadow with choice `pick`, here alone.
+## On this machine only.
 func _show(w: Wheel, pick: int) -> void:
 	if w.tree != null:
 		walls.flora.set_look(w.tree, pick as FloraLayout.Species, walls.flora.scale_of(w.tree))
@@ -423,10 +389,7 @@ func _show(w: Wheel, pick: int) -> void:
 		world.views[w.of].show_reshaped(w.id, _data(w, pick) if w.target.tool == Hand.Tool.COLOUR else w.data[pick])
 
 
-## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another
-## player may have picked it meanwhile); until it comes back it shows here alone. A build's swatch or gable end
-## becomes the one new builds take. The colour tool's trigger `released` within TAP, its wheel still where it opened, is
-## a tap.
+## Sends nothing when the garden already has the choice: another player may have picked it meanwhile.
 func close(hand: Hand, released := true) -> void:
 	var w: Wheel = wheels[hand]
 	_drop(hand)
@@ -484,8 +447,6 @@ func close(hand: Hand, released := true) -> void:
 		world.submit({"op": "reshape", "of": w.of, "id": w.id, "data": data}, _settled.bind(w), hand)
 
 
-## A tap of `hand`'s colour tool on the build `id` of the garden's table `of`: on a wall, house, tower or fence it takes
-## that build's look, or lays the look it took on it as one reshape; anywhere else it lets the look go.
 func tap(hand: Hand, of: String, id: int) -> void:
 	if of != "walls" or not world.state.walls.has(id):
 		looks.erase(hand)
@@ -503,8 +464,6 @@ func tap(hand: Hand, of: String, id: int) -> void:
 	world.submit({"op": "reshape", "of": "walls", "id": id, "data": data}, func() -> void: walls.show_reshaped.call_deferred(id), hand)
 
 
-## The look of a wall, house, tower or fence with garden data `d`: its paint, face, top, foundation, floor, gable ends
-## and roof covering.
 static func look_of(d: Dictionary) -> Dictionary:
 	var look := {"fence": d.fence, "paint": PackedInt32Array(d.paint), "face": {"finish": d.finish, "wear": d.wear}, "top": d.top, "foundation": d.foundation, "planks": d.planks, "gable_end": d.gable_end}
 	if d.has("roof"):
@@ -512,9 +471,8 @@ static func look_of(d: Dictionary) -> Dictionary:
 	return look
 
 
-## The `reshape` data that lays `look` on the build with garden data `d`, as far as that build can take it: between a
-## fence and a wall or house only the paint passes, a wall without a roof takes no covering, a tower's walls stay bare
-## stone.
+## Only what `d` can take (Commands._reshape): between a fence and a wall only paint passes, a roofless wall takes no
+## covering, a tower's walls stay bare stone.
 static func look_onto(look: Dictionary, d: Dictionary) -> Dictionary:
 	var data := {}
 	var paint := {}
@@ -553,7 +511,7 @@ func _beam(look: Dictionary) -> Color:
 	return c
 
 
-## A sent choice is settled before it applies, so the build is shown as the garden has it once it has.
+## Called before the sent choice applies; deferred so the build shows as the garden then has it.
 func _settled(w: Wheel) -> void:
 	(func() -> void:
 		if w.tree != null or w.stroke >= 0:

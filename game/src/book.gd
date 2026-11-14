@@ -1,12 +1,8 @@
 class_name Book
 extends Node3D
 
-## The picture book: a small cloth-bound book held in a hand that holds Hand.Tool.BOOK, whose pages teach the
-## controls a player would not guess (Lessons). It comes shut, its ribbon glowing; the other hand touching the cover
-## or the ribbon opens it, and a sweep of that hand across the pages turns one, leftward for the next page and
-## rightward for the one before, as does a pass of it through a page from behind the book. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
-## book brings it back where it was left. Each page is a live LessonScene, all built with the book so none is built as
-## it first opens, and only the faces in view render.
+## Turned by touch, never a button, so no tool acts. Every LessonScene is built with the book so none builds as it
+## first opens.
 ##
 ## Its frame (`local`): the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
 
@@ -15,8 +11,7 @@ const H := 0.15
 const LEAF_T := 0.0028
 const COVER_T := 0.0042
 const OVER := 0.005
-## The cover's cloth and the leather at its spine and corners, the pages' paper and the ribbon (sRGB), for its shaders
-## and the wheel's icon alike.
+## sRGB, shared by its shaders and the wheel's icon.
 const CLOTH := Color(0.27, 0.42, 0.33)
 const LEATHER := Color(0.36, 0.21, 0.12)
 const PAPER := Color(0.97, 0.91, 0.78)
@@ -25,36 +20,34 @@ const TILT := deg_to_rad(68.0)
 const OPEN_S := 0.85
 const TURN_S := 0.7
 const TUCK_S := 0.2
-## A hand counts as at the page within this of its face, and turns it once it sweeps this far across.
+## Metres: a hand within NEAR of the page's face turns it once it sweeps SWEEP across.
 const NEAR := 0.07
 const SWEEP := 0.06
 const TOUCH := 0.05
-## A hand this far behind the pages is reaching through the book, and it turns the page it comes out in front of
-## anywhere within this of the page's edges.
+## Metres: a hand BEHIND the pages is reaching through, and turns the page it comes out over within THROUGH_MARGIN
+## (x, z) of its edges.
 const BEHIND := 0.02
 const THROUGH_MARGIN := Vector2(0.03, 0.02)
-## Farther than this between one frame's reading and the next is tracking or a teleport catching up, not a hand.
+## Metres between two frames' readings beyond which it is tracking or a teleport catching up, not a hand.
 const STEP := 0.15
-## How high a resting leaf bows up out of the gutter.
+## Metres a resting leaf bows up out of the gutter.
 const BOW := 0.006
 const BOARD := Vector3(W + OVER, COVER_T, H + OVER * 2.0)
 const PAGE_HZ_DIVIDER := 2
-## Opaque draws go in ascending render_priority, so the book, after the garden at 0, draws its top layer first and
-## what lies under it, the blocks under the leaves, the endpaper and the boards, fails the depth test unshaded: drawn
-## in any order they cost the open book about a millisecond of a Quest 2's frame.
+## Opaque draws go in ascending render_priority, after the garden at 0: the top layer first, so what lies under it
+## fails the depth test unshaded. In any order the open book costs about a millisecond of a Quest 2's frame.
 enum Layer { SHEET = 1, BLOCK, INSIDE, BOARD }
-## What book.gdshader draws: a board or a block of pages.
+## book.gdshader's `kind`.
 enum Kind { COVER, BLOCK }
-## What book_paint.gdshader bakes: a face's paint and its paper's grain, the front cover's top and its roughness.
+## book_paint.gdshader's `part`.
 enum Part { FACE_PAINT, FACE_GRAIN, COVER_PAINT, COVER_ROUGH }
-## Pages render only while the book lies within this angle's cosine of where the head faces.
+## Pages render only while the book lies within this cosine of where the head faces.
 const LOOK_COS := 0.5
-## Each face's fixed paint bakes once at this many pixels a side.
 const PAINT_PX := 512
 
-## Per face, (page, 0 for a leaf's front or 1 its back) with -1 the endpaper, its baked paint and grain, and under
-## COVER the front cover's top (book_paint.gdshader), filled by the first live book.
 const COVER := "cover"
+## Vector2i(page, 0 front or 1 back), page -1 the endpaper: [paint, grain]; COVER: [paint, roughness]. Filled by the
+## first live book.
 static var _paint := {}
 static var _baking := false
 
@@ -82,11 +75,10 @@ var _front: ShaderMaterial
 var _ribbon: MeshInstance3D
 var _ribbon_mat: ShaderMaterial
 var _frame := 0
-## Laid out and its pages stopped once since it was hidden: nothing to do until it shows again.
 var _hidden_laid := false
 
 
-## `live` false makes the book a prop: its pages stay blank frames and nothing renders behind them.
+## `live_pages` false makes a prop: its pages stay blank frames and nothing renders behind them.
 func _init(live_pages := true) -> void:
 	live = live_pages
 	_back_cover = _board(false)
@@ -136,8 +128,7 @@ func _ready() -> void:
 		_bake()
 
 
-## Paints each face, and the front cover's top, once into textures, one a frame, rather than every pixel every frame.
-## With no renderer (headless) they stay unpainted.
+## Once into textures, rather than shading every pixel every frame.
 func _bake() -> void:
 	var vp := SubViewport.new()
 	vp.disable_3d = true
@@ -175,8 +166,7 @@ func _bake() -> void:
 	vp.queue_free()
 
 
-## A shut book a few centimetres across, for the wheel and for a ghost hand that holds it, each material naming how
-## the wheel draws it (Hand.unlit).
+## Each material's meta is how Hand.unlit draws it.
 static func miniature() -> Node3D:
 	var root := Node3D.new()
 	var b := Book.new(false)
@@ -198,8 +188,8 @@ static func miniature() -> Node3D:
 	return root
 
 
-## Where the book sits in a hand holding it, `open_k` of the way from shut to open: tipped up toward the eye
-## from the controller's top, the hand under its lower edge, under the spine once open.
+## In the holding hand's frame, `open_k` 0 shut to 1 open: tipped toward the eye, the hand under its lower edge,
+## under the spine once open.
 static func local(open_k: float) -> Transform3D:
 	var b := Basis(Vector3.RIGHT, TILT)
 	return Transform3D(b, Vector3(0, 0.018, 0.01) + b * Vector3(lerpf(-W * 0.5, 0.0, open_k), 0.0, -H * 0.47))
@@ -210,7 +200,7 @@ func open() -> void:
 		_begin(0, 1)
 
 
-## Turns one leaf, `way` 1 forward and -1 back; back from the first page shuts it.
+## `way` 1 forward, -1 back; back from the first page shuts it.
 func turn(way: int) -> void:
 	if not _turn.is_empty() or at == 0:
 		return
@@ -220,13 +210,11 @@ func turn(way: int) -> void:
 		_begin(at - 1, -1)
 
 
-## The page the book is at, or the one it is turning to.
 func page() -> int:
 	return _turn.get("to", at)
 
 
-## Goes to page `to`, as a prop following another player's book: a leaf away it turns there, finishing any turn
-## under way; further it is there at once.
+## For a prop following another player's book.
 func turn_to(to: int) -> void:
 	if not _turn.is_empty():
 		at = _turn.to
@@ -239,10 +227,8 @@ func turn_to(to: int) -> void:
 	_lay()
 
 
-## Reads a fingertip at `tip` (global) touching the book: on the shut cover or the ribbon it opens it; swept
-## leftward across the open pages it turns to the next, rightward to the one before; passed through the book from
-## behind it turns the page it comes out over, the right one on and the left back. A sweep or a pass turns one leaf:
-## the hand leaves the pages before it turns another, so the stroke back from a turn never undoes it.
+## `tip` is global. A sweep or a pass turns one leaf: the hand leaves the pages (`_sweep_from` NAN until then) before
+## it turns another, so the stroke back from a turn never undoes it.
 func feel(tip: Vector3) -> void:
 	var p := global_transform.affine_inverse() * tip
 	var through := _through(p)
@@ -266,9 +252,8 @@ func feel(tip: Vector3) -> void:
 		_sweep_from = NAN
 
 
-## The side, 1 right and -1 left, of the page a hand at `p` (local) has just come through from behind, else 0. The
-## crossing is found on the segment from the last frame's reading, so a fast pass that no reading catches near the
-## page still counts.
+## 1 right, -1 left, else 0; `p` local. The crossing is found on the segment from the last frame's reading, so a
+## fast pass that no reading catches near the page still counts.
 func _through(p: Vector3) -> int:
 	var from := _last if _frame - _last_frame <= 1 and _last.distance_to(p) < STEP else Vector3.INF
 	_last = p
@@ -286,7 +271,6 @@ func _through(p: Vector3) -> int:
 	return 1 if c.x > 0.0 else -1
 
 
-## The page indices whose faces are in view, each rendering: none while the head looks away from the book.
 func faces_in_view() -> Array[int]:
 	var out: Array[int] = []
 	if not visible or _shown_k < 0.99:
@@ -318,7 +302,6 @@ func _process(delta: float) -> void:
 	_render_pages()
 
 
-## Rides in the hand that holds the book, and is felt by the other; shrinks away when no hand holds it.
 func _follow(delta: float) -> void:
 	var held: Hand = null
 	for h in rig.hands:
@@ -345,7 +328,7 @@ func _begin(leaf: int, way: int) -> void:
 	Cues.play(Cues.Act.BOOK_PAGE, global_position, holder)
 
 
-## Each leaf's angle now: turned ones lie on the left (PI).
+## Radians; turned leaves lie on the left, at PI.
 func _angle(leaf: int) -> float:
 	if not _turn.is_empty() and leaf == _turn.leaf:
 		var k: float = _turn.t / _turn.span
@@ -354,7 +337,7 @@ func _angle(leaf: int) -> float:
 	return PI if leaf < at else 0.0
 
 
-## A cover swung open overshoots a little and settles, as a board does.
+## Overshoots a little and settles, as a board does.
 static func _settle(k: float) -> float:
 	var c := 1.6
 	var x := k - 1.0
@@ -411,7 +394,7 @@ func _lay() -> void:
 	_ribbon_mat.set_shader_parameter("glow", 1.0 if live and shut else 0.0)
 
 
-## `top` the resting leaf on it, whose bow it takes.
+## `top`: the resting leaf on it, whose bow it takes.
 func _place_block(block: MeshInstance3D, n: int, side: float, top: MeshInstance3D) -> void:
 	block.visible = n > 0
 	var t := maxf(n * LEAF_T, 0.0005)
@@ -422,7 +405,7 @@ func _place_block(block: MeshInstance3D, n: int, side: float, top: MeshInstance3
 	(block.material_override as ShaderMaterial).set_shader_parameter("gutter_bow", BOW if top.visible else 0.0)
 
 
-## Lays `sheet` as leaf `leaf` (leaves + 1: the back cover's inside) at `a`, on a stack `under` leaves deep.
+## `leaf` leaves + 1 is the back cover's inside; `under` is the stack's depth in leaves.
 func _show_sheet(sheet: MeshInstance3D, leaf: int, a: float, under: float) -> void:
 	sheet.visible = leaf >= 1
 	if not sheet.visible:
@@ -436,7 +419,7 @@ func _show_sheet(sheet: MeshInstance3D, leaf: int, a: float, under: float) -> vo
 	_set_face(sheet, false, _face(leaf, true))
 
 
-## The page on a leaf's face: leaf 1's front is page 0; a back past the last page, and the back cover, are endpaper (-1).
+## Leaf 1's front is page 0; a back past the last page, and the back cover, are endpaper (-1).
 func _face(leaf: int, back: bool) -> int:
 	if leaf > leaves:
 		return -1
@@ -460,8 +443,7 @@ func _set_face(sheet: MeshInstance3D, front: bool, page: int) -> void:
 		mat.set_shader_parameter(key + "_grain", _paint[art][1])
 
 
-## Faces in view render every PAGE_HZ_DIVIDER-th frame, the rest not at all, their scenes paused. On the book's first
-## frame every page renders once, so no page compiles its pipelines when first opened.
+## Every page renders on the book's first frame, so none compiles its pipelines when first opened.
 func _render_pages() -> void:
 	var shown: Array[int] = faces_in_view() if live else ([] as Array[int])
 	var due := _frame % PAGE_HZ_DIVIDER == 0
@@ -481,8 +463,8 @@ func _render_pages() -> void:
 
 
 static var _page_mesh: PlaneMesh
-## Whole boxes, though a page covers a block's top and a board's inside: a page bowing out of the gutter shows what lies
-## under it, and drawn after the pages (Layer) the covered faces fail the depth test unshaded.
+## Whole boxes, though a page covers a block's top and a board's inside: a page bowing out of the gutter shows what
+## lies under it, and drawn after the pages (Layer) the covered faces fail the depth test unshaded.
 static var _board_mesh: BoxMesh
 static var _block_mesh: BoxMesh
 

@@ -1,34 +1,32 @@
 class_name PathLayout
 extends RefCounted
 
-## Path strokes wear the ground to their surface and open arches, or doors into houses, where they cross walls; across
-## water they lay stepping stones, and a garden bed sprouts rows of vegetables. Pure data.
+## Pure data.
 
 const CELL := 1.0
 const ROW := 0.42
 const HALF_WIDTH := Vector2(0.45, 3.0)
-## A crossing at least this long along the wall opens an arcade instead of a single arch.
+## Metres along the wall at which a crossing opens an arcade instead of a single arch.
 const ARCADE_SPAN := 2.8
-## Soft edge beyond the stroke.
+## Metres of soft edge beyond the stroke.
 const VERGE := 0.3
-## How far neighbouring treads overlap, so no seam between their stones shows the ground beneath.
+## Overlap so no seam between treads shows the ground beneath.
 const TREAD_LAP := 0.06
-## Width and depth of the timbers carrying a flight of treads at either edge.
+## Width, depth.
 const STRINGER := Vector2(0.16, 0.34)
-## How far a stringer's top stands above the treads it carries.
+## Height of a stringer's top above its treads.
 const STRINGER_PROUD := 0.06
-## Water at least this deep over the spine lays stepping stones instead of treads.
+## Water depth over the spine that lays stepping stones instead of treads.
 const WET := 0.04
-## Stepping stones' spacing along the spine, their size across, along and down, and how high they stand out of the water.
+## Spacing along the spine; size across, height, along; height out of the water.
 const STRIDE := 0.7
 const STEPPING_STONE := Vector3(0.55, 0.16, 0.46)
 const STEPPING_PROUD := 0.05
-## A bed's rows lie this far apart across it, at least this far in from its edge, with a plant this often along each.
+## Row spacing across a bed, least inset from its edge, plant spacing along a row.
 const CROP_ROWS := 0.4
 const CROP_MARGIN := 0.12
 const CROP_EVERY := 0.32
 
-## What a path lays: dirt, sand, cobbles or flagstones, or a garden bed of tilled earth.
 enum Surface { DIRT, SAND, COBBLES, FLAGS, BED }
 enum Crop { CABBAGE, LETTUCE, CARROT, LEEK }
 
@@ -36,9 +34,8 @@ var points: Array[Vector3] = []
 var half_widths: Array[float] = []
 var seed := 1
 var surface := Surface.DIRT
-## The small things gathered beside it (ClutterLayout).
+## Layout in ClutterLayout.
 var clutter: Array[Vector4] = []
-## What this path wears into Ground's mask, as Ground's marks are read.
 var kind: Ground.Kind:
 	get:
 		return wears(surface)
@@ -47,35 +44,33 @@ var samples: Array[Vector3] = []
 var sample_half_widths: Array[float] = []
 var lengths: Array[float] = []
 var point_lengths: Array[float] = []
-## Where each point's samples start in `samples`, and how many points the last `_resample` read.
+## Index in `samples` where each point's samples start; how many points the last `_resample` read.
 var _point_samples := PackedInt32Array()
 var _resampled := 0
-## The grid cells the last `_resample` took segments from or laid them in, or null where it laid them all again.
+## Grid cells the last `_resample` changed segments in, or null where it relaid them all.
 var moved: Variant = null
-## Each wear row fills the band of arc length from the previous row's end to its own.
+## Arc length at each wear row's end; a row starts where the previous one ends.
 var row_ends: Array[float] = []
-## Bounds for skipping walls that cannot cross.
 var area := Rect2()
-## Grid cell → indices of the sample segments whose boxes reach into it, made when first asked for.
+## Grid cell → indices of the sample segments whose boxes reach into it; built lazily.
 var _segment_cells := {}
-## A stroke still being drawn: its segments before `settled` stand, so `meetings` keeps each wall's along them and tests
-## only the moving end again. A path not growing keeps each wall's whole until it is planned again.
+## Still being drawn: segments before `settled` stand, so `meetings` retests only the moving end. Otherwise each
+## wall's meetings are kept whole until planned again.
 var growing := false:
 	set(v):
 		growing = v
 		_met.clear()
-## Wall instance id → [its segment grid, the segments kept (-1 for all), and the crossings found and met along them].
+## Wall instance id → [its segment grid, segments kept (-1 for all), crossing arc lengths found, meetings].
 var _met := {}
-## Each crop's pieces (`crop`), made as the class loads so workers laying beds only read them.
+## Made as the class loads so workers laying beds only read them.
 static var _crop_pieces: Array = _made_crops()
 
 
-## What a path of surface `what` wears into Ground's mask.
 static func wears(what: Surface) -> Ground.Kind:
 	return {Surface.SAND: Ground.Kind.SAND, Surface.COBBLES: Ground.Kind.STONE, Surface.FLAGS: Ground.Kind.STONE}.get(what, Ground.Kind.EARTH)
 
 
-## The look a path of surface `what` lays in Ground's mask: a stone style, or Ground.TILLED for a bed.
+## A stone style, Ground.TILLED for a bed, else 0.
 static func look(what: Surface) -> int:
 	match what:
 		Surface.COBBLES:
@@ -97,15 +92,13 @@ static func of(data: Dictionary) -> PathLayout:
 	return path
 
 
-## What a build command carries to lay this path again.
 func data() -> Dictionary:
 	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface, "clutter": PackedVector4Array(clutter)}
 
 
-## Whether `other` is the same stroke as this, whatever clutter the garden has laid beside either: where it meets a
-## wall and what it wears depend on the stroke alone.
+## Ignores clutter: where it meets a wall and what it wears depend on the stroke alone.
 func same_stroke(other: PathLayout) -> bool:
-	# As `data` packs them, so a stroke and the garden's copy of it compare equal.
+	# Packed as `data` packs them, so a stroke and the garden's copy compare equal.
 	return points == other.points and PackedFloat32Array(half_widths) == PackedFloat32Array(other.half_widths) and seed == other.seed and surface == other.surface
 
 
@@ -114,7 +107,6 @@ func add(p: Vector3, half_width: float) -> void:
 	half_widths.append(clampf(half_width, HALF_WIDTH.x, HALF_WIDTH.y))
 
 
-## Whether the worn stroke reaches the ground point (x, z).
 func covers(x: float, z: float) -> bool:
 	var p := Vector2(x, z)
 	for i in samples.size() - 1:
@@ -131,18 +123,16 @@ func length() -> float:
 	return lengths[-1] if lengths.size() > 0 else 0.0
 
 
-## The arc length before which the spine has not moved since the last build, as long as only the last point
-## moved or points were added: smoothing reaches two points back from the one that moved.
+## The arc length before which the spine has not moved since the last build, while only the last point moves or
+## points are added: smoothing reaches two points back from the one that moved.
 func settled() -> float:
 	return point_lengths[-3] if point_lengths.size() >= 3 else 0.0
 
 
-## How many rows lie wholly before arc length `s`.
 func rows_before(s: float) -> int:
 	return row_ends.bsearch(s, false)
 
 
-## Smooths the spine and marks out its rows, all the ground wear and arches need.
 func plan() -> void:
 	_resample()
 	while row_ends.size() > 1 and row_ends[-2] >= length():
@@ -155,9 +145,8 @@ func plan() -> void:
 		row_ends.append(s)
 
 
-## Wears rows `from_row` up to `to_row` (all of them by default) into the ground mask `onto`; a Ground mark. Cobbles and
-## flagstones lie on worn earth under their full stone, so stone painted back to meadow over them leaves the path's way
-## showing, and their soft edge frays into the meadow as painted stone does, with no earth along it.
+## `to_row` < 0 for all. Stone lies on worn earth under its full stone, so stone painted back to meadow leaves the
+## path's way showing, and its soft edge frays into the meadow with no earth along it.
 func wear(onto: Image, from_row := 0, to_row := -1) -> void:
 	for k in range(from_row, row_ends.size() if to_row < 0 else to_row):
 		var d := disc(k)
@@ -166,23 +155,22 @@ func wear(onto: Image, from_row := 0, to_row := -1) -> void:
 		Ground.stamp(onto, d.x, d.y, d.z, d.w, kind, look(surface))
 
 
-## Row `k`'s disc on the ground mask: x, z, full radius and the width of the fade past it, as Ground.stamp takes them.
+## x, z, full radius, fade width past it, as Ground.stamp takes them.
 func disc(k: int) -> Vector4:
 	var f := frame_at(((row_ends[k - 1] if k > 0 else 0.0) + row_ends[k]) * 0.5)
 	return Vector4(f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1)
 
 
-## Row `row`'s start and end arc lengths, the last ending with the spine.
+## Start and end arc lengths; the last row ends with the spine.
 func row_span(row: int) -> Vector2:
 	return Vector2(row_ends[row - 1] if row > 0 else 0.0, minf(row_ends[row], length()))
 
 
-## How many stones a tread of half-width `half` lays across.
 static func tread_columns(half: float) -> int:
 	return maxi(1, ceili(half * 2.0 / 0.5))
 
 
-## The spine point, half-width and unit direction at arc length `s`.
+## {point, half, along}: spine point, half-width and flat unit direction at arc length `s`.
 func frame_at(s: float) -> Dictionary:
 	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
 	var t := clampf((s - lengths[i - 1]) / maxf(lengths[i] - lengths[i - 1], 1e-5), 0.0, 1.0)
@@ -192,8 +180,8 @@ func frame_at(s: float) -> Dictionary:
 
 
 func _resample() -> void:
-	# While `growing`, only the points the last resample read may have moved: its last, which `extend` moves, and the
-	# new ones. A sample segment reads the point before and the two after it, so those from three before stand.
+	# While `growing`, only the last point read and new ones may have moved; a sample segment reads the point before
+	# and two after it, so those from three before stand.
 	var first := maxi(_resampled - 3, 0) if growing else 0
 	var keep := _point_samples[first] if first > 0 and first < _point_samples.size() else 0
 	moved = null
@@ -233,7 +221,7 @@ func _resample() -> void:
 				_segment_cells.get_or_add(c, []).append(i)
 
 
-## The arc lengths of the arches `met`, a path's `meetings` with a wall, open: an arcade where one runs long along it.
+## Arc lengths of the arches opened by `met` (`meetings`), an arcade where a crossing runs long.
 static func arches(met: Array[Dictionary]) -> Array[float]:
 	var out: Array[float] = []
 	for m in met:
@@ -243,9 +231,8 @@ static func arches(met: Array[Dictionary]) -> Array[float]:
 	return out
 
 
-## Where this path crosses `wall`: the arc length along it of each crossing (`s`), and how far along it the path's width
-## runs there (`span`), its width or more where it meets the wall at a slant. Looks only in `cells` of `segment_cells`, by
-## default all of them; a cell the wall does not reach holds no crossing.
+## Each crossing of `wall`: {s: arc length along the wall, span: how far along it the path's width runs, more at a
+## slant}. Looks only in `cells`, by default all of `segment_cells`.
 func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if samples.size() < 2 or wall.samples.size() < 2:
@@ -312,13 +299,12 @@ func segment_cells() -> Dictionary:
 	return _segment_cells
 
 
-## The cells of `segment_cells` that `wall`'s reach too.
 func shared_cells(wall: WallLayout) -> Array:
 	var mine := segment_cells()
 	return wall.segment_cells().keys().filter(func(c: Vector2i) -> bool: return mine.has(c))
 
 
-## Takes the meetings `other`, the same path laid again, has found and will find.
+## `other` is the same path laid again; the two share one cache from now on.
 func share_meetings(other: PathLayout) -> void:
 	_met = other._met
 
@@ -332,7 +318,7 @@ static func segment_grid(points: Array[Vector3]) -> Dictionary:
 	return grid
 
 
-## The grid cells the box around segment a–b reaches, padded so a crossing on a cell edge is found from both sides.
+## Padded so a crossing on a cell edge is found from both sides.
 static func cells_along(a: Vector2, b: Vector2) -> Array[Vector2i]:
 	var lo := Vector2i(((a.min(b) - Vector2.ONE * 0.01) / CELL).floor())
 	var hi := Vector2i(((a.max(b) + Vector2.ONE * 0.01) / CELL).floor())
@@ -347,9 +333,7 @@ static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
-## What the path lays besides its wear: horizontal treads on steep dry rows, each flight carried by a timber stringer
-## along either edge (a bed's rows grow crops instead), stepping stones where it crosses water, and a bed's vegetables.
-## The ground's height and the water's surface are supplied (`water` none for dry ground) so the layout stays pure data.
+## `height` and `water` take (x, z); `water` invalid for dry ground.
 func pieces(height: Callable, water := Callable()) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var wet := func(p: Vector3) -> bool: return water.is_valid() and water.call(p.x, p.z) > height.call(p.x, p.z) + WET
@@ -365,8 +349,7 @@ func pieces(height: Callable, water := Callable()) -> Array[Dictionary]:
 	return out
 
 
-## Where piece `v` of the path's clutter stands on ground of `height`, its middle facing out from the path, or null past
-## either end.
+## Null past either end.
 func clutter_frame(v: Vector4, height: Callable) -> Variant:
 	if v.x < 0.0 or v.x > length():
 		return null
@@ -419,8 +402,6 @@ func _treads(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void
 	_stringers(flight, height, pieces, rng)
 
 
-## A flat stone every STRIDE along the spine where it runs over water, its top a little out of the water and its foot on
-## the bed, stepping a little to either side in turn.
 func _stepping_stones(height: Callable, water: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, "stepping"])
@@ -441,8 +422,6 @@ func _stepping_stones(height: Callable, water: Callable, wet: Callable, pieces: 
 		pieces.append({"xform": Transform3D(turn.scaled_local(size), Vector3(at.x, top - size.y * 0.5, at.z)), "color": Color(0.46, 0.44, 0.4) * rng.randf_range(0.85, 1.08), "ao": 0.9, "variant": k % 3, "kind": "block"})
 
 
-## Rows of vegetables along a bed, one kind a row: as many rows as its width holds CROP_ROWS apart, a plant every
-## CROP_EVERY along each, none where it runs over water. Each plant is its crop's pieces turned a way of its own.
 func _crops(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, "crops"])
@@ -457,8 +436,7 @@ func _crops(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
 			pieces.append({"xform": root * piece[0], "color": piece[1] * tone, "ao": 1.0, "variant": pieces.size() % 3, "kind": "crop"})
 
 
-## Where a bed's plants stand on flat ground and which crop each is: its rows run along the spine, the row through the
-## middle, or the two either side of it, then outward, each row's crop chosen by the bed's seed and how far out it lies.
+## {at, crop} per plant, `at` on flat ground.
 func crop_spots() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var s := CROP_EVERY * 0.5
@@ -469,15 +447,13 @@ func crop_spots() -> Array[Dictionary]:
 		for r in rows:
 			var across := (r - (rows - 1) * 0.5) * CROP_ROWS
 			var crop := posmod(hash([seed, roundi(across / CROP_ROWS * 2.0)]), Crop.size()) as Crop
-			# Neighbouring rows stand staggered, as rows sown by hand do.
 			var stagger := CROP_EVERY * 0.5 * (r % 2) - CROP_EVERY * 0.25
 			out.append({"at": f.point + side * across + f.along * stagger, "crop": crop})
 		s += CROP_EVERY
 	return out
 
 
-## A crop's pieces about its root, as [transform, colour]: coloured stones for a cabbage's pale head in its spreading
-## leaves, a lettuce's rosette, a carrot's fronds over its orange shoulder, a leek's pale stem under its fan.
+## [transform about its root, colour] per piece.
 static func crop(which: Crop) -> Array:
 	return _crop_pieces[which]
 
@@ -500,8 +476,7 @@ static func _made_crops() -> Array:
 	]
 
 
-## Two timbers along a flight's edges, from the ground at its foot to the ground at its head, their tops a little
-## above the tread line so they read as holding the stones up.
+## Tops stand STRINGER_PROUD above the tread line so they read as holding the stones up.
 func _stringers(flight: Array[Dictionary], height: Callable, pieces: Array[Dictionary], rng: RandomNumberGenerator) -> void:
 	if flight.is_empty():
 		return

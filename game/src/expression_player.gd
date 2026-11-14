@@ -9,17 +9,17 @@ var contacts: Contacts
 var icons: Array[Texture2D] = []
 var _bindings: Array = []
 var _scales: Array[int] = []
-## Each bone a rotation or translation effect moves, [skeleton, bone], to its rest, the Unity local rotation its effects
-## set (`turn`) against the one they were authored from (`rest_turn`), each translation's offset, and the pose they make.
+## [skeleton, bone] -> {rest, turn: the Unity local rotation its effects set, rest_turn: the authored one, shift: each
+## translation binding's offset, pose, bone, dirty, sent, sprung}.
 var _moved := {}
-## The avatar's springs: a moved bone one of them swings is theirs to pose, about the pose its effects make.
+## A moved bone a spring swings is the spring's to pose, about the pose its effects make.
 var springs: SpringRuntime:
 	set(value):
 		springs = value
 		for moved: Dictionary in _moved.values():
 			moved.sent = false
 var _shown: Array = []
-## Each target's indices in _shown whose meshes it shows or hides, and the value each target last showed them at.
+## Per output: its indices into _shown; _shown_at, the value it last showed them at.
 var _shown_by: Array[Array] = []
 var _shown_at: Array[float] = []
 var _last: Array[float] = []
@@ -27,10 +27,10 @@ var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
 var _turned := {}
-## This player's copies of the looks table (Avatar._lit_looks), which an imported scene shares with every avatar opened
-## from it, where Poiyomi global theme colours recolour the emission: by the mesh drawing with its own, one a clip moves
-## a theme on, or by the model for its other meshes', where a theme's hue turns at rest: {"table", "texture", "entries"
-## by column, each {"theme" (unity/materials.gd `_theme`), "replace"}, "dirty", "turning"}.
+## Copies of the looks table (Avatar._lit_looks), which an imported scene shares with every avatar opened from it, for
+## Poiyomi global theme colours to recolour: keyed by a mesh a clip moves a theme on, or by the model for themes whose
+## hue turns at rest. {"table", "texture", "entries" by column, each {"theme" (unity/materials.gd `_theme`), "replace",
+## "frame", "colour"}, "dirty", "turning"}.
 var _glows := {}
 var _seconds := 0.0
 var _frame := 0
@@ -39,8 +39,7 @@ var _marks := {}
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## The expression shaders by whether they turn decal hues (1), draw a clear coat (2) and draw toon looks (4),
-## then by whether they draw both sides, each cut out, blended, and blended writing depth.
+## [hue turn (1) + clear coat (2) + toon (4)][two-sided][cut out, blended, blended writing depth].
 const SHADERS := [
 	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
 	[preload("res://src/expression_two_sided.gdshader"), preload("res://src/expression_blended_two_sided.gdshader"), preload("res://src/expression_blended_depth_two_sided.gdshader")]],
@@ -58,14 +57,12 @@ const SHADERS := [
 	[preload("res://src/expression_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_toon_two_sided.gdshader")]],
 	[[preload("res://src/expression_hue_coat_toon.gdshader"), preload("res://src/expression_blended_hue_coat_toon.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon.gdshader")],
 	[preload("res://src/expression_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon_two_sided.gdshader")]]]
-## The look fields the shader reads from a region, in its order: those driving a decal, a component of a clear coat's
-## maps' tiling and offset, then an emission's strength and a matcap's intensity, which a region sets only while its
-## target is off its rest (`apply`).
+## In the shader's field order.
 const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
-## The look fields a region sets only off its target's rest, where each material it covers otherwise keeps its own.
+## Set only while the target is off its rest; at rest each covered material keeps its own.
 const RESTING_FIELDS := ["emission", "matcapIntensity"]
 
-## The main thread's microseconds every avatar's expressions took to advance and apply since the metrics last took them.
+## Main thread, all avatars; metrics.gd reads and resets it.
 static var process_us := 0
 
 
@@ -120,7 +117,7 @@ func _init(model: Node3D) -> void:
 						if moved.turn.is_empty():
 							moved.turn = (effect.rotation.rest as Array).map(func(c: Variant) -> float: return float(c))
 							moved.rest_turn = moved.turn.duplicate()
-						# A bone turned both as Euler angles and as a quaternion takes the form its first effect has.
+						# A bone turned both as Euler angles and as a quaternion keeps its first effect's form.
 						if (effect.rotation.rest as Array).size() == moved.turn.size():
 							binds.append(func(v: float) -> void:
 								moved.turn[axis] = v
@@ -224,8 +221,8 @@ func _init(model: Node3D) -> void:
 	_move_bones()
 
 
-## Entered here, after its saved values are restored and before it is first drawn, so a body that never processes, a
-## still figure's, shows the look its controller starts in.
+## After saved values are restored and before the first draw, so a still figure, which never processes, shows the look
+## its controller starts in.
 func _ready() -> void:
 	state.advance(0.0)
 	apply()
@@ -244,7 +241,7 @@ func _process(delta: float) -> void:
 	process_us += Time.get_ticks_usec() - start
 
 
-## Binds the outputs of `targets`, those the controller moved since the last, or every output where null.
+## `targets`: output indices to bind; null binds every output.
 func apply(targets: Variant = null) -> void:
 	var showing := {}
 	if _frame == 0:
@@ -300,8 +297,8 @@ func apply(targets: Variant = null) -> void:
 		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
 
 
-## Poses each moved bone as its effects set it. A bone a spring swings gets that pose as the rest it swings about, as
-## VRChat's PhysBones swing about the pose the animator left, and is left to the spring.
+## A bone a spring swings gets its pose as the spring's rest, as VRChat's PhysBones swing about the pose the animator
+## left.
 func _move_bones() -> void:
 	for at: Array in _moved:
 		var moved: Dictionary = _moved[at]
@@ -327,8 +324,7 @@ func _move_bones() -> void:
 				at[0].set_bone_pose_position(at[1], pose.origin)
 
 
-## The turn of a bone's glTF local rotation that takes a Unity local rotation from `from` to `to`, each its
-## localEulerAngles in degrees when three components, a quaternion when four.
+## In glTF local space; `from` and `to` are Unity localEulerAngles in degrees (three components) or a quaternion (four).
 static func turn(from: Array, to: Array) -> Quaternion:
 	var delta := (_unity(from).inverse() * _unity(to)).normalized()
 	return Quaternion(delta.x, -delta.y, -delta.z, delta.w)
@@ -340,7 +336,6 @@ static func _unity(c: Array) -> Quaternion:
 	return Quaternion(Vector3.UP, deg_to_rad(c[1])) * Quaternion(Vector3.RIGHT, deg_to_rad(c[0])) * Quaternion(Vector3(0, 0, 1), deg_to_rad(c[2]))
 
 
-## Every [skeleton, bone] named `bone` among `nodes`.
 static func _bones(nodes: Dictionary, bone: Variant) -> Array:
 	var found := []
 	for n: Node in nodes.values():
@@ -349,8 +344,7 @@ static func _bones(nodes: Dictionary, bone: Variant) -> Array:
 	return found
 
 
-## Whether a mesh drawn under `when`, [[switch target, 1]...], draws at `outputs`. A direct blend tree sums its
-## children, so a switch two of them turn on reads two.
+## `when`: [[switch target, 1]...]. A direct blend tree sums its children, so a switch two of them turn on reads two.
 static func shows(outputs: Array[float], when: Array) -> bool:
 	return when.all(func(w: Array) -> bool: return is_equal_approx(minf(outputs[int(w[0])], 1.0), float(w[1])))
 
@@ -412,9 +406,8 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_decal_sets", sets)
 
 
-## Binds the material index, looks table (Avatar._lit_looks) and the looks' layers to the meshes whose materials carry
-## them, the ones that show a flat, glowing, coated or toon material, and to every mesh already drawn animated, since a
-## material swapped in may be any of them. Returns the looks table they share, or null for none.
+## Also binds every mesh already drawn animated, since a material swapped in may carry the looks. Returns the shared
+## looks table (Avatar._lit_looks), or null for none.
 func _light_looks(model: Node3D) -> Variant:
 	var textures: Array = []
 	var looked := []
@@ -451,9 +444,7 @@ func _light_looks(model: Node3D) -> Variant:
 	return textures[1]
 
 
-## The decals `drawn` (index to image) laid on pages as wide as the widest of them, each with DECAL_PAD clear texels round
-## it, tallest first along shelves: {"images": the pages, mipmapped, "places": each index to [page, its rect in the
-## page's UV]}.
+## `drawn`: index -> image. {"images": the pages, "places": index -> [page, its rect in the page's UV]}.
 static func _pages(drawn: Dictionary) -> Dictionary:
 	var side := 1
 	for img: Image in drawn.values():
@@ -492,8 +483,8 @@ static func _pages(drawn: Dictionary) -> Dictionary:
 	return {"images": pages, "places": places}
 
 
-## The fallback cubemaps `stacks` (Avatar.FALLBACK_SIDE) in linear light, a layer each, so the shader's filtering blends
-## light and not its encoding; one that is no such image is Unity's default grey, which keeps the rest at their layers.
+## Linear, so the shader's filtering blends light and not its encoding. A stack that is no such image becomes Unity's
+## default grey, keeping the rest at their layers.
 static func coat_fallbacks(stacks: Array) -> Texture2DArray:
 	var size := Vector2i(Avatar.FALLBACK_SIDE, Avatar.FALLBACK_SIDE / 2 * Avatar.FALLBACK_LEVELS)
 	var layers: Array[Image] = []
@@ -513,8 +504,7 @@ static func coat_fallbacks(stacks: Array) -> Texture2DArray:
 	return out
 
 
-## `maps`, the clear coats' packed maps (unity/materials.gd coat_map) or the matcaps, as one array, each layer as wide
-## as the widest of them, mipmapped.
+## `maps`: the clear coats' packed maps (unity/materials.gd coat_map) or the matcaps.
 static func _layers(maps: Array) -> Texture2DArray:
 	var side := 1
 	for img: Image in maps:
@@ -544,8 +534,8 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 	return [region.get("slot", 0), region.get("colorBlend", 0), region.get("alpha", 1), LOOK_FIELDS.find(region.get("field", "decal")), page]
 
 
-## Among `entries`, by looks table column, the one of the material `region` recolours where it glows in the global theme
-## colour the region's slot names, added if new, or {} where it glows in none.
+## `entries`: looks table column -> entry. Adds if new; {} where the material glows in no theme colour of the region's
+## slot.
 static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) -> Dictionary:
 	var materials: Array = looks.get("materials", [])
 	for k in materials.size():
@@ -555,8 +545,8 @@ static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) ->
 	return {}
 
 
-## Adds to `entries` each material that glows in a global theme colour whose hue turns at rest, but those already there,
-## sharing its entry from `resting`.
+## Adds each material whose global theme colour's hue turns at rest, unless present, sharing its entry through
+## `resting`.
 static func _turning(entries: Dictionary, looks: Dictionary, resting: Dictionary) -> void:
 	var materials: Array = looks.get("materials", [])
 	for k in materials.size():
@@ -565,7 +555,6 @@ static func _turning(entries: Dictionary, looks: Dictionary, resting: Dictionary
 			entries[k + 1] = resting.get_or_add(k + 1, _entry(materials[k]))
 
 
-## The global theme colour a looks material's emission glows in, or null.
 static func _theme_of(look: Dictionary) -> Variant:
 	var glow: Variant = look.get("emission")
 	return look.themes[int(glow.theme)] if glow is Dictionary and glow.get("theme") != null else null
@@ -575,18 +564,15 @@ static func _entry(look: Dictionary) -> Dictionary:
 	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "replace": float(look.emission.get("replace", 0.0)), "frame": -1, "colour": Color()}
 
 
-## The colour a Poiyomi global theme colour (unity/materials.gd `_theme`) shows `seconds` in, in linear light: its
-## colour moved by its offsets as Poiyomi's ModifyViaHSV moves it, the hue also turning `speed` times a Unity _Time.x,
-## a twentieth of a second, and its exposure put back.
+## Linear; offsets applied as Poiyomi's ModifyViaHSV does, hue turning `speed` per Unity _Time.x (seconds / 20).
 static func theme_colour(theme: Dictionary, seconds: float) -> Color:
 	var hsv: Array = theme.hsv
 	var moved := Color.from_hsv(fposmod(hsv[0] + fposmod(theme.hue + theme.speed * seconds / 20.0, 1.0), 1.0), clampf(hsv[1] + theme.saturation, 0.0, 1.0), clampf(hsv[2] + theme.value, 0.0, 1.0))
 	return Color(moved.r * theme.exposure, moved.g * theme.exposure, moved.b * theme.exposure)
 
 
-## A decal's hue turn at rest as (shift, 1 + 2 * colour space + select or shift), or zero where its image holds its
-## colour: one number for how it turns keeps the shader's per-slot state in vectors, which a Quest's GPU indexes far more
-## cheaply than an array of them.
+## (shift, 1 + 2 * colour space + select), or zero where the image holds its colour. One number for the mode keeps the
+## shader's per-slot state in vectors, which a Quest's GPU indexes far more cheaply than an array.
 static func _turn(region: Dictionary) -> Color:
 	var hue: Variant = region.get("hue")
 	if not hue is Dictionary:
@@ -594,8 +580,6 @@ static func _turn(region: Dictionary) -> Color:
 	return Color(float(hue.get("shift", 0)), 1 + 2 * float(hue.get("space", 0)) + float(hue.get("select", 1)), 0, 0)
 
 
-## The expression shader drawing `base` as it draws: cut out, blended or blended writing depth, front faces only or both
-## sides, turning decal hues where `turned`, drawing a clear coat where `coated` and toon looks where `tooned`.
 static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, tooned := false) -> Shader:
 	var way := 0
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
@@ -604,11 +588,8 @@ static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, toon
 	return SHADERS[(1 if turned else 0) + (2 if coated else 0) + (4 if tooned else 0)][1 if both else 0][way]
 
 
-## The materials drawing every surface of `mesh` as animated, one for each way its surfaces draw: cut out, blended, or
-## blended writing depth, each front faces only or both sides as its material draws them, outlined or not. Only a mesh
-## with a decal whose hue turns draws with the shaders that turn it, and only one showing a clear coat or a toon look
-## (Avatar._lit_looks) with the shaders that draw it: compiled in, each costs a Quest 2 GPU time on every surface, drawn
-## or not.
+## Only a mesh that needs hue turns, a clear coat or a toon look gets those shaders: compiled in, each costs Quest 2 GPU
+## time on every surface, drawn or not.
 func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	if _materials.has(mesh):
 		return _materials[mesh]
@@ -642,7 +623,7 @@ func _material(mesh: MeshInstance3D) -> Array[ShaderMaterial]:
 	return out
 
 
-## Whether `mesh` shows a material Avatar._lit_looks marked `mark`: "clearcoat", "coat_forces_fallback" or "toon".
+## `mark`, set by Avatar._lit_looks: "clearcoat", "coat_forces_fallback" or "toon".
 func _marked(mesh: MeshInstance3D, mark: String) -> bool:
 	var key := [mesh, mark]
 	if not _marks.has(key):
@@ -650,8 +631,8 @@ func _marked(mesh: MeshInstance3D, mark: String) -> bool:
 	return _marks[key]
 
 
-## Whether the world has a reflection probe for a clear coat to reflect, as the garden's sky is; the reference replay,
-## whose harness has none, clears it before it loads an avatar, and coats then reflect their fallback cubemaps.
+## False where the world has no reflection probe (the reference replay's harness); coats then reflect their fallback
+## cubemaps.
 static var world_reflects := true:
 	set(v):
 		world_reflects = v
@@ -660,7 +641,6 @@ static var world_reflects := true:
 static var _fallback_shaders := {}
 
 
-## The clear coat shader `coat` with a coat's fallback cubemap compiled in, made once from its source.
 static func fallback_shader(coat: Shader) -> Shader:
 	if not _fallback_shaders.has(coat):
 		var shader := Shader.new()
@@ -673,8 +653,7 @@ static func fallback_shader(coat: Shader) -> Shader:
 static var _clear: Texture2DArray
 
 
-## A material whose model draws no decals or coat maps still binds an array for each: a sampler array left unbound
-## fails the material's whole uniform set, and the surface draws nothing.
+## A sampler array left unbound fails the material's whole uniform set, and the surface draws nothing.
 static func _empty_array() -> Texture2DArray:
 	if _clear == null:
 		var texel := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)

@@ -1,14 +1,12 @@
 class_name AvatarParticles
 extends Node3D
 
-## An avatar's particle systems (docs/particles.md), each drawn as one MultiMesh. The CPU decides when particles are
-## born, where and with what start values, and writes each once; particle.gdshaderinc works out where a particle is at
-## any age, so a frame costs the CPU only its births. A system runs while the expressions' switches it is drawn under
-## are on, playing from its start each time they turn on, as a GameObject switched on plays its ParticleSystem.
+## docs/particles.md. The CPU writes each particle once at birth; particle.gdshaderinc places it at any age, so a frame
+## costs the CPU only its births. A system replays from its start each time its switches turn on, as a GameObject
+## switched on plays its ParticleSystem.
 
-## The shader each blend draws with.
 const SHADERS := {"alpha": preload("res://src/particle_alpha.gdshader"), "add": preload("res://src/particle_add.gdshader"), "premultiplied": preload("res://src/particle_premultiplied.gdshader"), "multiply": preload("res://src/particle_multiply.gdshader"), "opaque": preload("res://src/particle_opaque.gdshader"), "cutout": preload("res://src/particle_opaque.gdshader")}
-## particle.gdshaderinc's curve rows (its ROW_*), each the low end of a range, the high end the row after.
+## Mirror particle.gdshaderinc's ROW_*: each row holds a curve's min, the next row its max.
 const ROW_COLOUR := 0
 const ROW_SIZE := 2
 const ROW_PATH := 4
@@ -18,32 +16,30 @@ const ROW_NOISE_LIMIT := 10
 const ROW_COLOUR_BY_SPEED := 12
 const ROW_SIZE_BY_SPEED := 14
 const ROWS := 16
-## The samples of each curve row: as many as a converted file's curves carry.
+## As many as a converted file's curves carry.
 const CURVE_SAMPLES := 16
 const GRAVITY := Vector3(0, -9.81, 0)
-## A slot no particle holds was born this long ago.
+## Birth time of an empty slot.
 const UNBORN := -1e9
 ## Unity's limit dampens speed past it by its share each thirtieth of a second.
 const DAMPEN_RATE := 30.0
-## How many slots past a living one a birth looks for a free one, before it is dropped as a full system's is.
+## Slots a birth searches before it is dropped, as a full system's is.
 const SLOT_SEARCH := 16
 ## Past this the clock starts again, once nothing is alive, so the birth times the GPU reads keep their precision.
 const CLOCK_SPAN := 3600.0
 
 var _skeleton: Skeleton3D
-## The skeleton's constraint solver, which places a system on a bone it moves.
 var _solver: Constraints
 var _expressions: ExpressionPlayer
 var _systems: Array[System] = []
 var _now := 0.0
 ## Each "particle" effect of the expressions: [target index, effect].
 var _effects := []
-## The value each target had when its effects last set it.
+## Per target index: the value last applied.
 var _applied: Array[float] = []
-## When this frame's first birth began, -1 before it: births alone spend Budget.PARTICLE_BIRTHS_US of the frame.
+## Usec this frame's first birth began, -1 before it; births alone spend Budget.PARTICLE_BIRTHS_US.
 var _births_from := -1
-## Runs every system whatever its switches, playing again each that stops: the most an avatar's particles cost, which
-## a bench prices.
+## Every system on and replaying, so a bench prices the most an avatar's particles cost.
 var unswitched := false
 
 
@@ -57,7 +53,7 @@ class System:
 	var active := false
 	var playing := false
 	var time := 0.0
-	## The fraction of a particle its rates have built up toward the next birth.
+	## Fractional births carried to the next step.
 	var pending := 0.0
 	var bursts_fired := PackedInt32Array()
 	var frame := Transform3D.IDENTITY
@@ -80,8 +76,7 @@ class System:
 	var following := []
 
 
-## Runs `definition` (ParticleDefinition.read) on the bones of `skeleton`, switched and moved by `expressions`'s
-## targets where it has any.
+## `definition`: ParticleDefinition.read's output. `expressions` may be null.
 func _init(definition: Dictionary, skeleton: Skeleton3D, expressions: ExpressionPlayer) -> void:
 	name = "Particles"
 	_skeleton = skeleton
@@ -229,8 +224,8 @@ func _process(delta: float) -> void:
 				mat.set_shader_parameter("emitter", Projection(s.frame))
 
 
-## Sets each particle effect's field to its target's value where that changed. A tint or emission is set on every
-## material a clip may choose, as Unity's animator sets it on whichever its renderer draws.
+## A tint or emission is set on every material a clip may choose, as Unity's animator sets it on whichever its renderer
+## draws.
 func _apply(outputs: Array[float]) -> void:
 	for e: Array in _effects:
 		var i: int = e[0]
@@ -276,7 +271,7 @@ func _play(s: System) -> void:
 	s.bursts_fired.fill(0)
 
 
-## Clears every particle of `s`, so no slot holds a birth time the clock could come round to again.
+## So no slot holds a birth time the clock could come round to again.
 func _clear(s: System) -> void:
 	s.following.clear()
 	for i in s.births.size():
@@ -286,7 +281,7 @@ func _clear(s: System) -> void:
 				s.multimesh.set_instance_custom_data(i, Color(UNBORN, 1.0, 0.0, 0.0))
 
 
-## Emits `s`'s particles for a step of `delta` in which its emitter moved `moved`.
+## `moved`: the emitter's distance travelled this step.
 func _run(s: System, delta: float, moved: float) -> void:
 	var d := s.definition
 	var before: float = s.time - d.delay
@@ -308,7 +303,7 @@ func _run(s: System, delta: float, moved: float) -> void:
 	s.pending -= _emit_up_to(int(s.pending), func() -> void: _emit(s, s.frame, s.velocity, u, null, -1))
 
 
-## How many particles the bursts not yet fired by time `t` of a cycle give, counting each fired in `fired`.
+## Fires the bursts due by cycle time `t`, counting them in `fired`; returns their particles.
 func _bursts(bursts: Array, fired: PackedInt32Array, t: float) -> int:
 	var count := 0
 	for b in bursts.size():
@@ -320,7 +315,6 @@ func _bursts(bursts: Array, fired: PackedInt32Array, t: float) -> int:
 	return count
 
 
-## Emits each child's particles from the living particles of `s` that it follows, and from those that died.
 func _follow(s: System, delta: float) -> void:
 	if s.children.is_empty():
 		return
@@ -358,7 +352,7 @@ func _follow(s: System, delta: float) -> void:
 	s.following = kept
 
 
-## Calls `emit` up to `count` times, while this frame's births have time left: how many it called.
+## Stops when the frame's birth budget is spent; returns how many it called.
 func _emit_up_to(count: int, emit: Callable) -> int:
 	var made := 0
 	if count > 0 and _births_from < 0:
@@ -369,9 +363,8 @@ func _emit_up_to(count: int, emit: Callable) -> int:
 	return made
 
 
-## Writes one particle of `s` born now from the emitter at `frame` moving at `velocity` (world), `u` through its
-## system's cycle; a sub-emitter's particle takes the properties `inherit` names from slot `parent` of `from`. Dropped
-## where no slot near the next is free, as a full system emits none.
+## `velocity` in world space; `u`, the share of the cycle. Dropped where no slot near the next is free, as a full system
+## emits none.
 func _emit(s: System, frame: Transform3D, velocity: Vector3, u: float, from: System, parent: int, inherit: Array = []) -> void:
 	if s.births.is_empty():
 		return
@@ -430,8 +423,7 @@ func _emit(s: System, frame: Transform3D, velocity: Vector3, u: float, from: Sys
 			s.following.append({"child": child, "on": c[1], "inherit": c[2], "parent": i, "born": s.births[i], "time": 0.0, "pending": 0.0, "bursts_fired": fired, "last": _position(s, i, 0.0)})
 
 
-## Where slot `i` of `s` is in the world `age` seconds after its birth, by the shader's closed form without its
-## velocity curves and noise.
+## World space; the shader's closed form without its velocity curves and noise.
 func _position(s: System, i: int, age: float) -> Vector3:
 	var start := s.starts[i]
 	var heading := s.velocities[i]
@@ -448,12 +440,12 @@ func _position(s: System, i: int, age: float) -> Vector3:
 	return at if d.world else s.frame * at
 
 
-## How fast speed past a system's limit falls away, per second, or 0 for a system without one.
+## Per second; 0 without a limit.
 static func _damping(d: Dictionary) -> float:
 	return -log(maxf(1.0 - d.limit.dampen, 1e-3)) * DAMPEN_RATE if d.has("limit") else 0.0
 
 
-## A point in a shape and the way a particle leaves it, in the shape's own axes, which Unity's shapes face along +Z.
+## [point, heading] in the shape's own axes; Unity's shapes face along +Z.
 static func _shape(shape: Dictionary) -> Array:
 	var r: float = shape.radius
 	var inward := func() -> float: return 1.0 - shape.thickness * randf()
@@ -496,12 +488,12 @@ static func _unit() -> Vector3:
 	return Vector3(across * cos(turn), across * sin(turn), z)
 
 
-## A curve's value at share `u` of its span for a particle whose random for it is `k`.
+## `u`: share of the span; `k`: the particle's random for this curve.
 static func _value(c: Dictionary, u: float, k: float) -> float:
 	return lerpf(c.scale[0] * _at(c.min, u), c.scale[1] * _at(c.max, u), k)
 
 
-## Samples spaced evenly over a span, read linearly between neighbours at share `u` of it: floats or colours.
+## `samples`: floats or colours, evenly spaced over the span; `u`, the share of it.
 static func _at(samples: Variant, u: float) -> Variant:
 	if samples.size() == 1:
 		return samples[0]
@@ -510,8 +502,7 @@ static func _at(samples: Variant, u: float) -> Variant:
 	return lerp(samples[i], samples[i + 1], x - i)
 
 
-## A start size or rotation: one curve for all three axes of a size and Z alone of a rotation, or one per axis, each
-## axis with its own random unless one curve sizes all three alike.
+## One curve drives all three axes of a size alike, or Z alone of a rotation; otherwise one curve per axis.
 static func _axes(curves: Array, u: float, size: bool) -> Vector3:
 	if curves.size() == 1:
 		var v := _value(curves[0], u, randf())
@@ -519,7 +510,7 @@ static func _axes(curves: Array, u: float, size: bool) -> Vector3:
 	return Vector3(_value(curves[0], u, randf()), _value(curves[1], u, randf()), _value(curves[2], u, randf()))
 
 
-## The life curves of system `d` as particle.gdshaderinc reads them: CURVE_SAMPLES wide, ROWS high.
+## As particle.gdshaderinc reads them.
 static func _curves(d: Dictionary) -> Image:
 	var img := Image.create_empty(CURVE_SAMPLES, ROWS, false, Image.FORMAT_RGBAF)
 	var put := func(row: int, values: Callable) -> void:
@@ -553,7 +544,6 @@ static func _curves(d: Dictionary) -> Image:
 	return img
 
 
-## The integral of `f` over [0, u], by the trapezoid rule on four steps a curve sample.
 static func _integral(f: Callable, u: float) -> Vector3:
 	var steps := maxi(roundi(u * (CURVE_SAMPLES - 1) * 4), 1)
 	var h := u / steps

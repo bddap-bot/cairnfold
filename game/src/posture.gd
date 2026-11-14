@@ -1,37 +1,26 @@
 class_name Posture
 extends RefCounted
 
-## Which body pose a player is in, read from their three tracked poses over what is under them, and how far each pose
-## has blended in. The poses are standing, the body hanging upright below the head, and single frames of people
-## lying and sitting recorded by CMU's motion capture (animations/poses.json, converted by scripts/mocap.gd): on the
-## back, on either side, on the front, sitting on the ground with the hands forward or leaning back on them, and
-## sitting on a ledge with the feet on lower ground.
-##
-## The inputs, each compared with the same reading of every recorded pose: the eyes' height over the support behind
-## them (the ground, a floor or a stair, where the hips would be), how far the support ahead (where the feet would be)
-## drops below it while the head is upright, which way is up as the eyes see it (so lying on the back, a side or the
-## front, and sitting up, differ), and each hand's place as the eyes see it and its height over that support (hands
-## forward, behind or under the head). The nearest pose wins once it has been nearer than the shown one by
-## HYSTERESIS for DWELL seconds, and then blends in over BLEND seconds.
+## A player's body pose from their three tracked poses over what is under them. Besides standing, the poses are single
+## frames of lying and sitting from CMU's motion capture (animations/poses.json, converted by scripts/mocap.gd).
 ##
 ## Three tracked points do not tell sitting on the ground from crouching or kneeling: the head is low and upright in
-## all three, and the legs are not tracked. Standing therefore takes every upright head from STAND_LOW up, whatever the
-## hands do, and the recorded poses must be nearer than it by HYSTERESIS for DWELL: a head lowered for a moment to
-## work the ground keeps the standing body. A head held low and upright sits; a head on its support lies.
+## all three, and the legs are not tracked. So standing takes every upright head from STAND_LOW up, whatever the hands
+## do, and a recorded pose must beat it by HYSTERESIS for DWELL: a head lowered for a moment to work the ground keeps
+## the standing body.
 
 const STANDING := 0
 ## An upright head at least this high over its support stands.
 const STAND_LOW := 1.0
 ## A ledge is a support that drops at least this far ahead of the hips.
 const LEDGE := 0.25
-## Where the hips and feet are looked for: behind the eyes and ahead of them, along where an upright head faces.
+## Where the hips and feet are probed: behind and ahead of the eyes, along an upright head's facing.
 const SEAT_BACK := 0.1
 const FEET_AHEAD := 0.45
-## A head whose forward leans less than this from level (its horizontal length) is upright.
+## A head is upright while its forward's horizontal length exceeds this.
 const UPRIGHT := 0.6
-## How far each reading may differ before it counts as much as the others: heights, the ledge's drop, up as the eyes
-## see it (standing's head looks up and down at what it builds, so a wider one), hands relative to the eyes, and their
-## heights.
+## How far each reading may differ before it counts as much as the others. Standing's head looks up and down at what it
+## builds, so its up spread is wider.
 const HEIGHT_SPREAD := 0.12
 const DROP_SPREAD := 0.12
 const UP_SPREAD := 0.35
@@ -41,10 +30,9 @@ const HAND_HEIGHT_SPREAD := 0.15
 const HYSTERESIS := 2.0
 const DWELL := 0.4
 const BLEND := 0.6
-## The tracked poses are read this often, in seconds; DWELL is several readings.
+## Seconds; DWELL is several readings.
 const READ_EVERY := 0.1
-## What is under the eyes is probed again once they have moved this far, turned this far from where they faced, or
-## this many seconds have passed: a probe asks every build, and a player lying or sitting holds still.
+## Reprobe thresholds: a probe asks every build, and a player lying or sitting holds still.
 const PROBE_MOVE := 0.2
 const PROBE_TURN := deg_to_rad(20.0)
 const PROBE_EVERY := 2.0
@@ -53,19 +41,19 @@ const YAW_SLACK := deg_to_rad(50.0)
 
 ## Each pose: {name, turns: humanoid bone -> its turn from the T-pose (absent while standing), eyes, hands, seat}.
 static var poses: Array[Dictionary] = _read()
-## Each pose's readings, as `reading` gives them for a player.
+## Per pose, in `reading`'s layout; [] for standing.
 static var _templates: Array[Array] = []
 
-## How much of each pose shows, summing to one.
+## Per pose, summing to one.
 var weights := PackedFloat32Array()
-## The pose blending in, or shown.
+## Blending in, or shown.
 var target := STANDING
-## Each lying or sitting pose's heading: where its body faces. A standing body faces where the head does.
+## Per lying or sitting pose, where its body faces; a standing body faces where the head does.
 var yaws := PackedFloat32Array()
 var _candidate := STANDING
 var _since := 0.0
 var _unread := INF
-## The last probe, and the eyes and seconds since it was taken.
+## The last probe, the eyes it was taken at, and seconds since.
 var _under := Vector2.ZERO
 var _probed := Transform3D()
 var _unprobed := INF
@@ -93,16 +81,14 @@ static func _read() -> Array[Dictionary]:
 	return out
 
 
-## The readings of eyes and hands over `support` (a point to the height of what is under it): the eyes' height over
-## the support behind them, the drop ahead, up as the eyes see it, and the left then right hand as the eyes see it
-## and its height. The lengths are over `size`, the body's eye height over Rig.EYE, the recorded people's: an avatar is
-## drawn at its own size, so a short one's player lies, sits and stands lower.
+## `support`: point -> height of what is under it. Returns [eye height over the support behind, drop ahead, up in eye
+## space, left hand in eye space, its height, right hand in eye space, its height]. Lengths are over `size`, the body's
+## eye height over Rig.EYE: an avatar is drawn at its own size, so a short one's player lies, sits and stands lower.
 static func reading(eyes: Transform3D, l: Vector3, r: Vector3, support: Callable, size := 1.0) -> Array:
 	return reading_over(eyes, l, r, probe(eyes, support, size), size)
 
 
-## What is under the eyes, as `reading` needs it: the support behind them (where the hips would be) and how far it
-## drops ahead (where the feet would be) while the head is upright.
+## (support height behind the eyes, where the hips would be, or under them unless upright; its drop ahead, where the feet would be, 0 unless upright).
 static func probe(eyes: Transform3D, support: Callable, size := 1.0) -> Vector2:
 	var forward := -eyes.basis.z
 	var flat := Vector3(forward.x, 0.0, forward.z)
@@ -113,14 +99,12 @@ static func probe(eyes: Transform3D, support: Callable, size := 1.0) -> Vector2:
 	return Vector2(under, under - support.call(eyes.origin + flat * FEET_AHEAD * size))
 
 
-## `reading` over a support already probed.
 static func reading_over(eyes: Transform3D, l: Vector3, r: Vector3, under: Vector2, size := 1.0) -> Array:
 	var to_eyes := eyes.basis.transposed()
 	return [(eyes.origin.y - under.x) / size, under.y / size, to_eyes * Vector3.UP, to_eyes * (l - eyes.origin) / size, (l.y - under.x) / size, to_eyes * (r - eyes.origin) / size, (r.y - under.x) / size]
 
 
-## Recorded pose `k`'s eyes and left and right hands, held by a body whose eyes stand `eye_height` up, on a floor at 0
-## (standing: the eyes level, the hands at the sides).
+## [eyes, left hand, right hand] on a floor at 0.
 static func held(k: int, eye_height := Rig.EYE) -> Array[Transform3D]:
 	if k == STANDING:
 		var at := Transform3D(Basis.IDENTITY, Vector3(0, eye_height, 0))
@@ -131,8 +115,7 @@ static func held(k: int, eye_height := Rig.EYE) -> Array[Transform3D]:
 	return [Transform3D(eyes.basis, eyes.origin * size), Transform3D(eyes.basis, p.hands[0] * size), Transform3D(eyes.basis, p.hands[1] * size)]
 
 
-## How far a reading is from pose `k`'s, each difference over its spread, squared and summed; once the height's
-## alone reaches `beyond`, that much, since no nearer pose can come of it.
+## Returns early once the height term alone reaches `beyond`, since no nearer pose can come of it.
 static func distance(k: int, f: Array, beyond := INF) -> float:
 	if k == STANDING:
 		var low := maxf(0.0, STAND_LOW - f[0]) / HEIGHT_SPREAD
@@ -162,7 +145,6 @@ static func _template(p: Dictionary) -> Array:
 	return f
 
 
-## The pose nearest a reading, kept while nothing is nearer by HYSTERESIS.
 static func nearest(f: Array, shown: int) -> int:
 	var best := shown
 	var best_d := distance(shown, f) - HYSTERESIS
@@ -174,14 +156,13 @@ static func nearest(f: Array, shown: int) -> int:
 	return best
 
 
-## Where lying or sitting pose `k`'s body faces for eyes at `eyes`: the heading that best turns its recorded eyes
-## onto them.
+## The yaw that best turns pose `k`'s recorded eyes onto `eyes`.
 static func heading(k: int, eyes: Basis) -> float:
 	var n := eyes * (poses[k].eyes as Transform3D).basis.transposed()
 	return atan2(n.z.x - n.x.z, n.x.x + n.z.z)
 
 
-## Reads the tracked poses of a body `size` times the recorded people's and moves the blend `delta` seconds on.
+## `size`: the body over the recorded people's.
 func update(eyes: Transform3D, l: Vector3, r: Vector3, support: Callable, delta: float, size := 1.0) -> void:
 	_unread += delta
 	_unprobed += delta
@@ -214,7 +195,6 @@ func update(eyes: Transform3D, l: Vector3, r: Vector3, support: Callable, delta:
 			yaws[k] += off - clampf(off, -YAW_SLACK, YAW_SLACK)
 
 
-## Carries on from another avatar's posture, when a player's avatar is changed.
 func take(other: Posture) -> void:
 	weights = other.weights.duplicate()
 	yaws = other.yaws.duplicate()

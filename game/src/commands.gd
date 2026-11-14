@@ -1,27 +1,23 @@
 class_name Commands
 extends RefCounted
 
-## The build commands' one schema. `clean` returns a fresh command holding only the fields its op
-## defines, each checked for type and range against what a tool can make and the garden's ground, or {} for anything
-## else: every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
+## Every machine runs `clean` on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
 const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "sheet", "restone", "boulder", "decoration"]
-## What a batch may carry: from a player, takings; from the host, also the undo of them (PUTS) and of what water drowned.
+## A player's batch carries BATCHED; the host's also PUTS and HOST_BATCHED, undoing takings and what water drowned.
 const BATCHED := ["take", "reshape", "show"]
 const HOST_BATCHED := ["heights", "ponds", "tree"]
-## Most commands one batch carries.
 const MAX_BATCH := 128
-## A stroke builds at most this many walls; their ids follow from the command's sequence number.
+## Walls one stroke builds at most; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
 const MAX_POINTS := 2048
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
 const MIN_ROOF_RADIUS := 0.5
-## Longest stroke a wall, a path or a flight of stairs may run; the tools stop growing one there.
+## Metres: the longest wall, path or flight of stairs; the tools stop growing one there.
 const MAX_LENGTH := 240.0
-## Where the tools stop a stroke: short of MAX_LENGTH by more than a stroke's last moves and joins add.
+## Short of MAX_LENGTH by more than a stroke's last moves and joins add.
 const STROKE_LENGTH := MAX_LENGTH - 16.0
-## Most walls, paths and plant groups one garden holds.
 const MAX_THINGS := 4000
 const MAX_PONDS := 256
 const MAX_STAMPS := 2000
@@ -30,12 +26,11 @@ const MAX_CHIMNEYS := 8
 const MAX_DORMERS := 8
 const MAX_HATCHES := 8
 const MAX_RUINS := 32
-## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
+## Per thing one command, and per plant group one more for its hidden plants.
 const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
-## Most builds one build stands on.
+## Builds one build may stand on.
 const MAX_SUPPORTS := 8
-## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
-## by the entries they name.
+## By garden table; `paint` and a wall's `roof` also change, by the entries they name (`_reshape`).
 const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "clutter", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "sag", "on"],
@@ -44,17 +39,14 @@ const RESHAPES := {
 	"easels": ["at", "yaw"],
 	"paths": ["surface", "clutter"],
 }
-## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:
-## whatever stands on a build goes when it goes (`World._take`). Every table is named here, so a new one cannot be
-## left out of that.
+## Per garden table, the field naming the builds an entry stands on, "" for the ground only: whatever stands on a
+## build goes when it goes (`World._take`). Every table is named, so a new one cannot be left out of that.
 const STANDS_ON := {"walls": "on", "stairs": "on", "decorations": "wall", "paths": "", "grounds": "", "groups": "", "ponds": "", "easels": "", "boulders": ""}
 
-## Per table of the garden holding builds, the command that puts one back, in the order a snapshot rebuilds them.
+## In the order a snapshot rebuilds them.
 const PUTS := {"stairs": "stairs", "paths": "path", "grounds": "ground", "walls": "wall", "easels": "easel", "decorations": "decoration", "boulders": "boulder"}
-## What a put command carries besides its build's own fields.
 const ENVELOPE := ["op", "seq", "by", "token", "id"]
 
-## Length of a stroke along the ground.
 static func length(points: Variant) -> float:
 	var total := 0.0
 	for i in range(1, points.size()):
@@ -62,7 +54,6 @@ static func length(points: Variant) -> float:
 	return total
 
 
-## Stairs, walls, paths, grounds, easels, boulders, decorations and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
 	var n: int = PUTS.keys().reduce(func(sum: int, t: String) -> int: return sum + state[t].size(), 0)
 	for g: Dictionary in state.groups.values():
@@ -71,7 +62,7 @@ static func _things(state: Dictionary) -> int:
 	return n
 
 
-## The fields of the build a `cmd` that passed `clean` puts.
+## `cmd` must have passed `clean`.
 static func build_of(cmd: Dictionary) -> Dictionary:
 	var out := cmd.duplicate(true)
 	for k in ENVELOPE:
@@ -83,7 +74,7 @@ static func _supports(on: Variant) -> bool:
 	return typeof(on) == TYPE_PACKED_INT32_ARRAY and on.size() <= MAX_SUPPORTS and _unique(on)
 
 
-## Of the builds `on` stands on, those still in the garden: what went while a player's command was on its way is dropped.
+## Drops what went while a player's command was on its way.
 static func _standing(on: PackedInt32Array, state: Dictionary) -> PackedInt32Array:
 	return PackedInt32Array(Array(on).filter(func(o: int) -> bool: return state.walls.has(o)))
 
@@ -211,7 +202,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 	return out if ok else {}
 
 
-## Whether a wall offers the surface a mount stands on: a house for its floors, a flat roof for its deck.
+## A wall with a roof is a house, with floors; one with an unpitched roof has a deck.
 static func _holds(wall: Dictionary, mount: String) -> bool:
 	match mount:
 		"floor":
@@ -221,9 +212,8 @@ static func _holds(wall: Dictionary, mount: String) -> bool:
 	return true
 
 
-## A decoration: the build it stands on (-1 for none), its mount, style and seed, where it stands and its turn, its
-## place along its wall's foot, the lantern swatch its flames burn in, and on a span the far end `to` and the pole
-## `drop` under each end.
+## `wall` -1 for none; `s` its place along its wall's foot; `lantern` the swatch its flames burn in; on a span, `to`
+## the far end and `drop` the pole under each end.
 static func _decoration(d: Dictionary) -> Variant:
 	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("lantern")) != TYPE_INT:
 		return null
@@ -254,8 +244,7 @@ static func _decoration(d: Dictionary) -> Variant:
 	return out
 
 
-## A boulder: the ground point under its centre, which way it is turned, how far it is pushed into the ground, the seed
-## its shape grows from, its size, its paint and its style.
+## `at` the ground point under its centre; `sink` how far it is pushed into the ground.
 static func _boulder(d: Dictionary) -> Variant:
 	var at: Variant = d.get("at")
 	var turn: Variant = d.get("turn")
@@ -272,8 +261,7 @@ static func _boulder(d: Dictionary) -> Variant:
 	return {"at": at, "turn": turn.normalized(), "sink": sink, "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 
 
-## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes on its
-## canvas and its oil palette it comes back with when a taking is undone or a garden is rebuilt.
+## Only the host's carries strokes and palette: an easel coming back as a taking is undone or a garden is rebuilt.
 static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	if not _stands(cmd) or not from_host and not Easels.room_at(cmd.at, state.easels):
 		return false
@@ -284,14 +272,13 @@ static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 	return out.strokes != null and out.palette != null and (from_host or (out.strokes.is_empty() and out.palette.is_empty()))
 
 
-## Whether an easel's `at` and `yaw` in `d` are a place in the garden and a facing.
 static func _stands(d: Dictionary) -> bool:
 	var at: Variant = d.get("at")
 	var yaw: Variant = d.get("yaw")
 	return _finite(at) and typeof(yaw) == TYPE_FLOAT and is_finite(yaw) and absf(yaw) <= TAU
 
 
-## The easel a stroke command paints on, standing, and whether on its canvas or (`palette`) its oil palette's board.
+## `palette` true paints the oil palette's board, else the canvas.
 static func _surface(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	var e: Variant = cmd.get("easel")
 	var palette: Variant = cmd.get("palette", false)
@@ -300,12 +287,10 @@ static func _surface(cmd: Dictionary, state: Dictionary, out: Dictionary) -> boo
 	return typeof(e) == TYPE_INT and state.easels.has(e) and typeof(palette) == TYPE_BOOL
 
 
-## The field of an easel's record holding the strokes a clean stroke command `cmd` paints.
 static func surface(cmd: Dictionary) -> String:
 	return "palette" if cmd.palette else "strokes"
 
 
-## A surface's strokes, each clean, within what one surface holds, or null.
 static func _strokes(d: Variant) -> Variant:
 	if not d is Array or d.size() > Brushwork.MAX_STROKES:
 		return null
@@ -323,9 +308,9 @@ static func _strokes(d: Variant) -> Variant:
 	return out if Brushwork.holds(out) else null
 
 
-## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and
-## one batch takes at most MAX_BATCH things and, from a player, one `show`. From a player, a command that no longer
-## applies (what it takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
+## Each command is checked against the garden as it stands, so no two may change the same thing; a player's batch
+## holds at most one `show`. A player's command that no longer applies is dropped and the rest stand; every one of the
+## host's must apply.
 static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary, ground: Terrain) -> bool:
 	var cmds: Variant = cmd.get("cmds")
 	# The host's batches include undoing a build taken with all that stood on it, however much that was.
@@ -377,7 +362,6 @@ static func _at_least(x: Variant, low: float) -> bool:
 	return typeof(x) == TYPE_FLOAT and is_finite(x) and x >= low
 
 
-## Whether a wall's or path's points are a line a hand could draw.
 static func _stroke(points: Variant) -> bool:
 	return typeof(points) == TYPE_PACKED_VECTOR3_ARRAY and points.size() >= 2 and points.size() <= MAX_POINTS and Array(points).all(_finite) and length(points) <= MAX_LENGTH
 
@@ -473,8 +457,7 @@ static func _wall(d: Variant) -> Variant:
 	return out
 
 
-## A build's changed fields, each as valid as in a whole build of its kind (`of`, the garden's table of them): a copy
-## of it with them applied must pass.
+## `now` with `d` applied must pass as a whole build of garden table `of`.
 static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	if d.is_empty():
 		return null
@@ -514,7 +497,6 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	return out
 
 
-## A build of the garden's table `of` checked whole: a clean copy of it, or null.
 static func _whole(of: String, d: Dictionary) -> Variant:
 	match of:
 		"walls":
@@ -548,7 +530,6 @@ static func _path(d: Dictionary) -> Variant:
 	return {"points": points, "half_widths": halves, "seed": d.seed, "surface": surface, "clutter": clutter}
 
 
-## A build's clutter (ClutterLayout), none if it carries no list, or null for a list no hand could leave.
 static func _clutter(d: Dictionary) -> Variant:
 	var list: Variant = d.get("clutter", PackedVector4Array())
 	if typeof(list) != TYPE_PACKED_VECTOR4_ARRAY or list.size() > ClutterLayout.MOST or not Array(list).all(ClutterLayout.valid):
@@ -621,9 +602,8 @@ static func _show(plants: Dictionary, state: Dictionary, out: Dictionary) -> boo
 	return true
 
 
-## Where a tree or bush stands across the ground (`at`) and its turn about its foot from how it grew (`turn`), and a
-## tree's species, scale and bark moss: a planted tree or bush is its group's first plant, a meadow tree one of the
-## meadow group's `trees`, a meadow bush one of its `bushes`.
+## `turn` is about its foot, from how it grew. A planted tree or bush is its group's first plant; the meadow group
+## lists its own in `trees` and `bushes`. Only a tree takes species, scale and moss.
 static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	var g: Variant = cmd.get("group")
 	var i: Variant = cmd.get("index")
@@ -676,8 +656,8 @@ static func _heights(cmd: Dictionary, out: Dictionary) -> bool:
 	return true
 
 
-## Ponds a command puts at their levels, by the grid point each fills from, and ponds it takes out: only the host's
-## commands, which undo or rebuild, carry them, except a player's one pond put by the pond tool.
+## `put`: level by the grid point each pond fills from. Only the host's commands, which undo or rebuild, carry ponds,
+## but for a player's one pond put by the pond tool. `drop`: the grid points of ponds taken out.
 static func _ponds(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	var put: Variant = cmd.get("put", {})
 	var drop: Variant = cmd.get("drop", [])
@@ -699,7 +679,6 @@ static func _ponds(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 	return true
 
 
-## Whether a player's pond holds water over the ground as it stands, and the garden has room for it.
 static func _pointed(put: Dictionary, state: Dictionary, ground: Terrain) -> bool:
 	var g: Vector2i = put.keys()[0]
 	return (state.ponds.has(g) or state.ponds.size() < MAX_PONDS) and Water.fill(ground, g, put[g]) != null

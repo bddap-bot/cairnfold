@@ -1,31 +1,23 @@
 class_name DeleteTool
 extends Node3D
 
-## Takes things away, for whichever hand holds it. Its beam strikes the first wall, easel, boulder, tree or bush along it, else
-## the ground. Held, the trigger is an eraser for everything the beam passes over in one stroke: along a wall, the
-## stretch it swept breaks away into a ruin, stepped down to a gap at its foot with fallen stones (a tap breaks a
-## short gap); an easel, boulder, tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
-## under it; elsewhere on the ground it mows the grass and flowers under the brush ring, the meadow's own as well
-## as painted ones, raggedly at the ring's edge. Ruins and taken plants show as the beam passes; the whole stroke
-## goes to the garden as one command when the trigger lets go, so one undo puts it all back. A sweep that would
-## leave a wall nothing worth standing, or one on a fence, house or tower, takes the whole of it.
-## Held pointed up at the sky, the trigger charges a swelling orb and, once it is full, wipes the whole garden back
-## to bare meadow; letting go or lowering the beam first lets it fade. Anyone in the garden can wipe it. Undo puts
-## any of it back, a wipe in one step.
+## A stroke shows on this machine as the beam passes and goes to the garden as one command when the trigger lets go,
+## so one undo puts it all back.
+## Anyone in the garden can wipe it.
 
 const TINT := Color(1.0, 0.7, 0.62, 0.6)
 const REACH := 80.0
-## How far in from the ring's edge, as a fraction of its radius, mowing may stop short: each plant has its own reach.
+## Fraction of the ring's radius in from its edge that mowing may stop short: each plant has its own reach.
 const RAGGED := 0.3
 const WIPE_HOLD := 2.0
-## A beam this far up (the sine of its elevation) points at the sky.
+## Sine of the elevation above which a beam points at the sky.
 const SKY := 0.6
 const ORB_REACH := 5.0
 const ORB_RADIUS := 1.2
-## Between frames a stroke takes what rays this far apart where they strike meet, so a quick swipe skips nothing.
+## Metres apart where they strike, the rays a stroke takes between frames, so a quick swipe skips nothing.
 const STEP := 0.5
 const MAX_STEPS := 32
-## A beam on a wall whose end moves this far in a frame is breaking it, and is heard to.
+## Metres a beam's end on a wall moves in a frame to be heard breaking it.
 const SWEEPING := 0.005
 
 var rig: Rig
@@ -33,14 +25,14 @@ var walls: WallTool
 var flora: Flora
 var world: World
 var _rings: Array[MeshInstance3D] = []
-## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, easels,
-## boulders, ray}.
-## `walls` holds by wall id the stretches swept along it, Vector2(from, to) unwrapped round a loop, and `moved` those
-## walls swept since last shown; `wall` is the sweep along the wall the beam is on, {wall, id, span, at, last};
-## `plants` the plants taken; `marks` the tables of the stairs, paths and stone strokes taken, by id; `easels` and `boulders` those taken, by id;
-## `ray` the last ray, [origin, dir, where it struck].
+## By whoever holds the trigger (a hand, or the driver); {single: target} for a lone fitting or rubble. `walls`: by
+## wall id the stretches swept, Vector2(from, to) unwrapped round a loop; `moved`: walls swept since last shown;
+## `wall`: the sweep along the wall the beam is on, {wall, id, span, at, last}; `plants`: those taken; `marks`: by id
+## the table of each stairs, path and stone stroke taken; `easels`, `boulders`, `decorations`: those taken, by id;
+## `fittings`: by wall id the fitting targets taken; `pieces`: by path id its clutter taken; `ray`: the last ray,
+## [origin, dir, where it struck].
 var _cuts := {}
-## Wipes charging, by whoever holds the trigger up: {t, orb}.
+## By whoever holds the trigger up: {t seconds, orb}.
 var _charges := {}
 
 
@@ -61,7 +53,7 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 		add_child(_rings[-1])
 
 
-## Whether `hand`, or with none any hand, has a cut or charge under way.
+## `hand` null: any.
 func busy(hand: Hand = null) -> bool:
 	if hand != null:
 		return _cuts.has(hand) or _charges.has(hand)
@@ -103,8 +95,7 @@ func sky(dir: Vector3) -> bool:
 	return dir.normalized().y > SKY
 
 
-## Charges a wipe for `who` pointing from `origin` along `dir`, `delta` seconds more; at WIPE_HOLD it wipes the
-## garden. Pointing below the sky lets the charge go. Whether it is still charging.
+## Whether it is still charging.
 func charge(who: Object, origin: Vector3, dir: Vector3, delta: float) -> bool:
 	if not sky(dir) or not aim(origin, dir).is_empty():
 		cancel(who)
@@ -142,10 +133,8 @@ func _orb() -> MeshInstance3D:
 	return orb
 
 
-## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, an easel, a tree
-## or bush (`plants`), a boulder, path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {}
-## when it meets nothing. It passes through the plants in `taken`, which a stroke has already taken, and the easels and
-## boulders by id in `gone`.
+## With its `point`: a pick's own target (wall, fitting, stairs), `plants`, `easel`, `boulder`, `laid` (path or stone
+## ground) or `mow` (brush radius). It passes through the plants in `taken` and the easels and boulders by id in `gone`.
 func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var hits := world.pick(origin, dir, {World.Kind.GROUND: REACH, World.Kind.EASEL: REACH, World.Kind.TARGET: REACH, World.Kind.BOULDER: REACH, World.Kind.PLANT: REACH, World.Kind.STAIRS: REACH}, taken.merged(gone), [World.Kind.EASEL, World.Kind.TARGET])
 	if hits.is_empty():
@@ -180,8 +169,6 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 		Cues.play(Cues.Act.DELETE_SWEEP, _cuts[who].ray[2], who as XRController3D)
 
 
-## The trigger is still held by `who`, its ray now from `origin` along `dir`: takes what the rays since the last
-## one meet into the stroke and returns what this one aims at (see `aim`).
 func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	var cut: Dictionary = _cuts.get(who, {})
 	if cut.is_empty():
@@ -212,9 +199,8 @@ static func _gone(cut: Dictionary) -> Dictionary:
 	return cut.easels.merged(cut.boulders)
 
 
-## How many rays a stroke takes between two where they strike `metres` apart: STEP apart, or over the ground half a
-## mowing ring of `mow` metres apart, which every plant's ragged reach still covers, so a wide ring is not mown again
-## and again in one swipe.
+## Over the ground half a mowing ring apart, which every plant's ragged reach still covers, so a wide ring is not
+## mown again and again in one swipe.
 static func steps(metres: float, mow := 0.0) -> int:
 	return clampi(ceili(metres / maxf(STEP, mow * 0.5)), 1, MAX_STEPS)
 
@@ -231,7 +217,7 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 			taken.append(target.value)
 		return target
 	if target.has("fitting"):
-		# A sweep along a wall takes the clutter at its foot or on its top as it goes, and keeps on along the wall.
+		# Clutter met while sweeping a wall is taken without ending the sweep.
 		var along: bool = target.key == "clutter" and cut.wall.get("wall") == target.wall
 		if along:
 			sweep(cut, origin, dir)
@@ -278,8 +264,8 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	return target
 
 
-## Shows the plants under a ring at `at` taken, on this machine only, until the stroke's command comes back. Plants
-## parted to nothing by a path or stone are left, so lifting that brings them back.
+## On this machine only, until the stroke's command comes back. Plants parted to nothing by a path or stone are left,
+## so lifting that brings them back.
 func _mow(cut: Dictionary, at: Vector3, radius: float) -> void:
 	for p in flora.plants_near(at, radius):
 		var reach := radius * (1.0 - RAGGED * float(hash(p.anchor) % 1024) / 1024.0)
@@ -297,15 +283,14 @@ func _show(plants: Array) -> Dictionary:
 	return {"op": "show", "plants": by_group, "on": false}
 
 
-## Starts erasing wall `w` at arc length `s`, a stretch of its own beside any the stroke swept before.
+## `s` is arc length; a stretch of its own beside any the stroke swept before.
 func begin(cut: Dictionary, w: Wall, s: float) -> void:
 	cut.wall = {"wall": w, "id": w.id, "span": cut.walls.get_or_add(w.id, []).size(), "at": s, "last": s}
 	cut.walls[w.id].append(Vector2(s, s))
 	cut.moved[w.id] = true
 
 
-## Follows a ray along the wall being erased; returns where on the wall the ray is nearest and how near (see
-## `Wall.ray_distance`), or {} when the wall is gone.
+## `Wall.ray_distance`'s hit, or {} when the wall is gone.
 func sweep(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var on: Dictionary = cut.wall
 	var w: Wall = on.wall
@@ -326,9 +311,6 @@ func _standing(w: Wall) -> bool:
 	return is_instance_valid(w) and walls.find(w.id) == w and world.state.walls.has(w.id)
 
 
-## Sends the stroke as one command: the plants taken, the paths and stone lifted, and per wall a reshape breaking
-## the swept stretches away, or the whole wall when nothing would stand. Walls and plants are drawn as the garden
-## has them again once the command is settled.
 func let_go(who: Object) -> void:
 	var cut: Dictionary = _cuts.get(who, {})
 	_cuts.erase(who)
@@ -414,8 +396,7 @@ func let_go(who: Object) -> void:
 		world.submit({"op": "batch", "cmds": cmds.slice(0, Commands.MAX_BATCH)}, settle)
 
 
-## Wall `id`'s ruins as the garden has them once the stretches `spans` break away (unwrapped round a loop), or
-## none when the whole wall goes. A fence, house or tower goes whole.
+## `spans` unwrapped round a loop. Empty when the whole wall goes, as a fence, house or tower always does.
 func _ruins(id: int, spans: Array) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	var w := walls.find(id)
@@ -431,8 +412,7 @@ func _ruins(id: int, spans: Array) -> Array[Vector2]:
 	return left
 
 
-## Shows the walls the stroke moved on broken as it would leave them, on this machine only, until its command
-## comes back: once a frame, however many rays the frame took.
+## On this machine only, until the command comes back; once a frame, however many rays the frame took.
 func _preview(cut: Dictionary) -> void:
 	for id: int in cut.moved:
 		var w := walls.find(id)
@@ -447,7 +427,7 @@ func _preview(cut: Dictionary) -> void:
 	cut.moved.clear()
 
 
-## The same ring used for mowing encloses a fitting, or the whole building a body hit would take.
+## The mowing ring, reused to enclose a fitting, or the whole building a body hit would take.
 func show_target(ring: MeshInstance3D, target: Dictionary, eye: Vector3) -> void:
 	ring.visible = false
 	if target.has("mow"):

@@ -1,53 +1,46 @@
 class_name Masonry
 extends Node3D
 
-## Settled pieces of every build, drawn per ground chunk: one MultiMesh per kind of piece per chunk, so a
-## glade full of walls costs a few draw calls per chunk rather than several per wall, and a chunk out of
-## view is culled whole. Pieces still changing (a wall being drawn or pulled, ivy still growing) stay with
-## their owner until they settle.
+## Settled pieces drawn per ground chunk, one MultiMesh per kind per chunk, so a glade of walls costs a few draw
+## calls per chunk rather than several per wall. Pieces still changing stay with their owner until they settle.
 
-## A chunk is also the step of culling and of reach: the renderer culls a chunk's MultiMesh as a whole, by its
-## bounds, so each piece goes to the chunk under it, however long the wall it belongs to. A chunk any of whose pieces
-## may stand near draws both its near and its far instance, each of them the pieces on its own side of the near
-## distance from the eye (`piece_range`, piece.gdshaderinc): drawn whole a chunk at a time, the near meshes of every
-## piece within a chunk's diagonal of the eye cost the Quest 2 most of its masonry's time among houses. Every chunk
-## drawn costs a draw call, so a kind cut by distance (`Kind.ranged`) is chunked by FINE, and its far mesh is drawn by
-## COARSE chunks once a whole one is past the near distance; the rest, drawn at every distance, by COARSE (see "What
-## walls cost the Quest 2" in docs/design.md).
+## The renderer culls a chunk's MultiMesh whole, so each piece goes to the chunk under it. A near chunk draws both its
+## near and far instance, each only the pieces on its side of the near distance (`piece_range`, piece.gdshaderinc):
+## drawing whole chunks near cost the Quest 2 most of its masonry time among houses. Each chunk is a draw call, so a
+## ranged kind is chunked by FINE with its far mesh drawn by COARSE chunks wholly past the near distance; the rest by
+## COARSE ("What walls cost the Quest 2", docs/design.md).
 const FINE := 8.0
 const COARSE := 16.0
 const FINE_PER_COARSE := int(COARSE / FINE)
-## How tall a chunk's pieces are taken to stand when its draw distances allow for its size; a taller build's top
-## swaps to its far mesh a little early.
+## Assumed height of a chunk's pieces in its draw distances; a taller build's top swaps to its far mesh early.
 const TALL := 9.0
 
-## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
-## once it is gone.
+## An owner's occluding pieces changed; empty arrays once it is gone.
 signal placed(owner: int, buffers: Array[PackedFloat32Array], strides: PackedInt32Array)
 
 
-## How one kind of piece is drawn. An instance is 12 transform floats, then 4 colour floats and 4 custom
-## floats (occlusion, then the code of its palette material) when the kind uses them.
+## An instance is 12 transform floats (basis rows with origin), then when used 4 colour floats and 4 custom floats:
+## occlusion, palette material code, the turn of its -x end, the turn of its +x end (stone.gdshaderinc).
 class Kind:
 	var mesh: Mesh
 	var material: Material
 	var colors: bool
 	var custom: bool
 	var shadow: GeometryInstance3D.ShadowCastingSetting
-	## Whether its pieces shade the light around them (Bounce); such a kind uses colours.
+	## Its pieces shade the light around them (Bounce).
 	var occludes: bool
-	## Metres beyond which a piece is not seen, so a settled chunk wholly past it is not drawn; 0 for no limit.
+	## Metres beyond which a piece is not drawn; 0 for no limit.
 	var reach := 0.0
-	## Drawn instead of `mesh` for a settled piece beyond `near` metres of the eye; null to draw `mesh` at every distance.
+	## Drawn instead of `mesh` beyond `near` metres of the eye; null for `mesh` at every distance.
 	var far: Mesh
-	## What `far` is drawn in; null to draw it in `material`.
+	## Null to draw `far` in `material`.
 	var far_material: Material
-	## What a baked far chunk is drawn in (`bake`): `far_material`'s or `material`'s shader built with BAKED.
+	## For a baked far chunk (`bake`): `far_material`'s or `material`'s shader built with BAKED.
 	var far_baked: Material
 	var _far_surface: Array = []
 	var near := 0.0
-	## The longest a piece of it is laid, in metres: its mesh's level of detail is keyed in the mesh's own units
-	## (Meshes.lod_error), so a chunk scales that key by it and swaps none sooner than its error allows.
+	## The longest a piece is laid, in metres: LOD is keyed in the mesh's own units (Meshes.lod_error), so this is
+	## each chunk's lod_bias.
 	var size := 1.0
 
 	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting, occluding := false) -> void:
@@ -59,7 +52,7 @@ class Kind:
 		shadow = cast
 		occludes = occluding
 
-	## `far`'s vertices, normals and indices, read once on the main thread so `bake` can run on a worker.
+	## [vertices, normals, indices], read once on the main thread so `bake` can run on a worker.
 	func far_surface() -> Array:
 		if _far_surface.is_empty():
 			var a := far.surface_get_arrays(0)
@@ -74,18 +67,16 @@ class Kind:
 		if mm.instance_count > 0:
 			mm.buffer = buf
 
-	## Whether it is drawn only so far, or coarser beyond a distance.
 	func ranged() -> bool:
 		return far != null or reach > 0.0
 
-	## The side of its chunks, in metres.
+	## Chunk side, metres.
 	func cell() -> float:
 		return FINE if ranged() else COARSE
 
-	## How far its pieces reach from the centre of a chunk's bounds, where the renderer measures its distance: half
-	## the diagonal of a chunk holding the tallest wall on flat ground. A roof or slope standing higher can switch its
-	## top stones to the far mesh a little inside the near distance, which only the ladder's lowest steps ever bring
-	## close.
+	## From the centre of a chunk's bounds, where the renderer measures distance: half the diagonal of a chunk holding
+	## a TALL wall on flat ground. Anything higher swaps its top to the far mesh slightly inside the near distance,
+	## which only the ladder's lowest steps bring close.
 	func radius() -> float:
 		return Masonry.radius(cell())
 
@@ -136,13 +127,11 @@ class Kind:
 		return mmi
 
 
-## One kind's pieces in one chunk.
 class Chunk:
 	var instance: MultiMeshInstance3D
-	## Its far instance, null for a kind without one.
+	## Null for a kind without a far mesh.
 	var far: MultiMeshInstance3D
-	## Its whole instance for a photo, sharing `instance`'s multimesh at every distance (Quality.FULL_LAYER), null
-	## for a kind drawn whole anyway.
+	## For a photo: `instance`'s multimesh at every distance (Quality.FULL_LAYER); null for an unranged kind.
 	var full: MultiMeshInstance3D
 	## Owner id -> its buffer.
 	var parts := {}
@@ -152,21 +141,19 @@ var kinds: Array[Kind]
 ## (chunk x, chunk z, kind) -> Chunk.
 var _chunks := {}
 var _dirty := {}
-## Instances placed, by kind, kept as they are placed.
+## By kind index.
 var _counts := PackedInt32Array()
-## Coarse chunks whose fine chunks were drawn again since they were.
+## Coarse chunks whose fine chunks were redrawn since they were.
 var _coarse_dirty := {}
 ## Owner id -> the chunks holding its pieces.
 var _owners := {}
-## (COARSE chunk x, z, kind) -> the far instance of the FINE chunks under it of a kind with a far mesh, drawn in their
-## place once the whole COARSE chunk is past the near distance. Each FINE chunk's near and far instances draw only
-## while it is not (`visibility_parent`), so no piece is drawn twice or missed.
+## (COARSE chunk x, z, kind) -> the far instance of the FINE chunks under it, drawn in their place once the whole
+## COARSE chunk is past the near distance; theirs draw only while it is not (`visibility_parent`).
 var _coarse := {}
-## Whether COARSE far chunks are baked into one mesh each (`bake`): settled masonry only, a live wall's changing
-## every frame.
+## Bake COARSE far chunks into one mesh each (`bake`): settled masonry only, a live wall changes every frame.
 var _bakes := false
-## COARSE key -> [the worker task baking it, an array its mesh arrays land in]; and the buffer to bake next for a key
-## whose pieces changed while it baked.
+## COARSE key -> [worker task id, array its `bake` result lands in]; and the buffer to bake next for a key whose
+## pieces changed while it baked.
 var _baking := {}
 var _rebake := {}
 
@@ -178,8 +165,7 @@ func _init(piece_kinds: Array[Kind], baked := false) -> void:
 	set_process(false)
 
 
-## Splits a buffer of `kind`'s instances by the chunk under each: chunk key -> buffer. Reads nothing but its
-## arguments, so it runs on a worker thread.
+## Chunk key -> that chunk's instances of `buf`. Reads only its arguments, so it runs on a worker thread.
 static func split(buf: PackedFloat32Array, kind: Kind) -> Dictionary:
 	var out := {}
 	var stride := kind.stride()
@@ -203,19 +189,17 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 	out[key] = have
 
 
-## The owner of path `id`'s pieces: negative, clear of the walls', which are their nodes' instance ids, and of the
-## stairs' while stair ids stay under a million.
+## Negative, clear of the walls' (their nodes' instance ids) and of the stairs' while stair ids stay under a million.
 static func path_owner(id: int) -> int:
 	return -2000000 - id
 
 
-## The owner of stair `id`'s pieces, between the walls' and the paths'.
+## Between the walls' and the paths' owners.
 static func stair_owner(id: int) -> int:
 	return -1000000 - id
 
 
-## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before. Only
-## the chunks whose pieces changed are drawn again, and the light is told only when its occluders changed.
+## `parts`: one `split` result per kind, in `kinds` order; replaces what `owner` placed before.
 func place(owner: int, parts: Array[Dictionary]) -> void:
 	assert(parts.size() == kinds.size(), "one split buffer per kind")
 	var keys := {}
@@ -271,12 +255,11 @@ static func _coarse_key(key: Vector3i) -> Vector3i:
 	return Vector3i(floori(float(key.x) / FINE_PER_COARSE), floori(float(key.y) / FINE_PER_COARSE), key.z)
 
 
-## Instances placed, by kind: what the build costs to render.
 func counts() -> PackedInt32Array:
 	return _counts.duplicate()
 
 
-## The instances drawing `kind`'s pieces near or far, for measuring what each costs.
+## For measuring what each costs.
 func parts(kind: int, near: bool, far: bool) -> Array[GeometryInstance3D]:
 	var out: Array[GeometryInstance3D] = []
 	for key: Vector3i in _chunks:
@@ -340,7 +323,7 @@ func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
 	return _coarse[key]
 
 
-## Puts every chunk's instances within its kind's reach and near distance, after either changed.
+## Call after a kind's `reach` or `near` changes.
 func set_ranges() -> void:
 	for key: Vector3i in _chunks:
 		_ranges(key)
@@ -396,7 +379,7 @@ func _exit_tree() -> void:
 	_rebake.clear()
 
 
-## Whether every chunk holding `owner`'s pieces is drawn as they stand.
+## Whether every chunk holding `owner`'s pieces is drawn as they now stand.
 func drawn(owner: int) -> bool:
 	for key: Vector3i in _owners.get(owner, []):
 		if _dirty.has(key) or _coarse_dirty.has(_coarse_key(key)):
@@ -404,8 +387,8 @@ func drawn(owner: int) -> bool:
 	return true
 
 
-## Draws the chunks changed since, all of them, or with `budget_us` as many as fit that many microseconds (one at
-## least) and the rest in the frames after: each chunk swaps its stones whole, so none blink out between.
+## With `budget_us`, as many changed chunks as fit (one at least), the rest in later frames: each chunk swaps its
+## stones whole, so none blink out between.
 func flush(budget_us := INF) -> void:
 	var start := Time.get_ticks_usec()
 	for key: Vector3i in _dirty.keys():
@@ -450,8 +433,7 @@ func _start_bake(key: Vector3i, buf: PackedFloat32Array) -> void:
 	_baking[key] = [WorkerThreadPool.add_task(func() -> void: out.append(bake(buf, kind))), out]
 
 
-## Draws COARSE chunk `key` from its baked `arrays` (`bake`), or while they are empty, from its instances: the baked
-## mesh stands in for them only once it holds every piece they do.
+## Empty `arrays` draws from the instances: the baked mesh stands in only once it holds every piece they do.
 func _show_baked(key: Vector3i, arrays: Array) -> void:
 	var baked := _baked(key)
 	var mm: MultiMesh = _coarse[key].multimesh
@@ -471,11 +453,10 @@ func _show_baked(key: Vector3i, arrays: Array) -> void:
 const BAKED_FORMAT := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT)
 
 
-## `buf`'s pieces of `kind` as one mesh of its far mesh, [Mesh arrays, their bounds]: each vertex carries its piece's
-## frame and custom data (piece.gdshaderinc), so the chunk draws without instancing. On the Quest 2, with the fixed
-## foveation map applied, every tile of the frame shades every instanced vertex in view, so far masonry cost the
-## frame several times its unfoveated price; baked, it shades only what each tile holds ("Far masonry under the
-## foveation map" in docs/design.md). Reads nothing but its arguments, so it runs on a worker thread.
+## Returns [mesh arrays, bounds]; each vertex carries its piece's frame and custom data (piece.gdshaderinc). On the
+## Quest 2 under fixed foveation every tile shades every instanced vertex in view, so instanced far masonry cost
+## several times its unfoveated price; baked, each tile shades only what it holds ("Far masonry under the foveation
+## map", docs/design.md). Reads only its arguments, so it runs on a worker thread.
 static func bake(buf: PackedFloat32Array, kind: Kind) -> Array:
 	assert(kind.colors and kind.custom, "a baked piece carries its colour and custom data")
 	var surface := kind.far_surface()

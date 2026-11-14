@@ -1,38 +1,34 @@
 class_name Grazers
 extends Node3D
 
-## Animals that walk in from out of sight in bands, graze where their band keeps to, stand and look about, walk on
-## to fresh grass, run from a fright and settle, eat food held out to them, and leave, out of sight, as a band:
-## the sheep at fences (`Herds`) and the deer and fox at the meadow's rim (`Roamers`). Each keeps out of water,
-## off paths and paving, clear of walls, houses, towers and trunks, and never walks through a wall or into water.
-## Part of `Wildlife`, which decides when they come and where nobody is looking.
+## Bands that walk in and leave out of sight: `Herds` and `Roamers`. `Wildlife` decides when they come and where
+## nobody is looking.
 
 enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED }
-## How an animal shows what it does; each kind poses these its own way.
+## Each kind poses these its own way.
 enum Motion { IDLE, GRAZE, STEP, WALK, RUN, LIE }
 
 const TURN := 3.0
-## The pace, in metres a second, an animal keeps while it turns to face the way it goes, so it shuffles a step back
-## or aside to food without stopping to wheel round; it gets up to any faster pace only once it faces the way.
+## Metres a second kept while turning to face the way, so it shuffles back or aside to food without wheeling round.
 const SIDLE := 0.3
-## A grazing animal steps on this far every so often.
+## Metres, least and most, a grazing animal steps on every so often.
 const NIBBLE_STEP := Vector2(0.2, 0.6)
 ## Seconds before a cornered animal looks again for a way to run.
 const RETRY := 1.0
-## The chance, once a spell of grazing ends, of walking on rather than looking up.
+## Chance, once grazing ends, of walking on rather than looking up.
 const WALK_CHANCE := 0.45
 
 var wildlife: Wildlife
 var bands: Array[Band] = []
 var rng := RandomNumberGenerator.new()
-## How long a spell of grazing lasts, and how long a band rests where it is once one ends.
+## Seconds, least and most.
 var graze_for := Vector2(6.0, 16.0)
 var stand_for := Vector2(3.0, 8.0)
-## The chance, once a spell of grazing ends, of lying down rather than looking up.
+## Chance, once grazing ends, of lying down rather than looking up.
 var lie_chance := 0.0
-## Fresh grass lies this far from where an animal is.
+## Metres, least and most, to fresh grass.
 var roam := Vector2(1.5, 4.5)
-## How far a fright sends one.
+## Metres, least and most.
 var flee_reach := Vector2(2.5, 4.0)
 
 
@@ -65,8 +61,7 @@ func tick(delta: float) -> void:
 			bands.remove_at(i)
 
 
-## Sends any animal whose ground or way has been built on, dug out or reshaped since it chose it to ground it can
-## reach.
+## Re-routes any animal whose ground or way is no longer walkable.
 func look() -> void:
 	for b in bands:
 		if _leaving(b):
@@ -79,17 +74,16 @@ func look() -> void:
 				break
 
 
-## Where a kind sends a band off once it should not stay.
+## Override to send a band off once it should not stay.
 func _keep(_b: Band, _delta: float) -> void:
 	pass
 
 
-## Whether `p` is where band `b` keeps to.
 func _within(_b: Band, _p: Vector3) -> bool:
 	return true
 
 
-## Somewhere band `b` keeps to, picked at random.
+## A random point where band `b` keeps to.
 func _anywhere(_b: Band) -> Vector3:
 	return Vector3.ZERO
 
@@ -102,7 +96,7 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 	return null
 
 
-## What a fright does to one neither entering nor fleeing.
+## Called each tick for one neither entering, fleeing nor leaving.
 func _alarm(_b: Band, _a: Node3D, _delta: float) -> void:
 	pass
 
@@ -111,36 +105,33 @@ func _lie(_a: Node3D) -> void:
 	pass
 
 
-## The level way off from a fright at `from`.
+## Flat unit direction away from `from`.
 func _away(a: Node3D, from: Vector3) -> Vector3:
 	var off := a.position - from
 	off.y = 0.0
 	return off.normalized() if off.length() > 0.01 else _forward(a)
 
 
-## Somewhere a fright may send an animal of band `b`.
 func _refuge(_b: Band, _p: Vector3) -> bool:
 	return true
 
 
-## Once a fright is over: stood still a while, or watching.
 func _after_flight(a: Node3D) -> void:
 	a.state = State.STAND
 	a.timer = rng.randf_range(4.0, 8.0)
 
 
-## What a settled animal does besides, such as a call now and then.
+## Override for extras such as a call now and then.
 func _settled_tick(_a: Node3D, _delta: float) -> void:
 	pass
 
 
-## A state only some kinds have.
+## Ticks a state only some kinds have.
 func _other(_b: Band, _a: Node3D, _delta: float) -> void:
 	pass
 
 
-## Walks band `b`'s animals in toward `first` from out of sight, `n` of them made by `make` and spaced `gap` apart
-## along a clear way, each to a spot of its own near `first`. False, with none made, if there is no such way.
+## False, with none made, if there is no clear way in from out of sight.
 func _walk_in(b: Band, first: Vector3, n: int, walk_from: float, gap: float, make: Callable) -> bool:
 	var starts := PackedVector3Array()
 	for attempt in 12:
@@ -172,8 +163,6 @@ func _walk_in(b: Band, first: Vector3, n: int, walk_from: float, gap: float, mak
 	return true
 
 
-## Whether animals walking in from `starts` begin out of sight, inside the garden, and meet no wall or water on
-## their way to `first`.
 func _starts_ok(first: Vector3, starts: PackedVector3Array) -> bool:
 	for at in starts:
 		if maxf(absf(at.x), absf(at.z)) > Wildlife.EDGE or wildlife._in_sight(at):
@@ -251,8 +240,7 @@ func _come_for_food(a: Node3D) -> void:
 	a.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
 
 
-## Up to the food, held out calmly or thrown, and eating it with the mouth at it. Food put away or eaten, or a
-## hand that leads where it may not go, leave it standing.
+## Food put away or eaten, or a hand that leads where it may not go, leaves it standing.
 func _eat(a: Node3D, delta: float) -> void:
 	if not wildlife.feeds(a.hand, a):
 		_fed(a)
@@ -295,8 +283,7 @@ func _back_off(a: Beast) -> void:
 		a.state = State.WALK
 
 
-## Whether a beast standing at `spot` can stretch its neck to food `h` in a hand; any other food or animal needs no
-## stretch.
+## Only a Beast reaching food in a hand needs the stretch.
 func _neck_reaches(a: Node3D, h: Node3D, spot: Vector3) -> bool:
 	return not (a is Beast and Wildlife.in_hand(h)) or a.neck.reachable(a, h, spot.y)
 
@@ -325,7 +312,6 @@ func _fed(a: Node3D) -> void:
 		_stand(a)
 
 
-## Whether a grazing animal is still stepping to the grass it chose.
 func _off_goal(a: Node3D) -> bool:
 	return Vector2(a.goal.x - a.position.x, a.goal.z - a.position.z).length() > 1e-3
 
@@ -351,8 +337,7 @@ func _graze(a: Node3D) -> void:
 	a.goal = a.position
 
 
-## Off to fresh grass nearby, else anywhere its band keeps to that it can walk to; else, if it stands on grass it
-## may, it grazes there, and if not, its band leaves. False unless it walks off.
+## Failing a spot to walk to, it grazes where it stands if it may, else its band leaves. False unless it walks off.
 func _walk_on(b: Band, a: Node3D) -> bool:
 	var to: Variant = _spot(b, a, a.position, roam.y, roam.x)
 	if to == null:
@@ -368,8 +353,6 @@ func _walk_on(b: Band, a: Node3D) -> bool:
 	return false
 
 
-## Off from a fright at `from`, leaving any food, to ground it may run to; cornered, it stands where it is and looks
-## again in a while.
 func _flee(b: Band, a: Node3D, from: Vector3) -> void:
 	if a.hand != null:
 		_fed(a)
@@ -390,7 +373,6 @@ func _leaving(b: Band) -> bool:
 	return b.animals[0].state == State.LEAVE
 
 
-## The band sets off away from the viewer's gaze, all one way where that way is clear for each.
 func _leave(b: Band) -> void:
 	var heading := wildlife._unseen_direction(b.animals[0].position, Wildlife.WALK_AWAY, 0.0, Wildlife.LEAVE_SIGHT, rng)
 	for a in b.animals:
@@ -406,8 +388,7 @@ func _free(b: Band) -> void:
 		a.queue_free()
 
 
-## A leaving band is let go once every one is out of sight and some way off, as a duck family is; one that has
-## stopped, walled in or at the edge of the garden, once out of sight.
+## Each must be out of sight and Wildlife.GONE off, or merely out of sight once stopped (walled in) or at the edge.
 func _gone(b: Band) -> bool:
 	for a in b.animals:
 		var stopped := not _off_goal(a)
@@ -416,8 +397,7 @@ func _gone(b: Band) -> bool:
 	return true
 
 
-## True once it is there; it shows `motion` on the way, paced to the ground covered. It gets to its feet and turns
-## to face the way before it goes at `speed`.
+## True once there. Reaches `speed` only once upright and facing the way.
 func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.WALK) -> bool:
 	var to := Vector3(goal.x - a.position.x, 0, goal.z - a.position.z)
 	var d := to.length()
@@ -438,8 +418,6 @@ func _forward(a: Node3D) -> Vector3:
 	return ahead.normalized()
 
 
-## Animals of a band nudge apart where they overlap, never into anything they keep out of; of two settled ones
-## crowding each other, one soon walks on.
 func _part(b: Band, delta: float) -> void:
 	if _leaving(b):
 		return
@@ -463,8 +441,6 @@ func _part(b: Band, delta: float) -> void:
 			_nudge(b, q, push)
 
 
-## Moves `a` by `by` unless it is walking in or lying, or that would take it onto ground it keeps off or out of
-## where its band keeps to.
 func _nudge(b: Band, a: Node3D, by: Vector3) -> void:
 	if a.state == State.ENTER or a.state == State.LIE:
 		return
@@ -480,8 +456,7 @@ func _settled(a: Node3D) -> bool:
 	return a.state == State.GRAZE or a.state == State.STAND or a.state == State.LIE
 
 
-## Ground band `b` keeps to: near `near` (within `reach`, at least `least` off) if given, else anywhere it keeps
-## to; one `a` can walk to in a straight line. Null when none is found.
+## Null `near` for anywhere the band keeps to; null `a` skips the straight-line check. Null when none is found.
 func _spot(b: Band, a: Node3D, near: Variant = null, reach := 0.0, least := 0.0) -> Variant:
 	for attempt in 16:
 		var p: Vector3 = _anywhere(b) if near == null else near + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(least, reach)
@@ -493,7 +468,6 @@ func _spot(b: Band, a: Node3D, near: Variant = null, reach := 0.0, least := 0.0)
 	return null
 
 
-## Whether another of the band stands, or is headed, too near `p` for `a` to stand there too.
 func _crowded(b: Band, a: Node3D, p: Vector3) -> bool:
 	for o in b.animals:
 		if o == a:

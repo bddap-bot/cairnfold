@@ -1,11 +1,8 @@
 class_name HandStop
 extends Node
 
-## The hands you see stop at what is solid, as in Half-Life: Alyx: the tracked controller carries on into a wall,
-## the ground, a roof, a trunk or an animal while its hand stays at the surface, slides along it and catches up as
-## soon as the way back is clear. Tools keep aiming, pointing and grabbing from the tracked controller. What the
-## hand touches it feels through one table, FEEL: a first touch pulses with how fast the hand came in, and moving
-## along a surface, or through leaves and water, which the hand passes, plays that surface's grain.
+## The hand you see stops at what is solid while the tracked controller carries on, sliding along and catching up once
+## the way back is clear; tools still aim, point and grab from the tracked controller.
 
 enum Surface { NONE, GROUND, STONE, PLASTER, WOOD, TILE, BARK, LEAVES, WATER, WOOL, DOWN, FEATHERS }
 
@@ -35,11 +32,10 @@ const RADIUS := 0.03
 const STEP := 0.04
 const BISECT := 5
 const SLIDES := 3
-## How far past a stop the surface's facing is read, well over the bisection's last step.
+## Past a stop, where the surface's facing is read: well over the bisection's last step.
 const PROBE := 0.002
-## A hand held further than this from its controller lets go and jumps back to it.
 const BREAK := 1.0
-## How much wider than a frame's sweep the world round a hand is gathered, so a moving hand keeps it a while.
+## Margin over a frame's sweep that the world is gathered, so a moving hand keeps it a while.
 const SPARE := 0.2
 const ROOF_SHELL := 0.14
 const FENCE_HALF := 0.06
@@ -48,7 +44,7 @@ const FENCE_HALF := 0.06
 var eyes := true
 var _world: World
 var _rig: Rig
-## Per hand, where its ball was last frame, in the rig's space so locomotion carries it along.
+## Per hand, last frame's ball, in the rig's space so locomotion carries it along; INF when untracked.
 var _held: Array[Vector3] = []
 var _feels: Array[Feel] = []
 var _gathered: Array[Near] = []
@@ -98,9 +94,8 @@ func _process(delta: float) -> void:
 	_rig.inside = not seen in [Surface.NONE, Surface.LEAVES, Surface.WATER]
 
 
-## The world round `box` for hand `i`, or the eyes after the hands: what was gathered last time while the box stays inside the region it was
-## gathered for and nothing planted since nor built there, else gathered afresh for a region SPARE wider. A wall laid
-## anywhere is checked against the region only once, so a stroke laying walls elsewhere costs no gathering.
+## `i` past the hands is the eyes. A wall laid anywhere is checked against the region only once, so a stroke laying
+## walls elsewhere costs no gathering.
 func _near_for(i: int, box: AABB) -> Near:
 	var w := _world
 	var stamp := Vector4i(WallLayout._laid_count, w.wall_tool.walls.size() if w.wall_tool != null else 0, w.flora.changes if w.flora != null else 0, w.boulders.changes if w.boulders != null else 0)
@@ -113,10 +108,8 @@ func _near_for(i: int, box: AABB) -> Near:
 	return near
 
 
-## Where a ball moving from `from` toward `to` comes to rest: `to` if the way is clear, else at the first surface it
-## meets and then slid along it, the rest of the move turned along the surface's `normal`, a few times over to
-## settle into corners. A ball that starts inside something is let go, so a build raised round a hand, or an animal
-## walking into it, cannot trap it.
+## Slides up to SLIDES times to settle into corners. A ball that starts inside something is let go, so a build raised round
+## a hand, or an animal walking into it, cannot trap it.
 static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable, step := STEP) -> Vector3:
 	if solid.call(from):
 		return to
@@ -154,9 +147,7 @@ static func _sweep(from: Vector3, to: Vector3, solid: Callable, step: float) -> 
 	return to
 
 
-## A hand's pulses from what it touches each frame: the surface it is held at, or else the one it passes through. A
-## touch after the hand has been clear a moment pulses with its approach speed and the surface's hardness, and leaving
-## it pulses its `leave` once; moving on plays the surface's grain. Each pulse is [amplitude, seconds], 0 for none.
+## Each pulse is (amplitude, seconds), amplitude 0 for none.
 class Feel:
 	## Clear this long before a contact counts as a new touch, so a hand resting at a surface does not buzz.
 	const CLEAR := 0.12
@@ -199,10 +190,8 @@ class Feel:
 		return out
 
 
-## The world within a box, gathered once a frame per hand so each test along the sweep checks only the few pieces
-## of wall, roof, tree and animal that can be there.
+## Gathered per hand so each test along the sweep checks only the few pieces that can be there.
 class Near:
-	## The box gathered round.
 	var region: AABB
 	var walls: Array[Piece] = []
 	var _gathered_walls: Array[Piece] = []
@@ -219,7 +208,6 @@ class Near:
 	## Each wall reaching `region` when gathered, as [wall, layout, its laying, roof]: what `walls_hold` compares.
 	var _walls_seen: Array[Array] = []
 
-	## What of `world`'s builds, plants and boulders reaches `box`, over its ground.
 	static func gather(world: World, box: AABB) -> Near:
 		var near := Near.new()
 		near.region = box
@@ -251,7 +239,6 @@ class Near:
 					near.boulders.append(b)
 		return near
 
-	## Whether the walls reaching `region` are the ones gathered, each laid as it was then.
 	func walls_hold(on: WallTool) -> bool:
 		return on == null or _walls_reaching(on, region) == _walls_seen
 
@@ -262,7 +249,7 @@ class Near:
 				out.append([w, w.layout, w.layout.laid, w.roof])
 		return out
 
-	## Narrows the walls tested to those reaching `box`, a frame's sweep, and gathers the animals there, which move.
+	## Per frame's sweep `box`: animals move, so they are gathered here rather than in `gather`.
 	func focus(box: AABB, critters: Array) -> void:
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
 		walls.clear()
@@ -292,18 +279,18 @@ class Near:
 		if l.closed and n > 1 and _off(l.samples[n - 1], reach) <= Vector2(l.samples[0].x - l.samples[n - 1].x, l.samples[0].z - l.samples[n - 1].z).length():
 			walls.append(Piece.new(l, n - 1, 0, half))
 
-	## How far outside `r` the ground point under `p` lies, along x or z whichever is further.
+	## `r` is in the ground plane (x, z).
 	static func _off(p: Vector3, r: Rect2) -> float:
 		return maxf(maxf(r.position.x - p.x, p.x - r.end.x), maxf(maxf(r.position.y - p.z, p.z - r.end.y), 0.0))
 
 	func solid(p: Vector3) -> bool:
 		return touch(p) != Surface.NONE
 
-	## Which way the surface faces whose inside holds `p`, or zero outside everything solid.
+	## Vector3.ZERO outside everything solid.
 	func normal(p: Vector3) -> Vector3:
 		return facing if touch(p, true) != Surface.NONE else Vector3.ZERO
 
-	## What solid thing a ball at `p` is in, or NONE; `with_facing` leaves the way its surface faces in `facing`.
+	## `with_facing` leaves the way the surface faces in `facing`.
 	func touch(p: Vector3, with_facing := false) -> Surface:
 		if p.y - RADIUS < terrain.shown_at(p.x, p.z):
 			if with_facing:
@@ -342,14 +329,12 @@ class Near:
 				return Surface.STONE
 		return _in_ellipsoids(p, animals, with_facing)
 
-	## Up from a height field at (p.x, p.z), tipped with its slope.
 	static func _slope(p: Vector3, height: Callable) -> Vector3:
 		var e := 0.02
 		var dx: float = height.call(p.x + e, p.z) - height.call(p.x - e, p.z)
 		var dz: float = height.call(p.x, p.z + e) - height.call(p.x, p.z - e)
 		return Vector3(-dx, 2.0 * e, -dz).normalized()
 
-	## What a ball at `p` passes through: leaves or pond water, or NONE.
 	func passing(p: Vector3) -> Surface:
 		if p.y < terrain.water_at(p.x, p.z):
 			return Surface.WATER
@@ -394,7 +379,7 @@ class Near:
 		return true
 
 
-## A straight piece of a wall's ground curve, between two of its samples.
+## A straight piece of a wall's ground curve.
 class Piece:
 	var layout: WallLayout
 	var a: Vector2

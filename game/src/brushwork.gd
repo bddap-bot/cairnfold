@@ -1,11 +1,9 @@
 class_name Brushwork
 extends RefCounted
 
-## What a painted stroke is, as plain data every machine reads alike: the medium, the brush, the paint on it, and
-## its samples (where the tip touched the canvas, how hard, at which tick of the canvas's simulation). `Stroker`
-## turns samples into the dabs the canvas's compute shader lays (paint.glsl), the same dabs on every machine and on
-## every replay of a kept painting. Colours are optical densities (absorbance per channel, Beer-Lambert), so paint
-## mixes on the brush and glazes on the canvas subtractively: blue and yellow make green, layers darken.
+## A stroke is plain data every machine reads alike; `Stroker` turns its samples into the dabs paint.glsl lays, the same
+## on every machine and every replay of a kept painting. Colours are optical densities (absorbance per channel,
+## Beer-Lambert), so paint mixes and glazes subtractively: blue and yellow make green, layers darken.
 
 enum Medium { WATER, OIL, CHARCOAL, SMEAR }
 enum Brush { SMALL, BIG, FLAT, STICK, THIN_STICK, THICK_STICK }
@@ -27,7 +25,7 @@ const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), B
 ## The charcoal sticks, long and thin to short and thick, by their radius and length in metres; the radius sets the
 ## mark's width and the length how far a stick on its side reaches.
 const STICKS := {Brush.THIN_STICK: Vector2(0.0035, 0.24), Brush.STICK: Vector2(0.0065, 0.15), Brush.THICK_STICK: Vector2(0.011, 0.08)}
-## How far a tool pushed past the surface it paints on presses fully (`pressure`).
+## Metres past the surface at which a tool presses fully.
 const PRESS_DEPTH := 0.02
 ## Dabs are laid this fraction of their radius apart.
 const SPACING := 0.2
@@ -63,7 +61,6 @@ static func absorbance(c: Color) -> Vector3:
 	return Vector3(-log(maxf(l.r, 0.004)), -log(maxf(l.g, 0.004)), -log(maxf(l.b, 0.004)))
 
 
-## How paper looks under `density` of pigment.
 static func colour(density: Vector3) -> Color:
 	return Color(exp(-density.x), exp(-density.y), exp(-density.z)).linear_to_srgb()
 
@@ -72,34 +69,31 @@ static func is_stick(brush: Brush) -> bool:
 	return STICKS.has(brush)
 
 
-## How hard a tool pushed `depth` metres past the surface it paints presses, 0..1: every tool's one curve from push
-## to mark, eased so a graze stays faint and narrow; a touch at the surface still marks.
+## 0..1 for `depth` in metres; every tool's one curve, eased so a graze stays faint and narrow; a touch at the surface
+## still marks.
 static func pressure(depth: float) -> float:
 	return lerpf(0.05, 1.0, smoothstep(0.0, PRESS_DEPTH, depth))
 
 
-## `brush`'s radius in texels, from a touch to full pressure: a stick's mark is a little wider than the stick.
+## Texels, (touch, full pressure); a stick's mark is a little wider than the stick.
 static func radii(brush: Brush) -> Vector2:
 	if is_stick(brush):
 		return Vector2(0.4, 1.4) * STICKS[brush].x * SIZE.x / METRES.x
 	return RADII[brush]
 
 
-## How far, in texels, `brush` lying on the canvas `side` (0..1) reaches either way from its contact's middle: half a
-## stick's length laid flat, nothing for a brush.
+## Texels either way from the contact's middle, `side` 0..1: half a stick's length laid flat, 0 for a brush.
 static func side_reach(brush: Brush, side: float) -> float:
 	return side * STICKS[brush].y * 0.5 * SIZE.x / METRES.x if is_stick(brush) else 0.0
 
 
-## The shorter turn from footprint angle `from` to `to`: a stick's or a flat brush's footprint looks the same turned
-## half a turn.
+## Within a quarter turn either way: a stick's or a flat brush's footprint looks the same turned half a turn.
 static func turn(from: float, to: float) -> float:
 	return wrapf(to - from, -PI * 0.5, PI * 0.5)
 
 
-## How far `brush`'s footprint moves from `from` to `to` (texels) as it turns from `from_angle` to `to_angle`, a stick
-## lying `side` on the canvas being a line `side_reach` either way of its middle: the farthest any point of it goes,
-## and how far its points go on average.
+## Texels; a stick on its side is a line `side_reach` either way of its middle. Returns (farthest any point goes, mean
+## distance its points go).
 static func sweep(brush: Brush, from: Vector2, from_angle: float, to: Vector2, to_angle: float, side: float) -> Vector2:
 	var moved := to - from
 	var end := side_reach(brush, side) * (Vector2.from_angle(from_angle + turn(from_angle, to_angle)) - Vector2.from_angle(from_angle))
@@ -114,8 +108,8 @@ static func medium_of(brush: Brush, medium: Medium) -> Medium:
 	return Medium.CHARCOAL if is_stick(brush) else (Medium.WATER if medium == Medium.CHARCOAL else medium)
 
 
-## One sample as the two ints a stroke keeps it in: where on the canvas (0..1 each way, to 1/65535), how hard
-## (0..1), footprint angle (0..PI), ticks since the previous sample (0..2047), and charcoal side contact (0..1).
+## Two ints: uv (0..1, to 1/65535), pressure (0..1), footprint angle (0..PI), ticks since the previous sample (0..2047),
+## charcoal side contact (0..1).
 static func pack(uv: Vector2, pressure: float, angle: float, ticks: int, side := 0.0) -> PackedInt32Array:
 	var u := clampi(roundi(clampf(uv.x, 0.0, 1.0) * 65535.0), 0, 65535)
 	var v := clampi(roundi(clampf(uv.y, 0.0, 1.0) * 65535.0), 0, 65535)
@@ -126,7 +120,7 @@ static func pack(uv: Vector2, pressure: float, angle: float, ticks: int, side :=
 	return PackedInt32Array([u | (v << 16), p | (a << 8) | (t << 16) | (side_bits << 27)])
 
 
-## Sample `i` of `samples`: [uv, pressure, angle, ticks, charcoal side contact].
+## [uv, pressure, angle, ticks, charcoal side contact].
 static func unpack(samples: PackedInt32Array, i: int) -> Array:
 	var a := samples[i * 2]
 	var b := samples[i * 2 + 1]
@@ -137,7 +131,7 @@ static func count(stroke: Dictionary) -> int:
 	return stroke.samples.size() / 2
 
 
-## Whether a surface keeps clean `strokes` and `more` strokes besides, of `samples` samples laying `dabs` dabs.
+## `more`, `samples` and `dabs`: what is to be added besides `strokes`.
 static func holds(strokes: Array, more := 0, samples := 0, dabs := 0) -> bool:
 	for s: Dictionary in strokes:
 		samples += count(s)
@@ -150,9 +144,8 @@ static func radius(brush: Brush, pressure: float) -> float:
 	return lerpf(r.x, r.y, pow(pressure, 0.7))
 
 
-## How `stroke`'s brush moves to sample `s` from sample `prev`, or from nothing (both as `unpack` gives them), on a
-## surface `texels` large: [how many dabs it lays (one for the first sample, none for a stick that only lifts or
-## lowers), how far its points go on average, how far apart its dabs lie].
+## `prev` ([] for the first sample) and `s` as `unpack` gives them. Returns [dabs laid (one for the first sample, none
+## for a stick that only lifts or lowers), mean distance its points go, dab spacing].
 static func span(stroke: Dictionary, prev: Array, s: Array, texels := Vector2(SIZE)) -> Array:
 	if prev.is_empty():
 		return [1, 0.0, 0.0]
@@ -171,8 +164,7 @@ static func dabs(stroke: Dictionary) -> int:
 	return n
 
 
-## A stroke as a command carries it, with the dabs it lays, or null: every field in range, so a peer cannot hand a
-## canvas anything a brush could not paint.
+## Null unless every field is in range, so a peer cannot hand a canvas anything a brush could not paint.
 static func clean(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
@@ -202,21 +194,18 @@ static func clean(d: Variant) -> Variant:
 	return out if out.dabs <= MAX_DABS else null
 
 
-## Lays a stroke's dabs sample by sample: between each sample and the one before, dabs a fifth of a radius apart,
-## with constant paint load. The first sample lays one dab.
 class Stroker:
 	var stroke: Dictionary
 	var _texels: Vector2
 	var _last: Array = []
 	var _heading := 0.0
 
-	## Lays `of` on a surface `texels` large.
 	func _init(of: Dictionary, texels := SIZE) -> void:
 		stroke = of
 		_texels = Vector2(texels)
 
-	## The dabs sample `s` ([uv, pressure, angle, ticks, side], as `unpack` gives) adds. A stick on its side lays a
-	## line, so it lays by how far that line sweeps, turning about its middle as much as moving it.
+	## `s` as `unpack` gives it; returns DAB floats per dab. A stick on its side lays a line, so it lays by how far that
+	## line sweeps, turning about its middle as much as moving it.
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
 		var last := _last

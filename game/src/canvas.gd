@@ -1,16 +1,10 @@
 class_name Canvas
 extends Node
 
-## A surface paint lies on, an easel's canvas or its oil palette's board: its paint simulated on the GPU by paint.glsl,
-## drawn by the shader it is made with (canvas.gdshader, board.gdshader). Strokes come in two
-## ways: a painter's own brush lays its dabs as it touches (`lay`), and a stroke from the garden is played back sample
-## by sample at the pace it was painted (`play`), or a whole kept painting replayed as fast as the frame allows
-## (`rebuild`). Wet paint flows and dries in ticks, only on tiles a wet brush touched in the last DRY_TICKS, and every
-## dab lands at a known tick, so a replay lays the same painting the painter saw.
-## Each time the canvas comes to rest at a stroke's end it keeps a checkpoint: its paint on the GPU, its tick and wet
-## tiles, under a key naming every stroke laid so far. `rebuild` starts from the checkpoint of the longest prefix of its
-## strokes and replays only the rest, so undoing the last stroke costs a texture copy however many came before.
-## Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
+## Wet paint flows only on tiles a wet brush touched in the last DRY_TICKS, and every dab lands at a known tick, so a
+## replay (`play`, `rebuild`) lays the same painting the painter saw. At each rest between strokes it keeps a checkpoint
+## under a key chaining every stroke so far, so `rebuild` replays only past the longest kept prefix and undoing the last
+## stroke costs a texture copy. Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
 
 ## Ticks owed beyond this are let go: past its budget the paint dries slower instead of stalling the frame.
 const MAX_OWED := 3.0
@@ -19,42 +13,36 @@ const DAB_ROOM := 8192
 const PAPER := 0
 const DAB := 1
 const FLOW := 2
-## Metres the paint stands off the board at its thickest oil (paint.glsl keeps a texel's thickness within 0..1), and the
-## paper's grain at its highest (paint.gdshaderinc).
+## Metres: the paint's height at thickness 1 (paint.glsl's maximum), and the paper grain's highest (paint.gdshaderinc).
 const IMPASTO := 0.008
 const GRAIN := 0.00025
 const TOP := IMPASTO + GRAIN
-## The most texels each way one `probe` reads back.
 const PROBE := 64
-## Checkpoints a canvas keeps, each two textures (14 MB for the easel's): undo steps back this far without a replay.
+## Each two textures (14 MB for the easel's): undo steps back this far without a replay.
 const CHECKPOINTS := 6
 
 static var _shader: RID
 static var _sampler: RID
 static var _pipeline: RID
-## Texel-steps every canvas has laid, and the microseconds of main and render thread every canvas has taken, since
-## Metrics last took them.
+## All canvases, since Metrics last took them: texel-steps laid, and main plus render thread microseconds.
 static var laid := 0.0
 static var cpu_us := 0
-## Render thread: the GPU milliseconds the canvases took in the last frame whose timestamps have come back, and the
-## process frame the canvases last ran on the GPU.
+## Render thread: GPU milliseconds in the last frame whose timestamps came back; `_ran` is a process frame.
 static var _gpu_ms := 0.0
 static var _gpu_frame := -1
 static var _ran := -100
-## Budget.PAINT_STEPS, shared each frame among the canvases running flow.
+## Shared each frame among the canvases running flow.
 static var steps := Budget.PAINT_STEPS
 static var _frame := -1
 static var _flowing := 0
 static var _flowing_now := 0
 
-## The surface in texels, its tiles each way, its size in metres, whether it stands up, so very wet paint runs down it,
-## and whether charcoal marks it, as paper takes it and a palette's oiled wood does not.
+## `size` in texels. Very wet paint runs down an upright surface; only paper takes charcoal.
 var size: Vector2i
 var tiles: Vector2i
 var metres: Vector2
 var upright := true
 var paper := true
-## Ticks laid so far, and the tick the last stroke on this canvas ended at.
 var ticks := 0
 var last_end := 0
 var material: ShaderMaterial
@@ -66,27 +54,26 @@ var _paper: RID
 var _bundles: Array = []
 var _tiles := PackedInt32Array()
 var _wet_tiles := {}
-## Strokes waiting to play: ["wait", ticks] and ["dabs", params, dabs], played in order.
+## In order: ["wait", ticks], ["dabs", stroke, dabs], ["end", stroke].
 var _queue: Array = []
 var _catching_up := false
-## When the replay under way began, and the frames it has taken, for the log line its end writes.
+## For the replay's closing log line; `_replay_from` in microseconds.
 var _replay_from := 0
 var _replay_frames := 0
 var _replay_strokes := 0
 var _owed := 0.0
-## The key of the strokes ended so far, in the order they ended (`_chain`), how many, and the checkpoints kept:
+## The `_chain` key of the strokes ended so far, their count, and checkpoints:
 ## [key, count, ticks, tiles, wet tiles, slot], newest last.
 var _key := 0
 var _count := 0
 var _checkpoints: Array = []
-## Strokes queued and not yet ended, and whether the painter's own brush has laid since its last `end`: a checkpoint is
-## kept only between strokes.
+## Queued strokes not yet ended, and whether the painter's own stroke is open: a checkpoint is kept only between
+## strokes.
 var _pending := 0
 var _open := false
-## Render thread: each slot's [wet, dry] textures, made the first time it is saved to.
+## Render thread: each slot's [wet, dry], made on its first save.
 var _slots: Array = []
-## What this frame lays, in order, and the dabs it uses; then every batch not yet run on the GPU, in order:
-## [ops, dabs, tiles, bundle, uploaded], and the flow they hold, in texel-steps.
+## This frame's ops; batches not yet run: [ops, dabs, tiles, bundle, uploaded]; `_backlog` their flow in texel-steps.
 var _ops: Array = []
 var _batches: Array = []
 var _bundle := 0
@@ -101,15 +88,15 @@ var _normal_sets: Array[RID] = []
 static var _normal_shader: RID
 static var _normal_pipeline: RID
 static var _normal_sampler: RID
-## Render thread: the texture the paint under a brush is copied into to be read back; and whether a read is under way.
+## Render thread.
 var _probe: RID
 var _probing := false
-## Whether nothing has been laid since the sheet was last cleared: a blank sheet has nothing to keep on show.
+## Nothing laid since the last clear, so `_freeze` has nothing to keep on show.
 var _blank := true
 
 
-## A surface `texels` large, a whole number of tiles, at the easel canvas's texels a metre, drawn by `look`: the
-## canvas's paper standing up, or, not `sheet`, a palette's board lying flat.
+## `texels` is a whole number of tiles, at the easel canvas's texels a metre; not `sheet` is a palette's board lying
+## flat.
 func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gdshader"), sheet := true) -> void:
 	name = "Canvas"
 	process_priority = 100
@@ -135,7 +122,6 @@ func _init(texels := Brushwork.SIZE, look: Shader = preload("res://src/canvas.gd
 		material.set_shader_parameter(["wet", "dry", "paper", "relief"][i], _shown[i])
 
 
-## How big a surface `texels` large is, in metres.
 static func metres_of(texels: Vector2i) -> Vector2:
 	return Vector2(texels) * Brushwork.METRES / Vector2(Brushwork.SIZE)
 
@@ -267,14 +253,13 @@ func _exit_tree() -> void:
 	_rd = null
 
 
-## A view that draws the canvas as it shows now, flat and unlit, one texel to a pixel at its full size: its colour, or
-## with `height` its height off the board in 1/65535ths of TOP as canvas_flat.gdshader packs it. It draws
-## on the first frame it is in the tree.
+## Flat and unlit, a texel a pixel: colour, or with `height` the height in 1/65535ths of TOP as canvas_flat.gdshader
+## packs it.
 func flat_view(height: bool) -> SubViewport:
 	return flat(_shown, height, size)
 
 
-## A view drawing `textures`, a canvas's wet, dry and paper, as flat_view does, `texels` large.
+## `textures`: [wet, dry, paper].
 static func flat(textures: Array, height: bool, texels: Vector2i) -> SubViewport:
 	var vp := SubViewport.new()
 	vp.size = texels
@@ -294,11 +279,9 @@ static func flat(textures: Array, height: bool, texels: Vector2i) -> SubViewport
 	return vp
 
 
-## Reads back the laid paint over `rect`, at most PROBE texels each way, without waiting on the GPU: a frame or two
-## later `done` gets it on the main thread as an Image of half floats (rgb optical density, a the oil's height), as
-## big as the part of `rect` on the surface. While the painter's own brush lays a stroke it reads the paint as it stood
-## before that stroke (its checkpoint), what the brush is laying over, not what it has just laid. Asks nothing while a
-## read is under way, or with no RenderingDevice (`reads_back`); whether it asked.
+## Without waiting on the GPU: a frame or two later `done` gets, on the main thread, a half-float Image (rgb optical
+## density, a the oil's height) of the part of `rect` on the surface. During the painter's own stroke it reads the
+## checkpoint from before it, what the brush is laying over. Whether it asked.
 func probe(rect: Rect2i, done: Callable) -> bool:
 	rect = rect.intersection(Rect2i(Vector2i.ZERO, size))
 	rect.size = rect.size.min(Vector2i.ONE * PROBE)
@@ -329,7 +312,6 @@ func _probed(data: PackedByteArray, texels: Vector2i, done: Callable) -> void:
 		done.call(Image.create_from_data(PROBE, PROBE, false, Image.FORMAT_RGBAH, data).get_region(Rect2i(Vector2i.ZERO, texels)))
 
 
-## Whether a kept painting is still being replayed.
 func catching_up() -> bool:
 	return _catching_up
 
@@ -338,25 +320,23 @@ func wet() -> bool:
 	return not _wet_tiles.is_empty()
 
 
-## Whether the GPU has run everything laid so far.
 func settled() -> bool:
 	return _batches.is_empty() and _ops.is_empty()
 
 
-## Lays dabs now, at the current tick: the painter's own brush, as it touches.
+## The painter's own brush, at the current tick.
 func lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
 	_open = true
 	if not dabs.is_empty():
 		laid += _lay(stroke, dabs)
 
 
-## The painter's own `stroke` has ended now.
 func end(stroke: Dictionary) -> void:
 	_open = false
 	_ended(stroke)
 
 
-## Plays `stroke` after `gap` ticks, each sample at the tick it was painted.
+## After `gap` ticks, each sample at the tick it was painted.
 func play(stroke: Dictionary, gap: int) -> void:
 	_wait(gap)
 	var s := Brushwork.Stroker.new(stroke, size)
@@ -368,8 +348,8 @@ func play(stroke: Dictionary, gap: int) -> void:
 	_pending += 1
 
 
-## The canvas as `strokes` leave it: back to the checkpoint of the longest prefix of them kept, or a blank sheet, then
-## the rest replayed as fast as the frame allows, the painting as it was staying on show until the replay has caught up.
+## From the checkpoint of the longest kept prefix of `strokes`, or a blank sheet, replays the rest as fast as the frame
+## allows, the painting as it was staying on show until the replay catches up.
 func rebuild(strokes: Array) -> void:
 	var keys := [0]
 	for s: Dictionary in strokes:
@@ -420,12 +400,10 @@ func _restore(c: Array) -> void:
 	_blank = c[1] == 0
 
 
-## The key of the strokes `key` names followed by `stroke`.
 static func _chain(key: int, stroke: Dictionary) -> int:
 	return hash([key, stroke.medium, stroke.brush, stroke.colour, stroke.strength, stroke.load, stroke.gap, stroke.samples])
 
 
-## A stroke has ended at this tick; with no other under way, the canvas keeps a checkpoint of itself.
 func _ended(stroke: Dictionary) -> void:
 	last_end = ticks
 	_key = _chain(_key, stroke)
@@ -508,8 +486,7 @@ func _step(delta: float) -> void:
 		_thaw()
 
 
-## This canvas's share of the frame's flow: `steps` split evenly among the canvases flowing last frame, this one
-## counted.
+## `steps` split evenly among the canvases flowing last frame, this one counted.
 func _share() -> float:
 	var f := Engine.get_process_frames()
 	if f != _frame:
@@ -519,7 +496,6 @@ func _share() -> float:
 	return steps / maxi(_flowing + (0 if _was_flowing else 1), 1)
 
 
-## The tiles wet at `tick`, as one rectangle of texels.
 func _wet_rect(tick: int) -> Rect2i:
 	var r := Rect2i()
 	for t: int in _wet_tiles:
@@ -540,7 +516,7 @@ func _tick(rect: Rect2i) -> void:
 			_wet_tiles.erase(t)
 
 
-## Lays `dabs` and returns their cost in texel-steps: the shader runs every dab over every texel of their rectangle.
+## Cost in texel-steps: the shader runs every dab over every texel of their rectangle.
 func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> float:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
@@ -563,8 +539,7 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> float:
 	return float(rect.get_area()) * dabs.size() / Brushwork.DAB
 
 
-## Wets the tiles under `rect` from now until DRY_TICKS from now. A tile dry again since this frame's batch began
-## starts a new batch, since the batch's earlier ticks saw it wet until then.
+## A tile dry again since this batch began starts a new batch, since the batch's earlier ticks saw it wet until then.
 func _wetten(rect: Rect2i) -> void:
 	var from := rect.position / Brushwork.TILE
 	var to := (rect.end - Vector2i.ONE) / Brushwork.TILE
@@ -591,10 +566,9 @@ func _close_batch() -> void:
 	_batch_start = ticks
 
 
-## Sends the GPU what is waiting, in order, up to this canvas's share of flow: a flow step past it runs as many rows as
-## the share leaves, the rest the next frame, so a tick dearer than the share spreads over frames. Each step reads
-## only the texture the other writes, so its rows run in any number of parts to the same result. A frame that has
-## run no flow yet runs at least one row of workgroups.
+## A flow step past this canvas's share runs the rows the share leaves and the rest next frame, so a tick dearer than
+## the share spreads over frames. Each step reads only the texture the other writes, so its rows run in any number of
+## parts to the same result. A frame that has run no flow yet runs at least one row of workgroups.
 func _submit() -> void:
 	_close_batch()
 	var left := _share()
@@ -667,13 +641,11 @@ func _run(batches: Array) -> void:
 	cpu_us += Time.get_ticks_usec() - start
 
 
-## The GPU time the canvases have taken a frame, in milliseconds, as their timestamps last read it; nothing once they
-## have stopped running.
+## Per frame; 0 once the canvases have stopped running.
 static func gpu_ms() -> float:
 	return _gpu_ms if Engine.get_process_frames() - _ran < 4 else 0.0
 
 
-## Sums the canvases' timestamp pairs in the newest frame the GPU has reported, once per such frame.
 func _read_gpu_time() -> void:
 	var frame := _rd.get_captured_timestamps_frame()
 	if frame == _gpu_frame:
@@ -734,7 +706,7 @@ func _copy(from: RID, to: RID) -> void:
 	_rd.texture_copy(from, to, Vector3.ZERO, Vector3.ZERO, Vector3(size.x, size.y, 1), 0, 0, 0, 0)
 
 
-## Shows a copy of the canvas as it stood before this frame's `rebuild` while a replay catches up behind it.
+## Keeps the painting as it stood before `rebuild` on show while the replay catches up behind it.
 func _freeze() -> void:
 	if _rd == null or _blank or not _frozen.is_empty():
 		return
