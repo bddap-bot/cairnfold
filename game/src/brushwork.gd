@@ -45,9 +45,9 @@ const PIGMENTS := [
 const CHARCOAL := Vector3(2.3, 2.25, 2.1)
 const MAX_DENSITY := 8.0
 const MAX_SAMPLES := 512
-## Most dabs one stroke lays on a canvas (`dabs`), what laying it costs every machine that replays it; a board's stroke
-## counts as on a canvas. The longest stroke in the recorded sessions laid 15561; the easel tool ends a stroke here as it does at MAX_SAMPLES, so none it paints is
-## refused.
+## Most dabs one stroke lays on a canvas (`dabs`), what laying it costs every machine that replays it; a board's
+## stroke counts as on a canvas. The longest stroke in the recorded sessions laid 15561; the easel tool ends a stroke
+## here as it does at MAX_SAMPLES, so none it paints is refused.
 const MAX_DABS := 32768
 ## Most samples one canvas holds across its strokes; past it the canvas takes no more until a fresh sheet.
 const MAX_TOTAL := 120000
