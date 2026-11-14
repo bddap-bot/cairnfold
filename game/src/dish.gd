@@ -10,6 +10,6 @@ func _init(draw := true) -> void:
 	if draw:
 		var item := HeldItem.new()
 		add_child(item)
-		item.show_state([HeldItem.Kind.TOOL, Hand.Tool.SEEDS, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, true])
+		item.show_state([HeldItem.Kind.TOOL, Hand.Tool.SEEDS, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, true, Vector3.ZERO])
 	visible = false
 	add_to_group("dishes")

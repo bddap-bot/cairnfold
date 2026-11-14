@@ -9,6 +9,10 @@ func _run() -> void:
 	var expected := Hand.Tool.size() - Hand.UNMODELLED.size() + Easels.KITS.size() + Brushwork.Brush.size() + 1
 	check(stress.size() == expected, "stress sweep includes every modelled tool, palette, brush and book")
 	stress.append_array(Driver.held_states(true))
+	var dish := Dish.new()
+	root.add_child(dish)
+	check(HeldItem.valid((dish.get_child(0) as HeldItem).state), "a dish's seeds are a valid held state")
+	dish.free()
 	var seen := {}
 	for state in stress:
 		var label := HeldItem.label(state)
