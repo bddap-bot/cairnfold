@@ -1,14 +1,9 @@
 class_name Hand
 extends XRController3D
 
-## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object held and the
-## selection wheel show it, so they cannot disagree. A hand holding a tool is drawn as that tool alone; only an empty
-## hand shows the controller.
-
 enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS, MIRROR }
 
-## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
-## pick is a learnable motion.
+## Clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every pick is a learnable motion.
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
 	[[Tool.CAMERA, Tool.SELFIE, Tool.MIRROR], Tool.SEEDS, Tool.EASEL],
@@ -20,55 +15,52 @@ const TREE := [
 	[Tool.HOUSE, Tool.TOWER, Tool.DECORATIONS, Tool.BOULDER],
 ]
 const TOP := Vector3(0, 0.0075, 0.045)
-## How many times its size on the wheel a tool is held, so a wand or a spade is as long as a hand's.
+## Held scale over wheel scale, so a wand or a spade is as long as a hand.
 const HELD := {Tool.STYLE: 3.0, Tool.DELETE: 3.0}
-## A sight's colour while what the tool shows would not fit.
 const REFUSED := Color(0.92, 0.3, 0.26, 0.75)
-## Past this many metres from the eyes the mark where a hand points grows with distance, so it never shrinks to nothing.
+## Metres from the eyes past which the pointing mark grows with distance, so it never shrinks to nothing.
 const MARK_NEAR := 4.0
-## The controller's front, where an empty hand's sight stands.
+## The drawn controller's front, in `body` space.
 const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
-## The drawn controller's width, thickness and length, its long axis along the body's z about HandStop.CENTRE.
+## Width, thickness, length (along `body` z), centred on HandStop.CENTRE.
 const CONTROLLER := Vector3(0.05, 0.035, 0.11)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
-## Tools with no model in the hand.
 const UNMODELLED := [Tool.NONE, Tool.EASEL, Tool.BOOK]
-## How far a wheel icon's model tips its top toward the eye.
+## Tips an icon's top toward the eye.
 const TILT := PI * 0.3
-## Seconds between looks, while the wheel is closed, for an icon to build or free: one built per look keeps a person's
-## figure changing, a friend arriving or an avatar chosen, to one figure's build in a frame.
+## Seconds between icon builds while the wheel is closed: one per look bounds a changed figure (a friend arriving, an
+## avatar chosen) to one build a frame.
 const PREPARE_EVERY := 0.25
-## How large a person stands on a dial, so the discs behind them stay apart.
+## A person's scale on a dial, so the discs behind them stay apart.
 const DIAL_SIZE := 0.66
 static var _disc: CylinderMesh
 static var _icon_mats := {}
 
-## The stick pushed one way, as the input named for it: past PUSH, along whichever way it is pushed most, it
-## holds that way until it comes back inside LET_GO, so one flick is one input.
+## Keyed by input name. Past PUSH the stick latches its nearest way until back inside LET_GO, so one flick is one input.
 const FLICKS := {"primary_up": Vector2(0, 1), "primary_down": Vector2(0, -1), "primary_left": Vector2(-1, 0), "primary_right": Vector2(1, 0)}
 const PUSH := 0.7
 const LET_GO := 0.3
 
-## Stick positions the driver injects, keyed by tracker.
+## Driver-injected stick positions, by tracker.
 static var injected_sticks := {}
-## Hand positions in the wheel's plane the driver injects, keyed by tracker, in place of the hand's own.
+## Driver-injected hand positions in the wheel's plane, by tracker.
 static var injected_reach := {}
-## Tracked hands' joints the driver injects, keyed by tracker, global, in place of the runtime's (`HandShape`).
+## Driver-injected global joints (`HandShape`), by tracker, in place of the runtime's.
 static var injected_joints := {}
-## A bare hand moved this far from where its little finger pinched pushes the stick all the way.
+## Metres from a bare hand's little-finger pinch that push the stick fully.
 const STICK_REACH := 0.1
-## What each finger, thumb to little, rests on while it holds a controller: a touch curls it to REST, a value as far as
-## it is pulled. A finger whose controller senses none of these stays straight.
+## Per finger, thumb to little, the inputs it rests on: a touch curls it to REST, a value as far as pulled. A finger
+## whose controller senses none stays straight.
 const SENSES := [["ax_touch", "by_touch", "primary_touch", "secondary_touch"], ["trigger_touch", "trigger"], ["grip"], ["grip"], ["grip"]]
 const REST := [1.0, 0.5, 1.0, 1.0, 1.0]
-## How quickly, per second, a finger closes on its sensor, so a touch flickering at its edge does not jitter.
+## Per second; smooths a touch flickering at its edge.
 const CURL_RATE := 25.0
 
 var carried: Node3D
-## The centre of the palm closed round the controller, from the hand as the avatar holds it (`body`), its fingers along
-## -Z and the palm toward +X on the left hand and -X on the right (`Avatar.palms`). A bare hand's pose is its palm already; the driver sets it with the hand it holds.
+## The palm closed round the controller, in this hand's (aim) space: fingers along -Z, palm toward +X on the left hand
+## and -X on the right (`Avatar.palms`). Identity on a bare hand, whose pose is its palm; the driver sets it itself.
 var palm := Transform3D()
 
 var tool := Tool.WALLS:
@@ -76,23 +68,20 @@ var tool := Tool.WALLS:
 		if tool != value and picking:
 			close_wheel()
 		tool = value
-## The way the stick is flicked (a FLICKS key), or "".
+## A FLICKS key, or "".
 var flick := ""
 var picking := false
-## The garden whose frame budget the hand's tool previews against.
 var world: World
-## The model held while the hand holds `t`.
 func model(t: Tool) -> Node3D:
 	return _models[t]
 
 
 var _profile := ""
-## The profile and pose the log last noted the palm from.
 var _palm_noted := ""
-## The pose the palm was read from: "grip_surface" or "grip".
+## "grip_surface" or "grip".
 var palm_from := ""
-## The runtime's joints for a hand on its controller, shaped by it (Meta's, SteamVR's), else empty: the runtime's own
-## wrist for the hand holding it, which the log measures the avatar's against.
+## The runtime's joints shaped from the controller (Meta's, SteamVR's), else empty; the log measures the avatar's wrist
+## against them.
 var shaped: Array = []
 var flat_only := false
 var people: SessionWheel:
@@ -100,54 +89,49 @@ var people: SessionWheel:
 		people = v
 		_prepare_icons(-1)
 		_warming = 2
-## The worn avatar's expressions while the wheel shows their menu, else null.
+## Null unless the wheel shows the worn avatar's expression menu.
 var expressions: ExpressionPlayer
 var _expression_dial := false
 var _expression_latched := false
 var _expression_frame := Basis()
 var _expression_twist := 0.0
-## The radial's value as its dial opened, which the twist turns from.
 var _expression_start := 0.0
 var _expression_count := 0
 var _wheel: ToolWheel
-## The dial a people leaf opened (SessionWheel.choices), turned by the wrist while the wheel button stays held.
 var dial: Dial
 var _dial_keys: Array = []
 var _drawn_levels := 0
 var _holding := false
-## The driver holds this hand where tracking would put it. In a headset it names a pose the runtime does not have, so
-## the controller's own pose stops moving the hand.
 var held_still := false:
 	set(v):
 		held_still = v
 		_follow()
-## Played by its joints, not a controller (see "Tracked hands"): its pose is the palm's, its inputs its gesture's.
+## Driven by its joints, not a controller (docs: "Tracked hands"): pose is the palm, inputs come from `gesture`.
 var bare := false
-## What the bare hand's fingers make (`HandShape.read`), pressing the input `Controls.HAND` gives it.
+## `HandShape.read`; presses the input `Controls.HAND` gives it.
 var gesture := ""
-## Where, in the rig, the bare hand's little finger pinched: the stick's centre.
+## Rig-space point where the bare hand's little finger pinched: the stick's centre.
 var _stick_from := Vector3.ZERO
-## How far each finger curls, thumb to little, 0 straight to 1 closed: from the hand's joints where the runtime reports
-## them, a controller's included, else from what the controller's sensors feel (SENSES). It shapes the avatar's fingers
-## only; gestures read a bare hand's own joints.
+## Per finger, thumb to little, 0 straight to 1 closed. Shapes the avatar's fingers only; gestures read a bare hand's
+## own joints.
 var curls := PackedFloat32Array([0, 0, 0, 0, 0])
 var _curled_by := ""
 var _sensed := {}
 var buttons: Buttons
-## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
+## HandStop holds it at what the controller pushes into.
 var body := Node3D.new()
 var _shown := -1
 var _leaving := -1
 var _pop_t := POP
 var _models: Array[Node3D] = []
 var _wheel_root: Node3D
-## Every wheel icon with the slot-index path to it (ToolWheel.paths), subtrees and their items alike.
+## {path: slot indices (ToolWheel.paths), node, item}, one per icon shown.
 var _icons: Array[Dictionary] = []
-## Every icon the wheel could show, hidden until it does, by _icon_key.
+## Every icon the wheel could show, by _icon_key or _dial_key.
 var _built := {}
 var _since_prepared := 0.0
-## Frames left drawing every icon once, too small to see, so the renderer compiles their pipelines while the game
-## loads: the first open compiled 21 in its frame and dropped it on a Quest 2.
+## Frames left drawing every icon too small to see, so pipelines compile while loading: the first open compiled 21 in
+## its frame and dropped it on a Quest 2.
 var _warming := 0
 var _controller := MeshInstance3D.new()
 var _sight: Sight
@@ -190,16 +174,13 @@ func _init(tracker_name: String, held: Tool) -> void:
 	buttons = Buttons.new(self)
 
 
-## Where hand `h` shows: this player's hand as its body, another player's hand or a dish as itself.
 static func seen(h: Node3D) -> Node3D:
 	return h.body if h is Hand else h
 
 
-## Draws every surface under `root` in the one icon look (icon.gdshaderinc), lit by nothing in the garden: a standard
-## material gives its colour, picture and whether its vertex colours count (icon.gdshader); a shader material that paints
-## its own surface names its twin in that look in its "icon_material" meta; any other draws its vertex colours, tinted
-## by its "icon_colour" meta where it sets one, and not at all where that colour is clear. An icon's figure is no person
-## a mirror reflects.
+## Unlit icon look (icon.gdshaderinc). A shader material names its twin in that look in its "icon_material" meta; any
+## other non-standard material draws vertex colours tinted by its "icon_colour" meta, hidden where that is clear. An
+## icon's figure is no person a mirror reflects.
 static func unlit(root: Node) -> void:
 	for g: GeometryInstance3D in root.find_children("*", "MeshInstance3D", true, false) + root.find_children("*", "MultiMeshInstance3D", true, false):
 		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -301,9 +282,8 @@ func _warm() -> void:
 		i.scale = Vector3.ONE * 0.001
 
 
-## Builds every icon the wheel could show now and frees those it no longer could, at most `budget` built (-1 for
-## all): opening the wheel or reaching a subtree then builds nothing, where building took 20 to 134 ms a level on a
-## Quest 2 and dropped frames.
+## `budget` -1 builds all. Built ahead because building on open took 20 to 134 ms a level on a Quest 2 and dropped
+## frames.
 func _prepare_icons(budget: int) -> void:
 	var wanted := {}
 	_wanted(inventory(), [] as Array[int], wanted)
@@ -338,7 +318,6 @@ func _dial_key(key: String) -> String:
 	return "dial %s %s" % [key, people.signature(key)]
 
 
-## Opens the dial of `leaf` over the hand in place of the wheel, building any figure not yet built.
 func _open_dial(leaf: String) -> void:
 	_hide_wheel()
 	_dial_keys = people.choices(leaf)
@@ -354,8 +333,6 @@ func _open_dial(leaf: String) -> void:
 	Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
 
 
-## The open dial turns with the wrist; letting go of the wheel button does what the person at its top means, unless
-## that is where it started.
 func _dial_input() -> void:
 	if not buttons.held("wheel"):
 		var key: String = _dial_keys[dial.pick]
@@ -369,13 +346,12 @@ func _dial_input() -> void:
 	dial.follow(self)
 
 
-## Where an icon sits and what it shows, which for people includes what they are drawn from (SessionWheel.signature).
+## Includes SessionWheel.signature, so a person's changed figure gets a new icon.
 func _icon_key(path: Array[int], item: Variant) -> String:
 	return "%s %s %s" % [path, item, people.signature(item) if people != null else ""]
 
 
-## An icon standing upright where people draw it (SessionWheel.icon), since a person or the people slots are seen face
-## on; else tipped as a tool or a subtree's miniature is.
+## What `_draw_item` draws stands upright, since people are seen face on; tools and miniatures stay tipped.
 func _make_icon(item: Variant) -> Node3D:
 	var drawn := _draw_item(item)
 	var model := drawn if drawn != null else miniature(item, _draw_item)
@@ -389,9 +365,7 @@ func _make_icon(item: Variant) -> Node3D:
 	return i
 
 
-## A tool's model, or a subtree's items in miniature, two by two, each drawn as its own icon draws it: by `draw`
-## (SessionWheel.icon) where that draws it, a person as a generic figure without one, and a nested subtree in miniature
-## again, `depth` levels down at most.
+## `depth`: nested subtree levels drawn at most.
 static func miniature(item: Variant, draw := Callable(), depth := 2) -> Node3D:
 	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
 	if drawn != null:
@@ -414,8 +388,7 @@ static func miniature(item: Variant, draw := Callable(), depth := 2) -> Node3D:
 	return model
 
 
-## A wheel icon: `model` tipped toward the eye, as a controller's top is seen, on a pale disc facing the eye (+z) so
-## it reads against the meadow at any hour.
+## The disc faces the eye (+z) and is pale so the icon reads against the meadow at any hour.
 static func icon(model: Node3D) -> Node3D:
 	if _disc == null:
 		_disc = CylinderMesh.new()
@@ -443,7 +416,6 @@ func wheel_frame() -> Transform3D:
 	return _wheel_root.global_transform
 
 
-## The thumbstick as locomotion reads it; on a bare hand, its move from where the little finger pinched.
 func stick() -> Vector2:
 	if injected_sticks.has(tracker):
 		return injected_sticks[tracker]
@@ -457,13 +429,12 @@ func stick() -> Vector2:
 	return (Vector2(moved.dot(right), moved.dot(Vector3.UP.cross(right))) / STICK_REACH).limit_length(1.0)
 
 
-## How many metres a thing pulled at `reach` metres moves per metre of hand, so far things keep up.
+## Metres a thing pulled at `reach` metres moves per metre of hand, so far things keep up.
 static func reach_gain(reach: float) -> float:
 	return maxf(1.0, reach / 1.2)
 
 
-## Where a hand whose body is at `body` in the world touches springs, as Avatar Workshop's hands named `key` for
-## `who`: the capsule its drawn controller fills and its fingertip at the controller's front.
+## Spring colliders, shaped as Avatar Workshop's hands, for a hand whose `body` is in world space.
 static func touching(body: Transform3D, key: String, who: int) -> Array[Dictionary]:
 	var radius := minf(CONTROLLER.x, CONTROLLER.y) * 0.5
 	var half := Vector3(0, 0, CONTROLLER.z * 0.5 - radius)
@@ -475,12 +446,11 @@ func tracked() -> bool:
 	return held_still or bare or get_has_tracking_data()
 
 
-## Whether it holds the seed dish out: animals eat from it, here and, through `Session`, in every other player's game.
+## Animals eat from the held-out dish, here and, through `Session`, in every other player's game.
 func holds_seeds() -> bool:
 	return tool == Tool.SEEDS and tracked() and not picking
 
 
-## What the hand's tool shows would not fit the frame budget: its sight shows it refused.
 func capped() -> bool:
 	if world == null:
 		return false
@@ -488,8 +458,7 @@ func capped() -> bool:
 	return with > 1.0 and with > world.fill() + 0.0001
 
 
-## Tools call this each frame they point: the held tool's sight shows, and a mark where it meets `hit`. Both hide on
-## frames nobody does.
+## Call every frame a tool points; sight and mark hide on frames none does.
 func point(hit: Variant, tint: Color) -> void:
 	if not tracked() or _holding:
 		return
@@ -502,12 +471,10 @@ func point(hit: Variant, tint: Color) -> void:
 		_dot.global_transform = Transform3D(Basis().scaled(Vector3.ONE * maxf(1.0, far / MARK_NEAR)), hit)
 
 
-## Whether the hand shows its sight this frame.
 func aiming() -> bool:
 	return _sight.visible
 
 
-## Whether a tool already holds this hand this frame.
 func taken() -> bool:
 	return _holding or carried != null
 
@@ -535,8 +502,6 @@ func _process(delta: float) -> void:
 	_show_tool(delta)
 
 
-## Follows the hand's joints while the runtime reports them as the hand's own, or while it cannot say whose they are and
-## reports no controller pose for this hand; otherwise the controller. Either way the fingers curl as `curls` reads them.
 func _read_hand(delta: float) -> void:
 	var joints: Array = injected_joints.get(tracker, [])
 	var own := not joints.is_empty()
@@ -561,9 +526,8 @@ func _read_hand(delta: float) -> void:
 	gesture = g
 
 
-## Where the runtime puts the palm from the aim, both reported in the same frame. OpenXR's grip_surface pose is the palm
-## in the hand's own axes. Without it, the grip pose's position is the palm's centre but its axes run along the handle,
-## which crosses the palm at an angle each hand holds differently, so the fingers point as the aim does.
+## OpenXR's grip_surface pose is the palm in the hand's own axes. The grip pose's position is the palm's centre but its
+## axes run along the handle, at an angle each hand holds differently, so only its position is used.
 func _read_palm() -> void:
 	if bare:
 		palm = Transform3D()
@@ -595,7 +559,6 @@ func _pose_tracker() -> XRPositionalTracker:
 	return XRServer.get_tracker(tracker) as XRPositionalTracker
 
 
-## Whether `t`'s joints are the hand's own rather than shaped from the controller it holds.
 func _own(t: XRHandTracker) -> bool:
 	if t.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER:
 		return false
@@ -616,8 +579,7 @@ func _runtime_joints(t: XRHandTracker) -> Array:
 	return out
 
 
-## Moves `curls` toward what `joints` show, or with none what the controller senses, logging each source and sensor the
-## first time it moves a finger, so a device's log shows which finger data its runtime gives.
+## Logs each new source, so a device's log shows which finger data its runtime gives.
 func _curl(joints: Array, delta: float) -> void:
 	var by := "joints" if not joints.is_empty() else "sensors" if tracked() else ""
 	var want := HandShape.curls(joints) if by == "joints" else _sensors() if by == "sensors" else PackedFloat32Array([0, 0, 0, 0, 0])
@@ -647,8 +609,7 @@ func _controller_posed() -> bool:
 	return p != null and p.has_tracking_data
 
 
-## The controller's aim moves the hand unless the driver holds it or its joints do: then the hand follows a pose the
-## runtime does not have, which stops the controller moving it.
+## "held" and "joints" are poses the runtime does not have, which stops the controller moving the hand.
 func _follow() -> void:
 	pose = &"held" if held_still else &"joints" if bare else &"aim"
 
@@ -666,8 +627,7 @@ func _flick_input() -> void:
 			flick = way
 
 
-## The interaction profile the runtime bound this hand to, logged with the wheel's input on each change, so a
-## device's log shows which of its controls the controls table landed on.
+## Logged on change, so a device's log shows which of its controls the controls table landed on.
 func _log_profile() -> void:
 	var t := _pose_tracker()
 	var bound := t.profile if t != null else ""
@@ -676,9 +636,6 @@ func _log_profile() -> void:
 		print("controls: %s on %s, wheel %s" % [tracker, _profile, Controls.input("wheel", tracker)])
 
 
-## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand onto a tool, or onto a
-## subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing. Reaching on into a
-## people leaf turns the wheel into that leaf's dial.
 func _select_input(delta: float) -> void:
 	if carried != null:
 		return
@@ -731,7 +688,6 @@ func _select_input(delta: float) -> void:
 		close_wheel()
 
 
-## Hot icons grow; inside a subtree only the subtrees opened on the way to it and its items stay.
 func _show_wheel(delta: float) -> void:
 	var levels := _wheel.levels
 	if _drawn_levels != levels.size():
@@ -970,7 +926,7 @@ func _end_expression_dial() -> void:
 	_expression_dial = false
 
 
-## Where the hand stands on the wheel's face, or the point a script reaches for there.
+## In the wheel's plane; injected_reach overrides.
 func _wheel_point() -> Vector2:
 	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
 	if p == Vector2.INF:

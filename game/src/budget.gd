@@ -1,100 +1,90 @@
 class_name Budget
 extends RefCounted
 
-## The frame every build must fit, and what building costs against it: the one source of these numbers.
-## scripts/bench.sh holds the stress scene to them; the bar behind a placing hand's tool (BudgetBar) shows a garden's
-## share of them and World turns down an edit that would take it past the whole.
-## Lantern light is baked (`Lamps`) and costs the frame nothing however many hang: a lantern counts by its meshes.
+## The one source of the frame budget: scripts/bench.sh holds the stress scene to it, BudgetBar shows a garden's
+## share and World refuses an edit past the whole. Lantern light is baked (`Lamps`), so a lantern costs only its meshes.
 
-## One graphics configuration for every headset, held to the weakest: the Quest 2 at 72 Hz.
+## Every headset is held to the weakest: the Quest 2 at 72 Hz.
 const REFRESH_HZ := 72.0
-## A standing mirror's view for each eye, in pixels: its glass's shape, a pixel about a Quest 2 pixel at a step from it.
+## Per eye, in pixels: the glass's aspect, a pixel about a Quest 2 pixel from a step away.
 const MIRROR_VIEW := Vector2i(448, 672)
 ## Fixed tread density keeps raising terrain from multiplying a path's geometry.
 const PATH_TREADS_PER_ROW := 2
 
-## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
-## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
-## as stone wall; worn plaster counts the stone it has worn back to as stone wall besides; a planked wall counts as
-## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its
-## eaves); fittings that add a mesh (lanterns, flags and the runs joining them, chimneys with their smoke, trapdoors, the ring of an arched or round window,
-## a lived-in house's curtains and flower box at each window and its washing line, dormers, whose boarded faces count
-## as stone wall and whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
-## openings, with timber members and the planks a finish lays counted separately; square metres of pond water; easels,
-## each a canvas drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone
-## ground and of cobbled or flagged path, each stroke the ground its discs reach, a stroke over another counted again.
+## The units COSTS prices. Square metres of face of stone walls, plaster walls and fences (length by height; a
+## house's gable ends count as its face, boarded ones as stone wall; worn plaster also counts its worn-back stone as
+## stone wall; a planked wall counts its backing as plaster), of tiled or flat roof and of thatch (along the slopes to
+## the eaves), of pond water, and of painted stone ground and cobbled or flagged path (each stroke the ground its discs
+## reach, a stroke over another counted again). Counts of fittings that add a mesh (lanterns, flags and their runs,
+## chimneys with their smoke, trapdoors, an arched or round window's ring, a lived-in house's curtains and flower box
+## at each window and its washing line, dormers, whose faces also count as stone wall and slopes as tiled roof),
+## painted grass blades and flowers, standing trees and bushes, archway openings, timber members (a finish's planks
+## included), easels (each a canvas drawn and simulated), and boulders (a metre-wide one a unit, `boulder`).
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
-## Masonry draws a stone whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
-## these costs a far rate on all of it and, as `<unit>_near` (World counts them, `Near`), a near excess on what stands in
-## the chunks one eye has near.
+## Masonry draws a stone whole only within Quality.Step.stone_near_m, so these cost a far rate on all of it plus, as
+## `<unit>_near` (counted by `Near`), a near excess on what stands in the chunks one eye has near.
 const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
-## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
+## unit -> the COSTS entry capping its whole charge: what a view full of it adds.
 const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
-## Whether work spread over frames stops at its share of a frame. A headless test steps frames with no deadline to
-## keep, and grows, wears, relays, scans and draws all of it in one.
+## Off in headless tests, which have no deadline to keep and run all spread-out work in one frame.
 static var frame_deadline := true
 
-## Main-thread time the Masonry spends a frame drawing chunks changed (a wall laid again or settled), in microseconds:
-## one of a stress wall's chunks on the Steam Frame, whose frames under a path stroke over the stress scene's walls have
-## about a millisecond to spare; the rest wait for the frames after. Only drawing is metered by the clock, what game
-## logic reads by counts (docs/replay.md).
+## Masonry's main-thread chunk redraws a frame, in microseconds: one stress-wall chunk on the Steam Frame, which has
+## about 1 ms to spare under a path stroke over the stress walls. Only drawing is clock-metered; what game logic
+## reads is metered by counts (docs/replay.md).
 const MASONRY_FLUSH_US := 300.0
-## Main-thread time a frame spends giving one avatar's particle systems their new particles, in microseconds; births
-## past it wait for the frames after, so a sub-emitter's burst of hundreds spreads rather than stalls one frame.
+## Main-thread microseconds a frame gives one avatar's particle births; the rest wait, so a sub-emitter's burst of
+## hundreds spreads rather than stalls one frame.
 const PARTICLE_BIRTHS_US := 500.0
-## Painted flowers a frame looks over for where butterflies may come: about 300 microseconds on the Steam Frame; a path
-## stroke wearing the ground every frame keeps them looking.
+## Painted flowers scanned a frame for butterfly spots: about 300 microseconds on the Steam Frame, kept up while a
+## path stroke wears the ground every frame.
 const BUTTERFLY_SCAN := 50
-## Marks, or rows of a path just laid, a frame wears into the garden's ground: about a millisecond on the Steam Frame;
-## a 48 m path's hundred and more rows take the frames after.
+## Marks, or new path rows, worn into the ground a frame: about 1 ms on the Steam Frame; a 48 m path's hundred and
+## more rows take later frames.
 const GROUND_WEAR_ROWS := 4
-## Plants of committed strokes a frame grows: about 1.5 ms on the Steam Frame, so a stroke of thousands grows over the
-## frames after the one its command applied in.
+## Committed-stroke plants grown a frame: about 1.5 ms on the Steam Frame, so a stroke of thousands grows over the
+## frames after its command applied.
 const GROW_PLANTS := 12
-## Builds the garden reshaped, or that meet one, a frame lays again: one of the stress scene's two-storey houses is
-## about half a millisecond on the Steam Frame, so a house let go there lays its upper storey and the wings it joins in
-## the frames after.
+## Builds relaid a frame when the garden reshapes or meets them: a stress-scene two-storey house is about 0.5 ms on
+## the Steam Frame, so its upper storey and joined wings follow in later frames.
 const RELAYS := 1
-## The fewest frames after a lay starts on a worker that a garden wall takes it (Work); a wall in hand, which game logic
-## does not read, takes its lay once done.
+## The fewest frames a garden wall's worker lay takes (Work); a wall in hand, which game logic does not read, takes
+## its lay once done.
 const LAY_FRAMES := 3
-## A garden wall's lay on a Quest 2 worker, in milliseconds: LAY_BASE_MS and a rate for each unit Budget.wall counts,
-## the least squares fit at or over zero to the lays the stress scene and demo/lays.json take in their phases. The same
-## lay runs up to twice as long while another lays beside it (Budget.WALL_LAYS), and longer again while a sculpt works
-## the ground, so it is given LAY_MARGIN times its price, in frames at REFRESH_HZ: at 2.5, a wall laid again under the
-## stress scene's stroke over the hills still kept a Quest 2's frame waiting a whole frame.
+## A garden wall's lay on a Quest 2 worker, in ms: LAY_BASE_MS plus LAY_MS per unit Budget.wall counts, the
+## non-negative least-squares fit to the stress scene's and demo/lays.json's lays. A lay runs up to twice as long
+## beside another (WALL_LAYS) and longer under a sculpt, so it gets LAY_MARGIN times its price in frames at
+## REFRESH_HZ: at 2.5 a wall relaid under the stress stroke over the hills still stalled a Quest 2 frame.
 const LAY_BASE_MS := 11.0
 const LAY_MS := {"wall_m2": 0.33, "plaster_m2": 0.0, "fence_m2": 0.0, "roof_m2": 2.25, "thatch_m2": 11.3, "timber": 0.18,
 	"arch": 0.0, "fitting": 0.95}
 const LAY_MARGIN := 3.0
-## Frames after a wall's perches start on a worker that its birds take them (Work).
+## Frames a wall's perches take on a worker before its birds get them (Work).
 const PERCH_FRAMES := 3
-## Frames after a command's water starts on a worker that the command runs (Work, World._drain).
+## Frames a command's water takes on a worker before the command runs (Work, World._drain).
 const WATER_FRAMES := 6
-## What a piece laid with a build's stones but apart from its courses counts as: wall courses lay roughly ten blocks a
-## square metre. A path's treads and crops and every build's clutter (ClutterLayout) are charged so, a part a piece.
+## A piece laid apart from a build's courses (path treads and crops, ClutterLayout clutter), as wall square metres:
+## courses lay about ten blocks a square metre.
 const PIECE_M2 := 0.1
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
-## The mean plank laid across a wall or along a walk: BOARD_RUN's, less for each run's shorter first and the turns.
+## Mean plank length across a wall or along a walk: WallLayout.BOARD_RUN's, less each run's shorter first and the turns.
 const BOARD_MEAN := 1.3
-## Largest residual above existing wall/timber charges in paired Quest 2 arch sweeps, rounded up.
-## A larger opening still reserves a whole arch.
+## Largest residual above wall/timber charges in paired Quest 2 arch sweeps, rounded up; any larger opening is one arch.
 const ARCH_US := 60.0
 ## Sharing flow texel-steps across canvases prevents each wet painting from multiplying the frame cost.
 const PAINT_STEPS := 3.0e5
-## The least a boulder counts, however small: a pebble still draws its mesh.
+## A pebble still draws its mesh.
 const BOULDER_LEAST := 0.25
-## The most one boulder costs the Quest 2 however large, in microseconds: its dearest paired cost, carried or still, near
-## or far, from 1 to 80 times a metre wide (docs/design.md, "Boulder cost by size").
+## One boulder's dearest paired Quest 2 cost, carried or still, near or far, 1 to 80 m wide (docs/design.md, "Boulder
+## cost by size").
 const BOULDER_MOST_US := 470.0
 ## A moss patch's dearest paired Quest 2 cost: the pool's 256 packed into a 2 m disc 3 m from the eye; it falls with
 ## distance, but the pool bounds all of a garden's moss to 1.8 ms (docs/design.md, "Cost by distance").
 const MOSS_US := 7.001
-## The Quest 2's measured room, over the meadow without its own trees and bushes, its wildlife and the compositor's
-## timewarp; see docs/design.md.
-## Fixed independently of the running device, refresh rate and quality governor.
+## The Quest 2's measured room over the meadow, less its own trees and bushes, wildlife and compositor timewarp
+## (docs/design.md); fixed whatever the running device, refresh rate or quality governor.
 const CAPACITY_MS := 4.27
 ## Painted stone ground's paired Quest 2 cost a square metre over the bare meadow, and at most what a view full of it
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
@@ -107,7 +97,7 @@ static func fit_step() -> int:
 	return Quality.ladder.size() - 1
 
 
-## The GPU time a frame may take: the line the running game's governor holds (Quality.Governor.LINE), at REFRESH_HZ.
+## GPU frame time the governor holds to (Quality.Governor.LINE) at REFRESH_HZ.
 static func line_ms() -> float:
 	return 1000.0 / REFRESH_HZ * Quality.Governor.LINE
 
@@ -116,20 +106,17 @@ static func info() -> Dictionary:
 	return {"refresh_hz": REFRESH_HZ, "gpu_ms": line_ms()}
 
 
-## The chunk of Masonry's near meshes `p` stands in.
 static func cell(p: Vector3) -> Vector2i:
 	return Vector2i(floori(p.x / Masonry.FINE), floori(p.z / Masonry.FINE))
 
 
-## How many chunks out from the one under the eye can draw their near meshes at the fit step: those whose
-## centre is within its stone_near_m and a chunk's radius of the eye.
 static func near_span() -> int:
 	var reach := Quality.ladder[fit_step()].stone_near_m + Masonry.radius(Masonry.FINE)
 	return floori((reach + Masonry.FINE * 0.5) / Masonry.FINE)
 
 
-## `units`' masonry over the chunks along `points` (Vector3, ground positions), as the polyline's length falls in each:
-## chunk -> units. Without length it all stands in the first point's chunk.
+## `units`' masonry split over the chunks along `points` (Vector3 ground positions) by polyline length: chunk -> units.
+## With no length, all of it in the first point's chunk.
 static func spread(units: Dictionary, points: Array) -> Dictionary:
 	var stone := {}
 	for k in MASONRY:
@@ -158,12 +145,11 @@ static func spread(units: Dictionary, points: Array) -> Dictionary:
 	return out
 
 
-## A garden's masonry by chunk (`spread`), and the `<unit>_near` units of what the chunks within near_span of one hold,
-## around whichever chunk makes that dearest. Each window's near excess is kept as builds come and go, so a change
-## reads only the windows it touches.
+## A garden's masonry by chunk (`spread`) and the `<unit>_near` units of its dearest near_span window. Each window's
+## near excess is kept as builds come and go, so a change reads only the windows it touches.
 class Near:
 	var cells := {}
-	## Per chunk, its near excess and its area: the area picks between windows that cost alike.
+	## chunk -> Vector2(near excess, area); the area breaks ties between windows that cost alike.
 	var _dear := {}
 	var _windows := {}
 
@@ -237,7 +223,7 @@ static func cost_ms(units: Dictionary) -> float:
 	return ms
 
 
-## What each unit adds to the frame, in milliseconds: cost_ms split by unit.
+## unit -> its frame cost in milliseconds.
 static func charges(units: Dictionary) -> Dictionary:
 	var out := {}
 	for k in units:
@@ -256,7 +242,6 @@ static func fits(units: Dictionary, change: Dictionary, limit := 1.0) -> bool:
 	return now <= cost_ms(units) or now <= CAPACITY_MS * limit
 
 
-## `into` with `units` added `times` over, keys at zero dropped.
 static func add(into: Dictionary, units: Dictionary, times := 1.0) -> Dictionary:
 	for k in units:
 		var v: float = into.get(k, 0.0) + units[k] * times
@@ -267,7 +252,6 @@ static func add(into: Dictionary, units: Dictionary, times := 1.0) -> Dictionary
 	return into
 
 
-## Frames a garden wall's lay is given: priced from what it lays, LAY_MS, so it fits them on the Quest 2.
 static func lay_frames(units: Dictionary) -> int:
 	var ms := LAY_BASE_MS
 	for k: String in units:
@@ -275,7 +259,7 @@ static func lay_frames(units: Dictionary) -> int:
 	return maxi(LAY_FRAMES, ceili(LAY_MARGIN * ms * REFRESH_HZ / 1000.0))
 
 
-## A wall as its build command carries it.
+## `d`: a wall build command.
 static func wall(d: Dictionary) -> Dictionary:
 	var length := Commands.length(d.points)
 	var clutter := ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
@@ -352,11 +336,7 @@ static func wall(d: Dictionary) -> Dictionary:
 	return out
 
 
-## The planks a wall or fence `length` long lays as its finish: planked across, rows two to a course of planks
-## BOARD_MEAN long, scaled as a round loop's stones are, one more a row each time the wall turns BOARD_TURN, on each
-## side and at each opening and ruin, or between a fence's posts FENCE_BOARDS rows; planked upright, a column BOARD.x
-## or FENCE_PALE wide, a wall's broken in two round each opening and course by course down a ruin's stepped ends; framed in timber with no pitched roof, the walk's
-## lanes and a square on each corner.
+## A round loop's planks are scaled as its stones are.
 static func boards(d: Dictionary, length: float) -> int:
 	if d.finish == WallLayout.Finish.BARE or d.finish == WallLayout.Finish.PLASTER or d.finish == WallLayout.Finish.TIMBER and d.get("roof") != null and d.roof.pitch > 0.0:
 		return 0
@@ -388,15 +368,14 @@ static func boards(d: Dictionary, length: float) -> int:
 	return WallLayout.WALK_LANES * along + sides
 
 
-## `n` plants of a plant group's kind.
 static func plants(kind: String, n: int) -> Dictionary:
 	if n <= 0:
 		return {}
 	return {("flower" if kind == "flowers" else kind): n}
 
 
-## What a boulder grown `scale` times counts as: the face it shows grows as its scale squared until near the eye it
-## fills the view, past which a larger one costs no more.
+## A boulder's face grows with its scale squared until near the eye it fills the view; past that a larger one costs
+## no more.
 static func boulder(scale: float) -> float:
 	return clampf(scale * scale, BOULDER_LEAST, BOULDER_MOST_US / COSTS.boulder)
 
@@ -410,12 +389,11 @@ static func stairs(d: Dictionary) -> Dictionary:
 	return {"wall_m2": run * d.width + rails + sides}
 
 
-## A stroke of stone ground: the texels of Ground's mask its discs reach, fade included. Other kinds count nothing.
 static func ground(d: Dictionary) -> Dictionary:
 	return _stone_of(d.stamps) if d.kind == Ground.Kind.STONE else {}
 
 
-## The stone the discs `stamps` reach together, each texel counted once.
+## Each texel counted once however many discs reach it.
 static func _stone_of(stamps: Array) -> Dictionary:
 	var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
 	for st: Vector4 in stamps:
@@ -423,7 +401,8 @@ static func _stone_of(stamps: Array) -> Dictionary:
 	return stone(reached)
 
 
-## Marks on `onto`, an L8 image the size of Ground's mask, the texels the disc `stamp` reaches, fade included.
+## Marks on `onto`, an L8 image the size of Ground's mask, the texels the disc `stamp` reaches: centre x, z (.x, .y),
+## radius .z plus fade .w, in metres.
 static func reach(stamp: Vector4, onto: Image) -> void:
 	var at := (Vector2(stamp.x, stamp.y) / Terrain.SIZE + Vector2(0.5, 0.5)) * Ground.SIZE
 	var r := (stamp.z + stamp.w) / Ground.TEXEL
@@ -438,14 +417,12 @@ static func reach(stamp: Vector4, onto: Image) -> void:
 			onto.fill_rect(Rect2i(x0, j, x1 - x0 + 1, 1), Color.WHITE)
 
 
-## The square metres of stone the texels marked on `reached` (`reach`) count as.
 static func stone(reached: Image) -> Dictionary:
 	var n := reached.get_data().count(255)
 	return {"stone_m2": n * Ground.TEXEL * Ground.TEXEL} if n > 0 else {}
 
 
-## Reserve the whole path for treads, so raising ground cannot exceed the build budget, or a bed for its crops and
-## stepping stones; cobbles and flagstones count the ground their discs reach as painted stone does.
+## Treads are reserved for the whole path, so raising the ground cannot exceed the build budget.
 static func path(d: Dictionary) -> Dictionary:
 	var layout := PathLayout.of(d)
 	layout.plan()
@@ -463,7 +440,7 @@ static func path(d: Dictionary) -> Dictionary:
 			for i in PATH_TREADS_PER_ROW:
 				var f := layout.frame_at(lerpf(span.x, span.y, (i + 0.5) / PATH_TREADS_PER_ROW))
 				stones += PathLayout.tread_columns(f.half)
-				# Stringers come to at most three timbers a tread, where every flight is two treads long.
+				# At most three stringer timbers a tread, every flight being two treads long.
 				timbers += 3
 		out = {"wall_m2": stones * PIECE_M2, "timber": timbers}
 	out.wall_m2 += ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
@@ -472,14 +449,13 @@ static func path(d: Dictionary) -> Dictionary:
 	return out
 
 
-## A decoration's paired Quest 2 cost, the least linear rule at or over every style's dearest of two 24-copy runs of
-## demo/decoration-costs.json (docs/decorations.md), each piece laid in its house's or ground cell's batch: a piece and
-## each solid, in microseconds, its flames and pictures costing nothing the runs resolve; its flowers are charged as
-## painted ones.
+## A decoration's paired Quest 2 cost in microseconds, per piece and per solid: the least linear rule at or over every
+## style's dearest of two 24-copy runs of demo/decoration-costs.json (docs/decorations.md), each piece in its house's
+## or ground cell's batch. Flames and pictures cost nothing the runs resolve; flowers are charged as painted ones.
 const DECORATION_PIECE_US := 35.7
 const DECORATION_SOLID_US := 2.6
 
-## Wall lays on worker threads at once; the rest wait their turn (`Wall._build_live`).
+## Wall lays on worker threads at once; the rest wait (`Wall._build_live`).
 const WALL_LAYS := 2
 
 
@@ -490,6 +466,5 @@ static func decoration(d: Dictionary) -> Dictionary:
 	return {"fitting": us / COSTS.fitting, "flower": float(layout.flowers.size())}
 
 
-## Whether work begun at `start_us` has spent `budget_us` of this frame's time.
 static func over(start_us: int, budget_us: float) -> bool:
 	return frame_deadline and Time.get_ticks_usec() - start_us > budget_us

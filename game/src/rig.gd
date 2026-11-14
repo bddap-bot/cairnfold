@@ -1,68 +1,64 @@
 class_name Rig
 extends XROrigin3D
 
-## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
-## The left stick pushed forward aims from the left hand whatever it holds, so no choice of tools leaves the player
-## unable to move; how far forward it is pushed sets how far along the aim the target lies. Flicked sideways it
+## The left stick pushed forward aims a teleport from the left hand whatever it holds, so no choice of tools leaves
+## the player unable to move; how far forward sets how far along the aim the target lies. Flicked sideways it
 ## snap-turns, and flicked back it turns the player round.
 
-## The eyes' near clip, in real metres: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
-## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
+## Real metres: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside, left nothing.
+## Godot's reversed depth keeps far stone and paving apart at this near.
 const NEAR := 0.02
 ## Past the farthest range round the garden (Mountains) and the sun's disc beyond it.
 const FAR := 2600.0
-## A typical wearer's eye height over the floor standing, in real metres, until `stature` has measured theirs.
+## A typical standing eye height in real metres, until `stature` has measured the wearer's.
 const EYE := 1.65
-## Once `fit` strays this fraction from the world's scale, the view fades out and back in at the new one, as a
-## teleport does: the world never grows in view.
+## Once `fit` strays this fraction from the world's scale, the view fades out and back in at the new one: the world
+## never grows in view.
 const REFIT := 0.02
-## The fit at its extremes, past which an avatar stands above the floor or sinks into it.
+## `fit`'s min and max, past which an avatar stands above the floor or sinks into it.
 const FITS := Vector2(0.1, 10.0)
 const AIR_REACH := 30.0
-## A target across the map moves metres for a fraction of a degree of hand tremor. The aim follows the hand at
-## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
+## A target across the map moves metres for a fraction of a degree of hand tremor, so the aim follows the hand at
+## STEADY_HZ plus STEADY_HZ_PER_RAD per radian of lag: a held hand stays still and a sweep catches up.
 const STEADY_HZ := 0.5
 const STEADY_HZ_PER_RAD := 60.0
-## Past MARKER_NEAR from the eyes the landing preview grows with distance, so it looks as big as it does there.
+## Metres from the eyes past which the landing preview grows with distance, so it looks as big as it does there.
 const MARKER_NEAR := 15.0
-## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
-## to NEAREST of the way there.
+## Stick forward at FULL_STICK or more aims at the ray's full target; at DEADZONE, NEAREST of the way there.
 const FULL_STICK := 0.9
 const DEADZONE := 0.3
 const NEAREST := 0.1
-## A released stick springs through every smaller deflection on its way to centre; the target reaches as far as the
-## stick did this long before, so the one shown when it reaches its deadzone is where the release lands.
+## Seconds: a released stick springs through every smaller deflection on its way to centre, so the target reaches as
+## far as the stick did this long before, and the one shown when it reaches the deadzone is where the release lands.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
-## A surface whose outward normal rises less than this, steeper than 70 degrees or facing down, is a side, as of a
-## wall; anything flatter is stood on. A ruin's stones lean a little and stand proud of each other, well inside it.
+## An outward normal's y below this (steeper than 70 degrees, or facing down) makes a side, as of a wall; anything
+## flatter is stood on. A ruin's stones lean a little and stand proud of each other, well inside it.
 const STEEP := 0.34
-## How far back along a ray that struck a side the player lands or floats.
+## Metres back from a struck side the player lands or floats.
 const STAND_OFF := 0.3
-## A side struck at most this far over the floor in front of it lands the player on that floor; higher, they float at
-## the height struck.
+## A side struck at most this high over the floor in front of it lands the player on that floor; higher, they float.
 const CLIMB := 1.5
-## A target this far over its floor floats.
+## A target higher than this over its floor floats.
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
-## Each turning flick as the angle it turns the player.
+## Flick action -> radians turned.
 const TURNS := {"turn_left": SNAP, "turn_right": -SNAP, "turn_round": PI}
 const FADE := 0.09
-## While the eyes are inside something solid, a wall or the ground, the view dims this far over INSIDE_TIME, and
-## clears as fast once they are out: the view is never moved to push them out.
+## With the eyes inside something solid the view dims this far over INSIDE_TIME seconds, and clears as fast: the view
+## is never moved to push them out.
 const INSIDE_DIM := 0.9
 const INSIDE_TIME := 0.15
-## Where on the ground the player starts, as x and z.
+## Ground x and z.
 const SPAWN := Vector2(0, 4)
-## How far from SPAWN a spawn looks for open ground, and how far apart the points it tries stand.
+## Metres from SPAWN a spawn searches for open ground, and the spacing of the points it tries.
 const SPAWN_SEARCH := 20.0
 const SPAWN_STEP := 2.0
 ## How high over a spawn point nothing may stand: above the tallest build.
 const SPAWN_CLEAR := 200.0
 
-## The player was set down somewhere else.
 signal placed
-## The player was moved in one cut, by a teleport or a snap turn, not by any step of their own.
+## Moved in one cut, by a teleport or a snap turn, not by any step of their own.
 signal jumped
 
 var head: XRCamera3D
@@ -71,44 +67,42 @@ var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
 var body: Avatar
-## The body as the eyes see it (`Avatar.headless`), shown while both hands are empty.
 var _seen: Array[MeshInstance3D] = []
-## What each hand's wrist was noted on (`_note_wrists`).
+## Per hand, the profile keys its wrist was noted on.
 var _wrists_noted := [{}, {}]
 var stature := Stature.new()
 
-## The hand whose teleport ray is out, or null.
+## Null while no teleport ray is out.
 var aim_hand: Hand
-## The conure on each shoulder, left then right, or null.
+## Left then right, null where none sits.
 var shoulders: Array[Conure] = [null, null]
-## The torso's turn in this node's space, so a snap turn or a teleport carries it with the player.
+## In this node's space, so a snap turn or a teleport carries it with the player.
 var _torso := NAN
 var aim_ground: Variant = null
 var aim_lift := 0.0
 var terrain: Terrain
-## What a point stands on: the top surface at or just below it, the ground or anything built on it.
+## The top surface at or just below a point: the ground or anything built on it.
 var floor_under := func(p: Vector3) -> float: return terrain.shown_at(p.x, p.z)
-## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
-## {point, side}, `side` whether it struck a side; or {}.
+## A ray's first solid hit short of `reach`, the ground aside, as {point, side: whether it struck a side}, or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
 var _fade_t := -1.0
-## The view is held black for a garden swap until `respawn` (`blackout`).
+## Held black for a garden swap until `respawn` (`blackout`).
 var _covered := false
-## Seconds the fade under way takes each way.
+## Seconds each way.
 var _fade_len := FADE
-## Whether the eyes are inside something solid (`HandStop`).
+## The eyes are inside something solid; set by `HandStop`.
 var inside := false
 var _dim := 0.0
 var _pending: Variant = null
 var _aim_clock := 0.0
-## [time, the stick's forward deflection] over the last RELEASE_LOOKBACK of aiming, oldest first.
+## [time, forward deflection] over the last RELEASE_LOOKBACK, oldest first.
 var _aim_trail: Array = []
 var _steady_dir := Vector3.ZERO
 
 var _landing := Landing.new()
 var _underfoot := Underfoot.new()
-## The floor the player was last set down over, which a float is measured from: what is built or shaped under a
-## floating player afterwards leaves the ring and shadow where they began.
+## The floor last set down over, which a float is measured from, so building under a floating player leaves the
+## ring and shadow where they began.
 var _floor_y := 0.0
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
@@ -152,8 +146,7 @@ func _build_markers() -> void:
 	head.add_child(_fade)
 
 
-## Wears `a` as the player's own avatar, posed from the head and hands by `pose_body`: the cameras and mirrors see
-## it whole, and the eyes see it headless while both hands are empty.
+## Cameras and mirrors see it whole; the eyes see it headless while both hands are empty.
 func wear(a: Avatar) -> void:
 	for hand in hands:
 		hand.close_wheel()
@@ -177,8 +170,7 @@ func wear(a: Avatar) -> void:
 	_landing.wear(a)
 
 
-## Poses the body from the head and hands; a hand holding a tool is drawn as the tool alone, so its fingers never
-## reach in front of a camera's lens.
+## A hand holding a tool is drawn as the tool alone, so its fingers never reach in front of a camera's lens.
 func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
 	body.palms = [left.palm, right.palm]
@@ -192,10 +184,8 @@ func pose_body() -> void:
 		mi.visible = bare()
 
 
-## Once for each controller profile a hand is measured on, and again once the runtime shapes the hand round it, the log
-## notes in real millimetres the avatar's wrist from the palm it holds and, with the runtime's wrist, how far from that
-## the avatar's wrist and the controller's aim stand: where the wrist is drawn, and where it was drawn when the hand was
-## held at its aim.
+## Once per controller profile, and again once the runtime shapes the hand, logs in real millimetres the avatar's
+## wrist from the palm and, with a runtime wrist, that wrist from the avatar's and from the aim.
 func _note_wrists() -> void:
 	for s in 2:
 		var h := hands[s]
@@ -214,29 +204,27 @@ func _note_wrists() -> void:
 		Metrics.note("wrist: %s on %s, %.0f mm from the palm; %s" % [h.tracker, h._palm_noted, mm.call(wrist, palm.origin), real])
 
 
-## Whether both hands are empty, so the eyes see the player's own body.
 func bare() -> bool:
 	return hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE)
 
 
-## Whether the eyes see the avatar's own hands, so no controller is drawn over them.
+## The eyes see the avatar's own hands, so no controller is drawn over them.
 func shows_hands() -> bool:
 	return body != null and bare()
 
 
-## The torso under the head, in the world's space (`Torso`).
+## In world space.
 func torso() -> Transform3D:
 	_torso = Torso.follow(_torso, head.transform.basis)
 	return global_transform * Torso.frame(head.transform, _torso)
 
 
-## Whether the head is under a pond, where the water's fog takes everything past its end: the eyes clip there, so
-## the garden beyond is not drawn.
+## Under a pond the water's fog takes everything past its end, so the eyes clip there and the garden beyond is not
+## drawn.
 var under := false
 
 
-## The eyes' far clip: at least FAR, and the whole ground from anywhere a player can stand or float over it,
-## however high or deep it is pulled.
+## At least FAR, and the whole ground from anywhere a player can stand or float, however high or deep it is pulled.
 func far() -> float:
 	return maxf(FAR, terrain.bounds().size.length() + AIR_REACH + MAX_LIFT)
 
@@ -249,14 +237,12 @@ func _process(delta: float) -> void:
 	_refit(delta)
 
 
-## How many times their own size the wearer stands, as the world's scale: their avatar's eye height over their own, or
-## 1 with none worn. They see from its eyes and reach as far as its arms, and it is drawn at its own size and
-## proportions whoever wears it.
+## The world's scale: the avatar's eye height over the wearer's, or 1 with none worn, so they see from its eyes and
+## reach as far as its arms, and it is drawn at its own size and proportions whoever wears it.
 func fit() -> float:
 	return clampf(body.eye_height / stature.eye(EYE), FITS.x, FITS.y) if body != null else 1.0
 
 
-## Measures the wearer's eye height, and refits them where they stand once `fit` strays from the world's scale.
 func _refit(delta: float) -> void:
 	stature.add(head.position.y / world_scale, delta)
 	if _fade_t < 0.0 and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
@@ -298,7 +284,6 @@ func end_aim() -> void:
 	hide_markers()
 
 
-## `pose` turned from the hand's own direction to the steadied one.
 func _steadied(pose: Transform3D, delta: float) -> Transform3D:
 	var dir := -pose.basis.z.normalized()
 	if _steady_dir == Vector3.ZERO:
@@ -309,18 +294,15 @@ func _steadied(pose: Transform3D, delta: float) -> Transform3D:
 	return Transform3D(Basis(Quaternion(dir, _steady_dir)) * pose.basis, pose.origin)
 
 
-## The fraction of the way to the ray's full target that a forward stick deflection of `y` reaches.
 static func reach_scale(y: float) -> float:
 	return lerpf(NEAREST, 1.0, clampf((y - DEADZONE) / (FULL_STICK - DEADZONE), 0.0, 1.0))
 
 
-## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
-## the ground, a roof of any pitch, a wall's top, a tree's crown from above, where the player then stands, or a side,
-## as of a wall, at whose foot they stand if it was struck within CLIMB of the floor there, else floating where it was
-## struck. The mountains round the map are sky to the ray, and its cast ends at the map's side: one that hits nothing
-## stands the player on the floor at the side where it leaves, or, aimed above the horizon, floats them in the air
-## AIR_REACH along it or at the side if that is nearer. The target lies `fraction` of the way there along the ray, in
-## the air above the floor short of a hit.
+## The ray's full target is the first solid thing it hits: a top, where the player then stands, or a side, at whose
+## foot they stand if struck within CLIMB of the floor there, else floating where struck. The mountains are sky to the
+## ray and it ends at the map's side: missing everything, it stands the player on the floor where it leaves, or,
+## aimed above the horizon, floats them AIR_REACH along it or at the side if nearer. The target lies `fraction` of
+## the way there, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
@@ -351,12 +333,11 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	_landing.put(aim_ground + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, self)
 
 
-## Whether a surface with outward normal `normal` is a side.
 static func side(normal: Vector3) -> bool:
 	return normal.normalized().y < STEEP
 
 
-## The outward normal of the face of `box` that the point `p` on its surface lies on.
+## The outward normal of the face of `box` nearest `p`.
 static func box_normal(box: AABB, p: Vector3) -> Vector3:
 	var best := INF
 	var n := Vector3.ZERO
@@ -374,9 +355,8 @@ func hide_markers() -> void:
 	_landing.hide()
 
 
-## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset
-## any view motion the player's head did not make is uncomfortable. A far teleport, past MARKER_NEAR from the eyes,
-## that stands the player on something, the ground or anything on it, sounds as a landing; one into the air does not.
+## The rig then stays exactly there: in a headset any view motion the head did not make is uncomfortable. One past
+## MARKER_NEAR from the eyes that stands the player on something sounds as a landing; one into the air does not.
 func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
 	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR
@@ -384,7 +364,7 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	_cut(ground, lift_m)
 
 
-## Fades the view out, sets the player down at `ground`, `lift_m` up, and fades it back in.
+## Fades out, sets the player down (`_fade_step`), and fades back in.
 func _cut(ground: Vector3, lift_m: float) -> void:
 	_pending = [ground, lift_m]
 	_fade_len = FADE
@@ -392,8 +372,7 @@ func _cut(ground: Vector3, lift_m: float) -> void:
 	_fade.visible = true
 
 
-## Fades the view to black and holds it there until `respawn` sets the player down in the garden that follows, and
-## says whether it is black yet (`World.blackout`).
+## Holds black until `respawn` sets the player down in the next garden; says whether it is black yet (`World.blackout`).
 func blackout() -> bool:
 	if not _covered:
 		end_aim()
@@ -401,15 +380,14 @@ func blackout() -> bool:
 	return cover()
 
 
-## Sets the player down on open ground at SPAWN, or the nearest open ground to it, and lifts a cover.
 func respawn() -> void:
 	_pending = null
 	place(spawn(), 0.0)
 	uncover()
 
 
-## Fades the view to black over `fade` seconds and holds it there until `uncover`; says whether it is black yet. Black
-## is never brighter than what it covers.
+## Fades to black over `fade` seconds and holds it until `uncover`; says whether it is black yet. Black is never
+## brighter than what it covers.
 func cover(fade := FADE) -> bool:
 	if not _covered:
 		_covered = true
@@ -428,8 +406,8 @@ func covered() -> bool:
 	return _covered
 
 
-## The open ground nearest SPAWN, tried ring by ring SPAWN_STEP apart: a point nothing is built, planted or set down
-## over, so the player never arrives inside a build. With none within SPAWN_SEARCH, the top of what stands at SPAWN.
+## The open ground nearest SPAWN, so the player never arrives inside a build; with none within SPAWN_SEARCH, the top
+## of what stands at SPAWN.
 func spawn() -> Vector3:
 	for ring in int(SPAWN_SEARCH / SPAWN_STEP) + 1:
 		var r := ring * SPAWN_STEP
@@ -443,10 +421,9 @@ func spawn() -> Vector3:
 	return Vector3(top.x, floor_under.call(top), top.z)
 
 
-## Sets the player's head over `ground`, `lift_m` up, at the world's scale that fits them to their avatar (`fit`): over
-## it where the head stands once it is next reported at that scale. The head moves with the scale between frames, as a
-## headset's runtime reports it, never within one, so a session record keeps each frame's head as it was given and a
-## replay places the player from the same pose.
+## Over `ground` where the head stands once next reported at `fit`'s scale. The head moves with the scale between
+## frames, as a headset's runtime reports it, never within one, so a session record keeps each frame's head as given
+## and a replay places the player from the same pose.
 func place(ground: Vector3, lift_m: float) -> void:
 	var s := fit()
 	var h := global_transform * (head.position * s / world_scale)

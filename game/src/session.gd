@@ -1,58 +1,53 @@
 class_name Session
 extends Node
 
-## Who shares this garden (docs/multiplayer.md). Every instance hosts its own garden, which alone is
-## single player, and announces it on the local network; joining someone swaps in their garden until
-## you leave or they go. Each player's head and hands travel to the others as poses, and the VRM they
-## wear from their avatar folder travels once to everyone they meet.
+## Design: docs/multiplayer.md.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const PORT := 7480
-## A host takes the first free of PORTS ports from its first; beacons may name any in PORT_RANGE from PORT.
+## A host takes the first free of PORTS ports from its first; a beacon may name any of PORT_RANGE from PORT.
 const PORTS := 8
 const PORT_RANGE := 64
-## Beacons go to each of these ports, so several instances on one machine each find the others.
+## Several, so instances on one machine each find the others.
 const BEACON_PORT := 7469
 const BEACON_PORTS := 4
 const BEACON_EVERY := 1.0
 const FORGET_AFTER := 4.0
-## At most this many beacons are read a frame and this many gardens remembered, whatever the network sends.
+## Caps on what the network can make us read a frame and remember.
 const HEAR_PER_FRAME := 16
 const MAX_NEARBY := 12
 const MAX_PLAYERS := 8
 const POSE_EVERY := 1.0 / 30.0
-## A streamed palm farther than this from its hand, in metres of the sender's scaled world, is refused.
+## Metres of the sender's scaled world; a streamed palm farther than this from its hand is refused.
 const PALM_REACH := 2.0
-## Where another player's sent head, hands or throws may be: any further off is a corrupt or hostile packet.
+## Sent heads, hands or throws outside this are corrupt or hostile.
 const ROAM := AABB(Terrain.ROOM.position - Vector3.ONE * 40.0, Terrain.ROOM.size + Vector3.ONE * 80.0)
-## How fast a remote avatar closes on its latest pose, per second.
+## Per second.
 const FOLLOW := 18.0
-## How often the avatar folder is looked at, in seconds.
+## Seconds.
 const FOLDER_EVERY := 2.0
-## Avatar files travel on a channel of their own, so building commands never wait behind one.
+## A channel of its own, so building commands never wait behind an avatar file.
 const FILE_CHANNEL := 1
-## At most this many avatar files are handed out, and fetched for the picker, at once; a transfer stalled this
-## many seconds is dropped.
+## Avatar files handed out, and fetched for the picker, at once; STALL is the seconds before a stalled transfer drops.
 const SHELF_PEERS := 4
 const FETCHES := 2
 const STALL := 30.0
-## How long, in milliseconds, a peer's reliable data may go unacknowledged before it is dropped. ENet's own
-## default drops a live peer within seconds when a large file's transfer meets a burst of Wi-Fi loss.
+## Milliseconds. ENet's default drops a live peer within seconds when a large file's transfer meets a burst of
+## Wi-Fi loss.
 const SILENCE := 30000
 ## ENet's longest silence in milliseconds, past what its clock can tell apart: a link set to it never times out.
 const PATIENT := 0x7fffffff
 const CHUNK := 1 << 16
-## A file that could not be fetched, or was not the one named, is tried again after this many seconds; one that was
-## and did not read is not, while a beacon still names it.
+## Seconds before a file that failed to fetch, or was not the one named, is tried again; one that arrived and did not
+## read is not, while a beacon still names it.
 const RETRY := 30.0
-## A thrown handful flies slower than this, in metres a second; a player's throws come at most this often, in seconds.
+## Metres a second; THROW_EVERY in seconds.
 const MAX_THROW := 20.0
 const THROW_EVERY := 0.1
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
 var world: World
 var rig: Rig
-## Where every player's thrown seeds land, so each sees the same handfuls and what comes to eat them.
 var feed: FeedTool:
 	set(f):
 		feed = f
@@ -66,50 +61,48 @@ var port := 0
 ## 0 for an instance a test or script made without a port: it opens nothing, so runs side by side never meet.
 var first_port := PORT
 var beacon_port := BEACON_PORT
-## Whether beacons reach the network, or only this machine.
+## false keeps beacons on this machine.
 var lan := true
-## The garden we are visiting, {address, port}, or empty at home.
+## {address, port}, or empty at home.
 var visiting := {}
-## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, wears, name, joins, seen}.
+## By "address:port": {address, port, key, avatar, colour, wears, name, joins, seen}.
 var nearby := {}
-## Remote players' avatars by peer id.
+## By peer id.
 var avatars := {}
-## The quality step, which says whether players are drawn in their own files (`_files`, as last dressed) and lets
-## each in as it is dressed (Quality.admit).
+## Says whether players are drawn in their own files (`_files`, as last dressed) and admits each as dressed.
 var quality: Quality
 var _files := true
 var _spring_hands := [[], []]
-## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them. A leaving
-## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
+## Two to a player. A leaving player's are hidden for the next to take up, never freed, so no animal is left holding
+## a freed one.
 var dishes: Array[Dish] = []
 var _dishes := {}
 var held := {}
 var painting: EaselTool
 var book: Book
 var _sent_held: Array = []
-## The folder whose .vrm files are this player's own avatars, or "" for none.
+## Holds this player's own .vrm avatars; "" for none.
 var folder := ""
-## Every .vrm in that folder by file name: {seen, when, key, bytes, scene}. `seen` is its modified time and size, so a
-## file is read again only when it changes; `key` is "" until it has been read, and `scene` null unless it read as an
-## avatar within the limits.
+## By file name: {seen, when, key, bytes, scene}. `seen` is modified time and size, so a file is read again only when
+## it changes; `key` is "" until read, and `scene` null unless it read as an avatar within the limits.
 var files := {}
-## The folder file worn once it reads: the newest of those that last changed.
+## The newest of the files that last changed, worn once it reads.
 var _wanted := ""
-## The folder file being read: one at a time, newest first, so a full folder never holds every core or its memory.
+## One at a time, newest first, so a full folder never holds every core or its memory.
 var _reading := ""
-## That file once it has read as an avatar within the limits; sent to every player met.
+## The worn file once it read as an avatar within the limits; empty for a built-in avatar.
 var worn := PackedByteArray()
 ## Its hash, which the beacon names so the picker can fetch the file before anyone joins; "" for a built-in avatar.
 var worn_key := ""
-## Avatars by file hash for the picker: this player's own and those nearby gardens' beacons name.
+## By file hash: this player's own and those nearby gardens' beacons name.
 var previews := {}
-## Each remote player's built-in avatar and colour, and the hash of the file they wear ("" for none).
+## By peer: `_looks` [built-in avatar, colour], `_wearing` the hash of their file ("" for none).
 var _looks := {}
 var _wearing := {}
-## Avatars read from others' files, by hash, while someone here wears one.
+## By hash, while someone here wears one.
 var _scenes := {}
-## Files being read on worker threads: {task, peer, done, out}, where only the worker writes `out` until the task
-## completes; each player's latest file waiting to be.
+## {task, peer, done, out}; only the worker writes `out` until the task completes. `_waiting`: each player's latest
+## file waiting to be read.
 var _jobs: Array[Dictionary] = []
 var _waiting := {}
 var _since_folder := INF
@@ -120,17 +113,17 @@ var _since_beacon := INF
 var _since_pose := 0.0
 var _beacon := PacketPeerUDP.new()
 var _listen := PacketPeerUDP.new()
-## Hands this player's file, after its length, to whoever asks, over TCP on the game's port number:
+## Hands this player's file, after its length, to whoever asks over TCP on the game's port. `_handing`:
 ## {peer, bytes, sent, opened}.
 var _shelf := TCPServer.new()
 var _shelved := PackedByteArray()
 var _handing: Array[Dictionary] = []
-## Files being fetched from nearby gardens, by hash: {peer, got, since}, then {} while one is read.
+## By hash: {peer, got, since}, then {} while one is read.
 var _fetches := {}
-## When each file last failed to fetch, by hash; INF for one that arrived and did not read.
+## By hash: when a fetch last failed; INF for one that arrived and did not read.
 var _failed := {}
 var _targets := {}
-## When each remote player last threw.
+## By peer.
 var _thrown := {}
 static var _protocol := 0
 
@@ -153,12 +146,12 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 		Avatar.built_in(i)
 
 
-## A game a player launched, as opposed to one a script or a test runs. Only it beacons on the network.
+## Launched by a player, not run by a script or a test. Only it beacons on the network.
 static func played(args: Dictionary, launched: bool) -> bool:
 	return launched and not (args.has("script") or args.has("replay") or args.has("join") or args.has("port") or args.has("beacon-port"))
 
 
-## Where beacons go: a script's or a test's stay on this machine, so players never see them.
+## A script's or a test's beacons stay on this machine, so players never see them.
 func beacon_to() -> Array:
 	return ["255.255.255.255", "127.0.0.1"] if lan else ["127.0.0.1"]
 
@@ -178,7 +171,7 @@ func _ready() -> void:
 	host()
 
 
-## Opens this garden to others; with nobody joining it is single player, on the same code path.
+## With nobody joining it is single player, on the same code path.
 func host() -> void:
 	visiting = {}
 	var peer := ENetMultiplayerPeer.new()
@@ -197,7 +190,7 @@ func host() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 
-## Leaves this garden for another's; ours waits in memory until we come back.
+## Ours waits in memory until we come back.
 func join(address: String, at_port: int) -> bool:
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_client(address, at_port) != OK:
@@ -216,7 +209,6 @@ func join(address: String, at_port: int) -> bool:
 	return true
 
 
-## The garden we were visiting is gone, or never answered.
 func _dropped() -> void:
 	world.hear("dropped", [])
 	go_home()
@@ -273,7 +265,7 @@ func _drop_avatars() -> void:
 		_forget(id)
 
 
-## Drops everything kept of remote player `id`; every table is keyed by the ids `_appear` files in `_looks`.
+## Every per-player table is keyed by the ids `_appear` files in `_looks`.
 func _forget(id: int) -> void:
 	if avatars.has(id):
 		avatars[id].queue_free()
@@ -365,7 +357,7 @@ func _announce() -> void:
 			_beacon.put_packet(msg)
 
 
-## Every second, to anyone on the network: nothing identifying, unless the player picked a name to show.
+## Nothing identifying, unless the player picked a name to show.
 func beacon() -> PackedByteArray:
 	var msg := {"cairnfold": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
 	if me.shared and not me.steam():
@@ -394,7 +386,7 @@ static func fingerprint(scripts: Array[Script]) -> int:
 	return hash(parts)
 
 
-## A beacon's garden, or empty when the packet is not one; `joins` is false for a build with other networked methods.
+## Empty when the packet is not a beacon; `joins` is false for a build with other networked methods.
 static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	var json := JSON.new()
 	if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
@@ -439,19 +431,16 @@ func _hear() -> void:
 				_failed[wears] = _clock
 
 
-## The avatar a figure in the picker shows: the file `wears` names once it has been fetched and read, else the
-## built-in one.
 func look(wears: String, built_in: int) -> PackedScene:
 	var scene: PackedScene = previews.get(wears)
 	return scene if scene else Avatar.built_in(built_in)
 
 
-## Whether the picker has fetches or reads still under way.
 func previewing() -> bool:
 	return not _fetches.is_empty()
 
 
-## Keeps only what a nearby garden's beacon names now, so a host changing avatars leaves nothing behind.
+## So a host changing avatars leaves nothing behind.
 func _prune_previews() -> void:
 	var named := {worn_key: true}
 	for g in nearby.values():
@@ -466,7 +455,7 @@ func _prune_previews() -> void:
 			_fetches.erase(key)
 
 
-## Sends this player's file, after its length, to each who connects: it is what any player who joins gets anyway.
+## To anyone who connects: it is what any player who joins gets anyway.
 func _hand_out() -> void:
 	while _shelf.is_connection_available():
 		var peer := _shelf.take_connection()
@@ -490,8 +479,6 @@ func _hand_out() -> void:
 			_handing.remove_at(i)
 
 
-## Reads what nearby gardens' files have sent; a whole one is read on a worker thread and kept if its hash is the
-## one its beacon named.
 func _fetch() -> void:
 	for key in _fetches.keys():
 		var f: Dictionary = _fetches[key]
@@ -532,7 +519,6 @@ func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted
 	print("session: a nearby garden's host wears %s%s" % [wanted, "" if previews.has(wanted) else ", which did not match or read"])
 
 
-## A player's avatar and colour, sent once to each player they meet.
 @rpc("any_peer", "reliable")
 func _appear(look: int, tint: Color) -> void:
 	world.hear("_appear", [look, tint])
@@ -573,8 +559,7 @@ func _drop_dishes(id: int) -> void:
 	_dishes.erase(id)
 
 
-## A player's own VRM, sent to each player they meet and again whenever it changes; empty for their built-in one.
-## They keep their built-in avatar until the file has been read, on a worker thread, and passes the limits.
+## Empty for a built-in avatar, which they keep until the file has read and passes the limits.
 @rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
 func _wear(bytes: PackedByteArray, look: int) -> void:
 	world.hear("_wear", [bytes, look])
@@ -587,7 +572,7 @@ func _wear(bytes: PackedByteArray, look: int) -> void:
 	_read_waiting()
 
 
-## Reads at most one file per player at a time, the latest each sent, so nobody can queue up reads.
+## One read per player at a time, of the latest each sent, so nobody can queue up reads.
 func _read_waiting() -> void:
 	for id in _waiting.keys():
 		if _jobs.any(func(j: Dictionary) -> bool: return j.peer == id):
@@ -615,7 +600,6 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 	_prune()
 
 
-## Gives player `id` the avatar in `scene`, in their pose.
 func _dress(id: int, scene: PackedScene, key: String) -> void:
 	var a := Avatar.drawn(scene, _looks[id][1], key, key != "" and (quality == null or quality.admit(scene)), _looks[id][0])
 	a.simulate_springs = false
@@ -644,20 +628,17 @@ static func sha256(bytes: PackedByteArray) -> String:
 	return h.finish().hex_encode()
 
 
-## Whether the folder's newest avatar file is still to be put on, or the folder not yet scanned: putting it on closes
-## the wheel (`Rig.wear`).
+## Putting the newest file on closes the wheel (`Rig.wear`).
 func dressing() -> bool:
 	return _since_folder == INF or _wanted != ""
 
 
-## Wears built-in avatar `look`.
 func choose_avatar(look: int) -> void:
 	_wanted = ""
 	avatar = posmod(look, Avatar.BUILT_IN.size())
 	_set_look("", PackedByteArray(), null)
 
 
-## Wears folder file `f` if it has read as an avatar.
 func wear_file(f: String) -> void:
 	var file: Dictionary = files.get(f, {})
 	if file.get("scene") != null:
@@ -665,8 +646,6 @@ func wear_file(f: String) -> void:
 		_set_look(file.key, file.bytes, file.scene)
 
 
-## Notes which .vrm files in the avatar folder are new, changed or gone. The newest new or changed one is worn once it
-## reads; the worn one gone, the built-in avatar is.
 func _look_in_folder() -> void:
 	if folder == "":
 		return
@@ -696,7 +675,6 @@ func _look_in_folder() -> void:
 	_read_next()
 
 
-## Starts reading the newest folder file not yet read, unless one is being read.
 func _read_next() -> void:
 	if _reading != "":
 		return
@@ -707,7 +685,6 @@ func _read_next() -> void:
 		_read(PackedByteArray(), folder.path_join(_reading), _have_file.bind(_reading, files[_reading].seen))
 
 
-## Keeps a folder file read as it was when seen, and wears it if it is the one wanted.
 func _have_file(key: String, bytes: PackedByteArray, scene: PackedScene, f: String, seen: String) -> void:
 	_reading = ""
 	if files.get(f, {}).get("seen") == seen:
@@ -736,9 +713,8 @@ func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 		_wear.rpc(worn, avatar)
 
 
-## Puts on `scene`, file `key` of `bytes`, or with none built-in avatar `look`, in `tint`, and has the record keep it as
-## `look` (its file as a hash, PlayLog): a choice is put on between frames, where a replay puts the record's on, so the
-## rig refits the player (`Rig.fit`) from the same frame in both.
+## The record keeps it as `look` (its file as a hash, PlayLog). A choice is put on between frames, where a replay
+## puts the record's on, so the rig refits the player (`Rig.fit`) from the same frame in both.
 func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, tint: Color) -> void:
 	world.hear("look", [bytes, look, tint])
 	avatar = look
@@ -746,9 +722,9 @@ func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, 
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(look), tint, key))
 
 
-## Reads a VRM, from `bytes` or the file at `path`, and hashes it on a worker thread; `done(hash, bytes, scene)`
-## follows on this one, with a null scene if it is not an avatar within the limits. `peer` is whose file it is,
-## 0 for this player's own or one the picker fetched.
+## Reads and hashes `bytes`, or the file at `path`, on a worker thread; `done(hash, bytes, scene)` follows on this
+## one, `scene` null unless it is an avatar within the limits. `peer` is whose file it is, 0 for this player's own or a
+## picker fetch.
 func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
 	var out := {}
 	var task := WorkerThreadPool.add_task(func() -> void:
@@ -789,12 +765,12 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	feed.toss(from, velocity, seed)
 
 
-## What this player holds in each hand and carries on each shoulder, as `HeldItem.describe` and `perched` give them.
+## Left hand, right hand, then each shoulder.
 func held_items() -> Array:
 	return [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book), HeldItem.perched(rig, 0), HeldItem.perched(rig, 1)]
 
 
-## A player's head, hands and where their eyes look, in their head's frame, and each hand's palm from it.
+## `look` is in the head's frame; each palm is relative to its hand.
 @rpc("any_peer", "unreliable_ordered")
 func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, springs := PackedVector3Array(), holders := {}, fingers := PackedFloat32Array(), left_palm := Transform3D(), right_palm := Transform3D()) -> void:
 	world.hear("_pose", [eyes, left, right, look, springs, holders, fingers, left_palm, right_palm])

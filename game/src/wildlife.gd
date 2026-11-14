@@ -1,25 +1,14 @@
 class_name Wildlife
 extends Node3D
 
-## Animals that come on their own, drawn by what is built; nothing the player holds can place one.
-## Some time after a pond appears a duck arrives: alone it flies in and splashes down, a mother with
-## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
-## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
-## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
-## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), fish to the ponds (`Fish`), conures,
-## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`); deer
-## and a fox come out of the trees round the meadow (`Roamers`). Frogs, grass snakes, squirrels, owls and pond snails keep
-## their distance (`Shy`).
-## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
-## those that eat from it, each kind as its `Appetite` says. At night the day's animals rest: no new ones come but
-## the fireflies, owls, frogs and snails, butterflies stay settled on their flowers, conures roost and only murmur, ducks rest
-## quietly, snakes lie still, squirrels keep to their crowns, and the frogs croak.
+## Animals arrive drawn by what is built, never placed by the player, and come and go only out of the
+## viewer's sight so nothing pops in or out of being.
 
-## How long after its habitat appears a duck, a pond's fish, or a flock of conures, comes.
+## Seconds from a habitat appearing to an arrival there.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
 const SHEEP_AFTER := Vector2(25.0, 60.0)
-## In wet grid points.
+## Wet grid points.
 const MIN_POND := 6
 const FAMILIES := 2
 const DUCKLINGS := Vector2i(2, 4)
@@ -30,63 +19,57 @@ const FLY_DISTANCE := 24.0
 const FLY_HEIGHT := 8.0
 const WALK_FROM := 5.0
 const WALK_AWAY := 30.0
-## Bill to tail of a grown duck; a line of ducklings keeps that spacing scaled to their size.
+## Metres bill to tail of a grown duck; ducklings in line keep that spacing scaled to their size.
 const LENGTH := 0.38
-## Water deeper than this, as a fraction of a duck's size, floats it.
+## Fraction of a duck's size; water deeper than this floats it.
 const FLOAT_DEPTH := 0.1
 const SINK := 0.06
 const SWIM_FOR := Vector2(25.0, 50.0)
 const REST_FOR := Vector2(15.0, 35.0)
 const BANK := Vector2(0.5, 1.4)
-## Clearance from a wall's centre line beyond its half thickness, and from a trunk, for an animal standing.
+## Metres an animal stands clear of a wall beyond its half thickness, and of a trunk.
 const WALL_CLEAR := 0.55
 const TRUNK_CLEAR := 0.9
 ## Ground barer than this is a path or paving.
 const BARE := 0.4
 const SHORE := 0.4
 const RIPPLE_EVERY := 1.6
-## Cosine of the widest angle from the gaze a headset still shows.
+## Cosine of the widest angle off the gaze a headset still shows.
 const SIGHT := 0.5
-## A leaving duck is let go once outside this narrower cone, so one frame's step never crosses the edge of
-## sight, and at least GONE from the viewer, or once FAR.
+## Narrower than SIGHT so one frame's step of a leaving animal never crosses the edge of sight.
 const LEAVE_SIGHT := SIGHT - 0.1
 const GONE := 8.0
 const FAR := 60.0
 const EDGE := Terrain.SIZE * 0.5 - 1.0
-## Seconds between looks over the walls and trees for where conures may perch and sheep graze.
+## Seconds.
 const LOOK_EVERY := 0.5
-## Seconds, on average, between a family's quacks and its ducklings' peeps while it is at its pond.
+## Mean seconds between a family's quacks, and between its ducklings' peeps.
 const QUACK_EVERY := 20.0
 const PEEP_EVERY := 30.0
-## A hand or the head moving faster than this, in metres a second, startles an animal near it; slower, it may
-## come right up.
+## Metres per second; a hand or the head faster than this startles an animal near it.
 const CALM := 0.7
-## Slower than this, in metres per second, a hand or the head is still.
+## Metres per second; slower is still.
 const STILL := 0.25
-## Per second: how quickly the speed an animal sees follows a hand's or the head's, so tracking jitter startles none.
+## Per second; eases the speed an animal sees so tracking jitter startles none.
 const SPEED_EASE := 12.0
-## Where an animal eating from a hand stands on it, in the controller's space: on its top, behind the seeds
-## the seed tool shows at `Hand.TOP`, facing them.
+## Controller space: on top of the hand, behind the seeds the seed tool shows at `Hand.TOP`, facing them.
 const ON_HAND := Vector3(0, 0.0075, 0.088)
 
 enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT, FEED }
-## Where an animal eats seeds held out to it: standing on the hand, or under it on the ground or water.
 enum Eat { ON_HAND, UNDER_HAND }
 
-## How a kind of animal eats from a hand holding seeds. Every kind that does declares one; `Wildlife` finds the
-## hand, keeps one animal to a hand and says where it eats.
 class Appetite:
 	var eat: Eat
-	## How far off it sees the seeds.
+	## Metres.
 	var notice: float
-	## How high over the ground or water under it a hand may be for it to reach.
+	## Metres a hand may be above the ground or water under it.
 	var reach: float
-	## From where it stands to its mouth, along the way it faces.
+	## Metres forward from where it stands to its mouth.
 	var mouth: float
 	var eats_for: Vector2
-	## How long after eating it comes back for more.
+	## Seconds before it comes back for more.
 	var full_for: Vector2
-	## How readily, per second, one that sees seeds held out goes for them; INF, at once.
+	## Chance per second of going for seeds it sees; INF goes at once.
 	var drawn: float
 
 	func _init(how: Eat, sees: float, up: float, to_mouth: float, eating: Vector2, full: Vector2, draw: float) -> void:
@@ -98,7 +81,6 @@ class Appetite:
 		full_for = full
 		drawn = draw
 
-	## Whether one no longer full goes for seeds this tick.
 	func tempted(full: float, delta: float, random: RandomNumberGenerator) -> bool:
 		return full <= 0.0 and (drawn == INF or random.randf() < delta * drawn)
 
@@ -108,16 +90,16 @@ var marks: Ground
 var water: Water
 var flora: Flora
 var walls: WallTool
-## The wall tool's walls by grid cell, as `_swims_clear` last read them in frame `_walls_frame`.
+## The wall tool's walls by grid cell, as of frame `_walls_frame`.
 var _walls_at := {}
 var _walls_frame := -1
-## Per pond, [the wall index's revision, its layout, its `_pond_area`, whether a wall's cells come within a swimmer's
-## reach of that]: a pond no wall comes near asks no wall about a step inside it.
+## Per pond: [walls_at_rev, its layout, its `_pond_area`, whether any wall's cells come within swim reach of
+## that area]; a pond no wall comes near asks no wall about a step inside it.
 var _walled := {}
 var palette: Palette
 var viewer: Node3D
 var hands: Array[Node3D] = []
-## Other players' seed dishes as this game shows them (`Session`): one held out is an offer as a hand here is.
+## Other players' seed dishes (`Session`); one held out is an offer as a hand here is.
 var dishes: Array[Dish] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
@@ -132,31 +114,29 @@ var snakes: Snakes
 var squirrels: Squirrels
 var owls: Owls
 var calls: Calls
-## The sky whose hour sets day and night; none is always day.
+## Null is always day.
 var light: Look
 var rng := RandomNumberGenerator.new()
-## Whether a duck has ever come: conures come only after.
+## Conures come only once a duck has.
 var ducks_came := false
 var _due := {}
 var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
-## Which of the birds, herds, roamers and squirrels looks next: each looks every LOOK_EVERY, a quarter of it after the one
+## Index into birds, herds, roamers, squirrels: each looks every LOOK_EVERY, a quarter of it after the one
 ## before, so no frame pays for them all.
 var _looker := 0
 var _asleep := false
-## Per hand and the head: where it was last tick and how fast it has been moving. A teleport or a snap turn forgets
-## where each was, so the cut is no motion to an animal: a player in a small room cannot help teleporting.
+## Keyed by hand or head: last position and eased speed. A teleport or snap turn clears `_was`, so the cut is
+## no motion to an animal: a player in a small room cannot help teleporting.
 var _was := {}
 var _speed := {}
-## No hand or head moving suddenly, as `_watch` last found them: nothing to startle anything.
 var _calm := true
 var _velocity := {}
-## Per hand holding seeds or seeds scattered: whatever is eating from it or on its way to.
+## Offer -> whatever eats from it or is on its way to.
 var _eaters := {}
 var handfuls: Array[Handful] = []
-## A duck paddles or waddles over to peck seeds held low over its pond or the bank.
 static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0), INF)
 
 
@@ -166,16 +146,16 @@ class Family:
 	var state := State.ENTER
 	var timer := 0.0
 	var goal := Vector3.ZERO
-	## A wet point of the family's pond, to find it again if the pond's surface is rebuilt.
+	## A wet point of the pond, to find it again if its surface is rebuilt.
 	var home := Vector3.ZERO
-	## Where a flight meets the sky; `flight` runs from 0 there to 1 on the water.
+	## `flight` runs from 0 here to 1 on the water.
 	var sky := Vector3.ZERO
 	var flight := 0.0
 	var ripple := 0.0
-	## The level way out, once leaving; none for a family walled in.
+	## Level way out once leaving; Vector3.ZERO for a family walled in.
 	var heading := Vector3.ZERO
-	## The hand it feeds from, and how long until it eats again.
 	var hand: Node3D
+	## Seconds until it eats again.
 	var full := 0.0
 
 	func _init(first: Duck) -> void:
@@ -236,7 +216,7 @@ func shy() -> Array[Shy]:
 	return [frogs, snakes, squirrels, owls, snails]
 
 
-## The planted trees with a crown standing out of the water, each as Flora.placed lists it, trunk first.
+## Each as Flora.placed lists it, trunk first.
 func dry_trees() -> Array:
 	return flora.placed("tree").filter(func(parts: Array) -> bool: return parts.size() > 1 and water.pond_at(parts[0].anchor.x, parts[0].anchor.z) == null)
 
@@ -250,7 +230,6 @@ func night() -> float:
 	return 0.0 if light == null else Daylight.night(Daylight.elevation(light.time))
 
 
-## Whether the day's animals rest, as of the last tick.
 func asleep() -> bool:
 	return _asleep
 
@@ -316,9 +295,6 @@ func _schedule(delta: float, day: bool) -> void:
 		_arrive(ripe[0])
 
 
-## Starts a wait in `after` for each habitat when it first appears and counts it down; the habitats whose
-## wait is over. A habitat that is gone, or taken, forgets its wait; while not `counting`, waits hold still.
-## Waits are drawn from `random`.
 func _ripe(due: Dictionary, habitats: Array, after: Vector2, delta: float, counting := true, random := rng) -> Array:
 	var present := {}
 	for h in habitats:
@@ -373,8 +349,7 @@ func _arrive(p: PondWater) -> void:
 		f.state = State.FLY_IN
 
 
-## A level direction from `land`, out of sight `reach` away, along which a line of `n` ducks stands on ground they may
-## and walks to `land` through no wall and no other water; Vector3.ZERO where none is found.
+## Level, out from `land`; Vector3.ZERO where none is found.
 func _way_in(land: Vector3, reach: float, n: int) -> Vector3:
 	for attempt in 6:
 		var away := _unseen_direction(land, reach, 0.0)
@@ -448,7 +423,6 @@ func _think(f: Family, delta: float) -> void:
 		d.peck(1.0 if eating else 0.0, delta)
 
 
-## A duck that sees seeds held low over its pond or its bank heads over to them, its ducklings after it.
 func _come_for_seeds(f: Family) -> void:
 	var lead := f.leader()
 	var h := offer_for(duck_appetite, lead.position, func(o: Node3D) -> bool: return _reaches(f, eat_spot(duck_appetite, o, lead.position)))
@@ -461,13 +435,11 @@ func _come_for_seeds(f: Family) -> void:
 	f.timer = rng.randf_range(duck_appetite.eats_for.x, duck_appetite.eats_for.y)
 
 
-## Whether a duck of `f` can get to `spot` from where it is: on its pond or the bank, by water no wall cuts off.
 func _reaches(f: Family, spot: Vector3) -> bool:
 	return _pond_near(spot) == f.pond and _swims_clear(f.leader().position, Vector2(spot.x, spot.z))
 
 
-## Over to the hand and pecking under it while it is held out calmly; true while pecking. A hand snatched
-## away or put down, or the seeds eaten, sends the family back to swimming.
+## True while pecking.
 func _eat(f: Family, delta: float) -> bool:
 	var lead := f.leader()
 	if not feeds(f.hand, f) or sudden(f.hand):
@@ -503,7 +475,6 @@ func _swim(f: Family) -> void:
 	f.home = f.goal
 
 
-## A lone duck flies off, back along its way in if it had not yet landed; a family walks away.
 func _leave(f: Family) -> void:
 	release(f)
 	var at := f.leader().position
@@ -519,14 +490,12 @@ func _leave(f: Family) -> void:
 		_walk_away(f, at, _unseen_direction(at, WALK_AWAY, 0.0, LEAVE_SIGHT))
 
 
-## The next leg of a family's walk away from `at`, along `heading` where that way is clear.
 func _walk_away(f: Family, at: Vector3, heading: Vector3) -> void:
 	f.goal = _head_off(at, heading)
 	f.heading = Vector3(f.goal.x - at.x, 0, f.goal.z - at.z).normalized()
 
 
-## WALK_AWAY on from `at` along `heading`, or, if a wall or water is in that way, along another way out of sight;
-## `at` itself with none clear, to stand there until it can be let go.
+## `at` itself when no way is clear.
 func _head_off(at: Vector3, heading: Vector3, random := rng) -> Vector3:
 	for attempt in 6:
 		var to := at + heading * WALK_AWAY
@@ -537,15 +506,12 @@ func _head_off(at: Vector3, heading: Vector3, random := rng) -> Vector3:
 	return at
 
 
-## A leaving duck keeps on its way until it is out of sight and some way off; a family walled in, or at the edge of the
-## garden, once out of sight.
 func _gone(f: Family) -> bool:
 	if f.state != State.WALK_OUT and (f.state != State.FLY_OUT or f.flight > 0.0):
 		return false
 	return f.ducks.all(func(d: Duck) -> bool: return _let_go(d.position, 0.0 if f.heading == Vector3.ZERO or _at_edge(d.position) else GONE))
 
 
-## Whether a leaving animal at `at` may be let go: FAR off, or out of sight and at least `near` off.
 func _let_go(at: Vector3, near: float) -> bool:
 	if viewer == null or not viewer.is_inside_tree():
 		return true
@@ -557,7 +523,6 @@ func _at_edge(at: Vector3) -> bool:
 	return maxf(absf(at.x), absf(at.z)) >= EDGE - 0.5
 
 
-## Eases how fast each hand and the head is moving, and lets go of hands no longer holding seeds out.
 func _watch(delta: float) -> void:
 	if delta <= 0.0:
 		return
@@ -581,8 +546,7 @@ func _watch(delta: float) -> void:
 			_eaters.erase(h)
 
 
-## This player's hands and head, and other players' dishes while held out: a dish put away is forgotten, so held out
-## again it is no sudden move.
+## A dish put away is forgotten, so held out again it is no sudden move.
 func _watched() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for n: Node3D in hands + dishes + [viewer]:
@@ -599,14 +563,12 @@ func still(n: Node3D) -> bool:
 	return _speed.get(n, 0.0) < STILL
 
 
-## Whether `n` is coming toward `p` faster than a still hand or head drifts.
 func approaching(n: Node3D, p: Vector3) -> bool:
 	var to := Vector3(p.x - n.global_position.x, 0, p.z - n.global_position.z)
 	var v: Vector3 = _velocity.get(n, Vector3.ZERO)
 	return to.length() > 1e-3 and Vector3(v.x, 0, v.z).dot(to.normalized()) > STILL
 
 
-## The first hand, or the head, within `reach` of `p` and moving suddenly, or null.
 func _startled(p: Vector3, reach: float) -> Node3D:
 	if _calm:
 		return null
@@ -616,7 +578,6 @@ func _startled(p: Vector3, reach: float) -> Node3D:
 	return null
 
 
-## The head or the hand nearest `p` within `reach`, measured across the ground where `across_ground`, or null.
 func _nearest(p: Vector3, reach: float, across_ground := false) -> Node3D:
 	var best: Node3D = null
 	for n in _watched():
@@ -628,7 +589,6 @@ func _nearest(p: Vector3, reach: float, across_ground := false) -> Node3D:
 	return best
 
 
-## The hands holding seeds out, this player's and others', and the seeds lying where they were thrown.
 func offers() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for h in hands:
@@ -643,12 +603,11 @@ func offers() -> Array[Node3D]:
 	return out
 
 
-## Whether `offer` is seeds held in a hand, this player's or another's, rather than thrown.
 static func in_hand(offer: Node3D) -> bool:
 	return offer is Hand or offer is Dish
 
 
-## Conures eating from a dish held out in this player's hand, or with `dish` in another player's.
+## `dish`: count those on other players' dishes instead of this player's hands.
 func feeding(dish: bool) -> int:
 	return birds.birds.filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and (b.node.hand is Dish if dish else b.node.hand is Hand)).size()
 
@@ -658,9 +617,6 @@ func nibble(offer: Node3D, delta: float) -> void:
 		offer.peck(delta)
 
 
-## A calm hand holding seeds, or seeds thrown, that an animal at `at` sees and can reach (`fits`, given the offer,
-## where the animal has more to say) and that nothing else eats from, or null. A bird eats thrown seeds only off dry
-## ground.
 func offer_for(appetite: Appetite, at: Vector3, fits := Callable()) -> Node3D:
 	for h in offers():
 		var p := h.global_position
@@ -686,13 +642,10 @@ func release(eater: Object) -> void:
 			_eaters.erase(h)
 
 
-## Whether hand `h` is still held out with seeds for `eater`.
 func feeds(h: Node3D, eater: Object) -> bool:
 	return h != null and _eaters.get(h) == eater and offers().has(h)
 
 
-## Where an animal coming from `from` stands to eat from hand `h`: on the hand as seen, behind the seeds (`ON_HAND`
-## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	var seen := Hand.seen(h)
 	if appetite.eat == Eat.ON_HAND and in_hand(h):
@@ -703,7 +656,6 @@ func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	return Vector3(at.x, water.floor_at(at), at.z)
 
 
-## Along an arc between `sky` and the water, steep near the sky and flattening to a glide.
 func _fly(f: Family, delta: float) -> void:
 	var lead := f.leader()
 	var arriving := f.state == State.FLY_IN
@@ -748,7 +700,6 @@ func _follow(d: Duck, ahead: Duck, delta: float) -> void:
 		_step(d, to.normalized() * minf(top, to.length() * 3.0), delta)
 
 
-## Moves a duck by `velocity`, stands it on the ground or floats it, and picks its motion from where it is.
 func _step(d: Duck, velocity: Vector3, delta: float) -> void:
 	d.position += velocity * delta
 	var ground := terrain.height_at(d.position.x, d.position.z)
@@ -768,8 +719,7 @@ static func _face(d: Node3D, dir: Vector3, weight: float) -> void:
 	d.rotation.y = lerp_angle(d.rotation.y, Shy.heading(dir), clampf(weight, 0.0, 1.0))
 
 
-## Deep enough to float a grown duck, and with `from` reached without paddling into a wall; else the pond's
-## bottom, or with `from` where it is.
+## Failing 12 tries, the pond's bottom, or `from` itself when given.
 func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	var cells := p.pond.cells
 	for attempt in 12:
@@ -780,19 +730,19 @@ func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	return Vector3(b.x, p.pond.level, b.y)
 
 
-## How many of a kind capped at `cap` pond `p` is to have, of `ponds` sharing them: one per `each` of its wet grid
-## points, at least one and at most `most`, and never more than its even share.
+## One per `each` wet grid points of `p`, at least one and at most `most`, never over its even share of `cap`
+## among `ponds`.
 static func _pond_quota(p: PondWater, ponds: int, cap: int, each: int, most: int) -> int:
 	var share := cap / maxi(1, ponds)
 	return clampi(p.pond.cells.size() / each, mini(1, share), mini(most, share))
 
 
-## Counts into `have`, by the habitat each one's `key` names, the `animals` that stay, and returns the ones to send
-## off: those beyond the count `want` gives their habitat, or whose habitat it does not name.
+## Counts the staying `animals` into `have` by the habitat their `key` names; returns those beyond `want`'s
+## count for it or whose habitat it does not name.
 static func _surplus(animals: Array, key: StringName, want: Dictionary, have: Dictionary) -> Array:
 	var over := []
 	for a in animals:
-		# Untyped: a habitat that has gone is a freed object, which a typed variable refuses.
+		# Untyped: a gone habitat is a freed object, which a typed variable refuses.
 		var h: Variant = a.get(key)
 		if not a.leaving and have.get(h, 0) < want.get(h, 0):
 			have[h] = have.get(h, 0) + 1
@@ -809,7 +759,7 @@ func _swims_clear(from: Vector3, to: Vector2, pond: PondWater = null) -> bool:
 	if frame != _walls_frame:
 		_walls_frame = frame
 		_walls_at = walls.walls_by_cell()
-	# Only a wall with samples in the cells the step and its end's reach meet can turn it back.
+	# Only a wall with samples in cells within SWIM_REACH of the step can turn it back.
 	var reach := Vector2.ONE * WallLayout.SWIM_REACH
 	var step := Rect2(a, Vector2.ZERO).expand(to)
 	if pond != null:
@@ -835,7 +785,6 @@ func _swims_clear(from: Vector3, to: Vector2, pond: PondWater = null) -> bool:
 	return true
 
 
-## The ground `pond`'s grid points cover, out to the squares round them.
 static func _pond_area(pond: PondLayout.Pond) -> Rect2:
 	var area := Rect2(Terrain.grid_xz(pond.cells[0]), Vector2.ZERO)
 	for c in pond.cells:
@@ -843,8 +792,7 @@ static func _pond_area(pond: PondLayout.Pond) -> Rect2:
 	return area.grow(Terrain.STEP)
 
 
-## Ground a duck may stand on a little way up the bank from a shore point, reached straight from `from` across no wall
-## or fence; Vector3.INF where none is found, as on a stretch of water a wall cuts off from the banks.
+## Vector3.INF where none is found, as on water a wall cuts off from the banks.
 func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 	var mid := Terrain.grid_xz(p.pond.bottom)
 	for attempt in 12:
@@ -857,8 +805,6 @@ func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 	return Vector3.INF
 
 
-## Where an animal may stand on the ground: on unpaved grass in the garden, back from the water, clear of every wall,
-## inside no house or tower, and away from trunks.
 func standable(p: Vector3) -> bool:
 	if maxf(absf(p.x), absf(p.z)) > EDGE - 1.0:
 		return false
@@ -888,8 +834,6 @@ func standable(p: Vector3) -> bool:
 	return true
 
 
-## Whether a straight walk from `a` to `b` crosses no wall's centre line and, once out of the water it starts in, goes
-## into none.
 func clear_way(a: Vector3, b: Vector3) -> bool:
 	var p := Vector2(a.x, a.z)
 	var q := Vector2(b.x, b.z)
@@ -908,7 +852,6 @@ func _walls() -> Array[Wall]:
 	return walls.walls if walls != null else ([] as Array[Wall])
 
 
-## Whichever pond is over `at` or within a couple of metres of it.
 func _pond_near(at: Vector3) -> PondWater:
 	var p := water.pond_at(at.x, at.z)
 	if p != null:
@@ -924,20 +867,18 @@ func _in_sight(at: Vector3, cone := SIGHT) -> bool:
 	return _gaze(at) > cone
 
 
-## How near `at` lies to the middle of the viewer's gaze, as the cosine of the angle between; -INF with no viewer.
+## Cosine of the angle between the gaze and `at`; -INF with no viewer.
 func _gaze(at: Vector3) -> float:
 	if viewer == null or not viewer.is_inside_tree():
 		return -INF
 	return (at - viewer.global_position).normalized().dot(-viewer.global_basis.z)
 
 
-## The point `reach` away from `at` along `_unseen_direction`, and `height` up.
 func _unseen_point(at: Vector3, reach: float, height: float, cone := SIGHT, random := rng) -> Vector3:
 	return at + _unseen_direction(at, reach, height, cone, random) * reach + Vector3.UP * height
 
 
-## A level direction from `at` along which the point `reach` away and `height` up is outside `cone`, else
-## the one of those tried furthest from the gaze.
+## Failing 12 tries, the direction tried furthest from the gaze.
 func _unseen_direction(at: Vector3, reach: float, height: float, cone := SIGHT, random := rng) -> Vector3:
 	var best := Vector3.FORWARD
 	var best_dot := INF

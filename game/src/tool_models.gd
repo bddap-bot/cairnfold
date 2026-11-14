@@ -1,42 +1,40 @@
 class_name ToolModels
 extends RefCounted
 
-## The small objects that stand for each tool on a controller: miniatures of what the tool makes,
-## built from the same generators and meshes as the full-size things, standing on y = 0. Their stones are
-## the far stone: a few millimetres across, the full one's triangles cost the Frame milliseconds for nothing. The meadow's
-## plant shaders lift each instance by the terrain under it, so these carry plain materials of their own.
+## Miniatures of what each tool makes, standing on y = 0. Their stones are the far stone: a few millimetres across,
+## the full one's triangles cost the Frame milliseconds for nothing. The meadow's plant shaders lift each instance by
+## the terrain under it, so these carry plain materials of their own.
 
-## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
+## In model space; PhotoTool shoots from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
-## Where the wand's star and the spade's blade end, in their models' space.
+## In their models' space.
 const WAND_STAR := Vector3(0, 0, -0.055)
 const SPADE_EDGE := Vector3(0, 0, -0.052)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
-## A camera's shutter button glows this colour while it records.
+## The shutter button's glow while recording.
 const RECORDING := Color(1.0, 0.12, 0.08)
-## The selfie camera stands on a stalk this high so its shot frames the holder's face over their arm.
+## The selfie camera's stalk, high enough that its shot frames the holder's face over their arm.
 const SELFIE_LIFT := 0.08
-## The selfie camera's lens, beside its screen and looking out of the back toward the holder.
+## Beside the screen, looking back at the holder.
 const SELFIE_LENS := Vector3(0.02, 0.024 + SELFIE_LIFT, 0.0167)
 const SELFIE_SCREEN := Vector2(0.036, 0.027)
 const _SELFIE_SCREEN_X := -0.011
-## The hand mirror: its oval glass's width and height, the rim round it, and its handle below, standing on y = 0.
+## The oval glass's width and height, its rim, and the handle below it; the mirror stands on y = 0.
 const MIRROR_GLASS := Vector2(0.04, 0.06)
 const MIRROR_RIM := 0.004
 const MIRROR_HANDLE := 0.034
 const MIRROR_CENTRE := Vector3(0, MIRROR_HANDLE + MIRROR_RIM + MIRROR_GLASS.y * 0.5, 0.003)
-## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
-## with the brush, not the hand.
+## In the controller's space, past it, so painting is done with the brush, not the hand.
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
-## A brush handle's radius at its widest, by the ferrule.
+## At its widest, by the ferrule.
 const HANDLE_RADIUS := 0.005
-## A stick of charcoal is held leaned back this far from the controller's aim, its tip raised, about where a hand
-## grips it: aimed at the canvas it meets it at this angle, and a wrist turned up as far lays its side flat on it.
+## A charcoal stick leans back this far from the aim, tip raised, about STICK_GRIP: aimed at the canvas it meets it
+## at this angle, and a wrist turned up as far lays its side flat on it.
 const STICK_LEAN := deg_to_rad(45.0)
 const STICK_GRIP := Vector3(0, 0.01, -0.06)
-## Whatever its length, a stick's back end rests in the hand this far along the aim, so a short stick's tip is nearer it.
+## A stick's back end sits this far along the aim whatever its length, so a short stick's tip is nearer the hand.
 const STICK_BUTT := -0.02
-## The parts of each fitting, by the kind its generator files them under.
+## Fitting -> the stone kinds its generator files its parts under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
 	"lantern": ["iron"],
@@ -50,25 +48,25 @@ const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1
 static var _mats := {}
 static var _meshes := {}
 static var _boulder_previews := {}
-## The pieces of each build style's miniature, by `_style_key`, built on a worker thread: laid out on the frame, a
-## Quest 2's first roof wheel held it 214 ms. `_lock` guards these and every cache the worker fills.
+## Build-style miniature pieces by `_style_key`, built on a worker thread: on the main thread a Quest 2's first roof
+## wheel held the frame 214 ms. `_lock` guards these and every cache the worker fills.
 static var _styled := {}
-## The miniatures each key's pieces are laid into when the worker brings them, held weakly: a wheel closed meanwhile
-## frees its own.
+## Miniatures awaiting each key's pieces, held weakly so a wheel closed meanwhile frees its own.
 static var _waiting := {}
-## The keys the worker builds next, the one a wheel waits on first, and those it has built since `deliver` last ran.
+## Keys to build, the one a wheel waits on first.
 static var _queue: Array = []
+## Keys built since `deliver` last ran.
 static var _built: Array = []
 static var _building := false
-## Its own thread at low priority, not the worker pool: a pool task held the pool's low-priority share, which compiles
+## Its own low-priority thread, not the worker pool: a pool task held the pool's low-priority share, which compiles
 ## pipelines, and a Quest 2's first easel waited 11 s on them.
 static var _thread: Thread
 static var _lock := Mutex.new()
-## Each mesh `bake` has read or built, by mesh, as its surface arrays: reading a mesh's arrays back from the GPU stalls
-## the frame for every frame in flight, a Quest's style wheel hundreds of milliseconds on its first opening.
+## Surface arrays by mesh for `bake`: reading them back from the GPU stalls a frame for every frame in flight, a
+## Quest's style wheel hundreds of milliseconds on its first opening.
 static var _arrays := {}
-## The pieces of each masonry tool's miniature, by tool, kept from its first build: the hands build every tool as the
-## game loads, and laying its walls out again for each other player who takes it held a Frame's frame 324 ms.
+## Kept from each masonry tool's first build: laying its walls out again for each other player who takes it held a
+## Frame's frame 324 ms.
 static var _masonry := {}
 const MASONRY: Array[Hand.Tool] = [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH, Hand.Tool.FENCE]
 
@@ -144,9 +142,8 @@ static func _pieces(root: Node3D) -> Array:
 	return root.get_children().map(func(mi: MeshInstance3D) -> Array: return [mi.mesh, mi.transform, mi.material_override])
 
 
-## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in its `finish`, a
-## roof's over a house or a round tower, a face's on a house, a wall or a fence; a gable end's turned to face the
-## eye. A build style's comes back empty until the worker has built it, then fills: nothing waits on it.
+## Choice `i` of `PaletteTool.styles(restyle)`. A build style's comes back empty and fills once the worker has built
+## it: nothing waits on it.
 static func style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finish, round := false, boulder := false, house := false, fence := false) -> Node3D:
 	if restyle not in BUILT_STYLES:
 		return _style(restyle, i, finish, round, boulder, house, fence)
@@ -166,11 +163,11 @@ static func style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finis
 	return root
 
 
-## The build styles whose miniatures the worker builds.
+## Styles whose miniatures the worker thread builds.
 const BUILT_STYLES: Array[PaletteTool.Restyle] = [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION, PaletteTool.Restyle.WINDOW]
 
 
-## Queues every build style's miniature for the worker, so a wheel opened later finds it built.
+## So a wheel opened later finds its miniatures built.
 static func prepare_styles() -> void:
 	_lock.lock()
 	for restyle in BUILT_STYLES:
@@ -184,7 +181,7 @@ static func prepare_styles() -> void:
 	_build_styles()
 
 
-## Waits out the worker, its queue dropped: nothing it holds may outlive the game.
+## Nothing the worker holds may outlive the game.
 static func stop_styles() -> void:
 	_lock.lock()
 	_queue.clear()
@@ -194,8 +191,8 @@ static func stop_styles() -> void:
 		_thread = null
 
 
-## The arguments a build style's miniature differs by: the finish shows on a house's or wall's faces, not a tower's,
-## nor in a face's, foundation's or window's own choices, and a face's choice of house, fence or wall is its own.
+## The finish shows on a house's or wall's faces, not a tower's nor a face's, foundation's or window's; only a face
+## tells house, fence and wall apart.
 static func _style_key(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finish, round: bool, house: bool, fence: bool) -> Array:
 	var tower := restyle == PaletteTool.Restyle.ROOF and round
 	var face := restyle == PaletteTool.Restyle.FACE
@@ -211,7 +208,7 @@ static func _build_styles() -> void:
 		return
 	if _thread != null:
 		_thread.wait_to_finish()
-	# Read back once here, on the main thread, the one mesh every stone is baked from.
+	# The worker bakes every stone from this mesh; read it back here, on the main thread.
 	_arrays_of(Stones.far_mesh())
 	_thread = Thread.new()
 	_thread.start(_build_queued, Thread.PRIORITY_LOW)
@@ -236,8 +233,7 @@ static func _build_queued() -> void:
 		_lock.unlock()
 
 
-## Lays what the worker has built into the miniatures waiting on it; called on the main thread every frame
-## (`Warmup`), where the miniatures live.
+## `Warmup` calls this every frame on the main thread, where the miniatures live.
 static func deliver() -> void:
 	_lock.lock()
 	var due := []
@@ -331,7 +327,6 @@ static func _stairs(root: Node3D, rail: String) -> void:
 	root.add_child(stones)
 
 
-## A painter's palette: a wooden board with a dab of each roof colour round its edge.
 static func _palette(root: Node3D) -> void:
 	var dab := sphere(0.0055, 0.004, 10, 4)
 	var swatches: Array = Palette.SWATCHES[Palette.Element.ROOF]
@@ -343,8 +338,7 @@ static func _palette(root: Node3D) -> void:
 		piece(root, part[0], Transform3D(Basis(), part[1]), plain("palette_%s" % part[2].to_html(), part[2]))
 
 
-## A wand pointing ahead with a star standing at its tip and two sparkles off it: it turns what it points at into
-## another of its kind, and it is no build, so the icon cannot read as a thing it builds.
+## A wand, not a miniature: the style tool builds nothing, so its icon must not read as a thing it builds.
 static func _wand(root: Node3D) -> void:
 	var ahead := Basis(Vector3.RIGHT, -PI * 0.5)
 	piece(root, cylinder(0.0012, 0.0022, 0.062, 8), Transform3D(ahead, Vector3(0, 0, -0.021)), plain("wand", Color(0.32, 0.2, 0.13)))
@@ -355,8 +349,7 @@ static func _wand(root: Node3D) -> void:
 		piece(root, _star(4, spark[1], spark[1] * 0.35), Transform3D(upright, spark[0]), gold)
 
 
-## Where a tool's sight stands, in its model's space: just past the wand's star or the spade's blade, and ahead of
-## every other model.
+## Where a tool's sight stands, in model space: just past the wand's star or the spade's blade, else ahead of the model.
 static func tip(tool: Hand.Tool) -> Vector3:
 	match tool:
 		Hand.Tool.STYLE:
@@ -366,7 +359,6 @@ static func tip(tool: Hand.Tool) -> Vector3:
 	return Vector3(0, 0.02, -0.065)
 
 
-## A flat star of `points` points, `outer` to their tips and `inner` to the notches between, 3 mm thick.
 static func _star(points: int, outer: float, inner: float) -> Mesh:
 	return shared("star %d %s %s" % [points, outer, inner], func() -> ArrayMesh:
 		var rim: Array[Vector3] = []
@@ -386,7 +378,6 @@ static func _star(points: int, outer: float, inner: float) -> Mesh:
 		return st.commit())
 
 
-## A little easel holding a painted canvas.
 static func _easel(root: Node3D) -> void:
 	var wood := plain("easel_wood", Color(0.62, 0.45, 0.3))
 	for x in [-0.014, 0.014]:
@@ -399,8 +390,7 @@ static func _easel(root: Node3D) -> void:
 		piece(root, dab, Transform3D(tilt.scaled(Vector3(1, 1, 0.5)), tilt * (d[0] - Vector3(0, 0.036, 0)) + Vector3(0, 0.036, 0.0015)), plain("easel_dab%d" % d[1], Brushwork.PIGMENTS[d[1]]))
 
 
-## Where a held brush of `kind` lies in the controller's frame: a brush along the aim, a stick of charcoal leaned back
-## (STICK_LEAN) with its back end in the hand (STICK_BUTT).
+## In the controller's frame: a brush along the aim, a charcoal stick leaned back with its butt in the hand.
 static func hold(kind: Brushwork.Brush) -> Transform3D:
 	if not Brushwork.is_stick(kind):
 		return Transform3D()
@@ -409,8 +399,7 @@ static func hold(kind: Brushwork.Brush) -> Transform3D:
 	return Transform3D(lean, STICK_GRIP - lean * STICK_GRIP + lean * back)
 
 
-## A brush of `kind` along its own -z, its tip at BRUSH_TIP; its bristles are the child named "tip", for the paint on
-## it. A stick is a bare stick of charcoal as thick as its size, black from end to end.
+## Along -z, its tip at BRUSH_TIP; the child named "tip" (the bristles, or the whole stick) takes the paint.
 static func brush(kind: Brushwork.Brush) -> Node3D:
 	var root := Node3D.new()
 	var along := Basis(Vector3.RIGHT, -PI * 0.5)
@@ -448,13 +437,12 @@ static func bristle_material() -> ShaderMaterial:
 	return mat
 
 
-## Charcoal's matte black, which no sky glints off, coloured by vertex.
+## Fully rough and unspecular, so no sky glints off charcoal.
 static func charcoal_material() -> StandardMaterial3D:
 	return plain("charcoal", Color.WHITE, {"roughness": 1.0, "metallic_specular": 0.0, "vertex_color_use_as_albedo": true, "vertex_color_is_srgb": true})
 
 
-## A stick of willow charcoal `length` long along y and `radius` round, centred on its middle: six-sided and uneven,
-## crooked toward z as the twig grew, so lying on its side it lies flat, mottled grey-black, its +y end worn grey.
+## Along y, centred on its middle, crooked toward z and flattened in z so it lies flat on its side.
 static func charcoal(length: float, radius: float) -> ArrayMesh:
 	return shared("charcoal %s %s" % [length, radius], _charcoal.bind(length, radius))
 
@@ -475,8 +463,7 @@ static func _charcoal(length: float, radius: float) -> ArrayMesh:
 	return bake(parts)
 
 
-## `parts` ([mesh, transform, colour] each, a null colour keeping the mesh's own) as one mesh coloured by vertex, drawn
-## in one call.
+## `parts`: [mesh, transform, colour], a null colour keeping the mesh's own; one vertex-coloured mesh, one draw call.
 static func bake(parts: Array) -> ArrayMesh:
 	var arrays := bake_arrays(parts)
 	var mesh := ArrayMesh.new()
@@ -487,7 +474,6 @@ static func bake(parts: Array) -> ArrayMesh:
 	return mesh
 
 
-## What `bake` makes of `parts`, as surface arrays.
 static func bake_arrays(parts: Array) -> Array:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -531,8 +517,7 @@ static func _arrays_of(mesh: Mesh) -> Array:
 	return arrays
 
 
-## The mesh `make` builds, built once under `key`: every easel and hand holding the same kit shares its geometry, so
-## setting one up in play builds and uploads none.
+## Built once per `key`, so setting up another easel or hand in play builds and uploads no mesh.
 static func shared(key: String, make: Callable) -> Mesh:
 	_lock.lock()
 	var m: Mesh = _meshes.get(key)
@@ -573,7 +558,7 @@ static func box(size: Vector3) -> BoxMesh:
 		return b)
 
 
-## The material under `key`, made once: `colour`, roughness 0.6, then each of `extra`'s properties.
+## Cached by `key` alone: a later call's `colour` and `extra` are ignored.
 static func plain(key: String, colour: Color, extra := {}) -> StandardMaterial3D:
 	_lock.lock()
 	var mat: StandardMaterial3D = _mats.get(key)
@@ -598,19 +583,18 @@ static func piece(root: Node3D, mesh: Mesh, at: Transform3D, mat: Material, shad
 	return mi
 
 
-## The screen of a camera model built by `build`, its own material, which PhotoTool shows that camera's lens's view in.
+## Its own material; PhotoTool shows the lens's view in it.
 static func screen(camera: Node3D) -> StandardMaterial3D:
 	return (camera.get_node("Screen") as MeshInstance3D).material_override
 
 
-## The shutter button of a camera model built by `build`, its own material. Its emission stays enabled, black until
-## the camera records, so lighting it changes a parameter rather than compiling another shader in play.
+## Its own material, its emission enabled and black until recording, so lighting it changes a parameter rather than
+## compiling another shader in play.
 static func button(camera: Node3D) -> StandardMaterial3D:
 	return (camera.get_node("Button") as MeshInstance3D).material_override
 
 
-## A small camera, its screen toward the eye and its lens along the controller's aim, or for a selfie beside the
-## screen, looking back at the holder.
+## Screen toward the eye, lens along the aim, a selfie's at SELFIE_LENS.
 static func _camera(root: Node3D, selfie: bool) -> void:
 	var lens := cylinder(0.008, 0.008, 0.006, 16) if selfie else cylinder(0.012, 0.013, 0.018, 16)
 	var glass := cylinder(0.006 if selfie else 0.009, 0.006 if selfie else 0.009, 0.001, 16)
@@ -644,11 +628,10 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	piece(root, quad, Transform3D(Basis(), Vector3(screen_x, y, 0.0141)), glow).name = "Screen"
 
 
-## A hand mirror, its glass facing +z over a turned handle: the mirror in the hand, the avatars' icon, and, made large,
-## the mirror that stands in the garden (MirrorTool). Returns the glass, an oval (`MIRROR_GLASS` its
-## width and height about `MIRROR_CENTRE`) and faces +z.
+## Also the avatars' icon and, made large, MirrorTool's mirror. Returns the glass: facing +z, `MIRROR_GLASS` wide
+## and high about `MIRROR_CENTRE`.
 static func mirror(root: Node3D) -> MeshInstance3D:
-	var wood := _mirror_wood()
+	var wood := _turned_wood()
 	var facing := Basis(Vector3.RIGHT, PI * 0.5)
 	var rim := MIRROR_GLASS * 0.5 + Vector2.ONE * MIRROR_RIM
 	piece(root, cylinder(0.0035, 0.0045, MIRROR_HANDLE, 10), Transform3D(Basis(), Vector3(0, MIRROR_HANDLE * 0.5, 0)), wood)
@@ -659,16 +642,14 @@ static func mirror(root: Node3D) -> MeshInstance3D:
 	return glass
 
 
-## The turned wood of the hand mirror and the garden gate.
-static func _mirror_wood() -> StandardMaterial3D:
+static func _turned_wood() -> StandardMaterial3D:
 	return plain("mirror_wood", Color(0.42, 0.27, 0.16), {"roughness": 0.55})
 
 
-## A garden gate standing on y = 0, `width` wide between its stone posts, under a wooden lintel, its picket leaf swung
-## in on its left hinge so whoever stands behind it (-z) shows through.
+## Stands on y = 0, `width` between its posts; the leaf swings open so whoever stands behind it (-z) shows through.
 static func gate(root: Node3D, width: float) -> void:
 	var stone := plain("gate_stone", Color(0.52, 0.48, 0.42), {"roughness": 0.9})
-	var wood := _mirror_wood()
+	var wood := _turned_wood()
 	var post := Vector3(0.007, 0.036, 0.007)
 	for side in [-1.0, 1.0]:
 		piece(root, box(post), Transform3D(Basis(), Vector3(side * (width + post.x) * 0.5, post.y * 0.5, 0)), stone)
@@ -683,7 +664,6 @@ static func gate(root: Node3D, width: float) -> void:
 		piece(leaf, box(Vector3(width, 0.0025, 0.0015)), Transform3D(Basis(), Vector3(width * 0.5, y, -0.0015)), wood)
 
 
-## A little person: the wheel's people, the avatars to wear and the gardens to join.
 static func _figure(root: Node3D) -> void:
 	var a := Avatar.open(Avatar.built_in(0), Session.COLOURS[0])
 	a.stand()
@@ -691,8 +671,6 @@ static func _figure(root: Node3D) -> void:
 	root.add_child(a)
 
 
-## A disc of stone ground as the stone tool lays it in `style`, shaded as the ground shades it, fraying toward the rim
-## into meadow as scattered stones.
 static func _stone_ground(root: Node3D, style: int) -> void:
 	var turf := cylinder(0.026, 0.024, 0.004, 24)
 	var face := shared("stone_ground_face", func() -> ArrayMesh:
@@ -729,7 +707,6 @@ static func _stone_disc(shader: Shader, style: int) -> ShaderMaterial:
 	return mat
 
 
-## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.
 static func _pond(root: Node3D) -> void:
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.0185
@@ -764,7 +741,6 @@ static func _wall(root: Node3D, finish := WallLayout.Finish.BARE, top := WallLay
 	_stones(root, layout.stones, 0.015)
 
 
-## A square of a house's floor, flags or `planks` on their bed, turned from lying flat to face the eye a little from above.
 static func _floor(root: Node3D, planks: bool) -> void:
 	var layout := WallLayout.new()
 	layout.planks = planks
@@ -780,8 +756,7 @@ static func _floor(root: Node3D, planks: bool) -> void:
 	root.get_child(0).transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.36), Vector3.ZERO) * root.get_child(0).transform
 
 
-## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one decked in `deck`; with a
-## `foundation` choice, raised on it.
+## `deck` covers a `flat` roof; `foundation` -1 means none.
 static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE, arched := true, foundation := -1, wear := 0.0) -> void:
 	var layout := WallLayout.new()
 	if foundation >= 0:
@@ -804,7 +779,7 @@ static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := 
 	_roofed(root, layout, roof, thatched, deck)
 
 
-## A round tower under a cone roof, or a flat one decked in `deck`.
+## `deck` covers a `flat` roof.
 static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofLayout.Deck.STONE) -> void:
 	var layout := WallLayout.new()
 	layout.seed = 9
@@ -821,7 +796,6 @@ static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofL
 	_roofed(root, layout, roof, thatched, deck)
 
 
-## Builds `layout` under `roof`, thatched or decked in `deck`, and stands both in `root`.
 static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, thatched: bool, deck: RoofLayout.Deck) -> void:
 	roof.thatch = thatched
 	roof.deck = deck
@@ -856,7 +830,6 @@ static func _fence(root: Node3D, finish := WallLayout.Finish.BARE) -> void:
 	_stones(root, layout.stones, 0.021)
 
 
-## A window on its own: a casement, no wall round it.
 static func _windows(root: Node3D) -> void:
 	var w := fitting("window")
 	w.scale = Vector3.ONE * 0.05
@@ -864,7 +837,6 @@ static func _windows(root: Node3D) -> void:
 	root.add_child(w)
 
 
-## A lantern on its wall bracket beside a flag on its pole, with nothing to hang from.
 static func _decor(root: Node3D) -> void:
 	var flag := fitting("flag")
 	flag.scale = Vector3.ONE * 0.025
@@ -877,11 +849,10 @@ static func _decor(root: Node3D) -> void:
 	root.add_child(lantern)
 
 
-## A fitting on its own at full size, laid by the generator that lays it on a wall or roof: a key of
-## FITTING_PARTS. Its face looks along +z, and its mount is the origin: the back of a window
-## (centred on it), where a lantern's bracket or a flag's pole leaves the
-## wall's centre line, a post lantern's foot, or where a chimney rises through the slope: the one `on` would lay next
-## at `spot`, or one through a small roof's ridge.
+## `what` is a key of FITTING_PARTS, at full size, as its generator lays it. It faces +z with its mount at the
+## origin: a window's back (centred on it), where a lantern's bracket or a flag's pole leaves the wall's centre line,
+## a post lantern's foot, or where a chimney rises through the slope: the one `on` would lay next at `spot`, or one
+## through a small roof's ridge.
 static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO, index := 0) -> Node3D:
 	var laid := fitting_parts(what, on, spot, index)
 	var root := _laid(laid.parts, laid.flames, laid.cloths)
@@ -890,7 +861,6 @@ static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO, i
 	return root
 
 
-## Stones laid as `parts`, with Fittings for any flames, burning in `look`, and cloths.
 static func _laid(parts: Array[Dictionary], flames: Array[Transform3D], cloths: Array[Dictionary], look := 0) -> Node3D:
 	var root := Node3D.new()
 	var stones := Stones.new()
@@ -903,7 +873,7 @@ static func _laid(parts: Array[Dictionary], flames: Array[Transform3D], cloths: 
 	return root
 
 
-## What `fitting` draws, as {parts, flames, cloths} about its mount.
+## {parts, flames, cloths}, relative to the fitting's mount.
 static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.ZERO, index := 0) -> Dictionary:
 	var parts: Array[Dictionary] = []
 	var flames: Array[Transform3D] = []
@@ -965,8 +935,6 @@ static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.Z
 	return {"parts": kept, "flames": moved_flames, "cloths": moved_cloths}
 
 
-## A short stroke of the path tool in `surface`: a strip of dirt, of sand, or of a bed's dark earth sprouting a row of
-## greens either side; cobbles and flagstones are the stone tool's disc of their style.
 static func _path(root: Node3D, surface := PathLayout.Surface.DIRT) -> void:
 	if PathLayout.wears(surface) == Ground.Kind.STONE:
 		_stone_ground(root, PathLayout.look(surface))
@@ -1066,7 +1034,6 @@ static func _leaf() -> StandardMaterial3D:
 	return leaf
 
 
-## The placed boulder's builder and stone material, one seed's miniature in `style`, its mesh shared across wheels.
 static func _boulder_style(root: Node3D, style: int) -> void:
 	var shape := BoulderLayout.shape(7, style)
 	var model: MultiMeshInstance3D
@@ -1085,7 +1052,6 @@ static func _boulder_style(root: Node3D, style: int) -> void:
 	root.add_child(model)
 
 
-## A boulder with a pebble beside it, in wall stone.
 static func _boulders(root: Node3D) -> void:
 	var stone := plain("boulder", WallLayout.STONE, {"roughness": 0.9})
 	for b in [[7, Vector3(-0.004, 0, 0), 0.042], [3, Vector3(0.024, 0, 0.008), 0.016]]:
@@ -1095,7 +1061,6 @@ static func _boulders(root: Node3D) -> void:
 		piece(root, mesh, BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, Terrain.flat), stone)
 
 
-## A garden spade held blade ahead: it digs things up.
 static func _spade(root: Node3D) -> void:
 	var wood := plain("wood", Color(0.55, 0.38, 0.22), {"roughness": 0.9})
 	piece(root, box(Vector3(0.02, 0.0015, 0.024)), Transform3D(Basis(), SPADE_EDGE + Vector3(0, 0, 0.012)), plain("steel", Color(0.62, 0.64, 0.66), {"metallic": 0.6, "roughness": 0.4}))
@@ -1103,7 +1068,6 @@ static func _spade(root: Node3D) -> void:
 	piece(root, cylinder(0.002, 0.002, 0.012, 6), Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(0, 0, 0.012)), wood)
 
 
-## A small clay dish heaped with bird seed: striped sunflower seeds among round millet.
 static func _seeds(root: Node3D) -> void:
 	piece(root, cylinder(0.022, 0.016, 0.007, 20), Transform3D(Basis(), Vector3(0, 0.0035, 0)), plain("clay", Color(0.72, 0.42, 0.28), {"roughness": 0.85}))
 	var st := SurfaceTool.new()
@@ -1150,7 +1114,7 @@ static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> Stand
 	return plain(key, Color.WHITE, {"vertex_color_use_as_albedo": true, "roughness": roughness, "cull_mode": BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK})
 
 
-## A decoration as `layout` lays it, its flames burning in `look` (a Palette.Element.LANTERN swatch).
+## `look` is a Palette.Element.LANTERN swatch.
 static func decoration(layout: DecorationLayout, look := 0) -> Node3D:
 	var root := _laid(layout.parts, layout.flames, [], look)
 	if not layout.flowers.is_empty():
@@ -1166,7 +1130,7 @@ static func decoration(layout: DecorationLayout, look := 0) -> Node3D:
 		var drawn := MeshInstance3D.new()
 		drawn.mesh = bake(layout.pictures.map(func(x: Transform3D) -> Array: return [picture(Hand.Tool.STYLE), x, null]))
 		var mat := _vertex_mat("decoration_picture", 0.6, false)
-		# The picture's colours are the wand's albedos, which are sRGB.
+		# The wand's albedos, which are sRGB.
 		mat.vertex_color_is_srgb = true
 		drawn.material_override = mat
 		drawn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1174,7 +1138,6 @@ static func decoration(layout: DecorationLayout, look := 0) -> Node3D:
 	return root
 
 
-## `tool`'s own model (`build`) as one mesh, each piece in its material's colour, so a picture of it is the tool.
 static func picture(tool: Hand.Tool) -> ArrayMesh:
 	return shared("picture_%d" % tool, func() -> ArrayMesh:
 		var model := build(tool)

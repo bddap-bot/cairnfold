@@ -1,15 +1,7 @@
 class_name Birds
 extends Node3D
 
-## Conures: once ducks have come to the garden and a planted tree or a finished wall stands, a pair or a
-## trio flies in from out of sight and lands on a crown or a wall top. Perched, they look about, preen,
-## hop along, now and then flutter to another perch or swoop down to peck in the grass. One the player comes
-## up to slowly turns to watch and stays, shuffling aside only from a face about to touch it; a sudden
-## move startles it a short way to a perch still in view. One that sees seeds held out looks at whoever holds them
-## and at the hand a while, and then flies to it, or thinks better of it; on the hand it eats as long as the seeds are
-## held out, and each hand holding seeds has its own. One that trusts you comes to ride on your shoulder now and then,
-## until you shoo it off or duck under water. They leave, out of sight, once no perch stands. Part of `Wildlife`, which decides when they come
-## and knows where nobody is looking.
+## Conures. `Wildlife` decides when they come and knows where nobody is looking.
 
 enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, DECIDE, FEED, SHOULDER }
 
@@ -21,52 +13,47 @@ const LEAVE_TO := 40.0
 const LET_GO := 6.0
 const SPEED := 4.0
 const HOP_TIME := 0.32
-## A hop along a wall top reaches the next few perch points; a crown's points stand further apart.
+## Metres, shortest and longest hop along a wall top; a crown's points stand further apart.
 const HOP := Vector2(0.12, 0.5)
 const HOP_TREE := 0.9
-## A hand or the head moving suddenly within this startles a bird.
+## Metres within which a hand or the head moving suddenly startles a bird.
 const STARTLE := 0.8
-## Smoothed controller speed in m/s; carrying a bird tolerates more motion than approaching one.
+## Eased controller speed, m/s; carrying a bird tolerates more motion than approaching one.
 const HAND_FLICK := 2.0
-## A startled bird makes for a perch this far off, out of reach of what startled it.
+## Metres, nearest and furthest perch a startled bird makes for, out of reach of what startled it.
 const STARTLE_TO := Vector2(0.6, 3.0)
-## A hand or the head within this has a bird turn to watch it, and keep to its perch.
+## Metres within which a hand or the head has a perched bird turn to watch it and stay.
 const WATCH := 1.5
-## A face this near a bird has it shuffle aside, so no eye ever ends up inside one; a slow hand may touch it.
+## Metres; a face this near makes a bird shuffle aside so no eye ends up inside it. A slow hand may touch it.
 const SHUFFLE := 0.12
-## How long one looks over seeds held out before it goes for them or not, how likely it goes, and how long one that
-## did not waits before looking again.
+## Seconds one looks seeds over, the chance it then goes for them, and seconds one that did not waits.
 const DECIDE_FOR := Vector2(1.5, 5.0)
 const TAKES := 0.75
 const PUT_OFF := Vector2(2.0, 6.0)
-## How readily one that trusts you (`BirdCarry.TRUST`) leaves its perch for a free shoulder of yours within FOLLOW_FROM,
-## per second, and how long one off your shoulder keeps away before it may come back.
+## Chance per second a bird that trusts you (`BirdCarry.TRUST`) makes for a free shoulder within FOLLOW_FROM
+## metres; seconds one off your shoulder keeps away.
 const FOLLOWS := 0.2
 const FOLLOW_FROM := 12.0
 const AWAY_FOR := Vector2(20.0, 45.0)
-## A hand this near a bird on your shoulder and moving faster than this, in m/s, shoos it; a reach to take it is slower.
+## Metres, and m/s: a hand this near a bird on your shoulder and faster shoos it; a reach to take it is slower.
 const SHOO := 0.3
 const SHOO_SPEED := 1.2
-## How fast a bird on your shoulder settles to it as you move, per second, in your rig's space so a teleport or a snap
-## turn carries it whole.
+## Per second; eased in the rig's space so a teleport or a snap turn carries it whole.
 const RIDE := 14.0
-## A conure flies to seeds held out anywhere near and eats them standing on the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0), 0.6)
 const PAUSE := Vector2(1.5, 5.0)
 const PREEN_FOR := Vector2(3.0, 7.0)
 const PECK_FOR := Vector2(5.0, 11.0)
 const PECK_REACH := Vector2(1.5, 4.0)
-## Birds keep this far apart on their perches.
+## Metres between birds on their perches.
 const SPACING := 0.22
-## How deep inside a neighbouring foliage blob a crown point may lie, as a fraction of its radius, and still
-## show: blobs bulge by noise beyond their round shape.
+## Fraction of a neighbouring foliage blob's radius a crown point may lie inside and still show: blobs bulge
+## by noise beyond their round shape.
 const INSIDE := 0.85
 const CROWN_POINTS := 12
-## How far below the top of its crown a bird may stand on a tree.
+## Metres below the top of its crown a bird may stand on a tree.
 const CROWN_DEPTH := 1.2
-## What one bird says while doing each thing, by its `State`, or PREEN or WATCH while perched: calls, each with the
-## seconds on average between two of them. Murmurs and beak sounds near, grumbles and chirps further off, and contact
-## calls only on the wing.
+## Keyed by `State` name, or PREEN or WATCH while perched: [call, mean seconds between two].
 const VOICE := {
 	"PERCH": [["murmur", 20.0], ["chatter", 40.0], ["chirp", 80.0]],
 	"PREEN": [["grind", 8.0], ["murmur", 20.0]],
@@ -84,9 +71,8 @@ const VOICE := {
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var birds: Array[Bird] = []
-## Every perch site standing at the last look.
 var sites: Array[Site] = []
-## The same sites by their wall or trunk, so the next look keeps what each has worked out.
+## `sites` by wall or trunk, so the next look keeps what each has worked out.
 var _by_key := {}
 
 static var _crown_points := PackedVector3Array()
@@ -104,23 +90,22 @@ class Bird:
 	var duration := 1.0
 	var timer := 0.0
 	var preening := 0.0
-	## Where the next leg goes once a hop or a flight down to the grass ends.
+	## The state once a hop or a flight down to the grass ends.
 	var then := State.PERCH
-	## How long until it goes for seeds again; the hand it flies to or eats on is its node's.
+	## Seconds until it goes for seeds again; the hand it flies to or eats on is `node.hand`.
 	var full := 0.0
 	var affection := 0.0
 	var carried := false
-	## The shoulder it rides or makes for, `Torso.SHOULDERS`'s index, or -1.
+	## Index into `Torso.SHOULDERS`, or -1.
 	var shoulder := -1
-	## How long until it may come to your shoulder again.
+	## Seconds.
 	var away := 0.0
-	## Where it sits on your shoulder, in your rig's space.
+	## In the rig's space.
 	var ride := Transform3D.IDENTITY
 
 
-## Something a bird may stand on, and the points on it where it may.
 class Site:
-	## Whether the last look over the garden found it.
+	## Found by the last look.
 	var listed := true
 
 	func standing() -> bool:
@@ -129,7 +114,7 @@ class Site:
 	func points() -> PackedVector3Array:
 		return PackedVector3Array()
 
-	## How far one hop along it may reach.
+	## Metres.
 	func hop() -> float:
 		return Birds.HOP.y
 
@@ -147,8 +132,6 @@ class WallSite extends Site:
 		return wall.perches() if standing() else PackedVector3Array()
 
 
-## A planted tree's crown; its points are worked out again only when a blob of it is taken or put back, and
-## stand on whatever ground is under the trunk now.
 class TreeSite extends Site:
 	var parts: Array[Flora.Plant] = []
 	var terrain: Terrain
@@ -201,7 +184,7 @@ func tick(delta: float) -> void:
 			birds.remove_at(i)
 
 
-## A pair or a trio flies in from out of sight to a perch site, `to` or else any, as many as find a free point there.
+## To `to`, or with none any site.
 func arrive(to: Site = null) -> void:
 	var count := rng.randi_range(FLOCK.x, FLOCK.y)
 	var site: Site
@@ -230,8 +213,6 @@ func arrive(to: Site = null) -> void:
 		b.flight = -rng.randf_range(0.0, 0.25)
 
 
-## Looks the garden over for perch sites: finished walls with a top to stand on and planted trees out of the
-## water. A bird whose site is gone flies elsewhere, and one whose site was laid again steps onto it as it is now.
 func look() -> void:
 	var old := _by_key
 	_by_key = {}
@@ -265,8 +246,7 @@ func _list(key: Object, s: Site) -> void:
 	sites.append(s)
 
 
-## Points on top of a tree's crown, over the ground under its trunk: upward-facing points of its foliage
-## blobs that no other blob hides, a little apart, highest first.
+## Relative to the ground under the trunk, highest first.
 static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 	if _crown_points.is_empty():
 		var arrays := parts[1].pool.mesh.surface_get_arrays(0)
@@ -378,7 +358,6 @@ func _think(b: Bird, delta: float) -> void:
 		_swoop(b)
 
 
-## At night a roosting bird only murmurs.
 func _voice(b: Bird, doing: String, delta: float) -> void:
 	var asleep := wildlife.asleep()
 	for call: Array in VOICE[doing]:
@@ -386,8 +365,6 @@ func _voice(b: Bird, doing: String, delta: float) -> void:
 			wildlife.calls.now_and_then(call[0], b.node.position, call[1], delta)
 
 
-## Someone close and calm: the bird turns to them and looks about, and stays, stepping aside only from a face
-## about to touch it: a hop along its perch, or a short flight where its neighbours leave no room for one.
 func _watch(b: Bird, near: Node3D, delta: float) -> void:
 	var at := near.global_position
 	b.preening = 0.0
@@ -406,7 +383,6 @@ func _watch(b: Bird, near: Node3D, delta: float) -> void:
 		_startle(b, at)
 
 
-## The points of its site a bird can hop to from its spot, clear of the others.
 func _hops(b: Bird) -> Array[Vector3]:
 	var near: Array[Vector3] = []
 	for p in b.site.points():
@@ -433,13 +409,10 @@ func _hop(b: Bird, to: Vector3, then: State) -> void:
 		b.spot = to
 
 
-## Whether a site is there to land on: found at the last look and not taken away since.
 func _open(site: Site) -> bool:
 	return site != null and site.listed and site.standing()
 
 
-## Off a short way from something sudden at `from`, and never away: see `_short_flight`, else up and back down
-## where it was.
 func _startle(b: Bird, from: Vector3) -> void:
 	Cues.play(Cues.Act.BIRDS_STARTLE, b.node.global_position)
 	var was := b.state
@@ -449,8 +422,6 @@ func _startle(b: Bird, from: Vector3) -> void:
 			b.then = State.PECK
 
 
-## To the nearest free perch point a short way off and out of reach of `from`, one in the viewer's sight if
-## any is; false if none is.
 func _short_flight(b: Bird, from: Vector3) -> bool:
 	var at := b.node.position
 	var best := Vector3.INF
@@ -477,13 +448,11 @@ func _rig() -> Rig:
 	return v.get_parent() as Rig if v != null and v.is_inside_tree() else null
 
 
-## The shoulder `side` of `rig`'s torso, where a bird stands facing as the torso does.
 static func _shoulder_at(rig: Rig, side: int) -> Transform3D:
 	var t := rig.torso()
 	return Transform3D(t.basis, t * Torso.SHOULDERS[side])
 
 
-## Off to the free shoulder of yours nearer it, if you are near and above water and one is free.
 func _to_shoulder(b: Bird) -> bool:
 	var rig := _rig()
 	if rig == null or rig.under or rig.head.global_position.distance_to(b.node.position) > FOLLOW_FROM:
@@ -500,8 +469,6 @@ func _to_shoulder(b: Bird) -> bool:
 	return true
 
 
-## Making for your shoulder, or riding it: it keeps its place there however you move, turns its head to you when you
-## look at it and else looks where you look. A hand brushed at it or your head under water sends it off.
 func _on_shoulder(b: Bird, delta: float) -> void:
 	var rig := _rig()
 	if rig == null or rig.under:
@@ -532,7 +499,6 @@ func _on_shoulder(b: Bird, delta: float) -> void:
 	_voice(b, "SHOULDER", delta)
 
 
-## Off your shoulder to a perch a short way from `from`, to keep away a while.
 func _off_shoulder(b: Bird, from: Vector3) -> void:
 	let_go_shoulder(b)
 	b.away = rng.randf_range(AWAY_FOR.x, AWAY_FOR.y)
@@ -541,7 +507,6 @@ func _off_shoulder(b: Bird, from: Vector3) -> void:
 		_flutter(b)
 
 
-## Frees the shoulder `b` rides or makes for.
 func let_go_shoulder(b: Bird) -> void:
 	var rig := _rig()
 	if rig != null and b.shoulder >= 0 and rig.shoulders[b.shoulder] == b.node:
@@ -549,9 +514,6 @@ func let_go_shoulder(b: Bird) -> void:
 	b.shoulder = -1
 
 
-## Looking the seeds over, flying to them, then standing on the hand eating for as long as it is held out calmly
-## with them. A sudden move of it startles the bird off; seeds put away send it back to a perch nearby, and thrown
-## seeds keep it only until it has had its fill.
 func _to_hand(b: Bird, delta: float) -> void:
 	var h := b.node.hand
 	if b.state == State.DECIDE:
@@ -576,8 +538,6 @@ func _to_hand(b: Bird, delta: float) -> void:
 		_off_hand(b)
 
 
-## Where it stands, turned to the seeds: it looks at whoever holds them out, then at the hand, and goes or does not.
-## A sudden move near it startles it as on its perch; seeds put away or held out suddenly leave it where it is.
 func _decide(b: Bird, h: Node3D, delta: float) -> void:
 	var fright := wildlife._startled(b.node.position, STARTLE)
 	if fright != null:
@@ -606,7 +566,6 @@ func _decide(b: Bird, h: Node3D, delta: float) -> void:
 		b.full = rng.randf_range(PUT_OFF.x, PUT_OFF.y)
 
 
-## Back to what it was doing before it saw the seeds, the hand let go.
 func _put_off(b: Bird) -> void:
 	wildlife.release(b)
 	b.node.hand = null
@@ -624,8 +583,6 @@ func _off_hand(b: Bird) -> void:
 		_flutter(b)
 
 
-## Flies to a perch elsewhere: another site now and then, else further along this one. With no free point
-## there, a perched bird whose site still stands stays put, and any other leaves.
 func _flutter(b: Bird) -> void:
 	if b.state == State.DECIDE:
 		_put_off(b)
@@ -642,7 +599,6 @@ func _flutter(b: Bird) -> void:
 		_leave(b)
 
 
-## Down to the grass near the perch, to peck about there and come back up.
 func _swoop(b: Bird) -> void:
 	for attempt in 6:
 		var off := Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(PECK_REACH.x, PECK_REACH.y)
@@ -653,7 +609,6 @@ func _swoop(b: Bird) -> void:
 			return
 
 
-## Ground an animal may stand on and under no bush.
 func _peckable(at: Vector3) -> bool:
 	var flora := wildlife.flora
 	return wildlife.standable(at) and (flora == null or flora.solids_in(Rect2(at.x, at.z, 0, 0)).all(func(s: Array) -> bool: return s[0].pool != flora.bushes))
@@ -671,7 +626,6 @@ func _fly_to(b: Bird, site: Site, to: Vector3, state: State) -> void:
 	b.then = State.PERCH
 
 
-## A perched bird whose wall or crown was laid again steps to the nearest point now there, or flies to one.
 func _resettle(b: Bird) -> void:
 	var best := Vector3.INF
 	for p in b.site.points():
@@ -690,7 +644,7 @@ func _leave(b: Bird) -> void:
 	_fly_to(b, null, wildlife._unseen_point(b.node.position, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng), State.LEAVE)
 
 
-## A point of `site` no other bird stands on or makes for, away from `near` when given, else at random.
+## Vector3.INF if none is found; with `near`, preferably one within 1.5 m of it.
 func _free_spot(site: Site, near: Vector3, me: Bird = null) -> Vector3:
 	var points := site.points()
 	if points.is_empty():
@@ -711,7 +665,6 @@ func _clear(p: Vector3, me: Bird) -> bool:
 	return true
 
 
-## Along an arc from `from` to `to`, slowing to land; a leaving bird speeds up and keeps going.
 func _move(b: Bird, delta: float) -> void:
 	var n := b.node
 	if b.carried:

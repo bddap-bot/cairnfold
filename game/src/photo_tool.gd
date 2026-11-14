@@ -1,86 +1,67 @@
 class_name PhotoTool
 extends Node3D
 
-## For a hand holding the camera: the screen on the back of the camera model (ToolModels._camera) shows what
-## its lens sees, unmirrored for the selfie camera too, so the screen and the photo match. A tap of the trigger takes a
-## photo, saved as a PNG that says where and how it was taken (PhotoMeta); the shot stays on the screen a moment after.
-## Held, the trigger records a video of what that camera's screen shows, with the game's sound, until let go. The player's own avatar stands in the lens's view while a camera is
-## held, and in no other.
-## A photo is the intent to keep what it is of: a canvas, or an oil palette's board, covering SUBJECT of its frame, face
-## on, is saved beside it as the painting itself, flat at its own full size, and as its height off the board.
-##
-## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
-## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
-## shadows reach the garden's edge in four splits), at PHOTO_SIZE with PHOTO_MSAA, a shadow atlas of PHOTO_SHADOWS and
-## the foliage's finest blobs. Its MSAA steps down only where its buffers would not fit the memory available
-## (photo_msaa). A view capture (Main.capture) is drawn as the eyes see it.
+## A photo sees Quality.FULL_LAYER instead of LADDER_LAYER whatever the headset's quality step, so it is drawn as well
+## as the game can draw; its MSAA steps down only where its buffers would not fit the memory available (photo_msaa).
 ##
 ## Godot draws a viewport whole within one frame, and on a Quest 2 a photo's frame cannot stay under 50 ms: allocating
-## its view and atlas took 60-250 ms, its draw 40-80 ms of GPU time, its read 50-70 ms. So the player's view fades to
-## black over PHOTO_FADE (Rig.cover), holds there while the photo is drawn and read, and fades back: the headset shows
-## black, never a stalled or brighter frame.
+## its view and atlas took 60-250 ms, its draw 40-80 ms of GPU time, its read 50-70 ms. So the view fades to black
+## (Rig.cover) while the photo is drawn and read: the headset shows black, never a stalled or brighter frame.
 
 signal recorded(path: String)
 
 const PREVIEW_SIZE := Vector2i(256, 192)
-## Previews redraw one at a time, on one frame in this many: two cameras held take turns, and a camera recording takes
-## every turn, its video's frames, so a second camera costs the frame nothing more (each preview draws the garden again).
+## Previews redraw one at a time, one frame in this many, and a recording camera takes every turn, so a second
+## camera costs the frame nothing more.
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
 const PHOTO_SHADOWS := 8192
 const PHOTO_FADE := 0.05
-## Bytes a photo's buffers keep for each sample of each pixel, colour and depth: Godot keeps every MSAA sample in
-## memory, so at 8x the photo's view took 515 MB more on a Quest 2 (docs/design.md, "A photo's memory").
+## Colour and depth bytes per sample per pixel: Godot keeps every MSAA sample in memory, so at 8x the photo's view
+## took 515 MB more on a Quest 2 (docs/design.md, "A photo's memory").
 const SAMPLE_BYTES := 8
-## The most of the memory the system reports available that a photo's buffers may take. A photo taking 515 of 546 MB
-## stalled the game 1.1 s while the system killed apps to free it, and the headset's shell drew in its place; taking
-## 515 of 1043 MB, it drew on.
+## Share of the reported available memory a photo's buffers may take. Taking 515 of 546 MB stalled the game 1.1 s
+## while the system killed apps, and the headset's shell drew in its place; 515 of 1043 MB drew on.
 const PHOTO_MEMORY_SHARE := 0.5
 const VIEW_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
 const CAMERAS: Array[Hand.Tool] = [Hand.Tool.CAMERA, Hand.Tool.SELFIE]
-## A trigger held this long records instead of taking a photo on release.
+## Seconds a trigger is held before it records instead of taking a photo on release.
 const HOLD := 0.3
-## While recording, the camera's preview is drawn at this size and every drawing is a frame of the video.
 const VIDEO_SIZE := Vector2i(640, 480)
 const VIDEO_FPS := 24
 const VIDEO_QUALITY := 0.8
-## A paint surface covering at least this much of a photo's frame, its face toward the lens, is what the photo is of.
+## Fraction of a photo's frame a paint surface facing the lens must cover to be what the photo is of.
 const SUBJECT := 0.25
-## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
-## holds up play, and a dropped frame's time goes to the next one.
+## Past this many frames awaiting write, a frame is dropped and its time goes to the next: writing never holds up play.
 const VIDEO_QUEUE := 6
 
 var rig: Rig
 var folder := Main.photos_folder()
-## Whose blobs a photo draws finest, if any.
 var flora: Flora
-## Whose canvases a photo saves when it is of them, if any.
 var easels: Easels
-## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot's bytes or none},
-## taken when the shutter is pressed: the garden changes on while the photo is drawn and written.
+## Called when the shutter is pressed, since the garden changes while the photo is drawn: {"about": Dictionary,
+## "world": World.snapshot's bytes, maybe empty}.
 var scene := func() -> Dictionary: return {"about": {}, "world": PackedByteArray()}
-## Per hand that has held a camera, its preview's view.
+## Hand -> its preview's SubViewport.
 var _previews := {}
 var _photo: SubViewport
 var _view: SubViewport
 var _frame := 0
 var _turn := 0
-## Per hand, how much longer its screen holds the shot it took.
+## Hand -> seconds its screen still holds the shot.
 var _shots := {}
 var _busy := false
-## When the view began to fade for the photo now drawn.
+## Ticks msec.
 var _covered_at := 0
-## The MSAA the photo now drawn is drawn with, as photo_msaa chose it.
 var _photo_msaa := PHOTO_MSAA
-## Photo paths chosen but not yet written, so two quick shots never share one.
+## Paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
 var _pressed_for: Array[float] = []
 var _clip: Avi
-## The hand recording, and the camera it holds, while a video records.
 var _clip_hand: Hand
 var _clip_tool: Hand.Tool
 var _clip_path := ""
@@ -89,7 +70,7 @@ var _clip_slot := -1
 var _owed := 0
 var _sound: AudioEffectCapture
 var _heard := PackedByteArray()
-## The frame last written, which the worker writes again for a frame time no drawing came back for.
+## Written again for a frame time no drawing came back for.
 var _last_jpg := PackedByteArray()
 var _queue: Array[Dictionary] = []
 var _reading := 0
@@ -102,9 +83,8 @@ func _init(player: Rig) -> void:
 		_pressed_for.append(-1.0)
 
 
-## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, and the photo sun lights
-## no other view, so a session's first photo came out shadowless (docs/shadows.md). A photo's view, and a canvas's flat
-## view, are drawn as the game loads to compile them.
+## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, so a session's first photo
+## came out shadowless (docs/shadows.md): a photo's and a canvas's flat view are drawn at load to compile them.
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
@@ -131,7 +111,7 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	return vp
 
 
-## A view drawn as a photo is, `size` large: at a small size it builds the photo's pipelines cheaply.
+## At a small `size` this builds the photo's pipelines cheaply.
 func _photo_view(size: Vector2i, msaa := PHOTO_MSAA) -> SubViewport:
 	var vp := _viewport(size, msaa)
 	vp.mesh_lod_threshold = 0.0
@@ -146,7 +126,6 @@ func _view_viewport() -> SubViewport:
 	return _view
 
 
-## The finest MSAA, PHOTO_MSAA at most, whose buffers take no more than PHOTO_MEMORY_SHARE of `available` bytes.
 static func photo_msaa(available: int) -> Viewport.MSAA:
 	var msaa := PHOTO_MSAA
 	while msaa > Viewport.MSAA_DISABLED and PHOTO_SIZE.x * PHOTO_SIZE.y * (1 << msaa) * SAMPLE_BYTES > available * PHOTO_MEMORY_SHARE:
@@ -154,7 +133,6 @@ static func photo_msaa(available: int) -> Viewport.MSAA:
 	return msaa
 
 
-## What a photo drawn with `msaa` is drawn with, as its PNG records it.
 static func settings(msaa := PHOTO_MSAA) -> Dictionary:
 	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << msaa, "shadow_atlas": PHOTO_SHADOWS, "shadow_splits": 4,
 		"shadow_reach_m": Look.SHADOW_REACH, "blob_detail": Quality.ladder[0].blob_detail, "reach": "whole garden",
@@ -237,8 +215,6 @@ static func _show(on: StandardMaterial3D, tex: Texture2D, tint: Color) -> void:
 	on.albedo_color = tint
 
 
-## Where the lens is and which way it looks: as the controller is turned, roll included, as a camera held in the hand;
-## a selfie camera's looks back along the controller at the holder.
 static func lens(hand: Node3D) -> Transform3D:
 	var t := hand.global_transform
 	var basis := t.basis.orthonormalized()
@@ -256,7 +232,6 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 		rig.pose_body()
 
 
-## The view the camera's screen would show from `at`, drawn once by a viewport made as the screen's is.
 func render_screen(at: Transform3D) -> Image:
 	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 	_aim(vp, at, FOV, Quality.VIEW_MASK)
@@ -266,8 +241,7 @@ func render_screen(at: Transform3D) -> Image:
 	return img
 
 
-## Takes a photo through the hand's lens and saves it; the screen holds the shot for a moment. Returns
-## where it was saved, or "" if it could not be taken.
+## Returns where it was saved, or "" if it could not be taken.
 func shoot(hand: Hand) -> String:
 	var at := lens(hand)
 	Cues.play(Cues.Act.PHOTO, at.origin, hand)
@@ -288,7 +262,7 @@ func shoot(hand: Hand) -> String:
 	var about: Dictionary = around.about.duplicate()
 	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
-	# The frame the reads landed on copied them out of the GPU's memory, 50-70 ms on a Quest 2: it ends under the cover.
+	# The frame the reads landed on copies them out of GPU memory, 50-70 ms on a Quest 2: it ends under the cover.
 	await get_tree().process_frame
 	rig.uncover()
 	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at))
@@ -316,7 +290,6 @@ func shoot(hand: Hand) -> String:
 	return path
 
 
-## Whether `path` was written, as `saved` says; logs which.
 func _report(path: String, saved: Error) -> bool:
 	if saved != OK:
 		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
@@ -325,8 +298,7 @@ func _report(path: String, saved: Error) -> bool:
 	return true
 
 
-## The canvases and oil palettes' boards a photo from `at` is of, by easel, oldest first: ["canvas" or "palette",
-## Canvas].
+## ["canvas" or "palette", Canvas] per surface the photo is of, by easel, oldest first.
 func _subjects(at: Transform3D) -> Array:
 	var out := []
 	if easels == null or RenderingServer.get_rendering_device() == null:
@@ -342,8 +314,8 @@ func _subjects(at: Transform3D) -> Array:
 	return out
 
 
-## `canvas` as it shows now, flat (Canvas.flat_view): its colour and its height, drawn on a frame of their own after the
-## photo's, which already costs its frame plenty; none if the canvas was taken away before they were drawn.
+## Colour and height are drawn on a frame after the photo's, which already costs its frame plenty; [] if the canvas
+## was taken away before they were drawn.
 func _flatten(canvas: Canvas) -> Array[Image]:
 	var views: Array[SubViewport] = [canvas.flat_view(false), canvas.flat_view(true)]
 	for vp in views:
@@ -355,8 +327,8 @@ func _flatten(canvas: Canvas) -> Array[Image]:
 	return out if is_instance_valid(canvas) and canvas.is_inside_tree() and out.size() == views.size() else []
 
 
-## How much of the frame of a photo from `at` a surface `metres` large in `frame` (Easel.canvas_frame) covers, as a
-## fraction of the frame, negative when the lens sees its back. Only what lies past the lens's near plane counts.
+## Fraction of the frame covered, negative when the lens sees its back; `metres` is the surface's size in `frame`'s
+## plane. Only what lies past the lens's near plane counts.
 static func coverage(at: Transform3D, frame: Transform3D, metres := Brushwork.METRES) -> float:
 	var h := metres * 0.5
 	var seen := (at.affine_inverse() * frame) * PackedVector3Array([Vector3(-h.x, -h.y, 0), Vector3(h.x, -h.y, 0), Vector3(h.x, h.y, 0), Vector3(-h.x, h.y, 0)])
@@ -386,7 +358,6 @@ static func _area(polygon: PackedVector2Array) -> float:
 	return twice * 0.5
 
 
-## A new file under `folder` named by the date and time.
 func _reserve(ext: String) -> String:
 	DirAccess.make_dir_recursive_absolute(folder)
 	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
@@ -399,9 +370,6 @@ func _reserve(ext: String) -> String:
 	return path
 
 
-## Starts recording through the hand's lens into a video file beside the photos. That camera's preview grows to
-## VIDEO_SIZE and keeps its pace, one frame in PREVIEW_EVERY, and each drawing is read back and handed to a worker
-## thread to be written; the game's sound is taken from the master bus as it plays.
 func record(hand: Hand) -> void:
 	_clip_path = _reserve("avi")
 	_clip = Avi.open(ProjectSettings.globalize_path(_clip_path), VIDEO_SIZE, VIDEO_FPS, roundi(AudioServer.get_mix_rate()))
@@ -427,8 +395,7 @@ func record(hand: Hand) -> void:
 	ToolModels.button(hand.model(_clip_tool)).emission = ToolModels.RECORDING
 
 
-## Stops recording and finishes the file once every frame read back is written. Returns where it was
-## saved, or "" if it could not be.
+## Returns where it was saved, or "" if it could not be.
 func stop() -> String:
 	var hand := _clip_hand
 	if hand == null:
@@ -468,8 +435,7 @@ func _take_sound() -> PackedByteArray:
 	return _sound.get_buffer(_sound.get_frames_available()).to_byte_array()
 
 
-## Reads back what `preview` draws this frame as the video's frame for the moment it shows, repeated over any frame
-## times since the last, as when play drops below the refresh rate.
+## Repeats the frame over any frame times since the last, as when play drops below the refresh rate.
 func _grab(preview: SubViewport) -> void:
 	var slot := roundi(_clip_time * VIDEO_FPS)
 	var repeats := slot - _clip_slot
@@ -494,7 +460,7 @@ func _grab(preview: SubViewport) -> void:
 		_heard = PackedByteArray())
 
 
-## Hands what is queued to one worker task at a time, so frames reach the file in order.
+## One worker task at a time, so frames reach the file in order.
 func _write() -> void:
 	if _writing != -1 and WorkerThreadPool.is_task_completed(_writing):
 		WorkerThreadPool.wait_for_task_completion(_writing)
@@ -521,14 +487,12 @@ static func _floats(v: Variant) -> Array:
 	return [v.x, v.y, v.z] if v is Vector3 else [v.x, v.y, v.z, v.w]
 
 
-## The lens a photo's `about` was taken through.
 static func lens_of(about: Dictionary) -> Transform3D:
 	var p: Array = about.camera.position
 	var q: Array = about.camera.rotation
 	return Transform3D(Basis(Quaternion(q[0], q[1], q[2], q[3])), Vector3(p[0], p[1], p[2]))
 
 
-## Writes `img` as a PNG, with `about` and `world` written into it when `about` is given (PhotoMeta).
 func save(img: Image, path: String, about: Variant = null, world := PackedByteArray()) -> Error:
 	return await _store(path, func() -> PackedByteArray:
 		img.convert(Image.FORMAT_RGB8)
@@ -536,14 +500,13 @@ func save(img: Image, path: String, about: Variant = null, world := PackedByteAr
 		return png if about == null else PhotoMeta.embed(png, about, world))
 
 
-## Writes what `encode` returns to `path`, both on a worker thread: encoding a photo-sized image takes longer than a
-## frame.
+## Encoding a photo-sized image takes longer than a frame.
 func _store(path: String, encode: Callable) -> Error:
 	var file := ProjectSettings.globalize_path(path)
 	return await _on_worker(func() -> Error: return Main.write_bytes(file, encode.call()))
 
 
-## What `work` returns, run on a worker thread while frames go on; ERR_BUG if it fails to.
+## ERR_BUG if `work` fails to return.
 func _on_worker(work: Callable) -> Error:
 	var result := [ERR_BUG]
 	var task := WorkerThreadPool.add_task(func() -> void: result[0] = work.call())
@@ -553,9 +516,7 @@ func _on_worker(work: Callable) -> Error:
 	return result[0]
 
 
-## The garden seen from `at` by a camera seeing `mask`'s layers, rendered once, one render at a time: as a photo when
-## `mask` sees Quality.FULL_LAYER (see the top of this file), which returns with the view still covered for the caller
-## to lift (Rig.uncover), else as the eyes see it at VIEW_SIZE.
+## With Quality.FULL_LAYER in `mask`, returns with the view still covered for the caller to lift (Rig.uncover).
 func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	if rd == null or not is_inside_tree():
@@ -596,8 +557,8 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	return img
 
 
-## A viewport can finish a frame while its pipelines are still compiling. Reading it then would save missing
-## geometry or shadows; awaiting complete draws leaves play running. `finest` draws it as a photo is (draw_finest).
+## A viewport can finish a frame while its pipelines are still compiling; reading it then would save missing geometry
+## or shadows.
 func _draw_complete(vp: SubViewport, finest := false) -> void:
 	var skipped := RenderingServer.VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME
 	while true:
@@ -616,9 +577,8 @@ func _draw_complete(vp: SubViewport, finest := false) -> void:
 			return
 
 
-## What each of `views` last drew, read back together. The pixels come back from the GPU a frame or two later instead
-## of stalling the frame that asked; the frame they land on copies them out of the GPU's memory, 50-70 ms on a Quest 2
-## for a photo's 30 MB, which the cover hides.
+## The pixels come back a frame or two later instead of stalling the frame that asked; the frame they land on copies
+## them out of GPU memory, 50-70 ms on a Quest 2 for a photo's 30 MB, which the cover hides.
 func _read(views: Array[SubViewport]) -> Array[Image]:
 	var rd := RenderingServer.get_rendering_device()
 	var got := {}
@@ -639,9 +599,8 @@ func _read(views: Array[SubViewport]) -> Array[Image]:
 	return out
 
 
-## For the one frame a photo is drawn in, what the eyes' views share with it, the foliage's blobs, set for the photo
-## before the frame draws; returns what puts them back. Set after every script's turn, so the
-## quality governor (Quality) does not undo them first. The eyes see that frame drawn so too.
+## The foliage's blobs are set finest after every script's turn, so the quality governor (Quality) does not undo them
+## before the frame draws; the eyes see that frame drawn so too.
 func draw_finest() -> Callable:
 	var blobs := flora.blob_detail if flora != null else 0
 	if flora != null:

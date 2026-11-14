@@ -1,123 +1,103 @@
 class_name Metrics
 extends Node
 
-## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
-## clock it ran at, where each frame's main-thread time went (MAIN_PHASES) and how much of it the avatars' spring steps and expressions took, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame, the
-## lowest quality step the governor took (see Quality) and whether no governor walked it all second, the frames again
-## by what the player was doing in each (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to
-## JSON as it goes.
-
 var path: String
 var info := {}
 var play_log: PlayLog
 var context: Callable
-## The tags (ACTIVITIES) of what the player is doing this frame besides moving, which the head's own motion decides.
+## This frame's ACTIVITIES tags other than "moving", which `_tags` takes from the head.
 var activity: Callable
-## This frame's input given its delta (Replay.frame), which the session record keeps every frame of.
+## (delta) -> this frame's input (Replay.frame).
 var input: Callable
-## What the session's state has come to (Replay.check), which a record keeps every Replay.CHECK_EVERY frames.
+## Replay.check.
 var checks: Callable
-## Compares the state with the checks of the record a replay plays (Replayer.compare), here because the record took them
-## here, at this point of the frame.
+## Replayer.compare, called here because the record's checks were taken at this point of the frame.
 var compare: Callable
-## Each frame's main-thread work (main_work_ms), in ms.
+## Per frame, ms.
 var _cpu: PackedFloat32Array = []
-## The last whole frame's main-thread time in seconds by phase (Performance.get_frame_times): the engine's own, or a
-## test's.
+## Seconds by phase of the last whole frame; tests substitute their own.
 var frame_times := func() -> Dictionary: return Performance.get_frame_times()
-## Where a frame's main-thread time goes: blocked in xrWaitFrame, the physics servers, the scene tree's processing (every
-## script callback, deferred call and navigation), the renderer's sync and draw, and the rest (input, audio, the time
-## between frames).
+## xr_wait is blocked in xrWaitFrame; scripts is every script callback, deferred call and navigation; other is input,
+## audio and the time between frames.
 const MAIN_PHASES := ["xr_wait", "physics", "scripts", "sync", "draw", "other"]
-## This second's frames' times by phase, in ms.
+## ms, by phase, this second's frames.
 var _main := _no_phases()
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
-## The microseconds a frame's length is read from: the host's clock, or a test's that moves only as its frames say.
+## Microseconds; tests substitute a clock that moves only as their frames say.
 var clock := func() -> int: return Time.get_ticks_usec()
 var _last_tick: int = clock.call()
 var quality: Quality
-## The tracked head, whose height above the play area's floor each second records, with where its play
-## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
+## Each row records the play-space origin and how many frames it moved in: any move the player did not make is a bug.
 var head: Node3D
-## The garden, whose share of the frame budget (World.fill) each second records.
 var world: World
 var _origin: Transform3D
 var _origin_moves := 0
-## The open landing window: {label, frames_ms, s}, s its time so far.
+## {label, frames_ms, s}, s in seconds so far.
 var _landing := {}
 var _landings: Array = []
 var _moved := false
 var _step := 0
 var _pinned := true
 var _deltas: PackedFloat32Array = []
-## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
 var _was_late := false
-## The first of a run of late frames, logged a frame later: its interval runs from this node's processing in one engine
-## frame to its processing in the next, and the engine reports a frame's split once it has ended, so the second frame's,
-## where the interval's wait and processing fall, shows only then.
+## Logged a frame later: the interval spans two engine frames, and the engine reports a frame's split only once it has
+## ended, so the second one's shows only then.
 var _late_line := ""
-## When the last late frame ended, on `clock`; -1 before any.
+## On `clock`; -1 before any.
 var late_at_us := -1
 var _gpu_ns := -1
 var _gpu_cycles := -1
 var _gpu_counted_ns := 0
 var _drm_fds: PackedStringArray = []
-## The second's row while a worker reads the GPU time it needs, and that reading.
+## The last second's row, held while _gpu_reader reads its GPU time.
 var _row := {}
 var _gpu_reader: Thread
-## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
+## Every tenth reading rescans for DRM clients, since the runtime may open more later.
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
-## The most draws a frame's view this second left out because their pipelines were still compiling: a second that left
-## any out drew less than its scene, so its GPU time reads low. The shadows' count is not read, since it also counts
-## positional shadows deferred to a later frame, which a scene of many lights does every frame as played.
+## Draws skipped while pipelines compile: a second with any reads low GPU time. Shadow skips are not read, since they
+## include positional shadows deferred to a later frame, which a scene of many lights does every frame.
 var _skipped := 0
-## Pipelines compiled so far, the last frame: x while drawing, which holds the frame, y on worker threads.
+## Pipelines compiled so far: x while drawing, which holds the frame, y on worker threads.
 var _compiled := Vector2i()
-## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
-## every frame, and holds still only while they do.
+## Each row records the eye frusta's widest swing: the sun's shadow map is fitted to them, and holds still only while
+## they do.
 var xr: XRInterface
-## The refresh rate the runtime runs at now, read every frame: a Quest begins the session at the shell's rate and
-## switches the panel to the game's a few seconds later, so the rate read as the session begins can be stale.
+## Read every frame: a Quest starts the session at the shell's rate and switches a few seconds later.
 var refresh: Callable
 var _eye_lo := PackedFloat32Array()
 var _eye_hi := PackedFloat32Array()
-## A frame's tags: each frame counts once in each of its tags, and in "still" when it has none of the first three.
 const ACTIVITIES := ["moving", "building", "wheel", "still", "coop"]
-## Faster than this the head is moving: what a player feels is the frame rate while it does.
+## Head speeds above which a frame is "moving": the frame rate a player feels is the one while it is.
 const MOVING_DEG_S := 30.0
 const MOVING_M_S := 0.3
-## Frame-time histogram bins per millisecond: fine enough for p99 against a 11 ms refresh, and merges exactly.
+## Fine enough for p99 against an 11 ms refresh, and merges exactly.
 const BINS_PER_MS := 2
-## A landing's window: the frame the origin is seen moved in, whose interval holds the move's own scripts when they
-## ran after this node last frame, and the frames after it until this much time has passed, where the new view's
-## first draws, the hover settling and anything else the move starts fall. A glide moves the origin every frame, so
-## only a move after a frame without one opens a window.
+## Long enough to hold the new view's first draws, the hover settling and anything else a move starts. A glide moves
+## the origin every frame, so only a move after a frame without one opens a window.
 const LANDING_S := 0.5
-## This second's frames by tag, as `tally` keeps them.
 var _by_activity := {}
 var _head_was: Variant = null
-## Seconds not yet written.
+## Rows not yet flushed.
 var _seconds: Array = []
 var _file: FileAccess
 var _rows := 0
 var _rows_end := 0
 var _acc := 0.0
 var _since_flush := 0.0
-## A frame longer than this is a stall the player sees: each second's row lists them (STALLS_A_SECOND at most), each
-## with what was noted as running long in it (`note`), so a session record names a stall's cause.
+## A frame longer than this is a stall the player sees; each is listed with its `note`s so a session record names
+## its cause.
 const STALL_MS := 50.0
 const STALLS_A_SECOND := 4
 const NOTES_A_FRAME := 8
-## Timed work shorter than this is too short to explain a stall, and is not noted.
+## Shorter work is too short to explain a stall.
 const SLOW_MS := 4.0
 var _stalls: Array = []
-## What ran long since the last frame, as `note` records it.
 static var _notes: Array = []
-## Whether the time until the next frame is none the player saw: the game loading, or the tree paused while the
-## headset is off or the app is in the background. It is counted as paused, never as a frame.
+## The time until the next frame was unseen (loading, headset off, app in the background): counted as paused, not as
+## a frame.
 var _unplayed := false
 var _paused_s := 0.0
 
@@ -126,8 +106,7 @@ func _init(out: String) -> void:
 	path = out
 
 
-## Records that `what` ran for `ms` (negative: it happened, untimed) in the frame now under way, for the stall it may
-## explain, and logs it; work under SLOW_MS is not noted.
+## For the stall it may explain. A negative `ms` means untimed.
 static func note(what: String, ms := -1.0) -> void:
 	if ms >= 0.0 and ms <= SLOW_MS:
 		return
@@ -188,8 +167,7 @@ func _process(delta: float) -> void:
 	for tag in tags:
 		tally(_by_activity, tag, elapsed * 1000.0, late, cpu_ms, gpu_ms)
 	if not _stalls.is_empty() and not _stalls[-1].has("main_after_ms"):
-		# The engine reports a frame's split once it has finished, and this interval spans the end of one engine frame and
-		# the start of the next, so the next frame's split shows only now.
+		# This interval spans two engine frames, and the engine reports a split only once its frame ends.
 		_stalls[-1].main_after_ms = rounded_split(split)
 	if elapsed * 1000.0 > STALL_MS and _stalls.size() < STALLS_A_SECOND:
 		_stalls.append({"ms": snappedf(elapsed * 1000.0, 0.1), "tags": tags, "main_ms": rounded_split(split),
@@ -324,9 +302,8 @@ func _process(delta: float) -> void:
 		_finish_row()
 
 
-## Completes the last second's row with the GPU time a thread of its own read, a frame or two after the second ended:
-## reading the DRM clients' info held the Steam Frame's main thread for up to 8 ms, enough to drop a second to every
-## other refresh, and a pool's worker can be busy for seconds laying builds.
+## The GPU time is read on a thread of its own: reading the DRM clients' info held the Steam Frame's main thread for up
+## to 8 ms, enough to drop a second to every other refresh, and a pool's worker can be busy for seconds laying builds.
 func _finish_row() -> void:
 	if _row.is_empty():
 		return
@@ -359,7 +336,6 @@ func _close_landing() -> void:
 	_landing = {}
 
 
-## This frame's tags: moving from the head's motion over `elapsed` seconds, the rest from `activity`.
 func _tags(elapsed: float) -> Array:
 	var tags: Array = activity.call() if activity.is_valid() else []
 	if head != null:
@@ -375,8 +351,7 @@ func _tags(elapsed: float) -> Array:
 	return tags
 
 
-## Counts a frame of `ms` under `tag` in `into`: frames, late frames, the worst, a histogram of BINS_PER_MS bins a
-## millisecond keyed by bin, and the CPU and, where `gpu_ms` is not negative, GPU time summed.
+## A negative `gpu_ms` means no reading.
 static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: float, gpu_ms: float) -> void:
 	if not into.has(tag):
 		into[tag] = {"frames": 0, "late": 0, "max": 0.0, "hist": {}, "cpu_ms": 0.0, "gpu_ms": 0.0, "gpu_frames": 0}
@@ -392,8 +367,6 @@ static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: 
 		t.gpu_frames += 1
 
 
-## The renderer's textures, buffers and all its video memory this second, in MiB, so a phase's memory pressure on the
-## headset names which of them grew.
 static func memory_mb() -> Dictionary:
 	const MIB := 1048576.0
 	return {"textures": snappedf(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED) / MIB, 0.1),
@@ -411,7 +384,6 @@ static func eye_half_angles(p: Projection) -> PackedFloat32Array:
 		rad_to_deg(atan((1.0 - p.z.y) / p.y.y)), rad_to_deg(atan((1.0 + p.z.y) / p.y.y))])
 
 
-## The widest of the swings between each pair of lowest and highest.
 static func spread(lo: PackedFloat32Array, hi: PackedFloat32Array) -> float:
 	var most := 0.0
 	for i in lo.size():
@@ -430,17 +402,15 @@ func is_late(ms: float) -> bool:
 	return hz > 0.0 and ms > 1500.0 / hz
 
 
-## GPU nanoseconds and clock cycles this process has used, summed over its DRM clients from the kernel's fdinfo, -1
-## where the driver reports none, then the nanoseconds of the clients that count cycles. Busy time stretches as the
-## driver clocks the GPU down and cycles do not, so the two together tell more work from a slower clock.
+## [busy ns, cycles, busy ns of the clients that count cycles], -1 where the driver reports none. Busy time stretches as
+## the GPU clocks down and cycles do not, so together they tell more work from a slower clock.
 func gpu_time() -> PackedInt64Array:
 	if _drm_scan % 10 == 0:
 		var dir := DirAccess.open("/proc/self/fd")
 		if dir == null:
 			return PackedInt64Array([-1, -1, 0])
 		_drm_fds.clear()
-		# Reading every fd's info held the Steam Frame's main thread for up to 15 ms, enough to drop a second to every
-		# other refresh. A link is read without the kernel writing anything, and a DRM fd's info is read once a second.
+		# Reading every fd's info held the Steam Frame's main thread for up to 15 ms; a link read costs the kernel nothing.
 		for fd in dir.get_files():
 			if dir.read_link(fd).begins_with("/dev/dri/"):
 				_drm_fds.append(fd)
@@ -470,7 +440,7 @@ func gpu_time() -> PackedInt64Array:
 	return total
 
 
-## procfs reports no length, and the kernel writes a DRM fd's info afresh on every read, so it is taken in one read.
+## procfs reports no length, and the kernel writes a DRM fd's info afresh on every read, so it is taken in one.
 static func _fdinfo(fd: String) -> String:
 	var f := FileAccess.open("/proc/self/fdinfo/" + fd, FileAccess.READ)
 	return f.get_buffer(65536).get_string_from_utf8() if f != null else ""
@@ -480,8 +450,8 @@ static func _q(a: Array, q: float) -> float:
 	return a[clampi(int(q * (a.size() - 1)), 0, a.size() - 1)] if a.size() > 0 else 0.0
 
 
-## Appends the seconds since the last flush and rewrites only the closing `info`, so a flush costs the same in the
-## second hour as in the first and the file is whole JSON after each one.
+## Appends the new rows and rewrites only the closing `info`, so a flush costs the same in the second hour as in the
+## first and the file is whole JSON after each.
 func flush() -> void:
 	_since_flush = 0.0
 	if path.is_empty():
@@ -513,7 +483,7 @@ static func _no_phases() -> Dictionary:
 	return by
 
 
-## A frame's main-thread split in ms by MAIN_PHASES from the engine's `times` in seconds.
+## `times` in seconds; returns ms.
 static func main_split(times: Dictionary) -> Dictionary:
 	var split := {}
 	for phase in MAIN_PHASES:
@@ -521,8 +491,6 @@ static func main_split(times: Dictionary) -> Dictionary:
 	return split
 
 
-## The main thread's work in a frame's `split`: everything but the wait for the runtime and the time outside the engine's
-## own steps.
 static func main_work_ms(split: Dictionary) -> float:
 	return split.physics + split.scripts + split.sync + split.draw
 

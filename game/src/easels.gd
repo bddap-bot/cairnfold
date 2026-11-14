@@ -1,13 +1,9 @@
 class_name Easels
 extends Node3D
 
-## The garden's easels, each a big canvas on an A-frame with a tray in front holding a painter's kit for each medium: a
-## box of watercolour pans beside a glass of water, a wooden oil palette with its paint squeezed out round the edge,
-## three sticks of charcoal from thin to thick, and a pot of brushes, one of each. `World` puts and takes them and hands
-## them their strokes; `EaselTool` paints on them. An easel's local frame stands on the ground under it as the ground is
-## now, the canvas facing +z.
+## An easel's local frame stands on the ground under it as the ground is now, the canvas facing +z.
 
-## The canvas tilts its top back from the painter this far.
+## The canvas's top leans back, away from the painter.
 const TILT := deg_to_rad(10.0)
 const CANVAS_AT := Vector3(0, 1.32, 0)
 const TRAY_Y := 0.72
@@ -20,81 +16,70 @@ const RAG_EDGE := [
 	Vector2(RAG.end.z + 0.0005, RAG.position.y + 0.0005),
 	Vector2(RAG.end.z + 0.0005, TRAY_Y - 0.09),
 ]
-## Where each thing on the tray sits, on the tray's top.
 const POT := Vector3(-0.68, TRAY_Y, 0.2)
 const JAR := Vector3(-0.54, TRAY_Y, 0.23)
-## The charcoal sticks lie side by side from the tray's back to its front, thinnest on the left, so far apart that a
-## hand reaching for one from the front takes it alone: the middle of the middle one, and the gap between them.
+## The middle stick's centre, and the gap between sticks: wide enough that a reach from the front takes one alone.
 const CHARCOAL := Vector3(0.0, TRAY_Y, 0.19)
 const STICK_GAP := 0.1
-## Each medium's palette where it rests: the watercolour box beside its water, the oil palette in the tray's far
-## corner, inside its lip and clear of the leg crossing the tray behind it.
+## The oil palette rests inside the tray's lip, CLEAR of the leg crossing the tray behind it.
 const KITS := {
 	Brushwork.Medium.WATER: Vector3(-0.32, TRAY_Y + 0.0105, 0.21),
 	Brushwork.Medium.OIL: Vector3(TRAY.end.x - PALETTE_SIZE.x * 0.5 - CLEAR, TRAY_Y + 0.006, TRAY.end.z - LIP.y - PALETTE_SIZE.y * 0.5 - CLEAR),
 }
-## How near its rest a grip takes or sets down each palette.
+## Metres from its rest within which a grip takes or sets down each palette.
 const KIT_REACH := {Brushwork.Medium.WATER: 0.1, Brushwork.Medium.OIL: PALETTE_SIZE.x * 0.5}
 const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.042, 0.1)
-## The pot: its outer radius and height, its wall, and how high inside its handles stand.
+## x outer radius, y height; POT_FLOOR is the inside floor's height.
 const POT_SIZE := Vector2(0.055, 0.12)
 const POT_WALL := 0.005
 const POT_FLOOR := 0.01
-## How far inside the pot's wall each brush's handle stays.
+## Clearance between each handle and the pot's wall.
 const POT_GAP := 0.001
-## The brushes splayed in the pot, by kind: which way each leans, turned from the painter toward their right. Each
-## leans as far as the pot's mouth lets it (`in_pot`), so their handles stand well apart.
+## Which way each brush leans (radians), turned from the painter toward their right.
 const SPLAY := {Brushwork.Brush.SMALL: deg_to_rad(-80.0), Brushwork.Brush.FLAT: 0.0, Brushwork.Brush.BIG: deg_to_rad(80.0)}
-## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end.
-## The oil palette's paint lies round its far edge with its open board inside it, painted on as the canvas is
-## (`Easel.board`); the box's pans lie in two rows beside a field showing the brush's own mix.
+## In each palette's own frame: thumb hole at -x, paint toward +x.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
 const THUMB := Vector3(-0.12, 0, 0)
 const MIX_AT := Vector3(0.1, 0.0075, 0)
-## The oil palette's board top, where its paint lies; the board's paint in texels, a whole number of tiles a little
-## larger than the board; and the share of the board's oval paint lies within, clear of the thumb hole by THUMB_CLEAR.
+## BOARD is in texels, a whole number of tiles a little larger than the board; OPEN scales the oval paint may lie within.
 const BOARD_TOP := 0.004
 const BOARD := Vector2i(384, 256)
 const OPEN := 0.92
 const THUMB_CLEAR := 0.026
 const WELL_RADIUS := 0.018
 const PAN := Vector2(0.02, 0.035)
-## The box's pans run in two rows between these x, short of the field showing the brush's mix; the oil paint runs this far either way
-## round the palette's edge from its far end, short of the thumb.
+## PANS: the x the pan rows run between. OIL_ARC: radians either way of the far end the oil paint spans.
 const PANS := Vector2(-0.04, 0.056)
 const OIL_ARC := 1.75
 const PAN_TOP := 0.0105
-## A tip is in a well anywhere over its paint or pushed on through the board, which nothing stops a hand doing.
+## WELL_REACH: how far across the palette from a well's centre a tip counts as in it; WELL_DEPTH: the y range, which
+## runs on through the board since nothing stops a hand pushing there.
 const WELL_REACH := 0.025
 const WELL_DEPTH := Vector2(-0.05, 0.03)
-## The stand's legs run this far behind the canvas's face, clear of its backing, so none crosses the painting.
+## Behind the canvas's face, clear of its backing, so no leg crosses the painting.
 const LEG_BACK := 0.07
-## A grip takes a leg within this of its middle line, wider than the leg so a reach for it does not slip off.
+## Wider than a leg, so a reach for one does not slip off.
 const LEG_GRIP := 0.06
-## Easels stand at least this far apart, and a garden holds at most so many: each canvas is a few tens of MB on the GPU.
+## MAX bounds GPU memory: each canvas is a few tens of MB.
 const SPACING := 1.4
 const MAX := 4
-## The easel's bounds in its own frame, for the delete tool's beam.
+## In the easel's frame.
 const BOUNDS := AABB(Vector3(-0.82, 0.0, -0.75), Vector3(1.64, 2.0, 1.1))
 
-## The watercolour box's white enamel, which its mixing field starts as.
 const BOX_WHITE := Color(0.95, 0.95, 0.93)
-## Clean water in the jar.
 const WATER := Color(0.38, 0.62, 0.86, 0.75)
 
 
 var terrain: Terrain
 var world: World
 var quality: Quality
-## A whole easel, hidden, the next placement stands rather than make one in its frame; none while the garden holds
-## its MAX, so no more canvases are ever on the GPU than that.
+## A hidden whole easel the next placement takes instead of building one in its frame; none at MAX, so no more
+## canvases than that are ever on the GPU.
 var _spare: Easel
-## The spare being made, the steps of it made, and the frame of its last step.
 var _making: Easel
 var _made := 0
 var _step_frame := 0
-## The eyes the spare is held before while it warms (`warm`).
 var _eye: Camera3D
 var easels := {}
 
@@ -103,10 +88,9 @@ func _init() -> void:
 	name = "Easels"
 
 
-## Builds the spare easel the first placement stands (`_spare`) as the game loads (`Warmup`), held a centimetre tall
-## 1 m before the eyes while `quality` draws its primed rungs: Godot compiles a pipeline only for what it draws, for
-## each MSAA level and foveation map it draws into, and a Quest 2 compiled the easel's in the first placement's frame.
-## A spare or a standing easel keeps its materials, and with them their pipelines, for the game's life.
+## Draws the spare a centimetre tall 1 m before the eyes as the game loads, until `quality`'s rungs are primed: Godot
+## compiles a pipeline only for what it draws, per MSAA level and foveation map, and a Quest 2 otherwise compiled the
+## easel's in the first placement's frame. Easels keep their materials, and so their pipelines, for the game's life.
 func warm() -> void:
 	var spare := _easel()
 	add_child(spare)
@@ -123,15 +107,14 @@ func warm() -> void:
 		spare.visible = false
 
 
-## Holds the spare 1 m before `_eye`, a centimetre tall, while it warms: moved, not reparented, since a canvas leaving
-## the tree frees its paint.
+## Moved, not reparented: a canvas leaving the tree frees its paint.
 func _follow() -> void:
 	if _eye != null and _spare != null:
 		_spare.global_transform = _eye.global_transform.translated_local(Vector3.FORWARD).scaled_local(Vector3.ONE * 0.01)
 
 
-## Starts the next spare, made a step a frame (`_process`) while the garden has room for another easel: a whole easel
-## made in one frame, on top of the ~10 ms of script every frame runs, held a Quest 2 past its refresh.
+## Built a step a frame (`_process`): a whole easel in one frame, on top of the ~10 ms of script every frame runs,
+## held a Quest 2 past its refresh.
 func _restock() -> void:
 	if _spare != null or _making != null or easels.size() >= MAX:
 		return
@@ -154,7 +137,6 @@ func _process(_delta: float) -> void:
 		_making = null
 
 
-## A whole easel, made now.
 func _easel() -> Easel:
 	var e := Easel.new()
 	_canvas(e)
@@ -163,7 +145,7 @@ func _easel() -> Easel:
 	return e
 
 
-## Where pigment `i` lies on `kit`'s palette, in its frame.
+## In `kit`'s palette's frame.
 static func well(kit: Brushwork.Medium, i: int) -> Vector3:
 	var n := Brushwork.PIGMENTS.size()
 	if kit == Brushwork.Medium.WATER:
@@ -173,7 +155,7 @@ static func well(kit: Brushwork.Medium, i: int) -> Vector3:
 	return Vector3(cos(a) * PALETTE_SIZE.x * 0.38, 0.006, sin(a) * PALETTE_SIZE.y * 0.36)
 
 
-## The well a tip at `local`, in `kit`'s palette's frame, is in, or -1.
+## `local` is in `kit`'s palette's frame; -1 for no well.
 static func well_at(kit: Brushwork.Medium, local: Vector3) -> int:
 	if local.y < WELL_DEPTH.x or local.y > WELL_DEPTH.y:
 		return -1
@@ -188,7 +170,7 @@ static func well_at(kit: Brushwork.Medium, local: Vector3) -> int:
 	return best
 
 
-## Whether paint may lie at `point` on the oil palette's board (its frame's x, z).
+## `point` is (x, z) in the oil palette's frame.
 static func open_at(point: Vector2) -> bool:
 	return Vector2(point.x / PALETTE_SIZE.x, point.y / PALETTE_SIZE.y).length() * 2.0 < OPEN and point.distance_to(Vector2(THUMB.x, THUMB.z)) > THUMB_CLEAR
 
@@ -199,43 +181,36 @@ class Easel:
 	var id := -1
 	var canvas: Canvas
 	var canvas_mesh: MeshInstance3D
-	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
-	## (EaselTool) and it comes back when let go.
+	## By Brushwork.Medium.
 	var palettes := {}
-	## The watercolour box's field showing the brush's mix, and the paint on the oil palette's board and what draws it.
+	## wash: the watercolour box's mix field. board: the oil palette's paint.
 	var wash: StandardMaterial3D
 	var board: Canvas
 	var board_mesh: MeshInstance3D
-	## The water in the jar, clouded by each rinse.
 	var water: StandardMaterial3D
-	## Each brush in the pot and stick of charcoal on the tray, by its Brushwork.Brush; one a hand holds is off it
-	## (`EaselTool`).
+	## By Brushwork.Brush: the pot's brushes and the tray's charcoal.
 	var brushes := {}
 	var rag: ShaderMaterial
 
-	## The canvas's frame: x along it, y up it, z out of it toward the painter, origin at its centre.
+	## x along the canvas, y up it, z out of it toward the painter, origin at its centre.
 	func canvas_frame() -> Transform3D:
 		return global_transform * Easels.canvas_local()
 
-	## Where `point` lies on the canvas: x, y as uv (0..1, v down), z its distance in front of the canvas's face.
+	## x, y as uv (0..1, v down), z the distance in front of the canvas's face.
 	func on_canvas(point: Vector3) -> Vector3:
 		var p := canvas_frame().affine_inverse() * point
 		return Vector3(p.x / Brushwork.METRES.x + 0.5, 0.5 - p.y / Brushwork.METRES.y, p.z)
 
-	## The oil palette's board's frame, wherever the palette is, as the canvas's is: x toward its paint, y across it
-	## against uv's v, z up out of its top, origin at its middle.
+	## x toward the palette's paint, y across it against uv's v, z up out of its top, origin at its middle.
 	func board_frame() -> Transform3D:
 		return palettes[Brushwork.Medium.OIL].global_transform * Transform3D(Basis(Vector3.RIGHT, Vector3.FORWARD, Vector3.UP), Vector3(0, Easels.BOARD_TOP, 0))
 
-	## The canvas, or with `palette` the oil palette's board.
 	func surface(palette: bool) -> Canvas:
 		return board if palette else canvas
 
 	func frame(palette: bool) -> Transform3D:
 		return board_frame() if palette else canvas_frame()
 
-	## Whether paint may lie at `uv` on the canvas, or with `palette` on the board: the board's open oval, clear of its
-	## thumb hole and its colours.
 	func open(palette: bool, uv: Vector2) -> bool:
 		if not palette:
 			return true
@@ -283,37 +258,31 @@ func take(id: int) -> void:
 	_restock()
 
 
-## A stroke from the garden on easel `id`'s canvas, or with `palette` its oil palette's board: the painter's own is
-## there already; anyone else's plays as it was painted.
+## The painter's own stroke is there already; anyone else's plays as it was painted.
 func painted(id: int, stroke: Dictionary, own: bool, palette := false) -> void:
 	var e := find(id)
 	if e != null and not own:
 		e.surface(palette).play(stroke, 0)
 
 
-## Lays easel `id`'s painting, or with `palette` its oil palette's paint, again from its strokes, after one is taken
-## back or a fresh sheet goes up.
 func repaint(id: int, strokes: Array, palette := false) -> void:
 	var e := find(id)
 	if e != null:
 		e.surface(palette).rebuild(strokes)
 
 
-## Stands easel `id` at `at` facing `yaw`, its painting and kit carried with it.
 func stand(id: int, at: Vector3, yaw: float) -> void:
 	var e := find(id)
 	if e != null:
 		e.transform = on_ground(at, yaw)
 
 
-## Stands easel `id` as a reshape with `data` would leave it.
 func show_reshaped(id: int, data := {}) -> void:
 	if find(id) != null:
 		var shown := World.reshaped(world.state.easels[id], data)
 		stand(id, shown.at, shown.yaw)
 
 
-## Stands each easel over the ground reshaped in `area` on it again, as this player now sees it.
 func reseat(area: Rect2, _settled := true) -> void:
 	for e: Easel in easels.values():
 		if area.grow(Terrain.STEP).has_point(Vector2(e.position.x, e.position.z)):
@@ -324,8 +293,7 @@ func on_ground(at: Vector3, yaw: float) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, terrain.height_at(at.x, at.z), at.z))
 
 
-## The easel whose stand, its legs or tray, a ray from `origin` along `dir` meets first within `reach`, the canvas in
-## front of it hiding it: {easel, along, point}, or {}.
+## The first stand (legs or tray) hit within `reach` that no canvas in front hides: {easel, along, point}, or {}.
 func pick_stand(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	var best := {}
 	var d := dir.normalized()
@@ -337,8 +305,8 @@ func pick_stand(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	return best
 
 
-## How far along the unit ray from `o` along `d`, in an easel's frame, it first meets the stand within `reach`, or INF;
-## INF too where the canvas is nearer.
+## In an easel's frame, `d` a unit vector: the distance to the stand within `reach`, else INF; INF too where the
+## canvas is nearer.
 static func stand_hit(o: Vector3, d: Vector3, reach: float) -> float:
 	var near := reach
 	for leg: Array in legs():
@@ -360,7 +328,7 @@ static func stand_hit(o: Vector3, d: Vector3, reach: float) -> float:
 	return near
 
 
-## Each leg of the stand, from its foot to its top in the easel's frame, and its thickness.
+## Each [foot, top, thickness], in the easel's frame.
 static func legs() -> Array:
 	var frame := canvas_local()
 	var top := Brushwork.METRES.y * 0.5 + 0.08
@@ -371,7 +339,7 @@ static func legs() -> Array:
 	return out
 
 
-## How far along the unit ray from `o` along `d` it first comes within `radius` of the rod from `a` to `b`, or INF.
+## `d` a unit vector; INF where the ray never comes within `radius` of the rod.
 static func _rod_hit(o: Vector3, d: Vector3, a: Vector3, b: Vector3, radius: float) -> float:
 	var u := b - a
 	var w := o - a
@@ -387,7 +355,7 @@ static func _rod_hit(o: Vector3, d: Vector3, a: Vector3, b: Vector3, radius: flo
 	return maxf(t - sqrt(radius * radius - miss * miss), 0.0)
 
 
-## The easel a ray from `origin` along `dir` meets first, and where: {easel, along, point}, or {}.
+## {easel, along, point}, or {}.
 func pick(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {}
 	for e: Easel in easels.values():
@@ -402,7 +370,6 @@ func pick(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## The easel standing nearest `at` across the ground, or null.
 func nearest(at: Vector3) -> Easel:
 	var best: Easel = null
 	for e: Easel in easels.values():
@@ -415,12 +382,12 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
-## Whether an easel may stand at `at` among `standing` ({at, ...} by id).
+## `standing`: {at, ...} by id.
 static func room_at(at: Vector3, standing: Dictionary) -> bool:
 	return crowded(at, standing).is_empty()
 
 
-## Why no easel may stand at `at` among `standing`, or "" if one may.
+## "" when an easel may stand at `at`.
 static func crowded(at: Vector3, standing: Dictionary) -> String:
 	if standing.size() >= MAX:
 		return "the garden holds its %d easels" % MAX
@@ -429,7 +396,6 @@ static func crowded(at: Vector3, standing: Dictionary) -> String:
 	return ""
 
 
-## The yaw that turns an easel at `at` to face `toward`.
 static func facing(at: Vector3, toward: Vector3) -> float:
 	return atan2(toward.x - at.x, toward.z - at.z)
 
@@ -438,7 +404,6 @@ static func _cylinder(radius: float, height: float, segments := 16) -> CylinderM
 	return ToolModels.cylinder(radius, radius, height, segments)
 
 
-## A square beam `thickness` across from `from` to `to`.
 static func _beam(root: Node3D, from: Vector3, to: Vector3, thickness: float, mat: Material) -> void:
 	var along := to - from
 	var y := along.normalized()
@@ -446,8 +411,7 @@ static func _beam(root: Node3D, from: Vector3, to: Vector3, thickness: float, ma
 	ToolModels.piece(root, ToolModels.box(Vector3(thickness, along.length(), thickness)), Transform3D(Basis(x, y, x.cross(y)), (from + to) * 0.5), mat, true)
 
 
-## An easel's legs and tray under `stand` and its stretched canvas board under `board`, standing in their parent's
-## frame: the easel's own, and the easel tool's ghost of it.
+## In their parent's frame: the easel's own, and the easel tool's ghost of it.
 static func lay_frame(stand: Node3D, board: Node3D) -> void:
 	var wood := ToolModels.plain("easel/wood", Color(0.62, 0.45, 0.3), {"roughness": 0.7})
 	var dark := ToolModels.plain("easel/dark_wood", Color(0.42, 0.3, 0.2), {"roughness": 0.7})
@@ -555,16 +519,15 @@ static func _quad(key: String, size: Vector2) -> QuadMesh:
 		return q)
 
 
-## Where charcoal stick `kind` lies on the tray, in the easel's frame.
+## In the easel's frame.
 static func on_tray(kind: Brushwork.Brush) -> Transform3D:
 	var across := STICK_GAP * (Brushwork.STICKS.keys().find(kind) - (Brushwork.STICKS.size() - 1) * 0.5)
 	var size: Vector2 = Brushwork.STICKS[kind]
 	return Transform3D(Basis(), CHARCOAL + Vector3(across, size.x - ToolModels.BRUSH_TIP.y, -ToolModels.BRUSH_TIP.z - size.y * 0.5))
 
 
-## How a brush of `kind` stands in the pot, in the easel's frame: its handle's axis rises from the floor by the wall
-## away from where it leans and leaves through the mouth by the wall toward it, leaning as far as keeps the handle
-## POT_GAP inside the wall at both ends.
+## In the easel's frame: the handle rises from the floor by the wall away from its lean and leaves the mouth by the
+## wall toward it, leaning as far as keeps it POT_GAP inside the wall at both ends.
 static func in_pot(kind: Brushwork.Brush) -> Transform3D:
 	var inside := POT_SIZE.x - POT_WALL - POT_GAP
 	var deep := POT_SIZE.y - POT_FLOOR
@@ -574,8 +537,7 @@ static func in_pot(kind: Brushwork.Brush) -> Transform3D:
 	return Transform3D(basis, POT + Vector3(0, POT_FLOOR, 0) - out * deep * tan(lean) * 0.5 - basis.y * ToolModels.BRUSH_TIP.y)
 
 
-## Where a grip takes a brush of `kind`, in its own frame: a brush in the pot by the middle of what stands out of it, a
-## stick of charcoal by its middle.
+## In the brush's frame: a pot brush by the middle of what stands out of the pot, a charcoal stick by its middle.
 static func grip(kind: Brushwork.Brush) -> Vector3:
 	if Brushwork.is_stick(kind):
 		return ToolModels.BRUSH_TIP + Vector3(0, 0, Brushwork.STICKS[kind].y * 0.5)
@@ -585,15 +547,14 @@ static func grip(kind: Brushwork.Brush) -> Vector3:
 	return Vector3(0, ToolModels.BRUSH_TIP.y, -(rim - ToolModels.BRUSH_TIP.z) * 0.5)
 
 
-## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.
+## `x` along the canvas.
 static func _foot(x: float) -> Vector3:
 	var frame := canvas_local()
 	var at := frame * Vector3(x, 0, -LEG_BACK)
 	return at - frame.basis.y * (at.y / frame.basis.y.y)
 
 
-## An oil palette: a wooden board with its eight colours squeezed out round its far end and a thumb hole at its near
-## one; the paint on its open board is laid on it per easel.
+## The paint on its open board is added per easel (`_build`).
 static func oils() -> Node3D:
 	var root := Node3D.new()
 	ToolModels.piece(root, ToolModels.shared("oil_board", _oil_board), Transform3D(), _baked("oil_board", 0.45))
@@ -619,8 +580,6 @@ static func _oil_paint() -> ArrayMesh:
 	return ToolModels.bake(paint)
 
 
-## A box of watercolour pans: black enamel outside, white inside, two rows of pans of dry colour and a white mixing
-## field, with a thumb ring at its near end.
 static func watercolours() -> Node3D:
 	var root := Node3D.new()
 	ToolModels.piece(root, ToolModels.shared("watercolours", _watercolours), Transform3D(), _baked("watercolours", 0.7))
@@ -647,9 +606,8 @@ static func _watercolours() -> ArrayMesh:
 	return ToolModels.bake(parts)
 
 
-## The jar's water as it starts, which each easel's water copies. Kept for the game's life: Godot frees a material's
-## shader with its last material, and compiling it again for each easel's water stalled every placement made while
-## no easel stood.
+## Kept for the game's life: Godot frees a shader with its last material, and recompiling it per easel stalled every
+## placement made while no easel stood.
 static func _clean_water() -> StandardMaterial3D:
 	var m := ToolModels.plain("easel/water", WATER, {"roughness": 0.02, "metallic_specular": 0.9, "transparency": BaseMaterial3D.TRANSPARENCY_ALPHA})
 	m.get_rid()
