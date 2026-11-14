@@ -86,6 +86,10 @@ controls and the build order.
     hand poses, garden edits, the garden and the avatar file worn. Steam's friend presence is the one
     path through a third party. A visit leaves the other players nothing but their own photos and, on
     an opted-in device, its session record.
+- Text and fixtures name nothing taken from a locally held avatar, in code, tests, recorded traces, docs,
+  commit messages, issues or comments: no menu path, no parameter, object, material, clip, layer or file
+  name, nor the avatar's or its author's. Identify such an avatar by its corpus number ("corpus 3") and
+  quote counts, not names.
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
   `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.py out'` must pass too.
