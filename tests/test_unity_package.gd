@@ -390,7 +390,7 @@ func _a_branching_physbone_root_stays_still() -> void:
 	var report := {}
 	var organizational: Array = UnityAvatar._springs(objs, 10, branches, {}, 1.0, report).springs
 	check(organizational.size() == 2, "an organizational root absent from the output skeleton still owns its child chains")
-	check(JSON.parse_string(report["spring coverage"])[0].reason == "", "a represented organizational root is not reported as missing")
+	check(report["spring coverage"][0].reason == "", "a represented organizational root is not reported as missing")
 	branches.free()
 	sk.free()
 

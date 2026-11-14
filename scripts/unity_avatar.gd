@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Imports the avatar in a Unity source package and writes it as the VRM a player wears: run from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR]
+## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR] [--names]
 ## The avatars folder reads only VRM, since a worn file travels to every player met and a Godot scene can run code;
 ## Avatar.read reads it into the avatar model (Avatar.model). The atlas widens up
 ## to Avatar.MAX_IMAGE_SIDE, so every texture keeps the size Unity shows it at. DIR, a Unity project's Packages folder,
@@ -10,8 +10,9 @@ extends SceneTree
 ## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. Each --with PACKAGE is imported
 ## beside it, as one Unity project holds them all: an edit or outfit sold without the avatar it is made over imports
 ## with that base's package, whose assets it names by GUID. Where several hold one GUID the first named wins, PACKAGE
-## over every --with. Each prefab or model PACKAGE instances that no package holds is named by its GUID: as the reason
-## for a refusal where that leaves no avatar, as an edit without its base does, otherwise in the report. The avatar is
+## over every --with. Each prefab or model PACKAGE instances that no package holds is counted, or with --names named
+## by its GUID: as the reason for a refusal where that leaves no avatar, as an edit without its base does, otherwise in
+## the report. The avatar is
 ## the GameObject in PACKAGE bearing a VRChat avatar descriptor, its own or one that a prefab it instances from a --with
 ## package holds (AVATAR names it where there are several), as its scene or prefab instantiates
 ## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
@@ -22,7 +23,8 @@ extends SceneTree
 ## spring chains, and its menu, parameters and FX controller, with what its VRCFury features add, become the model's
 ## "expressions" (VRCHAT_expressions in a VRM); its visemes, eyelid blink and the faces its FX layer makes for hand
 ## gestures become VRM expressions, "faces" on the root as Vrm.write takes them.
-## The importer prints what it kept and dropped. A VRM carries in its asset extras the "converter" source() that wrote it.
+## The importer prints what it kept and dropped, as counts, and with --names by the names of the avatar's parts
+## (Assets.print_names). A VRM carries in its asset extras the "converter" source() that wrote it.
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
@@ -65,7 +67,10 @@ func _run() -> void:
 	var packages := ""
 	var i := 0
 	while i < given.size():
-		if given[i] == "--with" and i + 1 < given.size() and not given[i + 1].begins_with("--"):
+		if given[i] == "--names":
+			Assets.print_names = true
+			i += 1
+		elif given[i] == "--with" and i + 1 < given.size() and not given[i + 1].begins_with("--"):
 			lent.append(given[i + 1])
 			i += 2
 		elif given[i] == "--packages" and i + 1 < given.size() and DirAccess.dir_exists_absolute(given[i + 1]):
@@ -75,14 +80,14 @@ func _run() -> void:
 			args.append(given[i])
 			i += 1
 	if args.size() < 2 or args.size() > 3 or args.has("--packages") or args.has("--with") or args[1].get_extension() != "vrm":
-		printerr("usage: unity_avatar.gd PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR]")
+		printerr("usage: unity_avatar.gd PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR] [--names]")
 		quit(2)
 		return
 	var dirs := PackedStringArray()
 	for package: String in [args[0]] + Array(lent):
 		dirs.append(unpacked(package))
 		if dirs[-1] == "":
-			printerr("unity_avatar: cannot unpack %s" % package)
+			_say("cannot unpack %s" % package, "cannot unpack package %d" % dirs.size())
 			quit(1)
 			return
 	var root := avatar_scene(dirs[0], dirs.slice(1), args[2] if args.size() == 3 else "", packages)
@@ -90,9 +95,11 @@ func _run() -> void:
 		quit(1)
 		return
 	var report: Dictionary = root.get_meta("report")
+	if Assets.print_names:
+		print("unity_avatar: avatar: " + root.name)
 	var bytes := write(root, args[1], {"converter": source()})
 	if Avatar.read(bytes, true) == null:
-		printerr("unity_avatar: Avatar.read refuses %s: it needs %s as bones of one skeleton" % [args[1], Avatar.NEEDS])
+		printerr("unity_avatar: Avatar.read refuses the file written: it needs %s as bones of one skeleton" % [Avatar.NEEDS])
 		quit(1)
 		return
 	var pixels := Vrm.pixels(Vrm.images(bytes))
@@ -100,9 +107,30 @@ func _run() -> void:
 	if heavy > 1.0:
 		print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
 	report["file bytes"] = FileAccess.get_size(args[1])
-	for k: String in report:
-		print("unity_avatar: %s: %s" % [k, report[k]])
+	for line in report_lines(report):
+		print("unity_avatar: " + line)
 	quit()
+
+
+## The report as lines of `key: value`, each value shown().
+static func report_lines(report: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for k: String in report:
+		out.append("%s: %s" % [k, shown(report[k])])
+	return out
+
+
+## `value` as a message shows it: a number or text as itself, and a list or dictionary, which names the avatar's parts,
+## as its size, or with Assets.print_names as JSON. The report's texts are its sentences of counts.
+static func shown(value: Variant) -> String:
+	if value is Array or value is Dictionary or typeof(value) >= TYPE_PACKED_BYTE_ARRAY:
+		return JSON.stringify(value) if Assets.print_names else str(value.size())
+	return str(value)
+
+
+## Prints `named` as the reason, or `plain`, the same without the avatar's names, unless Assets.print_names.
+static func _say(named: String, plain: String) -> void:
+	printerr("unity_avatar: " + (named if Assets.print_names else plain))
 
 
 ## The commit of this checkout and whether its tracked files differ from it, as {"commit", "dirty"}: a file a dirty
@@ -201,7 +229,8 @@ static func avatar_scene(dir: String, lent: PackedStringArray = [], pick := "", 
 			(m.scene as Node).free()
 	var absent: Array = root.get_meta("report").get("textures in no package", []) if root != null else []
 	if packages == "" and not absent.is_empty():
-		printerr("unity_avatar: %s names textures no package holds, by GUID: %s; a shader package installed beside it holds such textures (Poiyomi's matcaps), which would draw as their shader's default; name the Unity project's Packages folder with --packages, an empty folder if it has none" % [root.name, ", ".join(absent)])
+		var remedy := "a shader package installed beside it holds such textures (Poiyomi's matcaps), which would draw as their shader's default; name the Unity project's Packages folder with --packages, an empty folder if it has none"
+		_say("%s names textures no package holds, by GUID: %s; %s" % [root.name, ", ".join(absent), remedy], "the avatar names %d textures no package holds; %s" % [absent.size(), remedy])
 		root.free()
 		return null
 	return root
@@ -232,6 +261,8 @@ static func _lacking(assets: Assets) -> String:
 	var absent := absent_instances(assets)
 	if absent.is_empty():
 		return ""
+	if not Assets.print_names:
+		return "; no package holds %d prefabs or models it instances; name the package holding them, an edit's base avatar, with --with" % absent.size()
 	return "; no package holds what these instance, by GUID: %s; name the package holding them, an edit's base avatar, with --with" % ", ".join(absent.keys().map(func(g: String) -> String: return "%s instances %s" % [absent[g], g]))
 
 
@@ -241,7 +272,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	if found.is_empty():
 		return null
 	var objs: Dictionary = found.objects
-	var report := {"avatar": found.name}
+	var report := {}
 	var expressions := Expressions.new(assets, found.descriptor)
 	var paths := _paths(objs, found.transform)
 	VRCFury.apply(expressions, objs, paths)
@@ -249,12 +280,12 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var renderers := _renderers(objs, found.transform, switches.by_object, report)
 	var main := _main_model(assets, prefabs, objs, found.go, renderers)
 	if main == "":
-		printerr("unity_avatar: %s: no renderer's model is a humanoid with a Unity Avatar definition%s" % [found.name, _lacking(assets)])
+		_say("%s: no renderer's model is a humanoid with a Unity Avatar definition%s" % [found.name, _lacking(assets)], "no renderer's model is a humanoid with a Unity Avatar definition%s" % _lacking(assets))
 		return null
 	var model: Dictionary = prefabs.model(main)
 	var skeletons: Array = (model.scene as Node).find_children("*", "Skeleton3D", true, false)
 	if skeletons.size() != 1:
-		printerr("unity_avatar: %s has %d skeletons, not one" % [assets.by_guid[main].path, skeletons.size()])
+		_say("%s has %d skeletons, not one" % [assets.by_guid[main].path, skeletons.size()], "the humanoid model has %d skeletons, not one" % skeletons.size())
 		return null
 	var definition := avatar_definition(assets.by_guid[main].meta)
 	var model_bones := _model_bones(objs, found.transform, main, renderers)
@@ -321,7 +352,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 		faced[shape] = true
 	var merged := _merge(prefabs, materials, objs, renderers, switches, animated, faced, sk, rests, scale, report)
 	if merged.is_empty():
-		printerr("unity_avatar: %s draws nothing" % found.name)
+		_say("%s draws nothing" % found.name, "the avatar draws nothing")
 		root.free()
 		return null
 	for part: Dictionary in merged.meshes:
@@ -481,12 +512,12 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	for f: Dictionary in found:
 		names[f.name] = true
 	if names.size() > 1:
-		printerr("unity_avatar: several avatars, name one: %s" % ", ".join(found.map(func(f: Dictionary) -> String: return "%s (%s)" % [f.name, f.path])))
+		_say("several avatars, name one: %s" % ", ".join(found.map(func(f: Dictionary) -> String: return "%s (%s)" % [f.name, f.path])), "%d avatars, name one: --names lists them" % names.size())
 		return {}
 	if not found.is_empty():
 		return found[0]
 	if pick != "":
-		printerr("unity_avatar: no avatar named %s" % pick)
+		_say("no avatar named %s" % pick, "no avatar of the name given")
 		return {}
 	var models := assets.of(Prefabs.MODELS).filter(func(g: String) -> bool: return assets.own.has(g) and not avatar_definition(assets.by_guid[g].meta).human.is_empty() and str((assets.meta(g).get("ModelImporter", {}) as Dictionary).get("animationType", "")) == "3")
 	if models.size() != 1:
@@ -1221,9 +1252,9 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 			data.m_LocalScale = {"x": str(scale.x), "y": str(scale.y), "z": str(scale.z)}
 			links.append({"source_id": id, "from": go, "to": Yaml.file_id(objs[to].data.get("m_GameObject"))})
 	if not links.is_empty():
-		report["armature attachments"] = JSON.stringify(links)
+		report["armature attachments"] = links
 	if not unlinked.is_empty():
-		report["armature links with no target in the avatar"] = JSON.stringify(unlinked)
+		report["armature links with no target in the avatar"] = unlinked
 
 
 ## A node's transform from its scene's root.
@@ -1998,7 +2029,7 @@ static func _local(d: Dictionary) -> Transform3D:
 static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> Dictionary:
 	var named := {}
 	var refuse := func(why: String) -> Dictionary:
-		printerr("unity_avatar: %s: %s" % [model, why])
+		_say("%s: %s" % [model, why], "the humanoid model's Avatar definition does not fit its skeleton: --names says where")
 		return {}
 	for unity_bone: String in avatar.human:
 		var vrm := vrm_bone(avatar.human[unity_bone])
@@ -2252,7 +2283,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 			component.reason = "no segment after source exclusions, humanoid bones and endpoint are applied"
 		elif not component.chains.is_empty():
 			component.reason = ""
-	report["spring coverage"] = JSON.stringify(coverage)
+	report["spring coverage"] = coverage
 	report["spring components"] = "%d PhysBones, %d DynamicBones as %d spring chains, %d colliders (%d on no kept bone dropped, %d components no menu turns on dropped, %d that the menu switches); parameters mapped approximately, whose hands push and grab kept; grab movement and posing dropped" % [physbones, dynamicbones, springs.size(), colliders.size(), dropped, idle, component_when.size() + switched.colliders.size()]
 	if springs.is_empty():
 		return {}

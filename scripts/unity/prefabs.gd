@@ -209,11 +209,11 @@ func model(guid: String) -> Dictionary:
 	var state := FBXState.new()
 	state.create_animations = false
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_DISCARD_TEXTURES
-	if not assets.extension(guid) == "fbx" or doc.append_from_file(assets.by_guid[guid].file, state) != OK:
+	if not assets.extension(guid) == "fbx" or Assets.quietly(func() -> Error: return doc.append_from_file(assets.by_guid[guid].file, state)) != OK:
 		unread[assets.by_guid[guid].path] = true
 		models[guid] = {}
 		return {}
-	var scene := doc.generate_scene(state) as Node3D
+	var scene := Assets.quietly(func() -> Node: return doc.generate_scene(state)) as Node3D
 	var meta := assets.meta(guid)
 	var importer: Dictionary = meta.get("ModelImporter", {})
 	var recycled := {}

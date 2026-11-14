@@ -14,6 +14,19 @@ var by_guid := {}
 ## The GUIDs `dir` itself holds: where the avatar is looked for.
 var own := {}
 var _metas := {}
+## Whether messages name what the avatar holds (its objects, materials, assets, GUIDs and paths), as the converter's
+## --names asks; otherwise they print numbers and counts, and the engine's messages while it reads a package's files,
+## which name them, are held back (quietly).
+static var print_names := false
+
+
+## What `read` returns, the engine's messages held back while it runs unless print_names.
+static func quietly(read: Callable) -> Variant:
+	var shown := Engine.print_error_messages
+	Engine.print_error_messages = shown and print_names
+	var out: Variant = read.call()
+	Engine.print_error_messages = shown
+	return out
 
 
 ## `lent`, other packages imported beside `dir` (the base avatar an edit or outfit is made over), lend every asset

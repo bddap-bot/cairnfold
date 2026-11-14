@@ -1006,11 +1006,11 @@ func _hdr_image(guid: String) -> Image:
 	if kind not in ["exr", "hdr"]:
 		return null
 	if file.get_extension().to_lower() == kind:
-		return Image.load_from_file(file)
+		return Assets.quietly(func() -> Image: return Image.load_from_file(file))
 	var named := OS.get_temp_dir().path_join("unity_avatar_%d_%s.%s" % [OS.get_process_id(), guid, kind])
 	if DirAccess.copy_absolute(file, named) != OK:
 		return null
-	var img := Image.load_from_file(named)
+	var img: Image = Assets.quietly(func() -> Image: return Image.load_from_file(named))
 	DirAccess.remove_absolute(named)
 	return img
 

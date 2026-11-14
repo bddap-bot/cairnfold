@@ -304,6 +304,18 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	return Vrm.glb(json, bin)
 
 
+## The converter's report prints the parts it names (the renderers drawn, the avatar's own name) as counts, and by name
+## only with --names.
+func _report_prints_names_only_when_asked(report: Dictionary, avatar: String) -> void:
+	var parts: Array = report["renderers drawn"] + [avatar]
+	UnityAvatar.Assets.print_names = false
+	var plain := "\n".join(UnityAvatar.report_lines(report))
+	UnityAvatar.Assets.print_names = true
+	var named := "\n".join(UnityAvatar.report_lines(report))
+	check(parts.all(func(n: String) -> bool: return not plain.contains(n)), "the report names none of the avatar's parts by default:\n%s" % plain)
+	check((report["renderers drawn"] as Array).all(func(n: String) -> bool: return named.contains(n)), "with --names the report names each renderer drawn")
+
+
 ## The Unity sample package imports as the avatar model straight from its FBX and .meta: its skeleton, skin and blend
 ## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as the
 ## VRM a player wears and read back, it opens, poses and bends as the engine's own import of the FBX does.
@@ -325,6 +337,7 @@ func _unity_package_converts() -> void:
 	var path := ProjectSettings.globalize_path("user://seed-san.vrm")
 	var report: Dictionary = model.get_meta("report")
 	check((report["renderers drawn"] as Array).size() == 5, "all five of the model's renderers draw (%s)" % [report["renderers drawn"]])
+	_report_prints_names_only_when_asked(report, model.name)
 	_writes_expressions(model)
 	var vrm_names := {}
 	for b: String in human:

@@ -11,6 +11,7 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 
 
 func _run() -> void:
+	UnityAvatar.Assets.print_names = false
 	var dir := OS.get_environment("CAIRNFOLD_PRIVATE_AVATARS")
 	if dir == "":
 		dir = OS.get_environment("HOME").path_join(".local/share/cairnfold-avatars/vrchat")
@@ -43,7 +44,7 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	var carried := 0
 	for chain: Dictionary in (model.get_meta("springs") as Dictionary).springs:
 		carried += (chain.joints as Array).size()
-	print("%s: %d ms, %d spring joints, %s" % [label, Time.get_ticks_msec() - started, carried, model.get_meta("report")])
+	print("%s: %d ms, %d spring joints; %s" % [label, Time.get_ticks_msec() - started, carried, "; ".join(UnityAvatar.report_lines(model.get_meta("report")))])
 	var running := _running(model)
 	var scene := Avatar.read(UnityAvatar.write(model, ProjectSettings.globalize_path("user://corpus.vrm")))
 	check(scene != null, "%s's VRM, the file a player wears, reads into the avatar model within the limits" % label)

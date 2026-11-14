@@ -6,6 +6,7 @@ extends SceneTree
 ## without it they take the host's clock and a loaded host changes what a frame holds.
 ## Seconds of the host's time an until() waits before it calls the wait a hang.
 const HANG := 120
+const UnityAssets = preload("res://../scripts/unity/assets.gd")
 
 var failures := 0
 var main: Main
@@ -13,6 +14,9 @@ var main: Main
 
 static func _static_init() -> void:
 	Budget.frame_deadline = false
+	# The repository's own avatars name nothing private, and the engine's messages while the converter reads them stay
+	# where scripts/test.sh looks for errors.
+	UnityAssets.print_names = true
 
 
 ## Runs a test's `_run` once the tree is up; a test without one starts itself.
