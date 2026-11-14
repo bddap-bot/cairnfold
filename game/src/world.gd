@@ -247,12 +247,12 @@ func _enqueue(cmd: Dictionary, by: int, run: Callable) -> void:
 	_drain()
 
 
-func _drain(wait := false) -> void:
+func _drain(block := false) -> void:
 	while not _queue.is_empty():
-		if not wait and _queue[0].get("swap", false) and not blackout.call():
+		if not block and _queue[0].get("swap", false) and not blackout.call():
 			return
 		if _ahead_task >= 0:
-			if not wait and not Work.due(_ahead_task):
+			if not block and not Work.due(_ahead_task):
 				return
 			Work.take(_ahead_task)
 			_ahead_task = -1

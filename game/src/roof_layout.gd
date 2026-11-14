@@ -452,8 +452,8 @@ func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: 
 				timber_faces.append(verts[sides[side][k]])
 
 
-func _fly_flag(foot: Vector3) -> void:
-	var parts := WallLayout.flag(foot, FLAG_ALONG, WallLayout.flag_color(seed, 0.0))
+func _fly_flag(at: Vector3) -> void:
+	var parts := WallLayout.flag(at, FLAG_ALONG, WallLayout.flag_color(seed, 0.0))
 	_add(parts.pole, "pole", WallLayout.POLE, 1.0)
 	_add(parts.finial, "finial", WallLayout.FINIAL, 1.0)
 	cloths.append(parts.cloth)
@@ -590,7 +590,7 @@ func _chimney_rng(i: int) -> RandomNumberGenerator:
 
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
+	var stack: Vector3 = f.mid + f.along * c.x + f.across * c.y
 	var y := spot_height(c) - 0.3
 	var top := chimney_top(c)
 	var basis := Basis(f.along, Vector3.UP, f.across)
@@ -598,11 +598,11 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 		var h := minf(rng.randf_range(0.26, 0.34), top - y)
 		var stone := WallLayout.stone_color(rng)
 		var wobble := Basis.from_euler(Vector3(0.0, rng.randf_range(-0.04, 0.04), 0.0))
-		_add(Transform3D((basis * wobble).scaled_local(Vector3(STACK_WIDTH, h, STACK_WIDTH)), foot + Vector3.UP * (y + h * 0.5)), "chimney", stone, 1.0)
+		_add(Transform3D((basis * wobble).scaled_local(Vector3(STACK_WIDTH, h, STACK_WIDTH)), stack + Vector3.UP * (y + h * 0.5)), "chimney", stone, 1.0)
 		y += h
-	_add(Transform3D(basis.scaled_local(Vector3(STACK_WIDTH + 0.14, 0.09, STACK_WIDTH + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
+	_add(Transform3D(basis.scaled_local(Vector3(STACK_WIDTH + 0.14, 0.09, STACK_WIDTH + 0.14)), stack + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
 	for side in [-1.0, 1.0]:
-		var pot: Vector3 = foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)
+		var pot: Vector3 = stack + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)
 		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), pot), "pot", _clay(0.0, rng) * 0.9, 1.0)
 		vents.append(pot + Vector3.UP * 0.14)
 
@@ -726,12 +726,12 @@ func dormer_bounds(c: Vector2) -> Array:
 	var x := absf(spot.y)
 	var lift := COAT if thatched() else 0.0
 	var hs := half_span()
-	var foot := rise(1.0 - x / hs) + lift
-	var top := foot + DORMER_TALL + DORMER_PITCH + 0.15
-	var back := x - out_at(foot + DORMER_TALL - lift, hs)
+	var dormer_foot := rise(1.0 - x / hs) + lift
+	var top := dormer_foot + DORMER_TALL + DORMER_PITCH + 0.15
+	var back := x - out_at(dormer_foot + DORMER_TALL - lift, hs)
 	var wide := DORMER_HALF + DORMER_EAVE
 	var xform := Transform3D(Basis(f.along, Vector3.UP, out), f.mid + f.along * spot.x + out * x)
-	return [xform, AABB(Vector3(-wide, foot - lift - 0.1, -back), Vector3(wide * 2.0, top - foot + lift + 0.1, back + DORMER_EAVE))]
+	return [xform, AABB(Vector3(-wide, dormer_foot - lift - 0.1, -back), Vector3(wide * 2.0, top - dormer_foot + lift + 0.1, back + DORMER_EAVE))]
 
 
 ## Vector2(square metres of boarded front and cheeks, of tiled roof).
@@ -759,8 +759,8 @@ func dormer_windows() -> Array[Dictionary]:
 			continue
 		var facing: Vector3 = f.across * signf(spot.y)
 		var x := absf(spot.y)
-		var foot := rise(1.0 - x / half_span()) + (COAT if thatched() else 0.0)
-		out.append({"at": f.mid + f.along * spot.x + facing * x + Vector3.UP * (foot + DORMER_SILL), "out": facing, "half": DORMER_WINDOW, "tall": DORMER_TALL - DORMER_HEAD - DORMER_SILL})
+		var dormer_foot := rise(1.0 - x / half_span()) + (COAT if thatched() else 0.0)
+		out.append({"at": f.mid + f.along * spot.x + facing * x + Vector3.UP * (dormer_foot + DORMER_SILL), "out": facing, "half": DORMER_WINDOW, "tall": DORMER_TALL - DORMER_HEAD - DORMER_SILL})
 	return out
 
 
@@ -774,11 +774,11 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 	var out: Vector3 = f.across * signf(spot.y)
 	var x := absf(spot.y)
 	var lift := COAT if thatched() else 0.0
-	var foot := rise(1.0 - x / hs) + lift
-	var eave_y := foot + DORMER_TALL
+	var dormer_foot := rise(1.0 - x / hs) + lift
+	var eave_y := dormer_foot + DORMER_TALL
 	var ridge_y := eave_y + DORMER_PITCH
 	var o: Vector3 = f.mid + f.along * spot.x + out * x
-	var sill := foot + DORMER_SILL
+	var sill := dormer_foot + DORMER_SILL
 	var head := eave_y - DORMER_HEAD
 	var t := -DORMER_HALF
 	while t < DORMER_HALF - 0.001:
@@ -1097,15 +1097,15 @@ func _coat_node(on: Vector3, out: Vector3, end: Vector3, along: float, x: float,
 	var s := slope_at(x)
 	var n := out * sin(s) + Vector3.UP * cos(s)
 	var fall := out * cos(s) - Vector3.UP * sin(s)
-	var base := _on_slope(on, out, x)
-	var depth := _depth(along, x, base, c)
+	var surface := _on_slope(on, out, x)
+	var depth := _depth(along, x, surface, c)
 	if x == 0.0:
-		base -= fall * depth * minf(tan(s), CREST)
+		surface -= fall * depth * minf(tan(s), CREST)
 	var turn := minf(PI, Vector2(a, b).length())
 	var away := (end * a + fall * b).normalized() if turn > 0.0 else Vector3.ZERO
-	var p := base + n * depth * 0.5 + (n * cos(turn) + away * sin(turn)) * depth * 0.5
+	var p := surface + n * depth * 0.5 + (n * cos(turn) + away * sin(turn)) * depth * 0.5
 	var band := depth > COAT + BAND.x * 0.5
-	var colour := (c.ridge if band else c.straw) * (1.0 + 0.08 * c.lumps.get_noise_3d(base.x * 0.5, 40.0, base.z * 0.5))
+	var colour := (c.ridge if band else c.straw) * (1.0 + 0.08 * c.lumps.get_noise_3d(surface.x * 0.5, 40.0, surface.z * 0.5))
 	colour.a = 0.0 if band else c.moss
 	if turn > PI * 0.5:
 		colour = Color(colour.r * 0.7, colour.g * 0.7, colour.b * 0.7, 0.0)

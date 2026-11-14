@@ -404,6 +404,7 @@ class Pool:
 		var r := Basis(Vector3.UP, by)
 		var o := Vector3(about.x, p.xform.origin.y, about.z)
 		p.xform = Transform3D(r * p.xform.basis, o + r * (p.xform.origin - o))
+		anchored += 1
 		if p.drawn:
 			place(p.slot, p.xform)
 		if p.slot < kept:

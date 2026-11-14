@@ -25,6 +25,7 @@ func _run() -> void:
 	_rock_holds_no_grass_or_flowers()
 	_blob_detail_changes_only_what_is_drawn()
 	_crowns_cast_one_shade_each()
+	_a_spun_plant_bumps_its_pool()
 	finish()
 
 
@@ -646,3 +647,13 @@ func _rock_holds_no_grass_or_flowers() -> void:
 	check(cover.image.get_pixelv(t).a == 1.0, "and the far grass with them")
 	flora.queue_free()
 
+
+func _a_spun_plant_bumps_its_pool() -> void:
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
+	root.add_child(flora)
+	var p := flora.add_flower(Vector3(1.0, terrain.height_at(1.0, 1.0), 1.0), _rng(5))
+	var before := flora.flowers.anchored
+	flora.flowers.spin(p, Vector3.ZERO, 0.5)
+	check(flora.flowers.anchored != before, "spinning a plant bumps its pool's anchored, which butterflies cache against")
+	flora.queue_free()

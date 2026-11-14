@@ -218,8 +218,7 @@ static func built_in(i: int) -> PackedScene:
 ## file for another renderer reads it `unlimited`.
 static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
 	if not unlimited and weight(bytes.size()) > reads(available - _reading):
-		print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, (available - _reading) / 1048576.0])
-		return null
+		return _too_heavy(bytes.size(), available - _reading)
 	var images := Vrm.images(bytes)
 	if images.size() > MAX_IMAGES or images.any(func(image: Dictionary) -> bool: return maxi(image.size.x, image.size.y) > MAX_IMAGE_SIDE):
 		print("avatar: refused: %d images, past %d or one wider than %d" % [images.size(), MAX_IMAGES, MAX_IMAGE_SIDE])
@@ -228,13 +227,13 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	var heavy := weight(bytes.size())
 	var held := memory_to_read(heavy) - READ_LOW
 	_reading_lock.lock()
-	var admitted := unlimited or heavy <= reads(available - _reading)
+	var room := available - _reading
+	var admitted := unlimited or heavy <= reads(room)
 	if admitted:
 		_reading += held
 	_reading_lock.unlock()
 	if not admitted:
-		print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, (available - _reading) / 1048576.0])
-		return null
+		return _too_heavy(bytes.size(), room)
 	var decoded := [0]
 	var budget := texture_budget()
 	# Each image decoded must be the one Vrm.images measured in its place, or the budget would be another file's.
@@ -251,6 +250,11 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	_reading_lock.unlock()
 	print("avatar: read %.1f MB in %d ms, %d images of %.1f Mpx; textures %.0f MB held 1/%d wide in a %.0f MB budget of %.0f MB available at launch, %.0f MB now" % [bytes.size() / 1048576.0, (Time.get_ticks_usec() - start) / 1000, images.size(), pixels / 1e6, textures / 1048576.0, shrink, budget / 1048576.0, launch_memory / 1048576.0, available_memory() / 1048576.0])
 	return scene
+
+
+static func _too_heavy(size: int, room: int) -> PackedScene:
+	print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [size / 1048576.0, room / 1048576.0])
+	return null
 
 
 static func reads(available: int) -> float:
