@@ -292,7 +292,7 @@ func _process(delta: float) -> void:
 		_files = quality.files()
 		for id: int in _wearing:
 			if _wearing[id] != "":
-				_dress(id, _scenes[_wearing[id]], _wearing[id])
+				_dress(id, _scenes[_wearing[id]], _wearing[id], _admits(_wearing[id]))
 	var faces: Array[Vector3] = []
 	for a: Avatar in avatars.values():
 		if a.visible:
@@ -524,7 +524,7 @@ func _appear(look: int, tint: Color) -> void:
 	if avatars.has(id):
 		return
 	_looks[id] = [posmod(look, Avatar.BUILT_IN.size()), tint.clamp()]
-	_dress(id, Avatar.built_in(look), "")
+	_dress(id, Avatar.built_in(look), "", true)
 	var taken: Array = _dishes.values().reduce(func(all: Array, pair: Array) -> Array: return all + pair, [])
 	var pair: Array[Dish] = []
 	for dish in dishes:
@@ -579,7 +579,7 @@ func _read_waiting() -> void:
 		_waiting.erase(id)
 		if bytes.is_empty():
 			_wearing[id] = ""
-			_dress(id, Avatar.built_in(_looks[id][0]), "")
+			_dress(id, Avatar.built_in(_looks[id][0]), "", true)
 			_prune()
 		else:
 			_read(bytes, "", _worn_by_peer.bind(id), id)
@@ -594,12 +594,32 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 	print("session: player %d wears %s" % [id, key])
 	_wearing[id] = key
 	_scenes.get_or_add(key, scene)
-	_dress(id, _scenes[key], key)
+	_dress(id, _scenes[key], key, _admits(key))
 	_prune()
 
 
-func _dress(id: int, scene: PackedScene, key: String) -> void:
-	var a := Avatar.drawn(scene, _looks[id][1], key, key != "" and (quality == null or quality.admit(scene)), _looks[id][0])
+## Players in file `key` stand in built-in bodies, its price past the headroom (People.refused).
+func refuse(key: String) -> void:
+	for id: int in avatars.keys():
+		var a: Avatar = avatars[id]
+		if a.source == key and not a.stand_in and _scenes.has(key):
+			_dress(id, _scenes[key], key, false)
+
+
+## Players standing in for their files are drawn in them where the headroom now lets them in (People.reopened).
+func reoffer() -> void:
+	for id: int in avatars.keys():
+		var a: Avatar = avatars[id]
+		if a.stand_in and _scenes.has(a.source) and _admits(a.source):
+			_dress(id, _scenes[a.source], a.source, true)
+
+
+func _admits(key: String) -> bool:
+	return quality == null or quality.admit(key)
+
+
+func _dress(id: int, scene: PackedScene, key: String, whole: bool) -> void:
+	var a := Avatar.drawn(scene, _looks[id][1], key, whole, _looks[id][0])
 	a.simulate_springs = false
 	a.ground = func(p: Vector3) -> float: return rig.floor_under.call(p)
 	var old: Avatar = avatars.get(id)
@@ -611,6 +631,8 @@ func _dress(id: int, scene: PackedScene, key: String) -> void:
 		old.queue_free()
 	add_child(a)
 	avatars[id] = a
+	if quality != null:
+		quality.watch(a)
 
 
 func _prune() -> void:

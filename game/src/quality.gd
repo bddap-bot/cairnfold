@@ -109,6 +109,10 @@ signal rungs_primed
 var governor: Governor
 var map := Map.new()
 var people := People.new()
+## The figure whose file People measures, and the step and density map it is measured under.
+var _watched: Avatar
+var _watched_under := []
+var _said := ""
 ## A step held for measuring; -1 while governed.
 var pin := -1:
 	set(n):
@@ -236,12 +240,48 @@ func files() -> bool:
 	return ladder[step()].files and (budget_ms == 0.0 or people.measured())
 
 
-func admit(scene: PackedScene) -> bool:
+## Starts the measuring of figure `a`'s file where People.admit has just let it in to be measured, at the step and
+## density map it is measured under.
+func watch(a: Avatar) -> void:
+	if people.trial != null and a.source == people.trial.key and not a.stand_in and not is_instance_valid(_watched):
+		_watched = a
+		_watched_under = [step(), map.on]
+
+
+## Whether the frame of `viewport` drew all it was given: a draw whose pipeline is still compiling is skipped, and a
+## frame that skipped one reads the GPU time of what it did not draw.
+static func nothing_skipped(viewport: RID) -> bool:
+	var skipped := RenderingServer.VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME
+	return RenderingServer.viewport_get_render_info(viewport, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, skipped) == 0 and RenderingServer.viewport_get_render_info(viewport, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, skipped) == 0
+
+
+## Whether figure `a` stands in the view from its eyes to its hips, which a figure near enough to talk to still does: one
+## at its edge costs a fraction of what it does in view. Its pose places it, not its node, which another player's avatar
+## keeps at the origin.
+func _whole_in_view(a: Avatar) -> bool:
+	var camera := view.get_camera_3d()
+	if camera == null or not a.is_visible_in_tree():
+		return false
+	var eyes := a.global_transform * a.eyes.origin
+	var half := a.eye_height / 4.0
+	for c in 8:
+		var corner := eyes + Vector3(half if c & 1 else -half, a.eye_height * 0.1 if c & 2 else -a.eye_height / 2.0, half if c & 4 else -half)
+		if not camera.is_position_in_frustum(corner):
+			return false
+	return true
+
+
+## Whether the file `key` is drawn whole (People.admit); unpaced, nothing is priced, and a built-in is always itself.
+func admit(key: String) -> bool:
+	if key == "":
+		return true
 	if budget_ms == 0.0 or not files():
 		return files()
-	var triangles: int = scene.get_meta("triangles")
-	var whole := people.admit(triangles, budget_ms * Governor.LINE)
-	print("quality: a file of %d triangles drawn %s, %s" % [triangles, "whole" if whole else "as a built-in body", people.why])
+	var whole := people.admit(key, budget_ms * Governor.LINE)
+	var said := "quality: a file drawn %s, %s" % ["whole" if whole else "as a built-in body", people.why]
+	if said != _said:
+		print(said)
+		_said = said
 	return whole
 
 
@@ -262,7 +302,15 @@ func frame(ms: float, delta: float) -> void:
 		# The runtime may report the shell's rate for the first frames, so the budget follows it every frame.
 		budget_ms = _budget()
 		if _warm > WARMUP_S and not priming() and not covered.call():
-			people.measure(frame_ms, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+			var measuring := people.trial
+			if measuring != null and not is_instance_valid(_watched):
+				people.abandon("its figure gone")
+			elif measuring != null and _watched_under != [step(), map.on]:
+				people.abandon("the step or the density map changed under it")
+			people.measure(frame_ms, people.trial != null and is_instance_valid(_watched) and _whole_in_view(_watched) and nothing_skipped(view.get_viewport_rid()))
+			if measuring != null and people.trial == null:
+				_watched = null
+				print("quality: %s" % people.why)
 		_warm += delta
 		_primed += 1
 		if _primed == _priming.size() * PRIME_FRAMES:
@@ -313,43 +361,140 @@ func _apply(at: Step, n: int) -> void:
 		_xr.foveation_level = at.foveation
 
 
-## A file is let in only within the headroom its own step's frames leave: walking down to make room ran at a third of
-## the refresh on the Quest 2.
+## A file is priced by its own frames: the median of its first frames with its figure whole in view, once the GPU's
+## timer shows it, less the median before. Neither its triangles nor its primitives track that cost ("People past the
+## headset" in docs/design.md). A file is let in only within the headroom its own step's frames leave: walking down to
+## make room ran at a third of the refresh on the Quest 2.
 class People:
+	signal refused(key: String)
+	## The headroom is measured afresh: figures standing in for a file may be offered again.
+	signal reopened
 	const FRAMES := 36
 	## A file let in counts against the headroom until the median of the frames holds it.
 	const SHOWN_FRAMES := FRAMES / 2 + 1
+	## A measurement unfinished after this many frames ends unpriced, since its figure may never stand in view.
+	const PATIENCE := FRAMES * 10
+
+	## A file let in to be measured, by Map's settle and trial: `limit` is the GPU time its frames may take, the line less
+	## what files let in still take, and `before` the median it adds to with those, both read as it is let in.
+	class Trial:
+		var key: String
+		var before: float
+		var limit: float
+		var settle := Map.SETTLE_FRAMES
+		var frames := PackedFloat32Array()
+		var waited := 0
+
+		func _init(file: String, frame: float, most: float) -> void:
+			key = file
+			before = frame
+			limit = most
 
 	var why := ""
+	var trial: Trial
 	var _ms := PackedFloat32Array()
-	var _primitives := PackedFloat32Array()
 	## x: a file's cost in milliseconds; y: frames measured since it was let in.
 	var _let_in: Array[Vector2] = []
+	## Each file's measured cost a figure, in milliseconds, by key.
+	var _costs := {}
+	## Frames until the window holds none from before a measurement ended.
+	var _stale := 0
+	var _idle := 0
+	## By key, a file left unmeasured: x the offers it sits out, y the offers its next abandon sits out.
+	var _waits := {}
 
 	func measured() -> bool:
 		return _ms.size() == FRAMES
 
-	func measure(ms: float, primitives: int) -> void:
+	## `ms`, a frame's GPU time; `in_view`, whether the figure being measured stands whole in it, all drawn.
+	func measure(ms: float, in_view := false) -> void:
+		if _stale > 0:
+			_stale -= 1
+		elif trial == null:
+			_idle += 1
+			if _idle >= FRAMES:
+				_idle = 0
+				reopened.emit()
+				for key: String in _waits:
+					_waits[key] -= Vector2i(1, 0)
+		if trial != null:
+			_try(ms, in_view)
 		_ms.append(ms)
-		_primitives.append(primitives)
 		if _ms.size() > FRAMES:
 			_ms.remove_at(0)
-			_primitives.remove_at(0)
 		for i in _let_in.size():
 			_let_in[i].y += 1.0
 		_let_in = _let_in.filter(func(l: Vector2) -> bool: return l.y < SHOWN_FRAMES)
 
-	func admit(triangles: int, line_ms: float) -> bool:
+	func admit(key: String, line_ms: float) -> bool:
 		var frame := Quality.median(_ms)
-		var cost := triangles * frame / maxf(Quality.median(_primitives), 1.0)
-		var room := line_ms - frame
-		for l in _let_in:
-			room -= l.x
-		why = "%.2f ms of %.2f ms headroom, the GPU at %.2f ms of a %.2f ms line" % [cost, room, frame, line_ms]
+		var room := _headroom(line_ms)
+		if trial != null or _stale > 0:
+			why = "the headroom held while a file is measured"
+			return false
+		if not _costs.has(key):
+			if (_waits.get(key, Vector2i.ZERO) as Vector2i).x > 0:
+				why = "unmeasured, waiting %d offers after its last measuring was left" % _waits[key].x
+				return false
+			if room <= 0.0:
+				why = "unmeasured, no headroom, the GPU at %.2f ms of a %.2f ms line" % [frame, line_ms]
+				return false
+			why = "to be measured, %.2f ms of headroom" % room
+			trial = Trial.new(key, line_ms - room, frame + room)
+			return true
+		var cost: float = _costs[key]
+		why = "%.2f ms measured of %.2f ms headroom, the GPU at %.2f ms of a %.2f ms line" % [cost, room, frame, line_ms]
 		if cost > room:
 			return false
 		_let_in.append(Vector2(cost, 0.0))
 		return true
+
+	## Ends the measuring of a file unpriced, its figure standing in for it until it is offered again, after as many offers
+	## as it sat out last time, doubled, so a file that cannot be measured leaves the measuring to others.
+	func abandon(reason: String) -> void:
+		var wait: Vector2i = _waits.get(trial.key, Vector2i(0, 1))
+		_waits[trial.key] = Vector2i(wait.y, wait.y * 2)
+		why = "a file left unmeasured, %s" % reason
+		refused.emit(_end())
+
+	func _headroom(line_ms: float) -> float:
+		var room := line_ms - Quality.median(_ms)
+		for l in _let_in:
+			room -= l.x
+		return room
+
+	func _end() -> String:
+		var key := trial.key
+		trial = null
+		_stale = FRAMES
+		_idle = FRAMES
+		return key
+
+	## Out of view, its settle and frames start over.
+	func _try(ms: float, in_view: bool) -> void:
+		trial.waited += 1
+		if trial.waited > PATIENCE:
+			abandon("its figure not in view in %d frames" % PATIENCE)
+			return
+		if not in_view:
+			trial.settle = Map.SETTLE_FRAMES
+			trial.frames.clear()
+			return
+		if trial.settle > 0:
+			trial.settle -= 1
+			return
+		trial.frames.append(ms)
+		if trial.frames.size() < Map.TRIAL_FRAMES:
+			return
+		var drawn := Quality.median(trial.frames)
+		var cost := maxf(drawn - trial.before, 0.0)
+		var fits := drawn <= trial.limit
+		why = "a file measured at %.2f ms of %.2f ms headroom, the GPU at %.2f ms with it and %.2f ms before" % [cost, trial.limit - trial.before, drawn, trial.before]
+		_costs[trial.key] = cost
+		_waits.erase(trial.key)
+		var key := _end()
+		if not fits:
+			refused.emit(key)
 
 
 ## On the Quest 2 the density map can cost a view five times its frame (docs/design.md "Fixed foveation on the Quest

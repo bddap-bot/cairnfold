@@ -338,10 +338,6 @@ static func model(root: Node3D) -> PackedScene:
 	_switched_off(root)
 	_rank_springs(root)
 	var bones: Dictionary = root.get_meta("humanoid")
-	var drawn := 0
-	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
-		if _shown(mi, root):
-			drawn += triangles(mi.mesh as ArrayMesh)
 	var missing := NEEDS.filter(func(b: String) -> bool: return not bones.has(b))
 	if not missing.is_empty() or not _outlined(root):
 		if not missing.is_empty():
@@ -362,20 +358,8 @@ static func model(root: Node3D) -> PackedScene:
 	var scene := PackedScene.new()
 	scene.pack(root)
 	scene.set_meta("colour", root.get_meta("colour", Color.WHITE))
-	scene.set_meta("triangles", drawn)
 	root.free()
 	return scene
-
-
-static func triangles(mesh: ArrayMesh) -> int:
-	var n := 0
-	if mesh == null:
-		return n
-	for i in mesh.get_surface_count():
-		if mesh.surface_get_primitive_type(i) == Mesh.PRIMITIVE_TRIANGLES:
-			var indices := mesh.surface_get_array_index_len(i)
-			n += (indices if indices > 0 else mesh.surface_get_array_len(i)) / 3
-	return n
 
 
 static func _outlined(root: Node3D) -> bool:

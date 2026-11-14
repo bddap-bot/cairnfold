@@ -46,7 +46,7 @@ func _initialize() -> void:
 	_a_frame_that_makes_every_refresh_keeps_the_map()
 	_the_density_map_is_tried_again_once_calm()
 	_a_map_suddenly_dear_comes_off_at_once()
-	_a_file_is_drawn_whole_only_within_the_measured_headroom()
+	_a_file_is_priced_by_what_its_frames_measure()
 	finish()
 
 
@@ -651,23 +651,91 @@ func _a_map_suddenly_dear_comes_off_at_once() -> void:
 	check(toggles <= 8, "a frame as dear without the map tries it off at most once a retry wait: %d switches in four" % toggles)
 
 
-## Measured: the record's empty scene, 9.6 ms for 221,591 primitives under an 11.1 ms line, has room for 30,000
-## triangles and not 40,000.
-func _a_file_is_drawn_whole_only_within_the_measured_headroom() -> void:
+func _a_file_is_priced_by_what_its_frames_measure() -> void:
 	var line := 1000.0 / 72.0 * Quality.Governor.LINE
 	var p := Quality.People.new()
+	var refused: Array[String] = []
+	var reopened := [0]
+	p.refused.connect(func(key: String) -> void: refused.append(key))
+	p.reopened.connect(func() -> void: reopened[0] += 1)
 	for i in Quality.People.FRAMES - 1:
-		p.measure(9.6, 221591)
+		p.measure(8.0)
 	check(not p.measured(), "one frame short of the window nothing is priced")
-	p.measure(9.6, 221591)
+	p.measure(8.0)
 	check(p.measured(), "a full window prices files")
-	check(not p.admit(40000, line), "a file past the headroom stands as a built-in: %s" % p.why)
-	check(p.admit(30000, line), "a file within it is drawn whole: %s" % p.why)
-	for i in Quality.People.SHOWN_FRAMES - 1:
-		p.measure(9.6, 221591)
-	check(not p.admit(30000, line), "a file just let in takes its share of the room: %s" % p.why)
-	p.measure(9.6, 221591)
-	check(p.admit(30000, line), "once the median holds it the room is the frames' to measure: %s" % p.why)
+	check(p.admit("dear", line) and p.trial.key == "dear", "an unmeasured file is let in to be measured: %s" % p.why)
+	check(not p.admit("cheap", line), "another waits while the headroom is held for it: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(6.0)
+	check(p.trial.key == "dear", "out of view a file is not measured")
+	_try(p, 26.0, Quality.Map.TRIAL_FRAMES - 1)
+	for i in Quality.People.FRAMES:
+		p.measure(26.0)
+	_try(p, 26.0, Quality.Map.TRIAL_FRAMES - 1)
+	check(p.trial != null and refused.is_empty(), "a file that leaves view before its trial ends starts over")
+	p.measure(26.0, true)
+	check(p.trial == null and refused == ["dear"], "a file its frames show past the headroom is refused: %s" % p.why)
+	check("18.00 ms" in p.why, "against the frames before it was let in, however the frames since run: %s" % p.why)
+	var offers: int = reopened[0]
+	for i in Quality.People.FRAMES - 1:
+		p.measure(8.0)
+	check(not p.admit("cheap", line) and "held" in p.why, "the window measured with it is no headroom to price by: %s" % p.why)
+	p.measure(8.0)
+	check(reopened[0] == offers, "files are offered again only once the window is measured afresh")
+	p.measure(8.0)
+	check(reopened[0] == offers + 1, "and then they are")
+	check(not p.admit("dear", line), "a refused file stays refused at its measured cost: %s" % p.why)
+	p.measure(60.0)
+	check(p.admit("cheap", line), "another is let in to be measured: %s" % p.why)
+	_try(p, 10.5, Quality.Map.TRIAL_FRAMES - 1)
+	p.measure(60.0, true)
+	check(refused == ["dear"] and p.trial == null, "a file whose frames hold the line stays drawn, one stalled frame aside: %s" % p.why)
+	check("2.50 ms" in p.why, "its cost is the median over the median: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(10.5)
+	check(not p.admit("cheap", line), "a second figure of it is priced at its measured cost against what is left: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(8.0)
+	check(p.admit("cheap", line) and p.trial == null, "with room it is let in at its cost, unmeasured again: %s" % p.why)
+	check(not p.admit("cheap", line), "a file just let in takes its share of the room: %s" % p.why)
+	for i in Quality.People.SHOWN_FRAMES:
+		p.measure(8.0)
+	check(p.admit("cheap", line), "once the median holds it the room is the frames' to measure: %s" % p.why)
+	check(p.admit("next", line), "an unmeasured file is let in beside it: %s" % p.why)
+	_try(p, 11.0, Quality.Map.TRIAL_FRAMES)
+	check("0.50 ms" in p.why and refused.back() == "next", "its frames are priced over what the file let in just before takes too: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(12.0)
+	check(not p.admit("new", line), "an unmeasured file waits for headroom: %s" % p.why)
+	var was: int = reopened[0]
+	for i in Quality.People.FRAMES:
+		p.measure(8.0)
+	check(reopened[0] > was, "figures standing in are offered again as the frames are measured")
+	check(p.admit("new", line), "and it is let in to be measured: %s" % p.why)
+	for i in Quality.People.PATIENCE:
+		p.measure(8.0)
+	check(p.trial != null, "a figure out of view is waited for")
+	p.measure(8.0)
+	check(p.trial == null and refused.back() == "new", "until its patience runs out, unpriced: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(8.0)
+	check(not p.admit("new", line) and "waiting" in p.why, "a file left unmeasured sits out the next offer: %s" % p.why)
+	p.measure(8.0)
+	check(p.admit("new", line), "and is measured when offered after it: %s" % p.why)
+	p.abandon("its figure gone")
+	check(p.trial == null and refused.back() == "new", "a file no figure draws any longer is left unmeasured")
+	for i in Quality.People.FRAMES + 1:
+		p.measure(8.0)
+	check(not p.admit("new", line), "left again, it sits out twice as many: %s" % p.why)
+	for i in Quality.People.FRAMES:
+		p.measure(8.0)
+	check(p.admit("new", line), "and then is measured: %s" % p.why)
 	var q := Quality.new(Callable(), null, null)
-	check(q.files() and q.admit(PackedScene.new()), "with nothing pacing the picture nothing is priced and every file is drawn whole")
+	check(q.files() and q.admit("file"), "with nothing pacing the picture nothing is priced and every file is drawn whole")
 	q.free()
+
+
+## Frames of `ms` with the file being measured in view: the GPU timer's settle, then `frames` more.
+func _try(p: Quality.People, ms: float, frames: int) -> void:
+	for i in Quality.Map.SETTLE_FRAMES + frames:
+		p.measure(ms, true)

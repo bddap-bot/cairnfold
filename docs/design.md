@@ -2565,10 +2565,20 @@ by GPU utilisation (https://developers.meta.com/horizon/documentation/unity/dyna
 Directive (verbatim): "I do want cairnfold to be performant, so do optimize it, but an inefficient mesh isn't cairnfolds concern. And editing the mesh on import is not reasonably part of our importers scope."
 
 A player's own avatar file keeps every triangle, bone and blend shape its author made, so one can cost a headset more
-than it has. Each file is priced as it loads (`Quality.admit`): the triangles it draws, at the GPU time per primitive
-the last frames measured, against the headroom those frames leave under the governor's line, less what files let in
-too lately for those frames to show take. A file past it stands as a built-in avatar in that file's colour
-(`Avatar.drawn`) until it is dressed again, as VRChat draws an avatar past a Quest's limits as a fallback. The
+than it has. Each file is priced by what its own frames measure (`Quality.watch`, `Quality.People`). A file not yet
+priced is drawn whole while the headroom under the governor's line is held for it, one file at a time; its cost a
+figure is the median GPU time of twelve frames running with the figure in view from its eyes to its hips and nothing
+skipped for a pipeline still compiling, after four for the GPU's timer to show it, less the median of the frames before
+it was let in with what files let in just before it take. A file whose cost the headroom does
+not hold stands as a built-in avatar in that file's colour at once. Every window of frames after the headroom is
+measured afresh, each figure standing in for a file is offered again, and a priced file is let in at its cost, against
+the headroom less what files let in too lately for the frames to show take. A measuring left unfinished (the figure
+gone, not in view long enough within ten windows, or the step or density map changed under it) leaves its file unpriced, sitting out twice as many
+offers each time, so the others are measured meanwhile. Neither a file's triangles nor the primitives it draws track
+that cost on a Quest 2, where a file's GPU time a primitive differs from the garden's several times over. The price is
+the GPU's alone. Measuring takes sixteen of the file's own frames, so a file far over the line is seen at its cost that
+long. A file past its price stands as the built-in avatar (`Avatar.drawn`), as VRChat draws an avatar past a
+Quest's limits as a fallback. The
 headroom is the step's own, so a file that would fit only with the garden cut is not let in. The ladder's last rung
 (`Step.files` false) draws every other player's own file that way; built-in
 avatars and the wearer's own body are drawn as they are. The colour is the file's base colours averaged by

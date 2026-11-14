@@ -56,6 +56,8 @@ static func read(path: String) -> Array:
 
 func _ready() -> void:
 	main.world.capped.connect(_on_capped)
+	main.quality.people.refused.connect(_refuse)
+	main.quality.people.reopened.connect(_reoffer)
 	_run()
 
 
@@ -1456,11 +1458,30 @@ func _figures(s: Dictionary) -> void:
 		var foot := main.world.terrain.ground(at[0], at[1])
 		# Read after the file is: the step may start drawing files while it reads, and figures stood then are priced once.
 		_files = main.quality.files()
-		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)))
+		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot), main.quality.admit(_figure_path)))
 
 
-func _stand(i: int, at: Transform3D) -> Avatar:
-	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _figure_path != "" and main.quality.admit(_figures_read[i]))
+func _refuse(key: String) -> void:
+	for i in _stood.size():
+		if _stood[i].source == key and not _stood[i].stand_in:
+			_restand(i, false)
+
+
+func _reoffer() -> void:
+	for i in _stood.size():
+		if _stood[i].stand_in and _stood[i].source != "" and main.quality.admit(_stood[i].source):
+			_restand(i, true)
+
+
+func _restand(i: int, whole: bool) -> void:
+	var was := _stood[i]
+	_stood[i] = _stand(i, was.transform, whole)
+	was.queue_free()
+	print("driver: figure %d stood again %s" % [i, "whole" if whole else "as a built-in body"])
+
+
+func _stand(i: int, at: Transform3D, whole: bool) -> Avatar:
+	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, whole)
 	a.transform = at
 	a.simulate_springs = _figure_springs and not _still
 	if _posing:
@@ -1473,6 +1494,7 @@ func _stand(i: int, at: Transform3D) -> Avatar:
 	if _still:
 		a.stand()
 		a.set_process(false)
+	main.quality.watch(a)
 	return a
 
 
@@ -1486,7 +1508,7 @@ func _process(_delta: float) -> void:
 		_posed_frames = 0
 		for i in _stood.size():
 			var was := _stood[i]
-			_stood[i] = _stand(i, was.transform)
+			_stood[i] = _stand(i, was.transform, main.quality.admit(_figure_path))
 			was.queue_free()
 	if _still:
 		return

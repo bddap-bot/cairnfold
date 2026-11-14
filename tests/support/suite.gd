@@ -61,13 +61,8 @@ func boot_main(args := {}) -> void:
 
 func drawn() -> Image:
 	await RenderingServer.frame_post_draw
-	await until(func() -> bool: return nothing_skipped(root.get_viewport_rid()), "a frame draws the view with nothing skipped")
+	await until(func() -> bool: return Quality.nothing_skipped(root.get_viewport_rid()), "a frame draws the view with nothing skipped")
 	return root.get_texture().get_image()
-
-
-static func nothing_skipped(viewport: RID) -> bool:
-	var skipped := RenderingServer.VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME
-	return RenderingServer.viewport_get_render_info(viewport, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, skipped) == 0 and RenderingServer.viewport_get_render_info(viewport, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, skipped) == 0
 
 
 static func pixels_apart(a: Image, b: Image, by := 0.0) -> int:

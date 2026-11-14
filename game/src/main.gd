@@ -214,6 +214,8 @@ func _ready() -> void:
 	metrics.quality = quality
 	easels.quality = quality
 	session.quality = quality
+	quality.people.refused.connect(session.refuse)
+	quality.people.reopened.connect(session.reoffer)
 	metrics.head = rig.head
 	if metrics.info.xr:
 		metrics.xr = xr
