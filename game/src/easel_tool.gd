@@ -738,7 +738,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	var packed := Brushwork.pack(uv, pressure, angle, canvas.ticks - s.at if not s.last.is_empty() else 0, side)
 	var sample := Brushwork.unpack(packed, 0)
 	var n := Brushwork.count(s.data)
-	var dabs := 1 if n == 0 else int(Brushwork.span(s.data, Brushwork.unpack(s.data.samples, n - 1), sample).x)
+	var dabs: int = Brushwork.span(s.data, [] if n == 0 else Brushwork.unpack(s.data.samples, n - 1), sample)[0]
 	if s.dabs + dabs > Brushwork.MAX_DABS:
 		end_stroke(p)
 		touch(p, e, uv, pressure, angle, side, palette)

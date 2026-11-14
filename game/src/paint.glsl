@@ -19,7 +19,7 @@ layout(set = 0, binding = 6) uniform sampler2D paper_in;
 vec4 nearest_half(vec4 v) {
 	uvec4 bits = floatBitsToUint(v);
 	vec4 normal = uintBitsToFloat((bits + 0xFFFu + ((bits >> 13u) & 1u)) & 0xFFFFE000u);
-	return mix(normal, round(v * 16777216.0) / 16777216.0, lessThan(abs(v), vec4(6.103515625e-5)));
+	return mix(normal, roundEven(v * 16777216.0) / 16777216.0, lessThan(abs(v), vec4(6.103515625e-5)));
 }
 
 struct Dab {

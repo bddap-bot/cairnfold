@@ -915,7 +915,7 @@ func _bad_strokes_are_dropped() -> void:
 		heavy.samples = _zigzag(Brushwork.count(heavy) + 1)
 	heavy.samples = _zigzag(Brushwork.count(heavy) - 1)
 	var dear: Array = []
-	dear.resize(Brushwork.MAX_LAID / Brushwork.dabs(heavy))
+	dear.resize(Brushwork.MAX_TOTAL_DABS / Brushwork.dabs(heavy))
 	dear.fill(heavy)
 	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": dear, "seq": 1, "by": 0}, state, true, world.terrain).size() > 0, "a sheet laying as many dabs as a canvas holds is kept")
 	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": dear + [heavy], "seq": 1, "by": 0}, state, true, world.terrain).is_empty(), "but not one laying more, however few its samples")

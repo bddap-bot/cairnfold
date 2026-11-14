@@ -45,14 +45,14 @@ const PIGMENTS := [
 const CHARCOAL := Vector3(2.3, 2.25, 2.1)
 const MAX_DENSITY := 8.0
 const MAX_SAMPLES := 512
-## Most dabs one stroke lays (`dabs`), what laying it costs every machine that replays it. The longest stroke in the
-## recorded sessions laid 15561; the easel tool ends a stroke here as it does at MAX_SAMPLES, so none it paints is
+## Most dabs one stroke lays on a canvas (`dabs`), what laying it costs every machine that replays it; a board's stroke
+## counts as on a canvas. The longest stroke in the recorded sessions laid 15561; the easel tool ends a stroke here as it does at MAX_SAMPLES, so none it paints is
 ## refused.
 const MAX_DABS := 32768
 ## Most samples one canvas holds across its strokes; past it the canvas takes no more until a fresh sheet.
 const MAX_TOTAL := 120000
 ## Most dabs one canvas lays across its strokes: MAX_TOTAL samples at the densest recorded canvas's 32 dabs a sample.
-const MAX_LAID := MAX_TOTAL * 32
+const MAX_TOTAL_DABS := MAX_TOTAL * 32
 const MAX_STROKES := 4000
 ## Floats per dab: x, y, major radius, pressure; heading (charcoal minor radius), load, dryness, footprint angle.
 const DAB := 8
@@ -142,30 +142,32 @@ static func holds(strokes: Array, more := 0, samples := 0, dabs := 0) -> bool:
 	for s: Dictionary in strokes:
 		samples += count(s)
 		dabs += s.dabs
-	return strokes.size() + more <= MAX_STROKES and samples <= MAX_TOTAL and dabs <= MAX_LAID
+	return strokes.size() + more <= MAX_STROKES and samples <= MAX_TOTAL and dabs <= MAX_TOTAL_DABS
 
 
-## `brush`'s radius in texels pressed `pressure`.
 static func radius(brush: Brush, pressure: float) -> float:
 	var r := radii(brush)
 	return lerpf(r.x, r.y, pow(pressure, 0.7))
 
 
-## How `stroke`'s brush moves from sample `prev` to sample `s` (as `unpack` gives them) on a surface `texels` large:
-## how many dabs it lays between them (none for a stick that only lifts or lowers), how far its points go on average,
-## and how far apart its dabs lie.
-static func span(stroke: Dictionary, prev: Array, s: Array, texels := Vector2(SIZE)) -> Vector3:
+## How `stroke`'s brush moves to sample `s` from sample `prev`, or from nothing (both as `unpack` gives them), on a
+## surface `texels` large: [how many dabs it lays (one for the first sample, none for a stick that only lifts or
+## lowers), how far its points go on average, how far apart its dabs lie].
+static func span(stroke: Dictionary, prev: Array, s: Array, texels := Vector2(SIZE)) -> Array:
+	if prev.is_empty():
+		return [1, 0.0, 0.0]
 	var swept := sweep(stroke.brush, prev[0] * texels, prev[2], s[0] * texels, s[2], maxf(prev[4], s[4]))
 	var spacing := maxf(minf(radius(stroke.brush, prev[1]), radius(stroke.brush, s[1])) * SPACING, 0.5)
-	var n := 0 if stroke.medium == Medium.CHARCOAL and swept.y < 1e-5 else maxi(ceili(swept.x / spacing), 1)
-	return Vector3(n, swept.y, spacing)
+	return [0 if stroke.medium == Medium.CHARCOAL and swept.y < 1e-5 else maxi(ceili(swept.x / spacing), 1), swept.y, spacing]
 
 
-## How many dabs `stroke` lays on a canvas, counted without laying them.
 static func dabs(stroke: Dictionary) -> int:
-	var n := 1
-	for i in range(1, count(stroke)):
-		n += int(span(stroke, unpack(stroke.samples, i - 1), unpack(stroke.samples, i)).x)
+	var n := 0
+	var prev := []
+	for i in count(stroke):
+		var s := unpack(stroke.samples, i)
+		n += span(stroke, prev, s)[0]
+		prev = s
 	return n
 
 
@@ -229,12 +231,12 @@ class Stroker:
 		if run > 0.01:
 			_heading = (to - from).angle()
 		var span := Brushwork.span(stroke, last, s, _texels)
-		var n := int(span.x)
+		var n: int = span[0]
 		var turned := Brushwork.turn(last[2], s[2])
 		var speed := run / maxf(float(s[3]), 1.0)
 		for k in range(1, n + 1):
 			var t := float(k) / n
-			_dab(out, from.lerp(to, t), lerpf(last[1], s[1], t), last[2] + turned * t, speed, span.y / n / span.z if charcoal else 1.0, lerpf(last[4], s[4], t))
+			_dab(out, from.lerp(to, t), lerpf(last[1], s[1], t), last[2] + turned * t, speed, span[1] / n / span[2] if charcoal else 1.0, lerpf(last[4], s[4], t))
 		return out
 
 	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float, travel := 1.0, side := 0.0) -> void:

@@ -310,9 +310,14 @@ static func _strokes(d: Variant) -> Variant:
 	if not d is Array or d.size() > Brushwork.MAX_STROKES:
 		return null
 	var out := []
+	var samples := 0
 	for s: Variant in d:
 		var kept: Variant = Brushwork.clean(s)
 		if kept == null:
+			return null
+		# Counting a stroke's dabs costs a pass over its samples, so a sheet past what a surface holds stops here.
+		samples += Brushwork.count(kept)
+		if samples > Brushwork.MAX_TOTAL:
 			return null
 		out.append(kept)
 	return out if Brushwork.holds(out) else null
