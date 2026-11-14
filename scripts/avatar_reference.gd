@@ -4,8 +4,8 @@ extends SceneTree
 ## its compare.py to score: run under a display as
 ## godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT
 ## Each recorded frame places the avatar's root, poses the avatar from the recorded head and hands as a player's
-## headset and controllers would, then places every humanoid bone where the recording's poses.tsv has it, so the body
-## under test stands in Unity's pose; sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
+## headset and controllers would, then moves and turns each humanoid bone to where poses.tsv recorded it before
+## Unity's dynamics ran, so the body under test stands in Unity's pose; sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
 ## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
 ## made, from its camera; menu.tsv, left empty; and meta.json.
 
@@ -260,8 +260,7 @@ func _drive(row: PackedStringArray) -> void:
 
 
 ## Keeps the root-space poses the recording took of the avatar's humanoid bones, which drivers.tsv names by Unity's
-## HumanBodyBones; the thumb's three are named one joint further out in VRM. A recording without them leaves the body
-## to the head and hands.
+## HumanBodyBones, as VRM 0 does. A recording without them leaves the body to the head and hands.
 func _read_poses(ref: String) -> void:
 	var model := _skeleton.get_parent()
 	while not model.has_meta("humanoid"):
@@ -272,11 +271,9 @@ func _read_poses(ref: String) -> void:
 		for role: String in row[1].split(","):
 			if not role.begins_with("humanoid:"):
 				continue
-			var name := role.trim_prefix("humanoid:")
-			for joint: Array in [["ThumbProximal", "ThumbMetacarpal"], ["ThumbIntermediate", "ThumbProximal"]]:
-				if name.ends_with(str(joint[0])):
-					name = name.trim_suffix(str(joint[0])) + str(joint[1])
-			name = name[0].to_lower() + name.substr(1)
+			var unity := role.trim_prefix("humanoid:")
+			unity = unity[0].to_lower() + unity.substr(1)
+			var name: String = Vrm.THUMBS_0X.get(unity, unity)
 			if humanoid.has(name):
 				driven[row[0]] = _skeleton.find_bone((humanoid[name] as NodePath).get_concatenated_subnames())
 	var order := driven.keys()
@@ -288,10 +285,13 @@ func _read_poses(ref: String) -> void:
 		var f := poses.get_line().split("\t")
 		if f.size() > 3 and f[1] == "root" and driven.has(f[2]):
 			_moves.append([int(f[0]), driven[f[2]], _unity(f[3])])
-	if driven.is_empty():
-		_notes.append("hips not driven: the recording names no humanoid bone, so the body hangs from the tracked head")
+	var posed := {}
+	for m in _moves:
+		posed[m[1]] = true
+	if posed.is_empty():
+		_notes.append("hips not driven: the recording poses no humanoid bone, so the body hangs from the tracked head")
 	else:
-		_notes.append("humanoid bones placed as recorded: %d" % driven.size())
+		_notes.append("humanoid bones placed as recorded: %d" % posed.size())
 
 
 func _record(frame: int) -> void:
