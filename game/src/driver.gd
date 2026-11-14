@@ -1,66 +1,48 @@
 class_name Driver
 extends Node
 
-## Plays a JSON list of steps through the same rig and tool entry points the controllers use.
-## A step marked "background" starts and the next one follows at once, as a camera glides while a wall is drawn.
-## Each step starts once the garden's builds are laid, so it reads them as built.
+## Plays a JSON list of steps through the same entry points the controllers use.
 
 signal finished
 
-## How long a phase's label waits for the frames to hold the refresh rate (see `_label`), and the most it waits.
 const SETTLED_S := 1.0
 const SETTLE_MAX_S := 5.0
 ## Flow texel-steps a frame while `painting` replays: a thousand times Budget.PAINT_STEPS, under a second on a Quest 2.
 const SETUP_STEPS := 3.0e8
-## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
-## "mountains" are the ranges and whatever lies between them and the meadow.
 const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "ivy", "moss", "boulders", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "self", "ceilings", "underfoot", "eyes", "flames", "halos", "smoke", "wildlife", "shy", "interior"]
 
 var main: Main
 var steps: Array
-## Whether the frame budget has turned anything down, as `all_fit` reads.
 var _capped := false
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
 var failed := false
 var _waiting := {}
-## What `layer` hid: each property it turned off, by object and property, and the value it had before.
 var _hidden := {}
-## The share of their area the builds a `sized` step lays take: walls farther apart, a village over a smaller disc,
-## paths shorter.
+## The share of their area the builds a `sized` step lays take.
 var _area := 1.0
-## Players `figures` stood, posed again every frame as streamed poses pose another player.
 var _stood: Array[Avatar] = []
-## The model each figure wears, read from `_figure_path`, drawn as the quality step draws people (`_files`).
 var _figures_read: Array[PackedScene] = []
 var _figure_path := ""
 var _files := true
-## Whether the figures step their springs and play their expressions, and whether they hold still (`_figures`).
 var _figure_springs := true
 var _figure_expressions := true
 var _still := false
-## Whether the figures run every particle system their files have (AvatarParticles.unswitched).
 var _particles := false
-## Whether the figures hold Posture's poses, and the microseconds and frames their poses have taken.
 var _posing := false
 var _posed_usec := 0
 var _posed_frames := 0
-## The units the last fill_flora's plants would count as, carried on the next units line.
 var _flora_units := {}
-## The deer and fox `beasts` stood in place of the roaming ones.
 var _stood_beasts: Array[Beast] = []
-## Where a headset's hands stand until a step poses them: as a player holds them while building, the book shut in the
-## left hand and the right pointing at the ground. Left to the controllers, an unworn headset's idle ones put the book
-## and the beam in view or out of it from run to run, about 2 ms of a Quest 2's GPU time.
+## Left to the controllers, an unworn headset's idle hands put the book and the beam in view or out of it from
+## run to run, about 2 ms of a Quest 2's GPU time.
 const HELD := [{"hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}, {"hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]}]
-## How far of a day `sun` may leave the sky from the time it was given: a quarter hour.
+## A quarter hour, as a share of a day.
 const SUN_MISS := 1.0 / 96.0
-## Where `sun` tries the right hand against the head for open sky to grip (the left mirrored), first beside the head
-## low, as a player holds it while building: the grip takes whatever box holds the hand, whichever way it aims.
+## Right-hand spots in head space, the left mirrored: the grip takes whatever box holds the hand, whichever way it aims.
 const SKY_SPOTS := [Vector3(0.18, -0.25, -0.3), Vector3(0.18, 0.1, -0.2), Vector3(0.0, 0.3, 0.0), Vector3(0.45, -0.1, 0.0)]
-## How far off the sun's arc, in radians, `sun` tries aims for open sky to grip, nearest the arc first.
+## Radians off the sun's arc, nearest first.
 const SKY_OFF_ARC := [0.25, -0.25, 0.6, -0.6, 1.0, -1.0]
-## How many turns round the arc's axis `sun` tries at each of SKY_OFF_ARC.
 const SKY_AIMS := 12
 
 
@@ -84,8 +66,7 @@ func _on_capped(_hand: XRController3D) -> void:
 	_capped = true
 
 
-## Fails the run if the frame budget has turned down anything so far: the steps before it are what the scene must build,
-## and those after it may build until the budget stops them.
+## The steps before it must fit the frame budget; those after it may build until the budget stops them.
 func _all_fit(_s: Dictionary) -> void:
 	await _until({"answered": true})
 	if _capped:
@@ -116,7 +97,7 @@ func _run() -> void:
 	finished.emit()
 
 
-## A step that could not do what it names: the steps after it would run on a garden it did not make, so none run.
+## The steps after a failed one would run on a garden it did not make, so none run.
 func _fail(why: String) -> void:
 	push_error("driver: " + why)
 	failed = true
@@ -127,9 +108,8 @@ func _exit_tree() -> void:
 		push_error("driver: until %s timed out" % _waiting)
 
 
-## A headset runs the main loop for seconds before its session draws a frame, and its shell keeps drawing its launch
-## transition meanwhile: a script's clock starts once the game draws. The frame the session starts in carries the
-## whole wait as its delta, which would end the first timer at once.
+## A headset runs the main loop for seconds before its session draws a frame, and the frame it starts in carries
+## that whole wait as its delta, which would end the first timer at once.
 func _drawing() -> void:
 	if not main.get_viewport().use_xr:
 		return
@@ -149,8 +129,6 @@ func _wait(s: Dictionary) -> void:
 	await get_tree().create_timer(s.seconds, true, false, true).timeout
 
 
-## Holds a control of `device` (default the Frame; see Controls.DEVICES) for `seconds`, as the controller
-## would feed it.
 func _press(s: Dictionary) -> void:
 	var control: String = s.button
 	var device: String = s.get("device", "frame")
@@ -160,7 +138,6 @@ func _press(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Holds or lets go of a device's control: a stick direction moves the stick that way.
 static func hold(device: String, control: String, on: bool) -> void:
 	var to: Array = Controls.DEVICES[device][control]
 	if Hand.FLICKS.has(to[1]):
@@ -174,11 +151,6 @@ static func hold(device: String, control: String, on: bool) -> void:
 		Buttons.injected.erase("%s/%s" % to)
 
 
-## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
-## level of the tool's path, let go; "none" lets go at the centre, emptying the hand. An untracked hand is moved itself; a tracked one sweeps by injected
-## reach. An "action", a person's key (SessionWheel.choices), sweeps to its people leaf and twists the dial that opens
-## there round to it, the shorter way. "capture" saves a view at the opening and at each level reached, as
-## "<capture>-<level>", the dial turned as "<capture>-dial", "popping" one the frame after the pick. "bare" picks with a bare hand before the head: thumb to middle, the palm swept.
 func _pick(s: Dictionary) -> void:
 	if s.get("bare", false):
 		await _pick_bare(s)
@@ -193,8 +165,7 @@ func _pick(s: Dictionary) -> void:
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
 		Hand.injected_reach[hand.tracker] = p
-	# Setting the player down or putting on an avatar closes the wheel, and a change of avatar refits them where they
-	# stand after a fade.
+	# Setting the player down, dressing, or refitting after a change of avatar closes the wheel.
 	while main.rig._pending != null or main.session.dressing() or absf(main.rig.fit() / main.rig.world_scale - 1.0) > Rig.REFIT:
 		await get_tree().process_frame
 	Buttons.injected[key] = true
@@ -231,8 +202,7 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Twists `hand`, holding its dial, about its pointing axis until choice `to` stands at the top; in flat mode through
-## the twist the mouse turns, since Flat poses the hand every frame.
+## Flat poses the hand every frame, so there the mouse turns the twist.
 func _twist_dial(hand: Hand, to: int) -> void:
 	var n := hand.dial.choices.size()
 	var steps := posmod(to - hand.dial.start, n)
@@ -274,8 +244,6 @@ func _pick_bare(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye and
-## rolled `roll` degrees.
 func _hands(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	for side in ["left", "right"]:
@@ -290,12 +258,8 @@ func _hands(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Plays both hands through a script in the picture book's form (Lessons.PAGES: `keys` posing each hand in head space
-## as the head stands when it begins, `press` holding actions, over `length` seconds), as a player's controllers would,
-## then lets go of everything it held. A hand's key may point it `toward` a spot in place of an `aim`: [right, up, ahead]
-## metres from the ground under the head, as "relative" builds are placed, so it meets them however high the head is.
-## "capture" saves the view at each of the `shots` seconds given; `tools` hands each hand that tool first. "bare"
-## plays it with bare hands (`Lessons.bare`).
+## A key's `toward` replaces its `aim`: [right, up, ahead] metres from the ground under the head, so it meets
+## "relative" builds however high the head is.
 func _gesture(s: Dictionary) -> void:
 	for side in s.get("tools", {}):
 		_side(side).tool = Lessons.tool(s.tools[side])
@@ -343,9 +307,8 @@ func _gesture(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Tips the rig about the head so the head looks level, as an unworn headset lying tilted would not: a scripted view
-## then sees what a standing player would, looking level and upright. It reads the head as tracked now, so a
-## script waits for tracking to start before it.
+## As an unworn headset lying tilted would not, so a scripted view sees what a standing player would. It reads the
+## head as tracked now, so a script waits for tracking to start before it.
 func _level(_s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	var ahead := -head.basis.z
@@ -358,7 +321,6 @@ func _level(_s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Holds `hand` beside the head, or at `from` in head space, holding `tool`, pointing at `at` in the garden.
 func _point(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
 	var head: Transform3D = main.rig.head.global_transform
@@ -385,8 +347,6 @@ func _shot(s: Dictionary) -> void:
 		await main.capture(s.capture)
 
 
-## Calls `step` after each frame of `seconds` (the step's own, else `default`) with the share of them done, ending on
-## the frame nearest `seconds`, at 1.
 func _over(s: Dictionary, default: float, step: Callable) -> void:
 	var seconds: float = s.get("seconds", default)
 	var t := 0.0
@@ -413,7 +373,6 @@ func _side(side: String) -> Hand:
 	return main.rig.left if side == "left" else main.rig.right
 
 
-## The step's hand, handed `tool` first, as a player picks it before using it.
 func _holding(s: Dictionary, tool: Hand.Tool) -> Hand:
 	var hand := _hand(s)
 	hand.tool = tool
@@ -429,7 +388,6 @@ func _teleport(s: Dictionary) -> void:
 	await get_tree().create_timer(s.get("seconds", 2.0)).timeout
 
 
-## Shows or hides the gaze marker and logs the gaze pose for `seconds`.
 func _gaze(s: Dictionary) -> void:
 	var gaze: Gaze = main.rig.gaze
 	gaze.show_marker(s.get("on", true))
@@ -445,9 +403,6 @@ static func aim_pose(head: Transform3D, dir: Array) -> Transform3D:
 	return Transform3D(Basis.looking_at(along, Vector3.UP), head * Vector3(-0.2, -0.35, -0.25))
 
 
-## Teleports as a player does with any tool: the left hand points beside the head along `dir` (relative
-## to the head's facing) with its stick pushed `stick` forward for `seconds`, optionally captures the aimed view, from
-## the `watch` pose (a `view` step's keys) if given, then lets go.
 func _aim(s: Dictionary) -> void:
 	var rig: Rig = main.rig
 	rig.left.global_transform = aim_pose(rig.head.global_transform, s.dir)
@@ -482,7 +437,6 @@ func _fence(s: Dictionary) -> void:
 	await _stroke(s, Hand.Tool.FENCE)
 
 
-## With `capture`, saves the view `capture_at` of the way through the stroke, the wall half drawn.
 func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, held))
@@ -498,13 +452,6 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	tool.end_stroke(m)
 
 
-## The house tool's trigger: a square house put up at `at`, `size` [along, across], its front turned `turn` degrees
-## from the x axis (the head's right with "relative"), raised `rise` metres on its plinth; with "round", the tower
-## tool's, a round tower `size` [across, across]. Put up at `from` (default `at`) turned `turn_from` (default `turn`), a
-## grip then carries it there over `seconds`, raising it as it goes; else "seconds" waits that long after. With "capture",
-## `shots` views named after it are saved at even steps of the carry, the last just before letting go. With `windows`,
-## a square house opens windows of that family in WallLayout.WINDOW_FAMILIES all round it (`_open_windows`). With `seed`,
-## its stones and roof are laid from that seed, so runs before and after a change lay the same house.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
@@ -562,9 +509,7 @@ func _house(s: Dictionary) -> void:
 		tool.end_build()
 
 
-## Holds the built house `index` (or under `at`) as hands would and over `seconds` moves it by `move` [x, z] metres,
-## turns it `turn` degrees, sizes it to `size` [along its ridge, across it] (a tower to `size[0]` across), raises it
-## `rise` metres onto its plinth and its walls to `height`; then lets go.
+## `size` is [along its ridge, across it], a tower's `size[0]` across.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	tool.take_build(_wall_of(s))
@@ -596,9 +541,7 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 	return WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - _spot(s, x, z))
 
 
-## Shapes the roof of the build `_wall_of` names: its `pitch` and `curve` as a grip pulls them, its eaves `overhang`
-## metres past the walls, its `deck` ("stone" or "wood") and its `hatches`, each [metres along the ridge,
-## across it].
+## Each of `hatches` is [metres along the ridge, across it].
 func _roof(s: Dictionary) -> void:
 	var w := _wall_of(s)
 	var r := w.roof
@@ -613,7 +556,7 @@ func _roof(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
-## Thatches every roof standing, as the roof style pick does, so a phase measures thatch against the same houses tiled.
+## So a phase measures thatch against the same houses tiled.
 func _thatch(_s: Dictionary) -> void:
 	for id: int in main.world.state.walls:
 		if main.world.state.walls[id].has("roof"):
@@ -626,12 +569,10 @@ func _top(s: Dictionary) -> void:
 		main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"top": int(WallLayout.Top[s.style.to_upper()])}})
 
 
-## Turns the gable ends of the house `index` (or under `at`) to `style`: wall, boards or steps.
 func _gable(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": _wall_of(s).id, "data": {"gable_end": int(WallLayout.GableEnd[s.style.to_upper()])}})
 
 
-## With `gable` (wall, boards or steps), houses laid after take that style of gable end.
 func _lay_gables(s: Dictionary) -> void:
 	if s.has("gable"):
 		main.tool.gable_end = WallLayout.GableEnd[s.gable.to_upper()]
@@ -641,8 +582,6 @@ func _lift_wall(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": _wall_of(s).id, "data": {"height": float(s.height)}})
 
 
-## Holds wall `index` (or the one under `at`), a house too, as two hands would, and draws them `metres` apart upright
-## then back `times` times, `seconds` a pull: its height, or with "roof" a house's ridge.
 func _grip(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var w := _wall_of(s)
@@ -663,9 +602,6 @@ func _grip(s: Dictionary) -> void:
 		await _standing()
 
 
-## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, near its top with both hands 2 m
-## apart, as two hands do, and spreads them `metres` farther over `seconds` (negative closes them), sizing it by their
-## span; "capture" saves the view at the end of the pull.
 func _grow(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var flora: Flora = main.flora_tool.flora
@@ -685,7 +621,6 @@ func _grow(s: Dictionary) -> void:
 	tool.end_grow(right)
 
 
-## The meadow's tree `tree`, or with `x`, `z` the tree standing nearest there.
 func _trunk(s: Dictionary) -> Flora.Plant:
 	var flora: Flora = main.flora_tool.flora
 	if s.has("tree"):
@@ -699,9 +634,6 @@ func _trunk(s: Dictionary) -> Flora.Plant:
 	return trunk
 
 
-## Grips the boulder placed `boulder` before the last (0 the last) from 1.5 metres off, or with
-## `x`, `z` a tree's trunk as `grow` finds it, as a hand does, and over `seconds` moves the hand by `move`
-## [x, y, z] metres while turning it by `turn` [x, y, z] degrees, then lets go; "capture" saves the view before letting go.
 func _carry(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_hand(s))
@@ -727,11 +659,6 @@ func _carry(s: Dictionary) -> void:
 	tool.end_grow(m)
 
 
-## Takes hold of a piece of clutter as a hand within reach of it does: piece `piece` of wall
-## `wall` (an index into the walls, -1 the last), or of path `path` (likewise into the paths). Over `seconds` the hand
-## moves by `move` [x, y, z] metres while turning by `turn` degrees about the vertical, then lets go; with `copy` the
-## other hand grips it too and carries a copy off instead; with `take` a press of the decorations tool takes it away.
-## "capture" saves the view before letting go.
 func _clutter(s: Dictionary) -> void:
 	var target := _clutter_target(s)
 	if target.is_empty():
@@ -761,7 +688,6 @@ func _clutter(s: Dictionary) -> void:
 		tool.end_grow(first)
 
 
-## The pick a hand would make on the piece of clutter `_clutter` names, laid as the build stands now; {} for none.
 func _clutter_target(s: Dictionary) -> Dictionary:
 	var targets: Array[Dictionary] = []
 	if s.has("path"):
@@ -777,9 +703,6 @@ func _clutter_target(s: Dictionary) -> Dictionary:
 	return targets[k] if k < targets.size() else {}
 
 
-## Has every house and wall standing gather more of its own, as if hands copied pieces round it: one of each clutter
-## style in turn each `every` metres along its foot, `out` from it, until it holds ClutterLayout.MOST or the budget is
-## full.
 func _cluttered(s: Dictionary) -> void:
 	var styles := ["Bench", "Rain barrel", "Crates", "Flower box", "Carved pumpkin", "Anvil", "Market stall"].map(DecorationLayout.named)
 	var tally := {"pieces": 0, "full": false}
@@ -804,7 +727,7 @@ func _cluttered(s: Dictionary) -> void:
 	print("stress: %d pieces of clutter more, fill %.3f%s" % [tally.pieces, main.world.fill(), ", the budget full" if tally.full else ""])
 
 
-## Takes every build's clutter away, as hands would piece by piece: what a garden costs without it.
+## What a garden costs without clutter.
 func _uncluttered(_s: Dictionary) -> void:
 	for of in ["walls", "paths"]:
 		for id: int in main.world.state[of]:
@@ -812,8 +735,6 @@ func _uncluttered(_s: Dictionary) -> void:
 				main.world.submit({"op": "reshape", "of": of, "id": id, "data": {"clutter": PackedVector4Array()}})
 
 
-## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
-## reach a visitor: checked, then played.
 func _arrive(s: Dictionary) -> void:
 	var world: World = main.world
 	var walls: Array = world.state.walls.values()
@@ -836,7 +757,6 @@ func _arrive(s: Dictionary) -> void:
 		await get_tree().create_timer(s.get("every", 0.5)).timeout
 
 
-## The house or tower on the ground of the largest footprint `tool` has built, or null for none.
 static func largest(tool: WallTool) -> Wall:
 	var best: Wall
 	var area := 0.0
@@ -849,8 +769,6 @@ static func largest(tool: WallTool) -> Wall:
 	return best
 
 
-## The wall a step names: by `index` in build order, the one under the ground point `at` [x, z], or with "largest" the
-## house or tower on the ground of the largest footprint.
 func _wall_of(s: Dictionary) -> Wall:
 	if s.get("largest", false):
 		return largest(main.tool)
@@ -859,12 +777,6 @@ func _wall_of(s: Dictionary) -> Wall:
 	return main.tool.walls[s.index]
 
 
-## A press of the windows or decorations tool on wall `index` (-1 the last drawn) or the `largest` house, as `FittingTool.aim`
-## would find it: `what` is opening, lantern, flag, chimney, dormer or tower_flag; `s` and `y` place it on the wall,
-## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's or dormer's spot along and across the ridge.
-## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
-## on a floor or a flat roof; its `style` is DecorationLayout's index or name. `lantern`, a Palette.Element.LANTERN swatch,
-## is a decoration's flames' or, after the press, its wall's lanterns'.
 func _fit(s: Dictionary) -> void:
 	if s.what == "decoration":
 		var w: Wall = main.tool.walls[s.index] if s.has("index") else null
@@ -888,9 +800,6 @@ func _fit(s: Dictionary) -> void:
 		main.world.submit({"op": "reshape", "of": "walls", "id": target.wall.id, "data": {"paint": {Palette.Element.LANTERN: int(s.lantern)}}})
 
 
-## Hangs a string of `style` (a DecorationLayout style name, "Lantern string" without one), its lanterns burning in
-## Palette.Element.LANTERN swatch `lantern`, from `a` to `b`, each [x, z] on a pole on the ground or [x, y, z] tied there,
-## as a stroke of the decorations tool between them would.
 func _string(s: Dictionary) -> void:
 	var ends: Array[Dictionary] = []
 	for end: Array in [s.a, s.b]:
@@ -902,7 +811,6 @@ func _string(s: Dictionary) -> void:
 	main.world.submit(cmd)
 
 
-## A stroke of `tool` along `points`.
 func _paint(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(_hand(s, "left"))
@@ -918,7 +826,7 @@ func _paint(s: Dictionary) -> void:
 	flora_tool.end_stroke(b)
 
 
-## A stroke of the path tool from `hand` (left by default) in `surface` (dirt by default); `radius` is half the path's width.
+## `radius` is half the path's width.
 func _pave(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(_hand(s, "left"))
@@ -939,7 +847,6 @@ func _pave(s: Dictionary) -> void:
 	flora_tool.end_path(b)
 
 
-## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a grip on the ground does.
 func _sculpt(s: Dictionary) -> void:
 	var tool: GroundGrab = main.ground_grab
 	var hand := _hand(s)
@@ -950,7 +857,7 @@ func _sculpt(s: Dictionary) -> void:
 	tool.end_stroke(hand)
 
 
-## Desktop only, where no hand is tracked: holds a hand `at` [x, height above the ground, z] for `seconds`, optionally capturing the view.
+## Desktop only, where no hand is tracked.
 func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = _spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1]
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
@@ -958,8 +865,6 @@ func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = Flora.NO_HAND
 
 
-## Digs a hollow at x, z, deeper the more `seconds` (as a grip pressing the ground), and fills it to its brim
-## (`Water.brim`), so the pond stays in it.
 func _dig(s: Dictionary) -> void:
 	var depth := GroundGrab.dig_depth(s.get("seconds", 1.5))
 	var radius := GroundGrab.reach(2.8, depth)
@@ -968,9 +873,7 @@ func _dig(s: Dictionary) -> void:
 	await _pond({"x": s.x, "z": s.z, "brim": radius, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
 
 
-## Pulls the trigger of the pond tool pointed at the ground at x, z: the hollow beside it fills to that height. With
-## `brim`, a hollow pressed at x, z out to that radius fills to its brim (`Water.brim`). Returns once the fill is sent
-## to the garden, so `World.idle` then means its water is in.
+## Returns once the fill is sent to the garden, so `World.idle` then means its water is in.
 func _pond(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	if s.has("brim"):
@@ -984,7 +887,6 @@ func _pond(s: Dictionary) -> void:
 	hand.tool = was
 
 
-## Sweeps the right hand along `points` at `y` metres above the pond at the first point, as if trailing it through.
 func _wade(s: Dictionary) -> void:
 	var path := _path(s)
 	var pond: PondWater = main.water.pond_at(path[0].x, path[0].z)
@@ -1007,15 +909,12 @@ func _bush(s: Dictionary) -> void:
 	main.flora_tool.place("bush", _spot(s, s.x, s.z), null, s.get("seed", randi()))
 
 
-## Sets a boulder down at `x`, `z`, of shape `seed` (a new one without) and `scale` (1 without); in `style`
-## (StoneStyles' index) when given, as if the style wheel last let go there.
 func _boulder(s: Dictionary) -> void:
 	if s.has("style"):
 		Ground.style = s.style
 	main.flora_tool.place_boulder(_spot(s, s.x, s.z), null, int(s.get("seed", randi())), float(s.get("scale", 1.0)))
 
 
-## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.
 func _delete(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
 	tool.press(self, _spot(s, s.x, s.z) + Vector3.UP * s.get("height", 2.0), Vector3.DOWN)
@@ -1023,8 +922,7 @@ func _delete(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Holds the delete tool's trigger pointed along `dir` (relative to the head's facing; up at the sky by default) for
-## `seconds`, saving the view as `capture` at `capture_at` seconds; let go short of DeleteTool.WIPE_HOLD, nothing wipes.
+## Let go short of DeleteTool.WIPE_HOLD, nothing wipes.
 func _wipe(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
 	var d: Array = s.get("dir", [0, 2, -1])
@@ -1042,9 +940,7 @@ func _wipe(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Holds the delete tool's trigger, pointing straight down from `height` metres over each point of `points` in turn
-## across `seconds`, then lets go: along a wall it erases, over the ground it mows. With `index` instead, it sweeps
-## that wall in build order from fraction `from` of its length to `to`, wherever the head stands.
+## Along a wall it erases, over the ground it mows.
 func _erase(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
 	var path := _path(s) if s.has("points") else _stretch(main.tool.walls[s.index].layout, s.from, s.to)
@@ -1076,9 +972,7 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 	return out
 
 
-## Fills a disc of `radius` at once with parallel walls `spacing` apart of one height, their ivy fully grown, each a stroke
-## of ground points every couple of metres. The rows straddle the centre line, so a viewer at the centre stands between
-## two of them.
+## The rows straddle the centre line, so a viewer at the centre stands between two of them.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.WALLS))
@@ -1115,7 +1009,6 @@ func _stress(s: Dictionary) -> void:
 	print("stress: %d walls, %.0f m, %d stones, laid in %.0f ms" % [tool.walls.size(), length, stones, ms])
 
 
-## Hangs a lantern every `every` metres along each wall within `radius` of the centre, alternating faces.
 func _lanterns(s: Dictionary) -> void:
 	var hung := 0
 	for w: Wall in main.tool.walls:
@@ -1133,11 +1026,6 @@ func _lanterns(s: Dictionary) -> void:
 	print("stress: %d lanterns" % hung)
 
 
-## Lights the houses, until the frame budget is full, bounded or not: a chimney every `every` metres along each
-## gable's ridge, as many as a roof takes; a lantern every `every` metres round each, at 2 m on either face in turn; a string between each and every neighbour within `within` metres, tied to the nearest corners
-## of their eaves; then rows of strings `span` long on poles, `rows` apart, across the disc of `radius` about the
-## centre, from its middle row outward, clear of the houses. Strings are of lanterns and of flags in turn, and each house's lanterns and strings, and each row, burn in
-## the next colour and brightness. Its chimneys smoke as they stand.
 func _lights(s: Dictionary) -> void:
 	var houses: Array = main.tool.walls.filter(func(w: Wall) -> bool: return w.roof != null and w.layout.closed)
 	var looks := Palette.count(Palette.Element.LANTERN)
@@ -1198,15 +1086,12 @@ func _lights(s: Dictionary) -> void:
 	print("stress: %d smoking chimneys, %d lanterns, %d strings on %d houses, fill %.3f%s" % [tally.chimneys, tally.lanterns, tally.strings, houses.size(), main.world.fill(), ", the budget full" if tally.full else ""])
 
 
-## Hangs a string between aims `from` and `to` for `_lights`, of lanterns burning in `look` or of flags as `tally`'s
-## count has it in turn.
 func _hang(from: Dictionary, to: Dictionary, look: int, tally: Dictionary) -> void:
 	var cmd := main.fitting_tool.string_command(from, to, tally.strings + 1, DecorationLayout.named("Flag string" if tally.strings % 2 else "Lantern string"), look)
 	if not cmd.is_empty() and _lit(cmd, tally):
 		tally.strings += 1
 
 
-## Submits `cmd` for `_lights` where the frame budget has room for it, or notes in `tally` that it is full.
 func _lit(cmd: Dictionary, tally: Dictionary) -> bool:
 	if tally.full or not Budget.fits(main.world.units, main.world.change_of(cmd)):
 		tally.full = true
@@ -1230,9 +1115,8 @@ static func _nearest(points: PackedVector3Array, to: Vector3) -> Vector3:
 	return best
 
 
-## Fills every painted and placed flora pool to capacity, or with `count` of each, within `radius` of `at` (x, z; the centre by default), or only
-## those `pools` names (grass, flowers, trees, bushes), the trees taking each species in turn at `scale` (1 without). They are not build commands,
-## so the frame budget does not count them; the next units line carries the units they would count as, for scripts/costs.py.
+## Flora are not build commands, so the frame budget does not count them; the next units line carries the units
+## they would count as, for scripts/costs.py.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
 	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes", "moss"])
@@ -1259,7 +1143,6 @@ func _fill_flora(s: Dictionary) -> void:
 		_flora_units[fill[0]] = mini(s.get("count", fill[1]), fill[1])
 
 
-## Measures distant flora in the same scene, off or on: the flowers' triangles and the grass the ground paints.
 func _flora_far(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
 	var on: bool = s.get("mode", "on") != "off"
@@ -1268,9 +1151,7 @@ func _flora_far(s: Dictionary) -> void:
 	for mat in flora.ground_mats:
 		mat.set_shader_parameter(&"far_grass", on)
 
-## Hides one of LAYERS, or shows it again, so a scene measures what it costs against the same view without it.
-## Grass is every blade, the meadow's and painted; the ground paints its grass either way. Trees count their bushes,
-## which share their crowns' material. Self is the player's own body as their eyes see it.
+## Trees count their bushes, which share their crowns' material; the ground paints its grass either way.
 func _layer(s: Dictionary) -> void:
 	var on: bool = s.get("mode", "on") != "off"
 	for name: String in LAYERS if s.name == "all" else [s.name]:
@@ -1284,7 +1165,6 @@ func _layer(s: Dictionary) -> void:
 				off[0].set(off[1], off[2])
 
 
-## Each [object, property, value hiding it] that hides `name`.
 func _layer_parts(name: String) -> Array[Array]:
 	var flora: Flora = main.flora_tool.flora
 	var look: Look = main.look
@@ -1460,9 +1340,6 @@ func _village(s: Dictionary) -> void:
 	print("village: %d buildings in %.0f ms" % [tool.walls.size() - stood, (Time.get_ticks_usec() - start) / 1000.0])
 
 
-## Opens windows round square house `house` in family `k` of WallLayout.WINDOW_FAMILIES: two on its front side either
-## side of a door (cottage or arched in turn) when it stands on the `ground`, a fused pair on its back, one on each end,
-## and a corner window between its first end and its back; a flat roof gets a trapdoor in its middle.
 func _open_windows(house: Wall, k: int, ground: bool) -> void:
 	var p := house.layout.points
 	var front := Vector2(p[1].x - p[0].x, p[1].z - p[0].z).length()
@@ -1480,7 +1357,6 @@ func _open_windows(house: Wall, k: int, ground: bool) -> void:
 		house.roof.hatches.assign([Vector2.ZERO])
 
 
-## Lays `house`'s roof and top, `size` [along, across], as a village's `roofs` entry has them.
 func _dress_roof(house: Wall, entry: Dictionary, size: Vector2) -> void:
 	var r := house.roof
 	r.deck = RoofLayout.Deck[entry.get("deck", "stone").to_upper()]
@@ -1503,19 +1379,17 @@ func _scatter(rng: RandomNumberGenerator, radius: float, centre: Vector3) -> Vec
 	return FloraLayout.brush(centre, radius, 1, rng, main.world.terrain.height_at)[0]
 
 
-## The port of the garden a script visits: its `port`, else the --host-port launch argument.
 func _host_port(s: Dictionary) -> int:
 	return int(s.get("port", main.args.get("host-port", Session.PORT)))
 
 
-## Joins the garden hosted at `address` on the host's port, as picking its figure does, until that garden has arrived.
 func _join(s: Dictionary) -> void:
 	var arrived := _arrival()
 	main.session.join(s.get("address", "127.0.0.1"), _host_port(s))
 	await _arrived(arrived)
 
 
-## Set once the next garden arrives, so a step after a visit works in the garden visited, however late it comes.
+## Connected before the visit, so a step after it works in the garden visited however late it comes.
 func _arrival() -> Array:
 	var arrived := [false]
 	main.world.loaded.connect(func() -> void:
@@ -1531,7 +1405,6 @@ func _arrived(arrived: Array) -> void:
 		await get_tree().process_frame
 
 
-## Joins through the same wheel sweep and release as a player.
 func _visit(s: Dictionary) -> void:
 	var home: bool = s.get("home", false)
 	var arrived := [true] if home else _arrival()
@@ -1545,8 +1418,7 @@ func _visit(s: Dictionary) -> void:
 	await _arrived(arrived)
 
 
-## Flat mode: holds the flat-screen control `action` (see Controls.FLAT) for `seconds`, and at least two frames so a slow
-## frame cannot swallow the press, as its key or button would.
+## At least two frames, so a slow frame cannot swallow the press.
 func _flat(s: Dictionary) -> void:
 	var action: String = "flat_" + s.action
 	Input.action_press(action)
@@ -1556,17 +1428,7 @@ func _flat(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Stands a player at each of `spots` [[x, z], ...], looking at the middle of the garden, in the VRM at `file`, a path
-## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its
-## hands swaying, as another player's streamed poses pose them; with "posture" each instead holds Posture's recorded
-## poses in turn, a second and a fifth each, over what is under it, as another player's avatar reads them; with "apart"
-## each reads the file itself and holds its own textures, as players each wearing their own file do, and a file past the
-## device's limits stands as a built-in, as its player would; with "particles" each runs every particle system its file
-## has, whatever its switches (AvatarParticles.unswitched); [] takes them away. Each steps its own springs, as the
-## avatar a player wears does, unless "springs" is false, as another player's replays them, and plays its expressions
-## unless "expressions" is false; with "still" each stands once and then holds, its pose, springs and expressions
-## stopped, so only drawing it is left. Prices another player's avatar on one headset, with no network in the way, and
-## prints the main thread's microseconds per avatar pose, and per avatar solving its constraints, when they go.
+## Prices other players' avatars on one headset with no network in the way.
 func _figures(s: Dictionary) -> void:
 	if not _stood.is_empty():
 		print("figures: %d %s avatars %s, %.1f us per avatar pose and %.1f solving its constraints over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), float(Constraints.spent_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
@@ -1604,7 +1466,6 @@ func _figures(s: Dictionary) -> void:
 		_stood.append(_stand(i, Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)))
 
 
-## Figure `i` at `at` in its model, drawn as the quality step draws people.
 func _stand(i: int, at: Transform3D) -> Avatar:
 	var a := Avatar.drawn(_figures_read[i], Color.WHITE, _figure_path, _figure_path != "" and main.quality.admit(_figures_read[i]))
 	a.transform = at
@@ -1649,7 +1510,6 @@ func _process(_delta: float) -> void:
 		_posed_frames += 1
 
 
-## Turns the view to `at`, or to the eyes of the first other player with "player".
 func _face(s: Dictionary) -> void:
 	var to: Vector3
 	if s.get("player", false):
@@ -1660,15 +1520,8 @@ func _face(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Waits until the garden has applied command `seq`, and the one digest `seq_of` (written by any player) recorded,
-## with "answered" the host has answered every command this player sent, `players` share it, `worn` of them show
-## their own avatar files, `previewed` avatar files (this player's own included) stand ready for the picker, folder `files` have loaded,
-## `wearing` names the folder file worn locally, `swimming` fish have come, with `fed`
-## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here; a flock is
-## brought near such a dish held out, since one comes on its own only a minute or two after the ducks), the
-## `digests` named have been written to the capture directory (by any player), with "frenzy" every fish of a pond some
-## landed seeds lie on feeds, or with "heard" the host's beacon is heard, for at most `seconds`. Without `seconds` the
-## wait has no limit: how long another player takes to start and catch up is the machine's load, not the script's.
+## A flock comes to a dish on its own only a minute or two after the ducks, so `fed` brings one near. Without
+## `seconds` the wait has no limit: how long another player takes to start and catch up is the machine's load.
 func _until(s: Dictionary) -> void:
 	var dir := str(main.args.get("capture-dir", "user://captures"))
 	var t := 0.0
@@ -1695,7 +1548,7 @@ func _until(s: Dictionary) -> void:
 	_fail("until %s timed out" % s)
 
 
-## The sequence number the digest at `path` recorded, or -1 while it has not been written whole.
+## -1 while the digest has not been written whole.
 static func _digested_seq(path: String) -> int:
 	if not FileAccess.file_exists(path):
 		return -1
@@ -1714,8 +1567,7 @@ func _write_capture(name: String, out: Dictionary) -> String:
 	return path
 
 
-## Writes `World.digest`, where the sun stands, how many other players' avatars stand here, the hashes of their own files and the poses they show, and how many eat from held dishes, to `name`.json in the capture
-## directory, for comparing machines.
+## For comparing machines.
 func _digest(s: Dictionary) -> void:
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
@@ -1734,8 +1586,7 @@ func _digest(s: Dictionary) -> void:
 	print("driver: digest ", _write_capture(s.name, out))
 
 
-## Samples a connected, settled session; ENet counters exclude discovery and IP/UDP headers.
-## Frame processing time is Godot's elapsed main-thread time, not whole-process CPU usage.
+## ENet counters exclude discovery and IP/UDP headers; frame times are Godot's main-thread time, not process CPU.
 func _network_sample(s: Dictionary) -> void:
 	var peer: ENetMultiplayerPeer = multiplayer.multiplayer_peer
 	var connection := peer.host
@@ -1762,9 +1613,6 @@ func _network_sample(s: Dictionary) -> void:
 	print("driver: network sample ", _write_capture(s.name, out))
 
 
-## Takes a photo with the camera in `hand` (right by default), or with `tool` "selfie" the selfie camera, wherever its lens
-## points, as pulling its trigger does, and waits until it is saved. With "view", the same lens's view as the headset draws it is captured
-## first under that name, to set beside the photo.
 func _photo(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
 	if s.has("view"):
@@ -1772,8 +1620,6 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(hand)
 
 
-## Records a video with the camera in `hand` (right by default) for `seconds`, holding its trigger through the
-## same edges the controller feeds, and waits until the file is written.
 func _video(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
 	var key := Controls.key("tool", hand.tracker)
@@ -1783,8 +1629,6 @@ func _video(s: Dictionary) -> void:
 	await main.photo_tool.recorded
 
 
-## Throws a handful of seeds from the dish in `hand` (right by default), or from `from` ([x, height over the ground, z]),
-## at `velocity`, as pulling its trigger while swinging the hand at `velocity` does.
 func _toss(s: Dictionary) -> void:
 	var v := Lessons._v(s.get("velocity", [0, 0, 0]))
 	var f: Array = s.get("from", [])
@@ -1795,9 +1639,7 @@ func _toss(s: Dictionary) -> void:
 	main.feed_tool.throw(main.feed_tool.dish(hand), main.feed_tool.launch(hand, v))
 
 
-## Turns the sky as a player does, until the sun stands at `time` (0 midnight, 0.5 noon; the short way round) over
-## `seconds`: `hand` (right by default) about the head grips open sky (`_open_sky`), where no build, plant,
-## boulder, stair or easel stands for the grip to take instead, and turns its aim about the arc.
+## `time` is a share of the day, 0 midnight and 0.5 noon, reached the short way round.
 func _sun(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var was := hand.global_transform
@@ -1830,8 +1672,6 @@ func _sun(s: Dictionary) -> void:
 		_fail("sun turned to %.4f, not %.4f" % [main.look.time, s.time])
 
 
-## The first pose of `hand` at a SKY_SPOTS spot, aimed round the arc's `axis`, whose grip grabs the sky and nothing a
-## build tool's grip would take instead, or null.
 func _open_sky(hand: Hand, axis: Vector3) -> Variant:
 	var head: Transform3D = main.rig.head.global_transform
 	var side := 1.0 if hand == main.rig.right else -1.0
@@ -1845,10 +1685,6 @@ func _open_sky(hand: Hand, axis: Vector3) -> Variant:
 	return null
 
 
-## The colour picker aimed from `from` (the head by default) at `at`, each [x, height above the ground, z], which must
-## land on `element` (meadow, stone, roof, wood or plaster; the meadow needs no aim), or with `largest` straight down
-## onto the largest house's roof: opens its wheel on `hand`, twists to `swatch` over `seconds`, optionally captures the
-## view with the wheel open, then lets go.
 func _colour(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var element: Palette.Element = Palette.Element[s.element.to_upper()]
@@ -1863,8 +1699,6 @@ func _colour(s: Dictionary) -> void:
 	await _dial(s, _holding(s, Hand.Tool.COLOUR), target, s.swatch)
 
 
-## A tap of the colour tool's trigger on `hand`, aimed from `from` at `at` as `colour` aims: on a wall, house, tower or
-## fence it takes that build's look, or lays the look taken on it; anywhere else it lets the look go.
 func _tap(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var hand := _holding(s, Hand.Tool.COLOUR)
@@ -1877,10 +1711,6 @@ func _tap(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
-## (`restyle` names what that must be: a PaletteTool.Restyle, such as gable, roof, top, face or foundation), twisted round to choice `pick` over
-## `seconds` and let go, as `colour` does. A wall named by `index` is held at the middle of its face, as the build lays
-## it now. With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from 6 metres away.
 func _style(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var restyle: PaletteTool.Restyle = PaletteTool.Restyle[s.restyle.to_upper()]
@@ -1934,7 +1764,6 @@ func _view(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Moves the view from the last `view` or `glide` to this one's `eye` and `at` over `seconds`, easing in and out.
 func _glide(s: Dictionary) -> void:
 	var pose := _pose(s)
 	if pose.is_empty():
@@ -1947,10 +1776,8 @@ func _glide(s: Dictionary) -> void:
 		main.view(_eye, _at))
 
 
-## A step's `eye` and `at`. With "subject", they are in the frame of the first node in that group (or its
-## `index`th), as it stands now. With "ground", their heights count from the ground under each. With "toward",
-## `at` is offset from the node in that group nearest the eye, so a view can turn to an animal that has moved
-## without the eye moving.
+## With "toward", `at` is offset from the node in that group nearest the eye, so a view can turn to an animal
+## that has moved without the eye moving.
 func _pose(s: Dictionary) -> Array[Vector3]:
 	var eye := Lessons._v(s.eye)
 	var at := Lessons._v(s.at)
@@ -1978,7 +1805,6 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 	return [eye, at]
 
 
-## Moves the eye from `from` to `to` over `seconds`, looking `ahead` metres further along the way at `look` height.
 func _walk(s: Dictionary) -> void:
 	var from := Lessons._v(s.from)
 	var to := Lessons._v(s.to)
@@ -1994,7 +1820,6 @@ func _walk(s: Dictionary) -> void:
 		t += await _tick()
 
 
-## Sets an easel up at `x`, `z`, facing the head (or the ground point `facing`), as the easel tool's trigger does.
 func _easel(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	var toward := _toward(s)
@@ -2002,8 +1827,6 @@ func _easel(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Stands the hand mirror at the ground under `x`, `z`, its glass toward the head or the ground under `facing`; with
-## "away", puts it away.
 func _mirror(s: Dictionary) -> void:
 	if s.get("away", false):
 		main.mirror_tool.clear()
@@ -2013,24 +1836,18 @@ func _mirror(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## The easel a step works at: its `easel`th by age, the newest by default.
 func _easel_of(s: Dictionary) -> Easels.Easel:
 	var ids: Array = main.easels.easels.keys()
 	ids.sort()
 	return main.easels.find(ids[s.get("easel", -1)])
 
 
-## Holds `hand` so its brush's tip is at `tip`, the brush pointing along `along`, turned `roll` about it, however the
-## hand holds that brush (`ToolModels.hold`).
 func _tip_at(hand: Hand, tip: Vector3, along: Vector3, up: Vector3, roll := 0.0) -> void:
 	var basis := Basis.looking_at(along, up).rotated(along.normalized(), roll)
 	hand.global_transform = Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP) * ToolModels.hold(main.easel_tool.painter(hand).brush).affine_inverse()
 	hand.held_still = true
 
 
-## A grip at the easel's tray, as a player's hand closing there: takes a brush from the pot ("small", "big",
-## "flat"), a stick of charcoal ("thin_stick", "stick", "thick_stick"), or a palette, the watercolour box ("box") or
-## the oil palette ("palette"), which stays in the hand until a `set_down`. With `preview`, approaches the handle without closing the grip.
 func _take(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -2054,8 +1871,6 @@ func _take(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## A grip by the hand holding a palette, wherever that hand is, sends the palette back to its rest on the tray; done
-## once it rests there.
 func _set_down(s: Dictionary) -> void:
 	await _squeeze(_hand(s))
 	while not main.easel_tool.returning.is_empty():
@@ -2063,7 +1878,6 @@ func _set_down(s: Dictionary) -> void:
 	await _frames(1)
 
 
-## A grip by `hand` held still where it is, pressed for two frames and let go.
 func _squeeze(hand: Hand) -> void:
 	hand.held_still = true
 	var key := Controls.key("grab", hand.tracker)
@@ -2072,8 +1886,6 @@ func _squeeze(hand: Hand) -> void:
 	Buttons.injected.erase(key)
 
 
-## Checks that `hand` holds `what` (as EaselTool.holding names it) once its brush has had time to show, and that
-## the brush it shows is the one it holds.
 func _holds(s: Dictionary) -> void:
 	var hand := _hand(s)
 	await get_tree().create_timer(Hand.POP * 2.0).timeout
@@ -2085,8 +1897,6 @@ func _holds(s: Dictionary) -> void:
 	assert(shown == ([p.brush] if brush else []), "driver: %s holding %s shows brushes %s" % [hand.tracker, now, shown])
 
 
-## Checks that every palette on the easel rests at its place on the tray, as this machine sees it, once those set
-## down have arrived.
 func _rests(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	await _frames(1)
@@ -2098,7 +1908,6 @@ func _rests(s: Dictionary) -> void:
 		assert(held or (not node.top_level and node.transform.is_equal_approx(Transform3D(Basis(), Easels.KITS[kit]))), "driver: the %s palette is not at its rest" % Brushwork.Medium.keys()[kit].to_lower())
 
 
-## Holds the palette-holding hand where a painter holds it: beside the canvas, `at` in the easel's frame.
 func _hold(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	var hand := _hand(s)
@@ -2122,8 +1931,6 @@ func _rag_wipe(s: Dictionary) -> void:
 				await _frames(1)
 
 
-## Dips the brush in `hand` into the jar, or pigment `index` of the watercolour box ("pan") or the oil palette ("oil"),
-## wherever that palette is, pushed `depth` metres on through it, and lifts it out.
 func _dip(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -2144,20 +1951,16 @@ func _dip(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## A brushstroke on the oil palette's open board, wherever the palette is, as `_brush` paints the canvas, through
-## `points` [x, z, pressure] (x toward the paint, z across, both -1..1 of the palette's half size).
+## `points` are [x toward the paint, z across, pressure], x and z -1..1 of the palette's half size.
 func _mix(s: Dictionary) -> void:
 	await _brushstroke(s, true)
 
 
-## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`.
+## `points` are [u across, v down, pressure], u and v 0..1.
 func _brush(s: Dictionary) -> void:
 	await _brushstroke(s, false)
 
 
-## A brushstroke on the canvas, or with `palette` the oil palette's board, through `points` as `_brush` or `_mix` gives
-## them: the tip comes in from off the surface, pushes each point's pressure's share of `Brushwork.PRESS_DEPTH` past its
-## face (a stick's tip by its rim), and lifts off at the end, leaning `tilt` degrees and a flat brush turned `roll`.
 func _brushstroke(s: Dictionary, palette: bool) -> void:
 	var hand := _hand(s)
 	hand.tool = Hand.Tool.EASEL
@@ -2198,9 +2001,8 @@ func _brushstroke(s: Dictionary, palette: bool) -> void:
 	await _frames(2)
 
 
-## Takes the canvas's sheet in `hand` and pulls it `pull` metres off (enough tears it away), then lets go. The hand
-## stays at the sheet for two frames before the pull: a step begun after this frame's EaselTool._process would
-## otherwise move the hand out of reach before the grip was read, and the first frame's await resumes before it runs.
+## The hand stays at the sheet two frames before the pull: a step begun after this frame's EaselTool._process would
+## otherwise move it out of reach before the grip was read, and the first frame's await resumes before it runs.
 func _sheet(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -2222,9 +2024,7 @@ func _sheet(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Puts a fresh sheet up on the easel, paints `strokes` strokes of `painting` on it, and with `palette` that many of
-## `daubs` on its oil palette's board, and waits until both have replayed them as a kept painting. The replay is setup,
-## run at SETUP_STEPS a frame: at the frame's own flow budget ten strokes take 2794 frames.
+## The replay is setup, run at SETUP_STEPS a frame: at the frame's own flow budget ten strokes take 2794 frames.
 func _painting(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	main.world.submit({"op": "sheet", "easel": e.id, "strokes": []})
@@ -2241,7 +2041,6 @@ func _painting(s: Dictionary) -> void:
 	Canvas.steps = steps
 
 
-## Takes back this player's last step, as the undo button does whatever the hands hold.
 func _undo(_s: Dictionary) -> void:
 	main.world.undo()
 	await _frames(1)
@@ -2252,15 +2051,12 @@ func _redo(_s: Dictionary) -> void:
 	await _frames(1)
 
 
-## Waits until the easel's canvas and oil palette have caught up with their paint.
 func _caught_up(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	while e.canvas.catching_up() or e.board.catching_up():
 		await _frames(1)
 
 
-## `n` watercolour strokes across the canvas, half a second each, a third of a second apart: a kept painting as
-## benches and tests replay it.
 static func painting(n: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
@@ -2276,8 +2072,6 @@ static func painting(n: int) -> Array:
 	return out
 
 
-## `n` oil strokes round an oil palette's open board, a big brush's fully loaded, each colour in turn: paint as a
-## painter leaves a palette, as benches and tests replay it.
 static func daubs(n: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
@@ -2294,7 +2088,6 @@ static func daubs(n: int) -> Array:
 	return out
 
 
-## The player wears built-in avatar `avatar`, or the VRM at `file`, tinted `tint`.
 func _wear(s: Dictionary) -> void:
 	var bytes := FileAccess.get_file_as_bytes(s.file) if s.has("file") else PackedByteArray()
 	var scene := Avatar.read(bytes) if s.has("file") else null
@@ -2303,10 +2096,7 @@ func _wear(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Desktop only: holds the head and both hands where a person in Posture's pose `pose` had theirs, sized to the
-## player's own avatar (Posture.held), on the ground at `x`, `z` (or `y` metres up), turned `yaw` degrees; `lift`
-## (an adult's metres, sized as the pose is) raises the eyes. Over `seconds` it moves there from where the head and
-## hands are, as a player lies down or sits.
+## Desktop only. `lift` is an adult's metres, sized as the pose is.
 func _posture(s: Dictionary) -> void:
 	var rig: Rig = main.rig
 	var which := Posture.poses.find_custom(func(q: Dictionary) -> bool: return q.name == s.pose)
@@ -2333,8 +2123,6 @@ func _posture(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Draws where each other player's head and hands are tracked, as their avatar receives them: a red ball at the eyes
-## with a stalk ahead of them, a green ball at the left hand and a blue one at the right, seen through everything.
 func _markers(_s: Dictionary) -> void:
 	var balls: Array[MeshInstance3D] = []
 	for c: Color in [Color.RED, Color.GREEN, Color.BLUE, Color.RED]:
@@ -2366,7 +2154,6 @@ func _markers(_s: Dictionary) -> void:
 		await get_tree().process_frame
 
 
-## Holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
 func _hold_pose(s: Dictionary) -> void:
 	var hand := _hand(s)
 	hand.global_transform = main.rig.head.global_transform * Lessons.frame({"at": Lessons._v(s.at), "aim": Lessons._v(s.aim).normalized(), "roll": s.get("roll", 0.0)})
@@ -2374,8 +2161,6 @@ func _hold_pose(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Prints what the held book's live pages cost the GPU over `seconds`, from the renderer's timestamps around each
-## viewport: each page's render and their share of a frame, beside the garden's own view.
 func _page_cost(s: Dictionary) -> void:
 	var b: Book = main.book
 	var rd := RenderingServer.get_rendering_device()
@@ -2413,7 +2198,6 @@ func _page_cost(s: Dictionary) -> void:
 		renders[renders.size() / 2] if not renders.is_empty() else 0.0, total / maxi(frames, 1), views[views.size() / 2] if not views.is_empty() else 0.0])
 
 
-## The picture book in the hand holding it: "open" it, "turn" a leaf on or "back", then wait `seconds`.
 func _book(s: Dictionary) -> void:
 	var b: Book = main.book
 	match s.do:
@@ -2436,7 +2220,7 @@ func _quit(_s: Dictionary) -> void:
 	main.finish()
 
 
-## With "relative", x is metres to the head's right and z metres ahead of it, so a script works whichever way the headset faces.
+## "relative" makes a script work whichever way the headset faces.
 func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	if not s.get("relative", false):
 		return main.world.terrain.ground(x, z)
@@ -2445,20 +2229,16 @@ func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	return main.world.terrain.ground(p.x, p.z)
 
 
-## The level way the head faces.
 func _ahead() -> Vector3:
 	var fwd := -main.rig.head.global_basis.z
 	fwd.y = 0.0
 	return fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
 
 
-## What an easel or the mirror turns toward: the ground under `facing`, else the head.
 func _toward(s: Dictionary) -> Vector3:
 	return _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position
 
 
-## What the walls tool builds on at a ground spot: with "on", what a hand pointing straight down from above it
-## hits, a build's top or the ground; else the ground.
 func _target(s: Dictionary, p: Vector3) -> Dictionary:
 	if s.get("on", false):
 		var hit: Dictionary = main.tool.aim(p + Vector3.UP * 60.0, Vector3.DOWN)
@@ -2474,7 +2254,6 @@ func _path(s: Dictionary) -> Array[Vector3]:
 	return path
 
 
-## The ground point `fraction` of the way along `path`.
 func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	var d := 0.0
 	for i in path.size() - 1:
@@ -2490,8 +2269,7 @@ func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	return path[-1]
 
 
-## Holds the quality ladder at `step`, with "fit" at the fixed table's calibration step (Budget.fit_step), or with
-## "held" where the governor stands now; without one, the governor walks it again.
+## Without `step`, the governor walks the ladder again.
 func _quality(s: Dictionary) -> void:
 	var step: Variant = s.get("step", -1)
 	if step is String:
@@ -2501,9 +2279,7 @@ func _quality(s: Dictionary) -> void:
 	print("driver: quality pinned at %d" % main.quality.pin)
 
 
-## Holds the view's anti-aliasing for measuring: `msaa` samples (0, 2, 4 or 8), `screen` ("none", "fxaa" or "smaa"),
-## `foveation` 0 to 3 through the runtime's density map (XR_FB_foveation, which the Mobile renderer reads only with
-## the view's VRS mode at XR), and `unshaded`, which draws every surface its albedo alone. A key left out is left as is.
+## The Mobile renderer reads XR_FB_foveation's density map only with the view's VRS mode at XR.
 func _antialias(s: Dictionary) -> void:
 	var vp: Viewport = main.get_viewport()
 	if s.has("msaa"):
@@ -2518,9 +2294,8 @@ func _antialias(s: Dictionary) -> void:
 		vp.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if s.unshaded else Viewport.DEBUG_DRAW_DISABLED
 
 
-## Opens the phase `name` once the frames have held the refresh rate for SETTLED_S, SETTLE_MAX_S at most: after a
-## late frame the runtime keeps every other refresh for a while, and a phase opened on that is measuring the setup
-## before it (a whole village laid at once, which no player does), not its own frames.
+## After a late frame the runtime keeps every other refresh for a while, and a phase opened on that measures the
+## setup before it (a whole village laid at once, which no player does), not its own frames.
 func _label(s: Dictionary) -> void:
 	var metrics: Metrics = main.metrics
 	if s.name != "-" and metrics.late_at_us >= 0:
@@ -2534,17 +2309,13 @@ func _label(s: Dictionary) -> void:
 	metrics.info.label = s.name
 
 
-## A label an op opens itself, logged as a scene's own label step is.
 func _logged_label(name: String) -> void:
 	var label := {"op": "label", "name": name}
 	print("driver: ", label)
 	await _label(label)
 
 
-## Lays the `build` steps over the bare meadow as large as this headset holds them: while the dearest of `views` reads
-## over the governor's line, the meadow is bared and they are laid again over the share of their area that
-## would bring it under, so every phase of demo/costs.json is measured at the refresh rate, on any headset, from one
-## script.
+## So every phase of demo/costs.json is measured at the refresh rate, on any headset, from one script.
 func _sized(s: Dictionary) -> void:
 	var line := Budget.line_ms() * 0.95
 	var base: Array[float] = []
@@ -2568,7 +2339,6 @@ func _sized(s: Dictionary) -> void:
 	_area = 1.0
 
 
-## The viewport's mean GPU time a frame from `view`, once it has settled.
 func _gpu_ms(view: Dictionary) -> float:
 	await _view(view)
 	await get_tree().create_timer(1.5).timeout
@@ -2583,14 +2353,11 @@ func _gpu_ms(view: Dictionary) -> float:
 	return sum / n if n > 0 else 0.0
 
 
-## Back to the bare meadow, as a long hold of the delete tool leaves it.
 func _bare(_s: Dictionary) -> void:
 	main.world.submit({"op": "wipe"})
 	await _frames(3)
 
 
-## With `bounded` false the garden takes builds past the frame budget, as the stress scene must; true holds it again,
-## to `fill` of its room (all of it without).
 func _budget(s: Dictionary) -> void:
 	main.world.limit = s.get("fill", 1.0) if s.bounded else INF
 
@@ -2620,7 +2387,7 @@ func _stairs(s: Dictionary) -> void:
 	main.stair_tool.end(hand)
 
 
-## Fills the stair allowance without changing whether later scripted builds are bounded.
+## Leaves whether later scripted builds are bounded as it was.
 func _stair_field(_s: Dictionary) -> void:
 	main.world.submit({"op": "wipe"})
 	await _sculpt({"x": 5.0, "z": -6.0, "lift": 2.0, "seconds": 0.2})
@@ -2643,9 +2410,8 @@ func _stair_field(_s: Dictionary) -> void:
 	assert(false, "stair field did not fill the budget")
 
 
-## Four rigged eaters (the largest visiting band), with the same clips on both sides of the CPU measurement, measured
-## as the phase `label`. They are built a second before it opens: all four in one frame is a late frame no visiting
-## band makes, since animals come one at a time.
+## Four eaters, the largest visiting band, built a second before the phase opens: all four in one frame is a late
+## frame no visiting band makes, since animals come one at a time.
 func _neck_cost(s: Dictionary) -> void:
 	var animals: Array[Beast] = []
 	var dishes: Array[Dish] = []
@@ -2744,9 +2510,6 @@ static func held_states(birds: bool = false) -> Array:
 	return states
 
 
-## The maximum seven peers' fourteen held models, close enough to fill the view, through the live renderer.
-## `shown` false keeps them in place hidden, and `label` names the phase, for a pair without them; `capture` saves the view
-## before the phase starts.
 func _held_cost(s: Dictionary) -> void:
 	var items: Array[HeldItem] = []
 	var eye: Transform3D = main.rig.head.global_transform
@@ -2774,7 +2537,6 @@ func _held_cost(s: Dictionary) -> void:
 		item.queue_free()
 
 
-## Offers seeds beside an existing bird, waits for earned trust, then closes the grip.
 func _befriend(s: Dictionary) -> void:
 	var h := _hand(s)
 	var flock: Birds = main.wildlife.birds
@@ -2809,9 +2571,6 @@ func _befriend(s: Dictionary) -> void:
 	print("conure: feeding earned trust, grip carries bird")
 
 
-## Waits for a conure that trusts this player to come to their shoulder; with `trust`, the first to perch is given the
-## trust feeding would earn, and with no conure bound for a perch near enough to follow the player a flock is brought to
-## the perch nearest them. With `look`, the head then turns to that shoulder as far as a neck turns and looks down at it.
 func _shoulder_bird(s: Dictionary) -> void:
 	var flock: Birds = main.wildlife.birds
 	var elapsed := 0.0
@@ -2837,8 +2596,7 @@ func _shoulder_bird(s: Dictionary) -> void:
 	assert(false, "no conure came to the shoulder")
 
 
-## Brings a flock to the perch nearest `at` unless a conure is bound within `reach` of it: one bound near may perch
-## further off before it comes.
+## A conure bound within `reach` may perch farther off before it comes.
 func _flock_near(at: Vector3, reach: float) -> void:
 	var flock: Birds = main.wildlife.birds
 	if flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(at) < reach):
@@ -2855,7 +2613,6 @@ func _flock_near(at: Vector3, reach: float) -> void:
 	flock.arrive(nearest)
 
 
-## Carries the bird to the canvas and sweeps its feathers across it, then lifts away.
 func _bird_smear(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null, "no held bird")
@@ -2875,8 +2632,7 @@ func _bird_smear(s: Dictionary) -> void:
 	print("conure: wet canvas smear submitted")
 
 
-## Shows or hides the bird the step's hand carries, cup included, leaving the hand, the carry and any smear running:
-## the paired fixture's way of taking the bird alone out of a view.
+## The paired fixture's way of taking the bird alone out of a view.
 func _bird_shown(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null, "no held bird")
@@ -2896,8 +2652,7 @@ func _view_held(s: Dictionary) -> void:
 	await _frames(30)
 
 
-## Brings every frog, snake, squirrel, owl and snail their habitats draw now, as each kind would in its own time, so the views
-## of them do not hang on when they happen to come.
+## So the views of them do not hang on when they happen to come.
 func _shy(_s: Dictionary) -> void:
 	main.wildlife.birds.look()
 	main.wildlife.squirrels.look()
@@ -2906,9 +2661,7 @@ func _shy(_s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Stands deer and fox still in place of the roaming ones, the same animals in the same places every run, so a fixed
-## view of them frames the same scene however the roamers walk: each of "deer" and "fox" lists ground points `[x, z]`,
-## every animal facing the ground point "facing". With neither, takes them away and lets the roamers come again.
+## The same animals in the same places every run, so a fixed view frames the same scene however the roamers walk.
 func _beasts(s: Dictionary) -> void:
 	for a in _stood_beasts:
 		a.queue_free()
@@ -2933,8 +2686,7 @@ func _beasts(s: Dictionary) -> void:
 			_stood_beasts.append(a)
 
 
-## Brings a band of deer and the fox to the meadow's rim now where none is there, as Roamers does in its own time, and
-## waits until one of each stands in the garden, so the views of them do not hang on when they happen to come.
+## So the views of them do not hang on when they happen to come.
 func _roamers(_s: Dictionary) -> void:
 	var roamers: Roamers = main.wildlife.roamers
 	for kind: Beast.Kind in Roamers.FIRST:
@@ -2951,7 +2703,6 @@ func _release_bird(s: Dictionary) -> void:
 	assert(h.carried == null, "bird must leave the hand when grip releases")
 
 
-## The avatar a spring step reaches for: with "remote", the other player's, else the wearer's own.
 func _spring_avatar(s: Dictionary) -> Avatar:
 	return main.session.avatars.values()[0] if s.get("remote", false) else main.rig.body
 
@@ -3061,8 +2812,6 @@ func _spring_ready(_s: Dictionary) -> void:
 	_fail("spring: peer never observed wearer grip and release")
 
 
-## The index of the spring chain step `s` names in `avatar`: "chain" as an index (0 if unsaid), or the name of the
-## bone the chain starts at; -1 if it has none such.
 func _chain(avatar: Avatar, s: Dictionary) -> int:
 	if avatar.springs == null:
 		return -1
@@ -3076,8 +2825,6 @@ func _chain(avatar: Avatar, s: Dictionary) -> int:
 	return int(named) if int(named) < avatar.springs.chains.size() else -1
 
 
-## Looks at the chain "chain" names (`_chain`) of the first other player's avatar from that avatar's left, level with the
-## middle of the chain and its head.
 func _spring_view(s: Dictionary) -> void:
 	await get_tree().create_timer(2.0).timeout
 	var avatar: Avatar = main.session.avatars.values()[0]
@@ -3086,7 +2833,6 @@ func _spring_view(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Exercises expressions through the same wheel, wrist and stick input as a player. The fixture is generated here.
 func _expression(s: Dictionary) -> void:
 	if s.get("fixture", false):
 		main.rig.wear(Avatar.open(preload("res://demo/expressions.gd").scene(), Color.WHITE, "expression-demo"))
@@ -3137,9 +2883,6 @@ func _expression(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Sweeps the empty right hand back and forth through the middle joint of the chain "chain" names (`_chain`) of the first
-## other player's avatar with "remote", else the wearer's own, along that avatar's facing and on its left, where
-## spring_view looks from, for "seconds", and fails unless the chain's tip moves.
 func _spring_poke(s: Dictionary) -> void:
 	var avatar := _spring_avatar(s)
 	var index := _chain(avatar, s)

@@ -1,50 +1,38 @@
 class_name World
 extends Node
 
-## The garden as data, changed only by build commands (docs/multiplayer.md, Commands). Tools `submit` a
-## command; the host checks it, orders it, applies it and broadcasts it, and every machine applies the same
-## commands in the same order. Applying returns the inverse command, which the host keeps on its author's
-## undo stack. A tool shows its own edit as a ghost until the command comes back, the host turns it down
-## or the garden is swapped; then World calls the `done` it was submitted with.
+## Every machine applies the host's commands in the same order (docs/multiplayer.md, Commands). A tool shows its
+## edit as a ghost until World calls the `done` it was submitted with.
 
 const LIMIT := 200
-## Ground and the meadow's own plants are tracked for undo in square patches of this many metres.
+## Metres; ground and meadow edits are tracked for undo in square patches this size.
 const PATCH := 8.0
-## Per table of the garden holding builds, the letter its builds' keys in `touched` and `_units_of` start with.
 const KEYS := {"walls": "w", "stairs": "q", "paths": "q", "grounds": "q", "easels": "e", "decorations": "d", "boulders": "b"}
-## Commands a player may send per second, and in one burst; a command counts once more for each COMMAND_BYTES it carries.
+## Commands per second, and in one burst.
 const RATE := 20.0
 const BURST := 60.0
 const COMMAND_BYTES := 4096
-## The tables whose views put and take each build themselves: walls' commands carry more, and decorations are laid from
-## their table at each sync.
+## Views that put and take each build themselves: walls' commands carry more, and decorations are laid from their
+## table at each sync.
 const LAID := ["stairs", "paths", "easels", "boulders"]
-## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
-## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
-## A saved garden from another format is moved aside rather than rebuilt into a different one.
 const FORMAT := 11
-## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
+## Seconds; each keep copies the whole garden on the frame.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"
-## A ponds or ground command whose water fills again over at least this many grid points is worked out on another
-## thread before it applies (Refill), and the commands after it wait for it: on a Quest 2 a fill takes about 10 µs a
+## Grid points of refill past which it is worked out on another thread: on a Quest 2 a fill takes about 10 µs a
 ## grid point of script, and a lake is tens of thousands.
 const AHEAD := 256
 
-## What `pick` meets along a ray: the ground; a build's first surface (WallTool.pick_building), or past an arch's
-## opening, as the teleport sees; that surface or a fitting in front of it (FittingTool.pick_target), also on builds in
-## hand, or past an arch, as a decoration is placed; a house's or tower's floor; a tree or bush; a boulder; stairs; an
-## easel; an easel's stand.
 enum Kind { GROUND, BUILDING, BUILDING_PAST_ARCHES, TARGET, HELD_TARGET, TARGET_PAST_ARCHES, FLOOR, PLANT, BOULDER, STAIRS, EASEL, STAND }
 
 signal applied(cmd: Dictionary)
-## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
+## Tools drop what they were doing.
 signal restored
-## The replacement garden, including its terrain, is ready for the player.
+## The replacement garden, terrain included, is ready.
 signal loaded
-## The frame budget turned down what `hand` tried (null for a hand we cannot tell).
+## `hand` is null when it cannot be told.
 signal capped(hand: XRController3D)
 
 var wall_tool: WallTool
@@ -56,90 +44,62 @@ var water: Water
 var easels: Easels
 var boulders: Boulders
 var decorations: Decorations
-## What shows the garden's tables of builds, by table: each shows a build as a reshape would leave it, or with none as the garden has it.
 var views: Dictionary:
 	get:
 		return {"walls": wall_tool, "stairs": stairs, "paths": paths, "easels": easels, "boulders": boulders, "decorations": decorations}
-## What keeps more than the garden's tables record, each emptied by its `clear()` when the garden goes: walls still in
-## hand, the ponds shown, the player's own mirror.
 var holders: Array[Node] = []
-## The garden's ground: its heights and ponds, and the marks paths and painted strokes wear into it.
 var terrain := Terrain.new()
 var marks := Ground.new()
-## The garden's season; each build carries its own colours.
 var palette := Palette.new()
-## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
 var time := Daylight.DEFAULT
 var look: Look
-## Standing walls, paths, easels, boulders and plant groups by id, as the plain values their commands carry, and each
-## pond's level by the grid point it fills from. A group keeps its command's fields, its `size` and the indices of its plants
-## since `hidden`; an easel where it stands, which way it faces, and the strokes on its canvas and its oil palette's
-## board, oldest first; a boulder the ground point under it, its turn, seed, scale,
-## paint and stone style.
+## `ponds` holds each pond's level by the grid point it fills from.
 var state := blank()
 var seq := 0
 var sculpted := false
-## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
+## Host only.
 var stacks := {}
-## Host only: per thing in the garden, the sequence number of each player's last change to it.
+## Host only.
 var touched := {}
 var _allowance := {}
 var _next_token := 0
-## When this garden asked the host for its garden again, in msec ticks, until it arrives, or -1.
+## Msec ticks, or -1.
 var _asked := -1
-## Darkens the player's view for a garden swap, so they never see the jump or the frame the rebuild holds, and says
-## whether it is black yet.
+## Darkens the view for a garden swap so the jump and the frame the rebuild holds never show; true once black.
 var blackout := func() -> bool: return true
-## The ground strokes standing, by id.
 var _strokes := {}
-## The meadow worn bare under each house's or tower's floor on the ground, by its wall's id, so no grass shows through.
+## So no grass shows through a house's or tower's floor.
 var _floor_marks := {}
 var _resending := {}
-## Each of our sent commands until it is settled, by token: its `op`, for the log line when one is turned down, the
-## `hand` its tool was in, which feels it turned down, and, if given, what to do once it is settled (`done`).
 var _sent := {}
-## Where this garden is saved between sessions, or "" to save nothing (see `load_from`).
 var save_path := ""
 var _keep_due := false
-## Whether the garden has changed since the session's record last kept it (PlayLog.kept), a visitor's too.
 var _record_due := false
 var _keep_task := -1
 var _keep_wait := 0.0
-## What the garden's builds count as in the frame budget (Budget.UNITS), kept as each command applies; walls and paths
-## by key too, so taking one away takes back what it added.
 var units := {}
 var _units_of := {}
-## Each build's masonry by Masonry's chunk (Budget.spread), by key; the garden's, and the `<unit>_near` units it gives,
-## which `units` holds.
 var _cells_of := {}
 var _near := Budget.Near.new()
 var _near_units := {}
-## The fill builds may take the garden to: INF lets them past the frame budget, as the stress scene does to find what
-## they cost, and a share of it stops them short, as demo/fill.json measures a garden at half its room.
+## INF lets builds past the frame budget, as the stress scene does to find what they cost; demo/fill.json uses a share.
 var limit := 1.0
 var _fills := {}
-## What the meadow's own plants, all standing, count as: summed once, since the meadow never changes, where summing it
-## on every wipe and garden swap held a Quest's frame for hundreds of milliseconds.
+## Summed once: summing it on every wipe and garden swap held a Quest's frame for hundreds of milliseconds.
 var _meadow_units := {}
-## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
-## Commands waiting to be ordered (host) or applied (others), oldest first, as {cmd, by, run}: the first may wait for
-## its water to be worked out on another thread, Budget.WATER_FRAMES (Work), and the rest wait behind it, so every
-## machine still applies the same commands in the same order.
+## {cmd, by, run}, oldest first: the rest wait behind one whose water is worked out on another thread, so every
+## machine applies the same commands in the same order.
 var _queue: Array[Dictionary] = []
 var _ahead_task := -1
-## Where the session's record keeps every message the network brings this garden and its Session, or null.
 var play_log: PlayLog
-## Whether the garden takes its commands from a session record (Replayer), as the session's host ordered them, so
-## what the tools make of the replayed input changes nothing.
+## Tools' submits from replayed input are dropped: the record holds the host's order.
 var replayed := false
-## What the task leaves: the refill, and the fills `Commands` checks a pond put against (Water.know).
+## [refill, the fills `Commands` checks a pond put against (Water.know)].
 var _ahead := []
-## The refill worked out for the command now applying, for `_set_ponds`.
 var _ready_refill: Refill
 
 
-## A garden with nothing in it.
 static func blank() -> Dictionary:
 	return {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}, "boulders": {}, "decorations": {}}
 
@@ -157,7 +117,7 @@ func fill(hand: Node = null) -> float:
 	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units)
 
 
-## Tools say each frame what the edit they show would add, so the hand can show whether it fits.
+## Tools call this every frame while they show an edit.
 func preview(hand: Node, change: Dictionary) -> void:
 	_pending[hand] = [Engine.get_process_frames(), change]
 
@@ -171,8 +131,7 @@ func fits(cmd: Dictionary) -> bool:
 	return Budget.fits(units, change_of(cmd), limit)
 
 
-## What `cmd` would add to `units`, without applying it: negative for what it takes away. A paint stroke counts every
-## plant its dabs hold, though some may fall on paths.
+## A paint stroke counts every plant its dabs hold, though some may fall on paths.
 func change_of(cmd: Dictionary) -> Dictionary:
 	var cells := {}
 	var out := _change(cmd, cells)
@@ -181,7 +140,6 @@ func change_of(cmd: Dictionary) -> Dictionary:
 	return out
 
 
-## `cmd`'s change to the garden's units, its masonry's by chunk added into `cells`.
 func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 	var out := {}
 	match cmd.get("op"):
@@ -237,7 +195,6 @@ func _unit(group: int, p: Flora.Plant) -> Dictionary:
 	return {} if u == "" or group == 0 and not u in Flora.PLACED else {u: 1}
 
 
-## Counts the build `key` as `now`, its masonry standing in `cells` (Budget.spread).
 func _account(key: String, now: Dictionary, cells := {}) -> void:
 	Budget.add(units, _units_of.get(key, {}), -1.0)
 	Budget.add(units, now)
@@ -285,15 +242,11 @@ func _notification(what: int) -> void:
 		flush()
 
 
-## Runs `run`, which orders or applies `cmd` (by player `by` on the host), once every command before it has run and
-## the water it changes is worked out.
 func _enqueue(cmd: Dictionary, by: int, run: Callable) -> void:
 	_queue.append({"cmd": cmd, "by": by, "run": run})
 	_drain()
 
 
-## Runs the waiting commands in turn until one waits for its water or a swap for the dark; with `wait`, waits for
-## neither.
 func _drain(wait := false) -> void:
 	while not _queue.is_empty():
 		if not wait and _queue[0].get("swap", false) and not blackout.call():
@@ -329,13 +282,10 @@ func _drain(wait := false) -> void:
 				box[1].append([r.heights, g, checks[g], p]), Budget.WATER_FRAMES)
 
 
-## Every waiting command run.
 func settle() -> void:
 	_drain(true)
 
 
-## The refill the command `e` waits for, its inputs set but not worked out, or null when it changes too little water
-## to work out ahead: a ponds or ground command, or the first of a batch's, an undo or redo by what it undoes.
 func _refill_ahead(e: Dictionary) -> Refill:
 	var cmd: Dictionary = e.cmd
 	if cmd.get("op") in ["undo", "redo"] and e.by >= 0:
@@ -381,12 +331,10 @@ func _refill_ahead(e: Dictionary) -> Refill:
 	return Refill.of(ponds, put.duplicate(), _fills.duplicate(), ground, heights)
 
 
-## Whether every submitted command has run: none waits behind a water refill.
 func idle() -> bool:
 	return _queue.is_empty()
 
 
-## Writes a save still due and waits for the last one to land.
 func flush() -> void:
 	if _keep_due or _record_due:
 		_keep()
@@ -395,11 +343,7 @@ func flush() -> void:
 		_keep_task = -1
 
 
-## Loads the garden saved at `path`, if there is one, and from then on saves this garden there: rewritten
-## at most every KEEP_EVERY seconds after a command changed it while it was our own (not one we are visiting), and
-## whenever the game is paused, quits or leaves for another's garden (flush). A file
-## of another format, or one this game cannot read whole, is moved aside to `path`.bad before anything is
-## written over it.
+## Only the host saves. A file this game cannot read whole is moved to `path`.bad before anything is written over it.
 func load_from(path: String) -> void:
 	save_path = path
 	if not FileAccess.file_exists(path):
@@ -419,14 +363,12 @@ func load_from(path: String) -> void:
 		save_path = ""
 
 
-## Rebuilds the garden from `snap` (snapshot); false if it is not a garden this game can read whole.
 func restore_whole(snap: Variant) -> bool:
 	var whole: bool = snap is Dictionary and snap.get("format") == FORMAT and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
 	return whole and restore(snap) == snap.cmds.size()
 
 
-## The snapshot is taken here, so the garden it describes cannot change under the writer. A session record keeps it
-## too (PlayLog.kept), a visitor's as well, which is never saved: only a change made while the garden was ours saves.
+## Snapshots here so the garden cannot change under the writer.
 func _keep() -> void:
 	var ours := _keep_due and save_path != ""
 	_keep_due = false
@@ -447,11 +389,9 @@ func _keep() -> void:
 	_keep_task = WorkerThreadPool.add_task(func() -> void: Main.replace_file(path, bytes))
 
 
-## The first hit of each of `kinds`, an ordered {Kind: reach}, along the ray from `origin` along `dir`, as its own pick
-## gives it, by kind and nearest last: each kind in turn gives its first hit short of its reach and of the nearest hit
-## before it, so a kind's hit may lie behind a later kind's. The order says which kind keeps a tie: a kind in `ties`
-## takes one from those before it, as a boulder always does; plants, stairs and stands never do, whatever `ties` says.
-## `skip` holds the plants, and the easels and boulders by id, to see past.
+## `kinds` is an ordered {Kind: reach}. Each kind gives its first hit short of its reach and of the nearest hit before
+## it, so a kind's hit may lie behind a later kind's. A kind in `ties` takes a tie from those before it, as a boulder
+## always does; plants, stairs and stands never do, whatever `ties` says.
 func pick(origin: Vector3, dir: Vector3, kinds: Dictionary, skip := {}, ties: Array[Kind] = []) -> Dictionary:
 	var hits := {}
 	var near := INF
@@ -519,8 +459,6 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 		_grow_meadow()
 
 
-## The meadow's own group as it grows, every plant standing and every tree an oak, its trees and bushes charged as
-## planted ones are.
 func _grow_meadow() -> void:
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees, "bushes": flora.meadow_bushes, "species": {}, "scale": {}, "moss": {}, "places": {}, "turns": {}}
 	if _meadow_units.is_empty():
@@ -534,24 +472,19 @@ func me() -> int:
 	return multiplayer.get_unique_id()
 
 
-## Keeps the networked `call` now arriving, or a change this machine makes to its session, in the session's record:
-## about its sender, or the player `whose` it names.
 func hear(call: String, args: Array, whose := -1) -> void:
 	if play_log != null:
 		var from := multiplayer.get_remote_sender_id()
 		play_log.heard(from, from if whose < 0 else whose, call, args)
 
 
-## Submits `cmd`, sounding `act` at `at` first if the budget has room for it.
 func submit_cued(cmd: Dictionary, act: Cues.Act, at: Vector3, hand: XRController3D, done := Callable()) -> void:
 	if fits(cmd):
 		Cues.play(act, at, hand)
 	submit(cmd, done, hand)
 
 
-## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot. One that would
-## take the garden past its frame budget is turned down, by a visitor before it is sent; `hand`, the one whose tool
-## made it, feels a turned-down command.
+## `done` runs once the command is in the garden, turned down, or moot.
 func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) -> void:
 	if replayed:
 		if done.is_valid():
@@ -570,7 +503,6 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_turned_down(_next_token, OVER)
 
 
-## Whether the host has answered every command this player sent.
 func answered() -> bool:
 	return _sent.is_empty()
 
@@ -582,7 +514,6 @@ func _settle(token: int) -> void:
 		sent.done.call()
 
 
-## Takes back our latest step; `hand` hears it come back, or feels it refused when there is none.
 func undo(hand: XRController3D = null) -> void:
 	submit({"op": "undo"}, Callable(), hand)
 
@@ -603,13 +534,11 @@ func _propose(cmd: Dictionary) -> void:
 	_enqueue(cmd, by, _order.bind(cmd, by))
 
 
-## What a peer's command takes from its allowance: one, and one more for every COMMAND_BYTES it carries, up to a
-## whole burst, so the largest a tool makes still goes through.
+## Capped at a burst so the largest command a tool makes still goes through.
 static func cost(cmd: Dictionary) -> float:
 	return minf(BURST, 1.0 + var_to_bytes(cmd).size() / float(COMMAND_BYTES))
 
 
-## Takes `cost` from a player's allowance, which refills at RATE a second up to BURST; false if it is short.
 func _spend(by: int, cost: float) -> bool:
 	var now := Time.get_ticks_msec() / 1000.0
 	var a: Array = _allowance.get_or_add(by, [BURST, now])
@@ -629,7 +558,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		if step.is_empty():
 			_refuse(by, proposed, "nothing to %s" % kind)
 			return
-		# Every visitor checks what the host sends, and one that fails asks for the whole garden again.
+		# Visitors recheck what the host sends, and one that fails asks for the whole garden again.
 		cmd = Commands.clean(step.inverse.merged({"seq": seq + 1, "by": by}).duplicate(true), state, true, terrain)
 		if cmd.is_empty():
 			_refuse(by, proposed, "the garden has moved on from what it takes back")
@@ -678,7 +607,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		mine.redo.clear()
 
 
-## A new house, wall or path gathers its own clutter here, on the host, so every machine lays the same.
+## On the host, so every machine lays the same clutter.
 static func _gather(cmd: Dictionary) -> void:
 	if cmd.op == "wall":
 		for w: Dictionary in cmd.walls:
@@ -725,7 +654,6 @@ func _turned_down(token: int, why: String) -> void:
 	_settle(token)
 
 
-## The frame budget turns down what `hand` tried: it grunts, and the hand feels it.
 func cap(hand: XRController3D) -> void:
 	if hand != null:
 		Cues.play(Cues.Act.CAPPED, hand.global_position, hand)
@@ -741,7 +669,7 @@ func _commit(sent: Dictionary) -> void:
 func _apply_sent(sent: Dictionary) -> void:
 	var cmd := {} if _asked >= 0 else Commands.clean(sent, state, true, terrain)
 	if cmd.is_empty():
-		# Our own stroke's ghost stays until the garden it is in comes back: `restore` settles it.
+		# Our stroke's ghost stays until the garden comes back: `restore` settles it.
 		if _asked < 0:
 			push_error("world: the host sent a command this garden cannot apply: %s; asking for the garden again" % _refusal(sent))
 			_asked = Time.get_ticks_msec()
@@ -751,8 +679,6 @@ func _apply_sent(sent: Dictionary) -> void:
 	_timed(cmd)
 
 
-## What the host sent that this garden refused, and why as far as it can tell: the sequence numbers on both sides,
-## whether the build it names stands here, and which of a reshape's changes fail.
 func _refusal(sent: Dictionary) -> String:
 	var out := "%s #%s by %s, this garden at #%d" % [sent.get("op"), sent.get("seq"), sent.get("by"), seq]
 	var of: Variant = sent.get("of")
@@ -771,7 +697,7 @@ func _refusal(sent: Dictionary) -> String:
 	return out + (alone if alone != "" else "; its changes fail only together")
 
 
-## Applies a played command, noting one that takes most of a frame, so a hitch it causes is placed without guessing.
+## Timed so a hitch a command causes is placed without guessing.
 func _timed(cmd: Dictionary) -> Dictionary:
 	var start := Time.get_ticks_usec()
 	var inverse := _apply(cmd)
@@ -779,7 +705,6 @@ func _timed(cmd: Dictionary) -> Dictionary:
 	return inverse
 
 
-## A player whose garden no longer matches the host's asks for it whole.
 @rpc("any_peer", "reliable")
 func _resend() -> void:
 	hear("_resend", [])
@@ -801,9 +726,7 @@ static func _push(stack: Array, entry: Dictionary) -> void:
 		stack.pop_front()
 
 
-## The player's latest undo (or redo) step that nobody else has changed anything of since, taken off its stack; steps
-## others built on are dropped on the way. A dropped wipe takes every step below it, all on a garden it took away.
-## Without `take`, finds it and changes no stack.
+## Steps others built on are dropped on the way; a dropped wipe takes every step below it, all on a garden it took away.
 func _resolve(by: int, which: String, take := true) -> Dictionary:
 	var stack: Array = stacks.get(by, {}).get(which, [])
 	for i in range(stack.size() - 1, -1, -1):
@@ -829,7 +752,6 @@ func _untouched_by_others(e: Dictionary, by: int) -> bool:
 	return true
 
 
-## A build's garden data `now` with a `reshape`'s `data` applied: a roof's and the paint's by the entries they name.
 static func reshaped(now: Dictionary, data: Dictionary) -> Dictionary:
 	var out := now.merged(data, true)
 	if data.has("roof"):
@@ -841,8 +763,6 @@ static func reshaped(now: Dictionary, data: Dictionary) -> Dictionary:
 	return out
 
 
-## Where a build from the garden's table `of` stands its masonry (Budget.spread): walls along their points, stairs from
-## foot to head, paths along their line.
 static func _spread(of: String, d: Dictionary) -> Dictionary:
 	match of:
 		"walls":
@@ -857,7 +777,6 @@ static func _spread(of: String, d: Dictionary) -> Dictionary:
 	return {}
 
 
-## What a build from the garden's table `of` counts as in the frame budget.
 static func _units(of: String, d: Dictionary) -> Dictionary:
 	match of:
 		"walls":
@@ -875,7 +794,6 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 	return {"boulder": Budget.boulder(d.scale)}
 
 
-## The command that puts build `id` of the garden's table `of` back as it stands (Commands.PUTS).
 func _put(of: String, id: int) -> Dictionary:
 	var d: Dictionary = state[of][id]
 	if of == "walls":
@@ -883,7 +801,6 @@ func _put(of: String, id: int) -> Dictionary:
 	return d.merged({"op": Commands.PUTS[of], "id": id})
 
 
-## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
 func _keys(cmd: Dictionary) -> Array:
 	match cmd.op:
 		"wall":
@@ -962,11 +879,10 @@ static func _meadow_key(at: Vector3) -> String:
 	return "m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]
 
 
-## Changes the garden by one command and returns the command that takes it back. The author's ghost
-## goes first, so a stroke's hump is not counted twice under walls laid on the new ground; a painted
-## stroke's goes last, to stand until the plants it shows have grown, and so does a turned sky's, which only shows the
-## garden's sky again if the host turned it down, and a drawn path's, whose arches the walls keep as the path lays them
-## again, rather than closing and opening each.
+## The author's ghost settles first, so a stroke's hump is not counted twice under walls laid on the new ground; a
+## painted stroke's settles last, to stand until the plants it shows have grown, and so does a turned sky's, which
+## only shows the garden's sky again if the host turned it down, and a drawn path's, whose arches the walls keep as
+## the path lays them again, rather than closing and opening each.
 func _apply(cmd: Dictionary) -> Dictionary:
 	var last: bool = cmd.op in ["sky", "path"] or cmd.op == "plant" and not cmd.kind in Flora.PLACED
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
@@ -1114,7 +1030,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"batch":
 			var back := []
 			for c: Dictionary in cmd.cmds:
-				# A build an earlier taking took with what it stood on is not there to reshape.
+				# An earlier take in the batch may have taken it with what it stood on.
 				if c.op == "reshape" and not state[c.of].has(c.id):
 					continue
 				var undone := _apply(c)
@@ -1154,14 +1070,13 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	return inverse
 
 
-## The square metres pond `g` holds under water as it last filled: none for a pond the garden does not hold.
+## Square metres.
 func _wet(g: Vector2i) -> int:
 	var was: Array = _fills.get(g, [])
 	return was[1].cells.size() if not was.is_empty() and was[1] != null else 0
 
 
-## Takes out every tree and bush standing where water covers its root, as the delete tool takes one, so a pond never
-## hides one that still stands; returns what brings them back, or {} for none.
+## So a pond never hides a tree or bush that still stands.
 func _drown() -> Dictionary:
 	var by_group := {}
 	for parts in flora.solids():
@@ -1175,12 +1090,10 @@ func _drown() -> Dictionary:
 	return _apply({"op": "show", "plants": by_group, "on": false})
 
 
-## Whether `p` is part of a tree or bush whose root water covers, which may not stand.
 func _drowned(p: Flora.Plant) -> bool:
 	return p.pool in [flora.trunks, flora.foliage, flora.bushes] and Water.drowned(terrain, p.anchor)
 
 
-## Of group `g`'s plants at `indices`, those that may stand.
 func _dry(g: int, indices: PackedInt32Array) -> PackedInt32Array:
 	var plants: Array = flora.groups.get(g, [])
 	var out := PackedInt32Array()
@@ -1190,9 +1103,6 @@ func _dry(g: int, indices: PackedInt32Array) -> PackedInt32Array:
 	return out
 
 
-## Takes the builds `ids` from the garden's table `of` (Commands.STANDS_ON), and with them everything standing on them,
-## all the way up, and returns what brings all of it back, oldest builds first. What a batch took already, with what it
-## stood on, is passed over.
 func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 	var gone := {of: {}}
 	for id: int in ids:
@@ -1254,17 +1164,12 @@ func _add(of: String, id: int, entry: Dictionary) -> Dictionary:
 	return _built(of, PackedInt32Array([id]))
 
 
-## Counts the builds `ids` just put in the garden's table `of` in the frame budget; returns what takes them away.
 func _built(of: String, ids: PackedInt32Array) -> Dictionary:
 	for id in ids:
 		_account("%s%d" % [KEYS[of], id], _units(of, state[of][id]), _spread(of, state[of][id]))
 	return {"op": "take", "of": of, "ids": ids}
 
 
-## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands (Refill). A
-## pond that holds no water any more, or whose water another's covers, goes: the ones `cmd` puts win, then the higher.
-## What brings back the ponds as they were `before` goes on `inverse`. Only ponds whose fill read the `ground` the
-## command changed, or at a new level, fill again. A refill worked out ahead (`_ahead`) is applied as it stands.
 func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground: Rect2i) -> void:
 	for g in cmd.get("drop", []):
 		state.ponds.erase(g)
@@ -1300,7 +1205,6 @@ func _show_sky(t: float) -> void:
 		look.set_time(t)
 
 
-## Hands a joining player this garden.
 func welcome(id: int) -> void:
 	_welcome.rpc_id(id, snapshot())
 
@@ -1314,7 +1218,6 @@ func _welcome(snap: Dictionary) -> void:
 	swap(snap)
 
 
-## Swaps in the garden `snap` once the player's view is black (`blackout`), in turn with the commands around it.
 func swap(snap: Dictionary) -> void:
 	_queue.append({"cmd": {}, "by": -1, "swap": true, "run": func() -> void:
 		var asked := _asked
@@ -1325,7 +1228,6 @@ func swap(snap: Dictionary) -> void:
 	_drain()
 
 
-## Commands that rebuild this garden from an empty meadow, and the sequence number they stand for.
 ## Groups regrow in the order they were planted, so every machine's plant pools fill alike.
 func snapshot() -> Dictionary:
 	var cmds := []
@@ -1367,14 +1269,11 @@ func snapshot() -> Dictionary:
 	return {"format": FORMAT, "seq": seq, "cmds": cmds}
 
 
-## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
-## goes with the old garden.
 func restore(snap: Dictionary) -> int:
 	settle()
 	return _restore(snap)
 
 
-## `restore` with every command before it already run, and those after it left waiting.
 func _restore(snap: Dictionary) -> int:
 	var start := Time.get_ticks_usec()
 	var applied: int = _hushed(func() -> int:
@@ -1407,7 +1306,6 @@ func _floor_mark(id: int) -> void:
 	marks.lay(mark, id)
 
 
-## Runs `change` with the walls' sounds and the ground's rewear held until it has finished; what it returns.
 func _hushed(change: Callable) -> Variant:
 	wall_tool.quiet = true
 	marks.quiet = true
@@ -1418,7 +1316,6 @@ func _hushed(change: Callable) -> Variant:
 	return out
 
 
-## Back to the empty meadow, every one of its plants standing, in summer, the sun where a garden starts.
 func _clear() -> void:
 	for h in holders:
 		h.call(&"clear")
@@ -1447,7 +1344,6 @@ func _clear() -> void:
 		sculpted = false
 
 
-## Applies a snapshot's commands, each checked against the garden as the ones before it left it; how many applied.
 func _rebuild(cmds: Array) -> int:
 	var applied := 0
 	for sent in cmds:
@@ -1461,7 +1357,6 @@ func _rebuild(cmds: Array) -> int:
 	return applied
 
 
-## Hides the meadow's own flowers, bushes and trees, leaving its grass.
 func _bare_meadow() -> void:
 	var hidden: Dictionary = state.groups[0].hidden
 	for i in flora.set_shown(0, flora.meadow_scenery, false):
@@ -1469,9 +1364,7 @@ func _bare_meadow() -> void:
 		Budget.add(units, _unit(0, flora.groups[0][i]), -1.0)
 
 
-## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
-## every plant group's standing plants, the ground and the marks worn into it, and the garden's share of the frame
-## budget, which its bar shows.
+## For comparing machines.
 func digest() -> Dictionary:
 	flora.grow_now()
 	for w: Wall in wall_tool.walls:

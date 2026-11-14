@@ -1,20 +1,14 @@
 class_name Quality
 extends Node
 
-## The game's one graphics configuration: a ladder of steps from full quality down, walked by the GPU time each
-## frame takes, so every headset settles on the prettiest step it holds at its refresh rate. A knob is on it only with
-## a saving measured on a headset (see "Automatic quality" in docs/design.md), and each moves at no frame cost.
+## A ladder of graphics steps walked by each frame's GPU time. A knob is on it only with a saving measured on a
+## headset (docs/design.md "Automatic quality"), and each moves at no frame cost.
 
-## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond
-## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
-## `shadows` is whether the sun casts them; `scale_3d` is the share of the swapchain's resolution the 3D scene is drawn
-## at; `files` is whether other people are drawn in their own avatar files rather than a built-in body (`Avatar.drawn`),
-## `outlines` whether their toon outlines are (Avatar.show_outlines), and `toon` whether their toon shadows and rims are
-## (Avatar.show_toon).
-## The rest is how the view is drawn (DRAWN): `render_scale` is the share of each eye's width and height the
-## runtime is asked for (render_target_size_multiplier), `msaa` the view's MSAA, `reflections` whether surfaces take
-## reflected light from the sky, and `foveation` the runtime's fixed foveation level (XR_FB_foveation, 0 to 3).
-## `share` is what the rung costs over the next one down, as a share of the frame, until the governor measures it.
+## `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond `stone_near_m` draw a twelfth of their
+## triangles (Stones.far_mesh). `scale_3d` is the share of the swapchain's resolution the 3D scene draws at; `files`
+## draws other people in their own avatar files rather than a built-in body (`Avatar.drawn`). `render_scale` is
+## render_target_size_multiplier, `foveation` the XR_FB_foveation level (0 to 3). `share` is the rung's cost over the
+## next one down, as a share of the frame, until the governor measures it.
 class Step:
 	var grass_m: float
 	var flowers_m: float
@@ -50,13 +44,12 @@ class Step:
 		share = drawn.share
 
 
-## How the view is drawn, richest first, each rung dropping what loses least for what it saves, as measured on the
-## Quest 2 at the ladder's bottom ("Which knobs matter" and "Anti-aliasing on the Quest 2" in docs/design.md): the sky's
-## reflections on surfaces nearly all rough (0.7 to 1.9 ms), the rim's sharpness to fixed foveation (0.7 to 1.2 ms),
-## 4x MSAA to 2x (1.5 to 2.7 ms), and last a smaller swapchain, which the compositor stretches to the display. MSAA stays on at every rung. `share` is each rung's cost over the next as a
-## share of the frame from those measurements, the swapchain's its pixels' (the Quest 2's frame grew with them whole,
-## 7.3 to 10.7 ms from 0.7 to 0.85 in a governed run of the stress scene). The last
-## rung is where every headset starts.
+## Richest first, each rung dropping what loses least for what it saves, as measured on the Quest 2 at the ladder's
+## bottom ("Which knobs matter" and "Anti-aliasing on the Quest 2" in docs/design.md): the sky's reflections on
+## surfaces nearly all rough (0.7 to 1.9 ms), the rim's sharpness to fixed foveation (0.7 to 1.2 ms), 4x MSAA to 2x
+## (1.5 to 2.7 ms), and last a smaller swapchain, which the compositor stretches to the display. `share` is from those
+## measurements, the swapchain's its pixels' (the Quest 2's frame grew with them whole, 7.3 to 10.7 ms from 0.7 to
+## 0.85 in a governed run of the stress scene).
 const DRAWN := [
 	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": true, "foveation": 0, "share": 0.25},
 	{"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": false, "foveation": 0, "share": 0.17},
@@ -65,14 +58,12 @@ const DRAWN := [
 	{"render_scale": 0.85, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.47},
 	{"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": false, "foveation": 3, "share": 0.0},
 ]
-## What the ladder cuts below DRAWN's last rung, cheapest loss per millisecond saved first: grass, flowers and blob
-## detail, stones in full and ivy (`Step`'s first five), then avatars' toon shading (1.65 to 4.28 ms an avatar on the
-## Quest 2, docs/design.md "Toon shading") and their toon outlines (0.6 to 0.8 ms, "Toon outlines"): shading first, as
-## losing it costs a figure about what losing its outline does for several times the saving; then the sun's shadows and
-## the 3D scale, and last other people's
-## own avatar files, which only a frame still over at every other cut gives up: on the Quest 2 three figures in some files
-## held the frame near 20 fps at the rung above ("People past the headset" in docs/design.md). Flowers beyond
-## 60 m are under two pixels across on the Quest 2.
+## Cuts below DRAWN's last rung, columns in `Step`'s field order, cheapest loss per millisecond saved first: the
+## garden, then toon shading (1.65 to 4.28 ms an avatar on the Quest 2, docs/design.md "Toon shading") before toon
+## outlines (0.6 to 0.8 ms, "Toon outlines"), as losing shading costs a figure about what losing its outline does for
+## several times the saving; then the sun's shadows, the 3D scale, and last people's own avatar files: on the Quest 2
+## three figures in some files held the frame near 20 fps at the rung above ("People past the headset"). Flowers
+## beyond 60 m are under two pixels across on the Quest 2.
 const FLORA := [
 	[60.0, 60.0, 2, 16.0, 35.0],
 	[48.0, 60.0, 2, 16.0, 35.0],
@@ -89,13 +80,11 @@ const FLORA := [
 	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, true, false, false],
 	[24.0, 20.0, 1, 4.0, 12.0, false, 0.78, false, false, false],
 ]
-## The rung every headset starts on: the cheapest way of drawing the view with every reach whole. The governor climbs
-## from it as the frame shows room and steps down the rest of the ladder below it.
+## The cheapest way of drawing the view with every reach whole.
 const START := 5
 static var ladder: Array[Step] = rungs()
 
 
-## DRAWN's rungs with every reach whole, then FLORA's cuts drawn as DRAWN's last.
 static func rungs() -> Array[Step]:
 	var out: Array[Step] = []
 	for d: Dictionary in DRAWN:
@@ -106,48 +95,45 @@ static func rungs() -> Array[Step]:
 
 
 ## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
-## What the ladder cuts is drawn on LADDER_LAYER, which the headset's views see, and again whole on FULL_LAYER, which
-## only a photo sees (PhotoTool): grass and flowers to the garden's edge, every stone whole, ivy at every distance.
-## Shaders that shrink things with distance take the photo's camera by `full_layer` (full_detail).
+## What the ladder cuts draws on LADDER_LAYER, which the headset's views see, and whole on FULL_LAYER, which only a
+## photo sees (PhotoTool). Shaders that shrink things with distance take the photo's camera by `full_layer`.
 const LADDER_LAYER := 1 << 16
 const FULL_LAYER := 1 << 17
-## The player's own avatar, which only the cameras and mirrors see: their eyes would see its head from inside.
+## Only cameras and mirrors see the player's own avatar: their eyes would see its head from inside.
 const SELF_LAYER := 1 << 18
-## The player's own avatar without its head (`Avatar.headless`), which only their eyes see.
+## The player's own avatar without its head (`Avatar.headless`), for their eyes only.
 const EYES_LAYER := 1 << 19
-## Everyone's avatar but the player's own, every body the game draws for a person: what a mirror reflects (MirrorTool).
+## Every body drawn for a person but the player's own: what a mirror reflects (MirrorTool).
 const PEOPLE_LAYER := 1 << 14
-## A mirror's own light, which lights the people it reflects and nothing any other view draws.
+## A mirror's own light, which lights only the people it reflects.
 const MIRROR_LAYER := 1 << 13
 const VIEW_MASK := 0xFFFFF & ~FULL_LAYER & ~MIRROR_LAYER & ~EYES_LAYER
 const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER & ~MIRROR_LAYER & ~EYES_LAYER
 const MIRROR_MASK := PEOPLE_LAYER | SELF_LAYER | MIRROR_LAYER
-## Grass, flower and ivy reach grow toward a step up at this many metres a second, so the edge comes out rather than
-## jumps. A step down takes its reach at once: it was taken because frames ran over, and receding at this rate held a
-## budget-full garden over budget for four seconds of a walk into it on the Quest 2.
+## Metres a second reaches grow on a step up, so the edge comes out rather than jumps. A step down takes its reach at
+## once: receding at this rate held a budget-full garden over budget for four seconds of a walk into it on the Quest 2.
 const REACH_RATE := 8.0
-## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
+## Seconds the governor sits out at the start: loading's first frames are not the scene's cost.
 const WARMUP := 5.0
-## Rendered frames drawn at each rung whose knobs switch pipelines (`primed`) as the session starts, among loading's
-## late frames, so the pipelines they draw with are compiled and the buffers and swapchains they draw into allocated
-## then, which the engine keeps (scripts/engine.patch). A 3D scale other than the swapchain's compiles every pipeline
-## afresh for its separate pass, and an MSAA level its own: on the Quest 2 that was a 110 to 180 ms frame the first time
-## the governor reached the last step, mid-play; allocating a 4x MSAA scene cost the Frame a 33 to 91 ms frame.
+## Frames drawn at each `primed` rung among loading's late frames, so the pipelines are compiled and the buffers and
+## swapchains allocated then, which the engine keeps (scripts/engine.patch). A 3D scale other than the swapchain's
+## compiles every pipeline afresh for its separate pass, and an MSAA level its own: on the Quest 2 that was a 110 to
+## 180 ms frame mid-play; allocating a 4x MSAA scene cost the Frame a 33 to 91 ms frame.
 const PRIME_FRAMES := 2
 
-## The session's first walk down the primed rungs is over.
 signal rungs_primed
 
 var governor: Governor
 var map := Map.new()
 var people := People.new()
-## The step held instead of the governor's, for measuring; -1 while governed.
+## Held instead of the governor's step, for measuring; -1 while governed.
 var pin := -1:
 	set(n):
 		pin = clampi(n, -1, ladder.size() - 1)
 var budget_ms := 0.0
-## The viewport's GPU time for the last frame measured, in milliseconds, and whether this frame measured one.
+## The viewport's GPU time for the last frame measured, in milliseconds.
 var frame_ms := 0.0
+## Whether this frame brought a new GPU reading.
 var fresh := false
 var _viewport_ms := 0.0
 var _xr: OpenXRInterface
@@ -155,21 +141,19 @@ var _flora: Flora
 var _masonry: Masonry
 var _look: Look
 var view: Viewport
-## Whether the player's view is covered (Rig.covered): frames drawn under the cover, a photo's among them, are no
-## measure of the scene, and the governor judges none of them.
+## Frames drawn under the cover (Rig.covered), a photo's among them, are no measure of the scene.
 var covered := func() -> bool: return false
-## Whether the runtime foveates by a fixed level, which makes foveation one of the governor's knobs. Where the eyes are
-## tracked the runtime's foveation follows the gaze instead (as Valve's does on the Steam Frame), which costs the player
-## nothing to look at, so it stays on whole and is not the governor's.
+## Eye-tracked runtimes foveate along the gaze (as on the Steam Frame), which costs the player nothing to look at, so
+## only a fixed level is the governor's knob.
 var _foveates := false
 var _warm := 0.0
-## When the last frame began, in microseconds: the engine's delta is capped, which hides a stall from the governor.
+## In microseconds: the engine's delta is capped, which hides a stall from the governor.
 var _tick := 0
 var _primed := 0
 var _priming := PackedInt32Array()
-## The rung whose view knobs were last applied, or -1 to apply them again.
+## -1 to apply the view knobs again.
 var _applied := -1
-## Whether the knobs had reached their step last frame: a step still under way is not judged as one that failed.
+## A step still under way is not judged as one that failed.
 var _settled := false
 
 
@@ -193,9 +177,8 @@ func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
 
-## The levels a step up into would switch the sun's shadows, the 3D scale, the swapchain, MSAA or people's own files,
-## outlines or toon shading back, which shows at once across the whole view, or on everyone: a governor crossing that line back and
-## forth would flicker every shadow, the horizon or the people.
+## Levels whose step up switches back a knob that shows at once across the whole view or on everyone: a governor
+## crossing them back and forth would flicker every shadow, the horizon or the people.
 static func popping() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for i in _changed(func(a: Step, b: Step) -> bool: return a.shadows != b.shadows or a.scale_3d != b.scale_3d or a.render_scale != b.render_scale or a.msaa != b.msaa or a.files != b.files or a.outlines != b.outlines or a.toon != b.toon):
@@ -203,9 +186,8 @@ static func popping() -> PackedInt32Array:
 	return out
 
 
-## The rungs drawn for PRIME_FRAMES each as the session starts: the top and every rung whose swapchain, MSAA,
-## reflections, sun's shadows, 3D scale or foveation on or off differ from the one above, then START, where the
-## governor takes over. Foveation on or off is another framebuffer to draw into, as `Map` also switches it.
+## The top, every rung that switches a pipeline or framebuffer, then START. Foveation on or off is another framebuffer
+## to draw into, which `Map` also switches.
 static func primed() -> PackedInt32Array:
 	var out := PackedInt32Array([0])
 	out.append_array(_changed(func(a: Step, b: Step) -> bool: return a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0)))
@@ -213,14 +195,13 @@ static func primed() -> PackedInt32Array:
 	return out
 
 
-## The levels that change nothing over the one above where the runtime has no fixed foveation (`foveates` false).
+## The levels that change nothing over the one above where the runtime has no fixed foveation.
 static func idle(foveates: bool) -> PackedInt32Array:
 	if foveates:
 		return PackedInt32Array()
 	return _changed(func(a: Step, b: Step) -> bool: return a.foveation != b.foveation and a.render_scale == b.render_scale and a.msaa == b.msaa and a.reflections == b.reflections)
 
 
-## The rungs that `differ` (the rung above, the rung) tells from the one above.
 static func _changed(differ: Callable) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for i in range(1, ladder.size()):
@@ -229,7 +210,6 @@ static func _changed(differ: Callable) -> PackedInt32Array:
 	return out
 
 
-## Each level's `share`, nothing for a rung no knob of this headset tells from the next.
 static func shares(foveates: bool) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	for step: Step in ladder:
@@ -243,41 +223,32 @@ static func full_detail(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter(&"full_layer", FULL_LAYER)
 
 
-## A reach `now` moved toward `to` over `delta` seconds: out at REACH_RATE, in at once.
 static func reach(now: float, to: float, delta: float) -> float:
 	return to if to < now else move_toward(now, to, REACH_RATE * delta)
 
 
-## The middle of `values`, the upper of the two middles of an even count.
 static func median(values: PackedFloat32Array) -> float:
 	var sorted := values.duplicate()
 	sorted.sort()
 	return sorted[sorted.size() / 2]
 
 
-## Whether the session is still drawing its primed rungs.
 func priming() -> bool:
 	return _primed < _priming.size() * PRIME_FRAMES
 
 
-## Whether the step stays where it is: the governor walks it only in a headset, and never past a pin.
 func held() -> bool:
 	return pin >= 0 or _xr == null
 
 
-## The step the knobs are heading to.
 func step() -> int:
 	return pin if pin >= 0 else governor.level
 
 
-## Whether other people are drawn in their own avatar files: the step draws them and, in a headset, the frames that
-## price them are measured (People).
 func files() -> bool:
 	return ladder[step()].files and (_xr == null or people.measured())
 
 
-## Whether another player's own avatar file `scene`, loading now, is drawn whole, which lets it in (People.admit).
-## Past the headroom the player stands as a built-in body (Avatar.drawn).
 func admit(scene: PackedScene) -> bool:
 	if _xr == null or not files():
 		return files()
@@ -335,8 +306,8 @@ func _process(delta: float) -> void:
 		_settled = Wall.approach(at, delta, _masonry) and _settled
 
 
-## Sets how the view is drawn to `at`'s, level `n`, once as it is reached: a measurement that holds one of these knobs
-## itself (Driver's `antialias`) keeps it while the step holds.
+## Once per step reached, so a measurement that sets one of these knobs itself (Driver's `antialias`) keeps it while
+## the step holds.
 func _apply(at: Step, n: int) -> void:
 	_applied = n
 	view.msaa_3d = at.msaa
@@ -353,11 +324,10 @@ func _apply(at: Step, n: int) -> void:
 		_xr.foveation_level = at.foveation
 
 
-## What other people's own avatar files may add to the GPU's frame, priced as each loads: a file is drawn whole only
-## where the headroom its frames measure under the governor's line holds its drawn triangles at the time those frames
-## take per primitive, so a heavy mesh is its author's cost and a headset with room draws it ("People past the headset"
-## in docs/design.md). The headroom is the step's own: a file that fits only by cutting the garden is not let in, since
-## the walk down to find out ran at a third of the refresh rate on the Quest 2.
+## A file is drawn whole only where the headroom its frames measure under the governor's line holds its triangles at
+## the time those frames take per primitive, so a heavy mesh is its author's cost ("People past the headset" in
+## docs/design.md). The headroom is the step's own: the walk down to make room for a file ran at a third of the
+## refresh rate on the Quest 2.
 class People:
 	const FRAMES := 36
 	## A file let in counts against the headroom until the median of the frames holds it.
@@ -366,7 +336,7 @@ class People:
 	var why := ""
 	var _ms := PackedFloat32Array()
 	var _primitives := PackedFloat32Array()
-	## The cost of each file let in, in milliseconds, and the frames measured since.
+	## x: a file's cost in milliseconds; y: frames measured since it was let in.
 	var _let_in: Array[Vector2] = []
 
 	func measured() -> bool:
@@ -395,32 +365,30 @@ class People:
 		return true
 
 
-## Whether a foveated rung draws with the runtime's density map, by what the map costs the scene as measured. On the
-## Quest 2 the map can cost a scene five times its frame: with it, some views' tiles each run every vertex of the
-## walls in view, 1.46 M a tile, against 15 k without it or in other views with it ("Fixed foveation on the Quest 2" in
-## docs/design.md). Which views do is the driver's choice and is not known ahead, so while the frame runs over the
-## refresh period the map is taken off for a trial, and stays off only if that saved a share of the frame; it goes back
-## on for a trial once the frame has been calm, and stays on only if that cost no more than the share. Under the period
-## the frame makes every refresh, and taking the map off there pushes it past the period, which on the Quest 2 leaves
-## the runtime at a lower rate ("Fixed foveation on the Quest 2").
+## On the Quest 2 the density map can cost a scene five times its frame: some views' tiles each run every vertex of
+## the walls in view, 1.46 M a tile, against 15 k without it ("Fixed foveation on the Quest 2" in docs/design.md).
+## Which views is the driver's choice, so while the frame runs over the period the map is tried off, and stays off
+## only if that saved a share of the frame; once the frame is calm it is tried on, and stays on only if that cost no
+## more than the share. Under the period, taking it off pushes the frame past the period, which on the Quest 2 leaves
+## the runtime at a lower rate.
 class Map:
-	## A trial reads the median of at least this many frames over at least this long, once its first frames have let
-	## the timer catch up: at five frames a second, a time average of half a second was mostly the frames before the
-	## switch. The frame's median runs over the period this long before the map is tried off.
+	## A trial reads the median of at least this many frames over at least this long, after its first frames let the
+	## timer catch up: at five frames a second, a half-second time average was mostly the frames before the switch. The
+	## median runs over the period this long before the map is tried off.
 	const TRIAL_FRAMES := 12
 	const TRIAL_SECONDS := 0.5
 	const SETTLE_FRAMES := 4
 	## The map stays off only where the frame without it reads under this share of the frame with it.
 	const SAVES := 0.8
-	## Seconds the frame reads under the line before the map is tried again, doubling with each trial it fails.
+	## Seconds under the line before the map is tried again, doubling with each trial it fails.
 	const CALM_SECONDS := 2.0
 	const CALM_SECONDS_MAX := 64.0
 	## Seconds after a trial of the map off that saved nothing before the next.
 	const RETRY_SECONDS := 8.0
-	## The GPU this many times the line for this long, over more than one frame, since a single stalled frame is no view,
-	## tries the map off without waiting for the median, through the retry an ordinary trial left, and ends a trial of it
-	## on: at a few frames a second the median takes seconds to turn, and a trial taken just before the view jumped is
-	## judged by the old view's frames.
+	## The GPU this many times the line for this long, over more than one frame (one stalled frame is no view), tries the
+	## map off without waiting for the median, through the retry an ordinary trial left, and ends a trial of it on: at a
+	## few frames a second the median takes seconds to turn, and a trial taken just before the view jumped is judged by
+	## the old view's frames.
 	const DEAR := 3.0
 	const DEAR_SECONDS := 0.25
 	const DEAR_FRAMES := 2
@@ -442,7 +410,6 @@ class Map:
 	var _wait := CALM_SECONDS
 	var _since := INF
 
-	## `period_ms` is the refresh period, the budget the governor's line is a share of.
 	func step(frame_ms: float, period_ms: float, dt: float) -> void:
 		var line_ms := period_ms * Governor.LINE
 		_since += dt
@@ -516,71 +483,62 @@ class Map:
 		_recent.clear()
 
 
-## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when
-## frames run over the runtime's cliff or their average over the line, up only after a calm spell when the step up is
-## expected to stay under it, and slower each time a step up had to be undone. The runtime holding the game at every
-## other refresh holds a step up.
+## Down at once when frames run over the runtime's cliff or their average over the line, up only after a calm spell
+## when the step up is expected to stay under it, and slower each time a step up had to be undone. The runtime holding
+## the game at every other refresh holds a step up.
 class Governor:
-	## Consecutive frames this far into the budget take a step down: the Steam Frame's runtime drops the game to every
-	## other refresh once its GPU time nears 0.88 of the period, which this timer reads about 0.3 ms under. Waiting for
-	## the average, after a step up into the sky's reflections the timer read 13.2 to 13.9 ms of 13.9 for eight frames
-	## until one missed, and the runtime then held every other refresh for 21 frames.
+	## The Steam Frame's runtime drops the game to every other refresh once its GPU time nears 0.88 of the period, which
+	## this timer reads about 0.3 ms under. Waiting for the average, after a step up into the sky's reflections the timer
+	## read 13.2 to 13.9 ms of 13.9 for eight frames until one missed, and the runtime held every other refresh for 21.
 	const CLIFF := 0.86
 	const HOT_FRAMES := 2
-	## Frames this far over the budget step on from a step down whose second is not yet in. Frames under it do not: the
-	## timer jitters by a millisecond, and after a village was laid at once it read 12.6 to 14.3 ms at every step.
+	## Frames under it do not step on from a step down whose second is not yet in: the timer jitters by a millisecond,
+	## and after a village was laid at once it read 12.6 to 14.3 ms at every step.
 	const HOT := 1.05
-	## Frames this far over the budget take two steps instead.
+	## Frames this far over the budget take two steps.
 	const SEVERE := 1.25
-	## Frames ignored after any step while the GPU timer catches up with the change. Six, from when a step down's
-	## reaches receded over seconds, left a walk into a budget-full garden on the Quest 2 missing refreshes between steps.
+	## Frames ignored after a step while the GPU timer catches up. Six, when a step down's reaches receded over seconds,
+	## left a walk into a budget-full garden on the Quest 2 missing refreshes between steps.
 	const SETTLE_FRAMES := 3
-	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh, which
-	## holds a step up; one frame this far from the last is a missed refresh. Neither steps down with the timer under
-	## the line, which reads high at every other refresh: the CPU or the runtime held those frames, not what the ladder
-	## draws. Stepped down at 0.6 of the budget, a photo's frames on the Steam Frame, 14.9 ms in scripts and the GPU at
-	## 8.2 ms, took a held phase from step 3 to 4.
+	## A share of the refresh period: frames this far apart on average are the runtime's every other refresh, which holds
+	## a step up; one frame this far from the last is a missed refresh. Neither steps down with the timer under the line,
+	## which reads high at every other refresh: the CPU or the runtime held those frames. Stepped down at 0.6 of the
+	## budget, a photo's frames on the Steam Frame, 14.9 ms in scripts and the GPU at 8.2 ms, took a held phase from
+	## step 3 to 4.
 	const HALVED := 1.5
-	## Every other refresh holds a step up only with the timer above this share of the budget: lower, the CPU held the
-	## frame, which a step up does not load.
+	## Below this share of the budget the CPU held every other refresh, which a step up does not load.
 	const HALVED_GPU := 0.6
-	## A frame this far from the last, as a share of the refresh period or of the usual gap between the last GAPS
-	## frames if longer, followed a pause (the headset off the head) or a stall on the main thread (a build laid at
-	## once): the frames after it draw what it built, not the scene's cost, so the governor starts its averages again
-	## rather than judge them. Judged, two such stalls in a Steam Frame tour stepped it from 14 to the bottom and, the
-	## second right after a step up, held it there for the rest. Against the period alone, a Quest 2 drawing three
-	## heavy avatars at every fourth refresh, 55.6 ms apart, read every frame a pause and sat at step 14 for the
-	## whole sweep, where step 15 held 72 Hz.
+	## A frame this far from the last, as a share of the refresh period or of the median of the last GAPS gaps if
+	## longer, followed a pause (the headset off the head) or a main-thread stall (a build laid at once): the frames after
+	## it draw what it built, so the governor restarts its averages. Judged, two such stalls in a Steam Frame tour
+	## stepped it from 14 to the bottom and held it there. Against the period alone, a Quest 2 drawing three heavy
+	## avatars at every fourth refresh, 55.6 ms apart, read every frame a pause and sat at step 14, where 15 held 72 Hz.
 	const PAUSE := 4.0
 	const GAPS := 9
-	## The line, as a share of the budget: the Steam Frame's runtime drops the game to every other refresh once its
-	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
-	## GPU time, so the houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate.
-	## A calm spell is time spent with the frame time, averaged over
-	## AVERAGE_SECONDS, under the line by what the step up out of this level costs: single frames vary by more than a
-	## step saves, so they neither make nor break one.
+	## A share of the budget under the cliff: this timer reads about 0.3 ms under the GPU time the runtime judges, so the
+	## houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate. A calm spell is time with
+	## the AVERAGE_SECONDS average under the line by what the step up costs: single frames vary by more than a step
+	## saves.
 	const LINE := 0.8
 	const AVERAGE_SECONDS := 1.0
 	const CALM_SECONDS := 2.0
-	## The longest calm a step up waits for; as long under the line forgets what the step cost, which the scene may
-	## have outgrown, and which reads high when the step left frames already at every other refresh.
+	## As long under the line forgets what the step cost, which the scene may have outgrown, and which reads high when the
+	## step left frames already at every other refresh.
 	const CALM_SECONDS_MAX := 64.0
-	## A step up waits this long after a missed refresh, as a share of the refresh period or of the usual gap between the
-	## last GAPS frames if longer, so a steady rate the CPU holds does not count: a hitch is often a scene changing, which
-	## the average has not caught up with. On the Steam Frame a neck phase's opening frame, 30 ms with the GPU at 6.8 ms,
-	## came 0.6 s before a step up into the animals it brought.
+	## A step up waits this long after a missed refresh (as HALVED and GAPS judge one), so a steady rate the CPU holds
+	## does not count: a hitch is often a scene changing, which the average has not caught up with. On the Steam Frame a
+	## neck phase's opening frame, 30 ms with the GPU at 6.8 ms, came 0.6 s before a step up into the animals it brought.
 	const MISSED_SECONDS := 1.0
-	## What a step up not yet measured in this scene is taken to cost, as a share of the budget: half the gap between
-	## the line and the Steam Frame's cliff at 0.88. Taken as nothing, its full garden stepped up from 10.8 ms into a
-	## step that crossed the cliff and held every other refresh for six seconds.
+	## A share of the budget: half the gap between the line and the Steam Frame's cliff at 0.88. Taken as nothing, its
+	## full garden stepped up from 10.8 ms across the cliff and held every other refresh for six seconds.
 	const UNMEASURED := 0.04
-	## A step down this soon after the step up that reached it doubles the calm needed to step up again; the
-	## doubling lasts the session. Across a pop it doubles from the longest calm up to REGRET_MAX: a halved second
-	## after a climb out of the bottom step must not hold a Steam Frame at the bottom for the session (#101).
+	## A step down this soon after the step up that reached it doubles the calm needed to step up again, for the session.
+	## Across a pop it doubles from the longest calm up to REGRET_MAX: a halved second after a climb out of the bottom
+	## step must not hold a Steam Frame at the bottom for the session.
 	const REGRET_SECONDS := 10.0
 	const REGRET_MAX := 4.0 * CALM_SECONDS_MAX
 
-	## 0 is full quality; each step down the ladder adds one.
+	## 0 is full quality; each step down adds one.
 	var level := 0
 	var bottom: int
 	var _past_cliff := 0
@@ -595,36 +553,30 @@ class Governor:
 	var _since_up := INF
 	## Calm seconds needed to step up into each level.
 	var _wait := PackedFloat32Array()
-	## What the step up out of each level costs as a share of that level's frame, or -1 while unmeasured: the difference
-	## between the average before a step between it and the level above and the average over the AVERAGE_SECONDS after
-	## it settled, over the average at it. The knobs cost by the pixel, so their cost grows with the scene's: on the Steam
-	## Frame the sky's reflections, measured at under 0.7 ms on a 4.9 ms meadow and priced at that, were taken at 10.4 ms,
-	## and the next phases missed refreshes at the top step.
+	## The step up's cost out of each level as a share of that level's frame, or -1 while unmeasured. The knobs cost by
+	## the pixel, so their cost grows with the scene's: on the Steam Frame the sky's reflections, measured under 0.7 ms on
+	## a 4.9 ms meadow and priced at that, were taken at 10.4 ms, and the next phases missed refreshes at the top step.
 	var _cost := PackedFloat32Array()
 	var _since_missed := INF
-	## Seconds averaged since the last step settled; the average steps down only once a whole one is in.
+	## The average steps down only once a whole one is in.
 	var _averaged := 0.0
 	var _before := 0.0
 	## The frame time that took the last step down.
 	var _took := INF
-	## The level whose step up the average after the last step measures, or -1, and whether that step was up.
+	## -1 while no step is being measured.
 	var _measuring := -1
 	var _went_up := false
 	var _sticky := PackedInt32Array()
 	var _shares := PackedFloat32Array()
 	var _idle := PackedInt32Array()
-	## The level the last step up left.
 	var _up_from := 0
-	## What took the last step, for the log.
 	var why := ""
-	## The last GAPS gaps between seen frames, in milliseconds, kept across restarts.
+	## Kept across restarts.
 	var _gaps := PackedFloat32Array()
 
-	## The governor starts at `start`. A step up across a level of `sticky` (ascending) waits the longest calm once a
-	## step down has crossed it, doubling up to REGRET_MAX each time it is undone: above the start it is crossed
-	## at the calm of any other step until the scene first asks for less. `shares` are what each level costs over the
-	## next down as a share of the frame, the floor under a step up not yet measured; a level of `idle` changes
-	## nothing over the one above, so the governor passes it by.
+	## A step up across a `sticky` level (ascending) waits the longest calm once a step down has crossed it, doubling up
+	## to REGRET_MAX each time it is undone; above the start it takes the usual calm until the scene first asks for less.
+	## `shares` floor a step up not yet measured; the governor passes an `idle` level by.
 	func _init(steps: int, sticky := PackedInt32Array(), start := 0, shares := PackedFloat32Array(), idle := PackedInt32Array()) -> void:
 		bottom = steps
 		level = start
@@ -640,16 +592,14 @@ class Governor:
 			if i >= start:
 				_wait[i] = CALM_SECONDS_MAX
 
-	## The level a step up from `at` reaches.
 	func up(at: int) -> int:
 		var to := at - 1
 		while to > 0 and _idle.has(to):
 			to -= 1
 		return to
 
-	## What the step up out of `at` is expected to cost, in milliseconds, at the current frame: its measured share, never
-	## under the levels' `shares`, since what is in view changes it too. Priced at their share measured on the Steam
-	## Frame's meadow, under 0.07, the sky's reflections were taken at 10.4 ms among butterflies, where they cost 0.29.
+	## Never under the levels' `shares`, since what is in view changes it too: priced at their share measured on the
+	## Steam Frame's meadow, under 0.07, the sky's reflections were taken at 10.4 ms among butterflies, costing 0.29.
 	func cost(at: int, budget_ms: float) -> float:
 		var share := 0.0
 		for i in range(up(at), at):
@@ -667,9 +617,8 @@ class Governor:
 				return i
 		return bottom
 
-	## `settled` is whether the knobs have reached the step: only frames over the cliff or a missed refresh among
-	## frames over the line judge a step still under way. A frame the player does not `see` is judged as a pause is, and so are the
-	## first frames after it, whose timer still reads it.
+	## Only frames over the cliff, or a missed refresh among frames over the line, judge a step not yet `settled`. A frame
+	## the player does not `see` is judged as a pause is, and so are the first frames after it, whose timer still reads it.
 	func step(frame_ms: float, budget_ms: float, dt: float, settled := true, see := true) -> void:
 		var dt_ms := dt * 1000.0
 		var paused := dt_ms >= PAUSE * maxf(budget_ms, Quality.median(_gaps) if _gaps.size() == GAPS else 0.0)
@@ -752,7 +701,6 @@ class Governor:
 			_move(up(level))
 			_since_up = 0.0
 
-	## The calm a step up from here waits: the longest of the levels it crosses.
 	func _climb_wait() -> float:
 		var most := 0.0
 		for i in range(up(level), level):

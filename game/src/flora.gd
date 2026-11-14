@@ -1,99 +1,81 @@
 class_name Flora
 extends Node3D
 
-## Every plant in the glade: the meadow's own and those painted or placed since. Painted plants of each
-## kind share one MultiMesh allocated up front, so painting writes instances without resizing GPU buffers. A plant's
-## transform and its anchor count their height from the ground under it, which its shader reads from the
-## terrain each frame, so reshaping the ground moves no instance and leaves no plant a stale height.
+## A plant's transform and anchor count height from the ground under it, which its shader adds from the terrain
+## each frame, so reshaping the ground moves no instance.
 
 const PAINTED_GRASS := 12000
-## The meadow's grass cells are small, so a cell turns sparse close to where its clumps do.
+## Small, so a cell turns sparse near where its clumps do.
 const GRASS_CELL := 8.0
-## From GRASS_LOD_BEGIN out, over GRASS_LOD_BAND, all but the GRASS_SURVIVORS share of clumps (by
-## FloraLayout.thin_rank) sink away, so past it a cell draws its survivors alone. Survivors sink away in turn from
-## GRASS_SURVIVORS_FROM of the grass reach out to it, each at its own distance: the meadow thins with distance instead
-## of ending at a ring of growing blades.
+## Past GRASS_LOD_BEGIN + GRASS_LOD_BAND only the GRASS_SURVIVORS share of clumps (FloraLayout.thin_rank) is drawn;
+## those sink in turn from GRASS_SURVIVORS_FROM of the reach, so the meadow thins instead of ending at a ring.
 const GRASS_LOD_BEGIN := 4.0
 const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
-## A clump draws CLUMP_BLADES blades, each CLUMP_WIDE times a blade's width, covering what seven narrower ones did:
-## the Quest 2 pays for the near blades' slivers more than for the pixels they cover (docs/design.md, "Cheaper flora").
+## Fewer, wider blades: the Quest 2 pays for near blades' slivers more than for their pixels (docs/design.md,
+## "Cheaper flora").
 const CLUMP_BLADES := 3
 const CLUMP_WIDE := 2.33
-## Land flowers past this distance draw as their far patches (flora_far.gdshader).
+## Past it land flowers draw as far patches (flora_far.gdshader).
 const FLOWER_NEAR := 12.0
-## Petals a flower head opens.
 const PETALS := 4
 const PAINTED_MOSS := 256
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
 const PLACED_BUSHES := 256
-## The shade blob's size against the box around a crown's blobs, which their lumps and gaps do not fill.
+## A crown's lumps and gaps do not fill the box around its blobs.
 const SHADE_FIT := 0.8
-## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
-## Plant kinds as build commands name them: painted in strokes, or placed one at a time.
 const BRUSHES := ["grass", "flowers", "moss"]
 const PLACED := ["tree", "bush"]
 const SOLID_CELL := 8.0
-## The meadow's own trunks, crowns and bushes each bake into one MultiMesh, not one a square: the Quest 2 pays 7 to
-## 19 µs a draw whatever it holds, more than their few thousand triangles cost off screen (docs/design.md, "Crowns").
+## One MultiMesh per pool: the Quest 2 pays 7 to 19 µs a draw whatever it holds, more than the few thousand
+## triangles cost off screen (docs/design.md, "Crowns").
 const SOLID_POOL_CELL := INF
 
-## When no committed stroke is left growing.
 signal grown
 
 
-## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
-## one MultiMesh per `cell` square, so the camera culls those off screen, and they are never recycled. A pool with
-## `survivors` also bakes, per cell, the plants whose rank (colour alpha) is under it, and draws those instead of the
-## whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill `capacity`
-## in order and, once it is full, replace the oldest; each is drawn in a Patch, a growing MultiMesh per `cell`
-## square, so painted plants off screen or past reach cost nothing either, and a patch past `sparse_from` draws its
-## survivors alone as a cell does. Every tree has the same number of
-## blobs, so the trunk and foliage pools recycle in step.
+## Slots filled before `keep()` are the meadow's own, baked per `cell` and never recycled; later slots replace the
+## oldest once `capacity` fills. Every tree has the same number of blobs, so the trunk and foliage pools recycle in step.
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
 	const GRID := 2.0
 	var cell: float
 	var sparse_from := INF
 	var survivors := 0.0
-	## What the meadow's own plants bake with, where they need less than placed ones: no water plant parts.
+	## The meadow's own need no water plant parts.
 	var kept_mesh: Mesh
 	var capacity: int
 	var far: MultiMesh
 	var far_live: MultiMeshInstance3D
-	## For the painted and meadow grass, where the ground paints it past the clumps' reach.
 	var cover: FloraCover
-	## Set on each patch's instance: the shaders tell placed plants from the meadow's own by it.
+	## The shaders tell placed plants from the meadow's own by it.
 	var planted := 0.0
 	var material: Material
-	## Bumped by every `Plant.draw`, so the crowns' shade can follow a tool's preview.
+	## Lets the crowns' shade follow a tool's preview.
 	var draws := 0
-	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
 	var mesh: Mesh
 	var drawn: Mesh
 	var kept := 0
 	var _count := 0
 	var last := -1
 	var _next := 0
-	## Bumped each time a slot is reused, so a remembered plant knows when its slot has moved on.
 	var stamps := PackedInt32Array()
 	var anchors := PackedVector3Array()
-	## Bumped with every change to `anchors` or a plant's transform, so a reader can tell nothing moved.
+	## Bumped on every change to `anchors` or a plant's transform; readers cache against it.
 	var anchored := 0
 	var plants: Array[Plant] = []
 	var _parent: Node3D
 	var terrain: Terrain
 	var _shadows: bool
-	## Each slot's colour and custom data, and each painted slot's drawn transform: a MultiMesh does not give them
-	## back, and a patch moves its instances about.
+	## Patches move their instances about, so each slot's data is kept here.
 	var _colors := PackedColorArray()
 	var _customs := PackedColorArray()
 	var _xforms: Array[Transform3D] = []
 	var _patches := {}
-	## By painted slot (slot - kept), the patch drawing it and its instance there.
+	## Indexed by painted slot (slot - kept).
 	var _patch_of: Array[Patch] = []
 	var _index_in_patch := PackedInt32Array()
 	var _cell_of: Array[MultiMesh] = []
@@ -103,17 +85,10 @@ class Pool:
 	var _sparse_cell_of: Array[MultiMesh] = []
 	var _index_in_sparse := PackedInt32Array()
 	var _centres := PackedVector2Array()
-	## The layers each of `_cells` was last given, so `cull` writes only a change.
 	var _cell_layers := PackedInt32Array()
-	## With `indexed`, slots by the GRID square their anchor fell in, for finding plants near a point without a
-	## pass over all.
 	var indexed := false
 	var _grid := {}
-	## Its plants grow in soil: one standing on rock (Terrain.ROCK) is not drawn, and is again once the ground under it
-	## is gentle enough to hold soil.
 	var soil := false
-	## Its painted water plants are drawn further than its land plants (Flora.flowers), so each patch keeps whether it
-	## holds one.
 	var water_plants_further := false
 
 	func _init(parent: Flora, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
@@ -177,7 +152,6 @@ class Pool:
 			cover.touch(anchor)
 		return plants[i]
 
-	## Draws painted slot `j` from its `_xforms`, `_colors` and `_customs` in the patch of the square it stands in.
 	func _patch(j: int) -> void:
 		var i := kept + j
 		var key := Vector2i(floori(_xforms[i].origin.x / cell), floori(_xforms[i].origin.z / cell))
@@ -227,7 +201,6 @@ class Pool:
 			if p.few != null:
 				p.few.visible_instance_count = p.survivors
 
-	## Takes painted slot `j` out of its patch, its last instance moving into the gap; its survivors stay first.
 	func _unpatch(j: int) -> void:
 		var p := _patch_of[j]
 		if p == null:
@@ -269,14 +242,12 @@ class Pool:
 	static func square(at: Vector3) -> Vector2i:
 		return Vector2i(floori(at.x / GRID), floori(at.z / GRID))
 
-	## The slots indexed in a grid square (`square`).
 	func in_square(at: Vector2i) -> Array:
 		return _grid.get(at, [])
 
 	func _unindex(i: int) -> void:
 		_grid[square(plants[i].anchor)].erase(i)
 
-	## The standing plants within `radius` of `p` across the ground.
 	func near(p: Vector3, radius: float) -> Array[Plant]:
 		var out: Array[Plant] = []
 		var r2 := radius * radius
@@ -344,7 +315,6 @@ class Pool:
 		terrain.lift(m, _over_ground(box))
 		return m
 
-	## What draws the painted plants.
 	func patches() -> Array[MultiMeshInstance3D]:
 		var out: Array[MultiMeshInstance3D] = []
 		for p: Patch in _patches.values():
@@ -354,7 +324,6 @@ class Pool:
 	func size() -> int:
 		return kept + _count
 
-	## Back to the kept plants; plants remembered from the rest no longer find their slots.
 	func reset() -> void:
 		for i in range(kept, size()):
 			if indexed:
@@ -391,7 +360,6 @@ class Pool:
 		if cover != null:
 			cover.touch(plants[slot].anchor)
 
-	## Moves a plant to `xform` (its height counted as `add` takes it) in `color`, where it stands or not.
 	func repose(p: Plant, xform: Transform3D, color: Color) -> void:
 		if not p.current():
 			return
@@ -409,8 +377,6 @@ class Pool:
 		if far != null:
 			far.set_instance_color(p.slot, color)
 
-	## Moves a plant `by` across the ground, its anchor with it, drawn with `custom` (as `add` takes it). Its height
-	## above the ground stays, so it stands on the ground where it now is.
 	func shift(p: Plant, by: Vector3, custom: Color) -> void:
 		if not p.current():
 			return
@@ -432,7 +398,6 @@ class Pool:
 		if p.slot < kept:
 			_cover_cell(p.slot)
 
-	## Turns a plant `by` radians about the vertical through `about`, across the ground.
 	func spin(p: Plant, about: Vector3, by: float) -> void:
 		if not p.current():
 			return
@@ -444,7 +409,6 @@ class Pool:
 		if p.slot < kept:
 			_cover_cell(p.slot)
 
-	## Finds again which of its plants standing in `area` across the ground are on rock, as the ground now lies.
 	func reground(area: Rect2) -> void:
 		if not soil:
 			return
@@ -480,13 +444,12 @@ class Pool:
 		if far != null:
 			far.set_instance_custom_data(slot, custom)
 
-	## Widens a kept plant's cell box to take it in as it now stands, so the camera does not cull it.
+	## So the camera does not cull a moved kept plant.
 	func _cover_cell(slot: int) -> void:
 		var cell := _cell_of[slot]
 		cell.custom_aabb = cell.custom_aabb.merge(_over_ground(plants[slot].xform * mesh.get_aabb()))
 
-	## `box` of plants kept above the ground through every height the ground stands at, which the shaders add; wind
-	## and hands bend blades a little further.
+	## The shaders add the ground's height; the margin is for wind and hands bending blades.
 	func _over_ground(box: AABB) -> AABB:
 		var ground := terrain.bounds()
 		box.position.y += ground.position.y
@@ -502,10 +465,9 @@ class Pool:
 			if p.few != null:
 				p.few.mesh = m
 
-	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
-	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo. A patch holding
-	## a water plant reaches `water_reach`: an iris or a lily is drawn further than a land flower, which past `reach`
-	## the shader shrinks to its root, so a dry patch past it would run every vertex for nothing.
+	## Not `visibility_range_end`: it measures to the box's centre, high above the ground since a cell's box spans every
+	## height the terrain can reach. Out of reach goes to FULL_LAYER so a photo still sees it. A dry patch stops at
+	## `reach`, where the shader shrinks land flowers to their root; water plants draw out to `water_reach`.
 	func cull(eye: Vector3, reach: float, water_reach := reach) -> void:
 		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
@@ -529,7 +491,6 @@ class Pool:
 			if p.few != null:
 				p.few_mmi.visible = p.survivors > 0 and gap >= sparse_from and gap < end
 
-	## Finds again which patches crossing `area` hold a water plant, as the ponds and the ground there now lie.
 	func rewet(area: Rect2) -> void:
 		if not water_plants_further:
 			return
@@ -542,8 +503,8 @@ class Pool:
 					p.water_plants = true
 					break
 
-	## Whether the plant in `slot` may grow as a water plant (plant.gdshaderinc's `water_form`): one placed, rooted
-	## under a pond. Any depth over zero counts, not only the shader's 2 cm, so rounding never hides one.
+	## Mirrors plant.gdshaderinc's `water_form`, but any depth over zero counts, not only its 2 cm, so rounding never
+	## hides one.
 	func _water_plant(slot: int) -> bool:
 		var root := _xforms[slot].origin
 		return planted > 0.0 and terrain.depth_at(root.x, root.z) > 0.0
@@ -555,7 +516,7 @@ class Pool:
 		m.mesh = drawn
 		m.instance_count = count
 
-	## The distant layer is one draw per pool. Keeping it whole costs fewer draws than pairing every near cell.
+	## One draw per pool: fewer draws than pairing every near cell.
 	func far_with(mat: ShaderMaterial) -> void:
 		far = MultiMesh.new()
 		setup(far, Flora.far_mesh(), capacity)
@@ -575,31 +536,24 @@ class Pool:
 		return mmi
 
 
-## The painted plants of one pool standing in one `cell` square: `slots` in the order `mm` draws them. Its capacity
-## doubles when it fills, so painting rarely resizes a GPU buffer and an unpainted square costs none.
+## Doubles when full, so painting rarely resizes a GPU buffer and an unpainted square costs none.
 class Patch:
 	const FIRST := 64
 	var mm: MultiMesh
 	var mmi: MultiMeshInstance3D
-	## In a pool with `survivors`, `few` draws the patch's first `survivors` instances, its plants ranked under the
-	## pool's share, in place of `mm` once the patch lies wholly beyond `sparse_from`.
+	## The first `survivors` instances, ranked by colour alpha (FloraLayout.thin_rank), which `Pool._swap` keeps first.
 	var few: MultiMesh
 	var few_mmi: MultiMeshInstance3D
 	var survivors := 0
 	var slots := PackedInt32Array()
-	## The layers `Pool.cull` last gave `mmi`.
 	var layers := 1
-	## Around the plants it has drawn since it was last empty, through every height the ground can reach, so the
-	## camera culls a patch by where its plants stand rather than by its whole square.
+	## So the camera culls a patch by where its plants stand, not its whole square.
 	var box: AABB
-	## Whether a plant it holds may be a water plant (`Pool._water_plant`), drawn out to the pool's water reach. It may
-	## stay set after that plant leaves, until the ground or ponds under the patch next change.
+	## May stay set after its water plant leaves, until the ground or ponds under it next change.
 	var water_plants := false
 
 
-## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
-## circle across the ground that holds them, so a beam is tested against their boxes only when it passes over it.
-## A tree also keeps the seed its shape is drawn from, its species and its scale; a bush's species is -1.
+## A tree or bush. `centre` and `radius` bound it across the ground, so a beam tests its parts' boxes only over it.
 class Solid:
 	var parts: Array[Plant]
 	var centre: Vector2
@@ -608,11 +562,10 @@ class Solid:
 	var species := -1
 	var scale := 1.0
 	var moss := false
-	## How far it is turned about its foot from how it grew, in radians.
+	## Radians about its foot from how it grew.
 	var turn := 0.0
-	## Where its first part's anchor stood as it grew.
 	var home: Vector3
-	## Its shade blob's instance in `crown_shade` as last fitted, or -1 for none.
+	## Its instance in `crown_shade`, or -1.
 	var shade := -1
 
 	func _init(p: Array[Plant]) -> void:
@@ -628,20 +581,17 @@ class Solid:
 		radius = Vector2(box.size.x, box.size.z).length() * 0.5
 
 
-## One instance in a pool, remembered so it can be taken out and put back.
 class Plant:
 	var pool: Pool
 	var slot: int
 	var stamp: int
 	var xform: Transform3D
-	## Where it stands, its height counted from the ground under it as `xform`'s is.
+	## Its height counted from the ground under it, as `xform`'s is.
 	var anchor: Vector3
-	## Where build commands find it: its group (0 is the meadow's own, else the command that grew it)
-	## and its place in that group.
+	## 0 is the meadow's own, else the build command that grew it.
 	var group := -1
 	var index := -1
 	var drawn := true
-	## On rock its pool's soil does not reach, so not drawn, though it stands.
 	var rock := false
 
 	func _init(p: Pool, i: int, x: Transform3D, a: Vector3) -> void:
@@ -654,7 +604,6 @@ class Plant:
 	func current() -> bool:
 		return pool.stamps[slot] == stamp
 
-	## Where it stands on the ground as the ground now lies.
 	func foot() -> Vector3:
 		return anchor + Vector3.UP * pool.terrain.height_at(anchor.x, anchor.z)
 
@@ -668,7 +617,7 @@ class Plant:
 		pool.anchors[slot] = anchor if on else Pool.GONE
 		pool.anchored += 1
 
-	## Draws it standing or not without changing whether it stands, for a tool's preview.
+	## For a tool's preview: whether it stands is unchanged.
 	func draw(on: bool) -> void:
 		if current():
 			drawn = on
@@ -684,40 +633,33 @@ var flowers: Pool
 var trunks: Pool
 var foliage: Pool
 var bushes: Pool
-## The sun's shade of every standing tree and bush, cast by one coarse blob fitted to its crown instead of by each
-## blob: the shadow pass draws one low-detail mesh a crown, and the blobs no longer shade one another in patches.
+## One coarse blob a crown casts the sun's shade: the shadow pass draws one low-detail mesh a crown, and blobs no
+## longer shade one another in patches.
 var crown_shade := MultiMesh.new()
 var _shaded := -1
-## Every tree and bush, meadow's own and planted, by its first part's pool and slot.
 var _solids := {}
 var _kept_solids := {}
-## Where the meadow's own trees' trunks stand in its group. The meadow never changes once kept, so which of its plants
-## are which is worked out then, not on every wipe.
+## The meadow never changes once kept, so which of its plants are which is found then, not on every wipe.
 var meadow_trees := PackedInt32Array()
-## Where the meadow's own bushes stand in its group.
 var meadow_bushes := PackedInt32Array()
-## The meadow's own flowers, bushes and trees: all of it but its grass.
 var meadow_scenery := PackedInt32Array()
-## The keys of the solids whose circles reach into each SOLID_CELL square, so a beam tests only those it passes
-## over; a key may linger where its slot's earlier tree stood.
+## A key may linger where its slot's earlier tree stood.
 var _solid_cells := {}
-## Every plant a build command can name, by group, in the order its command grew them.
 var groups := {}
-## Committed strokes still growing, oldest first. Their spots were fixed as their commands applied, and any
-## command on their plants or the ground's heights grows them first, so every machine fills its pools alike.
+## Their spots were fixed as their commands applied, and any command on their plants or the ground's heights grows
+## them first, so every machine fills its pools alike.
 var _growing: Array[Growth] = []
-## A player's own stroke while it is painted and until its build command comes back, drawn apart from the
-## garden's plants so that those fill their pools in command order on every machine.
+## A player's stroke until its command comes back, apart so the garden's pools fill in command order on every machine.
 var ghost_grass: Pool
 var ghost_flowers: Pool
-## How far from the eye grass is drawn, as Quality steps it; sub-pixel blades beyond it cost the Quest 2 most of its frame.
+## Sub-pixel blades beyond it cost the Quest 2 most of its frame.
 var grass_reach: float = Quality.ladder[0].grass_m:
 	set(m):
 		grass_reach = m
 		grass_mat.set_shader_parameter(&"draw_reach", m)
 		for mat in ground_mats:
 			mat.set_shader_parameter(&"draw_reach", m)
-## The quality reach still controls aquatic flowers; land meshes hand off to patches by FLOWER_NEAR.
+## Water plants draw to it; land flowers hand off to far patches at FLOWER_NEAR.
 var flower_reach: float = Quality.ladder[0].flowers_m:
 	set(m):
 		flower_reach = m
@@ -725,7 +667,6 @@ var flower_reach: float = Quality.ladder[0].flowers_m:
 		flower_mat.set_shader_parameter(&"water_reach", m)
 		if flower_far != null:
 			flower_far.set_shader_parameter(&"draw_reach", minf(m, FLOWER_NEAR))
-## Which of `_blobs` the foliage is drawn with, as Quality steps it.
 var blob_detail: int = Quality.ladder[0].blob_detail:
 	set(n):
 		if n != blob_detail:
@@ -734,12 +675,10 @@ var blob_detail: int = Quality.ladder[0].blob_detail:
 			bushes.draw_with(_blobs[n])
 var flower_mat: ShaderMaterial
 var flower_far: ShaderMaterial
-## The meadow's ground in both its shaders (Meadow), which paint the grass past its clumps' reach (FloraCover).
 var ground_mats: Array[ShaderMaterial] = []
 static var _far_mesh: ArrayMesh
-## Bumped whenever a tree or bush stands up or goes, so what was gathered from them knows it is stale.
 var changes := 0
-## Foliage blobs at each detail, made up front so a step changes only which one is drawn.
+## Made up front so a Quality step only swaps which is drawn.
 var _blobs := {}
 var terrain: Terrain
 var marks: Ground
@@ -803,7 +742,6 @@ func _init(ground: Terrain, laid: Ground) -> void:
 	add_child(shade)
 
 
-## A far flower: one triangle facing the eye.
 static func far_mesh() -> ArrayMesh:
 	if _far_mesh == null:
 		var st := SurfaceTool.new()
@@ -824,14 +762,13 @@ func _far_material() -> ShaderMaterial:
 	return mat
 
 
-## Has the ground's materials paint the grass where its clumps have sunk away.
 func paint_ground(mats: Array[ShaderMaterial]) -> void:
 	ground_mats = mats
 	for mat in mats:
 		_grass_lod(mat)
 
 
-## Gives `mat` the grass's reach and LOD band (flora_lod.gdshaderinc), so the ground paints the grass where it sinks.
+## The uniforms of flora_lod.gdshaderinc.
 func _grass_lod(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter(&"draw_reach", grass_reach)
 	mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
@@ -858,7 +795,6 @@ func _process(_delta: float) -> void:
 		flowers.cull(eye.global_position, minf(flower_reach, FLOWER_NEAR), flower_reach)
 
 
-## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
 func _shade_crowns() -> void:
 	var seen := _shade_seen()
 	if seen == _shaded:
@@ -885,7 +821,6 @@ func _place_shade(solid: Solid) -> void:
 	crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, solid.parts[0].anchor.x, solid.parts[0].anchor.z))
 
 
-## Where the shade blob of a tree or bush (its parts) stands, fitted to the box around its blobs.
 func shade_of(parts: Array) -> Transform3D:
 	var blobs: Array = parts.slice(1) if parts[0].pool == trunks else parts
 	var box: AABB = blobs[0].xform * foliage.mesh.get_aabb()
@@ -894,8 +829,7 @@ func shade_of(parts: Array) -> Transform3D:
 	return Transform3D(Basis.from_scale(box.size * SHADE_FIT / crown_shade.mesh.get_aabb().size), box.get_center())
 
 
-## Moves grass and flower reach toward `step`'s (Quality.reach) and draws its blobs; whether both reaches are
-## there, since a step still under way is not yet the step's cost.
+## Whether both reaches are there: a step still under way is not yet the step's cost.
 func approach(step: Quality.Step, delta: float) -> bool:
 	var grass_m := Quality.reach(grass_reach, step.grass_m, delta)
 	if grass_m != grass_reach:
@@ -907,9 +841,7 @@ func approach(step: Quality.Step, delta: float) -> bool:
 	return grass_reach == step.grass_m and flower_reach == step.flowers_m
 
 
-## The ground under `area` moved (GroundGrab.reshaped): grass and flowers there that now stand on rock go, and those
-## the ground gives soil again come back. A stroke's live hump moves no heights, so only a settled one is read; a
-## plant is found again the moment it is added or moved, so the GPU never tests it a frame.
+## A stroke's live hump moves no heights, so only a settled one is read.
 func reground(area: Rect2, settled: bool) -> void:
 	if not settled:
 		return
@@ -919,7 +851,6 @@ func reground(area: Rect2, settled: bool) -> void:
 	flowers.rewet(area)
 
 
-## The ponds over `area` changed (Water.refilled): painted flowers there may have become water plants or stopped being.
 func rewet(area: Rect2) -> void:
 	flowers.rewet(area.grow(Terrain.STEP))
 
@@ -939,7 +870,6 @@ func add_flower(p: Vector3, rng: RandomNumberGenerator, pool := flowers) -> Plan
 	return pool.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p, Color(FloraLayout.bloom_rank(p), 0, 0, 0))
 
 
-## A tree of `species` at `at`, its shape drawn from `seed`.
 func add_tree(at: Vector3, seed: int, species := FloraLayout.Species.OAK) -> Array[Plant]:
 	var t := FloraLayout.tree(at, seed, species)
 	var parts: Array[Plant] = []
@@ -957,18 +887,15 @@ func add_tree(at: Vector3, seed: int, species := FloraLayout.Species.OAK) -> Arr
 	return parts
 
 
-## The species of the tree whose trunk is `trunk`, or -1 for none standing in its slot.
 func species_of(trunk: Plant) -> int:
 	var solid := _standing(trunk)
 	return solid.species if trunk.pool == trunks and solid != null else -1
 
 
-## The scale of the tree whose trunk is `trunk`, or 0 for none standing in its slot.
 func scale_of(trunk: Plant) -> float:
 	return _solids[_key_of(trunk)].scale if species_of(trunk) >= 0 else 0.0
 
 
-## How high over the ground the tree whose trunk is `trunk` reaches.
 func top_of(trunk: Plant) -> float:
 	var top := 0.0
 	for p in _solids[_key_of(trunk)].parts:
@@ -976,7 +903,6 @@ func top_of(trunk: Plant) -> float:
 	return top
 
 
-## Grows the tree whose trunk is `trunk` again as `species` at `scale`, from its own seed, in the slots it holds.
 func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	var was := species_of(trunk)
 	if was < 0 or was == species and is_equal_approx(scale_of(trunk), scale):
@@ -995,8 +921,6 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	_refit(key, solid, false)
 
 
-## Moves the tree or bush whose first part is `first` to stand at `at` across the ground, as though it had grown
-## there: its parts keep their shape and their heights above the ground, so nothing grows again.
 func move(first: Plant, at: Vector3) -> void:
 	var solid := _standing(first)
 	if solid == null:
@@ -1010,7 +934,6 @@ func move(first: Plant, at: Vector3) -> void:
 	_refit(_key_of(first), solid, synced)
 
 
-## Turns the tree or bush whose first part is `first` to `yaw` radians about its foot from how it grew.
 func turn_to(first: Plant, yaw: float) -> void:
 	var solid := _standing(first)
 	if solid == null or is_equal_approx(yaw, solid.turn):
@@ -1020,13 +943,11 @@ func turn_to(first: Plant, yaw: float) -> void:
 	_refit(_key_of(first), solid, synced)
 
 
-## How far the tree or bush whose first part is `first` is turned from how it grew.
 func turn_of(first: Plant) -> float:
 	var solid := _standing(first)
 	return solid.turn if solid != null else 0.0
 
 
-## The tree or bush whose first part is `first`, or null for none standing in its slot.
 func _standing(first: Plant) -> Solid:
 	var solid: Solid = _solids.get(_key_of(first))
 	return solid if first.current() and solid != null and solid.parts[0] == first else null
@@ -1039,8 +960,7 @@ func _spin(solid: Solid, by: float) -> void:
 	solid.turn += by
 
 
-## Fits `solid` again after it moved or changed. A carried tree moves every frame: only its own shade is fitted again,
-## not every crown's.
+## A carried tree moves every frame: with `synced`, only its own shade is fitted again, not every crown's.
 func _refit(key: Vector2i, solid: Solid, synced: bool) -> void:
 	solid.fit()
 	_index(key, solid)
@@ -1051,7 +971,6 @@ func _refit(key: Vector2i, solid: Solid, synced: bool) -> void:
 			_place_shade(solid)
 
 
-## Where the tree or bush whose first part is `first` stood as it grew, across the ground.
 func home_of(first: Plant) -> Vector3:
 	return _solids[_key_of(first)].home
 
@@ -1084,17 +1003,16 @@ func _index(key: Vector2i, solid: Solid) -> void:
 			_solid_cells.get_or_add(Vector2i(i, j), {})[key] = true
 
 
-## What a plant counts as in the build budget (Budget.UNITS): a tree by its trunk, and nothing for its blobs.
+## Names in Budget.UNITS.
 func unit_of(p: Plant) -> String:
 	return {grass: "grass", flowers: "flower", trunks: "tree", bushes: "bush", moss: "moss"}.get(p.pool, "")
 
 
-## Every pool the garden's own plants stand in, the ghosts apart.
 func _pools() -> Array[Pool]:
 	return [grass, flowers, trunks, foliage, bushes, moss]
 
 
-## The plants so far are the meadow's own: group 0, which every machine grows alike.
+## Group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []
 	for p: Pool in _pools():
@@ -1123,14 +1041,12 @@ func _name(group: int, plants: Array[Plant]) -> void:
 	groups[group] = plants
 
 
-## Whether a painted plant would land on bare ground (a path or stone) in the garden, where it would be
-## parted to nothing yet take a slot.
+## A plant there would be parted to nothing yet take a slot.
 func on_path(p: Vector3) -> bool:
 	return marks.laid_bare(p.x, p.z) > 0.9
 
 
-## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground,
-## placed by `rng` and drawn by `look`, the two streams `grow` grows its plants from.
+## `rng` and `look` are the streams `grow` grows its plants from, so the ghost shows what will grow.
 func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, look: RandomNumberGenerator) -> Array[Plant]:
 	var out: Array[Plant] = []
 	for p in FloraLayout.brush(center, radius, count, rng, terrain.height_at):
@@ -1159,11 +1075,8 @@ func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -
 	return add_flower(p, rng, ghost_flowers if ghost else flowers)
 
 
-## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
-## author's ghost showed, or a placed tree or bush. A stroke records in `skip` the plants that fell on bare ground when it
-## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
-## A stroke's plants are null until they grow, over the frames that follow (see `grow_now`), each on the ground as
-## it is then.
+## A stroke records in `skip` the plants that fell on bare ground, so a garden rebuilt later grows the same plants
+## whatever paths and stone stand by then.
 func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var plants: Array[Plant] = []
 	var rng := RandomNumberGenerator.new()
@@ -1197,15 +1110,13 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	return plants
 
 
-## Where a stroke seeded `seed` draws its plants' looks from, apart from their spots, so the spots can be
-## fixed before the plants grow.
+## Apart from the spots' stream, so the spots can be fixed before the plants grow.
 static func looks(seed: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed ^ 0x1007
 	return rng
 
 
-## A committed stroke growing: its plants' spots (null where one fell on bare ground) and how many have grown.
 class Growth:
 	var group: int
 	var kind: String
@@ -1222,7 +1133,6 @@ func growing() -> bool:
 	return not _growing.is_empty()
 
 
-## Grows the oldest strokes' next `count` plants, or all of them for a negative `count`.
 func _grow(count: int) -> void:
 	if _growing.is_empty():
 		return
@@ -1251,7 +1161,6 @@ func clear_ghosts() -> void:
 	ghost_moss.reset()
 
 
-## Shows or hides the plants at `indices` of a group; returns the indices that changed.
 func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Array:
 	grow_now()
 	changes += 1
@@ -1265,7 +1174,6 @@ func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Ar
 	return changed
 
 
-## Back to the meadow alone, every one of its plants standing. Ghosts stay with the strokes still on their way.
 func reset() -> void:
 	changes += 1
 	if growing():
@@ -1273,9 +1181,9 @@ func reset() -> void:
 		grown.emit()
 	for p: Pool in _pools():
 		p.reset()
-		# Only the taken are stood again, found natively: visiting each of the meadow's tens of thousands of plants
-		# in script held a Quest's frame for hundreds of milliseconds. A plant a tool shows taken is the tool's to
-		# draw again once its command settles.
+		# Only the taken, found natively: visiting each of the meadow's tens of thousands of plants in script held a
+		# Quest's frame for hundreds of milliseconds. A plant a tool shows taken is the tool's to draw again once its
+		# command settles.
 		var at := p.anchors.find(Pool.GONE)
 		while at >= 0 and at < p.kept:
 			p.plants[at].set_shown(true)
@@ -1294,9 +1202,7 @@ func reset() -> void:
 		_index(key, solid)
 
 
-## The standing tree or bush a ray from `origin` along `dir` strikes first within `reach`: its parts, where it
-## strikes, how far along `dir` and whether on a side, or {} for none. Each part is struck within its mesh's box, set on the ground as
-## its shader sets it. Solids whose parts are keys of `skip` let the ray through.
+## Each part is tested within its mesh's box raised to the ground, as its shader draws it.
 func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dictionary:
 	var best := {}
 	var best_t := reach
@@ -1332,7 +1238,6 @@ func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dicti
 	return best
 
 
-## The standing trees and bushes whose ground circles reach into `area`, each as its parts.
 func solids_in(area: Rect2) -> Array[Array]:
 	var keys := {}
 	for j in range(floori(area.position.y / SOLID_CELL), floori(area.end.y / SOLID_CELL) + 1):
@@ -1354,7 +1259,6 @@ func solids() -> Array[Array]:
 	return out
 
 
-## The standing trees (each as its trunk then its blobs) or bushes placed in the garden; the meadow's own are left out.
 func placed(kind: String) -> Array[Array]:
 	var pool := trunks if kind == "tree" else bushes
 	var out: Array[Array] = []
@@ -1364,7 +1268,6 @@ func placed(kind: String) -> Array[Array]:
 	return out
 
 
-## Grass and flowers standing within `radius` of `p` across the ground.
 func plants_near(p: Vector3, radius: float) -> Array[Plant]:
 	var out := grass.near(p, radius)
 	out.append_array(flowers.near(p, radius))
@@ -1372,7 +1275,6 @@ func plants_near(p: Vector3, radius: float) -> Array[Plant]:
 	return out
 
 
-## Where trees and bushes stand, which a wall arches over.
 func obstacles() -> PackedVector3Array:
 	var out := PackedVector3Array()
 	for pool in [trunks, bushes]:

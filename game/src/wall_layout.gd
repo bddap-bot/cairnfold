@@ -1,108 +1,79 @@
 class_name WallLayout
 extends RefCounted
 
-## Lays out the stones of a dry-stone wall along a ground curve, or around a closed loop (a tower or a
-## house) standing level on its lowest ground, with its openings, doors, lanterns and flags; or, with the
-## fence profile, the posts and rails of a wooden fence. Pure data: no nodes, so tests run headless.
+## Pure data, no nodes, so tests run headless.
 
-## What an opening is: a cottage window, an archway, an arched window, an arrow slit, a round window, or a corner window
-## with a light on each face of a corner meeting at a post. Low on a wall a cottage window opens as a plank door and an
-## arched one as a round-headed door.
 enum Family { COTTAGE, ARCHWAY, ARCHED, SLIT, ROUND, CORNER }
 
 enum Top { CRENEL, CAP, COPE, RAIL }
-## What rests on a closed wall's top: nothing, a pitched roof (the top stops flush under it) or a flat deck
-## (the top rises round it as a rim, a cap top as a low parapet).
 enum Cover { OPEN, ROOF, DECK }
-## How a house's end walls rise under a gable roof: as the wall below, carried up under the slopes; boarded in
-## upright planks under barge boards; or stepped up past the slopes in crow steps.
 enum GableEnd { WALL, BOARDS, STEPS }
-## What stands under a wall's foot: its plinth's courses whole, in stone or plaster, or under a raised house or tower
-## stone pillars under a course of stone, or timber posts under timber beams, either on a stone foundation.
 enum Foundation { STONE, PLASTER, PILLARS, POSTS }
-## What a wall's faces show: its own stone courses, or a fence's posts and rails, bare; plaster, worn back to the stones
-## by `wear`; plaster framed in oak, its walk boarded and railed in wood; or wooden planks laid across or upright. A
-## fence takes bare rails or planks.
 enum Finish { BARE, PLASTER, TIMBER, BOARDS_ACROSS, BOARDS_UPRIGHT }
 
 const COURSE := 0.3
-## The longest stone a course lays, at full scale.
 const LONGEST := 0.85
-## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
-## charges both as wall.
+## No maximum: the budget charges height, and a plinth's rise, as wall.
 const MIN_HEIGHT := 0.9
-## A house's or tower's floor: the flags (or the planks: width, length range and gap) it is laid in, and how far out
-## from the walls' centre line its rows end: behind the shallowest mortar, a worn patch's, so no joint shows the floor.
+## FLAG is (along, thick, across); PLANK is (across, thick, shortest, longest).
 const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
 const BED_DEPTH := FLOOR_JOINT * 0.25
-## A floor standing on another build is the ceiling of the room below: its beds there take their flags' stone this
-## much darker, not mortar, so the underside reads as the stone it carries.
+## A floor on another build is the ceiling below: its beds there take its flags' stone this much darker, not mortar, so
+## the underside reads as the stone it carries.
 const FLOOR_UNDERSIDE := 0.75
+## Behind a worn patch's mortar, so no joint shows the floor.
 const FLOOR_REACH := WORN_THICK * 0.5 - JOINT - 0.01
-## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
 const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
-## The discs wearing the meadow bare under a floor: how far apart, how far inside the walls' centre line their centres
-## stay, and each one's radius and fade.
+## (spacing, inset from the walls' centre line, radius, fade)
 const BARE_STAMP := Vector4(0.4, 0.15, 0.3, 0.1)
-## The most of a raise that stilts stand in: raised higher, the foundation under them rises with the house.
 const STILT_SPAN := 1.8
-## The farthest apart stilts stand along the walls; a pillar's width, a post's, and a beam's width and height.
 const STILT_SPACING := 2.0
 const PILLAR := 0.5
 const POST := 0.24
+## (width, height)
 const BEAM := Vector2(0.3, 0.26)
 const THICKNESS := 0.62
 const CAP := 0.14
-## A dry-stone coping's stones on edge stand tall and short in turn, between these heights.
+## Height ranges: coping stones on edge alternate tall and short.
 const COPE_TALL := Vector2(0.34, 0.42)
 const COPE_SHORT := Vector2(0.22, 0.28)
 const PARAPET := 0.34
-## A wooden railing along a capped top: how tall it stands over the cap, the most its posts stand apart, and the
-## heights of its two rails.
+## A capped top's railing: its height over the cap, its posts' widest spacing, its two rails' heights.
 const RAILING := 0.9
 const RAIL_POSTS := 1.4
 const RAILS := Vector2(0.45, 0.86)
 const SAMPLE := 0.2
-## How far the stones sink below the ground, or into the top of what they stand on.
 const SINK := 0.12
-## A doorway arch's half-width and ring: an opening's size scales its arch, ring and all, from these.
+## At size 1, as is SPRING; an opening's size scales them.
 const ARCH_HALF := 0.75
 const RING := 0.32
-## How high a doorway arch springs over the floor; an opening's size scales it too.
 const SPRING := 1.5
-## The smallest an opening is sized, a doorway at this size being a pet door.
 const MIN_SIZE := 0.4
-## The nearest an arch's ring stands to a wall's end, and so a doorway arch's centre.
 const END_CLEAR := 0.3
 const ARCH_END := ARCH_HALF + RING + END_CLEAR
 const CORNER_TURN := deg_to_rad(35.0)
 const PIER := THICKNESS + 0.28
-## Arches whose rings would touch cannot both open; arches nearer than ARCADE_GAP share a pillar.
+## Arches nearer than ARCADE_GAP share a pillar.
 const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
 const ARCADE_GAP := ARCH_SPACING + 0.4
 const ARCADE_PITCH := 2.3
-## How much of its width a stone's faces stand full across, `Stones.mesh` rounding off the rest (its edge vertices stand
-## 0.46 out, and lump): stones laid this far into each other meet face to face, as an arch's wedges press together.
+## The share of a stone's width `Stones.mesh` keeps flat (its edge vertices stand 0.46 out, and lump): stones overlapped
+## this far meet face to face, as an arch's wedges press together.
 const MEET := 0.8
-## How each style of wall opens an arch, one row per style. The head is a shoulder arc of `shoulder` times
-## ARCH_HALF turning `turn` degrees from upright, then a crown arc of `crown` times it closing at the middle (a
-## round head is the shoulder alone); `pieces` wedges of `kind`, `ring` deep, are laid round each arc, their ends on
-## lines through its centre, pressed together with no mortar as far as their faces stand full (`meet`), closed at the top by a wedge of `capstone` a `keystone` across; posts
-## `jamb` wide stand under the springing.
+## Per style: a shoulder arc of `shoulder` times ARCH_HALF turning `turn` degrees from upright, then a crown arc of
+## `crown` times it (none for a round head); `pieces` wedges of `kind`, `ring` deep, per arc, mortarless as far as
+## `meet`, closed by a `capstone` a `keystone` across; posts `jamb` wide.
 const ARCH_STYLES := [
 	{"name": "stone", "shoulder": 1.0, "turn": 90.0, "crown": 1.0, "pieces": [5, 0], "ring": RING, "meet": MEET, "kind": "voussoir", "capstone": "keystone", "keystone": Vector3(0.34, RING * 1.15, THICKNESS * 1.1), "jamb": 0.0, "jitter": 0.015},
 	{"name": "timber", "shoulder": 0.35, "turn": 60.0, "crown": 2.0, "pieces": [3, 2], "ring": TimberFrame.WIDTH, "meet": 1.0, "kind": "timber", "color": TimberFrame.OAK, "capstone": "timber", "keystone": Vector3(0.2, TimberFrame.WIDTH, THICKNESS * 1.04), "jamb": TimberFrame.WIDTH, "jitter": 0.0},
 ]
-## Water under the foot deeper than this opens arches over it.
+## Water deeper than this under the foot opens arches over it.
 const WADE_UNDER := 0.1
-## How far a paddling duck keeps from the sides of an arch it swims under.
 const SWIM_CLEAR := 0.25
-## How near a swimmer's step must end to a wall's middle for that wall to turn it back (`blocks_swim`).
 const SWIM_REACH := THICKNESS * 0.5 + SWIM_CLEAR
 const FENCE_HEIGHT := 1.1
-## A planked fence's planks: laid across, each this tall at these heights between its posts; or upright, this wide.
 const FENCE_BOARD_TALL := 0.14
 const FENCE_BOARDS: Array[float] = [0.0, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96]
 const FENCE_PALE := 0.12
@@ -112,19 +83,17 @@ const WINDOW_HALF := 0.3
 const WINDOW_TALL := 0.9
 const DOOR_HALF := 0.5
 const DOOR_TALL := 2.0
-## A window whose sill would stand lower than this reaches down to the ground as a door.
+## A window whose sill would stand lower than this becomes a door.
 const DOOR_SILL := 0.6
 const MULLION := 0.14
-## Windows (or doors) of one family on one course whose centres stand this near fuse into one opening.
+## Openings of one family on one course nearer than this fuse.
 const FUSE := WINDOW_HALF * 2.0 + 0.5
-## The ring of wedges round an arched or round light.
 const WINDOW_RING := 0.16
-## A ringed light's wedges stand this far proud of the faces, past the coursed stones' jitter.
+## Clears the coursed stones' jitter.
 const RING_PROUD := 0.03
-## The post a corner window's lights meet at.
 const CORNER_POST := 0.14
-## Each window family's light at size 1: its half-width, how tall it stands, the stone between fused lights, whether
-## it opens as a door low on the wall, whether a ring of wedges heads it, and whether a lived-in house dresses it.
+## At size 1. `mullion`: stone between fused lights; `door`: opens as a door low on a wall; `ring`: wedges head it;
+## `dressed`: a lived-in house dresses it.
 const LIGHTS := {
 	Family.COTTAGE: {"half": WINDOW_HALF, "tall": WINDOW_TALL, "mullion": MULLION, "door": true, "ring": false, "dressed": true},
 	Family.ARCHED: {"half": 0.3, "tall": 1.2, "mullion": WINDOW_RING * 2.0 + 0.06, "door": true, "ring": true, "dressed": true},
@@ -132,21 +101,17 @@ const LIGHTS := {
 	Family.ROUND: {"half": 0.36, "tall": 0.72, "mullion": WINDOW_RING * 2.0 + 0.06, "door": false, "ring": true, "dressed": false},
 	Family.CORNER: {"half": 0.6, "tall": WINDOW_TALL, "mullion": 0.0, "door": false, "ring": false, "dressed": false},
 }
-## The families the style tool offers a window, and a door.
 const WINDOW_FAMILIES: Array[Family] = [Family.COTTAGE, Family.ARCHED, Family.SLIT, Family.ROUND]
-## What a lived-in house hangs at its windows: curtains, flowers in its boxes and washing on its line.
 const CURTAINS: Array[Color] = [Color(0.66, 0.2, 0.17), Color(0.86, 0.8, 0.62), Color(0.24, 0.36, 0.52), Color(0.4, 0.5, 0.3), Color(0.72, 0.52, 0.22)]
 const BLOOMS: Array[Color] = [Color(0.85, 0.2, 0.22), Color(0.95, 0.75, 0.2), Color(0.92, 0.55, 0.7), Color(0.6, 0.35, 0.8), Color(0.96, 0.94, 0.88)]
 const LEAVES := Color(0.24, 0.42, 0.16)
 const WASHING: Array[Color] = [Color(0.94, 0.93, 0.88), Color(0.55, 0.68, 0.84), Color(0.85, 0.5, 0.45), Color(0.9, 0.82, 0.5)]
 const ROPE := Color(0.62, 0.56, 0.44)
-## How far past a window's sides its washing line's arms stand.
 const WASHING_ARM := 0.45
 const LINTEL_EAR := 0.16
 const LANTERN_OUT := 0.34
 const FLAG_POLE := 1.7
-## Neighbouring flags on a wall's top this near join into a run: a rope between their poles, this high on them,
-## sagging as a string does (DecorationLayout.sag), hung with a pennant every FLAG_RUN_EVERY along it.
+## Top flags nearer than this join by a rope sagging as DecorationLayout.sag does.
 const FLAG_RUN := 4.0
 const FLAG_RUN_ROPE := 1.0
 const FLAG_RUN_EVERY := 0.4
@@ -155,141 +120,118 @@ const POLE := Color(0.37, 0.26, 0.17)
 const FINIAL := Color(0.7, 0.58, 0.3)
 const WOOD := Color(0.46, 0.33, 0.21)
 const IRON := Color(0.16, 0.15, 0.14)
-## Glass by day; at night a room's glows in its own colour (`glow`).
+## By day; at night `glow`.
 const GLASS := Color(0.12, 0.17, 0.22)
 const PLASTER := Color(0.86, 0.8, 0.68)
-## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
 const MORTAR := Color(0.32, 0.29, 0.25)
-## Scales the stones of a wall's top course off the wall's, so the top reads apart from the wall below it.
+## Multiplies the top course's stone so the top reads apart from the wall below.
 const TOP_TONE := Color(0.40, 0.42, 0.47)
 const TOP_KINDS: Array[String] = ["cap", "cope", "merlon"]
-## How far mortar stands back from the stones' faces, ends and tops wherever it would show.
+## How far mortar stands back from the stones' faces.
 const JOINT := 0.07
-## How far a plaster wall's face stands back from its stones'.
 const PLASTER_INSET := 0.02
-## The stones up a gable's rakes: through the wall, and tall.
+## (through the wall, tall)
 const VERGE := Vector2(THICKNESS + 0.06, 0.24)
-## A boarded gable's or wall's planks: how wide, and the gap between them.
+## (width, gap)
 const BOARD := Vector2(0.2, 0.012)
-## The shortest and longest plank laid across a wall or along a walk, at full scale.
+## Length range.
 const BOARD_RUN := Vector2(0.9, 1.8)
-## How far a straight plank or rail may let the wall turn along it, so its ends keep to a curved face.
+## The most the wall may turn under one straight plank or rail, so its ends keep to a curved face.
 const BOARD_TURN := 0.12
-## Planks side by side along a timber-framed wall's walk.
 const WALK_LANES := 3
-## Worn plaster: the width the face is judged in along the wall, the size of the patches it wears away in, how deep
-## stones laid where it has worn stand (their faces this far behind the plaster's at the deepest), and how far
-## they run on under the plaster round each patch.
+## WORN_STEP: width the face is judged in; WORN_PATCH: patch size; WORN_THICK: depth of stones where worn; WORN_TUCK:
+## how far they run on under the plaster round a patch.
 const WORN_STEP := 0.2
 const WORN_PATCH := Vector2(1.6, 0.9)
 const WORN_THICK := (THICKNESS - (PLASTER_INSET + 0.03) * 2.0) / 1.05
 const WORN_TUCK := 0.04
-## Courses to a crow step at the least, the least a step's tread, and the narrowest the top step stands.
 const STEP_COURSES := 2
 const TREAD := 0.2
 const TOP_STEP := 0.35
-## A ruin's broken ends lean back by up to this much a course, out to at most RUIN_LEAN, ragged by RUIN_JAG.
+## Lean-back range per course of a ruin's broken ends.
 const RUIN_STEP := Vector2(0.03, 0.22)
 const RUIN_LEAN := 1.6
 const RUIN_JAG := 0.18
-## Fallen stones per metre of ruin.
-const RUBBLE := 1.5
-## The narrowest stretch an eraser breaks away, and the shortest stub it leaves standing.
+const RUBBLE_PER_METRE := 1.5
 const MIN_GAP := 1.0
 const MIN_STUB := 0.8
-## The spacing of the points a bird may stand on along a wall's top.
 const PERCH_STEP := 0.16
 
 var points: Array[Vector3] = []
 var height := 2.6
-## How far a loop on the ground stands raised above its lowest ground; the courses under its foot reach down to
-## the ground as its plinth.
+## How far a loop's foot stands over its lowest ground, filled by its plinth.
 var rise := 0.0
 var seed := 1
-## A closed loop runs through its points and back to the first, straight between them.
 var closed := false
 var top := Top.CRENEL
 var cover := Cover.OPEN
-## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 var finish := Finish.BARE
-## How much of a plaster face has worn away to the stones behind it, 0 to 1.
+## 0 to 1.
 var wear := 0.0
 var foundation := Foundation.STONE
-## Whether the floor is laid in planks rather than flags: its own choice, apart from the walls' material.
 var planks := false
 var gable_end := GableEnd.WALL
-## The roof these walls stand under, seated on their top as they are laid; a gable roof's end walls rise under it
-## course by course, as stone walls do. Null for an open wall.
+## Null for an open wall.
 var gable: RoofLayout
-## Placed openings: arc length, click height above the foot, Family, and size, 1 for a doorway's (or a plain
-## window's) and more for a bigger one, scaling it every way.
+## (arc length, click height over the foot, Family, size); size 1 is a doorway's.
 var openings: Array[Vector4] = []
-## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
+## (arc length, height over the foot, face ±1)
 var lanterns: Array[Vector3] = []
-## Flags on the wall's top, by arc length.
+## By arc length.
 var flags: Array[float] = []
-## The small things gathered at its foot, on its top or under its eaves (ClutterLayout).
+## See ClutterLayout.
 var clutter: Array[Vector4] = []
-## Stretches broken away to the ground, by arc length from and to, each within the wall's length.
+## (from, to) by arc length.
 var ruins: Array[Vector2] = []
-## The builds this one stands on, the builds standing on it and the houses and towers it joins
-## (docs/design.md, "Buildings on buildings").
+## Builds under this one; `resting` stand on it, `joined` adjoin it (docs/design.md, "Buildings on buildings").
 var supports: Array[Massing] = []
-## What the samples were last laid out from: `resample` with the same again keeps them, since laying them out reads
-## every point of the ground along the wall.
+## `resample` keeps the samples while these match: laying them out reads the ground at every point.
 var _sampled_from := []
 var resting: Array[Massing] = []
 var joined: Array[Massing] = []
-## Of `joined`, the builds older than this one: its floors yield to their rooms, so two joined floors never overlap.
+## Of `joined`, the older builds: this one's floors yield to their rooms, so joined floors never overlap.
 var older: Array[Massing] = []
-# The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
+# Above: what `build` reads (`inputs`); below: what it lays (`adopt`).
 
-## The points and plinth the stones were laid along: `points` and `rise` may have moved on while a worker lays them.
+## `points` and `rise` may move on while a worker lays them.
 var laid_points: Array[Vector3] = []
 var laid_rise := 0.0
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
-## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water and reaches down to its bed.
-## None under a loop on builds.
+## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water. None under a loop on
+## builds.
 var depths := PackedFloat32Array()
-## Per sample, the ground's height under it.
 var grounds := PackedFloat32Array()
-## Per sample, how far the plinth reaches below the foot to what the wall stands on: the ground, a pond's surface or a
-## build's top; none over stilts or under a loop on builds. A wall's ivy roots there.
+## Per sample, the plinth's reach below the foot; none over stilts or under a loop on builds. Ivy roots there.
 var plinths := PackedFloat32Array()
 var bounds := Rect2()
-## PathLayout.segment_grid of `samples`, made when a path first asks for it.
+## PathLayout.segment_grid of `samples`, made lazily.
 var _segment_cells := {}
-## The samples a grid was last made for, and that grid: resampled to the same samples, as on ground changed elsewhere,
-## the wall keeps it.
+## The samples `_cells_made` was made for: resampled to the same samples, the wall keeps it.
 var _cells_for: Array[Vector3] = []
 var _cells_made := {}
-## The samples and depths `_feet` was last found for, and the lowest foot and highest sample it found.
 var _feet_for := []
 var _feet := Vector2.ZERO
 var stones: Array[Dictionary] = []
-## Where each nest under the eaves hung as the stones were laid, by its clutter entry: finding it again walks the
-## stones round it.
+## Each eaves nest's place by clutter entry, kept since finding it again walks the stones round it.
 var _hung := {}
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
-## The apertures `build` cut for the openings that fit, fused where they stand together: arc length `s`,
-## half-width `half`, `sill` and `head` heights, `door`, `lights`, the panes side by side, each `pane` either side of its
-## middle and `mullion` apart, the `ring` heading them, the Family `style`, and `size`.
+## Keys: `s`, `half`, `sill`, `head`, `door`, `lights` (panes side by side), `pane` (half-width), `mullion`, `ring`,
+## `style` (Family), `size`.
 var apertures: Array[Dictionary] = []
-## Lantern flames, and flag cloths and washing, laid with the stones; flames are unit boxes, cloths unit quads off the
-## pole or line.
+## Flames are unit boxes; cloths unit quads off their pole or line.
 var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
-## The height of the floor's top, and the outline it covers: -INF and empty but for a house or tower.
+## -INF and empty but for a house or tower.
 var floor_y := -INF
 var floor_outline := PackedVector2Array()
-## Per course from the foot up, the stretches broken away there: each ruin, wider every course up.
+## Per course from the foot up.
 var breaks: Array[PackedVector2Array] = []
-## Counts the times stones were laid in any layout, by `build` or `adopt`, so what is worked out from a wall's
-## stones knows when it is stale, even after the wall takes a new layout.
+## Bumped by every `build` or `adopt`, so what is worked out from a wall's stones knows when it is stale, even after the
+## wall takes a new layout.
 static var _laid_count := 0
 var laid := 0
 
@@ -306,13 +248,11 @@ func length() -> float:
 	return lengths[-1] if lengths.size() > 0 else 0.0
 
 
-## The ground point at arc length `s`.
 func point_at(s: float) -> Vector3:
 	var i := clampi(lengths.bsearch(s), 0, samples.size() - 1)
 	return samples[i]
 
 
-## The springing of an arch of `size` over the floor, lowered under a wall too low for its head.
 func spring(size := 1.0) -> float:
 	return minf(floor_lift() + SPRING * size, _highest_spring(size))
 
@@ -321,13 +261,12 @@ func _highest_spring(size: float) -> float:
 	return height - arch_rise(RING * size, size) - 0.3
 
 
-## The arch this wall opens: a timber frame's own, else stone.
 func arch_style() -> Dictionary:
 	return ARCH_STYLES[1 if TimberFrame.applies(self) else 0]
 
 
-## The right half of the head of an arch of `size`, `out` beyond its opening, as arcs `[centre, radius, from, to]`
-## about the middle of the springing, angles from level.
+## The right half of the head, `out` beyond its opening: arcs `[centre, radius, from, to]` about the springing's
+## middle, angles from level.
 func arch_head(out: float, size := 1.0) -> Array:
 	var style := arch_style()
 	var turn := deg_to_rad(style.turn)
@@ -343,20 +282,17 @@ func arch_head(out: float, size := 1.0) -> Array:
 	return arcs
 
 
-## How high the head of an arch of `size` rises over the springing, `out` beyond its opening.
 func arch_rise(out: float, size := 1.0) -> float:
 	var last: Array = arch_head(out, size)[-1]
 	return last[0].y + last[1] * sin(last[3])
 
 
-## Whether the wall holds an arch of `size` as it would on level ground: a raised floor only brings its springing up
-## to the top, never refuses it.
+## Judged as on level ground: a raised floor only caps the springing at the top, never refuses the arch.
 func can_arch(size := 1.0) -> bool:
 	return fence or _highest_spring(size) >= minf(0.9, SPRING * size) - 1e-4
 
 
-## Half-width at height `y` above the foot of the opening of an arch of `size`, or with `ring` of all the arch covers,
-## its posts and its ring; -1 where it does not reach. The one outline both the arch and the wall's cut follow.
+## With `ring`, all the arch covers. The one outline both the arch and the wall's cut follow.
 func opening(y: float, ring: bool, size := 1.0) -> float:
 	if y < threshold():
 		return -1.0
@@ -369,8 +305,8 @@ func opening(y: float, ring: bool, size := 1.0) -> float:
 	return -1.0
 
 
-## `water` gives the pond surface at (x, z), below the ground where there is none; without it the ground is dry.
-## `revision` is the ground revision `ground` and `water` read; a fixed ground keeps 0.
+## `water` gives the pond surface at (x, z), below the ground where there is none. `revision` is the ground revision
+## both read; a fixed ground keeps 0.
 func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	resample(ground, water, revision)
 	laid_points = points.duplicate()
@@ -422,7 +358,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 		var lintels := PackedVector2Array()
 		for o in apertures:
 			if o.style == Family.ARCHWAY:
-				# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
+				# The narrowest across the band, so the band's stones meet the arch everywhere.
 				var w := minf(opening(maxf(y0, threshold()), true, o.size), opening(y0 + h, true, o.size))
 				if w > 0.0:
 					spans = _cut(spans, o.s - w, o.s + w)
@@ -508,19 +444,15 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	_lay_floor()
 
 
-## A stone's corners, before its transform.
 const BOX: Array[Vector3] = [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(-0.5, 0.5, -0.5), Vector3(0.5, 0.5, -0.5),
 	Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, 0.5, 0.5), Vector3(0.5, 0.5, 0.5)]
-## How far under a roof's tiles `fit_under` leaves a cut stone's top, and the thinnest stone it leaves.
 const FIT_CLEAR := 0.005
 const MIN_FIT := 0.06
-## The pieces of a flat roof's deck `_trimmed` cuts back, and how finely.
 const DECK_PIECES := ["deck", "plank", "board", "mortar"]
 const TRIM_STEPS := 7
 
 
-## A laid piece's corners as it is drawn, in the order of BOX: its ends cut as the stone shader cuts them (`ends`,
-## turning about its local y).
+## In BOX order, ends cut as the stone shader cuts them (`ends`, turning about local y).
 static func drawn_corners(st: Dictionary) -> Array[Vector3]:
 	var x: Transform3D = st.xform
 	var e: Vector2 = st.get("ends", Vector2.ZERO)
@@ -532,9 +464,8 @@ static func drawn_corners(st: Dictionary) -> Array[Vector3]:
 	return out
 
 
-## Lowers the tops of the stones up to the wall's top that `r`'s tiles would cut, keeping their feet, and takes away
-## those left too thin: a steep slope falls fast past the faces, below a proud stone's outer edge. A gable end, carried
-## up under the slopes to its verge, is left as laid.
+## A steep slope falls fast past the faces, below a proud stone's outer edge. Gable ends, carried up to their verge, are
+## left as laid.
 func fit_under(r: RoofLayout) -> void:
 	if r.flat():
 		return
@@ -546,8 +477,6 @@ func fit_under(r: RoofLayout) -> void:
 	stones = kept
 
 
-## Stone `st` as `fit_under` leaves it under non-flat roof `r`: its top lowered under the tiles, or empty where too
-## little of it would be left.
 func _fitted(st: Dictionary, r: RoofLayout) -> Dictionary:
 	var fitted := st
 	if st.y + st.size.y * 0.5 > height + CAP + FIT_CLEAR:
@@ -567,7 +496,6 @@ func _fitted(st: Dictionary, r: RoofLayout) -> Dictionary:
 	return fitted
 
 
-## The share of a stone's height to take off its top to bring it under `r`, or 1 where its foot already pokes through.
 static func _cut_under(r: RoofLayout, x: Transform3D) -> float:
 	var cut := 0.0
 	for c in BOX:
@@ -578,7 +506,6 @@ static func _cut_under(r: RoofLayout, x: Transform3D) -> float:
 	return cut
 
 
-## Takes away the tiles, coat, flag, gable ends and torching of the roof on this wall that lie where a build it meets lays nothing.
 func hide_roof(r: RoofLayout) -> void:
 	r.joined = joined.duplicate()
 	r.resting = resting.duplicate()
@@ -634,9 +561,8 @@ func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
 	return covered or hidden(p + Vector3.UP * 0.001, joined, []) or hidden(p - Vector3.UP * 0.001, older, [])
 
 
-## The pieces of `r` its owner keeps. Deck pieces crossing a joined building's centre line are cut back
-## to it, where that building's ceiling starts. Inside an overlap, only a portion below the higher ceiling
-## is cut: the deck above it must still overlap to close the roof.
+## Deck pieces crossing a joined building's centre line are cut back to it, where its ceiling starts; inside an overlap
+## only below the higher ceiling, since the deck above must still overlap to close the roof.
 func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 	var over: Array[Massing] = []
 	if r.flat():
@@ -656,8 +582,8 @@ func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 					var top_y := s.roof.height_at(p.x, p.z) if s.roof != null else s.feet[0] + s.rise
 					return s.holds(surface) and p.y < top_y - RoofLayout.CEILING_DROP)
 			var cut := x
-			# Faces first by their middles, so a piece crossing one wall is cut only across it; then a corner still
-			# reaching in, where two walls meet or a tilted piece leans past the cut, takes the smallest cut that clears it.
+			# Faces first by their middles, so a piece crossing one wall is cut only across it; then a corner still reaching in
+			# takes the smallest cut that clears it.
 			for axis in [0, 2]:
 				for side in [1.0, -1.0]:
 					cut = _cut_back(cut, axis, side, [0.0], within)
@@ -681,7 +607,6 @@ func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 	return kept
 
 
-## `x`'s box with its face toward `side` along local `axis` moved in to the last place outside `within`.
 func _cut_back(x: Transform3D, axis: int, side: float, across: Array, within: Callable) -> Transform3D:
 	if not _face_within(x, axis, 0.5 * side, across, within):
 		return x
@@ -698,8 +623,6 @@ func _cut_back(x: Transform3D, axis: int, side: float, across: Array, within: Ca
 	return Transform3D(b, x.origin + x.basis[axis] * side * (clear - 0.5) * 0.5)
 
 
-## Whether the top or bottom of `x`'s face at `at` along local `axis`, at `across` along the other level axis, lies
-## inside the region to cut away.
 func _face_within(x: Transform3D, axis: int, at: float, across: Array, within: Callable) -> bool:
 	for o: float in across:
 		for y in [-0.5, 0.5]:
@@ -712,7 +635,6 @@ func _face_within(x: Transform3D, axis: int, at: float, across: Array, within: C
 	return false
 
 
-## Takes away what lies where a build this one meets lays nothing.
 func _hide() -> void:
 	if joined.is_empty() and resting.is_empty():
 		return
@@ -758,7 +680,6 @@ func courses() -> int:
 	return maxi(1, ceili(height / COURSE - 0.00001))
 
 
-## Each ruin's stretch per course, leaning back further every course up so its ends stand as ragged steps.
 ## A ruin draws from its own stream, so breaking one stretch leaves another's steps as they were.
 func _break() -> void:
 	var n := courses()
@@ -776,7 +697,7 @@ func _break() -> void:
 			lean = (lean + Vector2(rng.randf_range(RUIN_STEP.x, RUIN_STEP.y), rng.randf_range(RUIN_STEP.x, RUIN_STEP.y))).min(Vector2.ONE * RUIN_LEAN)
 
 
-## Whether arc length `s` lies within `margin` of a stretch broken away at the top, where a ruin is widest.
+## Judged at the top, where a ruin is widest.
 func broken(s: float, margin := 0.0) -> bool:
 	if breaks.is_empty():
 		return false
@@ -786,7 +707,6 @@ func broken(s: float, margin := 0.0) -> bool:
 	return false
 
 
-## How high the wall stands at arc length `s`: its height, or lower where a ruin's end steps down.
 func standing(s: float) -> float:
 	for k in breaks.size():
 		for b in breaks[k]:
@@ -795,18 +715,14 @@ func standing(s: float) -> float:
 	return height
 
 
-## Whether this is a house or tower, floored inside.
 func floored() -> bool:
 	return closed and not fence and cover != Cover.OPEN and points.size() > 2
 
 
-## The floor under `p` inside this house or tower, at or just below it, or -INF.
 func floor_under(p: Vector3) -> float:
 	return floor_y if floor_y <= p.y + SINK and Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), floor_outline) else -INF
 
 
-## The top of this wall's walk under `p`, at or just below it: its cap or coping, or the step a ruin's end has come down
-## to; -INF off it. A house's or tower's walls stand under its roof or deck, and a fence has no walk.
 func walk_under(p: Vector3) -> float:
 	var best := -INF
 	var at := Vector2(p.x, p.z)
@@ -830,7 +746,6 @@ func walk_under(p: Vector3) -> float:
 	return best
 
 
-## The lowest any stretch's body reaches, its foundation included, and the highest sample its top stands on.
 func feet() -> Vector2:
 	var key := [samples, depths]
 	if key != _feet_for:
@@ -844,12 +759,10 @@ func feet() -> Vector2:
 	return _feet
 
 
-## How far a full-height wall's top stands over its height: the tall stones of a coping, else its cap.
 func top_rise() -> float:
 	return (COPE_TALL.x + COPE_TALL.y) * 0.5 if top == Top.COPE and cover != Cover.ROOF and not fence and not TimberFrame.applies(self) else CAP
 
 
-## How far along a ray it meets the top of the floor, or INF.
 func floor_hit(origin: Vector3, dir: Vector3) -> float:
 	if dir.y >= 0.0:
 		return INF
@@ -858,7 +771,6 @@ func floor_hit(origin: Vector3, dir: Vector3) -> float:
 	return t if t >= 0.0 and Geometry2D.is_point_in_polygon(Vector2(at.x, at.z), floor_outline) else INF
 
 
-## The height of a house's or tower's floor: at its foot, raised over any ground under it that stands higher.
 func _level_floor(ground: Callable) -> void:
 	var outer := _floor_bounds()
 	if outer.is_empty():
@@ -871,24 +783,20 @@ func _level_floor(ground: Callable) -> void:
 	floor_y = lowest
 
 
-## How high over the foot a house's or tower's floor stands, where its doors and arches open from: the foundation stays
-## whole under it. An open wall's arch opens all the way down, to a pond's bed.
+## -INF for an open wall, whose arch opens all the way down, to a pond's bed.
 func threshold() -> float:
 	return floor_y - samples[0].y if floor_y != -INF else -INF
 
 
-## How far the ground floor stands above the foot: the height a door's is counted from, so a floor raised over higher
-## ground inside takes nothing from the doors onto it.
+## A door's height counts from here, so a floor raised over higher ground inside takes nothing from it.
 func floor_lift() -> float:
 	return floor_y - samples[0].y - SINK if floor_y != -INF else 0.0
 
 
-## How far the body reaches either side of its centre line, as rays and animals meet it.
 func half_thickness() -> float:
 	return 0.1 if fence else THICKNESS * 0.5
 
 
-## `points` on the ground plane, as (x, z).
 static func ground_line(points: Variant) -> PackedVector2Array:
 	var line := PackedVector2Array()
 	for p: Vector3 in points:
@@ -896,7 +804,6 @@ static func ground_line(points: Variant) -> PackedVector2Array:
 	return line
 
 
-## The outline the floor's rows end at, inside the stones; empty for anything not floored.
 func _floor_bounds() -> PackedVector2Array:
 	if not floored() or samples.is_empty() or laid_points.size() < 3:
 		return PackedVector2Array()
@@ -906,9 +813,7 @@ func _floor_bounds() -> PackedVector2Array:
 	return outer[0] if not inner.is_empty() and not outer.is_empty() else PackedVector2Array()
 
 
-## Lays the floor `_level_floor` set, its bed reaching down to the foot so it reads as a step at the door. Flags
-## or `planks`, in rows along its first side that end inside the walls; none in the room of an older
-## build it joins, or under a build standing on it.
+## Its bed reaches down to the foot so it reads as a step at the door.
 func _lay_floor() -> void:
 	if floor_y == -INF:
 		return
@@ -944,9 +849,8 @@ func _lay_floor() -> void:
 		row += 1
 
 
-## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints. The bed's top lies
-## BED_DEPTH under the pieces' tops, so a joint shows its bed from all but a grazing view: deeper, a joint seen off
-## straight down shows its pieces' sides, lit as faces open to the horizon, and reads lighter than one seen from overhead.
+## The bed's top lies BED_DEPTH under the pieces' tops: deeper, a joint seen off straight down shows its pieces' sides,
+## lit as faces open to the horizon, and reads lighter than one seen from overhead.
 func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, along: Vector2, rng: RandomNumberGenerator) -> void:
 	var thick := PLANK.y if planks else FLAG.y
 	var centre := Vector3(at.x, top_y - thick * 0.5, at.y)
@@ -961,8 +865,7 @@ func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, a
 	stones.append({"xform": bed, "color": bed_color, "kind": "bed", "s": 0.0, "y": 0.0, "size": bed.basis.get_scale(), "ao": 0.8, "variant": 0})
 
 
-## Discs wearing the ground bare under the floor inside the loop through `points`, as Ground.Stroke stamps: each
-## reaches past the inner faces into the walls, never out past them.
+## Each disc reaches into the walls, never out past them.
 static func floor_stamps(points: Array) -> PackedVector4Array:
 	var out := PackedVector4Array()
 	var inside := Geometry2D.offset_polygon(ground_line(points), -BARE_STAMP.y)
@@ -981,9 +884,8 @@ static func floor_stamps(points: Array) -> PackedVector4Array:
 	return out
 
 
-## Of a row's stretch from `x0` to `x1` along it at height `y`, the part no older room it joins or build standing on it
-## hides. A piece reaching into one is cut at its edge rather than kept or dropped whole: the older room's floor reaches
-## out under its cut-away wall, past that edge by more than half a row's depth, so the two floors meet with no gap.
+## A piece reaching into an older room is cut at its edge: that room's floor reaches out under its cut-away wall by more
+## than half a row's depth, so the two floors meet with no gap.
 func _floor_open(along: Vector2, row: Vector2, x0: float, x1: float, y: float) -> Vector2:
 	var hidden_at := func(x: float) -> bool:
 		var q := along * x + row
@@ -1002,8 +904,8 @@ func _floor_open(along: Vector2, row: Vector2, x0: float, x1: float, y: float) -
 	return Vector2(hi, x1) if start else Vector2(x0, lo)
 
 
-## Where the line `across` = `z` crosses or touches `outline`, as the least and most along it: a row starting on the
-## outline's first edge needs that edge's own extent, the wall over it being cut away where a house joins.
+## A row starting on the outline's first edge needs that edge's own extent: the wall over it is cut away where a house
+## joins.
 static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2, z: float) -> Vector2:
 	var out := Vector2(INF, -INF)
 	for i in outline.size():
@@ -1018,8 +920,7 @@ static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2,
 	return out
 
 
-## The highest the drawn ground rises inside `outline`: at its corners, where its sides cross the edges of the ground's
-## triangles, and on the grid points within it. The triangles are flat between those, so nothing in them stands higher.
+## The ground's triangles are flat, so its corners, edge crossings and the grid points within bound it.
 static func _highest_ground(outline: PackedVector2Array, ground: Callable) -> float:
 	var top := -INF
 	var box := Rect2(outline[0], Vector2.ZERO)
@@ -1043,12 +944,11 @@ static func _highest_ground(outline: PackedVector2Array, ground: Callable) -> fl
 	return top
 
 
-## Stones fallen from each ruin, lying in and beside its gap.
 func _lay_rubble() -> void:
 	for r in ruins:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash([seed, snappedf(r.x, 0.01), 1])
-		for i in mini(int((r.y - r.x) * RUBBLE * minf(height, 3.0) / 3.0) + 2, 40):
+		for i in mini(int((r.y - r.x) * RUBBLE_PER_METRE * minf(height, 3.0) / 3.0) + 2, 40):
 			var s := rng.randf_range(r.x, r.y)
 			var size := Vector3(rng.randf_range(0.3, 0.6), rng.randf_range(0.16, 0.28), rng.randf_range(0.24, 0.42))
 			var st := _stone(s, size.y * 0.4 - depth_at(s), size, rng, "rubble", 0.45, rng.randf_range(-0.5, 0.5))
@@ -1056,9 +956,7 @@ func _lay_rubble() -> void:
 			stones.append(st)
 
 
-## A wall's `ruins` after the stretch `lo` to `hi` (lo <= hi, unwrapped round a `closed` loop) of its
-## `total` length is broken away too: at least MIN_GAP wide, merged with those standing, and no stub
-## shorter than MIN_STUB left. Nothing standing is [Vector2(0, total)].
+## `lo` <= `hi`, unwrapped round a `closed` loop. Nothing standing is [Vector2(0, total)].
 static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: float, hi: float) -> Array[Vector2]:
 	if hi - lo < MIN_GAP:
 		var mid := (lo + hi) * 0.5
@@ -1102,12 +1000,11 @@ static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: f
 	return out
 
 
-## The face normal at arc length `s`, pointing to the side ivy and lanterns call +1.
+## Points to face +1, as ivy and lanterns call it.
 func _normal(s: float) -> Vector3:
 	return frame_at(s).tangent.cross(Vector3.UP)
 
 
-## The face (+1 or -1, as `_normal` calls it) that looks into a roofed loop, or 0 where both look out.
 func inner_side() -> float:
 	if not closed or cover == Cover.OPEN:
 		return 0.0
@@ -1119,11 +1016,6 @@ func inner_side() -> float:
 	return signf(area)
 
 
-## The opening a placed window makes on its own, before fusing: a door if its family opens as one and its sill would be
-## near the ground, else a window no lower than a door's sill. Its size scales it every way from where it stands: an arch
-## about its springing, a door or window up from its sill; a door, like an arch, stands its height over the floor, lowered
-## under the top of a wall that holds it on level ground. Each light is `pane` either side of its middle, `mullion`
-## apart, and an arched or round one wears a `ring` of wedges.
 func opening_for(w: Vector4) -> Dictionary:
 	var c := COURSE
 	var k := w.w
@@ -1145,19 +1037,14 @@ func opening_for(w: Vector4) -> Dictionary:
 	return {"s": s, "half": light.half * k, "pane": light.half * k, "mullion": mullion, "ring": ring, "sill": sill, "head": sill + tall, "door": false, "lights": 1, "style": family, "size": k}
 
 
-## Whether placed opening `w` opens as a door: an archway, or a family that opens one, placed low on the wall.
 static func opens_door(w: Vector4) -> bool:
 	return int(w.z) == Family.ARCHWAY or LIGHTS[int(w.z)].door and w.y - LIGHTS[int(w.z)].tall * 0.5 < DOOR_SILL
 
 
-## The height a window of `family` at `size` is placed at for its sill to stand no lower than a door's: where a press
-## low on the wall puts a family that opens no door.
 static func lowest(family: int, size := 1.0) -> float:
 	return DOOR_SILL + LIGHTS[family].tall * size * 0.5
 
 
-## The corner a window at arc length `s` would wrap round, its pier being where it points: one a loop or an open wall
-## turns at, within half a pier of `s`; NAN where none is.
 func corner_near(s: float) -> float:
 	var turns := corners()
 	for c in turns:
@@ -1166,7 +1053,6 @@ func corner_near(s: float) -> float:
 	return NAN
 
 
-## The middle of each of aperture `o`'s lights, by arc length.
 static func light_centres(o: Dictionary) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	for i in o.lights:
@@ -1174,9 +1060,6 @@ static func light_centres(o: Dictionary) -> PackedFloat32Array:
 	return out
 
 
-## The apertures `placed` openings make on the built wall: neighbours of one family on one course (doors beside doors)
-## fuse, round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel or ring
-## to stand in, clear of the ends, corner piers, arches and each other. Archways are kept first.
 func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	placed = placed.duplicate()
 	for a in _water_arches():
@@ -1202,7 +1085,6 @@ func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	return out
 
 
-## Fuses the apertures of one family, course and size that stand within FUSE of each other, at their size, into wider ones.
 func _fuse(row: Array) -> Array[Dictionary]:
 	row.sort_custom(func(a, b): return a.s < b.s)
 	if closed and row.size() > 1:
@@ -1256,14 +1138,10 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != Family.ARCHWAY and (o.sill > e.head + e.ring + COURSE * 0.5 or e.sill > o.head + o.ring + COURSE * 0.5)))
 
 
-## How far past its opening an aperture's surround reaches along the wall: an arch's ring or a light's, else a lintel's ear.
 static func _edge(o: Dictionary) -> float:
 	return RING * o.size if o.style == Family.ARCHWAY else maxf(o.ring, LINTEL_EAR)
 
 
-## The half-width of one of window `o`'s lights at height `y` above the foot, its ring with `ring`; -1 where it does not
-## reach. A round light is a circle; an arched one rises square to its springing, a light's width under its head, and
-## its head is a half circle; every other is square.
 static func light_half(o: Dictionary, y: float, ring := false) -> float:
 	var r: float = o.pane + (o.ring if ring else 0.0)
 	if o.style == Family.ROUND:
@@ -1279,9 +1157,7 @@ static func light_half(o: Dictionary, y: float, ring := false) -> float:
 	return sqrt(r * r - up * up) if up <= r else -1.0
 
 
-## Where window `o` cuts the course from `y0`, `h` tall, as arc-length stretches: square lights across the whole
-## opening, a slit's each on its own, and a ringed light by the widest its opening reaches over the course, or the
-## narrowest its ring does where that is wider, the infill behind its ring closing what that leaves (`_lay_ringed`).
+## A ringed light's gap the level cut leaves is closed by the infill behind its ring (`_lay_ringed`).
 static func light_cuts(o: Dictionary, y0: float, h: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	var yc := y0 + h * 0.5
@@ -1310,13 +1186,10 @@ static func light_cuts(o: Dictionary, y0: float, h: float) -> PackedVector2Array
 	return out
 
 
-## The opening at a face point, or empty.
 func opening_at(s: float, y: float) -> Dictionary:
 	return _opening_in(apertures, s, y)
 
 
-## Whether a face point lies in an arch's opening, down through the courses cut under it: a door's planks and a
-## window's glass close theirs, nothing an arch's. A fence's gate is open between its posts.
 func open_at(s: float, y: float) -> bool:
 	for o in apertures:
 		if o.style == Family.ARCHWAY and absf(offset(s, o.s)) < (ARCH_HALF if fence else opening(y, false, o.size)):
@@ -1331,13 +1204,11 @@ func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	return {}
 
 
-## The opening among `list` that placed opening `w` makes. An arch is placed at the wall's foot, and opens from the
-## floor, which may stand above it, so it is found at its sill.
+## An arch is placed at the foot but opens from the floor, which may stand above it, so it is found at its sill.
 func _opening_of(list: Array[Dictionary], w: Vector4) -> Dictionary:
 	return _opening_in(list, w.x, opening_for(w).sill if int(w.z) == Family.ARCHWAY else w.y)
 
 
-## Whether a window placed at `at` among the openings `placed` would open without closing any they open.
 func opening_fits(at: Vector4, placed: Array[Vector4]) -> bool:
 	var before := openings_for(placed)
 	var after := placed.duplicate()
@@ -1347,8 +1218,7 @@ func opening_fits(at: Vector4, placed: Array[Vector4]) -> bool:
 	return not added.is_empty() and added.style == at.z and placed.all(func(e): return _opening_of(before, e).is_empty() or not _opening_of(now, e).is_empty())
 
 
-## The largest size up to `upto` that opening `at` opens at among `placed`, to a hundredth, from its own size,
-## which must open there; NAN where it does not.
+## To a hundredth; `at` must open at its own size.
 func largest_fit(at: Vector4, placed: Array[Vector4], upto: float) -> float:
 	var sized := func(k: float) -> Vector4: return Vector4(at.x, at.y, at.z, k)
 	if opening_fits(sized.call(upto), placed):
@@ -1365,11 +1235,7 @@ func largest_fit(at: Vector4, placed: Array[Vector4], upto: float) -> float:
 	return floorf(lo * 100.0) / 100.0
 
 
-## The door a path running `span` along this house's wall opens where it meets it at arc length `s` among `placed`,
-## as plank doors on one course that fuse into one opening: a single door as wide as the path, or, past the widest the
-## wall holds, the number of lights of that size nearest the path's width, made as wide as it, fewer where the wall
-## holds fewer. None where a door or arch already stands across the path, where none opens, or where the floor stands
-## so high over the wall's foot that `opens_door` reads a press there as a window's.
+## None where the floor stands so high over the foot that `opens_door` reads a press there as a window's.
 func path_doors(s: float, span: float, placed: Array[Vector4]) -> Array[Vector4]:
 	var out: Array[Vector4] = []
 	var door := Vector4(s, maxf(threshold(), 0.0), Family.COTTAGE, MIN_SIZE)
@@ -1397,12 +1263,10 @@ func path_doors(s: float, span: float, placed: Array[Vector4]) -> Array[Vector4]
 	return out
 
 
-## How wide `lights` plank doors fused into one opening stand at size 1, the mullions between them included.
 static func _door_width(lights: int) -> float:
 	return lights * DOOR_HALF * 2.0 + (lights - 1) * LIGHTS[Family.COTTAGE].mullion
 
 
-## The window among `placed` nearest `click` in the opening they make there, or -1 where they make none.
 func placed_at(click: Vector4, placed: Array[Vector4]) -> int:
 	var made := openings_for(placed)
 	var o := _opening_of(made, click)
@@ -1416,7 +1280,6 @@ func placed_at(click: Vector4, placed: Array[Vector4]) -> int:
 	return near
 
 
-## Whether a lantern hangs at face point `s`, `y`: on a stone face clear of every opening, or on a fence post.
 func lantern_fits(s: float, y: float) -> bool:
 	if fence:
 		return true
@@ -1472,8 +1335,6 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 			_lay_window(at, o.sill, light, tall, rng)
 
 
-## Arrow slits: per light a dark slot reaching back to its glass near the inner face, between dressed jambs of pale
-## stone standing long and short in turn up each side, a course each.
 func _lay_slit(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var tall: float = o.head - o.sill
 	var c := COURSE
@@ -1486,30 +1347,25 @@ func _lay_slit(o: Dictionary, rng: RandomNumberGenerator) -> void:
 				_part(at + side * (o.pane + w * 0.5), o.sill + c * (k + 0.5), Vector3(w, c - 0.02, THICKNESS * 1.03), dressed * rng.randf_range(0.95, 1.04), rng, "lintel")
 
 
-## The sill under window `o`, through the wall.
 func _lay_sill(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var wood := boarded()
 	_part(o.s, o.sill + 0.04, Vector3(o.half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill")
 
 
-## An opening's head or sill: oak in a boarded wall, else stone.
 static func _trim(wood: bool, rng: RandomNumberGenerator) -> Color:
 	return TimberFrame.OAK * rng.randf_range(0.88, 1.12) if wood else stone_color(rng) * 1.05
 
 
-## The colour a room's windows glow at night, before its paint (Palette.Element.GLOW); none in a wall standing open.
 func glow() -> Color:
 	return Palette.SWATCHES[Palette.Element.GLOW][0] if floored() else Color.BLACK
 
 
-## A casement `out` off the wall's middle, set back in it unless given, on the straight `face` if given.
 func _lay_window(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator, out := -THICKNESS * 0.12, face := INF) -> void:
 	for p in casement(w, tall, rng, glow()):
 		_part(s + p.at.x, sill + tall * 0.5 + p.at.y, p.size, p.color, rng, p.kind, out, 0.0, face)
 
 
-## A casement `w` wide and `tall`: a pane glowing `glow` at night in a wooden frame with a cross of glazing bars, as
-## pieces each placed `at` (along the face, up) from its middle.
+## Each piece's `at` is (along the face, up) from the middle.
 static func casement(w: float, tall: float, rng: RandomNumberGenerator, glow: Color) -> Array[Dictionary]:
 	var out: Array[Dictionary] = [{"at": Vector2.ZERO, "size": Vector3(w - 0.02, tall - 0.02, 0.02), "color": glow * rng.randf_range(0.9, 1.1), "kind": "glass"}]
 	for edge in [-1.0, 1.0]:
@@ -1520,7 +1376,6 @@ static func casement(w: float, tall: float, rng: RandomNumberGenerator, glow: Co
 	return out
 
 
-## A plank door with two iron straps, set back in the wall.
 func _lay_door(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator) -> void:
 	var planks := maxi(3, roundi(w / 0.2))
 	var back := -THICKNESS * 0.15
@@ -1531,11 +1386,7 @@ func _lay_door(s: float, sill: float, w: float, tall: float, rng: RandomNumberGe
 		_part(s, y, Vector3(w - 0.08, 0.06, 0.08), IRON, rng, "iron", back)
 
 
-## An arched or round window, or a round-headed door: per light a ring of wedges round its head, or all round it,
-## standing RING_PROUD off both faces, and behind the ring the wall's infill out a course past it, closing the gap
-## the courses' level cut leaves (`light_cuts`); in it a casement, its head a half circle of glass strips over a
-## transom, a round pane crossed by bars, or a door of planks each cut to the head. A row of arched windows stands
-## on one sill.
+## Behind the ring the wall's infill reaches a course past it, closing the gap the level cut leaves (`light_cuts`).
 func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var round: bool = o.style == Family.ROUND
 	var r: float = o.pane
@@ -1572,8 +1423,6 @@ func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
 			_part(at, middle, Vector3(r * 2.0, 0.035, 0.05), WOOD, rng, "frame", -THICKNESS * 0.12)
 
 
-## A round-headed door in light `at` of `o`: upright planks each reaching to the half circle springing at `middle`,
-## with two iron straps.
 func _lay_round_door(at: float, o: Dictionary, middle: float, rng: RandomNumberGenerator) -> void:
 	var r: float = o.pane
 	var planks := maxi(3, roundi(r * 2.0 / 0.2))
@@ -1587,8 +1436,6 @@ func _lay_round_door(at: float, o: Dictionary, middle: float, rng: RandomNumberG
 		_part(at, y, Vector3(r * 2.0 - 0.08, 0.06, 0.08), IRON, rng, "iron", back)
 
 
-## A corner window: a light on each face of the corner, meeting at a stone post, each in the wall's middle; a lintel
-## and a sill on each face, one of each running on over the corner.
 func _lay_corner_window(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var c := COURSE
 	var corner: float = o.s
@@ -1608,7 +1455,6 @@ func _lay_corner_window(o: Dictionary, rng: RandomNumberGenerator) -> void:
 		_lay_window(corner + side * (CORNER_POST * 0.5 + w * 0.5), o.sill, w, tall, rng, 0.0, faces[0 if side < 0.0 else 1])
 
 
-## The corner window standing at corner `s`, or empty.
 func _corner_window(s: float) -> Dictionary:
 	for o in apertures:
 		if o.style == Family.CORNER and absf(offset(o.s, s)) < 1e-3:
@@ -1616,20 +1462,15 @@ func _corner_window(s: float) -> Dictionary:
 	return {}
 
 
-## Whether people live here: a room with a way in placed, a door or an archway, or one standing on another build,
-## reached from it.
 func lived_in() -> bool:
 	return floored() and lives(openings, not supports.is_empty())
 
 
-## Whether a room with placed `openings`, standing on another build or not, is lived in; the budget asks it of a command.
+## Static: the budget asks it of a command.
 static func lives(placed: Array, standing: bool) -> bool:
 	return standing or placed.any(opens_door)
 
 
-## What a lived-in house grows at its windows, on the face looking out: curtains drawn to either side of each light of
-## its cottage and arched windows, in front of the glass; a box of flowers under most of them; and at one, a line on two
-## iron arms with washing hung out along it.
 func _lay_lived_in() -> void:
 	var out := -inner_side()
 	var rng := RandomNumberGenerator.new()
@@ -1654,7 +1495,6 @@ func _lay_lived_in() -> void:
 			_lay_washing(o, out, rng)
 
 
-## A wooden box of flowers on the sill of window `o`, out on face `out`.
 func _lay_flower_box(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void:
 	var long: float = o.half * 2.0 + 0.1
 	var off := out * (THICKNESS * 0.5 + 0.17)
@@ -1724,7 +1564,6 @@ func clutter_frame(v: Vector4, ground: Callable) -> Variant:
 	return _hung[v]
 
 
-## How far `parts` move along `out` to clear every stone of `near`, touching the nearest.
 static func _off_stones(parts: Array[Transform3D], near: Array[Transform3D], out: Vector3) -> float:
 	var off := 0.0
 	for st in near:
@@ -1735,13 +1574,10 @@ static func _off_stones(parts: Array[Transform3D], near: Array[Transform3D], out
 	return off
 
 
-## How far a box (a unit cube under `x`) reaches from its middle.
 static func _reach(x: Transform3D) -> float:
 	return (x.basis.x.abs() + x.basis.y.abs() + x.basis.z.abs()).length() * 0.5
 
 
-## How far box `a` moves along `dir` to clear box `b`, both unit cubes under their transforms: across each axis that
-## could part them, how far until `a`'s side passes `b`'s, the least of them.
 static func _clear_along(a: Transform3D, b: Transform3D, dir: Vector3) -> float:
 	var axes: Array[Vector3] = []
 	for i in 3:
@@ -1769,8 +1605,7 @@ static func _clear_along(a: Transform3D, b: Transform3D, dir: Vector3) -> float:
 	return least
 
 
-## How far `parts` rise to bring the highest of them against the roof's underside, which `fit_under` brings the stones
-## under too, or against the walls' top where no roof is seated on them.
+## Against the roof's underside, as `fit_under` cuts the stones, or the walls' top where no roof is seated.
 func _under_roof(parts: Array[Transform3D]) -> float:
 	var rise_by := INF
 	for part in parts:
@@ -1780,13 +1615,10 @@ func _under_roof(parts: Array[Transform3D]) -> float:
 	return rise_by
 
 
-## Where a roof sits on these walls: on their top, its cap included.
 func roof_base() -> float:
 	return samples[0].y + height + CAP
 
 
-## Seats roof `r` on these walls as they are laid: on their top and within their corners, its gable ends stepped where
-## theirs are.
 func seat(r: RoofLayout) -> void:
 	r.base = roof_base()
 	r.foot = stands_at()
@@ -1795,7 +1627,6 @@ func seat(r: RoofLayout) -> void:
 		r.corners = laid_points
 
 
-## Whether a washing line's arms beside window `o` stand on its own straight face.
 func _washing_fits(o: Dictionary) -> bool:
 	var reach: float = o.half + WASHING_ARM
 	if not closed and (o.s - reach < 0.0 or o.s + reach > length()):
@@ -1804,8 +1635,6 @@ func _washing_fits(o: Dictionary) -> bool:
 	return [-1.0, 1.0].all(func(edge: float) -> bool: return frame_at(o.s + edge * reach).tangent.dot(along) > 0.99)
 
 
-## A line strung over window `o`, out on face `out`, between two iron arms beyond its sides, sagging under the washing
-## pegged along it.
 func _lay_washing(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void:
 	var y: float = o.head + 0.12
 	var arm := 0.55
@@ -1832,7 +1661,7 @@ func _lay_washing(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void
 		cloths.append({"xform": Transform3D(hang, at), "color": WASHING[rng.randi() % WASHING.size()] * rng.randf_range(0.9, 1.05)})
 
 
-## A lantern hanging from an iron arm `out` of the face at `at`, or standing on a post where `out` is zero.
+## Stands on a post where `out` is zero.
 func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerator) -> void:
 	var reach := THICKNESS * 0.5 + LANTERN_OUT
 	var hang := at + out * reach
@@ -1846,7 +1675,6 @@ func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerato
 	flames.append(Transform3D(turn.scaled_local(Vector3(0.12, 0.22, 0.12)), hang + Vector3.UP * 0.055))
 
 
-## A flag standing at `foot`: its `pole` and `finial` transforms, and its `cloth` streaming along `along`.
 static func flag(foot: Vector3, along: Vector3, color: Color) -> Dictionary:
 	var x := along.normalized()
 	var cloth := Basis(x, Vector3.UP, x.cross(Vector3.UP)).scaled_local(Vector3(0.9, 0.55, 1.0))
@@ -1857,8 +1685,7 @@ static func flag(foot: Vector3, along: Vector3, color: Color) -> Dictionary:
 	}
 
 
-## The neighbours among `flags` along a wall `length` long, round a loop where `closed`, that join into a run, each as
-## the arc lengths of its first flag and of the next one on along the wall.
+## Each run as (its first flag's arc length, the next one's).
 static func flag_runs(flags: Array, length: float, closed: bool) -> Array[Vector2]:
 	var sorted := flags.duplicate()
 	sorted.sort()
@@ -1876,8 +1703,6 @@ static func flag_runs(flags: Array, length: float, closed: bool) -> Array[Vector
 	return out
 
 
-## A rope from the pole of the flag at `a` to the one at `b`, sagging, with pennants hanging from it in the colours of
-## the two flags in turn.
 func _lay_flag_run(a: float, b: float) -> void:
 	var ends: Array[Vector3] = []
 	for s in [a, b]:
@@ -1896,12 +1721,11 @@ func _lay_flag_run(a: float, b: float) -> void:
 		cloths.append({"xform": Transform3D(hang, ends[0] + DecorationLayout.hang_at(span, (k + 0.5) / count)), "color": colours[k % 2]})
 
 
-## A flag keeps its colour through every other edit to its wall.
+## Hashed from seed and place, so a flag keeps its colour through every other edit to its wall.
 static func flag_color(wall_seed: int, s: float) -> Color:
 	return FLAG_COLORS[posmod(hash([wall_seed, roundi(s * 100.0)]), FLAG_COLORS.size())]
 
 
-## Where a fence's posts stand, clear of its gates.
 func posts() -> Array[float]:
 	var arched := archways()
 	var total := length()
@@ -1914,7 +1738,6 @@ func posts() -> Array[float]:
 	return out
 
 
-## The fence post nearest `s`, where a lantern on the fence stands.
 func nearest_post(s: float) -> float:
 	var best := INF
 	for p in posts():
@@ -1923,8 +1746,6 @@ func nearest_post(s: float) -> float:
 	return best if best != INF else s
 
 
-## Posts along the ground with two rails between each pair; a gate where a path crosses: two tall posts
-## under a bent wooden arch, the rails cut between them.
 func _build_fence(rng: RandomNumberGenerator) -> void:
 	var arched := archways()
 	var standing := posts()
@@ -1970,8 +1791,6 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 			_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
 
 
-## Upright planks nailed to a fence's rails between the posts at `a` and `b`, on its +1 face, standing clear of the
-## ground and a little over the top rail.
 func _lay_pales(a: float, b: float, rng: RandomNumberGenerator) -> void:
 	var n := maxi(1, roundi((b - a - 0.13) / FENCE_PALE))
 	var step := (b - a - 0.13) / n
@@ -1986,8 +1805,7 @@ static func stone_color(rng: RandomNumberGenerator) -> Color:
 	return Color(STONE.r + warm, STONE.g, STONE.b - warm * 1.5) * rng.randf_range(0.82, 1.08)
 
 
-## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1. It keeps its depth:
-## a glazing bar or strap jittered like rubble sinks into the glass or plank behind it.
+## It keeps its depth: jittered like rubble, a glazing bar or strap sinks into the glass or plank behind it.
 func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0, face := INF) -> void:
 	var st := _stone(s, y, size, rng, kind, wobble, 0.0, 0.0, face)
 	st.xform.origin += _normal(s) * out
@@ -1995,12 +1813,10 @@ func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGen
 	stones.append(st)
 
 
-## A coloured part placed in world space, filed at arc length `s`.
 func _world(xform: Transform3D, color: Color, kind: String, s: float) -> void:
 	stones.append({"xform": xform, "color": color, "kind": kind, "s": s, "y": xform.origin.y - frame_at(s).point.y, "size": xform.basis.get_scale(), "ao": 1.0, "variant": stones.size() % 3})
 
 
-## Removes [lo, hi] from the spans; on a closed loop an opening across the seam is cut at both ends.
 func _cut(spans: Array, lo: float, hi: float) -> Array:
 	if closed and (lo < 0.0 or hi > length()):
 		var shift := length() if lo < 0.0 else -length()
@@ -2029,7 +1845,6 @@ func plastered() -> bool:
 	return finish == Finish.PLASTER or finish == Finish.TIMBER
 
 
-## The depth of the infill behind an arch's ring, set back inside both faces' finish.
 func _infill_depth() -> float:
 	return THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
 
@@ -2038,7 +1853,6 @@ func _infill_kind() -> Dictionary:
 	return {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
 
 
-## Lays `st` as the wall's infill behind a ring, in its plaster or mortar.
 func _lay_infill(st: Dictionary) -> void:
 	st.color = PLASTER if plastered() else MORTAR
 	st.ao = 1.0 if plastered() else 0.8
@@ -2054,19 +1868,16 @@ static func boards(f: Finish) -> bool:
 	return f == Finish.BOARDS_ACROSS or f == Finish.BOARDS_UPRIGHT
 
 
-## Whether a fence, or a wall that is none, can be faced in `f`: a fence in rails or planks, a wall in anything.
 static func suits(f: Finish, is_fence: bool) -> bool:
 	return not is_fence or f == Finish.BARE or boards(f)
 
 
-## Whether planks face the wall `y` over its foot: over its first course, which stays stone, as under plaster.
+## The first course stays stone, as under plaster.
 func boards_at(y: float) -> bool:
 	return boarded() and y > 0.0
 
 
-## The stretches of the course `y` over the foot whose plaster has worn back to the stones: `wear` of the face over the
-## wall's height, more toward the foot and less toward the top, taken where a noise over the face is lowest, so the
-## patches carry on from course to course.
+## Taken where a noise over the face is lowest, so the patches carry on from course to course.
 func _worn(y: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	if finish != Finish.PLASTER or wear <= 0.0 or y <= 0.0:
@@ -2111,13 +1922,10 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken, lintels, worn]` as panels on
-## cells every band shares; where plaster has worn away, mortar stands behind the stones laid there, as far back as they
-## are. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or the wall's
-## own, and on the broken tops under the next band's; it runs on behind a lintel, standing up off the head under it.
-## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
-## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
-## with the same ends as the one below grows up instead of stacking on it.
+## Bands are `[y0, h, spans, broken, lintels, worn]`. Mortar stands JOINT back at every end a span leaves open and on
+## the broken tops under the next band's; it runs on behind a lintel. A panel runs straight between its cell's ends, so
+## it climbs a slope rather than stepping, and is mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved
+## face stays closed and shades round; one with the same ends as the panel below grows up instead of stacking on it.
 func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 	var gable_ends: Array[Vector2] = []
 	if plastered() and gable_kind() == GableEnd.WALL:
@@ -2188,8 +1996,6 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plastered() or p.face else 0.8, "variant": 0, "ends": p.ends})
 
 
-## Planks from `a` to `b` along the wall, `y` up and `out` off its middle, `size` tall and deep, in staggered lengths
-## BOARD_RUN long, each cut short where the wall turns (`straight`) so its ends keep to the face.
 func _lay_run(a: float, b: float, y: float, size: Vector2, out: float, rng: RandomNumberGenerator) -> void:
 	var s := a
 	var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y
@@ -2202,8 +2008,6 @@ func _lay_run(a: float, b: float, y: float, size: Vector2, out: float, rng: Rand
 		want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y)
 
 
-## How far from `s`, up to `l`, the wall runs on turning no more than BOARD_TURN, so a straight piece that long keeps
-## to its face; cut short, it ends where the turn is reached.
 func straight(s: float, l: float) -> float:
 	# A loop's corners are summed from its points, its lengths from its samples: a corner can fall a rounding either side
 	# of its sample, which counts as the turn at the piece's end, never at its start.
@@ -2223,20 +2027,15 @@ func straight(s: float, l: float) -> float:
 	return l
 
 
-## Whether arc length `s` is one of the `turns` (`corners()`) the wall turns at: any of a loop's, an open wall's but its ends.
 func _corner(s: float, turns: Array[float]) -> bool:
 	return (closed or s > 0.001 and s < length() - 0.001) and turns.any(func(c: float) -> bool: return absf(c - s) < 0.001)
 
 
-## The rows of planks laid across a band `h` tall: as many as are BOARD.x tall or less.
 static func rows_of(h: float) -> int:
 	return maxi(1, ceili(h / BOARD.x - 1e-3))
 
 
-## A boarded wall's planks over each band `[y0, h, spans, ...]` above its foot, cut where its courses are (around its
-## openings, arches, pillars and ruins), on each straight `faces` stretch: across, in rows BOARD.x tall of staggered
-## lengths; or upright, side by side BOARD.x wide, each running up through the bands it spans whole. The mortar laid
-## behind them closes the gaps between them.
+## The mortar laid behind the planks closes the gaps between them.
 func _lay_cladding(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var deep := THICKNESS - PLASTER_INSET * 2.0
 	var columns: Array[Dictionary] = []
@@ -2279,7 +2078,6 @@ func _lay_cladding(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerat
 		_part((c.a + c.b) * 0.5, (c.y0 + c.top) * 0.5, Vector3(c.b - c.a - BOARD.y, c.top - c.y0, deep), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
 
 
-## The stretches, and round a loop each one a lap either way too, in order.
 func _round(stretches: PackedVector2Array) -> Array:
 	var out := []
 	for b in stretches:
@@ -2289,7 +2087,7 @@ func _round(stretches: PackedVector2Array) -> Array:
 	return out
 
 
-## `a` to `b` split where the stretches `bare` start and stop, each piece `[from, to, is_bare]`.
+## Pieces `[from, to, is_bare]`.
 static func _pieces(a: float, b: float, bare: Array) -> Array:
 	var out := []
 	var s := a
@@ -2307,8 +2105,7 @@ static func _pieces(a: float, b: float, bare: Array) -> Array:
 	return out
 
 
-## The run cut into cells of about a stone's length between corners, each with its ends `a`, `b` in arc length,
-## where they stand (`from`, `to`) and its level `tangent`.
+## Keys: `a`, `b` in arc length, where they stand (`from`, `to`), and the level `tangent`.
 func _cells() -> Array[Dictionary]:
 	var total := length()
 	var stops: Array[float] = [0.0, total]
@@ -2329,9 +2126,8 @@ func _cells() -> Array[Dictionary]:
 	return out
 
 
-## An arch of `size` at `s` in its style: posts up from `bottom` to the springing, the wedges round the head, and
-## behind them the wall's own infill closing the ring out to the outline, so the wall's level cut meets it with no gap.
-## Its wedges, keystone and posts scale with it, so a grand arch is laid as a doorway's is, only bigger.
+## Behind the wedges the wall's own infill closes the ring out to the outline, so the wall's level cut meets it with no
+## gap.
 func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float) -> void:
 	var style := arch_style()
 	var tint: Color = style.get("color", Color.WHITE) * rng.randf_range(0.88, 1.12)
@@ -2374,17 +2170,14 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 		stones.append(st)
 
 
-## A wedge across the middle `a` of the arch springing at `spring_y`, centred `y` over the springing, `size.y` tall and
-## `size.z` deep, between the joint lines of the head's `crown` arcs `short` of where they meet: in a pointed head
-## these run through centres either side of the middle, so they part above its point.
+## Its joint lines stop `short` of where the `crown` arcs meet: in a pointed head these run through centres either side
+## of the middle, so they part above its point.
 func _crown_wedge(a: float, spring_y: float, crown: Array, short: float, y: float, size: Vector3, joint: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var joint_at: float = crown[3] - short
 	var reach: float = crown[0].x + (y - crown[0].y) / tan(joint_at)
 	return _wedge(_arch_part(a, spring_y + y, Vector3((2.0 * reach - joint) / style.get("meet", 1.0), size.y, size.z), 0.0, style, rng), PI * 0.5 - joint_at)
 
 
-## A wedge of the arch on `side` of its middle `a`, springing at `spring_y`: the stretch of the head's `arc` from angle
-## `from` to `to`, `inner` to `outer` beyond it, its ends on lines through the arc's centre `joint` apart from the next.
 func _voussoir(a: float, spring_y: float, side: float, arc: Array, from: float, to: float, inner: float, outer: float, depth: float, joint: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var half := (to - from) * 0.5
 	var t := from + half
@@ -2394,8 +2187,7 @@ func _voussoir(a: float, spring_y: float, side: float, arc: Array, from: float, 
 	return _wedge(st, half)
 
 
-## `st`, laid with its local y running out from an arch's centre, turned to run that way along its local z, so the
-## shader's end cut (`ends`, which turns about local y) tapers it, each end turned `turn` out from square.
+## Turned so the shader's end cut (`ends`, turning about local y) tapers it.
 func _wedge(st: Dictionary, turn: float) -> Dictionary:
 	var x: Transform3D = st.xform
 	st.xform = Transform3D(x.basis * Basis(Vector3.RIGHT, -PI * 0.5), x.origin)
@@ -2408,18 +2200,15 @@ func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionar
 	return _stone(s, y, size, rng, style.kind, 0.0, roll, style.jitter)
 
 
-## How far along the wall `a` lies past `b`, the short way round a closed loop.
 func offset(a: float, b: float) -> float:
 	return fposmod(a - b + length() * 0.5, length()) - length() * 0.5 if closed else a - b
 
 
-## An arc length on this wall: wrapped round a closed loop, clamped to an open wall.
 func wrap(s: float) -> float:
 	return fposmod(s, length()) if closed else clampf(s, 0.0, length())
 
 
-## The pillars of the arcades, between arches nearer than ARCADE_GAP at their size: arc length, half-width, and the
-## springing of the lower arch, which the pillar rises to.
+## `top` is the lower arch's springing, which the pillar rises to.
 func pillars() -> Array[Dictionary]:
 	var arched := apertures.filter(func(o): return o.style == Family.ARCHWAY)
 	var out: Array[Dictionary] = []
@@ -2447,21 +2236,15 @@ func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator
 	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.0)
 
 
-## How far under the foot the stilts of `kind` stand in a raise of `rise`, over a foundation at least a course high: all
-## of the raise but that course up to STILT_SPAN, the foundation taking the rest; 0 under a plinth or a raise too low
-## for stilts.
 static func stilt_span(kind: Foundation, rise: float) -> float:
 	var span := minf(STILT_SPAN, snappedf(rise, COURSE) - COURSE)
 	return span if kind in [Foundation.PILLARS, Foundation.POSTS] and span > 2.0 * COURSE - 1e-4 else 0.0
 
 
-## Whether this stands on stilts as last laid: raised on the ground high enough for them, on pillars or posts.
 func stilted() -> bool:
 	return supports.is_empty() and stilt_span(foundation, laid_rise) > 0.0
 
 
-## Where a loop's stilts stand, by arc length in order round it: on its corners and evenly between them, at most
-## STILT_SPACING apart, or evenly round a loop without corners.
 func stations() -> Array[float]:
 	var total := Commands.length(points + [points[0]])
 	var edges := corners()
@@ -2477,9 +2260,6 @@ func stations() -> Array[float]:
 	return out
 
 
-## Stilts standing `span` under the foot, on the foundation or on the ground where it stands higher: pillars up under
-## the course of stone that runs round under the foot, a corner's pier carried down being its pillar, or posts up
-## under timber beams running straight from each post to the next.
 func _lay_stilts(span: float, rng: RandomNumberGenerator) -> void:
 	var at := stations()
 	var piers: Array[float] = []
@@ -2506,7 +2286,6 @@ func _lay_stilts(span: float, rng: RandomNumberGenerator) -> void:
 		_lay_footing(s, -bottom - base, Vector3(PILLAR, 0.0, PILLAR), "pillar", rng, top)
 
 
-## Where piers stand: the two ends and the sharp bends of an open wall, the sharp corners of a loop.
 func corners() -> Array[float]:
 	var out: Array[float] = []
 	if not closed:
@@ -2527,8 +2306,6 @@ func corners() -> Array[float]:
 	return out
 
 
-## Where an open wall turns sharply, as a hand draws a corner: the sharpest turn over half a pier either side,
-## clear of the ends and of each other by a pier.
 func _bends() -> Array[float]:
 	var out: Array[float] = []
 	var reach := PIER * 0.5
@@ -2595,8 +2372,6 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		edge += 1.15
 
 
-## A timber-framed wall's walk, open to the sky: planks along its top in WALK_LANES runs of staggered lengths from
-## corner to corner, a square plank on each corner, under a wooden railing; broken where a ruin is.
 func _lay_walk(rng: RandomNumberGenerator) -> void:
 	var faces := _face_spans()
 	var turns := corners()
@@ -2650,10 +2425,8 @@ func _lay_gables() -> void:
 					_lay_verge(mid, hs, base, rng, "cope")
 
 
-## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: the
-## wall's own courses carried on, bonded as the next ones up and set in its mortar, the roof's infill closing only what
-## the slopes leave over them. Courses stop at the corners rather than turn down the side walls, filling each corner
-## through its thickness.
+## Rows are Vector2(course, half-width), the roof's infill closing only what the slopes leave over them. Courses stop at
+## the corners rather than turn down the side walls.
 func _lay_gable_rows(mid: float, hs: float, base: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var h := COURSE
 	var edge := hs - THICKNESS * 0.5
@@ -2671,9 +2444,8 @@ func _lay_gable_rows(mid: float, hs: float, base: float, rows: Array[Vector2], r
 				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plastered() else stone_color(rng), rng, "plaster" if plastered() else "block", 0.0, 0.0, mid)
 
 
-## A stepped gable end `hs` out from the ridge each side, from the eaves up, as Vector3(half-width, first course,
-## courses): each as wide as the slope at its foot and tall enough to leave a tread, the top one tall enough to stand
-## over the ridge. Steps above the first stand inside the corners, so every cap lies along the end wall.
+## Each step is Vector3(half-width, first course, courses). Steps above the first stand inside the corners, so every cap
+## lies along the end wall.
 func crow_steps(hs: float) -> Array[Vector3]:
 	var h := COURSE
 	var steps: Array[Vector3] = []
@@ -2690,12 +2462,10 @@ func crow_steps(hs: float) -> Array[Vector3]:
 	return steps
 
 
-## How the gable ends rise: as chosen, but boarded over planked walls.
 func gable_kind() -> GableEnd:
 	return GableEnd.BOARDS if boarded() else gable_end
 
 
-## The face one gable end `hs` out from the ridge each side stands: under the slopes, or the steps'.
 func gable_face(hs: float) -> float:
 	if gable_kind() != GableEnd.STEPS:
 		return hs * gable.pitch * (1.0 + gable.curve / PI)
@@ -2705,7 +2475,6 @@ func gable_face(hs: float) -> float:
 	return out
 
 
-## Crow steps, each capped where it shows.
 func _lay_crow_steps(mid: float, hs: float, base: float, rng: RandomNumberGenerator) -> void:
 	var steps := crow_steps(hs)
 	var rows: Array[Vector2] = []
@@ -2723,7 +2492,6 @@ func _lay_crow_steps(mid: float, hs: float, base: float, rng: RandomNumberGenera
 			_add(mid + side * (steps[i + 1].x + outer) * 0.5, top, Vector3(outer - steps[i + 1].x, CAP, THICKNESS + 0.12), rng, "cap", 0.0)
 
 
-## Upright planks side by side across a gable end, each up to where the slope crosses its outer edge.
 func _lay_boards(mid: float, hs: float, base: float, rng: RandomNumberGenerator) -> void:
 	var x := -hs
 	while x < hs - 0.05:
@@ -2734,9 +2502,6 @@ func _lay_boards(mid: float, hs: float, base: float, rng: RandomNumberGenerator)
 		x += w
 
 
-## Pieces of `kind` up each rake over the gable's stepped edge, each about half a metre along it however steep, up to the
-## ridge, or on a slope too steep for the top one's foot to reach past the ridge under the far slope, to where it meets
-## the ridge's plane.
 func _lay_verge(mid: float, hs: float, base: float, rng: RandomNumberGenerator, kind: String) -> void:
 	var ridge := Vector2(0.0, gable.rise(1.0))
 	var up := Vector2(-0.01, gable.rise(1.0) - gable.rise(1.0 - 0.01 / hs)).normalized()
@@ -2784,8 +2549,6 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	_lay_row(a, total, y + PARAPET + CAP * 0.4, Vector2(0.6, 1.0), Vector2(CAP * 0.8, THICKNESS * 0.74), "cap", rng)
 
 
-## Stones of `kind` end to end from `a` to `b`, their middles `y` up, each as long as `run` allows and `size` tall and
-## deep.
 func _lay_row(a: float, b: float, y: float, run: Vector2, size: Vector2, kind: String, rng: RandomNumberGenerator) -> void:
 	var s := a
 	while b - s > 0.001:
@@ -2794,8 +2557,6 @@ func _lay_row(a: float, b: float, y: float, run: Vector2, size: Vector2, kind: S
 		s += l
 
 
-## Wooden posts standing on the cap from `a` to `total`, `inset` in from its ends (by default clear of the piers there),
-## under two rails that follow the top from post to post.
 func _lay_railing(a: float, total: float, rng: RandomNumberGenerator, inset := PIER * 0.5 + 0.03) -> void:
 	rng.seed = hash([rng.seed, "railing"])
 	var y := height + CAP
@@ -2813,23 +2574,21 @@ func _lay_railing(a: float, total: float, rng: RandomNumberGenerator, inset := P
 			_rail(posts[i - 1], posts[i], y + h, Vector3(0.04, 0.08 if h == RAILS.y else 0.06, 0.06), WOOD * rng.randf_range(0.8, 1.1))
 
 
-## A wooden rail, or a plank, `y` up from the wall's line at `a` to it at `b`, `size` its overrun past them, its depth
-## and thickness.
+## `size`: (overrun past the ends, depth, thickness).
 func _rail(a: float, b: float, y: float, size: Vector3, color: Color, kind := "rail") -> void:
 	var p: Vector3 = frame_at(a).point + Vector3.UP * y
 	var q: Vector3 = frame_at(b).point + Vector3.UP * y
 	_between(p, q, size, color, kind, (a + b) * 0.5)
 
 
-## A part from `p` to `q` in world space, `size` its overrun past them, its depth and thickness, filed at arc length `s`.
+## `size`: (overrun past the ends, depth, thickness).
 func _between(p: Vector3, q: Vector3, size: Vector3, color: Color, kind: String, s: float) -> void:
 	var x := (q - p).normalized()
 	var z := x.cross(Vector3.UP).normalized()
 	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, kind, s)
 
 
-## A corner pier from the bed up past the top; over posts, its footing stops `open` under the foot, at the foundation.
-## It leaves out `gap`, the heights a corner window opens over.
+## Over posts its footing stops `open` under the foot; it leaves out `gap`, the heights a corner window opens over.
 func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator, open: float, gap: Vector2) -> void:
 	_lay_footing(s, depth_at(s), Vector3(PIER, 0.0, PIER), "pier", wet, -open)
 	var y := 0.0
@@ -2847,8 +2606,6 @@ func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator,
 		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.0)
 
 
-## Stones from the bed `depth` below the foot up to it, or to `top`, `size` across, under a pillar or pier standing in
-## water or a raised house's corner.
 func _lay_footing(s: float, depth: float, size: Vector3, kind: String, rng: RandomNumberGenerator, top := 0.0) -> void:
 	var y := -depth
 	while y < top - 0.05:
@@ -2861,8 +2618,7 @@ func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: S
 	stones.append(_stone(s, y, size, rng, kind, wobble))
 
 
-## A stone at arc length `s`; one given the arc length of a straight `face` it belongs to, such as a gable end's middle,
-## lies on that face's line carried on past its corners, rather than turning onto the next side.
+## Given a straight `face`'s arc length, it lies on that face's line carried on past its corners.
 func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, wobble: float, roll := 0.0, jitter := 0.015, face := INF) -> Dictionary:
 	var frame := frame_at(s)
 	if is_finite(face):
@@ -2878,9 +2634,6 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + (y + depth_at(s)) * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 
-## Where a small bird can stand on the wall, in world space: on a flag's finial, a lantern's hood and in a nest; and,
-## on a wall with no roof, along the top of every cap, coping stone, merlon and pier, a fence's upper rails and its
-## posts, a step apart, only the highest where they overlap, and none beside a flag or a lantern.
 func perches() -> PackedVector3Array:
 	var out := PackedVector3Array()
 	var tops: Array[Vector3] = []
@@ -2918,11 +2671,11 @@ func perches() -> PackedVector3Array:
 	return out
 
 
-## What `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
+## All `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
 const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"finish", &"wear", &"foundation", &"planks", &"gable_end", &"openings", &"lanterns", &"flags", &"clutter", &"ruins", &"supports", &"resting", &"joined", &"older"]
 
 
-## A copy of what `build` reads, to build on another thread while this one is edited.
+## To build on another thread while this one is edited.
 func inputs() -> WallLayout:
 	var w := WallLayout.new()
 	for k in INPUTS:
@@ -2932,7 +2685,6 @@ func inputs() -> WallLayout:
 	return w
 
 
-## Whether `other` would lay the same stones on the same ground.
 func same_inputs(other: WallLayout) -> bool:
 	for k in INPUTS:
 		if get(k) != other.get(k):
@@ -2940,7 +2692,6 @@ func same_inputs(other: WallLayout) -> bool:
 	return true
 
 
-## Takes the wall's part of a build command.
 func set_data(d: Dictionary) -> void:
 	for k in ["height", "rise", "seed", "closed", "top", "fence", "finish", "wear", "foundation", "planks", "gable_end"]:
 		set(k, d[k])
@@ -2948,7 +2699,6 @@ func set_data(d: Dictionary) -> void:
 		(get(k) as Array).assign(Array(d[k]))
 
 
-## Takes what `built` laid, as if `build` had run here.
 func adopt(built: WallLayout) -> void:
 	_sampled_from = built._sampled_from
 	laid_points = built.laid_points
@@ -2975,7 +2725,7 @@ func adopt(built: WallLayout) -> void:
 	laid = _laid_count
 
 
-## The built shape without its stones, safe to read on another thread while this one is edited.
+## Without its stones, safe to read on another thread while this one is edited.
 func snapshot() -> WallLayout:
 	var w := WallLayout.new()
 	w.seed = seed
@@ -3000,7 +2750,6 @@ func snapshot() -> WallLayout:
 	return w
 
 
-## Ground point and unit tangent at arc length `s`.
 func frame_at(s: float) -> Dictionary:
 	var at := _segment(s)
 	var i: int = at[0]
@@ -3009,7 +2758,6 @@ func frame_at(s: float) -> Dictionary:
 	return {"point": samples[i - 1].lerp(samples[i], at[1]), "tangent": tan.normalized() if tan.length() > 1e-5 else Vector3.RIGHT}
 
 
-## The sample `i` ending the segment that holds arc length `s`, and the fraction `t` along it, as [i, t].
 func _segment(s: float) -> Array:
 	if closed and lengths.size() > 1:
 		s = fposmod(s, length())
@@ -3019,17 +2767,14 @@ func _segment(s: float) -> Array:
 	return [i, 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0)]
 
 
-## How far the ground lies below the foot at arc length `s`.
 func depth_at(s: float) -> float:
 	return _along(depths, s)
 
 
-## The ground's height under arc length `s`.
 func ground_at(s: float) -> float:
 	return _along(grounds, s)
 
 
-## How far the plinth reaches below the foot at arc length `s`.
 func plinth_at(s: float) -> float:
 	return _along(plinths, s)
 
@@ -3041,7 +2786,6 @@ func _along(per_sample: PackedFloat32Array, s: float) -> float:
 	return lerpf(per_sample[at[0] - 1], per_sample[at[0]], at[1])
 
 
-## The stretches where the ground lies deeper below the foot than `drop`, as spans of arc length.
 func _over_bed(drop: float) -> Array:
 	var out := []
 	var from := -1.0
@@ -3056,8 +2800,6 @@ func _over_bed(drop: float) -> Array:
 	return out
 
 
-## An open wall over water opens arches where it crosses: one over a narrow crossing, an arcade on pillars
-## standing in the pond over a wider one.
 func _water_arches() -> Array[float]:
 	var out: Array[float] = []
 	if closed or fence:
@@ -3072,8 +2814,6 @@ func _water_arches() -> Array[float]:
 	return out
 
 
-## Whether a duck paddling straight from `a` to `b` would meet this wall: anywhere along a stone wall but
-## under an arch; a fence's rails stand clear over the water.
 func blocks_swim(a: Vector2, b: Vector2) -> bool:
 	if fence or not bounds.grow(THICKNESS).intersects(Rect2(a, Vector2.ZERO).expand(b).grow(0.01)):
 		return false
@@ -3108,13 +2848,10 @@ func _swims_through(s: float) -> bool:
 	return broken(s, -SWIM_CLEAR) or apertures.any(func(o): return o.style == Family.ARCHWAY and absf(offset(s, o.s)) < o.half - SWIM_CLEAR)
 
 
-## Closest arc length on the wall to a world point, measured on the ground plane.
 func closest_s(p: Vector3) -> float:
 	return _nearest_s(Vector2(p.x, p.z), range(samples.size() - 1))
 
 
-## The arc length of the point nearest `at` on the ground plane over the sample segments indexed by `segments`, the
-## first of them on a tie.
 func _nearest_s(at: Vector2, segments: Array) -> float:
 	var best := INF
 	var best_s := 0.0
@@ -3126,7 +2863,7 @@ func _nearest_s(at: Vector2, segments: Array) -> float:
 	return best_s
 
 
-## The fraction along sample segment `i` of its ground point nearest `at` (x), and that point's distance from `at` (y).
+## (fraction along segment `i`, distance from `at`)
 func _foot(at: Vector2, i: int) -> Vector2:
 	var a := Vector2(samples[i].x, samples[i].z)
 	var b := Vector2(samples[i + 1].x, samples[i + 1].z)
@@ -3143,7 +2880,7 @@ func segment_cells() -> Dictionary:
 	return _segment_cells
 
 
-## Commit the drawn line once. Piers choose the anchors; corner cutting only touches the spans between them.
+## Piers choose the anchors; corner cutting only touches the spans between them.
 func finish_stroke() -> void:
 	if points.size() < 3:
 		return
@@ -3190,13 +2927,10 @@ func finish_stroke() -> void:
 			remaining -= distance
 		if result[-1].distance_to(span[-1]) < SAMPLE * 0.25:
 			result.pop_back()
-	# Each span starts at its corner; keep the final endpoint exactly too.
 	result.append(points[-1])
 	points = result
 
 
-## The ground curve, and the ruins' breaks along it, for the inputs as they stand on ground `ground` (and `water`, as
-## `build` takes them) at revision `revision`.
 func resample(ground: Callable, water := Callable(), revision := 0) -> void:
 	var key := [points.duplicate(), height, rise, foundation, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), revision, ground, water]
 	if key == _sampled_from:
@@ -3228,7 +2962,7 @@ func resample(ground: Callable, water := Callable(), revision := 0) -> void:
 		bounds = bounds.expand(Vector2(q.x, q.z))
 
 
-## Lays the samples along the points; true when the loop stands on a build's top.
+## True when the loop stands on a build's top.
 func _resample_curve(ground: Callable) -> bool:
 	var dense: Array[Vector3] = []
 	var n := points.size()
@@ -3261,12 +2995,10 @@ func _resample_curve(ground: Callable) -> bool:
 	return held > -INF
 
 
-## Height of the ground, or the top of the builds, a closed loop stands on: under its plinth, if it is raised.
 func stands_at() -> float:
 	return samples[0].y + SINK - (laid_rise if supports.is_empty() else 0.0)
 
 
-## The highest top of the builds under (x, z), or -INF.
 func rest(x: float, z: float) -> float:
 	var best := -INF
 	for s in supports:
@@ -3274,8 +3006,6 @@ func rest(x: float, z: float) -> float:
 	return best
 
 
-## Whether `p` lies where a build this one meets lays nothing: in a house or tower it joins, or under a build
-## standing on it.
 func hides(p: Vector3) -> bool:
 	return hidden(p, joined, resting)
 
@@ -3299,15 +3029,13 @@ static func circle(center: Vector3, radius: float) -> Array[Vector3]:
 	return out
 
 
-## Corners of a house footprint whose long axis runs from `a` to `b`, `depth` across.
 static func rectangle(a: Vector3, b: Vector3, depth: float) -> Array[Vector3]:
 	var along := Vector3(b.x - a.x, 0.0, b.z - a.z)
 	var across := along.cross(Vector3.UP).normalized() * depth * 0.5
 	return [a - across, b - across, b + across, a + across]
 
 
-## Visits Catmull-Rom samples through an open stroke, SAMPLE apart and ending on its last point, as
-## `each(sample, i, t)`: `t` of the way from point `i` to the next; with `from`, the samples from that point on.
+## Calls `each(sample, i, t)`, `t` of the way from point `i` to the next; `from` starts at that point.
 static func smooth(stroke: Array[Vector3], each: Callable, from := 0) -> void:
 	for i in range(from, stroke.size() - 1):
 		var p0 := stroke[maxi(i - 1, 0)]

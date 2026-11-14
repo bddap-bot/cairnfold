@@ -1,46 +1,31 @@
 class_name RoofLayout
 extends RefCounted
 
-## Lays the tiles of a roof resting on a closed wall: a gable over a house's rectangle or a cone over a
-## round tower. Pitch is the ridge's rise above the wall top; curvature bows the slopes out (positive)
-## or sags them into swept eaves (negative); its eaves reach `overhang` past the walls, at most down to what the walls
-## stand on, so a long overhang on low walls brings the slopes down to the ground like a tent. At pitch 0 the roof is a
-## flat deck inside the walls, stone flags or boards, whose top style rims it. A gable carries chimneys and dormers; a
-## cone can fly a flag from its top. Thatched, the slopes are a thick coat of overlapping straw courses instead, rolled
-## over the eaves and verges under a block-cut ridge. Pure data, like WallLayout.
+## Pitch is the ridge's rise above the wall top; a positive curve bows the slopes out, a negative one sags them
+## into swept eaves.
 
 enum Kind { GABLE, CONE }
 enum Deck { STONE, WOOD }
 
-## The way a cone's flag flies.
 const FLAG_ALONG := Vector3(1, 0, 0.4)
-## How far the eaves reach past the walls' outer faces as a roof is first laid, and the furthest a pull takes them.
 const OVERHANG := 0.3
 const MAX_OVERHANG := 2.5
 const GABLE_OVERHANG := 0.25
 const ROW := 0.24
-## A tile's full size. Its lower edge hangs NOSE below its row's line and it runs on up under the two rows above,
-## past the lower edge of the second, so the joint between two tiles has a tile under it: a roof seen from outside
-## shows clay through every joint, never the walls or the room beneath. The torching closes them only from below.
+## TILE.z laps the two rows above, so every joint has a tile under it and no wall or room shows through from
+## outside; the torching closes joints only from below.
 const TILE := Vector3(0.27, 0.05, 0.6)
 const NOSE := 0.18
 const CONE_LAP := 0.25
-## A pitch pulled below this lands flat.
 const FLAT_SNAP := 0.4
 const SLAB := Vector3(0.7, 0.1, 0.5)
-## A wooden deck's boards: width and thickness, the gap between them, and the shortest and longest board; the joists
-## under them, how far apart and how deep.
+## PLANK: width, thickness. JOIST: spacing, depth.
 const PLANK := Vector2(0.18, 0.05)
 const PLANK_GAP := 0.01
 const PLANK_LENGTHS := Vector2(1.4, 3.2)
 const JOIST := Vector2(0.6, 0.12)
-## A trapdoor in a flat roof: the square its lid covers, and how far it keeps clear of the walls' inner faces.
 const HATCH := 0.8
 const HATCH_CLEAR := 0.15
-## A dormer: half its width out to its cheeks' outer faces, how tall its front stands from the slope to its eaves, how
-## far its own little gable rises over that, how far its roof reaches past its front and cheeks, how far from the gable
-## ends and its neighbours it keeps, how far its ridge stays under the roof's, its window's half-width, and how far its
-## window's sill stands over the slope and its head under the eaves.
 const DORMER_HALF := 0.62
 const DORMER_TALL := 0.9
 const DORMER_PITCH := 0.42
@@ -50,19 +35,17 @@ const DORMER_UNDER := 0.15
 const DORMER_WINDOW := 0.3
 const DORMER_SILL := 0.2
 const DORMER_HEAD := 0.12
-## The upright boards a dormer's front and cheeks are clad in: width and thickness.
+## Width, thickness.
 const DORMER_BOARD := Vector2(0.16, 0.05)
-## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
 const DECK_TUCK := 0.06
 const DECK_DROP := 0.03
-## A point this near under a deck still stands on it: a ray's hit on the deck can fall a hair short of it.
+## A ray's hit on the deck can land a hair below it.
 const ON_DECK := 0.01
 const BED_LAP := 0.2
 ## Beyond this the pitched profile reverses at the ridge or eave and cuts through its supporting wall.
 const CURVE := 4.0 / PI
-## How far the torching lies under the tiles' bed, and the longest side of its pieces: half the bounce probes'
-## spacing, which it reads per vertex, and short enough that a build joining the roof takes it away where it takes
-## the tiles.
+## TORCHING_PIECE is half the bounce probes' spacing, which it reads per vertex, and short enough that a build
+## joining the roof removes it where it removes the tiles.
 const TORCHING_DROP := 0.04
 const TORCHING_PIECE := 0.5
 const PROFILE_STEPS := 8
@@ -73,83 +56,69 @@ const CEILING_DROP := DECK_DROP + SLAB.y * 1.1
 const CEILING_DEPTH := 0.035
 const CEILING_PIECE := 0.5
 
-## The clay roof tiles are laid in, before each roof's hue and each tile's variation.
 const CLAY := Color(0.72, 0.4, 0.28)
-## Combed reed as laid, and the grey-brown it weathers toward.
 const STRAW := Color(0.6, 0.45, 0.25)
 const WEATHERED := Color(0.42, 0.38, 0.32)
-## Scales a stone deck's flags off the walls' stone, so a deck reads apart from them and from their dark top course.
+## Sets a deck's flags apart from the walls' stone and their dark top course.
 const DECK_TONE := Color(0.86, 0.72, 0.56)
-## How far the coat's outer face stands off the roof's surface, and how far its lumps rise and sink from that.
 const COAT := 0.32
 const LUMPS := 0.05
-## Thatch overhangs further than tiles: its eaves and verges round over the walls.
 const THATCH_EAVE := 0.25
 const THATCH_VERGE := 0.2
-## The ridge's band down each side: how far it stands proud of the coat and how far down the slope it reaches; then
-## how far apart the points cut along its lower edge stand and how far down they reach.
+## BAND: proud of the coat, reach down the slope. POINT: spacing and depth of the points cut along its lower edge.
 const BAND := Vector2(0.13, 0.62)
 const POINT := Vector2(0.7, 0.28)
-## The steepest slope (as its tangent) whose coat is carried up to meet the other's over the ridge; the roll over the
-## crest, how far past it each side and how far above.
+## CREST: the steepest slope (as a tangent) whose coat is carried up to meet the other's. ROLL: past the crest
+## each side, above it.
 const CREST := 2.5
 const ROLL := Vector2(0.12, 0.16)
-## The coat's mesh: the most its rows lie apart, and how many steps round its rounded edges. Past the stones' near
-## distance it is drawn from rows FAR_STEP apart: from the air the fine coat cost the Quest 2 a millisecond over five
-## roofs and looked the same.
+## Past the stones' near distance the coat is drawn at FAR_STEP: from the air the fine coat cost the Quest 2 a
+## millisecond over five roofs and looked the same.
 const COAT_STEP := 0.12
 const FAR_STEP := 0.36
 const EDGE_STEPS := 5
 const HAZEL := Color(0.45, 0.36, 0.24)
 var kind := Kind.GABLE
-## For a gable, the corners from WallLayout.rectangle: the ridge runs along the first side's direction.
+## From WallLayout.rectangle; the ridge runs along corners[0] -> corners[1].
 var corners: Array[Vector3] = []
-## For a cone: the axis on the ground and the radius of the wall's centre line.
+## Cone only; the radius is to the wall's centre line.
 var center := Vector3.ZERO
 var radius := 2.0
-## Height of the wall top the roof rests on, and of the ground (or top) the walls stand on, which no eave reaches below.
+## The wall top's height, and `foot` what the walls stand on, which no eave reaches below.
 var base := 0.0
 var foot := -INF
 var pitch := 2.0
 var curve := 0.0
 var seed := 1
-## Chimneys on a gable: metres along the ridge from its middle and across it, toward a slope's eave.
+## Metres along the ridge from its middle, and across it.
 var chimneys: Array[Vector2] = []
-## Dormers on a gable, as chimneys are placed: metres along the ridge to a dormer's middle, and across it to its front.
+## As chimneys; y reaches the dormer's front.
 var dormers: Array[Vector2] = []
-## Trapdoors in a flat roof, as chimneys are placed: metres along the ridge (or east of a tower's axis) and across it.
+## As chimneys; on a tower, x is east of its axis.
 var hatches: Array[Vector2] = []
 var overhang := OVERHANG
 var deck := Deck.STONE
-## A cone flies a flag from its top instead of a finial.
 var flag := false
-## Laid from the wall it rests on, like `base`: its gable ends rise past the slopes in crow steps, so the tiles stop
-## inside them.
+## Taken from the wall, like `base`: crow-stepped gable ends, so the tiles stop inside them.
 var stepped := false
-## Straw instead of tiles; a flat deck stays stone.
 var thatch := false
 
 var tiles: Array[Dictionary] = []
-## A thatched roof's coat, as Mesh arrays, near and far, and the slabs standing in for it in shadows and bounce light.
 var coat: Array = []
 var coat_far: Array = []
 var _coat_pick: TriangleMesh
 var slabs: Array[Dictionary] = []
-## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
+## Beds a deck's flags so its joints show mortar, not the floor below.
 var mortar: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
-## The mouth of each chimney pot, where its smoke rises.
 var vents := PackedVector3Array()
-## The exclusions used when this roof was laid, shared by its surface picks.
 var joined: Array[Massing] = []
 var resting: Array[Massing] = []
-## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
-## The gable ends at the face of what is laid on them, where pointing meets them: boards, plaster and stone all stand out
-## to the wall's face, whatever plane `gable_faces` backs them on.
+## Where pointing meets the gable ends: boards, plaster and stone stand out to the wall's face, whatever plane
+## `gable_faces` backs them on.
 var gable_pick := PackedVector3Array()
-## Under a pitched roof, the lime torching under its tiles that closes the gaps between them, facing down.
 var torching_faces := PackedVector3Array()
 var timber_faces := PackedVector3Array()
 var bounds := AABB()
@@ -158,7 +127,7 @@ var bounds := AABB()
 const INPUTS: Array[StringName] = [&"kind", &"center", &"radius", &"pitch", &"curve", &"seed", &"chimneys", &"dormers", &"hatches", &"overhang", &"deck", &"flag", &"thatch"]
 
 
-## What the roof is laid from, copied to lay on another thread.
+## Copied so another thread can lay it.
 func inputs() -> RoofLayout:
 	var r := RoofLayout.new()
 	for k in INPUTS:
@@ -174,12 +143,10 @@ func same_inputs(other: RoofLayout) -> bool:
 	return true
 
 
-## The roof as a build command carries it.
 func data() -> Dictionary:
 	return {"kind": int(kind), "center": center, "radius": radius, "pitch": pitch, "curve": curve, "seed": seed, "chimneys": PackedVector2Array(chimneys), "dormers": PackedVector2Array(dormers), "hatches": PackedVector2Array(hatches), "overhang": overhang, "deck": int(deck), "flag": flag, "thatch": thatch}
 
 
-## Takes a build command's roof.
 func set_data(d: Dictionary) -> void:
 	for k in ["kind", "center", "radius", "pitch", "curve", "seed", "overhang", "deck", "flag", "thatch"]:
 		set(k, d[k])
@@ -187,7 +154,6 @@ func set_data(d: Dictionary) -> void:
 		(get(k) as Array).assign(Array(d[k]))
 
 
-## Takes what `built` laid, as if `build` had run here.
 func adopt(built: RoofLayout) -> void:
 	base = built.base
 	foot = built.foot
@@ -211,7 +177,6 @@ func adopt(built: RoofLayout) -> void:
 	bounds = built.bounds
 
 
-## A pulled pitch as the roof takes it: below FLAT_SNAP it lands flat, else on the nearest `step`.
 static func snap_pitch(p: float, step: float) -> float:
 	return 0.0 if p < FLAT_SNAP else snappedf(p, step)
 
@@ -220,8 +185,6 @@ func flat() -> bool:
 	return pitch <= 0.0
 
 
-## Height of the deck that `p` stands on, or -INF: a pitched roof, one not laid yet, a point beside the house, or one
-## below the deck, inside the house under it.
 func deck_under(p: Vector3) -> float:
 	if not flat() or kind != Kind.CONE and corners.size() < 4:
 		return -INF
@@ -229,14 +192,13 @@ func deck_under(p: Vector3) -> float:
 	return y if p.y >= y - ON_DECK and over(p.x, p.z) else -INF
 
 
-## Rise above the wall top at `u`, 0 at the walls' outer faces and 1 at the ridge; below 0 (the overhang) it carries on straight.
+## `u`: 0 at the walls' outer faces, 1 at the ridge; below 0 (the overhang) it carries on straight.
 func rise(u: float) -> float:
 	if u < 0.0:
 		return pitch * u * (1.0 + curve * 0.25 * PI)
 	return pitch * (u + curve * 0.25 * sin(PI * u))
 
 
-## Height of the roof's surface over the ground point (x, z).
 func height_at(x: float, z: float) -> float:
 	var f := frame()
 	var d := Vector3(x, 0.0, z) - Vector3(f.mid.x, 0.0, f.mid.z)
@@ -251,7 +213,6 @@ func height_at(x: float, z: float) -> float:
 	return base + rise(1.0 - out / half_span())
 
 
-## Whether the ground point (x, z) lies under the roof, between the walls' outer faces.
 func over(x: float, z: float) -> bool:
 	var f := frame()
 	var d := Vector3(x - f.mid.x, 0.0, z - f.mid.z)
@@ -260,7 +221,6 @@ func over(x: float, z: float) -> bool:
 	return absf(d.dot(f.across)) <= half_span() and absf(d.dot(f.along)) <= ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5
 
 
-## Distance from the ridge (or axis) out to the walls' outer faces, where the roof rests.
 func half_span() -> float:
 	var inner := radius if kind == Kind.CONE else corners[0].distance_to(corners[3]) * 0.5
 	return inner + WallLayout.THICKNESS * 0.5
@@ -270,17 +230,14 @@ func ridge_length() -> float:
 	return corners[0].distance_to(corners[1])
 
 
-## How far a flat deck reaches across from the ridge (or axis), tucked under the walls.
 func deck_reach() -> float:
 	return half_span() - WallLayout.THICKNESS + DECK_TUCK
 
 
-## How far a flat deck reaches along the ridge from its middle, tucked under the walls.
 func deck_length() -> float:
 	return ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
 
 
-## Ridge axis, across axis and the centre of the footprint, on the ground plane at the wall top.
 func frame() -> Dictionary:
 	if kind == Kind.CONE:
 		return {"along": Vector3.RIGHT, "across": Vector3.BACK, "mid": Vector3(center.x, base, center.z)}
@@ -292,23 +249,18 @@ func frame() -> Dictionary:
 	return {"along": along.normalized(), "across": across.normalized(), "mid": Vector3(mid.x, base, mid.z)}
 
 
-## Horizontal distance out from the ridge (or axis) at which the eave ends: `overhang` past the walls, or where the
-## slope carried on meets the height the walls stand on, if sooner.
 func eave() -> float:
 	if flat():
 		return half_span()
 	return half_span() + minf(overhang, reach())
 
 
-## The furthest the eave can reach past the walls: MAX_OVERHANG, or where its slope meets what the walls stand on.
 func reach() -> float:
 	var fall := -rise(-1.0) / half_span()
 	var down := base - foot
 	return minf(MAX_OVERHANG, down / fall) if fall > 0.0 and is_finite(down) else MAX_OVERHANG
 
 
-## The way out from the walls, level, that pulls the eave the point `p` lies on; zero where `p` is over the walls or
-## the roof is flat. A gable's verges are not eaves.
 func eave_way(p: Vector3) -> Vector3:
 	if flat():
 		return Vector3.ZERO
@@ -330,7 +282,7 @@ func thatched() -> bool:
 	return thatch and not flat()
 
 
-## Points down one slope, from the ridge out to the eave: Vector2(distance out, height above base).
+## Vector2(out from the ridge, height over base), ridge to eave.
 func profile(steps: int) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	var hs := half_span()
@@ -340,8 +292,7 @@ func profile(steps: int) -> PackedVector2Array:
 	return out
 
 
-## The profile the torching and gable ends are cut along: pieces no longer than TORCHING_PIECE, and halved until no
-## chord rises more than half TORCHING_DROP over the curve the tiles lie on, as a sagging slope's chords do.
+## Halved until no chord rises more than half TORCHING_DROP over the tiles' curve, as a sagging slope's do.
 func lining() -> PackedVector2Array:
 	var hs := half_span()
 	var steps := ceili(eave() / TORCHING_PIECE)
@@ -352,8 +303,7 @@ func lining() -> PackedVector2Array:
 	return prof
 
 
-## The roof's area along its slopes over its plan out to the eave: how much tile or straw it lays per square metre
-## of ground it covers.
+## Slope area per unit of plan area out to the eave.
 func stretch() -> float:
 	if flat():
 		return 1.0
@@ -432,7 +382,7 @@ func build(gable_inset := WallLayout.PLASTER_INSET) -> void:
 		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), flag_top() + Vector3.UP * 0.2), "finial", Color(0.6, 0.56, 0.5), 1.0)
 
 
-## The rectangular bound also bounds a round ceiling's box segments. Each is charged as an existing timber.
+## A rectangular bound, which also bounds a round ceiling's segments; each is charged as an existing timber.
 func ceiling_units() -> int:
 	if not flat():
 		return 0
@@ -442,8 +392,8 @@ func ceiling_units() -> int:
 	return ceili(2.0 * wide / CEILING_BOARD) * ceili(2.0 * long / CEILING_PIECE) + ceili(2.0 * long / RAFTER_SPACING) * ceili(2.0 * wide / CEILING_PIECE)
 
 
-## Framing sits beneath the mortar bed, bearing into the walls. Each strip is split so curved decks and
-## merge exclusions use the same roof height and hiding queries as the covering above it.
+## Strips are split so curved decks and merge exclusions use the same roof height and hiding queries as the
+## covering above.
 func _lay_ceiling() -> void:
 	var f := frame()
 	var h := _ceiling_halves()
@@ -465,19 +415,16 @@ func _lay_ceiling() -> void:
 		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, CEILING_DROP + CEILING_DEPTH)
 
 
-## Half the ceiling's reach along the ridge and across it.
 func _ceiling_halves() -> Vector2:
 	var wide := half_span() - WallLayout.THICKNESS * 0.5
 	return Vector2(wide if kind == Kind.CONE else ridge_length() * 0.5, wide)
 
 
-## Deeper over a wider span, the shorter of a flat roof's two.
 func rafter_depth() -> float:
 	var h := _ceiling_halves()
 	return clampf(2.0 * minf(h.x, h.y) / 18.0, 0.14, 0.38)
 
 
-## Height of the rafters' undersides over the ground point (x, z).
 func rafter_bottom(x: float, z: float) -> float:
 	return height_at(x, z) - CEILING_DROP - CEILING_DEPTH - rafter_depth()
 
@@ -512,8 +459,6 @@ func _fly_flag(foot: Vector3) -> void:
 	cloths.append(parts.cloth)
 
 
-## Stone flags paving the floor inside the walls at the cap's height: running-bond rows across a house,
-## rings round a tower.
 func _lay_deck(rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var reach := deck_reach()
@@ -551,8 +496,6 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 		row += 1
 
 
-## Boards laid across a deck inside the walls, on joists running the other way: rows of boards of varied length
-## along a house's ridge (straight across a tower), staggered so no two rows' joints line up, cut at the walls.
 func _lay_boards(rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var reach := deck_reach()
@@ -588,7 +531,6 @@ func _lay_boards(rng: RandomNumberGenerator) -> void:
 		row += 1
 
 
-## A deck piece's frame at `at`, on a curved deck lifted onto its surface and tilted with it.
 func _on_deck(at: Vector3, basis: Basis) -> Transform3D:
 	if curve == 0.0:
 		return Transform3D(basis, at)
@@ -600,8 +542,7 @@ func _on_deck(at: Vector3, basis: Basis) -> Transform3D:
 	return Transform3D(Basis(across, normal, across.cross(normal)), at)
 
 
-## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted, on a mortar bed
-## reaching past it into its neighbours' so no gap, rounded corners' included, opens onto the floor below.
+## The bed reaches into its neighbours' so no gap, rounded corners' included, opens onto the floor below.
 func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
 	var on := _on_deck(at, basis)
 	at = on.origin
@@ -613,32 +554,26 @@ func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator)
 	mortar.append({"xform": Transform3D(basis.scaled_local(bed), at + Vector3.UP * (SLAB.y * 0.2 - bed.y * 0.5)), "color": WallLayout.MORTAR, "kind": "mortar", "ao": 0.8})
 
 
-## A chimney's place clamped onto the roof, clear of the gable ends and the eaves.
 func chimney_spot(c: Vector2) -> Vector2:
 	var along := maxf(0.0, ridge_length() * 0.5 - STACK_WIDTH)
 	var across := maxf(0.0, half_span() - STACK_WIDTH)
 	return Vector2(clampf(c.x, -along, along), clampf(c.y, -across, across))
 
 
-## Where a point on the roof lies, as a chimney spot: along the ridge and across it.
 func spot_of(p: Vector3) -> Vector2:
 	var f := frame()
 	var d: Vector3 = p - f.mid
 	return Vector2(d.dot(f.along), d.dot(f.across))
 
 
-## How high over the roof's base a chimney at `c` stands, under its cap: clear of the ridge, and a metre over its own
-## slope.
 func chimney_top(c: Vector2) -> float:
 	return maxf(pitch + 0.7, spot_height(c) + 1.0) + coat_rise()
 
 
-## How high over the roof's base its slope stands at the chimney spot `c`.
 func spot_height(c: Vector2) -> float:
 	return rise(1.0 - absf(c.y) / half_span())
 
 
-## The pieces the `i`th chimney would be laid with at `c`, alone.
 func chimney_parts(c: Vector2, i: int) -> Array[Dictionary]:
 	var r := inputs()
 	r.corners = corners
@@ -653,7 +588,6 @@ func _chimney_rng(i: int) -> RandomNumberGenerator:
 	return rng
 
 
-## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots, each smoking.
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
@@ -673,7 +607,6 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 		vents.append(pot + Vector3.UP * 0.14)
 
 
-## Where a trapdoor can lie in this flat roof nearest the spot `c`, its lid clear of the walls; NAN where none fits.
 func hatch_spot(c: Vector2) -> Vector2:
 	if not flat():
 		return Vector2(NAN, NAN)
@@ -689,7 +622,6 @@ func hatch_spot(c: Vector2) -> Vector2:
 	return Vector2(clampf(c.x, -along, along), clampf(c.y, -room, room))
 
 
-## Whether a trapdoor at `c` lies in this flat roof clear of the trapdoors in `placed`, its chimneys and its flag.
 func hatch_fits(c: Vector2, placed: Array) -> bool:
 	var spot := hatch_spot(c)
 	if is_nan(spot.x):
@@ -699,7 +631,6 @@ func hatch_fits(c: Vector2, placed: Array) -> bool:
 	return clear and (not flag or _square_apart(Vector2.ZERO, spot, HATCH * 0.5 + 0.15))
 
 
-## Whether trapdoors at spots `a` and `b` would lie on one another.
 static func hatches_meet(a: Vector2, b: Vector2) -> bool:
 	return not _square_apart(a, b, HATCH + 0.2)
 
@@ -708,7 +639,6 @@ static func _square_apart(a: Vector2, b: Vector2, by: float) -> bool:
 	return is_nan(a.x) or is_nan(b.x) or maxf(absf(a.x - b.x), absf(a.y - b.y)) >= by
 
 
-## The frame of a trapdoor at `c` on this roof's deck, and the box it lies in there.
 func hatch_bounds(c: Vector2) -> Array:
 	var spot := hatch_spot(c)
 	if is_nan(spot.x):
@@ -716,13 +646,11 @@ func hatch_bounds(c: Vector2) -> Array:
 	return [_hatch_frame(spot), AABB(Vector3(-HATCH * 0.5 - 0.06, -0.02, -HATCH * 0.5 - 0.06), Vector3(HATCH + 0.12, 0.14, HATCH + 0.12))]
 
 
-## Where a trapdoor at `spot` lies: on the deck's top, square to the roof's frame.
 func _hatch_frame(spot: Vector2) -> Transform3D:
 	var f := frame()
 	return _on_deck(f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * -DECK_DROP, Basis(f.along, Vector3.UP, f.across))
 
 
-## A trapdoor lying on the deck at `spot`: a lid of boards in a curb, on two iron strap hinges with a ring to lift it by.
 func _lay_hatch(spot: Vector2, rng: RandomNumberGenerator) -> void:
 	var at := _hatch_frame(spot)
 	var b := at.basis
@@ -739,8 +667,6 @@ func _lay_hatch(spot: Vector2, rng: RandomNumberGenerator) -> void:
 	_add(Transform3D(b.scaled_local(Vector3(0.1, 0.02, 0.03)), at * Vector3(0.0, 0.095, HATCH * 0.36)), "iron", WallLayout.IRON, 1.0)
 
 
-## Where a dormer can stand on this gable nearest the spot `c`: along the ridge clear of the gable ends, its front
-## between the walls' centre line and as far up the slope as leaves its own gable under the ridge; NAN where none fits.
 func dormer_spot(c: Vector2) -> Vector2:
 	var none := Vector2(NAN, NAN)
 	if kind != Kind.GABLE or flat():
@@ -753,7 +679,6 @@ func dormer_spot(c: Vector2) -> Vector2:
 	return Vector2(clampf(c.x, -along, along), (-1.0 if c.y < 0.0 else 1.0) * clampf(absf(c.y), lo, hi))
 
 
-## Whether a dormer at `c` stands on this roof clear of the dormers in `placed` and of the chimneys on its slope.
 func dormer_fits(c: Vector2, placed: Array) -> bool:
 	var spot := dormer_spot(c)
 	if is_nan(spot.x):
@@ -763,18 +688,15 @@ func dormer_fits(c: Vector2, placed: Array) -> bool:
 		and chimneys.all(func(k: Vector2) -> bool: return spots_apart(chimney_spot(k), spot, DORMER_HALF + DORMER_EAVE + STACK_WIDTH)))
 
 
-## Whether a chimney at `c` stands clear of this roof's dormers.
 func clear_of_dormers(c: Vector2) -> bool:
 	var spot := chimney_spot(c)
 	return dormers.all(func(d: Vector2) -> bool: return spots_apart(spot, dormer_spot(d), DORMER_HALF + DORMER_EAVE + STACK_WIDTH))
 
 
-## Whether `a` and `b` stand on opposite slopes, or `apart` or more along the ridge; a spot that stands nowhere is clear.
 static func spots_apart(a: Vector2, b: Vector2, apart: float) -> bool:
 	return is_nan(a.x) or is_nan(b.x) or (a.y < 0.0) != (b.y < 0.0) or absf(a.x - b.x) >= apart - 0.001
 
 
-## The least distance out from the ridge a dormer's front can stand at with its gable under the ridge, or INF.
 func _dormer_reach() -> float:
 	var hs := half_span()
 	var under := pitch - DORMER_TALL - DORMER_PITCH - DORMER_UNDER
@@ -783,8 +705,6 @@ func _dormer_reach() -> float:
 	return out_at(under, hs)
 
 
-## How far out from the ridge the slope's surface stands `y` above the wall top, `hs` out to the walls' faces: 0 above
-## the ridge, the faces below it.
 func out_at(y: float, hs: float) -> float:
 	var lo := 0.0
 	var hi := hs
@@ -797,8 +717,6 @@ func out_at(y: float, hs: float) -> float:
 	return hi
 
 
-## A dormer's room, for pointing at it: a box in the frame (x along the ridge, y up, z out of its front) the returned
-## transform places, from the slope at its back to its eaves; or [] where none stands at `c`.
 func dormer_bounds(c: Vector2) -> Array:
 	var spot := dormer_spot(c)
 	if is_nan(spot.x):
@@ -816,7 +734,7 @@ func dormer_bounds(c: Vector2) -> Array:
 	return [xform, AABB(Vector3(-wide, foot - lift - 0.1, -back), Vector3(wide * 2.0, top - foot + lift + 0.1, back + DORMER_EAVE))]
 
 
-## A dormer's faces and slopes, as Vector2(square metres of boarded front and cheeks, of tiled roof).
+## Vector2(square metres of boarded front and cheeks, of tiled roof).
 func dormer_area(c: Vector2) -> Vector2:
 	var spot := dormer_spot(c)
 	if is_nan(spot.x):
@@ -829,11 +747,9 @@ func dormer_area(c: Vector2) -> Vector2:
 	return Vector2(front + depth * DORMER_TALL, 2.0 * slope * (depth + DORMER_EAVE))
 
 
-## Each dormer's window as an opening in the room under the roof: the middle of its sill on the front's face, the way
-## the front faces, its half-width and its height.
 func dormer_windows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	# A roof not yet laid over its walls has no corners to stand a dormer on.
+	# Not yet laid over its walls.
 	if corners.size() < 4:
 		return out
 	var f := frame()
@@ -848,9 +764,7 @@ func dormer_windows() -> Array[Dictionary]:
 	return out
 
 
-## A dormer standing out of a slope: an upright boarded front with a cottage window, boarded cheeks back to where its
-## eaves meet the slope, and its own little gable of tiles under a ridge running back into the roof. Its pieces stand
-## a little into the slope (on thatch, into the coat) so no gap opens where they meet it.
+## Its pieces stand a little into the slope (on thatch, into the coat) so no gap opens where they meet it.
 func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 	var spot := dormer_spot(c)
 	if is_nan(spot.x):
@@ -869,7 +783,7 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 	var t := -DORMER_HALF
 	while t < DORMER_HALF - 0.001:
 		var w := minf(DORMER_BOARD.x, DORMER_HALF - t)
-		# A board ends at the window's edge, so none half over it is cut whole and leaves a slot beside the frame.
+		# A board ends at the window's edge, else one half over it is cut whole and leaves a slot beside the frame.
 		for edge in [-DORMER_WINDOW, DORMER_WINDOW]:
 			if t < edge - 0.001:
 				w = minf(w, edge - t)
@@ -921,7 +835,6 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 		a -= w
 
 
-## How far out from the ridge (or axis) each row of tiles lies, eave first, ROW apart along the curved slope.
 func _rows() -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	var x := eave()
@@ -932,19 +845,16 @@ func _rows() -> PackedFloat32Array:
 	return out
 
 
-## The slope's angle `x` out from the ridge (or axis), rising toward it.
 func slope_at(x: float) -> float:
 	var hs := half_span()
 	x = maxf(x, 0.01)
 	return atan((rise(1.0 - (x - 0.01) / hs) - rise(1.0 - x / hs)) / 0.01)
 
 
-## The roof's surface `x` out along `out` from `mid` on the ridge (or axis).
 func _on_slope(mid: Vector3, out: Vector3, x: float) -> Vector3:
 	return mid + out * x + Vector3.UP * rise(1.0 - x / half_span())
 
 
-## How far out from the ridge a point `d` up the slope from `x` lies (down it for negative `d`), no further in than the ridge.
 func _along(x: float, d: float) -> float:
 	var steps := maxi(1, ceili(absf(d) / 0.05))
 	for i in steps:
@@ -952,13 +862,11 @@ func _along(x: float, d: float) -> float:
 	return x
 
 
-## How far the tiles run along the ridge: over the walls and out past both gable ends.
 func _tiled_length() -> float:
 	return ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
 
 
-## A row of tiles down both slopes, `under` beneath its line: the eave row lies on an under-course staggered
-## against it, as nothing else lies under its joints.
+## The eave row lies on a staggered under-course, as nothing else lies under its joints.
 func _lay_gable_row(row: float, stagger: float, hue: float, rng: RandomNumberGenerator, under := 0.0) -> void:
 	var f := frame()
 	var length := _tiled_length()
@@ -977,8 +885,8 @@ func _lay_gable_row(row: float, stagger: float, hue: float, rng: RandomNumberGen
 			x += TILE.x
 
 
-## A ring of tiles. Its count changes ring to ring, so no ring's joints can sit over the tiles below: each tile
-## laps its neighbours by CONE_LAP of its width instead.
+## Ring counts change, so no ring's joints can sit over the tiles below: each tile laps its neighbours by
+## CONE_LAP of its width instead.
 func _lay_cone_row(row: float, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var n := maxi(4, ceili(TAU * row / TILE.x))
@@ -991,7 +899,6 @@ func _lay_cone_row(row: float, hue: float, rng: RandomNumberGenerator) -> void:
 		_tile(f.mid + out * bed.at.x + Vector3.UP * bed.at.y + basis.y * TILE.y * 0.5, basis, hue, rng, TAU * row / n / TILE.x * (1.0 + CONE_LAP), bed.run)
 
 
-## A tile's frame on a slope facing `out`: x along the row, y off the roof, z down the slope.
 static func _slope_basis(out: Vector3, slope: float) -> Basis:
 	var down := (out * cos(slope) - Vector3.UP * sin(slope)).normalized()
 	var x := Vector3.UP.cross(down).normalized()
@@ -1010,9 +917,8 @@ func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 		x += width
 
 
-## Where the tiles of the row `row` out from the ridge lie, as {at, slope, run} in (out, rise): TILE.z long, centred on
-## the chord from their lower edge, NOSE down the curve, to the point TILE.z up it, or as long as that chord where it
-## reaches the ridge, so neither end of a tile on a curved slope dips under the torching.
+## Tiles centre on the chord from NOSE below the row's line to TILE.z up the curve (shorter where it reaches the
+## ridge), so neither end of a tile on a curved slope dips under the torching.
 func _bed(row: float) -> Dictionary:
 	var hs := half_span()
 	var low := _along(row, -NOSE)
@@ -1028,19 +934,16 @@ func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, wid
 	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, run)), p), "tile", _clay(hue, rng), 1.0)
 
 
-## Where a cone's flag pole, or its finial, stands: on its tip, over the thatch where it is thatched.
 func flag_top() -> Vector3:
 	return frame().mid + Vector3.UP * (pitch + coat_rise())
 
 
-## How far the thatch's outer face stands above the ridge: the coat and its band, measured square to the slopes there.
 func coat_rise() -> float:
 	return _crest().y + ROLL.y if thatched() else 0.0
 
 
-## Where the coat's top row ends over the ridge (or apex), each slope's outer face carried on up toward the other's,
-## as Vector2(how far out from the ridge, how high over it). On a slope steeper than CREST allows the faces stop short
-## of meeting, under the roll.
+## Vector2(out from the ridge, over it). On a slope steeper than CREST allows the faces stop short of meeting,
+## under the roll.
 func _crest() -> Vector2:
 	var s := slope_at(0.0)
 	var depth := COAT + BAND.x
@@ -1048,10 +951,8 @@ func _crest() -> Vector2:
 	return Vector2(depth * sin(s) - up * cos(s), depth * cos(s) + up * sin(s))
 
 
-## The straw coat, one mesh in Mesh arrays (unindexed triangles; a vertex's tangent is the way its straw runs): a
-## blanket COAT deep over the slopes, lumpy, rounded over the eaves and verges onto an underside, under a block-cut
-## ridge pinned by hazel liggers on a gable or a crown on a cone. Each roof weathers its own way; its ridge, renewed
-## more often, less. Slabs inside the coat stand in for it in shadows and bounce light, which read boxes.
+## Unindexed triangles; a vertex's tangent is the way its straw runs. The ridge, renewed more often, weathers
+## less. Slabs inside the coat stand in for it in shadows and bounce light, which read boxes.
 func _lay_thatch(rng: RandomNumberGenerator) -> void:
 	var weather := rng.randf_range(0.0, 0.55)
 	var lumps := FastNoiseLite.new()
@@ -1086,18 +987,14 @@ func _lay_thatch(rng: RandomNumberGenerator) -> void:
 			_coat_slabs(f.mid, out, out.cross(Vector3.UP), TAU * eave() / 8.0, straw)
 
 
-## How far the coat runs each way along a gable's ridge from its middle.
 func _coat_reach() -> float:
 	return ridge_length() * 0.5 + (0.0 if stepped else WallLayout.THICKNESS * 0.5 + THATCH_VERGE)
 
 
-## How far out from the ridge (or axis) the coat's underside runs its rows, from inside the walls to past the eave.
 func _under_rows(step: float) -> PackedFloat32Array:
 	return _spaced(half_span() - 0.1, eave() + THATCH_EAVE, step * 2.0)
 
 
-## A gable's coat: each slope a grid from the ridge to past the eave and past both verges, its edges rounded under, then
-## the ridge's roll.
 func _coat_gable(c: Coat) -> void:
 	var f := frame()
 	var reach := _coat_reach()
@@ -1136,8 +1033,7 @@ func _coat_cone(c: Coat) -> void:
 	_knob(c, f.mid)
 
 
-## Rows down a slope as Vector2(distance out from the ridge, how far round the eave's edge): close together about the
-## band's cut, the last EDGE_STEPS turning under the eave.
+## Vector2(out from the ridge, turn round the eave's edge).
 func _coat_rows(step: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	var cut := _along(0.0, -BAND.y)
@@ -1153,7 +1049,6 @@ func _coat_rows(step: float) -> PackedVector2Array:
 	return out
 
 
-## Evenly from `a` to `b`, at most `step` apart.
 static func _spaced(a: float, b: float, step: float) -> PackedFloat32Array:
 	var n := maxi(1, ceili((b - a) / step))
 	var out := PackedFloat32Array()
@@ -1162,7 +1057,7 @@ static func _spaced(a: float, b: float, step: float) -> PackedFloat32Array:
 	return out
 
 
-## `ts` as Vector2(where, how far round the edge), with EDGE_STEPS more turning under at each end.
+## Vector2(where, turn round the edge).
 static func _edged(ts: PackedFloat32Array) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for k in EDGE_STEPS:
@@ -1174,8 +1069,7 @@ static func _edged(ts: PackedFloat32Array) -> PackedVector2Array:
 	return out
 
 
-## The coat's depth at `along` (metres along the ridge, or round a cone at its band) and `x` out from the ridge, over
-## the roof's surface at `at`: lumpy, and thicker under the ridge's band, whose lower edge is cut into points.
+## `along`: metres along the ridge, or round a cone at its band.
 func _depth(along: float, x: float, at: Vector3, c: Coat) -> float:
 	var down := _down(x)
 	var phase := absf(fposmod(along / POINT.x, 1.0) * 2.0 - 1.0)
@@ -1185,7 +1079,6 @@ func _depth(along: float, x: float, at: Vector3, c: Coat) -> float:
 	return COAT + BAND.x * band + LUMPS * c.lumps.get_noise_3d(at.x * 1.3, down * 1.7, at.z * 1.3) * shaggy
 
 
-## How far down the slope from the ridge (or apex) a point `x` out lies.
 func _down(x: float) -> float:
 	var hs := half_span()
 	var d := 0.0
@@ -1199,8 +1092,7 @@ func _down(x: float) -> float:
 	return d
 
 
-## A node of the coat: [position, normal, the way the straw runs, colour]. `on` is the ridge (or apex) below it, `out`
-## the way down the slope, `x` how far out; `a` and `b` how far it has turned under the end (toward `end`) and the eave.
+## `a` and `b`: how far it has turned under the end (toward `end`) and under the eave.
 func _coat_node(on: Vector3, out: Vector3, end: Vector3, along: float, x: float, a: float, b: float, c: Coat) -> Array:
 	var s := slope_at(x)
 	var n := out * sin(s) + Vector3.UP * cos(s)
@@ -1220,7 +1112,6 @@ func _coat_node(on: Vector3, out: Vector3, end: Vector3, along: float, x: float,
 	return [p, n * cos(turn) + away * sin(turn), n.cross(away) if turn > 0.0 else fall, colour]
 
 
-## A node of the coat's underside, on the roof's surface `x` out, facing down.
 func _under_node(on: Vector3, out: Vector3, x: float) -> Array:
 	var s := slope_at(x)
 	var fall := out * cos(s) - Vector3.UP * sin(s)
@@ -1228,8 +1119,6 @@ func _under_node(on: Vector3, out: Vector3, x: float) -> Array:
 	return [p, -(out * sin(s) + Vector3.UP * cos(s)), fall, Color(STRAW.r * 0.45, STRAW.g * 0.45, STRAW.b * 0.45, 0.0)]
 
 
-## The roll capping a gable's ridge over the crest, straw running along it, its ends rounded; below its widest it reaches
-## down into the coats.
 func _ridge_roll(c: Coat, mid: Vector3, along: Vector3, across: Vector3, reach: float) -> void:
 	var crest := _crest()
 	var wide := crest.x + ROLL.x
@@ -1250,7 +1139,6 @@ func _ridge_roll(c: Coat, mid: Vector3, along: Vector3, across: Vector3, reach: 
 		return [centre + along * t + across * r.x + Vector3.UP * r.y, n, along, c.ridge * 0.97])
 
 
-## A cone's crown: a knob of straw over the crest, reaching down into the coat.
 func _knob(c: Coat, apex: Vector3) -> void:
 	var crest := _crest()
 	var wide := crest.x + ROLL.x + 0.04
@@ -1265,7 +1153,6 @@ func _knob(c: Coat, apex: Vector3) -> void:
 		return [p, Vector3(dir.x / wide, dir.y / tall, dir.z / wide).normalized(), Vector3(cos(a), 0.0, sin(a)), c.ridge])
 
 
-## Two hazel liggers along a gable's band, a little proud of it, holding it down.
 func _coat_liggers(mid: Vector3, out: Vector3, reach: float) -> void:
 	for d in [0.16, BAND.y - 0.12]:
 		var x := _along(0.0, -d)
@@ -1274,7 +1161,6 @@ func _coat_liggers(mid: Vector3, out: Vector3, reach: float) -> void:
 		_add(Transform3D(basis.scaled_local(Vector3(2.0 * reach - 0.3, 0.035, 0.035)), at), "ligger", HAZEL, 1.0)
 
 
-## Slabs down a slope of `width` along `along`, inside the coat: what shadows and the bounce light see of it.
 func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, straw: Color) -> void:
 	var end := eave() + THATCH_EAVE
 	var xs := _spaced(0.0, end, 0.9)
@@ -1289,8 +1175,7 @@ func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, straw
 		slabs.append({"xform": Transform3D(basis.scaled_local(Vector3(width, COAT * 0.8, length)), at), "color": straw, "kind": "thatch", "ao": 1.0})
 
 
-## Builds the coat's triangles: grids of nodes ([position, normal, straw direction, colour]) joined into quads, each
-## triangle wound to face its nodes' normals.
+## Nodes are [position, normal, straw direction, colour].
 class Coat:
 	var step := COAT_STEP
 	var straw: Color
@@ -1338,7 +1223,6 @@ class Coat:
 		return out
 
 
-## Keeps the coat's triangles, near and far, and slabs `kept` takes, by their middles.
 func keep_coat(kept: Callable) -> void:
 	slabs.assign(slabs.filter(func(s: Dictionary) -> bool: return kept.call(s.xform.origin)))
 	if coat.is_empty():
@@ -1376,7 +1260,6 @@ func _add(xform: Transform3D, what: String, color: Color, ao: float) -> void:
 	tiles.append({"xform": xform, "color": color, "kind": what, "ao": ao, "variant": tiles.size() % 3})
 
 
-## The roof's surface as triangles, eave to ridge, for pointing at it.
 func surface() -> PackedVector3Array:
 	if flat() and curve != 0.0:
 		return _deck_surface()
@@ -1401,7 +1284,6 @@ func surface() -> PackedVector3Array:
 	return tris
 
 
-## The direction of point `k` of `seg` evenly round a cone's eave.
 static func _ring(k: int, seg: int) -> Vector3:
 	return Vector3(cos(TAU * k / seg), 0, sin(TAU * k / seg))
 
@@ -1449,8 +1331,8 @@ static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vecto
 	tris.append_array([a, c, d])
 
 
-## The lining and gables share a profile, including the cap band down to the wall body: fitting the caps under
-## the eaves can shave them below the roof base. Both gable faces point out of the wall, into the air they read for light.
+## The cap band runs down to the wall body: fitting the caps under the eaves can shave them below the roof base.
+## Both faces point out of the wall, into the air they read for light.
 func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if kind != Kind.GABLE or flat():
@@ -1472,9 +1354,8 @@ func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 					var x1 := minf(prof[i + 1].x, hs)
 					var a: Vector3 = at + out * prof[i].x
 					var b: Vector3 = at + out * x1
-					# A storey resting here hides the roof above this plane, but leaves the cap band below it. The band is
-					# cut at the lining's breakpoints: a triangle across the room has every corner outside it, which
-					# interior.gdshaderinc takes as outside everywhere.
+						# A storey resting here hides the roof above this plane but not the band. Cut at the lining's breakpoints:
+						# interior.gdshaderinc takes a triangle with every corner outside the room as outside everywhere.
 					_facing(tris, facing, a + down, a, b)
 					_facing(tris, facing, a + down, b, b + down)
 					var top := Vector3.UP * rise(1.0 - x1 / hs)
@@ -1488,7 +1369,6 @@ static func _facing(tris: PackedVector3Array, facing: Vector3, a: Vector3, b: Ve
 	tris.append_array([a, b, c] if (b - a).cross(c - a).dot(facing) < 0.0 else [a, c, b])
 
 
-## The underside of a pitched roof's tiles, short of its verges, as triangles facing down.
 func torching() -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if flat():
@@ -1507,8 +1387,7 @@ func torching() -> PackedVector3Array:
 				var q := prof[i + 1]
 				quads.append(PackedVector3Array([mid + a0 * p.x + Vector3.UP * p.y, mid + a1 * p.x + Vector3.UP * p.y, mid + a1 * q.x + Vector3.UP * q.y, mid + a0 * q.x + Vector3.UP * q.y]))
 	else:
-		# It stops inside the gable walls, whose faces close the bed down past it: under a verge it would show edge-on
-		# from beyond the gable end.
+		# Stops inside the gable walls: under a verge it would show edge-on from beyond the gable end.
 		var length := ridge_length()
 		var n := maxi(1, ceili(length / TORCHING_PIECE))
 		for side in [-1.0, 1.0]:
@@ -1527,7 +1406,6 @@ func torching() -> PackedVector3Array:
 	return tris
 
 
-## Nearest distance along a ray to the roof, or INF.
 func ray_hit(origin: Vector3, dir: Vector3) -> float:
 	if thatched():
 		var hit := _coat_pick.intersect_ray(origin, dir) if _coat_pick != null else {}
@@ -1535,7 +1413,6 @@ func ray_hit(origin: Vector3, dir: Vector3) -> float:
 	return _nearest(origin, dir, faces)
 
 
-## Nearest distance along a ray to a gable end, or INF.
 func gable_hit(origin: Vector3, dir: Vector3) -> float:
 	return _nearest(origin, dir, gable_pick)
 
@@ -1551,7 +1428,7 @@ func _nearest(origin: Vector3, dir: Vector3, tris: PackedVector3Array) -> float:
 	return best
 
 
-## The coat extends beyond the tiled bed, so its rendered triangles also own its pick surface.
+## The coat stands past the tiled bed, so its own triangles are its pick surface.
 func _pick_coat() -> void:
 	_coat_pick = null
 	var vertices: PackedVector3Array = coat[Mesh.ARRAY_VERTEX]

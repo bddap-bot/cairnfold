@@ -1,21 +1,7 @@
 class_name WallTool
 extends Node3D
 
-## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line, and a grip
-## on a tree, bush, boulder, stairs or placed fitting carries it, a boulder turning with the hand every way, a fitting
-## kept to what it stands on (`_fitting_sizing`), and sets it down when let go. Each hand grabs on its own; a grip on a
-## tree, boulder, stairs or opening the other hand holds joins it, and the pair size it.
-## A hand holding the house or the tower puts one up with its trigger where it points, and nothing more. A grip
-## anywhere on a build, a wall, fence, house or tower, roof included, carries it: it moves and turns with the hand, a
-## house or tower rising onto its plinth as the hand rises. The other hand's grip on it too sizes it: spread across a
-## house the pair stretch its width or depth, a tower's diameter, along a wall or fence its length, and drawn apart
-## upright they make walls taller; both on a roof, drawn apart upright they raise the ridge, and across they bow the
-## slopes; both on its eaves they pull them out. Letting go sets it as one reshape. One build is in hand at a time. A path across a wall opens an arch where they cross,
-## or an arcade where the crossing is wide, and into a house or tower a door as wide as the path: those openings
-## follow from the paths standing, so they come and go with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
-## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
-## A hand points at the ground or at a build's top, and what it builds there stands on that build; builds that
-## meet join (docs/design.md, "Buildings on buildings").
+## How builds stand on builds and join: docs/design.md, "Buildings on buildings".
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -25,7 +11,6 @@ const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
 const HOUSE_SIDE := 2.4
 enum RoofStyle { PITCHED, FLAT, THATCHED, BOARDED }
-## What two hands on a house shape: its walls, its roof, or its eaves.
 enum Pair { WALLS, ROOF, EAVES }
 
 const HOUSE_SIZE := Vector2(4.5, 4.5)
@@ -33,17 +18,14 @@ const TOWER_SIZE := Vector2(3.4, 3.4)
 const HOUSE_REACH := 6.0
 const TOP_BAND := 0.4
 const ROOF_STEP := 0.1
-## How far a carried house goes, in metres, between two scrapes.
+## Metres carried between two scrape cues.
 const CARRY_STEP := 0.12
 
-## Something was built, moved or pulled here: the music makes room.
+## The music makes room (Soundscape).
 signal built
 
 
-## A thing a grip holds and two grips size by their span: how to read and show its scale (fixed at 1 unless set), the
-## range it may take, and the command that sets it in the garden as shown ({} while it is as the garden has it); and
-## what one hand alone does with it, `take` holding it from where it stands now and `follow` moving it with the mason's
-## hand from the pose it `took`: a tree, bush, boulder, stairs or fitting is carried.
+## `command` is {} while the garden already has what is shown.
 class Sizing:
 	var scale: Callable = func() -> float: return 1.0
 	var limits := Vector2.ONE
@@ -55,12 +37,10 @@ class Sizing:
 	var follow: Callable
 
 
-## A flight of stairs, a landing or a ladder a grip holds, by its id in the garden.
 class StairGrip:
 	var id: int
 
 
-## An easel a grip carries, by its id in the garden.
 class EaselGrip:
 	var id: int
 
@@ -68,13 +48,10 @@ class EaselGrip:
 class Mason:
 	var hand: Hand
 	var stroke: Stroke
-	## Whether its grip on the house in hand took the roof, and on the eave, past the walls, the way out from them
-	## there; zero on its walls or the roof over them.
+	## `eave_out` is zero unless the grip took an eave past the walls.
 	var took_roof := false
 	var eave_out := Vector3.ZERO
-	## What the grip holds (a tree's trunk, a bush, a boulder, stairs or a fitting), how, where it took it, the hand's pose
-	## `took` then and the `gain` it carries by; with the other hand's grip on it too, that mason, its scale `lift_start`
-	## and the hands' span when it joined.
+	## `lift_start` and `pair_span`: the scale and the hands' span when the second hand joined.
 	var growing: Object
 	var sizing: Sizing
 	var took := Transform3D()
@@ -85,13 +62,12 @@ class Mason:
 	var lift_at := Vector3.ZERO
 
 
-## A stroke being drawn and the walls it builds, shown as it grows and kept on release.
 class Stroke:
 	var points: Array[Vector3] = []
 	var plan: WallPlan
 	var walls: Array[Wall] = []
 	var planned := false
-	## The builds it stands on, and the height of the top it is drawn on, or NAN on the ground.
+	## `level` is NAN on the ground.
 	var on := PackedInt32Array()
 	var level := NAN
 
@@ -102,76 +78,54 @@ var flora: Flora
 var paths: Paths
 var masonry := Masonry.new(Wall.kinds(), true)
 var walls: Array[Wall] = []
-## The paint new builds are laid in: the swatch last picked on this machine for each material (PaletteTool).
+## New builds' styles: the ones last turned to on this machine.
 var paint := Palette.plain()
-## The gable ends new houses are laid with: the style last turned to on this machine.
 var gable_end := WallLayout.GableEnd.WALL
-## What new walls and houses are faced in, and how worn, and what new fences are: the faces last turned to on this machine.
 var finish := WallLayout.Finish.BARE
 var wear := 0.0
 var fence_finish := WallLayout.Finish.BARE
-## The family new windows open in: the one last turned to on a window on this machine.
 var window_family := WallLayout.Family.COTTAGE
-## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
 var planks := false
 var foundation := WallLayout.Foundation.PILLARS
-## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
 var deck := RoofLayout.Deck.STONE
 var masons: Array[Mason] = []
-## Whether painting at an easel takes `hand`'s grip (`EaselTool.claims`): its brushes, palettes and canvas keep their
-## grips before anything a ray from the hand would carry.
+## Easel kit keeps its grips ahead of anything a ray from the hand would carry (`EaselTool.claims`).
 var painting := func(_hand: Hand) -> bool: return false
-## The build in hand, a house, tower, wall or fence, and where and how it stands now (`house_of` for a house or tower,
-## `line_of` for any other, with "grounded" true for a house on the ground, which rides the ground and its plinth).
 var held: Wall
 var held_at := {}
-## Where it stood as the garden had it when taken, and the builds standing on it, all the way up, each with where its
-## stones stood when laid (`_laid_at`), carried with it.
 var _held_was := {}
 var _riders := {}
-## The hands holding it, and what the pair of them shape; where it stood and their poses when the last of them took
-## hold, and how far it goes per metre of hand.
 var _holders: Array[Mason] = []
 var _pair := Pair.WALLS
 var _hold_start := {}
 var _hold_from: Array[Transform3D] = []
 var _hold_gain := 1.0
-## Where the house stood for each footprint sent to be laid, so whichever is laid is carried to where it stands now.
+## One per footprint sent, so whichever is laid is carried to where the house stands now.
 var _laid_at: Array[Dictionary] = []
 var _held_dirty := false
-## Houses let go, and the builds on them, not yet laid as the garden has them, by id: their `_laid_at`, where the house
-## was let go, and whether the garden has answered for them, so their stones are carried there until they are laid again.
+## Builds let go, not yet laid as the garden has them: their stones are carried to `at` until laid again.
 var _settling := {}
-## The pieces of clutter hands hold, standing apart from their builds, by grip: their `node`, the build's table `of` and
-## `id`, whether the hand has `let_go` and its build was `shown` as the garden has it since, so the node stands until
-## its build is drawn with the piece.
+## A held piece's node stands until its build is drawn with the piece.
 var _held_clutter := {}
-## How far a house may be carried, in metres, or turned, in radians, and still count as left where it stood: a hand held
-## still trembles.
+## A hand held still trembles: a carry or turn under these, in metres and radians, leaves a house where it stood.
 const NUDGE := 0.05
 const TURN_NUDGE := 0.02
-## True while the garden is swapped wholesale: walls come and go without a sound.
 var quiet := false
 var _since_rebuild := 0.0
 var _dirty := false
 var _path_openings := {}
-## Grid cell → the walls whose samples reach it (WallLayout.segment_cells), kept up every frame as walls are laid
-## (`walls_by_cell`), so no frame of a stroke indexes them all.
+## Kept up as walls are laid, so no frame of a stroke indexes them all.
 var _walls_at := {}
-## Wall → the segment grid `_walls_at` holds for it, and a count bumped when any changes.
 var _walls_at_from := {}
 var walls_at_rev := 0
-## Wall → the segment grid and inputs its preview arches were last cut from: a wall the stroke's moving end is not
-## near keeps them.
+## A wall the stroke's moving end is not near keeps its previewed arches.
 var _previewed := {}
-## The index revision and the previews `_preview_crossings` last cut from.
 var _previewed_rev := -1
 var _previewed_paths: Array = []
-## The walls in hand of this player's command that last came back, for the garden's walls it puts up (`put`).
+## Stand-ins the garden's walls take over in `put`.
 var _handing: Array[Wall] = []
 var _handing_hand: Hand
-## How far the house in hand has been carried since its last scrape.
 var _carried := 0.0
 
 
@@ -202,7 +156,6 @@ func mason(hand: Hand) -> Mason:
 	return null
 
 
-## Whether `hand`, or with none any hand, has an edit under way.
 func busy(hand: Hand = null) -> bool:
 	if held != null and hand == null:
 		return true
@@ -295,12 +248,11 @@ func _handle(m: Mason) -> void:
 			drag_pair(m, m.partner.hand.global_position, origin)
 
 
-## What a grip from `from` along `dir` would take short of `reach`, by World.Kind, nearest last (World's `pick`).
+## Nearest last (World's `pick`).
 func grip_hits(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
 	return world.pick(from, dir, {World.Kind.PLANT: reach, World.Kind.HELD_TARGET: reach, World.Kind.BOULDER: reach, World.Kind.STAIRS: reach, World.Kind.STAND: reach}, {}, [World.Kind.HELD_TARGET])
 
 
-## Shows the bar what the edit in `m`'s hand would add.
 func _preview(m: Mason) -> void:
 	var change := {}
 	if m.stroke != null:
@@ -343,8 +295,6 @@ func _add_wall(w: Wall) -> Wall:
 	return w
 
 
-## A stroke from `p`, on the build `on` (-1 the ground): one begun on a build's top is drawn on that top's level,
-## merging only with walls standing on that build as a stroke on the ground merges with walls on the ground.
 func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 	m.stroke = Stroke.new()
 	m.stroke.points = [p]
@@ -402,8 +352,6 @@ func end_stroke(m: Mason) -> void:
 		build(built_walls, m.hand)
 
 
-## Sends a stroke's walls to the garden as one step; they stand as drawn until the garden's walls they become
-## are laid.
 func build(ws: Array[Wall], hand: Hand = null) -> void:
 	world.submit({"op": "wall", "walls": ws.map(func(w: Wall) -> Dictionary: return w.data())}, func() -> void:
 		_let_go_handed()
@@ -411,7 +359,7 @@ func build(ws: Array[Wall], hand: Hand = null) -> void:
 		_handing_hand = hand, hand)
 
 
-## The garden is being swapped: walls in hand belong to the old one.
+## The garden is being swapped: what is in hand belongs to the old one.
 func _forget() -> void:
 	_let_go_handed()
 	_path_openings.clear()
@@ -435,8 +383,6 @@ func _forget() -> void:
 	_held_clutter.clear()
 
 
-## A hand holding the house or the tower points where one would stand, and its trigger puts one up there, on the
-## ground or on the build's top it points at, its front square to the head; moving it is the grip's.
 func _place_input() -> void:
 	for m in masons:
 		if not m.hand.tool in [Hand.Tool.HOUSE, Hand.Tool.TOWER] or rig.aim_hand == m.hand or not m.hand.tracked() or m in _holders:
@@ -454,8 +400,6 @@ func _place_input() -> void:
 		build([new_house(stance(world.terrain.ground(at.x, at.z), angle(rig.head.global_basis.x), m.hand.tool == Hand.Tool.TOWER), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())], m.hand)
 
 
-## A new house, or round tower under a cone, standing at `center` on the ground with its front square to `yaw`, as
-## `house_of` reads one.
 static func stance(center: Vector3, yaw: float, round := false) -> Dictionary:
 	var out := {"center": center, "yaw": yaw, "size": TOWER_SIZE if round else HOUSE_SIZE, "round": round, "rise": 0.0,
 		"height": TOWER_HEIGHT if round else HOUSE_HEIGHT, "curve": 0.0, "overhang": RoofLayout.OVERHANG}
@@ -463,8 +407,6 @@ static func stance(center: Vector3, yaw: float, round := false) -> Dictionary:
 	return out
 
 
-## A new house or tower standing as `at` has it (`stance`), on the builds `on`, laid as this machine lays new ones and
-## shown until the garden has it (`build`).
 func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	var w := _new_wall()
 	w.on = on
@@ -493,9 +435,7 @@ func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	return w
 
 
-## Takes the built house or tower `w` in hand as the garden has it, or where it was let go if the garden has not yet
-## answered, for the grips that join it (`_join_build`), or a script (`stand_build`), to move and size; what stands on it
-## goes with it, all their stones leaving the glade's in one flush.
+## One flush takes the held build's and its riders' stones out of the glade's.
 func take_build(w: Wall) -> void:
 	held = w
 	var d: Dictionary = world.state.walls[w.id]
@@ -518,8 +458,6 @@ func take_build(w: Wall) -> void:
 	_carried = 0.0
 
 
-## Where the stones `w` has laid stood, its house standing as it was let go or as the garden has it, `w` standing at
-## `points` raised `rise` in the garden; it is held now, so no longer settling.
 func _resettled(w: Wall, points: PackedVector3Array, rise: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = _settling.get(w.id, {}).get("laid_at", [] as Array[Dictionary])
 	_settling.erase(w.id)
@@ -529,7 +467,6 @@ func _resettled(w: Wall, points: PackedVector3Array, rise: float) -> Array[Dicti
 	return out
 
 
-## `m`'s grip joins the hold on the house in hand: on its roof with `roof`, on its eave going `eave` out from its walls.
 func _join_build(m: Mason, roof: bool, eave: Vector3) -> void:
 	m.took_roof = roof
 	m.eave_out = eave
@@ -540,8 +477,6 @@ func _join_build(m: Mason, roof: bool, eave: Vector3) -> void:
 		Cues.play(Cues.Act.HOUSE_TAKE, held_at.center, m.hand)
 
 
-## Each change of hands starts the hold afresh from where the house stands: two hands on its roof shape the roof, on its
-## eaves pull them, and otherwise size it.
 func _restart_hold() -> void:
 	_hold_start = held_at.duplicate()
 	_hold_from.clear()
@@ -555,7 +490,6 @@ func _restart_hold() -> void:
 		_pair = Pair.EAVES if _holders.all(func(m: Mason) -> bool: return m.eave_out != Vector3.ZERO) else Pair.ROOF
 
 
-## Moves the house in hand with the hands holding it, and lets it go once none does.
 func _hold_build() -> void:
 	if _holders.is_empty():
 		return
@@ -582,8 +516,6 @@ func _hold_build() -> void:
 		stand_build(resize(_hold_start, _hold_from, now, _hold_gain))
 
 
-## Shows the house in hand standing as `to`: moved or turned, its stones are carried as they were laid, roof, fittings
-## and furniture with them; sized, raised or its roof reshaped, it is laid again.
 func stand_build(to: Dictionary) -> void:
 	to.center = world.terrain.ground(to.center.x, to.center.z)
 	var hands := _holders.map(func(m: Mason) -> Hand: return m.hand)
@@ -606,7 +538,6 @@ func stand_build(to: Dictionary) -> void:
 		_lay_build()
 
 
-## How far a build standing as `at` reaches, across and up, as its sizing sounds it.
 static func _extent(at: Dictionary) -> float:
 	return at.height + (at.size.length() if at.has("size") else at.run * at.length)
 
@@ -632,8 +563,6 @@ func _place_carried() -> void:
 	_settle_builds()
 
 
-## Carries the stones `w` has laid to where its house stands as `at`, from where that stood when they were laid
-## (`laid_at`), its decorations with them: a house on the ground rides the ground, one on a build keeps that build's top.
 func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
 	var laid := w.layout.laid_points
 	var i := laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid and e.laid_rise == w.layout.laid_rise)
@@ -656,8 +585,6 @@ func _place_laid(w: Wall, x: Transform3D) -> void:
 		world.decorations.place()
 
 
-## Lets the house in hand go: it is set where and as it stands, one reshape with the builds on it carried along, and
-## shown there until the garden lays it so.
 func end_build(hand: Hand = null) -> void:
 	var w := held
 	var at := held_at
@@ -682,7 +609,6 @@ func end_build(hand: Hand = null) -> void:
 		world.submit(cmds[0] if cmds.size() == 1 else {"op": "batch", "cmds": cmds}, _build_back.bind(ids), hand)
 
 
-## Whether a build held from `was` stands far enough from it as `at` to set it there.
 static func _moved(was: Dictionary, at: Dictionary) -> bool:
 	if Vector2(at.center.x - was.center.x, at.center.z - was.center.z).length() > NUDGE or absf(angle_difference(at.yaw, was.yaw)) > TURN_NUDGE:
 		return true
@@ -691,13 +617,11 @@ static func _moved(was: Dictionary, at: Dictionary) -> bool:
 	return ["rise", "height", "pitch", "curve", "overhang", "length"].any(func(k: String) -> bool: return at.has(k) and absf(at[k] - was[k]) > 0.01)
 
 
-## Where a house standing as `at` stands on the ground and which way it faces, as a frame.
 static func _footing(at: Dictionary) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, at.yaw), _flat(at.center))
 
 
-## The reshape that carries build `d` by `x`, a turn about the vertical and a move along the ground: its wall line, and a
-## tower's cone with it; what stands along its walls or on its roof keeps its place there.
+## What stands along its walls or on its roof keeps its place there.
 static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
 	var points := PackedVector3Array()
 	for p: Vector3 in d.points:
@@ -710,8 +634,7 @@ static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
 	return out
 
 
-## The garden has answered for a house let go and the builds on it, taking them as they stood or turning them down. It
-## answers before it applies what it took, so any not laid as the garden has them are laid so once it has.
+## The garden answers before it applies what it took, hence the deferred relay.
 func _build_back(ids: Array) -> void:
 	for id: int in ids:
 		if _settling.has(id):
@@ -726,7 +649,6 @@ func _relay_unlike_garden(ids: Array) -> void:
 			_relay(w)
 
 
-## Whether `w` is laid from the garden's own copy of it as far as a hold changes it.
 func _shows_garden(w: Wall) -> bool:
 	var d: Dictionary = world.state.walls[w.id]
 	if PackedVector3Array(w.layout.points) != d.points or w.layout.rise != d.rise or w.layout.height != d.height:
@@ -734,7 +656,6 @@ func _shows_garden(w: Wall) -> bool:
 	return w.roof == null or (w.roof.pitch == d.roof.pitch and w.roof.curve == d.roof.curve and w.roof.overhang == d.roof.overhang and w.roof.center == d.roof.center)
 
 
-## A house let go keeps its stones carried to where it was let go until it is laid as the garden has it.
 func _settle_builds() -> void:
 	for id: int in _settling.keys():
 		var w := find(id)
@@ -761,7 +682,6 @@ static func footprint(center: Vector3, yaw: float, size: Vector2) -> Dictionary:
 	return {"a": center - along * size.x * 0.5, "b": center + along * size.x * 0.5, "length": size.x, "depth": size.y}
 
 
-## The wall line of a house standing at `at`: a circle `size.x` across if it is round, else its four corners.
 static func outline(at: Dictionary) -> Array[Vector3]:
 	if at.round:
 		return WallLayout.circle(at.center, at.size.x * 0.5)
@@ -785,8 +705,7 @@ static func roof_style(d: Dictionary) -> RoofStyle:
 	return RoofStyle.THATCHED if d.roof.thatch else RoofStyle.PITCHED
 
 
-## Coverings never reshape the roof: a flat deck keeps the covering to use when pulled up, a pitched roof the deck to
-## lay when pushed flat.
+## A flat roof keeps its covering, thatch or tiles, for when pulled up, a pitched one its deck for when pushed flat.
 static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
 	if style not in roof_options(d.roof.pitch):
 		return {}
@@ -795,8 +714,6 @@ static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
 	return {"roof": {"thatch": style == RoofStyle.THATCHED}}
 
 
-## Where a built house stands, as `outline` takes it, with its plinth's rise, its walls' height and its roof's pitch, bow
-## and eaves, from its garden data; {} for a build that is no house or tower.
 static func house_of(d: Dictionary) -> Dictionary:
 	if not d.has("roof") or not d.closed:
 		return {}
@@ -812,8 +729,6 @@ static func _with_roof(d: Dictionary, at: Dictionary) -> Dictionary:
 	return at.merged({"rise": d.rise, "height": d.height, "pitch": d.roof.pitch, "curve": d.roof.curve, "overhang": d.roof.overhang})
 
 
-## The `reshape` that stands the house with garden data `d` as `to`: its wall line, height and roof as `to` has them,
-## and every fitting and arch kept in proportion along its own wall, every chimney and dormer on its roof.
 static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	var from := house_of(d)
 	var was: Array[Vector3] = []
@@ -837,7 +752,6 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	return {"points": PackedVector3Array(now), "rise": to.rise, "height": to.height, "openings": fits.openings, "lanterns": fits.lanterns, "flags": fits.flags, "roof": roof}
 
 
-## The openings, lanterns and flags of the wall with garden data `d`, each taken from its arc length `s` to `moved(s)`.
 static func _fittings_moved(d: Dictionary, moved: Callable) -> Dictionary:
 	var openings := PackedVector4Array()
 	for o: Vector4 in d.openings:
@@ -856,7 +770,6 @@ static func _ridge_of(at: Dictionary) -> Vector3:
 	return _flat(span.b - span.a).normalized()
 
 
-## Where point `p` on or by the house standing as `from` lies on it standing as `to`, side by side in proportion.
 static func _scaled(from: Dictionary, to: Dictionary, p: Vector3) -> Vector3:
 	var x := Vector3.RIGHT.rotated(Vector3.UP, from.yaw)
 	var z := x.cross(Vector3.UP)
@@ -866,7 +779,7 @@ static func _scaled(from: Dictionary, to: Dictionary, p: Vector3) -> Vector3:
 	return to.center + tx * q.dot(x) * k.x + tx.cross(Vector3.UP) * q.dot(z) * k.y
 
 
-## The point `s` along a closed wall line, measured as `WallLayout` lays a loop.
+## Measured as `WallLayout` lays a loop.
 static func _loop_point(points: Array[Vector3], s: float) -> Vector3:
 	var n := points.size()
 	s = fposmod(s, Commands.length(points + [points[0]]))
@@ -880,7 +793,6 @@ static func _loop_point(points: Array[Vector3], s: float) -> Vector3:
 	return points[0]
 
 
-## How far along a closed wall line its nearest point to `p` lies.
 static func _loop_s(points: Array[Vector3], p: Vector3) -> float:
 	var n := points.size()
 	var best := INF
@@ -899,9 +811,7 @@ static func _loop_s(points: Array[Vector3], p: Vector3) -> float:
 	return out
 
 
-## Where a wall, fence or loop that is no house stands, as a hold moves it (`reshape_line`): its middle, its turn from
-## where it stands, how many times as long as it stands, how long that is, its height and its plinth's rise; it rides no
-## plinth.
+## `length`: times `run`, the length it stands at.
 static func line_of(d: Dictionary) -> Dictionary:
 	var mid := Vector3.ZERO
 	for p: Vector3 in d.points:
@@ -909,9 +819,6 @@ static func line_of(d: Dictionary) -> Dictionary:
 	return {"center": mid, "yaw": 0.0, "length": 1.0, "run": Commands.length(d.points), "height": d.height, "rise": d.rise, "fence": d.fence, "grounded": false}
 
 
-## The `reshape` that stands the wall with garden data `d` as `to` (`line_of`): its line carried, turned about its middle
-## and drawn out `to.length` times as long, every opening, lantern, flag and ruin kept in proportion along it, and its
-## height.
 static func reshape_line(d: Dictionary, to: Dictionary) -> Dictionary:
 	var from := line_of(d)
 	var turn := Basis(Vector3.UP, to.yaw)
@@ -927,9 +834,6 @@ static func reshape_line(d: Dictionary, to: Dictionary) -> Dictionary:
 	return {"points": points, "height": to.height, "openings": fits.openings, "lanterns": fits.lanterns, "flags": fits.flags, "ruins": ruins}
 
 
-## Where a wall held from `start` stands once two hands move from poses `from` to `to`: drawn out or in along its line,
-## about its middle, by the ratio of their spread, from a metre long to as long as a wall may run; drawn apart upright
-## the hands make it taller, `gain` times as far as they are, a course at a time, a fence keeping its height.
 static func stretch_line(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> Dictionary:
 	var out := start.duplicate()
 	var span0 := _flat(from[1].origin - from[0].origin).length()
@@ -940,10 +844,6 @@ static func stretch_line(start: Dictionary, from: Array[Transform3D], to: Array[
 	return out
 
 
-## Where a house held from `start` stands once the hand holding it moves from pose `from` to `to`: carried along the
-## ground by the hand's move, `gain` times as far so a far house keeps up, and turned with the hand's own turn. One on
-## the ground rises onto its plinth as the hand rises, its floor with it, a course at a time and never below its ground,
-## so it never floats; one on a build keeps to that build's top.
 static func carry(start: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
 	var out := start.duplicate()
 	out.center = start.center + _flat(to.origin - from.origin) * gain
@@ -963,10 +863,7 @@ static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2
 	return size
 
 
-## Where a house held from `start` stands once two hands on it move from poses `from` to `to`: it keeps its place and
-## turn and stretches as `stretched` has it, toward the hand that moved, so a hand held still keeps its wall, its roof
-## keeping its slope; drawn apart or together upright, its walls grow taller or shorter, `gain` times as far as the hands
-## are, a course at a time.
+## Grows toward the hand that moved, so a hand held still keeps its wall.
 static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain := 1.0) -> Dictionary:
 	var out := start.duplicate()
 	var span0 := _flat(from[1].origin - from[0].origin)
@@ -988,9 +885,6 @@ static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transf
 	return out
 
 
-## The roof of a house held from `start` once two hands on it move from poses `from` to `to`: drawn apart or together
-## upright they raise or lower its ridge, `gain` times as far as the hands are, all the way down snapping it flat;
-## spread or closed across, they bow its slopes out or in.
 static func bend(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> Dictionary:
 	var out := start.duplicate()
 	var pitch: float = start.pitch + snappedf(_upright(from, to) * gain, ROOF_STEP)
@@ -1000,9 +894,6 @@ static func bend(start: Dictionary, from: Array[Transform3D], to: Array[Transfor
 	return out
 
 
-## How far the eaves of a house held from `start` reach past its walls once two hands on them move from poses `from` to
-## `to`, each pulling its own eave out along `out`, the way out from the walls there, or pushing it back: by how far
-## they pull on average, `gain` times, on the nearest ROOF_STEP, from none to `reach`.
 static func pull_eaves(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], out: Array[Vector3], gain: float, reach: float) -> Dictionary:
 	var pulled := 0.0
 	for i in 2:
@@ -1012,7 +903,6 @@ static func pull_eaves(start: Dictionary, from: Array[Transform3D], to: Array[Tr
 	return at
 
 
-## How much farther apart upright two hands are at poses `to` than at `from`.
 static func _upright(from: Array[Transform3D], to: Array[Transform3D]) -> float:
 	return absf(to[1].origin.y - to[0].origin.y) - absf(from[1].origin.y - from[0].origin.y)
 
@@ -1021,18 +911,14 @@ static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
 
 
-## The turn about the vertical that takes the x axis to `v`'s direction on the ground.
 static func angle(v: Vector3) -> float:
 	return atan2(-v.z, v.x)
 
 
-## How far a hand turned about the vertical from pose `from` to `to`.
 static func turned(from: Transform3D, to: Transform3D) -> float:
 	return angle_difference(angle(from.basis.x), angle(to.basis.x))
 
 
-## Where a ray meets the house in hand as it is shown, carried from where it was laid: {along, roof, eave}, `eave` the
-## way out from its walls for a roof hit past them (`RoofLayout.eave_way`), else zero; {} if it misses.
 func _held_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	var x := held.transform.affine_inverse()
 	var o := x * origin
@@ -1052,9 +938,6 @@ func _held_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## Grip from the hand's pose `hand` on a tree, a bush, a boulder, stairs or a fitting at `at`, which one hand alone moves as its
-## `Sizing` has it. A grip on one the other hand holds joins it: the two hands pulled apart grow it, pushed together
-## shrink it, in proportion to their span; letting either go leaves it to the other alone.
 func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> void:
 	m.growing = target
 	m.lift_at = at
@@ -1070,14 +953,12 @@ func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> voi
 	_take(m, hand)
 
 
-## `m` takes what it grows from the hand's pose `hand` on: a far one moves farther per metre of hand.
 func _take(m: Mason, hand: Transform3D) -> void:
 	m.took = hand
 	m.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
 	m.sizing.take.call()
 
 
-## The two hands sizing what `m` joined, now at `a` and `b`.
 func drag_pair(m: Mason, a: Vector3, b: Vector3) -> void:
 	if m.sizing.current.call():
 		_size(m, m.lift_start * a.distance_to(b) / m.pair_span)
@@ -1115,8 +996,6 @@ func end_grow(m: Mason) -> void:
 		world.submit(cmd, s.settle, m.hand)
 
 
-## How a grip holds `target`, a tree's trunk, a bush, a boulder, stairs or a fitting; each shows as the garden has it once its edit
-## has come back or been turned down, unless a hand holds it again.
 func _sizing(target: Object) -> Sizing:
 	var s := Sizing.new()
 	var in_hand := func() -> bool: return masons.any(func(o: Mason) -> bool: return o.growing == target)
@@ -1131,9 +1010,6 @@ func _sizing(target: Object) -> Sizing:
 	return _plant_grip(target, s, in_hand)
 
 
-## Carries a tree or bush (`first`, a tree's trunk or a bush's blob), the meadow's own too: one hand moves it along the
-## ground with the hand, a far one farther per metre, and turns it about its foot as the hand turns; two hands size a
-## tree by their span. Let go, its place, turn and size are one `tree` command; over water it goes back where it stood.
 func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	var tree := first.pool == flora.trunks
 	var placed := func() -> Vector3:
@@ -1178,9 +1054,6 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Carries a boulder: one hand moves it and turns it about its centre every way as the hand turns (`Boulders.carried`),
-## a far one moving farther per metre of hand; let go, it drops straight down onto the ground under it, keeping its
-## turn, or stays as deep as it was pushed into the ground (`BoulderLayout.rest`), its place, turn, depth and size one reshape.
 func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 	var rocks := world.boulders
 	var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
@@ -1217,9 +1090,6 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Carries a flight of stairs, a landing or a ladder: one hand moves it with the hand, a far one farther per metre, and
-## turns it about the vertical through its middle as the hand turns (`carry_stairs`); two hands widen or narrow it by
-## their span. Let go, it is set as one reshape.
 func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var stairs := world.stairs
 	var was: Dictionary = world.state.stairs[grip.id].duplicate()
@@ -1249,9 +1119,6 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Where stairs held standing as `at` ({a, b, width}) stand once the hand holding them moves from pose `from` to `to`:
-## moved with the hand, `gain` times as far, and turned about the vertical through their middle with the hand's own turn,
-## their lower end never under the ground.
 static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gain: float, height: Callable) -> Dictionary:
 	var mid: Vector3 = (at.a + at.b) * 0.5
 	var turn := Basis(Vector3.UP, turned(from, to))
@@ -1263,14 +1130,11 @@ static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gai
 	return {"a": a + Vector3.UP * under, "b": b + Vector3.UP * under, "width": at.width}
 
 
-## How far stairs standing as `d` ({a, b, width}) hang over the ground, water and builds under them: 0 for stairs that
-## stand.
 func stair_sag(d: Dictionary) -> float:
 	return StairLayout.sag_over(d.a, d.b, d.width, func(p: Vector3) -> float: return floor_under(p + Vector3.UP * 0.05), world.terrain.water_at)
 
 
-## The builds stairs standing as `d` rest their ends on, on a top or a floor inside, which take the stairs with them
-## when they go.
+## Builds that take the stairs with them when they go.
 func stair_supports(d: Dictionary) -> PackedInt32Array:
 	var on := PackedInt32Array()
 	for p: Vector3 in [d.a, d.b]:
@@ -1284,8 +1148,7 @@ func stair_supports(d: Dictionary) -> PackedInt32Array:
 	return on
 
 
-## A grip from the hand's pose `hand` on easel `id`'s stand at `at` carries it; a grip on one another hand carries
-## takes nothing, as two hands size no easel.
+## A second hand takes nothing: two hands size no easel.
 func grip_easel(m: Mason, id: int, hand: Transform3D, at: Vector3) -> void:
 	if masons.any(func(o: Mason) -> bool: return o.growing is EaselGrip and o.growing.id == id):
 		m.hand.hold()
@@ -1295,9 +1158,6 @@ func grip_easel(m: Mason, id: int, hand: Transform3D, at: Vector3) -> void:
 	begin_grow(m, grip, hand, at)
 
 
-## Carries an easel, its painting and kit with it: one hand moves it along the ground with the hand, a far one farther
-## per metre, and turns it about the vertical as the hand turns (`carry_easel`); let go, it is set as one reshape of
-## where it stands and which way it faces, or put back if it would crowd another.
 func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var stands := world.easels
 	var was: Dictionary = world.state.easels[grip.id]
@@ -1322,15 +1182,12 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Where an easel standing as `at` ({at, yaw}) stands once the hand holding it moves from pose `from` to `to`: moved
-## across the ground with the hand, `gain` times as far, on the ground there, and turned with the hand's own turn about
-## the vertical.
 static func carry_easel(at: Dictionary, from: Transform3D, to: Transform3D, gain: float, height: Callable) -> Dictionary:
 	var move: Vector3 = at.at + (to.origin - from.origin) * gain
 	return {"at": Vector3(move.x, height.call(move.x, move.z), move.z), "yaw": wrapf(at.yaw + turned(from, to), -PI, PI)}
 
 
-## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.
+## Shared with a hand already holding them, so a second grip joins it.
 func _stair_grip(id: int) -> StairGrip:
 	for m in masons:
 		if m.growing is StairGrip and m.growing.id == id:
@@ -1340,10 +1197,6 @@ func _stair_grip(id: int) -> StairGrip:
 	return grip
 
 
-## Carries a placed fitting with the hand, a far one farther per metre, by whole steps (`FittingGrip.moved`), stopping it
-## at the last place it fits; two hands size an opening, which grows every way from where it stands, as far as it still
-## opens without closing another, an arch up to the wall's top (WallLayout.opening_for). Its wall is laid again only as
-## it moves on by a step. Let go, it is set as one reshape of its wall.
 func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	if grip.decoration >= 0:
 		return _decoration_grip(grip.decoration, s, in_hand)
@@ -1404,10 +1257,7 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Carries a piece of a build's clutter (ClutterLayout): one hand moves it along its wall or path, out from it and back,
-## and turns it with the hand, by whole steps, stopping it at the last place it stands. Its build is laid once without
-## the pieces hands hold, which stand apart while held, so a step moves only the piece's node, as a held decoration's
-## does. Let go, it is set as one reshape of its build; a copy another hand pulled off it becomes one more piece there.
+## The build is laid once without held pieces, which stand apart, so a step moves only the piece's node.
 func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var of := "walls" if grip.path < 0 else "paths"
 	var id: int = grip.wall.id if grip.path < 0 else grip.path
@@ -1446,7 +1296,6 @@ func _clutter_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## Piece `from` of the clutter `grip` holds, carried `by` and turned `turn` along and out from its build.
 func _carried_clutter(grip: FittingGrip, from: Vector4, by: Vector3, turn: float) -> Vector4:
 	if grip.path < 0:
 		var l := grip.wall.layout
@@ -1460,7 +1309,6 @@ func _carried_clutter(grip: FittingGrip, from: Vector4, by: Vector3, turn: float
 	return v
 
 
-## Whether piece `v` stands on the build `grip` holds clutter of, as its build is laid.
 func _clutter_stands(grip: FittingGrip, v: Vector4) -> bool:
 	if grip.path < 0:
 		return grip.wall.layout.clutter_frame(v, world.terrain.shown_at) != null
@@ -1468,8 +1316,6 @@ func _clutter_stands(grip: FittingGrip, v: Vector4) -> bool:
 	return path != null and path.clutter_frame(v, world.terrain.height_at) != null
 
 
-## Build `id` of the garden's table `of` (walls or paths)'s clutter, with `grips`' pieces as they show them: a carried
-## piece where it is carried, if the garden has it still where it was taken, a copy after the rest.
 func _clutter_with(of: String, id: int, grips: Array) -> PackedVector4Array:
 	var list := PackedVector4Array(world.state[of][id].clutter)
 	var copies := PackedVector4Array()
@@ -1482,8 +1328,6 @@ func _clutter_with(of: String, id: int, grips: Array) -> PackedVector4Array:
 	return list
 
 
-## Shows build `id` of table `of` without the pieces of its clutter hands hold, which stand apart (`_hold_clutter`), or
-## as the garden has it; laid again only when that changes.
 func _show_clutter(of: String, id: int) -> void:
 	var garden: PackedVector4Array = world.state[of][id].clutter
 	var grips := _clutter_grips(of, id)
@@ -1509,7 +1353,6 @@ func _show_clutter(of: String, id: int) -> void:
 		_relay(w, data)
 
 
-## The grips of hands holding pieces of build `id` of table `of`'s clutter.
 func _clutter_grips(of: String, id: int) -> Array[FittingGrip]:
 	var out: Array[FittingGrip] = []
 	for m in masons:
@@ -1519,7 +1362,6 @@ func _clutter_grips(of: String, id: int) -> Array[FittingGrip]:
 	return out
 
 
-## Stands the piece `grip` holds of build `id` of table `of` apart from its build, where the hand shows it.
 func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
 	var x: Variant = _clutter_place(grip, grip.shown)
 	if not _held_clutter.has(grip):
@@ -1540,7 +1382,6 @@ func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
 		node.global_transform = x
 
 
-## Whether build `id` of table `of` is drawn as it was last laid.
 func _clutter_drawn(of: String, id: int) -> bool:
 	if of == "paths":
 		return not paths.laying(id) and masonry.drawn(Masonry.path_owner(id))
@@ -1548,7 +1389,6 @@ func _clutter_drawn(of: String, id: int) -> bool:
 	return not w.laying() and masonry.drawn(w.get_instance_id())
 
 
-## Where piece `v` of the clutter `grip` holds stands in the world, or null where nothing holds it.
 func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
 	if grip.path >= 0:
 		var path := paths.layout(grip.path)
@@ -1557,9 +1397,7 @@ func _clutter_place(grip: FittingGrip, v: Vector4) -> Variant:
 	return null if x == null else grip.wall.global_transform * x
 
 
-## A piece in hand keeps its build shown without it, whatever else lays the build again; let go, its build is shown as
-## the garden has it, after the garden applied what the hand did, so that lays it once, and the piece stands apart until
-## its build is drawn with it. Either goes with its build.
+## Let go, a build is shown as the garden has it only once the garden applied the hand's edit, so it is laid once.
 func _settle_clutter() -> void:
 	for grip: FittingGrip in _held_clutter.keys():
 		var e: Dictionary = _held_clutter[grip]
@@ -1575,7 +1413,6 @@ func _settle_clutter() -> void:
 			_held_clutter.erase(grip)
 
 
-## The pieces of clutter hands hold, as a hand picks them (`FittingTool.targets`).
 func held_clutter_targets() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for grip: FittingGrip in _held_clutter:
@@ -1591,9 +1428,6 @@ func held_clutter_targets() -> Array[Dictionary]:
 	return out
 
 
-## Carries a decoration: one hand moves it across the ground, its floor or deck and turns it with the hand, or along the
-## wall it stands at the foot of (`FittingGrip.carried`), stopping it at the last place it stands. Only its node moves
-## while it is held; let go, it is set as one reshape.
 func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 	var decorations := world.decorations
 	var start: Dictionary = world.state.decorations[id].duplicate()
@@ -1620,9 +1454,6 @@ func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 	return s
 
 
-## The grip on the fitting `pick` names (`FittingTool.pick_target`): the one a hand already holds, so a second hand's
-## grip on an opening joins it; a copy of a piece of clutter another hand holds; or a new one; null for one another
-## hand holds that takes no size.
 func _fitting_grip(pick: Dictionary) -> FittingGrip:
 	var grip := FittingGrip.new()
 	if not pick.has("decoration"):
@@ -1649,7 +1480,6 @@ func _fitting_grip(pick: Dictionary) -> FittingGrip:
 	return grip if grip.index >= 0 else null
 
 
-## The openings in `w` with its stored placements and the paths standing, independent of its preview.
 func standing_openings(w: Wall, own: Array) -> Array[Vector4]:
 	var shown := w.layout.openings.duplicate()
 	w.layout.openings.assign(own)
@@ -1660,9 +1490,7 @@ func standing_openings(w: Wall, own: Array) -> Array[Vector4]:
 	return standing
 
 
-## Lays a wall as a reshape with `data` would leave it, through the path that lays the reshape itself, so what a
-## tool shows of an edit is what the edit builds. A pulled height, roof or erased
-## stretch shows as pulled until its command comes back, or goes back if it is turned down.
+## Laid through the reshape's own path, so what a tool shows of an edit is what the edit builds.
 func show_reshaped(id: int, data := {}) -> void:
 	var w := find(id)
 	if w == null or _held(w):
@@ -1673,8 +1501,6 @@ func show_reshaped(id: int, data := {}) -> void:
 		_relay(w, data)
 
 
-## Lays a wall as the garden has it, with `data` in place of its own fields, with the arches the paths standing open
-## in it, on and among the builds it meets, so it is no longer due.
 func _relay(w: Wall, data := {}) -> void:
 	w.due = Callable()
 	var d := World.reshaped(world.state.walls[w.id], data)
@@ -1694,8 +1520,8 @@ func _open_paths(w: Wall, own: Variant = null) -> void:
 		_cut_meetings(w, p.meetings(w.layout))
 
 
-## Cuts the paths in hand into the walls, looking only in the grid cells each shares with a wall, so a long stroke
-## over many walls costs what its crossings do rather than its length times the walls.
+## Only cells each path shares with a wall are searched, so a long stroke costs its crossings, not its length
+## times the walls.
 func _preview_crossings() -> void:
 	var walls_at := walls_by_cell()
 	var check: Array = walls
@@ -1740,7 +1566,6 @@ func _preview_crossings() -> void:
 			w.rebuild()
 
 
-## `_walls_at` as the walls stand: a wall gone leaves it, one laid anew is indexed again.
 func walls_by_cell() -> Dictionary:
 	for w in _walls_at_from.keys():
 		if not is_instance_valid(w) or w.is_queued_for_deletion():
@@ -1767,8 +1592,7 @@ func _unindex(w: Variant) -> void:
 	walls_at_rev += 1
 
 
-## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses. Only the arches change, so the
-## wall is not resampled.
+## Only the arches change, so the wall is not resampled.
 func relay_crossings(path: PathLayout) -> void:
 	var walls_at := walls_by_cell()
 	var met := {}
@@ -1805,10 +1629,7 @@ func relay_crossings(path: PathLayout) -> void:
 		_sound(Cues.Act.ARCH, heard)
 
 
-## Adds the openings a path meeting `w` at `meetings` (PathLayout.meetings) makes in it. Into a house or tower each
-## crossing opens a door as wide as the path (WallLayout.path_doors). Through any other wall it opens an arch: a crossing
-## already inside an opening needs none; one whose ring would overlap an arch there stands a pitch from it as an arcade
-## instead, on the crossing's side if that fits, else the other, so no opening closes.
+## An arch that would overlap one already there stands a pitch from it as an arcade, so no opening closes.
 func _cut_meetings(w: Wall, meetings: Array[Dictionary]) -> void:
 	var layout := w.layout
 	if layout.floored():
@@ -1852,7 +1673,7 @@ func _cue(act: Cues.Act, at: Vector3, hands: Array, tension := 0.0) -> void:
 	Cues.play_in(act, at, hands, tension)
 
 
-## The garden's side of a wall going up, from any player; `handed` when it is the next of this player's walls in hand.
+## `handed` when it is the next of this player's walls in hand.
 func put(id: int, handed: bool) -> void:
 	var w := _new_wall()
 	w.id = id
@@ -1864,7 +1685,6 @@ func put(id: int, handed: bool) -> void:
 	_sound(Cues.Act.WALL_SETTLE, _top(w), _handing_hand if handed else null)
 
 
-## Walls in hand whose command was turned down, or whose garden is gone.
 func _let_go_handed() -> void:
 	for w in _handing:
 		w.queue_free()
@@ -1892,8 +1712,8 @@ func take(id: int) -> void:
 	w.queue_free()
 
 
-## A wall someone here is pulling keeps following their hand; it catches up when they let go. It is laid again in its
-## turn (`Wall.due`), so a house let go with a storey on it lays them over frames.
+## A held wall catches up when let go. Laid in its turn (`Wall.due`), so a house let go with a storey on it lays
+## them over frames.
 func restyle(id: int, changed: Array) -> void:
 	var w := find(id)
 	if changed == ["paint"]:
@@ -1932,9 +1752,8 @@ func _held(w: Wall) -> bool:
 	return false
 
 
-## Lays again every wall standing on ground that moved, or on a build that did; ivy waits for `settled`. A build is
-## taken after those it stands on and lays on their tops as the ground now stands: laid from their tops as they stood,
-## a house on a build the ground fell away under hangs a plinth from the old top down to the new ground.
+## Ivy waits for `settled`. Sorted by id, a build comes after those it stands on: laid before them, a house on a build
+## the ground fell away under hangs a plinth from the old top.
 func reground(area: Rect2, settled: bool) -> void:
 	var order := walls.duplicate()
 	order.sort_custom(func(a: Wall, b: Wall) -> bool: return a.id < b.id)
@@ -1954,8 +1773,6 @@ func reground(area: Rect2, settled: bool) -> void:
 		w.rebuild(settled)
 
 
-## The tops of the builds `on` while the ground is shown moving, the moved ones as they would stand on the shown
-## `height` and `water`, kept in `tops` by id.
 func _shown_tops(on: PackedInt32Array, moved: Dictionary, tops: Dictionary, height: Callable, water: Callable) -> Array[Massing]:
 	var out: Array[Massing] = []
 	for id in on:
@@ -1975,7 +1792,6 @@ func _top(w: Wall) -> Vector3:
 	return w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
 
 
-## Over the middle of a roofed wall's ring at its ridge, from what the garden holds of it, laid yet or not.
 func _ridge(w: Wall) -> Vector3:
 	var mid := Vector3.ZERO
 	for p in w.layout.points:
@@ -1983,9 +1799,8 @@ func _ridge(w: Wall) -> Vector3:
 	return mid / w.layout.points.size() + Vector3.UP * (w.layout.height + w.roof.pitch)
 
 
-## All building tools select the first surface, before deciding what that surface allows.
-## A held pick also sees builds another hand is pulling. `through_arches` sees through an arch's opening, as the
-## teleport and a decoration placed beyond it do; a tool working the wall itself, or the arch's own ghost, does not.
+## Every building tool picks the first surface, then decides what it allows. `through_arches` is for the teleport and
+## decorations placed beyond an arch.
 func pick_building(origin: Vector3, dir: Vector3, with_held := false, through_arches := false) -> Dictionary:
 	var best := {}
 	for w in walls:
@@ -2006,7 +1821,6 @@ func pick_building(origin: Vector3, dir: Vector3, with_held := false, through_ar
 	return best
 
 
-## The nearest floor inside a house or tower along a ray, as {wall, along, point}, or empty.
 func pick_floor(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {}
 	for w in walls:
@@ -2018,8 +1832,6 @@ func pick_floor(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## What a point stands on: the ground under it as this player sees it, a house's or tower's floor, a flat roof's deck or a wall's walk at
-## or below it.
 func floor_under(p: Vector3) -> float:
 	var y := world.terrain.shown_at(p.x, p.z)
 	for w in walls:
@@ -2031,9 +1843,7 @@ func floor_under(p: Vector3) -> float:
 	return y
 
 
-## What a ray from a walls hand builds on: the nearer of the ground and the top of a build, as {point, on}, `on`
-## the build's id or -1 for the ground; {} for neither. A pitched roof counts as its house's top: what is built
-## there stands on the walls under it, in the roof's place.
+## A pitched roof counts as its house's top: what is built there stands on the walls under it.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var ground: Variant = world.terrain.raycast(origin, dir)
 	var best := {} if ground == null else {"point": ground, "on": -1, "along": origin.distance_to(ground)}
@@ -2062,14 +1872,12 @@ func _top_hit(w: Wall, origin: Vector3, dir: Vector3) -> float:
 	return origin.distance_to(hit.point)
 
 
-## Where a ray meets the level a stroke on a build's top is drawn on.
 static func _at_level(origin: Vector3, dir: Vector3, level: float) -> Dictionary:
 	if dir.y > -1e-3 or origin.y < level:
 		return {}
 	return {"point": origin + dir * ((level - origin.y) / dir.y), "on": -1}
 
 
-## A stroke drawn on a top also stands on every other build whose top it crosses at that level.
 func _rest_on(st: Stroke, p: Vector3) -> void:
 	for w in walls:
 		if st.on.size() >= Commands.MAX_SUPPORTS:
@@ -2089,7 +1897,6 @@ func _solids(ids: PackedInt32Array) -> Array[Massing]:
 	return out
 
 
-## The ids of every build under the builds `on`, all the way down.
 func _below(on: PackedInt32Array) -> Dictionary:
 	var out := {}
 	var todo := Array(on)
@@ -2104,14 +1911,12 @@ func _below(on: PackedInt32Array) -> Dictionary:
 	return out
 
 
-## Sets `w` on the builds it meets and the ground as it now lies, and takes the room it then takes up.
 func _settle(w: Wall) -> void:
 	_meet(w)
 	w.layout.resample(world.terrain.height_at, world.terrain.water_at, world.terrain.revision())
 	_reshaped(w)
 
 
-## The builds `w` meets: those it stands on, those standing on it, and the houses and towers it joins.
 func _meet(w: Wall) -> void:
 	var supports: Array[Massing] = []
 	var resting: Array[Massing] = []
@@ -2145,8 +1950,6 @@ static func _reach(w: Wall) -> Rect2:
 	return r.grow(WallLayout.THICKNESS + Massing.REACH + 0.5)
 
 
-## Takes the room `w` takes up as it now stands; if that changed, every build meeting it, before or after, is due to be
-## laid again.
 func _reshaped(w: Wall) -> void:
 	var was := w.massing
 	w.massing = Massing.of(w.layout, w.roof)
@@ -2163,19 +1966,15 @@ func _stir(w: Wall, s: Massing) -> void:
 			o.due = _lay_again.bind(o, null)
 
 
-## Whether two builds meet: one stands on the other, or one of them is a house or tower they join.
 func _related(a: Wall, b: Wall) -> bool:
 	return a.massing.closed or b.massing.closed or _below(a.on).has(b.id) or _below(b.on).has(a.id)
 
 
-## Whether `o` meets `w` shaped as `s`.
 func _meets(w: Wall, o: Wall, s: Massing) -> bool:
 	return o != w and o.massing != null and o.massing.rect.intersects(s.rect) and _related(w, o)
 
 
-## Lays `w` again, due, on its supports as they now stand, if the garden still has it: `changed` null for a build laid
-## again for what it meets, else what of it the garden changed, which has its arches cut again and sounds, unless
-## swapped in quietly.
+## `changed` is null when laid again for what it meets, else the fields the garden changed.
 func _lay_again(w: Wall, changed: Variant) -> void:
 	if _held(w) or not world.state.walls.has(w.id):
 		return

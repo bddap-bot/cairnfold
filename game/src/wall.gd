@@ -1,17 +1,11 @@
 class_name Wall
 extends Node3D
 
-## A drawn wall. Its stones and ivy are packed into instance buffers by part and drawn per ground chunk: while the
-## wall changes by its own Masonry, so far chunks draw coarse stones as settled ones do, and once it settles by the
-## glade's.
-
 enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY, TIMBER, FLOOR }
-## The parts a build's paint colours.
 const PAINTED: Array[Part] = [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Part.TIMBER, Part.FLOOR]
 
 static var _kinds: Array[Masonry.Kind] = []
-## A roof's materials are made as the game loads: a shader made on first use stalled the Quest 2's frame 0.25 to 1.5 s
-## as the session's first house went up.
+## Made at load: a shader made on first use stalled the Quest 2's frame 0.25 to 1.5 s at the session's first house.
 static var _plaster := _material("res://src/plaster.gdshader", WallLayout.PLASTER)
 static var _thatch := _material("res://src/thatch.gdshader")
 static var _lime := _material("res://src/torching.gdshader", WallLayout.PLASTER)
@@ -19,63 +13,51 @@ static var _roof_wood := Stones.stone(preload("res://src/roof_timber.gdshader"))
 
 var layout := WallLayout.new()
 var masonry: Masonry
-## The ground it is laid on, as this player sees it: it follows a live hump while one is pulled.
+## As this player sees it: it follows a live hump while one is pulled.
 var terrain: Terrain
-## Lantern flames and flags: few, alive, and drawn by the wall itself.
+## Few and animated, so drawn by the wall itself.
 var _fittings := Fittings.new()
 var _smoke := Smoke.new()
 var finished := false
-## The reshape data it is laid with in place of the garden's own, empty when laid as the garden has it.
+## Reshape data laid in place of the garden's own; empty when laid as the garden has it.
 var reshaped := {}
-## The id of the build command that put it up; -1 while it is still being drawn.
+## The build command's id; -1 while it is still being drawn.
 var id := -1
-## The roof on a house or tower, laid again with the walls under it.
 var roof: RoofLayout
-## Its swatch of each material (Palette.plain), for its stones, roof, woodwork and plaster alike.
 var paint := Palette.plain()
-## The paint the packed parts are coloured in, which a lay or a recolour under way may not have caught up with.
+## The paint the packed parts carry, which may lag `paint` while a lay or recolour is under way.
 var _painted := Palette.plain()
 var _recolour_task := -1
-## A recolour's inputs (`laid`, the lay it scales, and the paint it scales `to`) and the parts it scaled.
 var _recoloured := {}
-## Counts the lays taken, so a recolour of parts a newer lay replaced is dropped.
+## Counts lays taken, so a recolour of parts a newer lay replaced is dropped.
 var _laid := 0
-## The walls' own mortar, which a deck's bed joins in Part.MORTAR.
 var _wall_mortar := PackedFloat32Array()
-## The ids of the builds it stands on; empty on the ground.
+## Ids of the builds it stands on; empty on the ground.
 var on := PackedInt32Array()
-## The room it takes up as last laid, for the builds it meets (WallTool).
+## As last laid, for the builds it meets (WallTool).
 var massing: Massing
-## Seconds since the wall was finished: how far its ivy has grown.
+## Seconds since finished.
 var ivy_age := 0.0
-## Encloses every stone, for pointing.
 var pick_bounds := AABB()
-## The sample `ray_distance` found nearest last, where it looks first.
 var _nearest := 0
 var _ruin_pick: Array[TriangleMesh] = []
 var _parts: Array[PackedFloat32Array] = []
-## Each part's buffer split by ground chunk (`Masonry.split`), as the Masonry takes it.
 var _chunked: Array[Dictionary] = []
-## Draws the parts while the wall is not settled, made when first needed.
 var _drawn: Masonry
-## The glade's Masonry draws what `_sync` places chunk by chunk over the frames after (Budget.MASONRY_FLUSH_US): a
-## sculpt settles every wall on the ground, and drawing each one's chunks at once took 4 to 12 ms of a Steam Frame frame
-## a wall. Until it has, the wall keeps drawing what it drew (`_handoff`): its live stones, its stand-in and its grown
-## ivy, shown twice for those frames so none blinks out.
+## The glade draws what `_sync` places chunk by chunk over the frames after (Budget.MASONRY_FLUSH_US): a sculpt
+## settles every wall on the ground, and drawing each one's chunks at once took 4 to 12 ms of a Steam Frame frame a
+## wall. Until it has, the wall keeps drawing its live stones, stand-in and grown ivy, so none blinks out.
 var _handoff := false
 var _live := false
 var _ivy_placed := false
 var _ivy_handoff := false
-## Ivy's own MultiMesh while it grows, made when first needed: it shows as much of it as has grown.
 var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _coat: MeshInstance3D
 var _coat_far: MeshInstance3D
 var _torching: MeshInstance3D
 var _ceiling: MeshInstance3D
-## The wall's mortar and plaster slabs, which hide what stands behind them from the renderer.
 var _occluder: OccluderInstance3D
-## The roof faces its meshes were built from; a lay that leaves them alone keeps the meshes.
 var _faced := []
 var _settled := false
 var _ivy_times := PackedFloat32Array()
@@ -84,11 +66,9 @@ var _ivy_baked := {}
 var _ivy_stale := false
 var _build_task := -1
 var _build_stale := false
-## Waiting for one of `Budget.WALL_LAYS` lay slots.
 var _queued := false
-## What its builder runs to lay it again for a change to the garden, in its turn: from the frame after it fell due, so
-## the frame applying the change does not lay it too, walls lay theirs in tree order, oldest first, as many a frame as
-## Budget.RELAYS lets; or at once in `lay_now`. Empty when none is due.
+## Lays it again for a garden change, from the frame after it fell due so the frame applying the change does not lay
+## it too; walls lay theirs in tree order, oldest first, Budget.RELAYS a frame.
 var due := Callable():
 	set(lay):
 		if lay.is_valid() and not due.is_valid():
@@ -98,34 +78,25 @@ var due := Callable():
 var _due_since := 0
 static var _due_frame := -1
 static var _due_laid := 0
-## A lay: its inputs (`job`, `roof`, the ground's `revision`) and what the worker laid from them (`out`).
 var _build := {}
-## The lay now shown; a settling rebuild from the same inputs takes it rather than laying the stones again.
 var _shown := {}
-## Whether the wall settles once the lay under way lands; `rebuild(false)` clears it.
 var _settle_on_land := false
-## The wall in hand this one is the garden's copy of, shown until this one's stones are laid.
 var _stand_in: Wall
-## Stones a newer layout replaced. Freeing a long wall's thousands of them takes milliseconds, so the wall's
-## next worker task does it.
+## Freeing a long wall's thousands of stones takes milliseconds, so the wall's next worker task does it.
 var _litter: Array[Array] = []
-## Where a bird can stand on the top (`WallLayout.perches`), and the `layout.laid` they were worked out from.
 var _perches := PackedVector3Array()
 var _perches_laid := -1
 var _perch_task := -1
 var _perch_out := {}
 
 
-## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
-## stone or tile does, at a ninth of the triangles. Far off, a tile is a plain box too: from the air a roof's rounded
-## tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in the gaps, so it is a plain box too. A
-## thatched roof's coat is a mesh of its own, from rows RoofLayout.FAR_STEP apart past the near distance; its slabs cast
-## its shadow and stand in it for the bounce light. A timber, and a sawn plank of a boarded wall, gable or fence, is a
-## plain box near, where a stone's lumps would cost it nine times the triangles and read no different on planed wood;
-## far it is the coarse stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it
-## costs. A floor's
-## flags and planks are drawn as timbers are, but lie in the walls' own shade and the light around them: they cast
-## no shadow and shade no bounce light, which reads a room's builds from its roof down.
+## Stones, tiles and mortar cast no shadow; a plain box per stone or tile does, at a ninth of the triangles. Far off, a
+## tile is a plain box: from the air rounded tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in
+## the gaps, so it is a plain box. A thatched coat is a mesh of its own; its slabs only cast its shadow and stand in for
+## it in the bounce light. Timber and planks are plain boxes near, where a stone's lumps would cost nine times the
+## triangles and read no different on planed wood; far, a shader with no per-pixel work, since a few pixels wide its
+## shading is what it costs. Floors cast no shadow and shade no bounce light, which reads a room's builds from its roof
+## down.
 static func kinds() -> Array[Masonry.Kind]:
 	if _kinds.is_empty():
 		var box := BoxMesh.new()
@@ -159,8 +130,8 @@ static func kinds() -> Array[Masonry.Kind]:
 	return _kinds
 
 
-## Moves ivy's reach toward `step`'s as grass reach moves (Quality.reach), and how far stones are drawn whole
-## to it at once, since a chunk's stones change mesh in one frame wherever the line falls; true once there.
+## Stone reach jumps to `step` at once, since a chunk's stones change mesh in one frame wherever the line falls; ivy
+## eases as grass does. True once there.
 static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 	var ks := kinds()
 	var ivy := Quality.reach(ks[Part.IVY].reach, step.ivy_m, delta)
@@ -192,8 +163,7 @@ func _init(seed: int, glade: Masonry, ground: Terrain) -> void:
 	_chunked.resize(Part.size())
 
 
-## A material of `shader`, its albedo `albedo` if given. Color uniforms convert to linear; the wall instance buffer
-## carries raw RGB, so the albedo goes as a Vector3.
+## Color uniforms convert to linear and the wall instance buffer carries raw RGB, so the albedo goes as a Vector3.
 static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(shader)
@@ -203,7 +173,6 @@ static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
 	return m
 
 
-## Puts a roof on this closed wall; its stones then stop flush under the eaves.
 func add_roof(r: RoofLayout) -> void:
 	roof = r
 	_cover()
@@ -231,7 +200,6 @@ func add_roof(r: RoofLayout) -> void:
 	_tint_roof()
 
 
-## The wall as a build command carries it.
 func data() -> Dictionary:
 	var d := {
 		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise,
@@ -297,7 +265,6 @@ func _process(delta: float) -> void:
 			_sync()
 
 
-## Waits for the stones being laid and coloured and takes them, for a caller that reads them at once.
 func lay_now() -> void:
 	if due.is_valid():
 		_lay_due()
@@ -311,8 +278,8 @@ func lay_now() -> void:
 			_land_recolour()
 
 
-## Takes the lay just done, unless it was to settle and its inputs changed meanwhile: the lay replacing it settles, and
-## showing this one would draw the wall's stones apart from the glade's for the frames between.
+## A settling lay whose inputs changed meanwhile is dropped for the one replacing it: shown, it would draw the wall's
+## stones apart from the glade's for the frames between.
 func _land() -> void:
 	Work.take(_build_task)
 	_build_task = -1
@@ -336,7 +303,7 @@ func _ivy_growing() -> bool:
 	return _ivy_task >= 0 or (not _ivy_times.is_empty() and ivy_age <= _ivy_times[-1])
 
 
-## A stand-in let go as its wall leaves may leave after the glade.
+## A stand-in let go as its wall leaves may outlive the glade.
 func _exit_tree() -> void:
 	if is_instance_valid(masonry):
 		masonry.remove(get_instance_id())
@@ -344,9 +311,9 @@ func _exit_tree() -> void:
 		_stand_in.queue_free()
 
 
-## A worker task outliving its wall crashes the engine at exit, so its tasks are waited for at quit. A wall freed in play
-## leaves them running to `reap`, which takes them as they finish: waiting here held a deleting frame for a whole
-## wall's ivy, 25 ms on a Quest 2. A wall freed outside the tree never exits it, so this is where its tasks are left.
+## A worker task outliving its wall crashes the engine at exit, so they are waited for at quit. In play they are left
+## to `reap`: waiting here held a deleting frame for a whole wall's ivy, 25 ms on a Quest 2. A wall freed outside the
+## tree never exits it, so they are left here rather than in `_exit_tree`.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
@@ -356,13 +323,10 @@ func _notification(what: int) -> void:
 			reap(true)
 
 
-## Tasks left running by walls since freed.
 static var _orphans := PackedInt32Array()
-## Set as the game quits, after which a freed wall waits for its tasks.
 static var quitting := false
 
 
-## Takes the finished tasks walls left behind, or with `all` waits for every one.
 static func reap(all := false) -> void:
 	var left := PackedInt32Array()
 	for t in _orphans:
@@ -373,10 +337,8 @@ static func reap(all := false) -> void:
 	_orphans = left
 
 
-## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
-## milliseconds for a long wall, so once the stones are laid again it is done on a worker thread (Work), and not while a
-## newer preview is being laid; until it is taken, Budget.PERCH_FRAMES later, the old ones stand. With `now` the
-## stones are laid and their perches worked out before it returns, for a caller stepping time without frames.
+## Working perches out reads every stone, several milliseconds for a long wall, so it runs on a worker and the old
+## ones stand until it is taken. `now` is for a caller stepping time without frames.
 func perches(now := false) -> PackedVector3Array:
 	if now:
 		lay_now()
@@ -405,7 +367,7 @@ func _take_perches(wait: bool) -> void:
 		_perches_laid = _perch_out.laid
 
 
-## Ivy for a long wall takes longer than a frame to lay out, so it grows on a worker thread from a snapshot.
+## A long wall's ivy takes longer than a frame to lay out.
 func _layout_ivy() -> void:
 	set_process(true)
 	if _ivy_task >= 0:
@@ -423,10 +385,8 @@ func _layout_ivy() -> void:
 		out.chunks = Masonry.split(out.buffer, ivy))
 
 
-## Lays the stones again on a worker thread (Work), since a long wall takes several frames' worth of main-thread time;
-## the stones standing show until the new ones are taken, the frames Budget.lay_frames prices later. Without `settle`
-## while a stroke, a grip lift, a roof pull or a house footprint is still moving; with it the wall then settles into
-## the Masonry with its ivy.
+## A long wall's lay takes several frames of main-thread time, so it runs on a worker and the standing stones show
+## until it lands. `settle` is false while a stroke, grip lift, roof pull or house footprint is still moving.
 func rebuild(settle := true) -> void:
 	_settle_on_land = settle
 	if not settle:
@@ -438,15 +398,13 @@ func rebuild(settle := true) -> void:
 		_build_live()
 
 
-## Takes the place of `preview`, the wall in hand that this one is the garden's copy of: it shows until this
-## one's stones are laid. A preview is taken as soon as its worker is done, which no frame decides, so the garden's
-## wall lays its own.
+## `preview` is the wall in hand this one is the garden's copy of, shown until this one's stones are laid. A preview
+## is taken as soon as its worker is done, which no frame decides, so the garden's wall lays its own.
 func stand_in(preview: Wall) -> void:
 	preview.set_process(false)
 	_stand_in = preview
 
 
-## Whether lay `b` was laid from this wall's inputs as they stand, on the ground as it stands.
 func _laid_from(b: Dictionary) -> bool:
 	if b.is_empty() or b.revision != terrain.shown_revision() or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
 		return false
@@ -481,12 +439,10 @@ static func _drop(litter: Array[Array]) -> void:
 		stones.clear()
 
 
-## Whether a preview is still being laid on a worker thread, or waits its turn to be.
 func laying() -> bool:
 	return _build_task >= 0 or _queued or due.is_valid()
 
 
-## Whether this frame still lays a wall due to be laid again: Budget.RELAYS a frame.
 static func _may_lay_due() -> bool:
 	if _due_frame != Engine.get_process_frames():
 		_due_frame = Engine.get_process_frames()
@@ -501,10 +457,9 @@ func _lay_due() -> void:
 	_due_laid += 1
 
 
-## Garden walls' lays on worker threads, as the frames they come due at: a lay holds its slot until then, however soon
-## it is taken. A wall in hand, taken whenever its worker finishes, holds none, so it cannot move when a garden wall's
-## lay starts. A sculpt relays every wall on the ground at once, and unbounded they take every worker while the frame
-## waits on the pool.
+## The frames garden walls' lays come due at; a lay holds its slot until then, however soon it is taken. A wall in
+## hand holds none, so a garden wall's lay cannot stall it. A sculpt relays every wall on the ground at once, and
+## unbounded they take every worker while the frame waits on the pool.
 static var _lays := PackedInt32Array()
 
 
@@ -557,8 +512,6 @@ func _lay() -> void:
 		_lays.append(Work.now() + frames)
 
 
-## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
-## these stones on a worker thread (`pack_roof`).
 func _lay_dressing(roofed: Dictionary) -> void:
 	if roof != null:
 		_pack_roof(roofed)
@@ -567,8 +520,7 @@ func _lay_dressing(roofed: Dictionary) -> void:
 		_smoke.lay(PackedVector3Array())
 
 
-## Lays `r` on a built layout's walls and packs its tiles as instance buffers by Part. Touches nothing but its
-## arguments, so it runs on a worker thread.
+## Touches nothing but its arguments: it runs on a worker thread.
 static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	built.seat(r)
 	r.build(WallLayout.PLASTER_INSET if built.plastered() and built.gable_kind() == WallLayout.GableEnd.WALL else WallLayout.THICKNESS * 0.5)
@@ -640,7 +592,6 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false, backing
 	return st.commit()
 
 
-## Loose `stones`, plainly coloured, as masonry parts indexed by Part. Reads nothing but its arguments.
 static func stone_parts(stones: Array[Dictionary], ks: Array[Masonry.Kind]) -> Array[Dictionary]:
 	var wall := WallLayout.new()
 	wall.stones = stones
@@ -651,8 +602,7 @@ static func stone_parts(stones: Array[Dictionary], ks: Array[Masonry.Kind]) -> A
 	return parts
 
 
-## A built layout's stones as instance buffers by Part, and the box enclosing them. Reads nothing but its
-## arguments, so it runs on a worker thread.
+## Reads nothing but its arguments: it runs on a worker thread.
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	var route := func(s: Dictionary) -> Array:
 		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind in ["timber", "board"] else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
@@ -668,8 +618,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	return {"stone": bufs[Part.STONE], "mortar": bufs[Part.MORTAR], "shadow": bufs[Part.STONE_SHADOW], "timber": bufs[Part.TIMBER], "floor": bufs[Part.FLOOR], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built), "occluder": _pack_occluder(built)}
 
 
-## The boxes of a layout's mortar and plaster as occluder triangles: they stand behind the stones' faces, so whatever
-## they hide is hidden.
+## Mortar and plaster stand behind the stones' faces, so whatever they hide is hidden.
 static func _pack_occluder(built: WallLayout) -> Array:
 	var verts := PackedVector3Array()
 	var idx := PackedInt32Array()
@@ -685,8 +634,7 @@ static func _pack_occluder(built: WallLayout) -> Array:
 	return [verts, idx]
 
 
-## `parts` as instance buffers by Part, in their order: each in the Parts `into` names for it, its own first and then
-## its shadow's if it casts one. A stone turns by its variant (FLIPS); stones and tiles are glazed.
+## `into` names each part's Parts, its own first.
 static func _pack_parts(parts: Array, into: Callable, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Array[PackedFloat32Array]:
 	var routes := parts.map(into)
 	var n := PackedInt32Array()
@@ -714,14 +662,11 @@ static func _pack_parts(parts: Array, into: Callable, ks: Array[Masonry.Kind], c
 	return bufs
 
 
-## A laid part's colour in `colours`.
 static func _painted_as(part: Dictionary, colours: PackedInt32Array) -> Color:
 	var e := int(Palette.code(part.kind))
 	return part.color * Palette.tint(e, colours[e]) if e != 0 else part.color
 
 
-## Paints the wall in `to`. Its packed parts are scaled from the swatches they carry onto the new ones in place, a pass
-## over its pieces instead of a lay, and its lanterns burn in theirs.
 func repaint(to: PackedInt32Array) -> void:
 	if to == paint:
 		return
@@ -736,7 +681,7 @@ func repaint(to: PackedInt32Array) -> void:
 func _tint_roof() -> void:
 	if _gables != null:
 		var t := Palette.tint(Palette.Element.PLASTER, paint[Palette.Element.PLASTER])
-		# The shared lining material starts with plaster RGB; tint converts the backing as well as its swatch.
+		# The lining material's albedo is plaster, so other backings are tinted relative to it.
 		var g := t
 		if layout.gable_kind() == WallLayout.GableEnd.BOARDS:
 			g = Palette.tint(Palette.Element.WOOD, paint[Palette.Element.WOOD]) * WallLayout.WOOD / WallLayout.PLASTER
@@ -752,9 +697,8 @@ func _tint_roof() -> void:
 		_ceiling.set_instance_shader_parameter(&"timber_color", Vector3(wood.r, wood.g, wood.b))
 
 
-## Brings the packed parts from `_painted` to `paint` on a worker thread, a pass over every piece being too long for a
-## frame on a big build; the parts as they stand show until it lands. The buffers are shared with the lay they came
-## from, which may be taken again, so they are copied, not scaled in place.
+## A pass over every piece is too long for a frame on a big build. The buffers are shared with the lay they came from,
+## which may be taken again, so they are copied, not scaled in place.
 func _recolour() -> void:
 	if _painted == paint or _recolour_task >= 0:
 		return
@@ -796,7 +740,7 @@ func _land_recolour() -> void:
 	_recolour()
 
 
-## `buf` (Masonry.Kind: colour at 12, material code at 17) with each piece's colour scaled by its material's `scale`.
+## Masonry.Kind instance layout: colour at 12, material code at 17.
 static func _scaled(from: PackedFloat32Array, stride: int, scale: Dictionary) -> PackedFloat32Array:
 	var buf := from.duplicate()
 	for i in range(0, buf.size(), stride):
@@ -823,10 +767,9 @@ func _take(packed: Dictionary) -> void:
 	_ruin_pick = packed.ruin_pick
 
 
-## Only a settling lay occludes, and a moving wall none: its occluder would trail its stones, and every occluder change
-## has the renderer rebuild the scene's occlusion BVH, which a sculpt relaying every wall on the ground turned into
-## frames spent waiting on the last rebuild. A wall that occludes nothing has no occluder node at all, since a carry
-## moving even an empty one rebuilds the BVH as well.
+## Only a settling lay occludes: a moving wall's occluder would trail its stones, and every occluder change rebuilds
+## the scene's occlusion BVH, which a sculpt relaying every wall turned into frames spent waiting on it. A wall that
+## occludes nothing has no occluder node, since a carry moving even an empty one rebuilds the BVH.
 func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 	if vertices.is_empty():
 		if _occluder != null:
@@ -840,14 +783,14 @@ func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 	(_occluder.occluder as ArrayOccluder3D).set_arrays(vertices, indices)
 
 
-## Occludes as its shown lay does again, for a wall a hold set back as it was laid, which no lay settles.
+## For a wall a hold set back as it was laid, which no lay settles.
 func occlude_shown() -> void:
 	if _occluder == null:
 		_occlude(_shown.out.occluder[0], _shown.out.occluder[1])
 
 
-## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it. The
-## glade must let them go at once (`Masonry.flush`), or they would stay standing where the hold took them from.
+## So a hold carrying it moves its stones. The glade must let them go at once (`Masonry.flush`), or they would stay
+## standing where the hold took them from.
 func draw_live() -> void:
 	_occlude(PackedVector3Array(), PackedInt32Array())
 	if _settled:
@@ -855,8 +798,7 @@ func draw_live() -> void:
 		_sync()
 
 
-## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here, uploaded
-## at once so the stones drawn here are always the ones laid, which a carry's transform is placed for.
+## Stones drawn here upload at once, so they are always the ones laid, which a carry's transform is placed for.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
@@ -911,8 +853,8 @@ func footprint() -> Rect2:
 	return layout.bounds.grow(WallLayout.THICKNESS)
 
 
-## Distance from a ray to this wall's body, with the arc length it is nearest: the first stretch the ray passes
-## through, so a ray into a house finds the side facing it, or else the stretch it passes nearest.
+## The first stretch the ray passes through, so a ray into a house finds the side facing it, or else the stretch it
+## passes nearest.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var reach := layout.half_thickness()
 	var best_key := Vector2.INF
@@ -920,7 +862,7 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best_i := 0
 	var best_t := 0.0
 	var best_p := Vector3.ZERO
-	# The sample nearest last time, a hand's ray moving little between frames, bounds what any sample must come within.
+	# A hand's ray moves little between frames, so the sample nearest last time bounds what any sample must come within.
 	var bound := Vector2.INF
 	if _nearest < layout.samples.size():
 		var seen := _sample_near(_nearest, origin, dir, reach)
@@ -973,8 +915,7 @@ func _sample_near(i: int, origin: Vector3, dir: Vector3, reach: float) -> Array:
 	return [Vector2(0.0, t) if d < reach else Vector2(1.0, d), d, t, p]
 
 
-## Intersects the continuous wall body between samples, including its foundation and top; `through_arches` sees
-## through each arch's opening to the stone round it.
+## `through_arches` sees through each arch's opening to the stone round it.
 func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictionary:
 	if not _ruin_pick.is_empty():
 		return _ruin_hit(origin, dir)
@@ -1021,8 +962,6 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 	return best
 
 
-## Where the ray meets stretch `i`'s box, `half` either side of it and `height` over its foot, nearer than
-## `nearer_than`, or empty.
 func _stretch_hit(i: int, origin: Vector3, dir: Vector3, through_arches: bool, nearer_than: float, half: float, height: float) -> Dictionary:
 	var n := layout.samples.size()
 	var j := (i + 1) % n
@@ -1060,12 +999,11 @@ func _stretch_hit(i: int, origin: Vector3, dir: Vector3, through_arches: bool, n
 	return {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(at.x / length, 0.0, 1.0)), "distance": 0.0, "side": side}
 
 
-## Whether point `p`, in the frame of the stretch from sample `i` to arc length `end`, `length` long, lies in an arch.
+## `p` is in the stretch's frame.
 func _open(i: int, end: float, length: float, p: Vector3) -> bool:
 	return layout.open_at(lerpf(layout.lengths[i], end, p.x / length), p.y)
 
 
-## Where a ray inside `box` leaves it.
 static func _exit(box: AABB, local: Vector3, direction: Vector3) -> float:
 	var out := INF
 	for k in 3:
@@ -1074,8 +1012,7 @@ static func _exit(box: AABB, local: Vector3, direction: Vector3) -> float:
 	return out
 
 
-## The first `along` from `from` to `to` that is not `open`, to a millimetre, or INF where the ray stays open, as it
-## does through an arch. An arch's opening narrows only upward, so stepping finer than a jamb's thickness finds it.
+## An arch's opening narrows only upward, so stepping finer than a jamb's thickness finds the first solid point.
 static func _first_solid(open: Callable, from: float, to: float) -> float:
 	var steps := clampi(ceili((to - from) / 0.05), 1, 400)
 	var last := from
@@ -1093,8 +1030,8 @@ static func _first_solid(open: Callable, from: float, to: float) -> float:
 	return INF
 
 
-## A ruined wall has no continuous body. Build its query trees with the masonry on the worker,
-## so aiming through several gaps does not scan every remaining stone each frame.
+## A ruin has no continuous body; its query trees are built on the worker so aiming through several gaps does not scan
+## every remaining stone each frame.
 static func _pack_ruin(built: WallLayout) -> Array[TriangleMesh]:
 	var out: Array[TriangleMesh] = []
 	if built.ruins.is_empty():
