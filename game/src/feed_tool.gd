@@ -1,26 +1,18 @@
 class_name FeedTool
 extends Node3D
 
-## For a hand holding the seed dish: the trigger tosses a handful of seeds a little way along the hand's aim, farther
-## the way the hand is swinging, to lie where it lands until it is eaten or sinks away. Seeds landing on a pond plop and
-## ripple it, then rise through it to float.
-
-## Per second: how quickly the throw follows the hand, so tracking jitter does not fling the seeds.
+## Per second; low enough that tracking jitter does not fling the seeds.
 const EASE := 20.0
-## Metres a second a handful leaves along the hand's aim on top of the hand's swing: from a still hand it lands about a
-## metre off, near enough to feed what stands by.
+## m/s; from a still hand a handful lands about a metre off, near enough to feed what stands by.
 const LAUNCH := 2.0
-## Handfuls lying about at once; another throw takes up the oldest.
 const HANDFULS := 8
 
-## This player threw a handful: `Session` sends it to the others.
 signal threw(from: Vector3, velocity: Vector3, seed: int)
 
 var rig: Rig
 var handfuls: Array[Handful] = []
 var rng := RandomNumberGenerator.new()
-## Per hand: where the dish was last frame and how fast it has been swinging, in the rig's space, so a teleport or a
-## snap turn throws nothing.
+## In the rig's space, so a teleport or a snap turn throws nothing.
 var _was := {}
 var _velocity := {}
 var _next := 0
@@ -52,12 +44,10 @@ func dish(h: Hand) -> Vector3:
 	return h.body.global_transform * Hand.TOP
 
 
-## How fast a handful leaves the dish in `h` swinging at `swing`.
 func launch(h: Hand, swing: Vector3) -> Vector3:
 	return -h.global_basis.z * LAUNCH + swing
 
 
-## This player's throw, shared with the others.
 func throw(from: Vector3, velocity: Vector3) -> Handful:
 	var seed := rng.randi()
 	threw.emit(from, velocity, seed)

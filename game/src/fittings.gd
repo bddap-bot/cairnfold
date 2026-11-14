@@ -1,12 +1,9 @@
 class_name Fittings
 extends Node3D
 
-## What a wall carries that is not stone: lantern flames, the glow they hang in the air, and flags waving.
+const HALO_M := 1.1
 
-## A lit lantern's glow across; a brighter one's spreads wider.
-const HALO := 1.1
-
-## Made as the game loads, as Wall's roof materials are: a shader made on first use stalls a frame.
+## Made at load, as Wall's roof materials are: a shader made on first use stalls a frame.
 static var _flame := _shaded("res://src/flame.gdshader")
 ## A glow in the air has no colour of its own for an icon to draw (Hand.unlit).
 static var _halo := _shaded("res://src/halo.gdshader", Color.TRANSPARENT)
@@ -18,7 +15,7 @@ static var _strip := _flag_mesh()
 var _flames := Masonry.Kind.new(_box, _flame, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
 var _halos := Masonry.Kind.new(_disc, _halo, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
 var _cloths := Masonry.Kind.new(_strip, _cloth, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
-## The Palette.Element.LANTERN swatch the flames burn in.
+## Palette.Element.LANTERN swatch index.
 var look := 0
 
 
@@ -31,7 +28,7 @@ static func _shaded(shader: String, icon_colour := Color.WHITE) -> ShaderMateria
 
 static func _halo_disc() -> QuadMesh:
 	var q := QuadMesh.new()
-	q.size = Vector2.ONE * HALO
+	q.size = Vector2.ONE * HALO_M
 	return q
 
 
@@ -40,7 +37,6 @@ func _init() -> void:
 		add_child(mmi)
 
 
-## Lays `flames` burning in `burning` (a Palette.Element.LANTERN swatch), and `cloths`.
 func lay(flames: Array[Transform3D], cloths: Array[Dictionary], burning := 0) -> void:
 	var fm := _flames.multimesh
 	var hm := _halos.multimesh
@@ -67,7 +63,6 @@ func lay(flames: Array[Transform3D], cloths: Array[Dictionary], burning := 0) ->
 	_cloths.visible = not cloths.is_empty()
 
 
-## Draws every part in `mat`, without the glow round the flames.
 func ghostly(mat: Material) -> void:
 	for mmi in [_flames, _cloths]:
 		mmi.material_override = mat
@@ -75,8 +70,7 @@ func ghostly(mat: Material) -> void:
 	_halos.multimesh.instance_count = 0
 
 
-## A cloth strip from the pole (x = 0) out to x = 1, y from -0.5 to 0.5, cut into columns so it can wave. Each triangle
-## winds as its normal faces: one wound against it is drawn as its back face, its normal flipped away, hard black on the Quest.
+## Pole at x = 0, out to x = 1, y -0.5 to 0.5. A triangle wound against its normal draws flipped: black on the Quest.
 static func _flag_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

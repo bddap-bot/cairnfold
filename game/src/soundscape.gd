@@ -1,31 +1,29 @@
 class_name Soundscape
 extends Node
 
-## Music and the meadow, pre-rendered by scripts/compose.py and mixed on the audio thread; this node sets layer volumes
-## and places the birds. The wind turns with the head; the birds call one at a time from out in the meadow, by day a
-## song and at night an owl, and crickets fill the night. Both fall away with the head's height over the ground and go
-## under water. What actions sound like is Cues'.
+## Music and meadow beds pre-rendered by scripts/compose.py; this node sets layer volumes and places the birds. Action
+## sounds are Cues'.
 
 const STEMS := ["bed", "lead", "orn"]
-## Layer gains in dB while idle and while building: building keeps the bed and lets the tune recede.
+## dB per STEMS layer; building keeps the bed and lets the tune recede.
 const IDLE := [0.0, 0.0, 0.0]
 const BUILDING := [-3.0, -14.0, -40.0]
 const QUIET_AFTER := 4.0
-## Sun elevations in degrees over which the songbirds wake at dawn; the crickets start up by Daylight.NIGHTFALL.
+## Sun elevation in degrees.
 const DAWN := Vector2(-10.0, 2.0)
-## Heights of the head over the ground in metres over which the birds and crickets fall silent.
+## Head height over the ground in metres.
 const ALOFT := Vector2(6.0, 25.0)
 const SONGS := 8
 const HOOTS := 3
-## Seconds between calls at full level, on average; fewer as the level falls. An owl calls far less often.
+## Mean seconds between calls at full level.
 const SONG_EVERY := 5.0
 const HOOT_EVERY := 25.0
-## Where a call comes from: how far from the head across the ground, and how high over it.
+## Metres: AWAY from the head across the ground, PERCH over the ground.
 const AWAY := Vector2(10.0, 30.0)
 const PERCH := Vector2(2.0, 7.0)
 const BIRD_DB := -24.0
 const NIGHT_DB := -28.0
-## How fast the night bed follows its level, per second, so surfacing from a pond brings the crickets back gently.
+## Per second, so surfacing from a pond brings the crickets back gently.
 const NIGHT_EASE := 1.0
 
 var tool: WallTool
@@ -136,13 +134,11 @@ func _meadow(delta: float) -> void:
 		_call(_hoots, head, dark)
 
 
-## A stem's gain in dB `delta` seconds on toward `target`: down quickly as building starts, back up slowly after.
 static func eased(gain: float, target: float, delta: float) -> float:
 	var rate := 1.5 if target < gain else 0.25
 	return lerpf(gain, target, 1.0 - exp(-rate * delta))
 
 
-## Where `effect` stands on bus `bus`'s chain, or -1.
 static func effect_index(bus: int, effect: AudioEffect) -> int:
 	for i in AudioServer.get_bus_effect_count(bus):
 		if AudioServer.get_bus_effect(bus, i) == effect:
@@ -150,12 +146,10 @@ static func effect_index(bus: int, effect: AudioEffect) -> int:
 	return -1
 
 
-## How fully the songbirds sing with the sun `elevation` degrees up and the head `above` metres over the ground.
 static func song_level(elevation: float, above: float, under: bool) -> float:
 	return 0.0 if under else smoothstep(DAWN.x, DAWN.y, elevation) * _low(above)
 
 
-## How fully the night sounds, the crickets and the owl.
 static func night_level(elevation: float, above: float, under: bool) -> float:
 	return 0.0 if under else Daylight.night(elevation) * _low(above)
 
@@ -172,7 +166,6 @@ func _call(clips: Array[AudioStream], head: Vector3, level: float) -> void:
 	bird.play()
 
 
-## Where a bird calls from, about a head at `head`.
 static func perch(head: Vector3, from: RandomNumberGenerator, land: Terrain) -> Vector3:
 	var way := Vector2.from_angle(from.randf() * TAU) * from.randf_range(AWAY.x, AWAY.y)
 	var at := Vector3(head.x + way.x, 0.0, head.z + way.y)

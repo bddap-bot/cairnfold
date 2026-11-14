@@ -1,23 +1,17 @@
 class_name MirrorTool
 extends Node3D
 
-## For a hand holding the hand mirror: the trigger stands a mirror where the hand points, facing the player, or moves
-## it there, and the trigger on the standing mirror puts it away. It is the player's own, as a camera is: no edit to the
-## garden, and nobody else sees it; it stands in the garden all the same, so a wipe or a garden swap puts it away. It
-## reflects people alone, every avatar the game draws (Quality.PEOPLE_LAYER) and the player's own (SELF_LAYER), lit by
-## its own light against a plain backdrop. Each eye sees it through its own view: a camera at that eye reflected in the
-## glass, whose frustum is the glass itself, so it reads as a mirror, not a screen. Put away, or out of sight, it draws
-## nothing.
+## The player's own, as a camera is: no garden edit and nobody else sees it, yet it stands in the garden so a wipe or
+## garden swap puts it away. Each eye gets a camera reflected in the glass with the glass as its frustum, so it reads
+## as a mirror, not a screen.
 
 const TINT := Color(0.8, 0.9, 1.0, 0.6)
-## How many times the hand mirror's size the standing one is: its glass, 0.8 by 1.2 m and topped above a tall player's
-## crown, shows the heads at eye height in its oval's broad middle and a player standing before it whole.
+## Times the hand mirror's size: a 0.8 x 1.2 m glass topping a tall player's crown shows a player before it whole.
 const STAND := 20.0
 const BACKDROP := Color(0.62, 0.66, 0.63)
 
 var rig: Rig
 var terrain: Terrain
-## The standing mirror, built once and hidden while put away.
 var stand: Node3D
 var _glass: ShaderMaterial
 var _seen: VisibleOnScreenNotifier3D
@@ -63,8 +57,7 @@ func _init(player: Rig, ground: Terrain) -> void:
 	add_child(stand)
 
 
-## The people's pipelines for a view of the mirror's kind compile as the game loads, drawn once from before the head
-## looking back at it, so standing a mirror holds no frame.
+## Draws one mirror view at load so its pipelines compile then and standing a mirror holds no frame.
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
@@ -107,7 +100,6 @@ func _aim(h: Hand, pressed: bool) -> void:
 		stand_at(hit, rig.head.global_position)
 
 
-## Stands the mirror with its foot at `foot`, its glass turned toward `toward` about the upright.
 func stand_at(foot: Vector3, toward: Vector3) -> void:
 	var flat := Vector3(toward.x - foot.x, 0, toward.z - foot.z)
 	var facing := Basis.looking_at(-flat.normalized()) if flat.length() > 0.01 else stand.global_basis.orthonormalized()
@@ -148,12 +140,12 @@ func _view() -> SubViewport:
 	return vp
 
 
-## The glass's frame: its centre, x along its width and y up its height, each as long as the glass, z out of its face.
+## Origin at the glass's centre; x and y span its width and height, z is out of its face.
 func glass() -> Transform3D:
 	return stand.global_transform * Transform3D(Basis.from_scale(Vector3(ToolModels.MIRROR_GLASS.x, ToolModels.MIRROR_GLASS.y, 1)), ToolModels.MIRROR_CENTRE)
 
 
-## Where a ray from `from` along `dir` meets the standing mirror's glass, from either side, or null.
+## Hit from either side, or null.
 func glass_hit(from: Vector3, dir: Vector3) -> Variant:
 	if not standing():
 		return null
@@ -166,9 +158,7 @@ func glass_hit(from: Vector3, dir: Vector3) -> Variant:
 	return g * p if Vector2(p.x, p.y).length() <= 0.5 else null
 
 
-## The camera that sees, through `glass` (`glass()`), what an eye at `eye` sees in it: at the eye's reflection, looking
-## out of the glass, its near plane the glass and its frustum offset onto the glass's centre. Empty for an eye behind
-## the glass, which sees no reflection.
+## The reflected camera for `eye` in `glass` (`glass()`), its near plane the glass; empty for an eye behind it.
 static func reflection(glass: Transform3D, eye: Vector3) -> Dictionary:
 	var n := glass.basis.z.normalized()
 	var d := (eye - glass.origin).dot(n)
@@ -179,7 +169,6 @@ static func reflection(glass: Transform3D, eye: Vector3) -> Dictionary:
 	return {"at": at, "offset": Vector2(centre.x, centre.y), "near": d}
 
 
-## Where each eye is that draws this frame: each XR view's, or the one camera's.
 func _eyes() -> Array:
 	var vp := get_viewport()
 	var xr := XRServer.primary_interface

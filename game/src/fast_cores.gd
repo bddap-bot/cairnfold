@@ -1,12 +1,9 @@
-## Keeps the main thread off the machine's slowest cores. On the Steam Frame the game may run on cores 0 to 4, and
-## 0 and 1 are the slow ones: a frame the scheduler runs there takes its scripts and draw calls two to three times as
-## long, and the runtime drops to every other refresh for a second or more.
+## On the Steam Frame cores 0 and 1 of 0-4 are slow: a frame run there takes two to three times as long, and the
+## runtime drops to every other refresh for a second or more.
 class_name FastCores
 
 
-## Narrows the calling thread to the cores it may run on that are not clocked as low as the machine's slowest, and
-## never widens it, so a runtime that placed the thread already keeps its choice. Threads started before it, the
-## engine's workers among them, keep every core.
+## Never widens, so a runtime's placement stands; threads started earlier, the engine's workers too, keep every core.
 static func keep_this_thread() -> void:
 	var stat := _line("/proc/thread-self/stat")
 	var allowed := _cpus(_status_field("/proc/thread-self/status", "Cpus_allowed_list"))
@@ -32,8 +29,7 @@ static func keep_this_thread() -> void:
 	print("fast cores: main thread on cores %s of %s" % [keep, allowed])
 
 
-## Of the cores in `allowed`, those clocked above the slowest of all cores in `clocks` (core to its top clock); all of
-## `allowed` where that leaves none or a core's clock is unknown.
+## `clocks`: core -> top clock. All of `allowed` when that leaves none or a clock is unknown.
 static func fast(allowed: Array[int], clocks: Dictionary) -> Array[int]:
 	if clocks.is_empty() or allowed.any(func(c: int) -> bool: return not clocks.has(c)):
 		return allowed
@@ -42,7 +38,6 @@ static func fast(allowed: Array[int], clocks: Dictionary) -> Array[int]:
 	return keep if not keep.is_empty() else allowed
 
 
-## The cores a list such as "0-4,6" names.
 static func _cpus(list: String) -> Array[int]:
 	var out: Array[int] = []
 	for part in list.strip_edges().split(",", false):

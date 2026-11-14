@@ -1,8 +1,7 @@
 class_name Beam
 extends MeshInstance3D
 
-## How many times its natural width it is drawn.
-var thick := 1.0
+var width_scale := 1.0
 
 func _init(color: Color) -> void:
 	mesh = ToolModels.cylinder(0.004, 0.004, 1.0, 5)
@@ -14,4 +13,4 @@ func _init(color: Color) -> void:
 func span(a: Vector3, b: Vector3) -> void:
 	var up := (b - a).normalized()
 	var side := up.cross(Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
-	global_transform = Transform3D(Basis(side * thick, up * a.distance_to(b), side.cross(up) * thick), (a + b) * 0.5)
+	global_transform = Transform3D(Basis(side * width_scale, up * a.distance_to(b), side.cross(up) * width_scale), (a + b) * 0.5)

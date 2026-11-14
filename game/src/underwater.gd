@@ -1,16 +1,12 @@
 class_name Underwater
 extends MeshInstance3D
 
-## What an eye under a pond's surface sees and hears besides the surface itself, which the water shader draws from
-## below: Look's fog closes in blue-green with red gone first, shafts of sunlight come down
-## through the surface, motes and a few bubbles drift about the head, and the whole mix is muffled. Above water
-## none of it is drawn or run.
+## The surface seen from below is the water shader's, not this node's.
 
 const MOTES := 320
-## One mote in this many is a bubble, rising.
 const BUBBLE_EVERY := 8
 const SHAFTS := 30
-## Motes fill a box this many metres either way of the head; shafts stand over a box half again as wide.
+## Metres either way of the head motes fill; shafts stand over a box half again as wide.
 const REACH := 3.0
 const MUFFLE_HZ := 650.0
 const MUFFLE_DB := -4.0
@@ -69,13 +65,12 @@ func _process(_delta: float) -> void:
 		_mat.set_shader_parameter("ambient", Vector3(Look.UNDER_FOG.r, Look.UNDER_FOG.g, Look.UNDER_FOG.b) * Look.under_light(l))
 
 
-## The pond whose surface is over `p`, or null.
 func _pond_over(p: Vector3) -> PondWater:
 	var pond := water.pond_at(p.x, p.z)
 	return pond if pond != null and p.y < pond.surface_y() else null
 
 
-## Sunlight travelling `way` (downward) bends toward straight down as it enters the water (Snell's law).
+## `way` points downward; refracts by Snell's law.
 static func into_water(way: Vector3) -> Vector3:
 	var d := Vector3(way.x, minf(way.y, -0.05), way.z).normalized()
 	var eta := 1.0 / WATER_IOR
@@ -94,8 +89,8 @@ func _submerge(on: bool) -> void:
 	AudioServer.set_bus_volume_db(0, _volume_db + MUFFLE_DB if on else _volume_db)
 
 
-## Every mote and shaft as a quad of four corners at one point: COLOR.r its kind (0 a mote, 0.5 a bubble, 1 a shaft),
-## g its phase, b its size; the vertex shader spreads the corners.
+## Each quad's four corners sit at one point for the vertex shader to spread. COLOR.r kind (0 mote, 0.5 bubble,
+## 1 shaft), g phase, b size.
 static func _kit() -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11

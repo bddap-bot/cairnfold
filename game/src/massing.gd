@@ -1,40 +1,31 @@
 class_name Massing
 extends RefCounted
 
-## The room a standing build takes up, worked out from its laid ground curve: the top another build stands on,
-## and the space where a build joined to it lays nothing (docs/design.md, "Buildings on buildings"). Pure data,
-## never changed once made, so worker threads laying other builds read it freely.
+## The room a laid build takes up (docs/design.md, "Buildings on buildings"). Never changed once made, so
+## worker threads laying other builds read it freely.
 
-## How far past an open wall's faces a build standing on its top still rests on it.
+## Past an open wall's faces, how far a build on its top still rests on it.
 const REACH := 0.3
-## A joined build's stones this near a house or tower's centre line stand: walls laid along the same line both stay.
+## Inset of `inner` from the centre line, so walls laid along the same line both stay.
 const SLACK := 0.05
 const CELL := 1.0
 
 var closed := false
-## The centre line on the ground plane: round a house or tower, along an open wall.
+## Ground-plane (x, z).
 var line := PackedVector2Array()
-## Where the stones stand: one height for a closed wall, one per point of an open one.
+## One height for a closed wall, one per `line` point of an open one.
 var feet := PackedFloat32Array()
-## From the feet to the top another build stands on.
 var rise := 0.0
-## The roof surface is the ceiling of the room under it.
 var roof: RoofLayout
-## The centre line shrunk by SLACK: inside it lies a joined build's room.
 var inner: Array[PackedVector2Array] = []
-## The centre line itself, where the ceiling under the roof starts.
 var centre: Array[PackedVector2Array] = []
-## The outer faces, where a build standing here rests.
 var outer: Array[PackedVector2Array] = []
-## Out to where a roof's eaves would reach: under it lies what a build standing here covers.
 var eaves: Array[PackedVector2Array] = []
-## Encloses everything above, grown by REACH.
 var rect := Rect2()
 var _cells := {}
 var _key := []
 
 
-## The solid of a resampled layout, with the roof on it if any.
 static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 	var s := Massing.new()
 	s.closed = layout.closed
@@ -78,12 +69,11 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 	return s
 
 
-## Whether `other` takes up the same room.
 func same(other: Massing) -> bool:
 	return other != null and _key == other._key
 
 
-## Height of the top a build standing at (x, z) rests on, or -INF where this one is not under it.
+## Height of the top a build at (x, z) rests on, or -INF where this one is not under it.
 func rest(x: float, z: float) -> float:
 	var p := Vector2(x, z)
 	if not rect.has_point(p):
@@ -94,8 +84,7 @@ func rest(x: float, z: float) -> float:
 	return feet[i] + rise if i >= 0 else -INF
 
 
-## Whether `p` lies in the room inside this house or tower, between its feet and its roof or top: a joined
-## build lays nothing there.
+## A joined build lays nothing where this holds.
 func holds(p: Vector3) -> bool:
 	if not closed or not rect.has_point(Vector2(p.x, p.z)) or p.y < feet[0]:
 		return false
@@ -103,7 +92,7 @@ func holds(p: Vector3) -> bool:
 	return p.y < ceiling and encloses(Vector2(p.x, p.z), inner)
 
 
-## Whether `p` lies under this build and above the top it stands on: what it stands on lays nothing there.
+## The build this one stands on lays nothing where this covers.
 func covers(p: Vector3) -> bool:
 	var at := Vector2(p.x, p.z)
 	if not rect.has_point(at) or not encloses(at, eaves):

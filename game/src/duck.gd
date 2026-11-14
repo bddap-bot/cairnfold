@@ -1,7 +1,6 @@
 class_name Duck
 extends Critter
 
-## A low-poly duck built from soft ellipsoids; idle, paddle, waddle and flight run in its vertex shader.
 ## Part ids ride in UV2.x so the shader knows which pivot each vertex turns about.
 
 enum Part { BODY, HEAD, WING_L, WING_R, FOOT_L, FOOT_R, TAIL }
@@ -13,7 +12,7 @@ const EYE := Color(0.05, 0.04, 0.05)
 const CHICK := Color(1.0, 0.84, 0.36)
 const CHICK_WING := Color(0.98, 0.78, 0.30)
 const CHICK_SIZE := 0.6
-## Ground a grown duck covers per second at the shader's step rate, so planted feet stay put.
+## Metres per second for a grown duck at the shader's step rate, so planted feet stay put.
 const STRIDE_SPEED := 0.21
 const IDLE := Vector4(1, 0, 0, 0)
 const PADDLE := Vector4(0, 1, 0, 0)
@@ -45,7 +44,7 @@ func _init(chick: bool, phase: float) -> void:
 	set_instance_shader_parameter("pace", pace)
 
 
-## Eases its pecking at seeds toward `target`, 1 eating and 0 not.
+## `target` 1 eating, 0 not.
 func peck(target: float, delta: float) -> void:
 	var next := move_toward(pecking, target, delta * 3.0)
 	if next != pecking:

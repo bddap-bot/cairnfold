@@ -1,15 +1,13 @@
 class_name FloraLayout
 extends RefCounted
 
-## Where grass, flowers, bushes and trees go and how each looks; the meadow and the left-hand brush both place plants through here.
-
-## White, butter, peach, pale pink, rose, lavender, violet, cornflower, sky; dim enough that full sun leaves them coloured.
+## Dim enough that full sun leaves them coloured.
 const FLOWER_COLORS := [
 	Color(0.86, 0.85, 0.80), Color(0.80, 0.58, 0.14), Color(0.80, 0.40, 0.24),
 	Color(0.78, 0.40, 0.52), Color(0.66, 0.20, 0.38), Color(0.48, 0.34, 0.72),
 	Color(0.34, 0.20, 0.58), Color(0.20, 0.30, 0.72), Color(0.30, 0.48, 0.76),
 ]
-## Flowers of one colour grow together in clumps about this wide, so a stroke paints a few colours in patches.
+## Metres across a one-colour patch, so a stroke paints a few colours in patches.
 const FLOWER_CLUMP := 1.3
 const BLOBS := 8
 const GRASS_CLUMP := 0.7
@@ -27,7 +25,6 @@ static func _noise(seed: int, frequency: float) -> FastNoiseLite:
 	return n
 
 
-## How dry the grass tips are at a ground point, 0 lush to 1 straw.
 static func dryness(p: Vector3) -> float:
 	return clampf(0.4 + _patches.get_noise_2d(p.x, p.z) * 1.2, 0.0, 1.0)
 
@@ -37,14 +34,12 @@ static func flower_color(p: Vector3) -> Color:
 	return FLOWER_COLORS[mini(k, FLOWER_COLORS.size() - 1)]
 
 
-## Where a flower stands in the order the seasons take them: one blooms while its rank is under the season's
-## share in bloom (plant.gdshaderinc reads it from the instance).
+## A flower blooms while this is under the season's share in bloom (plant.gdshaderinc reads it per instance).
 static func bloom_rank(p: Vector3) -> float:
 	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.BLOOM)
 
 
-## Where a grass clump stands in the order distance thins the meadow: the higher its rank, the nearer the eye it
-## goes (grass.gdshader reads it from the instance).
+## Higher-ranked clumps thin out nearer the eye (grass.gdshader reads it per instance).
 static func thin_rank(p: Vector3) -> float:
 	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.THIN)
 
@@ -56,8 +51,6 @@ static func flowery(p: Vector3) -> bool:
 enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR, BLOOM, THIN }
 
 
-## The centre of the clump a ground point belongs to: the nearest of one jittered point per `size` cell.
-## Grass clumps share height, facing and tint, so the meadow grows in tufts rather than an even carpet.
 static func clump(p: Vector3, size: float) -> Vector3:
 	var ci := floori(p.x / size)
 	var cj := floori(p.z / size)
@@ -73,7 +66,7 @@ static func clump(p: Vector3, size: float) -> Vector3:
 	return best
 
 
-## A clump's 0..1 value for one trait, the same for every plant in it; `size` is the one its centre came from.
+## `size` must be the one `centre` came from.
 static func clump_trait(centre: Vector3, t: Trait, size: float) -> float:
 	return _hash(floori(centre.x / size), floori(centre.z / size), t)
 
@@ -82,7 +75,6 @@ static func _hash(i: int, j: int, k: int) -> float:
 	return fposmod(sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453, 1.0)
 
 
-## A grass clump mesh at `p` in the clump centred at `c`: its height and facing with some scatter, its tips leaning out from the centre.
 static func grass(p: Vector3, c: Vector3, rng: RandomNumberGenerator) -> Transform3D:
 	var s := rng.randf_range(0.8, 1.15)
 	var h := s * lerpf(0.65, 1.45, clump_trait(c, Trait.HEIGHT, GRASS_CLUMP)) * rng.randf_range(0.9, 1.1)
@@ -96,7 +88,7 @@ static func flower(p: Vector3, rng: RandomNumberGenerator) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p)
 
 
-## How far below the ground a painted plant's spot is set.
+## Metres.
 const SINK := 0.02
 
 
@@ -108,25 +100,21 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 		var x := center.x + cos(a) * r
 		var z := center.z + sin(a) * r
 		var spot := Vector3(x, 0, z)
-		# The ground is read at the spot as stored, in single precision, as the ghost reads it.
+		# Read at the stored single-precision spot, as the ghost reads it.
 		spot.y = ground.call(spot.x, spot.z) - SINK
 		out.append(spot)
 	return out
 
 
-## What a tree grows as: an oak's round crown, a fir's dark cone, a poplar's column, a birch's pale trunk under
-## a light, open crown, a copper beech's low wine-red dome. Every one has BLOBS blobs, so a tree changes species in
-## the slots it holds.
+## Every species has BLOBS blobs, so a tree changes species in the slots it holds.
 enum Species { OAK, FIR, POPLAR, BIRCH, BEECH }
-## How far a tree's size goes from the size it grows at: below it a crown sinks into the grass, past it a blob's
-## facets read as flat plates.
+## Scale range: below it a crown sinks into the grass, past it a blob's facets read as flat plates.
 const SCALES := Vector2(0.4, 3.0)
 const BARK := {Species.OAK: Color(0.36, 0.27, 0.2), Species.FIR: Color(0.3, 0.21, 0.16), Species.POPLAR: Color(0.42, 0.38, 0.3), Species.BIRCH: Color(0.86, 0.84, 0.79), Species.BEECH: Color(0.47, 0.46, 0.43)}
 const LEAVES := {Species.FIR: Color(0.06, 0.19, 0.12), Species.POPLAR: Color(0.36, 0.5, 0.08), Species.BIRCH: Color(0.46, 0.6, 0.2), Species.BEECH: Color(0.32, 0.09, 0.1)}
 
 
-## A tree of `species` on the ground point `at`, its shape drawn from `seed` and grown `scale` times about `at`: a
-## trunk (a unit-height cylinder scaled up) and its bark colour, and its foliage blobs as [transform, colour].
+## {trunk: unit-height cylinder's transform, bark: Color, blobs: [[Transform3D, Color]]}.
 static func tree(at: Vector3, seed: int, species := Species.OAK, scale := 1.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed

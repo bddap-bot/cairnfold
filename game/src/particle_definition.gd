@@ -1,30 +1,26 @@
 class_name ParticleDefinition
 extends RefCounted
 
-## An avatar's particles as its root holds them, read into the form AvatarParticles runs: every field checked for its
-## type and range, since files arrive from players, each missing one given Unity's default, and colours made linear.
+## Every field is checked for type and range since files arrive from players; a missing one takes Unity's default.
 
 const SHAPES := ["point", "sphere", "hemisphere", "cone", "box", "circle", "edge"]
 const MODES := ["billboard", "stretched", "horizontal", "vertical", "mesh"]
 const ALIGNS := ["view", "world", "local", "facing", "velocity"]
-## The most curve samples, bursts and sub-emitters a system may name, and vertices a mesh may have.
 const MAX_SAMPLES := 64
 const MAX_BURSTS := 8
 const MAX_SUB_EMITTERS := 16
 const MAX_VERTICES := 4096
 ## Past this a number would overflow the 32-bit floats the GPU reads.
 const LARGEST := 1e9
-## A constant curve of 0, 1 and 5, which a clip may scale.
+## Constants as curves, so a clip may scale them.
 const ZERO := {"min": [1.0], "max": [1.0], "scale": [0.0, 0.0]}
 const ONE := {"min": [1.0], "max": [1.0], "scale": [1.0, 1.0]}
 const FIVE := {"min": [1.0], "max": [1.0], "scale": [5.0, 5.0]}
 const WHITE := {"min": [[1.0, 1.0, 1.0, 1.0]], "max": [[1.0, 1.0, 1.0, 1.0]]}
 
 
-## The run form of `particles`, an avatar's particles as its root's "particles" holds them: UNITY_particles with each
-## "node" its name and each material's "image" an index into "images", a list of Images. "meshes" become ArrayMeshes
-## and each image a mipmapped texture; a system is a sub-emitter ("sub") when another names it, and none names one
-## that leads back to itself. Empty if the systems are malformed.
+## In: UNITY_particles, each "node" a name and each material's "image" an index into "images" (Images). Out: "sub"
+## set where another system names it, sub-emitter cycles dropped; {} if any system or mesh is malformed.
 static func read(particles: Variant) -> Dictionary:
 	if not particles is Dictionary or not particles.get("systems") is Array or particles.systems.size() > Avatar.MAX_PARTICLE_SYSTEMS:
 		return {}
@@ -58,7 +54,6 @@ static func read(particles: Variant) -> Dictionary:
 	return {"systems": systems, "meshes": meshes}
 
 
-## Whether system `from`, or a sub-emitter it names however far down, is system `to`.
 static func _leads_to(systems: Array, from: int, to: int) -> bool:
 	var seen := {}
 	var pending := [from]
@@ -74,7 +69,6 @@ static func _leads_to(systems: Array, from: int, to: int) -> bool:
 	return false
 
 
-## A mipmapped texture of `img`, or null where it is none.
 static func _texture(img: Variant) -> Texture2D:
 	if not img is Image or (img as Image).is_empty():
 		return null
@@ -141,10 +135,10 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		out.spin = _axes(s.get("spin"), ZERO)
 	var size_by: Variant = s.get("sizeBySpeed")
 	if size_by is Dictionary:
-		out.sizeBySpeed = {"range": _range(size_by.get("range")), "size": _curve(size_by.get("size"), ONE)}
+		out.sizeBySpeed = {"range": _speed_range(size_by.get("range")), "size": _curve(size_by.get("size"), ONE)}
 	var colour_by: Variant = s.get("colorBySpeed")
 	if colour_by is Dictionary:
-		out.colorBySpeed = {"range": _range(colour_by.get("range")), "color": _gradient(colour_by.get("color"))}
+		out.colorBySpeed = {"range": _speed_range(colour_by.get("range")), "color": _gradient(colour_by.get("color"))}
 	var subs := []
 	for sub: Variant in s.get("subEmitters", []) if s.get("subEmitters") is Array else []:
 		if sub is Dictionary and ExpressionDefinition._index(sub.get("system"), systems) and sub.get("on") in ["birth", "death"] and subs.size() < MAX_SUB_EMITTERS:
@@ -189,19 +183,16 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 	return out
 
 
-## A by-speed range of two speeds, the upper above the lower.
-static func _range(r: Variant) -> Array:
+static func _speed_range(r: Variant) -> Array:
 	var low := _number(r[0], 0.0) if r is Array and r.size() == 2 else 0.0
 	var high := _number(r[1], 1.0) if r is Array and r.size() == 2 else 1.0
 	return [low, high if high > low else low + 1.0]
 
 
-## Whether `a` is a curve's or gradient's list of samples, each one `sample` accepts.
 static func _samples(a: Variant, sample: Callable) -> bool:
 	return a is Array and a.size() >= 1 and a.size() <= MAX_SAMPLES and a.all(sample)
 
 
-## A curve, its samples floats and its scale two numbers; `otherwise` where it is malformed.
 static func _curve(v: Variant, otherwise: Dictionary) -> Dictionary:
 	if not v is Dictionary or not _samples(v.get("min"), _finite) or not _samples(v.get("max"), _finite) or not (v.get("scale") is Array and v.scale.size() == 2 and v.scale.all(_finite)):
 		v = otherwise
@@ -215,7 +206,6 @@ static func _axes(v: Variant, otherwise: Dictionary) -> Array:
 	return [_curve(v, otherwise)]
 
 
-## A gradient's two ends, each linear colours.
 static func _gradient(v: Variant) -> Dictionary:
 	var rgba := func(c: Variant) -> bool: return c is Array and c.size() == 4 and c.all(_finite)
 	if not v is Dictionary or not _samples(v.get("min"), rgba) or not _samples(v.get("max"), rgba):
@@ -260,7 +250,7 @@ static func _vector(v: Variant) -> Vector3:
 	return Vector3(v[0], v[1], v[2]) if v is Array and v.size() == 3 and v.all(_finite) else Vector3.ZERO
 
 
-## An sRGB colour with linear alpha, as the file carries it, made linear.
+## The file's colours are sRGB with linear alpha.
 static func _colour(v: Variant, otherwise: Color) -> Color:
 	if v is Array and (v.size() == 3 or v.size() == 4) and v.all(_finite):
 		return Color(v[0], v[1], v[2], v[3] if v.size() == 4 else 1.0).srgb_to_linear()

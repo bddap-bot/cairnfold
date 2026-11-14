@@ -1,39 +1,28 @@
 class_name Herds
 extends Grazers
 
-## Sheep at the fences the player has built: some time after a long enough fence stands, a small flock walks in
-## from out of sight and grazes the grass along one side of it. They crop with heads down, drifting a step at a
-## time, look about, walk to fresh grass and now and then lie down; a sudden move close by sends one trotting off a
-## few metres before it settles, and one that sees seeds held out low walks up and nibbles them from the hand. They
-## leave, out of sight, once their fence is gone or no grass beside it can be reached.
+## Sheep grazing beside the player's fences.
 
 const CAP := 8
 const FLOCK := Vector2i(2, 4)
-## Standing length of fence that makes a pasture.
 const MIN_FENCE := 6.0
-## How far beside its fence a flock grazes.
 const BAND := Vector2(1.0, 7.0)
-## Grass nearer a fence's end than this along it is past the end, not beside it.
 const END := 0.5
-## How far beyond its first grass a flock starts walking in: further, a step at a time, if nearer is in sight
-## or has no clear way.
+## Beyond its first grass; further if nearer is in sight or has no clear way.
 const WALK_FROM := 12.0
 const SPEED := {State.ENTER: 0.5, State.WALK: 0.45, State.FLEE: 1.5, State.LEAVE: 0.55, State.GRAZE: 0.12}
 const LIE_FOR := Vector2(20.0, 45.0)
-## A sudden move nearer than this to a sheep's back sends it off.
 const SCARE := 1.0
-## A sheep walks up to seeds held out below its head and nibbles them, its muzzle at the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0), 0.4)
-## Seconds, on average, between one settled sheep's bleats.
-const BLEAT_EVERY := 75.0
+const BLEAT_EVERY_SECONDS := 75.0
 
-## Fences long enough to graze beside, as of the last look.
+## As of the last `look`.
 var pastures: Array[Wall] = []
 
 
 class Flock extends Band:
 	var fence: Wall
-	## Which side of the fence it grazes: +1 or -1 along the fence's left-hand normal.
+	## +1 or -1 along the fence's tangent × UP, its right-hand normal.
 	var side := 1.0
 
 
@@ -42,7 +31,6 @@ func _init(home: Wildlife, seed: int) -> void:
 	lie_chance = 0.12
 
 
-## Pastures no flock is staying at: where an arrival may be due.
 func empty_pastures() -> Array:
 	return pastures.filter(func(w: Wall) -> bool: return bands.all(func(f: Flock) -> bool: return _leaving(f) or f.fence != w))
 
@@ -59,7 +47,6 @@ func _keep(b: Band, _delta: float) -> void:
 		_leave(b)
 
 
-## Looks the walls over for pastures, then sends sheep whose ground or way has changed to grass they can reach.
 func look() -> void:
 	pastures.clear()
 	var walls := wildlife.walls
@@ -80,8 +67,6 @@ static func standing_length(layout: WallLayout) -> float:
 	return out
 
 
-## A few sheep walk in toward `fence` from WALK_FROM beyond their grass, along a clear way that starts out of
-## sight; if there is no such way or no grass beside it will do, none come this time.
 func arrive(fence: Wall) -> void:
 	var f := Flock.new()
 	f.fence = fence
@@ -112,7 +97,7 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 
 
 func _settled_tick(a: Node3D, delta: float) -> void:
-	wildlife.calls.now_and_then("bleat", a.position, BLEAT_EVERY, delta)
+	wildlife.calls.now_and_then("bleat", a.position, BLEAT_EVERY_SECONDS, delta)
 
 
 func _other(_b: Band, a: Node3D, delta: float) -> void:
@@ -142,7 +127,6 @@ func _anywhere(b: Band) -> Vector3:
 	return at.point + normal * rng.randf_range(BAND.x, BAND.y)
 
 
-## Whether `p` lies in the flock's band on its side of the fence, alongside it rather than beyond an end.
 func _within(b: Band, p: Vector3) -> bool:
 	var f := b as Flock
 	var layout := f.fence.layout

@@ -1,11 +1,6 @@
 class_name Squirrels
 extends Shy
 
-## Red squirrels at the planted trees, one to a tree: each comes down out of its crown, clings and climbs about the trunk,
-## and runs down to forage on the ground near it, sitting up to nibble. One a person comes toward races back up its
-## trunk round the far side, and comes down again once all is quiet. They come by day; at night they go up into the
-## crown and keep still there.
-
 enum State { CLIMB, CLING, RUN, FORAGE }
 ## Part ids ride in UV2.x so the shader knows how each vertex moves.
 enum Part { BODY, HEAD, TAIL, HIND, FORE }
@@ -15,24 +10,23 @@ const CLIMB_SPEED := 0.55
 const ROUND_SPEED := 1.6
 const RUN_SPEED := 1.4
 const DASH_SPEED := 2.4
-## Ground covered in one bound at the shader's bounding pace.
+## Ground per bound at the shader's pace.
 const STRIDE := 0.3
 const CLING_FOR := Vector2(2.0, 7.0)
 const FORAGE_FOR := Vector2(3.0, 9.0)
 const FORAGE := Vector2(0.7, 3.0)
-## How far out from its bark it clings.
 const GRIP := 0.025
 const FLIGHT := 2.6
 const STARTLE := 4.0
-## After a fright it keeps up its trunk this long once nobody comes near.
+## Seconds it stays up after a fright once nobody is near.
 const WARY_FOR := Vector2(6.0, 14.0)
-const CHITTER_EVERY := 22.0
+const CHITTER_EVERY_SECONDS := 22.0
 
 var _trees := {}
 
 
 class Squirrel extends Shy.One:
-	## On its trunk: how high it is up the trunk and where round it, and where it climbs to.
+	## Metres up the trunk and radians round it; `to_` is where it climbs to.
 	var up := 0.0
 	var round := 0.0
 	var to_up := 0.0
@@ -47,7 +41,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	super(home, seed, body(), "res://src/squirrel.gdshader", CAP, "squirrels")
 
 
-## Standing on the ground facing -Z, its back up +Y; the tail curls up over its back.
+## Facing -Z, back up +Y.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -76,7 +70,6 @@ static func body() -> ArrayMesh:
 	return st.commit()
 
 
-## The dry trees (`Wildlife.dry_trees`), listed again on `Wildlife`'s looks.
 func look() -> void:
 	_trees = {}
 	for parts: Array in wildlife.dry_trees():
@@ -95,7 +88,6 @@ static func radius(trunk: Flora.Plant, up: float) -> float:
 	return lerpf(0.3, 0.16, clampf(up / height(trunk), 0.0, 1.0)) * trunk.xform.basis.x.length()
 
 
-## One comes down out of its crown.
 func arrive(home: Object) -> One:
 	var trunk: Flora.Plant = home
 	var s := Squirrel.new()
@@ -152,7 +144,7 @@ func think(a: One, delta: float) -> void:
 					_climb(s, height(trunk) * 0.95, s.round)
 			else:
 				s.timer -= delta
-				wildlife.calls.now_and_then("chitter", s.position, CHITTER_EVERY, delta)
+				wildlife.calls.now_and_then("chitter", s.position, CHITTER_EVERY_SECONDS, delta)
 				if s.timer <= 0.0 and s.wary <= 0.0:
 					if rng.randf() < 0.55 and not s.leaving:
 						_climb(s, 0.0, s.round)
@@ -177,7 +169,7 @@ func think(a: One, delta: float) -> void:
 		State.FORAGE:
 			s.timer -= delta
 			s.sit = move_toward(s.sit, 1.0, delta * 3.0)
-			wildlife.calls.now_and_then("chitter", s.position, CHITTER_EVERY * 1.5, delta)
+			wildlife.calls.now_and_then("chitter", s.position, CHITTER_EVERY_SECONDS * 1.5, delta)
 			if s.timer <= 0.0 or asleep:
 				if rng.randf() < 0.6 and not asleep and not s.leaving:
 					_forage_spot(s, trunk)
@@ -234,7 +226,6 @@ func _to_trunk(s: Squirrel, trunk: Flora.Plant) -> void:
 	s.goal = wildlife.terrain.ground(foot.x + off.x * radius(trunk, 0.0), foot.z + off.z * radius(trunk, 0.0))
 
 
-## Away from `n`: up its trunk round the side from it, running to the trunk first if it is on the ground.
 func _dash_up(s: Squirrel, trunk: Flora.Plant, n: Node3D) -> void:
 	var off := away(trunk.foot(), n)
 	var hide := atan2(off.z, off.x)
@@ -248,7 +239,7 @@ func _dash_up(s: Squirrel, trunk: Flora.Plant, n: Node3D) -> void:
 	_climb(s, to_up, hide)
 
 
-## Bounds over the ground toward its goal; true once there.
+## True once at its goal.
 func _run(s: Squirrel, delta: float) -> bool:
 	var to := Vector3(s.goal.x - s.position.x, 0, s.goal.z - s.position.z)
 	var speed := DASH_SPEED if s.dashing or s.leaving else RUN_SPEED
@@ -263,7 +254,6 @@ func _run(s: Squirrel, delta: float) -> bool:
 	return false
 
 
-## On its trunk, belly to the bark, head up or down the way it climbs.
 func _place(s: Squirrel, trunk: Flora.Plant) -> void:
 	var foot := trunk.foot()
 	var out := Vector3(cos(s.round), 0, sin(s.round))

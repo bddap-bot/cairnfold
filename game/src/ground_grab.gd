@@ -1,13 +1,9 @@
 class_name GroundGrab
 extends Node3D
 
-## Shapes the ground, whatever a hand holds: a grip on the ground grabs it where the hand points and the
-## grabbed point follows the hand up into a hill or down into a hollow, shown as the ground's live hump.
-## Letting go sends the ground's new heights as a build command, one step per grab; the hump shows until it
-## is in. Farther ground grabs a wider hill and rises faster than the hand. Each hand grabs on its own, with
-## its own hump, so two hands pull two hills at once; on the same ground their humps add. The ground is the
-## last thing a grip takes: a wall, roof or carried house it points at takes it first; open sky, and the sun
-## or the moon even under the ground, is the sky's.
+## Each hand pulls its own live hump; letting go sends the heights as one build step and the hump shows until
+## it is in. The ground takes a grip last: a wall, roof, carried house, open sky, or the sun or moon even under
+## the ground comes first.
 
 const MIN_RADIUS := 2.0
 const MAX_RADIUS := 9.0
@@ -18,17 +14,16 @@ const FOLLOW_EVERY := 0.06
 const TICK := 0.25
 const TINT := Color(0.92, 0.85, 0.66, 0.6)
 
-## Ground under `area` moved; `settled` once a stroke ends or a step is undone or redone.
+## `settled` once a stroke ends or a step is undone or redone.
 signal reshaped(area: Rect2, settled: bool)
 
 
-## One hand's stroke on the ground, and its strokes sent whose hump still shows.
 class Grab:
 	var hand: Hand
 	var slot := 0
 	var ring: MeshInstance3D
 	var at: Variant = null
-	## The grip holds this stroke; a stroke begun by a script is moved by it.
+	## False for a stroke a script began and moves.
 	var gripped := false
 	var hand_y := 0.0
 	var gain := 1.0
@@ -49,12 +44,10 @@ var _grabs: Array[Grab] = []
 var _due := Rect2()
 
 
-## How far a stroke begun at `radius` and lifted `lift` moves the ground.
 static func reach(radius: float, lift: float) -> float:
 	return maxf(radius, absf(lift) * SPREAD)
 
 
-## How deep a grip pressing the ground for `seconds` digs, as a demo's dig and the tests' hollows do.
 static func dig_depth(seconds: float) -> float:
 	return clampf(0.7 * seconds, 0.45, 1.3)
 
@@ -74,7 +67,6 @@ func _init(player: Rig, garden: World, busy: Callable = func(_hand: Hand) -> boo
 		_grabs.append(g)
 
 
-## Whether `hand`, or with none any hand, has a stroke under way.
 func busy(hand: Hand = null) -> bool:
 	return _grabs.any(func(g: Grab) -> bool: return g.at != null and (hand == null or g.hand == hand))
 
@@ -120,7 +112,6 @@ func _handle(g: Grab, delta: float) -> void:
 	FloraTool.put_ring(g.ring, hit, g.radius, 0.05)
 
 
-## A soft click in the hand for every TICK of height, so the ground feels like it gives way in steps.
 func _tick(g: Grab) -> void:
 	if absf(g.lift - g.ticked) >= TICK:
 		g.ticked = snappedf(g.lift, TICK)
@@ -138,7 +129,7 @@ func begin(hand: Hand, ground: Vector3, radius: float) -> void:
 	g.moved = _span(g, g.radius)
 
 
-## Raises the ground `hand` grabbed `metres` above where its stroke began (negative digs).
+## `metres` above where the stroke began; negative digs.
 func pull(hand: Hand, metres: float) -> void:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
@@ -148,7 +139,6 @@ func pull(hand: Hand, metres: float) -> void:
 	g.moved = g.moved.merge(_span(g, g.radius))
 
 
-## Lets walls catch up with a stroke, at most every FOLLOW_EVERY.
 func follow(hand: Hand, delta: float) -> void:
 	var g := _grab(hand)
 	g.since_follow += delta
@@ -157,7 +147,6 @@ func follow(hand: Hand, delta: float) -> void:
 		reshaped.emit(g.moved, false)
 
 
-## Sends the heights `hand`'s stroke leaves to the garden as one step; a tap that barely moved leaves the ground as it was.
 func end_stroke(hand: Hand) -> void:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
@@ -174,9 +163,8 @@ func end_stroke(hand: Hand) -> void:
 	world.submit(cmd, _settled.bind(g), hand)
 
 
-## A sent stroke is in the garden or was turned down: its hump goes and what stood on it settles back.
-## The garden applies a stroke it takes right after this, so what stood on the hump settles with that write,
-## never on the ground between the hump going and the heights arriving.
+## Runs whether the stroke was taken or turned down. A taken stroke is applied right after this, so the
+## deferred settle lands on the new heights, never on the gap between the hump going and them arriving.
 func _settled(g: Grab) -> void:
 	g.sent -= 1
 	if g.sent == 0 and g.at == null:
@@ -202,7 +190,6 @@ func restore(cells: Rect2i, values: PackedFloat32Array) -> void:
 	reshaped.emit(area, true)
 
 
-## Forgets every stroke under way, as when the garden is swapped for another.
 func drop() -> void:
 	for g in _grabs:
 		g.at = null

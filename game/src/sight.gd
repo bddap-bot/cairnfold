@@ -1,8 +1,7 @@
 class_name Sight
 extends MeshInstance3D
 
-## What a held tool aims with, standing at its tip: a ring across the aim to look down the tool through. It belongs
-## to the tool, so no ray leaves the hand.
+## A ring at a held tool's tip to aim through; it belongs to the tool, so no ray leaves the hand.
 
 
 func _init() -> void:

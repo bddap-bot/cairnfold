@@ -1,16 +1,14 @@
 class_name Critter
 extends MeshInstance3D
 
-## An animal drawn as one mesh whose motions run in its vertex shader, blended by `mode`: one weight per motion,
-## eased toward a target at `rate` per second. Every animal of a kind shares one mesh and one material.
+## `mode`: one vertex-shader motion weight per channel, eased toward a target at `rate` per second.
 
 static var _shared := {}
 
 var mode := Vector4(1, 0, 0, 0)
 var rate := 1.0
-## What a hand brushing it feels.
 var coat: HandStop.Surface
-## The hand it flies to or stands on, if any: that hand does not stop against it.
+## The hand it flies to or stands on, or null; that hand does not stop against it.
 var hand: Node3D
 
 
@@ -25,9 +23,7 @@ func _init(kind: String, build: Callable, shader: String, blend_rate: float, pha
 	set_instance_shader_parameter("mode", mode)
 
 
-## `kind` names the mesh `build` makes and `shader` the material, each made once for every animal that shares it.
-## Making them as an animal comes costs a late frame on the Frame (21 ms for the first duck), so `prepare` makes
-## them first.
+## Made as an animal arrives this costs a late frame on the Frame (21 ms for the first duck), so `prepare` makes them first.
 static func share(kind: String, build: Callable, shader: String) -> void:
 	if not _shared.has(kind):
 		_shared[kind] = build.call()

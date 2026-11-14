@@ -1,13 +1,11 @@
 class_name Buttons
 extends RefCounted
 
-## Press and release edges of a hand's actions (see `Controls.ACTIONS`), between the samples its `Hand` takes once a
-## frame before any reader runs, so every reader sees the same edges whatever order it processes in.
+## `Hand` samples once a frame before any reader runs, so every reader sees the same edges whatever its order.
 
-## Inputs the driver injects, keyed "tracker/input", read alongside the controller's own.
+## Keyed "tracker/input".
 static var injected := {}
-## Counts the game's returns from a pause. Nothing samples while paused, so a button pressed in the system menu and
-## still held would read as pressed on return; each set of edges takes the controls as they are once per return.
+## Returns from a pause; each re-takes the controls, so a button still held from the system menu is no press.
 static var resumes := 0
 
 var hand: Hand
@@ -52,7 +50,6 @@ func _resumed() -> void:
 		_was = _now.duplicate()
 
 
-## Whether `controller`'s `input` is held: a button pressed, or the stick flicked that way.
 static func down(controller: Hand, input: String) -> bool:
 	if injected.has("%s/%s" % [controller.tracker, input]):
 		return true

@@ -104,7 +104,7 @@ func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 			continue
 		else:
 			f.full = 0.0
-	check(near[1] > 60.0 and wildlife.calls.calm(f.leader().position), "the family ate from the hand beside the head for %.0f s" % near[1])
+	check(near[1] > 60.0 and wildlife.calls.near_head(f.leader().position), "the family ate from the hand beside the head for %.0f s" % near[1])
 	check(near[0] >= 1, "and quacked %d times while eating there" % near[0])
 	rig.right.tool = Hand.Tool.WALLS
 	rig.right.held_still = false

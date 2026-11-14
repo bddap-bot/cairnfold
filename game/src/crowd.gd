@@ -1,9 +1,7 @@
 class_name Crowd
 extends MultiMeshInstance3D
 
-## A population of small animals drawn as one MultiMesh, unshadowed, its bounds lifted to the terrain's: each
-## instance a transform, a colour if the crowd has them, and custom data for its shader, all written into one
-## buffer and uploaded in one call.
+## `buffer` per instance: a row-major 3x4 transform, the colour if used, then the custom data.
 
 var buffer := PackedFloat32Array()
 var stride: int

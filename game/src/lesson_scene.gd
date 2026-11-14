@@ -80,7 +80,7 @@ func _init(i: int) -> void:
 		stage.add_child(pad)
 		pads[side] = pad
 	_beam = Beam.new(Color(1, 1, 1, 0.85))
-	_beam.thick = 2.5
+	_beam.width_scale = 2.5
 	stage.add_child(_beam)
 	_beam.visible = false
 	_mark = MeshInstance3D.new()

@@ -1,9 +1,8 @@
 class_name HandShape
 extends RefCounted
 
-## A tracked hand's joints (`XRHandTracker.HandJoint` order, all in one space) read as the gesture they make, and made
-## from a gesture, so the driver and the tests play a gesture through the same reading a headset's hands go through.
-## A gesture is a pinch named by its finger ("index", "middle", "ring", "little"), "fist", or "" for none.
+## Joints in `XRHandTracker.HandJoint` order, one space; made from gestures too, so the driver and tests share a
+## headset's reading. A gesture: a pinch named by its finger (TIPS keys), "fist", or "" for none.
 
 const PALM := 0
 const WRIST := 1
@@ -11,19 +10,16 @@ const THUMB_TIP := 5
 const MIDDLE_KNUCKLE := 12
 const TIPS := {"index": 10, "middle": 15, "ring": 20, "little": 25}
 const JOINTS := 26
-## In hand lengths (wrist to the middle knuckle): a pinch closes inside PINCH and opens past PINCH_OPEN.
+## These four in hand lengths (wrist to middle knuckle); each _OPEN is the release threshold.
 const PINCH := 0.2
 const PINCH_OPEN := 0.4
-## A fist is the middle, ring and little tips all inside FIST of the palm; it opens once one is past FIST_OPEN.
 const FIST := 0.5
 const FIST_OPEN := 0.65
-## Each finger's joints from where it leaves the palm to its tip, thumb to little, and how far, summed over those joints,
-## it bends closed.
+## Per finger, thumb to little: joints from palm to tip, and the summed bend that counts as closed.
 const CHAINS := [[2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15], [16, 17, 18, 19, 20], [21, 22, 23, 24, 25]]
 const CLOSED := [PI * 0.5, PI * 1.3, PI * 1.3, PI * 1.3, PI * 1.3]
 
 
-## How far each finger of `joints` curls, thumb to little, 0 straight to 1 closed.
 static func curls(joints: Array) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	for f in 5:
@@ -37,7 +33,6 @@ static func curls(joints: Array) -> PackedFloat32Array:
 	return out
 
 
-## The gesture `joints` make, `held` being the one they made last.
 static func read(joints: Array, held: String) -> String:
 	var l: float = joints[WRIST].origin.distance_to(joints[MIDDLE_KNUCKLE].origin)
 	if l < 1e-3:
@@ -63,7 +58,7 @@ static func _gap(joints: Array, finger: String) -> float:
 	return joints[THUMB_TIP].origin.distance_to(joints[TIPS[finger]].origin)
 
 
-## A hand of 9 cm making `gesture` with its palm at `palm`: fingers ahead (-z), back of the hand up (+y).
+## In `palm`'s space: fingers -z, back of the hand +y.
 static func make(palm: Transform3D, left: bool, gesture: String) -> Array[Transform3D]:
 	var at := {
 		WRIST: Vector3(0, 0, 0.045), MIDDLE_KNUCKLE: Vector3(0, 0, -0.045), THUMB_TIP: Vector3(-0.075, -0.01, -0.04),
@@ -88,9 +83,7 @@ static func make(palm: Transform3D, left: bool, gesture: String) -> Array[Transf
 	return out
 
 
-## A bare hand at `frame` pressing the controller's `input` ("" for none) as `Controls.HAND` has it: that input's
-## gesture, or for a stick direction (a `Hand.FLICKS` input) the little pinch, the palm moved `push` of
-## `Hand.STICK_REACH` that way, ahead being `facing`'s flat forward.
+## A `Hand.FLICKS` input: the little pinch, palm moved `push` of `Hand.STICK_REACH` that way off `facing`'s flat forward.
 static func pressing(frame: Transform3D, left: bool, input: String, facing: Basis, push := 1.0) -> Array[Transform3D]:
 	if not Hand.FLICKS.has(input):
 		var g: Variant = Controls.HAND.find_key(input)

@@ -1,12 +1,10 @@
 class_name Smoke
 extends MultiMeshInstance3D
 
-## Smoke rising from chimney pots: a few soft puffs a pot, each a quad that its shader (smoke.gdshader) turns to the eye
-## and lifts, drifts downwind, swells and fades through its own share of the rise, so smoke costs the processor nothing
-## once laid.
+## smoke.gdshader moves every puff, so smoke costs the processor nothing once laid.
 
 const PUFFS := 5
-## How high and how far downwind the shader carries a puff before it is gone.
+## Metres up and downwind the shader carries a puff before it is gone.
 const RISE := 2.4
 const DRIFT := 1.6
 
@@ -33,7 +31,7 @@ func _init() -> void:
 	visible = false
 
 
-## Puffs rising from each of `vents`, each pot's set apart in phase so neighbours never puff together.
+## Colour alpha is a puff's phase, offset per pot so neighbours never puff together.
 func lay(vents: PackedVector3Array) -> void:
 	multimesh.instance_count = vents.size() * PUFFS
 	var box := AABB()

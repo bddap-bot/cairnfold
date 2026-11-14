@@ -1,11 +1,8 @@
 class_name Persona
 extends RefCounted
 
-## Who this player is to the others on the wheel's friends page (docs/multiplayer.md, "Finding each other"). Nothing
-## identifying rides the always-on garden beacon. With Steam, a host's name and picture reach only their Steam
-## friends, through Steam: the host puts its beacon's random key in its Steam rich presence, and a friend's
-## game matches that key to the beacon. Without Steam, a name goes out only once the player has picked it.
-## Steam is optional: only a Steam package carries the GodotSteam extension, and it starts only when Steam launched us.
+## Nothing identifying rides the beacon: Steam friends match its random key through rich presence, and without
+## Steam a name goes out only once picked (docs/multiplayer.md, "Finding each other").
 
 const MAX_NAME := 24
 const PICTURE := 64
@@ -15,10 +12,9 @@ const FRIENDS := 4
 const FIRST: PackedStringArray = ["Mossy", "Quiet", "Amber", "Dusky", "Bramble", "Willow", "Sunny", "Misty", "Clover", "Pebble", "Hazel", "Thistle", "Rowan", "Fern", "Meadow", "Cobble", "Dappled", "Gentle", "Russet", "Honey", "Slate", "Hollow", "Briar", "Linden"]
 const SECOND: PackedStringArray = ["Wren", "Finch", "Otter", "Badger", "Heron", "Robin", "Hare", "Vole", "Lark", "Moth", "Newt", "Plover", "Stoat", "Thrush", "Dormouse", "Kestrel", "Bee", "Toad", "Swift", "Owl", "Snail", "Dunnock", "Martin", "Shrew"]
 
-## Without Steam: the name the picker offers this player, sent to others only once `shared`.
 var name := ""
 var shared := false
-## Where a picked name is kept; empty for scripts and tests, which never write it.
+## Empty for scripts and tests, which never write it.
 var keep := ""
 var _steam: Object
 var _app := 0
@@ -29,7 +25,7 @@ var _keys_at := -INF
 var _names := {}
 
 
-## `chosen` names a scripted player outright; `app` is the Steam app id to start Steam with, 0 for none.
+## `app` 0 starts no Steam.
 func _init(chosen := "", app := 0, keep_at := "", seed := 0) -> void:
 	keep = keep_at
 	if app > 0 and Engine.has_singleton("Steam"):
@@ -53,7 +49,6 @@ func steam() -> bool:
 	return _steam != null
 
 
-## A name fit to show: printable, on one line, at most MAX_NAME characters.
 static func clean(raw: String) -> String:
 	var out := ""
 	for c in raw.strip_edges():
@@ -67,7 +62,6 @@ static func suggest(seed: int) -> String:
 	return "%s %s" % [FIRST[h % FIRST.size()], SECOND[(h / FIRST.size()) % SECOND.size()]]
 
 
-## The player picked their own figure: the first pick shares the name it shows, each later one offers another.
 func pick() -> void:
 	if shared:
 		var was := name
@@ -78,14 +72,12 @@ func pick() -> void:
 		Main.replace_file(keep, name.to_utf8_buffer())
 
 
-## With Steam, lets this player's Steam friends match the garden announcing `key` to them.
 func offer(key: int) -> void:
 	if _steam:
 		_steam.setRichPresence(KEY, str(key))
 
 
-## The Steam id behind a beacon's key: this account or a Steam friend in this game offering it; 0 if none.
-## Friends are scanned only for a key not yet matched, at most once a second.
+## 0 unless this account or a Steam friend in this game offers `key`.
 func steam_id(key: int) -> int:
 	if _steam == null:
 		return 0
@@ -110,7 +102,7 @@ func steam_name(id: int) -> String:
 	return _names[id]
 
 
-## The Steam picture of a player by Steam id, once this machine's Steam has it; null until then.
+## null until this machine's Steam has it.
 func picture(id: int) -> Texture2D:
 	if _pictures.has(id):
 		return _pictures[id]

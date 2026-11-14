@@ -1,7 +1,6 @@
 class_name SessionWheel
 extends RefCounted
 
-## The inventory wheel's people leaves, each opening a Dial of its choices.
 const LEAVES := ["avatars", "friends"]
 const TAG_FONT := 48
 const TAG_PIXEL := 0.00012
@@ -15,8 +14,6 @@ func _init(people: Session) -> void:
 	session = people
 
 
-## The keys a dial opened on `leaf` turns through: the avatars to wear, built in and then loaded, with the visitor's
-## name to set off Steam; or your own garden and then the gardens near to join.
 func choices(leaf: String) -> Array:
 	var out: Array = []
 	if leaf == "avatars":
@@ -39,7 +36,6 @@ func choices(leaf: String) -> Array:
 	return out
 
 
-## Where a dial opened on `leaf` starts: who you are now, or the garden you are in.
 func start(leaf: String) -> int:
 	var at := _worn() if leaf == "avatars" else "home" if session.visiting.is_empty() else "join:" + _visited()
 	return maxi(0, choices(leaf).find(at))
@@ -64,8 +60,7 @@ func activate(key: String) -> void:
 			session.join(garden.address, garden.port)
 
 
-## What the icon of `item`, a person's key or a people leaf, is drawn from: a wheel keeping its icons builds one again
-## when this changes.
+## A wheel keeping its icons builds one again when this changes.
 func signature(item: Variant) -> String:
 	if not item is String:
 		return ""
@@ -88,9 +83,7 @@ func signature(item: Variant) -> String:
 	return ""
 
 
-## The icon of `item`: the avatars leaf as who you are now, alone in a hand mirror, since picking one changes you; the
-## friends leaf as a gate with the nearby players behind it, since picking one takes you through; a person's key as
-## their figure (`figure`); anything else null.
+## Avatars as you in a hand mirror, since picking one changes you; friends as a gate, since picking one takes you through.
 func icon(item: Variant) -> Node3D:
 	if not item is String:
 		return null
@@ -101,7 +94,6 @@ func icon(item: Variant) -> Node3D:
 	return figure(item)
 
 
-## The avatar key this player wears now.
 func _worn() -> String:
 	for f: String in session.files:
 		if session.worn_key != "" and session.files[f].get("key") == session.worn_key:
@@ -142,8 +134,6 @@ func _behind_gate() -> Array:
 	return keys.slice(0, 3)
 
 
-## A person's key as who wears it, standing: a garden that cannot be joined from this build a faint outline, its name
-## still under it.
 func figure(key: String) -> Node3D:
 	if key == "home":
 		var home := Node3D.new()
@@ -162,7 +152,6 @@ func figure(key: String) -> Node3D:
 	return root
 
 
-## The look of whoever `key` names: {avatar, colour, wears, joins}.
 func _garden(key: String) -> Dictionary:
 	var garden := {"avatar": session.avatar, "colour": session.colour, "wears": "", "joins": true}
 	if key.begins_with("join:"):
@@ -178,7 +167,6 @@ func _file(key: String) -> Dictionary:
 	return session.files.get(key.trim_prefix("file:"), {}) if key.begins_with("file:") else {}
 
 
-## The avatar `key` names, standing and facing the player, untagged.
 func _person(key: String) -> Avatar:
 	var garden := _garden(key)
 	var wears: String = garden.get("wears", "")
@@ -192,7 +180,7 @@ func _person(key: String) -> Avatar:
 	return a
 
 
-## A figure as a faint, colourless outline of one: someone near whom this build cannot reach.
+## For someone near whom this build cannot join.
 static func _ghost(figure: Node3D) -> void:
 	if _ghost_mat == null:
 		_ghost_mat = Meshes.glow(Color(0.25, 0.25, 0.28, 0.45))
@@ -214,12 +202,11 @@ func _tag(k: String) -> Array:
 	return [garden.name, null, true]
 
 
-## A key that two gardens announce: anyone on the network can copy a friend's, so neither is named.
+## Anyone on the network can copy a friend's key, so one that two gardens announce names neither.
 func _copied(key: int) -> bool:
 	return session.nearby.values().filter(func(g: Dictionary) -> bool: return g.key == key).size() > 1
 
 
-## A name, after the picture when there is one, in a row centred under the figure and facing the player.
 func _name_tag(root: Node3D, who: String, picture: Texture2D, shown: bool) -> void:
 	if who.is_empty():
 		return
@@ -248,7 +235,6 @@ func _name_tag(root: Node3D, who: String, picture: Texture2D, shown: bool) -> vo
 	tag.add_child(label)
 
 
-## Three stones stacked: your own garden.
 func _home() -> Node3D:
 	var root := Node3D.new()
 	var mat := StandardMaterial3D.new()

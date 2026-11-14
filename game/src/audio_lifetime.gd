@@ -10,19 +10,16 @@ func _ready() -> void:
 	get_tree().process_frame.connect(_sync_mixer)
 
 
-## Godot retires playback bus data after two main-thread updates. A delayed mixer can still
-## be copying it. Finish that mix before the next update reclaims last frame's retired data;
-## a mixer starting after this barrier sees the replacement. The signal also runs while paused.
+## Godot reclaims retired playback bus data two main-thread updates on, while a delayed mixer may still be copying
+## it; this barrier finishes that mix first. The signal runs while paused too.
 func _sync_mixer() -> void:
 	AudioServer.lock()
 	AudioServer.unlock()
 
 
-## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound
-## still playing when the tree quits outlives the engine, its streams with it. Playbacks go in the order
-## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
-## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
-## even through stop().
+## A playback frees only after the audio thread mixes its stop, so one playing at quit outlives the engine. They free
+## in stop order, so a marker stopped last waits out freed nodes' sounds. A 3D player holds a new playback until its
+## next physics tick, even through stop().
 func finish(code := 0) -> void:
 	if _quitting:
 		return

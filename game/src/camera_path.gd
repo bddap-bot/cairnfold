@@ -1,9 +1,8 @@
 class_name CameraPath
 extends Camera3D
 
-## A camera flown along authored keys (Main's --camera FILE), for re-rendering a replay from outside the player's head.
-## The file is a JSON list of keys, each {"t": seconds of game time from the start, "eye": [x, y, z], "at": [x, y, z]}
-## in the garden's space; see "Local play-session history" in docs/design.md.
+## Main's --camera FILE: a JSON list of {"t": game seconds from the start, "eye": [x, y, z], "at": [x, y, z]} in the
+## garden's space.
 
 var keys: Array
 var _head: Camera3D
@@ -22,14 +21,14 @@ func _ready() -> void:
 	_process(0.0)
 
 
-## Game time, so a replay's frames, scaled to their recorded lengths, move the camera as the session's clock did.
+## Game time, so a replay's frames move the camera as the session's clock did.
 func _process(delta: float) -> void:
 	_t += delta
 	far = _head.far
 	global_transform = at(keys, _t)
 
 
-## The keys in the file at `path`, ordered by time, or why it holds none a camera can follow.
+## Keys ordered by time, or a String saying why there are none.
 static func read(path: String) -> Variant:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not parsed is Array or parsed.is_empty():
@@ -52,8 +51,6 @@ static func _vector(v: Variant) -> Variant:
 	return Vector3(v[0], v[1], v[2]) if v is Array and v.size() == 3 and v.all(_number) else null
 
 
-## The camera at time `t`: at a point on a curve through the keys' eyes, looking at one on a curve through their points
-## looked at, holding before the first key and after the last.
 static func at(path_keys: Array, t: float) -> Transform3D:
 	var i := path_keys.bsearch_custom(t, func(k: Dictionary, s: float) -> bool: return k.t <= s)
 	var a: Dictionary = path_keys[clampi(i - 1, 0, path_keys.size() - 1)]

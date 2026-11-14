@@ -1,7 +1,7 @@
 class_name StairTool
 extends Node3D
 
-## How wide stairs are drawn; a grip widens or narrows them after.
+## Metres, before a grip widens or narrows them.
 const WIDTH := 1.2
 
 var rig: Rig

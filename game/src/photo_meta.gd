@@ -1,20 +1,17 @@
 class_name PhotoMeta
 
-## Where and how a photo was taken, written into its PNG and read back. Any PNG reader shows `Software`; the rest is
-## an iTXt chunk keyed `cairnfold` holding JSON (`about`), and, when it fits in WORLD_MAX, the whole garden as World
-## keeps it (World.snapshot), zstd-packed in a private chunk, so the photo can be opened as the garden it shows.
+## `Software` for any PNG reader; JSON `about` in an iTXt keyed KEY; the garden as u32 raw size + zstd in WORLD_CHUNK.
 
 const KEY := "cairnfold"
 const WORLD_CHUNK := "neSt"
-## Bytes of packed garden a photo carries at most; a bigger garden is left out and `about.world` says why.
+## Bytes, packed.
 const WORLD_MAX := 4 << 20
-## The largest unpacked garden read back, so a damaged or hostile photo cannot ask for any amount of memory.
+## Bytes unpacked, so a damaged or hostile photo cannot ask for any amount of memory.
 const RAW_MAX := 64 << 20
 const _SIGNATURE := [137, 80, 78, 71, 13, 10, 26, 10]
 
 
-## `png` with `about` and, if it fits, `world` (var_to_bytes of World.snapshot) written into it. Sets `about.world` to
-## what became of the garden: "embedded" with its packed size, or "left out" and why.
+## `world` is var_to_bytes(World.snapshot). Sets `about.world` to {"embedded": bytes} or {"left out": why}.
 static func embed(png: PackedByteArray, about: Dictionary, world := PackedByteArray()) -> PackedByteArray:
 	var packed := PackedByteArray()
 	if world.is_empty():
@@ -37,8 +34,7 @@ static func embed(png: PackedByteArray, about: Dictionary, world := PackedByteAr
 	return out
 
 
-## What `png` says of itself: {"about": Dictionary, "world": the garden or null}, or {} if it is no PNG this game
-## wrote. A chunk whose checksum is wrong is ignored.
+## {"about", "world" or null}, or {} for a PNG this game did not write.
 static func read(png: PackedByteArray) -> Dictionary:
 	if png.size() < 8 or Array(png.slice(0, 8)) != _SIGNATURE:
 		return {}
@@ -71,15 +67,13 @@ static func read(png: PackedByteArray) -> Dictionary:
 	return out
 
 
-## PNG's CRC-32, read off the trailer of the gzip stream the engine packs `data` into: a chunk a megabyte long sums in
-## native code instead of a byte at a time.
+## Off the gzip trailer, so a megabyte chunk sums in native code instead of a byte at a time.
 static func crc32(data: PackedByteArray) -> int:
 	var gz := data.compress(FileAccess.COMPRESSION_GZIP)
 	return gz.decode_u32(gz.size() - 8)
 
 
-## A 16-bit greyscale PNG `size` large of `samples`, two big-endian bytes a pixel row by row, saying `comment` of itself.
-## Godot writes no PNG deeper than 8 bits. Each chunk's CRC (crc32) packs it once more, so this costs two deflates.
+## `samples` two big-endian bytes a pixel, row by row. Godot writes no PNG deeper than 8 bits.
 static func gray16(size: Vector2i, samples: PackedByteArray, comment: String) -> PackedByteArray:
 	var row := size.x * 2
 	var lines := PackedByteArray()
@@ -103,7 +97,7 @@ static func _text(keyword: String, text: String) -> PackedByteArray:
 	return _chunk("tEXt", keyword.to_ascii_buffer() + PackedByteArray([0]) + text.to_utf8_buffer())
 
 
-## An iTXt chunk's head up to its text: KEY, then no compression and no language or translated keyword.
+## KEY, its null, then compression flag 0, method 0, no language, no translated keyword.
 static func _itxt_head() -> PackedByteArray:
 	return KEY.to_ascii_buffer() + PackedByteArray([0, 0, 0, 0, 0])
 

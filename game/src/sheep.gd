@@ -1,9 +1,7 @@
 class_name Sheep
 extends Critter
 
-## A low-poly sheep: a fleece of overlapping soft blobs, a dark face and legs. Idle, graze, walk and lie run in
-## its vertex shader, blended by `mode`; the legs step by `gait`, which the CPU advances by the ground covered
-## so the hooves stay planted at any pace. Part ids ride in UV2.x so the shader knows each vertex's pivot.
+## Part ids ride in UV2.x for the shader's pivots; `gait` follows the ground covered so hooves stay planted.
 
 enum Part { BODY, HEAD, EAR_L, EAR_R, LEG_FL, LEG_FR, LEG_BL, LEG_BR, TAIL, NECK }
 
@@ -12,35 +10,33 @@ const FACE := Color(0.24, 0.22, 0.22)
 const MUZZLE := Color(0.31, 0.28, 0.28)
 const LEG := Color(0.15, 0.13, 0.13)
 const EYE := Color(0.03, 0.025, 0.03)
-## Wool tints a sheep's fleece may lean toward, a little.
 const TINTS := [Color(1.0, 0.95, 0.86), Color(0.93, 0.92, 0.9), Color(1.0, 0.98, 0.95)]
 const SIZE := Vector2(0.88, 1.08)
-## Ground a sheep of size 1 covers in one full cycle of its legs.
+## Metres a size-1 sheep covers per leg cycle.
 const STRIDE := 0.62
 const IDLE := Vector4(1, 0, 0, 0)
 const GRAZE := Vector4(0, 1, 0, 0)
 const WALK := Vector4(0, 0, 1, 0)
 const LIE := Vector4(0, 0, 0, 1)
 const POSES := {Grazers.Motion.IDLE: IDLE, Grazers.Motion.GRAZE: GRAZE, Grazers.Motion.STEP: GRAZE + WALK * 0.5, Grazers.Motion.WALK: WALK, Grazers.Motion.RUN: WALK, Grazers.Motion.LIE: LIE}
-## Mode change per second: slow enough that lying down and getting up read as motions.
+## Per second: slow enough that lying down and getting up read as motions.
 const BLEND := 1.6
 const KIND := "sheep"
 const SHADER := "res://src/sheep.gdshader"
-## From the middle of the fleece to its rim, at size 1: how near two sheep stand.
+## Metres at size 1, fleece middle to rim: how near two sheep stand.
 const RADIUS := 0.42
-## The shader turns legs about HIP high, keeping the same number.
+## sheep.gdshader repeats this number.
 const HIP := 0.32
 const FACE_AT := Vector3(0, 0.7, -0.47)
 
 var size := 1.0
 var gait := 0.0
-## What `Herds` has this sheep doing, until when, and where to.
 var state := Grazers.State.ENTER
 var timer := 0.0
 var goal := Vector3.ZERO
-## How long until it goes for seeds again; the hand it eats from is `hand`.
+## Seconds until it goes for seeds again.
 var full := 0.0
-## How long until, cornered, it looks again for a way to run.
+## Seconds until, cornered, it looks again for a way to run.
 var retry := 0.0
 
 
@@ -68,13 +64,12 @@ func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
 	pose(m, delta)
 
 
-## Nibbling from a hand `height` above its hooves, the head lowered as far as the hand is low.
+## `height`: the hand's height above the hooves.
 func eat(height: float, delta: float) -> void:
 	var muzzle := FACE_AT.y * size
 	blend(IDLE.lerp(GRAZE, clampf((muzzle - height) / muzzle, 0.0, 1.0)), delta)
 
 
-## How far it has got to its feet, from 0 lying to 1 standing.
 func upright() -> float:
 	return 1.0 - mode.w
 
@@ -117,7 +112,6 @@ static func build() -> ArrayMesh:
 	return mesh
 
 
-## Darkens wool toward the belly, as the sky lights it least there.
 static func _shade_under(arrays: Array) -> void:
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
@@ -127,13 +121,12 @@ static func _shade_under(arrays: Array) -> void:
 	arrays[Mesh.ARRAY_COLOR] = colors
 
 
-## Where a leg hangs from; the shader keeps the same numbers.
+## sheep.gdshader repeats these numbers.
 static func hip(leg: Part) -> Vector3:
 	var x := -0.12 if leg == Part.LEG_FL or leg == Part.LEG_BL else 0.12
 	var z := -0.17 if leg == Part.LEG_FL or leg == Part.LEG_FR else 0.22
 	return Vector3(x, HIP, z)
 
 
-## Ears stand out sideways and droop at their tips.
 static func _ear_shape(p: Vector3, s: float) -> Vector3:
 	return Basis(Vector3.BACK, -s * 0.45) * p

@@ -1,15 +1,12 @@
 class_name Butterflies
 extends Node3D
 
-## Butterflies over the flowers the player has painted: a few fly in to a patch, flit from bloom to bloom
-## and settle on them with their wings slowly opening and closing, scatter up and away when a hand or the
-## head comes suddenly near, and leave once their patch is gone. All of them are one MultiMesh; the wingbeat is in its shader.
-## Part of `Wildlife`, which decides when they come and where nobody is looking.
+## All one MultiMesh, the wingbeat in its shader. `Wildlife` decides when they come and where nobody is looking.
 
 enum State { ARRIVE, FLIT, PERCH, FLEE, LEAVE }
 
 const CAP := 24
-## Painted flowers in bloom are grouped into square patches this wide; one with MIN_BLOOMS of them draws butterflies.
+## Side, in metres, of the square cells blooms are grouped into.
 const PATCH := 3.0
 const MIN_BLOOMS := 12
 const PER_PATCH := Vector2i(2, 4)
@@ -17,33 +14,31 @@ const COLORS := [Color(0.86, 0.78, 0.36), Color(0.88, 0.52, 0.22), Color(0.42, 0
 const SIZE := Vector2(0.8, 1.2)
 const FROM_DISTANCE := 14.0
 const FROM_HEIGHT := 2.5
-## How far off a leaving butterfly heads; it is let go sooner, once out of sight and LET_GO away.
+## Metres off a leaver heads; it is let go sooner, once out of sight and LET_GO away.
 const LEAVE_TO := 40.0
 const LET_GO := 4.0
 const SPEED := {State.ARRIVE: 1.4, State.FLIT: 0.6, State.FLEE: 2.4, State.LEAVE: 1.4}
 const PERCH_FOR := Vector2(3.0, 10.0)
 const FLEE_FOR := Vector2(4.0, 8.0)
 const HOP := 1.5
-## A hand or the head moving suddenly closer than this sends a butterfly off.
 const SCATTER := 0.6
 const CRUISE := 0.15
 const BEAT_HZ := 9.0
 const BASK_HZ := 0.5
-## Wing angle about which a beat swings, and how far, in flight and perched.
+## (wing angle a beat swings about, swing).
 const FLIGHT_WINGS := Vector2(0.3, 1.0)
 const PERCH_WINGS := Vector2(0.65, 0.6)
 
 var wildlife: Wildlife
 var butterflies: Array[Butterfly] = []
-## Each patch with enough blooms, by its cell, as (x, head height above the ground, z) per bloom.
+## Cell -> PackedVector3Array of (x, head height above the ground, z) per bloom.
 var patches := {}
 var rng := RandomNumberGenerator.new()
 var crowd: Crowd
-## The next painted slot to look at, or -1 to start over.
+## -1 starts a new pass.
 var _next := -1
 var _filling := {}
 var _bloom := 1.0
-## What the patches were made from (`_inputs`), and what the pass under way started from: a pass starts only once they differ.
 var _made_from := []
 var _scanning := []
 
@@ -56,16 +51,15 @@ class Butterfly:
 	var goal := Vector3.ZERO
 	var patch := Vector2i.ZERO
 	var phase := 0.0
-	## 0 in flight, 1 perched; the wings ease between the two.
+	## 0 in flight, 1 perched.
 	var settled := 0.0
 	var seed := 0.0
 	var size := 1.0
 	var color := Color.WHITE
 	var yaw := 0.0
-	## The height scale of the flower it makes for, and of the one it sits on, which it sways with.
+	## Height scales of the flower it makes for and the one it sways on.
 	var goal_stalk := 0.0
 	var stalk := 0.0
-	## Drives the wander, so no two flutter alike.
 	var clock := 0.0
 
 
@@ -76,7 +70,6 @@ func _init(home: Wildlife, seed: int) -> void:
 	add_child(crowd)
 
 
-## Patches that no butterfly is staying at: where an arrival may be due.
 func empty_patches() -> Array:
 	var taken := {}
 	for b in butterflies:
@@ -89,7 +82,7 @@ func centre(key: Vector2i) -> Vector3:
 	return wildlife.terrain.ground((key.x + 0.5) * PATCH, (key.y + 0.5) * PATCH)
 
 
-## A few butterflies fly in to `key` from FROM_DISTANCE away along the level direction `from`.
+## `from` is a level unit direction.
 func arrive(key: Vector2i, from: Vector3) -> void:
 	var blooms: PackedVector3Array = patches[key]
 	var start := centre(key) + from * FROM_DISTANCE + Vector3.UP * FROM_HEIGHT
@@ -117,8 +110,7 @@ func tick(delta: float) -> void:
 	_upload()
 
 
-## Looks over the next Budget.BUTTERFLY_SCAN painted flowers, and once all have been seen, makes the patches of those
-## standing in bloom, above water and off paths, as the plant shader shows them.
+## Must match which flowers the plant shader shows in bloom.
 func _scan() -> void:
 	var pool := wildlife.flora.flowers
 	if _next > pool.size():
@@ -154,13 +146,12 @@ func _scan() -> void:
 			_flit(b)
 
 
-## Everything a pass reads that can change: the flowers, the season's bloom, the marks, and the ground and water (`revision`).
+## `revision` covers the ground and the water.
 func _inputs() -> Array:
 	var pool := wildlife.flora.flowers
 	return [pool.anchored, pool.size(), pool.kept, wildlife.palette.bloom(), wildlife.marks.rewears, wildlife.terrain.revision()]
 
 
-## Whether the bloom a butterfly makes for, or sits on, still stands in its patch.
 func _blooming(b: Butterfly) -> bool:
 	for p in patches[b.patch]:
 		if absf(p.x - b.goal.x) < 1e-3 and absf(p.z - b.goal.z) < 1e-3:
@@ -219,7 +210,6 @@ func _leave(b: Butterfly) -> void:
 	b.goal = wildlife._unseen_point(b.at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
 
 
-## Flutters toward the goal on a wandering path that straightens as it closes in; perched, it only beats.
 func _move(b: Butterfly, delta: float) -> void:
 	var perched := b.state == State.PERCH
 	b.settled = move_toward(b.settled, 1.0 if perched else 0.0, delta * 2.0)

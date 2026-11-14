@@ -1,16 +1,11 @@
 class_name StoneStyles
 extends RefCounted
 
-## The painted stone ground's styles: the one table the style wheel lists and the ground is shaded from
-## (stone_ground.gdshaderinc). Each style's pattern tiles a square `tile` metres a side, baked once on the GPU by
-## stone_bake.glsl: `kind` of stone, `across` stones a tile, `jitter`
-## and `warp` to break the grid, `joint` metres of bevel into the soil between stones, `dome` how much each rounds
-## from its centre, `grain` how rough its face, `relief` metres from joint to crown, and `elongation` a pebble's
-## longest over shortest. The ground shades it between `dark` and `light` stones, with `moss` on the stones and
-## `meadow` of the joints grassed rather than earth. A boulder of a style is one stone of it (BoulderLayout): its
-## `boulder` cut by `cuts` fracture planes besides its bed, its edges worn `wear` round and pitted `pitting` deep, its
-## half-axes stretched by `axes`; `rough` is how matt its face shades. Mossy is a fractured field block, river cobble a
-## stone the water wore smooth, flat and long, so the two part by outline and sheen as well as by colour.
+## The one table the style wheel lists and stone_ground.gdshaderinc shades from. Metres: `tile` (side), `joint` (bevel
+## into the soil), `relief` (joint to crown). `across` stones a tile; `jitter`, `warp` break the grid; `elongation` a
+## pebble's longest over shortest; `meadow` the share of joints grassed. `boulder` (BoulderLayout): `cuts` fracture
+## planes besides its bed, `wear` edge rounding, `pitting` depth, `axes` half-axis stretch. `grain` the baked face's
+## roughness, `rough` its shading roughness; `dome` how far each stone rounds from its centre; `moss` the share on stones.
 
 enum Kind { CELLS, PEBBLES }
 
@@ -33,7 +28,7 @@ const STYLES: Array[Dictionary] = [
 static var _patterns: Texture2DArray
 
 
-## Every style's pattern, one layer each, baked on first use. Without a GPU (headless) each is one level texel.
+## Without a GPU (headless) each layer is one level texel.
 static func patterns() -> Texture2DArray:
 	if _patterns != null:
 		return _patterns
@@ -93,7 +88,7 @@ static func _bake(rd: RenderingDevice) -> Array[Image]:
 	return out
 
 
-## Gives `mat`, a shader including stone_ground.gdshaderinc, the styles.
+## `mat`'s shader includes stone_ground.gdshaderinc.
 static func apply(mat: ShaderMaterial) -> void:
 	var look := PackedVector4Array()
 	var light := PackedVector3Array()

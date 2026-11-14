@@ -1,8 +1,6 @@
 class_name Stones
 extends Node3D
 
-## Shared stone meshes and instanced stones in world space.
-
 const FLIPS: Array[Basis] = [Basis.IDENTITY, Basis(Vector3.UP, PI), Basis(Vector3.RIGHT, PI)]
 
 static var _mesh: ArrayMesh
@@ -16,13 +14,11 @@ static func shared_material() -> ShaderMaterial:
 	return _made(preload("res://src/stone.gdshader"))
 
 
-## shared_material for pieces small enough that the light volumes do not vary over a triangle, stones and tiles:
-## they read the volumes once a vertex (Bounce's given_at), not once a fragment.
+## For pieces small enough that the light volumes do not vary over a triangle: read once a vertex (Bounce's given_at).
 static func small_material() -> ShaderMaterial:
 	return _made(preload("res://src/stone_small.gdshader"))
 
 
-## small_material for a baked far chunk (Masonry.bake).
 static func baked_material() -> ShaderMaterial:
 	return _made(preload("res://src/stone_far.gdshader"))
 
@@ -33,7 +29,6 @@ static func _made(shader: Shader) -> ShaderMaterial:
 	return _materials[shader]
 
 
-## A material of `shader` lit as masonry is, its windows glowing and glazed, in the stone styles; roof timber too.
 static func stone(shader: Shader) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = shader
@@ -49,8 +44,7 @@ static func mesh() -> ArrayMesh:
 	return _mesh
 
 
-## A stone for far off, 12 triangles to `mesh`'s 108. Its faces stand where `mesh`'s do, so a piece that meets its
-## neighbours up close still meets them far off; corners alone, as a coarse `rounded_box` is, pull every face in.
+## 12 triangles to `mesh`'s 108, its faces where `mesh`'s are so neighbours still meet; a coarse rounded_box pulls them in.
 static func far_mesh() -> ArrayMesh:
 	if _far_mesh == null:
 		_far_mesh = Meshes.plain_box()
@@ -61,8 +55,7 @@ func _init() -> void:
 	add_child(_instance)
 
 
-## `stones` are dictionaries with `xform`, `color`, `ao` (occlusion), `variant` (0–2) and, painted with
-## a material of the palette, `kind`.
+## `stones`: {xform (world space), color, ao (occlusion), variant (0–2), kind (palette material, if painted)}.
 func lay(stones: Array[Dictionary]) -> void:
 	var mm := _instance.multimesh
 	mm.instance_count = stones.size()
@@ -75,20 +68,18 @@ func lay(stones: Array[Dictionary]) -> void:
 		mm.set_instance_custom_data(i, custom(s))
 
 
-## `color` for part `part`, its alpha marking glass, which the lamps light from behind and which glows at night in it.
+## Alpha 0 marks glass, which the lamps light from behind.
 static func glazed(part: Dictionary, color: Color) -> Color:
 	color.a = 0.0 if part.get("kind") == "glass" else 1.0
 	return color
 
 
-## A laid part's custom data: its occlusion, the code of the material it is painted with, and its end turns.
 static func custom(part: Dictionary) -> Color:
 	var e := ends(part)
 	return Color(part.ao, Palette.code(part.get("kind", "")), e.x, e.y)
 
 
-## A laid part's end turns (`WallLayout._wedge`) in its mesh's own frame, under the flip of its variant (FLIPS): turning
-## about local y swaps its ends, about local x reverses its z.
+## End turns (`WallLayout._wedge`) in the mesh's own frame, under the variant's flip (FLIPS): about local y swaps them, about local x negates them.
 static func ends(part: Dictionary) -> Vector2:
 	var e: Vector2 = part.get("ends", Vector2.ZERO)
 	match int(part.get("variant", 0)):

@@ -4,10 +4,9 @@ extends RefCounted
 const BEND := 0.012
 const STEP := 0.004
 const SKIN := 0.001
-## The canvas's sheet and the board behind it, as wide, high and deep as `fit` takes.
+## Sheet and board: wide, high, deep.
 const SHEET := Vector3(Brushwork.METRES.x, Brushwork.METRES.y, 0.032)
 var previous := Vector3.INF
-## The surface met: its paint's size in metres, the solid under it (wide, high, deep) and whether that is an oval.
 var metres := Brushwork.METRES
 var solid_size := SHEET
 var oval := false
@@ -23,8 +22,6 @@ func reset() -> void:
 	previous = Vector3.INF
 
 
-## Meets a surface whose paint is `paint` metres across, lying on a solid `solid` wide, high and deep, with `round` an
-## oval inside that; the canvas's sheet until told otherwise.
 func fit(paint: Vector2, solid: Vector3, round := false) -> void:
 	reset()
 	metres = paint
@@ -32,8 +29,7 @@ func fit(paint: Vector2, solid: Vector3, round := false) -> void:
 	oval = round
 
 
-## Where a brush of `kind`, held at `tracked` (its own frame, as `ToolModels.brush` builds it), meets the surface whose
-## frame is `frame` (x along it, y up it, z out of its face), stopped at its face.
+## `tracked` is the brush's pose, axes as `ToolModels.brush` builds it; `frame` x along the surface, y up, z out of its face.
 func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Dictionary:
 	var local := frame.affine_inverse() * tracked
 	stick = Brushwork.is_stick(kind)
@@ -49,8 +45,7 @@ func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Di
 	axis = local.basis.z * length
 	var target := local * ToolModels.BRUSH_TIP
 	var from := previous
-	# A tool clear in front of the sheet is free, however the last stop caught it: wedged on a back corner, every sweep
-	# from there would stop at once.
+	# Clear in front of the sheet is free however the last stop caught it: else a tool wedged on a back corner sticks.
 	if from == Vector3.INF or target.z > 0.0 and not solid(target):
 		from = target
 		if solid(from):
@@ -91,7 +86,6 @@ func hit(p: Vector3) -> Variant:
 	return start if shaft_box.has_point(start) and _over(start, shaft_box) else _on(shaft_box.intersects_segment(start, p + axis))
 
 
-## Whether `p` lies over the face of `b`, within its oval for a round surface.
 func _over(p: Vector3, b: AABB) -> bool:
 	var half := Vector2(b.size.x, b.size.y) * 0.5
 	var at := Vector2(p.x, p.y) - Vector2(b.get_center().x, b.get_center().y)

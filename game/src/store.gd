@@ -1,11 +1,11 @@
 class_name Store
 extends RefCounted
 
-## The Horizon Store's entitlement check (VRC.Quest.Security.1). Only a store APK (`scripts/android.sh quest OUT store`)
-## carries the Platform SDK and the app's id in res://store.tres; every other build has neither and plays unchecked.
+## Entitlement check (VRC.Quest.Security.1). Only a store APK (`scripts/android.sh quest OUT store`) carries the
+## Platform SDK and res://store.tres; every other build plays unchecked.
 
 
-## Ends the game unless the store says the headset's user owns the game. The SDK answers from its cache when offline.
+## The SDK answers from its cache when offline.
 static func check() -> void:
 	if not Engine.has_singleton("MetaPlatformSDK"):
 		print("store: no Platform SDK, unchecked")
@@ -16,8 +16,7 @@ static func check() -> void:
 		result = await sdk.entitlement_get_is_viewer_entitled_async().completed
 	if result.is_error():
 		print("store: not entitled (%s) %d ms after launch" % [result.error, Time.get_ticks_msec()])
-		# Once the Platform SDK has started, Godot's own quit never finishes on a Quest 2, and a player who does not own
-		# the game has nothing to save.
+		# Once the Platform SDK has started, Godot's quit never finishes on a Quest 2; a non-owner has nothing to save.
 		OS.kill(OS.get_process_id())
 		return
 	print("store: entitled %d ms after launch" % Time.get_ticks_msec())

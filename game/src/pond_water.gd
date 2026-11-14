@@ -1,9 +1,6 @@
 class_name PondWater
 extends MeshInstance3D
 
-## One pond's surface: flat quads at its level over the grid cells around its wet points, tinted by the
-## depth of the ground below (read in the shader), rippling where a hand breaks it and lapping softly.
-
 const FILL := 1.8
 const RIPPLES := 12
 const RIPPLE_LIFE := 1.5
@@ -23,8 +20,8 @@ var _live := 0
 var _lap := AudioStreamPlayer3D.new()
 
 
-## Godot compiles a shader when a material first takes it, 10 ms on the Frame and a late frame as the first pond
-## fills, so `Warmup` calls this before any is dug and `get_rid` compiles it here.
+## Godot compiles a shader when a material first takes it (10 ms on the Frame, a late frame at the first fill), so
+## `Warmup` calls this before any pond is dug and `get_rid` compiles it here.
 static func prepare() -> void:
 	if _shader != null:
 		return
@@ -72,10 +69,9 @@ func show_pond(p: PondLayout.Pond) -> void:
 	set_process(true)
 
 
-## Quads over every grid cell with a wet corner and the rest on its shore: they reach each shore and no
-## further, and never over a hollow that only touches the pond at a corner. Each run of such cells along a row is
-## one quad, so a lake's mesh grows with its rows, not its area. Worked out once a pond and kept on it; reads no
-## shared state, so any thread may run it.
+## A triangle list at y = 0, two triangles per quad.
+## Never over a hollow touching the pond only at a corner. One quad per run along a row, so a lake's mesh grows with
+## its rows, not its area. Cached on `p`; reads no shared state, so any thread may run it.
 static func quads(p: PondLayout.Pond) -> PackedVector3Array:
 	if not p.quads.is_empty():
 		return p.quads
@@ -109,7 +105,6 @@ static func quads(p: PondLayout.Pond) -> PackedVector3Array:
 	return verts
 
 
-## The surface `quads` lays, flat at height 0.
 static func sheet(verts: PackedVector3Array) -> ArrayMesh:
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, Meshes.level(verts))
@@ -134,7 +129,6 @@ func _process(delta: float) -> void:
 	set_process(_filled < 1.0 or _live > 0)
 
 
-## A new pond rises from its bottom.
 func _set_drop() -> void:
 	var drop := pow(1.0 - _filled, 3.0) * pond.depth
 	_mat.set_shader_parameter("drop", drop)
@@ -154,6 +148,5 @@ func surface_y() -> float:
 	return position.y
 
 
-## Whether it has filled to its level.
 func full() -> bool:
 	return surface_y() >= pond.level - 0.001

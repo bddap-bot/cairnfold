@@ -1,11 +1,7 @@
 class_name Flat
 extends Node
 
-## A player without a headset, on a flat screen with mouse and keyboard or a gamepad (`Controls.FLAT`). It walks the
-## ground instead of teleporting and looks with the mouse or the right stick; its input stands in for the controllers
-## through the same tool entry points. The only tools it holds are the camera, the seed dish and the mirror, in the
-## right hand raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at
-## the sides, as other players see them.
+## No edit tool in TOOLS, so there is no edit path to keep it from.
 
 const WAVE: Animation = preload("res://animations/wave.tres")
 
@@ -18,16 +14,14 @@ const MOUSE_LOOK := 0.003
 const MOUSE_TWIST := 0.25
 const STICK_TWIST := 120.0
 const PITCH := deg_to_rad(85.0)
-## The camera is held on the line of sight, its screen the viewfinder, so the photo frames what the view shows.
+## On the line of sight, so the photo frames what the view shows.
 const CAMERA_HELD := Vector3(0.0, 0.0, -0.32)
 const WHEEL_HELD := Vector3(0.0, -0.13, -0.45)
-## The seed dish is held out low in the view and kept level, for an animal to stand on or eat under.
 const DISH_HELD := Vector3(0.08, -0.22, -0.42)
-## Holding the dish, looking down stoops the player by up to this many metres, so the dish reaches the animals that
-## eat low; no faster than STOOP_SPEED, metres a second, below what startles them (`Wildlife.CALM`).
+## Metres the dish lowers the player looking down, to reach low eaters; STOOP_SPEED, metres a second, stays below
+## what startles animals (`Wildlife.CALM`).
 const STOOP := 0.8
 const STOOP_SPEED := 0.5
-## How far ahead of the head a step must be clear of builds, at the knees and at the eyes.
 const BODY := 0.3
 const DEADZONE := 0.2
 const STEP_UP := 0.5
@@ -35,14 +29,13 @@ const STEP_UP := 0.5
 var rig: Rig
 var yaw := 0.0
 var pitch := 0.0
-## Whether the mouse turns the view: from a click in the window until Escape or the window loses focus.
 var mouse_held := false
-## The click that took the mouse, held: it neither fires nor changes tools.
+## The click that took the mouse neither fires nor changes tools.
 var _taking_click := false
 var _trigger := ""
 var _wheel_button := ""
 var _reach := Vector2.ZERO
-## Degrees the right hand is twisted, clockwise, while it turns a dial: the mouse or the stick across.
+## Degrees clockwise.
 var _twist := 0.0
 var _wheeling := false
 var _firing := false
@@ -126,7 +119,7 @@ func turn(by_yaw: float, by_pitch: float) -> void:
 	pitch = clampf(pitch + by_pitch, -PITCH, PITCH)
 
 
-## The right hand's aim pose from the eyes, tipped by `pitch`, while it holds `tool`.
+## In the eyes' space.
 static func held(tool: Hand.Tool, pitch: float) -> Transform3D:
 	if tool == Hand.Tool.CAMERA:
 		return Transform3D(Basis.IDENTITY, CAMERA_HELD)
@@ -135,7 +128,6 @@ static func held(tool: Hand.Tool, pitch: float) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, WHEEL_HELD)
 
 
-## Turns the view to look at `at`.
 func face(at: Vector3) -> void:
 	var d := rig.global_basis.inverse() * (at - rig.head.global_position)
 	yaw = atan2(-d.x, -d.z)
@@ -200,7 +192,6 @@ func _process(delta: float) -> void:
 			Buttons.injected.erase(_trigger)
 
 
-## Walks by `step` over whatever the feet can step up onto, inside the garden; a wall, fence or house stops it.
 func _walk(step: Vector3) -> void:
 	var head := rig.head.global_position
 	for y in [rig.global_position.y + STEP_UP, head.y]:

@@ -1,14 +1,12 @@
 class_name Underfoot
 extends Node3D
 
-## While the player floats, a soft shadow on the ground below, by height alone: standing on nothing tens of metres up
-## is the classic trigger of fear of heights and of lost balance. Nothing marks the air at their feet.
+## Standing on nothing high up triggers fear of heights; by design nothing marks the air at the feet.
 
-## Floating this much over LIFTED shows it at full strength.
 const FULL_ABOVE := 1.0
 const SHADOW := 1.6
 const SHADOW_ALPHA := 0.5
-## How far over the ground it is drawn, clear of the ground's own surface.
+## Clear of the ground's own surface.
 const RAISE := 0.03
 
 var _shadow: MeshInstance3D
@@ -39,7 +37,6 @@ func _init() -> void:
 	_shadow = ToolModels.piece(self, plane, Transform3D.IDENTITY, mat)
 
 
-## Shows it under `head`, the player's feet at `feet` over a floor at `floor_y`.
 func follow(head: Vector3, feet: float, floor_y: float) -> void:
 	var k := clampf((feet - floor_y - Rig.LIFTED) / FULL_ABOVE, 0.0, 1.0)
 	visible = k > 0.0

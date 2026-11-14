@@ -1,17 +1,14 @@
 class_name Fireflies
 extends Node3D
 
-## Fireflies at dusk over what has been made: a few drift and blink over each pond's shore and each painted
-## flower patch once the sun is low, in the seasons that have them. Each hovers about a spot of its own; the
-## drift and the blinking run in the shader, so the CPU writes them only when the spots change. One
-## MultiMesh, no lights. Part of `Wildlife`.
+## One MultiMesh, no lights; drift and blinking run in the shader, so the CPU writes only when the spots change.
 
 const CAP := 48
 const PER_HABITAT := Vector2i(6, 10)
-## Sun elevations in degrees over which they come out as the light goes.
+## Sun elevation in degrees over which they come out.
 const DUSK := Vector2(4.0, -3.0)
 const HEIGHT := Vector2(0.25, 1.4)
-## How far from a shore point over the grass, or from a bloom, they hover.
+## Metres from a shore point, or from a bloom, they hover.
 const SHORE_SPREAD := 2.2
 const BLOOM_SPREAD := 1.3
 const FADE := 2.0
@@ -22,7 +19,7 @@ var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var crowd: Crowd
 var mat: ShaderMaterial
-## Spots by habitat key: each a Vector4 of position and the clock time it came, or went if negative.
+## By habitat key: Vector4(position, clock time it came, or minus the time it went).
 var spots := {}
 ## Starts a fade in, so a death back-dated to its fade-in's brightness still lies in the past.
 var _clock := FADE
@@ -49,7 +46,6 @@ func _init(home: Wildlife, seed: int) -> void:
 	add_child(crowd)
 
 
-## 0 in daylight to 1 once the sun is well down.
 func dusk() -> float:
 	if wildlife.light == null:
 		return 0.0
@@ -81,8 +77,7 @@ func tick(delta: float) -> void:
 	mat.set_shader_parameter("dusk", dusk())
 
 
-## Each pond and flower patch by key, with where its fireflies may hover. A pond is keyed by its shore, so a
-## reshaped pond is a new habitat and its fireflies move to the new shore.
+## A pond is keyed by its shore, so a reshaped pond is a new habitat and its fireflies move to the new shore.
 func _habitats() -> Dictionary:
 	var found := {}
 	for p: PondWater in wildlife.water.ponds:
@@ -99,8 +94,6 @@ func _habitats() -> Dictionary:
 	return found
 
 
-## Spots of habitats gone start fading and faded ones are dropped; new habitats get spots, an even share of
-## the cap each. True if anything changed.
 func _settle(habitats: Dictionary) -> bool:
 	var changed := false
 	for k in spots.keys():
@@ -138,7 +131,6 @@ func _settle(habitats: Dictionary) -> bool:
 	return changed
 
 
-## Starts spot `i` fading out from however bright its fade in had made it.
 func _die(list: Array, i: int) -> void:
 	list[i].w = -(_clock - FADE * (1.0 - clampf((_clock - list[i].w) / FADE, 0.0, 1.0)))
 

@@ -1,10 +1,7 @@
 class_name Pad
 extends Node3D
 
-## A soft, rounded controller with only what every supported controller shares: a trigger under the index finger,
-## a grip under the middle finger, a thumbstick and two face buttons. The picture book's ghost hands hold it; a
-## pressed part sinks, swells and glows, a soft ring pulses out from it, and a held part's ring fills as the hold is
-## timed, all drawn large enough to read on a page at arm's length.
+## Only what every supported controller shares.
 
 const SHELL := Color(0.7, 0.77, 0.86)
 const PART := Color(0.3, 0.34, 0.42)
@@ -23,7 +20,6 @@ var _tool: Node3D
 var _shown := -1
 
 
-## `right` false mirrors it for the left hand.
 func _init(right: bool) -> void:
 	side = 1.0 if right else -1.0
 	_box(self, Vector3(0.06, 0.024, 0.066), Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.032)), SHELL, 3)
@@ -38,7 +34,6 @@ func _init(right: bool) -> void:
 	_part("by_button", self, Vector3(0.012, 0.006, 0.012), Transform3D(Basis.IDENTITY, Vector3(side * 0.015, 0.016, 0.024)), 15)
 
 
-## Shows `tool` standing on the controller, as a hand holding it does.
 func hold(tool: Hand.Tool) -> void:
 	if tool == _shown:
 		return
@@ -54,8 +49,8 @@ func hold(tool: Hand.Tool) -> void:
 	add_child(_tool)
 
 
-## Shows `input` (an OpenXR input as Controls names them; a stick direction tilts the stick) held for `held_s`
-## seconds, or let go with a negative `held_s`. A hold `hold_s` long fills the part's ring as it goes.
+## `input` as Controls names OpenXR inputs; a stick direction tilts the stick. A negative `held_s` lets go; a
+## positive `hold_s` fills the part's ring as the hold goes.
 func show_input(input: String, held_s: float, hold_s := 0.0) -> void:
 	var key := "primary" if Hand.FLICKS.has(input) else input
 	var part: Node3D = parts[key]

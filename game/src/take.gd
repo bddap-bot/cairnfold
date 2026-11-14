@@ -1,11 +1,10 @@
 class_name Take
 extends Node
 
-## The microphone during an armed performance take (PlayLog.ARM): heard on a muted bus of its own, so it is never played,
-## and handed to the session's record each frame. It goes when the record ends. The bus stays, muted and empty: removed
-## while the microphone's last buffer fades, that buffer would fall back to the master bus and be heard.
+## The bus stays, muted and empty: removed while the microphone's last buffer fades, that buffer would fall back to
+## the master bus and be heard.
 const BUS := "Take"
-## The longest stall the capture rides out without losing the microphone's frames.
+## The longest stall ridden out without losing microphone frames.
 const BUFFER_SECONDS := 5.0
 var play_log: PlayLog
 var _capture := AudioEffectCapture.new()
@@ -17,8 +16,7 @@ func _init(into: PlayLog) -> void:
 
 
 func _ready() -> void:
-	# Android asks the wearer for the microphone the moment one opens, and once allowed keeps it open past the take; the
-	# dev tool that arms a take grants it beforehand instead.
+	# Android prompts the wearer when a microphone opens and keeps it open past the take; the arming tool grants it first.
 	if OS.has_feature("android") and not "android.permission.RECORD_AUDIO" in OS.get_granted_permissions():
 		push_warning("a performance take needs RECORD_AUDIO granted before it starts; nothing is captured")
 		queue_free()

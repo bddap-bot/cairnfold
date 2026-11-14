@@ -1,20 +1,19 @@
 class_name HeldItem
 extends Node3D
 
-## A held model's description travels only when it changes; the existing hand pose carries its motion. A conure's
-## detail is 1 when it stands on a shoulder (`perched`) rather than in a cupped hand; a brush's or palette's is the
-## easel it was taken from, which shows it gone (`EaselTool`), or 0.
+## A state travels only when it changes; the hand pose carries its motion. A conure's detail is 1 on a shoulder, 0 in
+## a cupped hand; a brush's or palette's is the easel it came from (which `EaselTool` shows it gone from), or 0.
+
 enum Kind { TOOL, BRUSH, PALETTE, BOOK, BIRD }
 
-## What a player across the garden holds, which `EaselTool` reads.
+## Read by `EaselTool`.
 const GROUP := &"held_item"
-## Where in a state its detail is.
+## A state's index of its detail.
 const DETAIL := 5
 
 var state: Array = []
 var model: Node3D
 var easels: Easels
-## The ground a held bird is lit over.
 var terrain: Terrain
 
 
@@ -63,7 +62,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	return [kind, index, local, colour, load, detail, hand.holds_seeds(), bend]
 
 
-## The conure on `rig`'s shoulder `side`, standing on it in the torso's frame, without the hand's cup.
+## In the torso's frame.
 static func perched(rig: Rig, side: int) -> Array:
 	var c := rig.shoulders[side]
 	if c == null:
@@ -148,7 +147,7 @@ func show_state(s: Array) -> void:
 		ToolModels.bend(model, s[1], s[7])
 
 
-## Whether the holder's hand is drawn as what it holds alone, as their own view draws it: a bird perches on a hand.
+## As their own view draws it; a bird perches on the hand instead.
 func replaces_hand() -> bool:
 	return not state.is_empty() and state[0] != Kind.BIRD
 

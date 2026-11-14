@@ -1,12 +1,6 @@
 class_name Owls
 extends Shy
 
-## Tawny owls at night, on the perches conures use: once it is dark and a planted tree or a finished wall stands, one or
-## two glide in from out of sight and settle on a crown or a wall top. Perched, an owl turns its head about, a long way
-## round as owls do, watches a person near it, blinks, and hoots softly now and then; now and then it glides to another
-## perch or drops to the grass after something and flies back up. One a person comes toward flies off to the perch
-## furthest from them, or away if none is far enough. They leave, out of sight, when the light comes back.
-
 enum State { FLY, PERCH, GROUND }
 ## Part ids ride in UV2.x so the shader knows how each vertex moves.
 enum Part { BODY, HEAD, WING_L, WING_R, FEET, EYES }
@@ -19,16 +13,14 @@ const SPEED := 3.2
 const LIFT := 0.8
 const PERCH_FOR := Vector2(25.0, 70.0)
 const LOOK_FOR := Vector2(1.5, 5.0)
-## How far round an owl turns its head from the way it faces.
+## Radians from the way it faces.
 const LOOK_ROUND := 2.3
 const WATCH := 7.0
 const DROP_TO := Vector2(2.0, 7.0)
 const GROUND_FOR := Vector2(1.5, 3.5)
 const FLIGHT := 2.6
 const STARTLE := 3.6
-## A perch nearer than this to a person is no refuge; an owl finding none flies away.
 const REFUGE := 4.5
-## Owls keep this far from each other and from conures on their perches.
 const SPACING := 0.5
 const HOOT_EVERY := 24.0
 const HOOT_FOR := 1.1
@@ -36,14 +28,13 @@ const HOOT_FOR := 1.1
 
 class Owl extends Shy.One:
 	var site: Birds.Site
-	## Where its head looks round to, and where it is now, from the way it faces.
+	## Radians from the way it faces.
 	var look := 0.0
 	var head := 0.0
 	var next_look := 0.0
 	var flying := 0.0
 	var hooted := INF
-	## Where a drop to the grass goes back up to.
-	var back := Vector3.ZERO
+	var perched_at := Vector3.ZERO
 
 
 func _init(home: Wildlife, seed: int) -> void:
@@ -86,7 +77,6 @@ func active() -> bool:
 	return wildlife.asleep()
 
 
-## One glides in from out of sight to a free perch.
 func arrive(_home: Object) -> One:
 	var o := Owl.new()
 	var to := _perch(o, Vector3.INF)
@@ -98,8 +88,8 @@ func arrive(_home: Object) -> One:
 	return o
 
 
-## A free perch point, [its site, the point], nearest `near` or anywhere where Vector3.INF, kept REFUGE from `from` when
-## given; empty where none is.
+## [site, point], or [] if none: random where `near` is INF, else the farthest from `from` when given (and at least
+## REFUGE from it), else the nearest `near`.
 func _perch(o: Owl, near: Vector3, from := Vector3.INF) -> Array:
 	var best := []
 	var best_d := INF
@@ -192,14 +182,13 @@ func think(a: One, delta: float) -> void:
 		State.GROUND:
 			o.timer -= delta
 			if o.timer <= 0.0 or wary(o.position, FLIGHT, STARTLE) != null:
-				_perch_or_leave(o, _perch(o, o.back))
+				_perch_or_leave(o, _perch(o, o.perched_at))
 	o.head = lerp_angle(o.head, o.look, minf(delta * 5.0, 1.0)) if o.state == State.PERCH else move_toward(o.head, 0.0, delta * 3.0)
 	var hoot := sin(PI * o.hooted / HOOT_FOR) if o.hooted < HOOT_FOR else 0.0
 	o.basis = Basis(Vector3.UP, o.yaw) * Basis(Vector3.RIGHT, -0.9 * o.flying)
 	o.pose = Color(o.clock, o.shown, o.flying - hoot * (1.0 - o.flying), o.head)
 
 
-## Turns its head about now and then, or toward a person near.
 func _look(o: Owl, delta: float) -> void:
 	var n := wildlife._nearest(o.position, WATCH, true)
 	if n != null:
@@ -212,14 +201,13 @@ func _look(o: Owl, delta: float) -> void:
 		o.look = rng.randf_range(-LOOK_ROUND, LOOK_ROUND) * (0.4 if rng.randf() < 0.6 else 1.0)
 
 
-## Down to the grass a little way off, after something there.
 func _drop(o: Owl) -> void:
 	for attempt in 6:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU)
 		var at := o.position + dir * rng.randf_range(DROP_TO.x, DROP_TO.y)
 		at = wildlife.terrain.ground(at.x, at.z)
 		if wildlife.standable(at):
-			o.back = o.position
+			o.perched_at = o.position
 			_fly(o, null, at)
 			return
 	o.timer = rng.randf_range(PERCH_FOR.x, PERCH_FOR.y)

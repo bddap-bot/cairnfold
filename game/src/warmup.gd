@@ -1,9 +1,8 @@
 class_name Warmup
 extends Node
 
-## What the game makes ahead of its first use, each step made on first use having held a Quest's frame: the steps that
-## need this thread run in the frame loading ends in, where a frame is already long, and a step that reaches a worker
-## (`ToolModels.prepare_styles`) only queues its work there, which is laid in here each frame.
+## Steps that stalled a Quest frame when made on first use; they run in the frame loading ends in, already long. A worker
+## step (`ToolModels.prepare_styles`) only queues there; its work is laid in here each frame.
 
 var _steps: Array[Callable] = []
 

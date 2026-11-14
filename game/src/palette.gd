@@ -1,18 +1,13 @@
 class_name Palette
 extends RefCounted
 
-## The glade's colours: the garden's season, and the swatches each build is painted in (a wall's `paint`, one
-## swatch per material). Laid parts keep their own colour variation around the material's first swatch; a
-## build's paint scales its parts onto the chosen swatches as they are packed (Wall), so recolouring one build
-## lays no stones. Pure data apart from `apply`, so tests run headless.
+## A build's paint scales its parts off their first swatch as they are packed (Wall), so recolouring lays no
+## stones. Pure data apart from `apply`, so tests run headless.
 
-## Each material's value is also its code in the parts' custom data, which tells a repaint what to scale; the
-## meadow's 0 doubles as "kept as laid".
-## GLOW is the colour a room's windows shine at night, LANTERN its lanterns' colour and brightness.
+## Each value is also the parts' custom-data code a repaint scales by; MEADOW's 0 means kept as laid.
 enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6, GLOW = 7, LANTERN = 8 }
 
-## The meadow's swatches are the seasons, each a preset for the meadow (grass and ground) and foliage
-## (trees, bushes, ivy): the colour plants turn toward (rgb) and how far (a); and the share of flowers in bloom.
+## `meadow`, `foliage`: rgb the plants turn toward, a how far. `bloom`: the share of flowers in bloom.
 const SEASONS := [
 	{"name": "spring", "swatch": Color(0.50, 0.74, 0.30), "meadow": Color(0.46, 0.72, 0.22, 0.35), "foliage": Color(0.42, 0.66, 0.2, 0.4), "bloom": 1.0, "fireflies": true},
 	{"name": "summer", "swatch": Color(0.40, 0.60, 0.18), "meadow": Color(0, 0, 0, 0), "foliage": Color(0, 0, 0, 0), "bloom": 1.0, "fireflies": true},
@@ -22,11 +17,9 @@ const SEASONS := [
 ]
 const SUMMER := 1
 
-## The colours a window or a lantern glows in.
 const GLOWS: Array[Color] = [Color(1.0, 0.62, 0.26), Color(1.0, 0.84, 0.56), Color(1.0, 0.42, 0.4), Color(0.95, 0.28, 0.14), Color(0.56, 0.92, 0.42), Color(0.36, 0.86, 0.8), Color(0.44, 0.6, 1.0), Color(0.78, 0.5, 1.0)]
 
-## Each material's swatches; the first is the colour its parts are laid in. A lantern's are each glow colour lit, bright
-## and dim in turn (Lamps.STRENGTHS), as its flame burns.
+## The first is the laid colour. A lantern's run lit, bright, dim (Lamps.STRENGTHS) per glow colour.
 const SWATCHES := {
 	Element.STONE: [WallLayout.STONE, Color(0.84, 0.81, 0.74), Color(0.78, 0.64, 0.42), Color(0.70, 0.46, 0.37), Color(0.48, 0.50, 0.55), Color(0.40, 0.38, 0.36), Color(0.56, 0.59, 0.48)],
 	Element.ROOF: [RoofLayout.CLAY, Color(0.33, 0.38, 0.46), Color(0.38, 0.48, 0.30), Color(0.66, 0.22, 0.19), Color(0.78, 0.58, 0.30), Color(0.24, 0.24, 0.26), Color(0.24, 0.47, 0.50), Color(0.45, 0.28, 0.38)],
@@ -47,8 +40,7 @@ const SWATCHES := {
 	],
 }
 
-## The material each kind of laid part is painted with; kinds not listed (iron, flags, curtains, flowers) keep their
-## colour. Glass carries the colour it glows at night.
+## Kinds not listed (iron, flags, curtains, flowers) keep their colour; glass takes the colour it glows at night.
 const KINDS := {
 	"block": Element.STONE, "mortar": Element.STONE, "voussoir": Element.STONE, "keystone": Element.STONE,
 	"pillar": Element.STONE, "cope": Element.STONE, "cap": Element.STONE, "merlon": Element.STONE,
@@ -72,19 +64,18 @@ static func swatch(element: Element, index: int) -> Color:
 	return SEASONS[index].swatch if element == Element.MEADOW else SWATCHES[element][index]
 
 
-## What a laid part's custom data carries so its shader finds its material's tint: 0 for none.
+## 0 for a kind that keeps its colour.
 static func code(kind: String) -> float:
 	return KINDS.get(kind, 0)
 
 
-## A build's paint as laid: every material on its first swatch. Indexed by Element; the meadow's entry stays 0.
+## Indexed by Element, each 0: every material on its laid swatch.
 static func plain() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	out.resize(Element.size())
 	return out
 
 
-## Whether `paint` is a build's paint: a swatch of each material, the meadow's entry 0.
 static func valid(paint: Variant) -> bool:
 	if typeof(paint) != TYPE_PACKED_INT32_ARRAY or paint.size() != Element.size() or paint[Element.MEADOW] != 0:
 		return false
@@ -94,14 +85,12 @@ static func valid(paint: Variant) -> bool:
 	return true
 
 
-## What scales a part laid in `element`'s first swatch onto its swatch `index`.
 static func tint(element: Element, index: int) -> Color:
 	var base: Color = SWATCHES[element][0]
 	var c: Color = SWATCHES[element][index]
 	return Color(c.r / base.r, c.g / base.g, c.b / base.b)
 
 
-## The shader globals season `index` sets, by name.
 static func globals(index: int) -> Dictionary:
 	var out := {}
 	for key in ["meadow", "foliage"]:
@@ -123,7 +112,6 @@ func apply() -> void:
 	preview(season)
 
 
-## Shows season `index`, leaving the garden's as it is.
 static func preview(index: int) -> void:
 	var g := globals(index)
 	for name in g:

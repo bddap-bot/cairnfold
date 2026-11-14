@@ -1,14 +1,10 @@
 class_name Calls
 extends Node3D
 
-## The animals' voices: short recordings (scripts/animals.py, game/audio/animals/sources.json) played at the
-## animal that calls. Calls stay rare and quiet under the music: each kind waits its own while between calls,
-## any two calls but the soft ones are a little apart, no clip plays twice running, and an animal near the head makes
-## only its close calls.
+## Clips from scripts/animals.py (game/audio/animals/sources.json). Calls stay rare and quiet under the music.
 
-## Per call: its clips, the least time between two calls of it, and its level at UNIT metres, before the distance
-## falls it off: the conures' contact call softest, as it is their loudest. At 2 m and 6 dB lower, an animal 5 to 10 m
-## off called 18 to 28 dB under the music, which no one heard.
+## `gap` seconds; `level` dB at UNIT metres, the conures' contact call softest as it is their loudest. UNIT 2 m with
+## levels 6 dB lower put an animal 5 to 10 m off 18 to 28 dB under the music, unheard.
 const CALLS := {
 	"murmur": {"clips": 8, "gap": 4.0, "level": -8.0},
 	"grind": {"clips": 4, "gap": 3.0, "level": -10.0},
@@ -26,18 +22,14 @@ const CALLS := {
 	"chitter": {"clips": 10, "gap": 6.0, "level": -13.0},
 	"rustle": {"clips": 8, "gap": 2.0, "level": -16.0},
 }
-## Calls quiet enough that no other call waits on them: a conure on the hand or watching a face up close murmurs and
-## works its beak, and a snake rustles the grass.
 const SOFT := ["murmur", "grind", "click", "rustle"]
-## Calls an animal still makes beside the head: the soft ones, and the ducks' low quacks and peeps, as a family fed from
-## a hand held over the pond is that near.
+## Quack and peep are here because ducks fed from a hand over the pond are that near.
 const CLOSE := ["murmur", "grind", "click", "quack", "peep"]
 const ANY_GAP := 3.0
 const UNIT := 6.0
-## How much the distance takes off above CUTOFF Hz; the clips are already rolled off there.
+## dB above CUTOFF Hz; the clips are already rolled off there.
 const FAR_SHELF := -12.0
 const CUTOFF := 3000.0
-## An animal nearer the head than this makes no call of its own but its CLOSE ones, and those its doings bring.
 const NEAR := 2.5
 const VOICES := 6
 
@@ -49,7 +41,7 @@ var _since := {}
 var _since_any := INF
 var _voices: Array[AudioStreamPlayer3D] = []
 var _next_voice := 0
-## Per kind, the calls played and how far from the head the last was, for the play log.
+## Per kind [calls played, metres from the head of the last or -1], for the play log.
 var played := {}
 
 
@@ -79,7 +71,6 @@ func tick(delta: float) -> void:
 		_since[kind] += delta
 
 
-## `kind` from `at` now, unless one was too lately. True if it called.
 func call_out(kind: String, at: Vector3) -> bool:
 	var soft := kind in SOFT
 	if _since[kind] < CALLS[kind].gap or (_since_any < ANY_GAP and not soft):
@@ -106,15 +97,13 @@ func call_out(kind: String, at: Vector3) -> bool:
 	return true
 
 
-## `kind` from `at` about once every `every` seconds of an animal's doing something, while the head keeps its
-## distance.
 func now_and_then(kind: String, at: Vector3, every: float, delta: float) -> bool:
-	if rng.randf() >= delta / every or (calm(at) and kind not in CLOSE):
+	if rng.randf() >= delta / every or (near_head(at) and kind not in CLOSE):
 		return false
 	return call_out(kind, at)
 
 
-func calm(at: Vector3) -> bool:
+func near_head(at: Vector3) -> bool:
 	return _from_head(at) < NEAR
 
 

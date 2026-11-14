@@ -1,9 +1,7 @@
 class_name Constraints
 extends SkeletonModifier3D
 
-## An avatar's Unity transform constraints (UNITY_constraints), solved each frame as VRChat solves them after its
-## animator: each places a bone from the weighted sources it names, in the file's order, every one seeing those before
-## it. A skeleton modifier, so it runs once the frame's pose and springs have set the bones; Avatar keeps it the last.
+## Solved as VRChat does after its animator, in file order; a modifier Avatar keeps last, so after pose and springs.
 
 enum Kind { PARENT, POSITION, ROTATION, LOOK_AT }
 
@@ -11,7 +9,7 @@ const KINDS := {"Parent": Kind.PARENT, "Position": Kind.POSITION, "Rotation": Ki
 
 
 class Source:
-	## The skeleton bone it follows, or -1 for a fixed place in the world.
+	## -1: the fixed place `world`.
 	var bone := -1
 	var world := Transform3D.IDENTITY
 	var offset := Transform3D.IDENTITY
@@ -29,22 +27,19 @@ class Constraint:
 	var offset := Transform3D.IDENTITY
 
 
-## Microseconds every solver has spent solving, for a bench to price them.
 static var spent_usec := 0
 
 var constraints: Array[Constraint] = []
-## The weight an expression target gives every constraint on a bone, by bone, in place of the one the file saves.
+## By bone: an expression target's weight, overriding the file's.
 var weights := {}
-## Each constrained bone's world transform as the last solve left it, which a constraint sourcing its own bone follows.
+## By bone, world transform from the last solve: a constraint sourcing its own bone follows it.
 var _previous := {}
-## Each constrained bone's pose from the skeleton as the last solve left it.
-var _solved := {}
+var _solved_skeleton_pose := {}
 ## By bone, the nearest of itself and its ancestors a constraint places, or -1.
 var _carrier := PackedInt32Array()
 
 
-## The constraints `definitions` (the "constraints" meta Constraints.read makes) on `skeleton`'s bones; none if the
-## skeleton lacks a bone one of them names, as Constraints.read keeps none of a malformed file.
+## None at all if `skeleton` lacks a bone one names, as `read` keeps none of a malformed file.
 func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 	for d: Dictionary in definitions:
 		var c := Constraint.new()
@@ -82,19 +77,16 @@ func _init(definitions: Array, skeleton: Skeleton3D) -> void:
 		_carrier[b] = up
 
 
-## Where `bone` stands in the world as the frame draws it: the skeleton's pose of it, carried by the place its nearest
-## constrained ancestor took in the last solve. A modifier's pose is undone once the frame is drawn, so code reading
-## bones outside the solve, as contacts do, reads them here.
+## A modifier's pose is undone once the frame draws, so code reading bones outside the solve (contacts) reads here.
 func placed(bone: int) -> Transform3D:
 	var sk := get_skeleton()
 	var pose := sk.get_bone_global_pose(bone)
 	var k := _carrier[bone]
-	if k >= 0 and _solved.has(k):
-		pose = _solved[k] * sk.get_bone_global_pose(k).affine_inverse() * pose
+	if k >= 0 and _solved_skeleton_pose.has(k):
+		pose = _solved_skeleton_pose[k] * sk.get_bone_global_pose(k).affine_inverse() * pose
 	return sk.global_transform * pose
 
 
-## The solver among `skeleton`'s modifiers, or null.
 static func of(skeleton: Skeleton3D) -> Constraints:
 	for child: Node in skeleton.get_children():
 		if child is Constraints:
@@ -170,13 +162,11 @@ func _process_modification_with_delta(_delta: float) -> void:
 		_previous[c.bone] = parent * sk.get_bone_pose(c.bone)
 	# After the loop: a constraint later in the file may move an earlier one's bone.
 	for c in constraints:
-		_solved[c.bone] = sk.get_bone_global_pose(c.bone)
+		_solved_skeleton_pose[c.bone] = sk.get_bone_global_pose(c.bone)
 	spent_usec += Time.get_ticks_usec() - start
 
 
-## The file's UNITY_constraints extension `extension` with each node index as the name of `nodes`' node, as the
-## "constraints" meta the converter writes: [] for none, or for one malformed anywhere, since files come from other
-## players and a constraint dropped from its group would place a prop where no runtime does.
+## [] if any is malformed: a constraint dropped from its group would place a prop where no runtime does.
 static func read(extension: Variant, nodes: Array[GLTFNode]) -> Array:
 	var list: Variant = extension.get("constraints") if extension is Dictionary else null
 	if not list is Array:
@@ -215,6 +205,6 @@ static func _number(x: Variant) -> bool:
 	return (x is float or x is int) and is_finite(float(x))
 
 
-## Whether `m` is a column-major 4x4 of finite numbers whose 3x3 part inverts and whose last row is glTF's (0, 0, 0, 1).
+## Column-major, as glTF stores it: 3, 7, 11, 15 are its last row.
 static func _matrix(m: Variant) -> bool:
 	return m is Array and m.size() == 16 and m.all(_number) and [float(m[3]), float(m[7]), float(m[11]), float(m[15])] == [0.0, 0.0, 0.0, 1.0] and absf(Vrm.transform(m).basis.determinant()) >= 1e-9

@@ -3,20 +3,19 @@ extends RefCounted
 
 const WIDTH := 0.16
 const DEPTH := 0.10
-## How far a roofed wall's top rail sits under its eaves, so its square edge stays under the tiles.
+## So a roofed wall's top rail keeps its square edge under the tiles.
 const EAVE_DROP := 0.04
 const OAK := Color(0.12, 0.075, 0.045)
 const SPACING := 1.8
 const BRACES := [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)]
-## How far rails sit behind posts, and braces behind rails: members laid in one plane fight wherever they cross.
+## Rails sit this behind posts, braces behind rails: members in one plane z-fight where they cross.
 const STEP := 0.006
 
-## A wall, or a house's four walls, framed: a round tower or a loop of any other shape takes plaster alone.
 static func applies(w: WallLayout) -> bool:
 	return w.finish == WallLayout.Finish.TIMBER and not w.fence and (not w.closed or w.corners().size() == 4)
 
 
-## The faces a frame is laid on, as `WallLayout._normal` calls them: a house's outer one, both of a wall standing open.
+## Side signs as `WallLayout._normal` takes them: a house's outer face, both of an open wall.
 static func sides(w: WallLayout) -> Array[float]:
 	var inner := w.inner_side()
 	var out: Array[float] = [-1.0, 1.0]
@@ -25,9 +24,7 @@ static func sides(w: WallLayout) -> Array[float]:
 	return out
 
 
-## The frame's members, each from `a` to `b` (along the wall, up) on the straight face through arc length `face`. A
-## house's sides are straight, so each member lies on its side's line; a wall's may curve, so there each lies on the
-## line through its own middle, its rails broken at every post.
+## Each {a, b: (along the wall, up), face: arc length of the straight face it lies on}.
 static func generate(w: WallLayout) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not applies(w):
@@ -124,14 +121,14 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 	return out
 
 
-## The height over the wall top of a gable end's rake beam's centre line `x` out from the ridge, `hs` out at the faces:
-## a beam's width square off the slope rather than straight under it, so its upper edge stays under a steep slope.
+## Height over the wall top `x` out from the ridge, `hs` out at the faces.
+## A beam's width taken square off the slope, not straight down, so its upper edge stays under a steep slope.
 static func rake(w: WallLayout, hs: float, x: float) -> float:
 	var slope := (w.gable.rise(1.0 - (x - 0.01) / hs) - w.gable.rise(1.0 - (x + 0.01) / hs)) / 0.02
 	return w.gable.rise(1.0 - x / hs) - WIDTH * sqrt(1.0 + slope * slope)
 
 
-## Adds the member from `a` to `b` on the face through `face` (INF: through its own middle), broken round the `holes`.
+## `face` INF: through the member's own middle.
 static func _emit(out: Array[Dictionary], a: Vector2, b: Vector2, face: float, holes: Array[Rect2]) -> void:
 	if a.distance_to(b) < WIDTH or b.y < a.y and is_equal_approx(a.x, b.x):
 		return
@@ -188,14 +185,12 @@ static func lay(w: WallLayout) -> void:
 			w.stones.append({"xform": Transform3D(Basis(x, normal.cross(x), normal).scaled_local(size), origin), "color": OAK * rng.randf_range(0.88, 1.12), "kind": "timber", "s": center.x, "y": center.y, "size": size, "ao": 1.0, "variant": 0, "beam": beam})
 
 
-## 0 for a post, 1 for a rail, 2 for a brace or rake.
 static func rank(beam: Dictionary) -> int:
 	if is_equal_approx(beam.a.x, beam.b.x):
 		return 0
 	return 1 if is_equal_approx(beam.a.y, beam.b.y) else 2
 
 
-## The members a build command's frame lays, on each face it is laid on.
 static func count(d: Dictionary) -> int:
 	if d.finish != WallLayout.Finish.TIMBER or d.fence or d.closed and d.points.size() != 4:
 		return 0

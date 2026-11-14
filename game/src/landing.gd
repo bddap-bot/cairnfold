@@ -1,8 +1,7 @@
 class_name Landing
 extends Node3D
 
-## Where a teleport will set the player down: their own avatar standing there, facing as they will, in the pose they
-## hold now, so they see themselves arrive before they go.
+## The player's own avatar at a teleport's target, in their pose now, so they see themselves arrive before they go.
 
 var _avatar: Avatar
 
@@ -12,7 +11,6 @@ func _init() -> void:
 	visible = false
 
 
-## Opens a copy of `a`, the player's avatar, to stand at the target.
 func wear(a: Avatar) -> void:
 	if _avatar != null:
 		_avatar.queue_free()
@@ -20,8 +18,7 @@ func wear(a: Avatar) -> void:
 	add_child(_avatar)
 
 
-## Stands the avatar at `at`, `size` times life size, turned and posed as `rig`'s player is now about the floor under
-## their head.
+## `size` times life size, posed as `rig`'s player is now about the floor under their head.
 func put(at: Vector3, size: float, rig: Rig) -> void:
 	visible = true
 	var ahead := -rig.head.global_basis.z

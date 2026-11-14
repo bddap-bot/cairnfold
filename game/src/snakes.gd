@@ -1,10 +1,6 @@
 class_name Snakes
 extends Shy
 
-## Grass snakes in the grass beside the ponds: one to a pond, slithering from one spot in the grass to another a few
-## metres from the water and lying still a while between, its tongue flicking. One a person comes toward slips off
-## quickly the other way through the grass. They come by day; at night they lie still.
-
 enum State { SLITHER, BASK, FLEE, LEAVE }
 ## Part ids ride in UV2.x so the shader knows how each vertex moves.
 enum Part { BODY, TONGUE }
@@ -12,21 +8,19 @@ enum Part { BODY, TONGUE }
 const CAP := 3
 const SPEED := {State.SLITHER: 0.2, State.FLEE: 0.65, State.LEAVE: 0.35}
 const TURN := 1.6
-## How far out from the shore its grass reaches.
 const RING := Vector2(0.8, 4.5)
 const BASK_FOR := Vector2(6.0, 20.0)
 const FLEE_TO := Vector2(2.5, 4.5)
 const FLIGHT := 2.2
 const STARTLE := 3.2
 const LEAVE_TO := 25.0
-## Seconds, on average, between flicks of its tongue, and how long one lasts.
-const FLICK_EVERY := 3.0
-const FLICK_FOR := 0.35
-const RUSTLE_EVERY := 9.0
+const FLICK_EVERY_SECONDS := 3.0
+const FLICK_SECONDS := 0.35
+const RUSTLE_EVERY_SECONDS := 9.0
 
 
 class Snake extends Shy.One:
-	## How far it has slid, which sets the waves along its body so they stay put on the ground as it goes.
+	## Sets the body's waves so they stay put on the ground.
 	var travel := 0.0
 	var bend := 0.0
 	var flick := INF
@@ -36,7 +30,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	super(home, seed, body(), "res://src/snake.gdshader", CAP, "snakes")
 
 
-## Head at the origin facing -Z, the body trailing back along +Z.
+## Head at the origin facing -Z, body along +Z.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -92,7 +86,6 @@ func habitats() -> Dictionary:
 	return out
 
 
-## One slips in at a spot in its pond's grass out of sight.
 func arrive(home: Object) -> One:
 	for attempt in 12:
 		var at := _grass(home)
@@ -108,7 +101,7 @@ func arrive(home: Object) -> One:
 	return null
 
 
-## A spot in the grass round `p`, on ground an animal may stand on, or Vector3.INF.
+## Vector3.INF if none.
 func _grass(p: PondWater, near := Vector3.INF, reach := INF) -> Vector3:
 	var mid := Terrain.grid_xz(p.pond.bottom)
 	var shore := p.pond.shore
@@ -152,10 +145,10 @@ func think(a: One, delta: float) -> void:
 					s.state = State.BASK
 					s.timer = rng.randf_range(BASK_FOR.x, BASK_FOR.y)
 	if s.state != State.BASK and s.state != State.LEAVE:
-		wildlife.calls.now_and_then("rustle", s.position, RUSTLE_EVERY, delta)
-	if rng.randf() < delta / FLICK_EVERY:
+		wildlife.calls.now_and_then("rustle", s.position, RUSTLE_EVERY_SECONDS, delta)
+	if rng.randf() < delta / FLICK_EVERY_SECONDS:
 		s.flick = 0.0
-	var tongue := sin(PI * s.flick / FLICK_FOR) if s.flick < FLICK_FOR else 0.0
+	var tongue := sin(PI * s.flick / FLICK_SECONDS) if s.flick < FLICK_SECONDS else 0.0
 	s.basis = standing(s.position, s.yaw)
 	s.pose = Color(s.travel, s.shown, s.bend, tongue)
 
@@ -179,8 +172,7 @@ func _flee(s: Snake, n: Node3D) -> void:
 			return
 
 
-## Turns toward its goal as a snake can and slides on along the way it faces, its body curving with the turn; true once
-## there. A way into water or a wall turns it back to lie still.
+## True once there or, unless leaving, blocked by water or a wall.
 func _slide(s: Snake, delta: float) -> bool:
 	var to := Vector3(s.goal.x - s.position.x, 0, s.goal.z - s.position.z)
 	var speed: float = SPEED[s.state]

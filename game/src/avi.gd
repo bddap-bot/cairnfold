@@ -1,13 +1,11 @@
 class_name Avi
 extends RefCounted
 
-## A video file of JPEG frames and stereo float sound, written as it goes; `close` fills in the counts and
-## the index. Plain AVI stops at 1 GiB, so a frame or sound that would pass it is refused and `full` set.
+## `close` fills in the counts and index. Plain AVI stops at 1 GiB: a chunk past it is refused and `full` set.
 
 const LIMIT := 1 << 30
 const HEADER := 12 + 12 + 64 + 12 + 64 + 48 + 12 + 64 + 26 + 12
-## Bytes a sound frame takes: two channels of 32-bit float.
-const SOUND_BLOCK := 8
+const SOUND_FRAME_BYTES := 8
 
 var size: Vector2i
 var fps: int
@@ -48,6 +46,7 @@ func frame(jpg: PackedByteArray) -> bool:
 	return false
 
 
+## `pcm`: interleaved stereo 32-bit float.
 func sound(pcm: PackedByteArray) -> bool:
 	if _chunk("01wb", pcm):
 		sound_bytes += pcm.size()
@@ -105,19 +104,19 @@ func _chunk(id: String, data: PackedByteArray) -> bool:
 	return true
 
 
-## The headers up to the 'movi' list's id, the same length however far the file has got.
+## Up to the 'movi' list's id; the same length however far the file has got.
 func _header(movi := 4, riff := HEADER - 8) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
 	var rect := [[16, 0], [16, 0], [16, size.x], [16, size.y]]
 	_put(b, ["RIFF", riff, "AVI ", "LIST", 4 + 64 + 12 + 64 + 48 + 12 + 64 + 26, "hdrl"])
-	_put(b, ["avih", 56, roundi(1e6 / fps), _largest * fps + rate * SOUND_BLOCK, 0, 0x10, frames, 0, 2, _largest + 8])
+	_put(b, ["avih", 56, roundi(1e6 / fps), _largest * fps + rate * SOUND_FRAME_BYTES, 0, 0x10, frames, 0, 2, _largest + 8])
 	_put(b, [size.x, size.y, 0, 0, 0, 0])
 	_put(b, ["LIST", 4 + 64 + 48, "strl", "strh", 56, "vids", "MJPG", 0, [16, 0], [16, 0], 0])
 	_put(b, [1, fps, 0, frames, _largest + 8, 0xffffffff, 0] + rect)
 	_put(b, ["strf", 40, 40, size.x, size.y, [16, 1], [16, 24], "MJPG", size.x * size.y * 3, 0, 0, 0, 0])
 	_put(b, ["LIST", 4 + 64 + 26, "strl", "strh", 56, "auds", 0, 0, [16, 0], [16, 0], 0])
-	_put(b, [SOUND_BLOCK, rate * SOUND_BLOCK, 0, sound_bytes >> 3, rate, 0xffffffff, SOUND_BLOCK] + rect)
-	_put(b, ["strf", 18, [16, 3], [16, 2], rate, rate * SOUND_BLOCK, [16, SOUND_BLOCK], [16, 32], [16, 0]])
+	_put(b, [SOUND_FRAME_BYTES, rate * SOUND_FRAME_BYTES, 0, sound_bytes / SOUND_FRAME_BYTES, rate, 0xffffffff, SOUND_FRAME_BYTES] + rect)
+	_put(b, ["strf", 18, [16, 3], [16, 2], rate, rate * SOUND_FRAME_BYTES, [16, SOUND_FRAME_BYTES], [16, 32], [16, 0]])
 	_put(b, ["LIST", movi, "movi"])
 	return b.data_array
 

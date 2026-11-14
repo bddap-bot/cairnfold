@@ -1,19 +1,16 @@
 class_name FloraCover
 extends RefCounted
 
-## The grass past the reach its clumps are drawn to, as the ground's shader paints it (terrain.gdshader): a texel per
-## ground vertex (Terrain's grid, as its height texture is) holds a clump standing in the square around it, as what its
-## tint and shade make of the ground's own grass colour, which takes the meadow's dryness already. Colour is
-## premultiplied by presence in alpha, an empty square changing nothing. The ground's vertices carry it into the
-## meadow colour they already hand their fragments, so the distant meadow costs the Quest 2 no fragment work, where a
-## triangle a clump cost it 1.9 ms over the bare meadow from the air, and the factor read once a fragment 0.2 to 0.4 ms.
-## Where two clumps share a square, the one in the higher slot shows.
-## How often a painted or mown clump reaches the texture: what changes is near the hand, inside the clumps' reach.
+## Far grass for terrain.gdshader: a texel per ground vertex holds its square's clump as a factor on the grass colour,
+## premultiplied by presence in alpha, the higher slot winning. Read per vertex it costs the Quest 2 no fragment work,
+## where a triangle a clump cost 1.9 ms over the bare meadow from the air and the factor read per fragment 0.2 to 0.4 ms.
+
+## Changes are near the hand, inside the clumps' reach, so the texture may lag them.
 const FLUSH_MSEC := 250
 
 var image := Image.create(Terrain.VERTS, Terrain.VERTS, false, Image.FORMAT_RGBA8)
 var texture := ImageTexture.create_from_image(image)
-## Each slot's texel, set as its clump is added.
+## By slot.
 var looks := PackedColorArray()
 var _dirty := {}
 var _whole := true
@@ -25,8 +22,7 @@ func _init(capacity: int) -> void:
 	RenderingServer.global_shader_parameter_set(&"flora_grass", texture)
 
 
-## What a clump of this colour and custom data (as Pool.add takes them) puts in its texel: the factor its tint
-## (meadow.gdshaderinc's blade_top), at the ground's canopy height, and its shade make of the ground's colour, halved.
+## The factor its tint (meadow.gdshaderinc's blade_top) at canopy height and shade make of the ground's colour, halved.
 static func look(color: Color, custom: Color) -> Color:
 	var cool: Color = Meadow.GRASS[&"cool_clump"]
 	var warm: Color = Meadow.GRASS[&"warm_clump"]
@@ -43,7 +39,6 @@ func touch_all() -> void:
 	_whole = true
 
 
-## Paints what changed in `pool`, the pool this cover was made for.
 func flush(pool: Flora.Pool) -> void:
 	if not _whole and _dirty.is_empty():
 		return
@@ -55,7 +50,6 @@ func flush(pool: Flora.Pool) -> void:
 			if _stands(p):
 				image.set_pixelv(Terrain.grid_point(p.anchor.x, p.anchor.z), looks[i])
 	else:
-		# Each grid square under a dirty texel is read once, not once for each texel it holds.
 		var best := {}
 		var squares := {}
 		var reach := Vector3(Terrain.STEP, 0, Terrain.STEP)
@@ -80,7 +74,6 @@ func flush(pool: Flora.Pool) -> void:
 	_flushed = Time.get_ticks_msec()
 
 
-## Flushes once FLUSH_MSEC has passed since the last.
 func settle(pool: Flora.Pool) -> void:
 	if Time.get_ticks_msec() - _flushed >= FLUSH_MSEC:
 		flush(pool)

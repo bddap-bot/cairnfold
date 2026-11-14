@@ -1,29 +1,24 @@
 class_name WaterTool
 extends Node3D
 
-## Fills ponds, for whichever hand holds the pond tool: the hand points at the ground, and the hollow beside that
-## point shows the water it would hold standing at that point's height; the trigger lets it in. Pointing at the
-## rim of a dug hole fills it to the brim, lower down shallower, and pointing into a pond sets its level anew.
-## Water never stands higher than the rim it would spill over (PondLayout); where no hollow holds any, the ray
-## shows it refused and the trigger bumps.
+## Water stands at the pointed spot's height, never above the rim it would spill over (PondLayout).
 
 const TINT := Color(0.7, 0.92, 1.0, 0.6)
 const REFUSED := Color(0.72, 0.76, 0.86, 0.5)
-## How far the pointed spot moves before the water it would hold is worked out again.
+## Metres the pointed spot moves before its water is worked out again.
 const FOLLOW := 0.05
 
 var rig: Rig
 var world: World
-## Per hand: the water shown, the ground point it is shown for and the pond it shows, and the point being worked
-## out off the main thread, with its task and the box the task leaves its pond in.
+## Per hand: the water shown, its ground point and pond; the point being worked out off the main thread, its task
+## (-1: none) and the box the task leaves its pond in.
 var _ghosts: Array[MeshInstance3D] = []
 var _at: Array[Vector3] = []
 var _ponds: Array[PondLayout.Pond] = []
 var _asked: Array[Vector3] = []
 var _tasks: Array[int] = []
 var _boxes: Array[Array] = []
-## Fills let in before their hand's preview had caught up, each worked out off the main thread: [hand, the pointed
-## spot, its task, the box the task leaves its pond in].
+## Fills let in before their preview caught up: [hand, pointed spot, task, box].
 var _fires: Array[Array] = []
 
 
@@ -63,12 +58,11 @@ func _process(_delta: float) -> void:
 		_let_in(_fires.pop_front())
 
 
-## Whether a fill let in is still being worked out off the main thread, so the garden has not been sent it yet.
+## True while a fill let in has not yet been sent to the garden.
 func pouring() -> bool:
 	return not _fires.is_empty()
 
 
-## Lets in every fill still being worked out, waiting for each and for the garden to take it.
 func settle() -> void:
 	while not _fires.is_empty():
 		_let_in(_fires.pop_front())
@@ -89,8 +83,7 @@ func _handle(i: int) -> void:
 		fill(hand, hit)
 
 
-## Shows the water filling to ground point `hit` would hold, or nothing; the flood is worked out on another thread,
-## so a moving point shows what it held a frame or two before.
+## Flooded off the main thread, so a moving point shows what it held a frame or two before.
 func _show(i: int, hit: Variant) -> void:
 	if _tasks[i] >= 0 and WorkerThreadPool.is_task_completed(_tasks[i]):
 		WorkerThreadPool.wait_for_task_completion(_tasks[i])
@@ -116,9 +109,7 @@ func _show(i: int, hit: Variant) -> void:
 	_ghosts[i].visible = _ponds[i] != null
 
 
-## Lets in the water that filling to ground point `hit` would hold, as a build command: what the hand's preview
-## shows when it is of that point, else what it would show, worked out off the main thread and let in a frame or two
-## later. With none, the hand bumps.
+## Submits now if the preview has caught up, else a frame or two later; `settle` waits for it.
 func fill(hand: Hand, hit: Vector3) -> void:
 	var i := rig.hands.find(hand)
 	if i >= 0 and _at[i].distance_to(hit) <= FOLLOW and _fires.is_empty():
@@ -130,7 +121,6 @@ func fill(hand: Hand, hit: Vector3) -> void:
 	_fires.append([hand, hit, WorkerThreadPool.add_task(func() -> void: box[0] = Water.deepest(from, level)), box])
 
 
-## Lets in a fill worked out off the main thread, waiting for it if need be.
 func _let_in(fire: Array) -> void:
 	WorkerThreadPool.wait_for_task_completion(fire[2])
 	_pour(fire[0], fire[1], fire[3][0])

@@ -3,7 +3,7 @@ extends Node3D
 
 var masonry: Masonry
 var layouts := {}
-## The railings new flights and landings are laid with: the style last turned to on this machine.
+## The style last turned to on this machine.
 var rail := "stone"
 var _growing := {}
 var world: World
@@ -40,7 +40,6 @@ func _process(delta: float) -> void:
 		if n == layout.stones.size():
 			_place(id)
 
-## Lays stairs whole as a reshape with `data` would leave them, through the layout that lays the reshape itself.
 func show_reshaped(id: int, data := {}) -> void:
 	var layout := StairLayout.new()
 	layout.build(World.reshaped(world.state.stairs[id], data))
@@ -61,8 +60,7 @@ func _stop_growing(id: int) -> void:
 func laying() -> bool:
 	return not _growing.is_empty()
 
-## The nearest stone of any stairs along a ray short of `reach`, as {stair, point, along, kind, side} (the stone's,
-## `side` whether a side of it was struck), or empty.
+## {stair, point, along, kind, side}, `side` whether a side of the stone was struck; empty if none.
 func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 	var best := {}
 	for id: int in layouts:
@@ -85,7 +83,7 @@ func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 	return best
 
 
-## The highest tread under `p` no more than a step above it, or -INF.
+## -INF if none.
 func floor_under(p: Vector3) -> float:
 	var y := -INF
 	for layout: StairLayout in layouts.values():

@@ -87,7 +87,6 @@ func _smear(h: Hand, b: Birds.Bird) -> void:
 	painting.end_stroke(p)
 
 
-## Curved fingers cradle the existing bird without squeezing its body.
 static func cup() -> Node3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

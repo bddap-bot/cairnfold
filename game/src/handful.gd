@@ -1,34 +1,28 @@
 class_name Handful
 extends MultiMeshInstance3D
 
-## A handful of seeds thrown from the seed dish, grains larger and paler than the dish's so they read on grass and water
-## from a few metres: the grains fly apart and settle where they land on the ground, or plunge into a pond, spread
-## apart under it, rise slowly and bob on its surface; they go one by one as an animal pecks at them or a fish takes the
-## one at its mouth, or shrink and sink away once they have lain a while. A throw is its start, its velocity and a seed, so every player's copy lands alike.
+## Grains larger and paler than the dish's to read from a few metres; a throw is start, velocity and seed, so copies agree.
 
 const GRAINS := 28
-## Metres a second the grains spread apart from the throw.
-const SPREAD := 0.6
+const SPREAD_SPEED := 0.6
 const GRAVITY := 9.8
-## Per second: how quickly water slows a grain; metres a second a grain rises through it, and how far apart grains
-## entering the water spread, in metres a second.
+## DRAG per second; RISE and SPREAD_UNDER metres a second.
 const DRAG := 6.0
 const RISE := 0.2
 const SPREAD_UNDER := 1.0
-## Metres a floating grain bobs, and radians a second.
+## Metres, and radians a second.
 const BOB := 0.003
 const BOB_RATE := 2.2
-## Seconds from landing until it is gone, the last FADE of them fading.
+## Seconds from landing until gone, the last FADE of them fading.
 const LASTS := Vector2(50.0, 70.0)
 const FADE := 6.0
-## Grains a feeding animal takes a second.
+## Grains a second.
 const PECKS := 1.6
-## A flight advances in steps this long, so every player's grains land alike however their frames fall.
+## Fixed, so every player's grains land alike however their frames fall.
 const STEP := 1.0 / 240.0
 
 static var _grain: Mesh
 
-## The first grain broke a pond's surface at `at`.
 signal splashed(pond: PondWater, at: Vector3)
 
 var age := 0.0
@@ -62,8 +56,7 @@ func _init(water: Water, terrain: Terrain) -> void:
 	visible = false
 
 
-## Throws the grains from `from` at `velocity`, each spread a little apart as `seed` draws; whatever was left of an
-## earlier throw goes.
+## Whatever was left of an earlier throw goes.
 func toss(from: Vector3, velocity: Vector3, seed: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -78,7 +71,7 @@ func toss(from: Vector3, velocity: Vector3, seed: int) -> void:
 	multimesh.visible_instance_count = GRAINS
 	for i in GRAINS:
 		_at[i] = from + Vector3(rng.randf_range(-0.012, 0.012), 0, rng.randf_range(-0.012, 0.012))
-		_vel[i] = velocity + Vector3(rng.randfn(), rng.randfn() * 0.5, rng.randfn()) * SPREAD
+		_vel[i] = velocity + Vector3(rng.randfn(), rng.randfn() * 0.5, rng.randfn()) * SPREAD_SPEED
 		_turn[i] = Basis.from_euler(Vector3(rng.randf(), rng.randf(), rng.randf()) * TAU)
 		multimesh.set_instance_color(i, ToolModels.SEED_COLOURS[0].lightened(rng.randf() * 0.5))
 	visible = true
@@ -93,12 +86,11 @@ func left() -> int:
 	return multimesh.visible_instance_count if visible else 0
 
 
-## Where the grains still there lie.
 func grains() -> PackedVector3Array:
 	return _at.slice(0, left())
 
 
-## Takes the grain nearest `p` within `reach` of it, across the water; false if none is that near.
+## `reach` is measured level; false if no grain is within it.
 func take_near(p: Vector3, reach: float) -> bool:
 	var best := -1
 	for i in left():
@@ -194,7 +186,6 @@ func _step(delta: float) -> void:
 		_afloat = _splashed
 
 
-## Where grain `i` is drawn: bobbing if it floats, sinking as it fades.
 func drawn(i: int) -> Vector3:
 	var at := _at[i] + Vector3.DOWN * (1.0 - _size()) * 0.01
 	if _afloat and flying == 0 and _water.pond_at(at.x, at.z) != null:

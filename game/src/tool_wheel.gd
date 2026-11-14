@@ -1,20 +1,17 @@
 class_name ToolWheel
 extends RefCounted
 
-## The tool selector as pure data: a wheel of SLOTS facing the head where the hand opened it, each slot a
-## leaf, a subtree (an Array) or empty (null). Sweeping the hand onto a slot makes it hot; reaching a
-## subtree opens its items beside it (`fan_dirs`), so a deep pick zig-zags left and right. Positions are metres in the wheel's plane, x to the player's right,
-## y the player's up as seen along the line to the wheel.
+## A slot is a leaf, a subtree (an Array) or empty (null). Positions are metres in the wheel's plane, x to the
+## player's right, y the player's up as seen along the line to the wheel.
 
 const SLOTS := 8
 const RADIUS := 0.12
-## Inside this the hand points at nothing, so the wheel opens with nothing hot.
+## So the wheel opens with nothing hot.
 const DEAD := 0.04
-## How far toward a subtree the hand must reach before it opens.
 const ENTER := RADIUS * 0.85
 const SPACING := TAU / SLOTS
 
-## One entry per open level: {centre, items, dirs, hot}. The first is the wheel itself.
+## Per open level {centre, items, dirs, hot}; [0] is the wheel itself.
 var levels: Array[Dictionary] = []
 
 
@@ -22,9 +19,7 @@ func _init(tree: Array) -> void:
 	levels.append(_level(Vector2.ZERO, tree, ring_dirs()))
 
 
-## The wheel's frame for a hand at `hand` with the head at `head` facing `forward`: z toward the head, so
-## the wheel lies flat with the hand under or over the head and stands upright level with it. Its top
-## tips away from the player under the head and toward them over it, as the view's top does looking there.
+## z toward the head; the top tips away under the head and toward the player over it, as the view's top does.
 static func facing(hand: Vector3, head: Vector3, forward: Vector3) -> Basis:
 	var z := head - hand
 	z = z.normalized() if z.length() > 1e-3 else Vector3.BACK
@@ -37,7 +32,7 @@ static func facing(hand: Vector3, head: Vector3, forward: Vector3) -> Basis:
 	return Basis(y.cross(z), y, z)
 
 
-## The wheel's slot directions, clockwise from the top as the player sees it.
+## Clockwise from the top as the player sees it.
 static func ring_dirs() -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	for i in SLOTS:
@@ -45,9 +40,8 @@ static func ring_dirs() -> Array[Vector2]:
 	return out
 
 
-## A subtree's item directions from the slot at `dir`. Reached by a sideways swing, they stand in a column bowed
-## outward on the side away from that swing, top first; reached by an upward or downward one, they are two, one to
-## each side, left first.
+## From a sideways `dir`: a column bowed out away from it, top first. From a vertical one, two items go left
+## then right.
 static func fan_dirs(count: int, dir: Vector2) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	if absf(dir.x) < 0.01 and count == 2:
@@ -61,7 +55,6 @@ static func fan_dirs(count: int, dir: Vector2) -> Array[Vector2]:
 	return out
 
 
-## The hand at `p` in the wheel's plane: updates what is hot and opens any subtree it reaches.
 func move(p: Vector2) -> void:
 	while true:
 		var top: Dictionary = levels[-1]
@@ -83,7 +76,6 @@ func move(p: Vector2) -> void:
 		levels.append(_level(top.centre + dir * RADIUS, items, fan_dirs(items.size(), dir)))
 
 
-## The leaf the hand is on, or null.
 func chosen() -> Variant:
 	var top: Dictionary = levels[-1]
 	if top.hot < 0 or top.items[top.hot] is Array:
@@ -91,7 +83,6 @@ func chosen() -> Variant:
 	return top.items[top.hot]
 
 
-## The slot-index path to every leaf of `tree`, keyed by leaf.
 static func paths(tree: Array, prefix: Array[int] = []) -> Dictionary:
 	var out := {}
 	for k in tree.size():
@@ -104,7 +95,6 @@ static func paths(tree: Array, prefix: Array[int] = []) -> Dictionary:
 	return out
 
 
-## The hand positions that sweep from the wheel's centre along `path` to its leaf, one per level.
 static func sweep(tree: Array, path: Array[int]) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	var centre := Vector2.ZERO

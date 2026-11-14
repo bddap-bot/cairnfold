@@ -8,21 +8,17 @@ const GRASS_RADIUS := 36.0
 const FLOWERS := 3200
 const TREES := 46
 const BUSHES := 60
-## The terrain shader's ground colours.
 const GROUND := {&"earth": Color(0.45, 0.38, 0.27), &"trodden": Color(0.52, 0.45, 0.33), &"tilled": Color(0.29, 0.21, 0.14), &"sand": Color(0.8, 0.71, 0.54)}
-## Where on a blade, root to tip, the meadow's ground takes its colour (terrain.gdshader): the tone blades rise from, so
-## their roots melt into the ground through thin grass instead of reading as dark tufts, and far blades converge on.
+## 0 root to 1 tip: the blade tone the ground takes (terrain.gdshader), so roots melt into it, not dark tufts.
 const CANOPY := 0.6
-## The grass's colours (meadow.gdshaderinc), which the meadow's ground takes too.
 const GRASS := {&"root_color": Color(0.10, 0.24, 0.06), &"tip_lush": Color(0.45, 0.68, 0.18), &"tip_dry": Color(0.80, 0.78, 0.34), &"cool_clump": Color(0.82, 0.96, 0.90), &"warm_clump": Color(1.10, 1.02, 0.82), &"canopy": CANOPY}
 
 var flora: Flora
-## How far from the eye, across the ground, a chunk steps to each coarser grid in Terrain.LODS.
+## Past LOD_M[n] from the eye across the ground, a chunk draws at Terrain.LODS[n + 1].
 const LOD_M: Array[float] = [24.0, 48.0]
 var _chunks: Array[Chunk] = []
 var _eye := Vector2.INF
-## The ground's two materials: terrain.gdshader where stone is laid or a pond reaches, terrain_plain elsewhere
-## (docs/design.md, "The ground's two shaders").
+## terrain.gdshader where stone or a pond may show, terrain_plain elsewhere (docs/design.md, "The ground's two shaders").
 var full: ShaderMaterial
 var plain: ShaderMaterial
 var _stone_seen := -1
@@ -30,17 +26,14 @@ var _water_seen := -1
 var _wet := PackedByteArray()
 
 
-## A chunk of the ground: its tiles where stone or water may show drawn in `full`, the rest in `plain`, at the step
-## Terrain.LODS[level].
 class Chunk:
 	var rect: Rect2
 	var plain := MeshInstance3D.new()
 	var full := MeshInstance3D.new()
-	## chunk_parts at each of Terrain.LODS.
 	var parts: Array[Array] = []
-	## Its tiles drawn in `full`, one byte each, row by row.
+	## Tiles drawn in `full` (1) or `plain` (0), one byte each, row by row.
 	var marked := PackedByteArray()
-	## At each of Terrain.LODS, its meshes in `plain` and in `full`.
+	## Per Terrain.LODS level: [plain mesh, full mesh].
 	var meshes: Array[Array] = []
 	var level := 0
 
@@ -109,13 +102,11 @@ func _material(shader: String) -> ShaderMaterial:
 	mat.set_shader_parameter(&"rock_steep", Terrain.ROCK)
 	for k in GRASS:
 		mat.set_shader_parameter(k, GRASS[k])
-	# Opaque draws go in ascending render_priority: the ground draws after the plants and builds standing on it, so
-	# what they cover fails the depth test unshaded, as the book's layers do.
+	# Opaque draws ascend by render_priority: ground drawn after what stands on it fails the depth test unshaded.
 	mat.render_priority = 1
 	return mat
 
 
-## Gives each chunk's tiles where stone is laid or a pond may reach to `full`, once either changed.
 func _tile() -> void:
 	var marks := flora.marks
 	var terrain := flora.terrain
@@ -138,7 +129,6 @@ func _tile() -> void:
 		_chunks[n].show(tiles)
 
 
-## Draws each chunk at the coarsest of Terrain.LODS its distance from the eye allows: past LOD_M[n], step n + 1.
 func _process(_delta: float) -> void:
 	_tile()
 	var camera := get_viewport().get_camera_3d()

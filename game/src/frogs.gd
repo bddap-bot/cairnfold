@@ -1,10 +1,6 @@
 class_name Frogs
 extends Shy
 
-## Frogs at the ponds' edges: a few to a pond, sitting at the waterline, hopping along the bank now and then or into the
-## water for a swim with only their eyes above it, and croaking softly at night. One a person comes toward hops for the
-## water and plops in, stays under a while, and comes up to swim back to the bank.
-
 enum State { SIT, HOP, SWIM, UNDER }
 ## Part ids ride in UV2.x so the shader knows how each vertex moves.
 enum Part { BODY, HEAD, THROAT, HIND_L, HIND_R, FORE }
@@ -20,24 +16,23 @@ const SIT_FOR := Vector2(4.0, 14.0)
 const SWIM_FOR := Vector2(6.0, 16.0)
 const UNDER_FOR := Vector2(8.0, 20.0)
 const BANK_REACH := 1.2
-## A person coming toward one within FLIGHT, or moving suddenly within STARTLE, sends it into the water.
+## Metres: a person coming toward one within FLIGHT, or moving suddenly within STARTLE, sends it into the water.
 const FLIGHT := 1.3
 const STARTLE := 2.2
-## How far below the surface a swimming frog's origin rides, its eyes just out, and a dived one's, out of sight.
+## Metres below the surface the origin rides swimming (eyes just out) and dived (out of sight).
 const FLOAT := 0.045
 const DIVE := 0.25
-## Seconds, on average, between one frog's croaks at night, and how long its throat swells for one.
+## Seconds: mean gap between one frog's night croaks, and one croak's throat swell.
 const CROAK_EVERY := 14.0
 const CROAK_FOR := 0.9
 
 
 class Frog extends Shy.One:
-	## Where a run of hops ends, the state it takes there, and whether it flees.
 	var dest := Vector3.ZERO
 	var then := State.SIT
 	var fleeing := false
 	var croaked := INF
-	## Its spot on the bank, and the point in the water off it that it swims back to.
+	## Its bank spot, and the water point off it that it swims back to.
 	var bank := Vector3.ZERO
 	var launch := Vector3.ZERO
 
@@ -79,12 +74,10 @@ func habitats() -> Dictionary:
 	return out
 
 
-## Frogs come by night as by day.
 func active() -> bool:
 	return true
 
 
-## One comes to a spot on the bank out of sight where there is one.
 func arrive(home: Object) -> One:
 	var spot := []
 	for attempt in 6:
@@ -103,8 +96,7 @@ func arrive(home: Object) -> One:
 	return f
 
 
-## A spot at the waterline of `p` and one a little out in the water off it, near `near` where given; empty where none
-## is found.
+## [waterline spot, water point off it], near `near` unless INF; empty where none is found.
 func _bank(p: PondWater, near := Vector3.INF) -> Array:
 	var shore := p.pond.shore
 	var surface := p.surface_y()
@@ -210,7 +202,6 @@ func think(a: One, delta: float) -> void:
 	_settle(f)
 
 
-## A point of `p` deep enough to swim in, near `from`, at swimming depth.
 func _wet(p: PondWater, from: Vector3) -> Vector3:
 	var surface := p.surface_y()
 	for attempt in 10:
@@ -236,7 +227,6 @@ func _flee(f: Frog, p: PondWater) -> void:
 	_hop_to(f, spot, State.UNDER)
 
 
-## Hops from where it is to `to`, HOP at a time, taking `then` there.
 func _hop_to(f: Frog, to: Vector3, then: State) -> void:
 	f.dest = to
 	f.then = then
@@ -284,8 +274,6 @@ func _plop(f: Frog, p: PondWater) -> void:
 	f.timer = rng.randf_range(UNDER_FOR.x, UNDER_FOR.y)
 
 
-## Its pose: on the ground or in the water, legs out through a hop or kicking as it swims, its throat swelling as it
-## croaks.
 func _settle(f: Frog) -> void:
 	var legs := 0.0
 	match f.state:

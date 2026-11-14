@@ -1,8 +1,7 @@
 class_name Controls
 extends RefCounted
 
-## The one controls table: each action as the input each hand reads for it (a stick direction is a flick, see
-## `Hand.FLICKS`). Code reads actions through `Buttons`, never inputs. The right stick is kept free for avatar menus.
+## Code reads actions through `Buttons`, never inputs. The right stick is kept free for avatar menus.
 const ACTIONS := {
 	"tool": {"left_hand": "trigger_click", "right_hand": "trigger_click"},
 	"grab": {"left_hand": "grip_click", "right_hand": "grip_click"},
@@ -15,8 +14,7 @@ const ACTIONS := {
 	"turn_round": {"left_hand": "primary_down"},
 }
 
-## A tracked hand as the controller it stands in for: each gesture (`HandShape`) as the input it presses. The little
-## pinch holds the stick, which the hand then pushes by moving from where it pinched (`Hand.STICK_REACH`).
+## Gesture (`HandShape`) -> input. The little pinch holds the stick, pushed by moving from where it pinched.
 const HAND := {"index": "trigger_click", "fist": "grip_click", "middle": "by_button", "ring": "ax_button", "little": "primary"}
 
 ## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad left open wheels.
@@ -77,12 +75,10 @@ static func input(action: String, tracker: String) -> String:
 	return ACTIONS[action][tracker]
 
 
-## The `Buttons` key of `action` on the hand `tracker`.
 static func key(action: String, tracker: String) -> String:
 	return "%s/%s" % [tracker, input(action, tracker)]
 
 
-## The `device`'s controls that do `action` on the hand `tracker`.
 static func bound(device: String, action: String, tracker: String) -> Array[String]:
 	var out: Array[String] = []
 	for name in DEVICES[device]:
@@ -91,8 +87,7 @@ static func bound(device: String, action: String, tracker: String) -> Array[Stri
 	return out
 
 
-## The flat-screen controls (`Flat`): each action as the keys, mouse buttons and gamepad inputs that do it, a stick's
-## half axis by its sign. The camera fires on "tool", as a controller's trigger does.
+## An axis entry is a half axis by its sign.
 const FLAT := {
 	"wheel": [["key", KEY_Q], ["button", JOY_BUTTON_LEFT_SHOULDER]],
 	"forward": [["key", KEY_W], ["key", KEY_UP], ["axis", JOY_AXIS_LEFT_Y, -1.0]],

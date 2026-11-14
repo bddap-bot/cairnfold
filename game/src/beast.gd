@@ -1,9 +1,7 @@
 class_name Beast
 extends Node3D
 
-## A deer or a fox: a CC0 model rigged and animated by hand (`res://animals/sources.json`), its surfaces merged
-## into one mesh coloured per vertex, so each animal is one draw call. Every animal of a kind shares that mesh and
-## one material; each has its own skeleton and animation player, and shows each motion with one of its own clips.
+## Surfaces merged into one vertex-coloured mesh shared by the kind, so each animal is one draw call.
 
 enum Kind { DEER, FOX }
 
@@ -16,18 +14,13 @@ const CLIPS := {
 	Kind.DEER: {Grazers.Motion.GRAZE: "Eating", Grazers.Motion.STEP: "Walk", Grazers.Motion.WALK: "Walk", Grazers.Motion.RUN: "Gallop"},
 	Kind.FOX: {Grazers.Motion.GRAZE: "Idle_2_HeadLow", Grazers.Motion.STEP: "Walk", Grazers.Motion.WALK: "Walk", Grazers.Motion.RUN: "Gallop"},
 }
-## Scale of the imported model for an animal of size 1, which stands a doe 1.4 m to the ears and a fox 0.41 m at
-## the shoulder, 1.06 m nose to tail tip. Every other length of the body is in the model's own units, made metres
-## by this and `size`.
+## Metres per model unit at size 1 (a doe 1.4 m to the ears, a fox 0.41 m at the shoulder); other lengths: model units.
 const SCALE := {Kind.DEER: 0.32, Kind.FOX: 0.18}
-## Ground covered in one cycle of the walk and of the gallop, so the hooves and paws keep their place.
 const STRIDE := {Kind.DEER: {"Walk": 3.28125, "Gallop": 8.125}, Kind.FOX: {"Walk": 4.8, "Gallop": 11.5}}
-## From the middle of the body to its rim: how near two stand.
 const RADIUS := {Kind.DEER: 1.875, Kind.FOX: 2.3}
 const FADE := 0.35
-## Slower than this, in metres a second, it keeps the clip it has rather than walking.
-const SHUFFLE := 0.05
-## The foremost point of each source mesh, in its head bone's rest space.
+const SHUFFLE_SPEED := 0.05
+## Foremost mesh point, in the head bone's rest space.
 const MUZZLE := {Kind.DEER: Vector3(-0.001205, 0.009126, 0.000092), Kind.FOX: Vector3(0.001293, 0.007014, 0.000461)}
 
 static var _shared := {}
@@ -38,18 +31,16 @@ var neck: NeckAim
 var missed_food := 0.0
 var player: AnimationPlayer
 var _clip := ""
-## Seeded by its phase, which its band's generator drew, so a seeded garden's animals idle the same each time.
+## Seeded by its phase so a seeded garden's animals idle the same each time.
 var _rng := RandomNumberGenerator.new()
-## What `Roamers` has this animal doing, until when, and where to.
 var state := Grazers.State.ENTER
 var timer := 0.0
 var goal := Vector3.ZERO
-## How long until it goes for food again; the hand it eats from is `hand`.
+## Seconds until it goes for food again.
 var full := 0.0
 var hand: Node3D
-## How long until, cornered, it looks again for a way to run.
 var retry := 0.0
-## Calm spells it has had near a person standing still, each letting one come nearer before it runs.
+## Calm spells near a person standing still, each letting one come nearer before it runs.
 var calm := 0.0
 
 
@@ -73,7 +64,7 @@ static func _share(k: Kind) -> Dictionary:
 	return _shared[k]
 
 
-## One surface of `mesh` with each of its surfaces' albedo carried in the vertex colour, linear as the shader reads it.
+## Albedo goes in the vertex colour, linear as the shader reads it.
 static func _merged(mesh: Mesh) -> ArrayMesh:
 	var kept := [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_COLOR, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS, Mesh.ARRAY_INDEX]
 	var out := []
@@ -106,7 +97,7 @@ func _init(of: Kind, scale_by: float, phase: float) -> void:
 	add_to_group(GROUPS[kind])
 	var shared := _share(kind)
 	var model: Node3D = shared.scene.instantiate()
-	# The import hangs a node on every bone end, each moved with its bone every frame; nothing here uses them.
+	# The import hangs a BoneAttachment3D on every bone end, updated every frame; nothing uses them.
 	for n in model.find_children("*", "BoneAttachment3D"):
 		n.free()
 	var mi: MeshInstance3D = model.find_children("*", "MeshInstance3D")[0]
@@ -153,9 +144,8 @@ func pose(m: Grazers.Motion, _delta: float) -> void:
 		_play(IDLE_CLIPS[_rng.randi() % IDLE_CLIPS.size()])
 
 
-## Moves `distance` this tick showing `m`, a walk or gallop paced to the ground covered so the feet keep their place.
 func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
-	if delta <= 0.0 or distance / delta < SHUFFLE:
+	if delta <= 0.0 or distance / delta < SHUFFLE_SPEED:
 		return
 	var clip: String = CLIPS[kind][m]
 	var cycle := player.get_animation(clip).length

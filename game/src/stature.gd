@@ -1,15 +1,13 @@
 class_name Stature
 extends RefCounted
 
-## The wearer's own eye height standing, in real metres: the height their head is held at or below for STANDING of the
-## time measured. A player stands most of the time, so crouching to plant does not lower it, and a moment on tiptoe
-## does not raise it; one who plays seated is measured seated, and so stands as tall as their avatar.
+## The wearer's standing eye height in real metres: the height the head is at or below for STANDING of the time, so
+## crouching or tiptoe does not move it; one who plays seated is measured seated, and so stands as tall as their avatar.
 
 const STANDING := 0.9
 const LOWEST := 0.5
 const HIGHEST := 2.4
 const BIN := 0.01
-## Seconds of measuring before the measure stands in for the typical one.
 const SETTLE := 2.0
 
 var _time := PackedFloat64Array()
@@ -29,7 +27,6 @@ func add(eye_m: float, seconds: float) -> void:
 	_total += seconds
 
 
-## The wearer's standing eye height, or `typical` until SETTLE seconds are measured.
 func eye(typical: float) -> float:
 	if _total < SETTLE:
 		return typical

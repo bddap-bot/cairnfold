@@ -1,18 +1,11 @@
 class_name Lessons
 extends RefCounted
 
-## The picture book's pages, one per control a player would not guess from the tool in hand. Each page is a
-## script of both hands in head space (metres; x right, y up, -z ahead, the eye at the origin) and of the actions
-## held, read by two players: the page's live picture (LessonScene), where ghost controllers act it out, and
-## tests/test_lessons.gd, which plays the same script through the real hands into a garden and checks that it
-## does what the page shows. A changed control breaks the test until its page is redrawn.
-##
-## A key's hand pose is `at` and `aim` (the way the controller points) and `roll` (degrees about the aim);
-## a hand missing from a key keeps its pose. `press` holds an action (Controls.ACTIONS) over [from, to) seconds.
-## `setup` is the garden the test plays it in, as Driver steps; `effect` names what the page shows and the test checks; `view` places the page's camera `back` metres behind the hands from what they act on, beside and
-## under them for a trigger or grip (`side`) or over them for a button or stick (`top`), widened to hold it all, with its
-## meadow where the first press points or at `dish`; `tools` what
-## each ghost holds at the start, as Hand.Tool names.
+## Hands in head space (metres; x right, y up, -z ahead, eye at origin). LessonScene draws each page and
+## tests/test_lessons.gd plays it through the real hands, so a changed control fails until its page is redrawn.
+## Key: `at`, `aim`, `roll` (degrees about aim); a hand missing from a key keeps its pose. `press`: a Controls.ACTIONS
+## action held over [from, to) s. `setup`: Driver steps. `effect`: what the page shows and the test checks. `view`:
+## camera `back` metres behind the hands, `look` side or top, meadow at the first press or `dish`. `tools`: Hand.Tool names.
 
 const PAGES := [
 	{"effect": "tool", "length": 3.2, "tools": {"right": "walls"}, "to": "delete",
@@ -76,7 +69,7 @@ const PAGES := [
 ]
 
 
-## `hand`'s pose on `page` at `t` seconds: {at, aim, roll}, eased between the keys that name it.
+## {at, aim, roll}, eased between the keys naming `hand`; {} if none does.
 static func pose(page: Dictionary, hand: String, t: float) -> Dictionary:
 	var before: Dictionary = {}
 	var t0 := 0.0
@@ -96,7 +89,6 @@ static func pose(page: Dictionary, hand: String, t: float) -> Dictionary:
 	return {"at": _v(before.at), "aim": _v(before.aim).normalized(), "roll": before.get("roll", 0.0)}
 
 
-## The pose as a controller's transform: -z along the aim, rolled about it.
 static func frame(p: Dictionary) -> Transform3D:
 	var aim: Vector3 = p.aim
 	var up := Vector3.UP if absf(aim.y) < 0.95 else Vector3.BACK
@@ -104,9 +96,8 @@ static func frame(p: Dictionary) -> Transform3D:
 	return Transform3D(b, p.at)
 
 
-## A bare hand playing `side` of `page` at `t`, `head` being the head as the page began: each press made as its gesture
-## (`HandShape.pressing`), a stick pinched for a tenth of a second and then pushed over the next, as a hand moves: the
-## pinch sets where the stick's centre is, so a push begun with it would read short.
+## `head` as the page began. A stick is pinched 0.1 s before it is pushed: the pinch sets the stick's centre, so a
+## push begun with it would read short.
 static func bare(page: Dictionary, side: String, head: Transform3D, t: float) -> Array[Transform3D]:
 	var input := ""
 	var push := 0.0
@@ -121,7 +112,6 @@ static func held(page: Dictionary, hand: String, action: String, t: float) -> bo
 	return since(page, hand, action, t) >= 0.0
 
 
-## When `hand` began holding `action` on `page`, if it holds it at `t`; else -1.
 static func since(page: Dictionary, hand: String, action: String, t: float) -> float:
 	for p in page.press:
 		if p.hand == hand and p.action == action and t >= p.from and t < p.to:
@@ -129,7 +119,6 @@ static func since(page: Dictionary, hand: String, action: String, t: float) -> f
 	return -1.0
 
 
-## Every hand a page poses.
 static func hands(page: Dictionary) -> Array[String]:
 	var out: Array[String] = []
 	for side in ["left", "right"]:

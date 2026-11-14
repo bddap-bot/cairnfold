@@ -1,35 +1,28 @@
 class_name WallPlan
 extends RefCounted
 
-## Turns a hand-drawn stroke into the walls it builds among those already standing. Pure data, so the
-## preview while drawing and the walls left on release come from the same call.
-##
-## Where the stroke comes within REACH of a standing wall it merges into that wall: the stretch is dropped,
-## and a stretch heading into the wall is extended onto its centre line, so a new wall meets an old one at a
-## junction or stands at least a walkway from it, never crowded alongside it.
+## Pure data, so the drawing preview and the walls left on release come from one call. Within REACH of a
+## standing wall a stroke merges into it, so a new wall meets an old one at a junction or stands a walkway off.
 
-## Centre line to centre line; less a wall's thickness this leaves a 1.2 m walkway between parallel walls.
+## Centre to centre: less a wall's thickness, a 1.2 m walkway between parallel walls.
 const REACH := 1.8
 ## A merged stretch ends only this far out, so a hand wavering near REACH does not flicker in and out.
 const LEAVE := REACH + 0.4
-## A stretch meets the wall it runs into only when heading at it more steeply than this (cosine of ~55°
-## off straight at it); a shallower one ends free, so a stroke drifting near a wall grows no spur onto it.
+## Cosine of ~55° off straight at the wall: a shallower stretch ends free, so a stroke drifting near a wall
+## grows no spur onto it.
 const APPROACH := 0.57
 const MIN_LENGTH := 1.0
-## A plant this near the centre line stands in the wall's way, so the wall arches over it.
 const OBSTACLE_REACH := 0.6
 
 var standing: Array[WallLayout]
 var obstacles: PackedVector3Array
 var seed: int
-## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
 var finish := WallLayout.Finish.BARE
 var wear := 0.0
 var planks := false
-## The builds the stroke is drawn on top of.
 var supports: Array[Massing] = []
-## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
+## Per stroke point, `_nearest`'s result, recomputed only when the point moves (only the newest does).
 var _hits: Array[Dictionary] = []
 
 
@@ -39,7 +32,6 @@ func _init(walls: Array[WallLayout], plants: PackedVector3Array, first_seed: int
 	seed = first_seed
 
 
-## The walls `stroke` builds, traced on the ground with their arches set; `build` lays their stones.
 func pieces(stroke: Array[Vector3], ground: Callable, commit := false) -> Array[WallLayout]:
 	var out: Array[WallLayout] = []
 	for run in _runs(stroke):
@@ -78,12 +70,12 @@ func _runs(stroke: Array[Vector3]) -> Array[Array]:
 	for i in stroke.size():
 		if merged[i]:
 			if not run.is_empty():
-				if _steep(stroke, i, 1):
+				if _heads_at_wall(stroke, i, 1):
 					run.append(_hits[i].point)
 				out.append(run)
 				run = []
 			continue
-		if run.is_empty() and i > 0 and _steep(stroke, i - 1, -1):
+		if run.is_empty() and i > 0 and _heads_at_wall(stroke, i - 1, -1):
 			run.append(_hits[i - 1].point)
 		run.append(stroke[i])
 	if not run.is_empty():
@@ -91,8 +83,7 @@ func _runs(stroke: Array[Vector3]) -> Array[Array]:
 	return out
 
 
-## Whether the stroke reaching point `i` from the point `step` behind it heads at its nearest wall.
-func _steep(stroke: Array[Vector3], i: int, step: int) -> bool:
+func _heads_at_wall(stroke: Array[Vector3], i: int, step: int) -> bool:
 	var a := stroke[clampi(i - step, 0, stroke.size() - 1)]
 	var b := stroke[i]
 	var to: Vector3 = _hits[i].point - b
@@ -124,8 +115,7 @@ func arches_for(w: WallLayout) -> Array[float]:
 	return out
 
 
-## The nearest point on any standing wall's centre line, moved clear of the wall's arches so a junction's
-## pier never stands in an opening.
+## Slid clear of the wall's arches so a junction's pier never stands in an opening.
 func _nearest(p: Vector3) -> Dictionary:
 	var best := {"at": p, "distance": INF, "point": p}
 	var at := Vector2(p.x, p.z)
@@ -150,8 +140,7 @@ func _nearest(p: Vector3) -> Dictionary:
 	return best
 
 
-## The nearest arc length to `s` where a junction's pier stands clear of every arch opening; where arches
-## stand too close for that, the spot farthest from any of them.
+## Where arches stand too close to clear them all, the spot farthest from any.
 static func _clear_of_arches(w: WallLayout, s: float) -> float:
 	var arched := w.apertures.filter(func(o): return o.style == WallLayout.Family.ARCHWAY)
 	if arched.is_empty():
@@ -167,7 +156,7 @@ static func _clear_of_arches(w: WallLayout, s: float) -> float:
 		var room := INF
 		for o in arched:
 			room = minf(room, absf(c - o.s) - _clear(o))
-		# The spots at an arch's clearance land within rounding of it, and count as clear.
+		# Spots at an arch's clearance land within rounding of it and count as clear.
 		var key := Vector2(minf(room + 0.001, 0.0), -absf(c - s))
 		if key > best_key:
 			best_key = key

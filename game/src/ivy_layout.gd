@@ -1,8 +1,7 @@
 class_name IvyLayout
 extends RefCounted
 
-## Ivy climbing both faces of a wall, or only the outer face of a roofed loop, steering around arch openings,
-## windows and doors. Each leaf here is drawn as a sprig of three (Meshes.sprig).
+## Each leaf here is drawn as a sprig of three (Meshes.sprig).
 
 const STEP := 0.1
 const RATE := 0.15
@@ -15,7 +14,7 @@ const GREENS := [Color(0.13, 0.27, 0.07), Color(0.17, 0.33, 0.08), Color(0.11, 0
 const YOUNG := Color(0.36, 0.52, 0.14)
 
 
-## Leaves of a built wall in the order they grow, each with `t`, the seconds after the wall was finished it appears.
+## In growth order; `t` is seconds after the wall was finished.
 static func grow(wall: WallLayout) -> Array[Dictionary]:
 	var leaves: Array[Dictionary] = []
 	var total := wall.length()
@@ -39,9 +38,8 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 	return leaves
 
 
-## The leaves as a MultiMesh buffer (transform and colour per instance, the colour's alpha the ground height under
-## the leaf's wall, for ivy.gdshader to read the light volumes without reading the ground), their growth times and
-## their bounds.
+## MultiMesh buffer: transform and colour per instance, the colour's alpha the wall's ground height at the leaf's `s`, so
+## ivy.gdshader reads the light volumes without reading the ground.
 static func bake(wall: WallLayout) -> Dictionary:
 	var leaves := grow(wall).filter(func(l: Dictionary) -> bool: return not wall.hides(l.xform.origin))
 	var buffer := PackedFloat32Array()
@@ -61,8 +59,6 @@ static func bake(wall: WallLayout) -> Dictionary:
 	return {"buffer": buffer, "times": times, "bounds": bounds.grow(0.3)}
 
 
-## Whether the face point `s` along the wall, `y` above its foot, lies in an arch opening or its ring, in
-## a window or door with its sill and lintel, or above a ruin's broken stones.
 static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 	if y > wall.standing(s) - 0.2:
 		return true
@@ -101,7 +97,6 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 			_vine(wall, at, Vector2(1.0 if rng.randf() < 0.5 else -1.0, 0.7).normalized(), side, t, rng.randf_range(0.6, 1.5), false, rng, leaves)
 
 
-## How high above the foot ivy roots at `s`: just above the foot of its plinth.
 static func _root(wall: WallLayout, s: float) -> float:
 	return 0.02 - wall.plinth_at(s)
 

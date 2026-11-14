@@ -1,7 +1,6 @@
 class_name Snails
 extends Shy
 
-## Pond-bed grazers gliding along the bed of a filled pond, turning at its banks and walls.
 const CAP := 24
 const PER_POND := 7
 const CELLS_EACH := 8
@@ -48,12 +47,10 @@ func habitats() -> Dictionary:
 	return out
 
 
-## Snails come by night as by day.
 func active() -> bool:
 	return true
 
 
-## One comes to a wet point of the bed, out of sight where it finds one there.
 func arrive(home: Object) -> One:
 	var spot := Vector3.INF
 	for attempt in 8:
@@ -95,6 +92,6 @@ func think(s: One, delta: float) -> void:
 		t.origin = Vector3(next.x, wildlife.terrain.height_at(next.x, next.z), next.z)
 	else:
 		s.yaw += PI * delta
-	# Match the local bed slope; the soft foot fills the small gap between samples.
+	# The soft foot fills the small gap between slope samples.
 	t.basis = upright(wildlife.terrain.up_at(t.origin, 0.03), t.basis.z)
 	s.transform = t
