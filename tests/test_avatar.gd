@@ -446,7 +446,7 @@ func _writes_expressions(model: Node3D) -> void:
 	var worn: Node3D = model.duplicate()
 	var mi: MeshInstance3D = worn.find_children("*", "MeshInstance3D", true, false)[0]
 	var shape: String = mi.mesh.get_blend_shape_name(mi.mesh.get_blend_shape_count() - 1)
-	worn.set_meta("faces", {"happy": [{"node": mi.name, "shape": shape, "weight": 0.5}], "wink": [{"node": mi.name, "shape": shape, "weight": 1.0}], "none": [{"node": mi.name, "shape": "no such shape", "weight": 1.0}]})
+	worn.set_meta("faces", {"happy": [{"node": mi.name, "shape": shape, "weight": 0.5}], "grimace": [{"node": mi.name, "shape": shape, "weight": 1.0}], "none": [{"node": mi.name, "shape": "no such shape", "weight": 1.0}]})
 	var json: Dictionary = Vrm.json_chunk(UnityAvatar.write(worn, ProjectSettings.globalize_path("user://seed-san.vrm")))
 	var used: Array = json.get("extensionsUsed", [])
 	check((json.extensions as Dictionary).keys().all(func(e: String) -> bool: return used.has(e)), "the file lists the extensions it carries: %s of %s" % [used, (json.extensions as Dictionary).keys()])
@@ -454,7 +454,7 @@ func _writes_expressions(model: Node3D) -> void:
 	var target := func(b: Dictionary) -> String: return json.meshes[json.nodes[int(b.node)].mesh].extras.targetNames[int(b.index)]
 	var happy: Array = expressions.preset.get("happy", {}).get("morphTargetBinds", [])
 	check(happy.size() == 1 and target.call(happy[0]) == shape and happy[0].weight == 0.5, "a preset binds its shape's morph target at its weight: %s" % [expressions])
-	check(expressions.custom.has("wink") and expressions.preset.size() == 1 and expressions.custom.size() == 1, "a name no preset has is custom, and an expression binding nothing is left out: %s" % [expressions])
+	check(expressions.custom.has("grimace") and expressions.preset.size() == 1 and expressions.custom.size() == 1, "a name no preset has is custom, and an expression binding nothing is left out: %s" % [expressions])
 
 
 ## A PhysBone's allowCollision and allowGrabbing, False, True or Other by its filter, become its springs' extras, which

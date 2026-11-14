@@ -113,7 +113,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         (self.files / 'bench').mkdir()
         (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
         (self.files / 'garden.save.bad').write_bytes(b'an unreadable garden')
-        (self.files / 'avatars/Fairy.vrm').write_bytes(b'vrm')
+        (self.files / 'avatars/Wren.vrm').write_bytes(b'vrm')
         (self.files / 'bench/metrics.json').write_text('{}')
         (self.files / 'check/bench').mkdir(parents=True)
         (self.files / 'check/bench/drive.sh').write_text('true')
@@ -176,7 +176,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
             'record-sessions': {'record-sessions': b'', **sessions},
             'empty': {},
             'full': {'garden.save': b'the players\x00 garden', 'garden.save.bad': b'an unreadable garden',
-                     'avatars/Fairy.vrm': b'vrm', "avatars/a folder's/Moth.vrm": b'moth', 'record-sessions': b'', **sessions},
+                     'avatars/Wren.vrm': b'vrm', "avatars/a folder's/Moth.vrm": b'moth', 'record-sessions': b'', **sessions},
         }
         for shape, saves in shapes.items():
             with self.subTest(shape=shape):
@@ -216,11 +216,11 @@ class QuestInstallKeepsSaves(unittest.TestCase):
     def test_a_restore_onto_saves_that_have_grown_puts_the_copy_back(self):
         copy = self.root / 'copy'
         (copy / 'avatars').mkdir(parents=True)
-        (copy / 'avatars/Fairy.vrm').write_bytes(b'an older fairy')
+        (copy / 'avatars/Wren.vrm').write_bytes(b'an older wren')
         (self.files / 'avatars/Moth.vrm').write_bytes(b'a newer moth')
         run = subprocess.run([str(script), '--restore', str(copy)], env=self.env, capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual((self.files / 'avatars/Fairy.vrm').read_bytes(), b'an older fairy')
+        self.assertEqual((self.files / 'avatars/Wren.vrm').read_bytes(), b'an older wren')
         self.assertEqual((self.files / 'avatars/Moth.vrm').read_bytes(), b'a newer moth')
 
     def test_a_restore_of_a_copy_that_is_not_there_fails(self):

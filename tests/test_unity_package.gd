@@ -951,8 +951,8 @@ func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
 	var controller := func(normalized: int) -> String:
 		var text := "--- !u!91 &9100000\nAnimatorController:\n  m_AnimatorParameters:\n  - m_Name: One\n    m_Type: 1\n    m_DefaultFloat: 1\n"
 		text += "".join(PackedStringArray(names.map(func(n: String) -> String: return "  - m_Name: %s\n    m_Type: 1\n" % n)))
-		text += "  m_AnimatorLayers:\n  - m_Name: Toggles\n    m_StateMachine: {fileID: 1}\n--- !u!1107 &1\nAnimatorStateMachine:\n  m_ChildStates:\n  - m_State: {fileID: 2}\n  m_DefaultState: {fileID: 2}\n"
-		text += "--- !u!1102 &2\nAnimatorState:\n  m_Name: Toggles\n  m_Transitions: []\n  m_Motion: {fileID: 10}\n  m_WriteDefaultValues: 1\n"
+		text += "  m_AnimatorLayers:\n  - m_Name: Switches\n    m_StateMachine: {fileID: 1}\n--- !u!1107 &1\nAnimatorStateMachine:\n  m_ChildStates:\n  - m_State: {fileID: 2}\n  m_DefaultState: {fileID: 2}\n"
+		text += "--- !u!1102 &2\nAnimatorState:\n  m_Name: Switches\n  m_Transitions: []\n  m_Motion: {fileID: 10}\n  m_WriteDefaultValues: 1\n"
 		text += "--- !u!206 &10\nBlendTree:\n  m_BlendType: 4\n  m_NormalizedBlendValues: %d\n  m_Childs:\n" % normalized
 		text += "".join(PackedStringArray([11, 11, 12, 13].map(func(t: int) -> String: return "  - m_Motion: {fileID: %d}\n    m_DirectBlendParameter: One\n" % t)))
 		for i in names.size():
@@ -1564,7 +1564,7 @@ func _a_decal_keeps_the_size_unity_imports() -> void:
     - _MainTex:
         m_Texture: {guid: small}
     - _DecalTexture:
-        m_Texture: {guid: tattoo}
+        m_Texture: {guid: stamp}
     m_Floats:
     - _DecalEnabled: 1
     m_Colors:
@@ -1573,13 +1573,13 @@ func _a_decal_keeps_the_size_unity_imports() -> void:
 """, "")
 	Image.create_empty(16, 16, false, Image.FORMAT_RGBA8).save_png(dir.path_join("small.png"))
 	FileAccess.open(dir.path_join("small.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: small\n")
-	var tattoo := Image.create_empty(256, 256, false, Image.FORMAT_RGBA8)
-	tattoo.fill(Color(1, 0, 0, 1))
-	tattoo.save_png(dir.path_join("tattoo.png"))
+	var stamp := Image.create_empty(256, 256, false, Image.FORMAT_RGBA8)
+	stamp.fill(Color(1, 0, 0, 1))
+	stamp.save_png(dir.path_join("stamp.png"))
 	var settings := func(default: int, standalone: int, overridden: int) -> String:
 		return "TextureImporter:\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: %d\n    overridden: 0\n  - serializedVersion: 3\n    buildTarget: Standalone\n    maxTextureSize: %d\n    overridden: %d\n" % [default, standalone, overridden]
 	for case: Array in [["", 256, "an unrestricted texture at its own size"], [settings.call(128, 32, 0), 128, "the default platform's size where the PC does not override it"], [settings.call(32, 128, 1), 128, "the PC's size where it overrides the default"], ["TextureImporter:\n  maxTextureSize: 2048\n  platformSettings:\n  - serializedVersion: 3\n    buildTarget: DefaultTexturePlatform\n    maxTextureSize: 128\n    overridden: 0\n", 128, "the default platform's size over a wider legacy field, as Unity imports it"]]:
-		FileAccess.open(dir.path_join("tattoo.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: tattoo\n" + case[0])
+		FileAccess.open(dir.path_join("stamp.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: stamp\n" + case[0])
 		var materials := Materials.new(Assets.new(dir))
 		materials.use({"guid": "skin"}, Color.WHITE)
 		materials.pack(["skin"])
@@ -2655,10 +2655,10 @@ func _gesture_faces_become_expressions() -> void:
 		for s: String in shapes:
 			text += "  - curve:\n      m_Curve:\n      - time: 0\n        value: 0\n      - time: 0.1\n        value: %s\n    attribute: blendShape.%s\n    path: Body\n    classID: 137\n" % [shapes[s], s]
 		return text
-	write.call("Big Smile.anim", "c1", clip.call({"Mouth Up": 100, "Brow Up": 0}))
+	write.call("Big Smile.anim", "c1", clip.call({"Mouth Up": 100, "Ridge Up": 0}))
 	write.call("Happy 2.anim", "c2", clip.call({"Eyes Closed": 50}))
 	write.call("Wave.anim", "c3", clip.call({"Mouth Up": 30}))
-	write.call("Outfit.anim", "c4", clip.call({"Skirt Short": 100}))
+	write.call("Outfit.anim", "c4", clip.call({"Plume Short": 100}))
 	var transition := func(id: int, to: int, event: String) -> String:
 		return "--- !u!1101 &%d\nAnimatorStateTransition:\n  m_Conditions:\n  - m_ConditionMode: 6\n    m_ConditionEvent: %s\n    m_EventTreshold: 1\n  m_DstState: {fileID: %d}\n" % [id, event, to]
 	var state := func(id: int, motion: String) -> String:
@@ -2706,7 +2706,7 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 		moved.resize(Mesh.ARRAY_MAX)
 		moved[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(0, 0, 0.1), Vector3(0, 0, 0.1), Vector3(0, 0, 0.1)])
 		var mesh := ArrayMesh.new()
-		mesh.add_blend_shape("Shorts")
+		mesh.add_blend_shape("Notch")
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [moved])
 		var mi := MeshInstance3D.new()
 		mi.name = "M%d" % i
@@ -2735,25 +2735,25 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var rests: Array[Transform3D] = [Transform3D.IDENTITY]
 	var materials := Materials.new(prefabs.assets)
 	var merged := UnityAvatar._merge(prefabs, materials, objs, renderers, {"slots": {}, "targets": [], "by_object": {}}, {}, {}, sk, rests, 1.0, {})
-	check(merged.meshes.size() == 1 and merged.meshes[0].weights == {"Shorts": 0.0, "Shorts (2)": 1.0}, "a name saved at two weights is two shapes, each at its renderer's weight: %s" % [merged.meshes.map(func(m: Dictionary) -> Dictionary: return m.weights)])
-	check(merged.shapes == {3: {"Shorts": "Shorts"}, 6: {"Shorts": "Shorts (2)"}, 9: {"Shorts": "Shorts (2)"}}, "renderers weighed alike share their shape: %s" % [merged.shapes])
+	check(merged.meshes.size() == 1 and merged.meshes[0].weights == {"Notch": 0.0, "Notch (2)": 1.0}, "a name saved at two weights is two shapes, each at its renderer's weight: %s" % [merged.meshes.map(func(m: Dictionary) -> Dictionary: return m.weights)])
+	check(merged.shapes == {3: {"Notch": "Notch"}, 6: {"Notch": "Notch (2)"}, 9: {"Notch": "Notch (2)"}}, "renderers weighed alike share their shape: %s" % [merged.shapes])
 	var switched := renderers.map(func(r: Array) -> Array: return [r[0], r[1], [] if r[0] == 3 else [[0, 1]]])
 	var apart := UnityAvatar._merge(prefabs, materials, objs, switched, {"slots": {}, "targets": [], "by_object": {}}, {}, {}, sk, rests, 1.0, {})
 	var names: Array = apart.meshes.map(func(m: Dictionary) -> Array: return [m.renderers, m.weights])
-	check(names == [[[3], {"Shorts": 0.0}], [[6, 9], {"Shorts": 1.0}]], "each mesh names its shape as the source does: %s" % [names])
-	var animated := {6: {"Shorts": [[0, [[0.0, 50.0]]]]}}
+	check(names == [[[3], {"Notch": 0.0}], [[6, 9], {"Notch": 1.0}]], "each mesh names its shape as the source does: %s" % [names])
+	var animated := {6: {"Notch": [[0, [[0.0, 50.0]]]]}}
 	var split := UnityAvatar._merge(prefabs, materials, objs, renderers, {"slots": {}, "targets": [], "by_object": {}}, animated, {}, sk, rests, 1.0, {})
-	check(split.shapes[6].Shorts != split.shapes[9].Shorts, "a clip moving one renderer's shape parts it from a renderer the clip leaves: %s" % [split.shapes])
+	check(split.shapes[6].Notch != split.shapes[9].Notch, "a clip moving one renderer's shape parts it from a renderer the clip leaves: %s" % [split.shapes])
 	var expressions := Expressions.new(prefabs.assets, {})
 	expressions.data = {
-		"menu": [{"name": "Shorts", "type": "toggle", "parameter": "Shorts", "axes": [], "value": 1, "icon": ""}],
-		"parameters": [{"name": "Shorts", "type": "bool", "default": 0}],
+		"menu": [{"name": "Notch", "type": "toggle", "parameter": "Notch", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Notch", "type": "bool", "default": 0}],
 		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
-		"clips": [{"length": 0, "loop": false, "curves": [{"path": "R0", "attribute": "blendShape.Shorts", "class": "137", "keys": [[0.0, 50.0]]}]}],
+		"clips": [{"length": 0, "loop": false, "curves": [{"path": "R0", "attribute": "blendShape.Notch", "class": "137", "keys": [[0.0, 50.0]]}]}],
 	}
 	merged.meshes[0].node = "Body"
 	var data := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, merged.meshes, merged.shapes, objs, paths, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
-	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Shorts"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
+	check(data.targets.size() == 1 and data.targets[0].effect.morph == [["Body", "Notch"]] and data.targets[0].default == 0.0, "the clip moves only its own renderer's shape, from that renderer's weight: %s" % [data.targets])
 	root.free()
 	sk.free()
 
@@ -2800,8 +2800,8 @@ func _transform_and_physbone_curves_bind() -> void:
 	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
 	var curve := func(attribute: String, cls: String, keys: Array, script := "") -> Dictionary: return {"path": "Tail", "attribute": attribute, "class": cls, "script": script, "keys": keys}
 	expressions.data = {
-		"menu": [{"name": "Throb", "type": "toggle", "parameter": "Throb", "axes": [], "value": 1, "icon": ""}],
-		"parameters": [{"name": "Throb", "type": "bool", "default": 0}],
+		"menu": [{"name": "Beacon", "type": "toggle", "parameter": "Beacon", "axes": [], "value": 1, "icon": ""}],
+		"parameters": [{"name": "Beacon", "type": "bool", "default": 0}],
 		"layers": [{"weight": 1, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 0}, "transitions": [], "drivers": []}]}],
 		"clips": [{"length": 1, "loop": true, "curves": [curve.call("localEulerAnglesRaw.x", "4", [[0.0, -85.0], [1.0, -80.0]]), curve.call("m_LocalPosition.x", "4", [[0.0, 0.5, 0.0, 0.0], [1.0, 0.75, 0.0, 0.0]]), curve.call("m_Enabled", "114", [[0.0, 0.0]], "physbone"), curve.call("m_Enabled", "114", [[0.0, 0.0]], "other script")]}],
 	}
@@ -2847,7 +2847,7 @@ func _curves_keep_their_unity_tangents() -> void:
 	check(UnityAvatar._scaled([[0.5, 100.0, 50.0, null, 0.2, 0.7]], 0.01) == [[0.5, 1.0, 0.5, null, 0.2, 0.7]], "a rescaled curve scales its slopes with its values and keeps its weights")
 
 
-## VRCFury Toggles become what VRCFury builds at upload: a menu control at the toggle's path, its parameter, and a layer
+## A VRCFury Toggle becomes what VRCFury builds at upload: a menu control at the toggle's path, its parameter, and a layer
 ## whose on state holds the actions as a clip (an object turned on, a blend shape set), siblings of one exclusive tag
 ## turned off on entry; a MoveMenuItem and SetIcon then apply. An object toggled on is the menu's switch, resting as
 ## its toggle starts.
@@ -2860,26 +2860,26 @@ func _vrcfury_toggles_join_the_menu() -> void:
 		5: {"type": "SkinnedMeshRenderer", "data": {"m_GameObject": {"fileID": "3"}}},
 	}
 	var refs := [
-		{"rid": "1", "type": {"class": "Toggle"}, "data": {"name": "Clothes/Hat", "saved": "1", "defaultOn": "0", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": [{"rid": "2"}, {"rid": "3"}]}}},
+		{"rid": "1", "type": {"class": "Toggle"}, "data": {"name": "Shelf/Hat", "saved": "1", "defaultOn": "0", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": [{"rid": "2"}, {"rid": "3"}]}}},
 		{"rid": "2", "type": {"class": "ObjectToggleAction"}, "data": {"obj": {"fileID": "3"}, "mode": "0"}},
 		{"rid": "3", "type": {"class": "BlendShapeAction"}, "data": {"blendShape": "Squash", "blendShapeValue": "40", "allRenderers": "1"}},
-		{"rid": "4", "type": {"class": "Toggle"}, "data": {"name": "Clothes/Crown", "useGlobalParam": "1", "globalParam": "Crown", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": []}}},
+		{"rid": "4", "type": {"class": "Toggle"}, "data": {"name": "Shelf/Crown", "useGlobalParam": "1", "globalParam": "Crown", "enableExclusiveTag": "1", "exclusiveTag": "head", "state": {"actions": []}}},
 		{"rid": "5", "type": {"class": "Toggle"}, "data": {"name": "Body/Size", "slider": "1", "defaultSliderValue": "0.25", "state": {"actions": [{"rid": "3"}]}}},
 		{"rid": "6", "type": {"class": "MoveMenuItem"}, "data": {"fromPath": "Body/Size", "toPath": "Size"}},
-		{"rid": "7", "type": {"class": "SetIcon"}, "data": {"path": "Clothes/Hat", "icon": {"objRef": {"guid": "icon"}}}},
+		{"rid": "7", "type": {"class": "SetIcon"}, "data": {"path": "Shelf/Hat", "icon": {"objRef": {"guid": "icon"}}}},
 	]
 	objs[9] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "1"}, "config": {"features": refs.filter(func(r: Dictionary) -> bool: return not r.type.class.ends_with("Action")).map(func(r: Dictionary) -> Dictionary: return {"rid": r.rid})}, "references": {"RefIds": refs}}}
 	var expressions := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
 	var paths := {"": 2, "Hat": 4}
 	VRCFury.apply(expressions, objs, paths)
 	var menu: Array = expressions.data.get("menu", [])
-	check(menu.size() == 3 and menu[0].name == "Clothes" and menu[2].name == "Size" and menu[2].type == "radial" and menu[2].axes == ["VF2_Body/Size"], "the toggles' paths make the menu, the slider moved to the top: %s" % [menu])
+	check(menu.size() == 3 and menu[0].name == "Shelf" and menu[2].name == "Size" and menu[2].type == "radial" and menu[2].axes == ["VF2_Body/Size"], "the toggles' paths make the menu, the slider moved to the top: %s" % [menu])
 	if menu.size() < 2:
 		return
 	var hat: Dictionary = menu[0].controls[0]
-	check(hat.name == "Hat" and hat.type == "toggle" and hat.parameter == "VF0_Clothes/Hat" and hat.icon == "icon", "the hat is a toggle of its own parameter with its icon: %s" % [hat])
+	check(hat.name == "Hat" and hat.type == "toggle" and hat.parameter == "VF0_Shelf/Hat" and hat.icon == "icon", "the hat is a toggle of its own parameter with its icon: %s" % [hat])
 	check(menu[0].controls[1].parameter == "Crown", "a global parameter keeps its name")
-	var hat_parameter: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF0_Clothes/Hat")
+	var hat_parameter: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF0_Shelf/Hat")
 	check(hat_parameter.size() == 1 and hat_parameter[0].type == "bool" and hat_parameter[0].saved and hat_parameter[0].default == 0.0, "the hat's parameter is a saved bool, off: %s" % [hat_parameter])
 	var size: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF2_Body/Size")
 	check(size.size() == 1 and size[0].type == "float" and size[0].default == 0.25, "the slider's parameter is a float at its default")
@@ -2894,7 +2894,7 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	var off: Array = expressions.data.clips[layer.states[0].motion.clip].curves
 	check(off.size() == 1 and off[0].path == "Hat" and off[0]["keys"][0][1] == 0.0, "the off state turns the hat off, whatever the scene has: %s" % [off])
 	check(layer.states[1].drivers == [{"parameter": "Crown", "drive": "set", "value": 0.0, "min": 0.0, "max": 1.0, "chance": 1.0, "source": ""}], "turning the hat on turns off the crown of its tag: %s" % [layer.states[1].drivers])
-	check(layer.states[0].transitions[0].conditions[0] == {"parameter": "VF0_Clothes/Hat", "mode": "if", "threshold": 0.0}, "the parameter enters the on state")
+	check(layer.states[0].transitions[0].conditions[0] == {"parameter": "VF0_Shelf/Hat", "mode": "if", "threshold": 0.0}, "the parameter enters the on state")
 	var switches := UnityAvatar._switches(expressions, objs, paths)
 	check(switches.by_object.has(3) and switches.targets[switches.by_object[3]].default == 0.0, "the hat is the menu's switch, resting off as its toggle starts though the scene shows it")
 
@@ -2948,17 +2948,17 @@ func _a_toggled_objects_constraints_and_their_bones_are_kept() -> void:
 ## A FullController's bindings are below its object when that path is there, otherwise from the avatar's root; a
 ## rewrite renames a path's prefix and a delete drops it.
 func _vrcfury_full_controller_paths_resolve_from_their_object() -> void:
-	var paths := {"": 1, "Wings": 2, "Wings/Left": 3, "Body": 4}
-	check(VRCFury._resolve(paths, "Wings", "Left") == "Wings/Left", "a path below the controller's object resolves there")
-	check(VRCFury._resolve(paths, "Wings", "Body") == "Body", "a path only the root has resolves from the root")
+	var paths := {"": 1, "Vane": 2, "Vane/Left": 3, "Body": 4}
+	check(VRCFury._resolve(paths, "Vane", "Left") == "Vane/Left", "a path below the controller's object resolves there")
+	check(VRCFury._resolve(paths, "Vane", "Body") == "Body", "a path only the root has resolves from the root")
 	check(VRCFury._rewritten([{"from": "Old", "to": "Left"}], "Old/Tip") == "Left/Tip", "a rewrite renames the prefix")
 	check(VRCFury._rewritten([{"from": "Gone", "delete": "1"}], "Gone/Tip") == null, "a delete drops the binding")
 	var full := range(10).map(func(i: int) -> Dictionary: return {"name": str(i), "type": "toggle"})
 	VRCFury._paged(full)
 	check(full.size() == 8 and full[7].name == "Next" and (full[7].controls as Array).size() == 3, "a menu past VRChat's eight pages its rest into Next: %s" % [full])
 	var menu := []
-	VRCFury._merge(VRCFury._submenu(menu, ["Wings"]), [{"name": "Flap", "type": "toggle"}, {"name": "More", "type": "submenu", "controls": [{"name": "Glow", "type": "toggle"}]}])
-	VRCFury._merge(VRCFury._submenu(menu, ["Wings"]), [{"name": "More", "type": "submenu", "controls": [{"name": "Fold", "type": "toggle"}]}])
+	VRCFury._merge(VRCFury._submenu(menu, ["Vane"]), [{"name": "Flap", "type": "toggle"}, {"name": "More", "type": "submenu", "controls": [{"name": "Glow", "type": "toggle"}]}])
+	VRCFury._merge(VRCFury._submenu(menu, ["Vane"]), [{"name": "More", "type": "submenu", "controls": [{"name": "Fold", "type": "toggle"}]}])
 	check(menu.size() == 1 and menu[0].controls.size() == 2 and (menu[0].controls[1].controls as Array).map(func(c: Dictionary) -> String: return c.name) == ["Glow", "Fold"], "menus under one prefix merge, submenus of one name join: %s" % [menu])
 
 
@@ -3095,10 +3095,10 @@ func _contacts_keep_their_shape_tags_and_switch() -> void:
 ## its keys as Unity has them; one naming a parameter the controller lacks binds nothing.
 func _a_clip_animating_a_parameter_binds_it() -> void:
 	var targets := []
-	var parameters := {"Wetness": {"name": "Wetness", "type": "float", "default": 0.25}}
-	var at := UnityAvatar._target({"path": "", "attribute": "Wetness", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters)
-	check(at == 0 and targets[0].effect == {"parameter": "Wetness"} and targets[0].default == 0.25, "the parameter becomes a target at its default: %s" % [targets])
-	check(UnityAvatar._target({"path": "", "attribute": "Wetness", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters) == 0, "a second curve shares it")
+	var parameters := {"Gauge": {"name": "Gauge", "type": "float", "default": 0.25}}
+	var at := UnityAvatar._target({"path": "", "attribute": "Gauge", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters)
+	check(at == 0 and targets[0].effect == {"parameter": "Gauge"} and targets[0].default == 0.25, "the parameter becomes a target at its default: %s" % [targets])
+	check(UnityAvatar._target({"path": "", "attribute": "Gauge", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters) == 0, "a second curve shares it")
 	check(UnityAvatar._target({"path": "", "attribute": "Missing", "class": "95"}, {}, {}, [], {}, null, targets, null, parameters) == -1, "an unknown parameter binds nothing")
 
 

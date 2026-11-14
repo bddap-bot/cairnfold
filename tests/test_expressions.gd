@@ -417,7 +417,7 @@ func _theme_recolours_the_emission() -> void:
 	Avatar._lit_looks(looks, meshes)
 	for n in 3:
 		var mi := MeshInstance3D.new()
-		mi.name = ["Suit", "Shoes", "Lamp"][n]
+		mi.name = ["Suit", "Crate", "Lamp"][n]
 		mi.mesh = meshes[n].get_mesh()
 		root.add_child(mi)
 		shown.append(mi)
@@ -830,23 +830,23 @@ func _malformed() -> void:
 
 ## A clip animating a parameter writes it every frame, past the menu's range, and the layers read what it wrote.
 func _animated_parameters() -> void:
-	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0}, {"name": "Wetness", "type": "float", "default": 0.0}],
-		"targets": [{"effect": {"parameter": "Wetness"}, "default": 0.0}, {"effect": "switch", "default": 0.0}], "menu": [],
+	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0}, {"name": "Gauge", "type": "float", "default": 0.0}],
+		"targets": [{"effect": {"parameter": "Gauge"}, "default": 0.0}, {"effect": "switch", "default": 0.0}], "menu": [],
 		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 0], [1, 2000]]}]}, {"length": 0.0, "curves": [{"target": 1, "keys": [[0, 1]]}]}],
 		"layers": [{"states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Reset", "mode": "if"}]}]}, {"motion": {}, "transitions": []}]},
-			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Wetness", "mode": "greater", "threshold": 500.0}]}]}, {"motion": {"clip": 1}, "transitions": []}]}]}
+			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Gauge", "mode": "greater", "threshold": 500.0}]}]}, {"motion": {"clip": 1}, "transitions": []}]}]}
 	check(ExpressionDefinition.valid(definition), "a parameter target is valid")
 	var state := ExpressionState.new(definition)
 	state.advance(0.5)
-	check(is_equal_approx(state.values.Wetness, 1000.0), "the clip writes the parameter beyond the menu's range: %s" % [state.values.Wetness])
-	state.put("Wetness", 0.0)
+	check(is_equal_approx(state.values.Gauge, 1000.0), "the clip writes the parameter beyond the menu's range: %s" % [state.values.Gauge])
+	state.put("Gauge", 0.0)
 	state.advance(0.0)
-	check(is_equal_approx(state.values.Wetness, 1000.0), "the animator overwrites what else set it")
+	check(is_equal_approx(state.values.Gauge, 1000.0), "the animator overwrites what else set it")
 	state.advance(0.0)
 	check(state.outputs[1] == 1.0, "another layer reads the animated value")
 	state.put("Reset", 1.0)
 	state.advance(0.1)
-	check(state.values.Wetness == 0.0, "a state not animating it, writing defaults, returns it to its default")
+	check(state.values.Gauge == 0.0, "a state not animating it, writing defaults, returns it to its default")
 
 
 ## A layer resting in a state whose clips hold still is passed over until it reaches an exit time or a parameter it

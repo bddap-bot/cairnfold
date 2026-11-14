@@ -261,7 +261,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   padded as in the atlas and laid on shelves of their own image, with each cell's rect in the atlas and in that
   image, so no second albedo travels or is held. Each Poiyomi
   decal a material draws is its own image over the material's cell, at the size Unity imports
-  its texture up to the atlas's widest, so a tattoo keeps the source's texels however small its material's cell. A material blends when its shader's
+  its texture up to the atlas's widest, so a decal keeps the source's texels however small its material's cell. A material blends when its shader's
   `Blend [_SrcBlend] [_DstBlend]` has a destination factor other than Zero, whatever its queue,
   writing depth as its `_ZWrite` says; its alpha adds Poiyomi's Alpha Mod. A blended face mixes with what lies
   behind it in the scene buffer's square-root encoding (`scene_encode`, `scripts/engine.patch`), where Unity, in the
@@ -281,8 +281,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   colliders spring colliders, an inside or plane one through `VRMC_springBone_extended_collider`. The file keeps every chain;
   an avatar simulates its longest, in metres from root to tip, within 60 joints, whatever file it came from (each
   joint costs the Quest 2's CPU every frame), those moving a mesh shown by default first. Ranked by joint count, a
-  corpus avatar's ten-joint hair strands of 0.15 m took the budget from its leaf skirt's panels of four and five joints
-  and 0.4 m, so bent knees passed through a skirt resting in its settled pose; ranked in metres the panels and their
+  corpus avatar's ten-joint hair strands of 0.15 m took the budget from its hanging panels of four and five joints
+  and 0.4 m, so bent knees passed through panels resting in their settled pose; ranked in metres the panels and their
   leg colliders are simulated. The descriptor's view position places
   the eyes. The importer reports untranslated curves and components, including Contacts,
   particles and scripts. A renderer
