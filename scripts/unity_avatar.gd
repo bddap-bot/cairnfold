@@ -102,10 +102,9 @@ func _run() -> void:
 		printerr("unity_avatar: Avatar.read refuses the file written: it needs %s as bones of one skeleton" % [Avatar.NEEDS])
 		quit(1)
 		return
-	var pixels := Vrm.pixels(Vrm.images(bytes))
-	var heavy := Avatar.weight(bytes.size(), pixels)
+	var heavy := Avatar.weight(bytes.size())
 	if heavy > 1.0:
-		print("unity_avatar: %.1f MiB of %.1f Mpx, past the %d MiB of %.1f Mpx every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, pixels / 1e6, Avatar.FLOOR_BYTES >> 20, Avatar.FLOOR_PIXELS / 1e6, Avatar.memory_to_read(heavy) / 1e9])
+		print("unity_avatar: %.1f MiB, past the %d MiB every device reads: Cairnfold reads it where %.2f GB is available" % [bytes.size() / 1048576.0, Avatar.FLOOR_BYTES >> 20, Avatar.memory_to_read(heavy) / 1e9])
 	report["file bytes"] = FileAccess.get_size(args[1])
 	for line in report_lines(report):
 		print("unity_avatar: " + line)

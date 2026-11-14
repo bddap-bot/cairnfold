@@ -18,9 +18,11 @@ const OUTLINE_CUT := preload("res://src/avatar_outline_cut.gdshader")
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
 ## Two Quest 2 runs reading a 93.9 MiB file (perf/quest-2/avatar-cost) took 8.7 s on a worker each and fell from 2.55 and
 ## 1.66 GB available to lows of 0.72 and 0.49 GB, Android's low-memory killer taking background apps but never the game:
-## the worse run held 19.5 bytes a file byte. Every device reads a file within FLOOR_BYTES and FLOOR_PIXELS; one whose
-## memory available above READ_LOW holds more such reads at READ_BYTES_PER_BYTE reads a file that many times heavier
-## (`reads`, `weight`).
+## the worse run held 19.5 bytes a file byte. Every device reads a file within FLOOR_BYTES whose images it `decodes`;
+## one whose memory available above READ_LOW holds more such reads at READ_BYTES_PER_BYTE reads a file that many times
+## heavier (`reads`, `weight`).
+## The pixels a read decodes cost it time and neither memory nor frames, so they set no floor (docs/multiplayer.md,
+## "Limits").
 const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
@@ -71,12 +73,10 @@ const MAX_IMAGES := 256
 ## The widest WebP image, the widest a converted avatar packs its atlas at, within the 16384 px a GPU texture may be;
 ## the memory budget, not this, sets the side each is held at.
 const MAX_IMAGE_SIDE := 16383
-## The pixels of a 4096 px square, the widest image the Quest 2 runs behind FLOOR_PIXELS and MEMORY_FLOOR decoded; a larger
+## The pixels of a 4096 px square, the widest image the Quest 2 runs behind MEMORY_FLOOR decoded; a larger
 ## image is whole in memory before it shrinks, so it is decoded only where it fits one avatar's texture budget
 ## (`decodes`).
 const UNGATED_DECODE_PIXELS := 4096 * 4096
-## The Quest 2 read 164 Mpx in 8.7 s; this many keep its read near ten seconds.
-const FLOOR_PIXELS := 192 << 20
 ## Blend shapes times the vertices they move, summed over a file's meshes, past which it is refused before they are
 ## copied: a file of a few MB can name thousands of sparse blend shapes, each held whole once read.
 const MAX_BLEND_VERTICES := 4000000
@@ -272,7 +272,7 @@ static func built_in(i: int) -> PackedScene:
 ## Takes tens to hundreds of milliseconds, so a player's file is read on a worker thread; reads under way hold the
 ## memory they need (`_reading`) against admitting the next past the floors.
 static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
-	if not unlimited and weight(bytes.size(), 0) > reads(available - _reading):
+	if not unlimited and weight(bytes.size()) > reads(available - _reading):
 		print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, (available - _reading) / 1048576.0])
 		return null
 	var images := Vrm.images(bytes)
@@ -280,7 +280,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 		print("avatar: refused: %d images, past %d or one wider than %d" % [images.size(), MAX_IMAGES, MAX_IMAGE_SIDE])
 		return null
 	var pixels := Vrm.pixels(images)
-	var heavy := weight(bytes.size(), pixels)
+	var heavy := weight(bytes.size())
 	var held := memory_to_read(heavy) - READ_LOW
 	_reading_lock.lock()
 	var admitted := unlimited or heavy <= reads(available - _reading)
@@ -288,7 +288,7 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 		_reading += held
 	_reading_lock.unlock()
 	if not admitted:
-		print("avatar: refused: %.1f MB and %.1f Mpx are past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, pixels / 1e6, (available - _reading) / 1048576.0])
+		print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [bytes.size() / 1048576.0, (available - _reading) / 1048576.0])
 		return null
 	var decoded := [0]
 	var budget := texture_budget()
@@ -308,15 +308,15 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	return scene
 
 
-## How many reads of a file at FLOOR_BYTES and FLOOR_PIXELS `available` bytes of memory hold above READ_LOW, never
+## How many reads of a file at FLOOR_BYTES `available` bytes of memory hold above READ_LOW, never
 ## under one.
 static func reads(available: int) -> float:
 	return maxf(1.0, float(available - READ_LOW) / (READ_BYTES_PER_BYTE * FLOOR_BYTES))
 
 
-## How many reads at the floors a file of `size` bytes and `pixels` image pixels weighs as.
-static func weight(size: int, pixels: int) -> float:
-	return maxf(float(size) / FLOOR_BYTES, float(pixels) / FLOOR_PIXELS)
+## How many reads at the floor a file of `size` bytes weighs as.
+static func weight(size: int) -> float:
+	return float(size) / FLOOR_BYTES
 
 
 ## The largest file the memory available now reads.

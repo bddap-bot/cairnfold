@@ -143,11 +143,7 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, many)) != null, "a file with as many images as the limit is read")
 	check(Avatar.read(_with_images(bytes, many + [png.call(1, 1)])) == null, "a file with more images than the limit is refused")
 	var full: PackedByteArray = png.call(4096, 4096)
-	var fill := Array(range(Avatar.FLOOR_PIXELS / Avatar.UNGATED_DECODE_PIXELS)).map(func(_i: int) -> PackedByteArray: return full)
-	check(Avatar.read(_with_images(bytes, fill), false, 0) != null, "images filling the pixel floor are read with no memory to spare")
-	var over := _with_images(bytes, fill + [png.call(1, 1)])
-	check(Avatar.read(over, false, 0) == null, "a file with more pixels than the floor is refused with no memory to spare")
-	check(Avatar.read(over, false, Avatar.memory_to_read(Avatar.weight(over.size(), Avatar.FLOOR_PIXELS + 1))) != null, "a file past the pixel floor is read where the memory it needs is available")
+	check(Avatar.read(_with_images(bytes, Array(range(13)).map(func(_i: int) -> PackedByteArray: return full)), false, 0) != null, "13 images of a 4096 px square, 218 Mpx, are read with no memory to spare: a file's pixels bound its read by none")
 
 
 ## Every device reads a file within the floors; a heavier one is read exactly where the memory the converter names for
@@ -160,7 +156,7 @@ func _read_limits_follow_memory() -> void:
 	var floor := _padded(sample, Avatar.FLOOR_BYTES)
 	check(Avatar.read(floor, false, 0) != null, "a file at the size floor is read with no memory to spare")
 	var past := _padded(sample, Avatar.FLOOR_BYTES + 4)
-	var needs := Avatar.memory_to_read(Avatar.weight(past.size(), Vrm.pixels(Vrm.images(past))))
+	var needs := Avatar.memory_to_read(float(past.size()) / Avatar.FLOOR_BYTES)
 	check(Avatar.read(past, false, 0) == null, "a file past the size floor is refused with no memory to spare")
 	check(Avatar.read(past, false, needs) != null, "a file past the size floor is read where the memory it needs is available")
 	Avatar._reading = needs

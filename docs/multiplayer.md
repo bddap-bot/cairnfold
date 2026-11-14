@@ -356,7 +356,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   Players wearing the same file share one read. A file is dropped if it is over the
   size limit or is not a humanoid VRM.
 - **Limits.** `Avatar.read` reads every file the same way, the player's own before
-  it is sent: every device reads one within 100 MiB and 192 Mpx of images, its expression layers included, and a device with the memory reads a
+  it is sent: every device reads one within 100 MiB whose images it decodes (below), and a device with the memory reads a
   heavier one (below), so players whose devices read a file see the same avatar, and the rest see its player as a
   built-in. Surfaces are merged per
   material within a mesh, the meshes its menu hides drawn by none, animations dropped, every triangle and blend shape kept as the
@@ -375,11 +375,15 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   8.4 million that held. Neither the texels nor anisotropic sampling moved the scene's GPU time by more than 0.1 ms
   in any phase. Two Quest 2 runs reading one 94 MiB avatar took 8.7 s on a worker each and fell from 2.55 and
   1.66 GB available to lows of 0.72 and 0.49 GB, the low-memory killer taking background apps but never the game,
-  which sets the 100 MiB floor; 192 Mpx keep that read near ten seconds. The worse run held 19.5 bytes a file byte,
-  so a file past the floors, weighing as many floor reads as its bytes or pixels are multiples of them, is read where
+  which sets the 100 MiB floor. The pixels a read decodes cost it time: on a Quest 2, three reads of a corpus avatar
+  decoding 79 Mpx took 10 s on a worker and three of one decoding 210 Mpx took 22 s, each with its widest image left
+  undecoded (`Avatar.decodes`); their lows of 0.55 to 0.73 GB available did not fall with the pixels, and their median
+  frame was that of frames with no read. 13 of their 19 late frames over 102 s fell in one second each of two runs, as
+  the low-memory killer took cached processes. The worse run held 19.5 bytes a file byte,
+  so a file past the floor, weighing as many floor reads as its bytes are multiples of it, is read where
   the memory available above 0.5 GB, less what reads under way hold, holds that many reads at 20 bytes a file byte
-  (`Avatar.reads`, `Avatar.weight`): a desktop with 24 GB available reads a 118 MiB, 259 Mpx corpus avatar, and a
-  Quest 2 with the 1.66 to 2.55 GB its runs had reads at the floors. A heavy mesh is its
+  (`Avatar.reads`, `Avatar.weight`): a desktop with 24 GB available reads a 118 MiB corpus avatar, and a
+  Quest 2 with the 1.66 to 2.55 GB its runs had reads at the floor. A heavy mesh is its
   author's cost to carry; the reader edits none. The quality ladder already changes how much
   of the scene draws; avatars need no setting of their own.
 - **Skinned bodies.** Every importer builds one avatar model, which `Avatar.model` loads:
