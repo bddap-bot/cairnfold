@@ -1,13 +1,13 @@
 class_name Replay
 extends RefCounted
 
-## One frame of what the player's devices gave the game, as a replay needs it (PlayLog keeps it beside the metrics): the
-## frame's delta, then the head's pose, then for each hand of HANDS its controller's pose, its stick (`Hand.stick`),
-## each of its INPUTS held or not (`Buttons.down`) as bit i of a u16, its FLAGS as bits of a u8, and its palm's pose
-## from the hand's (`Hand.palm`). Poses are in the play space, the basis's three columns then the origin, each number
-## as the engine holds it, so a replay puts the head and hands exactly where they were: every number little-endian
-## float32 but the delta, a float64, and the two masks. A frame is HEAD then a HAND per hand, as Python's struct lays
-## them out, FRAME_BYTES in all. Only what reaches `Hand` is kept: a flat-screen session's keys and mouse are not.
+## One frame of what the player's devices gave the game: the frame's delta, then the head's pose, then for each hand of
+## HANDS its controller's pose, its stick (`Hand.stick`), each of its `inputs` held or not (`Buttons.down`) as bit i of
+## a u16, its FLAGS as bits of a u8, and its palm's pose in the hand's own space (`Hand.palm`). The other poses are in
+## the play space, the basis's three columns then the origin, each number as the engine holds it, so a replay puts the
+## head and hands exactly where they were: every number little-endian float32 but the delta, a float64, and the two
+## masks. A frame is HEAD then a HAND per hand, as Python's struct lays them out, FRAME_BYTES in all. Only what reaches
+## `Hand` is kept: a flat-screen session's keys and mouse are not.
 const HEAD := "<d12f"
 const HAND := "<12f2fHB12f"
 const HANDS := ["left_hand", "right_hand"]
@@ -21,7 +21,7 @@ const FRAME_BYTES := DELTA_BYTES + POSE_BYTES + 2 * HAND_BYTES
 static var _inputs := {}
 
 
-## The inputs the controls table reads on hand `tracker`, in the order their bits take.
+## In the order their bits take.
 static func inputs(tracker: String) -> Array:
 	if not _inputs.has(tracker):
 		var out := []
@@ -34,7 +34,7 @@ static func inputs(tracker: String) -> Array:
 	return _inputs[tracker]
 
 
-## How a frame is laid out, for a reader of the record.
+## Written into each record's metadata, so a reader decodes frames recorded by another build.
 static func layout() -> Dictionary:
 	var by_hand := {}
 	for tracker in HANDS:
@@ -60,14 +60,12 @@ static func frame(delta: float, head: Node3D, hands: Array[Hand]) -> PackedByteA
 	return out
 
 
-## A pose's basis columns and origin as float32 bytes, which `pose` reads back.
 static func _pose_bytes(t: Transform3D) -> PackedByteArray:
 	var b := t.basis
 	var o := t.origin
 	return PackedFloat32Array([b.x.x, b.x.y, b.x.z, b.y.x, b.y.y, b.y.z, b.z.x, b.z.y, b.z.z, o.x, o.y, o.z]).to_byte_array()
 
 
-## The pose `frame` wrote at byte `at` of `raw`.
 static func pose(raw: PackedByteArray, at: int) -> Transform3D:
 	var v: Array[Vector3] = []
 	for k in 4:
@@ -75,9 +73,9 @@ static func pose(raw: PackedByteArray, at: int) -> Transform3D:
 	return Transform3D(Basis(v[0], v[1], v[2]), v[3])
 
 
-## Frame `i` of `raw` (`frame`'s bytes end to end): its "delta", "head" pose and per hand of HANDS its "pose",
-## "stick", "held" (each of its inputs, by name, held or not), its FLAGS by name and its "palm". `names` holds each hand's inputs
-## in the order their bits take, as the record's layout lists them: by default this build's.
+## Frame `i` of `raw` (`frame`'s bytes end to end): "delta", "head" and per hand of HANDS "pose", "stick", "held"
+## (input name -> bool), "flags" (FLAGS name -> bool) and "palm". `names` holds each hand's inputs in bit order, as the
+## record's layout lists them: by default this build's.
 static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	var at := i * FRAME_BYTES
 	var out := {"delta": raw.decode_double(at), "head": pose(raw, at + DELTA_BYTES), "hands": []}
@@ -97,17 +95,16 @@ static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	return out
 
 
-## Bytes as a record holds them, deflated and in base64, which `inflated` reads back given their length.
 static func deflated(raw: PackedByteArray) -> String:
 	return Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))
 
 
-## The `bytes` long bytes `deflated` made `data` of: a record's "input" event's `data` is the frames `frame` wrote.
+## `bytes` is the length before `deflated`.
 static func inflated(data: String, bytes: Variant) -> PackedByteArray:
 	return Marshalls.base64_to_raw(data).decompress(int(bytes), FileAccess.COMPRESSION_DEFLATE)
 
 
-## The messages a record's "net" event holds (PlayLog.heard), each [frame, from, whose, call, args].
+## Each [frame, from, whose, call, args], as PlayLog.heard keeps them.
 static func messages(event: Dictionary) -> Array:
 	var args: Array = bytes_to_var(inflated(event.data, event.bytes))
 	var out := []
@@ -117,13 +114,11 @@ static func messages(event: Dictionary) -> Array:
 	return out
 
 
-## The session a record holds, from every chunk of it in the folder of `path`, any one of them: its "session" id, the
-## "revision" that recorded it, its "seeds", the "garden" it started in, every frame's input as "frames" (`frame`'s
-## bytes end to end) and each hand's inputs as "inputs" (`unpack`'s names), every message it heard as "messages"
-## (`messages`') and every check it took as "checks" (`check`'s digests, or the garden's, each with the "frame" it was
-## taken in), oldest first, and as "avatars" the bytes of each file the player wore (Session.put_on), by hash, from the
-## folder `avatars`, which the record keeps only as hashes. A record from another build revision replays; with "error"
-## instead, why this build cannot replay it whole.
+## `path` is any chunk; every chunk of its session in that folder is read. Keys: "session", "revision", "seeds",
+## "garden", "frames" (`frame`'s bytes end to end), "inputs" (`unpack`'s names), "messages" (`messages`'), "checks"
+## (`check`'s digests or the garden's, each with its "frame"), oldest first, and "avatars": each worn file's bytes by
+## hash, from the folder `avatars`, since the record keeps only hashes. A record from another build revision replays;
+## {"error": why} where this build cannot replay it whole.
 static func read(path: String, avatars := "") -> Dictionary:
 	var folder := path.get_base_dir()
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
@@ -187,10 +182,10 @@ static func read(path: String, avatars := "") -> Dictionary:
 	return out
 
 
-## What the session's state has come to, as the bytes of each part that game logic moves on its own, so a replay on a
-## later build can say which diverged from the record (Replayer): "player" where the play space stands, which teleports
-## and the ground under them set; "wildlife" every node under the wildlife and every generator held there as `rng`;
-## "physics" every thrown handful's flight. The record keeps each part's `digest`, taken on the log's worker.
+## The bytes of each part game logic moves on its own, so a replay on a later build can say which diverged (Replayer):
+## "player" the play space, which teleports and the ground set; "wildlife" every node under the wildlife and every
+## generator held there as `rng`; "physics" every thrown handful's flight. The record keeps each part's `digest`,
+## taken on the log's worker.
 static func check(main: Main) -> Dictionary:
 	var wild := PackedFloat32Array()
 	var drawn := PackedInt64Array()
@@ -207,7 +202,7 @@ static func check(main: Main) -> Dictionary:
 		"physics": thrown.to_byte_array()}
 
 
-## The garden's digest as the record keeps it (PlayLog.kept): of the snapshot World saves.
+## Must match how PlayLog digests World's `kept` snapshot bytes.
 static func garden(world: World) -> String:
 	return digest(var_to_bytes(world.snapshot()))
 

@@ -1,9 +1,6 @@
 class_name Paths
 extends Node3D
 
-## Path strokes, the ground they wear into the ground mask and what they lay on it: treads, stepping stones, crops and
-## the clutter beside them.
-
 const MIN_LENGTH := 1.0
 
 signal laid(path: PathLayout)
@@ -14,12 +11,12 @@ var masonry: Masonry
 var terrain: Terrain
 var marks: Ground
 var layouts: Array[PathLayout] = []
-## Each laid path's build command id; `layouts` keeps id order.
+## PathLayout -> its build command id; `layouts` keeps id order.
 var ids := {}
-## The surface this machine's player lays paths in: the one they last turned the style wheel to on a path.
+## This machine's player's, from the style wheel.
 var surface := PathLayout.Surface.DIRT
 var world: World
-## Pieces being laid on workers (`_lay`), each [task, path, what it laid], and each path's latest lay.
+## Each [task, path, out]; `_laying` maps a path to its latest lay's out.
 var _jobs: Array[Array] = []
 var _laying := {}
 var drawing: PathLayout
@@ -28,9 +25,9 @@ var _settled_mask: Image
 var _settled_rows := 0
 var _since_rebuild := 0.0
 var _dirty := false
-## The stroke was worn again and its arches are still to cut, next frame.
+## Worn again, with its arches still to cut next frame, so wearing and cutting don't spend one frame.
 var _cut_due := false
-## marks.rewears when the drawing's settled mask was taken: a rewear since wiped the drawn wear.
+## marks.rewears when the drawing's settled mask was taken; a rewear since wiped the drawn wear.
 var _seen := -1
 
 
@@ -52,7 +49,7 @@ func begin(p: Vector3, half: float) -> void:
 	_dirty = true
 
 
-## Carries the drawn stroke on to `p`; whether that laid a new point.
+## Carries the stroke on to `p`; whether it laid a new point.
 func extend(p: Vector3, half: float) -> bool:
 	var pts := drawing.points
 	if Commands.length(pts) >= Commands.STROKE_LENGTH or pts.size() >= Commands.MAX_POINTS:
@@ -66,7 +63,7 @@ func extend(p: Vector3, half: float) -> bool:
 	return true
 
 
-## Holds the stroke as a ghost until its command lands.
+## {data, layout}, held as a ghost until its command lands; {} when too short to lay.
 func end() -> Dictionary:
 	drawing.growing = false
 	drawing.plan()
@@ -81,7 +78,7 @@ func end() -> Dictionary:
 	return ghost
 
 
-## A ghost from `end` gives way: its command landed, was turned down, or the garden was swapped.
+## For when its command landed, was turned down, or the garden was swapped.
 func drop(ghost: Dictionary) -> void:
 	marks.release(ghost.layout)
 	previews.erase(ghost.layout)
@@ -128,7 +125,6 @@ func take(id: int) -> void:
 	taken.emit(path)
 
 
-## The laid path from build command `id`, or null.
 func layout(id: int) -> PathLayout:
 	for path in layouts:
 		if ids[path] == id:
@@ -136,7 +132,7 @@ func layout(id: int) -> PathLayout:
 	return null
 
 
-## Shows path `id` in the surface and with the clutter a reshape with `data` would give it, here alone.
+## On this player's view only.
 func show_reshaped(id: int, data := {}) -> void:
 	var path := layout(id)
 	if path == null:
@@ -164,15 +160,13 @@ func _process(delta: float) -> void:
 		_cut_due = true
 
 
-## Keep settled wear while rebuilding the moving tip, its arches cut at once.
+## Wears the tip and cuts its arches in the same frame.
 func _relay() -> void:
 	_wear_tip()
 	_cut_due = false
 	previewed.emit()
 
 
-## Plans the stroke again and wears it: what a relay shows first. Its arches follow the frame after, so the two
-## don't spend one frame.
 func _wear_tip() -> void:
 	marks.settle()
 	if _seen != marks.rewears:
@@ -190,7 +184,6 @@ func _wear_tip() -> void:
 	_since_rebuild = 0.0
 
 
-## The ground or the water over `area` changed: the paths there lay their treads, stepping stones and crops again.
 func reground(area: Rect2, settled: bool) -> void:
 	if settled:
 		for path in layouts:
@@ -198,8 +191,7 @@ func reground(area: Rect2, settled: bool) -> void:
 				_lay(path)
 
 
-## Lays `path`'s treads, stepping stones and crops on a worker from the ground and water as they stand, placed once done
-## (`_place`); a bed's hundreds of plants took 8 ms on the main thread of a desktop.
+## On a worker: a bed's hundreds of plants took 8 ms on the main thread of a desktop.
 func _lay(path: PathLayout) -> void:
 	if masonry == null:
 		return
@@ -209,15 +201,14 @@ func _lay(path: PathLayout) -> void:
 	_jobs.append([task, path, out])
 
 
-## The masonry parts a path from `data` lays on ground of `height` under water at `water`, into `out`, on a worker: it
-## reads nothing but its arguments.
+## Runs on a worker: it reads nothing but its arguments.
 static func _pack(data: Dictionary, height: Callable, water: Callable, kinds: Array[Masonry.Kind], out: Array[Dictionary]) -> void:
 	var layout := PathLayout.of(data)
 	layout.plan()
 	out.append_array(Wall.stone_parts(layout.pieces(height, water), kinds))
 
 
-## Places what finished workers laid, each path's latest only; with `all`, waits for every one first.
+## Each path's latest lay only; with `all`, waits for every one first.
 func _place(all := false) -> void:
 	for i in range(_jobs.size() - 1, -1, -1):
 		var job := _jobs[i]
@@ -232,12 +223,11 @@ func _place(all := false) -> void:
 				masonry.place(Masonry.path_owner(ids[path]), job[2])
 
 
-## Whether path `id` is being laid again.
 func laying(id: int) -> bool:
 	return _laying.has(layout(id))
 
 
-## Places every lay under way now: what a script or test reads next sees the paths' pieces.
+## So what a script or test reads next sees the paths' pieces.
 func lay_now() -> void:
 	_place(true)
 

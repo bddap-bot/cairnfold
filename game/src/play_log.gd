@@ -2,29 +2,26 @@ class_name PlayLog
 extends RefCounted
 
 ## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
-## by a dev tool on a device of ours, never by the game unasked. It may name another folder to record into.
-## Beside each second's metrics row it keeps every frame's input (Replay), every message the network brought, what the
-## session's state came to every Replay.CHECK_EVERY frames and the garden as World keeps it. The game deletes no chunk or
-## take: only the host knows what it has copied, so its collector deletes each once copied and closed
-## (scripts/deletable.py). A device away from the host for long ends its session's record, as `finish` does, once its
-## storage has less than MIN_FREE left.
+## by a dev tool on a device of ours, never by the game unasked. Its content may name another folder to record into.
+## The game deletes no chunk or take: only the host knows what it has copied, so its collector deletes each once
+## copied and closed (scripts/deletable.py). A device away from the host for long ends its record, as `finish`
+## does, once its storage has less than MIN_FREE left.
 const SWITCH := "record-sessions"
-## A take's arm, a file a dev tool puts in the player folder beside the switch for one acted session: that session's
-## record keeps the microphone too (`take`). The session that finds it removes it as it starts, so it arms one session
-## whether or not that session records, and nothing the game writes ever sets it. An arm older than ARM_SECONDS is spent
-## unused, so one left by a take that never started cannot record whoever plays next.
+## A file a dev tool puts beside the switch so the next session's record keeps the microphone (`take`). The session
+## that finds it removes it, so it arms one session whether or not that records; the game never writes it. An arm older
+## than ARM_SECONDS is spent unused, so one left by a take that never started cannot record whoever plays next.
 const ARM := "capture-performance"
 const ARM_SECONDS := 600
-## The record's format: the events it holds and how a frame lays out (Replay). A record of another replays on no build.
+## Covers the events and the frame layout (Replay). A record of another schema replays on no build.
 const SCHEMA := 4
 const MAX_BYTES := 4194304
 const MIN_FREE := 1 << 30
 var directory: String
 var session_id: String
-## The armed session's microphone take, a mono 16-bit WAV beside its chunks; "" for any other.
+## Path of the mono 16-bit WAV beside the chunks; "" for a session that is not a take.
 var take := ""
 var metadata: Dictionary
-## The storage left below which no next chunk opens (MIN_FREE, or a test's).
+## Bytes free below which no next chunk opens.
 var min_free := MIN_FREE
 var _file: FileAccess
 var _part := 0
@@ -32,15 +29,15 @@ var _ended := false
 var _task := -1
 var _skipped := 0
 var _write_us := 0
-## Frames recorded since the last write, and how many the session recorded before them.
+## Frames since the last write, and how many the session recorded before them.
 var _input := PackedByteArray()
 var _frames := 0
-## Checks taken since the last write (`check`, `kept`), each with the frame it was taken in.
+## Since the last write, from `check` and `kept`, each with its "frame".
 var _checks := []
-## Messages heard since the last write, each [frame, from, whose, call, args], and how many the session heard before them.
+## Since the last write, each [frame, from, whose, call, args]; and how many the session heard before them.
 var _heard := []
 var _messages := 0
-## Microphone frames heard since the last write, the frame the take began at, and the take's file once opened.
+## Microphone frames since the last write; the input frame the take began at, -1 before; the WAV once opened.
 var _audio := PackedVector2Array()
 var _audio_frame := -1
 var _wav: FileAccess
@@ -90,8 +87,7 @@ func _init(folder: String, armed := false) -> void:
 	_open()
 
 
-## What the session replays from: the seeds it drew from and the garden it starts in, as World.snapshot gives it.
-## The garden is serialized here, so the edits that follow cannot change it under the writer.
+## `garden` as World.snapshot gives it, serialized here so the edits that follow cannot change it under the writer.
 func begin(seeds: Dictionary, garden: Dictionary) -> void:
 	_join()
 	_task = WorkerThreadPool.add_task(_write_replay.bind(seeds, var_to_bytes(garden)))
@@ -102,7 +98,7 @@ func _write_replay(seeds: Dictionary, save: PackedByteArray) -> void:
 		"save": Replay.deflated(save)})
 
 
-## Keeps this frame's input (Replay.frame) for the next write.
+## `frame` is Replay.frame's bytes.
 func record(frame: PackedByteArray) -> void:
 	_input.append_array(frame)
 
@@ -111,7 +107,6 @@ func ended() -> bool:
 	return _ended
 
 
-## Keeps microphone frames (Take) for the next write; a session that is not a take keeps none.
 func listen(frames: PackedVector2Array) -> void:
 	if take.is_empty() or _ended or frames.is_empty():
 		return
@@ -120,9 +115,9 @@ func listen(frames: PackedVector2Array) -> void:
 	_audio.append_array(frames)
 
 
-## Keeps a message for the next write, stamped with the frame it came in before (the count of frames recorded): a
-## networked `call` with `args` as it arrived from peer `from`, or 0 for what this machine did itself (a command it
-## ordered as host, a join), about player `whose` (the one who made a build command, the one who came or went).
+## Stamped with the count of frames recorded so far. `from` is the sending peer, or 0 for what this machine did
+## itself (a command it ordered as host, a join); `whose` is the player it is about (who made a build command, who
+## came or went).
 func heard(from: int, whose: int, call: String, args: Array) -> void:
 	if not _ended:
 		_heard.append([frames(), from, whose, call, args.duplicate(true)])
@@ -132,13 +127,12 @@ func frames() -> int:
 	return _frames + _input.size() / Replay.FRAME_BYTES
 
 
-## Keeps what the session's state has come to (Replay.check) for the next write, with the frame it was taken in.
 func check(parts: Dictionary) -> void:
 	if not _ended:
 		_checks.append(parts.merged({"frame": frames()}))
 
 
-## Keeps the garden as World keeps it, its snapshot's bytes once it has run command `seq`, as a check of its own.
+## `garden` is World's snapshot bytes once it has run command `seq`.
 func kept(seq: int, garden: PackedByteArray) -> void:
 	if not _ended:
 		_checks.append({"frame": frames(), "seq": seq, "garden": garden})
@@ -195,7 +189,7 @@ func _take_audio() -> PackedVector2Array:
 	return block
 
 
-## The frames kept since the last write, as their "input" event; {} for none.
+## {} for none.
 func _take_input() -> Dictionary:
 	if _input.is_empty():
 		return {}
@@ -205,7 +199,7 @@ func _take_input() -> Dictionary:
 	return block
 
 
-## The messages heard since the last write, as their "net" event before encoding; {} for none.
+## {} for none.
 func _take_heard() -> Dictionary:
 	if _heard.is_empty():
 		return {}
@@ -242,7 +236,7 @@ func _write_input(input: Dictionary) -> void:
 		"data": Replay.deflated(raw)})
 
 
-## The checks, each part's bytes digested here, off the main thread.
+## Digests the bytes here, off the main thread.
 func _write_checks(checks: Array) -> void:
 	if checks.is_empty():
 		return
@@ -253,7 +247,7 @@ func _write_checks(checks: Array) -> void:
 	_store({"event": "checks", "session": session_id, "checks": checks})
 
 
-## Each message's arguments in Godot's own binary encoding, the bytes the network carries, which `bytes_to_var` reads.
+## Arguments in Godot's binary encoding, the bytes the network carries, which `bytes_to_var` reads.
 func _write_net(net: Dictionary) -> void:
 	if net.is_empty():
 		return
@@ -263,7 +257,7 @@ func _write_net(net: Dictionary) -> void:
 		"data": Replay.deflated(raw)})
 
 
-## A file a message carries, the only bytes any does (an avatar), is kept as its SHA-256 and length, never the file.
+## A file a message carries (an avatar, the only bytes any does) is kept as its SHA-256 and length, never the file.
 static func _without_files(args: Array) -> Array:
 	return args.map(func(a: Variant) -> Variant:
 		if a is PackedByteArray and not a.is_empty():
@@ -271,8 +265,7 @@ static func _without_files(args: Array) -> Array:
 		return a)
 
 
-## Appends `audio` to the take as mono 16-bit samples, opening it on the first, when a `take` record notes the input
-## frame its first sample came in before. Each write leaves the header whole, so a killed session's take still plays.
+## Each write leaves the WAV header whole, so a killed session's take still plays.
 func _write_audio(audio: PackedVector2Array) -> void:
 	if audio.is_empty() or _ended:
 		return
@@ -302,7 +295,6 @@ func _write_audio(audio: PackedVector2Array) -> void:
 	_wav.seek_end()
 
 
-## Appends `record` as a line of the current chunk, opening the next first when it would outgrow MAX_BYTES.
 func _store(record: Dictionary) -> void:
 	if _file == null:
 		return

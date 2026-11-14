@@ -1,11 +1,7 @@
 class_name FloraTool
 extends Node3D
 
-## Flowers, grass, stone, trees, bushes, boulders and paths, for whichever hand holds them: the trigger paints flowers, grass
-## or stone ground where the hand points, plants a tree or bush there, takes up a new boulder there to carry and turn as a
-## grip carries a placed one and sets it down on the ground when let go, or lays a path along the stroke. The brush
-## widens with distance; painting a spot again thickens it, and a path is as wide as the brush. A stone
-## stroke begun on stone paints the ground back to meadow instead, and the plants under it stand up again.
+## A stone stroke begun on stone paints the ground back to meadow, and the plants under it stand up again.
 
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0, Hand.Tool.MOSS: 12.0}
@@ -14,7 +10,7 @@ const TINTS := {Hand.Tool.MOSS: Color(0.4, 0.65, 0.15, 0.6), Hand.Tool.PATH: Col
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
-## A held ground brush stamps again after this long, or once it has moved this fraction of its radius.
+## Seconds, and a fraction of the brush radius moved: a held ground brush stamps again after either.
 const STAMP_EVERY := 0.1
 const STAMP_MOVE := 0.3
 
@@ -24,28 +20,26 @@ signal planted
 class Brush:
 	var hand: Hand
 	var ring: MeshInstance3D
-	## What the current trigger hold has painted, one build command on release: its ghost plants, and
-	## the seed and dabs every machine grows the same plants from.
+	## The hold's ghost plants; the seed and dabs, sent as one command on release, grow the same plants on every
+	## machine.
 	var stroke: Array[Flora.Plant] = []
 	var kind := ""
 	var dabs := []
 	var count := 0
 	var rng := RandomNumberGenerator.new()
 	var looks := RandomNumberGenerator.new()
-	## The ground the current hold has painted, stone or meadow.
 	var ground: Ground.Stroke
-	## A stone hold begun on stone paints it back to meadow.
 	var meadow := false
-	## The ground this hold's stone reaches, as the budget counts it (Budget.reach).
+	## As the budget counts it (Budget.reach).
 	var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
 	var since_stamp := 0.0
 	var last_stamp := Vector3.INF
 	var owed := 0.0
 	var drawing_path := false
-	## Whether this hold has reached the frame budget, and been told so.
+	## Reached the frame budget, and the hand has been told.
 	var full := false
-	## The new boulder this hold carries, shown here alone; its pose and the hand's when taken up, and how far it moves
-	## per metre of hand.
+	## Shown here alone. rock_from and rock_hand are its and the hand's pose when taken up; rock_gain is metres of
+	## boulder per metre of hand.
 	var rock: Boulders.Boulder
 	var rock_from := Transform3D()
 	var rock_hand := Transform3D()
@@ -59,10 +53,10 @@ var world: World
 var brushes: Array[Brush] = []
 ## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
 var stand_in := Flora.NO_HAND
-## Sent strokes still shown as ghosts.
+## Count of sent strokes still shown as ghosts.
 var _sent := 0
-## The ghosts of settled strokes, hidden once the garden has grown their plants. A connection, not an await: a coroutine
-## still waiting when the tool is freed leaks its script.
+## Hidden once the garden has grown their plants. A connection, not an await: a coroutine still waiting when the tool
+## is freed leaks its script.
 var _settled: Array = []
 
 
@@ -81,7 +75,7 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 		brushes.append(b)
 
 
-## A brush's ring on the ground, of radius 1 until it is placed with `put_ring`.
+## Radius 1 until `put_ring` scales it.
 static func ring(tint: Color, segments := 32, inner := 0.96) -> MeshInstance3D:
 	var torus := TorusMesh.new()
 	torus.inner_radius = inner
@@ -102,7 +96,7 @@ static func put_ring(r: MeshInstance3D, at: Vector3, radius: float, lift := 0.04
 	r.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * lift)
 
 
-## Whether `hand`, or with none any hand, has a stroke under way.
+## A null `hand` asks about any hand.
 func busy(hand: Hand = null) -> bool:
 	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.drawing_path or b.ground != null or not b.dabs.is_empty() or b.rock != null))
 
@@ -188,7 +182,6 @@ static func _reach(hand: XRController3D) -> Vector3:
 	return hand.global_position if hand.tracked() else Flora.NO_HAND
 
 
-## A stone stroke begun on `marks`' stone paints the ground back to meadow.
 static func paints_meadow(tool: Hand.Tool, at: Vector3, marks: Ground) -> bool:
 	return tool == Hand.Tool.STONE and marks.stone(at.x, at.z) > 0.5
 
@@ -280,7 +273,7 @@ func _send_plants(b: Brush) -> void:
 		world.submit(cmd, _lay.bind(ghost), b.hand)
 
 
-## A painted stroke of stone (or meadow) goes to the garden; it stays shown until its command comes back.
+## The stroke stays shown until its command comes back.
 func _send_ground(b: Brush) -> void:
 	var stroke := b.ground
 	b.ground = null
@@ -296,7 +289,7 @@ func _send_ground(b: Brush) -> void:
 	world.submit(cmd, world.marks.release.bind(stroke), b.hand)
 
 
-## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
+## Called once the command settles: its plants grow in the garden now, or it was turned down.
 func _lay(ghost: Array[Flora.Plant]) -> void:
 	_settled.append(ghost)
 	if not flora.growing():
@@ -345,7 +338,7 @@ func extend_path(at: Vector3, radius: float, hand: Hand = null) -> void:
 		Cues.play(Cues.Act.PATH_LAY, at, hand)
 
 
-## Sends the drawn path to the garden; its stones and worn ground stay as drawn until the command comes back.
+## The path's stones and worn ground stay as drawn until the command comes back.
 func end_path(b: Brush) -> void:
 	b.drawing_path = false
 	var ghost := paths.end()
@@ -358,7 +351,6 @@ func coat_tree(trunk: Flora.Plant, hand: Hand) -> void:
 	world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "moss": true}, Callable(), hand)
 
 
-## Takes up a new boulder of shape `shape` and size `scale` at `at` in `b`'s hand, from the hand's pose now.
 func take_boulder(b: Brush, at: Vector3, shape := randi(), scale := 1.0) -> void:
 	b.rock = world.boulders.ghost(_boulder(at, Quaternion.IDENTITY, shape, scale))
 	b.rock_from = b.rock.pose()
@@ -366,13 +358,11 @@ func take_boulder(b: Brush, at: Vector3, shape := randi(), scale := 1.0) -> void
 	b.rock_gain = Hand.reach_gain(b.rock_hand.origin.distance_to(at))
 
 
-## Carries the boulder `b` took up with the hand, now at `hand`, as a grip carries a placed one.
 func carry_boulder(b: Brush, hand: Transform3D) -> void:
 	b.rock.hold(Boulders.carried(b.rock_from, b.rock_hand, hand, b.rock_gain), b.rock.size)
 
 
-## Sets the boulder `b` carries down on the ground under it, turned as it was held, or leaves it as deep as it was
-## pushed into the ground; it shows there until its command comes back.
+## The boulder keeps the turn it was held at and the depth it was pushed into the ground.
 func set_boulder(b: Brush) -> void:
 	var rock := b.rock
 	b.rock = null
@@ -383,9 +373,8 @@ func set_boulder(b: Brush) -> void:
 	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, turn, rock, BoulderLayout.sink(rock.shape, turn, rock.size, pose.origin, world.terrain.height_at))
 
 
-## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`, `sink` unit metres into
-## it, in the stone style the style wheel let go last; `ghost`, the boulder shown for it, rests there until the command
-## comes back.
+## `sink` is in unit-boulder metres (BoulderLayout.rest). The style is the one the style wheel let go last; `ghost`
+## rests there until the command comes back.
 func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null, sink := 0.0) -> void:
 	var cmd := _boulder(at, turn.normalized(), shape, scale, sink)
 	var from_y := ghost.position.y if ghost != null else -INF

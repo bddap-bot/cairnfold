@@ -1,18 +1,16 @@
 class_name FittingTool
 extends Node3D
 
-## One opening operation for windows and both door styles, plus decorations. A low window click makes a
-## plain door; the arch selection supplies the archway door style; on a gable roof's slope the window opens a dormer.
-## Both preview and commit the same list.
-## Decorations hang as ghosts until their command returns, placed or taken away as the trigger is let go; a stroke
-## with it held from one point to another hangs a string between them. Every edit goes through World.
+## One opening operation makes windows and both door styles: a low press with a family that can be a door makes a
+## plain door (WallLayout.opens_door), the arch tool an archway, and a window on a gable roof's slope a dormer.
+## Preview and commit share one list; every edit goes through World.
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
-## A press this near a placed fitting takes it away.
+## Metres: a press this near a placed fitting takes it away.
 const TAKE_REACH := 0.6
 const LIGHT_EVERY := 0.25
-## A ghost with nowhere to go hangs this high over the ground the hand points at, or this far along the
-## ray where that ground is far or missing.
+## Metres: a ghost with nowhere to go hangs HANG_OVER above the ground aimed at, or HANG along the ray where
+## that ground is far or missing.
 const HANG_OVER := 1.0
 const HANG := 2.5
 const SHAKE := 0.35
@@ -20,18 +18,18 @@ const SHAKE := 0.35
 var rig: Rig
 var walls: WallTool
 var world: World
-## Per hand: each fitting's ghost by ToolModels.FITTING_PARTS key, and how long since a refused press.
+## Per hand: each fitting's ghost by ToolModels.FITTING_PARTS key; seconds since a refused press.
 var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
 ## Per hand, the opening target its wall was last laid for.
 var _aims: Array[Dictionary] = []
-## Per hand, the seed of the decoration its next press places, drawn once per placement so its preview holds still.
+## Per hand, the seed of its next decoration, drawn once per placement so the preview holds still.
 var _draws: Array[int] = []
-## Per hand, the aim its decorations trigger went down on, until it is let go; null while it is up.
+## Per hand, the aim the decorations trigger went down on; null while it is up.
 var _starts: Array = []
-## The reshape data each wall is laid with that the garden does not have yet, by id.
+## By wall id: reshape data a wall is laid with that the garden does not have yet.
 var _previewed := {}
-## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
+## By wall id, then key: fitting lists sent and not yet back, so a quick second press builds on the first.
 var _sent := {}
 var lamps := Lamps.new()
 var _since_lights := INF
@@ -110,8 +108,6 @@ func _process(delta: float) -> void:
 	lamps.update()
 
 
-## Hand `i`'s decorations trigger let go aiming at `target`: it hangs `stroke` where it drew one, or else does what its
-## preview showed there.
 func _let_go(i: int, hand: Hand, stroke: Dictionary, target: Dictionary) -> void:
 	_starts[i] = null
 	if not stroke.is_empty():
@@ -128,9 +124,8 @@ func _refused(i: int, hand: Hand) -> void:
 	Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 
 
-## The string a stroke of the decorations tool from aim `from` to aim `to` hangs between their points, each on a pole
-## where a decoration would stand there outdoors, seeded `seed`, of `style` with its lanterns in `lantern` (a
-## Palette.Element.LANTERN swatch); {} where none hangs.
+## An end where an outdoor decoration would stand gets a pole. `lantern` is a Palette.Element.LANTERN swatch;
+## {} where no string hangs.
 func string_command(from: Dictionary, to: Dictionary, seed: int, style: int, lantern: int) -> Dictionary:
 	if from.is_empty() or to.is_empty():
 		return {}
@@ -144,7 +139,7 @@ func string_command(from: Dictionary, to: Dictionary, seed: int, style: int, lan
 	return cmd if Commands._decoration(cmd) != null else {}
 
 
-## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
+## A target naming `what` and where; {} where a press does nothing.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 	var decoration := tool == Hand.Tool.DECORATIONS
 	var target := World.Kind.TARGET_PAST_ARCHES if decoration else World.Kind.TARGET
@@ -241,8 +236,7 @@ static func _height(pick: Dictionary) -> float:
 	return pick.point.y - (pick.wall as Wall).layout.point_at(pick.s).y
 
 
-## Places what `aim` found, or takes away the one already there, as one build command from `hand`; false where the
-## press does nothing.
+## False where the press does nothing.
 func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 	var cmd := command(target)
 	if cmd.is_empty():
@@ -271,7 +265,7 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 	return true
 
 
-## The build command a press on `target` sends, or {} where it does nothing.
+## {} where the press does nothing.
 func command(target: Dictionary) -> Dictionary:
 	return _command(target, change(target))
 
@@ -289,9 +283,8 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 	return {"op": "reshape", "of": "walls", "id": w.id, "data": FittingGrip.data(c.key, FittingGrip.packed(c.key, c.after), c.on_roof)}
 
 
-## What a press on `target` would do: `ok` false where nothing; otherwise the list `key` on the wall (or
-## its roof, `on_roof`) becomes `after`, with entry `near` taken out of it, or with `value` added where
-## `near` is -1.
+## `ok` false where the press does nothing; otherwise list `key` on the wall (or its roof, `on_roof`) becomes
+## `after`, with entry `near` taken out, or `value` added where `near` is -1.
 func change(target: Dictionary) -> Dictionary:
 	if target.is_empty():
 		return {"ok": false}
@@ -335,8 +328,7 @@ func change(target: Dictionary) -> Dictionary:
 	return {"ok": true, "near": 0 if w.roof.flag else -1}
 
 
-## The list `key` on the wall (or its roof) as the garden has it with our sent commands applied, read from the garden
-## rather than the wall, which may be previewing an opening.
+## Read from the garden plus our sent commands rather than the wall, which may be previewing an opening.
 func _placed(w: Wall, on_roof: bool, key: String) -> Array:
 	var d: Dictionary = world.state.walls[w.id]
 	return Array(_sent.get(w.id, {}).get(key, (d.roof if on_roof else d)[key]))
@@ -353,9 +345,8 @@ func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok:
 	return {"ok": ok, "on_roof": on_roof, "key": key, "after": after, "near": near, "value": value}
 
 
-## The ghost a hand holding decorations shows for `target`, pointing from `origin` along `dir` at `hit` (or
-## nothing): the fitting `what` at `xform`, `fits` where a press would place it. Where the press would
-## take a fitting away it shows none, the fitting itself being there.
+## Keys `what`, `xform`, `fits` (a press would place it). {} where the press would take a fitting away: the
+## fitting itself is there.
 func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -> Dictionary:
 	var c := change(target)
 	if c.ok and c.near >= 0:
@@ -401,7 +392,6 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 	return {"what": what, "xform": _facing(at, face), "fits": c.ok}
 
 
-## Upright at `at`, its face turned toward `face` across the ground.
 static func _facing(at: Vector3, face: Vector3) -> Transform3D:
 	face.y = 0.0
 	face = face.normalized() if face.length() > 0.01 else Vector3.BACK
@@ -466,7 +456,6 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 		g.visible = true
 
 
-## Hands every lantern's flame, and the houses holding them, to the light they cast.
 func light_lanterns() -> void:
 	_since_lights = 0.0
 	lamps.light(walls.walls, world.decorations.flames, world.decorations.lights)
@@ -476,10 +465,9 @@ func _exit_tree() -> void:
 	lamps.stop()
 
 
-## Placement and deletion refine the same first building surface with the fittings in front of it that the garden has:
-## a previewed opening is the hand's own aim, never something to take away. A `held` pick also sees builds another
-## hand is pulling, and `through_arches` sees through an arch, as `WallTool.pick_building` does; without it a grip or
-## a delete into the hole takes the arch.
+## Only fittings the garden has count: a previewed opening is the hand's own aim, never something to take away.
+## A `held` pick also sees builds another hand is pulling. Without `through_arches` a grip or delete into an arch's
+## hole takes the arch.
 static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held := false, through_arches := false) -> Dictionary:
 	var best := builder.pick_building(origin, dir, held, through_arches)
 	for w in builder.walls:
@@ -515,7 +503,7 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 	return best
 
 
-## How far along `dir` from `origin` the ray meets `item`'s box, INF on a miss.
+## INF on a miss.
 static func _along(item: Dictionary, origin: Vector3, dir: Vector3) -> float:
 	var local: Vector3 = item.inverse * origin
 	var direction: Vector3 = item.inverse.basis * dir
@@ -587,7 +575,6 @@ static func targets(w: Wall) -> Array[Dictionary]:
 	return out
 
 
-## The pieces of clutter beside every path, as `targets` has a wall's, on ground of `height`.
 static func path_targets(paths: Paths, height: Callable) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for path in paths.layouts:

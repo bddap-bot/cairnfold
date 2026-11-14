@@ -1,11 +1,10 @@
 class_name Contacts
 extends RefCounted
 
-## VRChat's contacts (https://creators.vrchat.com/common-components/contacts/): senders are tagged spheres and capsules
-## on bodies, and each receiver writes its parameter from the senders whose tags it lists that touch it: "constant" 1
-## while one does, "onEnter" 1 for the frame one arrives at least `minVelocity` fast, "proximity" from 0 at its edge
-## to 1 at its centre. Every humanoid body carries the senders VRChat gives every avatar (BODY), so the wearer's
-## hands and every other player touch what an avatar's receivers reach for, whatever avatar they wear.
+## VRChat's contacts (https://creators.vrchat.com/common-components/contacts/). A receiver's parameter, from the
+## senders whose tags it lists that touch it: "constant" 1 while one does, "onEnter" 1 for the frame one arrives at
+## least `minVelocity` fast, "proximity" from 0 at its edge to 1 at its centre. Every humanoid body carries BODY, so
+## every player touches what an avatar's receivers reach for, whatever avatar they wear.
 
 const RECEIVERS := ["constant", "onEnter", "proximity"]
 ## The senders VRChat makes on every humanoid avatar, by the name of the descriptor collider each comes from: [tags,
@@ -38,7 +37,7 @@ var _senders: Array[Dictionary] = []
 var _touching: Array[Dictionary] = []
 ## Each sender's world origin a frame ago, by its key, while a receiver is "onEnter".
 var _last := {}
-## Whether the file gives the body's own senders, which stand in for BODY.
+## The file gives the body's own senders, which stand in for BODY.
 var carries_body := false
 var _entering := false
 static var _gathered := []
@@ -70,7 +69,7 @@ func receives() -> bool:
 	return not _receivers.is_empty()
 
 
-## This avatar's own senders that `outputs` switch on, in world space, as BODIES members give them.
+## In world space, laid out as BODIES members give them.
 func senders(outputs: Array[float], owner: Object, tags: Variant = null) -> Array:
 	var out := []
 	for s: Dictionary in _senders:
@@ -112,8 +111,8 @@ func listened(outputs: Array[float], local: bool) -> Variant:
 	return out
 
 
-## Writes each receiver's parameter into `state` from the `senders` (gather) touching it, `owner` being its own body;
-## `local` whether the avatar is its wearer's own, where alone a local-only receiver runs; `delta` the time since the last.
+## `senders` is what `gather` returns; `owner` is its own body; `local` means the avatar is its wearer's own, the only
+## place a local-only receiver runs.
 func sense(state: ExpressionState, senders: Array, owner: Object, local: bool, delta: float) -> void:
 	for i in _receivers.size():
 		var r: Dictionary = _receivers[i]

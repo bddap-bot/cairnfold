@@ -1,31 +1,28 @@
 class_name Lamps
 extends Bake
 
-## Lantern light, baked: how much reaches each of Bounce's probes in each lantern's colour, on its grid so shaders read
-## it where they read the bounce (bounce.gdshaderinc), shared as the global lamp_volume. Every lantern lights and none costs the frame:
-## the volume is solved again on a worker only when a lantern is hung or taken or the ground moves. Godot's own
-## lights cost the Quest 2 milliseconds a frame each. A house's walls and roof hold its lanterns' light in and keep
-## outside lantern light from crossing solid walls; openings spill light between the room and the garden.
+## Lantern light baked onto Bounce's probe grid, shared as the global lamp_volume and read where shaders read the
+## bounce (bounce.gdshaderinc). Solved on a worker only when a lantern or the ground changes: Godot's own lights
+## cost the Quest 2 milliseconds a frame each.
 
-## How far a lantern's light carries: from high on a tall house's wall down to its floor.
+## Metres a lantern's light carries: from high on a tall house's wall down to its floor.
 const REACH := 9.0
 ## Lantern light as the shaders add it, at a lit lantern's strength.
 const LIGHT := 0.4
-## A lantern's strength lit, bright and dim, in the order of each colour's swatches (Palette.Element.LANTERN).
+## Lit, bright, dim: the order of each colour's swatches (Palette.Element.LANTERN).
 const STRENGTHS: Array[float] = [1.0, 2.2, 0.45]
 ## A lit opening must read against the flame of an outdoor lantern, not only against unlit stone.
 const WINDOW_GLOW := 8.0
 ## How brightly a room's glass shines in its glow colour once night falls, lantern or none.
 const NIGHT_GLOW := 0.4
-## Light is stored this many times under its value, so a byte holds it from beside a flame out to its reach.
+## Stored divided by this, so a byte spans from beside a flame out to REACH.
 const ENCODE := 4.0
-## How far a lit window's light falls outside it.
+## Metres a lit window's light falls outside it.
 const SPILL := 3.0
-## How far out from its face a window's light spreads from: the wall around it reads the light a metre out
-## (bounce.gdshaderinc), and from here that plane lies nearly edge on, so the window lights the ground more than
-## its wall.
+## Metres out from its outer face a window's light spreads from: the wall reads light a metre out
+## (bounce.gdshaderinc), and from here that plane lies nearly edge on, so a window lights the ground more than its wall.
 const OUT := 0.5
-## How much of the light in a doorway gets out: a doorway spills a little, so a lit house reads by its windows.
+## The share of a doorway's light that gets out: a doorway spills little, so a lit house reads by its windows.
 const DOOR := 0.2
 
 signal rooms_changed(rooms: Rooms)
@@ -55,8 +52,7 @@ static func light_of(look: int) -> Color:
 	return Palette.GLOWS[look / STRENGTHS.size()] * STRENGTHS[look % STRENGTHS.size()]
 
 
-## The air inside a house or tower: inside its walls' inner faces, from its floor up to its roof, and through
-## its openings. Pure data, made on the main thread and read by the solve.
+## Pure data: made on the main thread, read by the solve on a worker.
 class Room:
 	var inside: Array[PackedVector2Array] = []
 	var probe_inside: Array[PackedVector2Array] = []
@@ -66,13 +62,13 @@ class Room:
 	var group := 0
 	var rect := Rect2()
 	var floor := 0.0
-	## Under a flat deck or a wall's top; a loop without a cover is open to the sky.
+	## The height of its flat deck or wall top; INF: open to the sky.
 	var top := INF
 	var roof: RoofLayout
-	## Per opening: position before its outer face, outward normal, area and outward light strength.
+	## Keys: at (before the outer face), out (outward normal), gives (outward strength), area.
 	var openings: Array[Dictionary] = []
-	## Every way the sun gets in (Interior): each opening and dormer window as the middle of its sill on the plane it is
-	## cut in, its outward normal, half-width, height, how deep it is cut and how round its corners are.
+	## Read by Interior for sunlight: each opening and dormer window. Keys: at (middle of its sill on the plane it is
+	## cut in), out (outward normal), half (half-width), tall, depth, round (corner rounding).
 	var portals: Array[Dictionary] = []
 
 	static func of(layout: WallLayout, massing: Massing, cover: RoofLayout = null) -> Room:
@@ -116,7 +112,7 @@ class Room:
 		var out: Vector3 = face.out
 		openings.append({"at": face.at + out * (WallLayout.THICKNESS * 0.5 + OUT), "out": out, "gives": gives, "area": area})
 
-	## The wall's point `s` along `layout` at height `y`, and the way out of the room there.
+	## `out` points out of the room.
 	func _face(layout: WallLayout, s: float, y: float) -> Dictionary:
 		var f := layout.frame_at(s)
 		var out: Vector3 = f.tangent.cross(Vector3.UP)
@@ -125,8 +121,8 @@ class Room:
 			out = -out
 		return {"at": at, "out": out}
 
-	## Boundary probes supply the inside face through linear filtering; include their half-cell support, and `over`
-	## more above the ceiling.
+	## `probe`: boundary probes supply the inside face through linear filtering, so include their half-cell support, and
+	## `over` more above the ceiling.
 	func holds(p: Vector3, probe := false, over := 0.0) -> bool:
 		var margin := Terrain.STEP * 0.5 if probe else 0.0
 		if p.y < floor - margin or not rect.grow(margin).has_point(Vector2(p.x, p.z)):
@@ -155,8 +151,7 @@ class Room:
 		return false
 
 
-## A garden's rooms and their groups: rooms whose joined masses open into each other. Never changed once made: solves on
-## other threads share it, and each Room belongs to one.
+## Never changed once made: solves on other threads share it, and each Room belongs to one.
 class Rooms:
 	var all: Array[Room] = []
 	## Each group's rooms, for the groups none of whose rooms is open to the sky.
@@ -167,7 +162,7 @@ class Rooms:
 		for i in rooms.size():
 			rooms[i].group = i + 1
 		for i in rooms.size():
-			# This runs on the main thread, where a garden of rooms joined to nothing should cost next to nothing.
+			# Main thread: unjoined rooms must cost next to nothing.
 			if rooms[i].joined.is_empty():
 				continue
 			for j in i:
@@ -185,8 +180,6 @@ class Rooms:
 				covered.append(members[g])
 
 
-## The lanterns hung on `walls`, and `extra` burning in `extra_lights`, and the rooms of the houses and towers among
-## them, wherever they stand now.
 func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedColorArray()) -> void:
 	var flames := extra.duplicate()
 	var lights := extra_lights.duplicate()
@@ -225,7 +218,6 @@ func _next() -> Callable:
 	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms, lights)}
 
 
-## The light probe `layer` over column (x, z) holds in its strongest colour, as shaders add it.
 func at(x: float, z: float, layer: int) -> float:
 	var c := Bounce.column(x, z)
 	var p := _layers[layer].get_pixel(c.x, c.y)
@@ -238,10 +230,8 @@ func _take(out: Dictionary) -> void:
 	texture.update(_layers)
 
 
-## Per layer, the light each probe takes from `flames`, each in its `lights` (lit in the first colour where none is
-## given), with the ground at each column's middle `ground`: falling off with distance and gone at REACH, as Godot
-## fades an omni light. A flame in one of `rooms` lights only that room, and its openings shine outward with the light
-## at them; exterior flames spill inward through openings.
+## Empty `lights` means every flame in the first colour; `ground` is each column's middle. Falls off as Godot fades
+## an omni light. A flame in a room lights only that room; light crosses walls only through openings.
 static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms := Rooms.new(), lights := PackedColorArray()) -> Array[PackedByteArray]:
 	var n := Bounce.CELLS
 	var sum := PackedFloat32Array()
@@ -313,8 +303,7 @@ static func _falloff(d: float) -> float:
 	return fade * fade / maxf(d, 0.5)
 
 
-## Adds the light `lit` an opening at `at` facing `out` throws into `home`, brightest
-## straight out and gone at SPILL. Outward spill stays below the eaves; inward spill stays in its room group.
+## Outward spill stays below the eaves; inward spill stays in its room group.
 static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Color, within: PackedInt32Array, ground: PackedFloat32Array, home := 0) -> void:
 	var n := Bounce.CELLS
 	var r := ceili(SPILL / Terrain.STEP)
@@ -333,7 +322,7 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Colo
 					sum[p * 3 + 2] += lit.b * share
 
 
-## Per probe, its connected room group, or 0 outside every room.
+## Per probe, its room group, or 0 outside every room.
 static func _rooms_at(rooms: Rooms, ground: PackedFloat32Array) -> PackedInt32Array:
 	var n := Bounce.CELLS
 	var within := PackedInt32Array()

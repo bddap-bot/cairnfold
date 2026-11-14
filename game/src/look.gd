@@ -23,7 +23,6 @@ const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
 const AIR_FOG := {"fog_depth_curve": 1.6, "fog_density": 0.55, "fog_aerial_perspective": 0.8, "fog_sun_scatter": 0.35, "fog_sky_affect": 0.15}
-## Under a pond the view is gone to the water's blue-green within a few metres, thickest close in.
 const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0, "fog_sky_affect": 1.0}
 const UNDER_FOG := Color(0.07, 0.25, 0.27)
 ## Water takes red first, then green: what reaches the eye through it keeps this much of each.
@@ -153,7 +152,6 @@ static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	return disc_mi
 
 
-## Sets the time of day, wrapping round midnight.
 func set_time(t: float) -> void:
 	t = fposmod(t, 1.0)
 	if t == time:
@@ -203,7 +201,6 @@ static func fog_at_height(lift: float) -> Dictionary:
 	}
 
 
-## How bright the water around an eye under it is at this hour's `l` (Daylight.light).
 static func under_light(l: Dictionary) -> float:
 	return 0.25 + 0.45 * l.energy
 

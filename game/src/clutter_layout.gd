@@ -1,11 +1,9 @@
 class_name ClutterLayout
 extends RefCounted
 
-## The small things a house, wall or path gathers of its own when it is built: benches by a house's front, pumpkins or
-## flowers the other side, barrels and crates at its corners, now and then a market stall or an anvil, swallows' nests
-## under its eaves; barrels, crates, flowers and benches along a wall's foot and nests on its top; benches, barrels,
-## crates and pumpkins beside a path. Each is a decoration's style (DecorationLayout) laid as part of its build, so it
-## costs a draw call no more than the build's own stones do. A build keeps them as `clutter`, a list of
+## The small things a house, wall or path gathers of its own when it is built. Each is a decoration's style
+## (DecorationLayout) laid as part of its build, so it costs a draw call no more than the build's own stones do.
+## A build keeps them as `clutter`, a list of
 ## Vector4(s, off, turn, style): its arc length along the build; how far out it stands, from a wall's face to its
 ## middle or from a path's spine, the sign the side (`WallLayout._normal`, or a path's right); its turn from facing
 ## out; and its style. A hand moves, turns, copies or takes each away as a fitting of its build.
@@ -34,9 +32,7 @@ static func perched(style: int) -> bool:
 	return style == DecorationLayout.named("Bird nest")
 
 
-## What wall `d` (a build command's wall) gathers: none for a fence or a ruin; for a house or tower its front and corners
-## dressed, now and then a stall or a smithy, a nest under its eaves; for a house standing on another build the nest
-## alone; along a plain wall pieces at its foot and nests on its top.
+## `d` is a build command's wall.
 static func of_wall(d: Dictionary) -> PackedVector4Array:
 	var out := PackedVector4Array()
 	if d.fence or not d.ruins.is_empty():
@@ -103,8 +99,7 @@ static func _clear(out: PackedVector4Array, s: float, length: float) -> bool:
 	return Array(out).all(func(v: Vector4) -> bool: return absf(fposmod(v.x - s + length * 0.5, length) - length * 0.5) >= CLEAR)
 
 
-## What path `d` (a build command's path) gathers: a piece beside it PATH_FIRST from its start and each PATH_EVERY after,
-## on either side in turn, facing it, none near its end, where it may run into a house.
+## `d` is a build command's path. None stands near its end, where it may run into a house.
 static func of_path(d: Dictionary) -> PackedVector4Array:
 	var out := PackedVector4Array()
 	var points: PackedVector3Array = d.points
@@ -147,7 +142,6 @@ static func _outward(points: PackedVector3Array, sides: Array[Dictionary]) -> fl
 	return -1.0 if Geometry2D.is_point_in_polygon(Vector2(probe.x, probe.z), outline) else 1.0
 
 
-## A path's half width `s` along its points.
 static func _half_at(points: PackedVector3Array, halves: PackedFloat32Array, s: float) -> float:
 	var at := 0.0
 	for i in range(1, points.size()):
@@ -197,7 +191,7 @@ static func _shape(style: int) -> DecorationLayout:
 	return _shapes[style]
 
 
-## The frame a piece standing out `off` from `point`, whose run goes along `tangent`, stands in, turned `turn`.
+## The frame a piece stands in: `out_by` from `point` on the side `off` signs, its run along `tangent`, turned `turn`.
 static func facing(point: Vector3, tangent: Vector3, off: float, out_by: float, turn: float) -> Transform3D:
 	var normal := tangent.cross(Vector3.UP).normalized() * (1.0 if off >= 0.0 else -1.0)
 	return Transform3D(Basis(Vector3.UP, atan2(normal.x, normal.z) + turn), point + normal * out_by)

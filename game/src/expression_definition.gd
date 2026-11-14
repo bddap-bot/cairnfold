@@ -1,19 +1,17 @@
 class_name ExpressionDefinition
 extends RefCounted
 
-## Material properties a target animates over the atlas regions of the materials it names: docs/model.md "File", a clip
-## curve's material property by name.
+## Material properties a target animates over atlas regions (docs/model.md "File").
 const REGIONS := ["hue", "color", "tone", "look"]
 ## Poiyomi's decal Color Blend Modes (_DecalBlendType) a decal region's "colorBlend" names: replace, darken, multiply,
 ## lighten, screen, subtract, add, overlay and mixed (decal_blend in expression.gdshaderinc).
 const DECAL_BLENDS: Array[int] = [0, 1, 2, 5, 6, 7, 8, 9, 20]
 
-## What a "particle" effect sets on its system (docs/particles.md): a curve's scale, a start colour channel, the material
-## its renderer draws, or that material's tint or emission channel.
+## What a "particle" effect sets on its system (docs/particles.md).
 const PARTICLE_FIELDS := ["rate", "distance", "speed", "size", "lifetime", "gravity", "color", "material", "tint", "emission"]
 
 
-## The region kind `effect` animates, or "" for any other effect.
+## "" for an effect that animates no region.
 static func region(effect: Variant) -> String:
 	return effect.keys()[0] if effect is Dictionary and effect.size() == 1 and effect.keys()[0] in REGIONS else ""
 
@@ -84,15 +82,11 @@ static func valid(data: Dictionary) -> bool:
 	return looks_valid(data.get("looks", {}))
 
 
-## Looks that name their materials give each its "lighting": "lit" by angle, through a "ramp" of at least two
-## brightnesses with a numeric "shadowTint" where it has one, or "flat", lit alike whichever way it faces; a flat or
-## ramp-lit one is capped at "cap" when it has one, with a toon "shadow" null or its numbers (unity/materials.gd
-## lighting), an "emission" null or its linear "color", "strength" and, optionally, "replace" and "theme", the slot of
-## the global theme colour it glows in among the material's "themes" (unity/materials.gd `_theme`), and a "rim" null or
-## its linear "color", numbers and whether it draws on back faces, "backface", tinted by the looks' "rimTint" layer where
-## they carry one, and a "rimShade" null or its linear "color" and numbers. A shadow draws by the looks' "shade" layer and a second shade by their "shade2" (Avatar.shape); an "outline" layer comes with its positive
-## "outlineWidth" in metres. A file whose looks predate lighting would draw flat materials shaded twice, so it is
-## refused rather than guessed at (Avatar.shape).
+## A material's "lighting" "model" is "lit", by angle through its "ramp" of brightnesses, or "flat", lit alike whichever
+## way it faces (unity/materials.gd lighting). Emission, rim and rim shade colours are linear; an emission's "theme" is
+## the slot, among its material's "themes", of the global theme colour it glows in (unity/materials.gd `_theme`). The
+## rim is tinted by the looks' "rimTint" layer, shadows by "shade" and "shade2" (Avatar.shape); "outlineWidth" is in
+## metres. Looks that predate lighting are refused: their flat materials would draw shaded twice (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		push_error("expressions: the looks are not a dictionary")
@@ -152,13 +146,13 @@ static func looks_valid(looks: Variant) -> bool:
 	return true
 
 
-## A global theme colour: its colour's "hsv" and "exposure", and its "hue", "saturation", "value" and "speed" offsets.
+## "hue", "saturation", "value" and "speed" are offsets.
 static func _theme(v: Variant) -> bool:
 	return v is Dictionary and _numbers(v.get("hsv"), 3) and ["exposure", "hue", "saturation", "value", "speed"].all(func(k: String) -> bool: return _number(v.get(k)))
 
 
-## The untinted colours: the "image" holding them cell by cell, gone once the model's texture holds it, and the "cells"
-## a colour control draws from it, at most 255, since the shader looks through them for each texel it recolours.
+## "image" is gone once the model's texture holds it. At most 255 "cells": the shader looks through them for each
+## texel it recolours.
 static func _untinted(untinted: Variant) -> bool:
 	if not untinted is Dictionary:
 		return false
@@ -171,10 +165,7 @@ static func _cell(c: Variant) -> bool:
 	return c is Array and c.size() == 8 and c.all(_number) and c[0] < c[2] and c[1] < c[3] and c[4] < c[6] and c[5] < c[7]
 
 
-## A look's matcap slot: null, or its "mode" ("normal" or "reflection"), its "texture" (an index among the looks'
-## "matcaps", or null for plain white), its linear "color", its "border", "intensity", "baseMix", "replace", "multiply",
-## "add", "screen", "mixed", "lightAdd", "emission" and "lightMask", its "hue" (null, or its "shift", "space" and
-## "select") and its "circle" (null, or its "border" and "blur").
+## null is an empty slot. "texture" indexes the looks' "matcaps", null for plain white; "color" is linear.
 static func _matcap(c: Variant) -> bool:
 	if c == null:
 		return true
@@ -187,14 +178,10 @@ static func _matcap(c: Variant) -> bool:
 	return (hue == null or hue is Dictionary and ["shift", "space", "select"].all(func(k: String) -> bool: return _number(hue.get(k)))) and (circle == null or circle is Dictionary and _number(circle.get("border")) and _number(circle.get("blur")))
 
 
-## A look's "clearcoat": null, or its "strength", "smoothness", "reflection", "specular" and "fresnel", its
-## "specularTint" and "reflectionTint", its "gsaa" variance and threshold, its maps' "st" (Unity's tiling and offset),
-## its four "inverts", its "map", -1 or an index among the looks' "clearcoatMaps", and its "fallback", -1 or an index
-## among the looks' "clearcoatFallbacks", with whether its light lights it ("litFallback") and whether it is reflected
-## even where the world has a reflection probe ("forceFallback"); an index past them draws as none. Its
-## "fresnelStrength" is Poiyomi 9.2's, null for an earlier Poiyomi, whose "fresnel" then weighs a grazing reflectance
-## that follows its smoothness; 9.2 also blurs what it reflects by its antialiased roughness and dims it by its
-## "exposureOcclusion".
+## "gsaa" is [variance, threshold]; "st" is Unity's tiling and offset. "map" indexes the looks' "clearcoatMaps" and
+## "fallback" their "clearcoatFallbacks", -1 or an index past them drawing none; "forceFallback" reflects it even where
+## the world has a reflection probe. "fresnelStrength" is Poiyomi 9.2's, null for an earlier Poiyomi, whose "fresnel"
+## then weighs a grazing reflectance that follows its smoothness.
 static func _coat(coat: Variant) -> bool:
 	if coat == null:
 		return true
@@ -211,7 +198,6 @@ static func _coat(coat: Variant) -> bool:
 	return [coat.get("map"), coat.get("fallback")].all(func(v: Variant) -> bool: return _number(v) and (float(v) == -1.0 or _whole(v)))
 
 
-## A decal region names its "colorBlend", one of DECAL_BLENDS.
 static func _blend(region: Dictionary) -> bool:
 	if not str(region.get("field", "")).begins_with("decal"):
 		return true
@@ -219,8 +205,6 @@ static func _blend(region: Dictionary) -> bool:
 	return _whole(mode) and int(mode) in DECAL_BLENDS
 
 
-## A toon shadow's numbers: its "border", "blur" and "strength", a "second" shade null or its "border", "blur" and
-## "weight", and an "edge" null or its "color" of three and "range".
 static func _shadow(v: Variant) -> bool:
 	if not v is Dictionary or not ["border", "blur", "strength"].all(func(k: String) -> bool: return _number(v.get(k))):
 		return false
@@ -229,8 +213,8 @@ static func _shadow(v: Variant) -> bool:
 	return (second == null or second is Dictionary and ["border", "blur", "weight"].all(func(k: String) -> bool: return _number(second.get(k)))) and (edge == null or edge is Dictionary and _numbers(edge.get("color"), 3) and _number(edge.get("range")))
 
 
-## A region's decal hue turn, {"shift", "space", "select"}, or null where its image holds its colour; one that drives
-## the turn names the colour space and mode it turns in, which the shader cannot guess.
+## null where the region's image holds its colour; a "decalHue" region must carry one, since the shader cannot guess
+## the space and mode it turns in.
 static func _hue(region: Dictionary) -> bool:
 	var v: Variant = region.get("hue")
 	if v == null:
@@ -238,8 +222,7 @@ static func _hue(region: Dictionary) -> bool:
 	return v is Dictionary and _number(v.get("shift", 0.0)) and _number(v.get("space", 0.0)) and _number(v.get("select", 1.0))
 
 
-## A contact: its "node", a "shape" of an "offset", a "radius" and, for a capsule, a "tail", its "tags" and, for a
-## receiver, its "receiver" fields (Contacts).
+## A shape with a "tail" is a capsule; "receiver" fields are Contacts'.
 static func _contact(c: Dictionary) -> bool:
 	var shape: Variant = c.get("shape")
 	if not _node(c.get("node")) or not shape is Dictionary or not _numbers(shape.get("offset"), 3) or not _number(shape.get("radius")) or shape.radius < 0 or (shape.has("tail") and not _numbers(shape.tail, 3)):

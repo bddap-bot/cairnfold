@@ -1,11 +1,9 @@
 class_name Cues
 extends Node3D
 
-## What every player action sounds and feels like, from one table (docs/design.md, "Action feedback"). A call site
-## names its action and where it happened; the table says the sound, its level and spread of pitch, the pulse the
-## hand that did it feels, and how often a continuous action may repeat, so dragging and painting come out as a
-## texture. The sounds are rendered by scripts/compose.py, or cut from recordings by scripts/fx_recordings.py, into game/audio/fx and play from a fixed pool of 3D voices
-## at the action. What a hand feels touching a surface is HandStop.FEEL's, not this table's.
+## Every player action's sound and pulse, from one table (docs/design.md, "Action feedback"). The clips in
+## game/audio/fx come from scripts/compose.py or scripts/fx_recordings.py. What a hand feels touching a surface is
+## HandStop.FEEL's, not this table's.
 
 enum Act {
 	WALL_LAY, WALL_SETTLE, WALL_LIFT, WALL_STRETCH, WALL_CRUMBLE, WALL_RESTYLE, ARCH,
@@ -32,9 +30,9 @@ enum Act {
 ## Per action: `sound`, a family of clips in game/audio/fx (`sound`0.ogg and on, `SOUNDS` of them), or "" for none;
 ## `db`, its level at UNIT metres; `tune`, its pitch, spread by `spread` either way each play; `bend`, how far a
 ## `tension` of 1 takes the pitch and `swell` how many dB louder it plays it; `weigh`, dB louder for each doubling of
-## the `heft` of what did it, and `deepen`, how far its pitch falls as heft grows (pitch over heft to that power); `feel`, the pulse as [amplitude, seconds, pulses, seconds from one to the next], or [] for
-## none, its amplitude raised by up to `tighten` of itself at full tension; `every`, the least seconds between two
-## plays from one hand.
+## the `heft` of what did it, and `deepen`, how far its pitch falls as heft grows (pitch over heft to that power);
+## `feel`, the pulse as [amplitude, seconds, pulses, seconds from one to the next], or [] for none, its amplitude
+## raised by up to `tighten` of itself at full tension; `every`, the least seconds between two plays from one hand.
 const TABLE := {
 	Act.WALL_LAY: {"sound": "stone", "db": -6.0, "spread": 0.1, "feel": [0.12, 0.012, 1, 0.0], "every": 0.06},
 	Act.WALL_SETTLE: {"sound": "settle", "db": -4.0, "spread": 0.1, "feel": [0.3, 0.03, 2, 0.1]},
@@ -110,11 +108,11 @@ const SOUNDS := {
 }
 ## The voices sounds share: a sound past these takes the voice that started longest ago.
 const VOICES := 12
-## The most any sound's level reaches, however hard or heavy what made it, in dB.
+## dB cap on any sound, however hard or heavy what made it.
 const LOUDEST := 2.0
 const UNIT := 3.0
 
-## Per-build choice: soft (default), paper, dark, or off. No runtime menu.
+## soft, paper, dark, or off; a per-build choice with no runtime menu.
 const CHARCOAL_PROFILE := "soft"
 const CHARCOAL_GRAINS := 8
 const CHARCOAL_INTERVAL := 0.1
@@ -204,14 +202,13 @@ func _exit_tree() -> void:
 		_live = null
 
 
-## `act` happened at `at`, done by `hand` if a hand did it, `tension` of the way to its stretch's end, by something of
-## `heft` (a boulder's scale). Calls closer together than the action's `every` from one hand come to nothing, so a site
-## can call each step it makes.
+## `tension` is 0..1 of the way to its stretch's end; `heft` is a boulder's scale. Calls closer together than the
+## action's `every` from one hand come to nothing, so a site can call each step it makes.
 static func play(act: Act, at: Vector3, hand: XRController3D = null, tension := 0.0, heft := 1.0) -> void:
 	play_in(act, at, [hand] if hand != null else [], tension, heft)
 
 
-## `act` done by every hand in `hands` at once, as two hands stretching one house: one sound, a pulse in each hand.
+## One sound, a pulse in each hand, as two hands stretching one house.
 static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0, heft := 1.0) -> void:
 	var cue: Dictionary = TABLE[act]
 	asked[act] = asked.get(act, 0) + 1
@@ -281,7 +278,7 @@ func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: b
 	voice.play()
 
 
-## A pulse as the table writes one, `louder` times as strong.
+## `pulse` in TABLE's `feel` layout.
 static func feel(hand: XRController3D, pulse: Array, louder := 1.0) -> void:
 	if pulse.is_empty():
 		return
@@ -294,7 +291,7 @@ static func feel(hand: XRController3D, pulse: Array, louder := 1.0) -> void:
 	_live._due.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 
 
-## Only the pulse `act` gives, in `hand`: for one action felt in more than one hand.
+## For one action felt in more than one hand: the pulse alone, no sound.
 static func felt(act: Act, hand: XRController3D) -> void:
 	feel(hand, TABLE[act].get("feel", []))
 
@@ -313,6 +310,6 @@ func _sound(cue: Dictionary, at: Vector3, tension: float, heft: float) -> void:
 	v.play()
 
 
-## How far a stretch from `from` to `to` has gone, as a tension from 0 to 1: doubling is all the way.
+## Doubling is all the way.
 static func stretch(from: float, to: float) -> float:
 	return clampf(absf(to - from) / maxf(absf(from), 1e-3), 0.0, 1.0)

@@ -43,7 +43,6 @@ var _speed: Array[float] = []
 var _lengths: Array[float] = []
 ## Each parameter's layers that read it.
 var _readers := {}
-## Whether the next advance builds every output again, the layers having started over.
 var _rebuild := false
 ## The targets whose outputs advancing changed since a player last bound them.
 var moved := {}
@@ -487,15 +486,14 @@ static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> flo
 	return r * r * r * p0 + 3.0 * r * r * s * p1 + 3.0 * r * s * s * p2 + s * s * s * p3
 
 
-## Whether `motion` samples the same at every time: each clip it plays holds its curves flat or is played by a
-## parameter, not by time.
+## A clip whose motion has "time" is played by that parameter, not the clock, so it samples the same at every time.
 func _timeless_motion(motion: Dictionary) -> bool:
 	if motion.has("clip"):
 		return motion.has("time") or (data.clips[int(motion.clip)].get("curves", []) as Array).all(func(c: Dictionary) -> bool: return _flat(c.keys))
 	return (motion.get("children", []) as Array).all(func(child: Dictionary) -> bool: return _timeless_motion(child.motion))
 
 
-## Whether a curve's keys sample one value everywhere: one key, or keys of one value whose slopes are flat or held.
+## Keys are [time, value, in-slope, out-slope]; a null slope is held.
 static func _flat(keys: Array) -> bool:
 	return keys.all(func(k: Array) -> bool: return float(k[1]) == float(keys[0][1]) and (k.size() < 4 or ((k[2] == null or float(k[2]) == 0.0) and (k[3] == null or float(k[3]) == 0.0))))
 

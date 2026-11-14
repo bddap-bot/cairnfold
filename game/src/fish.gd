@@ -1,14 +1,8 @@
 class_name Fish
 extends Node3D
 
-## A few small fish in each pond deep enough, more in a bigger one: each cruises from one deep spot of its pond
-## to another just under the surface, and darts off away from a hand or the head that comes near suddenly.
-## Steering only, no physics; one MultiMesh, the tail's beat and the water's tint over them in the shader. They
-## come a while after their pond has filled, as a duck does (`Wildlife.ARRIVE_AFTER`), fading in, and fade out when
-## there are too many; a pond gone takes its own at once.
-## Seeds floating on a pond send every fish in it into a frenzy: they dart in under the grains, jostling, and rise to
-## take them one at a time, mouths breaking the surface with a ripple and a nibble; once none is left they scatter
-## back to cruising. Part of `Wildlife`.
+## Part of `Wildlife`. Steering only, no physics; one MultiMesh, with the tail's beat and the water's tint in the
+## shader.
 
 const CAP := 24
 ## Wet grid points a fish.
@@ -21,24 +15,22 @@ const SWIM_AT := 0.2
 const SWIM_DEPTH := Vector2(0.04, 0.1)
 const CRUISE := 0.14
 const DART := 0.75
-## Per second, how quickly a dart slows back to cruising.
+## Per second.
 const CALM_DOWN := 1.6
-## Radians a second the body turns to the way it swims; a fish swims straight between spots, so the way
-## checked clear of walls is the way it goes.
+## Radians a second. A fish swims straight between spots, so the way checked clear of walls is the way it goes.
 const TURN := 6.0
 const SHY := 0.55
 const DART_FOR := 0.9
 const ARRIVED := 0.05
 const FADE := 1.5
 const LENGTH := 0.24
-## In a frenzy: how fast a fish darts at the seeds, how far its mouth reaches for a grain, the seconds between its
-## bites, and how far under the surface its middle comes up to bite, its nose tilted up to the grain.
+## Frenzy: dart speed, mouth reach, seconds between bites (min, max), depth of its middle when biting, nose-up radians.
 const FRENZY := 0.6
 const BITE := 0.07
 const BITE_EVERY := Vector2(0.35, 0.9)
 const NIBBLE_AT := 0.035
 const NOSE_UP := 0.75
-## Radians either side its way wobbles while it jostles, and how often a second.
+## Radians either side, and wobbles a second.
 const JOSTLE := 0.6
 const JOSTLE_RATE := 7.0
 ## A hand this near a bite feels it.
@@ -49,9 +41,8 @@ var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var crowd: Crowd
 var swimming: Array[One] = []
-## How many fish each pond is to have, worked out again whenever the ponds change.
 var _want := {}
-## Ponds whose fish have come, and the wait of each filled pond whose fish have not.
+## Ponds whose fish have come (a set), and the wait of each filled pond whose fish have not.
 var _came := {}
 var _due := {}
 var _layouts := []
@@ -71,7 +62,7 @@ class One:
 	var feeding := false
 	var bite := 0.0
 	var pitch := 0.0
-	## Seconds until a fish that found no grain it could reach looks again.
+	## Seconds until a fish that found no reachable grain looks again.
 	var look := 0.0
 
 
@@ -87,10 +78,9 @@ func _init(home: Wildlife, seed: int) -> void:
 	add_child(crowd)
 
 
-## A fish LENGTH long along +z, nose at -z: a closed round body tapering to the tail, a tail fanned flat like a koi's
-## and two side fins, so it reads from above. UV.y runs 0 at the nose to past 1 at the tail's tips, for the
-## shader's tail beat; UV.x is 1 on the fins. Drawn see-through, it shows only faces turned to the eye, so every
-## face of the body turns out and each fin is two faces, one either way up.
+## LENGTH long along +z, nose at -z. UV.y runs 0 at the nose to past 1 at the tail's tips, for the shader's tail
+## beat; UV.x is 1 on the fins. Drawn see-through, it shows only faces turned to the eye, so every body face turns
+## out and each fin is two faces, one either way up.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -170,14 +160,14 @@ func tick(delta: float) -> void:
 	_upload()
 
 
-## Of the fish in ponds with seeds on them, how many are feeding, and how many there are.
+## [feeding, all] among the fish in ponds with seeds on them.
 func frenzy() -> Array[int]:
 	var food := _food()
 	var by := swimming.filter(func(f: One) -> bool: return food.has(f.pond))
 	return [by.filter(func(f: One) -> bool: return f.feeding).size(), by.size()]
 
 
-## The handfuls lying on each pond's water with grains left, by pond.
+## PondWater -> its landed handfuls.
 func _food() -> Dictionary:
 	var out := {}
 	for h: Handful in wildlife.handfuls:
@@ -188,8 +178,6 @@ func _food() -> Dictionary:
 	return out
 
 
-## Darting to the nearest grain it can reach and rising to take it, hovering under it until it may bite again; with
-## none it can reach, off to cruise again.
 func _frenzy(f: One, meal: Array, delta: float) -> void:
 	var here := Vector2(f.at.x, f.at.z)
 	f.bite -= delta
@@ -221,7 +209,7 @@ func _frenzy(f: One, meal: Array, delta: float) -> void:
 	f.at = Vector3(next.x, lerpf(f.at.y, f.pond.pond.level - NIBBLE_AT * 1.6, 1.0 - exp(-delta * 4.0)), next.y)
 
 
-## The nearest grain of `meal` from `f` over water deep enough to swim, if no wall is between; Vector2.INF if none is.
+## Vector2.INF if no grain is reachable.
 func _grain_for(f: One, meal: Array) -> Vector2:
 	var here := Vector2(f.at.x, f.at.z)
 	var best := Vector2.INF
@@ -238,7 +226,6 @@ func _grain_for(f: One, meal: Array) -> Vector2:
 	return best + Vector2.from_angle(rng.randf() * TAU) * BITE * 0.3
 
 
-## Rises to the grain at its mouth and takes it, rippling the water; a nibble sounds and a hand near it feels it.
 func _take(f: One, meal: Array) -> void:
 	var mouth := Vector3(f.goal.x, f.pond.pond.level, f.goal.y)
 	for h: Handful in meal:
@@ -254,7 +241,6 @@ func _take(f: One, meal: Array) -> void:
 			return
 
 
-## Off to a deep spot away from where it fed, darting at first and slowing to a cruise.
 func _scatter(f: One) -> void:
 	f.feeding = false
 	_dart(f, _flee_spot(f, Vector2.from_angle(rng.randf() * TAU)))
@@ -266,8 +252,6 @@ func _dart(f: One, to: Vector2) -> void:
 	f.speed = DART
 
 
-## After the ponds change: each fish stays with the pond now under it, or goes with the water it was in; each
-## pond with deep water gets a share of the cap by its size.
 func _rehome() -> void:
 	swimming = swimming.filter(func(f: One) -> bool:
 		f.pond = wildlife.water.pond_at(f.at.x, f.at.z)
@@ -297,8 +281,7 @@ func _spawn(p: PondWater) -> One:
 	return f
 
 
-## A grid point of `p` deep enough to swim at, reached from `from` without swimming into a wall, a little off its
-## centre; Vector2.INF if none is found.
+## Vector2.INF if none is found.
 func _deep_spot(p: PondWater, from: Vector3) -> Vector2:
 	var cells := p.pond.cells
 	for attempt in 8:
@@ -344,8 +327,7 @@ func _swim(f: One, startling: Array[Vector3], delta: float) -> void:
 	f.at = Vector3(next.x, lerpf(f.at.y, _swim_y(f.pond, next), 1.0 - exp(-delta * 2.0)), next.y)
 
 
-## Somewhere deep a metre or so along `dir` from `f`, or turned off it, further each try, so a fish cornered against
-## the bank turns along it; Vector2.INF if nowhere is.
+## Turned further off `dir` each try, so a fish cornered against the bank turns along it; Vector2.INF if nowhere is.
 func _flee_spot(f: One, dir: Vector2) -> Vector2:
 	for attempt in 8:
 		var turn := 0.9 + attempt * 0.3

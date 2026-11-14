@@ -2,7 +2,7 @@ class_name StairLayout
 extends RefCounted
 
 enum Kind { FLIGHT, LADDER, LANDING, BRIDGE }
-## At the least width a bridge is a single rope.
+## (least, most); at the least a bridge is a single rope.
 const WIDTH := Vector2(0.6, 3.0)
 const RISE := 0.2
 ## The deepest a tread runs, so a long, gentle flight climbs in many low steps rather than a few long ones.
@@ -10,15 +10,14 @@ const TREAD := 0.45
 const LADDER_SLOPE := 1.5
 const LEVEL := 0.08
 const RAIL_HEIGHT := 0.85
-## A flight's, landing's or bridge's railings, as the style tool offers them. On a bridge, stone and rope both string
-## rope handrails, stone from stone pillars at its ends and rope from wooden posts.
+## In the style tool's order. On a bridge, stone and rope both string rope handrails, stone from stone pillars at its
+## ends and rope from wooden posts.
 const RAILS := ["stone", "wood", "rope", "none"]
-## A bridge's deck hangs at its middle this far below the line between its ends per metre it spans, never deeper than
-## SAG_MOST, and no less than SAG_LEAST where the ground or water under it leaves no more room.
+## Metres of mid-span sag per metre spanned, within SAG_LEAST and SAG_MOST.
 const SAG := 0.07
 const SAG_MOST := 2.0
 const SAG_LEAST := 0.03
-## A span hangs as a bridge where its middle half stands this far over the ground or crosses water, its rise no more
+## A span hangs as a bridge where its middle half stands HANG_CLEAR over the ground or crosses water, its rise no more
 ## than HANG_SLOPE of its run and its run at least HANG_LEAST.
 const HANG_CLEAR := 1.0
 const HANG_SLOPE := 0.3
@@ -28,17 +27,17 @@ const HANG_LEAST := 2.0
 const HANG_KEEP := 0.15
 const LIP := 0.3
 const PLANK_PITCH := 0.22
-## A deck plank's depth along the bridge and thickness.
+## (depth along the bridge, thickness).
 const PLANK := Vector2(0.18, 0.045)
 const ROPE := 0.04
 const HEMP := Color(0.56, 0.47, 0.33)
 
 var stones: Array[Dictionary] = []
-## What a ray meets: the stones, but a bridge's deck as one with no gaps between its planks.
+## What a ray meets: the stones, but a bridge's deck with no gaps between its planks.
 var solids: Array[Dictionary] = []
 var kind := Kind.FLIGHT
 var treads: Array[Vector3] = []
-## Everything laid, for a ray to skip the stones of a build it misses.
+## For a ray to skip the stones of a build it misses.
 var bounds := AABB()
 var _foot := Vector3.ZERO
 var _along := Vector3.FORWARD
@@ -50,7 +49,6 @@ var _paint: PackedInt32Array
 var _rise := 0.0
 var _sag := 0.0
 
-## What stairs `d` are: a bridge where they hang (`sag`), else by their slope.
 static func classify(d: Dictionary) -> Kind:
 	if d.sag > 0.0:
 		return Kind.BRIDGE
@@ -63,26 +61,23 @@ static func classify(d: Dictionary) -> Kind:
 static func railed(d: Dictionary) -> bool:
 	return d.rail != "none" and can_rail(d)
 
-## Whether stairs `d` take railings at all: a ladder or a single rope never does.
 static func can_rail(d: Dictionary) -> bool:
 	return classify(d) != Kind.LADDER and not single(d)
 
-## Whether stairs `d` are a bridge at its least width, a single rope.
 static func single(d: Dictionary) -> bool:
 	return classify(d) == Kind.BRIDGE and d.width <= WIDTH.x + 0.001
 
-## Whether a span from `a` to `b` is shaped to hang as a bridge, whatever is under it.
+## By shape alone, whatever is under it.
 static func spans(a: Vector3, b: Vector3) -> bool:
 	var run := Vector2(b.x - a.x, b.z - a.z).length()
 	return run >= HANG_LEAST and absf(b.y - a.y) <= run * HANG_SLOPE
 
-## Whether stairs from `a` to `b` may hang `sag`: none, or as `sag_over` could leave them.
+## Whether `sag` is none, or one `sag_over` could give.
 static func sag_fits(a: Vector3, b: Vector3, sag: float) -> bool:
 	return sag == 0.0 or spans(a, b) and sag >= SAG_LEAST and sag <= minf(Vector2(b.x - a.x, b.z - a.z).length() * SAG, SAG_MOST) + 0.001
 
-## How far stairs `width` wide from `a` to `b` hang at their middle over what is under them, its centre line and both
-## edges: `under` gives the top of the ground or a build at or below a point, `water` the pond surface at (x, z), under
-## the ground where there is none. 0 where they do not hang but stand as stairs.
+## Mid-span sag, checked along the centre line and both edges; 0 where they stand as stairs. `under(p)` is the top of
+## the ground or a build at or below p; `water(x, z)` the pond surface, under the ground where there is none.
 static func sag_over(a: Vector3, b: Vector3, width: float, under: Callable, water: Callable) -> float:
 	if not spans(a, b):
 		return 0.0
@@ -183,13 +178,11 @@ func build(d: Dictionary) -> void:
 	_bound()
 
 
-## Where a bridge's deck runs at `t` from its lower end to its upper: the line between them, hung by the sag.
+## `t` runs from the lower end (0) to the upper (1).
 func deck(t: float) -> Vector3:
 	return _foot + _along * _run * t + Vector3.UP * (_rise * t - _sag * 4.0 * t * (1.0 - t))
 
 
-## A plank-and-rope bridge: planks across two hanging ropes and railings strung over them, or, at its least width, a
-## single rope; each end is tied to a post, a stone pillar under stone railings.
 func _bridge(d: Dictionary, basis: Basis, rng: RandomNumberGenerator) -> void:
 	var single_rope := single(d)
 	var edges: Array[float] = [0.0]
@@ -245,15 +238,14 @@ func _bridge(d: Dictionary, basis: Basis, rng: RandomNumberGenerator) -> void:
 	solids = deck_boxes
 
 
-## A rope `thickness` thick along `along` (a point for each `t` from 0 to 1), in short straight lengths.
+## `along(t)` gives the rope's point for `t` from 0 to 1.
 func _strung(along: Callable, thickness: float, rng: RandomNumberGenerator) -> void:
 	var n := maxi(2, ceili(_run / 0.5))
 	for i in n:
 		_rope(along.call(float(i) / n), along.call(float(i + 1) / n), thickness, rng)
 
 
-## The height of the tread or deck over `p`, or NAN beside the flight, landing or bridge. A ladder is climbed, not
-## walked: NAN.
+## NAN beside the flight, landing or bridge, and on a ladder, which is climbed, not walked.
 func surface(p: Vector3) -> float:
 	if kind == Kind.LADDER or treads.is_empty():
 		return NAN

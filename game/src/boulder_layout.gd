@@ -1,45 +1,42 @@
 class_name BoulderLayout
 extends RefCounted
 
-## A boulder's shape, drawn from its seed and stone style alone so every machine and every load grows the same one. A
-## squat ellipsoid cut by fracture planes, one of them its bed, whose edges are worn round and whose faces are pitted,
-## as far as its style (StoneStyles' `boulder`) breaks, wears and pits it: the radial distance along each direction from
-## its centre (`radius`), so one function makes its mesh, its picking and what a hand stops at. Pure data: the unit
-## boulder is about a metre across, and the garden scales it.
+## A boulder's shape is drawn from its seed and stone style alone, so every machine and every load grows the same one.
+## `radius` is the one function behind its mesh, its picking and what a hand stops at. The unit boulder is about a
+## metre across; the garden scales it.
 
-## The smallest a boulder goes, a pebble a hand could hold.
+## A pebble a hand could hold.
 const LEAST := 0.08
-## The biggest a boulder grows, far past any hand's spread: the sizing tool stops there, and no command makes one
-## bigger.
+## The sizing tool stops here, and no command makes one bigger.
 const MOST := 10000.0
-## How deep it sits in the ground, as a share of how far it reaches below its centre, whichever way it is turned.
+## A share of how far it reaches below its centre, whichever way it is turned.
 const BURY := 0.2
-## The share of its height a boulder pushed into the ground keeps above it, so a ray still finds it to grip, delete
-## or restyle it, and a mostly buried one still reads as a stone and not a mark on the grass.
+## The share of its height a sunk boulder keeps above ground, so a ray still finds it to grip, delete or restyle it,
+## and it still reads as a stone and not a mark on the grass.
 const KEEP := 0.15
-## Icosphere subdivision of the surface points it rests on.
+## Icosphere subdivision of the points it rests on.
 const FEET := 2
 ## Icosphere subdivisions of the near and far meshes.
 const NEAR := 3
 const FAR := 1
 
 
-## Half-axes of the ellipsoid; fracture planes as (normal, distance from the centre); and the noise that pits it.
+## `cuts` are fracture planes as (normal, distance from the centre), the last its bed.
 class Shape:
 	var seed := 0
 	var style := 0
-	## How round its worn edges are, as a share of the unit boulder.
+	## A share of the unit boulder.
 	var wear: float
-	## How deep its pits go, as a share of its radius.
+	## A share of its radius.
 	var pitting: float
 	var axes := Vector3.ONE
 	var cuts: Array[Vector4] = []
 	var pits := FastNoiseLite.new()
 	var grain := FastNoiseLite.new()
-	## Points on its surface, any of which may be what it rests on.
+	## Local surface points, any of which may be what it rests on.
 	var feet := PackedVector3Array()
 
-	## Distance from the centre to the surface along the unit direction `u`.
+	## `u` is a unit direction.
 	func radius(u: Vector3) -> float:
 		var e := 1.0 / sqrt(u.x * u.x / (axes.x * axes.x) + u.y * u.y / (axes.y * axes.y) + u.z * u.z / (axes.z * axes.z))
 		# A soft minimum of the ellipsoid and every plane's reach, so where two faces meet the edge is worn round.
@@ -51,16 +48,16 @@ class Shape:
 		var worn := -wear * log(sum)
 		return worn * (1.0 + pits.get_noise_3dv(u) * pitting + grain.get_noise_3dv(u) * pitting * 0.23)
 
-	## Whether the local point `p` lies inside.
+	## `p` is in the shape's local frame.
 	func inside(p: Vector3) -> bool:
 		var l := p.length()
 		return l < 1e-6 or l < radius(p / l)
 
-	## The largest distance from the centre to the surface: no part reaches past it.
+	## A bound no part of the surface reaches past.
 	func reach() -> float:
 		return maxf(axes.x, maxf(axes.y, axes.z)) * 1.06
 
-	## How far along the local ray from `origin` along unit `dir` it first meets the surface, or INF.
+	## Distance along the local ray from `origin` along unit `dir` to the surface; INF for a miss.
 	func hit(origin: Vector3, dir: Vector3, reach_limit := INF) -> float:
 		var r := reach()
 		var b := origin.dot(dir)
@@ -86,7 +83,7 @@ class Shape:
 			t += step
 		return INF
 
-	## The outward surface normal near the local surface point `p`, from the radial function's slope.
+	## The outward normal; `p` is a local surface point.
 	func normal(p: Vector3) -> Vector3:
 		var e := 0.01
 		var f := func(q: Vector3) -> float: return q.length() - radius(q.normalized())
@@ -119,9 +116,8 @@ static func shape(seed: int, style: int) -> Shape:
 	return s
 
 
-## The mesh arrays of `s` at icosphere subdivision `subdiv`: its surface, with normals averaged across faces, so its
-## worn edges shade round and its fracture faces flat, and a shade in its colour: darker toward its underside and in
-## its pits, where less sky reaches.
+## Normals are averaged across faces, so worn edges shade round and fracture faces flat. The colour is a shade, darker
+## toward the underside and in the pits, where less sky reaches.
 static func arrays(s: Shape, subdiv: int) -> Array:
 	var a := Meshes.icosphere(subdiv)
 	var sphere: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -149,24 +145,23 @@ static func arrays(s: Shape, subdiv: int) -> Array:
 	return a
 
 
-## A boulder's transform: turned `turn` and grown `scale` times, dropped straight down at (`x`, `z`) onto the ground
-## `height` (x, z) gives until some point of it meets the ground, then sunk BURY of how far it reaches below its centre,
-## and `sink` unit metres further, as deep as keeps KEEP of its height above the ground: whichever way it is turned and
-## however high it was let go, it rests on the ground or in it, never over it.
+## Dropped straight down at (`x`, `z`) onto `height`(x, z) until some point of it meets the ground, sunk BURY, then
+## `sink` unit-boulder metres further, at most as deep as keeps KEEP of its height above the ground: it rests on the
+## ground or in it, never over it.
 static func rest(s: Shape, turn: Quaternion, scale: float, x: float, z: float, height: Callable, sink := 0.0) -> Transform3D:
 	var basis := Basis(turn) * Basis.from_scale(Vector3.ONE * scale)
 	var drop := _drop(s, basis, x, z, height)
 	return Transform3D(basis, Vector3(x, drop.x - clampf(sink * scale, 0.0, drop.y), z))
 
 
-## How far below where it would rest a boulder turned `turn`, grown `scale` times and held with its centre at `at` sits,
-## in unit metres, as `rest` takes it: none held over the ground, at most as deep as keeps KEEP of it showing.
+## How far below its rest a boulder held with its centre at `at` sits, in unit-boulder metres as `rest` takes it: 0
+## held over the ground, at most as deep as keeps KEEP of it showing.
 static func sink(s: Shape, turn: Quaternion, scale: float, at: Vector3, height: Callable) -> float:
 	var drop := _drop(s, Basis(turn) * Basis.from_scale(Vector3.ONE * scale), at.x, at.z, height)
 	return clampf(drop.x - at.y, 0.0, drop.y) / scale
 
 
-## Where the centre of a boulder of `basis` rests at (`x`, `z`), and how much deeper it may sink.
+## x: the centre's resting height at (`x`, `z`); y: how much deeper it may sink.
 static func _drop(s: Shape, basis: Basis, x: float, z: float, height: Callable) -> Vector2:
 	var lift := -INF
 	var low := INF

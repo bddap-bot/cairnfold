@@ -39,7 +39,6 @@ var masked := true:
 		RenderingServer.global_shader_parameter_set(&"room_nearest", field if masked else _unmasked)
 var _unmasked := ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBAH))
 var _rooms := Lamps.Rooms.new()
-## The way to the sun or moon.
 var to_light := Vector3.UP
 ## Whether the next solve packs the field too, and the light the last one packed rows from.
 var _cells := false
@@ -86,7 +85,8 @@ func _take(out: Dictionary) -> void:
 
 
 ## The textures' contents for `rooms` lit from `toward`: room_field's floats, unless `cells` is false, and room_data's
-## floats. Only covered groups are packed; past GROUPS - 1 of them, or a row's WIDTH, the rest go unmasked.
+## floats. Only covered groups are packed; a group past GROUPS - 1 rows, or whose openings overflow WIDTH, goes
+## unmasked.
 static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictionary:
 	var field_floats := PackedFloat32Array()
 	if cells:
@@ -123,7 +123,7 @@ static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictiona
 ## An opening as interior.gdshaderinc reads it with the light from `toward`: where a point's ray toward the light
 ## crosses its plane, across and up from the middle of its sill, as dot(p, xyz) + w of the first two texels, narrowed
 ## by how far the ray runs across through the wall's depth so a deep reveal narrows the patch; the plane the point must
-## stand inside, its half-width and its rounding, then its height. Empty for one facing away from the light or seen
+## stand inside and its half-width, then its height and its rounding. Empty for one facing away from the light or seen
 ## too obliquely to let any through.
 static func crossing(o: Dictionary, toward: Vector3) -> Array:
 	var n: Vector3 = o.out

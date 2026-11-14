@@ -15,7 +15,6 @@ const RISE := Vector3(-cos(YAW), 0.0, sin(YAW))
 const ARC_UP := Vector3(-sin(TILT) * sin(YAW), cos(TILT), -sin(TILT) * cos(YAW))
 ## Late morning, the look the meadow was tuned under.
 const DEFAULT := 0.3805
-## How far round the arc the moon trails the sun.
 const MOON_LAG := deg_to_rad(100.0)
 ## The sun's elevation where the light passes from sun to moon; the sun is dark there and the moon not yet lit,
 ## so the swap is unseen.
@@ -90,17 +89,14 @@ static func moonlit(time: float) -> float:
 	return smoothstep(HANDOVER, NIGHT, elevation(time)) * _moonrise(time)
 
 
-## How far the moon has risen at `time`, from lighting nothing to lighting the garden whole.
 static func _moonrise(time: float) -> float:
 	return smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time))
 
 
-## How fully the rooms' windows glow at `time`: 0 by day, 1 once the sun is down.
 static func lit(time: float) -> float:
 	return smoothstep(LIT.x, LIT.y, elevation(time))
 
 
-## Toward whichever of sun and moon lights the garden at `time`.
 static func toward_light(time: float) -> Vector3:
 	return toward_sun(time) if elevation(time) > HANDOVER else toward_moon(time)
 
@@ -110,13 +106,11 @@ static func turn_of(dir: Vector3) -> float:
 	return atan2(dir.dot(ARC_UP), dir.dot(RISE))
 
 
-## Whether `dir` points within REACH degrees of the sun or the moon at `time`, wherever they stand.
 static func aims_at_body(dir: Vector3, time: float) -> bool:
 	var d := dir.normalized()
 	return maxf(d.dot(toward_sun(time)), d.dot(toward_moon(time))) > cos(deg_to_rad(REACH))
 
 
-## The time whose `angle` is `a`, wrapped into one day.
 static func time_at(a: float) -> float:
 	return fposmod(a / TAU + 0.25, 1.0)
 
@@ -140,8 +134,6 @@ static func moonless(time: float) -> bool:
 	return elevation(time) < HANDOVER and _moonrise(time) < MOONLESS
 
 
-## Every light value for `time`, blended between the keys around the sun's elevation, then toward MOONLIT as far
-## as the moon lights the garden.
 static func light(time: float) -> Dictionary:
 	var e := elevation(time)
 	var hi := 1

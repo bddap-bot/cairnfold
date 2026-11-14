@@ -1,25 +1,22 @@
 class_name LessonScene
 extends SubViewport
 
-## One page's live picture: ghost controllers (Pad) act out the page's script (Lessons.PAGES) on a loop over a
-## patch of meadow set with the game's own tool models, so the picture always shows the game as it is built.
-## Its own small world, lit apart from the garden; the book renders it only while its page is in view. `wash` is
-## the painted sky behind it, `horizon` where that sky meets the land (0 the picture's top, 1 its foot) and `fade` how
-## far its loop has faded out, all for the page's paper (book_page.gdshader), which paints them.
+## One page's live picture, its own small world lit apart from the garden, built from the game's own tool models, so
+## the picture always shows the game as it is built. The book renders it only while its page is in view. For the page's
+## paper (book_page.gdshader): `wash` is the sky behind it, `horizon` where that sky meets the land (0 the picture's
+## top, 1 its foot, -1 when looking nearly straight down) and `fade` how far its loop has faded out.
 
 const SIZE := Vector2i(384, 358)
 const REST := 0.7
 const FADE_S := 0.25
-## The picture's meadow lies this far under the eye, a diorama between the hands and the ground, so the hands and
-## what they act on share one frame; its builds stand at K of the size of a tool model's PROP-fold.
+## The meadow's height under the eye: a diorama between the hands and the ground, so the hands and what they act on
+## share one frame; its builds stand at K of the size of a tool model's PROP-fold.
 const GROUND := -0.95
 const K := 0.5
 const PROP := 14.0 * K
-## The ghost controllers are drawn this much larger than life, so their buttons read on a page.
+## Larger than life, so the ghost controllers' buttons read on a page.
 const GHOST := 1.7
-## How far the sun stands from the sky page's meadow.
 const SUN := 1.4
-## Which way the sky page's sun starts from its meadow.
 static var _sun_from := Vector3(-0.35, 0.75, -0.55).normalized()
 ## Each page is painted at its own hour of the morning, up to this far either side of the garden's, so neighbouring
 ## pages do not share a sky.
@@ -99,8 +96,7 @@ func _init(i: int) -> void:
 	_reset()
 
 
-## Looks over the hands at what they act on: from behind them along the line to it, beside and under the acting
-## hand for a side view so its trigger and grip show, over it for a top view; widened to hold everything shown.
+## A side view looks from beside and under the acting hand so its trigger and grip show.
 func _frame() -> void:
 	var points: Array[Vector3] = []
 	var hands: Array[Vector3] = []
@@ -150,8 +146,8 @@ func _frame() -> void:
 		camera.fov = clampf(rad_to_deg(2.0 * atan(maxf(half.y, half.x / aspect) * 1.1)), 24.0, 84.0)
 
 
-## The book renders every page once as it is built, so each poses then halfway through its first press, everything it
-## shows drawn and its shaders compiled; its loop starts over from the top on its first step.
+## The book renders every page once as it is built, so pose mid-press to draw everything and compile its shaders;
+## the loop restarts on its first step.
 func _ready() -> void:
 	_pose((page.press[0].from + page.press[0].to) * 0.5 if not page.press.is_empty() else 0.0)
 	t = page.length + REST
@@ -193,7 +189,7 @@ func _pose(at: float) -> void:
 	horizon = 0.5 + 0.5 * tan(pitch) / tan(deg_to_rad(camera.fov) * 0.5) if pitch > -1.4 else -1.0
 
 
-## Where `side`'s pad points, along its aim to the meadow (y = GROUND) or `reach` metres.
+## On the meadow (y = GROUND), or `reach` metres along the aim.
 func _aim_hit(side: String, reach := 6.0) -> Vector3:
 	var f: Transform3D = pads[side].transform
 	var d := -f.basis.z
@@ -209,7 +205,6 @@ func _ray(side: String, to: Vector3) -> void:
 	_beam.span(pads[side].global_position, to)
 
 
-## Where the page's first press points, or ahead of the hands if that is the sky.
 func _dish_at() -> Vector3:
 	if _fx.has("dish"):
 		return _fx.dish
@@ -275,8 +270,6 @@ static func _pop(k: float) -> float:
 	return 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
 
 
-# Picking a tool: the wheel opens at the hand while its button is held, the slot the hand moves onto grows, and
-# letting go stands that tool on the controller.
 func _build_tool() -> void:
 	var wheel := Node3D.new()
 	stage.add_child(wheel)
@@ -327,7 +320,6 @@ func _play_tool(at: float) -> void:
 		_fx.icons[k].scale = _fx.icons[k].scale.lerp(Vector3.ONE * s, 0.3)
 
 
-# Teleporting: the left stick pushed forward casts a ray to a ring on the meadow; letting go hops there.
 func _build_teleport() -> void:
 	_fx.home = camera.transform
 
@@ -354,8 +346,6 @@ func _play_teleport(at: float) -> void:
 	fade = maxf(fade, 1.0 - absf(at - press.to - 0.05) / 0.12)
 
 
-# Undo and redo: the left hand's lower face button takes the last build away, leaving its pale ghost where it
-# stood, and the right's puts it back.
 func _build_undo() -> void:
 	_fx.wall = _prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(0, 0, 0.1), 2.4)
 	var ghost := ToolModels.build(Hand.Tool.WALLS)
@@ -382,7 +372,6 @@ func _play_undo(at: float) -> void:
 	_fx.ghost.visible = k < 0.98
 
 
-# Shaping the ground: the grip takes the meadow where the hand points, and the hand raised pulls a hill.
 func _reset_hill() -> void:
 	_fx.from = INF
 
@@ -411,7 +400,6 @@ func _play_hill(at: float) -> void:
 		_ray("right", point + Vector3.UP * maxf(lift, 0.0))
 
 
-# Turning the sky: the grip on open sky holds it, and turning the pointer carries the sun along its arc.
 func _build_sky() -> void:
 	var sun := Meshes.ball(0.19, Color(1.0, 0.82, 0.4), false)
 	stage.add_child(sun)
@@ -448,7 +436,6 @@ func _play_sky(at: float) -> void:
 		_ray("right", sun.position)
 
 
-# Recolouring: the trigger on a wall opens a wheel of its colours, and the wrist's twist turns it.
 func _build_colour() -> void:
 	_fx.house = _prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0, 0, 0.1), 1.3, 0.3)
 	_fx.wheel = Node3D.new()
@@ -507,8 +494,6 @@ func _play_colour(at: float) -> void:
 	_ray("right", hit)
 
 
-# A house in hand: a grip on it carries it; the other hand's grip on it too stretches it as the hands spread, and makes
-# it taller as they draw apart upright.
 func _build_house() -> void:
 	_fx.house = _prop(Hand.Tool.HOUSE, _dish_at(), 1.0)
 
@@ -541,8 +526,6 @@ func _play_house(at: float) -> void:
 	h.scale = Vector3(s * absf(right.x - left.x) / _fx.spread[0], s * (1.0 + (absf(right.y - left.y) - _fx.spread[1]) * 4.0), s)
 
 
-# The wipe: the delete tool held up at the sky for its whole hold swells an orb, then takes the garden away, each
-# build going in a puff.
 func _build_wipe() -> void:
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.35, 0, 0.1), 1.0, 0.5)
 	_prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(-0.4, 0, 0.3), 0.9, -0.3)

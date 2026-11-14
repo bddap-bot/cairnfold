@@ -1,18 +1,15 @@
 class_name Meshes
 extends RefCounted
 
-## How far `ellipsoid` leans normals toward its `round` point.
 const ROUND := 0.6
-## How far a blob's noise pushes its surface in or out of its sphere, in blob radii.
+## In blob radii.
 const BLOB_LUMP := 0.35
 
 
-## The bone of `skeleton` a skin's bind `i` follows, by index or else by name.
 static func bind_bone(skin: Skin, i: int, skeleton: Skeleton3D) -> int:
 	return skin.get_bind_bone(i) if skin.get_bind_bone(i) >= 0 else skeleton.find_bone(skin.get_bind_name(i))
 
 
-## Surface arrays for `verts`, every normal up.
 static func level(verts: PackedVector3Array) -> Array:
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
@@ -24,7 +21,6 @@ static func level(verts: PackedVector3Array) -> Array:
 	return out
 
 
-## A flat, unlit `colour`, blended by its alpha when `see_through`.
 static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -34,7 +30,6 @@ static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
 	return mat
 
 
-## A ball of `radius` drawn in `glow(colour, see_through)`.
 static func ball(radius: float, colour: Color, see_through := true) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	m.mesh = ToolModels.sphere(radius, radius * 2.0)
@@ -42,7 +37,7 @@ static func ball(radius: float, colour: Color, see_through := true) -> MeshInsta
 	return m
 
 
-## A node's transform relative to `root`, whether or not it is in the tree.
+## Works outside the tree, where global_transform does not.
 static func relative(n: Node3D, root: Node3D) -> Transform3D:
 	var t := Transform3D.IDENTITY
 	while n != root:
@@ -75,14 +70,12 @@ static func moss() -> ArrayMesh:
 	return st.commit()
 
 
-## The lattice a finer rounded box carries as its level of detail.
 const LOD_SEGMENTS := 2
 
 
-## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match. Faces share
-## the vertices along their borders: a stone's cost on the GPU follows the vertices it runs. One finer than
-## LOD_SEGMENTS carries that lattice as its level of detail, keyed by how far it strays (`lod_error`), so the renderer
-## draws it only where the difference is under its LOD threshold, a pixel by default.
+## A unit cube (-0.5..0.5). Faces share their border vertices: a stone's GPU cost follows its vertex count. One finer
+## than LOD_SEGMENTS carries that lattice as an LOD keyed by `lod_error`, drawn where that error is under the
+## renderer's LOD threshold, a pixel by default.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	var lump := FastNoiseLite.new()
 	lump.seed = seed
@@ -102,8 +95,8 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	return mesh
 
 
-## Appends to `arrays` the vertices of a rounded box `segments` to a face's side: {indices, grids}, each face's
-## lattice point (i, j) its grid's j * (segments + 1) + i entry.
+## Appends to `arrays` and returns {indices, grids, segments}: a face's lattice point (i, j) is its grid's
+## j * (segments + 1) + i entry.
 static func _lattice(arrays: Array, radius: float, segments: int, lump: FastNoiseLite) -> Dictionary:
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -146,8 +139,8 @@ static func _lattice(arrays: Array, radius: float, segments: int, lump: FastNois
 	return {"indices": indices, "grids": grids, "segments": segments}
 
 
-## The farthest a vertex of lattice `fine` stands from lattice `coarse`'s surface at the same point of its face, in the
-## mesh's units: the renderer's LOD key, the error a level of detail makes in place of the surface it stands for.
+## The farthest a vertex of `fine` lies from `coarse`'s surface at the same face point, in mesh units: the renderer's
+## LOD key.
 static func lod_error(verts: PackedVector3Array, fine: Dictionary, coarse: Dictionary) -> float:
 	var n: int = fine.segments
 	var m: int = coarse.segments
@@ -173,8 +166,8 @@ static func lod_error(verts: PackedVector3Array, fine: Dictionary, coarse: Dicti
 	return error
 
 
-## A unit cube (-0.5..0.5) of 8 vertices, its normals leaning out at the corners: for what only casts a shadow
-## (BoxMesh runs 24), and for a stone far off, whose faces must stand where `rounded_box`'s flat faces do.
+## 8 vertices where BoxMesh runs 24, for shadow casters and far stones, whose faces must stand where
+## `rounded_box`'s flat faces do.
 static func plain_box() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -188,7 +181,7 @@ static func plain_box() -> ArrayMesh:
 	return st.commit()
 
 
-## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip. `wide` scales every blade's width.
+## UV.y runs 0 at the root to 1 at the tip.
 static func grass_clump(blades: int, seed: int, wide := 1.0) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -226,9 +219,8 @@ const FLOWER_HEIGHT := 0.22
 const LEAF_SHOULDER := 0.05
 
 
-## A tiny flower head: a flat star of `head`-coloured petals around a raised eye, on a stalk.
-## UV.x is 0 on the stalk and 1 on the head, UV.y 1 at its eye, for shaders that colour each instance.
-## With `leaves`, three sword leaves (UV.y -1) fan from the stalk's foot, which the shader opens only in the shallows.
+## UV.x is 0 on the stalk and 1 on the head, UV.y 1 at its eye and -1 on the sword leaves, which the shader opens only
+## in the shallows.
 static func flower(petals: int, head := Color.WHITE, leaves := false) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -272,9 +264,8 @@ static func flower(petals: int, head := Color.WHITE, leaves := false) -> ArrayMe
 	return st.commit()
 
 
-## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath. Its vertices are spread evenly,
-## so it holds the lumps of a latitude-longitude sphere with far fewer of them, which is what the Quest 2 pays for.
-## Its normals stay the sphere's, so light wraps the blob as one soft mass and the lumps show only in its outline.
+## An icosphere: it holds a latitude-longitude sphere's lumps with far fewer vertices, which is what the Quest 2 pays
+## for. Normals stay the sphere's, so light wraps the blob as one soft mass and the lumps show only in its outline.
 static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	var arrays := icosphere(subdiv)
 	var sphere: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -331,9 +322,8 @@ static func icosphere(subdiv: int) -> Array:
 	return arrays
 
 
-## Three ivy leaf cards around the origin in the XY plane, facing +Z, each folded along its midrib with its stem
-## below its tip; a leaf is one unit long. A leaf is two triangles, one per lobe: on the Quest 2 ivy among walls
-## costs by the triangle it rasterises, not by its area or its instances.
+## Three leaf cards in the XY plane facing +Z, stem below tip, a leaf one unit long. Two triangles a leaf: on the
+## Quest 2 ivy costs by the triangles it rasterises, not by its area or its instances.
 static func sprig() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -347,8 +337,8 @@ static func sprig() -> ArrayMesh:
 	for leaf in placed:
 		var x: Transform3D = leaf[0]
 		for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
-			# Godot's front face winds clockwise. A lobe wound against its normal is drawn as its back face, whose
-			# normal the renderer turns into the wall, and on the Quest that lobe showed black.
+			# Godot's front face winds clockwise; a lobe wound against its normal draws its back face, whose normal
+			# the renderer turns into the wall: black on the Quest.
 			var corners := [stem, lobe, tip]
 			var n: Vector3 = (tip - stem).cross(lobe - stem).normalized()
 			if n.z < 0.0:
@@ -362,8 +352,8 @@ static func sprig() -> ArrayMesh:
 	return st.commit()
 
 
-## A butterfly facing -Z with its wings flat: fore and hind wings fanned from the body on each side, and a
-## thin body. UV.x runs 0 at the body to 1 at a wing's edge; UV.y is 0 on a forewing, 1 on a hindwing, 2 on the body.
+## Facing -Z, wings flat. UV.x runs 0 at the body to 1 at a wing's edge; UV.y is 0 on a forewing, 1 on a hindwing,
+## 2 on the body.
 static func butterfly() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -387,10 +377,9 @@ static func butterfly() -> ArrayMesh:
 	return st.commit()
 
 
-## A latitude-longitude ellipsoid with half-axes `r` along `axes`, its vertices carrying `part` in UV2.x for a
-## vertex shader to pivot by. `shape` may bend each surface point (given in the ellipsoid's own frame, relative
-## to its centre), and `ruffle` pushes the surface in and out a little, like fluffed feathers. Given `round`,
-## normals lean by ROUND toward pointing away from it, so overlapping blobs shade as one soft mass.
+## Half-axes `r` along `axes`; `part` goes in UV2.x for a vertex shader to pivot by. `shape` gets each surface point
+## in the ellipsoid's own frame, relative to its centre. Given `round`, normals lean by ROUND away from it, so
+## overlapping blobs shade as one soft mass.
 static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: Color, lat: int, lon: int, shape := Callable(), axes := Basis(), ruffle := 0.0, round := Vector3.INF) -> void:
 	var ring := []
 	for i in lat + 1:
@@ -424,8 +413,8 @@ static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: C
 					st.add_vertex(quad[v][0])
 
 
-## Appends a surface's (or a blend shape's) arrays to `into`, each where both have it, the indices moved past `into`'s
-## vertices.
+## Appends a surface's (or a blend shape's) arrays to `into`, slot by slot where both have one, first moving
+## `arrays`' indices, in place, past `into`'s vertices.
 static func join(into: Array, arrays: Array) -> void:
 	if into[Mesh.ARRAY_INDEX] != null and arrays[Mesh.ARRAY_INDEX] != null:
 		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
@@ -440,7 +429,6 @@ static func join(into: Array, arrays: Array) -> void:
 			into[k] = joined
 
 
-## An empty mesh with `im`'s name and blend shapes, to rebuild `im`'s surfaces into.
 static func shaped_like(im: ImporterMesh) -> ImporterMesh:
 	var out := ImporterMesh.new()
 	out.resource_name = im.resource_name
@@ -450,12 +438,10 @@ static func shaped_like(im: ImporterMesh) -> ImporterMesh:
 	return out
 
 
-## Surface `i` of `im` as each of its blend shapes moves it.
 static func surface_shapes(im: ImporterMesh, i: int) -> Array:
 	return range(im.get_blend_shape_count()).map(func(k: int) -> Array: return im.get_surface_blend_shape_arrays(i, k))
 
 
-## A seamless, mipmapped `side`-square texture of `n`.
 static func noise_texture(n: FastNoiseLite, side: int) -> NoiseTexture2D:
 	var t := NoiseTexture2D.new()
 	t.width = side

@@ -1,8 +1,7 @@
 class_name Replayer
 extends MultiplayerAPIExtension
 
-## Plays a session record (`Replay.read`, Main's --replay) in place of the headset's runtime and the network, and says
-## where the session it plays diverges from the one recorded; see docs/replay.md.
+## Plays a session record (Main's --replay) in place of the headset's runtime and the network; see docs/replay.md.
 signal finished
 
 var record: Dictionary
@@ -15,17 +14,17 @@ var _sender := 0
 var _peers := PackedInt32Array()
 var _peer: MultiplayerPeer = OfflineMultiplayerPeer.new()
 var _head: Transform3D
-## The engine's step before scaling, as last measured; 0 until the frame before the record's first measures it.
+## The engine's step before scaling; 0 until the frame before the record's first measures it.
 var _step := 0.0
-## The next of the record's checks of the parts to compare, and the record's gardens not yet come to, oldest first: each
-## garden numbers its own commands, so only the oldest is looked for.
+## `_gardens` are the record's garden checks not yet come to, oldest first: each garden numbers its own commands, so
+## only the oldest is looked for.
 var _check := 0
 var _gardens := []
-## The command after which the garden last matched the record's, and whether a whole garden is being restored, whose
-## commands come with no sequence number of their own.
+## The seq after which the garden last matched the record's. `_restoring`: a whole garden is coming in, whose commands
+## carry no sequence number of their own.
 var _held_seq := 0
 var _restoring := false
-## Where each part first diverged from the record (`_diverge`), by part.
+## Part -> where it first diverged (`_diverge`).
 var diverged := {}
 
 
@@ -41,9 +40,8 @@ func _init(on: Main, played: Dictionary) -> void:
 	Engine.physics_jitter_fix = 0.0
 
 
-## Compares the garden with the record's whenever it comes to a command the record kept it after: as that command has
-## applied whole (a batch's or a rebuild's own commands carry no sequence number of the garden's), or as a whole garden
-## restored at it is in.
+## Compares once a command has applied whole (a batch's or a rebuild's own commands carry no garden seq), or once a
+## whole restored garden is in.
 func watch(world: World) -> void:
 	world.applied.connect(func(cmd: Dictionary) -> void:
 		if not _restoring and cmd.get("seq") == world.seq:
@@ -54,7 +52,7 @@ func watch(world: World) -> void:
 		_compare_garden())
 
 
-## Runs where the tree polls the network, before anything of the frame: the frame's messages, then its input.
+## Runs where the tree polls the network, before anything else of the frame.
 func _poll() -> Error:
 	if _frame > _count:
 		return OK
@@ -87,10 +85,9 @@ func _poll() -> Error:
 	return OK
 
 
-## Scales the next frame to its recorded delta, as the engine multiplies its step by the scale. The first frame of the
-## run, which plays none of the record with the tree paused, gives the step: where the run steps by a fixed rate
-## (--fixed-fps) every frame then takes its recorded delta exactly, the record's first too; in real time a frame that
-## took another step stands for the next one's, as close as its frame times allow.
+## The engine multiplies its step by the time scale. The run's first frame, paused, measures the step: under
+## --fixed-fps every frame then takes its recorded delta exactly; in real time a frame that took another step stands
+## for the next one's, as close as its frame times allow.
 func _pace() -> void:
 	var took := _main.get_process_delta_time()
 	if _frame > 0 and Engine.time_scale > 0.0 and took != _step * Engine.time_scale:
@@ -134,8 +131,8 @@ func _apply(f: Dictionary) -> void:
 				Buttons.injected.erase("%s/%s" % [h.tracker, input])
 
 
-## Compares what the session has come to with each check of its parts the record took at the frame now under way, at
-## the point of the frame it took them (Metrics), where nothing of the frame is left to move them.
+## Called at the point of the frame the record took its checks (Metrics), where nothing of the frame is left to move
+## them.
 func compare() -> void:
 	var checks: Array = record.checks
 	while _check < checks.size() and checks[_check].frame <= _frame:
@@ -159,8 +156,8 @@ func _compare_garden() -> void:
 		_held_seq = maxi(_held_seq, int(c.seq))
 
 
-## Notes where `part` first differs from the record's check `c`: its frame and game second, and for the garden the
-## commands it ran since it last matched, among them the one whose result changed.
+## Records where `part` first differs from check `c`; for the garden, with the commands run since it last matched,
+## among them the one whose result changed.
 func _diverge(part: String, c: Dictionary, why: String) -> void:
 	if diverged.has(part):
 		return
@@ -186,10 +183,10 @@ func _let_go() -> void:
 			Buttons.injected.erase("%s/%s" % [h.tracker, input])
 
 
-## A message as the network gave it, and each build command as the host ordered it: the garden is the record's, never
-## the tools' (World.replayed), so a proposal is only the order that follows it. What else this machine did itself is
-## the input's to do again, but for its peers coming and going and its host dropping it, which the network decided,
-## and the id it played as, which a replay that cannot join (it hears no gardens near) still plays as.
+## The garden is the record's, never the tools' (World.replayed), so a proposal is only the order that follows it.
+## What else this machine did itself the input does again, except what the network decided (peers coming and going,
+## its host dropping it) and the id it played as, which a replay that cannot join (it hears no gardens near) still
+## plays as.
 func _deliver(m: Array) -> void:
 	var whose: int = m[2]
 	match m[3]:
@@ -239,7 +236,7 @@ func _set_multiplayer_peer(peer: MultiplayerPeer) -> void:
 	_peer = peer
 
 
-## The id the record's join at `_next` connected as, else the host's: what the joining machine's peer took.
+## The id the record's join at `_next` connected as, else the host's.
 func _joined_as() -> int:
 	for i in range(_next, record.messages.size()):
 		match record.messages[i][3]:

@@ -1,27 +1,20 @@
 class_name Boulders
 extends Node3D
 
-## The garden's boulders, each grown from its seed (BoulderLayout) in wall stone of its paint and style (StoneStyles), turned as it was set
-## down, grown to its scale and resting on the ground under it. `World` puts and takes them, and reshapes their place,
-## turn, size, paint and style; a hand holding one shows it where the hand has it (`show_held`) until it is let go; tools pick
-## them by `pick`, a hand stops at them by `inside`.
-## Each draws a near mesh and, past a distance that grows with it, a far one of a sixteenth the triangles, so a pebble
-## costs little and a house-sized one keeps its outline far off.
+## Each boulder draws a near mesh and, past a distance that grows with it, a far one of a sixteenth the triangles,
+## so a pebble costs little and a house-sized one keeps its outline far off.
 
-## Where a unit boulder swaps to its far mesh, and where its far mesh stops drawing, in metres; both grow with its scale.
+## Metres for a unit boulder; both grow with its scale.
 const NEAR_TO := 30.0
 const FAR_TO := 220.0
-## Occlusion a boulder is shaded with, as a laid stone carries.
 const AO := 0.92
-## A held boulder whooshes once its surface moves faster than SWING_FROM metres a second, fully at SWING_FULL, and only
-## from WHOOSH_SIZE times a metre wide: a pebble swung about is silent.
+## Surface speed in metres a second, and the least scale that whooshes: a pebble swung about is silent.
 const SWING_FROM := 0.6
 const SWING_FULL := 5.0
 const WHOOSH_SIZE := 0.4
-## How fast a boulder meets the ground for its landing thud to be its loudest, in metres a second (a 2.5 m drop).
+## Landing speed of the loudest thud, in metres a second (a 2.5 m drop).
 const LAND_FULL := 7.0
 
-## One standing boulder.
 class Boulder:
 	extends Node3D
 	var id := 0
@@ -29,15 +22,14 @@ class Boulder:
 	var terrain: Terrain
 	var ground := Vector3.ZERO
 	var turn := Quaternion.IDENTITY
-	## How far it is pushed into the ground below where it would rest, in unit metres (BoulderLayout.rest).
+	## Depth below where it would rest, in unit metres (BoulderLayout.rest).
 	var sink := 0.0
 	var size := 1.0
-	## Whether a hand has it, so it is shown where the hand holds it, not resting on the ground.
 	var held := false
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
-	## Shows it as `d` ({at, turn, sink, seed, scale, paint, style}) has it, grown again where its seed or style differs.
+	## `d` as `Boulders.put` takes it; regrown only where its seed or style differs.
 	func appear(d: Dictionary) -> void:
 		if shape == null or shape.seed != d.seed or shape.style != d.style:
 			_grow(BoulderLayout.shape(d.seed, d.style))
@@ -63,12 +55,11 @@ class Boulder:
 		add_child(near)
 		add_child(far)
 
-	## Rests it at `scale` on the ground `height` gives under it, or as deep in it as it was pushed.
 	func seat(scale: float, height: Callable) -> void:
 		ground.y = height.call(ground.x, ground.z)
 		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, height, sink), scale)
 
-	## Shows it at `pose` (unscaled) grown `scale` times, where a hand holds it; moving, it whooshes (`swing`).
+	## `pose` is unscaled.
 	func hold(pose: Transform3D, scale: float) -> void:
 		var was := pose()
 		var moving := held
@@ -79,11 +70,11 @@ class Boulder:
 			if swing > 0.0:
 				Cues.play(Cues.Act.BOULDER_MOVE, pose.origin, null, swing, scale)
 
-	## Thuds as it lands where it now rests, let go with its centre at `from_y`.
+	## `from_y`: its centre's height when let go.
 	func landed(from_y: float, hand: XRController3D = null) -> void:
 		Cues.play(Cues.Act.BOULDER_PLACE, position, hand, Boulders.impact(from_y - position.y), size)
 
-	## Where it is and which way it is turned, unscaled.
+	## Unscaled.
 	func pose() -> Transform3D:
 		return Transform3D(transform.basis.orthonormalized(), transform.origin)
 
@@ -98,7 +89,7 @@ class Boulder:
 var terrain: Terrain
 var world: World
 var boulders := {}
-## Counts every put, take and resize, so what caches their shapes knows to look again.
+## Bumped on every put, take and resize, so what caches their shapes knows to look again.
 var changes := 0
 
 
@@ -106,7 +97,7 @@ func _init() -> void:
 	name = "Boulders"
 
 
-## Puts boulder `id` as `data` ({at, turn, sink, seed, scale, paint, style}) has it.
+## `data` keys: at, turn, sink, seed, scale, paint, style.
 func put(id: int, data: Dictionary) -> Boulder:
 	var b: Boulder = boulders.get(id)
 	if b == null:
@@ -120,7 +111,7 @@ func put(id: int, data: Dictionary) -> Boulder:
 	return b
 
 
-## A boulder as `data` has it that is no part of the garden: nothing picks it or stops at it. Its holder frees it.
+## No part of the garden: nothing picks it or stops at it. Its holder frees it.
 func ghost(data: Dictionary) -> Boulder:
 	var b := Boulder.new()
 	b.terrain = terrain
@@ -129,7 +120,6 @@ func ghost(data: Dictionary) -> Boulder:
 	return b
 
 
-## Shows boulder `id` where a hand holds it: at `pose`, grown `scale` times.
 func show_held(id: int, pose: Transform3D, scale: float) -> void:
 	var b: Boulder = boulders.get(id)
 	if b != null:
@@ -137,15 +127,13 @@ func show_held(id: int, pose: Transform3D, scale: float) -> void:
 		changes += 1
 
 
-## Where a thing held at `pose` when the hand stood at `from` is, the hand now at `to`: it turns about its own centre
-## as the hand turns, every way, and moves `gain` metres for each metre the hand moves.
+## Turns about its own centre as the hand turns, and moves `gain` metres for each metre the hand moves.
 static func carried(pose: Transform3D, from: Transform3D, to: Transform3D, gain: float) -> Transform3D:
 	var turned := to.basis.orthonormalized() * from.basis.orthonormalized().inverse() * pose.basis
 	return Transform3D(turned.orthonormalized(), pose.origin + (to.origin - from.origin) * gain)
 
 
-## How hard a boulder moving from `from` to `to` in `seconds` swings, from 0 to 1: its centre's speed plus the speed its
-## turn gives its surface, `reach` metres out.
+## 0 to 1, from its centre's speed plus the speed its turn gives its surface `reach` metres out.
 static func swing(from: Transform3D, to: Transform3D, reach: float, seconds: float) -> float:
 	if seconds <= 0.0:
 		return 0.0
@@ -154,12 +142,12 @@ static func swing(from: Transform3D, to: Transform3D, reach: float, seconds: flo
 	return clampf((speed - SWING_FROM) / (SWING_FULL - SWING_FROM), 0.0, 1.0)
 
 
-## How hard a boulder falling `fall` metres lands, from 0 to 1; one set down where it was held still thuds, softly.
+## 0 to 1; at 0 it still thuds, softly.
 static func impact(fall: float) -> float:
 	return clampf(sqrt(2.0 * 9.8 * maxf(fall, 0.0)) / LAND_FULL, 0.0, 1.0)
 
 
-## Shows boulder `id` as a reshape with `data` would leave it, here alone.
+## On this player's view only.
 func show_reshaped(id: int, data := {}) -> void:
 	var b: Boulder = boulders.get(id)
 	if b != null:
@@ -191,8 +179,7 @@ func find(id: int) -> Boulder:
 	return boulders.get(id)
 
 
-## Rests the boulders reaching over `area` again on the ground as this player now sees it there; one a hand holds stays
-## in hand.
+## On the ground as this player sees it; a held one stays in hand.
 func reseat(area: Rect2, _settled := true) -> void:
 	for b: Boulder in boulders.values():
 		if not b.held and area.grow(b.shape.reach() * b.size).has_point(Vector2(b.ground.x, b.ground.z)):
@@ -200,7 +187,7 @@ func reseat(area: Rect2, _settled := true) -> void:
 			changes += 1
 
 
-## The nearest boulder a ray from `origin` along `dir` meets within `reach`: {boulder, along, point}, or {}.
+## The nearest hit: {boulder, along, point}, or {}.
 func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	var best := {}
 	var d := dir.normalized()
@@ -216,13 +203,12 @@ func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	return best
 
 
-## The top of the boulder under `p` at or below it, so a player stands on it; -INF over none.
+## -INF over none.
 func floor_under(p: Vector3) -> float:
 	var rock := pick(p, Vector3.DOWN)
 	return rock.point.y if not rock.is_empty() else -INF
 
 
-## The boulder holding the point `p`, or null.
 func inside(p: Vector3) -> Boulder:
 	for b: Boulder in boulders.values():
 		var local := b.transform.affine_inverse() * p
@@ -231,6 +217,5 @@ func inside(p: Vector3) -> Boulder:
 	return null
 
 
-## Which way the surface of `b` faces nearest `p`.
 static func facing(b: Boulder, p: Vector3) -> Vector3:
 	return (b.transform.basis * b.shape.normal(b.transform.affine_inverse() * p)).normalized()

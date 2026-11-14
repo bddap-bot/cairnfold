@@ -6,22 +6,21 @@ const CELL := 16.0
 
 var world: World
 var walls: WallTool
-## Each standing decoration's place as its build was laid (`xform`), which its build's carry moves it from (`carry`),
-## its `bounds`, and its `flames` there.
+## id -> {xform: its place as its build was laid, before the build's carry; bounds; flames there}.
 var placed := {}
-## The batches by key, a decoration's place and its lanterns' look (Lamps.light_of): its house's id, its ground cell, or,
-## for one held or swept, its id as a String, so it stands alone; each its `node` and the `sig` it was laid from.
+## [place, lantern look] -> {node, sig it was laid from}. The place is its house's id, its ground cell, or, for one
+## held or swept, its id as a String, so it stands alone.
 var _batches := {}
 var _shown := {}
-## Decorations a hand carries, as it shows them; moving one moves its node alone.
+## Decorations a hand carries; moving one moves its node alone.
 var _held := {}
 var _stamp := {}
-## Decorations a delete sweep has taken, hidden until it lets go; the beam passes through them.
+## Hidden until the delete sweep lets go; the beam passes through them.
 var _swept := {}
-## Every decoration's flames where they burn, and the light each casts (Lamps.light_of).
+## Parallel: each flame and the light it casts.
 var flames := PackedVector3Array()
 var lights := PackedColorArray()
-## The string a stroke of the decorations tool hangs: the one the style wheel let go on a string last.
+## The last string style the style wheel let go on a string.
 var string_style := DecorationLayout.named("Lantern string")
 
 
@@ -30,10 +29,9 @@ func _init(garden: World, builder: WallTool) -> void:
 	walls = builder
 
 
-## Lays the decorations again where they changed. A house's, or open ground's in one cell, are one batch, since a draw
-## per piece costs more than its triangles; only a batch whose pieces changed is laid again.
+## A house's, or open ground's in one cell, are one batch, since a draw per piece costs more than its triangles.
 func sync() -> void:
-	# A garden with none to show, and none shown, has nothing for a wall's change to move.
+	# None to show and none shown: a wall's change has nothing to move.
 	if world.state.decorations.is_empty() and _shown.is_empty() and _held.is_empty() and _swept.is_empty() and _batches.is_empty() and placed.is_empty():
 		return
 	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision(), _shown.duplicate(true), _held.keys(), _swept.keys()]
@@ -85,7 +83,6 @@ func sync() -> void:
 	place()
 
 
-## Stands each batch where its house now is, a decoration standing alone where it is, and gathers their flames.
 func place() -> void:
 	for key in _batches:
 		var w: Wall = walls.find(key[0]) if key[0] is int else null
@@ -100,7 +97,7 @@ func place() -> void:
 			lights.append(g)
 
 
-## Where decoration `id` stands now, its build's carry included.
+## The build's carry included.
 func world_xform(id: int) -> Transform3D:
 	var w := _wall_of(id)
 	return (w.transform if w != null else Transform3D.IDENTITY) * placed[id].xform
@@ -110,17 +107,14 @@ func _wall_of(id: int) -> Wall:
 	return walls.find(_held.get(id, world.state.decorations.get(id, {})).get("wall", -1))
 
 
-## Decoration `d` laid about its frame.
 func laid(d: Dictionary) -> DecorationLayout:
 	var layout := DecorationLayout.new()
 	layout.build(d.style, d.seed, rise(d), d.mount, span(d), d.get("drop", Vector2.ZERO))
 	return layout
 
 
-## Where a decoration stands, or null where its surface is gone: on the ground; a string at its first end, facing
-## across its span; at a house's foot, out from the wall at `s` on `side`, on the ground or the top of a build the
-## house stands on; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on its floor
-## or on a flat roof's deck, so it moves, turns, grows and rises with the house.
+## null where its surface is gone. Furniture stands at `at` in its house's `plan`, turned `turn` from its ridge, so it
+## moves, turns, grows and rises with the house.
 func frame(d: Dictionary) -> Variant:
 	if d.mount == "span":
 		var run: Vector3 = d.to - d.at
@@ -152,7 +146,7 @@ func frame(d: Dictionary) -> Variant:
 	return FittingTool._facing(at, normal)
 
 
-## A string's span from its first end to its second in its frame, or zero for any other decoration.
+## In its frame: (horizontal run, rise, 0); zero for any decoration but a string.
 static func span(d: Dictionary) -> Vector3:
 	if d.mount != "span":
 		return Vector3.ZERO
@@ -160,8 +154,8 @@ static func span(d: Dictionary) -> Vector3:
 	return Vector3(Vector2(run.x, run.z).length(), run.y, 0.0)
 
 
-## A house's plan on the ground plane: its middle, and its ridge and across it, each scaled to the half span from the
-## middle to its inner faces, so (1, 0, 1) is the corner and furniture keeps its share of the room when it is resized.
+## Axes along and across the ridge, scaled to the half span to its inner faces, so (1, 0, 1) is the corner and
+## furniture keeps its share of the room when it is resized.
 static func plan(w: Wall) -> Transform3D:
 	var r := w.roof
 	var f := r.frame()
@@ -170,7 +164,6 @@ static func plan(w: Wall) -> Transform3D:
 	return Transform3D(Basis(f.along * half.x, Vector3.UP, f.across * half.y), Vector3(f.mid.x, 0.0, f.mid.z))
 
 
-## Whether decoration `id` burns a flame.
 func lit(id: int) -> bool:
 	return placed.has(id) and not placed[id].flames.is_empty()
 
@@ -187,7 +180,7 @@ func targets() -> Array[Dictionary]:
 	return out
 
 
-## Shows decoration `id` as a reshape with `data` would leave it; with no `data`, as the garden has it, in no hand.
+## With no `data`, as the garden has it, in no hand.
 func show_reshaped(id: int, data := {}) -> void:
 	if data.is_empty():
 		_held.erase(id)
@@ -197,7 +190,7 @@ func show_reshaped(id: int, data := {}) -> void:
 	sync()
 
 
-## Shows decoration `id` as `d` while a hand carries it: taken out of its batch once, its own node then moves.
+## Taken out of its batch once; its own node then moves.
 func show_held(id: int, d: Dictionary) -> void:
 	_held[id] = d
 	sync()
@@ -215,7 +208,7 @@ func sweep(id: int) -> void:
 	sync()
 
 
-## Shows a swept decoration again on the next sync, by when the garden has taken it or kept it.
+## Shown again only on the next sync, by when the garden has taken it or kept it.
 func unsweep(id: int) -> void:
 	_swept.erase(id)
 

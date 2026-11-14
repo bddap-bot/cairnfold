@@ -1,13 +1,9 @@
 class_name Conure
 extends Critter
 
-## A small parrot built from soft, slightly ruffled ellipsoids, standing on its feet at the origin and
-## facing -Z. Looking about, preening, pecking and flight pose each part once a frame in `pose`, which the vertex
-## shader applies as one rigid turn per vertex, and its plumage turns
-## in the fragment shader: one of the colourings wild conures come in, or iridescent, turning from blue facing the eye
-## to green at grazing angles. Part ids ride in UV2.x. Plumage vertices carry brightness in red, a hue bias in green,
-## their patch in blue and 1 in alpha; the bill carries its shade with alpha 0.5; the rest carry their colour with
-## alpha 0.
+## Stands on its feet at the origin facing -Z. `pose` sets each part's rigid turn once a frame; the vertex shader
+## applies it per vertex. Part ids ride in UV2.x. Plumage vertices carry brightness in red, a hue bias in green, their
+## patch in blue and 1 in alpha; the bill carries its shade with alpha 0.5; the rest carry their colour with alpha 0.
 
 signal animation_event(act: Cues.Act)
 
@@ -51,17 +47,17 @@ const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
 const NECK := Vector3(0, 0.098, -0.012)
 const ALONG := Vector3(0, 0.8192, -0.5736)
 const OUT := Vector3(0, 0.5736, 0.8192)
-## Each part's turn and shift parameters in the shader, by `Part`.
+## Shader parameter suffixes, in `Part` order.
 const POSE := ["body", "head", "wing_l", "wing_r", "tail", "feet"]
-## How far round and up or down the head turns to look at something, in radians.
+## Radians: the most the head turns round (x) and up or down (y).
 const GAZE_TURN := Vector2(1.7, 0.9)
 const GAZE_EASE := 4.0
 const GAZE_TURN_EASE := 22.0
 
 var colouring := 0
-## The ground whose bounce lights it from below; its creator sets it before it enters the tree.
+## Its creator sets it before it enters the tree.
 var terrain: Terrain
-## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
+## A point in the parent's space to look at this tick, Vector3.INF to look about; `look` resets it.
 var looking := Vector3.INF
 var _gaze := Vector3.ZERO
 var animation_time := 0.0
@@ -130,11 +126,8 @@ static func pose(t: float, m: Vector4, gaze: Vector3) -> Dictionary:
 	var preen := m.y
 	var peck := m.z
 	var fly := m.w
-	# Which shoulder a preening bird works at; it swings its head round to the other now and then.
 	var shoulder_side := clampf(sin(t * 0.35 + 0.5) * 4.0, -1.0, 1.0)
-	# Breathing, and now and then a fluff-up with a quick flick of both wings.
 	var burst := pow(maxf(sin(t * 0.45 + 2.1), 0.0), 40.0)
-	# Flight levels the body out, bobbing with each beat; pecking leans it forward over its feet.
 	var level := Transform3D(Basis(), Vector3(0, fly * 0.006 * sin(t * TAU * 8.0 + 1.0), 0)) * _about(BODY, Basis(Vector3.RIGHT, -fly * 0.96))
 	var body := level * Transform3D(Basis(Vector3.RIGHT, -peck * 0.55), Vector3.ZERO)
 	var yaw := lerpf(idle * 1.1 * _snap(t, 0.9, 3.0) + preen * 2.5 * shoulder_side, gaze.x, gaze.z)
@@ -169,7 +162,7 @@ static func _hash(n: float) -> float:
 	return fposmod(sin(n * 127.1 + 311.7) * 43758.547, 1.0) * 2.0 - 1.0
 
 
-## A held value that snaps to a new random one now and then, as a bird's head moves in quick turns.
+## Held values with quick changes between, as a bird's head moves.
 static func _snap(t: float, rate: float, seed: float) -> float:
 	var k := floorf(t * rate)
 	return lerpf(_hash(k + seed), _hash(k + 1.0 + seed), smoothstep(0.0, 0.18, fposmod(t * rate, 1.0)))
@@ -238,7 +231,6 @@ static func build() -> ArrayMesh:
 	return st.commit()
 
 
-## The upper bill curves down over the lower to a hooked tip.
 static func _hook(p: Vector3) -> Vector3:
 	var tip := clampf(-p.z / BILL_SIZE.z, 0.0, 1.0)
 	p.y -= tip * tip * 0.011
@@ -248,7 +240,6 @@ static func _hook(p: Vector3) -> Vector3:
 	return p
 
 
-## The folded wing narrows to its tip, which reaches down over the tail.
 static func _wing_shape(p: Vector3) -> Vector3:
 	var tip := clampf(-p.y / WING_SIZE.y, 0.0, 1.0)
 	p.z *= 1.0 - tip * 0.55
@@ -256,7 +247,6 @@ static func _wing_shape(p: Vector3) -> Vector3:
 	return p
 
 
-## Long and tapering: widest at the rump, narrowing to a point.
 static func _tail_shape(p: Vector3) -> Vector3:
 	var along := clampf(p.y / TAIL_SIZE.y * 0.5 + 0.5, 0.0, 1.0)
 	p.x *= lerpf(1.0, 0.35, along)

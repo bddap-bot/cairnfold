@@ -1,7 +1,6 @@
 class_name Main
 extends Node3D
 
-## How much of a photo write_bytes hands the flash at a time.
 const SYNC_BYTES := 1 << 20
 
 var args := {}
@@ -34,10 +33,9 @@ var hand_stop: HandStop
 var flat: Flat
 var book: Book
 var _editors: Array
-## The global random generator's seed, which a session record keeps: drawn once, so a replay can start from it. The
-## wildlife grows from it too unless --seed names another.
+## Drawn once, so a replay can start from it. The wildlife grows from it too unless --seed names another.
 var rng_seed := randi()
-## What drives the session in place of the headset and the network when it replays a record (--replay FILE).
+## Null unless --replay FILE.
 var replayer: Replayer
 
 
@@ -270,8 +268,6 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
 
-## Records the session into `into` from here: the seeds and the garden it starts from, then every frame's input and
-## every message the network brings beside the metrics, and in an armed take the microphone.
 func record(into: PlayLog) -> void:
 	metrics.play_log = into
 	world.play_log = into
@@ -281,14 +277,13 @@ func record(into: PlayLog) -> void:
 	world.hear("look", [session.worn, session.avatar, session.colour])
 
 
-## The commit this build was exported from (scripts/package.sh), or "development" when run from the source.
+## Stamped by scripts/package.sh; "development" when run from the source.
 static func revision() -> String:
 	if ResourceLoader.exists("res://revision.tres"):
 		return str(load("res://revision.tres").get_meta("revision", "development"))
 	return "development"
 
 
-## What a photo records of the garden it is taken in (PhotoTool.scene).
 func _photo_scene() -> Dictionary:
 	var away := not session.visiting.is_empty()
 	var host: String = session.nearby.get("%s:%d" % [session.visiting.address, session.visiting.port], {}).get("name", "") if away else session.me.name
@@ -296,8 +291,7 @@ func _photo_scene() -> Dictionary:
 		"commands": world.seq, "meadow_seed": Meadow.SEED, "wildlife_seed": str(wildlife.rng.seed)}}, "world": var_to_bytes(world.snapshot())}
 
 
-## Opens a photo this game took as the garden it shows, if it carries one, at its time of day, seen from its lens;
-## nothing of it is kept. False if the photo holds no garden this game can read whole.
+## Nothing of the photo is kept. False if it holds no garden this game can read whole.
 func open_photo(path: String) -> bool:
 	var got := PhotoMeta.read(FileAccess.get_file_as_bytes(path))
 	if got.is_empty() or not world.restore_whole(got.world):
@@ -318,12 +312,11 @@ func _process(_delta: float) -> void:
 			world.redo(rig.right)
 
 
-## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
+## A null `hand` means any hand.
 func _editing(hand: Hand = null) -> bool:
 	return _editors.any(func(e) -> bool: return e.busy(hand))
 
 
-## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.
 static func flat_wanted(launch: Dictionary, in_xr: bool, played: bool) -> bool:
 	return not in_xr and (launch.has("flat") or played and not launch.has("desktop"))
 
@@ -360,9 +353,8 @@ func _xr_state(state: int) -> void:
 	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 
-## What a pause does to play beside stopping the tree, which the record keeps (`paused`, `resumed`) and a replay, never
-## paused, does where the record has it (Replayer): hands stop following their controllers, since the system menu draws
-## its own, and an aim ends; a return takes the controls as they are (`Buttons.resumes`).
+## The record keeps `paused`/`resumed`, and a replay, never paused, does this where the record has it (Replayer).
+## Hands hide since the system menu draws its own.
 func held(pause: bool) -> void:
 	world.hear("paused" if pause else "resumed", [])
 	rig.left.visible = not pause
@@ -387,7 +379,7 @@ static func _fov(p: Projection) -> Array:
 	return Array(Metrics.eye_half_angles(p)).map(func(d: float) -> float: return snappedf(d, 0.1))
 
 
-## Put the head at `eye` looking at `at`; in a headset the play space moves under the tracked head instead.
+## In a headset the play space moves under the tracked head instead.
 func view(eye: Vector3, at: Vector3) -> void:
 	var want := Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
 	if flat:

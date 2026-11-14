@@ -1,8 +1,7 @@
 class_name Mountains
 extends RefCounted
 
-## The ranges round the garden: rings of crags far enough out that both eyes and every step through the
-## garden see them as distant, lit and hazed in their shader from the hour's light (Look), casting no shadow.
+## Rings of crags far enough out that both eyes and every step through the garden see them as distant.
 ## Each range dips where the sun rises and sets, so it comes up and goes down through a pass.
 ## The mesh is pure data, so tests read it headless.
 
@@ -26,7 +25,7 @@ const FOOT := LAKE - SUNK
 ## The water's edge round the meadow's square is cut this far apart.
 const SHORE_STEP := 5.0
 const LAKE_OUT := 600.0
-## The ridge heights the water mirrors, sampled round the circle (ridge_image).
+## Samples round the circle in ridge_image.
 const RIDGE_SAMPLES := 512
 ## The sun's elevation in degrees where a pass is centred on its path, rising and setting.
 const PASS_SUN := 4.0
@@ -55,7 +54,6 @@ static func ridge(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	return _body(r, noise, azimuth) + _crags(r, noise, azimuth)
 
 
-## The range's broad shape under its crags.
 static func _body(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	var on: Vector2 = Vector2(cos(azimuth), sin(azimuth)) * r.radius * 0.01
 	var peaks := 1.0 - absf(noise.get_noise_2dv(on))
@@ -64,15 +62,14 @@ static func _body(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	return h * (1.0 - PASS_DEPTH * passes(azimuth))
 
 
-## The jagged teeth along the skyline, sampled from a far slice of the same noise.
+## A far slice of the same noise.
 static func _crags(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	var on: Vector2 = Vector2(cos(azimuth), sin(azimuth)) * r.radius * 0.01 * TEETH
 	var tooth := 1.0 - absf(noise.get_noise_3d(on.x, on.y, 50.0))
 	return JAG * r.high * pow(tooth, 3.0) * (1.0 - passes(azimuth))
 
 
-## Whether a ray from `from` along `dir` meets a range before the sky: whether it passes under some range's ridge where
-## it crosses it.
+## Whether a ray from `from` along `dir` meets a range before the sky.
 static func hides(from: Vector3, dir: Vector3) -> bool:
 	var flat := Vector2(dir.x, dir.z)
 	if flat.length() < 1e-6:
@@ -219,7 +216,6 @@ static func _outward(p: Vector3, distance: float, y: float) -> Vector3:
 	return Vector3(p.x, 0, p.z).normalized() * distance + Vector3.UP * y
 
 
-## The lake's surface: flat at LAKE from the meadow's edge out to LAKE_OUT.
 static func lake_arrays() -> Array:
 	var verts := PackedVector3Array()
 	var shore := Terrain.edge(0.0)
@@ -234,7 +230,7 @@ static func lake_arrays() -> Array:
 
 
 ## Each range's ridge over the lake round the circle, so the water mirrors the ranges without drawing them twice:
-## R the first's, G the second's, in metres over LAKE as a share of the second's highest.
+## R the first's, G the second's, as height over LAKE in shares of TOP.
 static func ridge_image() -> Image:
 	var img := Image.create(RIDGE_SAMPLES, 1, false, Image.FORMAT_RGF)
 	var noises := RANGES.map(noise_for)

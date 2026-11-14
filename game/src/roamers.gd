@@ -1,37 +1,31 @@
 class_name Roamers
 extends Grazers
 
-## Deer and a fox at the meadow's rim. A while after the garden opens a few deer walk out of the trees, and later a
-## fox; they graze, or nose the grass, along the rim. A person coming near has them stop and watch; one coming too
-## close, or moving suddenly, sends them galloping off toward the trees. A person standing still lets them settle,
-## and each calm spell lets one come a little nearer before it runs. After a long stay they walk back into the
-## trees, and others come some minutes later.
-
-## How long after the garden opens the first deer, and the first fox, come; once a band has gone, how long until
-## the next of its kind; and how long a band stays.
+## Seconds, as (min, max): from the garden opening to each kind's first band, from a band leaving to the next of its
+## kind, and a band's stay.
 const FIRST := {Beast.Kind.DEER: Vector2(30.0, 70.0), Beast.Kind.FOX: Vector2(60.0, 120.0)}
 const AGAIN := Vector2(90.0, 240.0)
 const STAY := Vector2(240.0, 480.0)
 const HERD := {Beast.Kind.DEER: Vector2i(2, 3), Beast.Kind.FOX: Vector2i(1, 1)}
-## How far from the middle of the garden they keep: the meadow's rim, inside the trees' ring.
+## Metres from the garden's middle: the meadow's rim, inside the trees' ring.
 const RING := Vector2(9.0, 40.0)
 const WALK_FROM := 22.0
 const SPEED := {
 	Beast.Kind.DEER: {State.ENTER: 0.9, State.WALK: 0.8, State.GRAZE: 0.5, State.FLEE: 6.0, State.LEAVE: 0.9},
 	Beast.Kind.FOX: {State.ENTER: 0.9, State.WALK: 0.85, State.GRAZE: 0.45, State.FLEE: 4.5, State.LEAVE: 0.9},
 }
-## Within WATCH of a person who comes nearer than FLIGHT * NOTICE, or moves suddenly, it stops to watch; within
-## FLIGHT of one coming toward it, or STARTLE of a sudden move, it runs.
+## Within WATCH of a person who comes nearer than flight() * NOTICE, or moves suddenly, it stops to watch; within
+## flight() of one coming toward it, or STARTLE of a sudden move, it runs.
 const WATCH := {Beast.Kind.DEER: 12.0, Beast.Kind.FOX: 9.0}
 const FLIGHT := {Beast.Kind.DEER: 5.0, Beast.Kind.FOX: 3.5}
 const NOTICE := 1.8
 const STARTLE := {Beast.Kind.DEER: 10.0, Beast.Kind.FOX: 7.0}
 ## Eating from a hand, a sudden move startles it only this much nearer.
 const EATING_STARTLE := 0.4
-## A watched person keeping still for CALM_FOR lets it settle, and each such spell lets one come CLOSER nearer
-## before it runs, down to NEAREST of FLIGHT.
+## A watched person keeping still for CALM_FOR seconds lets it settle, and each such spell lets one come CLOSER
+## nearer before it runs, down to NEAREST of FLIGHT.
 const CALM_FOR := 6.0
-## A settled deer mews, and a fox yips, about once in this many seconds.
+## [call, mean seconds between calls] once settled.
 const CALLS := {Beast.Kind.DEER: ["mew", 90.0], Beast.Kind.FOX: ["yip", 150.0]}
 const CLOSER := 0.12
 const NEAREST := 0.35
@@ -42,7 +36,6 @@ static var appetite := {
 
 ## Per kind with no band here: seconds until one comes.
 var due := {}
-## While set, no band comes.
 var held := false
 
 
@@ -80,8 +73,7 @@ func tick(delta: float) -> void:
 			arrive(kind)
 
 
-## A band of `kind` walks in toward a spot on the meadow's rim from out of sight among the trees; with no clear
-## way in, none come this time.
+## With no clear way in, none come this time.
 func arrive(kind: Beast.Kind) -> void:
 	var v := Visit.new()
 	v.stay = rng.randf_range(STAY.x, STAY.y)
@@ -107,7 +99,7 @@ func _keep(b: Band, delta: float) -> void:
 		_leave(b)
 
 
-## How near a person who is moving may come before it runs.
+## How near a moving person may come before it runs.
 static func flight(a: Beast) -> float:
 	return FLIGHT[a.kind] * maxf(NEAREST, 1.0 - CLOSER * a.calm)
 
@@ -141,8 +133,6 @@ func _watch(a: Beast) -> void:
 	a.timer = CALM_FOR
 
 
-## Watching, it faces the nearest person; once they have kept still a while it is calmer of them, and it grazes again
-## once they are far enough off.
 func _other(_b: Band, a: Node3D, delta: float) -> void:
 	a.pose(Motion.IDLE, delta)
 	var near := wildlife._nearest(a.position, WATCH[a.kind], true)
@@ -169,7 +159,6 @@ func _after_flight(a: Node3D) -> void:
 	_watch(a)
 
 
-## Away from the fright and out toward the trees.
 func _away(a: Node3D, from: Vector3) -> Vector3:
 	var out := Vector3(a.position.x, 0, a.position.z)
 	return (super(a, from) + (out.normalized() if out.length() > 0.01 else Vector3.ZERO) * 0.6).normalized()
@@ -192,7 +181,6 @@ func _within(_b: Band, p: Vector3) -> bool:
 	return r >= RING.x and r <= RING.y
 
 
-## Often at a tree's foot, on the meadow side of it; else anywhere on the rim.
 func _anywhere(_b: Band) -> Vector3:
 	var trunks := wildlife.flora.trunks if wildlife.flora != null else null
 	if trunks != null and trunks.size() > 0 and rng.randf() < 0.6:

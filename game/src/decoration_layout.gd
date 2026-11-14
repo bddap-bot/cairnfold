@@ -1,9 +1,8 @@
 class_name DecorationLayout
 extends RefCounted
 
-## One catalogue for placement, style choices and geometry. The stored style never changes on reload.
-## Every style but the strings stands on every mount but a span, and a new one is a present the style tool turns into
-## the rest; a string hangs on a span alone, between the two points a stroke of the decorations tool joins.
+## A saved decoration keeps its style as an index here, which never changes on reload. A new decoration is a present
+## the style tool turns into the rest.
 const STYLES := [
 	{"name": "Present"},
 	{"name": "Planter"},
@@ -45,15 +44,15 @@ const PRESENT := 0
 ## roof's "deck"; or the "span" a string hangs across, from `at` to `to`, each end on a pole `drop` tall or tied where
 ## it is.
 const MOUNTS := ["foundation", "ground", "floor", "deck", "span"]
-## A string's sag a metre of its span across the ground, its least, and its most.
+## Metres of sag per metre of span across the ground, clamped to least and most.
 const SAG := 0.07
 const SAG_LEAST := 0.05
 const SAG_MOST := 1.0
-## The span across the ground a string hangs over, least and most, and the steepest it climbs, rise over run.
+## Metres across the ground a string spans, least and most; the steepest it climbs, rise over run.
 const SPAN_LEAST := 1.5
 const SPAN_MOST := 20.0
 const SPAN_STEEPEST := 1.0
-## How tall a pole stands under a string's end on the ground.
+## Metres: the pole under a string's end on the ground.
 const POLE := 2.6
 ## Along a string, a lantern hangs every LANTERN_EVERY and a flag every FLAG_EVERY metres.
 const LANTERN_EVERY := 1.1
@@ -76,7 +75,6 @@ const CANDLE := Color(0.95, 0.62, 0.2)
 const TWIG := Color(0.38, 0.27, 0.15)
 const EGG := Color(0.72, 0.84, 0.86)
 const PRODUCE: Array[Color] = [Color(0.72, 0.12, 0.1), Color(0.86, 0.6, 0.12), Color(0.36, 0.56, 0.18), Color(0.5, 0.22, 0.44)]
-## Cloth: rugs, blankets and canvas take one of these by seed.
 const DYES: Array[Color] = [Color(0.55, 0.16, 0.12), Color(0.17, 0.27, 0.48), Color(0.66, 0.5, 0.16), Color(0.24, 0.4, 0.26)]
 var parts: Array[Dictionary] = []
 var flames: Array[Transform3D] = []
@@ -93,7 +91,6 @@ func box(at: Vector3, size: Vector3, color: Color, kind: String, turn := 0.0, ti
 	_part(Transform3D((Basis(Vector3.UP, turn) * Basis(Vector3.RIGHT, tilt)).scaled_local(size), at), color, kind)
 
 
-## A beam `thick` square from `a` to `b`.
 func beam(a: Vector3, b: Vector3, thick: float, color: Color, kind: String) -> void:
 	var x := Transform3D(Basis.looking_at(b - a, Vector3.UP if absf((b - a).normalized().y) < 0.99 else Vector3.BACK), (a + b) * 0.5)
 	_part(x.scaled_local(Vector3(thick, thick, a.distance_to(b))), color, kind)
@@ -105,7 +102,7 @@ func _part(x: Transform3D, color: Color, kind: String) -> void:
 	bounds = b if parts.size() == 1 else bounds.merge(b)
 
 
-## The style named `name`, or -1.
+## -1 for no such style.
 static func named(name: String) -> int:
 	for k in STYLES.size():
 		if STYLES[k].name == name:
@@ -113,27 +110,24 @@ static func named(name: String) -> int:
 	return -1
 
 
-## Whether `style` stands on `mount`: a string on a span, and every other style anywhere else.
 static func stands(style: int, mount: String) -> bool:
 	return STYLES[style].get("string", false) == (mount == "span")
 
 
-## The styles that stand on `mount`, in the order of STYLES.
 static func standing(mount: String) -> Array:
 	return range(STYLES.size()).filter(func(k: int) -> bool: return stands(k, mount))
 
 
-## How far a string across `span` (from its first end to its second) sags below the line between them at its middle.
+## Below the line between the ends, at the middle.
 static func sag(span: Vector3) -> float:
 	return clampf(SAG * Vector2(span.x, span.z).length(), SAG_LEAST, SAG_MOST)
 
 
-## Where a string across `span` hangs a share `t` of the way along it from its first end: a parabola through both ends.
 static func hang_at(span: Vector3, t: float) -> Vector3:
 	return span * t + Vector3.DOWN * 4.0 * sag(span) * t * (1.0 - t)
 
 
-## The room a string across `span` takes about its rope and what hangs from it, poles left out, in its frame.
+## Rope and what hangs from it, poles left out, in the string's frame (origin at its first end).
 static func strung(span: Vector3) -> AABB:
 	var low := minf(0.0, span.y) - sag(span) - 0.55
 	return AABB(Vector3(0.0, low, -0.2), Vector3(span.x, maxf(0.0, span.y) + 0.2 - low, 0.4))
@@ -359,8 +353,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector
 	bounds.position += shift
 
 
-## A rope across `span` sagging as `hang_at` has it, on a wooden pole under each end `drop` stands on, hung with
-## lanterns or with flags, each a square hung from its corner in the flag colour after the last.
+## `drop` is each end's pole height, 0 for none.
 func _string(span: Vector3, drop: Vector2, seed: int, lanterns: bool) -> void:
 	var run := span.length()
 	if run == 0.0:
@@ -406,7 +399,6 @@ func flower(x: Transform3D, seed: int) -> void:
 	flowers.append({"xform": x, "color": FloraLayout.FLOWER_COLORS[posmod(seed + flowers.size(), FloraLayout.FLOWER_COLORS.size())]})
 
 
-## Lays `other`'s parts, flames, flowers and pictures into this one, placed by `x`.
 func add(other: DecorationLayout, x: Transform3D) -> void:
 	for p in other.parts:
 		parts.append(p.merged({"xform": x * p.xform}, true))

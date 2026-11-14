@@ -21,7 +21,7 @@ var heights := PackedFloat32Array()
 var filled := {}
 ## The ponds that go: holding no water, or under the water of one the command puts or a higher one.
 var gone: Array[Vector2i] = []
-## The grid points under water, all ponds together.
+## How many grid points are under water, all ponds together.
 var wet := 0
 ## The ponds that stay, in `ponds` order.
 var found: Array[PondLayout.Pond] = []
@@ -63,7 +63,6 @@ func matches(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary,
 	return ponds == levels_by_point and put == putting and fills == last and ground == changed_ground and heights == over
 
 
-## Fills every pond and settles which stay.
 func work() -> void:
 	for g: Vector2i in ponds:
 		var was: Array = fills.get(g, [])

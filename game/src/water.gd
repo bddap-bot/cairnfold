@@ -2,8 +2,7 @@ class_name Water
 extends Node3D
 
 ## Every pond, as `World` fills them (`show`). Pond levels are shared with shaders (water.gdshaderinc), so the
-## bed turns to sand and the meadow's drowned grass and flowers go without touching an instance. Hands that break a
-## surface ripple it.
+## bed turns to sand and the meadow's drowned grass and flowers go without touching an instance.
 
 const RIPPLE_MOVE := 0.07
 ## Water deeper than this over a plant's root drowns it, as water.gdshaderinc's `drowned` reads it.
@@ -55,9 +54,9 @@ static func know(known: Array) -> void:
 	_known = known
 
 
-## The level a hollow pressed into `ground` at (x, z) out to `radius` holds to its brim, 8 cm under the lowest point
-## of its rim, as if what spilled over ran away; -INF when it holds none. On ground lower all round, water filled
-## higher spills into the ground around and fills that too.
+## The level a hollow pressed into `ground` at (x, z) out to `radius` holds to its brim, PondLayout.FREEBOARD under the
+## lowest point of its rim, as if what spilled over ran away; -INF when it holds none. On ground lower all round, water
+## filled higher spills into the ground around and fills that too.
 static func brim(ground: Terrain, x: float, z: float, radius: float) -> float:
 	var cells := Terrain.cells_around(x, z, radius + Terrain.STEP * 2.0)
 	var p := PondLayout.fill(ground.read(cells), cells, Terrain.grid_point(x, z))
@@ -192,7 +191,6 @@ func crosses(a: Vector2, b: Vector2) -> bool:
 	return false
 
 
-## A hand dipping into a pond, or moving through its surface, rings out a ripple; entering it plays a dip.
 func _wade(hand: Node3D, delta: float) -> void:
 	var p := hand.global_position
 	var w: Wade = _wet.get(hand)
