@@ -825,20 +825,31 @@ func _take(packed: Dictionary) -> void:
 
 ## Only a settling lay occludes, and a moving wall none: its occluder would trail its stones, and every occluder change
 ## has the renderer rebuild the scene's occlusion BVH, which a sculpt relaying every wall on the ground turned into
-## frames spent waiting on the last rebuild.
+## frames spent waiting on the last rebuild. A wall that occludes nothing has no occluder node at all, since a carry
+## moving even an empty one rebuilds the BVH as well.
 func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
+	if vertices.is_empty():
+		if _occluder != null:
+			_occluder.free()
+			_occluder = null
+		return
 	if _occluder == null:
 		_occluder = OccluderInstance3D.new()
 		_occluder.occluder = ArrayOccluder3D.new()
 		add_child(_occluder)
-	var occluder := _occluder.occluder as ArrayOccluder3D
-	if not (vertices.is_empty() and occluder.vertices.is_empty()):
-		occluder.set_arrays(vertices, indices)
+	(_occluder.occluder as ArrayOccluder3D).set_arrays(vertices, indices)
+
+
+## Occludes as its shown lay does again, for a wall a hold set back as it was laid, which no lay settles.
+func occlude_shown() -> void:
+	if _occluder == null:
+		_occlude(_shown.out.occluder[0], _shown.out.occluder[1])
 
 
 ## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it. The
 ## glade must let them go at once (`Masonry.flush`), or they would stay standing where the hold took them from.
 func draw_live() -> void:
+	_occlude(PackedVector3Array(), PackedInt32Array())
 	if _settled:
 		_settled = false
 		_sync()

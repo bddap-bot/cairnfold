@@ -743,6 +743,7 @@ func _settle_builds() -> void:
 			_settling.erase(id)
 		elif s.back and not w.laying() and PackedVector3Array(w.layout.laid_points) == world.state.walls[id].points and w.layout.laid_rise == world.state.walls[id].rise:
 			_place_laid(w, Transform3D.IDENTITY)
+			w.occlude_shown()
 			_settling.erase(id)
 		else:
 			_carry(w, s.laid_at, s.at)

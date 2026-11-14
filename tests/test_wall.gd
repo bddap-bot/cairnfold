@@ -504,7 +504,7 @@ func _only_settled_stones_occlude() -> void:
 	root.add_child(w)
 	w.layout.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 	w.layout.height = 2.0
-	var occluding := func() -> bool: return not (w._occluder.occluder as ArrayOccluder3D).vertices.is_empty()
+	var occluding := func() -> bool: return w._occluder != null and not (w._occluder.occluder as ArrayOccluder3D).vertices.is_empty()
 	w.rebuild(true)
 	w.lay_now()
 	check(occluding.call(), "a settled wall occludes")
@@ -514,6 +514,13 @@ func _only_settled_stones_occlude() -> void:
 	w.rebuild(true)
 	w.lay_now()
 	check(occluding.call(), "settled again, it occludes")
+	w.draw_live()
+	check(w._occluder == null, "a carried wall has no occluder to move")
+	w.rebuild(false)
+	w.lay_now()
+	check(w._occluder == null, "a lay landing while it is carried leaves it none")
+	w.occlude_shown()
+	check(occluding.call(), "set back as laid, it occludes")
 	w.free()
 	glade.free()
 
