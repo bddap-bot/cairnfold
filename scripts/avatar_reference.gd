@@ -65,7 +65,12 @@ func _run() -> void:
 	var matched := []
 	var unmatched := []
 	for c in _rows(ref.path_join("chains.tsv")).slice(1):
-		var bone := _bone(c[0].get_slice("|", 1).get_file().get_slice("#", 0))
+		var leaf: String = c[0].get_slice("|", 1).get_file().get_slice("#", 0)
+		# The reference's tip is the PhysBone's endpoint where it has one, which the importer makes a bone of its own.
+		var bone := _bone(leaf)
+		var end := _bone(leaf + " endpoint")
+		if end >= 0 and _skeleton.get_bone_parent(end) == bone:
+			bone = end
 		(matched if bone >= 0 else unmatched).append(c[0])
 		if bone >= 0:
 			_tips[c[0]] = bone
