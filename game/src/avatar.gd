@@ -491,8 +491,11 @@ static func _switched_off(root: Node3D) -> void:
 ## Longest is metres root to tip at rest, the sway a joint buys: a skirt panel of four joints outranks a strand of ten
 ## hanging a tenth as far. A bone only dropped chains move rests at its "settled" rotation (UnityAvatar.settle), as
 ## VRChat, running them all, shows it.
+## One the controller's first state switches off keeps its authored rest: VRChat never ran it, so shows it there
+## when a switch first turns it on.
 static func _keep_longest(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
+	var waiting := _still_at_start(root)
 	var chains: Array = SpringRuntime.unshadowed(springs.springs)
 	var bones: Dictionary = root.get_meta("humanoid")
 	var sk := root.get_node_or_null(str(bones.get("hips", "")).get_slice(":", 0)) as Skeleton3D
@@ -525,11 +528,30 @@ static func _keep_longest(root: Node3D) -> void:
 	for chain: Dictionary in left:
 		for joint: Dictionary in chain.joints:
 			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
-			if not moving.has(joint.node) and joint.has("settled") and bone >= 0:
+			if not moving.has(joint.node) and not waiting.has(joint.node) and joint.has("settled") and bone >= 0:
 				var rest := sk.get_bone_rest(bone)
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 	# Kept in the file's order, so the runtime's own shadowing pass sees the first PhysBone on a bone first.
 	springs.springs = range(chains.size()).filter(func(i: int) -> bool: return kept.has(i)).map(func(i: int) -> Dictionary: return chains[i])
+
+
+## Spring joints that a spring switched off in the controller's first state moves and no running one does.
+static func _still_at_start(root: Node3D) -> Dictionary:
+	var data: Dictionary = root.get_meta("expressions", {})
+	var switched: Array = data.get("springs", [])
+	if switched.is_empty():
+		return {}
+	var start := ExpressionState.new(data)
+	start.advance(0.0)
+	var still := {}
+	var running := {}
+	for s: Dictionary in switched:
+		var on: bool = (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(start.outputs[int(w[0])], float(w[1])))
+		for j: Variant in s.joints:
+			(running if on else still)[int(j)] = true
+	for j: int in running:
+		still.erase(j)
+	return still
 
 
 static func _bone(sk: Skeleton3D, path: Variant) -> int:
