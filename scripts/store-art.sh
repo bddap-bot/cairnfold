@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Regenerates the store art in steam/ (store and library art, screenshots) and meta/ (Horizon Store covers, icon,
-# logo, screenshots) from one set of desktop captures of demo/steam.json and demo/steam-coop.json: store-art.sh
+# Regenerates the store art in steam/ (store and library art, screenshots) and meta/ (Horizon Store covers, icon and
+# its spatialized layers, logo, screenshots) from one set of desktop captures of demo/steam.json and
+# demo/steam-coop.json: store-art.sh
 set -euo pipefail
 font=${CAIRNFOLD_TITLE_FONT:-}
 [ -f "$font" ] || { echo "store-art: no title font at '$font'; nix-shell sets CAIRNFOLD_TITLE_FONT" >&2; exit 1; }
@@ -76,6 +77,12 @@ cut cottage 1512x2160+1164+0 1008x1440 | title 880 north +0+300 | save meta/cove
 cut hero 3840x1152+0+344 3000x900 | title 1400 center +0+0 | save meta/hero.png 3000x900
 cut wide 3840x1280+0+383 1080x360 | title 760 center +0+0 | save meta/mini-landscape.png 1080x360
 cut icon 2160x2160+870+0 512x512 | save meta/icon.png 512x512
+# The spatialized icon: the meadow behind, the cottage alone in front, inside the store's 18-pixel safe margin.
+cut icon-back 2160x2160+840+0 180x180 | save meta/spatial-icon-background.png 180x180
+magick "$shots/icon-front.png" \( +clone -fill none -fuzz 1% -draw 'color 0,0 floodfill' -alpha extract -threshold 50% \
+  -define connected-components:keep-top=1 -define connected-components:mean-color=true -connected-components 8 \) \
+  -alpha off -compose CopyAlpha -composite -compose over -trim +repage -resize 144x144 -background none \
+  -gravity center -extent 180x180 miff:- | save meta/spatial-icon-foreground.png 180x180
 # The Quest's system splash shows it while the game loads; the store asks for one within four seconds of launch.
 magick "$meta/cover-landscape.png" -resize 1280x720 miff:- | save game/splash.png 1280x720
 magick "$shots/title.png" miff:- | save meta/logo.png '*x*'
