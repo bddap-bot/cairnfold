@@ -70,6 +70,9 @@ func _rest_hands() -> void:
 
 ## Frogs sit at the waterline, hop along it and swim; one walked up to hops in and plops under; at night they croak.
 func _frogs() -> void:
+	for start in 4:
+		var tried: Array = Frogs.around(start)
+		check(tried.size() == 4 and Vector2i.ZERO not in tried and tried.all(func(d: Vector2i) -> bool: return tried.count(d) == 1 and d.length_squared() == 1), "a frog's bank search from heading %d tries all four neighbours once: %s" % [start, tried])
 	var frogs := g.wildlife.frogs
 	var pond := g.water.ponds[0]
 	var want := Wildlife._pond_quota(pond, 1, Frogs.CAP, Frogs.CELLS_EACH, Frogs.PER_POND)

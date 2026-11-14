@@ -96,6 +96,11 @@ func arrive(home: Object) -> One:
 	return f
 
 
+static func around(start: int) -> Array:
+	var out := [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]
+	return out.slice(start) + out.slice(0, start)
+
+
 ## [waterline spot, water point off it], near `near` unless INF; empty where none is found.
 func _bank(p: PondWater, near := Vector3.INF) -> Array:
 	var shore := p.pond.shore
@@ -105,7 +110,7 @@ func _bank(p: PondWater, near := Vector3.INF) -> Array:
 		var s := Terrain.grid_xz(shore[rng.randi() % shore.size()])
 		if near != Vector3.INF and s.distance_to(Vector2(near.x, near.z)) > BANK_REACH + Terrain.STEP:
 			continue
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)].slice(rng.randi() % 4) + [Vector2i(1, 0), Vector2i(-1, 0)]:
+		for d in around(rng.randi() % 4):
 			var w := s + Vector2(d) * Terrain.STEP
 			if wildlife.water.pond_at(w.x, w.y) != p:
 				continue
