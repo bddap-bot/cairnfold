@@ -230,7 +230,7 @@ stepped down. The line is now 0.80 of the period:
 Every one of those at 0.80 followed the ladder's step to 0.9 resolution itself, which the
 governor took before the runtime's line: switching to 0.9 cost a 25 to 72 ms frame now and
 then, and once that frame took the runtime to every other refresh for half a second (the 34).
-The Frame now renders at 0.9 from launch, and only the ladder's last step, below every other,
+Every headset now draws its 3D scene at exactly 1.0 from launch, and only the ladder's last step, below every other,
 changes the resolution (see "Which knobs matter" and "Holding 72 Hz on the Frame").
 
 `demo/headset.json` on 5a0292a against the same build held at 0.9 from launch, three runs each,
@@ -700,7 +700,7 @@ a step up out of either waits the governor's longest calm (64 s), and one undone
 village appeared in the same second the resolution step landed, read as a step that cost 1.6 ms,
 and held the governor two steps up for the rest of the run. On the Quest 2 the bottom step's bare
 meadow took 16.5 ms of App GPU time from the air and 14.2 standing at full swapchain size, so
-the Quest 2 draws a smaller swapchain (below). Without the resolution step the village from the air stayed
+the ladder's lower rungs draw a smaller swapchain (below). Without the resolution step the village from the air stayed
 at every other refresh at the shadows-off step (14.7 ms). Every step up out of them in a
 governed run of the stress scene cost no late frame (the longest 18.8 ms).
 
@@ -2011,7 +2011,7 @@ runs (31 late frames each). Switching every 3 s in place gave a late frame at th
 switches. Held at 0.9 from launch, the phase had none. The OpenXR render region, which shrinks
 the rendered rectangle inside the full-size eye texture without reallocating, saved nothing on
 the Frame: the houses took 10.7 ms a frame against 9.6 ms at the 0.9 scale, and the later
-phases fell to every other refresh. The Quest 2 shrinks the swapchain instead (below).
+phases fell to every other refresh. The ladder's lower rungs shrink the swapchain instead (below).
 
 Part of what a tenth off saves on the Frame is the render path, not the pixels. At a scale of
 exactly 1.0 Godot tonemaps in a subpass of the 3D pass; at any other scale, in a pass of its
@@ -2993,7 +2993,7 @@ Stage numbers refer to the build order at the end.
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | One stabilized shadow map across the garden; occlusion darkening at wall feet and corners from the probe volume | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun and moon glow, stars, cloud light, fog colour, exposure and saturation follow the sun's elevation through one timeline of keys (`Daylight`), night included | 1 (done), 8 (done) |
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
-| Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
+| Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); no glow on any headset (see "Grading"). No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | A full 24-hour cycle. Grip any hand on open sky, over the mountains, which stand in front of it, or pointed at the sun or the moon wherever they stand, under the ground too, to grab the sky, and aim to turn it about the sun's arc, round the whole day: the sun rises on the left, stands high in front at noon and sets on the right; below the horizon it is night, and the moon, riding the same arc 100° behind the sun, stands high in front at dusk, a soft full disc with faint seas in a gentle halo, lighting the garden cool and dim but bright enough to build by while it is up; it sets soon after midnight, and the hours before dawn, with neither up, are dark but for lanterns and stars, the eye adapting so builds still read; a garden kept in those hours starts again at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The light's colour and strength, sky, fog, ambient and exposure follow. Letting go turns every player's sky to it. Not an edit: undo leaves it be | 8 (done) |
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette held in the hand): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand held with a star at its tip) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; the meadow's wind and grass turning with the head, birds placed in the world by day, owls and crickets by night; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
@@ -5901,7 +5901,7 @@ plaster under its edges. A flat-lit far beam still cost +2.2 to +2.6 ms, and dra
 so the floor for beams drawn as geometry is about 1 µs a member from above. Below it the far frame would have to
 be painted into the plaster it lies on.
 
-Since the Quest 2 draws 2x MSAA (above), the same village costs less, and painting the far frame into the wall was
+Since the ladder's lower rungs draw 2x MSAA (above), the same village costs less there, and painting the far frame into the wall was
 tried and not kept. Six rounds of paired runtime swaps on Quest 2 B, from the air at the bottom step, GPU ms over no
 timber (mean of the six, its standard error):
 

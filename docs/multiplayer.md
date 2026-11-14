@@ -799,7 +799,7 @@ Every phase is over the then 12.5 ms budget in these runs, the bare meadow inclu
 budget verdict belongs to the stress scene and the headset's state. Co-op costs a fraction
 of a millisecond per player against it.
 
-The Quest build must hold the network permission. Without it, every socket the game
+Every APK must hold the network permission. Without it, every socket the game
 opens fails, it hosts nothing, and no one can join. With it, a Quest and a desktop find
 each other by beacon within seconds, both ways. `scripts/android.sh` refuses an APK whose manifest
 lacks it.
