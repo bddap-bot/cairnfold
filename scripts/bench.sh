@@ -332,9 +332,18 @@ if device == "frame" and not d["info"].get("xr"):
 # Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second, its
 # compositor's TW= beside it.
 gpu, timewarp, dropped, foreign = {}, {}, set(), {}
+# A second that left draws out because their pipelines were still compiling drew less than its scene: after a cold
+# start the first compiles can wait half a minute, and meadow read 3.7 to 6.1 ms of GPU then against 8.3 whole. Such
+# seconds leave a phase's GPU time unless they are all it has: then it drew incomplete, and gets no budget verdict.
+unready = {id(s) for s in d["seconds"] if s.get("skipped")}
+incomplete = set()
 if device == "frame":
     for name, secs in phases.items():
-        gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
+        timed = [s for s in secs[1:] if "gpu_ms" in s]
+        whole = [s for s in timed if id(s) not in unready]
+        if timed and not whole:
+            incomplete.add(name)
+        gpu[name] = [s["gpu_ms"] / s["frames"] for s in whole or timed]
 elif device == "quest":
     # Only the game's process counts, the one printing as godot. Another process rendering, as the shell does for a
     # moment mid-phase or under an open panel, shares the GPU with the game, so no time of a second it renders in is
@@ -346,7 +355,8 @@ elif device == "quest":
     # Each line's phase is the metrics second it falls in, by the headset's clock: logcat drops lines under load, the
     # game's own label prints among them.
     ends = [s["unix"] for s in d["seconds"]]
-    at = lambda t: d["seconds"][bisect.bisect_left(ends, t)]["label"] if t <= ends[-1] else "-"
+    second = lambda t: d["seconds"][bisect.bisect_left(ends, t)] if t <= ends[-1] else None
+    at = lambda t: second(t)["label"] if second(t) else "-"
     phase, step, game_pid, crash, done = "-", None, None, None, False
     lines, others, hands, handed = {}, [], set(), set()
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
@@ -396,6 +406,10 @@ elif device == "quest":
     for label, v in lines.items():
         v = v[1:] or v
         v = [g for g in v if not near(g[0])] or v
+        whole = [g for g in v if id(second(g[0])) not in unready]
+        if not whole:
+            incomplete.add(label)
+        v = whole or v
         gpu[label] = [g[1] for g in v]
         timewarp[label] = [g[2] for g in v if g[2] is not None]
     unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]
@@ -429,6 +443,8 @@ for name, secs in phases.items():
         summary[name]["landings"] = windows
     if name in foreign:
         summary[name]["foreign"] = {"pids": sorted(foreign[name]), "dropped_s": len(left_out)}
+    if name in incomplete:
+        summary[name]["incomplete"] = True
     stalls = [{k: st[k] for k in ("ms", "notes", "compiled")} for s in phases[name] for st in s.get("stalls", [])]
     if stalls:
         summary[name]["stalls"] = stalls
@@ -464,7 +480,9 @@ for name, secs in phases.items():
         row += f" {g:7.2f}"
         if device == "frame":
             row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
-        if device == "quest":
+        if name in incomplete:
+            row += " incomplete"
+        elif device == "quest":
             measured = past_budget(labels.get(name, {"name": name}), fill)
             if g <= budget["gpu_ms"]:
                 row += " holds"

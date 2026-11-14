@@ -152,6 +152,32 @@ class BenchmarkRendering(unittest.TestCase):
                     phase = json.loads((out / "record.json").read_text())["phases"]["edit"]
                     self.assertEqual((phase["p99"], phase.get("foreign")), (13.0, foreign))
 
+    def test_seconds_drawn_with_pipelines_compiling_leave_a_phases_gpu_time_unless_they_are_all_it_has(self):
+        """After a cold start a meadow left 29 draws out for pipelines still compiling, at 3.7 ms of GPU against 8.3
+        once they landed: those seconds leave the phase's GPU time, and a phase with no other is drawn incomplete,
+        given no budget verdict. Their frames still count in the phase's late frames, p99 and worst second."""
+        game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
+        vrapi = '17923700{s}.500  6423  6717 I VrApi   : FPS=72/72,Prd=40ms,App={ms:.2f}ms,GPU%=0.5,TW=1.00ms\n'
+        labels = {20: "-", 21: "mixed", 22: "mixed", 23: "mixed", 24: "mixed", 25: "-", 26: "cold", 27: "cold", 28: "-"}
+        skipped = {22: 29, 23: 29, 26: 29, 27: 29}
+        seconds = [{"label": labels[s], "unix": 1792370000 + s + 1, "p50": 13.9, "p99": 40.0 if s == 22 else 13.9,
+                    "late": 3 if s in skipped else 0, "draws": 100, "prims": 1000, "skipped": skipped.get(s, 0)} for s in labels]
+        log = (game.format(s=20, text="xr: session at 72.0 Hz")
+               + "".join(vrapi.format(s=s, ms=12.0 if s in skipped else 8.3) for s in labels)
+               + game.format(s=29, text="driver: done"))
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "logcat.txt").write_text(log)
+            result = bench(out, "quest", 11.111, seconds)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            phases = json.loads((out / "record.json").read_text())["phases"]
+            mixed, cold = phases["mixed"], phases["cold"]
+            self.assertEqual((mixed["gpu_ms"], mixed.get("incomplete"), mixed["late"], mixed["p99"], mixed["worst"]["late"]),
+                             (8.3, None, 6, 40.0, 3))
+            self.assertEqual((cold["gpu_ms"], cold.get("incomplete"), cold["late"]), (12.0, True, 6))
+            self.assertIn(" incomplete", next(line for line in result.stdout.splitlines() if line.startswith("cold")))
+            self.assertNotIn("over budget", result.stdout)
+
     def test_a_phases_stalls_are_kept_in_its_record(self):
         stall = {"ms": 412.5, "tags": ["build"], "main_ms": {"scripts": 400.1}, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
         with tempfile.TemporaryDirectory(dir=".") as folder:
@@ -322,6 +348,17 @@ class Trend(unittest.TestCase):
         self.assertIn(f"refused r20/ground, not pinned at one step: control unrecorded pin at step {step('gov-main')}, "
                       f"candidate unrecorded pin at step {step('gov-tip5')}", said.getvalue())
 
+    def test_a_phase_drawn_incomplete_is_no_base_and_no_side_of_a_pair(self):
+        whole = {"gpu_ms": 8.3, "p50": 13.9, "step": 4, "pinned": True}
+        cold = {**whole, "gpu_ms": 3.7, "incomplete": True}
+        risen, refused = trend.pair({"phases": {"meadow": cold}}, {"phases": {"meadow": whole}})
+        self.assertEqual((risen, refused), ([], [("meadow", "drawn incomplete in control")]))
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            for stamp, phase in (("20261101T000000Z-a", cold), ("20261102T000000Z-b", whole)):
+                Path(folder, f"{stamp}.json").write_text(json.dumps({"phases": {"meadow": phase}}))
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(trend.report("quest-2", "meadow", folder), [])
+
     def test_a_comparison_holds_only_phases_pinned_at_one_step(self):
         """A governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to
         13.54 ms against 13.14 to 13.73 before: the governor's figure, not the change's."""
@@ -338,7 +375,7 @@ class Trend(unittest.TestCase):
             with self.subTest(case=case):
                 with contextlib.redirect_stdout(io.StringIO()):
                     _, refused = trend.pair({"phases": {"camera": control}}, {"phases": {"camera": candidate}})
-                self.assertEqual(refused, [("camera", why)] if why else [])
+                self.assertEqual(refused, [("camera", f"not pinned at one step: {why}")] if why else [])
                 with tempfile.TemporaryDirectory(dir=".") as folder:
                     record = Path(folder) / "record.json"
                     record.write_text(json.dumps({"budget_gpu_ms": 11.111, "phases": {

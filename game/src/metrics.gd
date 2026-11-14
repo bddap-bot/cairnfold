@@ -70,6 +70,10 @@ var _gpu_reader: Thread
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
+## The most draws a frame's view this second left out because their pipelines were still compiling: a second that left
+## any out drew less than its scene, so its GPU time reads low. The shadows' count is not read, since it also counts
+## positional shadows deferred to a later frame, which a scene of many lights does every frame as played.
+var _skipped := 0
 ## Pipelines compiled so far, the last frame: x while drawing, which holds the frame, y on worker threads.
 var _compiled := Vector2i()
 ## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
@@ -197,6 +201,10 @@ func _process(delta: float) -> void:
 		late_at_us = now
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	var view := get_viewport()
+	if view != null:
+		_skipped = maxi(_skipped, RenderingServer.viewport_get_render_info(view.get_viewport_rid(),
+				RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME))
 	if quality != null and quality.fresh:
 		_step = maxi(_step, quality.step())
 		_pinned = _pinned and quality.held()
@@ -240,6 +248,7 @@ func _process(delta: float) -> void:
 				row.landings = _landings
 				_landings = []
 		row.prims = _prims
+		row.skipped = _skipped
 		var frames := maxi(_deltas.size(), 1)
 		row.paint_steps = roundi(Canvas.laid / frames)
 		Canvas.laid = 0.0
@@ -270,6 +279,7 @@ func _process(delta: float) -> void:
 			row.charges = charges
 		_draws = 0
 		_prims = 0
+		_skipped = 0
 		if not _gpu.is_empty():
 			var sum := 0.0
 			for ms in _gpu:

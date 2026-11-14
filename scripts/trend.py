@@ -57,10 +57,11 @@ def report(rig, scene, folder):
     risen = []
     for phase, row in latest["phases"].items():
         key = "gpu_ms" if "gpu_ms" in row else "p50"
-        seen = [r[phase][key] for r in earlier if key in r.get(phase, {}) and r[phase].get("step") == row.get("step")]
+        seen = [r[phase][key] for r in earlier if key in r.get(phase, {}) and r[phase].get("step") == row.get("step")
+                and not r[phase].get("incomplete")]
         base = statistics.median(seen[-BASE:]) if seen else None
-        best = min(seen + [row[key]])
-        rose = base is not None and rise(base, row[key])
+        best = min(seen + ([] if row.get("incomplete") else [row[key]]), default=None)
+        rose = base is not None and not row.get("incomplete") and rise(base, row[key])
         if rose and key == "gpu_ms":
             risen.append(phase)
         print(f"  {phase:24} {row.get('step', '-'):>4} {shown(row[key])} {shown(base)} {shown(best)}{' rose' if rose else ''}")
@@ -99,7 +100,9 @@ def pair(control, candidate):
             continue
         old = a[phase]
         key = "gpu_ms" if "gpu_ms" in new and "gpu_ms" in old else "p50"
-        why = unpinned({"control": old, "candidate": new})
+        pin = unpinned({"control": old, "candidate": new})
+        drawn = [side for side, p in (("control", old), ("candidate", new)) if p.get("incomplete")]
+        why = f"not pinned at one step: {pin}" if pin else f"drawn incomplete in {' and '.join(drawn)}" if drawn else None
         if why:
             refused.append((phase, why))
             verdict = "refused"
@@ -124,7 +127,7 @@ def main(want):
         control, candidate = (json.loads(Path(path).read_text()) for path in want[1:])
         risen, refused = pair(control, candidate)
         for phase, why in refused:
-            print(f"refused {phase}, not pinned at one step: {why}", file=sys.stderr)
+            print(f"refused {phase}, {why}", file=sys.stderr)
         if risen:
             print(ROSE + ", ".join(risen), file=sys.stderr)
         return 1 if risen or refused else 0

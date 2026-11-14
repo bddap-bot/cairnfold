@@ -460,6 +460,12 @@ density, and no build the player can make may bring the frame rate down.
 - Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
   latest run of each beside the median of the three before and the best, marking a rise of a quarter and 2 ms; on a
   named scene a GPU-time rise fails it, and bench.sh runs it on the scene it recorded.
+- A second that left draws out because their pipelines were still compiling drew less than its scene, so it leaves its
+  phase's GPU time; a phase with no other second is recorded as drawn incomplete, gets no budget verdict and is
+  neither a trend's base nor a side of a pair. After a cold start (a cleared or uninstalled app, as `quest-install.sh`
+  does to install an older build) a Quest 2 left 29 meadow draws out for half a minute after the session began, at
+  3.7 to 6.1 ms of GPU against 8.3 drawn whole, so an A/B whose arm was installed over a newer build measured that arm
+  short.
 - Nothing the player does waits on a build or a compile. Every Vulkan export ships its shaders baked (`shader_baker`,
   run by `scripts/export.sh` in an editor with a RenderingDevice): a Quest 2 with its data cleared sat 52 s on its
   first frame, 34 s baked. The baker compiles only shaders it meets in exported materials, and the game makes its
