@@ -18,6 +18,8 @@ var springs: SpringRuntime:
 		springs = value
 		for moved: Dictionary in _moved.values():
 			moved.sent = false
+## After a frame that showed or hid a node.
+signal reshown
 var _shown: Array = []
 ## Per output: its indices into _shown; _shown_at, the value it last showed them at.
 var _shown_by: Array[Array] = []
@@ -293,6 +295,8 @@ func apply(targets: Variant = null) -> void:
 			glows.texture.update(glows.table)
 	for k: int in showing:
 		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
+	if not showing.is_empty():
+		reshown.emit()
 
 
 func _move_bones() -> void:

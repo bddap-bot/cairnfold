@@ -16,6 +16,7 @@ func _run() -> void:
 	_collider_squishes_but_never_stretches()
 	_release_sets_off_from_the_grip()
 	_drag_spends_the_swing()
+	_an_idle_chain_holds_its_pose()
 	finish()
 
 
@@ -169,3 +170,25 @@ func _drag_spends_the_swing() -> void:
 	check(moved[1.0] < 1e-4, "under full drag the tail stops a step after its anchor does: %.5f m on" % moved[1.0])
 	check(moved[0.0] > 0.005, "under no drag it swings on: %.5f m" % moved[0.0])
 	check(moved[0.5] > moved[1.0] + 1e-4 and moved[0.5] < moved[0.0] - 1e-4, "under half drag it swings on less: %.5f m" % moved[0.5])
+
+
+## A chain left idle keeps the pose it stopped in, sends no points, and sets off from there when it runs again.
+func _an_idle_chain_holds_its_pose() -> void:
+	var made := strand(settings({"gravity": 1.0}))
+	var springs: SpringRuntime = made[0]
+	for i in 30:
+		springs.advance(1.0 / 60.0)
+	var stopped: Vector3 = made[3].global_position
+	check(stopped.y < -0.01, "gravity bends the bone before it stops: %s" % stopped)
+	springs.idle[0] = true
+	for i in 60:
+		springs.advance(1.0 / 60.0)
+	check(made[3].global_position.is_equal_approx(stopped), "an idle chain holds the pose it stopped in: %s" % made[3].global_position)
+	check(springs.state().is_empty() and springs.point_count() == 0 and springs.apply_state(PackedVector3Array()), "an idle chain sends and takes no points")
+	springs.idle.clear()
+	springs.advance(1.0 / 60.0)
+	check(made[3].global_position.distance_to(stopped) < 0.01, "it sets off from where it stopped: %s" % made[3].global_position)
+	for i in 60:
+		springs.advance(1.0 / 60.0)
+	check(made[3].global_position.y < stopped.y, "and runs on under gravity: %s" % made[3].global_position)
+	made[1].free()

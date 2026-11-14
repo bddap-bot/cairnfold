@@ -773,7 +773,7 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
 	var avatar: Avatar = avatars[id]
-	if avatar.springs == null or springs.size() != avatar.springs.point_count:
+	if avatar.springs == null or springs.size() != avatar.springs.point_count():
 		springs = PackedVector3Array()
 		holders = {}
 	for chain in holders:

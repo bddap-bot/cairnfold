@@ -323,7 +323,7 @@ static func model(root: Node3D) -> PackedScene:
 			root.set_meta(key, DATA[key].duplicate(true) if DATA[key] is Dictionary else DATA[key])
 	_on_one_skeleton(root)
 	_switched_off(root)
-	_keep_longest(root)
+	_rank_springs(root)
 	var bones: Dictionary = root.get_meta("humanoid")
 	var drawn := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
@@ -470,49 +470,80 @@ static func _switched_off(root: Node3D) -> void:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
 
-## Longest is metres root to tip at rest, the sway a joint buys. A bone only dropped chains move rests at its
-## "settled" rotation, as VRChat shows it running them all; one switched off at start keeps its authored rest, as
-## VRChat never ran it.
-static func _keep_longest(root: Node3D) -> void:
+## Readies every chain for `running`: "length" is metres root to tip at rest, the sway a joint buys, and "drawn_by"
+## the meshes whose skin or carrier a joint of it moves. A bone only chains that do not run at start move rests at its
+## "settled" rotation (UnityAvatar.settle), as VRChat, running them all, shows it. One the controller's first state
+## switches off keeps its authored rest: VRChat never ran it, so shows it there when a switch first turns it on.
+static func _rank_springs(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var waiting := _still_at_start(root)
 	var chains: Array = SpringRuntime.unshadowed(springs.springs)
 	var bones: Dictionary = root.get_meta("humanoid")
 	var sk := root.get_node_or_null(str(bones.get("hips", "")).get_slice(":", 0)) as Skeleton3D
-	var drawn := _drawn_bones(root, sk) if sk else {}
-	var shown := []
-	var length := []
-	for chain: Dictionary in chains:
+	var marks := _mesh_bones(root, sk) if sk else {}
+	var shown := {}
+	for c in chains.size():
+		var chain: Dictionary = chains[c]
 		var at: Array = chain.joints.map(func(j: Dictionary) -> int: return _bone(sk, bones.get("spring_%d" % j.node)))
-		shown.append(at.any(func(b: int) -> bool: return drawn.has(b)))
+		var by: Array[NodePath] = []
+		for mi: MeshInstance3D in marks:
+			if at.any(func(b: int) -> bool: return marks[mi].has(b)):
+				by.append(root.get_path_to(mi))
+				if _shown(mi, root):
+					shown[c] = true
+		chain.drawn_by = by
 		var metres: float = chain.get("end_length", 0.0)
 		for i in range(1, at.size()):
 			if at[i] >= 0 and at[i - 1] >= 0:
 				metres += sk.get_bone_global_rest(at[i]).origin.distance_to(sk.get_bone_global_rest(at[i - 1]).origin)
-		length.append(metres)
-	var longest: Array = range(chains.size())
-	longest.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else length[x] > length[y])
-	var kept := {}
-	var left := []
-	var joints := 0
+		chain.length = metres
+	var run := running(chains, func(c: int) -> bool: return shown.has(c))
 	var moving := {}
-	for i: int in longest:
-		var chain: Dictionary = chains[i]
-		if joints + chain.joints.size() > MAX_SPRING_JOINTS:
-			left.append(chain)
-			continue
-		kept[i] = true
-		joints += chain.joints.size()
-		for joint: Dictionary in chain.joints:
+	for i: int in run:
+		for joint: Dictionary in chains[i].joints:
 			moving[joint.node] = true
-	for chain: Dictionary in left:
-		for joint: Dictionary in chain.joints:
+	for i in chains.size():
+		if run.has(i):
+			continue
+		for joint: Dictionary in chains[i].joints:
 			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
 			if not moving.has(joint.node) and not waiting.has(joint.node) and joint.has("settled") and bone >= 0:
 				var rest := sk.get_bone_rest(bone)
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
-	# Kept in the file's order, so the runtime's own shadowing pass sees the first PhysBone on a bone first.
-	springs.springs = range(chains.size()).filter(func(i: int) -> bool: return kept.has(i)).map(func(i: int) -> Dictionary: return chains[i])
+	springs.springs = chains
+
+
+## The indices of `chains` that run: those `drawn` says by index draw a shown mesh first, then the longest, a skirt panel of four
+## joints outranking a strand of ten hanging a tenth as far, while their joints fit MAX_SPRING_JOINTS.
+static func running(chains: Array, drawn: Callable) -> Dictionary:
+	var order: Array = range(chains.size())
+	var shown: Array = order.map(drawn)
+	order.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else chains[x].get("length", 0.0) > chains[y].get("length", 0.0))
+	var run := {}
+	var joints := 0
+	for i: int in order:
+		var size: int = chains[i].joints.size()
+		if joints + size <= MAX_SPRING_JOINTS:
+			run[i] = true
+			joints += size
+	return run
+
+
+## Chooses again which chains run, from the meshes shown now: a chain a switch reveals takes the joints of ones it
+## hides, and one left out holds the pose it stopped in, as a PhysBone switched off does.
+func _budget() -> void:
+	if springs == null:
+		return
+	var sources: Array = springs.chains.map(func(chain: Dictionary) -> Dictionary: return chain.source)
+	var drawn := func(c: int) -> bool:
+		return (sources[c].get("drawn_by", []) as Array).any(func(p: NodePath) -> bool:
+			var mesh := _model.get_node_or_null(p) as Node3D
+			return mesh != null and mesh.is_visible_in_tree())
+	var run := running(sources, drawn)
+	springs.idle.clear()
+	for i in springs.chains.size():
+		if not run.has(i):
+			springs.idle[i] = true
 
 
 static func _still_at_start(root: Node3D) -> Dictionary:
@@ -537,16 +568,17 @@ static func _bone(sk: Skeleton3D, path: Variant) -> int:
 	return sk.find_bone((path as NodePath).get_concatenated_subnames()) if sk and path is NodePath else -1
 
 
-## Vrm.Skins keeps only weighted binds; a file read otherwise may bind more, its chains then ranking by length alone.
-static func _drawn_bones(root: Node3D, sk: Skeleton3D) -> Dictionary:
-	var drawn := {}
-	var mark := func(bone: int) -> void:
-		while bone >= 0 and not drawn.has(bone):
-			drawn[bone] = true
-			bone = sk.get_bone_parent(bone)
+## A file Vrm.read reads keeps in a skin only the binds its mesh weights (Vrm.Skins); another may bind more, and its
+## chains then rank by length alone.
+## Each mesh, shown or not, to the bones that move it: those its skin binds or its carrier rides, and their parents.
+static func _mesh_bones(root: Node3D, sk: Skeleton3D) -> Dictionary:
+	var out := {}
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
-		if not _shown(mi, root):
-			continue
+		var drawn := {}
+		var mark := func(bone: int) -> void:
+			while bone >= 0 and not drawn.has(bone):
+				drawn[bone] = true
+				bone = sk.get_bone_parent(bone)
 		if mi.skin != null and mi.get_node_or_null(mi.skeleton) == sk:
 			for bind in mi.skin.get_bind_count():
 				mark.call(Meshes.bind_bone(mi.skin, bind, sk))
@@ -555,7 +587,9 @@ static func _drawn_bones(root: Node3D, sk: Skeleton3D) -> Dictionary:
 			carrier = carrier.get_parent()
 		if carrier != root:
 			mark.call((carrier as BoneAttachment3D).bone_idx)
-	return drawn
+		if not drawn.is_empty():
+			out[mi] = drawn
+	return out
 
 
 ## The model is outside the scene tree, where is_visible_in_tree is false.
@@ -951,6 +985,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a._dress(a._model, tint)
 	if a._model.has_meta("expressions"):
 		a.expressions = ExpressionPlayer.new(a._model)
+		a.expressions.reshown.connect(a._budget)
 		a.add_child(a.expressions)
 	if a._model.has_meta("particle_systems"):
 		a.particles = AvatarParticles.new(a._model.get_meta("particle_systems"), a._skeleton, a.expressions)
@@ -1143,6 +1178,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 			if name.begins_with("spring_"):
 				nodes[int(name.trim_prefix("spring_"))] = SkeletonBone.new(_skeleton, _joints[name].bone)
 		springs = SpringRuntime.new(_model.get_meta("springs"), nodes)
+		_budget()
 		if expressions != null:
 			expressions.springs = springs
 		# The native springs join the skeleton's modifiers; constraints solve after them.

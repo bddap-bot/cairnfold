@@ -48,20 +48,22 @@ func _wears(label: String, package: String, avatar: String) -> void:
 		return
 	var held := scene.instantiate()
 	var human: Dictionary = held.get_meta("humanoid")
-	var joints := 0
 	var off := []
 	for chain: Dictionary in (held.get_meta("springs") as Dictionary).springs:
-		joints += (chain.joints as Array).size()
 		var bones: Array = chain.joints.map(func(j: Dictionary) -> String: return (human["spring_%d" % j.node] as NodePath).get_concatenated_subnames())
 		if not running.has(bones):
 			off.append(bones)
-	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s simulates %d spring joints, within the limit" % [label, joints])
 	check(off.is_empty(), "%s simulates no spring chain its menu switches off by default: %d of them" % [label, off.size()])
 	held.free()
 	var a := Avatar.open(scene, Color.WHITE, label)
 	root.add_child(a)
 	var eyes := Transform3D(Basis(), Vector3(0, 1.6, 0))
 	a.pose(eyes, eyes * Avatar.AT_SIDES[0], eyes * Avatar.AT_SIDES[1])
+	var joints := 0
+	for chain: Dictionary in a.springs.chains if a.springs != null else []:
+		if not a.springs.idle.has(chain.index):
+			joints += (chain.source.joints as Array).size()
+	check(joints <= Avatar.MAX_SPRING_JOINTS, "%s runs %d spring joints, within the limit" % [label, joints])
 	var gap := a.bone("head").origin.distance_to(eyes.origin)
 	check(gap < 0.5, "%s: the head bone is %.2f m from the eyes" % [label, gap])
 	a.free()
