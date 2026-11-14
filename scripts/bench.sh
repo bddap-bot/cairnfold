@@ -316,8 +316,14 @@ for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
     if os.path.exists(path):
         with open(path, errors="replace") as log:
-            if any("When supplying a custom region, it must be contained within the framebuffer rectangle" in line for line in log):
-                sys.exit(f"bench: invalid framebuffer region; rendering failed, see {name}")
+            for line in log:
+                if "When supplying a custom region, it must be contained within the framebuffer rectangle" in line:
+                    sys.exit(f"bench: invalid framebuffer region; rendering failed, see {name}")
+                # A shader that fails to compile draws nothing, so the frame times still pass.
+                if "SHADER ERROR" in line:
+                    at = next(log, "")
+                    at = at[at.index("at:"):].strip() if "at:" in at else ""
+                    sys.exit(f"bench: {line[line.index('SHADER ERROR'):].strip()} {at}; see {name}")
 d = json.load(open(os.path.join(out, "metrics.json")))
 labels = {s["name"]: s for s in json.load(open(os.path.join(out, "stress.json"))) if s.get("op") == "label"}
 budget = d["info"]["budget"]
