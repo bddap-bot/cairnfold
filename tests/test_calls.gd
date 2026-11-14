@@ -10,6 +10,8 @@ func _initialize() -> void:
 	_every_conure_doing_has_its_calls()
 	await _calls_are_sparse_and_varied()
 	await _animals_near_the_head_stay_calm()
+	await _every_clip_can_come_first()
+	await _a_single_clip_kind_calls()
 	finish()
 
 
@@ -108,3 +110,29 @@ func _animals_near_the_head_stay_calm() -> void:
 		quacks += int(c.now_and_then("quack", near, Wildlife.QUACK_EVERY, STEP))
 		peeps += int(c.now_and_then("peep", near, Wildlife.PEEP_EVERY, STEP))
 	check(quacks > 0 and peeps > 0, "a duck family at its pond beside the head still quacks and peeps: %d, %d" % [quacks, peeps])
+
+
+func _every_clip_can_come_first() -> void:
+	var c: Calls = await _calls()
+	var first := {}
+	for s in 64:
+		c._last["croak"] = -1
+		c._since["croak"] = INF
+		c._since_any = INF
+		c.rng.seed = s
+		c.call_out("croak", Vector3(10, 1, 0))
+		first[c._clips["croak"].find(c._voices[(c._next_voice + Calls.VOICES - 1) % Calls.VOICES].stream)] = true
+	check(first.has(0), "a kind's first call can be its first clip: %s" % [first.keys()])
+	await process_frame
+
+
+func _a_single_clip_kind_calls() -> void:
+	var c: Calls = await _calls()
+	c._clips["croak"] = [c._clips["croak"][0]]
+	var calls := 0
+	for i in 2:
+		c._since["croak"] = INF
+		c._since_any = INF
+		calls += int(c.call_out("croak", Vector3(10, 1, 0)))
+	check(calls == 2, "a kind with one clip calls twice: %d" % calls)
+	await process_frame

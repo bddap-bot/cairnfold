@@ -79,8 +79,9 @@ func call_out(kind: String, at: Vector3) -> bool:
 	if not soft:
 		_since_any = 0.0
 	var options: Array = _clips[kind]
-	var pick := rng.randi() % (options.size() - 1)
-	if pick >= _last[kind]:
+	var skip := 1 if _last[kind] >= 0 and options.size() > 1 else 0
+	var pick := rng.randi() % (options.size() - skip)
+	if skip and pick >= _last[kind]:
 		pick += 1
 	_last[kind] = pick
 	var v := _voices[_next_voice]
