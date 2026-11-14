@@ -338,8 +338,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   `tests/test_private_avatars.gd` imports a private corpus of packages that never enters this
   repository, and says it checked nothing where that corpus is absent.
   `scripts/avatar_reference.gd` replays a reference recording made by Avatar Workshop's reference
-  harness in Unity against this runtime: each recorded frame places the root and poses the avatar from
-  the recorded head and hands as a player's would, steps the springs 1/60 s, and writes the spring tips,
+  harness in Unity against this runtime: each recorded frame places the root, poses the avatar from
+  the recorded head and hands as a player's would, then puts each humanoid bone the recording names where
+  Unity's animator had it, so the body stands in Unity's pose; it steps the springs 1/60 s, and writes the spring tips,
   the menu controls and the renders the recording made. Run it from the repository root under a
   display, `godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT`
   (lavapipe's Vulkan ICD in `VK_ICD_FILENAMES` renders without a GPU), and score it with the

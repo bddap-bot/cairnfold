@@ -4,7 +4,8 @@ extends SceneTree
 ## its compare.py to score: run under a display as
 ## godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT
 ## Each recorded frame places the avatar's root, poses the avatar from the recorded head and hands as a player's
-## headset and controllers would, sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
+## headset and controllers would, then places every humanoid bone where the recording's poses.tsv has it, so the body
+## under test stands in Unity's pose; sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
 ## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
 ## made, from its camera; menu.tsv, left empty; and meta.json.
 
@@ -26,7 +27,12 @@ var _eyes_from_head := Transform3D.IDENTITY
 var _grips: Array[Basis] = [Basis.IDENTITY, Basis.IDENTITY]
 var _tips := {}
 var _tips_file: FileAccess
-var _notes: Array[String] = ["hips not driven: the body hangs from the tracked head"]
+var _notes: Array[String] = []
+## The recording's poses of the humanoid bones, in frame order: [frame, bone, pose in the root's Godot space].
+var _moves: Array[Array] = []
+var _moved := 0
+## Each recorded humanoid bone, parents first, with the pose it last moved to.
+var _held := {}
 
 
 func _initialize() -> void:
@@ -61,6 +67,7 @@ func _run() -> void:
 		_notes.append("avatar refused: Avatar.read returned null")
 	else:
 		_wear(scene)
+		_read_poses(ref)
 		await _warm(view)
 	var matched := []
 	var unmatched := []
@@ -240,6 +247,51 @@ func _drive(row: PackedStringArray) -> void:
 		var hand := TURN * _unity(row[3 + s])
 		aims.append(Transform3D(hand.basis * _grips[s], hand.origin))
 	_avatar.pose(TURN * _unity(row[2]) * _eyes_from_head, aims[0], aims[1])
+	var frame := int(row[0])
+	while _moved < _moves.size() and _moves[_moved][0] <= frame:
+		_held[_moves[_moved][1]] = _moves[_moved][2]
+		_moved += 1
+	var from_root := _skeleton.global_transform.affine_inverse() * _root.global_transform
+	for b: int in _held:
+		if _held[b] != null:
+			var at := from_root * (_held[b] as Transform3D)
+			at.basis = at.basis.orthonormalized().scaled_local(_skeleton.get_bone_global_rest(b).basis.get_scale())
+			_skeleton.set_bone_global_pose(b, at)
+
+
+## Keeps the root-space poses the recording took of the avatar's humanoid bones, which drivers.tsv names by Unity's
+## HumanBodyBones; the thumb's three are named one joint further out in VRM. A recording without them leaves the body
+## to the head and hands.
+func _read_poses(ref: String) -> void:
+	var model := _skeleton.get_parent()
+	while not model.has_meta("humanoid"):
+		model = model.get_parent()
+	var humanoid: Dictionary = model.get_meta("humanoid")
+	var driven := {}
+	for row: PackedStringArray in _rows(ref.path_join("drivers.tsv")).slice(1):
+		for role: String in row[1].split(","):
+			if not role.begins_with("humanoid:"):
+				continue
+			var name := role.trim_prefix("humanoid:")
+			for joint: Array in [["ThumbProximal", "ThumbMetacarpal"], ["ThumbIntermediate", "ThumbProximal"]]:
+				if name.ends_with(str(joint[0])):
+					name = name.trim_suffix(str(joint[0])) + str(joint[1])
+			name = name[0].to_lower() + name.substr(1)
+			if humanoid.has(name):
+				driven[row[0]] = _skeleton.find_bone((humanoid[name] as NodePath).get_concatenated_subnames())
+	var order := driven.keys()
+	order.sort_custom(func(x: String, y: String) -> bool: return x.count("/") < y.count("/"))
+	for path: String in order:
+		_held[driven[path]] = null
+	var poses := FileAccess.open(ref.path_join("poses.tsv"), FileAccess.READ)
+	while poses != null and not poses.eof_reached():
+		var f := poses.get_line().split("\t")
+		if f.size() > 3 and f[1] == "root" and driven.has(f[2]):
+			_moves.append([int(f[0]), driven[f[2]], _unity(f[3])])
+	if driven.is_empty():
+		_notes.append("hips not driven: the recording names no humanoid bone, so the body hangs from the tracked head")
+	else:
+		_notes.append("humanoid bones placed as recorded: %d" % driven.size())
 
 
 func _record(frame: int) -> void:
