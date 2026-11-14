@@ -1864,6 +1864,40 @@ drawing the view with every reach whole (`Quality.START`) and settles on the pre
 holds at its own refresh rate. There are no per-headset presets, nothing reads which headset or
 build it runs on, and there is no settings menu.
 
+### The flat screen
+
+Directive (verbatim): "In flat screen mode which fps does our dynamic quality ladder for cairnfold target? I'd go 60."
+
+**Decision: the flat window walks the same ladder, held to at least 60 fps.** The governor reads one frame budget from
+whatever paces the picture: a headset's runtime, or the flat window's display. The window runs on vsync, which never
+tears and shows a frame only on a whole refresh, so its budget is the slowest whole share of the display's rate at or
+over `Budget.FLAT_HZ` (60): 16.7 ms on a 60 or 120 Hz display, 13.9 ms on 144 Hz, 11.1 ms on 90 Hz (`Main.flat_pace`).
+A scripted desktop run without the flat window, or a flat game with no renderer, is paced by nothing and has no budget,
+so it is drawn at the ladder's top or its pin. The flat window has no swapchain to shrink and no runtime foveation, so its
+swapchain rungs scale the 3D view instead (`scaling_3d_scale`, times the step's own 3D scale) and the foveation rung is
+passed by. It starts at `Quality.START` as a headset does.
+
+Measured in a 1920×1080 flat window on an RTX 2080 over the stress scene's 25 m wall disc, standing (median viewport GPU
+time of 12 s at each pinned step; the host was loaded, the GPU clocked at about 435 MHz, so the times are
+several times a quiet host's and only their differences matter):
+
+| Step | What changes on the flat screen | GPU ms | Saved over the step above |
+| --- | --- | --- | --- |
+| 0 | Everything | 13.7 | |
+| 1 | Sky reflections off | 13.8 | none at this view |
+| 2 | Fixed foveation: absent, passed by | 14.0 | |
+| 3 | 2x MSAA | 11.5 | 2.5 |
+| 4 | 3D view at 0.85 | 9.9 | 1.6 |
+| 5, the start | 3D view at 0.7 | 8.5 | 1.4 |
+| 6 to 15 | Reaches, stone detail, toon shading and outlines | 7.5 to 9.1 | within the 1 ms spread |
+| 16 | Sun's shadows off | 5.6 | 1.9 |
+| 17 | 3D view at 0.55 (0.78 of 0.7) | 4.5 | 1.1 |
+| 18 | People in built-in bodies | 4.2 | none: no one there |
+
+Governed, the same view settled at step 5 to 7. Pacing does not change what the governor reads: an uncapped window and
+a vsynced one, both held to about 10 fps by the loaded CPU, stepped alike (5 to 4 to 6 and back to 5), since the
+governor judges GPU time against the budget and an interval only as a share of it. Vsync is kept for the picture.
+
 ### One ladder for every headset
 
 Directive (verbatim): "I usually prefer all hardware use the same dynamic quality systems, Branching on IS_QUEST2 is
@@ -1949,7 +1983,7 @@ quality ladder's work in progress against main, 1,148 primitives apart where the
 and without it read 0.00 ms standing and +0.14 ms from the air (`perf/quest-2/edge/20261023T03*`). It stays in every build
 while it stays that cheap; a reading that puts it near a millisecond again reopens it.
 
-The 3D scale is exactly 1.0 on every step but the last. The Frame's Turnip driver tonemaps more cheaply at any scale
+The 3D scale is exactly 1.0 on every step but the last two (on the flat screen the swapchain rungs scale it too). The Frame's Turnip driver tonemaps more cheaply at any scale
 off 1.0 (below), so the Frame no longer gets its 0.9 for the session from a check of its platform; it draws the
 swapchain rungs like any other headset.
 
@@ -3976,7 +4010,8 @@ endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the st
 With no headset at start the game comes up on the flat screen (`Flat`, `Controls.FLAT`): a player who walks,
 looks, takes photos, visits and feeds the animals, and never edits. Its controls stand in for a controller's through
 the same tool entry points; the only tools it holds are the camera, the seed dish and the mirror, raised in the
-right hand before the eye, or none, both hands then hanging at its sides, as other players see it.
+right hand before the eye, or none, both hands then hanging at its sides, as other players see it. Its graphics follow
+the quality ladder held to the display's pace ("The flat screen").
 
 | Action | Mouse and keyboard | Gamepad |
 | --- | --- | --- |

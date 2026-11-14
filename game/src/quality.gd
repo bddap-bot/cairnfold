@@ -7,7 +7,8 @@ extends Node
 ## `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond `stone_near_m` draw a twelfth of their
 ## triangles (Stones.far_mesh). `scale_3d` is the share of the swapchain's resolution the 3D scene draws at; `files`
 ## draws other people in their own avatar files rather than a built-in body (`Avatar.drawn`). `render_scale` is
-## render_target_size_multiplier, `foveation` the XR_FB_foveation level (0 to 3). `share` is the rung's cost over the
+## render_target_size_multiplier, or with no swapchain a further share of the 3D scale; `foveation` the XR_FB_foveation
+## level (0 to 3). `share` is the rung's cost over the
 ## next one down, as a share of the frame, until the governor measures it.
 class Step:
 	var grass_m: float
@@ -130,6 +131,8 @@ var people := People.new()
 var pin := -1:
 	set(n):
 		pin = clampi(n, -1, ladder.size() - 1)
+## What paces the picture, in Hz, or 0 while it has not said; an invalid one paces nothing, so there is no budget.
+var _pace: Callable
 var budget_ms := 0.0
 ## The viewport's GPU time for the last frame measured, in milliseconds.
 var frame_ms := 0.0
@@ -147,7 +150,8 @@ var covered := func() -> bool: return false
 ## only a fixed level is the governor's knob.
 var _foveates := false
 var _warm := 0.0
-## In microseconds: the engine's delta is capped, which hides a stall from the governor.
+## In microseconds: the engine's delta is capped, which hides a stall from the governor. Tests substitute their own.
+var clock := func() -> int: return Time.get_ticks_usec()
 var _tick := 0
 var _primed := 0
 var _priming := PackedInt32Array()
@@ -157,16 +161,19 @@ var _applied := -1
 var _settled := false
 
 
-## With no headset nothing is measured, so the view is drawn at the ladder's top.
-func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null, look: Look = null) -> void:
+## A picture nothing paces has no budget to hold, so it is drawn at the ladder's top.
+func _init(pace: Callable, xr: OpenXRInterface, flora: Flora, masonry: Masonry = null, look: Look = null) -> void:
+	_pace = pace
 	_xr = xr
 	_flora = flora
 	_masonry = masonry
 	_look = look
+	budget_ms = _budget()
 	_foveates = xr != null and xr.is_foveation_supported() and not xr.is_eye_gaze_interaction_supported()
-	governor = Governor.new(ladder.size() - 1, popping(), START if xr != null else 0, shares(_foveates), idle(_foveates))
-	if xr != null:
+	governor = Governor.new(ladder.size() - 1, popping(), START if budget_ms > 0.0 else 0, shares(_foveates), idle(_foveates))
+	if budget_ms > 0.0:
 		_priming = primed()
+	if xr != null:
 		# The runtime drops a foveation level set before its session begins.
 		xr.session_begun.connect(func() -> void: _applied = -1)
 
@@ -233,12 +240,20 @@ static func median(values: PackedFloat32Array) -> float:
 	return sorted[sorted.size() / 2]
 
 
+## A runtime may report no rate for its first frames, so the budget is the weakest headset's until it does.
+func _budget() -> float:
+	if not _pace.is_valid():
+		return 0.0
+	var hz: float = _pace.call()
+	return 1000.0 / (hz if hz > 0.0 else Budget.REFRESH_HZ)
+
+
 func priming() -> bool:
 	return _primed < _priming.size() * PRIME_FRAMES
 
 
 func held() -> bool:
-	return pin >= 0 or _xr == null
+	return pin >= 0 or budget_ms == 0.0
 
 
 func step() -> int:
@@ -246,11 +261,11 @@ func step() -> int:
 
 
 func files() -> bool:
-	return ladder[step()].files and (_xr == null or people.measured())
+	return ladder[step()].files and (budget_ms == 0.0 or people.measured())
 
 
 func admit(scene: PackedScene) -> bool:
-	if _xr == null or not files():
+	if budget_ms == 0.0 or not files():
 		return files()
 	var triangles: int = scene.get_meta("triangles")
 	var whole := people.admit(triangles, budget_ms * Governor.LINE)
@@ -259,8 +274,12 @@ func admit(scene: PackedScene) -> bool:
 
 
 func _process(delta: float) -> void:
-	var ms := RenderingServer.viewport_get_measured_render_time_gpu(view.get_viewport_rid())
-	var now := Time.get_ticks_usec()
+	frame(RenderingServer.viewport_get_measured_render_time_gpu(view.get_viewport_rid()), delta)
+
+
+## `ms`: the viewport's GPU timer for the frame.
+func frame(ms: float, delta: float) -> void:
+	var now: int = clock.call()
 	var dt := (now - _tick) / 1000000.0 if _tick > 0 else delta
 	_tick = now
 	# The timer holds its last reading while the runtime skips rendering, as with the headset off the head.
@@ -268,10 +287,9 @@ func _process(delta: float) -> void:
 	_viewport_ms = ms
 	# The viewport's timer leaves out the paint the canvases run on the GPU outside it.
 	frame_ms = ms + Canvas.gpu_ms()
-	if _xr != null and fresh:
+	if budget_ms > 0.0 and fresh:
 		# The runtime may report the shell's rate for the first frames, so the budget follows it every frame.
-		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
-		budget_ms = 1000.0 / hz
+		budget_ms = _budget()
 		if _warm > WARMUP and not priming() and not covered.call():
 			people.measure(frame_ms, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 		_warm += delta
@@ -300,8 +318,9 @@ func _process(delta: float) -> void:
 		Avatar.show_toon(at.toon)
 	if _look != null and _look.sun.shadow_enabled != at.shadows:
 		_look.sun.shadow_enabled = at.shadows
-	if not is_equal_approx(view.scaling_3d_scale, at.scale_3d):
-		view.scaling_3d_scale = at.scale_3d
+	var scale := at.scale_3d if _xr != null else at.scale_3d * at.render_scale
+	if not is_equal_approx(view.scaling_3d_scale, scale):
+		view.scaling_3d_scale = scale
 	if _masonry != null:
 		_settled = Wall.approach(at, delta, _masonry) and _settled
 

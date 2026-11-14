@@ -197,7 +197,14 @@ func _ready() -> void:
 	if metrics.info.flat:
 		flat = Flat.new(rig)
 		add_child(flat)
-	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry, look)
+	var pace := Callable()
+	if metrics.info.xr:
+		pace = func() -> float: return xr.display_refresh_rate
+	elif flat != null and RenderingServer.get_rendering_device() != null:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+		pace = Main.flat_pace
+	metrics.refresh = pace
+	quality = Quality.new(pace, xr if metrics.info.xr else null, flora, tool.masonry, look)
 	if args.has("quality"):
 		quality.pin = int(args.quality)
 	quality.covered = rig.covered
@@ -208,7 +215,6 @@ func _ready() -> void:
 	metrics.head = rig.head
 	if metrics.info.xr:
 		metrics.xr = xr
-		metrics.refresh = func() -> float: return xr.display_refresh_rate
 	metrics.world = world
 	metrics.input = func(delta: float) -> PackedByteArray: return Replay.frame(delta, rig.head, rig.hands)
 	metrics.checks = func() -> Dictionary: return Replay.check(self)
@@ -319,6 +325,19 @@ func _editing(hand: Hand = null) -> bool:
 
 static func flat_wanted(launch: Dictionary, in_xr: bool, played: bool) -> bool:
 	return not in_xr and (launch.has("flat") or played and not launch.has("desktop"))
+
+
+## The window shows a frame on whole refreshes of the display, so the budget is the slowest whole share of its rate
+## at or over FLAT_HZ: on a 144 Hz display a frame over 13.9 ms waits three refreshes, 48 fps.
+static func flat_pace() -> float:
+	return Main.shown_rate(DisplayServer.screen_get_refresh_rate())
+
+
+## `display_hz` 0 or less where the display reports none.
+static func shown_rate(display_hz: float) -> float:
+	if display_hz <= 0.0:
+		return Budget.FLAT_HZ
+	return display_hz / maxf(1.0, floorf(display_hz / Budget.FLAT_HZ))
 
 
 func _start_xr() -> bool:

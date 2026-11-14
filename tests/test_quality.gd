@@ -41,6 +41,7 @@ func _initialize() -> void:
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
 	_nothing_branches_on_the_headset_or_the_build()
 	_every_headset_starts_conservative_and_climbs_to_what_it_holds()
+	_a_flat_window_is_governed_to_its_own_pace()
 	_a_rung_no_knob_of_the_headset_tells_apart_is_passed_by()
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
 	_a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone()
@@ -89,7 +90,7 @@ func _every_step_draws_less() -> void:
 		check(steps[i].grass_m * Flora.GRASS_SURVIVORS_FROM >= Flora.GRASS_LOD_BEGIN + Flora.GRASS_LOD_BAND, "step %d keeps its survivors until the rest have sunk away" % i)
 	for i in steps.size():
 		check(steps[i].files == (i < steps.size() - 1), "only the last step draws people without their own files: step %d" % i)
-	var q := Quality.new(null, null)
+	var q := Quality.new(Callable(), null, null)
 	check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
 	q.pin = 99
 	check(q.step() == steps.size() - 1, "a pin past the bottom holds the bottom")
@@ -332,7 +333,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	var look := Look.build(root, terrain)
 	var sun := look.sun
 	sun.shadow_enabled = true
-	var q := Quality.new(null, flora, masonry, look)
+	var q := Quality.new(Callable(), null, flora, masonry, look)
 	root.add_child(q)
 	q.view = SubViewport.new()
 	var bottom: Quality.Step = Quality.ladder[-1]
@@ -345,7 +346,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	var ks := Wall.kinds()
 	check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
 	check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
-	check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
+	check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d * bottom.render_scale), "the sun's shadows and the 3D resolution at the step's, with no swapchain carrying its scale too")
 	check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED, "the step's MSAA, without reflections")
 	check(Avatar.outlines == bottom.outlines and Avatar.toon == bottom.toon, "avatars' outlines and toon shading as the step keeps them")
 	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
@@ -404,6 +405,39 @@ func _every_headset_starts_conservative_and_climbs_to_what_it_holds() -> void:
 	var near := Quality.Governor.new(Quality.ladder.size() - 1, Quality.popping(), Quality.START, shares)
 	near.step(BUDGET * 0.3, BUDGET, DT)
 	check(near.cost(Quality.START, BUDGET) > BUDGET * Quality.Governor.UNMEASURED, "a larger swapchain's estimate is its share of the frame, not the flat guess")
+
+
+## With no headset session, frames over the flat window's budget step it down and frames well under it climb back.
+func _a_flat_window_is_governed_to_its_own_pace() -> void:
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
+	root.add_child(flora)
+	var q := Quality.new(func() -> float: return Budget.FLAT_HZ, null, flora)
+	root.add_child(q)
+	q.view = SubViewport.new()
+	var now := [0]
+	q.clock = func() -> int: return now[0]
+	var budget := 1000.0 / Budget.FLAT_HZ
+	check(is_equal_approx(q.budget_ms, budget) and not q.held(), "the flat window holds a %.1f ms budget, got %.1f" % [budget, q.budget_ms])
+	check(q.step() == Quality.START, "and starts where a headset does")
+	var run := func(ms: float, seconds: float) -> void:
+		for i in int(seconds * Budget.FLAT_HZ):
+			now[0] += int(1e6 / Budget.FLAT_HZ)
+			q.frame(ms + 0.001 * (i % 2), 1.0 / Budget.FLAT_HZ)
+	run.call(budget * 0.7, Quality.WARMUP + 1.0)
+	check(q.step() == Quality.START, "frames inside the budget hold the start through the warm-up: %d" % q.step())
+	run.call(budget * 1.2, 2.0)
+	var down := q.step()
+	check(down > Quality.START, "frames over %.1f ms step it down: %d" % [budget, down])
+	check(is_equal_approx(q.view.scaling_3d_scale, Quality.ladder[down].scale_3d * Quality.ladder[down].render_scale), "the view drawn at the step's scale")
+	run.call(budget * 0.2, 120.0)
+	check(q.step() < Quality.START, "frames well under it climb back past the start: %d" % q.step())
+	check(is_equal_approx(q.view.scaling_3d_scale, Quality.ladder[q.step()].render_scale), "a swapchain rung draws the flat view at its share")
+	q.view.free()
+	q.free()
+	flora.free()
+	for hz: Vector2 in [Vector2(-1.0, 60.0), Vector2(60.0, 60.0), Vector2(120.0, 60.0), Vector2(144.0, 72.0), Vector2(75.0, 75.0), Vector2(90.0, 90.0), Vector2(50.0, 50.0)]:
+		check(is_equal_approx(Main.shown_rate(hz.x), hz.y), "a %.0f Hz display holds frames to %.0f Hz, got %.1f" % [hz.x, hz.y, Main.shown_rate(hz.x)])
 
 
 func _a_rung_no_knob_of_the_headset_tells_apart_is_passed_by() -> void:
@@ -650,6 +684,6 @@ func _a_file_is_drawn_whole_only_within_the_measured_headroom() -> void:
 	check(not p.admit(30000, line), "a file just let in takes its share of the room: %s" % p.why)
 	p.measure(9.6, 221591)
 	check(p.admit(30000, line), "once the median holds it the room is the frames' to measure: %s" % p.why)
-	var q := Quality.new(null, null)
-	check(q.files() and q.admit(PackedScene.new()), "with no headset nothing is priced and every file is drawn whole")
+	var q := Quality.new(Callable(), null, null)
+	check(q.files() and q.admit(PackedScene.new()), "with nothing pacing the picture nothing is priced and every file is drawn whole")
 	q.free()

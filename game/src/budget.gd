@@ -6,6 +6,8 @@ extends RefCounted
 
 ## Every headset is held to the weakest: the Quest 2 at 72 Hz.
 const REFRESH_HZ := 72.0
+## The flat screen's least frame rate (Main.flat_pace). A garden fitted at REFRESH_HZ fits it with room to spare.
+const FLAT_HZ := 60.0
 ## Per eye, in pixels: the glass's aspect, a pixel about a Quest 2 pixel from a step away.
 const MIRROR_VIEW := Vector2i(448, 672)
 ## Fixed tread density keeps raising terrain from multiplying a path's geometry.
