@@ -349,7 +349,7 @@ static func _finite(v: Variant) -> bool:
 
 
 static func _on_roof(c: Vector2) -> bool:
-	return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0
+	return c.is_finite() and absf(c.x) < MAX_LENGTH * 0.5 and absf(c.y) < MAX_LENGTH * 0.5
 
 
 static func _in(x: Variant, range: Vector2) -> bool:
