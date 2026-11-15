@@ -40,6 +40,8 @@ var replayer: Replayer
 
 
 func _ready() -> void:
+	if not RenderingServer.is_on_render_thread():
+		OS.crash("Canvas reads what it hands call_on_render_thread at once, so rendering must run on the main thread")
 	if get_tree().current_scene == self:
 		FastCores.keep_this_thread()
 	args.merge(_parse(launch_args()))
