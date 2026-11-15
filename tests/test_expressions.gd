@@ -17,6 +17,7 @@ func _run() -> void:
 	_lighting()
 	_sides()
 	_theme_recolours_the_emission()
+	_menu_lifts_and_dims_the_lighting()
 	_animated_parameters()
 	_settled_layers()
 	_write_defaults_as_unity()
@@ -375,7 +376,7 @@ func _lighting() -> void:
 	check(held != null and held.get_width() == Avatar.INDEX_SIDE and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2 - 1, 0).r8 == 1 and held.get_image().get_pixel(Avatar.INDEX_SIDE / 2, 0).r8 == 2, "a mesh showing a flat material draws by the material index, held at %d without blending entries" % Avatar.INDEX_SIDE)
 	var rows := table.get_image() if table else null
 	check(rows != null and rows.get_width() == 4 and rows.get_pixel(0, 0).r == 0.0 and rows.get_pixel(1, 0).r == 1.0 and is_equal_approx(rows.get_pixel(1, 0).g, 0.8) and rows.get_pixel(2, 0).r == 0.0, "the lighting table has no entry lit flat at zero, the flat one capped at 0.8, the lit one not flat")
-	check(rows != null and rows.get_height() == 2 + Avatar.RAMP and rows.get_pixel(1, 1) == Color(0, 0, 0, 0) and rows.get_pixel(2, 1).is_equal_approx(Color(0.0, 0.5, 1.0, 0.5)) and rows.get_pixel(2, 0).a == 2.0, "the table holds each entry's emission colour and how far it overrides the lit colour, its strength apart, and no toon rows where no entry draws one")
+	check(rows != null and rows.get_height() == Avatar.HEAD_ROWS + Avatar.RAMP and rows.get_pixel(1, 1) == Color(0, 0, 0, 0) and rows.get_pixel(2, 1).is_equal_approx(Color(0.0, 0.5, 1.0, 0.5)) and rows.get_pixel(2, 0).a == 2.0, "the table holds each entry's emission colour and how far it overrides the lit colour, its strength apart, and no toon rows where no entry draws one")
 	var lit := shown[1].get_surface_override_material(0) as ShaderMaterial
 	check(lit != null and lit.get_shader_parameter("glow") is Texture2D, "a mesh showing a glowing material draws by the looks with their emission map")
 	check(shown[2].get_surface_override_material(0) == null and shown[2].get_active_material(0) is StandardMaterial3D, "a mesh showing only lit materials dark at rest keeps its plain material")
@@ -519,7 +520,7 @@ func _clear_coat() -> void:
 	check(coated != null and coated.shader == ExpressionPlayer.fallback_shader(preload("res://src/expression_coat.gdshader")) and coated.shader.code.contains("#define COAT_FALLBACK"), "a mesh showing a coated material that forces its fallback draws with the coat shader that reflects one")
 	check(dry != null and dry.shader.resource_path.ends_with("expression.gdshader"), "one showing none draws as it did")
 	var rows: Image = (coated.get_shader_parameter("lighting") as Texture2D).get_image() if coated else null
-	check(rows != null and rows.get_height() == 2 + Avatar.RAMP + Avatar.COAT_ROWS and rows.get_pixel(1, 2 + Avatar.RAMP).is_equal_approx(Color(0.87, 0.92, 1.0, 0.5)) and rows.get_pixel(1, 3 + Avatar.RAMP).is_equal_approx(Color(1, 1, 0, 0.22)) and rows.get_pixel(1, 5 + Avatar.RAMP).is_equal_approx(Color(1, 0.5, 1, 0)) and rows.get_pixel(1, 6 + Avatar.RAMP) == Color(0, 0, 0, 1) and rows.get_pixel(1, 7 + Avatar.RAMP).is_equal_approx(Color(0.15, 0.1, Avatar.DIELECTRIC + lerpf(Avatar.DIELECTRIC, 1.0, 0.5) * 0.5, 0.25)) and rows.get_pixel(1, 8 + Avatar.RAMP) == Color(0, 0, 1), "the looks table carries the coat's levels, tiling and offset, reflection tint with its map's layer, inversions, and its fallback's layer, lighting and forcing")
+	check(rows != null and rows.get_height() == Avatar.HEAD_ROWS + Avatar.RAMP + Avatar.COAT_ROWS and rows.get_pixel(1, Avatar.HEAD_ROWS + Avatar.RAMP).is_equal_approx(Color(0.87, 0.92, 1.0, 0.5)) and rows.get_pixel(1, Avatar.HEAD_ROWS + 1 + Avatar.RAMP).is_equal_approx(Color(1, 1, 0, 0.22)) and rows.get_pixel(1, Avatar.HEAD_ROWS + 3 + Avatar.RAMP).is_equal_approx(Color(1, 0.5, 1, 0)) and rows.get_pixel(1, Avatar.HEAD_ROWS + 4 + Avatar.RAMP) == Color(0, 0, 0, 1) and rows.get_pixel(1, Avatar.HEAD_ROWS + 5 + Avatar.RAMP).is_equal_approx(Color(0.15, 0.1, Avatar.DIELECTRIC + lerpf(Avatar.DIELECTRIC, 1.0, 0.5) * 0.5, 0.25)) and rows.get_pixel(1, Avatar.HEAD_ROWS + 6 + Avatar.RAMP) == Color(0, 0, 1), "the looks table carries the coat's levels, tiling and offset, reflection tint with its map's layer, inversions, and its fallback's layer, lighting and forcing")
 	check(coated != null and coated.get_shader_parameter("coat_maps") is Texture2DArray and (coated.get_shader_parameter("coat_maps") as Texture2DArray).get_layers() == 1, "the coat maps are bound as one layer each")
 	check(coated != null and coated.get_shader_parameter("coat_fallbacks") is Texture2DArray and (coated.get_shader_parameter("coat_fallbacks") as Texture2DArray).get_layers() == 1, "and the fallback cubemaps")
 	check(coated != null and coated.get_shader_parameter("region_count") == 1, "a region moving the coat maps' offset reaches the coated mesh")
@@ -1024,3 +1025,50 @@ func _contacts() -> void:
 	var keys := body.map(func(s: Array) -> String: return s[5][1])
 	check(keys == ["handL", "footL"] and (body[0][1] as Vector3).is_equal_approx(Vector3(0.6, 1.2, 0)) and is_equal_approx(body[0][2], 0.014 * 1.5), "a body without toes or a head sends from what it has, its foot from the foot: %s" % [body])
 	sk.free()
+
+
+func _menu_lifts_and_dims_the_lighting() -> void:
+	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
+	index.fill_rect(Rect2i(2, 0, 2, 4), Color8(2, 2, 2))
+	var looks := {"index": index, "materials": [{"rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}}, {"rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}}]}
+	var root := Node3D.new()
+	var meshes: Array[ImporterMesh] = []
+	for u: float in [0.2, 0.7]:
+		var im := ImporterMesh.new()
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(u, 0.2), Vector2(u + 0.1, 0.2), Vector2(u, 0.8)])
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+		meshes.append(im)
+	var region := func(field: String, rest: float) -> Dictionary: return {"look": [{"node": "Suit", "rect": [0.0, 0.0, 0.5, 1.0], "field": field, "slot": 0, "rest": rest}]}
+	var targets := [{"effect": region.call("lightAdd", 0.0), "default": 0.0}, {"effect": region.call("brightness", 0.8), "default": 1.0}]
+	Avatar._lit_looks(looks, meshes, {}, {"lightAdd": [[0.0, 0.0, 0.5, 1.0]], "brightness": [[0.0, 0.0, 0.5, 1.0]]})
+	var shown: Array[MeshInstance3D] = []
+	for n in 2:
+		var mi := MeshInstance3D.new()
+		mi.name = ["Suit", "Crate"][n]
+		mi.mesh = meshes[n].get_mesh()
+		root.add_child(mi)
+		shown.append(mi)
+	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
+	ExpressionPlayer.prepare(root)
+	var player := ExpressionPlayer.new(root)
+	var lift := func(mesh: MeshInstance3D, column: int) -> Color:
+		var mat := mesh.get_surface_override_material(0) as ShaderMaterial
+		var table: Variant = mat.get_shader_parameter("lighting") if mat else null
+		for glows: Dictionary in player._glows.values():
+			if glows.texture == table:
+				return (glows.table as Image).get_pixel(column, Avatar.POST_ROW)
+		return (table as Texture2D).get_image().get_pixel(column, Avatar.POST_ROW) if table is Texture2D else Color(-1, -1, -1, -1)
+	player.apply()
+	check(lift.call(shown[0], 1).is_equal_approx(Color(0.0, 0.2, 0.0, 0.0)), "at rest a material keeps the brightness it saves, stored as how far it dims: %s" % [lift.call(shown[0], 1)])
+	player.state.outputs[0] = 2.0
+	player.state.outputs[1] = -0.25
+	player.apply()
+	check(lift.call(shown[0], 1).is_equal_approx(Color(2.0, 1.25, 0.0, 0.0)), "the menu adds light and dims as its clips set: %s" % [lift.call(shown[0], 1)])
+	check(lift.call(shown[0], 2).is_equal_approx(Color(0.0, 0.0, 0.0, 0.0)), "a material no clip names keeps no added light and full brightness: %s" % [lift.call(shown[0], 2)])
+	player.free()
+	root.free()
+

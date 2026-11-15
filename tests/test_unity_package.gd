@@ -58,6 +58,7 @@ func _run() -> void:
 	_an_outline_mask_weighs_as_its_shader_reads_it()
 	_a_clear_coat_carries_its_fallback_cubemap()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
+	_poiyomi_lighting_moves_only_where_its_shader_reads_it()
 	_poiyomi_emissions_in_one_colour_add_up()
 	_untinted_multilayer_math_lights_flat()
 	_skin_its_shade_reaches_lights_flat()
@@ -3562,3 +3563,37 @@ func _clear_coat_maps_read_their_uv_channel() -> void:
 	check(UnityAvatar._uv_channel(mesh, 0, read, 2, report, "maps") == PackedVector2Array([Vector2(1, 2), Vector2(5, 6), Vector2(9, 10)]), "UV2 is the custom array's first pair")
 	check(UnityAvatar._uv_channel(mesh, 0, read, 3, report, "maps") == PackedVector2Array([Vector2(3, 4), Vector2(7, 8), Vector2(11, 12)]), "UV3 its second")
 	check(report.is_empty() and UnityAvatar._uv_channel(mesh, 0, read, 1, report, "maps").is_empty() and report.keys() == ["maps on a UV channel the model lacks"], "a channel the model lacks reads nothing and is reported")
+
+
+func _poiyomi_lighting_moves_only_where_its_shader_reads_it() -> void:
+	var dir := ProjectSettings.globalize_path("user://lift")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("locked.shader", "locked", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _PPBrightness ("Brightness", Float) = 1 _PPLightingAddition ("Lighting Add", Float) = 0 } }')
+	write.call("open.shader", "open", 'Shader ".poiyomi/Poiyomi Toon" { Properties { _PPBrightness ("Brightness", Float) = 1 _PPLightingAddition ("Lighting Add", Float) = 0 } }')
+	var material := """Material:
+  m_Shader: {guid: %s}
+  stringTagMap:
+    %s
+  m_SavedProperties:
+    m_Floats:
+    - _PostProcess: %d
+    - _PPBrightness: 1
+    - _PPLightingAddition: 0
+"""
+	write.call("tagged.mat", "tagged", material % ["locked", "_PPBrightnessAnimated: 1\n    _PPLightingAdditionAnimated: 1", 1])
+	write.call("untagged.mat", "untagged", material % ["locked", "RenderType: Opaque", 1])
+	write.call("unprocessed.mat", "unprocessed", material % ["open", "RenderType: Opaque", 0])
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in ["tagged", "untagged", "unprocessed"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["tagged", "untagged", "unprocessed"])
+	var add := Materials.field("_PPLightingAddition")
+	var brightness := Materials.field("_PPBrightness")
+	check(add == {"field": "lightAdd", "slot": 0} and brightness == {"field": "brightness", "slot": 0} and Materials.field("_PPLightingAddition_Suit") == add and Materials.field("_PPBrightnessX").is_empty(), "Poiyomi's lighting addition and post-processing brightness each name their look field, a locked suffix included: %s %s" % [add, brightness])
+	check(materials.draws("tagged", add, "_PPLightingAddition") and materials.draws("tagged", brightness, "_PPBrightness"), "a locked material that keeps both properties animated is moved by both")
+	check(not materials.draws("untagged", add, "_PPLightingAddition") and not materials.draws("untagged", brightness, "_PPBrightness"), "a locked material that inlined them is moved by neither, as in Unity")
+	check(materials.draws("unprocessed", add, "_PPLightingAddition") and not materials.draws("unprocessed", brightness, "_PPBrightness"), "without post-processing an unlocked material takes the lighting addition but not the brightness its shader compiles out")
+

@@ -896,6 +896,8 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					binding = look.duplicate()
 					if look.field.begins_with("decal"):
 						binding.merge(materials.decal(key, look.slot))
+					if ExpressionPlayer.POST_CHANNELS.has(look.field):
+						binding.rest = saved
 				elif property in [Materials.Liltoon.HUE, Materials.Liltoon.SATURATION]:
 					if not Materials.Liltoon.compiled(material, "colour adjustment"):
 						continue

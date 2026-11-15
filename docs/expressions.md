@@ -45,7 +45,10 @@ avatar's VRChat contacts come along: each receiver sets its parameter from the t
 senders touching it (constant, on enter, or proximity), the wearer's hands and every
 other player among them, each body carrying the senders VRChat gives every avatar.
 A Poiyomi UDIM
-discard tile is a switch: its triangles draw while it is off. The importer reports controller features
+discard tile is a switch: its triangles draw while it is off. A clip moving a Poiyomi
+material's lighting addition or post-processing brightness adds that light after the
+material's light cap or scales its final colour, as the shader does, wherever a locked
+shader keeps the property animated and, for brightness, post-processing is on. The importer reports controller features
 it cannot translate. Menu semantics follow the
 [VRChat Expressions Menu documentation](https://creators.vrchat.com/avatars/expression-menu-and-controls/).
 

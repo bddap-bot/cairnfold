@@ -17,7 +17,7 @@ varying vec3 flat_light;
 // rgb the main light a ramp-lit vertex's shadow tint lends the albedo, a the light its cap leaves room for.
 varying vec4 tinted;
 varying vec4 glow_colour;
-varying float glow_strength;
+varying vec2 glow_and_brightness;
 // Each *_entry is the `lighting` column, -1 where the material lacks that look. world_normal: the true normal, world
 // space, as a flat material's NORMAL is turned to light it; matcap, coat and toon all derive theirs from it, a Quest 2
 // having no room for a varying each (tests/test_varyings.gd).
@@ -48,7 +48,8 @@ varying float toon_toward;
 varying vec3 toon_light;
 #endif
 
-const int HEAD_ROWS = 2;
+const int POST_ROW = 2;
+const int HEAD_ROWS = 3;
 const int RAMP = 16;
 #ifdef CLEAR_COAT
 const int COAT = HEAD_ROWS + RAMP;
@@ -63,7 +64,8 @@ void vertex() {
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
 	vec4 light = texelFetch(lighting, looked, 0);
 	glow_colour = textureSize(lighting, 0).y > 1 ? texelFetch(lighting, looked + ivec2(0, 1), 0) : vec4(0.0);
-	glow_strength = light.a;
+	vec4 post = textureSize(lighting, 0).y > POST_ROW ? texelFetch(lighting, looked + ivec2(0, POST_ROW), 0) : vec4(0.0);
+	glow_and_brightness = vec2(light.a, max(1.0 - post.g, 0.0));
 #ifdef CLEAR_COAT
 	bool coated = texelFetch(lighting, looked + ivec2(0, COAT), 0).x > 0.0 || texelFetch(lighting, looked + ivec2(0, COAT + 4), 0).x > 0.5;
 	coat_entry = coated ? looked.x : -1;
@@ -81,6 +83,9 @@ void vertex() {
 	// Read once a metre over the mesh origin: per vertex, a dense avatar's reads cost a Quest 2 more than its lighting.
 	vec3 lit_at = flat_lit > 0.5 ? NODE_POSITION_WORLD + vec3(0.0, 1.0, 0.0) : at;
 	given = given_over(lit_at, flat_lit > 0.5 ? vec3(0.0) : normal, ground_at(lit_at.xz));
+	if (flat_lit < 0.5) {
+		given.rgb = max(given.rgb + post.r, vec3(0.0));
+	}
 	flat_light = vec3(0.0);
 	tinted = vec4(0.0);
 	if (flat_lit > 0.5) {
@@ -97,8 +102,11 @@ void vertex() {
 	}
 #ifdef TOON
 	vec3 key_light = mirrored ? mirror_light : sun_light;
-	toon_light = flat_lit > 0.5 ? min(flat_light + key_light, vec3(light.g)) : (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a + given.rgb + key_light;
+	toon_light = flat_lit > 0.5 ? max(min(flat_light + key_light, vec3(light.g)) + post.r, vec3(0.0)) : (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a + given.rgb + key_light;
 #endif
+	if (flat_lit > 0.5) {
+		flat_light = max(flat_light + post.r, vec3(0.0));
+	}
 }
 uniform sampler2D regions : filter_nearest, repeat_disable;
 // Indices into ExpressionDefinition.REGIONS (any later kind is a look) and ExpressionPlayer.LOOK_FIELDS.
@@ -336,7 +344,7 @@ void fragment() {
 	vec4 coat_moved = vec4(0.0);
 	vec4 coat_at = vec4(0.0);
 #endif
-	float strength = glow_strength;
+	float strength = glow_and_brightness.x;
 	vec4 matcap_moved = vec4(0.0);
 	vec4 matcap_at = vec4(0.0);
 	for (int i = 0; i < region_count; i++) {
@@ -558,4 +566,6 @@ void fragment() {
 		EMISSION += clear_coat(level, widened, specular, reflection.rgb, gsaa.zw, n, VIEW, toward, key, environment);
 	}
 #endif
+	ALBEDO *= glow_and_brightness.y;
+	EMISSION *= glow_and_brightness.y;
 }

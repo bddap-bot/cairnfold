@@ -16,7 +16,8 @@ const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
 const UNCAPPED := 1e4
-const HEAD_ROWS := 2
+const POST_ROW := 2
+const HEAD_ROWS := 3
 ## As many points as the shader reads.
 const RAMP := 16
 ## A board row's height.
@@ -728,7 +729,7 @@ static func shape(state: GLTFState) -> bool:
 				(swaps.get_or_add(state.get_meshes()[nodes[node].mesh].mesh, []) as Array).append_array(effect.material.choices)
 		elif effect is Dictionary and effect.has("look"):
 			for region: Dictionary in effect.look:
-				animated[str(region.get("field", "decal"))] = true
+				(animated.get_or_add(str(region.get("field", "decal")), []) as Array).append(region.get("rect"))
 	_lit_looks(looks, state.get_meshes().map(func(gm: GLTFMesh) -> ImporterMesh: return gm.mesh), swaps, animated)
 	return true
 
@@ -748,7 +749,10 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
 	var fallbacks: int = (looks.get("clearcoatFallbacks", []) as Array).size() if looks.get("clearcoatFallbacks") is Array else 0
+	var posted: Array = animated.get("lightAdd", []) + animated.get("brightness", [])
 	for k in materials.size():
+		if posted.any(func(r: Variant) -> bool: return ExpressionPlayer.same_rect(r, materials[k].get("rect", []))):
+			drawn[k + 1] |= LOOKED
 		if not _drawn_matcaps(materials[k]).is_empty():
 			drawn[k + 1] |= LOOKED
 			_matcap_rows(table, k + 1, materials[k], textures)

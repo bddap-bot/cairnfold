@@ -47,6 +47,8 @@ const DECAL_PAD := 8
 const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
 const RESTING_FIELDS := ["emission", "matcapIntensity"]
+const POST_CHANNELS := {"lightAdd": 0, "brightness": 1}
+const POST_RESTS: Array[float] = [0.0, 1.0]
 
 ## All avatars; metrics.gd reads and resets it.
 static var process_us := 0
@@ -145,6 +147,22 @@ func _init(model: Node3D) -> void:
 								entry.theme[offset] = rest if v == resting else v
 								glows.dirty = true)
 						continue
+					if mesh != null and kind == "look" and POST_CHANNELS.has(str(region.get("field", ""))):
+						var column := _column(region, data.get("looks", {}))
+						if column > 0:
+							var glows: Dictionary = _glows.get_or_add(mesh, {"entries": {}, "dirty": true, "turning": false})
+							var posts: Dictionary = glows.get_or_add("posts", {})
+							var channel: int = POST_CHANNELS[str(region.field)]
+							var rest := float(region.get("rest", POST_RESTS[channel]))
+							var resting := float(target.get("default", 0))
+							posts.get_or_add(column, Color(0.0, 0.0, 0.0, 0.0))
+							binds.append(func(v: float) -> void:
+								var post: Color = posts[column]
+								var value := rest if v == resting else v
+								post[channel] = value if channel == 0 else 1.0 - value
+								posts[column] = post
+								glows.dirty = true)
+						continue
 					var field := str(region.get("field", ""))
 					if mesh == null or (kind == "look" and not field.begins_with("decal") and field not in RESTING_FIELDS and not (field == "clearcoatST" and _marked(mesh, "clearcoat"))):
 						continue
@@ -179,7 +197,7 @@ func _init(model: Node3D) -> void:
 		var glows: Dictionary = _glows[owner]
 		var mats: Array = _materials.values().reduce(func(all: Array, m: Array) -> Array: return all + m, []) if owner == model else _materials.get(owner, [])
 		var lighting: Variant = shared if owner == model else mats[0].get_shader_parameter("lighting") if not mats.is_empty() else null
-		if not lighting is ImageTexture or glows.entries.is_empty():
+		if not lighting is ImageTexture or glows.entries.is_empty() and glows.get("posts", {}).is_empty():
 			_glows.erase(owner)
 			continue
 		_turning(glows.entries, looks, resting)
@@ -283,6 +301,8 @@ func apply(targets: Variant = null) -> void:
 					var c := theme_colour(e.theme, _seconds)
 					e.colour = Color(c.r, c.g, c.b, e.replace)
 				glows.table.set_pixel(column, 1, e.colour)
+			for column: int in glows.get("posts", {}):
+				glows.table.set_pixel(column, Avatar.POST_ROW, glows.posts[column])
 			glows.texture.update(glows.table)
 	for k: int in showing:
 		var node: Node3D = _shown[k].node
@@ -536,9 +556,21 @@ static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) ->
 	var materials: Array = looks.get("materials", [])
 	for k in materials.size():
 		var rect: Array = materials[k].get("rect", [])
-		if _theme_of(materials[k]) is Dictionary and int(materials[k].emission.theme) == int(region.get("slot", 0)) and rect.size() == 4 and range(4).all(func(c: int) -> bool: return is_equal_approx(rect[c], region.rect[c])):
+		if _theme_of(materials[k]) is Dictionary and int(materials[k].emission.theme) == int(region.get("slot", 0)) and same_rect(rect, region.rect):
 			return entries.get_or_add(k + 1, _entry(materials[k]))
 	return {}
+
+
+static func same_rect(a: Variant, b: Variant) -> bool:
+	return a is Array and b is Array and a.size() == 4 and b.size() == 4 and range(4).all(func(c: int) -> bool: return is_equal_approx(a[c], b[c]))
+
+
+static func _column(region: Dictionary, looks: Dictionary) -> int:
+	var materials: Array = looks.get("materials", [])
+	for k in materials.size():
+		if same_rect(materials[k].get("rect", []), region.get("rect")):
+			return k + 1
+	return -1
 
 
 static func _turning(entries: Dictionary, looks: Dictionary, resting: Dictionary) -> void:

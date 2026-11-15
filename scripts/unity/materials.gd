@@ -1322,6 +1322,11 @@ func draws(key: String, look: Dictionary, property: String) -> bool:
 			return matcap(key, look.slot).get("hue") != null
 		"clearcoatST":
 			return coat_uv(key) >= 0
+		"lightAdd", "brightness":
+			var m: Dictionary = materials[key]
+			var name := property.get_slice(".", 0)
+			var live := not str(m.get("shader", "")).begins_with("Hidden/Locked/") or (m.get("animated", {}) as Dictionary).keys().any(func(k: String) -> bool: return name == k or name.begins_with(k + "_"))
+			return poiyomi(m) and live and (look.field == "lightAdd" or _float(m, "_PostProcess") != 0.0)
 	return not matcap(key, look.slot).is_empty()
 
 
@@ -1350,6 +1355,9 @@ static func field(property: String) -> Dictionary:
 	var glow := _EMISSION_FIELD.search(property)
 	if glow != null:
 		return {"field": "emissionHue" if glow.get_string(1) == "HueShift" else "emission", "slot": 0}
+	var post := _POST_FIELD.search(property)
+	if post != null:
+		return {"field": {"PPLightingAddition": "lightAdd", "PPBrightness": "brightness"}[post.get_string(1)], "slot": 0}
 	var theme := _THEME_FIELD.search(property)
 	if theme != null:
 		return {"field": "theme" + {"HueSpeed": "Speed"}.get(theme.get_string(1), theme.get_string(1)), "slot": theme.get_string(2).to_int()}
@@ -1362,6 +1370,7 @@ static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaInt
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
 static var _MATCAP_BLEND_FIELD := RegEx.create_from_string("^_MatCap(2nd)?Blend$")
 static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift|Blend|2ndBlend)(_|$)")
+static var _POST_FIELD := RegEx.create_from_string("^_(PPLightingAddition|PPBrightness)(_|$)")
 static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(HueSpeed|Hue|Saturation|Value)([0-3])(_|$)")
 
 
