@@ -34,14 +34,14 @@ vec3 lamp_over(vec3 p, vec3 n, float ground) {
 	return volume_coord(p + n, ground);
 }
 
-vec3 given_back(vec3 at, vec3 lamp_at, vec4 bounce) {
+vec3 given_back(vec3 lamp_at, vec4 bounce) {
 	return bounce.rgb * bounce_light + textureLod(lamp_volume, lamp_at, 0.0).rgb * lamp_light;
 }
 
 // Per vertex, for things small or dense enough that the volumes do not vary over a triangle.
 vec4 given_read(vec3 at, vec3 lamp_at) {
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
-	return vec4(given_back(at, lamp_at, bounce), bounce.a);
+	return vec4(given_back(lamp_at, bounce), bounce.a);
 }
 
 vec4 given_over(vec3 p, vec3 n, float ground) {

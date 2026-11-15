@@ -36,6 +36,6 @@ void fragment() {
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 	vec4 bounce = texture(bounce_volume, bounce_at);
-	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
+	EMISSION = ALBEDO * given_back(lamp_at, bounce);
 	TAKE_ROOM(bounce.a);
 }

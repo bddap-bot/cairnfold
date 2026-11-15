@@ -58,7 +58,7 @@ void vertex() {
 	steep = 1.0 - NORMAL.y;
 	vec3 bounce_at = bounce_on_ground(world_pos.xz);
 	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
-	given = given_back(bounce_at, bounce_at, bounce);
+	given = given_back(bounce_at, bounce);
 	sky_seen = bounce.a;
 #ifndef PLAIN
 	pond = pond_near(world_pos.xz);

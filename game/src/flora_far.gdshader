@@ -34,7 +34,7 @@ void vertex() {
 	tint = COLOR.rgb;
 	vec3 at = bounce_on_ground(root.xz);
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
-	given = vec4(given_back(at, at, bounce), bounce.a);
+	given = vec4(given_back(at, bounce), bounce.a);
 }
 
 void fragment() {

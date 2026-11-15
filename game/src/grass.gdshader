@@ -71,7 +71,7 @@ void vertex() {
 		float size = length(MODEL_MATRIX[1].xyz);
 		vec3 at = bounce_on_ground(root.xz);
 		vec4 bounce = textureLod(bounce_volume, at, 0.0);
-		given = vec4(given_back(at, at, bounce), bounce.a);
+		given = vec4(given_back(at, bounce), bounce.a);
 		float worn = max(bare(root.xz), bank(depth) * (1.0 - weed));
 		// An unscaled clump's blades stand about 0.2 m.
 		float stretch = mix(1.0, clamp(depth * weed_reach / (0.2 * size), 1.0, weed_stretch), weed);

@@ -160,7 +160,7 @@ void fragment() {
 #ifdef GIVEN_PER_VERTEX
 	EMISSION = ALBEDO * given.rgb + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #else
-	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
+	EMISSION = ALBEDO * given_back(lamp_at, bounce) + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #endif
 	TAKE_ROOM(bounce.a);
 }

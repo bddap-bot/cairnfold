@@ -29,5 +29,5 @@ void fragment() {
 	ROUGHNESS = mix(1.0, 0.75, wet);
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * (given_back(bounce_at, lamp_at, bounce) + wet * caustic(detail, patch) * 0.2);
+	EMISSION = ALBEDO * (given_back(lamp_at, bounce) + wet * caustic(detail, patch) * 0.2);
 }
