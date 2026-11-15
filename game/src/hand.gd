@@ -69,10 +69,6 @@ var tool := Tool.WALLS:
 var flick := ""
 var picking := false
 var world: World
-func model(t: Tool) -> Node3D:
-	return _models[t]
-
-
 var _profile := ""
 var _palm_noted := ""
 ## "grip_surface" or "grip".
@@ -167,6 +163,10 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
 	buttons = Buttons.new(self)
+
+
+func model(t: Tool) -> Node3D:
+	return _models[t]
 
 
 static func seen(h: Node3D) -> Node3D:
