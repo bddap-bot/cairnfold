@@ -74,8 +74,14 @@ func _run() -> void:
 		(matched if bone >= 0 else unmatched).append(c[0])
 		if bone >= 0:
 			_tips[c[0]] = bone
-	FileAccess.open(_out.path_join("menu.tsv"), FileAccess.WRITE).close()
+	var menu := FileAccess.open(_out.path_join("menu.tsv"), FileAccess.WRITE)
+	if _avatar != null and _avatar.expressions != null and not _avatar.expressions.state.data.get("menu", []).is_empty():
+		_list(menu, _avatar.expressions.state.data.get("menu", []), "")
+	else:
+		_notes.append("no expression menu: every control reads as absent")
+	menu.close()
 	_tips_file = FileAccess.open(_out.path_join("tips.tsv"), FileAccess.WRITE)
+	var names := _names(steps.values())
 	var last := -1
 	for row in track:
 		await process_frame
@@ -85,7 +91,7 @@ func _run() -> void:
 		_drive(row)
 		if _avatar != null and _avatar.expressions != null and steps.has(last):
 			for assignment: String in str(steps[last]).split(",", false):
-				_avatar.expressions.state.put(assignment.get_slice("=", 0), assignment.get_slice("=", 1).to_float())
+				_avatar.expressions.state.put(names.get(assignment.get_slice("=", 0), assignment.get_slice("=", 0)), assignment.get_slice("=", 1).to_float())
 		if renders.has(last):
 			view.render_target_update_mode = SubViewport.UPDATE_ONCE
 			await RenderingServer.frame_post_draw
@@ -292,3 +298,35 @@ static func _rows(path: String) -> Array[PackedStringArray]:
 	for line in FileAccess.get_file_as_string(path).split("\n", false):
 		out.append(line.split("\t"))
 	return out
+
+
+func _list(file: FileAccess, controls: Array, prefix: String) -> void:
+	for c: Dictionary in controls:
+		var path: String = c.name if prefix.is_empty() else prefix + "/" + c.name
+		file.store_string("%s\t%s\n" % [path, c.type])
+		_list(file, c.get("controls", []), path)
+
+
+func _names(assignments: Array) -> Dictionary:
+	var names := {}
+	if _avatar == null or _avatar.expressions == null:
+		return names
+	var numbered := RegEx.create_from_string("^VF\\d+_(.+)$")
+	var defined: Dictionary = _avatar.expressions.state.definitions
+	var by_rest := {}
+	for name: String in defined:
+		var m := numbered.search(name)
+		if m != null:
+			by_rest[m.get_string(1)] = name if not by_rest.has(m.get_string(1)) else ""
+	for step: String in assignments:
+		for assignment: String in step.split(",", false):
+			var key := assignment.get_slice("=", 0)
+			var m := numbered.search(key)
+			if defined.has(key) or m == null or names.has(key):
+				continue
+			if by_rest.get(m.get_string(1), "") != "":
+				names[key] = by_rest[m.get_string(1)]
+			else:
+				names[key] = key
+				_notes.append("no parameter numbered otherwise for %s" % key)
+	return names
