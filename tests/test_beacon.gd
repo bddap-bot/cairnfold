@@ -61,6 +61,8 @@ func _the_beacon_names_nobody_until_they_pick_a_name(s: Session) -> void:
 	s.me.pick()
 	heard = Session.read_beacon(s.beacon())
 	check(heard.get("name") == s.me.name, "a picked name rides the beacon: %s" % heard)
+	s.colour = Session.COLOURS[2]
+	check(Session.read_beacon(s.beacon()).colour.to_html(false) == Session.COLOURS[2].to_html(false), "the host's colour rides the beacon")
 	s.port = 0
 	var hostile := JSON.stringify({"cairnfold": 1, "key": 3, "port": Session.PORT, "avatar": 0, "name": "\u0000" + "W".repeat(400)}).to_utf8_buffer()
 	heard = Session.read_beacon(hostile)
@@ -93,9 +95,13 @@ func _another_build_is_heard_not_joined() -> void:
 	var after := _networked("@rpc(\"any_peer\")\nfunc _device(d): pass\n@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
 	var takes := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(by): pass\n")
 	var plain := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\nfunc helper(): pass\n")
-	check(Session.fingerprint([before]) != Session.fingerprint([after]), "an RPC added changes the fingerprint")
-	check(Session.fingerprint([before]) != Session.fingerprint([takes]), "an RPC's arguments change it")
-	check(Session.fingerprint([before]) == Session.fingerprint([plain]), "a method that is not an RPC leaves it")
+	check(Session.fingerprint([before], 1) != Session.fingerprint([after], 1), "an RPC added changes the fingerprint")
+	check(Session.fingerprint([before], 1) != Session.fingerprint([takes], 1), "an RPC's arguments change it")
+	check(Session.fingerprint([before], 1) == Session.fingerprint([plain], 1), "a method that is not an RPC leaves it")
+	check(Session.fingerprint([before], 1) != Session.fingerprint([before], 2), "another garden format changes it")
+	check(Session.protocol() == Session.fingerprint([World, Session], World.FORMAT), "this build's is its own RPCs' and garden format's")
+	var reformatted := Session.read_beacon(JSON.stringify({"cairnfold": Session.fingerprint([World, Session], World.FORMAT + 1), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	check(not reformatted.is_empty() and not reformatted.joins, "a garden from a build of another garden format is heard, not to be joined: %s" % reformatted)
 
 
 func _a_picked_name_is_kept() -> void:

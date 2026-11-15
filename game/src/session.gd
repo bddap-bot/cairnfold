@@ -349,7 +349,7 @@ func _announce() -> void:
 
 ## Nothing identifying, unless the player picked a name to show.
 func beacon() -> PackedByteArray:
-	var msg := {"cairnfold": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
+	var msg := {"cairnfold": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false)}
 	if me.shared and not me.steam():
 		msg.name = me.name
 	if worn_key != "" and _shelf.is_listening():
@@ -361,12 +361,12 @@ func beacon() -> PackedByteArray:
 ## on each other and every edit a visitor makes is lost: a garden is joined only by builds with the same ones.
 static func protocol() -> int:
 	if _protocol == 0:
-		_protocol = fingerprint([World, Session])
+		_protocol = fingerprint([World, Session], World.FORMAT)
 	return _protocol
 
 
-static func fingerprint(scripts: Array[Script]) -> int:
-	var parts := PackedStringArray()
+static func fingerprint(scripts: Array[Script], format: int) -> int:
+	var parts := PackedStringArray(["format %d" % format])
 	for s in scripts:
 		var rpcs: Dictionary = s.get_rpc_config()
 		for m in s.get_script_method_list():

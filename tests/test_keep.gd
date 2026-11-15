@@ -19,6 +19,7 @@ func _run() -> void:
 	await _a_visited_garden_is_not_kept()
 	_an_unreadable_file_starts_the_meadow()
 	_a_garden_of_another_format_is_moved_aside()
+	_a_format_keeps_what_its_numbers_mean()
 	_a_file_that_cannot_be_moved_aside_is_never_written_over()
 	await _a_garden_read_in_part_is_moved_aside()
 	for f in DirAccess.get_files_at(dir):
@@ -173,6 +174,42 @@ func _a_garden_of_another_format_is_moved_aside() -> void:
 	world.load_from(path)
 	check(world.state.groups.keys() == [0] and FileAccess.get_file_as_bytes(path + ".bad") == unordered and not FileAccess.file_exists(path), "a garden with no sequence number grows nothing and is moved aside")
 	world.save_path = ""
+
+
+func _a_format_keeps_what_its_numbers_mean() -> void:
+	var name := func(entry: Dictionary) -> String: return entry.name
+	var format := 11
+	var held := {
+		"WallLayout.Top": [WallLayout.Top, ["CRENEL", "CAP", "COPE", "RAIL"]],
+		"WallLayout.Finish": [WallLayout.Finish, ["BARE", "PLASTER", "TIMBER", "BOARDS_ACROSS", "BOARDS_UPRIGHT"]],
+		"WallLayout.Foundation": [WallLayout.Foundation, ["STONE", "PLASTER", "PILLARS", "POSTS"]],
+		"WallLayout.GableEnd": [WallLayout.GableEnd, ["WALL", "BOARDS", "STEPS"]],
+		"WallLayout.Family": [WallLayout.Family, ["COTTAGE", "ARCHWAY", "ARCHED", "SLIT", "ROUND", "CORNER"]],
+		"RoofLayout.Kind": [RoofLayout.Kind, ["GABLE", "CONE"]],
+		"RoofLayout.Deck": [RoofLayout.Deck, ["STONE", "WOOD"]],
+		"PathLayout.Surface": [PathLayout.Surface, ["DIRT", "SAND", "COBBLES", "FLAGS", "BED"]],
+		"FloraLayout.Species": [FloraLayout.Species, ["OAK", "FIR", "POPLAR", "BIRCH", "BEECH"]],
+		"Ground.Kind": [Ground.Kind, ["MEADOW", "EARTH", "STONE", "SAND"]],
+		"Palette.Element": [Palette.Element, ["MEADOW", "STONE", "ROOF", "WOOD", "PLASTER", "TIMBER", "THATCH", "GLOW", "LANTERN"]],
+		"Brushwork.Medium": [Brushwork.Medium, ["WATER", "OIL", "CHARCOAL", "SMEAR"]],
+		"Brushwork.Brush": [Brushwork.Brush, ["SMALL", "BIG", "FLAT", "STICK", "THIN_STICK", "THICK_STICK"]],
+		"DecorationLayout.STYLES": [DecorationLayout.STYLES.map(name), ["Present", "Planter", "Bench", "Rain barrel", "Woodpile", "Steps", "Gatepost lantern", "Standing torch", "Campfire", "Chair", "Table", "Settle", "Bed", "Shelf", "Rug", "Stool", "Chest", "Potted plant", "Candle stand", "Table and chairs", "Garden bench", "Trough planter", "Parasol", "String lights", "Lantern", "Lamp post", "Crates", "Market stall", "Anvil", "Flower box", "Carved pumpkin", "Bird nest", "Lantern string", "Flag string"]],
+		"StoneStyles.STYLES": [StoneStyles.STYLES.map(name), ["mossy", "river cobble"]],
+		"Palette.SEASONS": [Palette.SEASONS.map(name), ["spring", "summer", "late summer", "autumn", "winter"]],
+		"Palette.SWATCHES": [Palette.Element.values().map(Palette.count), [5, 7, 8, 7, 6, 6, 6, 8, 24]],
+	}
+	check(World.FORMAT == format, "the lists a garden's numbers index are frozen here as format %d's: freeze them again as they stand and name the new format here" % format)
+	check(Commands.MAX_PIECES == 8, "a format %d garden's wall ids are its commands' numbers times eight, so another stride takes a new World.FORMAT" % format)
+	for table: String in held:
+		var now: Variant = held[table][0]
+		check(not now is Dictionary or now.values() == range(now.size()), "%s numbers its members from zero in the order written" % table)
+		var names: Array = now.keys() if now is Dictionary else now
+		check(names == held[table][1], "a format %d garden holds %s by number: a moved or dropped entry takes a new World.FORMAT, and any change this list: %s" % [format, table, names])
+	var bounded := RegEx.create_from_string("\\b((?:[A-Z][A-Za-z]*\\.)?[A-Z][A-Za-z_]*)\\.size\\(\\)")
+	for source: String in ["Commands", "Brushwork"]:
+		for found in bounded.search_all(FileAccess.get_file_as_string("res://src/%s.gd" % source.to_lower())):
+			var table := found.get_string(1) if "." in found.get_string(1) else "%s.%s" % [source, found.get_string(1)]
+			check(held.has(table), "%s bounds a number a garden holds by %s, which no list here freezes" % [source, table])
 
 
 func _a_file_that_cannot_be_moved_aside_is_never_written_over() -> void:
