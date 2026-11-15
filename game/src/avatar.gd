@@ -40,6 +40,9 @@ const INDEX_SIDE := 2048
 const MEMORY_FLOOR := 1700 << 20
 ## Counts definition joints, terminal nodes included.
 const MAX_SPRING_JOINTS := 60
+## The 60 Hz steps VRChat's PhysBones take before the controller's first state reaches them, measured on the SDK's
+## simulation: three leave a chain that state switches off within 0.07 cm of where the SDK holds it, none 0.46 cm.
+const STARTUP_STEPS := 3
 ## A file asking for more has every system's share cut alike (ParticleDefinition.read).
 const MAX_PARTICLE_SYSTEMS := 64
 const MAX_PARTICLES := 10000
@@ -152,6 +155,10 @@ var posture := Posture.new()
 ## A built-in standing in for an undrawn file: its springs are not the file's, which the wearer streams by number.
 var stand_in := false
 var springs: SpringRuntime
+## The chains of `springs` whose PhysBone a switch had off when `_budget` last chose.
+var _springs_off := {}
+## `movers` of the chains of `springs`.
+var _moved_by: Array = []
 var simulate_springs := true
 var local := false
 var expressions: ExpressionPlayer
@@ -439,33 +446,45 @@ static func _cut_all() -> void:
 			_cut(m)
 
 
-## A chain is off when every segment is moved by a switched-off spring and by no running switched one: two PhysBones
-## may take turns on one bone, each reaching its own end.
-static func _switched_off(root: Node3D) -> void:
-	var data: Dictionary = root.get_meta("expressions", {})
-	var targets: Array = data.get("targets", [])
-	var off := func(s: Dictionary) -> bool: return not (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(float(targets[int(w[0])].get("default", 0.0)), float(w[1])))
-	var bones := func(s: Dictionary) -> Dictionary:
+## For each of `chains`, per segment, the springs of `switched` that move it, by index.
+static func movers(chains: Array, switched: Array) -> Array:
+	var bones: Array = switched.map(func(s: Dictionary) -> Dictionary:
 		var out := {}
 		for j: Variant in s.joints:
 			out[int(j)] = true
-		return out
-	var switched: Array = data.get("springs", [])
-	var stopped: Array = switched.filter(off).map(bones)
-	var running: Array = switched.filter(func(s: Dictionary) -> bool: return not off.call(s)).map(bones)
-	var still := func(chain: Dictionary) -> bool:
+		return out)
+	return chains.map(func(chain: Dictionary) -> Array:
 		var joints: Array = chain.joints
+		var segments := []
 		for i in joints.size():
 			var segment := [joints[i].node] if i + 1 == joints.size() else [joints[i].node, joints[i + 1].node]
-			var moves := func(b: Dictionary) -> bool: return segment.all(func(n: Variant) -> bool: return b.has(n))
-			if not stopped.any(moves) or running.any(moves):
-				return false
-		return true
+			segments.append(range(bones.size()).filter(func(s: int) -> bool: return segment.all(func(n: Variant) -> bool: return bones[s].has(n))))
+		return segments)
+
+
+## The chains that are off, by index into `moved_by` (`movers`): every segment moved by a switched spring and by none
+## that `on` says, by its index, is on, as two PhysBones may take turns on one bone, each reaching its own end.
+static func stopped(moved_by: Array, on: Array) -> Dictionary:
+	var out := {}
+	for c in moved_by.size():
+		var segments: Array = moved_by[c]
+		if not segments.is_empty() and segments.all(func(by: Array) -> bool: return not by.is_empty() and not by.any(func(s: int) -> bool: return on[s])):
+			out[c] = true
+	return out
+
+
+static func _switched_off(root: Node3D) -> void:
+	var data: Dictionary = root.get_meta("expressions", {})
+	var targets: Array = data.get("targets", [])
+	var on := func(s: Dictionary) -> bool: return (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(float(targets[int(w[0])].get("default", 0.0)), float(w[1])))
 	var colliders := {}
-	for s: Dictionary in data.get("colliders", []).filter(off):
-		colliders[int(s.collider)] = true
+	for s: Dictionary in data.get("colliders", []):
+		if not on.call(s):
+			colliders[int(s.collider)] = true
 	var springs: Dictionary = root.get_meta("springs")
-	springs.springs = springs.springs.filter(func(chain: Dictionary) -> bool: return not still.call(chain))
+	var switched: Array = data.get("springs", [])
+	var off := stopped(movers(springs.springs, switched), switched.map(on))
+	springs.springs = range(springs.springs.size()).filter(func(c: int) -> bool: return not off.has(c)).map(func(c: int) -> Dictionary: return springs.springs[c])
 	for chain: Dictionary in springs.springs:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
@@ -473,7 +492,7 @@ static func _switched_off(root: Node3D) -> void:
 ## Readies every chain for `running`: "length" is metres root to tip at rest, the sway a joint buys, and "drawn_by"
 ## the meshes whose skin or carrier a joint of it moves. A bone only chains that do not run at start move rests at its
 ## "settled" rotation (UnityAvatar.settle), as VRChat, running them all, shows it. One the controller's first state
-## switches off keeps its authored rest: VRChat never ran it, so shows it there when a switch first turns it on.
+## switches off keeps its authored rest, which `_prime` runs it from.
 static func _rank_springs(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var waiting := _still_at_start(root)
@@ -513,11 +532,14 @@ static func _rank_springs(root: Node3D) -> void:
 	springs.springs = chains
 
 
-## The indices of `chains` that run: those `drawn` says by index draw a shown mesh first, then the longest, a skirt panel of four
-## joints outranking a strand of ten hanging a tenth as far, while their joints fit MAX_SPRING_JOINTS.
-static func running(chains: Array, drawn: Callable) -> Dictionary:
-	var order: Array = range(chains.size())
-	var shown: Array = order.map(drawn)
+## The indices of `chains` that run: none `off` holds; of the rest those `drawn` says by index draw a shown mesh first,
+## then the longest, a skirt panel of four joints outranking a strand of ten hanging a tenth as far, while their joints
+## fit MAX_SPRING_JOINTS.
+static func running(chains: Array, drawn: Callable, off := {}) -> Dictionary:
+	var order: Array = range(chains.size()).filter(func(c: int) -> bool: return not off.has(c))
+	var shown := {}
+	for c: int in order:
+		shown[c] = drawn.call(c)
 	order.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else chains[x].get("length", 0.0) > chains[y].get("length", 0.0))
 	var run := {}
 	var joints := 0
@@ -529,21 +551,57 @@ static func running(chains: Array, drawn: Callable) -> Dictionary:
 	return run
 
 
-## Chooses again which chains run, from the meshes shown now: a chain a switch reveals takes the joints of ones it
-## hides, and one left out holds the pose it stopped in, as a PhysBone switched off does.
+## Chooses again which chains run, from the meshes shown and the PhysBones switched on now: a chain a switch reveals
+## takes the joints of ones it hides, and one left out holds the pose it stopped in. A chain whose PhysBone is switched
+## on again swings about the pose it was left in, as VRChat's does: each time off and on sags it further.
 func _budget() -> void:
 	if springs == null:
 		return
 	var sources: Array = springs.chains.map(func(chain: Dictionary) -> Dictionary: return chain.source)
+	var off := _off(expressions.state.outputs) if expressions != null else {}
 	var drawn := func(c: int) -> bool:
 		return (sources[c].get("drawn_by", []) as Array).any(func(p: NodePath) -> bool:
 			var mesh := _model.get_node_or_null(p) as Node3D
 			return mesh != null and mesh.is_visible_in_tree())
-	var run := running(sources, drawn)
+	var run := running(sources, drawn, off)
 	springs.idle.clear()
 	for i in springs.chains.size():
 		if not run.has(i):
 			springs.idle[i] = true
+		if _springs_off.has(i) and not off.has(i):
+			for joint: Dictionary in springs.chains[i].joints:
+				springs.set_rest(joint.node, joint.node.transform)
+	_springs_off = off
+
+
+## The chains of `springs` whose PhysBone the expression `outputs` switch off.
+func _off(outputs: Array[float]) -> Dictionary:
+	var switched: Array = _model.get_meta("expressions", {}).get("springs", [])
+	if switched.is_empty():
+		return {}
+	if _moved_by.is_empty():
+		_moved_by = movers(springs.chains.map(func(chain: Dictionary) -> Dictionary: return chain.source), switched)
+	return stopped(_moved_by, switched.map(func(s: Dictionary) -> bool: return ExpressionPlayer.shows(outputs, s.when)))
+
+
+## Runs the chains the controller's first state switches off for STARTUP_STEPS, as VRChat runs every PhysBone before
+## that state reaches it: such a chain rests clear of its colliders from then on, not in the pose its file drew.
+func _prime() -> void:
+	var data: Dictionary = _model.get_meta("expressions", {})
+	if (data.get("springs", []) as Array).is_empty():
+		return
+	var start := ExpressionState.new(data)
+	start.advance(0.0)
+	var off := _off(start.outputs)
+	if off.is_empty():
+		return
+	springs.idle.clear()
+	for i in springs.chains.size():
+		if not off.has(i):
+			springs.idle[i] = true
+	for step in STARTUP_STEPS:
+		springs.advance(SpringRuntime.STEP)
+	springs.idle.clear()
 
 
 static func _still_at_start(root: Node3D) -> Dictionary:
@@ -985,7 +1043,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	a._dress(a._model, tint)
 	if a._model.has_meta("expressions"):
 		a.expressions = ExpressionPlayer.new(a._model)
-		a.expressions.reshown.connect(a._budget)
+		a.expressions.switched.connect(a._budget)
 		a.add_child(a.expressions)
 	if a._model.has_meta("particle_systems"):
 		a.particles = AvatarParticles.new(a._model.get_meta("particle_systems"), a._skeleton, a.expressions)
@@ -1178,6 +1236,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 			if name.begins_with("spring_"):
 				nodes[int(name.trim_prefix("spring_"))] = SkeletonBone.new(_skeleton, _joints[name].bone)
 		springs = SpringRuntime.new(_model.get_meta("springs"), nodes)
+		_prime()
 		_budget()
 		if expressions != null:
 			expressions.springs = springs

@@ -34,6 +34,7 @@ func _run() -> void:
 	_import_settles_each_spring_chain()
 	_a_later_physbone_over_the_same_bones_is_shadowed()
 	_switched_off_physics_stays_out()
+	await _a_switch_stops_and_restarts_a_chain_as_vrchat_does()
 	_outlined_materials_draw_their_hull()
 	_many_surfaces_draw_with_their_outlines()
 	_read_skins_bind_only_weighed_bones()
@@ -739,6 +740,52 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	Avatar._rank_springs(root)
 	check(lengths.call(root) == [2], "a chain's tail past its last joint counts toward its length")
 	root.free()
+
+
+func _a_switch_stops_and_restarts_a_chain_as_vrchat_does() -> void:
+	var model := Node3D.new()
+	var anchor := Node3D.new()
+	model.add_child(anchor)
+	var bone := Node3D.new()
+	anchor.add_child(bone)
+	var tail := Node3D.new()
+	tail.position = Vector3(0, 0, 0.1)
+	bone.add_child(tail)
+	root.add_child(model)
+	var physbone := {"version": "1.1", "integration": "simplified", "pull": 0.2, "spring": 0.2, "stiffness": 0.2, "gravity": 0.0, "gravityFalloff": 0.0, "immobile": 0.0, "immobileType": "allMotion", "maxSquish": 0.0, "maxStretch": 0.0, "stretchMotion": 0.0, "radius": [0.0, 0.02]}
+	var collider := {"node": 2, "shape": {"sphere": {"offset": [0, -0.03, 0.1], "radius": 0.02}}}
+	var definition := SpringDefinition.read({"nodes": [{}, {}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [{"node": 0, "extras": {"physbone": physbone}}, {"node": 1}], "colliderGroups": [0]}], "colliders": [collider], "colliderGroups": [{"colliders": [0]}]}}})
+	var clip := func(value: float) -> Dictionary: return {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, value]]}]}
+	model.set_meta("expressions", {"parameters": [{"name": "Tail", "type": "bool", "default": 0.0, "saved": true}], "targets": [{"effect": "switch", "default": 1.0}], "clips": [clip.call(0.0), clip.call(1.0)],
+		"layers": [{"weight": 1.0, "default": 0, "states": [
+			{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Tail", "mode": "if"}]}]},
+			{"motion": {"clip": 1}, "transitions": [{"to": 0, "conditions": [{"parameter": "Tail", "mode": "ifNot"}]}]}]}],
+		"springs": [{"joints": [0, 1], "when": [[0, 1]]}]})
+	var a := Avatar.new()
+	a._model = model
+	a.expressions = ExpressionPlayer.new(model)
+	a.expressions.switched.connect(a._budget)
+	model.add_child(a.expressions)
+	a.springs = SpringRuntime.new(definition, {0: bone, 1: tail, 2: anchor})
+	var authored := tail.global_position
+	a._prime()
+	a._budget()
+	var held := tail.global_position
+	check(held.y > authored.y + 0.005 and held.distance_to(anchor.global_transform * Vector3(0, -0.03, 0.1)) > 0.039, "the start-up steps lift a chain its first state switches off clear of the collider its file's pose overlaps: %s from %s" % [held, authored])
+	check(a.springs.idle.has(0) and Avatar.running([a.springs.chains[0].source], func(_c: int) -> bool: return true, {0: true}).is_empty(), "a chain switched off is idle and takes no joints of the limit")
+	a.springs.colliders[0].offset = Vector3(0, -1, 0)
+	a.springs.colliders[0].tail = Vector3(0, -1, 0)
+	for i in 30:
+		a.springs.advance(1.0 / 60.0)
+	check(tail.global_position.is_equal_approx(held), "switched off it holds the pose it stopped in: %s" % tail.global_position)
+	a.expressions.state.put("Tail", 1.0)
+	await frames(3)
+	check(not a.springs.idle.has(0), "the switch turns it on")
+	for i in 120:
+		a.springs.advance(1.0 / 60.0)
+	check(tail.global_position.distance_to(held) < 1e-4, "switched on it swings about the pose it was left in, not the file's: %s, held %s, the file's %s" % [tail.global_position, held, authored])
+	a.free()
+	model.free()
 
 
 func _switched_off_physics_stays_out() -> void:

@@ -18,12 +18,13 @@ var springs: SpringRuntime:
 		springs = value
 		for moved: Dictionary in _moved.values():
 			moved.sent = false
-## After a frame that showed or hid a node.
-signal reshown
+## After a frame that showed or hid a node or changed an output a spring's switch reads.
+signal switched
 var _shown: Array = []
 ## Per output: its indices into _shown; _shown_at, the value it last showed them at.
 var _shown_by: Array[Array] = []
 var _shown_at: Array[float] = []
+var _switches_springs := {}
 var _last: Array[float] = []
 var _materials := {}
 var _regions := {}
@@ -212,6 +213,9 @@ func _init(model: Node3D) -> void:
 			for w: Array in shown.when:
 				_shown_by[int(w[0])].append(_shown.size())
 			_shown.append({"node": node, "when": shown.when})
+	for spring: Dictionary in data.get("springs", []):
+		for w: Array in spring.when:
+			_switches_springs[int(w[0])] = true
 	_last.resize(state.outputs.size())
 	_last.fill(NAN)
 	for i in mini(_bindings.size(), state.outputs.size()):
@@ -244,6 +248,7 @@ func _process(delta: float) -> void:
 ## `targets`: output indices; null binds every output.
 func apply(targets: Variant = null) -> void:
 	var showing := {}
+	var switching := _frame == 0
 	if _frame == 0:
 		targets = null
 		for k in _shown.size():
@@ -255,8 +260,9 @@ func apply(targets: Variant = null) -> void:
 			for bind: Callable in _bindings[i]:
 				bind.call(v)
 			_last[i] = v
-		if v != _shown_at[i] and not _shown_by[i].is_empty():
+		if v != _shown_at[i] and (not _shown_by[i].is_empty() or _switches_springs.has(i)):
 			_shown_at[i] = v
+			switching = true
 			for k: int in _shown_by[i]:
 				showing[k] = true
 	_move_bones()
@@ -295,8 +301,8 @@ func apply(targets: Variant = null) -> void:
 			glows.texture.update(glows.table)
 	for k: int in showing:
 		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
-	if not showing.is_empty():
-		reshown.emit()
+	if switching:
+		switched.emit()
 
 
 func _move_bones() -> void:
