@@ -15,6 +15,8 @@ const KEEP := 0.15
 const FEET := 2
 const NEAR := 3
 const FAR := 1
+const GRAIN := 0.23
+const PIT_ROOM := 0.06
 
 
 ## `cuts` are fracture planes as (normal, distance from the centre), the last its bed.
@@ -41,7 +43,7 @@ class Shape:
 			if along > 1e-3:
 				sum += exp(-c.w / along / wear)
 		var worn := -wear * log(sum)
-		return worn * (1.0 + pits.get_noise_3dv(u) * pitting + grain.get_noise_3dv(u) * pitting * 0.23)
+		return worn * (1.0 + pits.get_noise_3dv(u) * pitting + grain.get_noise_3dv(u) * pitting * GRAIN)
 
 	## `p` is in the shape's local frame.
 	func inside(p: Vector3) -> bool:
@@ -49,7 +51,7 @@ class Shape:
 		return l < 1e-6 or l < radius(p / l)
 
 	func reach() -> float:
-		return maxf(axes.x, maxf(axes.y, axes.z)) * 1.06
+		return maxf(axes.x, maxf(axes.y, axes.z)) * (1.0 + PIT_ROOM)
 
 	## Along the local ray, unit `dir`; INF for a miss.
 	func hit(origin: Vector3, dir: Vector3, reach_limit := INF) -> float:
@@ -92,6 +94,7 @@ static func shape(seed: int, style: int) -> Shape:
 	s.style = style
 	s.wear = look.wear
 	s.pitting = look.pitting
+	assert(s.pitting * (1.0 + GRAIN) <= PIT_ROOM, "%s pits deeper than a boulder's reach allows" % StoneStyles.STYLES[style].name)
 	s.axes = Vector3(rng.randf_range(0.42, 0.62), rng.randf_range(0.24, 0.46), rng.randf_range(0.3, 0.5)) * look.axes
 	for i in rng.randi_range(look.cuts.x, look.cuts.y):
 		var n := Vector3(rng.randfn(), rng.randfn() * 0.6 + 0.25, rng.randfn()).normalized()
