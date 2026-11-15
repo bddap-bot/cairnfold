@@ -18,6 +18,42 @@ class Probe:
 		hands.append_array([main.rig.left.position, main.rig.right.position])
 
 
+const DECODE := """import importlib.util, json, pathlib, sys
+spec = importlib.util.spec_from_file_location('sessions', sys.argv[1])
+sessions = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sessions)
+events = [json.loads(line) for chunk in sorted(pathlib.Path(sys.argv[2]).glob('*.jsonl')) for line in chunk.read_text().splitlines()]
+layout = next(e['input'] for e in events if e['event'] == 'start')
+inputs = sorted((e for e in events if e['event'] == 'input'), key=lambda e: e['first'])
+print(json.dumps([f for e in inputs for f in sessions.frames(e, layout)]))
+"""
+
+
+static func _floats(t: Transform3D) -> Array:
+	return [t.basis.x.x, t.basis.x.y, t.basis.x.z, t.basis.y.x, t.basis.y.y, t.basis.y.z, t.basis.z.x, t.basis.z.y, t.basis.z.z, t.origin.x, t.origin.y, t.origin.z]
+
+
+static func _on(bits: Dictionary) -> Array:
+	return bits.keys().filter(func(name: String) -> bool: return bits[name])
+
+
+static func _as_layout_reads(f: Dictionary) -> Dictionary:
+	var hands := []
+	for h: Dictionary in f.hands:
+		hands.append({"pose": _floats(h.pose), "stick": [h.stick.x, h.stick.y], "palm": _floats(h.palm), "inputs": _on(h.held), "flags": _on(h.flags)})
+	return {"delta": f.delta, "head": _floats(f.head), "hands": hands}
+
+
+static func _alike(a: Variant, b: Variant) -> bool:
+	if a is Dictionary and b is Dictionary:
+		return a.keys().all(func(k: Variant) -> bool: return b.has(k)) and b.keys().all(func(k: Variant) -> bool: return a.has(k) and _alike(a[k], b[k]))
+	if a is Array and b is Array:
+		return a.size() == b.size() and range(a.size()).all(func(i: int) -> bool: return _alike(a[i], b[i]))
+	if (a is float or a is int) and (b is float or b is int):
+		return absf(a - b) <= 1e-6 * maxf(1.0, absf(b))
+	return a == b
+
+
 func _initialize() -> void:
 	boot_main()
 	await process_frame
@@ -96,6 +132,15 @@ func _initialize() -> void:
 	var read: Variant = JSON.parse_string(out[0]) if code == 0 else null
 	check(read is Array and read.size() == 1 and int(read[0].replay.frames) == n and int(read[0].replay.missing) == 0 and read[0].replay.start,
 		"scripts/sessions.py reads the record back whole: %s" % [out])
+	var decoded := []
+	code = OS.execute("python3", ["-I", "-c", DECODE, ProjectSettings.globalize_path("res://../scripts/sessions.py"), ProjectSettings.globalize_path(folder)], decoded, true)
+	var frames: Variant = JSON.parse_string(decoded[0]) if code == 0 else null
+	check(frames is Array and frames.size() == n, "scripts/sessions.py decodes every frame by the record's layout: %s" % [decoded[0].left(400)])
+	var misread := 0
+	for i in mini(n, frames.size() if frames is Array else 0):
+		if not _alike(frames[i], _as_layout_reads(Replay.unpack(raw, i))):
+			misread += 1
+	check(misread == 0, "scripts/sessions.py reads each frame's fields as frame() wrote them: %d of %d differ" % [misread, n])
 
 	for name in DirAccess.get_files_at(folder):
 		DirAccess.remove_absolute(folder.path_join(name))
