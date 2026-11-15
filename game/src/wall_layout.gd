@@ -9,6 +9,7 @@ enum Top { CRENEL, CAP, COPE, RAIL }
 enum Cover { OPEN, ROOF, DECK }
 enum GableEnd { WALL, BOARDS, STEPS }
 enum Foundation { STONE, PLASTER, PILLARS, POSTS }
+const STILTS: Array[Foundation] = [Foundation.PILLARS, Foundation.POSTS]
 enum Finish { BARE, PLASTER, TIMBER, BOARDS_ACROSS, BOARDS_UPRIGHT }
 
 const COURSE := 0.3
@@ -1863,6 +1864,10 @@ static func suits(f: Finish, is_fence: bool) -> bool:
 	return not is_fence or f == Finish.BARE or boards(f)
 
 
+static func foundations(is_fence: bool, stilts: bool) -> Array:
+	return Foundation.values().filter(func(f: Foundation) -> bool: return (f == Foundation.STONE or not is_fence) and (stilts or f not in STILTS))
+
+
 ## The first course stays stone, as under plaster.
 func boards_at(y: float) -> bool:
 	return boarded() and y > 0.0
@@ -2227,7 +2232,7 @@ func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator
 
 static func stilt_span(kind: Foundation, rise: float) -> float:
 	var span := minf(STILT_SPAN, snappedf(rise, COURSE) - COURSE)
-	return span if kind in [Foundation.PILLARS, Foundation.POSTS] and span > 2.0 * COURSE - 1e-4 else 0.0
+	return span if kind in STILTS and span > 2.0 * COURSE - 1e-4 else 0.0
 
 
 func stilted() -> bool:

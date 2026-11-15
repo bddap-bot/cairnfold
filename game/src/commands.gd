@@ -388,9 +388,7 @@ static func _wall(d: Variant) -> Variant:
 	if not _in(wear, Vector2(0.0, 1.0)) or (wear > 0.0 and finish != WallLayout.Finish.PLASTER):
 		return null
 	var foundation: Variant = d.get("foundation")
-	if typeof(foundation) != TYPE_INT or foundation < 0 or foundation >= WallLayout.Foundation.size() or (foundation != WallLayout.Foundation.STONE and d.fence):
-		return null
-	if foundation > WallLayout.Foundation.PLASTER and not d.closed:
+	if typeof(foundation) != TYPE_INT or not foundation in WallLayout.foundations(d.fence, d.closed):
 		return null
 	var planks: Variant = d.get("planks")
 	if typeof(planks) != TYPE_BOOL:

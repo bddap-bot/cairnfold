@@ -7,7 +7,7 @@ const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const TAP_SECONDS := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
-const FIELDS := {Restyle.GABLE: "gable_end", Restyle.TOP: "top", Restyle.STONE: "style", Restyle.PATH: "surface", Restyle.FOUNDATION: "foundation"}
+const FIELDS := {Restyle.GABLE: "gable_end", Restyle.TOP: "top", Restyle.STONE: "style", Restyle.PATH: "surface"}
 ## Per choice: (WallLayout.Finish, plaster wear).
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
 enum Floor { FLAGS, PLANKS }
@@ -162,10 +162,9 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	if restyle == Restyle.FACE and point.y < wall.layout.point_at(wall.layout.closest_s(point)).y:
 		restyle = Restyle.FOUNDATION
-	var count := styles(restyle)
-	if restyle == Restyle.FOUNDATION and not (wall.layout.floored() and wall.layout.supports.is_empty()):
-		count = WallLayout.Foundation.PILLARS
-	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(count)
+	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(styles(restyle))
+	if restyle == Restyle.FOUNDATION:
+		options = WallLayout.foundations(wall.layout.fence, wall.layout.floored() and wall.layout.supports.is_empty())
 	if restyle == Restyle.FACE:
 		options = options.filter(func(i: int) -> bool: return _faces(wall, int(FACES[i].x) as WallLayout.Finish))
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
@@ -323,6 +322,8 @@ func _now(w: Wheel) -> int:
 			return w.target.options.find(WallTool.roof_style(d))
 		Restyle.DECORATION:
 			return w.target.options.find(d.style)
+		Restyle.FOUNDATION:
+			return w.target.options.find(d.foundation)
 		Restyle.FLOOR:
 			return Floor.PLANKS if d.planks else Floor.FLAGS
 		Restyle.WINDOW:
@@ -344,6 +345,8 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"rail": StairLayout.RAILS[pick]}
 		Restyle.DECORATION:
 			return {"style": w.target.options[pick]}
+		Restyle.FOUNDATION:
+			return {"foundation": w.target.options[pick]}
 		Restyle.FLOOR:
 			return {"planks": pick == Floor.PLANKS}
 		Restyle.WINDOW:
@@ -401,7 +404,7 @@ func close(hand: Hand, released := true) -> void:
 					walls.finish = int(FACES[option].x) as WallLayout.Finish
 					walls.wear = FACES[option].y
 			Restyle.FOUNDATION:
-				walls.foundation = w.dial.pick as WallLayout.Foundation
+				walls.foundation = option as WallLayout.Foundation
 			Restyle.FLOOR:
 				walls.planks = w.dial.pick == Floor.PLANKS
 			Restyle.WINDOW:
