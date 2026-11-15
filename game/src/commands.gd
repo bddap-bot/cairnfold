@@ -16,6 +16,7 @@ const MAX_STROKE := 4000
 const MIN_ROOF_RADIUS := 0.5
 ## Metres: the longest wall, path or flight of stairs; the tools stop growing one there.
 const MAX_LENGTH := 240.0
+const STAIRS_SHORTEST := 0.3
 ## Short of MAX_LENGTH by more than a stroke's last moves and joins add.
 const STROKE_LENGTH := MAX_LENGTH - 16.0
 const MAX_THINGS := 4000
@@ -686,7 +687,7 @@ static func _stairs(d: Dictionary) -> Variant:
 		if not _finite(d.get(key)):
 			return null
 	var length: float = d.a.distance_to(d.b)
-	if length < 0.3 or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH) or not _in(d.get("sag"), Vector2(0.0, StairLayout.SAG_MOST)) or not StairLayout.sag_fits(d.a, d.b, d.sag):
+	if length < STAIRS_SHORTEST or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH) or not _in(d.get("sag"), Vector2(0.0, StairLayout.SAG_MOST)) or not StairLayout.sag_fits(d.a, d.b, d.sag):
 		return null
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null

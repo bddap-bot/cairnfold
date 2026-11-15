@@ -106,6 +106,7 @@ const ROPE := Color(0.62, 0.56, 0.44)
 const WASHING_ARM := 0.45
 const LINTEL_EAR := 0.16
 const LANTERN_OUT := 0.34
+const LANTERN_REACH := THICKNESS * 0.5 + LANTERN_OUT
 const FLAG_POLE := 1.7
 const FLAG_RUN := 4.0
 const FLAG_RUN_ROPE := 1.0
@@ -416,7 +417,7 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
 	var flying := flags.filter(flag_fits)
 	for f in flying:
-		var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
+		var parts := flag(flag_foot(f), frame_at(f).tangent, flag_color(seed, f))
 		_world(parts.pole, POLE, "pole", f)
 		_world(parts.finial, FINIAL, "finial", f)
 		cloths.append(parts.cloth)
@@ -985,6 +986,14 @@ static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: f
 	return out
 
 
+func post_lantern_at(s: float) -> Vector3:
+	return frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25)
+
+
+func flag_foot(s: float) -> Vector3:
+	return frame_at(s).point + Vector3.UP * (height + CAP)
+
+
 ## Points to face +1, as ivy and lanterns call it.
 func _normal(s: float) -> Vector3:
 	return frame_at(s).tangent.cross(Vector3.UP)
@@ -1171,8 +1180,8 @@ static func light_cuts(o: Dictionary, y0: float, h: float) -> PackedVector2Array
 	return out
 
 
-func opening_at(s: float, y: float) -> Dictionary:
-	return _opening_in(apertures, s, y)
+func opening_at(s: float, y: float, arch_inset := 0.0) -> Dictionary:
+	return _opening_in(apertures, s, y, arch_inset)
 
 
 func open_at(s: float, y: float) -> bool:
@@ -1182,9 +1191,9 @@ func open_at(s: float, y: float) -> bool:
 	return false
 
 
-func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
+func _opening_in(list: Array[Dictionary], s: float, y: float, arch_inset := 0.0) -> Dictionary:
 	for o in list:
-		if absf(offset(s, o.s)) < (opening(y, false, o.size) if o.style == Family.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
+		if absf(offset(s, o.s)) < (opening(y, false, o.size) - arch_inset if o.style == Family.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
 			return o
 	return {}
 
@@ -1646,11 +1655,10 @@ func _lay_washing(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void
 
 ## Stands on a post where `out` is zero.
 func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerator) -> void:
-	var reach := THICKNESS * 0.5 + LANTERN_OUT
-	var hang := at + out * reach
+	var hang := at + out * LANTERN_REACH
 	if out.length() > 0.0:
 		var arm := Basis(out, Vector3.UP, out.cross(Vector3.UP))
-		_world(Transform3D(arm.scaled_local(Vector3(reach + 0.04, 0.04, 0.04)), at + out * reach * 0.5 + Vector3.UP * 0.32), IRON, "iron", s)
+		_world(Transform3D(arm.scaled_local(Vector3(LANTERN_REACH + 0.04, 0.04, 0.04)), at + out * LANTERN_REACH * 0.5 + Vector3.UP * 0.32), IRON, "iron", s)
 		_world(Transform3D(Basis().scaled(Vector3(0.02, 0.1, 0.02)), hang + Vector3.UP * 0.26), IRON, "iron", s)
 	var turn := Basis(Vector3.UP, rng.randf() * TAU)
 	_world(Transform3D(turn.scaled_local(Vector3(0.2, 0.05, 0.2)), hang + Vector3.UP * 0.19), IRON, "hood", s)
@@ -1771,7 +1779,7 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 		var s := nearest_post(l.x)
 		if not lit.has(s):
 			lit.append(s)
-			_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
+			_lay_lantern(s, post_lantern_at(s), Vector3.ZERO, rng)
 
 
 func _lay_pales(a: float, b: float, rng: RandomNumberGenerator) -> void:

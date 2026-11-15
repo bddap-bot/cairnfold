@@ -47,7 +47,7 @@ func end(hand: Hand) -> void:
 		return
 	var s: Dictionary = _strokes[hand]
 	_strokes.erase(hand)
-	if s.data.a.distance_to(s.data.b) < 0.3:
+	if s.data.a.distance_to(s.data.b) < Commands.STAIRS_SHORTEST:
 		s.ghost.queue_free()
 		return
 	s.data.on = walls.stair_supports(s.data)

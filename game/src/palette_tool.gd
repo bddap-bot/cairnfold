@@ -7,6 +7,8 @@ const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const TAP_SECONDS := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
+## Each restyle that stores its pick unchanged in one field of the build.
+const FIELDS := {Restyle.GABLE: "gable_end", Restyle.TOP: "top", Restyle.STONE: "style", Restyle.PATH: "surface", Restyle.FOUNDATION: "foundation"}
 ## Per choice: (WallLayout.Finish, plaster wear).
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
 enum Floor { FLAGS, PLANKS }
@@ -313,25 +315,17 @@ func _now(w: Wheel) -> int:
 	var d: Dictionary = world.state[w.of][w.id]
 	if w.target.tool == Hand.Tool.COLOUR:
 		return d.lantern if w.of == "decorations" else d.paint[w.target.element]
+	if FIELDS.has(w.target.restyle):
+		return d[FIELDS[w.target.restyle]]
 	match w.target.restyle:
 		Restyle.RAIL:
 			return StairLayout.RAILS.find(d.rail)
-		Restyle.GABLE:
-			return d.gable_end
 		Restyle.ROOF:
 			return w.target.options.find(WallTool.roof_style(d))
-		Restyle.TOP:
-			return d.top
 		Restyle.DECORATION:
 			return w.target.options.find(d.style)
-		Restyle.STONE:
-			return d.style
-		Restyle.PATH:
-			return d.surface
 		Restyle.FLOOR:
 			return Floor.PLANKS if d.planks else Floor.FLAGS
-		Restyle.FOUNDATION:
-			return d.foundation
 		Restyle.WINDOW:
 			var now := Array(d.openings).filter(func(e: Vector4) -> bool: return e.x == w.target.opening.x and e.y == w.target.opening.y and e.w == w.target.opening.w)
 			return -1 if now.is_empty() else w.target.options.find(WallLayout.WINDOW_FAMILIES.find(int(now[0].z)))
@@ -342,25 +336,17 @@ func _now(w: Wheel) -> int:
 func _data(w: Wheel, pick: int) -> Dictionary:
 	if w.target.tool == Hand.Tool.COLOUR:
 		return {"lantern": pick} if w.of == "decorations" else {"paint": {w.target.element: pick}}
+	if FIELDS.has(w.target.restyle):
+		return {FIELDS[w.target.restyle]: pick}
 	match w.target.restyle:
-		Restyle.GABLE:
-			return {"gable_end": pick}
 		Restyle.ROOF:
 			return WallTool.restyle_roof(world.state.walls[w.id], w.target.options[pick] as WallTool.RoofStyle)
-		Restyle.TOP:
-			return {"top": pick}
 		Restyle.RAIL:
 			return {"rail": StairLayout.RAILS[pick]}
 		Restyle.DECORATION:
 			return {"style": w.target.options[pick]}
-		Restyle.STONE:
-			return {"style": pick}
-		Restyle.PATH:
-			return {"surface": pick}
 		Restyle.FLOOR:
 			return {"planks": pick == Floor.PLANKS}
-		Restyle.FOUNDATION:
-			return {"foundation": pick}
 		Restyle.WINDOW:
 			var after := _refamilied(w.target.wall, w.target.opening, WallLayout.WINDOW_FAMILIES[w.target.options[pick]])
 			return {} if after.is_empty() else {"openings": after}

@@ -157,7 +157,7 @@ func _handle(b: Brush, delta: float) -> void:
 			place(PLACES[held], hit, b.hand)
 		return
 	if held == Hand.Tool.BOULDER:
-		world.preview(b.hand, {"boulder": Budget.boulder(1.0)})
+		world.preview(b.hand, World.units_for("boulders", {"scale": 1.0}))
 		if b.hand.buttons.pressed("tool"):
 			take_boulder(b, hit)
 		return

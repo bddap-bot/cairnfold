@@ -240,6 +240,15 @@ func frame() -> Dictionary:
 	return {"along": along.normalized(), "across": across.normalized(), "mid": Vector3(mid.x, base, mid.z)}
 
 
+## On the plane the roof stands on.
+func spot_point(spot: Vector2) -> Vector3:
+	return on_frame(frame(), spot)
+
+
+static func on_frame(f: Dictionary, spot: Vector2) -> Vector3:
+	return f.mid + f.along * spot.x + f.across * spot.y
+
+
 func eave() -> float:
 	if flat():
 		return half_span()
@@ -579,7 +588,7 @@ func _chimney_rng(i: int) -> RandomNumberGenerator:
 
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var stack: Vector3 = f.mid + f.along * c.x + f.across * c.y
+	var stack := on_frame(f, c)
 	var y := spot_height(c) - 0.3
 	var top := chimney_top(c)
 	var basis := Basis(f.along, Vector3.UP, f.across)
@@ -637,7 +646,7 @@ func hatch_bounds(c: Vector2) -> Array:
 
 func _hatch_frame(spot: Vector2) -> Transform3D:
 	var f := frame()
-	return _on_deck(f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * -DECK_DROP, Basis(f.along, Vector3.UP, f.across))
+	return _on_deck(on_frame(f, spot) + Vector3.UP * -DECK_DROP, Basis(f.along, Vector3.UP, f.across))
 
 
 func _lay_hatch(spot: Vector2, rng: RandomNumberGenerator) -> void:
@@ -1295,7 +1304,7 @@ func _deck_surface() -> PackedVector3Array:
 				var points: Array[Vector3] = []
 				for corner in [Vector2(i, j), Vector2(i + 1, j), Vector2(i + 1, j + 1), Vector2(i, j + 1)]:
 					var p: Vector2 = (corner * 2.0 / n - Vector2.ONE) * reach
-					points.append(f.mid + f.along * p.x + f.across * p.y)
+					points.append(on_frame(f, p))
 				_deck_quad(tris, points)
 	return tris
 

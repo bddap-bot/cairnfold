@@ -367,19 +367,17 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 		"lantern":
 			if layout.fence:
 				what = "post_lantern"
-				at = layout.frame_at(c.value.x).point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25)
+				at = layout.post_lantern_at(c.value.x)
 				face = origin - at
 			else:
 				var f := layout.frame_at(target.s)
 				at = f.point + Vector3.UP * target.y
 				face = f.tangent.cross(Vector3.UP) * target.side
 		"flag":
-			var f := layout.frame_at(target.s)
-			at = f.point + Vector3.UP * (layout.height + WallLayout.CAP)
-			face = f.tangent.cross(Vector3.UP)
+			at = layout.flag_foot(target.s)
+			face = layout._normal(target.s)
 		"chimney":
-			var r := w.roof.frame()
-			at = r.mid + r.along * c.value.x + r.across * c.value.y + Vector3.UP * w.roof.spot_height(c.value)
+			at = w.roof.spot_point(c.value) + Vector3.UP * w.roof.spot_height(c.value)
 			var index := _placed(w, true, "chimneys").size()
 			var height := snappedf(w.roof.chimney_top(c.value) - w.roof.spot_height(c.value), 0.05)
 			# Laid along the roof's own ridge, the ghost needs no turn of its own.
@@ -525,10 +523,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		var v := l.lanterns[i]
 		if not l.lantern_fits(v.x, v.y):
 			continue
-		var f := l.frame_at(l.nearest_post(v.x) if l.fence else v.x)
-		var at: Vector3 = f.point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25 if l.fence else v.y)
-		if not l.fence:
-			at += f.tangent.cross(Vector3.UP) * v.z * (WallLayout.THICKNESS * 0.5 + WallLayout.LANTERN_OUT)
+		var at: Vector3 = l.post_lantern_at(l.nearest_post(v.x)) if l.fence else l.frame_at(v.x).point + Vector3.UP * v.y + l._normal(v.x) * v.z * WallLayout.LANTERN_REACH
 		out.append(_target(w, "lantern", "lanterns", i, v, AABB(at + Vector3(-0.14, -0.1, -0.14), Vector3(0.28, 0.44, 0.28))))
 	for i in l.openings.size():
 		var v := l.openings[i]
@@ -542,8 +537,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 	for i in l.flags.size():
 		var v := l.flags[i]
 		if l.flag_fits(v):
-			var f := l.frame_at(v)
-			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(f.point + Vector3.UP * (l.height + WallLayout.CAP), f.tangent)))
+			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(l.flag_foot(v), l.frame_at(v).tangent)))
 	for i in l.clutter.size():
 		var x: Variant = l.clutter_frame(l.clutter[i], w.terrain.shown_at)
 		if x != null:
@@ -553,7 +547,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		var f := r.frame()
 		for i in r.chimneys.size():
 			var v := r.chimneys[i]
-			var foot: Vector3 = f.mid + f.along * v.x + f.across * v.y
+			var foot := RoofLayout.on_frame(f, v)
 			var surface := r.spot_height(v)
 			var top := r.chimney_top(v) + 0.34
 			var half := (RoofLayout.STACK_WIDTH + 0.14) * 0.5

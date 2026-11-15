@@ -879,8 +879,7 @@ static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.Z
 			roof = RoofLayout.new()
 			roof.corners = [Vector3(-2, 0, -1.5), Vector3(2, 0, -1.5), Vector3(2, 0, 1.5), Vector3(-2, 0, 1.5)]
 		parts = roof.chimney_parts(spot, index)
-		var f := roof.frame()
-		mount = f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * roof.spot_height(spot)
+		mount = roof.spot_point(spot) + Vector3.UP * roof.spot_height(spot)
 	else:
 		var layout := WallLayout.new()
 		layout.seed = 5
@@ -911,7 +910,7 @@ static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.Z
 			"lantern":
 				mount = Vector3(0, 1.5, 0)
 			"post_lantern":
-				mount = layout.frame_at(s).point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25)
+				mount = layout.post_lantern_at(s)
 			"flag":
 				mount = Vector3(0, layout.height + WallLayout.CAP, 0)
 	var kept: Array[Dictionary] = []

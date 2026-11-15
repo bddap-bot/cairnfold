@@ -127,7 +127,7 @@ func _recount() -> Dictionary:
 	var cells := {}
 	for of in ["walls", "stairs", "paths", "grounds"]:
 		for d: Dictionary in world.state[of].values():
-			Budget.add(out, World._units(of, d))
+			Budget.add(out, World.units_for(of, d))
 			World._add_cells(cells, World._spread(of, d))
 	Budget.add(out, _near(cells))
 	for g in world.state.groups:

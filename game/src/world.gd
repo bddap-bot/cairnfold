@@ -140,11 +140,11 @@ func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 	match cmd.get("op"):
 		"wall":
 			for w: Dictionary in cmd.walls:
-				Budget.add(out, _units("walls", w))
+				Budget.add(out, units_for("walls", w))
 				_add_cells(cells, _spread("walls", w))
 		"stairs", "path", "ground", "easel", "decoration", "boulder":
 			var of: String = Commands.PUTS.find_key(cmd.op)
-			Budget.add(out, _units(of, cmd))
+			Budget.add(out, units_for(of, cmd))
 			_add_cells(cells, _spread(of, cmd))
 		"take":
 			for id in cmd.ids:
@@ -155,7 +155,7 @@ func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 			if state[cmd.of].has(cmd.id):
 				var trial := reshaped(state[cmd.of][cmd.id], cmd.data)
 				var key: String = _keys(cmd)[0]
-				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(key, {}), -1.0)
+				Budget.add(Budget.add(out, units_for(cmd.of, trial)), _units_of.get(key, {}), -1.0)
 				_add_cells(_add_cells(cells, _spread(cmd.of, trial)), _cells_of.get(key, {}), -1.0)
 		"plant":
 			var n := 1
@@ -770,7 +770,7 @@ static func _spread(of: String, d: Dictionary) -> Dictionary:
 	return {}
 
 
-static func _units(of: String, d: Dictionary) -> Dictionary:
+static func units_for(of: String, d: Dictionary) -> Dictionary:
 	match of:
 		"walls":
 			return Budget.wall(d)
@@ -921,7 +921,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				_floor_mark(cmd.id)
 			elif views[cmd.of] != null:
 				views[cmd.of].show_reshaped(cmd.id)
-			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
+			_account(_keys(cmd)[0], units_for(cmd.of, now), _spread(cmd.of, now))
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs", "path", "easel", "decoration", "boulder":
 			inverse = _add(Commands.PUTS.find_key(cmd.op), cmd.id, Commands.build_of(cmd))
@@ -1156,7 +1156,7 @@ func _add(of: String, id: int, entry: Dictionary) -> Dictionary:
 
 func _built(of: String, ids: PackedInt32Array) -> Dictionary:
 	for id in ids:
-		_account("%s%d" % [KEYS[of], id], _units(of, state[of][id]), _spread(of, state[of][id]))
+		_account("%s%d" % [KEYS[of], id], units_for(of, state[of][id]), _spread(of, state[of][id]))
 	return {"op": "take", "of": of, "ids": ids}
 
 

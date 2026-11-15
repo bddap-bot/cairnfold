@@ -194,7 +194,7 @@ func _aim_ground(p: Painter) -> void:
 	var yaw := Easels.facing(hit, rig.head.global_position)
 	p.ghost.visible = true
 	p.ghost.global_transform = easels.on_ground(hit, yaw)
-	world.preview(p.hand, {"easel": 1})
+	world.preview(p.hand, World.units_for("easels", {}))
 	if p.hand.buttons.pressed("tool"):
 		place(hit, yaw, p.hand)
 
