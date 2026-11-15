@@ -141,7 +141,7 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		out.colorBySpeed = {"range": _speed_range(colour_by.get("range")), "color": _gradient(colour_by.get("color"))}
 	var subs := []
 	for sub: Variant in s.get("subEmitters", []) if s.get("subEmitters") is Array else []:
-		if sub is Dictionary and ExpressionDefinition._index(sub.get("system"), systems) and sub.get("on") in ["birth", "death"] and subs.size() < MAX_SUB_EMITTERS:
+		if sub is Dictionary and ExpressionDefinition.is_index(sub.get("system"), systems) and sub.get("on") in ["birth", "death"] and subs.size() < MAX_SUB_EMITTERS:
 			var inherit: Array = sub.get("inherit") if sub.get("inherit") is Array else []
 			subs.append({"system": int(sub.system), "on": sub.on, "inherit": inherit.filter(func(p: Variant) -> bool: return p in ["color", "size", "rotation", "lifetime"])})
 	out.subEmitters = subs
@@ -157,7 +157,7 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		"materials": [],
 	}
 	if renderer.mode == "mesh":
-		if ExpressionDefinition._index(r.get("mesh"), meshes.size()):
+		if ExpressionDefinition.is_index(r.get("mesh"), meshes.size()):
 			renderer.mesh = int(r.mesh)
 		else:
 			renderer.draw = false
@@ -173,7 +173,7 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		var uv: Variant = m.get("uv")
 		material.uv = Vector4(uv[0], uv[1], uv[2], uv[3]) if uv is Array and uv.size() == 4 and uv.all(_finite) else Vector4(1, 1, 0, 0)
 		if m.has("image"):
-			if not ExpressionDefinition._index(m.image, textures.size()) or textures[int(m.image)] == null:
+			if not ExpressionDefinition.is_index(m.image, textures.size()) or textures[int(m.image)] == null:
 				return {}
 			material.texture = textures[int(m.image)]
 		renderer.materials.append(material)
@@ -220,7 +220,7 @@ static func _mesh(m: Variant) -> ArrayMesh:
 		return null
 	var p: Array = m.positions
 	var count := p.size() / 3
-	if p.size() % 3 != 0 or count > MAX_VERTICES or not p.all(_finite) or not m.indices.all(func(i: Variant) -> bool: return ExpressionDefinition._index(i, count)) or m.indices.size() % 3 != 0:
+	if p.size() % 3 != 0 or count > MAX_VERTICES or not p.all(_finite) or not m.indices.all(func(i: Variant) -> bool: return ExpressionDefinition.is_index(i, count)) or m.indices.size() % 3 != 0:
 		return null
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

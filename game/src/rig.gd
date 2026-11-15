@@ -173,8 +173,8 @@ func pose_body() -> void:
 func _note_wrists() -> void:
 	for s in 2:
 		var h := hands[s]
-		var key := h._palm_noted + (" shaped" if not h.shaped.is_empty() else "")
-		if h._palm_noted == "" or _wrists_noted[s].has(key) or h.held_still or h.bare:
+		var key := h.palm_noted + (" shaped" if not h.shaped.is_empty() else "")
+		if h.palm_noted == "" or _wrists_noted[s].has(key) or h.held_still or h.bare:
 			continue
 		_wrists_noted[s][key] = true
 		var wrist := body.bone(["leftHand", "rightHand"][s]).origin
@@ -185,7 +185,7 @@ func _note_wrists() -> void:
 		if not h.shaped.is_empty():
 			var joint: Vector3 = (h.shaped[HandShape.WRIST] as Transform3D).origin
 			real = "the runtime's wrist %.0f mm from the avatar's and %.0f mm from the aim" % [mm.call(joint, wrist), mm.call(joint, aim.origin)]
-		Metrics.note("wrist: %s on %s, %.0f mm from the palm; %s" % [h.tracker, h._palm_noted, mm.call(wrist, palm.origin), real])
+		Metrics.note("wrist: %s on %s, %.0f mm from the palm; %s" % [h.tracker, h.palm_noted, mm.call(wrist, palm.origin), real])
 
 
 func bare() -> bool:

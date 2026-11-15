@@ -35,7 +35,7 @@ static func valid(data: Dictionary) -> bool:
 		if not c is Dictionary or not _number(c.get("length", 0.0)) or not c.get("curves", []) is Array:
 			return false
 		for curve: Variant in c.get("curves", []):
-			if not curve is Dictionary or not _index(curve.get("target"), targets.size()) or not curve.get("keys") is Array:
+			if not curve is Dictionary or not is_index(curve.get("target"), targets.size()) or not curve.get("keys") is Array:
 				return false
 			if not curve.keys.all(_key):
 				return false
@@ -43,7 +43,7 @@ static func valid(data: Dictionary) -> bool:
 		if not l is Dictionary or not l.get("states") is Array or not _number(l.get("weight", 1.0)):
 			return false
 		var count: int = l.states.size()
-		if count > 0 and not _index(l.get("default", 0), count):
+		if count > 0 and not is_index(l.get("default", 0), count):
 			return false
 		if not _transitions(l.get("any", []), count) or not _transitions(l.get("entry", []), count):
 			return false
@@ -61,7 +61,7 @@ static func valid(data: Dictionary) -> bool:
 		if not s is Dictionary or not s.get("when") is Array:
 			return false
 		for condition: Variant in s.when:
-			if not _numbers(condition, 2) or not _index(condition[0], targets.size()):
+			if not _numbers(condition, 2) or not is_index(condition[0], targets.size()):
 				return false
 	for shown: Dictionary in data.get("shown", []):
 		if not _node(shown.get("node")):
@@ -121,7 +121,7 @@ static func looks_valid(looks: Variant) -> bool:
 		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
 			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
 			return false
-		if glow != null and glow.get("theme") != null and not (_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
+		if glow != null and glow.get("theme") != null and not (is_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
 			return false
 		var matcaps: Variant = m.get("matcaps", [])
@@ -236,7 +236,7 @@ static func _whole(v: Variant) -> bool:
 	return _number(v) and float(v) == floorf(float(v)) and v >= 0
 
 
-static func _index(v: Variant, size: int) -> bool:
+static func is_index(v: Variant, size: int) -> bool:
 	return _whole(v) and v < size
 
 
@@ -272,7 +272,7 @@ static func _motion(m: Variant, clips: int) -> bool:
 	if not m is Dictionary:
 		return false
 	if m.has("clip"):
-		return _index(m.clip, clips) and m.get("time", "") is String
+		return is_index(m.clip, clips) and m.get("time", "") is String
 	if not m.get("normalized", false) is bool:
 		return false
 	if not m.get("children", []) is Array or not m.get("parameters", []) is Array or not m.get("parameters", []).all(func(v: Variant) -> bool: return v is String):
@@ -294,7 +294,7 @@ static func _transitions(list: Variant, states: int) -> bool:
 	if not list is Array:
 		return false
 	for t: Variant in list:
-		if not t is Dictionary or not _number(t.get("to")) or (t.to != -1 and not _index(t.to, states)) or not t.get("conditions", []) is Array or not _number(t.get("exitTime", 0.0)):
+		if not t is Dictionary or not _number(t.get("to")) or (t.to != -1 and not is_index(t.to, states)) or not t.get("conditions", []) is Array or not _number(t.get("exitTime", 0.0)):
 			return false
 		for c: Variant in t.get("conditions", []):
 			if not c is Dictionary or not c.get("parameter") is String or c.get("mode") not in ["if", "ifNot", "greater", "less", "equals", "notEqual"] or not _number(c.get("threshold", 0.0)):
@@ -310,22 +310,22 @@ static func _effect(effect: Variant) -> bool:
 	if effect.has("morph"):
 		return effect.morph is Array and effect.morph.all(func(b: Variant) -> bool: return b is Array and b.size() == 2 and _node(b[0]) and _node(b[1]))
 	if effect.has("scale"):
-		return effect.scale is Dictionary and _node(effect.scale.get("node")) and _index(effect.scale.get("axis"), 3)
+		return effect.scale is Dictionary and _node(effect.scale.get("node")) and is_index(effect.scale.get("axis"), 3)
 	if effect.has("material"):
 		return effect.material is Dictionary and _node(effect.material.get("node")) and effect.material.get("choices") is Array and not effect.material.choices.is_empty() and effect.material.choices.all(func(c: Variant) -> bool: return _numbers(c, 4))
 	if effect.has("rotation"):
 		var rest: Variant = effect.rotation.get("rest") if effect.rotation is Dictionary else null
-		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and _index(effect.rotation.get("axis"), rest.size())
+		return rest is Array and (_numbers(rest, 3) or _numbers(rest, 4)) and _node(effect.rotation.get("node")) and is_index(effect.rotation.get("axis"), rest.size())
 	if effect.has("parameter"):
 		return effect.parameter is String
 	if effect.has("constraint"):
 		return effect.constraint is Dictionary and _node(effect.constraint.get("node"))
 	if effect.has("particle"):
 		var p: Variant = effect.particle
-		return p is Dictionary and _whole(p.get("system")) and p.get("field") in PARTICLE_FIELDS and p.get("end", "both") in ["min", "max", "both"] and _index(p.get("channel", 0), 3 if p.field == "emission" else 4)
+		return p is Dictionary and _whole(p.get("system")) and p.get("field") in PARTICLE_FIELDS and p.get("end", "both") in ["min", "max", "both"] and is_index(p.get("channel", 0), 3 if p.field == "emission" else 4)
 	if effect.has("translation"):
 		return effect.translation is Dictionary and _node(effect.translation.get("node")) and _numbers(effect.translation.get("direction"), 3)
 	var kind: String = effect.keys()[0]
 	if kind in REGIONS and effect[kind] is Array:
-		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and _index(r.get("channel", 0), 4 if kind == "tone" else 3) and _numbers(r.get("color", [1, 1, 1]), 3) and _index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and _index(r.get("image", 0), 1 << 16) and _blend(r) and _hue(r))
+		return effect[kind].all(func(r: Variant) -> bool: return r is Dictionary and _node(r.get("node")) and _numbers(r.get("rect"), 4) and _number(r.get("space", 0.0)) and _number(r.get("shift", 1.0)) and is_index(r.get("channel", 0), 4 if kind == "tone" else 3) and _numbers(r.get("color", [1, 1, 1]), 3) and is_index(r.get("slot", 0), 4) and _number(r.get("alpha", 1.0)) and is_index(r.get("image", 0), 1 << 16) and _blend(r) and _hue(r))
 	return false

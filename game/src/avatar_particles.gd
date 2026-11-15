@@ -88,7 +88,7 @@ func _init(definition: Dictionary, skeleton: Skeleton3D, expressions: Expression
 		s.bone = skeleton.find_bone(d.node)
 		_systems.append(s)
 	for p: Dictionary in data.get("particles", []):
-		if ExpressionDefinition._index(p.system, _systems.size()):
+		if ExpressionDefinition.is_index(p.system, _systems.size()):
 			_systems[int(p.system)].when = p.when
 	for s in _systems:
 		for sub: Dictionary in s.definition.subEmitters:
@@ -97,7 +97,7 @@ func _init(definition: Dictionary, skeleton: Skeleton3D, expressions: Expression
 	var targets: Array = data.get("targets", [])
 	for i in targets.size():
 		var effect: Variant = targets[i].get("effect")
-		if effect is Dictionary and effect.has("particle") and ExpressionDefinition._index(effect.particle.system, _systems.size()):
+		if effect is Dictionary and effect.has("particle") and ExpressionDefinition.is_index(effect.particle.system, _systems.size()):
 			_effects.append([i, effect.particle])
 	_applied.resize(targets.size())
 	_applied.fill(NAN)

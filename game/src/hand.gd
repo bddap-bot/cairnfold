@@ -70,7 +70,7 @@ var flick := ""
 var picking := false
 var world: World
 var _profile := ""
-var _palm_noted := ""
+var palm_noted := ""
 ## "grip_surface" or "grip".
 var palm_from := ""
 ## The runtime's joints shaped from the controller, else empty; the log measures the avatar's wrist against them.
@@ -541,10 +541,10 @@ func _read_palm() -> void:
 		palm_from = "grip"
 	else:
 		return
-	if _profile != "" and _palm_noted != _profile + " " + palm_from:
-		_palm_noted = _profile + " " + palm_from
+	if _profile != "" and palm_noted != _profile + " " + palm_from:
+		palm_noted = _profile + " " + palm_from
 		var s := (get_parent() as XROrigin3D).world_scale if get_parent() is XROrigin3D else 1.0
-		Metrics.note("palm: %s on %s, %s m from the aim, turned %.0f degrees" % [tracker, _palm_noted, palm.origin / s, rad_to_deg(palm.basis.get_rotation_quaternion().get_angle())])
+		Metrics.note("palm: %s on %s, %s m from the aim, turned %.0f degrees" % [tracker, palm_noted, palm.origin / s, rad_to_deg(palm.basis.get_rotation_quaternion().get_angle())])
 
 
 func _pose_tracker() -> XRPositionalTracker:
