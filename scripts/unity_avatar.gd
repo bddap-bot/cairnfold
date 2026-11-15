@@ -918,8 +918,7 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 					binding = {"space": 2.0 if mobile else str(floats.get("_MainHueShiftColorSpace", "0")).to_float(), "shift": str(floats.get("_MainHueShiftSelectOrShift", "1")).to_float()}
 					materials.hue_masks[key] = true
 				rest = saved
-			var cell: Rect2 = Rect2(material.cell)
-			binding.rect = [cell.position.x / materials.atlas_side, cell.position.y / materials.atlas_side, cell.end.x / materials.atlas_side, cell.end.y / materials.atlas_side]
+			binding.rect = materials.rect(material)
 			for m: Dictionary in meshes:
 				if renderer in m.renderers:
 					var region := binding.duplicate(true)

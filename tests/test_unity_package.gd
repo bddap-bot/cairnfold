@@ -2160,6 +2160,7 @@ func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
 	var fields: Array = data.targets.map(func(t: Dictionary) -> Array: return [t.effect.look[0].field, t.effect.look[0].slot, t.default])
 	check(fields == [["themeHue", 0, 0.25], ["themeValue", 0, 0.0], ["themeSpeed", 0, 0.0], ["themeHue", 1, 0.0]], "the offsets of the themes the emission and a matcap are drawn in bind at their saved values, a theme nothing is drawn in not: %s" % [fields])
 	var entries: Array = data.get("looks", {}).get("materials", [])
+	check(not ExpressionPlayer._glow({}, data.targets[0].effect.look[0], data.get("looks", {})).is_empty(), "the hue offset's region is the rect of the look it turns: %s" % [data.targets[0].effect.look[0].rect])
 	var glow: Variant = entries[0].emission if entries.size() == 1 else null
 	var themes: Variant = entries[0].get("themes") if entries.size() == 1 else null
 	check(glow is Dictionary and glow.get("theme") == 0, "the emission names the theme it is drawn in: %s" % [glow])

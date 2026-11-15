@@ -497,6 +497,11 @@ func place(key: String, uv: Vector2) -> Array:
 	return [(Vector2(cell.position) + Vector2(u.x, 1.0 - u.y) * Vector2(cell.size)) / atlas_side, not inside]
 
 
+func rect(m: Dictionary) -> Array:
+	var cell := Rect2(m.cell)
+	return [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side]
+
+
 func moved(from: String, to: String) -> Array:
 	var affine := func(key: String) -> Array:
 		var m: Dictionary = materials[key]
@@ -1462,8 +1467,7 @@ func looks() -> Dictionary:
 		if light.get("shadow") != null:
 			shaded.append(m)
 			second_shaded = second_shaded or light.shadow.second != null
-		var cell := Rect2(m.cell)
-		var entry := {"rect": [cell.position.x / atlas_side, cell.position.y / atlas_side, cell.end.x / atlas_side, cell.end.y / atlas_side], "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
+		var entry := {"rect": rect(m), "decals": decals.map(func(d: Dictionary) -> Variant: return null if d.is_empty() else d), "matcaps": drawn_matcaps, "emission": null if glows.is_empty() else glows, "lighting": light}
 		var themed: Array = drawn_matcaps.filter(func(c: Variant) -> bool: return c is Dictionary and c.theme != null).map(func(c: Dictionary) -> int: return c.theme)
 		if glows.get("theme") != null:
 			themed.append(glows.theme)
