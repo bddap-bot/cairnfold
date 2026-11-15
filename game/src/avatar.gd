@@ -34,6 +34,7 @@ const DIELECTRIC := 0.220916301
 const FALLBACK_SIDE := 256
 const FALLBACK_LEVELS := 7
 const FALLBACK_RANGE := 128.0
+const FALLBACK_GREY := 0.214
 ## The material index changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## What a Quest 2's game and seven heavy avatars need besides textures: it leaves each the 8.4 million texels seven ran

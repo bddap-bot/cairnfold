@@ -508,7 +508,7 @@ static func coat_fallbacks(stacks: Array) -> Texture2DArray:
 	var layers: Array[Image] = []
 	for stack: Variant in stacks:
 		var layer := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBH)
-		layer.fill(Color(0.214, 0.214, 0.214))
+		layer.fill(Color(Avatar.FALLBACK_GREY, Avatar.FALLBACK_GREY, Avatar.FALLBACK_GREY))
 		if stack is Image and (stack as Image).get_size() == size:
 			var encoded := (stack as Image).duplicate() as Image
 			encoded.convert(Image.FORMAT_RGBA8)
