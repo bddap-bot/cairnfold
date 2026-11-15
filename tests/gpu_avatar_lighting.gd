@@ -47,7 +47,7 @@ func _run() -> void:
 	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
 	env.ambient_light_color = Color.BLACK
-	for model: String in ["coat", "masked", "unmasked", "world", "fallback", "unlit fallback", "forced", "flat fallback", "sharp", "widened", "glancing", "occluded", "matcap", "matcap masked"]:
+	for model: String in ["coat", "masked", "unmasked", "world", "fallback", "unlit fallback", "forced", "flat fallback", "sharp", "widened", "glancing", "occluded", "matcap", "matcap masked", "no fallback map", "failed fallback map"]:
 		ExpressionPlayer.world_reflects = model in ["coat", "masked", "unmasked", "world", "forced"]
 		RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE * (0.1 if model == "occluded" else 1.0))
 		var coated := _ball(model)
@@ -116,6 +116,10 @@ func _run() -> void:
 	var occluded: Vector2 = shots["occluded"]
 	check(occluded.y < 0.5 * glancing.y and occluded.y > 0.0, "and its exposure occlusion dims it under a dim main light: %s" % occluded)
 	check(forced.distance_to(fallback) < 0.01, "a coat forcing its fallback reflects it though the world has a probe: %s" % forced)
+	var no_map: Vector2 = shots["no fallback map"]
+	var failed_map: Vector2 = shots["failed fallback map"]
+	check(no_map.x > world_lit.x + 0.1 and no_map.y > world_lit.y + 0.1, "a coat whose fallback names no map reflects a grey cube: %s" % no_map)
+	check(failed_map.distance_to(no_map) < 0.005, "and one whose map is no fallback image reflects the same grey: %s beside %s" % [failed_map, no_map])
 	view.queue_free()
 	finish()
 
@@ -174,6 +178,11 @@ func _ball(model: String) -> Node3D:
 		cube.fill(Color(1.0, 1.0, 1.0, 1.0 / 255.0))
 		looks.clearcoatFallbacks = [cube]
 		looks.materials[0].clearcoat = {"strength": 1.0, "smoothness": 1.0, "reflection": 0.25 if model == "flat fallback" else 1.0, "specular": 0.0, "fresnel": 0.0, "gsaa": [0.0, 0.0], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 1.0, 1.0], "st": [1.0, 1.0, 0.0, 0.0], "inverts": [false, false, false, false], "map": -1, "fallback": 0, "litFallback": model != "unlit fallback", "forceFallback": model == "forced", "fresnelStrength": null, "exposureOcclusion": 0.0}
+	if model in ["no fallback map", "failed fallback map"]:
+		var cube := Image.create_empty(256, 896, false, Image.FORMAT_RGBA8)
+		cube.fill(Color(1.0, 1.0, 1.0, 1.0))
+		looks.clearcoatFallbacks = [cube, Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)]
+		looks.materials[0].clearcoat = {"strength": 1.0, "smoothness": 1.0, "reflection": 1.0, "specular": 0.0, "fresnel": 0.0, "gsaa": [0.0, 0.0], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 1.0, 1.0], "st": [1.0, 1.0, 0.0, 0.0], "inverts": [false, false, false, false], "map": -1, "fallback": 2 if model == "no fallback map" else 1, "litFallback": false, "forceFallback": true, "fresnelStrength": null, "exposureOcclusion": 0.0}
 	Avatar._lit_looks(looks, [im])
 	mesh.mesh = im.get_mesh()
 	ball.add_child(mesh)
