@@ -184,6 +184,8 @@ func _an_idle_chain_holds_its_pose() -> void:
 	for i in 60:
 		springs.advance(1.0 / 60.0)
 	check(made[3].global_position.is_equal_approx(stopped), "an idle chain holds the pose it stopped in: %s" % made[3].global_position)
+	springs.advance(0.3)
+	check(made[3].global_position.is_equal_approx(stopped), "a frame long enough to reset the chains running leaves an idle one its pose: %s" % made[3].global_position)
 	check(springs.state().is_empty() and springs.point_count() == 0 and springs.apply_state(PackedVector3Array()), "an idle chain sends and takes no points")
 	springs.idle.clear()
 	springs.advance(1.0 / 60.0)

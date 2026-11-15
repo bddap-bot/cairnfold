@@ -524,6 +524,7 @@ static func _rank_springs(root: Node3D) -> void:
 	for i: int in run:
 		for joint: Dictionary in chains[i].joints:
 			moving[joint.node] = true
+	var authored := {}
 	for i in chains.size():
 		if run.has(i):
 			continue
@@ -531,7 +532,9 @@ static func _rank_springs(root: Node3D) -> void:
 			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
 			if not moving.has(joint.node) and not waiting.has(joint.node) and joint.has("settled") and bone >= 0:
 				var rest := sk.get_bone_rest(bone)
-				joint.authored = rest.basis.get_rotation_quaternion()
+				if not authored.has(bone):
+					authored[bone] = rest.basis.get_rotation_quaternion()
+				joint.authored = authored[bone]
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 	springs.springs = chains if root.has_meta("expressions") else range(chains.size()).filter(func(i: int) -> bool: return run.has(i)).map(func(i: int) -> Dictionary: return chains[i])
 
