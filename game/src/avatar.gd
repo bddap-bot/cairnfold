@@ -707,7 +707,8 @@ static func shape(state: GLTFState) -> bool:
 			_plain(m)
 	var expressions: Variant = Vrm.expressions(state)
 	var looks: Variant = expressions.get("looks", {}) if expressions is Dictionary else {}
-	if not ExpressionDefinition.looks_valid(looks):
+	if expressions is Dictionary and not ExpressionDefinition.valid(expressions):
+		print("avatar: refused: its expressions are not ones this reads")
 		return false
 	if looks.has("materials") and not looks.get("index") is Image:
 		push_error("avatar: the looks name materials without the material index they are drawn by")

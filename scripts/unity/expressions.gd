@@ -8,7 +8,6 @@ const CONTROLS := {"101": "button", "102": "toggle", "103": "submenu", "201": "t
 const VALUE_TYPES := ["int", "float", "bool"]
 const ANIMATOR_TYPES := {"1": "float", "3": "int", "4": "bool", "9": "bool"}
 const CONDITIONS := {"1": "if", "2": "ifNot", "3": "greater", "4": "less", "6": "equals", "7": "notEqual"}
-const DRIVES := ["set", "add", "random", "copy"]
 const FX := "5"
 const BUILT_IN := {"IsLocal": 1.0, "VRMode": 1.0, "TrackingType": 3.0, "Grounded": 1.0, "Upright": 1.0}
 const MAX_MENU_DEPTH := 8
@@ -214,7 +213,7 @@ func _drivers(d: Dictionary) -> Array:
 	var out := []
 	for p: Variant in Yaml.list(d.get("parameters")):
 		var drive: int = clampi(str(p.get("type", "0")).to_int(), 0, 3)
-		out.append({"parameter": str(p.get("name", "")), "drive": DRIVES[drive], "value": _float(p.get("value")), "min": _float(p.get("valueMin")), "max": _float(p.get("valueMax"), 1.0), "chance": _float(p.get("chance"), 1.0), "source": str(p.get("source", ""))})
+		out.append({"parameter": str(p.get("name", "")), "drive": ExpressionDefinition.DRIVES[drive], "value": _float(p.get("value")), "min": _float(p.get("valueMin")), "max": _float(p.get("valueMax"), 1.0), "chance": _float(p.get("chance"), 1.0), "source": str(p.get("source", ""))})
 	return out
 
 

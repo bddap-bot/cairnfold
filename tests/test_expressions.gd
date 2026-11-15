@@ -101,6 +101,25 @@ func _fx() -> void:
 	state.put("Down", 1)
 	state.advance(0.1)
 	check(state.outputs == [0.0], "and overrides it once its state animates the target")
+	var driven := _definition()
+	driven.layers = [{"weight": 1.0, "default": 0, "states": [
+		{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]},
+		{"motion": {"clip": 0}, "transitions": [], "drivers": [{"parameter": "Pulse", "drive": "add", "value": 2.0}, {"parameter": "Open", "drive": "copy", "source": "Pulse"}]}]}]
+	var counter := ExpressionState.new(driven)
+	counter.put("Pulse", 3)
+	counter.put("Hat", 1)
+	counter.advance(0.1)
+	check(counter.values.Pulse == 5.0 and counter.values.Open == 5.0, "entering a state, an add driver adds to its parameter and a copy driver takes its source's value: %s" % [counter.values])
+	driven.layers[0].states[0].transitions[0].conditions = [{"parameter": "Pulse", "mode": "notEqual", "threshold": 0.0}]
+	check(ExpressionDefinition.valid(driven), "a notEqual condition is one this reads")
+	var unequal := ExpressionState.new(driven)
+	unequal.advance(0.1)
+	var stayed: Array = unequal.states.duplicate()
+	unequal.put("Pulse", 1)
+	unequal.advance(0.1)
+	check(stayed == [0] and unequal.states == [1], "and holds once its parameter leaves the threshold: %s then %s" % [stayed, unequal.states])
+	driven.layers[0].states[1].drivers[0].drive = "increase"
+	check(not ExpressionDefinition.valid(driven), "a driver of a kind this does not run is no definition")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, false) == 0.25, "continuous curves interpolate")
 	check(ExpressionState.sample([[0, 0], [1, 1]], 0.25, true) == 0.0, "switch curves stay stepped")
 	var timed := _definition()
@@ -700,6 +719,14 @@ func _looks_need_their_index_and_shades() -> void:
 	Vrm.write(model, "user://unindexed.vrm")
 	model.free()
 	check(Avatar.read(FileAccess.get_file_as_bytes("user://unindexed.vrm")) == null, "a file whose looks name materials without their index is refused")
+	var misread := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
+	misread.set_meta("springs", {})
+	var unknown: Dictionary = preload("res://demo/expressions.gd").definition()
+	unknown.layers[0].states[0].transitions = [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "almost"}]}]
+	misread.set_meta("expressions", unknown)
+	Vrm.write(misread, "user://misread.vrm")
+	misread.free()
+	check(Avatar.read(FileAccess.get_file_as_bytes("user://misread.vrm")) == null, "a file whose expressions this cannot read is refused, not worn without them")
 	var shadowed := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
 	shadowed.set_meta("springs", {})
 	var shaded: Dictionary = preload("res://demo/expressions.gd").definition()

@@ -7,6 +7,7 @@ const REGIONS := ["hue", "color", "tone", "look"]
 const DECAL_BLENDS: Array[int] = [0, 1, 2, 5, 6, 7, 8, 9, 20]
 
 const PARTICLE_FIELDS := ["rate", "distance", "speed", "size", "lifetime", "gravity", "color", "material", "tint", "emission"]
+const DRIVES := ["set", "add", "random", "copy"]
 
 
 ## "" for an effect that animates no region.
@@ -51,7 +52,7 @@ static func valid(data: Dictionary) -> bool:
 			if not s is Dictionary or not _number(s.get("speed", 1.0)) or not _motion(s.get("motion", {}), clips.size()) or not _transitions(s.get("transitions", []), count) or not s.get("drivers", []) is Array:
 				return false
 			for driver: Variant in s.get("drivers", []):
-				if not driver is Dictionary or not driver.get("parameter") is String or not driver.get("source", "") is String:
+				if not driver is Dictionary or not driver.get("parameter") is String or not driver.get("source", "") is String or driver.get("drive", "set") not in DRIVES:
 					return false
 				for key: String in ["value", "min", "max", "chance"]:
 					if not _number(driver.get(key, 0.0)):

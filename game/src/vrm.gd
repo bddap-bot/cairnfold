@@ -88,7 +88,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	for index: int in spring_nodes(springs):
 		_bind(found, "spring_" + str(index), float(index), state, root)
 	var expressions: Variant = expressions(state)
-	if expressions is Dictionary and ExpressionDefinition.valid(expressions):
+	if expressions is Dictionary:
 		root.set_meta("expressions", _named(expressions, state))
 	if exts.get(PARTICLES) is Dictionary:
 		root.set_meta("particles", _particles(exts[PARTICLES], state))
