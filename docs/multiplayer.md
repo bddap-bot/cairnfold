@@ -286,11 +286,12 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   and grab movement and posing dropped, and their
   colliders spring colliders, an inside or plane one through `VRMC_springBone_extended_collider`. The file keeps every chain;
   an avatar simulates its longest, in metres from root to tip, within 60 joints, whatever file it came from (each
-  joint costs the Quest 2's CPU every frame), those moving a mesh shown now first, chosen again whenever the menu
-  shows or hides a mesh or switches a PhysBone. A chain left out holds the pose it stopped in. A PhysBone the
-  controller switches off holds its pose too and takes none of the joints; switched on, it swings about the pose it was
-  left in, and one the controller's first state switches off has taken three steps before that, as VRChat runs every
-  PhysBone before that state reaches it. Ranked by joint count, a
+  joint costs the Quest 2's CPU every frame), those moving a mesh the menu shows first. The choice is made again
+  whenever the menu shows or hides a mesh or switches a PhysBone, and a chain left out holds the pose it stopped in.
+  A PhysBone the controller switches off holds its pose and takes none of the 60 joints. Switched on, it swings about
+  the pose it was left in. A PhysBone the controller's first state switches off is first simulated for three 60 Hz
+  steps, as VRChat runs every PhysBone before that state reaches it. A file with no menu keeps only the chains that
+  run. Ranked by joint count, a
   corpus avatar's ten-joint hair strands of 0.15 m took the budget from its hanging panels of four and five joints
   and 0.4 m, so bent knees passed through panels resting in their settled pose; ranked in metres the panels and their
   leg colliders are simulated. The descriptor's view position places

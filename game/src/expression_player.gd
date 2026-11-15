@@ -18,13 +18,15 @@ var springs: SpringRuntime:
 		springs = value
 		for moved: Dictionary in _moved.values():
 			moved.sent = false
-## After a frame that showed or hid a node or changed an output a spring's switch reads.
+## After a frame that showed or hid a node or switched a spring on or off.
 signal switched
 var _shown: Array = []
 ## Per output: its indices into _shown; _shown_at, the value it last showed them at.
 var _shown_by: Array[Array] = []
 var _shown_at: Array[float] = []
+## The outputs the switches of the definition's springs read, and whether each of those springs was on when last looked.
 var _switches_springs := {}
+var _springs_on: Array = []
 var _last: Array[float] = []
 var _materials := {}
 var _regions := {}
@@ -248,7 +250,8 @@ func _process(delta: float) -> void:
 ## `targets`: output indices; null binds every output.
 func apply(targets: Variant = null) -> void:
 	var showing := {}
-	var switching := _frame == 0
+	var switching := false
+	var respring := _frame == 0
 	if _frame == 0:
 		targets = null
 		for k in _shown.size():
@@ -262,7 +265,7 @@ func apply(targets: Variant = null) -> void:
 			_last[i] = v
 		if v != _shown_at[i] and (not _shown_by[i].is_empty() or _switches_springs.has(i)):
 			_shown_at[i] = v
-			switching = true
+			respring = respring or _switches_springs.has(i)
 			for k: int in _shown_by[i]:
 				showing[k] = true
 	_move_bones()
@@ -300,7 +303,14 @@ func apply(targets: Variant = null) -> void:
 				glows.table.set_pixel(column, 1, e.colour)
 			glows.texture.update(glows.table)
 	for k: int in showing:
-		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
+		var node: Node3D = _shown[k].node
+		var shown := shows(state.outputs, _shown[k].when)
+		switching = switching or node.visible != shown
+		node.visible = shown
+	if respring:
+		var on: Array = (state.data.get("springs", []) as Array).map(func(s: Dictionary) -> bool: return shows(state.outputs, s.when))
+		switching = switching or on != _springs_on
+		_springs_on = on
 	if switching:
 		switched.emit()
 

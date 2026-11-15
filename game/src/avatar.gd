@@ -40,8 +40,9 @@ const INDEX_SIDE := 2048
 const MEMORY_FLOOR := 1700 << 20
 ## Counts definition joints, terminal nodes included.
 const MAX_SPRING_JOINTS := 60
-## The 60 Hz steps VRChat's PhysBones take before the controller's first state reaches them, measured on the SDK's
-## simulation: three leave a chain that state switches off within 0.07 cm of where the SDK holds it, none 0.46 cm.
+## The 60 Hz steps a PhysBone takes before the controller's first state reaches it. Three fit the SDK's simulation: a
+## chain that state switches off then rests a mean 0.07 cm from where the SDK holds it, against 0.46 cm with no step,
+## 0.11 with two and 0.25 with five.
 const STARTUP_STEPS := 3
 ## A file asking for more has every system's share cut alike (ParticleDefinition.read).
 const MAX_PARTICLE_SYSTEMS := 64
@@ -475,8 +476,9 @@ static func stopped(moved_by: Array, on: Array) -> Dictionary:
 
 static func _switched_off(root: Node3D) -> void:
 	var data: Dictionary = root.get_meta("expressions", {})
-	var targets: Array = data.get("targets", [])
-	var on := func(s: Dictionary) -> bool: return (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(float(targets[int(w[0])].get("default", 0.0)), float(w[1])))
+	var saved: Array[float] = []
+	saved.assign((data.get("targets", []) as Array).map(func(t: Dictionary) -> float: return float(t.get("default", 0.0))))
+	var on := func(s: Dictionary) -> bool: return ExpressionPlayer.shows(saved, s.when)
 	var colliders := {}
 	for s: Dictionary in data.get("colliders", []):
 		if not on.call(s):
@@ -491,8 +493,9 @@ static func _switched_off(root: Node3D) -> void:
 
 ## Readies every chain for `running`: "length" is metres root to tip at rest, the sway a joint buys, and "drawn_by"
 ## the meshes whose skin or carrier a joint of it moves. A bone only chains that do not run at start move rests at its
-## "settled" rotation (UnityAvatar.settle), as VRChat, running them all, shows it. One the controller's first state
-## switches off keeps its authored rest, which `_prime` runs it from.
+## "settled" rotation (UnityAvatar.settle), as VRChat, running them all, shows it, its joint keeping the "authored"
+## one to swing about once it runs. One the controller's first state switches off keeps its authored rest, which
+## `_prime` runs it from. A file with no menu keeps only the chains that run: nothing can change the choice.
 static func _rank_springs(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var waiting := _still_at_start(root)
@@ -528,8 +531,9 @@ static func _rank_springs(root: Node3D) -> void:
 			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
 			if not moving.has(joint.node) and not waiting.has(joint.node) and joint.has("settled") and bone >= 0:
 				var rest := sk.get_bone_rest(bone)
+				joint.authored = rest.basis.get_rotation_quaternion()
 				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
-	springs.springs = chains
+	springs.springs = chains if root.has_meta("expressions") else range(chains.size()).filter(func(i: int) -> bool: return run.has(i)).map(func(i: int) -> Dictionary: return chains[i])
 
 
 ## The indices of `chains` that run: none `off` holds; of the rest those `drawn` says by index draw a shown mesh first,
@@ -551,9 +555,10 @@ static func running(chains: Array, drawn: Callable, off := {}) -> Dictionary:
 	return run
 
 
-## Chooses again which chains run, from the meshes shown and the PhysBones switched on now: a chain a switch reveals
-## takes the joints of ones it hides, and one left out holds the pose it stopped in. A chain whose PhysBone is switched
-## on again swings about the pose it was left in, as VRChat's does: each time off and on sags it further.
+## Chooses again which chains run, from the meshes the menu shows and the PhysBones it has switched on: a chain a
+## switch reveals takes the joints of the chains that switch hides, and a chain left out holds the pose it stopped in.
+## A chain whose PhysBone is switched on again swings about the pose it was left in, as VRChat's does, so each time it
+## is switched off and on it rests where it last sagged to.
 func _budget() -> void:
 	if springs == null:
 		return
@@ -561,8 +566,8 @@ func _budget() -> void:
 	var off := _off(expressions.state.outputs) if expressions != null else {}
 	var drawn := func(c: int) -> bool:
 		return (sources[c].get("drawn_by", []) as Array).any(func(p: NodePath) -> bool:
-			var mesh := _model.get_node_or_null(p) as Node3D
-			return mesh != null and mesh.is_visible_in_tree())
+			var mesh := _model.get_node_or_null(p)
+			return mesh != null and _shown(mesh, _model))
 	var run := running(sources, drawn, off)
 	springs.idle.clear()
 	for i in springs.chains.size():
@@ -584,20 +589,26 @@ func _off(outputs: Array[float]) -> Dictionary:
 	return stopped(_moved_by, switched.map(func(s: Dictionary) -> bool: return ExpressionPlayer.shows(outputs, s.when)))
 
 
-## Runs the chains the controller's first state switches off for STARTUP_STEPS, as VRChat runs every PhysBone before
-## that state reaches it: such a chain rests clear of its colliders from then on, not in the pose its file drew.
+## Readies `springs`, just made. A joint `_rank_springs` rested at its settled rotation swings about its authored one.
+## The chains the controller's first state switches off take STARTUP_STEPS, as VRChat runs every PhysBone before that
+## state reaches it: such a chain then rests clear of the colliders its authored pose overlaps.
 func _prime() -> void:
+	for chain: Dictionary in springs.chains:
+		for joint: Dictionary in chain.joints:
+			if joint.has("authored"):
+				var rest: Transform3D = joint.rest
+				springs.set_rest(joint.node, Transform3D(Basis(joint.authored as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 	var data: Dictionary = _model.get_meta("expressions", {})
 	if (data.get("springs", []) as Array).is_empty():
 		return
 	var start := ExpressionState.new(data)
 	start.advance(0.0)
-	var off := _off(start.outputs)
-	if off.is_empty():
+	_springs_off = _off(start.outputs)
+	if _springs_off.is_empty():
 		return
 	springs.idle.clear()
 	for i in springs.chains.size():
-		if not off.has(i):
+		if not _springs_off.has(i):
 			springs.idle[i] = true
 	for step in STARTUP_STEPS:
 		springs.advance(SpringRuntime.STEP)
@@ -614,7 +625,7 @@ static func _still_at_start(root: Node3D) -> Dictionary:
 	var still := {}
 	var running := {}
 	for s: Dictionary in switched:
-		var on: bool = (s.when as Array).all(func(w: Array) -> bool: return is_equal_approx(start.outputs[int(w[0])], float(w[1])))
+		var on := ExpressionPlayer.shows(start.outputs, s.when)
 		for j: Variant in s.joints:
 			(running if on else still)[int(j)] = true
 	for j: int in running:

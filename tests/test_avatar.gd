@@ -34,7 +34,9 @@ func _run() -> void:
 	_import_settles_each_spring_chain()
 	_a_later_physbone_over_the_same_bones_is_shadowed()
 	_switched_off_physics_stays_out()
-	await _a_switch_stops_and_restarts_a_chain_as_vrchat_does()
+	await _a_switch_stops_and_restarts_a_chain_as_vrchat_does(false)
+	await _a_switch_stops_and_restarts_a_chain_as_vrchat_does(true)
+	_a_settled_joint_swings_about_its_authored_rotation()
 	_outlined_materials_draw_their_hull()
 	_many_surfaces_draw_with_their_outlines()
 	_read_skins_bind_only_weighed_bones()
@@ -687,6 +689,7 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	var sk: Skeleton3D = root.get_node("Skeleton3D")
 	var turned := func(bone: int) -> bool: return sk.get_bone_rest(bone).basis.get_rotation_quaternion().is_equal_approx(Quaternion(Vector3.RIGHT, 0.5))
 	check(turned.call(1) and turned.call(3 + n - 2), "a bone only chains left out move rests at its settled rotation")
+	check((root.get_meta("springs").springs as Array).size() == 1, "a file with no menu keeps only the chains that run")
 	check(not turned.call(0), "a bone a kept chain moves keeps its own rest")
 	root.free()
 	root = setup.call([[n, 0.1], [2, 0.1], [2, 0.1]])
@@ -696,6 +699,8 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	var bones: Skeleton3D = root.get_node("Skeleton3D")
 	var settled := func(bone: int) -> bool: return bones.get_bone_rest(bone).basis.get_rotation_quaternion().is_equal_approx(Quaternion(Vector3.RIGHT, 0.5))
 	check(not settled.call(n + 1) and settled.call(n + 3), "a chain left out that the controller's first state switches off keeps its authored rest; one it leaves on rests where it settles")
+	var kept: Array = root.get_meta("springs").springs
+	check(kept.size() == 3 and (kept[2].joints[1].get("authored", Quaternion(Vector3.RIGHT, 0.5)) as Quaternion).is_equal_approx(Quaternion.IDENTITY) and not kept[1].joints[1].has("authored"), "a file with a menu keeps every chain, a joint rested where it settles keeping its authored rotation to swing about")
 	root.free()
 	root = setup.call([[3, 0.1], [n - 2, 0.1], [2, 0.1]])
 	Avatar._rank_springs(root)
@@ -742,7 +747,7 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	root.free()
 
 
-func _a_switch_stops_and_restarts_a_chain_as_vrchat_does() -> void:
+func _a_switch_stops_and_restarts_a_chain_as_vrchat_does(early: bool) -> void:
 	var model := Node3D.new()
 	var anchor := Node3D.new()
 	model.add_child(anchor)
@@ -766,24 +771,61 @@ func _a_switch_stops_and_restarts_a_chain_as_vrchat_does() -> void:
 	a.expressions = ExpressionPlayer.new(model)
 	a.expressions.switched.connect(a._budget)
 	model.add_child(a.expressions)
+	if early:
+		a.expressions.state.put("Tail", 1.0)
+		await frames(3)
 	a.springs = SpringRuntime.new(definition, {0: bone, 1: tail, 2: anchor})
 	var authored := tail.global_position
 	a._prime()
 	a._budget()
 	var held := tail.global_position
-	check(held.y > authored.y + 0.005 and held.distance_to(anchor.global_transform * Vector3(0, -0.03, 0.1)) > 0.039, "the start-up steps lift a chain its first state switches off clear of the collider its file's pose overlaps: %s from %s" % [held, authored])
-	check(a.springs.idle.has(0) and Avatar.running([a.springs.chains[0].source], func(_c: int) -> bool: return true, {0: true}).is_empty(), "a chain switched off is idle and takes no joints of the limit")
+	var what := "already on when the springs are made" if early else "off until switched"
+	check(held.y > authored.y + 0.005 and held.distance_to(anchor.global_transform * Vector3(0, -0.03, 0.1)) > 0.039, "%s: the start-up steps lift a chain its first state switches off clear of the collider its authored pose overlaps: %s from %s" % [what, held, authored])
 	a.springs.colliders[0].offset = Vector3(0, -1, 0)
 	a.springs.colliders[0].tail = Vector3(0, -1, 0)
-	for i in 30:
-		a.springs.advance(1.0 / 60.0)
-	check(tail.global_position.is_equal_approx(held), "switched off it holds the pose it stopped in: %s" % tail.global_position)
-	a.expressions.state.put("Tail", 1.0)
-	await frames(3)
-	check(not a.springs.idle.has(0), "the switch turns it on")
+	if not early:
+		check(a.springs.idle.has(0), "a chain switched off is idle")
+		for i in 30:
+			a.springs.advance(1.0 / 60.0)
+		check(tail.global_position.is_equal_approx(held), "switched off it holds the pose it stopped in: %s" % tail.global_position)
+		a.expressions.state.put("Tail", 1.0)
+		await frames(3)
+	check(not a.springs.idle.has(0), "%s: the switch has it running" % what)
 	for i in 120:
 		a.springs.advance(1.0 / 60.0)
-	check(tail.global_position.distance_to(held) < 1e-4, "switched on it swings about the pose it was left in, not the file's: %s, held %s, the file's %s" % [tail.global_position, held, authored])
+	check(tail.global_position.distance_to(held) < 1e-4, "%s: it swings about the pose it was left in, not the authored one: %s, held %s, authored %s" % [what, tail.global_position, held, authored])
+	bone.rotate_x(0.4)
+	a._budget()
+	for i in 240:
+		a.springs.advance(1.0 / 60.0)
+	check(tail.global_position.distance_to(held) < 0.005, "%s: choosing again leaves a running chain its rest: %s, held %s" % [what, tail.global_position, held])
+	a.free()
+	model.free()
+
+
+func _a_settled_joint_swings_about_its_authored_rotation() -> void:
+	var model := Node3D.new()
+	var anchor := Node3D.new()
+	model.add_child(anchor)
+	var bone := Node3D.new()
+	bone.rotation.x = 0.5
+	anchor.add_child(bone)
+	var tail := Node3D.new()
+	tail.position = Vector3(0, 0, 0.1)
+	bone.add_child(tail)
+	root.add_child(model)
+	var physbone := {"version": "1.1", "integration": "simplified", "pull": 0.2, "spring": 0.2, "stiffness": 0.2, "gravity": 0.0, "gravityFalloff": 0.0, "immobile": 0.0, "immobileType": "allMotion", "maxSquish": 0.0, "maxStretch": 0.0, "stretchMotion": 0.0, "radius": [0.0, 0.0]}
+	var definition := SpringDefinition.read({"nodes": [{}, {}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [{"node": 0, "extras": {"physbone": physbone}}, {"node": 1}]}]}}})
+	definition.springs[0].joints[0].authored = Quaternion.IDENTITY
+	var a := Avatar.new()
+	a._model = model
+	a.springs = SpringRuntime.new(definition, {0: bone, 1: tail, 2: anchor})
+	a._prime()
+	a._budget()
+	check(tail.global_position.is_equal_approx(Vector3(0, 0, 0.1).rotated(Vector3.RIGHT, 0.5)), "until it runs the joint shows its settled pose: %s" % tail.global_position)
+	for i in 240:
+		a.springs.advance(1.0 / 60.0)
+	check(tail.global_position.distance_to(Vector3(0, 0, 0.1)) < 1e-3, "with no gravity it swings back to its authored rotation: %s" % tail.global_position)
 	a.free()
 	model.free()
 
@@ -798,6 +840,13 @@ func _switched_off_physics_stays_out() -> void:
 	check(ends == [6, 7], "the chain switched off is out; the one switched on stays, and so does one sharing the first bone of the one off: %s" % [ends])
 	check(springs.all(func(c: Dictionary) -> bool: return c.colliders == [1]), "the collider switched off presses on nothing: %s" % [springs])
 	root.free()
+	var pair := [{"joints": [{"node": 1}, {"node": 2}]}, {"joints": [{"node": 1}, {"node": 2}, {"node": 3}]}]
+	var moved := Avatar.movers(pair, [{"joints": [1, 2]}, {"joints": [1, 2]}, {"joints": [9]}])
+	check(Avatar.stopped(moved, [false, true, false]).is_empty(), "a segment an off PhysBone and an on one both move runs")
+	check(Avatar.stopped(moved, [false, false, false]).keys() == [0], "a chain reaching past its switched-off PhysBone runs; one wholly under it is off")
+	var full := range(Avatar.MAX_SPRING_JOINTS).map(func(i: int) -> Dictionary: return {"node": i})
+	var both := [{"joints": full, "length": 2.0}, {"joints": full, "length": 1.0}]
+	check(Avatar.running(both, func(_c: int) -> bool: return false).keys() == [0] and Avatar.running(both, func(_c: int) -> bool: return false, {0: true}).keys() == [1], "a chain switched off frees its joints for the next")
 
 
 func _outlined_materials_draw_their_hull() -> void:
