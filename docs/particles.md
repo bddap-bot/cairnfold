@@ -97,3 +97,5 @@ avatar; the rest wait for the frames after.
 `tests/test_unity_package.gd` converts a synthetic package with a ParticleSystem and a clip toggling
 and recolouring it. `tests/test_avatar_particles.gd` reads a file through `ParticleDefinition`,
 refuses malformed systems, emits bursts and sub-emitters and switches a system off and on.
+`tests/test_converted_particles.gd` converts a system of each shape, blend and sub-emitter event
+the converter writes and checks the reader keeps it and the simulator emits, draws or fires by it.
