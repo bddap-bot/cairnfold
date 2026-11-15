@@ -37,7 +37,7 @@ float stamp(vec2 p, out float eggs) {
 		float a = float(i) / 14.0 * TAU + 0.12;
 		vec2 c = vec2(cos(a), sin(a)) * 0.31;
 		float side = (i % 2 == 0) ? 1.0 : -1.0;
-		leaves = max(leaves, 1.0 - smoothstep(-0.05, 0.05, ellipse(p, c + vec2(-sin(a), cos(a)) * 0.0 + vec2(cos(a), sin(a)) * 0.035 * side, vec2(0.042, 0.016), a + 1.2 * side) * 4.0));
+		leaves = max(leaves, 1.0 - smoothstep(-0.05, 0.05, ellipse(p, c + vec2(cos(a), sin(a)) * 0.035 * side, vec2(0.042, 0.016), a + 1.2 * side) * 4.0));
 	}
 	vec2 q = p - vec2(0.0, 0.06);
 	float bowl = ellipse(q, vec2(0.0), vec2(0.19, 0.095), 0.0);
