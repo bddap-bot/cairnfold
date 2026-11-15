@@ -1,7 +1,6 @@
 // Water's depth per ground grid point: negative on a pond's shore, Terrain.DRY elsewhere. Depth, not level, so it
 // filters smoothly into the dry ground around a pond. Include after ground.gdshaderinc, whose grid it shares.
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
-// Must match Water.DROWNS.
 const float DROWNS = 0.02;
 
 float water_depth_at(vec2 xz) {

@@ -12,7 +12,7 @@ def numbers(*texts):
 
 
 def shader_const(path, name):
-    return numbers(*re.search(rf'^(?:const \w+ {name} = ([^;]+);|#define {name} (.+))$', (SRC / path).read_text(), re.M).group(1, 2))
+    return numbers(*re.search(rf'^\t?(?:const \w+ {name} = ([^;]+);|#define {name} (.+))$', (SRC / path).read_text(), re.M).group(1, 2))
 
 
 def script_const(path, name):

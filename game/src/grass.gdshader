@@ -92,7 +92,7 @@ void vertex() {
 			VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
 		}
 		NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
-		if (depth > 0.02 && (weed == 0.0 || rank >= weed_keep)) {
+		if (depth > DROWNS && (weed == 0.0 || rank >= weed_keep)) {
 			VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 		}
 	}

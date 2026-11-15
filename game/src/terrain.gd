@@ -340,7 +340,6 @@ static func world_rect(cells: Rect2i) -> Rect2:
 	return Rect2(Vector2(cells.position - Vector2i.ONE) * STEP - Vector2.ONE * SIZE * 0.5, Vector2(cells.size + Vector2i.ONE) * STEP)
 
 
-## Must match ground.gdshaderinc's bell.
 static func bell(t: float) -> float:
 	if t >= 1.0:
 		return 0.0

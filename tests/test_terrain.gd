@@ -10,6 +10,7 @@ func _run() -> void:
 	tool = main.ground_grab
 	_pull_raises_a_smooth_hill()
 	_baking_a_live_hump_moves_nothing()
+	_the_shader_draws_a_hump_with_the_profile_it_bakes()
 	_texture_matches_the_heights()
 	_height_between_grid_points_is_continuous()
 	_pulls_go_as_far_as_the_hand()
@@ -106,6 +107,20 @@ func _pull_raises_a_smooth_hill() -> void:
 	check(absf(terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
 	main.world.undo()
 	check(_all() == original, "undo fills the dig")
+
+
+func _the_shader_draws_a_hump_with_the_profile_it_bakes() -> void:
+	var code := (load("res://src/ground.gdshaderinc") as ShaderInclude).code
+	var body := RegEx.create_from_string("float bell\\(float t\\) {\\s*float s = ([^;]+);\\s*return ([^;]+);\\s*}").search(code)
+	var inner := Expression.new()
+	inner.parse(body.get_string(1), ["t"])
+	var outer := Expression.new()
+	outer.parse(body.get_string(2), ["s"])
+	var worst := 0.0
+	for i in 13:
+		worst = maxf(worst, absf(float(outer.execute([inner.execute([i * 0.1])])) - Terrain.bell(i * 0.1)))
+	check(worst < 1e-6, "ground.gdshaderinc's bell is Terrain.bell, worst %f apart" % worst)
+	check(code.contains("return hump.w * bell(length(p - hump.xy) / hump.z);"), "and it lifts a hump by its height times the bell of the distance over its radius, as Terrain._lift does")
 
 
 func _baking_a_live_hump_moves_nothing() -> void:

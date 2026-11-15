@@ -29,6 +29,7 @@ class Shaders(unittest.TestCase):
             ('expression.gdshaderinc', 'MATCAP_ROWS', script_const('avatar.gd', 'MATCAP_ROWS')),
             ('expression.gdshaderinc', 'HEAD_ROWS', script_const('avatar.gd', 'HEAD_ROWS')),
             ('expression.gdshaderinc', 'MATCAPS', script_const('avatar.gd', 'MATCAPS')),
+            ('expression.gdshaderinc', 'dielectric', script_const('avatar.gd', 'DIELECTRIC')),
             ('conure.gdshader', 'L', script_const('conure.gd', 'ALONG')),
             ('conure.gdshader', 'D', script_const('conure.gd', 'OUT')),
             ('conure.gdshader', 'BODY', script_const('conure.gd', 'BODY')),
@@ -73,10 +74,22 @@ class Shaders(unittest.TestCase):
                 self.assertEqual(named, {name: float(codes[name]) for name in named if name in codes})
         bare = [(f'{shader}.gdshader', r'\bpart [=!<>]=? \d') for shader in animals]
         bare += [('stone.gdshaderinc', r'material - \d'), ('particle.gdshaderinc', r'\b(mode|align) [=!]= \d'), ('expression.gdshaderinc', r'\b(kind|field) == \d')]
-        bare += [('book.gdshader', r'\bkind [=!]= \d'), ('book_paint.gdshader', r'\bpart [=!]= \d'), ('interior.gdshaderinc', r'\brow [=!<>]=? \d|return 0;')]
+        bare += [('book.gdshader', r'\bkind [=!]= \d'), ('book_paint.gdshader', r'\bpart [=!]= \d'), ('interior.gdshaderinc', r'\brow [=!<>]=? \d|return 0;'), ('grass.gdshader', r'\bdepth [<>]=? \d'), ('plant.gdshaderinc', r'\bdepth [<>]=? \d')]
         for shader, code in bare:
             with self.subTest(shader=shader):
                 self.assertNotRegex((SRC / shader).read_text(), code)
+
+    def test_no_script_sets_a_parameter_no_shader_declares(self):
+        declared = set(re.findall(r'^[ \t]*(?:global |instance )?uniform [^;=:\[]*?(\w+)[ \t]*(?:\[\w*\])?[ \t]*[:=;]', '\n'.join(p.read_text() for p in SRC.glob('*.gdshader*')), re.M))
+        for path in sorted(SRC.glob('*.gd')):
+            for name in re.findall(r'(?:shader_parameter|global_shader_parameter_set)\(&?"(\w+)"|"shader_parameter/(\w+)"', path.read_text()):
+                with self.subTest(script=path.name, name=max(name)):
+                    self.assertTrue(max(name) in declared)
+
+    def test_a_dab_is_laid_over_all_it_reaches(self):
+        laid = re.search(r'else ([\d.]+)\) \+ ([\d.]+)$', (SRC / 'canvas.gd').read_text(), re.M)
+        reached = re.search(r'float reach = d\.a\.z \* ([\d.]+) \+ ([\d.]+);', (SRC / 'paint.glsl').read_text())
+        self.assertEqual(laid.groups(), reached.groups())
 
     def test_decal_blends_match_the_definition(self):
         blend = re.search(r'vec3 decal_blend\(.*?\n}', (SRC / 'expression.gdshaderinc').read_text(), re.S).group(0)
