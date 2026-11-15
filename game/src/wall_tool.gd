@@ -852,13 +852,24 @@ static func carry(start: Dictionary, from: Transform3D, to: Transform3D, gain: f
 
 
 static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2:
-	if start.round:
-		return Vector2.ONE * maxf(start.size.x * ratio, HOUSE_SIDE)
-	var across: float = angle(span) - start.yaw
-	var i := 0 if absf(cos(across)) >= absf(sin(across)) else 1
-	var size: Vector2 = start.size
-	size[i] = maxf(size[i] * ratio, HOUSE_SIDE)
+	var grows := Vector2.ONE
+	if not start.round:
+		var across: float = angle(span) - start.yaw
+		grows = Vector2.RIGHT if absf(cos(across)) >= absf(sin(across)) else Vector2.DOWN
+	var kept: Vector2 = start.size * (Vector2.ONE - grows)
+	var size: Vector2 = kept + grows * maxf(start.size[grows.max_axis_index()] * ratio, HOUSE_SIDE)
+	var run := _run_at(start, size)
+	if run <= Commands.MAX_LENGTH:
+		return size
+	var was := _run_at(start, start.size)
+	while run > Commands.MAX_LENGTH and size != start.size:
+		size = start.size + (size - start.size) * maxf(Commands.STRETCH_LENGTH - was, 0.0) / (run - was)
+		run = _run_at(start, size)
 	return size
+
+
+static func _run_at(at: Dictionary, size: Vector2) -> float:
+	return Commands.length(outline(at.merged({"size": size}, true)))
 
 
 ## Grows toward the hand that moved, so a hand held still keeps its wall.
