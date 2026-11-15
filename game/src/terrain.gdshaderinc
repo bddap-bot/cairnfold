@@ -22,6 +22,7 @@ uniform mediump vec3 cliff_dark : source_color = vec3(0.34, 0.32, 0.30);
 uniform mediump vec2 rock_steep;
 // FloraCover, per vertex: rgb half the factor a clump makes of the meadow's colour, a its presence.
 global uniform sampler2D flora_grass : filter_nearest, repeat_disable;
+const float FACTOR_RANGE = 2.0;
 uniform bool far_grass = true;
 // Quality.FULL_LAYER: a camera seeing it draws every clump whole, so the ground paints none.
 uniform uint full_layer;
@@ -68,7 +69,7 @@ void vertex() {
 	// As grass.gdshader's `gone`.
 	float sunk = painted ? (1.0 - survivors) * smoothstep(lod_begin, lod_begin + lod_band, dist) + survivors * smoothstep(draw_reach * survivors_from - sink, draw_reach, dist) : 0.0;
 	vec4 clump = textureLod(flora_grass, grid_uv(world_pos.xz), 0.0);
-	vec3 tuft = 1.0 + (2.0 * clump.rgb - clump.a) * sunk;
+	vec3 tuft = 1.0 + (FACTOR_RANGE * clump.rgb - clump.a) * sunk;
 	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy) * tuft;
 	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy) * tuft;
 }

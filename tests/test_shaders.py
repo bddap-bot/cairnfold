@@ -41,6 +41,7 @@ class Shaders(unittest.TestCase):
             ('interior.gdshaderinc', 'OPENING', script_const('interior.gd', 'OPENING')),
             ('interior.gdshaderinc', 'NO_ROOM', script_const('interior.gd', 'NO_ROOM')),
             ('ground.gdshaderinc', 'TILLED', script_const('ground.gd', 'TILLED')),
+            ('terrain.gdshaderinc', 'FACTOR_RANGE', script_const('flora_cover.gd', 'FACTOR_RANGE')),
             ('stone_ground.gdshaderinc', 'STONE_ROOM', script_const('stone_styles.gd', 'ROOM')),
             ('budget_bar.gdshader', 'NO', script_const('hand.gd', 'REFUSED')[:3]),
             ('paint.glsl', 'TILE', script_const('brushwork.gd', 'TILE')),

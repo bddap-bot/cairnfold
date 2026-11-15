@@ -7,6 +7,7 @@ extends RefCounted
 
 ## Changes are near the hand, inside the clumps' reach, so the texture may lag them.
 const FLUSH_MSEC := 250
+const FACTOR_RANGE := 2.0
 
 var image := Image.create(Terrain.VERTS, Terrain.VERTS, false, Image.FORMAT_RGBA8)
 var texture := ImageTexture.create_from_image(image)
@@ -27,7 +28,7 @@ static func look(color: Color, custom: Color) -> Color:
 	var cool: Color = Meadow.GRASS[&"cool_clump"]
 	var warm: Color = Meadow.GRASS[&"warm_clump"]
 	var tint := cool.lerp(warm, custom.g) / cool.lerp(warm, 0.5)
-	var f := (Color.WHITE + (tint - Color.WHITE) * Meadow.CANOPY) * color.r * 0.5
+	var f := (Color.WHITE + (tint - Color.WHITE) * Meadow.CANOPY) * color.r / FACTOR_RANGE
 	return Color.hex(Color(f.r, f.g, f.b, 1.0).to_rgba32())
 
 
