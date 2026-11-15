@@ -172,7 +172,7 @@ func find(id: int) -> Boulder:
 	return boulders.get(id)
 
 
-func reseat(area: Rect2, _settled := true) -> void:
+func reseat(area: Rect2) -> void:
 	for b: Boulder in boulders.values():
 		if not b.held and area.grow(b.shape.reach() * b.size).has_point(Vector2(b.ground.x, b.ground.z)):
 			b.seat(b.size, terrain.shown_at)

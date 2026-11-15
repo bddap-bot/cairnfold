@@ -280,7 +280,7 @@ func show_reshaped(id: int, data := {}) -> void:
 		stand(id, shown.at, shown.yaw)
 
 
-func reseat(area: Rect2, _settled := true) -> void:
+func reseat(area: Rect2) -> void:
 	for e: Easel in easels.values():
 		if area.grow(Terrain.STEP).has_point(Vector2(e.position.x, e.position.z)):
 			e.position.y = terrain.shown_at(e.position.x, e.position.z)
