@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
-"""Summarise the play sessions recorded under DIR (PlayLog's JSONL chunks, at any depth): how each ran, by what the
-player was doing.
+"""sessions.py DIR [--last N] [--json] | sessions.py DIR --replayed METRICS.json
 
-    sessions.py DIR [--last N] [--json]
-    sessions.py DIR --replayed METRICS.json
-
-Sessions print oldest first, each with where its chunks were found, its device, build revision, id and length, then
-per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
-frame; then where the main thread's time went (Metrics.MAIN_PHASES), each phase's p50 and p95 in the median second;
-then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
-the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
-what its replay record holds: the frames of input (Replay), any the record lost, and its size an hour of play, and the
-messages the network brought (PlayLog.heard): how many of each call, and the build commands by the player who made each,
-and for a performance take (PlayLog.ARM) its microphone WAV, how long it runs and the input frame it begins at.
-With --replayed, the per-activity timing of the session a replay of it measured (the --metrics file of a --replay run,
-as scripts/bench.sh CAIRNFOLD_REPLAY writes it) prints beside the session's own, recorded | replayed."""
+Summarises PlayLog's JSONL chunks at any depth under DIR, oldest first. Paused time is the headset off or the app in
+the background. --replayed takes a --replay run's --metrics file (as bench.sh's CAIRNFOLD_REPLAY writes it) and prints
+its per-activity timing beside the recorded."""
 import argparse
 import base64
 from datetime import datetime, timezone
@@ -95,7 +84,6 @@ def frames(event, layout):
 
 
 def take(s, folder):
-    """The session's microphone take, if it was one: its file, rate, first input frame and length."""
     if "take" not in s:
         return None
     t = s["take"]
@@ -105,7 +93,6 @@ def take(s, folder):
 
 
 def replay(s):
-    """How much of the session its replay record holds, and its size an hour of the play it covers."""
     layout = s["start"].get("input")
     if not s["inputs"] or not layout:
         return None
@@ -123,8 +110,6 @@ def replay(s):
 
 
 def net(s):
-    """What the network brought the session: how many of each call, the build commands each player made, and how many
-    messages the record lost."""
     if not s["nets"]:
         return None
     heard = [m for e in sorted(s["nets"], key=lambda e: e["first"]) for m in e["messages"]]
@@ -139,7 +124,6 @@ def net(s):
 
 
 def merge(rows):
-    """Every second's activity tallies summed per tag; the histograms merge bin by bin."""
     merged = {}
     for row in rows:
         for tag, t in (row.get("activity") or {}).items():
@@ -153,7 +137,7 @@ def merge(rows):
 
 
 def quantile(hist, q):
-    """The upper edge of the bin holding the q-th frame, in ms."""
+    """The upper edge, in ms, of the bin holding the q-th frame."""
     total = sum(hist.values())
     if total == 0:
         return None
@@ -165,7 +149,6 @@ def quantile(hist, q):
 
 
 def main_thread(rows):
-    """Each main-thread phase's p50 and p95 in the median second of the rows that split their frames."""
     seconds = [row["main_ms"] for row in rows if row.get("main_ms")]
     if not seconds:
         return None
@@ -218,14 +201,12 @@ def fmt(v):
 
 
 def phases_text(main):
-    """An engine frame's main-thread phases of a millisecond or more."""
     if not main:
         return "-"
     return " ".join(f"{k} {v:.0f}" for k, v in main.items() if v >= 1.0) or "all under 1 ms"
 
 
 def cells(a):
-    """One activity's timing in COLUMNS, blank where the run had none of it."""
     if not a:
         return " " * len(COLUMNS)
     return (f"{a['frames']:7} {a['late']:6} {fmt(a['p50_ms']):>6} {fmt(a['p99_ms']):>6} {fmt(a['worst_ms']):>7} "
@@ -237,7 +218,6 @@ def heading(s):
 
 
 def beside(s, r):
-    """The session's per-activity timing, recorded, with its replay's `r` beside it."""
     lines = [f"{heading(s)}: {s['seconds']} s recorded | {r['seconds']} s replayed",
              f"  {'':9} {COLUMNS} | {COLUMNS}"]
     for tag in ACTIVITIES:

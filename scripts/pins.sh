@@ -1,30 +1,28 @@
 # shellcheck shell=bash disable=SC2034
-# Sourced by the build scripts: every pinned download, and the fetch that verifies it.
 godot_version=4.6
 godot_release=https://github.com/godotengine/godot/releases/download/$godot_version-stable
 godot_templates=("$godot_release/Godot_v$godot_version-stable_export_templates.tpz" 3b30ac8c1772f25f5dfa5f65922cab0a90e7b960176891237c5772515ebccc46)
-# The Swappy frame pacing libraries Godot's misc/scripts/install_swappy_android.py names for the pinned source.
+# The release Godot's misc/scripts/install_swappy_android.py names for the pinned source.
 godot_swappy=(https://github.com/godotengine/godot-swappy/releases/download/from-source-2025-01-31/godot-swappy.zip 2dd05484de29a3040106658d6f95915778fd71abc3261130eada6090ed1c153d)
 openxr_vendors_version=5.1.0-stable
 openxr_vendors=("https://github.com/GodotVR/godot_openxr_vendors/releases/download/$openxr_vendors_version/godotopenxrvendorsaddon.zip" 6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911)
 godot_source=("$godot_release/godot-$godot_version-stable.tar.xz" 900ad0f6241b8051daa569cee1b07b6e30c4cb4f804471f72256d052334c0550)
-# Native engine toolchains, which toolchains.nix reads: Godot's buildroot SDKs (glibc 2.28), the official Linux
-# templates' own (godotengine/build-containers), and llvm-mingw for Windows.
+# Read by name by toolchains.nix: the official Linux templates' buildroot SDKs (glibc 2.28) and llvm-mingw.
 godot_sdk_x86_64=(https://github.com/godotengine/buildroot/releases/download/godot-2023.08.x-4/x86_64-godot-linux-gnu_sdk-buildroot.tar.bz2 b89f173b1f2f2f35f3090bc4efad732f1c0c1c1206e5480cfcb141977010bc94)
 godot_sdk_arm64=(https://github.com/godotengine/buildroot/releases/download/godot-2023.08.x-4/aarch64-godot-linux-gnu_sdk-buildroot.tar.bz2 d7b673823e8078ac70ffa202b4471356eca360b80960c6d1a722af0c03aea29d)
 llvm_mingw=(https://github.com/mstorsjo/llvm-mingw/releases/download/20251118/llvm-mingw-20251118-ucrt-ubuntu-22.04-x86_64.tar.xz 53a0c22caa46b501e1c089e1c31b24a7c0e0d5a86f8ad12b131aafd4cee01ef4)
 openxr_vendors_source=("https://codeload.github.com/GodotVR/godot_openxr_vendors/tar.gz/refs/tags/$openxr_vendors_version" 60199880ae0eb06565979865f55969f5059cc088c8a7a5065366e2f90bce9653)
 # The godot-cpp submodule at the pinned vendors release.
 godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/58d1de720b8ffe9f8ffcdfe3a85148582cfd2e74/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
-# The Horizon Store's Platform SDK binding, only in store APKs (docs/package-notices.md, "Horizon Store package").
+# Only in store APKs.
 meta_toolkit_version=1.0.3-stable
 meta_toolkit=("https://github.com/godot-sdk-integrations/godot-meta-toolkit/releases/download/$meta_toolkit_version/godotmetatoolkitaddon.zip" cbd23eb9c0ce6868570aa43a674688d749bafeab6b38027f5a588bb21b27d879)
 meta_toolkit_license=(https://raw.githubusercontent.com/godot-sdk-integrations/godot-meta-toolkit/7fc223fa4b9a1b43552a53bf287a720c4719ea76/LICENSE.txt aa93a6ef4789abeee26b901f70f5f1c87d01ea0833e9fe6efa63a3cf2ba3e35c)
-# Meta's uploader for Horizon Store builds (release.sh); the download page serves only the latest, so this is its binary.
+# The download page serves only the latest, so this pins its binary.
 ovr_platform_util=("https://securecdn-sea5-1.oculus.com/binaries/download/?id=28342477365335702&access_token=OC%7C1196467420370658%7C" 05d9e9dc0772ac2a4949913566bfce6bda165a41646175a060bfe433b6aa6219)
-# The game's app on the Meta Horizon Store; not a secret.
+# Not a secret.
 meta_app_id=1445804081943802
-# The Steam binding, only in Steam packages (docs/package-notices.md, "Steam packages"); never committed.
+# Only in Steam packages, never committed.
 godotsteam_version=4.23
 godotsteam=("https://codeberg.org/GodotSteam/GodotSteam/releases/download/v$godotsteam_version-gde/godotsteam-$godotsteam_version-gdextension-plugin-4.4.zip" c1728b4bf330da851a00eaf64dab2e99c506018b1d9f529511b25d7fe7649e97)
 cinzel_license=(https://raw.githubusercontent.com/NDISCOVER/Cinzel/dd598495b0fb2ad84270d5cc75d642d2f1e8eabf/OFL.txt a46624198eeb4c2e442c38b0ff3bd8f52caeefd76675c36f410e2fb69014a239)
@@ -33,13 +31,11 @@ android_ndk_notice_sha256=faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d8379
 android_ndk_toolchain_sha256=789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/cairnfold
 mkdir -p "$cache"
-# META_APP_SECRET, the store app's secret under Development > API; release.sh uploads to the store only with it.
+# Holds META_APP_SECRET, from the store's Development > API page.
 meta_store=${CAIRNFOLD_META_STORE:-${XDG_CONFIG_HOME:-$HOME/.config}/cairnfold/meta-store.env}
-# The certificate of the key every deployed APK carries (AGENTS.md, "Signing"); release.sh refuses any other.
 android_cert_sha256=b417fa20e582ad40db3284aefc0f5a248366d7e2ebf82c98178fe7e1a4183f61
 android_key=${CAIRNFOLD_ANDROID_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/cairnfold/android-key}
 
-# fetch URL SHA256: prints the cached path, downloading and verifying it first if needed.
 fetch() {
   local file=$cache/$2-${1##*/}
   if ! { [ -f "$file" ] && echo "$2  $file" | sha256sum -c --quiet; }; then

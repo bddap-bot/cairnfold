@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
-"""What one unit of a build costs a view by how far off it stands, from a demo/build-distance.json run:
-distance.py OUT_DIR RECORD.json
+"""distance.py OUT_DIR RECORD.json, from a demo/build-distance.json run.
 
-Each phase pair shows a kind's cluster from one spot and hides its layer from the same view: SPOT is the eye's metres
-from the cluster's middle standing and looking at it, outN standing N m off looking away, airN 22 m up and N m off.
-A pair's cost is its viewport GPU time over its partner's; a spot's is the larger of its two pairs, in µs a unit:
-a wall m² of ivy, a boulder unit (Budget.boulder), a moss patch. The dearest spot of each kind Budget prices is added to
-RECORD (what bench.sh recorded of that run) under "prices", which tests/test_prices.py holds Budget.COSTS to; ivy is no
-unit, charged in the masonry rates of the walls it grows on."""
+A spot N is the eye N m from the cluster's middle looking at it, outN N m off looking away, airN 22 m up and N m off. A
+spot costs the larger of its two pairs in µs a unit (a wall m² of ivy, Budget.boulder, a moss patch); ivy is no Budget
+unit, charged in its walls' masonry rates. tests/test_prices.py holds Budget.COSTS to the "prices" written here."""
 import json
 import os
 import re

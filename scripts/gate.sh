@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Runs what AGENTS.md says a change owes before it lands, for the diff from BASE (default origin/main) to the working
-# tree: gate.sh [BASE]. Every change owes test.sh, a changed shell script shellcheck, a change to World, Commands or a
-# tool coop.py, a change to what scripts/android.sh builds from both APKs, and a change to what scripts/package.sh builds
-# from its three packages.
+# gate.sh [BASE]: what AGENTS.md says a change since BASE (default origin/main) owes before it lands.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 base=$(git merge-base "${1:-origin/main}" HEAD)

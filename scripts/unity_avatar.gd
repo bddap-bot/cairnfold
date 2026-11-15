@@ -1,30 +1,6 @@
 extends SceneTree
 
-## Imports the avatar in a Unity source package and writes it as the VRM a player wears: run from game/ as
-## godot4 --headless --path . --script ../scripts/unity_avatar.gd -- PACKAGE OUT.vrm [AVATAR] [--with PACKAGE]... [--packages DIR] [--names]
-## The avatars folder reads only VRM, since a worn file travels to every player met and a Godot scene can run code;
-## Avatar.read reads it into the avatar model (Avatar.model). The atlas widens up
-## to Avatar.MAX_IMAGE_SIDE, so every texture keeps the size Unity shows it at. DIR, a Unity project's Packages folder,
-## lends the images PACKAGE names but leaves to the shader packages installed beside it (Poiyomi's matcaps); without it
-## a PACKAGE naming an image no package holds is refused, since those would draw as their shader's default, white.
-## PACKAGE is a .unitypackage or an Assets folder with each asset's .meta beside it. Each --with PACKAGE is imported
-## beside it, as one Unity project holds them all: an edit or outfit sold without the avatar it is made over imports
-## with that base's package, whose assets it names by GUID. Where several hold one GUID the first named wins, PACKAGE
-## over every --with. Each prefab or model PACKAGE instances that no package holds is counted, or with --names named
-## by its GUID: as the reason for a refusal where that leaves no avatar, as an edit without its base does, otherwise in
-## the report. The avatar is
-## the GameObject in PACKAGE bearing a VRChat avatar descriptor, its own or one that a prefab it instances from a --with
-## package holds (AVATAR names it where there are several), as its scene or prefab instantiates
-## it: the renderers active there, and those its Expressions Menu can turn on, with their materials and blend shape
-## weights, over the skeleton of its humanoid model, whose Unity Avatar definition is the bone map. A package without a
-## descriptor converts its one humanoid model. The avatar becomes a mesh for each set of menu switches its renderers
-## draw under, every triangle kept and drawn on the sides its material's shader culls to, and one atlas of the
-## materials' colour textures; its blend shapes stay, set to their saved weights, its PhysBones and DynamicBones become
-## spring chains, and its menu, parameters and FX controller, with what its VRCFury features add, become the model's
-## "expressions" (VRCHAT_expressions in a VRM); its visemes, eyelid blink and the faces its FX layer makes for hand
-## gestures become VRM expressions, "faces" on the root as Vrm.write takes them.
-## The importer prints what it kept and dropped, as counts, and with --names by the names of the avatar's parts
-## (Assets.print_names). A VRM carries in its asset extras the "converter" source() that wrote it.
+## docs/multiplayer.md, "From a Unity package".
 
 const Assets = preload("res://../scripts/unity/assets.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
@@ -38,21 +14,18 @@ const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
 const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 const Particles = preload("res://../scripts/unity/particles.gd")
 
-## VRM's mood presets by the words a gesture face's clip name says them with; the first the name says is its preset.
+## VRM mood presets by the word prefixes a gesture clip's name selects them with; the earliest preset here wins.
 const MOODS := {"happy": ["happy", "smile"], "angry": ["angry", "mad"], "sad": ["sad", "cry"], "relaxed": ["sleep", "relax"], "surprised": ["shock", "surprise"]}
-## VRM's viseme presets by their slot in a VRChat descriptor's VisemeBlendShapes.
+## Preset to its slot in a VRChat descriptor's VisemeBlendShapes.
 const VISEMES := {"aa": 10, "ee": 11, "ih": 12, "oh": 13, "ou": 14}
-## The constraints whose weight a clip can move, by the Unity class ID its curves name.
+## By the Unity class ID a clip's curves name.
 const CONSTRAINTS := {"1773428102": "ParentConstraint", "1818360608": "PositionConstraint", "1818360609": "RotationConstraint", "1183024399": "LookAtConstraint"}
-## A Transform's Euler angle curves, by the names Unity's clips give them.
 const EULERS := ["localEulerAnglesRaw", "localEulerAngles", "localEulerAnglesBaked"]
-## The longest each spring chain hangs in the rest pose for its settled pose (settle), and the most a bone may still
-## turn in a step once settled, after a first second in which a PhysBone may not yet have set off: VRChat runs every PhysBone, so a chain a runtime leaves still shows where its gravity,
-## pull and colliders hold it, not its bind pose.
+## VRChat runs every PhysBone, so a chain at rest shows where gravity, pull and colliders hold it, not its bind pose.
+## SETTLED_TURN is radians per step, counted only after the first second, before which a PhysBone may not have set off.
 const SETTLE_SECONDS := 20.0
 const SETTLED_TURN := 1e-5
 static var UDIM_TILE := RegEx.create_from_string("^material\\._UDIMDiscardRow([0-3])_([0-3])$")
-## The GUID of the prefab or model a prefab instance in a scene or prefab's text instances.
 static var SOURCE := RegEx.create_from_string("m_(?:SourcePrefab|ParentPrefab): \\{fileID: -?\\d+, guid: (\\w+)")
 
 
@@ -111,7 +84,6 @@ func _run() -> void:
 	quit()
 
 
-## The report as lines of `key: value`, each value shown().
 static func report_lines(report: Dictionary) -> PackedStringArray:
 	var out := PackedStringArray()
 	for k: String in report:
@@ -119,21 +91,18 @@ static func report_lines(report: Dictionary) -> PackedStringArray:
 	return out
 
 
-## `value` as a message shows it: a number or text as itself, and a list or dictionary, which names the avatar's parts,
-## as its size, or with Assets.print_names as JSON. The report's texts are its sentences of counts.
+## A list or dictionary names the avatar's parts, so it shows as its size unless Assets.print_names.
 static func shown(value: Variant) -> String:
 	if value is Array or value is Dictionary or typeof(value) >= TYPE_PACKED_BYTE_ARRAY:
 		return JSON.stringify(value) if Assets.print_names else str(value.size())
 	return str(value)
 
 
-## Prints `named` as the reason, or `plain`, the same without the avatar's names, unless Assets.print_names.
 static func _say(named: String, plain: String) -> void:
 	printerr("unity_avatar: " + (named if Assets.print_names else plain))
 
 
-## The commit of this checkout and whether its tracked files differ from it, as {"commit", "dirty"}: a file a dirty
-## tree or an unlanded commit wrote is one no landed converter reproduces.
+## A file a dirty tree or an unlanded commit wrote is one no landed converter reproduces.
 static func source() -> Dictionary:
 	var root := ProjectSettings.globalize_path("res://..")
 	var head := []
@@ -143,8 +112,7 @@ static func source() -> Dictionary:
 	return {"commit": str(head[0]).strip_edges() if committed else "", "dirty": not clean}
 
 
-## Writes the avatar's `root` as the file a player wears at `path`, made `_wearable` and with `extras` in the file's
-## asset extras (Vrm.write); frees `root` and returns the file's bytes.
+## Frees `root`.
 static func write(root: Node3D, path: String, extras := {}) -> PackedByteArray:
 	_wearable(root)
 	Vrm.write(root, path, extras)
@@ -152,8 +120,6 @@ static func write(root: Node3D, path: String, extras := {}) -> PackedByteArray:
 	return FileAccess.get_file_as_bytes(path)
 
 
-## Makes the avatar's root exportable by Vrm.write: each humanoid bone renamed to its VRM name, with the humanoid's
-## paths and the constraints kept on their bones.
 static func _wearable(root: Node3D) -> void:
 	var human: Dictionary = root.get_meta("humanoid")
 	var skeleton := str(human.hips).get_slice(":", 0)
@@ -187,9 +153,8 @@ static func _wearable(root: Node3D) -> void:
 				source.node = sk.get_bone_name(source.node)
 
 
-## A .unitypackage unpacked into a folder under TMPDIR removed at exit, or any other path as it is; "" if tar fails.
-## Godot's own temporary folders go to /tmp whatever TMPDIR says, where a run killed before exit left gigabytes no caller
-## cleans up; under TMPDIR the folder goes with the caller's.
+## "" if unpacking fails. Godot's own temporary folders go to /tmp whatever TMPDIR says, where a killed run left
+## gigabytes no caller cleans up; under TMPDIR the folder goes with the caller's.
 static func unpacked(path: String) -> String:
 	if path.get_extension() != "unitypackage":
 		return path
@@ -215,11 +180,8 @@ class Unpacked:
 			OS.execute("rm", ["-rf", path])
 
 
-## The avatar in `dir`, over the assets `lent` lends it, as the scene and avatar data `write` takes, its root also
-## carrying "report" (what was kept and dropped, by kind). Null, with the reason printed, if the package holds no avatar
-## to convert; the reason names each prefab or model GUID its scenes and prefabs instance that no package holds. Null too
-## where its materials name a texture no package holds and no `packages` folder was named: such a texture is mostly a
-## shader package's, and converting without it draws a look its shader never shows.
+## The root carries meta "report". Null, the reason printed, where nothing converts, or where a texture no package holds
+## (mostly a shader package's) would draw as its shader's default and no `packages` folder was named.
 static func avatar_scene(dir: String, lent: PackedStringArray = [], pick := "", packages := "", widest := Avatar.MAX_IMAGE_SIDE) -> Node3D:
 	var prefabs := Prefabs.new(Assets.new(dir, lent, packages))
 	var root := _convert(prefabs, pick, widest)
@@ -235,8 +197,7 @@ static func avatar_scene(dir: String, lent: PackedStringArray = [], pick := "", 
 	return root
 
 
-## Each prefab or model GUID that a scene or prefab of the avatar's own package instances, directly or through what it
-## instances, and that no package holds, to the path of a document instancing it, as their texts say.
+## Absent prefab or model GUID to the path of a document instancing it.
 static func absent_instances(assets: Assets) -> Dictionary:
 	var absent := {}
 	var pending := assets.of(["unity", "prefab"]).filter(func(g: String) -> bool: return assets.own.has(g))
@@ -255,7 +216,6 @@ static func absent_instances(assets: Assets) -> Dictionary:
 	return absent
 
 
-## What a refusal adds where the packages lack what the avatar's package instances: each such GUID, and the remedy.
 static func _lacking(assets: Assets) -> String:
 	var absent := absent_instances(assets)
 	if absent.is_empty():
@@ -290,8 +250,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	var model_bones := _model_bones(objs, found.transform, main, renderers)
 	_attach_armatures(objs, found.transform, model_bones, definition, report)
 	var source: Skeleton3D = skeletons[0]
-	# The model file's bind pose need not be a T-pose; the humanoid rests in the pose its Unity Avatar was configured in,
-	# mirrored across X as Godot's FBX importer mirrors Unity's.
+	# The bind pose need not be a T-pose; the humanoid rests as its Unity Avatar was configured, X mirrored as the importer does.
 	var description: Dictionary = (assets.meta(main).get("ModelImporter", {}) as Dictionary).get("humanDescription", {})
 	for bone: Dictionary in Yaml.list(description.get("skeleton")):
 		var b := source.find_bone(str(bone.get("name", "")))
@@ -446,9 +405,7 @@ static func _convert(prefabs: Prefabs, pick: String, widest: int) -> Node3D:
 	return root
 
 
-## Gives each joint of the root's springs the rotation its bone settles at, in its parent's axes ("settled"), once every
-## chain hanging from the rest pose under its gravity, pull and colliders stops turning; the bones go back to rest.
-## Runs in the scene tree, which the root joins meanwhile.
+## Sets each spring joint's "settled": its bone's settled rotation, in its parent's axes.
 static func settle(root: Node3D) -> void:
 	var human: Dictionary = root.get_meta("humanoid")
 	var tree := Engine.get_main_loop() as SceneTree
@@ -484,9 +441,8 @@ static func settle(root: Node3D) -> void:
 	tree.root.remove_child(root)
 
 
-## The avatar to convert: {"objects" of the document it is in, "go", "transform", "name", "descriptor" (its fields, or
-## empty for a package's lone humanoid model)}; empty, with the reason printed, if there is none or several and `pick`
-## names none of them.
+## {"objects" of its document, "go", "transform", "name", "descriptor" (empty for a lone humanoid model)}; empty, the
+## reason printed, where there is none, or several and `pick` names none.
 static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionary:
 	var found := []
 	var bearing := {}
@@ -529,8 +485,6 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	return {}
 
 
-## Whether the scene or prefab with this GUID holds a VRChat avatar descriptor, its own or one in a prefab it instances,
-## as its text and theirs say without flattening them; `seen` caches the answers.
 static func _bears_descriptor(assets: Assets, guid: String, seen: Dictionary) -> bool:
 	if not seen.has(guid):
 		seen[guid] = false
@@ -539,7 +493,7 @@ static func _bears_descriptor(assets: Assets, guid: String, seen: Dictionary) ->
 	return seen[guid]
 
 
-## Every transform under `top`, itself included, with its GameObject: [[transform, go], ...] parents first.
+## [[transform, go], ...], `top` included, parents first.
 static func _under(objs: Dictionary, top: int) -> Array:
 	var children := {}
 	for id: int in objs:
@@ -562,9 +516,8 @@ static func _active(objs: Dictionary, go: int) -> bool:
 	return Yaml.on(objs.get(go, {}).get("data", {}), "m_IsActive") and not Prefabs.editor_only(objs, go)
 
 
-## The switches that must all be on for Unity to run a component (`id`, its fields `d`): its own enabled flag and the
-## active flag of its GameObject and every parent, each either switched by `switches` or fixed; null if one fixed off
-## means it never runs.
+## [[switch target, 1]...] that must all be on for Unity to run component `id`; null where a flag fixed off means it
+## never runs.
 static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary) -> Variant:
 	var by: Dictionary = switches.get("by_object", {})
 	var when := []
@@ -584,14 +537,11 @@ static func _when(objs: Dictionary, id: int, d: Dictionary, switches: Dictionary
 	return when
 
 
-## A clip curve's one key, as each pass over the clips meets it.
 static func _curve_key(c: Dictionary) -> String:
 	return "%s|%s|%s" % [c.path, c.attribute, c["class"]]
 
 
-## The renderers that draw when the avatar is worn or its menu can show: every renderer, enabled or switched by
-## `switches`, whose GameObject and its parents up to the avatar are active or switched, and not editor-only.
-## [[renderer id, go, [[switch target, 1]...] each switch that must be on for it to draw], ...]
+## [[renderer id, go, [[switch target, 1]...] that must be on for it to draw], ...]
 static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report: Dictionary) -> Array:
 	var on := {}
 	var when := {}
@@ -623,8 +573,7 @@ static func _renderers(objs: Dictionary, top: int, switches: Dictionary, report:
 	return out
 
 
-## Each transform under `top` by its path from it, as an animation clip names it: "" for `top`, then GameObject
-## names joined by "/".
+## Clip path ("" for `top`) to transform.
 static func _paths(objs: Dictionary, top: int) -> Dictionary:
 	var by_transform := {top: ""}
 	var out := {"": top}
@@ -638,10 +587,8 @@ static func _paths(objs: Dictionary, top: int) -> Dictionary:
 	return out
 
 
-## The menu's switches: each GameObject whose active flag, renderer whose enabled flag, and renderer material slot
-## whose material the controller's clips animate. {"targets": [{"effect": "switch", "default"}], "by_object": its
-## target by GameObject or renderer ID, "slots": "renderer:slot" to [target, [each material reference it takes, the
-## renderer's own first]], "by_curve": "path|attribute|class" to its target}.
+## {"targets": [{"effect": "switch", "default"}], "by_object": object ID or key to target, "slots": "renderer:slot" to
+## [target, [each material reference it takes, the renderer's own first]], "by_curve": _curve_key to target}.
 static func _switches(expressions: Expressions, objs: Dictionary, paths: Dictionary) -> Dictionary:
 	var out := {"targets": [], "by_object": {}, "slots": {}, "by_curve": {}}
 	if expressions.data.is_empty():
@@ -690,7 +637,7 @@ static func _switches(expressions: Expressions, objs: Dictionary, paths: Diction
 	return out
 
 
-## The switch of a Poiyomi UDIM discard tile of a renderer: while on, its materials discard the tile's vertices.
+## A Poiyomi UDIM discard tile's switch: while on, the tile's vertices are discarded.
 static func _udim_key(renderer: int, row: int, column: int) -> String:
 	return "%d:udim:%d:%d" % [renderer, row, column]
 
@@ -702,7 +649,7 @@ static func _switch(out: Dictionary, object: Variant, default: float) -> int:
 	return out.by_object[object]
 
 
-## The PhysBone, DynamicBone or collider on `go` that an m_Enabled curve naming `script` animates: Unity binds the first.
+## Unity binds an m_Enabled curve to the first component of its script; 0 if none.
 static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
 	for id: int in Prefabs.components(objs, go):
 		var d: Dictionary = objs.get(id, {}).get("data", {})
@@ -711,7 +658,7 @@ static func _physics_of(objs: Dictionary, go: int, script: String) -> int:
 	return 0
 
 
-## Whether a target's curves hold each key until the next rather than blending: an on/off switch or a material swap.
+## A switch (a String effect) or a material swap holds each key rather than blending.
 static func _stepped(target: Dictionary) -> bool:
 	return target.effect is String or target.effect.has("material")
 
@@ -857,8 +804,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
-## A clip marked `rests` with another's index writes each target that other animates and it does not at the target's
-## default.
+## A clip's "rests", another clip's index, writes each target that clip animates and this one does not at its default.
 static func _rest_where_marked(data: Dictionary, targets: Array) -> void:
 	for clip: Dictionary in data.clips:
 		if not clip.has("rests"):
@@ -1021,7 +967,6 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 	return _target_of(targets, effect, default, rest if effect.has("scale") or effect.has("translation") else 1.0)
 
 
-## The index of the target in `targets` with `effect`, appended with `default` and `rest` where none has it.
 static func _target_of(targets: Array, effect: Dictionary, default: float, rest: float) -> int:
 	for i in targets.size():
 		if targets[i].effect is Dictionary and targets[i].effect == effect:
@@ -1030,8 +975,7 @@ static func _target_of(targets: Array, effect: Dictionary, default: float, rest:
 	return targets.size() - 1
 
 
-## Each ParticleSystem under `top` that Unity runs, as Particles reads them: [id, its Transform, its GameObject, the
-## switches it runs under (_when), its Transform's output bone's name], those whose Transform has no bone left out.
+## [[id, transform, go, _when, output bone name], ...] as Particles reads them.
 static func _particle_systems(objs: Dictionary, top: int, switches: Dictionary, sk: Skeleton3D, rests: Array[Transform3D]) -> Array:
 	var out := []
 	for e: Array in _under(objs, top):
@@ -1045,8 +989,6 @@ static func _particle_systems(objs: Dictionary, top: int, switches: Dictionary, 
 	return out
 
 
-## The target of a clip curve on a particle system or its renderer, added where no target has its effect; -1 where
-## the curve moves nothing a runtime draws.
 static func _particle_target(c: Dictionary, particles: Particles, targets: Array) -> int:
 	var particle := particles.effect(c)
 	if particle.is_empty():
@@ -1054,7 +996,6 @@ static func _particle_target(c: Dictionary, particles: Particles, targets: Array
 	return _target_of(targets, {"particle": particle}, particles.rest(particle), 1.0)
 
 
-## Clip key `k` of a particle effect's curve in the file's terms (Particles.value), its slopes through the same map.
 static func _particle_key(particles: Particles, effect: Dictionary, k: Array) -> Array:
 	var out := k.duplicate()
 	out[1] = particles.value(effect, k[1])
@@ -1065,8 +1006,6 @@ static func _particle_key(particles: Particles, effect: Dictionary, k: Array) ->
 	return out
 
 
-## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon an
-## image of at most Avatar.ICON_SIDE_PX pixels a side in `icons`, by index.
 static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: Materials, icons: Array, indices: Dictionary) -> Array:
 	var out := []
 	for c: Dictionary in menu:
@@ -1114,8 +1053,6 @@ static func _constrained(objs: Dictionary, go: int, inside: Dictionary) -> bool:
 	return false
 
 
-## The GUID of the humanoid model the avatar's Animator names, or failing that, of the humanoid model most of its
-## renderers draw from.
 static func _main_model(assets: Assets, prefabs: Prefabs, objs: Dictionary, go: int, renderers: Array) -> String:
 	var humanoid := func(g: String) -> bool:
 		return assets.by_guid.has(g) and assets.extension(g) in Prefabs.MODELS and not avatar_definition(assets.by_guid[g].meta).human.is_empty()
@@ -1146,8 +1083,7 @@ static func _mesh_ref(objs: Dictionary, renderer: int) -> Dictionary:
 	return {}
 
 
-## The transform of the main model's own GameObject in the avatar, or the avatar's where the model is not instanced
-## whole (an unpacked scene).
+## `top` where the model is not instanced whole (an unpacked scene).
 static func _model_root(objs: Dictionary, model: String, top: int) -> int:
 	for e: Array in _under(objs, top):
 		var o: Dictionary = objs.get(e[1], {})
@@ -1156,7 +1092,6 @@ static func _model_root(objs: Dictionary, model: String, top: int) -> int:
 	return top
 
 
-## The scale a transform takes in its document, from its own and its parents' local scales.
 static func _world_scale(objs: Dictionary, t: int) -> float:
 	var s := 1.0
 	for at: int in Prefabs.ancestors(objs, t):
@@ -1171,8 +1106,7 @@ static func _world_transform(objs: Dictionary, t: int) -> Transform3D:
 	return world
 
 
-## The transforms of the avatar's own skeleton by name: those the main model's renderers skin to, and the model's own
-## objects, so an armature unpacked into the scene, its objects no longer the model's, still counts.
+## Includes the bones the model's renderers skin to, so an armature unpacked into the scene still counts.
 static func _model_bones(objs: Dictionary, top: int, model: String, renderers: Array) -> Dictionary:
 	var out := {}
 	for r: Array in renderers:
@@ -1256,7 +1190,6 @@ static func _attach_armatures(objs: Dictionary, top: int, bones: Dictionary, def
 		report["armature links with no target in the avatar"] = unlinked
 
 
-## A node's transform from its scene's root.
 static func _in_model(n: Node) -> Transform3D:
 	var t := Transform3D.IDENTITY
 	while n != null:
@@ -1266,17 +1199,12 @@ static func _in_model(n: Node) -> Transform3D:
 	return t
 
 
-## The drawn renderers' surfaces over `sk` as one mesh for each set of switches they draw under, its skin binding each
-## source bone to the output bone of its name (or its nearest ancestor that has one), one bind per output bone since
-## glTF lists a skin's joints once each (`_bind_once`): blend shapes kept, those of one
-## name in several renderers one shape only where Unity always weighs them alike (one saved weight, the same clip curves
-## in `animated`, renderer to shape name to [[clip, keys]]), while the vertices of the meshes each moves fit
-## Avatar.MAX_BLEND_VERTICES together, those the menu's clips animate or the face uses (`faced`) first (the rest baked at their saved weights), UVs moved into the material atlas. A material slot the menu swaps (`slots`, "renderer:slot" to [switch
-## target, [each material reference it can take]]) is a mesh of its own, its UVs in its first material's cell and
-## "choices" moving them to each material's ([scale x, y, offset x, y]) under "swap", that switch.
-## {"skin", "meshes": [{"mesh", "when", "renderers", "names": each of its shapes' name to its name in this mesh, "weights":
-## each blend shape's saved weight}], "shapes": renderer to source shape name to its shape's name}, or empty if nothing
-## draws.
+## One mesh per set of switches drawn under, one bind per output bone since glTF lists a skin's joints once. Same-named
+## shapes merge only where Unity always weighs them alike (`animated`: renderer to shape to [[clip, keys]]); shapes past
+## Avatar.MAX_BLEND_VERTICES drop, a nonzero saved weight baked in; those animated or `faced` are kept first. A swapped
+## slot is its own mesh: "swap" its switch target, "swapped" its material keys, "choices" each one's [scale x, y,
+## offset x, y] from the first's cell. {"skin", "meshes": [{"mesh", "when", "renderers",
+## "names": shape to its name in this mesh, "weights"}], "shapes": renderer to source shape to shape}; empty if nothing draws.
 static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, renderers: Array, switches: Dictionary, animated: Dictionary, faced: Dictionary, sk: Skeleton3D, rests: Array[Transform3D], scale: float, report: Dictionary) -> Dictionary:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -1540,8 +1468,7 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 					if surface.remap.has(i):
 						gv[surface.remap[i]] += w * (shapes[name][i][0] as Vector3)
 				surface.arrays[Mesh.ARRAY_VERTEX] = gv
-		# Shapes need distinct names only within one mesh, so each takes its source's name unless another shape of that
-		# name shares the mesh.
+		# Shape names need be distinct only within one mesh.
 		var sources: Array = names.map(func(name: String) -> String: return source_of[name])
 		var named := {}
 		for name: String in names:
@@ -1591,9 +1518,8 @@ static func _merge(prefabs: Prefabs, materials: Materials, objs: Dictionary, ren
 	return {"skin": skin, "meshes": meshes, "shapes": shape_of}
 
 
-## A surface's Poiyomi UDIM discard: {"vertex": each vertex's tile "row:column", and each tile some switch discards,
-## to the `when` drawing it: its switch off}; empty when the material discards no tile. A tile discarded at rest that the
-## menu never changes takes a switch of its own that stays on, so its triangles are kept but never drawn.
+## {"vertex": each vertex's "row:column", and "row:column" to the `when` drawing it}; empty where nothing discards.
+## A tile discarded at rest that no menu changes gets a switch that stays on, its triangles kept but never drawn.
 static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, mesh: ArrayMesh, s: int, arrays: Array, report: Dictionary) -> Dictionary:
 	var floats: Dictionary = m.get("floats", {})
 	if str(floats.get("_EnableUDIMDiscardOptions", "0")).to_float() == 0.0:
@@ -1622,10 +1548,7 @@ static func _udim_tiles(switches: Dictionary, renderer: int, m: Dictionary, mesh
 	return out
 
 
-## The avatar's face as {"expressions": each VRM expression's name to its [{"shape", "weight" 0 to 1}], "shapes": the
-## blend shapes the descriptor and the FX layer's gesture faces use, in that order}: its visemes as VRM's (VISEMES) where
-## it lip-syncs by blend shape, its eyelid blink shape as blink, and each gesture face, a clip a GestureLeft or
-## GestureRight transition reaches, as the mood preset its name says (MOODS), once each, or else as itself by name.
+## {"expressions": VRM expression to [{"shape", "weight" 0 to 1}], "shapes": every blend shape the face uses}.
 static func _face(prefabs: Prefabs, objs: Dictionary, descriptor: Dictionary) -> Dictionary:
 	var expressions := {}
 	var used := []
@@ -1655,7 +1578,6 @@ static func _face(prefabs: Prefabs, objs: Dictionary, descriptor: Dictionary) ->
 	return {"expressions": expressions, "shapes": used.filter(func(s: Variant) -> bool: return str(s) != "")}
 
 
-## The mood preset (MOODS) a clip's name says, or "".
 static func _mood(clip: String) -> String:
 	var words := RegEx.create_from_string("[a-z]+").search_all(clip.to_lower()).map(func(m: RegExMatch) -> String: return m.get_string())
 	for preset: String in MOODS:
@@ -1665,8 +1587,7 @@ static func _mood(clip: String) -> String:
 	return ""
 
 
-## The blend shapes a descriptor's eye-look settings close, raise and lower the eyelids with, by name ("" for none):
-## eyelidsBlendshapes indexes eyelidsSkinnedMesh's shapes, written as little-endian 32-bit integers in hex.
+## [close, raise, lower] by name, "" for none: eyelidsBlendshapes is little-endian 32-bit shape indices in hex.
 static func _eyelid_shapes(prefabs: Prefabs, objs: Dictionary, eyes: Dictionary) -> Array:
 	var renderer := Yaml.file_id(eyes.get("eyelidsSkinnedMesh"))
 	if not objs.has(renderer):
@@ -1684,8 +1605,7 @@ static func _eyelid_shapes(prefabs: Prefabs, objs: Dictionary, eyes: Dictionary)
 	return out
 
 
-## The clips the descriptor's FX controllers play on a GestureLeft or GestureRight transition that set blend shapes, as
-## [clip name, {blend shape: its last keyed weight, 0 to 1}], each clip once.
+## [[clip name, _clip_shapes], ...], each clip once.
 static func _gesture_faces(assets: Assets, descriptor: Dictionary) -> Array:
 	var out := []
 	var seen := {}
@@ -1716,7 +1636,7 @@ static func _gesture_faces(assets: Assets, descriptor: Dictionary) -> Array:
 	return out
 
 
-## The blend shapes an animation clip sets above zero, each at the weight (0 to 1) of its curve's last key.
+## Blend shape to its last key's weight, 0 to 1, those above zero.
 static func _clip_shapes(text: String) -> Dictionary:
 	var shapes := {}
 	for o: Dictionary in Yaml.objects(text).values():
@@ -1736,12 +1656,9 @@ static func _describe(m: Dictionary) -> String:
 	return "%s [%s, %s, %s%s]" % [m.name, m.shader if m.shader != "" else "not in package", texture, ["opaque", "cutout", "blended, depth written" if m.depth else "blended"][m.alpha], [", two-sided", ", front faces culled", ""][m.cull]]
 
 
-## A source's [[output bone, bind pose]...] bound into `skin`, which binds each output bone once (`binds`, bone to
-## index), as {"bound": each one's index in `skin`, "move": the move of the source's vertices into those binds, or null
-## where its vertices blend "shared" and "own", each bind's (output rest * the skin's bind) and (output rest *
-## the source's bind)}. A bone already bound keeps its bind; when the source binds such bones in other poses differing
-## by one transform, as a second model of the package placed apart does, that transform moves its vertices and its new
-## bones bind to match, which skins exactly in every pose.
+## {"bound": skin bind indices, "move": one transform taking the source's vertices into the skin's binds, or null where
+## they blend "shared" (rest * skin bind) and "own" (rest * source bind)}. A bone already bound keeps its bind; a source
+## binding such bones apart by one transform (a second model placed apart) moves by it and skins exactly in every pose.
 static func _bind_once(source_binds: Array, skin: Skin, binds: Dictionary, rests: Array[Transform3D]) -> Dictionary:
 	var known := []
 	for b: Array in source_binds:
@@ -1762,21 +1679,17 @@ static func _bind_once(source_binds: Array, skin: Skin, binds: Dictionary, rests
 	return {"bound": bound, "move": move if rigid else null, "shared": shared, "own": own}
 
 
-## Whether two binds' moves agree to within a tenth of a millimetre of a metre-scale bind, as an exporter's rounding does.
+## 1e-4: a tenth of a millimetre at metre scale, an exporter's rounding.
 static func _same(a: Transform3D, b: Transform3D) -> bool:
 	return (a.basis.x - b.basis.x).length() <= 1e-4 and (a.basis.y - b.basis.y).length() <= 1e-4 and (a.basis.z - b.basis.z).length() <= 1e-4 and (a.origin - b.origin).length() <= 1e-4
 
 
-## What moves a vertex weighted `top` ([source bind indices, weights]) into the skin's binds (`bind`, from
-## `_bind_once`): the source's one move when it has one, otherwise what puts the vertex where the source's binds do
-## with the skeleton at rest.
 static func _at_rest(top: Array, bind: Dictionary, remap: Callable) -> Transform3D:
 	if bind.move != null:
 		return bind.move
 	return _blend(top, bind.shared, remap).affine_inverse() * _blend(top, bind.own, remap)
 
 
-## The weighted blend of the transforms `top` ([indices, weights]) picks from `of`.
 static func _blend(top: Array, of: Array, remap: Callable) -> Transform3D:
 	var x := Vector3.ZERO
 	var y := Vector3.ZERO
@@ -1792,7 +1705,7 @@ static func _blend(top: Array, of: Array, remap: Callable) -> Transform3D:
 	return Transform3D(Basis(x, y, z), origin)
 
 
-## The four heaviest bone influences of vertex `i`, weights summing to one.
+## [bones, weights] of vertex `i`'s four heaviest influences.
 static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, per: int) -> Array:
 	var pairs := []
 	for j in per:
@@ -1811,9 +1724,7 @@ static func _top4(bones: PackedInt32Array, weights: PackedFloat32Array, i: int, 
 	return [b, w.map(func(x: float) -> float: return x / sum)]
 
 
-## The texture coordinates of the mesh's surface `s` (`arrays`) in Unity UV channel `channel` (0 to 3), as Godot's model
-## importer flips them: UV0 and UV1 its two UV arrays, UV2 and UV3 the first and second pair of its first custom array.
-## Empty, and reported as `what` on a channel the model lacks, where it lacks the channel.
+## Godot's importer puts Unity UV0 and UV1 in its two UV arrays, UV2 and UV3 in CUSTOM0's first and second pair.
 static func _uv_channel(mesh: ArrayMesh, s: int, arrays: Array, channel: int, report: Dictionary, what: String) -> PackedVector2Array:
 	if channel < 0:
 		pass
@@ -1835,10 +1746,8 @@ static func _uv_channel(mesh: ArrayMesh, s: int, arrays: Array, channel: int, re
 	return PackedVector2Array()
 
 
-## Each surface's slot in the renderer's materials. Where the renderer has a slot for each surface the FBX's polygons
-## use, they pair in the order those polygons first use them, as Unity pairs submeshes with slots; slots past the last
-## submesh only draw it again, so they leave the pairing alone. Otherwise a surface takes the slot whose material is
-## named like its FBX material ("Head" for "Head.003", "Eye" for "Eye Left"), and the rest pair in order.
+## Unity pairs submeshes with slots in the order the FBX's polygons first use them; slots past the last submesh only
+## draw it again. Lacking a slot each, a surface takes the slot named like its FBX material ("Head" for "Head.003").
 static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array) -> Array:
 	var names := Prefabs.surface_names(mesh)
 	var out := []
@@ -1878,7 +1787,6 @@ static func _slot_of(mesh: ArrayMesh, refs: Array, assets: Assets, order: Array)
 
 
 
-## The FBX name of the model node Godot made `mi` of.
 static func _model_name(model: Dictionary, mi: MeshInstance3D) -> String:
 	var state: GLTFState = model.state
 	for i in state.get_nodes().size():
@@ -1887,8 +1795,7 @@ static func _model_name(model: Dictionary, mi: MeshInstance3D) -> String:
 	return String(mi.name)
 
 
-## The names of the renderer's bones' GameObjects as node names, one bone per name: a name an earlier bone already has
-## is numbered past every name the bones have, as Godot names a node's duplicate sibling.
+## A repeated name is numbered past every name the bones have, as Godot names a duplicate sibling.
 static func _bone_names(objs: Dictionary, renderer: int) -> PackedStringArray:
 	var names := PackedStringArray()
 	for t: Variant in Yaml.list(objs[renderer].data.get("m_Bones")):
@@ -1909,7 +1816,6 @@ static func _bone_names(objs: Dictionary, renderer: int) -> PackedStringArray:
 	return out
 
 
-## The MeshInstance3D Godot made of the model's node whose mesh has this file ID, or null.
 static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 	if model.is_empty():
 		return null
@@ -1922,13 +1828,8 @@ static func _mesh_node(model: Dictionary, file_id: int) -> MeshInstance3D:
 	return null
 
 
-## How a source mesh binds to the output skeleton: {"binds": [[output bone, bind pose]...], "remap": source bind index
-## to output bind index within the mesh}. A skinned mesh's bones bind by name; a bone the humanoid's model lacks is
-## added to the output from the avatar's Unity transforms, past `humanoid_bones`, and binds as they place it, or failing
-## that binds to its nearest named ancestor in its own skeleton. An
-## unskinned mesh of the humanoid's model binds wholly to the bone it hangs from; one of another model is added as a
-## bone from the avatar's Unity transforms. Each bind keeps the vertex where its source placed it at rest, in a model
-## scaled by `scale`.
+## {"binds": [[output bone, bind pose]...], "remap": source bind index to index in "binds"}. A bone the humanoid's model
+## lacks is added past `humanoid_bones` from the Unity transforms, else binds to its nearest named ancestor.
 static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D], scale: float, objs: Dictionary, renderer: int, own_model: bool, humanoid_bones: int) -> Dictionary:
 	var scaled := Transform3D.IDENTITY.scaled(Vector3.ONE * scale)
 	var same_model: bool = not sk.has_meta("unity_model") or Yaml.guid(_mesh_ref(objs, renderer)) == sk.get_meta("unity_model")
@@ -1978,7 +1879,6 @@ static func _binder(mi: MeshInstance3D, sk: Skeleton3D, rests: Array[Transform3D
 	return {"binds": [[bone, rests[bone].affine_inverse() * scaled * _in_model(mi)]], "remap": func(_i: int) -> int: return 0}
 
 
-## The bone of the GameObject transform `t` belongs to: the one import recorded for it, or else the bone of its name.
 static func _transform_bone(objs: Dictionary, t: int, sk: Skeleton3D) -> int:
 	var go := Yaml.file_id(objs.get(t, {}).get("data", {}).get("m_GameObject"))
 	return sk.get_meta("unity_bones").get(go, -1) if sk.has_meta("unity_bones") else _find_bone(sk, str(objs.get(go, {}).get("data", {}).get("m_Name", "")))
@@ -2002,8 +1902,7 @@ static func _as_bone(objs: Dictionary, t: int, sk: Skeleton3D, rests: Array[Tran
 	if b < 0 and (path.is_empty() or path.back() != sk.get_meta("unity_top", -1)):
 		return -1
 	var frame: Transform3D = sk.get_meta("unity_frame", Transform3D.IDENTITY)
-	# The transforms keep their place relative to the bone they hang from, as it stands in the scene, wherever the
-	# output skeleton's rest puts that bone.
+	# Added bones keep their scene place relative to the bone they hang from, wherever the output rest puts it.
 	var follow := Transform3D.IDENTITY
 	if b >= 0:
 		var scene := frame * _world_transform(objs, t)
@@ -2022,9 +1921,7 @@ static func _local(d: Dictionary) -> Transform3D:
 	return Transform3D(Basis(Prefabs.turn(d.get("m_LocalRotation"))).scaled_local(Vector3(Prefabs.number(sc, "x", 1.0), Prefabs.number(sc, "y", 1.0), Prefabs.number(sc, "z", 1.0))), Prefabs.mirrored(d.get("m_LocalPosition")))
 
 
-## The bones the Avatar definition maps, by index: [humanoid (VRM 1.0) name, the Unity bone it is]; empty, with the
-## reason printed, if the definition names a bone the skeleton lacks, two humanoid bones for one, or a bone the humanoid
-## has not.
+## Bone index to [VRM 1.0 name, Unity bone name]; empty, the reason printed, where the definition does not fit.
 static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> Dictionary:
 	var named := {}
 	var refuse := func(why: String) -> Dictionary:
@@ -2043,8 +1940,7 @@ static func _human_bones(sk: Skeleton3D, avatar: Dictionary, model: String) -> D
 	return named
 
 
-## Where the eyes are from the head bone, in the model's axes as VRM gives them: the descriptor's view position (Unity's
-## axes, X mirrored), or between the eye bones, or a little above the head bone.
+## From the head bone, in the model's axes.
 static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> Vector3:
 	var rest := func(b: String) -> Transform3D: return sk.get_bone_global_rest(sk.find_bone((human[b] as NodePath).get_concatenated_subnames()))
 	var head: Vector3 = (rest.call("head") as Transform3D).origin
@@ -2056,11 +1952,8 @@ static func _eyes(sk: Skeleton3D, descriptor: Dictionary, human: Dictionary) -> 
 	return Avatar.DATA.eyes
 
 
-## VRM ends a spring at a node, so authored endpoints become bones beyond the leaves.
-## PhysBone roots with several child chains remain fixed unless the source chooses First.
-## A component runs as Unity runs it when the avatar loads or the menu's `switches` turn it on; "switched" lists those
-## the menu switches, a PhysBone's joints or a collider's index with the switches it runs under. `moved` holds the
-## transforms the menu's curves move.
+## VRM ends a spring at a node, so authored endpoints become bones beyond the leaves. A root with several child chains
+## stays fixed unless the source chooses First. "switched" holds the joints and collider indices the menu switches.
 static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictionary, k: float, report: Dictionary, switches := {}, moved := {}) -> Dictionary:
 	var transforms := {}
 	for id: int in objs:
@@ -2202,10 +2095,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 		var deepest := _deepest(children, ignored, root_t)
 		var kids_of := func(t: int) -> Array:
 			return children.get(t, []).filter(func(c: int) -> bool: return not ignored.has(c) and _transform_bone(objs, c, sk) >= 0)
-		# A PhysBone's limit keeps each bone's swing inside a cone (Angle), an arc in one plane (Hinge) or an elliptical
-		# cone (Polar) about the frame VRChat's CalcLimitAxis builds: Y turned to the bone's direction, after
-		# limitRotation's Euler angles about X, then Y, then Z; its angles and turn each scaled by their curves at the
-		# bone's place down the chain.
+		# The frame VRChat's CalcLimitAxis builds: Y turned to the bone's direction after limitRotation's X, then Y, then Z.
 		var limit_shape: String = "" if legacy else ["", "angle", "hinge", "polar"][clampi(str(d.get("limitType", "0")).to_int(), 0, 3)]
 		var turned: Variant = d.get("limitRotation")
 		var limited := func(j: Dictionary, t: int, depth: int) -> Dictionary:
@@ -2297,8 +2187,7 @@ static func _springs(objs: Dictionary, top: int, sk: Skeleton3D, human: Dictiona
 	return {"specVersion": "1.0", "springs": out_springs, "colliders": colliders, "colliderGroups": groups, "switched": switched}
 
 
-## The nearest kept bone at or above transform `t` and the map from the avatar's world into that bone's rest frame, as
-## {"bone", "into"}; empty where no ancestor is kept.
+## {"bone": nearest kept at or above `t`, "into": avatar world to that bone's rest frame}; empty where none is kept.
 static func _kept(objs: Dictionary, t: int, sk: Skeleton3D) -> Dictionary:
 	for at: int in Prefabs.ancestors(objs, t):
 		var bone := _transform_bone(objs, at, sk)
@@ -2307,16 +2196,12 @@ static func _kept(objs: Dictionary, t: int, sk: Skeleton3D) -> Dictionary:
 	return {}
 
 
-## Into the rest frame `held` of a bone Unity places at `unity_held`: what rides the bone keeps Unity's placement on it,
-## where the output rest may pose the bone elsewhere.
+## What rides the bone keeps Unity's placement on it, though the output rest may pose the bone elsewhere.
 static func _into(unity_held: Transform3D, held: Transform3D) -> Transform3D:
 	return Transform3D.IDENTITY.scaled(Vector3.ONE * unity_held.basis.get_scale().x / held.basis.get_scale().x) * unity_held.affine_inverse()
 
 
-## The avatar's VRChat contacts, each on the nearest kept bone at or above its root transform (its own bone where the menu
-## moves it), as the expressions' "contacts" take them: {"node": bone name, "shape": {"offset", "radius"} and a capsule's
-## "tail", in the bone's rest frame, "tags", "when" (the switches it runs under) and a receiver's "receiver": {"type",
-## "parameter", "self", "others", "local", "minVelocity"}}.
+## The expressions' "contacts" (ExpressionDefinition validates them), each "shape" in its "node" bone's rest frame.
 static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Skeleton3D, switches: Dictionary, moved: Dictionary, report: Dictionary) -> Array:
 	var live := {}
 	for e: Array in _under(objs, top):
@@ -2372,9 +2257,8 @@ static func _contacts(objs: Dictionary, top: int, descriptor: Dictionary, sk: Sk
 	return out
 
 
-## The senders VRChat makes on every humanoid avatar from its descriptor's colliders, as `_contacts` gives contacts, each
-## marked "body"; none where the descriptor has no colliders (Contacts.BODY then stands in). A finger's runs from its
-## parent's origin out along the bone, as VRChat's client builds it.
+## The senders VRChat makes from the descriptor's colliders; none without them, Contacts.BODY then standing in. A
+## finger's runs from its parent's origin out along the bone, as VRChat's client builds it.
 static func _body_contacts(objs: Dictionary, descriptor: Dictionary, sk: Skeleton3D) -> Array:
 	var out := []
 	var bones: Dictionary = sk.get_meta("unity_bones", {})
@@ -2408,14 +2292,12 @@ static func _body_contacts(objs: Dictionary, descriptor: Dictionary, sk: Skeleto
 	return out
 
 
-## Whether a component is a VRChat contact sender or receiver.
 static func _contact_component(d: Dictionary) -> bool:
 	return d.has("collisionTags") and d.has("shapeType")
 
 
-## A PhysBone or DynamicBone collider in its transform's space (Unity's axes, X mirrored): `local` places it, `axis` is
-## a capsule's length and a plane's normal there, `half` the distance from its middle to each end's centre (0 for a
-## sphere). Empty for any other component.
+## In its transform's space, X mirrored: `axis` is a capsule's length and a plane's normal, `half` from middle to each
+## end's centre (0 for a sphere).
 static func _collider(d: Dictionary) -> Dictionary:
 	if d.has("shapeType") and d.has("insideBounds"):
 		var rot := Prefabs.turn(d.get("rotation"))
@@ -2434,8 +2316,7 @@ static func _collider(d: Dictionary) -> Dictionary:
 	return {}
 
 
-## How many transforms down from `root` its PhysBone reaches: VRChat's maxBoneChainIndex, over every transform below it
-## the PhysBone does not ignore, bones of the output skeleton or not.
+## VRChat's maxBoneChainIndex, counting transforms that are no output bone too.
 static func _deepest(children: Dictionary, ignored: Dictionary, root: int) -> int:
 	var deepest := -1
 	var level: Array = [root]
@@ -2445,22 +2326,18 @@ static func _deepest(children: Dictionary, ignored: Dictionary, root: int) -> in
 	return deepest
 
 
-## VRChat's CalcBoneRatio: where the bone `depth` transforms below the root lies down the chain, from 0 at the root to 1
-## at the bone before the end.
+## VRChat's CalcBoneRatio.
 static func _along(depth: int, deepest: int, endpoint: bool) -> float:
 	var reach := deepest + (1 if endpoint else 0)
 	return clampf(float(depth) / (reach - 1), 0.0, 1.0) if reach - 1 > 0 else 0.0
 
 
-## `value` scaled by the PhysBone's `field`Curve at `t`; a missing or empty curve leaves it whole.
 static func _curved(d: Dictionary, field: String, t: float, value: float) -> float:
 	var keys := Expressions._keys((d.get(field + "Curve", {}) as Dictionary).get("m_Curve") if d.get(field + "Curve") is Dictionary else [])
 	return (ExpressionState.sample(keys, t, false) if not keys.is_empty() else 1.0) * value
 
 
-## A PhysBone's settings at the bone `depth` transforms below its root, each curve evaluated where VRChat's Calc
-## functions evaluate it, as a joint's extras "physbone" carries them to the runtime; its radius at each end times that
-## end's entry in `scales`, so in the output's units.
+## Curves are evaluated where VRChat's Calc functions evaluate them; `scales` puts each end's radius in output units.
 static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, scales: Array) -> Dictionary:
 	var reach := deepest + (1 if endpoint else 0)
 	var along := _along(depth, deepest, endpoint)
@@ -2485,8 +2362,7 @@ static func _physbone(d: Dictionary, depth: int, deepest: int, endpoint: bool, s
 	}
 
 
-## `springs` as SpringDefinition reads them, each collider keeping its extensions and each joint its extras, which the
-## reader drops.
+## SpringDefinition.read drops collider extensions and joint extras, so they are copied back.
 static func _read_springs(springs: Dictionary, nodes: Array) -> Dictionary:
 	var chains := SpringDefinition.read({"nodes": nodes, "extensions": {"VRMC_springBone": springs}})
 	for i in (chains.colliders as Array).size():
@@ -2506,7 +2382,6 @@ static func _read_springs(springs: Dictionary, nodes: Array) -> Dictionary:
 	return chains
 
 
-## Adds a bone under `parent` at `rest`, named `name` or, where that is taken, `name` with underscores after it.
 static func _add_bone(sk: Skeleton3D, name: String, parent: int, rest: Transform3D) -> int:
 	while sk.find_bone(name) >= 0:
 		name += "_"
@@ -2518,8 +2393,7 @@ static func _add_bone(sk: Skeleton3D, name: String, parent: int, rest: Transform
 	return b
 
 
-## Whose hands a PhysBone lets touch it, as a spring's extras list them, from its allow field (False, True or Other)
-## and, for Other, that field's filter.
+## Allow field: "0" False, "1" True, "2" Other, which reads the filter.
 static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
 	match str(d.get(allow, "1")):
 		"0":
@@ -2531,7 +2405,6 @@ static func _filter(d: Dictionary, allow: String, filter: String) -> Array:
 	return ["wearer", "others"]
 
 
-## The kinds of component under the avatar this converter does not translate, with how many of each.
 static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) -> Dictionary:
 	var kinds := {}
 	var known := {"Transform": true, "SkinnedMeshRenderer": true, "MeshFilter": true, "MeshRenderer": true}
@@ -2553,8 +2426,7 @@ static func _untranslated(objs: Dictionary, top: int, descriptor: Dictionary) ->
 	return kinds
 
 
-## The Unity Avatar definition in a model's .meta file at `meta`: "human", each mapped bone's name to its HumanBodyBones
-## name, and "parents", each of the model's transforms by name to its parent's.
+## {"human": bone name to HumanBodyBones name, "parents": transform name to its parent's}.
 static func avatar_definition(meta: String) -> Dictionary:
 	var human := {}
 	var parents := {}
@@ -2586,14 +2458,12 @@ static func vrm_bone(unity: String) -> String:
 	return Vrm.THUMBS_0X.get(s, s)
 
 
-## The skeleton bone of a Unity transform's name, as Godot's importer and then this converter name bones; -1 if none.
 static func _find_bone(sk: Skeleton3D, unity: String) -> int:
 	return sk.find_bone(unity.validate_node_name())
 
 
-## The skeleton bone a Unity transform name is. Unity gives a transform named like another in the model a " 1", " 2"...
-## suffix, which Godot's importer does not, so a name the skeleton lacks is matched without its suffix, under the bone
-## its Unity parent is.
+## Unity suffixes a repeated transform name " 1", " 2"... and Godot's importer does not, so a missing name matches
+## without its suffix under its Unity parent's bone.
 static func _bone_of(sk: Skeleton3D, unity: String, parents: Dictionary) -> int:
 	var b := _find_bone(sk, unity)
 	if b >= 0:
@@ -2630,9 +2500,8 @@ static func _constraints(prefabs: Prefabs, objs: Dictionary, top: int, switches:
 	return {"constraints": out}
 
 
-## The constraint `o` on the Transform `transform` as the runtime solves it, or {"error"} where it cannot be: a constraint
-## saved at weight 0, or under an object resting off that only the menu turns on, that cannot is left out rather than
-## failing the import, since only a clip engages it.
+## {"error"} where the runtime cannot solve it; _constraints skips such a one at weight 0 or resting off, since only a
+## clip engages it.
 static func _constraint(prefabs: Prefabs, objs: Dictionary, o: Dictionary, transform: int, sk: Skeleton3D, rests: Array[Transform3D]) -> Dictionary:
 	var d: Dictionary = o.data
 	if o.type == "LookAtConstraint" and (str(d.get("m_UseUpObject", "0")) != "0" or str(d.get("m_Roll", "0")).to_float() != 0.0):

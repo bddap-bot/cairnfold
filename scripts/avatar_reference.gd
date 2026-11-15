@@ -1,19 +1,12 @@
 extends SceneTree
 
-## Replays a reference recording from Avatar Workshop's reference harness against this game's avatar runtime, for
-## its compare.py to score: run under a display as
+## Replays a reference recording for compare.py to score, under a display:
 ## godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT
-## Each recorded frame places the avatar's root, poses the avatar from the recorded head and hands as a player's
-## headset and controllers would, then moves and turns each humanoid bone to where poses.tsv recorded it before
-## Unity's dynamics ran, so the body under test stands in Unity's pose; sets the parameters a step starting there assigns, and advances one 1/60 s step. OUT
-## gets tips.tsv, the spring tips the runtime has, in the root's Unity space; render/NNNN.png, each render the recording
-## made, from its camera; menu.tsv, left empty; and meta.json.
+## Humanoid bones take poses.tsv's poses from before Unity's dynamics ran, so the body under test stands in Unity's pose.
 
-## How long the view stays unchanged before `_warm` takes every pipeline the avatar draws as compiled.
 const WARM_MS := 3000
-## The longest `_warm` draws a view that keeps changing.
 const WARM_CAP_MS := 60000
-## Unity's axes are Godot's mirrored through X; the recorded avatar faces +Z in both.
+## The recorded avatar faces +Z in Unity's axes and in these, X mirrored.
 const MIRROR := Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK)
 ## A player's pose space looks down -Z, so the avatar stands turned around in the recorded root.
 const TURN := Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
@@ -28,10 +21,10 @@ var _grips: Array[Basis] = [Basis.IDENTITY, Basis.IDENTITY]
 var _tips := {}
 var _tips_file: FileAccess
 var _notes: Array[String] = []
-## The recording's poses of the humanoid bones, in frame order: [frame, bone, pose in the root's Godot space].
+## [frame, bone, pose in the root's Godot space], in frame order.
 var _moves: Array[Array] = []
 var _moved := 0
-## Each recorded humanoid bone, parents first, with the pose it last moved to.
+## Bone to the pose it last moved to (null before its first), parents first: _drive sets them in this order.
 var _held := {}
 
 
@@ -110,10 +103,8 @@ func _run() -> void:
 	quit()
 
 
-## Draws the whole avatar, every node shown and the scene held still, until `view` has not changed for WARM_MS, or
-## WARM_CAP_MS have passed. Godot compiles a surface's pipeline in the background the first time it is drawn and leaves
-## the surface out until it is ready, so without this a render soon after a toggle first shows a piece would miss it,
-## as the first render of all would miss the avatar.
+## Godot compiles a surface's pipeline in the background on first draw and leaves the surface out until it is ready,
+## so a render soon after a piece first shows would miss it.
 func _warm(view: SubViewport) -> void:
 	var hidden: Array[Node3D] = []
 	for node: Node3D in _avatar.find_children("*", "Node3D", true, false):
@@ -140,13 +131,11 @@ func _warm(view: SubViewport) -> void:
 		node.visible = false
 
 
-## The viewport the recording's camera sees through, lit as the reference harness lights its renders.
 func _stage(camera: Dictionary) -> SubViewport:
 	var view := SubViewport.new()
 	view.size = Vector2i(int(camera.width), int(camera.height))
 	view.own_world_3d = true
-	# The reference harness draws with MSAA, so a sub-pixel edge such as a toon outline's shades what it covers instead of
-	# whole pixels.
+	# The harness draws with MSAA, so a sub-pixel edge such as a toon outline shades part of a pixel.
 	view.msaa_3d = Viewport.MSAA_4X
 	_notes.append("drawn with 4x MSAA where the reference draws 2x: lavapipe draws no 2x")
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -185,20 +174,18 @@ static func _grey(rgb: Array) -> Color:
 	return Color(rgb[0], rgb[1], rgb[2])
 
 
-## A Unity rotation given as Euler degrees (applied Z, then X, then Y) as a Godot basis.
+## Unity's Euler degrees, applied Z, then X, then Y.
 static func _turn(euler: Array) -> Basis:
 	var q := Quaternion.from_euler(Vector3(deg_to_rad(euler[0]), deg_to_rad(euler[1]), deg_to_rad(euler[2])))
 	return Basis(Quaternion(q.x, -q.y, -q.z, q.w))
 
 
-## A recorded `px,py,pz,qx,qy,qz,qw` in Unity's axes as a Godot transform.
+## `px,py,pz,qx,qy,qz,qw` in Unity's axes.
 static func _unity(field: String) -> Transform3D:
 	var v := field.split_floats(",")
 	return Transform3D(Basis(Quaternion(v[3], -v[4], -v[5], v[6])), Vector3(-v[0], v[1], v[2]))
 
 
-## Opens the avatar in the root and learns, from it standing at rest, where its eyes sit from its head bone and how
-## its hand bones turn from the controllers' aim poses.
 func _wear(scene: PackedScene) -> void:
 	_avatar = Avatar.open(scene, Color.WHITE)
 	# Worn as a player wears their own, so its contacts touch its own senders as they do in the recording.
@@ -216,8 +203,7 @@ func _wear(scene: PackedScene) -> void:
 		_grips[s] = hand.basis.inverse() * (eyes * Avatar.AT_SIDES[s]).basis
 
 
-## The skeleton bone named like a Unity transform, -1 for none: names compare without case or punctuation, since
-## the importer sanitises them.
+## -1 for none. Names compare without case or punctuation, since the importer sanitises them.
 func _bone(unity_name: String) -> int:
 	if _skeleton == null:
 		return -1
@@ -238,7 +224,6 @@ static func _plain(name: String) -> String:
 
 func _drive(row: PackedStringArray) -> void:
 	_root.transform = _unity(row[1])
-	# The light as Look gives it to shaders that light themselves, as it turns with the recorded root.
 	RenderingServer.global_shader_parameter_set(&"sun_toward", _root.basis * _sun.basis.z)
 	if _avatar == null:
 		return
@@ -259,8 +244,7 @@ func _drive(row: PackedStringArray) -> void:
 			_skeleton.set_bone_global_pose(b, at)
 
 
-## Keeps the root-space poses the recording took of the avatar's humanoid bones, which drivers.tsv names by Unity's
-## HumanBodyBones, as VRM 0 does. A recording without them leaves the body to the head and hands.
+## drivers.tsv names bones by Unity's HumanBodyBones, as VRM 0 does.
 func _read_poses(ref: String) -> void:
 	var model := _skeleton.get_parent()
 	while not model.has_meta("humanoid"):

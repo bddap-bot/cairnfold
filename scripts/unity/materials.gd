@@ -7,32 +7,24 @@ const Sdk = preload("res://../scripts/unity/sdk_shaders.gd")
 const Toon = preload("res://../scripts/unity/toon_shaders.gd")
 const Liltoon = preload("res://../scripts/unity/liltoon.gd")
 
-## The atlas starts this wide and widens by STEP, up to `widest`, until every material fits at the size its texture
-## shows in Unity; past that every cell shrinks alike.
 const ATLAS := 2048
 const STEP := 256
-## The widest atlas expression layers other than the untinted colours are carried at: they mask or index the albedo,
-## and at a widened atlas's side each would hold as much memory as it.
+## Layers mask or index the albedo; at a widened atlas's side each would cost as much memory as it.
 const LAYER := 4096
-## The widest the emission map is carried at: it can hold a full colour texture over every glowing cell, which at LAYER
-## would weigh in a file as much as the atlas and push heavy avatars past Avatar.FLOOR_BYTES.
+## A full-colour emission map at LAYER would weigh as much as the atlas and push heavy avatars past Avatar.FLOOR_BYTES.
 const GLOW_LAYER := LAYER / 2
 const PAD := 4
-## A texture shrinks into its cell several times over; bilinear and cubic resizes read only 2x2 or 4x4 source texels
-## per texel, so they alias, while Lanczos widens its kernel to the shrink.
+## A cell shrinks its texture several-fold: bilinear and cubic read 2x2 or 4x4 texels and alias; Lanczos widens.
 const RESAMPLE := Image.INTERPOLATE_LANCZOS
 const TEXTURES := ["_MainTex", "_BaseMap", "_BaseColorMap", "_MainTexture", "_Albedo"]
 const COLOURS := ["_Color", "_BaseColor", "_MainColor"]
 enum Alpha { OPAQUE, CUTOUT, BLEND }
-## How a material's faces draw: whole or cut out, blended over what is behind, or blended and writing depth as Unity's
-## ZWrite On does. The atlas holds one material for each pass on each side, PASSES * 2.
 enum Pass { SOLID, BLENDED, BLENDED_DEPTH }
 const PASSES := 3
-## Unity's cull modes, as a shader's `Cull` reads them.
+## Unity's CullMode values, which a saved `_Cull` holds.
 enum Cull { OFF, FRONT, BACK }
-## The shaders packages name without carrying, Unity's built-in ones and the VRChat SDK's: the property a shader's
-## `Cull` reads, or its fixed mode. Any other shader missing from a package is taken to read `_Cull`, as most avatar
-## shaders do.
+## By GUID, the shaders packages name without carrying (Unity's and the VRChat SDK's): the property their `Cull`
+## reads, or its fixed mode. Other absent shaders are taken to read `_Cull`, as most avatar shaders do.
 const ABSENT_CULL := {
 	"0000000000000000f000000000000000": Cull.BACK,
 	"e765db0afa7ecfc44ade2e4e2491f65a": "_Culling",
@@ -58,22 +50,19 @@ var atlas: Image
 var atlas_side := ATLAS
 var widest: int
 var undecoded := {}
-## The texture GUIDs a material names that no package holds.
+## Texture GUIDs no package holds.
 var absent := {}
 var hue_masks := {}
 var color_regions := {}
-## The materials whose emission an animation drives: one dark at rest glows only if it is among them.
+## Materials whose emission a clip drives: one dark at rest glows only if listed.
 var glow_regions := {}
-## The materials whose first emission's strength a clip animates, found before any binds: their first emission draws
-## alone, as the strength the clip sets is its own.
+## Materials whose first emission's strength a clip animates: it draws alone, at the clip's strength.
 var strength_driven := {}
-## Each material's drawable Poiyomi emissions (`_poiyomi_glows`), and each folded emission map (`_glow_and_peak`) as [the
-## map, the strength its peak stands for], worked out once; `looks` takes the map.
+## Caches of `_poiyomi_glows` and `_glow_and_peak` ([map, peak strength]); `looks` drops the map.
 var _glow_lists := {}
 var _folded_maps := {}
-## The material properties a clip animates on a renderer drawing the material, by material key: {property: true}.
+## By material key: {property a clip animates on a renderer drawing it: true}.
 var animated := {}
-## Each decal a material draws (`decal`), at the size Unity imports its texture, once however many slots draw it.
 var decal_images: Array[Image] = []
 var _decal_of := {}
 var _decal_index := {}
@@ -161,8 +150,8 @@ func _read(m: Dictionary, guid: String) -> void:
 			m.animated[tag.trim_suffix("Animated")] = true
 	var mode := str(floats.get("_Mode", "0")).to_int()
 	var declared := func(name: String) -> bool: return m.properties.has(name) and (ints.has(name) or floats.has(name))
-	# A shader drawing `Blend [_SrcBlend] [_DstBlend]` blends exactly when its destination factor is not Zero, whatever
-	# queue or preset name the material carries; only without one are those the evidence.
+	# `Blend [_SrcBlend] [_DstBlend]` blends exactly when the destination factor is not Zero; queue and preset names
+	# are the evidence only without it.
 	var blended: bool = _number(m, "_DstBlend", 0.0) != 0.0 if declared.call("_DstBlend") else queue >= 3000 or render_type == "Transparent" or m.shader.contains("Transparent") or mode >= 2
 	if blended:
 		m.alpha = Alpha.BLEND
@@ -245,9 +234,8 @@ func _decoded(guid: String) -> Image:
 	return img
 
 
-## The widest side Unity imports the texture at for a PC: its Standalone max size where that overrides, else the default
-## platform's, else the legacy field (Unity's own import of a texture whose default is 1024 and legacy field 2048 is
-## 1024 wide). 0 where its .meta names none.
+## The widest side Unity imports the texture at for a PC; 0 where its .meta names none. The default platform's size
+## beats the legacy field: Unity imports a texture whose default is 1024 and legacy field 2048 at 1024.
 func shown(guid: String) -> int:
 	var importer: Dictionary = assets.meta(guid).get("TextureImporter", {})
 	var side := str(importer.get("maxTextureSize", "0")).to_int()
@@ -295,28 +283,25 @@ func pack(used: Array) -> void:
 		_blit_padded(atlas, img, cell)
 
 
-## The Poiyomi Color Adjust properties, in the order its base pass applies them, each with the value that changes nothing.
+## Each Poiyomi Color Adjust property, in its base pass's order (unity_avatar.gd indexes the keys), with the value
+## that changes nothing.
 const ADJUSTS := {"_MainHueShift": 0.0, "_MainGamma": 1.0, "_Saturation": 0.0, "_MainBrightness": 0.0}
 
 
-## Whether the import lays the material `m`'s Color Adjust property `name` (ADJUSTS) into the atlas (`_adjust`): where
-## its adjust is on and its locked shader holds the property fixed, as one does any it does not keep animatable (Thry's
-## `Animated` tag), so the clips that would move it move nothing, as in Unity; a hue that turns over time is not laid.
+## Whether `_adjust` lays Color Adjust `name` into the atlas: a locked shader holds fixed any property without Thry's
+## `Animated` tag, so clips move nothing, as in Unity. A hue that turns over time is not laid.
 static func adjust_laid(m: Dictionary, name: String) -> bool:
 	if not poiyomi(m) or _float(m, "_MainColorAdjustToggle") == 0.0 or (m.get("animated", {}) as Dictionary).has(name):
 		return false
 	return name != "_MainHueShift" or _float(m, "_MainHueShiftToggle") != 0.0 and _float(m, "_MainHueShiftSpeed") == 0.0
 
 
-## Whether the atlas holds the material `m`'s Color Adjust property `name` moved from the value that changes nothing, so
-## a clip binding the property would apply it over itself.
+## Whether the atlas holds `name` moved off its no-op value, so a clip binding it would apply it over itself.
 static func adjust_baked(m: Dictionary, name: String) -> bool:
 	return adjust_laid(m, name) and _saved(m, name, ADJUSTS[name]) != ADJUSTS[name]
 
 
-## Poiyomi's Color Adjust at rest laid into `img`, the material `m`'s tinted texture at its cell's size, as its base pass
-## adjusts the base colour in linear space under its adjust mask's channels: hue shift (red), gamma (alpha), saturation
-## (blue), then brightness (green), clamped; each property `adjust_laid` lays, the rest left to the clips that move them.
+## Under the adjust mask's channels, in linear space: hue shift (r), gamma (a), saturation (b), then brightness (g).
 func _adjust(m: Dictionary, img: Image) -> void:
 	var at := func(name: String) -> float: return _saved(m, name, ADJUSTS[name]) if adjust_laid(m, name) else ADJUSTS[name]
 	var shifted := adjust_laid(m, "_MainHueShift")
@@ -349,7 +334,6 @@ func _adjust(m: Dictionary, img: Image) -> void:
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
-## The material `m`'s texture, or white where it has none, at the size of its `cell`.
 static func _cell_image(m: Dictionary, cell: Rect2i) -> Image:
 	var img: Image
 	if m.image == null:
@@ -361,7 +345,7 @@ static func _cell_image(m: Dictionary, cell: Rect2i) -> Image:
 	return img
 
 
-## `img` drawn into `into` at `cell`, and stretched over the PAD around it so filtering at the cell's edge samples it.
+## The PAD holds `img` stretched, so filtering at the cell's edge samples it.
 static func _blit_padded(into: Image, img: Image, cell: Rect2i) -> void:
 	var outer := img.duplicate() as Image
 	outer.resize(cell.size.x + 2 * PAD, cell.size.y + 2 * PAD, RESAMPLE)
@@ -369,20 +353,14 @@ static func _blit_padded(into: Image, img: Image, cell: Rect2i) -> void:
 	into.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), cell.position)
 
 
-## The material's texture as packed: its source size, the size Unity shows it at, and its cell's.
 func packed(key: String) -> String:
 	var m: Dictionary = materials[key]
 	var source := "none" if m.image == null else "%dx%d" % [(m.image as Image).get_width(), (m.image as Image).get_height()]
 	return "%s: source %s, shown %s, packed %dx%d" % [m.name, source, m.get("shown", 0) if m.get("shown", 0) > 0 else "as source", (m.cell as Rect2i).size.x, (m.cell as Rect2i).size.y]
 
 
-## Toon Standard's detail map, or lilToon's 2nd and 3rd main textures (Liltoon.lay) but those a clip fades, which the
-## renderer lays (Liltoon.faded), laid into `img`, the tinted texture of the material at `key` at its cell's size, as
-## the shader lays it over the albedo before light. Nothing animates the detail, so the atlas holds it, at the albedo's size: a cell
-## widened to the detail's own would multiply the atlas (a corpus avatar's four detailed bodies took it from 2048 to
-## 4864 wide). A colour control's region takes it as part of the
-## albedo; `hue_mask` keeps a hue shift off a blended one, as the shader shifts the albedo before laying it, and on a
-## multiplied one, which the shifted albedo shows through.
+## Laid at the albedo's size, since nothing animates it: widening a cell to the detail's took a corpus avatar's atlas
+## from 2048 to 4864 wide. lilToon layers a clip fades are the renderer's (Liltoon.faded).
 func _detail(key: String, img: Image) -> void:
 	var m: Dictionary = materials[key]
 	if Liltoon.is_liltoon(m):
@@ -405,22 +383,17 @@ func _detail(key: String, img: Image) -> void:
 	img.set_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
-## lilToon's colour adjustment of the main texture laid into `img` at its cell's size before its colour tints it
-## (Liltoon.adjust), as Poiyomi's (`_adjust`) is after: its hue and saturation left as they are where a clip moves them,
-## which the renderer then applies.
 func _adjust_main(key: String, img: Image) -> void:
 	if Liltoon.is_liltoon(materials[key]):
 		Liltoon.adjust(self, materials[key], img, animated.get(key, {}))
 
 
-## Toon Standard's _DetailMode values the atlas can hold: the detail blended in by its alpha, or multiplied in.
+## Toon Standard's _DetailMode values; the atlas holds no others.
 const DETAIL_BLEND := 0.0
 const DETAIL_MULTIPLY := 2.0
 
 
-## The detail map over the material's texture at `size` texels and `pad` more each side: its colour, and in alpha how
-## far it covers the albedo, the mask's channel (times the detail's alpha where it blends by it). Null where the
-## material lays none the atlas can hold: off, missing, read through UV1, added, doubled or hue shifted.
+## Alpha is how far it covers the albedo; null where the atlas cannot hold it (`_lays_detail`).
 func _detail_layer(m: Dictionary, size: Vector2i, pad: int) -> Image:
 	var source := _slot_image(m, "_DetailAlbedoMap") if _lays_detail(m) else null
 	if source == null:
@@ -445,13 +418,11 @@ static func _lays_detail(m: Dictionary) -> bool:
 	return "USE_HUE_SHIFT" not in keywords or _number(m, "_DetailHueShift", 0.0) == 0.0
 
 
-## The material's saved number `name`, from its ints (Unity's Int properties) or floats.
 static func _number(m: Dictionary, name: String, otherwise: float) -> float:
 	return str((m.get("ints", {}) as Dictionary).get(name, (m.get("floats", {}) as Dictionary).get(name, otherwise))).to_float()
 
 
-## Poiyomi's decal Alpha Blend Modes of the material at `key`, in slot order, or lilToon's alpha mask, as [mode, each
-## texel's alpha] at `size`, its cell's: a decal spans its whole cell, so its bounds are the cell's.
+## Each [Alpha Blend Mode, texel alphas at `size`]; `decal` admits only decals spanning the whole cell.
 func _alpha_overrides(key: String, size: Vector2i) -> Array:
 	if Liltoon.is_liltoon(materials[key]):
 		return Liltoon.alpha_overrides(self, materials[key], size)
@@ -476,13 +447,10 @@ func _alpha_overrides(key: String, size: Vector2i) -> Array:
 	return out
 
 
-## The material's float `name`, from its floats alone.
 static func _float(m: Dictionary, name: String, otherwise := 0.0) -> float:
 	return str((m.get("floats", {}) as Dictionary).get(name, otherwise)).to_float()
 
 
-## `mod` is Poiyomi's Alpha Mod, added to the alpha before its decals' `overrides` (`_alpha_overrides`) set it and it
-## cuts or blends.
 static func _tint(img: Image, colour: Color, alpha: Alpha, cutoff: float, mod: float, overrides: Array) -> void:
 	var data := img.get_data()
 	var mul := [colour.r, colour.g, colour.b, colour.a]
@@ -546,9 +514,7 @@ static func pass_of(m: Dictionary) -> Pass:
 	return Pass.SOLID if m.alpha != Alpha.BLEND else Pass.BLENDED_DEPTH if m.depth else Pass.BLENDED
 
 
-## The atlas as the material of the faces of each pass (Pass), drawing one side and then both, without an outline and
-## then with one: index `slot`. Depth written while blending goes as the material's glTF extras, as does its outline,
-## since glTF has no word for either.
+## Indexed as `face_material` computes. glTF has no word for blended depth writes or outlines: extras carry them.
 func atlas_materials() -> Array[StandardMaterial3D]:
 	atlas.generate_mipmaps()
 	var texture := ImageTexture.create_from_image(atlas)
@@ -558,8 +524,7 @@ func atlas_materials() -> Array[StandardMaterial3D]:
 		for drawn_as in PASSES:
 			for two_sided: bool in [false, true]:
 				var drawn := StandardMaterial3D.new()
-				# An outlined pass takes its pass's name, which the glTF export suffixes with a number where the plain
-				# pass is drawn too: its extras say it is outlined.
+				# The glTF export numbers a repeated name, so the extras, not the name, mark an outlined pass.
 				drawn.resource_name = "atlas" + (", two-sided" if two_sided else "") + ["", ", blended", ", blended, depth written"][drawn_as]
 				drawn.albedo_texture = texture
 				drawn.cull_mode = BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK
@@ -579,8 +544,6 @@ func atlas_materials() -> Array[StandardMaterial3D]:
 	return out
 
 
-## The index in `atlas_materials` of the material drawing the faces of the material at `key`, outlined where it or
-## any material a switch swaps in for it (`choices`) is.
 func face_material(key: String, choices: Array = []) -> int:
 	var m: Dictionary = materials[key]
 	var outlined := ([key] + choices).any(func(k: String) -> bool: return _outline_metres(materials[k]) > 0.0)
@@ -603,8 +566,8 @@ func hue_mask() -> Image:
 	return null if out == null else _layer(out, RESAMPLE)
 
 
-## The colour adjustment mask of the material at `key` over its padded cell, Poiyomi's or Toon Standard's (its chosen
-## channel, a blended detail spared), or null where it covers the whole cell.
+## Over its padded cell, or null where it covers it all. A blended detail is spared, as the shader shifts the albedo
+## before laying it; a multiplied one shows the shifted albedo through.
 func _adjust_mask(key: String) -> Image:
 	var m: Dictionary = materials[key]
 	var mobile := toon_standard(m)
@@ -627,10 +590,8 @@ func _adjust_mask(key: String) -> Image:
 	return mask
 
 
-## The untinted colours of the materials a menu recolours, or swaps in where it recolours: {} where it recolours none,
-## else the "image" holding each one's cell padded as the atlas pads it, laid on shelves (`_shelves`) of the narrowest
-## square that holds them, cropped to what they cover, and the "cells", each its padded rect in the atlas then in the
-## image, in UV. Only the cells a colour control draws travel and are held, not a second albedo.
+## {} where no menu recolours; else "image", the recoloured materials' untinted padded cells on shelves, cropped, and
+## "cells", each [atlas x0, y0, x1, y1, image x0, y0, x1, y1] in UV. Only these cells travel, not a second albedo.
 func untinted() -> Dictionary:
 	if color_regions.is_empty():
 		return {}
@@ -670,10 +631,8 @@ func untinted() -> Dictionary:
 	return {"image": out, "cells": cells}
 
 
-## Poiyomi decal `slot` of the material at `key` as {"alpha", "intensity", "colorBlend", "image", "hue"} at rest,
-## "colorBlend" its Color Blend Mode (ExpressionDefinition.DECAL_BLENDS), baking its image into `decal_images`, or {}
-## where the decal draws in a way its image cannot hold: anything but the whole UV0 square, untiled, unrotated, its hue
-## shifted by a fixed amount if at all.
+## Poiyomi decal `slot` at rest as {"alpha", "intensity", "colorBlend" (ExpressionDefinition.DECAL_BLENDS), "image"
+## (into `decal_images`), "hue"}, or {} unless it covers the whole UV0 square untiled and unrotated, any hue fixed.
 func decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if Liltoon.is_liltoon(m):
@@ -703,8 +662,7 @@ func decal(key: String, slot: int) -> Dictionary:
 	return {"alpha": _saved(m, "_DecalBlendAlpha" + n, 1.0), "intensity": _saved(m, "_DecalAlphaIntensity" + n, 1.0), "colorBlend": int(blend), "image": _decal_image(key, slot), "hue": hue}
 
 
-## lilToon's 2nd (`slot` 0) or 3rd (1) main texture as `decal` gives a Poiyomi decal, where the renderer lays it
-## (Liltoon.faded), or {}.
+## lilToon's 2nd (`slot` 0) or 3rd (1) main texture in `decal`'s form, where the renderer lays it (Liltoon.faded).
 func _layer_decal(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if not m.has("cell") or slot >= Liltoon.LAYERS.size() or Liltoon.LAYERS[slot] not in Liltoon.faded(m, animated.get(key, {})):
@@ -716,16 +674,14 @@ func _layer_decal(key: String, slot: int) -> Dictionary:
 	return _layer_decals[[key, n]]
 
 
-## Whether the decal suffixed `n` turns its hue by a value a clip can move, which its image then holds unturned: a locked
-## Poiyomi shader declares an animated property under the material's suffix.
+## Whether a clip can move decal `n`'s hue, so its image holds it unturned: a locked Poiyomi shader declares an
+## animated property with the material's suffix.
 static func _turned(m: Dictionary, n: String) -> bool:
 	if _float(m, "_DecalHueShiftEnabled" + n) == 0.0:
 		return false
 	return (m.get("properties", {}) as Dictionary).keys().any(func(declared: String) -> bool: return declared.begins_with("_DecalHueShift" + n + "_"))
 
 
-## The decal `slot` of the material at `key` as it lies over the material's texture, coloured, masked and hue shifted
-## as it draws, at the size Unity imports the decal's texture: its index in `decal_images`.
 func _decal_image(key: String, slot: int) -> int:
 	var m: Dictionary = materials[key]
 	var settings := [key, slot, hash(m.get("floats", {})), hash(m.get("colours", {}))]
@@ -772,7 +728,6 @@ func _decal_image(key: String, slot: int) -> int:
 	return _decal_of[settings]
 
 
-## The index in `decal_images` of `image`, added unless an identical one is there.
 func _baked_decal(image: Image) -> int:
 	var baked := image.get_data()
 	var alike: Array = _decal_index.get_or_add([image.get_size(), hash(baked)], [])
@@ -784,8 +739,7 @@ func _baked_decal(image: Image) -> int:
 	return found
 
 
-## Poiyomi's `hueShift` of the linear colour `c`: rotated by `shift` turns in OKLab, or in HSV as `space` nears 1, the
-## hue kept (`select` 1) or replaced by the shift alone (`select` 0).
+## By `shift` turns, in OKLab blending to HSV as `space` nears 1; `select` 0 replaces the hue by the shift.
 static func hue_shift(c: Color, shift: float, space: float, select: float) -> Color:
 	var l := pow(maxf(0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b, 0.0), 1.0 / 3.0)
 	var m := pow(maxf(0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b, 0.0), 1.0 / 3.0)
@@ -804,8 +758,7 @@ static func hue_shift(c: Color, shift: float, space: float, select: float) -> Co
 	return oklab.lerp(hsv, clampf(space, 0.0, 1.0))
 
 
-## The material's saved value of the shader property `name`, under the name its shader declares it by: a locked shader
-## renames an animated property with the material's suffix.
+## Under its declared name: a locked shader suffixes an animated property's name with the material's.
 static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 	var floats: Dictionary = m.get("floats", {})
 	for declared: String in m.get("properties", {}):
@@ -814,10 +767,8 @@ static func _saved(m: Dictionary, name: String, otherwise: float) -> float:
 	return _float(m, name, otherwise)
 
 
-## Poiyomi matcap `slot` (0 to 3) of the material at `key` at rest, or lilToon's first two (Liltoon.matcap), or {} where
-## it is off or maps its matcap by a view the renderer does not draw: those other than the normal's (0, which a headset
-## draws as 1) and the reflection's (2), or rotated or panned. Its "texture" is the matcap texture's GUID, "" for plain
-## white; its "color" its global theme colour's (`_theme`) where it takes one, "theme" then naming its slot.
+## Poiyomi matcap `slot` (0 to 3), or lilToon's; {} where off, rotated, panned, or in a UV mode other than normal (0,
+## which a headset draws as 1) or reflection (2). "texture" is a GUID, "" for white; "theme" a `_theme` slot.
 func matcap(key: String, slot: int) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if m.has("cell") and Liltoon.is_liltoon(m):
@@ -864,15 +815,9 @@ func matcap(key: String, slot: int) -> Dictionary:
 	}
 
 
-## Poiyomi's clear coat on the material at `key` at rest, or {} where it is off, a global mask shapes it, or its maps are
-## panned or read by a view other than a UV channel: its "strength", "smoothness", "reflection" and "specular" levels,
-## its linear "specularTint" and "reflectionTint", its "fresnel", or for a Poiyomi 9.2 shader, which declares it, its
-## "fresnelStrength" (else null) and "exposureOcclusion", its geometric specular antialiasing ("gsaa", Poiyomi's
-## variance and threshold, zero where off), its packed maps' "texture" GUID ("" for none, which reads
-## as white), the UV channel ("uv") and tiling and offset ("st", Unity's [scale x, scale y, offset x, offset y]) they
-## are read through, the source channel ("channels", 4 for white) of each level, whether each level is inverted
-## ("inverts"), and the cubemap it reflects where the world has no reflection probe or it forces it ("fallback" GUID, ""
-## for Unity's grey default; "litFallback", "forceFallback"). Its light adds over the lit colour, as Poiyomi's does.
+## {} where off, globally masked, or its maps panned or not read by a UV channel. "st" is [scale x, scale y, offset x,
+## offset y]; "texture" "" reads white, as does channel 4; "gsaa" [variance, threshold], zero where off;
+## "fresnelStrength" null before Poiyomi 9.2; "fallbackTexture" "" for Unity's grey default.
 func clearcoat(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	var floats: Dictionary = m.get("floats", {})
@@ -915,19 +860,17 @@ func clearcoat(key: String) -> Dictionary:
 	}
 
 
-## For each clear coat level (mask, smoothness, reflection, specular, the order `coat_map` repacks the maps' channels
-## in): the global mask blended into it, the packed maps' channel it reads (with Poiyomi's default) and its inversion.
+## Per level in `coat_map`'s channel order; COAT_CHANNELS as [property, Poiyomi's default].
 const COAT_GLOBAL_MASKS := ["_ClearCoatGlobalMask", "_ClearCoatSmoothnessGlobalMask", "_ClearCoatReflectionStrengthGlobalMask", "_ClearCoatSpecularStrengthGlobalMask"]
 const COAT_CHANNELS := [["_ClearCoatMapsClearCoatMaskChannel", 0.0], ["_ClearCoatMapsRoughnessChannel", 1.0], ["_ClearCoatMapsReflectionMaskChannel", 2.0], ["_ClearCoatMapsSpecularMaskChannel", 3.0]]
 const COAT_INVERTS := ["_ClearCoatMaskInvert", "_ClearCoatSmoothnessMapInvert", "_ClearCoatReflectionMaskInvert", "_ClearCoatSpecularMaskInvert"]
-## The widest a clear coat's packed maps are carried at: they mask a highlight and a reflection, not a colour.
+## The packed maps mask a highlight and a reflection, not a colour.
 const COAT_MAP := 512
 
 
-## A clear coat's fallback cubemap as a file carries it (Avatar.FALLBACK_SIDE): level k Unity's mip k of the cube it
-## imports with specular convolution, which Poiyomi reads at its roughness times six. Its azimuth runs as Unity's
-## panoramic skybox's in Unity's axes. Null where the texture is absent, is not a cube Unity imports from a 2:1
-## panorama, or does not decode, each of which is reported.
+## Bands Avatar.FALLBACK_SIDE / 2 high: band k is Unity's specular-convolved cube mip k (Poiyomi reads roughness * 6),
+## RGBM over Avatar.FALLBACK_RANGE, azimuth as Unity's panoramic skybox. Null, and reported, where absent, undecodable,
+## or not a cube from a 2:1 panorama at least Avatar.FALLBACK_SIDE wide.
 func coat_fallback(guid: String) -> Image:
 	if not assets.by_guid.has(guid):
 		absent[guid] = true
@@ -944,8 +887,7 @@ func coat_fallback(guid: String) -> Image:
 	var out := Image.create_empty(side, side / 2 * Avatar.FALLBACK_LEVELS, false, Image.FORMAT_RGBA8)
 	var panoramas := {}
 	for level in Avatar.FALLBACK_LEVELS:
-		# Unity's mip k halves the cube's faces, and its lobe widens faster: each level is integrated at the size
-		# that samples its lobe, over the texels its lobe reaches, then drawn at the size the stack holds.
+		# The lobe widens faster than Unity's mips halve: each level integrates at a size that samples its lobe.
 		var w: int = [side, side, side / 2, side / 4, side / 4, side / 4, side / 4][level]
 		var from_w: int = w if level < 4 else w / 2
 		for width: int in [w, from_w]:
@@ -997,9 +939,7 @@ func coat_fallback(guid: String) -> Image:
 	return out
 
 
-## The texture `guid`, an .exr or .hdr, keeping its high dynamic range: only Image.load_from_file decodes those, and it
-## picks its decoder by the file's extension, which an unpacked .unitypackage's `asset` lacks. Null where it does not
-## decode.
+## Only Image.load_from_file decodes .exr and .hdr, by extension, which an unpacked .unitypackage's `asset` lacks.
 func _hdr_image(guid: String) -> Image:
 	var file: String = assets.by_guid[guid].file
 	var kind := assets.extension(guid)
@@ -1015,9 +955,8 @@ func _hdr_image(guid: String) -> Image:
 	return img
 
 
-## The panorama `source` averaged down to `w` by half that, texel by texel: the direction it lies "toward" in Unity's
-## axes, as Unity's panoramic skybox reads one (u = 0.5 - atan2(z, x) / 2π, the top row straight up), its "light", and
-## the solid "angle" it covers, relative to the others'.
+## Per texel of `w` by `w` / 2: "toward" in Unity's axes as its panoramic skybox reads it (u = 0.5 - atan2(z, x) / 2π,
+## top row up), "light", and relative solid "angle".
 static func _panorama(source: Image, w: int) -> Dictionary:
 	var h := w / 2
 	var light := PackedVector3Array()
@@ -1041,9 +980,7 @@ static func _panorama(source: Image, w: int) -> Dictionary:
 	return {"toward": toward, "light": light, "angle": angle}
 
 
-## The packed maps of clear coat `coat` (`clearcoat`) as the renderer reads them, at most COAT_MAP wide: red its mask,
-## green its smoothness, blue its reflection and alpha its specular level, each from the channel the material names
-## (white where it names none) and in linear light. Null where its texture does not decode.
+## r mask, g smoothness, b reflection, a specular, in linear light, at most COAT_MAP wide; null where undecodable.
 func coat_map(coat: Dictionary) -> Image:
 	var source := _sampled(coat.texture)
 	if source == null:
@@ -1064,9 +1001,8 @@ func coat_map(coat: Dictionary) -> Image:
 	return Image.create_from_data(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8, out)
 
 
-## Poiyomi global mask `index` (one-based; 0 for none) of the material: {} for none, {"property", "channel"} for a
-## texture's channel, with "property" "" where no texture fills it and it stays Poiyomi's whole 1, or false where it is
-## drawn by more than one UV0 texture sample (split, panned or other-UV sampling, or a modifier).
+## Poiyomi global mask `index` (one-based, 0 none): {} for none; {"property", "channel"}, "property" "" for
+## Poiyomi's whole 1; false where more than one UV0 sample draws it.
 static func global_mask(m: Dictionary, index: int) -> Variant:
 	if index <= 0:
 		return {}
@@ -1080,20 +1016,13 @@ static func global_mask(m: Dictionary, index: int) -> Variant:
 	return {"property": property, "channel": (index - 1) % 4}
 
 
-## Poiyomi's `maskBlend` of `mask` by a global mask's `value`: replace, subtract, multiply, divide, min, max, average or
-## add, as `type` counts from 0.
 static func mask_blend(mask: float, value: float, type: int) -> float:
 	var blended: float = [value, mask - value, mask * value, mask / maxf(value, 0.0001), minf(mask, value), maxf(mask, value), (mask + value) * 0.5, mask + value][clampi(type, 0, 7)]
 	return clampf(blended, 0.0, 1.0)
 
 
-## How the material at `key` takes the light: "flat" for a shader lighting a surface by the light's colour whichever way
-## it faces (Poiyomi where `_flat_poiyomi`, capped at its Max Brightness where that is on; VRChat's Toon Lit, uncapped;
-## lilToon's, with its toon shadow, Liltoon.lighting), "lit" for a surface shaded by the angle of its light.
-## VRChat's Toon Standard is lit through its shadow "ramp", the brightness its ramp texture gives (Shadow Boost added,
-## at most 1) at RAMP evenly spaced points of its light's half-Lambert term from 0 to 1, with its Shadow Tint
-## ("shadowTint") lending the albedo to the shade and the light capped at 1 where Limit Brightness is on, as the shader
-## lights its forward base pass.
+## "flat" for a shader lighting by the light's colour whichever way it faces, at most "cap" under Poiyomi's Max
+## Brightness; else "lit", Toon Standard's with its "ramp" and "shadowTint", capped at 1 under Limit Brightness.
 func lighting(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if Liltoon.is_liltoon(m):
@@ -1117,9 +1046,7 @@ static func _capped(m: Dictionary) -> bool:
 	return _saved(m, "_LightingCapEnabled", 1.0) != 0.0
 
 
-## Whether Poiyomi lights the material `m` as its Flat lighting does: Flat itself, or Multilayer Math or Skin, whose
-## shade takes the place of the direct light only by Shadow Strength, where that is none or the shade keeps the light
-## whole (`_untinted`, `_skin_shade_covers_light`).
+## Flat, or Multilayer Math or Skin where Shadow Strength is 0 or their shade keeps the direct light whole.
 static func _flat_poiyomi(m: Dictionary) -> bool:
 	var mode := _float(m, "_LightingMode")
 	if mode == 5.0:
@@ -1131,9 +1058,8 @@ static func _flat_poiyomi(m: Dictionary) -> bool:
 	return _untinted(m) if mode == 1.0 else _skin_shade_covers_light(m)
 
 
-## Skin's shade is the lesser of the light and its Shadow Tint, times the indirect light unless Ignore Indirect Shadow
-## Color drops it, darkened by occlusion, plus the light its skin scatters. Unlike Multilayer Math's tint it is no
-## fraction of the light but a floor of its own, so it keeps the light whole only under a Max Brightness it reaches.
+## Skin's shade is a floor of its own, not a fraction of the light (the lesser of the light and Shadow Tint, times
+## indirect light, less occlusion), so it keeps the light whole only under a Max Brightness it reaches.
 static func _skin_shade_covers_light(m: Dictionary) -> bool:
 	if _saved(m, "_LightingIgnoreAmbientColor", 1.0) != 1.0 or not _capped(m):
 		return false
@@ -1144,9 +1070,8 @@ static func _skin_shade_covers_light(m: Dictionary) -> bool:
 	return tint.r >= cap and tint.g >= cap and tint.b >= cap
 
 
-## Whether Poiyomi's Multilayer Math lights the material `m` as its Flat lighting does: its shadow side takes the direct
-## light times a tint, and the tint is white where it ignores the ambient colour, blends in none of the base colour and
-## each shadow layer drawn is white without a texture.
+## Multilayer Math's shadow side is the direct light times a tint, white where it ignores the ambient colour, mixes
+## in no base colour and each drawn layer is untextured white.
 static func _untinted(m: Dictionary) -> bool:
 	if _saved(m, "_LightingIgnoreAmbientColor", 1.0) != 1.0 or _saved(m, "_ShadowMainStrength", 0.0) != 0.0:
 		return false
@@ -1161,8 +1086,8 @@ static func _untinted(m: Dictionary) -> bool:
 const RAMP := 16
 
 
-## Toon Standard's shadow ramp brightness (`lighting`), the mean of its texture's channels across the middle row, in
-## linear light, so a coloured ramp shades grey; white, the shader's default, where it has none.
+## At RAMP even points of the half-Lambert term 0 to 1: the middle row's channel mean in linear light plus Shadow
+## Boost, at most 1, so a coloured ramp shades grey; white, the shader's default, without a texture.
 func _ramp(m: Dictionary) -> Array:
 	var guid := _texture_guid(m, "_Ramp")
 	var img := image(guid) if guid != "" else null
@@ -1179,12 +1104,8 @@ func _ramp(m: Dictionary) -> Array:
 	return out
 
 
-## The emission of the material at `key` at rest as {"color", "strength", "hue", "shiftsHue", "replace"}, "replace" how
-## far its glow overrides the lit colour under it (Poiyomi's Override Base Color), its map in the emission atlas
-## (`_glow_and_peak`), and "theme", the slot of the global theme colour (`_theme`) it takes its colour from where it takes
-## one, or {} for one that glows by no emission drawn here: VRChat Toon Standard's, Poiyomi's (`_poiyomi_glows`) or
-## lilToon's (Liltoon.emission). Poiyomi adds its four emissions up, so those that glow in the drawn one's colour and
-## override it as far fold into its map, each weighted by its strength over the drawn one's; the others are left out.
+## At rest, "color" linear, "replace" Poiyomi's Override Base Color, "theme" a `_theme` slot; or {}. Poiyomi adds
+## its four emissions up, so those alike fold into the drawn one's map (`_folded`).
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if not m.has("cell"):
@@ -1210,8 +1131,6 @@ func emission(key: String) -> Dictionary:
 	return out
 
 
-## The Poiyomi emission of the material at `key` that `emission` draws (`_poiyomi_glows`), {} for none: the first,
-## where it glows at rest, a clip moves its strength or no other glows; otherwise the strongest.
 func _drawn(key: String) -> Dictionary:
 	var glows := _poiyomi_glows(key)
 	var lit := glows.filter(func(g: Dictionary) -> bool: return g.strength > 0.0)
@@ -1220,12 +1139,8 @@ func _drawn(key: String) -> Dictionary:
 	return lit.reduce(func(strongest: Dictionary, g: Dictionary) -> Dictionary: return g if g.strength > strongest.strength else strongest, lit[0]) if not lit.is_empty() else {}
 
 
-## The emissions of the Poiyomi material `m` the map can draw, in slot order, each {"slot", "strength", "replace",
-## "theme" (`_theme`, {} for none), "colour" (linear)}: those on, with their colour or theme colour (but the AudioLink
-## themes, which keep their colour where no world sends AudioLink), map and mask read through UV0, not tinted by the base
-## colour (which decals and hue shifts change after the atlas), and no modulation over time but AudioLink's, at rest
-## where no world sends AudioLink (`_audio_link_strength`), but on a first emission whose strength a clip sets, which
-## the runtime takes as the clip's keys give it.
+## Each {"slot", "strength", "replace", "theme" ({} for none), "colour" (linear)}, in slot order. Those the base
+## colour tints are out: decals and hue shifts change it after the atlas.
 func _poiyomi_glows(key: String) -> Array[Dictionary]:
 	if _glow_lists.has(key):
 		return _glow_lists[key]
@@ -1249,10 +1164,8 @@ func _poiyomi_glows(key: String) -> Array[Dictionary]:
 	return out
 
 
-## Poiyomi emission `slot`'s `strength` as AudioLink leaves it where no world sends it: Poiyomi then takes AudioLink as
-## present only where its Band Overrides are on, at their sliders' levels (the volume band at 0), and adds to the
-## strength, then multiplies it, at its bands' levels; its center-out add reads the world's AudioLink history, which
-## holds nothing, so adds its minimum.
+## As Poiyomi leaves it where no world sends AudioLink: only Band Overrides count, at their sliders (volume band 0),
+## and the center-out add reads an empty history, so adds its minimum.
 static func _audio_link_strength(m: Dictionary, slot: int, strength: float) -> float:
 	if _float(m, "_EnableAudioLink") == 0.0 or _saved(m, "_AudioLinkAnimToggle", 1.0) == 0.0 or _float(m, "_AudioLinkBandOverridesEnabled") == 0.0 or _float(m, "_EmissionAL%dEnabled" % slot) == 0.0:
 		return strength
@@ -1267,9 +1180,7 @@ static func _audio_link_strength(m: Dictionary, slot: int, strength: float) -> f
 	return strength + range_of.call("_AudioLinkEmission%dCenterOut" % slot, Color(0, 0, 0, 0)).r
 
 
-## The Poiyomi emissions of the material at `key` that fold into its drawn one (`_drawn`), in slot order, each as [its
-## slot, its strength over the drawn one's]: those glowing in the drawn one's theme, or its colour where it takes none,
-## and overriding the base colour as far. A drawn one dark at rest, or whose strength a clip moves, folds alone.
+## Emissions folding into `_drawn`'s, as [slot, strength over the drawn one's].
 func _folded(key: String) -> Array:
 	var drawn := _drawn(key)
 	if drawn.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
@@ -1278,9 +1189,8 @@ func _folded(key: String) -> Array:
 	return _poiyomi_glows(key).filter(alike).map(func(g: Dictionary) -> Array: return [g.slot, g.strength / drawn.strength])
 
 
-## The saved colour `name` of the material `m` as its shader reads it, in linear light, in a linear-light project as
-## VRChat's are: Unity converts every colour it hands a shader, but a locked shader (Thry's) holds a colour no clip
-## animates as a literal that keeps the saved value where it is declared [HDR] or [Gamma] but not both.
+## In linear light, as VRChat's projects are: Unity converts each colour it hands a shader, but a locked (Thry's)
+## shader inlines an unanimated colour declared [HDR] or [Gamma], not both, as saved.
 static func shader_colour(m: Dictionary, name: String, otherwise: Color) -> Color:
 	var colour := _colour((m.get("colours", {}) as Dictionary).get(name), otherwise)
 	var flags: Dictionary = (m.get("colour_attributes", {}) as Dictionary).get(name, {})
@@ -1288,9 +1198,7 @@ static func shader_colour(m: Dictionary, name: String, otherwise: Color) -> Colo
 	return colour if inlined and flags.get("hdr", false) != flags.get("gamma", false) else colour.srgb_to_linear()
 
 
-## Poiyomi global theme colour `index` (0 to 3) of the material `m` at rest as {"slot": the index, "hsv": its HDR colour's
-## hue, saturation and value in linear light below its "exposure", and the theme's own "hue", "saturation", "value" and
-## hue "speed" offsets}, which clips move (`field`) and ExpressionPlayer.theme_colour applies.
+## "hsv" is the HDR colour over "exposure", linear; the rest are offsets ExpressionPlayer.theme_colour applies.
 static func _theme(m: Dictionary, index: int) -> Dictionary:
 	var colour := shader_colour(m, "_GlobalThemeColor%d" % index, Color.WHITE)
 	var exposure := maxf(maxf(colour.r, maxf(colour.g, colour.b)), 1.0)
@@ -1299,9 +1207,7 @@ static func _theme(m: Dictionary, index: int) -> Dictionary:
 	return {"slot": index, "hsv": [colour.h, colour.s, colour.v], "exposure": exposure, "hue": offset.call("Hue"), "saturation": offset.call("Saturation"), "value": offset.call("Value"), "speed": offset.call("HueSpeed")}
 
 
-## The emission map over the material's padded cell, as `emission` reads it, and the strength its peak stands for over
-## the drawn emission's: each folded emission's map times its mask (`_mask`), weighted by its strength and added up in
-## linear light, scaled down by its peak where that passes 1; or Toon Standard's map, or lilToon's (Liltoon.glow).
+## [map over the padded cell, the strength its peak stands for].
 func _glow_and_peak(key: String) -> Array:
 	if _folded_maps.has(key):
 		return _folded_maps[key]
@@ -1333,20 +1239,16 @@ func _glow_and_peak(key: String) -> Array:
 	return _folded_maps[key]
 
 
-## Marks the material at `key` as one whose first emission's strength a clip animates (`strength_driven`).
 func drive_strength(key: String) -> void:
 	strength_driven[key] = true
 	_glow_lists.erase(key)
 	_folded_maps.erase(key)
 
 
-## The strength the peak of the folded emission map of the material at `key` stands for, over the drawn emission's.
 func _peak(key: String) -> float:
 	return _glow_and_peak(key)[1] if _folded(key).size() > 1 else 1.0
 
 
-## The emission map of the material `m`'s emission suffixed `n` over its padded cell: Poiyomi's map times its mask
-## (`_mask`), or Toon Standard's map.
 func _glow_of(m: Dictionary, n: String) -> Image:
 	var map := _over_cell(m, _slot_image(m, "_EmissionMap" + n), "_EmissionMap" + n)
 	var p := "_EmissionMask" + n
@@ -1362,27 +1264,21 @@ func _glow_of(m: Dictionary, n: String) -> Image:
 	return map
 
 
-## The atlas over the material's padded cell, without the mipmaps `atlas_materials` gives the atlas.
 func _albedo(m: Dictionary) -> Image:
 	var region := atlas.get_region(_padded(m))
 	region.clear_mipmaps()
 	return region
 
 
-## The material's cell and the PAD around it.
 static func _padded(m: Dictionary) -> Rect2i:
 	return (m.cell as Rect2i).grow(PAD)
 
 
-## Whether the material's mask in `property` covers anything less than all of its cell: a texture fills it, `invert`
-## inverts it, or `global` blends a global mask into it.
 func _masked(m: Dictionary, property: String, invert: String, global: String) -> bool:
 	return _texture_guid(m, property) != "" or int(_float(m, invert)) != 0 or not (global_mask(m, int(_float(m, global))) as Dictionary).is_empty()
 
 
-## The material's mask in `property` over its padded cell, one byte a texel: the channel `channel` names, inverted where
-## `invert` is set, blended with the global mask `global` names by the blend `blend` names, as Poiyomi masks a matcap
-## or an emission.
+## One byte a texel over the padded cell, as Poiyomi masks a matcap or an emission.
 func _mask(m: Dictionary, property: String, channel: String, invert: String, global: String, blend: String) -> PackedByteArray:
 	var source := _over_cell(m, _slot_image(m, property), property).get_data()
 	var pick := clampi(int(_float(m, channel)), 0, 3)
@@ -1398,18 +1294,14 @@ func _mask(m: Dictionary, property: String, channel: String, invert: String, glo
 	return out
 
 
-## Linear light of each sRGB byte, and the sRGB byte of each of 4096 steps of linear light.
 static var _LINEAR := PackedFloat32Array(range(256).map(func(v: int) -> float: return Color(v / 255.0, 0, 0).srgb_to_linear().r))
 static var _ENCODED := PackedByteArray(range(4096).map(func(v: int) -> int: return roundi(Color(v / 4095.0, 0, 0).linear_to_srgb().r * 255.0)))
 
 
-## Whether the material at `key` glows in global theme colour `slot`.
 func glows_in(key: String, slot: int) -> bool:
 	return emission(key).get("theme", -1) == slot
 
 
-## Whether the material at `key` draws the look `field` that the animated `property` drives in `slot`: a lilToon
-## emission's only where `property` is the blend of the one emission its entry carries (Liltoon.emission).
 func draws(key: String, look: Dictionary, property: String) -> bool:
 	match look.field:
 		"decal", "decalIntensity":
@@ -1433,17 +1325,12 @@ func draws(key: String, look: Dictionary, property: String) -> bool:
 	return not matcap(key, look.slot).is_empty()
 
 
-## The UV channel the clear coat of the material at `key` reads its packed maps through, or -1 where it has no maps.
 func coat_uv(key: String) -> int:
 	var coat := clearcoat(key)
 	return coat.uv if not coat.is_empty() and coat.texture != "" else -1
 
 
-## The look field an animated shader property drives as {"field", "slot"}, or {} where it drives none: a decal's alpha
-## (lilToon's 2nd and 3rd main textures' colour alpha, as decal slots 0 and 1), alpha intensity or hue shift, a
-## matcap's hue shift or strengths (lilToon's blend its intensity), emission's strength (lilToon's blend) or hue, a
-## global theme colour's offsets, which move the emission drawn in that theme (`_theme`), or a component (slot 0 to 3)
-## of the clear coat maps' tiling and offset.
+## {"field", "slot"} of the look an animated property drives, or {}; a clear coat ST component's slot is 0 to 3 for xyzw.
 static func field(property: String) -> Dictionary:
 	if property.begins_with(COAT_ST) and property.length() == COAT_ST.length() + 1:
 		var component := "xyzw".find(property.right(1))
@@ -1470,7 +1357,6 @@ static func field(property: String) -> Dictionary:
 
 
 const COAT_ST := "_ClearCoatMaps_ST."
-## lilToon's layers' colour alphas, by the decal slot Liltoon.faded lays each in.
 static var LAYER_ALPHAS: Array = Liltoon.LAYERS.map(func(n: String) -> String: return "_Color%s.a" % n)
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
@@ -1479,8 +1365,7 @@ static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueS
 static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(HueSpeed|Hue|Saturation|Value)([0-3])(_|$)")
 
 
-## Whether the material draws by a Poiyomi shader: a material switched to another shader keeps Poiyomi's saved decal and
-## matcap values, which that shader never draws.
+## By shader: a material switched off Poiyomi keeps Poiyomi's saved values.
 static func poiyomi(m: Dictionary) -> bool:
 	return str(m.get("shader", "")).containsn("poiyomi")
 
@@ -1494,17 +1379,11 @@ static func _texture_guid(m: Dictionary, property: String) -> String:
 	return Yaml.guid((entry as Dictionary).get("m_Texture")) if entry is Dictionary else ""
 
 
-## What each packed material lays over its albedo and adds to its light, and how it takes the light, for the renderer
-## to read by atlas texel: the material a texel shows decides it, so a material swapped in for another draws its own.
-## Empty where every material is lit by angle and has none; otherwise the "index" (a greyscale image, each texel one plus
-## its material's entry in "materials", zero for none), each entry's cell ("rect", in atlas UV), its decals, matcaps,
-## emission, rim and rim shade at rest, its "lighting" and, where its emission or a matcap takes a global theme colour, its
-## "themes" by slot, the atlas-sized "matcapMasks" (channel k matcap slot k's, its global mask blended in), "emission"
-## map and, where a material's lighting has a toon shadow, "shade" and, where one has a second shade, "shade2" (its
-## shade colours, Liltoon.shade, and the albedo elsewhere) and, where a rim has a colour texture, "rimTint"
-## (Liltoon.rim_tint, white elsewhere), the "matcaps" textures their entries name by position, and the "decals", `decal_images`, each
-## over its material's cell, which its decals name by "image"; and the `outline_layer`, which spans the atlas, not the
-## entries.
+## Only `outline_layer`'s keys where every material is lit by angle with no looks. Else, per atlas texel: "index" (each
+## texel one plus its material's entry in "materials", 0 none); entries' "rect" (atlas UV), looks at rest and
+## "themes" by slot; atlas-sized "matcapMasks" (channel k matcap slot k's), "emission", "shade" and "shade2"
+## (albedo elsewhere), "rimTint" (white elsewhere); "matcaps", "decals", "clearcoatMaps", "clearcoatFallbacks",
+## each indexed by the entries.
 func looks() -> Dictionary:
 	var entries := []
 	var index := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_L8)
@@ -1642,8 +1521,6 @@ func looks() -> Dictionary:
 	return out
 
 
-## Matcap `slot`'s mask over the material's padded cell, one byte a texel, or empty where it covers the whole cell:
-## Poiyomi's chosen channel with its global mask blended in, or lilToon's blend mask (Liltoon.matcap_cover).
 func _matcap_cover(m: Dictionary, slot: int) -> PackedByteArray:
 	if Liltoon.is_liltoon(m):
 		return Liltoon.matcap_cover(self, m, slot)
@@ -1653,28 +1530,24 @@ func _matcap_cover(m: Dictionary, slot: int) -> PackedByteArray:
 	return _mask(m, p, p + "Channel", p + "Invert", p + "GlobalMask", p + "GlobalMaskBlendType")
 
 
-## The layer `img`, shrunk in place to the at most `widest` an avatar file carries it at.
 static func _layer(img: Image, resample: Image.Interpolation, widest := LAYER) -> Image:
 	if img.get_width() > widest:
 		img.resize(widest, widest * img.get_height() / img.get_width(), resample)
 	return img
 
 
-## The texture in the material's `property` slot, decoded afresh: looks read each once, and holding them all would
-## outgrow an avatar's memory budget.
+## Decoded afresh: holding every looks texture would outgrow an avatar's memory budget.
 func _slot_image(m: Dictionary, property: String) -> Image:
 	var guid := _texture_guid(m, property)
 	return _decoded(guid) if guid != "" else null
 
 
-## The texture in the material's `property` slot as a shader samples it (`_sampled`).
 func _slot_sampled(m: Dictionary, property: String) -> Image:
 	var guid := _texture_guid(m, property)
 	return _sampled(guid) if guid != "" else null
 
 
-## The texture `guid` as a shader samples it, in linear light where its importer says so (`_srgb`): decoded afresh, so
-## no other reader sees the change.
+## Decoded afresh, so linearising changes no cached image.
 func _sampled(guid: String) -> Image:
 	var source := _decoded(guid)
 	if source != null and _srgb(guid):
@@ -1682,20 +1555,16 @@ func _sampled(guid: String) -> Image:
 	return source
 
 
-## `source` (white where null) as it lies over the material's cell, padded like the atlas.
 func _over_cell(m: Dictionary, source: Image, property: String) -> Image:
 	return _over(m, source, property, (m.cell as Rect2i).size, PAD)
 
 
-## `source` (white where null) as it lies over the material's own texture, `size` texels and `pad` more each side: the
-## material's own texture fills it, so another texture slot of the same UV0 is read through both slots' tilings.
+## White where `source` is null. The material's texture fills the cell, so another UV0 slot reads through both tilings.
 func _over(m: Dictionary, source: Image, property: String, size: Vector2i, pad: int) -> Image:
 	var entry: Dictionary = (m.get("textures", {}) as Dictionary).get(property, {})
 	return _tiled(m, source, _vector2(entry.get("m_Scale"), Vector2.ONE), _vector2(entry.get("m_Offset"), Vector2.ZERO), size, pad)
 
 
-## `source` (white where null) read through the tiling `scale` and `offset` of UV0, over the material's own texture as
-## `_over` lays it.
 func _tiled(m: Dictionary, source: Image, scale: Vector2, offset: Vector2, size: Vector2i, pad: int) -> Image:
 	var out := Image.create_empty(size.x + 2 * pad, size.y + 2 * pad, false, Image.FORMAT_RGBA8)
 	if source == null:
@@ -1719,8 +1588,6 @@ func _tiled(m: Dictionary, source: Image, scale: Vector2, offset: Vector2, size:
 	return out
 
 
-## The saved value of the animatable shader property `property` of the material: a float or int, or a vector's
-## component as `_Name.x` (or `.r`) names it; null where the material saves none.
 static func value(m: Dictionary, property: String) -> Variant:
 	for kind: String in ["floats", "ints"]:
 		if (m.get(kind, {}) as Dictionary).has(property):
@@ -1733,7 +1600,6 @@ static func value(m: Dictionary, property: String) -> Variant:
 	return str((vector as Dictionary).get("rgba"[component], "0")).to_float()
 
 
-## What the packed materials draw from their shaders that the atlas and looks cannot, one line a material's feature.
 func losses() -> Array[String]:
 	var out: Array[String] = []
 	for m: Dictionary in materials.values():
@@ -1757,27 +1623,20 @@ static func _sample(source: Image, uv: Vector2) -> Color:
 	return at.call(0, 0).lerp(at.call(1, 0), fraction.x).lerp(at.call(0, 1).lerp(at.call(1, 1), fraction.x), fraction.y)
 
 
-## A shader pass drawing a toon outline: Poiyomi's and Unity-chan Toon Shader's "Outline", VRChat's and lilToon's
-## "FORWARD_OUTLINE", in the shader or used from another.
 static var OUTLINE_PASS := RegEx.create_from_string("(?i)\\bName\\s+\"(?:FORWARD_)?OUTLINE\"|\\bUsePass\\s+\"[^\"]*/FORWARD_OUTLINE\"")
-## The widest the outline layer is carried at: an outline is a line a few millimetres wide, so its colour and width
-## change only across many atlas texels.
+## An outline is millimetres wide, so its colour and width change only across many atlas texels.
 const OUTLINE_LAYER := 1024
 
 
-## The toon outline the material at `key` draws, its back faces pushed out along their normals, or {} for none.
 func outline(key: String) -> Dictionary:
 	return materials[key].outline
 
 
-## The toon outline `m` draws, by its shader family, as {"width" in metres, "world" where the width is the world's
-## rather than the object's, which the renderer's transform scales, "colour" linear, "texture" the property of a
-## texture it is multiplied by, "tint" how far it is multiplied by the albedo ("squared": twice), "toward" how far it is
-## replaced by the albedo, "mask" the property of the texture whose "channel" (-1: its brightest) scales the width, read
-## through UV0 tiled by "scale" and "offset"}. Each family's distance scaling is left out: within a metre or two of the
-## eye, where avatars are seen, it changes the width by a few percent at most. Every outline is lit flat up to white,
-## as each family's light colour, clamped at one and blind to the angle, lights it; VRChat's unlit one too, since an
-## avatar stands in the garden's light.
+## {} for none, else "width" (metres), "world" (else the renderer's transform scales it), "colour" (linear),
+## "texture" (property it multiplies by), "tint" (how far times the albedo; "squared": twice), "toward" (how far
+## replaced by the albedo), "mask" (property whose "channel", -1 its brightest, scales the width) read through UV0
+## by "scale" and "offset". Distance scaling is left out: within a metre or two it changes the width a few percent.
+## Every outline is lit flat up to white, as each family's clamped, angle-blind light does; VRChat's unlit one too.
 func _outline(m: Dictionary) -> Dictionary:
 	if not m.outline_pass:
 		return {}
@@ -1834,10 +1693,9 @@ func _outline(m: Dictionary) -> Dictionary:
 	return out
 
 
-## The outline layer of the packed materials, {"outline": the PNG, "outlineWidth": its widest outline in metres}, or {}
-## where none draws one: each texel of a material that does holds its outline's colour, sRGB, and in alpha its width as
-## a share of the widest, mask and all; every other texel is clear. A material's width in object space is scaled by the
-## transform of the renderer drawing it (`outline_scale`, the largest where several do), as Unity scales its offset.
+## {} where none draws one; else "outline", each outlined texel its colour (sRGB) and in alpha its width over
+## "outlineWidth" (the widest, metres), mask included, clear elsewhere. Object-space widths scale by `outline_scale`,
+## the largest where several renderers draw it, as Unity scales its offset.
 func outline_layer() -> Dictionary:
 	var drawn := {}
 	var widest := 0.0
@@ -1873,13 +1731,10 @@ func outline_layer() -> Dictionary:
 	return {"outline": _layer(out, RESAMPLE, OUTLINE_LAYER), "outlineWidth": widest}
 
 
-## The width of the outline `m` draws in metres, its object-space width scaled by `outline_scale`; 0 for none.
 static func _outline_metres(m: Dictionary) -> float:
 	return 0.0 if m.outline.is_empty() else m.outline.width * (1.0 if m.outline.world else m.outline_scale)
 
 
-## The outline `o`'s width mask over the material's padded cell, one byte a texel: its channel, or its brightest where
-## that is -1.
 func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
 	var texels := _tiled(m, _slot_sampled(m, o.mask), o.scale, o.offset, (m.cell as Rect2i).size, PAD).get_data()
 	var out := PackedByteArray()
@@ -1889,7 +1744,6 @@ func _outline_mask(m: Dictionary, o: Dictionary) -> PackedByteArray:
 	return out
 
 
-## Whether a shader sampling the texture `guid` reads it decoded from sRGB, as its importer sets: a GPU decodes each
-## texel before it filters, so a mask or map is decoded before it is resized.
+## A GPU decodes sRGB before filtering, so a mask or map is decoded before it is resized.
 func _srgb(guid: String) -> bool:
 	return str(((assets.meta(guid).get("TextureImporter", {}) as Dictionary).get("mipmaps", {}) as Dictionary).get("sRGBTexture", "1")) != "0"

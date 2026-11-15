@@ -1,40 +1,30 @@
 extends RefCounted
 
-## An avatar's Unity ParticleSystems as UNITY_particles carries them (docs/particles.md): each live system's modules
-## the runtimes draw, read at import into sampled curves and gradients in the avatar's axes, so a runtime evaluates
-## a particle without Unity's types.
+## Unity ParticleSystems for UNITY_particles (docs/particles.md), sampled at import so a runtime needs no Unity types.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
 
-## Samples of a curve or gradient over its span; a constant keeps one.
 const SAMPLES := 16
-## Unity's shape types by ParticleSystemShapeType, each with the share of its radius it emits from inward of the
-## surface that the legacy shell types fix at 0.
+## ParticleSystemShapeType: [shape, radius thickness], -1 where the system's own; the legacy shell types fix 0.
 const SHAPES := {0: ["sphere", -1.0], 1: ["sphere", 0.0], 2: ["hemisphere", -1.0], 3: ["hemisphere", 0.0], 4: ["cone", -1.0], 5: ["box", -1.0], 7: ["cone", 0.0], 8: ["cone", -1.0], 9: ["cone", 0.0], 10: ["circle", -1.0], 11: ["circle", 0.0], 12: ["edge", -1.0], 15: ["box", -1.0], 16: ["box", -1.0], 18: ["box", -1.0]}
-## Unity's blend factors (UnityEngine.Rendering.BlendMode) as [source, destination] to the blend a runtime draws.
+## [_SrcBlend, _DstBlend] as UnityEngine.Rendering.BlendMode values.
 const BLENDS := {[5, 10]: "alpha", [1, 10]: "premultiplied", [5, 1]: "add", [1, 1]: "add", [4, 1]: "add", [2, 0]: "multiply", [0, 3]: "multiply"}
-## The widest a particle texture is kept: particles are small on screen, and each texture is its own image.
+## Texels; particles are small on screen, and each texture is its own image.
 const WIDEST := 256
-## Unity's clip attributes on a ParticleSystem (class 198) to the field a "particle" effect sets.
 const FIELDS := {"EmissionModule.rateOverTime": "rate", "EmissionModule.rateOverDistance": "distance", "InitialModule.startSpeed": "speed", "InitialModule.startSize": "size", "InitialModule.startLifetime": "lifetime", "InitialModule.gravityModifier": "gravity"}
-## A sub-emitter's inherited properties, in the order of Unity's ParticleSystemSubEmitterProperties bits.
+## In the order of Unity's ParticleSystemSubEmitterProperties bits.
 const INHERITED := ["color", "size", "rotation", "lifetime"]
 
 var systems := []
 var meshes := []
 var images: Array[Image] = []
-## Each system's index by the clip path of its GameObject.
 var by_path := {}
-## Each system's switch conditions, for the expressions' "particles".
 var when := []
-## Each system's material choices by GUID, as its renderer's "materials" list them.
 var _choices := []
-## What import multiplied each system's fields by (its transform's scale and simulation speed), which a clip's values
-## for them take too.
+## What import multiplied each system's fields by, which a clip's values for them take too.
 var _factors := []
-## Whether each of a system's materials tints by a legacy shader's _TintColor.
 var _legacy_tint := []
 var _materials: Materials
 var _prefabs: Prefabs
@@ -42,9 +32,7 @@ var _image_of := {}
 var _mesh_of := {}
 
 
-## Reads `found`, [[ParticleSystem id, its Transform, its GameObject, its switch conditions, its emitter's bone]...];
-## `paths` is each Transform by clip path, and `clips` the controller's clips, whose material swaps on a system's
-## renderer add that material to its choices.
+## `found`: [[ParticleSystem id, its Transform, its GameObject, its switch conditions, its emitter's bone]...].
 func _init(prefabs: Prefabs, materials: Materials, objs: Dictionary, found: Array, paths: Dictionary, clips: Array) -> void:
 	_prefabs = prefabs
 	_materials = materials
@@ -94,7 +82,7 @@ func _system(objs: Dictionary, id: int, renderer: int, transform: int, refs: Arr
 		var s: Variant = objs[t].data.get("m_LocalScale")
 		lossy *= absf(Prefabs.number(s, "x", 1.0) * Prefabs.number(s, "y", 1.0) * Prefabs.number(s, "z", 1.0)) ** (1.0 / 3.0)
 	var sized := lossy if mode != 2 else 1.0
-	# Unity's simulation speed runs the whole system faster; here its times shorten and its rates and speeds rise.
+	# Simulation speed is baked in: times shorten, rates and speeds rise.
 	var fast := maxf(Prefabs.number(d, "simulationSpeed", 1.0), 0.001)
 	var moving := (lossy if not world else 1.0) * fast
 	_factors.append({"size": sized, "speed": moving, "lifetime": 1.0 / fast, "rate": fast, "gravity": fast * fast})
@@ -190,7 +178,6 @@ func _shape(s: Dictionary, scale: float) -> Dictionary:
 	return out
 
 
-## How a system's renderer draws it, with the materials `refs` a clip may choose among, its own first.
 func _renderer(objs: Dictionary, id: int, refs: Array) -> Dictionary:
 	var tints := []
 	_legacy_tint.append(tints)
@@ -210,8 +197,7 @@ func _renderer(objs: Dictionary, id: int, refs: Array) -> Dictionary:
 	return out
 
 
-## A particle material's texture, tint, emission and blend. Unity's particle shaders tint by _Color, or by _TintColor
-## doubled in linear light in the legacy ones (recorded in `tints`), and blend by their _SrcBlend and _DstBlend.
+## Unity's particle shaders tint by _Color, or the legacy ones by _TintColor doubled in linear light.
 func _material(ref: Dictionary, tints: Array) -> Dictionary:
 	var m: Dictionary = _materials.materials[_materials.use(ref, Color.WHITE)]
 	var floats: Dictionary = m.get("floats", {})
@@ -239,7 +225,6 @@ func _material(ref: Dictionary, tints: Array) -> Dictionary:
 	return out
 
 
-## An sRGB channel the legacy particle shaders double: twice its linear value, back in sRGB.
 static func _doubled(c: float) -> float:
 	return Color(Color(c, c, c).srgb_to_linear().r * 2.0, 0, 0).linear_to_srgb().r
 
@@ -253,7 +238,6 @@ func _image(guid: String, img: Image) -> int:
 	return _image_of[guid]
 
 
-## The mesh a mesh-mode renderer draws, from its model, as arrays; -1 if the model has no such mesh.
 func _mesh(ref: Dictionary) -> int:
 	var guid := Yaml.guid(ref)
 	var key := "%s:%s" % [guid, Yaml.file_id(ref)]
@@ -285,8 +269,6 @@ func _mesh(ref: Dictionary) -> int:
 	return _mesh_of[key]
 
 
-## The "particle" effect of a clip curve on a system's ParticleSystem (198) or its renderer (199), or {} for one no
-## runtime draws: the field it sets and, for a curve's scalars, which end of a random range ("min", "max" or "both").
 func effect(c: Dictionary) -> Dictionary:
 	if not by_path.has(c.path):
 		return {}
@@ -331,14 +313,12 @@ func effect(c: Dictionary) -> Dictionary:
 	return {}
 
 
-## A clip's value `v` for effect `e` as the file holds that field: scaled as import scaled it, a legacy tint doubled.
 func value(e: Dictionary, v: float) -> float:
 	if e.field == "tint" and _legacy_tint[e.system][0]:
 		return _doubled(v) if e.channel < 3 else minf(v * 2.0, 1.0)
 	return v * float((_factors[e.system] as Dictionary).get(e.field, 1.0))
 
 
-## The value a "particle" effect rests at: the field as the file saves it.
 func rest(e: Dictionary) -> float:
 	var system: Dictionary = systems[e.system]
 	match e.field:
@@ -354,14 +334,11 @@ func rest(e: Dictionary) -> float:
 	return float(c.scale[0 if e.end == "min" else 1])
 
 
-## The index of the material with GUID `guid` among system `i`'s choices, or -1.
 func choice(i: int, guid: String) -> int:
 	return (_choices[i] as Array).find(guid)
 
 
-## A MinMaxCurve as UNITY_particles carries it, `by` times Unity's: {"min", "max" samples over its span, "scale":
-## [low, high]}, its value at t the low end's sample times low blended toward the high end's times high by the
-## particle's random.
+## {"min", "max": samples over its span, "scale": [low, high]}: min * low lerps to max * high by the particle's random.
 static func curve(v: Variant, by := 1.0) -> Dictionary:
 	var d: Dictionary = v if v is Dictionary else {}
 	var scalar := Prefabs.number(d, "scalar") * by
@@ -376,8 +353,8 @@ static func curve(v: Variant, by := 1.0) -> Dictionary:
 	return {"min": [1.0], "max": [1.0], "scale": [scalar, scalar]}
 
 
-## A MinMaxGradient as UNITY_particles carries it: {"min", "max" each a list of [r, g, b, a] samples}, sRGB colour as
-## Unity saves it and linear alpha. Unity's random colour picks a point of its gradient; its ends stand for it.
+## {"min", "max": lists of [r, g, b, a] samples}, rgb sRGB as Unity saves it, alpha linear. A random colour picks a
+## point of its gradient; its ends stand for it.
 static func gradient(v: Variant) -> Dictionary:
 	var d: Dictionary = v if v is Dictionary else {}
 	var c := func(k: String) -> Array:

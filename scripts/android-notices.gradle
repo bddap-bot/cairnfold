@@ -38,8 +38,7 @@ afterEvaluate {
                 pom.transitive = false
                 def metadata = pom.singleFile.getText('UTF-8')
                 new File(target, 'pom.xml').setText(metadata, 'UTF-8')
-                // Kotlin's JDK compatibility modules contain only module-info.java,
-                // with no copyright header; their POM declares Apache-2.0.
+                // Kotlin's JDK compatibility modules hold only a headerless module-info.java; their POM declares Apache-2.0.
                 if (texts.empty && id.group == 'org.jetbrains.kotlin' &&
                         id.name in ['kotlin-stdlib-jdk7', 'kotlin-stdlib-jdk8'] &&
                         metadata.contains('http://www.apache.org/licenses/LICENSE-2.0')) {

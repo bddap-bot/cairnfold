@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 # Builds an APK inside android.nix: android.sh quest|lepton OUT.apk [store|steam]
-#   quest   the Quest build, OpenXR through the vendors plugin's Meta flavor; a store Quest APK, the one the Horizon Store
-#           gets, also carries the Platform SDK and the app's id, and quits for a user who does not own the game (Store)
-#   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
-#           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
-# Both carry the engine scripts/engine.sh builds.
-# A steam Lepton APK also carries the GodotSteam extension and Valve's steam_api library; a Quest APK never does.
-# Every APK, bench or release, signs with the one key in $CAIRNFOLD_ANDROID_KEY (AGENTS.md, "Signing"), so any build
+# The Frame's lepton build takes the Khronos flavor and no Meta SDK material, keeping Meta's approved-product terms off
+# a Steam product. Every APK signs with the one key in $CAIRNFOLD_ANDROID_KEY (AGENTS.md, "Signing"), so any build
 # installs over any other and the garden on the device survives.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,10 +17,8 @@ steam_dir=androidarm64
 unzip -p "$(fetch "${godot_templates[@]}")" templates/android_source.zip > "$tdir/android_source.zip"
 vendors=$(fetch "${openxr_vendors[@]}")
 number=$(build_number "$root")
-# A Gradle daemon outlives its export by its 3 h default idle timeout, holding a worker's RAM; a minute still serves
-# back-to-back exports, which a single-use JVM per export would double. The daemon lives in the cgroup of the export
-# that spawned it and dies with it, so only exports in that cgroup may reuse it: a daemon a finished job left was
-# killed mid-export under the packaging service.
+# The default 3 h idle timeout held a worker's RAM; a minute still serves back-to-back exports. A daemon dies with its
+# export's cgroup, so only that cgroup may reuse it: one a finished job left was killed mid-export.
 daemons=$cache/gradle/daemons/$(cksum < /proc/self/cgroup | cut -d' ' -f1)
 export GRADLE_USER_HOME=$cache/gradle GRADLE_OPTS="-Dorg.gradle.daemon.idletimeout=60000 -Dorg.gradle.daemon.registry.base=$daemons"
 
@@ -48,15 +41,12 @@ export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$android_key/release.keystore GODOT_A
   GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$password
 
 cd "$stage/game"
-# Install first so notices enter ordinary APK assets before signing.
 mkdir -p android/build
 unzip -q "$tdir/android_source.zip" -d android/build
-# The engine build (scons) and the export (Gradle) size themselves to every CPU; with-jobs holds them to their share.
 cp "$("$root/scripts/with-jobs" "$root/scripts/engine.sh" android android/build/libs/release/godot-lib.template_release.aar)" \
   android/build/libs/release/godot-lib.template_release.aar
 printf '%s.stable\n' "$godot_version" > android/.build_version
-# The toolkit's Android library brings its own GDExtension and the Platform SDK loader. Its addon is left out: the
-# addon's editor library crashes Godot 4.6 on every cold import.
+# Only the toolkit's Android library: its addon's editor library crashes Godot 4.6 on every cold import.
 if [ "$variant" = store ]; then
   unzip -q -j "$(fetch "${meta_toolkit[@]}")" asset/addons/godot_meta_toolkit/.bin/android/release/godot_meta_toolkit-release.aar \
     -d android/build/libs/release
@@ -82,8 +72,8 @@ wants=(org.khronos.openxr.intent.category.IMMERSIVE_HMD android.hardware.vr.head
 for want in "${wants[@]}"; do
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
-# Lepton's target SDK 32 has no reason of its own: its preset copied the Quest's, which went to 34 for the Horizon
-# Store (5e71dfb1) after the copy. Raising it is a change to check on the Frame.
+# Lepton's target SDK 32 is no requirement, only a copy of the Quest's before it rose to 34; raising
+# it needs a check on the Frame.
 if [ "$target" = quest ]; then
   attribute() { awk -v n="$1" -v a="$2" '$0 ~ n { f = 1 } f && $0 ~ a { sub(/.*\)/, ""); print; exit }' <<<"$manifest"; }
   [ "$(attribute '"android.hardware.vr.headtracking"' android:required)" = 0xffffffff ] || { echo "android: the Quest manifest does not require head tracking" >&2; exit 1; }

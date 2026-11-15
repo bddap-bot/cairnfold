@@ -1,11 +1,9 @@
 extends RefCounted
 
-## A binary FBX's material slots: each model's materials that its polygons use, in the order its polygons first use
-## them, the order of a Unity renderer's m_Materials where it has one slot for each. Godot drops a surface it finds no
-## triangles in, so a surface finds its slot by its material's name.
+## Each model's material slots in a binary FBX, in the order its polygons first use them, as Unity's m_Materials and
+## submeshes are. Godot drops a surface with no triangles, so a surface finds its slot by its material's name.
 
 
-## Model name to its material names, slot by slot; empty for a file that is not binary FBX.
 static func slots(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null or f.get_buffer(20).get_string_from_ascii() != "Kaydara FBX Binary  ":
@@ -49,8 +47,6 @@ static func slots(path: String) -> Dictionary:
 	return out
 
 
-## The material indices a Geometry's polygons use, in the order its polygons first use them, which is the order Unity
-## gives its submeshes.
 static func _first_uses(geometry: Dictionary) -> PackedInt32Array:
 	for layer: Dictionary in geometry.children:
 		if layer.name != "LayerElementMaterial":
@@ -64,8 +60,7 @@ static func _first_uses(geometry: Dictionary) -> PackedInt32Array:
 	return PackedInt32Array()
 
 
-## One node record and the records under it, reading only Objects and Connections and what is under them: {"name",
-## "props", "children"}; empty at the end of the file's top-level records.
+## {"name", "props", "children"}, kept only for Objects and Connections; empty past the last top-level record.
 static func _node(f: FileAccess, wide: bool, keep := true) -> Dictionary:
 	var end := f.get_64() if wide else f.get_32()
 	var count := f.get_64() if wide else f.get_32()

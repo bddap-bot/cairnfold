@@ -1,26 +1,16 @@
 #!/usr/bin/env bash
-# The one way to put an APK on the Quest adb reaches while keeping the players' saves:
-#   quest-install.sh APK          installs over the app there. One adb refuses, an older version or another key, takes
-#                                 an uninstall, which erases the app's external files folder holding the garden and
-#                                 the avatars: they are copied to the host first and pushed back after the install.
-#   quest-install.sh --backup DIR [APK]   copies the saves of APK's package (the game's without) to DIR by itself.
-#   quest-install.sh --restore DIR [APK]  pushes such a copy back by itself.
-#   quest-install.sh --package APK  prints the package APK installs as, read from its manifest: every step acts on
-#                                 that package, so a build renamed to stand beside the game never touches the game.
-# An APK whose manifest lacks the Quest's VR launcher category is refused: the Lepton APK shares the Quest build's
-# package and version code, so adb would install the Frame's build over the Quest's.
-# A copy that fails, an adb call that fails included, stops the run before anything is uninstalled: a failed read of the
-# device is never taken for a device without saves. A push that fails to land every file byte for byte fails the run,
-# naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
-# (default ~/.local/state/cairnfold/quest-saves), files identical across copies hardlinked as one. A save is only what
-# the game writes, the entries of $game_paths; what the shell pushes beside them (bench output, launch arguments, check
-# drivers) is left out of both the copy and the push.
+# Installs an APK on the Quest adb reaches, keeping the players' saves:
+#   quest-install.sh APK            an install adb refuses (a downgrade, another key) takes an uninstall, which erases
+#                                   the files folder: the saves go under $CAIRNFOLD_QUEST_SAVES first and back after
+#   quest-install.sh --backup|--restore DIR [APK]   copies the saves of APK's package (else the game's) to DIR, or back
+#   quest-install.sh --package APK  prints the package every step acts on, so a renamed build leaves the game be
+# All but --package refuse a non-Quest APK: the Lepton APK shares the Quest build's package and version code.
+# A failed read of the device stops the run before any uninstall. A save is only an entry of $game_paths, never what
+# the shell pushes beside them (bench output, launch arguments).
 set -euo pipefail
 pkg=io.github.bddapbot.cairnfold
 game_paths="garden.save garden.save.bad avatars record-sessions sessions"
 
-# package APK [quest]: the manifest's package attribute, from the APK's binary XML; with quest, failing unless the
-# manifest names the Quest's VR category.
 package() {
   python3 - "$@" <<'PY'
 import struct, sys, zipfile
@@ -86,18 +76,14 @@ backup() {
   echo "quest-install: saves copied to $dir" >&2
 }
 
-# stranded DIR: from here on, a run that dies names the command that puts DIR back.
 stranded() {
   unrestored="quest-install: the saves did not go back on the device; restore them with: $(printf '%q ' "$0" --restore "$1" ${apk:+"$(realpath "$apk")"})"
   trap 'echo "$unrestored" >&2' EXIT
 }
 
-# A restore never starts the game, so an unworn headset's Guardian or standby cannot hold it: each save goes back by
-# one push, which makes the folders it needs, and what the push made is opened to the game. On a Quest 3 a folder or
-# file the shell makes stays the shell's, which the game may not write; the game's start makes files/ and
-# Android/data/<package> its own. The device's hashes of the copy's files must then match the copy's.
-# A freshly installed app's files folder refuses the shell's writes for a while (secure_mkdirs: Operation not
-# permitted), so a restore retries refused ones for thirty seconds in all.
+# On a Quest 3 what the shell makes stays the shell's, which the game may not write, so what each push made is opened
+# to the game. A fresh install's files folder refuses the shell's writes for a while (secure_mkdirs: Operation not
+# permitted), hence the retries.
 restore() {
   local dir=$1 entry entries=() listed tries=30
   [ -d "$dir" ] || { echo "quest-install: no copy of saves at $dir" >&2; exit 1; }

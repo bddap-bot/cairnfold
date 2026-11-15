@@ -1,26 +1,21 @@
 extends RefCounted
 
-## Unity packages' assets by GUID: each an Assets folder with each asset's .meta beside it, or a .unitypackage unpacked
-## as Unity ships it, one folder per GUID holding `asset`, `asset.meta` and `pathname`.
+## Assets by GUID, from an Assets folder with each .meta beside its asset, or an unpacked .unitypackage.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 
-## The images a package may name from the shader packages its creator installs beside it, which it does not carry:
-## Poiyomi's matcaps, and its clear coat's fallback cubemap, a high dynamic range panorama.
 const IMAGES := ["png", "jpg", "jpeg", "tga", "bmp", "webp", "exr", "hdr"]
 
 ## GUID to {"file": where its bytes are, "path": its path in the project, "meta": its .meta file}.
 var by_guid := {}
-## The GUIDs `dir` itself holds: where the avatar is looked for.
+## Where the avatar is looked for.
 var own := {}
 var _metas := {}
-## Whether messages name what the avatar holds (its objects, materials, assets, GUIDs and paths), as the converter's
-## --names asks; otherwise they print numbers and counts, and the engine's messages while it reads a package's files,
-## which name them, are held back (quietly).
+## Set by the converter's --names; otherwise messages print numbers and counts, and the engine's messages while it
+## reads a package's files, which name them, are held back (quietly).
 static var print_names := false
 
 
-## What `read` returns, the engine's messages held back while it runs unless print_names.
 static func quietly(read: Callable) -> Variant:
 	var shown := Engine.print_error_messages
 	Engine.print_error_messages = shown and print_names
@@ -29,11 +24,8 @@ static func quietly(read: Callable) -> Variant:
 	return out
 
 
-## `lent`, other packages imported beside `dir` (the base avatar an edit or outfit is made over), lend every asset
-## `dir` names but lacks, an earlier one's over a later's, as one project holds them all. `packages`, a Unity project's
-## Packages folder, lends only images: a shader package's own textures (Poiyomi's matcaps) are referenced by GUID and
-## installed beside the avatar, never shipped with it, and its prefabs and scenes must not change which avatar
-## converts.
+## `lent` packages lend what `dir` lacks, an earlier one's over a later's. `packages` lends only images, the shader
+## textures avatars reference by GUID but never ship, so its prefabs and scenes cannot change which avatar converts.
 func _init(dir: String, lent: PackedStringArray = [], packages := "") -> void:
 	by_guid = _scan(dir)
 	own = by_guid.duplicate()
@@ -74,7 +66,6 @@ static func _add(out: Dictionary, file: String, path: String, meta: String) -> v
 			return
 
 
-## The asset's .meta as a document, or empty for an unknown GUID.
 func meta(guid: String) -> Dictionary:
 	if not by_guid.has(guid):
 		return {}
@@ -97,6 +88,5 @@ func text(guid: String) -> String:
 	return FileAccess.get_file_as_string(by_guid[guid].file) if by_guid.has(guid) else ""
 
 
-## The GUIDs of every asset whose path ends in one of `extensions`.
 func of(extensions: Array) -> Array:
 	return by_guid.keys().filter(func(g: String) -> bool: return extension(g) in extensions)

@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Another player's avatar standing, lying and sitting, as a host sees it: poses.sh OUT_DIR [AVATAR]. A guest joins the
-# host and holds its head and hands where a person in each of Posture's poses held theirs (demo/poses-guest.json); the
-# host draws the tracked head and hands as markers and captures the guest's avatar in each pose, a crouch it must show
-# standing, and the blends between them (demo/poses-host.json), into OUT_DIR. AVATAR is a built-in's number or a VRM
-# file the guest wears; by default built-in 0.
+# poses.sh OUT_DIR [AVATAR]: AVATAR is a built-in's number (default 0) or a VRM file the guest wears.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=$(realpath -m "$1")
@@ -25,7 +21,6 @@ if [ -f "$avatar" ]; then
   cp "$avatar" "$out/avatars/"
   wears=(--avatars "$out/avatars")
 fi
-# With a file to wear, the host waits until it shows the guest in it.
 python3 - "$root/demo/poses-host.json" "$out/host.json" "$([ -f "$avatar" ] && echo 1 || echo 0)" <<'PY'
 import json, sys
 steps = json.load(open(sys.argv[1]))

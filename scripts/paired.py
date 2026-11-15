@@ -1,19 +1,10 @@
 #!/usr/bin/env python3
-"""What a thing costs by itself, from a bench record of paired phases:
-    paired.py RECORD.json
-    paired.py RECORD.json --price KIND UNIT COUNT FULL=EMPTY...
+"""paired.py RECORD.json [--price KIND UNIT COUNT FULL=EMPTY...]
 
-A scene such as demo/conure-cost.json alternates each view with and without the thing, labelled
-pair/PHASE/NTHING/K and pair/PHASE/none/K, K the pair; its order runs with, without, without, with,
-so a drift through the run cancels. Each pair's difference is one draw; the mean, its standard error
-and that per thing are added to the record under "pairs" and printed. A view's phases all run pinned at one quality step
-or are refused, naming their steps: a governed phase measures the governor, not the thing.
-
-With --price, each FULL=EMPTY names a phase holding COUNT of KIND and the same view without them. The price is the
-most any pair gives a unit, in microseconds; a FULL and EMPTY not pinned at one step are refused as views are, and a
-phase whose median frame took over 1.5 times the record's budget_gpu_ms, the frame
-rate halved, is refused: its GPU time is not the scene's (scripts/costs.py leaves such views out too). It is added to the record under "prices", KIND's entry naming the Budget
-unit it is charged as, and tests/test_prices.py holds every unit's charge to the latest price recorded for it."""
+Phases are labelled pair/PHASE/NTHING/K and pair/PHASE/none/K, ordered with, without, without, with so drift cancels.
+Unpinned phases are refused: a governed phase measures the governor. A price is the most any FULL=EMPTY pair gives a
+unit; a phase whose median frame passed 1.5 budget_gpu_ms (the frame rate halved) is refused, as costs.py drops such
+views. tests/test_prices.py holds every unit's charge to the latest "prices" entry."""
 import json
 import math
 import re

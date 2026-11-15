@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""Where a Quest's main thread stalled: the longest runs of busy 20 ms windows in a simpleperf dump of the game, and the
-native functions inclusive in each. hitches.py SAMPLES.txt [THREAD] [WINDOWS]
+"""hitches.py SAMPLES.txt [THREAD] [WINDOWS]: the longest runs of busy 20 ms windows on a Quest's main thread.
 
-The Quest APK is profileable. While a bench runs, under the headset's adb:
+The APK is profileable. During a bench, with the template's native debug symbols (arm64-v8a/libgodot_android.so from
+Godot_native_debug_symbols.VERSION.template_release.android.zip) in /data/local/tmp/sym:
   simpleperf record --app io.github.bddapbot.cairnfold -g -f 1000 --duration SECONDS -o /data/local/tmp/nc.perf.data
-then, with Godot's native debug symbols for the template (Godot_native_debug_symbols.VERSION.template_release.android.zip,
-arm64-v8a/libgodot_android.so) pushed to /data/local/tmp/sym:
   simpleperf report-sample -i /data/local/tmp/nc.perf.data --symdir /data/local/tmp/sym --show-callchain \\
     --include-thread-name VkThread > /data/local/tmp/samples.txt
-and pull samples.txt. On Android Godot's main loop runs on VkThread. GDScript functions show only as the engine calls
-they make (ShaderMaterial::set_shader, ResourceLoader::load, ...)."""
+Godot's Android main loop runs on VkThread; GDScript shows only as the engine calls it makes."""
 import collections
 import sys
 from dataclasses import dataclass, field

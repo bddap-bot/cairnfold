@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-"""Which of a headset's session files the host may delete from it, given its copies under STORE.
+"""deletable.py STORE < LISTING, LISTING as `stat -c '%s %n'` prints the headset's sessions folder.
 
-    deletable.py STORE < LISTING
-
-LISTING is one `SIZE PATH` line per file in the headset's sessions folder, as `stat -c '%s %n'` prints them: PlayLog's
-chunks `<session>-<part>.jsonl` and takes `<session>.wav`. Prints the PATH of each whose copy STORE/<name> is whole
-(its size, and for a take a header that counts all of it) and that its session has closed: a chunk once a later part
-of its session exists or the session's end record is copied, a take once that end record is. A session killed before
-its end record keeps its last chunk and take on the headset."""
+Prints each file whose copy in STORE is whole and whose session has closed: a chunk once a later part exists or the end
+record is copied, a take once that end record is. A session killed before its end record keeps its last chunk and take."""
 import json
 import re
 from pathlib import Path
@@ -31,7 +26,7 @@ def whole_take(take):
 
 
 def split(name):
-    """A chunk's session and part, a take's session and None, or None for a name PlayLog writes neither as."""
+    """(session, part) for a chunk, (session, None) for a take, None for neither."""
     if name.endswith(".wav"):
         return name[:-len(".wav")], None
     match = re.fullmatch(r"(.+)-(\d+)\.jsonl", name)

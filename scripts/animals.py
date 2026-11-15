@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Cuts the animal calls in game/audio/animals from the recordings listed in its sources.json, softened for a
-headset: rumble and hiss filtered out, highs rolled off, the conures' a little lower, every call at one loudness.
-Downloads each recording once into scripts/.animals-cache; run under nix-shell."""
+"""The animal calls, softened for a headset: rumble and hiss out, highs rolled off, every call at one loudness.
+Run under nix-shell."""
 
 import json
 import pathlib
@@ -15,11 +14,9 @@ from compose import ROOT as AUDIO, SR, _fft_lowpass, write_ogg
 
 ROOT = AUDIO / "animals"
 CACHE = pathlib.Path(__file__).resolve().parent / ".animals-cache"
-# Per kind: high-pass and low-pass corners in Hz and pitch ratio. A conure's chirps sit at 3–5 kHz, so they are
-# taken down three semitones, near the meadow bed's birds, and rolled off from 2.6 kHz with a steeper slope than the others;
-# their contact calls, loud and ringing to 8 kHz, keep only their lowest two harmonics.
-# A fox and a squirrel are taken down three semitones too, out of the bright bark and chatter they have.
-# A rustle is broadband noise, so it keeps nothing much above 1.6 kHz: a muffled brush through grass, not a hiss.
+# (high-pass Hz, low-pass Hz, low-pass order, pitch ratio). Conure chirps sit at 3–5 kHz, so they drop three semitones
+# toward the meadow bed's birds; contact calls ring to 8 kHz and keep their lowest two harmonics. Fox and squirrel drop
+# out of their brightness; a rustle is broadband, so it keeps little above 1.6 kHz.
 SHAPE = {
     "conure": (500, 2600, 3, 2 ** (-3 / 12)),
     "conure contact": (600, 1800, 6, 2 ** (-3 / 12)),

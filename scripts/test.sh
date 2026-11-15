@@ -1,33 +1,24 @@
 #!/usr/bin/env bash
-# The repo's checks: perf records added since origin/main measured what lands (records.sh), scripts compile, then every
-# headless test; a script or shader error, a failed allocation, an engine math call given an unnormalized axis, a
-# resource left in use or an object leaked at exit, or an engine call given a freed object or a null material fails it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/records.sh
 runs=$(mktemp -d)
 trap 'rm -rf "$runs"' EXIT
-# Godot's user:// lives under the XDG data home: each run, and each test in it, gets its own, so none share files. Tests
-# keep their scratch files there, since Godot's temp dir is /tmp whatever TMPDIR says; TMPDIR holds everything else's.
+# Each test gets its own user:// (the XDG data home), which holds its scratch files: Godot's temp dir is /tmp whatever
+# TMPDIR says.
 XDG_DATA_HOME=$(mktemp -d -p "$runs")
 TMPDIR=$runs
 export XDG_DATA_HOME TMPDIR
-# A test holds about 300 MB, the GPU checks 1.6 GB; a runaway allocation fails its test at 4 GB of data instead of
-# exhausting the machine. The cap counts data, not address space: glibc reserves 64 MB for each thread's malloc arena,
-# and a GPU check's ~40 of them reserve 1.7-2.0 GB it never touches, enough to put its address space at the 4 GB line.
+# A test holds about 300 MB, the GPU checks 1.6 GB. The cap is data, not address space: a GPU check's ~40 glibc
+# malloc arenas reserve 1.7-2.0 GB it never touches.
 ulimit -d $((4 * 1024 * 1024))
 python3 -m unittest discover -s tests -p 'test_*.py' >"$runs/python.log" 2>&1 &
 python=$!
 scripts/check.sh
 status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
-# Tests run side by side, largest first so the longest start early; each gets its own user://. A test waits on what the
-# game's workers are doing, never on a frame count, and an until() still unmet after two minutes of the host's time
-# fails as the wait it names. The timeout catches any other hang, and stays an hour of the test's own time:
-# test_house_leaks alone took 29 minutes in a full run on a loaded host, and the suite waits for it anyway, so a lower
-# ceiling would only fail it.
-# A make jobserver the caller advertises in MAKEFLAGS sets how many run at once, so suites and builds running beside
-# this one share the CPUs; without one, half the CPUs do.
+# Largest first, so the longest start early. The hour's timeout only catches hangs: test_house_leaks alone took 29
+# minutes on a loaded host, and the suite waits for it anyway.
 cat >"$runs/tests.mk" <<'MK'
 %.log.exit:
 	@XDG_DATA_HOME=$$(mktemp -d -p "$(@D)") scripts/timeout.sh 3600 godot4 --headless --fixed-fps 60 --path game \
@@ -39,22 +30,19 @@ if [ -p "${fifo%% *}" ]; then jobs=(); else jobs=(-j "$(( $(nproc) / 2 ))"); fi
 # shellcheck disable=SC2046,SC2012
 make -s -k -f "$runs/tests.mk" "${jobs[@]}" $(ls -S tests/test_*.gd | sed "s|^tests/\(.*\)|$runs/\1.log.exit|")
 errors='SCRIPT ERROR|SHADER ERROR|still in use at exit|leaked at exit|previously freed|initialized RID|initialize the wrong RID|Parameter "material" is null|Parameter "mem|must be normalized'
-# verdict TEST LOG EXIT_CODE ERRORS
 verdict() {
   local failed=0
   if [ "$3" != 0 ]; then echo "$1: exited $3"; failed=1; fi
   grep -E "^(tests|FAIL):|$4" "$2" | sed "s|^|$1: |" || true
   # A test that stops short of its end, however it exits, never prints its verdict.
   if grep -qE "$4" "$2" || ! grep -q "^tests: ok" "$2"; then failed=1; fi
-  # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
   if [ "$failed" = 1 ]; then tail -n 60 "$2" | sed "s|^|$1: |"; status=1; fi
 }
 for t in tests/test_*.gd; do
   log="$runs/$(basename "$t").log"
   verdict "$t" "$log" "$(cat "$log.exit")" "$errors"
 done
-# The GPU checks compare what the compute shaders lay, so they run on the desktop renderer under a virtual display, as
-# scripts/render.sh does, one at a time.
+# The GPU checks compare what the compute shaders lay, so they need the desktop renderer, one at a time.
 # shellcheck source=scripts/xvfb.sh
 . scripts/xvfb.sh
 xvfb 640x480x24

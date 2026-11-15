@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# release.sh                publishes HEAD as a GitHub release carrying every build: Windows and Linux (x86_64, and
-#                           arm64 for the Steam Frame) exports, the Frame's Android APK and the Quest APK. It becomes
-#                           Latest only when its tag is the highest published once it is created, so publish order never
-#                           moves Latest backwards. With the store's secret in $meta_store (pins.sh), a release of main's
-#                           tip that becomes Latest also goes to the Horizon Store's ALPHA channel as the store Quest APK.
-# release.sh --dry-run       builds and checks every build release.sh would publish, of any rev, and publishes nothing.
-# release.sh --rollback TAG  marks the published release TAG Latest, the way back to a build; the next release of
-#                           a higher rev takes Latest again.
+# release.sh                publishes HEAD's builds, Latest only if its tag is the highest, so publish order never moves
+#                           Latest back; main's tip as Latest also goes to the Horizon Store's ALPHA with $meta_store.
+# release.sh --dry-run       builds and checks them, of any rev, publishing nothing.
+# release.sh --rollback TAG  marks TAG Latest until a higher release.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/pins.sh
@@ -16,7 +12,6 @@ highest() {
     "[.[].tagName, \"$tag\" | select(test(\"^r[0-9]+$\")) | ltrimstr(\"r\") | tonumber] | max | \"r\(.)\""
 }
 
-# exists TAG: whether release TAG is published; any failure other than its absence stops the run.
 exists() {
   local err
   err=$(gh release view "$1" 2>&1 > /dev/null) && return 0
@@ -59,9 +54,8 @@ fi
 top=$(highest)
 latest=$([ "$top" = "$tag" ] && echo true || echo false)
 assets=(cairnfold-quest.apk cairnfold-lepton.apk cairnfold-linux-x64.tar.gz cairnfold-linux-arm64.tar.gz cairnfold-windows.zip)
-# Another run of this rev (a deploy job, the bothouse publisher) can publish $tag during the build; that run's release is
-# this one's, so a complete one is success. The builds take minutes and one failed request would discard them, so a
-# failed create is tried again.
+# Another run of this rev can publish $tag during the build, and a complete one is success; minutes of builds are worth
+# a retried create.
 tries=3
 for try in $(seq "$tries"); do
   if gh release create "$tag" --target "$rev" --latest="$latest" --title "$(sed -n 's/^config\/name="\(.*\)"$/\1/p' game/project.godot) $tag" \
@@ -78,8 +72,7 @@ for try in $(seq "$tries"); do
   echo "release: creating $tag failed ($published), trying again" >&2
   sleep $((try * 30))
 done
-# A release created Latest follows every higher tag published before its run's last look, so of racing runs the last
-# edit is the highest; one created below a published tag leaves Latest, a rollback included, as it is.
+# Each run follows every higher tag it sees, so of racing runs the last edit is the highest.
 [ "$latest" = true ] || { echo "release: $tag published; $top is higher, so Latest is left as it is" >&2; exit 0; }
 marked=$tag
 while top=$(highest) && [ "$top" != "$marked" ]; do
@@ -94,8 +87,7 @@ fi
 if [ -n "$store" ]; then
   util=$(fetch "${ovr_platform_util[@]}")
   chmod +x "$util"
-  # The uploader takes its secret only on the command line: its --config reader rejects any file, and it reads no
-  # environment.
+  # The uploader takes its secret only as an argument: its --config rejects any file, and it reads no environment.
   # shellcheck source=/dev/null
   (. "$meta_store"; "$util" upload-quest-build --app-id "$meta_app_id" --app-secret "$META_APP_SECRET" --channel ALPHA \
     --age-group TEENS_AND_ADULTS --apk "$out/cairnfold-quest-store.apk" --notes "$tag, built from $rev" \

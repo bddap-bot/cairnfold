@@ -1,17 +1,15 @@
 extends SceneTree
 
-## Writes the built-in avatars (game/avatars/*.vrm): run from game/ as
+## Writes game/avatars/*.vrm; run from game/ as
 ## godot4 --headless --path . --script ../scripts/avatars.gd
-## Each is a VRM 1.0 humanoid in T-pose facing +Z with a floating head, mittens and a small smock, skinned as any VRM
-## body is; surfaces whose material name starts with "tint" take the player's colour. Its eyes look by bone: both eye
-## bones sit behind the face, so a turned eye slides over it.
+## Each a VRM 1.0 humanoid in T-pose facing +Z; surfaces whose material name starts with "tint" take the player's colour.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
 const STONE := Color(0.78, 0.74, 0.66)
 const DARK := Color(0.12, 0.1, 0.09)
 const BARK := Color(0.42, 0.29, 0.17)
-## A look this many degrees off ahead turns the eyes their full range.
+## Degrees off ahead at which the eyes reach their full turn.
 const LOOK_REACH := 30.0
 
 
@@ -60,9 +58,7 @@ func _hood() -> Node3D:
 	return root
 
 
-## A figure built of bone nodes and the parts they carry, as one skeleton of those bones and a skinned mesh of one
-## surface per material, each vertex weighed wholly to the bone its part hangs from. Parts on spring joints make a
-## mesh of their own, bound to those joints alone, which the wearer sees (Rig.wear).
+## Parts on spring joints form a mesh of their own, bound to those joints alone, which the wearer sees (Rig.wear).
 func _skinned(figure: Node3D) -> Node3D:
 	var out := Node3D.new()
 	out.name = figure.name
@@ -121,7 +117,6 @@ func _add_bones(node: Node3D, skeleton: Skeleton3D, parent: int, at: Transform3D
 		_add_bones(c, skeleton, bone, at * c.transform, swaying, meshes)
 
 
-## A part's arrays placed by `at` in the skeleton's frame, every vertex weighed wholly to bind `bind`.
 func _placed(arrays: Array, at: Transform3D, bind: int) -> Array:
 	var out := []
 	out.resize(Mesh.ARRAY_MAX)
@@ -145,7 +140,7 @@ func _placed(arrays: Array, at: Transform3D, bind: int) -> Array:
 	return out
 
 
-## The VRM bone hierarchy in T-pose, eyes 1.65 m up.
+## Eyes 1.65 m up, as Rig.EYE.
 func _skeleton(name: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = name
@@ -171,7 +166,7 @@ func _bone(parent: Node3D, name: String, at: Vector3) -> Node3D:
 	return b
 
 
-## Both eyes turn about `middle`, at most `turn` degrees across and up or down, which keeps them on the face.
+## Eye bones sit behind the face, so a turned eye slides over it; `turn` caps it in degrees to stay on the face.
 func _eyes(root: Node3D, colour: Color, height: float, middle: Vector3, turn: Vector2) -> void:
 	var across := Vector2(LOOK_REACH, turn.x)
 	var upward := Vector2(LOOK_REACH, turn.y)

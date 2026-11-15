@@ -1,8 +1,7 @@
 extends RefCounted
 
-## Toon shaders that avatar packages name by GUID without carrying, as their own copies name them, and whether each
-## draws a toon outline: lilToon's (1.3.1 through 2.4.1, which keep each GUID), Unity-chan Toon Shader 2's that draw
-## one, and Unity Toon Shader 3's, which draw one unless a material's _DISABLE_OUTLINE keyword turns it off.
+## Toon shaders avatar packages name by GUID without carrying; lilToon 1.3.1 through 2.4.1 keep each GUID.
+## UTS3's "outline" yields to a material's _DISABLE_OUTLINE (Materials._outline).
 const SHADERS := {
 	"df12117ecd77c31469c224178886498e": {"name": "lilToon", "outline": false},
 	"85d6126cae43b6847aff4b13f4adb8ec": {"name": "Hidden/lilToonCutout", "outline": false},

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Records demo/trailer.json with the game's own audio and encodes it for the Steam store, ending on
-# steam/logo.png: steam-trailer.sh OUT.mp4
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 mp4=$(realpath -m "$1")

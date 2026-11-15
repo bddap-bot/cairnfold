@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Runs a command as `timeout` does, exiting 124 once it has had its limit: timeout.sh SECONDS COMMAND... Its clock
-# counts only the seconds the command could run: a host running suites and builds beside it queues it for a CPU, a GPU
-# shared with other work holds it at the driver's open until there is room or stops it while the GPU is lent out, and
-# those seconds are not the command's.
+# timeout.sh SECONDS COMMAND...: as timeout, exiting 124, but counting only seconds the command could run, not those
+# queued for a CPU, held at a shared GPU driver's open (fanotify) or stopped while the GPU is lent out.
 set -u
 limit=$(($1 * 100))
 shift
@@ -19,8 +17,7 @@ while kill -0 "$pid" 2>/dev/null; do
   sleep 1
   read -r now _ </proc/uptime
   now=${now/./}
-  # A thread waiting on another that waits for a CPU is held by that queue too, so the second's most-queued thread
-  # stands for the process.
+  # A thread waiting on one queued for a CPU is held by that queue too, so the most-queued thread stands for the process.
   most=0 held=0
   for task in /proc/"$pid"/task/*; do
     w=

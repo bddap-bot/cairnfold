@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Exports one release build inside shell.nix: package.sh linux-x64|linux-arm64|windows OUT [steam]
-# A steam package also carries the GodotSteam extension and Valve's steam_api library; the others never do.
-# Linux packages are .tar.gz, Windows a .zip; each holds cairnfold/ with the game binary, notices/ and REVISION.
-# The arm64 package, side-loaded on a Steam Frame, also carries its library art in steam/. Each exports with the
-# template scripts/engine.sh builds.
+# package.sh linux-x64|linux-arm64|windows OUT [steam], inside shell.nix.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 target=$1
@@ -19,10 +15,10 @@ case $target in
 esac
 # shellcheck source=scripts/stage.sh
 . "$root/scripts/stage.sh"
-# The engine build (scons) sizes itself to every CPU; with-jobs holds it to its share.
 cp "$("$root/scripts/with-jobs" "$root/scripts/engine.sh" "$target")" "$tdir/$template"
 mkdir -p "$stage/cairnfold"
 "$root/scripts/export.sh" "$stage/game" "$preset" "$stage/cairnfold/$binary" "$stage/export.log"
+# Side-loaded on a Steam Frame, the arm64 package carries its own library art.
 if [ "$target" = linux-arm64 ]; then git -C "$root" archive HEAD steam | tar -x -C "$stage/cairnfold"; fi
 git -C "$root" rev-parse HEAD > "$stage/cairnfold/REVISION"
 "$root/scripts/notices.sh" "$target" "$stage/cairnfold/notices" "$steam"

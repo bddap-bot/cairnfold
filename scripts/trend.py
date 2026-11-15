@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
-"""Frame time per scene across the runs bench.sh recorded under perf/RIG/SCENE/: trend.py [RIG [SCENE]]
-Two runs' records phase by phase, a candidate against its control: trend.py --pair CONTROL CANDIDATE
+"""trend.py [RIG [SCENE]] | trend.py --pair CONTROL CANDIDATE
 
-Per phase, the GPU milliseconds a frame (the desktop, with no GPU target, its median frame time) of the latest run
-beside its base, the median of the BASE runs before it with as many players and the phase on the same quality step, and
-the best run, marking a rise of more than RISE times and FLOOR_MS over the base. A phase the governor walks settles on
-whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
-Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp, not by commit, so a late
-bench of an older commit is the latest run; any other file is no run. Given
-a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
-rerun once. A pair compares a phase only when both runs held it pinned at one step: a governed phase measures the
-governor, not the change, so the pair refuses it, naming its steps, and exits 1, as it does when a phase rose as a
-scene's run does; beside each it shows both runs' worst second, which a median hides."""
+Per phase, the latest run's GPU ms a frame (the desktop's median frame time) against its base, the median of the last
+BASE earlier runs with as many players on the same quality step: a governed phase's GPU time is its step's, so only
+one step compares. Runs order by the TIMESTAMP of TIMESTAMP-REVISION.json, not by commit. Given a scene, a GPU-time
+rise exits 1, so a bench recording a regression fails, and again when rerun once. A pair refuses a phase either run did
+not hold pinned at one step, since it measures the governor, and exits 1 for it as for a rise."""
 import json
 import os
 import re
@@ -19,8 +13,8 @@ import statistics
 import sys
 from pathlib import Path
 
-# Two Quest 2 stress runs of one build (a4d3a15) differ by under this on all but five of 132 phases; those five, aerial
-# views of big builds among them, read up to five times apart, which the median of a few runs absorbs.
+# Two Quest 2 stress runs of one build (a4d3a15) differ by under these on all but five of 132 phases; those five read
+# up to five times apart, which the median of a few runs absorbs.
 BASE = 3
 RISE = 1.25
 FLOOR_MS = 2.0
@@ -30,7 +24,6 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../perf")
 
 
 def runs(folder):
-    """The (name, record) of each run recorded in folder, oldest first."""
     found = []
     for name in sorted((n for n in os.listdir(folder) if RUN.fullmatch(n)), key=lambda n: RUN.fullmatch(n).group(1)):
         with open(os.path.join(folder, name)) as f:
@@ -45,7 +38,6 @@ def rise(base, ms):
 
 
 def report(rig, scene, folder):
-    """Prints the scene's trend; returns the phases whose GPU time rose."""
     found = runs(folder)
     if not found:
         return []
@@ -73,7 +65,7 @@ def shown(v):
 
 
 def unpinned(phases):
-    """Why the named phases do not compare, each not held pinned at one step; None when they do."""
+    """Why the phases do not compare, or None when all are pinned at one step."""
     at = lambda p: f" at step {p['step']}" if "step" in p else ""
     governed = [f"{name} {'governed' if 'pinned' in p else 'unrecorded pin'}{at(p)}" for name, p in phases.items()
                 if not p.get("pinned")]
@@ -85,7 +77,7 @@ def unpinned(phases):
 
 
 def pair(control, candidate):
-    """Prints candidate's phases against control's; returns (risen, (phase, why) for each refused)."""
+    """Returns (risen, [(phase, why) refused])."""
     a, b = control["phases"], candidate["phases"]
     for side, mine, other in (("control", a, b), ("candidate", b, a)):
         only = [phase for phase in mine if phase not in other]

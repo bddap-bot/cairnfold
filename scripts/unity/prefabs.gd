@@ -1,10 +1,7 @@
 extends RefCounted
 
-## Unity scenes and prefabs flattened into one object table per document, as Unity would instantiate them: each
-## prefab instance (of a .prefab, or of a model, whose objects are synthesized from the model file) is expanded with
-## its modifications applied, and its objects take the file IDs Unity gives them in the instancing document,
-## (instance ID ^ source ID) & 0x7FFFFFFFFFFFFFFF. A stripped object, the instancing document's handle on an object of
-## an instance, is the same entry as that object.
+## Scenes and prefabs flattened as Unity instantiates them: an instance's objects take the file IDs (instance ID ^
+## source ID) & MASK, and a stripped object is the same entry as the instanced object it stands for.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -12,17 +9,16 @@ const XXHash = preload("res://../scripts/unity/xxhash.gd")
 const FbxSlots = preload("res://../scripts/unity/fbx_slots.gd")
 
 const MASK := 0x7FFFFFFFFFFFFFFF
-## The path Unity's model importer hashes the model's own GameObject by; its nodes' paths extend it.
+## Unity's model importer hashes the model's own GameObject by this path; its nodes' paths extend it.
 const ROOT := "//RootNode/root"
 const MODELS := ["fbx", "obj", "dae", "blend", "gltf", "glb"]
-## The renderer components, by the class ID an animation clip names each with.
+## Renderer type to the class ID a clip names it with.
 const RENDERERS := {"SkinnedMeshRenderer": "137", "MeshRenderer": "23"}
 
 var assets: Assets
-## Models by GUID: {"state": the FBXState, "scene": the scene Godot made of it, "objects": its Unity objects}.
+## By GUID: {"state": the FBXState, "scene": Godot's scene of it, "objects": its Unity objects, "slots"}, {} if unread.
 var models := {}
 var _flat := {}
-## The paths of the models Godot cannot read.
 var unread := {}
 
 
@@ -30,8 +26,7 @@ func _init(from: Assets) -> void:
 	assets = from
 
 
-## The objects of the scene or prefab with this GUID, or of a path's file, by file ID: {"type", "data", "guid" of the
-## document that defined it}.
+## By file ID: {"type", "data", "guid" of the document that defined it}.
 func flatten(guid: String) -> Dictionary:
 	if not _flat.has(guid):
 		_flat[guid] = _flatten_document(Yaml.objects(assets.text(guid)), guid) if not assets.extension(guid) in MODELS else model(guid).get("objects", {})
@@ -97,7 +92,6 @@ func _flatten_document(objs: Dictionary, guid: String) -> Dictionary:
 	return out
 
 
-## Rewrites every same-document reference in `data` as the instancing document sees it.
 static func _remap(data: Variant, instance: int) -> void:
 	if data is Dictionary:
 		if data.has("fileID") and not data.has("guid") and data.size() <= 2:
@@ -112,7 +106,7 @@ static func _remap(data: Variant, instance: int) -> void:
 			_remap(v, instance)
 
 
-## Applies one modification: `path` is a field path such as m_LocalScale.x or m_Materials.Array.data[2].
+## `path` is a field path such as m_LocalScale.x or m_Materials.Array.data[2].
 static func _modify(data: Dictionary, path: String, value: Variant, reference: Variant) -> void:
 	var parts := path.replace(".Array.data[", ".[").split(".")
 	var at: Variant = data
@@ -150,7 +144,6 @@ static func _modify(data: Dictionary, path: String, value: Variant, reference: V
 			return
 
 
-## The file ids of a GameObject's components in `objs`, in its order.
 static func components(objs: Dictionary, go: int) -> Array[int]:
 	var out: Array[int] = []
 	for c: Variant in Yaml.list(objs.get(go, {}).get("data", {}).get("m_Component")):
@@ -158,7 +151,6 @@ static func components(objs: Dictionary, go: int) -> Array[int]:
 	return out
 
 
-## The transform `t` in `objs` and each transform above it, nearest first, up its m_Father chain.
 static func ancestors(objs: Dictionary, t: int) -> Array[int]:
 	var out: Array[int] = []
 	while objs.has(t) and not out.has(t):
@@ -167,12 +159,11 @@ static func ancestors(objs: Dictionary, t: int) -> Array[int]:
 	return out
 
 
-## Whether GameObject `go` is tagged EditorOnly, which Unity strips from every build.
+## Unity strips EditorOnly objects from every build.
 static func editor_only(objs: Dictionary, go: int) -> bool:
 	return str(objs.get(go, {}).get("data", {}).get("m_TagString", "")) == "EditorOnly"
 
 
-## The Transform of a GameObject in `objs`, or 0.
 static func transform_of(objs: Dictionary, go: int) -> int:
 	for id: int in components(objs, go):
 		if objs.has(id) and objs[id].type in ["Transform", "RectTransform"]:
@@ -180,7 +171,6 @@ static func transform_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
-## The renderer on a GameObject in `objs`, or 0.
 static func renderer_of(objs: Dictionary, go: int) -> int:
 	for id: int in components(objs, go):
 		if objs.has(id) and RENDERERS.has(objs[id].type):
@@ -188,7 +178,6 @@ static func renderer_of(objs: Dictionary, go: int) -> int:
 	return 0
 
 
-## The names of the materials on `mesh`'s surfaces (an ArrayMesh or ImporterMesh), in surface order; "" for none.
 static func surface_names(mesh: Variant) -> Array:
 	var names := []
 	for i: int in mesh.get_surface_count():
@@ -197,11 +186,8 @@ static func surface_names(mesh: Variant) -> Array:
 	return names
 
 
-## The model with this GUID, imported once; empty if Godot cannot read it. Its "objects" are as Unity's importer makes
-## them: a GameObject and Transform for the model and each node in it, and for each node with a mesh a
-## SkinnedMeshRenderer (or MeshFilter and MeshRenderer for an unskinned one) whose materials are those the model's .meta
-## remaps, by name, or a material of that name in the package, in Unity's slot order: the order the node's polygons first
-## use them, which Godot's surfaces need not keep. Its "slots" are that order by FBX model name (FbxSlots).
+## Its "objects" are as Unity's importer makes them, renderer materials in Unity's slot order (the order the node's
+## polygons first use them, which Godot's surfaces need not keep); its "slots" are that order by FBX model name.
 func model(guid: String) -> Dictionary:
 	if models.has(guid):
 		return models[guid]
@@ -304,18 +290,16 @@ func model(guid: String) -> Dictionary:
 	return models[guid]
 
 
-## Field `k` of a Unity vector or quaternion `v`, `otherwise` where it has none.
 static func number(v: Variant, k: String, otherwise := 0.0) -> float:
 	return str((v as Dictionary).get(k, otherwise)).to_float() if v is Dictionary else otherwise
 
 
-## A Unity rotation in Godot's axes (X mirrored), the identity where it has none.
+## Into Godot's axes, X mirrored.
 static func turn(q: Variant) -> Quaternion:
 	var rot := Quaternion(number(q, "x"), -number(q, "y"), -number(q, "z"), number(q, "w", 1.0))
 	return rot.normalized() if rot.length() > 0.0 else Quaternion.IDENTITY
 
 
-## A Unity position in Godot's axes (X mirrored), the origin where it has none.
 static func mirrored(v: Variant) -> Vector3:
 	return Vector3(-number(v, "x"), number(v, "y"), number(v, "z"))
 

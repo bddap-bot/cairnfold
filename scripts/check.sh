@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Imports the project headless and fails on any script error, game or test, then on any use of a member Main lacks:
-# Godot reports one as an error only with unsafe access raised to an error, which no build may do to every script; then
-# on any variable, constant, parameter or signal never used and any unreachable code. Each runs in its own pass, since
-# Godot reports only a script's first error.
+# One pass per check, since Godot reports only a script's first error. Unsafe access is raised only here, and only
+# Main's members fail on it, since no build may raise it for every script.
 set -euo pipefail
 cd "$(dirname "$0")/../game"
-# run ARGS...: what Godot prints; a crash prints it all and fails the check, which set -e would end silently.
+# Under set -e a failing substitution would end the check silently, so a crash prints Godot's output first.
 run() {
   local out code=0
   out=$(godot4 --headless --path . "$@" 2>&1) || code=$?

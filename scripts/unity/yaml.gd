@@ -1,11 +1,10 @@
 extends RefCounted
 
-## The subset of YAML Unity writes its scenes, prefabs, materials and .meta files in: block mappings and sequences,
-## one-line flow mappings and sequences, plain and quoted scalars. Every scalar stays a String.
+## The subset of YAML Unity writes. Every scalar stays a String.
 
 
-## A scene or prefab file's objects by file ID: {"class": Unity class ID, "type": its type name, "stripped": whether
-## it stands for an object of a prefab it instances, "data": its fields}.
+## By file ID: {"class": Unity class ID, "type", "stripped": whether it stands for an object of a prefab it instances,
+## "data"}.
 static func objects(text: String) -> Dictionary:
 	var out := {}
 	var lines := text.split("\n")
@@ -26,7 +25,6 @@ static func objects(text: String) -> Dictionary:
 	return out
 
 
-## One YAML document (a .meta or .mat file, or one object of a scene) as nested Dictionaries, Arrays and Strings.
 static func document(lines: Array[String]) -> Dictionary:
 	var kept: Array[String] = []
 	for line in lines:
@@ -98,7 +96,7 @@ static func _mapping(lines: Array[String], at: Array, indent: int) -> Dictionary
 	return out
 
 
-## Where a "key: value" line's key ends, or -1 if it is no key.
+## -1 where the line has no key.
 static func _key_end(text: String) -> int:
 	if text.begins_with("'") or text.begins_with("\""):
 		var close := text.find(text[0], 1)
@@ -113,8 +111,6 @@ static func _key_end(text: String) -> int:
 	return text.length() - 1 if text.ends_with(":") else -1
 
 
-## A value and any lines it continues onto: a flow collection until its brackets close, a quoted string until its
-## quote does, a plain scalar over every deeper line.
 static func _value(text: String, lines: Array[String], at: Array, indent: int) -> Variant:
 	if text[0] in ["{", "["]:
 		while not _closed(text) and at[0] < lines.size():
@@ -209,7 +205,6 @@ static func list(v: Variant) -> Array:
 	return v if v is Array else []
 
 
-## Whether Unity's boolean `field` of `data` is on, as an absent one is.
 static func on(data: Dictionary, field: String) -> bool:
 	return str(data.get(field, "1")) == "1"
 

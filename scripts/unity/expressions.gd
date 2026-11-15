@@ -270,8 +270,8 @@ func _clip(guid: String, id: int, d: Dictionary) -> int:
 	return _clips[key]
 
 
-## Unity keys as [time, value, inSlope, outSlope], plus [inWeight, outWeight] when either side is
-## weighted (an unweighted side keeps Unity's 1/3); an infinite (constant) slope is null.
+## [time, value, inSlope, outSlope], plus [inWeight, outWeight] where either side is weighted (an unweighted side
+## keeps Unity's 1/3); an infinite slope is null.
 static func _keys(list: Variant, axis := "") -> Array:
 	var out := []
 	for k: Variant in Yaml.list(list):

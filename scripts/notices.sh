@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collect unchanged upstream notices using the same pins as the binaries: notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY [steam|store]
+# notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY [steam|store]
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 . "$root/scripts/pins.sh"

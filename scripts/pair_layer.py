@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-"""A scene that prices one diagnostic layer in each phase that may pass the build budget: pair_layer.py SCENE.json LAYER
-
-Prints SCENE with each phase scripts/past_budget.py may let past the budget, whatever its garden's fill, followed,
-from that phase's own view, by the layer shown and hidden in turn, labelled as scripts/paired.py reads them:
-pair/PHASE/1LAYER/K and pair/PHASE/none/K, ordered with, without, without, with, so a drift through the run cancels.
-The garden every later phase builds on is left as the scene builds it. `CAIRNFOLD_SCENE=OUT/stress-masonry.json
-scripts/bench.sh ...` on its output, then `scripts/paired.py RECORD`, gives each such phase the share of its GPU time
-the layer (driver.gd's LAYERS) draws."""
+"""pair_layer.py SCENE.json LAYER: SCENE with each phase past_budget.py may pass followed by LAYER (driver.gd's LAYERS)
+shown and hidden, labelled as paired.py reads them and ordered with, without, without, with so drift cancels."""
 import json
 import math
 import sys

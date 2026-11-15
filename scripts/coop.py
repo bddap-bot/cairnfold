@@ -17,32 +17,28 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SESSION = {name: int(value) for name, value in re.findall(r"^const (\w+) := (\d+)$", (ROOT / "game/src/session.gd").read_text(), re.M)}
-# A stuck run is one where no player takes a step while together they spend this much CPU; a busy machine only slows the
-# run in wall time, so no wall-clock limit applies to a step. The joiner's strokes across the whole garden re-lay
-# everything on it on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
+# CPU-seconds all players may spend without a step, since a busy machine only stretches wall time; the joiner's
+# garden-wide stroke has taken 65 together on a loaded machine.
 QUIET_CPU = 150
-# The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
+# The seq once the host's and joiner's builds and sky turns are done; late joiners build after it.
 SEQ = 35
-# After the final digest the joiner pulls the ground this far up in one stroke and then twice as far down, each
-# step digested on every peer: one stroke of a guest's spans the whole ground.
+# Metres one stroke of the joiner's lifts the ground, then twice that down: a guest's stroke spans the whole ground.
 EXTREME = 500
-# Where the joiner drowns a tree under a pond and undoes it, clear of the easel and the held tools' wall.
+# Clear of the easel and the held tools' wall.
 DROWN = (14, -14)
-# The custom avatars the joiners wear in turn, from tests/avatars.
 AVATARS = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 # What a digest shows of the players and the moment rather than of the garden.
 LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
 # Going home before this cue means a player lost the garden it was visiting.
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
-# A player still running this long after it began to quit is hung on its way out: a healthy exit takes seconds even on
-# a loaded machine, and a hang at 0 CPU never trips QUIET_CPU. A guard against a hang, not a timing assertion.
+# Seconds after quitting: a healthy exit takes seconds even loaded, and a hang at 0 CPU never trips QUIET_CPU.
 EXIT_HANG = 300
 # Bound in the parent: the child calls it between fork and exec, while the CPU sampler thread runs, where a dlopen could
 # deadlock.
 PRCTL = ctypes.CDLL(None).prctl
 
 
-# Lets a debugger that is not the player's parent attach to it under Yama's ptrace_scope 1, so a hang can be read.
+# PR_SET_PTRACER_ANY, so gdb can read a hang under Yama's ptrace_scope 1.
 def traceable():
     PRCTL(0x59616D61, ctypes.c_ulong(-1), 0, 0, 0)
 
@@ -77,11 +73,7 @@ def sample(name, names, count):
     ]
 
 
-# The host and the joiner, at the host's easel together, each take a stick of charcoal and a palette of their own, as
-# an easel holds one of each, and switch, set down, tear and pick tools while the other paints; after each step the hand must hold what it should, and once the
-# host's grip sends its palette home both see every palette at rest on the tray. They lay six commands: a stroke each,
-# the joiner's fresh sheet, the joiner's stroke on it, the host's, and the host's blue painted onto the oil palette,
-# which every peer's digest must show.
+# An easel holds one stick and one palette of each kind, so the two players take different ones.
 EASEL_PHASES = {
     "host": [
         [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
@@ -146,18 +138,13 @@ def held_steps(name, names):
     return steps
 
 
-# Where the host puts up a house, which the joiner carries away and turns, and where the joiner puts up its own, which
-# takes the host's house's look with two taps of the joiner's colour tool. The joiner names the host's house as the
-# build before its own.
+# The joiner's resize index -2 is the host's house, the build before its own.
 MOVED_HOUSE = (-12, 8)
 COPIED_HOUSE = (-4, 12)
-# How far the joiner carries the host's house, across the ground, and turns it, in degrees.
+# (x, z) in metres, then a turn in degrees.
 HOUSE_CARRY = (0, -5, 90)
 
 
-# The host puts up a house and paints its stone; the joiner puts up its own, copies the host's house's look onto it with
-# two taps of its colour tool, carries the host's house away and turns it, and carries and turns its drowned tree; every
-# peer digests that, then the joiner's undo puts the tree back. Seven commands.
 def move_steps(name, names, seq):
     steps = []
     if name == "host":
@@ -201,8 +188,6 @@ def scripts(count):
         if count > 2:
             steps += [{"op": "until", "seq": SEQ + 2 * (count - 2)}]
             steps += sample(name, names, count)
-        # Once every player's fish have come to the joiner's pond, the host throws seeds on it; every player sees them
-        # surface alike from the water and the fish swarm them.
         steps += [{"op": "until", "swimming": 1}, {"op": "digest", "name": f"{name}-fish"}]
         if name == "host":
             steps += [barrier([f"{n}-fish" for n in names]),
@@ -221,13 +206,11 @@ def scripts(count):
             steps += [{"op": "fit", "what": "decoration", "x": 20 + i, "z": 20, "style": i} for i in (7, 8)]
             steps += [{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
         steps += [{"op": "until", "seq": last + 13}, *synced(name, names, "decorations")]
-        # The joiner holds delete at the sky until the garden is wiped, then undoes it; every peer digests both.
         for k, (phase, step) in enumerate([("wiped", {"op": "wipe", "seconds": 2.5}), ("unwiped", {"op": "press", "button": "dpad_down"})]):
             if name == "join":
                 steps += [step]
             steps += [{"op": "until", "seq": last + 14 + k}, *synced(name, names, phase)]
-        # The joiner sets down a boulder twenty times the size a house could hide behind, the budget aside on every
-        # peer, so what checks it is the command's own validation as it crosses the wire.
+        # With the budget off on every peer, only the command's own validation on the wire checks the huge boulder.
         steps += [{"op": "budget", "bounded": False}, *synced(name, names, "unbounded")]
         if name == "join":
             steps += [{"op": "boulder", "x": -30, "z": -30, "seed": 4242, "scale": 160.0}]
@@ -236,8 +219,6 @@ def scripts(count):
             steps += [{"op": "wipe", "seconds": 2.5}, {"op": "until", "seq": last + 17},
                       {"op": "easel", "x": -4, "z": 4}]
         steps += [{"op": "until", "seq": last + 18}]
-        # The joiner presses a hollow, plants a tree in it and pours a pond over the tree, which drowns it, then undoes
-        # the pond: every peer takes the undo as sent and sees the tree stand again.
         if name == "join":
             steps += [{"op": "sculpt", "x": DROWN[0], "z": DROWN[1], "lift": -1.0, "radius": 2.8, "seconds": 0.4},
                       {"op": "until", "seq": last + 19}, {"op": "tree", "x": DROWN[0], "z": DROWN[1], "seed": 4},
@@ -289,9 +270,6 @@ def check_spawn(out):
     assert abs(probe["feet"] - probe["terrain"]) < 0.01, "joiner stands on current ground"
 
 
-# The host reshapes two houses again and again while the joiner, unsynchronised with it, paints flowers against their
-# walls, builds a wall beside them, restyles one and undoes and redoes its own steps; every peer must apply every
-# command the host sends and end with the host's garden.
 def reshape_scripts():
     houses = [{"op": "house", "at": [x, 0], "size": [6, 5], "finish": "timber", "seconds": 0.1} for x in (-6, 6)]
     host = [*houses, {"op": "until", "seq": 2}, {"op": "digest", "name": "built"}, barrier(["joined"])]
@@ -330,11 +308,6 @@ def check_reshape(out):
         raise RuntimeError(f"the joiner's garden differs from the host's in {differ}")
 
 
-# A flat-screen player joins a VR host's garden through the visit tool's figures, walks up and takes a photo; both games
-# render under one virtual display. Each wears its own VRM from its avatars folder: the flat-screen player's picker
-# shows the host's, the host's captures show the flat-screen player's standing in its garden, and the photo lands in
-# OUT/photos. Then the flat-screen player holds out the seed dish by the host's wall: a conure comes to stand on it in
-# its own game, and in the host's another stands on the dish its avatar holds.
 FLAT_AVATARS = {"host": "godette-0.x.vrm", "join": "crimsom-1.0.vrm"}
 
 
@@ -388,8 +361,6 @@ def strip(digest):
 
 
 def check_peers(out, names):
-    """Whether every peer named ended with the same garden, each step of it as the scripts made it."""
-
     def digest(n, phase):
         return json.load(open(f"{out}/{n}-{phase}.json"))
 
@@ -514,16 +485,13 @@ def check_peers(out, names):
 
 
 def heard(folder):
-    """Every message a player's session record holds (PlayLog.heard), oldest first, as [frame, from, whose, call]."""
+    """PlayLog.heard messages, oldest first, as [frame, from, whose, call]."""
     nets = [r for chunk in sorted(folder.glob("*.jsonl")) for r in map(json.loads, chunk.read_text().splitlines())
             if r.get("event") == "net"]
     return [m for e in sorted(nets, key=lambda e: e["first"]) for m in e["messages"]]
 
 
 def check_records(out, names):
-    """Whether each player's record holds every build command applied from when it joined, which is every one the host
-    ordered after that player came, each player's among them, and every other player's poses; each message stamped
-    with a frame no earlier than the one before."""
     records = {n: heard(out / "sessions" / n) for n in names}
     joined = {n: 0 if n == "host" else next((i for i, m in enumerate(records[n]) if m[3] == "connected"), None) for n in names}
     failed = [n for n in names if joined[n] is None]
@@ -583,7 +551,7 @@ def run(out, count, mode="full"):
 
     sampler = threading.Thread(target=monitor)
     sampler.start()
-    # One of Session's blocks of PORTS host ports in its PORT_RANGE, so runs side by side spread out.
+    # A random block of Session's PORT_RANGE, so runs side by side spread out.
     first = SESSION["PORT"] + SESSION["PORTS"] * random.randrange(SESSION["PORT_RANGE"] // SESSION["PORTS"])
 
     def launch(name, port):
@@ -612,7 +580,7 @@ def run(out, count, mode="full"):
             args += ["--avatars", str(folder)]
         log = (out / f"{name}.log").open("w")
         logs.append(log)
-        # Each player's own player folder, so the opt-in --record-sessions writes stays out of the one this machine plays in.
+        # Keeps what --record-sessions writes out of the player folder this machine plays in.
         env = dict(os.environ, XDG_DATA_HOME=str(out / "user" / name))
         if mode == "flat":
             env["DISPLAY"] = display
@@ -675,7 +643,6 @@ def run(out, count, mode="full"):
 
     try:
         if mode == "flat":
-            # The flat-screen run puts both players' windows side by side.
             reader, writer = os.pipe()
             xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", "2560x1024x24", "-nolisten", "tcp"], pass_fds=(writer,))
             os.close(writer)

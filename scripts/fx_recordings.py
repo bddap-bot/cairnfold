@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Cuts the action sounds in game/audio/fx that are recordings, not synthesised, from the CC0 files its sources.json
-lists: the first half second of each, low-passed at 1.8 kHz like every synthesised effect, faded in and out, and
-written at one peak, so their cue's level alone sets how loud they play. Run under nix-shell."""
+"""The recorded cues, low-passed like every synthesised effect and at one peak, so a cue's level alone sets how loud it
+plays. Run under nix-shell."""
 
 import json
 

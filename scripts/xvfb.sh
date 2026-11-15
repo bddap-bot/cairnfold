@@ -1,7 +1,5 @@
-# Sourced. xvfb WxHxD starts a virtual display of that screen, exported as DISPLAY, the server's pid in $xvfb_pid for
-# the caller to kill on exit. The server picks the display: a number chosen here can be another server's, whose exit
-# then ends this caller's clients. desktop_icd is the Vulkan driver the desktop renderer runs on: CAIRNFOLD_ICD, by
-# default the NVIDIA one.
+# xvfb WxHxD exports DISPLAY and leaves the server's pid in xvfb_pid for the caller to kill. The server picks the
+# display: a number chosen here can be another server's, whose exit then ends this caller's clients.
 # shellcheck shell=bash disable=SC2034
 xvfb() {
   local fd number

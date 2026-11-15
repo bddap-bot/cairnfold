@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
-# Fails when a perf record added since BASE (default origin/main) names a build main never ran: records.sh [BASE]. A
-# record of a commit BASE holds, added by a commit that changes no game, scenes, engine or build scripts, names what was
-# measured however main moved since, so a long bench of a landed commit lands beside other game landings, the land
-# queue's stack of them included: the commit is judged, as the stack holds no job's bounds. Any other record's build
-# must equal the working tree in those: one benched on a working commit and then rebased onto a main that changed them,
-# followed by a commit that did, or benched uncommitted and named for the commit under it, carries figures from a tree
-# main never ran, so the bench is re-taken.
-# records.sh --tree REVISION fails when the checkout's game, scenes, engine or build scripts are not REVISION's, so a
-# bench refuses to run uncommitted work it would name for the commit under it.
+# records.sh [BASE]: fails when a perf record added since BASE (default origin/main) measured a build whose measured
+# files differ from the working tree, unless BASE holds its commit and the record's own commit changes none (a landed
+# commit's bench may land late).
+# records.sh --tree REVISION: fails unless the checkout's measured files are REVISION's.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 measured=(game demo '*.nix' scripts/{engine,export,stage,android,package,render,bench,pins}.sh scripts/engine.patch)
-# tree_is REVISION: the working tree, untracked files included, holds REVISION's measured files.
 tree_is() {
   git diff --quiet "$1" -- "${measured[@]}" && [ -z "$(git ls-files --others --exclude-standard -- "${measured[@]}")" ]
 }

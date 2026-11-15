@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Regenerates the store art in steam/ (store and library art, screenshots) and meta/ (Horizon Store covers, icon and
-# its spatialized layers, logo, screenshots) from one set of desktop captures of demo/steam.json and
-# demo/steam-coop.json: store-art.sh
 set -euo pipefail
 font=${CAIRNFOLD_TITLE_FONT:-}
 [ -f "$font" ] || { echo "store-art: no title font at '$font'; nix-shell sets CAIRNFOLD_TITLE_FONT" >&2; exit 1; }
@@ -14,8 +11,7 @@ trap 'rm -rf "$shots"' EXIT
 "$root/scripts/check.sh"
 CAIRNFOLD_QUIT_AFTER=400 "$root/scripts/render.sh" "$root/demo/steam.json" "$shots" --resolution 3840x2160
 
-# Two players: this render hosts, a headless instance visits it and stays until the host's digest says it has its
-# shot. Ports of their own, as in coop.py.
+# Session's PORT and PORTS blocks, as coop.py picks them; the visitor takes the next block.
 port=$((7480 + 8 * (RANDOM % 7)))
 (cd "$root/game" && exec timeout "${CAIRNFOLD_TIMEOUT:-1800}" godot4 --headless --path . --xr-mode off -- --desktop \
   --script "$root/demo/steam-coop-join.json" --capture-dir "$shots" --host-port "$port" --port $((port + 8)) --avatar 1 \
@@ -26,7 +22,7 @@ kill "$join" 2>/dev/null || true
 wait "$join" || true
 ! grep -h "driver: until" "$shots/host.log" "$shots/join.log" || { echo "store-art: the visitor never arrived" >&2; exit 1; }
 
-# PNG time chunks would make every regeneration a diff. The wanted size is a glob, so the logo can fix only its width.
+# Time chunks would make every regeneration a diff. The size is a glob so the logo can fix only its width.
 save() {
   local file=$1 size
   [[ $file == meta/* || $file == game/* ]] && file=$root/$file || file=$out/$file
@@ -36,7 +32,7 @@ save() {
   [[ $size == $2 ]] || { echo "store-art: $1 is $size, want $2" >&2; exit 1; }
 }
 
-# The ">" only ever shrinks, so a crop smaller than its slot fails the size check instead of upscaling.
+# ">" only shrinks, so a crop smaller than its slot fails the size check instead of upscaling.
 cut() {
   magick "$shots/$1.png" -crop "$2" +repage -resize "$3>" miff:-
 }
@@ -67,7 +63,7 @@ for shot in stroke cottage pond flowers together above dusk; do
   magick "$shots/shot-$shot.png" -resize 1920x1080 miff:- | save "screenshots/$n-$shot.jpg" 1920x1080
 done
 
-# The Horizon Store's set: its covers keep the title out of their top and bottom fifths, and the hero centres it.
+# The Horizon Store wants cover titles out of the top and bottom fifths.
 title() {
   magick - \( "$shots/title.png" -resize "$1x" \) -gravity "$2" -geometry "$3" -composite miff:-
 }
@@ -77,13 +73,13 @@ cut cottage 1512x2160+1164+0 1008x1440 | title 880 north +0+300 | save meta/cove
 cut hero 3840x1152+0+344 3000x900 | title 1400 center +0+0 | save meta/hero.png 3000x900
 cut wide 3840x1280+0+383 1080x360 | title 760 center +0+0 | save meta/mini-landscape.png 1080x360
 cut icon 2160x2160+870+0 512x512 | save meta/icon.png 512x512
-# The spatialized icon: the meadow behind, the cottage alone in front, inside the store's 18-pixel safe margin.
 cut icon-back 2160x2160+840+0 180x180 | save meta/spatial-icon-background.png 180x180
+# 144 in 180: the store's 18-pixel safe margin.
 magick "$shots/icon-front.png" \( +clone -fill none -fuzz 1% -draw 'color 0,0 floodfill' -alpha extract -threshold 50% \
   -define connected-components:keep-top=1 -define connected-components:mean-color=true -connected-components 8 \) \
   -alpha off -compose CopyAlpha -composite -compose over -trim +repage -resize 144x144 -background none \
   -gravity center -extent 180x180 miff:- | save meta/spatial-icon-foreground.png 180x180
-# The Quest's system splash shows it while the game loads; the store asks for one within four seconds of launch.
+# The store asks for a splash within four seconds of launch.
 magick "$meta/cover-landscape.png" -resize 1280x720 miff:- | save game/splash.png 1280x720
 magick "$shots/title.png" miff:- | save meta/logo.png '*x*'
 n=0

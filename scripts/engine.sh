@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-# Prints the path of an engine built from the pinned Godot source with engine.patch, every export's one renderer:
-#   engine.sh linux-x64|linux-arm64|windows   the release export template, inside shell.nix
-#   engine.sh android STOCK_AAR               the Android release library, inside android.nix: STOCK_AAR, the official
-#                                             template's libs/release/godot-lib.template_release.aar, with its arm64
-#                                             engine replaced
-# Each builds with the official template's flags and NDK or Linux SDK (toolchains.nix), less AccessKit's static library
-# (screen readers load it at run time) and on Windows ANGLE and Direct3D 12, and is cached under the hash of everything
-# that goes into it.
+# Prints the path of the pinned Godot engine with engine.patch, cached by its inputs' hash: engine.sh TARGET, a release
+# export template (linux-x64|linux-arm64|windows, in shell.nix), or engine.sh android STOCK_AAR, that official AAR with
+# its arm64 engine replaced (android.nix). AccessKit's static library is left out: screen readers load it at run time.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 # shellcheck source=scripts/pins.sh
@@ -19,9 +14,8 @@ case $target in
   linux-arm64) toolchain=$CAIRNFOLD_SDK_ARM64 strip=aarch64-godot-linux-gnu-strip flags+=(platform=linuxbsd arch=arm64) built=godot.linuxbsd.template_release.arm64 ;;
   windows)
     toolchain=$CAIRNFOLD_MINGW strip=x86_64-w64-mingw32-strip built=godot.windows.template_release.x86_64.llvm.exe
-    # Direct3D 12 needs Mesa's NIR and Microsoft's SDKs, and the project renders through Vulkan, so a machine without
-    # Vulkan falls back to OpenGL. llvm-mingw is the official Windows arm64 toolchain; nixpkgs' GCC MinGW threads
-    # through mcfgthread, a runtime no official template links.
+    # Direct3D 12 needs Mesa's NIR and Microsoft's SDKs, and the game renders through Vulkan. llvm-mingw, as nixpkgs'
+    # GCC MinGW threads through mcfgthread, which no official template links.
     flags+=(platform=windows arch=x86_64 use_mingw=yes use_llvm=yes d3d12=no) ;;
   android)
     stock=$(realpath "$2")

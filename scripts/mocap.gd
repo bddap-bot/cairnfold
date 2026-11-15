@@ -1,13 +1,10 @@
 extends SceneTree
 
-## Converts CMU recordings (LICENSE-CMU) into what avatars play, authoring no pose: trial 141_16's recorded hands
-## into controller aim poses for the flat-screen wave (animations/wave.tres), and single recorded frames of people
-## lying and sitting into body poses (animations/poses.json), each bone's turn from the recording's T-pose as it was
-## captured.
+## Converts CMU recordings (LICENSE-CMU) into animations/wave.tres and animations/poses.json, authoring no pose; run as
 ## godot4 --headless --path game --script ../scripts/mocap.gd
+
 const SOURCE := "res://../third_party/cmu/"
-## Each pose: its name, the trial, the frame as the AMC file numbers it, whether it is the recording mirrored left for
-## right, and whether it sits on a support with the feet on lower ground.
+## [name, trial, AMC frame number, mirrored left for right, sits on a support with the feet on lower ground].
 const POSES := [
 	["back", "140_08", 1, false, false],
 	["side", "140_03", 1, false, false],
@@ -17,8 +14,7 @@ const POSES := [
 	["sitting, leaning back", "82_05", 2197, false, false],
 	["sitting on a ledge", "14_31", 721, false, true],
 ]
-## The recording's bone for each humanoid bone a pose turns. The head and hands follow tracking instead; the upper
-## arm is kept to say which way the elbow points.
+## The head and hands follow tracking instead; the upper arm stays to say which way the elbow points.
 const BONES := {
 	"hips": "root", "spine": "lowerback", "chest": "upperback", "upperChest": "thorax", "neck": "lowerneck",
 	"leftShoulder": "lclavicle", "leftUpperArm": "lhumerus", "leftUpperLeg": "lfemur", "leftLowerLeg": "ltibia",
@@ -34,7 +30,6 @@ func rotation(degrees: Array) -> Basis:
 	return Basis(Vector3.BACK, deg_to_rad(degrees[2])) * Basis(Vector3.UP, deg_to_rad(degrees[1])) * Basis(Vector3.RIGHT, deg_to_rad(degrees[0]))
 
 
-## An ASF skeleton: {bones: name -> {direction, length, axis, dof}, parents: name -> parent}.
 func skeleton(file: String) -> Dictionary:
 	var bones := {}
 	var parents := {}
@@ -61,7 +56,6 @@ func skeleton(file: String) -> Dictionary:
 	return {"bones": bones, "parents": parents}
 
 
-## An AMC file's frames, each bone name to its channel values.
 func frames(file: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for line in FileAccess.get_file_as_string(SOURCE + file).split("\n"):
@@ -75,7 +69,6 @@ func frames(file: String) -> Array[Dictionary]:
 	return out
 
 
-## Each bone in one frame: its turn from the T-pose, at the bone's far end. An empty frame is the T-pose.
 func posed(skel: Dictionary, f: Dictionary) -> Dictionary:
 	var r: Array = f.get("root", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 	var poses := {"root": Transform3D(rotation(r.slice(3)), Vector3(r[0], r[1], r[2]))}
@@ -89,7 +82,6 @@ func posed(skel: Dictionary, f: Dictionary) -> Dictionary:
 	return poses
 
 
-## Where the eyes are taken to be: the middle of the recorded head, looking as it faces (the camera's -Z).
 func eyes(skel: Dictionary, poses: Dictionary) -> Transform3D:
 	var head: Transform3D = poses.head
 	return Transform3D(head.basis * TURN, (poses[skel.parents.head].origin + head.origin) * 0.5)
@@ -125,8 +117,7 @@ func _wave() -> Error:
 		for s in 2:
 			var name: String = ["lhand", "rhand"][s]
 			var hand: Transform3D = poses[name]
-			# T-pose hands point outward, palms down. This changes the coordinate frame to
-			# a controller's -Z aim, with its inward palm; it does not change the motion.
+			# T-pose hands point outward, palms down: this reframes them to a controller's -Z aim, palm inward.
 			var aim := hand.basis * Basis.looking_at(skel.bones[name].direction, Vector3.BACK)
 			animation.position_track_insert_key(s * 2, i / 120.0, facing * (hand.origin - head) * scale)
 			animation.rotation_track_insert_key(s * 2 + 1, i / 120.0, (facing * aim).get_rotation_quaternion())
@@ -135,9 +126,8 @@ func _wave() -> Error:
 	return error
 
 
-## Each pose as poses.json keeps it, in metres on a floor at y = 0, its heading removed and the actor turned to face
-## -Z: `bones`, each humanoid bone's turn from the T-pose as a quaternion [x, y, z, w]; `eyes`, the eyes' basis
-## columns then origin; `hands`, the left and right hands; `seat`, for a pose on a support, the hips' height, else 0.
+## In metres on a floor at y = 0, heading removed, facing -Z: `bones` quaternions [x, y, z, w] from the T-pose; `eyes`
+## basis columns then origin; `hands` left and right; `seat` the hips' height on a support, else 0.
 func _poses() -> Error:
 	var out := []
 	var skeletons := {}
@@ -157,8 +147,8 @@ func _poses() -> Error:
 		var floor_y: float = poses.values().reduce(func(m: float, t: Transform3D) -> float: return minf(m, t.origin.y), INF)
 		var at := eyes(skel, poses)
 		var forward := at.basis * Vector3.FORWARD
+		# Looking up or down, the hips-to-head line stands in for the heading.
 		var flat: Vector3 = Vector3(forward.x, 0, forward.z) if Vector2(forward.x, forward.z).length() > 0.3 else (poses.head.origin - poses.root.origin) * Vector3(1, 0, 1)
-		# The heading the eyes face, or along the body from the hips to the head while they look up or down, turned to -Z.
 		var level := Basis(Vector3.UP, atan2(-flat.x, -flat.z)).inverse()
 		var place := func(v: Vector3) -> Vector3: return level * Vector3(v.x - at.origin.x, (v.y - floor_y), v.z - at.origin.z) * scale
 		var bones := {}
@@ -181,7 +171,6 @@ func _poses() -> Error:
 	return OK
 
 
-## The same frame with left and right swapped, reflected through the actor's middle (the YZ plane in T-pose).
 func _mirrored(poses: Dictionary) -> Dictionary:
 	var m := Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK)
 	var out := {}

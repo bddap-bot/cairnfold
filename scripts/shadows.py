@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check full-eye captures from shadows.gd; run inside shell.nix with the capture directory."""
+"""Run inside shell.nix on shadows.gd's capture directory."""
 import json
 from pathlib import Path
 import subprocess

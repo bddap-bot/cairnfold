@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Writes every sound in game/audio: the music sections as three synchronized stems
-each, the meadow's wind, its birds and its night, the stone sounds, the water sounds and the other action sounds. Deterministic; run under nix-shell."""
+"""Writes every sound in game/audio, deterministically; run under nix-shell."""
 
 import json
 import pathlib
@@ -159,7 +158,7 @@ def _impulse(seconds=2.6):
         spec = np.fft.rfft(noise)
         f = np.fft.rfftfreq(len(t), 1 / SR)
         bands = []
-        # Highs die first, as in a soft room: no bright shimmer hanging over the tail.
+        # Highs die first, as in a soft room.
         for lo, hi, rt in ((0, 400, 2.2), (400, 1500, 1.6), (1500, 4000, 0.8), (4000, SR, 0.3)):
             band = np.fft.irfft(np.where((f >= lo) & (f < hi), spec, 0), n=len(t))
             bands.append(band * np.exp(-6.9 * t / rt))
@@ -342,8 +341,7 @@ def effects():
 
 
 def meadow(seconds=48.0):
-    """The wind in the grass, the one bed that turns with the head: the birds and the night's crickets come from
-    `birds` and `night` instead, placed in the world or faded by the hour."""
+    """The one bed that turns with the head; `birds` and `night` are placed in the world or faded by the hour."""
     n = int(seconds * SR)
     t = np.arange(n) / SR
     out = np.zeros((n, 2))
@@ -360,7 +358,6 @@ def meadow(seconds=48.0):
 
 def _loop(x, fade_seconds):
     fade = int(fade_seconds * SR)
-    # Crossfade the end into the start so the loop point is inaudible.
     ramp = np.linspace(0, 1, fade)[:, None] if x.ndim == 2 else np.linspace(0, 1, fade)
     x[:fade] = x[:fade] * ramp + x[-fade:] * (1 - ramp)
     return x[:-fade]
@@ -383,7 +380,6 @@ def _bird():
 
 
 def _hoot(f0):
-    """A tawny owl's soft hoo, hoo-oo: low sines with a little second harmonic, swelling and falling in pitch."""
     parts = []
     for seconds, gap, fall in ((0.38, 0.55, 0.04), (0.22, 0.12, 0.02), (0.75, 0.0, 0.08)):
         t = _t(seconds)
@@ -396,8 +392,6 @@ def _hoot(f0):
 
 
 def birds():
-    """Short calls played one at a time out in the world (Soundscape): a phrase of one to three songs by day, an
-    owl's hoot at night."""
     calls = {}
     for i in range(8):
         phrase = []
@@ -410,9 +404,7 @@ def birds():
 
 
 def night(seconds=40.0):
-    """The night's bed: crickets far off over the meadow, soft chirps of a few pulses each, every voice on its own
-    beat and swelling and fading slowly. Pitched low for crickets, about 2 kHz, and low-passed there, so nothing
-    rings."""
+    """Crickets pitched low, about 2 kHz, and low-passed there, so nothing rings."""
     n = int(seconds * SR)
     t = np.arange(n) / SR
     out = np.zeros((n, 2))
@@ -434,19 +426,17 @@ def night(seconds=40.0):
     return _loop(out, 3.0)
 
 
-# Its own generator, so adding water sounds never changes the music, bed or stone sounds above.
+# Its own generator, so adding water sounds changes no other sound.
 wrng = np.random.default_rng(31)
 
 
 def _bubble(f0, seconds, rise):
-    """A small bubble: a decaying sine whose pitch rises as it shrinks, as real bubbles do."""
     t = _t(seconds)
     f = f0 * (1 + rise * t / seconds)
     return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 6 / seconds) * np.sin(np.pi * np.minimum(t / 0.004, 0.5))
 
 
 def _slosh(seconds, cutoff):
-    """One soft wave against the bank: low band-limited noise under a slow swell."""
     t = _t(seconds)
     n = wrng.standard_normal(len(t))
     body = _band(n, 90, cutoff)
@@ -500,8 +490,7 @@ def water():
     return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
 
 
-# Its own generator too: the action sounds Cues plays (game/src/cues.gd), soft like the stones and the music, nothing
-# bright above the low kHz.
+# Its own generator too, for the sounds game/src/cues.gd plays, nothing bright above the low kHz.
 crng = np.random.default_rng(59)
 
 
@@ -516,7 +505,7 @@ def _convolve(x, ir):
 
 
 def _body(modes, seconds):
-    """A small wooden body: decaying modes, as (Hz, decay per second, level)."""
+    """`modes` as (Hz, decay per second, level)."""
     t = _t(seconds)
     return sum(a * np.exp(-t * d) * np.sin(2 * np.pi * f * t + crng.uniform(0, 6.28)) for f, d, a in modes)
 
@@ -544,7 +533,6 @@ def _grains(seconds, count, length, lo, hi, shape=1.0):
 
 
 def _creak(seconds, f0, rise):
-    """A cartoon wooden bow drawn tight: stick-slip pulses whose rate climbs, ringing a small wooden body."""
     out = np.zeros(int(seconds * SR))
     at = 0.0
     while at < seconds - 0.01:
@@ -567,7 +555,6 @@ def _notes(midis, gap):
 
 
 def _grunt(seconds, f0, fall):
-    """A soft cartoon "hmph": a breathy glottal buzz falling in pitch through two low vowel formants."""
     t = _t(seconds)
     f = f0 * (1 - fall * t / seconds)
     phase = np.cumsum(f) / SR
@@ -580,8 +567,7 @@ def _grunt(seconds, f0, fall):
 
 
 def _thud(fund):
-    """A boulder meeting the ground: a deep thump through a stony body, a muffled earth burst and a few small stones
-    settling; its weight sits in the low hundreds of Hz, where a headset's speakers still carry it."""
+    """Its weight sits in the low hundreds of Hz, where a headset's speakers still carry it."""
     t = _t(0.8)
     drop = 1 - 0.2 * np.minimum(t / 0.25, 1)
     thump = sum(a * np.exp(-t * d) * np.sin(2 * np.pi * fund * r * t * drop + crng.uniform(0, 6.28))
@@ -592,8 +578,7 @@ def _thud(fund):
 
 
 def _whoosh(seconds, centre):
-    """Air pushed aside by a swung stone: low noise whose band rises and falls through one swell, with no edges, so
-    plays overlapping every fifth of a second blend into one stream."""
+    """No edges, so plays overlapping every fifth of a second blend into one stream."""
     n = int(seconds * SR)
     env = np.sin(np.pi * np.arange(n) / n) ** 2
     lo = _band(crng.standard_normal(n), centre * 0.4, centre * 1.2)

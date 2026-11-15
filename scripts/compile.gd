@@ -1,7 +1,6 @@
 extends SceneTree
 
-## Loads every game and test script, so check.sh sees each one's analyzer errors, including those an override.cfg
-## raises. A test that fails to compile would otherwise idle until test.sh's timeout.
+## A test that fails to compile would otherwise idle until test.sh's timeout.
 
 
 func _init() -> void:

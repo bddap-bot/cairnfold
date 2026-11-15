@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""What each part of the bare meadow costs a frame: layers.py OUT_DIR [JSON]
+"""layers.py OUT_DIR [JSON], OUT_DIR from `CAIRNFOLD_SCENE=demo/meadow-layers.json scripts/bench.sh OUT_DIR ...`.
 
-OUT_DIR is what `CAIRNFOLD_SCENE=demo/meadow-layers.json scripts/bench.sh OUT_DIR ...` left. Each layer was shown and
-hidden in turn, twice each, from the air and standing; its cost is the median GPU time as the runtime counts it (VrApi's
-App=, bench.sh's record, as scripts/costs.py prices in) shown over hidden, each hidden stretch against the shown ones beside it. "all" hides every layer
-at once: what is left is what a frame costs with nothing of the meadow drawn. With JSON, writes the table there too."""
+A layer's cost is its median GPU time (VrApi's App=) shown minus its median hidden; "all" hides every layer at once."""
 import json
 import os
 import statistics

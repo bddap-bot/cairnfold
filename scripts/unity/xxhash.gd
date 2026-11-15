@@ -1,7 +1,7 @@
 extends RefCounted
 
-## XXH64 with seed 0, by which Unity names the objects it imports from a model since 2019: an object's file ID is the
-## hash of "Type:<its type>-><its path><how many earlier objects share that path>".
+## XXH64, seed 0. Since 2019 Unity names the objects it imports from a model by the hash of
+## "Type:<type>-><path><how many earlier objects share that path>".
 
 const P1 := -7046029288634856825
 const P2 := -4417276706812531889
@@ -40,7 +40,6 @@ static func hash64(data: PackedByteArray) -> int:
 	return h ^ _shr(h, 32)
 
 
-## The file ID Unity gives the model object of `type` at `path`, the `dupe`th to share both.
 static func file_id(type: String, path: String, dupe: int) -> int:
 	return hash64(("Type:%s->%s%d" % [type, path, dupe]).to_utf8_buffer())
 

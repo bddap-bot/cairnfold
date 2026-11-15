@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Collect upstream text verbatim and compare it against the finished shipping archive."""
 import pathlib
 import re
 import sys

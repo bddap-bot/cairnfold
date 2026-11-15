@@ -1,46 +1,22 @@
 #!/usr/bin/env bash
-# Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
-#   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
+# Plays demo/stress.json and holds each phase to game/src/budget.gd's frame budget:
+#   bench.sh OUT_DIR                     desktop: draw calls and primitives only, its GPU is no target
 #   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz UNWORN...
-#                                             a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/cairnfold alone,
-#                                             in the headset's XR session unworn. SteamVR pauses the game while the
-#                                             headset is in standby, so the game runs through UNWORN..., a host command
-#                                             given `--seconds N -- COMMAND` that runs that bash command on the headset
-#                                             for up to N seconds with power.pauseCompositorOnStandby off, restores the
-#                                             setting after, even if its caller dies, and exits with the command's
-#                                             status; N covers the scene. Nothing else may use SteamVR meanwhile. The
-#                                             run autosaves every edit to log/garden.save, as play does, so the late
-#                                             column counts each save's frame. The GPU times are the headset's own
-#                                             render path; a worn session's eye tracking and passthrough cameras are not
-#                                             in them
-#   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
-#                                             proximity sensor held closed so no one need wear it: the budget check
-# On a Quest, exits 1 when a phase goes over budget, but for those scripts/past_budget.py lets past it.
-# On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
-# Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
-# measured, benched on the tree that lands, or on a commit main holds, added by a commit that changes no build (records.sh).
-# scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
-# CAIRNFOLD_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
-# frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
-# The land max and land late columns are the longest frame and the late frames over the phase's landings: each window of
-# game/src/metrics.gd's LANDING_S from a move of the play space's origin, a teleport or view; "-" for none.
-# CAIRNFOLD_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
-# CAIRNFOLD_COLD=1 clears the game's data on a Quest first, its saves copied off and put back after, so it starts as
-# a fresh install does: every shader and pipeline it has not shipped baked is compiled in the run.
-# CAIRNFOLD_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
-# streaming their heads and hands. CAIRNFOLD_WAVE=1 makes them flat-screen players repeatedly waving. CAIRNFOLD_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
-# built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
-# which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
-# CAIRNFOLD_CONTROL_AVATAR=FILE.vrm is pushed beside it as bench/control.vrm, for a scene pairing the two (demo/avatar-look-cost.json).
-# CAIRNFOLD_REPLAY=CHUNK.jsonl replays the session that chunk of a record belongs to, its other chunks beside it, on a
-# Quest in place of a scene (--replay), on the given APK, whichever build recorded it (docs/replay.md), and prints its
-# per-activity timing beside the session's own (scripts/sessions.py --replayed); phases are a scene's, so no budget is
-# held and nothing is recorded.
+#     a Steam Frame unworn, from a scratch install beside ~/cairnfold. SteamVR pauses the game in standby, so UNWORN...
+#     is a host command taking `--seconds N -- COMMAND` that runs it there with power.pauseCompositorOnStandby off,
+#     restored after even if its caller dies. Its GPU times leave out a worn session's eye tracking and passthrough.
+#   bench.sh OUT_DIR --android APK       the Quest adb reaches, its proximity sensor held closed
+# Records go to perf/RIG/SCENE/, committed with the tree they measured (records.sh).
+# Env: CAIRNFOLD_SCENE=SCRIPT.json; on a Quest CAIRNFOLD_ARGS (game args, one per word), CAIRNFOLD_COLD=1 (a fresh
+# install: data cleared, saves kept, every unbaked shader compiled in the run) and CAIRNFOLD_REPLAY=CHUNK.jsonl (no budget, no record); CAIRNFOLD_PLAYERS=N adds N-1 headless
+# players in view, CAIRNFOLD_WAVE=1 makes them flat-screen wavers; CAIRNFOLD_GUEST_AVATAR=FILE.vrm
+# dresses them and, on a Quest, is pushed as bench/guest.vrm; CAIRNFOLD_CONTROL_AVATAR=FILE.vrm is pushed beside it as
+# bench/control.vrm.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$(realpath -m "$1")
 mkdir -p "$out"
-# Which ducks come to the stress scene's ponds: this one brings the most there can be, two families of five.
+# Brings the most ducks there can be to the stress scene's ponds, two families of five.
 seed=25
 device=desktop
 game=0
@@ -52,10 +28,8 @@ replay=${CAIRNFOLD_REPLAY:+$(realpath "$CAIRNFOLD_REPLAY")}
 case $players in [1-8]) ;; *) echo "bench: CAIRNFOLD_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 [ -z "$replay" ] || { [ "${2:-}" = --android ] && [ "$players" -eq 1 ]; } ||
   { echo "bench: CAIRNFOLD_REPLAY replays on a Quest, alone" >&2; exit 1; }
-# A scripted run hosts only when given a port.
 hosting=
 [ "$players" -eq 1 ] || hosting=7480
-# With other players the measured instance waits for them all before its first phase.
 python3 - "${CAIRNFOLD_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
 import json, sys
 steps = json.load(open(sys.argv[1]))
@@ -65,7 +39,6 @@ if players > 1:
     steps.insert(first + 1, {"op": "until", "players": players, "seconds": 180})
 print(json.dumps(steps))
 PY
-# The game is stopped this long after it starts: five minutes plus twice the run's own seconds, so no run outgrows it.
 if [ -z "$replay" ]; then
   limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds", 0) for s in json.load(open(sys.argv[1])))))' "$out/stress.json")
 else
@@ -92,8 +65,6 @@ stop() {
   [ -z "$measured" ] || kill -- "-$measured" 2>/dev/null || true
 }
 trap stop EXIT
-# join LOG_CMD... -- ADDR: once the measured instance's log, as LOG_CMD prints it, names the port it hosts on, the
-# other players join it at ADDR, each from its own spot looking towards the middle.
 join() {
   local cmd=() addr port='' spots=("6 6" "10 2" "14 -2" "-6 8" "-10 4" "-12 -4" "2 12") g x z
   while [ "$1" != -- ]; do cmd+=("$1"); shift; done
@@ -127,9 +98,8 @@ PYTHON
     guests+=($!)
   done
 }
-# same REVISION: the record is named for the measured build and the scene is played from this checkout, so the two must
-# agree; the other players run this checkout too, so with them the measured build must be its revision. A replay
-# records nothing and plays whichever build recorded it.
+# same REVISION: the record is named for the build but the scene comes from this checkout, so the two must agree, and
+# the other players run this checkout, so with them it must be its committed revision.
 same() {
   local built=$1
   shift
@@ -146,10 +116,9 @@ if [ "${2:-}" = --android ]; then
   dir=$files/bench
   # A host-side logcat over wireless adb stalls with no sign, so the headset records its own.
   log=/data/local/tmp/cairnfold-bench.log
-  # Collects each "main: quitting", which the game prints once its metrics are closed; the idle copy may print one too.
+  # Every "main: quitting" (printed once metrics close), the idle copy's included.
   quit=/data/local/tmp/cairnfold-bench.quit
-  # shows SERVICE PATTERN [TEXT]: whether the first line of `dumpsys SERVICE` matching PATTERN holds TEXT. The
-  # dump is read whole, since a grep stopping early would fail the pipe under pipefail.
+  # The dump is read whole: a grep stopping early would fail the pipe under pipefail.
   shows() {
     local dump
     dump=$(adb shell dumpsys "$1")
@@ -172,10 +141,8 @@ if [ "${2:-}" = --android ]; then
   fi
   [ -z "${CAIRNFOLD_GUEST_AVATAR:-}" ] || adb push "$CAIRNFOLD_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   [ -z "${CAIRNFOLD_CONTROL_AVATAR:-}" ] || adb push "$CAIRNFOLD_CONTROL_AVATAR" "$dir/control.vrm" > /dev/null
-  # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
-  # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
-  # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
-  # it warms.
+  # Unworn, the Guardian's lost-tracking dialog is drawn beside the game at the cost of its GPU time. Level 4 is the
+  # highest clock sustained warm; left free the GPU moves between 525 and 587 MHz as it warms, and runs stop comparing.
   held_props="guardian_pause=1 cpuLevel=4 gpuLevel=4"
   saved_props=$(for kv in $held_props; do printf '%s=%s ' "${kv%%=*}" "$(adb shell getprop "debug.oculus.${kv%%=*}" | tr -d '\r')"; done)
   logcat_pids=
@@ -198,13 +165,9 @@ if [ "${2:-}" = --android ]; then
     sleep 1
   done
   shows vrpowermanager 'State: HEADSET_MOUNTED' || { echo "bench: the headset did not wake" >&2; exit 1; }
-  # A Store or Library panel left open keeps the shell rendering beside the game and takes GPU time from it, which
-  # no reading of the game's own App= time can subtract. A launch into a waking headset can also meet the shell's
-  # controller check, with the controllers idle, or be paused as it starts, which crashes Godot; and while a
-  # first-time tip (com.oculus.firsttimenux) is up the shell holds every launch. The Quest 3's guidebook posts tips
-  # as toasts the shell draws beside the game. A fresh shell, with the panels, the tip and the guidebook closed,
-  # starts with none of them, but replays every toast still posted, such as the Quest 2 library's long-press tip, for
-  # 30 seconds beside the game: each is snoozed for an hour, which outlasts the run and lapses by itself.
+  # An open panel or toast makes the shell render beside the game, taking GPU time App= cannot show; a waking
+  # shell's controller check or pause-at-start crashes Godot, and a first-time tip holds every launch. A fresh shell
+  # replays still-posted toasts for 30 s, so each is snoozed for an hour, past the run.
   fresh_shell() {
     local app key
     for app in com.oculus.store com.oculus.panelapp.library com.oculus.firsttimenux com.oculus.guidebook com.oculus.vrshell; do
@@ -248,8 +211,8 @@ if [ "${2:-}" = --android ]; then
   if [ "$players" -gt 1 ]; then
     join adb shell cat "$log" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
-  # A dropped connection is no end. A game that has quit has closed its metrics, so one still running a grace later
-  # is stopped and its run kept: a Quest 2 can hold the engine's shutdown after its last AudioTrack stop for good.
+  # A dropped adb connection is no end. A Quest 2 can hang shutdown after its last AudioTrack stop for good, so a game
+  # still running a grace after quitting, its metrics closed, is stopped and its run kept.
   ended=
   quitted=
   SECONDS=0
@@ -335,12 +298,9 @@ if not phases:
     sys.exit("bench: the run measured no phase; see the game's log")
 if device == "frame" and not d["info"].get("xr"):
     sys.exit("bench: the game ran without an XR session; see the game's log")
-# Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second, its
-# compositor's TW= beside it.
 gpu, timewarp, dropped, foreign = {}, {}, set(), {}
-# A second that left draws out because their pipelines were still compiling drew less than its scene: after a cold
-# start the first compiles can wait half a minute, and meadow read 3.7 to 6.1 ms of GPU then against 8.3 whole. Such
-# seconds leave a phase's GPU time unless they are all it has: then it drew incomplete, and gets no budget verdict.
+# A second that skipped draws whose pipelines were compiling drew less than its scene (after a cold start meadow read
+# 3.7 to 6.1 ms against 8.3 whole); a phase with only such seconds is incomplete and gets no verdict.
 unready = {id(s) for s in d["seconds"] if s.get("skipped")}
 incomplete = set()
 if device == "frame":
@@ -351,15 +311,8 @@ if device == "frame":
             incomplete.add(name)
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in whole or timed]
 elif device == "quest":
-    # Only the game's process counts, the one printing as godot. Another process rendering, as the shell does for a
-    # moment mid-phase or under an open panel, shares the GPU with the game, so no time of a second it renders in is
-    # the game's alone: those seconds are left out of their phase, which keeps them only when it has no other.
-    # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
-    # Once the script is done the game quits and the shell takes the compositor back, outside every phase.
-    # A hand the headset's cameras track, someone's near it, is drawn by the game with its tool and the tool's
-    # preview, so a phase it shows in measures more than its scene.
-    # Each line's phase is the metrics second it falls in, by the headset's clock: logcat drops lines under load, the
-    # game's own label prints among them.
+    # Another process rendering shares the GPU, so its seconds leave their phase unless the phase has no other. A
+    # line's phase is the metrics second it falls in: logcat drops lines under load, the game's label prints among them.
     ends = [s["unix"] for s in d["seconds"]]
     second = lambda t: d["seconds"][bisect.bisect_left(ends, t)] if t <= ends[-1] else None
     at = lambda t: second(t)["label"] if second(t) else "-"
@@ -383,8 +336,7 @@ elif device == "quest":
             handed.add(label)
         if pid == game_pid and "driver: done" in line:
             done = True
-        # A crash leaves its last seconds without metrics rows, so the phase they give may be one already over; the
-        # driver's own print of the step it began places the crash.
+        # A crash's last seconds have no metrics rows, so the driver's step print places it.
         if pid == game_pid and "driver: {" in line:
             step = line.split("driver: ", 1)[1].strip()
         m = re.search(r"Fatal signal \d+ \(\w+\).*", line)

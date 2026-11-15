@@ -1,27 +1,22 @@
 extends RefCounted
 
-## The VRCFury features on an avatar, which VRCFury turns into menu controls, parameters and FX layers at upload, added
-## to its expressions as that build would add them: each Toggle and each FullController's FX controller, menus and
-## parameters in hierarchy order, then each MoveMenuItem and SetIcon. Features that add nothing a menu shows are
-## passed over; what is not translated is counted.
+## VRCFury features, added to the expressions as its upload build adds them: Toggles and FullControllers in hierarchy
+## order, then MoveMenuItems and SetIcons.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Expressions = preload("res://../scripts/unity/expressions.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
 
-## Features that add nothing to the menu, its parameters or its layers: they rig, optimize or check the avatar.
 const MENULESS := ["ArmatureLink", "BlendShapeLink", "BlendshapeOptimizer", "FixWriteDefaults", "ApplyDuringUpload", "UnlimitedParameters", "MmdCompatibility", "SpsOptions", "Slot4Fix", "DirectTreeOptimizer", "AnchorOverrideFix", "BoundingBoxFix"]
-## Parameters VRChat drives, which VRCFury never renames.
+## VRChat drives these; VRCFury never renames them.
 const BUILT_IN := ["IsLocal", "Viseme", "Voice", "GestureLeft", "GestureRight", "GestureLeftWeight", "GestureRightWeight", "AngularY", "VelocityX", "VelocityY", "VelocityZ", "VelocityMagnitude", "Upright", "Grounded", "Seated", "AFK", "TrackingType", "VRMode", "MuteSelf", "InStation", "Earmuffs", "IsOnFriendsList", "AvatarVersion", "IsAnimatorEnabled", "ScaleModified", "ScaleFactor", "ScaleFactorInverse", "EyeHeightAsMeters", "EyeHeightAsPercent"]
-## The most controls a VRChat menu shows; VRCFury pages the rest into a "Next" submenu.
 const MENU_SLOTS := 8
-## The Unity class ID of a clip curve on one of the controller's own parameters, which the merge renames with it.
+## Unity class ID of a curve on a controller's own parameter, which the merge renames with it.
 const ANIMATOR := "95"
-## Toggle settings that change behaviour this translation does not reproduce.
 const TOGGLE_UNTRANSLATED := ["separateLocal", "hasTransition", "invertRestLogic", "exclusiveOffState", "securityEnabled"]
 
 
-## Adds the features of the avatar under `paths` (each transform under it by its clip path, parents first) to `ex`.
+## `paths`: each transform under the avatar by clip path, parents first.
 static func apply(ex: Expressions, objs: Dictionary, paths: Dictionary) -> void:
 	var path_of := {}
 	var order := {}
@@ -95,9 +90,6 @@ static func _paged(menu: Array) -> void:
 			_paged(c.controls)
 
 
-## A Toggle as VRCFury builds it: its parameter, a layer whose on state holds its actions (as a clip, and drivers for
-## the FX parameters it sets) and whose off state undoes them, or for a slider one blend from off to on, and unless it
-## adds no menu item a control at its path.
 static func _toggle(ex: Expressions, objs: Dictionary, paths: Dictionary, path_of: Dictionary, f: Dictionary, exclusive: Dictionary) -> void:
 	var d: Dictionary = f.data
 	var name := str(d.get("name", ""))
@@ -140,8 +132,6 @@ static func _toggle(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 	_submenu(ex.data.menu, segments.slice(0, segments.size() - 1)).append({"name": segments[segments.size() - 1], "type": type, "parameter": "" if slider else parameter, "value": 1.0, "axes": [parameter] if slider else [], "icon": _object_guid(d.get("icon")) if str(d.get("enableIcon", "0")) == "1" else ""})
 
 
-## One Toggle action as curves of its on clip (and its off clip where the off state is not the scene's), and drivers on
-## entering on and off, as VRCFury animates it; an object it turns rests as the toggle starts.
 static func _action(ex: Expressions, objs: Dictionary, paths: Dictionary, path_of: Dictionary, at: String, type: String, a: Dictionary, on: Dictionary, off: Dictionary, on_drivers: Array, off_drivers: Array, starts_on: bool) -> void:
 	var constant := func(clip: Dictionary, path: String, attribute: String, cls: String, value: float) -> void:
 		clip.curves.append({"path": path, "attribute": attribute, "class": cls, "script": "", "keys": [[0.0, value, 0.0, 0.0]]})
@@ -225,7 +215,7 @@ static func _action(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 			ex._count("VRCFury %s" % type)
 
 
-## A clip read for this use alone, outside the expressions' clips and their cache, or null.
+## Reads a clip without adding it to the expressions' clips or their cache; null where none.
 static func _own_clip(ex: Expressions, ref: Variant) -> Variant:
 	var cache := ex._clips
 	var count: int = ex.data.clips.size()
@@ -241,10 +231,8 @@ static func _driver(parameter: String, value: float) -> Dictionary:
 	return {"parameter": parameter, "drive": "set", "value": value, "min": 0.0, "max": 1.0, "chance": 1.0, "source": ""}
 
 
-## A FullController merged as VRCFury merges one: its FX layers with clips of their own, bindings resolved from its
-## object, its parameters renamed apart from every other's (but the global ones, VRChat's own and those the avatar's own
-## expression parameters name, which it shares) on its layers, its clips and the contacts under its object, and its
-## menus under their prefixes.
+## Its parameters are renamed apart from every other's on its layers, clips and the contacts under its object, but
+## the global ones, VRChat's own and those the avatar's own expression parameters name, which it shares.
 static func _full_controller(ex: Expressions, objs: Dictionary, paths: Dictionary, f: Dictionary, own: Dictionary) -> void:
 	var d: Dictionary = f.data
 	var rewrites := Yaml.list(d.get("rewriteBindings"))
@@ -357,7 +345,7 @@ static func _rename_menu(controls: Array, renamed: Callable) -> void:
 		_rename_menu(c.get("controls", []), renamed)
 
 
-## A FullController binding path after its rewrites, null when one deletes it.
+## Null where a rewrite deletes it.
 static func _rewritten(rewrites: Array, path: String) -> Variant:
 	for r: Variant in rewrites:
 		if not r is Dictionary:
@@ -371,19 +359,15 @@ static func _rewritten(rewrites: Array, path: String) -> Variant:
 	return path
 
 
-## A path a feature names from its own object, as VRCFury resolves it: below that object if it is there, otherwise
-## from the avatar's root.
 static func _resolve(paths: Dictionary, base: String, path: String) -> String:
 	var below := (base + "/" + path).trim_prefix("/") if path != "" else base
 	return below if base != "" and paths.has(below) else path
 
 
-## A submenu `name` holding `controls`.
 static func _folder(name: String, controls: Array) -> Dictionary:
 	return {"name": name, "type": "submenu", "parameter": "", "value": 1.0, "axes": [], "icon": "", "controls": controls}
 
 
-## The controls of the submenu at `segments` under `menu`, each missing submenu made.
 static func _submenu(menu: Array, segments: Array) -> Array:
 	var at := menu
 	for s: String in segments:
@@ -399,7 +383,6 @@ static func _submenu(menu: Array, segments: Array) -> Array:
 	return at
 
 
-## Adds `controls` to `menu`, a submenu joining the one of its name already there, as VRCFury merges menus.
 static func _merge(menu: Array, controls: Array) -> void:
 	for c: Dictionary in controls:
 		if c.type == "submenu":
@@ -455,7 +438,6 @@ static func _editor_only(objs: Dictionary, t: int) -> bool:
 	return false
 
 
-## The asset GUID a VRCFury GuidWrapper (a material, clip, controller, menu or texture field) names.
 static func _object_guid(wrapper: Variant) -> String:
 	if not wrapper is Dictionary:
 		return ""

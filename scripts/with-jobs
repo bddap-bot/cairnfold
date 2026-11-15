@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-"""Runs a command with as many CPUs as the caller's make jobserver lends it: with-jobs CMD...
-
-Tools that cannot join a jobserver (scons, Gradle and the JVM) size themselves to every CPU, beside whatever else
-draws on the same jobserver. This takes the tokens it is lent while they keep coming, holds them for the command's
-life, and tells the command its count through OMP_NUM_THREADS, which nproc reports, and the JVM's processor count.
-Without a jobserver in MAKEFLAGS the command runs as it would have.
+"""with-jobs CMD...: runs CMD with as many CPUs as the caller's make jobserver lends, told through OMP_NUM_THREADS
+(which nproc reports) and the JVM's processor count, for tools that cannot join a jobserver (scons, Gradle).
 """
 
 import os

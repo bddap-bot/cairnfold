@@ -12,7 +12,7 @@ PROFILES = {"soft": 950, "paper": 1250, "dark": 700}
 def main():
     source = json.loads((OUT / "source.json").read_text())
     recording = decode(source["audio"])
-    # Select separate active passages rather than repeat one tiny scratch.
+    # Separate passages rather than one tiny scratch repeated.
     for name, cutoff in PROFILES.items():
         for i, start in enumerate((2, 5, 8, 11, 14, 18, 22, 26)):
             x = recording[int(start * SR):int((start + 0.16) * SR)]

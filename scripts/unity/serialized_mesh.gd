@@ -1,10 +1,7 @@
 extends RefCounted
 
-## A Mesh object (class 43) as Unity serializes it in a text asset: the mesh a build tool generates and saves beside
-## the model it came from, which a renderer then names in place of the model's. It reads into the MeshInstance3D Godot's
-## importer would make of that model's node, in Godot's axes (Unity's with X mirrored, as Unity's model importer
-## mirrors a model's), UVs from the top: each submesh a surface, every blend shape at its last frame, and, where it has
-## bind poses, skinned to a Skeleton3D whose bone i is the renderer's bone i, resting where its bind pose puts it.
+## A text-serialized Mesh (class 43) a build tool saves beside a model for a renderer to name instead, read as Godot's
+## importer reads a model's node: X mirrored, UVs from the top, blend shapes at their last frame, bone i the renderer's.
 
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const Prefabs = preload("res://../scripts/unity/prefabs.gd")
@@ -16,14 +13,11 @@ const NORMAL := 1
 const UV0 := 4
 const WEIGHTS := 12
 const INDICES := 13
-## Unity aligns each vertex stream's start in the vertex data to this many bytes.
 const STREAM_ALIGN := 16
 const MIRROR := Basis(Vector3(-1, 0, 0), Vector3.UP, Vector3.BACK)
 
 
-## {"node": the MeshInstance3D, under a root the caller frees, "slots": each surface's material slot} of the Mesh object
-## `mesh` (its fields, as Yaml.objects reads them) for a renderer whose bones are named `bones`, or a String saying why
-## it cannot be drawn.
+## {"node", under a root the caller frees, "slots": each surface's material slot}, or why it cannot be drawn.
 static func read(mesh: Dictionary, bones: PackedStringArray) -> Variant:
 	if str(mesh.get("m_MeshCompression", "0")) != "0":
 		return "a compressed mesh"
@@ -51,7 +45,6 @@ static func read(mesh: Dictionary, bones: PackedStringArray) -> Variant:
 	if end > data.size():
 		return "%d bytes of vertex data where its channels need %d" % [data.size(), end]
 	var dimension := func(c: int) -> int: return channels[c].dimension if c < channels.size() else 0
-	# Channel c's first `width` components of each vertex, one after another; components it lacks read 0.
 	var column := func(c: int, width: int) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
 		out.resize(count * width)
@@ -135,8 +128,7 @@ static func read(mesh: Dictionary, bones: PackedStringArray) -> Variant:
 		if not uvs[1].is_empty():
 			arrays[Mesh.ARRAY_TEX_UV2] = _uv(uvs[1], first, n)
 		var flags := 0
-		# Godot's FBX importer carries a model's third and fourth UV sets in CUSTOM0, where a material's maps on them
-		# read them.
+		# Godot's FBX importer carries UV sets 3 and 4 in CUSTOM0, where a material's maps on them read them.
 		if not uvs[2].is_empty():
 			var third := _uv(uvs[2], first, n)
 			var fourth := _uv(uvs[3], first, n) if not uvs[3].is_empty() else PackedVector2Array()
@@ -209,7 +201,6 @@ static func _component(data: PackedByteArray, at: int, format: int) -> float:
 		_: return data.decode_s32(at)
 
 
-## Vertices first to first + n of a column of Unity vectors, in Godot's axes.
 static func _vectors(column: PackedFloat32Array, first: int, n: int) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	out.resize(n)
