@@ -256,10 +256,10 @@ func _bound() -> void:
 		bounds = box if i == 0 else bounds.merge(box)
 
 func _piece(at: Vector3, basis: Basis, size: Vector3, material: String, rng: RandomNumberGenerator) -> void:
-	var kind := "block" if material == "stone" else "rail"
-	var element: Palette.Element = Palette.KINDS[kind]
+	var piece := "block" if material == "stone" else "rail"
+	var element: Palette.Element = Palette.KINDS[piece]
 	var color := Color(0.62, 0.58, 0.5) if material == "stone" else Color(0.42, 0.27, 0.14)
-	stones.append({"xform": Transform3D(basis.scaled_local(size), at), "color": color * Palette.tint(element, _paint[element]) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": kind})
+	stones.append({"xform": Transform3D(basis.scaled_local(size), at), "color": color * Palette.tint(element, _paint[element]) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": piece})
 
 func _beam(a: Vector3, b: Vector3, thickness: float, material: String, rng: RandomNumberGenerator) -> void:
 	_piece((a + b) * 0.5, _lengthwise(a, b), Vector3(thickness, a.distance_to(b), thickness), material, rng)
