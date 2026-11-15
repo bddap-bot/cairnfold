@@ -1698,12 +1698,12 @@ func _outline(m: Dictionary) -> Dictionary:
 ## the largest where several renderers draw it, as Unity scales its offset.
 func outline_layer() -> Dictionary:
 	var drawn := {}
-	var widest := 0.0
+	var widest_metres := 0.0
 	for key: String in materials:
 		var m: Dictionary = materials[key]
 		if _outline_metres(m) > 0.0 and m.has("cell"):
 			drawn[key] = _outline_metres(m)
-			widest = maxf(widest, drawn[key])
+			widest_metres = maxf(widest_metres, drawn[key])
 	if drawn.is_empty():
 		return {}
 	var out := Image.create_empty(atlas_side, atlas_side, false, Image.FORMAT_RGBA8)
@@ -1711,16 +1711,14 @@ func outline_layer() -> Dictionary:
 	for key: String in drawn:
 		var m: Dictionary = materials[key]
 		var o: Dictionary = m.outline
-		var padded := Rect2i((m.cell as Rect2i).position - Vector2i(PAD, PAD), (m.cell as Rect2i).size + 2 * Vector2i(PAD, PAD))
-		var cell := atlas.get_region(padded)
-		cell.clear_mipmaps()
-		var albedo := cell.get_data()
+		var padded := _padded(m)
+		var albedo := _albedo(m).get_data()
 		var texture := _over_cell(m, _slot_image(m, o.texture) if o.texture != "" else null, o.texture).get_data()
 		var mask := _outline_mask(m, o)
 		var data := PackedByteArray()
 		data.resize(albedo.size())
 		var colour: Color = o.colour
-		var share: float = drawn[key] / widest
+		var share: float = drawn[key] / widest_metres
 		for i in range(0, data.size(), 4):
 			for c in 3:
 				var base := _LINEAR[albedo[i + c]]
@@ -1728,7 +1726,7 @@ func outline_layer() -> Dictionary:
 				data[i + c] = _ENCODED[clampi(roundi(lerpf(tinted, base, o.toward) * 4095.0), 0, 4095)]
 			data[i + 3] = roundi(share * mask[i / 4])
 		out.blit_rect(Image.create_from_data(padded.size.x, padded.size.y, false, Image.FORMAT_RGBA8, data), Rect2i(Vector2i.ZERO, padded.size), padded.position)
-	return {"outline": _layer(out, RESAMPLE, OUTLINE_LAYER), "outlineWidth": widest}
+	return {"outline": _layer(out, RESAMPLE, OUTLINE_LAYER), "outlineWidth": widest_metres}
 
 
 static func _outline_metres(m: Dictionary) -> float:
