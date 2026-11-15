@@ -10,7 +10,6 @@ const GATHERED := 16
 const MOST := 64
 ## How far a piece stands out from its wall, least and most, or past a path's edge at most.
 const OUT := Vector2(0.05, 3.0)
-const PAST_PATH := 3.0
 ## A path gathers a piece this far from its start, then one each EVERY metres, none within CLEAR of its end.
 const PATH_FIRST := 1.2
 const PATH_EVERY := 7.0

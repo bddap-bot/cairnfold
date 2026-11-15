@@ -1313,7 +1313,7 @@ func _carried_clutter(grip: FittingGrip, from: Vector4, by: Vector3, turn: float
 		return v
 	var path := paths.layout(grip.path)
 	var f := path.frame_at(from.x)
-	var v := FittingGrip.shifted(from, f.along, by, turn, f.half + ClutterLayout.OUT.x, f.half + ClutterLayout.PAST_PATH)
+	var v := FittingGrip.shifted(from, f.along, by, turn, f.half + ClutterLayout.OUT.x, f.half + ClutterLayout.OUT.y)
 	v.x = clampf(v.x, 0.0, path.length())
 	return v
 
