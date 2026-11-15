@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of builds standing on builds and builds joining: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_build_on.gd
-
 
 func _init() -> void:
 	_a_wall_top_holds_what_stands_on_it()
@@ -118,7 +116,7 @@ func _a_house_on_a_wall_reaches_no_lower_than_the_wall_top() -> void:
 	check(Array(off.depths).max() > 1.0 and Array(off.plinths).max() > 1.0, "a loop over no top of what it meets keeps its plinth down to the ground")
 
 
-## A build's stones but its floors', which tests/test_floors.gd checks where joined rooms meet.
+## Floors aside: tests/test_floors.gd checks them where joined rooms meet.
 func _walls(w: WallLayout) -> Array:
 	return w.stones.filter(func(s: Dictionary) -> bool: return not s.kind in WallLayout.FLOOR_KINDS)
 

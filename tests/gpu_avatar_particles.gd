@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Avatar particles draw where their emitter is, in the material a target chooses, and a mesh system draws its mesh.
-## Needs a renderer, so scripts/test.sh runs it on the desktop one:
-## godot4 --path game --xr-mode off --script ../tests/gpu_avatar_particles.gd [-- OUT_DIR]
+## Needs a renderer: scripts/test.sh runs it on the desktop one; `-- OUT_DIR` keeps each shot there.
 
 const Fixture = preload("res://../tests/test_avatar_particles.gd")
 const SIZE := 128
@@ -78,7 +76,7 @@ func _run() -> void:
 	finish()
 
 
-## The mean colour of a patch at `x`, `y` from the middle of the view, a frame on.
+## `x` right and `y` up, in pixels from the middle of the view, a frame on.
 func _shot(view: SubViewport, out: String, x: int, y: int) -> Color:
 	await process_frame
 	await RenderingServer.frame_post_draw

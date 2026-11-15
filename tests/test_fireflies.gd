@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of fireflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fireflies.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
 

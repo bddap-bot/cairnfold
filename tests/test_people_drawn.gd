@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Another player in their own file stands as a built-in body while the quality step draws no one's own file, and in
-## their file again once it does, posed where they were: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_people_drawn.gd
-
 
 func _run() -> void:
 	await frames(3)

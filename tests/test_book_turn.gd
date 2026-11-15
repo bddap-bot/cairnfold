@@ -1,9 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Sweeps the hand paths that read the picture book: a pass through a page from behind it to in front, at every
-## speed, angle and tracking rate a player would make it, turns that page once; brushes and hovers turn none. Every
-## page shows in order, the last too, and a turn either way, or a prop's, lifts the leaf it turns. A live book renders
-## every page on its first frame, so none compiles its pipelines as it first opens.
+## A live book renders every page on its first frame so none compiles its pipelines as it first opens.
 
 var book: Book
 
@@ -70,8 +67,8 @@ func _run() -> void:
 	finish()
 
 
-## Which way the book turned a hand sampled `hz` times a second along `dir` from 25 cm behind the page through
-## `through` (book frame) to 25 cm in front at `speed`, curling `bow` toward the spine once through, as a flick does.
+## `through` and `dir` in book frame; `speed` in m/s, sampled `hz` times a second; `bow` curls it toward the spine once
+## through, as a flick does.
 func _pass(through: Vector3, dir: Vector3, bow: float, speed: float, hz: float) -> int:
 	var spine := Vector3(-signf(through.x), 0, 0)
 	var path: Array[Vector3] = []
@@ -92,7 +89,6 @@ func _line(from: Vector3, to: Vector3, speed: float) -> Array[Vector3]:
 	return out
 
 
-## Three seconds of a hand held near `at`, its tracking wandering `by` either way.
 func _wander(at: Vector3, by: float, seconds: float) -> Array[Vector3]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(at)
@@ -102,11 +98,11 @@ func _wander(at: Vector3, by: float, seconds: float) -> Array[Vector3]:
 	return out
 
 
-## Plays `path` (book frame) into the open book after a hand far beside it, returning the way it turned: 1 on, -1 back, 0
-## none; a second turn counts as a failure of its own.
+## `path` in book frame; returns 1 on, -1 back, 0 none.
 func _feel(path: Array[Vector3]) -> int:
 	book.at = 2
 	book._turn.clear()
+	# A hand far beside the book first.
 	book.feel(book.global_transform * Vector3(1, -0.3, 0))
 	book.feel(book.global_transform * Vector3(1, 0.3, 0))
 	var way := 0
@@ -121,8 +117,6 @@ func _feel(path: Array[Vector3]) -> int:
 	return way
 
 
-## Open at each leaf in turn, the spread shows the next two pages, the left one first, until the last page and the back
-## cover's endpaper.
 func _every_page_shows_in_order() -> void:
 	var b := Book.new(false)
 	b.set_process(false)
@@ -141,8 +135,6 @@ func _every_page_shows_in_order() -> void:
 	b.queue_free()
 
 
-## Turning on lifts the leaf on the right, turning back the one last turned, and a prop sent a leaf away does the same;
-## the last leaf turns, and nothing past it.
 func _a_turn_lifts_the_leaf_it_turns() -> void:
 	var b := Book.new(false)
 	b.set_process(false)

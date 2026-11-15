@@ -5,7 +5,6 @@ func _hill(x: float, z: float) -> float:
 	return 0.15 * x + 0.3 * sin(z)
 
 
-## Each plaster panel's mitred end meets the next panel's start edge to edge, turned the same way, on a curve over a slope.
 func _continuous() -> void:
 	var w := WallLayout.new()
 	var arc: Array[Vector3] = []

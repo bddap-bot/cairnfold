@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Replays the record --replay names in a fresh game and writes to --out what tests/test_replay.gd compares with the
-## session it recorded: each frame's delta and the head's pose, the garden once the replay ends and every command
-## is in, the id it played as each frame, and where the replay diverged from the record (Replayer.diverged).
+## Replays --replay in a fresh process, writing to --out what tests/test_replay.gd compares with the recording.
 
 const Suite := preload("res://../tests/support/suite.gd")
 
@@ -20,7 +18,7 @@ class Probe:
 		ids.append(main.multiplayer.get_unique_id())
 
 
-## Watches `main`'s head each frame from the one it boots in, after every node has moved it.
+## Reads the head after every node has moved it.
 static func watch(on: Main) -> Probe:
 	var probe := Probe.new()
 	probe.main = on
@@ -29,8 +27,7 @@ static func watch(on: Main) -> Probe:
 	return probe
 
 
-## What this script makes of replaying `chunk` in a fresh game, its player's own files in `avatars`; {} when it fails,
-## which `by` checks.
+## {} when the replay fails, which `by` checks.
 static func replay(by: Suite, chunk: String, avatars: String) -> Dictionary:
 	var out := ProjectSettings.globalize_path(chunk.get_base_dir().path_join("replayed"))
 	DirAccess.remove_absolute(out)

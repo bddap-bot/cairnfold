@@ -159,8 +159,6 @@ func _posts_on_treads(d: Dictionary) -> void:
 		check(is_equal_approx(foot, low.y if is_nan(under) else under), "a railing post stands on the tread or ground under its downhill face: %.3f, not %.3f" % [foot, under])
 
 
-## Walking the centre line from one end to the other meets a tread everywhere, no step higher than a stair's rise,
-## starting a step from the lower end and finishing level with the upper one.
 func _walkable(d: Dictionary) -> void:
 	var stairs := StairLayout.new()
 	stairs.build(d)
@@ -180,8 +178,6 @@ func _walkable(d: Dictionary) -> void:
 	check(is_equal_approx(last, high.y), "the treads reach the upper end of %s" % [d])
 
 
-## The colour and style tools reach stairs as they reach walls: a tread recoloured, the railings restyled, each one
-## undo step, kept through a snapshot, and taken by stairs laid after.
 func _painted_and_styled(main: Node) -> void:
 	var world: World = main.world
 	var picker: PaletteTool = main.palette_tool
@@ -281,7 +277,6 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	world.submit({"op": "heights", "cells": cells, "values": original})
 
 
-## Report (relay): stairs join the grab rule: a one-hand grip moves and turns a flight, two hands pulled apart widen it.
 func _gripped(main: Node) -> void:
 	var world: World = main.world
 	var tool: WallTool = main.tool

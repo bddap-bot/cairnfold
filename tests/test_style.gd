@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of the style tool's plaster faces, tree species and painted stone's and boulders' styles, through the host as a player's turn of the
-## wheel goes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_style.gd
-
 var world: World
 
 
@@ -31,7 +28,6 @@ func _run() -> void:
 	finish()
 
 
-## Each species stands apart from the others in the shape of its crown and in its leaves.
 func _species_differ() -> void:
 	var looks := []
 	for species in FloraLayout.Species.values():
@@ -51,8 +47,6 @@ func _species_differ() -> void:
 			check(shape > 0.25 and hue > 0.05, "%s and %s differ in silhouette (%.2f) and leaf colour (%.2f)" % [FloraLayout.Species.keys()[a], FloraLayout.Species.keys()[b], shape, hue])
 
 
-## The style tool turns a stone face to plaster through the host, which a peer takes, an undo puts back, a redo
-## brings again and a save carries; the walls laid after are plaster too.
 func _faces_turn_to_plaster() -> void:
 	var id := order_walls([seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-24, 20)]))], 1)
 	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
@@ -123,8 +117,6 @@ func _foundations_turn_to_plaster() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## The style tool aimed at a floor offers flags or planks: turned, a peer takes it, an undo puts it back, a save as
-## written to disk carries it, and houses laid after take it. The floor and the walls never move each other.
 func _floors_take_a_style() -> void:
 	var d := seeded_wall(PackedVector3Array(WallLayout.rectangle(main.world.terrain.ground(-14, 24), main.world.terrain.ground(-10, 24), 4.0)))
 	d.closed = true
@@ -164,8 +156,6 @@ func _floors_take_a_style() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## The style tool only restyles: turned through every face of an open wall and of a house, shown and sent, it
-## neither cuts an opening nor fills the arch standing.
 func _faces_cut_no_opening() -> void:
 	var open := seeded_wall(PackedVector3Array([main.world.terrain.ground(-30, 20), main.world.terrain.ground(-22, 20)]))
 	open.openings = PackedVector4Array([2.0].map(WallLayout.archway))
@@ -188,8 +178,6 @@ func _faces_cut_no_opening() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,
-## which a peer takes; an undo, a redo and a save follow it, and its slots are laid as that species.
 func _trees_take_a_species() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var at := main.world.terrain.ground(-6, 18)
@@ -223,7 +211,6 @@ func _trees_take_a_species() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## The meadow's own trees take a species as planted ones do, and go back to oaks with a swapped garden.
 func _meadow_trees_take_a_species() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var i: int = flora.meadow_trees[3]
@@ -241,9 +228,6 @@ func _meadow_trees_take_a_species() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## Two grips on a planted tree spread grow it and closed shrink it, by their span, within FloraLayout.SCALES, through the
-## host, which a peer takes; one hand raised alone grows nothing; what it strikes, its shade and its share of the
-## budget grow with it; an undo, a redo, a species and a snapshot keep it.
 func _trees_grow_by_the_grip() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var tool: WallTool = main.tool
@@ -306,7 +290,6 @@ func _trees_grow_by_the_grip() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## The meadow's own trees grow as planted ones do, and go back to their size with a swapped garden.
 func _meadow_trees_grow() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees[2]]
@@ -388,9 +371,6 @@ func _towers_keep_stone() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## Painted stone aimed at offers every style in StoneStyles' table and turns its stroke to one through the host, which a
-## peer takes; the mask carries it where that stroke lies, stone painted after takes it, and an undo, a redo and a save
-## follow it. A later stroke's style takes the ground it covers most.
 func _stone_takes_a_style() -> void:
 	var r := FloraTool.MAX_RADIUS * 0.4
 	var stamps := PackedVector4Array([Vector4(30, 30, r, r * 2.0), Vector4(31.5, 30, r, r * 2.0)])
@@ -427,9 +407,6 @@ func _stone_takes_a_style() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A boulder aimed at offers the same stone styles as painted stone, before the ground under it, and takes one as a
-## `reshape` through the host, which a peer takes; its meshes draw in it, boulders set down after take it, and an undo
-## and a save follow it.
 func _boulders_take_a_stone_style() -> void:
 	var at := main.world.terrain.ground(-50, 30)
 	var plain := {"op": "boulder", "at": at, "turn": Quaternion.IDENTITY, "sink": 0.0, "seed": 5, "scale": 1.0, "paint": Palette.plain()}
@@ -514,8 +491,6 @@ func _roof_choices_keep_shape() -> void:
 			world.restore({"seq": 0, "cmds": []})
 
 
-## A path aimed at offers every surface and turns to one through the host, which a peer takes; the mask carries it
-## where the path lies, a bed sprouts its crops, paths laid after take it, and an undo, a redo and a save follow it.
 func _paths_take_a_surface() -> void:
 	var p := PathLayout.new()
 	for q in [Vector3(-30, 0, 60), Vector3(-24, 0, 60)]:
@@ -552,7 +527,6 @@ func _paths_take_a_surface() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## While one hand turns a wheel, the other's trigger opens no second one.
 func _one_wheel_at_a_time() -> void:
 	var picker: PaletteTool = main.palette_tool
 	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-24, 20)]))], 1)
@@ -580,8 +554,6 @@ func _one_wheel_at_a_time() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A wheel let go on the face the wall had when it opened, which a peer has since turned it from, sends nothing and is
-## not refused.
 func _a_face_a_peer_turned_from_is_let_be() -> void:
 	var picker: PaletteTool = main.palette_tool
 	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-24, 20)]))], 1)

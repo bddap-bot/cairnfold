@@ -13,7 +13,6 @@ func _stilted(w: Wall) -> bool:
 	return w.layout.stones.any(func(st: Dictionary) -> bool: return st.kind in ["post", "pillar"] and st.y < 0.0)
 
 
-## `demo/raised.json` stands long and round houses on pillars and posts, and the style tool turns a plinth to pillars.
 func _demo() -> void:
 	for step: Dictionary in demo("res://../demo/raised.json"):
 		await play([step])
@@ -28,7 +27,6 @@ func _demo() -> void:
 	await play([{"op": "clear"}])
 
 
-## The stress scene's `raised/*` phases look over a ring of raised houses, long and round, every one on stilts.
 func _stress_ring() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var first := aerial_at(steps, "raised")

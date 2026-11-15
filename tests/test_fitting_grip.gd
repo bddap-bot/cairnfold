@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## A grip carries a placed fitting along the surface it stands on and sets it where let go, one reshape and one undo step:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fitting_grip.gd
-
 
 func _lay() -> void:
 	lay_walls(main.tool)
@@ -27,8 +24,7 @@ func _steps() -> int:
 	return main.world.stacks.get(main.world.me(), {"undo": []}).undo.size()
 
 
-## One hand grips `target` from a metre off, moves `path` (each a move from where it gripped) turning `turn` at the end,
-## and lets go; the build command it sent, as the garden took it.
+## Each of `path` is a move from where it gripped.
 func _carry(target: Dictionary, path: Array, turn := 0.0) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(main.rig.right)
@@ -218,8 +214,6 @@ func _run() -> void:
 	finish()
 
 
-## The grip button, pressed with the hand pointing at a lantern, takes the lantern rather than its wall; a second hand's
-## grip on it does nothing, a lantern having no size.
 func _real_grip(wall: Wall) -> void:
 	var world: World = main.world
 	var hand: Hand = main.rig.right

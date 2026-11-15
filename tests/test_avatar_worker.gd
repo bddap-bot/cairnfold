@@ -1,7 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless check that an avatar read on a worker thread finishes while the main thread waits for it, as a
-## player's game does when it quits mid-read: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_avatar_worker.gd
+## The main thread waits on the read, as a game quitting mid-read does.
 
 
 func _run() -> void:

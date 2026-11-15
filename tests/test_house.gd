@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of towers, houses, roofs and wall tops: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_house.gd
-
 
 func _init() -> void:
 	_a_tower_is_a_level_ring_without_end_piers()
@@ -114,13 +112,11 @@ func _hand(at: Vector3, turn := 0.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, turn), at)
 
 
-## Report (relay): placing a house with the trigger only places it; moving it is the grip's job.
 func _one_hand_carries_and_turns_a_house() -> void:
 	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0, "height": 2.4, "pitch": 1.9, "curve": 0.0, "overhang": 0.3, "grounded": true}
 	var c := WallTool.carry(start, _hand(Vector3(0, 1, 0)), _hand(Vector3(0.5, 1.3, -0.2), 0.4), 4.0)
 	check(c.center.is_equal_approx(Vector3(12, 0, -0.8)), "one hand carries it along the ground, scaled by the gain: %s" % c.center)
 	check(is_equal_approx(c.yaw, 0.4) and c.size == start.size and c.height == start.height, "and turns it with its own turn, keeping its size and height")
-	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
 	check(is_equal_approx(c.rise, 1.2), "and raises it onto its plinth as the hand rises, scaled by the gain: %.2f" % c.rise)
 	c = WallTool.carry(start, _hand(Vector3(0, 1, 0)), _hand(Vector3(0, 0.2, 0)), 4.0)
 	check(c.rise == 0.0, "lowered, it stays on its ground: %.2f" % c.rise)
@@ -139,7 +135,6 @@ func _one_hand_carries_and_turns_a_house() -> void:
 	check(WallTool.outline(start).size() == 4, "a square one has four corners")
 
 
-## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
 func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0, "height": 2.4, "pitch": 1.9, "curve": 0.0, "overhang": 0.3}
 	var front: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
@@ -171,7 +166,6 @@ func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	check(c.size.is_equal_approx(Vector2.ONE * WallTool.HOUSE_SIDE), "no narrower than the narrowest: %s" % c.size)
 
 
-## Report (relay): two hands stretching a house vertically make the house itself taller; a tower's height likewise.
 func _two_hands_drawn_apart_upright_raise_its_walls() -> void:
 	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0, "height": 2.4, "pitch": 1.9, "curve": 0.0, "overhang": 0.3}
 	var front: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
@@ -193,8 +187,6 @@ func _two_hands_drawn_apart_upright_raise_its_walls() -> void:
 	check(is_equal_approx(c.height, 5.4) and c.size.is_equal_approx(tower.size), "a tower's height grows the same way: %s" % c)
 
 
-## Everything built or placed is moved by one hand and sized by two: a wall or fence is carried and turned about its
-## middle, drawn out along its line by the hands' spread, and made taller upright, a fence keeping its height.
 func _a_wall_is_carried_and_sized_as_a_house_is() -> void:
 	var d := {"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(6, 0, 2)]), "height": 2.0, "rise": 0.0, "fence": false,
 		"openings": PackedVector4Array([Vector4(2.0, 0.0, WallLayout.Family.ARCHWAY, 1.0)]), "lanterns": PackedVector3Array([Vector3(5.0, 1.2, 1.0)]),
@@ -580,9 +572,9 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 		check(r.flat() == r.torching_faces.is_empty(), "pitch %.1f %s: torching under a pitched roof only" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
 		for i in range(0, r.torching_faces.size(), 3):
 			var t := r.torching_faces.slice(i, i + 3)
-			# Godot's front faces turn clockwise, so one facing down winds counter-clockwise seen from below.
+			# Godot's front faces wind clockwise, so one facing down winds counter-clockwise seen from above.
 			if (t[1] - t[0]).cross(t[2] - t[0]).y < 0.0:
-				check(false, "pitch %.1f %s: torching faces down, under the tiles" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
+				check(false, "pitch %.1f %s: torching faces up, not down from under the tiles" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
 				break
 		check(r.tiles.all(func(t): return absf(t.xform.basis.determinant()) > 1e-6), "pitch %.1f: no flattened tiles" % r.pitch)
 
@@ -604,8 +596,6 @@ func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, poi
 	return [w, r]
 
 
-## Every style on a stone and a plaster house, at each curvature, as built, steepest and narrowest, and stretched by a
-## resize either way.
 func _gable_cases() -> Array:
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "rise": 0.0, "height": 2.4, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
@@ -626,7 +616,7 @@ func _gable_cases() -> Array:
 	return out
 
 
-## A point in the house's frame: x along its first side from the middle, y up, z across.
+## In the house's frame: x along its first side from the middle, y up, z across.
 func _local(w: WallLayout, p: Vector3) -> Vector3:
 	var along := (w.points[1] - w.points[0]).normalized()
 	var across := (w.points[3] - w.points[0]).normalized()
@@ -651,8 +641,6 @@ func _every_gable_end_stays_on_its_footprint() -> void:
 					return
 
 
-## No style leaves a gable end open from either side: each piece across its face runs through the wall's thickness,
-## centred on its line, so its outer side faces out of the house and its inner side in.
 func _every_gable_end_closes_its_wall() -> void:
 	for c in _gable_cases():
 		var w: WallLayout = c.built[0]
@@ -673,8 +661,6 @@ func _every_gable_end_closes_its_wall() -> void:
 		check(mesh or faced > 10, "%s %s curve %.1f: the gable ends are laid, %d pieces" % [c.style, "plaster" if c.plaster else "stone", c.curve, faced])
 
 
-## Stepped, the gable ends stand over the slopes all the way up and the tiles stop inside them; a boarded gable's
-## planks stay under the slopes as courses do.
 func _crow_steps_stand_over_the_roof() -> void:
 	for c in _gable_cases():
 		var w: WallLayout = c.built[0]
@@ -770,8 +756,7 @@ func _a_gable_continues_the_wall_under_the_slopes() -> void:
 	check(low.stones.all(func(s): return s.y <= low.height + WallLayout.CAP), "with no gable over it a house's walls stop at the cap")
 
 
-## Each face of a gable end is lit by the air before it, so its normal (Godot's: against the cross product of a
-## triangle's edges) must point out of the wall: outward on the outer face, into the house on the inner.
+## Lit by the air before it, so its normal (Godot's: minus the edges' cross product) points out of the wall.
 func _gable_faces_face_out_of_the_wall() -> void:
 	var r: RoofLayout = _gabled(true)[1]
 	var f := r.frame()
@@ -786,8 +771,7 @@ func _gable_faces_face_out_of_the_wall() -> void:
 			return
 
 
-## interior.gdshaderinc lights a triangle whose corners all lie outside every room as outside everywhere, so a gable
-## triangle reaching into the room keeps a corner in it: inside the walls' centre line and under the slope.
+## interior.gdshaderinc lights a triangle with every corner outside every room as outdoors.
 func _gable_faces_keep_a_corner_in_the_room() -> void:
 	var r: RoofLayout = _gabled(true)[1]
 	var f := r.frame()
@@ -813,8 +797,6 @@ const PITCHES: Array[float] = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 9.0]
 const CURVES: Array[float] = [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]
 
 
-## Every house and tower shape, gable end and pitch the roof tool offers, sagged, straight and bowed: no stone of
-## the wall up to its top rises through the tiles' bed. A gable end stands above the top, carried up to its verge.
 func _no_wall_rises_through_a_steep_roof() -> void:
 	var shapes: Array[Dictionary] = []
 	for size in [Vector2(3.0, 2.0), Vector2(5.0, 3.1), Vector2(6.0, 5.0)]:
@@ -854,9 +836,6 @@ func _no_wall_rises_through_a_steep_roof() -> void:
 				check(worst <= 0.0, "%s %s pitch %.1f curve %+.0f: a %s stone rises %.3f m through the roof" % [RoofLayout.Kind.keys()[r.kind], WallLayout.GableEnd.keys()[shape.end], pitch, curve, what, worst])
 
 
-## Every piece of a gable end, the lowest copes, bargeboards, planks and blocks beside its corners too, lies in its end
-## wall's plane rather than turning onto the side wall; at every pitch and curve no cope, board, timber or course
-## stone shows through the tiles. Crow steps stand over the roof.
 func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 	for size in [Vector2(3.0, 2.0), Vector2(5.0, 4.0), Vector2(6.0, 8.0)]:
 		for end in WallLayout.GableEnd.values():
@@ -898,14 +877,13 @@ func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 						check(worst <= 0.0, "%s: a %s stands %.3f m out through the tiles" % [house, what, worst])
 
 
-## How far `p` stands out past the outer face of the tiles over it, square to the slope: they lie on the roof's bed.
+## Metres `p` stands past the tiles' outer face, square to the slope; tiles lie on the roof's bed.
 static func _through_tiles(r: RoofLayout, p: Vector3) -> float:
 	var f := r.frame()
 	var steep := cos(r.slope_at(absf((p - f.mid).dot(f.across))))
 	return (p.y - r.height_at(p.x, p.z)) * steep - RoofLayout.TILE.y
 
 
-## Houses and towers to roof, each with its roof's footprint set: a narrow and a wide house and two towers.
 func _roofed() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for size in [Vector2(3.0, 2.0), Vector2(5.0, 3.1), Vector2(6.0, 5.0)]:
@@ -926,7 +904,7 @@ func _roofed() -> Array[Dictionary]:
 	return out
 
 
-## A tile hides what lies under the square inside its rounded, lumpy edges.
+## Half the side of the square a tile hides inside its rounded, lumpy edges.
 const SOLID := 0.41
 
 
@@ -945,7 +923,6 @@ func _every_tile_joint_has_a_tile_under_it() -> void:
 				check(open.is_empty(), "%s pitch %.1f curve %+.0f: nothing covers the roof at %d points, first %s" % [RoofLayout.Kind.keys()[r.kind], pitch, curve, open.size(), open[0] if open.size() > 0 else null])
 
 
-## Points on the slopes, from the eaves up to the ridge cap or finial, that no tile covers.
 func _uncovered(r: RoofLayout) -> PackedVector3Array:
 	var cells := {}
 	for t in r.tiles:

@@ -1,9 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## game/shaders.tres holds one material for every shader the game draws with, each .gdshader's and each
-## StandardMaterial3D set up as a booted game sets one up: the export's shader baker compiles only shaders it meets in
-## exported materials, and the game makes its own in code, so without this list a fresh install compiles them on the
-## headset as it loads. `scripts/shaders.sh` rewrites it.
+## The shader baker compiles only shaders in exported materials and the game builds its own in code, so without
+## this list a fresh install compiles them on the headset as it loads. `scripts/shaders.sh` rewrites it.
 
 const LIST := "res://shaders.tres"
 
@@ -34,8 +32,7 @@ func _run() -> void:
 	finish()
 
 
-## What picks a material's shader: a ShaderMaterial's file, or a BaseMaterial3D's class and its switches, every int
-## and bool it stores, the ones BaseMaterial3D builds its shader code from among them.
+## A BaseMaterial3D keys on every int and bool it stores, since its shader code is built from some of them.
 static func key(m: Material) -> String:
 	if m is ShaderMaterial:
 		return "shader " + m.shader.resource_path
@@ -54,7 +51,6 @@ static func _switches(m: Material) -> PackedStringArray:
 	return out
 
 
-## A copy of `m` holding only what picks its shader.
 static func _bare(m: Material) -> Material:
 	if m is ShaderMaterial:
 		var s := ShaderMaterial.new()
@@ -77,7 +73,6 @@ static func _shader_files(dir: String) -> PackedStringArray:
 	return out
 
 
-## Every material reached from `o`'s stored properties, through nodes, meshes, arrays and dictionaries.
 static func _gather(o: Variant, made: Dictionary, seen: Dictionary) -> void:
 	if o is Node:
 		for c: Node in o.get_children(true):

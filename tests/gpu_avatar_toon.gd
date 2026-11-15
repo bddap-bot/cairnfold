@@ -1,18 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
-## A converted avatar's toon looks as lilToon draws them: a flat grey ball lit from +X takes its first shade past its
-## shadow's border and its second past the second's, the border where the border's half Lambert puts it, both moved by
-## a menu's colour as the albedo is; an orange ball's shades follow a menu's hue turn and a decal by the share of each
-## channel they keep of the albedo, and a menu's saturation leaves them under a decal that covers it; a rim shade darkens its silhouette alone; a rim brightens its
-## silhouette alone, tinted by its rim tint layer, and on back faces only where it says so; an added matcap lays its top
-## half where the ball faces up and its right half where it faces right,
-## as Unity maps one, and a clip moving its intensity to nothing and its emission's strength off nothing takes the
-## matcap away and lights the emission; and a reflection matcap lays its left half where the ball faces right, as
-## Poiyomi reflects the view in Unity's axes, Godot's mirrored through X. Needs a renderer, so scripts/test.sh runs it on the desktop one:
-## godot4 --path game --xr-mode off --script ../tests/gpu_avatar_toon.gd [-- OUT_DIR], which keeps each shot there.
+## Needs a renderer, so scripts/test.sh runs it on the desktop one; `-- OUT_DIR` keeps each shot there.
 
 const SIZE := 96
-## The ball's radius in pixels: an orthographic view 2.4 high over a ball of radius 1.
+## An orthographic view 2.4 high over a ball of radius 1.
 const RADIUS := SIZE / 2.4
 const BASE := Color(0.5, 0.5, 0.5)
 const FIRST := Color(0.1, 0.1, 0.4)
@@ -20,16 +11,14 @@ const SECOND := Color(0.4, 0.1, 0.1)
 const BORDER := 0.6
 const SECOND_BORDER := 0.25
 const GREY: Array[Color] = [BASE, FIRST, SECOND]
-## The "turned" and "decaled" balls' albedo, without blue, and their shades: a half and a quarter of its red and an
-## eighth and a half of its green.
+## [albedo without blue, first shade, second shade] of the "turned" and "decaled" balls.
 const WARM: Array[Color] = [Color(0.8, 0.4, 0.0), Color(0.4, 0.05, 0.0), Color(0.2, 0.2, 0.0)]
-## The opaque decal of the "decaled" ball, in linear light.
+## Linear light.
 const DECAL := Color(0.4, 0.8, 0.4)
-## Where the eye stands, which the view toward it is taken from.
 const EYE := Vector3(0, 0, 3)
-## The rim shade of the "rim shade" balls, its band partly crossed 0.8 of the way out to the silhouette.
+## Its band is partly crossed 0.8 of the way out to the silhouette.
 const RIM_SHADE := {"color": [0.5, 0.2, 1.0], "strength": 0.8, "border": 0.5, "blur": 0.6, "power": 2.0}
-## The rim tint layer of the "tinted rim" ball, in linear light.
+## Linear light.
 const TINT := Color(1.0, 0.25, 1.0)
 
 
@@ -162,8 +151,9 @@ func _run() -> void:
 	check(behind < 0.9, "a rim shade darkens back faces turning from the view too: %.3f of the green without it" % behind)
 	check(up > 0.3 and absf(down) < 0.02 and right > 0.3 and absf(left) < 0.02, "the matcap's top half lies where the ball faces up and its right half where it faces right: up %+.3f, down %+.3f, right %+.3f, left %+.3f" % [up, down, right, left])
 	check(absf(still) < 0.02 and absf(glowing - 0.5) < 0.04, "a clip taking the matcap's intensity to nothing takes it away, %+.3f, and one setting the emission's strength to one lights it 0.5 blue, %+.3f" % [still, glowing])
+	# Poiyomi reflects in Unity's axes, which are Godot's mirrored through X.
 	check(reflected_up > 0.3 and reflected_left > 0.3 and absf(reflected_right) < 0.02, "a reflection matcap lays its top half where the ball faces up and its left half where it faces right: up %+.3f, right %+.3f, left %+.3f" % [reflected_up, reflected_right, reflected_left])
-	# Of a channel the albedo lacks a shade keeps its share of the whole colour.
+	# In a channel the albedo lacks, a shade keeps its share of the whole colour.
 	var share := func(shade: Color, drawn: Color) -> Color:
 		var whole := (shade.r + shade.g + shade.b) / (WARM[0].r + WARM[0].g + WARM[0].b)
 		return Color(drawn.r * shade.r / WARM[0].r, drawn.g * shade.g / WARM[0].g, drawn.b * whole)
@@ -177,8 +167,8 @@ func _run() -> void:
 	finish()
 
 
-## How far RIM_SHADE darkens the ball `x` of the way out along its middle row: its strength times its band of the
-## Fresnel term there, antialiased over the term's change across a pixel.
+## How far RIM_SHADE darkens the middle row `x` radii out: strength times its band of the Fresnel term,
+## antialiased across a pixel.
 static func _rim_shade_band(x: float) -> float:
 	var turned := func(at: float) -> float:
 		var on := Vector3(at, 0.0, sqrt(1.0 - at * at))
@@ -189,10 +179,7 @@ static func _rim_shade_band(x: float) -> float:
 	return RIM_SHADE.strength * clampf((pow(turned.call(x), power) - low) / (RIM_SHADE.blur + width), 0.0, 1.0)
 
 
-## A ball of the albedo `colours[0]` whose one material's looks entry is `entry`, its shade layers `colours[1]` and
-## `colours[2]`, its matcap red over its top half and blue over its right, its emission map and untinted colours white, animated by `targets`, as the avatar
-## runtime opens it; `inverted`, drawn two-sided with its faces turned in, so the side in view is its back faces; its
-## rim tint layer `tint` where its entry draws a rim.
+## `colours` is [albedo, first shade, second shade]; `inverted` puts the back faces in view.
 func _ball(entry: Dictionary, targets: Array, inverted: bool, tint: Color, colours: Array[Color]) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -240,7 +227,6 @@ func _ball(entry: Dictionary, targets: Array, inverted: bool, tint: Color, colou
 	return ball
 
 
-## The view once the ball's pipeline has compiled and it draws.
 func _shot(view: SubViewport) -> Image:
 	var start := Time.get_ticks_msec()
 	var image: Image
@@ -253,12 +239,11 @@ func _shot(view: SubViewport) -> Image:
 	return image
 
 
-## The pixel column at `x` across the ball (-1 to 1, its radius) and the row at `y` up it.
+## `x` and `y` in ball radii, -1 to 1.
 static func _pixel(x: float, y: float) -> Vector2i:
 	return Vector2i(roundi(SIZE / 2.0 + x * RADIUS - 0.5), roundi(SIZE / 2.0 - y * RADIUS - 0.5))
 
 
-## The mean linear colour over the pixels from `left` to `right` across the ball, three rows round `y` up it.
 static func _mean(image: Image, left: float, right: float, y: float) -> Color:
 	var sum := Color(0, 0, 0, 0)
 	var n := 0
@@ -271,7 +256,6 @@ static func _mean(image: Image, left: float, right: float, y: float) -> Color:
 	return sum / n
 
 
-## Where across the ball's middle row its red first reaches `level` coming from the light, -1 to 1.
 static func _crossing(image: Image, level: float) -> float:
 	var row := _pixel(0.0, 0.0).y
 	var last := image.get_pixel(_pixel(0.95, 0.0).x, row).srgb_to_linear().r

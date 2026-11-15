@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks that the teleport and placement rays pass through a wall's or fence's open arch to what lies beyond
-## it and still stop on the stone round it, while a grip or a delete into the arch takes the arch: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_opening_rays.gd
-
 
 func _run() -> void:
 	await process_frame
@@ -24,8 +21,8 @@ func _wall(world: World, fence: bool, openings: Array) -> Wall:
 	return w
 
 
-## A ray from 3 m before the wall that crosses its middle `up` above the foot at arc length `s`, aimed at the ground
-## 4 m past it, `slant` of that along the wall, or `level`, as [origin, dir, foot, out].
+## From 3 m before the wall through its middle `up` over the foot at `s`, toward the ground 4 m past, `slant` of that
+## along the wall, or `level`: [origin, dir, foot, out].
 func _ray(w: Wall, s: float, up: float, slant := 0.0, level := false) -> Array:
 	var f := w.layout.frame_at(s)
 	var out: Vector3 = f.tangent.cross(Vector3.UP).normalized()
@@ -36,7 +33,6 @@ func _ray(w: Wall, s: float, up: float, slant := 0.0, level := false) -> Array:
 	return [through - dir * 3.0 / dir.dot(out), dir, f.point, out]
 
 
-## How far past the wall's middle `p` lies.
 func _past(p: Variant, ray: Array) -> float:
 	return -INF if p == null else (p - ray[2]).dot(ray[3])
 
@@ -74,7 +70,6 @@ func _through(world: World, fence: bool, size: float) -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
-## A door's planks and a window's glass close their openings: rays stop on them, and pick them.
 func _closed_openings(world: World) -> void:
 	var w := _wall(world, false, [Vector4(1.6, 0.0, WallLayout.Family.COTTAGE, 1.0), Vector4(4.4, 1.4, WallLayout.Family.COTTAGE, 1.0)])
 	check(w.layout.apertures.size() == 2, "a door and a window open: %d" % w.layout.apertures.size())

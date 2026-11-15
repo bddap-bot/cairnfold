@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the wall layout: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wall.gd
-
 
 func _init() -> void:
 	_straight_wall_fills_its_length()
@@ -62,10 +60,7 @@ func _arch_ring_closes_over_the_opening() -> void:
 		check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5)) < 0.05, "voussoir off the ring: r=%f" % r)
 
 
-## Across every style, height and stretch, every point of the wall's middle plane round an arch is either in its
-## opening and clear, or covered by a piece of the wall or the arch; points within 3 cm of the opening's edge are
-## its soffit's facets. Under the springing of a style with no posts the jamb is the wall's own reveal, where the
-## mortar stands JOINT back between courses as at every open end.
+## With no posts, the jamb under the springing is the wall's own reveal, its mortar JOINT back as at an open end.
 func _arch_meets_its_wall_with_no_gap() -> void:
 	var walls: Array[WallLayout] = []
 	for style in ["stone", "plaster", "timber"]:
@@ -116,7 +111,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 			while d <= 1.6 * k:
 				var inner := w.opening(y + 0.03, false, k)
 				var edge := maxf(w.opening(y - 0.03, false, k), w.opening(y + 0.03, false, k)) + 0.03
-				# A timber arch's jambs stand on the foot course, whose joints show at the reveal under them as a stone arch's do.
+				# A timber arch's jambs stand on the foot course, whose joints show at the reveal.
 				var jamb: float = w.arch_style().jamb * k if y < WallLayout.COURSE else 0.0
 				var reveal: bool = y < w.spring(k) and (w.arch_style().jamb == 0.0 or jamb > 0.0) and absf(d) < WallLayout.ARCH_HALF * k + jamb + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
@@ -150,7 +145,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		while y < door.height - 0.05:
 			var d := -1.6
 			while d <= 1.6:
-				# The jamb exposes course joints; above the lintel the wall must cover the whole band.
+				# Course joints show at the jamb; above the lintel the wall covers the whole band.
 				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + WallLayout.COURSE + 0.03:
 					var p: Vector3 = door.frame_at(a + d).point + Vector3.UP * y
 					if not door.stones.any(func(st: Dictionary) -> bool:
@@ -161,8 +156,6 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
 
 
-## An arch of any size is the doorway's, scaled: its opening, its ring of voussoirs and its keystone, under the top,
-## every one a wedge whose joints run through the arch's centre.
 func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 	for k in [WallLayout.MIN_SIZE, 1.0, 2.0, 3.5]:
 		var w := WallLayout.new()
@@ -186,8 +179,7 @@ func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 		check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
 
 
-## How far wide of `centre`, in the plane of a wall along x, the farther of a wedge's two joint lines runs, as the stone
-## shader cuts its ends (`ends`, turning about its local y), where its faces stop standing full and the next wedge's meet.
+## In the plane of a wall along x; `ends` turns about the stone's local y, as the stone shader cuts it.
 func _joint_miss(st: Dictionary, centre: Vector2) -> float:
 	var x: Transform3D = st.xform
 	var e: Vector2 = st.get("ends", Vector2.ZERO)
@@ -201,8 +193,6 @@ func _joint_miss(st: Dictionary, centre: Vector2) -> float:
 	return miss
 
 
-## The largest arch that opens reaches up to the wall's top, ring and all, however tall the wall: a grand arch is
-## only a matter of a wall tall enough.
 func _an_arch_grows_up_to_the_wall_top() -> void:
 	for height in [3.0, 6.0, 9.0]:
 		var w := WallLayout.new()
@@ -217,7 +207,6 @@ func _an_arch_grows_up_to_the_wall_top() -> void:
 		check(k > 1.0 and head > height - 0.3 - 0.1, "on a wall %.1f m high an arch grows to size %.2f, its ring %.2f m up" % [height, k, head])
 
 
-## A door or window of any size stands where it was placed, grown up from its sill: still a window, still a door.
 func _doors_and_windows_scale_from_where_they_stand() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
@@ -370,8 +359,6 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 	m.free()
 
 
-## From afar the far stones of every 8 m chunk in a 16 m one draw as one; nearer, each chunk's own near or far stones
-## draw instead, never both.
 func _far_stones_draw_by_coarse_chunks() -> void:
 	var ks := Wall.kinds()
 	var stone := ks[Wall.Part.STONE]
@@ -396,8 +383,6 @@ func _far_stones_draw_by_coarse_chunks() -> void:
 	m.free()
 
 
-## Settled far stones draw from one baked mesh, each vertex carrying its stone's frame and custom data, once the
-## worker has baked them; till then, and after any change till it bakes again, the 16 m chunk's instances draw.
 func _far_chunks_bake_into_one_mesh() -> void:
 	var ks := Wall.kinds()
 	var stone := ks[Wall.Part.STONE]
@@ -442,8 +427,7 @@ func _far_chunks_bake_into_one_mesh() -> void:
 	m.free()
 
 
-## Neighbouring pieces meet face to face, so a far mesh whose faces stand inside its near mesh's opens gaps between
-## them past the near distance: boards and tiles show what is behind them.
+## Pieces meet face to face, so a far mesh inside its near mesh's faces opens gaps past the near distance.
 func _far_pieces_reach_the_near_pieces_faces() -> void:
 	for k in Wall.kinds():
 		if k.far == null:
@@ -464,9 +448,7 @@ func _far_pieces_reach_the_near_pieces_faces() -> void:
 			check(n > 0 and reach >= face / n - 0.01, "the far mesh reaches the near face toward %s: %.3f, near %.3f" % [axis, reach, face / maxi(n, 1)])
 
 
-## A wall still changing, as one over a hill being pulled, draws its own chunks, far ones in coarse stones, and
-## hands them to the glade once it settles. A fence, so no ivy grows: a wall freed with its ivy laid crashes the engine
-## at exit.
+## A fence, so no ivy grows: a wall freed with its ivy laid crashes the engine at exit.
 func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
@@ -496,7 +478,6 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	glade.free()
 
 
-## A wall laid while it still changes occludes nothing until it settles, then occludes with the stones it settled on.
 func _only_settled_stones_occlude() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
@@ -525,8 +506,6 @@ func _only_settled_stones_occlude() -> void:
 	glade.free()
 
 
-## Ivy that finishes growing passes from the wall's own instance to the glade's chunks without a frame drawn by neither:
-## the wall keeps drawing it until the glade has.
 func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	var glade := Masonry.new(Wall.kinds())
 	root.add_child(glade)
@@ -559,7 +538,6 @@ func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	glade.free()
 
 
-## A pond 1 m deep from x = 3 to 9 under a 12 m wall, its surface at 0.
 func _bowl(x: float, _z: float) -> float:
 	return -1.0 if x > 3.0 and x < 9.0 else 0.08
 
@@ -574,8 +552,6 @@ func _wet(width: float, height: float) -> WallLayout:
 	return w
 
 
-## Walls fill the ground around the eye; at the ladder's bottom step only the chunks around the eye's own may draw
-## their stones in full, the rest the far mesh.
 func _full_stones_stand_only_near_the_eye() -> void:
 	var ks := Wall.kinds()
 	var stone := ks[Wall.Part.STONE]
@@ -647,7 +623,6 @@ func _a_low_wall_crosses_as_a_causeway() -> void:
 	check(covered > 5.5, "its lowest course runs along the bed, %f m" % covered)
 
 
-## Looking only in the grid cells a step meets stops a swimmer exactly where testing the whole wall does.
 func _a_swimmer_is_stopped_as_by_every_segment() -> void:
 	var bent := WallLayout.new()
 	bent.points = [Vector3(-6, 0, -1), Vector3(0, 0, 2), Vector3(5, 0, -2), Vector3(9, 0, 3)]
@@ -735,8 +710,6 @@ func _water_leaves_the_dry_stones_as_they_were() -> void:
 	check(not before.is_empty() and before == after, "water under a causeway leaves its dry end's stones as they were")
 
 
-## A wall's ivy settling after its stones draws its chunk's ivy again and nothing else, and does not stir the light;
-## placing what is already placed draws nothing.
 func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 	var ks := Wall.kinds()
 	var m := Masonry.new(ks)
@@ -790,8 +763,6 @@ func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
 	check(bad.is_empty(), "mortar stops JOINT behind a doorway's jambs and the wall's ends: %s" % [bad])
 
 
-## A hand draws a corner as a tight bend in an open wall: it stands a pier there, and no mortar runs on straight
-## past it and out of the other wall's face.
 func _a_drawn_bend_is_a_corner() -> void:
 	var loop: Array[Vector3] = [Vector3(0, 0, 0), Vector3(4.3, 0, 0), Vector3(4.3, 0, 3.7), Vector3(0, 0, 3.7)]
 	var w := WallLayout.new()

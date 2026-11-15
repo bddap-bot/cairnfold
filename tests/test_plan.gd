@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of how a stroke meets standing walls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_plan.gd
-
 
 func _init() -> void:
 	_a_stroke_alongside_a_wall_merges_into_it()
@@ -45,7 +43,6 @@ func _plan_stroke(stroke: Array[Vector3], obstacles := PackedVector3Array(), sta
 	return WallPlan.new(standing, obstacles, 1).pieces(stroke, Terrain.flat)
 
 
-## Smallest centre-line distance from any sample of `w` to the standing wall at z = 0, x in [-6, 6].
 func _gap(w: WallLayout) -> float:
 	var m := INF
 	for p in w.samples:

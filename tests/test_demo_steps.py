@@ -10,7 +10,7 @@ import coop  # noqa: E402
 
 # Read off the scene file by scripts/past_budget.py, not by Driver.
 OUTSIDE = {"label": {"past_budget"}}
-# Driver._run reads op and background; scripts/bench.sh sums every step's seconds into the run's time limit.
+# Driver._run reads op and background; scripts/bench.sh sums seconds into the run's time limit.
 EVERY = {"op", "background", "seconds"}
 HANDS = ("left", "right")
 TOOLS = re.search(r"enum Tool \{([^}]*)\}", (ROOT / "game/src/hand.gd").read_text()).group(1).replace(" ", "").lower().split(",")
@@ -66,8 +66,7 @@ KEYS = {}
 
 
 def faults(step):
-    """What in `step` Driver would not play: a misspelt op or key, or one Driver no longer reads, would otherwise
-    play as a step that silently does less."""
+    """A misspelt op or key, or one Driver no longer reads, would play as a step that silently does less."""
     op = step["op"]
     params = DRIVER.get("_" + op, ([], ""))[0]
     if len(params) != 1:

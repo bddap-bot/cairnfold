@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## The canvas on the GPU, pixel for pixel: a painting undone through a checkpoint, or rebuilt from one with strokes
-## replayed after it, dries to exactly what a fresh replay of the same strokes dries to. Needs a RenderingDevice, so
-## scripts/test.sh runs it on the desktop renderer: godot4 --path game --xr-mode off --script ../tests/gpu_canvas.gd
-
 const N := 40
 
 
@@ -56,14 +52,12 @@ func _run() -> void:
 	finish()
 
 
-## Fills the canvas's scratch texture with paint that was never laid: nothing a flow step or a smear leaves may come of
-## it. The paint is finite, since a smear weighs what it reads there by nothing, and nothing times infinity is not a number.
+## Finite: a smear weighs what it reads here by zero, and zero times infinity is NaN.
 func _spoil(c: Canvas) -> void:
 	c._rd.texture_clear(c._wet[1], Color(9, 9, 9, 9), 0, 1, 0, 1)
 
 
-## Thin strokes over the same tiles, the last a drying time after the rest: replayed in one frame, the rest are more
-## dabs than one batch has room for, and the last wets tiles that have dried since the frame's batch began.
+## More dabs than one batch holds, the last a drying time later so it wets tiles dried since the batch began.
 func _crowd() -> Array:
 	var out := []
 	var dabs := 0
@@ -81,7 +75,6 @@ func _crowd() -> Array:
 	return out
 
 
-## Whether `strokes` dry to the same paint replayed whole, in one frame, and a few rows a frame.
 func _dries_alike(strokes: Array) -> bool:
 	var whole := await _canvas()
 	whole.rebuild(strokes)
@@ -98,7 +91,7 @@ func _dries_alike(strokes: Array) -> bool:
 	return alike
 
 
-## The row the dried pigment of four very wet strokes along one line balances on, on a canvas standing up or lying flat.
+## The row the dried pigment balances on.
 func _balance(upright: bool) -> float:
 	var c := await _canvas()
 	c.upright = upright
@@ -129,7 +122,6 @@ func _runs_down() -> void:
 	check(standing > lying + 0.3, "very wet paint runs down a canvas standing up, and not one lying flat: balanced on rows %.2f and %.2f" % [standing, lying])
 
 
-## A wash too thin to run dries the same on a canvas standing up as on one lying flat.
 func _light_wash_stays() -> void:
 	var dried := []
 	for upright in [true, false]:
@@ -142,7 +134,6 @@ func _light_wash_stays() -> void:
 	check(_density(dried[0], Brushwork.SIZE, Rect2i(Vector2i.ZERO, Brushwork.SIZE)) > 1.0 and dried[0] == dried[1], "a wash too thin to run dries the same standing up and lying flat")
 
 
-## A brush laying water again and again in one place fills the paper there and no more.
 func _water_fills_no_more_than_full() -> void:
 	var at := []
 	at.resize(30)
@@ -165,8 +156,6 @@ func _water_fills_no_more_than_full() -> void:
 	await process_frame
 
 
-## A wash flows and dries without making or losing pigment, settles more of it into the paper's pits than onto its
-## peaks, and a clean wet brush over it once dry lifts some back into the water.
 func _a_wash() -> void:
 	var c := await _canvas()
 	c.upright = false
@@ -203,7 +192,7 @@ func _a_wash() -> void:
 	await process_frame
 
 
-## The optical density summed over the red channel of paint `data`, a surface `texels` large, inside `rect`.
+## Optical density summed over the red channel.
 static func _density(data: PackedByteArray, texels: Vector2i, rect: Rect2i) -> float:
 	var im := Image.create_from_data(texels.x, texels.y, false, Image.FORMAT_RGBAH, data)
 	var total := 0.0
@@ -213,7 +202,6 @@ static func _density(data: PackedByteArray, texels: Vector2i, rect: Rect2i) -> f
 	return total
 
 
-## Oil laid over a wet wash takes the wet paint up where it covers.
 func _oil_takes_up_wet_paint() -> void:
 	var wash := _water([Vector2(0.3, 0.3)], 1.0, 1.0)
 	var oil := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(Brushwork.PIGMENTS[1]), "strength": 1.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.3, 0.3), 1.0, 0.0, 0)}
@@ -231,7 +219,6 @@ func _oil_takes_up_wet_paint() -> void:
 	check(water[0] > 50.0 and water[1] < water[0] * 0.5, "oil over a wet wash takes up the wet paint it covers: water %.1f before, %.1f after" % water)
 
 
-## A second charcoal pass over the first darkens it by less than the first did.
 func _charcoal_passes_darken_less() -> void:
 	var samples := Brushwork.pack(Vector2(0.4, 0.7), 0.8, 0.0, 0) + Brushwork.pack(Vector2(0.5, 0.7), 0.8, 0.0, 1)
 	var drag := {"medium": Brushwork.Medium.CHARCOAL, "brush": Brushwork.Brush.STICK, "colour": Brushwork.CHARCOAL, "strength": 1.0, "load": 1.0, "gap": 0, "samples": samples}
@@ -244,7 +231,6 @@ func _charcoal_passes_darken_less() -> void:
 	check(marks[0] > 1.0 and marks[1] - marks[0] < marks[0] * 0.9, "a second charcoal pass darkens by less than the first: %.1f, then %.1f more" % [marks[0], marks[1] - marks[0]])
 
 
-## A flat brush lays a dab far longer one way than the other.
 func _flat_brush_is_flat() -> void:
 	var c := await _canvas()
 	var stroke := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.FLAT, "colour": Brushwork.absorbance(Brushwork.PIGMENTS[5]), "strength": 1.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.5, 0.5), 1.0, 0.0, 0)}
@@ -262,7 +248,6 @@ func _flat_brush_is_flat() -> void:
 	await process_frame
 
 
-## Paint still wet shows its colour in the canvas's flat view, as it does once dry.
 func _wet_paint_shows() -> void:
 	var c := await _canvas()
 	await _lay_only(c, [_water([Vector2(0.5, 0.5)], 1.0, 1.0)])
@@ -279,7 +264,6 @@ func _wet_paint_shows() -> void:
 	await process_frame
 
 
-## A water stroke of the big brush through `at`, every sample at `pressure`.
 static func _water(at: Array, pressure: float, load: float, strength := 0.8) -> Dictionary:
 	var samples := PackedInt32Array()
 	for i in at.size():
@@ -287,7 +271,7 @@ static func _water(at: Array, pressure: float, load: float, strength := 0.8) -> 
 	return {"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(Brushwork.PIGMENTS[5]), "strength": strength, "load": load, "gap": 0, "samples": samples}
 
 
-## Lays `strokes` on `c` with its flow held, and returns its wet and dry paint as the dabs alone leave them.
+## [wet, dry] as the dabs alone leave them.
 func _lay_only(c: Canvas, strokes: Array) -> Array:
 	c.set_process(false)
 	for s: Dictionary in strokes:
@@ -334,7 +318,7 @@ func _caught_up(c: Canvas) -> void:
 		await process_frame
 
 
-## The canvas's wet and dry paint once it has caught up and every tile has dried.
+## [wet, dry].
 func _dried(c: Canvas) -> Array:
 	await _caught_up(c)
 	while c.wet() or not c.settled():

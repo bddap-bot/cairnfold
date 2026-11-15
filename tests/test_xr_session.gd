@@ -19,7 +19,6 @@ func _game(label: String) -> Main:
 	return game
 
 
-## Pausing mid-aim drops the aim and its halo, and the stick let go in the system menu teleports nowhere.
 func _pause_drops_the_aim(game: Main) -> void:
 	var rig := game.rig
 	rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), rig.head.global_position + Vector3(0, -0.4, -0.3))
@@ -37,14 +36,12 @@ func _pause_drops_the_aim(game: Main) -> void:
 	check(rig.global_position == at, "the stick let go during the pause teleports nowhere")
 
 
-## Seeds the guest throws land in the host's garden too.
 func _a_guest_s_throw_lands_for_the_host(host: Main, guest: Main) -> void:
 	var from := guest.rig.head.global_position + Vector3(0, 0, -0.5)
 	guest.feed_tool.throw(from, Vector3(0, 1, -1))
 	await until(func() -> bool: return host.feed_tool.handfuls.any(func(h: Handful) -> bool: return h.position == from), "the host sees the guest's handful thrown")
 
 
-## Going home brings the guest's own garden back, and the host lets the guest's avatar go.
 func _the_guest_goes_home(host: Main, guest: Main, home: Dictionary) -> void:
 	guest.session.go_home()
 	await until(func() -> bool: return guest.world.snapshot() == home, "the guest's own garden comes back when they go home")
@@ -70,7 +67,7 @@ func _run() -> void:
 	await _a_guest_s_throw_lands_for_the_host(host, guest)
 	var peer := guest.multiplayer.multiplayer_peer
 	var ids := host.multiplayer.get_peers()
-	# This pause must survive a played session's timeouts, not the scripted co-op exemption.
+	# The pause must survive a played session's timeouts, not the scripted co-op exemption.
 	for game in [host, guest]:
 		for id in game.multiplayer.get_peers():
 			(game.multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(id).set_timeout(0, 0, 0)

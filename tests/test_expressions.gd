@@ -297,10 +297,6 @@ func _decals_share_pages() -> void:
 	root.free()
 
 
-## Looks that name materials carry each one's lighting, any toon shadow its numbers over the shade layers, and any
-## emission a colour and strength and any rim a colour and its numbers, or the file is refused. A mesh that shows a flat
-## or glowing material draws by the material index, held nearest-sampled at most INDEX_SIDE wide, the looks table and
-## the emission map; one that shows only lit materials, dark at rest, keeps its own.
 func _lighting() -> void:
 	var index := Image.create_empty(4096, 4096, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2048, 4096), Color8(1, 1, 1))
@@ -367,8 +363,6 @@ func _lighting() -> void:
 	player.free()
 	root.free()
 
-## An animated surface draws the sides its plain material draws: both where its file is double-sided, front faces only
-## where it is not, whether cut out, blended or blended writing depth, its decal hues turned or not.
 func _sides() -> void:
 	for turned: bool in [false, true]:
 		for blend: Array in [[BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, true]]:
@@ -383,10 +377,6 @@ func _sides() -> void:
 				check(mode in code and ("BLENDED" in code) == (blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA) and ("depth_draw_always" in code) == blend[1] and ("DECAL_HUE" in code) == turned, "a %s material, blended %s writing depth %s, hues turned %s, animates with %s" % ["two-sided" if cull == BaseMaterial3D.CULL_DISABLED else "one-sided", blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA, blend[1], turned, mode])
 
 
-## A clip moving a global theme colour's offset recolours the emission drawn in it on the meshes the clip names, through
-## their own copy of the looks table, the rest keeping the colour at rest, and a material keeps its own offset while the
-## clip rests, and at the value its FX default state animates; a theme whose hue turns at rest turns on every mesh, as
-## time passes.
 func _theme_recolours_the_emission() -> void:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
@@ -465,9 +455,6 @@ func _theme_recolours_the_emission() -> void:
 
 
 
-## A look's clear coat carries its levels, tints, maps' tiling and offset, inversions and a map among the looks', or
-## the file is refused. Only a mesh showing a coated material draws with the shaders that draw a coat, by the looks
-## table's coat rows and the coat maps; a region moving its maps' offset reaches that mesh alone.
 func _clear_coat() -> void:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
@@ -520,8 +507,7 @@ func _clear_coat() -> void:
 	root.free()
 
 
-## The meshes, one a material, showing the looks entries of `looks`, each a triangle in its column of a four-column
-## index, `columns` wide, under `root`; and the importer meshes they were made from.
+## Mesh k samples index column k; meshes past `columns` are the swaps, sampling the last column.
 func _shown(looks: Dictionary, columns: int, swaps := {}, animated := {}) -> Array:
 	var index := Image.create_empty(columns * 4, 4, false, Image.FORMAT_L8)
 	for k in columns:
@@ -544,9 +530,6 @@ func _shown(looks: Dictionary, columns: int, swaps := {}, animated := {}) -> Arr
 	return meshes
 
 
-## A flat material with a toon shadow, a lit one with a rim and a flat one with a rim shade write their looks to the
-## table's toon rows, and only meshes showing such a material, at rest or swapped to it, draw with the toon shaders; a
-## mesh showing a matcap or only a plain flat material keeps the shaders without them.
 func _toon() -> void:
 	var layer := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	layer.fill(Color.WHITE)
@@ -604,8 +587,6 @@ func _toon() -> void:
 	check(not unlit[0].get_surface_material(0).has_meta("lighting"), "one no clip may light keeps its plain material")
 
 
-## Look regions driving an emission's strength or a matcap's intensity are bound to their mesh and reach the shader as
-## their field while the target is off its rest, and as at rest (-1), where each material keeps its own, otherwise.
 func _animated_looks() -> void:
 	var model := Node3D.new()
 	var hat := MeshInstance3D.new()
@@ -708,8 +689,6 @@ func _node_effects_roundtrip() -> void:
 	check(indexed.targets.all(func(t: Dictionary) -> bool: return t.effect.values()[0].node == 0), "every node effect written to a VRM indexes its node: %s" % [indexed.targets])
 
 
-## A file whose looks name materials without the material index they are drawn by, or give one a toon shadow without
-## the shade layers it is drawn by, is refused: the first shade layer for any shadow, the second for a second shade.
 func _looks_need_their_index_and_shades() -> void:
 	var model := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
 	model.set_meta("springs", {})
@@ -828,7 +807,6 @@ func _malformed() -> void:
 	check(state.outputs.is_empty(), "malformed external data never enters the evaluator")
 
 
-## A clip animating a parameter writes it every frame, past the menu's range, and the layers read what it wrote.
 func _animated_parameters() -> void:
 	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0}, {"name": "Gauge", "type": "float", "default": 0.0}],
 		"targets": [{"effect": {"parameter": "Gauge"}, "default": 0.0}, {"effect": "switch", "default": 0.0}], "menu": [],
@@ -849,8 +827,6 @@ func _animated_parameters() -> void:
 	check(state.values.Gauge == 0.0, "a state not animating it, writing defaults, returns it to its default")
 
 
-## A layer resting in a state whose clips hold still is passed over until it reaches an exit time or a parameter it
-## reads changes, and plays as though it had been sampled every frame.
 func _settled_layers() -> void:
 	var definition := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0}],
 		"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
@@ -902,8 +878,7 @@ class Body:
 		rows = r
 
 
-## Plays each case of tests/unity/write-defaults.json, Unity's own run of a controller built from the case's layers
-## (tests/unity/write_defaults.py), and reads every property its layers animate on each step's last frame.
+## The cases are Unity's own runs, recorded by tests/unity/write_defaults.py.
 func _write_defaults_as_unity() -> void:
 	var cases: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/write-defaults.json"))
 	check(not cases.is_empty(), "the recorded write-defaults cases are read")
@@ -920,8 +895,7 @@ func _write_defaults_as_unity() -> void:
 			for property: String in built.targets:
 				var unity: float = step.values[property]
 				var ours: float = state.outputs[built.targets[property]]
-				# Unity turns an object or renderer on above a thousandth: a flag fading by halves from 1 reads on for
-				# nine frames, to 2^-9.
+				# Unity turns an object or renderer on above 0.001: a flag halving from 1 stays on for nine frames.
 				if property in ["Hat", "HatR"]:
 					ours = float(ours > 0.001)
 				if absf(ours - unity) > 1e-5 * maxf(1.0, absf(unity)):
@@ -936,10 +910,9 @@ func _write_defaults_as_unity() -> void:
 		check(state.outputs == fresh.outputs, "%s: restoring forgets what its states kept (%s): %s, afresh %s" % [name, kept, state.outputs, fresh.outputs])
 
 
-## The definition the reference harness's write-defaults fixture builds from `spec` in its FX controller, and each
-## property's target: layers `Name[*weight]:state|state`, a state `d` (writes defaults) or `f`, then `-` (no motion), `e`
-## (an empty clip) or `Property=value+...`; two states switch on the bool `Name`, more on the int `Name`. A layer marked
-## `@` plays in another controller.
+## `spec`: layers `Name[*weight]:state|state`; a state `d` (writes defaults) or `f`, then `-` (no motion), `e` (empty
+## clip) or `Property=value+...`; two states switch on the bool `Name`, more on the int `Name`; `@` marks a layer in
+## another controller.
 func _layers_of(spec: String) -> Dictionary:
 	var definition := {"parameters": [], "targets": [], "shown": [], "menu": [], "clips": [{"length": 1.0, "curves": []}], "layers": []}
 	var targets := {}
@@ -976,8 +949,6 @@ func _layers_of(spec: String) -> Dictionary:
 	return {"definition": definition, "targets": targets}
 
 
-## Receivers write their parameters from tagged senders touching them: constant while one does, on enter for the frame
-## one arrives fast enough, proximity by how near the centre the nearest surface reaches; self and others as allowed.
 func _contacts() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Head")

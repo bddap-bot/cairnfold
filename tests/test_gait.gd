@@ -1,10 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of a three-point body's legs: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_gait.gd
-
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const STEP := 1.0 / 60.0
-## The floor the checks stand on, sloped so a foot's height depends on where it lands.
+## Sloped, so a foot's height depends on where it lands.
 const SLOPE := 0.1
 
 
@@ -34,7 +32,7 @@ func _open(scene: PackedScene) -> Avatar:
 	return a
 
 
-## Eyes at `p` looking along `yaw`, pitched down `down` radians, hands held low in front.
+## `yaw` and `down` in radians.
 static func _eyes(p: Vector3, yaw := 0.0, down := 0.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -down), p)
 
@@ -44,12 +42,12 @@ func _pose(a: Avatar, at: Transform3D) -> void:
 	a.pose(at, at * Avatar.AT_SIDES[0], at * Avatar.AT_SIDES[1])
 
 
-## Where each foot's ankle is, in the avatar's space.
+## In the avatar's space.
 static func _ankles(a: Avatar) -> Array[Vector3]:
 	return [a._get_joint(a._joints.leftFoot).origin, a._get_joint(a._joints.rightFoot).origin]
 
 
-## How far each ankle is over where it stands at rest on the floor under it.
+## Metres the worst ankle sits off its rest height over the floor.
 static func _float(a: Avatar) -> float:
 	var worst := 0.0
 	for s in 2:
@@ -58,7 +56,6 @@ static func _float(a: Avatar) -> float:
 	return worst
 
 
-## The COM rule steps once balance leaves the soles, where the distance rule alone stands still.
 func _balance_steps_before_distance() -> void:
 	var places: Array[Vector3] = [Vector3(-0.05, 0, 0), Vector3(0.05, 0, 0)]
 	for balance in [true, false]:
@@ -75,7 +72,6 @@ func _balance_steps_before_distance() -> void:
 		check(stepped == balance, "a 15 cm sway sideways %s with balance %s" % ["steps" if stepped else "stands", balance])
 
 
-## Swaying a hand's width either way over 3 s, the feet neither slide nor leave the floor.
 func _sway_keeps_the_feet(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -94,7 +90,6 @@ func _sway_keeps_the_feet(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Crouching to 60% of the eye height, the feet stay put on the floor and the knees bend forward.
 func _crouch_bends_the_knees(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -115,7 +110,6 @@ func _crouch_bends_the_knees(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Looking down past LOOK bends the spine forward about the head, so the hips go back.
 func _lean_bends_the_spine(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -126,8 +120,6 @@ func _lean_bends_the_spine(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Turning on the spot, the body turns once the head passes a neck's turn and the feet step after it; standing again
-## they face within Gait.TURN of the body.
 func _turning_steps_around(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -141,8 +133,6 @@ func _turning_steps_around(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Walking 2 m at 1 m/s up the slope, the feet step along, a planted foot never slides, and stopping the body stands over
-## its feet.
 func _walking_steps_along(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -170,7 +160,6 @@ func _walking_steps_along(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## A teleport sets both feet down at the far end at once; floating high over the floor, the legs hang as they rest.
 func _teleport_and_float(scene: PackedScene, what: String) -> void:
 	var a := _open(scene)
 	var h := a.eye_height
@@ -188,7 +177,6 @@ func _teleport_and_float(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## Two players given the same streamed head and hands see the same legs: the pose is solved from them alone.
 func _two_players_see_one_pose(scene: PackedScene, what: String) -> void:
 	var here := _open(scene)
 	var there := _open(scene)

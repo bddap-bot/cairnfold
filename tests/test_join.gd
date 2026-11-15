@@ -1,7 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Walls drawn among standing walls and plants, through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_join.gd
-
 var terrain: Terrain:
 	get:
 		return main.world.terrain

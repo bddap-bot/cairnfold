@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks that the delete tool takes every kind of thing a garden holds, pointed at as a player points,
-## and that what it took stays gone in the saved garden: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_delete.gd
-
 var tool: DeleteTool
 var flora: Flora
 var world: World
@@ -40,8 +37,6 @@ func _run() -> void:
 	finish()
 
 
-## Every tree and bush the meadow grows, aimed at from beside it at head height, is what the beam strikes, or one
-## nearer that stands in the way.
 func _every_spawned_solid_is_struck() -> void:
 	var missed := 0
 	var solids := flora.solids()
@@ -72,7 +67,6 @@ func _takes_solid(parts: Array, what: String) -> void:
 	check(parts.all(func(p: Flora.Plant) -> bool: return world.state.groups[group].hidden.has(p.index)), "%s's taking is in the garden's state" % what)
 
 
-## A tree behind a hill is out of reach: the beam stops at the ground it meets first.
 func _no_strike_through_hills() -> void:
 	var parts := _spawned(flora.trunks)
 	var eye := _eye(parts)
@@ -118,7 +112,6 @@ func _mows() -> void:
 	check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
 
 
-## A ring reaching over a path beside its ray leaves the meadow the path parts, so lifting the path brings it back.
 func _mowing_beside_a_path_leaves_what_it_parts() -> void:
 	await play([{"op": "pave", "points": [[-6, -32], [0, -32]], "radius": 0.8, "seconds": 0.4}])
 	var under := world.terrain.ground(-3, -32)
@@ -132,7 +125,6 @@ func _mowing_beside_a_path_leaves_what_it_parts() -> void:
 	check(parted > 0 and flora.plants_near(under, 0.3).size() == parted, "lifting it stands the meadow it parted back up: %d of %d" % [flora.plants_near(under, 0.3).size(), parted])
 
 
-## One held sweep across two trees, a wall, a path and the meadow takes them all, and one undo puts them all back.
 func _one_stroke() -> void:
 	await play([
 		{"op": "wall", "points": [[2, -26], [2, -18]], "seconds": 0.6},
@@ -183,15 +175,12 @@ func _centre(parts: Array) -> Vector3:
 	return top.xform.origin + Vector3.UP * world.terrain.height_at(top.anchor.x, top.anchor.z)
 
 
-## A player's hand at head height, a few metres from the solid towards the glade's centre.
 func _eye(parts: Array) -> Vector3:
 	var a: Vector3 = parts[0].anchor
 	var toward := Vector3(-a.x, 0, -a.z).normalized()
 	return world.terrain.ground(a.x + toward.x * 3.0, a.z + toward.z * 3.0) + Vector3.UP * 1.6
 
 
-## A swipe of a wide ring across the meadow in one frame mows the whole band it crossed, taking rays half a ring
-## apart rather than one every STEP, so a wide sweep does not mow the same plants over and over.
 func _a_wide_swipe_mows_its_band_in_few_rays() -> void:
 	var a := world.terrain.ground(-10, -6)
 	var b := world.terrain.ground(2, -6)

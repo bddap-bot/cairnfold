@@ -1,13 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## The sun stays out of a sealed house: looking up at its gable from inside at noon, with every light but the sun's
-## direct light taken away, the view is black, and stays black with the sun's shadows off, as the ladder's lowest steps
-## draw it (Interior). The shadow depth bias let the sun through onto the gable and wall tops just under the roof until
-## the roof cast its shadow pulled toward the light (roof_shadow.gdshader). Shadows are drawn only on the desktop
-## renderer, so scripts/test.sh runs this there. The house is laid from one seed, since the sunlit specks at its eaves
-## differ from one laying to the next (0.35 to 0.56 with the shadows off), and its meshes are drawn whole, as a
-## headset's eye draws them two metres away: 64 pixels across, the view takes the stones' far level of detail, which
-## doubles those specks.
+## Shadows draw only on the desktop renderer, so scripts/test.sh runs this there. One seed, since the sunlit specks at
+## the eaves differ per laying (0.35 to 0.56 with shadows off); meshes drawn whole, as a
+## headset draws them at 2 m, since at 64 pixels the far level of detail doubles those specks.
 
 
 func _mean() -> float:

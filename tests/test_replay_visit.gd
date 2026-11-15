@@ -1,14 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## A session in which the player plants two trees at home, then joins a garden whose host is at the same command with
-## other trees, replays from its record alone: the visited garden comes in whole mid-replay and is compared once it
-## is in, never half restored, and the replay plays as the id the player joined as from the frame it joined.
-
 const Replayed := preload("res://../tests/support/replayed.gd")
 
 
-## The network as a host the player joins gives it: the player as the id its join's peer took, the host connecting as a real
-## one does; the join's own peer is closed, since nothing answers it.
 class Host:
 	extends MultiplayerAPIExtension
 	var id := 1
@@ -22,6 +16,7 @@ class Host:
 	func _set_multiplayer_peer(p: MultiplayerPeer) -> void:
 		if p is ENetMultiplayerPeer:
 			id = p.get_unique_id()
+			# Nothing answers the join's own peer.
 			p.close()
 			p = OfflineMultiplayerPeer.new()
 		peer = p

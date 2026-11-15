@@ -1,11 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of wildlife: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wildlife.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
-## What no tool may place: [the animal, what no hand tool's name begins with, what no tool's source may name, whether the
-## driver's source is held to that too, the one file that makes it, how it makes it].
+## Rows: [animal, prefixes no hand tool's name takes, substrings no tool's source may contain, whether the driver's
+## source is held to that too, the one file that makes it, how].
 const UNPLACEABLE := [
 	["animal", ["DUCK", "ANIMAL", "WILDLIFE"], ["Duck", "ildlife"], false, "main.gd", "Wildlife.new("],
 	["bird", ["BIRD", "CONURE"], ["Birds", "onure"], false, "wildlife.gd", "Birds.new("],
@@ -43,8 +41,6 @@ func _run(wildlife: Wildlife, seconds: float, each := Callable()) -> void:
 		t += STEP
 
 
-## Seeds held low over the pond: the mother swims over and pecks under the hand, the ducklings pecking with her;
-## a jerk of the hand sends them back to swimming, and nobody comes again for a while.
 func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWater) -> void:
 	var f: Wildlife.Family = wildlife.families[0]
 	var mid := Terrain.grid_xz(pond.pond.bottom)
@@ -75,8 +71,6 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 	wildlife.hands.clear()
 
 
-## A family at its pond quacks about once a minute or more, and goes on quacking while it eats
-## from a hand held over the water by someone kneeling at the bank.
 func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 	var f: Wildlife.Family = wildlife.families[0]
 	var quacks := func() -> int: return wildlife.calls.played.get("quack", [0])[0]
@@ -113,8 +107,6 @@ func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 	_run(wildlife, 2.0)
 
 
-## A handful thrown out over the pond plunges in, spreads apart under the water, rises slowly and bobs on the surface,
-## and the ducks come and peck it up grain by grain.
 func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) -> void:
 	var f: Wildlife.Family = wildlife.families[0]
 	f.full = 0.0
@@ -153,7 +145,7 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 	check(s.left() == 0 and not wildlife.offers().has(s) and f.state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
 
 
-## Seeds thrown on grass nothing eats sink away after a while: the deer and sheep about are kept full meanwhile.
+## The grazers are kept full so nothing eats the seeds.
 func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	var grazing := wildlife.roamers.all() + wildlife.herds.all()
 	for a in grazing:
@@ -187,7 +179,6 @@ func _spread(s: Handful) -> float:
 	return (hi - lo).length()
 
 
-## Tools do not place animals; Wildlife offers no public spawning entry point.
 func _no_tool_places_an_animal() -> void:
 	for row: Array in UNPLACEABLE:
 		var what: String = row[0]
@@ -204,8 +195,6 @@ func _no_tool_places_an_animal() -> void:
 		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way", "night", "asleep", "shy", "dry_trees"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
-## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
-## sudden move or an approach. A hand swung out, or a flat player walking up, still is one.
 func _teleport_is_no_motion() -> void:
 	var terrain := Terrain.new()
 	var marks := Ground.new()
@@ -400,10 +389,6 @@ func _ducks_come_only_to_ponds() -> void:
 	check(wildlife.ducks().is_empty(), "and none come back without water")
 
 
-## A fence drawn three quarters of the way round a pond, close along its bank: no duck rests on it or beyond it, a family
-## never walks in through it, and one inside never walks out through it; all of them use the open quarter.
-## A swimmer's pond, given to the walls check, changes no answer: a wall across it still turns steps back, and a step
-## in a pond no wall reaches is clear.
 func _a_pond_no_wall_reaches_asks_no_wall() -> void:
 	seed(2)
 	var g := GladeBase.new()
@@ -522,8 +507,6 @@ func _ducks_keep_out_of_walls() -> void:
 	await g.teardown()
 
 
-## At night the day's animals rest: a family on the bank stays there and quacks no more, a new pond draws no duck
-## until morning, a butterfly stays on its flower and a conure only murmurs.
 func _night_rests_the_day_animals(world: World, wildlife: Wildlife, water: Water, flora: Flora, rig: Rig) -> void:
 	var look := Look.build(root, world.terrain)
 	look.set_time(0.0)

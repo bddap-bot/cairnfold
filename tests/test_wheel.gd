@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the tool wheel's selection by direction: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wheel.gd
-
 
 func _init() -> void:
 	_every_tool_has_one_fixed_path()

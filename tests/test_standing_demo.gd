@@ -9,8 +9,6 @@ func _run() -> void:
 	finish()
 
 
-## Every teleport in `demo/standing.json` lets go on what was built, never the ground: a full stick stands the player
-## on the top surface beneath, and an eased one floats over it.
 func _tour() -> void:
 	var rig: Rig = main.rig
 	var aims := 0
@@ -32,8 +30,6 @@ func _tour() -> void:
 	check(aims == 6, "the tour makes six teleports: %d" % aims)
 
 
-## The stress scene's `standing/*` views look out from a standing player's eyes on the wall walk drawn through the
-## roofs village.
 func _stress_wall_walk() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var first := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "").begins_with("standing/"))

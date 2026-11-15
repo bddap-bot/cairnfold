@@ -1,7 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of shaping the ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain.gd
-
 var tool: GroundGrab
 var terrain: Terrain:
 	get:
@@ -26,8 +24,6 @@ func _run() -> void:
 	finish()
 
 
-## The ray passes over blocks it stays above without sampling them, and finds the same ground as one that samples
-## the whole way: on the ground as shaped, after a write raises a spike, and under a live hump.
 func _raycast_skips_only_open_air() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
@@ -147,7 +143,6 @@ func _texture_matches_the_heights() -> void:
 	main.world.undo()
 
 
-## The texture's height against the CPU's at every grid point.
 func _texture_error() -> float:
 	var worst := 0.0
 	for j in Terrain.VERTS:
@@ -245,8 +240,6 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 
 
-## A dig while a wall is being laid: the worker threads are held until the dig is done, and the lay must read
-## the ground as it stood when the lay began, not the live heights the dig rewrote and reallocated (#13).
 func _a_lay_reads_the_ground_it_started_on() -> void:
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
@@ -283,8 +276,7 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	w.lay_now()
 
 
-## Every chunk at every grid step has a vertex every STEP along its edge and covers its square once over, so chunks
-## drawn at different steps meet with no crack and no overlap.
+## Chunks drawn at different steps must meet with no crack and no overlap.
 func _chunks_meet_at_every_step() -> void:
 	var size := Terrain.CHUNK_CELLS * Terrain.STEP
 	for k in Terrain.LODS:
@@ -309,8 +301,7 @@ func _chunks_meet_at_every_step() -> void:
 		check(is_equal_approx(area, size * size), "a chunk at step %d covers %.1f m², not its %.0f" % [k, area, size * size])
 
 
-## A chunk's tiles at every step hold every triangle once over, each inside its tile, so a tile drawn in one shader and
-## its neighbour in the other leave no gap and no overlap.
+## A tile in one shader and its neighbour in the other must leave no gap and no overlap.
 func _each_tile_holds_its_own_triangles() -> void:
 	var tile := Terrain.TILE * Terrain.STEP
 	var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK_CELLS)
@@ -333,8 +324,6 @@ func _each_tile_holds_its_own_triangles() -> void:
 		check(Terrain.part_mesh(parts, some) == null, "a mesh of no tiles is none")
 
 
-## Wherever the terrain shader would read a pond's depth (pond_near, at any vertex of a chunk at any step), the tile is
-## drawn in the full shader, and once the pond is gone in the plain one again.
 func _ponds_draw_in_the_full_shader_wherever_they_reach() -> void:
 	var meadow: Meadow = main.find_children("*", "Meadow", true, false)[0]
 	var before := terrain.water_levels()

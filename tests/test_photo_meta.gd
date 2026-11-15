@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of what a photo says of itself (PhotoMeta): written into the PNG, read back, and opened as the
-## garden it shows: godot4 --headless --path game --script ../tests/test_photo_meta.gd
-
 var dir := ""
 
 

@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of the Steam Frame's controls, the tool wheel and the shared undo history, all pressed
-## through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_controls.gd
-
 
 func _run() -> void:
 	main.world.limit = INF
@@ -83,7 +80,6 @@ func _run() -> void:
 	finish()
 
 
-## Moves the hand itself through the tool paths in a wheel standing upright and facing the head.
 func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 	var key := Controls.key("wheel", hand.tracker)
 	var toward: Vector3 = main.rig.head.global_position - at
@@ -105,11 +101,8 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 		await frames(2)
 		check(hand.tool == tool, "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[tool], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
-## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
-## Report (relay): placing a house with the trigger only places it; moving it is the grip's job, never the trigger's.
-## The house tool in tracked hands: the trigger puts up a square house where it points and holding it moves nothing; a
-## grip on the house carries it, its stones as laid, and raises it onto its plinth; the other hand's grip on it stretches
-## it across and makes it taller upright; letting go sets it, one undo step.
+
+
 func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await play([{"op": "place", "x": 14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
 	check(rig.right.tool == Hand.Tool.HOUSE, "the right ring picks the house")
@@ -160,7 +153,6 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	check(w.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
 	check(w._drawn != null and w.masonry.counts() != null and not w._settled, "its stones are drawn with it, not left in the glade's")
 	check(data.call().points == PackedVector3Array(WallTool.outline(placed)) or WallTool.house_of(data.call()).center == placed.center, "nothing is sent while it is held")
-	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
 	var stale := 0
 	for i in 70:
 		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * mini(i + 1, 10), -0.3), front)
@@ -196,7 +188,6 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	check(tool.held_at.rise == held_at.rise and tool.held_at.yaw == held_at.yaw, "two hands neither raise its plinth nor turn it")
 	check(_pulsed_both(Cues.Act.HOUSE_STRETCH, rig), "the stretch pulses in both hands: %s" % Cues.pulsed)
 	check(rig.left._holding and rig.right._holding and not rig.right.aiming() and not rig.left.aiming(), "both hands holding it show no pointer")
-	# Report (relay): two hands stretching a house vertically make the house itself taller.
 	var height: float = tool.held_at.height
 	for i in 10:
 		hold.call(&"right_hand", Vector3(0.8, 0.0 + 0.06 * (i + 1), -0.3), front)
@@ -253,11 +244,6 @@ func _holder(rig: Rig, trackers: Dictionary) -> Callable:
 		trackers[side].set_pose(&"aim", rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(look - at, Vector3.UP), at), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 
 
-## Directive (verbatim): "I'd like for round towers to still be possible."
-## Report (verbatim): "I don't think there's a way to make those rounded buildings anymore. Is that right"
-## Directive (verbatim): "Let's um add a rounded building that you can place. It's another tool"
-## The tower tool in tracked hands takes up a round tower under a cone and sets it down; the style tool on its roof
-## switches tile and thatch without changing its pitch or round footprint, each one undo step.
 func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	await play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "tower"}])
 	check(rig.right.tool == Hand.Tool.TOWER, "the right ring picks the tower")
@@ -315,10 +301,6 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 		XRServer.remove_tracker(t)
 
 
-## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
-## A built house in tracked hands: one grip raises it onto its plinth and sets it back down, the other hand's grip
-## joining stretches the side nearest the line between the hands, and a round tower's diameter; its fittings, roof and a
-## wall it meets follow.
 func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await play([
 		{"op": "place", "x": 12, "z": -7},
@@ -477,7 +459,6 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		XRServer.remove_tracker(t)
 
 
-## Whether `act` has pulsed in both of the rig's hands since `Cues.pulsed` was cleared.
 func _pulsed_both(act: Cues.Act, rig: Rig) -> bool:
 	var by: Dictionary = Cues.pulsed.get(act, {})
 	return by.get(rig.left.get_instance_id(), 0) > 0 and by.get(rig.right.get_instance_id(), 0) > 0
@@ -497,7 +478,6 @@ func _laid(w: Wall) -> void:
 		await frames(1)
 
 
-## Directive (verbatim): "Sometimes I want to draw a circular wall. Um, In that case, I don't think it makes sense to turn it into a building, when I- didn't want that"
 func _a_loop_stays_a_wall(walls: Array[Wall]) -> void:
 	var tool: WallTool = main.tool
 	main.rig.right.tool = Hand.Tool.WALLS

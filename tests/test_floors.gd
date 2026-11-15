@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of a house's and tower's floors: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_floors.gd
-
 
 func _init() -> void:
 	_a_house_is_floored_wall_to_wall_over_its_highest_ground()
@@ -47,7 +45,7 @@ func _top(s: Dictionary) -> float:
 	return s.xform.origin.y + s.xform.basis.y.length() * 0.5
 
 
-## Whether a piece, grown by its joint, lies over the ground point `p`.
+## `p` is ground (x, z).
 func _over(s: Dictionary, p: Vector2) -> bool:
 	var x: Transform3D = s.xform
 	var local := x.affine_inverse() * Vector3(p.x, x.origin.y, p.y)
@@ -55,7 +53,7 @@ func _over(s: Dictionary, p: Vector2) -> bool:
 	return absf(local.x) <= 0.5 + grow.x and absf(local.z) <= 0.5 + grow.z
 
 
-## The share of grid points inside `w`'s inner faces some piece with its top at `level` lies over.
+## A share of the grid points inside `w`'s inner faces.
 func _covered(w: WallLayout, level: float) -> float:
 	var on := _pieces(w).filter(func(s: Dictionary) -> bool: return absf(_top(s) - level) < 0.02)
 	var inside := 0
@@ -89,7 +87,7 @@ func _a_house_is_floored_wall_to_wall_over_its_highest_ground() -> void:
 	check(_pieces(flat).all(func(s: Dictionary) -> bool: return absf(_top(s) - flat.floor_y) < 0.01), "every piece's top lies on the floor")
 
 
-## Ground drawn from one grid point raised a metre, the rest level, as Terrain reads its heights: bilinear between them.
+## Bilinear between grid points, as Terrain reads its heights.
 func _spike(peak: Vector2i) -> Callable:
 	var at := func(i: float, j: float) -> float: return 1.0 if Vector2i(roundi(i), roundi(j)) == peak else 0.0
 	return func(x: float, z: float) -> float:
@@ -150,8 +148,6 @@ func _doors_stand_their_height_over_the_floor() -> void:
 		check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["block", "plaster"] and absf(st.s - 3.0) < WallLayout.ARCH_HALF - 0.1 and st.y > lift and st.y < w.spring()), "nothing of the wall stands in the doorway over the floor")
 
 
-## A doorway, arched or planked, opens from the floor: under it the wall stands whole down to the foundation's foot, on a
-## slope, raised on a plinth, in stone, plaster or timber framing, so nothing under the floor shows through it.
 func _doors_and_arches_stop_at_the_floor() -> void:
 	for ground in [Terrain.flat, sloped_ground]:
 		for rise in [0.0, 1.2]:
@@ -178,8 +174,6 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 					check(open.is_empty(), "%s: the wall stands whole under the floor, not at %s" % [name, open.slice(0, 6)])
 
 
-## A press with the arch tool on a house whose floor stands over its foot cuts an arch, and a press on that arch finds it
-## to fill it again.
 func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
 	for plaster in [false, true]:
 		var w := _house(sloped_ground, 0.0, plaster, 4.8)
@@ -189,8 +183,6 @@ func _an_arch_is_placed_and_taken_over_a_raised_floor() -> void:
 		check(w.placed_at(WallLayout.archway(3.2), placed) == 0, "a press on the arch over a floor %.2f up finds it" % w.threshold())
 
 
-## No joint in the walls shows the floor: every flag, plank and bed stays inside the walls' footprint, behind the face of
-## the shallowest mortar laid, worn plaster's included, whatever the finish, rise or ground.
 func _the_floor_stays_behind_every_joint() -> void:
 	for ground in [Terrain.flat, sloped_ground]:
 		for rise in [0.0, 1.2]:
@@ -218,8 +210,7 @@ func _the_floor_stays_behind_every_joint() -> void:
 					check(out.is_empty(), "%s: the floor stays %.3f inside the walls' centre line, behind the mortar, not at %s" % [name, face, out.slice(0, 4)])
 
 
-## Either face takes either floor, and the floor changes nothing of the walls. Planks lay about as many pieces as flags,
-## so the budget's wall rates, measured over both, price either.
+## Planks lay about as many pieces as flags, so the budget's wall rates, measured over both, price either.
 func _the_floor_is_flags_or_planks_apart_from_the_walls() -> void:
 	for plaster in [false, true]:
 		var flagged := _house(Terrain.flat, 0.0, plaster)
@@ -351,7 +342,7 @@ func _open_walls_lay_no_floor() -> void:
 	check(line.floor_y == -INF and _pieces(line).is_empty(), "an open wall lays no floor")
 
 
-## Joined across the side its rows start from, past its end, and corner to corner, on level and sloping ground.
+## The `at`s join across the side its rows start from, past its end, and corner to corner.
 func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
 	for ground in [Terrain.flat, sloped_ground]:
 		for at in [Vector3(4, 0, -1), Vector3(0, 0, 3.7), Vector3(2, 0, 3.7), Vector3(4.3, 0, 2.6)]:

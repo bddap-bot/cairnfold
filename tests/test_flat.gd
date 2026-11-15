@@ -1,7 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of flat mode: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_flat.gd
-## Taking a photo and joining a garden need a renderer and a second game: demo/flat-host.json and demo/flat-join.json.
+## Photos and joining a garden need a renderer and a second game: demo/flat-host.json and demo/flat-join.json.
 
 var flat: Flat
 
@@ -52,7 +51,7 @@ func _mouse(down: bool, button: MouseButton) -> void:
 	Input.parse_input_event(e)
 
 
-## `press(down)`: a control's helper bound to it, `down` first since bound arguments follow the call's.
+## `press(down)`; `down` comes first since bound arguments follow the call's.
 func _tap(press: Callable, frames := 3) -> void:
 	press.call(true)
 	await frames(frames)
@@ -178,7 +177,6 @@ func _the_trigger_reaches_only_a_raised_tool() -> void:
 	await frames(1)
 
 
-## Every flat control, and every other key, mouse and gamepad button, pressed holding each tool flat mode can hold.
 func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 	var rig := main.rig
 	for t in Flat.TOOLS:
@@ -202,9 +200,6 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 	check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
 
 
-## The dish is held out before the eye, level for an animal to stand on, and an offer to the animals. Looking down
-## stoops the player, never faster than a calm move, until the dish is within every appetite's reach of the ground;
-## put away, the player stands again.
 func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	var rig := main.rig
 	flat.pitch = -0.3

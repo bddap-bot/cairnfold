@@ -1,14 +1,12 @@
 extends "res://../tests/support/suite.gd"
 
-## A build style's miniature never waits on its build: the wheel gets it at once and the worker fills it.
-
 
 func _run() -> void:
 	root.add_child(Warmup.new([]))
 	var roof := ToolModels.style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, WallLayout.Finish.BARE)
 	root.add_child(roof)
 	check(roof.get_child_count() == 0, "the first roof miniature comes back before its build")
-	# Frames run unthrottled here, faster than the worker builds; the limit only turns a deadlock into a failure.
+	# Frames run unthrottled, faster than the worker builds; the deadline only turns a deadlock into a failure.
 	var deadline := Time.get_ticks_msec() + 60000
 	while roof.get_child_count() == 0 and Time.get_ticks_msec() < deadline:
 		await process_frame

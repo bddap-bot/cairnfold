@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of fish: godot4 --headless --path game --script ../tests/test_fish.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
 
@@ -13,8 +11,7 @@ func _initialize() -> void:
 	finish()
 
 
-## The fish draws see-through, so a face turned from the eye would show its inside over its outside: it draws only
-## faces turned to the eye, its body is closed with every face turned out, and each fin is a face either way up.
+## Drawn see-through, a face turned from the eye would show its inside over its outside.
 func _faces_out() -> void:
 	check(not (load("res://src/fish.gdshader") as Shader).code.contains("cull_"), "a fish draws only the faces turned to the eye")
 	var arrays := Fish.body().surface_get_arrays(0)
@@ -55,8 +52,6 @@ func _run(wildlife: Wildlife, seconds: float, feed: FeedTool = null, each := Cal
 			each.call()
 
 
-## A handful thrown on the pond sends every fish in it darting in under the seeds; they rise to take them, rippling the
-## water, until none is left, and then scatter back to cruising. A throw lands alike wherever it is played from its seed.
 func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, water: Water) -> void:
 	_run(wildlife, Fish.DART_FOR + 3.0)
 	var fish := wildlife.fish

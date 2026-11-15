@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the VRM avatars: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_avatar.gd
-
-## Public sample avatars (tests/avatars/README.md).
+## Provenance: tests/avatars/README.md.
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm", "twist-1.0.vrm"]
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
@@ -57,8 +55,6 @@ func _run() -> void:
 	finish()
 
 
-## A model's colour weighs each primitive's base colour, its factor times its image's mean or glTF's white without a
-## material, by its indices.
 func _a_colour_averages_the_triangles_base_colours() -> void:
 	var json := {
 		"accessors": [{"count": 300}, {"count": 100}, {"count": 6}],
@@ -88,8 +84,6 @@ func _a_colour_averages_the_triangles_base_colours() -> void:
 	check(not colour.is_equal_approx(Color.WHITE) and colour.r > colour.b, "a sample's colour reads from its images: %s" % colour)
 
 
-## Where the headset draws no one's own file, a player's file stands as a built-in body in its colour, keeping its
-## identity; a built-in stands as itself.
 func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
 	var sample := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm")))
 	var mesh := ArrayMesh.new()
@@ -115,8 +109,7 @@ func _a_file_the_headset_does_not_draw_stands_in_a_built_in() -> void:
 		a.free()
 
 
-## A file naming images too large or too many is refused from their headers, before any is decoded: a beacon makes every
-## Quest nearby read the file it names.
+## A beacon makes every nearby Quest read the file it names, so images are refused from their headers.
 func _images_are_measured_before_decoding() -> void:
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_L8).save_png_to_buffer()
@@ -146,8 +139,6 @@ func _images_are_measured_before_decoding() -> void:
 	check(Avatar.read(_with_images(bytes, Array(range(13)).map(func(_i: int) -> PackedByteArray: return full)), false, 0) != null, "13 images of a 4096 px square, 218 Mpx, are read with no memory to spare: a file's pixels bound its read by none")
 
 
-## Every device reads a file within the floors; a heavier one is read exactly where the memory the converter names for
-## it is available, less what reads under way hold.
 func _read_limits_follow_memory() -> void:
 	check(Avatar.reads(0) == 1.0 and Avatar.reads(1660 << 20) == 1.0 and Avatar.reads(2432 << 20) == 1.0, "a device with a Quest 2's memory or less reads at the floors")
 	var heavy := 1.18
@@ -164,7 +155,6 @@ func _read_limits_follow_memory() -> void:
 	Avatar._reading = 0
 
 
-## `bytes`, a VRM file, grown to `size` bytes by a tail of its buffer that nothing refers to.
 func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
 	var json: Dictionary = Vrm.json_chunk(bytes)
@@ -177,8 +167,7 @@ func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:
 	return out
 
 
-## A file's images are each the one its headers were measured from, in its place, or it is refused: the texture
-## budget is set from those measurements before any image is decoded.
+## The texture budget is set from the headers before any image decodes.
 func _textures_share_the_texel_limit() -> void:
 	var bytes := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
 	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGBA8).save_png_to_buffer()
@@ -220,8 +209,6 @@ func _blend_shapes_are_bounded() -> void:
 	check(Avatar.read(Vrm.glb(json, bin)) == null, "a file of %d blend shapes over %d vertices is refused" % [many.size(), vertices])
 
 
-## A written blend shape turns the normals of the surface it tilts, and only those: a flat grid whose x > 0 half a shape
-## raises into a ramp reads, once written, as normals up on the flat and across the ramp's slope on the ramp.
 func _shape_normals_turn_with_the_shape() -> void:
 	var side := 9
 	var slope := 0.5
@@ -284,7 +271,6 @@ func _shape_normals_turn_with_the_shape() -> void:
 			check((base[i] + turns[i]).normalized().distance_to(across) < 1e-4, "the ramp at %s faces across its slope: %s" % [p, (base[i] + turns[i]).normalized()])
 
 
-## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.
 func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	var length := bytes.decode_u32(12)
 	var json: Dictionary = Vrm.json_chunk(bytes)
@@ -300,8 +286,6 @@ func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
 	return Vrm.glb(json, bin)
 
 
-## The converter's report prints the parts it names (the renderers drawn, the avatar's own name) as counts, and by name
-## only with --names.
 func _report_prints_names_only_when_asked(report: Dictionary, avatar: String) -> void:
 	var parts: Array = report["renderers drawn"] + [avatar]
 	UnityAvatar.Assets.print_names = false
@@ -312,9 +296,6 @@ func _report_prints_names_only_when_asked(report: Dictionary, avatar: String) ->
 	check((report["renderers drawn"] as Array).all(func(n: String) -> bool: return named.contains(n)), "with --names the report names each renderer drawn")
 
 
-## The Unity sample package imports as the avatar model straight from its FBX and .meta: its skeleton, skin and blend
-## shapes, its humanoid bones as the package's Avatar definition maps them, keeping Unity's bone names; written as the
-## VRM a player wears and read back, it opens, poses and bends as the engine's own import of the FBX does.
 func _unity_package_converts() -> void:
 	var model := UnityAvatar.avatar_scene(avatar_file("seed-san"))
 	check(model != null, "the Unity package imports")
@@ -379,7 +360,6 @@ func _unity_package_converts() -> void:
 	_rest_weights_survive_the_vrm()
 
 
-## A blend shape the package saves at a weight, drawn so by Unity at rest, keeps its weight in the VRM a player wears.
 func _rest_weights_survive_the_vrm() -> void:
 	var model := UnityAvatar.avatar_scene(avatar_file("seed-san"))
 	var mi: MeshInstance3D = model.find_children("*", "MeshInstance3D", true, false).filter(func(m: MeshInstance3D) -> bool: return m.get_blend_shape_count() > 1)[0]
@@ -400,7 +380,6 @@ func _rest_weights_survive_the_vrm() -> void:
 	a.free()
 
 
-## A model Vrm.read made writes, and reads back with the same springs on the same bones, settled rotations included.
 func _springs_survive_a_rewrite(file: String) -> void:
 	var path := ProjectSettings.globalize_path("user://rewritten.vrm")
 	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image, _layer: String) -> void: pass)
@@ -417,7 +396,7 @@ func _springs_survive_a_rewrite(file: String) -> void:
 	check(not (before.springs as Array).is_empty() and str(before) == str(after), "%s's springs survive a write: %s, then %s" % [file.get_file(), before, after])
 
 
-## A read model's springs with each node as the bone its "spring_N" names, "" for none.
+## Each node index swapped for the bone its "spring_N" names, "" for none.
 func _springs_by_bone(root: Node3D) -> Dictionary:
 	var human: Dictionary = root.get_meta("humanoid")
 	var bone := func(n: int) -> String: return (human["spring_%d" % n] as NodePath).get_concatenated_subnames() if n >= 0 else ""
@@ -431,8 +410,7 @@ func _springs_by_bone(root: Node3D) -> Dictionary:
 	return springs
 
 
-## The humanoid rests in the pose its Unity Avatar definition records, whatever pose the model file binds its skin in:
-## a model bound with its arms lowered converts with the T-pose its Avatar was configured in.
+## The sample binds its skin with the arms lowered; its Avatar definition holds the T-pose.
 func _rests_in_the_avatar_definitions_pose(sk: Skeleton3D, bone: String, meta: String) -> void:
 	var entry := meta.find("    - name: upper_arm.L\n")
 	var start := meta.find("rotation: {", entry)
@@ -449,8 +427,6 @@ func _unity_rotation(text: String) -> Quaternion:
 	return Quaternion(q.x, q.y, q.z, q.w).normalized()
 
 
-## An imported avatar's "faces" write as VRM expressions, preset or custom by name, each bound to the morph target
-## of its shape's name on its node, and the file lists every extension it carries.
 func _writes_expressions(model: Node3D) -> void:
 	var worn: Node3D = model.duplicate()
 	var mi: MeshInstance3D = worn.find_children("*", "MeshInstance3D", true, false)[0]
@@ -466,8 +442,6 @@ func _writes_expressions(model: Node3D) -> void:
 	check(expressions.custom.has("grimace") and expressions.preset.size() == 1 and expressions.custom.size() == 1, "a name no preset has is custom, and an expression binding nothing is left out: %s" % [expressions])
 
 
-## A PhysBone's allowCollision and allowGrabbing, False, True or Other by its filter, become its springs' extras, which
-## read back as the bits the spring runtime checks.
 func _physbones_keep_whose_hands_touch_them() -> void:
 	var cases := [[{}, ["wearer", "others"]], [{"allowGrabbing": "0"}, []], [{"allowGrabbing": "1"}, ["wearer", "others"]], [{"allowGrabbing": "2", "grabFilter": {"allowSelf": "1", "allowOthers": "0"}}, ["wearer"]], [{"allowGrabbing": "2", "grabFilter": {"allowSelf": "0", "allowOthers": "1"}}, ["others"]]]
 	for c: Array in cases:
@@ -477,7 +451,6 @@ func _physbones_keep_whose_hands_touch_them() -> void:
 		check(spring.collide == bits and spring.grab == 3 - bits, "hand bits %d survive the file" % bits)
 
 
-## The engine's own import of an FBX, unshaped.
 func _imported(fbx: String) -> Node3D:
 	var doc := FBXDocument.new()
 	var state := FBXState.new()
@@ -486,10 +459,8 @@ func _imported(fbx: String) -> Node3D:
 	return doc.generate_scene(state)
 
 
-## Every vertex of the posed avatar sits where its source's skin puts it (`expected`, given the posed avatar, each rest
-## position to where the source's weights and binds over the same bones put it): the elbows bent by the tracked hands
-## reaching in close and the knees bent back by hand. A vertex a rigid part carried, or a lost or reordered bind,
-## would sit elsewhere wherever two bones share it.
+## `expected(a)` maps each rest position to where the source's skin puts it over `a`'s posed bones. Bent elbows and
+## knees move a vertex two bones share, which a rigid part or a lost or reordered bind misplaces.
 func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -529,14 +500,12 @@ func _skin_bends_as(scene: PackedScene, what: String, expected: Callable) -> voi
 	a.free()
 
 
-## Where a binary glTF's own skins put each vertex over the posed avatar's bones, by rest position; its joints are
-## checked to rest where the file's nodes do.
 func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
 	var json: Dictionary = Vrm.json_chunk(bytes)
 	var bin := bytes.slice(28 + bytes.decode_u32(12))
 	var sk := a._skeleton
 	var at := Meshes.relative(sk, a._model)
-	# Godot's glTF reader names a bone after its node, with the characters a bone name cannot hold made underscores.
+	# Godot's glTF reader makes a bone name's forbidden characters underscores.
 	var bone := func(name: String) -> int: return sk.find_bone(name.replace(":", "_").replace("/", "_"))
 	var world := []
 	world.resize(json.nodes.size())
@@ -575,8 +544,7 @@ func _gltf_skin(a: Avatar, bytes: PackedByteArray, what: String) -> Dictionary:
 	return out
 
 
-## Where an importer's own scene's skins put each vertex over the posed avatar's bones of the same names (as node names
-## hold them, each in `renamed` by the name the worn file gives it), by rest position.
+## `renamed` maps a source bone name to the worn file's.
 func _scene_skin(a: Avatar, source: Node3D, renamed: Dictionary) -> Dictionary:
 	var sk := a._skeleton
 	var at := Meshes.relative(sk, a._model)
@@ -596,7 +564,6 @@ func _scene_skin(a: Avatar, source: Node3D, renamed: Dictionary) -> Dictionary:
 	return out
 
 
-## A glTF node's local transform.
 func _node_transform(node: Dictionary) -> Transform3D:
 	if node.has("matrix"):
 		var m: Array = node.matrix
@@ -607,7 +574,6 @@ func _node_transform(node: Dictionary) -> Transform3D:
 	return Transform3D(Basis(Quaternion(r[0], r[1], r[2], r[3])).scaled_local(Vector3(s[0], s[1], s[2])), Vector3(t[0], t[1], t[2]))
 
 
-## A glTF accessor's components as floats: float, or unsigned byte or short, plain or normalized.
 func _floats(json: Dictionary, bin: PackedByteArray, index: int) -> PackedFloat32Array:
 	var acc: Dictionary = json.accessors[index]
 	var view: Dictionary = json.bufferViews[int(acc.bufferView)]
@@ -647,8 +613,6 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 	a.free()
 
 
-## The first chain over a set of bones moves them; a later one over the same bones is not simulated, and one that
-## reaches a bone of its own still is.
 func _a_later_physbone_over_the_same_bones_is_shadowed() -> void:
 	var chain := func(nodes: Array) -> Dictionary: return {"joints": nodes.map(func(n: int) -> Dictionary: return {"node": n, "physbone": {}})}
 	var first: Dictionary = chain.call([1, 2])
@@ -663,7 +627,6 @@ func _a_later_physbone_over_the_same_bones_is_shadowed() -> void:
 	root.free()
 
 
-## The importer records where each chain's PhysBone holds its bones in the rest pose, and leaves the bones at rest.
 func _import_settles_each_spring_chain() -> void:
 	var root := Node3D.new()
 	var sk := Skeleton3D.new()
@@ -686,9 +649,6 @@ func _import_settles_each_spring_chain() -> void:
 	root.free()
 
 
-## A file carrying more spring joints than an avatar simulates keeps its longest chains, in metres, within the limit,
-## those moving a shown mesh first; a bone only the chains left out move rests at its settled rotation, one a kept
-## chain moves keeps its own rest.
 func _simulates_the_longest_chains_within_the_limit() -> void:
 	var lengths := func(springs: Dictionary) -> Array: return springs.springs.map(func(c: Dictionary) -> int: return c.joints.size())
 	var setup := func(chains_of: Array) -> Node3D:
@@ -777,8 +737,6 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	root.free()
 
 
-## A spring chain or collider the expressions' default state switches off is not simulated; one it leaves on is, also
-## where a switched-off PhysBone shares its first bone.
 func _switched_off_physics_stays_out() -> void:
 	var root := Node3D.new()
 	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0, 4.0], "when": [[0, 1]]}, {"joints": [5.0, 6.0], "when": [[1, 1]]}, {"joints": [3.0, 7.0], "when": [[1, 1]]}], "colliders": [{"collider": 0.0, "when": [[0, 1]]}]})
@@ -791,8 +749,6 @@ func _switched_off_physics_stays_out() -> void:
 	root.free()
 
 
-## A material its glTF extras mark outlined draws its hull next, drawn whole or cut out as the material is, from the
-## looks' outline layer and width; one marked without a layer refuses the model.
 func _outlined_materials_draw_their_hull() -> void:
 	var root := Node3D.new()
 	var mesh := ArrayMesh.new()
@@ -824,8 +780,6 @@ func _outlined_materials_draw_their_hull() -> void:
 	root.free()
 
 
-## However many surfaces a model draws, it loads with every outline its materials mark; only a mesh past what the renderer
-## draws of one mesh is refused.
 func _many_surfaces_draw_with_their_outlines() -> void:
 	var root := Node3D.new()
 	var sk := Skeleton3D.new()
@@ -903,7 +857,6 @@ func _within_limits(scene: PackedScene, what: String, json: Dictionary) -> void:
 	a.free()
 
 
-## Every mesh stays skinned over the one skeleton a pose moves and keeps all `targets` blend shapes its source has.
 func _keeps_skins_and_shapes(scene: PackedScene, what: String, targets: int) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	var meshes := 0
@@ -956,10 +909,8 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## The body as its wearer's eyes see it is drawn on the same skeleton, posed with it, and without its head: each vertex
-## of it the head bone or one under it moves wholly sits at the eyes, and one it moves in part, between the eyes and
-## where its other bones put it, so the eyes see there only what the body's own bones place, past their near clip.
-## Both reach the hands.
+## A vertex the head bones move wholly sits at the eyes; one they move in part, on the line from the eyes to where the
+## other bones put it, so the eyes see only what the body places past the near clip.
 func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -1024,7 +975,7 @@ func _headless_leaves_the_eyes_clear(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## A mesh's vertices at rest and where its skin puts each over the avatar's posed bones, in the avatar's space.
+## [rest, posed], in the avatar's space.
 func _skinned(a: Avatar, mi: MeshInstance3D) -> Array[PackedVector3Array]:
 	var at := Meshes.relative(a._skeleton, a._model)
 	var binds: Array[Transform3D] = []
@@ -1033,7 +984,6 @@ func _skinned(a: Avatar, mi: MeshInstance3D) -> Array[PackedVector3Array]:
 	return _skin(mi, binds)
 
 
-## Each vertex of `mi`'s surfaces at rest, and where `joints`, one per bind, skin it.
 static func _skin(mi: MeshInstance3D, joints: Array[Transform3D]) -> Array[PackedVector3Array]:
 	var rest := PackedVector3Array()
 	var posed := PackedVector3Array()
@@ -1052,7 +1002,6 @@ static func _skin(mi: MeshInstance3D, joints: Array[Transform3D]) -> Array[Packe
 	return [rest, posed]
 
 
-## The arms keep their length: each bends at the elbow to reach its hand, out and down from the body.
 func _arms_join_shoulders_to_hands(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -1083,8 +1032,6 @@ func _arms_join_shoulders_to_hands(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## At rest, palms down, each finger curled closed folds down under its hand and back toward the wrist, a thumb across
-## the palm, and each comes back straight with its curl undone.
 func _fingers_curl_into_the_palm(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -1115,7 +1062,7 @@ func _fingers_curl_into_the_palm(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## VRM 0.x faces -Z and VRM 1.0 +Z; the same model in each stands the same way in the same pose.
+## VRM 0.x faces -Z and VRM 1.0 +Z.
 func _both_versions_stand_alike() -> void:
 	var at := Transform3D(Basis(Vector3.UP, 0.4), Vector3(1, 1.6, 2))
 	var l := Transform3D(Basis(Vector3.UP, 0.4), Vector3(0.8, 1.1, 1.7))
@@ -1131,13 +1078,11 @@ func _both_versions_stand_alike() -> void:
 		check(posed[0][k].distance_to(posed[1][k]) < 0.01, "VRM 1.0 and 0.x stand alike (%d: %s vs %s)" % [k, posed[0][k], posed[1][k]])
 
 
-## Where an eye bone points, turned from its rest as it is now.
 func _eye_points(a: Avatar, side: String) -> Vector3:
 	var rest: Transform3D = a._joints[side + "Eye"].rest
 	return a.bone(side + "Eye").basis * rest.basis.inverse() * (a._model.get_meta("forward") as Vector3)
 
 
-## Each eye turns by the model's range map: in proportion to the look up to its largest input, no further.
 func _eye_bones_follow_the_look(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -1160,7 +1105,6 @@ func _eye_bones_follow_the_look(scene: PackedScene, what: String) -> void:
 	a.free()
 
 
-## A model that looks by expression weighs its look expressions: looking left sets lookLeft and none of the others.
 func _expressions_follow_the_look() -> void:
 	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm"))), Color.WHITE)
 	root.add_child(a)
@@ -1179,10 +1123,9 @@ func _expressions_follow_the_look() -> void:
 	a.free()
 
 
-## An avatar put in the world and freed in the same frame frees its animated materials without the renderer reading one
-## already freed, which scripts/test.sh fails as a null material. The first mesh freed flushes every instance's queued
-## update: the hat, the only holder of its animated material, is re-added so it is the last child its skeleton added,
-## which a node frees first.
+## Freed the frame it is added, no freed animated material may reach the renderer (scripts/test.sh fails on a null
+## material). The first mesh freed flushes every queued update, so the hat, sole holder of its material, is re-added
+## as its skeleton's last child, which is freed first.
 func _a_worn_avatar_frees_its_animated_materials() -> void:
 	var model: Node3D = preload("res://demo/expressions.gd").scene().instantiate()
 	model.set_meta("springs", {})
@@ -1200,8 +1143,6 @@ func _a_worn_avatar_frees_its_animated_materials() -> void:
 	a.free()
 
 
-## A blend shape set on a mesh is written as its glTF default weight: an imported avatar's saved shapes (a toggle held
-## on, a face edit) hold in the worn file.
 func _set_blend_shapes_are_written() -> void:
 	var root := Node3D.new()
 	root.name = "shaped"
@@ -1228,8 +1169,6 @@ func _set_blend_shapes_are_written() -> void:
 	check(weights.size() == 2 and is_equal_approx(weights[0], 0.75) and is_zero_approx(weights[1]), "a set blend shape is written as its mesh's weight: %s" % [weights])
 
 
-## A blended material reads back from the VRM drawn blended, writing depth where its extras say so, and an animated
-## mesh's blended surfaces draw through the blended expression shaders: none is cut out at half alpha.
 func _blended_surfaces_stay_blended() -> void:
 	var root := Node3D.new()
 	root.name = "veiled"
@@ -1282,7 +1221,6 @@ func _blended_surfaces_stay_blended() -> void:
 	model.free()
 
 
-## A figure kept under a closed wheel runs no expressions or springs until it is shown again.
 func _hidden_avatars_pause() -> void:
 	var scene := Avatar.read(FileAccess.get_file_as_bytes(avatar_file("godette-0.x.vrm")))
 	var holder := Node3D.new()

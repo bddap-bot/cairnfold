@@ -1,16 +1,13 @@
 extends "res://../tests/support/suite.gd"
 
-## Every shader fits the varyings a Quest 2 gives one: Godot refuses a shader past the device's limit when it parses it
-## on the headset, and the desktop's renderer allows more, so nothing else here would meet the refusal. Counted as
-## servers/rendering/shader_language.cpp counts them: the renderer's own varyings for its shader type, then one per
-## varying the preprocessed code declares, a matrix one per column and an array one per element, each include once.
+## A Quest 2 refuses a shader past its varying limit when it parses it, and the desktop allows more, so only this count
+## meets the refusal. Counted as servers/rendering/shader_language.cpp counts them.
 
 const Shaders := preload("res://../tests/test_shaders.gd")
 
-## The Quest 2's Vulkan limit: maxVertexOutputComponents / 4, as the device reports it.
+## maxVertexOutputComponents / 4, as a Quest 2 reports it.
 const LIMIT := 28
-## The varyings each shader type's renderer takes before a shader's own (base_varying_index in the forward mobile and
-## clustered scene shaders, the canvas renderer and the sky).
+## Taken by the renderer before a shader's own: base_varying_index in the scene, canvas and sky shaders.
 const BASE := {"spatial": 15, "canvas_item": 9, "sky": 10, "particles": 10}
 const MATRIX_COLUMNS := {"mat2": 2, "mat3": 3, "mat4": 4}
 
@@ -42,8 +39,7 @@ static func _write(path: String, code: String) -> void:
 	f.close()
 
 
-## How many varyings the shader at `path` takes as Godot counts them, or a number past any limit where it cannot read
-## the shader.
+## A count past any limit where the shader cannot be read.
 static func varyings(path: String) -> int:
 	var lines := PackedStringArray()
 	if not _expand(path, {}, {}, lines):
@@ -65,8 +61,6 @@ static func varyings(path: String) -> int:
 	return used
 
 
-## Appends the lines of the file at `path` that the preprocessor keeps, with `defines` set, to `out`; false where it
-## meets a directive it does not know.
 static func _expand(path: String, defines: Dictionary, included: Dictionary, out: PackedStringArray) -> bool:
 	if included.has(path):
 		return true
@@ -112,7 +106,7 @@ static func _expand(path: String, defines: Dictionary, included: Dictionary, out
 	return true
 
 
-## Whether an #if's `condition` of defined() checks joined by !, && and || holds, or null where it is anything else.
+## Null where `condition` is more than defined() checks joined by !, && and ||.
 static func _holds(condition: String, defines: Dictionary) -> Variant:
 	var named := RegEx.create_from_string("defined\\s*\\(\\s*(\\w+)\\s*\\)")
 	var text := condition

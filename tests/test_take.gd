@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A session's record holds microphone audio only when a take is armed, and the arm holds for that one session.
-
 
 func _initialize() -> void:
 	var folder := "user://take-%d" % OS.get_process_id()
@@ -58,15 +56,14 @@ func _initialize() -> void:
 	finish()
 
 
-## Arms a take as a dev tool does, the file `age` seconds old.
+## `age` in seconds.
 func _arm(age: int) -> void:
 	FileAccess.open(Main.player_path(PlayLog.ARM), FileAccess.WRITE).close()
 	var at := int(Time.get_unix_time_from_system()) - age
 	OS.execute("touch", ["-d", "@%d" % at, ProjectSettings.globalize_path(Main.player_path(PlayLog.ARM))])
 
 
-## Plays a recorded session, launched as a recording device is, with `tone` sounding on the take's bus whenever there is
-## a take, as the microphone would, until three of its seconds and a second and a half of any take are written.
+## `tone` stands in for the microphone on the take's bus.
 func _session(folder: String, tone: AudioStreamWAV) -> PlayLog:
 	boot_main({"record-sessions": true, "session-directory": folder})
 	await process_frame
@@ -89,7 +86,7 @@ func _session(folder: String, tone: AudioStreamWAV) -> PlayLog:
 		if takes and AudioServer.get_bus_peak_volume_left_db(AudioServer.get_bus_index(Take.BUS), 0) > -60.0:
 			heard[0] = true
 		var held := FileAccess.get_size(log.take) if not log.take.is_empty() and FileAccess.file_exists(log.take) else 0
-		return writes[0] >= 3 and (log.take.is_empty() or held > 44 + 3 * AudioServer.get_mix_rate()), "the session's seconds written")
+		return writes[0] >= 3 and (log.take.is_empty() or held > 44 + 3 * AudioServer.get_mix_rate()), "three of the session's seconds and 1.5 s of any take written")
 	check(not heard[0], "nothing on the take's bus leaves it to be played")
 	main.metrics.close()
 	await frames(2)
@@ -105,7 +102,6 @@ static func _microphone_open(under: Node) -> bool:
 		func(p: AudioStreamPlayer) -> bool: return p.playing and p.stream is AudioStreamMicrophone)
 
 
-## A loud 440 Hz tone, looping.
 static func _tone() -> AudioStreamWAV:
 	var rate := 44100
 	var pcm := PackedByteArray()

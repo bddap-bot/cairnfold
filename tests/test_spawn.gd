@@ -33,7 +33,6 @@ func _initialize() -> void:
 	finish()
 
 
-## A build standing at the spawn point sends the player to the nearest open ground; with nowhere open, onto its top.
 func _spawns_on_open_ground() -> void:
 	var rig := Rig.new(main.world.terrain)
 	root.add_child(rig)
@@ -52,7 +51,6 @@ func _spawns_on_open_ground() -> void:
 	rig.free()
 
 
-## Visiting or coming home goes dark before the garden changes, holds dark while it rebuilds, and fades in after.
 func _a_swap_happens_in_the_dark() -> void:
 	var rig := main.rig
 	var world := main.world

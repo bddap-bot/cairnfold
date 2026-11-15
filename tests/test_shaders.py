@@ -11,8 +11,7 @@ def expanded(path):
 
 class Shaders(unittest.TestCase):
     def test_every_lit_surface_takes_lantern_light(self):
-        # Lanterns are no Godot lights: a shaded surface is lit by them only through given_back (Lamps). A picture-book
-        # page's meadow is lit in the page's own world, where no lantern hangs.
+        # Lanterns are no Godot lights, so they light a surface only through given_back; lesson_dish's page has none.
         for path in sorted(set(SRC.glob('*.gdshader')) - {SRC / 'lesson_dish.gdshader'}):
             text = expanded(path)
             mode = re.search(r'^render_mode ([^;]*);', text, re.M)
@@ -23,7 +22,7 @@ class Shaders(unittest.TestCase):
                 self.assertTrue(re.search(r'GIVE_HERE|given_(back|at|over|read)\(', body) and re.search(r'TAKE_GIVEN|EMISSION\s*\+?=', body))
 
     def test_shader_copies_match_their_scripts(self):
-        # A size, index or layout a shader compiles in rather than takes as a uniform keeps its own copy; this names the source.
+        # A size, index or layout a shader compiles in keeps its own copy; this names the source.
         pairs = [
             ('expression.gdshaderinc', 'RAMP', script_const('avatar.gd', 'RAMP')),
             ('expression.gdshaderinc', 'COAT_ROWS', script_const('avatar.gd', 'COAT_ROWS')),
@@ -54,8 +53,7 @@ class Shaders(unittest.TestCase):
                 self.assertEqual(shader_const(shader, name), source)
 
     def test_shader_codes_match_their_scripts(self):
-        # A code a script writes and a shader branches on, named on both sides: each name the shader gives is the
-        # script's member of that name, whose index or value is the code.
+        # Each name the shader gives a code is the script's member of that name, whose index or value is the code.
         snake = lambda name: re.sub(r'(?<=[a-z])(?=[A-Z])', '_', name).upper()
         sides = [
             ('stone.gdshaderinc', 'ELEMENT_', enum_values('palette.gd', 'Element')),

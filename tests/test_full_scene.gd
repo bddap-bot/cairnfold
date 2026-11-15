@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## demo/full.json builds all it must within the frame budget, and its all_fit step fails a run the budget turned down:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_full_scene.gd
-
 
 func _initialize() -> void:
 	boot_main()

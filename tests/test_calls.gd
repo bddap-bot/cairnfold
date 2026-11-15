@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the animals' calls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_calls.gd
-
 const STEP := 1.0 / 30.0
 
 
@@ -15,8 +13,6 @@ func _initialize() -> void:
 	finish()
 
 
-## Each clip the game plays is cut by sources.json from a recording whose page, author and licence it names,
-## and every clip cut there is played.
 func _every_clip_is_sourced() -> void:
 	var sources: Array = JSON.parse_string(FileAccess.get_file_as_string("res://audio/animals/sources.json"))
 	var cut := {}
@@ -39,7 +35,6 @@ func _every_clip_is_sourced() -> void:
 			check(played.has(f.get_basename()), "%s is played" % f)
 
 
-## Whatever a conure is doing, it has calls of its own for it, and each is a call with clips.
 func _every_conure_doing_has_its_calls() -> void:
 	var doings: Array = Birds.State.keys() + ["PREEN", "WATCH"]
 	check(Birds.VOICE.keys().all(func(d: String) -> bool: return d in doings), "every voiced doing is one a conure does")

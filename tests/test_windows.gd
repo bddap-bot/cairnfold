@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the window families (arched, arrow slit, round, corner), roof trapdoors, the night glow and its
-## colour, and the curtains, flower boxes and washing of lived-in houses, as layouts and through the tools:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_windows.gd
-
 const RINGED: Array[WallLayout.Family] = [WallLayout.Family.ARCHED, WallLayout.Family.ROUND]
 
 
@@ -51,7 +47,6 @@ static func _house(openings: Array[Vector4], finish := WallLayout.Finish.BARE) -
 	return w
 
 
-## Coursed stones whose face covers some of a light of `o` at their own height.
 static func _intruders(w: WallLayout, o: Dictionary) -> Array:
 	return w.stones.filter(func(s):
 		# A ringed light's infill wedges turn round it; their boxes' level extents say nothing of where they lie.
@@ -288,8 +283,6 @@ func _windows_glow_after_sunset() -> void:
 	check(dusk > 0.0 and dusk < 1.0 or Daylight.elevation(0.76) < Daylight.LIT.y or Daylight.elevation(0.76) > Daylight.LIT.x, "windows come on through the sunset")
 
 
-## demo/windows.json shows every family by day and by night, and the stress scene's windows/* phases look over a
-## village whose every house opens windows of a family, lit by night.
 func _the_demos_show_them() -> void:
 	var demo := Driver.read("res://../demo/windows.json")
 	var families := demo.filter(func(s: Dictionary) -> bool: return s.op == "house" and s.has("windows")).map(func(s: Dictionary) -> int: return int(s.windows))

@@ -1,6 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the standing mirror: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_mirror.gd
 ## What it shows needs a renderer; demo/mirror.json stands one on the desktop.
 
 var terrain := Terrain.new()

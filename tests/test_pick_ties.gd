@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of which thing a ray takes when two meet it at once, a hand inside both: a grip takes a fitting over
-## a plant and joins the build it holds over that build's own fitting, and the ground in front stops it; a delete
-## takes a fitting over an easel and passes the plants, easels and boulders it already took; the style tool takes a
-## boulder standing on painted stone over the stone: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_pick_ties.gd
-
 var world: World
 var tool: WallTool
 var flora: Flora
@@ -49,7 +44,6 @@ func _run() -> void:
 	finish()
 
 
-## Presses the right hand's grip with it at `at` pointing along `dir`, and returns its mason once the press is handled.
 func _press_grip(at: Vector3, dir: Vector3) -> WallTool.Mason:
 	var hand: Hand = main.rig.right
 	hand.held_still = true
@@ -69,7 +63,6 @@ func _let_go() -> void:
 	main.rig.right.held_still = false
 
 
-## A hand inside both a tree's trunk and a lantern meets each at once: the grip takes the lantern.
 func _grip_takes_a_fitting_over_a_plant(w: Wall) -> void:
 	var at: Vector3 = _lantern(w).bounds.get_center()
 	main.flora_tool.place("tree", terrain.ground(at.x, at.z), null, 7)
@@ -88,8 +81,7 @@ func _grip_takes_a_fitting_over_a_plant(w: Wall) -> void:
 	await frames(3)
 
 
-## With a build in hand, the other hand's grip inside that build's own lantern joins the hold rather than taking the
-## lantern: the build pick that finds its lantern is the held build, which is not weighed against itself.
+## The pick into its lantern finds the held build, which is not weighed against itself.
 func _grip_joins_the_held_build_over_its_fitting(w: Wall) -> void:
 	var at: Vector3 = _lantern(w).bounds.get_center()
 	tool.take_build(w)
@@ -102,7 +94,6 @@ func _grip_joins_the_held_build_over_its_fitting(w: Wall) -> void:
 	await _let_go()
 
 
-## A grip from under the ground toward a lantern meets the ground first and takes nothing.
 func _ground_in_front_stops_a_grip(w: Wall) -> void:
 	var lantern: Vector3 = _lantern(w).bounds.get_center()
 	var at := terrain.ground(lantern.x, lantern.z + 1.5) + Vector3.DOWN * 0.2
@@ -111,7 +102,6 @@ func _ground_in_front_stops_a_grip(w: Wall) -> void:
 	await _let_go()
 
 
-## A delete from inside an easel standing in a lantern meets both at once and takes the lantern.
 func _delete_takes_a_fitting_over_an_easel(w: Wall) -> void:
 	var at: Vector3 = _lantern(w).bounds.get_center()
 	world.submit({"op": "easel", "at": terrain.ground(at.x, at.z), "yaw": 0.0})
@@ -127,8 +117,7 @@ func _delete_takes_a_fitting_over_an_easel(w: Wall) -> void:
 	await frames(3)
 
 
-## The delete beam passes through what its stroke already took: the plants in `taken`, and easels and boulders in
-## `gone`.
+## Plants it took go in aim's `taken`, easels and boulders in `gone`.
 func _delete_passes_what_it_took() -> void:
 	var spots := _clear_spots(3)
 	world.submit({"op": "easel", "at": spots[0], "yaw": 0.0})
@@ -158,7 +147,6 @@ func _delete_passes_what_it_took() -> void:
 	await frames(3)
 
 
-## `n` ground spots 20 m apart with no tree or bush within 8 m of any.
 func _clear_spots(n: int) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	for k in 200:
@@ -171,7 +159,6 @@ func _clear_spots(n: int) -> Array[Vector3]:
 	return out
 
 
-## A boulder standing on painted stone takes the style tool's aim, the stone beside it its own.
 func _style_takes_a_boulder_over_painted_stone() -> void:
 	var spot: Vector3 = _clear_spots(1)[0]
 	await play([

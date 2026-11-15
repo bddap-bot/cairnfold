@@ -1,7 +1,6 @@
 extends SceneTree
 
-## Headless check that a wall freed with its ivy still growing exits cleanly:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wall_free.gd
+## A wall freed while its ivy still grows; the check is a clean exit.
 
 
 func _init() -> void:

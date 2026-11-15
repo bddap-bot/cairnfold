@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of a grip carrying trees and bushes, planted and the meadow's own: one hand moves one along the
-## ground, farther for a far one, and turns it about its foot as the hand turns; let go, it is set as one `tree` command,
-## one undo step, which a peer takes and a snapshot keeps; two hands still size a tree and leave a bush as it is:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_carry_plants.gd
-
 var world: World
 var flora: Flora
 var tool: WallTool
@@ -27,7 +22,6 @@ func _across(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
-## Takes `first` in the right hand from 2 m off, a metre over its foot, as a grip does; returns the hand's pose.
 func _take(first: Flora.Plant) -> Transform3D:
 	var grip := first.foot() + Vector3.UP
 	var hand := Transform3D(Basis(), grip + Vector3.BACK * 2.0)
@@ -35,7 +29,6 @@ func _take(first: Flora.Plant) -> Transform3D:
 	return hand
 
 
-## Carries `first` by a hand moved `move` from where it took it, and lets go.
 func _carry(first: Flora.Plant, move: Vector3) -> void:
 	var m := tool.mason(main.rig.right)
 	var hand := _take(first)
@@ -43,9 +36,6 @@ func _carry(first: Flora.Plant, move: Vector3) -> void:
 	tool.end_grow(m)
 
 
-## One hand carries a planted tree along the ground, `reach_gain` times as far as the hand, whole and as tall, shown here
-## alone until let go; then the garden sets it there in one step that an undo takes back and a redo puts again, keeping
-## its species and moss; what strikes it, what walls arch over and its shade follow it, and a snapshot keeps it there.
 func _a_planted_tree_is_carried() -> void:
 	var at := world.terrain.ground(-6, 18)
 	world._order({"op": "plant", "kind": "tree", "seed": 7, "at": at}, world.me())
@@ -90,9 +80,6 @@ func _a_planted_tree_is_carried() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A hand turned as it carries a tree turns the tree about its foot as far, its crown with it, and its species, size and
-## moss stay; let go, its turn is set with its place, one undo step, kept through a restyle and a snapshot. A meadow
-## tree turns too, and stands as it grew in a swapped garden.
 func _a_tree_turns_with_the_hand() -> void:
 	var at := world.terrain.ground(-8, 14)
 	world._order({"op": "plant", "kind": "tree", "seed": 11, "at": at}, world.me())
@@ -136,7 +123,6 @@ func _a_tree_turns_with_the_hand() -> void:
 	check(is_equal_approx(Commands.clean({"op": "tree", "group": 0, "index": oak.index, "turn": TAU + 0.5}, world.state, false, world.terrain).get("turn", 0.0), 0.5), "a turn is kept within a circle")
 
 
-## The meadow's own trees and bushes carry as planted ones do, and stand where they grew in a swapped garden.
 func _meadow_plants_are_carried() -> void:
 	for first: Flora.Plant in [flora.groups[0][flora.meadow_trees[3]], flora.groups[0][flora.meadow_bushes[2]]]:
 		var what := "tree" if first.pool == flora.trunks else "bush"
@@ -153,7 +139,6 @@ func _meadow_plants_are_carried() -> void:
 		world.restore({"seq": 0, "cmds": []})
 
 
-## One hand carries a planted bush; two hands on it size nothing and send nothing.
 func _bushes_are_carried_not_sized() -> void:
 	var at := world.terrain.ground(4, 16)
 	world._order({"op": "plant", "kind": "bush", "seed": 3, "at": at}, world.me())
@@ -180,7 +165,6 @@ func _bushes_are_carried_not_sized() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A carry's command as a peer checks it: a place on the map for a tree or bush, a size for a tree alone.
 func _commands_are_checked() -> void:
 	world._order({"op": "plant", "kind": "tree", "seed": 5, "at": world.terrain.ground(2, 12)}, world.me())
 	var tree := world.seq

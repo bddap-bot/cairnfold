@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of thatched roofs: godot4 --headless --path game --script ../tests/test_thatch.gd
-## Directive (verbatim): "Thatched roofs I want them as an option."
-
 
 func _init() -> void:
 	_thatch_covers_every_roof_shape()
@@ -14,7 +11,7 @@ func _init() -> void:
 	finish()
 
 
-## A house or tower and its roof laid as a Wall lays them: [WallLayout, RoofLayout].
+## [WallLayout, RoofLayout].
 func _built(points: Array[Vector3], kind: RoofLayout.Kind, pitch: float, curve: float, radius := 2.0, thatch := true) -> Array:
 	var w := WallLayout.new()
 	w.points = points
@@ -44,7 +41,7 @@ func _towered(radius: float, pitch: float, curve := 0.0) -> Array:
 	return _built(WallLayout.circle(Vector3(1, 0, 1), radius), RoofLayout.Kind.CONE, pitch, curve, radius)
 
 
-## The coat's triangles, bucketed by the half-metre ground cells their bounds cross, for casting rays at it.
+## Triangles bucketed by the half-metre ground cells their bounds cross.
 class Coat:
 	var verts: PackedVector3Array
 	var cells := {}
@@ -60,8 +57,8 @@ class Coat:
 						cells[k] = PackedInt32Array()
 					cells[k].append(i)
 
-	## How far along the segment from `a` to `b` it first meets the coat, or INF. A segment through an edge two
-	## triangles share can slip between them, so a miss is tried again a hair to either side.
+	## A fraction along a to b, or INF. A segment through an edge two triangles share can slip between them, so a miss
+	## is tried again a hair to either side.
 	func hit(a: Vector3, b: Vector3) -> float:
 		var d := _hit(a, b)
 		for nudge in [Vector3(0.002, 0.0, 0.001), Vector3(-0.001, 0.0, -0.002)]:
@@ -86,8 +83,7 @@ class Coat:
 		return best
 
 
-## Points on the roof's surface out to its eaves, from the ridge or axis to past the walls' outer faces at a gable's
-## ends, each as [point, normal, down the slope, along the ridge (or round the cone)].
+## Each [point, normal, down the slope, along the ridge (or round the cone)].
 func _surface(r: RoofLayout, xs := PackedFloat32Array()) -> Array:
 	var out := []
 	var f := r.frame()
@@ -115,9 +111,6 @@ func _surface(r: RoofLayout, xs := PackedFloat32Array()) -> Array:
 	return out
 
 
-## Straw wherever the roof is: a ray down onto any point of it meets the coat's outer face, a coat's depth up; one
-## down onto the ridge meets straw above the slopes' meeting; one in under the eave or a verge meets its rounded edge
-## before the wall; and one up from under the overhang meets its underside.
 func _covered(r: RoofLayout, what: String) -> void:
 	_covered_by(r, Coat.new(r.coat), what)
 	_covered_by(r, Coat.new(r.coat_far), what + ", far")
@@ -177,8 +170,6 @@ func _thatch_covers_every_roof_shape() -> void:
 		check(crown.size() == 1 and crown[0].xform.origin.y > built[1].base + c[1] + built[1].coat_rise(), "its finial stands clear of the straw")
 
 
-## No stone of the walls reaches through the coat anywhere under the roof, and the slabs standing in for the coat in
-## shadows and bounce light lie inside it.
 func _under_the_coat(w: WallLayout, r: RoofLayout, what: String) -> void:
 	var f := r.frame()
 	var hs := r.half_span()

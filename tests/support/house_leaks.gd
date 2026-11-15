@@ -1,7 +1,7 @@
 extends RefCounted
 
-## QA reads the same full-detail meshes and instance buffers as the renderer, never shadow proxies.
-## A part keeps its owner, so an unrelated house cannot plug a hole in the room being tested.
+## Full-detail meshes and instance buffers as rendered, never shadow proxies. A part keeps its owner, so an
+## unrelated house cannot plug a hole in the room under test.
 var parts: Array[Dictionary] = []
 
 
@@ -41,8 +41,7 @@ func first(origin: Vector3, direction: Vector3) -> Dictionary:
 	return best
 
 
-## Apertures are tested at the wall centre plane, with exact layout bounds (no enlarged picking margin).
-## Only a crossing before the first hit can excuse a ray. Hidden merge seams are not apertures.
+## `limit` is the first hit's distance: only a crossing before it excuses a ray. At the wall's centre plane with exact layout bounds, no picking margin; hidden merge seams are not apertures.
 static func aperture(w: Wall, origin: Vector3, direction: Vector3, limit: float) -> bool:
 	var l := w.layout
 	for i in range(1, l.samples.size()):
@@ -80,8 +79,7 @@ func probe(origin: Vector3, direction: Vector3, room: Array[Wall]) -> Dictionary
 	return {"status": "leak", "first_hit": hit.get("part", "sky"), "hit_position": hit.get("position", Vector3.INF)}
 
 
-## Locate the first exit from the room volume, for a diagnostic position even when the ray hits sky.
-## This does not decide whether it leaks: only rendered triangle hits and apertures do that.
+## Diagnostic only, so a ray into the sky still has a position: rendered hits and apertures decide a leak.
 static func exit_point(origin: Vector3, direction: Vector3, room: Array[Wall]) -> Vector3:
 	var low := 0.0
 	for step in range(1, 2001):
@@ -106,7 +104,7 @@ func neighbours(p: Vector3) -> Array:
 		if part.owner < 0:
 			continue
 		var closest := INF
-		# Diagnostics only, run once per representative rather than for every ray.
+		# Brute force: diagnostics run once per representative, not per ray.
 		var faces: PackedVector3Array = part.tree.get_faces()
 		for v in faces:
 			closest = minf(closest, p.distance_squared_to(v))
@@ -115,8 +113,7 @@ func neighbours(p: Vector3) -> Array:
 	return distances.slice(0, 2).map(func(d: Array) -> String: return d[1])
 
 
-## The faces of instances `buffer` of `kind` as drawn, with the panel mitres stone.gdshaderinc applies before
-## MODEL_MATRIX.
+## Mitred as stone.gdshaderinc does before MODEL_MATRIX.
 static func instances(buffer: PackedFloat32Array, kind: Masonry.Kind) -> PackedVector3Array:
 	var faces := PackedVector3Array()
 	var source := kind.mesh.get_faces()

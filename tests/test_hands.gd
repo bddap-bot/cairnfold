@@ -1,7 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of empty hands: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hands.gd
-
 var terrain: Terrain:
 	get:
 		return main.world.terrain
@@ -61,7 +59,6 @@ func _run() -> void:
 	finish()
 
 
-## Teleport aims with the left hand whatever it holds, and shows only where it lands: no ray, no sight.
 func _teleport_draws_no_ray(rig: Rig) -> void:
 	rig.left.tool = Hand.Tool.FLOWERS
 	rig.left.held_still = true
@@ -101,9 +98,8 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	Hand.injected_sticks.erase(rig.right.tracker)
 
 
-## The avatar's hand closes round the controller where the runtime puts the palm, never at its aim, which stands out
-## ahead of the hand on every controller. Its grip_surface pose gives the palm whole; the grip pose only its centre, the
-## fingers then pointing as the aim does, since its axes follow the handle rather than the hand.
+## The aim stands out ahead of the hand on every controller. grip_surface gives the whole palm; grip only its
+## centre, its axes following the handle rather than the hand.
 func _the_avatar_holds_the_grip(rig: Rig, tracker: XRPositionalTracker) -> void:
 	var hand := rig.right
 	hand.tool = Hand.Tool.FLOWERS

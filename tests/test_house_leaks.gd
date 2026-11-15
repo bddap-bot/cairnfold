@@ -3,25 +3,25 @@ extends "res://../tests/support/booted.gd"
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
 const SEALED_SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
-## Escapes the dense sweep found, as [origin, direction]: the normal sphere is too sparse to meet them again.
+## Escapes only the dense sweep met, as [origin, direction].
 const SEALED_RAYS := {
 	35: [
-		# The wall corner above a crossing bowed deck must seal without the deck's hanging mortar bed.
+		# A wall corner above a crossing bowed deck, sealed without the deck's hanging mortar bed.
 		[Vector3(-0.5, 1.33116233348846, -17.8215808868408), Vector3(-0.901065587997437, 0.43359375, -0.008791608735919)],
 	],
 	31: [
-		# Past lintel ends and over a lintel's top, where the joint had no mortar behind it.
+		# Past lintel ends and over a lintel's top.
 		[Vector3(-0.5, 2.10659718513489, -20.5), Vector3(0.0616170428693295, -0.008544921875, -0.998063266277313)],
 		[Vector3(0.5, 2.10659718513489, -19.5), Vector3(-0.284503400325775, -0.004638671875, -0.958663821220398)],
 		[Vector3(0.0, 1.91231036186218, -17.3493766784668), Vector3(0.0930395945906639, 0.034912109375, -0.995050132274628)],
 		[Vector3(0.5, 1.80514013767242, -14.1987533569336), Vector3(0.995217204093933, -0.061279296875, 0.0760760083794594)],
-		# Down through the floor seam where joined houses meet, where the older floor stopped short of the newer.
+		# Down through the floor seam where joined houses meet.
 		[Vector3(0.0, 1.91231036186218, -17.3493766784668), Vector3(-0.610257267951965, -0.75390625, -0.243333980441093)],
 		[Vector3(0.0, 1.80514013767242, -14.6987533569336), Vector3(-0.610257267951965, -0.75390625, -0.243333980441093)],
 		[Vector3(0.0, 1.80514013767242, -14.6987533569336), Vector3(0.605869054794312, -0.76171875, -0.229580596089363)],
 		[Vector3(0.0, 1.80514013767242, -14.6987533569336), Vector3(0.42256498336792, -0.86328125, -0.276015102863312)],
 		[Vector3(0.5, 1.80514013767242, -14.1987533569336), Vector3(0.358669877052307, -0.80078125, -0.479692935943604)],
-		# Between a board gable's planks, which had nothing behind them.
+		# Between a board gable's planks.
 		[Vector3(0.0, 2.10659718513489, -20.0), Vector3(-0.910554111003876, 0.412353515625, -0.0292540658265352)],
 		[Vector3(0.0, 2.10659718513489, -20.0), Vector3(0.964250445365906, 0.263427734375, 0.028756195679307)],
 		[Vector3(-0.5, 2.10659718513489, -20.5), Vector3(-0.96684342622757, 0.255126953125, 0.011134753935039)],
@@ -221,7 +221,7 @@ func _house(seed_value: int, count: int) -> void:
 			var line := PackedVector2Array()
 			for q in w.layout.points:
 				line.append(Vector2(q.x, q.z))
-			# Timber is cut at the centre line; nearer the faces a board still running into rubble may stand proud of a thin stone.
+			# Timber is cut at the centre line; nearer the faces a board may stand proud of a thin stone.
 			var band: Array[PackedVector2Array] = Geometry2D.offset_polygon(line, WallLayout.THICKNESS * 0.25)
 			band.append_array(Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.25))
 			for other in room:
@@ -254,7 +254,7 @@ func _house(seed_value: int, count: int) -> void:
 				for direction in sphere_directions(count):
 					_trace(probe, origin, direction, room, w, record)
 		if seed_value == 8756:
-			# The cap-band regression needs near-wall rays: exterior timber can mask an inner cavity.
+			# Near-wall rays: exterior timber can mask an inner cavity.
 			for side in 4:
 				var corners := w.layout.corners()
 				var end: float = corners[side + 1] if side < 3 else w.layout.length()

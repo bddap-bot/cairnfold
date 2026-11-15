@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of stone in ponds: stone ground painted on a pond's bed, and walls crossing water on arches
-## whose pillars stand on the bed: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_pond_stone.gd
-
 var world: World
 var terrain: Terrain:
 	get:
@@ -22,7 +19,7 @@ func _run() -> void:
 	finish()
 
 
-## Lets the fills, refills and walls' rebuilds on worker threads finish, and the commands waiting on them apply.
+## Fills, refills and wall rebuilds run on worker threads, and commands wait on them.
 func _settle() -> void:
 	main.water_tool.settle()
 	await process_frame

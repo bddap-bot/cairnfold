@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of reading Unity packages: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_unity_package.gd
-
 const Yaml = preload("res://../scripts/unity/yaml.gd")
 const XXHash = preload("res://../scripts/unity/xxhash.gd")
 const Assets = preload("res://../scripts/unity/assets.gd")
@@ -94,9 +92,6 @@ func _run() -> void:
 	finish()
 
 
-## XXH64's published values, and a model object's file ID as Unity's importer names it.
-## The descriptor's view position becomes the eyes' offset from the head bone in the model's axes, as VRM gives it and
-## Avatar reads it, whichever way the head bone is turned at rest.
 func _the_view_is_given_in_the_models_axes() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Head")
@@ -157,8 +152,6 @@ Transform:
 	check(r.m_Text == "a long value that wraps", "a plain scalar over two lines")
 
 
-## A scene instancing a prefab that instances another: modifications reach objects of both, objects take the IDs
-## Unity gives them, and a stripped object is the object it stands for.
 func _nested_prefabs_flatten() -> void:
 	var dir := ProjectSettings.globalize_path("user://prefabs")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -254,8 +247,6 @@ func _material_properties_read_either_layout() -> void:
 	check(Materials._properties(saved.m_Floats)._Mode == "1", "a property list of first/second pairs")
 
 
-## A material draws the faces its shader's `Cull` names, from the property it reads, whatever stale culling properties
-## the material still saves; the SDK's shaders, absent from packages, read theirs by GUID.
 func _materials_cull_as_their_shader_reads() -> void:
 	var dir := ProjectSettings.globalize_path("user://cull")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -288,8 +279,6 @@ func _materials_cull_as_their_shader_reads() -> void:
 	materials.pack(materials.materials.keys())
 	var sided := materials.atlas_materials()
 	check(sided[0].cull_mode == BaseMaterial3D.CULL_BACK and sided[1].cull_mode == BaseMaterial3D.CULL_DISABLED and sided[0].albedo_texture == sided[1].albedo_texture, "one atlas, drawn one-sided and two-sided")
-## A material blends exactly when its shader's destination blend factor is not Zero, whatever its queue says, by its
-## colour's alpha plus Poiyomi's Alpha Mod, and writes depth as its _ZWrite says; the atlas draws its faces blended.
 func _materials_blend_as_their_shader_blends() -> void:
 	var dir := ProjectSettings.globalize_path("user://blend")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -324,8 +313,6 @@ func _materials_blend_as_their_shader_blends() -> void:
 	check(depth.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and depth.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS and depth.get_meta("extras").depthWrite and depth.cull_mode == BaseMaterial3D.CULL_DISABLED, "depth-written blended faces say so in their glTF extras")
 
 
-## A material naming one of the VRChat SDK's shaders, which a package never carries, reads that shader's name and
-## properties as if the package held it.
 func _an_sdk_shader_the_package_omits_is_known() -> void:
 	var dir := ProjectSettings.globalize_path("user://sdk-shader")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -349,8 +336,6 @@ func _outside_constraints_place() -> void:
 	check(not UnityAvatar._constrained(objs, 3, inside), "the avatar's own source, and an unweighted outside one, do not")
 
 
-## A PhysBone whose root has two children: under the default multiChildType the root stays still and each branch is its
-## own chain; under First the first branch's chain turns the root.
 func _a_branching_physbone_root_stays_still() -> void:
 	var sk := Skeleton3D.new()
 	var objs := {}
@@ -395,9 +380,6 @@ func _a_branching_physbone_root_stays_still() -> void:
 	sk.free()
 
 
-## A chain's colliders arrive as the source shapes them: one on a bone's unweighted child sits on that bone where the
-## child puts it, turned and scaled by it; inside spheres and planes, which VRM's own shapes cannot hold, ride in
-## VRMC_springBone_extended_collider over a point; a DynamicBone collider lies along its direction.
 func _colliders_keep_their_shape_side_and_bone() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Head")
@@ -449,7 +431,6 @@ func _colliders_keep_their_shape_side_and_bone() -> void:
 	sk.free()
 
 
-## A collider keeps the offset from its bone that Unity's transforms give it, wherever the output rest poses that bone.
 func _a_collider_rides_its_bone_where_unity_places_it() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Chest")
@@ -476,8 +457,6 @@ func _a_collider_rides_its_bone_where_unity_places_it() -> void:
 	sk.free()
 
 
-## A PhysBone or collider runs as Unity runs it when the avatar loads, or under the menu switches that turn on its own
-## flag and each inactive GameObject above it; one nothing turns on stays out.
 func _physics_runs_as_the_menu_switches_it() -> void:
 	var sk := Skeleton3D.new()
 	for name: String in ["Chest", "Left", "Right", "Far"]:
@@ -517,7 +496,6 @@ func _physics_runs_as_the_menu_switches_it() -> void:
 	sk.free()
 
 
-## A collider whose transform the menu moves rides a bone of its own, placed where Unity places the transform.
 func _a_moved_collider_rides_its_own_bone() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Chest")
@@ -542,8 +520,7 @@ func _a_moved_collider_rides_its_own_bone() -> void:
 	sk.free()
 
 
-## A PhysBone of one bone with an endpoint swings about that endpoint, a bone added past the leaf at its offset in the
-## leaf's axes (X mirrored) and scale; without one the bone has no chain.
+## X mirrored and scaled by the leaf, an endpoint 0.01 along X lies at -0.02.
 func _a_physbone_ends_at_its_endpoint() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Ear")
@@ -566,8 +543,6 @@ func _a_physbone_ends_at_its_endpoint() -> void:
 	sk.free()
 
 
-## A PhysBone's limit rides on each of its joints, its angles in degrees and its limitRotation turned into the joint's
-## own axes (X mirrored), and survives the reading the converter writes the springs back from.
 func _a_physbone_carries_its_limit() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Ear")
@@ -591,8 +566,7 @@ func _a_physbone_carries_its_limit() -> void:
 		check(q.size() == 4 and Quaternion(q[0], q[1], q[2], q[3]).is_equal_approx(Quaternion(Vector3.RIGHT, deg_to_rad(32.0))), "its turn about X is carried into the joint's axes: %s" % [q])
 		var read: Array = UnityAvatar._read_springs(definition, [{}, {}]).springs
 		check(read.size() == 1 and read[0].joints[0].get("extras") == joints[0].extras, "reading the springs keeps each joint's limit: %s" % [read])
-	# A bone along Unity's X, its limit turned about X then Z: VRChat's CalcLimitAxis turns Y to the bone first, and
-	# applies limitRotation's angles about X, then Y, then Z.
+	# VRChat's CalcLimitAxis turns Y to the bone, then applies limitRotation about X, then Y, then Z.
 	objs[11].data.m_LocalPosition = {"x": "0.1", "y": "0", "z": "0"}
 	sk.set_bone_rest(1, Transform3D(Basis.IDENTITY, Vector3(-0.1, 0, 0)))
 	objs[20].data.limitType = "2"
@@ -610,8 +584,7 @@ func _a_physbone_carries_its_limit() -> void:
 	sk.free()
 
 
-## A PhysBone's limit angles and limitRotation are each scaled by their curves at the bone's place down the chain, as
-## VRChat's CalcMaxAngle and CalcLimitRotation take CalcBoneRatio: a curve at 0 at the root gives the root no swing on that axis.
+## As VRChat's CalcMaxAngle and CalcLimitRotation scale by CalcBoneRatio.
 func _a_physbone_limit_follows_its_curves_down_the_chain() -> void:
 	var sk := Skeleton3D.new()
 	for name in ["Root", "Mid", "Tip"]:
@@ -639,9 +612,6 @@ func _a_physbone_limit_follows_its_curves_down_the_chain() -> void:
 	sk.free()
 
 
-## Every joint of a PhysBone carries the source's own settings for the runtime to step it as VRChat does: each curve
-## evaluated at the bone's place down the chain as VRChat's Calc functions place it, the radius at both its ends, and
-## which bone ends at the endpoint.
 func _a_physbone_carries_its_settings_bone_by_bone() -> void:
 	var sk := Skeleton3D.new()
 	for name in ["Root", "Mid", "Tip"]:
@@ -758,8 +728,7 @@ func _legacy_springs_keep_their_root_and_endpoint() -> void:
 	sk.free()
 
 
-## A DynamicBone on an unscaled object sizes its radius and end offset by that object, not by the scaled armature its
-## root bone lies in: a bone of an armature scaled 100 keeps a 0.02 radius, not 2.
+## The armature is scaled 100: a 0.02 radius stays 0.02, not 2.
 func _a_dynamic_bone_sizes_by_its_own_transform() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Root")
@@ -788,8 +757,6 @@ func _a_dynamic_bone_sizes_by_its_own_transform() -> void:
 	sk.free()
 
 
-## A transform the skeleton lacks becomes a bone, with each ancestor up to the nearest that is one, placed by their local
-## transforms (X mirrored) and that bone's scale; one under no bone adds nothing.
 func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
 	var sk := Skeleton3D.new()
 	sk.add_bone("Chest")
@@ -807,9 +774,6 @@ func _a_transform_the_skeleton_lacks_becomes_a_bone() -> void:
 	sk.free()
 
 
-## An avatar's menu toggle, its parameter, and the FX layer whose clip turns a GameObject on: the GameObject is a
-## switch, its renderer, inactive in the scene, draws under it, and the toggle survives pruning; a control whose
-## parameter moves nothing is cut.
 func _a_menu_toggle_switches_a_hidden_renderer() -> void:
 	var dir := ProjectSettings.globalize_path("user://menu")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -946,8 +910,7 @@ func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
 	var names := ["A", "B", "C"]
 	write.call("menu.asset", "m1", "--- !u!114 &11400000\nMonoBehaviour:\n  controls:\n" + "".join(PackedStringArray(names.map(func(n: String) -> String: return "  - name: %s\n    icon: {fileID: 0}\n    type: 102\n    parameter:\n      name: %s\n    value: 1\n    subParameters: []\n" % [n, n]))))
 	write.call("parameters.asset", "p1", "--- !u!114 &11400000\nMonoBehaviour:\n  parameters:\n" + "".join(PackedStringArray([["A", 1], ["B", 1], ["C", 0]].map(func(p: Array) -> String: return "  - name: %s\n    valueType: 2\n    saved: 1\n    defaultValue: %d\n" % p))))
-	# An optimizer's layer: one direct tree, every child weighted by a constant parameter, each a toggle's 1D tree
-	# between its off and on clips; A's toggle is a child twice, so its sum passes one.
+	# A's toggle is a child of the direct tree twice, so its sum passes one.
 	var controller := func(normalized: int) -> String:
 		var text := "--- !u!91 &9100000\nAnimatorController:\n  m_AnimatorParameters:\n  - m_Name: One\n    m_Type: 1\n    m_DefaultFloat: 1\n"
 		text += "".join(PackedStringArray(names.map(func(n: String) -> String: return "  - m_Name: %s\n    m_Type: 1\n" % n)))
@@ -984,9 +947,8 @@ func _a_direct_tree_sums_its_toggles_unnormalized() -> void:
 	check(shown.call(1) == [false, false, false], "normalized blend values share the tree's weight among its toggles: %s" % [shown.call(1)])
 
 
-## Poiyomi's Color Adjust at rest lies in the atlas, in linear space after the colour's tint: saturation -1 greys the
-## tinted (255, 127, 63) to its luminance 0.431 and brightness 1 doubles it to 0.861, sRGB 238. A property Thry's lock
-## keeps animatable is left to its clips: animated saturation leaves the colour, so only the brightness doubles it.
+## Saturation -1 greys the tinted (255, 127, 63) to luminance 0.431 in linear light, and brightness 1 doubles it to
+## 0.861, sRGB 238.
 func _poiyomi_colour_adjust_lies_in_the_atlas() -> void:
 	var dir := ProjectSettings.globalize_path("user://adjust")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -1214,9 +1176,6 @@ func _mesh_bones_do_not_alias_another_models_names() -> void:
 	target.free()
 
 
-## A Mesh a build tool saved as a text asset reads as Godot's importer makes a model's: X mirrored, UVs from the top,
-## winding kept, each vertex stream where Unity aligns it, a submesh with no triangles leaving its slot unused, a blend
-## shape at its full weight and the bind pose in Godot's axes.
 func _a_serialized_mesh_reads_as_its_model_would() -> void:
 	var data := PackedByteArray()
 	data.resize(48 + 3 * 8 + 8 + 3 * 32)
@@ -1278,7 +1237,6 @@ func _a_serialized_mesh_reads_as_its_model_would() -> void:
 	check(UnityAvatar._bone_names(objs, 20) == PackedStringArray(["End", "End3", "End2"]), "two bones of one name keep a bone each, and no other bone's name")
 
 
-## A model's bone named as Blender numbers a duplicate ("Wing.001") binds its own Unity transform, not its parent's:
 ## Godot keeps the dot in a skeleton's bone name and drops it from a node's.
 func _a_dotted_bone_name_binds_its_own_transform() -> void:
 	var root := Node3D.new()
@@ -1311,10 +1269,7 @@ func _a_dotted_bone_name_binds_its_own_transform() -> void:
 	target.free()
 
 
-## glTF lists a skin's joints once each: a second source binding the same bones in poses one transform apart shares
-## their binds, its new bones bind to match, and its vertices, moved by that transform, skin where its own binds put
-## them in any pose. A first source keeps its binds and vertices as they are, and a source whose binds disagree by no
-## one transform still lands where its binds put it with the skeleton at rest. A mirrored source is one transform apart.
+## glTF lists a skin's joints once each.
 func _sources_binding_one_bone_differently_share_one_bind() -> void:
 	var rests: Array[Transform3D] = [Transform3D(Basis.IDENTITY, Vector3(0, 1, 0)), Transform3D(Basis(Vector3.UP, 0.5), Vector3(1, 1, 0)), Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0, 1.5, 0))]
 	var skin := Skin.new()
@@ -1841,9 +1796,6 @@ func _matcaps_and_emission_join_the_look() -> void:
 	sk.free()
 
 
-## Each toon shader family's outline maps to its width in metres, its colour and its mask: Poiyomi's and Unity-chan Toon
-## Shader's from a shader the package carries with an outline pass, lilToon's and VRChat Toon Standard's from the outline
-## variant a package names by GUID. Object-space widths scale with their renderer, world-space ones do not.
 func _toon_outlines_join_the_look() -> void:
 	var dir := ProjectSettings.globalize_path("user://outline")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -1917,9 +1869,7 @@ func _toon_outlines_join_the_look() -> void:
 	check(materials.face_material("toon_plain", ["toon"]) >= 2 * Materials.PASSES, "faces a switch can swap an outlined material onto draw with an outlined atlas material")
 
 
-## An outline's width mask scales the width by what its shader samples: a texture Unity imports as sRGB is decoded to
-## linear light first, so a byte of 160 pushes the hull out 0.35 of its width, not 0.63; one imported linear by its byte,
-## and an alpha channel, which no import decodes, by its byte too.
+## An sRGB mask's byte 160 decodes to 0.35 of the width, not 0.63; a linear import and alpha read as the byte.
 func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
 	var dir := ProjectSettings.globalize_path("user://outline_mask")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -1952,9 +1902,7 @@ func _an_outline_mask_weighs_as_its_shader_reads_it() -> void:
 	check(absf(share.call("linear_mat") - 160 / 255.0) < 0.01, "a linear mask weighs its byte: %f" % share.call("linear_mat"))
 	check(absf(share.call("alpha_mat") - 160 / 255.0) < 0.01, "an sRGB mask's alpha weighs its byte: %f" % share.call("alpha_mat"))
 
-## Poiyomi's first emission glows in its theme colour, its hue, saturation and value moved by the theme's offsets, over
-## its map times its mask's channel; one that blinks over time or takes the base colour glows nowhere the atlas could
-## hold, and one dark at rest that no animation lights has no look.
+
 func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 	var dir := ProjectSettings.globalize_path("user://glow")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2010,11 +1958,7 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
 		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.blink.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
 
-## Poiyomi adds its four emissions up: those in the drawn one's theme and override fold into its map, each mask weighted
-## by its strength over the drawn one's; one in another colour is left out. Where the first one moves over time, the
-## strongest other is drawn, and an animation of the first's strength moves nothing drawn. Where AudioLink's band
-## overrides are on, its strength add and multiplier apply at their levels. One whose first strength a clip moves draws
-## that one alone, and emissions adding past the drawn one's strength carry their sum in it.
+
 func _poiyomi_emissions_in_one_colour_add_up() -> void:
 	var dir := ProjectSettings.globalize_path("user://glows")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2096,8 +2040,7 @@ func _poiyomi_emissions_in_one_colour_add_up() -> void:
 		check(at.call("ears", false) < 0.01 and absf(at.call("ears", true) - 1.0) < 0.01, "the ears' map is the drawn emission's mask alone, the moving one left out: %s %s" % [at.call("ears", false), at.call("ears", true)])
 
 
-## Poiyomi's Multilayer Math takes the direct light on its shadow side too where every shadow layer it draws is white,
-## so it lights flat, capped as Flat lighting is; a tinted shadow layer lights by angle.
+## Poiyomi's Multilayer Math takes the direct light on the shadow side where every shadow layer is white.
 func _untinted_multilayer_math_lights_flat() -> void:
 	var dir := ProjectSettings.globalize_path("user://multilayer")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2128,7 +2071,7 @@ func _untinted_multilayer_math_lights_flat() -> void:
 	check(lit == [{"model": "flat", "cap": 0.9}, {"model": "flat", "cap": 0.9}, {"model": "lit"}, {"model": "lit"}], "white shadow layers light flat, a tinted layer or Poiyomi's default tint by angle: %s" % [lit])
 
 
-## Poiyomi's Skin keeps the light whole where its shade, a floor of its own, reaches the capped light.
+## Poiyomi's Skin lights flat where its shade, a floor of its own, reaches the capped light.
 func _skin_its_shade_reaches_lights_flat() -> void:
 	var dir := ProjectSettings.globalize_path("user://skin")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2165,9 +2108,6 @@ func _skin_its_shade_reaches_lights_flat() -> void:
 		check(lit[key] == want[key], "a skin material %s lights %s: %s" % [key, want[key], lit[key]])
 
 
-## A clip moving a global theme colour's hue, saturation, value or hue speed, under a locked material's suffix, binds as
-## the look field of the emission or matcap drawn in that theme, at its saved offset; one moving a theme nothing is drawn
-## in binds nothing. The emission and the matcap carry their theme for the runtimes to recolour them by.
 func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
 	var dir := ProjectSettings.globalize_path("user://theme")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2228,9 +2168,7 @@ func _a_theme_colours_offsets_bind_to_what_is_drawn_in_it() -> void:
 		check(Color(glow.color[0], glow.color[1], glow.color[2]).is_equal_approx(Color.from_hsv(0.25, 1, 1)), "its colour at rest is the theme's turned a quarter: %s" % [glow.color])
 	sk.free()
 
-## Unity converts every saved colour to linear light for the shader; a locked shader holds a colour no clip animates as a
-## literal, which keeps the saved value where it is declared [HDR] or [Gamma] but not both, and a theme colour so held
-## keeps its saved hue.
+## Unity converts every saved colour to linear light; a locked shader's literal, for a colour no clip animates, keeps the saved value where it is declared [HDR] or [Gamma] but not both.
 func _a_colour_reads_as_its_shader_receives_it() -> void:
 	var dir := ProjectSettings.globalize_path("user://colours")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2266,15 +2204,14 @@ func _a_colour_reads_as_its_shader_receives_it() -> void:
 
 
 
-## lilToon's shader GUIDs a fixture names: a lilToon a package never carries.
+## No package carries lilToon.
 const LILTOON := "df12117ecd77c31469c224178886498e"
 const LILTOON_MULTI := "9294844b15dca184d914a632279b24e1"
 const LILTOON_TRANSPARENT := "165365ab7100a044ca85fc8c33548a62"
 const LILTOON_LITE := "381af8ba8e1740a41b9768ccfb0416c2"
 
 
-## A lilToon fixture's folder `name` holding each of `mats` (name to `_liltoon_mat` text) and of `images` (name to its
-## row of texels) under its name as GUID.
+## `mats`: name to `_liltoon_mat` text; `images`: name to a row of texels; each file's GUID is its name.
 static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary, linear: Array[String] = []) -> Assets:
 	var dir := ProjectSettings.globalize_path("user://" + name)
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2294,9 +2231,8 @@ static func _liltoon_fixture(name: String, mats: Dictionary, images: Dictionary,
 	return Assets.new(dir)
 
 
-## A lilToon material's text: its shader's GUID, its keywords (an Array as m_ValidKeywords lists them, a String as
-## older Unity's m_ShaderKeywords), floats, colours and vectors ({name: Color}) and textures ({name: GUID, or [GUID,
-## scale, offset]}).
+## `keywords`: an Array as m_ValidKeywords, a String as older Unity's m_ShaderKeywords; `textures`: {name: GUID, or
+## [GUID, scale, offset]}.
 static func _liltoon_mat(shader: String, keywords: Variant, floats: Dictionary, colours := {}, textures := {}) -> String:
 	var text := "Material:\n  m_Shader: {fileID: 4800000, guid: %s, type: 3}\n" % shader
 	text += "  m_ShaderKeywords: %s\n" % keywords if keywords is String else "  m_ValidKeywords: [%s]\n" % ", ".join(keywords)
@@ -2314,20 +2250,15 @@ static func _liltoon_mat(shader: String, keywords: Variant, floats: Dictionary, 
 	return text
 
 
-## The atlas texels of the material at `key`'s cell's first row.
 static func _row(materials: Materials, img: Image, key: String) -> Array:
 	var cell: Rect2i = materials.materials[key].cell
 	return range(cell.size.x).map(func(x: int) -> Color: return img.get_pixel(cell.position.x + x, cell.position.y))
 
 
-## Whether colours `a` and `b` agree to within `bytes` sRGB steps in every channel.
 static func _near(a: Color, b: Color, bytes := 2) -> bool:
 	return absi(a.r8 - b.r8) <= bytes and absi(a.g8 - b.g8) <= bytes and absi(a.b8 - b.b8) <= bytes and absi(a.a8 - b.a8) <= bytes
 
 
-## A material naming a lilToon shader by a GUID no package carries reads its name and declared properties, Lite's its
-## own; Multi draws as its _TransparentMode says and the other shaders as their blend state does, and a Multi whose
-## saved blend state disagrees with its mode is reported.
 func _a_liltoon_shader_the_package_omits_is_known() -> void:
 	var assets := _liltoon_fixture("liltoon-known", {
 		"veil": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_CLIP_RECT"], {"_TransparentMode": 2, "_SrcBlend": 1, "_DstBlend": 10, "_ZWrite": 1}),
@@ -2350,9 +2281,6 @@ func _a_liltoon_shader_the_package_omits_is_known() -> void:
 	check("lite: shadow (lilToon Lite)" in losses and "odd: render mode (_TransparentMode 0, but _DstBlend 10)" in losses and losses.size() == 2, "Lite's shadow and a Multi mode its blend state disagrees with are reported: %s" % [losses])
 
 
-## lilToon's flat light carries its toon shadow, whose shade colours lie in the shade layers over its cell, its rim,
-## its matcaps in slots one and two by blend mode, and its emissions; a Multi feature without its keyword is not drawn,
-## and one drawn in a way the looks cannot hold is reported.
 func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	var grey := Color8(128, 128, 128)
 	var assets := _liltoon_fixture("liltoon-looks", {
@@ -2445,9 +2373,7 @@ func _liltoon_looks_carry_its_shadow_rim_matcaps_and_emission() -> void:
 	check(single.get("shade") is Image and not single.has("shade2"), "without a second shade on any material the looks carry the first shade layer alone: %s" % [single.keys()])
 
 
-## lilToon's colour adjustment, 2nd main texture and alpha mask bake into the atlas in linear light: a normal decal
-## clipped to where its tiling places it, a multiplied colour, each alpha mask mode before the material blends, the mask
-## weighing what its shader samples (an sRGB import's byte decoded, so 170 covers 0.40; a linear import's as it is); a layer Multi compiles out or one drawn unlit is not laid, the unlit one reported.
+## An sRGB alpha mask's byte 170 decodes to 0.40 coverage; a linear import's is the byte.
 func _liltoon_layers_bake_into_the_atlas() -> void:
 	var grey := Color8(128, 128, 128)
 	const RAMP := [Color8(0, 0, 0), Color8(85, 0, 0), Color8(170, 0, 0), Color8(255, 0, 0)]
@@ -2484,9 +2410,6 @@ func _liltoon_layers_bake_into_the_atlas() -> void:
 	check(opaque[0].a == 1.0, "an opaque material takes no alpha mask")
 
 
-## lilToon's emission blend, matcap blends, main hue, main saturation and colour bind their looks, regions and channels;
-## the atlas holds the hue a clip turns unturned and the saturation it scales unscaled, its region masked by the colour adjustment mask's red; an emission blend binds only
-## while its emission alone is carried.
 func _liltoon_curves_bind_their_looks() -> void:
 	var assets := _liltoon_fixture("liltoon-curves", {
 		"suit": _liltoon_mat(LILTOON, [], {"_UseEmission": 1, "_EmissionBlend": 0.4, "_UseMatCap": 1, "_MatCapBlend": 0.7, "_UseMatCap2nd": 1, "_MatCap2ndBlend": 0.2}, {"_Color": Color(1, 0.5, 0.5, 1), "_MainTexHSVG": Color(0.25, 0.5, 1, 1)}, {"_MainTex": "red", "_MainColorAdjustMask": "half"}),
@@ -2535,9 +2458,7 @@ func _liltoon_curves_bind_their_looks() -> void:
 	sk.free()
 
 
-## A lilToon main texture whose colour's alpha a clip moves leaves the atlas for a decal slot (2nd 0, 3rd 1) at its
-## saved alpha and blend, out of the hue mask's sparing too; its alpha curve binds that slot, and a lilToon decal-alpha
-## curve, a Poiyomi property, binds none.
+## Decal slots: the 2nd is 0, the 3rd 1.
 func _liltoon_faded_layers_draw_as_decals() -> void:
 	var grey := Color8(128, 128, 128)
 	var assets := _liltoon_fixture("liltoon-faded", {
@@ -2607,9 +2528,7 @@ func _submeshes_take_slots_in_first_use_order() -> void:
 
 
 
-## Each surface of a model instance's renderer draws its own material: the renderer lists them in Unity's slot order,
-## the order its polygons first use them, which _slot_of pairs surfaces by. In the fixture models' first polygons use
-## another material than Godot's first surface does.
+## Unity's slot order is the order a renderer's polygons first use its materials, which _slot_of pairs surfaces by.
 func _a_model_surface_draws_its_own_material() -> void:
 	var dir := ProjectSettings.globalize_path("user://slot_order")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2641,9 +2560,6 @@ func _a_model_surface_draws_its_own_material() -> void:
 	(prefabs.models[fbx].scene as Node).free()
 
 
-## The descriptor's visemes and the FX layer's gesture faces become expressions: a face named for a mood takes that
-## preset once, a later one of the same mood and any other keeps its own name; a clip no gesture plays, and a shape a
-## face sets to zero, are no expression. Their shapes come first, visemes ahead of faces.
 func _gesture_faces_become_expressions() -> void:
 	var dir := ProjectSettings.globalize_path("user://faces")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2681,8 +2597,7 @@ func _gesture_faces_become_expressions() -> void:
 	check(face.shapes.slice(0, 15) == visemes and face.shapes.slice(15) == ["Mouth Up", "Eyes Closed", "Mouth Up"], "visemes first, then the faces' shapes: %s" % [face.shapes])
 	check(UnityAvatar._face(Prefabs.new(Assets.new(dir)), {}, {"lipSync": "1", "VisemeBlendShapes": visemes}).expressions.is_empty(), "visemes count only where it lip-syncs by blend shape")
 
-## Renderers merged into one mesh keep one shape for a name only where Unity weighs it alike in each: one renderer's saved
-## weight or clip never moves another's. A shape alone in its mesh under its source's name keeps that name.
+
 func _a_shape_name_keeps_each_renderers_weight() -> void:
 	var dir := ProjectSettings.globalize_path("user://shapes")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -2758,8 +2673,6 @@ func _a_shape_name_keeps_each_renderers_weight() -> void:
 	sk.free()
 
 
-## A VRCFury Armature Link onto a humanoid bone applies when the avatar's armature is unpacked into the scene, its
-## objects no longer the model's: the bone is the one the model's renderer skins to. A link with no target is reported.
 func _an_unpacked_armature_still_takes_a_link() -> void:
 	var objs := {}
 	for spec: Array in [[10, "Avatar", 0, Vector3.ZERO], [11, "Armature", 10, Vector3.ZERO], [12, "Hips", 11, Vector3(0, 1, 0)], [20, "Part", 10, Vector3(0, 0.9, 0.2)], [21, "Bone", 20, Vector3(0, 0.1, 0)], [30, "Hips", 10, Vector3(0, 2, 0)]]:
@@ -2777,9 +2690,6 @@ func _an_unpacked_armature_still_takes_a_link() -> void:
 	check(str(report.get("armature links with no target in the avatar", "")).contains("121"), "a link whose bone the avatar lacks is reported: %s" % [report])
 
 
-## A clip's Euler rotation and position curves on a non-humanoid bone, and a PhysBone's enabled flag, become targets:
-## rotation in Unity's own degrees with the transform's authored angles as its rest, position as an offset along the
-## bone's mirrored axis, the PhysBone's flag as a switch.
 func _transform_and_physbone_curves_bind() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
@@ -2824,8 +2734,7 @@ func _transform_and_physbone_curves_bind() -> void:
 	sk.free()
 
 
-## The synthetic clip reads into the keys Unity 2022.3 itself reports for it (tests/unity/unity-curves.json, written by
-## tests/unity/Sample.cs).
+## tests/unity/Sample.cs wrote tests/unity/unity-curves.json from the keys Unity 2022.3 reports.
 func _curves_keep_their_unity_tangents() -> void:
 	var unity: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://../tests/unity/unity-curves.json"))
 	var objects := Yaml.objects(FileAccess.get_file_as_string("res://../tests/unity/curve-tangents.anim"))
@@ -2847,10 +2756,6 @@ func _curves_keep_their_unity_tangents() -> void:
 	check(UnityAvatar._scaled([[0.5, 100.0, 50.0, null, 0.2, 0.7]], 0.01) == [[0.5, 1.0, 0.5, null, 0.2, 0.7]], "a rescaled curve scales its slopes with its values and keeps its weights")
 
 
-## A VRCFury Toggle becomes what VRCFury builds at upload: a menu control at the toggle's path, its parameter, and a layer
-## whose on state holds the actions as a clip (an object turned on, a blend shape set), siblings of one exclusive tag
-## turned off on entry; a MoveMenuItem and SetIcon then apply. An object toggled on is the menu's switch, resting as
-## its toggle starts.
 func _vrcfury_toggles_join_the_menu() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "9"}}]}},
@@ -2899,8 +2804,6 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	check(switches.by_object.has(3) and switches.targets[switches.by_object[3]].default == 0.0, "the hat is the menu's switch, resting off as its toggle starts though the scene shows it")
 
 
-## An object a VRCFury Toggle turns on rests off, as its toggle starts; the constraints on it and under it still run
-## once the menu shows it, so they are written, and so are the bones they place and aim at.
 func _a_toggled_objects_constraints_and_their_bones_are_kept() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "9"}}]}},
@@ -2945,8 +2848,6 @@ func _a_toggled_objects_constraints_and_their_bones_are_kept() -> void:
 	sk.free()
 
 
-## A FullController's bindings are below its object when that path is there, otherwise from the avatar's root; a
-## rewrite renames a path's prefix and a delete drops it.
 func _vrcfury_full_controller_paths_resolve_from_their_object() -> void:
 	var paths := {"": 1, "Vane": 2, "Vane/Left": 3, "Body": 4}
 	check(VRCFury._resolve(paths, "Vane", "Left") == "Vane/Left", "a path below the controller's object resolves there")
@@ -2962,9 +2863,6 @@ func _vrcfury_full_controller_paths_resolve_from_their_object() -> void:
 	check(menu.size() == 1 and menu[0].controls.size() == 2 and (menu[0].controls[1].controls as Array).map(func(c: Dictionary) -> String: return c.name) == ["Glow", "Fold"], "menus under one prefix merge, submenus of one name join: %s" % [menu])
 
 
-## A Poiyomi UDIM discard tile the menu animates is a switch on its renderer, and a tile discarded at rest that nothing
-## changes is a switch that stays on; each vertex of a material that discards falls in the tile its UV names, counted
-## from Unity's V, drawn while its tile's switch is off.
 func _a_udim_discard_tile_is_a_switch() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
@@ -2994,8 +2892,7 @@ func _a_udim_discard_tile_is_a_switch() -> void:
 	check(UnityAvatar._udim_tiles(switches, 5, {"floats": {}}, mesh, 0, arrays, report).is_empty(), "a material that discards nothing splits nothing")
 
 
-## A 1D blend tree reads no second parameter, so a live one makes no radial effective: a radial whose own layer moves
-## nothing is cut even while another radial's tree moves something.
+## A 1D blend tree reads no second parameter, so another radial's live tree cannot keep this one.
 func _a_radial_moving_nothing_is_cut_beside_a_live_one() -> void:
 	var objs := {
 		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}]}},
@@ -3024,7 +2921,6 @@ func _a_radial_moving_nothing_is_cut_beside_a_live_one() -> void:
 	check((data.menu as Array).map(func(c: Dictionary) -> String: return c.name) == ["Live"], "only the radial that moves something stays: %s" % [data.menu])
 
 
-## A FullController's parameter names change everywhere its layers and menu read or set them.
 func _a_full_controller_renames_its_layers_and_menu() -> void:
 	var renamed := func(n: String) -> String: return "VF3_" + n if n != "" and n != "IsLocal" else n
 	var layers := [{"entry": [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "if", "threshold": 0.0}]}], "any": [], "states": [
@@ -3037,9 +2933,7 @@ func _a_full_controller_renames_its_layers_and_menu() -> void:
 	check(state.transitions[0].conditions[0].parameter == "IsLocal", "VRChat's own parameter keeps its name")
 	check(menu[0].controls[0].parameter == "VF3_Hat" and menu[0].controls[1].axes == ["VF3_Size"], "the menu's controls take the new names: %s" % [menu])
 
-## A contact sits on its nearest bone as Unity places it, a capsule's ends its height less the caps apart along its Y;
-## a receiver keeps its type, parameter and parties, and waits on the switch its object hides behind. The descriptor's
-## colliders become the body's senders, a finger's running from its parent bone.
+
 func _contacts_keep_their_shape_tags_and_switch() -> void:
 	var sk := Skeleton3D.new()
 	for name: String in ["Chest", "Head", "Middle", "Tip"]:
@@ -3091,8 +2985,6 @@ func _contacts_keep_their_shape_tags_and_switch() -> void:
 	sk.free()
 
 
-## A clip curve on one of the controller's parameters binds a target writing that parameter, starting at its default,
-## its keys as Unity has them; one naming a parameter the controller lacks binds nothing.
 func _a_clip_animating_a_parameter_binds_it() -> void:
 	var targets := []
 	var parameters := {"Gauge": {"name": "Gauge", "type": "float", "default": 0.25}}
@@ -3121,8 +3013,6 @@ func _installed_packages_lend_only_missing_images() -> void:
 
 
 
-## A material naming a texture no package holds converts only with the project's packages named: there it is lent, or,
-## named and absent there too, reported; never silently drawn as its shader's default.
 func _a_texture_in_no_package_needs_the_packages_named() -> void:
 	var root := ProjectSettings.globalize_path("user://absent")
 	var avatar := root.path_join("avatar")
@@ -3148,7 +3038,7 @@ func _a_texture_in_no_package_needs_the_packages_named() -> void:
 		if scene != null:
 			scene.free()
 
-## A model's renderer rests at the percent its FBX saves for each blend shape, as Unity imports it.
+
 func _a_model_rests_at_its_saved_shape_percents() -> void:
 	var dir := ProjectSettings.globalize_path("user://shape_percents")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -3189,9 +3079,6 @@ func _a_model_rests_at_its_saved_shape_percents() -> void:
 	(prefabs.models[assets.of(["fbx"])[0]].scene as Node).free()
 
 
-## An edit sold without its base, a variant of the base's avatar prefab, imports with the base's package beside it,
-## its GUIDs resolved across both; alone it is refused, naming the base prefab's GUID it instances. Only a variant of a
-## lent package's avatar is one: a variant within one package is not a second avatar.
 func _an_edit_imports_with_its_base() -> void:
 	var root := ProjectSettings.globalize_path("user://edit")
 	var base := root.path_join("base")
@@ -3271,8 +3158,6 @@ PrefabInstance:
 	check(absent == {"ba5e": "Edit.prefab"}, "the edit alone names its base's absent GUID and the file instancing it: %s" % absent)
 
 
-## A ParticleSystem keeps the modules it runs, in the avatar's axes and at its transform's scale, its sub-emitter, its
-## renderer's materials with those a clip swaps in, and the clip curves that toggle, recolour and swap it.
 func _a_particle_system_keeps_its_modules_and_clips() -> void:
 	var dir := ProjectSettings.globalize_path("user://particles")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -3458,9 +3343,6 @@ ParticleSystem:
 	check(UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and UnityAvatar._particle_target(clips[0].curves[0], particles, targets) == 0 and targets[0].default == 0.0, "a curve's target is added once, at the saved value: %s" % [targets])
 
 
-## A Poiyomi clear coat joins its material's look with its levels, tints and maps (repacked to mask, smoothness,
-## reflection and specular), and a clip moving its maps' offset binds as that component of the look; a material
-## whose coat is off, or a property the shader does not declare, leaves the clip moving nothing, as in VRChat.
 func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	var dir := ProjectSettings.globalize_path("user://coat")
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -3542,6 +3424,7 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	check(maps.size() == 1 and maps[0] is Image, "the coat's maps travel as one image")
 	if maps.size() == 1:
 		var right: Color = (maps[0] as Image).get_pixel(1, 0)
+		# Repacked RGBA: mask, smoothness, reflection, specular.
 		check(right.r8 == 255 and right.g8 == 255 and right.b8 == 50 and right.a8 == 60 and (maps[0] as Image).get_pixel(0, 0).r8 == 0, "the maps are repacked with white where a level names no channel: %s" % [right])
 	materials.use({"guid": "glaze"}, Color.WHITE)
 	materials.pack(["wet", "dry", "glaze"])
@@ -3557,10 +3440,7 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	sk.free()
 
 
-## A clear coat carries the cubemap Poiyomi reflects where the world has no reflection probe: an installed shader
-## package's high dynamic range panorama, as seven levels each blurred as Unity's specular convolution blurs its mips,
-## each in RGBM keeping light far past white, with whether its light lights it and whether it is always reflected; a
-## texture that is no 2:1 panorama is reported and reflects Unity's grey default, as does a coat naming none.
+## Each level is RGBM, blurred as Unity's specular convolution blurs its mips.
 func _a_clear_coat_carries_its_fallback_cubemap() -> void:
 	var dir := ProjectSettings.globalize_path("user://coat_fallback")
 	var packages := ProjectSettings.globalize_path("user://coat_fallback_packages")
@@ -3603,8 +3483,7 @@ func _a_clear_coat_carries_its_fallback_cubemap() -> void:
 		check(light.call(160, 6 * 128 + 63) > 0.5 * spread[6] and light.call(160, 2 * 128 + 63) < 0.01 * spread[2], "the roughest reaches a texel 45 degrees aside that the third does not: %s, %s" % [light.call(160, 6 * 128 + 63), light.call(160, 2 * 128 + 63)])
 
 
-## The converter reads a coat's maps through UV0 and UV1 from Godot's two UV arrays and UV2 and UV3 from its first
-## custom array, where Godot's model importer leaves a model's third and fourth.
+## Godot's importer leaves a model's UV2 and UV3 in CUSTOM0: UV2 its RG, UV3 its BA.
 func _clear_coat_maps_read_their_uv_channel() -> void:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

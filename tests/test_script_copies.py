@@ -12,7 +12,7 @@ def read(path):
 
 
 class ScriptCopies(unittest.TestCase):
-    # The shell scripts and a printed command keep their own copy of a game value; this holds each to its source.
+    # Shell scripts and a printed command keep their own copy of a game value; each is held to its source.
 
     def test_host_ports_follow_session(self):
         [port], [ports], [port_range] = (script_const('session.gd', n) for n in ('PORT', 'PORTS', 'PORT_RANGE'))

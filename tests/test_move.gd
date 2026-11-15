@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of moving and copying builds: a grip carries and turns a wall, a fence, a house and a tower, each one
-## reshape that takes its fittings and ivy along and one undo puts back; a tap of the colour tool takes one build's look
-## and a tap on another lays it there as far as that build takes it, one undo step; `demo/move.json` and the stress
-## scene's `move/*` phase do both: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_move.gd
-
 var world: World
 var tool: WallTool
 var palette: PaletteTool
@@ -46,7 +41,6 @@ func _wall(i: int) -> Wall:
 	return tool.walls[i]
 
 
-## Carries build `w` as a grip does, its hand moved `move` along the ground and turned `degrees`, and lets it go.
 func _carry(w: Wall, move: Vector3, degrees: float) -> void:
 	tool.take_build(w)
 	var start: Dictionary = tool.held_at.duplicate()
@@ -57,7 +51,7 @@ func _carry(w: Wall, move: Vector3, degrees: float) -> void:
 	await laid()
 
 
-## Where `p` stands once carried by `move` and turned `degrees` about `middle`, across the ground.
+## (x, z).
 static func _moved(p: Vector3, middle: Vector3, move: Vector3, degrees: float) -> Vector2:
 	var q := middle + move + Basis(Vector3.UP, deg_to_rad(degrees)) * Vector3(p.x - middle.x, 0.0, p.z - middle.z)
 	return Vector2(q.x, q.z)
@@ -72,12 +66,11 @@ static func _all_moved(was: PackedVector3Array, now: PackedVector3Array, middle:
 	return true
 
 
-## Where ivy roots and climbs along a wall's faces, which the ground under it does not change.
+## (s, side) per leaf.
 static func _ivy(w: Wall) -> Array:
 	return IvyLayout.grow(w.layout).map(func(l: Dictionary) -> Vector2: return Vector2(snappedf(l.s, 0.001), l.side))
 
 
-## Whether two growths of ivy have the same leaves on the same faces, each within 0.1 m along of the other.
 static func _alike(a: Array, b: Array) -> bool:
 	if a.size() != b.size():
 		return false
@@ -87,7 +80,6 @@ static func _alike(a: Array, b: Array) -> bool:
 	return true
 
 
-## The fields a carry keeps: everything but where the build stands.
 static func _kept(d: Dictionary) -> Dictionary:
 	var out := d.duplicate(true)
 	out.erase("points")
@@ -96,9 +88,6 @@ static func _kept(d: Dictionary) -> Dictionary:
 	return out
 
 
-## A grip carries a wall 6 m and turns it 90° about its middle: one reshape carries its line, its window, lantern and
-## flag keep their places along it, its ivy climbs as it did and stays grown; one undo puts it back, a redo carries it
-## again.
 func _a_wall_carries_its_fittings_and_ivy() -> void:
 	var w := _wall(0)
 	var was: Dictionary = world.state.walls[w.id].duplicate(true)
@@ -123,7 +112,6 @@ func _a_wall_carries_its_fittings_and_ivy() -> void:
 	check(world.state.walls[w.id].points == now.points, "a redo carries it again")
 
 
-## A fence carries and turns as a wall does, rails and all.
 func _a_fence_is_carried_and_turned() -> void:
 	var w := _wall(1)
 	var was: Dictionary = world.state.walls[w.id].duplicate(true)
@@ -137,9 +125,6 @@ func _a_fence_is_carried_and_turned() -> void:
 	check(world.state.walls[w.id].points == was.points, "one undo puts it back")
 
 
-## A grip carries a house 5 m and turns it 90°: its walls and roof go together, its window, lantern and chimney keep
-## their places on it, its ivy climbs as it did, steering round its window as the ground under it lets; one undo puts it
-## back.
 func _a_house_carries_its_roof_fittings_and_ivy() -> void:
 	var w := _wall(2)
 	var was: Dictionary = world.state.walls[w.id].duplicate(true)
@@ -157,7 +142,6 @@ func _a_house_carries_its_roof_fittings_and_ivy() -> void:
 	check(world.state.walls[w.id] == was, "one undo puts it back")
 
 
-## A round tower carries and turns about its middle, its cone with it.
 func _a_tower_turns_about_its_middle() -> void:
 	var w := _wall(3)
 	var was: Dictionary = world.state.walls[w.id].duplicate(true)
@@ -176,16 +160,12 @@ func _a_tower_turns_about_its_middle() -> void:
 	check(world.state.walls[w.id] == was, "one undo puts it back")
 
 
-## The look `look_of` reads, as a build has it.
 static func _look(d: Dictionary) -> Dictionary:
 	var look := PaletteTool.look_of(d)
 	look.erase("foundation")
 	return look
 
 
-## A tap of the colour tool's trigger on a house takes its paint, face, top, gable ends, floor and roof covering; a tap
-## on another house lays them all there, one reshape and one undo step, and leaves the first as it was. The look stays
-## in the hand for the next tap, a long press turns the wheel instead, and a tap on the meadow lets the look go.
 func _a_tap_copies_a_look() -> void:
 	var a := _wall(2)
 	var b := _wall(4)
@@ -232,9 +212,6 @@ func _a_tap_copies_a_look() -> void:
 	await laid()
 
 
-## A house's look laid on a wall gives it the house's paint and face, a roofless wall taking no covering; laid on a
-## fence it gives its paint alone, a fence keeping a fence's face; a fence's look laid on a house gives its paint and
-## leaves its face.
 func _a_look_goes_as_far_as_a_build_takes_it() -> void:
 	var house: Dictionary = world.state.walls[_wall(2).id]
 	var wall: Dictionary = world.state.walls[_wall(0).id]
@@ -252,10 +229,6 @@ func _a_look_goes_as_far_as_a_build_takes_it() -> void:
 	check(PaletteTool.look_onto(PaletteTool.look_of(house), house).is_empty(), "a build's own look lays nothing on it")
 
 
-## `demo/move.json` carries and turns a house, a wall and a tree and copies a look. The stress scene's `move/carry` phase
-## carries the largest house of its densest village a player can build, two storeys and a wing to each house, the
-## budget full, across the village and turns it round; played here, the garden takes the carry, its upper storey
-## going with it.
 func _the_demo_and_the_stress_scene_carry_and_copy() -> void:
 	var demo := Driver.read("res://../demo/move.json")
 	var ops := demo.map(func(s: Dictionary) -> String: return s.op)

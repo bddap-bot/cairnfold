@@ -1,8 +1,6 @@
 extends "res://../tests/support/booted.gd"
 
-## A figures step given a file that does not read, as one past the device's limits does not, stands built-in avatars in its place, as its player would show, where a
-## release build once instantiated the null scene the read gave and crashed (cairnfold#192):
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_figures_refused.gd
+## A file that does not read stands in for one past the device's limits: both reach the step as a null read.
 
 
 func _run() -> void:

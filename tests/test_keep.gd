@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of keeping the garden: autosaved after edits, loaded whole, and unreadable files
-## reported: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_keep.gd
-
 var world: World
 var dir := ""
 
@@ -66,7 +63,7 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
 
 
-## Keeping copies the whole garden in its frame, so edits within World.KEEP_EVERY of the last keep wait to be kept together.
+## A keep copies the whole garden in its frame, so edits within World.KEEP_EVERY of the last keep are kept together.
 func _a_burst_of_edits_is_kept_together() -> void:
 	var path := dir.path_join("garden.save")
 	await flushed()
@@ -82,7 +79,7 @@ func _a_burst_of_edits_is_kept_together() -> void:
 	check(FileAccess.get_file_as_bytes(path) == var_to_bytes(world.snapshot()), "but together, once the burst has waited its turn")
 
 
-## Waits for a save already being written, without writing one still due.
+## Waits on a save in flight; never writes one still due.
 func _landed() -> void:
 	if world._keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(world._keep_task)

@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A colour, a tone, an HSV saturation, a decal, a decal hue and a darkening, lightening and screening decal target each change what the expression fixture's hat looks like, as their
-## material properties would in VRChat. Needs a renderer, so scripts/test.sh runs it on the desktop one:
-## godot4 --path game --xr-mode off --script ../tests/gpu_expressions.gd [-- OUT_DIR]
+## Needs a renderer, so scripts/test.sh runs it on the desktop one; `-- OUT_DIR` saves each shot there.
 
 const SIZE := 128
 
@@ -58,8 +56,7 @@ func _run() -> void:
 	finish()
 
 
-## The mean colour at the middle of the view, the hat's place, with Hat at `hat` and only `parameter` (and `also`) of the
-## drives up.
+## The mean colour mid-view, where the hat is.
 func _shot(view: SubViewport, player: ExpressionPlayer, hat: int, parameter: String, out: String, also := "") -> Color:
 	player.state.put("Hat", hat)
 	for p: String in ["Colour", "Tone", "Saturation", "Decal", "DecalHue", "Darken", "Lighten", "Screen"]:

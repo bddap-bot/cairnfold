@@ -37,7 +37,6 @@ class Records(unittest.TestCase):
     def records(self, *args):
         return subprocess.run([self.repo / 'scripts/records.sh', *args], cwd=self.repo, capture_output=True, text=True)
 
-    # The job's branch: a change benched on its working commit, then the record committed after it.
     def bench(self, commit=True):
         self.git('checkout', '-q', '-b', 'job', 'main')
         self.write('game/world.gd', 'cheaper\n')
@@ -47,7 +46,6 @@ class Records(unittest.TestCase):
             self.commit('record')
         return built
 
-    # Main moves under the job with a commit touching PATH, and the job rebases onto it.
     def rebase_onto(self, path):
         self.git('checkout', '-q', 'main')
         self.write(path, 'moved\n')
@@ -80,7 +78,7 @@ class Records(unittest.TestCase):
         self.rebase_onto('game/plants.gd')
         self.assertEqual(self.records().returncode, 0)
 
-    # botq land stacks other landings with the record's and checks the top: theirs are not the record's change.
+    # botq land checks a stack's top, and the other landings in it are not the record's change.
     def test_record_of_a_main_build_passes_stacked_with_other_game_landings(self):
         built = self.git('rev-parse', 'main')
         self.git('checkout', '-q', '-b', 'job', 'main')

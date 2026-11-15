@@ -1,12 +1,10 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of ponds: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_water.gd
-
 const SIDE := 21
 const WINDOW := Rect2i(0, 0, SIDE, SIDE)
 const RADIUS := 2.8
 const AROUND := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
-## Just past the edge of a hollow pressed a metre deep, which widens to GroundGrab.SPREAD metres.
+## Just past the edge of a hollow pressed a metre deep, which widens to GroundGrab.SPREAD m.
 const RIM := GroundGrab.SPREAD + 0.2
 
 
@@ -38,7 +36,6 @@ func _grid(height: Callable) -> PackedFloat32Array:
 	return g
 
 
-## Rises `slope` per point out to a rim `rim` high at radius `r` around (cx, cz), then falls gently away.
 static func _bowl(i: int, j: int, cx := 10, cz := 10, slope := 0.3, r := 5.0) -> float:
 	var d := Vector2(i - cx, j - cz).length()
 	return d * slope if d < r else r * slope - (d - r) * 0.02
@@ -132,8 +129,6 @@ func _shore_is_the_dry_ring_around_the_water() -> void:
 				return
 
 
-## `World` fills a pond again only after an edit to the ground it read: raising or lowering everything beyond that
-## leaves the same pond.
 func _ground_beyond_what_a_fill_read_leaves_it_be() -> void:
 	var leaky := func(i: int, j: int) -> float:
 		var b := minf(_bowl(i, j, 7, 10), _bowl(i, j, 13, 10) - 0.2)
@@ -159,7 +154,6 @@ func _beyond_leaves_it_be(g: PackedFloat32Array, cap: float) -> void:
 		check(q != null and q.level == p.level and q.cells == p.cells and q.shore == p.shore, "ground %+.0f m beyond %s leaves the pond at %.1f be" % [lift, p.ground, cap])
 
 
-## What `near` is, right or wrong, the pond comes out the same.
 func _a_level_it_is_near_changes_nothing() -> void:
 	var two := func(i: int, j: int) -> float: return minf(_bowl(i, j, 7, 10), _bowl(i, j, 13, 10) - 0.2)
 	var leaky := func(i: int, j: int) -> float:
@@ -190,8 +184,6 @@ func _shallow_basin_holds_no_pond() -> void:
 	check(PondLayout.fill(_grid(enough), WINDOW, Vector2i(10, 10)) != null, "a slightly deeper one does")
 
 
-## Filling the meadow's whole bowl, and a dig inside it, are worked out on another thread before they apply; what
-## comes after waits its turn, and what they leave is what working them out on the spot leaves.
 func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	var world := World.new()
 	world.terrain.install()
@@ -235,7 +227,6 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	check(world.state.ponds.is_empty() and water.ponds.is_empty() and world.terrain.depth_at(0, -20) == Terrain.DRY, "undoing both drains it")
 
 
-## Whether the water `world` shows is what filling its ponds over the ground as it stands, on the spot, shows.
 func _same_as_on_the_spot(world: World, what: String) -> void:
 	var r := Refill.make(world.state.ponds.duplicate(), {}, {}, Rect2i(), world.terrain.read(Terrain.ALL))
 	var dry := PackedFloat32Array()
@@ -248,8 +239,7 @@ func _same_as_on_the_spot(world: World, what: String) -> void:
 	check(r.levels == world.terrain.water_levels() and r.image.get_data() == world.terrain._water_image.get_data(), "%s shows the levels and depths working it out on the spot shows" % what)
 
 
-## Two hollows side by side, a bank one grid point wide between them: every grid square from one to the other is a
-## pond's, so only the bank's dry ground between tells a way out of the first that it has left the water.
+## Across a one-point bank every grid square is a pond's: only the bank's dry ground marks leaving the first.
 func _a_way_over_a_bank_into_the_next_pond_goes_into_water() -> void:
 	var world := World.new()
 	world.terrain.install()
@@ -287,8 +277,7 @@ func _a_way_over_a_bank_into_the_next_pond_goes_into_water() -> void:
 	check(water.crosses(a, b) and not water.crosses(a, a + Vector2(0, 1)), "a way out of one pond over the bank goes into the next, one within the pond it starts in into none")
 
 
-## Ground dug further down than NO_WATER once read as under water, so a wall over it stood at that level and laid
-## footings hundreds of metres down to it.
+## NO_WATER is a sentinel level: ground dug below it must still read dry.
 func _ground_dug_deep_stays_dry() -> void:
 	var terrain := Terrain.new()
 	var cells := Terrain.cells_around(40.0, 40.0, 6.0)
@@ -303,7 +292,6 @@ func _ground_dug_deep_stays_dry() -> void:
 	check(held_water.call(40.0, 40.0) < terrain.shown_at(40.0, 40.0) and held_water.call(40.0, 40.0) < held_height.call(40.0, 40.0), "nor while a stroke digs it further")
 
 
-## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
 func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
 	terrain.begin(terrain.rig.right, terrain.world.terrain.ground(x, z), RADIUS)
 	terrain.pull(terrain.rig.right, -depth)
@@ -312,7 +300,6 @@ func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
 	await process_frame
 
 
-## Points the tool's first hand at `at` until its preview has caught up.
 func _preview(tool: WaterTool, at: Vector3) -> void:
 	tool._show(0, at)
 	while tool._tasks[0] >= 0:
@@ -320,7 +307,6 @@ func _preview(tool: WaterTool, at: Vector3) -> void:
 		tool._show(0, at)
 
 
-## The ground back as it first lay around x, z, as one ground edit.
 func _fill_in(world: World, x: float, z: float) -> void:
 	var cells := Terrain.cells_around(x, z, RADIUS * 3.0)
 	var base := Terrain.base_heights()
@@ -333,7 +319,6 @@ func _fill_in(world: World, x: float, z: float) -> void:
 	await process_frame
 
 
-## Only a head under the surface turns the view and the mix underwater, and coming up undoes every part of it.
 func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
 	var holder := Node.new()
 	root.add_child(holder)

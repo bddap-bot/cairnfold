@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the rooms the sun reaches only through openings (Interior): godot4 --headless --path game
-## --script ../tests/test_interior.gd
-
 
 func _init() -> void:
 	_a_house_packs_its_shape_and_openings()
@@ -20,7 +17,7 @@ func _cell(packed: Dictionary, x: float, z: float) -> int:
 	return int(packed.field[(c.y * Interior.SIZE + c.x) * 4 + 3])
 
 
-## How far inside the room's walls' centre line the field puts (x, z).
+## Field channel 0: the distance inside the walls' centre line.
 func _inside(packed: Dictionary, x: float, z: float) -> float:
 	var c := Interior._texel_of(Vector2(x, z))
 	return packed.field[(c.y * Interior.SIZE + c.x) * 4]
@@ -31,7 +28,7 @@ func _texel(packed: Dictionary, row: int, texel: int) -> Vector4:
 	return Vector4(packed.data[at], packed.data[at + 1], packed.data[at + 2], packed.data[at + 3])
 
 
-## Toward a sun high over the archway's side: its light can come in through the archway, never the window.
+## A sun high over the archway's side: its light enters by the archway, never the window.
 const OVER_ARCH := Vector3(0.0, 0.8, -0.6)
 
 
@@ -52,7 +49,7 @@ func _a_house_packs_its_shape_and_openings() -> void:
 	check(Interior.pack(Lamps.Rooms.new([lit_house()]), Vector3.UP).data[Interior.WIDTH * 4] == 0.0, "a sun straight overhead comes through no opening")
 
 
-## The archway's edge distance for `p` as interior.gdshaderinc reckons it, negative inside its outline.
+## The archway edge distance as interior.gdshaderinc reckons it, negative inside its outline.
 func _lit(packed: Dictionary, p: Vector3) -> float:
 	var across := _texel(packed, 1, 1)
 	var up := _texel(packed, 1, 2)
@@ -133,7 +130,7 @@ func _mark(packed: Dictionary, p: Vector2) -> float:
 	return a - floorf(a)
 
 
-## A village's field takes the Frame 12 to 17 ms, so it packs on a worker.
+## A village's field takes the Frame 12 to 17 ms, hence the worker.
 func _changes_coalesce_into_one_pack() -> void:
 	var interior := Interior.new()
 	check(not interior._next().is_valid(), "nothing to pack before any room")

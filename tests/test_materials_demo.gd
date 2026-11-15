@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks that demo/paths.json lays every path surface, stepping stones across its pond and beds of
-## vegetables, and that the stress scene's materials/* phases look over the meadow's paths in cobbles and full beds:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_materials_demo.gd
-
 
 func _run() -> void:
 	boot_main()
@@ -14,12 +10,10 @@ func _run() -> void:
 	finish()
 
 
-## What `path` lays on the ground and water as they stand now.
 func _pieces(path: PathLayout, kind: String) -> Array:
 	return path.pieces(main.world.terrain.height_at, main.world.terrain.water_at).filter(func(p: Dictionary) -> bool: return p.kind == kind)
 
 
-## Whether every plant of every bed among `paths` stands: none of its spots dropped for water.
 func _beds_full(paths: Array[PathLayout]) -> bool:
 	var beds := paths.filter(func(p: PathLayout) -> bool: return p.surface == PathLayout.Surface.BED)
 	return not beds.is_empty() and beds.all(func(p: PathLayout) -> bool: return not p.crop_spots().any(func(spot: Dictionary) -> bool: return main.world.terrain.water_at(spot.at.x, spot.at.z) > main.world.terrain.height_at(spot.at.x, spot.at.z) + PathLayout.WET))
@@ -56,8 +50,6 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The materials/* phases follow the last wipe, over a garden the build budget admits: the meadow's paths in cobbles,
-## stepping stones and full beds.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := aerial_at(steps, "materials")

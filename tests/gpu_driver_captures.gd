@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A demo script's captures are what they are named: a view of something absent fails the script before it captures
-## again, and a digest makes its folder as a capture does. A headless capture never draws, so scripts/test.sh runs this on the
-## desktop renderer.
+## A headless capture never draws, so scripts/test.sh runs this on the desktop renderer.
 
 
 func _run() -> void:

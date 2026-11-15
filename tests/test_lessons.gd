@@ -1,14 +1,10 @@
 extends "res://../tests/support/booted.gd"
 
-## Each picture-book page's script (Lessons.PAGES), played through the real hands into a garden, does what its
-## picture shows, and every action it presses is still a control: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_lessons.gd
-
-## The left hand holding the book open to read, in head space.
+## In head space.
 var held_book := Lessons.frame({"at": Vector3(-0.06, -0.3, -0.34), "aim": Vector3(0.15, -0.55, -1.0).normalized(), "roll": 0.0})
 
 var trackers: Array[XRControllerTracker] = []
 var effects := {}
-## Pages play through bare hands (`Lessons.bare`), not by controller.
 var bare := false
 
 
@@ -40,8 +36,6 @@ func _run() -> void:
 	finish()
 
 
-## Every action a page presses is in the controls table for that hand, every tool it names is a tool, and every
-## effect has a check here: a control renamed or moved fails until its page is redrawn.
 func _every_press_is_a_control() -> void:
 	for page in Lessons.PAGES:
 		for p in page.press:
@@ -52,7 +46,6 @@ func _every_press_is_a_control() -> void:
 		check(has_method("_check_" + page.effect), "page %s has a check" % page.effect)
 
 
-## Back where a player spawns, the garden bare, the hands holding what they start with.
 func _fresh() -> void:
 	Buttons.injected.clear()
 	Hand.injected_sticks.clear()
@@ -69,8 +62,7 @@ func _fresh() -> void:
 	await frames(20)
 
 
-## Plays `page` through the real hands: each frame poses them where the page does, in the head's frame as it stood
-## when the page began, and holds the actions it holds there.
+## Poses in the head's frame as it stood when the page began.
 func _replay(page: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	for side in page.get("tools", {}):
@@ -108,7 +100,7 @@ func _replay(page: Dictionary) -> void:
 		for side in Lessons.hands(page):
 			Hand.injected_joints[side + "_hand"] = HandShape.make(_hand(side).global_transform, side == "left", "")
 		await process_frame
-		# Handed back, a hand takes its controller's pose at once: the test's controller is where the hand was.
+		# Handed back, a hand takes its controller's pose at once, so the test's controller goes where the hand was.
 		for i in trackers.size():
 			var h: Hand = main.rig.hands[i]
 			trackers[i].set_pose("aim", h.transform, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
@@ -132,7 +124,6 @@ func _hand(side: String) -> Hand:
 	return main.rig.left if side == "left" else main.rig.right
 
 
-## What a page's check compares against, read before it plays.
 func _read(page: Dictionary) -> Dictionary:
 	var rig: Rig = main.rig
 	var f := rig.head.global_transform * Lessons.frame(Lessons.pose(page, "right", 0.0)) if "right" in Lessons.hands(page) else Transform3D.IDENTITY
@@ -195,7 +186,6 @@ func _check_wipe(_page: Dictionary, before: Dictionary) -> void:
 	check(main.tool.walls.is_empty() and main.flora_tool.flora.placed("tree").is_empty(), "the delete trigger held at the sky for its whole hold wipes the garden")
 
 
-## A hand passing a shut book's pages turns nothing; touching its cover opens it.
 func _shut_book_turns_nothing() -> void:
 	await _fresh()
 	var book: Book = main.book
@@ -222,8 +212,6 @@ func _shut_book_turns_nothing() -> void:
 	check(book.visible and book.at == 1, "the wheel's book brings it back where it was left")
 
 
-## Either hand's sweep turns by its direction wherever it starts on the spread, one leaf a sweep: the stroke back
-## from a turn, the hand still on the pages, leaves it turned. Back from the first page shuts the book.
 func _sweeps_turn_one_leaf_each_way() -> void:
 	var book: Book = main.book
 	var rig: Rig = main.rig
@@ -241,8 +229,7 @@ func _sweeps_turn_one_leaf_each_way() -> void:
 	check(book.at == 0, "a rightward sweep on the first page shuts the book: leaf %d" % book.at)
 
 
-## Moves the right hand through `xy` in the open book's frame (x across the spread, y off the page), half a second a
-## leg, then lets the turn finish.
+## `xy` in the open book's frame, x across the spread and y off the page; half a second a leg.
 func _sweep(xy: Array) -> void:
 	var rig: Rig = main.rig
 	for i in xy.size() - 1:

@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## The metrics file: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_metrics.gd
-
 
 func _initialize() -> void:
 	_frame_mean()
@@ -23,8 +21,7 @@ func _read(path: String) -> Variant:
 	return JSON.parse_string(FileAccess.get_file_as_string(path))
 
 
-## A frame of `ms` for `m`, on a clock that moves only by the frames given, so a host that preempts the test between
-## frames lengthens none of them.
+## A clock moved only by the frames given, so a host preempting the test between frames lengthens none.
 static func _frames(m: Metrics) -> Callable:
 	var now := [m._last_tick]
 	m.clock = func() -> int: return now[0]
@@ -76,8 +73,7 @@ func _eye_frusta_swing_is_the_widest_edge_change() -> void:
 	check(Metrics.spread(a, a) == 0.0, "frusta that hold still swing 0")
 
 
-## A Quest 3 began the session at the shell's 90 Hz and ran it at 72: every second then read 90 Hz with 72 frames,
-## and an 18 ms frame, on time at 72 Hz, counted late against 90 Hz's 16.7 ms line.
+## 18 ms is on time at 72 Hz but late against the 16.7 ms line of the 90 Hz the session began at.
 func _late_and_refresh_follow_the_runtime_rate() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-refresh-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 90.0}
@@ -110,7 +106,6 @@ func _frames_tally_by_activity() -> void:
 	check(row.moving.hist["27"] == 1, "the histogram survives JSON")
 
 
-## The Frame's bench read a landing's one moving frame, 15 ms, as the worst of its second, which held a 21 ms frame.
 func _a_landing_keeps_every_frame_of_its_window() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-landing-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
@@ -179,7 +174,6 @@ func _head_motion_is_moving() -> void:
 	m.free()
 
 
-## A wipe held a Quest 3's frame for 437 ms in a played session whose record could not say what had run.
 func _a_stall_names_what_ran_in_it() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-stall-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
@@ -205,7 +199,6 @@ func _a_stall_names_what_ran_in_it() -> void:
 	m.free()
 
 
-## Headset-off spans read as frames of a minute and more in a played session's worst frames.
 func _a_pause_is_no_frame() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-pause-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
@@ -229,7 +222,6 @@ func _frame_mean() -> void:
 	metrics.free()
 
 
-## Each second's row holds every frame's main-thread time by phase, and the main thread's work leaves the wait out.
 func _each_frame_splits_the_main_thread() -> void:
 	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-split-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}

@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks that a stone house is one masonry from its foundation through its walls to its gables:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_stone_house.gd
-
 
 func _init() -> void:
 	_the_foundation_is_the_walls_own_courses()
@@ -56,8 +53,6 @@ func _the_foundation_is_the_walls_own_courses() -> void:
 	check(absf(_luma(foundation) / _luma(wall) - 1.0) < 0.04, "the foundation's stone is the wall's colour: %.3f against %.3f" % [_luma(foundation), _luma(wall)])
 
 
-## Stones darken toward the ground they stand on, so a raised house's foundation, standing in the open, is shaded as
-## the wall over it would be at that height, not as stone under the floor.
 func _stones_shade_by_their_height_over_the_ground() -> void:
 	var low := _house(0.0)
 	var raised := _house(1.2)

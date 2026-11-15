@@ -1,7 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-## Every subtree's icon in `tree` draws its items as their own icons draw them, so none shows what its menu lacks.
 func _check_icons(tree: Array, people: SessionWheel) -> void:
 	for item in tree:
 		if item is Array:
@@ -27,7 +26,6 @@ func _meshes(model: Node) -> Array:
 	return model.find_children("*", "MeshInstance3D", true, false).map(func(m: MeshInstance3D) -> Array: return [m.mesh.get_class(), m.mesh.get_aabb()])
 
 
-## Holds the wheel button and sweeps `hand` to the people leaf `leaf`, where its dial opens.
 func _open(hand: Hand, button: String, leaf: String) -> void:
 	Buttons.injected[button] = true
 	await frames(2)
@@ -38,7 +36,6 @@ func _open(hand: Hand, button: String, leaf: String) -> void:
 	Hand.injected_reach.erase(hand.tracker)
 
 
-## Twists `hand` about its pointing axis by `steps` of its dial.
 func _twist(hand: Hand, steps: int) -> void:
 	var from := hand.global_basis
 	for f in 6:
@@ -136,8 +133,6 @@ func _run() -> void:
 	finish()
 
 
-## Each .vrm in the folder that reads is a choice of its own; the newest to arrive is worn, and the worn one removed, the
-## built-in avatar is.
 func _every_file_in_the_folder_is_on_the_wheel(session: Session, hand: Hand) -> void:
 	var source := avatar_file()
 	var vrms := Array(DirAccess.get_files_at(source)).filter(func(f: String) -> bool: return f.get_extension() == "vrm")

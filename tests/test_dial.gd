@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the dial every twisted choice turns on, styles, colours, avatars and gardens alike:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_dial.gd
-
 
 func _initialize() -> void:
 	_twisting_wraps_round_the_dial()

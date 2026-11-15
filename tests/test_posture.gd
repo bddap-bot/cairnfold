@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of Posture and of avatars lying and sitting: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_posture.gd
-
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]
 
 
@@ -31,7 +29,7 @@ func _index(name: String) -> int:
 	return Posture.poses.find_custom(func(p: Dictionary) -> bool: return p.name == name)
 
 
-## A recorded pose's tracked points, turned `yaw` and stood at `at` (its floor there).
+## `at` is where the pose's floor stands.
 func _tracked(k: int, yaw: float, at: Vector3) -> Array[Transform3D]:
 	var p: Dictionary = Posture.poses[k]
 	var frame := Transform3D(Basis(Vector3.UP, yaw), at)
@@ -39,7 +37,6 @@ func _tracked(k: int, yaw: float, at: Vector3) -> Array[Transform3D]:
 	return [frame * eyes, frame * Transform3D(eyes.basis, p.hands[0]), frame * Transform3D(eyes.basis, p.hands[1])]
 
 
-## A support at `floor`, with a ledge `seat` high around `ledge` (half a metre on a side) when it is given.
 func _support(floor: float, ledge := Vector3.INF, seat := 0.0) -> Callable:
 	return func(p: Vector3) -> float:
 		if ledge != Vector3.INF and absf(p.x - ledge.x) < 0.5 and absf(p.z - ledge.z) < 0.5:
@@ -47,7 +44,6 @@ func _support(floor: float, ledge := Vector3.INF, seat := 0.0) -> Callable:
 		return floor
 
 
-## Every recorded pose, held by a player at any heading and over ground at any height, reads as that pose.
 func _each_recorded_pose_reads_as_itself() -> void:
 	for k in range(1, Posture.poses.size()):
 		var p: Dictionary = Posture.poses[k]
@@ -62,8 +58,7 @@ func _each_recorded_pose_reads_as_itself() -> void:
 				check(got == k, "%s at heading %.1f over ground %.1f reads as itself (%s)" % [p.name, yaw, floor, Posture.poses[got].name])
 
 
-## A head held upright from STAND_LOW up stands, whatever it looks at and wherever the hands are: a crouch or a kneel
-## is not told from sitting by three trackers, so it keeps the standing body.
+## Three trackers cannot tell a crouch or kneel from sitting, so those keep the standing body.
 func _standing_takes_upright_heads() -> void:
 	var flat := _support(2.0)
 	var level := Transform3D(Basis.IDENTITY, Vector3(0, 2.0 + Rig.EYE, 0))
@@ -80,7 +75,6 @@ func _standing_takes_upright_heads() -> void:
 	check(Posture.nearest(Posture.reading(t[0], t[1].origin, t[2].origin, flat), sitting) == sitting, "a sitter stays sitting")
 
 
-## The same seated head and hands sit on a ledge only where the support behind them drops ahead.
 func _a_ledge_needs_a_drop_ahead() -> void:
 	var ledge := _index("sitting on a ledge")
 	var t := _tracked(ledge, 0.0, Vector3.ZERO)
@@ -98,9 +92,7 @@ func _heading_turns_recorded_eyes_onto_tracked_ones() -> void:
 			check(absf(angle_difference(Posture.heading(k, eyes), yaw)) < 0.001, "%s's heading at %.1f is found again (%.3f)" % [Posture.poses[k].name, yaw, Posture.heading(k, eyes)])
 
 
-## A pose shows only once it has been nearest for DWELL, then blends in over BLEND, the weights always summing to one
-## (the tracked poses are read every READ_EVERY, so the wait is that much early or late);
-## a reading flickering between two poses changes nothing.
+## Poses are read every READ_EVERY, so the DWELL wait lands that much early or late.
 func _switches_wait_and_blend() -> void:
 	var p := Posture.new()
 	var back := _index("back")
@@ -130,7 +122,6 @@ func _switches_wait_and_blend() -> void:
 	check(absf(angle_difference(p.yaws[back], 0.5 + 1.5 - Posture.YAW_SLACK)) < 0.01, "turning it far turns the body after it, to within YAW_SLACK")
 
 
-## What is under a player is probed once while they hold still, every PROBE_EVERY, and again as soon as they move.
 func _a_still_player_is_probed_seldom() -> void:
 	var p := Posture.new()
 	var calls := [0]
@@ -147,8 +138,7 @@ func _a_still_player_is_probed_seldom() -> void:
 	check(calls[0] == 4, "moving past PROBE_MOVE probes again within a reading (%d calls)" % calls[0])
 
 
-## A body of any size, its player fitted to it, reads every pose as the recorded people's own: a short avatar standing
-## stands, though its eyes are lower than a seated adult's.
+## 0.85: a short avatar standing has its eyes lower than a seated adult's.
 func _a_body_reads_at_its_own_size() -> void:
 	for eye_height in [0.85, 1.2, 2.1]:
 		var size: float = eye_height / Rig.EYE
@@ -161,9 +151,7 @@ func _a_body_reads_at_its_own_size() -> void:
 			check(got == k, "%s held by a body with its eyes %.2f m up reads as itself (%s)" % [Posture.poses[k].name, eye_height, Posture.poses[got].name])
 
 
-## In every pose, and every frame of the blends into and out of it (Posture driven here at 60 Hz, as an avatar with a
-## support drives its own each frame), the eyes sit at the tracked head and the hands at
-## the controllers, the arms keep their length, and the body's bones turn as the recording's did.
+## Driven at 60 Hz, as an avatar with a support drives its own each frame.
 func _poses_keep_head_and_hands_tracked(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)
@@ -207,7 +195,7 @@ func _poses_keep_head_and_hands_tracked(scene: PackedScene, what: String) -> voi
 	a.free()
 
 
-## A figure, with no support under it, stands whatever its head does: the inventory wheel's figures never lie down.
+## The inventory wheel's figures must never lie down.
 func _a_figure_only_stands(scene: PackedScene, what: String) -> void:
 	var a := Avatar.open(scene, Color.WHITE)
 	root.add_child(a)

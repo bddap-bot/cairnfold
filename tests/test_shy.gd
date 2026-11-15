@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the animals that keep their distance: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_shy.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := GladeBase.STEP
 
@@ -50,7 +48,7 @@ func _the_nearest_is_nearest() -> void:
 	_rest_hands()
 
 
-## Holds a hand at `from` and walks it toward `at` at a calm pace, as a person stepping up, for `seconds`.
+## 0.45 m/s: a person stepping up calmly.
 func _approach(hand: Node3D, from: Vector3, at: Vector3, seconds: float, each := Callable()) -> void:
 	hand.global_position = from
 	g.wildlife.tick(STEP)
@@ -68,7 +66,6 @@ func _rest_hands() -> void:
 	g.wildlife._was.clear()
 
 
-## Frogs sit at the waterline, hop along it and swim; one walked up to hops in and plops under; at night they croak.
 func _frogs() -> void:
 	for start in 4:
 		var tried: Array = Frogs.around(start)
@@ -142,7 +139,6 @@ func _frogs() -> void:
 	g.run(STEP)
 
 
-## A grass snake slides through the grass by the pond and lies still between; walked up to, it slips off away.
 func _snakes() -> void:
 	var snakes := g.wildlife.snakes
 	g.run(Wildlife.ARRIVE_AFTER.y + 5.0)
@@ -170,7 +166,6 @@ func _snakes() -> void:
 	_rest_hands()
 
 
-## A squirrel comes down its tree, climbs about the trunk and forages under it; walked up to, it races up the trunk.
 func _squirrels() -> void:
 	var squirrels := g.wildlife.squirrels
 	g.run(Wildlife.ARRIVE_AFTER.y + 5.0)
@@ -213,7 +208,6 @@ func _squirrels() -> void:
 	g.run(STEP)
 
 
-## Owls come only at night, perch on the conures' perches and hoot; walked up to, one flies off; with the day they go.
 func _owls() -> void:
 	var owls := g.wildlife.owls
 	var wall := stroke_wall(g.walls, Vector3(0, 0, -9), Vector3(5, 0, -10))
@@ -270,7 +264,6 @@ func _owls() -> void:
 	check(owls.animals.is_empty(), "with the day they go")
 
 
-## What the four cost a frame on the CPU at their caps' worth of habitats here, and what each draws.
 func _cost() -> void:
 	look.set_time(0.0)
 	g.run(Owls.AFTER.y * 2.0)
@@ -287,7 +280,6 @@ func _cost() -> void:
 	g.run(120.0)
 
 
-## A pond filled in takes its frogs and snake; a tree taken away sends its squirrel off.
 func _they_go_with_their_habitats() -> void:
 	g.run(60.0)
 	check(not g.wildlife.frogs.animals.is_empty() and not g.wildlife.snakes.animals.is_empty() and not g.wildlife.squirrels.animals.is_empty(), "frogs, a snake and a squirrel")

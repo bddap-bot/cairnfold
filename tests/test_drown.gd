@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of trees and bushes a pond covers: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_drown.gd
-
 const AT := Vector2(3, -4)
 
 

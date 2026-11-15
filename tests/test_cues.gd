@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the action feedback table: every action resolves to an entry whose sound exists, every action
-## is played from the game and listed in the design document, and the voices stay pooled:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_cues.gd
-
 
 func _initialize() -> void:
 	_every_action_has_an_entry()
@@ -33,7 +29,6 @@ func _every_action_has_an_entry() -> void:
 		check(Cues.TABLE.values().any(func(c: Dictionary) -> bool: return c.get("sound", "") == kind), "%s is played by some action" % kind)
 
 
-## Each action is played somewhere in the game, and docs/design.md's "Action feedback" lists it with what it is given.
 func _every_action_is_played_and_listed() -> void:
 	var source := ""
 	for f in DirAccess.get_files_at("res://src"):

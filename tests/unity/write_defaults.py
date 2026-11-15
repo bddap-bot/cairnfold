@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """usage: write_defaults.py RECORDING... > write-defaults.json
 
-Reduces recordings of Avatar Workshop's reference harness playing its write-defaults fixture (AW_WD, AW_STEPS) to what
-each step set and what the properties its layers animate read on its last frame. A recording whose transitions take
-time is refused: its values hang on the frame rate.
+A recording whose transitions take time is refused: its values hang on the frame rate.
 """
 import csv
 import json

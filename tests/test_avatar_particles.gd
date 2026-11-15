@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of avatar particles (docs/particles.md): godot4 --headless --path game --script ../tests/test_avatar_particles.gd
-
 const STEP := 1.0 / 60.0
 
 
@@ -15,7 +13,6 @@ func _run() -> void:
 	finish()
 
 
-## A burst of four, each particle a birth sub-emitter's burst of three tinted by it; the sub-emitter draws nothing.
 static func file(blend := "alpha") -> Dictionary:
 	var constant := func(v: float) -> Dictionary: return {"min": [1.0], "max": [1.0], "scale": [v, v]}
 	return {"images": [], "meshes": [], "systems": [
@@ -32,7 +29,6 @@ static func read(f: Dictionary) -> Dictionary:
 	return ParticleDefinition.read(f)
 
 
-## A skeleton of one bone, "emitter", in the tree.
 func skeleton() -> Skeleton3D:
 	var sk := Skeleton3D.new()
 	sk.add_bone("emitter")
@@ -161,8 +157,6 @@ func _rate_and_distance_emit_as_the_emitter_runs() -> void:
 	sk.free()
 
 
-## A full system's dead particles give their slots to new ones, and one that does not loop emits nothing once its
-## duration has run, however its emitter moves.
 func _slots_and_the_end_of_a_system() -> void:
 	var f := file()
 	f.systems[0].loop = true
@@ -194,7 +188,6 @@ func _slots_and_the_end_of_a_system() -> void:
 	sk.free()
 
 
-## A converted avatar's particles survive a VRM export and import: the system's node by name and its texture.
 func _roundtrip() -> void:
 	var scene: PackedScene = preload("res://demo/expressions.gd").scene()
 	var model := scene.instantiate() as Node3D

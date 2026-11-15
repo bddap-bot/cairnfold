@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A ray meets a wall where it would were every stretch of it tested, whatever stretches the pick skips: along a hilly
-## wall, rising or falling, from beside it, behind it or inside it, through arches or not:
-## godot4 --headless --path game --script ../tests/test_wall_ray_skip.gd
-
 
 class EveryStretch extends Wall:
 	func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictionary:

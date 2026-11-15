@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A process killed while it writes leaves the garden it last finished saving and session chunks that each
-## open with their start record; a quit writes the garden and the end record before anything else:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_kill.gd
 ## Given `-- writer DIR` it is the process that gets killed, saving and logging into DIR until it is.
 
 const ROUNDS := 6
@@ -26,7 +23,7 @@ static func _garden(n: int) -> PackedByteArray:
 	return var_to_bytes({"n": n, "fill": fill})
 
 
-## The number of the garden saved at `path`, or -1 if it is not one whole garden.
+## -1 if it is not one whole garden.
 static func _read(path: String) -> int:
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
 	if not (snap is Dictionary and snap.get("fill") is PackedByteArray):

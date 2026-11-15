@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Spatial playback continually replaces the bus data copied by the mix thread. This also
-## runs under a debugger that suspends that copy while the main thread advances (issue #64).
+## Races spatial playback against the mix thread's bus copy, also under a debugger suspending the copy (issue #64).
+
 var voices: Array[AudioStreamPlayer3D] = []
 var frames := 0
 

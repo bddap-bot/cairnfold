@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the ground mask and stone ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ground.gd
-
 
 func _run() -> void:
 	_a_stroke_lays_stone_with_a_soft_edge()
@@ -15,7 +13,7 @@ func _run() -> void:
 	finish()
 
 
-## The stone tool in hand, its paths and plants, idle so a test drives it.
+## [tool, paths, world, flora], the tool idle so a test drives it.
 func _setup() -> Array:
 	var world := World.new()
 	world.marks.install()
@@ -41,7 +39,6 @@ func _teardown(nodes: Array) -> void:
 		n.queue_free()
 
 
-## Sweeps the brush of `hand` holding `held` from `a` to `b` over a second and lets go, as a trigger held does.
 func _stroke(t: FloraTool, hand: int, held: Hand.Tool, a: Vector2, b: Vector2, radius: float) -> void:
 	var brush := t.brushes[hand]
 	brush.hand.tool = held
@@ -65,8 +62,7 @@ func _a_stroke_lays_stone_with_a_soft_edge() -> void:
 	_teardown(nodes)
 
 
-## Every texel the ground shader may read stone from, a texel round each one holding any, lies in a tile Ground marks
-## for the full shader (Meadow), the stroke still being drawn as well as the garden's; a garden worn afresh marks none.
+## Meadow draws stone only on tiles Ground marks, and its shader reads a texel round each stony one.
 func _stone_shows_only_on_tiles_marked_for_it() -> void:
 	var nodes := _setup()
 	var marks: Ground = (nodes[2] as World).marks
@@ -178,7 +174,6 @@ func _lifting_a_path_keeps_the_stone_laid_after_it() -> void:
 	_teardown(nodes)
 
 
-## A mark that counts how often it is worn.
 class Counted:
 	extends Ground.Stroke
 	var worn := 0
@@ -188,8 +183,7 @@ class Counted:
 		super.wear(onto)
 
 
-## Lifting a mark, or laying one older than the newest, wears again only the marks meeting it, so its cost does not
-## grow with the garden's other paths and stone, and leaves the mask as wearing every mark again would.
+## Wears again only the marks meeting it, so the cost does not grow with the garden's other paths and stone.
 func _lifting_or_slotting_a_mark_wears_only_what_it_met() -> void:
 	var marks := Ground.new()
 	var far := Counted.new(Ground.Kind.STONE)

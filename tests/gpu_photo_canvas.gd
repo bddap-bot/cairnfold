@@ -1,9 +1,6 @@
 extends "res://../tests/support/booted.gd"
 
-## A photo of easels saves each canvas it is of beside itself, pixel for pixel the canvas's own paint at its full size,
-## flat, and its height off the board; a wide shot with the canvases small in it, and a shot of neither, save the photo
-## alone. Needs a RenderingDevice, so scripts/test.sh runs it on the desktop renderer:
-## godot4 --path game --xr-mode off --script ../tests/gpu_photo_canvas.gd
+## Needs a RenderingDevice, so scripts/test.sh runs it on the desktop renderer.
 
 var folder := ""
 
@@ -45,8 +42,7 @@ func _run() -> void:
 	finish()
 
 
-## Takes a photo with the right hand's camera, the eye at `eye` looking at `at`: {"lens", "files": every file it saved,
-## "canvases": the paths of the canvases' colour images, in order}.
+## {"lens", "files": every file it saved, "canvases": the paths of the canvases' colour images, in order}.
 func _shoot(eye: Array, at: Array) -> Dictionary:
 	var before := Array(DirAccess.get_files_at(folder)) if DirAccess.dir_exists_absolute(folder) else []
 	await play([
@@ -64,7 +60,7 @@ func _shoot(eye: Array, at: Array) -> Dictionary:
 	return {"lens": lens, "files": files, "canvases": canvases.map(folder.path_join)}
 
 
-## The canvas's wet, dry and paper as the GPU holds them.
+## [wet, dry, paper] as the GPU holds them.
 func _textures(c: Canvas) -> Array[Image]:
 	var out: Array[Image] = []
 	var rd := RenderingServer.get_rendering_device()
@@ -127,7 +123,7 @@ func _is_the_canvas(path: String, e: Easels.Easel) -> void:
 	check(worst_height <= 1 and exact_height > n * 0.999, "every height sample is the texel's height off the board, to the last 16-bit step: %d exact, worst %d" % [exact_height, worst_height])
 
 
-## A 16-bit greyscale PNG as PhotoMeta.gray16 writes it: {"size", "samples": big-endian, row by row}.
+## {"size", "samples": big-endian, row by row}, as PhotoMeta.gray16 writes it.
 static func _gray16(png: PackedByteArray) -> Dictionary:
 	var at := 8
 	var size := Vector2i.ZERO

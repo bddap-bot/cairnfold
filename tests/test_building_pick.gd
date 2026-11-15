@@ -36,8 +36,6 @@ func _run() -> void:
 	finish()
 
 
-## The building ray meets a house's gable ends, wall faces and roof in every finish, gable end and roof covering, a gable
-## end from outside and in at the face of the boards, plaster or stone laid on it, where the hand's dot shows.
 func _gable_ends_are_met_at_their_face() -> void:
 	await play([{"op": "house", "at": [0, -12], "size": [6, 5], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[-1]

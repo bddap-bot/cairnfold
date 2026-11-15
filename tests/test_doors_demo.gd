@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks that demo/paths.json runs paths into houses that open doors, and that the stress scene's doors/*
-## village opens one in every house a path runs into: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_doors_demo.gd
-
 
 func _run() -> void:
 	boot_main()
@@ -12,7 +9,6 @@ func _run() -> void:
 	finish()
 
 
-## The doors a path opened in `w`: its plank doors that none of its stored openings make.
 func _path_doors(w: Wall) -> Array:
 	var stored: Array[Vector4] = []
 	stored.assign(Array(main.world.state.walls[w.id].openings))
@@ -20,8 +16,6 @@ func _path_doors(w: Wall) -> Array:
 	return w.layout.apertures.filter(func(o: Dictionary) -> bool: return o.door and o.style == WallLayout.Family.COTTAGE and not own.any(func(e: Dictionary) -> bool: return absf(w.layout.offset(e.s, o.s)) < 0.05))
 
 
-## `demo/paths.json` runs a narrow path into one house, a single door its width, and puts another up over a wide path,
-## a double door.
 func _demo() -> void:
 	for step: Dictionary in demo("res://../demo/paths.json"):
 		await play([step])
@@ -36,7 +30,6 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The stress scene's doors/* phases look over a village where every house a path runs into opens a door there.
 func _stress_village() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var first := aerial_at(steps, "doors")

@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of butterflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_butterflies.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
@@ -112,7 +110,6 @@ func _they_settle_on_blooms_and_scatter_from_a_hand() -> void:
 	check(back[0], "a scattered one comes back and settles in its patch")
 
 
-## As every other animal: a hand coming up slowly scatters none, and a face brought suddenly near does.
 func _a_slow_hand_scatters_none_a_sudden_face_does() -> void:
 	var g := await _glade(3)
 	_paint(g, Vector3(-1, 0, -3), 4.0)

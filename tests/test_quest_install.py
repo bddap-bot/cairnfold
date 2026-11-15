@@ -11,11 +11,9 @@ import zipfile
 
 script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
-# A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
-# erases that package's external files folder, and a push makes the folders its files need and no empty one, closed to
-# the game as a Quest 3's shell makes them. The shell runs on the host, with no `am`: a restore that starts the game
-# fails. FAKE_FAIL names the adb call that fails, or with `corrupt` a push that lands other bytes; with FAKE_REFUSE=N
-# the first N pushes are refused as a freshly installed app's folder refuses them.
+# Pushes are closed to the game as a Quest 3's shell makes them; no `am`, so a restore that starts the game fails.
+# FAKE_FAIL names the adb call that fails, or with `corrupt` a push that lands other bytes; FAKE_REFUSE=N refuses the
+# first N pushes as a freshly installed app's folder does.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -76,8 +74,6 @@ FAKE_ADB = textwrap.dedent('''\
 
 
 def apk(path, package, quest=True):
-    """A zip holding only an AndroidManifest.xml in Android's binary XML: <manifest package=...>, whose string pool
-    names the Quest's VR category when quest."""
     strings = ['manifest', 'package', package] + ['com.oculus.intent.category.VR'] * quest
     offsets, data = [], b''
     for t in strings:
@@ -149,9 +145,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual(run.stdout.strip(), 'a.b.c', run.stderr)
 
     def start_game(self):
-        """What the game's start does, as a Quest 3 lets it: it may read a file or write in a folder it made, or one the
-        shell opened to all; the start makes its files folder its own. It reads every save, replaces the garden, adds
-        to each folder and records a session where record-sessions asks it to."""
+        """As a Quest 3 lets the game: it reads or writes only what it made or the shell opened to all."""
         def opened(path, bit):
             return path in self.game_made or path.stat().st_mode & bit
         self.files.mkdir(parents=True, exist_ok=True)

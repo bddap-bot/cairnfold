@@ -1,7 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## The video file: godot4 --headless --path game --script ../tests/test_avi.gd
-## ffprobe and ffmpeg (shell.nix) read it back as a player would.
+## ffprobe and ffmpeg come from shell.nix.
 
 
 func _initialize() -> void:
@@ -49,8 +48,7 @@ func _a_clip_reads_back_with_its_frames_and_sound() -> void:
 	DirAccess.remove_absolute(path)
 
 
-## Walks the file as a strict reader would: every chunk padded to an even length, the counts in the headers,
-## and each index entry pointing at its chunk. ffmpeg forgives all of these, so they are checked here.
+## ffmpeg forgives every fault checked here; a strict reader does not.
 func _the_chunks_are_where_the_index_says(b: PackedByteArray, frames: int, sounds: int) -> void:
 	var tag := func(at: int) -> String: return b.slice(at, at + 4).get_string_from_ascii()
 	check(tag.call(0) == "RIFF" and b.decode_u32(4) == b.size() - 8 and tag.call(8) == "AVI ", "the RIFF header holds the file's length")

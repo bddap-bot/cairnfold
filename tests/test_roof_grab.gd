@@ -1,9 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Hands on a built house: one on its roof carries the house, two upright raise its ridge, two across bow its slopes and
-## two on its eaves pull them out; what stands on it goes with it, and edits made to it meanwhile stay:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roof_grab.gd
-
 var trackers: Array[XRControllerTracker] = []
 
 
@@ -23,7 +19,6 @@ func _run() -> void:
 	finish()
 
 
-## Poses `hand` `over` metres above the roof of `w` at `across` metres out from its ridge, pointing down at it.
 func _over(hand: Hand, w: Wall, along: float, across: float, over := 2.0) -> void:
 	var f: Dictionary = w.roof.frame()
 	hand.global_transform = Transform3D(Basis.looking_at(Vector3(0.0001, -1, 0)), f.mid + f.along * along + f.across * across + Vector3.UP * (w.layout.height + w.roof.pitch + over))
@@ -92,12 +87,11 @@ func _body_and_ridge() -> void:
 	await frames(30)
 
 
-## Directive (relay): two hands on the eave edge pulling outward lengthen the overhang, inward shorten it.
 func _eaves() -> void:
 	var tool: WallTool = main.tool
 	var w: Wall = tool.walls[0]
 	var rig: Rig = main.rig
-	# Eave positions and ray hits must read the same completed roof after reshaping.
+	# So eave positions and ray hits read one finished roof.
 	w.lay_now()
 	var out := w.roof.half_span() + minf(w.roof.overhang, w.roof.reach()) * 0.6
 	var overhang := w.roof.overhang
@@ -128,8 +122,6 @@ func _eaves() -> void:
 	check(is_equal_approx(main.world.state.walls[w.id].roof.overhang, pulled), "letting go sets the eaves: %.2f" % main.world.state.walls[w.id].roof.overhang)
 
 
-## A storey standing on a carried house, and a wall on that storey, ride along with it and are set where it is let go,
-## one undo step; a grip that only trembles sends nothing.
 func _storeys_ride_along() -> void:
 	var tool: WallTool = main.tool
 	var world: World = main.world
@@ -189,7 +181,6 @@ func _storeys_ride_along() -> void:
 	check(lands.call(base.id) and lands.call(upper.id), "redo carries them again")
 
 
-## A window opened in a house while another hand carries it is still there when it is let go.
 func _edits_made_meanwhile_stay() -> void:
 	var tool: WallTool = main.tool
 	var world: World = main.world

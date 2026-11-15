@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of baked lantern light in and around a house: godot4 --headless --path game --script ../tests/test_lamps.gd
-
 var ground := PackedFloat32Array()
 
 
@@ -157,8 +155,6 @@ func _openings_admit_exterior_light() -> void:
 	check(_at(closed, 3.5, -4.5, 0) > 0.0, "the exterior stays lit")
 
 
-## The probes over and around `room` after it bounds them, the column bake having given every one `baked` and the
-## builds `paint`, lit from `sun`.
 func _sky_result(room: Lamps.Room, sun := Vector3.UP, paint := Color(0.6, 0.6, 0.6), baked := 255) -> Dictionary:
 	var result := {"area": Rect2i(Bounce.column(-2, -4), Vector2i(12, 9)), "layers": []}
 	for k in Bounce.LAYERS:
@@ -185,8 +181,7 @@ func _sky(result: Dictionary, x: float, z: float, layer := 0) -> int:
 	return result.layers[layer][(p.y * result.area.size.x + p.x) * 4 + 3]
 
 
-## A face under the roof reads the volume half a metre out, between layers a metre apart: a sealed room's probes less
-## than a layer over its roof stay dark, and those clear of that band keep the sky for the roof's own covering.
+## A face under the roof reads the volume half a metre out, and layers are a metre apart.
 func _sky_stays_out_a_layer_over_the_roof() -> void:
 	var room := lit_house()
 	room.openings.clear()
@@ -207,8 +202,6 @@ func _sky_stays_out_a_layer_over_the_roof() -> void:
 	check(band > 0 and clear > 0, "the house has probes in and clear of the band over its roof")
 
 
-## Light let in through a room's openings lights its back corner and ceiling off its walls and floor: sunlight only
-## while the sun stands before an opening, sky light always, and less off darker stone.
 func _a_room_passes_on_the_light_it_lets_in() -> void:
 	var room := lit_house()
 	var before_door := Vector3(0.0, 0.5, -1.0).normalized()

@@ -35,7 +35,7 @@ func _top_of(x: Transform3D) -> float:
 	return x.origin.y + absf(x.basis.y.y) * 0.5
 
 
-## Between a house taking its roof and the roof being laid, nothing stands on it: a body's feet look for floor there.
+## A body's feet look for floor on an unlaid roof.
 func _a_roof_not_laid_yet_has_no_deck() -> void:
 	var r := RoofLayout.new()
 	r.pitch = 0.0
@@ -212,7 +212,6 @@ func _the_eaves_reach_as_far_as_pulled() -> void:
 	check(_holds_eave(1.2) and not _holds_eave(0.3), "a build under the long eave stands under it")
 
 
-## Whether a house's eaves `overhang` past its walls cover a point 1 m out from its long side.
 func _holds_eave(overhang: float) -> bool:
 	var w := _house(6.0, 4.0, WallLayout.Top.CAP, WallLayout.Cover.ROOF)
 	var r := RoofLayout.new()

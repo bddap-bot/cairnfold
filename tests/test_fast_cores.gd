@@ -1,10 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## The main thread keeps to the cores clocked above the slowest, and never to more than it was given:
-## godot4 --headless --path game --script ../tests/test_fast_cores.gd
-
 
 func _initialize() -> void:
+	# kHz, as cpufreq reports them.
 	var frame := {0: 2265600, 1: 2265600, 2: 3148800, 3: 3148800, 4: 3148800, 5: 2956800, 6: 2956800, 7: 3052800}
 	check(FastCores.fast([0, 1, 2, 3, 4] as Array[int], frame) == [2, 3, 4], "the Frame's game cores leave the two slow ones")
 	check(FastCores.fast([2, 3] as Array[int], frame) == [2, 3], "a thread already off the slow cores keeps its cores")

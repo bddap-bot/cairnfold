@@ -1,14 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks that the controls table reaches every action on every device we ship, each control
-## held through the same path the controller feeds:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bindings.gd
-
 const PER_HAND := ["tool", "grab", "wheel"]
-## The interaction profile each device's controls arrive through.
 const PROFILES := {"frame": "/interaction_profiles/valve/frame_controller_valve", "quest": "/interaction_profiles/oculus/touch_controller"}
 
-## The Quest's controllers after the Touch, each its own profile.
 const TOUCH_LATER := ["/interaction_profiles/meta/touch_plus_controller", "/interaction_profiles/meta/touch_pro_controller"]
 
 
@@ -66,8 +60,7 @@ func _each_device_profile_binds_its_controls() -> void:
 			check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
 
 
-## The Quest's later controllers arrive through their own profiles, each bound exactly as the Touch controller is, so
-## no runtime falls back to a guess.
+## Bound exactly as the Touch, so no runtime falls back to a guess.
 func _every_touch_controller_binds_alike() -> void:
 	var map: OpenXRActionMap = load("res://openxr_action_map.tres")
 	var bindings := {}
@@ -80,7 +73,7 @@ func _every_touch_controller_binds_alike() -> void:
 		check(bindings.get(path) == touch, "%s binds as the Touch controller: %d of %d bindings" % [path, bindings.get(path, []).size(), touch.size()])
 
 
-## Kept for avatar menus: no action reads the right stick, its flicks or its click.
+## Kept for avatar menus.
 func _the_right_stick_is_free() -> void:
 	for action in Controls.ACTIONS:
 		var input: String = Controls.ACTIONS[action].get("right_hand", "")
@@ -105,7 +98,7 @@ func _unused_frame_controls_do_nothing() -> void:
 		hand.free()
 
 
-## The OpenXR path of a control named as in `Controls.DEVICES`, on the hand `tracker`.
+## `name` as in `Controls.DEVICES`.
 func _path(name: String, tracker: String) -> String:
 	var input := name.trim_prefix("left_").trim_prefix("right_")
 	var parts: Dictionary = {"trigger": "trigger/value", "grip": "squeeze/value", "stick_click": "thumbstick/click"}
@@ -121,7 +114,6 @@ func _hands() -> Dictionary:
 	return hands
 
 
-## Holding a control makes its hand's action held, and no other action on that hand.
 func _each_control_does_its_action_alone() -> void:
 	var hands := _hands()
 	var watching := {}
@@ -143,7 +135,6 @@ func _each_control_does_its_action_alone() -> void:
 		h.free()
 
 
-## A flick one way stays that way as the thumb drifts, until the stick comes back.
 func _a_flick_is_one_way() -> void:
 	var hands := _hands()
 	var left: Hand = hands.left_hand

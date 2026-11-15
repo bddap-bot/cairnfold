@@ -1,7 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Synthetic spring chains stepped by the spring runtime: each PhysBone check holds to something VRChat's PhysBone step
-## does and a VRM spring does not, and _drag_spends_the_swing holds a VRM spring's drag.
+## Each PhysBone check but _steady_motion_leaves_the_tail_at_rest holds to something VRChat's PhysBone step does and a
+## VRM spring does not.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const SpringRuntime = preload("res://addons/avatar_workshop/spring_runtime.gd")
@@ -25,8 +25,7 @@ static func settings(overrides := {}) -> Dictionary:
 	return physbone
 
 
-## One bone 0.1 long pointing along +Z from an anchor at the origin, its PhysBone `physbone`, and `extras` beside it;
-## [runtime, anchor, bone, tail], the anchor node index 2 for colliders to name.
+## [runtime, anchor, bone, tail]; the anchor is node 2, for colliders to name.
 func strand(physbone: Dictionary, extras := {}, springs := {}) -> Array:
 	var anchor := Node3D.new()
 	root.add_child(anchor)
@@ -81,7 +80,7 @@ func _immobile_holds_the_tail_to_its_anchor() -> void:
 	made[1].free()
 
 
-## Bones wobble with acceleration, not velocity, even where VRChat lets velocity swing them.
+## Deliberately unlike VRChat, where velocity swings the bones.
 func _steady_motion_leaves_the_tail_at_rest() -> void:
 	var made := strand(settings())
 	var anchor: Node3D = made[1]
@@ -144,9 +143,7 @@ func _release_sets_off_from_the_grip() -> void:
 	made[1].free()
 
 
-## A VRM spring (the script's step: plain nodes, no native solver) with neither stiffness nor gravity, its anchor carried
-## aside and stopped: under full drag the tail stops where it was left, under none it swings on, and under half it
-## swings on less.
+## A VRM spring: the script's step, plain nodes, no native solver.
 func _drag_spends_the_swing() -> void:
 	var moved := {}
 	for drag in [1.0, 0.5, 0.0]:

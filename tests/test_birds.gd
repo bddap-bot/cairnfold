@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of conures: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_birds.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
@@ -25,7 +23,6 @@ func _initialize() -> void:
 	finish()
 
 
-## Every plumage colours each patch, the first stays iridescent, and a conure wears the one it is given.
 func _plumages() -> void:
 	check(Conure.PLUMAGES.keys()[0] == "iridescent", "the first plumage is the iridescent one")
 	for name: String in Conure.PLUMAGES:
@@ -49,8 +46,6 @@ func _only_birds_make_conures() -> void:
 			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
 
 
-## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
-## beside a flag but one on its finial, none on a roofed wall without a lantern or a nest.
 func _wall_tops_are_perches() -> void:
 	for top in WallLayout.Top.values():
 		var w := WallLayout.new()
@@ -96,7 +91,6 @@ class Glade extends GladeBase:
 	func birds() -> Array[Birds.Bird]:
 		return wildlife.birds.birds
 
-	## Where a conure perches, rather than one riding a shoulder.
 	func perch() -> Vector3:
 		for b in birds():
 			if b.state != Birds.State.SHOULDER:
@@ -111,7 +105,6 @@ func _glade(seed: int) -> Glade:
 	return g
 
 
-## Runs until a flock has come and every bird of it perches, or `seconds` have passed.
 func _until_perched(g: Glade, seconds: float) -> void:
 	g.lay()
 	for i in int(seconds / STEP):
@@ -120,7 +113,6 @@ func _until_perched(g: Glade, seconds: float) -> void:
 			return
 
 
-## Whether `at` is on top of a standing wall, or on the surface of a planted tree's crown and inside none of its blobs.
 func _on_perch(g: Glade, at: Vector3) -> bool:
 	for w in g.walls.walls:
 		var s := w.layout.closest_s(at)
@@ -221,7 +213,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	await g.teardown()
 
 
-## A hand or a head moved from `from` to `to` at `speed` metres a second, a tick at a time.
+## `speed` in metres a second.
 func _move(g: Glade, n: Node3D, from: Vector3, to: Vector3, speed: float, each := Callable()) -> void:
 	var steps := maxi(int(from.distance_to(to) / speed / STEP), 1)
 	for i in steps + 1:
@@ -229,8 +221,6 @@ func _move(g: Glade, n: Node3D, from: Vector3, to: Vector3, speed: float, each :
 		g.run(STEP, each)
 
 
-## A hand brought slowly right up to a perched conure, then a face: it stays, turned to watch, and steps aside
-## only from the face, a hop along its perch.
 func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) -> void:
 	var hand: Node3D = g.rig.hands[0]
 	var at := b.node.position
@@ -279,7 +269,6 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 	g.run(1.0, each)
 
 
-## A hand jerked at a perched conure: it flies off a short way to a perch, in sight, and stays in the garden.
 func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Callable) -> void:
 	for i in 300:
 		if b.state == Birds.State.PERCH:
@@ -319,9 +308,6 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 	g.run(1.0, each)
 
 
-## A hand held out with seeds draws one conure onto it, one at a time, once it has stood looking at whoever holds
-## them and at the hand a while; it eats on as long as the hand holds them out, carried slowly too, and a jerk sends it
-## off a short way. Put away, the seeds keep nobody.
 func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	var hand: Hand = g.rig.right
 	var head: Node3D = g.rig.head
@@ -416,7 +402,6 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	hand.global_position = AWAY
 
 
-## Seeds held out in both hands: a conure stands on each, both at once, and both stay.
 func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
 	var perch := g.perch()
 	var sides := [Vector3(1.0, -0.4, 1.0), Vector3(-1.0, -0.4, 1.0)]
@@ -444,8 +429,6 @@ func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
 	g.run(4.0, each)
 
 
-## Another player's dish held out, as `Session` shows it in their avatar's hand, draws a conure onto it as a hand here
-## does; hidden again, it keeps nobody.
 func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 	var dish := Dish.new()
 	root.add_child(dish)
@@ -482,8 +465,6 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 	g.run(4.0, each)
 
 
-## A wall taken away under perched conures, with another perch standing: from the next frame none counts on
-## the wall, none perches in the air, and they settle on what stands.
 func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var g := await _glade(5)
 	g.wildlife.ducks_came = true
@@ -510,7 +491,6 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	await g.teardown()
 
 
-## A site with the one point to stand on.
 class OnePoint extends Birds.Site:
 	var at := Vector3.ZERO
 
@@ -521,8 +501,6 @@ class OnePoint extends Birds.Site:
 		return PackedVector3Array([at])
 
 
-## Arrivals never share a point, and a bird whose perch is gone, with no room left elsewhere, flies off rather
-## than staying in the air.
 func _with_no_room_they_leave() -> void:
 	var g := await _glade(6)
 	var birds := g.wildlife.birds
@@ -551,8 +529,6 @@ func _with_no_room_they_leave() -> void:
 	await g.teardown()
 
 
-## Ground pulled up under a perched flock: once the wall is laid on it again they stand on its top as it now
-## is, and on the crown over the ground now under the tree.
 func _a_reshape_carries_them_with_their_perch() -> void:
 	var g := await _glade(3)
 	g.wildlife.ducks_came = true
@@ -621,7 +597,6 @@ func _carry() -> void:
 	check(b.state in [Birds.State.FLY, Birds.State.LEAVE], "release flies rather than falls")
 
 
-## The torso stays put while the head turns within a neck's reach, and follows once it turns further.
 func _torso_lags_the_head() -> void:
 	check(is_equal_approx(Torso.follow(NAN, Basis(Vector3.UP, 0.4)), 0.4), "a first look sets the torso under the head")
 	check(Torso.follow(0.0, Basis(Vector3.UP, 1.0)) == 0.0, "a head turned aside leaves the torso")
@@ -629,9 +604,6 @@ func _torso_lags_the_head() -> void:
 	check(is_equal_approx(Torso.follow(3.0, Basis(Vector3.UP, -3.0)), 3.0), "the torso turns the short way round")
 
 
-## A conure that trusts you comes to the outer edge of your shoulder, out of sight ahead and in sight turned to it; it
-## rides teleports and snap turns, a hand brushed at it or your head under water sends it off to come back later, and
-## it can be taken from there like any carried conure. Peers get it as a held model standing on the shoulder.
 func _shoulder() -> void:
 	var g := await _glade(31)
 	stroke_wall(g.walls, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
@@ -731,7 +703,6 @@ func _tick(g: Glade, seconds: float) -> void:
 		g.wildlife.tick(STEP)
 
 
-## Ticks until `b` stands on a shoulder, or `seconds` pass; whether it does.
 func _until_shouldered(g: Glade, b: Birds.Bird, seconds: float) -> bool:
 	for i in int(seconds / STEP):
 		g.lay()
@@ -745,13 +716,11 @@ func _on_its_shoulder(g: Glade, b: Birds.Bird) -> float:
 	return b.node.global_position.distance_to(Birds._shoulder_at(g.rig, b.shoulder).origin) if b.shoulder >= 0 else INF
 
 
-## How far off the middle of the view the bird's body is.
 func _off_view(rig: Rig, b: Birds.Bird) -> float:
 	var eyes := rig.head.global_transform
 	return (-eyes.basis.z).angle_to(b.node.global_transform * Conure.BODY - eyes.origin)
 
 
-## A conure comes down to peck on the lawn a ring wall curves round, but never inside a house, a bush or a tree.
 func _they_peck_on_open_ground() -> void:
 	var g := await _glade(3)
 	var lawn := g.world.terrain.ground(8, 6)

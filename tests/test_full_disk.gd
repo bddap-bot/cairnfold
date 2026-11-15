@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless check that a save the disk refuses partway leaves the last garden whole: the test runs itself again with
-## files capped at LIMIT_KB, as a full disk would cap them, then keeps a small garden and grows it past the cap:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_full_disk.gd
+## Reruns itself with files capped at LIMIT_KB, as a full disk would cap them.
 
 const LIMIT_KB := 60
 const CAPPED := "CAIRNFOLD_FILES_CAPPED"

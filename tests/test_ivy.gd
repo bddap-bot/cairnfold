@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of ivy growth: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ivy.gd
-
 
 func _init() -> void:
 	_ivy_climbs_both_faces()
@@ -160,7 +158,6 @@ func _a_tower_keeps_ivy_on_both_faces() -> void:
 	check(leaves.any(func(l): return _inside(w, l.xform.origin)) and leaves.any(func(l): return not _inside(w, l.xform.origin)), "an open loop keeps ivy inside and out")
 
 
-## A house raised as it is placed grows its ivy from its base, not high up the building.
 func _a_raised_house_roots_its_ivy_at_its_plinths_foot() -> void:
 	var house := func(rise: float) -> WallLayout:
 		var w := WallLayout.new()

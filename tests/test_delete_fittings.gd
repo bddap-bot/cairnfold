@@ -49,7 +49,6 @@ func _run() -> void:
 	check(w.layout.lanterns == [other], "redo removes only that lamp")
 	main.world.undo()
 	w.lay_now()
-	# A peer's delete travels through host validation and the same replicated reshape.
 	var before: Dictionary = main.world.state.walls[id].duplicate(true)
 	var cmd := FittingTool.removal(main.world.state, target)
 	var accepted := Commands.clean(cmd, main.world.state, false, main.world.terrain)

@@ -1,24 +1,14 @@
 extends "res://../tests/support/suite.gd"
 
-## A scripted session, a remote player's build among it, replays from its record alone (--replay, in a fresh game):
-## the head where it was frame for frame, and the garden it ended with, every check the record took holding. On a
-## later build whose tools make nothing of the same input, it replays to the same garden, the edits being the record's
-## commands, and says where the player first stands elsewhere; where a command's result, the wildlife and a thrown
-## handful diverge, it says where each first did. Mid-session the player puts on a file of their own, which the rig
-## refits them to, and the headset leaves focus and comes back: the replay wears the file, from the folder it is given,
-## and pauses where the session did.
-
 const Replayed := preload("res://../tests/support/replayed.gd")
 const VISITOR := 2
 const COMES := 30
 const PROPOSES := 90
-## A wildlife seed with its top bit set, which reads back as a negative number.
+## Top bit set, so it reads back negative.
 const TOP_BIT_SEED := -5385056196784741867
-## The folder of the player's own avatar files, which a replay is given.
 var _avatars := ""
 
 
-## The network as one visitor's game gives it: it comes, then proposes a tree.
 class Visitor:
 	extends MultiplayerAPIExtension
 	var main: Main
@@ -78,7 +68,7 @@ func _initialize() -> void:
 		{"op": "aim", "dir": [0, -0.3, -1], "seconds": 0.5, "settle": 1.0},
 		hill.merged({"op": "gesture"}),
 	])
-	# The headset leaves focus mid-aim, which ends the aim, so the stick let go meanwhile teleports nowhere.
+	# Losing focus mid-aim ends the aim, so the stick let go meanwhile teleports nowhere.
 	main.rig.left.global_transform = Driver.aim_pose(main.rig.head.global_transform, [0, -0.3, -1])
 	Hand.injected_sticks[main.rig.left.tracker] = Vector2(0, 1)
 	await until(func() -> bool: return main.rig.aim_ground != null, "the player aiming a teleport")
@@ -155,7 +145,7 @@ func _initialize() -> void:
 			return i >= garden.cmds.size() or i >= replayed.garden.cmds.size() or garden.cmds[i] != replayed.garden.cmds[i])
 		check(replayed.garden == garden, "the replayed garden equals the recorded one: seq %d against %d, commands %s differ" % [replayed.garden.seq, garden.seq, differ])
 
-	# A later build: another revision, whose tools make nothing of the input, so neither the hill nor the teleport comes.
+	# A later revision whose tools make nothing of the input, so neither the hill nor the teleport comes.
 	var later := _copy(chunk, "later", func(e: Dictionary) -> Dictionary:
 		if e.event == "start":
 			e.revision = "a later revision"
@@ -175,7 +165,6 @@ func _initialize() -> void:
 		check(player.get("frame") == record.checks[0].frame and not replayed.diverged.has("garden"),
 			"it says the player first stands elsewhere at frame %d, the first check after the teleport, and the garden holds: %s" % [record.checks[0].frame, replayed.diverged])
 
-	# A command whose result differs, wildlife drawing from another seed, and a handful landing elsewhere at one check.
 	var tree: Dictionary = record.messages.filter(func(m: Array) -> bool: return m[3] == "ordered" and m[2] == VISITOR)[0][4][0]
 	var flown: int = record.checks[3].frame
 	var diverging := _copy(chunk, "diverged", func(e: Dictionary) -> Dictionary:
@@ -217,7 +206,6 @@ func _initialize() -> void:
 	finish()
 
 
-## The record `chunk` belongs to, copied beside it into the folder `name` with `change` made to every event; its chunk there.
 func _copy(chunk: String, name: String, change: Callable) -> String:
 	var into := chunk.get_base_dir().path_join(name)
 	DirAccess.make_dir_recursive_absolute(into)

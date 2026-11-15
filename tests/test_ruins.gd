@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of ruins: the layout of a wall with stretches broken away, the eraser's arithmetic, the
-## schema, and the delete tool's sweep through the garden: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ruins.gd
-
 
 func _initialize() -> void:
 	_a_ruin_leaves_its_gap_clear_to_the_ground()
@@ -37,7 +34,6 @@ func _wall(length: float, height: float, ruins: Array[Vector2], closed := false)
 	return w
 
 
-## Stones of the wall itself (not fallen) whose footprint reaches into [lo, hi] at height `y`.
 func _standing_in(w: WallLayout, lo: float, hi: float, y: float) -> Array:
 	return w.stones.filter(func(s): return s.kind != "mortar" and s.kind != "rubble" and absf(s.y - y) < s.size.y * 0.5 and s.s + s.size.x * 0.5 > lo + 0.02 and s.s - s.size.x * 0.5 < hi - 0.02)
 
@@ -208,7 +204,7 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	ruins = world.state.walls[w.id].ruins
 	check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep that turns back breaks everything it passed over: %s" % ruins)
 	await play([{"op": "press", "button": "dpad_down"}])
-	# The turn must survive even when the entire gesture fits between two frames.
+	# The turn must survive a gesture that fits between two frames.
 	for seconds in [0.4, 0.000001]:
 		await play([{"op": "erase", "points": [[-9.8, -10], [11, -10], [-11, -10]], "seconds": seconds}])
 		check(walls.is_empty(), "sweeping the whole wall takes it")

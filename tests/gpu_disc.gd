@@ -1,14 +1,11 @@
 extends "res://../tests/support/suite.gd"
 
-## The sun's and the moon's discs stay round wherever they sit in a wide headset view: measured as the angles
-## the eye sees, not the flat image's pixels, a disc at the view's edge is as wide toward the centre as across.
-## Needs a renderer, so scripts/test.sh runs it on the desktop one:
-## godot4 --path game --xr-mode off --script ../tests/gpu_disc.gd [-- OUT_DIR]
+## Sun and moon discs are measured as angles the eye sees, not the flat image's pixels, so a disc at a wide view's edge must stay round.
 
 const SIZE := 512
-## About a Quest's field of view across one eye.
+## Degrees, about one headset eye's field of view.
 const FOV := 100.0
-## Degrees off the view's axis each disc is seen at: centre, the right edge, and toward a corner.
+## Degrees off the view's axis: centre, the right edge, toward a corner.
 const PLACES := [Vector2(0, 0), Vector2(42, 0), Vector2(30, -30)]
 
 
@@ -47,8 +44,7 @@ func _run() -> void:
 	finish()
 
 
-## The lit disc's extent in degrees as the eye sees it, along the line from the view's centre through `toward`
-## and across it: each bright pixel's ray, measured as angles about `toward`.
+## Degrees as the eye sees them, along and across the line from the view's centre through `toward`.
 func _span(image: Image, eye: Camera3D, toward: Vector3) -> Vector2:
 	var radial := (toward - Vector3.FORWARD * toward.dot(Vector3.FORWARD))
 	radial = radial.normalized() if radial.length() > 1e-4 else Vector3.RIGHT

@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A far flower draws from its own buffer: each painted or kept flower's slot there holds exactly what its near instance
-## holds. The headless dummy renderer keeps no instance buffers, so scripts/test.sh runs this on the desktop renderer:
-## godot4 --path game --xr-mode off --script ../tests/gpu_flora.gd
+## The headless dummy renderer keeps no instance buffers, so scripts/test.sh runs this on the desktop renderer.
 
 
 func _run() -> void:

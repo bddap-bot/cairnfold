@@ -1,10 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Scripted and test instances never beacon past loopback, beacons carry each host's name and own avatar to the
-## wheel's friends page, and a garden of another build stands there with an X and cannot be joined:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_beacon.gd
-
-## A documentation address, which no host answers: joining it reaches no other run's garden.
+## A documentation address (TEST-NET-1), which no host answers.
 const NOBODY := "192.0.2.1"
 
 
@@ -78,8 +74,7 @@ func _networked(source: String) -> Script:
 	return s
 
 
-## Report (verbatim): "I'm unable to make a pond". The headset visited a garden hosted by a build without one of
-## World's RPCs; its proposals reached the host as other methods, so no dig, pond or plant of the visitor's landed.
+## Across builds with different RPCs, a visitor's proposals reach the host as other methods.
 func _another_build_is_heard_not_joined() -> void:
 	var dir := DirAccess.open("res://src")
 	for f in dir.get_files():
@@ -146,8 +141,6 @@ func _the_picker_shows_each_host_s_name() -> void:
 	await process_frame
 
 
-## Report (verbatim): "I look at my wife's avatar, and it's just one of the default little pointy wizards, and then I
-## load the game and only then do I see her actual avatar". The beacon carried only a built-in avatar's number.
 func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	boot_main()
 	await process_frame

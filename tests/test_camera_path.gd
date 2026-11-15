@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## The authored camera a replay can be re-rendered from (--camera, scripts/render.sh with CAIRNFOLD_CAMERA).
-
 const KEYS := [
 	{"t": 0.0, "eye": [0, 2, 8], "at": [0, 1, 0]},
 	{"t": 2.0, "eye": [6, 3, 6], "at": [0, 1, 0]},

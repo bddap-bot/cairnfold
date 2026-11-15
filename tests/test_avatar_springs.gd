@@ -94,6 +94,6 @@ func _run() -> void:
 	finish()
 
 
-## Whether `point` lies outside the capsule `hand` (Hand.touching), within float error.
+## `hand` as Hand.touching gives it; a millimetre of slack for float error.
 func _outside(point: Vector3, hand: Dictionary) -> bool:
 	return point.distance_to(Geometry3D.get_closest_point_to_segment(point, hand.from, hand.to)) >= hand.radius - 0.001

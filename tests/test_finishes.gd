@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of wall finishes: worn plaster, timber framing on an open wall, planks across and upright on walls
-## and houses, and planked fences, laid around windows, doors and arches; through the style tool's face wheel and the
-## garden's command; charged by the budget; and played in demo/finishes.json and the stress scene's finishes/* phases:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_finishes.gd
-
 const FACE_KINDS := ["block", "plaster", "mortar", "board", "timber"]
 
 var world: World
@@ -29,7 +24,6 @@ func _run() -> void:
 	finish()
 
 
-## A house, or a bent open wall, with a window, a door and an arch, faced in `finish` worn by `wear`.
 static func _built(finish: WallLayout.Finish, wear: float, closed: bool, seed := 3) -> WallLayout:
 	var w := WallLayout.new()
 	if closed:
@@ -48,8 +42,7 @@ static func _built(finish: WallLayout.Finish, wear: float, closed: bool, seed :=
 	return w
 
 
-## How far into the opening `o` a face piece reaches, along the wall and up, after `margin`: positive both ways where it
-## stands in it, judged on its box's corners as laid, so a brace or an arch's wedge counts as it is turned. An arch's
+## (along the wall, up) into `o` past `margin`, positive both ways inside, judged on the box's laid corners; an arch's
 ## opening is its outline at the box's middle height.
 static func _into(w: WallLayout, piece: Dictionary, o: Dictionary, margin: float) -> Vector2:
 	var x: Transform3D = piece.xform
@@ -66,8 +59,6 @@ static func _into(w: WallLayout, piece: Dictionary, o: Dictionary, margin: float
 	return Vector2(minf(hi.x, half) - maxf(lo.x, -half), minf(hi.y, top) - maxf(lo.y, o.sill)) - Vector2.ONE * margin
 
 
-## No piece of any face (stone, plaster, mortar, plank or timber) stands in a window, a door or an arch, on a house or a
-## bent open wall, in every finish the face wheel offers; each finish lays what it is, and the same inputs lay the same.
 func _finishes_clear_every_opening() -> void:
 	for closed in [false, true]:
 		for face: Vector2 in PaletteTool.FACES:
@@ -99,9 +90,6 @@ func _finishes_clear_every_opening() -> void:
 			check(again.stones == w.stones, "%s: the same inputs lay the same pieces" % name)
 
 
-## Worn plaster shows the stones behind it over about as much of the face above its foot as it is worn, more of it low
-## on the wall than high, in patches that carry on up from course to course; the stones stand back behind the plaster's
-## face, and mortar, not plaster, lies behind them.
 func _plaster_wears_back_to_the_stones() -> void:
 	var shares: Array[float] = []
 	for wear in [0.0, 0.25, 0.5, 0.75]:
@@ -163,9 +151,6 @@ func _plaster_wears_back_to_the_stones() -> void:
 	check(not raised.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y < 0.0), "a plaster plinth under worn plaster stays whole")
 
 
-## Planks laid across lie level, longer than tall, staggered from row to row; laid upright they stand taller than wide,
-## side by side. Either way they cover the face above the foot but for the openings, over a stone foot course, and the
-## openings' heads and sills are oak.
 func _planks_lie_across_or_upright() -> void:
 	for finish in [WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]:
 		for closed in [false, true]:
@@ -207,8 +192,6 @@ func _planks_lie_across_or_upright() -> void:
 				check(joints.values().max() < boards.size() / 4, "%s: joints are staggered, at most %d at one place" % [name, joints.values().max()])
 
 
-## Planked across, houses of many sizes lay no sliver of a plank at a corner, wherever their corners fall a rounding
-## either side of a sample.
 func _no_slivers_at_corners() -> void:
 	var slivers := 0
 	for k in 20:
@@ -224,9 +207,6 @@ func _no_slivers_at_corners() -> void:
 	check(slivers == 0, "no plank laid across twenty houses is a sliver: %d are" % slivers)
 
 
-## An open wall framed in timber carries its frame on both faces, posts at each end and rails broken at every post,
-## each member on the wall's line where it curves; its walk is boarded in WALK_LANES runs under a wooden railing, and a
-## player stands on the boards. A house's frame stays on its outer face.
 func _timber_walls_are_framed_and_railed() -> void:
 	var w := WallLayout.new()
 	var arc: Array[Vector3] = []
@@ -276,7 +256,6 @@ func _timber_walls_are_framed_and_railed() -> void:
 		return (b.xform.origin - f.point).dot(f.tangent.cross(Vector3.UP)) * inner < 0.0), "a house's frame stays on its outer face")
 
 
-## An eraser's ruin takes the frame, walk and railing with the wall's courses where it breaks the wall away.
 func _ruined_timber_walls_break() -> void:
 	var w := WallLayout.new()
 	w.points.assign([Vector3.ZERO, Vector3(12, 0, 0)] as Array[Vector3])
@@ -289,8 +268,6 @@ func _ruined_timber_walls_break() -> void:
 	check(inside.is_empty(), "nothing of the frame or walk stands in the ruin's gap %s: %s" % [gap, inside.map(func(st: Dictionary) -> String: return "%s at %.2f" % [st.kind, st.s])])
 
 
-## A fence takes planks: across, boards between its posts in place of the rails; upright, planks on its rails. A gate
-## stays open under its arch.
 func _fences_take_planks() -> void:
 	var counts := {}
 	for finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]:
@@ -318,8 +295,6 @@ func _fences_take_planks() -> void:
 				check(rails.size() == counts.BARE[0] and boards.size() > 40 and boards.all(func(b: Dictionary) -> bool: return b.size.y > WallLayout.FENCE_HEIGHT * 0.8), "upright planks stand on the rails")
 
 
-## The garden's command takes a finish and its wear, turns down wear on any finish but plaster, plaster or timber on a
-## fence, and an unknown finish; a coned tower stays stone.
 func _commands_check_finishes() -> void:
 	var d := wall_data({"points": PackedVector3Array([Vector3.ZERO, Vector3(6, 0, 0)]), "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5})
 	var clean: Variant = Commands._wall(d)
@@ -335,8 +310,6 @@ func _commands_check_finishes() -> void:
 	check(cone != null and cone.finish == WallLayout.Finish.BARE and cone.wear == 0.0, "a coned tower stays stone")
 
 
-## Worn plaster counts as plaster and the stone it shows; a planked wall as its planks over a plaster-priced backing, a
-## planked fence as its planks besides its posts; timber framing its members. Each charge matches what is laid.
 func _budget_charges_each_finish() -> void:
 	var d := wall_data({"points": PackedVector3Array([Vector3.ZERO, Vector3(10, 0, 0)]), "seed": 2, "height": 3.0})
 	var area := 30.0
@@ -375,8 +348,6 @@ func _budget_charges_each_finish() -> void:
 	check(charged >= members + walk and charged < members + walk * 1.4 + 4, "a timber-framed wall charges the members it lays on both faces and its walk's planks: %d for %d and %d" % [charged, members, walk])
 
 
-## The style tool's face wheel on an open wall offers every finish, worn plaster at each amount; on a fence rails and
-## planks; turned, the garden takes it, walls laid after take it and an undo puts it back.
 func _the_face_wheel_turns_every_finish() -> void:
 	var id := order_walls([seeded_wall(PackedVector3Array([world.terrain.ground(-30, 20), world.terrain.ground(-22, 20)]))], 1)
 	var picker: PaletteTool = main.palette_tool
@@ -405,7 +376,6 @@ func _the_face_wheel_turns_every_finish() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## demo/finishes.json lays every finish on houses, walls and fences.
 func _demo() -> void:
 	for step: Dictionary in demo("res://../demo/finishes.json"):
 		await play([step])
@@ -419,8 +389,6 @@ func _demo() -> void:
 	await play([{"op": "clear"}])
 
 
-## The stress scene's finishes/* phases look over the stress village in the finish over its stones the budget charges
-## most for (the bare stone village stands in its village/* phases).
 func _stress_village() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var first := aerial_at(steps, "finishes")

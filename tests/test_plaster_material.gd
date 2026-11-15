@@ -1,7 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## The production wall and gable materials on the same face, with constant grain and light to isolate colour
-## encoding. Run with scripts/render.sh demo/gables.json out --script ../tests/test_plaster_material.gd.
+## Grain and light held constant to isolate colour encoding.
+## Run with scripts/render.sh demo/gables.json out --script ../tests/test_plaster_material.gd.
 
 func _initialize() -> void:
 	if DisplayServer.get_name() == "headless":

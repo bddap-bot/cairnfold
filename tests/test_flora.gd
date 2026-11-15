@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of flora placement and the flower and grass brushes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_flora.gd
-
 
 func _run() -> void:
 	_brush_fills_its_disc()
@@ -120,7 +118,6 @@ func _painting_again_thickens() -> void:
 	check(t.flora.ghost_grass.size() > once, "the grass brush paints grass, denser than flowers")
 
 
-## A hold painting more than one command can carry sends it as several, and the garden grows every plant painted.
 func _a_stroke_past_one_command_lands_whole() -> void:
 	var t := _tool()
 	var b := t.brushes[0]
@@ -188,8 +185,6 @@ func _full_pools_recycle_only_painted() -> void:
 		check(boxes.any(func(b: AABB) -> bool: return b.has_point(Vector3(p.x, t.world.terrain.height_at(p.x, p.z) + 0.1, p.z))), "a meadow flower at %s lies in a cell's box" % p)
 
 
-## The grass and flower shaders grow placed plants under a pond as water plants and drown the meadow's own, told apart
-## by `planted`.
 func _only_placed_plants_grow_under_water() -> void:
 	var t := _tool()
 	var rng := _rng(9)
@@ -220,8 +215,6 @@ func _only_placed_plants_grow_under_water() -> void:
 	check(placed.size() > 2, "and painted ones drawn by the square: %d" % placed.size())
 
 
-## A flower planted in shallow water stands up out of it as an iris and in deep water floats as a lily, by the flower
-## shader's own `water_form` of the pond depth under its root, read where the shader reads it.
 func _planted_flowers_take_their_water_form_by_depth() -> void:
 	var t := _tool()
 	var terrain := t.world.terrain
@@ -371,7 +364,6 @@ func _grass_thins_with_distance() -> void:
 	flora.queue_free()
 
 
-## Painted grass past sparse_from draws its survivors alone, as the meadow's cells do; a photo still draws every clump.
 func _painted_grass_thins_with_distance() -> void:
 	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
@@ -483,8 +475,6 @@ func _crowns_cast_one_shade_each() -> void:
 	flora.queue_free()
 
 
-## Painted grass and flowers stand in patches by the square, which the camera culls off screen and the reach takes out
-## of view as it does the meadow's cells; recycling and moving a plant keep every other in its place.
 func _painted_plants_are_drawn_by_the_square() -> void:
 	var flora := Flora.new(Terrain.new(), Ground.new())
 	root.add_child(flora)
@@ -532,8 +522,6 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 	flora.queue_free()
 
 
-## A painted flower may stand in a pond as an iris or a lily, which the flower shader draws out to the full flower
-## reach, past where the land flowers hand off to their far patches; a patch of land flowers past that is left to photos.
 func _painted_flowers_draw_to_the_water_reach() -> void:
 	var terrain := Terrain.new()
 	var flora := Flora.new(terrain, Ground.new())

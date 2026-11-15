@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of bridges: where a stroke hangs, the sag of its deck, each railing style, the single rope at the
-## least width, a bridge drawn between two wall tops and across a pond's banks, and demo/bridges.json and the stress
-## scene's bridges/* phases: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bridges.gd
-
 
 func _run() -> void:
 	_hangs()
@@ -152,7 +148,6 @@ func _commands() -> void:
 	check(Commands._stairs(_bridge(StairLayout.SAG_LEAST * 0.5)) == null, "nor shallower than the least sag")
 
 
-## The stairs tool, drawn from one wall's top to another's, hangs a bridge; at a sixth of its height it lays a landing.
 func _drawn() -> void:
 	var world: World = main.world
 	await play([{"op": "wall", "points": [[-5, -4], [-5, 4]], "seconds": 0.3}, {"op": "top", "index": 0, "style": "cap"}, {"op": "wall", "points": [[5, -4], [5, 4]], "seconds": 0.3}, {"op": "top", "index": 1, "style": "cap"}])
@@ -216,7 +211,6 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The bridges/* phases follow the last wipe: a bridge over every pond of the stress scene.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := aerial_at(steps, "bridges")

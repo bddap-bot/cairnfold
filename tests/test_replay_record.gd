@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A scripted session's record holds every frame's input as the game read it, and what the session started from.
-
 
 class Probe:
 	extends Node

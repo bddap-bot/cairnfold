@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of the garden's command log and per-player undo, with two players' commands fed to the
-## host directly: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_world.gd
-
 var world: World
 
 
@@ -94,7 +91,7 @@ func _foot(id: int) -> float:
 	return main.tool.find(id).layout.samples[0].y
 
 
-## Waits out the frame's ripple and the worker laying the build again.
+## Two frames: the ripple, then the worker laying the build again.
 func _laid(id: int) -> void:
 	await frames(2)
 	main.tool.find(id).lay_now()
@@ -199,8 +196,6 @@ func _bad_commands_are_dropped() -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
 
-## A player's command one past a garden's limits is refused: a new build in a garden holding MAX_THINGS, a batch of
-## one command more than MAX_BATCH, and any whole garden, which only the host sends.
 func _a_player_is_held_to_the_garden_limits() -> void:
 	var state := World.blank()
 	for id in Commands.MAX_THINGS:
@@ -211,9 +206,6 @@ func _a_player_is_held_to_the_garden_limits() -> void:
 	check(Commands.clean({"op": "garden", "cmds": []}, state, false, world.terrain).is_empty(), "a player sends no whole garden")
 
 
-## A house's gable ends travel as any other reshape: a player turns them, the host's cleaned command passes a peer's
-## check, the house is laid again with them, saves keep them and an undo puts them back; and the house tool lays its
-## next house with the style last turned to.
 func _gable_ends_go_through_the_host() -> void:
 	var id := order_walls([_house_data(PackedInt32Array())], 1)
 	check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent with the wall's gable end has it")
@@ -257,8 +249,6 @@ func _hill(at: Rect2i, lift: float) -> Dictionary:
 	return {"op": "heights", "cells": at, "values": v}
 
 
-## A peer's allowance pays for what a command carries, so a burst of the largest commands costs what it sends; the
-## largest a tool makes still goes through on a full allowance.
 func _commands_cost_by_size() -> void:
 	var small := World.cost({"op": "sky", "time": 0.5})
 	var whole := World.cost({"op": "heights", "cells": Terrain.ALL, "values": main.world.terrain.read(Terrain.ALL)})
@@ -332,8 +322,6 @@ func _stacks_keep_their_newest_steps() -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 3)
 
 
-## An undo or redo press sounds as its step comes back; with nothing to take back it is refused, and leaves nothing
-## waiting.
 func _undo_sounds_only_when_a_step_comes_back() -> void:
 	world.stacks.erase(world.me())
 	var heard := func(act: Cues.Act) -> int: return Cues.asked.get(act, 0)
@@ -464,8 +452,6 @@ func _picture() -> String:
 	return var_to_str(world.digest())
 
 
-## A visitor whose garden fell out of step with the host's drops what the host sends until the whole garden comes
-## again, its own strokes among it; a stroke painted meanwhile stays shown until then and stands in what comes.
 func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var tool: FloraTool = main.flora_tool

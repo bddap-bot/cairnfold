@@ -1,14 +1,9 @@
 extends "res://../tests/support/suite.gd"
 
-## The quality ladder and the governor that walks it: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_quality.gd
-
 const BUDGET := 12.5
 const DT := 1.0 / 72.0
-## A share of the budget just under the governor's line.
 const UNDER_LINE := Quality.Governor.LINE - 0.01
-## A share of the budget over the line and short of the cliff.
 const OVER_LINE := (Quality.Governor.LINE + Quality.Governor.CLIFF) / 2.0
-## A share of the budget past the cliff and short of the budget.
 const PAST_CLIFF := (Quality.Governor.CLIFF + 1.0) / 2.0
 
 
@@ -55,7 +50,6 @@ func _initialize() -> void:
 	finish()
 
 
-## Steps down one, then measures what the step saved over a second of frames just under the line.
 func _down(g: Quality.Governor) -> void:
 	_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
 	_feed(g, BUDGET * UNDER_LINE, 72)
@@ -67,7 +61,6 @@ func _feed(g: Quality.Governor, ms: float, frames: int) -> int:
 	return g.level
 
 
-## Feeds up to `frames` frames of `ms`, stopping once the governor reaches `level`, and returns the level after.
 func _feed_until(g: Quality.Governor, ms: float, frames: int, level: int) -> int:
 	for i in frames:
 		if g.level == level:
@@ -219,8 +212,7 @@ func _the_ladder_has_ends() -> void:
 	check(_feed(g, 1.0, 72 * 400) == 0, "and at the top")
 
 
-## The governor may reach any rung mid-play, so each combination of the knobs that switch pipelines is drawn as the
-## session starts, the sun's shadows off at the swapchain's scale among them, and priming ends on START.
+## The governor may reach any rung mid-play.
 func _every_pipeline_a_rung_draws_with_is_primed() -> void:
 	var primed := Quality.primed()
 	var drawn := {}
@@ -265,7 +257,6 @@ func _an_unmeasured_step_up_waits_for_room_for_an_estimate() -> void:
 	check(_feed(g, BUDGET * 0.5, 72 * 4) == 0, "until there is")
 
 
-## A step up measured on a light scene costs its share of a heavy one, not the milliseconds it read then.
 func _a_measured_cost_follows_the_frame() -> void:
 	var g := Quality.Governor.new(10)
 	_feed(g, BUDGET * 0.6, 72)
@@ -278,8 +269,7 @@ func _a_measured_cost_follows_the_frame() -> void:
 	check(_feed(g, BUDGET * 0.58, 72 * 10) == 1, "which leaves no room under the line for it")
 
 
-## A step's cost depends on what is in view as well as on the frame, so one measured in a view it cost little in is
-## priced at no less than its estimate in another.
+## A step's cost depends on the view as well as the frame.
 func _a_measured_cost_is_never_under_the_estimate() -> void:
 	var shares := PackedFloat32Array([0.25])
 	var g := Quality.Governor.new(10, PackedInt32Array(), 0, shares)
@@ -307,8 +297,8 @@ func _every_other_refresh_held_by_the_cpu_still_climbs() -> void:
 	check(g.level == 0, "a steady rate the CPU holds is no missed refresh")
 
 
-## The Steam Frame's runtime keeps a game at every other refresh for seconds after a step up crossed its cliff, and its
-## GPU times read high while it does, so the step back down measures nothing saved.
+## After a step up crosses its cliff the Steam Frame's runtime holds every other refresh for seconds, its GPU times
+## high, so the step back down measures nothing saved.
 func _a_step_up_into_every_other_refresh_is_not_retried() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
@@ -375,13 +365,12 @@ func _every_other_refresh_under_the_line_steps_neither_way() -> void:
 	check(_feed_dt(g, BUDGET * OVER_LINE, 3, DT * 2.0) == 5, "the timer over it, they step down two at once")
 
 
-## Every headset runs the one ladder: nothing in the game reads which headset or build it is to choose what it draws.
-## The play log alone records the device's name.
 func _nothing_branches_on_the_headset_or_the_build() -> void:
 	var model := RegEx.create_from_string("get_model_name|OS\\.get_name\\(\\)|\"(Quest|Steam Frame|Lepton|Pico)[^\"]*\"")
-	# Android keeps photos in its own folder: a storage fact, not a choice of what to draw.
+	# Android's photo folder is a storage fact, not a choice of what to draw.
 	var feature := RegEx.create_from_string("OS\\.has_feature\\((?!\"android\"\\))[^)]*\\)")
 	for f in DirAccess.get_files_at("res://src"):
+		# play_log.gd alone records the device's name.
 		if not f.ends_with(".gd") or f == "play_log.gd":
 			continue
 		var text := FileAccess.get_file_as_string("res://src".path_join(f))
@@ -407,7 +396,6 @@ func _every_headset_starts_conservative_and_climbs_to_what_it_holds() -> void:
 	check(near.cost(Quality.START, BUDGET) > BUDGET * Quality.Governor.UNMEASURED, "a larger swapchain's estimate is its share of the frame, not the flat guess")
 
 
-## With no headset session, frames over the flat window's budget step it down and frames well under it climb back.
 func _a_flat_window_is_governed_to_its_own_pace() -> void:
 	var terrain := Terrain.new()
 	var flora := Flora.new(terrain, Ground.new())
@@ -513,8 +501,8 @@ func _the_frames_after_a_stall_are_not_judged() -> void:
 	check(_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES) == 1, "frames over budget after it still do")
 
 
-## A Quest 2 drawing heavy avatars ran every frame at the fourth refresh, PAUSE periods apart: a steady gap is the
-## scene's cost, not a pause.
+## Measured: a Quest 2 drawing heavy avatars ran every frame at the fourth refresh, PAUSE periods apart, so a steady
+## gap is the scene's cost, not a pause.
 func _frames_steadily_four_refreshes_apart_step_down() -> void:
 	var period := DT * 1000.0
 	var g := Quality.Governor.new(10)
@@ -531,8 +519,7 @@ func _frames_steadily_four_refreshes_apart_step_down() -> void:
 	check(g.level == at, "a stall after them still reads as one, at %d from %d" % [g.level, at])
 
 
-## Frames under a cover (Rig.covered), a photo's at 45 ms each, and the two after it whose timer still reads them step
-## nothing down; seen, the same frames do.
+## A photo's frames take 45 ms; the two after a cover still read its time.
 func _frames_the_player_does_not_see_step_nothing_down() -> void:
 	for see in [false, true]:
 		var g := Quality.Governor.new(10)
@@ -564,8 +551,6 @@ func _a_step_up_that_shows_at_once_waits_longest_and_longer_each_time_undone() -
 	check(_feed_until(g, BUDGET * 0.1, longest + 72 * 10, 0) == 0, "and no longer: a longer calm than that is rare in play")
 
 
-## Feeds `seconds` of frames whose GPU time is `on_ms` with the map drawn and `off_ms` without, and returns whether the
-## map is on after.
 func _feed_map(m: Quality.Map, on_ms: float, off_ms: float, seconds: float) -> bool:
 	for i in int(seconds * 72):
 		m.step(on_ms if m.on else off_ms, BUDGET, DT)
@@ -585,8 +570,8 @@ func _a_density_map_that_saves_stays_on() -> void:
 	check(_feed_map(m, 15.0, 13.0, 30.0), "as does one that costs less than a fifth of the frame")
 
 
-## The measured case: on a Quest 2 a frame over the line and under the period made every refresh with the map on, and
-## one trial of it off put the runtime at every fourth refresh, which it held while the frame stayed over the line.
+## Measured on a Quest 2: a frame over the line and under the period made every refresh with the map on; one trial off
+## held every fourth refresh.
 func _a_frame_that_makes_every_refresh_keeps_the_map() -> void:
 	var line := BUDGET * Quality.Governor.LINE
 	var m := Quality.Map.new()
@@ -610,8 +595,8 @@ func _the_density_map_is_tried_again_once_calm() -> void:
 	check(_feed_map(m, 5.0, 5.0, Quality.Map.CALM_SECONDS * 2.0 + 2.0), "then tries again")
 
 
-## The measured case: a trial of the map off that saved nothing, then a view the map makes seven times dearer at six
-## frames a second, as a freshly built timber village from the air drew on the Quest 2.
+## Measured on a Quest 2: a fresh timber village seen from the air, after a trial off that saved nothing, drew seven
+## times dearer with the map, at 6 fps.
 func _a_map_suddenly_dear_comes_off_at_once() -> void:
 	var m := Quality.Map.new()
 	_feed_map(m, 15.0, 16.0, 2.0)
@@ -666,9 +651,8 @@ func _a_map_suddenly_dear_comes_off_at_once() -> void:
 	check(toggles <= 8, "a frame as dear without the map tries it off at most once a retry wait: %d switches in four" % toggles)
 
 
-## A file loading is priced at the frame's measured time per primitive against the headroom under the line: the
-## record's empty scene (9.6 ms, 221,591 primitives under an 11.1 ms line) has room for 30,000 triangles and not
-## 40,000, and a file just let in takes its share of the room until the frames' median holds it.
+## Measured: the record's empty scene, 9.6 ms for 221,591 primitives under an 11.1 ms line, has room for 30,000
+## triangles and not 40,000.
 func _a_file_is_drawn_whole_only_within_the_measured_headroom() -> void:
 	var line := 1000.0 / 72.0 * Quality.Governor.LINE
 	var p := Quality.People.new()

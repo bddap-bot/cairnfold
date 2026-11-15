@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A recorded session holds every message the network brought, each with its frame, sender and the player it is
-## about, its arguments as they arrived, and a file it carries only as its hash; and every networked method records.
-
 
 func _initialize() -> void:
 	boot_main()

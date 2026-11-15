@@ -1,8 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A half see-through black piece of an animated avatar mesh lets through half the light of what stands behind it, as a
-## blend in linear light does. Needs a renderer, so scripts/test.sh runs it on the desktop one:
-## godot4 --path game --xr-mode off --script ../tests/gpu_sheer.gd
+## A half see-through piece passes half the light behind it, as a blend in linear light does.
 
 const SIZE := 64
 const BEHIND := Color(0.8, 0.8, 0.8)
@@ -75,7 +73,7 @@ func _run() -> void:
 	finish()
 
 
-## The mean red at the middle of the view three frames on, once a change has reached a drawn frame.
+## Once a change has reached a drawn frame.
 func _shot(view: SubViewport) -> float:
 	for i in 3:
 		await RenderingServer.frame_post_draw

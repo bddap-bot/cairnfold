@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the deer and the fox: godot4 --headless --path game --script ../tests/test_roamers.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
@@ -57,7 +55,6 @@ func _run(g: Glade, seconds: float, each := Callable()) -> void:
 			each.call()
 
 
-## Every animal that disappears was out of the viewer's sight in its last frame, and none stands where it may not.
 func _watch(g: Glade) -> Callable:
 	var vanishing := GladeBase.watch_vanishing(self, g.wildlife, g.wildlife.roamers.all, "roaming animal")
 	return func() -> void:
@@ -82,7 +79,6 @@ func _settle(beasts: Array) -> void:
 		b.timer = 30.0
 
 
-## Walks the head toward `to` at `speed` until within `stop` of it, ticking as it goes; false if `a` ran meanwhile.
 func _walk_up(g: Glade, a: Beast, speed: float, stop: float) -> bool:
 	var head := g.rig.head
 	while Vector2(head.global_position.x - a.position.x, head.global_position.z - a.position.z).length() > stop:
@@ -95,7 +91,7 @@ func _walk_up(g: Glade, a: Beast, speed: float, stop: float) -> bool:
 	return true
 
 
-## A grown red fox stands about 0.4 m at the shoulder and 1.1 m nose to tail tip; a doe about 1 m at the shoulder.
+## [kind, shoulder m, nose to tail m], those of a grown red fox and a doe.
 func _a_fox_and_a_doe_stand_true_to_life() -> void:
 	for want in [[Beast.Kind.FOX, 0.40, 1.1], [Beast.Kind.DEER, 0.99, 1.41]]:
 		var b := Beast.new(want[0], 1.0, 0.0)
@@ -116,7 +112,6 @@ func _a_fox_and_a_doe_stand_true_to_life() -> void:
 		b.free()
 
 
-## A deer facing a fright runs from it the other way: it wheels round first, so it never gallops backwards.
 func _a_deer_turns_before_it_runs() -> void:
 	var wildlife := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [], 1)
 	var grazers := Grazers.new(wildlife, 1)
@@ -139,7 +134,7 @@ func _a_deer_turns_before_it_runs() -> void:
 	wildlife.free()
 
 
-## Which idle clip a deer shows comes from its own seed, so a seeded replay's deer stand as they did.
+## A seeded replay's deer must stand as they did.
 func _idle_clips_follow_the_seed() -> void:
 	var shown := []
 	for global in [11, 12]:
@@ -325,8 +320,6 @@ func _they_leave_out_of_sight_and_come_again() -> void:
 	await g.teardown()
 
 
-## Seeds tossed from a still hand land a little way along its aim on the grass, and draw a deer, and the fox, to eat
-## them up off the ground.
 func _thrown_seeds_draw_them_to_eat() -> void:
 	var g := await _glade(23)
 	await _arrived(g)

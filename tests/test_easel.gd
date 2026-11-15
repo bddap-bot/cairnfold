@@ -1,9 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of easels: strokes painted through the brush are build commands, kept with the garden and loaded
-## back whole, taken back and put back by undo and redo, cleared by a fresh sheet, carried by a deleted easel's undo,
-## stands on the ground as it is reshaped, and checked like every command: godot4 --headless --path game --script ../tests/test_easel.gd
-
 var world: World
 var dir := ""
 
@@ -114,7 +110,7 @@ func _a_stroke_lays_the_same_dabs_every_time() -> void:
 		check(constant, "a long stroke keeps its load in medium %d" % medium)
 
 
-## A peer's samples arrive far apart; what fills between them is the mark every machine lays.
+## Peers sample far apart; the fill between samples must be the same on every machine.
 func _dabs_ease_from_sample_to_sample() -> void:
 	var stroke := {"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "load": 1.0}
 	var to := Vector2(0.6, 0.5)
@@ -190,8 +186,7 @@ func _a_fresh_sheet_clears_and_undo_brings_the_painting_back() -> void:
 	check(_easel().strokes == before, "undo puts the painting back")
 
 
-## A sheet step that starts after the frame's tools have run, and whose pull ends in its first frame as on a loaded
-## host, still tears the sheet.
+## The wait starts the step after the frame's tools ran; `seconds: 0` ends the pull in its first frame, as on a loaded host.
 func _a_sheet_grips_before_it_pulls() -> void:
 	var before: Array = _easel().strokes.duplicate()
 	check(not before.is_empty(), "the canvas has a painting to tear")
@@ -201,7 +196,6 @@ func _a_sheet_grips_before_it_pulls() -> void:
 	check(_easel().strokes == before, "undo puts the painting back")
 
 
-## A grip that takes no sheet ends the run at the sheet step instead of leaving later steps waiting for its tear.
 func _a_sheet_step_that_grips_nothing_fails() -> void:
 	var before: Array = _easel().strokes.duplicate()
 	main.rig.right.picking = true
@@ -214,10 +208,6 @@ func _a_sheet_step_that_grips_nothing_fails() -> void:
 	d.queue_free()
 
 
-## Undo's cost does not grow with the painting: the canvas goes back to the checkpoint the stroke before kept, at its
-## tick, with nothing left to replay, at 10 strokes as at 200; a stroke further back replays only those after the
-## nearest checkpoint, and as many strokes ending otherwise replay the one that differs. It keeps no more checkpoints
-## than it has slots for, and none while the painter's own stroke is under way.
 func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
 	for n in [10, 200]:
 		var canvas := Canvas.new()
@@ -275,7 +265,6 @@ func _a_deleted_easel_comes_back_with_its_painting() -> void:
 	check(world.state.easels.has(id) and world.state.easels[id].strokes == before and main.easels.find(id) != null, "undo stands it back up with its painting")
 
 
-## Ground raised, dug, undone, loaded whole or set back under an easel leaves it standing on that ground.
 func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	var id: int = world.state.easels.keys()[-1]
 	var e: Easels.Easel = main.easels.find(id)
@@ -307,8 +296,6 @@ func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
 
 
-## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
-## where it is let go as one reshape; its canvas and kit keep their painting grips, and two hands size no easel.
 func _a_grip_on_its_stand_carries_it() -> void:
 	var tool: WallTool = main.tool
 	var id: int = world.state.easels.keys()[-1]
@@ -408,10 +395,8 @@ func _the_tray_loads_the_brush() -> void:
 	check(p.brush == Brushwork.Brush.BIG and p.palette == null and main.rig.right.tool == Hand.Tool.EASEL, "from the charcoal a hand takes a palette, sets it down and takes a brush")
 
 
-## Every brush standing in the pot keeps its whole surface inside the pot's inner wall from the pot's foot to its rim,
-## so none shows through the wall or its lip, sampled densely enough that a crossing of a millimetre shows.
 func _no_brush_crosses_the_pot() -> void:
-	const STEPS := 48
+	const STEPS := 48  # dense enough that a millimetre crossing shows
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var inner := Easels.POT_SIZE.x - Easels.POT_WALL
 	for kind: Brushwork.Brush in Easels.SPLAY:
@@ -436,8 +421,6 @@ func _no_brush_crosses_the_pot() -> void:
 		check(below == 0 and worst < inner, "the %s stands inside the pot: %d points below its foot, %.4f m out where its inner wall is %.4f m" % [Brushwork.Brush.keys()[kind], below, worst, inner])
 
 
-## The brushes splay out of the pot, each handle leaving through its mouth, and a grip anywhere within a few
-## centimetres of a brush's handle or a stick of charcoal takes that one, never its neighbour.
 func _each_brush_in_the_pot_is_taken_alone() -> void:
 	const SLACK := 0.045
 	var e: Easels.Easel = main.easels.easels.values()[-1]
@@ -460,8 +443,6 @@ func _each_brush_in_the_pot_is_taken_alone() -> void:
 			check(p.brush == kind and p.palette == null, "a grip %s %.0f cm off the %s's handle takes it, not the %s" % [o, SLACK * 100.0, Brushwork.Brush.keys()[kind], Brushwork.Brush.keys()[p.brush]])
 
 
-## Every part of the stand lies wholly behind the canvas's face, or wholly below its bottom edge, so from anywhere a
-## player stands none covers any of the painting.
 func _no_plank_crosses_the_canvas() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var face := e.canvas_frame()
@@ -500,8 +481,7 @@ func _no_implement_crosses_the_easel() -> void:
 			check(clear, "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
 
 
-## Setting an easel up builds no geometry: every mesh it shows is the one the easel before it shows, so a placement
-## costs its nodes and its canvas, not a bake.
+## Shared so a placement costs its nodes and canvas, not a bake.
 func _easels_share_their_geometry() -> void:
 	var stands := Easels.new()
 	stands.terrain = world.terrain
@@ -514,16 +494,13 @@ func _easels_share_their_geometry() -> void:
 	stands.free()
 
 
-## `box` less a millimetre each way, so things resting on it do not count as crossing it; a face keeps a millimetre.
+## Shrunk a millimetre each way (a face keeps one) so things resting on `box` do not count as crossing it.
 func _inside(box: AABB) -> AABB:
 	var size := box.size - Vector3.ONE * 0.002
 	size = Vector3(maxf(size.x, 0.001), maxf(size.y, 0.001), maxf(size.z, 0.001))
 	return AABB(box.get_center() - size * 0.5, size)
 
 
-## Taken by a grip, either palette stays in either hand after the grip lets go, as a brush does, held by its thumb hole
-## with its paint up and reaching toward the other hand, clear of the controller; the next grip, wherever the hand is,
-## sends it back to its rest on the tray, travelling there rather than jumping, and gives the hand back what it held.
 func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	for kit: Brushwork.Medium in e.palettes:
@@ -576,8 +553,6 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 	await play([{"op": "rests"}])
 
 
-## Besides a grip anywhere, picking another tool from the wheel sends a held palette home and leaves that tool in the
-## hand, and an easel taken away while its palette is held leaves the hand holding nothing of it.
 func _every_way_out_lets_the_palette_go() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
@@ -603,9 +578,6 @@ class Lines:
 		lines.append_array(message.split("\n", false))
 
 
-## Each change in what a hand holds, and each grip that takes something, prints one line saying what it holds now: a
-## brush, a stick of charcoal or a palette taken, the one held taken again, a palette set down, the sheet gripped and
-## let go, and another tool picked and the easel tool picked back.
 func _every_held_change_logs_a_line() -> void:
 	var log := Lines.new()
 	OS.add_logger(log)
@@ -636,8 +608,6 @@ func _every_held_change_logs_a_line() -> void:
 	OS.remove_logger(log)
 
 
-## A brush whose tip goes in anywhere over a pan's or an oil colour's paint, or on through the palette under it, comes
-## out in that colour and medium, from a palette in the other hand or on the tray, and paints in it.
 func _a_tip_in_each_well_loads_its_colour() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var tool: EaselTool = main.easel_tool
@@ -703,8 +673,6 @@ func _oil_paints_onto_the_board_as_onto_the_canvas() -> void:
 	check(not Easels.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Easels.open_at(Easels.PALETTE_SIZE * 0.5) and Easels.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
 
 
-## A brush swept to and fro across the canvas faster than any stroke kept in a recorded session ends each stroke at
-## the dabs one may lay, as it ends one at the samples one may hold, so every stroke it paints is one the garden keeps.
 func _a_stroke_ends_at_what_it_costs_to_lay() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await flushed()
@@ -726,9 +694,6 @@ func _a_stroke_ends_at_what_it_costs_to_lay() -> void:
 	check(strokes.size() > 1 and samples == touches and most <= Brushwork.MAX_DABS, "every touch is kept, in %d strokes laying at most %d dabs each" % [strokes.size(), most])
 
 
-## The same touch, in each surface's own frame, on the canvas and on the oil palette's board: each brush and the
-## charcoal stop at the face, the bristles bend as far, the hand feels it alike, and a brush's stroke keeps the same
-## samples, as far apart in metres, as hard and at the same angle. Charcoal marks the canvas's paper, not the board.
 func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await flushed()
@@ -795,8 +760,6 @@ func _a_touch_paints_the_board_as_it_paints_the_canvas() -> void:
 	tool.canvas_contact.disconnect(feel)
 
 
-## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the
-## trigger pressed; on either hand and either headset's controls. A press that sets none up says why.
 func _the_trigger_sets_one_up_or_says_why_not() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await flushed()
@@ -923,7 +886,6 @@ func _bad_strokes_are_dropped() -> void:
 	check(Commands.clean({"op": "paint", "easel": 4, "stroke": heavy}, state, false, world.terrain).is_empty(), "nor a stroke past what the canvas lays")
 
 
-## Each demo script's dips name the jar or a palette's paint, so none plays a dip the driver cannot place.
 func _every_demo_dips_into_something_on_the_tray() -> void:
 	var known: Array = EaselTool.PAINTS.values() + ["jar"]
 	var demos := ProjectSettings.globalize_path("res://").path_join("../demo")
@@ -935,7 +897,6 @@ func _every_demo_dips_into_something_on_the_tray() -> void:
 				check(step.what in known, "%s dips into %s, which is on no tray" % [f, step.what])
 
 
-## `n` samples from one corner of the canvas to the other and back, at the lightest touch, all in one tick.
 func _zigzag(n: int) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for i in n:
@@ -1000,8 +961,7 @@ func _preview_matches_the_grip() -> void:
 	check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
 
 
-## No hand here shows a tool taken from an easel, so every easel shows all of its, and `p`'s brush is not `kind`, so
-## a grip that takes `kind` changes it.
+## Leaves every easel showing all its tools and `p` holding something other than `kind`.
 func _empty_handed(p: EaselTool.Painter, kind: Brushwork.Brush) -> void:
 	for o in main.easel_tool.painters:
 		o.brush_from = 0
@@ -1009,9 +969,6 @@ func _empty_handed(p: EaselTool.Painter, kind: Brushwork.Brush) -> void:
 	main.easel_tool._rack()
 
 
-## An easel holds one of each brush, stick and palette; the one a hand takes is off it, the other hand cannot take it
-## too, and it is back while that hand shows anything else and once it takes another. What a player across the garden
-## holds is off it as well.
 func _each_easel_holds_one_of_each_tool() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var right: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
@@ -1062,8 +1019,6 @@ func _each_easel_holds_one_of_each_tool() -> void:
 	_empty_handed(right, Brushwork.Brush.SMALL)
 
 
-## The charcoal comes in three sizes laid well apart on the tray: a grip at each takes it, and a thicker stick is a
-## thicker, shorter model and lays a wider mark.
 func _sticks_come_in_sizes() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
@@ -1089,19 +1044,16 @@ func _sticks_come_in_sizes() -> void:
 	_empty_handed(p, Brushwork.Brush.SMALL)
 
 
-## How thick a stick of charcoal's model is across its length.
 static func _thickness(stick: Node3D) -> float:
 	var mi: MeshInstance3D = stick.get_node("tip")
 	return (mi.transform * mi.get_aabb()).size.x
 
 
-## How long a stick of charcoal's model is.
 static func _length(stick: Node3D) -> float:
 	var mi: MeshInstance3D = stick.get_node("tip")
 	return (mi.transform * mi.get_aabb()).size.z
 
 
-## A stick of charcoal is held leaned back 45 degrees from the hand's aim, its tip raised, and a brush along the aim.
 func _a_held_stick_leans_back() -> void:
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	for kind: Brushwork.Brush in Brushwork.STICKS:
@@ -1118,9 +1070,6 @@ func _a_held_stick_leans_back() -> void:
 	_empty_handed(p, Brushwork.Brush.SMALL)
 
 
-## A stick lying on its side and turned on the canvas through half a turn about its middle, as drawing a circle with its
-## side, lays a mark that turns with it: the stroke keeps each turn, its dabs turn smoothly through the half turn to
-## end where the stick does, and it lays as much charcoal as a straight side stroke sweeping as far.
 func _a_side_stroke_turns_with_the_stick() -> void:
 	const STEPS := 60
 	var e: Easels.Easel = main.easels.easels.values()[-1]

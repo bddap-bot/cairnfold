@@ -1,9 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the teleport ray: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport.gd
-
-## The time each frame steps the rig: a release reads the last Rig.RELEASE_LOOKBACK of aiming, so a frame's real
-## length, long on a loaded machine, would decide where it lands.
+## Fixed, not the real frame time: a release reads the last Rig.RELEASE_LOOKBACK of aiming, so a slow frame would
+## move the landing.
 const STEP := 1.0 / 60.0
 
 var terrain := Terrain.new()
@@ -22,7 +20,7 @@ func _initialize() -> void:
 	_finish.call_deferred(rig)
 
 
-## The rig steps only through _frame from here; disabled in _initialize, it would be enabled again when it is
+## Only _frame steps the rig, by STEP; set_process(false) in _initialize would be undone when it is
 ## made ready with the root.
 func _finish(rig: Rig) -> void:
 	rig.set_process(false)
@@ -46,7 +44,6 @@ func _finish(rig: Rig) -> void:
 	finish()
 
 
-## A snap turn turns the player where they stand: their head stays put, wherever in the play space it is.
 func _snap_turns_about_the_head(rig: Rig) -> void:
 	rig.head.position = Vector3(0.6, Rig.EYE, -0.4)
 	var h := rig.head.global_position
@@ -55,7 +52,7 @@ func _snap_turns_about_the_head(rig: Rig) -> void:
 	rig.head.transform = Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
 
 
-## A teleport swishes; one past MARKER_NEAR_M that stands the player on the ground or something on it sounds as a landing.
+## Long means past Rig.MARKER_NEAR_M.
 func _landing_sounds(rig: Rig) -> void:
 	var cases := {
 		"a short teleport onto the ground": [terrain.ground(0, 0), 0.0, Cues.Act.TELEPORT],
@@ -120,9 +117,6 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 	check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
 
 
-## The mountains are sky to the ray and its cast ends at the map's side: aimed past any side, at the foothills, level,
-## or up at a ridge, it targets the point where the cast leaves the map, on the floor there unless aimed above the
-## horizon, where the air reach, if nearer, ends it instead. Aimed down near the edge it still lands on the ground there.
 func _casts_end_at_the_side(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5
 	var ranges: Dictionary = Mountains.RANGES[0]
@@ -159,8 +153,6 @@ func _casts_end_at_the_side(rig: Rig) -> void:
 	rig.hide_markers()
 
 
-## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and the preview there
-## looks as big as one nearby.
 func _reaches_across_the_map(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5 - 4.0
 	var o := Vector3(-half, terrain.height_at(-half, half) + 30.0, half)
@@ -176,9 +168,6 @@ func _reaches_across_the_map(rig: Rig) -> void:
 	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
 
 
-## Through real frames, a cast across the map and past its side, released as a thumb lets go, through partial
-## deflection: every frame the preview stands where a release then would land, so the last one shown is where the
-## player lands.
 func _preview_is_the_landing(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5 - 4.0
 	for to: Vector3 in [terrain.ground(half, -half), Vector3(half + 60.0, terrain.height_at(half, -half) + 20.0, -half - 60.0)]:
@@ -188,6 +177,7 @@ func _preview_is_the_landing(rig: Rig) -> void:
 		var eye := rig.head.global_position
 		rig.left.global_transform = Transform3D(Basis.looking_at(to - eye, Vector3.UP), eye + Vector3(-0.2, -0.4, -0.3))
 		var shown := Vector3.INF
+		# A thumb letting go: the stick springs back through partial deflection.
 		for y in [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.55, 0.32, 0.0]:
 			Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
 			await _frame(rig)
@@ -202,8 +192,7 @@ func _preview_is_the_landing(rig: Rig) -> void:
 	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
 
 
-## An air target stands the player's preview on the target itself; depth in the headset places it, so nothing marks
-## the ground below.
+## Depth in the headset places an air target, so nothing marks the ground below.
 func _air_target_shows_the_preview(rig: Rig) -> void:
 	var o := Vector3(0, terrain.height_at(0, 0) + 1.5, 0)
 	rig.aim(_pose(o, Vector3(0, 1, -1).normalized()))
@@ -269,9 +258,6 @@ func _aims_under_any_roof_land_on_its_floor(rig: Rig) -> void:
 	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
 
 
-## Rays that pass under the roof: from outside at a doorway's height and a window's, and from inside down at the
-## floor, at full reach and eased. Each lands inside the walls, under the roof: on the floor at full reach, on the
-## ray over the floor eased.
 func _aims_into_the_house_land_on_its_floor(rig: Rig, r: RoofLayout, roof: String) -> void:
 	var f := r.frame()
 	var mid := Vector3(f.mid.x, 0.0, f.mid.z)
@@ -299,9 +285,6 @@ func _no_teleport_tool() -> void:
 	check(not Hand.Tool.has("TELEPORT"), "teleport is not a tool")
 
 
-## Through real frames, as a player: the rig's own _process reads the stick.
-## The left stick forward aims from the left hand and goes; flicked sideways it snap-turns, back it turns round. The
-## right stick, pushed or flicked any way, does nothing.
 func _left_stick_moves(rig: Rig) -> void:
 	var h := rig.left
 	rig.place(Vector3(0, terrain.height_at(0, 0), 0), 0.0)
@@ -362,9 +345,6 @@ func _stick_teleports_with_every_tool(rig: Rig) -> void:
 	Hand.injected_sticks.erase(rig.left.tracker)
 
 
-## Through real frames: full forward, ease back and hold, then a release whose spring sweeps the stick through
-## smaller deflections. The eased landing is nearer than the full one, and a release straight from full
-## forward still goes the full distance.
 func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 	var full := await _stick_landing(rig, dir, 0.6)
 	var eased := await _stick_landing(rig, dir, 0.6, 0.45)
@@ -381,9 +361,6 @@ func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 	check(absf(snapped - Vector2(far.x - aimed.x, far.z - aimed.z).length()) < 1.0, "%s: a release straight from full forward goes the full distance" % what)
 
 
-## Through real frames, aimed at the ground: easing the stick back walks the target back along the ray, as far as the
-## stick reached RELEASE_LOOKBACK before, a slow release lands there in the air, and only a quick release from full
-## forward lands on the ground the ray hit.
 func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	var dir := Vector3(0, -0.3, -1).normalized()
 	rig.place(Vector3(0, terrain.height_at(0, 0), 0), 0.0)
@@ -420,8 +397,6 @@ func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	check(Vector2(h.x - hit.x, h.z - hit.z).length() < 1.0 and absf(rig.global_position.y - terrain.height_at(h.x, h.z)) < 0.05, "ground: a quick release from full forward lands on the ground the ray hit")
 
 
-## Through real frames, aimed at ground 130 m out: a hand trembling half a degree at 9 Hz moves the target well under
-## what the same tremor moves the bare ray, and a deliberate turn of 10 degrees is followed within a quarter second.
 func _far_aim_holds_against_tremor(rig: Rig) -> void:
 	rig.place(Vector3(0, terrain.height_at(0, 60) + 20.0, 60), 0.0)
 	await _frame(rig)
@@ -464,8 +439,6 @@ func _far_aim_holds_against_tremor(rig: Rig) -> void:
 		await _frame(rig)
 
 
-## Places the rig at the origin, aims along `dir` with the stick full forward, then at `eased` for `hold`
-## seconds, then lets the stick spring back through 0.6 and 0.35 to centre; returns how far the head moved.
 func _stick_landing(rig: Rig, dir: Vector3, hold: float, eased := 1.0) -> float:
 	rig.place(Vector3(0, terrain.height_at(0, 0), 0), 0.0)
 	await _frame(rig)
@@ -477,6 +450,7 @@ func _stick_landing(rig: Rig, dir: Vector3, hold: float, eased := 1.0) -> float:
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, eased)
 	for f in roundi(hold / STEP):
 		await _frame(rig)
+	# The stick springs back to centre.
 	for y in [0.6, 0.35, 0.0]:
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
 		await _frame(rig)
@@ -486,7 +460,6 @@ func _stick_landing(rig: Rig, dir: Vector3, hold: float, eased := 1.0) -> float:
 	return Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 
 
-## With no input, the frames after a teleport change the origin once, the cut, and leave it on the target.
 func _view_holds_after_teleport(rig: Rig, lift_m: float) -> void:
 	var ground := Vector3(6, terrain.height_at(6, -3), -3)
 	var before := rig.global_position
@@ -501,8 +474,6 @@ func _view_holds_after_teleport(rig: Rig, lift_m: float) -> void:
 	check(Vector2(h.x - ground.x, h.z - ground.z).length() < 1e-4 and absf(rig.global_position.y - ground.y - lift_m) < 1e-4, "a %s m teleport lands exactly on its target" % lift_m)
 
 
-## The preview is the player's own avatar standing at the target, turned as they face and holding their head and hands
-## where they hold them now, about the floor under their head.
 func _the_preview_holds_the_players_pose(rig: Rig) -> void:
 	rig.wear(Avatar.open(Avatar.built_in(0), Color.WHITE))
 	rig.head.position = Vector3(0.1, 1.5, 0.2)
@@ -524,7 +495,6 @@ func _the_preview_holds_the_players_pose(rig: Rig) -> void:
 	rig.left.transform = Transform3D.IDENTITY
 
 
-## Floating, a shadow marks the ground below and nothing the air at the feet; standing, nothing shows.
 func _floating_shows_what_is_underfoot(rig: Rig) -> void:
 	var g := terrain.ground(0, 0)
 	rig.place(g, 0.0)

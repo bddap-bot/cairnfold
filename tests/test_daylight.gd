@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of time of day, seasons and the colour picker, as data and through the tools:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_daylight.gd
-
 var terrain: Terrain:
 	get:
 		return main.world.terrain
@@ -23,7 +20,6 @@ func _initialize() -> void:
 	_in_the_glade.call_deferred()
 
 
-## The hours before dawn with no moon up are dark; dusk is just after sunset; the eye adapts to that dark alone.
 func _the_dark_before_dawn() -> void:
 	var dark: Array = range(0, 96).map(func(q: int) -> float: return q / 96.0).filter(Daylight.moonless)
 	check(not dark.is_empty() and dark.all(func(t: float) -> bool: return t > 0.0 and t < 0.25), "the dark falls between midnight and dawn: %s to %s" % [dark.front(), dark.back()])
@@ -34,7 +30,6 @@ func _the_dark_before_dawn() -> void:
 		check(Look.night_adapted(Daylight.light(t)) == 1.0, "at %.2f, sun or moon up, the eye needs no adapting" % t)
 
 
-## A garden kept in the dark before dawn starts again at dusk; one kept by day starts at its hour.
 func _a_garden_kept_in_the_dark_starts_at_dusk() -> void:
 	var world: World = main.world
 	for kept: float in [0.12, 0.4]:
@@ -265,8 +260,6 @@ func _shaders_read_the_codes_and_globals_palette_writes() -> void:
 		check(ProjectSettings.has_setting("shader_globals/" + name) and inc.contains("global uniform") and inc.contains(" %s;" % name), "%s is a declared shader global" % name)
 
 
-## Directive (verbatim): "If I make one wall somewhere, and then I make another wall elsewhere, and I select the color
-## on the first wall, it changes the color on the other wall too. I'd like color to be per wall instead of global"
 func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var world: World = main.world
@@ -343,12 +336,11 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	check(both[stone] == 1 and both[Palette.Element.WOOD] == 2 and both[Palette.Element.ROOF] == 3, "two players' picks of different materials on one build both stand: %s" % [both])
 
 
-## `p` as a driver step aims at it.
+## [x, height above the ground, z], as a driver step aims.
 func _above(p: Vector3) -> Array:
 	return [p.x, p.y - terrain.height_at(p.x, p.z), p.z]
 
 
-## Whether each piece of `now` is the one in `was` with its stone's colour scaled by `tint`.
 func _scaled_by(was: PackedFloat32Array, now: PackedFloat32Array, tint: Color) -> bool:
 	var stride := Wall.kinds()[Wall.Part.STONE].stride()
 	if was.size() != now.size() or was.is_empty():

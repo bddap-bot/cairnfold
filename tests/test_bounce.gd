@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the light builds give back and of shadows and fog for a floating eye:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bounce.gd
-
 const WEST_LOW := Vector3(-0.917, 0.4, 0)
 const EAST_LOW := Vector3(0.917, 0.4, 0)
 
@@ -28,8 +25,7 @@ func _init() -> void:
 	finish()
 
 
-## A built wall from `a` to `b` on the ground as Masonry hands it over: a 0.4 m piece every 0.4 m in each
-## course up to `height`.
+## `a` and `b` are ground (x, z).
 func _wall(a: Vector2, b: Vector2, height := 2.6, from := 0.2) -> Array[PackedFloat32Array]:
 	var kind := Wall.kinds()[Wall.Part.STONE]
 	var stones := PackedFloat32Array()
@@ -46,7 +42,6 @@ func _wall(a: Vector2, b: Vector2, height := 2.6, from := 0.2) -> Array[PackedFl
 	return [stones]
 
 
-## A tower `radius` round `at` laid as on a wall's top: courses from `foot` above the ground up to `top`.
 func _ring(at: Vector2, radius: float, foot: float, top: float) -> Array[PackedFloat32Array]:
 	var kind := Wall.kinds()[Wall.Part.STONE]
 	var stones := PackedFloat32Array()
@@ -63,8 +58,8 @@ func _ring(at: Vector2, radius: float, foot: float, top: float) -> Array[PackedF
 	return [stones]
 
 
-## Four walls round x, z in [-3, 3] with a doorway's gap 2 m high at z = 3, x in [-1.4, 1.4], and, with
-## `roofed`, a tiled roof's pieces hanging 2.8 m up over it all.
+## Walls round x, z in [-3, 3], a doorway under a lintel in the z = 3 one;
+## `roofed` adds a tiled roof's courses over it all.
 func _house(roofed: bool) -> Array:
 	var parts := [_wall(Vector2(-3, -3), Vector2(3, -3)), _wall(Vector2(3, -3), Vector2(3, 3)), _wall(Vector2(-3, -3), Vector2(-3, 3)),
 		_wall(Vector2(-3, 3), Vector2(-1.6, 3)), _wall(Vector2(1.6, 3), Vector2(3, 3)), _wall(Vector2(-1.2, 3), Vector2(1.2, 3), 2.6, 2.2)]

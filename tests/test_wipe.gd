@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of wiping the garden: the delete tool held at the sky empties every layer in one step, undo
-## brings back the garden as it was kept, and a visitor's wipe is the host's: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
-
 var world: World
 var dir := ""
 
@@ -32,14 +29,13 @@ func _settled() -> void:
 	await flushed()
 
 
-## What the garden shows, whatever its sequence number.
 func _picture() -> String:
 	var d := world.digest()
 	d.erase("seq")
 	return var_to_str(d)
 
 
-## The kept garden without its sequence numbers, which go on counting through a wipe and its undo.
+## Sequence numbers go on counting through a wipe and its undo.
 func _kept() -> PackedByteArray:
 	var snap: Dictionary = bytes_to_var(FileAccess.get_file_as_bytes(world.save_path))
 	for c: Dictionary in snap.cmds:
@@ -126,7 +122,6 @@ func _a_wipe_someone_built_on_stays() -> void:
 	check(world.state.walls.is_empty(), "while the visitor still takes back their own wall")
 
 
-## Stands one of every placeable kind: something in every list the garden keeps, and the mirror.
 func _place_everything() -> void:
 	world.restore({"seq": world.seq, "cmds": []})
 	await _build()

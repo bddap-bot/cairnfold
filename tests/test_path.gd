@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of paths and wall chemistry: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_path.gd
-
 
 var terrain := Terrain.new()
 var marks := Ground.new()
@@ -90,7 +88,6 @@ func _a_path_beside_a_wall_opens_nothing() -> void:
 	check(PathLayout.arches(_path([[4, 1.5], [4, 6]], 1.2).meetings(w)).is_empty(), "a path that stops short of a wall opens nothing")
 
 
-## Crossings found through the grid match testing every path segment against every wall segment.
 func _crossings_test_every_segment_pair_that_meets() -> void:
 	var tower := WallLayout.new()
 	for k in 7:
@@ -114,8 +111,6 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 	check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
 
 
-## A stroke being drawn re-plans only its moving end and keeps each wall's meetings along the rest; after every relay
-## its samples, cells and meetings are those of the same points planned whole.
 func _a_growing_stroke_plans_and_meets_as_a_whole_one() -> void:
 	var walls: Array[WallLayout] = []
 	for z in [-5.0, -1.0, 3.0]:
@@ -174,8 +169,6 @@ func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
 	return out
 
 
-## The garden's copy of a stroke, its widths packed and its clutter gathered, is the stroke its ghost drew: the wall
-## crossings and meetings the ghost worked out serve it.
 func _the_gardens_copy_of_a_stroke_is_the_same_stroke() -> void:
 	var ghost := PathLayout.new()
 	for i in 12:
@@ -265,7 +258,7 @@ func _paths() -> Paths:
 	return paths
 
 
-## A wall tool, the paths, the garden and the rig, idle so a test drives them.
+## [wall tool, paths, garden, rig, flora, ground grab]; the tool and the grab idle so a test drives them.
 func _setup() -> Array:
 	var world := World.new()
 	var rig := Rig.new(world.terrain)
@@ -360,7 +353,7 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		check(not blocks.any(func(s): return Vector2(s.xform.origin.x - 1.3, s.xform.origin.z - 0.15).length() < WallLayout.ARCH_HALF - 0.2), "no block fills the doorway across the seam")
 
 
-## A house 8 m by 5 m with a gable roof, its front wall from (4, 2.5) back to (-4, 2.5) at arc length 13 to 21.
+## The front wall runs from (4, 2.5) to (-4, 2.5), arc length 13 to 21.
 func _house_layout() -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(-4, 0, 0), Vector3(4, 0, 0), 5.0)
@@ -446,7 +439,7 @@ func _a_path_and_a_house_make_a_door_in_either_order() -> void:
 	_teardown(nodes)
 
 
-## Puts up a house 8 m by 5 m with a gable roof centred on `at`, its front facing +z.
+## The house's front faces +z.
 func _put_house(nodes: Array, at: Vector3) -> Wall:
 	var world: World = nodes[2]
 	var a := world.terrain.ground(at.x - 4, at.z)
@@ -543,7 +536,6 @@ func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	return w
 
 
-## Draws a path and sends it to the garden, as the path tool does, then lays every wall.
 func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
 	stroke_path(nodes[1], nodes[2], a, b, half)
 	lay_walls(nodes[0])
@@ -554,8 +546,6 @@ func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
 	lay_walls(nodes[0])
 
 
-## Relays look again only at the walls in the cells a stroke's moving end left or reached; what each wall shows is what
-## cutting every wall from scratch shows.
 func _a_stroke_over_many_walls_previews_as_one_cut_whole() -> void:
 	var nodes := _setup()
 	var tool: WallTool = nodes[0]
@@ -592,8 +582,6 @@ func _a_stroke_over_many_walls_previews_as_one_cut_whole() -> void:
 	_teardown(nodes)
 
 
-## Laid, a stroke's walls keep the arches its ghost showed, as cutting each again from the paths laid would leave them,
-## without laying a wall again.
 func _a_stroke_laid_keeps_the_arches_its_ghost_showed() -> void:
 	var nodes := _setup()
 	var tool: WallTool = nodes[0]
@@ -667,8 +655,6 @@ func _a_path_opens_its_arch_before_release() -> void:
 	_teardown(nodes)
 
 
-## A path's command wears the garden's mask before anything reads it, and the shown mask over the frames after, a few
-## rows a frame, not in the frame it lands.
 func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void:
 	var nodes := _setup()
 	var world: World = nodes[2]
@@ -720,8 +706,6 @@ func _dirt_wears_without_stones() -> void:
 	paths.free()
 
 
-## Both edges carry a timber run from the ground at the foot to the ground at the head, its top standing proud of every
-## tread it passes, with no break along it.
 func _stringers_carry_the_flight(treads: Array, timbers: Array, ground: Callable) -> void:
 	check(timbers.size() >= 4, "a flight has a stringer on either edge: %d timbers" % timbers.size())
 	for edge in [-1.0, 1.0]:
@@ -747,7 +731,6 @@ func _stringers_carry_the_flight(treads: Array, timbers: Array, ground: Callable
 		check(beside.any(func(p: Dictionary) -> bool: return absf(p.xform.origin.x) >= edge - 0.05), "a stringer runs beside every tread")
 
 
-## Neighbouring stones overlap across the width and along the flight, so nothing beneath shows between them.
 func _no_gaps_between_treads(treads: Array) -> void:
 	for a in treads:
 		var xa: Transform3D = a.xform
@@ -800,7 +783,6 @@ func _steep_paths_lay_level_treads() -> void:
 	check(reserved.wall_m2 >= treads.size() * 0.1 and reserved.timber >= timbers.size(), "flat paths reserve their possible treads and stringers before terrain is raised: %s" % reserved)
 
 
-## A path of each surface laid by the garden.
 func _laid(paths: Paths, id: int, surface: PathLayout.Surface, points: Array, half: float) -> PathLayout:
 	var p := _path(points, half)
 	p.surface = surface
@@ -810,8 +792,6 @@ func _laid(paths: Paths, id: int, surface: PathLayout.Surface, points: Array, ha
 	return paths.layouts[-1]
 
 
-## Each surface wears its own ground into the mask, in full down the middle of the stroke: dirt and a bed earth, a bed's
-## tilled and dirt's not, sand sand, cobbles and flagstones stone in their styles; and each is the mark found there.
 func _each_surface_wears_its_own_ground() -> void:
 	marks.install()
 	var paths := _paths()
@@ -840,8 +820,6 @@ func _each_surface_wears_its_own_ground() -> void:
 	paths.free()
 
 
-## Where two surfaces meet, the later one lies over the earlier down its middle and the two blend across its soft edge,
-## each texel there part of each, with no meadow showing between them; lifting the later gives the earlier back.
 func _surfaces_blend_where_they_meet() -> void:
 	marks.install()
 	var paths := _paths()
@@ -860,8 +838,6 @@ func _surfaces_blend_where_they_meet() -> void:
 	paths.free()
 
 
-## Across water a path lays flat stepping stones a stride apart, their tops just out of the water and their feet on the
-## bed, and no treads; on the dry ground either side it lays none.
 func _a_path_across_water_lays_stepping_stones() -> void:
 	var path := _path([[-6, 0], [6, 0]], 0.6)
 	var height := func(x: float, _z: float) -> float: return -0.3 * clampf(3.5 - absf(x), 0.0, 1.0)
@@ -887,8 +863,6 @@ func _a_path_across_water_lays_stepping_stones() -> void:
 	check(bed.pieces(height, water).all(func(p: Dictionary) -> bool: return p.kind == "block" or absf(p.xform.origin.x) > 3.0 - 0.3), "a bed across water sprouts nothing in it")
 
 
-## A bed sprouts rows along it as many as its width holds, each row one crop, a plant every CROP_EVERY, standing on
-## the ground inside the bed; a steep bed lays no treads, and the budget reserves every plant.
 func _a_bed_sprouts_rows_of_vegetables() -> void:
 	var bed := _path([[0, 0], [0, -6]], 1.0)
 	bed.surface = PathLayout.Surface.BED
@@ -920,8 +894,6 @@ func _a_bed_sprouts_rows_of_vegetables() -> void:
 		check(PathLayout.crop(crop).size() >= 3, "a %s is a few pieces" % PathLayout.Crop.find_key(crop))
 
 
-## Dirt or a bed crossing stone leaves the stone it does not cover in its own style, stone over a bed leaves the bed
-## tilled under it, and stone painted back to meadow over cobbles leaves the cobbled path's way worn and found there.
 func _earth_and_stone_keep_their_looks() -> void:
 	marks.install()
 	var paths := _paths()

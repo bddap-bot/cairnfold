@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of sheep: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_sheep.gd
-
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
@@ -48,8 +46,6 @@ func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	return stroke_wall(g.walls, a, b, 40)
 
 
-## Counts, over the frames it is called on, steps through a wall, frames in water, frames resting on ground
-## kept off, and frames off the ground.
 class Watch:
 	var crossed := 0
 	var wet := 0
@@ -71,8 +67,6 @@ class Watch:
 				floating += 1
 
 
-## Seeds held out low beside a grazing flock: one sheep walks up and nibbles from the hand, head lowered to
-## it, and stops once the seeds are put away.
 func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	var near: Sheep = null
 	for s in g.sheep():
@@ -122,7 +116,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	g.run(1.0, each)
 
 
-## A sheep of the flock resting on its spot, preferring the one furthest from the others; null if none rests.
+## Null if none rests.
 func _a_resting(g: Glade, but: Array = []) -> Sheep:
 	var best: Sheep = null
 	var room := -1.0
@@ -139,7 +133,6 @@ func _a_resting(g: Glade, but: Array = []) -> Sheep:
 	return best
 
 
-## A lying sheep sent walking gets to its feet first, rather than sliding off on its belly.
 func _a_lying_sheep_stands_before_it_walks() -> void:
 	var home := Wildlife.new(Terrain.new(), Ground.new(), null, null, null, Palette.new(), null, [] as Array[Node3D], 1)
 	var grazers := Grazers.new(home, 1)
@@ -170,14 +163,13 @@ func _the_sheep_is_one_small_mesh() -> void:
 	b.free()
 
 
-## The distance from the fence's centre line and the side of it, of a ground point.
+## (distance from the centre line, side of it) of a ground point.
 func _off_fence(fence: Wall, p: Vector3) -> Vector2:
 	var at := fence.layout.frame_at(fence.layout.closest_s(p))
 	var off := Vector3(p.x - at.point.x, 0, p.z - at.point.z)
 	return Vector2(off.length(), signf(off.dot((at.tangent as Vector3).cross(Vector3.UP))))
 
 
-## A sheep standing, lying, or grazing on its spot rather than stepping on.
 func _resting(s: Sheep) -> bool:
 	return s.state in [Herds.State.STAND, Herds.State.LIE] or (s.state == Herds.State.GRAZE and Vector2(s.goal.x - s.position.x, s.goal.z - s.position.z).length() < 0.005)
 
@@ -276,7 +268,7 @@ func _fences_draw_a_flock() -> void:
 			g.run(STEP, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
 		g.run(2.0, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
 		check(not fled[0], "a hand brought slowly to its back leaves a sheep be")
-		# The sheep may have walked during the slow approach. Startle where it is now.
+		# It may have walked during the slow approach; startle where it is now.
 		back = target.position + Vector3(0.3, 0.6, 0.3)
 		hand.global_position = back + Vector3(0.6, 0.2, 0.6)
 		g.run(STEP)
@@ -335,7 +327,6 @@ func _the_same_seed_brings_the_same_flock() -> void:
 	await g.teardown()
 
 
-## A curved wall is kept clear of along its curve, not along the chords between the points it was drawn through.
 func _curved_walls_are_kept_off_where_they_curve() -> void:
 	var stroke: Array[Vector3] = [Vector3(0, 0, 0), Vector3(3, 0, 1), Vector3(6, 0, 1), Vector3(9, 0, 0)]
 	var w := WallPlan.new([], PackedVector3Array(), 1).pieces(stroke, Terrain.flat, true)[0]
@@ -360,8 +351,6 @@ func _off_line(line: PackedVector2Array, q: Vector2) -> float:
 	return out
 
 
-## Ground dug out, built on or pulled up under a settled flock: the sheep move off water and walls within a few
-## seconds, never through the new wall, stand on the ground as it now is, and go on grazing.
 func _settled_sheep_follow_their_ground() -> void:
 	var g := await _glade(4)
 	_draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
@@ -431,8 +420,6 @@ func _settled_sheep_follow_their_ground() -> void:
 	await g.teardown()
 
 
-## A flock whose fence is erased inside a ring of walls, with a pond by it, watched from outside the ring, never
-## walks through a wall or into the water: hemmed in, it stands until nobody looks, and is let go then.
 func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	var g := await _glade(4)
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
@@ -468,7 +455,6 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	await g.teardown()
 
 
-## A sheep that finds itself out beyond its flock's grass walks back to it.
 func _a_sheep_off_its_grass_goes_back() -> void:
 	var g := await _glade(4)
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))

@@ -62,8 +62,6 @@ func _run() -> void:
 	finish()
 
 
-## Cairnfold's built-in avatar with props on its hips: one a toggle hands to an anchor, carrying a contact on its tip,
-## one following a weighted anchor and world point on two axes, one turning between the anchor and a fixed turn, one looking at it.
 func _fixture() -> Node3D:
 	var model := Avatar.built_in(0).instantiate() as Node3D
 	var bones: Dictionary = model.get_meta("humanoid")

@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Clutter: where houses, walls and paths gather their small things, each laid with its build and charged as its
-## stones; a hand moving, turning, copying and taking one away, each one reshape and one undo step; birds on nests,
-## lanterns and flags; demo/clutter.json and the stress scene's clutter/* phases:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_clutter.gd
-
 
 func _run() -> void:
 	check(main.tool.foundation == WallLayout.Foundation.PILLARS, "new houses default to pillar supports")
@@ -29,7 +24,6 @@ static func _house(at: Vector3, size: Vector2, on := PackedInt32Array()) -> Dict
 	return d
 
 
-## What each kind of build gathers, worked out from its command alone.
 func _gathered() -> void:
 	var house := _house(Vector3.ZERO, Vector2(6, 4))
 	var styles := {}
@@ -75,7 +69,6 @@ func _gathered() -> void:
 	check(is_equal_approx(Budget.path(path.merged({"clutter": beside}, true)).wall_m2 - Budget.path(path).wall_m2, ClutterLayout.count(beside) * Budget.PIECE_M2), "a path's too")
 
 
-## The command schema takes what a hand could leave and nothing else.
 func _valid() -> void:
 	var bench := DecorationLayout.named("Bench")
 	var d := wall_data({"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(6, 0, 0)]), "seed": 2})
@@ -96,8 +89,6 @@ func _lay() -> void:
 	main.tool.paths.lay_now()
 
 
-## A held piece stands apart from its house: the house is laid once without it, each step of the hand moves only the
-## piece, a second hand reaching for it pulls off a copy, and let go it stands until the house is laid with it.
 func _held_apart(house: Wall) -> void:
 	var tool: WallTool = main.tool
 	var target: Dictionary = FittingTool.targets(house).filter(func(t: Dictionary) -> bool: return t.what == "clutter")[0]
@@ -136,8 +127,6 @@ func _clutter(id: int) -> PackedVector4Array:
 	return main.world.state.walls[id].clutter
 
 
-## A house, a wall and a path put up by the tools gather their things as the garden lays them; a hand moves, turns,
-## copies and takes each away, one reshape and one undo step each.
 func _in_the_garden() -> void:
 	var world: World = main.world
 	world.limit = INF
@@ -174,7 +163,7 @@ func _in_the_garden() -> void:
 	var finial: Dictionary = wall.layout.stones.filter(func(st: Dictionary) -> bool: return st.kind == "finial")[0]
 	check(perches.any(func(p: Vector3) -> bool: return p.distance_to(hood.xform.origin) < 0.1), "birds perch on a lantern's hood")
 	check(perches.any(func(p: Vector3) -> bool: return p.distance_to(finial.xform.origin) < 0.1), "and on a flag's finial")
-	# Birds start a perch task every frame; a loaded host leaves one on an older lay still running as the wall is laid again.
+	# A loaded host can leave an older lay's perch task running as the wall is laid again.
 	wall._perch_out = {"laid": wall.layout.laid - 1, "points": PackedVector3Array()}
 	wall._perch_task = WorkerThreadPool.add_task(func() -> void: OS.delay_msec(500))
 	check(Array(wall.perches(true)) == perches, "perches asked for now are the wall's as laid, not an older lay's still being worked out")
@@ -251,9 +240,6 @@ func _in_the_garden() -> void:
 	await play([{"op": "bare"}])
 
 
-## A house's nest sits with its top against its roof on every roof style demo/roof-nests.json puts up, raised on a
-## plinth or on another house too, and stays there as the roofs are thatched, a house grown taller and steeper and
-## another carried.
 func _nests_meet_roofs() -> void:
 	var steps := Driver.read("res://../demo/roof-nests.json")
 	await play(steps.slice(0, steps.find_custom(func(s: Dictionary) -> bool: return s.op == "view")))
@@ -269,8 +255,6 @@ func _nests_meet_roofs() -> void:
 	await play([{"op": "bare"}])
 
 
-## Whether each house's nest, as its stones were laid, rests against its wall's face without entering any of its stones,
-## and touches its roof's underside, neither short of it nor through it.
 func _check_nests(when: String) -> void:
 	_lay()
 	var houses := main.tool.walls.filter(func(w: Wall) -> bool: return w.roof != null)
@@ -307,8 +291,7 @@ func _check_nests(when: String) -> void:
 			check(absf(gap) < 0.02, "%s: house %d's nest meets its %s roof: %.3f m short of it" % [when, w.id, style, gap])
 
 
-## How deep boxes `a` and `b` (unit cubes under their transforms) overlap along the axis they overlap least on; zero or
-## less where they are apart.
+## Unit cubes under `a` and `b`: overlap depth on their least-overlapping axis, <= 0 when apart.
 static func _overlap(a: Transform3D, b: Transform3D) -> float:
 	var axes: Array[Vector3] = []
 	for x in [a, b]:
@@ -358,8 +341,6 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The clutter/* phases: two houses, a wall and a path, with what they gathered and things copied round their walls
-## until the budget is full or their feet are.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := aerial_at(steps, "clutter", ["ground", "carry", "copy"])

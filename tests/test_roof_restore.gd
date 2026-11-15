@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks that the style tool can aim at a roofed house that undoing a wipe brought back, before and after
-## its stones are laid again: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roof_restore.gd
-
 var world: World
 
 

@@ -3,7 +3,7 @@ extends "res://../tests/support/booted.gd"
 var trackers: Array[XRControllerTracker] = []
 
 
-## A grip that takes the ground or the sky, held still, pulses in the hand at once, so a far catch reads from a miss.
+## Felt at once, so a far catch reads from a miss.
 func _a_still_catch_is_felt(hand: Hand) -> void:
 	var pulses := func() -> int:
 		var n := 0
@@ -24,7 +24,6 @@ func _a_still_catch_is_felt(hand: Hand) -> void:
 		main.sky_tool.holder = null
 
 
-## A grip pointed at a range round the garden, under its ridge, takes nothing: the mountains stand in front of the sky.
 func _the_mountains_are_not_sky(hand: Hand) -> void:
 	var sky: SkyTool = main.sky_tool
 	main.look.set_time(0.5)
@@ -43,7 +42,6 @@ func _the_mountains_are_not_sky(hand: Hand) -> void:
 		sky.holder = null
 
 
-## Waits for `w`'s stones, which a worker thread lays over however many frames it takes, and the apertures they cut.
 func _laid(w: Wall) -> void:
 	while w.laying():
 		await process_frame
@@ -54,8 +52,7 @@ func _capture(name: String) -> void:
 		await main.capture(name)
 
 
-## What the garden holds, but for the parts named in `apart`, and what any tool has under way, so a grip that made or
-## started something shows.
+## The state less `apart`, plus the tools' work under way, so a grip that only started something shows.
 func _made(apart: Array = []) -> String:
 	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.held != null]
 	var state: Dictionary = main.world.state.duplicate()
@@ -64,7 +61,6 @@ func _made(apart: Array = []) -> String:
 	return var_to_str([state, main.world.palette.season, busy])
 
 
-## Grip on a wall, whatever the hand holds, takes the wall and carries it with the hand; let go, the garden has it there.
 func _grip_carries_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	var at := hand.global_transform
 	for t in Hand.Tool.values():
@@ -88,8 +84,6 @@ func _grip_carries_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	hand.global_transform = at
 
 
-## Grip on a tree, whatever the hand holds, takes the tree, not the ground behind it: moved, it carries the tree along
-## the ground; let go, the garden has it there.
 func _grip_carries_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
 	var at := hand.global_transform
 	var flora: Flora = main.flora_tool.flora
@@ -120,8 +114,6 @@ func _grip_carries_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
 	hand.global_transform = at
 
 
-## Grip on open ground, whatever the hand holds, takes the ground: up pulls a hill, down presses a hollow, and
-## nothing the held tool makes is made or started.
 func _grip_shapes_the_ground_and_makes_nothing(hand: Hand) -> void:
 	var at := hand.global_transform
 	for t in Hand.Tool.values():
@@ -154,7 +146,6 @@ func _grip_shapes_the_ground_and_makes_nothing(hand: Hand) -> void:
 	hand.global_transform = at
 
 
-## A pond is ground under water: a grip pointed at it takes its bed, and the water fills what the bed leaves.
 func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	var at := hand.global_transform
 	var water: Water = main.water
@@ -202,8 +193,6 @@ func _ground_ahead(hand: Hand, side: float) -> Vector3:
 	return main.world.terrain.raycast(hand.global_position, -hand.global_basis.z)
 
 
-## Each hand's grip grabs on its own: two hands pull two pieces of ground at once, one up and one down, and each
-## grab is its own undo step.
 func _two_hands_grab_the_ground_at_once(rig: Rig) -> void:
 	var left_at := rig.left.global_transform
 	var right_at := rig.right.global_transform
@@ -238,7 +227,6 @@ func _two_hands_grab_the_ground_at_once(rig: Rig) -> void:
 	await frames(3)
 
 
-## Holding the ground in one hand while the other carries a wall: both move, each its own step.
 func _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig: Rig) -> void:
 	var left_at := rig.left.global_transform
 	var right_at := rig.right.global_transform
@@ -268,8 +256,6 @@ func _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig: Rig) -> void
 	await frames(3)
 
 
-## A grip on the wall the other hand holds joins that hold to size the wall, taking neither the ground behind it nor
-## the sky.
 func _a_wall_held_by_one_hand_is_joined_by_the_other(rig: Rig) -> void:
 	var wall: Wall = main.tool.walls[0]
 	_grip(rig.right, true)
@@ -285,7 +271,6 @@ func _a_wall_held_by_one_hand_is_joined_by_the_other(rig: Rig) -> void:
 	await frames(3)
 
 
-## One hand's grab leaves the other free to use its tool: the left holds the ground while the right draws a wall.
 func _a_grab_leaves_the_other_hand_its_tool(rig: Rig) -> void:
 	var left_at := rig.left.global_transform
 	var right_at := rig.right.global_transform
@@ -310,8 +295,6 @@ func _a_grab_leaves_the_other_hand_its_tool(rig: Rig) -> void:
 	await frames(3)
 
 
-## A grip into an arch takes the arch, not the wall; the other hand's grip on it joins, and the pair pulled apart
-## widen it, its head rising with it, as one build command and one undo step.
 func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var at_right := rig.right.global_transform
 	var at_left := rig.left.global_transform
@@ -439,7 +422,7 @@ func _run() -> void:
 	check(sky.holder == null, "release lets the sky go")
 	for t in [0.0, 0.22, 0.5, 0.78]:
 		for side in [1.0, -1.0]:
-			# The last release's sky command may still wait behind a water refill; when it runs it sets the time.
+			# The last release's sky command may still wait behind a water refill, then set the time.
 			while not main.world.idle():
 				await process_frame
 			main.world.time = t

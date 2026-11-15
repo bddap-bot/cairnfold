@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks that deleting a house takes everything belonging to it, in the scene, the saved garden and on a
-## peer, and that undo brings all of it back: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_house_delete.gd
-
 var world: World
 var save := ""
 
@@ -10,7 +7,7 @@ var save := ""
 func _run() -> void:
 	await process_frame
 	world = main.world
-	# The meadow alone fills much of the frame budget; what is measured here is what goes, not what fits.
+	# The meadow fills much of the frame budget; this measures what goes, not what fits.
 	world.limit = INF
 	save = OS.get_user_data_dir().path_join("cairnfold-house-delete-%d.garden" % OS.get_process_id())
 	world.load_from(save)
@@ -52,7 +49,7 @@ func _run() -> void:
 	finish()
 
 
-## Every table of the garden names what its entries stand on, so a new kind of thing goes with its build by default.
+## A new kind of thing then goes with its build by default.
 func _every_table_says_what_it_stands_on() -> void:
 	var tables := World.blank().keys()
 	var named := Commands.STANDS_ON.keys()
@@ -61,7 +58,6 @@ func _every_table_says_what_it_stands_on() -> void:
 	check(tables == named, "Commands.STANDS_ON names every table of the garden: %s against %s" % [named, tables])
 
 
-## Lets the frame's relaying and the workers finish, every build laid and its ivy grown.
 func _settle() -> void:
 	await frames(2)
 	for w in main.tool.walls:
@@ -75,8 +71,6 @@ func _settle() -> void:
 	world.decorations.sync()
 
 
-## What the scene shows of the garden's builds: walls, stairs, decorations and their lantern flames, the pieces the
-## masonry draws, worn floors and the frame budget's count.
 func _scene() -> Dictionary:
 	world.decorations.sync()
 	return {
@@ -116,7 +110,6 @@ func _stairs(a: Vector3, b: Vector3) -> int:
 	return world.seq
 
 
-## A house next door with its own things, and stairs and a decoration on the ground: none of it goes with the house.
 func _neighbour() -> Dictionary:
 	var id := _build(_wall_data(Vector3(14, 0, -30), Vector3(20, 0, -30), 4.0, PackedInt32Array(), 1.4))
 	await _settle()
@@ -136,8 +129,7 @@ func _neighbour_stands(n: Dictionary) -> void:
 	check(n.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "stairs on the ground stay")
 
 
-## A house with every fitting, an upper storey on it with a flat roof's deck, and a house on that deck, each with its
-## furniture, stairs up onto the deck, and the house's foundation dressed: by table, the ids of all of it.
+## {id: the house's, owned: the ids, by table, of it and everything on it}.
 func _house() -> Dictionary:
 	var a := Vector3(-6, 0, -30)
 	var b := Vector3(0, 0, -30)
@@ -179,8 +171,6 @@ func _house() -> Dictionary:
 	return {"id": house, "owned": owned}
 
 
-## The house carries one of each fitting a wall and a roof hold, ivy, and on every surface it offers a decoration;
-## every table that can stand on a build has something standing on it.
 func _covers_every_kind(owned: Dictionary) -> void:
 	var house: Dictionary = world.state.walls[owned.walls[0]]
 	var storey: Dictionary = world.state.walls[owned.walls[1]]
@@ -219,7 +209,6 @@ func _none_left(owned: Dictionary, what: String) -> void:
 				check(not o in owned.walls, "after %s, nothing in %s stands on a build that went" % [what, table])
 
 
-## The commands of `cmds` that put back anything in `owned`.
 func _cmds_naming(cmds: Array, owned: Dictionary) -> Array:
 	return cmds.filter(func(c: Dictionary) -> bool:
 		match c.op:
@@ -232,8 +221,7 @@ func _cmds_naming(cmds: Array, owned: Dictionary) -> Array:
 		return false)
 
 
-## One delete stroke across the house, its storey, a lantern on the house on its deck and a chair on its floor takes
-## them as one command, though the house's going takes the rest first, and leaves the rest standing as one delete does.
+## The house's going takes its things before the stroke's own takes of them.
 func _a_sweep_takes_the_house_and_its_things(before: Dictionary, owned: Dictionary) -> void:
 	world.restore(before)
 	await _settle()
@@ -250,7 +238,6 @@ func _a_sweep_takes_the_house_and_its_things(before: Dictionary, owned: Dictiona
 	check(owned.walls.all(func(id: int) -> bool: return world.state.walls.has(id)) and owned.decorations.all(func(id: int) -> bool: return world.state.decorations.has(id)) and owned.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "undoing the sweep brings all of it back")
 
 
-## A peer holding the garden as it stood applies the host's delete as sent and shows what the host shows.
 func _a_peer_sees_the_same(before: Dictionary, sent: Dictionary, host: Dictionary, owned: Dictionary) -> void:
 	world.restore(before)
 	await _settle()
@@ -260,7 +247,6 @@ func _a_peer_sees_the_same(before: Dictionary, sent: Dictionary, host: Dictionar
 	check(world.digest() == host, "the peer's garden matches the host's")
 
 
-## Another player's chair in my house is building on it: my undo of the house is dropped rather than taking the chair.
 func _undo_spares_what_another_built_on_it() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await _settle()

@@ -1,9 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the ranges round the garden: godot4 --headless --path game --script ../tests/test_mountains.gd
-
 const GARDEN_CORNER := Terrain.SIZE * 0.5 * sqrt(2.0)
-## Two eyes 64 mm apart see a point this far off within a fortieth of a degree of each other: as far as the sky.
+## Two eyes 64 mm apart see this far within a fortieth of a degree of each other: as far as the sky.
 const STEREO_FAR := 140.0
 
 var terrain := Terrain.new()
@@ -64,8 +62,6 @@ func _every_face_faces_the_garden(verts: PackedVector3Array, normals: PackedVect
 	check(away == 0, "%d triangles or their corners' normals face away from the garden" % away)
 
 
-## Corners of faces folding sharper than the crease never share a normal, so the ridges and crags keep their edge,
-## while most corners round a point share one, so the slopes between shade smoothly.
 func _slopes_shade_smoothly_and_ridges_crisply(verts: PackedVector3Array, indices: PackedInt32Array) -> void:
 	var crease := cos(deg_to_rad(Mountains.CREASE))
 	var corners_at := {}
@@ -113,8 +109,6 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 		check(first > 0.0 and first < 8.0, "the sun first clears the ridges at %.1f° %s" % [first, "rising" if rising else "setting"])
 
 
-## The water stays under every point of the meadow's edge, so it never floods the garden, and over the bank's foot and
-## every range's foot, so it meets the bank and the ranges with no ground between.
 func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Array) -> void:
 	var half := Terrain.SIZE * 0.5
 	var lowest := INF
@@ -132,8 +126,6 @@ func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Arr
 	check(dry == 0, "%d points of the bank's foot stand out of the water" % dry)
 
 
-## Every point of the ground's bank's foot is a point of the lake bed's edge, and the bank ends there,
-## so the two meet with no crack between them however the meadow's edge is reshaped above.
 func _the_ground_and_the_lake_bed_share_the_banks_foot(verts: PackedVector3Array) -> void:
 	var bed := {}
 	for p in verts:

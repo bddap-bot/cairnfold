@@ -1,10 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of boulders: each seed grows its own worn, faceted shape and the same one every time; a placed
-## boulder is a build command kept with the garden, sized and painted by a reshape, taken back by undo, struck by the delete tool's
-## beam, and stopping a hand; one hand carries and turns it every way and sets it down resting on the ground or as deep
-## in it as it was pushed, two size it, and it rides the ground as it is reshaped: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_boulder.gd
-
 var world: World
 var terrain: Terrain:
 	get:
@@ -52,8 +47,7 @@ func _seeds_differ() -> void:
 			check(apart > 0.15, "seeds %d and %d differ somewhere by more than 15%% (%.2f)" % [i, j, apart])
 
 
-## A ball's radius barely changes from one direction to the next; a fractured stone's runs flat across a face, so its
-## radius rises toward the face's edges as the secant of the angle off its middle, and its extremes lie far apart.
+## A fracture face is flat, so the radius rises toward its edges as the secant off its middle.
 func _a_boulder_is_faceted_not_a_ball() -> void:
 	var dirs := sphere_directions(400)
 	for seed in [3, 77, 1234, 99991]:
@@ -70,8 +64,6 @@ func _a_boulder_is_faceted_not_a_ball() -> void:
 		check(bed < s.axes.y * 0.8, "seed %d: it rests on a flat bed, not a rounded bottom" % seed)
 
 
-## Water wore a river cobble round: above its middle its surface keeps to its ellipsoid with no fracture face, it lies flatter
-## than a mossy block of the same seed, and nothing of it reaches past its reach.
 func _a_river_cobble_is_worn_smooth() -> void:
 	var dirs := sphere_directions(400)
 	for seed in [3, 77, 1234, 99991]:
@@ -184,8 +176,8 @@ func _the_beam_takes_one() -> void:
 	check(world.state.boulders.size() == 1 and main.boulders.boulders.values()[0].visible, "undo puts it back, seen")
 
 
-## How far its lowest point sits under the ground beneath it, as a share of how far it reaches below its centre: BURY
-## when it rests, below zero when it floats.
+## Depth of its lowest point under the ground, as a share of its reach below its centre: BURY resting, below
+## zero floating.
 func _sunk(b: Boulders.Boulder) -> float:
 	var under := INF
 	var depth := 0.0
@@ -281,7 +273,6 @@ func _let_go_in_the_air_it_drops() -> void:
 	check(absf(world.state.boulders[b.id].at.y - terrain.height_at(b.position.x, b.position.z)) < 1e-3, "the garden keeps it on the ground")
 
 
-## A held boulder whooshes while it moves, not while still nor when pebble-sized; let go, it thuds, harder from higher.
 func _it_whooshes_moving_and_thuds_landing() -> void:
 	var still := Transform3D(Basis(), Vector3(0, 1, 0))
 	check(Boulders.swing(still, still, 0.6, 1.0 / 60.0) == 0.0, "a still boulder swings not at all")
@@ -311,7 +302,7 @@ func _it_whooshes_moving_and_thuds_landing() -> void:
 	await flushed()
 
 
-## The share of its height that shows above the ground under it.
+## A share of its height.
 func _showing(b: Boulders.Boulder) -> float:
 	var clear := -INF
 	var low := INF
@@ -325,9 +316,6 @@ func _showing(b: Boulders.Boulder) -> float:
 	return clear / (high - low)
 
 
-## Pushed halfway into the ground and let go it stays there, pushed further it stays with KEEP of it showing; the
-## garden keeps its depth through a style, a resize by two hands, a raised ground, an undo and a reload, a ray from
-## above still finds it, and none finds its buried part through the ground.
 func _pushed_into_the_ground_it_stays() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	main.flora_tool.place_boulder(terrain.ground(-3, 5), null, 43, 1.2)
@@ -435,8 +423,6 @@ func _two_hands_size_it() -> void:
 	check(is_equal_approx(b.size, 1.0) and absf(b.position.x - held.x) < 1e-3, "undo takes back the size and the move as one")
 
 
-## Twenty times the size a house could hide behind: nothing bounds it, and it draws, stops a ray, holds a player up
-## and saves as any other.
 func _two_hands_grow_one_far_past_a_house() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	main.flora_tool.place_boulder(terrain.ground(10, -10), null, 29, 8.0)
@@ -501,7 +487,6 @@ func _the_trigger_carries_a_new_one() -> void:
 	check(world.state.boulders.is_empty() and main.boulders.boulders.is_empty() and main.boulders.get_child_count() == 0, "undo takes it away, ghost and all")
 
 
-## A new boulder taken up with the trigger and pushed into the ground before it is let go is set down there.
 func _the_trigger_buries_a_new_one() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await flushed()

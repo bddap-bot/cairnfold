@@ -78,9 +78,6 @@ func _run() -> void:
 	finish()
 
 
-## How far a tool is pushed past the canvas is how hard it presses, by one curve for the stick's tip, its side and a
-## brush: a graze presses lightly, a push of `Brushwork.PRESS_DEPTH` fully, and the stick seen in the hand stays on the
-## canvas's face however far the hand goes.
 func _pushing_in_presses_harder() -> void:
 	var lean := Basis(Vector3.RIGHT, -PI * 0.25)
 	var tools := {"tip": [Brushwork.Brush.THICK_STICK, lean], "side": [Brushwork.Brush.THIN_STICK, Basis(Vector3.UP, PI * 0.5)], "brush": [Brushwork.Brush.BIG, Basis()]}
@@ -104,9 +101,7 @@ func _pushing_in_presses_harder() -> void:
 		check(pressures[2] > 0.999 and pressures[3] > 0.999, "the %s presses fully at the press depth and past it: %s" % [what, pressures])
 
 
-## A stick held as a hand holds it and laid on its side, pushed in: a wrist rolled either way about the aim keeps its side
-## on the canvas, since a stick leaned off the aim sweeps a cone the canvas is tangent to, and turned about the canvas's
-## facing through half a turn its mark turns with it.
+## A stick leaned off the aim sweeps a cone the canvas is tangent to, so a rolled wrist keeps its side down.
 func _a_stick_pushed_in_lies_on_its_side() -> void:
 	for kind: Brushwork.Brush in Brushwork.STICKS:
 		var length: float = Brushwork.STICKS[kind].y
@@ -132,8 +127,7 @@ func _a_stick_pushed_in_lies_on_its_side() -> void:
 			check(turning == 13, "the %s rolled %.0f degrees turns its mark as it turns: %d of 13" % [name, roll, turning])
 
 
-## A thin stick taken from the tray pokes its tip behind the canvas just under its bottom edge, where drawing it forward
-## would catch it on the back face; clear in front of the sheet it is free and draws where it presses.
+## The tip pokes behind the canvas just under its bottom edge, where drawing forward would catch it on the back face.
 func _a_stick_caught_under_the_sheet_comes_free() -> void:
 	var contact := CanvasContact.new()
 	var tray := Basis(Vector3.RIGHT, 0.36)

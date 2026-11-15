@@ -1,8 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of hands that stop at what is solid and pulse when they touch:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hand_stop.gd
-
 
 func _initialize() -> void:
 	_a_sweep_stops_at_the_surface_and_slides_along_it()
@@ -31,7 +28,6 @@ func _run() -> void:
 	finish()
 
 
-## The view darkens while the eye is inside a wall or under the ground, and clears once it is out; nothing moves it.
 func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 	var rig: Rig = main.rig
 	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
@@ -50,7 +46,6 @@ func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 		check(dim.call() == 0.0, "and clear once out of it")
 
 
-## A cover (a photo's, PhotoTool.PHOTO_FADE) fades the view to black, holds it while frames pass, and fades back.
 func _a_cover_fades_to_black_holds_and_fades_back() -> void:
 	var rig: Rig = main.rig
 	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
@@ -89,8 +84,7 @@ func _a_ball_started_inside_is_let_go() -> void:
 	check(at.is_equal_approx(Vector3(1.7, 0, 0)), "a ball already inside follows its controller")
 
 
-## A second at 72 Hz of a hand held at `held` (or passing through `passing`) moving `speed` m/s along it: the
-## pulses after the first touch's.
+## A second at 72 Hz, `speed` in m/s; the pulses after the first touch's.
 static func _slide(held: HandStop.Surface, passing: HandStop.Surface, speed: float) -> Array[Vector2]:
 	var f := HandStop.Feel.new()
 	var out: Array[Vector2] = []
@@ -139,7 +133,6 @@ func _a_touch_pulses_with_its_speed_and_sliding_ticks_softly() -> void:
 	check(f.step(0.3, 1.0 / 72.0, stone, HandStop.Surface.NONE, 0.01, 0.0).x > 0.0, "a touch after a clear moment pulses again")
 
 
-## The strongest a hand in water ever feels: a fast plunge, a fast stroke or pulling out.
 const WATER_CEILING := 0.06
 
 
@@ -184,7 +177,6 @@ func _water_is_soft_and_still_water_is_quiet() -> void:
 	check(mean.call(_slide(none, water, 0.7)) < mean.call(swipe), "quicker strokes feel a little stronger")
 
 
-## Holds the right hand so its ball sits at `ball`, as tracking would put it.
 func _hold(ball: Vector3) -> void:
 	var hand: Hand = main.rig.right
 	hand.held_still = true
@@ -290,7 +282,6 @@ func _surfaces_come_from_what_is_touched(wall: Wall) -> void:
 	check(near.touch(g) == HandStop.Surface.GROUND, "the meadow feels of ground")
 
 
-## A wall laid away from a hand leaves what was gathered round it standing; one laid through it is gathered.
 func _a_wall_laid_elsewhere_keeps_what_was_gathered() -> void:
 	var p := main.world.terrain.ground(0.0, 12.0) + Vector3.UP * 1.0
 	var box := AABB(p, Vector3.ZERO).grow(0.3)

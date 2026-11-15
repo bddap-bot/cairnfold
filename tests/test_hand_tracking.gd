@@ -1,8 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## A hand the runtime reports joints for is played by them only when they are the hand's own, and its pinch reads as the
-## trigger: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hand_tracking.gd
-
 
 func _run() -> void:
 	await frames(3)
@@ -52,8 +49,6 @@ func _run() -> void:
 	finish()
 
 
-## A held controller's fingers curl as its joints show, or with none as its sensors feel, and neither makes a gesture
-## or presses an input.
 func _fingers_follow_the_controller(right: Hand, joints: XRHandTracker, controller: XRControllerTracker, pressed: Buttons) -> void:
 	var palm := Transform3D(Basis.IDENTITY, Vector3(0.2, 1.3, -0.3))
 	_curled(joints, palm, PackedFloat32Array([0, 1, 0, 1, 0]))
@@ -77,8 +72,7 @@ func _fingers_follow_the_controller(right: Hand, joints: XRHandTracker, controll
 	controller.invalidate_pose("aim")
 
 
-## Sets `t` to a hand at `palm`, fingers ahead, each finger thumb to little bent closed by `by` (0 straight, 1 closed),
-## as a controller's runtime shapes it.
+## `by` per finger, thumb to little: 0 straight, 1 closed.
 func _curled(t: XRHandTracker, palm: Transform3D, by: PackedFloat32Array) -> void:
 	t.set_hand_joint_transform(HandShape.PALM, palm)
 	for f in 5:

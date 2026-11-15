@@ -1,6 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of the camera tool: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_photo.gd
 ## The shot itself needs a renderer; demo/photo.json takes photos on the desktop.
 
 var terrain := Terrain.new()
@@ -200,7 +199,7 @@ func _player_data_lives_outside_the_app() -> void:
 	var pictures := OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true)
 	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Cairnfold"), "on Android, photos go to Cairnfold in the shared Pictures folder: %s" % Main.photos_folder(true))
 
-## The frame of a canvas centred at `at` facing along `facing`, as Easel.canvas_frame gives it.
+## As Easel.canvas_frame gives it.
 static func _canvas_at(at: Vector3, facing: Vector3) -> Transform3D:
 	return Transform3D(Basis.looking_at(-facing), at)
 

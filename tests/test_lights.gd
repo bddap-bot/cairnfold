@@ -1,11 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of lights, strings and smoke: lanterns' colours and brightnesses and the light they bake, a string's
-## sag and what hangs from it, the commands a string takes, a stroke of the decorations tool hanging one, the colour and
-## style tools on lanterns and strings, lanterns standing on the ground, flags along a wall joining into runs, chimney
-## smoke, demo/lights.json and the stress scene's lights/* phases:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_lights.gd
-
 
 func _run() -> void:
 	_looks()
@@ -179,9 +173,6 @@ func _vents() -> void:
 	check(r.vents.is_empty(), "a roof without a chimney does not smoke")
 
 
-## A stroke of the decorations tool from one point on the ground to another hangs a string on poles between them; a
-## press and release on one point places a present. The style tool turns a string to flags, the colour tool its
-## lanterns' colour, and delete and undo take it away.
 func _stroke() -> void:
 	var world: World = main.world
 	var fit: FittingTool = main.fitting_tool
@@ -248,8 +239,6 @@ func _stroke() -> void:
 	await play([{"op": "bare"}])
 
 
-## The colour tool on a wall's lantern colours every lantern on the wall, flame and light; a lantern stands on the
-## ground in its own colour.
 func _coloured() -> void:
 	var world: World = main.world
 	var fit: FittingTool = main.fitting_tool
@@ -288,7 +277,6 @@ func _coloured() -> void:
 	await play([{"op": "bare"}])
 
 
-## A house's chimney smokes, and stops when it is taken away.
 func _smoking() -> void:
 	await play([{"op": "house", "at": [0, 0], "size": [5, 4], "seconds": 0.3}, {"op": "fit", "what": "chimney", "index": 0, "at": [1.0, 0.0]}])
 	var w: Wall = main.tool.walls[0]
@@ -327,8 +315,6 @@ func _demo() -> void:
 	await play([{"op": "bare"}])
 
 
-## The lights/* phases: three houses, with chimneys along their ridges, lanterns round them and strings between them and
-## in rows across the meadow, until the frame budget is full.
 func _stress() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var aerial := aerial_at(steps, "lights")

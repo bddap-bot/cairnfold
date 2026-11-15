@@ -1,9 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks of the frame budget: what the garden counts follows every placement and deletion, an edit that
-## would take it past the budget is turned down whole, and deleting makes room again:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_budget.gd
-
 var world: World
 
 
@@ -78,7 +74,7 @@ func _water_costs_at_most_a_view_full() -> void:
 	check(is_equal_approx(both.pond_m2, q.water / 1000.0) and is_equal_approx(both.grass, 10.0 * q.grass / 1000.0), "each unit's charge is its capped share: %s" % both)
 
 
-## The meadow's whole bowl, the largest lake there can be, pointed at as demo/lake-cost.json does.
+## The meadow's whole bowl, the largest lake there can be, at the point demo/lake-cost.json uses.
 func _the_meadow_lake_fits_an_empty_garden() -> void:
 	await play([{"op": "bare"}])
 	await _settled()
@@ -125,7 +121,7 @@ func _settled() -> void:
 	main.flora_tool.flora.grow_now()
 
 
-## What the garden holds, counted afresh from its state rather than kept command by command.
+## Counted afresh from the state, not command by command.
 func _recount() -> Dictionary:
 	var out := {}
 	var cells := {}
@@ -163,7 +159,6 @@ func _wall(from: Vector2, to: Vector2, height: float) -> Dictionary:
 	return wall_data({"points": points, "height": height, "seed": 7})
 
 
-## Submits a wall command and waits for it to settle; whether it went into the garden.
 func _build(walls: Array) -> bool:
 	var before: int = world.state.walls.size()
 	var settled := [false]
@@ -173,7 +168,6 @@ func _build(walls: Array) -> bool:
 	return world.state.walls.size() > before
 
 
-## A Quest once priced its fresh meadow's own trees and flowers at 141% of the bar and turned down the first house.
 func _a_fresh_meadow_has_room_for_small_stone_houses() -> void:
 	var meadow := world.units.duplicate()
 	var walls: int = world.state.walls.size()
@@ -309,9 +303,6 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	await _settled()
 
 
-## Directive (verbatim): "When something doesn't work because of the frame cap, I think it should be obvious to the
-## player. I think maybe we can do that by embiggening the little bar that represents frame cap and shaking it around
-## and making a little sound, like a [grunt ]sound". The bar shows only while a placement is shown.
 func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.WALLS
@@ -403,8 +394,7 @@ func _a_boulder_costs_no_more_once_it_fills_the_view() -> void:
 	check(Budget.fits({}, {"boulder": Budget.boulder(1000.0)}), "an empty garden takes a boulder of any size")
 
 
-## A lay game logic reads is taken a fixed count of frames after it starts, so it is given the frames what it lays
-## costs a Quest 2's worker, and no fewer than Budget.LAY_FRAMES.
+## Game logic takes a lay a fixed count of frames after it starts, so that count must cover a Quest 2 worker's time.
 func _a_garden_walls_lay_is_given_the_frames_its_size_prices() -> void:
 	check(Budget.lay_frames({}) == Budget.LAY_FRAMES, "a wall with nothing to lay is given %d frames" % Budget.LAY_FRAMES)
 	var tiled := Budget.lay_frames({"wall_m2": 50.0, "roof_m2": 31.6})

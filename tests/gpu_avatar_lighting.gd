@@ -1,15 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## A converted avatar's flat material is lit alike on its side toward the light and its side away, and no brighter
-## than its cap however strong the light; a lit one is shaded by angle, and one lit through a ramp by its ramp at the
-## half-Lambert term, its shade lent the albedo by its shadow tint; a glowing one glows its emission in the dark,
-## over its glow's own colour where it overrides its base colour, and one glowing in a theme colour turning over time
-## changes colour as it turns; a clear coat adds a highlight toward the light where its map, moved by a region, does
-## not mask it off, and reflects the world's sky, or its fallback cubemap where the world has no reflection probe or it
-## forces it, lit by the light its material takes unless it says otherwise, and as Poiyomi 9.2 blurs, weighs and
-## occludes it where the coat is that version's; a matcap multiplies the colour by its texture where the view sees the
-## surface's normal, on the view's right as Unity maps it, where its mask does not mask it off. Needs a renderer, so scripts/test.sh runs it on
-## the desktop one: godot4 --path game --xr-mode off --script ../tests/gpu_avatar_lighting.gd
+## Needs a renderer: scripts/test.sh runs it on the desktop one.
 
 const SIZE := 96
 
@@ -129,17 +120,6 @@ func _run() -> void:
 	finish()
 
 
-## A white ball whose looks light its one material `model`, flat capped at 0.8, through a ramp rising from 0 to 1 with
-## no shadow tint ("ramp") or a whole one ("tinted"), or for "glow" lit by angle and glowing red
-## 0.25 at strength 2 over a white emission map, overriding its base colour, as the avatar runtime opens it; for "theme"
-## that red is a global theme colour whose hue turns twenty times a second; for "coat" lit by angle under a clear coat,
-## "masked" reading its map's black texel, "unmasked" moved by a region onto its white one; for "world", "fallback",
-## "unlit fallback" and "forced" a mirror coat reflecting alone, its fallback cubemap a uniform 0.5, lit by the
-## material's light but for "unlit fallback", "forced" forcing it, "flat fallback" a flat material reflecting a quarter; for "sharp", "widened", "glancing" and
-## "occluded" an unlit fallback dark in its sharpest level and 0.5 in the rest, under an earlier Poiyomi's coat,
-## Poiyomi 9.2's at Fresnel strength 0, at 1, and at 1 with its exposure occlusion whole; for "matcap" flat and
-## multiplied whole by a matcap in slot 1 white on its left half and black on its right under its mask's green channel,
-## and "matcap masked" the same with that channel black and the others white.
 func _ball(model: String) -> Node3D:
 	var ball := Node3D.new()
 	var mesh := MeshInstance3D.new()
@@ -187,6 +167,7 @@ func _ball(model: String) -> Node3D:
 		var cube := Image.create_empty(256, 896, false, Image.FORMAT_RGBA8)
 		cube.fill_rect(Rect2i(0, 128, 256, 768), Color(1.0, 1.0, 1.0, 1.0 / 255.0))
 		looks.clearcoatFallbacks = [cube]
+		# A null fresnelStrength is a coat from before Poiyomi 9.2.
 		looks.materials[0].clearcoat = {"strength": 1.0, "smoothness": 1.0, "reflection": 1.0, "specular": 0.0, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 1.0, 1.0], "st": [1.0, 1.0, 0.0, 0.0], "inverts": [false, false, false, false], "map": -1, "fallback": 0, "litFallback": false, "forceFallback": false, "fresnelStrength": null if model == "sharp" else 1.0 if model in ["glancing", "occluded"] else 0.0, "exposureOcclusion": 1.0 if model == "occluded" else 0.0}
 	if model in ["world", "fallback", "unlit fallback", "forced", "flat fallback"]:
 		var cube := Image.create_empty(256, 896, false, Image.FORMAT_RGBA8)
@@ -204,7 +185,7 @@ func _ball(model: String) -> Node3D:
 	return ball
 
 
-## The ball's mean linear red on its side toward the light and on its side away, once its pipeline has compiled.
+## x: mean linear red toward the light, y: away; zero if nothing drew within HANG.
 func _sides(view: SubViewport) -> Vector2:
 	var start := Time.get_ticks_msec()
 	var sides := Vector2.ZERO

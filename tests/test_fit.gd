@@ -1,9 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of fitting a wearer to their avatar: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fit.gd
-
 const STEP := 1.0 / 60.0
-## A wearer's arm, shoulder to the grip of a held controller, over their eye height standing.
+## Shoulder to controller grip, over standing eye height.
 const ARM := 0.42
 
 var terrain := Terrain.new()
@@ -29,8 +27,6 @@ func _finish(rig: Rig) -> void:
 	finish()
 
 
-## Crouching, kneeling, tiptoe or a moment's jump leave the wearer's standing eye height as it is; a wearer seated
-## throughout is measured seated, and until measured is the typical one.
 func _stature_is_the_height_stood_at() -> void:
 	var s := Stature.new()
 	check(s.eye(Rig.EYE) == Rig.EYE, "unmeasured, a wearer is typical")
@@ -46,7 +42,6 @@ func _stature_is_the_height_stood_at() -> void:
 	check(absf(seated.eye(Rig.EYE) - 1.18) < 0.006, "a seated wearer is measured seated: %.3f" % seated.eye(Rig.EYE))
 
 
-## Stands a wearer whose eyes are `eye_m` over the floor in `scene`, measured standing still until the fit settles.
 func _wear(rig: Rig, scene: PackedScene, eye_m: float) -> Avatar:
 	rig.stature = Stature.new()
 	rig.wear(Avatar.open(scene, Color.WHITE))
@@ -58,8 +53,7 @@ func _wear(rig: Rig, scene: PackedScene, eye_m: float) -> Avatar:
 	return rig.body
 
 
-## Whatever the wearer's height, the avatar stands at its own size with its feet on the floor and its eyes where the
-## wearer sees from; and how far its forearm stretches, over its length, with the wearer's arm held out at full reach.
+## Returns the forearm's stretch over its length at the wearer's full reach.
 func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye_m: float) -> float:
 	var a := _wear(rig, scene, eye_m)
 	var what := "%s worn by a wearer with eyes %.2f m up" % [name, eye_m]
@@ -87,7 +81,6 @@ func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye
 	return stretch
 
 
-## A new avatar is fitted behind a fade, as a teleport is, never by the world growing in view.
 func _a_refit_waits_for_a_fade(rig: Rig, scene: PackedScene) -> void:
 	_wear(rig, scene, 1.6)
 	var before := rig.world_scale

@@ -1,9 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## A curved tile roof seen from outside shows clay everywhere, never the torching under it: rays aimed at its slopes
-## from above, from the side and slantwise along the ridge meet a tile first, on small and middling houses at steep
-## pitches with the slopes bowed and sagged as far as a pull takes them.
-
 const HouseLeaks = preload("res://../tests/support/house_leaks.gd")
 const VIEWS := [Vector3(0, 1, 0), Vector3(0, 0.5, 1), Vector3(0, 0.5, -1), Vector3(1, 0.3, 0), Vector3(1, 0.3, 0.5), Vector3(1, 0.3, -0.5)]
 

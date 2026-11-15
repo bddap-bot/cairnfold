@@ -1,11 +1,6 @@
 extends "res://../tests/support/booted.gd"
 
-## The oil palette's board on the GPU: strokes painted onto it are laid by the canvas's own paint (an oil stroke stands
-## as high and as coloured on the board as on the canvas), a brush touching it takes up the paint under it and paints
-## that onto the canvas, a brush touching the canvas takes up its paint alike, and a photo of the palette saves its paint
-## as one of a canvas is saved. Needs a
-## RenderingDevice, so scripts/test.sh runs it on the desktop renderer: godot4 --path game --xr-mode off --script
-## ../tests/gpu_palette.gd
+## Needs a RenderingDevice: scripts/test.sh runs it on the desktop renderer.
 
 var folder := ""
 
@@ -19,7 +14,7 @@ func _run() -> void:
 	finish()
 
 
-## A surface's dry paint (rgb optical density, a the oil's height) as the GPU holds it.
+## rgb optical density, a the oil's height.
 func _dry(c: Canvas) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	var got := []
@@ -29,7 +24,7 @@ func _dry(c: Canvas) -> Image:
 	return Image.create_from_data(c.size.x, c.size.y, false, Image.FORMAT_RGBAH, got[0])
 
 
-## The mean height of the oil on `img` and its mean density where it stands, over the texels any stands on.
+## [mean oil height, mean density], over the texels any oil stands on.
 static func _laid(img: Image) -> Array:
 	var height := 0.0
 	var density := Vector3.ZERO
@@ -44,8 +39,6 @@ static func _laid(img: Image) -> Array:
 	return [n, height / maxi(n, 1), density / maxi(n, 1)]
 
 
-## One oil stroke laid on a canvas and on a board, the same length in texels at the same place in each: the same paint
-## code lays it, so it covers as much, stands as high and shows the same colour on both.
 func _one_stroke_lies_alike_on_board_and_canvas() -> void:
 	var surfaces: Array[Canvas] = [Canvas.new(), Canvas.new(Easels.BOARD, preload("res://src/board.gdshader"))]
 	var laid := []
@@ -67,8 +60,6 @@ func _one_stroke_lies_alike_on_board_and_canvas() -> void:
 		c.queue_free()
 
 
-## Blue painted onto the board, then yellow worked into it, mix there; a clean brush touching the mix comes away loaded
-## with it, and its stroke on the canvas is that colour.
 func _the_brush_takes_up_what_it_touches() -> void:
 	await play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}, {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}])
 	var e: Easels.Easel = main.easels.easels.values()[-1]
@@ -118,7 +109,6 @@ func _the_canvas_gives_up_its_paint_as_the_board_does() -> void:
 	check(strokes.size() >= 2 and strokes[-1].brush == Brushwork.Brush.SMALL and Vector3(strokes[-1].colour).distance_to(blue) < 0.3, "and its stroke on the canvas lays that paint")
 
 
-## A photo looking down onto the palette saves its paint beside it, at the board's own size.
 func _a_photo_of_the_palette_keeps_its_paint() -> void:
 	folder = OS.get_user_data_dir().path_join("photo-palette-%d" % OS.get_process_id())
 	main.photo_tool.folder = folder

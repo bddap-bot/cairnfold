@@ -74,7 +74,7 @@ func _run() -> void:
 		if absf(piece.xform.origin.x - 3.0) < 0.6:
 			straddling += 1
 	check(straddling > 0, "deck pieces at the higher wall's line are cut back, not taken away")
-	# At this ground height the two ways of summing a flush ceiling's height round apart.
+	# Here the two ways of summing a flush ceiling's height round apart.
 	var raised := func(_x: float, _z: float) -> float: return 2.58
 	var low := WallLayout.new()
 	low.closed = true

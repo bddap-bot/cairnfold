@@ -1,12 +1,11 @@
 extends "res://../tests/support/suite.gd"
 
 
-## The demo's teleport onto the bridge must land there for any head pose an unworn headset settles in: its aim once
-## grazed the deck's far edge, so a millimetre of head tracking decided between the deck and the grass 16 m beyond.
+## An unworn headset settles in any head pose, and from each the demo's teleport must land on the bridge.
 func _run() -> void:
 	boot_main()
 	await process_frame
-	# The bridge fixture exceeds capacity; this test checks its teleport landing.
+	# The bridge fixture exceeds the budget.
 	main.world.limit = INF
 	var steps := demo("res://../demo/stairs.json")
 	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.op == "aim")

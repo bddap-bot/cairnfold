@@ -1,11 +1,6 @@
 extends "res://../tests/support/booted.gd"
 
-## A photo taken while the headset's rung has the sun's shadows off still has its own sun's cast shadows: shot from the
-## same spot, it is darker where a shadow falls than the same shot with the photo sun's shadows off. Needs a
-## RenderingDevice, so scripts/test.sh runs it on the desktop renderer:
-## godot4 --path game --xr-mode off --script ../tests/gpu_photo_shadows.gd
-
-## The share of the photo a cast shadow must darken.
+## Least share of the photo a cast shadow must darken.
 const SHADED := 0.02
 
 
@@ -36,7 +31,6 @@ func _run() -> void:
 	finish()
 
 
-## The share of `a`'s pixels at most four fifths as bright as `b`'s, sampled on a grid.
 static func _darker(a: Image, b: Image) -> float:
 	if a == null or b == null or a.get_size() != b.get_size():
 		return 0.0

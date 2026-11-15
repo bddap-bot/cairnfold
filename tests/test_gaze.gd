@@ -1,9 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Where a player's eyes look, and how others see it: the tracked gaze or a natural look stands in, steadied, and
-## travels to the other players' copies of their avatar:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_gaze.gd
-
 
 func _run() -> void:
 	_an_untracked_look_glances_at_the_nearest_face()
@@ -25,7 +21,6 @@ func _an_untracked_look_glances_at_the_nearest_face() -> void:
 	check(Gaze.glance(head, []).is_equal_approx(Vector3.FORWARD), "with nobody near, it looks ahead")
 
 
-## A jump lands within a few frames, but frame-to-frame tracking noise barely moves the look.
 func _the_look_is_steady_but_quick() -> void:
 	var dt := 1.0 / 90.0
 	var to := Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(20.0))
@@ -40,7 +35,7 @@ func _the_look_is_steady_but_quick() -> void:
 		if i > 30:
 			wobble = maxf(wobble, rad_to_deg(look.angle_to(to)))
 	check(wobble < 0.2, "half a degree of noise moves it less than 0.2 degrees (%.2f)" % wobble)
-	# Looks ahead that differ only by float noise; Vector3.slerp errored on these (an axis not of unit length).
+	# Vector3.slerp errors on looks that differ only by float noise: an axis not of unit length.
 	var noise := RandomNumberGenerator.new()
 	noise.seed = 1
 	var ahead := 0
@@ -60,7 +55,6 @@ func _eyes_tracker() -> XRPositionalTracker:
 	return t
 
 
-## Tracked eyes lead the look; a blink holds it; tracking gone, the natural look takes over.
 func _tracked_eyes_lead_the_look() -> void:
 	var rig: Rig = main.rig
 	var eyes := _eyes_tracker()
@@ -79,7 +73,6 @@ func _tracked_eyes_lead_the_look() -> void:
 	XRServer.remove_tracker(eyes)
 
 
-## Two games in one: the joiner's look, as its gaze sets it, turns the eyes of its avatar in the host's garden.
 func _the_look_reaches_the_other_players() -> void:
 	var rig: Rig = main.rig
 	var eyes := _eyes_tracker()

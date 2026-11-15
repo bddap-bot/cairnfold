@@ -1,11 +1,7 @@
 extends "res://../tests/support/booted.gd"
 
-## Furniture through the one decoration path: a present on a house's floor or a flat roof's deck, which the style
-## tool turns into any decoration.
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_furniture.gd
 
-
-## Where decoration `id` stands, or null where it stands down.
+## null once decoration `id` stands down.
 func _node(id: int) -> Variant:
 	main.world.decorations.sync()
 	return main.world.decorations.world_xform(id) if main.world.decorations.placed.has(id) else null
@@ -24,8 +20,6 @@ func _place(origin: Vector3, at: Vector3, mount: String, wall: Wall) -> int:
 	return added[0] if added.size() == 1 else -1
 
 
-## A hand holding decorations swept across open ground, a house's floor and a flat roof's deck shows one present
-## the whole way, and a press places that present.
 func _held_preview() -> void:
 	var hand: Hand = main.rig.right
 	var fit: FittingTool = main.fitting_tool

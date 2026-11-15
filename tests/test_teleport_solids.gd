@@ -1,9 +1,5 @@
 extends "res://../tests/support/booted.gd"
 
-## Headless checks that the teleport ray lands on whatever solid it meets in the garden, a pitched roof, a tree, a
-## wall's top, and that what the player stands on and hovers over is the top surface beneath: a wall walk, a flat
-## roof, a platform, stairs and a bridge; and that a wall's face, struck low, lands at its foot and, struck high, floats there, while a ruin's stepped ledge, pointed at, is stood on: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
-
 
 func _run() -> void:
 	await process_frame
@@ -29,7 +25,6 @@ func _pose(origin: Vector3, dir: Vector3) -> Transform3D:
 	return Transform3D(Basis.looking_at(dir, Vector3.UP), origin)
 
 
-## Aims at `at` from `from`, lands, and checks the player stands upright where the ray hit, on `surface`'s height.
 func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: String) -> void:
 	rig.aim(_pose(from, at - from))
 	var g: Variant = rig.aim_ground
@@ -44,8 +39,6 @@ func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: Strin
 	check(rig.global_basis.y.is_equal_approx(Vector3.UP), "aimed %s, the player stands upright" % what)
 
 
-## Aims down at `at` with the stick eased back to `fraction`, and checks the hover there counts from `top`, the surface
-## beneath it, and lets go on it.
 func _hovers(rig: Rig, at: Vector3, top: float, what: String, fraction := 0.75) -> void:
 	var from := at + Vector3(0, 6, 0.4)
 	rig.aim(_pose(from, at - from), fraction)
@@ -62,7 +55,6 @@ func _hovers(rig: Rig, at: Vector3, top: float, what: String, fraction := 0.75) 
 	check(g != null and absf(g.y - top) < 0.02 and rig.aim_lift <= Rig.LIFTED + 0.3, "eased all but home over %s, the target settles on its top: %s up %.2f" % [what, g, rig.aim_lift])
 
 
-## Checks a point `up` metres over `at` stands on `want`, and one under the surface there on the ground.
 func _stands(at: Vector3, up: float, want: float, what: String) -> void:
 	var y: float = main.rig.floor_under.call(at + Vector3.UP * up)
 	check(absf(y - want) < 0.02, "%s stands on %.2f: %.2f" % [what, want, y])
@@ -111,8 +103,6 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
-## A ruined wall's face is its stones', each leaning a little and some standing proud of the one above: aims at it
-## behave as at a plain wall's, at every height and all along it.
 func _onto_a_wall_face(rig: Rig, world: World) -> void:
 	var d := seeded_wall(PackedVector3Array([main.world.terrain.ground(-6, -14), main.world.terrain.ground(6, -14)]))
 	world._order({"op": "wall", "walls": [d]}, 1)
@@ -134,9 +124,6 @@ func _onto_a_wall_face(rig: Rig, world: World) -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
-## Where a ruin steps down, each course's broken top is a ledge: a ray pointed at one, from above in front or behind,
-## or from the ground in front, lands the player standing on it where it struck. Ledges are found by looking straight
-## down every 2 cm along the wall, wherever the stone struck is flat for 4 cm either way.
 func _onto_a_ruin_ledge(rig: Rig, world: World) -> void:
 	for seed: int in [3, 8]:
 		_onto_ruin_ledges(rig, world, seed)
@@ -157,6 +144,7 @@ func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
 	var heights := {}
 	var aims := 0
 	var s := 2.0
+	# A ledge: wherever the top, looked straight down on every 2 cm, is flat for 4 cm either way.
 	while s < 9.5:
 		s += 0.02
 		var foot: Vector3 = l.frame_at(s).point
@@ -267,8 +255,6 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
-## Aims from 6 m out at the wall's face `up` metres over the floor in front of `mid`: struck within 1.5 m of that floor,
-## the player lands on that floor; higher, they float at the height struck. Either way clear of the face.
 func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 	var face := mid + Vector3(0, 0, WallLayout.THICKNESS * 0.5)
 	var front := main.world.terrain.ground(face.x, face.z + Rig.STAND_OFF_M)

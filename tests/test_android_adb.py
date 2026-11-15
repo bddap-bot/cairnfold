@@ -10,8 +10,8 @@ game = Path(__file__).parents[1] / 'game'
 
 class AndroidExportLeavesAdbAlone(unittest.TestCase):
     def test_editor_never_runs_adb(self):
-        # Godot's Android exporter polls `adb devices` and runs `adb kill-server` at exit when an Android preset is
-        # runnable, dropping every wireless session on the host's shared adb server.
+        # Godot's Android exporter runs `adb kill-server` at exit when a preset is runnable, dropping every
+        # wireless session on the host's shared adb server.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             project = root / 'project'

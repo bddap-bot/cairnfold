@@ -1,10 +1,7 @@
 extends "res://../tests/support/suite.gd"
 
-## Imports each Unity avatar package of a private corpus that never enters this repository and checks each wears
-## within the limits: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_private_avatars.gd
-## The corpus is the folder CAIRNFOLD_PRIVATE_AVATARS names, or ~/.local/share/cairnfold-avatars/vrchat, holding
-## .unitypackage files and avatars.json, each package's file name to the name of the avatar in it to convert ("" for
-## the only one). Without it the test says so and checks nothing.
+## The avatar corpus never enters this repository. Its avatars.json maps each .unitypackage file name to the name of the
+## avatar in it to convert ("" for the only one).
 
 const UnityAvatar = preload("res://../scripts/unity_avatar.gd")
 const Materials = preload("res://../scripts/unity/materials.gd")
@@ -28,7 +25,6 @@ func _run() -> void:
 	finish()
 
 
-## The package imports as an avatar model within the limits, writes, reads back and poses with its eyes on its head.
 func _wears(label: String, package: String, avatar: String) -> void:
 	var started := Time.get_ticks_msec()
 	var dir := UnityAvatar.unpacked(package)
@@ -71,8 +67,7 @@ func _wears(label: String, package: String, avatar: String) -> void:
 	a.free()
 
 
-## The bones of each spring chain of the converter's `model` that its menu's default state leaves running, as the worn
-## file's reader decides that over bone indices (Avatar._switched_off).
+## Spring chains left running, by bone names, as Avatar._switched_off decides it over bone indices.
 func _running(model: Node3D) -> Dictionary:
 	var sk: Skeleton3D = model.find_children("*", "Skeleton3D", true, false)[0]
 	var expressions: Dictionary = model.get_meta("expressions", {}).duplicate(true)

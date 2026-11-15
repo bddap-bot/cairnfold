@@ -1,14 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
-## A session recorded on a loaded host replays as it was on an idle one. Metered as a game is, a pond fills, walls go
-## up, trees and a stroke of flowers grow and a path wears the ground while threads spin beside the game and every
-## command finds the worker pool held; the player teleports to the first wall's foot, ducks and then birds come, and the
-## walls are laid again under them. Its replay, in a fresh game with nothing else running, holds every check of the
-## player and the wildlife.
-
-## How long the worker pool is held for each command, in microseconds.
+## Held from every worker per command, as on a loaded host.
 const HOLD_US := 1000000
-## Threads kept spinning beside the game's own.
+## Threads spinning beside the game, as on a loaded host.
 const SPINNERS := 2
 
 var _hogging := true
@@ -82,8 +76,6 @@ func _initialize() -> void:
 	finish()
 
 
-## Sends `cmd` as this player's tools do, with every thread of the worker pool held for HOLD_US, and waits for the
-## garden to take it.
 func _order(cmd: Dictionary) -> void:
 	for i in OS.get_processor_count():
 		_holds.append(WorkerThreadPool.add_task(OS.delay_usec.bind(HOLD_US), true))
@@ -92,8 +84,7 @@ func _order(cmd: Dictionary) -> void:
 	await until(func() -> bool: return main.world.seq == seq + 1, "the garden takes the %s" % cmd.op)
 
 
-## Digs a hollow at `x`, `z` and fills it to its brim, as the commands a grip pressing the ground and the pond tool
-## send: a Driver step's tools would also act on the game outside the record.
+## Sent as commands: a Driver step's tools would also act on the game outside the record.
 func _pond(x: float, z: float) -> void:
 	var terrain := main.world.terrain
 	var depth := GroundGrab.dig_depth(1.6)
@@ -108,7 +99,6 @@ func _pond(x: float, z: float) -> void:
 	await _order({"op": "ponds", "put": {p.at: at.y}, "wet": p.cells.size()})
 
 
-## Keeps SPINNERS threads busy until `_hogging` ends.
 func _spin() -> void:
 	for i in SPINNERS:
 		var t := Thread.new()

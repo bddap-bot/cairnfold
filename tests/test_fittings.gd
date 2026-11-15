@@ -1,9 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of windows, doors, lanterns, flags, chimneys and fences, as layouts and through the tools:
-## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fittings.gd
-
-## A wall lays in under a hundred frames; seventy times that is a wall that never settles.
+## A wall lays in under a hundred frames; this many means it never settles.
 const SETTLE_FRAMES := 3600
 
 var terrain: Terrain:
@@ -42,7 +39,6 @@ func _wall(length: float, height: float, windows: Array[Vector2], arches: Array[
 	return straight_wall(length, height, arches, 1, windows)
 
 
-## Coursed stones that reach into an opening's clear span.
 func _intruders(w: WallLayout, o: Dictionary) -> Array:
 	return w.stones.filter(func(s): return (s.kind == "block" or s.kind == "mortar") and s.y > o.sill + 0.05 and s.y < o.head - 0.05 and absf(s.s - o.s) < o.half + s.size.x * 0.5 - 0.02)
 
@@ -351,7 +347,6 @@ func _fittings_are_deterministic() -> void:
 	check(a.stones.size() == b.stones.size() and range(a.stones.size()).all(func(i): return a.stones[i].xform.is_equal_approx(b.stones[i].xform)), "the same wall lays the same fittings")
 
 
-## Through the tools, in the glade.
 func _in_the_glade() -> void:
 	await process_frame
 	main.world.limit = INF
@@ -363,7 +358,7 @@ func _in_the_glade() -> void:
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
-		# Grounded clutter can occlude the rays meant to isolate wall picking.
+		# Clutter would occlude the wall-picking rays.
 		{"op": "uncluttered"},
 	])
 	world.submit({"op": "wall", "walls": [_tower(terrain.ground(-12, 8), 2.0)]})
@@ -584,7 +579,7 @@ func _shared_opening_cap(w: Wall) -> void:
 	world.state.walls[w.id] = before
 
 
-## A tower as a garden built before keeps one: no tool draws one any more.
+## Only an older garden holds a tower; no tool draws one.
 static func _tower(center: Vector3, radius: float) -> Dictionary:
 	return wall_data({
 		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5, "closed": true, "top": WallLayout.Top.CAP,
@@ -592,15 +587,12 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 	})
 
 
-## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
 func _fit(fit: FittingTool, target: Dictionary) -> bool:
 	var placed := fit.fit(target)
 	lay_walls(main.tool)
 	return placed
 
 
-## A chimney's ghost low on `house`'s slope against the chimney a press there lays: as tall, its pots where the real
-## pots stand.
 func _chimney_ghost_is_the_chimney(fit: FittingTool, world: World, house: Wall) -> void:
 	house.lay_now()
 	var r := house.roof
@@ -635,8 +627,6 @@ func _redo(world: World) -> void:
 	lay_walls(main.tool)
 
 
-## Every buffer `w` draws once its stones and ivy are laid. A wall that lays on and on, as one a hand's preview keeps
-## reshaping does, fails `step` and ends the run where it stalled.
 func _drawn(w: Wall, step: String) -> Array:
 	await frames(3)
 	for f in SETTLE_FRAMES:

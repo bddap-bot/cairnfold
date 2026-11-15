@@ -1,10 +1,9 @@
 extends SceneTree
 
-## What every headless test shares: failures counted and reported on the `tests:` and `FAIL:` lines scripts/test.sh
-## reads, and an exit through Main.quit, which waits for playing sounds. A test runs under `--fixed-fps 60`, as
-## scripts/test.sh runs it: every frame is then 1/60 s, so frame deltas, timers and Driver steps count frames, where
-## without it they take the host's clock and a loaded host changes what a frame holds.
-## Seconds of the host's time an until() waits before it calls the wait a hang.
+## scripts/test.sh reads the `tests:` and `FAIL:` lines and runs under `--fixed-fps 60`, so a frame is 1/60 s and
+## deltas, timers and Driver steps count frames, not the host's clock.
+
+## Seconds of host time.
 const HANG := 120
 const UnityAssets = preload("res://../scripts/unity/assets.gd")
 
@@ -14,12 +13,10 @@ var main: Main
 
 static func _static_init() -> void:
 	Budget.frame_deadline = false
-	# The repository's own avatars name nothing private, and the engine's messages while the converter reads them stay
-	# where scripts/test.sh looks for errors.
+	# The repository's avatars name nothing private; converter messages stay where scripts/test.sh looks for errors.
 	UnityAssets.print_names = true
 
 
-## Runs a test's `_run` once the tree is up; a test without one starts itself.
 func _initialize() -> void:
 	if has_method("_run"):
 		call_deferred("_run")
@@ -31,13 +28,12 @@ func check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 
-## Which of earth, sand and stone `marks`' garden ground at (x, z) holds most of, as the terrain shader shows it.
+## Thresholds as the terrain shader reads the texel.
 static func kind_at(marks: Ground, x: float, z: float) -> Ground.Kind:
 	var c := marks._texel(x, z, marks.laid)
 	return Ground.Kind.STONE if c.g >= 0.5 else Ground.Kind.SAND if c.a > c.r else Ground.Kind.EARTH
 
 
-## Whether `marks`' garden earth at (x, z) is a bed's.
 static func tilled(marks: Ground, x: float, z: float) -> bool:
 	return marks._texel(x, z, marks.laid).b8 & Ground.TILLED != 0
 
@@ -47,9 +43,7 @@ func finish() -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-## Boots the game with `args` as if launched with them, besides any this run was launched with, on one session seed, so
-## every run lays the same garden: a build's seed, and so its clutter, is drawn from the generator Main seeds, and a
-## check met by most gardens but not all would fail one run in several, loaded or not.
+## `args` add to this run's own launch args. One seed, so every run lays the same garden: a check most gardens meet would fail one run in several.
 func boot_main(args := {}) -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	main.args = args
@@ -62,9 +56,8 @@ func frames(n: int) -> void:
 		await process_frame
 
 
-## Waits frame by frame until `done` holds, and whether it did. No frame count bounds it: worker threads and sockets keep
-## the host's clock while frames run as fast as it allows, so a loaded host outruns any count. A wait still unmet after
-## HANG of the host's own time fails as `what` instead of stalling the run.
+## Bounded by host time, not frames: worker threads and sockets keep the host's clock, so a loaded host outruns any
+## frame count.
 func until(done: Callable, what: String) -> bool:
 	var start := Time.get_ticks_msec()
 	while not done.call():
@@ -75,7 +68,7 @@ func until(done: Callable, what: String) -> bool:
 	return true
 
 
-## A straight wall `length` along x on flat ground: its windows as (s, sill) cut first, then its archways at `arches`.
+## `windows` as (s, sill).
 static func straight_wall(length: float, height: float, arches: Array[float] = [], seed := 1, windows: Array[Vector2] = []) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
@@ -87,8 +80,7 @@ static func straight_wall(length: float, height: float, arches: Array[float] = [
 	return w
 
 
-## A 7×5 house from x 0 to 7 and z -2.5 to 2.5, an archway in the middle of the wall at z -2.5 and a window in the
-## middle of the wall at z 2.5, its roof bearing `dormers`.
+## x 0 to 7, z -2.5 to 2.5; an archway mid wall at z -2.5, a window mid wall at z 2.5.
 static func lit_house(cover := WallLayout.Cover.ROOF, dormers: Array[Vector2] = [], at := Vector3.ZERO) -> Lamps.Room:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(at, at + Vector3(7, 0, 0), 5)
@@ -109,7 +101,6 @@ static func lit_house(cover := WallLayout.Cover.ROOF, dormers: Array[Vector2] = 
 	return Lamps.Room.of(w, massing, massing.roof)
 
 
-## The data a wall sends: `with`'s fields, the rest as a fresh Wall has them.
 static func wall_data(with: Dictionary) -> Dictionary:
 	var w := Wall.new(0, null, Terrain.new())
 	var d := w.data()
@@ -118,13 +109,10 @@ static func wall_data(with: Dictionary) -> Dictionary:
 	return d
 
 
-## The roof a wall sends: `with`'s fields, the rest as a fresh RoofLayout has them.
 static func roof_data(with: Dictionary) -> Dictionary:
 	return RoofLayout.new().data().merged(with, true)
 
 
-## A rectangular storey from `a` to `b`, `depth` deep, on the builds `on`, unlaid: {wall, roof, massing}; a roof cover
-## is pitched, any other flat.
 static func storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = [], cover := WallLayout.Cover.ROOF, top := WallLayout.Top.CAP) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(a, b, depth)
@@ -140,7 +128,6 @@ static func storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []
 	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
 
 
-## Lays `h`'s walls on flat ground and seats its roof on them, as a garden's wall does.
 static func lay_house(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
 	w.build(Terrain.flat)
@@ -149,8 +136,7 @@ static func lay_house(h: Dictionary) -> void:
 	w.hide_roof(h.roof)
 
 
-## Where the stress scene's `<phase>/aerial` view stands in `steps`, -1 when it has none; its `<phase>/<view>` views are
-## checked to stand too.
+## -1 when the phase has no aerial view.
 func aerial_at(steps: Array, phase: String, views: Array[String] = ["ground"]) -> int:
 	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "") == phase + "/aerial")
 	check(at >= 0, "the stress scene has a %s/aerial phase" % phase)
@@ -159,7 +145,7 @@ func aerial_at(steps: Array, phase: String, views: Array[String] = ["ground"]) -
 	return at
 
 
-## The index of the last step at or before `steps[at]` whose op is `op`.
+## At or before `steps[at]`.
 static func step_before(steps: Array, at: int, op: String) -> int:
 	var i := at
 	while steps[i].op != op:
@@ -179,19 +165,18 @@ static func sloped_ground(x: float, z: float) -> float:
 	return x * 0.1 + z * 0.05
 
 
-## The tiles of roof `build`, or the stones of any other, of `kind`.
 static func of_kind(build: Object, kind: String) -> Array:
 	var list: Array = build.tiles if build is RoofLayout else build.stones
 	return list.filter(func(s: Dictionary) -> bool: return s.kind == kind)
 
 
-## Whether the box `x` lays over the ground point `p`, seen from above.
+## `p` is ground (x, z), seen from above.
 static func box_covers(x: Transform3D, p: Vector2) -> bool:
 	var inverse := x.affine_inverse()
 	return AABB(Vector3.ONE * -0.5, Vector3.ONE).intersects_ray(inverse * Vector3(p.x, x.origin.y + 10.0, p.y), inverse.basis * Vector3.DOWN) != null
 
 
-## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
+## Ends cut as WallLayout.drawn_corners cuts them.
 static func piece_holds(st: Dictionary, p: Vector3) -> bool:
 	var x: Transform3D = st.xform
 	var q := x.affine_inverse() * p
@@ -201,7 +186,6 @@ static func piece_holds(st: Dictionary, p: Vector3) -> bool:
 	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
 
 
-## `n` directions spread evenly over the sphere, along a Fibonacci spiral.
 static func sphere_directions(n: int) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	for i in n:
@@ -212,7 +196,7 @@ static func sphere_directions(n: int) -> Array[Vector3]:
 	return out
 
 
-## A tracked controller aiming ahead in each of `rig`'s hands, for the caller to remove from XRServer when done.
+## The caller removes them from XRServer.
 static func track_hands(rig: Rig) -> Array[XRControllerTracker]:
 	var out: Array[XRControllerTracker] = []
 	for hand in rig.hands:
@@ -230,7 +214,6 @@ static func lay_walls(tool: WallTool) -> void:
 		w.lay_now()
 
 
-## Draws a wall from `a` to `b` with `tool`'s first mason as a hand does, in `samples` steps, and returns it.
 static func stroke_wall(tool: WallTool, a: Vector3, b: Vector3, samples := 30) -> Wall:
 	var m: WallTool.Mason = tool.masons[0]
 	var terrain := tool.world.terrain
@@ -242,8 +225,6 @@ static func stroke_wall(tool: WallTool, a: Vector3, b: Vector3, samples := 30) -
 	return tool.walls[-1]
 
 
-## Draws a path from `a` to `b` with `paths` as a hand does, in 40 steps, submits it to `world` and returns the
-## world's sequence number after it.
 static func stroke_path(paths: Paths, world: World, a: Vector3, b: Vector3, half: float) -> int:
 	paths.begin(world.terrain.ground(a.x, a.z), half)
 	for i in 41:
@@ -254,20 +235,17 @@ static func stroke_path(paths: Paths, world: World, a: Vector3, b: Vector3, half
 	return world.seq
 
 
-## Lets a frame pass and writes the save it left due; saves are written on a worker thread, so this waits for the last
-## one to land.
+## Saves are written on a worker thread; flush waits for the last to land.
 func flushed() -> void:
 	await process_frame
 	main.world.flush()
 
 
-## Runs every command waiting on the world and waits until every wall and stair has laid what they hold.
 func laid() -> void:
 	main.world.settle()
 	await until(func() -> bool: return not main.world.stairs.laying() and not main.tool.walls.any(func(w: Wall) -> bool: return w.laying()), "every build lays")
 
 
-## Demo `path`'s steps as a test plays them: no capture or quit step, and no step's own captures.
 static func demo(path: String) -> Array:
 	var steps := Driver.read(path).filter(func(s: Dictionary) -> bool: return s.op not in ["capture", "quit"])
 	for s: Dictionary in steps:
@@ -275,7 +253,7 @@ static func demo(path: String) -> Array:
 	return steps
 
 
-## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
+## A run whose every step returns at once finishes inside add_child.
 func play(steps: Array) -> Driver:
 	var d := Driver.new(main, steps)
 	var ran := [false]
@@ -294,7 +272,6 @@ func turn_picker(target: Dictionary, steps: int) -> void:
 	picker.close(main.rig.right)
 
 
-## A cleaned command as the host would send it on, checked again as a peer checks it.
 func peer_relayed(cmd: Dictionary, by: int) -> Dictionary:
 	var world := main.world
 	var hosted := Commands.clean(cmd, world.state, false, world.terrain)
@@ -303,7 +280,7 @@ func peer_relayed(cmd: Dictionary, by: int) -> Dictionary:
 	return Commands.clean(hosted, world.state, true, world.terrain)
 
 
-## Orders `walls` built as `by`, and the id the first of them takes.
+## The id the first of `walls` takes.
 func order_walls(walls: Array, by: int) -> int:
 	var world := main.world
 	world._order({"op": "wall", "walls": walls}, by)

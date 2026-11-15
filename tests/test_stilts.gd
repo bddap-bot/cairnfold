@@ -1,7 +1,5 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of round and long houses raised on stilts: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_stilts.gd
-
 
 func _init() -> void:
 	for kind in [WallLayout.Foundation.PILLARS, WallLayout.Foundation.POSTS]:
@@ -42,8 +40,6 @@ func _name(kind: WallLayout.Foundation, round: bool) -> String:
 	return "%s %s" % ["round" if round else "long", WallLayout.Foundation.keys()[kind].to_lower()]
 
 
-## Every station round the walls has a stilt standing under the wall's centre line, from the foundation or the ground
-## up under the foot, and between them nothing of the walls is laid: the house stands on them.
 func _stilts_line_up_under_the_walls(kind: WallLayout.Foundation, round: bool, timbered := false) -> void:
 	var w := _raised(kind, round, 1.5, sloped_ground, timbered)
 	var name := _name(kind, round) + (" timber-framed" if timbered else "")
@@ -89,7 +85,6 @@ func _stilts_line_up_under_the_walls(kind: WallLayout.Foundation, round: bool, t
 			break
 
 
-## Raised past the stilts' span, the foundation rises with the house, as high as the grip sets.
 func _the_grip_sets_the_foundation_under_the_stilts() -> void:
 	for kind in [WallLayout.Foundation.PILLARS, WallLayout.Foundation.POSTS]:
 		var tops := []
@@ -104,7 +99,6 @@ func _the_grip_sets_the_foundation_under_the_stilts() -> void:
 		check(absf(tops[0] - 0.3) < 0.05 and absf(tops[1] - 0.6) < 0.05 and absf(tops[2] - 1.8) < 0.05, "%s: raised 1.5, 2.4 and 3.6 m, the foundation stands %.2f, %.2f and %.2f m out of the ground" % [WallLayout.Foundation.keys()[kind], tops[0], tops[1], tops[2]])
 
 
-## A raise too low for stilts to stand in lays the plinth whole, as a house raised on none.
 func _a_low_raise_stands_on_its_plinth() -> void:
 	check(WallLayout.stilt_span(WallLayout.Foundation.POSTS, 0.6) == 0.0 and WallLayout.stilt_span(WallLayout.Foundation.PILLARS, 0.9) > 0.0, "a 0.6 m raise is too low for stilts; 0.9 m holds them")
 	var low := _raised(WallLayout.Foundation.POSTS, false, 0.6)
@@ -117,7 +111,6 @@ func _a_low_raise_stands_on_its_plinth() -> void:
 	check(not none.stones.any(func(st: Dictionary) -> bool: return st.kind in ["post", "beam"] or (st.kind == "pillar")), "a plinth has no stilts")
 
 
-## On a steep slope the uphill stilts are short, standing on the ground over the foundation's level.
 func _stilts_stand_on_the_ground_where_it_rises() -> void:
 	var steep := func(x: float, _z: float) -> float: return x * 0.25
 	var w := _raised(WallLayout.Foundation.POSTS, false, 1.5, steep)
@@ -130,7 +123,6 @@ func _stilts_stand_on_the_ground_where_it_rises() -> void:
 			check(false, "a post sinks %.2f m into the ground" % (steep.call(p.x, p.z) - p.y))
 
 
-## Pillars carry a course of stone running whole round under the foot; posts carry timber beams from each post to the next.
 func _pillars_carry_a_course_and_posts_beams() -> void:
 	var pillared := _raised(WallLayout.Foundation.PILLARS, false, 1.5)
 	var course := 0.0
@@ -156,8 +148,6 @@ func _wall_data(kind: WallLayout.Foundation, rise: float, round := false) -> Dic
 	return wall_data({"points": PackedVector3Array(points), "height": 2.4, "rise": rise, "closed": true, "foundation": kind})
 
 
-## Stilts are charged as they are laid: pillars and their course as stone wall, posts and beams as timbers, and only the
-## foundation under them as plinth.
 func _the_budget_counts_stilts_as_laid() -> void:
 	for round in [false, true]:
 		var plinth := Budget.wall(_wall_data(WallLayout.Foundation.STONE, 1.5, round))
@@ -172,7 +162,6 @@ func _the_budget_counts_stilts_as_laid() -> void:
 		check(Budget.cost_ms(pillars) < Budget.cost_ms(plinth) and Budget.cost_ms(posts) < Budget.cost_ms(plinth), "stilts cost less than the plinth they replace")
 
 
-## A house's stilts come through the garden's command, which turns them down on an open wall or a fence.
 func _the_garden_keeps_stilts() -> void:
 	var d := _wall_data(WallLayout.Foundation.POSTS, 1.5)
 	d.top = WallLayout.Top.CAP
