@@ -1,9 +1,8 @@
 class_name DeleteTool
 extends Node3D
 
-## A stroke shows on this machine as the beam passes and goes to the garden as one command when the trigger lets go,
-## so one undo puts it all back.
-## Anyone in the garden can wipe it.
+## A stroke shows here as the beam passes and goes to the garden as one command on release, so one undo puts it back.
+## Anyone in the garden can wipe the garden.
 
 const TINT := Color(1.0, 0.7, 0.62, 0.6)
 const REACH := 80.0
@@ -199,8 +198,7 @@ static func _gone(cut: Dictionary) -> Dictionary:
 	return cut.easels.merged(cut.boulders)
 
 
-## Over the ground half a mowing ring apart, which every plant's ragged reach still covers, so a wide ring is not
-## mown again and again in one swipe.
+## Half a mowing ring apart, which every plant's ragged reach still covers, so a wide ring is not mown over and over.
 static func steps(metres: float, mow := 0.0) -> int:
 	return clampi(ceili(metres / maxf(STEP, mow * 0.5)), 1, MAX_STEPS)
 

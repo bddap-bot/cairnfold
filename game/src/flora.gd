@@ -13,8 +13,7 @@ const GRASS_LOD_BEGIN := 4.0
 const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
-## Fewer, wider blades: the Quest 2 pays for near blades' slivers more than for their pixels (docs/design.md,
-## "Cheaper flora").
+## Fewer, wider blades: the Quest 2 pays more for near blades' slivers than for their pixels (docs/design.md).
 const CLUMP_BLADES := 3
 const CLUMP_WIDE := 2.33
 ## Past it land flowers draw as far patches (flora_far.gdshader).
@@ -30,8 +29,7 @@ const NO_HAND := Vector3(0, -1000, 0)
 const BRUSHES := ["grass", "flowers", "moss"]
 const PLACED := ["tree", "bush"]
 const SOLID_CELL := 8.0
-## One MultiMesh per pool: the Quest 2 pays 7 to 19 µs a draw whatever it holds, more than the few thousand
-## triangles cost off screen (docs/design.md, "Crowns").
+## One MultiMesh per pool: a Quest 2 draw costs 7 to 19 µs, more than its triangles off screen (docs/design.md).
 const SOLID_POOL_CELL := INF
 
 signal grown
@@ -54,7 +52,6 @@ class Pool:
 	## The shaders tell placed plants from the meadow's own by it.
 	var planted := 0.0
 	var material: Material
-	## Lets the crowns' shade follow a tool's preview.
 	var draws := 0
 	var mesh: Mesh
 	var drawn: Mesh
@@ -445,7 +442,6 @@ class Pool:
 		if far != null:
 			far.set_instance_custom_data(slot, custom)
 
-	## So the camera does not cull a moved kept plant.
 	func _cover_cell(slot: int) -> void:
 		var cell := _cell_of[slot]
 		cell.custom_aabb = cell.custom_aabb.merge(_over_ground(plants[slot].xform * mesh.get_aabb()))
@@ -466,9 +462,8 @@ class Pool:
 			if p.few != null:
 				p.few.mesh = m
 
-	## Not `visibility_range_end`: it measures to the box's centre, high above the ground since a cell's box spans every
-	## height the terrain can reach. Out of reach goes to FULL_LAYER so a photo still sees it. A dry patch stops at
-	## `reach`, where the shader shrinks land flowers to their root; water plants draw out to `water_reach`.
+	## Not `visibility_range_end`: it measures to the box's centre, high above the ground as the box spans every terrain
+	## height. Out of reach goes to FULL_LAYER so a photo still sees it; water plants draw out to `water_reach`.
 	func cull(eye: Vector3, reach: float, water_reach := reach) -> void:
 		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
@@ -504,8 +499,8 @@ class Pool:
 					p.water_plants = true
 					break
 
-	## Mirrors plant.gdshaderinc's `water_form`, but any depth over zero counts, not only its 2 cm, so rounding never
-	## hides one.
+	## Mirrors plant.gdshaderinc's `water_form`, but any depth over zero counts, not only its 2 cm, so rounding
+	## hides none.
 	func _water_plant(slot: int) -> bool:
 		var root := _xforms[slot].origin
 		return planted > 0.0 and terrain.depth_at(root.x, root.z) > 0.0
@@ -517,7 +512,6 @@ class Pool:
 		m.mesh = drawn
 		m.instance_count = count
 
-	## One draw per pool: fewer draws than pairing every near cell.
 	func far_with(mat: ShaderMaterial) -> void:
 		far = MultiMesh.new()
 		setup(far, Flora.far_mesh(), capacity)
@@ -587,7 +581,6 @@ class Plant:
 	var slot: int
 	var stamp: int
 	var xform: Transform3D
-	## Its height counted from the ground under it, as `xform`'s is.
 	var anchor: Vector3
 	## 0 is the meadow's own, else the build command that grew it.
 	var group := -1
@@ -634,8 +627,7 @@ var flowers: Pool
 var trunks: Pool
 var foliage: Pool
 var bushes: Pool
-## One coarse blob a crown casts the sun's shade: the shadow pass draws one low-detail mesh a crown, and blobs no
-## longer shade one another in patches.
+## Each crown casts the sun's shade as one coarse blob, so its blobs do not shade one another in patches.
 var crown_shade := MultiMesh.new()
 var _shaded := -1
 var _solids := {}
@@ -660,7 +652,6 @@ var grass_reach: float = Quality.ladder[0].grass_m:
 		grass_mat.set_shader_parameter(&"draw_reach", m)
 		for mat in ground_mats:
 			mat.set_shader_parameter(&"draw_reach", m)
-## Water plants draw to it; land flowers hand off to far patches at FLOWER_NEAR.
 var flower_reach: float = Quality.ladder[0].flowers_m:
 	set(m):
 		flower_reach = m
@@ -769,7 +760,6 @@ func paint_ground(mats: Array[ShaderMaterial]) -> void:
 		_grass_lod(mat)
 
 
-## The uniforms of flora_lod.gdshaderinc.
 func _grass_lod(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter(&"draw_reach", grass_reach)
 	mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
@@ -1013,7 +1003,6 @@ func _pools() -> Array[Pool]:
 	return [grass, flowers, trunks, foliage, bushes, moss]
 
 
-## Group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []
 	for p: Pool in _pools():
@@ -1182,9 +1171,8 @@ func reset() -> void:
 		grown.emit()
 	for p: Pool in _pools():
 		p.reset()
-		# Only the taken, found natively: visiting each of the meadow's tens of thousands of plants in script held a
-		# Quest's frame for hundreds of milliseconds. A plant a tool shows taken is the tool's to draw again once its
-		# command settles.
+		# Only the taken, found natively: a script visit of every meadow plant held a Quest frame for hundreds of ms. A
+		# plant a tool shows taken is the tool's to draw again once its command settles.
 		var at := p.anchors.find(Pool.GONE)
 		while at >= 0 and at < p.kept:
 			p.plants[at].set_shown(true)

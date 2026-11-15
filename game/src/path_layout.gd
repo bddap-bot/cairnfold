@@ -1,28 +1,20 @@
 class_name PathLayout
 extends RefCounted
 
-## Pure data.
-
 const CELL := 1.0
 const ROW := 0.42
 const HALF_WIDTH := Vector2(0.45, 3.0)
-## Metres along the wall at which a crossing opens an arcade instead of a single arch.
 const ARCADE_SPAN := 2.8
-## Metres of soft edge beyond the stroke.
 const VERGE := 0.3
-## Overlap so no seam between treads shows the ground beneath.
 const TREAD_LAP := 0.06
-## Width, depth.
+## (width, depth).
 const STRINGER := Vector2(0.16, 0.34)
-## Height of a stringer's top above its treads.
 const STRINGER_PROUD := 0.06
-## Water depth over the spine that lays stepping stones instead of treads.
 const WET := 0.04
-## Spacing along the spine; size across, height, along; height out of the water.
 const STRIDE := 0.7
+## (across, height, along).
 const STEPPING_STONE := Vector3(0.55, 0.16, 0.46)
 const STEPPING_PROUD := 0.05
-## Row spacing across a bed, least inset from its edge, plant spacing along a row.
 const CROP_ROWS := 0.4
 const CROP_MARGIN := 0.12
 const CROP_EVERY := 0.32
@@ -44,18 +36,15 @@ var samples: Array[Vector3] = []
 var sample_half_widths: Array[float] = []
 var lengths: Array[float] = []
 var point_lengths: Array[float] = []
-## Index in `samples` where each point's samples start; how many points the last `_resample` read.
+## Per point, the index in `samples` where its samples start.
 var _point_samples := PackedInt32Array()
 var _resampled := 0
 ## Grid cells the last `_resample` changed segments in, or null where it relaid them all.
 var moved: Variant = null
-## Arc length at each wear row's end; a row starts where the previous one ends.
 var row_ends: Array[float] = []
 var area := Rect2()
-## Grid cell → indices of the sample segments whose boxes reach into it; built lazily.
 var _segment_cells := {}
-## Still being drawn: segments before `settled` stand, so `meetings` retests only the moving end. Otherwise each
-## wall's meetings are kept whole until planned again.
+## Still being drawn: `meetings` retests only past `settled`; otherwise each wall's are kept whole until replanned.
 var growing := false:
 	set(v):
 		growing = v
@@ -70,7 +59,6 @@ static func wears(what: Surface) -> Ground.Kind:
 	return {Surface.SAND: Ground.Kind.SAND, Surface.COBBLES: Ground.Kind.STONE, Surface.FLAGS: Ground.Kind.STONE}.get(what, Ground.Kind.EARTH)
 
 
-## A stone style, Ground.TILLED for a bed, else 0.
 static func look(what: Surface) -> int:
 	match what:
 		Surface.COBBLES:
@@ -96,9 +84,8 @@ func data() -> Dictionary:
 	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface, "clutter": PackedVector4Array(clutter)}
 
 
-## Ignores clutter: where it meets a wall and what it wears depend on the stroke alone.
+## Ignores clutter, which moves neither meetings nor wear; packed as `data` packs, so the garden's copy compares equal.
 func same_stroke(other: PathLayout) -> bool:
-	# Packed as `data` packs them, so a stroke and the garden's copy compare equal.
 	return points == other.points and PackedFloat32Array(half_widths) == PackedFloat32Array(other.half_widths) and seed == other.seed and surface == other.surface
 
 
@@ -123,8 +110,7 @@ func length() -> float:
 	return lengths[-1] if lengths.size() > 0 else 0.0
 
 
-## The arc length before which the spine has not moved since the last build, while only the last point moves or
-## points are added: smoothing reaches two points back from the one that moved.
+## Before this arc length the spine stands while only the last point moves: smoothing reaches two points back.
 func settled() -> float:
 	return point_lengths[-3] if point_lengths.size() >= 3 else 0.0
 
@@ -145,8 +131,8 @@ func plan() -> void:
 		row_ends.append(s)
 
 
-## `to_row` < 0 for all. Stone lies on worn earth under its full stone, so stone painted back to meadow leaves the
-## path's way showing, and its soft edge frays into the meadow with no earth along it.
+## `to_row` < 0 for all. Earth under the stone keeps the way showing once painted back to meadow, and leaves the
+## stone's soft edge fraying straight into the meadow.
 func wear(onto: Image, from_row := 0, to_row := -1) -> void:
 	for k in range(from_row, row_ends.size() if to_row < 0 else to_row):
 		var d := disc(k)
@@ -161,7 +147,6 @@ func disc(k: int) -> Vector4:
 	return Vector4(f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1)
 
 
-## Start and end arc lengths; the last row ends with the spine.
 func row_span(row: int) -> Vector2:
 	return Vector2(row_ends[row - 1] if row > 0 else 0.0, minf(row_ends[row], length()))
 
@@ -170,7 +155,6 @@ static func tread_columns(half: float) -> int:
 	return maxi(1, ceili(half * 2.0 / 0.5))
 
 
-## {point, half, along}: spine point, half-width and flat unit direction at arc length `s`.
 func frame_at(s: float) -> Dictionary:
 	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
 	var t := clampf((s - lengths[i - 1]) / maxf(lengths[i] - lengths[i - 1], 1e-5), 0.0, 1.0)
@@ -180,8 +164,8 @@ func frame_at(s: float) -> Dictionary:
 
 
 func _resample() -> void:
-	# While `growing`, only the last point read and new ones may have moved; a sample segment reads the point before
-	# and two after it, so those from three before stand.
+	# While `growing`, only the last point read and new ones move; a sample segment reads one point before and two
+	# after it, so those from three before stand.
 	var first := maxi(_resampled - 3, 0) if growing else 0
 	var keep := _point_samples[first] if first > 0 and first < _point_samples.size() else 0
 	moved = null
@@ -221,7 +205,6 @@ func _resample() -> void:
 				_segment_cells.get_or_add(c, []).append(i)
 
 
-## Arc lengths of the arches opened by `met` (`meetings`), an arcade where a crossing runs long.
 static func arches(met: Array[Dictionary]) -> Array[float]:
 	var out: Array[float] = []
 	for m in met:
@@ -231,8 +214,7 @@ static func arches(met: Array[Dictionary]) -> Array[float]:
 	return out
 
 
-## Each crossing of `wall`: {s: arc length along the wall, span: how far along it the path's width runs, more at a
-## slant}. Looks only in `cells`, by default all of `segment_cells`.
+## {s: arc length along the wall, span: the path's width along it, more at a slant}; only in `cells` if given.
 func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if samples.size() < 2 or wall.samples.size() < 2:
@@ -436,7 +418,6 @@ func _crops(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
 			pieces.append({"xform": root * piece[0], "color": piece[1] * tone, "ao": 1.0, "variant": pieces.size() % 3, "kind": "crop"})
 
 
-## {at, crop} per plant, `at` on flat ground.
 func crop_spots() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var s := CROP_EVERY * 0.5
@@ -476,7 +457,6 @@ static func _made_crops() -> Array:
 	]
 
 
-## Tops stand STRINGER_PROUD above the tread line so they read as holding the stones up.
 func _stringers(flight: Array[Dictionary], height: Callable, pieces: Array[Dictionary], rng: RandomNumberGenerator) -> void:
 	if flight.is_empty():
 		return

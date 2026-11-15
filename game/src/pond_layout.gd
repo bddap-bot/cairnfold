@@ -1,8 +1,7 @@
 class_name PondLayout
 extends RefCounted
 
-## Water fills a hollow lowest ground first, up to its given level or until it would spill over the rim onto ground
-## that drains away. Spilling into another enclosed hollow fills that too, so neighbouring digs become one pond.
+## Water fills lowest first to its level or its spill point; spilling into an enclosed hollow fills that too.
 
 ## Metres below the spill point, so the water never brims over.
 const FREEBOARD := 0.08
@@ -19,21 +18,19 @@ class Pond:
 	var bottom := Vector2i()
 	## Grid points under water.
 	var cells: Array[Vector2i] = []
-	## Dry grid points touching the water: the shaders read the level there too, so it is exact to the shore.
+	## Dry grid points touching the water; shaders read the level there too, so it is exact to the shore.
 	var shore: Array[Vector2i] = []
 	var box := Rect2i()
 	## The ground the fill read: an edit outside it leaves this pond as it is.
 	var ground := Rect2i()
-	## Metres of water over the bottom.
+	## Over `bottom`.
 	var depth := 0.0
 	## Its surface's triangles, a cache `PondWater.quads` fills; empty until then.
 	var quads := PackedVector3Array()
 
 
-## Null when the water drains to the edge of `window` or is too shallow. `heights` holds the grid points of `window`,
-## row by row. `near` is a level the water is likely to reach (the pond's before an edit): the ground below it is
-## checked and filled at once. A lake can be the whole world, tens of thousands of points, so the fill keeps packed
-## arrays and runs the heap flood only above the ground known to hold water.
+## Null when the water drains to `window`'s edge or is too shallow. `heights`: `window`'s grid points, row by row.
+## `near`: a likely level (the pond's before an edit), below which the ground is filled at once without the heap.
 static func fill(heights: PackedFloat32Array, window: Rect2i, at: Vector2i, cap := INF, near := -INF) -> Pond:
 	var w := window.size.x
 	var rows := window.size.y
@@ -161,9 +158,7 @@ const WET := 8
 const DRY := 16
 
 
-## True when all the ground water up to `cap` would reach from `from` is enclosed: then the pond is that ground at
-## `cap` and the lowest-first flood is not needed below it. Marks it BASIN and lists it in `basin`. False when it
-## reaches the window's edge, or `from` stands above `cap`.
+## Whether all ground under `cap` reachable from `from` is enclosed; marks what it reaches BASIN and lists it in `basin`.
 static func _held(heights: PackedFloat32Array, w: int, rows: int, from: int, cap: float, flags: PackedByteArray, basin: PackedInt32Array) -> bool:
 	var steps := PackedInt32Array([-1, 1, -w, w])
 	if heights[from] - FREEBOARD >= cap:
@@ -191,8 +186,7 @@ static func _inner(k: int, w: int, rows: int) -> bool:
 	return x > 0 and y > 0 and x < w - 1 and y < rows - 1
 
 
-## [enclosed: bool, points taken in]: the ground below `level` reachable from `from` outside the pond so far; the
-## window's edge counts as draining. `marks` holds `id` at the points this call took in.
+## [enclosed: bool, points taken in] below `level` from `from`, outside the basin; `marks` gets `id` at those points.
 static func _hollow(heights: PackedFloat32Array, w: int, rows: int, from: int, level: float, flags: PackedByteArray, marks: PackedInt32Array, id: int) -> Array:
 	var steps := PackedInt32Array([-1, 1, -w, w])
 	marks[from] = id

@@ -36,7 +36,6 @@ class Brush:
 	var last_stamp := Vector3.INF
 	var owed := 0.0
 	var drawing_path := false
-	## Reached the frame budget, and the hand has been told.
 	var full := false
 	## Shown here alone. rock_from and rock_hand are its and the hand's pose when taken up; rock_gain is metres of
 	## boulder per metre of hand.
@@ -53,8 +52,7 @@ var world: World
 var brushes: Array[Brush] = []
 ## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
 var stand_in := Flora.NO_HAND
-## Count of sent strokes still shown as ghosts.
-var _sent := 0
+var _ghost_strokes := 0
 ## Hidden once the garden has grown their plants. A connection, not an await: a coroutine still waiting when the tool
 ## is freed leaks its script.
 var _settled: Array = []
@@ -269,7 +267,7 @@ func _send_plants(b: Brush) -> void:
 	b.dabs = []
 	b.kind = ""
 	if not cmd.dabs.is_empty():
-		_sent += 1
+		_ghost_strokes += 1
 		world.submit(cmd, _lay.bind(ghost), b.hand)
 
 
@@ -300,8 +298,8 @@ func _hide_settled() -> void:
 	var settled := _settled
 	_settled = []
 	for ghost: Array in settled:
-		_sent -= 1
-		if _sent == 0 and not busy():
+		_ghost_strokes -= 1
+		if _ghost_strokes == 0 and not busy():
 			flora.clear_ghosts()
 			continue
 		# Hiding a stroke's ghost a plant at a time took 17 ms for a 1900-plant stroke on a Quest 2; clearing them is one call.

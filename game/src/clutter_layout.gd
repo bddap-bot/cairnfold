@@ -1,12 +1,9 @@
 class_name ClutterLayout
 extends RefCounted
 
-## The small things a house, wall or path gathers of its own when it is built. Each is a decoration's style
-## (DecorationLayout) laid as part of its build, so it costs a draw call no more than the build's own stones do.
-## A build keeps them as `clutter`, a list of
-## Vector4(s, off, turn, style): its arc length along the build; how far out it stands, from a wall's face to its
-## middle or from a path's spine, the sign the side (`WallLayout._normal`, or a path's right); its turn from facing
-## out; and its style. A hand moves, turns, copies or takes each away as a fitting of its build.
+## Laid as part of its build, so a piece costs no draw call beyond the build's own stones. A build keeps them as
+## `clutter`, Vector4(s, off, turn, style): arc length along it; how far its middle stands out from a wall's face or a
+## path's spine, signed by side (`WallLayout._normal`, or a path's right); turn from facing out; DecorationLayout style.
 
 ## Most pieces a build gathers, and most it may hold once hands copy some.
 const GATHERED := 16
@@ -27,12 +24,10 @@ const CLEAR := 1.1
 static var _shapes := {}
 
 
-## Whether pieces of `style` sit up on a wall rather than on the ground at its foot.
 static func perched(style: int) -> bool:
 	return style == DecorationLayout.named("Bird nest")
 
 
-## `d` is a build command's wall.
 static func of_wall(d: Dictionary) -> PackedVector4Array:
 	var out := PackedVector4Array()
 	if d.fence or not d.ruins.is_empty():
@@ -94,12 +89,11 @@ static func of_wall(d: Dictionary) -> PackedVector4Array:
 	return out
 
 
-## Whether arc length `s` round a loop `length` long stands CLEAR of every piece in `out`.
 static func _clear(out: PackedVector4Array, s: float, length: float) -> bool:
 	return Array(out).all(func(v: Vector4) -> bool: return absf(fposmod(v.x - s + length * 0.5, length) - length * 0.5) >= CLEAR)
 
 
-## `d` is a build command's path. None stands near its end, where it may run into a house.
+## None stands near its end, where it may run into a house.
 static func of_path(d: Dictionary) -> PackedVector4Array:
 	var out := PackedVector4Array()
 	var points: PackedVector3Array = d.points
@@ -117,8 +111,6 @@ static func of_path(d: Dictionary) -> PackedVector4Array:
 	return out
 
 
-## Each straight run of `points` (closing back to the first when `closed`): where it starts and ends along them, how
-## long it runs and which way.
 static func _sides(points: PackedVector3Array, closed: bool) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var s := 0.0
@@ -132,7 +124,7 @@ static func _sides(points: PackedVector3Array, closed: bool) -> Array[Dictionary
 	return out
 
 
-## Which side of a closed loop of `points` looks out, as `WallLayout._normal` signs it: +1 or -1.
+## +1 or -1, as `WallLayout._normal` signs the side that looks out.
 static func _outward(points: PackedVector3Array, sides: Array[Dictionary]) -> float:
 	var outline := WallLayout.ground_line(points)
 	var side: Dictionary = sides[0]
@@ -152,12 +144,11 @@ static func _half_at(points: PackedVector3Array, halves: PackedFloat32Array, s: 
 	return halves[-1]
 
 
-## Whether `v` is a piece a build may keep: a clutter style, standing on its build within reach of it.
 static func valid(v: Vector4) -> bool:
 	return v.is_finite() and v.x >= 0.0 and v.x < 4000.0 and absf(v.y) <= OUT.y + PathLayout.HALF_WIDTH.y and v.w == floorf(v.w) and v.w >= 0.0 and v.w < DecorationLayout.STYLES.size() and DecorationLayout.stands(int(v.w), "ground")
 
 
-## Piece `v`'s parts laid about frame `x` (its middle on the ground, facing out along +z), seeded `seed`.
+## `x`: its middle on the ground, facing out along +z.
 static func parts(v: Vector4, x: Transform3D, seed: int) -> Array[Dictionary]:
 	var layout := DecorationLayout.new()
 	layout.build(int(v.w), seed, 0.6, "ground")
@@ -169,12 +160,11 @@ static func parts(v: Vector4, x: Transform3D, seed: int) -> Array[Dictionary]:
 	return out
 
 
-## Piece `v`'s room about its frame.
 static func bounds(v: Vector4) -> AABB:
 	return _shape(int(v.w)).bounds
 
 
-## How many parts a list of pieces lays, which the budget charges as wall stone.
+## The budget charges these as wall stone.
 static func count(list: Variant) -> int:
 	var n := 0
 	for v: Vector4 in list:
@@ -182,7 +172,7 @@ static func count(list: Variant) -> int:
 	return n
 
 
-## Style `style` laid once, for its size and parts: every seed lays as many.
+## Laid once per style: every seed lays as many parts.
 static func _shape(style: int) -> DecorationLayout:
 	if not _shapes.has(style):
 		var layout := DecorationLayout.new()
@@ -191,7 +181,6 @@ static func _shape(style: int) -> DecorationLayout:
 	return _shapes[style]
 
 
-## The frame a piece stands in: `out_by` from `point` on the side `off` signs, its run along `tangent`, turned `turn`.
 static func facing(point: Vector3, tangent: Vector3, off: float, out_by: float, turn: float) -> Transform3D:
 	var normal := tangent.cross(Vector3.UP).normalized() * (1.0 if off >= 0.0 else -1.0)
 	return Transform3D(Basis(Vector3.UP, atan2(normal.x, normal.z) + turn), point + normal * out_by)

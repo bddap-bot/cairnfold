@@ -1,9 +1,8 @@
 class_name FittingTool
 extends Node3D
 
-## One opening operation makes windows and both door styles: a low press with a family that can be a door makes a
-## plain door (WallLayout.opens_door), the arch tool an archway, and a window on a gable roof's slope a dormer.
-## Preview and commit share one list; every edit goes through World.
+## One opening operation makes windows, doors (WallLayout.opens_door), archways and dormers. Preview and commit share
+## one list; every edit goes through World.
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## Metres: a press this near a placed fitting takes it away.

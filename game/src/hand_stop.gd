@@ -1,8 +1,7 @@
 class_name HandStop
 extends Node
 
-## The hand you see stops at what is solid while the tracked controller carries on, sliding along and catching up once
-## the way back is clear; tools still aim, point and grab from the tracked controller.
+## The hand you see stops at what is solid and catches up once clear; tools act from the tracked controller.
 
 enum Surface { NONE, GROUND, STONE, PLASTER, WOOD, TILE, BARK, LEAVES, WATER, WOOL, DOWN, FEATHERS }
 
@@ -108,8 +107,8 @@ func _near_for(i: int, box: AABB) -> Near:
 	return near
 
 
-## Slides up to SLIDES times to settle into corners. A ball that starts inside something is let go, so a build raised round
-## a hand, or an animal walking into it, cannot trap it.
+## A ball that starts inside something is let go, so a build raised round a hand, or an animal walking into it, cannot
+## trap it.
 static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable, step := STEP) -> Vector3:
 	if solid.call(from):
 		return to
@@ -340,7 +339,6 @@ class Near:
 			return Surface.WATER
 		return _in_ellipsoids(p, leaves)
 
-	## The surface of the first of `of` whose mesh box's inscribed ellipsoid holds `p`.
 	func _in_ellipsoids(p: Vector3, of: Array[Array], with_facing := false) -> Surface:
 		for t in of:
 			var inv: Transform3D = t[0]
@@ -379,7 +377,6 @@ class Near:
 		return true
 
 
-## A straight piece of a wall's ground curve.
 class Piece:
 	var layout: WallLayout
 	var a: Vector2

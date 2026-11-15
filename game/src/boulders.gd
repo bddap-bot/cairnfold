@@ -1,8 +1,7 @@
 class_name Boulders
 extends Node3D
 
-## Each boulder draws a near mesh and, past a distance that grows with it, a far one of a sixteenth the triangles,
-## so a pebble costs little and a house-sized one keeps its outline far off.
+## Distances grow with size, so a pebble costs little and a house-sized boulder keeps its outline far off.
 
 ## Metres for a unit boulder; both grow with its scale.
 const NEAR_TO := 30.0
@@ -29,7 +28,6 @@ class Boulder:
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
-	## `d` as `Boulders.put` takes it; regrown only where its seed or style differs.
 	func appear(d: Dictionary) -> void:
 		if shape == null or shape.seed != d.seed or shape.style != d.style:
 			_grow(BoulderLayout.shape(d.seed, d.style))
@@ -70,11 +68,9 @@ class Boulder:
 			if swing > 0.0:
 				Cues.play(Cues.Act.BOULDER_MOVE, pose.origin, null, swing, scale)
 
-	## `from_y`: its centre's height when let go.
 	func landed(from_y: float, hand: XRController3D = null) -> void:
 		Cues.play(Cues.Act.BOULDER_PLACE, position, hand, Boulders.impact(from_y - position.y), size)
 
-	## Unscaled.
 	func pose() -> Transform3D:
 		return Transform3D(transform.basis.orthonormalized(), transform.origin)
 
@@ -89,7 +85,7 @@ class Boulder:
 var terrain: Terrain
 var world: World
 var boulders := {}
-## Bumped on every put, take and resize, so what caches their shapes knows to look again.
+## So what caches their shapes knows to look again.
 var changes := 0
 
 
@@ -127,13 +123,11 @@ func show_held(id: int, pose: Transform3D, scale: float) -> void:
 		changes += 1
 
 
-## Turns about its own centre as the hand turns, and moves `gain` metres for each metre the hand moves.
 static func carried(pose: Transform3D, from: Transform3D, to: Transform3D, gain: float) -> Transform3D:
 	var turned := to.basis.orthonormalized() * from.basis.orthonormalized().inverse() * pose.basis
 	return Transform3D(turned.orthonormalized(), pose.origin + (to.origin - from.origin) * gain)
 
 
-## 0 to 1, from its centre's speed plus the speed its turn gives its surface `reach` metres out.
 static func swing(from: Transform3D, to: Transform3D, reach: float, seconds: float) -> float:
 	if seconds <= 0.0:
 		return 0.0
@@ -142,7 +136,6 @@ static func swing(from: Transform3D, to: Transform3D, reach: float, seconds: flo
 	return clampf((speed - SWING_FROM) / (SWING_FULL - SWING_FROM), 0.0, 1.0)
 
 
-## 0 to 1; at 0 it still thuds, softly.
 static func impact(fall: float) -> float:
 	return clampf(sqrt(2.0 * 9.8 * maxf(fall, 0.0)) / LAND_FULL, 0.0, 1.0)
 
@@ -179,7 +172,6 @@ func find(id: int) -> Boulder:
 	return boulders.get(id)
 
 
-## On the ground as this player sees it; a held one stays in hand.
 func reseat(area: Rect2, _settled := true) -> void:
 	for b: Boulder in boulders.values():
 		if not b.held and area.grow(b.shape.reach() * b.size).has_point(Vector2(b.ground.x, b.ground.z)):
@@ -203,7 +195,6 @@ func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	return best
 
 
-## -INF over none.
 func floor_under(p: Vector3) -> float:
 	var rock := pick(p, Vector3.DOWN)
 	return rock.point.y if not rock.is_empty() else -INF

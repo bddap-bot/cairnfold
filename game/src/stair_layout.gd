@@ -5,25 +5,20 @@ enum Kind { FLIGHT, LADDER, LANDING, BRIDGE }
 ## (least, most); at the least a bridge is a single rope.
 const WIDTH := Vector2(0.6, 3.0)
 const RISE := 0.2
-## The deepest a tread runs, so a long, gentle flight climbs in many low steps rather than a few long ones.
+## The deepest tread, so a long gentle flight climbs in many low steps rather than a few long ones.
 const TREAD := 0.45
 const LADDER_SLOPE := 1.5
 const LEVEL := 0.08
 const RAIL_HEIGHT := 0.85
-## In the style tool's order. On a bridge, stone and rope both string rope handrails, stone from stone pillars at its
-## ends and rope from wooden posts.
+## In the style tool's order.
 const RAILS := ["stone", "wood", "rope", "none"]
 ## Metres of mid-span sag per metre spanned, within SAG_LEAST and SAG_MOST.
 const SAG := 0.07
 const SAG_MOST := 2.0
 const SAG_LEAST := 0.03
-## A span hangs as a bridge where its middle half stands HANG_CLEAR over the ground or crosses water, its rise no more
-## than HANG_SLOPE of its run and its run at least HANG_LEAST.
 const HANG_CLEAR := 1.0
 const HANG_SLOPE := 0.3
 const HANG_LEAST := 2.0
-## How far a hanging deck keeps above the ground or water under it, and how far its ends may bed into a bank's lip
-## or the top they rest on.
 const HANG_KEEP := 0.15
 const LIP := 0.3
 const PLANK_PITCH := 0.22
@@ -37,7 +32,6 @@ var stones: Array[Dictionary] = []
 var solids: Array[Dictionary] = []
 var kind := Kind.FLIGHT
 var treads: Array[Vector3] = []
-## For a ray to skip the stones of a build it misses.
 var bounds := AABB()
 var _foot := Vector3.ZERO
 var _along := Vector3.FORWARD
@@ -67,17 +61,15 @@ static func can_rail(d: Dictionary) -> bool:
 static func single(d: Dictionary) -> bool:
 	return classify(d) == Kind.BRIDGE and d.width <= WIDTH.x + 0.001
 
-## By shape alone, whatever is under it.
 static func spans(a: Vector3, b: Vector3) -> bool:
 	var run := Vector2(b.x - a.x, b.z - a.z).length()
 	return run >= HANG_LEAST and absf(b.y - a.y) <= run * HANG_SLOPE
 
-## Whether `sag` is none, or one `sag_over` could give.
 static func sag_fits(a: Vector3, b: Vector3, sag: float) -> bool:
 	return sag == 0.0 or spans(a, b) and sag >= SAG_LEAST and sag <= minf(Vector2(b.x - a.x, b.z - a.z).length() * SAG, SAG_MOST) + 0.001
 
-## Mid-span sag, checked along the centre line and both edges; 0 where they stand as stairs. `under(p)` is the top of
-## the ground or a build at or below p; `water(x, z)` the pond surface, under the ground where there is none.
+## The sag, 0 where it stands as stairs. `under(p)`: the top of ground or build at or below p; `water(x, z)`: the pond
+## surface, below ground off a pond.
 static func sag_over(a: Vector3, b: Vector3, width: float, under: Callable, water: Callable) -> float:
 	if not spans(a, b):
 		return 0.0
@@ -238,7 +230,6 @@ func _bridge(d: Dictionary, basis: Basis, rng: RandomNumberGenerator) -> void:
 	solids = deck_boxes
 
 
-## `along(t)` gives the rope's point for `t` from 0 to 1.
 func _strung(along: Callable, thickness: float, rng: RandomNumberGenerator) -> void:
 	var n := maxi(2, ceili(_run / 0.5))
 	for i in n:

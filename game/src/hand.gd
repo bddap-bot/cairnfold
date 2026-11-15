@@ -28,10 +28,8 @@ const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
 const UNMODELLED := [Tool.NONE, Tool.EASEL, Tool.BOOK]
-## Tips an icon's top toward the eye.
 const TILT := PI * 0.3
-## Seconds between icon builds while the wheel is closed: one per look bounds a changed figure (a friend arriving, an
-## avatar chosen) to one build a frame.
+## One icon build a look while the wheel is closed bounds a changed figure to one build a frame.
 const PREPARE_EVERY := 0.25
 ## A person's scale on a dial, so the discs behind them stay apart.
 const DIAL_SIZE := 0.66
@@ -43,19 +41,18 @@ const FLICKS := {"primary_up": Vector2(0, 1), "primary_down": Vector2(0, -1), "p
 const PUSH := 0.7
 const LET_GO := 0.3
 
-## Driver-injected stick positions, by tracker.
+## By tracker.
 static var injected_sticks := {}
-## Driver-injected hand positions in the wheel's plane, by tracker.
+## By tracker, in the wheel's plane.
 static var injected_reach := {}
-## Driver-injected global joints (`HandShape`), by tracker, in place of the runtime's.
+## By tracker: global joints (`HandShape`) in place of the runtime's.
 static var injected_joints := {}
 ## Metres from a bare hand's little-finger pinch that push the stick fully.
 const STICK_REACH := 0.1
-## Per finger, thumb to little, the inputs it rests on: a touch curls it to REST, a value as far as pulled. A finger
-## whose controller senses none stays straight.
+## Per finger, thumb to little, the inputs it rests on: a touch curls it to REST, a value as far as pulled.
 const SENSES := [["ax_touch", "by_touch", "primary_touch", "secondary_touch"], ["trigger_touch", "trigger"], ["grip"], ["grip"], ["grip"]]
 const REST := [1.0, 0.5, 1.0, 1.0, 1.0]
-## Per second; smooths a touch flickering at its edge.
+## Smooths a touch flickering at its edge.
 const CURL_RATE := 25.0
 
 var carried: Node3D
@@ -80,8 +77,7 @@ var _profile := ""
 var _palm_noted := ""
 ## "grip_surface" or "grip".
 var palm_from := ""
-## The runtime's joints shaped from the controller (Meta's, SteamVR's), else empty; the log measures the avatar's wrist
-## against them.
+## The runtime's joints shaped from the controller, else empty; the log measures the avatar's wrist against them.
 var shaped: Array = []
 var flat_only := false
 var people: SessionWheel:
@@ -112,8 +108,7 @@ var bare := false
 var gesture := ""
 ## Rig-space point where the bare hand's little finger pinched: the stick's centre.
 var _stick_from := Vector3.ZERO
-## Per finger, thumb to little, 0 straight to 1 closed. Shapes the avatar's fingers only; gestures read a bare hand's
-## own joints.
+## Per finger, thumb to little, 0 straight to 1 closed. Shapes the avatar's fingers only; gestures read the joints.
 var curls := PackedFloat32Array([0, 0, 0, 0, 0])
 var _curled_by := ""
 var _sensed := {}
@@ -282,8 +277,7 @@ func _warm() -> void:
 		i.scale = Vector3.ONE * 0.001
 
 
-## `budget` -1 builds all. Built ahead because building on open took 20 to 134 ms a level on a Quest 2 and dropped
-## frames.
+## `budget` -1 builds all. Built ahead: building on open took 20 to 134 ms a level on a Quest 2.
 func _prepare_icons(budget: int) -> void:
 	var wanted := {}
 	_wanted(inventory(), [] as Array[int], wanted)
@@ -365,7 +359,6 @@ func _make_icon(item: Variant) -> Node3D:
 	return i
 
 
-## `depth`: nested subtree levels drawn at most.
 static func miniature(item: Variant, draw := Callable(), depth := 2) -> Node3D:
 	var drawn: Node3D = draw.call(item) if draw.is_valid() else null
 	if drawn != null:
@@ -446,7 +439,6 @@ func tracked() -> bool:
 	return held_still or bare or get_has_tracking_data()
 
 
-## Animals eat from the held-out dish, here and, through `Session`, in every other player's game.
 func holds_seeds() -> bool:
 	return tool == Tool.SEEDS and tracked() and not picking
 
@@ -579,7 +571,6 @@ func _runtime_joints(t: XRHandTracker) -> Array:
 	return out
 
 
-## Logs each new source, so a device's log shows which finger data its runtime gives.
 func _curl(joints: Array, delta: float) -> void:
 	var by := "joints" if not joints.is_empty() else "sensors" if tracked() else ""
 	var want := HandShape.curls(joints) if by == "joints" else _sensors() if by == "sensors" else PackedFloat32Array([0, 0, 0, 0, 0])
@@ -627,7 +618,6 @@ func _flick_input() -> void:
 			flick = way
 
 
-## Logged on change, so a device's log shows which of its controls the controls table landed on.
 func _log_profile() -> void:
 	var t := _pose_tracker()
 	var bound := t.profile if t != null else ""

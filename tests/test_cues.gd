@@ -73,7 +73,7 @@ func _voices_are_pooled_and_continuous_actions_thinned() -> void:
 	check(high.pitch_scale > low.pitch_scale * 1.5, "a stretch drawn tight creaks higher: %.2f against %.2f" % [high.pitch_scale, low.pitch_scale])
 	for i in 200:
 		Cues.play(Cues.Act.BOULDER_PLACE, Vector3.ZERO, null, 1.0, 64.0)
-		check(cues._voices[(cues._next_voice + Cues.VOICES - 1) % Cues.VOICES].volume_db <= Cues.LOUDEST, "nothing plays louder than LOUDEST, its spread of level included")
+		check(cues._voices[(cues._next_voice + Cues.VOICES - 1) % Cues.VOICES].volume_db <= Cues.LOUDEST_DB, "nothing plays louder than LOUDEST_DB, its spread of level included")
 	hand.queue_free()
 	cues.queue_free()
 	await process_frame

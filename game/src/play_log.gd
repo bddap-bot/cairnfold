@@ -1,18 +1,14 @@
 class_name PlayLog
 extends RefCounted
 
-## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
-## by a dev tool on a device of ours, never by the game unasked. Its content may name another folder to record into.
-## The game deletes no chunk or take: only the host knows what it has copied, so its collector deletes each once
-## copied and closed (scripts/deletable.py). A device away from the host for long ends its record, as `finish`
-## does, once its storage has less than MIN_FREE left.
+## On only where this file is in the player folder, put there by --record-sessions or a dev tool, never by the game
+## unasked. The game deletes no chunk or take: only the host knows what it has copied (scripts/deletable.py).
 const SWITCH := "record-sessions"
-## A file a dev tool puts beside the switch so the next session's record keeps the microphone (`take`). The session
-## that finds it removes it, so it arms one session whether or not that records; the game never writes it. An arm older
-## than ARM_SECONDS is spent unused, so one left by a take that never started cannot record whoever plays next.
+## Put beside the switch by a dev tool, never the game, to arm one session's microphone `take`, whether or not it
+## records; one older than ARM_SECONDS is spent, so a stale arm cannot record whoever plays next.
 const ARM := "capture-performance"
 const ARM_SECONDS := 600
-## Covers the events and the frame layout (Replay). A record of another schema replays on no build.
+## Covers the events and the frame layout (Replay); a record of another schema replays on no build.
 const SCHEMA := 4
 const MAX_BYTES := 4194304
 const MIN_FREE := 1 << 30
@@ -29,7 +25,7 @@ var _ended := false
 var _task := -1
 var _skipped := 0
 var _write_us := 0
-## Frames since the last write, and how many the session recorded before them.
+## Since the last write; and how many frames the session recorded before them.
 var _input := PackedByteArray()
 var _frames := 0
 ## Since the last write, from `check` and `kept`, each with its "frame".
@@ -87,7 +83,7 @@ func _init(folder: String, armed := false) -> void:
 	_open()
 
 
-## `garden` as World.snapshot gives it, serialized here so the edits that follow cannot change it under the writer.
+## Serialized here so the edits that follow cannot change `garden` under the writer.
 func begin(seeds: Dictionary, garden: Dictionary) -> void:
 	_join()
 	_task = WorkerThreadPool.add_task(_write_replay.bind(seeds, var_to_bytes(garden)))
@@ -98,7 +94,6 @@ func _write_replay(seeds: Dictionary, save: PackedByteArray) -> void:
 		"save": Replay.deflated(save)})
 
 
-## `frame` is Replay.frame's bytes.
 func record(frame: PackedByteArray) -> void:
 	_input.append_array(frame)
 
@@ -115,9 +110,8 @@ func listen(frames: PackedVector2Array) -> void:
 	_audio.append_array(frames)
 
 
-## Stamped with the count of frames recorded so far. `from` is the sending peer, or 0 for what this machine did
-## itself (a command it ordered as host, a join); `whose` is the player it is about (who made a build command, who
-## came or went).
+## `from` is the sending peer, or 0 for this machine's own (a command it ordered as host, a join); `whose` is the
+## player it is about.
 func heard(from: int, whose: int, call: String, args: Array) -> void:
 	if not _ended:
 		_heard.append([frames(), from, whose, call, args.duplicate(true)])
@@ -189,7 +183,6 @@ func _take_audio() -> PackedVector2Array:
 	return block
 
 
-## {} for none.
 func _take_input() -> Dictionary:
 	if _input.is_empty():
 		return {}
@@ -199,7 +192,6 @@ func _take_input() -> Dictionary:
 	return block
 
 
-## {} for none.
 func _take_heard() -> Dictionary:
 	if _heard.is_empty():
 		return {}
@@ -236,7 +228,7 @@ func _write_input(input: Dictionary) -> void:
 		"data": Replay.deflated(raw)})
 
 
-## Digests the bytes here, off the main thread.
+## Digested here, off the main thread.
 func _write_checks(checks: Array) -> void:
 	if checks.is_empty():
 		return

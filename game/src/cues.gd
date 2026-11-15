@@ -1,9 +1,7 @@
 class_name Cues
 extends Node3D
 
-## Every player action's sound and pulse, from one table (docs/design.md, "Action feedback"). The clips in
-## game/audio/fx come from scripts/compose.py or scripts/fx_recordings.py. What a hand feels touching a surface is
-## HandStop.FEEL's, not this table's.
+## Every player action's sound and pulse (docs/design.md, "Action feedback"); touching a surface is HandStop.FEEL's.
 
 enum Act {
 	WALL_LAY, WALL_SETTLE, WALL_LIFT, WALL_STRETCH, WALL_CRUMBLE, WALL_RESTYLE, ARCH,
@@ -27,12 +25,10 @@ enum Act {
 	REFUSED, CAPPED,
 }
 
-## Per action: `sound`, a family of clips in game/audio/fx (`sound`0.ogg and on, `SOUNDS` of them), or "" for none;
-## `db`, its level at UNIT metres; `tune`, its pitch, spread by `spread` either way each play; `bend`, how far a
-## `tension` of 1 takes the pitch and `swell` how many dB louder it plays it; `weigh`, dB louder for each doubling of
-## the `heft` of what did it, and `deepen`, how far its pitch falls as heft grows (pitch over heft to that power);
-## `feel`, the pulse as [amplitude, seconds, pulses, seconds from one to the next], or [] for none, its amplitude
-## raised by up to `tighten` of itself at full tension; `every`, the least seconds between two plays from one hand.
+## Per action: `sound`, clips `sound`0.ogg on in game/audio/fx (`SOUNDS` of them), "" for none; `db` at UNIT metres;
+## `tune` the pitch, spread by `spread` each way; a `tension` of 1 takes the pitch `bend` further and `swell` dB louder;
+## each doubling of `heft` adds `weigh` dB, and pitch falls as heft to the `deepen`; `feel` [amplitude, seconds, pulses,
+## seconds apart] or [], raised by up to `tighten` of itself at full tension; `every` the least seconds between plays.
 const TABLE := {
 	Act.WALL_LAY: {"sound": "stone", "db": -6.0, "spread": 0.1, "feel": [0.12, 0.012, 1, 0.0], "every": 0.06},
 	Act.WALL_SETTLE: {"sound": "settle", "db": -4.0, "spread": 0.1, "feel": [0.3, 0.03, 2, 0.1]},
@@ -108,8 +104,7 @@ const SOUNDS := {
 }
 ## The voices sounds share: a sound past these takes the voice that started longest ago.
 const VOICES := 12
-## dB cap on any sound, however hard or heavy what made it.
-const LOUDEST := 2.0
+const LOUDEST_DB := 2.0
 const UNIT := 3.0
 
 ## soft, paper, dark, or off; a per-build choice with no runtime menu.
@@ -117,7 +112,7 @@ const CHARCOAL_PROFILE := "soft"
 const CHARCOAL_GRAINS := 8
 const CHARCOAL_INTERVAL := 0.1
 
-## Contact feedback is independent of paint samples and brush load. Distances are metres.
+## Independent of paint samples and brush load. Distances in metres.
 class CanvasFeel:
 	var touching := false
 	var hard := false
@@ -150,9 +145,9 @@ class CanvasFeel:
 
 
 static var _live: Cues
-## Plays asked for per action since start, for tests.
+## act -> plays asked since start, for tests.
 static var asked := {}
-## Pulses per action per hand's instance id since start, for tests.
+## act -> hand instance id -> pulses since start, for tests.
 static var pulsed := {}
 
 var _canvas := {}
@@ -202,13 +197,11 @@ func _exit_tree() -> void:
 		_live = null
 
 
-## `tension` is 0..1 of the way to its stretch's end; `heft` is a boulder's scale. Calls closer together than the
-## action's `every` from one hand come to nothing, so a site can call each step it makes.
+## `tension` 0..1 to the stretch's end, `heft` a boulder's scale; calls within `every` from one hand come to nothing.
 static func play(act: Act, at: Vector3, hand: XRController3D = null, tension := 0.0, heft := 1.0) -> void:
 	play_in(act, at, [hand] if hand != null else [], tension, heft)
 
 
-## One sound, a pulse in each hand, as two hands stretching one house.
 static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0, heft := 1.0) -> void:
 	var cue: Dictionary = TABLE[act]
 	asked[act] = asked.get(act, 0) + 1
@@ -229,7 +222,7 @@ static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0, heft :=
 			by[h.get_instance_id()] = by.get(h.get_instance_id(), 0) + 1
 
 
-## Called each physical-contact frame, including stationary and unloaded brushes.
+## Call every contact frame, still and unloaded brushes too.
 static func canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool) -> void:
 	if _live == null or not is_instance_valid(hand):
 		return
@@ -305,7 +298,7 @@ func _sound(cue: Dictionary, at: Vector3, tension: float, heft: float) -> void:
 	v.stream = options[_rng.randi() % options.size()]
 	var spread: float = cue.get("spread", 0.0)
 	v.pitch_scale = cue.get("tune", 1.0) * (1.0 + cue.get("bend", 0.0) * tension) * pow(heft, -cue.get("deepen", 0.0)) * _rng.randf_range(1.0 - spread, 1.0 + spread)
-	v.volume_db = minf(cue.db + cue.get("swell", 0.0) * tension + cue.get("weigh", 0.0) * log(heft) / log(2.0) + _rng.randf_range(-1.5, 1.0), LOUDEST)
+	v.volume_db = minf(cue.db + cue.get("swell", 0.0) * tension + cue.get("weigh", 0.0) * log(heft) / log(2.0) + _rng.randf_range(-1.5, 1.0), LOUDEST_DB)
 	v.global_position = at
 	v.play()
 

@@ -10,18 +10,16 @@ const SkeletonBone = preload("res://addons/avatar_workshop/skeleton_bone.gd")
 const OUTLINE := preload("res://src/avatar_outline.gdshader")
 const OUTLINE_CUT := preload("res://src/avatar_outline_cut.gdshader")
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
-## Two Quest 2 reads of a 93.9 MiB file (perf/quest-2/avatar-cost) took 8.7 s and fell from 2.55 and 1.66 GB available
-## to 0.72 and 0.49 GB, the low-memory killer taking background apps but never the game: the worse held 19.5 bytes a
-## file byte. Decoded pixels cost time, not memory or frames, so they set no floor (docs/multiplayer.md, "Limits").
+## A Quest 2 read held up to 19.5 bytes a file byte, the low-memory killer taking background apps but never the game.
+## Decoded pixels cost time, not memory, so they set no floor (docs/multiplayer.md, "Limits").
 const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
-## Past any light the garden sheds, for a flat material with no cap.
 const UNCAPPED := 1e4
 const HEAD_ROWS := 2
 ## As many points as the shader reads.
 const RAMP := 16
-## A board row's height.
+## Pixels: a board row's height.
 const ICON_SIDE := 44.0
 const COAT_ROWS := 7
 const MATCAP_ROWS := 6
@@ -30,26 +28,23 @@ const MATCAPS := 4
 const TOON_ROWS := 8
 ## Poiyomi's clear coat face on: Unity's dielectric specular, in gamma space.
 const DIELECTRIC := 0.220916301
-## The file's "clearcoatFallbacks": FALLBACK_LEVELS latitude-longitude levels FALLBACK_SIDE wide and half as tall,
-## stacked top to bottom, linear light = RGB * alpha * FALLBACK_RANGE, which keeps a lamp far past white in eight bits.
+## "clearcoatFallbacks": FALLBACK_LEVELS latitude-longitude levels FALLBACK_SIDE wide, half as tall, stacked top down;
+## linear light = RGB * alpha * FALLBACK_RANGE, which keeps a lamp far past white in eight bits.
 const FALLBACK_SIDE := 256
 const FALLBACK_LEVELS := 7
 const FALLBACK_RANGE := 128.0
 ## The material index changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
-## Of the 1.9 to 2.1 GB a Quest 2 has available as the game starts, what the game and seven heavy avatars need
-## besides textures: it leaves each about the 8.4 million texels seven ran at, not the twice that which ran out of
-## memory (docs/multiplayer.md, "Limits").
+## What a Quest 2's game and seven heavy avatars need besides textures: it leaves each the 8.4 million texels seven ran
+## at, not the twice that which ran out of memory (docs/multiplayer.md, "Limits").
 const MEMORY_FLOOR := 1700 << 20
 ## Counts definition joints, terminal nodes included.
 const MAX_SPRING_JOINTS := 60
-## A file asking for more has every system's share cut alike (ParticleDefinition.read). A corpus avatar's footstep
-## effects and sparks hold 8,000 particles drawing 180,000 vertices.
+## A file asking for more has every system's share cut alike (ParticleDefinition.read).
 const MAX_PARTICLE_SYSTEMS := 64
 const MAX_PARTICLES := 10000
 const MAX_PARTICLE_VERTICES := 250000
-## Measured from headers before any decode: a beacon makes every Quest nearby read the file it names, and a few MB of
-## blank images decode for tens of seconds. A converted avatar carries one image per decal besides its atlas.
+## Measured before any decode: a beacon makes every Quest nearby read the file, and blank images decode for seconds.
 const MAX_IMAGES := 256
 ## WebP's widest, within a GPU texture's 16384 px; the memory budget, not this, sets the side each is held at.
 const MAX_IMAGE_SIDE := 16383
@@ -58,7 +53,6 @@ const UNGATED_DECODE_PIXELS := 4096 * 4096
 ## Blend shapes times vertices moved: a few MB can name thousands of sparse blend shapes, each held whole once read.
 const MAX_BLEND_VERTICES := 4000000
 const DATA := {"humanoid": {}, "eyes": Vector3(0, 0.06, 0), "forward": Vector3.BACK, "look": {"type": Vrm.BONE, "ranges": [Vector2(90, 10), Vector2(90, 10), Vector2(90, 10), Vector2(90, 10)], "shapes": {}}, "springs": {"springs": [], "colliders": []}}
-## A built-in VRM 1.0 avatar faces +Z; a Godot camera looks down -Z.
 const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
 ## Body frame, forward -Z: down, out to the side, a little back.
@@ -141,7 +135,6 @@ class Leg extends Limb:
 
 ## A built-in's path, or the hash of a player's own file.
 var source := ""
-## Kept so another can be opened of it.
 var scene: PackedScene
 var tint: Color
 var eye_height := 0.0
@@ -152,7 +145,6 @@ var curls := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 var _fingers: Array = [[], []]
 var palms: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var look := Vector3.FORWARD
-## Yaw about up.
 var torso := NAN
 var gait: Gait
 var ground := Callable()
@@ -161,7 +153,6 @@ var posture := Posture.new()
 var stand_in := false
 var springs: SpringRuntime
 var simulate_springs := true
-## The player's own avatar: only it runs local-only contacts.
 var local := false
 var expressions: ExpressionPlayer
 var particles: AvatarParticles
@@ -175,8 +166,7 @@ var _hips: Joint
 var _head: Joint
 var _arms: Array[Arm] = []
 var _legs: Array[Leg] = []
-## _body_parent: each joint's nearest humanoid parent in _body, -1 for the hips; _turns: per Posture.poses, each
-## joint's turn from the T-pose.
+## _body_parent: nearest humanoid parent's index in _body, -1 for the hips; _turns: per Posture.poses, per joint.
 var _body: Array[Joint] = []
 var _body_parent := PackedInt32Array()
 var _head_parent := 0
@@ -184,8 +174,7 @@ var _turns: Array[Array] = []
 ## Null standing.
 var _upper_turns: Array[Array] = []
 var _alone: Array[Array] = []
-## The pose the body was alone in last, its bones keeping their turns so only the hips move; -1 none; -2 standing,
-## with standing's rest bones restored.
+## The pose last shown alone, its bones keeping their turns so only the hips move; -1 none; -2 standing, rests restored.
 var _settled := -1
 var _unposed := 0.0
 ## _eyes: left then right, empty unless it looks by bone; _shapes: per Vrm.LOOKS, [mesh, blend shape, weight]s.
@@ -197,10 +186,9 @@ var _shapes: Array = []
 var _tints: Array[Material] = []
 
 
-## Read as the scene loads, before the garden and avatars take theirs: read later, the game's own memory counts twice
-## against MEMORY_FLOOR; a Quest 2 with 2 GB available at launch has under 0.7 GB left once its garden stands.
+## Read before the garden and avatars load: later, the game's own memory counts twice against MEMORY_FLOOR.
 static var launch_memory := available_memory()
-## Microseconds since the metrics last took them.
+## Since the metrics last took them.
 static var springs_us := 0
 static var _built_in := {}
 static var _reading := 0
@@ -214,8 +202,8 @@ static func built_in(i: int) -> PackedScene:
 	return _built_in[path]
 
 
-## Tens to hundreds of milliseconds, so a player's file is read on a worker thread. Only the converter's check of a
-## file for another renderer reads it `unlimited`.
+## Tens to hundreds of milliseconds, so a player's file is read on a worker thread. `unlimited` only for the
+## converter's check of a file for another renderer.
 static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
 	if not unlimited and weight(bytes.size()) > reads(available - _reading):
 		return _too_heavy(bytes.size(), available - _reading)
@@ -287,8 +275,7 @@ static func available_memory() -> int:
 	return counted if counted >= 0 else int(OS.get_memory_info().get("available", 0))
 
 
-## /proc/meminfo reports no length, so a whole-file read or a read to its end gets nothing; a fixed-size read gets
-## it. Android lets no Godot file open it, so there Java reads it.
+## /proc/meminfo reports no length, so only a fixed-size read gets it. Android lets no Godot file open it.
 static func meminfo_available() -> int:
 	var lines := PackedStringArray()
 	var f := FileAccess.open("/proc/meminfo", FileAccess.READ)
@@ -319,17 +306,13 @@ static func shrink_for(bytes: int, budget: int) -> int:
 const UNSHRUNK := ["icons", "index"]
 
 
-## Measured from headers before any decode; 4/3 for mipmaps.
 static func texture_bytes(images: Array[Dictionary]) -> int:
 	var shrunk: Array[Dictionary] = []
 	shrunk.assign(images.filter(func(image: Dictionary) -> bool: return image.layer not in UNSHRUNK))
 	return Vrm.pixels(shrunk) * 4 * 4 / 3
 
 
-## The avatar data an importer sets on `root`: "humanoid", each Vrm.BONES name and "spring_N" for each node N the
-## "springs" definition names, to a "skeleton:bone" NodePath; "eyes", from the head bone; "forward"; "look" (Vrm);
-## "springs" (Avatar Workshop's spring definition); any "constraints" (Constraints.read). DATA fills the rest.
-## Frees `root` either way.
+## `root` carries the importer's metas (Vrm), DATA filling the rest. Frees `root` either way.
 static func model(root: Node3D) -> PackedScene:
 	if root.has_meta("expressions") and not ExpressionDefinition.valid(root.get_meta("expressions")):
 		print("avatar: refused: its expressions are not ones this reads")
@@ -408,8 +391,7 @@ static func _marked(m: Material) -> bool:
 	return m is BaseMaterial3D and (m.get_meta("extras", {}) as Dictionary).get("outline", false)
 
 
-## A hull costs a Quest 2 0.6 to 0.8 ms for a heavy avatar in view, toon shading 1.65 to 4.28 ms an avatar
-## (docs/design.md, "Toon outlines", "Toon shading").
+## On a Quest 2 a hull costs 0.6 to 0.8 ms a heavy avatar, toon shading 1.65 to 4.28 ms (docs/design.md).
 static var outlines := true
 static var toon := true
 static var _cuts: Array[WeakRef] = []
@@ -488,11 +470,9 @@ static func _switched_off(root: Node3D) -> void:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
 
 
-## Longest is metres root to tip at rest, the sway a joint buys: a skirt panel of four joints outranks a strand of ten
-## hanging a tenth as far. A bone only dropped chains move rests at its "settled" rotation (UnityAvatar.settle), as
-## VRChat, running them all, shows it.
-## One the controller's first state switches off keeps its authored rest: VRChat never ran it, so shows it there
-## when a switch first turns it on.
+## Longest is metres root to tip at rest, the sway a joint buys. A bone only dropped chains move rests at its
+## "settled" rotation, as VRChat shows it running them all; one switched off at start keeps its authored rest, as
+## VRChat never ran it.
 static func _keep_longest(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var waiting := _still_at_start(root)
@@ -535,7 +515,6 @@ static func _keep_longest(root: Node3D) -> void:
 	springs.springs = range(chains.size()).filter(func(i: int) -> bool: return kept.has(i)).map(func(i: int) -> Dictionary: return chains[i])
 
 
-## Spring joints that a spring switched off in the controller's first state moves and no running one does.
 static func _still_at_start(root: Node3D) -> Dictionary:
 	var data: Dictionary = root.get_meta("expressions", {})
 	var switched: Array = data.get("springs", [])
@@ -558,8 +537,7 @@ static func _bone(sk: Skeleton3D, path: Variant) -> int:
 	return sk.find_bone((path as NodePath).get_concatenated_subnames()) if sk and path is NodePath else -1
 
 
-## A file Vrm.read reads keeps in a skin only the binds its mesh weights (Vrm.Skins); another may bind more, and its
-## chains then rank by length alone.
+## Vrm.Skins keeps only weighted binds; a file read otherwise may bind more, its chains then ranking by length alone.
 static func _drawn_bones(root: Node3D, sk: Skeleton3D) -> Dictionary:
 	var drawn := {}
 	var mark := func(bone: int) -> void:
@@ -808,9 +786,8 @@ static func _matcap_rows(table: Image, column: int, m: Dictionary, textures: int
 		table.set_pixel(column, at + 5, Color(1.0, c.circle.border, c.circle.blur, slots[k]) if c.circle != null else Color(0, 0, 0, slots[k]))
 
 
-## glTF doubleSided is Unity's Cull Off (a strap modelled facing inward shows only so), extras depthWrite its ZWrite
-## On. Per-pixel lighting, normal maps and emission each cost the Quest 2 GPU time over every pixel an avatar covers
-## (docs/multiplayer.md, "A player's own avatar").
+## glTF doubleSided is Unity's Cull Off: a strap modelled facing inward shows only so. Per-pixel lighting, normal maps
+## and emission each cost the Quest 2 GPU time over every pixel an avatar covers.
 static func _plain(m: BaseMaterial3D) -> void:
 	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
 	if m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
@@ -853,7 +830,6 @@ static func scale_down(img: Image, shrink: int, mipmapped := true) -> void:
 		img.generate_mipmaps()
 
 
-## Each surface is a draw call.
 static func _merged(im: ImporterMesh) -> ImporterMesh:
 	var groups := {}
 	for i in im.get_surface_count():
@@ -960,7 +936,6 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		a._arms.append(arm)
 		var leg_bones: Array = [side + "UpperLeg", side + "LowerLeg", side + "Foot"].map(func(n: String) -> Joint: return a._joints.get(n))
 		if not leg_bones.has(null):
-			# A knee bends forward, as a leg stands at rest.
 			var leg := Leg.new(leg_bones[0], leg_bones[1], leg_bones[2], a._facing, Vector3.FORWARD)
 			leg.place = a._facing * (leg.end.rest.origin - a._hips.rest.origin) * Vector3(1, 0, 1)
 			leg.ankle = leg.end.rest.origin.y
@@ -999,7 +974,6 @@ func contact_senders(tags: Variant = null) -> Array:
 	return senders
 
 
-## A VRM rests palms down.
 func _finger_bones(side: String) -> Array:
 	var out := []
 	for f in FINGERS.size():
@@ -1054,7 +1028,6 @@ func _find_base(j: Joint, placed: Array[Joint]) -> void:
 	j.offset = Meshes.relative(_skeleton, _model) * t
 
 
-## X along `along`, Y toward `toward`.
 static func _frame(along: Vector3, toward: Vector3) -> Basis:
 	var x := along.normalized()
 	var y := (toward - x * toward.dot(x)).normalized()
@@ -1078,8 +1051,8 @@ func bone(name: String) -> Transform3D:
 	return global_transform * _get_joint(_joints[name])
 
 
-## The wearer's own body: every vertex the head moves is drawn at the eyes, so what joins it to the body lies in planes
-## through the eyes, seen edge on. Swaying meshes are left out: the wearer's eyes already see them.
+## For the wearer's eyes: every vertex the head moves is drawn at the eyes, so what joins it to the body is seen edge
+## on. Swaying meshes are left out: the eyes already see them.
 func headless() -> Array[MeshInstance3D]:
 	var head := {}
 	for b in _skeleton.get_bone_count():
@@ -1138,8 +1111,8 @@ func _dress(n: Node, tint: Color) -> void:
 		_dress(c, tint)
 
 
-## In this node's space (the world's, for a player), hands as Hand.body. Only the head and hands are tracked; every
-## player solves the rest the same from the same streamed pose. `toward` is in the eyes' frame, -Z ahead.
+## In this node's space, hands as Hand.body, `toward` in the eyes' frame; every player solves the rest alike from the
+## same streamed pose.
 func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FORWARD) -> void:
 	eyes = at
 	hands[0] = l
@@ -1319,8 +1292,7 @@ func _bend(limb: Limb, to: Vector3, pole: Vector3) -> Vector3:
 	return end
 
 
-## The centre of mass is the upright body's: one bending to look down or crouch keeps its balance over its feet, its
-## knees going forward as its hips go back.
+## The centre of mass is the upright body's, so one bending keeps its balance, knees forward as its hips go back.
 func _stand(model: Transform3D, upright: Transform3D, turn: Basis) -> void:
 	var places: Array[Vector3] = []
 	for leg in _legs:

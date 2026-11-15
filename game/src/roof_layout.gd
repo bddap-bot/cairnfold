@@ -1,9 +1,6 @@
 class_name RoofLayout
 extends RefCounted
 
-## Pitch is the ridge's rise above the wall top; a positive curve bows the slopes out, a negative one sags them
-## into swept eaves.
-
 enum Kind { GABLE, CONE }
 enum Deck { STONE, WOOD }
 
@@ -12,14 +9,13 @@ const OVERHANG := 0.3
 const MAX_OVERHANG := 2.5
 const GABLE_OVERHANG := 0.25
 const ROW := 0.24
-## TILE.z laps the two rows above, so every joint has a tile under it and no wall or room shows through from
-## outside; the torching closes joints only from below.
+## TILE.z laps the two rows above, so every joint has a tile under it; the torching closes joints only from below.
 const TILE := Vector3(0.27, 0.05, 0.6)
 const NOSE := 0.18
 const CONE_LAP := 0.25
 const FLAT_SNAP := 0.4
 const SLAB := Vector3(0.7, 0.1, 0.5)
-## PLANK: width, thickness. JOIST: spacing, depth.
+## PLANK (width, thickness); JOIST (spacing, depth).
 const PLANK := Vector2(0.18, 0.05)
 const PLANK_GAP := 0.01
 const PLANK_LENGTHS := Vector2(1.4, 3.2)
@@ -35,7 +31,7 @@ const DORMER_UNDER := 0.15
 const DORMER_WINDOW := 0.3
 const DORMER_SILL := 0.2
 const DORMER_HEAD := 0.12
-## Width, thickness.
+## (width, thickness).
 const DORMER_BOARD := Vector2(0.16, 0.05)
 const DECK_TUCK := 0.06
 const DECK_DROP := 0.03
@@ -44,9 +40,8 @@ const ON_DECK := 0.01
 const BED_LAP := 0.2
 ## Beyond this the pitched profile reverses at the ridge or eave and cuts through its supporting wall.
 const CURVE := 4.0 / PI
-## TORCHING_PIECE is half the bounce probes' spacing, which it reads per vertex, and short enough that a build
-## joining the roof removes it where it removes the tiles.
 const TORCHING_DROP := 0.04
+## Half the bounce probes' spacing, read per vertex, and short enough that a joining build removes it with the tiles.
 const TORCHING_PIECE := 0.5
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
@@ -59,35 +54,33 @@ const CEILING_PIECE := 0.5
 const CLAY := Color(0.72, 0.4, 0.28)
 const STRAW := Color(0.6, 0.45, 0.25)
 const WEATHERED := Color(0.42, 0.38, 0.32)
-## Sets a deck's flags apart from the walls' stone and their dark top course.
 const DECK_TONE := Color(1.0, 0.84, 0.62)
 const COAT := 0.32
 const LUMPS := 0.05
 const THATCH_EAVE := 0.25
 const THATCH_VERGE := 0.2
-## BAND: proud of the coat, reach down the slope. POINT: spacing and depth of the points cut along its lower edge.
+## BAND (proud of the coat, reach down the slope); POINT (spacing, depth) of the points cut along its lower edge.
 const BAND := Vector2(0.13, 0.62)
 const POINT := Vector2(0.7, 0.28)
-## CREST: the steepest slope (as a tangent) whose coat is carried up to meet the other's. ROLL: past the crest
-## each side, above it.
+## CREST: the steepest slope (a tangent) whose coat is carried up to meet the other's. ROLL (past the crest, above it).
 const CREST := 2.5
 const ROLL := Vector2(0.12, 0.16)
-## Past the stones' near distance the coat is drawn at FAR_STEP: from the air the fine coat cost the Quest 2 a
-## millisecond over five roofs and looked the same.
 const COAT_STEP := 0.12
+## Past the stones' near distance: from the air COAT_STEP cost the Quest 2 1 ms over five roofs and looked the same.
 const FAR_STEP := 0.36
 const EDGE_STEPS := 5
 const HAZEL := Color(0.45, 0.36, 0.24)
 var kind := Kind.GABLE
-## From WallLayout.rectangle; the ridge runs along corners[0] -> corners[1].
 var corners: Array[Vector3] = []
-## Cone only; the radius is to the wall's centre line.
 var center := Vector3.ZERO
+## Cone only: to the wall's centre line.
 var radius := 2.0
-## The wall top's height, and `foot` what the walls stand on, which no eave reaches below.
+## The wall top's height; `foot` is what the walls stand on (-INF: unknown), which no eave reaches below.
 var base := 0.0
 var foot := -INF
+## The ridge's rise above the wall top.
 var pitch := 2.0
+## > 0 bows the slopes out, < 0 sags them into swept eaves.
 var curve := 0.0
 var seed := 1
 ## Metres along the ridge from its middle, and across it.
@@ -99,7 +92,7 @@ var hatches: Array[Vector2] = []
 var overhang := OVERHANG
 var deck := Deck.STONE
 var flag := false
-## Taken from the wall, like `base`: crow-stepped gable ends, so the tiles stop inside them.
+## Crow-stepped gable ends, taken from the wall: the tiles stop inside them.
 var stepped := false
 var thatch := false
 
@@ -108,7 +101,6 @@ var coat: Array = []
 var coat_far: Array = []
 var _coat_pick: TriangleMesh
 var slabs: Array[Dictionary] = []
-## Beds a deck's flags so its joints show mortar, not the floor below.
 var mortar: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
 var vents := PackedVector3Array()
@@ -116,8 +108,7 @@ var joined: Array[Massing] = []
 var resting: Array[Massing] = []
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
-## Where pointing meets the gable ends: boards, plaster and stone stand out to the wall's face, whatever plane
-## `gable_faces` backs them on.
+## Boards, plaster and stone stand out to the wall's face, whatever plane `gable_faces` backs them on.
 var gable_pick := PackedVector3Array()
 var torching_faces := PackedVector3Array()
 var timber_faces := PackedVector3Array()
@@ -292,7 +283,6 @@ func profile(steps: int) -> PackedVector2Array:
 	return out
 
 
-## Halved until no chord rises more than half TORCHING_DROP over the tiles' curve, as a sagging slope's do.
 func lining() -> PackedVector2Array:
 	var hs := half_span()
 	var steps := ceili(eave() / TORCHING_PIECE)
@@ -392,8 +382,7 @@ func ceiling_units() -> int:
 	return ceili(2.0 * wide / CEILING_BOARD) * ceili(2.0 * long / CEILING_PIECE) + ceili(2.0 * long / RAFTER_SPACING) * ceili(2.0 * wide / CEILING_PIECE)
 
 
-## Strips are split so curved decks and merge exclusions use the same roof height and hiding queries as the
-## covering above.
+## Strips are split so curved decks and merge exclusions use the covering's roof height and hiding queries.
 func _lay_ceiling() -> void:
 	var f := frame()
 	var h := _ceiling_halves()
@@ -885,8 +874,7 @@ func _lay_gable_row(row: float, stagger: float, hue: float, rng: RandomNumberGen
 			x += TILE.x
 
 
-## Ring counts change, so no ring's joints can sit over the tiles below: each tile laps its neighbours by
-## CONE_LAP of its width instead.
+## Ring counts change, so joints cannot sit over the tiles below: each tile laps its neighbours by CONE_LAP instead.
 func _lay_cone_row(row: float, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var n := maxi(4, ceili(TAU * row / TILE.x))
@@ -917,8 +905,8 @@ func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 		x += width
 
 
-## Tiles centre on the chord from NOSE below the row's line to TILE.z up the curve (shorter where it reaches the
-## ridge), so neither end of a tile on a curved slope dips under the torching.
+## On the chord from NOSE below the row's line to TILE.z up the curve, so neither end of a tile on a curved slope
+## dips under the torching.
 func _bed(row: float) -> Dictionary:
 	var hs := half_span()
 	var low := _along(row, -NOSE)
@@ -942,8 +930,7 @@ func coat_rise() -> float:
 	return _crest().y + ROLL.y if thatched() else 0.0
 
 
-## Vector2(out from the ridge, over it). On a slope steeper than CREST allows the faces stop short of meeting,
-## under the roll.
+## Vector2(out from the ridge, over it).
 func _crest() -> Vector2:
 	var s := slope_at(0.0)
 	var depth := COAT + BAND.x
@@ -951,8 +938,8 @@ func _crest() -> Vector2:
 	return Vector2(depth * sin(s) - up * cos(s), depth * cos(s) + up * sin(s))
 
 
-## Unindexed triangles; a vertex's tangent is the way its straw runs. The ridge, renewed more often, weathers
-## less. Slabs inside the coat stand in for it in shadows and bounce light, which read boxes.
+## Unindexed triangles; a vertex's tangent is the way its straw runs. Slabs inside the coat stand in for it in
+## shadows and bounce light, which read boxes.
 func _lay_thatch(rng: RandomNumberGenerator) -> void:
 	var weather := rng.randf_range(0.0, 0.55)
 	var lumps := FastNoiseLite.new()
@@ -1331,8 +1318,8 @@ static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vecto
 	tris.append_array([a, c, d])
 
 
-## The cap band runs down to the wall body: fitting the caps under the eaves can shave them below the roof base.
-## Both faces point out of the wall, into the air they read for light.
+## The cap band runs down to the wall body: fitting caps under the eaves can shave them below the roof base. Both
+## faces point out of the wall, into the air they read light from.
 func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if kind != Kind.GABLE or flat():
@@ -1354,8 +1341,8 @@ func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 					var x1 := minf(prof[i + 1].x, hs)
 					var a: Vector3 = at + out * prof[i].x
 					var b: Vector3 = at + out * x1
-						# A storey resting here hides the roof above this plane but not the band. Cut at the lining's breakpoints:
-						# interior.gdshaderinc takes a triangle with every corner outside the room as outside everywhere.
+					# A storey resting here hides the roof above this plane, not the band. Cut at the lining's breakpoints:
+					# interior.gdshaderinc takes a triangle with every corner outside the room as outside everywhere.
 					_facing(tris, facing, a + down, a, b)
 					_facing(tris, facing, a + down, b, b + down)
 					var top := Vector3.UP * rise(1.0 - x1 / hs)

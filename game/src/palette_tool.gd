@@ -4,8 +4,7 @@ extends Node3D
 ## A turning wheel shows its choice on this machine only; letting go sends one command, one undo step.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
-## Seconds: the longest press of the colour tool's trigger, wheel unturned, that is a tap.
-const TAP := 0.3
+const TAP_SECONDS := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
 ## Per choice: (WallLayout.Finish, plaster wear).
@@ -429,7 +428,7 @@ func close(hand: Hand, released := true) -> void:
 			Restyle.DECORATION:
 				if world.state.decorations[w.id].mount == "span":
 					world.decorations.string_style = option
-	if released and w.target.tool == Hand.Tool.COLOUR and w.dial.pick == w.dial.start and w.dial.held < TAP:
+	if released and w.target.tool == Hand.Tool.COLOUR and w.dial.pick == w.dial.start and w.dial.held < TAP_SECONDS:
 		tap(hand, w.of, w.id)
 		return
 	var data: Dictionary = (w.data[w.dial.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.dial.pick)) if w.id >= 0 else {}

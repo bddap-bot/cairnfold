@@ -1,16 +1,13 @@
 class_name Bounce
 extends Bake
 
-## Light the built garden gives back: a probe per ground cell over the play area in LAYERS a metre apart that
-## follow the ground, shared with shaders as the global bounce_volume (bounce.gdshaderinc). Alpha is how
-## much of the sky a probe sees past the builds around it, darkening ambient light at wall feet and in
-## corners; RGB is sunlight thrown back by the sunlit stone faces it sees, added to what it lights. Inside a
-## closed room both also hold what its walls, floor and ceiling pass on of the light its openings let in.
+## Light the built garden gives back, as the global bounce_volume (bounce.gdshaderinc): a probe per ground cell in
+## LAYERS a metre apart following the ground. Alpha is the share of sky a probe sees past the builds, scaling ambient
+## light; RGB is sunlight thrown back by the sunlit stone it sees, added to it. Inside a closed room both also hold the
+## room's interreflected light.
 ##
-## The builds are read as a height field: per column the bottom and top of the pieces over it and their mean
-## colour. Walls, towers and houses stand straight up, so one span per column holds them, a tower on a wall included,
-## its overhang leaving the air under it open. A probe's view is then a run of occluded bands per direction: REACH
-## columns walked in each of AZIMUTHS directions.
+## Builds are read as a height field, one span per column (bottom, top, mean colour): walls, towers and houses stand
+## straight up, and an overhang leaves the air under it open.
 
 const LAYERS := 12
 const CELLS := Terrain.CELLS
@@ -66,7 +63,6 @@ static func column(x: float, z: float) -> Vector2i:
 	return Vector2i(floori((x + Terrain.SIZE * 0.5) / Terrain.STEP), floori((z + Terrain.SIZE * 0.5) / Terrain.STEP))
 
 
-## The inverse of `column`.
 static func column_centre(i: int, j: int) -> Vector2:
 	return Vector2(-Terrain.SIZE * 0.5 + (i + 0.5) * Terrain.STEP, -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP)
 
@@ -187,9 +183,8 @@ func _work(job: Dictionary) -> Dictionary:
 	return result
 
 
-## Bound sky and exterior bounced sunlight by each opening's projected solid angle; the column height field
-## cannot distinguish the inside of a shell from its sunlit outside. What comes in through the openings then lights
-## the room evenly off its walls, floor and ceiling (interreflected).
+## The height field cannot tell a shell's inside from its sunlit outside, so each opening's projected solid angle
+## bounds sky and sunlight inside, and what comes in lights the room evenly (interreflected).
 static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms: Lamps.Rooms, colors: PackedColorArray, sun: Vector3) -> void:
 	var area: Rect2i = result.area
 	var visited := {}
@@ -224,10 +219,9 @@ static func enclose_probes(result: Dictionary, ground: PackedFloat32Array, rooms
 							px[offset + channel] = mini(255, roundi(px[offset + channel] * visibility + fill[channel] * ENCODE * 255.0))
 
 
-## The light a closed room's surfaces pass between them, the same everywhere in it (split flux): what enters through
-## its openings, sunlight as rgb in the sun's irradiance and sky light as alpha in the open sky's, times
-## reflectance / (1 - reflectance) over the area of its walls, floor and ceiling. Its reflectance is its pieces'
-## colours, as bounce off them is taken.
+## Split flux: the light a closed room's surfaces pass between them, the same everywhere in it. RGB is entering sunlight
+## in the sun's irradiance, alpha sky light in the open sky's, each times reflectance / (1 - reflectance) over the
+## room's surface area; reflectance is its pieces' mean colour, as bounce off them is taken.
 static func interreflected(rooms: Array, colors: PackedColorArray, sun: Vector3) -> Color:
 	var surface := 0.0
 	var paint := Color(0, 0, 0)
@@ -307,7 +301,6 @@ static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors:
 		var d := Vector2.from_angle(TAU * a / AZIMUTHS)
 		dirs.append(Vector2i(roundi(d.x), roundi(d.y)))
 		steps.append(Vector2(dirs[a]).length() * Terrain.STEP)
-		# A face seen looking along d faces back along -d.
 		facing.append(maxf(-Vector2(dirs[a]).normalized().dot(sun_flat), 0.0) * clampf(sun.y * 4.0, 0.0, 1.0))
 	var lit := _lit(bottoms, tops, sun_flat, sun_rise, area)
 	var hidden := PackedVector2Array()

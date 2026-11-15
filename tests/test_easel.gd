@@ -556,16 +556,16 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 			check(hand.global_position.distance_to(e.tray(Easels.KITS[kit])) > Easels.KIT_REACH[kit] + EaselTool.REACH, "the %s hand is well away from the %s's place on the tray" % [side, name])
 			main.easel_tool.grab(p)
 			check(p.palette == null and hand.tool == tool, "a grip there lets go of the %s and gives the %s hand back its %s" % [name, side, Hand.Tool.keys()[tool]])
-			await frames(int(EaselTool.RETURN * 30.0))
+			await frames(int(EaselTool.RETURN_SECONDS * 30.0))
 			var rest_at: Vector3 = e.global_transform * Easels.KITS[kit]
 			var along: float = node.global_position.distance_to(rest_at) / from.origin.distance_to(rest_at)
 			check(along > 0.05 and along < 0.95, "halfway through its return the %s is on its way to the tray, not jumped there: %.2f of the way left" % [name, along])
-			await frames(int(EaselTool.RETURN * 60.0))
+			await frames(int(EaselTool.RETURN_SECONDS * 60.0))
 			check(not node.top_level and node.transform.is_equal_approx(rest) and main.easel_tool.returning.is_empty(), "and the %s comes to rest at its place on the tray" % name)
 		var left: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
 		left.brush = Brushwork.Brush.SMALL
 		await play([{"op": "take", "what": name, "hand": "left"}, {"op": "take", "what": "big", "hand": "left"}])
-		await frames(int(EaselTool.RETURN * 60.0) + 1)
+		await frames(int(EaselTool.RETURN_SECONDS * 60.0) + 1)
 		check(left.palette == null and node.transform.is_equal_approx(rest) and left.brush == Brushwork.Brush.SMALL, "a grip at a brush while holding the %s sends it back and takes no brush" % name)
 	await play([{"op": "take", "what": "box", "hand": "left"}, {"op": "take", "what": "box", "hand": "right"}])
 	var right: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
@@ -589,7 +589,7 @@ func _every_way_out_lets_the_palette_go() -> void:
 	var from: Vector3 = main.rig.head.global_position
 	main.delete_tool.press(main.rig.right, from, e.canvas_frame().origin - from)
 	main.delete_tool.let_go(main.rig.right)
-	await frames(int(EaselTool.RETURN * 60.0) + 2)
+	await frames(int(EaselTool.RETURN_SECONDS * 60.0) + 2)
 	check(main.easels.find(id) == null and p.palette == null and main.easel_tool.returning.is_empty() and EaselTool.holding(p) != "oil palette", "an easel taken away while its palette is held leaves the hand holding none")
 	await play([{"op": "press", "button": "dpad_down"}])
 	check(main.easels.find(id) != null, "and undo stands it back up")

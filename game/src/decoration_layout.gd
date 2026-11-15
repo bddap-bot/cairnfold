@@ -1,8 +1,7 @@
 class_name DecorationLayout
 extends RefCounted
 
-## A saved decoration keeps its style as an index here, which never changes on reload. A new decoration is a present
-## the style tool turns into the rest.
+## A saved decoration keeps its style as an index here, so entries never move.
 const STYLES := [
 	{"name": "Present"},
 	{"name": "Planter"},
@@ -40,9 +39,7 @@ const STYLES := [
 	{"name": "Flag string", "string": true},
 ]
 const PRESENT := 0
-## The surface a decoration stands on: at a house's "foundation", on the "ground", on a house's "floor" or on a flat
-## roof's "deck"; or the "span" a string hangs across, from `at` to `to`, each end on a pole `drop` tall or tied where
-## it is.
+## "deck" is a flat roof; a "span" string hangs from `at` to `to`, each end on a pole `drop` tall or tied where it is.
 const MOUNTS := ["foundation", "ground", "floor", "deck", "span"]
 ## Metres of sag per metre of span across the ground, clamped to least and most.
 const SAG := 0.07
@@ -52,9 +49,8 @@ const SAG_MOST := 1.0
 const SPAN_LEAST := 1.5
 const SPAN_MOST := 20.0
 const SPAN_STEEPEST := 1.0
-## Metres: the pole under a string's end on the ground.
+## Metres: a string end's pole on the ground.
 const POLE := 2.6
-## Along a string, a lantern hangs every LANTERN_EVERY and a flag every FLAG_EVERY metres.
 const LANTERN_EVERY := 1.1
 const FLAG_EVERY := 0.34
 const WOOD := Color(0.30, 0.19, 0.10)
@@ -78,15 +74,14 @@ const PRODUCE: Array[Color] = [Color(0.72, 0.12, 0.1), Color(0.86, 0.6, 0.12), C
 const DYES: Array[Color] = [Color(0.55, 0.16, 0.12), Color(0.17, 0.27, 0.48), Color(0.66, 0.5, 0.16), Color(0.24, 0.4, 0.26)]
 var parts: Array[Dictionary] = []
 var flames: Array[Transform3D] = []
-## Each flower: its `xform` and `color`.
+## {xform, color}.
 var flowers: Array[Dictionary] = []
 ## Where the style tool's own model is drawn flat, as on a present's lid.
 var pictures: Array[Transform3D] = []
 var bounds := AABB()
 
 
-## A box `size` centred `at`, turned `turn` about the vertical and then leaning `tilt` about its own width, its
-## front (+z) dropping for a positive tilt.
+## Turned `turn` about the vertical, then `tilt` about its own width, its front (+z) dropping for a positive tilt.
 func box(at: Vector3, size: Vector3, color: Color, kind: String, turn := 0.0, tilt := 0.0) -> void:
 	_part(Transform3D((Basis(Vector3.UP, turn) * Basis(Vector3.RIGHT, tilt)).scaled_local(size), at), color, kind)
 
@@ -118,7 +113,6 @@ static func standing(mount: String) -> Array:
 	return range(STYLES.size()).filter(func(k: int) -> bool: return stands(k, mount))
 
 
-## Below the line between the ends, at the middle.
 static func sag(span: Vector3) -> float:
 	return clampf(SAG * Vector2(span.x, span.z).length(), SAG_LEAST, SAG_MOST)
 
@@ -133,8 +127,7 @@ static func strung(span: Vector3) -> AABB:
 	return AABB(Vector3(0.0, low, -0.2), Vector3(span.x, maxf(0.0, span.y) + 0.2 - low, 0.4))
 
 
-## Style `style` as it stands on `mount`: backed against the wall at a house's foundation, a string from its first end
-## across `span` with the poles `drop` under its ends, else centred where it is put.
+## Backed against the wall at a foundation, a string from its first end across `span`, else centred where it is put.
 func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector3.ZERO, drop := Vector2.ZERO) -> void:
 	parts.clear()
 	flames.clear()

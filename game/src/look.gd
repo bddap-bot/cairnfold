@@ -1,21 +1,16 @@
 class_name Look
 extends Node
 
-## Sky, sun, fog and grading, lit for the time of day (Daylight).
-
-## Each change to the sky restarts its radiance update, which takes several frames and is where the ambient
-## light comes from; so while the sky is turned the sky changes this often, letting each update finish,
-## and the light and the discs of sun and moon, which follow every frame, stay out of the sky.
+## Each sky change restarts its radiance update, the ambient light's source, which takes frames: while turned the sky
+## changes this often so each finishes, and the light and discs, which follow every frame, stay out of it.
 const SKY_EVERY := 0.2
 const DISC_DISTANCE := 2400.0
-## Degrees from each disc's centre: its quad's half-width and its radius.
+## Degrees from each disc's centre: `span` its quad's half-width, `radius` its radius.
 const SUN_DISC := {"span": 6.5, "radius": 1.8}
 const MOON_DISC := {"span": 9.0, "radius": 2.5}
 
-# A fade or split selected by view depth changes a fixed object's shade when the head turns.
-# One stabilized map covers the garden's diagonal, including its height and floating views; its 21 cm texels lose
-# small casters, so an engine that selects splits by distance from the eye (scripts/engine.patch) also
-# draws a sharp split within SHADOW_NEAR.
+# Splits by view depth change a fixed object's shade as the head turns, so one map covers the garden; its 21 cm texels
+# lose small casters, so an engine splitting by distance from the eye (scripts/engine.patch) adds one in SHADOW_NEAR.
 const SHADOW_REACH := 256.0
 const SHADOW_NEAR := 10.0
 const SPLIT_BY_DISTANCE := "rendering/lights_and_shadows/directional_shadow/split_by_distance"
@@ -27,14 +22,12 @@ const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_cur
 const UNDER_FOG := Color(0.07, 0.25, 0.27)
 ## Water takes red first, then green: what reaches the eye through it keeps this much of each.
 const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
-## The eye adapts to the sky it sees (Bounce.sky_at): under a roof with none, exposure rises this many times
-## over the open garden's, closing most of the gap in ADAPT_SECONDS, so a house's inside reads once entered
-## and its doorway glows.
+## Under a roof, seeing no sky (Bounce.sky_at), exposure rises this many times, most of it in ADAPT_SECONDS, so a
+## house's inside reads once entered and its doorway glows.
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
-## The eye's night adaptation: under a sky darker than NIGHT_FLOOR the exposure rises with the dark, up to
-## NIGHT_MOST times, so builds read before dawn; the night's sky and light keep their keys (Daylight.KEYS), and only
-## what the eye makes of them changes.
+## Under a sky darker than NIGHT_FLOOR exposure rises with the dark, up to NIGHT_MOST times, so builds read before
+## dawn; the night's keys (Daylight.KEYS) stay as they are.
 const NIGHT_FLOOR := 0.12
 const NIGHT_MOST := 4.0
 
@@ -187,7 +180,6 @@ static func linear(c: Color) -> Vector3:
 	return Vector3(l.r, l.g, l.b)
 
 
-## How many times the night's dark raises the exposure at the hour's `l` (Daylight.light).
 static func night_adapted(l: Dictionary) -> float:
 	var sky: Color = l.horizon
 	return clampf(NIGHT_FLOOR / maxf(sky.get_luminance(), 1e-4), 1.0, NIGHT_MOST)
@@ -238,7 +230,6 @@ func _set_fog(fog: Dictionary) -> void:
 		env.set(k, fog[k])
 
 
-## Moves the exposure toward an eye seeing `sky` of the sky.
 func adapt(sky: float, delta: float) -> void:
 	var to := lerpf(ADAPT_INDOOR, 1.0, sky)
 	_adapt = lerpf(_adapt, to, 1.0 - exp(-delta / ADAPT_SECONDS))

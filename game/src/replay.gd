@@ -1,18 +1,14 @@
 class_name Replay
 extends RefCounted
 
-## One frame of what the player's devices gave the game: the frame's delta, then the head's pose, then for each hand of
-## HANDS its controller's pose, its stick (`Hand.stick`), each of its `inputs` held or not (`Buttons.down`) as bit i of
-## a u16, its FLAGS as bits of a u8, and its palm's pose in the hand's own space (`Hand.palm`). The other poses are in
-## the play space, the basis's three columns then the origin, each number as the engine holds it, so a replay puts the
-## head and hands exactly where they were: every number little-endian float32 but the delta, a float64, and the two
-## masks. A frame is HEAD then a HAND per hand, as Python's struct lays them out, FRAME_BYTES in all. Only what reaches
-## `Hand` is kept: a flat-screen session's keys and mouse are not.
+## A frame, as Python's struct lays out HEAD then a HAND per hand of HANDS: the delta, the head's pose, then per hand its
+## pose, stick, `inputs` held as bit i of a u16, FLAGS as bits of a u8, and its palm's pose in the hand's own space.
+## Other poses are in play space, basis columns then origin, little-endian float32 as the engine holds them, so a replay
+## puts head and hands exactly. Only what reaches `Hand` is kept: not a flat-screen session's keys and mouse.
 const HEAD := "<d12f"
 const HAND := "<12f2fHB12f"
 const HANDS := ["left_hand", "right_hand"]
 const FLAGS := ["tracked", "bare"]
-## Frames between the checks a record takes of what the session's state has come to (`checks`).
 const CHECK_EVERY := 60
 const DELTA_BYTES := 8
 const POSE_BYTES := 48
@@ -73,9 +69,8 @@ static func pose(raw: PackedByteArray, at: int) -> Transform3D:
 	return Transform3D(Basis(v[0], v[1], v[2]), v[3])
 
 
-## Frame `i` of `raw` (`frame`'s bytes end to end): "delta", "head" and per hand of HANDS "pose", "stick", "held"
-## (input name -> bool), "flags" (FLAGS name -> bool) and "palm". `names` holds each hand's inputs in bit order, as the
-## record's layout lists them: by default this build's.
+## Frame `i` of `raw`: "delta", "head", and "hands" of "pose", "stick", "held" (input -> bool), "flags" (FLAGS name ->
+## bool) and "palm". `names`: each hand's inputs in bit order as the record lists them, by default this build's.
 static func unpack(raw: PackedByteArray, i: int, names := {}) -> Dictionary:
 	var at := i * FRAME_BYTES
 	var out := {"delta": raw.decode_double(at), "head": pose(raw, at + DELTA_BYTES), "hands": []}
@@ -114,11 +109,9 @@ static func messages(event: Dictionary) -> Array:
 	return out
 
 
-## `path` is any chunk; every chunk of its session in that folder is read. Keys: "session", "revision", "seeds",
-## "garden", "frames" (`frame`'s bytes end to end), "inputs" (`unpack`'s names), "messages" (`messages`'), "checks"
-## (`check`'s digests or the garden's, each with its "frame"), oldest first, and "avatars": each worn file's bytes by
-## hash, from the folder `avatars`, since the record keeps only hashes. A record from another build revision replays;
-## {"error": why} where this build cannot replay it whole.
+## `path` is any chunk of the session. Keys: "session", "revision", "seeds", "garden", "frames" (`frame`s end to end),
+## "inputs" (`unpack`'s names), "messages", "checks" (digests, each with its "frame", oldest first), and "avatars", worn
+## files' bytes by hash from the folder `avatars`, as the record keeps only hashes; {"error": why} if not replayable.
 static func read(path: String, avatars := "") -> Dictionary:
 	var folder := path.get_base_dir()
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
@@ -182,10 +175,8 @@ static func read(path: String, avatars := "") -> Dictionary:
 	return out
 
 
-## The bytes of each part game logic moves on its own, so a replay on a later build can say which diverged (Replayer):
-## "player" the play space, which teleports and the ground set; "wildlife" every node under the wildlife and every
-## generator held there as `rng`; "physics" every thrown handful's flight. The record keeps each part's `digest`,
-## taken on the log's worker.
+## Each part game logic moves on its own, so a replay can say which diverged: "player" the play space, "wildlife" its
+## nodes and every `rng` held there, "physics" every thrown handful's flight. The record keeps each part's `digest`.
 static func check(main: Main) -> Dictionary:
 	var wild := PackedFloat32Array()
 	var drawn := PackedInt64Array()

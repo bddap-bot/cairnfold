@@ -1,37 +1,29 @@
 class_name Interior
 extends Bake
 
-## Sun and moon reach inside a house or tower only through its openings (interior.gdshaderinc). The shell's shadow
-## boxes leave gaps a shadow-map texel wide at every joint, and the ladder's lowest steps draw no sun shadows at all;
-## so a shell shader lights a point inside a room only where the way to the light leaves it through a door, window,
-## arch or dormer window, whatever the shadow map holds. The rooms (Lamps.Room) go to the shaders as two global
-## textures: room_field, over the play area every STEP, how far inside a room's walls' centre line a point lies, the
-## lowest floor and highest ceiling of the rooms a point lies inside and its group's row; and room_data, a row per group of the openings facing the
-## light, each as the light crosses it from inside. The field is remade when the rooms change, the rows when the
-## light moves too.
+## Inside a room, light comes only through its openings, whatever the shadow map holds: shell shadow boxes leak at
+## every joint and the ladder's lowest steps cast no sun shadow. room_field per STEP: r how far inside a room's wall
+## centre line, g lowest floor less BELOW, b highest ceiling, a group row. room_data: a row per group of its lit openings.
 
-## Metres between room_field's texels: well within the half-thickness either side of the centre line that a wall's
-## faces stand at, so a face reads its own side however its texel's corners fall.
+## Metres; well within a wall's half-thickness, so a face reads its own side however its texel's corners fall.
 const STEP := 0.25
 const SIZE := int(Terrain.SIZE / STEP)
-## How far below the floor a room reaches, so a floor raised by a later lay stays in it.
+## Metres below the floor a room reaches, so a floor raised by a later lay stays in it.
 const BELOW := 0.5
-## room_row_at rounds a row, so a quarter over it marks a texel across an opening and keeps the row; rows stay under 256,
-## where a half float still holds a quarter.
+## Added to a row across an opening; room_row_at rounds it away. Rows stay under 256, where a half float holds it.
 const OPENING_MARK := 0.25
-## How far outside a wall's centre line its stones stand: a stack shares its height that far out, over its walls' stones.
+## A stack shares its height this far outside its centre line, over its walls' stones.
 const SHELL_REACH := WallLayout.THICKNESS * 0.5 + STEP
-## Texels in a room_data row: the count, then OPENING per opening.
+## room_data row: the count, then OPENING texels per opening.
 const WIDTH := 256
-## Rows: room_field's alpha names the row, NO_ROOM where no room is.
 const GROUPS := 256
+## room_field's alpha where no room is.
 const NO_ROOM := 0
 const OPENING := 4
 
 var field := ImageTexture.new()
 var data := ImageTexture.new()
-## Whether the shaders read the rooms: unmasked, every shell is lit as if no room stood, which the driver's "interior"
-## layer measures the rooms' cost against.
+## Unmasked lights every shell as if no room stood: the driver's "interior" layer measures the rooms' cost by it.
 var masked := true:
 	set(value):
 		masked = value
@@ -40,7 +32,6 @@ var masked := true:
 var _unmasked := ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBAH))
 var _rooms := Lamps.Rooms.new()
 var to_light := Vector3.UP
-## Whether the next solve packs the field too, and the light the last one packed rows from.
 var _cells := false
 var _solved_toward := Vector3.UP
 
@@ -84,9 +75,7 @@ func _take(out: Dictionary) -> void:
 	data.update(out.data)
 
 
-## The textures' contents for `rooms` lit from `toward`: room_field's floats, unless `cells` is false, and room_data's
-## floats. Only covered groups are packed; a group past GROUPS - 1 rows, or whose openings overflow WIDTH, goes
-## unmasked.
+## A group past GROUPS - 1 rows, or whose openings overflow WIDTH, goes unmasked.
 static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictionary:
 	var field_floats := PackedFloat32Array()
 	if cells:
@@ -120,11 +109,9 @@ static func pack(rooms: Lamps.Rooms, toward: Vector3, cells := true) -> Dictiona
 	return {"field": field_floats, "data": floats}
 
 
-## An opening as interior.gdshaderinc reads it with the light from `toward`: where a point's ray toward the light
-## crosses its plane, across and up from the middle of its sill, as dot(p, xyz) + w of the first two texels, narrowed
-## by how far the ray runs across through the wall's depth so a deep reveal narrows the patch; the plane the point must
-## stand inside and its half-width, then its height and its rounding. Empty for one facing away from the light or seen
-## too obliquely to let any through.
+## Texels as interior.gdshaderinc reads them: 0-1 across and up from the sill's middle where the ray to the light
+## crosses the opening, as dot(p, xyz) + w; 2 the plane to stand inside, half-width; 3 height, rounding. A deep
+## reveal narrows the patch. Empty if no light gets through.
 static func crossing(o: Dictionary, toward: Vector3) -> Array:
 	var n: Vector3 = o.out
 	var facing := toward.dot(n)
@@ -144,11 +131,8 @@ static func crossing(o: Dictionary, toward: Vector3) -> Array:
 		n.x, n.z, at.dot(n) + depth, half, tall, minf(absf(o.round), half) * signf(o.round), 0.0, 0.0]
 
 
-## Writes `room`'s field over the texels round it: how far inside its walls' centre line each lies (negative
-## outside), the lowest it reaches below its floor, its ceiling and `row`, where it is further inside than any
-## neighbour already there. Storeys stacked on one footprint, their walls on one line, share each texel's height
-## from the lowest floor to the highest ceiling, so a stone rising from one storey into the next stays in the stack;
-## a wing or a storey set in from the walls below keeps its own.
+## Storeys stacked on one wall line share a texel's floor-to-ceiling span, so a stone rising into the next storey
+## stays in; a wing or set-in storey keeps its own.
 static func _fill(field: PackedFloat32Array, room: Lamps.Room, row: int) -> void:
 	var bounds := room.rect.grow(WallLayout.THICKNESS + STEP)
 	var a := _texel_of(bounds.position)
@@ -179,8 +163,7 @@ static func _fill(field: PackedFloat32Array, room: Lamps.Room, row: int) -> void
 			field[at + 3] = row
 
 
-## Marks the texels across `room`'s openings on the fraction of their row, which room_row_at rounds away: a face of a
-## reveal stands outside the walls' centre line as a stone at a corner does, and only it keeps the light from outside.
+## A reveal's face stands outside the centre line as a corner stone does; only the mark keeps it lit from outside.
 static func _mark_openings(field: PackedFloat32Array, room: Lamps.Room) -> void:
 	for o: Dictionary in room.portals:
 		var at := Vector2(o.at.x, o.at.z)

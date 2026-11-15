@@ -18,33 +18,33 @@ const RAG_EDGE := [
 ]
 const POT := Vector3(-0.68, TRAY_Y, 0.2)
 const JAR := Vector3(-0.54, TRAY_Y, 0.23)
-## The middle stick's centre, and the gap between sticks: wide enough that a reach from the front takes one alone.
+## The middle stick's centre.
 const CHARCOAL := Vector3(0.0, TRAY_Y, 0.19)
+## Lets a reach from the front take one stick alone.
 const STICK_GAP := 0.1
 ## The oil palette rests inside the tray's lip, CLEAR of the leg crossing the tray behind it.
 const KITS := {
 	Brushwork.Medium.WATER: Vector3(-0.32, TRAY_Y + 0.0105, 0.21),
 	Brushwork.Medium.OIL: Vector3(TRAY.end.x - PALETTE_SIZE.x * 0.5 - CLEAR, TRAY_Y + 0.006, TRAY.end.z - LIP.y - PALETTE_SIZE.y * 0.5 - CLEAR),
 }
-## Metres from its rest within which a grip takes or sets down each palette.
 const KIT_REACH := {Brushwork.Medium.WATER: 0.1, Brushwork.Medium.OIL: PALETTE_SIZE.x * 0.5}
 const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.042, 0.1)
-## x outer radius, y height; POT_FLOOR is the inside floor's height.
+## x outer radius, y height.
 const POT_SIZE := Vector2(0.055, 0.12)
 const POT_WALL := 0.005
 const POT_FLOOR := 0.01
-## Clearance between each handle and the pot's wall.
 const POT_GAP := 0.001
 ## Which way each brush leans (radians), turned from the painter toward their right.
 const SPLAY := {Brushwork.Brush.SMALL: deg_to_rad(-80.0), Brushwork.Brush.FLAT: 0.0, Brushwork.Brush.BIG: deg_to_rad(80.0)}
-## In each palette's own frame: thumb hole at -x, paint toward +x.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
+## In each palette's own frame: thumb hole at -x, paint toward +x.
 const THUMB := Vector3(-0.12, 0, 0)
 const MIX_AT := Vector3(0.1, 0.0075, 0)
-## BOARD is in texels, a whole number of tiles a little larger than the board; OPEN scales the oval paint may lie within.
 const BOARD_TOP := 0.004
+## Texels: a whole number of tiles a little larger than the board.
 const BOARD := Vector2i(384, 256)
+## Scales the oval paint may lie within.
 const OPEN := 0.92
 const THUMB_CLEAR := 0.026
 const WELL_RADIUS := 0.018
@@ -53,16 +53,15 @@ const PAN := Vector2(0.02, 0.035)
 const PANS := Vector2(-0.04, 0.056)
 const OIL_ARC := 1.75
 const PAN_TOP := 0.0105
-## WELL_REACH: how far across the palette from a well's centre a tip counts as in it; WELL_DEPTH: the y range, which
-## runs on through the board since nothing stops a hand pushing there.
 const WELL_REACH := 0.025
+## A y range; it runs on through the board since nothing stops a hand pushing there.
 const WELL_DEPTH := Vector2(-0.05, 0.03)
 ## Behind the canvas's face, clear of its backing, so no leg crosses the painting.
 const LEG_BACK := 0.07
 ## Wider than a leg, so a reach for one does not slip off.
 const LEG_GRIP := 0.06
-## MAX bounds GPU memory: each canvas is a few tens of MB.
 const SPACING := 1.4
+## Bounds GPU memory: a canvas with its checkpoints takes up to about 230 MB.
 const MAX := 4
 ## In the easel's frame.
 const BOUNDS := AABB(Vector3(-0.82, 0.0, -0.75), Vector3(1.64, 2.0, 1.1))
@@ -74,8 +73,7 @@ const WATER := Color(0.38, 0.62, 0.86, 0.75)
 var terrain: Terrain
 var world: World
 var quality: Quality
-## A hidden whole easel the next placement takes instead of building one in its frame; none at MAX, so no more
-## canvases than that are ever on the GPU.
+## Taken by the next placement; none at MAX, so no more canvases than that are ever on the GPU.
 var _spare: Easel
 var _making: Easel
 var _made := 0
@@ -88,9 +86,8 @@ func _init() -> void:
 	name = "Easels"
 
 
-## Draws the spare a centimetre tall 1 m before the eyes as the game loads, until `quality`'s rungs are primed: Godot
-## compiles a pipeline only for what it draws, per MSAA level and foveation map, and a Quest 2 otherwise compiled the
-## easel's in the first placement's frame. Easels keep their materials, and so their pipelines, for the game's life.
+## Godot compiles a pipeline only for what it draws, per MSAA level and foveation map, so the spare is drawn tiny before
+## the eyes until `quality`'s rungs are primed; a Quest 2 otherwise compiled it in the first placement's frame.
 func warm() -> void:
 	var spare := _easel()
 	add_child(spare)
@@ -188,7 +185,7 @@ class Easel:
 	var board: Canvas
 	var board_mesh: MeshInstance3D
 	var water: StandardMaterial3D
-	## By Brushwork.Brush: the pot's brushes and the tray's charcoal.
+	## By Brushwork.Brush.
 	var brushes := {}
 	var rag: ShaderMaterial
 
@@ -305,8 +302,7 @@ func pick_stand(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	return best
 
 
-## In an easel's frame, `d` a unit vector: the distance to the stand within `reach`, else INF; INF too where the
-## canvas is nearer.
+## In an easel's frame, `d` a unit vector: the distance to the stand within `reach`; INF if none or the canvas nearer.
 static func stand_hit(o: Vector3, d: Vector3, reach: float) -> float:
 	var near := reach
 	for leg: Array in legs():
@@ -526,8 +522,7 @@ static func on_tray(kind: Brushwork.Brush) -> Transform3D:
 	return Transform3D(Basis(), CHARCOAL + Vector3(across, size.x - ToolModels.BRUSH_TIP.y, -ToolModels.BRUSH_TIP.z - size.y * 0.5))
 
 
-## In the easel's frame: the handle rises from the floor by the wall away from its lean and leaves the mouth by the
-## wall toward it, leaning as far as keeps it POT_GAP inside the wall at both ends.
+## In the easel's frame, leaning as far as keeps the handle POT_GAP inside the wall at floor and mouth.
 static func in_pot(kind: Brushwork.Brush) -> Transform3D:
 	var inside := POT_SIZE.x - POT_WALL - POT_GAP
 	var deep := POT_SIZE.y - POT_FLOOR

@@ -2,13 +2,12 @@ class_name Wildlife
 extends Node3D
 
 ## Animals arrive drawn by what is built, never placed by the player, and come and go only out of the
-## viewer's sight so nothing pops in or out of being.
+## viewer's sight or past FAR, so nothing pops in or out of being.
 
 ## Seconds from a habitat appearing to an arrival there.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
 const SHEEP_AFTER := Vector2(25.0, 60.0)
-## Wet grid points.
 const MIN_POND := 6
 const FAMILIES := 2
 const DUCKLINGS := Vector2i(2, 4)
@@ -41,16 +40,15 @@ const LEAVE_SIGHT := SIGHT - 0.1
 const GONE := 8.0
 const FAR := 60.0
 const EDGE := Terrain.SIZE * 0.5 - 1.0
-## Seconds.
 const LOOK_EVERY := 0.5
 ## Mean seconds between a family's quacks, and between its ducklings' peeps.
 const QUACK_EVERY := 20.0
 const PEEP_EVERY := 30.0
 ## Metres per second; a hand or the head faster than this startles an animal near it.
 const CALM := 0.7
-## Metres per second; slower is still.
+## Metres per second.
 const STILL := 0.25
-## Per second; eases the speed an animal sees so tracking jitter startles none.
+## Eases the speed an animal sees so tracking jitter startles none.
 const SPEED_EASE := 12.0
 ## Controller space: on top of the hand, behind the seeds the seed tool shows at `Hand.TOP`, facing them.
 const ON_HAND := Vector3(0, 0.0075, 0.088)
@@ -155,7 +153,6 @@ class Family:
 	## Level way out once leaving; Vector3.ZERO for a family walled in.
 	var heading := Vector3.ZERO
 	var hand: Node3D
-	## Seconds until it eats again.
 	var full := 0.0
 
 	func _init(first: Duck) -> void:
@@ -678,7 +675,6 @@ func _fly(f: Family, delta: float) -> void:
 		_swim(f)
 
 
-## True once the duck is there.
 func _go(d: Duck, goal: Vector3, delta: float) -> bool:
 	var to := Vector3(goal.x - d.position.x, 0, goal.z - d.position.z)
 	var speed := SWIM_SPEED if d.afloat else d.walk_speed()
@@ -730,15 +726,12 @@ func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	return Vector3(b.x, p.pond.level, b.y)
 
 
-## One per `each` wet grid points of `p`, at least one and at most `most`, never over its even share of `cap`
-## among `ponds`.
 static func _pond_quota(p: PondWater, ponds: int, cap: int, each: int, most: int) -> int:
 	var share := cap / maxi(1, ponds)
 	return clampi(p.pond.cells.size() / each, mini(1, share), mini(most, share))
 
 
-## Counts the staying `animals` into `have` by the habitat their `key` names; returns those beyond `want`'s
-## count for it or whose habitat it does not name.
+## Counts into `have`, per habitat their `key` names, the staying `animals` up to `want`'s count; returns the rest.
 static func _surplus(animals: Array, key: StringName, want: Dictionary, have: Dictionary) -> Array:
 	var over := []
 	for a in animals:

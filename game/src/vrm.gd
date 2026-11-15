@@ -1,20 +1,14 @@
 class_name Vrm
 extends GLTFDocumentExtension
 
-## VRM 1.0 (VRMC_vrm) and VRM 0.x (VRM) humanoids. Import records on the scene root, as Avatar.model's data: "humanoid"
-## (bone name or "spring_N" -> NodePath from the root, with the bone's name as subname for a skeleton's bone), "eyes"
-## (relative to the head bone, where the file gives them), "forward", "look" and "springs". Export writes VRM 1.0 from
-## nodes named after the bones, the root's "eyes", "look" type and ranges, "springs" and "faces" (expression name, a
-## preset where PRESETS has it and custom otherwise -> [{"node": mesh node name, "shape": blend shape name, "weight":
-## 0 to 1}]). VRCHAT_expressions carries imported menu controls and FX targets.
-##
-## "look" (VRM lookAt): {"type": BONE or EXPRESSION, "ranges": per RANGES, Vector2(largest input angle in degrees,
-## output there: degrees for eye bones, a weight for expressions), "shapes": for EXPRESSION, each of LOOKS ->
-## [[mesh node path, blend shape index, weight]]}.
+## Root metas: "humanoid" (bone or "spring_N" -> NodePath, a skeleton's bone as subname), "eyes" (from the head bone,
+## only where the file gives them), "forward", "springs", "look" {type: BONE or EXPRESSION, ranges: per RANGES
+## Vector2(max input degrees, output: degrees for bones, a weight for expressions), shapes: per LOOKS [[mesh path,
+## blend shape index, weight]]}, and any "expressions", "particles", "constraints" (Constraints.read); export also
+## reads "faces" (name -> [{node, shape, weight 0 to 1}]) and finds bones by node name.
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 
-## VRM 1.0's.
 const BONES := ["hips", "spine", "chest", "upperChest", "neck", "head", "leftEye", "rightEye", "jaw", "leftUpperLeg", "leftLowerLeg", "leftFoot", "leftToes", "leftShoulder", "leftUpperArm", "leftLowerArm", "leftHand", "leftThumbMetacarpal", "leftThumbProximal", "leftThumbDistal", "leftIndexProximal", "leftIndexIntermediate", "leftIndexDistal", "leftMiddleProximal", "leftMiddleIntermediate", "leftMiddleDistal", "leftRingProximal", "leftRingIntermediate", "leftRingDistal", "leftLittleProximal", "leftLittleIntermediate", "leftLittleDistal", "rightUpperLeg", "rightLowerLeg", "rightFoot", "rightToes", "rightShoulder", "rightUpperArm", "rightLowerArm", "rightHand", "rightThumbMetacarpal", "rightThumbProximal", "rightThumbDistal", "rightIndexProximal", "rightIndexIntermediate", "rightIndexDistal", "rightMiddleProximal", "rightMiddleIntermediate", "rightMiddleDistal", "rightRingProximal", "rightRingIntermediate", "rightRingDistal", "rightLittleProximal", "rightLittleIntermediate", "rightLittleDistal"]
 ## VRM 0.x thumb bone -> its VRM 1.0 name.
 const THUMBS_0X := {"leftThumbProximal": "leftThumbMetacarpal", "leftThumbIntermediate": "leftThumbProximal", "rightThumbProximal": "rightThumbMetacarpal", "rightThumbIntermediate": "rightThumbProximal"}
@@ -25,7 +19,6 @@ const CONSTRAINTS := "UNITY_constraints"
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
-## VRM 1.0's.
 const PRESETS := ["happy", "angry", "sad", "relaxed", "surprised", "aa", "ih", "ou", "ee", "oh", "blink", "blinkLeft", "blinkRight", "lookUp", "lookDown", "lookLeft", "lookRight", "neutral"]
 ## Each kept blend shape is a pass over its mesh's vertices every frame, so a file's look binds are cut to these.
 const BINDS_PER_LOOK := 2
@@ -111,9 +104,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
-## Compacts skins while meshes are still the importer's arrays: Godot's import turns them into renderer meshes, and
-## reading one back costs the main thread a wait on the GPU. Registered ahead of that import, so it runs on the thread
-## that reads the file.
+## Runs ahead of Godot's import, while meshes are still arrays: reading a renderer mesh back waits on the GPU.
 class Skins extends GLTFDocumentExtension:
 	func _import_post(_state: GLTFState, root: Node) -> Error:
 		var compacted := {}
@@ -169,12 +160,9 @@ class Skins extends GLTFDocumentExtension:
 		return [out, kept]
 
 
-## Sizes each image from its header so the read's `fits` can refuse it undecoded; a refused or undecodable image marks
-## the read refused and leaves Godot's decoders nothing to try. A layer (LAYERS) is kept aside and only a texel of it
-## becomes a texture. Registered ahead of Godot's decoders, so it sees every image first, apart from Vrm, whose import
-## follows Godot's. Images reach `image` and `_colour`'s means (vrm_means) before they become textures: reading a
-## texture back calls the rendering server, which answers a worker thread only from the main thread, so a game quitting
-## mid-read would wait on the read forever.
+## Runs ahead of Godot's decoders, so `fits` can refuse an image from its header undecoded. Means are taken here, before
+## images become textures: reading one back from a worker thread waits on the main thread, forever if the game quits
+## mid-read. A layer (LAYERS) is kept aside behind a one-texel texture.
 class Images extends GLTFDocumentExtension:
 	func _parse_image_data(state: GLTFState, data: PackedByteArray, _mime: String, out: Image) -> Error:
 		var fits: Variant = state.get_additional_data(&"vrm_fits")
@@ -217,7 +205,6 @@ static func json_chunk(glb: PackedByteArray) -> Variant:
 	return JSON.parse_string(glb.slice(20, 20 + glb.decode_u32(12)).get_string_from_utf8())
 
 
-## `definition` as SpringDefinition.read returns it.
 static func spring_nodes(definition: Dictionary) -> Array:
 	var out := {}
 	for chain: Dictionary in definition.springs:
@@ -240,7 +227,6 @@ static func transform(m: Array) -> Transform3D:
 	return Transform3D(Vector3(m[0], m[1], m[2]), Vector3(m[4], m[5], m[6]), Vector3(m[8], m[9], m[10]), Vector3(m[12], m[13], m[14]))
 
 
-## `images` as images() returns them.
 static func pixels(images: Array[Dictionary]) -> int:
 	var out := 0
 	for image in images:
@@ -248,8 +234,7 @@ static func pixels(images: Array[Dictionary]) -> int:
 	return out
 
 
-## Per image, measured from its header before any is decoded: {"size": zero for one not in the file's own binary
-## chunk, "layer": its LAYERS name or ""}.
+## Per image, from its header: {"size": zero outside the file's own binary chunk, "layer": its LAYERS name or ""}.
 static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if glb.size() < 28:
@@ -271,12 +256,10 @@ static func images(glb: PackedByteArray) -> Array[Dictionary]:
 	return out
 
 
-## Each layer's key path in the VRCHAT_expressions definition, whose value is a glTF image index (a lossless WebP no
-## texture uses) or a list of them; once read, the Image itself.
+## Key paths in the VRCHAT_expressions definition to a glTF image index or a list of them; once read, the Image.
 const LAYERS := {"icons": ["icons"], "hueMask": ["hueMask"], "untinted": ["untinted", "image"], "index": ["looks", "index"], "matcapMasks": ["looks", "matcapMasks"], "emission": ["looks", "emission"], "matcaps": ["looks", "matcaps"], "decals": ["looks", "decals"], "clearcoatMaps": ["looks", "clearcoatMaps"], "clearcoatFallbacks": ["looks", "clearcoatFallbacks"], "outline": ["looks", "outline"], "shade": ["looks", "shade"], "shade2": ["looks", "shade2"], "rimTint": ["looks", "rimTint"]}
 
 
-## A copy of `definition` with each layer's value v, or each of a list's, replaced by `f`(v, layer).
 static func _layered(definition: Dictionary, f: Callable) -> Dictionary:
 	var out := definition.duplicate(true)
 	for layer: String in LAYERS:
@@ -293,7 +276,6 @@ static func drop_layers(definition: Dictionary) -> void:
 		_layer_parent(definition, layer).erase(LAYERS[layer][-1])
 
 
-## The dictionary holding `layer`'s key, or {} where there is none.
 static func _layer_parent(definition: Dictionary, layer: String) -> Dictionary:
 	var parent: Variant = definition
 	for key: String in LAYERS[layer].slice(0, -1):
@@ -325,8 +307,8 @@ static func expressions(state: GLTFState) -> Variant:
 	return _layered(definition, func(k: Variant, _layer: String) -> Variant: return kept.get(int(k)) if k is float or k is int else null)
 
 
-## As an avatar's root holds it: each system's node by name and each material's image an index into "images", the
-## images the file kept aside. ParticleDefinition.read checks the rest.
+## Each system's node by name, each material's image an index into "images" or -1; ParticleDefinition.read checks the
+## rest.
 static func _particles(ext: Dictionary, state: GLTFState) -> Dictionary:
 	var out := ext.duplicate(true)
 	var nodes := state.get_nodes()
@@ -352,7 +334,6 @@ static func _particles(ext: Dictionary, state: GLTFState) -> Dictionary:
 	return out
 
 
-## No glTF texture names these.
 static func _particle_indices(json: Variant) -> Array:
 	var systems: Variant = _field(_field(_field(json, "extensions"), PARTICLES), "systems")
 	var out := []
@@ -407,8 +388,7 @@ static func look_type(state: GLTFState) -> String:
 	return BONE
 
 
-## Each of LOOKS -> [[node, morph target, weight 0 to 1]], for a model whose eyes look by expression. VRM 0.x binds
-## by mesh, which may hang from several nodes.
+## Each of LOOKS -> [[node, morph target, weight 0 to 1]]. VRM 0.x binds by mesh, which may hang from several nodes.
 static func look_binds(state: GLTFState) -> Dictionary:
 	var exts: Variant = state.json.get("extensions")
 	var nodes := state.get_nodes()
@@ -491,8 +471,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
-## A chain with a joint the humanoid gives no path is left out, as import leaves out a chain with a joint it cannot
-## find.
+## A chain with a joint the humanoid gives no path is left out, as import leaves out one with a joint it cannot find.
 static func _spring_extension(root: Node) -> Dictionary:
 	var definition: Dictionary = root.get_meta("springs", {})
 	var human: Dictionary = root.get_meta("humanoid", {})
@@ -661,7 +640,6 @@ static func _indexed(expressions: Dictionary, state: GLTFState, index: Dictionar
 	return out
 
 
-## Returns the new glTF image's index; no texture uses it.
 static func _add_image(state: GLTFState, bytes: PackedByteArray) -> int:
 	var buffers := state.get_buffers()
 	if buffers.is_empty():
@@ -722,9 +700,8 @@ static func _doc() -> GLTFDocument:
 	return GLTFDocument.new()
 
 
-## `fits`, given each image's size before it is decoded, and `shape`, given the parsed state before the scene is made,
-## refuse the file by answering false; `image` may change each image as it is decoded, given its layer or ""
-## (Images). Null if refused or not a glTF.
+## `fits` (an image's size, undecoded) and `shape` (the parsed state) refuse the file by answering false; `image` may
+## change each decoded image, given its layer or "". Null if refused or not a glTF.
 static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image: Callable) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
@@ -764,9 +741,7 @@ static func _mean(img: Image) -> Color:
 	return Color(c.r / c.a, c.g / c.a, c.b / c.a) if c.a > 0.0 else Color.WHITE
 
 
-## Each primitive's base colour factor times its base colour image's mean (`means`, one per file image), weighed by
-## its index count, or vertex count where it has none. The file is a player's, so any part not shaped as glTF has it
-## counts as white or nothing rather than failing.
+## `means`: one per file image. The file is a player's, so a part not shaped as glTF has it counts as white or nothing.
 static func _colour(json: Dictionary, means: Array) -> Color:
 	var materials: Variant = json.get("materials")
 	var textures: Variant = json.get("textures")
@@ -805,8 +780,7 @@ static func _colour(json: Dictionary, means: Array) -> Color:
 	return Color(sum.r / sum.a, sum.g / sum.a, sum.b / sum.a).linear_to_srgb()
 
 
-## Each skin is written binding every bone of its skeleton: a bone no skin binds would read back as a plain node, and
-## a read skin keeps only the bones its vertices weigh (Skins). `extras` become the file's asset extras.
+## Skins bind every bone: an unbound bone reads back as a plain node, and a read skin keeps only weighted ones (Skins).
 static func write(root: Node3D, path: String, extras := {}) -> void:
 	var doc := _doc()
 	doc.visibility_mode = GLTFDocument.VISIBILITY_MODE_INCLUDE_OPTIONAL
@@ -842,9 +816,8 @@ static func _binding_every_bone(skin: Skin, skeleton: Skeleton3D) -> Skin:
 	return full
 
 
-## Each morph target's normals are rewritten as the turn its positions give its mesh's smooth normals, and its
-## tangents dropped: Godot writes them as unit vectors rather than their change and keeps none an importer hands it,
-## so its own would turn every normal of the mesh. Unity likewise derives a shape's normals by default.
+## Morph normals are rederived from positions and tangents dropped: Godot writes them as unit vectors rather than
+## their change, so its own would turn every normal of the mesh.
 static func _positional(glb: PackedByteArray, extras := {}) -> PackedByteArray:
 	var json_size := glb.decode_u32(12)
 	var json: Dictionary = json_chunk(glb)
@@ -934,8 +907,7 @@ static func glb(json: Dictionary, bin: PackedByteArray) -> PackedByteArray:
 	return out
 
 
-## Per morph target, [the vertices whose normal it turns, ascending, each one's change]. A vertex's normal is the
-## area-weighted sum of the faces around every vertex at its position.
+## Per morph target, [the vertices whose normal it turns, ascending, each one's change], welded by position.
 static func _shape_normals(primitive: Dictionary, accessors: Array, views: Array, data: Array) -> Array:
 	var positions := _vec3s(accessors[int(primitive.attributes.POSITION)], views, data)
 	var count := positions.size()
@@ -997,7 +969,6 @@ static func _shape_normals(primitive: Dictionary, accessors: Array, views: Array
 	return out
 
 
-## The normal, scaled by twice the face's area, of corners wound counterclockwise as glTF winds a front face.
 static func _face(positions: PackedVector3Array, faces: PackedInt32Array, f: int) -> Vector3:
 	var a := positions[faces[f]]
 	return (positions[faces[f + 1]] - a).cross(positions[faces[f + 2]] - a)
@@ -1021,7 +992,6 @@ static func _groups(count: int, keys: PackedInt32Array, values: PackedInt32Array
 	return [offsets, grouped]
 
 
-## Sparse values over the dense or zero base.
 static func _vec3s(acc: Dictionary, views: Array, data: Array) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	out.resize(int(acc.count))
@@ -1045,7 +1015,6 @@ static func _vec3(bytes: PackedByteArray, at: int) -> Vector3:
 	return Vector3(bytes.decode_float(at), bytes.decode_float(at + 4), bytes.decode_float(at + 8))
 
 
-## `ref` is an index accessor or a sparse accessor's indices.
 static func _integers(ref: Dictionary, count: int, data: Array) -> PackedInt32Array:
 	var bytes: PackedByteArray = data[int(ref.bufferView)]
 	var at := int(ref.get("byteOffset", 0))

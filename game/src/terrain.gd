@@ -1,9 +1,7 @@
 class_name Terrain
 extends RefCounted
 
-## Each World holds its own. Shaders read the heights from the texture `install` shares, so plants follow an edit
-## untouched. A stroke's live hump is this player's preview, not the garden: only `shown_at` and what asks for `shown`
-## see it.
+## A stroke's live hump is this player's preview, not the garden: only `shown_at` and what asks for `shown` see it.
 
 const SIZE := 160.0
 const STEP := 1.0
@@ -11,48 +9,38 @@ const CELLS := int(SIZE / STEP)
 const VERTS := CELLS + 1
 const ALL := Rect2i(0, 0, VERTS, VERTS)
 const NO_HUMP := Vector4(0, 0, 1, 0)
-## Metres above or below zero the ground stays within: past any hand's pull, inside what the GPU's half-float heights
-## carry. The ground tool stops there and no command lays it past.
+## Metres either side of zero: past any hand's pull, inside what half-float heights carry.
 const RELIEF := 10000.0
-## The bank runs BANK m out from every point of the ground's edge, as it stands now, down to BANK_FOOT, where the plain
-## or lake bed (Mountains) begins; the lake stands over the foot, so the water meets the bank.
+## Metres the bank runs out from the edge, down to BANK_FOOT, where Mountains' plain or lake bed begins.
 const BANK := 10.0
 const BANK_FOOT := 2.5
-## Where a command may place anything or a player be: the map and its banks, to RELIEF up and down. The same on every
-## machine, unlike bounds(), which grows with what each has shown.
+## Where a command may place anything; the same on every machine, unlike bounds(), which grows with what each has shown.
 const ROOM := AABB(Vector3(-SIZE * 0.5 - BANK, -RELIEF - 30.0, -SIZE * 0.5 - BANK), Vector3(SIZE + 2.0 * BANK, 2.0 * RELIEF + 60.0, SIZE + 2.0 * BANK))
 ## Steepness (1 - normal.y) over which the terrain shader's rock rises; no grass or flower stands from .x on (Flora).
 const ROCK := Vector2(0.36, 0.48)
 
 var _heights := base_heights()
-## Per grid point, 1 - normal.y.
 var _steep := _steeps()
-## One per hand, not yet baked into the heights: centre x, z, radius, lift. Shaders add them through ground_humps'
-## columns, so a stroke moves the ground without rewriting the grid every frame.
+## Per hand, not yet baked into the heights, so a stroke never rewrites the grid: centre x, z, radius, lift.
 var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
 const NO_HUMPS: Array[Vector4] = []
-## Water changes only, for what keys on where ponds reach.
 var water_revision := 0
-## Height changes only, for light on the ground whatever water stands on it.
 var heights_revision := 0
 var _hump_moves := 0
-## Each BLOCK by BLOCK cells' highest grid height, edge vertices shared with the next, so a ray passes over a block it
-## stays above without sampling it.
 const BLOCK := 8
 const BLOCKS := ceili(float(CELLS) / BLOCK)
+## Each BLOCK by BLOCK cells' highest height, edge vertices shared with the next, so a ray skips a block above it.
 var _tops := _block_tops()
 const NO_WATER := -100.0
 ## Per grid point, the pond surface (Water); NO_WATER where none reaches.
 var _water := _no_water()
-## What shaders read where no pond is (water.gdshaderinc): under the -0.5 the terrain shader smooths from, and far
-## enough under a shore point's depth that a bank fades out before the next point.
+## Below the -0.5 the terrain shader smooths from, so a shore's bank fades out before the next grid point.
 const DRY := -0.6
 var _water_image: Image
 var _water_texture: ImageTexture
 var _image: Image
 var _texture: ImageTexture
-## The lowest and highest the ground has been, and bounds()' span, which grows past them in strides so lifted boxes are
-## refitted seldom while a stroke pulls the ground ever further.
+## Ground extremes; _low and _high (bounds()) grow past them in strides so lifted boxes are refitted seldom.
 var _floor: float = Array(_heights).min()
 var _crest: float = Array(_heights).max()
 var _low := _floor
@@ -84,13 +72,11 @@ static func base_heights() -> PackedFloat32Array:
 	return out
 
 
-## From the heights `e` metres either side of `at`.
 func up_at(at: Vector3, e: float) -> Vector3:
 	return Vector3(height_at(at.x - e, at.z) - height_at(at.x + e, at.z), 2.0 * e, height_at(at.x, at.z - e) - height_at(at.x, at.z + e)).normalized()
 
 
-## Bilinear, as the GPU's filtered texture reads it; a live hump is sampled on the same grid points, so baking it
-## moves nothing.
+## Bilinear, as the GPU filters it; a live hump is sampled on the same grid points, so baking it moves nothing.
 func height_at(x: float, z: float) -> float:
 	return _height(x, z, _heights, NO_HUMPS)
 
@@ -99,7 +85,6 @@ func shown_at(x: float, z: float) -> float:
 	return _height(x, z, _heights, _humps)
 
 
-## 1 - normal.y, interpolated between grid points as the ground's fragments interpolate it.
 func steep_at(x: float, z: float) -> float:
 	return _height(x, z, _steep, NO_HUMPS)
 
@@ -117,9 +102,7 @@ func _steeps() -> PackedFloat32Array:
 	return out
 
 
-## For a worker thread to read while this one goes on shaping. Not the live arrays: a write while a copy shares one
-## moves it to new memory and may free the old under the reader. A duplicate shares the memory until this thread's
-## next write moves the live array off it.
+## For a worker thread. Not the live arrays: a write while a copy shares one may free the old memory under the reader.
 func held_height(shown := false) -> Callable:
 	return _height.bind(_heights.duplicate(), _humps.duplicate() if shown else NO_HUMPS)
 
@@ -128,8 +111,7 @@ func held_water(shown := false) -> Callable:
 	return _height.bind(_heights.duplicate(), _humps.duplicate() if shown else NO_HUMPS, _water.duplicate())
 
 
-## With `water`, the pond surface instead: a grid point no pond reaches reads NO_WATER under its own ground, so ground
-## dug however deep never stands under water.
+## With `water`, the pond surface: a point no pond reaches reads NO_WATER under its ground, so dug ground stays dry.
 static func _height(x: float, z: float, heights: PackedFloat32Array, humps: Array[Vector4], water := PackedFloat32Array()) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
@@ -165,18 +147,14 @@ static func _no_water() -> PackedFloat32Array:
 	return out
 
 
-## Counts ground or water changes, so work laid on it can tell whether it still stands where it was laid.
 func revision() -> int:
 	return heights_revision + water_revision
 
 
-## `revision` plus every live-hump move: what work following the shown ground keys on.
 func shown_revision() -> int:
 	return revision() + _hump_moves
 
 
-## Shaders read the water as its depth over the ground (global water_depth, water.gdshaderinc), a texel per grid point:
-## depth filters smoothly into the dry ground round a pond, where a level would fall off a cliff to NO_WATER.
 func dry_water() -> void:
 	_water.fill(NO_WATER)
 	_water_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RH)
@@ -190,7 +168,6 @@ func water_levels() -> PackedFloat32Array:
 	return _water.duplicate()
 
 
-## `levels`: the pond surface per grid point; `image`: their `depth_image`.
 func set_water(levels: PackedFloat32Array, image: Image) -> void:
 	_water = levels
 	_water_image = image
@@ -198,7 +175,8 @@ func set_water(levels: PackedFloat32Array, image: Image) -> void:
 	water_revision += 1
 
 
-## The depth at the grid points `wet`, DRY elsewhere. Reads no shared state, so any thread may run it.
+## Shaders read depth, not level: depth filters smoothly into dry ground, a level would drop off a cliff to NO_WATER.
+## DRY off the grid points `wet`. Reads no shared state, so any thread may run it.
 static func depth_image(levels: PackedFloat32Array, heights: PackedFloat32Array, wet: PackedInt32Array) -> Image:
 	var depth := PackedFloat32Array()
 	depth.resize(levels.size())
@@ -215,7 +193,7 @@ func _depth(k: int) -> float:
 	return DRY if _water[k] == NO_WATER else maxf(_water[k] - _heights[k], DRY)
 
 
-## Bilinear, as the shaders read it (water.gdshaderinc); DRY where no pond reaches.
+## Bilinear as water.gdshaderinc reads it; DRY where no pond reaches.
 func depth_at(x: float, z: float) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
@@ -225,7 +203,7 @@ func depth_at(x: float, z: float) -> float:
 	return lerpf(lerpf(_depth(k), _depth(k + 1), u - i), lerpf(_depth(k + VERTS), _depth(k + VERTS + 1), u - i), v - j)
 
 
-## Bilinear; far below the ground where no pond is.
+## Far below the ground where no pond is.
 func water_at(x: float, z: float) -> float:
 	return _height(x, z, _heights, NO_HUMPS, _water)
 
@@ -234,7 +212,7 @@ func ground(x: float, z: float) -> Vector3:
 	return Vector3(x, height_at(x, z), z)
 
 
-## The first ground hit, or null.
+## Null on a miss.
 func raycast(origin: Vector3, dir: Vector3, max_dist := INF) -> Variant:
 	max_dist = minf(max_dist, exit_along(origin, dir))
 	var step := 0.25
@@ -293,7 +271,6 @@ func _block_tops() -> PackedFloat32Array:
 	return out
 
 
-## Recomputes the tops of the blocks holding any vertex of `cells`.
 func _raise_tops(cells: Rect2i) -> void:
 	var lo := Vector2i(maxi(cells.position.x - 1, 0), maxi(cells.position.y - 1, 0)) / BLOCK
 	var hi := Vector2i(mini(cells.end.x - 1, CELLS - 1), mini(cells.end.y - 1, CELLS - 1)) / BLOCK
@@ -390,7 +367,6 @@ func _share_humps() -> void:
 	RenderingServer.global_shader_parameter_set(&"ground_humps", Projection(_humps[0], _humps[1], NO_HUMP, NO_HUMP))
 
 
-## `cells`' heights with hump `slot` added and no other: what the ground under its stroke becomes.
 func raised(cells: Rect2i, slot: int) -> PackedFloat32Array:
 	var out := read(cells)
 	var n := 0
@@ -428,10 +404,9 @@ func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 	_sync(cells)
 
 
-## Shares the heights with shaders (ground.gdshaderinc), a texel per grid point: red the height at half precision,
-## blue its rounding residue, green and alpha the normal's x and z. Half floats because only 16-bit float textures
-## filter on every Vulkan device; filtering is linear, so red plus blue filters to the height itself, true to a
-## fraction of a millimetre on ground a kilometre high.
+## Per grid point: red the half-float height, blue its rounding residue, green and alpha the normal's x and z. Only
+## 16-bit float textures filter on every Vulkan device; red plus blue filters to the height itself, true to a fraction of
+## a millimetre on ground a kilometre high.
 func install() -> void:
 	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RGBAH)
 	_texture = ImageTexture.create_from_image(_image)
@@ -441,7 +416,6 @@ func install() -> void:
 	_share_humps()
 
 
-## Holds the ground and anything standing on it, for meshes the GPU lifts onto the heights.
 func bounds() -> AABB:
 	var low := minf(_low, BANK_FOOT) - 2.0
 	return AABB(Vector3(-SIZE * 0.5 - BANK, low, -SIZE * 0.5 - BANK), Vector3(SIZE + 2.0 * BANK, _high - low + 30.0, SIZE + 2.0 * BANK))
@@ -453,7 +427,6 @@ func lift(target: Object, box: AABB) -> void:
 	_lifted[target.get_instance_id()] = weakref(target)
 
 
-## Grows bounds() a stride past the ground and its live humps, and every lifted box with it.
 func _fit() -> void:
 	var low := _floor
 	var high := _crest
@@ -514,22 +487,18 @@ func _sync(cells: Rect2i) -> void:
 		_water_texture.update(_water_image)
 
 
-## The ground is drawn in CHUNK-metre squares, so a camera draws only those in view, each a flat grid the terrain shader
-## lifts onto the heights; vertex colour red is the meadow grass's dryness.
+## In cells.
 const CHUNK := 16
 const CHUNKS := CELLS / CHUNK
-## Grid steps a chunk is drawn at, finest first: Meadow picks one by the chunk's distance from the eye.
+## Finest first; Meadow picks one by the chunk's distance from the eye.
 const LODS: Array[int] = [1, 2, 4]
-## Triangles fall in tiles of TILE by TILE cells, the coarsest step's cell, so none spans two: Meadow draws each tile in
-## one shader or the other.
+## Cells: the coarsest LOD's cell, so no triangle spans two tiles and Meadow draws each tile in one shader or the other.
 const TILE := 4
 const TILES := CELLS / TILE
 const CHUNK_TILES := CHUNK / TILE
 
 
-## [mesh arrays, per tile row by row its triangle indices] at grid step `k`. The edge keeps a vertex every STEP
-## whatever `k`, each edge cell a fan round its centre, so it meets every neighbour's edge vertex for vertex, with no
-## crack, at any step either is drawn at.
+## [mesh arrays, per tile row by row its triangle indices]; the edge keeps a vertex every STEP, so neighbours meet.
 static func chunk_parts(ci: int, cj: int, k: int) -> Array:
 	var vertices := PackedVector3Array()
 	var colors := PackedColorArray()
@@ -579,8 +548,7 @@ static func chunk_parts(ci: int, cj: int, k: int) -> Array:
 	return [arrays, tiles]
 
 
-## The triangles of `parts` (chunk_parts) in the tiles whose byte in `keep` is set, or every tile without `keep`; null
-## when none.
+## Only the tiles whose byte in `keep` is set, every tile without `keep`; null when none.
 static func part_mesh(parts: Array, keep := PackedByteArray()) -> ArrayMesh:
 	var indices := PackedInt32Array()
 	var tiles: Array[PackedInt32Array] = parts[1]
@@ -596,8 +564,7 @@ static func part_mesh(parts: Array, keep := PackedByteArray()) -> ArrayMesh:
 	return mesh
 
 
-## One byte per tile, row by row: set within three steps of a grid point any pond stands over, past the reach of the
-## terrain shader's pond_near (water.gdshaderinc) from any vertex.
+## One byte per tile, row by row: set within three steps of a wet grid point, past the reach of the shader's pond_near.
 func wet_tiles() -> PackedByteArray:
 	var out := PackedByteArray()
 	out.resize(TILES * TILES)
@@ -623,8 +590,7 @@ static func _dryness(x: float, z: float) -> Color:
 	return Color(FloraLayout.dryness(Vector3(x, 0, z)), 0, 0)
 
 
-## The ground as `chunk_parts` lays it nearby: each cell two flat triangles split from its (i + 1, j) corner to its
-## (i, j + 1), over `ground`'s grid heights. Within a cell it may stand above or below the bilinear `height_at`.
+## As `chunk_parts` lays it: per cell two flat triangles split (i + 1, j) to (i, j + 1), unlike bilinear `height_at`.
 static func drawn(x: float, z: float, ground: Callable) -> float:
 	var i := floorf(x / STEP) * STEP
 	var j := floorf(z / STEP) * STEP
@@ -639,7 +605,6 @@ static func drawn(x: float, z: float, ground: Callable) -> float:
 	return d + (c - d) * (1.0 - u) + (b - d) * (1.0 - v)
 
 
-## From the ground's edge down to BANK_FOOT, which it leaves where it lies.
 static func bank_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -659,8 +624,7 @@ static func bank_mesh() -> ArrayMesh:
 	return st.commit()
 
 
-## Round the ground's edge a STEP apart from its -x, -z corner, each pushed `out` metres away from the centre: the
-## bank's top at 0, its foot at BANK.
+## A STEP apart from the -x, -z corner, each pushed `out` metres from the centre.
 static func edge(out: float) -> PackedVector2Array:
 	var half := SIZE * 0.5
 	var points := PackedVector2Array()

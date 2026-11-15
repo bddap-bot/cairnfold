@@ -424,7 +424,7 @@ func _a_flat_window_is_governed_to_its_own_pace() -> void:
 		for i in int(seconds * Budget.FLAT_HZ):
 			now[0] += int(1e6 / Budget.FLAT_HZ)
 			q.frame(ms + 0.001 * (i % 2), 1.0 / Budget.FLAT_HZ)
-	run.call(budget * 0.7, Quality.WARMUP + 1.0)
+	run.call(budget * 0.7, Quality.WARMUP_S + 1.0)
 	check(q.step() == Quality.START, "frames inside the budget hold the start through the warm-up: %d" % q.step())
 	run.call(budget * 1.2, 2.0)
 	var down := q.step()

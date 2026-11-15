@@ -1,8 +1,7 @@
 class_name Fish
 extends Node3D
 
-## Part of `Wildlife`. Steering only, no physics; one MultiMesh, with the tail's beat and the water's tint in the
-## shader.
+## Steering only, no physics; one MultiMesh, the tail's beat and the water's tint in the shader.
 
 const CAP := 24
 ## Wet grid points a fish.
@@ -15,7 +14,6 @@ const SWIM_AT := 0.2
 const SWIM_DEPTH := Vector2(0.04, 0.1)
 const CRUISE := 0.14
 const DART := 0.75
-## Per second.
 const CALM_DOWN := 1.6
 ## Radians a second. A fish swims straight between spots, so the way checked clear of walls is the way it goes.
 const TURN := 6.0
@@ -24,7 +22,7 @@ const DART_FOR := 0.9
 const ARRIVED := 0.05
 const FADE := 1.5
 const LENGTH := 0.24
-## Frenzy: dart speed, mouth reach, seconds between bites (min, max), depth of its middle when biting, nose-up radians.
+## Dart speed, mouth reach, seconds between bites (min, max), depth of its middle when biting, nose-up radians.
 const FRENZY := 0.6
 const BITE := 0.07
 const BITE_EVERY := Vector2(0.35, 0.9)

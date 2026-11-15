@@ -1,9 +1,8 @@
 class_name AvatarParticles
 extends Node3D
 
-## docs/particles.md. The CPU writes each particle once at birth; particle.gdshaderinc places it at any age, so a frame
-## costs the CPU only its births. A system replays from its start each time its switches turn on, as a GameObject
-## switched on plays its ParticleSystem.
+## The CPU writes each particle once at birth and particle.gdshaderinc places it at any age, so a frame costs the CPU
+## only its births. A system replays each time its switches turn on, as a switched-on GameObject's ParticleSystem does.
 
 const SHADERS := {"alpha": preload("res://src/particle_alpha.gdshader"), "add": preload("res://src/particle_add.gdshader"), "premultiplied": preload("res://src/particle_premultiplied.gdshader"), "multiply": preload("res://src/particle_multiply.gdshader"), "opaque": preload("res://src/particle_opaque.gdshader"), "cutout": preload("res://src/particle_opaque.gdshader")}
 ## Mirror particle.gdshaderinc's ROW_*: each row holds a curve's min, the next row its max.
@@ -35,9 +34,8 @@ var _systems: Array[System] = []
 var _now := 0.0
 ## Each "particle" effect of the expressions: [target index, effect].
 var _effects := []
-## Per target index: the value last applied.
 var _applied: Array[float] = []
-## Usec this frame's first birth began, -1 before it; births alone spend Budget.PARTICLE_BIRTHS_US.
+## Usec this frame's first birth began, -1 before it.
 var _births_from := -1
 ## Every system on and replaying, so a bench prices the most an avatar's particles cost.
 var unswitched := false
@@ -53,7 +51,6 @@ class System:
 	var active := false
 	var playing := false
 	var time := 0.0
-	## Fractional births carried to the next step.
 	var pending := 0.0
 	var bursts_fired := PackedInt32Array()
 	var frame := Transform3D.IDENTITY
@@ -281,7 +278,6 @@ func _clear(s: System) -> void:
 				s.multimesh.set_instance_custom_data(i, Color(UNBORN, 1.0, 0.0, 0.0))
 
 
-## `moved`: the emitter's distance travelled this step.
 func _run(s: System, delta: float, moved: float) -> void:
 	var d := s.definition
 	var before: float = s.time - d.delay
@@ -303,7 +299,6 @@ func _run(s: System, delta: float, moved: float) -> void:
 	s.pending -= _emit_up_to(int(s.pending), func() -> void: _emit(s, s.frame, s.velocity, u, null, -1))
 
 
-## Fires the bursts due by cycle time `t`, counting them in `fired`; returns their particles.
 func _bursts(bursts: Array, fired: PackedInt32Array, t: float) -> int:
 	var count := 0
 	for b in bursts.size():
@@ -352,7 +347,6 @@ func _follow(s: System, delta: float) -> void:
 	s.following = kept
 
 
-## Stops when the frame's birth budget is spent; returns how many it called.
 func _emit_up_to(count: int, emit: Callable) -> int:
 	var made := 0
 	if count > 0 and _births_from < 0:
@@ -488,7 +482,6 @@ static func _unit() -> Vector3:
 	return Vector3(across * cos(turn), across * sin(turn), z)
 
 
-## `u`: share of the span; `k`: the particle's random for this curve.
 static func _value(c: Dictionary, u: float, k: float) -> float:
 	return lerpf(c.scale[0] * _at(c.min, u), c.scale[1] * _at(c.max, u), k)
 

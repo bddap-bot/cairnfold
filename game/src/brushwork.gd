@@ -1,40 +1,33 @@
 class_name Brushwork
 extends RefCounted
 
-## A stroke is plain data every machine reads alike; `Stroker` turns its samples into the dabs paint.glsl lays, the same
-## on every machine and every replay of a kept painting. Colours are optical densities (absorbance per channel,
-## Beer-Lambert), so paint mixes and glazes subtractively: blue and yellow make green, layers darken.
+## Colours are optical densities (per-channel absorbance), so paint mixes and glazes subtractively. `Stroker` lays the
+## same dabs on every machine and every replay of a kept painting.
 
 enum Medium { WATER, OIL, CHARCOAL, SMEAR }
 enum Brush { SMALL, BIG, FLAT, STICK, THIN_STICK, THICK_STICK }
 
-## The canvas in texels and in metres: about a millimetre a texel, finer than the Frame resolves at arm's length.
+## About a millimetre a texel, finer than the headset resolves at arm's length.
 const SIZE := Vector2i(1536, 1152)
 const METRES := Vector2(1.5, 1.125)
-## Simulation ticks a second; each tick is two flow steps.
+## Each tick is two flow steps.
 const TICK_HZ := 60.0
-## A wash is dry this many ticks after the brush last wet it.
 const DRY_TICKS := 360
-## Wetness is tracked per square tile of this many texels.
+## Texels a side of a wetness tile.
 const TILE := 64
-## How far past the brush water may run, in texels: sideways and up, then down the tilted canvas.
+## Texels water may run past the brush: sideways and up, then down the tilted canvas.
 const MARGIN := 40
 const RUN := 160
-## Each brush's radius in texels, from a touch to full pressure (`radii`).
 const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), Brush.FLAT: Vector2(10.0, 42.0)}
-## The charcoal sticks, long and thin to short and thick, by their radius and length in metres; the radius sets the
-## mark's width and the length how far a stick on its side reaches.
+## Metres, (radius, length).
 const STICKS := {Brush.THIN_STICK: Vector2(0.0035, 0.24), Brush.STICK: Vector2(0.0065, 0.15), Brush.THICK_STICK: Vector2(0.011, 0.08)}
-## Metres past the surface at which a tool presses fully.
 const PRESS_DEPTH := 0.02
-## Dabs are laid this fraction of their radius apart.
 const SPACING := 0.2
-## Speed, in texels a tick, at which a stroke skips over the paper's dips (dry-brush), and how much it does per medium:
-## a wet brush skims most, thick oil little, charcoal not at all.
+## Texels a tick at which a stroke skips the paper's dips (dry-brush), scaled per medium by SKIMS.
 const SKIM := 60.0
 const SKIMS := {Medium.WATER: 0.7, Medium.OIL: 0.25, Medium.CHARCOAL: 0.0, Medium.SMEAR: 0.0}
-## The palette's wells, as display colours: white, lemon, ochre, vermilion, rose, ultramarine, sap green, umber,
-## phthalo blue, black. A demo script or test may name a well by its index, so new wells go on the end.
+## White, lemon, ochre, vermilion, rose, ultramarine, sap green, umber, phthalo blue, black. A demo script or test may
+## name a well by its index, so new wells go on the end.
 const PIGMENTS := [
 	Color(0.97, 0.96, 0.93), Color(0.98, 0.86, 0.18), Color(0.82, 0.6, 0.25), Color(0.9, 0.3, 0.14),
 	Color(0.78, 0.16, 0.36), Color(0.16, 0.24, 0.72), Color(0.28, 0.5, 0.2), Color(0.38, 0.24, 0.16),
@@ -43,13 +36,12 @@ const PIGMENTS := [
 const CHARCOAL := Vector3(2.3, 2.25, 2.1)
 const MAX_DENSITY := 8.0
 const MAX_SAMPLES := 512
-## Most dabs one stroke lays on a canvas (`dabs`), what laying it costs every machine that replays it; a board's
-## stroke counts as on a canvas. The longest stroke in the recorded sessions laid 15561; the easel tool ends a stroke
-## here as it does at MAX_SAMPLES, so none it paints is refused.
+## Bounds what replaying one stroke costs every machine; a board's stroke counts as a canvas's. The longest recorded
+## stroke laid 15561; the easel tool ends a stroke here as at MAX_SAMPLES, so none it paints is refused.
 const MAX_DABS := 32768
-## Most samples one canvas holds across its strokes; past it the canvas takes no more until a fresh sheet.
+## Samples across one canvas's strokes; past it the canvas takes none until a fresh sheet.
 const MAX_TOTAL := 120000
-## Most dabs one canvas lays across its strokes: MAX_TOTAL samples at the densest recorded canvas's 32 dabs a sample.
+## The densest recorded canvas laid 32 dabs a sample.
 const MAX_TOTAL_DABS := MAX_TOTAL * 32
 const MAX_STROKES := 4000
 ## Floats per dab: x, y, major radius, pressure; heading (charcoal minor radius), load, dryness, footprint angle.
@@ -69,31 +61,29 @@ static func is_stick(brush: Brush) -> bool:
 	return STICKS.has(brush)
 
 
-## 0..1 for `depth` in metres; every tool's one curve, eased so a graze stays faint and narrow; a touch at the surface
-## still marks.
+## `depth` in metres; eased so a graze stays faint, yet a touch at the surface still marks.
 static func pressure(depth: float) -> float:
 	return lerpf(0.05, 1.0, smoothstep(0.0, PRESS_DEPTH, depth))
 
 
-## Texels, (touch, full pressure); a stick's mark is a little wider than the stick.
+## Texels, (touch, full pressure).
 static func radii(brush: Brush) -> Vector2:
 	if is_stick(brush):
 		return Vector2(0.4, 1.4) * STICKS[brush].x * SIZE.x / METRES.x
 	return RADII[brush]
 
 
-## Texels either way from the contact's middle, `side` 0..1: half a stick's length laid flat, 0 for a brush.
+## Texels each way from the contact's middle; `side` 0..1.
 static func side_reach(brush: Brush, side: float) -> float:
 	return side * STICKS[brush].y * 0.5 * SIZE.x / METRES.x if is_stick(brush) else 0.0
 
 
-## Within a quarter turn either way: a stick's or a flat brush's footprint looks the same turned half a turn.
+## A stick's or flat brush's footprint looks the same turned half a turn.
 static func turn(from: float, to: float) -> float:
 	return wrapf(to - from, -PI * 0.5, PI * 0.5)
 
 
-## Texels; a stick on its side is a line `side_reach` either way of its middle. Returns (farthest any point goes, mean
-## distance its points go).
+## Texels: (farthest any point of the footprint goes, mean distance its points go).
 static func sweep(brush: Brush, from: Vector2, from_angle: float, to: Vector2, to_angle: float, side: float) -> Vector2:
 	var moved := to - from
 	var end := side_reach(brush, side) * (Vector2.from_angle(from_angle + turn(from_angle, to_angle)) - Vector2.from_angle(from_angle))
@@ -204,8 +194,7 @@ class Stroker:
 		stroke = of
 		_texels = Vector2(texels)
 
-	## `s` as `unpack` gives it; returns DAB floats per dab. A stick on its side lays a line, so it lays by how far that
-	## line sweeps, turning about its middle as much as moving it.
+	## `s` as `unpack` gives it; returns DAB floats per dab. A stick on its side lays by how far its line sweeps.
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
 		var last := _last

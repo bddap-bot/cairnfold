@@ -1,8 +1,6 @@
 class_name Driver
 extends Node
 
-## Plays a JSON list of steps through the same entry points the controllers use.
-
 signal finished
 
 const SETTLED_S := 1.0
@@ -34,10 +32,9 @@ var _posed_usec := 0
 var _posed_frames := 0
 var _flora_units := {}
 var _stood_beasts: Array[Beast] = []
-## Left to the controllers, an unworn headset's idle hands put the book and the beam in view or out of it from
-## run to run, about 2 ms of a Quest 2's GPU time.
+## Left to the controllers, an unworn headset's idle hands put the book and beam in view or not, ~2 ms of Quest 2 GPU.
 const HELD := [{"hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}, {"hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]}]
-## A quarter hour, as a share of a day.
+## As a share of a day.
 const SUN_MISS := 1.0 / 96.0
 ## Right-hand spots in head space, the left mirrored: the grip takes whatever box holds the hand, whichever way it aims.
 const SKY_SPOTS := [Vector3(0.18, -0.25, -0.3), Vector3(0.18, 0.1, -0.2), Vector3(0.0, 0.3, 0.0), Vector3(0.45, -0.1, 0.0)]
@@ -97,7 +94,7 @@ func _run() -> void:
 	finished.emit()
 
 
-## The steps after a failed one would run on a garden it did not make, so none run.
+## Later steps would run on a garden this one did not make, so none run.
 func _fail(why: String) -> void:
 	push_error("driver: " + why)
 	failed = true
@@ -556,7 +553,6 @@ func _roof(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
-## So a phase measures thatch against the same houses tiled.
 func _thatch(_s: Dictionary) -> void:
 	for id: int in main.world.state.walls:
 		if main.world.state.walls[id].has("roof"):
@@ -727,7 +723,6 @@ func _cluttered(s: Dictionary) -> void:
 	print("stress: %d pieces of clutter more, fill %.3f%s" % [tally.pieces, main.world.fill(), ", the budget full" if tally.full else ""])
 
 
-## What a garden costs without clutter.
 func _uncluttered(_s: Dictionary) -> void:
 	for of in ["walls", "paths"]:
 		for id: int in main.world.state[of]:
@@ -940,7 +935,6 @@ func _wipe(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Along a wall it erases, over the ground it mows.
 func _erase(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
 	var path := _path(s) if s.has("points") else _stretch(main.tool.walls[s.index].layout, s.from, s.to)
@@ -1115,8 +1109,7 @@ static func _nearest(points: PackedVector3Array, to: Vector3) -> Vector3:
 	return best
 
 
-## Flora are not build commands, so the frame budget does not count them; the next units line carries the units
-## they would count as, for scripts/costs.py.
+## The frame budget does not count flora; the next units line carries their units for scripts/costs.py.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
 	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes", "moss"])
@@ -1428,7 +1421,6 @@ func _flat(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Prices other players' avatars on one headset with no network in the way.
 func _figures(s: Dictionary) -> void:
 	if not _stood.is_empty():
 		print("figures: %d %s avatars %s, %.1f us per avatar pose and %.1f solving its constraints over %d frames" % [_stood.size(), _stood[0].source if _stood[0].source else "built-in", "lying and sitting in turn" if _posing else "standing", float(_posed_usec) / maxi(_posed_frames * _stood.size(), 1), float(Constraints.spent_usec) / maxi(_posed_frames * _stood.size(), 1), _posed_frames])
@@ -1567,7 +1559,6 @@ func _write_capture(name: String, out: Dictionary) -> String:
 	return path
 
 
-## For comparing machines.
 func _digest(s: Dictionary) -> void:
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
@@ -1776,8 +1767,7 @@ func _glide(s: Dictionary) -> void:
 		main.view(_eye, _at))
 
 
-## With "toward", `at` is offset from the node in that group nearest the eye, so a view can turn to an animal
-## that has moved without the eye moving.
+## With "toward", `at` is offset from the group's node nearest the eye, so a view follows an animal that moved.
 func _pose(s: Dictionary) -> Array[Vector3]:
 	var eye := Lessons._v(s.eye)
 	var at := Lessons._v(s.at)
@@ -2220,7 +2210,6 @@ func _quit(_s: Dictionary) -> void:
 	main.finish()
 
 
-## "relative" makes a script work whichever way the headset faces.
 func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	if not s.get("relative", false):
 		return main.world.terrain.ground(x, z)
@@ -2294,8 +2283,7 @@ func _antialias(s: Dictionary) -> void:
 		vp.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if s.unshaded else Viewport.DEBUG_DRAW_DISABLED
 
 
-## After a late frame the runtime keeps every other refresh for a while, and a phase opened on that measures the
-## setup before it (a whole village laid at once, which no player does), not its own frames.
+## After a late frame the runtime keeps every other refresh a while; a phase opened then measures the setup before it.
 func _label(s: Dictionary) -> void:
 	var metrics: Metrics = main.metrics
 	if s.name != "-" and metrics.late_at_us >= 0:
@@ -2525,8 +2513,7 @@ func _held_cost(s: Dictionary) -> void:
 		for item in items:
 			item.show_state(state)
 			item.visible = s.get("shown", true)
-		# Every item's models are built in one frame, which no player does, and the runtime runs at half rate for a
-		# moment after it.
+		# Building every item's models in one frame drops the runtime to half rate for a moment.
 		await get_tree().create_timer(1.0).timeout
 		await _shot(s)
 		var name := HeldItem.label(state)
@@ -2632,7 +2619,6 @@ func _bird_smear(s: Dictionary) -> void:
 	print("conure: wet canvas smear submitted")
 
 
-## The paired fixture's way of taking the bird alone out of a view.
 func _bird_shown(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null, "no held bird")

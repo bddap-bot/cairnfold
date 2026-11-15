@@ -1,11 +1,9 @@
 class_name Grazers
 extends Node3D
 
-## Bands that walk in and leave out of sight: `Herds` and `Roamers`. `Wildlife` decides when they come and where
-## nobody is looking.
+## Base of `Herds` and `Roamers`: bands that walk in and leave out of sight.
 
 enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED }
-## Each kind poses these its own way.
 enum Motion { IDLE, GRAZE, STEP, WALK, RUN, LIE }
 
 const TURN := 3.0
@@ -61,7 +59,6 @@ func tick(delta: float) -> void:
 			bands.remove_at(i)
 
 
-## Re-routes any animal whose ground or way is no longer walkable.
 func look() -> void:
 	for b in bands:
 		if _leaving(b):
@@ -105,7 +102,6 @@ func _lie(_a: Node3D) -> void:
 	pass
 
 
-## Flat unit direction away from `from`.
 func _away(a: Node3D, from: Vector3) -> Vector3:
 	var off := a.position - from
 	off.y = 0.0
@@ -121,7 +117,6 @@ func _after_flight(a: Node3D) -> void:
 	a.timer = rng.randf_range(4.0, 8.0)
 
 
-## Override for extras such as a call now and then.
 func _settled_tick(_a: Node3D, _delta: float) -> void:
 	pass
 
@@ -397,7 +392,7 @@ func _gone(b: Band) -> bool:
 	return true
 
 
-## True once there. Reaches `speed` only once upright and facing the way.
+## Reaches `speed` only once upright and facing the way.
 func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.WALK) -> bool:
 	var to := Vector3(goal.x - a.position.x, 0, goal.z - a.position.z)
 	var d := to.length()

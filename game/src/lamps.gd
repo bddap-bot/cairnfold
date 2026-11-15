@@ -47,7 +47,7 @@ func install() -> void:
 	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3.ONE * LIGHT * ENCODE)
 
 
-## The light a lantern of `look` (its Palette.Element.LANTERN swatch) casts: its glow colour times its strength.
+## `look` is a Palette.Element.LANTERN swatch.
 static func light_of(look: int) -> Color:
 	return Palette.GLOWS[look / STRENGTHS.size()] * STRENGTHS[look % STRENGTHS.size()]
 

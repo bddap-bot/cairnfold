@@ -73,9 +73,8 @@ static func moss() -> ArrayMesh:
 const LOD_SEGMENTS := 2
 
 
-## A unit cube (-0.5..0.5). Faces share their border vertices: a stone's GPU cost follows its vertex count. One finer
-## than LOD_SEGMENTS carries that lattice as an LOD keyed by `lod_error`, drawn where that error is under the
-## renderer's LOD threshold, a pixel by default.
+## A unit cube (-0.5..0.5); faces share border vertices since a stone's GPU cost follows its vertex count. Finer than
+## LOD_SEGMENTS, it carries that lattice as an LOD keyed by `lod_error`.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	var lump := FastNoiseLite.new()
 	lump.seed = seed
@@ -110,7 +109,7 @@ static func _lattice(arrays: Array, radius: float, segments: int, lump: FastNois
 	]
 	var inner := 1.0 - radius * 2.0
 	var row := segments + 1
-	## Lattice point on the cube's surface, in steps of 2 / segments -> vertex index.
+	# Lattice point on the cube's surface, in steps of 2 / segments -> vertex index.
 	var made := {}
 	var indices := PackedInt32Array()
 	var grids: Array[PackedInt32Array] = []
@@ -160,7 +159,7 @@ static func lod_error(verts: PackedVector3Array, fine: Dictionary, coarse: Dicti
 				var b := verts[c[cj * (m + 1) + ci + 1]]
 				var d := verts[c[(cj + 1) * (m + 1) + ci]]
 				var e := verts[c[(cj + 1) * (m + 1) + ci + 1]]
-				## Each cell's two triangles meet along its b-d diagonal.
+				# Each cell's two triangles meet along its b-d diagonal.
 				var at := a + (b - a) * fu + (d - a) * fv if fu + fv <= 1.0 else e + (d - e) * (1.0 - fu) + (b - e) * (1.0 - fv)
 				error = maxf(error, verts[g[j * (n + 1) + i]].distance_to(at))
 	return error
@@ -211,7 +210,7 @@ static func grass_clump(blades: int, seed: int, wide := 1.0) -> ArrayMesh:
 
 const STALK := Color(0.25, 0.45, 0.12)
 const EYE := Color(1.0, 0.78, 0.25)
-## Stalk length to the head, in an unscaled flower.
+## To the head, unscaled.
 const FLOWER_HEIGHT := 0.22
 
 
@@ -377,9 +376,8 @@ static func butterfly() -> ArrayMesh:
 	return st.commit()
 
 
-## Half-axes `r` along `axes`; `part` goes in UV2.x for a vertex shader to pivot by. `shape` gets each surface point
-## in the ellipsoid's own frame, relative to its centre. Given `round`, normals lean by ROUND away from it, so
-## overlapping blobs shade as one soft mass.
+## Half-axes `r` along `axes`; `part` goes in UV2.x for a vertex shader to pivot by; `shape` maps each point in the
+## ellipsoid's own frame about its centre. Normals lean ROUND away from `round` (INF: none) so blobs shade as one mass.
 static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: Color, lat: int, lon: int, shape := Callable(), axes := Basis(), ruffle := 0.0, round := Vector3.INF) -> void:
 	var ring := []
 	for i in lat + 1:

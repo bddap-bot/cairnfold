@@ -1,12 +1,10 @@
 class_name Mountains
 extends RefCounted
 
-## Rings of crags far enough out that both eyes and every step through the garden see them as distant.
 ## Each range dips where the sun rises and sets, so it comes up and goes down through a pass.
-## The mesh is pure data, so tests read it headless.
 
-## radius: the ridge's distance from the garden's centre. depth: how far in front of the ridge the foot lies.
-## low, high: the ridge's lowest and highest. haze: how much the air between hides it.
+## radius: the ridge's distance from the centre, far enough that both eyes and every step see it as distant; depth: how
+## far in front of the ridge the foot lies; low, high: the ridge's span; haze: how much the air hides it.
 const RANGES := [
 	{"radius": 560.0, "depth": 300.0, "low": 70.0, "high": 200.0, "columns": 224, "seed": 5, "haze": 0.35, "snow": 0.0},
 	{"radius": 1300.0, "depth": 800.0, "low": 230.0, "high": 520.0, "columns": 192, "seed": 9, "haze": 0.55, "snow": 0.72},
@@ -16,40 +14,36 @@ const TOP: float = RANGES[-1].high
 ## Rows from foot to ridge, each its share of the height; the last rows stand steep, a stone face over its talus.
 const ROWS := [0.0, 0.12, 0.3, 0.5, 0.68, 0.84, 1.0]
 const REACH := [0.0, 0.42, 0.66, 0.8, 0.88, 0.95, 1.0]
-## Water stands round the meadow at LAKE, under every point of the meadow's edge and over its bank's
-## foot, out past the first range's ridge; the ranges' feet stand SUNK under it, so the water floods their lower slopes
-## and meets them along a contour, not at a straight foot.
+## Under the meadow's edge, over the bank's foot, out past the first ridge; the ranges' feet stand SUNK under it, so
+## it meets them on a contour.
 const LAKE := 3.5
 const SUNK := 12.0
 const FOOT := LAKE - SUNK
-## The water's edge round the meadow's square is cut this far apart.
+## Metres between the lake's shore vertices.
 const SHORE_STEP := 5.0
 const LAKE_OUT := 600.0
-## Samples round the circle in ridge_image.
 const RIDGE_SAMPLES := 512
 ## The sun's elevation in degrees where a pass is centred on its path, rising and setting.
 const PASS_SUN := 4.0
 ## How far either side of a pass's centre it opens, in radians, and how low it takes the ridge.
 const PASS_WIDTH := 0.32
 const PASS_DEPTH := 0.7
-## Every face is turned toward this point over the garden.
+## Every face is turned toward it.
 const SEEN_FROM := Vector3(0, 40, 0)
 ## How far a face's rock juts out of the slope, as a share of the range's depth.
 const CRAG := 0.08
-## Faces meeting at a sharper fold than this, in degrees, keep a hard edge between them: the ridges and crags stay
-## crisp while the slopes between them shade smoothly.
+## Degrees: a sharper fold keeps a hard edge, so ridges and crags stay crisp while slopes shade smoothly.
 const CREASE := 40.0
-## How many times finer than the range's columns each row is cut: the skyline carries the crags, the slope below
-## stays coarse.
+## How many times finer than the range's columns each row is cut.
 const DETAIL := [1, 1, 1, 1, 1, 2, 4]
 ## How tall the skyline's crags stand, as a share of the range's highest, and how much finer they are than its peaks.
 const JAG := 0.05
 const TEETH := 10.0
-## How much of the crags each row carries.
+## Per row, its share of the crags.
 const CRAGGED := [0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 1.0]
 
 
-## Where the ridge stands above the foot at `azimuth` (radians from +x toward +z), from `noise` sampled on a circle.
+## Above the foot, at `azimuth` radians from +x toward +z.
 static func ridge(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	return _body(r, noise, azimuth) + _crags(r, noise, azimuth)
 
@@ -62,14 +56,12 @@ static func _body(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	return h * (1.0 - PASS_DEPTH * passes(azimuth))
 
 
-## A far slice of the same noise.
 static func _crags(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	var on: Vector2 = Vector2(cos(azimuth), sin(azimuth)) * r.radius * 0.01 * TEETH
 	var tooth := 1.0 - absf(noise.get_noise_3d(on.x, on.y, 50.0))
 	return JAG * r.high * pow(tooth, 3.0) * (1.0 - passes(azimuth))
 
 
-## Whether a ray from `from` along `dir` meets a range before the sky.
 static func hides(from: Vector3, dir: Vector3) -> bool:
 	var flat := Vector2(dir.x, dir.z)
 	if flat.length() < 1e-6:
@@ -87,7 +79,7 @@ static func hides(from: Vector3, dir: Vector3) -> bool:
 	return false
 
 
-## How far along the unit `way` from `p` it reaches the circle of `radius` the last time, or NAN if it misses it.
+## The far crossing along the unit `way`, or NAN on a miss.
 static func _crossing(p: Vector2, way: Vector2, radius: float) -> float:
 	var b := p.dot(way)
 	var d := b * b - p.length_squared() + radius * radius
@@ -113,9 +105,7 @@ static func noise_for(r: Dictionary) -> FastNoiseLite:
 	return n
 
 
-## The lake's bed from the meadow's bank's foot out to the first range's foot, then each range's facing slopes, as one indexed
-## surface whose normals are smoothed across every fold gentler than CREASE. COLOR.r is the height as a share of the
-## farthest range's highest, COLOR.g the haze of the air in front, COLOR.b where snow may lie.
+## Lake bed, then the ranges: COLOR.r the height in shares of TOP, .g the haze in front, .b where snow may lie.
 static func arrays() -> Array:
 	var corners := PackedVector3Array()
 	var colors := PackedColorArray()
@@ -125,8 +115,6 @@ static func arrays() -> Array:
 	return _smooth(corners, colors)
 
 
-## Each corner's normal is the angle-weighted mean of the faces round its point that fold from its own face by less
-## than CREASE; corners that agree on point and normal become one vertex.
 static func _smooth(corners: PackedVector3Array, colors: PackedColorArray) -> Array:
 	var faces := PackedVector3Array()
 	var angles := PackedFloat32Array()
@@ -186,7 +174,6 @@ static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 		_strip(corners, colors, r, grid[k], grid[k + 1])
 
 
-## Joins two rings of points round the range, each fanning to the other where it is cut finer.
 static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, lo: PackedVector3Array, hi: PackedVector3Array) -> void:
 	var i := 0
 	var j := 0
@@ -199,7 +186,7 @@ static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 			j += 1
 
 
-## Starts at the bank's foot point for point, so the ground's own bank (Terrain.bank_mesh) meets it with no crack.
+## Point for point from the bank's foot, so Terrain.bank_mesh meets it with no crack.
 static func _edge(corners: PackedVector3Array, colors: PackedColorArray) -> void:
 	var r: Dictionary = RANGES[0]
 	var bank := Terrain.edge(Terrain.BANK)
@@ -229,8 +216,7 @@ static func lake_arrays() -> Array:
 	return Meshes.level(verts)
 
 
-## Each range's ridge over the lake round the circle, so the water mirrors the ranges without drawing them twice:
-## R the first's, G the second's, as height over LAKE in shares of TOP.
+## R, G: each range's ridge over LAKE in shares of TOP, so the water mirrors the ranges without drawing them twice.
 static func ridge_image() -> Image:
 	var img := Image.create(RIDGE_SAMPLES, 1, false, Image.FORMAT_RGF)
 	var noises := RANGES.map(noise_for)

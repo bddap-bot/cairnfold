@@ -5,11 +5,11 @@ extends Node
 
 const SpringDefinition = preload("res://addons/avatar_workshop/spring_definition.gd")
 const PORT := 7480
-## A host takes the first free of PORTS ports from its first; a beacon may name any of PORT_RANGE from PORT.
+## A host takes the first free of PORTS ports; a beacon may name any of PORT_RANGE from PORT.
 const PORTS := 8
 const PORT_RANGE := 64
-## Several, so instances on one machine each find the others.
 const BEACON_PORT := 7469
+## Several, so instances on one machine each find the others.
 const BEACON_PORTS := 4
 const BEACON_EVERY := 1.0
 const FORGET_AFTER := 4.0
@@ -18,30 +18,25 @@ const HEAR_PER_FRAME := 16
 const MAX_NEARBY := 12
 const MAX_PLAYERS := 8
 const POSE_EVERY := 1.0 / 30.0
-## Metres of the sender's scaled world; a streamed palm farther than this from its hand is refused.
+## Metres of the sender's scaled world.
 const PALM_REACH := 2.0
-## Sent heads, hands or throws outside this are corrupt or hostile.
 const ROAM := AABB(Terrain.ROOM.position - Vector3.ONE * 40.0, Terrain.ROOM.size + Vector3.ONE * 80.0)
-## Per second.
 const FOLLOW := 18.0
-## Seconds.
 const FOLDER_EVERY := 2.0
 ## A channel of its own, so building commands never wait behind an avatar file.
 const FILE_CHANNEL := 1
-## Avatar files handed out, and fetched for the picker, at once; STALL is the seconds before a stalled transfer drops.
+## Avatar files handed out, and fetched for the picker, at once.
 const SHELF_PEERS := 4
 const FETCHES := 2
 const STALL := 30.0
-## Milliseconds. ENet's default drops a live peer within seconds when a large file's transfer meets a burst of
-## Wi-Fi loss.
+## Milliseconds. ENet's default drops a live peer when a large file's transfer meets a burst of Wi-Fi loss.
 const SILENCE := 30000
-## ENet's longest silence in milliseconds, past what its clock can tell apart: a link set to it never times out.
+## ENet's longest timeout in milliseconds: a link set to it never times out.
 const PATIENT := 0x7fffffff
 const CHUNK := 1 << 16
-## Seconds before a file that failed to fetch, or was not the one named, is tried again; one that arrived and did not
-## read is not, while a beacon still names it.
+## Seconds until a failed or mismatched fetch retries; one that arrived unreadable never does while a beacon names it.
 const RETRY := 30.0
-## Metres a second; THROW_EVERY in seconds.
+## Metres a second.
 const MAX_THROW := 20.0
 const THROW_EVERY := 0.1
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
@@ -61,7 +56,6 @@ var port := 0
 ## 0 for an instance a test or script made without a port: it opens nothing, so runs side by side never meet.
 var first_port := PORT
 var beacon_port := BEACON_PORT
-## false keeps beacons on this machine.
 var lan := true
 ## {address, port}, or empty at home.
 var visiting := {}
@@ -69,7 +63,6 @@ var visiting := {}
 var nearby := {}
 ## By peer id.
 var avatars := {}
-## Says whether players are drawn in their own files (`_files`, as last dressed) and admits each as dressed.
 var quality: Quality
 var _files := true
 var _spring_hands := [[], []]
@@ -81,7 +74,7 @@ var held := {}
 var painting: EaselTool
 var book: Book
 var _sent_held: Array = []
-## Holds this player's own .vrm avatars; "" for none.
+## Of this player's .vrm avatars; "" for none.
 var folder := ""
 ## By file name: {seen, when, key, bytes, scene}. `seen` is modified time and size, so a file is read again only when
 ## it changes; `key` is "" until read, and `scene` null unless it read as an avatar within the limits.
@@ -90,9 +83,9 @@ var files := {}
 var _wanted := ""
 ## One at a time, newest first, so a full folder never holds every core or its memory.
 var _reading := ""
-## The worn file once it read as an avatar within the limits; empty for a built-in avatar.
+## Only a file that read as an avatar within the limits; empty for a built-in avatar.
 var worn := PackedByteArray()
-## Its hash, which the beacon names so the picker can fetch the file before anyone joins; "" for a built-in avatar.
+## Named in the beacon so the picker can fetch the file before anyone joins; "" for a built-in avatar.
 var worn_key := ""
 ## By file hash: this player's own and those nearby gardens' beacons name.
 var previews := {}
@@ -101,8 +94,7 @@ var _looks := {}
 var _wearing := {}
 ## By hash, while someone here wears one.
 var _scenes := {}
-## {task, peer, done, out}; only the worker writes `out` until the task completes. `_waiting`: each player's latest
-## file waiting to be read.
+## {task, peer, done, out}; only the worker writes `out` until the task completes. `_waiting`: each player's latest.
 var _jobs: Array[Dictionary] = []
 var _waiting := {}
 var _since_folder := INF
@@ -113,12 +105,11 @@ var _since_beacon := INF
 var _since_pose := 0.0
 var _beacon := PacketPeerUDP.new()
 var _listen := PacketPeerUDP.new()
-## Hands this player's file, after its length, to whoever asks over TCP on the game's port. `_handing`:
-## {peer, bytes, sent, opened}.
+## Serves this player's file, length first, over TCP on the game's port. `_handing`: {peer, bytes, sent, opened}.
 var _shelf := TCPServer.new()
 var _shelved := PackedByteArray()
 var _handing: Array[Dictionary] = []
-## By hash: {peer, got, since}, then {} while one is read.
+## By hash: {peer, got, since, most}, then {} while one is read.
 var _fetches := {}
 ## By hash: when a fetch last failed; INF for one that arrived and did not read.
 var _failed := {}
@@ -146,7 +137,6 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 		Avatar.built_in(i)
 
 
-## Launched by a player, not run by a script or a test. Only it beacons on the network.
 static func played(args: Dictionary, launched: bool) -> bool:
 	return launched and not (args.has("script") or args.has("replay") or args.has("join") or args.has("port") or args.has("beacon-port"))
 
@@ -722,9 +712,8 @@ func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, 
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(look), tint, key))
 
 
-## Reads and hashes `bytes`, or the file at `path`, on a worker thread; `done(hash, bytes, scene)` follows on this
-## one, `scene` null unless it is an avatar within the limits. `peer` is whose file it is, 0 for this player's own or a
-## picker fetch.
+## On a worker thread; `done(hash, bytes, scene)` follows on this one, `scene` null unless it is an avatar within the
+## limits. `peer` is whose file it is, 0 for this player's own or a picker fetch.
 func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
 	var out := {}
 	var task := WorkerThreadPool.add_task(func() -> void:

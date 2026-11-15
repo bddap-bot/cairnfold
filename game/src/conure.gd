@@ -162,7 +162,6 @@ static func _hash(n: float) -> float:
 	return fposmod(sin(n * 127.1 + 311.7) * 43758.547, 1.0) * 2.0 - 1.0
 
 
-## Held values with quick changes between, as a bird's head moves.
 static func _snap(t: float, rate: float, seed: float) -> float:
 	var k := floorf(t * rate)
 	return lerpf(_hash(k + seed), _hash(k + 1.0 + seed), smoothstep(0.0, 0.18, fposmod(t * rate, 1.0)))

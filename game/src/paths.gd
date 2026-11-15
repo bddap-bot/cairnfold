@@ -27,7 +27,7 @@ var _since_rebuild := 0.0
 var _dirty := false
 ## Worn again, with its arches still to cut next frame, so wearing and cutting don't spend one frame.
 var _cut_due := false
-## marks.rewears when the drawing's settled mask was taken; a rewear since wiped the drawn wear.
+## marks.rewears when the settled mask was taken: a rewear since wiped the drawn wear.
 var _seen := -1
 
 
@@ -49,7 +49,7 @@ func begin(p: Vector3, half: float) -> void:
 	_dirty = true
 
 
-## Carries the stroke on to `p`; whether it laid a new point.
+## Whether it laid a new point.
 func extend(p: Vector3, half: float) -> bool:
 	var pts := drawing.points
 	if Commands.length(pts) >= Commands.STROKE_LENGTH or pts.size() >= Commands.MAX_POINTS:
@@ -78,14 +78,12 @@ func end() -> Dictionary:
 	return ghost
 
 
-## For when its command landed, was turned down, or the garden was swapped.
 func drop(ghost: Dictionary) -> void:
 	marks.release(ghost.layout)
 	previews.erase(ghost.layout)
 	previewed.emit()
 
 
-## A stroke under way belongs to a garden being swapped away.
 func forget() -> void:
 	if drawing != null:
 		previews.erase(drawing)
@@ -95,7 +93,7 @@ func forget() -> void:
 		previewed.emit()
 
 
-## Keep paths in command order for ground wear and wall crossings.
+## Command order, for ground wear and wall crossings.
 func put(id: int, data: Dictionary) -> void:
 	var path := PathLayout.of(data)
 	path.plan()
@@ -160,7 +158,6 @@ func _process(delta: float) -> void:
 		_cut_due = true
 
 
-## Wears the tip and cuts its arches in the same frame.
 func _relay() -> void:
 	_wear_tip()
 	_cut_due = false
@@ -208,7 +205,6 @@ static func _pack(data: Dictionary, height: Callable, water: Callable, kinds: Ar
 	out.append_array(Wall.stone_parts(layout.pieces(height, water), kinds))
 
 
-## Each path's latest lay only; with `all`, waits for every one first.
 func _place(all := false) -> void:
 	for i in range(_jobs.size() - 1, -1, -1):
 		var job := _jobs[i]
@@ -227,7 +223,6 @@ func laying(id: int) -> bool:
 	return _laying.has(layout(id))
 
 
-## So what a script or test reads next sees the paths' pieces.
 func lay_now() -> void:
 	_place(true)
 

@@ -1,18 +1,16 @@
 class_name Decorations
 extends Node3D
 
-## Decorations on open ground share a batch per square cell this wide.
+## Metres: decorations on open ground share a batch per square cell this wide.
 const CELL := 16.0
 
 var world: World
 var walls: WallTool
-## id -> {xform: its place as its build was laid, before the build's carry; bounds; flames there}.
+## id -> {xform: its place as its build was laid, before the build's carry; bounds; flames}.
 var placed := {}
-## [place, lantern look] -> {node, sig it was laid from}. The place is its house's id, its ground cell, or, for one
-## held or swept, its id as a String, so it stands alone.
+## [place, lantern look] -> {node, sig}; place: its house's id, its ground cell, or a held or swept one's id as a String.
 var _batches := {}
 var _shown := {}
-## Decorations a hand carries; moving one moves its node alone.
 var _held := {}
 var _stamp := {}
 ## Hidden until the delete sweep lets go; the beam passes through them.
@@ -20,7 +18,6 @@ var _swept := {}
 ## Parallel: each flame and the light it casts.
 var flames := PackedVector3Array()
 var lights := PackedColorArray()
-## The last string style the style wheel let go on a string.
 var string_style := DecorationLayout.named("Lantern string")
 
 
@@ -31,7 +28,6 @@ func _init(garden: World, builder: WallTool) -> void:
 
 ## A house's, or open ground's in one cell, are one batch, since a draw per piece costs more than its triangles.
 func sync() -> void:
-	# None to show and none shown: a wall's change has nothing to move.
 	if world.state.decorations.is_empty() and _shown.is_empty() and _held.is_empty() and _swept.is_empty() and _batches.is_empty() and placed.is_empty():
 		return
 	var stamp := [world.state.decorations.duplicate(true), world.terrain.revision(), _shown.duplicate(true), _held.keys(), _swept.keys()]
@@ -97,7 +93,6 @@ func place() -> void:
 			lights.append(g)
 
 
-## The build's carry included.
 func world_xform(id: int) -> Transform3D:
 	var w := _wall_of(id)
 	return (w.transform if w != null else Transform3D.IDENTITY) * placed[id].xform
@@ -113,8 +108,7 @@ func laid(d: Dictionary) -> DecorationLayout:
 	return layout
 
 
-## null where its surface is gone. Furniture stands at `at` in its house's `plan`, turned `turn` from its ridge, so it
-## moves, turns, grows and rises with the house.
+## Null where its surface is gone. Furniture stands at `at` in its house's `plan`, turned `turn` from its ridge.
 func frame(d: Dictionary) -> Variant:
 	if d.mount == "span":
 		var run: Vector3 = d.to - d.at
@@ -154,8 +148,7 @@ static func span(d: Dictionary) -> Vector3:
 	return Vector3(Vector2(run.x, run.z).length(), run.y, 0.0)
 
 
-## Axes along and across the ridge, scaled to the half span to its inner faces, so (1, 0, 1) is the corner and
-## furniture keeps its share of the room when it is resized.
+## Scaled to the inner faces, so (1, 0, 1) is the corner and furniture keeps its share of the room on a resize.
 static func plan(w: Wall) -> Transform3D:
 	var r := w.roof
 	var f := r.frame()

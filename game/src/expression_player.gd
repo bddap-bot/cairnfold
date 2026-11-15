@@ -9,10 +9,10 @@ var contacts: Contacts
 var icons: Array[Texture2D] = []
 var _bindings: Array = []
 var _scales: Array[int] = []
-## [skeleton, bone] -> {rest, turn: the Unity local rotation its effects set, rest_turn: the authored one, shift: each
-## translation binding's offset, pose, bone, dirty, sent, sprung}.
+## [skeleton, bone] -> {rest, turn: Unity local rotation its effects set, rest_turn: the authored one, shift: binding
+## index -> offset, pose, bone, dirty, sent, sprung}.
 var _moved := {}
-## A moved bone a spring swings is the spring's to pose, about the pose its effects make.
+## A moved bone a spring swings is the spring's to pose, about the pose its effects make, as PhysBones do.
 var springs: SpringRuntime:
 	set(value):
 		springs = value
@@ -27,10 +27,9 @@ var _materials := {}
 var _regions := {}
 var _dirty_regions := {}
 var _turned := {}
-## Copies of the looks table (Avatar._lit_looks), which an imported scene shares with every avatar opened from it, for
-## Poiyomi global theme colours to recolour: keyed by a mesh a clip moves a theme on, or by the model for themes whose
-## hue turns at rest. {"table", "texture", "entries" by column, each {"theme" (unity/materials.gd `_theme`), "replace",
-## "frame", "colour"}, "dirty", "turning"}.
+## Copies of the looks table (Avatar._lit_looks), which every avatar from one imported scene shares, keyed by a mesh a
+## clip moves a theme on, or by the model for themes turning at rest: {"table", "texture", "entries": column ->
+## {"theme", "replace", "frame", "colour"}, "dirty", "turning"}.
 var _glows := {}
 var _seconds := 0.0
 var _frame := 0
@@ -62,7 +61,7 @@ const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emi
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
 const RESTING_FIELDS := ["emission", "matcapIntensity"]
 
-## Main thread, all avatars; metrics.gd reads and resets it.
+## All avatars; metrics.gd reads and resets it.
 static var process_us := 0
 
 
@@ -221,8 +220,7 @@ func _init(model: Node3D) -> void:
 	_move_bones()
 
 
-## After saved values are restored and before the first draw, so a still figure, which never processes, shows the look
-## its controller starts in.
+## After saved values are restored, so a still figure, which never processes, shows its controller's starting look.
 func _ready() -> void:
 	state.advance(0.0)
 	apply()
@@ -241,7 +239,7 @@ func _process(delta: float) -> void:
 	process_us += Time.get_ticks_usec() - start
 
 
-## `targets`: output indices to bind; null binds every output.
+## `targets`: output indices; null binds every output.
 func apply(targets: Variant = null) -> void:
 	var showing := {}
 	if _frame == 0:
@@ -297,8 +295,6 @@ func apply(targets: Variant = null) -> void:
 		_shown[k].node.visible = shows(state.outputs, _shown[k].when)
 
 
-## A bone a spring swings gets its pose as the spring's rest, as VRChat's PhysBones swing about the pose the animator
-## left.
 func _move_bones() -> void:
 	for at: Array in _moved:
 		var moved: Dictionary = _moved[at]
@@ -504,7 +500,6 @@ static func coat_fallbacks(stacks: Array) -> Texture2DArray:
 	return out
 
 
-## `maps`: the clear coats' packed maps (unity/materials.gd coat_map) or the matcaps.
 static func _layers(maps: Array) -> Texture2DArray:
 	var side := 1
 	for img: Image in maps:
@@ -534,8 +529,7 @@ static func _settings(kind: String, region: Dictionary, page: int) -> Array:
 	return [region.get("slot", 0), region.get("colorBlend", 0), region.get("alpha", 1), LOOK_FIELDS.find(region.get("field", "decal")), page]
 
 
-## `entries`: looks table column -> entry. Adds if new; {} where the material glows in no theme colour of the region's
-## slot.
+## `entries`: looks table column -> entry, added if new; {} where no material at the region's rect glows in its slot.
 static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) -> Dictionary:
 	var materials: Array = looks.get("materials", [])
 	for k in materials.size():
@@ -545,8 +539,6 @@ static func _glow(entries: Dictionary, region: Dictionary, looks: Dictionary) ->
 	return {}
 
 
-## Adds each material whose global theme colour's hue turns at rest, unless present, sharing its entry through
-## `resting`.
 static func _turning(entries: Dictionary, looks: Dictionary, resting: Dictionary) -> void:
 	var materials: Array = looks.get("materials", [])
 	for k in materials.size():
@@ -631,8 +623,7 @@ func _marked(mesh: MeshInstance3D, mark: String) -> bool:
 	return _marks[key]
 
 
-## False where the world has no reflection probe (the reference replay's harness); coats then reflect their fallback
-## cubemaps.
+## False where the world has no reflection probe; coats then reflect their fallback cubemaps.
 static var world_reflects := true:
 	set(v):
 		world_reflects = v

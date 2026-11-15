@@ -1,18 +1,15 @@
 class_name PhotoTool
 extends Node3D
 
-## A photo sees Quality.FULL_LAYER instead of LADDER_LAYER whatever the headset's quality step, so it is drawn as well
-## as the game can draw; its MSAA steps down only where its buffers would not fit the memory available (photo_msaa).
-##
-## Godot draws a viewport whole within one frame, and on a Quest 2 a photo's frame cannot stay under 50 ms: allocating
-## its view and atlas took 60-250 ms, its draw 40-80 ms of GPU time, its read 50-70 ms. So the view fades to black
-## (Rig.cover) while the photo is drawn and read: the headset shows black, never a stalled or brighter frame.
+## Godot draws a viewport whole within one frame, and on a Quest 2 a photo's frame cannot stay under 50 ms (allocating
+## 60-250 ms, drawing 40-80 ms of GPU, reading 50-70 ms), so the view fades to black (Rig.cover) meanwhile. A photo
+## sees Quality.FULL_LAYER at any quality step; its MSAA steps down only where memory is short (photo_msaa).
 
 signal recorded(path: String)
 
 const PREVIEW_SIZE := Vector2i(256, 192)
 ## Previews redraw one at a time, one frame in this many, and a recording camera takes every turn, so a second
-## camera costs the frame nothing more.
+## camera costs nothing more.
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
@@ -29,8 +26,7 @@ const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
 const CAMERAS: Array[Hand.Tool] = [Hand.Tool.CAMERA, Hand.Tool.SELFIE]
-## Seconds a trigger is held before it records instead of taking a photo on release.
-const HOLD := 0.3
+const RECORD_HOLD_SECONDS := 0.3
 const VIDEO_SIZE := Vector2i(640, 480)
 const VIDEO_FPS := 24
 const VIDEO_QUALITY := 0.8
@@ -55,8 +51,7 @@ var _turn := 0
 ## Hand -> seconds its screen still holds the shot.
 var _shots := {}
 var _busy := false
-## Ticks msec.
-var _covered_at := 0
+var _covered_at_msec := 0
 var _photo_msaa := PHOTO_MSAA
 ## Paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
@@ -111,7 +106,6 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	return vp
 
 
-## At a small `size` this builds the photo's pipelines cheaply.
 func _photo_view(size: Vector2i, msaa := PHOTO_MSAA) -> SubViewport:
 	var vp := _viewport(size, msaa)
 	vp.mesh_lod_threshold = 0.0
@@ -193,12 +187,12 @@ func _process(delta: float) -> void:
 			_pressed_for[i] = 0.0
 		elif b.held("tool") and _pressed_for[i] >= 0.0:
 			_pressed_for[i] += delta
-			if _pressed_for[i] >= HOLD and _clip == null:
+			if _pressed_for[i] >= RECORD_HOLD_SECONDS and _clip == null:
 				record(h)
 		elif b.released("tool") and _pressed_for[i] >= 0.0:
 			if _clip_hand == h:
 				stop()
-			elif _pressed_for[i] < HOLD and not _busy:
+			elif _pressed_for[i] < RECORD_HOLD_SECONDS and not _busy:
 				shoot(h)
 			_pressed_for[i] = -1.0
 	for i in rig.hands.size():
@@ -262,10 +256,10 @@ func shoot(hand: Hand) -> String:
 	var about: Dictionary = around.about.duplicate()
 	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
-	# The frame the reads landed on copies them out of GPU memory, 50-70 ms on a Quest 2: it ends under the cover.
+	# The frame the reads land on copies them out of GPU memory (`_read`): it ends under the cover.
 	await get_tree().process_frame
 	rig.uncover()
-	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at))
+	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at_msec))
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
@@ -539,7 +533,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	_aim(warm, at, fov, mask)
 	await _draw_complete(warm, true)
 	warm.queue_free()
-	_covered_at = Time.get_ticks_msec()
+	_covered_at_msec = Time.get_ticks_msec()
 	while not rig.cover(PHOTO_FADE):
 		await get_tree().process_frame
 	# The photo's view is made under the cover and let go once the screen stops showing it: held, its buffers left
@@ -577,8 +571,7 @@ func _draw_complete(vp: SubViewport, finest := false) -> void:
 			return
 
 
-## The pixels come back a frame or two later instead of stalling the frame that asked; the frame they land on copies
-## them out of GPU memory, 50-70 ms on a Quest 2 for a photo's 30 MB, which the cover hides.
+## Asynchronous, so the asking frame does not stall; the frame the pixels land on copies them out (`render`'s cover).
 func _read(views: Array[SubViewport]) -> Array[Image]:
 	var rd := RenderingServer.get_rendering_device()
 	var got := {}

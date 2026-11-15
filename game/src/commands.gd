@@ -28,7 +28,6 @@ const MAX_HATCHES := 8
 const MAX_RUINS := 32
 ## Per thing one command, and per plant group one more for its hidden plants.
 const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
-## Builds one build may stand on.
 const MAX_SUPPORTS := 8
 ## By garden table; `paint` and a wall's `roof` also change, by the entries they name (`_reshape`).
 const RESHAPES := {
@@ -202,7 +201,6 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 	return out if ok else {}
 
 
-## A wall with a roof is a house, with floors; one with an unpitched roof has a deck.
 static func _holds(wall: Dictionary, mount: String) -> bool:
 	match mount:
 		"floor":
@@ -309,8 +307,7 @@ static func _strokes(d: Variant) -> Variant:
 
 
 ## Each command is checked against the garden as it stands, so no two may change the same thing; a player's batch
-## holds at most one `show`. A player's command that no longer applies is dropped and the rest stand; every one of the
-## host's must apply.
+## holds at most one `show` and drops a command that no longer applies; every one of the host's must apply.
 static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary, ground: Terrain) -> bool:
 	var cmds: Variant = cmd.get("cmds")
 	# The host's batches include undoing a build taken with all that stood on it, however much that was.

@@ -1,16 +1,14 @@
 class_name Water
 extends Node3D
 
-## Every pond, as `World` fills them (`show`). Pond levels are shared with shaders (water.gdshaderinc), so the
-## bed turns to sand and the meadow's drowned grass and flowers go without touching an instance.
+## Shaders read the pond levels, so the bed turns to sand and drowned meadow plants go without touching an instance.
 
 const RIPPLE_MOVE := 0.07
-## Water deeper than this over a plant's root drowns it, as water.gdshaderinc's `drowned` reads it.
+## Metres over a plant's root that drown it, as water.gdshaderinc's `drowned` reads it.
 const DROWNS := 0.02
-## How finely `crosses` looks for water where a pond is near.
+## Metres between `crosses`' samples where a pond is near.
 const WADE := 0.1
 
-## Water came, went or changed level over `area`.
 signal refilled(area: Rect2)
 
 var hands: Array[Node3D] = []
@@ -25,7 +23,6 @@ var _wet := {}
 static var _known: Array = []
 
 
-## A hand's last contact with the water.
 class Wade:
 	var pond: PondWater
 	var at := Vector3.ZERO
@@ -40,7 +37,7 @@ func _init(ground: Terrain, touching: Array[Node3D]) -> void:
 	terrain.dry_water()
 
 
-## The pond grid point `at` fills over `ground` as it stands, with water no higher than `level`, or null.
+## Null when `at` holds no pond up to `level`.
 static func fill(ground: Terrain, at: Vector2i, level: float) -> PondLayout.Pond:
 	var heights := ground.read(Terrain.ALL)
 	for k: Array in _known:
@@ -49,22 +46,18 @@ static func fill(ground: Terrain, at: Vector2i, level: float) -> PondLayout.Pond
 	return PondLayout.fill(heights, Terrain.ALL, at, level)
 
 
-## Keeps `known` ([heights, grid point, level, pond] each) for `fill`, in place of those kept before.
 static func know(known: Array) -> void:
 	_known = known
 
 
-## The level a hollow pressed into `ground` at (x, z) out to `radius` holds to its brim, PondLayout.FREEBOARD under the
-## lowest point of its rim, as if what spilled over ran away; -INF when it holds none. On ground lower all round, water
-## filled higher spills into the ground around and fills that too.
+## PondLayout.FREEBOARD under the lowest point of the hollow's rim, as if what spilled ran away; -INF when it holds none.
 static func brim(ground: Terrain, x: float, z: float, radius: float) -> float:
 	var cells := Terrain.cells_around(x, z, radius + Terrain.STEP * 2.0)
 	var p := PondLayout.fill(ground.read(cells), cells, Terrain.grid_point(x, z))
 	return p.level if p != null else -INF
 
 
-## What `deepest` fills from for a point of `ground`: per hollow the grid points around it run down into, one of
-## those points and the ground around it, as [grid point, window, heights].
+## One [grid point, window, heights] per hollow the grid points round `point` run down into.
 static func candidates(ground: Terrain, point: Vector3) -> Array:
 	var g := Terrain.grid_point(point.x, point.z)
 	var heights := ground.read(Terrain.ALL)
@@ -106,8 +99,7 @@ func shown() -> Array[PondLayout.Pond]:
 	return out
 
 
-## Shows `found` as the ponds, as `refill` worked out when it has (Refill.publish). A pond that covers water already
-## shown keeps that surface and its water.
+## A pond covering water already shown keeps that surface.
 func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
 	if refill == null or refill.image == null:
 		refill = Refill.new()
@@ -148,7 +140,7 @@ func floor_at(p: Vector3) -> float:
 	return maxf(ground, pond.surface_y()) if pond != null else ground
 
 
-## The pond whose water is over (x, z), or null.
+## Null where no pond's water is over (x, z).
 func pond_at(x: float, z: float) -> PondWater:
 	var g := Terrain.grid_point(x, z)
 	var i := owners[g.y * Terrain.VERTS + g.x]
@@ -157,9 +149,7 @@ func pond_at(x: float, z: float) -> PondWater:
 	return ponds[i]
 
 
-## Whether a straight way across the ground from `a` to `b` goes into water, as `pond_at` finds it every WADE
-## metres. Only the grid squares a pond reaches are looked at that closely, so a way over dry ground costs one
-## step a square. Water the way starts in does not count until the way has left it.
+## Water the way starts in does not count until the way has left it.
 func crosses(a: Vector2, b: Vector2) -> bool:
 	var length := a.distance_to(b)
 	if length < 1e-4:

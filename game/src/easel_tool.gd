@@ -4,7 +4,7 @@ extends Node3D
 const REACH := 0.12
 const DIP_LOAD := 0.1
 const NEAR_BOARD := 0.05
-## How far past a surface the tracked hand may go with the brush still stopped at it.
+## Metres the tracked hand may pass a surface with the brush still stopped at it.
 const PUSH_THROUGH := 0.3
 const PEEL := 0.3
 const PLACE_CLEAR := 2.5
@@ -21,8 +21,7 @@ const RESTROKE_HZ := 6.0
 ## The palette's thumb hole in the controller's frame, and its yaw (radians) off the hand's right.
 const GRIP := Vector3(0, -0.035, 0.02)
 const GRIP_YAW := 0.5
-## Seconds.
-const RETURN := 0.3
+const RETURN_SECONDS := 0.3
 const TINT := Color(0.95, 0.86, 0.72, 0.6)
 ## A dip's name: this prefix, then the pigment's index.
 const PAINTS := {Brushwork.Medium.WATER: "pan", Brushwork.Medium.OIL: "oil"}
@@ -34,7 +33,6 @@ class Painter:
 	var brush_from := 0
 	var showing := false
 	var medium := Brushwork.Medium.WATER
-	## Optical density; a wash is weak.
 	var colour := Vector3.ZERO
 	var strength := 0.0
 	var load := 0.0
@@ -314,9 +312,8 @@ func _take_brush(p: Painter, kind: Brushwork.Brush, from: Easels.Easel) -> void:
 	_show_paint(p)
 
 
-## Hides what any hand shows, here or a remote player's `HeldItem`, so everyone sees the same. A brush is back on its
-## easel while its hand shows anything else, and gone to that hand if someone took it meanwhile. A palette in a hand
-## here is carried off already.
+## Hides on its easel what any hand here or remote shows, so everyone sees the same. A brush returns while its hand
+## shows anything else, and is lost to it if someone took it meanwhile; a palette held here is carried off already.
 func _rack() -> void:
 	taken.clear()
 	for item: HeldItem in get_tree().get_nodes_in_group(HeldItem.GROUP):
@@ -424,7 +421,7 @@ func _return(delta: float) -> void:
 			continue
 		var palette: Node3D = node
 		var rest := Transform3D(Basis(), Easels.KITS[r[1]])
-		r[3] = minf(r[3] + delta / RETURN, 1.0)
+		r[3] = minf(r[3] + delta / RETURN_SECONDS, 1.0)
 		if r[3] < 1.0:
 			palette.global_transform = (r[2] as Transform3D).interpolate_with((palette.get_parent() as Node3D).global_transform * rest, smoothstep(0.0, 1.0, r[3]))
 			continue
@@ -588,8 +585,7 @@ static func _under(paint: Image) -> Dictionary:
 	return {"height": clampf(height / n, 0.0, 1.0), "density": density / height}
 
 
-## A stroke keeps the paint it began with, so taking up waits until the colour has moved far enough and the stroke is
-## old enough, then ends it for the next stroke to lay the new paint.
+## A stroke keeps the paint it began with, so a take-up that moves the colour far enough ends it for the next to lay.
 func _take_up(p: Painter, delta: float) -> void:
 	var under := p.under
 	if Brushwork.is_stick(p.brush) or under.is_empty() or under.height <= 0.0:
@@ -638,7 +634,6 @@ func _off_paint(p: Painter) -> void:
 	p.took = false
 
 
-## Whether the tip touches.
 func _touch(p: Painter, e: Easels.Easel, palette: bool, delta: float) -> bool:
 	if p.contact_easel != e or p.contact_palette != palette:
 		_off_paint(p)

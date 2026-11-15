@@ -302,12 +302,12 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	tool.recorded.connect(func(path: String) -> void: saved.append(path))
 	var key := Controls.key("tool", rig.right.tracker)
 	Buttons.injected[key] = true
-	await create_timer(PhotoTool.HOLD * 0.3).timeout
+	await create_timer(PhotoTool.RECORD_HOLD_SECONDS * 0.3).timeout
 	Buttons.injected.erase(key)
 	await frames(2)
 	check(tool._clip == null and saved.is_empty(), "a tap of the trigger takes a photo, not a video")
 	Buttons.injected[key] = true
-	await create_timer(PhotoTool.HOLD * 1.5).timeout
+	await create_timer(PhotoTool.RECORD_HOLD_SECONDS * 1.5).timeout
 	var heard := func(act: String) -> int: return Cues.asked.get(Cues.Act.get(act, -1), 0)
 	check(tool._clip_hand == rig.right, "held, the trigger records")
 	check(heard.call("VIDEO_START") == 1 and heard.call("VIDEO_STOP") == 0, "starting a video has its own cue")
@@ -326,7 +326,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	check(tool._previews[rig.right].size == PhotoTool.PREVIEW_SIZE and shutter.emission == Color.BLACK, "the screen and button go back as they were")
 	check(AudioServer.get_bus_effect_count(0) == effects, "the game's sound is no longer taken")
 	Buttons.injected[key] = true
-	await create_timer(PhotoTool.HOLD * 1.5).timeout
+	await create_timer(PhotoTool.RECORD_HOLD_SECONDS * 1.5).timeout
 	check(tool._clip_hand == rig.right, "a second hold records again")
 	rig.right.tool = Hand.Tool.WALLS
 	await until(func() -> bool: return saved.size() == 2, "a second hold's video is saved")
@@ -337,7 +337,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	var shots: int = Cues.asked.get(Cues.Act.PHOTO, 0)
 	tool._busy = true
 	Buttons.injected[key] = true
-	await create_timer(PhotoTool.HOLD * 0.3).timeout
+	await create_timer(PhotoTool.RECORD_HOLD_SECONDS * 0.3).timeout
 	Buttons.injected.erase(key)
 	await frames(2)
 	tool._busy = false

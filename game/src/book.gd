@@ -2,9 +2,7 @@ class_name Book
 extends Node3D
 
 ## Turned by touch, never a button, so no tool acts. Every LessonScene is built with the book so none builds as it
-## first opens.
-##
-## Its frame (`local`): the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
+## first opens. Its frame: the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
 
 const W := 0.15
 const H := 0.15
@@ -30,12 +28,12 @@ const BEHIND := 0.02
 const THROUGH_MARGIN := Vector2(0.03, 0.02)
 ## Metres between two frames' readings beyond which it is tracking or a teleport catching up, not a hand.
 const STEP := 0.15
-## Metres a resting leaf bows up out of the gutter.
+## Metres, up out of the gutter.
 const BOW := 0.006
 const BOARD := Vector3(W + OVER, COVER_T, H + OVER * 2.0)
 const PAGE_HZ_DIVIDER := 2
 ## Opaque draws go in ascending render_priority, after the garden at 0: the top layer first, so what lies under it
-## fails the depth test unshaded. In any order the open book costs about a millisecond of a Quest 2's frame.
+## fails the depth test unshaded. Unordered, the open book cost about a millisecond of a Quest 2's frame.
 enum Layer { SHEET = 1, BLOCK, INSIDE, BOARD }
 ## book.gdshader's `kind`.
 enum Kind { COVER, BLOCK }

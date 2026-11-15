@@ -21,16 +21,15 @@ const ROOF_STEP := 0.1
 ## Metres carried between two scrape cues.
 const CARRY_STEP := 0.12
 
-## The music makes room (Soundscape).
 signal built
 
 
-## `command` is {} while the garden already has what is shown.
 class Sizing:
 	var scale: Callable = func() -> float: return 1.0
 	var limits := Vector2.ONE
 	var current: Callable
 	var show: Callable = func(_size: float) -> void: pass
+	## Returns {} while the garden already has what is shown.
 	var command: Callable
 	var settle: Callable
 	var take: Callable
@@ -48,15 +47,15 @@ class EaselGrip:
 class Mason:
 	var hand: Hand
 	var stroke: Stroke
-	## `eave_out` is zero unless the grip took an eave past the walls.
 	var took_roof := false
+	## Zero unless the grip took an eave past the walls.
 	var eave_out := Vector3.ZERO
-	## `lift_start` and `pair_span`: the scale and the hands' span when the second hand joined.
 	var growing: Object
 	var sizing: Sizing
 	var took := Transform3D()
 	var gain := 1.0
 	var partner: Mason
+	## This and lift_start: the hands' span and the scale when the second hand joined.
 	var pair_span := 0.0
 	var lift_start := 0.0
 	var lift_at := Vector3.ZERO
@@ -67,8 +66,8 @@ class Stroke:
 	var plan: WallPlan
 	var walls: Array[Wall] = []
 	var planned := false
-	## `level` is NAN on the ground.
 	var on := PackedInt32Array()
+	## NAN on the ground.
 	var level := NAN
 
 
@@ -621,7 +620,6 @@ static func _footing(at: Dictionary) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, at.yaw), _flat(at.center))
 
 
-## What stands along its walls or on its roof keeps its place there.
 static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
 	var points := PackedVector3Array()
 	for p: Vector3 in d.points:
@@ -1520,8 +1518,7 @@ func _open_paths(w: Wall, own: Variant = null) -> void:
 		_cut_meetings(w, p.meetings(w.layout))
 
 
-## Only cells each path shares with a wall are searched, so a long stroke costs its crossings, not its length
-## times the walls.
+## Searches only cells each path shares with a wall, so a long stroke costs its crossings, not length times walls.
 func _preview_crossings() -> void:
 	var walls_at := walls_by_cell()
 	var check: Array = walls
@@ -1712,8 +1709,7 @@ func take(id: int) -> void:
 	w.queue_free()
 
 
-## A held wall catches up when let go. Laid in its turn (`Wall.due`), so a house let go with a storey on it lays
-## them over frames.
+## A held wall catches up when let go. Laid in its turn (`Wall.due`), so a house with a storey lays over frames.
 func restyle(id: int, changed: Array) -> void:
 	var w := find(id)
 	if changed == ["paint"]:
@@ -1799,8 +1795,8 @@ func _ridge(w: Wall) -> Vector3:
 	return mid / w.layout.points.size() + Vector3.UP * (w.layout.height + w.roof.pitch)
 
 
-## Every building tool picks the first surface, then decides what it allows. `through_arches` is for the teleport and
-## decorations placed beyond an arch.
+## Every building tool takes the first surface hit, then decides what it allows. `through_arches` is for the teleport
+## and decorations placed beyond an arch.
 func pick_building(origin: Vector3, dir: Vector3, with_held := false, through_arches := false) -> Dictionary:
 	var best := {}
 	for w in walls:

@@ -1,13 +1,11 @@
 class_name ExpressionDefinition
 extends RefCounted
 
-## Material properties a target animates over atlas regions (docs/model.md "File").
 const REGIONS := ["hue", "color", "tone", "look"]
-## Poiyomi's decal Color Blend Modes (_DecalBlendType) a decal region's "colorBlend" names: replace, darken, multiply,
-## lighten, screen, subtract, add, overlay and mixed (decal_blend in expression.gdshaderinc).
+## Poiyomi _DecalBlendType values: replace, darken, multiply, lighten, screen, subtract, add, overlay, mixed
+## (decal_blend in expression.gdshaderinc).
 const DECAL_BLENDS: Array[int] = [0, 1, 2, 5, 6, 7, 8, 9, 20]
 
-## What a "particle" effect sets on its system (docs/particles.md).
 const PARTICLE_FIELDS := ["rate", "distance", "speed", "size", "lifetime", "gravity", "color", "material", "tint", "emission"]
 
 
@@ -16,7 +14,7 @@ static func region(effect: Variant) -> String:
 	return effect.keys()[0] if effect is Dictionary and effect.size() == 1 and effect.keys()[0] in REGIONS else ""
 
 
-## VRM files arrive from players. Reject malformed controller data before binding any of it to scene nodes.
+## VRM files arrive from players: reject malformed data before binding any of it to scene nodes.
 static func valid(data: Dictionary) -> bool:
 	for key: String in ["parameters", "targets", "clips", "layers", "shown", "springs", "colliders", "contacts", "particles", "menu", "icons"]:
 		if not data.get(key, []) is Array:
@@ -82,11 +80,9 @@ static func valid(data: Dictionary) -> bool:
 	return looks_valid(data.get("looks", {}))
 
 
-## A material's "lighting" "model" is "lit", by angle through its "ramp" of brightnesses, or "flat", lit alike whichever
-## way it faces (unity/materials.gd lighting). Emission, rim and rim shade colours are linear; an emission's "theme" is
-## the slot, among its material's "themes", of the global theme colour it glows in (unity/materials.gd `_theme`). The
-## rim is tinted by the looks' "rimTint" layer, shadows by "shade" and "shade2" (Avatar.shape); "outlineWidth" is in
-## metres. Looks that predate lighting are refused: their flat materials would draw shaded twice (Avatar.shape).
+## Emission, rim and rim shade colours are linear; an emission's "theme" is a slot in its material's "themes";
+## "outlineWidth" is in metres. Looks without lighting are refused: their flat materials would draw shaded twice
+## (Avatar.shape).
 static func looks_valid(looks: Variant) -> bool:
 	if not looks is Dictionary:
 		push_error("expressions: the looks are not a dictionary")
@@ -151,8 +147,7 @@ static func _theme(v: Variant) -> bool:
 	return v is Dictionary and _numbers(v.get("hsv"), 3) and ["exposure", "hue", "saturation", "value", "speed"].all(func(k: String) -> bool: return _number(v.get(k)))
 
 
-## "image" is gone once the model's texture holds it. At most 255 "cells": the shader looks through them for each
-## texel it recolours.
+## "image" is absent once the model's texture holds it. At most 255 "cells": the shader scans them per recoloured texel.
 static func _untinted(untinted: Variant) -> bool:
 	if not untinted is Dictionary:
 		return false
@@ -179,9 +174,8 @@ static func _matcap(c: Variant) -> bool:
 
 
 ## "gsaa" is [variance, threshold]; "st" is Unity's tiling and offset. "map" indexes the looks' "clearcoatMaps" and
-## "fallback" their "clearcoatFallbacks", -1 or an index past them drawing none; "forceFallback" reflects it even where
-## the world has a reflection probe. "fresnelStrength" is Poiyomi 9.2's, null for an earlier Poiyomi, whose "fresnel"
-## then weighs a grazing reflectance that follows its smoothness.
+## "fallback" their "clearcoatFallbacks", -1 or past the end drawing none. "fresnelStrength" is null before Poiyomi 9.2,
+## whose "fresnel" alone then weighs a grazing reflectance following smoothness.
 static func _coat(coat: Variant) -> bool:
 	if coat == null:
 		return true
@@ -213,8 +207,7 @@ static func _shadow(v: Variant) -> bool:
 	return (second == null or second is Dictionary and ["border", "blur", "weight"].all(func(k: String) -> bool: return _number(second.get(k)))) and (edge == null or edge is Dictionary and _numbers(edge.get("color"), 3) and _number(edge.get("range")))
 
 
-## null where the region's image holds its colour; a "decalHue" region must carry one, since the shader cannot guess
-## the space and mode it turns in.
+## null where the region's image holds its colour; a "decalHue" region needs one: the shader cannot guess its space.
 static func _hue(region: Dictionary) -> bool:
 	var v: Variant = region.get("hue")
 	if v == null:

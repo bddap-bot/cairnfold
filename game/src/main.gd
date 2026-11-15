@@ -33,7 +33,7 @@ var hand_stop: HandStop
 var flat: Flat
 var book: Book
 var _editors: Array
-## Drawn once, so a replay can start from it. The wildlife grows from it too unless --seed names another.
+## Drawn once, so a replay can start from it; the wildlife grows from it too unless --seed names another.
 var rng_seed := randi()
 ## Null unless --replay FILE.
 var replayer: Replayer
@@ -247,7 +247,6 @@ func _ready() -> void:
 	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
 		world.load_from(garden)
-	# A session that began on the empty meadow loaded no garden, and its replay loads none either.
 	if replayer != null and world.snapshot() != replayer.record.garden:
 		world.restore_whole(replayer.record.garden)
 	if args.has("photo"):
@@ -283,7 +282,7 @@ func record(into: PlayLog) -> void:
 	world.hear("look", [session.worn, session.avatar, session.colour])
 
 
-## Stamped by scripts/package.sh; "development" when run from the source.
+## Stamped by scripts/package.sh.
 static func revision() -> String:
 	if ResourceLoader.exists("res://revision.tres"):
 		return str(load("res://revision.tres").get_meta("revision", "development"))
@@ -297,7 +296,7 @@ func _photo_scene() -> Dictionary:
 		"commands": world.seq, "meadow_seed": Meadow.SEED, "wildlife_seed": str(wildlife.rng.seed)}}, "world": var_to_bytes(world.snapshot())}
 
 
-## Nothing of the photo is kept. False if it holds no garden this game can read whole.
+## Nothing of the photo is kept.
 func open_photo(path: String) -> bool:
 	var got := PhotoMeta.read(FileAccess.get_file_as_bytes(path))
 	if got.is_empty() or not world.restore_whole(got.world):
@@ -327,13 +326,11 @@ static func flat_wanted(launch: Dictionary, in_xr: bool, played: bool) -> bool:
 	return not in_xr and (launch.has("flat") or played and not launch.has("desktop"))
 
 
-## The window shows a frame on whole refreshes of the display, so the budget is the slowest whole share of its rate
-## at or over FLAT_HZ: on a 144 Hz display a frame over 13.9 ms waits three refreshes, 48 fps.
+## Frames show on whole refreshes: on a 144 Hz display one over 13.9 ms waits three refreshes, 48 fps.
 static func flat_pace() -> float:
 	return Main.shown_rate(DisplayServer.screen_get_refresh_rate())
 
 
-## `display_hz` 0 or less where the display reports none.
 static func shown_rate(display_hz: float) -> float:
 	if display_hz <= 0.0:
 		return Budget.FLAT_HZ
@@ -372,8 +369,7 @@ func _xr_state(state: int) -> void:
 	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 
-## The record keeps `paused`/`resumed`, and a replay, never paused, does this where the record has it (Replayer).
-## Hands hide since the system menu draws its own.
+## Recorded, so a replay, never paused, does this where the record has it; hands hide as the system menu draws its own.
 func held(pause: bool) -> void:
 	world.hear("paused" if pause else "resumed", [])
 	rig.left.visible = not pause
@@ -410,8 +406,8 @@ func view(eye: Vector3, at: Vector3) -> void:
 		rig.head.global_transform = want
 
 
-## With `screen`, saves the camera screen's view from the eyes instead: a headset's tracked hand points wherever
-## the controller lies. With `lens`, saves that lens's view as the eyes would see it, to set beside a photo.
+## `screen`: the camera screen's view from the eyes, as a tracked hand points anywhere; `lens`: that lens's view, as
+## the eyes would see it, to set beside a photo.
 func capture(name: String, screen := false, lens: Variant = null) -> void:
 	var img: Image
 	if screen:
@@ -442,22 +438,19 @@ func _notification(what: int) -> void:
 		finish()
 
 
-## The garden and the session log are written before the sounds wind down: a platform that asked us to
-## quit may kill the process soon after.
+## Written before the sounds wind down: a platform that asked us to quit may kill the process soon after.
 func finish(code := 0) -> void:
 	world.flush()
 	metrics.close()
 	Main.quit(get_tree(), code)
 
 
-## Where photos go: in user data, except on Android, where an uninstall erases user data and the app's own folders;
-## there they go to Pictures/Cairnfold in shared storage, which an uninstall leaves and the device's gallery shows.
+## On Android in shared storage, which an uninstall leaves and the gallery shows.
 static func photos_folder(android := OS.has_feature("android")) -> String:
 	return OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true).path_join("Cairnfold") if android else "user://photos"
 
 
-## A run's arguments. Godot drops a launch intent's arguments on an exported activity, so on Android they come from
-## `launch.args` beside the player's files, one a line, which the run deletes so the next launch starts plain.
+## On Android from `launch.args`, one a line, deleted once read: Godot drops an exported activity's intent arguments.
 static func launch_args() -> PackedStringArray:
 	var path := player_path("launch.args")
 	if not OS.has_feature("android") or not FileAccess.file_exists(path):
@@ -467,9 +460,8 @@ static func launch_args() -> PackedStringArray:
 	return lines
 
 
-## Where the player's `name` (a file or a folder) lives: in user data, except on Android, whose user data only the
-## game can read and an uninstall erases with no way to copy it off; there it is in the app's external files folder,
-## which a file manager or adb reaches.
+## On Android in the external files folder, which a file manager or adb reaches: user data there only the game
+## reads, and an uninstall erases it.
 static func player_path(name: String) -> String:
 	if OS.has_feature("android"):
 		var external := OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP, false)
@@ -478,8 +470,8 @@ static func player_path(name: String) -> String:
 	return "user://" + name
 
 
-## Written beside `path` and renamed over it, so a crash mid-write leaves the last one whole. Godot reports nothing of
-## a write the disk refused on close, so the file is measured before it replaces the old one.
+## Written beside `path`, measured, then renamed over it: a crash leaves the last whole, and Godot reports no write
+## the disk refused on close.
 static func replace_file(path: String, bytes: PackedByteArray) -> void:
 	var f := FileAccess.open(path + ".new", FileAccess.WRITE)
 	if f == null:
@@ -496,10 +488,8 @@ static func replace_file(path: String, bytes: PackedByteArray) -> void:
 		push_error("cannot save %s: %s" % [path, error_string(err)])
 
 
-## Writes `bytes` to `path`. On Android Godot's own files reach shared storage only in Download and Documents, so a
-## photo is written through java.io, as scoped storage lets an app write its own pictures without a permission. It
-## reaches flash SYNC_BYTES at a time: written whole, the kernel flushed a photo's 23 MB in one burst, and the engine's
-## code, paged back in on the main thread behind it, held a Quest 2's frame 148 ms.
+## On Android a photo goes through java.io: Godot's files reach shared storage only in Download and Documents. It
+## reaches flash SYNC_BYTES at a time: one 23 MB burst held a Quest 2's frame 148 ms.
 static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	if OS.has_feature("android") and path.begins_with(photos_folder()):
 		var out: JavaObject = JavaClassWrapper.wrap("java.io.FileOutputStream").FileOutputStream(path)

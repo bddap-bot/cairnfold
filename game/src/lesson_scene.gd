@@ -1,17 +1,16 @@
 class_name LessonScene
 extends SubViewport
 
-## One page's live picture, its own small world lit apart from the garden, built from the game's own tool models, so
-## the picture always shows the game as it is built. The book renders it only while its page is in view. For the page's
-## paper (book_page.gdshader): `wash` is the sky behind it, `horizon` where that sky meets the land (0 the picture's
-## top, 1 its foot, -1 when looking nearly straight down) and `fade` how far its loop has faded out.
+## Built from the game's own tool models, so the picture always shows the game as it is built. For book_page.gdshader:
+## `wash` is the sky, `horizon` where it meets the land (0 the picture's top, 1 its foot, -1 when looking nearly
+## straight down) and `fade` how far its loop has faded out. The book renders it only while its page is in view.
 
 const SIZE := Vector2i(384, 358)
 const REST := 0.7
 const FADE_S := 0.25
-## The meadow's height under the eye: a diorama between the hands and the ground, so the hands and what they act on
-## share one frame; its builds stand at K of the size of a tool model's PROP-fold.
+## The meadow's height under the eye: a diorama between the hands and the ground, so both share one frame.
 const GROUND := -0.95
+## Builds stand at K of a tool model's PROP-fold size.
 const K := 0.5
 const PROP := 14.0 * K
 ## Larger than life, so the ghost controllers' buttons read on a page.

@@ -1,45 +1,39 @@
 class_name Refill
 extends RefCounted
 
-## What a ponds or ground command does to the water, worked out from plain values so any thread may run it: which
-## ponds fill again and how, which go, and the levels, depth texture and surfaces showing what stays. A lake is
-## tens of thousands of grid points, hundreds of milliseconds of script on a headset, so `World` works a large one
-## out on another thread before the command applies and applies it as this leaves it.
+## Plain values only, so any thread may run it: a lake is tens of thousands of grid points, hundreds of milliseconds of
+## script on a headset, so `World` works a large one out off-thread before its command applies.
 
-## Each pond's level by its grid point, as the command leaves them before any fills.
+## Level by grid point, before any fills.
 var ponds := {}
-## The ponds the command puts, which win over any their water meets.
+## Win over any pond their water meets.
 var put := {}
-## Each pond's level and how it last filled, by its grid point (`World._fills`).
+## [level, Pond it last filled as] by grid point (`World._fills`).
 var fills := {}
-## The ground the command changed: only ponds whose fill read it fill again.
+## Only ponds whose fill read this ground fill again.
 var ground := Rect2i()
-## The ground's heights the fills read, as the command leaves them.
 var heights := PackedFloat32Array()
 
-## Each pond as it fills now, or null for one holding no water.
+## Null for a pond holding no water.
 var filled := {}
-## The ponds that go: holding no water, or under the water of one the command puts or a higher one.
+## Holding no water, or under the water of one put or higher.
 var gone: Array[Vector2i] = []
-## How many grid points are under water, all ponds together.
+## Grid points under water, all ponds.
 var wet := 0
-## The ponds that stay, in `ponds` order.
+## In `ponds` order.
 var found: Array[PondLayout.Pond] = []
 
-## What `publish` leaves for `Water`: the level at every grid point, the index into `found` of the pond over each
-## (-1 where none is), the grid points written, the depth texture's image and the grid points whose level changed.
 var levels := PackedFloat32Array()
+## Index into `found` of the pond over each grid point, -1 where none.
 var owners := PackedInt32Array()
 var written := PackedInt32Array()
 var image: Image
+## Grid points whose level changed.
 var changed := Rect2i()
-## Per pond in `found`, the index among the ponds shown before of the one whose water covered its bottom, else any of
-## its ground, so it keeps that surface; -1 for a new one.
+## Per pond in `found`, the index of the shown pond whose water covered its bottom or ground, -1 for a new one.
 var covers := PackedInt32Array()
 
 
-## What the ponds `levels_by_point`, `putting` among them, come to over the ground `over`, after an edit to
-## `changed_ground`, where they last filled as `last`; still to be worked out (`work`).
 static func of(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary, changed_ground: Rect2i, over: PackedFloat32Array) -> Refill:
 	var r := Refill.new()
 	r.ponds = levels_by_point
@@ -50,15 +44,12 @@ static func of(levels_by_point: Dictionary, putting: Dictionary, last: Dictionar
 	return r
 
 
-## `of`, worked out.
 static func make(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary, changed_ground: Rect2i, over: PackedFloat32Array) -> Refill:
 	var r := of(levels_by_point, putting, last, changed_ground, over)
 	r.work()
 	return r
 
 
-## Whether this was worked out from the garden as it now stands, its heights `over`, so applying it is applying the
-## command.
 func matches(levels_by_point: Dictionary, putting: Dictionary, last: Dictionary, changed_ground: Rect2i, over: PackedFloat32Array) -> bool:
 	return ponds == levels_by_point and put == putting and fills == last and ground == changed_ground and heights == over
 
@@ -101,8 +92,7 @@ static func _covered(p: PondLayout.Pond, taken: PackedByteArray) -> bool:
 	return false
 
 
-## Pond `was`, at `level`, filled again over the ground as it stands, or null when none of its water is left where it
-## stood: filled in, it is gone, rather than running downhill into whatever hollow holds its level.
+## Null when none of its water is left where it stood: filled in, it is gone, not run downhill to another hollow.
 func _refilled(g: Vector2i, level: float, was: PondLayout.Pond) -> PondLayout.Pond:
 	var p := PondLayout.fill(heights, Terrain.ALL, g, level, was.level)
 	if p == null:
@@ -117,9 +107,7 @@ func _refilled(g: Vector2i, level: float, was: PondLayout.Pond) -> PondLayout.Po
 	return null
 
 
-## Works out what `Water` shows of `found` where it showed the ponds `shown`, their levels `before` at grid points
-## `was_written` and the index into `shown` of the one over each grid point `was_owner`: each pond's level at its wet
-## and shore grid points, the depth the shaders read, the surface each keeps and each new one's quads.
+## `was_owner`: the index into `shown` of the pond over each grid point, -1 where none.
 func publish(before: PackedFloat32Array, was_written: PackedInt32Array, was_owner: PackedInt32Array, shown: Array[PondLayout.Pond]) -> void:
 	var kept := {}
 	for p in found:

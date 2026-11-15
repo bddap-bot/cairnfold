@@ -1,9 +1,8 @@
 class_name ToolModels
 extends RefCounted
 
-## Miniatures of what each tool makes, standing on y = 0. Their stones are the far stone: a few millimetres across,
-## the full one's triangles cost the Frame milliseconds for nothing. The meadow's plant shaders lift each instance by
-## the terrain under it, so these carry plain materials of their own.
+## Miniatures stand on y = 0. Their stones are the far stone: at a few millimetres the full one's triangles cost
+## milliseconds for nothing. Plant shaders lift each instance by the terrain, so these carry plain materials.
 
 ## In model space; PhotoTool shoots from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
@@ -11,15 +10,13 @@ const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
 const WAND_STAR := Vector3(0, 0, -0.055)
 const SPADE_EDGE := Vector3(0, 0, -0.052)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
-## The shutter button's glow while recording.
 const RECORDING := Color(1.0, 0.12, 0.08)
 ## The selfie camera's stalk, high enough that its shot frames the holder's face over their arm.
 const SELFIE_LIFT := 0.08
-## Beside the screen, looking back at the holder.
 const SELFIE_LENS := Vector3(0.02, 0.024 + SELFIE_LIFT, 0.0167)
 const SELFIE_SCREEN := Vector2(0.036, 0.027)
 const _SELFIE_SCREEN_X := -0.011
-## The oval glass's width and height, its rim, and the handle below it; the mirror stands on y = 0.
+## Width, height.
 const MIRROR_GLASS := Vector2(0.04, 0.06)
 const MIRROR_RIM := 0.004
 const MIRROR_HANDLE := 0.034
@@ -163,7 +160,6 @@ static func style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finis
 	return root
 
 
-## Styles whose miniatures the worker thread builds.
 const BUILT_STYLES: Array[PaletteTool.Restyle] = [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION, PaletteTool.Restyle.WINDOW]
 
 
@@ -349,7 +345,7 @@ static func _wand(root: Node3D) -> void:
 		piece(root, _star(4, spark[1], spark[1] * 0.35), Transform3D(upright, spark[0]), gold)
 
 
-## Where a tool's sight stands, in model space: just past the wand's star or the spade's blade, else ahead of the model.
+## In model space.
 static func tip(tool: Hand.Tool) -> Vector3:
 	match tool:
 		Hand.Tool.STYLE:
@@ -594,7 +590,6 @@ static func button(camera: Node3D) -> StandardMaterial3D:
 	return (camera.get_node("Button") as MeshInstance3D).material_override
 
 
-## Screen toward the eye, lens along the aim, a selfie's at SELFIE_LENS.
 static func _camera(root: Node3D, selfie: bool) -> void:
 	var lens := cylinder(0.008, 0.008, 0.006, 16) if selfie else cylinder(0.012, 0.013, 0.018, 16)
 	var glass := cylinder(0.006 if selfie else 0.009, 0.006 if selfie else 0.009, 0.001, 16)
@@ -779,7 +774,6 @@ static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := 
 	_roofed(root, layout, roof, thatched, deck)
 
 
-## `deck` covers a `flat` roof.
 static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofLayout.Deck.STONE) -> void:
 	var layout := WallLayout.new()
 	layout.seed = 9

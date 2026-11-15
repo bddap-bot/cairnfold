@@ -1,56 +1,47 @@
 class_name ExpressionState
 extends RefCounted
 
-## The imported FX controller and its expression parameters, independent of rendering and input.
+## The imported FX controller and its expression parameters.
 var data: Dictionary
 var values := {}
 var definitions := {}
 var outputs: Array[float] = []
 var states: Array[int] = []
 var elapsed: Array[float] = []
-## Each layer's say over the targets: what its state's motion writes. A state with no motion that writes defaults says
-## nothing; one that writes none repeats what the layer said when a motion last played in it, and, where that motion's
-## state wrote no defaults either, every other target as it was then kept.
+## Each layer's say over the targets. A motionless state writing defaults says nothing; one writing none repeats the
+## layer's last motion, plus every other target as kept then if that motion's state wrote no defaults either.
 var _layer_values: Array[Dictionary] = []
-## Whether the motion each layer last played was of a state that writes no defaults.
 var _holding: Array[bool] = []
-## The first layer with any weight whose state plays a motion and writes no defaults, or -1. It gives a target no
-## layer up to it has written this frame `_kept`, by its weight over the default, whichever layer last wrote the
-## target: Unity's animator, measured in tests/unity/write-defaults.json.
+## The first weighted layer playing a motion without write defaults, or -1. It gives a target no layer up to it wrote
+## this frame `_kept` by its weight over the default, as Unity does (tests/unity/write-defaults.json).
 var _holder := -1
 ## Each target's value when a layer last wrote it; returning to its default leaves it.
 var _kept: Array[float] = []
-## The targets whose kept value moved under the holder in the last advance, which the next builds again: a kept value
-## feeds what is built from it, until a holder of part weight has faded it to the default.
+## Targets whose kept value moved under the holder, rebuilt next advance: a part-weight holder fades them over frames.
 var _refeed := {}
 var pulses := {}
 var _animated_parameters: Array[int] = []
-## Each target's layers whose states may animate it, in order.
+## Per target, the indices of the layers that may animate it, in layer order.
 var _writers: Array[Array] = []
-## Each layer's states by whether their motion samples the same at every time, and by whether re-entering one plays
-## as the last re-entry did: a transition back into its own state re-enters it every frame its conditions hold, as
-## Unity's any state does, and a still state with no drivers and no exit times to reach plays the same each time.
+## Per layer, per state: whether its motion samples the same at every time, and whether re-entering it replays the last
+## re-entry (a self-transition re-enters every frame its conditions hold, as Unity's any state does).
 var _timeless: Array[Array] = []
 var _repeats: Array[Array] = []
-## Whether each layer took no transition since a parameter it reads last changed, and the normalized time of its next
-## exit time: until either moves it samples and transitions as it did, so it is passed over.
+## A settled layer took no transition since a parameter it reads changed; until one does or it reaches `_until` (its
+## next exit time, normalized) it would sample as it did, so it is passed over.
 var _settled: Array[bool] = []
 var _until: Array[float] = []
-## Whether each settled layer settled re-entering its state every frame, which leaves it at no time elapsed.
 var _reenter: Array[bool] = []
-## Each layer's state's speed and length, which the pass over a settled layer reads in place of its state.
 var _speed: Array[float] = []
 var _lengths: Array[float] = []
-## Each parameter's layers that read it.
+## Parameter name -> indices of the layers that read it.
 var _readers := {}
 var _rebuild := false
 ## The targets whose outputs advancing changed since a player last bound them.
 var moved := {}
 var opened: Array[Dictionary] = []
 var revision := 0
-## What `_transition` returns for a transition to the state machine's exit, which leaves through the entry again.
 const EXIT := -2
-## The relative gap between neighbouring single-precision floats, 2^-23.
 const SINGLE_STEP := 1.0 / 8388608.0
 
 
@@ -117,8 +108,7 @@ func saved() -> Dictionary:
 	return out
 
 
-## Starts again from the creator's defaults with `saved_values` over them, so each layer enters reading what was saved
-## even when the saved values are read after it first entered.
+## Resets the layers too, so each re-enters reading the saved values even if it first entered before they were read.
 func restore(saved_values: Dictionary) -> void:
 	pulses.clear()
 	for key: String in definitions:
@@ -164,7 +154,6 @@ func activate(control: Dictionary) -> void:
 			put(key, value)
 
 
-## Steps the menu one level out; false at the top.
 func back() -> bool:
 	if opened.is_empty():
 		return false
@@ -172,7 +161,6 @@ func back() -> bool:
 	return true
 
 
-## The controls of the innermost submenu open, or the top menu's.
 func controls() -> Array:
 	for c in range(opened.size() - 1, -1, -1):
 		if opened[c].type == "submenu":
@@ -180,7 +168,6 @@ func controls() -> Array:
 	return data.get("menu", [])
 
 
-## The radial or axis control open, or empty.
 func turning() -> Dictionary:
 	return opened.back() if not opened.is_empty() and opened.back().type != "submenu" else {}
 
@@ -327,8 +314,7 @@ func _enter(layer: int, state: int) -> void:
 		put(d.parameter, v)
 
 
-## The state the first of `transitions` whose conditions hold leads to from `current` at normalized `time`, EXIT for one
-## to the state machine's exit, or -1 for none.
+## EXIT for a transition to the state machine's exit, -1 for none; `time` is normalized.
 func _transition(transitions: Array, current: int, time: float) -> int:
 	for t: Dictionary in transitions:
 		if (t.get("notToSelf", false) and t.to == current) or (t.has("exitTime") and time < t.exitTime):
@@ -343,8 +329,6 @@ func _transition(transitions: Array, current: int, time: float) -> int:
 	return -1
 
 
-## The state `layer` enters, from its start or back through its exit: its first entry transition that holds, else its
-## default state.
 func _entered(layer: Dictionary) -> int:
 	var entry := _transition((layer.get("entry", []) as Array).filter(func(t: Dictionary) -> bool: return t.to >= 0), -1, 0.0)
 	return entry if entry >= 0 else int(layer.get("default", 0))
@@ -441,12 +425,9 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 	return out
 
 
-## Unity's AnimationCurve.Evaluate: each key pair is a cubic Bezier through the keys' slopes and weights (a plain
-## Hermite at the default third), held at the left key where either facing slope is infinite, clamped past the ends.
-## Equal keys with flat facing slopes hold exactly, where the Bezier lands a unit in the last place off from frame to
-## frame and a layer resting there would not. Keys without slopes interpolate linearly. Unity keeps times in single
-## precision, so a time short of a key by less than SINGLE_STEP of it is at it: a quarter of a four-frame motion-time
-## clip lands on its second key in Unity, and a hair before it in double precision.
+## Unity's AnimationCurve.Evaluate. Equal keys with flat facing slopes hold exactly: the Bezier drifts an ulp from frame
+## to frame and a layer resting there would not settle. Unity keeps times in single precision, so a time short of a key
+## by under SINGLE_STEP (2^-23) of it is at it: a quarter of a four-frame motion-time clip lands on its second key.
 static func sample(keys: Array, time: float, stepped: bool) -> float:
 	var after := keys.size()
 	for i in keys.size():
@@ -486,14 +467,14 @@ static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> flo
 	return r * r * r * p0 + 3.0 * r * r * s * p1 + 3.0 * r * s * s * p2 + s * s * s * p3
 
 
-## A clip whose motion has "time" is played by that parameter, not the clock, so it samples the same at every time.
+## A motion with "time" is played by that parameter, not the clock.
 func _timeless_motion(motion: Dictionary) -> bool:
 	if motion.has("clip"):
 		return motion.has("time") or (data.clips[int(motion.clip)].get("curves", []) as Array).all(func(c: Dictionary) -> bool: return _flat(c.keys))
 	return (motion.get("children", []) as Array).all(func(child: Dictionary) -> bool: return _timeless_motion(child.motion))
 
 
-## Keys are [time, value, in-slope, out-slope]; a null slope is held.
+## Keys as ExpressionDefinition._key checks them.
 static func _flat(keys: Array) -> bool:
 	return keys.all(func(k: Array) -> bool: return float(k[1]) == float(keys[0][1]) and (k.size() < 4 or ((k[2] == null or float(k[2]) == 0.0) and (k[3] == null or float(k[3]) == 0.0))))
 
@@ -506,8 +487,7 @@ func _targets(motion: Dictionary, targets: Dictionary) -> void:
 		_targets(child.motion, targets)
 
 
-## Adds to `reads` every parameter a layer's transitions and motions name; its drivers read only as it enters a state,
-## which a settled layer does not.
+## Drivers are skipped: they read only as a state is entered, which a settled layer does not.
 static func _reads(of: Variant, reads: Dictionary) -> void:
 	if of is Dictionary:
 		for key: String in of:

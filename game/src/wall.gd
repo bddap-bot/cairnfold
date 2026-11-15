@@ -13,15 +13,14 @@ static var _roof_wood := Stones.stone(preload("res://src/roof_timber.gdshader"))
 
 var layout := WallLayout.new()
 var masonry: Masonry
-## As this player sees it: it follows a live hump while one is pulled.
+## As this player sees it, following a live hump while one is pulled.
 var terrain: Terrain
-## Few and animated, so drawn by the wall itself.
 var _fittings := Fittings.new()
 var _smoke := Smoke.new()
 var finished := false
-## Reshape data laid in place of the garden's own; empty when laid as the garden has it.
+## Laid in place of the garden's reshape data; empty when laid as the garden has it.
 var reshaped := {}
-## The build command's id; -1 while it is still being drawn.
+## -1 while it is still being drawn.
 var id := -1
 var roof: RoofLayout
 var paint := Palette.plain()
@@ -29,14 +28,11 @@ var paint := Palette.plain()
 var _painted := Palette.plain()
 var _recolour_task := -1
 var _recoloured := {}
-## Counts lays taken, so a recolour of parts a newer lay replaced is dropped.
 var _laid := 0
 var _wall_mortar := PackedFloat32Array()
 ## Ids of the builds it stands on; empty on the ground.
 var on := PackedInt32Array()
-## As last laid, for the builds it meets (WallTool).
 var massing: Massing
-## Seconds since finished.
 var ivy_age := 0.0
 var pick_bounds := AABB()
 var _nearest := 0
@@ -44,9 +40,8 @@ var _ruin_pick: Array[TriangleMesh] = []
 var _parts: Array[PackedFloat32Array] = []
 var _chunked: Array[Dictionary] = []
 var _drawn: Masonry
-## The glade draws what `_sync` places chunk by chunk over the frames after (Budget.MASONRY_FLUSH_US): a sculpt
-## settles every wall on the ground, and drawing each one's chunks at once took 4 to 12 ms of a Steam Frame frame a
-## wall. Until it has, the wall keeps drawing its live stones, stand-in and grown ivy, so none blinks out.
+## The glade draws what `_sync` places over later frames (drawing a wall's chunks at once took 4 to 12 ms of a Steam
+## Frame frame as a sculpt settled every wall); until then the wall draws its live stones, stand-in and ivy.
 var _handoff := false
 var _live := false
 var _ivy_placed := false
@@ -67,8 +62,7 @@ var _ivy_stale := false
 var _build_task := -1
 var _build_stale := false
 var _queued := false
-## Lays it again for a garden change, from the frame after it fell due so the frame applying the change does not lay
-## it too; walls lay theirs in tree order, oldest first, Budget.RELAYS a frame.
+## Laid from the frame after it fell due, so the frame applying a garden change does not lay it too; Budget.RELAYS a frame.
 var due := Callable():
 	set(lay):
 		if lay.is_valid() and not due.is_valid():
@@ -90,13 +84,9 @@ var _perch_task := -1
 var _perch_out := {}
 
 
-## Stones, tiles and mortar cast no shadow; a plain box per stone or tile does, at a ninth of the triangles. Far off, a
-## tile is a plain box: from the air rounded tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in
-## the gaps, so it is a plain box. A thatched coat is a mesh of its own; its slabs only cast its shadow and stand in for
-## it in the bounce light. Timber and planks are plain boxes near, where a stone's lumps would cost nine times the
-## triangles and read no different on planed wood; far, a shader with no per-pixel work, since a few pixels wide its
-## shading is what it costs. Floors cast no shadow and shade no bounce light, which reads a room's builds from its roof
-## down.
+## A plain box per stone or tile casts the shadow, at a ninth of the triangles. Far tiles are plain boxes: from the air
+## rounded ones cost the Quest 2 ten times as much. Near timber is a box, as planed wood shows no lumps; far, a shader with
+## no per-pixel work. Floors cast no shadow and shade no bounce light, which reads a room's builds from its roof down.
 static func kinds() -> Array[Masonry.Kind]:
 	if _kinds.is_empty():
 		var box := BoxMesh.new()
@@ -130,8 +120,7 @@ static func kinds() -> Array[Masonry.Kind]:
 	return _kinds
 
 
-## Stone reach jumps to `step` at once, since a chunk's stones change mesh in one frame wherever the line falls; ivy
-## eases as grass does. True once there.
+## Stone reach jumps at once, as a chunk changes mesh in one frame anyway; ivy eases as grass does. True once there.
 static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 	var ks := kinds()
 	var ivy := Quality.reach(ks[Part.IVY].reach, step.ivy_m, delta)
@@ -278,8 +267,7 @@ func lay_now() -> void:
 			_land_recolour()
 
 
-## A settling lay whose inputs changed meanwhile is dropped for the one replacing it: shown, it would draw the wall's
-## stones apart from the glade's for the frames between.
+## A settling lay whose inputs changed is dropped: shown, its stones would stand apart from the glade's meanwhile.
 func _land() -> void:
 	Work.take(_build_task)
 	_build_task = -1
@@ -311,9 +299,8 @@ func _exit_tree() -> void:
 		_stand_in.queue_free()
 
 
-## A worker task outliving its wall crashes the engine at exit, so they are waited for at quit. In play they are left
-## to `reap`: waiting here held a deleting frame for a whole wall's ivy, 25 ms on a Quest 2. A wall freed outside the
-## tree never exits it, so they are left here rather than in `_exit_tree`.
+## A task outliving its wall crashes the engine at exit; in play `reap` takes them, as waiting here held a frame 25 ms
+## on a Quest 2. Here, not `_exit_tree`, since a wall freed outside the tree never exits it.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
@@ -337,8 +324,7 @@ static func reap(all := false) -> void:
 	_orphans = left
 
 
-## Working perches out reads every stone, several milliseconds for a long wall, so it runs on a worker and the old
-## ones stand until it is taken. `now` is for a caller stepping time without frames.
+## On a worker: it reads every stone, milliseconds for a long wall. `now` is for a caller stepping time without frames.
 func perches(now := false) -> PackedVector3Array:
 	if now:
 		lay_now()
@@ -367,7 +353,6 @@ func _take_perches(wait: bool) -> void:
 		_perches_laid = _perch_out.laid
 
 
-## A long wall's ivy takes longer than a frame to lay out.
 func _layout_ivy() -> void:
 	set_process(true)
 	if _ivy_task >= 0:
@@ -385,8 +370,8 @@ func _layout_ivy() -> void:
 		out.chunks = Masonry.split(out.buffer, ivy))
 
 
-## A long wall's lay takes several frames of main-thread time, so it runs on a worker and the standing stones show
-## until it lands. `settle` is false while a stroke, grip lift, roof pull or house footprint is still moving.
+## On a worker; the standing stones show until it lands. `settle` is false while a stroke, grip lift, roof pull or
+## house footprint is still moving.
 func rebuild(settle := true) -> void:
 	_settle_on_land = settle
 	if not settle:
@@ -398,8 +383,8 @@ func rebuild(settle := true) -> void:
 		_build_live()
 
 
-## `preview` is the wall in hand this one is the garden's copy of, shown until this one's stones are laid. A preview
-## is taken as soon as its worker is done, which no frame decides, so the garden's wall lays its own.
+## `preview`, the wall in hand, shows until this copy's stones are laid. It lands whenever its worker is done, which no
+## frame decides, so this copy lays its own.
 func stand_in(preview: Wall) -> void:
 	preview.set_process(false)
 	_stand_in = preview
@@ -457,9 +442,8 @@ func _lay_due() -> void:
 	_due_laid += 1
 
 
-## The frames garden walls' lays come due at; a lay holds its slot until then, however soon it is taken. A wall in
-## hand holds none, so a garden wall's lay cannot stall it. A sculpt relays every wall on the ground at once, and
-## unbounded they take every worker while the frame waits on the pool.
+## The frames garden walls' lays come due at, each holding its slot until then: a sculpt relays every wall at once, and
+## unbounded they take every worker while the frame waits on the pool. A wall in hand holds none.
 static var _lays := PackedInt32Array()
 
 
@@ -697,8 +681,7 @@ func _tint_roof() -> void:
 		_ceiling.set_instance_shader_parameter(&"timber_color", Vector3(wood.r, wood.g, wood.b))
 
 
-## A pass over every piece is too long for a frame on a big build. The buffers are shared with the lay they came from,
-## which may be taken again, so they are copied, not scaled in place.
+## On a worker, too long for a frame on a big build. The buffers are shared with a lay that may be taken again, so copied.
 func _recolour() -> void:
 	if _painted == paint or _recolour_task >= 0:
 		return
@@ -767,9 +750,8 @@ func _take(packed: Dictionary) -> void:
 	_ruin_pick = packed.ruin_pick
 
 
-## Only a settling lay occludes: a moving wall's occluder would trail its stones, and every occluder change rebuilds
-## the scene's occlusion BVH, which a sculpt relaying every wall turned into frames spent waiting on it. A wall that
-## occludes nothing has no occluder node, since a carry moving even an empty one rebuilds the BVH.
+## Only a settling lay occludes: every occluder change rebuilds the occlusion BVH, which a sculpt relaying every wall
+## turned into frames of waiting. A wall occluding nothing has no node: a carry moving even an empty one rebuilds it.
 func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 	if vertices.is_empty():
 		if _occluder != null:
@@ -789,8 +771,7 @@ func occlude_shown() -> void:
 		_occlude(_shown.out.occluder[0], _shown.out.occluder[1])
 
 
-## So a hold carrying it moves its stones. The glade must let them go at once (`Masonry.flush`), or they would stay
-## standing where the hold took them from.
+## So a carrying hold moves its stones; the glade lets them go at once (`Masonry.flush`) or they stay where taken from.
 func draw_live() -> void:
 	_occlude(PackedVector3Array(), PackedInt32Array())
 	if _settled:
@@ -853,8 +834,7 @@ func footprint() -> Rect2:
 	return layout.bounds.grow(WallLayout.THICKNESS)
 
 
-## The first stretch the ray passes through, so a ray into a house finds the side facing it, or else the stretch it
-## passes nearest.
+## The first stretch the ray passes through, so a ray into a house finds the side facing it, else the one it nears most.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var reach := layout.half_thickness()
 	var best_key := Vector2.INF
@@ -868,8 +848,8 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 		var seen := _sample_near(_nearest, origin, dir, reach)
 		if not seen.is_empty():
 			bound = seen[0]
-	# How far a sample stands from the ray seen from above bounds its distance below, so a sample that could neither
-	# be in reach nor nearer than the best is passed over, with every sample after it too near along the wall to do better.
+	# A sample's distance from the ray seen from above bounds its true one: one out of reach skips those near it along
+	# the wall.
 	var flat := Vector2(dir.x, dir.z)
 	var across := flat.normalized() if flat.length_squared() > 1e-12 else Vector2.ZERO
 	var from := Vector2(origin.x, origin.z)
@@ -883,7 +863,6 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 		var least := (absf(across.cross(off)) if across != Vector2.ZERO else off.length()) - 1e-3
 		var beat := reach if best_key.x == 0.0 or bound.x == 0.0 else maxf(reach, minf(best_d, bound.y + 1e-3))
 		if least >= beat:
-			# Samples within arc length `least - beat` of this one stand no nearer than `beat` either.
 			next = maxi(next, lengths.bsearch(lengths[i] + least - beat, false))
 			continue
 		var near := _sample_near(i, origin, dir, reach)
@@ -922,16 +901,14 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 	var best := {}
 	var n := layout.samples.size()
 	var half := layout.half_thickness()
-	# A stretch's box stands on the strip `half` either side of it, so a ray passing further from that strip, seen
-	# from above, cannot meet it; arc length bounds how far apart two samples stand, so a sample far from the ray skips
-	# every stretch after it that cannot come near: a long wall costs a ray a few steps away from it.
+	# Arc length bounds how far apart two samples stand, so a sample far from the ray (seen from above) skips every
+	# stretch after it that cannot come near: a long wall costs a ray a few steps.
 	var flat := Vector2(dir.x, dir.z)
 	var across := flat.normalized() if flat.length_squared() > 1e-12 else Vector2.ZERO
 	var from := Vector2(origin.x, origin.z)
 	var lengths := layout.lengths
 	var height := layout.height + layout.top_rise()
-	# Seen from above, a sample behind the ray's start, or past `clear` where the ray has risen over every top, sunk
-	# under every foot or passed the nearest hit yet, skips the stretches after it as one far to its side does.
+	# So does one behind the ray's start, or past `clear`: over every top, under every foot or past the nearest hit yet.
 	var feet := layout.feet()
 	var climb := dir.y / flat.length() if across != Vector2.ZERO else 0.0
 	var clear := INF
@@ -1030,8 +1007,7 @@ static func _first_solid(open: Callable, from: float, to: float) -> float:
 	return INF
 
 
-## A ruin has no continuous body; its query trees are built on the worker so aiming through several gaps does not scan
-## every remaining stone each frame.
+## A ruin has no continuous body; its query trees are built on the worker so aiming does not scan every stone a frame.
 static func _pack_ruin(built: WallLayout) -> Array[TriangleMesh]:
 	var out: Array[TriangleMesh] = []
 	if built.ruins.is_empty():

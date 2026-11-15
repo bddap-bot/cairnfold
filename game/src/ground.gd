@@ -1,11 +1,10 @@
 class_name Ground
 extends RefCounted
 
-## The global shader ground_mask (ground.gdshaderinc), one texel per TEXEL metres. R trodden earth, G stone, A sand, none
-## of them meadow; B the StoneStyles style of the stroke that laid most of the stone, plus TILLED where a bed laid most
-## of the earth. The mask is the marks replayed in build command id order, so undoing one leaves exactly what the rest
-## made and every machine replays alike. `laid` holds the garden's marks alone, which build commands read; `image` adds
-## the player's strokes still being drawn or on their way.
+## The ground_mask texture, a texel per TEXEL metres: R trodden earth, G stone, A sand; B the StoneStyles style of the
+## stroke that laid most stone, plus TILLED where a bed laid most earth. Marks replay in build id order, so undoing one
+## leaves what the rest made, alike on every machine. `laid`, which commands read, is the garden's marks alone; `image`
+## adds this player's strokes in flight.
 
 ## MEADOW takes back only stone, so a path under painted-out stone keeps its wear.
 enum Kind { MEADOW, EARTH, STONE, SAND }
@@ -19,24 +18,22 @@ const TEXEL := Terrain.SIZE / SIZE
 var image := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 var texture := ImageTexture.create_from_image(image)
 var laid := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
-## In id order, parallel arrays.
+## In id order, parallel to `_ids`.
 var _marks: Array[Object] = []
 var _ids: Array[int] = []
 var _held: Array[Object] = []
 ## So a path being drawn can tell its wear was wiped.
 var rewears := 0
-## Set while a whole garden is swapped in: one rewear at the end instead of one per mark.
+## While a whole garden swaps in: one rewear at the end, not one per mark.
 var quiet := false
-## Marks laid last, worn into `laid` from the next frame a few path rows at a time, or at once when `laid` is read, so
-## a build's release does not wear its whole path in one frame.
+## Worn into `laid` a few path rows a frame from the next, or at once when `laid` is read.
 var _unworn: Array[Object] = []
 var _unworn_since := 0
 ## Rows of the first unworn path already worn into `laid`.
 var _worn_rows := 0
-## Rect2i patches of `laid` to wear again a frame later, or a mark laid among older ones whose wear finds its patch.
-## A house moved off its worn floor wears both patches once, not in the frame that moved it.
+## Rect2i patches of `laid` to wear again a frame later, or marks laid among older ones, whose wear finds the patch,
+## so a moved house wears both patches once.
 var _stale: Array = []
-## A stroke was held or released since `image` was drawn.
 var _unshown := false
 static var _brushes := {}
 ## Mark -> the texels it last wore, so lifting or inserting one rewears only that patch and the marks meeting it.
@@ -44,13 +41,12 @@ var _areas := {}
 static var _wearing := Rect2i()
 ## This machine's player's stone and boulder style, from the style wheel.
 static var style := 0
-## One byte per Terrain tile, row by row: 1 where stone was laid since the last full rewear, where the ground draws its
-## stone (Meadow). Painted-out stone leaves its tile set until then, costing only a dearer shader there.
+## One byte per Terrain tile, row by row: 1 where stone was laid since the last full rewear (painted-out stone stays 1).
 var stone_tiles := _no_tiles()
 var stone_revision := 0
-## Tile indices stone stamps reached since the last upload, on any image: `image` is uploaded after each change.
+## Tile indices stone stamps reached since the last upload, on any image.
 static var _stoned := PackedInt32Array()
-## Scratch for rewearing a patch before it is copied into `laid`; nothing outside the patch is read.
+## Scratch: nothing outside the patch is read.
 var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 
 
@@ -64,7 +60,6 @@ class Stroke:
 		kind = m
 		style = look
 
-	## `shown` holds this stroke.
 	func add(shown: Ground, x: float, z: float, radius: float, verge: float) -> bool:
 		if not Ground.stamp(shown.image, x, z, radius, verge, kind, style):
 			return false
@@ -103,12 +98,10 @@ func bare(x: float, z: float) -> float:
 	return bare_in(image, x, z)
 
 
-## From the garden's marks alone.
 func laid_bare(x: float, z: float) -> float:
 	return bare_in(laid_image(), x, z)
 
 
-## For reading many points with `bare_in`.
 func laid_image() -> Image:
 	settle()
 	return laid
@@ -123,8 +116,7 @@ func stone(x: float, z: float) -> float:
 	return _texel(x, z).g
 
 
-## The build command id of the topmost stone mark where the garden's ground is mostly stone, else of the topmost path,
-## or -1. A house's worn floor is neither.
+## Build id of the topmost stone mark where `laid` is mostly stone, else of the topmost path, or -1; floors are neither.
 func mark_at(x: float, z: float) -> int:
 	var stony := _texel(x, z, laid).g >= 0.5
 	for i in range(_marks.size() - 1, -1, -1):
@@ -134,7 +126,6 @@ func mark_at(x: float, z: float) -> int:
 	return -1
 
 
-## Inserts in id order.
 func lay(mark: Object, id: int) -> void:
 	var i := _ids.bsearch(id)
 	_ids.insert(i, id)
@@ -172,7 +163,6 @@ func restyle(id: int, look: int) -> void:
 	rewear_mark(_marks[i])
 
 
-## After what `mark` lays changed.
 func rewear_mark(mark: Object) -> void:
 	if not quiet and _marks.has(mark):
 		_rewear_area(_areas.get(mark, Rect2i(0, 0, SIZE, SIZE)))
@@ -214,7 +204,6 @@ func rewear() -> void:
 	_show()
 
 
-## Returns the texels it wore.
 func _area_of(mark: Object, onto: Image) -> Rect2i:
 	_wearing = Rect2i()
 	mark.wear(onto)
@@ -242,8 +231,8 @@ func _wear_stale() -> void:
 	_stale.clear()
 
 
-## [mark id, mask hash after it] per mark, replayed from nothing. Two machines' first differing entry names the mark
-## where their masks part; a last hash other than `laid`'s shows the patched wear drifted from a full one.
+## [mark id, mask hash after it] per mark, from nothing: two machines' first differing entry names where masks part;
+## a last hash other than `laid`'s shows the patched wear drifted from a full one.
 func replayed() -> Array:
 	var onto := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	var out := []
@@ -338,8 +327,7 @@ static func _stone(area: Rect2i) -> void:
 			_stoned.append(tj * Terrain.TILES + ti)
 
 
-## Full out to `radius`, fading to nothing over `verge` past it. False if it fell off the mask, or was meadow that
-## changed nothing: any other stamp that changes nothing now may matter on a replay once an earlier mark is lifted.
+## False if off the mask, or meadow that changed nothing: another kind may matter on a replay once an earlier mark lifts.
 static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, kind: Kind, look := 0) -> bool:
 	var fade := _brush(radius, verge)
 	var side := int(sqrt(fade.size()))

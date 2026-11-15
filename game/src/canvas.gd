@@ -1,12 +1,11 @@
 class_name Canvas
 extends Node
 
-## Wet paint flows only on tiles a wet brush touched in the last DRY_TICKS, and every dab lands at a known tick, so a
-## replay (`play`, `rebuild`) lays the same painting the painter saw. At each rest between strokes it keeps a checkpoint
-## under a key chaining every stroke so far, so `rebuild` replays only past the longest kept prefix and undoing the last
-## stroke costs a texture copy. Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
+## Wet paint flows only on tiles a wet brush touched in the last DRY_TICKS and every dab lands at a known tick, so a
+## replay lays the painting the painter saw. Checkpoints between strokes, keyed by a chain of every stroke so far, let
+## `rebuild` replay only past the longest kept prefix. Without a RenderingDevice it keeps its ticks and skips the GPU.
 
-## Ticks owed beyond this are let go: past its budget the paint dries slower instead of stalling the frame.
+## Ticks owed beyond this are let go: past its budget the paint dries slower rather than stall the frame.
 const MAX_OWED := 3.0
 const BUNDLES := 3
 const DAB_ROOM := 8192
@@ -18,30 +17,31 @@ const IMPASTO := 0.008
 const GRAIN := 0.00025
 const TOP := IMPASTO + GRAIN
 const PROBE := 64
-## Each two textures (14 MB for the easel's): undo steps back this far without a replay.
+## Each two RGBA16F textures, 28 MB for the easel's: undo steps back this far without a replay.
 const CHECKPOINTS := 6
 
 static var _shader: RID
 static var _sampler: RID
 static var _pipeline: RID
-## All canvases, since Metrics last took them: texel-steps laid, and main plus render thread microseconds.
+## All canvases, since Metrics last took them; `cpu_us` sums the main and render threads.
 static var laid := 0.0
 static var cpu_us := 0
-## Render thread: GPU milliseconds in the last frame whose timestamps came back; `_ran` is a process frame.
+## Render thread: from the last frame whose timestamps came back; `_ran` is a process frame.
 static var _gpu_ms := 0.0
 static var _gpu_frame := -1
 static var _ran := -100
-## Shared each frame among the canvases running flow.
 static var steps := Budget.PAINT_STEPS
 static var _frame := -1
 static var _flowing := 0
 static var _flowing_now := 0
 
-## `size` in texels. Very wet paint runs down an upright surface; only paper takes charcoal.
+## In texels.
 var size: Vector2i
 var tiles: Vector2i
 var metres: Vector2
+## Very wet paint runs down an upright surface.
 var upright := true
+## Only paper takes charcoal.
 var paper := true
 var ticks := 0
 var last_end := 0
@@ -57,18 +57,16 @@ var _wet_tiles := {}
 ## In order: ["wait", ticks], ["dabs", stroke, dabs], ["end", stroke].
 var _queue: Array = []
 var _catching_up := false
-## For the replay's closing log line; `_replay_from` in microseconds.
-var _replay_from := 0
+var _replay_from_us := 0
 var _replay_frames := 0
 var _replay_strokes := 0
 var _owed := 0.0
-## The `_chain` key of the strokes ended so far, their count, and checkpoints:
-## [key, count, ticks, tiles, wet tiles, slot], newest last.
+## `_chain` of the strokes ended so far, their count, and checkpoints [key, count, ticks, tiles, wet tiles, slot],
+## newest last.
 var _key := 0
 var _count := 0
 var _checkpoints: Array = []
-## Queued strokes not yet ended, and whether the painter's own stroke is open: a checkpoint is kept only between
-## strokes.
+## Queued strokes not yet ended, and the painter's own stroke open: a checkpoint is kept only between strokes.
 var _pending := 0
 var _open := false
 ## Render thread: each slot's [wet, dry], made on its first save.
@@ -91,7 +89,6 @@ static var _normal_sampler: RID
 ## Render thread.
 var _probe: RID
 var _probing := false
-## Nothing laid since the last clear, so `_freeze` has nothing to keep on show.
 var _blank := true
 
 
@@ -348,8 +345,7 @@ func play(stroke: Dictionary, gap: int) -> void:
 	_pending += 1
 
 
-## From the checkpoint of the longest kept prefix of `strokes`, or a blank sheet, replays the rest as fast as the frame
-## allows, the painting as it was staying on show until the replay catches up.
+## Replays `strokes` past their longest kept prefix as fast as the frame allows, the old painting on show until then.
 func rebuild(strokes: Array) -> void:
 	var keys := [0]
 	for s: Dictionary in strokes:
@@ -382,7 +378,7 @@ func rebuild(strokes: Array) -> void:
 	for i in range(_count, strokes.size()):
 		play(strokes[i], strokes[i].gap)
 	_catching_up = true
-	_replay_from = Time.get_ticks_usec()
+	_replay_from_us = Time.get_ticks_usec()
 	_replay_frames = 0
 	_replay_strokes = strokes.size() - _count
 
@@ -481,7 +477,7 @@ func _step(delta: float) -> void:
 	_submit()
 	if _catching_up and _queue.is_empty() and settled():
 		_catching_up = false
-		print("canvas: %d strokes back in %.0f ms over %d frames" % [_replay_strokes, (Time.get_ticks_usec() - _replay_from) / 1000.0, _replay_frames])
+		print("canvas: %d strokes back in %.0f ms over %d frames" % [_replay_strokes, (Time.get_ticks_usec() - _replay_from_us) / 1000.0, _replay_frames])
 		_owed = 0.0
 		_thaw()
 
@@ -566,9 +562,9 @@ func _close_batch() -> void:
 	_batch_start = ticks
 
 
-## A flow step past this canvas's share runs the rows the share leaves and the rest next frame, so a tick dearer than
-## the share spreads over frames. Each step reads only the texture the other writes, so its rows run in any number of
-## parts to the same result. A frame that has run no flow yet runs at least one row of workgroups.
+## A flow step past this canvas's share runs the rows the share leaves and the rest next frame. Each step reads only the
+## texture the other writes, so its rows run in any number of parts to the same result. A frame that has run no flow
+## yet runs at least one row of workgroups.
 func _submit() -> void:
 	_close_batch()
 	var left := _share()
@@ -706,7 +702,6 @@ func _copy(from: RID, to: RID) -> void:
 	_rd.texture_copy(from, to, Vector3.ZERO, Vector3.ZERO, Vector3(size.x, size.y, 1), 0, 0, 0, 0)
 
 
-## Keeps the painting as it stood before `rebuild` on show while the replay catches up behind it.
 func _freeze() -> void:
 	if _rd == null or _blank or not _frozen.is_empty():
 		return

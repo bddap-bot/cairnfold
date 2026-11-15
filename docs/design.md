@@ -3186,7 +3186,7 @@ bush turns about its foot, its crown with it, its turn kept by the garden (`turn
 restyles, undo and saves. Ivy roots by the build's seed and its place along the wall, so it climbs the carried build as
 it did and stays grown. Let go, each is one command, one undo step, which every peer applies alike.
 
-The colour tool copies one build's look onto another. A tap of its trigger (released within `PaletteTool.TAP` of game time, the
+The colour tool copies one build's look onto another. A tap of its trigger (released within `PaletteTool.TAP_SECONDS` of game time, the
 wheel never turned off where it opened) on a wall, house, tower or fence takes that build's look into the hand
 (`PaletteTool.look_of`): its paint, face and wear, top, foundation, floor, gable ends and roof covering, and its beam
 takes the look's stone or plaster colour. Each tap after on another build lays the look there as one `reshape`, one undo
@@ -4706,7 +4706,7 @@ Directive (verbatim): "When something doesn't work because of the frame cap, I t
 One table, `Cues.TABLE`, keyed by `Cues.Act`, gives each player action its sound and its pulse in each hand that
 did it (both hands carrying, stretching, resizing or raising a house pulse together, one sound for the pair): the sound's family of clips, its level, its pitch and how far that varies each play, how far a stretch's
 tension bends the pitch up, the pulse as amplitude, seconds, count and gap, how much tension strengthens it, and
-the least time between two plays from one hand or pair; for a boulder, how much louder and lower its size makes it (`weigh`, `deepen`) and how much louder its speed (`swell`), every level held under `Cues.LOUDEST`. A call site names only the action, where it happened and the
+the least time between two plays from one hand or pair; for a boulder, how much louder and lower its size makes it (`weigh`, `deepen`) and how much louder its speed (`swell`), every level held under `Cues.LOUDEST_DB`. A call site names only the action, where it happened and the
 hands, so no level or pulse lives anywhere else; touching a surface is felt through `HandStop.FEEL` instead, and
 both send their pulses through `Cues.feel`. Sounds play from a pool of twelve 3D voices at the action's place, the
 oldest started giving way, so a burst of actions costs nothing more. Every play varies its pitch and level a
@@ -5272,7 +5272,7 @@ without one opens nothing.
 Directive (verbatim):
 > I'd like to be able to record video. The video one might be a little harder, so if it's too much of a mess, maybe we just leave that out.
 
-Holding the camera's trigger past `PhotoTool.HOLD` (0.3 s) records instead of taking a photo, until it is let go
+Holding the camera's trigger past `PhotoTool.RECORD_HOLD_SECONDS` (0.3 s) records instead of taking a photo, until it is let go
 or the camera is put away; a tap still takes a photo, on release. The shutter button glows red while it records,
 and the hand gets a buzz at the start and the end. The video is an AVI of JPEG frames (`Avi`) with the game's own
 sound, saved beside the photos, named by the date and time; it plays in common players and imports into editors.

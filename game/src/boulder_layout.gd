@@ -1,22 +1,18 @@
 class_name BoulderLayout
 extends RefCounted
 
-## A boulder's shape is drawn from its seed and stone style alone, so every machine and every load grows the same one.
-## `radius` is the one function behind its mesh, its picking and what a hand stops at. The unit boulder is about a
-## metre across; the garden scales it.
+## Grown from seed and style alone, alike on every machine; `radius` drives its mesh, picking and what a hand stops at.
+## The unit boulder is about a metre across; the garden scales it.
 
-## A pebble a hand could hold.
 const LEAST := 0.08
-## The sizing tool stops here, and no command makes one bigger.
+## No tool or command makes one bigger.
 const MOST := 10000.0
 ## A share of how far it reaches below its centre, whichever way it is turned.
 const BURY := 0.2
-## The share of its height a sunk boulder keeps above ground, so a ray still finds it to grip, delete or restyle it,
-## and it still reads as a stone and not a mark on the grass.
+## The share of its height a sunk boulder keeps above ground, so a ray still finds it and it reads as a stone.
 const KEEP := 0.15
-## Icosphere subdivision of the points it rests on.
+## Icosphere subdivisions: FEET of the points it rests on, NEAR and FAR of the meshes.
 const FEET := 2
-## Icosphere subdivisions of the near and far meshes.
 const NEAR := 3
 const FAR := 1
 
@@ -33,7 +29,6 @@ class Shape:
 	var cuts: Array[Vector4] = []
 	var pits := FastNoiseLite.new()
 	var grain := FastNoiseLite.new()
-	## Local surface points, any of which may be what it rests on.
 	var feet := PackedVector3Array()
 
 	## `u` is a unit direction.
@@ -53,11 +48,10 @@ class Shape:
 		var l := p.length()
 		return l < 1e-6 or l < radius(p / l)
 
-	## A bound no part of the surface reaches past.
 	func reach() -> float:
 		return maxf(axes.x, maxf(axes.y, axes.z)) * 1.06
 
-	## Distance along the local ray from `origin` along unit `dir` to the surface; INF for a miss.
+	## Along the local ray, unit `dir`; INF for a miss.
 	func hit(origin: Vector3, dir: Vector3, reach_limit := INF) -> float:
 		var r := reach()
 		var b := origin.dot(dir)
@@ -83,7 +77,6 @@ class Shape:
 			t += step
 		return INF
 
-	## The outward normal; `p` is a local surface point.
 	func normal(p: Vector3) -> Vector3:
 		var e := 0.01
 		var f := func(q: Vector3) -> float: return q.length() - radius(q.normalized())
@@ -116,8 +109,6 @@ static func shape(seed: int, style: int) -> Shape:
 	return s
 
 
-## Normals are averaged across faces, so worn edges shade round and fracture faces flat. The colour is a shade, darker
-## toward the underside and in the pits, where less sky reaches.
 static func arrays(s: Shape, subdiv: int) -> Array:
 	var a := Meshes.icosphere(subdiv)
 	var sphere: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -145,17 +136,14 @@ static func arrays(s: Shape, subdiv: int) -> Array:
 	return a
 
 
-## Dropped straight down at (`x`, `z`) onto `height`(x, z) until some point of it meets the ground, sunk BURY, then
-## `sink` unit-boulder metres further, at most as deep as keeps KEEP of its height above the ground: it rests on the
-## ground or in it, never over it.
+## Sunk BURY once a point meets the ground, then `sink` unit-boulder metres more, keeping KEEP of its height above.
 static func rest(s: Shape, turn: Quaternion, scale: float, x: float, z: float, height: Callable, sink := 0.0) -> Transform3D:
 	var basis := Basis(turn) * Basis.from_scale(Vector3.ONE * scale)
 	var drop := _drop(s, basis, x, z, height)
 	return Transform3D(basis, Vector3(x, drop.x - clampf(sink * scale, 0.0, drop.y), z))
 
 
-## How far below its rest a boulder held with its centre at `at` sits, in unit-boulder metres as `rest` takes it: 0
-## held over the ground, at most as deep as keeps KEEP of it showing.
+## In unit-boulder metres, as `rest` takes it; 0 held over the ground.
 static func sink(s: Shape, turn: Quaternion, scale: float, at: Vector3, height: Callable) -> float:
 	var drop := _drop(s, Basis(turn) * Basis.from_scale(Vector3.ONE * scale), at.x, at.z, height)
 	return clampf(drop.x - at.y, 0.0, drop.y) / scale

@@ -1,16 +1,12 @@
 class_name Contacts
 extends RefCounted
 
-## VRChat's contacts (https://creators.vrchat.com/common-components/contacts/). A receiver's parameter, from the
-## senders whose tags it lists that touch it: "constant" 1 while one does, "onEnter" 1 for the frame one arrives at
-## least `minVelocity` fast, "proximity" from 0 at its edge to 1 at its centre. Every humanoid body carries BODY, so
+## VRChat's contacts (https://creators.vrchat.com/common-components/contacts/). Every humanoid body carries BODY, so
 ## every player touches what an avatar's receivers reach for, whatever avatar they wear.
 
 const RECEIVERS := ["constant", "onEnter", "proximity"]
-## The senders VRChat makes on every humanoid avatar, by the name of the descriptor collider each comes from: [tags,
-## the humanoid bones it may sit on, first found, the bones its capsule may run to or none for a sphere, radius as a
-## fraction of the eyes' height, as VRChat's automatic colliders size a typical avatar]. A VRChat avatar's file carries
-## its own ("body" contacts); these stand in on any other.
+## The senders VRChat makes on every humanoid avatar, by descriptor collider: [tags, bones it may sit on, first found,
+## bones its capsule may run to or [] for a sphere, radius over the eyes' height]. A VRChat file carries its own.
 const BODY := {
 	"head": [["Head"], ["head"], [], 0.05],
 	"torso": [["Torso"], ["chest", "spine"], ["upperChest", "neck"], 0.075],
@@ -27,17 +23,16 @@ const BODY := {
 	"fingerLittleL": [["Finger", "FingerL", "FingerLittle", "FingerLittleL"], ["leftLittleIntermediate"], ["leftLittleDistal"], 0.0065],
 	"fingerLittleR": [["Finger", "FingerR", "FingerLittle", "FingerLittleR"], ["rightLittleIntermediate"], ["rightLittleDistal"], 0.0065],
 }
-## The scene group of the players' bodies, each giving `contact_senders(tags)`: Array of [from, to, radius, tags (a
-## Dictionary of them), body, a key naming the sender from frame to frame] in world space, those sharing a tag with
-## `tags`, or all where null; and `listened()`, the tags its own receivers listen for.
+## Group members give `contact_senders(tags)`: [from, to, radius, tags Dictionary, body, key stable across frames] in
+## world space, those sharing a tag with `tags`, or all where null; and `listened()`.
 const BODIES := &"contact_bodies"
 
 var _receivers: Array[Dictionary] = []
 var _senders: Array[Dictionary] = []
 var _touching: Array[Dictionary] = []
-## Each sender's world origin a frame ago, by its key, while a receiver is "onEnter".
+## Sender key -> world origin a frame ago, kept only while a receiver is "onEnter".
 var _last := {}
-## The file gives the body's own senders, which stand in for BODY.
+## The file's own senders stand in for BODY.
 var carries_body := false
 var _entering := false
 static var _gathered := []
@@ -45,8 +40,7 @@ static var _gathered_frame := -1
 static var _TAGS := _body_tags()
 
 
-## The contacts of an avatar's expressions, each placed on the bone `bone.call(node name)` answers as [skeleton, bone
-## index], where the skeleton's constraints put it; one whose bone the model lacks is left out.
+## `bone.call(node name)` answers [skeleton, bone index], or [] where the model lacks it.
 func _init(contacts: Array, bone: Callable) -> void:
 	for c: Dictionary in contacts:
 		var at: Array = bone.call(c.node)
@@ -78,8 +72,7 @@ func senders(outputs: Array[float], owner: Object, tags: Variant = null) -> Arra
 	return out
 
 
-## Every sender of every body in `tree` this frame that a shown receiver of any of them listens for (listened): placing
-## a sender no receiver listens for is most of what contacts cost.
+## Only senders some shown receiver listens for: placing the rest is most of what contacts cost.
 static func gather(tree: SceneTree) -> Array:
 	var frame := Engine.get_process_frames()
 	if frame != _gathered_frame:
@@ -99,8 +92,7 @@ static func gather(tree: SceneTree) -> Array:
 	return _gathered
 
 
-## The tags of the receivers `outputs` switch on, those of local-only ones only where `local`, or null for every tag
-## while one counts entries, which reads where every sender was a frame ago.
+## Null means every tag, while an "onEnter" receiver needs where every sender was a frame ago.
 func listened(outputs: Array[float], local: bool) -> Variant:
 	if _entering:
 		return null
@@ -111,8 +103,7 @@ func listened(outputs: Array[float], local: bool) -> Variant:
 	return out
 
 
-## `senders` is what `gather` returns; `owner` is its own body; `local` means the avatar is its wearer's own, the only
-## place a local-only receiver runs.
+## `local`: the avatar is its wearer's own, the only place a local-only receiver runs.
 func sense(state: ExpressionState, senders: Array, owner: Object, local: bool, delta: float) -> void:
 	for i in _receivers.size():
 		var r: Dictionary = _receivers[i]
@@ -147,8 +138,7 @@ func sense(state: ExpressionState, senders: Array, owner: Object, local: bool, d
 			_last[s[5]] = s[0]
 
 
-## A humanoid body's VRChat senders (BODY) in world space: `joint.call(bone)` gives a humanoid bone's world origin, or
-## null where the body has none; `height` its eyes' height.
+## `joint.call(bone)` gives a humanoid bone's world origin, or null where the body has none; `height` is the eyes'.
 static func body_senders(joint: Callable, height: float, owner: Object, tags: Variant = null) -> Array:
 	var out := []
 	for key: String in BODY:

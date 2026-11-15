@@ -1,8 +1,6 @@
 class_name Birds
 extends Node3D
 
-## Conures. `Wildlife` decides when they come and knows where nobody is looking.
-
 enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, DECIDE, FEED, SHOULDER }
 
 const CAP := 3
@@ -38,7 +36,7 @@ const AWAY_FOR := Vector2(20.0, 45.0)
 ## Metres, and m/s: a hand this near a bird on your shoulder and faster shoos it; a reach to take it is slower.
 const SHOO := 0.3
 const SHOO_SPEED := 1.2
-## Per second; eased in the rig's space so a teleport or a snap turn carries it whole.
+## Eased in the rig's space so a teleport or a snap turn carries it whole.
 const RIDE := 14.0
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0), 0.6)
 const PAUSE := Vector2(1.5, 5.0)
@@ -98,7 +96,6 @@ class Bird:
 	var carried := false
 	## Index into `Torso.SHOULDERS`, or -1.
 	var shoulder := -1
-	## Seconds.
 	var away := 0.0
 	## In the rig's space.
 	var ride := Transform3D.IDENTITY
@@ -114,7 +111,6 @@ class Site:
 	func points() -> PackedVector3Array:
 		return PackedVector3Array()
 
-	## Metres.
 	func hop() -> float:
 		return Birds.HOP.y
 

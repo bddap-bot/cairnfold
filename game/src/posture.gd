@@ -1,59 +1,49 @@
 class_name Posture
 extends RefCounted
 
-## A player's body pose from their three tracked poses over what is under them. Besides standing, the poses are single
-## frames of lying and sitting from CMU's motion capture (animations/poses.json, converted by scripts/mocap.gd).
-##
-## Three tracked points do not tell sitting on the ground from crouching or kneeling: the head is low and upright in
-## all three, and the legs are not tracked. So standing takes every upright head from STAND_LOW up, whatever the hands
-## do, and a recorded pose must beat it by HYSTERESIS for DWELL: a head lowered for a moment to work the ground keeps
-## the standing body.
+## Three tracked points do not tell sitting on the ground from crouching or kneeling, so standing takes every upright
+## head from STAND_LOW up, and a recorded pose must beat it by HYSTERESIS for DWELL: a head lowered for a moment to work
+## the ground keeps the standing body.
 
 const STANDING := 0
-## An upright head at least this high over its support stands.
 const STAND_LOW := 1.0
-## A ledge is a support that drops at least this far ahead of the hips.
+## A ledge drops at least this far ahead of the hips.
 const LEDGE := 0.25
-## Where the hips and feet are probed: behind and ahead of the eyes, along an upright head's facing.
 const SEAT_BACK := 0.1
 const FEET_AHEAD := 0.45
-## A head is upright while its forward's horizontal length exceeds this.
 const UPRIGHT := 0.6
-## How far each reading may differ before it counts as much as the others. Standing's head looks up and down at what it
-## builds, so its up spread is wider.
+## Each reading's difference that counts as one unit against the others.
 const HEIGHT_SPREAD := 0.12
 const DROP_SPREAD := 0.12
 const UP_SPREAD := 0.35
+## Standing's head looks up and down at what it builds.
 const STAND_UP_SPREAD := 0.7
 const HAND_SPREAD := 0.3
 const HAND_HEIGHT_SPREAD := 0.15
 const HYSTERESIS := 2.0
 const DWELL := 0.4
 const BLEND := 0.6
-## Seconds; DWELL is several readings.
+## Seconds; DWELL spans several readings.
 const READ_EVERY := 0.1
-## Reprobe thresholds: a probe asks every build, and a player lying or sitting holds still.
+## A probe asks every build, and a player lying or sitting holds still.
 const PROBE_MOVE := 0.2
 const PROBE_TURN := deg_to_rad(20.0)
 const PROBE_EVERY := 2.0
-## How far the eyes may turn from where a lying or sitting pose's eyes look before its body turns after them.
 const YAW_SLACK := deg_to_rad(50.0)
 
-## Each pose: {name, turns: humanoid bone -> its turn from the T-pose (absent while standing), eyes, hands, seat}.
+## Each pose: {name, turns: humanoid bone -> turn from the T-pose, eyes, hands, seat}; standing has no eyes or hands.
 static var poses: Array[Dictionary] = _read()
 ## Per pose, in `reading`'s layout; [] for standing.
 static var _templates: Array[Array] = []
 
 ## Per pose, summing to one.
 var weights := PackedFloat32Array()
-## Blending in, or shown.
 var target := STANDING
-## Per lying or sitting pose, where its body faces; a standing body faces where the head does.
+## Per lying or sitting pose, its body's yaw; a standing body faces where the head does.
 var yaws := PackedFloat32Array()
 var _candidate := STANDING
 var _since := 0.0
 var _unread := INF
-## The last probe, the eyes it was taken at, and seconds since.
 var _under := Vector2.ZERO
 var _probed := Transform3D()
 var _unprobed := INF
@@ -88,7 +78,7 @@ static func reading(eyes: Transform3D, l: Vector3, r: Vector3, support: Callable
 	return reading_over(eyes, l, r, probe(eyes, support, size), size)
 
 
-## (support height behind the eyes, where the hips would be, or under them unless upright; its drop ahead, where the feet would be, 0 unless upright).
+## (support height behind the eyes, or under them unless upright; its drop ahead, 0 unless upright).
 static func probe(eyes: Transform3D, support: Callable, size := 1.0) -> Vector2:
 	var forward := -eyes.basis.z
 	var flat := Vector3(forward.x, 0.0, forward.z)
@@ -156,13 +146,11 @@ static func nearest(f: Array, shown: int) -> int:
 	return best
 
 
-## The yaw that best turns pose `k`'s recorded eyes onto `eyes`.
 static func heading(k: int, eyes: Basis) -> float:
 	var n := eyes * (poses[k].eyes as Transform3D).basis.transposed()
 	return atan2(n.z.x - n.x.z, n.x.x + n.z.z)
 
 
-## `size`: the body over the recorded people's.
 func update(eyes: Transform3D, l: Vector3, r: Vector3, support: Callable, delta: float, size := 1.0) -> void:
 	_unread += delta
 	_unprobed += delta
