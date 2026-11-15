@@ -1,10 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap;
 
-// A leaf of the picture book, hinged at the spine (x 0) and `width` wide: turned `angle` (0 on the right, PI on the
-// left), its free edge lagging as paper does by `bend`. Each face is its paint, baked once (`*_paint`, `*_grain`:
-// book_paint.gdshader), and in its window a live picture (`*_picture`, a LessonScene) inked over a painted backdrop.
-// `wash_*` is the picture's sky, `horizon_*` where its horizon lies, `fade` its loop's fade.
+// Hinged at x 0; `angle` 0 lies right, PI left. `*_paint` and `*_grain` are baked by book_paint.gdshader; `*_picture`
+// is a LessonScene. `*_horizon` runs 0 at the picture's top to 1 at its foot.
 
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
@@ -13,7 +11,6 @@ uniform float width;
 uniform vec3 paper : source_color;
 uniform float angle = 0.0;
 uniform float bend = 0.0;
-// How high a resting leaf bows up out of the gutter, as a bound page does.
 uniform float gutter_bow = 0.0;
 uniform sampler2D front_picture : source_color, filter_linear, repeat_disable;
 uniform sampler2D back_picture : source_color, filter_linear, repeat_disable;
@@ -43,9 +40,6 @@ void vertex() {
 	GIVE_HERE;
 }
 
-// The painted world behind a page's picture: a watercolour sky of the page's `wash` over the horizon at `horizon`
-// (0 the picture's top, 1 its foot), soft clouds, two bands of far hills and a brushed meadow running to the
-// picture's foot, which a camera looking down sees all of.
 vec3 backdrop(vec2 uv, vec3 wash, float horizon, float seed, float grain) {
 	float h = uv.y - horizon;
 	float far = horizon - 0.07 - 0.05 * noise(vec2(uv.x * 2.5 + seed, 0.0)) + 0.025 * sin(uv.x * 5.0 + seed);
@@ -77,7 +71,7 @@ vec3 backdrop(vec2 uv, vec3 wash, float horizon, float seed, float grain) {
 	return max(mix(vec3(dot(c, vec3(0.3, 0.55, 0.15))), c, 1.8), vec3(0.0));
 }
 
-// The face: its baked paint, and in its window the live picture inked over the backdrop, laid in by the baked weight.
+// The paint's alpha is the window's weight.
 vec3 page(vec2 p, sampler2D paint, sampler2D grain, sampler2D picture, vec3 wash, float horizon, float fade, float seed) {
 	vec4 base = texture(paint, p);
 	if (base.a <= 0.0) {

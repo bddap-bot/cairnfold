@@ -1,15 +1,14 @@
-// The ground's heights (Terrain.install): grid origin, step and points per side in ground_grid, and the
-// humps strokes are pulling (Terrain.set_hump), one per hand in the first two columns of ground_humps,
-// sampled on the grid points as Terrain.height_at does.
+// ground_grid: origin, step, points per side. ground_humps columns 0 and 1: a live hump per hand (Terrain.set_hump),
+// xy centre, z radius, w height, sampled on grid points as Terrain.height_at does.
+// ground_height: r height, b what rounding r to half precision left, ga the normal's xz.
 global uniform sampler2D ground_height : filter_linear, repeat_disable;
 global uniform vec3 ground_grid;
 global uniform mat4 ground_humps;
-// What the ground is made of (Ground): red trodden earth, green stone, alpha sand, none of them meadow; blue the stone's
-// style in its low bits and Ground.TILLED, its top bit, where a garden bed's earth.
+// ground_mask (Ground): r trodden earth, g stone, a sand, none meadow; b the stone style in its low bits and
+// Ground.TILLED, its top bit, on a garden bed.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 const int TILLED = 128;
 
-// The texture coordinate of `xz` in a one-texel-per-grid-point texture.
 vec2 grid_uv(vec2 xz) {
 	return ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z;
 }
@@ -40,9 +39,8 @@ float ground_at(vec2 xz) {
 	return h;
 }
 
-// A one-texel-per-grid-point texture as a cubic B-spline through the neighbourhood of `xz`, in four filtered
-// taps, of red plus blue: ground_height's blue holds what rounding red to half precision left, and a texture
-// without blue reads 0 there. Bilinear contours kink at every grid line, so a small hollow's waterline drawn from them is a polygon.
+// Cubic B-spline of r + b in four filtered taps (a texture without b reads 0 there): bilinear contours kink at every
+// grid line, so a small hollow's waterline drawn from them is a polygon.
 float grid_smooth(sampler2D t, vec2 xz) {
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
 	vec2 i = floor(g);
@@ -62,14 +60,14 @@ vec4 ground_cover(vec2 xz) {
 	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0);
 }
 
-// The style of the stone at `xz`, `jitter` texels off so two styles meet along a ragged line.
+// `jitter` in texels, so two styles meet along a ragged line.
 int ground_style(vec2 xz, vec2 jitter) {
 	ivec2 size = textureSize(ground_mask, 0);
 	vec2 t = (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)) * vec2(size) + jitter;
 	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5) & (TILLED - 1);
 }
 
-// How bare of plants the ground is, as Ground.bare reads it: 1 on earth, sand or stone.
+// As Ground.bare reads it.
 float bare(vec2 xz) {
 	vec4 c = ground_cover(xz);
 	return min(c.r + c.g + c.a, 1.0);
@@ -82,7 +80,7 @@ vec3 ground_normal(vec2 xz) {
 	return normalize(vec3(-dx, 2.0 * e, -dz));
 }
 
-// ground_normal at a grid point, one read where it takes five: Terrain stores it there. Live humps are not in it.
+// At a grid point: one read where ground_normal takes four. Live humps are not in it.
 vec3 ground_point_normal(vec2 xz) {
 	vec2 n = textureLod(ground_height, grid_uv(xz), 0.0).ga;
 	return vec3(n.x, sqrt(max(1.0 - dot(n, n), 0.0)), n.y);

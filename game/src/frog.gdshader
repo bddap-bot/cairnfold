@@ -2,8 +2,7 @@ shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
 #include "res://src/given.gdshaderinc"
 
-// INSTANCE_CUSTOM: x its clock, y how far it has grown in, z how far its hind legs reach out behind (a hop, a kick),
-// w how far its throat swells (a croak).
+// INSTANCE_CUSTOM: x clock, y grown in, z hind legs' reach behind (a hop, a kick), w throat swell (a croak).
 
 const int PART_BODY = 0;
 const int PART_HEAD = 1;

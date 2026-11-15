@@ -1,9 +1,9 @@
 #[compute]
 #version 450
 
-// One surface's paint, a canvas's or an oil palette's (Canvas, Brushwork), each a whole number of tiles. `wet` holds pigment still in the water (rgb, optical density) and the water
-// itself (a); `dry` the pigment laid into the paper (rgb) and the height of oil standing on it (a); `paper` the
-// paper's tooth (r). A tick is two flow steps, wet A to B and B back to A, so A is always the canvas as it stands.
+// `wet`: pigment in the water (rgb, optical density), water (a). `dry`: pigment laid in the paper (rgb), oil height
+// (a). `paper`: grain (r), the fine pits pigment settles into; tooth (g), the lumps a wash's edge stops on. A tick is
+// two flow steps, wet A to B and back, so A is always the canvas as it stands.
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
@@ -14,8 +14,8 @@ layout(rgba16f, set = 0, binding = 2) uniform restrict image2D dry;
 layout(rgba8, set = 0, binding = 3) uniform restrict image2D paper;
 layout(set = 0, binding = 6) uniform sampler2D paper_in;
 
-// The half float nearest `v`, which every store to `wet_out` and `dry` goes through: how a store rounds a float it
-// cannot keep is the driver's choice, and one that rounds toward zero loses a fifth of a wash's pigment as it dries.
+// Every store to `wet_out` and `dry` rounds here: a store's rounding is the driver's choice, and rounding toward zero
+// loses a fifth of a wash's pigment as it dries.
 vec4 nearest_half(vec4 v) {
 	uvec4 bits = floatBitsToUint(v);
 	vec4 normal = uintBitsToFloat((bits + 0xFFFu + ((bits >> 13u) & 1u)) & 0xFFFFE000u);
@@ -24,10 +24,10 @@ vec4 nearest_half(vec4 v) {
 
 struct Dab {
 	vec4 a; // x, y, radius, pressure
-	vec4 b; // heading, load, dryness, flat angle
+	vec4 b; // heading (charcoal: minor radius), load, dryness, footprint angle
 };
 layout(std430, set = 0, binding = 4) restrict readonly buffer Dabs { Dab dabs[]; };
-// Per tile, the first tick it is wet and the tick it is dry again.
+// Per tile: the first tick it is wet, the tick it is dry again.
 layout(std430, set = 0, binding = 5) restrict readonly buffer Tiles { ivec2 tiles[]; };
 
 layout(push_constant, std430) uniform Params {
@@ -49,28 +49,23 @@ const int OIL = 1;
 const int CHARCOAL = 2;
 const int SMEAR = 3;
 const int FLAT = 2;
+// A surface is a whole number of tiles.
 const int TILE = 64;
 
 const float WET = 0.004;
-// Water flows to a neighbour by this share of the difference in level; into dry paper only past the paper's tooth.
 const float FLOW_RATE = 0.2;
 const float EDGE = 0.4;
 const float TOOTH_HOLD = 0.35;
-// A canvas standing up: very wet paint runs down it.
 const float GRAVITY = 0.09;
 const float RUNS = 0.55;
-// Water dries by a little every step and a share of what is there, a share far larger at a wash's edge. Since a
-// share never empties a texel the edge stays put as the wash dries, fed from inside: the rim where pigment piles up.
+// A share never empties a texel, so a drying wash's edge stays put, fed from inside: the rim where pigment piles up.
 const float EVAPORATE = 0.0004;
 const float EVAPORATE_SHARE = 0.003;
 const float EDGE_SHARE = 0.03;
-// Pigment settles out of the water a little every step, more into the paper's pits (granulation), and the rest as
-// the water thins.
 const float SETTLE = 0.002;
 const float GRANULATE = 0.7;
 const float THIN = 0.02;
-// How far in from a wash's edge it dries faster, in texels.
-const int EDGE_REACH = 4;
+const int EDGE_REACH = 4; // texels
 const float LIFT = 0.25;
 
 float hash(vec2 p) {
@@ -84,7 +79,6 @@ vec2 slope(vec2 i) {
 	return vec2(cos(a), sin(a));
 }
 
-// Gradient noise, 0..1, each octave turned off the grid so no axis shows through.
 float noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -96,6 +90,7 @@ float noise(vec2 p) {
 	return clamp(mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 0.75 + 0.5, 0.0, 1.0);
 }
 
+// Turned off the grid so no axis shows through.
 float octave(vec2 p, float scale, float turn) {
 	float c = cos(turn);
 	float s = sin(turn);
@@ -124,7 +119,6 @@ bool wet_tile(ivec2 p, int tick) {
 	return tick >= t.x && tick < t.y;
 }
 
-// The paper's grain (r), fine pits pigment settles into, and its tooth (g), the broader lumps a wash's edge stops on.
 void make_paper(ivec2 p) {
 	vec2 q = vec2(p);
 	float grain = 0.6 * octave(q, 2.3, 0.5) + 0.4 * octave(q, 1.2, 1.7);
@@ -132,8 +126,6 @@ void make_paper(ivec2 p) {
 	imageStore(paper, p, vec4(clamp((grain - 0.5) * 1.6 + 0.5, 0.0, 1.0), clamp((tooth - 0.5) * 1.8 + 0.5, 0.0, 1.0), 0.0, 1.0));
 }
 
-// How much of a dab reaches texel `q`: a soft disc for round brushes and the stick, a blunt flat oval for the flat,
-// its edge ragged with the paper and the bristles.
 float footprint(Dab d, vec2 q, float h) {
 	vec2 rel = q - d.a.xy;
 	float r = d.a.z;
@@ -157,7 +149,6 @@ float footprint(Dab d, vec2 q, float h) {
 	return 1.0 - smoothstep(soft, 1.0, dist);
 }
 
-// Streaks a brush's bristles drag along its heading.
 float bristles(Dab d, vec2 q) {
 	vec2 rel = q - d.a.xy;
 	vec2 across = vec2(-sin(d.b.x), cos(d.b.x));
@@ -177,7 +168,6 @@ void smear(ivec2 p) {
 	vec4 here = texelFetch(wet_in, p, 0);
 	vec4 change = vec4(0.0);
 	ivec2 extent = textureSize(wet_in, 0);
-	// Each outgoing transfer has an equal incoming transfer at its destination: no pigment is created.
 	for (int i = pc.first; i < pc.first + pc.count; i++) {
 		Dab d = dabs[i];
 		float f = feathers(d, vec2(p) + 0.5);
@@ -227,17 +217,14 @@ void lay(ivec2 p) {
 		float load = d.b.y;
 		float dryness = d.b.z;
 		if (medium == WATER) {
-			// A skimming or nearly dry brush leaves the paper's hollows white.
 			float skim = smoothstep(dryness - 0.3, dryness, mix(lump, fine, 0.6) + 0.2);
 			float water = f * skim * load * (0.12 + 0.3 * sqrt(pressure));
 			float added = min(water, max(1.0 - w.a, 0.0));
 			vec3 paint = density * strength;
 			w.a += added;
 			w.rgb += paint * added;
-			// The brush and the puddle under it trade pigment, so going over a wet wash evens it toward the brush's
-			// mix instead of piling colour on: a clean wet brush thins it.
+			// Brush and puddle trade pigment, so going over a wet wash evens it toward the brush's mix rather than piling on.
 			w.rgb = mix(w.rgb, paint * w.a, clamp(water * 0.5, 0.0, 1.0));
-			// A wet brush with little colour on it lifts what lies there.
 			if (laid.a < 0.01) {
 				vec3 lifted = laid.rgb * f * LIFT * pressure * load * max(0.0, 1.0 - strength * 4.0);
 				laid.rgb -= lifted;
@@ -255,9 +242,8 @@ void lay(ivec2 p) {
 			float height = (0.35 + 0.65 * pressure) * load * (0.55 + 0.45 * streak);
 			laid.a = mix(laid.a, max(laid.a * 0.6, height), cover);
 		} else {
-			// Charcoal catches on the paper's peaks, its tooth as much as its grain so the grain reads at arm's length.
-			// Pressing harder reaches lower but never into the deepest pits: a hard line closed into a smooth band
-			// reads as a wash. Each pass darkens what it catches less than the one before.
+			// Tooth weighs as much as grain so the grain reads at arm's length. Pressure never reaches the deepest pits:
+			// a hard line closed into a smooth band reads as a wash.
 			float bite = 0.86 - pressure * 0.44;
 			float take = f * load * smoothstep(bite - 0.04, bite + 0.04, fine * 0.5 + lump * 0.5) * (0.12 + 0.2 * pressure);
 			laid.rgb += density * take * exp(-laid.g * 0.6);
@@ -269,8 +255,8 @@ void lay(ivec2 p) {
 	}
 }
 
-// Water a texel at `wi` gives its neighbour at `wj`, of tooth `hj`, lying `dir` from it this step. Both texels work
-// it out from the same values, so water and pigment are only ever moved, never made.
+// Water from wi to neighbour wj (tooth hj) lying `dir` away. Both texels work this out from the same values, so water
+// and pigment are only ever moved, never made.
 float give(float wi, float wj, float hj, ivec2 dir) {
 	if (wi < WET) {
 		return 0.0;
@@ -292,7 +278,7 @@ void flow(ivec2 p) {
 		return;
 	}
 	vec4 c = texelFetch(wet_in, p, 0);
-	// Wet tiles include a margin for future flow. Empty texels with no wet neighbour cannot change this step.
+	// Wet tiles include a margin for future flow.
 	if (all(equal(c, vec4(0.0)))) {
 		ivec2 hi = canvas_size() - 1;
 		vec4 neighbours = vec4(texelFetch(wet_in, min(p + ivec2(1, 0), hi), 0).a,

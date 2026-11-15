@@ -1,8 +1,6 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_disabled;
 
-// The stone disc (stone_disc.gdshaderinc) under the garden's light.
-
 #include "res://src/given.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/stone_disc.gdshaderinc"

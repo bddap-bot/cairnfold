@@ -1,13 +1,11 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, cull_disabled;
 
-// The patch of meadow a page's picture shows, fraying into the paper at its rim, raised into a hill of
-// `hill_height` at `hill_at` (local x, z) for the page that teaches shaping the ground.
-
 uniform vec3 root_color : source_color;
 uniform vec3 tip_lush : source_color;
 uniform vec3 tip_dry : source_color;
 uniform vec3 earth : source_color;
+// Local x, z.
 uniform vec2 hill_at = vec2(0.0);
 uniform float hill_height = 0.0;
 uniform float hill_radius = 0.6;

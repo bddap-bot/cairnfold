@@ -7,7 +7,7 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 // x idle, y graze, z walk, w lie: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
-// The legs' cycle angle, advanced on the CPU by the ground walked so hooves stay planted at any pace.
+// The legs' cycle angle, advanced on the CPU by the ground walked so hooves stay planted.
 instance uniform float gait = 0.0;
 instance uniform vec3 wool = vec3(1.0);
 
@@ -45,8 +45,7 @@ void vertex() {
 		turn(VERTEX, NORMAL, vec3(side * 0.06, 0.73, -0.43), rot(vec3(0.0, 0.0, 1.0), side * flick) * rot(vec3(1.0, 0.0, 0.0), burst * 0.4));
 	}
 
-	// The head turns about the top of the neck; a grazing head drops to the grass and nibbles. The neck's wool
-	// follows it more the further forward it lies, so the fleece stretches rather than tears.
+	// The neck's wool follows the head more the further forward it lies, so the fleece stretches rather than tears.
 	float follow = part == PART_HEAD || ear ? 1.0 : part == PART_NECK ? clamp((-VERTEX.z - 0.24) / 0.2, 0.0, 1.0) : 0.0;
 	if (follow > 0.0) {
 		float look = idle * (0.5 * sin(t * 0.43) + 0.2 * sin(t * 1.3 + 1.0)) + lie * 0.45 * sin(t * 0.31) + graze * 0.2 * sin(t * 0.5);
@@ -65,7 +64,6 @@ void vertex() {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.52, 0.36), rot(vec3(0.0, 1.0, 0.0), wag));
 	}
 
-	// Walk: diagonal legs swing together, a lifted hoof on the forward swing; lie folds them under the body.
 	if (leg) {
 		bool front = part == PART_LEG_FL || part == PART_LEG_FR;
 		vec3 hip = vec3(part == PART_LEG_FL || part == PART_LEG_BL ? -0.12 : 0.12, 0.32, front ? -0.17 : 0.22);

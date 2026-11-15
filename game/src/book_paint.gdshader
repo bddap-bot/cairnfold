@@ -1,12 +1,8 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-// The picture book's fixed paint, which Book bakes once so the book in the hand reads textures rather than painting
-// every pixel each frame, one `part` (Book.Part) at a time. A face's paint (`face_seed`, `face_drawn`, `back_face`
-// putting the spine on its right): warm paper, a deckled window with an inked frame and painted sprigs, or with no
-// picture an endpaper of little leaves. The face is affine in what its window shows, so the bake keeps it as paint +
-// weight * picture: rgb the paint (sRGB), alpha the weight. Its grain, which the window's painted backdrop reads. The
-// front cover's top (`board` its size): its albedo (sRGB) with metal in alpha, then its roughness.
+// Baked once per `part` (Book.Part), so the held book reads textures instead of painting every pixel each frame.
+// A face is affine in its window's picture, so the bake is paint + weight * picture: rgb the paint (sRGB), a the weight.
 
 #include "res://src/book.gdshaderinc"
 
@@ -37,7 +33,6 @@ float box(vec2 p, vec2 c, vec2 h) {
 	return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0);
 }
 
-// A sprig of painted leaves from `root` along `dir`, with a flower at its tip.
 vec4 sprig(vec2 p, vec2 root, float dir, float seed, vec3 bloom) {
 	if (length(p - root) > 0.15) {
 		return vec4(0.0);

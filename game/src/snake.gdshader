@@ -2,9 +2,8 @@ shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
 #include "res://src/given.gdshaderinc"
 
-// INSTANCE_CUSTOM: x how far it has slid, y how far it has grown in, z how hard it turns, left positive, w how far its
-// tongue is out. The body lies along +Z behind the head; its waves are fixed to the ground it slides over, so each
-// stretch of it follows the way the head went.
+// INSTANCE_CUSTOM: x how far it has slid, y grown in, z turn (left positive), w tongue out. The body lies along +Z
+// behind the head; its waves are fixed to the ground, so each stretch follows the way the head went.
 const float WAVE = 15.0;
 const float SWAY = 0.03;
 

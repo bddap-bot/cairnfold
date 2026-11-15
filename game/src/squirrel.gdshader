@@ -3,8 +3,8 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 #include "res://src/given.gdshaderinc"
 #include "res://src/turn.gdshaderinc"
 
-// INSTANCE_CUSTOM: x how many bounds it has made, so its feet keep pace with the ground or bark it covers, y how far it
-// has grown in, z how far it bounds rather than keeps still, w how far it sits up on its haunches to nibble.
+// INSTANCE_CUSTOM: x bounds made, so its feet keep pace with the ground or bark, y grown in, z bounding rather than
+// still, w sitting up on its haunches to nibble.
 
 const int PART_HEAD = 1;
 const int PART_TAIL = 2;

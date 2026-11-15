@@ -1,8 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap;
 
-// A flag in the wind: waves run out from the pole and grow toward the free edge. Each flag keeps its own phase.
-
 #include "res://src/given.gdshaderinc"
 
 void vertex() {

@@ -1,8 +1,6 @@
 shader_type spatial;
 render_mode unshaded, shadows_disabled, fog_disabled;
 
-// A cover of the picture book (book.gdshaderinc's `cover`) in the icon look (icon.gdshaderinc).
-
 #include "res://src/book.gdshaderinc"
 #include "res://src/icon.gdshaderinc"
 

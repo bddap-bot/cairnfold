@@ -5,10 +5,9 @@ render_mode cull_disabled;
 #include "res://src/palette.gdshaderinc"
 
 uniform vec3 backlight : source_color = vec3(0.2, 0.3, 0.06);
-// Leaves shrink away over the last 15 m before this distance, or its far half when it is nearer: past it they would be
-// specks costing a full leaf each.
+// Past it leaves would be specks costing a full leaf each.
 uniform float reach;
-// A camera seeing this layer (Quality.FULL_LAYER) draws every leaf.
+// Quality.FULL_LAYER.
 uniform uint full_layer;
 
 void vertex() {
@@ -18,7 +17,7 @@ void vertex() {
 		shown = 1.0 - smoothstep(max(reach - 15.0, reach * 0.5), reach, distance(origin, CAMERA_POSITION_WORLD));
 	}
 	VERTEX *= shown;
-	// A sprig's colour carries the ground height under its wall (IvyLayout.bake) in its alpha.
+	// The ground height under its wall (IvyLayout.bake).
 	float foot = COLOR.a;
 	COLOR = vec4(seasoned(COLOR.rgb, season_foliage), 1.0);
 	given = vec4(0.0);

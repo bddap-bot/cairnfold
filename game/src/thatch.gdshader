@@ -29,12 +29,11 @@ void vertex() {
 
 void fragment() {
 	LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
-	// The detail noise stretched along the way the straw runs (the vertex's tangent) reads as reed.
 	vec3 across = normalize(cross(world_nrm, fall));
 	vec2 uv = vec2(dot(world_pos, across) * 4.0, dot(world_pos, fall) * 0.35);
 	float straw = texture(detail, uv).r * 0.65 + texture(detail, uv * vec2(2.7, 1.3) + 0.37).r * 0.35;
 	vec3 base = COLOR.rgb * tint * (0.62 + straw * 0.7);
-	// COLOR.a is how weathered the roof is: moss gathers on its gentler, upward faces.
+	// COLOR.a: how weathered the roof is.
 	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.5, 0.75, texture(detail, world_pos.xz * 0.3).r) * COLOR.a;
 	ALBEDO = mix(base, moss * (0.62 + straw * 0.7), mossy * 0.35);
 	ROUGHNESS = 0.95;

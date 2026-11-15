@@ -1,13 +1,11 @@
-// A disc of stone ground in small, as the ground shades it (stone_ground.gdshaderinc): `span` metres of style `style`
-// across, fraying toward its rim into meadow as scattered stones. Include after stone_ground.gdshaderinc.
-
+// `span` is in metres. Include after stone_ground.gdshaderinc.
 #include "res://src/detail.gdshaderinc"
 uniform int style;
 uniform float span = 2.0;
 uniform vec3 earth : source_color;
 uniform vec3 meadow : source_color;
 
-// The disc's colour at `uv` (0 to 1 across it), with how laid its stone is there and the stone's slope.
+// `uv` runs 0 to 1 across the disc.
 vec3 stone_disc(vec2 uv, out float laid, out vec2 slope) {
 	vec2 at = uv - 0.5;
 	float r = length(at) * 2.0;

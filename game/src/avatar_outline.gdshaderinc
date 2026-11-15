@@ -1,9 +1,7 @@
 #include "res://src/flat_light.gdshaderinc"
 
-// A toon outline: the surface's back faces pushed out along its normals and drawn in the outline's colour, lit flat
-// up to white. The avatar's outline layer (unity/materials.gd outline_layer) gives each atlas texel the colour, and in
-// alpha the share of `width` it is pushed out by. Its cells are a few texels wide where the layer is narrower than the
-// atlas, so it is read nearest, never blending a neighbouring cell into a vertex's width.
+// unity/materials.gd outline_layer: each atlas texel's colour, and in alpha its share of `width`. Read nearest: where
+// the layer is narrower than the atlas its cells are a few texels wide, and a blended neighbour would change a width.
 uniform sampler2D outline : source_color, filter_nearest, repeat_disable;
 uniform float width;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
@@ -14,8 +12,7 @@ varying vec3 flat_light;
 
 void vertex() {
 	float share = textureLod(outline, UV * atlas.xy + atlas.zw, 0.0).a;
-	// A texel no outline covers draws no hull, as lilToon deletes one of no width: a material a switch swaps in
-	// without an outline would otherwise show its back faces.
+	// No width draws no hull, as in lilToon: a material swapped in without an outline would otherwise show back faces.
 	VERTEX = share > 0.0 ? VERTEX + normalize(NORMAL) * share * width : vec3(intBitsToFloat(0x7fc00000));
 	vec3 at = NODE_POSITION_WORLD + vec3(0.0, 1.0, 0.0);
 	vec3 key;

@@ -2,8 +2,7 @@
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/daylight.gdshaderinc"
 
-// The mirror's view, the one camera that sees just Quality.MIRROR_MASK, lit by the mirror's own light and ambient
-// (MirrorTool).
+// Quality.MIRROR_MASK, the mirror camera's exact cull mask; that view is lit by MirrorTool's light and ambient.
 uniform uint mirror_mask;
 global uniform vec3 mirror_toward;
 global uniform vec3 mirror_light;
@@ -14,12 +13,9 @@ vec3 key_toward(bool mirrored) {
 	return length(toward) > 1e-4 ? normalize(toward) : vec3(0.0, 1.0, 0.0);
 }
 
-// A flat surface, as Poiyomi's Flat lighting and Toon Lit light it, takes the main light whole whichever way it faces,
-// scaled by `level`, plus the ambient, capped at `cap`: its texture's painted shading is the only shading. The ambient
-// and the light `given` back are returned capped, for the emission, the engine's ambient left out; the main light
-// stays the engine's, so the sun's shadow still falls on it, through `normal` turned toward the light and away by as
-// much as keeps the whole under the cap. The cap clips the ambient per channel and the main light by its brightest
-// channel. `key` is the main light and `spare` the room the cap leaves past what the surface takes of it.
+// As Poiyomi's Flat and Toon Lit: the main light is taken whole, scaled by `level`, whichever way the surface faces.
+// Returns ambient + `given` capped, for the emission; the engine keeps the main light so the sun's shadow falls,
+// through `normal` tilted toward it just far enough to stay under `cap`. `spare` is the cap's room past that.
 vec3 lit_flat(vec4 given, float cap, float level, bool mirrored, mat4 model, inout vec3 normal, out vec3 key, out float spare) {
 	vec3 ambient = (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
 	key = mirrored ? mirror_light : sun_light;

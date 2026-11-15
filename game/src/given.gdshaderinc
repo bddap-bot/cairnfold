@@ -1,7 +1,5 @@
-// What a thing small or dense enough to be lit once a vertex takes from the baked volumes where it stands. GIVE_HERE
-// follows the last write to VERTEX and NORMAL, both in model space; a shader that knows its ground height or lights
-// itself otherwise assigns `given` instead. TAKE_GIVEN follows ALBEDO and is two statements, so it needs braces under
-// an if.
+// GIVE_HERE follows the last write to VERTEX and NORMAL, both in model space. TAKE_GIVEN follows ALBEDO and is two
+// statements, so it needs braces under an if.
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 

@@ -12,20 +12,18 @@ uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 8.0;
 uniform float far_end = 20.0;
-// Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
+// x spread, y height of survivors across the LOD band, so they hold the meadow's cover.
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
-// A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.
+// Quality.FULL_LAYER.
 uniform uint full_layer;
-// The warmest-tinted clumps, this share of them, stand out as accents: taller, their tips a fresher green.
 uniform float accent_share = 0.05;
 uniform float accent_height = 1.6;
 uniform vec3 accent_tip : source_color = vec3(0.62, 0.82, 0.22);
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
-// Placed grass (Flora's painted and ghost pools) rooted under a pond grows as pondweed: tall ribbons reaching this share of
-// the way to the surface, leaning in a slow current and darkening toward blue-green with depth. The meadow's own drowns.
-// Only the weed_keep share of clumps (by rank) grows, so a ribbon several times a blade's size costs no more than one.
+// `planted` grass under a pond grows as pondweed, the meadow's own drowns. weed_reach is a share of the depth. Only the
+// weed_keep share of clumps by rank grows, so a ribbon several times a blade's size costs no more than one.
 instance uniform float planted = 0.0;
 uniform float weed_reach = 0.7;
 uniform float weed_stretch = 2.5;
@@ -60,7 +58,6 @@ void vertex() {
 	float gone = rank < survivors
 		? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
 		: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
-	// A fully collapsed clump has no fragments to light or blades to bend.
 	if (!full && dist >= gone) {
 		VERTEX = root;
 	} else {
@@ -85,7 +82,6 @@ void vertex() {
 		VERTEX = root + (VERTEX - root) * grown.xyx;
 
 		gust = wind_gust(root.xz) * (1.0 - weed);
-		// The current's swell runs up a ribbon, its tip a little behind its middle.
 		float swell = TIME * TAU / current_period + dot(root.xz, vec2(0.9, 0.6)) - tip * 1.6;
 		vec3 current = (vec3(wind_dir.x, 0.0, wind_dir.y) * (0.4 + 0.6 * sin(swell)) + vec3(-wind_dir.y, 0.0, wind_dir.x) * 0.5 * sin(swell * 0.61 + 1.3)) * current_sway * stretch;
 		vec3 push = mix(wind_push(root.xz, gust), current, weed);

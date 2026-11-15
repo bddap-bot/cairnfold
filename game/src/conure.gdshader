@@ -4,10 +4,10 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 #include "res://src/given.gdshaderinc"
 
 instance uniform float floor_height = 0.0;
-// A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
+// A row of `palette` (Conure.PLUMAGES); row 0 is iridescent, coloured here.
 instance uniform int plumage = 0;
-// Each part's rigid motion this frame from Conure.pose: a rotation quaternion and a shift after it. The body's shift
-// carries the breathing scale in w and the feet's how far into flight the bird is.
+// From Conure.pose: each part's rotation quaternion and the shift after it. shift_body.w is the breathing scale,
+// shift_feet.w how far into flight the bird is.
 instance uniform vec4 turn_body = vec4(0.0, 0.0, 0.0, 1.0);
 instance uniform vec4 shift_body = vec4(0.0, 0.0, 0.0, 1.0);
 instance uniform vec4 turn_head = vec4(0.0, 0.0, 0.0, 1.0);
@@ -64,7 +64,6 @@ void vertex() {
 		turn = turn_head;
 		shift = shift_head;
 	} else if (part == PART_WING_L || part == PART_WING_R) {
-		// Flight draws the wing out along the body before it beats.
 		vec3 shoulder = BODY + L * 0.03 + D * 0.012 + X * (part == PART_WING_L ? -0.026 : 0.026);
 		VERTEX += L * dot(VERTEX - shoulder, L) * fly * 0.9;
 		turn = part == PART_WING_L ? turn_wing_l : turn_wing_r;

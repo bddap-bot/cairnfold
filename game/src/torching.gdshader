@@ -4,7 +4,7 @@ shader_type spatial;
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
 
-// Raw like the stones' instance colours, as plaster is.
+// Raw like the stones' instance colours, as plaster's is.
 uniform vec3 albedo;
 // Its build's plaster swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
@@ -21,8 +21,8 @@ void vertex() {
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float ground = ground_at(world_pos.xz);
 	ROOM_HERE;
-	// The probes beside it stand among the tiles; the floor's see what the room does through its doors. A gable's
-	// outer backing shows where its courses stop short of the apex, so it reads the air outside as their stones do.
+	// The probes beside it stand among the tiles; the floor's see the room through its doors. A gable's outer backing
+	// (COLOR.r) shows where its courses stop short of the apex, so it reads the air outside as their stones do.
 	bool outside = COLOR.r > 0.5 && !within_walls(world_pos.xz + world_nrm.xz * 0.5);
 	bounce_at = outside ? bounce_over(world_pos, world_nrm, ground) : bounce_on_ground(room_read(room_row, world_pos, world_nrm, world_pos, ROOM_TORCHING_REACH).xz);
 	lamp_at = lamp_over(world_pos, world_nrm, ground);

@@ -3,10 +3,9 @@ render_mode unshaded, blend_disabled;
 
 #include "res://src/paint.gdshaderinc"
 
-// A canvas flat and unlit, one texel to a pixel: its colour sRGB-encoded as an image file holds it, or with `height`
-// its height over the highest it can stand as a 16-bit number, the high byte in red and the low in green. Each channel is rounded to its
-// 8-bit step here: past the fragment Godot's 2D pipeline carries a colour at half precision, a twentieth of a step off,
-// which would round a value near a step's boundary to the next.
+// `height` writes the height over the highest it can stand as 16 bits, high byte in red, low in green. Channels are
+// rounded to their 8-bit step here: Godot's 2D pipeline then carries half precision, a twentieth of a step off, which
+// would tip a value near a step's boundary into the next.
 
 uniform sampler2D wet : filter_nearest, repeat_disable;
 uniform sampler2D dry : filter_nearest, repeat_disable;

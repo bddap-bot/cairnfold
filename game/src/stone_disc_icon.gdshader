@@ -1,8 +1,6 @@
 shader_type spatial;
 render_mode unshaded, shadows_disabled, fog_disabled;
 
-// The stone disc (stone_disc.gdshaderinc) in the icon look (icon.gdshaderinc).
-
 #include "res://src/ground.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/stone_disc.gdshaderinc"

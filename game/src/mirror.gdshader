@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode unshaded;
 
-// The glass is a unit disc on its mesh's xz plane. Each eye's reflected camera frames the glass's rectangle, so its
-// view maps onto the glass by the glass's own coordinates, turned left for right as a mirror turns them.
+// The glass is a unit disc on its mesh's xz plane, and each eye's reflected camera frames its rectangle.
 uniform sampler2D left_eye : source_color, filter_linear, repeat_disable;
 uniform sampler2D right_eye : source_color, filter_linear, repeat_disable;
 

@@ -5,33 +5,27 @@
 uniform float roughness = 1.0;
 #ifdef BACKLIT
 uniform vec3 backlight : source_color = vec3(0.0);
-// A crown blob gives to the wind this much of what a grass blade of its height above the ground would, all of it
-// moving as one, so the crown sways rather than ripples.
+// Share of a grass blade's give at the blob's height; the blob moves as one, so the crown sways rather than ripples.
 const float CROWN_GIVE = 0.12;
-// How far a blob's normals lean out from its trunk, so the faces between a crown's blobs light as its outside does
-// and the crown shades as one mass.
+// Normals lean out from the trunk so the faces between blobs light as the outside does and the crown shades as one.
 const float CROWN_ROUND = 0.8;
-// Meshes.BLOB_LUMP: how far a blob's surface strays from its sphere, in blob radii.
+// Meshes.BLOB_LUMP, in blob radii.
 uniform float crown_lump;
-// The tint a blob's underside takes, so the shade under a crown reads cool.
 const vec3 CROWN_SHADE = vec3(0.8, 0.92, 1.15);
 #endif
 
 #ifdef FLOWER
-// Flowers shrink to their roots over the last draw_fade before draw_reach, so the edge Flora culls at shows no pop.
+// Flowers shrink to their roots before draw_reach, so the edge Flora culls at shows no pop.
 #include "res://src/flora_lod.gdshaderinc"
-// A camera seeing this layer (Quality.FULL_LAYER) draws flowers at every distance.
+// Quality.FULL_LAYER.
 uniform uint full_layer;
-// Aquatic heads retain their existing edge-on fade; land petals hand their colour to the far patch.
+// Aquatic heads only; land petals hand their colour to the far patch.
 uniform float head_fade_begin = 10.0;
 uniform float head_fade_end = 30.0;
-// Stalk length to the head in an unscaled flower (Meshes.FLOWER_HEIGHT).
+// Meshes.FLOWER_HEIGHT: stalk length to the head, unscaled.
 uniform float stem;
 // Placed flowers (Flora's painted and ghost pools) rooted under a pond grow as water plants; the meadow's own drown.
-// Past lily_depth a lily: its head opens into a pad lily_pad times as wide, floating at the surface with its bloom
-// raised in the middle, on a stem from the bed. Shallower, an iris: its sword leaves (Meshes.flower) open from the bed,
-// full width from just under the surface up to leaf_rise over it, and its bloom cups upward emergent_height over the
-// water, iris_bloom times as wide, both in flower sizes.
+// Past lily_depth a lily, shallower an iris. emergent_height and leaf_rise are in flower sizes.
 instance uniform float planted = 0.0;
 uniform float water_reach = 60.0;
 uniform float lily_depth = 0.35;
@@ -41,7 +35,7 @@ uniform float emergent_height = 0.5;
 uniform float leaf_rise = 0.4;
 uniform float iris_bloom = 1.5;
 uniform float bloom_cup = 0.9;
-// Meshes.LEAF_SHOULDER: the leaves' lower shoulders, stood just under the surface; their tips' heights are in stems.
+// Meshes.LEAF_SHOULDER, unscaled like stem; the shoulders stand just under the surface.
 uniform float leaf_shoulder;
 uniform vec3 pad_green : source_color = vec3(0.16, 0.36, 0.1);
 
@@ -72,9 +66,8 @@ void vertex() {
 	NORMAL = normalize(NORMAL + CROWN_ROUND * vec3(out_of_crown.x, 0.0, out_of_crown.y) / max(length(out_of_crown), 0.3));
 	VERTEX += wind_push(INSTANCE_CUSTOM.zw, wind_gust(INSTANCE_CUSTOM.zw)) * CROWN_GIVE * max(MODEL_MATRIX[3].y, 0.0);
 	if (IN_SHADOW_PASS) {
-		// A crown's coarse shadow blob (Flora.crown_shade) casts from a lump's depth behind its sunlit surface: its
-		// lumps, which the drawn blobs do not share, lay no stripes across the crown's lit side, and moved along the
-		// sun's rays, its shade on the ground keeps its shape.
+		// The coarse shadow blob (Flora.crown_shade) casts from a lump's depth back along the sun's rays: its lumps,
+		// which the drawn blobs do not share, lay no stripes on the lit side, and its ground shade keeps its shape.
 		VERTEX -= INV_VIEW_MATRIX[2].xyz * crown_lump * length(MODEL_MATRIX[0].xyz);
 	}
 #endif
@@ -102,7 +95,7 @@ void vertex() {
 	// Head vertices (UV.x 1) lie within a small disc about the stalk's top; the eye is UV.y 1.
 	vec2 pad = off.xz * mix(1.0, lily_pad * mix(1.0, 1.8, step(length(off.xz), 0.045 * size)), UV.x);
 	off.xz = mix(off.xz * mix(1.0, iris_bloom, iris * UV.x), pad, lily);
-	// The surface stands 2 cm over the root (FloraLayout.brush); a pad floats just on it.
+	// The surface stands 2 cm over the root (FloraLayout.brush).
 	float head = mix(size * stem, mix(depth + emergent_height * size, depth + 0.03, lily), wet);
 	off.y = mix(off.y, off.y - size * stem + head, up * wet) + lily * UV.x * UV.y * 0.03 * size + iris * UV.x * length(off.xz) * bloom_cup;
 	float leaf_y = rise < leaf_shoulder ? rise / leaf_shoulder * depth : depth + (rise - leaf_shoulder) / (stem - leaf_shoulder) * leaf_rise * size;
@@ -119,7 +112,7 @@ void vertex() {
 #endif
 	given = given_over(VERTEX, NORMAL, ground);
 #ifdef PARTED
-	// The meadow's flowers drown; a tree or bush never stands in water (World._drown).
+	// As World._drown: a tree or bush never stands in water.
 	if (depth > DROWNS && wet == 0.0) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}

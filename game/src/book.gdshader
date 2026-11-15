@@ -1,29 +1,26 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap;
 
-// The picture book's binding and the edges of its pages (`kind`, Book.Kind). A cover is cloth over board, worn pale at
-// its corners and edges, the front stamped in foil with a nest of three eggs in a ring of leaves; a block of pages
-// shows leaf lines on its sides and a painted fore-edge. `size` is the box's size in metres.
-
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
 const int KIND_COVER = 0;
 const int KIND_BLOCK = 1;
 uniform int kind = 0;
+// In metres.
 uniform vec3 size = vec3(0.16, 0.003, 0.16);
 uniform bool front = false;
-// The front's top face baked (Book): albedo with metal in alpha, and roughness.
+// Book's bake of the front's top face; cover_paint has metal in alpha.
 uniform bool baked = false;
 uniform sampler2D cover_paint : source_color, filter_linear_mipmap, repeat_disable;
 uniform sampler2D cover_rough : filter_linear_mipmap, repeat_disable;
-// For a block of pages: which way its fore-edge faces, +1 the right block's, -1 the left's.
+// +1 the right block's fore-edge, -1 the left's.
 uniform float fore_side = 1.0;
 uniform vec3 cloth;
 uniform vec3 leather;
 uniform vec3 paper : source_color;
-// The bow of the leaf lying on it, and that leaf's width, its spine at the block's middle less half of it.
 uniform float gutter_bow = 0.0;
+// The resting leaf's width; its spine lies half of it in from the block's middle.
 uniform float leaf_width = 0.15;
 uniform vec3 edge_paint : source_color = vec3(0.86, 0.6, 0.32);
 

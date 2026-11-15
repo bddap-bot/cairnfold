@@ -7,9 +7,8 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 // x idle, y paddle, z waddle, w fly: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
-// Steps per second relative to a grown duck's, so short legs keep their feet planted.
+// Step rate over a grown duck's, so short legs keep their feet planted.
 instance uniform float pace = 1.0;
-// Eating from a hand: the head dips again and again toward the seeds.
 instance uniform float peck = 0.0;
 
 const int PART_HEAD = 1;
@@ -27,7 +26,6 @@ void vertex() {
 	bool foot = part == PART_FOOT_L || part == PART_FOOT_R;
 	float side = part == PART_FOOT_L ? -1.0 : 1.0;
 
-	// Idle: breathe, look around with a curious tilt, now and then ruffle the wings and wag.
 	float burst = pow(max(sin(t * 0.8 + 1.3), 0.0), 30.0);
 	if (!foot) {
 		VERTEX.xz *= 1.0 + idle * 0.012 * sin(t * 2.4);
@@ -51,14 +49,12 @@ void vertex() {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.22, 0.14), rot(vec3(0.0, 1.0, 0.0), wag));
 	}
 
-	// Paddle: the body floats lower and bobs; the legs kick under it in turn.
 	if (foot) {
 		float kick = paddle * 0.7 * sin(t * TAU * 1.1 + (side < 0.0 ? 0.0 : PI));
 		turn(VERTEX, NORMAL, vec3(side * 0.05, 0.09, 0.0), rot(vec3(1.0, 0.0, 0.0), kick + paddle * 0.5 - fly * 1.3));
 	}
 	VERTEX.y += paddle * (-0.07 + 0.006 * sin(t * 2.0));
 
-	// Waddle: each step rolls the body over the planted foot while the other swings forward.
 	if (foot) {
 		float swing = side < 0.0 ? sin(c) : -sin(c);
 		VERTEX.y += waddle * max(swing, 0.0) * 0.03;

@@ -4,8 +4,8 @@ render_mode blend_mix, depth_draw_never, diffuse_lambert_wrap, specular_disabled
 #include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 
-// Drawn after the pond's surface, which would hide them in deep water: the water's own tint over them stands in
-// for it. INSTANCE_CUSTOM: x its own seed, y its speed over a cruise's, z how far it has faded in.
+// Drawn after the pond's surface, which would hide them in deep water; the water's tint over them stands in for it.
+// INSTANCE_CUSTOM: x seed, y speed over a cruise's, z how far faded in.
 uniform vec3 shallow : source_color;
 uniform vec3 deep : source_color;
 

@@ -1,5 +1,4 @@
-// A quad turned to the eye about `at`, `scale` times its size: facing the eye itself, not the view's plane, which
-// would foreshorten it toward the edge of a wide view.
+// Faces the eye itself, not the view's plane, which would foreshorten it toward the edge of a wide view.
 mat4 billboard(mat4 view, mat4 inv_view, vec3 at, float scale) {
 	vec3 back = normalize(inv_view[3].xyz - at);
 	vec3 right = normalize(cross(inv_view[1].xyz, back));

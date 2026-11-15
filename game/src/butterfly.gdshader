@@ -4,8 +4,8 @@ render_mode cull_disabled, specular_disabled, diffuse_lambert_wrap;
 #include "res://src/given.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
 
-// INSTANCE_CUSTOM: x the wingbeat's phase, y its swing and z the angle it swings about, in radians up from flat; w the
-// height scale of the flower it sits on, eased in as it settles, so it rides the head as plant.gdshaderinc sways it.
+// INSTANCE_CUSTOM: x wingbeat phase, y swing and z the angle it swings about, radians up from flat; w the height scale
+// of the flower it sits on, eased in as it settles, so it rides the head as plant.gdshaderinc sways it.
 uniform vec3 body : source_color = vec3(0.16, 0.13, 0.12);
 
 varying float edge;
@@ -15,7 +15,6 @@ void vertex() {
 	edge = UV.x;
 	part = UV.y;
 	if (part < 1.5) {
-		// Hindwings trail the forewings a little, as real ones do.
 		float a = INSTANCE_CUSTOM.z + INSTANCE_CUSTOM.y * sin(INSTANCE_CUSTOM.x - part * 0.5);
 		float side = sign(VERTEX.x);
 		float r = abs(VERTEX.x);

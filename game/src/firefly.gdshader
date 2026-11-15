@@ -17,7 +17,6 @@ void vertex() {
 	vec3 drift = vec3(sin(t * 0.31 + s) + 0.5 * sin(t * 0.73 + s * 2.1), 0.5 * sin(t * 0.47 + s * 3.7), cos(t * 0.27 + s * 1.3) + 0.5 * sin(t * 0.61 + s * 0.7)) * 0.35;
 	float born = INSTANCE_CUSTOM.x;
 	float here = born > 0.0 ? clamp((clock - born) / fade, 0.0, 1.0) : clamp(1.0 - (clock + born) / fade, 0.0, 1.0);
-	// A slow flash every few seconds, each firefly on its own beat, with a faint glow between.
 	float period = 1.8 + fract(s * 0.37) * 2.2;
 	float beat = fract(t / period);
 	float flash = smoothstep(0.0, 0.15, beat) * (1.0 - smoothstep(0.15, 0.55, beat));

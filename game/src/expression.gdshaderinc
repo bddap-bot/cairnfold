@@ -4,64 +4,50 @@ uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 colour : source_color = vec4(1.0);
 uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
-// Each atlas texel's entry in the looks' materials and each entry's looks (Avatar._lit_looks): row 0 red one where
-// flat and two where lit through a ramp, green its cap, blue its shadow tint, alpha its emission's strength; row 1 its
-// emission's colour over the emission map `glow`, alpha how far the glow overrides the lit colour (Poiyomi's lerp toward
-// the glow by its brightest channel); the RAMP rows after those HEAD_ROWS its ramp; from TOON_ROW its toon shadow, rim
-// and rim shade, which the TOON shaders alone draw. Unset, every texel is lit by angle and glows nowhere.
+// light_index red: the texel's column in `lighting` (Avatar._lit_looks). Row 0: r 0 lit by angle, 1 flat, 2 ramp-lit;
+// g cap; b shadow tint; a emission strength. Row 1: emission colour over `glow`, a how far the glow overrides the lit
+// colour (Poiyomi's lerp by its brightest channel).
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 
 varying vec4 given;
-// One where the vertex's material is flat; then flat_light is the ambient and light given back it takes, capped.
 varying float flat_lit;
 varying vec3 flat_light;
-// A ramp-lit vertex's main light its shadow tint lends the albedo, and the light its cap leaves room for.
+// rgb the main light a ramp-lit vertex's shadow tint lends the albedo, a the light its cap leaves room for.
 varying vec4 tinted;
 varying vec4 glow_colour;
 varying float glow_strength;
-// The looks table column of the vertex's material where it has a matcap (Avatar._lit_looks's rows from MATCAP), else
-// -1, and the surface's own normal in world space, since a flat material's NORMAL is turned to light it: a matcap is
-// looked up by it, and a coat and a toon shade take it turned into view space, a Quest 2 having no room for a varying
-// of each (tests/test_varyings.gd).
+// Each *_entry is the `lighting` column, -1 where the material lacks that look. world_normal: the true normal, world
+// space, as a flat material's NORMAL is turned to light it; matcap, coat and toon all derive theirs from it, a Quest 2
+// having no room for a varying each (tests/test_varyings.gd).
 varying flat int matcap_entry;
 varying vec3 world_normal;
 uniform sampler2DArray matcaps : source_color, hint_default_white, filter_linear_mipmap, repeat_disable;
 uniform sampler2D matcap_masks : hint_default_white, filter_linear_mipmap, repeat_disable;
 #ifdef CLEAR_COAT
-// The looks table column of the vertex's material where it has a clear coat (Avatar._lit_looks's rows after its ramp),
-// else -1: a fragment reads the coat's rows only where it draws one, since carrying them as varyings cost a Quest 2 as
-// much as drawing the coat over the whole of every mesh showing one. Its maps are read through UV2.
+// The fragment fetches the coat rows itself: carrying them as varyings cost a Quest 2 as much as drawing the coat over
+// every coated mesh.
 varying flat int coat_entry;
 uniform sampler2DArray coat_maps : hint_default_white, filter_linear_mipmap, repeat_enable;
 #ifdef COAT_FALLBACK
-// Each a clear coat's fallback cubemap (ExpressionPlayer.coat_fallbacks): seven latitude-longitude levels, Unity's
-// mips at roughness times six, stacked top to bottom, in linear light. Poiyomi reflects a coat's where it forces it or
-// the world, like the reference harness's, has no reflection probe (world_reflects false). Compiled only into the
-// shaders of meshes that can (ExpressionPlayer.fallback_shader): a Quest 2 pays for the lookup on every coated
-// fragment where it is compiled in, taken or not.
+// Per layer a fallback cubemap (ExpressionPlayer.coat_fallbacks): seven lat-long levels, Unity's mips at roughness * 6,
+// stacked top to bottom, linear. world_reflects: the world has a reflection probe. Compiled in only where used
+// (ExpressionPlayer.fallback_shader): a Quest 2 pays for it on every coated fragment, taken or not.
 uniform sampler2DArray coat_fallbacks : hint_default_black, filter_linear, repeat_enable;
 global uniform bool world_reflects;
 #endif
 #endif
 #ifdef TOON
-// A flat material's shade colours (unity/liltoon.gd shade), and the albedo elsewhere.
 uniform sampler2D shade : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
 uniform sampler2D shade2 : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
-// A rim's colour texture times its alpha (unity/liltoon.gd rim_tint), white where none tints it.
+// Colour times alpha (unity/liltoon.gd rim_tint).
 uniform sampler2D rim_tint : source_color, hint_default_white, filter_linear_mipmap, repeat_disable;
-// The looks table column of the vertex's material where the table has toon rows, else -1; how far its true normal
-// faces the main light, lilToon's half Lambert; and the whole light it takes, capped where flat, which its rim takes
-// where lit.
 varying flat int toon_entry;
 varying float toon_toward;
 varying vec3 toon_light;
 #endif
 
-// A ramp-lit material, as Toon Standard lights it, takes the flat light's ambient and its main light scaled by its ramp
-// at the half-Lambert term (lit_flat), and the rest of the main light lent the albedo by its shadow tint in each pixel,
-// under the same cap; that tint, added as emission, takes no cast shadow, as Toon Standard's shade does under one.
 const int HEAD_ROWS = 2;
 const int RAMP = 16;
 #ifdef CLEAR_COAT
@@ -92,8 +78,7 @@ void vertex() {
 	toon_entry = textureSize(lighting, 0).y > TOON_ROW ? looked.x : -1;
 	toon_toward = dot(normal, key_toward(mirrored)) * 0.5 + 0.5;
 #endif
-	// A flat or ramp-lit vertex reads the light around it a metre over its mesh's origin, the same place for every
-	// vertex: reading the volumes at each vertex of a dense avatar cost a Quest 2 more than its whole lighting.
+	// Read once a metre over the mesh origin: per vertex, a dense avatar's reads cost a Quest 2 more than its lighting.
 	vec3 lit_at = flat_lit > 0.5 ? NODE_POSITION_WORLD + vec3(0.0, 1.0, 0.0) : at;
 	given = given_over(lit_at, flat_lit > 0.5 ? vec3(0.0) : normal, ground_at(lit_at.xz));
 	flat_light = vec3(0.0);
@@ -116,7 +101,7 @@ void vertex() {
 #endif
 }
 uniform sampler2D regions : filter_nearest, repeat_disable;
-// A region's kind (ExpressionDefinition.REGIONS, the rest a look) and a look's field (ExpressionPlayer.LOOK_FIELDS).
+// Indices into ExpressionDefinition.REGIONS (any later kind is a look) and ExpressionPlayer.LOOK_FIELDS.
 const int REGION_HUE = 0;
 const int REGION_COLOR = 1;
 const int REGION_TONE = 2;
@@ -129,7 +114,7 @@ const int LOOK_MATCAP_INTENSITY = 5;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
-// Each recoloured cell, padding included: row 0 its rect in the atlas, row 1 its rect in `untinted`.
+// Per recoloured cell, padding included: row 0 its rect in the atlas, row 1 its rect in `untinted`.
 uniform sampler2D untinted_cells : filter_nearest, repeat_disable;
 uniform int untinted_count = 0;
 uniform sampler2DArray decals : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -189,9 +174,9 @@ vec3 decal_blend(vec3 base, vec3 laid, int mode) {
 	return laid;
 }
 
-// The shade `dim` of the albedo `lit` once the albedo is `drawn`. The shade maps are made from the albedo at rest and
-// lilToon shades the albedo it draws, so what the menu's hue and tone and the decals add to a channel is shaded by the
-// share of it the shade keeps, and by the share of the whole colour where the channel is too dark to tell its own.
+// `dim` is the shade map of albedo `lit` at rest, `drawn` the albedo drawn. The shade maps are made from the albedo at
+// rest but lilToon shades the albedo it draws, so what hue, tone and decals add to a channel is shaded by the share the
+// shade keeps, or the whole colour's where the channel is too dark to tell.
 vec3 shade_of(vec3 dim, vec3 lit, vec3 drawn) {
 	float whole = (dim.r + dim.g + dim.b + 0.006) / (lit.r + lit.g + lit.b + 0.006);
 	return max(dim + (drawn - lit) * (dim + 0.002 * whole) / (lit + 0.002), 0.0);
@@ -208,8 +193,8 @@ float pow5(float x) {
 }
 
 #ifdef COAT_FALLBACK
-// Unity's mip `lod` of fallback cubemap `layer` in direction `d` of the avatar's model space (Unity's axes with X
-// mirrored), as Unity's panoramic skybox reads a latitude-longitude image; Unity's default grey cube where none.
+// `d` in the avatar's model space with X mirrored (Unity's axes), read as Unity's panoramic skybox reads lat-long;
+// layer < 0 is Unity's default grey cube.
 vec3 coat_fallback(float layer, vec3 d, float lod) {
 	if (layer < 0.0) {
 		return vec3(0.214);
@@ -224,12 +209,9 @@ vec3 coat_fallback(float layer, vec3 d, float lod) {
 }
 #endif
 
-// Poiyomi's clear coat (poiClearCoat) at levels `level` (mask, smoothness, reflection, specular), each a vector in
-// view space: Unity's GGX highlight of the main light `key` coming from `l` and a reflection of `reflected` (the world's
-// or the coat's fallback), each through the coat's Fresnel, masked, to add over the lit colour. Poiyomi takes N.L
-// twice, in the highlight and in its light's attenuation, and its dielectric reflectance is gamma space's in linear
-// space too. `glance` is Poiyomi 9.2's grazing reflectance and exposure occlusion, the first negative for an earlier
-// Poiyomi, whose grazing reflectance follows the coat's smoothness.
+// Poiyomi's poiClearCoat; `level` is (mask, smoothness, reflection, specular); n, v, l in view space. Poiyomi takes N.L
+// twice and uses gamma space's dielectric reflectance in linear space too. `glance` is Poiyomi 9.2's (grazing
+// reflectance, exposure occlusion), x negative for an earlier Poiyomi, whose grazing reflectance follows smoothness.
 vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tint, vec2 glance, vec3 n, vec3 v, vec3 l, vec3 key, vec3 reflected) {
 	const float dielectric = 0.220916301;
 	float rough = max(perceptual * perceptual, 0.002);
@@ -260,26 +242,20 @@ vec3 clear_coat(vec4 level, float perceptual, vec4 specular, vec3 reflection_tin
 #endif
 
 #ifdef TOON
-// lilToon's toon step of `v` across `border`, `blur` wide, its low end `range` further down, antialiased over `width`,
-// how far `v` moves across a pixel.
 float toon(float v, float border, float blur, float range, float width) {
 	float low = clamp(border - 0.5 * blur - range, 0.0, 1.0);
 	float high = clamp(border + 0.5 * blur, 0.0, 1.0);
 	return clamp((v - low) / max(clamp(high - low + width, 0.0, 1.0), 1e-4), 0.0, 1.0);
 }
 
-// lilToon's Fresnel band: how far the surface turns from the view, `facing` its normal's share along it and
-// `facing_width` how far that moves across a pixel, raised to `power` and stepped across `border`, `blur` wide.
 float fresnel_band(float facing, float facing_width, float power, float border, float blur) {
 	float turned = max(1.0 - facing, 0.0);
 	return toon(pow(turned, power), border, blur, 0.0, power * pow(max(turned, 1e-4), power - 1.0) * facing_width);
 }
 #endif
 
-// Poiyomi's matcaps over `base`, the material's colour, each looked up by the world normal `n` as seen along `v` (toward
-// the eye) in Unity's left-handed axes, Godot's mirrored through X, and masked by its channel of `matcap_masks` at the
-// atlas's `uv`, by a circle where it has one, and where `light_mask` says by the lit side, each slot's intensity `at`
-// where `moved`; returns the light they add.
+// Poiyomi's matcaps, blended into `base`; returns the light they add. `n` and `v` (toward the eye) are world space,
+// looked up in Unity's axes (Godot's mirrored through X). `at` replaces a slot's intensity where `moved`.
 vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit, vec4 moved, vec4 at) {
 	vec4 masks = textureGrad(matcap_masks, uv, dx, dy);
 	vec3 up = vec3(0.0, 1.0, 0.0) - v * v.y;
@@ -320,9 +296,8 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 	return added;
 }
 
-// The menu's hue turn `hue` and tone `tone` of `c` where the hue mask `adjust` lets them. The tone at rest is
-// (1, 0, 0, 1): Poiyomi's gamma, saturation and brightness under the mask's alpha, blue and green, then lilToon's HSV
-// saturation scale under its red, as lilToon's own mask is.
+// `tone` is Poiyomi's (gamma, saturation, brightness) then lilToon's HSV saturation scale, at rest (1, 0, 0, 1), under
+// `adjust`'s a, b, g and r; the hue turn under r too, as lilToon's own mask does.
 vec3 adjusted(vec3 c, vec4 hue, vec4 tone, vec4 adjust) {
 	if (hue.w > 0.5) {
 		c = mix(c, shift_hue(c, hue.xyz), adjust.r);
@@ -378,7 +353,7 @@ void fragment() {
 			} else if (kind == REGION_TONE) {
 				tone[int(s.z)] = s.x;
 			} else {
-				// Field -1 is a target at rest, where each material keeps its own (ExpressionPlayer.apply).
+				// Field -1: a target at rest, each material keeping its own (ExpressionPlayer.apply).
 				if (e.y < -0.5) { continue; }
 				int slot = int(s.z);
 				int field = int(e.y + 0.5);
@@ -418,7 +393,6 @@ void fragment() {
 			}
 		}
 	}
-	// How far a colour region moves each channel of the albedo, which a shade made from it moves alike.
 	vec3 recolour = vec3(1.0);
 	if (tint.x >= 0.0) {
 		vec3 raw = vec3(1.0);
@@ -535,6 +509,7 @@ void fragment() {
 #endif
 	ROUGHNESS = 1.0;
 	AO = flat_lit > 0.5 ? 0.0 : given.a;
+	// The shadow tint goes in as emission so it takes no cast shadow, as Toon Standard's shade takes none.
 	EMISSION = ALBEDO * (flat_lit > 0.5 ? flat_light + min(tinted.rgb * base.rgb, vec3(tinted.a)) : given.rgb) + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing + matcap_light;
 #ifdef TOON
 	EMISSION += rim_light;
@@ -563,21 +538,18 @@ void fragment() {
 		vec3 n = coat_n;
 		vec3 r = (INV_VIEW_MATRIX * vec4(reflect(-VIEW, n), 0.0)).xyz;
 		float perceptual = 1.0 - level.y;
-		// Poiyomi's geometric specular antialiasing (Filament's): the coat roughens where the normal turns fast
-		// across a pixel, which spreads a near-mirror coat's highlight over a curved surface.
+		// Poiyomi's (Filament's) geometric specular antialiasing.
 		float kernel = min(2.0 * gsaa.x * (dot(coat_dx, coat_dx) + dot(coat_dy, coat_dy)), gsaa.y);
 		float squared = perceptual * perceptual;
 		float widened = sqrt(sqrt(clamp(squared * squared + kernel, 0.0, 1.0)));
-		// Poiyomi 9.2 (a grazing reflectance of its own) blurs what it reflects by that roughness; earlier ones by
-		// Unity's curve of the coat's own.
+		// gsaa.z < 0: a Poiyomi before 9.2, which blurs by Unity's curve of the coat's own roughness.
 		float blur = gsaa.z >= 0.0 ? widened : perceptual * (1.7 - 0.7 * perceptual);
 		vec3 key = mirrored ? mirror_light : sun_light;
 		vec3 environment = (mirrored ? mirror_ambient : mix(mix(sky_horizon, sky_zenith, clamp(r.y, 0.0, 1.0)), mix(sky_horizon, sky_zenith, 0.5), blur) * sky_ambient);
 #ifdef COAT_FALLBACK
 		vec4 fallback = texelFetch(lighting, ivec2(coat_entry, COAT + 6), 0);
 		if (fallback.z > 0.5 || !world_reflects) {
-			// Godot adds the key light and, to a material lit by angle, the ambient after this shader: the key by
-			// NORMAL, which a flat or ramp-lit vertex has turned to take its share of it, taken here the same way.
+			// Godot adds the key light (by NORMAL, which a flat vertex has turned) and the ambient after this shader.
 			vec3 lit = flat_lit > 0.5 ? flat_light + min(tinted.rgb, vec3(tinted.a)) : given.rgb + (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a;
 			lit += key * max(dot(normalize(NORMAL), toward), 0.0);
 			environment = coat_fallback(fallback.x, normalize(transpose(mat3(MODEL_MATRIX)) * r), blur * 6.0) * (fallback.y > 0.5 ? lit : vec3(1.0));

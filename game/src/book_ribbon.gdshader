@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap;
 
-// The book's ribbon bookmark, hanging from between its pages and swaying; while the book is shut it glows softly,
-// asking to be pulled. VERTEX.z runs down the ribbon from where it leaves the pages.
+// VERTEX.z runs down the ribbon from where it leaves the pages.
 
 #include "res://src/given.gdshaderinc"
 

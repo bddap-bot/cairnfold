@@ -4,7 +4,7 @@ render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 #include "res://src/horizon.gdshaderinc"
 
 uniform vec3 deep : source_color = vec3(0.08, 0.27, 0.34);
-// Mountains.ridge_image: each range's ridge over the water round the circle.
+// Mountains.ridge_image: r the near range's ridge over the water, g the far's, round the circle.
 uniform sampler2D ridges : filter_linear, repeat_enable;
 uniform float level;
 uniform vec2 radii;
@@ -16,7 +16,7 @@ void vertex() {
 	wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
-// How far along the level ray from `p` toward `d` the circle of `radius` lies, and the ridge it meets there.
+// x: how far along the level ray the circle lies; y: the ridge's height there.
 vec2 ridge_ahead(vec2 p, vec2 d, float radius, vec2 range) {
 	float b = dot(p, d);
 	float t = -b + sqrt(max(b * b - dot(p, p) + radius * radius, 0.0));
@@ -36,7 +36,6 @@ void fragment() {
 	vec3 r = reflect(-v, n);
 	float fresnel = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);
 
-	// The ranges seen in the water: the reflected ray meets a range where it climbs less than that ridge stands.
 	vec2 d = normalize(r.xz + vec2(1e-5));
 	float climb = r.y / max(length(r.xz), 1e-4);
 	vec2 near = ridge_ahead(s, d, radii.x, vec2(1.0, 0.0));

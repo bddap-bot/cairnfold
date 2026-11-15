@@ -1,8 +1,7 @@
-// How deep pond water (Water) stands over each ground grid point, one texel per point: negative on a pond's shore,
-// DRY everywhere else. Depth rather than level, so it filters smoothly into the dry ground around a pond.
-// Include after ground.gdshaderinc, whose grid it shares.
+// Water's depth per ground grid point: negative on a pond's shore, Terrain.DRY elsewhere. Depth, not level, so it
+// filters smoothly into the dry ground around a pond. Include after ground.gdshaderinc, whose grid it shares.
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
-// Water deeper than this drowns what grows there (Water.DROWNS).
+// Must match Water.DROWNS.
 const float DROWNS = 0.02;
 
 float water_depth_at(vec2 xz) {
@@ -17,12 +16,10 @@ bool drowned(vec2 xz) {
 	return water_depth_at(xz) > DROWNS;
 }
 
-// 1 on the bare bank and bed of a pond at this depth, 0 on meadow.
 float bank(float depth) {
 	return smoothstep(-0.25, -0.08, depth);
 }
 
-// Sunlight the waves overhead focus into bright lines, where two drifting noises cross.
 vec3 caustic(sampler2D noise, vec2 xz) {
 	vec2 uv = xz * 0.35;
 	float a = texture(noise, uv + TIME * vec2(0.021, 0.013)).r;
@@ -30,9 +27,8 @@ vec3 caustic(sampler2D noise, vec2 xz) {
 	return vec3(0.85, 0.95, 0.8) * smoothstep(0.045, 0.0, abs(a - b));
 }
 
-// 1 when a pond's depth reaches within a grid step of `xz`, along either axis, so a fragment of the triangles around
-// a grid point skips the depth read where every point its bilinear read would blend is DRY: the four corners of
-// its cell lie a step along an axis from one of its triangle's vertices.
+// Read per vertex: each corner of a fragment's cell lies a step along an axis from one of its vertices, so 0 means
+// its bilinear depth read blends only DRY.
 float pond_near(vec2 xz) {
 	vec2 t = grid_uv(xz);
 	vec2 e = vec2(1.0 / ground_grid.z, 0.0);

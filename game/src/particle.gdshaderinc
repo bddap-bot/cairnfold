@@ -1,15 +1,12 @@
-// An avatar's particles (AvatarParticles), each a MultiMesh instance written once when it is born: its start position
-// and velocity in its system's frame, start size and rotation as MODEL_MATRIX's columns, its birth time, lifetime,
-// random seed and gravity in INSTANCE_CUSTOM and its start colour in COLOR. Where it is at any age is worked out here
-// in closed form, so no frame touches a living particle on the CPU.
+// Per instance at birth: MODEL_MATRIX columns start position, velocity (system frame), size, rotation; INSTANCE_CUSTOM
+// birth time, lifetime, seed, gravity scale; COLOR start colour. Closed form, so the CPU never touches a live particle.
 
-// Now on the clock birth times are on, and the emitter's world placement (rotation and position).
+// On the birth-time clock.
 uniform float now;
 uniform mat4 emitter;
 uniform vec3 gravity;
 uniform bool world_space;
-// Curves over a particle's life, as many samples wide as the texture: pairs of rows, the low end of each random range
-// then the high (AvatarParticles.ROW_*). Velocity and spin also have their integrals over life.
+// x is life; rows pair a random range's low and high; ROW_PATH and ROW_SPIN_PATH are integrals over life.
 uniform sampler2D curves : filter_nearest;
 // ParticleDefinition.MODES and ALIGNS, by index.
 uniform int mode;
@@ -26,7 +23,7 @@ const int ALIGN_VELOCITY = 4;
 uniform vec3 pivot;
 uniform float length_scale;
 uniform float velocity_scale;
-// The share of the view's height a particle may span.
+// As a share of the view's height.
 uniform float max_size;
 uniform bool has_velocity;
 uniform bool velocity_in_world;
@@ -38,7 +35,7 @@ uniform bool has_colour_over_life;
 uniform bool has_spin;
 uniform vec4 speed_ranges;
 uniform float noise_frequency;
-// How fast speed past the limit falls away, per second.
+// Decay of speed past the limit, per second.
 uniform float damping;
 uniform vec4 tint = vec4(1.0);
 uniform vec3 emission;
@@ -51,7 +48,7 @@ float random(float seed, float k) {
 	return fract(sin(seed * 12.9898 + k * 78.233) * 43758.5453);
 }
 
-// The curve rows (AvatarParticles.ROW_*).
+// Must match AvatarParticles.ROW_*.
 const int ROW_COLOUR = 0;
 const int ROW_SIZE = 2;
 const int ROW_PATH = 4;
@@ -61,7 +58,6 @@ const int ROW_NOISE_LIMIT = 10;
 const int ROW_COLOUR_BY_SPEED = 12;
 const int ROW_SIZE_BY_SPEED = 14;
 
-// Row pair `r` at share `u` of the life, blended from its low row to its high one by `k`.
 vec4 life_curve(int r, float u, float k) {
 	int samples = textureSize(curves, 0).x;
 	float x = clamp(u, 0.0, 1.0) * float(samples - 1);
@@ -82,7 +78,6 @@ mat3 euler(vec3 r) {
 	return ry * rx * rz;
 }
 
-// A frame whose Z runs along `forward`, upright where it can be.
 mat3 look_along(vec3 forward) {
 	vec3 z = normalize(forward);
 	vec3 up = abs(z.y) > 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
@@ -90,7 +85,7 @@ mat3 look_along(vec3 forward) {
 	return mat3(x, cross(z, x), z);
 }
 
-// Places a corner of the particle in view space and gives its colour; a particle not alive collapses to a point.
+// Writes vertex and normal in view space.
 void particle_vertex(inout vec3 vertex, inout vec3 normal, inout vec4 particle_color, mat4 model, vec4 custom, mat4 view, mat4 inv_view, mat4 projection) {
 	float age = now - custom.x;
 	float life = custom.y;
@@ -194,7 +189,6 @@ void vertex() {
 	particle_vertex(VERTEX, NORMAL, particle_color, MODEL_MATRIX, INSTANCE_CUSTOM, VIEW_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX);
 }
 
-// A cutout (CUTOUT) drops what is under its cutoff rather than blending.
 void fragment() {
 	vec4 c = particle_color * tint;
 	if (textured) {

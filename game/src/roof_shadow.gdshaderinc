@@ -1,5 +1,4 @@
-// A roof's covering casts its shadow pulled ROOF_PULL toward the light (roof_shadow.gdshader), and its own faces take
-// their shadows from as far out, so the covering still shades itself while the shadow depth bias cannot let
-// the light through onto the gable and wall tops just under it.
+// The covering's faces take shadows from as far out as roof_shadow.gdshader pulls its cast shadow, so it still shades
+// itself while the depth bias cannot let light through onto the gable and wall tops just under it.
 global uniform vec3 sun_toward;
 const float ROOF_PULL = 0.5;

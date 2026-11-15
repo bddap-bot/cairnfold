@@ -1,8 +1,8 @@
 #[compute]
 #version 450
 
-// The painted stone ground's patterns (StoneStyles), one layer a style, each tiling its square: r the height, 0 in a
-// joint to 1 on a stone's crown; g the stone's own value; b and a its face's normal, x and z, 0.5 for level.
+// StoneStyles' patterns, a tiling layer per style: r height, 0 in a joint to 1 on a crown; g the stone's value; ba its
+// face normal's x and z, 0.5 for level.
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
@@ -39,7 +39,6 @@ vec3 rand3(ivec2 c, int period, int salt) {
 	return vec3(pcg3d(uvec3(w, uint(salt + p.shape.z * 101)))) / 4294967295.0;
 }
 
-// Value noise with `period` lattice cells across the tile, so it tiles.
 float noise(vec2 uv, int period, int salt) {
 	vec2 x = uv * float(period);
 	ivec2 i = ivec2(floor(x));
@@ -63,8 +62,7 @@ float fbm(vec2 uv, int period, int salt) {
 	return sum / 0.9375;
 }
 
-// Irregular stones: the distance in metres to the nearest joint (the bisector to the next stone's centre), how far
-// from its own centre in stones, and its value.
+// x metres to the nearest joint, y distance from the stone's centre in stones, z its value.
 vec3 cells(vec2 uv) {
 	int n = p.shape.y;
 	vec2 q = uv * float(n) + p.cut.y * (vec2(fbm(uv, 4, 11), fbm(uv, 4, 23)) - 0.5) * 2.0;
@@ -84,7 +82,7 @@ vec3 cells(vec2 uv) {
 			}
 		}
 	}
-	// A soft minimum over the joints, so a stone's corners round off as worn stone's do.
+	// A soft minimum, so a stone's corners round off as worn stone's do.
 	float edge = 0.0;
 	for (int y = -2; y <= 2; y++) {
 		for (int x = -2; x <= 2; x++) {
@@ -99,7 +97,7 @@ vec3 cells(vec2 uv) {
 	return vec3(max(-0.04 * log(edge), 0.0) * p.face.z / float(n), sqrt(best), rand3(home, n, 5).x);
 }
 
-// Rounded pebbles, each its own ellipse turned its own way; the highest dome wins where two touch.
+// x height, y value.
 vec2 pebbles(vec2 uv) {
 	int n = p.shape.y;
 	vec2 q = uv * float(n);

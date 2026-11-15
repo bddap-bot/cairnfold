@@ -1,5 +1,4 @@
-// A piece's frame and custom data (occlusion, material code, end turns): its instance's in a MultiMesh, or with BAKED,
-// carried on each vertex of a chunk baked into one mesh (Masonry.bake) as the rows of its world frame.
+// PIECE_CUSTOM: occlusion, material code, end turns. BAKED (Masonry.bake) carries the world frame's rows per vertex.
 #ifdef BAKED
 #define PIECE_MATRIX transpose(mat4(CUSTOM0, CUSTOM1, CUSTOM2, vec4(0.0, 0.0, 0.0, 1.0)))
 #define PIECE_CUSTOM CUSTOM3
@@ -8,10 +7,8 @@
 #define PIECE_CUSTOM INSTANCE_CUSTOM
 #endif
 
-// The distances from the eye, [x, y), of the pieces an instance draws; the rest collapse to a point. A chunk near the eye
-// draws its near and its far instance, each the pieces on its side of the near distance (Masonry._ranges). A baked far
-// chunk is drawn only past it whole, and leaves the test out: read on every vertex of a chunk, it cost the Quest 2's
-// view of a hamlet from the air 0.3 ms.
+// piece_range: eye distances [x, y) an instance draws (Masonry._ranges); the rest collapse to a point. A baked far
+// chunk is drawn only wholly past the near distance, so skips the test, which cost the Quest 2 0.3 ms over a hamlet.
 #ifdef BAKED
 bool piece_cut(mat4 piece, vec3 eye) {
 	return false;

@@ -1,6 +1,5 @@
-// Far timbers: the stone shader's light without its per-fragment reads. Beyond the near distance a beam is a few
-// pixels wide, its detail texture averages to the colour it scales (0.78 + 0.45 x its mean of 0.5), and its bounce
-// light varies too little across it to read per fragment.
+// No per-fragment reads: past the near distance a beam is a few pixels wide, its detail averages to the colour it
+// scales (0.78 + 0.45 x its mean of 0.5), and its bounce light varies too little across it.
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/piece.gdshaderinc"

@@ -3,8 +3,8 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 #include "res://src/given.gdshaderinc"
 #include "res://src/turn.gdshaderinc"
 
-// INSTANCE_CUSTOM: x its clock, y how far it has grown in, z how far it flies, its wings out and beating, or below 0 how
-// far through a hoot it is, perched; w how far its head turns from the way it faces, left positive.
+// INSTANCE_CUSTOM: x clock, y grown in, z flight (wings out and beating) or, below 0, how far through a perched hoot;
+// w head turn from its facing, left positive.
 
 const int PART_BODY = 0;
 const int PART_HEAD = 1;

@@ -1,9 +1,7 @@
 #include "res://src/noise.gdshaderinc"
 
-// The picture book's paint, shared by its shaders and the bake (book_paint.gdshader, Book): the ink and cover
-// colours (sRGB), where a page's picture window sits in the page's coordinates (x from the spine, y down the page),
-// and a cover's stamp; the paper and the cover's cloth and leather are Book's (PAPER, CLOTH, LEATHER), which the
-// wheel's icon draws too.
+// Colours are sRGB; the window is in page coordinates, x from the spine, y down. Paper, cloth and leather are Book's
+// PAPER, CLOTH, LEATHER, which the wheel's icon draws too.
 const vec3 INK = vec3(0.33, 0.3, 0.24);
 const vec3 LEAF = vec3(0.47, 0.6, 0.41);
 const vec3 FOIL = vec3(0.86, 0.71, 0.44);
@@ -15,8 +13,7 @@ vec2 window_uv(vec2 p) {
 	return (p - (WINDOW_CENTRE - WINDOW_HALF)) / (2.0 * WINDOW_HALF);
 }
 
-// How far a resting leaf stands up `x` from the spine, bowing `bow` out of the gutter as a bound page does; the block
-// under it rises as far, so nothing shows between them.
+// The block under a resting leaf rises as far, so nothing shows between them.
 float gutter_rise(float x, float width, float bow) {
 	return bow * sin(min(x / (width * 0.3), 1.0) * PI * 0.5) * (1.0 - 0.35 * smoothstep(0.3, 1.0, x / width));
 }
@@ -31,7 +28,7 @@ float ellipse(vec2 p, vec2 c, vec2 r, float a) {
 	return length(p / r) - 1.0;
 }
 
-// The stamp on the front, in units of the cover's width from its centre, y down the cover.
+// `p` in cover widths from its centre, y down the cover.
 float stamp(vec2 p, out float eggs) {
 	float r = length(p);
 	float ring = 1.0 - smoothstep(0.006, 0.011, abs(r - 0.31));
@@ -59,8 +56,7 @@ float stamp(vec2 p, out float eggs) {
 	return max(max(ring, leaves), max(max(nest, rim) * (1.0 - eggs), outline * eggs));
 }
 
-// A cover's cloth over board at `local` on the face with normal `n`, `size` the board: leather at the spine and
-// corners, worn pale at its edges, the front's top stamped in foil. Linear albedo, with its roughness and metal.
+// `size` is the board's. Returns linear albedo.
 vec3 cover(vec3 local, vec3 n, vec3 size, bool front, vec3 cloth, vec3 leather, out float rough, out float metal) {
 	vec3 h = size * 0.5;
 	vec2 xz = local.xz;

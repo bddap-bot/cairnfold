@@ -1,7 +1,5 @@
-// A wheel icon's one look (Hand.unlit): a colour shaded by a light fixed to the eye, then the view's exposure and
-// saturation (Look) undone, so no hour, lamp or fog of the garden reaches it. A shader including it renders unshaded.
-// The saturation is applied after the tone curve and undone before it, where the square root of its inverse matched
-// day and night pixels best.
+// For unshaded shaders: undoes Look's exposure and saturation so no hour, lamp or fog reaches a wheel icon. Saturation
+// is applied after the tone curve and undone before it, where its inverse's square root matched day and night best.
 global uniform vec2 view_grade;
 
 vec3 icon_look(vec3 c, vec3 normal) {

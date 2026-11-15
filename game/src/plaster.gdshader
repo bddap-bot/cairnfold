@@ -11,8 +11,7 @@ uniform vec3 albedo;
 // Its build's plaster swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
 
-// Probes up among a roof's tiles cannot tell a house's inside from its outside, so a gable reads the air a metre
-// before it, no higher than LOW over the ground.
+// Probes among a roof's tiles cannot tell inside from out, so a gable reads the air a metre before it, LOW up at most.
 const float LOW = 1.5;
 
 varying vec3 world_pos;

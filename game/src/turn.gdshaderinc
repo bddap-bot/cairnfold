@@ -1,4 +1,3 @@
-// Rigid turns of a body part about a pivot, vertex and normal together, for the animals bent in their vertex shaders.
 mat3 rot(vec3 axis, float a) {
 	axis = normalize(axis);
 	float s = sin(a), c = cos(a), oc = 1.0 - c;

@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, shadows_disabled, diffuse_lambert_wrap, specular_disabled;
 
-// A puff of chimney smoke (Smoke): COLOR.a is how far through its rise it starts, and it rises, drifts downwind, swells
-// and fades over and over, lit as the hour and the lanterns near it light everything else.
+// COLOR.a is how far through its rise a puff starts.
 
 #include "res://src/billboard.gdshaderinc"
 #include "res://src/ground.gdshaderinc"

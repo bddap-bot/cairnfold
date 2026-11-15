@@ -1,12 +1,11 @@
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
-// The sun's or the moon's disc and its glow, turned to the eye: drawn apart from the sky so turning the sky
-// moves it every frame without restarting the sky's radiance update.
+// Apart from the sky, so turning the sky moves it every frame without restarting the sky's radiance update.
 
 uniform vec3 tint : source_color = vec3(1.0, 0.95, 0.85);
 uniform float radius = 0.28;
-// 0 for the sun's hot disc and tight corona; 1 for the moon's soft, mottled face in a wide halo.
+// 0 the sun, 1 the moon.
 uniform float moon = 0.0;
 
 #include "res://src/billboard.gdshaderinc"

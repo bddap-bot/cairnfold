@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
-// The glow a lantern hangs in the air: a soft disc turned to the eye, in its glow colour (COLOR.rgb), wider and stronger
-// (COLOR.a, half a lit lantern's) the brighter it burns.
+// COLOR.a: half the square root of the lamp's strength (fittings.gd).
 
 #include "res://src/billboard.gdshaderinc"
 
