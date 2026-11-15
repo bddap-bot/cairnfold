@@ -240,7 +240,6 @@ func frame() -> Dictionary:
 	return {"along": along.normalized(), "across": across.normalized(), "mid": Vector3(mid.x, base, mid.z)}
 
 
-## On the plane the roof stands on.
 func spot_point(spot: Vector2) -> Vector3:
 	return on_frame(frame(), spot)
 

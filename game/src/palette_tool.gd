@@ -7,7 +7,6 @@ const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const TAP_SECONDS := 0.3
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
-## Each restyle that stores its pick unchanged in one field of the build.
 const FIELDS := {Restyle.GABLE: "gable_end", Restyle.TOP: "top", Restyle.STONE: "style", Restyle.PATH: "surface", Restyle.FOUNDATION: "foundation"}
 ## Per choice: (WallLayout.Finish, plaster wear).
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
