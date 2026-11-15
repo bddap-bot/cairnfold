@@ -6,6 +6,7 @@ render_mode skip_vertex_transform, cull_disabled, diffuse_lambert_wrap, specular
 #include "res://src/palette.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
 
+// INSTANCE_CUSTOM (written by Flora.Pool.add): r the bloom rank, shown while under season_bloom; zw the root's world xz.
 uniform float stem;
 // One triangle as large as the square it stands in for.
 const float PATCH_SCALE = 1.41421356;
