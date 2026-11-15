@@ -1,7 +1,5 @@
 extends SceneTree
 
-## A wall freed while its ivy still grows; the check is a clean exit.
-
 
 func _init() -> void:
 	var masonry := Masonry.new(Wall.kinds())

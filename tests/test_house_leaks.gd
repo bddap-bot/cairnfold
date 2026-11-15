@@ -2,7 +2,6 @@ extends "res://../tests/support/booted.gd"
 
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
-const SEALED_SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 55, 60]
 ## Escapes only the dense sweep met, as [origin, direction].
 const SEALED_RAYS := {
 	35: [
@@ -64,7 +63,7 @@ func _run() -> void:
 	var path := OS.get_environment("HOUSE_LEAK_REPORT")
 	if not path.is_empty():
 		FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify({"cases": inventory, "milliseconds": elapsed}, "\t"))
-	print("tests: house leak inventory: %d cases in %.3f s (report only; promote repaired cases to gates)" % [inventory.size(), elapsed / 1000.0])
+	print("tests: house leak inventory: %d cases in %.3f s" % [inventory.size(), elapsed / 1000.0])
 	finish()
 
 
@@ -271,7 +270,7 @@ func _house(seed_value: int, count: int) -> void:
 	for ray: Array in SEALED_RAYS.get(seed_value, []):
 		var sealed: Dictionary = probe.probe(ray[0], ray[1], room)
 		check(sealed.status == "shell", "seed %d ray from %s along %s is sealed: %s" % [seed_value, ray[0], ray[1], sealed])
-	if seed_value in SEALED_SEEDS:
+	if seed_value in SEEDS:
 		check(record.totals.leak == 0, "sealed seed %d has %d escapes" % [seed_value, record.totals.leak])
 	inventory.append(record)
 	print("tests: leak seed=%d totals=%s groups=%s" % [seed_value, JSON.stringify(record.totals), JSON.stringify(record.groups)])

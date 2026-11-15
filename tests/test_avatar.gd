@@ -387,16 +387,31 @@ func _springs_survive_a_rewrite(file: String) -> void:
 	var path := ProjectSettings.globalize_path("user://rewritten.vrm")
 	var read := func(bytes: PackedByteArray) -> Node3D: return Vrm.read(bytes, func(_size: Vector2i) -> bool: return true, func(_state: GLTFState) -> bool: return true, func(_image: Image, _layer: String) -> void: pass)
 	var first: Node3D = read.call(FileAccess.get_file_as_bytes(file))
+	var turn := 0.0
 	for chain: Dictionary in first.get_meta("springs").springs:
 		for joint: Dictionary in chain.joints:
-			joint["settled"] = Quaternion(Vector3.RIGHT, 0.5)
+			turn += 0.01
+			joint["settled"] = Quaternion(Vector3.RIGHT, turn)
 	var before := _springs_by_bone(first)
 	Vrm.write(first, path)
 	first.free()
 	var second: Node3D = read.call(FileAccess.get_file_as_bytes(path))
 	var after := _springs_by_bone(second)
 	second.free()
-	check(not (before.springs as Array).is_empty() and str(before) == str(after), "%s's springs survive a write: %s, then %s" % [file.get_file(), before, after])
+	var turns := [_settled(before), _settled(after)]
+	var off := 0.0
+	for i in mini(turns[0].size(), turns[1].size()):
+		off = maxf(off, (turns[0][i] as Quaternion).angle_to(turns[1][i]))
+	check(not (before.springs as Array).is_empty() and str(before) == str(after) and turns[0].size() == turns[1].size() and off < 2e-3, "%s's springs survive a write, each joint's settled rotation %.6f rad off at worst: %s, then %s" % [file.get_file(), off, before, after])
+
+
+func _settled(springs: Dictionary) -> Array:
+	var turns := []
+	for chain: Dictionary in springs.springs:
+		for joint: Dictionary in chain.joints:
+			turns.append(joint.settled)
+			joint.erase("settled")
+	return turns
 
 
 ## Each node index swapped for the bone its "spring_N" names, "" for none.

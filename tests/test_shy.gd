@@ -30,7 +30,6 @@ func _initialize() -> void:
 	_snakes()
 	_squirrels()
 	await _owls()
-	_cost()
 	_the_nearest_is_nearest()
 	await _they_go_with_their_habitats()
 	look.queue_free()
@@ -262,22 +261,6 @@ func _owls() -> void:
 	check(not sent.is_empty() and ways == sent.map(func(o: Shy.One) -> Vector3: return o.goal), "sent off with the day, each keeps to the way it first took")
 	g.run(120.0)
 	check(owls.animals.is_empty(), "with the day they go")
-
-
-func _cost() -> void:
-	look.set_time(0.0)
-	g.run(Owls.AFTER.y * 2.0)
-	var elapsed := {}
-	for i in 1440:
-		for kind in g.wildlife.shy():
-			var start := Time.get_ticks_usec()
-			kind.tick(1.0 / 72.0)
-			elapsed[kind] = elapsed.get(kind, 0) + Time.get_ticks_usec() - start
-	for kind in g.wildlife.shy():
-		var mesh := kind.crowd.multimesh.mesh
-		print("shy_cost: %s: %d animals; %.4f ms/tick; %d triangles each; one draw" % [kind.get_script().get_global_name(), kind.animals.size(), elapsed[kind] / 1440000.0, mesh.surface_get_array_len(0) / 3])
-	look.set_time(Daylight.DEFAULT)
-	g.run(120.0)
 
 
 func _they_go_with_their_habitats() -> void:

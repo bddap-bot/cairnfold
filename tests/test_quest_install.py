@@ -13,7 +13,8 @@ script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
 # Pushes are closed to the game as a Quest 3's shell makes them; no `am`, so a restore that starts the game fails.
 # FAKE_FAIL names the adb call that fails, or with `corrupt` a push that lands other bytes; FAKE_REFUSE=N refuses the
-# first N pushes as a freshly installed app's folder does.
+# first N pushes as a freshly installed app's folder does; FAKE_UPDATE is what `install -r` over an installed build
+# prints, refused unless it is Success.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
@@ -25,8 +26,9 @@ FAKE_ADB = textwrap.dedent('''\
     with open(root + '/adb.log', 'a') as log:
         log.write(' '.join(args) + '\\n')
     if args[0] == 'install':
-        if '-r' in args and os.path.exists(root + '/installed'):
-            print('Failure [INSTALL_FAILED_VERSION_DOWNGRADE]')
+        update = os.environ['FAKE_UPDATE']
+        if '-r' in args and os.path.exists(root + '/installed') and update != 'Success':
+            print(update)
             sys.exit(1)
         open(root + '/installed', 'w').close()
     elif args[0] == 'uninstall':
@@ -124,7 +126,31 @@ class QuestInstallKeepsSaves(unittest.TestCase):
 
     def install(self, package='io.github.bddapbot.cairnfold', quest=True, **env):
         path = apk(self.root / 'old.apk', package, quest)
+        env = {'FAKE_UPDATE': 'Failure [INSTALL_FAILED_VERSION_DOWNGRADE]', **env}
         return subprocess.run([str(script), str(path)], env=dict(self.env, **env), capture_output=True, text=True)
+
+    def test_an_update_adb_accepts_leaves_the_saves_where_they_are(self):
+        run = self.install(FAKE_UPDATE='Success')
+        self.assertEqual(run.returncode, 0, run.stderr)
+        log = (self.quest / 'adb.log').read_text()
+        self.assertIn('install -r', log)
+        self.assertNotIn('uninstall', log)
+        self.assertNotIn('pull', log)
+        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_an_update_signed_by_another_key_uninstalls_and_restores(self):
+        run = self.install(FAKE_UPDATE='Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match]')
+        self.assertEqual(run.returncode, 0, run.stderr)
+        log = (self.quest / 'adb.log').read_text()
+        self.assertIn('uninstall', log)
+        self.assertIn('install -g', log)
+        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_any_other_refused_update_fails_and_uninstalls_nothing(self):
+        run = self.install(FAKE_UPDATE='Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]')
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn('INSTALL_FAILED_INSUFFICIENT_STORAGE', run.stderr)
+        self.assertNotIn('uninstall', (self.quest / 'adb.log').read_text())
 
     def test_a_build_installed_as_another_package_never_touches_the_game(self):
         run = self.install(package='io.github.bddapbot.nestbisect')
