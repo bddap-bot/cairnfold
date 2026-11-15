@@ -286,17 +286,17 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 ## Every chunk at every grid step has a vertex every STEP along its edge and covers its square once over, so chunks
 ## drawn at different steps meet with no crack and no overlap.
 func _chunks_meet_at_every_step() -> void:
-	var size := Terrain.CHUNK * Terrain.STEP
+	var size := Terrain.CHUNK_CELLS * Terrain.STEP
 	for k in Terrain.LODS:
 		var arrays := Terrain.part_mesh(Terrain.chunk_parts(2, 3, k)).surface_get_arrays(0)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK)
+		var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK_CELLS)
 		var edge := {}
 		for p in verts:
 			var at := Vector2(p.x, p.z) - corner
 			if is_zero_approx(at.x) or is_zero_approx(at.y) or is_equal_approx(at.x, size) or is_equal_approx(at.y, size):
 				edge[Vector2i(roundi(at.x), roundi(at.y))] = true
-		check(edge.size() == 4 * Terrain.CHUNK, "a chunk at step %d has %d edge vertices, not one every metre" % [k, edge.size()])
+		check(edge.size() == 4 * Terrain.CHUNK_CELLS, "a chunk at step %d has %d edge vertices, not one every metre" % [k, edge.size()])
 		var area := 0.0
 		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 		for t in range(0, idx.size(), 3):
@@ -313,7 +313,7 @@ func _chunks_meet_at_every_step() -> void:
 ## its neighbour in the other leave no gap and no overlap.
 func _each_tile_holds_its_own_triangles() -> void:
 	var tile := Terrain.TILE * Terrain.STEP
-	var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK)
+	var corner := Terrain.grid_xz(Vector2i(2, 3) * Terrain.CHUNK_CELLS)
 	for k in Terrain.LODS:
 		var parts := Terrain.chunk_parts(2, 3, k)
 		var verts: PackedVector3Array = parts[0][Mesh.ARRAY_VERTEX]
@@ -360,7 +360,7 @@ func _ponds_draw_in_the_full_shader_wherever_they_reach() -> void:
 						if on.x >= 0 and on.y >= 0 and Rect2(on, Vector2.ONE * Terrain.TILE).grow(0.001).has_point(g):
 							check(tiles[(t.y + d.y) * Terrain.TILES + t.x + d.x] == 1, "a vertex at %s that reads the pond lies in a tile drawn without it" % v)
 	check(reached > 0, "some vertex reads the pond")
-	var chunk := meadow._chunks[(wet.y / Terrain.CHUNK) * Terrain.CHUNKS + wet.x / Terrain.CHUNK]
+	var chunk := meadow._chunks[(wet.y / Terrain.CHUNK_CELLS) * Terrain.CHUNKS + wet.x / Terrain.CHUNK_CELLS]
 	check(chunk.full.mesh != null and chunk.marked.count(1) > 0, "the pond's chunk draws its tile in the full shader")
 	check(meadow._chunks[0].full.mesh == null, "a chunk far from any pond draws all of itself in the plain shader")
 	terrain.set_water(before, Terrain.depth_image(before, terrain.read(Terrain.ALL), PackedInt32Array()))

@@ -271,7 +271,7 @@ func _layers_follow_the_budget() -> void:
 		for layer: String in Vrm.LAYERS:
 			var layered := wide.duplicate() as Image
 			Avatar.hold(layered, layer, shrink)
-			var side := Avatar.INDEX_SIDE if layer == "index" else int(Avatar.ICON_SIDE) if layer == "icons" else 4096 / shrink
+			var side := Avatar.INDEX_SIDE if layer == "index" else int(Avatar.ICON_SIDE_PX) if layer == "icons" else 4096 / shrink
 			check(layered.get_width() == side and layered.has_mipmaps() == (layer not in Avatar.UNSHRUNK and layer != "hueMask"), "a 4096 %s shrunk %d times is held at %d: %d" % [layer, shrink, side, layered.get_width()])
 
 

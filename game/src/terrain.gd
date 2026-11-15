@@ -487,15 +487,14 @@ func _sync(cells: Rect2i) -> void:
 		_water_texture.update(_water_image)
 
 
-## In cells.
-const CHUNK := 16
-const CHUNKS := CELLS / CHUNK
+const CHUNK_CELLS := 16
+const CHUNKS := CELLS / CHUNK_CELLS
 ## Finest first; Meadow picks one by the chunk's distance from the eye.
 const LODS: Array[int] = [1, 2, 4]
 ## Cells: the coarsest LOD's cell, so no triangle spans two tiles and Meadow draws each tile in one shader or the other.
 const TILE := 4
 const TILES := CELLS / TILE
-const CHUNK_TILES := CHUNK / TILE
+const CHUNK_TILES := CHUNK_CELLS / TILE
 
 
 ## [mesh arrays, per tile row by row its triangle indices]; the edge keeps a vertex every STEP, so neighbours meet.
@@ -514,9 +513,9 @@ static func chunk_parts(ci: int, cj: int, k: int) -> Array:
 			vertices.append(Vector3(x, 0, z))
 			index[key] = index.size()
 		return index[key]
-	var i0 := ci * CHUNK
-	var j0 := cj * CHUNK
-	var n := CHUNK / k
+	var i0 := ci * CHUNK_CELLS
+	var j0 := cj * CHUNK_CELLS
+	var n := CHUNK_CELLS / k
 	for b in n:
 		for a in n:
 			var i := i0 + a * k
@@ -533,7 +532,7 @@ static func chunk_parts(ci: int, cj: int, k: int) -> Array:
 			for side in 4:
 				var from := corners[side]
 				var to := corners[(side + 1) % 4]
-				var on_edge := (from.x == to.x and (from.x == i0 or from.x == i0 + CHUNK)) or (from.y == to.y and (from.y == j0 or from.y == j0 + CHUNK))
+				var on_edge := (from.x == to.x and (from.x == i0 or from.x == i0 + CHUNK_CELLS)) or (from.y == to.y and (from.y == j0 or from.y == j0 + CHUNK_CELLS))
 				var steps := k if on_edge else 1
 				for t in steps:
 					loop.append(vertex.call((from + (to - from) * t / steps) * 2))

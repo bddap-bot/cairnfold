@@ -4789,7 +4789,7 @@ Every player action, from the code:
 | `UNDO` | One step back, as it comes back; with none to take back it is `REFUSED` | two plucks falling | tick |
 | `REDO` | One step forward, as it comes back; with none to put back it is `REFUSED` | two plucks rising | tick |
 | `TELEPORT` | A teleport is let go | quick cloth swish where the player lands | pulse in the aiming hand |
-| `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something: the ground, a roof, a wall's top, a tree; one into the air is a `TELEPORT` | cloth rustle landing | pulse in the aiming hand |
+| `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR_M` (15 m) from the eyes lets go standing on something: the ground, a roof, a wall's top, a tree; one into the air is a `TELEPORT` | cloth rustle landing | pulse in the aiming hand |
 | `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
 | `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
@@ -5874,7 +5874,7 @@ a flight's treads, a bridge's deck and a house's floor. Two things decide it.
 
 - Where the teleport ray lands. A full stick lands where the ray stops on anything solid: the top of a wall,
   deck, tread or bridge, just as it lands on the ground. A ray that stops on a side instead, a surface steeper than 70 degrees such as a
-  wall's or a house's face or a ruin stone's (`Rig.STEEP`), lands at its foot, `Rig.STAND_OFF` back along the ray,
+  wall's or a house's face or a ruin stone's (`Rig.STEEP`), lands at its foot, `Rig.STAND_OFF_M` back along the ray,
   rather than standing the player in the air against it; struck more than `Rig.CLIMB` over that foot, the player
   floats there at the height struck.
 - What a point stands on (`Rig.floor_under`): the highest top at or just below it, the ground, a house's floor,

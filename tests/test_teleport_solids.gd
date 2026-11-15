@@ -271,7 +271,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 ## the player lands on that floor; higher, they float at the height struck. Either way clear of the face.
 func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 	var face := mid + Vector3(0, 0, WallLayout.THICKNESS * 0.5)
-	var front := main.world.terrain.ground(face.x, face.z + Rig.STAND_OFF)
+	var front := main.world.terrain.ground(face.x, face.z + Rig.STAND_OFF_M)
 	var from := Vector3(face.x, front.y + 1.6, face.z + 6.0)
 	var dir := (Vector3(face.x, front.y + up, face.z) - from).normalized()
 	var struck: Variant = rig.solid_hit.call(from, dir, 20.0).get("point")
@@ -289,7 +289,7 @@ func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 		check(absf(at - struck.y) < 0.05, "aimed %.2f m up the face, the player floats where it struck: %.2f for %.2f" % [up, at, struck.y])
 	else:
 		check(rig.aim_lift < 0.01, "aimed %.2f m up the face, the player lands at its foot, not on the face: up %.2f" % [up, rig.aim_lift])
-	check(g.z - struck.z > Rig.STAND_OFF * 0.99 and struck.z - mid.z > WallLayout.THICKNESS * 0.3, "aimed %.2f m up the face, the target stands clear of it: %s, struck at %s" % [up, g, struck])
+	check(g.z - struck.z > Rig.STAND_OFF_M * 0.99 and struck.z - mid.z > WallLayout.THICKNESS * 0.3, "aimed %.2f m up the face, the target stands clear of it: %s, struck at %s" % [up, g, struck])
 	rig.place(g, rig.aim_lift)
 	check(absf(rig.global_position.y - at) < 0.01, "let go aimed %.2f m up the face, the player is where the halo showed: %.2f for %.2f" % [up, rig.global_position.y, at])
 

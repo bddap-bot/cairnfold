@@ -19,8 +19,8 @@ const UNCAPPED := 1e4
 const HEAD_ROWS := 2
 ## As many points as the shader reads.
 const RAMP := 16
-## Pixels: a board row's height.
-const ICON_SIDE := 44.0
+## A board row's height.
+const ICON_SIDE_PX := 44.0
 const COAT_ROWS := 7
 const MATCAP_ROWS := 6
 ## Poiyomi's slots.
@@ -815,8 +815,8 @@ static func hold(img: Image, layer: String, shrink: int) -> void:
 			img.resize(img.get_width() * INDEX_SIDE / big, img.get_height() * INDEX_SIDE / big, Image.INTERPOLATE_NEAREST)
 	elif layer == "icons":
 		var side := maxf(img.get_width(), img.get_height())
-		if side > ICON_SIDE:
-			img.resize(maxi(roundi(img.get_width() * ICON_SIDE / side), 1), maxi(roundi(img.get_height() * ICON_SIDE / side), 1), Image.INTERPOLATE_LANCZOS)
+		if side > ICON_SIDE_PX:
+			img.resize(maxi(roundi(img.get_width() * ICON_SIDE_PX / side), 1), maxi(roundi(img.get_height() * ICON_SIDE_PX / side), 1), Image.INTERPOLATE_LANCZOS)
 	else:
 		if layer != "":
 			img.convert(Image.FORMAT_RGBA8)

@@ -82,8 +82,8 @@ func _ground() -> void:
 			var c := Chunk.new()
 			for k in Terrain.LODS:
 				c.parts.append(Terrain.chunk_parts(ci, cj, k))
-			var corner := Terrain.grid_xz(Vector2i(ci, cj) * Terrain.CHUNK)
-			c.rect = Rect2(corner, Vector2.ONE * Terrain.CHUNK * Terrain.STEP)
+			var corner := Terrain.grid_xz(Vector2i(ci, cj) * Terrain.CHUNK_CELLS)
+			c.rect = Rect2(corner, Vector2.ONE * Terrain.CHUNK_CELLS * Terrain.STEP)
 			var lifted := AABB(Vector3(corner.x, box.position.y, corner.y), Vector3(c.rect.size.x, box.size.y, c.rect.size.y))
 			for mi: MeshInstance3D in [c.plain, c.full]:
 				mi.material_override = plain if mi == c.plain else full

@@ -55,7 +55,7 @@ func _snap_turns_about_the_head(rig: Rig) -> void:
 	rig.head.transform = Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
 
 
-## A teleport swishes; one past MARKER_NEAR that stands the player on the ground or something on it sounds as a landing.
+## A teleport swishes; one past MARKER_NEAR_M that stands the player on the ground or something on it sounds as a landing.
 func _landing_sounds(rig: Rig) -> void:
 	var cases := {
 		"a short teleport onto the ground": [terrain.ground(0, 0), 0.0, Cues.Act.TELEPORT],
@@ -171,7 +171,7 @@ func _reaches_across_the_map(rig: Rig) -> void:
 	var g: Variant = rig.aim_ground
 	check(o.distance_to(far) > 200.0 and g != null and g.distance_to(far) < 0.1 and rig.aim_lift < 0.15, "a ray %.0f m across the map lands where it hits: %s for %s" % [o.distance_to(far), g, far])
 	var preview := rig._landing.global_transform
-	check(rig._landing.visible and preview.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far preview grows with its distance: %.1f" % preview.basis.get_scale().x)
+	check(rig._landing.visible and preview.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR_M * 0.9, "the far preview grows with its distance: %.1f" % preview.basis.get_scale().x)
 	rig.hide_markers()
 	rig.place(Vector3(0, terrain.height_at(0, 4), 4), 0.0)
 

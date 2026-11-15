@@ -43,7 +43,7 @@ func _spawns_on_open_ground() -> void:
 	rig.respawn()
 	var h := rig.head.global_position
 	var g := Vector2(h.x, h.z)
-	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) <= 2.0 * Rig.SPAWN_STEP + 0.01 and absf(rig.global_position.y - main.world.terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
+	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) <= 2.0 * Rig.SPAWN_STEP_M + 0.01 and absf(rig.global_position.y - main.world.terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
 	rig.solid_hit = func(origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {"point": origin, "side": false}
 	rig.floor_under = func(p: Vector3) -> float: return main.world.terrain.height_at(p.x, p.z) + 7.0
 	rig.respawn()

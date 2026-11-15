@@ -17,8 +17,8 @@ const AIR_REACH := 30.0
 ## Tremor moves a far target metres, so the aim follows faster the more it lags: a held hand stays still.
 const STEADY_HZ := 0.5
 const STEADY_HZ_PER_RAD := 60.0
-## Metres; past it the landing preview grows with distance, so it looks as big as it does there.
-const MARKER_NEAR := 15.0
+## Past it the landing preview grows with distance, so it looks as big as it does there.
+const MARKER_NEAR_M := 15.0
 const FULL_STICK := 0.9
 const DEADZONE := 0.3
 const NEAREST := 0.1
@@ -27,8 +27,7 @@ const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
 ## Steeper than 70 degrees: a ruin's leaning stones stay well inside it.
 const STEEP := 0.34
-## Metres.
-const STAND_OFF := 0.3
+const STAND_OFF_M := 0.3
 ## A side struck at most this high over the floor in front lands the player there; higher, they float.
 const CLIMB := 1.5
 ## A target higher than this over its floor floats.
@@ -42,9 +41,8 @@ const INSIDE_DIM := 0.9
 const INSIDE_TIME := 0.15
 ## Ground x and z.
 const SPAWN := Vector2(0, 4)
-## Metres.
-const SPAWN_SEARCH := 20.0
-const SPAWN_STEP := 2.0
+const SPAWN_SEARCH_M := 20.0
+const SPAWN_STEP_M := 2.0
 ## Above the tallest build.
 const SPAWN_CLEAR := 200.0
 
@@ -302,13 +300,13 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		g = full.y
 		var back := Vector3(dir.x, 0.0, dir.z)
 		if solid.get("side", false) and back.length() > 1e-3:
-			stand -= back.normalized() * STAND_OFF
+			stand -= back.normalized() * STAND_OFF_M
 			g = floor_under.call(stand)
 			if full.y - g <= CLIMB:
 				stand.y = g
 	aim_ground = Vector3(stand.x, g, stand.z)
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
-	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
+	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR_M)
 	_landing.put(aim_ground + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, self)
 
 
@@ -336,7 +334,7 @@ func hide_markers() -> void:
 ## A cut, not a glide: in a headset any view motion the head did not make is uncomfortable.
 func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
-	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR
+	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR_M
 	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left if aim_hand == null else aim_hand)
 	_cut(ground, lift_m)
 
@@ -382,9 +380,9 @@ func covered() -> bool:
 
 ## Open ground, so the player never arrives inside a build.
 func spawn() -> Vector3:
-	for ring in int(SPAWN_SEARCH / SPAWN_STEP) + 1:
-		var r := ring * SPAWN_STEP
-		var n := maxi(1, int(TAU * r / SPAWN_STEP))
+	for ring in int(SPAWN_SEARCH_M / SPAWN_STEP_M) + 1:
+		var r := ring * SPAWN_STEP_M
+		var n := maxi(1, int(TAU * r / SPAWN_STEP_M))
 		for k in n:
 			var at := SPAWN + Vector2.from_angle(TAU * k / n) * r
 			var g := terrain.ground(at.x, at.y)

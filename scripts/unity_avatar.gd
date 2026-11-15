@@ -1066,7 +1066,7 @@ static func _particle_key(particles: Particles, effect: Dictionary, k: Array) ->
 
 
 ## The menu without the controls whose parameters are not `effective`, nor the submenus left empty; each icon an
-## image of at most Avatar.ICON_SIDE pixels a side in `icons`, by index.
+## image of at most Avatar.ICON_SIDE_PX pixels a side in `icons`, by index.
 static func _pruned(menu: Array, effective: Dictionary, cut: Array, materials: Materials, icons: Array, indices: Dictionary) -> Array:
 	var out := []
 	for c: Dictionary in menu:
