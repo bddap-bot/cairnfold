@@ -333,6 +333,10 @@ func _plan(st: Stroke, commit := false) -> void:
 		return
 	st.planned = true
 	var layouts := st.plan.pieces(st.points, world.terrain.height_at, commit)
+	var over := func(built: Array[WallLayout]) -> bool: return built.any(func(l: WallLayout) -> bool: return Commands.length(l.points) > Commands.MAX_LENGTH)
+	while st.points.size() > 2 and over.call(layouts) and (commit or over.call(st.plan.pieces(st.points, world.terrain.height_at, true))):
+		st.points.pop_back()
+		layouts = st.plan.pieces(st.points, world.terrain.height_at, commit)
 	while st.walls.size() > layouts.size():
 		st.walls.pop_back().queue_free()
 	for i in layouts.size():

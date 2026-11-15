@@ -17,7 +17,6 @@ const MIN_ROOF_RADIUS := 0.5
 ## Metres: the longest wall, path or flight of stairs; the tools stop growing one there.
 const MAX_LENGTH := 240.0
 const STAIRS_SHORTEST := 0.3
-## Short of MAX_LENGTH by more than a stroke's last moves and joins add.
 const STROKE_LENGTH := MAX_LENGTH - 16.0
 const STRETCH_LENGTH := MAX_LENGTH - 0.01
 const MAX_THINGS := 4000
