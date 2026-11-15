@@ -398,7 +398,7 @@ func pick(origin: Vector3, dir: Vector3, kinds: Dictionary, skip := {}, ties: Ar
 				hit = flora.solid_hit(origin, dir, within, skip)
 			Kind.BOULDER:
 				hit = boulders.pick(origin, dir, within) if boulders != null else {}
-				if not hit.is_empty() and skip.has(hit.boulder.id):
+				if not hit.is_empty() and skip.has(hit.boulder):
 					hit = {}
 			Kind.STAIRS:
 				hit = stairs.pick(origin, dir, within) if stairs != null else {}
@@ -433,7 +433,7 @@ func _unbounded(kind: Kind, origin: Vector3, dir: Vector3, reach: float, skip: D
 			return wall_tool.pick_floor(origin, dir)
 		Kind.EASEL:
 			var hit := easels.pick(origin, dir) if easels != null else {}
-			return {} if hit.is_empty() or skip.has(hit.easel.id) else hit
+			return {} if hit.is_empty() or skip.has(hit.easel) else hit
 	return {}
 
 

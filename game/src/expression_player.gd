@@ -43,24 +43,6 @@ var _marks := {}
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
-## [hue turn (1) + clear coat (2) + toon (4)][two-sided][cut out, blended, blended writing depth].
-const SHADERS := [
-	[[preload("res://src/expression.gdshader"), preload("res://src/expression_blended.gdshader"), preload("res://src/expression_blended_depth.gdshader")],
-	[preload("res://src/expression_two_sided.gdshader"), preload("res://src/expression_blended_two_sided.gdshader"), preload("res://src/expression_blended_depth_two_sided.gdshader")]],
-	[[preload("res://src/expression_hue.gdshader"), preload("res://src/expression_blended_hue.gdshader"), preload("res://src/expression_blended_depth_hue.gdshader")],
-	[preload("res://src/expression_hue_two_sided.gdshader"), preload("res://src/expression_blended_hue_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_two_sided.gdshader")]],
-	[[preload("res://src/expression_coat.gdshader"), preload("res://src/expression_blended_coat.gdshader"), preload("res://src/expression_blended_depth_coat.gdshader")],
-	[preload("res://src/expression_coat_two_sided.gdshader"), preload("res://src/expression_blended_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_two_sided.gdshader")]],
-	[[preload("res://src/expression_hue_coat.gdshader"), preload("res://src/expression_blended_hue_coat.gdshader"), preload("res://src/expression_blended_depth_hue_coat.gdshader")],
-	[preload("res://src/expression_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_two_sided.gdshader")]],
-	[[preload("res://src/expression_toon.gdshader"), preload("res://src/expression_blended_toon.gdshader"), preload("res://src/expression_blended_depth_toon.gdshader")],
-	[preload("res://src/expression_toon_two_sided.gdshader"), preload("res://src/expression_blended_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_toon_two_sided.gdshader")]],
-	[[preload("res://src/expression_hue_toon.gdshader"), preload("res://src/expression_blended_hue_toon.gdshader"), preload("res://src/expression_blended_depth_hue_toon.gdshader")],
-	[preload("res://src/expression_hue_toon_two_sided.gdshader"), preload("res://src/expression_blended_hue_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_toon_two_sided.gdshader")]],
-	[[preload("res://src/expression_coat_toon.gdshader"), preload("res://src/expression_blended_coat_toon.gdshader"), preload("res://src/expression_blended_depth_coat_toon.gdshader")],
-	[preload("res://src/expression_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_coat_toon_two_sided.gdshader")]],
-	[[preload("res://src/expression_hue_coat_toon.gdshader"), preload("res://src/expression_blended_hue_coat_toon.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon.gdshader")],
-	[preload("res://src/expression_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_hue_coat_toon_two_sided.gdshader"), preload("res://src/expression_blended_depth_hue_coat_toon_two_sided.gdshader")]]]
 ## In the shader's field order.
 const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
@@ -597,7 +579,7 @@ static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, toon
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 		way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
 	var both := base != null and base.cull_mode == BaseMaterial3D.CULL_DISABLED
-	return SHADERS[(1 if turned else 0) + (2 if coated else 0) + (4 if tooned else 0)][1 if both else 0][way]
+	return load("res://src/expression%s%s%s%s%s.gdshader" % [["", "_blended", "_blended_depth"][way], "_hue" if turned else "", "_coat" if coated else "", "_toon" if tooned else "", "_two_sided" if both else ""])
 
 
 ## Only a mesh that needs hue turns, a clear coat or a toon look gets those shaders: compiled in, each costs Quest 2 GPU

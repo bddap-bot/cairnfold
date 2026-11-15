@@ -364,7 +364,8 @@ func _lighting() -> void:
 	root.free()
 
 func _sides() -> void:
-	for turned: bool in [false, true]:
+	for look: int in 8:
+		var turned := look & 1 != 0
 		for blend: Array in [[BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, false], [BaseMaterial3D.TRANSPARENCY_ALPHA, true]]:
 			for cull: int in [BaseMaterial3D.CULL_BACK, BaseMaterial3D.CULL_DISABLED]:
 				var m := StandardMaterial3D.new()
@@ -372,9 +373,10 @@ func _sides() -> void:
 				m.transparency = blend[0]
 				m.set_meta("extras", {"depthWrite": blend[1]})
 				Avatar._plain(m)
-				var code := ExpressionPlayer.shader_for(m, turned).code
+				var shader := ExpressionPlayer.shader_for(m, turned, look & 2 != 0, look & 4 != 0)
+				var code := shader.code if shader else ""
 				var mode := "cull_disabled" if cull == BaseMaterial3D.CULL_DISABLED else "cull_back"
-				check(mode in code and ("BLENDED" in code) == (blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA) and ("depth_draw_always" in code) == blend[1] and ("DECAL_HUE" in code) == turned, "a %s material, blended %s writing depth %s, hues turned %s, animates with %s" % ["two-sided" if cull == BaseMaterial3D.CULL_DISABLED else "one-sided", blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA, blend[1], turned, mode])
+				check(mode in code and ("BLENDED" in code) == (blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA) and ("depth_draw_always" in code) == blend[1] and ("DECAL_HUE" in code) == turned and ("CLEAR_COAT" in code) == (look & 2 != 0) and ("#define TOON" in code) == (look & 4 != 0), "a %s material, blended %s writing depth %s, look %d, animates with %s" % ["two-sided" if cull == BaseMaterial3D.CULL_DISABLED else "one-sided", blend[0] == BaseMaterial3D.TRANSPARENCY_ALPHA, blend[1], look, mode])
 
 
 func _theme_recolours_the_emission() -> void:

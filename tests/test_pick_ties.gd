@@ -117,7 +117,6 @@ func _delete_takes_a_fitting_over_an_easel(w: Wall) -> void:
 	await frames(3)
 
 
-## Plants it took go in aim's `taken`, easels and boulders in `gone`.
 func _delete_passes_what_it_took() -> void:
 	var spots := _clear_spots(3)
 	world.submit({"op": "easel", "at": spots[0], "yaw": 0.0})
@@ -128,14 +127,15 @@ func _delete_passes_what_it_took() -> void:
 	var from: Vector3 = spots[0] + Vector3(0, 1.2, 3.0)
 	var aim := tool_d.aim(from, (spots[0] + Vector3.UP * 1.2 - from).normalized())
 	check(aim.has("easel"), "the beam meets the easel: %s" % [aim.keys()])
-	if aim.has("easel"):
-		check(not tool_d.aim(from, (spots[0] + Vector3.UP * 1.2 - from).normalized(), {}, {aim.easel.id: true}).has("easel"), "and passes the easel it took")
+	var easel: Node3D = aim.get("easel")
+	if easel != null:
+		check(not tool_d.aim(from, (spots[0] + Vector3.UP * 1.2 - from).normalized(), {easel: true}).has("easel"), "and passes the easel it took")
 	from = spots[1] + Vector3(0, 3.0, 2.0)
 	var dir: Vector3 = (spots[1] + Vector3.UP * 0.3 - from).normalized()
 	aim = tool_d.aim(from, dir)
 	check(aim.has("boulder"), "the beam meets the boulder: %s" % [aim.keys()])
 	if aim.has("boulder"):
-		check(not tool_d.aim(from, dir, {}, {aim.boulder.id: true}).has("boulder"), "and passes the boulder it took")
+		check(not tool_d.aim(from, dir, {aim.boulder: true}).has("boulder"), "and passes the boulder it took")
 	from = spots[2] + Vector3(0, 1.0, 3.0)
 	dir = (spots[2] + Vector3.UP * 1.0 - from).normalized()
 	aim = tool_d.aim(from, dir)

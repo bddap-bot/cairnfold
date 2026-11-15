@@ -27,7 +27,9 @@ var _rings: Array[MeshInstance3D] = []
 ## By whoever holds the trigger (a hand, or the driver); {single: target} for a lone fitting or rubble. `walls`: by
 ## wall id the stretches swept, Vector2(from, to) unwrapped round a loop; `moved`: walls swept since last shown;
 ## `wall`: the sweep along the wall the beam is on, {wall, id, span, at, last}; `plants`: those taken; `marks`: by id
-## the table of each stairs, path and stone stroke taken; `easels`, `boulders`, `decorations`: those taken, by id;
+## the table of each stairs, path and stone stroke taken; `nodes`: each easel and boulder taken, to its table
+## and id;
+## `decorations`: those taken, by id;
 ## `fittings`: by wall id the fitting targets taken; `pieces`: by path id its clutter taken; `ray`: the last ray,
 ## [origin, dir, where it struck].
 var _cuts := {}
@@ -133,9 +135,9 @@ func _orb() -> MeshInstance3D:
 
 
 ## With its `point`: a pick's own target (wall, fitting, stairs), `plants`, `easel`, `boulder`, `laid` (path or stone
-## ground) or `mow` (brush radius). It passes through the plants in `taken` and the easels and boulders by id in `gone`.
-func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
-	var hits := world.pick(origin, dir, {World.Kind.GROUND: REACH, World.Kind.EASEL: REACH, World.Kind.TARGET: REACH, World.Kind.BOULDER: REACH, World.Kind.PLANT: REACH, World.Kind.STAIRS: REACH}, taken.merged(gone), [World.Kind.EASEL, World.Kind.TARGET])
+## ground) or `mow` (brush radius). It passes through the plants, easels and boulders in `taken`.
+func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
+	var hits := world.pick(origin, dir, {World.Kind.GROUND: REACH, World.Kind.EASEL: REACH, World.Kind.TARGET: REACH, World.Kind.BOULDER: REACH, World.Kind.PLANT: REACH, World.Kind.STAIRS: REACH}, taken, [World.Kind.EASEL, World.Kind.TARGET])
 	if hits.is_empty():
 		return {}
 	var hit: Dictionary = hits.values().back()
@@ -160,7 +162,7 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 		_cuts[who] = {"single": target}
 		return
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}, "decorations": {}, "pieces": {}}
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "nodes": {}, "fittings": {}, "decorations": {}, "pieces": {}}
 	target = _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
@@ -175,7 +177,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.has("single"):
 		return cut.single if cut.single.has("decoration") or cut.single.has("path") or is_instance_valid(cut.single.wall) else {}
 	var was: Array = cut.ray
-	var aimed := aim(origin, dir, cut.plants, _gone(cut))
+	var aimed := aim(origin, dir, cut.plants.merged(cut.nodes))
 	var far := Vector3(aimed.get("point", origin + dir))
 	var n := steps(far.distance_to(was[2]), aimed.get("mow", 0.0))
 	var target := {}
@@ -191,11 +193,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 static func _taken(cut: Dictionary) -> int:
-	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size() + cut.decorations.size() + cut.pieces.size()
-
-
-static func _gone(cut: Dictionary) -> Dictionary:
-	return cut.easels.merged(cut.boulders)
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.nodes.size() + cut.fittings.size() + cut.decorations.size() + cut.pieces.size()
 
 
 ## Half a mowing ring apart, which every plant's ragged reach still covers, so a wide ring is not mown over and over.
@@ -204,7 +202,7 @@ static func steps(metres: float, mow := 0.0) -> int:
 
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
-	var target := aim(origin, dir, cut.plants, _gone(cut))
+	var target := aim(origin, dir, cut.plants.merged(cut.nodes))
 	if target.has("decoration"):
 		cut.decorations[target.decoration] = target
 		world.decorations.sweep(target.decoration)
@@ -241,12 +239,10 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	if target.has("wall"):
 		if target.wall != cut.wall.get("wall"):
 			begin(cut, target.wall, target.s)
-	elif target.has("easel"):
-		target.easel.visible = false
-		cut.easels[target.easel.id] = target.easel
-	elif target.has("boulder"):
-		target.boulder.visible = false
-		cut.boulders[target.boulder.id] = target.boulder
+	elif target.has("easel") or target.has("boulder"):
+		var node: Node3D = target.get("easel", target.get("boulder"))
+		node.visible = false
+		cut.nodes[node] = ["easels" if target.has("easel") else "boulders", node.id]
 	elif target.has("plants"):
 		for p: Flora.Plant in target.plants:
 			p.draw(false)
@@ -339,9 +335,9 @@ func let_go(who: Object) -> void:
 			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
 	for id: int in cut.marks:
 		cmds.append({"op": "take", "of": cut.marks[id], "ids": PackedInt32Array([id])})
-	for id: int in cut.easels:
-		if world.state.easels.has(id):
-			cmds.append({"op": "take", "of": "easels", "ids": PackedInt32Array([id])})
+	for taken: Array in cut.nodes.values():
+		if world.state[taken[0]].has(taken[1]):
+			cmds.append({"op": "take", "of": taken[0], "ids": PackedInt32Array([taken[1]])})
 	for item: Dictionary in cut.decorations.values():
 		var cmd := FittingTool.removal(world.state, item)
 		if not cmd.is_empty():
@@ -375,15 +371,12 @@ func let_go(who: Object) -> void:
 			cmds[existing].data.merge(changed, true)
 		else:
 			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": changed})
-	for id: int in cut.boulders:
-		if world.state.boulders.has(id):
-			cmds.append({"op": "take", "of": "boulders", "ids": PackedInt32Array([id])})
 	var settle := func() -> void:
 		for id in swept:
 			walls.show_reshaped(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
-		for e: Node3D in cut.easels.values() + cut.boulders.values():
+		for e in cut.nodes:
 			if is_instance_valid(e):
 				e.visible = true
 		for id: int in cut.decorations:
