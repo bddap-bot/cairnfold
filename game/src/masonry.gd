@@ -174,14 +174,8 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 	out[key] = have
 
 
-## Negative, clear of the walls' (their nodes' instance ids) and of the stairs' while stair ids stay under a million.
-static func path_owner(id: int) -> int:
-	return -2000000 - id
-
-
-## Between the walls' and the paths' owners.
-static func stair_owner(id: int) -> int:
-	return -1000000 - id
+static func build_owner(id: int) -> int:
+	return -1 - id
 
 
 ## `parts`: one `split` result per kind, in `kinds` order; replaces what `owner` placed before.

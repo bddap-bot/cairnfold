@@ -1382,7 +1382,7 @@ func _hold_clutter(grip: FittingGrip, of: String, id: int) -> void:
 
 func _clutter_drawn(of: String, id: int) -> bool:
 	if of == "paths":
-		return not paths.laying(id) and masonry.drawn(Masonry.path_owner(id))
+		return not paths.laying(id) and masonry.drawn(Masonry.build_owner(id))
 	var w := find(id)
 	return not w.laying() and masonry.drawn(w.get_instance_id())
 

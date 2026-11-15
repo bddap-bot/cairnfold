@@ -256,7 +256,9 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	world.submit({"op": "path", "points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42, "surface": PathLayout.Surface.DIRT})
 	var id: int = world.state.paths.keys().max()
 	world.submit({"op": "reshape", "of": "paths", "id": id, "data": {"clutter": PackedVector4Array()}})
-	var owner := Masonry.path_owner(id)
+	var owner := Masonry.build_owner(id)
+	var twin := {"op": "stairs", "a": Vector3(-30, 0, -30), "b": Vector3(-30, 1, -28), "width": StairLayout.WIDTH.x, "sag": 0.0, "seed": 1, "rail": StairLayout.RAILS[0], "paint": Palette.plain(), "on": PackedInt32Array(), "seq": world.seq + 1, "by": 1}
+	check(not Commands.clean(twin.merged({"id": id + 1000}), world.state, true, world.terrain).is_empty() and Commands.clean(twin.merged({"id": id}), world.state, true, world.terrain).is_empty(), "no stairs take the id a path holds, so the two never share an owner's stones")
 	check(world.units != before, "paths reserve steps through World")
 	main.tool.paths.lay_now()
 	check(not main.tool.masonry._owners.has(owner), "flat path has no masonry")

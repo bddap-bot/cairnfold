@@ -25,7 +25,7 @@ func put(id: int, data: Dictionary) -> void:
 func take(id: int) -> void:
 	layouts.erase(id)
 	_stop_growing(id)
-	masonry.remove(Masonry.stair_owner(id))
+	masonry.remove(Masonry.build_owner(id))
 
 func _process(delta: float) -> void:
 	for id: int in _growing.keys():
@@ -47,7 +47,7 @@ func show_reshaped(id: int, data := {}) -> void:
 	_place(id)
 
 func _place(id: int) -> void:
-	masonry.place(Masonry.stair_owner(id), Wall.stone_parts(layouts[id].stones, Wall.kinds()))
+	masonry.place(Masonry.build_owner(id), Wall.stone_parts(layouts[id].stones, Wall.kinds()))
 	_stop_growing(id)
 
 
