@@ -28,7 +28,18 @@ atlas material choices, hue regions and particle systems, switched, recoloured o
 given another material ([particles](particles.md)). VRCFury features join the menu as
 VRCFury builds them at upload: each Toggle becomes a control, its parameter and
 a layer of its actions, and each FullController's FX controller, menus and
-parameters merge in before MoveMenuItem and SetIcon apply. A clip that animates one of
+parameters merge in before MoveMenuItem and SetIcon apply. VRCFury then
+sets every state's Write Defaults as its build does: on or off as its Fix Write
+Defaults feature says (on under MMD compatibility), otherwise as most of the
+avatar's own FX states have it, over every layer, or over only the layers VRCFury
+added when the avatar has no such feature or it is disabled. Among the layers it
+sets, one that blends additively or holds a direct blend tree always writes
+defaults. When states are turned off, a new first layer writes the resting value
+of everything they animate but the controller's parameters, and a state left
+without Write Defaults and without a motion gets an empty clip. With ten or fewer
+FX states of its own VRCFury also counts the avatar's other controllers; the
+importer reads only FX's, and that only with the avatar's menu. Where it cannot
+count, only the layers that always write defaults are set, and the report says so. A clip that animates one of
 the controller's own parameters writes it every frame, as Unity's animator does. The
 avatar's VRChat contacts come along: each receiver sets its parameter from the tagged
 senders touching it (constant, on enter, or proximity), the wearer's hands and every

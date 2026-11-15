@@ -16,21 +16,28 @@ const MAX_MENU_DEPTH := 8
 var assets: Assets
 var data := {}
 var dropped := {}
+## Whether a playable layer has a controller of the avatar's own that is not read: any beside FX, and FX's without the
+## avatar's menu.
+var unread_controllers := false
 var _documents := {}
 var _clips := {}
 
 
 func _init(from: Assets, descriptor: Dictionary) -> void:
 	assets = from
-	if str(descriptor.get("customExpressions", "0")) != "1":
-		return
-	var menu := Yaml.guid(descriptor.get("expressionsMenu"))
 	var controller := ""
-	for layer: Variant in Yaml.list(descriptor.get("baseAnimationLayers")):
-		if layer is Dictionary and str(layer.get("type", "")) == FX and not Yaml.on(layer, "isDefault"):
+	for layer: Variant in Yaml.list(descriptor.get("baseAnimationLayers")) + Yaml.list(descriptor.get("specialAnimationLayers")):
+		if not layer is Dictionary or Yaml.on(layer, "isDefault") or Yaml.guid(layer.get("animatorController")) == "":
+			continue
+		if str(layer.get("type", "")) == FX:
 			controller = Yaml.guid(layer.get("animatorController"))
-	if not assets.by_guid.has(menu) or not assets.by_guid.has(controller):
+		else:
+			unread_controllers = true
+	var menu := Yaml.guid(descriptor.get("expressionsMenu"))
+	if str(descriptor.get("customExpressions", "0")) != "1" or not assets.by_guid.has(menu) or not assets.by_guid.has(controller):
+		unread_controllers = (unread_controllers or controller != "") and Yaml.on(descriptor, "customizeAnimationLayers")
 		return
+	unread_controllers = unread_controllers and Yaml.on(descriptor, "customizeAnimationLayers")
 	var parameters := _parameters(Yaml.guid(descriptor.get("expressionParameters")), controller)
 	data = empty()
 	data.menu = _menu(menu, 0)
@@ -116,7 +123,8 @@ func _layers(guid: String) -> Array:
 				continue
 			if not objs.has(machine):
 				continue
-			if str(l.get("m_BlendingMode", "0")) != "0":
+			var additive := str(l.get("m_BlendingMode", "0")) != "0"
+			if additive:
 				_count("additive layer")
 			var states := {}
 			var machines := {}
@@ -127,6 +135,8 @@ func _layers(guid: String) -> Array:
 				index[order[i]] = i
 			var layer := {"weight": 1.0 if first else _float(l.get("m_DefaultWeight"), 1.0), "states": [], "any": [], "entry": [], "default": index.get(_default(objs, machine), 0)}
 			first = false
+			if additive:
+				layer.additive = true
 			for m: int in machines:
 				for t: Variant in Yaml.list(objs[m].data.get("m_AnyStateTransitions")):
 					layer.any.append_array(_transition(objs, Yaml.file_id(t), index))

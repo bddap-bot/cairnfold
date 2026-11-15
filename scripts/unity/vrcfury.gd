@@ -14,6 +14,8 @@ const MENU_SLOTS := 8
 ## Unity class ID of a curve on a controller's own parameter, which the merge renames with it.
 const ANIMATOR := "95"
 const TOGGLE_UNTRANSLATED := ["separateLocal", "hasTransition", "invertRestLogic", "exclusiveOffState", "securityEnabled"]
+## FixWriteDefaults' saved mode.
+enum WriteDefaultsMode { AUTO, FORCE_OFF, FORCE_ON, DISABLED }
 
 
 ## `paths`: each transform under the avatar by clip path, parents first.
@@ -51,6 +53,7 @@ static func apply(ex: Expressions, objs: Dictionary, paths: Dictionary) -> void:
 	var own := {}
 	for p: Dictionary in ex.data.parameters:
 		own[p.name] = true
+	var own_layers: int = (ex.data.layers as Array).size()
 	var exclusive := {}
 	var menu_edits := []
 	for f: Dictionary in features:
@@ -64,6 +67,7 @@ static func apply(ex: Expressions, objs: Dictionary, paths: Dictionary) -> void:
 			var other:
 				if not other in MENULESS:
 					ex._count("VRCFury %s" % other)
+	_fix_write_defaults(ex, features, own_layers)
 	for tag: String in exclusive:
 		var members: Array = exclusive[tag]
 		for m: Array in members:
@@ -116,7 +120,7 @@ static func _toggle(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 	if slider:
 		var child := func(motion: Dictionary, threshold: float) -> Dictionary: return {"motion": motion, "threshold": threshold, "parameter": "", "speed": 1.0, "offset": 0.0, "position": [0.0, 0.0]}
 		# VRCFury's slider at 0 writes what its actions move at rest.
-		off.rests = ex.data.clips.size() + 1
+		off.rests = [ex.data.clips.size() + 1]
 		layer.states = [{"name": name, "speed": 1.0, "writeDefaults": true, "transitions": [], "drivers": [], "motion": {"blend": "1d", "parameters": [parameter, ""], "children": [child.call(clip.call(off), 0.0), child.call(clip.call(on), 1.0)]}}]
 	else:
 		layer.states = [
@@ -213,6 +217,74 @@ static func _action(ex: Expressions, objs: Dictionary, paths: Dictionary, path_o
 			off_drivers.append(_driver(n, float(rest[0].default) if not rest.is_empty() else 0.0))
 		_:
 			ex._count("VRCFury %s" % type)
+
+
+## Each state's Write Defaults as VRCFury's upload build leaves it, the first `own_layers` layers being the avatar's.
+## Its count of the avatar's states takes every playable layer's controller when FX has ten or fewer, and its Defaults
+## layer leaves out what one beside FX animates: with a controller not read the first sets only the layers that always
+## write them, and the second rests those properties too.
+static func _fix_write_defaults(ex: Expressions, features: Array, own_layers: int) -> void:
+	var mode := WriteDefaultsMode.DISABLED
+	for f: Dictionary in features:
+		if f["class"] == "FixWriteDefaults":
+			var saved := str(f.data.get("mode", "0")).to_int()
+			if saved in [WriteDefaultsMode.AUTO, WriteDefaultsMode.FORCE_OFF, WriteDefaultsMode.FORCE_ON]:
+				mode = saved as WriteDefaultsMode
+			break
+	if features.any(func(f: Dictionary) -> bool: return f["class"] == "MmdCompatibility"):
+		mode = WriteDefaultsMode.FORCE_ON
+	var on := 0
+	var off := 0
+	for layer: Dictionary in (ex.data.layers as Array).slice(0, own_layers):
+		if layer.has("additive"):
+			continue
+		for state: Dictionary in layer.states:
+			if not _direct(state.get("motion", {})):
+				if state.writeDefaults:
+					on += 1
+				else:
+					off += 1
+	var counted := mode in [WriteDefaultsMode.AUTO, WriteDefaultsMode.DISABLED]
+	var known := not counted or on + off > 10 or not ex.unread_controllers
+	if not known:
+		ex._count("VRCFury write defaults not set: its count needs controllers not read")
+	var writes := mode == WriteDefaultsMode.FORCE_ON or (counted and on > off)
+	var rested := []
+	for i in (ex.data.layers as Array).size():
+		var layer: Dictionary = ex.data.layers[i]
+		var always: bool = layer.has("additive") or (layer.states as Array).any(func(s: Dictionary) -> bool: return _direct(s.get("motion", {})))
+		if (mode == WriteDefaultsMode.DISABLED and i < own_layers) or not (known or always):
+			continue
+		for state: Dictionary in layer.states:
+			if known and state.writeDefaults and not writes:
+				_clips_of(state.get("motion", {}), rested)
+			state.writeDefaults = writes or always
+	# VRCFury gives an FX state that writes no defaults and has no motion an empty clip, which Unity plays differently.
+	var empty := {}
+	for i in (ex.data.layers as Array).size() if known else own_layers if mode == WriteDefaultsMode.DISABLED else 0:
+		for state: Dictionary in ex.data.layers[i].states:
+			if not state.writeDefaults and not state.has("motion"):
+				if empty.is_empty():
+					ex.data.clips.append({"length": 0.0, "loop": false, "curves": []})
+					empty = {"clip": ex.data.clips.size() - 1}
+				state.motion = empty.duplicate()
+	if rested.is_empty():
+		return
+	if ex.unread_controllers:
+		ex._count("VRCFury Defaults layer also rests what a controller not read animates")
+	ex.data.clips.append({"length": 0.0, "loop": false, "curves": [], "rests": rested, "keeps parameters": true})
+	ex.data.layers.insert(0, {"weight": 1.0, "any": [], "entry": [], "default": 0, "states": [{"name": "Defaults", "speed": 1.0, "writeDefaults": false, "transitions": [], "drivers": [], "motion": {"clip": ex.data.clips.size() - 1}}]})
+
+
+static func _direct(motion: Dictionary) -> bool:
+	return motion.get("blend", "") == "direct" or (motion.get("children", []) as Array).any(func(c: Dictionary) -> bool: return _direct(c.motion))
+
+
+static func _clips_of(motion: Dictionary, into: Array) -> void:
+	if motion.has("clip") and not into.has(motion.clip):
+		into.append(motion.clip)
+	for c: Dictionary in motion.get("children", []):
+		_clips_of(c.motion, into)
 
 
 ## Reads a clip without adding it to the expressions' clips or their cache; null where none.

@@ -81,6 +81,7 @@ func _run() -> void:
 	_an_unpacked_armature_still_takes_a_link()
 	_transform_and_physbone_curves_bind()
 	_vrcfury_toggles_join_the_menu()
+	_vrcfury_fixes_write_defaults()
 	_a_toggled_objects_constraints_and_their_bones_are_kept()
 	_vrcfury_full_controller_paths_resolve_from_their_object()
 	_a_udim_discard_tile_is_a_switch()
@@ -2789,11 +2790,11 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	var size: Array = expressions.data.parameters.filter(func(p: Dictionary) -> bool: return p.name == "VF2_Body/Size")
 	check(size.size() == 1 and size[0].type == "float" and size[0].default == 0.25, "the slider's parameter is a float at its default")
 	var slider: Dictionary = expressions.data.layers.filter(func(l: Dictionary) -> bool: return l.states[0].motion.get("blend", "") == "1d")[0].states[0].motion
-	check(expressions.data.clips[slider.children[0].motion.clip].get("rests") == slider.children[1].motion.clip, "the slider's 0 rests what its 1 moves")
-	var data := {"clips": [{"curves": [], "rests": 1}, {"curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
+	check(expressions.data.clips[slider.children[0].motion.clip].get("rests") == [slider.children[1].motion.clip], "the slider's 0 rests what its 1 moves")
+	var data := {"clips": [{"curves": [], "rests": [1, 1]}, {"curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
 	UnityAvatar._rest_where_marked(data, [{"default": 0.5}])
 	check(data.clips[0] == {"curves": [{"target": 0, "step": false, "keys": [[0.0, 0.5, 0.0, 0.0]]}]}, "a resting clip writes the default of what the other moves: %s" % [data.clips[0]])
-	var layer: Dictionary = expressions.data.layers[0]
+	var layer: Dictionary = expressions.data.layers[1]
 	var curves: Array = expressions.data.clips[layer.states[1].motion.clip].curves
 	check(curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "m_IsActive" and c["class"] == "1" and c["keys"][0][1] == 1.0) and curves.any(func(c: Dictionary) -> bool: return c.path == "Hat" and c.attribute == "blendShape.Squash" and c["keys"][0][1] == 40.0), "the on state turns the hat on and sets the shape: %s" % [curves])
 	var off: Array = expressions.data.clips[layer.states[0].motion.clip].curves
@@ -2802,6 +2803,69 @@ func _vrcfury_toggles_join_the_menu() -> void:
 	check(layer.states[0].transitions[0].conditions[0] == {"parameter": "VF0_Shelf/Hat", "mode": "if", "threshold": 0.0}, "the parameter enters the on state")
 	var switches := UnityAvatar._switches(expressions, objs, paths)
 	check(switches.by_object.has(3) and switches.targets[switches.by_object[3]].default == 0.0, "the hat is the menu's switch, resting off as its toggle starts though the scene shows it")
+
+
+func _vrcfury_fixes_write_defaults() -> void:
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Name": "Avatar", "m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "9"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}, "m_Father": {"fileID": "0"}}},
+		3: {"type": "GameObject", "data": {"m_Name": "Hat", "m_IsActive": "1", "m_Component": [{"component": {"fileID": "4"}}]}},
+		4: {"type": "Transform", "data": {"m_GameObject": {"fileID": "3"}, "m_Father": {"fileID": "2"}}},
+	}
+	var toggle := [{"rid": "1", "type": {"class": "Toggle"}, "data": {"name": "Hat", "state": {"actions": [{"rid": "2"}]}}}, {"rid": "2", "type": {"class": "ObjectToggleAction"}, "data": {"obj": {"fileID": "3"}, "mode": "0"}}]
+	var fixed := func(features: Array, off: int, on: int, unread_controllers := false) -> Expressions:
+		var refs := toggle + features
+		objs[9] = {"type": "MonoBehaviour", "data": {"m_GameObject": {"fileID": "1"}, "config": {"features": refs.filter(func(r: Dictionary) -> bool: return r.rid != "2").map(func(r: Dictionary) -> Dictionary: return {"rid": r.rid})}, "references": {"RefIds": refs}}}
+		var ex := Expressions.new(Assets.new(ProjectSettings.globalize_path("user://")), {})
+		ex.data = Expressions.empty()
+		ex.unread_controllers = unread_controllers
+		var state := func(writes: bool, motion: Dictionary) -> Dictionary: return {"name": "s", "speed": 1.0, "writeDefaults": writes, "transitions": [], "drivers": [], "motion": motion}
+		var layer := func(states: Array) -> Dictionary: return {"weight": 1.0, "any": [], "entry": [], "default": 0, "states": states}
+		ex.data.clips = [{"length": 0.0, "loop": false, "curves": []}, {"length": 0.0, "loop": false, "curves": []}, {"length": 0.0, "loop": false, "curves": []}]
+		ex.data.layers = [
+			layer.call(range(off).map(func(_i: int) -> Dictionary: return state.call(false, {"clip": 0}))),
+			layer.call(range(on).map(func(_i: int) -> Dictionary: return state.call(true, {"clip": 1}))),
+			layer.call([state.call(false, {"blend": "1d", "parameters": ["a", ""], "children": [{"motion": {"blend": "direct", "parameters": ["", ""], "children": []}}]}), state.call(false, {"clip": 2})]),
+			layer.call([state.call(false, {"clip": 2})])]
+		ex.data.layers[3].additive = true
+		(ex.data.layers[0].states[0] as Dictionary).erase("motion")
+		VRCFury.apply(ex, objs.duplicate(true), {"": 2, "Hat": 4})
+		return ex
+	var flags := func(ex: Expressions) -> Array: return (ex.data.layers as Array).map(func(l: Dictionary) -> Array: return (l.states as Array).map(func(s: Dictionary) -> bool: return s.writeDefaults))
+	var all := func(count: int, writes: bool) -> Array: return range(count).map(func(_i: int) -> bool: return writes)
+	var auto := {"rid": "3", "type": {"class": "FixWriteDefaults"}, "data": {"mode": "0"}}
+	var disabled := {"rid": "3", "type": {"class": "FixWriteDefaults"}, "data": {"mode": "3"}}
+	var ex: Expressions = fixed.call([auto], 7, 5)
+	var hat := [3, 4]
+	check(flags.call(ex) == [[false], all.call(7, false), all.call(5, false), [true, true], [true], [false, false]], "the fix on auto turns every state as most of the avatar's own are, off, but those of a layer with a direct tree or an additive one, and the direct tree's does not count: %s" % [flags.call(ex)])
+	check(ex.data.layers[0].states[0].motion == {"clip": 6} and ex.data.clips[6].rests == [1] + hat, "a first layer writes at rest what the states turned off animate: %s" % [ex.data.clips[6]])
+	check(ex.data.layers[1].states[0].motion == {"clip": 5} and ex.data.clips[5].curves == [] and ex.data.layers[1].states[1].motion == {"clip": 0}, "a state left without write defaults and without a motion plays an empty clip: %s" % [ex.data.layers[1].states[0]])
+	ex = fixed.call([auto], 5, 7)
+	check(flags.call(ex) == [all.call(5, true), all.call(7, true), [true, true], [true], [true, true]] and ex.data.clips.size() == 5 and not ex.data.layers[0].states[0].has("motion"), "with most states on it turns every state on, adds no layer and leaves a motionless state so: %s" % [flags.call(ex)])
+	ex = fixed.call([{"rid": "3", "type": {"class": "FixWriteDefaults"}, "data": {"mode": "1"}}], 5, 7)
+	check((flags.call(ex) as Array).slice(1, 3) == [all.call(5, false), all.call(7, false)] and ex.data.clips[6].rests == [1] + hat, "forced off turns them off against the count: %s" % [flags.call(ex)])
+	ex = fixed.call([auto, {"rid": "4", "type": {"class": "MmdCompatibility"}, "data": {}}], 7, 5)
+	check((flags.call(ex) as Array).all(func(l: Array) -> bool: return not l.has(false)) and ex.data.clips.size() == 5, "MMD compatibility forces every state on: %s" % [flags.call(ex)])
+	for features: Array in [[], [disabled], [{"rid": "3", "type": {"class": "FixWriteDefaults"}, "data": {"mode": "7"}}]]:
+		ex = fixed.call(features, 7, 5)
+		check(flags.call(ex) == [[false], all.call(7, false), all.call(5, true), [false, false], [false], [false, false]] and ex.data.clips[6].rests == hat, "without the fix, or with it disabled or unreadable, only VRCFury's own layers follow the count, and the avatar's keep theirs: %s" % [flags.call(ex)])
+	ex = fixed.call([disabled], 5, 7)
+	check(flags.call(ex) == [all.call(5, false), all.call(7, true), [false, false], [false], [true, true]] and ex.data.clips.size() == 6, "counting most on, VRCFury's own turn on and no layer is added: %s" % [flags.call(ex)])
+	ex = fixed.call([auto], 5, 4)
+	check(flags.call(ex) == [[false], all.call(5, false), all.call(4, false), [true, true], [true], [false, false]] and ex.dropped.is_empty(), "ten or fewer FX states of its own decide alone where every controller of the avatar's is read: %s %s" % [flags.call(ex), ex.dropped])
+	ex = fixed.call([auto], 5, 4, true)
+	check(flags.call(ex) == [all.call(5, false), all.call(4, true), [true, true], [true], [true, true]] and ex.dropped == {"VRCFury write defaults not set: its count needs controllers not read": 1} and not ex.data.layers[0].states[0].has("motion"), "where one has, the count takes controllers not read: only the layers that always write defaults are set, no state gains a clip, and the report says so: %s %s" % [flags.call(ex), ex.dropped])
+	ex = fixed.call([auto], 7, 5, true)
+	check(ex.dropped == {"VRCFury Defaults layer also rests what a controller not read animates": 1}, "the first layer cannot leave out what a controller not read animates, and the report says so: %s" % [ex.dropped])
+	check(ex.data.clips[6].get("keeps parameters") == true, "the first layer's clip is marked to leave parameters be: %s" % [ex.data.clips[6]])
+	ex = fixed.call([disabled], 5, 4, true)
+	check(ex.data.layers[0].states[0].motion == {"clip": 5} and ex.dropped.size() == 1, "with the fix disabled the avatar's own layers stay as saved whatever the count, so its motionless state gains its clip: %s %s" % [ex.data.layers[0].states[0], ex.dropped])
+	var data := {"clips": [{"curves": [], "rests": [1], "keeps parameters": true}, {"curves": [{"target": 0, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}, {"target": 1, "step": false, "keys": [[0.0, 2.0, 0.0, 0.0]]}]}]}
+	UnityAvatar._rest_where_marked(data, [{"default": 0.5, "effect": {"parameter": "p"}}, {"default": 0.25, "effect": {"morph": 0}}])
+	check(data.clips[0] == {"curves": [{"target": 1, "step": false, "keys": [[0.0, 0.25, 0.0, 0.0]]}]}, "a resting clip that keeps parameters leaves a controller's parameter where it is: %s" % [data.clips[0]])
+	data.clips[0] = {"curves": [], "rests": [1]}
+	UnityAvatar._rest_where_marked(data, [{"default": 0.5, "effect": {"parameter": "p"}}, {"default": 0.25, "effect": {"morph": 0}}])
+	check((data.clips[0].curves as Array).size() == 2, "any other rests it too: %s" % [data.clips[0]])
 
 
 func _a_toggled_objects_constraints_and_their_bones_are_kept() -> void:

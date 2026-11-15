@@ -733,6 +733,8 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			curves.append(curve)
 		clip.curves = curves
 	_rest_where_marked(data, targets)
+	for layer: Dictionary in data.layers:
+		layer.erase("additive")
 	for t: Dictionary in targets:
 		t.erase("rest")
 	var moving := func(motion: Dictionary, recurse: Callable) -> bool:
@@ -804,16 +806,23 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	return data
 
 
-## A clip's "rests", another clip's index, writes each target that clip animates and this one does not at its default.
+## A clip's "rests", other clips' indices, writes each target those animate and this one does not at its default; one
+## that "keeps parameters" leaves a controller's parameter out, as VRCFury's Defaults layer records none.
 static func _rest_where_marked(data: Dictionary, targets: Array) -> void:
 	for clip: Dictionary in data.clips:
 		if not clip.has("rests"):
 			continue
-		var own := (clip.curves as Array).map(func(c: Dictionary) -> int: return c.target)
-		for c: Dictionary in data.clips[clip.rests].curves:
-			if not own.has(c.target):
-				clip.curves.append({"target": c.target, "step": c.step, "keys": [[0.0, float(targets[c.target].default), 0.0, 0.0]]})
+		var own := {}
+		for c: Dictionary in clip.curves:
+			own[c.target] = true
+		var keeps: bool = clip.has("keeps parameters")
+		for index: int in clip.rests:
+			for c: Dictionary in data.clips[index].curves:
+				if not own.has(c.target) and not (keeps and targets[c.target].get("effect") is Dictionary and targets[c.target].effect.has("parameter")):
+					own[c.target] = true
+					clip.curves.append({"target": c.target, "step": c.step, "keys": [[0.0, float(targets[c.target].default), 0.0, 0.0]]})
 		clip.erase("rests")
+		clip.erase("keeps parameters")
 
 
 static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: Array, shapes: Dictionary, sk: Skeleton3D, targets: Array, materials: Materials, parameters := {}) -> int:
