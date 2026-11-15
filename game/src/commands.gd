@@ -542,9 +542,10 @@ static func _ground(cmd: Dictionary, out: Dictionary) -> bool:
 		return false
 	if typeof(stamps) != TYPE_PACKED_VECTOR4_ARRAY or stamps.is_empty() or stamps.size() > MAX_STAMPS:
 		return false
-	var radius := Vector2(FloraTool.MIN_RADIUS * 0.4, FloraTool.MAX_RADIUS * 0.4)
+	var radius := Vector2(FloraTool.MIN_RADIUS * FloraTool.STAMP_CORE, FloraTool.MAX_RADIUS * FloraTool.STAMP_CORE)
+	var verge := FloraTool.STAMP_VERGE / FloraTool.STAMP_CORE
 	for s: Vector4 in stamps:
-		if not (s.is_finite() and _finite(Vector3(s.x, 0, s.y)) and s.z >= radius.x - 0.001 and s.z <= radius.y + 0.001 and s.w >= radius.x * 2.0 - 0.001 and s.w <= radius.y * 2.0 + 0.001):
+		if not (s.is_finite() and _finite(Vector3(s.x, 0, s.y)) and s.z >= radius.x - 0.001 and s.z <= radius.y + 0.001 and s.w >= radius.x * verge - 0.001 and s.w <= radius.y * verge + 0.001):
 			return false
 	out.kind = kind
 	out.stamps = stamps

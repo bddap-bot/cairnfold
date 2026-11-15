@@ -238,10 +238,12 @@ func _a_hand_reaches_through_an_arch(wall: Wall) -> void:
 	var y := p.y + WallLayout.SINK + 0.6
 	await _hold(Vector3(p.x, y, -4.8))
 	var z := -4.8
+	var behind := 0.0
 	while z > -7.2:
 		z -= 0.03
 		await _hold(Vector3(p.x, y, z))
-	check(absf(_seen().z - z) < 0.01, "a hand passes through an arch: %.3f to %.3f" % [_seen().z, z])
+		behind = maxf(behind, absf(_seen().z - z))
+	check(behind < 0.01, "a hand passes through an arch, never more than %.3f m behind its controller" % behind)
 	await _hold(Vector3(p.x, y, -4.8))
 
 

@@ -8,6 +8,7 @@ func _run() -> void:
 	main.world.limit = INF
 	await process_frame
 	world = main.world
+	_a_restyle_stores_a_field_the_garden_reshapes()
 	_roof_choices_keep_shape()
 	_species_differ()
 	_faces_turn_to_plaster()
@@ -372,10 +373,10 @@ func _towers_keep_stone() -> void:
 
 
 func _stone_takes_a_style() -> void:
-	var r := FloraTool.MAX_RADIUS * 0.4
-	var stamps := PackedVector4Array([Vector4(30, 30, r, r * 2.0), Vector4(31.5, 30, r, r * 2.0)])
+	var stamps := PackedVector4Array([FloraTool.stamp(Vector3(30, 0, 30), FloraTool.MAX_RADIUS), FloraTool.stamp(Vector3(31.5, 0, 30), FloraTool.MIN_RADIUS)])
 	check(Commands.clean({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps}, world.state, false, main.world.terrain).is_empty(), "stone names its style")
 	check(Commands.clean({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps, "style": StoneStyles.STYLES.size()}, world.state, false, main.world.terrain).is_empty(), "no style past the last")
+	check(not Commands.clean({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps, "style": 0}, world.state, false, main.world.terrain).is_empty(), "the widest brush's stamp and the narrowest's are ones the garden takes")
 	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps, "style": 0}, world.me())
 	var id := world.seq
 	main.world.marks.settle()
@@ -400,7 +401,7 @@ func _stone_takes_a_style() -> void:
 	world.restore(world.snapshot())
 	main.world.marks.settle()
 	check(world.state.grounds[id].style == 1 and _style_at(30.5, 30) == 1, "a save carries it")
-	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": PackedVector4Array([Vector4(33, 30, r, r * 2.0)]), "style": 0}, world.me())
+	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": PackedVector4Array([FloraTool.stamp(Vector3(33, 0, 30), FloraTool.MAX_RADIUS)]), "style": 0}, world.me())
 	main.world.marks.settle()
 	check(_style_at(33, 30) == 0 and _style_at(30, 30) == 1, "a later stroke's style takes what it covers most, the first keeps the rest: %d, %d" % [_style_at(33, 30), _style_at(30, 30)])
 	Ground.style = 0
@@ -449,6 +450,12 @@ func _boulders_take_a_stone_style() -> void:
 
 func _style_at(x: float, z: float) -> int:
 	return main.world.marks._texel(x, z, main.world.marks.laid).b8
+
+
+func _a_restyle_stores_a_field_the_garden_reshapes() -> void:
+	for restyle: PaletteTool.Restyle in PaletteTool.FIELDS:
+		var field: String = PaletteTool.FIELDS[restyle]
+		check(Commands.RESHAPES.values().any(func(fields: Array) -> bool: return field in fields), "the %s restyle stores %s, a field some build reshapes" % [PaletteTool.Restyle.find_key(restyle), field])
 
 
 func _roof_choices_keep_shape() -> void:

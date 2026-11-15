@@ -21,6 +21,10 @@ func _events_follow_motion(fps: int) -> void:
 	check(events.count(Cues.Act.HAND_PECK) == 2, "two visible peck contacts in 3 s at %d Hz" % fps)
 	var posed: Quaternion = bird.get_instance_shader_parameter("turn_head")
 	check(posed.is_equal_approx(Conure.pose(bird.animation_time, bird.mode, bird._gaze).turn_head), "renderer uses the event clock")
+	var flight := Conure.pose(0.3, Conure.FLY, Vector3.ZERO)
+	var drawn: String = preload("res://src/conure.gdshader").code
+	check(flight.keys().all(func(key: String) -> bool: return drawn.contains(" %s = " % key)), "every part the pose names is a parameter the conure's shader takes: %s" % [flight.keys()])
+	check(flight.shift_wing_l.x < 0.0 and flight.shift_wing_r.x > 0.0, "in flight each wing swings out on its own side: %s, %s" % [flight.shift_wing_l, flight.shift_wing_r])
 	bird.mode = Conure.IDLE
 	bird.animation_time = 0.0
 	events.clear()

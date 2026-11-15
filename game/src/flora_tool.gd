@@ -11,6 +11,8 @@ const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
 ## Seconds, and a fraction of the brush radius moved: a held ground brush stamps again after either.
+const STAMP_CORE := 0.4
+const STAMP_VERGE := 0.8
 const STAMP_EVERY := 0.1
 const STAMP_MOVE := 0.3
 
@@ -176,6 +178,9 @@ func _handle(b: Brush, delta: float) -> void:
 		paint(b, hit, radius, delta)
 
 
+static func stamp(center: Vector3, radius: float) -> Vector4:
+	return Vector4(center.x, center.z, radius * STAMP_CORE, radius * STAMP_VERGE)
+
 static func _reach(hand: XRController3D) -> Vector3:
 	return hand.global_position if hand.tracked() else Flora.NO_HAND
 
@@ -235,7 +240,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 		if b.full:
 			return
 		var trial := b.reached.duplicate() as Image
-		Budget.reach(Vector4(center.x, center.z, radius * 0.4, radius * 0.8), trial)
+		Budget.reach(stamp(center, radius), trial)
 		if not Budget.fits(world.units, Budget.stone(trial)):
 			b.full = true
 			world.cap(b.hand)
@@ -246,7 +251,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 		world.marks.hold(b.ground)
 	b.since_stamp = 0.0
 	b.last_stamp = center
-	if b.ground.add(world.marks, center.x, center.z, radius * 0.4, radius * 0.8):
+	if b.ground.add(world.marks, center.x, center.z, radius * STAMP_CORE, radius * STAMP_VERGE):
 		planted.emit()
 		Cues.play(Cues.Act.STONE_PAINT, center, b.hand)
 

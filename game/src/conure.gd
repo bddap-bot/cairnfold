@@ -47,13 +47,12 @@ const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
 const NECK := Vector3(0, 0.098, -0.012)
 const ALONG := Vector3(0, 0.8192, -0.5736)
 const OUT := Vector3(0, 0.5736, 0.8192)
-## Shader parameter suffixes, in `Part` order.
-const POSE := ["body", "head", "wing_l", "wing_r", "tail", "feet"]
 ## Radians: the most the head turns round (x) and up or down (y).
 const GAZE_TURN := Vector2(1.7, 0.9)
 const GAZE_EASE := 4.0
 const GAZE_TURN_EASE := 22.0
 
+static var _uniform: Array = Part.keys().map(func(part: String) -> String: return part.to_lower())
 var colouring := 0
 ## Its creator sets it before it enters the tree.
 var terrain: Terrain
@@ -145,10 +144,11 @@ static func pose(t: float, m: Vector4, gaze: Vector3) -> Dictionary:
 	var tail_lift := fly * 0.9 + 0.12 * _snap(t, 0.5, 23.0) * idle
 	var tail := body * _about(BODY - ALONG * 0.036 + OUT * 0.014, Basis(Vector3.RIGHT, tail_lift) * Basis(OUT, wag))
 	var p := {}
-	for part in Part.values():
-		var f: Transform3D = [body, head, wings[0], wings[1], tail, level][part]
-		p["turn_" + POSE[part]] = f.basis.get_rotation_quaternion()
-		p["shift_" + POSE[part]] = f.origin
+	var frames := {Part.BODY: body, Part.HEAD: head, Part.WING_L: wings[0], Part.WING_R: wings[1], Part.TAIL: tail, Part.FEET: level}
+	for part: Part in Part.values():
+		var f: Transform3D = frames[part]
+		p["turn_" + _uniform[part]] = f.basis.get_rotation_quaternion()
+		p["shift_" + _uniform[part]] = f.origin
 	p.shift_body = Vector4(body.origin.x, body.origin.y, body.origin.z, 1.0 + (idle + preen) * (0.014 * sin(t * 3.1) + 0.07 * burst))
 	p.shift_feet = Vector4(level.origin.x, level.origin.y, level.origin.z, fly)
 	return p

@@ -60,12 +60,16 @@ func _initialize() -> void:
 	for name in DirAccess.get_files_at(folder):
 		DirAccess.remove_absolute(folder.path_join(name))
 	DirAccess.remove_absolute(folder)
+	var declared := RegEx.create_from_string("^func (\\w+)\\((.*)\\) -> void:$")
+	var parameter := RegEx.create_from_string("(?:^|, )(\\w+)(?=:| :=)")
 	for path in ["res://src/world.gd", "res://src/session.gd"]:
 		var lines := FileAccess.get_file_as_string(path).split("\n")
 		for i in lines.size():
 			if lines[i].begins_with("@rpc"):
-				check(lines[i + 2].strip_edges().begins_with("hear(") or lines[i + 2].strip_edges().begins_with("world.hear("),
-					"%s records what it hears first: %s" % [path, lines[i + 1]])
+				var method := declared.search(lines[i + 1])
+				var takes := ", ".join(parameter.search_all(method.get_string(2)).map(func(found: RegExMatch) -> String: return found.get_string(1)))
+				check(lines[i + 2].strip_edges().trim_prefix("world.").begins_with("hear(\"%s\", [%s]" % [method.get_string(1), takes]),
+					"%s records first what it hears, by its own name and arguments in order: %s" % [path, lines[i + 2]])
 	main.queue_free()
 	await process_frame
 	finish()
