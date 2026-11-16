@@ -8,15 +8,6 @@ func _frame() -> Image:
 	return root.get_texture().get_image()
 
 
-static func _apart(a: Image, b: Image) -> int:
-	var n := 0
-	for y in a.get_height():
-		for x in a.get_width():
-			if a.get_pixel(x, y) != b.get_pixel(x, y):
-				n += 1
-	return n
-
-
 func _meadow() -> Meadow:
 	for n in main.get_children():
 		if n is Meadow:
@@ -69,6 +60,6 @@ func _run() -> void:
 	check(main.world.marks.stone_tiles.count(1) > 0, "a stone path marks tiles")
 	var near := _nearest_wet_row(terrain)
 	check(near % Terrain.TILE == 0, "the pond's near shore runs along a tile's edge: row %d" % near)
-	check(_apart(marked, plain) > 300, "the pond's bank and the stone draw only in the full shader: %d pixels" % _apart(marked, plain))
-	check(_apart(marked, full) == 0, "every tile drawn in the full shader changes no pixel of the tiles the meadow marks: %d apart" % _apart(marked, full))
+	check(pixels_apart(marked, plain) > 300, "the pond's bank and the stone draw only in the full shader: %d pixels" % pixels_apart(marked, plain))
+	check(pixels_apart(marked, full) == 0, "every tile drawn in the full shader changes no pixel of the tiles the meadow marks: %d apart" % pixels_apart(marked, full))
 	finish()
