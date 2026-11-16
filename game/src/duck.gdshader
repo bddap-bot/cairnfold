@@ -10,6 +10,8 @@ instance uniform float phase = 0.0;
 // Step rate over a grown duck's, so short legs keep their feet planted.
 instance uniform float pace = 1.0;
 instance uniform float peck = 0.0;
+uniform float step_rate;
+uniform float swing;
 
 const int PART_HEAD = 1;
 const int PART_WING_L = 2;
@@ -22,7 +24,7 @@ void vertex() {
 	int part = int(UV2.x + 0.5);
 	float t = TIME + phase;
 	float idle = mode.x, paddle = mode.y, waddle = mode.z, fly = mode.w;
-	float c = t * TAU * 1.5 * pace;
+	float c = t * TAU * step_rate * pace;
 	bool foot = part == PART_FOOT_L || part == PART_FOOT_R;
 	float side = part == PART_FOOT_L ? -1.0 : 1.0;
 
@@ -56,9 +58,9 @@ void vertex() {
 	VERTEX.y += paddle * (-0.07 + 0.006 * sin(t * 2.0));
 
 	if (foot) {
-		float swing = side < 0.0 ? sin(c) : -sin(c);
-		VERTEX.y += waddle * max(swing, 0.0) * 0.03;
-		VERTEX.z += waddle * cos(c) * (side < 0.0 ? 1.0 : -1.0) * 0.035;
+		float rise = side < 0.0 ? sin(c) : -sin(c);
+		VERTEX.y += waddle * max(rise, 0.0) * 0.03;
+		VERTEX.z += waddle * cos(c) * (side < 0.0 ? 1.0 : -1.0) * swing;
 	} else {
 		VERTEX.y += waddle * 0.012 * abs(cos(c));
 		turn(VERTEX, NORMAL, vec3(0.0), rot(vec3(0.0, 0.0, 1.0), waddle * 0.13 * sin(c)) * rot(vec3(0.0, 1.0, 0.0), waddle * 0.08 * sin(c)));

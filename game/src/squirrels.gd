@@ -10,8 +10,8 @@ const CLIMB_SPEED := 0.55
 const ROUND_SPEED := 1.6
 const RUN_SPEED := 1.4
 const DASH_SPEED := 2.4
-## Ground per bound at the shader's pace.
-const STRIDE := 0.3
+const SWING := 0.045
+const STRIDE := 4.0 * SWING
 const CLING_FOR := Vector2(2.0, 7.0)
 const FORAGE_FOR := Vector2(3.0, 9.0)
 const FORAGE := Vector2(0.7, 3.0)
@@ -39,6 +39,7 @@ class Squirrel extends Shy.One:
 
 func _init(home: Wildlife, seed: int) -> void:
 	super(home, seed, body(), "res://src/squirrel.gdshader", CAP, "squirrels")
+	crowd.material_override.set_shader_parameter("swing", SWING)
 
 
 ## Facing -Z, back up +Y.
@@ -129,7 +130,7 @@ func think(a: One, delta: float) -> void:
 			s.up = move_toward(s.up, s.to_up, top)
 			var turn := wrapf(s.to_round - s.round, -PI, PI)
 			s.round += clampf(turn, -ROUND_SPEED * delta, ROUND_SPEED * delta)
-			s.stride += top / STRIDE * 0.5
+			s.stride += top / STRIDE
 			if absf(s.up - s.to_up) < 1e-3 and absf(turn) < 0.02:
 				s.dashing = false
 				if s.up <= 0.02:

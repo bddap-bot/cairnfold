@@ -10,6 +10,7 @@ const int PART_HEAD = 1;
 const int PART_TAIL = 2;
 const int PART_HIND = 3;
 const int PART_FORE = 4;
+uniform float swing;
 
 void vertex() {
 	int part = int(UV2.x + 0.5);
@@ -26,11 +27,11 @@ void vertex() {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.075, -0.04), rot(vec3(0.0, 1.0, 0.0), still * 0.45 * sin(t * 0.6) * (1.0 - sit)));
 		VERTEX.y += sit * 0.003 * sin(t * 15.0);
 	} else if (part == PART_HIND) {
-		VERTEX.z += gait * 0.03 * cos(c);
-		VERTEX.y += gait * 0.008 * max(-sin(c), 0.0);
-	} else if (part == PART_FORE) {
-		VERTEX.z -= gait * 0.03 * cos(c);
+		VERTEX.z += gait * swing * cos(c);
 		VERTEX.y += gait * 0.008 * max(sin(c), 0.0);
+	} else if (part == PART_FORE) {
+		VERTEX.z -= gait * swing * cos(c);
+		VERTEX.y += gait * 0.008 * max(-sin(c), 0.0);
 	}
 	if (part != PART_HIND) {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.02, 0.05), rot(vec3(1.0, 0.0, 0.0), sit * 1.05));

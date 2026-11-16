@@ -347,6 +347,12 @@ func _ducks_come_only_to_ponds() -> void:
 		walker.families[-1].leader().free()
 		walker.families.pop_back()
 	check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
+	var slide := 0.0
+	for d: Duck in walker.families[0].ducks:
+		var m: ShaderMaterial = d.material_override
+		var body: float = d.walk_speed() / (2.0 * m.get_shader_parameter("step_rate") * d.pace)
+		slide = maxf(slide, absf(body - 2.0 * m.get_shader_parameter("swing") * d.size))
+	check(slide < 1e-6, "each walking duck's planted foot keeps its ground, sliding %.4f m a step" % slide)
 	var entered := [Wildlife.State.ENTER, false]
 	_run(walker, 90.0, func() -> void:
 		var now: Wildlife.State = walker.families[0].state

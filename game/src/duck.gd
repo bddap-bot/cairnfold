@@ -12,8 +12,8 @@ const EYE := Color(0.05, 0.04, 0.05)
 const CHICK := Color(1.0, 0.84, 0.36)
 const CHICK_WING := Color(0.98, 0.78, 0.30)
 const CHICK_SIZE := 0.6
-## Metres per second for a grown duck at the shader's step rate, so planted feet stay put.
-const STRIDE_SPEED := 0.21
+const STEP_RATE := 1.5
+const SWING := 0.035
 const IDLE := Vector4(1, 0, 0, 0)
 const PADDLE := Vector4(0, 1, 0, 0)
 const WADDLE := Vector4(0, 0, 1, 0)
@@ -38,6 +38,8 @@ static func _kind(chick: bool) -> String:
 
 func _init(chick: bool, phase: float) -> void:
 	super(_kind(chick), build.bind(chick), SHADER, BLEND, phase, HandStop.Surface.DOWN)
+	material_override.set_shader_parameter("step_rate", STEP_RATE)
+	material_override.set_shader_parameter("swing", SWING)
 	size = CHICK_SIZE if chick else 1.0
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size
@@ -53,7 +55,7 @@ func peck(target: float, delta: float) -> void:
 
 
 func walk_speed() -> float:
-	return STRIDE_SPEED * size * pace
+	return 4.0 * SWING * STEP_RATE * size * pace
 
 
 static func build(chick: bool) -> ArrayMesh:

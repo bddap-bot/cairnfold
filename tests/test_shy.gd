@@ -173,7 +173,15 @@ func _squirrels() -> void:
 	var trunk: Flora.Plant = q.home
 	var states := {}
 	var off_bark := [0.0]
+	var swing: float = squirrels.crowd.material_override.get_shader_parameter("swing")
+	var was := [q.state, q.position, q.stride]
+	var slide := [0.0, 0]
 	var watch := func() -> void:
+		if q.state == Squirrels.State.RUN and was[0] == Squirrels.State.RUN and q.stride != was[2]:
+			var ran := Vector2(q.position.x - was[1].x, q.position.z - was[1].z).length()
+			slide[0] = maxf(slide[0], absf(ran / (q.stride - was[2]) - 4.0 * swing))
+			slide[1] += 1
+		was.assign([q.state, q.position, q.stride])
 		states[q.state] = true
 		if q.state in [Squirrels.State.CLIMB, Squirrels.State.CLING]:
 			var foot := trunk.foot()
@@ -182,6 +190,7 @@ func _squirrels() -> void:
 	g.run(240.0, watch)
 	check(states.size() == Squirrels.State.size(), "it climbs, clings, runs and forages: %s" % [states.keys()])
 	check(off_bark[0] < 0.01, "on the trunk it keeps to the bark: %.3f m off" % off_bark[0])
+	check(slide[1] > 0 and slide[0] < 1e-4, "running, it bounds as far as its feet sweep: %.4f m off a bound over %d frames" % slide)
 	while q.state != Squirrels.State.FORAGE:
 		g.run(STEP)
 	var hand := g.rig.hands[0]
