@@ -1128,10 +1128,11 @@ func emission(key: String) -> Dictionary:
 	var drawn := _drawn(key)
 	if drawn.is_empty():
 		return {}
-	var colour: Color = ExpressionPlayer.theme_colour(drawn.theme, 0.0) if not drawn.theme.is_empty() else drawn.colour
+	var mixed := _mixed(key)
+	var colour: Color = Color.WHITE if mixed else ExpressionPlayer.theme_colour(drawn.theme, 0.0) if not drawn.theme.is_empty() else drawn.colour
 	if colour.r + colour.g + colour.b == 0.0 and drawn.theme.is_empty():
 		return {}
-	var out := {"color": [colour.r, colour.g, colour.b], "strength": drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": drawn.replace}
+	var out := {"color": [colour.r, colour.g, colour.b], "strength": _peak(key) if mixed else drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": drawn.replace}
 	if not drawn.theme.is_empty():
 		out.theme = drawn.theme.slot
 	return out
@@ -1159,13 +1160,15 @@ func _poiyomi_glows(key: String) -> Array[Dictionary]:
 		var n := "" if slot == 0 else str(slot)
 		if _saved(m, "_EnableEmission" + n, 0.0) == 0.0:
 			continue
-		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionBaseColorAsMap" + n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionBlinkingEnabled" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
+		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionBaseColorAsMap" + n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
 		if not still.all(func(name: String) -> bool: return _float(m, name) == 0.0) or not global_mask(m, int(_float(m, "_EmissionMask%dGlobalMask" % slot))) is Dictionary:
 			continue
 		var index := int(_float(m, "_EmissionColor%sThemeIndex" % n)) - 1
 		var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
 		var colour := shader_colour(m, "_EmissionColor" + n, Color.WHITE)
 		var strength := _saved(m, "_EmissionStrength" + n, 0.0)
+		if _float(m, "_EmissionBlinkingEnabled" + n) != 0.0 and not (slot == 0 and strength_driven.has(key)):
+			strength *= (_saved(m, "_EmissiveBlink_Min" + n, 0.0) + _saved(m, "_EmissiveBlink_Max" + n, 1.0)) / 2.0
 		out.append({"slot": slot, "strength": strength if slot == 0 and strength_driven.has(key) else _audio_link_strength(m, slot, strength), "replace": _saved(m, "_EmissionReplace%d" % slot, 0.0), "theme": theme, "colour": colour})
 	return out
 
@@ -1186,13 +1189,26 @@ static func _audio_link_strength(m: Dictionary, slot: int, strength: float) -> f
 	return strength + range_of.call("_AudioLinkEmission%dCenterOut" % slot, Color(0, 0, 0, 0)).r
 
 
-## Emissions folding into `_drawn`'s, as [slot, strength over the drawn one's].
+## Emissions folding into `_drawn`'s, as [slot, weight per channel]; `_mixed` colours fold in and `emission` draws white.
 func _folded(key: String) -> Array:
 	var drawn := _drawn(key)
 	if drawn.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
-		return [] if drawn.is_empty() else [[drawn.slot, 1.0]]
-	var alike := func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.strength > 0.0 and (g.theme.get("slot") == drawn.theme.slot if not drawn.theme.is_empty() else g.theme.is_empty() and g.colour.is_equal_approx(drawn.colour))
-	return _poiyomi_glows(key).filter(alike).map(func(g: Dictionary) -> Array: return [g.slot, g.strength / drawn.strength])
+		return [] if drawn.is_empty() else [[drawn.slot, Color.WHITE]]
+	if _mixed(key):
+		return _alike(key).map(func(g: Dictionary) -> Array: return [g.slot, g.colour * g.strength])
+	return _alike(key).filter(func(g: Dictionary) -> bool: return not drawn.theme.is_empty() or g.colour.is_equal_approx(drawn.colour)).map(func(g: Dictionary) -> Array: return [g.slot, Color.WHITE * (g.strength / drawn.strength)])
+
+
+func _alike(key: String) -> Array:
+	var drawn := _drawn(key)
+	return _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot"))
+
+
+func _mixed(key: String) -> bool:
+	var drawn := _drawn(key)
+	if drawn.is_empty() or not drawn.theme.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
+		return false
+	return _alike(key).any(func(g: Dictionary) -> bool: return not g.colour.is_equal_approx(drawn.colour))
 
 
 ## In linear light, as VRChat's projects are: Unity converts each colour it hands a shader, but a locked (Thry's)
@@ -1234,7 +1250,7 @@ func _glow_and_peak(key: String) -> Array:
 			sum.resize(data.size())
 		for i in data.size():
 			if i % 4 != 3:
-				sum[i] += _LINEAR[data[i]] * fold[1]
+				sum[i] += _LINEAR[data[i]] * (fold[1] as Color)[i % 4]
 				peak = maxf(peak, sum[i])
 	var out := map.get_data()
 	for i in out.size():

@@ -60,6 +60,7 @@ func _run() -> void:
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_lighting_moves_only_where_its_shader_reads_it()
 	_poiyomi_emissions_in_one_colour_add_up()
+	_poiyomi_emissions_in_two_colours_add_up()
 	_untinted_multilayer_math_lights_flat()
 	_skin_its_shade_reaches_lights_flat()
 	_a_theme_colours_offsets_bind_to_what_is_drawn_in_it()
@@ -1948,17 +1949,19 @@ func _poiyomi_emission_glows_by_its_mask_and_theme() -> void:
 	var glows := materials.emission("suit")
 	var colour: Array = glows.get("color", [0, 0, 0])
 	check(Color(colour[0], colour[1], colour[2]).is_equal_approx(Color(0, 0, 0.5)) and glows.get("strength") == 3.0 and not glows.get("shiftsHue", true) and glows.get("replace") == 1.0, "the emission takes its theme colour, value moved by its offset, its strength and how far it overrides the base colour: %s" % [glows])
-	check(materials.emission("blink").is_empty(), "an emission that blinks over time is left out")
+	check(materials.emission("blink").get("strength") == 1.5, "an emission that blinks over time glows at its mean, halfway between its blink's floor and peak: %s" % [materials.emission("blink")])
+	materials.drive_strength("blink")
+	check(materials.emission("blink").get("strength") == 3.0, "a blinking first emission whose strength a clip moves rests at its saved strength, as the clip's keys bind: %s" % [materials.emission("blink")])
 	check(materials.emission("tinted").is_empty(), "an emission tinted by the base colour, which decals and hue shifts change after the atlas, is left out")
 	var looks := materials.looks()
-	check((looks.get("materials", []) as Array).map(func(e: Dictionary) -> bool: return e.emission != null) == [true], "a material dark at rest that no animation lights draws no look")
+	check((looks.get("materials", []) as Array).map(func(e: Dictionary) -> bool: return e.emission != null) == [true, true], "a material dark at rest that no animation lights draws no look")
 	var glow: Image = looks.get("emission")
 	check(glow != null, "the emission map is an image")
 	if glow != null:
 		var cell: Rect2i = materials.materials.suit.cell
 		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
 		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
-		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.blink.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
+		check(left.r < 0.1 and right.r > 0.9 and glow.get_pixelv(materials.materials.dark.cell.get_center()) == Color.BLACK, "the emission map is the mask's chosen channel over the glowing material only: %s %s" % [left, right])
 
 
 func _poiyomi_emissions_in_one_colour_add_up() -> void:
@@ -2040,6 +2043,71 @@ func _poiyomi_emissions_in_one_colour_add_up() -> void:
 		check(at.call("toggled", false) > 0.99 and at.call("toggled", true) < 0.01, "a first emission a clip lights folds nothing: %s %s" % [at.call("toggled", false), at.call("toggled", true)])
 		check(absf(at.call("strong", false) - 1.0) < 0.01, "the map peaks at 1 where the emissions add up most: %s" % [at.call("strong", false)])
 		check(at.call("ears", false) < 0.01 and absf(at.call("ears", true) - 1.0) < 0.01, "the ears' map is the drawn emission's mask alone, the moving one left out: %s %s" % [at.call("ears", false), at.call("ears", true)])
+
+
+func _poiyomi_emissions_in_two_colours_add_up() -> void:
+	var dir := ProjectSettings.globalize_path("user://two_glows")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _EmissionStrength ("Strength", Range(0, 20)) = 0 } }')
+	write.call("pair.mat", "pair", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMask:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: 1
+    - _EmissionBlinkingEnabled: 1
+    - _EmissiveBlink_Min: 1
+    - _EmissiveBlink_Max: 3
+    - _EnableEmission1: 1
+    - _EmissionStrength1: 2
+    m_Colors:
+    - _EmissionColor: {r: 1, g: 0, b: 0, a: 1}
+    - _EmissionColor1: {r: 1, g: 1, b: 0, a: 1}
+""")
+	write.call("dark.mat", "dark", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMask:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: 1
+    - _EmissionBlinkingEnabled: 1
+    - _EmissiveBlink_Min: 1
+    - _EmissiveBlink_Max: 3
+    - _EnableEmission1: 1
+    - _EmissionStrength1: 2
+    m_Colors:
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissionColor1: {r: 1, g: 1, b: 0, a: 1}
+""")
+	var half := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	half.set_pixel(0, 0, Color(1, 0, 0, 1))
+	half.set_pixel(1, 0, Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "pair"}, Color.WHITE)
+	materials.use({"guid": "dark"}, Color.WHITE)
+	materials.pack(["pair", "dark"])
+	var dark := materials.emission("dark")
+	check(dark.get("color") == [1.0, 1.0, 1.0] and is_equal_approx(dark.get("strength", 0.0), 2.0), "a black first emission beside a lit one of another colour still draws the lit one: %s" % [dark])
+	var pair := materials.emission("pair")
+	check(pair.get("color") == [1.0, 1.0, 1.0] and is_equal_approx(pair.get("strength", 0.0), 4.0), "emissions in two colours draw white at the strength their sum peaks at where both glow: %s" % [pair])
+	var glow: Image = materials.looks().get("emission")
+	check(glow != null, "the emission map is an image")
+	if glow != null:
+		var cell: Rect2i = materials.materials.pair.cell
+		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2).srgb_to_linear()
+		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2).srgb_to_linear()
+		check(absf(left.r - 1.0) < 0.01 and absf(left.g - 0.5) < 0.01 and absf(right.r - 0.5) < 0.01 and absf(right.g - 0.5) < 0.01 and left.b < 0.01, "each emission's colour and strength fold into the map, the blinking one at its mean: %s %s" % [left, right])
 
 
 ## Poiyomi's Multilayer Math takes the direct light on the shadow side where every shadow layer is white.
