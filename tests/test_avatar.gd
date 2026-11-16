@@ -775,6 +775,7 @@ func _a_switch_stops_and_restarts_a_chain_as_vrchat_does(early: bool) -> void:
 	var physbone := {"version": "1.1", "integration": "simplified", "pull": 0.2, "spring": 0.2, "stiffness": 0.2, "gravity": 0.0, "gravityFalloff": 0.0, "immobile": 0.0, "immobileType": "allMotion", "maxSquish": 0.0, "maxStretch": 0.0, "stretchMotion": 0.0, "radius": [0.0, 0.02]}
 	var collider := {"node": 2, "shape": {"sphere": {"offset": [0, -0.03, 0.1], "radius": 0.02}}}
 	var definition := SpringDefinition.read({"nodes": [{}, {}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [{"node": 0, "extras": {"physbone": physbone}}, {"node": 1}], "colliderGroups": [0]}], "colliders": [collider], "colliderGroups": [{"colliders": [0]}]}}})
+	definition.springs[0].drawn_by = []
 	var clip := func(value: float) -> Dictionary: return {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, value]]}]}
 	model.set_meta("expressions", {"parameters": [{"name": "Tail", "type": "bool", "default": 0.0, "saved": true}], "targets": [{"effect": "switch", "default": 1.0}], "clips": [clip.call(0.0), clip.call(1.0)],
 		"layers": [{"weight": 1.0, "default": 0, "states": [
@@ -832,6 +833,7 @@ func _a_settled_joint_swings_about_its_authored_rotation() -> void:
 	var physbone := {"version": "1.1", "integration": "simplified", "pull": 0.2, "spring": 0.2, "stiffness": 0.2, "gravity": 0.0, "gravityFalloff": 0.0, "immobile": 0.0, "immobileType": "allMotion", "maxSquish": 0.0, "maxStretch": 0.0, "stretchMotion": 0.0, "radius": [0.0, 0.0]}
 	var definition := SpringDefinition.read({"nodes": [{}, {}, {}], "extensions": {"VRMC_springBone": {"springs": [{"joints": [{"node": 0, "extras": {"physbone": physbone}}, {"node": 1}]}]}}})
 	definition.springs[0].joints[0].authored = Quaternion.IDENTITY
+	definition.springs[0].drawn_by = []
 	var a := Avatar.new()
 	a._model = model
 	a.springs = SpringRuntime.new(definition, {0: bone, 1: tail, 2: anchor})

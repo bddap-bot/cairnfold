@@ -81,7 +81,7 @@ func _init(definition: Dictionary, skeleton: Skeleton3D, expressions: Expression
 	_expressions = expressions
 	process_priority = 2
 	var data: Dictionary = expressions.state.data if expressions != null else {}
-	var meshes: Array = definition.get("meshes", [])
+	var meshes: Array = definition.meshes
 	for d: Dictionary in definition.get("systems", []):
 		var s := System.new()
 		s.definition = d.duplicate(true)

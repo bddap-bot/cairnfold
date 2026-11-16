@@ -549,7 +549,7 @@ static func running(chains: Array, drawn: Callable, off := {}) -> Dictionary:
 	var shown := {}
 	for c: int in order:
 		shown[c] = drawn.call(c)
-	order.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else chains[x].get("length", 0.0) > chains[y].get("length", 0.0))
+	order.sort_custom(func(x: int, y: int) -> bool: return shown[x] if shown[x] != shown[y] else chains[x].length > chains[y].length)
 	var run := {}
 	var joints := 0
 	for i: int in order:
@@ -570,9 +570,7 @@ func _budget() -> void:
 	var sources: Array = springs.chains.map(func(chain: Dictionary) -> Dictionary: return chain.source)
 	var off := _off(expressions.state.outputs) if expressions != null else {}
 	var drawn := func(c: int) -> bool:
-		return (sources[c].get("drawn_by", []) as Array).any(func(p: NodePath) -> bool:
-			var mesh := _model.get_node_or_null(p)
-			return mesh != null and _shown(mesh, _model))
+		return (sources[c].drawn_by as Array).any(func(p: NodePath) -> bool: return _shown(_model.get_node(p), _model))
 	var run := running(sources, drawn, off)
 	springs.idle.clear()
 	for i in springs.chains.size():
@@ -1009,8 +1007,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	for dir: String in Vrm.LOOKS:
 		var sets := []
 		for b: Array in look.shapes.get(dir, []):
-			var mi := a._model.get_node_or_null(b[0]) as MeshInstance3D
-			if mi and b[1] < mi.get_blend_shape_count():
+			var mi := a._model.get_node(b[0]) as MeshInstance3D
+			if b[1] < mi.get_blend_shape_count():
 				sets.append([mi, b[1], b[2]])
 		a._shapes.append(sets)
 	var names: Array[String] = []

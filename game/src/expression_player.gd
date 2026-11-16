@@ -619,7 +619,9 @@ static func shader_for(base: BaseMaterial3D, turned: bool, coated := false, toon
 	if base != null and base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 		way = 2 if base.depth_draw_mode == BaseMaterial3D.DEPTH_DRAW_ALWAYS else 1
 	var both := base != null and base.cull_mode == BaseMaterial3D.CULL_DISABLED
-	return load("res://src/expression%s%s%s%s%s.gdshader" % [["", "_blended", "_blended_depth"][way], "_hue" if turned else "", "_coat" if coated else "", "_toon" if tooned else "", "_two_sided" if both else ""])
+	var shader: Shader = load("res://src/expression%s%s%s%s%s.gdshader" % [["", "_blended", "_blended_depth"][way], "_hue" if turned else "", "_coat" if coated else "", "_toon" if tooned else "", "_two_sided" if both else ""])
+	assert(shader != null)
+	return shader
 
 
 ## Only a mesh that needs hue turns, a clear coat or a toon look gets those shaders: compiled in, each costs Quest 2 GPU
