@@ -497,7 +497,7 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_sent[_next_token].done = done
 	if multiplayer.is_server():
 		_enqueue(cmd, me(), _order.bind(cmd, me()))
-	elif cmd.get("op") in ["undo", "redo"] or fits(cmd):
+	elif cmd.op in ["undo", "redo"] or fits(cmd):
 		_propose.rpc_id(1, cmd)
 	else:
 		_turned_down(_next_token, OVER)

@@ -145,6 +145,10 @@ func _a_visited_garden_is_not_kept() -> void:
 	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
 	await flushed()
 	check(FileAccess.get_file_as_bytes(path) == home, "a garden we visit is not written over our own")
+	var token := world._next_token + 1
+	world.undo()
+	check(world._sent.has(token), "a visitor's undo is proposed to the host")
+	world._sent.erase(token)
 	client.close()
 	main.multiplayer.multiplayer_peer = real
 
