@@ -28,7 +28,22 @@ func _run() -> void:
 		var share := _darker(lit, flat)
 		print("rung %d: the photo is darker than without its sun's shadows on %.1f%% of it" % [n, share * 100.0])
 		check(share >= SHADED, "a photo at rung %d has cast shadows: darker on %.1f%% of it than without them, not %.0f%%" % [n, share * 100.0, SHADED * 100.0])
+	_sweep()
 	finish()
+
+
+func _sweep() -> void:
+	var folder := OS.get_cache_dir().path_join("cairnfold-shadow-sweep-%d" % OS.get_process_id())
+	OS.set_environment("CAIRNFOLD_SHADOW_OUT", folder)
+	var said := []
+	var code := OS.execute("timeout", ["300", OS.get_executable_path(), "--path", ProjectSettings.globalize_path("res://"), "--xr-mode", "off", "--fixed-fps", "60",
+		"--resolution", "64x64", "--script", ProjectSettings.globalize_path("res://../scripts/shadows.gd")], said, true)
+	var made := Array(DirAccess.get_files_at(folder))
+	var swept := range(-40, 41, 10).all(func(yaw: int) -> bool: return made.has("shadow-yaw-%d.json" % yaw) and made.has("shadow-yaw-%d-eye-0.png" % yaw))
+	check(code == 0 and swept and not said[0].contains("SCRIPT ERROR"), "scripts/shadows.gd captures every yaw of its sweep: exit %d, %s\n%s" % [code, made, said[0].right(4000)])
+	for name in made:
+		DirAccess.remove_absolute(folder.path_join(name))
+	DirAccess.remove_absolute(folder)
 
 
 static func _darker(a: Image, b: Image) -> float:
