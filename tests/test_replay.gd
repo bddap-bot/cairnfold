@@ -119,6 +119,12 @@ func _initialize() -> void:
 		"the record holds the headset leaving focus and coming back")
 	var unfiled := Replay.read(chunk)
 	check(Session.sha256(file) in unfiled.get("error", ""), "without the folder holding the file worn, the record is refused, naming it: %s" % unfiled.get("error"))
+	var other := _copy(chunk, "other-events", func(e: Dictionary) -> Dictionary:
+		if e.event == "start":
+			e.events = Replayer.events() + 1
+		return e)
+	check("deliver" in Replay.read(other, avatars).get("error", ""), "a record whose events and messages this build delivers otherwise is refused: %s" % Replay.read(other, avatars).get("error"))
+	_every_event_heard_is_delivered()
 	check(record.seeds.wildlife == str(TOP_BIT_SEED), "the wildlife grew from the seed given, top bit and all: %s" % record.seeds.wildlife)
 	var gardens: Array = record.checks.filter(func(c: Dictionary) -> bool: return c.has("garden"))
 	check(record.checks.size() > 5 and gardens.size() >= 2 and gardens[-1].seq == garden.seq,
@@ -204,6 +210,22 @@ func _initialize() -> void:
 	main.queue_free()
 	await process_frame
 	finish()
+
+
+func _every_event_heard_is_delivered() -> void:
+	var delivered := Array(Replayer.delivered())
+	for s: Script in [World, Session]:
+		delivered.append_array(s.get_rpc_config().keys())
+	var heard := RegEx.create_from_string("hear\\(([^\\[\\n]*),\\s*\\[")
+	var named := RegEx.create_from_string("\"([^\"]+)\"")
+	var lost := []
+	for file in DirAccess.get_files_at("res://src"):
+		if file.ends_with(".gd"):
+			for call in heard.search_all(FileAccess.get_file_as_string("res://src".path_join(file))):
+				for name in named.search_all(call.get_string(1)):
+					if name.get_string(1) not in delivered:
+						lost.append("%s %s" % [file, name.get_string(1)])
+	check(lost.is_empty() and delivered.size() > 20, "every event the game hears is one a replay delivers: %s" % [lost])
 
 
 func _copy(chunk: String, name: String, change: Callable) -> String:

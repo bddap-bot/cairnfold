@@ -132,6 +132,8 @@ static func read(path: String, avatars := "") -> Dictionary:
 						return {"error": "%s is a record of schema %s, this build reads schema %d" % [path, e.get("schema"), PlayLog.SCHEMA]}
 					if e.input.merged({"inputs": null}, true) != frame_layout:
 						return {"error": "%s lays its frames out as this build does not under the same schema: a new frame takes a new PlayLog.SCHEMA" % path}
+					if e.get("events") != Replayer.events():
+						return {"error": "%s holds events and messages as this build does not deliver them: %s, this build %d" % [path, e.get("events"), Replayer.events()]}
 					out.revision = e.revision
 					out.inputs = e.input.inputs
 				"replay":

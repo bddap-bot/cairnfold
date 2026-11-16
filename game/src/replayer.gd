@@ -4,6 +4,8 @@ extends MultiplayerAPIExtension
 ## Plays a session record (Main's --replay) in place of the headset's runtime and the network; see docs/replay.md.
 signal finished
 
+const DELIVER := "_deliver_"
+
 var record: Dictionary
 var _main: Main
 var _frame := 0
@@ -182,39 +184,83 @@ func _let_go() -> void:
 ## The garden is the record's, never the tools' (World.replayed), so a proposal is only the order that follows it. The
 ## input redoes what this machine did itself, except what the network decided and the id it played as.
 func _deliver(m: Array) -> void:
-	var whose: int = m[2]
-	match m[3]:
-		"ordered", "_commit":
-			_main.world._commit(m[4][0])
-		"_propose":
-			pass
-		"peer_connected":
-			_peers.append(whose)
-			peer_connected.emit(whose)
-		"peer_disconnected":
-			if whose in _peers:
-				_peers.remove_at(_peers.find(whose))
-			peer_disconnected.emit(whose)
-		"look":
-			var file: Variant = m[4][0]
-			var key: String = file.sha256 if file is Dictionary else ""
-			var bytes: PackedByteArray = record.avatars[key] if key != "" else PackedByteArray()
-			_main.session.put_on(Avatar.read(bytes) if key != "" else null, key, bytes, m[4][1], m[4][2])
-		"paused", "resumed":
-			_main.held(m[3] == "paused")
-		"join":
-			_id = _joined_as()
-		"home":
-			_id = 1
-		"connected":
-			connected_to_server.emit()
-		"dropped":
-			_id = 1
-			server_disconnected.emit()
-		_ when m[1] != 0:
-			_sender = m[1]
-			(_main.world if _main.world.has_method(m[3]) else _main.session).callv(m[3], m[4].map(_unfiled))
-			_sender = 0
+	var local: String = DELIVER + m[3]
+	if has_method(local):
+		call(local, m)
+	elif m[1] != 0:
+		_sender = m[1]
+		(_main.world if _main.world.has_method(m[3]) else _main.session).callv(m[3], m[4].map(_unfiled))
+		_sender = 0
+	else:
+		push_error("replay: the record holds a %s, which this build does not deliver" % m[3])
+
+
+static func delivered() -> PackedStringArray:
+	var out := PackedStringArray()
+	for f in (Replayer as Script).get_script_method_list():
+		if f.name.begins_with(DELIVER):
+			out.append(f.name.trim_prefix(DELIVER))
+	out.sort()
+	return out
+
+
+static func events() -> int:
+	return Session.fingerprint([World, Session], World.FORMAT, [delivered()])
+
+
+func _deliver_ordered(m: Array) -> void:
+	_main.world._commit(m[4][0])
+
+
+func _deliver__commit(m: Array) -> void:
+	_main.world._commit(m[4][0])
+
+
+func _deliver__propose(_m: Array) -> void:
+	pass
+
+
+func _deliver_peer_connected(m: Array) -> void:
+	_peers.append(m[2])
+	peer_connected.emit(m[2])
+
+
+func _deliver_peer_disconnected(m: Array) -> void:
+	if m[2] in _peers:
+		_peers.remove_at(_peers.find(m[2]))
+	peer_disconnected.emit(m[2])
+
+
+func _deliver_look(m: Array) -> void:
+	var file: Variant = m[4][0]
+	var key: String = file.sha256 if file is Dictionary else ""
+	var bytes: PackedByteArray = record.avatars[key] if key != "" else PackedByteArray()
+	_main.session.put_on(Avatar.read(bytes) if key != "" else null, key, bytes, m[4][1], m[4][2])
+
+
+func _deliver_paused(_m: Array) -> void:
+	_main.held(true)
+
+
+func _deliver_resumed(_m: Array) -> void:
+	_main.held(false)
+
+
+func _deliver_join(_m: Array) -> void:
+	_id = _joined_as()
+
+
+func _deliver_home(_m: Array) -> void:
+	_id = 1
+
+
+func _deliver_connected(_m: Array) -> void:
+	connected_to_server.emit()
+
+
+func _deliver_dropped(_m: Array) -> void:
+	_id = 1
+	server_disconnected.emit()
 
 
 ## A file the record kept only as its hash (PlayLog._without_files) arrives as no file.

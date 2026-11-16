@@ -373,7 +373,7 @@ static func fingerprint(scripts: Array[Script], format: int, lists := numbered()
 		var rpcs: Dictionary = s.get_rpc_config()
 		for m in s.get_script_method_list():
 			if rpcs.has(m.name):
-				parts.append("%s.%s/%d %s" % [s.get_global_name(), m.name, m.args.size(), rpcs[m.name]])
+				parts.append("%s.%s(%s) %s" % [s.get_global_name(), m.name, ", ".join(m.args.map(func(a: Dictionary) -> String: return "%s: %s" % [a.name, type_string(a.type)])), rpcs[m.name]])
 	parts.sort()
 	return hash(parts)
 

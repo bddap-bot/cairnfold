@@ -79,9 +79,12 @@ frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
 
 ## Later builds
 
-Every chunk's start record names its build revision and its `schema` (`PlayLog.SCHEMA`): the events a record holds and
-how a frame lays out. A record of another schema, or one whose starting garden is of another `World.FORMAT`, is
-refused with the reason, as is one missing frames; one from another revision replays. A frame's inputs
+Every chunk's start record names its build revision, its `schema` (`PlayLog.SCHEMA`): how a frame lays out, and its
+`events` (`Replayer.events`): a fingerprint of the events the replay delivers, each a `Replayer._deliver_` method, and
+of every RPC of `World` and `Session` with its arguments' names and types. A record of another schema or other events
+is refused with the reason, as is one missing frames, and so is one whose starting garden is not in this build's
+`World.format()`: `World.FORMAT` and a digest of the meadow, every plant's pool and place in the order the snapshot
+numbers them. One from another revision replays. A frame's inputs
 are read by the names the record lists, so a later controls table that reads other inputs presses none it lost.
 
 What a later build changes, a replay of an earlier record shows the session under: the same head, hands, inputs,

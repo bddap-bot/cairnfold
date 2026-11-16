@@ -76,7 +76,7 @@ func _init(folder: String, armed := false) -> void:
 	var started := Time.get_unix_time_from_system()
 	session_id = "%d-%d-%d" % [started * 1000, OS.get_process_id(), Time.get_ticks_usec()]
 	metadata = {"schema": SCHEMA, "session": session_id, "started": started, "revision": Main.revision(),
-		"os": OS.get_name(), "device": OS.get_model_name(), "input": Replay.layout()}
+		"os": OS.get_name(), "device": OS.get_model_name(), "input": Replay.layout(), "events": Replayer.events()}
 	if armed:
 		take = directory.path_join(session_id + ".wav")
 		metadata.take = {"file": take.get_file(), "rate": int(AudioServer.get_mix_rate())}
