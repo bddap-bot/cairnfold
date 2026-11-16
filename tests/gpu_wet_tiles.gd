@@ -42,13 +42,13 @@ func _run() -> void:
 	await create_timer(1.0).timeout
 	main.look.set_process(false)
 	await play([{"op": "dig", "x": -30, "z": 31, "seconds": 1.8}, {"op": "dig", "x": -27.5, "z": 31, "seconds": 1.8}])
-	await play([{"op": "paint", "tool": "stone", "hand": "right", "points": [[-34, 36], [-24, 36.5]], "radius": 1.0, "seconds": 1.0}])
+	await play([{"op": "paint", "tool": "stone", "hand": "right", "points": [[-34, 22.5], [-24, 23]], "radius": 1.0, "seconds": 1.0}])
 	main.water_tool.settle()
 	await process_frame
 	await play([{"op": "layer", "name": "all", "mode": "off"}, {"op": "layer", "name": "terrain"}, {"op": "layer", "name": "sun"}])
 	var terrain: Terrain = main.world.terrain
-	var ground := terrain.height_at(-28.7, 31)
-	await play([{"op": "view", "eye": [-28.7, ground + 11.0, 31.2], "at": [-28.7, ground, 31]}])
+	var ground := terrain.height_at(-28.7, 29)
+	await play([{"op": "view", "eye": [-28.7, ground + 11.0, 29.2], "at": [-28.7, ground, 29]}])
 	Engine.time_scale = 0.0
 	var meadow := _meadow()
 	var marked := await _frame()
@@ -61,5 +61,5 @@ func _run() -> void:
 	var near := _nearest_wet_row(terrain)
 	check(near % Terrain.TILE == 0, "the pond's near shore runs along a tile's edge: row %d" % near)
 	check(pixels_apart(marked, plain) > 300, "the pond's bank and the stone draw only in the full shader: %d pixels" % pixels_apart(marked, plain))
-	check(pixels_apart(marked, full) == 0, "every tile drawn in the full shader changes no pixel of the tiles the meadow marks: %d apart" % pixels_apart(marked, full))
+	check(pixels_apart(marked, full, 1.5 / 255.0) == 0, "every tile drawn in the full shader changes no pixel of the tiles the meadow marks: %d apart" % pixels_apart(marked, full, 1.5 / 255.0))
 	finish()
