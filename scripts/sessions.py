@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""sessions.py DIR [--last N] [--json] | sessions.py DIR --replayed METRICS.json
+"""sessions.py DIR [--last N] [--json] [--frames] | sessions.py DIR --replayed METRICS.json
 
 Summarises PlayLog's JSONL chunks at any depth under DIR, oldest first. Paused time is the headset off or the app in
 the background. --replayed takes a --replay run's --metrics file (as bench.sh's CAIRNFOLD_REPLAY writes it) and prints
-its per-activity timing beside the recorded."""
+its per-activity timing beside the recorded. --frames prints JSON with each session's input frames as its layout reads them."""
 import argparse
 import base64
 from datetime import datetime, timezone
@@ -22,7 +22,7 @@ MAIN_PHASES = json.loads(re.search(r"^const MAIN_PHASES := (\[.*\])$", METRICS, 
 STALLS_SHOWN = 20
 
 
-def read(folder):
+def read(folder, decoded=False):
     folder = Path(folder).resolve()
     sessions = {}
     for chunk in sorted(folder.rglob("*.jsonl")):
@@ -60,7 +60,8 @@ def read(folder):
             continue
         rows = sorted(s["rows"], key=lambda r: r.get("unix") or 0)
         out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows)
-                   | {"replay": replay(s), "net": net(s), "take": take(s, folder)})
+                   | {"replay": replay(s), "net": net(s), "take": take(s, folder)}
+                   | ({"frames": recorded(s)} if decoded else {}))
     return sorted(out, key=lambda x: x["started"])
 
 
@@ -83,6 +84,11 @@ def frames(event, layout):
     return out
 
 
+def recorded(s):
+    layout = s["start"].get("input")
+    return [f for e in sorted(s["inputs"], key=lambda e: e["first"]) for f in frames(e, layout)] if layout else []
+
+
 def take(s, folder):
     if "take" not in s:
         return None
@@ -98,7 +104,7 @@ def replay(s):
         return None
     inputs = sorted(s["inputs"], key=lambda e: e["first"])
     held = sum(e["frames"] for e in inputs)
-    played = sum(f["delta"] for e in inputs for f in frames(e, layout))
+    played = sum(f["delta"] for f in recorded(s))
     return {
         "frames": held,
         "missing": inputs[-1]["first"] + inputs[-1]["frames"] - held,
@@ -276,9 +282,10 @@ def main():
     parser.add_argument("folder")
     parser.add_argument("--last", type=int, default=0)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--frames", action="store_true")
     parser.add_argument("--replayed", metavar="METRICS.json")
     a = parser.parse_args()
-    sessions = read(a.folder)
+    sessions = read(a.folder, a.frames)
     if a.replayed:
         replayed = json.loads(Path(a.replayed).read_text())
         sid = replayed["info"].get("replayed")
@@ -294,7 +301,7 @@ def main():
     if not sessions:
         print(f"sessions: none under {a.folder}", file=sys.stderr)
         return 1
-    print(json.dumps(sessions, indent=1) if a.json else "\n".join(text(s) for s in sessions))
+    print(json.dumps(sessions, indent=1) if a.json or a.frames else "\n".join(text(s) for s in sessions))
     return 0
 
 
