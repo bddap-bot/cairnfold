@@ -88,7 +88,7 @@ func _init(builder: WallTool, flora_tool: FloraTool, player: Rig, land: Terrain,
 		_songs.append(load("res://audio/birds/song%d.ogg" % i))
 	for i in HOOTS:
 		_hoots.append(load("res://audio/birds/hoot%d.ogg" % i))
-	assert(not (_songs + _hoots).has(null))
+	assert((_songs + _hoots).all(func(s: AudioStream) -> bool: return s != null))
 	bird.unit_size = Calls.UNIT
 	bird.max_db = 0.0
 	bird.max_distance = 60.0
